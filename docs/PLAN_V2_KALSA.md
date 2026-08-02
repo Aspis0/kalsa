@@ -3,7 +3,7 @@
 Stato fasi: ✅ fatto · 🔄 in corso · ⬜ da fare
 Modalità di lavoro: **main agent = orchestrazione** (piano, istruzioni ai coder, verifica, review) — **nessun coding diretto**. Ogni fase: 1 coder subagent → verifica tsc → **review ostile** (1 reviewer) → fix via coder → commit.
 
-Ultimo aggiornamento: 2026-08-02
+Ultimo aggiornamento: 2026-08-02 — **TUTTE LE FASI COMPLETATE, APK Kalsa-v4 consegnato** (SHA 0aabfec1), report E2E: docs/TEST_KALSA_V2_2026-08-02.md
 
 ---
 
@@ -58,7 +58,7 @@ Ultimo aggiornamento: 2026-08-02
 - Accesso: drawer → Help; testo nei file i18n (Fase 2)
 - Done: help completo e leggibile in entrambe le lingue
 
-## Fase 8 — E2E emulatore + APK finale ⬜
+## Fase 8 — E2E emulatore + APK finale ✅
 **Obiettivo:** test completo su AVD (Pixel_7a) + report + APK Kalsa v2 consegnato.
 - Test: download modello, streaming, tool loop (provider attivo), **lingua (switch EN→IT → risposte in italiano)**, settings (key persistono dopo kill/restart), quiz miniapp, drawer/settings navigazione, onestà prompt
 - Report: `docs/TEST_KALSA_V2_<data>.md` (screenshot + bug con fix)
