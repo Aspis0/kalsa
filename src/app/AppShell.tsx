@@ -44,6 +44,11 @@ export function AppShell() {
   const [modelError, setModelError] = useState<string | null>(null);
   const currentModel = MODEL_REGISTRY[modelIndex];
 
+  // Guard sincrone per download/switch (non soggette al batching di React).
+  const downloadInFlight = useRef(false);
+  const downloadAbortRef = useRef<AbortController | null>(null);
+  const engineGenerationRef = useRef(0);
+
   const showNotice = useCallback((value: string) => {
     setNotice(value);
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
@@ -53,6 +58,8 @@ export function AppShell() {
   useEffect(() => {
     return () => {
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
+      downloadAbortRef.current?.abort();
+      downloadAbortRef.current = null;
       void disposeEngine();
     };
   }, []);
@@ -77,44 +84,79 @@ export function AppShell() {
   const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
     if (isEngineReady() && getActiveModelId() === model.id) return true;
     if (!(await isModelDownloaded(model))) return false;
+    const generation = engineGenerationRef.current;
     setModelState("loading");
-    await initEngine(modelLocalPath(model), model.id);
-    setModelState("ready");
-    return true;
+    try {
+      await initEngine(modelLocalPath(model), model.id);
+      if (generation !== engineGenerationRef.current) return false;
+      setModelState("ready");
+      return true;
+    } catch (error) {
+      if (generation !== engineGenerationRef.current) return false;
+      setModelState("error");
+      setModelError(error instanceof Error ? error.message : String(error));
+      return false;
+    }
   }, []);
 
   const selectModel = useCallback(
     (nextIndex: number) => {
+      if (modelState === "downloading" || modelState === "loading") return;
       const wrapped = (nextIndex + MODEL_REGISTRY.length) % MODEL_REGISTRY.length;
       if (wrapped === modelIndex) return;
       void disposeEngine().then(() => {
+        engineGenerationRef.current += 1;
         setModelIndex(wrapped);
         setModelState("checking");
         setModelError(null);
       });
     },
-    [modelIndex],
+    [modelIndex, modelState],
   );
 
   const startDownload = useCallback(async () => {
-    if (modelState === "downloading") return;
+    if (downloadInFlight.current || modelState === "downloading") return;
+    downloadInFlight.current = true;
+    const generation = engineGenerationRef.current;
+    const controller = new AbortController();
+    downloadAbortRef.current = controller;
     setModelState("downloading");
     setModelError(null);
     setDownload({ bytesReceived: 0, bytesTotal: currentModel.approxBytes, progress: 0 });
-    const controller = new AbortController();
     try {
-      const uri = await downloadModel(currentModel, {
-        onProgress: setDownload,
+      const outcome = await downloadModel(currentModel, {
+        onProgress: (progress) => {
+          if (generation !== engineGenerationRef.current) return;
+          setDownload(progress);
+        },
         signal: controller.signal,
       });
+      if (generation !== engineGenerationRef.current) return;
+      if (outcome.status === "aborted") {
+        setModelState("missing");
+        return;
+      }
+      if (!(await isModelDownloaded(currentModel))) {
+        setModelState("error");
+        setModelError("Download incomplete — tap to retry.");
+        return;
+      }
       setModelState("loading");
-      await initEngine(uri, currentModel.id);
+      await initEngine(outcome.uri, currentModel.id);
+      if (generation !== engineGenerationRef.current) return;
       setModelState("ready");
       showNotice(`${currentModel.name} pronto.`);
     } catch (error) {
-      if (controller.signal.aborted) return;
-      setModelState("missing");
+      if (generation !== engineGenerationRef.current) return;
+      if (controller.signal.aborted) {
+        setModelState("missing");
+        return;
+      }
+      setModelState("error");
       setModelError(error instanceof Error ? error.message : String(error));
+    } finally {
+      downloadInFlight.current = false;
+      downloadAbortRef.current = null;
     }
   }, [currentModel, modelState, showNotice]);
 
@@ -172,6 +214,7 @@ export function AppShell() {
   const progressPercent = download ? Math.round(download.progress * 100) : 0;
 
   const modelBarStatus = (() => {
+    const engineLoaded = isEngineReady();
     switch (modelState) {
       case "checking":
         return { label: "Checking…", color: colors.muted };
@@ -184,7 +227,7 @@ export function AppShell() {
       case "error":
         return { label: "Download failed — tap to retry", color: colors.bad };
       case "ready":
-        return { label: "Ready · local", color: colors.good };
+        return { label: engineLoaded ? "Ready · local" : "Downloaded", color: engineLoaded ? colors.good : colors.muted };
     }
   })();
 
@@ -243,10 +286,10 @@ export function AppShell() {
 
           <View style={{ flex: 1 }} />
 
-          {modelState === "missing" ? (
+          {modelState === "missing" || modelState === "error" ? (
             <Pressable onPress={() => void startDownload()} hitSlop={6}>
-              <Text style={[typography.bodyXs, { color: colors.accent, fontWeight: "700" }]}>
-                {modelBarStatus.label}
+              <Text style={[typography.bodyXs, { color: modelBarStatus.color, fontWeight: "700" }]}>
+                {modelState === "error" ? "Retry download" : modelBarStatus.label}
               </Text>
             </Pressable>
           ) : (
@@ -271,11 +314,6 @@ export function AppShell() {
                 </View>
               ) : null}
               {modelState === "ready" ? <LucideCheck size={14} color={colors.good} /> : null}
-              {modelState === "error" ? (
-                <Pressable onPress={() => void startDownload()} hitSlop={6}>
-                  <LucideDownload size={14} color={colors.bad} />
-                </Pressable>
-              ) : null}
               <Text style={[typography.bodyXs, { color: modelBarStatus.color }]} numberOfLines={1}>
                 {modelBarStatus.label}
               </Text>

@@ -250,6 +250,40 @@ const PDF_EXTRACT_ENDPOINT =
 const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_FILE_ATTACHMENTS = 5;
 
+/** Sanitizza lo storico persistito: ogni campo opzionale è validato, niente crash su payload corrotti. */
+function sanitizeHistoryMessages(raw: unknown): Message[] {
+  if (!Array.isArray(raw)) return [];
+  const result: Message[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const record = item as Record<string, unknown>;
+    if (typeof record.id !== "string" || !record.id) continue;
+    if (record.role !== "user" && record.role !== "assistant") continue;
+    if (typeof record.text !== "string") continue;
+    const message: Message = {
+      id: record.id,
+      role: record.role,
+      text: record.text,
+      createdAt: typeof record.createdAt === "number" ? record.createdAt : Date.now(),
+    };
+    if (record.streaming === true) message.streaming = true;
+    if (typeof record.statusLabel === "string") message.statusLabel = record.statusLabel;
+    if (Array.isArray(record.statusHistory) && record.statusHistory.every((s) => typeof s === "string")) {
+      message.statusHistory = record.statusHistory as string[];
+    }
+    if (Array.isArray(record.sources)) message.sources = record.sources as MessageSource[];
+    if (record.miniapp && typeof record.miniapp === "object") {
+      message.miniapp = record.miniapp as Message["miniapp"];
+    }
+    if (Array.isArray(record.attachments)) message.attachments = record.attachments as AttachedItem[];
+    if (Array.isArray(record.images)) message.images = record.images as ResultImage[];
+    if (Array.isArray(record.downloads)) message.downloads = record.downloads as ResultDownload[];
+    if (Array.isArray(record.ctas)) message.ctas = record.ctas as ChatCta[];
+    result.push(message);
+  }
+  return result;
+}
+
 export function AiChatPage({
   onSendStream,
   selectedRun,
@@ -277,17 +311,8 @@ export function AiChatPage({
         if (!mounted || !raw) return;
         try {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
-            const valid = parsed.filter(
-              (message) =>
-                message &&
-                typeof message === "object" &&
-                typeof message.id === "string" &&
-                typeof message.text === "string" &&
-                (message.role === "user" || message.role === "assistant"),
-            );
-            if (valid.length) setMessages(valid as Message[]);
-          }
+          const valid = sanitizeHistoryMessages(parsed);
+          if (valid.length) setMessages(valid);
         } catch {
           // storico corrotto: ignora e riparti pulito
         }
@@ -304,7 +329,13 @@ export function AiChatPage({
   useEffect(() => {
     if (!historyLoaded || !messages.length) return;
     const timer = setTimeout(() => {
-      AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(messages)).catch(() => undefined);
+      // Normalizza lo stato transitorio: niente streaming parziale persistito.
+      const clean = messages.map((message) => ({
+        ...message,
+        streaming: undefined,
+        statusHistory: undefined,
+      }));
+      AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(clean)).catch(() => undefined);
     }, 400);
     return () => clearTimeout(timer);
   }, [historyLoaded, messages]);
@@ -371,7 +402,7 @@ export function AiChatPage({
     async (text: string, currentAttachments?: AttachedItem[]) => {
       const trimmed = text.trim();
       // BLOCKER-3: synchronous ref check — not subject to React batching
-      if (!trimmed || sendingRef.current) return;
+      if (!trimmed || sendingRef.current || !historyLoaded) return;
       sendingRef.current = true;
       setSending(true);
 
@@ -515,6 +546,7 @@ export function AiChatPage({
     setSending(false);
     setMessages([]);
     setDraft("");
+    AsyncStorage.removeItem(HISTORY_KEY).catch(() => undefined);
   }, []);
 
   // ── PDF attach: pick → validate → extract → attach ──────────────────────
