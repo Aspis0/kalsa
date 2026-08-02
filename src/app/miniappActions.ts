@@ -149,7 +149,7 @@ export async function handleAskAssistantMiniappAction(
     return;
   }
 
-  // Azioni bio legacy (plate maps) rifiutate esplicitamente.
+  // Azioni bio legacy rifiutate: il formato miniapp generale non ha plate maps.
   if (actionId === "export_plate_map") {
     callbacks.setMobileError("Plate maps are not part of the general miniapp format.");
   }

@@ -192,10 +192,10 @@ function formatChatContentFilterMessage(result = {}) {
     return "I can't help with self-harm instructions. If this is urgent, contact local emergency services or a crisis support line now.";
   }
   if (reason === "child_exploitation" || reason === "sex_crimes") {
-    return "I can't help with sexual abuse or exploitation content. Please keep Aspis Bio focused on professional lab work.";
+    return "I can't help with sexual abuse or exploitation content.";
   }
   if (reason === "unsafe_bio" || reason === "unsafe_chem") {
-    return "I can't help with unsafe biological or chemical instructions. Please keep the chat focused on safe lab work.";
+    return "I can't help with unsafe biological or chemical instructions.";
   }
   if (reason === "privacy") {
     return "I can't help extract or expose secrets, credentials, or personal data.";
@@ -206,7 +206,7 @@ function formatChatContentFilterMessage(result = {}) {
   if (reason === "non_violent_crime" || reason === "violent_crime") {
     return "I can't help with instructions for illegal or harmful activity.";
   }
-  return "Please keep Aspis Bio focused on professional lab work.";
+  return "I can't help with that. Please keep the chat focused on safe, everyday topics.";
 }
 
 function normalizeFilterText(input) {

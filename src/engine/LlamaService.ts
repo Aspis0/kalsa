@@ -55,14 +55,23 @@ export function streamAssistantTurn(
     timers.push(setTimeout(tick, 60));
   };
 
+  // Contratto: QUALSIASI uscita (fine, errore, abort) deve risolvere i
+  // chiamanti esattamente una volta. Su abort puliamo i timer e chiudiamo
+  // con onDone (la UI interrompe lo streaming e sblocca il composer).
   signal?.addEventListener(
     "abort",
     () => {
       timers.forEach((timer) => clearTimeout(timer));
       timers.length = 0;
+      finish();
     },
     { once: true },
   );
+
+  if (signal?.aborted) {
+    finish();
+    return;
+  }
 
   callbacks.onStatus?.({ label: "Thinking locally" });
   timers.push(setTimeout(tick, 420));

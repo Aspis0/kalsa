@@ -15,7 +15,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Activity,
   BarChart2,
   BookOpen,
   Camera,
@@ -23,17 +22,12 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
-  Dna,
   Download,
   FileText,
-  FlaskConical,
-  GitBranch,
   Globe,
   Grid2x2,
   Image as ImageIcon,
-  Library,
   Menu,
-  Microscope,
   Plus,
   Send,
   Sparkles,
@@ -149,7 +143,7 @@ const SUGGESTIONS: SuggestionItem[] = [
   },
   {
     text: "Search the web: latest news on [topic]",
-    sub: "Websearch · needs network",
+    sub: "Websearch · coming soon (Phase 2)",
     colorKey: "accent",
     Icon: Globe,
   },
@@ -1354,7 +1348,7 @@ export function AiChatPage({
         visible={attachSheetOpen}
         onClose={() => setAttachSheetOpen(false)}
         colors={colors}
-        filesEnabled={UNIFIED_AI_CHAT && typeof getBioToken === "function"}
+        filesEnabled={false}
         pdfLoading={pdfLoading}
         onPickFile={handlePickPdf}
       />
@@ -1404,7 +1398,7 @@ function MiniappCard({
         </View>
       </View>
       <Text style={[typography.bodyXs, { color: colors.muted }]}>
-        Aspis interactive tool · tap to open
+        Interactive miniapp · tap to open
       </Text>
       <Pressable
         onPress={onOpen}

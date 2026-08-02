@@ -27,7 +27,7 @@ type Props = {
 
 // Side drawer that slides from the left. The Modal stays mounted while
 // animating closed so the slide-out is visible (open prop drives anim).
-export function Drawer({ open, onClose, brand = "Aspis Bio", subtitle, items }: Props) {
+export function Drawer({ open, onClose, brand = "AI Chat", subtitle, items }: Props) {
   const { colors } = useLabTheme<any>();
   const insets = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;

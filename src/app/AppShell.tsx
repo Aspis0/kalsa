@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { X as LucideX } from "lucide-react-native";
 
 import { AiChatPage, type ChatCta } from "../screens/AiChatPage";
@@ -25,18 +25,33 @@ import { streamAssistantTurn } from "../engine/LlamaService";
  */
 export function AppShell() {
   const { colors, styles } = useLabTheme<any>();
+  const insets = useSafeAreaInsets();
   const [activeMiniapp, setActiveMiniapp] = useState<AskAssistantMiniapp | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const assistant = useAskAssistantController();
+
+  const showNotice = useCallback((value: string) => {
+    setNotice(value);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(null), 4000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    };
+  }, []);
 
   const handleMiniappAction = useCallback(
     (action: Record<string, unknown>, miniapp: AskAssistantMiniapp) => {
       void handleAskAssistantMiniappAction(action, miniapp, {
         setAskAssistantDraft: assistant.setDraft,
-        setFeedback: () => undefined,
-        setMobileError: () => undefined,
+        setFeedback: showNotice,
+        setMobileError: (value) => showNotice(`⚠️ ${value}`),
       });
     },
-    [assistant.setDraft],
+    [assistant.setDraft, showNotice],
   );
 
   const handleSendStream = useCallback(
@@ -65,14 +80,16 @@ export function AppShell() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.shell }}>
       <PainterlyBg />
-      <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
+      {/* AiChatPage gestisce già le proprie safe-area (nav top + composer bottom). */}
+      <SafeAreaView style={{ flex: 1 }} edges={[]}>
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
             gap: spacing.sm,
             paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.sm,
+            paddingTop: insets.top + spacing.sm,
+            paddingBottom: spacing.sm,
           }}
         >
           <View style={{ flex: 1 }}>
@@ -95,6 +112,25 @@ export function AppShell() {
             getBioToken={async () => null}
           />
         </View>
+
+        {notice ? (
+          <View
+            style={{
+              position: "absolute",
+              left: spacing.lg,
+              right: spacing.lg,
+              bottom: 96,
+              backgroundColor: colors.panelSolid,
+              borderRadius: 12,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.sm,
+              borderWidth: 1,
+              borderColor: colors.line,
+            }}
+          >
+            <Text style={[typography.bodyXs, { color: colors.ink }]}>{notice}</Text>
+          </View>
+        ) : null}
 
         {assistant.open ? (
           <AskAssistantPanel

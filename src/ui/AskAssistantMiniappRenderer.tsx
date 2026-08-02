@@ -271,6 +271,21 @@ const LOCAL_ACTIONS = {
 };
 
 const TABLE_ACTION_BLOCK_TYPES = new Set(["table", "data_table", "result_table", "input_table", "editable_table"]);
+// Action legacy bio (plate/pathway editor) non più raggiungibili dal registro:
+// bloccate esplicitamente nel dispatcher runAction.
+const LEGACY_LAB_ACTION_IDS = new Set([
+  "add_sample",
+  "auto_fill_replicates",
+  "clear_plate",
+  "add_node",
+  "add_edge",
+  "rename_node",
+  "set_node_kind",
+  "set_edge_kind",
+  "move_node",
+  "delete_selected",
+  "export_plate_map",
+]);
 const WELL_CELL_CANDIDATE_KEYS = ["well", "well_id", "well-id", "wellid"];
 const SAMPLE_FIELD_CANDIDATES = ["sample", "sample_name", "sampleid", "sample_id", "sampleid", "sample name", "sample-name", "sample-id"];
 const REPLICATE_COLUMN_CANDIDATES = ["biological_replicate", "technical_replicate", "replicate", "replicate_number", "replicate-number"];
@@ -1263,7 +1278,15 @@ function getMetricValue(metric: unknown, computed: ComputedMiniapp): string {
   if (!metric || typeof metric !== "object") return "--";
   const metricRecord = metric as Record<string, unknown>;
   const metricId = toStringValue(metricRecord.id).toLowerCase();
-  const computedValue = metricId ? computed[metricId] : undefined;
+  let computedValue: unknown;
+  if (metricId) {
+    for (const [key, value] of Object.entries(computed)) {
+      if (key.toLowerCase() === metricId) {
+        computedValue = value;
+        break;
+      }
+    }
+  }
   if (typeof computedValue === "number") return formatMiniappNumber(computedValue);
   const raw = metricRecord.value;
   if (typeof raw === "number") return formatMiniappNumber(raw);
@@ -1460,7 +1483,7 @@ function FormulaTraceBlockView({ block, context }: { block: MiniappBlock; contex
       <Text style={context.styles.miniappFormulaLabel}>{toStringValue(block.title, "Formula")}</Text>
       {asArray(block.steps, MAX_TABLE_ROWS).map((step, stepIndex) => (
         <Text key={stepIndex} style={context.styles.miniappFormulaText}>
-          {toStringValue((step as Record<string, unknown>)?.expr, "E = 10^(-1 / slope) - 1")}
+          {toStringValue((step as Record<string, unknown>)?.expr, "Calculation step unavailable")}
         </Text>
       ))}
     </View>
@@ -2871,13 +2894,15 @@ export const ASK_ASSISTANT_MINIAPP_SUPPORTED_BLOCK_TYPES = Object.freeze(Object.
 
 // ── Generic block: html ──────────────────────────────────────────────────
 // Renderizza un documento HTML generato dal modello in una WebView sandbox.
-// La navigazione esterna è bloccata: i link non aprono nulla in Fase 0
-// (follow-up: aprire nel browser di sistema con consenso esplicito).
+// Sicurezza (Phase 0): JavaScript disabilitato, nessun accesso ai file,
+// nessuno storage, nessuna navigazione esterna e CSP rigida (niente risorse
+// remote, solo data: per le immagini). Fase 3: se serviranno HTML interattivi
+// (chart JS), abilitare con una policy rivista + consenso esplicito.
 function HtmlBlockView({ block, context }: { block: MiniappBlock; context: RendererContext }) {
   const html = toStringValue(block.html ?? block.source ?? "");
   const height = Math.max(160, Math.min(1200, Math.floor(Number(block.height) || 480)));
   const backgroundColor = "#0b1512";
-  const wrapped = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body{margin:0;padding:12px;background:${backgroundColor};color:#e6f0ec;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.55}img{max-width:100%}a{color:#5eead4}pre{white-space:pre-wrap;background:rgba(255,255,255,.06);padding:10px;border-radius:10px;overflow-x:auto}table{border-collapse:collapse}td,th{border:1px solid rgba(255,255,255,.18);padding:6px 10px}</style></head><body>${html}</body></html>`;
+  const wrapped = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'none'; connect-src 'none'; font-src 'none'; frame-src 'none'"><style>html,body{margin:0;padding:12px;background:${backgroundColor};color:#e6f0ec;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.55}img{max-width:100%}a{color:#5eead4}pre{white-space:pre-wrap;background:rgba(255,255,255,.06);padding:10px;border-radius:10px;overflow-x:auto}table{border-collapse:collapse}td,th{border:1px solid rgba(255,255,255,.18);padding:6px 10px}</style></head><body>${html}</body></html>`;
 
   if (!html.trim()) {
     return <Text style={context.styles.miniappFallbackText}>Empty html block</Text>;
@@ -2889,6 +2914,11 @@ function HtmlBlockView({ block, context }: { block: MiniappBlock; context: Rende
         originWhitelist={["about:", "data:"]}
         source={{ html: wrapped }}
         style={{ height, backgroundColor }}
+        javaScriptEnabled={false}
+        domStorageEnabled={false}
+        allowFileAccess={false}
+        allowFileAccessFromFileURLs={false}
+        allowUniversalAccessFromFileURLs={false}
         setSupportMultipleWindows={false}
         onShouldStartLoadWithRequest={(request) => {
           const url = request.url;
@@ -3177,6 +3207,10 @@ export function AskAssistantMiniappRenderer({
         return;
       }
 
+      if (LEGACY_LAB_ACTION_IDS.has(actionId)) {
+        setStatusText("Legacy lab actions are not part of the general miniapp format.");
+        return;
+      }
       if (applyPathwayActionLocally(action)) {
         return;
       }
@@ -3264,12 +3298,12 @@ export function AskAssistantMiniappRenderer({
       <View accessibilityLabel={`Interactive miniapp: ${localMiniapp.title}`} ref={miniappExportSurfaceRef}>
         <View style={styles.miniappHeader}>
           <View style={styles.miniappIconBadge}>
-            <Ionicons color={colors.primaryText} name="flask-outline" size={18} />
+            <Ionicons color={colors.primaryText} name="sparkles-outline" size={18} />
           </View>
           <View style={styles.flexOne}>
-            <Text style={styles.miniappEyebrow}>Interactive lab miniapp</Text>
+            <Text style={styles.miniappEyebrow}>Interactive miniapp</Text>
             <Text style={styles.miniappTitle}>{localMiniapp.title}</Text>
-            <Text style={styles.miniappSubtitle}>{localMiniapp.kind.replace(/_/g, " ")}</Text>
+            <Text style={styles.miniappSubtitle}>{String(localMiniapp.kind || "").replace(/_/g, " ")}</Text>
           </View>
         </View>
 

@@ -22,7 +22,7 @@ type ThemeContextValue = {
 function AppContent() {
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
   const [themeLoaded, setThemeLoaded] = useState(false);
-  const fontsLoaded = useAgoraFonts();
+  const [fontsLoaded, fontError] = useAgoraFonts();
   const palette = palettes[themeMode];
   const responsiveMetrics = useResponsiveMetrics();
 
@@ -57,7 +57,10 @@ function AppContent() {
     [changeThemeMode, palette, responsiveMetrics, themeMode],
   );
 
-  if (!themeLoaded || !fontsLoaded) return null;
+  if (!themeLoaded) return null;
+  if (!fontsLoaded && !fontError) return null;
+
+  // Errore font: renderizza comunque con i font di sistema (mai blank screen).
 
   return (
     <ThemeContext.Provider value={themeValue}>
