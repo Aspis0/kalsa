@@ -5,12 +5,13 @@ import {
   BackHandler,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
 import Constants from "expo-constants";
-import { ChevronRight, CircleQuestionMark } from "lucide-react-native";
+import { ChevronRight, CircleQuestionMark, Trash2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { ModelPipelineState } from "../app/AppShell";
@@ -29,6 +30,8 @@ import {
   formatBytes,
   type ModelInfo,
 } from "../engine/ModelRegistry";
+import * as MemoryStore from "../memory/MemoryStore";
+import type { MemoryFact } from "../memory/MemoryStore";
 import { GlassPanel2, Header } from "../theme/components";
 import { radius, spacing } from "../theme/tokens";
 import { typography } from "../theme/typography";
@@ -93,6 +96,129 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   const [statusMessage, setStatusMessage] = useState("");
+
+  // ── Local memory (facts) ─────────────────────────────────────────────────
+  // OPT-IN: default off until storage says otherwise.
+  const [memoryEnabled, setMemoryEnabled] = useState(false);
+  const [memoryFacts, setMemoryFacts] = useState<MemoryFact[]>([]);
+  const [memoryDraft, setMemoryDraft] = useState("");
+  const [memoryBusy, setMemoryBusy] = useState(false);
+  const [memoryNotice, setMemoryNotice] = useState("");
+  const memoryMountedRef = useRef(true);
+
+  useEffect(() => {
+    memoryMountedRef.current = true;
+    return () => {
+      memoryMountedRef.current = false;
+    };
+  }, []);
+
+  const reloadMemory = useCallback(async () => {
+    try {
+      const [enabled, facts] = await Promise.all([
+        MemoryStore.getEnabled(),
+        MemoryStore.listFacts(),
+      ]);
+      if (!memoryMountedRef.current) return;
+      setMemoryEnabled(enabled);
+      setMemoryFacts(facts);
+    } catch {
+      // best-effort
+    }
+  }, []);
+
+  useEffect(() => {
+    void reloadMemory();
+  }, [reloadMemory]);
+
+  const handleToggleMemory = useCallback(
+    (next: boolean) => {
+      const previous = memoryEnabled;
+      setMemoryEnabled(next);
+      setMemoryNotice("");
+      void (async () => {
+        try {
+          await MemoryStore.setEnabled(next);
+        } catch {
+          if (!memoryMountedRef.current) return;
+          setMemoryEnabled(previous);
+          setMemoryNotice(t("memory.saveError"));
+        }
+      })();
+    },
+    [memoryEnabled, t],
+  );
+
+  const handleAddMemoryFact = useCallback(async () => {
+    const text = memoryDraft.trim();
+    if (!text || memoryBusy) return;
+    setMemoryBusy(true);
+    setMemoryNotice("");
+    try {
+      await MemoryStore.addFact(text);
+      if (!memoryMountedRef.current) return;
+      setMemoryDraft("");
+      await reloadMemory();
+      if (!memoryMountedRef.current) return;
+      setMemoryNotice(t("memory.addDone"));
+    } catch (error) {
+      if (!memoryMountedRef.current) return;
+      if (error instanceof MemoryStore.SensitiveFactError) {
+        setMemoryNotice(t("memory.sensitive"));
+      } else {
+        setMemoryNotice(t("memory.saveError"));
+      }
+    } finally {
+      if (memoryMountedRef.current) setMemoryBusy(false);
+    }
+  }, [memoryBusy, memoryDraft, reloadMemory, t]);
+
+  const handleDeleteMemoryFact = useCallback(
+    (fact: MemoryFact) => {
+      Alert.alert(t("memory.deleteFact"), fact.text, [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("memory.deleteFact"),
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              try {
+                await MemoryStore.removeFact(fact.id);
+                await reloadMemory();
+              } catch {
+                if (!memoryMountedRef.current) return;
+                setMemoryNotice(t("memory.saveError"));
+              }
+            })();
+          },
+        },
+      ]);
+    },
+    [reloadMemory, t],
+  );
+
+  const handleClearMemory = useCallback(() => {
+    Alert.alert(t("memory.clear"), t("memory.clearConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("memory.clear"),
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            try {
+              await MemoryStore.clearFacts();
+              await reloadMemory();
+              if (!memoryMountedRef.current) return;
+              setMemoryNotice(t("memory.clearDone"));
+            } catch {
+              if (!memoryMountedRef.current) return;
+              setMemoryNotice(t("memory.saveError"));
+            }
+          })();
+        },
+      },
+    ]);
+  }, [reloadMemory, t]);
 
   /** Generation counter: ignore out-of-order SecureStore reads after rapid provider switches. */
   const loadGen = useRef(0);
@@ -380,6 +506,170 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
               );
             })}
           </View>
+        </GlassPanel2>
+
+        {/* ── Memory ───────────────────────────────────────────────────── */}
+        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+            {t("memory.title")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
+            {t("memory.note")}
+          </Text>
+
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+              marginTop: spacing.xs,
+            }}
+          >
+            <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
+              {t("memory.enabled")}
+            </Text>
+            <Switch
+              value={memoryEnabled}
+              onValueChange={handleToggleMemory}
+              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+              thumbColor={memoryEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("memory.enabled")}
+            />
+          </View>
+
+          {!memoryEnabled ? (
+            <Text style={[typography.bodyXs, { color: colors.muted }]}>
+              {t("memory.disabledNote")}
+            </Text>
+          ) : null}
+
+          {/* List + clear stay visible even when memory is off so deletion is always possible. */}
+          <Text
+            style={[
+              typography.bodyXs,
+              { color: colors.muted, marginTop: spacing.xs },
+            ]}
+          >
+            {t("memory.facts")}
+          </Text>
+
+          {memoryFacts.length === 0 ? (
+            <Text style={[typography.bodyXs, { color: colors.muted }]}>
+              {t("memory.empty")}
+            </Text>
+          ) : (
+            <View style={{ gap: spacing.xs }}>
+              {memoryFacts.map((fact) => (
+                <View
+                  key={fact.id}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.sm,
+                    paddingVertical: spacing.xs,
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.line,
+                  }}
+                >
+                  <Text
+                    style={[typography.bodySm, { color: colors.ink, flex: 1 }]}
+                    numberOfLines={3}
+                  >
+                    {fact.text}
+                  </Text>
+                  <Pressable
+                    onPress={() => handleDeleteMemoryFact(fact)}
+                    hitSlop={8}
+                    accessibilityLabel={t("memory.deleteFact")}
+                    style={{
+                      padding: spacing.xs,
+                      borderRadius: radius.sm,
+                    }}
+                  >
+                    <Trash2 size={16} color={colors.bad ?? colors.muted} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {memoryEnabled ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.sm,
+                marginTop: spacing.xs,
+              }}
+            >
+              <TextInput
+                value={memoryDraft}
+                onChangeText={setMemoryDraft}
+                placeholder={t("memory.addPlaceholder")}
+                placeholderTextColor={colors.muted}
+                editable={!memoryBusy}
+                maxLength={200}
+                style={{
+                  flex: 1,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                  borderRadius: radius.md,
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: spacing.sm,
+                  color: colors.ink,
+                  fontSize: 14,
+                }}
+                onSubmitEditing={() => {
+                  void handleAddMemoryFact();
+                }}
+                returnKeyType="done"
+              />
+              <Pressable
+                onPress={() => {
+                  void handleAddMemoryFact();
+                }}
+                disabled={memoryBusy || !memoryDraft.trim()}
+                style={{
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                  borderRadius: radius.md,
+                  backgroundColor: colors.accent,
+                  opacity: memoryBusy || !memoryDraft.trim() ? 0.5 : 1,
+                }}
+                accessibilityLabel={t("memory.addFact")}
+              >
+                <Text style={[typography.bodySm, { color: "#fff", fontWeight: "600" }]}>
+                  {t("memory.addFact")}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {memoryFacts.length > 0 ? (
+            <Pressable
+              onPress={handleClearMemory}
+              style={{
+                marginTop: spacing.xs,
+                paddingVertical: spacing.sm,
+                alignItems: "center",
+                borderRadius: radius.md,
+                borderWidth: 1,
+                borderColor: colors.line,
+              }}
+              accessibilityLabel={t("memory.clear")}
+            >
+              <Text style={[typography.bodySm, { color: colors.bad ?? colors.muted }]}>
+                {t("memory.clear")}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {memoryNotice ? (
+            <Text style={[typography.bodyXs, { color: colors.accent }]}>
+              {memoryNotice}
+            </Text>
+          ) : null}
         </GlassPanel2>
 
         {/* ── Web search ───────────────────────────────────────────────── */}

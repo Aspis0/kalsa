@@ -27,10 +27,43 @@ let activeModelId: string | null = null;
 let activeMmprojPath: string | null = null;
 let activeEngineCtx = 0;
 
+/** Max user-memory facts injected into the system prompt. */
+const MAX_PROMPT_FACTS = 10;
+/** Hard cap per fact line injected into the system prompt. */
+const MAX_PROMPT_FACT_CHARS = 120;
+/** extractMemory wall-clock timeout (ms); on expiry stopCompletion is called. */
+const EXTRACT_MEMORY_TIMEOUT_MS = 20_000;
+
+/**
+ * Normalize a fact for prompt injection: strip control chars / newlines,
+ * collapse whitespace, cap length. Treats facts as untrusted data only.
+ */
+function sanitizeFactForPrompt(fact: string): string {
+  return fact
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_PROMPT_FACT_CHARS);
+}
+
 /** System prompt for the on-device model, localized via settings locale. */
-export function buildSystemPrompt(locale: Locale, withTools: boolean): string {
+export function buildSystemPrompt(
+  locale: Locale,
+  withTools: boolean,
+  facts?: string[],
+): string {
   const strings = getStrings(locale);
-  return withTools ? strings.systemPromptWithSearch : strings.systemPrompt;
+  let prompt = withTools ? strings.systemPromptWithSearch : strings.systemPrompt;
+  // Most recent facts first for injection budget (callers should already pass newest).
+  const cleaned = (facts ?? [])
+    .map((fact) => sanitizeFactForPrompt(fact))
+    .filter((fact) => fact.length > 0)
+    .slice(-MAX_PROMPT_FACTS);
+  if (cleaned.length > 0) {
+    const factBlock = cleaned.map((fact) => `- ${fact}`).join("\n");
+    prompt += `\n\n${strings.memory.promptSection.replace("{facts}", factBlock)}`;
+  }
+  return prompt;
 }
 
 const STOP_WORDS = [
@@ -267,6 +300,8 @@ function buildUserMessage(message: EngineMessage): RNLlamaOAICompatibleMessage {
 export type StreamTurnOptions = EngineTurnOptions & {
   /** Settings locale — drives system prompt language (required). */
   locale: Locale;
+  /** Durable user facts to inject into the system prompt (max 10 used). */
+  memoryFacts?: string[];
 };
 
 export async function streamAssistantTurn(
@@ -324,7 +359,7 @@ export async function streamAssistantTurn(
 
   const userIndex = messages.length - 1;
   let currentMessages: ToolChatMessage[] = [
-    { role: "system", content: buildSystemPrompt(locale, hasTools) },
+    { role: "system", content: buildSystemPrompt(locale, hasTools, options.memoryFacts) },
     ...messages.map((message, index) =>
       index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
     ),
@@ -458,5 +493,180 @@ export async function streamAssistantTurn(
     finishOnce(() => callbacks.onError(error instanceof Error ? error : new Error(String(error))));
   } finally {
     signal?.removeEventListener("abort", abort);
+  }
+}
+
+/**
+ * Scan `source` for the first balanced `{...}` object (string-aware).
+ * Ported from domain/askAssistant.js findBalancedJsonObject — first-{/last-}
+ * is unsafe when braces appear inside strings or trailing prose.
+ */
+function findBalancedJsonObject(
+  source: string,
+  start = 0,
+): { start: number; end: number; text: string } | null {
+  const len = source.length;
+  let i = start;
+  while (i < len) {
+    const open = source.indexOf("{", i);
+    if (open < 0) return null;
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (let j = open; j < len; j += 1) {
+      const ch = source[j];
+      if (inString) {
+        if (escape) {
+          escape = false;
+          continue;
+        }
+        if (ch === "\\") {
+          escape = true;
+          continue;
+        }
+        if (ch === '"') {
+          inString = false;
+        }
+        continue;
+      }
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
+      if (ch === "{") {
+        depth += 1;
+        continue;
+      }
+      if (ch === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          return { start: open, end: j + 1, text: source.slice(open, j + 1) };
+        }
+        if (depth < 0) break;
+      }
+    }
+    i = open + 1;
+  }
+  return null;
+}
+
+/**
+ * Non-streaming completion that extracts durable USER facts from a finished turn.
+ * Call only AFTER the chat turn is done — never during streaming.
+ * Fail-closed: invalid JSON / wrong shape / engine not ready / timeout → empty arrays.
+ * No tools, no websearch, no logging of contents.
+ *
+ * Timeout: ~20s wall clock; on expiry calls engine.stopCompletion() so the native
+ * completion does not keep the engine busy (Promise.race alone is not enough).
+ *
+ * clearCache: called before extract only. Chat turns intentionally do NOT clear
+ * the KV cache: non-vision paths use ctx_shift:true and stream full message history
+ * each turn; clearing would discard useful prefix state without benefit. Vision
+ * turns use ctx_shift:false with media anchored to the current user message —
+ * clearing mid-session between chat turns is unnecessary and risks extra cost.
+ * Extract is a separate one-shot completion, so clearCache avoids contamination
+ * from a prior vision/tool completion.
+ *
+ * json_schema / grammar: llama.rn supports response_format json_schema, but small
+ * on-device models often fail grammar-constrained sampling; we rely on the balanced
+ * JSON parser instead (same approach as parseMiniappFromText).
+ */
+export async function extractMemory(
+  userText: string,
+  assistantText: string,
+  locale: Locale,
+): Promise<{ add: string[]; remove: string[] }> {
+  const engine = context;
+  if (!engine) return { add: [], remove: [] };
+
+  const strings = getStrings(locale);
+  const userSlice = (userText ?? "").trim().slice(0, 2000);
+  const assistantSlice = (assistantText ?? "").trim().slice(0, 2000);
+  if (!userSlice && !assistantSlice) return { add: [], remove: [] };
+
+  const prompt = strings.memory.extractPrompt
+    .replace("{user}", userSlice)
+    .replace("{assistant}", assistantSlice);
+
+  let timedOut = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    // Isolate extract from prior vision/tool KV state (API: LlamaContext.clearCache).
+    try {
+      await engine.clearCache();
+    } catch {
+      // best effort — extract still proceeds
+    }
+
+    timer = setTimeout(() => {
+      timedOut = true;
+      // Real cancellation: stop the native completion, do not leave engine busy.
+      void engine.stopCompletion().catch(() => undefined);
+    }, EXTRACT_MEMORY_TIMEOUT_MS);
+
+    const result = await trackCompletion(
+      engine.completion({
+        messages: [{ role: "user", content: prompt }] as RNLlamaOAICompatibleMessage[],
+        n_predict: 256,
+        stop: STOP_WORDS,
+        temperature: 0.1,
+        top_k: 20,
+        top_p: 0.9,
+        enable_thinking: false,
+        reasoning_format: "none",
+        chat_template_kwargs: { enable_thinking: false },
+      }),
+    );
+
+    if (timedOut) return { add: [], remove: [] };
+
+    const raw =
+      typeof result.content === "string" && result.content.length > 0
+        ? result.content
+        : (result.text ?? "");
+    return parseMemoryExtract(raw);
+  } catch {
+    // Timeout stopCompletion often rejects the completion promise — treat as empty.
+    return { add: [], remove: [] };
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Parse model JSON for memory extract — fail-closed, balanced first object. */
+function parseMemoryExtract(raw: string): { add: string[]; remove: string[] } {
+  if (!raw || typeof raw !== "string") return { add: [], remove: [] };
+  // Strip optional think tags / fences, then find the first balanced JSON object.
+  const cleaned = raw
+    .replace(/<think>[\s\S]*?<\/think>/g, "")
+    .replace(/```(?:json)?/gi, "")
+    .replace(/```/g, "")
+    .trim();
+  const found = findBalancedJsonObject(cleaned, 0);
+  if (!found) return { add: [], remove: [] };
+  try {
+    const parsed = JSON.parse(found.text) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { add: [], remove: [] };
+    }
+    const obj = parsed as { add?: unknown; remove?: unknown };
+    const add = Array.isArray(obj.add)
+      ? obj.add
+          .filter((item): item is string => typeof item === "string")
+          .map((item) => item.replace(/\s+/g, " ").trim().slice(0, 120))
+          .filter((item) => item.length > 0)
+          .slice(0, 3)
+      : [];
+    const remove = Array.isArray(obj.remove)
+      ? obj.remove
+          .filter((item): item is string => typeof item === "string")
+          .map((item) => item.replace(/\s+/g, " ").trim())
+          .filter((item) => item.length > 0)
+          .slice(0, 10)
+      : [];
+    return { add, remove };
+  } catch {
+    return { add: [], remove: [] };
   }
 }

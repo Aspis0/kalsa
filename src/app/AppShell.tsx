@@ -18,9 +18,10 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 import { MODEL_REGISTRY, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
 import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
-import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineMessage, type EngineTurnOptions } from "../engine/LlamaService";
+import { disposeEngine, extractMemory, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineMessage, type EngineTurnOptions } from "../engine/LlamaService";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import { useLocale } from "../i18n";
+import * as MemoryStore from "../memory/MemoryStore";
 
 /** Shared model pipeline states (download / load / ready) — used by Settings. */
 export type ModelPipelineState =
@@ -125,6 +126,35 @@ export function AppShell() {
       console.warn("[notifyDownload]", error);
     }
   }, [t]);
+
+  // ── User memory (local facts for system prompt personalization) ──────────
+  const [memoryFacts, setMemoryFacts] = useState<string[]>([]);
+  const memoryFactsRef = useRef<string[]>(memoryFacts);
+  memoryFactsRef.current = memoryFacts;
+  /** Mirror of MemoryStore.getEnabled — never inject facts when false. */
+  const memoryEnabledRef = useRef(false);
+  /** Serialize extractMemory so it never overlaps a chat completion on the same engine. */
+  const memoryExtractRef = useRef<Promise<void> | null>(null);
+
+  const refreshMemoryFacts = useCallback(async () => {
+    try {
+      const enabled = await MemoryStore.getEnabled();
+      memoryEnabledRef.current = enabled;
+      if (!enabled) {
+        setMemoryFacts([]);
+        return;
+      }
+      const facts = await MemoryStore.listFacts();
+      // Most recent 10 facts (list is chronological ascending).
+      setMemoryFacts(facts.map((fact) => fact.text).slice(-10));
+    } catch {
+      // best-effort; never block UI, never log contents
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshMemoryFacts();
+  }, [refreshMemoryFacts]);
 
   // ── Stato modello ────────────────────────────────────────────────────────
   const [modelIndex, setModelIndex] = useState(() =>
@@ -260,11 +290,28 @@ export function AppShell() {
       // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
       AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
 
-      void disposeEngine()
-        .catch(() => undefined)
-        .finally(() => {
+      // Extraction holds the engine: wait briefly so dispose does not race it.
+      // Epoch checks discard any delayed writes after the engine is gone.
+      void (async () => {
+        if (memoryExtractRef.current) {
+          try {
+            await Promise.race([
+              memoryExtractRef.current,
+              new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+            ]);
+          } catch {
+            // ignore
+          }
+          memoryExtractRef.current = null;
+        }
+        try {
+          await disposeEngine();
+        } catch {
+          // ignore
+        } finally {
           modelSwitchInFlightRef.current = false;
-        });
+        }
+      })();
     },
     [modelIndex, modelState],
   );
@@ -452,7 +499,71 @@ export function AppShell() {
         setStreaming(true);
 
         void (async () => {
+          let turnFailed = false;
+          let assistantFull = "";
+          let extractScheduled = false;
+
+          /**
+           * Register extract job BEFORE finish() resolves the turn.
+           * Otherwise a concurrent next turn can start while the ref is still null.
+           */
+          const scheduleMemoryExtract = () => {
+            if (extractScheduled) return;
+            extractScheduled = true;
+            if (signal.aborted || turnFailed || !assistantFull.trim()) return;
+
+            const capturedAssistant = assistantFull;
+            const capturedUser = text;
+            const startEpoch = MemoryStore.getEpoch();
+
+            const extractJob = (async () => {
+              try {
+                if (!(await MemoryStore.getEnabled())) return;
+                if (MemoryStore.getEpoch() !== startEpoch) return;
+
+                const { add, remove } = await extractMemory(
+                  capturedUser,
+                  capturedAssistant,
+                  locale,
+                );
+
+                // Single batched apply: re-checks epoch + enabled under the store mutex
+                // so a clear/toggle-off during extract cannot be partially overwritten.
+                if (add.length === 0 && remove.length === 0) return;
+                if (MemoryStore.getEpoch() !== startEpoch) return;
+                if (!(await MemoryStore.getEnabled())) return;
+
+                const applied = await MemoryStore.applyExtractResults(
+                  add,
+                  remove,
+                  startEpoch,
+                );
+                if (applied) {
+                  await refreshMemoryFacts();
+                }
+              } catch {
+                // ignore — extraction must never surface to the user
+              }
+            })();
+
+            memoryExtractRef.current = extractJob;
+            void extractJob.finally(() => {
+              if (memoryExtractRef.current === extractJob) {
+                memoryExtractRef.current = null;
+              }
+            });
+          };
+
           try {
+            // Wait out a pending memory extract so we never dual-complete on the engine.
+            if (memoryExtractRef.current) {
+              try {
+                await memoryExtractRef.current;
+              } catch {
+                // ignore
+              }
+              memoryExtractRef.current = null;
+            }
             if (!(await ensureEngineForModel(currentModel))) {
               fail(t("chat.modelNotDownloaded", { name: currentModel.name }));
               return;
@@ -494,32 +605,57 @@ export function AppShell() {
             if (images.length) userMessage.images = images;
             engineMessages.push(userMessage);
 
+            // Re-read enabled each turn so a Settings toggle applies without remount.
+            // Never inject facts when memory is off (even if memoryFacts state is stale).
+            try {
+              memoryEnabledRef.current = await MemoryStore.getEnabled();
+            } catch {
+              memoryEnabledRef.current = false;
+            }
+            if (!memoryEnabledRef.current) {
+              setMemoryFacts([]);
+            }
+            const promptFacts = memoryEnabledRef.current ? memoryFactsRef.current : [];
+
             await streamAssistantTurn(
               engineMessages,
               {
-                onDelta: callbacks.onDelta,
+                onDelta: (delta, full) => {
+                  assistantFull = full;
+                  callbacks.onDelta?.(delta, full);
+                },
                 onStatus: (status) => callbacks.onStatus?.(status),
                 onSources: (sources) =>
                   callbacks.onSources?.(mapSearchSourcesToChat(sources as any, locale)),
                 onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
                 onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
-                onDone: () => finish(),
+                onDone: () => {
+                  // Register extract BEFORE unlocking the turn for the next message.
+                  scheduleMemoryExtract();
+                  finish();
+                },
                 onError: (error) => {
+                  turnFailed = true;
                   callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
                   finish();
                 },
               },
               signal,
-              { ...agentOptions, locale },
+              {
+                ...agentOptions,
+                locale,
+                memoryFacts: promptFacts,
+              },
             );
             // Safety: if the stream returns without onDone/onError (e.g. abort path).
+            scheduleMemoryExtract();
             finish();
           } catch (error) {
             fail(error instanceof Error ? error.message : String(error));
           }
         })();
       }),
-    [agentOptions, currentModel, ensureEngineForModel, locale, t],
+    [agentOptions, currentModel, ensureEngineForModel, locale, refreshMemoryFacts, t],
   );
 
   // ── Render barra modello ─────────────────────────────────────────────────
@@ -697,7 +833,11 @@ export function AppShell() {
 
       {activeOverlay?.kind === "settings" ? (
         <SettingsScreen
-          onBack={() => setActiveOverlay(null)}
+          onBack={() => {
+            setActiveOverlay(null);
+            // Settings may have edited memory — refresh facts for the next turn.
+            void refreshMemoryFacts();
+          }}
           onOpenHelp={() => setActiveOverlay({ kind: "help" })}
           model={{
             currentModelId: currentModel.id,
