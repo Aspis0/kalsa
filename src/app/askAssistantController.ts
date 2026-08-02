@@ -13,16 +13,21 @@ import {
   type AskAssistantSource,
 } from "../domain/askAssistant";
 import { classifyChatContent } from "../domain/contentFilter";
-import { streamAssistantTurn } from "../engine/LlamaService";
+import { streamAssistantTurn, type EngineTurnOptions } from "../engine/LlamaService";
 
 /**
  * Macchina a stati "Ask AI" estratta dal monolite App.tsx originale.
  * Bio-specifico rimosso: quick action, streaming e miniapp sono generici.
+ * `options` (tool/websearch) passati al turno engine; aggiornati via ref per
+ * non ricreare la callback a ogni render.
  */
-export function useAskAssistantController() {
+export function useAskAssistantController(options?: EngineTurnOptions) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AskAssistantMessage[]>([]);
   const [draft, setDraft] = useState("");
+
+  const optionsRef = useRef<EngineTurnOptions | undefined>(options);
+  optionsRef.current = options;
 
   const context = useMemo(() => getAskAssistantContext({}), []);
 
@@ -147,6 +152,7 @@ export function useAskAssistantController() {
           },
         },
         controller.signal,
+        optionsRef.current,
       );
     }, 420);
     streamingTimers.current.push(thinkingTimer);

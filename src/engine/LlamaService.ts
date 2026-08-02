@@ -1,15 +1,17 @@
 import { initLlama, type ContextParams, type LlamaContext, type TokenData } from "llama.rn";
 
 /**
- * Engine locale — Fase 1: llama.rn (binding llama.cpp, MIT).
+ * Engine locale — Fase 1/2: llama.rn (binding llama.cpp, MIT).
  *
  * Garanzie (contratto con la UI):
  * - QUALSIASI uscita (successo, errore, abort, engine non pronto) chiude il
  *   turno con onDone/onError ESATTAMENTE una volta.
  * - init/dispose serializzati da un lock (niente race tra switch modello,
  *   download completato e cleanup).
- * - ogni completion lavora sul context CATTURATO al momento della chiamata:
- *   un eventuale switch/release successivo non la tocca.
+ * - ogni completion lavora sul context CATTURATO al momento della chiamata.
+ * - dispose ferma e ATTENDE le completion attive prima di release().
+ * - tool calling (Fase 2): loop agente fino a MAX_TOOL_ROUNDS round, con
+ *   risultato tool reiniettato nel contesto e sources propagate alla UI.
  */
 
 let context: LlamaContext | null = null;
@@ -18,7 +20,9 @@ let activeModelId: string | null = null;
 const SYSTEM_PROMPT =
   "You are AI Chat, a private assistant running fully on this device (no cloud, no account). " +
   "Answer concisely and helpfully in the user's language. " +
-  "You can generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
+  "When the user asks for current information (news, facts, prices, events), use the web_search tool. " +
+  "Cite the sources you used by referencing their titles. " +
+  "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
   "metric, tabs, expandable and html.";
 
 const STOP_WORDS = [
@@ -30,9 +34,30 @@ const STOP_WORDS = [
   "<turn|>",
 ];
 
+const MAX_TOOL_ROUNDS = 2;
+
 export type EngineMessage = {
   role: "user" | "assistant";
   content: string;
+};
+
+export type EngineTool = {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+};
+
+export type EngineToolResult = {
+  text: string;
+  sources?: unknown[];
+};
+
+export type EngineTurnOptions = {
+  tools?: EngineTool[];
+  executeTool?: (name: string, args: Record<string, unknown>) => Promise<EngineToolResult>;
 };
 
 export type EngineCallbacks = {
@@ -139,10 +164,21 @@ async function disposeEngineLocked(): Promise<void> {
   }
 }
 
+function parseToolArguments(raw: string | undefined): Record<string, unknown> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function streamAssistantTurn(
   messages: EngineMessage[],
   callbacks: EngineCallbacks,
   signal?: AbortSignal,
+  options?: EngineTurnOptions,
 ): Promise<void> {
   const engine = context;
   if (!engine) {
@@ -173,41 +209,89 @@ export async function streamAssistantTurn(
     return;
   }
 
-  try {
-    callbacks.onStatus?.({ label: "Thinking" });
+  const hasTools = Boolean(options?.tools?.length && options?.executeTool);
+  let currentMessages: Array<{
+    role: string;
+    content?: string;
+    tool_calls?: Array<{ type: "function"; id?: string; function: { name: string; arguments: string } }>;
+    tool_call_id?: string;
+  }> = [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...messages.map((message) => ({ role: message.role, content: message.content })),
+  ];
 
-    const result = await trackCompletion(
-      engine.completion(
-        {
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            ...messages.map((message) => ({ role: message.role, content: message.content })),
-          ],
-          n_predict: 512,
-          stop: STOP_WORDS,
-          temperature: 0.7,
-          top_k: 40,
-          top_p: 0.95,
-          enable_thinking: false,
-          reasoning_format: "none",
-          chat_template_kwargs: { enable_thinking: false },
-        },
-        (data: TokenData) => {
-          if (finished || aborted) return;
-          const delta = data.content ?? data.token ?? "";
-          if (delta) callbacks.onDelta(delta, data.accumulated_text ?? "");
-        },
-      ),
-    );
-
-    if (finished || aborted) return;
+  const emitFinalText = (raw: { text: string; content?: string }) => {
     // `content` è il testo filtrato (senza reasoning/tool call), coerente
     // con lo streaming; `text` è il testo grezzo.
     const finalText =
-      typeof (result as { content?: unknown }).content === "string"
-        ? ((result as { content: string }).content as string)
-        : (result.text ?? "");
+      typeof raw.content === "string" && raw.content.length > 0 ? raw.content : (raw.text ?? "");
     if (finalText) callbacks.onDelta(finalText, finalText);
+    finishOnce(() => callbacks.onDone());
+  };
+
+  try {
+    callbacks.onStatus?.({ label: "Thinking" });
+
+    for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
+      const result = await trackCompletion(
+        engine.completion(
+          {
+            messages: currentMessages,
+            ...(hasTools
+              ? { tools: options!.tools as EngineTool[], tool_choice: "auto" as const }
+              : {}),
+            n_predict: 512,
+            stop: STOP_WORDS,
+            temperature: 0.7,
+            top_k: 40,
+            top_p: 0.95,
+            enable_thinking: false,
+            reasoning_format: "none",
+            chat_template_kwargs: { enable_thinking: false },
+          },
+          (data: TokenData) => {
+            if (finished || aborted) return;
+            const delta = data.content ?? data.token ?? "";
+            if (delta) callbacks.onDelta(delta, data.accumulated_text ?? "");
+          },
+        ),
+      );
+
+      if (finished || aborted) return;
+
+      const toolCalls = result.tool_calls ?? [];
+      if (!toolCalls.length || !options?.executeTool) {
+        emitFinalText(result);
+        return;
+      }
+
+      // Round tool: esegui le chiamate e reinietta i risultati nel contesto.
+      for (const call of toolCalls.slice(0, 2)) {
+        const name = call.function?.name ?? "";
+        const args = parseToolArguments(call.function?.arguments);
+        callbacks.onTool?.({ name, arguments: args });
+        callbacks.onStatus?.({ label: `Searching the web…` });
+
+        let toolContent: string;
+        try {
+          const outcome = await options.executeTool(name, args);
+          if (outcome.sources?.length) callbacks.onSources?.(outcome.sources);
+          toolContent = (outcome.text ?? "").slice(0, 6000) || "No results.";
+        } catch (error) {
+          toolContent = `Tool error: ${error instanceof Error ? error.message : String(error)}`;
+        }
+        if (finished || aborted) return;
+
+        currentMessages = [
+          ...currentMessages,
+          { role: "assistant", content: "", tool_calls: [call] },
+          { role: "tool", tool_call_id: call.id ?? `call-${round}-${name}`, content: toolContent },
+        ];
+      }
+      callbacks.onStatus?.({ label: "Thinking" });
+    }
+
+    // Raggiunto il massimo dei round senza risposta testuale: chiudi comunque.
     finishOnce(() => callbacks.onDone());
   } catch (error) {
     if (aborted || signal?.aborted) {

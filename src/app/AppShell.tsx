@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { X as LucideX, Check as LucideCheck } from "lucide-react-native";
+import { X as LucideX, Check as LucideCheck, Globe as LucideGlobe } from "lucide-react-native";
 
 import { AiChatPage, type ChatCta } from "../screens/AiChatPage";
 import { AskAssistantPanel } from "../ui/AskAssistantPanel";
@@ -16,7 +16,8 @@ import { useAskAssistantController } from "./askAssistantController";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
 import { MODEL_REGISTRY, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
 import { downloadModel, isModelDownloaded, modelLocalPath, type DownloadProgress } from "../engine/ModelDownloader";
-import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn } from "../engine/LlamaService";
+import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineTurnOptions } from "../engine/LlamaService";
+import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapExaSourcesToChat } from "../agent/webSearchTool";
 
 type ModelState = "checking" | "missing" | "downloading" | "loading" | "ready" | "error";
 
@@ -33,7 +34,18 @@ export function AppShell() {
   const [activeMiniapp, setActiveMiniapp] = useState<AskAssistantMiniapp | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const assistant = useAskAssistantController();
+
+  // ── Websearch (Fase 2) ───────────────────────────────────────────────────
+  const [webSearchEnabled, setWebSearchEnabled] = useState(true);
+  const agentOptions = useMemo<EngineTurnOptions | undefined>(
+    () =>
+      webSearchEnabled
+        ? { tools: [WEB_SEARCH_TOOL], executeTool: makeWebSearchExecutor() }
+        : undefined,
+    [webSearchEnabled],
+  );
+
+  const assistant = useAskAssistantController(agentOptions);
 
   // ── Stato modello ────────────────────────────────────────────────────────
   const [modelIndex, setModelIndex] = useState(() =>
@@ -195,7 +207,7 @@ export function AppShell() {
             {
               onDelta: callbacks.onDelta,
               onStatus: (status) => callbacks.onStatus?.(status),
-              onSources: (sources) => callbacks.onSources?.(sources as any),
+              onSources: (sources) => callbacks.onSources?.(mapExaSourcesToChat(sources as any)),
               onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
               onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
               onDone: () => resolve(),
@@ -205,10 +217,11 @@ export function AppShell() {
               },
             },
             signal,
+            agentOptions,
           );
         })();
       }),
-    [currentModel, ensureEngineForModel],
+    [agentOptions, currentModel, ensureEngineForModel],
   );
 
   // ── Render barra modello ─────────────────────────────────────────────────
@@ -287,6 +300,33 @@ export function AppShell() {
 
           <View style={{ flex: 1 }} />
 
+          {/* Toggle websearch: privacy by design — OFF = tutto locale */}
+          <Pressable
+            onPress={() => setWebSearchEnabled((enabled) => !enabled)}
+            hitSlop={6}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              borderRadius: 999,
+              backgroundColor: webSearchEnabled ? `${colors.accent}22` : "transparent",
+              borderWidth: 1,
+              borderColor: webSearchEnabled ? `${colors.accent}55` : colors.line,
+            }}
+          >
+            <LucideGlobe size={12} color={webSearchEnabled ? colors.accent : colors.muted} />
+            <Text
+              style={[
+                typography.monoXs,
+                { color: webSearchEnabled ? colors.accent : colors.muted, fontWeight: "700" },
+              ]}
+            >
+              {webSearchEnabled ? "Web ON" : "Web OFF"}
+            </Text>
+          </Pressable>
+
           {modelState === "missing" || modelState === "error" ? (
             <Pressable onPress={() => void startDownload()} hitSlop={6}>
               <Text style={[typography.bodyXs, { color: modelBarStatus.color, fontWeight: "700" }]}>
@@ -321,6 +361,17 @@ export function AppShell() {
             </View>
           )}
         </View>
+
+        {webSearchEnabled ? (
+          <Text
+            style={[
+              typography.bodyXs,
+              { color: colors.muted, marginHorizontal: spacing.lg, marginBottom: spacing.xs },
+            ]}
+          >
+            Websearch on: queries go to the search provider only when the model uses the tool.
+          </Text>
+        ) : null}
 
         {modelError ? (
           <Text
