@@ -43,7 +43,7 @@ const config = {
           newArchEnabled: true,
         },
         ios: {
-          deploymentTarget: "15.1",
+          deploymentTarget: "16.4",
         },
       },
     ],
