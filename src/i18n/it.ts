@@ -246,6 +246,24 @@ export const it: typeof en = {
     pathwayHint: "Tocca un nodo o un arco per selezionarlo. Le modifiche ai nodi influenzano le azioni locali.",
     nodePrefix: "Nodo: {label}",
     edgePrefix: "Arco: {label}",
+    tabs: "Schede",
+    tabN: "Scheda {n}",
+    details: "Dettagli",
+    noDetailsYet: "Nessun dettaglio ancora.",
+    calculator: "Calcolatrice",
+    result: "Risultato",
+    formulaUnsupported: "Formula non supportata",
+  },
+
+  quiz: {
+    check: "Verifica",
+    correct: "✅ Corretto",
+    wrong: "❌ Sbagliato",
+    retry: "Riprova",
+    correctAnswer: "Risposta corretta: {answer}",
+    explanation: "Spiegazione",
+    questionFallback: "Domanda",
+    notGradable: "Risposta non disponibile",
   },
 
   errors: {
@@ -312,7 +330,10 @@ export const it: typeof en = {
     "(c) Non tradurre URL, chiavi JSON, nomi dei tipi di blocco, né il nome del tool web_search. " +
     "Rispondi in modo conciso e utile. " +
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
-    "metric, tabs, expandable e html.",
+    "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). " +
+    "Per i blocchi quiz non rivelare mai answerIndex nel testo — l'app valuta la risposta in privato. " +
+    "Formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
+    "Emetti una miniapp come oggetto JSON con schema miniapp_v1, kind, title e blocks (opzionalmente in un fence ```json).",
 
   systemPromptWithSearch:
     "Sei Kalsa, un assistente privato che gira interamente su questo dispositivo (nessun cloud, nessun account). " +
@@ -328,5 +349,8 @@ export const it: typeof en = {
     "Non rispondere mai a domande time-sensitive solo dalla memoria. " +
     "Cita le fonti usate facendo riferimento ai titoli. " +
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
-    "metric, tabs, expandable e html.",
+    "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). " +
+    "Per i blocchi quiz non rivelare mai answerIndex nel testo — l'app valuta la risposta in privato. " +
+    "Formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
+    "Emetti una miniapp come oggetto JSON con schema miniapp_v1, kind, title e blocks (opzionalmente in un fence ```json).",
 };

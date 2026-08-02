@@ -39,6 +39,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as DocumentPicker from "expo-document-picker";
 import { PdfToImages } from "../components/PdfToImages";
+import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
@@ -189,6 +190,8 @@ function miniappIcon(kind: string): React.ComponentType<{ size: number; color: s
       return BarChart2;
     case "planner":
       return ClipboardList;
+    case "quiz":
+      return BookOpen;
     default:
       return Sparkles;
   }
@@ -306,18 +309,22 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
           ...(typeof s.provider === "string" ? { provider: s.provider.slice(0, 40) } : {}),
         }));
     }
+    // Always normalize miniapp through the domain layer so null/string blocks
+    // and missing answerIndex never crash the renderer on history reload.
     if (record.miniapp && typeof record.miniapp === "object" && !Array.isArray(record.miniapp)) {
-      const miniapp = record.miniapp as Record<string, unknown>;
-      if (typeof miniapp.kind === "string" && typeof miniapp.title === "string") {
-        message.miniapp = {
-          kind: miniapp.kind.slice(0, 100),
-          title: miniapp.title.slice(0, 300),
-          blocks: Array.isArray(miniapp.blocks) ? miniapp.blocks.slice(0, MAX_ITEMS) : [],
-          ...(Array.isArray(miniapp.actions) ? { actions: miniapp.actions.slice(0, 50) } : {}),
-          ...(miniapp.computed && typeof miniapp.computed === "object" ? { computed: miniapp.computed } : {}),
-          ...(miniapp.state && typeof miniapp.state === "object" ? { state: miniapp.state } : {}),
-          ...(typeof miniapp.schema === "string" ? { schema: miniapp.schema } : {}),
-        } as Message["miniapp"];
+      const normalized = normalizeMiniapp(record.miniapp);
+      if (normalized) {
+        message.miniapp = normalized as Message["miniapp"];
+      }
+      // If normalize fails, leave miniapp unset (text-only) and try text migration below.
+    }
+    // Migration: older history may have miniapp JSON only inside assistant text,
+    // or a corrupt miniapp field that failed normalize above.
+    if (record.role === "assistant" && !message.miniapp) {
+      const extracted = parseMiniappFromText(message.text);
+      if (extracted.miniapp) {
+        message.text = (extracted.text || message.text).slice(0, MAX_TEXT);
+        message.miniapp = extracted.miniapp as Message["miniapp"];
       }
     }
     if (Array.isArray(record.attachments) && record.attachments.length <= MAX_ITEMS) {
@@ -668,9 +675,17 @@ export function AiChatPage({
                 if (!payload?.kind || !payload?.label) return;
                 updateMessage(assistantId, prev => ({ ctas: [...(prev.ctas ?? []), payload] }));
               },
-              // Feature 2: miniapp handler
-              onMiniapp: (miniapp) =>
-                updateMessage(assistantId, { miniapp, streaming: false }),
+              // Miniapp callback: store only (do NOT end streaming).
+              // streaming:false + final text extraction stay in the finally block
+              // after await onSendStream. LlamaService currently never emits this;
+              // cloud/unified clients may. Invalid payloads are ignored.
+              onMiniapp: (miniapp) => {
+                const normalized = normalizeMiniapp(miniapp);
+                if (!normalized) return;
+                updateMessage(assistantId, {
+                  miniapp: normalized as Message["miniapp"],
+                });
+              },
               // RNA-seq job context: store result images/downloads on this message.
               onImages: (imgs, dls) =>
                 updateMessage(assistantId, { images: imgs, downloads: dls }),
@@ -706,7 +721,23 @@ export function AiChatPage({
         if (controller.signal.aborted && !anyTextStreamed) {
           setMessages(prev => prev.filter(m => m.id !== assistantId));
         } else if (!controller.signal.aborted || anyTextStreamed) {
-          updateMessage(assistantId, { streaming: false, statusLabel: undefined });
+          // Extract miniapp JSON from the final assistant text (local models emit
+          // schema miniapp_v1 in the prose / fenced block; cloud path may also
+          // call onMiniapp directly).
+          setMessages((prev) =>
+            prev.map((message) => {
+              if (message.id !== assistantId) return message;
+              const base = { ...message, streaming: false, statusLabel: undefined };
+              if (base.miniapp) return base;
+              const extracted = parseMiniappFromText(base.text || "");
+              if (!extracted.miniapp) return base;
+              return {
+                ...base,
+                text: extracted.text || base.text,
+                miniapp: extracted.miniapp as Message["miniapp"],
+              };
+            }),
+          );
         }
         sendingRef.current = false;
         if (mountedRef.current) setSending(false);

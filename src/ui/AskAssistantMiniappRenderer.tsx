@@ -7,8 +7,10 @@ import * as Sharing from "expo-sharing";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { WebView } from "react-native-webview";
+import { normalizeMiniappBlock } from "../domain/askAssistant";
 import { computeStatistics, convertVolumeDensityToMass, fitRegression } from "../domain/miniappMathCore";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
+import { QuizBlockView } from "./blocks/QuizBlock";
 
 const MAX_BLOCK_DEPTH = 3;
 const MAX_CHILD_BLOCKS = 24;
@@ -365,12 +367,56 @@ function parseNavigationItems(navigation: MiniappNavigation | undefined): Miniap
   return [{ id: fallbackValue, label: fallbackValue }];
 }
 
+/**
+ * Recursively coerce nested block arrays so null/string/oversized children never
+ * reach renderers. Domain normalizeMiniappBlock already caps strings / size.
+ */
+function sanitizeRenderBlock(raw: unknown, depth = 0): MiniappBlock {
+  if (depth > MAX_BLOCK_DEPTH + 2) return { type: "unknown" };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { type: "unknown" };
+  const normalized = normalizeMiniappBlock(raw) as MiniappBlock;
+  if (!normalized || typeof normalized !== "object") return { type: "unknown" };
+  const type = toStringValue(normalized.type, "unknown") || "unknown";
+  const out: MiniappBlock = { ...normalized, type };
+  // Nested containers (tabs / expandable / generic blocks arrays).
+  if (Array.isArray(out.blocks)) {
+    out.blocks = (out.blocks as unknown[])
+      .slice(0, MAX_CHILD_BLOCKS)
+      .map((child) => sanitizeRenderBlock(child, depth + 1));
+  }
+  if (Array.isArray(out.tabs)) {
+    out.tabs = (out.tabs as unknown[]).slice(0, MAX_CHILD_BLOCKS).map((tab) => {
+      const record = asRecord(tab);
+      const children = Array.isArray(record.blocks)
+        ? (record.blocks as unknown[]).slice(0, MAX_CHILD_BLOCKS).map((c) => sanitizeRenderBlock(c, depth + 1))
+        : [];
+      return { ...record, blocks: children };
+    });
+  }
+  if (Array.isArray(out.items)) {
+    // Only rewrite item.blocks when present (tabs alias / timeline items).
+    out.items = (out.items as unknown[]).slice(0, MAX_CHILD_BLOCKS).map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return item;
+      const record = item as Record<string, unknown>;
+      if (!Array.isArray(record.blocks)) return record;
+      return {
+        ...record,
+        blocks: (record.blocks as unknown[])
+          .slice(0, MAX_CHILD_BLOCKS)
+          .map((c) => sanitizeRenderBlock(c, depth + 1)),
+      };
+    });
+  }
+  return out;
+}
+
 function normalizeMiniappState(miniapp: Miniapp): Miniapp {
   const stateInputs = asRecord(miniapp.state?.inputs);
   const activeView = toStringValue(miniapp.state?.activeView, "");
+  const rawBlocks = asArray<unknown>(miniapp.blocks, MAX_CHILD_BLOCKS);
   return {
     ...miniapp,
-    blocks: asArray<MiniappBlock>(miniapp.blocks, MAX_CHILD_BLOCKS),
+    blocks: rawBlocks.map((block) => sanitizeRenderBlock(block, 0)),
     actions: asArray(miniapp.actions, MAX_CHILD_BLOCKS),
     state: {
       ...miniapp.state,
@@ -2340,60 +2386,372 @@ function SegmentControlBlockView({ block, context }: { block: MiniappBlock; cont
 }
 
 function TabsBlockView({ block, context, depth }: { block: MiniappBlock; context: RendererContext; depth: number }) {
+  const rawTabs = asArray(block.tabs, MAX_CHILD_BLOCKS).concat(asArray(block.items, MAX_CHILD_BLOCKS));
+  const tabs = rawTabs.slice(0, MAX_CHILD_BLOCKS);
+  const [activeIndex, setActiveIndex] = useState(0);
+
   if (depth >= MAX_BLOCK_DEPTH) {
     return fallbackDepthBlock(context);
   }
-
-  const rawTabs = asArray(block.tabs, MAX_CHILD_BLOCKS).concat(asArray(block.items, MAX_CHILD_BLOCKS));
-  const tabs = rawTabs.slice(0, MAX_CHILD_BLOCKS);
   if (!tabs.length) return <EmptyBlockFallback context={context} />;
+
+  const safeIndex = Math.max(0, Math.min(activeIndex, tabs.length - 1));
+  const activeTab = asRecord(tabs[safeIndex]);
+  const activeChildren = getChildren(activeTab);
 
   return (
     <View style={context.styles.miniappTabBlock}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Tabs")}</Text>
-      {tabs.map((item, index) => {
-        const tabRecord = asRecord(item);
-        const title = toStringValue(tabRecord.title, toStringValue(tabRecord.label, `Tab ${index + 1}`));
-        const children = getChildren(tabRecord);
-        return (
-          <View key={toStringValue(tabRecord.id, `tab-${index}`)} style={context.styles.miniappTabPanel}>
-            <Text style={context.styles.miniappBlockTitle}>{title}</Text>
-            {children.map((child, childIndex) => (
-              <MiniappBlockRenderer
-                key={`${title}-${childIndex}`}
-                block={child}
-                context={{ ...context, index: childIndex }}
-                depth={depth + 1}
-              />
-            ))}
-          </View>
-        );
-      })}
+      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, context.t("renderer.tabs"))}</Text>
+      <View accessibilityRole="tablist" style={context.styles.miniappSegmentRow}>
+        {tabs.map((item, index) => {
+          const tabRecord = asRecord(item);
+          const title = toStringValue(tabRecord.title, toStringValue(tabRecord.label, context.t("renderer.tabN", { n: index + 1 })));
+          const selected = index === safeIndex;
+          return (
+            <Pressable
+              accessibilityLabel={title}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              key={toStringValue(tabRecord.id, `tab-${index}`)}
+              onPress={() => setActiveIndex(index)}
+              style={[context.styles.miniappSegment, selected ? context.styles.miniappSegmentActive : null]}
+            >
+              <Text style={context.styles.miniappSegmentText}>{title}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <View style={context.styles.miniappTabPanel}>
+        {activeChildren.length ? (
+          activeChildren.map((child, childIndex) => (
+            <MiniappBlockRenderer
+              key={`tab-${safeIndex}-${childIndex}`}
+              block={child}
+              context={{ ...context, index: childIndex }}
+              depth={depth + 1}
+            />
+          ))
+        ) : (
+          <EmptyBlockFallback context={context} />
+        )}
+      </View>
     </View>
   );
 }
 
 function ExpandableBlockView({ block, context, depth }: { block: MiniappBlock; context: RendererContext; depth: number }) {
+  const children = getChildren(block);
+  const initiallyOpen = block.initiallyOpen === undefined ? true : Boolean(block.initiallyOpen);
+  const [open, setOpen] = useState(initiallyOpen);
+
   if (depth >= MAX_BLOCK_DEPTH) {
     return fallbackDepthBlock(context);
   }
 
-  const children = getChildren(block);
   return (
     <View style={context.styles.miniappFallbackBlock}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Details")}</Text>
-      {children.length ? (
-        children.map((child, childIndex) => (
-          <MiniappBlockRenderer
-            key={`${block.type || "expandable"}-${childIndex}`}
-            block={child}
-            context={{ ...context, index: childIndex }}
-            depth={depth + 1}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen((current) => !current)}
+        style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+      >
+        <Text style={context.styles.miniappBlockTitle}>
+          {toStringValue(block.title, context.t("renderer.details"))}
+        </Text>
+        <Text style={context.styles.miniappFallbackText}>{open ? "▾" : "▸"}</Text>
+      </Pressable>
+      {open ? (
+        children.length ? (
+          children.map((child, childIndex) => (
+            <MiniappBlockRenderer
+              key={`${block.type || "expandable"}-${childIndex}`}
+              block={child}
+              context={{ ...context, index: childIndex }}
+              depth={depth + 1}
+            />
+          ))
+        ) : (
+          <Text style={context.styles.miniappFallbackText}>{context.t("renderer.noDetailsYet")}</Text>
+        )
+      ) : null}
+    </View>
+  );
+}
+
+// ── Safe calculator formula evaluator (no eval / Function) ───────────────────
+// Tokenizer + recursive-descent parser for: numbers, pre-resolved identifiers,
+// + - * / and parentheses. Identifiers MUST be substituted to numbers BEFORE
+// parsing (no object/property access). Limits reject oversized input.
+const CALC_MAX_FORMULA_LEN = 200;
+const CALC_MAX_DEPTH = 20;
+const CALC_MAX_TOKENS = 100;
+
+type CalcToken =
+  | { kind: "number"; value: number }
+  | { kind: "op"; value: "+" | "-" | "*" | "/" }
+  | { kind: "lparen" }
+  | { kind: "rparen" };
+
+type CalcEvalResult =
+  | { ok: true; value: number }
+  | { ok: false; reason: "unsupported" | "divzero" };
+
+function tokenizeCalculatorExpr(expr: string): CalcToken[] | null {
+  const tokens: CalcToken[] = [];
+  let i = 0;
+  const s = expr;
+  while (i < s.length) {
+    const ch = s[i];
+    if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r") {
+      i += 1;
+      continue;
+    }
+    if (ch === "+" || ch === "-" || ch === "*" || ch === "/") {
+      tokens.push({ kind: "op", value: ch });
+      i += 1;
+      continue;
+    }
+    if (ch === "(") {
+      tokens.push({ kind: "lparen" });
+      i += 1;
+      continue;
+    }
+    if (ch === ")") {
+      tokens.push({ kind: "rparen" });
+      i += 1;
+      continue;
+    }
+    // Number: optional digits . digits (scientific notation rejected intentionally).
+    if ((ch >= "0" && ch <= "9") || ch === ".") {
+      let j = i;
+      let sawDot = false;
+      while (j < s.length) {
+        const c = s[j];
+        if (c >= "0" && c <= "9") {
+          j += 1;
+          continue;
+        }
+        if (c === "." && !sawDot) {
+          sawDot = true;
+          j += 1;
+          continue;
+        }
+        break;
+      }
+      const raw = s.slice(i, j);
+      if (raw === "." || raw === "") return null;
+      const value = Number(raw);
+      if (!Number.isFinite(value)) return null;
+      tokens.push({ kind: "number", value });
+      i = j;
+      continue;
+    }
+    // Any other character (letters left after id substitution, etc.) → reject.
+    return null;
+  }
+  if (tokens.length === 0 || tokens.length > CALC_MAX_TOKENS) return null;
+  return tokens;
+}
+
+/**
+ * Recursive-descent:
+ *   expr   := term ((+|-) term)*
+ *   term   := unary ((*|/) unary)*
+ *   unary  := (+|-) unary | primary
+ *   primary:= number | '(' expr ')'
+ */
+function parseCalculatorTokens(tokens: CalcToken[]): CalcEvalResult {
+  let pos = 0;
+  let depth = 0;
+
+  const peek = () => tokens[pos];
+  const consume = () => {
+    const t = tokens[pos];
+    pos += 1;
+    return t;
+  };
+
+  function parseExpr(): number {
+    let left = parseTerm();
+    while (peek()?.kind === "op") {
+      const op = (peek() as { kind: "op"; value: string }).value;
+      if (op !== "+" && op !== "-") break;
+      consume();
+      const right = parseTerm();
+      left = op === "+" ? left + right : left - right;
+    }
+    return left;
+  }
+
+  function parseTerm(): number {
+    let left = parseUnary();
+    while (
+      peek()?.kind === "op" &&
+      ((peek() as { kind: "op"; value: string }).value === "*" ||
+        (peek() as { kind: "op"; value: string }).value === "/")
+    ) {
+      const op = (consume() as { kind: "op"; value: "*" | "/" }).value;
+      const right = parseUnary();
+      if (op === "/") {
+        if (right === 0) {
+          const err = new Error("divzero");
+          (err as Error & { code?: string }).code = "divzero";
+          throw err;
+        }
+        left = left / right;
+      } else {
+        left = left * right;
+      }
+    }
+    return left;
+  }
+
+  function parseUnary(): number {
+    if (peek()?.kind === "op") {
+      const op = (peek() as { kind: "op"; value: string }).value;
+      if (op === "+" || op === "-") {
+        consume();
+        const v = parseUnary();
+        return op === "-" ? -v : v;
+      }
+    }
+    return parsePrimary();
+  }
+
+  function parsePrimary(): number {
+    const t = peek();
+    if (!t) throw new Error("unexpected end");
+    if (t.kind === "number") {
+      consume();
+      return t.value;
+    }
+    if (t.kind === "lparen") {
+      consume();
+      depth += 1;
+      if (depth > CALC_MAX_DEPTH) throw new Error("depth");
+      const value = parseExpr();
+      if (peek()?.kind !== "rparen") throw new Error("missing )");
+      consume();
+      depth -= 1;
+      return value;
+    }
+    throw new Error("unexpected token");
+  }
+
+  try {
+    const value = parseExpr();
+    if (pos !== tokens.length) return { ok: false, reason: "unsupported" };
+    if (!Number.isFinite(value)) return { ok: false, reason: "unsupported" };
+    return { ok: true, value };
+  } catch (err) {
+    if (err instanceof Error && (err as Error & { code?: string }).code === "divzero") {
+      return { ok: false, reason: "divzero" };
+    }
+    if (err instanceof Error && err.message === "divzero") {
+      return { ok: false, reason: "divzero" };
+    }
+    return { ok: false, reason: "unsupported" };
+  }
+}
+
+/**
+ * Evaluate a calculator formula safely.
+ * 1) Length / charset gate
+ * 2) Substitute known field ids with their numeric values (longest-first)
+ * 3) Reject any leftover identifier characters
+ * 4) Tokenize + recursive-descent parse (no eval/Function)
+ */
+function evaluateCalculatorFormula(
+  formula: string,
+  vars: Record<string, number>,
+): CalcEvalResult {
+  const trimmed = formula.trim();
+  if (!trimmed || trimmed.length > CALC_MAX_FORMULA_LEN) {
+    return { ok: false, reason: "unsupported" };
+  }
+  // Allow only numbers, whitespace, arithmetic ops, parens, and identifier chars
+  // before substitution. No quotes, brackets, dots-in-ids beyond [A-Za-z0-9_].
+  if (!/^[\d\s+\-*/().a-zA-Z_]+$/.test(trimmed)) {
+    return { ok: false, reason: "unsupported" };
+  }
+  const ids = Object.keys(vars)
+    .filter((id) => id && /^[A-Za-z_][A-Za-z0-9_]*$/.test(id))
+    .sort((a, b) => b.length - a.length);
+  let expr = trimmed;
+  for (const id of ids) {
+    const re = new RegExp(`\\b${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g");
+    // Wrap negatives in parentheses so "a-b" with a=-1 stays valid as "(-1)-...".
+    const n = vars[id];
+    const replacement = n < 0 ? `(${n})` : String(n);
+    expr = expr.replace(re, replacement);
+  }
+  // After substitution only digits, ops, parens, whitespace, and decimal points remain.
+  if (!/^[\d\s+\-*/().]+$/.test(expr)) {
+    return { ok: false, reason: "unsupported" };
+  }
+  const tokens = tokenizeCalculatorExpr(expr);
+  if (!tokens) return { ok: false, reason: "unsupported" };
+  return parseCalculatorTokens(tokens);
+}
+
+function CalculatorBlockView({ block, context }: { block: MiniappBlock; context: RendererContext }) {
+  const fields = asArray(block.fields, MAX_CHILD_BLOCKS).map(asRecord);
+  const [values, setValues] = useState<Record<string, number>>(() => {
+    const seed: Record<string, number> = {};
+    fields.forEach((field, index) => {
+      const id = toStringValue(field.id, `field_${index}`);
+      seed[id] = toNumber(field.value);
+    });
+    return seed;
+  });
+  const formula = toStringValue(block.formula ?? block.expr, "");
+  const live = formula ? evaluateCalculatorFormula(formula, values) : null;
+  let displayValue: string;
+  if (live && live.ok) {
+    displayValue = formatMiniappNumber(live.value, 4);
+  } else if (live && !live.ok) {
+    displayValue = context.t("renderer.formulaUnsupported");
+  } else {
+    displayValue = toStringValue(block.value ?? block.result, context.t("renderer.noResult"));
+  }
+
+  return (
+    <View style={context.styles.miniappInputGrid}>
+      <Text style={context.styles.miniappBlockTitle}>
+        {toStringValue(block.title, context.t("renderer.calculator"))}
+      </Text>
+      {fields.map((field, fieldIndex) => {
+        const fieldId = toStringValue(field.id, `field_${fieldIndex}`);
+        const unit = toStringValue(field.unit);
+        const label = toStringValue(field.label, fieldId) + (unit ? ` (${unit})` : "");
+        return (
+          <NumberField
+            key={fieldId}
+            label={label}
+            onChange={(value) =>
+              setValues((current) => ({
+                ...current,
+                [fieldId]: toNumber(value, current[fieldId]),
+              }))
+            }
+            styles={context.styles}
+            value={values[fieldId] ?? toNumber(field.value)}
           />
-        ))
-      ) : (
-        <Text style={context.styles.miniappFallbackText}>No details yet.</Text>
-      )}
+        );
+      })}
+      {formula ? (
+        <View style={context.styles.miniappFormulaBox}>
+          <Text style={context.styles.miniappFormulaLabel}>{context.t("renderer.formula")}</Text>
+          <Text style={context.styles.miniappFormulaText}>{formula}</Text>
+        </View>
+      ) : null}
+      <View style={context.styles.miniappFormulaBox}>
+        <Text style={context.styles.miniappFormulaLabel}>
+          {toStringValue(block.label, context.t("renderer.result"))}
+        </Text>
+        <Text style={context.styles.miniappMetricValue}>{displayValue}</Text>
+      </View>
     </View>
   );
 }
@@ -2605,6 +2963,16 @@ export const ASK_ASSISTANT_MINIAPP_BLOCK_REGISTRY: Record<string, MiniappBlockRe
     visual: { accent: "violet", density: "comfortable", liquidGlassSurface: "frosted_panel", motion: "none", role: "insight" },
     render: ({ block, context }) => <InsightBlockView block={block} context={context} />,
   }),
+  calculator: defineMiniappBlock({
+    schemaFields: ["fields", "formula", "expr", "label", "title", "value", "result"],
+    exportSupport: true,
+    editable: true,
+    aiActionSupport: false,
+    backendActionSupport: false,
+    capabilities: { editable: true, interactive: true, stateful: true },
+    visual: { accent: "cyan", density: "comfortable", liquidGlassSurface: "floating_control", motion: "state_transition", role: "calculator" },
+    render: ({ block, context }) => <CalculatorBlockView block={block} context={context} />,
+  }),
   chart: defineMiniappBlock({
     schemaFields: ["fit", "kind", "points", "series", "title", "x", "y"],
     exportSupport: true,
@@ -2735,6 +3103,18 @@ export const ASK_ASSISTANT_MINIAPP_BLOCK_REGISTRY: Record<string, MiniappBlockRe
   // plate_grid rimosso: blocco bio legacy (well-plate designer). Non fa più parte
   // del formato miniapp generale; un blocco ricevuto con quel tipo cadrà nel
   // fallback "Unsupported miniapp block".
+  quiz: defineMiniappBlock({
+    schemaFields: ["answerIndex", "explanation", "options", "question", "title"],
+    exportSupport: true,
+    editable: false,
+    aiActionSupport: false,
+    backendActionSupport: false,
+    capabilities: { interactive: true, stateful: true },
+    visual: { accent: "indigo", density: "comfortable", liquidGlassSurface: "frosted_panel", motion: "state_transition", role: "quiz" },
+    render: ({ block, context }) => (
+      <QuizBlockView block={block} styles={context.styles} t={context.t} />
+    ),
+  }),
   quality_panel: defineMiniappBlock({
     schemaFields: ["checks", "metrics", "title"],
     exportSupport: true,
@@ -2928,6 +3308,12 @@ function HtmlBlockView({ block, context }: { block: MiniappBlock; context: Rende
   const height = Math.max(160, Math.min(1200, Math.floor(Number(block.height) || 480)));
   const backgroundColor = "#0b1512";
   const wrapped = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'none'; connect-src 'none'; font-src 'none'; frame-src 'none'"><style>html,body{margin:0;padding:12px;background:${backgroundColor};color:#e6f0ec;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.55}img{max-width:100%}a{color:#5eead4}pre{white-space:pre-wrap;background:rgba(255,255,255,.06);padding:10px;border-radius:10px;overflow-x:auto}table{border-collapse:collapse}td,th{border:1px solid rgba(255,255,255,.18);padding:6px 10px}</style></head><body>${html}</body></html>`;
+  // Navigation lock: permit about:/data: only while the initial source.html is
+  // bootstrapping (RN may hit about:blank then data:). Once the document has
+  // loaded (or a data: body was accepted), EVERY further request is denied —
+  // including later data: navigations, javascript:, http(s), file. JS is off so
+  // iframes/popups cannot open; CSP remains in the injected head.
+  const navigationLockedRef = useRef(false);
 
   if (!html.trim()) {
     return <Text style={context.styles.miniappFallbackText}>{context.t("renderer.emptyHtmlBlock")}</Text>;
@@ -2945,9 +3331,18 @@ function HtmlBlockView({ block, context }: { block: MiniappBlock; context: Rende
         allowFileAccessFromFileURLs={false}
         allowUniversalAccessFromFileURLs={false}
         setSupportMultipleWindows={false}
+        onLoadEnd={() => {
+          navigationLockedRef.current = true;
+        }}
         onShouldStartLoadWithRequest={(request) => {
-          const url = request.url;
-          return url.startsWith("about:") || url.startsWith("data:") || url.startsWith("file:");
+          if (navigationLockedRef.current) return false;
+          const url = request.url || "";
+          if (url.startsWith("about:") || url.startsWith("data:")) {
+            // Accept bootstrap; lock as soon as real content (data:) is requested.
+            if (url.startsWith("data:")) navigationLockedRef.current = true;
+            return true;
+          }
+          return false;
         }}
       />
     </View>
@@ -2991,13 +3386,15 @@ function MiniappBlockSurface({
 }
 
 function MiniappBlockRenderer({ block, depth, context }: MiniappBlockRendererProps) {
-  const blockType = toStringValue(block.type);
+  // Final defense: coerce null/string/corrupt blocks before registry lookup.
+  const safeBlock = sanitizeRenderBlock(block, depth);
+  const blockType = toStringValue(safeBlock.type, "unknown") || "unknown";
   const registryEntry = ASK_ASSISTANT_MINIAPP_BLOCK_REGISTRY[blockType];
   if (!registryEntry) {
-    return <UnsupportedBlock block={block} context={context} />;
+    return <UnsupportedBlock block={safeBlock} context={context} />;
   }
   const content = registryEntry.render({
-    block,
+    block: safeBlock,
     capabilities: registryEntry.capabilities,
     context,
     depth,
@@ -3343,6 +3740,7 @@ export function AskAssistantMiniappRenderer({
               const selected = item.id === activeView;
               return (
                 <Pressable
+                  accessibilityLabel={item.label}
                   accessibilityRole="tab"
                   accessibilityState={{ selected }}
                   key={item.id}

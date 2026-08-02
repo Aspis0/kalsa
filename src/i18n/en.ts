@@ -243,6 +243,24 @@ export const en = {
     pathwayHint: "Tap a node or edge to select it. Node changes then affect local actions.",
     nodePrefix: "Node: {label}",
     edgePrefix: "Edge: {label}",
+    tabs: "Tabs",
+    tabN: "Tab {n}",
+    details: "Details",
+    noDetailsYet: "No details yet.",
+    calculator: "Calculator",
+    result: "Result",
+    formulaUnsupported: "Unsupported formula",
+  },
+
+  quiz: {
+    check: "Check",
+    correct: "✅ Correct",
+    wrong: "❌ Wrong",
+    retry: "Retry",
+    correctAnswer: "Correct answer: {answer}",
+    explanation: "Explanation",
+    questionFallback: "Question",
+    notGradable: "Answer not available",
   },
 
   errors: {
@@ -315,7 +333,10 @@ export const en = {
     "(c) Never translate URLs, JSON keys, block type names, or the tool name web_search. " +
     "Answer concisely and helpfully. " +
     "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
-    "metric, tabs, expandable and html.",
+    "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). " +
+    "For quiz blocks never reveal answerIndex in the prose — the app grades the answer privately. " +
+    "Calculator formulas: numbers, field identifiers, + - * / and parentheses only. " +
+    "Emit a miniapp as a JSON object with schema miniapp_v1, kind, title, and blocks (optionally inside a ```json fence).",
 
   /** System prompt when web_search tool is available. */
   systemPromptWithSearch:
@@ -332,5 +353,8 @@ export const en = {
     "Never answer time-sensitive questions from memory alone. " +
     "Cite the sources you used by referencing their titles. " +
     "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
-    "metric, tabs, expandable and html.",
+    "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). " +
+    "For quiz blocks never reveal answerIndex in the prose — the app grades the answer privately. " +
+    "Calculator formulas: numbers, field identifiers, + - * / and parentheses only. " +
+    "Emit a miniapp as a JSON object with schema miniapp_v1, kind, title, and blocks (optionally inside a ```json fence).",
 };

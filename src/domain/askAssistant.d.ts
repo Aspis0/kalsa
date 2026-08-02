@@ -92,3 +92,29 @@ export function updateAskAssistantStreamingMessage(
   status?: "done" | "streaming" | "thinking",
   extras?: { miniapp?: AskAssistantMiniapp | null; sources?: AskAssistantSource[] },
 ): AskAssistantMessage[];
+
+/** Soft-normalize a miniapp envelope; returns null if unusable. */
+export function normalizeMiniapp(raw: unknown): AskAssistantMiniapp | null;
+
+/** Soft-normalize one block (quiz gets safe defaults; oversized → unknown). */
+export function normalizeMiniappBlock(block: unknown): Record<string, unknown>;
+
+/**
+ * Normalize a quiz block: 4 options.
+ * answerIndex is an explicit integer 0-3, or null when missing/invalid
+ * (grading disabled — never defaults to 0).
+ */
+export function normalizeQuizBlock(block: Record<string, unknown>): {
+  type: "quiz";
+  question: string;
+  options: string[];
+  answerIndex: number | null;
+  explanation?: string;
+  title?: string;
+};
+
+/** Extract first miniapp JSON from assistant text; strips the JSON from text when found. */
+export function parseMiniappFromText(text: string): {
+  miniapp: AskAssistantMiniapp | null;
+  text: string;
+};
