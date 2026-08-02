@@ -33,6 +33,16 @@ const MAX_PROMPT_FACTS = 10;
 const MAX_PROMPT_FACT_CHARS = 120;
 /** extractMemory wall-clock timeout (ms); on expiry stopCompletion is called. */
 const EXTRACT_MEMORY_TIMEOUT_MS = 20_000;
+/** translateText wall-clock timeout (ms); on expiry stopCompletion is called. */
+const TRANSLATE_TIMEOUT_MS = 30_000;
+/** Hard cap on source text fed to translateText (chars). */
+const MAX_TRANSLATION_CHARS = 4000;
+
+/** English language names for translation prompts (models expect EN names). */
+const TARGET_LANG_NAME: Record<Locale, string> = {
+  en: "English",
+  it: "Italian",
+};
 
 /**
  * Normalize a fact for prompt injection: strip control chars / newlines,
@@ -123,6 +133,21 @@ let lifecycleChain: Promise<void> = Promise.resolve();
 
 // Tracking completion attive: dispose ferma e ATTENDE prima di release().
 const activeCompletionSet = new Set<Promise<unknown>>();
+
+/**
+ * FIFO gate for ALL engine completions (stream / extract / translate).
+ * llama.cpp does not support concurrent completions on one LlamaContext.
+ * The lock covers the entire job: context capture, clearCache, completion,
+ * timeout, stopCompletion, and the native promise settling.
+ * streamAssistantTurn holds it for the full tool-loop turn (callbacks fire inside).
+ */
+let engineJobChain: Promise<unknown> = Promise.resolve();
+
+function withEngineJob<T>(fn: () => Promise<T>): Promise<T> {
+  const run = engineJobChain.then(fn, fn);
+  engineJobChain = run.catch(() => undefined);
+  return run;
+}
 
 function trackCompletion<T>(promise: Promise<T>): Promise<T> {
   const tracked = promise.finally(() => {
@@ -242,25 +267,27 @@ export function disposeEngine(): Promise<void> {
 }
 
 async function disposeEngineLocked(): Promise<void> {
+  // Invalidate first so any job that has not yet captured context sees null.
   const current = context;
   context = null;
   activeModelId = null;
   activeMmprojPath = null;
   activeEngineCtx = 0;
   if (current) {
-    if (activeCompletionSet.size > 0) {
-      // Ferma le completion in corso sul context VECCHIO e attendine la fine
-      // (max 5s) prima di rilasciarlo.
-      try {
-        await current.stopCompletion();
-      } catch {
-        // best effort
-      }
-      await Promise.race([
-        Promise.allSettled([...activeCompletionSet]).then(() => undefined),
-        new Promise<void>((resolve) => setTimeout(resolve, 5000)),
-      ]);
+    // Unblock any in-flight native completion, then wait for the FIFO job
+    // chain (and tracked completions) to settle before release().
+    try {
+      await current.stopCompletion();
+    } catch {
+      // best effort
     }
+    await Promise.race([
+      Promise.allSettled([
+        engineJobChain.then(() => undefined, () => undefined),
+        ...activeCompletionSet,
+      ]).then(() => undefined),
+      new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+    ]);
     try {
       await current.releaseMultimodal();
     } catch {
@@ -271,6 +298,12 @@ async function disposeEngineLocked(): Promise<void> {
     } catch {
       // rilascio best-effort
     }
+  } else {
+    // Still drain the job queue in case a job is mid-flight with a captured ctx.
+    await Promise.race([
+      engineJobChain.then(() => undefined, () => undefined),
+      new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+    ]);
   }
 }
 
@@ -310,190 +343,197 @@ export async function streamAssistantTurn(
   signal: AbortSignal | undefined,
   options: StreamTurnOptions,
 ): Promise<void> {
-  const engine = context;
-  const locale: Locale = options.locale;
-  const strings = getStrings(locale);
-  if (!engine) {
-    callbacks.onError(new Error(strings.errors.modelNotLoaded));
-    return;
-  }
-
-  let finished = false;
-  let aborted = false;
-  const finishOnce = (fn: () => void) => {
-    if (!finished) {
-      finished = true;
-      fn();
-    }
-  };
-
-  const abort = () => {
-    aborted = true;
-    finishOnce(() => callbacks.onDone());
-    void engine.stopCompletion().catch(() => undefined);
-  };
-  signal?.addEventListener("abort", abort, { once: true });
-  if (signal?.aborted) {
-    abort();
-    signal.removeEventListener("abort", abort);
-    return;
-  }
-
-  const hasTools = Boolean(options?.tools?.length && options?.executeTool);
-  // Le immagini vivono SOLO nel messaggio user corrente.
-  // MTP è text-only nel binding: con immagini la completion va in `speculative: false`.
-  const hasImages = messages.some((message) => (message.images?.length ?? 0) > 0);
-  // Le immagini vivono SOLO nel messaggio user corrente: system/tool/assistant
-  // restano testuali (invariante del piano).
-  // Il tipo del binding non dichiara tool_calls/tool_call_id sui messaggi
-  // (li accetta a runtime): li modelliamo con un tipo locale e castiamo alla
-  // chiamata completion.
-  type ToolChatMessage =
-    | RNLlamaOAICompatibleMessage
-    | {
-        role: "assistant";
-        content?: string;
-        tool_calls: Array<{ type: "function"; id?: string; function: { name: string; arguments: string } }>;
-      }
-    | { role: "tool"; tool_call_id: string; content: string };
-
-  const userIndex = messages.length - 1;
-  let currentMessages: ToolChatMessage[] = [
-    { role: "system", content: buildSystemPrompt(locale, hasTools, options.memoryFacts) },
-    ...messages.map((message, index) =>
-      index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
-    ),
-  ];
-
-  // Accumulo locale del testo: streaming garantito anche se il campo
-  // `accumulated_text` di llama.rn non fosse popolato dal binding.
-  let streamedText = "";
-
-  // Qwen3.5 emette un blocco `<think></think>` (vuoto) anche con
-  // enable_thinking:false: va rimosso, insieme a eventuali tag residui.
-  const cleanDelta = (text: string) =>
-    text
-      .replace(/<think>[\s\S]*?<\/think>/g, "")
-      .replace(/<\/?think>/g, "");
-
-  const emitFinalText = (raw: { text: string; content?: string }) => {
-    const finalText = cleanDelta(
-      typeof raw.content === "string" && raw.content.length > 0 ? raw.content : (raw.text ?? ""),
-    );
-    if (finalText) callbacks.onDelta(finalText, finalText);
-    finishOnce(() => callbacks.onDone());
-  };
-
-  try {
-    callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
-
-    for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
-      const result = await trackCompletion(
-        engine.completion(
-          {
-            messages: currentMessages as RNLlamaOAICompatibleMessage[],
-            ...(hasTools
-              ? { tools: options!.tools as EngineTool[], tool_choice: "auto" as const }
-              : {}),
-            n_predict: 512,
-            stop: STOP_WORDS,
-            temperature: 0.7,
-            top_k: 40,
-            top_p: 0.95,
-            enable_thinking: false,
-            reasoning_format: "none",
-            chat_template_kwargs: { enable_thinking: false },
-            ...(hasImages ? { speculative: false as const } : {}),
-          },
-          (data: TokenData) => {
-            if (finished || aborted) return;
-            const raw = data.content ?? (hasTools ? "" : data.token) ?? "";
-            const delta = cleanDelta(raw);
-            if (delta) {
-              streamedText += delta;
-              callbacks.onDelta(delta, streamedText);
-            }
-          },
-        ),
-      );
-
-      if (finished || aborted) return;
-
-      if (result.context_full) {
-        finishOnce(() =>
-          callbacks.onError(new Error(strings.errors.contextFull)),
-        );
-        return;
-      }
-
-      const toolCalls = result.tool_calls ?? [];
-      if (!toolCalls.length || !options?.executeTool) {
-        emitFinalText(result);
-        return;
-      }
-
-      // Round tool: esegui le chiamate, poi UN messaggio assistant con TUTTE le
-      // tool_calls + i relativi risultati tool (formato OpenAI).
-      // Gli id vengono NORMALIZZATI: il binding può restituire `id: null`
-      // (json.type_error 302 al re-parse) — l'esempio ufficiale fa lo stesso.
-      const normalizedCalls = toolCalls.slice(0, 2).map((call, index) => ({
-        type: "function" as const,
-        id: typeof call.id === "string" && call.id ? call.id : `call-${round}-${index}`,
-        function: call.function,
-      }));
-      const executed: Array<{
-        call: (typeof normalizedCalls)[number];
-        content: string;
-      }> = [];
-      for (const call of normalizedCalls) {
-        const name = call.function?.name ?? "";
-        const args = parseToolArguments(call.function?.arguments);
-        callbacks.onTool?.({ name, arguments: args });
-        callbacks.onStatus?.({ label: strings.chat.searching });
-
-        let toolContent: string;
-        try {
-          const outcome = await options.executeTool(name, args, signal);
-          if (outcome.sources?.length) callbacks.onSources?.(outcome.sources);
-          toolContent = (outcome.text ?? "").slice(0, 6000) || strings.errors.noResults;
-        } catch (error) {
-          toolContent = strings.errors.toolError.replace(
-            "{message}",
-            error instanceof Error ? error.message : String(error),
-          );
-        }
-        if (finished || aborted) return;
-
-        executed.push({ call, content: toolContent });
-      }
-
-      currentMessages = [
-        ...currentMessages,
-        {
-          role: "assistant",
-          content: "",
-          tool_calls: executed.map((entry) => entry.call),
-        },
-        ...executed.map((entry) => ({
-          role: "tool",
-          tool_call_id: entry.call.id,
-          content: entry.content,
-        })),
-      ];
-      callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
-    }
-
-    // Raggiunto il massimo dei round senza risposta testuale: chiudi comunque.
-    finishOnce(() => callbacks.onDone());
-  } catch (error) {
-    if (aborted || signal?.aborted) {
-      finishOnce(() => callbacks.onDone());
+  // Entire turn (incl. tool rounds) is one FIFO engine job — no concurrent
+  // completion with extractMemory / translateText. Tool executeTool stays
+  // inside the lock but does not call completion, so no self-deadlock.
+  return withEngineJob(async () => {
+    // Capture context INSIDE the serialized job (not before waiting).
+    const engine = context;
+    const locale: Locale = options.locale;
+    const strings = getStrings(locale);
+    if (!engine) {
+      callbacks.onError(new Error(strings.errors.modelNotLoaded));
       return;
     }
-    finishOnce(() => callbacks.onError(error instanceof Error ? error : new Error(String(error))));
-  } finally {
-    signal?.removeEventListener("abort", abort);
-  }
+
+    let finished = false;
+    let aborted = false;
+    const finishOnce = (fn: () => void) => {
+      if (!finished) {
+        finished = true;
+        fn();
+      }
+    };
+
+    const abort = () => {
+      aborted = true;
+      finishOnce(() => callbacks.onDone());
+      void engine.stopCompletion().catch(() => undefined);
+    };
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) {
+      abort();
+      signal.removeEventListener("abort", abort);
+      return;
+    }
+
+    const hasTools = Boolean(options?.tools?.length && options?.executeTool);
+    // Le immagini vivono SOLO nel messaggio user corrente.
+    // MTP è text-only nel binding: con immagini la completion va in `speculative: false`.
+    const hasImages = messages.some((message) => (message.images?.length ?? 0) > 0);
+    // Le immagini vivono SOLO nel messaggio user corrente: system/tool/assistant
+    // restano testuali (invariante del piano).
+    // Il tipo del binding non dichiara tool_calls/tool_call_id sui messaggi
+    // (li accetta a runtime): li modelliamo con un tipo locale e castiamo alla
+    // chiamata completion.
+    type ToolChatMessage =
+      | RNLlamaOAICompatibleMessage
+      | {
+          role: "assistant";
+          content?: string;
+          tool_calls: Array<{ type: "function"; id?: string; function: { name: string; arguments: string } }>;
+        }
+      | { role: "tool"; tool_call_id: string; content: string };
+
+    const userIndex = messages.length - 1;
+    let currentMessages: ToolChatMessage[] = [
+      { role: "system", content: buildSystemPrompt(locale, hasTools, options.memoryFacts) },
+      ...messages.map((message, index) =>
+        index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
+      ),
+    ];
+
+    // Accumulo locale del testo: streaming garantito anche se il campo
+    // `accumulated_text` di llama.rn non fosse popolato dal binding.
+    let streamedText = "";
+
+    // Qwen3.5 emette un blocco `<think></think>` (vuoto) anche con
+    // enable_thinking:false: va rimosso, insieme a eventuali tag residui.
+    const cleanDelta = (text: string) =>
+      text
+        .replace(/<think>[\s\S]*?<\/think>/g, "")
+        .replace(/<\/?think>/g, "");
+
+    const emitFinalText = (raw: { text: string; content?: string }) => {
+      const finalText = cleanDelta(
+        typeof raw.content === "string" && raw.content.length > 0 ? raw.content : (raw.text ?? ""),
+      );
+      if (finalText) callbacks.onDelta(finalText, finalText);
+      finishOnce(() => callbacks.onDone());
+    };
+
+    try {
+      callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
+
+      for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
+        const result = await trackCompletion(
+          engine.completion(
+            {
+              messages: currentMessages as RNLlamaOAICompatibleMessage[],
+              ...(hasTools
+                ? { tools: options!.tools as EngineTool[], tool_choice: "auto" as const }
+                : {}),
+              n_predict: 512,
+              stop: STOP_WORDS,
+              temperature: 0.7,
+              top_k: 40,
+              top_p: 0.95,
+              enable_thinking: false,
+              reasoning_format: "none",
+              chat_template_kwargs: { enable_thinking: false },
+              ...(hasImages ? { speculative: false as const } : {}),
+            },
+            (data: TokenData) => {
+              // Token callbacks run inside this job — not blocked by the FIFO gate.
+              if (finished || aborted) return;
+              const raw = data.content ?? (hasTools ? "" : data.token) ?? "";
+              const delta = cleanDelta(raw);
+              if (delta) {
+                streamedText += delta;
+                callbacks.onDelta(delta, streamedText);
+              }
+            },
+          ),
+        );
+
+        if (finished || aborted) return;
+
+        if (result.context_full) {
+          finishOnce(() =>
+            callbacks.onError(new Error(strings.errors.contextFull)),
+          );
+          return;
+        }
+
+        const toolCalls = result.tool_calls ?? [];
+        if (!toolCalls.length || !options?.executeTool) {
+          emitFinalText(result);
+          return;
+        }
+
+        // Round tool: esegui le chiamate, poi UN messaggio assistant con TUTTE le
+        // tool_calls + i relativi risultati tool (formato OpenAI).
+        // Gli id vengono NORMALIZZATI: il binding può restituire `id: null`
+        // (json.type_error 302 al re-parse) — l'esempio ufficiale fa lo stesso.
+        const normalizedCalls = toolCalls.slice(0, 2).map((call, index) => ({
+          type: "function" as const,
+          id: typeof call.id === "string" && call.id ? call.id : `call-${round}-${index}`,
+          function: call.function,
+        }));
+        const executed: Array<{
+          call: (typeof normalizedCalls)[number];
+          content: string;
+        }> = [];
+        for (const call of normalizedCalls) {
+          const name = call.function?.name ?? "";
+          const args = parseToolArguments(call.function?.arguments);
+          callbacks.onTool?.({ name, arguments: args });
+          callbacks.onStatus?.({ label: strings.chat.searching });
+
+          let toolContent: string;
+          try {
+            const outcome = await options.executeTool(name, args, signal);
+            if (outcome.sources?.length) callbacks.onSources?.(outcome.sources);
+            toolContent = (outcome.text ?? "").slice(0, 6000) || strings.errors.noResults;
+          } catch (error) {
+            toolContent = strings.errors.toolError.replace(
+              "{message}",
+              error instanceof Error ? error.message : String(error),
+            );
+          }
+          if (finished || aborted) return;
+
+          executed.push({ call, content: toolContent });
+        }
+
+        currentMessages = [
+          ...currentMessages,
+          {
+            role: "assistant",
+            content: "",
+            tool_calls: executed.map((entry) => entry.call),
+          },
+          ...executed.map((entry) => ({
+            role: "tool",
+            tool_call_id: entry.call.id,
+            content: entry.content,
+          })),
+        ];
+        callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
+      }
+
+      // Raggiunto il massimo dei round senza risposta testuale: chiudi comunque.
+      finishOnce(() => callbacks.onDone());
+    } catch (error) {
+      if (aborted || signal?.aborted) {
+        finishOnce(() => callbacks.onDone());
+        return;
+      }
+      finishOnce(() => callbacks.onError(error instanceof Error ? error : new Error(String(error))));
+    } finally {
+      signal?.removeEventListener("abort", abort);
+    }
+  });
 }
 
 /**
@@ -576,62 +616,65 @@ export async function extractMemory(
   assistantText: string,
   locale: Locale,
 ): Promise<{ add: string[]; remove: string[] }> {
-  const engine = context;
-  if (!engine) return { add: [], remove: [] };
-
-  const strings = getStrings(locale);
   const userSlice = (userText ?? "").trim().slice(0, 2000);
   const assistantSlice = (assistantText ?? "").trim().slice(0, 2000);
   if (!userSlice && !assistantSlice) return { add: [], remove: [] };
 
+  const strings = getStrings(locale);
   const prompt = strings.memory.extractPrompt
     .replace("{user}", userSlice)
     .replace("{assistant}", assistantSlice);
 
-  let timedOut = false;
-  let timer: ReturnType<typeof setTimeout> | null = null;
+  return withEngineJob(async () => {
+    // Capture context INSIDE the serialized job.
+    const engine = context;
+    if (!engine) return { add: [], remove: [] };
 
-  try {
-    // Isolate extract from prior vision/tool KV state (API: LlamaContext.clearCache).
+    let timedOut = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     try {
-      await engine.clearCache();
+      // Isolate extract from prior vision/tool KV state (API: LlamaContext.clearCache).
+      try {
+        await engine.clearCache();
+      } catch {
+        // best effort — extract still proceeds
+      }
+
+      timer = setTimeout(() => {
+        timedOut = true;
+        // Real cancellation: stop the native completion, do not leave engine busy.
+        void engine.stopCompletion().catch(() => undefined);
+      }, EXTRACT_MEMORY_TIMEOUT_MS);
+
+      const result = await trackCompletion(
+        engine.completion({
+          messages: [{ role: "user", content: prompt }] as RNLlamaOAICompatibleMessage[],
+          n_predict: 256,
+          stop: STOP_WORDS,
+          temperature: 0.1,
+          top_k: 20,
+          top_p: 0.9,
+          enable_thinking: false,
+          reasoning_format: "none",
+          chat_template_kwargs: { enable_thinking: false },
+        }),
+      );
+
+      if (timedOut) return { add: [], remove: [] };
+
+      const raw =
+        typeof result.content === "string" && result.content.length > 0
+          ? result.content
+          : (result.text ?? "");
+      return parseMemoryExtract(raw);
     } catch {
-      // best effort — extract still proceeds
+      // Timeout stopCompletion often rejects the completion promise — treat as empty.
+      return { add: [], remove: [] };
+    } finally {
+      if (timer) clearTimeout(timer);
     }
-
-    timer = setTimeout(() => {
-      timedOut = true;
-      // Real cancellation: stop the native completion, do not leave engine busy.
-      void engine.stopCompletion().catch(() => undefined);
-    }, EXTRACT_MEMORY_TIMEOUT_MS);
-
-    const result = await trackCompletion(
-      engine.completion({
-        messages: [{ role: "user", content: prompt }] as RNLlamaOAICompatibleMessage[],
-        n_predict: 256,
-        stop: STOP_WORDS,
-        temperature: 0.1,
-        top_k: 20,
-        top_p: 0.9,
-        enable_thinking: false,
-        reasoning_format: "none",
-        chat_template_kwargs: { enable_thinking: false },
-      }),
-    );
-
-    if (timedOut) return { add: [], remove: [] };
-
-    const raw =
-      typeof result.content === "string" && result.content.length > 0
-        ? result.content
-        : (result.text ?? "");
-    return parseMemoryExtract(raw);
-  } catch {
-    // Timeout stopCompletion often rejects the completion promise — treat as empty.
-    return { add: [], remove: [] };
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
+  });
 }
 
 /** Parse model JSON for memory extract — fail-closed, balanced first object. */
@@ -669,4 +712,143 @@ function parseMemoryExtract(raw: string): { add: string[]; remove: string[] } {
   } catch {
     return { add: [], remove: [] };
   }
+}
+
+export type TranslateResult = {
+  text: string;
+  /** True when source was longer than MAX_TRANSLATION_CHARS and was sliced. */
+  truncated: boolean;
+};
+
+/**
+ * Non-streaming completion that translates arbitrary text into targetLang.
+ * Same isolation pattern as extractMemory: clearCache first, wall-clock timeout
+ * with stopCompletion, fail-closed → empty text (caller shows localized error).
+ *
+ * Serialized via withEngineJob (FIFO with stream/extract). Accepts AbortSignal
+ * so clearChat / unmount can cancel an in-flight translation.
+ *
+ * Target is always the settings language. If the source is already in that
+ * language the model may rewrite it near-identically — acceptable, no lang detect.
+ * Does not log contents.
+ */
+export async function translateText(
+  text: string,
+  targetLang: Locale,
+  locale: Locale,
+  signal?: AbortSignal,
+): Promise<TranslateResult> {
+  const sourceFull = (text ?? "").trim();
+  if (!sourceFull) return { text: "", truncated: false };
+  const truncated = sourceFull.length > MAX_TRANSLATION_CHARS;
+  const source = sourceFull.slice(0, MAX_TRANSLATION_CHARS);
+
+  const strings = getStrings(locale);
+  const prompt = strings.translate.prompt
+    .replace("{targetLang}", TARGET_LANG_NAME[targetLang] ?? TARGET_LANG_NAME.en)
+    .replace("{text}", source);
+
+  return withEngineJob(async () => {
+    if (signal?.aborted) return { text: "", truncated };
+
+    // Capture context INSIDE the serialized job.
+    const engine = context;
+    if (!engine) return { text: "", truncated };
+
+    let timedOut = false;
+    let aborted = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const onAbort = () => {
+      aborted = true;
+      void engine.stopCompletion().catch(() => undefined);
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) {
+      signal.removeEventListener("abort", onAbort);
+      return { text: "", truncated };
+    }
+
+    try {
+      try {
+        await engine.clearCache();
+      } catch {
+        // best effort — translate still proceeds
+      }
+      if (aborted || signal?.aborted) return { text: "", truncated };
+
+      timer = setTimeout(() => {
+        timedOut = true;
+        void engine.stopCompletion().catch(() => undefined);
+      }, TRANSLATE_TIMEOUT_MS);
+
+      // 1024 output tokens is a reasonable cap for ≤4000 input chars.
+      // Binding does not expose a reliable truncated-by-limit flag on all
+      // platforms, so we do not surface an extra output-truncation signal.
+      const result = await trackCompletion(
+        engine.completion({
+          messages: [{ role: "user", content: prompt }] as RNLlamaOAICompatibleMessage[],
+          n_predict: 1024,
+          stop: STOP_WORDS,
+          temperature: 0.2,
+          top_k: 20,
+          top_p: 0.9,
+          enable_thinking: false,
+          reasoning_format: "none",
+          chat_template_kwargs: { enable_thinking: false },
+        }),
+      );
+
+      if (timedOut || aborted || signal?.aborted) return { text: "", truncated };
+
+      const raw =
+        typeof result.content === "string" && result.content.length > 0
+          ? result.content
+          : (result.text ?? "");
+      return { text: cleanTranslationOutput(raw), truncated };
+    } catch {
+      // Timeout / abort stopCompletion often rejects the completion promise.
+      return { text: "", truncated };
+    } finally {
+      if (timer) clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+    }
+  });
+}
+
+/**
+ * Strip think tags / whole-output fences / known preambles from a translation.
+ * Does NOT strip outer quotes (would corrupt legitimate quoted input).
+ */
+function cleanTranslationOutput(raw: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  let out = raw;
+  // (a) closed <think>...</think> blocks, then unclosed <think> to end, then residual tags.
+  out = out.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  out = out.replace(/<think>[\s\S]*$/gi, "");
+  out = out.replace(/<\/?think>/gi, "");
+  out = out.trim();
+
+  // (b) strip markdown fence only when the entire output is fenced.
+  const fenced = out.match(/^```(?:\w+)?\s*\n?([\s\S]*?)\n?```$/);
+  if (fenced) {
+    out = fenced[1].trim();
+  }
+
+  // (c) intentionally do NOT strip wrapping quotes.
+
+  // (d) explicit preambles only — drop first line when it is a known lead-in.
+  const PREAMBLE =
+    /^(here(?:'s| is)(?: the)? translation|ecco la traduzione|traduzione|translation)\s*:\s*/i;
+  const lines = out.split("\n");
+  if (lines.length > 0 && PREAMBLE.test(lines[0].trim())) {
+    let i = 1;
+    // Skip following blank lines after the preamble line.
+    while (i < lines.length && lines[i].trim() === "") i += 1;
+    out = lines.slice(i).join("\n").trim();
+  } else if (PREAMBLE.test(out)) {
+    out = out.replace(PREAMBLE, "").trim();
+  }
+
+  return out;
 }

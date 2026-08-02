@@ -20,13 +20,16 @@ import {
   BookOpen,
   Camera,
   Check,
+  ChevronDown,
   ChevronRight,
   ClipboardList,
+  Copy,
   Download,
   FileText,
   Globe,
   Grid2x2,
   Image as ImageIcon,
+  Languages,
   Menu,
   Plus,
   Send,
@@ -35,11 +38,13 @@ import {
   SquarePen,
   X,
 } from "lucide-react-native";
+import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as DocumentPicker from "expo-document-picker";
 import { PdfToImages } from "../components/PdfToImages";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
+import { translateText } from "../engine/LlamaService";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
@@ -463,6 +468,25 @@ export function AiChatPage({
   const [pdfToRender, setPdfToRender] = useState<{ uri: string; name: string } | null>(null);
   const pdfPagesRef = useRef<string[]>([]);
 
+  // In-app translation (volatile — NOT persisted with history).
+  // One translation at a time: a new run replaces the previous result.
+  const [messageMenu, setMessageMenu] = useState<{ id: string; text: string } | null>(null);
+  const [translatingId, setTranslatingId] = useState<string | null>(null);
+  const [translationResult, setTranslationResult] = useState<{
+    id: string;
+    text: string;
+    lang: Locale;
+    error?: boolean;
+    truncated?: boolean;
+  } | null>(null);
+  const [translationExpanded, setTranslationExpanded] = useState(true);
+  const [copiedFlash, setCopiedFlash] = useState(false);
+  const translateRunRef = useRef(0);
+  /** Sync guard: blocks send / long-press while a translate job is in flight. */
+  const translationInFlightRef = useRef(false);
+  /** Abort controller for the active translateText job (clearChat / unmount). */
+  const translateAbortRef = useRef<AbortController | null>(null);
+
   const MAX_IMAGE_ATTACHMENTS = 5;
 
   const addImageAttachment = useCallback(async (source: "library" | "camera") => {
@@ -552,8 +576,19 @@ export function AiChatPage({
     return () => {
       mountedRef.current = false;
       abortRef.current?.abort();
+      translateAbortRef.current?.abort();
+      translationInFlightRef.current = false;
     };
   }, []);
+
+  // Drop translation UI if its source message was removed (e.g. history trim).
+  useEffect(() => {
+    if (!translationResult) return;
+    if (!messages.some((m) => m.id === translationResult.id)) {
+      setTranslationResult(null);
+      setTranslatingId(null);
+    }
+  }, [messages, translationResult]);
 
   useEffect(() => {
     if (prefillText) setDraft(prefillText);
@@ -588,8 +623,9 @@ export function AiChatPage({
   const handleSend = useCallback(
     async (text: string, currentAttachments?: LocalAttachment[]) => {
       const trimmed = text.trim();
-      // BLOCKER-3: synchronous ref check — not subject to React batching
-      if (!trimmed || sendingRef.current || !historyLoaded) return;
+      // BLOCKER-3: synchronous ref check — not subject to React batching.
+      // Also ignore send while a translation holds the engine (silent).
+      if (!trimmed || sendingRef.current || translationInFlightRef.current || !historyLoaded) return;
       sendingRef.current = true;
       setSending(true);
 
@@ -765,18 +801,130 @@ export function AiChatPage({
 
   const clearChat = useCallback(() => {
     abortRef.current?.abort();
+    // Abort any in-flight translation (mutex job will stopCompletion).
+    translateAbortRef.current?.abort();
+    translateAbortRef.current = null;
+    translationInFlightRef.current = false;
     // BLOCKER-1 (audit): reset sending state synchronously so composer unlocks immediately
     sendingRef.current = false;
     setSending(false);
     setMessages([]);
     setDraft("");
+    // Drop volatile translation UI with the conversation.
+    translateRunRef.current += 1;
+    setMessageMenu(null);
+    setTranslatingId(null);
+    setTranslationResult(null);
+    setCopiedFlash(false);
     AsyncStorage.removeItem(HISTORY_KEY).catch(() => undefined);
+  }, []);
+
+  /** Open message action sheet (Copy + Translate). No-op while streaming / engine busy. */
+  const openMessageMenu = useCallback((id: string, text: string, streaming?: boolean) => {
+    // Skip while this message streams, a chat turn is in flight, or a translate is running.
+    // Use refs (sync) so the window between setState and re-render is also closed.
+    if (
+      streaming ||
+      sending ||
+      sendingRef.current ||
+      translatingId ||
+      translationInFlightRef.current ||
+      !text.trim()
+    ) {
+      return;
+    }
+    setMessageMenu({ id, text });
+  }, [sending, translatingId]);
+
+  const copyTextToClipboard = useCallback(async (value: string): Promise<boolean> => {
+    try {
+      await Clipboard.setStringAsync(value);
+      setCopiedFlash(true);
+      setTimeout(() => setCopiedFlash(false), 1500);
+      return true;
+    } catch {
+      // fallback: share sheet if clipboard write fails
+      try {
+        await Share.share({ message: value });
+      } catch {
+        // ignore
+      }
+      return false;
+    }
+  }, []);
+
+  /**
+   * Run on-device translation into the settings locale.
+   * Target is always settings language (no language detection).
+   * Result is volatile React state only — never written to history.
+   */
+  const runTranslate = useCallback(
+    async (messageId: string, sourceText: string) => {
+      // Do not contend with an active chat completion on the same engine.
+      if (sendingRef.current || translationInFlightRef.current) return;
+      const runId = ++translateRunRef.current;
+      // Sync flag BEFORE the await so handleSend / long-press see it immediately.
+      translationInFlightRef.current = true;
+      const controller = new AbortController();
+      translateAbortRef.current = controller;
+      setMessageMenu(null);
+      setTranslatingId(messageId);
+      setTranslationResult(null);
+      setTranslationExpanded(true);
+      // Capture target lang at start so the badge stays correct if locale changes mid-run.
+      const targetLang = locale;
+      try {
+        const out = await translateText(sourceText, targetLang, targetLang, controller.signal);
+        if (runId !== translateRunRef.current) return;
+        if (!out.text) {
+          setTranslationResult({
+            id: messageId,
+            text: "",
+            lang: targetLang,
+            error: true,
+            truncated: out.truncated,
+          });
+        } else {
+          setTranslationResult({
+            id: messageId,
+            text: out.text,
+            lang: targetLang,
+            truncated: out.truncated,
+          });
+        }
+      } catch {
+        if (runId !== translateRunRef.current) return;
+        setTranslationResult({ id: messageId, text: "", lang: targetLang, error: true });
+      } finally {
+        if (translateAbortRef.current === controller) {
+          translateAbortRef.current = null;
+        }
+        if (runId === translateRunRef.current) {
+          translationInFlightRef.current = false;
+          setTranslatingId(null);
+        }
+      }
+    },
+    [locale],
+  );
+
+  const closeTranslation = useCallback(() => {
+    translateRunRef.current += 1;
+    translateAbortRef.current?.abort();
+    translateAbortRef.current = null;
+    translationInFlightRef.current = false;
+    setTranslatingId(null);
+    setTranslationResult(null);
   }, []);
 
   // ── PDF attach rimosso (Fase 3): nessun endpoint remoto, tutto locale. ──
 
-  // WARN-2: useMemo avoids draft.trim() allocation on every render
-  const canSend = useMemo(() => !!draft.trim() && !sending && historyLoaded, [draft, historyLoaded, sending]);
+  // WARN-2: useMemo avoids draft.trim() allocation on every render.
+  // Also block while translating (translatingId is the state mirror of translationInFlightRef).
+  const canSend = useMemo(
+    () => !!draft.trim() && !sending && !translatingId && historyLoaded,
+    [draft, historyLoaded, sending, translatingId],
+  );
 
   // ── Attach chip color helper ────────────────────────────────────────────
   function chipColorForKind(kind: LocalAttachment["kind"]) {
@@ -1043,7 +1191,9 @@ export function AiChatPage({
                         })}
                       </View>
                     ) : null}
-                    <View
+                    <Pressable
+                      onLongPress={() => openMessageMenu(m.id, m.text, m.streaming)}
+                      accessibilityLabel={t("chat.a11yLongPress")}
                       style={{
                         backgroundColor: colors.accentSoft,
                         borderRadius: radius.lg,
@@ -1052,7 +1202,39 @@ export function AiChatPage({
                       }}
                     >
                       <Text style={[typography.bodyMd, { color: colors.ink }]}>{m.text}</Text>
-                    </View>
+                    </Pressable>
+
+                    {translatingId === m.id ? (
+                      <View
+                        style={{
+                          marginTop: spacing.xs,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: spacing.xs,
+                          alignSelf: "flex-end",
+                        }}
+                      >
+                        <ActivityIndicator size="small" color={colors.muted} />
+                        <Text style={[typography.bodyXs, { color: colors.muted }]}>
+                          {t("translate.translating")}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {translationResult?.id === m.id ? (
+                      <TranslationBlock
+                        result={translationResult}
+                        expanded={translationExpanded}
+                        colors={colors}
+                        t={t}
+                        onToggle={() => setTranslationExpanded((v) => !v)}
+                        onCopy={() => {
+                          if (translationResult.text) void copyTextToClipboard(translationResult.text);
+                        }}
+                        onClose={closeTranslation}
+                        onRetry={() => void runTranslate(m.id, m.text)}
+                      />
+                    ) : null}
                   </View>
                 </React.Fragment>
               );
@@ -1122,9 +1304,7 @@ export function AiChatPage({
                 ) : (
                   (m.text || showCursor) ? (
                   <Pressable
-                    onLongPress={() => {
-                      if (m.text) Share.share({ message: m.text });
-                    }}
+                    onLongPress={() => openMessageMenu(m.id, m.text, m.streaming)}
                     accessibilityLabel={t("chat.a11yLongPress")}
                   >
                     {/* Feature 3: render parsed segments */}
@@ -1156,11 +1336,14 @@ export function AiChatPage({
                                 {seg.lang}
                               </Text>
                               <Pressable
-                                onPress={() => Share.share({ message: seg.content })}
+                                onPress={() => {
+                                  void Share.share({ message: seg.content }).catch(() => undefined);
+                                }}
                                 hitSlop={8}
+                                accessibilityLabel={t("common.share")}
                               >
                                 <Text style={[typography.bodyXs, { color: colors.compute }]}>
-                                  {t("chat.copy")}
+                                  {t("common.share")}
                                 </Text>
                               </Pressable>
                             </View>
@@ -1196,6 +1379,37 @@ export function AiChatPage({
                   </Pressable>
                   ) : null
                 )}
+
+                {translatingId === m.id ? (
+                  <View
+                    style={{
+                      marginTop: spacing.xs,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: spacing.xs,
+                    }}
+                  >
+                    <ActivityIndicator size="small" color={colors.muted} />
+                    <Text style={[typography.bodyXs, { color: colors.muted }]}>
+                      {t("translate.translating")}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {translationResult?.id === m.id ? (
+                  <TranslationBlock
+                    result={translationResult}
+                    expanded={translationExpanded}
+                    colors={colors}
+                    t={t}
+                    onToggle={() => setTranslationExpanded((v) => !v)}
+                    onCopy={() => {
+                      if (translationResult.text) void copyTextToClipboard(translationResult.text);
+                    }}
+                    onClose={closeTranslation}
+                    onRetry={() => void runTranslate(m.id, m.text)}
+                  />
+                ) : null}
 
                 {/* Feature 2: miniapp card */}
                 {m.miniapp ? (
@@ -1560,6 +1774,69 @@ export function AiChatPage({
         </View>
       </View>
 
+      {/* Message long-press: Copy + Translate (replaces direct Share.share). */}
+      {messageMenu ? (
+        <Modal
+          visible
+          transparent
+          animationType="slide"
+          onRequestClose={() => setMessageMenu(null)}
+        >
+          <Pressable
+            style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.42)", justifyContent: "flex-end" }}
+            onPress={() => setMessageMenu(null)}
+          >
+            <Pressable
+              style={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.md }}
+              onPress={() => undefined}
+            >
+              <View
+                style={{
+                  backgroundColor: colors.shell,
+                  borderRadius: radius.xl ?? 24,
+                  overflow: "hidden",
+                }}
+              >
+                <Text
+                  style={[
+                    typography.bodyXs,
+                    { color: colors.muted, paddingHorizontal: spacing.md, paddingTop: spacing.md },
+                  ]}
+                >
+                  {copiedFlash ? t("common.copied") : t("chat.a11yLongPress")}
+                </Text>
+                <AttachSheetRow
+                  icon={<Copy size={18} color={colors.ink} />}
+                  label={copiedFlash ? t("common.copied") : t("common.copy")}
+                  onPress={() => {
+                    // Keep menu open ~400ms with "Copied!" so feedback is visible.
+                    void (async () => {
+                      await copyTextToClipboard(messageMenu.text);
+                      setTimeout(() => setMessageMenu(null), 400);
+                    })();
+                  }}
+                  colors={colors}
+                />
+                <AttachSheetRow
+                  icon={<Languages size={18} color={colors.ink} />}
+                  label={t("translate.title")}
+                  onPress={() => {
+                    void runTranslate(messageMenu.id, messageMenu.text);
+                  }}
+                  colors={colors}
+                />
+                <AttachSheetRow
+                  icon={<X size={18} color={colors.muted} />}
+                  label={t("common.cancel")}
+                  onPress={() => setMessageMenu(null)}
+                  colors={colors}
+                />
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
+
       {attachSheetOpen ? (
         <Modal
           visible
@@ -1632,6 +1909,110 @@ function AttachSheetRow({
       {icon}
       <Text style={[typography.bodySm, { color: colors.ink }]}>{label}</Text>
     </Pressable>
+  );
+}
+
+/** Volatile translation result card under a message (not part of history). */
+function TranslationBlock({
+  result,
+  expanded,
+  colors,
+  t,
+  onToggle,
+  onCopy,
+  onClose,
+  onRetry,
+}: {
+  result: { id: string; text: string; lang: Locale; error?: boolean; truncated?: boolean };
+  expanded: boolean;
+  colors: any;
+  t: TranslateFn;
+  onToggle: () => void;
+  onCopy: () => void;
+  onClose: () => void;
+  onRetry: () => void;
+}) {
+  // Badge from result.lang (captured at translate start), not the live locale.
+  const langBadge = result.lang === "it" ? "IT" : "EN";
+  const [copiedLocal, setCopiedLocal] = useState(false);
+
+  const handleCopy = () => {
+    onCopy();
+    setCopiedLocal(true);
+    setTimeout(() => setCopiedLocal(false), 1500);
+  };
+
+  return (
+    <View
+      style={{
+        marginTop: spacing.xs,
+        borderRadius: radius.md,
+        borderWidth: 1,
+        borderColor: colors.line,
+        backgroundColor: colors.panel,
+        overflow: "hidden",
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: spacing.xs,
+          paddingHorizontal: spacing.sm,
+          paddingVertical: spacing.xs,
+        }}
+      >
+        <Pressable
+          onPress={onToggle}
+          style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.xs }}
+          accessibilityRole="button"
+        >
+          <Languages size={14} color={colors.muted} />
+          <Text style={[typography.bodyXs, { color: colors.muted, flex: 1 }]}>
+            {t("translate.label", { lang: langBadge })}
+          </Text>
+          <View style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}>
+            <ChevronDown size={14} color={colors.muted} />
+          </View>
+        </Pressable>
+        <Pressable onPress={onClose} hitSlop={8} accessibilityLabel={t("common.close")}>
+          <X size={14} color={colors.muted} />
+        </Pressable>
+      </View>
+
+      {expanded ? (
+        <View style={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.sm, gap: spacing.xs }}>
+          {result.error ? (
+            <>
+              <Text style={[typography.bodySm, { color: colors.muted }]}>{t("translate.error")}</Text>
+              <Pressable onPress={onRetry} hitSlop={8} style={{ alignSelf: "flex-start" }}>
+                <Text style={[typography.bodyXs, { color: colors.compute }]}>{t("translate.retry")}</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={[typography.bodySm, { color: colors.ink }]}>{result.text}</Text>
+              {result.truncated ? (
+                <Text style={[typography.bodyXs, { color: colors.muted }]}>
+                  {t("translate.truncated")}
+                </Text>
+              ) : null}
+              <Pressable
+                onPress={handleCopy}
+                hitSlop={8}
+                style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4 }}
+                accessibilityLabel={copiedLocal ? t("common.copied") : t("common.copy")}
+              >
+                <Copy size={12} color={colors.compute} />
+                <Text style={[typography.bodyXs, { color: colors.compute }]}>
+                  {copiedLocal ? t("common.copied") : t("common.copy")}
+                </Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
