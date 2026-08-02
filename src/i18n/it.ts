@@ -87,6 +87,63 @@ export const it: typeof en = {
     aboutVersion: "Versione {version}",
     aboutBody:
       "Assistente privato sul dispositivo. Chat, ricerca web e mini-app interattive — senza account.",
+    help: "Aiuto",
+    helpSubtitle: "Come funziona Kalsa",
+  },
+
+  help: {
+    title: "Aiuto",
+    intro:
+      "Kalsa è un assistente privato sul dispositivo. La chat gira interamente sul telefono — nessun account, nessun cloud per il modello.",
+    howItWorks: {
+      title: "Come funziona",
+      body:
+        "La chat è 100% locale. Non serve un account. I modelli girano su questo dispositivo con llama.rn. La conversazione resta sul telefono, a meno che non la esporti tu.",
+    },
+    models: {
+      title: "Scaricare i modelli",
+      body:
+        "Apri Impostazioni → Modelli. Scegli un modello (Qwen 4B è il default consigliato; usa il 2B su device con poca RAM). Il download chiede conferma, mostra il progresso e invia una notifica a fine download. Serve spazio su disco (~3 GB per il modello più i componenti vision se presenti). I download interrotti riprendono da dove erano.",
+    },
+    websearch: {
+      title: "Ricerca web",
+      body:
+        "La chat può cercare online quando servono info fresche, notizie o prezzi. Il provider predefinito è Exa MCP gratuito. In Impostazioni → Ricerca web puoi aggiungere le chiavi API di Exa, Brave o Tavily; le chiavi restano nel keystore sicuro del dispositivo. Se il provider scelto fallisce, Kalsa ripiega automaticamente sul provider gratuito.",
+    },
+    privacy: {
+      title: "Privacy",
+      body:
+        "Tutto gira sul dispositivo. Le uniche chiamate di rete sono il download dei modelli (Hugging Face) e la ricerca web (il provider scelto). Nessun account, nessuna telemetria. Le chiavi API restano nel keystore del dispositivo. La cronologia resta sul telefono.",
+    },
+    miniapps: {
+      title: "Mini-app",
+      body:
+        "La chat può generare mini-app interattive — tabelle, grafici, calcolatrici, quiz a risposta multipla e altro. Esempio: \"fammi un quiz su X\". Tocca la card della mini-app in chat per aprirla a schermo intero.",
+    },
+    limits: {
+      title: "Limiti",
+      body:
+        "È un modello piccolo sul dispositivo: le risposte restano brevi di proposito. Senza rete la ricerca web non funziona (la chat locale sì). La velocità dipende dal telefono. Su device con poca RAM usa il modello 2B.",
+    },
+    faq: {
+      title: "FAQ",
+      shortAnswers: {
+        q: "Perché la risposta è corta?",
+        a: "Il modello on-device tiene le risposte brevi. Chiedi più dettagli se ti serve una risposta più lunga.",
+      },
+      offline: {
+        q: "Posso usare Kalsa senza rete?",
+        a: "Sì per la chat locale (dopo aver scaricato il modello). No per la ricerca web — serve una connessione.",
+      },
+      chatStorage: {
+        q: "Dove sono salvate le mie chat?",
+        a: "Solo su questo dispositivo. Non c'è sincronizzazione cloud.",
+      },
+      language: {
+        q: "Come cambio lingua?",
+        a: "Apri Impostazioni → Lingua. Il modello risponde nella lingua scelta.",
+      },
+    },
   },
 
   download: {

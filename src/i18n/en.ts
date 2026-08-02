@@ -86,6 +86,63 @@ export const en = {
     aboutVersion: "Version {version}",
     aboutBody:
       "Private on-device assistant. Chat, web search, and interactive mini-apps — no account required.",
+    help: "Help",
+    helpSubtitle: "How Kalsa works",
+  },
+
+  help: {
+    title: "Help",
+    intro:
+      "Kalsa is a private on-device assistant. Chat runs fully on your phone — no account, no cloud for the model.",
+    howItWorks: {
+      title: "How it works",
+      body:
+        "Chat is 100% local. There is no account. Models run on this device with llama.rn. Your conversation stays on the phone unless you export it yourself.",
+    },
+    models: {
+      title: "Downloading models",
+      body:
+        "Open Settings → Models. Pick a model (Qwen 4B is the recommended default; use the 2B model on low-RAM devices). Download asks for confirmation, shows progress, and sends a notification when finished. You need free disk space (~3 GB for the model plus vision components when present). Incomplete downloads resume where they left off.",
+    },
+    websearch: {
+      title: "Web search",
+      body:
+        "The chat can search the web when it needs fresh info, news, or prices. The default provider is free Exa MCP. In Settings → Web search you can add API keys for Exa, Brave, or Tavily; keys are stored in this device's secure keystore. If the chosen provider fails, Kalsa falls back to the free provider automatically.",
+    },
+    privacy: {
+      title: "Privacy",
+      body:
+        "Everything runs on-device. The only network calls are model downloads (Hugging Face) and web search (your chosen provider). No account, no telemetry. API keys stay in the device keystore. Chat history stays on the phone.",
+    },
+    miniapps: {
+      title: "Mini-apps",
+      body:
+        "The chat can generate interactive mini-apps — tables, charts, calculators, multiple-choice quizzes, and more. Example: \"make me a quiz on X\". Tap a mini-app card in chat to open it full screen.",
+    },
+    limits: {
+      title: "Limits",
+      body:
+        "This is a small on-device model: answers stay short by design. Without a network connection, web search does not work (local chat still does). Speed depends on your phone. On low-RAM devices, use the 2B model.",
+    },
+    faq: {
+      title: "FAQ",
+      shortAnswers: {
+        q: "Why is the answer short?",
+        a: "The on-device model keeps replies brief. Ask for more detail if you need a longer answer.",
+      },
+      offline: {
+        q: "Can I use Kalsa offline?",
+        a: "Yes for local chat (after the model is downloaded). No for web search — that needs a network connection.",
+      },
+      chatStorage: {
+        q: "Where are my chats saved?",
+        a: "On this device only. There is no cloud sync.",
+      },
+      language: {
+        q: "How do I change the language?",
+        a: "Open Settings → Language. The model answers in the language you choose.",
+      },
+    },
   },
 
   download: {

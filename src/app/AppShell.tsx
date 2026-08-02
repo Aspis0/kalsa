@@ -5,6 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { X as LucideX, Globe as LucideGlobe, Settings as LucideSettings } from "lucide-react-native";
 
 import { AiChatPage, type ChatCta, type LocalAttachment } from "../screens/AiChatPage";
+import { HelpScreen } from "../screens/HelpScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { AskAssistantMiniappRenderer } from "../ui/AskAssistantMiniappRenderer";
 import { Drawer, PainterlyBg, type DrawerItem } from "../theme/components";
@@ -35,6 +36,7 @@ type ModelState = ModelPipelineState;
 /** Exclusive full-screen overlays (drawer stays separate — transient chrome). */
 type ActiveOverlay =
   | { kind: "settings" }
+  | { kind: "help" }
   | { kind: "miniapp"; miniapp: AskAssistantMiniapp }
   | null;
 
@@ -91,9 +93,9 @@ export function AppShell() {
     [t],
   );
 
-  // Android hardware back while Settings is open: SettingsScreen owns the
-  // handler (dirty-confirm for unsaved provider/key). AppShell must NOT
-  // register a competing handler that would bypass that confirm.
+  // Android hardware back while Settings/Help is open: each screen owns its
+  // BackHandler (Settings: dirty-confirm; Help: return to Settings). AppShell
+  // must NOT register a competing handler that would bypass those paths.
 
   // ── Notifiche locali (download) ──────────────────────────────────────────
   const notifyDownload = useCallback(async (title: string, body: string) => {
@@ -645,10 +647,10 @@ export function AppShell() {
             prefillText={null}
             onSendStream={handleSendStream}
             onOpenMiniapp={(miniapp) => {
-              // Policy: ignore miniapp open while Settings is active (simplest
-              // exclusive-overlay rule; settings stays until user closes it).
+              // Policy: ignore miniapp open while Settings/Help is active
+              // (exclusive overlay; stays until user closes it).
               setActiveOverlay((prev) =>
-                prev?.kind === "settings"
+                prev?.kind === "settings" || prev?.kind === "help"
                   ? prev
                   : { kind: "miniapp", miniapp: miniapp as AskAssistantMiniapp },
               );
@@ -691,6 +693,7 @@ export function AppShell() {
       {activeOverlay?.kind === "settings" ? (
         <SettingsScreen
           onBack={() => setActiveOverlay(null)}
+          onOpenHelp={() => setActiveOverlay({ kind: "help" })}
           model={{
             currentModelId: currentModel.id,
             modelState,
@@ -701,6 +704,13 @@ export function AppShell() {
             onSelectModel: selectModelById,
             onDownloadModel: confirmDownload,
           }}
+        />
+      ) : null}
+
+      {activeOverlay?.kind === "help" ? (
+        <HelpScreen
+          // Back from Help returns to Settings (Help is opened from Settings).
+          onBack={() => setActiveOverlay({ kind: "settings" })}
         />
       ) : null}
 

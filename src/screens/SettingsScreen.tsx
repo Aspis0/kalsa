@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import Constants from "expo-constants";
+import { ChevronRight, CircleQuestionMark } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { ModelPipelineState } from "../app/AppShell";
@@ -49,6 +50,8 @@ export type SettingsModelProps = {
 
 type Props = {
   onBack: () => void;
+  /** Open Help overlay (AppShell sets activeOverlay to { kind: "help" }). */
+  onOpenHelp: () => void;
   model: SettingsModelProps;
 };
 
@@ -70,7 +73,7 @@ function modelBundleSize(model: ModelInfo): number {
  * Settings — full-screen View overlay opened from the drawer.
  * Not a Modal: Android hardware back is handled here (dirty confirm for websearch).
  */
-export function SettingsScreen({ onBack, model }: Props) {
+export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
   const { colors } = useLabTheme<any>();
   const insets = useSafeAreaInsets();
   const { locale, setLocale, t } = useLocale();
@@ -230,6 +233,26 @@ export function SettingsScreen({ onBack, model }: Props) {
       },
     ]);
   }, [busy, dirty, onBack, t]);
+
+  /**
+   * Help leaves Settings (exclusive overlay). If websearch edits are dirty,
+   * confirm discard first so the draft key is not silently lost on unmount.
+   */
+  const handleOpenHelp = useCallback(() => {
+    if (busy) return;
+    if (!dirty) {
+      onOpenHelp();
+      return;
+    }
+    Alert.alert(t("settings.unsavedTitle"), t("settings.unsavedBody"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("settings.discard"),
+        style: "destructive",
+        onPress: onOpenHelp,
+      },
+    ]);
+  }, [busy, dirty, onOpenHelp, t]);
 
   // Android hardware back: consume here so dirty confirmation is not skipped by AppShell.
   useEffect(() => {
@@ -688,6 +711,31 @@ export function SettingsScreen({ onBack, model }: Props) {
           <Text style={[typography.bodyXs, { color: colors.muted, lineHeight: 18 }]}>
             {t("settings.privacyBody")}
           </Text>
+        </GlassPanel2>
+
+        {/* ── Help (before About) ──────────────────────────────────────── */}
+        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Pressable
+            onPress={handleOpenHelp}
+            disabled={busy}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.sm,
+              opacity: busy ? 0.5 : 1,
+            }}
+          >
+            <CircleQuestionMark size={18} color={colors.accent} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+                {t("settings.help")}
+              </Text>
+              <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
+                {t("settings.helpSubtitle")}
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.muted} />
+          </Pressable>
         </GlassPanel2>
 
         {/* ── About ────────────────────────────────────────────────────── */}
