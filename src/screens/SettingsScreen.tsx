@@ -9,8 +9,10 @@ import {
   TextInput,
   View,
 } from "react-native";
+import Constants from "expo-constants";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import type { ModelPipelineState } from "../app/AppShell";
 import { useLocale, type Locale, type TranslationKey } from "../i18n";
 import {
   getActiveProviderId,
@@ -21,14 +23,37 @@ import {
   setSecret,
   type SearchProviderId,
 } from "../search";
+import {
+  MODEL_REGISTRY,
+  formatBytes,
+  type ModelInfo,
+} from "../engine/ModelRegistry";
 import { GlassPanel2, Header } from "../theme/components";
 import { radius, spacing } from "../theme/tokens";
 import { typography } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 
+export type SettingsModelProps = {
+  currentModelId: string;
+  modelState: ModelPipelineState;
+  /** 0–100 while downloading; null otherwise. */
+  downloadPercent: number | null;
+  modelError: string | null;
+  /** True while an assistant stream is in flight — Select is disabled. */
+  streaming: boolean;
+  /** Presence map from a one-shot disk scan (keys appear after scan). */
+  downloadedById: Record<string, boolean>;
+  onSelectModel: (modelId: string) => void;
+  onDownloadModel: (modelId: string) => void;
+};
+
 type Props = {
   onBack: () => void;
+  model: SettingsModelProps;
 };
+
+/** App version from Expo config; fallback keeps About usable in bare tests. */
+const APP_VERSION = Constants.expoConfig?.version ?? "0.1.0";
 
 const PROVIDER_LABEL_KEYS: Record<SearchProviderId, TranslationKey> = {
   "exa-mcp": "settings.providerExaMcp",
@@ -37,11 +62,15 @@ const PROVIDER_LABEL_KEYS: Record<SearchProviderId, TranslationKey> = {
   tavily: "settings.providerTavily",
 };
 
+function modelBundleSize(model: ModelInfo): number {
+  return model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
+}
+
 /**
  * Settings — full-screen View overlay opened from the drawer.
- * Not a Modal: Android hardware back is handled in AppShell.
+ * Not a Modal: Android hardware back is handled here (dirty confirm for websearch).
  */
-export function SettingsScreen({ onBack }: Props) {
+export function SettingsScreen({ onBack, model }: Props) {
   const { colors } = useLabTheme<any>();
   const insets = useSafeAreaInsets();
   const { locale, setLocale, t } = useLocale();
@@ -71,6 +100,11 @@ export function SettingsScreen({ onBack }: Props) {
   const meta = PROVIDERS[providerId];
   const needsKey = meta.needsKey;
   const busy = loading || saving;
+  const modelBusy =
+    model.modelState === "downloading" ||
+    model.modelState === "loading" ||
+    model.modelState === "checking" ||
+    model.streaming;
 
   const dirty = useMemo(() => {
     if (providerId !== savedProviderId) return true;
@@ -211,6 +245,25 @@ export function SettingsScreen({ onBack }: Props) {
     [meta.keyPlaceholder, t],
   );
 
+  const activeStatusLabel = useMemo(() => {
+    switch (model.modelState) {
+      case "checking":
+        return t("settings.modelChecking");
+      case "missing":
+        return t("settings.modelMissing");
+      case "downloading":
+        return t("settings.modelDownloading", {
+          percent: model.downloadPercent ?? 0,
+        });
+      case "loading":
+        return t("settings.modelLoading");
+      case "ready":
+        return t("settings.modelReady");
+      case "error":
+        return t("settings.modelError");
+    }
+  }, [model.downloadPercent, model.modelState, t]);
+
   return (
     <View
       style={{
@@ -232,6 +285,7 @@ export function SettingsScreen({ onBack }: Props) {
         }}
         keyboardShouldPersistTaps="handled"
       >
+        {/* ── Language ─────────────────────────────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
             {t("settings.language")}
@@ -278,6 +332,7 @@ export function SettingsScreen({ onBack }: Props) {
           </View>
         </GlassPanel2>
 
+        {/* ── Web search ───────────────────────────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
             {t("settings.webSearch")}
@@ -434,6 +489,221 @@ export function SettingsScreen({ onBack }: Props) {
               ) : null}
             </>
           )}
+        </GlassPanel2>
+
+        {/* ── Models ───────────────────────────────────────────────────── */}
+        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+            {t("settings.models")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
+            {t("settings.modelsHint")}
+          </Text>
+
+          <View style={{ gap: spacing.sm }}>
+            {MODEL_REGISTRY.map((entry) => {
+              const active = entry.id === model.currentModelId;
+              const sizeLabel = formatBytes(modelBundleSize(entry));
+              const downloaded = model.downloadedById[entry.id];
+              return (
+                <View
+                  key={entry.id}
+                  style={{
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.md,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: active ? colors.accent : colors.line,
+                    backgroundColor: active ? `${colors.accent}14` : "transparent",
+                    gap: spacing.xs,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: spacing.sm,
+                    }}
+                  >
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text
+                        style={[
+                          typography.bodySm,
+                          {
+                            color: colors.ink,
+                            fontWeight: active ? "700" : "600",
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {entry.name}
+                      </Text>
+                      <Text style={[typography.bodyXs, { color: colors.muted }]} numberOfLines={1}>
+                        {entry.quant} · {sizeLabel}
+                      </Text>
+                      {typeof downloaded === "boolean" ? (
+                        <Text
+                          style={[
+                            typography.bodyXs,
+                            {
+                              color: downloaded ? colors.good : colors.muted,
+                              marginTop: 2,
+                            },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {downloaded
+                            ? t("settings.modelDownloadedBadge")
+                            : t("settings.modelNotDownloadedBadge")}
+                        </Text>
+                      ) : null}
+                    </View>
+
+                    {active ? (
+                      <View
+                        style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: 999,
+                          backgroundColor: `${colors.accent}22`,
+                        }}
+                      >
+                        <Text
+                          style={[
+                            typography.bodyXs,
+                            { color: colors.accent, fontWeight: "700" },
+                          ]}
+                        >
+                          {t("settings.modelActive")}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Pressable
+                        onPress={() => model.onSelectModel(entry.id)}
+                        disabled={modelBusy}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: radius.md,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                          opacity: modelBusy ? 0.5 : 1,
+                        }}
+                      >
+                        <Text
+                          style={[
+                            typography.bodyXs,
+                            { color: colors.ink, fontWeight: "600" },
+                          ]}
+                        >
+                          {t("settings.modelSelect")}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
+
+                  {active ? (
+                    <View style={{ gap: spacing.xs }}>
+                      <Text
+                        style={[
+                          typography.bodyXs,
+                          {
+                            color:
+                              model.modelState === "error"
+                                ? colors.bad
+                                : model.modelState === "ready"
+                                  ? colors.good
+                                  : colors.muted,
+                          },
+                        ]}
+                      >
+                        {activeStatusLabel}
+                      </Text>
+
+                      {model.modelState === "downloading" && model.downloadPercent != null ? (
+                        <View
+                          style={{
+                            height: 4,
+                            borderRadius: 2,
+                            backgroundColor: colors.line,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <View
+                            style={{
+                              height: 4,
+                              width: `${model.downloadPercent}%`,
+                              backgroundColor: colors.accent,
+                            }}
+                          />
+                        </View>
+                      ) : null}
+
+                      {model.modelError ? (
+                        <Text
+                          style={[typography.bodyXs, { color: colors.bad }]}
+                          numberOfLines={2}
+                        >
+                          {model.modelError}
+                        </Text>
+                      ) : null}
+
+                      {model.modelState === "missing" || model.modelState === "error" ? (
+                        <Pressable
+                          onPress={() => model.onDownloadModel(entry.id)}
+                          disabled={modelBusy}
+                          style={{
+                            marginTop: 2,
+                            paddingVertical: spacing.sm,
+                            borderRadius: radius.md,
+                            backgroundColor: colors.accent,
+                            alignItems: "center",
+                            opacity: modelBusy ? 0.6 : 1,
+                          }}
+                        >
+                          <Text
+                            style={[
+                              typography.bodySm,
+                              { color: "#fff", fontWeight: "700" },
+                            ]}
+                          >
+                            {t("settings.modelDownload")}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+        </GlassPanel2>
+
+        {/* ── Privacy ──────────────────────────────────────────────────── */}
+        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+            {t("settings.privacy")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted, lineHeight: 18 }]}>
+            {t("settings.privacyBody")}
+          </Text>
+        </GlassPanel2>
+
+        {/* ── About ────────────────────────────────────────────────────── */}
+        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+            {t("settings.about")}
+          </Text>
+          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "700" }]}>
+            {t("settings.aboutAppName")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
+            {t("settings.aboutVersion", { version: APP_VERSION })}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted, lineHeight: 18 }]}>
+            {t("settings.aboutBody")}
+          </Text>
         </GlassPanel2>
       </ScrollView>
     </View>

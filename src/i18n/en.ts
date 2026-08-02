@@ -61,6 +61,31 @@ export const en = {
     unsavedTitle: "Unsaved changes",
     unsavedBody: "You have unsaved changes. Discard them?",
     discard: "Discard",
+    models: "Models",
+    modelsHint:
+      "Choose the on-device model. Download runs only when you ask for it; incomplete downloads resume.",
+    modelActive: "Active",
+    modelSelect: "Select",
+    modelDownload: "Download",
+    modelDownloading: "Downloading… {percent}%",
+    modelLoading: "Loading…",
+    modelChecking: "Checking…",
+    modelReady: "Ready",
+    modelMissing: "Not downloaded",
+    modelError: "Error — retry",
+    modelDownloadedBadge: "Downloaded ✓",
+    modelNotDownloadedBadge: "Not downloaded",
+    switchWhileStreamingTitle: "Response in progress",
+    switchWhileStreamingBody:
+      "Changing model will stop generation. Continue?",
+    privacy: "Privacy",
+    privacyBody:
+      "Kalsa runs fully on this device. Your chats stay local. The only network calls are model downloads from Hugging Face and web search through the provider you choose. API keys are stored in this device's secure storage. There is no account and no cloud sync.",
+    about: "About",
+    aboutAppName: "Kalsa AI Chat",
+    aboutVersion: "Version {version}",
+    aboutBody:
+      "Private on-device assistant. Chat, web search, and interactive mini-apps — no account required.",
   },
 
   download: {
@@ -100,7 +125,7 @@ export const en = {
     backendNotWired: "Backend not wired.",
     queryLimit: "You've reached your query limit for today.",
     serviceUnreachable: "Couldn't reach the AI service. Please try again.",
-    modelNotDownloaded: "Model not downloaded yet. Tap the model bar to download {name}.",
+    modelNotDownloaded: "Model not downloaded yet. Open Settings → Models to download {name}.",
     openAction: "Open {label}",
     openOutputPicker: "Open output picker",
     selectedRun: "Selected run: {label}",

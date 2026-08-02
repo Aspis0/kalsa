@@ -20,7 +20,6 @@ import {
   BookOpen,
   Camera,
   Check,
-  ChevronDown,
   ChevronRight,
   ClipboardList,
   Download,
@@ -792,30 +791,8 @@ export function AiChatPage({
             <Menu size={20} color={colors.ink} />
           </Pressable>
 
-          {/* Center: model chip */}
-          <View style={{ flex: 1, alignItems: "center" }}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 5,
-                backgroundColor: colors.computeSoft,
-                borderColor: colors.compute,
-                borderWidth: 0.5,
-                borderRadius: radius.pill,
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-              }}
-            >
-              <View
-                style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: colors.good }}
-              />
-              <Text style={[typography.bodyXs, { color: colors.compute, fontWeight: "600" }]}>
-                Kalsa
-              </Text>
-              <ChevronDown size={12} color={colors.compute} />
-            </View>
-          </View>
+          {/* Center spacer — model name/status lives in AppShell header */}
+          <View style={{ flex: 1 }} />
 
           {/* Right: export chat */}
           <Pressable

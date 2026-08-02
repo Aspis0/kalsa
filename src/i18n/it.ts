@@ -42,7 +42,7 @@ export const it: typeof en = {
     languageHint: "L'assistente risponde in questa lingua.",
     webSearch: "Ricerca web",
     webSearchHint:
-      "Scegli un provider di ricerca. Exa MCP è gratuito e non richiede chiave; gli altri provider richiedono un'API key salvata sul dispositivo.",
+      "Scegli un provider di ricerca. Exa MCP è gratuito e non richiede chiave; gli altri provider richiedono una chiave API salvata sul dispositivo.",
     provider: "Provider",
     providerExaMcp: "Exa MCP (gratis)",
     providerExa: "Exa API",
@@ -62,6 +62,31 @@ export const it: typeof en = {
     unsavedTitle: "Modifiche non salvate",
     unsavedBody: "Hai modifiche non salvate. Vuoi scartarle?",
     discard: "Scarta",
+    models: "Modelli",
+    modelsHint:
+      "Scegli il modello sul dispositivo. Il download parte solo se lo chiedi; i download interrotti riprendono da dove erano.",
+    modelActive: "Attivo",
+    modelSelect: "Seleziona",
+    modelDownload: "Scarica",
+    modelDownloading: "Scaricamento… {percent}%",
+    modelLoading: "Caricamento…",
+    modelChecking: "Verifica…",
+    modelReady: "Pronto",
+    modelMissing: "Non scaricato",
+    modelError: "Errore — riprova",
+    modelDownloadedBadge: "Scaricato ✓",
+    modelNotDownloadedBadge: "Non scaricato",
+    switchWhileStreamingTitle: "Risposta in corso",
+    switchWhileStreamingBody:
+      "Cambiare modello interromperà la generazione. Continuare?",
+    privacy: "Privacy",
+    privacyBody:
+      "Kalsa gira interamente su questo dispositivo. Le chat restano locali. Le uniche chiamate di rete sono il download dei modelli da Hugging Face e la ricerca web tramite il provider che scegli. Le chiavi API sono salvate nell'archivio sicuro del dispositivo. Nessun account e nessuna sincronizzazione cloud.",
+    about: "Informazioni",
+    aboutAppName: "Kalsa AI Chat",
+    aboutVersion: "Versione {version}",
+    aboutBody:
+      "Assistente privato sul dispositivo. Chat, ricerca web e mini-app interattive — senza account.",
   },
 
   download: {
@@ -70,7 +95,7 @@ export const it: typeof en = {
       "Scarica {name} ({size})? Serve una connessione stabile e spazio su disco. Se si interrompe, riprende da dove era.",
     checking: "Verifica…",
     missing: "Scarica {size}",
-    downloading: "Download… {percent}%",
+    downloading: "Scaricamento… {percent}%",
     loading: "Caricamento modello…",
     failedRetry: "Download non riuscito — tocca per riprovare",
     readyLocal: "Pronto · locale",
@@ -103,7 +128,7 @@ export const it: typeof en = {
     queryLimit: "Hai raggiunto il limite di query di oggi.",
     serviceUnreachable: "Impossibile raggiungere il servizio AI. Riprova.",
     modelNotDownloaded:
-      "Modello non ancora scaricato. Tocca la barra del modello per scaricare {name}.",
+      "Modello non ancora scaricato. Apri Impostazioni → Modelli per scaricare {name}.",
     openAction: "Apri {label}",
     openOutputPicker: "Apri selettore output",
     selectedRun: "Esecuzione selezionata: {label}",

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, BackHandler, Keyboard, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Keyboard, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { X as LucideX, Globe as LucideGlobe, Settings as LucideSettings } from "lucide-react-native";
@@ -21,7 +21,16 @@ import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssis
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import { useLocale } from "../i18n";
 
-type ModelState = "checking" | "missing" | "downloading" | "loading" | "ready" | "error";
+/** Shared model pipeline states (download / load / ready) — used by Settings. */
+export type ModelPipelineState =
+  | "checking"
+  | "missing"
+  | "downloading"
+  | "loading"
+  | "ready"
+  | "error";
+
+type ModelState = ModelPipelineState;
 
 /** Exclusive full-screen overlays (drawer stays separate — transient chrome). */
 type ActiveOverlay =
@@ -82,16 +91,9 @@ export function AppShell() {
     [t],
   );
 
-  // Android hardware back: miniapp Modal owns onRequestClose first; when only
-  // Settings is open (View overlay, not Modal) consume back and close it.
-  useEffect(() => {
-    if (activeOverlay?.kind !== "settings") return;
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      setActiveOverlay(null);
-      return true;
-    });
-    return () => sub.remove();
-  }, [activeOverlay?.kind]);
+  // Android hardware back while Settings is open: SettingsScreen owns the
+  // handler (dirty-confirm for unsaved provider/key). AppShell must NOT
+  // register a competing handler that would bypass that confirm.
 
   // ── Notifiche locali (download) ──────────────────────────────────────────
   const notifyDownload = useCallback(async (title: string, body: string) => {
@@ -145,10 +147,16 @@ export function AppShell() {
     };
   }, []);
 
-  // Guard sincrone per download/switch (non soggette al batching di React).
+  // Guard sincrone per download/switch/stream (non soggette al batching di React).
   const downloadInFlight = useRef(false);
   const downloadAbortRef = useRef<AbortController | null>(null);
   const engineGenerationRef = useRef(0);
+  const streamInFlightRef = useRef(false);
+  const modelSwitchInFlightRef = useRef(false);
+  /** UI mirror of streamInFlightRef — disables model Select in Settings. */
+  const [streaming, setStreaming] = useState(false);
+  /** Per-model download presence for Settings badges (scanned when Settings opens). */
+  const [downloadedById, setDownloadedById] = useState<Record<string, boolean>>({});
 
   const showNotice = useCallback((value: string) => {
     setNotice(value);
@@ -188,9 +196,17 @@ export function AppShell() {
   }, [modelIndex]);
 
   const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
+    // Capture generation + expected model BEFORE any await (race with selectModel).
+    const generation = engineGenerationRef.current;
+    const expectedModelId = model.id;
+    const stillCurrent = () =>
+      generation === engineGenerationRef.current &&
+      MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
+
     if (isEngineReady() && getActiveModelId() === model.id) return true;
     if (!(await isModelBundleDownloaded(model))) return false;
-    const generation = engineGenerationRef.current;
+    if (!stillCurrent()) return false;
+
     setModelState("loading");
     try {
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
@@ -203,11 +219,11 @@ export function AppShell() {
         mtpNMax: model.mtp?.nMax,
         locale,
       });
-      if (generation !== engineGenerationRef.current) return false;
+      if (!stillCurrent()) return false;
       setModelState("ready");
       return true;
     } catch (error) {
-      if (generation !== engineGenerationRef.current) return false;
+      if (!stillCurrent()) return false;
       setModelState("error");
       setModelError(friendlyNetworkError(error, locale, "engine").message);
       return false;
@@ -216,35 +232,84 @@ export function AppShell() {
 
   const selectModel = useCallback(
     (nextIndex: number) => {
-      if (downloadInFlight.current || modelState === "downloading" || modelState === "loading") return;
-      const wrapped = (nextIndex + MODEL_REGISTRY.length) % MODEL_REGISTRY.length;
-      if (wrapped === modelIndex) return;
-      void disposeEngine().then(() => {
-        engineGenerationRef.current += 1;
-        setModelIndex(wrapped);
-        setModelState("checking");
-        setModelError(null);
-        // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
-        AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[wrapped].id).catch(() => undefined);
-      });
+      if (
+        downloadInFlight.current ||
+        modelSwitchInFlightRef.current ||
+        modelState === "downloading" ||
+        modelState === "loading"
+      ) {
+        return;
+      }
+      if (nextIndex < 0 || nextIndex >= MODEL_REGISTRY.length) return;
+      if (nextIndex === modelIndex) return;
+
+      // Sync transition: bump generation + show checking before dispose awaits.
+      modelSwitchInFlightRef.current = true;
+      engineGenerationRef.current += 1;
+      modelIndexRef.current = nextIndex; // keep stillCurrent() correct before re-render
+      setModelIndex(nextIndex);
+      setModelState("checking");
+      setModelError(null);
+      // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
+      AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
+
+      void disposeEngine()
+        .catch(() => undefined)
+        .finally(() => {
+          modelSwitchInFlightRef.current = false;
+        });
     },
     [modelIndex, modelState],
   );
 
-  const startDownload = useCallback(async () => {
+  /** Settings: select by model id (same storage key + engine dispose path). */
+  const selectModelById = useCallback(
+    (modelId: string) => {
+      const nextIndex = MODEL_REGISTRY.findIndex((m) => m.id === modelId);
+      if (nextIndex < 0) return;
+      if (streamInFlightRef.current) {
+        Alert.alert(
+          t("settings.switchWhileStreamingTitle"),
+          t("settings.switchWhileStreamingBody"),
+          [
+            { text: t("common.cancel"), style: "cancel" },
+            {
+              text: t("common.continue"),
+              style: "destructive",
+              onPress: () => selectModel(nextIndex),
+            },
+          ],
+        );
+        return;
+      }
+      selectModel(nextIndex);
+    },
+    [selectModel, t],
+  );
+
+  const startDownload = useCallback(async (modelId: string) => {
     if (downloadInFlight.current || modelState === "downloading") return;
+    const model = MODEL_REGISTRY.find((m) => m.id === modelId);
+    if (!model) return;
+
     downloadInFlight.current = true;
+    // Capture generation at start; also re-check selected model after awaits.
     const generation = engineGenerationRef.current;
+    const expectedModelId = model.id;
+    const stillCurrent = () =>
+      generation === engineGenerationRef.current &&
+      MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
+
     const controller = new AbortController();
     downloadAbortRef.current = controller;
     setModelState("downloading");
     setModelError(null);
-    const bundleTotal = currentModel.sizeBytes + (currentModel.mmproj?.sizeBytes ?? 0);
+    const bundleTotal = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
     setDownload({ bytesReceived: 0, bytesTotal: bundleTotal, progress: 0 });
     try {
-      const outcome = await downloadModelBundle(currentModel, {
+      const outcome = await downloadModelBundle(model, {
         onBundleProgress: (progress) => {
-          if (generation !== engineGenerationRef.current) return;
+          if (!stillCurrent()) return;
           setDownload({
             bytesReceived: Math.round(progress.overall * bundleTotal),
             bytesTotal: bundleTotal,
@@ -254,36 +319,39 @@ export function AppShell() {
         signal: controller.signal,
         locale,
       });
-      if (generation !== engineGenerationRef.current) return;
+      if (!stillCurrent()) return;
       if (outcome.model.status === "aborted" || outcome.mmproj?.status === "aborted") {
         setModelState("missing");
         return;
       }
-      if (!(await isModelBundleDownloaded(currentModel))) {
+      if (!(await isModelBundleDownloaded(model))) {
+        if (!stillCurrent()) return;
         setModelState("error");
         setModelError(t("download.incomplete"));
         return;
       }
+      if (!stillCurrent()) return;
       setModelState("loading");
-      const mmprojPath = currentModel.mmproj ? modelLocalPath(currentModel, currentModel.mmproj.file) : null;
-      await initEngine(outcome.model.uri, currentModel.id, {
+      const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
+      await initEngine(outcome.model.uri, model.id, {
         mmprojPath,
-        nCtx: currentModel.engineCtx,
-        cacheTypeK: currentModel.kvCache.k,
-        cacheTypeV: currentModel.kvCache.v,
-        kvUnified: currentModel.kvUnified,
-        mtpNMax: currentModel.mtp?.nMax,
+        nCtx: model.engineCtx,
+        cacheTypeK: model.kvCache.k,
+        cacheTypeV: model.kvCache.v,
+        kvUnified: model.kvUnified,
+        mtpNMax: model.mtp?.nMax,
         locale,
       });
-      if (generation !== engineGenerationRef.current) return;
+      if (!stillCurrent()) return;
       setModelState("ready");
-      showNotice(t("download.readyNotice", { name: currentModel.name }));
+      setDownloadedById((prev) => ({ ...prev, [model.id]: true }));
+      showNotice(t("download.readyNotice", { name: model.name }));
       void notifyDownload(
         t("notify.channelName"),
-        t("download.notifyReady", { name: currentModel.name }),
+        t("download.notifyReady", { name: model.name }),
       );
     } catch (error) {
-      if (generation !== engineGenerationRef.current) return;
+      if (!stillCurrent()) return;
       if (controller.signal.aborted) {
         setModelState("missing");
         return;
@@ -299,20 +367,50 @@ export function AppShell() {
       downloadInFlight.current = false;
       downloadAbortRef.current = null;
     }
-  }, [currentModel, locale, modelState, notifyDownload, showNotice, t]);
+  }, [locale, modelState, notifyDownload, showNotice, t]);
 
-  // Conferma esplicita prima del download (mai automatico).
-  const confirmDownload = useCallback(() => {
-    const total = currentModel.sizeBytes + (currentModel.mmproj?.sizeBytes ?? 0);
-    Alert.alert(
-      t("download.title"),
-      t("download.confirmBody", { name: currentModel.name, size: formatBytes(total) }),
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        { text: t("common.download"), onPress: () => void startDownload() },
-      ],
-    );
-  }, [currentModel, startDownload, t]);
+  // Conferma esplicita prima del download (mai automatico) — always bound to modelId.
+  const confirmDownload = useCallback(
+    (modelId: string) => {
+      const model = MODEL_REGISTRY.find((m) => m.id === modelId);
+      if (!model) return;
+      const total = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
+      Alert.alert(
+        t("download.title"),
+        t("download.confirmBody", { name: model.name, size: formatBytes(total) }),
+        [
+          { text: t("common.cancel"), style: "cancel" },
+          { text: t("common.download"), onPress: () => void startDownload(modelId) },
+        ],
+      );
+    },
+    [startDownload, t],
+  );
+
+  // When Settings opens, scan which models are fully on disk (once per open + after state changes).
+  useEffect(() => {
+    if (activeOverlay?.kind !== "settings") return;
+    let mounted = true;
+    void (async () => {
+      const entries = await Promise.all(
+        MODEL_REGISTRY.map(async (m) => {
+          try {
+            const ok = await isModelBundleDownloaded(m);
+            return [m.id, ok] as const;
+          } catch {
+            return [m.id, false] as const;
+          }
+        }),
+      );
+      if (!mounted) return;
+      const map: Record<string, boolean> = {};
+      for (const [id, ok] of entries) map[id] = ok;
+      setDownloadedById(map);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [activeOverlay?.kind, modelState]);
 
   // ── Chat wiring ──────────────────────────────────────────────────────────
   const handleMiniappAction = useCallback(
@@ -330,75 +428,88 @@ export function AppShell() {
   const handleSendStream = useCallback(
     (text: string, callbacks: any, signal: AbortSignal, attachments?: LocalAttachment[], history?: unknown[]) =>
       new Promise<void>((resolve) => {
-        const fail = (message: string) => {
-          callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          streamInFlightRef.current = false;
+          setStreaming(false);
           resolve();
         };
+        const fail = (message: string) => {
+          callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
+          finish();
+        };
+
+        streamInFlightRef.current = true;
+        setStreaming(true);
+
         void (async () => {
           try {
             if (!(await ensureEngineForModel(currentModel))) {
               fail(t("chat.modelNotDownloaded", { name: currentModel.name }));
               return;
             }
-          } catch (error) {
-            fail(error instanceof Error ? error.message : String(error));
-            return;
-          }
-          // Memoria conversazionale: ultimi N messaggi (validati e limitati).
-          // Con immagini il budget di contesto si riduce: 8 messaggi × 2000 char.
-          const hasImages = Boolean(attachments?.length);
-          const maxHistory = hasImages ? 8 : 20;
-          const maxChars = hasImages ? 2000 : 4000;
-          const engineMessages: EngineMessage[] = (history ?? [])
-            .filter(
-              (m) =>
-                m &&
-                typeof m === "object" &&
-                typeof (m as { text?: unknown }).text === "string" &&
-                ((m as { role?: unknown }).role === "user" || (m as { role?: unknown }).role === "assistant"),
-            )
-            .slice(-maxHistory)
-            .map((m) => ({
-              role: (m as { role: string }).role as "user" | "assistant",
-              content: ((m as { text: string }).text as string).slice(0, maxChars),
-            }));
+            // Memoria conversazionale: ultimi N messaggi (validati e limitati).
+            // Con immagini il budget di contesto si riduce: 8 messaggi × 2000 char.
+            const hasImages = Boolean(attachments?.length);
+            const maxHistory = hasImages ? 8 : 20;
+            const maxChars = hasImages ? 2000 : 4000;
+            const engineMessages: EngineMessage[] = (history ?? [])
+              .filter(
+                (m) =>
+                  m &&
+                  typeof m === "object" &&
+                  typeof (m as { text?: unknown }).text === "string" &&
+                  ((m as { role?: unknown }).role === "user" || (m as { role?: unknown }).role === "assistant"),
+              )
+              .slice(-maxHistory)
+              .map((m) => ({
+                role: (m as { role: string }).role as "user" | "assistant",
+                content: ((m as { text: string }).text as string).slice(0, maxChars),
+              }));
 
-          // Immagini da allegare all'ultimo messaggio user (cap 5):
-          // immagini dirette + pagine PDF renderizzate.
-          const images: string[] = [];
-          for (const attachment of attachments ?? []) {
-            if (images.length >= 5) break;
-            if (attachment.kind === "image" && attachment.uri) {
-              images.push(attachment.uri);
-            } else if (attachment.kind === "pdf" && attachment.pages?.length) {
-              for (const page of attachment.pages) {
-                if (images.length >= 5) break;
-                images.push(page);
+            // Immagini da allegare all'ultimo messaggio user (cap 5):
+            // immagini dirette + pagine PDF renderizzate.
+            const images: string[] = [];
+            for (const attachment of attachments ?? []) {
+              if (images.length >= 5) break;
+              if (attachment.kind === "image" && attachment.uri) {
+                images.push(attachment.uri);
+              } else if (attachment.kind === "pdf" && attachment.pages?.length) {
+                for (const page of attachment.pages) {
+                  if (images.length >= 5) break;
+                  images.push(page);
+                }
               }
             }
-          }
-          const userMessage: EngineMessage = { role: "user", content: text };
-          if (images.length) userMessage.images = images;
-          engineMessages.push(userMessage);
+            const userMessage: EngineMessage = { role: "user", content: text };
+            if (images.length) userMessage.images = images;
+            engineMessages.push(userMessage);
 
-          await streamAssistantTurn(
-            engineMessages,
-            {
-              onDelta: callbacks.onDelta,
-              onStatus: (status) => callbacks.onStatus?.(status),
-              onSources: (sources) =>
-                callbacks.onSources?.(mapSearchSourcesToChat(sources as any, locale)),
-              onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
-              onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
-              onDone: () => resolve(),
-              onError: (error) => {
-                callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
-                resolve();
+            await streamAssistantTurn(
+              engineMessages,
+              {
+                onDelta: callbacks.onDelta,
+                onStatus: (status) => callbacks.onStatus?.(status),
+                onSources: (sources) =>
+                  callbacks.onSources?.(mapSearchSourcesToChat(sources as any, locale)),
+                onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
+                onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
+                onDone: () => finish(),
+                onError: (error) => {
+                  callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
+                  finish();
+                },
               },
-            },
-            signal,
-            { ...agentOptions, locale },
-          );
+              signal,
+              { ...agentOptions, locale },
+            );
+            // Safety: if the stream returns without onDone/onError (e.g. abort path).
+            finish();
+          } catch (error) {
+            fail(error instanceof Error ? error.message : String(error));
+          }
         })();
       }),
     [agentOptions, currentModel, ensureEngineForModel, locale, t],
@@ -464,13 +575,12 @@ export function AppShell() {
             >
               Kalsa
             </Text>
-            {/* Tap: se serve il download → conferma; altrimenti cicla il modello */}
+            {/* Indicatore modello (selezione in Settings). Tap = download se manca/errore. */}
             <Pressable
-              onPress={() =>
-                modelState === "missing" || modelState === "error"
-                  ? confirmDownload()
-                  : selectModel(modelIndex + 1)
-              }
+              onPress={() => {
+                if (modelState === "missing" || modelState === "error") confirmDownload(currentModel.id);
+              }}
+              disabled={modelState !== "missing" && modelState !== "error"}
               hitSlop={6}
             >
               <Text style={[typography.bodyXs, { color: modelBarStatus.color, lineHeight: 15 }]} numberOfLines={1}>
@@ -579,7 +689,19 @@ export function AppShell() {
       />
 
       {activeOverlay?.kind === "settings" ? (
-        <SettingsScreen onBack={() => setActiveOverlay(null)} />
+        <SettingsScreen
+          onBack={() => setActiveOverlay(null)}
+          model={{
+            currentModelId: currentModel.id,
+            modelState,
+            downloadPercent: modelState === "downloading" ? progressPercent : null,
+            modelError,
+            streaming,
+            downloadedById,
+            onSelectModel: selectModelById,
+            onDownloadModel: confirmDownload,
+          }}
+        />
       ) : null}
 
       {activeOverlay?.kind === "miniapp" ? (
