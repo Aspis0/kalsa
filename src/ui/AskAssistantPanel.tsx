@@ -116,7 +116,7 @@ export function AskAssistantPanel({
                   {thinking ? (
                     <View style={styles.askAssistantThinkingRow}>
                       <Animated.View
-                        accessibilityLabel="Aspis globe loading"
+                        accessibilityLabel="AI Chat loading"
                         style={[
                           styles.askAssistantGlobeLoader,
                           {

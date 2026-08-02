@@ -1474,7 +1474,7 @@ export function AiChatPage({
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder="Ask Aspis a question…"
+            placeholder="Ask a question…"
             placeholderTextColor={colors.muted}
             editable={!sending}
             onSubmitEditing={() => handleSend(draft, attachedItems)}
