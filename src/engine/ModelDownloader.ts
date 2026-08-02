@@ -74,6 +74,20 @@ function resumeKeyFor(model: ModelInfo, file: string, spec?: ModelFileSpec): str
 }
 
 const PROGRESS_THROTTLE_MS = 200;
+const STALL_TIMEOUT_MS = 30_000; // nessun progresso per 30s → download bloccato
+const RESUME_SAVE_INTERVAL_MS = 10_000; // salva il resume state periodicamente
+
+/** Normalizza gli errori di rete nativi in messaggi leggibili. */
+export function friendlyNetworkError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/connection abort|socket|ECONNRESET|timed? ?out|timeout/i.test(message)) {
+    return new Error("Connection lost — check your network and retry. Il download riprenderà da dove era.");
+  }
+  if (/failed to connect|unreachable|no route|network is unreachable/i.test(message)) {
+    return new Error("Network unreachable — check your connection.");
+  }
+  return error instanceof Error ? error : new Error(String(error));
+}
 
 async function downloadFile(
   model: ModelInfo,
@@ -106,6 +120,7 @@ async function downloadFile(
       target,
       {},
       (progress) => {
+        lastProgressAt = Date.now();
         const now = Date.now();
         const isFinalChunk =
           progress.totalBytesExpectedToWrite > 0 &&
@@ -139,15 +154,61 @@ async function downloadFile(
   };
   options.signal?.addEventListener("abort", onAbort, { once: true });
 
+  // Watchdog anti-stallo: se non arriva progresso per STALL_TIMEOUT_MS,
+  // interrompi con un errore pulito (salvando il resume per il retry).
+  let lastProgressAt = Date.now();
+  let stalled = false;
+  let retried = false;
+  const stallTimer = setInterval(() => {
+    if (Date.now() - lastProgressAt > STALL_TIMEOUT_MS) {
+      stalled = true;
+      void task
+        .pauseAsync()
+        .then((pauseState) => AsyncStorage.setItem(resumeKey, JSON.stringify(pauseState)))
+        .catch(() => undefined);
+    }
+  }, 5_000);
+
+  // Salvataggio periodico del resume: un kill/inceppamento NON perde il progresso.
+  const resumeSaver = setInterval(() => {
+    try {
+      const state = task.savable();
+      if (state?.resumeData) {
+        void AsyncStorage.setItem(resumeKey, JSON.stringify(state)).catch(() => undefined);
+      }
+    } catch {
+      // best effort
+    }
+  }, RESUME_SAVE_INTERVAL_MS);
+
   try {
     let result: FileSystem.FileSystemDownloadResult | undefined;
     try {
       result = await task.downloadAsync();
     } catch (error) {
       if (options.signal?.aborted) return { status: "aborted" };
-      throw error;
+      // Retry automatico una volta (rete caduta/ripristinata): ricrea il task
+      // con il resumeData corrente (il task non è riutilizzabile dopo un errore).
+      if (!retried) {
+        retried = true;
+        await new Promise((resolve) => setTimeout(resolve, 1_500));
+        try {
+          const savedNow = task.savable();
+          task = buildTask(
+            typeof savedNow?.resumeData === "string" ? (savedNow.resumeData as string) : undefined,
+          );
+          result = await task.downloadAsync();
+        } catch (retryError) {
+          throw friendlyNetworkError(retryError);
+        }
+      } else {
+        throw friendlyNetworkError(error);
+      }
     }
     if (options.signal?.aborted) return { status: "aborted" };
+    if (stalled) {
+      throw new Error("Download stalled — check your connection. Riprova: riprenderà da dove era.");
+    }
     if (!result?.uri) throw new Error("Download failed");
 
     // Dimensione ESATTA: un file diverso (parziale/corrotto) non passa mai.
@@ -159,6 +220,8 @@ async function downloadFile(
     await AsyncStorage.removeItem(resumeKey).catch(() => undefined);
     return { status: "done", uri: result.uri };
   } finally {
+    clearInterval(stallTimer);
+    clearInterval(resumeSaver);
     options.signal?.removeEventListener("abort", onAbort);
   }
 }

@@ -19,6 +19,7 @@ const config = {
     permissions: [],
     allowBackup: false,
     usesCleartextTraffic: false,
+    softwareKeyboardLayoutMode: "resize",
     adaptiveIcon: {
       backgroundColor: "#07110F",
     },
@@ -35,6 +36,12 @@ const config = {
       {
         photosPermission: "AI Chat lets you attach photos so the local model can read them.",
         cameraPermission: "AI Chat uses the camera to take photos for the local model.",
+      },
+    ],
+    [
+      "expo-notifications",
+      {
+        color: "#0b1512",
       },
     ],
     [

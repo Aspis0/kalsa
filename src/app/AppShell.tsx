@@ -1,20 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { X as LucideX, Globe as LucideGlobe } from "lucide-react-native";
 
 import { AiChatPage, type ChatCta, type LocalAttachment } from "../screens/AiChatPage";
-import { AskAssistantPanel } from "../ui/AskAssistantPanel";
 import { AskAssistantMiniappRenderer } from "../ui/AskAssistantMiniappRenderer";
-import { GlassInput, GlassPanel } from "../ui/GlassPrimitives";
-import { AskAIChip, PainterlyBg } from "../theme/components";
+import { PainterlyBg } from "../theme/components";
 import { spacing } from "../theme/tokens";
 import { typography } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 import type { AskAssistantMiniapp } from "../domain/askAssistant";
-import { useAskAssistantController } from "./askAssistantController";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
+import { Drawer, type DrawerItem } from "../theme/components";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import * as Notifications from "expo-notifications";
 import { MODEL_REGISTRY, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
 import { downloadModelBundle, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
 import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineMessage, type EngineTurnOptions } from "../engine/LlamaService";
@@ -46,7 +46,55 @@ export function AppShell() {
     [],
   );
 
-  const assistant = useAskAssistantController(agentOptions);
+  // ── Drawer (settings povero) ──────────────────────────────────────────────
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const edgeSwipe = Gesture.Pan()
+    .activeOffsetX(24)
+    .hitSlop({ left: 0, width: 48 }) // solo dal bordo sinistro: niente conflitti con sources/scroll
+    .onStart(() => setDrawerOpen(true));
+  const drawerItems: DrawerItem[] = [
+    {
+      id: "privacy",
+      label: "Privacy",
+      Icon: LucideGlobe,
+      onPress: () => {
+        setDrawerOpen(false);
+        showNotice("Tutto gira sul dispositivo. La web search invia solo la query al provider.");
+      },
+    },
+    {
+      id: "models",
+      label: "Modelli",
+      Icon: LucideGlobe,
+      onPress: () => {
+        setDrawerOpen(false);
+        showNotice(`Modello attivo: ${currentModel.name} (${currentModel.quant}).`);
+      },
+    },
+    {
+      id: "about",
+      label: "About",
+      Icon: LucideGlobe,
+      onPress: () => {
+        setDrawerOpen(false);
+        showNotice("AI Chat 0.1.0 — locale, privato, on-device.");
+      },
+    },
+  ];
+
+  // ── Notifiche locali (download) ──────────────────────────────────────────
+  const notifyDownload = useCallback(async (title: string, body: string) => {
+    try {
+      const settings = await Notifications.getPermissionsAsync();
+      if (!settings.granted) {
+        const requested = await Notifications.requestPermissionsAsync();
+        if (!requested.granted) return;
+      }
+      await Notifications.scheduleNotificationAsync({ content: { title, body }, trigger: null });
+    } catch {
+      // notifiche non disponibili: non bloccante
+    }
+  }, []);
 
   // ── Stato modello ────────────────────────────────────────────────────────
   const [modelIndex, setModelIndex] = useState(() =>
@@ -206,6 +254,7 @@ export function AppShell() {
       if (generation !== engineGenerationRef.current) return;
       setModelState("ready");
       showNotice(`${currentModel.name} pronto.`);
+      void notifyDownload("AI Chat", `${currentModel.name} scaricato e pronto.`);
     } catch (error) {
       if (generation !== engineGenerationRef.current) return;
       if (controller.signal.aborted) {
@@ -214,22 +263,36 @@ export function AppShell() {
       }
       setModelState("error");
       setModelError(error instanceof Error ? error.message : String(error));
+      void notifyDownload("AI Chat", `Download fallito: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       downloadInFlight.current = false;
       downloadAbortRef.current = null;
     }
   }, [currentModel, modelState, showNotice]);
 
+  // Conferma esplicita prima del download (mai automatico).
+  const confirmDownload = useCallback(() => {
+    const total = currentModel.sizeBytes + (currentModel.mmproj?.sizeBytes ?? 0);
+    Alert.alert(
+      "Download model",
+      `Scarica ${currentModel.name} (${formatBytes(total)})? Serve una connessione stabile e spazio su disco. Se si interrompe, riprende da dove era.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Download", onPress: () => void startDownload() },
+      ],
+    );
+  }, [currentModel, startDownload]);
+
   // ── Chat wiring ──────────────────────────────────────────────────────────
   const handleMiniappAction = useCallback(
     (action: Record<string, unknown>, miniapp: AskAssistantMiniapp) => {
       void handleAskAssistantMiniappAction(action, miniapp, {
-        setAskAssistantDraft: assistant.setDraft,
+        setAskAssistantDraft: () => undefined,
         setFeedback: showNotice,
         setMobileError: (value) => showNotice(`⚠️ ${value}`),
       });
     },
-    [assistant.setDraft, showNotice],
+    [showNotice],
   );
 
   const handleSendStream = useCallback(
@@ -335,6 +398,8 @@ export function AppShell() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.shell }}>
       <PainterlyBg />
+      <GestureDetector gesture={edgeSwipe}>
+      <View style={{ flex: 1 }}>
       {/* AiChatPage gestisce già le proprie safe-area (nav top + composer bottom). */}
       <SafeAreaView style={{ flex: 1 }} edges={[]}>
         {/* Header compatto: titolo + modello/stato in una riga */}
@@ -344,27 +409,30 @@ export function AppShell() {
             alignItems: "center",
             gap: spacing.sm,
             paddingHorizontal: spacing.lg,
-            paddingTop: insets.top + spacing.xs,
-            paddingBottom: spacing.xs,
+            paddingTop: insets.top + 4,
+            paddingBottom: 2,
           }}
         >
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text
-              style={[typography.bodyMd, { color: colors.ink, fontWeight: "700", letterSpacing: 0.2 }]}
+              style={[
+                typography.bodyMd,
+                { color: colors.ink, fontWeight: "700", letterSpacing: 0.2, lineHeight: 20 },
+              ]}
               numberOfLines={1}
             >
               AI Chat
             </Text>
-            {/* Tap: se serve il download → scarica; altrimenti cicla il modello */}
+            {/* Tap: se serve il download → conferma; altrimenti cicla il modello */}
             <Pressable
               onPress={() =>
                 modelState === "missing" || modelState === "error"
-                  ? void startDownload()
+                  ? confirmDownload()
                   : selectModel(modelIndex + 1)
               }
               hitSlop={6}
             >
-              <Text style={[typography.bodyXs, { color: modelBarStatus.color }]} numberOfLines={1}>
+              <Text style={[typography.bodyXs, { color: modelBarStatus.color, lineHeight: 15 }]} numberOfLines={1}>
                 {currentModel.name} · {currentModel.quant} · {modelBarStatus.label}
               </Text>
             </Pressable>
@@ -387,8 +455,6 @@ export function AppShell() {
             <LucideGlobe size={11} color={colors.accent} />
             <Text style={[typography.monoXs, { color: colors.accent, fontWeight: "700" }]}>Web</Text>
           </View>
-
-          <AskAIChip onPress={assistant.toggleOpen} label={assistant.open ? "Close" : "Ask AI"} />
         </View>
 
         {/* Progress bar sottile, solo durante il download */}
@@ -427,6 +493,7 @@ export function AppShell() {
             onSendStream={handleSendStream}
             onOpenMiniapp={(miniapp) => setActiveMiniapp(miniapp as AskAssistantMiniapp)}
             onCtaPress={(_cta: ChatCta) => undefined}
+            onMenuPress={() => setDrawerOpen(true)}
           />
         </View>
 
@@ -448,24 +515,17 @@ export function AppShell() {
             <Text style={[typography.bodyXs, { color: colors.ink }]}>{notice}</Text>
           </View>
         ) : null}
-
-        {assistant.open ? (
-          <AskAssistantPanel
-            colors={colors}
-            context={assistant.context}
-            draft={assistant.draft}
-            GlassInput={GlassInput}
-            GlassPanel={GlassPanel}
-            messages={assistant.messages}
-            onClose={assistant.close}
-            onDraftChange={assistant.setDraft}
-            onMiniappAction={handleMiniappAction}
-            onQuickAction={assistant.runQuickAction}
-            onSendDraft={assistant.sendDraft}
-            styles={styles}
-          />
-        ) : null}
       </SafeAreaView>
+      </View>
+      </GestureDetector>
+
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        brand="AI Chat"
+        subtitle="Local · private"
+        items={drawerItems}
+      />
 
       {activeMiniapp ? (
         <Modal

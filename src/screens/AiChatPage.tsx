@@ -125,6 +125,7 @@ type Props = {
   onClearSelectedRun?: () => void;
   userName?: string | null;
   onOpenMiniapp?: (miniapp: any) => void;
+  onMenuPress?: () => void;
   onCtaPress?: (cta: ChatCta) => void;
 };
 
@@ -377,6 +378,7 @@ export function AiChatPage({
   onClearSelectedRun,
   userName,
   onOpenMiniapp,
+  onMenuPress,
   onCtaPress,
 }: Props) {
   const { colors } = useLabTheme<any>();
@@ -732,7 +734,7 @@ export function AiChatPage({
     // WARN-5: KeyboardAvoidingView keeps the composer above the keyboard on iOS
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.shell }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
 
       {/* ── Nav bar ── */}
@@ -752,17 +754,17 @@ export function AiChatPage({
             paddingHorizontal: spacing.md,
           }}
         >
-          {/* Left: hamburger (history drawer — coming soon) */}
+          {/* Left: hamburger → drawer (settings) */}
           <Pressable
-            disabled
-            accessibilityLabel="Chat history (coming soon)"
-            style={{
+            onPress={onMenuPress}
+            accessibilityLabel="Menu"
+            style={({ pressed }) => ({
               width: 36,
               height: 36,
               alignItems: "center",
               justifyContent: "center",
-              opacity: 0.35,
-            }}
+              opacity: pressed ? 0.6 : 1,
+            })}
           >
             <Menu size={20} color={colors.ink} />
           </Pressable>
