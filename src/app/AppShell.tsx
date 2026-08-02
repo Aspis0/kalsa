@@ -113,7 +113,12 @@ export function AppShell() {
       });
       await Notifications.scheduleNotificationAsync({
         content: { title, body },
-        trigger: null,
+        // channelId va nel trigger (non in content): trigger null usa il canale fallback Android.
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: 1,
+          channelId: "default",
+        },
       });
     } catch (error) {
       // notifiche non disponibili: non bloccante, ma non silenzioso in debug
