@@ -2,11 +2,8 @@
  * Runtime loader for whisper.rn.
  *
  * package.json exports only star-subpaths (no root "."). The explicit entry
- * "whisper.rn/index" is what Metro/RN must load. TypeScript with Expo's
- * customConditions ["react-native"] resolves that entry to src/index.ts and
- * typechecks it (global is missing there). To keep `tsc --noEmit` clean we:
- *  - type the surface locally (mirror of 0.7.2)
- *  - load the module via a dynamic require so TS cannot resolve the package graph
+ * "whisper.rn/index" is what Metro/RN must load. Types come from the ambient
+ * shim in src/voice/whisper.rn.d.ts (mirror of 0.7.2 surface used by Kalsa).
  */
 
 export type TranscribeOptions = {
@@ -92,18 +89,16 @@ type WhisperRnModule = {
 let cached: WhisperRnModule | null = null;
 
 /**
- * Load whisper.rn/index once. Dynamic require keeps tsc from following the
- * react-native export into src/index.ts.
+ * Load whisper.rn/index once. Literal require so Metro can statically resolve
+ * the package subpath (dynamic require(specifier) fails export:embed).
  */
 function loadWhisperRn(): WhisperRnModule {
   if (cached) return cached;
-  // Split the specifier so TypeScript cannot statically resolve it.
-  const specifier = ["whisper.rn", "index"].join("/");
-  // Metro/Hermes provide require for package subpaths at bundle time.
+  // @ts-ignore — "whisper.rn" dichiara exports senza entry "."; l'import letterale serve a Metro, lo shim src/voice/whisper.rn.d.ts fornisce i tipi
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const mod = require(specifier) as WhisperRnModule;
-  cached = mod;
-  return mod;
+  const WhisperRn = require("whisper.rn/index") as WhisperRnModule;
+  cached = WhisperRn;
+  return WhisperRn;
 }
 
 export function initWhisper(options: ContextOptions): Promise<WhisperContext> {
