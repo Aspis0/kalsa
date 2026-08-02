@@ -138,6 +138,11 @@ export function HelpScreen({ onBack }: Props) {
             <Text style={[typography.bodySm, { color: colors.muted }]}>
               {t(section.bodyKey)}
             </Text>
+            {section.titleKey === "help.privacy.title" ? (
+              <Text style={[typography.bodySm, { color: colors.muted }]}>
+                {t("help.privacy.voice")}
+              </Text>
+            ) : null}
           </GlassPanel2>
         ))}
 

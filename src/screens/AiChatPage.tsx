@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
+  AppState,
+  type AppStateStatus,
   Image,
   KeyboardAvoidingView,
   Linking,
@@ -31,11 +33,13 @@ import {
   Image as ImageIcon,
   Languages,
   Menu,
+  Mic,
   Plus,
   Send,
   Sparkles,
   Square,
   SquarePen,
+  Volume2,
   X,
 } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
@@ -49,6 +53,20 @@ import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
 import { typography } from "../theme/typography";
+import {
+  cancelCapture,
+  CaptureBusyError,
+  isCapturing,
+  requestMicPermission,
+  startCapture,
+  stopCapture,
+} from "../voice/VoiceCapture";
+import {
+  ensureDefaultWhisper,
+  WhisperModelMissingError,
+  transcribePcm,
+} from "../voice/WhisperService";
+import * as TtsService from "../voice/TtsService";
 
 const HISTORY_KEY = "kalsa.messages.v1";
 
@@ -124,6 +142,8 @@ type StreamCallbacks = {
   onImages?: (images: ResultImage[], downloads: ResultDownload[]) => void;
 };
 
+type VoiceUiState = "idle" | "listening" | "transcribing";
+
 type Props = {
   onSendStream?: (
     text: string,
@@ -139,6 +159,10 @@ type Props = {
   onOpenMiniapp?: (miniapp: any) => void;
   onMenuPress?: () => void;
   onCtaPress?: (cta: ChatCta) => void;
+  /** True when Whisper Tiny is fully downloaded. */
+  voiceReady?: boolean;
+  /** Settings → Voice TTS toggle (default true). */
+  ttsEnabled?: boolean;
 };
 
 type SuggestionItem = {
@@ -406,6 +430,8 @@ export function AiChatPage({
   onOpenMiniapp,
   onMenuPress,
   onCtaPress,
+  voiceReady = false,
+  ttsEnabled = true,
 }: Props) {
   const { colors } = useLabTheme<any>();
   const { t, locale } = useLocale();
@@ -413,6 +439,20 @@ export function AiChatPage({
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [voiceUi, setVoiceUi] = useState<VoiceUiState>("idle");
+  const [voiceNote, setVoiceNote] = useState<string | null>(null);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  /** Sync guard: true while listening/transcribing — blocks send/attach. */
+  const voiceBusyRef = useRef(false);
+  /** Prevents double stop+transcribe (user tap + 60s limit racing). */
+  const voiceStopInFlightRef = useRef(false);
+  /**
+   * Generation token for a voice run (start → stop/transcribe).
+   * Incremented on cancel/clearChat/background so a late transcription
+   * never mutates the draft after the user moved on.
+   */
+  const voiceRunIdRef = useRef(0);
+  const voiceNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const greeting = useMemo(() => greetingForHour(new Date().getHours(), t), [t]);
   const suggestions = useMemo(() => buildSuggestions(t), [t]);
@@ -470,7 +510,11 @@ export function AiChatPage({
 
   // In-app translation (volatile — NOT persisted with history).
   // One translation at a time: a new run replaces the previous result.
-  const [messageMenu, setMessageMenu] = useState<{ id: string; text: string } | null>(null);
+  const [messageMenu, setMessageMenu] = useState<{
+    id: string;
+    text: string;
+    role: Message["role"];
+  } | null>(null);
   const [translatingId, setTranslatingId] = useState<string | null>(null);
   const [translationResult, setTranslationResult] = useState<{
     id: string;
@@ -486,6 +530,208 @@ export function AiChatPage({
   const translationInFlightRef = useRef(false);
   /** Abort controller for the active translateText job (clearChat / unmount). */
   const translateAbortRef = useRef<AbortController | null>(null);
+
+  const showVoiceNote = useCallback((text: string) => {
+    setVoiceNote(text);
+    if (voiceNoteTimer.current) clearTimeout(voiceNoteTimer.current);
+    voiceNoteTimer.current = setTimeout(() => setVoiceNote(null), 4000);
+  }, []);
+
+  /** Invalidate any in-flight voice run and hard-reset capture/TTS UI. */
+  const invalidateVoice = useCallback(() => {
+    voiceRunIdRef.current += 1;
+    voiceBusyRef.current = false;
+    voiceStopInFlightRef.current = false;
+    setVoiceUi("idle");
+    void cancelCapture();
+    void TtsService.stop();
+    setSpeakingId(null);
+  }, []);
+
+  /**
+   * Stop capture (if any) and transcribe into draft.
+   * Honours voiceRunId: late results after cancel/send/clearChat are dropped.
+   */
+  const stopAndTranscribe = useCallback(
+    async (runId: number, fromLimit: boolean) => {
+      // Serialize stop+transcribe (user tap vs 60s limit).
+      if (voiceStopInFlightRef.current) return;
+      voiceStopInFlightRef.current = true;
+      voiceBusyRef.current = true;
+      setVoiceUi("transcribing");
+      if (fromLimit) {
+        showVoiceNote(t("voice.limitReached"));
+      }
+      try {
+        const pcm = await stopCapture();
+        // Dropped if user cancelled / cleared / backgrounded mid-stop.
+        if (voiceRunIdRef.current !== runId) return;
+        await ensureDefaultWhisper();
+        if (voiceRunIdRef.current !== runId) return;
+        const text = await transcribePcm(pcm, locale);
+        if (voiceRunIdRef.current !== runId) return;
+        if (text) {
+          setDraft((prev) => {
+            const trimmed = prev.trimEnd();
+            if (!trimmed) return text;
+            return `${trimmed}${/\s$/.test(prev) ? "" : " "}${text}`;
+          });
+        } else if (!fromLimit) {
+          // Limit path already shows limitReached; avoid clobbering it with empty.
+          showVoiceNote(t("voice.empty"));
+        }
+      } catch (error) {
+        if (voiceRunIdRef.current !== runId) return;
+        if (error instanceof WhisperModelMissingError) {
+          showVoiceNote(t("voice.modelMissing"));
+        } else {
+          showVoiceNote(t("voice.error"));
+        }
+      } finally {
+        voiceStopInFlightRef.current = false;
+        if (voiceRunIdRef.current === runId) {
+          setVoiceUi("idle");
+          voiceBusyRef.current = false;
+        }
+      }
+    },
+    [locale, showVoiceNote, t],
+  );
+
+  // Stop mic / TTS on unmount (includes "starting" via cancelCapture).
+  useEffect(() => {
+    return () => {
+      if (voiceNoteTimer.current) clearTimeout(voiceNoteTimer.current);
+      voiceRunIdRef.current += 1;
+      voiceBusyRef.current = false;
+      voiceStopInFlightRef.current = false;
+      void cancelCapture();
+      void TtsService.stop();
+    };
+  }, []);
+
+  // Background / inactive → cancel capture + invalidate pending transcription.
+  useEffect(() => {
+    const onAppState = (next: AppStateStatus) => {
+      if (next === "background" || next === "inactive") {
+        if (isCapturing() || voiceBusyRef.current || voiceUi !== "idle") {
+          invalidateVoice();
+        } else {
+          // Still stop TTS if speaking in background.
+          void TtsService.stop();
+          setSpeakingId(null);
+        }
+      }
+    };
+    const sub = AppState.addEventListener("change", onAppState);
+    return () => sub.remove();
+  }, [invalidateVoice, voiceUi]);
+
+  /** Tap mic: start listening; tap again: stop + transcribe into draft. */
+  const handleMicPress = useCallback(async () => {
+    if (sending) return;
+
+    // Stop path (user tap or already listening)
+    if (isCapturing() || voiceUi === "listening") {
+      const runId = voiceRunIdRef.current;
+      await stopAndTranscribe(runId, false);
+      return;
+    }
+
+    // Guard concurrent start (transcribing / busy).
+    if (voiceBusyRef.current || voiceUi !== "idle") return;
+
+    // Start path — model missing: keep button pressable, show hint (do not hard-disable).
+    if (!voiceReady) {
+      showVoiceNote(t("voice.modelMissing"));
+      return;
+    }
+
+    voiceBusyRef.current = true;
+    const runId = ++voiceRunIdRef.current;
+    try {
+      const granted = await requestMicPermission();
+      if (voiceRunIdRef.current !== runId) return;
+      if (!granted) {
+        showVoiceNote(t("voice.micPermission"));
+        return;
+      }
+      await startCapture({
+        onLimitReached: () => {
+          // Auto-stop at 60 s / ~2 MB → same transcribe path with limit note.
+          if (voiceRunIdRef.current !== runId) return;
+          void stopAndTranscribe(runId, true);
+        },
+      });
+      if (voiceRunIdRef.current !== runId) {
+        void cancelCapture();
+        return;
+      }
+      setVoiceUi("listening");
+      setVoiceNote(null);
+      // Keep voiceBusyRef true for the whole listening window so handleSend /
+      // attach see a sync block even before React re-renders voiceUi.
+      // Stop path (mic tap) does not gate on voiceBusyRef.
+    } catch (error) {
+      if (voiceRunIdRef.current !== runId) return;
+      if (error instanceof CaptureBusyError) {
+        showVoiceNote(t("voice.error"));
+      } else {
+        showVoiceNote(t("voice.error"));
+      }
+      setVoiceUi("idle");
+      void cancelCapture();
+      voiceBusyRef.current = false;
+    } finally {
+      // On failure / cancel mid-start, clear busy. On success (listening),
+      // leave busy true until stopAndTranscribe finishes.
+      if (voiceRunIdRef.current === runId && !isCapturing()) {
+        voiceBusyRef.current = false;
+      }
+    }
+  }, [
+    locale,
+    sending,
+    showVoiceNote,
+    stopAndTranscribe,
+    t,
+    voiceReady,
+    voiceUi,
+  ]);
+
+  const handleReadAloud = useCallback(
+    async (id: string, text: string) => {
+      setMessageMenu(null);
+      if (!ttsEnabled) {
+        showVoiceNote(t("voice.ttsDisabled"));
+        return;
+      }
+      const cleaned = text.trim();
+      if (!cleaned) return;
+      try {
+        if (speakingId === id && (await TtsService.isSpeaking())) {
+          await TtsService.stop();
+          setSpeakingId(null);
+          return;
+        }
+        await TtsService.stop();
+        setSpeakingId(id);
+        TtsService.speak(cleaned, locale, {
+          onDone: () => setSpeakingId((cur) => (cur === id ? null : cur)),
+          onStopped: () => setSpeakingId((cur) => (cur === id ? null : cur)),
+          onError: () => {
+            setSpeakingId((cur) => (cur === id ? null : cur));
+            // Least invasive: short status line under the composer.
+            showVoiceNote(t("voice.ttsError"));
+          },
+        });
+      } catch {
+        setSpeakingId(null);
+        showVoiceNote(t("voice.ttsError"));
+      }
+    },
+    [locale, showVoiceNote, speakingId, t, ttsEnabled],
+  );
 
   const MAX_IMAGE_ATTACHMENTS = 5;
 
@@ -624,8 +870,20 @@ export function AiChatPage({
     async (text: string, currentAttachments?: LocalAttachment[]) => {
       const trimmed = text.trim();
       // BLOCKER-3: synchronous ref check — not subject to React batching.
-      // Also ignore send while a translation holds the engine (silent).
-      if (!trimmed || sendingRef.current || translationInFlightRef.current || !historyLoaded) return;
+      // Also ignore send while a translation holds the engine (silent),
+      // or while voice is listening/transcribing (voiceBusyRef is sync).
+      if (
+        !trimmed ||
+        sendingRef.current ||
+        translationInFlightRef.current ||
+        voiceBusyRef.current ||
+        !historyLoaded
+      ) {
+        return;
+      }
+      // Invalidate any in-flight transcription so a late result cannot rewrite draft
+      // after this send clears it.
+      voiceRunIdRef.current += 1;
       sendingRef.current = true;
       setSending(true);
 
@@ -810,6 +1068,19 @@ export function AiChatPage({
     setSending(false);
     setMessages([]);
     setDraft("");
+    // Voice: invalidate transcription token, cancel capture, stop TTS, clear UI.
+    voiceRunIdRef.current += 1;
+    voiceBusyRef.current = false;
+    voiceStopInFlightRef.current = false;
+    setVoiceUi("idle");
+    setVoiceNote(null);
+    if (voiceNoteTimer.current) {
+      clearTimeout(voiceNoteTimer.current);
+      voiceNoteTimer.current = null;
+    }
+    void cancelCapture();
+    void TtsService.stop();
+    setSpeakingId(null);
     // Drop volatile translation UI with the conversation.
     translateRunRef.current += 1;
     setMessageMenu(null);
@@ -819,22 +1090,25 @@ export function AiChatPage({
     AsyncStorage.removeItem(HISTORY_KEY).catch(() => undefined);
   }, []);
 
-  /** Open message action sheet (Copy + Translate). No-op while streaming / engine busy. */
-  const openMessageMenu = useCallback((id: string, text: string, streaming?: boolean) => {
-    // Skip while this message streams, a chat turn is in flight, or a translate is running.
-    // Use refs (sync) so the window between setState and re-render is also closed.
-    if (
-      streaming ||
-      sending ||
-      sendingRef.current ||
-      translatingId ||
-      translationInFlightRef.current ||
-      !text.trim()
-    ) {
-      return;
-    }
-    setMessageMenu({ id, text });
-  }, [sending, translatingId]);
+  /** Open message action sheet (Copy + Translate + Read aloud). No-op while streaming / engine busy. */
+  const openMessageMenu = useCallback(
+    (id: string, text: string, role: Message["role"], streaming?: boolean) => {
+      // Skip while this message streams, a chat turn is in flight, or a translate is running.
+      // Use refs (sync) so the window between setState and re-render is also closed.
+      if (
+        streaming ||
+        sending ||
+        sendingRef.current ||
+        translatingId ||
+        translationInFlightRef.current ||
+        !text.trim()
+      ) {
+        return;
+      }
+      setMessageMenu({ id, text, role });
+    },
+    [sending, translatingId],
+  );
 
   const copyTextToClipboard = useCallback(async (value: string): Promise<boolean> => {
     try {
@@ -920,10 +1194,16 @@ export function AiChatPage({
   // ── PDF attach rimosso (Fase 3): nessun endpoint remoto, tutto locale. ──
 
   // WARN-2: useMemo avoids draft.trim() allocation on every render.
-  // Also block while translating (translatingId is the state mirror of translationInFlightRef).
+  // Also block while translating / voice busy (listening or transcribing).
+  const voiceBlocksComposer = voiceUi !== "idle" || voiceBusyRef.current;
   const canSend = useMemo(
-    () => !!draft.trim() && !sending && !translatingId && historyLoaded,
-    [draft, historyLoaded, sending, translatingId],
+    () =>
+      !!draft.trim() &&
+      !sending &&
+      !translatingId &&
+      historyLoaded &&
+      !voiceBlocksComposer,
+    [draft, historyLoaded, sending, translatingId, voiceBlocksComposer],
   );
 
   // ── Attach chip color helper ────────────────────────────────────────────
@@ -1192,7 +1472,7 @@ export function AiChatPage({
                       </View>
                     ) : null}
                     <Pressable
-                      onLongPress={() => openMessageMenu(m.id, m.text, m.streaming)}
+                      onLongPress={() => openMessageMenu(m.id, m.text, m.role, m.streaming)}
                       accessibilityLabel={t("chat.a11yLongPress")}
                       style={{
                         backgroundColor: colors.accentSoft,
@@ -1304,7 +1584,7 @@ export function AiChatPage({
                 ) : (
                   (m.text || showCursor) ? (
                   <Pressable
-                    onLongPress={() => openMessageMenu(m.id, m.text, m.streaming)}
+                    onLongPress={() => openMessageMenu(m.id, m.text, m.role, m.streaming)}
                     accessibilityLabel={t("chat.a11yLongPress")}
                   >
                     {/* Feature 3: render parsed segments */}
@@ -1692,10 +1972,34 @@ export function AiChatPage({
           </ScrollView>
         ) : null}
 
+        {/* Voice status line (listening / transcribing / errors) */}
+        {voiceUi !== "idle" || voiceNote ? (
+          <Text
+            style={[
+              typography.bodyXs,
+              {
+                color: voiceUi === "listening" ? (colors.bad ?? "#c0392b") : colors.muted,
+                paddingHorizontal: spacing.xs,
+              },
+            ]}
+            numberOfLines={2}
+          >
+            {voiceUi === "listening"
+              ? t("voice.listening")
+              : voiceUi === "transcribing"
+                ? t("voice.transcribing")
+                : voiceNote}
+          </Text>
+        ) : null}
+
         <View style={{ flexDirection: "row", alignItems: "flex-end", gap: spacing.xs }}>
-          {/* Attach: foto/PDF per la vision */}
+          {/* Attach: foto/PDF per la vision — blocked during voice capture/transcribe */}
           <Pressable
-            onPress={() => setAttachSheetOpen(true)}
+            onPress={() => {
+              if (voiceBusyRef.current || voiceUi !== "idle") return;
+              setAttachSheetOpen(true);
+            }}
+            disabled={sending || voiceBlocksComposer}
             accessibilityLabel={t("chat.a11yAttach")}
             style={({ pressed }) => ({
               width: 36,
@@ -1706,10 +2010,61 @@ export function AiChatPage({
               borderColor: colors.line,
               alignItems: "center",
               justifyContent: "center",
-              opacity: pressed ? 0.7 : 1,
+              opacity:
+                sending || voiceBlocksComposer ? 0.45 : pressed ? 0.7 : 1,
             })}
           >
             <Plus color={colors.muted} size={18} />
+          </Pressable>
+
+          {/* Mic: tap to talk → stop → draft (on-device whisper).
+              Disabled while sending/transcribing; stays pressable when model
+              missing so the user still gets the download hint. Listening stays
+              enabled so the user can stop. */}
+          <Pressable
+            onPress={() => {
+              void handleMicPress();
+            }}
+            disabled={sending || voiceUi === "transcribing"}
+            accessibilityState={{
+              disabled: sending || voiceUi === "transcribing",
+              busy: voiceUi === "transcribing",
+            }}
+            accessibilityLabel={
+              voiceUi === "listening"
+                ? t("voice.a11yMicStop")
+                : !voiceReady
+                  ? t("voice.modelMissing")
+                  : t("voice.a11yMic")
+            }
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor:
+                voiceUi === "listening"
+                  ? (colors.bad ?? "#c0392b")
+                  : colors.panel,
+              borderWidth: 1,
+              borderColor: voiceUi === "listening" ? (colors.bad ?? "#c0392b") : colors.line,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity:
+                sending || voiceUi === "transcribing"
+                  ? 0.45
+                  : pressed
+                    ? 0.7
+                    : voiceReady
+                      ? 1
+                      : 0.55,
+            })}
+          >
+            <Mic
+              color={
+                voiceUi === "listening" ? "#ffffff" : colors.muted
+              }
+              size={18}
+            />
           </Pressable>
 
           <TextInput
@@ -1717,7 +2072,7 @@ export function AiChatPage({
             onChangeText={setDraft}
             placeholder={t("chat.placeholder")}
             placeholderTextColor={colors.muted}
-            editable={!sending}
+            editable={!sending && !voiceBlocksComposer}
             onSubmitEditing={() => handleSend(draft, attachedItems)}
             returnKeyType="send"
             multiline
@@ -1826,6 +2181,25 @@ export function AiChatPage({
                   }}
                   colors={colors}
                 />
+                {messageMenu.role === "assistant" ? (
+                  <AttachSheetRow
+                    icon={
+                      <Volume2
+                        size={18}
+                        color={speakingId === messageMenu.id ? colors.accent : colors.ink}
+                      />
+                    }
+                    label={
+                      speakingId === messageMenu.id
+                        ? t("voice.stopReading")
+                        : t("voice.readAloud")
+                    }
+                    onPress={() => {
+                      void handleReadAloud(messageMenu.id, messageMenu.text);
+                    }}
+                    colors={colors}
+                  />
+                ) : null}
                 <AttachSheetRow
                   icon={<X size={18} color={colors.muted} />}
                   label={t("common.cancel")}

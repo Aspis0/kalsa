@@ -102,6 +102,35 @@ export const it: typeof en = {
     openHelp: "Apri l'aiuto",
   },
 
+  voice: {
+    title: "Voce",
+    hint: "Riconoscimento vocale e lettura ad alta voce sul dispositivo. L'audio non esce mai dal telefono.",
+    asrModel: "Modello vocale",
+    asrModelName: "Whisper Tiny (multilingua)",
+    download: "Scarica modello vocale",
+    downloading: "Scaricamento… {percent}%",
+    ready: "Pronto",
+    missing: "Non scaricato",
+    error: "Impossibile usare il microfono. Riprova.",
+    modelMissing:
+      "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.",
+    listening: "In ascolto…",
+    transcribing: "Trascrizione…",
+    empty: "Nessuna voce rilevata.",
+    limitReached: "Limite di 60 secondi raggiunto. Trascrizione…",
+    micPermission:
+      "Serve il permesso del microfono per dettare. Abilitalo nelle impostazioni di sistema.",
+    tts: "Leggi le risposte ad alta voce",
+    ttsHint: "Tieni premuto un messaggio dell'assistente e scegli Leggi ad alta voce.",
+    ttsDisabled: "La lettura ad alta voce è disattivata. Attivala in Impostazioni → Voce.",
+    ttsError:
+      "Impossibile leggere ad alta voce. Controlla che sia installata una voce di sintesi per questa lingua.",
+    readAloud: "Leggi ad alta voce",
+    stopReading: "Interrompi lettura",
+    a11yMic: "Dettatura con microfono",
+    a11yMicStop: "Interrompi registrazione",
+  },
+
   help: {
     title: "Aiuto",
     intro:
@@ -125,6 +154,8 @@ export const it: typeof en = {
       title: "Privacy",
       body:
         "Il modello e la chat girano sul dispositivo; la ricerca web e il download dei modelli usano la rete. Nessun account, nessuna telemetria. Le chiavi API restano nel keystore del dispositivo. La cronologia resta sul telefono.",
+      voice:
+        "Il microfono serve solo per la dettatura. L'audio è trascritto interamente sul dispositivo: non viene mai inviato, condiviso o conservato dopo la trascrizione.",
     },
     miniapps: {
       title: "Mini-app",

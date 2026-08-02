@@ -13,10 +13,14 @@ const config = {
     config: {
       usesNonExemptEncryption: false,
     },
+    infoPlist: {
+      NSMicrophoneUsageDescription:
+        "Kalsa uses the microphone for on-device voice dictation. Audio stays on this device.",
+    },
   },
   android: {
     package: "com.kalsa.app",
-    permissions: [],
+    permissions: ["android.permission.RECORD_AUDIO"],
     allowBackup: false,
     usesCleartextTraffic: false,
     adaptiveIcon: {

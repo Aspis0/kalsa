@@ -16,12 +16,14 @@ import type { AskAssistantMiniapp } from "../domain/askAssistant";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
-import { MODEL_REGISTRY, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
+import { MODEL_REGISTRY, WHISPER_MODEL, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
 import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
 import { disposeEngine, extractMemory, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineMessage, type EngineTurnOptions } from "../engine/LlamaService";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import { useLocale } from "../i18n";
 import * as MemoryStore from "../memory/MemoryStore";
+import { isWhisperModelDownloaded, releaseWhisper } from "../voice/WhisperService";
+import { isTtsEnabled, setTtsEnabled } from "../voice/TtsService";
 
 /** Shared model pipeline states (download / load / ready) — used by Settings. */
 export type ModelPipelineState =
@@ -29,6 +31,14 @@ export type ModelPipelineState =
   | "missing"
   | "downloading"
   | "loading"
+  | "ready"
+  | "error";
+
+/** Voice ASR asset state (download only — no LLM load). */
+export type VoicePipelineState =
+  | "checking"
+  | "missing"
+  | "downloading"
   | "ready"
   | "error";
 
@@ -195,6 +205,14 @@ export function AppShell() {
   /** Per-model download presence for Settings badges (scanned when Settings opens). */
   const [downloadedById, setDownloadedById] = useState<Record<string, boolean>>({});
 
+  // ── Voice (ASR model + TTS preference) ───────────────────────────────────
+  const [voiceState, setVoiceState] = useState<VoicePipelineState>("checking");
+  const [voiceDownloadPercent, setVoiceDownloadPercent] = useState<number | null>(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [ttsEnabled, setTtsEnabledState] = useState(true);
+  const voiceDownloadInFlight = useRef(false);
+  const voiceDownloadAbortRef = useRef<AbortController | null>(null);
+
   const showNotice = useCallback((value: string) => {
     setNotice(value);
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
@@ -207,7 +225,31 @@ export function AppShell() {
       engineGenerationRef.current += 1; // invalida ogni async in corso
       downloadAbortRef.current?.abort();
       downloadAbortRef.current = null;
+      voiceDownloadAbortRef.current?.abort();
+      voiceDownloadAbortRef.current = null;
       void disposeEngine();
+      void releaseWhisper();
+    };
+  }, []);
+
+  // Initial voice model + TTS preference scan.
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const [ok, tts] = await Promise.all([
+          isWhisperModelDownloaded(),
+          isTtsEnabled(),
+        ]);
+        if (!mounted) return;
+        setVoiceState(ok ? "ready" : "missing");
+        setTtsEnabledState(tts);
+      } catch {
+        if (mounted) setVoiceState("missing");
+      }
+    })();
+    return () => {
+      mounted = false;
     };
   }, []);
 
@@ -440,6 +482,81 @@ export function AppShell() {
     },
     [startDownload, t],
   );
+
+  const startVoiceDownload = useCallback(async () => {
+    if (voiceDownloadInFlight.current || voiceState === "downloading") return;
+    voiceDownloadInFlight.current = true;
+    const controller = new AbortController();
+    voiceDownloadAbortRef.current = controller;
+    setVoiceState("downloading");
+    setVoiceError(null);
+    setVoiceDownloadPercent(0);
+    try {
+      const outcome = await downloadModelBundle(WHISPER_MODEL, {
+        onBundleProgress: (progress) => {
+          setVoiceDownloadPercent(Math.round(progress.overall * 100));
+        },
+        signal: controller.signal,
+        locale,
+      });
+      if (outcome.model.status === "aborted") {
+        setVoiceState("missing");
+        setVoiceDownloadPercent(null);
+        return;
+      }
+      if (!(await isWhisperModelDownloaded())) {
+        setVoiceState("error");
+        setVoiceError(t("download.incomplete"));
+        setVoiceDownloadPercent(null);
+        return;
+      }
+      setVoiceState("ready");
+      setVoiceDownloadPercent(null);
+      showNotice(t("download.readyNotice", { name: WHISPER_MODEL.name }));
+      void notifyDownload(
+        t("notify.channelName"),
+        t("download.notifyReady", { name: WHISPER_MODEL.name }),
+      );
+    } catch (error) {
+      if (controller.signal.aborted) {
+        setVoiceState("missing");
+        setVoiceDownloadPercent(null);
+        return;
+      }
+      setVoiceState("error");
+      const friendly = friendlyNetworkError(error, locale, "download").message;
+      setVoiceError(friendly);
+      setVoiceDownloadPercent(null);
+      void notifyDownload(
+        t("notify.channelName"),
+        t("download.notifyFailed", { error: friendly }),
+      );
+    } finally {
+      voiceDownloadInFlight.current = false;
+      voiceDownloadAbortRef.current = null;
+    }
+  }, [locale, notifyDownload, showNotice, t, voiceState]);
+
+  const confirmVoiceDownload = useCallback(() => {
+    Alert.alert(
+      t("download.title"),
+      t("download.confirmBody", {
+        name: WHISPER_MODEL.name,
+        size: formatBytes(WHISPER_MODEL.sizeBytes),
+      }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.download"), onPress: () => void startVoiceDownload() },
+      ],
+    );
+  }, [startVoiceDownload, t]);
+
+  const handleToggleTts = useCallback((next: boolean) => {
+    setTtsEnabledState(next);
+    void setTtsEnabled(next).catch(() => {
+      // best-effort; keep UI optimistic
+    });
+  }, []);
 
   // When Settings opens, scan which models are fully on disk (once per open + after state changes).
   useEffect(() => {
@@ -787,6 +904,8 @@ export function AppShell() {
             selectedRun={null}
             prefillText={null}
             onSendStream={handleSendStream}
+            voiceReady={voiceState === "ready"}
+            ttsEnabled={ttsEnabled}
             onOpenMiniapp={(miniapp) => {
               // Policy: ignore miniapp open while Settings/Help is active
               // (exclusive overlay; stays until user closes it).
@@ -848,6 +967,16 @@ export function AppShell() {
             downloadedById,
             onSelectModel: selectModelById,
             onDownloadModel: confirmDownload,
+          }}
+          voice={{
+            state: voiceState,
+            downloadPercent: voiceState === "downloading" ? voiceDownloadPercent : null,
+            error: voiceError,
+            ttsEnabled,
+            modelName: WHISPER_MODEL.name,
+            modelSizeLabel: formatBytes(WHISPER_MODEL.sizeBytes),
+            onDownload: confirmVoiceDownload,
+            onToggleTts: handleToggleTts,
           }}
         />
       ) : null}

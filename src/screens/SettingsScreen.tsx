@@ -14,7 +14,7 @@ import Constants from "expo-constants";
 import { ChevronRight, CircleQuestionMark, Trash2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import type { ModelPipelineState } from "../app/AppShell";
+import type { ModelPipelineState, VoicePipelineState } from "../app/AppShell";
 import { useLocale, type Locale, type TranslationKey } from "../i18n";
 import {
   getActiveProviderId,
@@ -51,11 +51,24 @@ export type SettingsModelProps = {
   onDownloadModel: (modelId: string) => void;
 };
 
+export type SettingsVoiceProps = {
+  state: VoicePipelineState;
+  /** 0–100 while downloading; null otherwise. */
+  downloadPercent: number | null;
+  error: string | null;
+  ttsEnabled: boolean;
+  modelName: string;
+  modelSizeLabel: string;
+  onDownload: () => void;
+  onToggleTts: (enabled: boolean) => void;
+};
+
 type Props = {
   onBack: () => void;
   /** Open Help overlay (AppShell sets activeOverlay to { kind: "help" }). */
   onOpenHelp: () => void;
   model: SettingsModelProps;
+  voice: SettingsVoiceProps;
 };
 
 /** App version from Expo config; fallback keeps About usable in bare tests. */
@@ -76,7 +89,7 @@ function modelBundleSize(model: ModelInfo): number {
  * Settings — full-screen View overlay opened from the drawer.
  * Not a Modal: Android hardware back is handled here (dirty confirm for websearch).
  */
-export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
+export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
   const { colors, fontScaleId, setFontScaleId } = useLabTheme<any>();
   const insets = useSafeAreaInsets();
   const { locale, setLocale, t } = useLocale();
@@ -443,6 +456,21 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
         return t("settings.modelError");
     }
   }, [model.downloadPercent, model.modelState, t]);
+
+  const voiceStatusLabel = useMemo(() => {
+    switch (voice.state) {
+      case "checking":
+        return t("settings.modelChecking");
+      case "missing":
+        return t("voice.missing");
+      case "downloading":
+        return t("voice.downloading", { percent: voice.downloadPercent ?? 0 });
+      case "ready":
+        return t("voice.ready");
+      case "error":
+        return t("settings.modelError");
+    }
+  }, [voice.downloadPercent, voice.state, t]);
 
   return (
     <View
@@ -900,6 +928,122 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
               ) : null}
             </>
           )}
+        </GlassPanel2>
+
+        {/* ── Voice (ASR + TTS) ────────────────────────────────────────── */}
+        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+            {t("voice.title")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
+            {t("voice.hint")}
+          </Text>
+
+          <View
+            style={{
+              marginTop: spacing.xs,
+              paddingVertical: spacing.sm,
+              paddingHorizontal: spacing.md,
+              borderRadius: radius.md,
+              borderWidth: 1,
+              borderColor: colors.line,
+              gap: spacing.xs,
+            }}
+          >
+            <Text style={[typography.bodyXs, { color: colors.muted }]}>
+              {t("voice.asrModel")}
+            </Text>
+            <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+              {t("voice.asrModelName")}
+            </Text>
+            <Text style={[typography.bodyXs, { color: colors.muted }]}>
+              {voice.modelName} · {voice.modelSizeLabel}
+            </Text>
+            <Text
+              style={[
+                typography.bodyXs,
+                {
+                  color:
+                    voice.state === "error"
+                      ? colors.bad
+                      : voice.state === "ready"
+                        ? colors.good
+                        : colors.muted,
+                },
+              ]}
+            >
+              {voiceStatusLabel}
+            </Text>
+
+            {voice.state === "downloading" && voice.downloadPercent != null ? (
+              <View
+                style={{
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: colors.line,
+                  overflow: "hidden",
+                }}
+              >
+                <View
+                  style={{
+                    height: 4,
+                    width: `${voice.downloadPercent}%`,
+                    backgroundColor: colors.accent,
+                  }}
+                />
+              </View>
+            ) : null}
+
+            {voice.error ? (
+              <Text style={[typography.bodyXs, { color: colors.bad }]} numberOfLines={2}>
+                {voice.error}
+              </Text>
+            ) : null}
+
+            {voice.state === "missing" || voice.state === "error" ? (
+              <Pressable
+                onPress={voice.onDownload}
+                style={{
+                  marginTop: 2,
+                  paddingVertical: spacing.sm,
+                  borderRadius: radius.md,
+                  backgroundColor: colors.accent,
+                  alignItems: "center",
+                }}
+                accessibilityLabel={t("voice.download")}
+              >
+                <Text style={[typography.bodySm, { color: "#fff", fontWeight: "700" }]}>
+                  {t("voice.download")}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+              marginTop: spacing.xs,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.bodySm, { color: colors.ink }]}>
+                {t("voice.tts")}
+              </Text>
+              <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
+                {t("voice.ttsHint")}
+              </Text>
+            </View>
+            <Switch
+              value={voice.ttsEnabled}
+              onValueChange={voice.onToggleTts}
+              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+              thumbColor={voice.ttsEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("voice.tts")}
+            />
+          </View>
         </GlassPanel2>
 
         {/* ── Models ───────────────────────────────────────────────────── */}

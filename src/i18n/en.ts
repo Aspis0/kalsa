@@ -101,6 +101,35 @@ export const en = {
     openHelp: "Open Help",
   },
 
+  voice: {
+    title: "Voice",
+    hint: "On-device speech recognition and read-aloud. Audio never leaves this device.",
+    asrModel: "Speech model",
+    asrModelName: "Whisper Tiny (multilingual)",
+    download: "Download speech model",
+    downloading: "Downloading… {percent}%",
+    ready: "Ready",
+    missing: "Not downloaded",
+    error: "Could not use the microphone. Try again.",
+    modelMissing:
+      "Download the speech model in Settings → Voice to use dictation.",
+    listening: "Listening…",
+    transcribing: "Transcribing…",
+    empty: "No speech detected.",
+    limitReached: "60-second limit reached. Transcribing…",
+    micPermission:
+      "Microphone permission is required for dictation. Enable it in system settings.",
+    tts: "Read replies aloud",
+    ttsHint: "Long-press an assistant message and choose Read aloud.",
+    ttsDisabled: "Read aloud is off. Enable it in Settings → Voice.",
+    ttsError:
+      "Could not read aloud. Check that a text-to-speech voice is installed for this language.",
+    readAloud: "Read aloud",
+    stopReading: "Stop reading",
+    a11yMic: "Dictate with microphone",
+    a11yMicStop: "Stop recording",
+  },
+
   help: {
     title: "Help",
     intro:
@@ -124,6 +153,8 @@ export const en = {
       title: "Privacy",
       body:
         "The model and chat run on-device; web search and model downloads use the network. No account, no telemetry. API keys stay in the device keystore. Chat history stays on the phone.",
+      voice:
+        "The microphone is used only for dictation. Speech is transcribed entirely on this device — audio is never uploaded, shared, or stored after transcription.",
     },
     miniapps: {
       title: "Mini-apps",

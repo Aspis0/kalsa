@@ -132,6 +132,33 @@ export const MODEL_REGISTRY: ModelInfo[] = [
   },
 ];
 
+/**
+ * On-device ASR (whisper.cpp tiny, multilingual).
+ * NOT listed in MODEL_REGISTRY (LLM list) — Settings → Voice downloads it
+ * through the same ModelDownloader pipeline.
+ *
+ * sizeBytes verified 2026-08-02 via Hugging Face API:
+ *   HEAD resolve/main/ggml-tiny.bin → X-Linked-Size: 77691713
+ *   repo sha: 5359861c739e955e79d9a303bcbc70fb988958b1
+ * LLM fields (contextLength/engineCtx/kvCache) are unused placeholders
+ * so downloadModelBundle can reuse ModelInfo.
+ */
+export const WHISPER_MODEL: ModelInfo = {
+  id: "whisper-tiny",
+  name: "Whisper Tiny",
+  vendor: "OpenAI / ggerganov",
+  quant: "f16",
+  hfRepo: "ggerganov/whisper.cpp",
+  revision: "5359861c739e955e79d9a303bcbc70fb988958b1",
+  file: "ggml-tiny.bin",
+  sizeBytes: 77_691_713,
+  contextLength: 0,
+  engineCtx: 0,
+  kvCache: { k: "f16", v: "f16" },
+  description:
+    "On-device speech recognition (multilingual tiny). ~75 MB. Used for voice dictation only.",
+};
+
 export function getDefaultModel(): ModelInfo {
   return MODEL_REGISTRY.find((model) => model.default) ?? MODEL_REGISTRY[0];
 }
