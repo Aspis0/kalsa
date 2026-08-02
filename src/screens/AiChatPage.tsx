@@ -1068,7 +1068,7 @@ export function AiChatPage({
                       backgroundColor: colors.compute,
                     }}
                   />
-                  <Text style={[typography.bodyXs, { color: colors.muted }]}>Aspis AI</Text>
+                  <Text style={[typography.bodyXs, { color: colors.muted }]}>AI Chat</Text>
                 </View>
 
                 {/* Feature 1: status history stamps */}
