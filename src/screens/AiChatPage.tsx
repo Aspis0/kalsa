@@ -232,9 +232,12 @@ function isSameDay(a: number, b: number): boolean {
 
 // Module-level counter — avoids Date.now() collisions when two IDs
 // are generated in the same millisecond within the same synchronous block.
-let _msgIdCounter = 0;
+// Seed univoco per sessione: gli id non devono collidere con quelli della
+// history persistita (che usa lo stesso contatore nelle sessioni precedenti).
+let _msgIdCounter = Math.floor((Date.now() % 1_000_000_000) / 7);
 function nextMsgId(prefix: string): string {
-  return `${prefix}-${++_msgIdCounter}`;
+  _msgIdCounter += 1;
+  return `${prefix}-${_msgIdCounter}`;
 }
 
 // PDF attach rimosso (Fase 3): nessun endpoint remoto, tutto locale.
@@ -245,14 +248,22 @@ function sanitizeHistoryMessages(raw: unknown): Message[] {
   const result: Message[] = [];
   const MAX_TEXT = 100_000;
   const MAX_ITEMS = 100;
+  // Dedup id: sessioni senza seed univoco possono aver persistito id duplicati
+  // (stesso contatore ripartito da zero) → chiavi React duplicate.
+  const seenIds = new Set<string>();
   for (const item of raw) {
     if (!item || typeof item !== "object" || Array.isArray(item)) continue;
     const record = item as Record<string, unknown>;
     if (typeof record.id !== "string" || !record.id) continue;
     if (record.role !== "user" && record.role !== "assistant") continue;
     if (typeof record.text !== "string") continue;
+    let messageId = record.id;
+    if (seenIds.has(messageId)) {
+      messageId = `${messageId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+    seenIds.add(messageId);
     const message: Message = {
-      id: record.id,
+      id: messageId,
       role: record.role,
       text: record.text.slice(0, MAX_TEXT),
       createdAt: typeof record.createdAt === "number" ? record.createdAt : Date.now(),

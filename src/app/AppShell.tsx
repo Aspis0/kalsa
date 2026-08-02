@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { X as LucideX, Check as LucideCheck, Globe as LucideGlobe } from "lucide-react-native";
+import { X as LucideX, Globe as LucideGlobe } from "lucide-react-native";
 
 import { AiChatPage, type ChatCta, type LocalAttachment } from "../screens/AiChatPage";
 import { AskAssistantPanel } from "../ui/AskAssistantPanel";
@@ -38,14 +38,12 @@ export function AppShell() {
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Websearch (Fase 2) ───────────────────────────────────────────────────
-  const [webSearchEnabled, setWebSearchEnabled] = useState(true);
-  const agentOptions = useMemo<EngineTurnOptions | undefined>(
-    () =>
-      webSearchEnabled
-        ? { tools: [WEB_SEARCH_TOOL], executeTool: makeWebSearchExecutor() }
-        : undefined,
-    [webSearchEnabled],
+  // ── Websearch (Fase 2): SEMPRE ATTIVO — è il modello a decidere se usarlo
+  // (info attuali, notizie, o richiesta esplicita). Le query partono solo
+  // quando il tool viene chiamato (privacy by design).
+  const agentOptions = useMemo<EngineTurnOptions>(
+    () => ({ tools: [WEB_SEARCH_TOOL], executeTool: makeWebSearchExecutor() }),
+    [],
   );
 
   const assistant = useAskAssistantController(agentOptions);
@@ -313,60 +311,41 @@ export function AppShell() {
       <PainterlyBg />
       {/* AiChatPage gestisce già le proprie safe-area (nav top + composer bottom). */}
       <SafeAreaView style={{ flex: 1 }} edges={[]}>
+        {/* Header compatto: titolo + modello/stato in una riga */}
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
             gap: spacing.sm,
             paddingHorizontal: spacing.lg,
-            paddingTop: insets.top + spacing.sm,
-            paddingBottom: spacing.sm,
+            paddingTop: insets.top + spacing.xs,
+            paddingBottom: spacing.xs,
           }}
         >
-          <View style={{ flex: 1 }}>
-            <Text style={[typography.bodyLg, { color: colors.ink, fontWeight: "700", letterSpacing: 0.3 }]}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text
+              style={[typography.bodyMd, { color: colors.ink, fontWeight: "700", letterSpacing: 0.2 }]}
+              numberOfLines={1}
+            >
               AI Chat
             </Text>
-            <Text style={[typography.bodyXs, { color: colors.muted }]}>Local · private · on-device</Text>
+            {/* Tap: se serve il download → scarica; altrimenti cicla il modello */}
+            <Pressable
+              onPress={() =>
+                modelState === "missing" || modelState === "error"
+                  ? void startDownload()
+                  : selectModel(modelIndex + 1)
+              }
+              hitSlop={6}
+            >
+              <Text style={[typography.bodyXs, { color: modelBarStatus.color }]} numberOfLines={1}>
+                {currentModel.name} · {currentModel.quant} · {modelBarStatus.label}
+              </Text>
+            </Pressable>
           </View>
-          <AskAIChip onPress={assistant.toggleOpen} label={assistant.open ? "Close" : "Ask AI"} />
-        </View>
 
-        {/* Barra modello */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.sm,
-            marginHorizontal: spacing.lg,
-            marginBottom: spacing.sm,
-            paddingHorizontal: spacing.sm,
-            paddingVertical: 6,
-            borderRadius: 12,
-            backgroundColor: colors.panelSoft,
-            borderWidth: 1,
-            borderColor: colors.line,
-          }}
-        >
-          <Pressable
-            onPress={() => selectModel(modelIndex + 1)}
-            hitSlop={6}
-            style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 }}
-          >
-            <Text style={[typography.bodyXs, { color: colors.ink, fontWeight: "700" }]} numberOfLines={1}>
-              {currentModel.name}
-            </Text>
-            <Text style={[typography.monoXs, { color: colors.muted }]}>
-              {currentModel.quant} · {currentModel.vendor}
-            </Text>
-          </Pressable>
-
-          <View style={{ flex: 1 }} />
-
-          {/* Toggle websearch: privacy by design — OFF = tutto locale */}
-          <Pressable
-            onPress={() => setWebSearchEnabled((enabled) => !enabled)}
-            hitSlop={6}
+          {/* Badge statico: la web search è sempre disponibile */}
+          <View
             style={{
               flexDirection: "row",
               alignItems: "center",
@@ -374,66 +353,32 @@ export function AppShell() {
               paddingHorizontal: 8,
               paddingVertical: 3,
               borderRadius: 999,
-              backgroundColor: webSearchEnabled ? `${colors.accent}22` : "transparent",
+              backgroundColor: `${colors.accent}22`,
               borderWidth: 1,
-              borderColor: webSearchEnabled ? `${colors.accent}55` : colors.line,
+              borderColor: `${colors.accent}55`,
             }}
           >
-            <LucideGlobe size={12} color={webSearchEnabled ? colors.accent : colors.muted} />
-            <Text
-              style={[
-                typography.monoXs,
-                { color: webSearchEnabled ? colors.accent : colors.muted, fontWeight: "700" },
-              ]}
-            >
-              {webSearchEnabled ? "Web ON" : "Web OFF"}
-            </Text>
-          </Pressable>
+            <LucideGlobe size={11} color={colors.accent} />
+            <Text style={[typography.monoXs, { color: colors.accent, fontWeight: "700" }]}>Web</Text>
+          </View>
 
-          {modelState === "missing" || modelState === "error" ? (
-            <Pressable onPress={() => void startDownload()} hitSlop={6}>
-              <Text style={[typography.bodyXs, { color: modelBarStatus.color, fontWeight: "700" }]}>
-                {modelState === "error" ? "Retry download" : modelBarStatus.label}
-              </Text>
-            </Pressable>
-          ) : (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              {modelState === "downloading" ? (
-                <View
-                  style={{
-                    height: 4,
-                    width: 64,
-                    borderRadius: 2,
-                    backgroundColor: colors.line,
-                    overflow: "hidden",
-                  }}
-                >
-                  <View
-                    style={{
-                      height: 4,
-                      width: `${progressPercent}%`,
-                      backgroundColor: colors.accent,
-                    }}
-                  />
-                </View>
-              ) : null}
-              {modelState === "ready" ? <LucideCheck size={14} color={colors.good} /> : null}
-              <Text style={[typography.bodyXs, { color: modelBarStatus.color }]} numberOfLines={1}>
-                {modelBarStatus.label}
-              </Text>
-            </View>
-          )}
+          <AskAIChip onPress={assistant.toggleOpen} label={assistant.open ? "Close" : "Ask AI"} />
         </View>
 
-        {webSearchEnabled ? (
-          <Text
-            style={[
-              typography.bodyXs,
-              { color: colors.muted, marginHorizontal: spacing.lg, marginBottom: spacing.xs },
-            ]}
+        {/* Progress bar sottile, solo durante il download */}
+        {modelState === "downloading" ? (
+          <View
+            style={{
+              marginHorizontal: spacing.lg,
+              marginBottom: spacing.xs,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: colors.line,
+              overflow: "hidden",
+            }}
           >
-            Websearch on: queries go to the search provider only when the model uses the tool.
-          </Text>
+            <View style={{ height: 4, width: `${progressPercent}%`, backgroundColor: colors.accent }} />
+          </View>
         ) : null}
 
         {modelError ? (
@@ -442,7 +387,7 @@ export function AppShell() {
               typography.bodyXs,
               { color: colors.bad, marginHorizontal: spacing.lg, marginBottom: spacing.xs },
             ]}
-            numberOfLines={2}
+            numberOfLines={1}
           >
             {modelError}
           </Text>

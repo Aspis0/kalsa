@@ -33,7 +33,10 @@ const SYSTEM_PROMPT =
 const SYSTEM_PROMPT_WITH_SEARCH =
   "You are AI Chat, a private assistant running fully on this device (no cloud, no account). " +
   "Answer concisely and helpfully in the user's language. " +
-  "When the user asks for current information (news, facts, prices, events), use the web_search tool. " +
+  "You have a web_search tool: use it ALWAYS when the user asks about current information, " +
+  "recent news, prices, events, or anything time-sensitive, or when they explicitly mention " +
+  "searching the web (e.g. 'search online', 'websearch', 'look it up'). " +
+  "Never answer time-sensitive questions from memory alone. " +
   "Cite the sources you used by referencing their titles. " +
   "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
   "metric, tabs, expandable and html.";
@@ -288,9 +291,17 @@ export async function streamAssistantTurn(
   // `accumulated_text` di llama.rn non fosse popolato dal binding.
   let streamedText = "";
 
+  // Qwen3.5 emette un blocco `<think></think>` (vuoto) anche con
+  // enable_thinking:false: va rimosso, insieme a eventuali tag residui.
+  const cleanDelta = (text: string) =>
+    text
+      .replace(/<think>[\s\S]*?<\/think>/g, "")
+      .replace(/<\/?think>/g, "");
+
   const emitFinalText = (raw: { text: string; content?: string }) => {
-    const finalText =
-      typeof raw.content === "string" && raw.content.length > 0 ? raw.content : (raw.text ?? "");
+    const finalText = cleanDelta(
+      typeof raw.content === "string" && raw.content.length > 0 ? raw.content : (raw.text ?? ""),
+    );
     if (finalText) callbacks.onDelta(finalText, finalText);
     finishOnce(() => callbacks.onDone());
   };
@@ -317,7 +328,8 @@ export async function streamAssistantTurn(
           },
           (data: TokenData) => {
             if (finished || aborted) return;
-            const delta = data.content ?? (hasTools ? "" : data.token) ?? "";
+            const raw = data.content ?? (hasTools ? "" : data.token) ?? "";
+            const delta = cleanDelta(raw);
             if (delta) {
               streamedText += delta;
               callbacks.onDelta(delta, streamedText);
@@ -345,11 +357,18 @@ export async function streamAssistantTurn(
 
       // Round tool: esegui le chiamate, poi UN messaggio assistant con TUTTE le
       // tool_calls + i relativi risultati tool (formato OpenAI).
+      // Gli id vengono NORMALIZZATI: il binding può restituire `id: null`
+      // (json.type_error 302 al re-parse) — l'esempio ufficiale fa lo stesso.
+      const normalizedCalls = toolCalls.slice(0, 2).map((call, index) => ({
+        type: "function" as const,
+        id: typeof call.id === "string" && call.id ? call.id : `call-${round}-${index}`,
+        function: call.function,
+      }));
       const executed: Array<{
-        call: { type: "function"; id?: string; function: { name: string; arguments: string } };
+        call: (typeof normalizedCalls)[number];
         content: string;
       }> = [];
-      for (const call of toolCalls.slice(0, 2)) {
+      for (const call of normalizedCalls) {
         const name = call.function?.name ?? "";
         const args = parseToolArguments(call.function?.arguments);
         callbacks.onTool?.({ name, arguments: args });
@@ -377,7 +396,7 @@ export async function streamAssistantTurn(
         },
         ...executed.map((entry) => ({
           role: "tool",
-          tool_call_id: entry.call.id ?? `call-${round}-${entry.call.function?.name ?? "tool"}`,
+          tool_call_id: entry.call.id,
           content: entry.content,
         })),
       ];
