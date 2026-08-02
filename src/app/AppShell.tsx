@@ -1,18 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, BackHandler, Keyboard, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { X as LucideX, Globe as LucideGlobe } from "lucide-react-native";
+import { X as LucideX, Globe as LucideGlobe, Settings as LucideSettings } from "lucide-react-native";
 
 import { AiChatPage, type ChatCta, type LocalAttachment } from "../screens/AiChatPage";
+import { SettingsScreen } from "../screens/SettingsScreen";
 import { AskAssistantMiniappRenderer } from "../ui/AskAssistantMiniappRenderer";
-import { PainterlyBg } from "../theme/components";
+import { Drawer, PainterlyBg, type DrawerItem } from "../theme/components";
 import { spacing } from "../theme/tokens";
 import { typography } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 import type { AskAssistantMiniapp } from "../domain/askAssistant";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
-import { Drawer, type DrawerItem } from "../theme/components";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 import { MODEL_REGISTRY, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
@@ -21,6 +21,12 @@ import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssis
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapExaSourcesToChat } from "../agent/webSearchTool";
 
 type ModelState = "checking" | "missing" | "downloading" | "loading" | "ready" | "error";
+
+/** Exclusive full-screen overlays (drawer stays separate — transient chrome). */
+type ActiveOverlay =
+  | { kind: "settings" }
+  | { kind: "miniapp"; miniapp: AskAssistantMiniapp }
+  | null;
 
 const MODEL_STORAGE_KEY = "kalsa.model.id";
 
@@ -34,7 +40,6 @@ const MODEL_STORAGE_KEY = "kalsa.model.id";
 export function AppShell() {
   const { colors, styles } = useLabTheme<any>();
   const insets = useSafeAreaInsets();
-  const [activeMiniapp, setActiveMiniapp] = useState<AskAssistantMiniapp | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -46,8 +51,9 @@ export function AppShell() {
     [],
   );
 
-  // ── Drawer (settings povero) ──────────────────────────────────────────────
+  // ── Drawer + exclusive overlay (settings | miniapp | null) ────────────────
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [activeOverlay, setActiveOverlay] = useState<ActiveOverlay>(null);
   const edgeSwipe = Gesture.Pan()
     .activeOffsetX(24)
     .failOffsetY([-15, 15]) // scroll verticale NON deve aprire il drawer
@@ -56,33 +62,28 @@ export function AppShell() {
     .onStart(() => setDrawerOpen(true));
   const drawerItems: DrawerItem[] = [
     {
-      id: "privacy",
-      label: "Privacy",
-      Icon: LucideGlobe,
+      id: "settings",
+      label: "Settings",
+      Icon: LucideSettings,
       onPress: () => {
+        Keyboard.dismiss();
         setDrawerOpen(false);
-        showNotice("Tutto gira sul dispositivo. La web search invia solo la query al provider.");
-      },
-    },
-    {
-      id: "models",
-      label: "Modelli",
-      Icon: LucideGlobe,
-      onPress: () => {
-        setDrawerOpen(false);
-        showNotice(`Modello attivo: ${currentModel.name} (${currentModel.quant}).`);
-      },
-    },
-    {
-      id: "about",
-      label: "About",
-      Icon: LucideGlobe,
-      onPress: () => {
-        setDrawerOpen(false);
-        showNotice("AI Chat 0.1.0 — locale, privato, on-device.");
+        // Opening settings replaces any open miniapp (exclusive overlay).
+        setActiveOverlay({ kind: "settings" });
       },
     },
   ];
+
+  // Android hardware back: miniapp Modal owns onRequestClose first; when only
+  // Settings is open (View overlay, not Modal) consume back and close it.
+  useEffect(() => {
+    if (activeOverlay?.kind !== "settings") return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      setActiveOverlay(null);
+      return true;
+    });
+    return () => sub.remove();
+  }, [activeOverlay?.kind]);
 
   // ── Notifiche locali (download) ──────────────────────────────────────────
   const notifyDownload = useCallback(async (title: string, body: string) => {
@@ -504,7 +505,15 @@ export function AppShell() {
             selectedRun={null}
             prefillText={null}
             onSendStream={handleSendStream}
-            onOpenMiniapp={(miniapp) => setActiveMiniapp(miniapp as AskAssistantMiniapp)}
+            onOpenMiniapp={(miniapp) => {
+              // Policy: ignore miniapp open while Settings is active (simplest
+              // exclusive-overlay rule; settings stays until user closes it).
+              setActiveOverlay((prev) =>
+                prev?.kind === "settings"
+                  ? prev
+                  : { kind: "miniapp", miniapp: miniapp as AskAssistantMiniapp },
+              );
+            }}
             onCtaPress={(_cta: ChatCta) => undefined}
             onMenuPress={() => setDrawerOpen(true)}
           />
@@ -540,11 +549,15 @@ export function AppShell() {
         items={drawerItems}
       />
 
-      {activeMiniapp ? (
+      {activeOverlay?.kind === "settings" ? (
+        <SettingsScreen onBack={() => setActiveOverlay(null)} />
+      ) : null}
+
+      {activeOverlay?.kind === "miniapp" ? (
         <Modal
           visible
           animationType="slide"
-          onRequestClose={() => setActiveMiniapp(null)}
+          onRequestClose={() => setActiveOverlay(null)}
           statusBarTranslucent
         >
           <SafeAreaView style={{ flex: 1, backgroundColor: colors.shell }}>
@@ -562,16 +575,16 @@ export function AppShell() {
                 style={{ flex: 1, fontSize: 16, fontWeight: "600", color: colors.ink }}
                 numberOfLines={1}
               >
-                {activeMiniapp.title}
+                {activeOverlay.miniapp.title}
               </Text>
-              <Pressable onPress={() => setActiveMiniapp(null)} hitSlop={8}>
+              <Pressable onPress={() => setActiveOverlay(null)} hitSlop={8}>
                 <LucideX size={20} color={colors.muted} />
               </Pressable>
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
               <AskAssistantMiniappRenderer
                 colors={colors}
-                miniapp={activeMiniapp}
+                miniapp={activeOverlay.miniapp}
                 onAction={(action, miniapp) =>
                   handleMiniappAction(action as Record<string, unknown>, miniapp as AskAssistantMiniapp)
                 }
