@@ -34,7 +34,7 @@ import * as MemoryStore from "../memory/MemoryStore";
 import type { MemoryFact } from "../memory/MemoryStore";
 import { GlassPanel2, Header } from "../theme/components";
 import { radius, spacing } from "../theme/tokens";
-import { typography } from "../theme/typography";
+import { typography, type FontScaleId } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 
 export type SettingsModelProps = {
@@ -77,13 +77,21 @@ function modelBundleSize(model: ModelInfo): number {
  * Not a Modal: Android hardware back is handled here (dirty confirm for websearch).
  */
 export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
-  const { colors } = useLabTheme<any>();
+  const { colors, fontScaleId, setFontScaleId } = useLabTheme<any>();
   const insets = useSafeAreaInsets();
   const { locale, setLocale, t } = useLocale();
 
   const languageOptions: Array<{ id: Locale; label: string }> = [
     { id: "en", label: t("settings.languageEn") },
     { id: "it", label: t("settings.languageIt") },
+  ];
+
+  // Button chrome shows S/M/L/XL (fits 4-up); a11y uses the full localized name.
+  const fontScaleOptions: Array<{ id: FontScaleId; short: string; label: string }> = [
+    { id: "s", short: "S", label: t("settings.fontSizeS") },
+    { id: "m", short: "M", label: t("settings.fontSizeM") },
+    { id: "l", short: "L", label: t("settings.fontSizeL") },
+    { id: "xl", short: "XL", label: t("settings.fontSizeXl") },
   ];
 
   const [providerId, setProviderId] = useState<SearchProviderId>("exa-mcp");
@@ -508,6 +516,69 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
           </View>
         </GlassPanel2>
 
+        {/* ── Appearance / text size ───────────────────────────────────── */}
+        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+            {t("settings.fontSize")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
+            {t("settings.fontSizeHint")}
+          </Text>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            {fontScaleOptions.map((option) => {
+              const selected = (fontScaleId ?? "m") === option.id;
+              return (
+                <Pressable
+                  key={option.id}
+                  onPress={() => {
+                    if (busy) return;
+                    setFontScaleId?.(option.id);
+                  }}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={option.label}
+                  style={{
+                    flex: 1,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: selected ? colors.accent : colors.line,
+                    backgroundColor: selected ? `${colors.accent}22` : "transparent",
+                    alignItems: "center",
+                    opacity: busy ? 0.5 : 1,
+                  }}
+                >
+                  <Text
+                    style={[
+                      typography.bodySm,
+                      {
+                        color: selected ? colors.accent : colors.ink,
+                        fontWeight: selected ? "700" : "500",
+                      },
+                    ]}
+                  >
+                    {option.short}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text
+            style={[
+              typography.bodyMd,
+              {
+                color: colors.ink,
+                marginTop: spacing.xs,
+                textAlign: "center",
+              },
+            ]}
+            accessibilityLabel={t("settings.fontSizePreview")}
+          >
+            {t("settings.fontSizePreview")}
+          </Text>
+        </GlassPanel2>
+
         {/* ── Memory ───────────────────────────────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
@@ -618,7 +689,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
                   paddingHorizontal: spacing.sm,
                   paddingVertical: spacing.sm,
                   color: colors.ink,
-                  fontSize: 14,
+                  fontSize: (typography.bodyMd.fontSize as number) ?? 14,
                 }}
                 onSubmitEditing={() => {
                   void handleAddMemoryFact();
@@ -767,7 +838,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
                       paddingHorizontal: spacing.md,
                       paddingVertical: spacing.sm,
                       color: colors.ink,
-                      fontSize: 14,
+                      fontSize: (typography.bodyMd.fontSize as number) ?? 14,
                       opacity: busy ? 0.6 : 1,
                     }}
                   />
@@ -1025,7 +1096,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
           <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
             {t("settings.privacy")}
           </Text>
-          <Text style={[typography.bodyXs, { color: colors.muted, lineHeight: 18 }]}>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
             {t("settings.privacyBody")}
           </Text>
         </GlassPanel2>
@@ -1068,7 +1139,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
             {t("settings.aboutVersion", { version: APP_VERSION })}
           </Text>
-          <Text style={[typography.bodyXs, { color: colors.muted, lineHeight: 18 }]}>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
             {t("settings.aboutBody")}
           </Text>
         </GlassPanel2>

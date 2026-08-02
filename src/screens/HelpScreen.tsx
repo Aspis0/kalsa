@@ -121,7 +121,7 @@ export function HelpScreen({ onBack }: Props) {
         }}
       >
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.muted, lineHeight: 18 }]}>
+          <Text style={[typography.bodySm, { color: colors.muted }]}>
             {t("help.intro")}
           </Text>
         </GlassPanel2>
@@ -135,7 +135,7 @@ export function HelpScreen({ onBack }: Props) {
             <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
               {t(section.titleKey)}
             </Text>
-            <Text style={[typography.bodySm, { color: colors.muted, lineHeight: 20 }]}>
+            <Text style={[typography.bodySm, { color: colors.muted }]}>
               {t(section.bodyKey)}
             </Text>
           </GlassPanel2>
@@ -150,7 +150,7 @@ export function HelpScreen({ onBack }: Props) {
               <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
                 {t(item.qKey)}
               </Text>
-              <Text style={[typography.bodySm, { color: colors.muted, lineHeight: 20 }]}>
+              <Text style={[typography.bodySm, { color: colors.muted }]}>
                 {t(item.aKey)}
               </Text>
             </View>

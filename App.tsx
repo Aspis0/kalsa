@@ -20,6 +20,14 @@ import { palettes, type ThemeColors, type ThemeMode } from "./src/theme/palettes
 import { useAgoraFonts } from "./src/theme/fonts";
 import { useResponsiveMetrics } from "./src/theme/responsiveMetrics";
 import { THEME_STORAGE_KEY, normalizeThemeMode } from "./src/theme/themeStorage";
+import {
+  applyFontScale,
+  DEFAULT_FONT_SCALE_ID,
+  FONT_SCALE_KEY,
+  fontScaleValue,
+  normalizeFontScaleId,
+  type FontScaleId,
+} from "./src/theme/typography";
 import { ThemeContext, useLabTheme } from "./src/ui/labTheme";
 import { AppShell } from "./src/app/AppShell";
 import { LocaleProvider, useLocale } from "./src/i18n";
@@ -30,12 +38,22 @@ type ThemeContextValue = {
   palette: (typeof palettes)[ThemeMode];
   setMode: (mode: ThemeMode) => void;
   styles: ReturnType<typeof createStyles>;
+  /** Numeric multiplier applied to typography tokens (0.9 | 1 | 1.15 | 1.3). */
+  fontScale: number;
+  /** User-facing scale id from Settings (s/m/l/xl). */
+  fontScaleId: FontScaleId;
+  /** Persist + apply a new in-app font scale (independent of system font). */
+  setFontScaleId: (id: FontScaleId) => void;
+  /** Scaled typography tokens (same content as the live module export). */
+  typography: ReturnType<typeof applyFontScale>;
 };
 
 function AppContent() {
   const { ready: localeReady } = useLocale();
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
   const [themeLoaded, setThemeLoaded] = useState(false);
+  const [fontScaleId, setFontScaleIdState] = useState<FontScaleId>(DEFAULT_FONT_SCALE_ID);
+  const [fontScaleLoaded, setFontScaleLoaded] = useState(false);
   const [fontsLoaded, fontError] = useAgoraFonts();
   const palette = palettes[themeMode];
   const responsiveMetrics = useResponsiveMetrics();
@@ -43,6 +61,12 @@ function AppContent() {
   const changeThemeMode = useCallback((mode: ThemeMode) => {
     setThemeMode(mode);
     AsyncStorage.setItem(THEME_STORAGE_KEY, mode).catch(() => undefined);
+  }, []);
+
+  const setFontScaleId = useCallback((id: FontScaleId) => {
+    const next = normalizeFontScaleId(id);
+    setFontScaleIdState(next);
+    AsyncStorage.setItem(FONT_SCALE_KEY, next).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -60,19 +84,49 @@ function AppContent() {
     };
   }, []);
 
-  const themeValue = useMemo(
-    () => ({
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(FONT_SCALE_KEY)
+      .then((stored) => {
+        if (mounted) setFontScaleIdState(normalizeFontScaleId(stored));
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (mounted) setFontScaleLoaded(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const fontScale = fontScaleValue(fontScaleId);
+
+  const themeValue = useMemo(() => {
+    // Mutate live module export + return a fresh copy for context consumers.
+    const scaledTypography = applyFontScale(fontScale);
+    return {
       colors: palette.colors,
       mode: themeMode,
       palette,
       setMode: changeThemeMode,
       styles: createStyles(palette.colors, responsiveMetrics),
-    }),
-    [changeThemeMode, palette, responsiveMetrics, themeMode],
-  );
+      fontScale,
+      fontScaleId,
+      setFontScaleId,
+      typography: scaledTypography,
+    };
+  }, [
+    changeThemeMode,
+    fontScale,
+    fontScaleId,
+    palette,
+    responsiveMetrics,
+    setFontScaleId,
+    themeMode,
+  ]);
 
-  // Wait for theme + locale storage before first paint (avoids EN flash).
-  if (!themeLoaded || !localeReady) return null;
+  // Wait for theme + font scale + locale storage before first paint (avoids EN/M flash).
+  if (!themeLoaded || !fontScaleLoaded || !localeReady) return null;
   if (!fontsLoaded && !fontError) return null;
 
   // Errore font: renderizza comunque con i font di sistema (mai blank screen).

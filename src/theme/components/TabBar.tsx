@@ -75,7 +75,7 @@ export function TabBar({ active, onChange, onFabPress, onFabLongPress }: Props) 
       }}
     >
       <GlassPanel2 rounded="xl" style={{ overflow: "visible" }}>
-        <View style={{ flexDirection: "row", height: 60, alignItems: "center" }}>
+        <View style={{ flexDirection: "row", minHeight: 60, alignItems: "center" }}>
           {left.map(renderTab)}
           <View style={{ width: 72 }} />
           {right.map(renderTab)}

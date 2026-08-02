@@ -1356,10 +1356,10 @@ export function AiChatPage({
                               <Text
                                 style={{
                                   fontFamily: MONO_FONT,
-                                  fontSize: 13,
+                                  fontSize: (typography.monoSm.fontSize as number) ?? 12,
+                                  lineHeight: (typography.monoSm.lineHeight as number) ?? 16,
                                   color: colors.ink,
                                   padding: spacing.sm,
-                                  lineHeight: 20,
                                 }}
                               >
                                 {seg.content}
@@ -1729,7 +1729,8 @@ export function AiChatPage({
               borderRadius: radius.pill,
               paddingHorizontal: spacing.md,
               paddingVertical: spacing.sm,
-              fontSize: 15,
+              fontSize: (typography.bodyLg.fontSize as number) ?? 16,
+              lineHeight: (typography.bodyLg.lineHeight as number) ?? 24,
               fontFamily: typography.bodyMd.fontFamily as string | undefined,
             }}
           />
