@@ -20,6 +20,12 @@ let activeModelId: string | null = null;
 const SYSTEM_PROMPT =
   "You are AI Chat, a private assistant running fully on this device (no cloud, no account). " +
   "Answer concisely and helpfully in the user's language. " +
+  "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
+  "metric, tabs, expandable and html.";
+
+const SYSTEM_PROMPT_WITH_SEARCH =
+  "You are AI Chat, a private assistant running fully on this device (no cloud, no account). " +
+  "Answer concisely and helpfully in the user's language. " +
   "When the user asks for current information (news, facts, prices, events), use the web_search tool. " +
   "Cite the sources you used by referencing their titles. " +
   "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
@@ -216,9 +222,13 @@ export async function streamAssistantTurn(
     tool_calls?: Array<{ type: "function"; id?: string; function: { name: string; arguments: string } }>;
     tool_call_id?: string;
   }> = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: hasTools ? SYSTEM_PROMPT_WITH_SEARCH : SYSTEM_PROMPT },
     ...messages.map((message) => ({ role: message.role, content: message.content })),
   ];
+
+  // Accumulo locale del testo: streaming garantito anche se il campo
+  // `accumulated_text` di llama.rn non fosse popolato dal binding.
+  let streamedText = "";
 
   const emitFinalText = (raw: { text: string; content?: string }) => {
     // `content` è il testo filtrato (senza reasoning/tool call), coerente
@@ -252,7 +262,10 @@ export async function streamAssistantTurn(
           (data: TokenData) => {
             if (finished || aborted) return;
             const delta = data.content ?? data.token ?? "";
-            if (delta) callbacks.onDelta(delta, data.accumulated_text ?? "");
+            if (delta) {
+              streamedText += delta;
+              callbacks.onDelta(delta, streamedText);
+            }
           },
         ),
       );

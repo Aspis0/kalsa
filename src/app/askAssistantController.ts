@@ -120,9 +120,24 @@ export function useAskAssistantController(options?: EngineTurnOptions) {
           },
           onSources: (sources) => {
             if (runId !== streamRunId.current) return;
+            const mapped = (sources as Array<{ title?: string; url?: string; publishedDate?: string }>)
+              .filter((source) => source && typeof source === "object")
+              .map((source, index) => ({
+                id: `src-${index + 1}`,
+                title: source.title || source.url || "Source",
+                ...(source.url
+                  ? {
+                      url: source.url,
+                      host: (() => {
+                        const match = source.url!.match(/^https?:\/\/([^/]+)/);
+                        return match ? match[1] : source.url!.slice(0, 100);
+                      })(),
+                    }
+                  : {}),
+              }));
             setMessages((current) =>
               updateAskAssistantStreamingMessage(current, stream.assistantMessageId, streamedAnswer, "streaming", {
-                sources: sources as AskAssistantSource[],
+                sources: mapped,
               }),
             );
           },

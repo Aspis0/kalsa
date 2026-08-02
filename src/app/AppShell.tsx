@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { X as LucideX, Check as LucideCheck, Globe as LucideGlobe } from "lucide-react-native";
 
@@ -20,6 +21,8 @@ import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssis
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapExaSourcesToChat } from "../agent/webSearchTool";
 
 type ModelState = "checking" | "missing" | "downloading" | "loading" | "ready" | "error";
+
+const MODEL_STORAGE_KEY = "ai-chat.model.id";
 
 /**
  * AppShell — la schermata unica di AI Chat (Fase 1).
@@ -55,6 +58,22 @@ export function AppShell() {
   const [download, setDownload] = useState<DownloadProgress | null>(null);
   const [modelError, setModelError] = useState<string | null>(null);
   const currentModel = MODEL_REGISTRY[modelIndex];
+
+  // Riconoscimento modello all'avvio: ripristina l'ultimo modello usato
+  // (come la selezione persistita), NON sempre il default.
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(MODEL_STORAGE_KEY)
+      .then((saved) => {
+        if (!mounted || !saved) return;
+        const savedIndex = MODEL_REGISTRY.findIndex((model) => model.id === saved);
+        if (savedIndex >= 0) setModelIndex(savedIndex);
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Guard sincrone per download/switch (non soggette al batching di React).
   const downloadInFlight = useRef(false);
