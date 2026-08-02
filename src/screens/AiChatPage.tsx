@@ -37,8 +37,8 @@ import {
   X,
 } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";
-// SDK 55 moved the classic file API (readAsStringAsync / EncodingType) to the
-// `/legacy` entrypoint; the new default export does not provide them.
+// La legacy API di expo-file-system (readAsStringAsync / EncodingType) vive in
+// `/legacy`; SDK 57 la espone ancora, la migrazione alla File API è un leftover.
 import * as FileSystem from "expo-file-system/legacy";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
@@ -250,10 +250,12 @@ const PDF_EXTRACT_ENDPOINT =
 const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_FILE_ATTACHMENTS = 5;
 
-/** Sanitizza lo storico persistito: ogni campo opzionale è validato, niente crash su payload corrotti. */
+/** Sanitizza lo storico persistito: ogni campo (anche annidato) è validato, niente crash su payload corrotti. */
 function sanitizeHistoryMessages(raw: unknown): Message[] {
   if (!Array.isArray(raw)) return [];
   const result: Message[] = [];
+  const MAX_TEXT = 100_000;
+  const MAX_ITEMS = 100;
   for (const item of raw) {
     if (!item || typeof item !== "object" || Array.isArray(item)) continue;
     const record = item as Record<string, unknown>;
@@ -263,22 +265,102 @@ function sanitizeHistoryMessages(raw: unknown): Message[] {
     const message: Message = {
       id: record.id,
       role: record.role,
-      text: record.text,
+      text: record.text.slice(0, MAX_TEXT),
       createdAt: typeof record.createdAt === "number" ? record.createdAt : Date.now(),
     };
-    if (record.streaming === true) message.streaming = true;
-    if (typeof record.statusLabel === "string") message.statusLabel = record.statusLabel;
-    if (Array.isArray(record.statusHistory) && record.statusHistory.every((s) => typeof s === "string")) {
-      message.statusHistory = record.statusHistory as string[];
+    // Gli stati transitori non vengono mai ripristinati: niente spinner eterni.
+    if (typeof record.statusLabel === "string") message.statusLabel = record.statusLabel.slice(0, 200);
+    if (Array.isArray(record.statusHistory) && record.statusHistory.length <= MAX_ITEMS) {
+      message.statusHistory = record.statusHistory
+        .filter((s): s is string => typeof s === "string")
+        .slice(0, MAX_ITEMS);
     }
-    if (Array.isArray(record.sources)) message.sources = record.sources as MessageSource[];
-    if (record.miniapp && typeof record.miniapp === "object") {
-      message.miniapp = record.miniapp as Message["miniapp"];
+    if (Array.isArray(record.sources) && record.sources.length <= MAX_ITEMS) {
+      message.sources = record.sources
+        .filter((s): s is Record<string, unknown> => !!s && typeof s === "object" && !Array.isArray(s))
+        .slice(0, MAX_ITEMS)
+        .map((s) => ({
+          id: typeof s.id === "string" ? s.id : `src-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          title:
+            (typeof s.title === "string" && s.title.trim() ? s.title : "" ) ||
+            (typeof s.url === "string" ? s.url : "") ||
+            (typeof s.host === "string" ? s.host : "") ||
+            "Source",
+          ...(typeof s.authors === "string" ? { authors: s.authors.slice(0, 300) } : {}),
+          ...(typeof s.doi === "string" ? { doi: s.doi.slice(0, 300) } : {}),
+          ...(typeof s.url === "string" ? { url: s.url.slice(0, 2000) } : {}),
+        }));
     }
-    if (Array.isArray(record.attachments)) message.attachments = record.attachments as AttachedItem[];
-    if (Array.isArray(record.images)) message.images = record.images as ResultImage[];
-    if (Array.isArray(record.downloads)) message.downloads = record.downloads as ResultDownload[];
-    if (Array.isArray(record.ctas)) message.ctas = record.ctas as ChatCta[];
+    if (record.miniapp && typeof record.miniapp === "object" && !Array.isArray(record.miniapp)) {
+      const miniapp = record.miniapp as Record<string, unknown>;
+      if (typeof miniapp.kind === "string" && typeof miniapp.title === "string") {
+        message.miniapp = {
+          kind: miniapp.kind.slice(0, 100),
+          title: miniapp.title.slice(0, 300),
+          blocks: Array.isArray(miniapp.blocks) ? miniapp.blocks.slice(0, MAX_ITEMS) : [],
+          ...(Array.isArray(miniapp.actions) ? { actions: miniapp.actions.slice(0, 50) } : {}),
+          ...(miniapp.computed && typeof miniapp.computed === "object" ? { computed: miniapp.computed } : {}),
+          ...(miniapp.state && typeof miniapp.state === "object" ? { state: miniapp.state } : {}),
+          ...(typeof miniapp.schema === "string" ? { schema: miniapp.schema } : {}),
+        } as Message["miniapp"];
+      }
+    }
+    if (Array.isArray(record.attachments) && record.attachments.length <= MAX_ITEMS) {
+      message.attachments = record.attachments
+        .filter(
+          (a): a is Record<string, unknown> => !!a && typeof a === "object" && !Array.isArray(a),
+        )
+        .slice(0, MAX_ITEMS)
+        .map((a) => ({
+          id: typeof a.id === "string" ? a.id : `att-${Date.now()}`,
+          type: a.type === "rna-seq" || a.type === "labbook" || a.type === "file" ? a.type : "file",
+          label: typeof a.label === "string" ? a.label.slice(0, 500) : "Attachment",
+          ...(typeof a.contextId === "string" ? { contextId: a.contextId.slice(0, 200) } : {}),
+        }));
+    }
+    if (Array.isArray(record.images) && record.images.length <= MAX_ITEMS) {
+      message.images = record.images
+        .filter(
+          (i): i is Record<string, unknown> =>
+            !!i && typeof i === "object" && !Array.isArray(i) && typeof i.url === "string",
+        )
+        .slice(0, MAX_ITEMS)
+        .map((i) => ({
+          id: typeof i.id === "string" ? i.id : `img-${Date.now()}`,
+          label: typeof i.label === "string" ? i.label.slice(0, 300) : "Image",
+          url: (i.url as string).slice(0, 2000),
+          ...(typeof i.artifactType === "string" ? { artifactType: i.artifactType } : {}),
+        }));
+    }
+    if (Array.isArray(record.downloads) && record.downloads.length <= MAX_ITEMS) {
+      message.downloads = record.downloads
+        .filter(
+          (d): d is Record<string, unknown> =>
+            !!d && typeof d === "object" && !Array.isArray(d) && typeof d.url === "string",
+        )
+        .slice(0, MAX_ITEMS)
+        .map((d) => ({
+          id: typeof d.id === "string" ? d.id : `dl-${Date.now()}`,
+          label: typeof d.label === "string" ? d.label.slice(0, 300) : "Download",
+          url: (d.url as string).slice(0, 2000),
+          ...(typeof d.artifactType === "string" ? { artifactType: d.artifactType } : {}),
+        }));
+    }
+    if (Array.isArray(record.ctas) && record.ctas.length <= MAX_ITEMS) {
+      message.ctas = record.ctas
+        .filter(
+          (c): c is Record<string, unknown> =>
+            !!c && typeof c === "object" && !Array.isArray(c) && typeof c.label === "string",
+        )
+        .slice(0, MAX_ITEMS)
+        .map((c) => ({
+          kind: (typeof c.kind === "string" ? c.kind : "output") as ChatCta["kind"],
+          label: (c.label as string).slice(0, 300),
+          ...(typeof c.id === "string" ? { id: c.id } : {}),
+          ...(typeof c.outputId === "string" ? { outputId: c.outputId } : {}),
+          ...(typeof c.target === "string" ? { target: c.target } : {}),
+        }));
+    }
     result.push(message);
   }
   return result;
@@ -329,12 +411,15 @@ export function AiChatPage({
   useEffect(() => {
     if (!historyLoaded || !messages.length) return;
     const timer = setTimeout(() => {
-      // Normalizza lo stato transitorio: niente streaming parziale persistito.
-      const clean = messages.map((message) => ({
-        ...message,
-        streaming: undefined,
-        statusHistory: undefined,
-      }));
+      // Normalizza lo stato transitorio: niente streaming parziale persistito
+      // (i messaggi in corso vengono saltati del tutto).
+      const clean = messages
+        .filter((message) => !message.streaming)
+        .map((message) => ({
+          ...message,
+          streaming: undefined,
+          statusHistory: undefined,
+        }));
       AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(clean)).catch(() => undefined);
     }, 400);
     return () => clearTimeout(timer);
@@ -532,7 +617,7 @@ export function AiChatPage({
         if (mountedRef.current) setSending(false);
       }
     },
-    [onSendStream, updateMessage],
+    [historyLoaded, onSendStream, updateMessage],
   );
 
   const handleStop = useCallback(() => {
@@ -642,7 +727,7 @@ export function AiChatPage({
   }, [attachedItems, getBioToken]);
 
   // WARN-2: useMemo avoids draft.trim() allocation on every render
-  const canSend = useMemo(() => !!draft.trim() && !sending, [draft, sending]);
+  const canSend = useMemo(() => !!draft.trim() && !sending && historyLoaded, [draft, historyLoaded, sending]);
 
   // ── Attach chip color helper ────────────────────────────────────────────
   function chipColorForType(type: AttachedItem["type"]) {

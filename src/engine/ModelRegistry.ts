@@ -11,7 +11,7 @@ export type ModelInfo = {
   quant: string;
   hfRepo: string;
   file: string;
-  approxBytes: number;
+  sizeBytes: number;
   contextLength: number;
   description: string;
   default?: boolean;
@@ -25,7 +25,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     quant: "Q4_K_M",
     hfRepo: "unsloth/Qwen3.5-4B-GGUF",
     file: "Qwen3.5-4B-Q4_K_M.gguf",
-    approxBytes: 2_740_937_888,
+    sizeBytes: 2_740_937_888,
     contextLength: 262144,
     description: "Default. Function calling nativo, multimodale (vision), agente nativo.",
     default: true,
@@ -37,7 +37,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     quant: "Q4_K_M",
     hfRepo: "unsloth/gemma-4-E2B-it-GGUF",
     file: "gemma-4-E2B-it-Q4_K_M.gguf",
-    approxBytes: 3_106_738_272,
+    sizeBytes: 3_106_738_272,
     contextLength: 131072,
     description: "Edge-optimized (PLE): vision/audio, tool calling DSL, MTP speculative decoding.",
   },
@@ -48,7 +48,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     quant: "Q4_K_M",
     hfRepo: "unsloth/Qwen3.5-2B-GGUF",
     file: "Qwen3.5-2B-Q4_K_M.gguf",
-    approxBytes: 1_280_835_840,
+    sizeBytes: 1_280_835_840,
     contextLength: 262144,
     description: "Fallback veloce per device mid-range.",
   },

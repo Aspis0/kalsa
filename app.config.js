@@ -9,6 +9,7 @@ const config = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.aichat.app",
+    deploymentTarget: "16.4",
     config: {
       usesNonExemptEncryption: false,
     },
@@ -41,9 +42,6 @@ const config = {
       {
         android: {
           newArchEnabled: true,
-        },
-        ios: {
-          deploymentTarget: "16.4",
         },
       },
     ],

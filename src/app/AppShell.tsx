@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { X as LucideX, Download as LucideDownload, Check as LucideCheck } from "lucide-react-native";
+import { X as LucideX, Check as LucideCheck } from "lucide-react-native";
 
 import { AiChatPage, type ChatCta } from "../screens/AiChatPage";
 import { AskAssistantPanel } from "../ui/AskAssistantPanel";
@@ -58,6 +58,7 @@ export function AppShell() {
   useEffect(() => {
     return () => {
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
+      engineGenerationRef.current += 1; // invalida ogni async in corso
       downloadAbortRef.current?.abort();
       downloadAbortRef.current = null;
       void disposeEngine();
@@ -101,7 +102,7 @@ export function AppShell() {
 
   const selectModel = useCallback(
     (nextIndex: number) => {
-      if (modelState === "downloading" || modelState === "loading") return;
+      if (downloadInFlight.current || modelState === "downloading" || modelState === "loading") return;
       const wrapped = (nextIndex + MODEL_REGISTRY.length) % MODEL_REGISTRY.length;
       if (wrapped === modelIndex) return;
       void disposeEngine().then(() => {
@@ -122,7 +123,7 @@ export function AppShell() {
     downloadAbortRef.current = controller;
     setModelState("downloading");
     setModelError(null);
-    setDownload({ bytesReceived: 0, bytesTotal: currentModel.approxBytes, progress: 0 });
+    setDownload({ bytesReceived: 0, bytesTotal: currentModel.sizeBytes, progress: 0 });
     try {
       const outcome = await downloadModel(currentModel, {
         onProgress: (progress) => {
@@ -214,12 +215,12 @@ export function AppShell() {
   const progressPercent = download ? Math.round(download.progress * 100) : 0;
 
   const modelBarStatus = (() => {
-    const engineLoaded = isEngineReady();
+    const engineLoaded = isEngineReady() && getActiveModelId() === currentModel.id;
     switch (modelState) {
       case "checking":
         return { label: "Checking…", color: colors.muted };
       case "missing":
-        return { label: `Download ${formatBytes(currentModel.approxBytes)}`, color: colors.accent };
+        return { label: `Download ${formatBytes(currentModel.sizeBytes)}`, color: colors.accent };
       case "downloading":
         return { label: `Downloading… ${progressPercent}%`, color: colors.accent };
       case "loading":

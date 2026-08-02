@@ -48,6 +48,28 @@ export type EngineCallbacks = {
 // ── Lock sul lifecycle ─────────────────────────────────────────────────────
 let lifecycleChain: Promise<void> = Promise.resolve();
 
+// Tracking completion attive: dispose ferma e ATTENDE prima di release(),
+// così un context non viene rilasciato mentre è in uso.
+let activeCompletions = 0;
+let allCompletionsSettled: Promise<void> = Promise.resolve();
+let allSettledResolve: (() => void) | null = null;
+
+function trackCompletion<T>(promise: Promise<T>): Promise<T> {
+  activeCompletions += 1;
+  const tracked = promise.finally(() => {
+    activeCompletions -= 1;
+    if (activeCompletions === 0 && allSettledResolve) {
+      allSettledResolve();
+      allSettledResolve = null;
+    }
+  });
+  allCompletionsSettled = tracked.then(
+    () => undefined,
+    () => undefined,
+  );
+  return tracked;
+}
+
 function withLifecycleLock<T>(fn: () => Promise<T>): Promise<T> {
   const next = lifecycleChain.then(fn, fn);
   lifecycleChain = next.then(
@@ -96,6 +118,19 @@ async function disposeEngineLocked(): Promise<void> {
   context = null;
   activeModelId = null;
   if (current) {
+    if (activeCompletions > 0) {
+      // Ferma le completion in corso sul context VECCHIO e attendine la fine
+      // (max 5s) prima di rilasciarlo.
+      try {
+        await current.stopCompletion();
+      } catch {
+        // best effort
+      }
+      await Promise.race([
+        allCompletionsSettled,
+        new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+      ]);
+    }
     try {
       await current.release();
     } catch {
@@ -141,26 +176,28 @@ export async function streamAssistantTurn(
   try {
     callbacks.onStatus?.({ label: "Thinking" });
 
-    const result = await engine.completion(
-      {
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          ...messages.map((message) => ({ role: message.role, content: message.content })),
-        ],
-        n_predict: 512,
-        stop: STOP_WORDS,
-        temperature: 0.7,
-        top_k: 40,
-        top_p: 0.95,
-        enable_thinking: false,
-        reasoning_format: "none",
-        chat_template_kwargs: { enable_thinking: false },
-      },
-      (data: TokenData) => {
-        if (finished || aborted) return;
-        const delta = data.content ?? data.token ?? "";
-        if (delta) callbacks.onDelta(delta, data.accumulated_text ?? "");
-      },
+    const result = await trackCompletion(
+      engine.completion(
+        {
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            ...messages.map((message) => ({ role: message.role, content: message.content })),
+          ],
+          n_predict: 512,
+          stop: STOP_WORDS,
+          temperature: 0.7,
+          top_k: 40,
+          top_p: 0.95,
+          enable_thinking: false,
+          reasoning_format: "none",
+          chat_template_kwargs: { enable_thinking: false },
+        },
+        (data: TokenData) => {
+          if (finished || aborted) return;
+          const delta = data.content ?? data.token ?? "";
+          if (delta) callbacks.onDelta(delta, data.accumulated_text ?? "");
+        },
+      ),
     );
 
     if (finished || aborted) return;

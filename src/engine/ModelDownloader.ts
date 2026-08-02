@@ -42,11 +42,10 @@ export async function ensureModelsDir(): Promise<void> {
   await FileSystem.makeDirectoryAsync(MODELS_DIR, { intermediates: true });
 }
 
-/** Vero solo se il file esiste con la dimensione esatta del GGUF completo. */
+/** Vero solo se il file esiste con la dimensione ESATTA del GGUF completo. */
 export async function isModelDownloaded(model: ModelInfo): Promise<boolean> {
   const info = await FileSystem.getInfoAsync(modelLocalPath(model));
-  if (!info.exists) return false;
-  return (info.size ?? 0) >= model.approxBytes;
+  return info.exists && (info.size ?? 0) === model.sizeBytes;
 }
 
 function resumeKeyFor(model: ModelInfo): string {
@@ -54,7 +53,9 @@ function resumeKeyFor(model: ModelInfo): string {
 }
 
 export async function downloadModel(model: ModelInfo, options: DownloadOptions = {}): Promise<DownloadOutcome> {
+  if (options.signal?.aborted) return { status: "aborted" };
   await ensureModelsDir();
+  if (options.signal?.aborted) return { status: "aborted" };
   const target = modelLocalPath(model);
   const resumeKey = resumeKeyFor(model);
 
@@ -77,7 +78,7 @@ export async function downloadModel(model: ModelInfo, options: DownloadOptions =
       target,
       {},
       (progress) => {
-        const bytesTotal = progress.totalBytesExpectedToWrite > 0 ? progress.totalBytesExpectedToWrite : model.approxBytes;
+        const bytesTotal = progress.totalBytesExpectedToWrite > 0 ? progress.totalBytesExpectedToWrite : model.sizeBytes;
         options.onProgress?.({
           bytesReceived: progress.totalBytesWritten,
           bytesTotal,
@@ -113,10 +114,11 @@ export async function downloadModel(model: ModelInfo, options: DownloadOptions =
     if (options.signal?.aborted) return { status: "aborted" };
     if (!result?.uri) throw new Error("Download failed");
 
-    // Verifica dimensione esatta: un file parziale non deve mai passare.
+    // Verifica dimensione ESATTA: un file diverso (parziale, corrotto o troppo
+    // grande) non deve mai passare a llama.rn.
     const info = await FileSystem.getInfoAsync(target);
-    if (!info.exists || (info.size ?? 0) < model.approxBytes) {
-      throw new Error(`Download incomplete (${info.exists ? (info.size ?? 0) : 0} < ${model.approxBytes} bytes)`);
+    if (!info.exists || (info.size ?? 0) !== model.sizeBytes) {
+      throw new Error(`Download incomplete (${info.exists ? (info.size ?? 0) : 0} != ${model.sizeBytes} bytes)`);
     }
 
     await AsyncStorage.removeItem(resumeKey).catch(() => undefined);
