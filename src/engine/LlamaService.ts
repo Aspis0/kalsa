@@ -81,23 +81,13 @@ let lifecycleChain: Promise<void> = Promise.resolve();
 
 // Tracking completion attive: dispose ferma e ATTENDE prima di release(),
 // così un context non viene rilasciato mentre è in uso.
-let activeCompletions = 0;
-let allCompletionsSettled: Promise<void> = Promise.resolve();
-let allSettledResolve: (() => void) | null = null;
+const activeCompletionSet = new Set<Promise<unknown>>();
 
 function trackCompletion<T>(promise: Promise<T>): Promise<T> {
-  activeCompletions += 1;
   const tracked = promise.finally(() => {
-    activeCompletions -= 1;
-    if (activeCompletions === 0 && allSettledResolve) {
-      allSettledResolve();
-      allSettledResolve = null;
-    }
+    activeCompletionSet.delete(tracked);
   });
-  allCompletionsSettled = tracked.then(
-    () => undefined,
-    () => undefined,
-  );
+  activeCompletionSet.add(tracked);
   return tracked;
 }
 
@@ -149,7 +139,7 @@ async function disposeEngineLocked(): Promise<void> {
   context = null;
   activeModelId = null;
   if (current) {
-    if (activeCompletions > 0) {
+    if (activeCompletionSet.size > 0) {
       // Ferma le completion in corso sul context VECCHIO e attendine la fine
       // (max 5s) prima di rilasciarlo.
       try {
@@ -158,7 +148,7 @@ async function disposeEngineLocked(): Promise<void> {
         // best effort
       }
       await Promise.race([
-        allCompletionsSettled,
+        Promise.allSettled([...activeCompletionSet]).then(() => undefined),
         new Promise<void>((resolve) => setTimeout(resolve, 5000)),
       ]);
     }
@@ -261,7 +251,7 @@ export async function streamAssistantTurn(
           },
           (data: TokenData) => {
             if (finished || aborted) return;
-            const delta = data.content ?? data.token ?? "";
+            const delta = data.content ?? (hasTools ? "" : data.token) ?? "";
             if (delta) {
               streamedText += delta;
               callbacks.onDelta(delta, streamedText);
@@ -278,7 +268,12 @@ export async function streamAssistantTurn(
         return;
       }
 
-      // Round tool: esegui le chiamate e reinietta i risultati nel contesto.
+      // Round tool: esegui le chiamate, poi reinietta UN messaggio assistant
+      // con TUTTE le tool_calls + i relativi risultati tool (formato OpenAI).
+      const executed: Array<{
+        call: { type: "function"; id?: string; function: { name: string; arguments: string } };
+        content: string;
+      }> = [];
       for (const call of toolCalls.slice(0, 2)) {
         const name = call.function?.name ?? "";
         const args = parseToolArguments(call.function?.arguments);
@@ -295,12 +290,22 @@ export async function streamAssistantTurn(
         }
         if (finished || aborted) return;
 
-        currentMessages = [
-          ...currentMessages,
-          { role: "assistant", content: "", tool_calls: [call] },
-          { role: "tool", tool_call_id: call.id ?? `call-${round}-${name}`, content: toolContent },
-        ];
+        executed.push({ call, content: toolContent });
       }
+
+      currentMessages = [
+        ...currentMessages,
+        {
+          role: "assistant",
+          content: "",
+          tool_calls: executed.map((entry) => entry.call),
+        },
+        ...executed.map((entry) => ({
+          role: "tool",
+          tool_call_id: entry.call.id ?? `call-${round}-${entry.call.function?.name ?? "tool"}`,
+          content: entry.content,
+        })),
+      ];
       callbacks.onStatus?.({ label: "Thinking" });
     }
 

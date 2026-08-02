@@ -29,21 +29,15 @@ import {
   Grid2x2,
   Image as ImageIcon,
   Menu,
-  Plus,
   Send,
   Sparkles,
   Square,
   SquarePen,
   X,
 } from "lucide-react-native";
-import * as DocumentPicker from "expo-document-picker";
-// La legacy API di expo-file-system (readAsStringAsync / EncodingType) vive in
-// `/legacy`; SDK 57 la espone ancora, la migrazione alla File API è un leftover.
-import * as FileSystem from "expo-file-system/legacy";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
 import { typography } from "../theme/typography";
-import { UNIFIED_AI_CHAT, UNIFIED_AI_ENDPOINT } from "../mobile/aiGatewayConfig";
 
 const HISTORY_KEY = "ai-chat.messages.v1";
 
@@ -118,6 +112,7 @@ type Props = {
     callbacks: StreamCallbacks,
     signal: AbortSignal,
     attachments?: Array<{ title: string; text: string }>,
+    history?: unknown[],
   ) => Promise<void>;
   selectedRun?: AiChatSelectedRun | null;
   prefillText?: string | null;
@@ -125,9 +120,6 @@ type Props = {
   userName?: string | null;
   onOpenMiniapp?: (miniapp: any) => void;
   onCtaPress?: (cta: ChatCta) => void;
-  // PDF attach: bio JWT getter (reused from the app's token store) for the
-  // free /v1/ai/extract-pdf endpoint. When absent, the Files row stays inert.
-  getBioToken?: () => Promise<string | null>;
 };
 
 type SuggestionItem = {
@@ -239,16 +231,7 @@ function nextMsgId(prefix: string): string {
   return `${prefix}-${++_msgIdCounter}`;
 }
 
-// PDF extract endpoint, derived from the unified chat stream URL by swapping the
-// trailing `/chat/stream` segment for `/extract-pdf`. Falls back to the canonical
-// production URL if the chat endpoint has an unexpected shape.
-const PDF_EXTRACT_ENDPOINT =
-  typeof UNIFIED_AI_ENDPOINT === "string" && UNIFIED_AI_ENDPOINT.endsWith("/chat/stream")
-    ? UNIFIED_AI_ENDPOINT.replace(/\/chat\/stream$/, "/extract-pdf")
-    : "https://api.aspis-bio.com/v1/ai/extract-pdf";
-
-const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
-const MAX_FILE_ATTACHMENTS = 5;
+// PDF attach rimosso (Fase 3): nessun endpoint remoto, tutto locale.
 
 /** Sanitizza lo storico persistito: ogni campo (anche annidato) è validato, niente crash su payload corrotti. */
 function sanitizeHistoryMessages(raw: unknown): Message[] {
@@ -374,7 +357,6 @@ export function AiChatPage({
   userName,
   onOpenMiniapp,
   onCtaPress,
-  getBioToken,
 }: Props) {
   const { colors } = useLabTheme<any>();
   const insets = useSafeAreaInsets();
@@ -425,11 +407,8 @@ export function AiChatPage({
     return () => clearTimeout(timer);
   }, [historyLoaded, messages]);
 
-  // Feature 4: attach state
+  // Feature 4: attach state (local files, nessun upload remoto)
   const [attachedItems, setAttachedItems] = useState<AttachedItem[]>([]);
-  const [attachSheetOpen, setAttachSheetOpen] = useState(false);
-  // PDF attach: brief, non-modal status banner above the composer.
-  const [attachNotice, setAttachNotice] = useState<string | null>(null);
 
   // BLOCKER-1: unmount guard + abort ref
   const mountedRef = useRef(true);
@@ -447,15 +426,6 @@ export function AiChatPage({
   useEffect(() => {
     if (prefillText) setDraft(prefillText);
   }, [prefillText]);
-
-  // Auto-dismiss the attach notice after a few seconds.
-  useEffect(() => {
-    if (!attachNotice) return;
-    const t = setTimeout(() => {
-      if (mountedRef.current) setAttachNotice(null);
-    }, 3500);
-    return () => clearTimeout(t);
-  }, [attachNotice]);
 
   // HIGH-2: only scroll when a new message is added, not on every streaming delta
   const messageCount = messages.length;
@@ -551,9 +521,10 @@ export function AiChatPage({
                   statusLabel: status.label,
                   statusHistory: [...(prev.statusHistory ?? []), status.label],
                 })),
-              // BLOCKER-4: also clear statusLabel when sources arrive
+              // BLOCKER-4: sources non chiudono lo streaming (il round tool
+              // può continuare): aggiorna solo sources e statusLabel.
               onSources: (sources) =>
-                updateMessage(assistantId, { sources, streaming: false, statusLabel: undefined }),
+                updateMessage(assistantId, { sources, statusLabel: undefined }),
               onActions: (payload: any) => {
                 const proposed = Array.isArray(payload?.proposed_actions) ? payload.proposed_actions : [];
                 const ctas = proposed
@@ -585,6 +556,7 @@ export function AiChatPage({
             },
             controller.signal,
             gatewayAttachments.length > 0 ? gatewayAttachments : undefined,
+            messages,
           );
         } else {
           updateMessage(assistantId, {
@@ -609,15 +581,17 @@ export function AiChatPage({
           updateMessage(assistantId, { streaming: false, statusLabel: undefined, text: msg });
         }
       } finally {
-        // Finalize only if we didn't already remove the placeholder (abort + no text case)
-        if (!controller.signal.aborted || anyTextStreamed) {
+        // Abort senza testo: rimuovi il placeholder vuoto (niente bubble fantasma).
+        if (controller.signal.aborted && !anyTextStreamed) {
+          setMessages(prev => prev.filter(m => m.id !== assistantId));
+        } else if (!controller.signal.aborted || anyTextStreamed) {
           updateMessage(assistantId, { streaming: false, statusLabel: undefined });
         }
         sendingRef.current = false;
         if (mountedRef.current) setSending(false);
       }
     },
-    [historyLoaded, onSendStream, updateMessage],
+    [historyLoaded, messages, onSendStream, updateMessage],
   );
 
   const handleStop = useCallback(() => {
@@ -647,97 +621,7 @@ export function AiChatPage({
     AsyncStorage.removeItem(HISTORY_KEY).catch(() => undefined);
   }, []);
 
-  // ── PDF attach: pick → validate → extract → attach ──────────────────────
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const pdfLoadingRef = useRef(false);
-  const handlePickPdf = useCallback(async () => {
-    // Only the unified gateway consumes attachments; bail otherwise.
-    if (!UNIFIED_AI_CHAT) return;
-    if (pdfLoadingRef.current) return;
-    // Cap on the number of attached files.
-    const fileCount = attachedItems.filter((a) => a.type === "file").length;
-    if (fileCount >= MAX_FILE_ATTACHMENTS) {
-      setAttachNotice(`You can attach up to ${MAX_FILE_ATTACHMENTS} files.`);
-      return;
-    }
-
-    let picked: DocumentPicker.DocumentPickerResult;
-    try {
-      picked = await DocumentPicker.getDocumentAsync({
-        type: "application/pdf",
-        copyToCacheDirectory: true,
-        multiple: false,
-      });
-    } catch {
-      setAttachNotice("Couldn't open the file picker.");
-      return;
-    }
-    if (picked.canceled) return;
-    const asset = picked.assets?.[0];
-    if (!asset) return;
-
-    // Validate: PDF by mime or extension; size ≤ 10 MB.
-    const isPdf =
-      asset.mimeType === "application/pdf" || /\.pdf$/i.test(asset.name ?? "");
-    if (!isPdf) {
-      setAttachNotice("Please choose a PDF file.");
-      return;
-    }
-    if (typeof asset.size === "number" && asset.size > MAX_PDF_BYTES) {
-      setAttachNotice("That PDF is larger than 10 MB.");
-      return;
-    }
-
-    pdfLoadingRef.current = true;
-    setPdfLoading(true);
-    setAttachNotice(null);
-    try {
-      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const token = getBioToken ? await getBioToken() : null;
-      const doRequest = (authToken: string | null) =>
-        fetch(PDF_EXTRACT_ENDPOINT, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-          },
-          body: JSON.stringify({ filename: asset.name, data_b64: base64 }),
-        });
-      let response = await doRequest(token);
-      // Refresh-on-401: the bio JWT may have expired between calls.
-      if (response.status === 401 && getBioToken) {
-        const refreshed = await getBioToken().catch(() => null);
-        if (refreshed && refreshed !== token) {
-          response = await doRequest(refreshed);
-        }
-      }
-      const data = response.ok ? await response.json().catch(() => null) : null;
-      if (!data || data.ok !== true || typeof data.text !== "string" || !data.text.trim()) {
-        setAttachNotice("Couldn't read that PDF.");
-        return;
-      }
-      const label = (typeof data.title === "string" && data.title.trim()) || asset.name || "PDF";
-      if (mountedRef.current) {
-        setAttachedItems((prev) => {
-          const existingFiles = prev.filter((a) => a.type === "file").length;
-          if (existingFiles >= MAX_FILE_ATTACHMENTS) return prev;
-          return [
-            ...prev,
-            { id: nextMsgId("file"), type: "file", label, text: data.text as string },
-          ];
-        });
-        setAttachNotice(`Attached ${label}`);
-      }
-      setAttachSheetOpen(false);
-    } catch {
-      setAttachNotice("Couldn't read that PDF.");
-    } finally {
-      pdfLoadingRef.current = false;
-      if (mountedRef.current) setPdfLoading(false);
-    }
-  }, [attachedItems, getBioToken]);
+  // ── PDF attach rimosso (Fase 3): nessun endpoint remoto, tutto locale. ──
 
   // WARN-2: useMemo avoids draft.trim() allocation on every render
   const canSend = useMemo(() => !!draft.trim() && !sending && historyLoaded, [draft, historyLoaded, sending]);
@@ -1394,20 +1278,6 @@ export function AiChatPage({
         }}
       >
         {/* Feature 4: context chips row */}
-        {attachNotice ? (
-          <View
-            style={{
-              backgroundColor: colors.panel,
-              borderRadius: radius.md ?? 8,
-              paddingHorizontal: spacing.sm,
-              paddingVertical: 6,
-              marginBottom: 4,
-            }}
-          >
-            <Text style={[typography.bodyXs, { color: colors.muted }]}>{attachNotice}</Text>
-          </View>
-        ) : null}
-
         {attachedItems.length > 0 ? (
           <ScrollView
             horizontal
@@ -1452,25 +1322,6 @@ export function AiChatPage({
         ) : null}
 
         <View style={{ flexDirection: "row", alignItems: "flex-end", gap: spacing.xs }}>
-          {/* Feature 4: Plus opens attach sheet */}
-          <Pressable
-            onPress={() => setAttachSheetOpen(true)}
-            accessibilityLabel="Add context"
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: colors.panel,
-              borderWidth: 1,
-              borderColor: colors.line,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Plus color={colors.muted} size={18} />
-          </Pressable>
-
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -1532,16 +1383,6 @@ export function AiChatPage({
           )}
         </View>
       </View>
-
-      {/* ── Feature 4: Attach sheet ── */}
-      <AttachSheet
-        visible={attachSheetOpen}
-        onClose={() => setAttachSheetOpen(false)}
-        colors={colors}
-        filesEnabled={false}
-        pdfLoading={pdfLoading}
-        onPickFile={handlePickPdf}
-      />
     </KeyboardAvoidingView>
   );
 }
@@ -1607,190 +1448,3 @@ function MiniappCard({
   );
 }
 
-// ── Feature 4: Attach sheet component ─────────────────────────────────────
-function AttachSheet({
-  visible,
-  onClose,
-  colors,
-  filesEnabled,
-  pdfLoading,
-  onPickFile,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  colors: any;
-  filesEnabled: boolean;
-  pdfLoading: boolean;
-  onPickFile: () => void;
-}) {
-  return (
-    <>
-      <Modal
-        visible={visible}
-        animationType="slide"
-        transparent
-        onRequestClose={onClose}
-      >
-        <View style={{ flex: 1, justifyContent: "flex-end" }}>
-          <Pressable
-            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.4)" }}
-            onPress={onClose}
-          />
-          <View
-            style={{
-              backgroundColor: colors.shell,
-              borderTopLeftRadius: radius.xl ?? 24,
-              borderTopRightRadius: radius.xl ?? 24,
-              paddingBottom: 32,
-            }}
-          >
-          {/* Grab handle */}
-          <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
-            <View
-              style={{
-                width: 36,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: colors.line,
-              }}
-            />
-          </View>
-
-          {/* Title row */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingHorizontal: spacing.md,
-              paddingBottom: spacing.sm,
-            }}
-          >
-            <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "700", flex: 1 }]}>
-              Add context
-            </Text>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <X size={18} color={colors.muted} />
-            </Pressable>
-          </View>
-
-          {/* Section: From phone */}
-          <Text
-            style={[
-              typography.bodyXs,
-              {
-                color: colors.muted,
-                paddingHorizontal: spacing.md,
-                paddingTop: spacing.md,
-                paddingBottom: 4,
-                fontWeight: "600",
-                textTransform: "uppercase",
-                letterSpacing: 0.8,
-              },
-            ]}
-          >
-            From phone
-          </Text>
-
-          {/* Camera (disabled) */}
-          <Pressable
-            disabled
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: spacing.sm,
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm + 2,
-              opacity: 0.4,
-            }}
-          >
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 10,
-                backgroundColor: colors.panel,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Camera size={16} color={colors.muted} />
-            </View>
-            <Text style={[typography.bodySm, { color: colors.ink }]}>Camera</Text>
-          </Pressable>
-
-          {/* Photos (disabled) */}
-          <Pressable
-            disabled
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: spacing.sm,
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm + 2,
-              opacity: 0.4,
-            }}
-          >
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 10,
-                backgroundColor: colors.panel,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <ImageIcon size={16} color={colors.muted} />
-            </View>
-            <Text style={[typography.bodySm, { color: colors.ink }]}>Photos</Text>
-          </Pressable>
-
-          {/* Files (PDF → extract → ephemeral context). Enabled only when the
-              unified gateway flag is on AND a bio token getter is wired. */}
-          <Pressable
-            disabled={!filesEnabled || pdfLoading}
-            onPress={filesEnabled ? onPickFile : undefined}
-            style={({ pressed }) => ({
-              flexDirection: "row",
-              alignItems: "center",
-              gap: spacing.sm,
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm + 2,
-              backgroundColor: filesEnabled && pressed ? colors.panelBright : "transparent",
-              opacity: filesEnabled ? 1 : 0.4,
-            })}
-          >
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 10,
-                backgroundColor: colors.panel,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {pdfLoading ? (
-                <ActivityIndicator size="small" color={colors.muted} />
-              ) : (
-                <FileText size={16} color={colors.muted} />
-              )}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.bodySm, { color: colors.ink }]}>Files</Text>
-              <Text style={[typography.bodyXs, { color: colors.muted }]}>
-                {pdfLoading
-                  ? "Reading PDF…"
-                  : filesEnabled
-                    ? "PDF, up to 10 MB"
-                    : "Available with the new assistant"}
-              </Text>
-            </View>
-          </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-    </>
-  );
-}

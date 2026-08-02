@@ -17,6 +17,8 @@ const config = {
   android: {
     package: "com.aichat.app",
     permissions: [],
+    allowBackup: false,
+    usesCleartextTraffic: false,
     adaptiveIcon: {
       backgroundColor: "#07110F",
     },

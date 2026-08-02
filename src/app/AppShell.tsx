@@ -17,7 +17,7 @@ import { useAskAssistantController } from "./askAssistantController";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
 import { MODEL_REGISTRY, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
 import { downloadModel, isModelDownloaded, modelLocalPath, type DownloadProgress } from "../engine/ModelDownloader";
-import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineTurnOptions } from "../engine/LlamaService";
+import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineMessage, type EngineTurnOptions } from "../engine/LlamaService";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapExaSourcesToChat } from "../agent/webSearchTool";
 
 type ModelState = "checking" | "missing" | "downloading" | "loading" | "ready" | "error";
@@ -205,7 +205,7 @@ export function AppShell() {
   );
 
   const handleSendStream = useCallback(
-    (text: string, callbacks: any, signal: AbortSignal) =>
+    (text: string, callbacks: any, signal: AbortSignal, _attachments?: unknown, history?: unknown[]) =>
       new Promise<void>((resolve) => {
         const fail = (message: string) => {
           callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
@@ -221,8 +221,25 @@ export function AppShell() {
             fail(error instanceof Error ? error.message : String(error));
             return;
           }
+          // Memoria conversazionale: passa gli ultimi N messaggi (validati e
+          // limitati), NON solo l'ultimo turno.
+          const engineMessages: EngineMessage[] = (history ?? [])
+            .filter(
+              (m) =>
+                m &&
+                typeof m === "object" &&
+                typeof (m as { text?: unknown }).text === "string" &&
+                ((m as { role?: unknown }).role === "user" || (m as { role?: unknown }).role === "assistant"),
+            )
+            .slice(-20)
+            .map((m) => ({
+              role: (m as { role: string }).role as "user" | "assistant",
+              content: ((m as { text: string }).text as string).slice(0, 4000),
+            }));
+          engineMessages.push({ role: "user", content: text });
+
           await streamAssistantTurn(
-            [{ role: "user", content: text }],
+            engineMessages,
             {
               onDelta: callbacks.onDelta,
               onStatus: (status) => callbacks.onStatus?.(status),
@@ -412,7 +429,6 @@ export function AppShell() {
             onSendStream={handleSendStream}
             onOpenMiniapp={(miniapp) => setActiveMiniapp(miniapp as AskAssistantMiniapp)}
             onCtaPress={(_cta: ChatCta) => undefined}
-            getBioToken={async () => null}
           />
         </View>
 

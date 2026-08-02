@@ -78,6 +78,10 @@ export async function downloadModel(model: ModelInfo, options: DownloadOptions =
       target,
       {},
       (progress) => {
+        const now = Date.now();
+        const isFinalChunk = progress.totalBytesExpectedToWrite > 0 && progress.totalBytesWritten >= progress.totalBytesExpectedToWrite;
+        if (now - lastProgressEmit < PROGRESS_THROTTLE_MS && !isFinalChunk) return;
+        lastProgressEmit = now;
         const bytesTotal = progress.totalBytesExpectedToWrite > 0 ? progress.totalBytesExpectedToWrite : model.sizeBytes;
         options.onProgress?.({
           bytesReceived: progress.totalBytesWritten,
@@ -94,6 +98,10 @@ export async function downloadModel(model: ModelInfo, options: DownloadOptions =
   } else {
     task = buildTask();
   }
+
+  // Throttle dei callback di progresso: la UI non deve re-renderare a ogni chunk.
+  let lastProgressEmit = 0;
+  const PROGRESS_THROTTLE_MS = 200;
 
   const onAbort = () => {
     void task

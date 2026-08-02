@@ -13,7 +13,9 @@
  * No env → flag is false → gateway dormant.
  */
 
-const DEFAULT_UNIFIED_AI_ENDPOINT = "https://api.aspis-bio.com/v1/ai/chat/stream";
+// Backend rimosso: AI Chat è 100% locale. L'endpoint resta configurabile via
+// env per un futuro backend opzionale, ma di default NON punta a nessun servizio.
+const DEFAULT_UNIFIED_AI_ENDPOINT = "";
 
 function readBoolEnv(value) {
   if (value === true) return true;
