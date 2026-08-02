@@ -1,0 +1,53 @@
+# Dependencies and package-manager cache
+node_modules/
+.npm-cache/
+.gradle-home/
+.gradle-home-*/
+
+# Expo and generated bundles
+.expo/
+.expo-export/
+.expo-export-ios/
+.expo-export-web/
+dist/
+web-build/
+.tier1-work/
+
+# Local runtime logs
+*.log
+codex-sessions/
+codex-runs/
+.rnaseq-reference-cache/
+rnaseq-smoke-*.json
+eval/ai-model-benchmarks/
+.wrangler/
+cloudflare/**/.wrangler/
+cloudflare/Aspis-bio-website/
+
+# Local secrets and signing material
+.env*
+.dev.vars
+*.keystore
+*.jks
+credentials.json
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/
+
+# Native generated folders stay out until prebuild is intentional
+android/
+ios/
+
+# Local APK artifacts are attached to GitHub Releases, not committed
+releases/android/*.apk
+
+# Local audit dumps and tmp work
+audit-downloads/
+tmp/
+
+# RNA-seq reference import raw/generated data — too large for git (488MB+ Reactome dumps); rebuild via scripts/
+reference-imports/
