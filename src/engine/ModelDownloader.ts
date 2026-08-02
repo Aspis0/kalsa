@@ -75,7 +75,6 @@ function resumeKeyFor(model: ModelInfo, file: string, spec?: ModelFileSpec): str
 
 const PROGRESS_THROTTLE_MS = 200;
 const STALL_TIMEOUT_MS = 30_000; // nessun progresso per 30s → download bloccato
-const RESUME_SAVE_INTERVAL_MS = 10_000; // salva il resume state periodicamente
 
 /** Normalizza gli errori di rete nativi in messaggi leggibili. */
 export function friendlyNetworkError(error: unknown): Error {
@@ -147,6 +146,8 @@ async function downloadFile(
   }
 
   const onAbort = () => {
+    if (pausing) return;
+    pausing = true;
     void task
       .pauseAsync()
       .then((pauseState) => AsyncStorage.setItem(resumeKey, JSON.stringify(pauseState)))
@@ -154,32 +155,52 @@ async function downloadFile(
   };
   options.signal?.addEventListener("abort", onAbort, { once: true });
 
-  // Watchdog anti-stallo: se non arriva progresso per STALL_TIMEOUT_MS,
-  // interrompi con un errore pulito (salvando il resume per il retry).
+  // Watchdog anti-stallo: nessun progresso per STALL_TIMEOUT_MS → pausa ATTESA
+  // (salva il resume reale) e lascia che downloadAsync si concluda.
   let lastProgressAt = Date.now();
   let stalled = false;
   let retried = false;
+  let pausing = false;
   const stallTimer = setInterval(() => {
+    if (pausing) return;
     if (Date.now() - lastProgressAt > STALL_TIMEOUT_MS) {
       stalled = true;
-      void task
-        .pauseAsync()
-        .then((pauseState) => AsyncStorage.setItem(resumeKey, JSON.stringify(pauseState)))
-        .catch(() => undefined);
+      pausing = true;
+      void (async () => {
+        try {
+          const pauseState = await task.pauseAsync();
+          if (pauseState?.resumeData) {
+            await AsyncStorage.setItem(resumeKey, JSON.stringify(pauseState));
+          }
+        } catch {
+          // il task risolverà/rigetterà da solo
+        }
+      })();
     }
   }, 5_000);
 
-  // Salvataggio periodico del resume: un kill/inceppamento NON perde il progresso.
-  const resumeSaver = setInterval(() => {
-    try {
-      const state = task.savable();
-      if (state?.resumeData) {
-        void AsyncStorage.setItem(resumeKey, JSON.stringify(state)).catch(() => undefined);
-      }
-    } catch {
-      // best effort
-    }
-  }, RESUME_SAVE_INTERVAL_MS);
+  // Un solo tentativo di retry: ricrea il task dal resume SALVATO (dallo stall
+  // o dall'abort) e ritenta. `savable()` non produce resumeData durante un
+  // trasferimento attivo, quindi l'unico resume valido è quello di una pausa.
+  const retryOnce = async (): Promise<FileSystem.FileSystemDownloadResult | undefined> => {
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    const savedNow = await AsyncStorage.getItem(resumeKey)
+      .then((raw) => {
+        if (!raw) return null;
+        try {
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === "object" ? parsed : null;
+        } catch {
+          return null;
+        }
+      })
+      .catch(() => null);
+    stalled = false;
+    task = buildTask(
+      typeof savedNow?.resumeData === "string" ? (savedNow.resumeData as string) : undefined,
+    );
+    return task.downloadAsync();
+  };
 
   try {
     let result: FileSystem.FileSystemDownloadResult | undefined;
@@ -187,17 +208,10 @@ async function downloadFile(
       result = await task.downloadAsync();
     } catch (error) {
       if (options.signal?.aborted) return { status: "aborted" };
-      // Retry automatico una volta (rete caduta/ripristinata): ricrea il task
-      // con il resumeData corrente (il task non è riutilizzabile dopo un errore).
       if (!retried) {
         retried = true;
-        await new Promise((resolve) => setTimeout(resolve, 1_500));
         try {
-          const savedNow = task.savable();
-          task = buildTask(
-            typeof savedNow?.resumeData === "string" ? (savedNow.resumeData as string) : undefined,
-          );
-          result = await task.downloadAsync();
+          result = await retryOnce();
         } catch (retryError) {
           throw friendlyNetworkError(retryError);
         }
@@ -206,10 +220,22 @@ async function downloadFile(
       }
     }
     if (options.signal?.aborted) return { status: "aborted" };
-    if (stalled) {
-      throw new Error("Download stalled — check your connection. Riprova: riprenderà da dove era.");
+
+    // downloadAsync risolve `undefined` quando il task viene pausato (stall):
+    // in quel caso un retry non ancora fatto riprende dal resume salvato.
+    if (!result?.uri && stalled && !retried) {
+      retried = true;
+      try {
+        result = await retryOnce();
+      } catch (retryError) {
+        throw friendlyNetworkError(retryError);
+      }
     }
-    if (!result?.uri) throw new Error("Download failed");
+    if (!result?.uri) {
+      throw stalled
+        ? new Error("Download stalled — check your connection. Riprova: riprenderà da dove era.")
+        : new Error("Download failed");
+    }
 
     // Dimensione ESATTA: un file diverso (parziale/corrotto) non passa mai.
     const info = await FileSystem.getInfoAsync(target);
@@ -221,7 +247,6 @@ async function downloadFile(
     return { status: "done", uri: result.uri };
   } finally {
     clearInterval(stallTimer);
-    clearInterval(resumeSaver);
     options.signal?.removeEventListener("abort", onAbort);
   }
 }

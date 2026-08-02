@@ -19,7 +19,6 @@ const config = {
     permissions: [],
     allowBackup: false,
     usesCleartextTraffic: false,
-    softwareKeyboardLayoutMode: "resize",
     adaptiveIcon: {
       backgroundColor: "#07110F",
     },
@@ -28,6 +27,7 @@ const config = {
     // Tutto locale: nessun backend. Endpoint opzionali futuri vanno qui.
   },
   plugins: [
+    "./plugins/withLintOff",
     "expo-font",
     "expo-secure-store",
     "expo-sharing",

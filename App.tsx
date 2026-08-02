@@ -1,8 +1,19 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Notifications from "expo-notifications";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StatusBar } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+
+// Mostra le notifiche locali anche con l'app in foreground.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 import { createStyles } from "./src/theme/createStyles";
 import { palettes, type ThemeColors, type ThemeMode } from "./src/theme/palettes";

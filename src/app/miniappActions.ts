@@ -107,13 +107,9 @@ export async function handleAskAssistantMiniappAction(
   const actionId = String(action.id || "").trim().toLowerCase();
 
   if (actionId === "generate_report") {
-    const prompt = [
-      `Generate a concise report from the current ${miniapp.title || miniapp.kind} miniapp state.`,
-      "Use only the miniapp JSON below. Include assumptions, calculations, and export-ready notes.",
-      summarizeMiniappForPrompt(miniapp),
-    ].join("\n\n");
-    callbacks.setAskAssistantDraft(prompt);
-    callbacks.setFeedback("AI report prompt prepared in Ask AI");
+    callbacks.setFeedback(
+      "Report: esporta il miniapp come JSON e chiedi alla chat di generare il report.",
+    );
     return;
   }
 

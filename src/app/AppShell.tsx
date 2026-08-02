@@ -16,7 +16,7 @@ import { Drawer, type DrawerItem } from "../theme/components";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 import { MODEL_REGISTRY, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
-import { downloadModelBundle, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
+import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
 import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineMessage, type EngineTurnOptions } from "../engine/LlamaService";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapExaSourcesToChat } from "../agent/webSearchTool";
 
@@ -50,7 +50,9 @@ export function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const edgeSwipe = Gesture.Pan()
     .activeOffsetX(24)
+    .failOffsetY([-15, 15]) // scroll verticale NON deve aprire il drawer
     .hitSlop({ left: 0, width: 48 }) // solo dal bordo sinistro: niente conflitti con sources/scroll
+    .runOnJS(true)
     .onStart(() => setDrawerOpen(true));
   const drawerItems: DrawerItem[] = [
     {
@@ -90,9 +92,19 @@ export function AppShell() {
         const requested = await Notifications.requestPermissionsAsync();
         if (!requested.granted) return;
       }
-      await Notifications.scheduleNotificationAsync({ content: { title, body }, trigger: null });
-    } catch {
-      // notifiche non disponibili: non bloccante
+      // Android 8+: le notifiche devono appartenere a un channel. Il canale
+      // "default" è quello usato dalle notifiche immediate (trigger null).
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "AI Chat",
+        importance: Notifications.AndroidImportance.DEFAULT,
+      });
+      await Notifications.scheduleNotificationAsync({
+        content: { title, body },
+        trigger: null,
+      });
+    } catch (error) {
+      // notifiche non disponibili: non bloccante, ma non silenzioso in debug
+      console.warn("[notifyDownload]", error);
     }
   }, []);
 
@@ -263,7 +275,8 @@ export function AppShell() {
       }
       setModelState("error");
       setModelError(error instanceof Error ? error.message : String(error));
-      void notifyDownload("AI Chat", `Download fallito: ${error instanceof Error ? error.message : String(error)}`);
+      const friendly = friendlyNetworkError(error).message;
+      void notifyDownload("AI Chat", `Download fallito: ${friendly}`);
     } finally {
       downloadInFlight.current = false;
       downloadAbortRef.current = null;
