@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { X as LucideX } from "lucide-react-native";
+import { X as LucideX, Download as LucideDownload, Check as LucideCheck } from "lucide-react-native";
 
 import { AiChatPage, type ChatCta } from "../screens/AiChatPage";
 import { AskAssistantPanel } from "../ui/AskAssistantPanel";
@@ -14,14 +14,18 @@ import { useLabTheme } from "../ui/labTheme";
 import type { AskAssistantMiniapp } from "../domain/askAssistant";
 import { useAskAssistantController } from "./askAssistantController";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
-import { streamAssistantTurn } from "../engine/LlamaService";
+import { MODEL_REGISTRY, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
+import { downloadModel, isModelDownloaded, modelLocalPath, type DownloadProgress } from "../engine/ModelDownloader";
+import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn } from "../engine/LlamaService";
+
+type ModelState = "checking" | "missing" | "downloading" | "loading" | "ready" | "error";
 
 /**
- * AppShell — la schermata unica di AI Chat (Fase 0).
+ * AppShell — la schermata unica di AI Chat (Fase 1).
  *
  * Refactor del monolite originale (App.tsx, 3655 righe): qui restano solo
- * chat + Ask AI + viewer miniapp. L'engine locale (llama.rn) arriva in Fase 1
- * tramite `streamAssistantTurn`; oggi risponde con uno stub in streaming.
+ * chat + barra modello + Ask AI + viewer miniapp. L'engine locale gira su
+ * llama.rn; la barra modello gestisce download/switch dei GGUF.
  */
 export function AppShell() {
   const { colors, styles } = useLabTheme<any>();
@@ -30,6 +34,15 @@ export function AppShell() {
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const assistant = useAskAssistantController();
+
+  // ── Stato modello ────────────────────────────────────────────────────────
+  const [modelIndex, setModelIndex] = useState(() =>
+    Math.max(0, MODEL_REGISTRY.findIndex((m) => m.id === getDefaultModel().id)),
+  );
+  const [modelState, setModelState] = useState<ModelState>("checking");
+  const [download, setDownload] = useState<DownloadProgress | null>(null);
+  const [modelError, setModelError] = useState<string | null>(null);
+  const currentModel = MODEL_REGISTRY[modelIndex];
 
   const showNotice = useCallback((value: string) => {
     setNotice(value);
@@ -40,9 +53,72 @@ export function AppShell() {
   useEffect(() => {
     return () => {
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
+      void disposeEngine();
     };
   }, []);
 
+  // Controllo iniziale: il modello default è già scaricato?
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const ok = await isModelDownloaded(currentModel);
+        if (mounted) setModelState(ok ? "ready" : "missing");
+      } catch {
+        if (mounted) setModelState("missing");
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelIndex]);
+
+  const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
+    if (isEngineReady() && getActiveModelId() === model.id) return true;
+    if (!(await isModelDownloaded(model))) return false;
+    setModelState("loading");
+    await initEngine(modelLocalPath(model), model.id);
+    setModelState("ready");
+    return true;
+  }, []);
+
+  const selectModel = useCallback(
+    (nextIndex: number) => {
+      const wrapped = (nextIndex + MODEL_REGISTRY.length) % MODEL_REGISTRY.length;
+      if (wrapped === modelIndex) return;
+      void disposeEngine().then(() => {
+        setModelIndex(wrapped);
+        setModelState("checking");
+        setModelError(null);
+      });
+    },
+    [modelIndex],
+  );
+
+  const startDownload = useCallback(async () => {
+    if (modelState === "downloading") return;
+    setModelState("downloading");
+    setModelError(null);
+    setDownload({ bytesReceived: 0, bytesTotal: currentModel.approxBytes, progress: 0 });
+    const controller = new AbortController();
+    try {
+      const uri = await downloadModel(currentModel, {
+        onProgress: setDownload,
+        signal: controller.signal,
+      });
+      setModelState("loading");
+      await initEngine(uri, currentModel.id);
+      setModelState("ready");
+      showNotice(`${currentModel.name} pronto.`);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setModelState("missing");
+      setModelError(error instanceof Error ? error.message : String(error));
+    }
+  }, [currentModel, modelState, showNotice]);
+
+  // ── Chat wiring ──────────────────────────────────────────────────────────
   const handleMiniappAction = useCallback(
     (action: Record<string, unknown>, miniapp: AskAssistantMiniapp) => {
       void handleAskAssistantMiniappAction(action, miniapp, {
@@ -57,25 +133,60 @@ export function AppShell() {
   const handleSendStream = useCallback(
     (text: string, callbacks: any, signal: AbortSignal) =>
       new Promise<void>((resolve) => {
-        streamAssistantTurn(
-          [{ role: "user", content: text }],
-          {
-            onDelta: callbacks.onDelta,
-            onStatus: (status) => callbacks.onStatus?.(status),
-            onSources: (sources) => callbacks.onSources?.(sources as any),
-            onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
-            onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
-            onDone: () => resolve(),
-            onError: (error) => {
-              callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
-              resolve();
+        const fail = (message: string) => {
+          callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
+          resolve();
+        };
+        void (async () => {
+          try {
+            if (!(await ensureEngineForModel(currentModel))) {
+              fail(`Model not downloaded yet. Tap the model bar to download ${currentModel.name}.`);
+              return;
+            }
+          } catch (error) {
+            fail(error instanceof Error ? error.message : String(error));
+            return;
+          }
+          await streamAssistantTurn(
+            [{ role: "user", content: text }],
+            {
+              onDelta: callbacks.onDelta,
+              onStatus: (status) => callbacks.onStatus?.(status),
+              onSources: (sources) => callbacks.onSources?.(sources as any),
+              onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
+              onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
+              onDone: () => resolve(),
+              onError: (error) => {
+                callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
+                resolve();
+              },
             },
-          },
-          signal,
-        );
+            signal,
+          );
+        })();
       }),
-    [],
+    [currentModel, ensureEngineForModel],
   );
+
+  // ── Render barra modello ─────────────────────────────────────────────────
+  const progressPercent = download ? Math.round(download.progress * 100) : 0;
+
+  const modelBarStatus = (() => {
+    switch (modelState) {
+      case "checking":
+        return { label: "Checking…", color: colors.muted };
+      case "missing":
+        return { label: `Download ${formatBytes(currentModel.approxBytes)}`, color: colors.accent };
+      case "downloading":
+        return { label: `Downloading… ${progressPercent}%`, color: colors.accent };
+      case "loading":
+        return { label: "Loading model…", color: colors.muted };
+      case "error":
+        return { label: "Download failed — tap to retry", color: colors.bad };
+      case "ready":
+        return { label: "Ready · local", color: colors.good };
+    }
+  })();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.shell }}>
@@ -100,6 +211,89 @@ export function AppShell() {
           </View>
           <AskAIChip onPress={assistant.toggleOpen} label={assistant.open ? "Close" : "Ask AI"} />
         </View>
+
+        {/* Barra modello */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+            marginHorizontal: spacing.lg,
+            marginBottom: spacing.sm,
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 6,
+            borderRadius: 12,
+            backgroundColor: colors.panelSoft,
+            borderWidth: 1,
+            borderColor: colors.line,
+          }}
+        >
+          <Pressable
+            onPress={() => selectModel(modelIndex + 1)}
+            hitSlop={6}
+            style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 }}
+          >
+            <Text style={[typography.bodyXs, { color: colors.ink, fontWeight: "700" }]} numberOfLines={1}>
+              {currentModel.name}
+            </Text>
+            <Text style={[typography.monoXs, { color: colors.muted }]}>
+              {currentModel.quant} · {currentModel.vendor}
+            </Text>
+          </Pressable>
+
+          <View style={{ flex: 1 }} />
+
+          {modelState === "missing" ? (
+            <Pressable onPress={() => void startDownload()} hitSlop={6}>
+              <Text style={[typography.bodyXs, { color: colors.accent, fontWeight: "700" }]}>
+                {modelBarStatus.label}
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              {modelState === "downloading" ? (
+                <View
+                  style={{
+                    height: 4,
+                    width: 64,
+                    borderRadius: 2,
+                    backgroundColor: colors.line,
+                    overflow: "hidden",
+                  }}
+                >
+                  <View
+                    style={{
+                      height: 4,
+                      width: `${progressPercent}%`,
+                      backgroundColor: colors.accent,
+                    }}
+                  />
+                </View>
+              ) : null}
+              {modelState === "ready" ? <LucideCheck size={14} color={colors.good} /> : null}
+              {modelState === "error" ? (
+                <Pressable onPress={() => void startDownload()} hitSlop={6}>
+                  <LucideDownload size={14} color={colors.bad} />
+                </Pressable>
+              ) : null}
+              <Text style={[typography.bodyXs, { color: modelBarStatus.color }]} numberOfLines={1}>
+                {modelBarStatus.label}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {modelError ? (
+          <Text
+            style={[
+              typography.bodyXs,
+              { color: colors.bad, marginHorizontal: spacing.lg, marginBottom: spacing.xs },
+            ]}
+            numberOfLines={2}
+          >
+            {modelError}
+          </Text>
+        ) : null}
 
         <View style={{ flex: 1 }}>
           <AiChatPage

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
   Image,
@@ -43,6 +44,8 @@ import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
 import { typography } from "../theme/typography";
 import { UNIFIED_AI_CHAT, UNIFIED_AI_ENDPOINT } from "../mobile/aiGatewayConfig";
+
+const HISTORY_KEY = "ai-chat.messages.v1";
 
 export type AiChatSelectedRun = {
   jobId: string;
@@ -264,6 +267,47 @@ export function AiChatPage({
   const [sending, setSending] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const [greeting] = useState<string>(() => greetingForHour(new Date().getHours()));
+
+  // ── Persistenza conversazione (Fase 1) ──────────────────────────────────
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(HISTORY_KEY)
+      .then((raw) => {
+        if (!mounted || !raw) return;
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            const valid = parsed.filter(
+              (message) =>
+                message &&
+                typeof message === "object" &&
+                typeof message.id === "string" &&
+                typeof message.text === "string" &&
+                (message.role === "user" || message.role === "assistant"),
+            );
+            if (valid.length) setMessages(valid as Message[]);
+          }
+        } catch {
+          // storico corrotto: ignora e riparti pulito
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (mounted) setHistoryLoaded(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!historyLoaded || !messages.length) return;
+    const timer = setTimeout(() => {
+      AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(messages)).catch(() => undefined);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [historyLoaded, messages]);
 
   // Feature 4: attach state
   const [attachedItems, setAttachedItems] = useState<AttachedItem[]>([]);

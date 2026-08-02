@@ -23,7 +23,31 @@ const config = {
   extra: {
     // Tutto locale: nessun backend. Endpoint opzionali futuri vanno qui.
   },
-  plugins: ["expo-font", "expo-secure-store", "expo-sharing"],
+  plugins: [
+    "expo-font",
+    "expo-secure-store",
+    "expo-sharing",
+    [
+      "llama.rn",
+      {
+        enableEntitlements: true,
+        entitlementsProfile: "production",
+        forceCxx20: true,
+        enableOpenCLAndHexagon: true,
+      },
+    ],
+    [
+      "expo-build-properties",
+      {
+        android: {
+          newArchEnabled: true,
+        },
+        ios: {
+          deploymentTarget: "15.1",
+        },
+      },
+    ],
+  ],
 };
 
 module.exports = () => {
