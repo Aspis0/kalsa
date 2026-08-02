@@ -1,21 +1,21 @@
 const config = {
-  name: "AI Chat",
-  slug: "ai-chat",
+  name: "Kalsa AI Chat",
+  slug: "kalsa",
   version: "0.1.0",
   orientation: "portrait",
-  scheme: "aichat",
+  scheme: "kalsa",
   userInterfaceStyle: "automatic",
   assetBundlePatterns: ["**/*"],
   ios: {
     supportsTablet: true,
-    bundleIdentifier: "com.aichat.app",
+    bundleIdentifier: "com.kalsa.app",
     deploymentTarget: "16.4",
     config: {
       usesNonExemptEncryption: false,
     },
   },
   android: {
-    package: "com.aichat.app",
+    package: "com.kalsa.app",
     permissions: [],
     allowBackup: false,
     usesCleartextTraffic: false,

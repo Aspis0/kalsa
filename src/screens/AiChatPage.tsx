@@ -44,7 +44,7 @@ import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
 import { typography } from "../theme/typography";
 
-const HISTORY_KEY = "ai-chat.messages.v1";
+const HISTORY_KEY = "kalsa.messages.v1";
 
 export type AiChatSelectedRun = {
   jobId: string;
@@ -705,7 +705,7 @@ export function AiChatPage({
           `${message.role === "user" ? "**You**" : "**AI**"}:\n${message.text}`,
       )
       .join("\n\n---\n\n");
-    void Share.share({ message: markdown, title: "AI Chat — conversation export" }).catch(
+    void Share.share({ message: markdown, title: "Kalsa — conversation export" }).catch(
       () => undefined,
     );
   }, [messages]);
@@ -788,7 +788,7 @@ export function AiChatPage({
                 style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: colors.good }}
               />
               <Text style={[typography.bodyXs, { color: colors.compute, fontWeight: "600" }]}>
-                AI Chat
+                Kalsa
               </Text>
               <ChevronDown size={12} color={colors.compute} />
             </View>
@@ -1042,7 +1042,7 @@ export function AiChatPage({
                       backgroundColor: colors.compute,
                     }}
                   />
-                  <Text style={[typography.bodyXs, { color: colors.muted }]}>AI Chat</Text>
+                  <Text style={[typography.bodyXs, { color: colors.muted }]}>Kalsa</Text>
                 </View>
 
                 {/* Feature 1: status history stamps */}

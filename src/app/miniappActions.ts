@@ -90,7 +90,7 @@ export function miniappExportFileName(miniapp: AskAssistantMiniapp, extension: s
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "") || "miniapp";
-  return `ai-chat-${slug}-${Date.now()}.${extension}`;
+  return `kalsa-${slug}-${Date.now()}.${extension}`;
 }
 
 export type MiniappActionCallbacks = {

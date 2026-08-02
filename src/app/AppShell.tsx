@@ -22,7 +22,7 @@ import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapExaSourcesToChat } from "../
 
 type ModelState = "checking" | "missing" | "downloading" | "loading" | "ready" | "error";
 
-const MODEL_STORAGE_KEY = "ai-chat.model.id";
+const MODEL_STORAGE_KEY = "kalsa.model.id";
 
 /**
  * AppShell — la schermata unica di AI Chat (Fase 1).
@@ -95,7 +95,7 @@ export function AppShell() {
       // Android 8+: le notifiche devono appartenere a un channel. Il canale
       // "default" è quello usato dalle notifiche immediate (trigger null).
       await Notifications.setNotificationChannelAsync("default", {
-        name: "AI Chat",
+        name: "Kalsa",
         importance: Notifications.AndroidImportance.DEFAULT,
       });
       await Notifications.scheduleNotificationAsync({
@@ -266,7 +266,7 @@ export function AppShell() {
       if (generation !== engineGenerationRef.current) return;
       setModelState("ready");
       showNotice(`${currentModel.name} pronto.`);
-      void notifyDownload("AI Chat", `${currentModel.name} scaricato e pronto.`);
+      void notifyDownload("Kalsa", `${currentModel.name} scaricato e pronto.`);
     } catch (error) {
       if (generation !== engineGenerationRef.current) return;
       if (controller.signal.aborted) {
@@ -276,7 +276,7 @@ export function AppShell() {
       setModelState("error");
       setModelError(error instanceof Error ? error.message : String(error));
       const friendly = friendlyNetworkError(error).message;
-      void notifyDownload("AI Chat", `Download fallito: ${friendly}`);
+      void notifyDownload("Kalsa", `Download fallito: ${friendly}`);
     } finally {
       downloadInFlight.current = false;
       downloadAbortRef.current = null;
@@ -535,7 +535,7 @@ export function AppShell() {
       <Drawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        brand="AI Chat"
+        brand="Kalsa"
         subtitle="Local · private"
         items={drawerItems}
       />

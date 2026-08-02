@@ -12,7 +12,7 @@ import type { ModelInfo, ModelFileSpec } from "./ModelRegistry";
  */
 
 const MODELS_DIR = `${FileSystem.documentDirectory ?? ""}models/`;
-const RESUME_KEY_PREFIX = "ai-chat.download.resume.";
+const RESUME_KEY_PREFIX = "kalsa.download.resume.";
 
 export type DownloadProgress = {
   bytesReceived: number;
