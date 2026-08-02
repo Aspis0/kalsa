@@ -12,6 +12,11 @@ export type SearchResult = {
   text?: string;
 };
 
+export type SearchOptions = {
+  numResults?: number;
+  signal?: AbortSignal;
+};
+
 export interface SearchProvider {
-  search(query: string, opts?: { numResults?: number }): Promise<SearchResult[]>;
+  search(query: string, opts?: SearchOptions): Promise<SearchResult[]>;
 }

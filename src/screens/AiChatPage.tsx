@@ -29,12 +29,17 @@ import {
   Grid2x2,
   Image as ImageIcon,
   Menu,
+  Plus,
   Send,
   Sparkles,
   Square,
   SquarePen,
   X,
 } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
+import * as DocumentPicker from "expo-document-picker";
+import { PdfToImages } from "../components/PdfToImages";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
 import { typography } from "../theme/typography";
@@ -62,15 +67,16 @@ export type ChatCta = {
   target?: string | null;
 };
 
-// ── Feature 4: attached item type ──────────────────────────────────────────
-type AttachedItem = {
+// ── Feature 4: attachment locale (vision) ─────────────────────────────────
+// `uri`/`pages` sono file di cache temporanei (NON persistiti); `pageCount` è
+// l'unico metadata persistito (sanitizer).
+export type LocalAttachment = {
   id: string;
-  type: "rna-seq" | "labbook" | "file";
-  label: string;
-  contextId?: string;
-  // Feature: file attachments (PDF) carry the server-extracted text here.
-  // rna-seq/labbook items leave this undefined.
-  text?: string;
+  kind: "image" | "pdf";
+  name: string;
+  uri: string;
+  pages?: string[];
+  pageCount?: number;
 };
 
 type Message = {
@@ -85,7 +91,7 @@ type Message = {
   // Feature 2: miniapp
   miniapp?: { kind: string; title: string; blocks: any[] };
   // Feature 4: attachments on user messages
-  attachments?: AttachedItem[];
+  attachments?: LocalAttachment[];
   // RNA-seq job context: result image/download links delivered alongside the
   // assistant reply.
   images?: ResultImage[];
@@ -111,7 +117,7 @@ type Props = {
     text: string,
     callbacks: StreamCallbacks,
     signal: AbortSignal,
-    attachments?: Array<{ title: string; text: string }>,
+    attachments?: LocalAttachment[],
     history?: unknown[],
   ) => Promise<void>;
   selectedRun?: AiChatSelectedRun | null;
@@ -296,9 +302,13 @@ function sanitizeHistoryMessages(raw: unknown): Message[] {
         .slice(0, MAX_ITEMS)
         .map((a) => ({
           id: typeof a.id === "string" ? a.id : `att-${Date.now()}`,
-          type: a.type === "rna-seq" || a.type === "labbook" || a.type === "file" ? a.type : "file",
-          label: typeof a.label === "string" ? a.label.slice(0, 500) : "Attachment",
-          ...(typeof a.contextId === "string" ? { contextId: a.contextId.slice(0, 200) } : {}),
+          kind: a.kind === "pdf" || a.kind === "image" ? a.kind : "image",
+          name: typeof a.name === "string" ? a.name.slice(0, 300) : "Attachment",
+          // Le URI sono cache temporanea: non persistite (non disponibili al reload).
+          uri: "",
+          ...(typeof a.pageCount === "number" && a.pageCount > 0
+            ? { pageCount: Math.min(a.pageCount, 10) }
+            : {}),
         }));
     }
     if (Array.isArray(record.images) && record.images.length <= MAX_ITEMS) {
@@ -407,8 +417,90 @@ export function AiChatPage({
     return () => clearTimeout(timer);
   }, [historyLoaded, messages]);
 
-  // Feature 4: attach state (local files, nessun upload remoto)
-  const [attachedItems, setAttachedItems] = useState<AttachedItem[]>([]);
+  // Feature 4: attach state (immagini/foto/PDF → vision)
+  const [attachedItems, setAttachedItems] = useState<LocalAttachment[]>([]);
+  const [attachSheetOpen, setAttachSheetOpen] = useState(false);
+  const [pdfToRender, setPdfToRender] = useState<{ uri: string; name: string } | null>(null);
+  const pdfPagesRef = useRef<string[]>([]);
+
+  const MAX_IMAGE_ATTACHMENTS = 5;
+
+  const addImageAttachment = useCallback(async (source: "library" | "camera") => {
+    try {
+      const result =
+        source === "camera"
+          ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.9 })
+          : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.9 });
+      if (result.canceled || !result.assets?.length) return;
+      const asset = result.assets[0];
+      // HEIC/WebP non supportati da mtmd: conversione a JPEG + resize cap.
+      const manipulated = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: 1280 } }],
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      setAttachedItems((prev) => {
+        if (prev.length >= MAX_IMAGE_ATTACHMENTS) return prev;
+        return [
+          ...prev,
+          {
+            id: nextMsgId("img"),
+            kind: "image",
+            name: asset.fileName ?? `photo-${Date.now()}.jpg`,
+            uri: manipulated.uri,
+          },
+        ];
+      });
+      setAttachSheetOpen(false);
+    } catch {
+      // picker annullato/errore: ignora
+    }
+  }, []);
+
+  const addPdfAttachment = useCallback(async () => {
+    try {
+      const picked = await DocumentPicker.getDocumentAsync({
+        type: "application/pdf",
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (picked.canceled || !picked.assets?.length) return;
+      const asset = picked.assets[0];
+      setAttachSheetOpen(false);
+      pdfPagesRef.current = [];
+      setPdfToRender({ uri: asset.uri, name: asset.name ?? "document.pdf" });
+    } catch {
+      // ignora
+    }
+  }, []);
+
+  const handlePdfPage = useCallback((_index: number, imageUri: string) => {
+    pdfPagesRef.current.push(imageUri);
+  }, []);
+
+  const handlePdfDone = useCallback(() => {
+    setPdfToRender((prev) => {
+      if (prev) {
+        const pages = pdfPagesRef.current;
+        if (pages.length) {
+          setAttachedItems((current) => {
+            if (current.length >= MAX_IMAGE_ATTACHMENTS) return current;
+            return [
+              ...current,
+              { id: nextMsgId("pdf"), kind: "pdf", name: prev.name, uri: prev.uri, pages, pageCount: pages.length },
+            ];
+          });
+        }
+        pdfPagesRef.current = [];
+      }
+      return null;
+    });
+  }, []);
+
+  const handlePdfError = useCallback(() => {
+    pdfPagesRef.current = [];
+    setPdfToRender(null);
+  }, []);
 
   // BLOCKER-1: unmount guard + abort ref
   const mountedRef = useRef(true);
@@ -454,7 +546,7 @@ export function AiChatPage({
 
   // HIGH-3: useCallback so onPress closures in suggestion cards don't hold stale `sending`
   const handleSend = useCallback(
-    async (text: string, currentAttachments?: AttachedItem[]) => {
+    async (text: string, currentAttachments?: LocalAttachment[]) => {
       const trimmed = text.trim();
       // BLOCKER-3: synchronous ref check — not subject to React batching
       if (!trimmed || sendingRef.current || !historyLoaded) return;
@@ -463,12 +555,6 @@ export function AiChatPage({
 
       // Snapshot attachments at send time
       const snapshotAttachments = currentAttachments ?? [];
-      // Ephemeral gateway attachments: file-type items with extracted text.
-      // Cap at 5, guard each text at 6000 chars (server enforces the same).
-      const gatewayAttachments = snapshotAttachments
-        .filter((a) => a.type === "file" && typeof a.text === "string" && a.text.trim())
-        .slice(0, 5)
-        .map((a) => ({ title: a.label || "Attachment", text: (a.text as string).slice(0, 6000) }));
 
       // BLOCKER-2: module counter, no Date.now() collision
       const userMsgId = nextMsgId("u");
@@ -555,7 +641,7 @@ export function AiChatPage({
                 updateMessage(assistantId, { images: imgs, downloads: dls }),
             },
             controller.signal,
-            gatewayAttachments.length > 0 ? gatewayAttachments : undefined,
+            snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
             messages,
           );
         } else {
@@ -627,10 +713,8 @@ export function AiChatPage({
   const canSend = useMemo(() => !!draft.trim() && !sending && historyLoaded, [draft, historyLoaded, sending]);
 
   // ── Attach chip color helper ────────────────────────────────────────────
-  function chipColorForType(type: AttachedItem["type"]) {
-    if (type === "rna-seq") return { dot: colors.compute, bg: colors.computeSoft };
-    if (type === "labbook") return { dot: colors.accent, bg: colors.accentSoft };
-    return { dot: colors.muted, bg: colors.panel };
+  function chipColorForKind(kind: LocalAttachment["kind"]) {
+    return kind === "pdf" ? { dot: colors.compute, bg: colors.computeSoft } : { dot: colors.accent, bg: colors.accentSoft };
   }
 
   return (
@@ -882,7 +966,7 @@ export function AiChatPage({
                         }}
                       >
                         {m.attachments.map(att => {
-                          const { dot, bg } = chipColorForType(att.type);
+                          const { dot, bg } = chipColorForKind(att.kind);
                           return (
                             <View
                               key={att.id}
@@ -896,20 +980,13 @@ export function AiChatPage({
                                 paddingVertical: 3,
                               }}
                             >
-                              {att.type === "file" ? (
+                              {att.kind === "pdf" ? (
                                 <FileText size={11} color={dot} />
                               ) : (
-                                <View
-                                  style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: 999,
-                                    backgroundColor: dot,
-                                  }}
-                                />
+                                <ImageIcon size={11} color={dot} />
                               )}
-                              <Text style={[typography.bodyXs, { color: colors.ink }]}>
-                                {att.label}
+                              <Text style={[typography.bodyXs, { color: colors.ink }]} numberOfLines={1}>
+                                {att.name}
                               </Text>
                             </View>
                           );
@@ -1278,6 +1355,17 @@ export function AiChatPage({
         }}
       >
         {/* Feature 4: context chips row */}
+        {pdfToRender ? (
+          <View style={{ paddingHorizontal: spacing.md, paddingBottom: 4 }}>
+            <PdfToImages
+              pdfUri={pdfToRender.uri}
+              onPage={handlePdfPage}
+              onDone={handlePdfDone}
+              onError={handlePdfError}
+            />
+          </View>
+        ) : null}
+
         {attachedItems.length > 0 ? (
           <ScrollView
             horizontal
@@ -1285,7 +1373,7 @@ export function AiChatPage({
             contentContainerStyle={{ gap: spacing.xs, paddingBottom: 4 }}
           >
             {attachedItems.map(item => {
-              const { dot, bg } = chipColorForType(item.type);
+              const { dot, bg } = chipColorForKind(item.kind);
               return (
                 <View
                   key={item.id}
@@ -1299,14 +1387,14 @@ export function AiChatPage({
                     paddingVertical: 4,
                   }}
                 >
-                  {item.type === "file" ? (
+                  {item.kind === "pdf" ? (
                     <FileText size={11} color={dot} />
                   ) : (
-                    <View
-                      style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: dot }}
-                    />
+                    <ImageIcon size={11} color={dot} />
                   )}
-                  <Text style={[typography.bodyXs, { color: colors.ink }]}>{item.label}</Text>
+                  <Text numberOfLines={1} style={[typography.bodyXs, { color: colors.ink, maxWidth: 140 }]}>
+                    {item.name}
+                  </Text>
                   <Pressable
                     onPress={() =>
                       setAttachedItems(prev => prev.filter(a => a.id !== item.id))
@@ -1322,6 +1410,25 @@ export function AiChatPage({
         ) : null}
 
         <View style={{ flexDirection: "row", alignItems: "flex-end", gap: spacing.xs }}>
+          {/* Attach: foto/PDF per la vision */}
+          <Pressable
+            onPress={() => setAttachSheetOpen(true)}
+            accessibilityLabel="Add attachment"
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: colors.panel,
+              borderWidth: 1,
+              borderColor: colors.line,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Plus color={colors.muted} size={18} />
+          </Pressable>
+
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -1383,7 +1490,79 @@ export function AiChatPage({
           )}
         </View>
       </View>
+
+      {attachSheetOpen ? (
+        <Modal
+          visible
+          transparent
+          animationType="slide"
+          onRequestClose={() => setAttachSheetOpen(false)}
+        >
+          <Pressable
+            style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.42)", justifyContent: "flex-end" }}
+            onPress={() => setAttachSheetOpen(false)}
+          >
+            <Pressable style={{ padding: spacing.md, paddingBottom: 32 }} onPress={() => undefined}>
+              <View
+                style={{
+                  backgroundColor: colors.shell,
+                  borderRadius: radius.xl ?? 24,
+                  overflow: "hidden",
+                }}
+              >
+                <AttachSheetRow
+                  icon={<ImageIcon size={18} color={colors.ink} />}
+                  label="Photo from library"
+                  onPress={() => void addImageAttachment("library")}
+                  colors={colors}
+                />
+                <AttachSheetRow
+                  icon={<Camera size={18} color={colors.ink} />}
+                  label="Take photo"
+                  onPress={() => void addImageAttachment("camera")}
+                  colors={colors}
+                />
+                <AttachSheetRow
+                  icon={<FileText size={18} color={colors.ink} />}
+                  label="PDF document"
+                  onPress={() => void addPdfAttachment()}
+                  colors={colors}
+                />
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
     </KeyboardAvoidingView>
+  );
+}
+
+function AttachSheetRow({
+  icon,
+  label,
+  onPress,
+  colors,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+  colors: any;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
+        backgroundColor: pressed ? colors.panelBright : "transparent",
+      })}
+    >
+      {icon}
+      <Text style={[typography.bodySm, { color: colors.ink }]}>{label}</Text>
+    </Pressable>
   );
 }
 

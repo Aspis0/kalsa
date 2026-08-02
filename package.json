@@ -17,11 +17,14 @@
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.9",
+    "expo-asset": "~57.0.8",
     "expo-blur": "~57.0.2",
     "expo-build-properties": "~57.0.8",
     "expo-document-picker": "~57.0.1",
     "expo-file-system": "~57.0.1",
     "expo-font": "~57.0.1",
+    "expo-image-manipulator": "~57.0.7",
+    "expo-image-picker": "~57.0.7",
     "expo-linear-gradient": "~57.0.1",
     "expo-secure-store": "~57.0.1",
     "expo-sharing": "~57.0.8",
@@ -41,6 +44,7 @@
   "devDependencies": {
     "@types/react": "^19.2.3",
     "expo-doctor": "^1.18.20",
+    "pdfjs-dist": "^3.11.174",
     "typescript": "~6.0.3"
   },
   "private": true

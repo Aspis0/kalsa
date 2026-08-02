@@ -33,8 +33,9 @@ export const WEB_SEARCH_TOOL: EngineTool = {
 export function makeWebSearchExecutor(): (
   name: string,
   args: Record<string, unknown>,
+  signal?: AbortSignal,
 ) => Promise<EngineToolResult> {
-  return async (name, args) => {
+  return async (name, args, signal) => {
     if (name !== "web_search") {
       return { text: `Unknown tool: ${name}` };
     }
@@ -42,7 +43,7 @@ export function makeWebSearchExecutor(): (
     if (!query) return { text: "Empty search query." };
 
     const numResults = Math.max(1, Math.min(5, Math.floor(Number(args.numResults) || 4)));
-    const results = await exaSearch.search(query, { numResults });
+    const results = await exaSearch.search(query, { numResults, signal });
 
     const sources = results.map((result) => ({
       title: result.title,

@@ -1,21 +1,28 @@
-import { initLlama, type ContextParams, type LlamaContext, type TokenData } from "llama.rn";
+import {
+  initLlama,
+  type ContextParams,
+  type LlamaContext,
+  type RNLlamaMessagePart,
+  type RNLlamaOAICompatibleMessage,
+  type TokenData,
+} from "llama.rn";
 
 /**
- * Engine locale — Fase 1/2: llama.rn (binding llama.cpp, MIT).
+ * Engine locale — Fase 1/2/4: llama.rn (binding llama.cpp, MIT).
  *
  * Garanzie (contratto con la UI):
  * - QUALSIASI uscita (successo, errore, abort, engine non pronto) chiude il
  *   turno con onDone/onError ESATTAMENTE una volta.
- * - init/dispose serializzati da un lock (niente race tra switch modello,
- *   download completato e cleanup).
- * - ogni completion lavora sul context CATTURATO al momento della chiamata.
+ * - init/dispose serializzati da un lock; completion sul context CATTURATO.
  * - dispose ferma e ATTENDE le completion attive prima di release().
- * - tool calling (Fase 2): loop agente fino a MAX_TOOL_ROUNDS round, con
- *   risultato tool reiniettato nel contesto e sources propagate alla UI.
+ * - tool calling (Fase 2): loop agente con risultato reiniettato e sources.
+ * - multimodale (Fase 4): mmproj caricato via initMultimodal (gate esplicito),
+ *   immagini SOLO nel messaggio user corrente, ctx_shift:false.
  */
 
 let context: LlamaContext | null = null;
 let activeModelId: string | null = null;
+let activeMmprojPath: string | null = null;
 
 const SYSTEM_PROMPT =
   "You are AI Chat, a private assistant running fully on this device (no cloud, no account). " +
@@ -41,10 +48,13 @@ const STOP_WORDS = [
 ];
 
 const MAX_TOOL_ROUNDS = 2;
+const MAX_IMAGES_PER_TURN = 5;
 
 export type EngineMessage = {
   role: "user" | "assistant";
   content: string;
+  /** URI locali (file://) di immagini da allegare al messaggio USER corrente. */
+  images?: string[];
 };
 
 export type EngineTool = {
@@ -63,7 +73,11 @@ export type EngineToolResult = {
 
 export type EngineTurnOptions = {
   tools?: EngineTool[];
-  executeTool?: (name: string, args: Record<string, unknown>) => Promise<EngineToolResult>;
+  executeTool?: (
+    name: string,
+    args: Record<string, unknown>,
+    signal?: AbortSignal,
+  ) => Promise<EngineToolResult>;
 };
 
 export type EngineCallbacks = {
@@ -79,8 +93,7 @@ export type EngineCallbacks = {
 // ── Lock sul lifecycle ─────────────────────────────────────────────────────
 let lifecycleChain: Promise<void> = Promise.resolve();
 
-// Tracking completion attive: dispose ferma e ATTENDE prima di release(),
-// così un context non viene rilasciato mentre è in uso.
+// Tracking completion attive: dispose ferma e ATTENDE prima di release().
 const activeCompletionSet = new Set<Promise<unknown>>();
 
 function trackCompletion<T>(promise: Promise<T>): Promise<T> {
@@ -108,25 +121,51 @@ export function getActiveModelId(): string | null {
   return activeModelId;
 }
 
-export function initEngine(modelPath: string, modelId: string): Promise<void> {
+export function isVisionEnabled(): boolean {
+  return context !== null && activeMmprojPath !== null;
+}
+
+/**
+ * Carica il modello (idempotente per la stessa coppia model+mmproj).
+ * `mmprojPath` presente → initMultimodal obbligatorio: se restituisce false
+ * o il supporto vision non risulta attivo, l'engine NON si considera pronto.
+ */
+export function initEngine(modelPath: string, modelId: string, mmprojPath?: string | null): Promise<void> {
   return withLifecycleLock(async () => {
-    if (context && activeModelId === modelId) return;
+    if (context && activeModelId === modelId && activeMmprojPath === (mmprojPath ?? null)) return;
     await disposeEngineLocked();
 
+    const isMultimodal = Boolean(mmprojPath);
     const params: ContextParams = {
       model: modelPath,
       use_mlock: true,
-      n_ctx: 4096,
+      n_ctx: 8192, // vision: più token per le immagini
       n_batch: 512,
       n_ubatch: 256,
-      n_gpu_layers: 99, // Metal (iOS) / OpenCL (Android)
+      n_gpu_layers: 99, // Metal (iOS) / OpenCL (Android); senza GPU degrada a CPU
       flash_attn_type: "auto",
       cache_type_k: "q8_0",
       cache_type_v: "q8_0",
+      // Richiesto per multimodal: senza context shifting i media restano ancorati.
+      ctx_shift: isMultimodal ? false : true,
     };
 
     context = await initLlama(params);
     activeModelId = modelId;
+    activeMmprojPath = mmprojPath ?? null;
+
+    if (isMultimodal && mmprojPath) {
+      const enabled = await context.initMultimodal({ path: mmprojPath, use_gpu: true });
+      if (!enabled) {
+        await disposeEngineLocked();
+        throw new Error("Vision non disponibile: initMultimodal non riuscito per questo modello.");
+      }
+      const support = await context.getMultimodalSupport().catch(() => null);
+      if (!support?.vision) {
+        await disposeEngineLocked();
+        throw new Error("Vision non disponibile: il modello non supporta le immagini.");
+      }
+    }
   });
 }
 
@@ -138,6 +177,7 @@ async function disposeEngineLocked(): Promise<void> {
   const current = context;
   context = null;
   activeModelId = null;
+  activeMmprojPath = null;
   if (current) {
     if (activeCompletionSet.size > 0) {
       // Ferma le completion in corso sul context VECCHIO e attendine la fine
@@ -151,6 +191,11 @@ async function disposeEngineLocked(): Promise<void> {
         Promise.allSettled([...activeCompletionSet]).then(() => undefined),
         new Promise<void>((resolve) => setTimeout(resolve, 5000)),
       ]);
+    }
+    try {
+      await current.releaseMultimodal();
+    } catch {
+      // best effort
     }
     try {
       await current.release();
@@ -168,6 +213,19 @@ function parseToolArguments(raw: string | undefined): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+/** Trasforma il messaggio user corrente in parts, con le immagini come image_url. */
+function buildUserMessage(message: EngineMessage): RNLlamaOAICompatibleMessage {
+  const images = (message.images ?? []).slice(0, MAX_IMAGES_PER_TURN);
+  if (!images.length) {
+    return { role: "user", content: message.content };
+  }
+  const parts: RNLlamaMessagePart[] = [{ type: "text", text: message.content }];
+  for (const url of images) {
+    parts.push({ type: "image_url", image_url: { url } });
+  }
+  return { role: "user", content: parts };
 }
 
 export async function streamAssistantTurn(
@@ -191,8 +249,6 @@ export async function streamAssistantTurn(
     }
   };
 
-  // Abort deterministico: chiude subito il turno e poi ferma la completion
-  // sul context CATTURATO. I token successivi vengono ignorati.
   const abort = () => {
     aborted = true;
     finishOnce(() => callbacks.onDone());
@@ -206,14 +262,26 @@ export async function streamAssistantTurn(
   }
 
   const hasTools = Boolean(options?.tools?.length && options?.executeTool);
-  let currentMessages: Array<{
-    role: string;
-    content?: string;
-    tool_calls?: Array<{ type: "function"; id?: string; function: { name: string; arguments: string } }>;
-    tool_call_id?: string;
-  }> = [
+  // Le immagini vivono SOLO nel messaggio user corrente: system/tool/assistant
+  // restano testuali (invariante del piano).
+  // Il tipo del binding non dichiara tool_calls/tool_call_id sui messaggi
+  // (li accetta a runtime): li modelliamo con un tipo locale e castiamo alla
+  // chiamata completion.
+  type ToolChatMessage =
+    | RNLlamaOAICompatibleMessage
+    | {
+        role: "assistant";
+        content?: string;
+        tool_calls: Array<{ type: "function"; id?: string; function: { name: string; arguments: string } }>;
+      }
+    | { role: "tool"; tool_call_id: string; content: string };
+
+  const userIndex = messages.length - 1;
+  let currentMessages: ToolChatMessage[] = [
     { role: "system", content: hasTools ? SYSTEM_PROMPT_WITH_SEARCH : SYSTEM_PROMPT },
-    ...messages.map((message) => ({ role: message.role, content: message.content })),
+    ...messages.map((message, index) =>
+      index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
+    ),
   ];
 
   // Accumulo locale del testo: streaming garantito anche se il campo
@@ -221,8 +289,6 @@ export async function streamAssistantTurn(
   let streamedText = "";
 
   const emitFinalText = (raw: { text: string; content?: string }) => {
-    // `content` è il testo filtrato (senza reasoning/tool call), coerente
-    // con lo streaming; `text` è il testo grezzo.
     const finalText =
       typeof raw.content === "string" && raw.content.length > 0 ? raw.content : (raw.text ?? "");
     if (finalText) callbacks.onDelta(finalText, finalText);
@@ -236,7 +302,7 @@ export async function streamAssistantTurn(
       const result = await trackCompletion(
         engine.completion(
           {
-            messages: currentMessages,
+            messages: currentMessages as RNLlamaOAICompatibleMessage[],
             ...(hasTools
               ? { tools: options!.tools as EngineTool[], tool_choice: "auto" as const }
               : {}),
@@ -262,14 +328,23 @@ export async function streamAssistantTurn(
 
       if (finished || aborted) return;
 
+      if (result.context_full) {
+        finishOnce(() =>
+          callbacks.onError(
+            new Error("Contesto pieno: la conversazione è troppo lunga per questo modello. Riprova con messaggi più brevi."),
+          ),
+        );
+        return;
+      }
+
       const toolCalls = result.tool_calls ?? [];
       if (!toolCalls.length || !options?.executeTool) {
         emitFinalText(result);
         return;
       }
 
-      // Round tool: esegui le chiamate, poi reinietta UN messaggio assistant
-      // con TUTTE le tool_calls + i relativi risultati tool (formato OpenAI).
+      // Round tool: esegui le chiamate, poi UN messaggio assistant con TUTTE le
+      // tool_calls + i relativi risultati tool (formato OpenAI).
       const executed: Array<{
         call: { type: "function"; id?: string; function: { name: string; arguments: string } };
         content: string;
@@ -282,7 +357,7 @@ export async function streamAssistantTurn(
 
         let toolContent: string;
         try {
-          const outcome = await options.executeTool(name, args);
+          const outcome = await options.executeTool(name, args, signal);
           if (outcome.sources?.length) callbacks.onSources?.(outcome.sources);
           toolContent = (outcome.text ?? "").slice(0, 6000) || "No results.";
         } catch (error) {

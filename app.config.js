@@ -31,6 +31,13 @@ const config = {
     "expo-secure-store",
     "expo-sharing",
     [
+      "expo-image-picker",
+      {
+        photosPermission: "AI Chat lets you attach photos so the local model can read them.",
+        cameraPermission: "AI Chat uses the camera to take photos for the local model.",
+      },
+    ],
+    [
       "llama.rn",
       {
         enableEntitlements: true,

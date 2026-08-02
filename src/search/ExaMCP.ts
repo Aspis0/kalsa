@@ -122,6 +122,25 @@ export class ExaMCP implements SearchProvider {
   private async post(
     body: { jsonrpc: "2.0"; id?: number; method: string; params?: unknown },
     expectedId: number,
+    signal?: AbortSignal,
+  ): Promise<JsonRpcEnvelope> {
+    // Timeout 15s + segnale del chiamante (Stop in chat → interrompe anche la ricerca).
+    const timeoutController = new AbortController();
+    const timeoutTimer = setTimeout(() => timeoutController.abort(), 15_000);
+    const combinedSignal = signal
+      ? AbortSignal.any([signal, timeoutController.signal])
+      : timeoutController.signal;
+    try {
+      return await this.postInner(body, expectedId, combinedSignal);
+    } finally {
+      clearTimeout(timeoutTimer);
+    }
+  }
+
+  private async postInner(
+    body: { jsonrpc: "2.0"; id?: number; method: string; params?: unknown },
+    expectedId: number,
+    signal: AbortSignal,
   ): Promise<JsonRpcEnvelope> {
     const response = await fetch(EXA_MCP_ENDPOINT, {
       method: "POST",
@@ -131,6 +150,7 @@ export class ExaMCP implements SearchProvider {
         ...(this.sessionId ? { "mcp-session-id": this.sessionId } : {}),
       },
       body: JSON.stringify(body),
+      signal,
     });
 
     if (response.status === 429) {
@@ -164,12 +184,14 @@ export class ExaMCP implements SearchProvider {
     return {};
   }
 
-  async search(query: string, opts?: { numResults?: number }): Promise<SearchResult[]> {
+  async search(query: string, opts?: { numResults?: number; signal?: AbortSignal }): Promise<SearchResult[]> {
     await this.ensureSession();
+    if (opts?.signal?.aborted) throw new Error("Search cancelled");
     const id = this.nextId++;
     const result = await this.post(
       { jsonrpc: "2.0", id, method: "tools/call", params: { name: "web_search_exa", arguments: { query, numResults: opts?.numResults ?? 5 } } },
       id,
+      opts?.signal,
     );
     if (result.error) {
       throw new Error(result.error.message ?? "Exa MCP search failed");

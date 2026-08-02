@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { X as LucideX, Check as LucideCheck, Globe as LucideGlobe } from "lucide-react-native";
 
-import { AiChatPage, type ChatCta } from "../screens/AiChatPage";
+import { AiChatPage, type ChatCta, type LocalAttachment } from "../screens/AiChatPage";
 import { AskAssistantPanel } from "../ui/AskAssistantPanel";
 import { AskAssistantMiniappRenderer } from "../ui/AskAssistantMiniappRenderer";
 import { GlassInput, GlassPanel } from "../ui/GlassPrimitives";
@@ -16,7 +16,7 @@ import type { AskAssistantMiniapp } from "../domain/askAssistant";
 import { useAskAssistantController } from "./askAssistantController";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
 import { MODEL_REGISTRY, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
-import { downloadModel, isModelDownloaded, modelLocalPath, type DownloadProgress } from "../engine/ModelDownloader";
+import { downloadModelBundle, isModelBundleDownloaded, modelLocalPath, type BundleProgress } from "../engine/ModelDownloader";
 import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineMessage, type EngineTurnOptions } from "../engine/LlamaService";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapExaSourcesToChat } from "../agent/webSearchTool";
 
@@ -55,7 +55,7 @@ export function AppShell() {
     Math.max(0, MODEL_REGISTRY.findIndex((m) => m.id === getDefaultModel().id)),
   );
   const [modelState, setModelState] = useState<ModelState>("checking");
-  const [download, setDownload] = useState<DownloadProgress | null>(null);
+  const [download, setDownload] = useState<{ bytesReceived: number; bytesTotal: number; progress: number } | null>(null);
   const [modelError, setModelError] = useState<string | null>(null);
   const currentModel = MODEL_REGISTRY[modelIndex];
 
@@ -101,7 +101,7 @@ export function AppShell() {
     let mounted = true;
     void (async () => {
       try {
-        const ok = await isModelDownloaded(currentModel);
+        const ok = await isModelBundleDownloaded(currentModel);
         if (mounted) setModelState(ok ? "ready" : "missing");
       } catch {
         if (mounted) setModelState("missing");
@@ -115,11 +115,12 @@ export function AppShell() {
 
   const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
     if (isEngineReady() && getActiveModelId() === model.id) return true;
-    if (!(await isModelDownloaded(model))) return false;
+    if (!(await isModelBundleDownloaded(model))) return false;
     const generation = engineGenerationRef.current;
     setModelState("loading");
     try {
-      await initEngine(modelLocalPath(model), model.id);
+      const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
+      await initEngine(modelLocalPath(model, model.file), model.id, mmprojPath);
       if (generation !== engineGenerationRef.current) return false;
       setModelState("ready");
       return true;
@@ -154,27 +155,33 @@ export function AppShell() {
     downloadAbortRef.current = controller;
     setModelState("downloading");
     setModelError(null);
-    setDownload({ bytesReceived: 0, bytesTotal: currentModel.sizeBytes, progress: 0 });
+    const bundleTotal = currentModel.sizeBytes + (currentModel.mmproj?.sizeBytes ?? 0);
+    setDownload({ bytesReceived: 0, bytesTotal: bundleTotal, progress: 0 });
     try {
-      const outcome = await downloadModel(currentModel, {
-        onProgress: (progress) => {
+      const outcome = await downloadModelBundle(currentModel, {
+        onBundleProgress: (progress) => {
           if (generation !== engineGenerationRef.current) return;
-          setDownload(progress);
+          setDownload({
+            bytesReceived: Math.round(progress.overall * bundleTotal),
+            bytesTotal: bundleTotal,
+            progress: progress.overall,
+          });
         },
         signal: controller.signal,
       });
       if (generation !== engineGenerationRef.current) return;
-      if (outcome.status === "aborted") {
+      if (outcome.model.status === "aborted" || outcome.mmproj?.status === "aborted") {
         setModelState("missing");
         return;
       }
-      if (!(await isModelDownloaded(currentModel))) {
+      if (!(await isModelBundleDownloaded(currentModel))) {
         setModelState("error");
         setModelError("Download incomplete — tap to retry.");
         return;
       }
       setModelState("loading");
-      await initEngine(outcome.uri, currentModel.id);
+      const mmprojPath = currentModel.mmproj ? modelLocalPath(currentModel, currentModel.mmproj.file) : null;
+      await initEngine(outcome.model.uri, currentModel.id, mmprojPath);
       if (generation !== engineGenerationRef.current) return;
       setModelState("ready");
       showNotice(`${currentModel.name} pronto.`);
@@ -205,7 +212,7 @@ export function AppShell() {
   );
 
   const handleSendStream = useCallback(
-    (text: string, callbacks: any, signal: AbortSignal, _attachments?: unknown, history?: unknown[]) =>
+    (text: string, callbacks: any, signal: AbortSignal, attachments?: LocalAttachment[], history?: unknown[]) =>
       new Promise<void>((resolve) => {
         const fail = (message: string) => {
           callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
@@ -221,8 +228,11 @@ export function AppShell() {
             fail(error instanceof Error ? error.message : String(error));
             return;
           }
-          // Memoria conversazionale: passa gli ultimi N messaggi (validati e
-          // limitati), NON solo l'ultimo turno.
+          // Memoria conversazionale: ultimi N messaggi (validati e limitati).
+          // Con immagini il budget di contesto si riduce: 8 messaggi × 2000 char.
+          const hasImages = Boolean(attachments?.length);
+          const maxHistory = hasImages ? 8 : 20;
+          const maxChars = hasImages ? 2000 : 4000;
           const engineMessages: EngineMessage[] = (history ?? [])
             .filter(
               (m) =>
@@ -231,12 +241,29 @@ export function AppShell() {
                 typeof (m as { text?: unknown }).text === "string" &&
                 ((m as { role?: unknown }).role === "user" || (m as { role?: unknown }).role === "assistant"),
             )
-            .slice(-20)
+            .slice(-maxHistory)
             .map((m) => ({
               role: (m as { role: string }).role as "user" | "assistant",
-              content: ((m as { text: string }).text as string).slice(0, 4000),
+              content: ((m as { text: string }).text as string).slice(0, maxChars),
             }));
-          engineMessages.push({ role: "user", content: text });
+
+          // Immagini da allegare all'ultimo messaggio user (cap 5):
+          // immagini dirette + pagine PDF renderizzate.
+          const images: string[] = [];
+          for (const attachment of attachments ?? []) {
+            if (images.length >= 5) break;
+            if (attachment.kind === "image" && attachment.uri) {
+              images.push(attachment.uri);
+            } else if (attachment.kind === "pdf" && attachment.pages?.length) {
+              for (const page of attachment.pages) {
+                if (images.length >= 5) break;
+                images.push(page);
+              }
+            }
+          }
+          const userMessage: EngineMessage = { role: "user", content: text };
+          if (images.length) userMessage.images = images;
+          engineMessages.push(userMessage);
 
           await streamAssistantTurn(
             engineMessages,
