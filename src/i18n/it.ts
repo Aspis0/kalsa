@@ -89,6 +89,7 @@ export const it: typeof en = {
       "Assistente privato sul dispositivo. Chat, ricerca web e mini-app interattive — senza account.",
     help: "Aiuto",
     helpSubtitle: "Come funziona Kalsa",
+    openHelp: "Apri l'aiuto",
   },
 
   help: {
@@ -103,17 +104,17 @@ export const it: typeof en = {
     models: {
       title: "Scaricare i modelli",
       body:
-        "Apri Impostazioni → Modelli. Scegli un modello (Qwen 4B è il default consigliato; usa il 2B su device con poca RAM). Il download chiede conferma, mostra il progresso e invia una notifica a fine download. Serve spazio su disco (~3 GB per il modello più i componenti vision se presenti). I download interrotti riprendono da dove erano.",
+        "Apri Impostazioni → Modelli. Scegli un modello (Qwen 4B è il default consigliato; usa il 2B su dispositivi con poca RAM). Il download chiede conferma, mostra il progresso e può inviare una notifica se le notifiche sono abilitate. Serve spazio su disco (circa 3,5 GB per il bundle Qwen 3.5 4B predefinito; la dimensione esatta è mostrata in Impostazioni). I download interrotti riprendono da dove erano.",
     },
     websearch: {
       title: "Ricerca web",
       body:
-        "La chat può cercare online quando servono info fresche, notizie o prezzi. Il provider predefinito è Exa MCP gratuito. In Impostazioni → Ricerca web puoi aggiungere le chiavi API di Exa, Brave o Tavily; le chiavi restano nel keystore sicuro del dispositivo. Se il provider scelto fallisce, Kalsa ripiega automaticamente sul provider gratuito.",
+        "La chat può cercare online quando servono informazioni aggiornate, notizie o prezzi. Il provider predefinito è Exa MCP gratuito. In Impostazioni → Ricerca web puoi aggiungere le chiavi API di Exa, Brave o Tavily; le chiavi restano nel keystore sicuro del dispositivo. Se il provider scelto fallisce, Kalsa ripiega automaticamente sul provider gratuito.",
     },
     privacy: {
       title: "Privacy",
       body:
-        "Tutto gira sul dispositivo. Le uniche chiamate di rete sono il download dei modelli (Hugging Face) e la ricerca web (il provider scelto). Nessun account, nessuna telemetria. Le chiavi API restano nel keystore del dispositivo. La cronologia resta sul telefono.",
+        "Il modello e la chat girano sul dispositivo; la ricerca web e il download dei modelli usano la rete. Nessun account, nessuna telemetria. Le chiavi API restano nel keystore del dispositivo. La cronologia resta sul telefono.",
     },
     miniapps: {
       title: "Mini-app",
@@ -123,13 +124,13 @@ export const it: typeof en = {
     limits: {
       title: "Limiti",
       body:
-        "È un modello piccolo sul dispositivo: le risposte restano brevi di proposito. Senza rete la ricerca web non funziona (la chat locale sì). La velocità dipende dal telefono. Su device con poca RAM usa il modello 2B.",
+        "È un modello piccolo sul dispositivo: le risposte restano brevi di proposito. Senza rete la ricerca web non funziona (la chat locale sì). La velocità dipende dal telefono. Su dispositivi con poca RAM usa il modello 2B.",
     },
     faq: {
       title: "FAQ",
       shortAnswers: {
         q: "Perché la risposta è corta?",
-        a: "Il modello on-device tiene le risposte brevi. Chiedi più dettagli se ti serve una risposta più lunga.",
+        a: "Il modello sul dispositivo mantiene le risposte brevi. Chiedi più dettagli se ti serve una risposta più lunga.",
       },
       offline: {
         q: "Posso usare Kalsa senza rete?",
@@ -142,6 +143,26 @@ export const it: typeof en = {
       language: {
         q: "Come cambio lingua?",
         a: "Apri Impostazioni → Lingua. Il modello risponde nella lingua scelta.",
+      },
+      webSearchSent: {
+        q: "Cosa viene inviato durante una ricerca web?",
+        a: "Solo la query di ricerca e il numero di risultati al provider scelto; la cronologia della chat non viene inviata.",
+      },
+      badApiKey: {
+        q: "Cosa succede se la mia API key è sbagliata?",
+        a: "La ricerca fallisce e Kalsa ripiega automaticamente sul provider gratuito Exa MCP; puoi correggere la key in Impostazioni → Ricerca web.",
+      },
+      modelDiff: {
+        q: "Differenza tra i modelli?",
+        a: "Qwen 4B: default, più capace, ~3,5 GB; Qwen 3.5 2B: più leggero e veloce su dispositivi con poca RAM; Gemma 4 E2B: specializzato nella visione (foto/PDF); Q3: variante a bassa RAM del 4B.",
+      },
+      clearHistory: {
+        q: "Come cancello la cronologia?",
+        a: "Non esiste ancora un pulsante di cancellazione: la cronologia è salvata solo sul dispositivo; una funzione di cancellazione è prevista in una fase futura.",
+      },
+      sendImages: {
+        q: "Posso mandare immagini?",
+        a: "Sì, con i modelli che supportano la visione (Qwen 4B con componenti per la visione, Gemma); allegali dal foglio di allegati.",
       },
     },
   },

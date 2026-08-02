@@ -11,6 +11,8 @@ type Props = {
   subtitle?: string;
   onMenu?: () => void;
   onBack?: () => void;
+  /** a11y label for the back chevron; defaults to "Back". */
+  backAccessibilityLabel?: string;
   trailing?: React.ReactNode;
   transparent?: boolean;
 };
@@ -21,12 +23,26 @@ type Props = {
 //   trailing: free slot (AskAIChip, action icons).
 // Sticky (caller positions it at top); transparent=true skips background for
 // pages that want the painterly wash to read straight through.
-export function Header({ title, subtitle, onMenu, onBack, trailing, transparent = false }: Props) {
+export function Header({
+  title,
+  subtitle,
+  onMenu,
+  onBack,
+  backAccessibilityLabel = "Back",
+  trailing,
+  transparent = false,
+}: Props) {
   const { colors } = useLabTheme<any>();
   const insets = useSafeAreaInsets();
 
   const leading = onBack ? (
-    <Pressable onPress={onBack} hitSlop={10} style={{ padding: 6 }}>
+    <Pressable
+      onPress={onBack}
+      hitSlop={10}
+      accessibilityRole="button"
+      accessibilityLabel={backAccessibilityLabel}
+      style={{ padding: 6 }}
+    >
       <ChevronLeft color={colors.ink} size={22} />
     </Pressable>
   ) : onMenu ? (

@@ -44,12 +44,22 @@ type FaqItem = {
     | "help.faq.shortAnswers.q"
     | "help.faq.offline.q"
     | "help.faq.chatStorage.q"
-    | "help.faq.language.q";
+    | "help.faq.language.q"
+    | "help.faq.webSearchSent.q"
+    | "help.faq.badApiKey.q"
+    | "help.faq.modelDiff.q"
+    | "help.faq.clearHistory.q"
+    | "help.faq.sendImages.q";
   aKey:
     | "help.faq.shortAnswers.a"
     | "help.faq.offline.a"
     | "help.faq.chatStorage.a"
-    | "help.faq.language.a";
+    | "help.faq.language.a"
+    | "help.faq.webSearchSent.a"
+    | "help.faq.badApiKey.a"
+    | "help.faq.modelDiff.a"
+    | "help.faq.clearHistory.a"
+    | "help.faq.sendImages.a";
 };
 
 const FAQ_ITEMS: FaqItem[] = [
@@ -57,6 +67,11 @@ const FAQ_ITEMS: FaqItem[] = [
   { qKey: "help.faq.offline.q", aKey: "help.faq.offline.a" },
   { qKey: "help.faq.chatStorage.q", aKey: "help.faq.chatStorage.a" },
   { qKey: "help.faq.language.q", aKey: "help.faq.language.a" },
+  { qKey: "help.faq.webSearchSent.q", aKey: "help.faq.webSearchSent.a" },
+  { qKey: "help.faq.badApiKey.q", aKey: "help.faq.badApiKey.a" },
+  { qKey: "help.faq.modelDiff.q", aKey: "help.faq.modelDiff.a" },
+  { qKey: "help.faq.clearHistory.q", aKey: "help.faq.clearHistory.a" },
+  { qKey: "help.faq.sendImages.q", aKey: "help.faq.sendImages.a" },
 ];
 
 /**
@@ -93,7 +108,11 @@ export function HelpScreen({ onBack }: Props) {
         zIndex: 50,
       }}
     >
-      <Header title={t("help.title")} onBack={handleBack} />
+      <Header
+        title={t("help.title")}
+        onBack={handleBack}
+        backAccessibilityLabel={t("common.back")}
+      />
       <ScrollView
         contentContainerStyle={{
           padding: spacing.lg,

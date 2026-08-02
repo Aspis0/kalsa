@@ -234,6 +234,9 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
     ]);
   }, [busy, dirty, onBack, t]);
 
+  /** Guards double-tap: two rapid Help taps must not stack two discard Alerts. */
+  const helpConfirmPendingRef = useRef(false);
+
   /**
    * Help leaves Settings (exclusive overlay). If websearch edits are dirty,
    * confirm discard first so the draft key is not silently lost on unmount.
@@ -244,14 +247,34 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
       onOpenHelp();
       return;
     }
-    Alert.alert(t("settings.unsavedTitle"), t("settings.unsavedBody"), [
-      { text: t("common.cancel"), style: "cancel" },
+    if (helpConfirmPendingRef.current) return;
+    helpConfirmPendingRef.current = true;
+    Alert.alert(
+      t("settings.unsavedTitle"),
+      t("settings.unsavedBody"),
+      [
+        {
+          text: t("common.cancel"),
+          style: "cancel",
+          onPress: () => {
+            helpConfirmPendingRef.current = false;
+          },
+        },
+        {
+          text: t("settings.discard"),
+          style: "destructive",
+          onPress: () => {
+            helpConfirmPendingRef.current = false;
+            onOpenHelp();
+          },
+        },
+      ],
       {
-        text: t("settings.discard"),
-        style: "destructive",
-        onPress: onOpenHelp,
+        onDismiss: () => {
+          helpConfirmPendingRef.current = false;
+        },
       },
-    ]);
+    );
   }, [busy, dirty, onOpenHelp, t]);
 
   // Android hardware back: consume here so dirty confirmation is not skipped by AppShell.
@@ -299,7 +322,11 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
         zIndex: 50,
       }}
     >
-      <Header title={t("settings.title")} onBack={handleBack} />
+      <Header
+        title={t("settings.title")}
+        onBack={handleBack}
+        backAccessibilityLabel={t("common.back")}
+      />
       <ScrollView
         contentContainerStyle={{
           padding: spacing.lg,
@@ -718,6 +745,8 @@ export function SettingsScreen({ onBack, onOpenHelp, model }: Props) {
           <Pressable
             onPress={handleOpenHelp}
             disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={t("settings.openHelp")}
             style={{
               flexDirection: "row",
               alignItems: "center",

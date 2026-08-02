@@ -88,6 +88,7 @@ export const en = {
       "Private on-device assistant. Chat, web search, and interactive mini-apps — no account required.",
     help: "Help",
     helpSubtitle: "How Kalsa works",
+    openHelp: "Open Help",
   },
 
   help: {
@@ -102,7 +103,7 @@ export const en = {
     models: {
       title: "Downloading models",
       body:
-        "Open Settings → Models. Pick a model (Qwen 4B is the recommended default; use the 2B model on low-RAM devices). Download asks for confirmation, shows progress, and sends a notification when finished. You need free disk space (~3 GB for the model plus vision components when present). Incomplete downloads resume where they left off.",
+        "Open Settings → Models. Pick a model (Qwen 4B is the recommended default; use the 2B model on low-RAM devices). Download asks for confirmation, shows progress, and may send a notification if notifications are enabled. You need free disk space (about 3.5 GB for the default Qwen 3.5 4B bundle; the exact size is shown in Settings). Incomplete downloads resume where they left off.",
     },
     websearch: {
       title: "Web search",
@@ -112,7 +113,7 @@ export const en = {
     privacy: {
       title: "Privacy",
       body:
-        "Everything runs on-device. The only network calls are model downloads (Hugging Face) and web search (your chosen provider). No account, no telemetry. API keys stay in the device keystore. Chat history stays on the phone.",
+        "The model and chat run on-device; web search and model downloads use the network. No account, no telemetry. API keys stay in the device keystore. Chat history stays on the phone.",
     },
     miniapps: {
       title: "Mini-apps",
@@ -141,6 +142,26 @@ export const en = {
       language: {
         q: "How do I change the language?",
         a: "Open Settings → Language. The model answers in the language you choose.",
+      },
+      webSearchSent: {
+        q: "What is sent during a web search?",
+        a: "Only the search query and the result count go to the chosen provider. Chat history is not sent.",
+      },
+      badApiKey: {
+        q: "What if my API key is wrong?",
+        a: "The search fails and Kalsa falls back automatically to the free Exa MCP provider. You can fix the key in Settings → Web search.",
+      },
+      modelDiff: {
+        q: "What is the difference between models?",
+        a: "Qwen 4B: default, more capable, ~3.5 GB. Qwen 3.5 2B: lighter and faster on low-RAM devices. Gemma 4 E2B: vision-specialized (photos/PDFs). Q3: low-RAM variant of the 4B.",
+      },
+      clearHistory: {
+        q: "How do I clear chat history?",
+        a: "There is no clear-history button yet. History is stored only on this device; a clear action is planned for a later release.",
+      },
+      sendImages: {
+        q: "Can I send images?",
+        a: "Yes, with vision-capable models (Qwen 4B with vision components, Gemma). Attach them from the attachment sheet.",
       },
     },
   },
