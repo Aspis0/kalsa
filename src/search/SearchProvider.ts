@@ -1,7 +1,7 @@
 /**
- * Wiring dei provider di ricerca — Fase 0: solo interfaccia.
- * L'unica implementazione è ExaMCP (gratis, senza API key). Provider futuri
- * (SearXNG, DDG, ...) implementano SearchProvider e si registrano qui.
+ * Search provider interface + shared result types.
+ * Implementations: ExaMCP (free), Exa API, Brave Search, Tavily.
+ * Resolve the active provider via registry.getProvider / searchWeb.
  */
 
 export type SearchResult = {

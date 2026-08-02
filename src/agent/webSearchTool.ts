@@ -1,11 +1,11 @@
 import { getStrings, type Locale } from "../i18n";
-import { exaSearch } from "../search/ExaMCP";
+import { normalizeNumResults, PROVIDERS, searchWeb, type SearchProviderId } from "../search";
 import type { EngineTool, EngineToolResult } from "../engine/LlamaService";
 
 /**
- * Tool websearch (Fase 2) — esposto al modello locale come function calling.
- * Esegue la ricerca tramite Exa MCP (gratis, senza API key) e restituisce al
- * modello titoli/URL/highlights, propagando le sorgenti alla UI.
+ * Tool websearch — esposto al modello locale come function calling.
+ * Il modello non sa quale provider è attivo; searchWeb risolve il provider
+ * (con fallback automatico su Exa MCP gratis se il primario fallisce).
  */
 
 export const WEB_SEARCH_TOOL: EngineTool = {
@@ -31,6 +31,23 @@ export const WEB_SEARCH_TOOL: EngineTool = {
   },
 };
 
+function labelForPrimaryFailure(
+  primaryError: string | undefined,
+  usedProvider: SearchProviderId,
+): string {
+  if (primaryError) {
+    // Messages look like "Invalid API key for Brave Search. …" or "Brave Search: …"
+    for (const id of Object.keys(PROVIDERS) as SearchProviderId[]) {
+      if (id === usedProvider) continue;
+      const label = PROVIDERS[id].label;
+      if (primaryError.includes(label)) return label;
+    }
+    const beforeColon = primaryError.split(":")[0]?.trim();
+    if (beforeColon) return beforeColon;
+  }
+  return "Primary";
+}
+
 export function makeWebSearchExecutor(locale: Locale): (
   name: string,
   args: Record<string, unknown>,
@@ -44,40 +61,68 @@ export function makeWebSearchExecutor(locale: Locale): (
     const query = String(args.query ?? "").trim();
     if (!query) return { text: strings.errors.emptySearchQuery };
 
-    const numResults = Math.max(1, Math.min(5, Math.floor(Number(args.numResults) || 4)));
-    const results = await exaSearch.search(query, { numResults, signal });
+    // searchWeb also clamps; tool-level default is 4.
+    const numResults = normalizeNumResults(args.numResults ?? 4);
+    const outcome = await searchWeb(query, { locale, numResults, signal });
 
-    const sources = results.map((result) => ({
+    const sources = outcome.results.map((result) => ({
       title: result.title,
       url: result.url,
+      provider: outcome.provider,
       ...(result.publishedDate ? { publishedDate: result.publishedDate } : {}),
     }));
 
-    const text = results.length
-      ? results
-          .map(
-            (result, index) =>
-              `${index + 1}. ${result.title}\n   URL: ${result.url}\n   ${(result.highlights ?? [])
-                .join(" ")
-                .slice(0, 500)}`,
-          )
+    const body = outcome.results.length
+      ? outcome.results
+          .map((result, index) => {
+            const snippetParts =
+              result.highlights && result.highlights.length > 0
+                ? result.highlights
+                : result.text
+                  ? [result.text]
+                  : [];
+            const snippet = snippetParts.join(" ").slice(0, 500);
+            return `${index + 1}. ${result.title}\n   URL: ${result.url}\n   ${snippet}`;
+          })
           .join("\n\n")
       : strings.errors.noResultsFound;
 
-    return { text, sources };
+    // Model-facing note when free MCP replaced a paid/primary provider.
+    // UI also shows "via {provider}" on source cards (mapSearchSourcesToChat).
+    const note = outcome.fallbackUsed
+      ? `${strings.errors.searchFallbackUsedNamed.replace(
+          "{provider}",
+          labelForPrimaryFailure(outcome.primaryError, outcome.provider),
+        )}\n\n`
+      : "";
+
+    return { text: `${note}${body}`, sources };
   };
 }
 
-/** Mappa le sorgenti Exa sul formato chat (MessageSource: title/authors/doi). */
-export function mapExaSourcesToChat(
+/** Map search sources onto chat MessageSource (title/authors/doi/provider). */
+export function mapSearchSourcesToChat(
   sources: unknown[],
   locale: Locale,
-): Array<{ title: string; authors?: string; doi?: string }> {
+): Array<{ title: string; authors?: string; doi?: string; provider?: string }> {
   const fallback = getStrings(locale).errors.source;
-  return (sources as Array<{ title?: string; url?: string; publishedDate?: string }>)
+  return (
+    sources as Array<{
+      title?: string;
+      url?: string;
+      publishedDate?: string;
+      provider?: string;
+    }>
+  )
     .filter((source) => source && typeof source === "object")
     .map((source) => ({
       title: source.title || source.url || fallback,
       ...(source.publishedDate ? { authors: source.publishedDate.slice(0, 10) } : {}),
+      ...(typeof source.provider === "string" && source.provider
+        ? { provider: source.provider }
+        : {}),
     }));
 }
+
+/** @deprecated Use mapSearchSourcesToChat */
+export const mapExaSourcesToChat = mapSearchSourcesToChat;

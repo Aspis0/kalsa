@@ -18,7 +18,7 @@ import * as Notifications from "expo-notifications";
 import { MODEL_REGISTRY, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
 import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
 import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineMessage, type EngineTurnOptions } from "../engine/LlamaService";
-import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapExaSourcesToChat } from "../agent/webSearchTool";
+import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import { useLocale } from "../i18n";
 
 type ModelState = "checking" | "missing" | "downloading" | "loading" | "ready" | "error";
@@ -387,7 +387,7 @@ export function AppShell() {
               onDelta: callbacks.onDelta,
               onStatus: (status) => callbacks.onStatus?.(status),
               onSources: (sources) =>
-                callbacks.onSources?.(mapExaSourcesToChat(sources as any, locale)),
+                callbacks.onSources?.(mapSearchSourcesToChat(sources as any, locale)),
               onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
               onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
               onDone: () => resolve(),

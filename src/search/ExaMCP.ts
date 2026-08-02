@@ -1,4 +1,5 @@
 import type { SearchProvider, SearchResult } from "./SearchProvider";
+import { withTimeoutSignal } from "./http";
 
 /**
  * Client minimale MCP streamable-http verso l'endpoint hosted di Exa.
@@ -84,39 +85,56 @@ export class ExaMCP implements SearchProvider {
   private sessionId: string | null = null;
   private nextId = 1;
   private sessionPromise: Promise<void> | null = null;
+  /** Set when a 400/404 cleared a live session — triggers one search retry. */
+  private sessionInvalidated = false;
 
-  private async ensureSession(): Promise<void> {
+  private async ensureSession(signal?: AbortSignal): Promise<void> {
     if (this.sessionId) return;
     // Serializza: due search() concorrenti non devono fare due initialize.
     if (!this.sessionPromise) {
-      this.sessionPromise = this.openSession().finally(() => {
+      this.sessionPromise = this.openSession(signal).finally(() => {
         this.sessionPromise = null;
       });
     }
     return this.sessionPromise;
   }
 
-  private async openSession(): Promise<void> {
-    const initialize = await this.post({ jsonrpc: "2.0", method: "initialize", params: { protocolVersion: PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "ai-chat", version: "0.1.0" } } }, 1);
+  private async openSession(signal?: AbortSignal): Promise<void> {
+    const initialize = await this.post(
+      {
+        jsonrpc: "2.0",
+        method: "initialize",
+        params: {
+          protocolVersion: PROTOCOL_VERSION,
+          capabilities: {},
+          clientInfo: { name: "ai-chat", version: "0.1.0" },
+        },
+      },
+      1,
+      signal,
+    );
     if (initialize.error) {
       throw new Error(initialize.error.message ?? "Exa MCP initialize failed");
     }
     if (!this.sessionId) {
       throw new Error("Exa MCP did not return a session id");
     }
-    // notifications/initialized — parte dell'handshake: propaghiamo gli errori HTTP.
-    const response = await fetch(EXA_MCP_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Accept: "application/json, text/event-stream",
-        "Content-Type": "application/json",
-        "mcp-session-id": this.sessionId,
-      },
-      body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+    // notifications/initialized — handshake must share the same timeout/abort.
+    await withTimeoutSignal(signal, async (combined) => {
+      const response = await fetch(EXA_MCP_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Accept: "application/json, text/event-stream",
+          "Content-Type": "application/json",
+          "mcp-session-id": this.sessionId!,
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+        signal: combined,
+      });
+      if (!response.ok) {
+        throw new Error(`Exa MCP handshake failed: HTTP ${response.status}`);
+      }
     });
-    if (!response.ok) {
-      throw new Error(`Exa MCP handshake failed: HTTP ${response.status}`);
-    }
   }
 
   private async post(
@@ -124,17 +142,9 @@ export class ExaMCP implements SearchProvider {
     expectedId: number,
     signal?: AbortSignal,
   ): Promise<JsonRpcEnvelope> {
-    // Timeout 15s + segnale del chiamante (Stop in chat → interrompe anche la ricerca).
-    const timeoutController = new AbortController();
-    const timeoutTimer = setTimeout(() => timeoutController.abort(), 15_000);
-    const combinedSignal = signal
-      ? AbortSignal.any([signal, timeoutController.signal])
-      : timeoutController.signal;
-    try {
-      return await this.postInner(body, expectedId, combinedSignal);
-    } finally {
-      clearTimeout(timeoutTimer);
-    }
+    return withTimeoutSignal(signal, (combined) =>
+      this.postInner(body, expectedId, combined),
+    );
   }
 
   private async postInner(
@@ -159,9 +169,10 @@ export class ExaMCP implements SearchProvider {
       throw new Error(`Exa free-plan rate limit reached (429).${detail}`);
     }
     if (!response.ok) {
-      // Sessione scaduta/invalida: azzera e lascia che il chiamante re-inizializzi.
+      // Sessione scaduta/invalida: azzera e lascia che search() ritenti una volta.
       if ((response.status === 400 || response.status === 404) && this.sessionId) {
         this.sessionId = null;
+        this.sessionInvalidated = true;
       }
       throw new Error(`Exa MCP error: HTTP ${response.status}`);
     }
@@ -170,36 +181,64 @@ export class ExaMCP implements SearchProvider {
     if (sessionId) this.sessionId = sessionId;
 
     const text = await response.text();
-    // Seleziona l'evento JSON-RPC con l'id della nostra chiamata; gli eventi
-    // di progress/notifica precedenti vengono ignorati.
+    // Solo envelope con id === expectedId; notifiche (id assente) e altri id vengono ignorati.
     for (const eventText of parseSseEvents(text)) {
       const envelope = parseJsonRpcEnvelope(eventText);
-      if (envelope && (envelope.id === expectedId || envelope.id === undefined)) {
+      if (envelope && envelope.id === expectedId) {
         return envelope;
       }
     }
     // Body JSON non-SSE (fallback per server che rispondono JSON diretto).
     const direct = parseJsonRpcEnvelope(text);
-    if (direct) return direct;
+    if (direct && direct.id === expectedId) return direct;
     return {};
   }
 
-  async search(query: string, opts?: { numResults?: number; signal?: AbortSignal }): Promise<SearchResult[]> {
-    await this.ensureSession();
+  private async callSearch(
+    query: string,
+    opts?: { numResults?: number; signal?: AbortSignal },
+  ): Promise<SearchResult[]> {
+    await this.ensureSession(opts?.signal);
     if (opts?.signal?.aborted) throw new Error("Search cancelled");
     const id = this.nextId++;
     const result = await this.post(
-      { jsonrpc: "2.0", id, method: "tools/call", params: { name: "web_search_exa", arguments: { query, numResults: opts?.numResults ?? 5 } } },
+      {
+        jsonrpc: "2.0",
+        id,
+        method: "tools/call",
+        params: {
+          name: "web_search_exa",
+          arguments: { query, numResults: opts?.numResults ?? 5 },
+        },
+      },
       id,
       opts?.signal,
     );
     if (result.error) {
       throw new Error(result.error.message ?? "Exa MCP search failed");
     }
-    const content = (result.result as { content?: Array<{ type?: string; text?: string }> })?.content;
+    const content = (result.result as { content?: Array<{ type?: string; text?: string }> })
+      ?.content;
     const text = content?.[0]?.text;
     if (!text) return [];
     return parseExaTextResults(text);
+  }
+
+  async search(
+    query: string,
+    opts?: { numResults?: number; signal?: AbortSignal },
+  ): Promise<SearchResult[]> {
+    this.sessionInvalidated = false;
+    try {
+      return await this.callSearch(query, opts);
+    } catch (err) {
+      // Una sola volta: sessione scaduta (400/404) → re-handshake e retry.
+      if (this.sessionInvalidated && !opts?.signal?.aborted) {
+        this.sessionInvalidated = false;
+        return await this.callSearch(query, opts);
+      }
+      throw err;
+    }
   }
 }
 

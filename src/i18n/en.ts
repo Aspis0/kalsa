@@ -39,6 +39,28 @@ export const en = {
     languageEn: "English",
     languageIt: "Italiano",
     languageHint: "The assistant answers in this language.",
+    webSearch: "Web search",
+    webSearchHint:
+      "Choose a search provider. Exa MCP is free and needs no key; other providers need an API key stored on this device.",
+    provider: "Provider",
+    providerExaMcp: "Exa MCP (free)",
+    providerExa: "Exa API",
+    providerBrave: "Brave Search",
+    providerTavily: "Tavily",
+    apiKey: "API key",
+    apiKeyPlaceholder: "Paste your API key",
+    apiKeyHint:
+      "The key is stored securely on this device. It is sent only to the selected search provider.",
+    keyNotNeeded: "No API key required for this provider.",
+    showKey: "Show",
+    hideKey: "Hide",
+    saved: "Saved",
+    saving: "Saving…",
+    saveFailed: "Could not save: {message}",
+    unsavedChanges: "Unsaved changes",
+    unsavedTitle: "Unsaved changes",
+    unsavedBody: "You have unsaved changes. Discard them?",
+    discard: "Discard",
   },
 
   download: {
@@ -218,6 +240,21 @@ export const en = {
     unknownTool: "Unknown tool: {name}",
     toolError: "Tool error: {message}",
     source: "Source",
+    searchKeyMissing: "API key missing for {provider}. Add it in Settings.",
+    searchKeyInvalid: "Invalid API key for {provider}. Check Settings.",
+    searchRateLimited: "Rate limit reached for {provider}. Try again later.",
+    searchFailed: "Search failed ({provider}): {message}",
+    searchFallbackUsed:
+      "Primary search provider failed; used free Exa MCP instead.",
+    searchFallbackUsedNamed:
+      "{provider} unavailable; used free Exa MCP instead.",
+    searchBothFailed: "{primary}; fallback Exa MCP: {fallback}",
+    searchDeadline: "Search timed out. Try again.",
+    searchInvalidResponse: "Invalid response from {provider}",
+    searchStorageUnavailable: "Could not read search settings: {message}",
+    invalidSecretProvider: "Cannot store a key for provider \"{id}\".",
+    secureStoreFailed: "Could not access secure storage: {message}",
+    sourceVia: "via {provider}",
   },
 
   quickActions: {

@@ -40,6 +40,28 @@ export const it: typeof en = {
     languageEn: "English",
     languageIt: "Italiano",
     languageHint: "L'assistente risponde in questa lingua.",
+    webSearch: "Ricerca web",
+    webSearchHint:
+      "Scegli un provider di ricerca. Exa MCP è gratuito e non richiede chiave; gli altri provider richiedono un'API key salvata sul dispositivo.",
+    provider: "Provider",
+    providerExaMcp: "Exa MCP (gratis)",
+    providerExa: "Exa API",
+    providerBrave: "Brave Search",
+    providerTavily: "Tavily",
+    apiKey: "API key",
+    apiKeyPlaceholder: "Incolla la tua API key",
+    apiKeyHint:
+      "La chiave viene salvata in modo sicuro su questo dispositivo. Viene inviata solo al provider selezionato.",
+    keyNotNeeded: "Nessuna API key richiesta per questo provider.",
+    showKey: "Mostra",
+    hideKey: "Nascondi",
+    saved: "Salvato",
+    saving: "Salvataggio…",
+    saveFailed: "Impossibile salvare: {message}",
+    unsavedChanges: "Modifiche non salvate",
+    unsavedTitle: "Modifiche non salvate",
+    unsavedBody: "Hai modifiche non salvate. Vuoi scartarle?",
+    discard: "Scarta",
   },
 
   download: {
@@ -221,6 +243,21 @@ export const it: typeof en = {
     unknownTool: "Tool sconosciuto: {name}",
     toolError: "Errore tool: {message}",
     source: "Fonte",
+    searchKeyMissing: "API key mancante per {provider}. Aggiungila in Impostazioni.",
+    searchKeyInvalid: "API key non valida per {provider}. Controlla Impostazioni.",
+    searchRateLimited: "Limite di richieste raggiunto per {provider}. Riprova più tardi.",
+    searchFailed: "Ricerca non riuscita ({provider}): {message}",
+    searchFallbackUsed:
+      "Il provider di ricerca principale non ha funzionato; usato Exa MCP gratuito.",
+    searchFallbackUsedNamed:
+      "{provider} non disponibile; usato Exa MCP gratuito.",
+    searchBothFailed: "{primary}; fallback Exa MCP: {fallback}",
+    searchDeadline: "Ricerca scaduta per timeout. Riprova.",
+    searchInvalidResponse: "Risposta non valida da {provider}",
+    searchStorageUnavailable: "Impossibile leggere le impostazioni di ricerca: {message}",
+    invalidSecretProvider: "Impossibile salvare una chiave per il provider \"{id}\".",
+    secureStoreFailed: "Impossibile accedere all'archivio sicuro: {message}",
+    sourceVia: "via {provider}",
   },
 
   quickActions: {

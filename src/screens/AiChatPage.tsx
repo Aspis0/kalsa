@@ -54,7 +54,13 @@ export type AiChatSelectedRun = {
   accession?: string | null;
 };
 
-export type MessageSource = { title: string; authors?: string; doi?: string };
+export type MessageSource = {
+  title: string;
+  authors?: string;
+  doi?: string;
+  /** Search provider id that produced this source (e.g. "brave", "exa-mcp"). */
+  provider?: string;
+};
 
 export type ResultImage = { id: string; label: string; url: string; artifactType?: string };
 export type ResultDownload = { id: string; label: string; url: string; artifactType?: string };
@@ -298,6 +304,7 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
           ...(typeof s.authors === "string" ? { authors: s.authors.slice(0, 300) } : {}),
           ...(typeof s.doi === "string" ? { doi: s.doi.slice(0, 300) } : {}),
           ...(typeof s.url === "string" ? { url: s.url.slice(0, 2000) } : {}),
+          ...(typeof s.provider === "string" ? { provider: s.provider.slice(0, 40) } : {}),
         }));
     }
     if (record.miniapp && typeof record.miniapp === "object" && !Array.isArray(record.miniapp)) {
@@ -1215,6 +1222,25 @@ export function AiChatPage({
                           {s.title}
                           {s.authors ? ` — ${s.authors}` : ""}
                         </Text>
+                        {s.provider ? (
+                          <Text
+                            style={[typography.bodyXs, { color: colors.muted, opacity: 0.75, fontSize: 10 }]}
+                            numberOfLines={1}
+                          >
+                            {t("errors.sourceVia", {
+                              provider:
+                                s.provider === "exa-mcp"
+                                  ? t("settings.providerExaMcp")
+                                  : s.provider === "exa"
+                                    ? t("settings.providerExa")
+                                    : s.provider === "brave"
+                                      ? t("settings.providerBrave")
+                                      : s.provider === "tavily"
+                                        ? t("settings.providerTavily")
+                                        : s.provider,
+                            })}
+                          </Text>
+                        ) : null}
                       </View>
                     ))}
                   </ScrollView>
