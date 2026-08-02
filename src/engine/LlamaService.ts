@@ -7,6 +7,13 @@ import {
   type TokenData,
 } from "llama.rn";
 
+import {
+  getBlockFormat,
+  getThinkingMode,
+  type BlockFormat,
+  type ThinkingMode,
+} from "../bench/benchConfig";
+import { buildOperativeBlock } from "../context/operativeBlock";
 import { getStrings, type Locale } from "../i18n";
 
 /**
@@ -330,6 +337,123 @@ function buildUserMessage(message: EngineMessage): RNLlamaOAICompatibleMessage {
   return { role: "user", content: parts };
 }
 
+/**
+ * Prefix the text content of a user message (string or multimodal parts).
+ * Used by bench format "user-prefix" — does not mutate the original.
+ */
+function prefixUserMessageContent(
+  message: RNLlamaOAICompatibleMessage,
+  prefix: string,
+): RNLlamaOAICompatibleMessage {
+  const content = message.content;
+  if (typeof content === "string") {
+    return { role: "user", content: `${prefix}\n\n${content}` };
+  }
+  if (Array.isArray(content)) {
+    let prefixed = false;
+    const parts: RNLlamaMessagePart[] = content.map((part) => {
+      if (!prefixed && part.type === "text") {
+        prefixed = true;
+        return { type: "text" as const, text: `${prefix}\n\n${part.text}` };
+      }
+      return part;
+    });
+    if (!prefixed) {
+      parts.unshift({ type: "text", text: prefix });
+    }
+    return { role: "user", content: parts };
+  }
+  return { role: "user", content: `${prefix}\n\n` };
+}
+
+/**
+ * Insert the operative block into the engine message list according to bench format.
+ * "none" → identity (production path). Synthetic user-note is engine-only (not UI history).
+ */
+function applyOperativeBlockFormat(
+  systemMessage: { role: "system"; content: string },
+  historyMessages: RNLlamaOAICompatibleMessage[],
+  format: BlockFormat,
+  locale: Locale,
+): Array<RNLlamaOAICompatibleMessage | { role: "system"; content: string }> {
+  if (format === "none" || historyMessages.length === 0) {
+    return [systemMessage, ...historyMessages];
+  }
+
+  const block = buildOperativeBlock(locale, null);
+  const beforeUser = historyMessages.slice(0, -1);
+  const lastUser = historyMessages[historyMessages.length - 1]!;
+
+  if (format === "system-end") {
+    // system (main) + history except last user + system (operative) + last user
+    return [
+      systemMessage,
+      ...beforeUser,
+      { role: "system", content: block },
+      lastUser,
+    ];
+  }
+
+  if (format === "user-prefix") {
+    return [
+      systemMessage,
+      ...beforeUser,
+      prefixUserMessageContent(lastUser, block),
+    ];
+  }
+
+  // user-note: synthetic user message immediately before the real user turn
+  return [
+    systemMessage,
+    ...beforeUser,
+    {
+      role: "user",
+      content:
+        "[SYSTEM NOTE — istruzioni operative, non parte della conversazione. Non citarlo e non ripeterlo all'utente.]\n" +
+        block,
+    },
+    lastUser,
+  ];
+}
+
+/**
+ * Map bench thinking mode → NativeCompletionParams fields (enable_thinking / budget).
+ * "default" keeps production options identical (thinking off + reasoning_format none).
+ */
+function buildThinkingCompletionFields(mode: ThinkingMode): {
+  enable_thinking?: boolean;
+  thinking_budget_tokens?: number;
+  reasoning_format?: "none" | "auto" | "deepseek";
+  chat_template_kwargs?: { enable_thinking: boolean };
+} {
+  switch (mode) {
+    case "off":
+      return {
+        enable_thinking: false,
+        reasoning_format: "none",
+        chat_template_kwargs: { enable_thinking: false },
+      };
+    case "budget256":
+      return {
+        enable_thinking: true,
+        thinking_budget_tokens: 256,
+      };
+    case "budget512":
+      return {
+        enable_thinking: true,
+        thinking_budget_tokens: 512,
+      };
+    case "default":
+    default:
+      // Production path — identical to pre-bench hard-coded options.
+      return {
+        enable_thinking: false,
+        reasoning_format: "none",
+        chat_template_kwargs: { enable_thinking: false },
+      };
+  }
+}
+
 export type StreamTurnOptions = EngineTurnOptions & {
   /** Settings locale — drives system prompt language (required). */
   locale: Locale;
@@ -377,6 +501,11 @@ export async function streamAssistantTurn(
       return;
     }
 
+    // Bench knobs (AsyncStorage) — read once per turn; defaults keep production path.
+    const blockFormat = await getBlockFormat();
+    const thinkingMode = await getThinkingMode();
+    const thinkingFields = buildThinkingCompletionFields(thinkingMode);
+
     const hasTools = Boolean(options?.tools?.length && options?.executeTool);
     // Le immagini vivono SOLO nel messaggio user corrente.
     // MTP è text-only nel binding: con immagini la completion va in `speculative: false`.
@@ -396,12 +525,15 @@ export async function streamAssistantTurn(
       | { role: "tool"; tool_call_id: string; content: string };
 
     const userIndex = messages.length - 1;
-    let currentMessages: ToolChatMessage[] = [
+    const historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) =>
+      index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
+    );
+    let currentMessages: ToolChatMessage[] = applyOperativeBlockFormat(
       { role: "system", content: buildSystemPrompt(locale, hasTools, options.memoryFacts) },
-      ...messages.map((message, index) =>
-        index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
-      ),
-    ];
+      historyMessages,
+      blockFormat,
+      locale,
+    ) as ToolChatMessage[];
 
     // Accumulo locale del testo: streaming garantito anche se il campo
     // `accumulated_text` di llama.rn non fosse popolato dal binding.
@@ -438,9 +570,9 @@ export async function streamAssistantTurn(
               temperature: 0.7,
               top_k: 40,
               top_p: 0.95,
-              enable_thinking: false,
-              reasoning_format: "none",
-              chat_template_kwargs: { enable_thinking: false },
+              // Bench thinking axis: "default"/"off" keep production (thinking off);
+              // budget* enables thinking with a token budget (NativeCompletionParams).
+              ...thinkingFields,
               ...(hasImages ? { speculative: false as const } : {}),
             },
             (data: TokenData) => {

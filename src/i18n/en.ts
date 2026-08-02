@@ -486,6 +486,32 @@ export const en = {
   },
 
   /**
+   * Compact operative rules (language / web_search / honesty / miniapp).
+   * Used by the A/B bench and future production placement of a short instruction block.
+   * Same text for every placement format — only position changes.
+   */
+  operativeBlock: {
+    language:
+      "Language: write all natural-language answer text and all miniapp textual values in English; " +
+      "source titles from web_search may stay in their original language; " +
+      "never translate URLs, JSON keys, block type names, or the tool name web_search.",
+    webSearch:
+      "Tool web_search: use it always for current, recent, or time-sensitive information and whenever " +
+      "the user asks to search the web; never answer time-sensitive questions from memory alone; " +
+      "after search, base the answer only on the results and cite source titles.",
+    honesty:
+      "Honesty: never invent facts, dates, names, numbers, quotes, sources, or citations; " +
+      "if you don't know or are unsure, say so explicitly — never guess; " +
+      "distinguish clearly between what you know and what you infer.",
+    miniapp:
+      "Miniapp: you may emit interactive miniapp_v1 JSON (table, chart, calculator, metric, tabs, expandable, html, quiz); " +
+      "for quiz never reveal answerIndex in prose — the app grades privately; " +
+      "calculator formulas: numbers, field identifiers, + - * / and parentheses only.",
+    /** Optional conversation summary (later phases). Placeholder: {summary} */
+    summary: "Conversation context: {summary}",
+  },
+
+  /**
    * System prompt for the on-device model (no tools).
    * Order: identity → language → honesty → miniapp → format → capacity → safety.
    * Language rules: (a) natural-language answer AND miniapp textual values use the settings
