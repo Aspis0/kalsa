@@ -23,6 +23,7 @@ import {
 let context: LlamaContext | null = null;
 let activeModelId: string | null = null;
 let activeMmprojPath: string | null = null;
+let activeEngineCtx = 0;
 
 const SYSTEM_PROMPT =
   "You are AI Chat, a private assistant running fully on this device (no cloud, no account). " +
@@ -133,32 +134,69 @@ export function isVisionEnabled(): boolean {
  * `mmprojPath` presente → initMultimodal obbligatorio: se restituisce false
  * o il supporto vision non risulta attivo, l'engine NON si considera pronto.
  */
-export function initEngine(modelPath: string, modelId: string, mmprojPath?: string | null): Promise<void> {
+export type EngineInitOptions = {
+  mmprojPath?: string | null;
+  nCtx?: number;
+  cacheTypeK?: ContextParams["cache_type_k"];
+  cacheTypeV?: ContextParams["cache_type_v"];
+  kvUnified?: boolean;
+  /** MTP (NextN speculative) embedded nel GGUF. */
+  mtpNMax?: number;
+};
+
+/**
+ * Carica il modello (idempotente per la stessa coppia model+mmproj).
+ * `mmprojPath` presente → initMultimodal obbligatorio: se restituisce false
+ * o il supporto vision non risulta attivo, l'engine NON si considera pronto.
+ */
+export function initEngine(modelPath: string, modelId: string, options: EngineInitOptions = {}): Promise<void> {
   return withLifecycleLock(async () => {
-    if (context && activeModelId === modelId && activeMmprojPath === (mmprojPath ?? null)) return;
+    const engineCtx = options.nCtx ?? 8192;
+    if (
+      context &&
+      activeModelId === modelId &&
+      activeMmprojPath === (options.mmprojPath ?? null) &&
+      activeEngineCtx === engineCtx
+    )
+      return;
     await disposeEngineLocked();
 
-    const isMultimodal = Boolean(mmprojPath);
+    const isMultimodal = Boolean(options.mmprojPath);
     const params: ContextParams = {
       model: modelPath,
       use_mlock: true,
-      n_ctx: 8192, // vision: più token per le immagini
+      n_ctx: engineCtx, // context per modello (multi-chat)
       n_batch: 512,
       n_ubatch: 256,
       n_gpu_layers: 99, // Metal (iOS) / OpenCL (Android); senza GPU degrada a CPU
       flash_attn_type: "auto",
-      cache_type_k: "q8_0",
-      cache_type_v: "q8_0",
+      cache_type_k: options.cacheTypeK ?? "q8_0", // KV quantizzata: q8_0 ≈98% qualità FP16
+      cache_type_v: options.cacheTypeV ?? "q4_0", // V in q4 è la pratica comune (K resta q8)
+      ...(options.kvUnified ? { kv_unified: true } : {}), // ibridi/ricorrenti (Qwen3.5 DeltaNet)
       // Richiesto per multimodal: senza context shifting i media restano ancorati.
       ctx_shift: isMultimodal ? false : true,
     };
 
+    // MTP (NextN): speculative decoding embedded — ~1.5-2x più veloce.
+    // La cache del DRAFT viene quantizzata come la target (non F16 di default).
+    if (options.mtpNMax && options.mtpNMax > 0) {
+      params.speculative = {
+        type: "draft-mtp",
+        n_max: options.mtpNMax,
+        draft: {
+          cache_type_k: options.cacheTypeK ?? "q8_0",
+          cache_type_v: options.cacheTypeV ?? "q4_0",
+        },
+      };
+    }
+
     context = await initLlama(params);
     activeModelId = modelId;
-    activeMmprojPath = mmprojPath ?? null;
+    activeMmprojPath = options.mmprojPath ?? null;
+    activeEngineCtx = engineCtx;
 
-    if (isMultimodal && mmprojPath) {
-      const enabled = await context.initMultimodal({ path: mmprojPath, use_gpu: true });
+    if (isMultimodal && options.mmprojPath) {
+      const enabled = await context.initMultimodal({ path: options.mmprojPath, use_gpu: true });
       if (!enabled) {
         await disposeEngineLocked();
         throw new Error("Vision non disponibile: initMultimodal non riuscito per questo modello.");
@@ -181,6 +219,7 @@ async function disposeEngineLocked(): Promise<void> {
   context = null;
   activeModelId = null;
   activeMmprojPath = null;
+  activeEngineCtx = 0;
   if (current) {
     if (activeCompletionSet.size > 0) {
       // Ferma le completion in corso sul context VECCHIO e attendine la fine
@@ -265,6 +304,9 @@ export async function streamAssistantTurn(
   }
 
   const hasTools = Boolean(options?.tools?.length && options?.executeTool);
+  // Le immagini vivono SOLO nel messaggio user corrente.
+  // MTP è text-only nel binding: con immagini la completion va in `speculative: false`.
+  const hasImages = messages.some((message) => (message.images?.length ?? 0) > 0);
   // Le immagini vivono SOLO nel messaggio user corrente: system/tool/assistant
   // restano testuali (invariante del piano).
   // Il tipo del binding non dichiara tool_calls/tool_call_id sui messaggi
@@ -325,6 +367,7 @@ export async function streamAssistantTurn(
             enable_thinking: false,
             reasoning_format: "none",
             chat_template_kwargs: { enable_thinking: false },
+            ...(hasImages ? { speculative: false as const } : {}),
           },
           (data: TokenData) => {
             if (finished || aborted) return;

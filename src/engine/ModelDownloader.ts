@@ -38,16 +38,19 @@ export type DownloadOptions = {
 };
 
 export function modelLocalPath(model: ModelInfo, file: string): string {
-  return `${MODELS_DIR}${file}`;
+  // Directory per modello: niente collisioni tra revisioni/condivisione mmproj.
+  return `${MODELS_DIR}${model.id}/${file}`;
 }
 
-export function hfFileUrl(model: ModelInfo, file: string): string {
-  const [owner, repo] = model.hfRepo.split("/").map((part) => encodeURIComponent(part));
-  return `https://huggingface.co/${owner}/${repo}/resolve/${model.revision}/${encodeURIComponent(file)}`;
+export function hfFileUrl(model: ModelInfo, file: string, spec?: ModelFileSpec): string {
+  const repo = spec?.hfRepo ?? model.hfRepo;
+  const revision = spec?.revision ?? model.revision;
+  const [owner, repoName] = repo.split("/").map((part) => encodeURIComponent(part));
+  return `https://huggingface.co/${owner}/${repoName}/resolve/${revision}/${encodeURIComponent(file)}`;
 }
 
-export async function ensureModelsDir(): Promise<void> {
-  await FileSystem.makeDirectoryAsync(MODELS_DIR, { intermediates: true });
+export async function ensureModelsDir(model: ModelInfo): Promise<void> {
+  await FileSystem.makeDirectoryAsync(`${MODELS_DIR}${model.id}`, { intermediates: true });
 }
 
 /** Vero solo se il file esiste con la dimensione ESATTA. */
@@ -64,8 +67,10 @@ export async function isModelBundleDownloaded(model: ModelInfo): Promise<boolean
   return true;
 }
 
-function resumeKeyFor(model: ModelInfo, file: string): string {
-  return `${RESUME_KEY_PREFIX}${model.id}.${file}`;
+function resumeKeyFor(model: ModelInfo, file: string, spec?: ModelFileSpec): string {
+  // Revision-aware: un resume di una revisione diversa non deve essere riusato.
+  const revision = spec?.revision ?? model.revision;
+  return `${RESUME_KEY_PREFIX}${model.id}.${revision}.${file}`;
 }
 
 const PROGRESS_THROTTLE_MS = 200;
@@ -77,11 +82,11 @@ async function downloadFile(
   onProgress: (progress: DownloadProgress) => void,
 ): Promise<DownloadOutcome> {
   if (options.signal?.aborted) return { status: "aborted" };
-  await ensureModelsDir();
+  await ensureModelsDir(model);
   if (options.signal?.aborted) return { status: "aborted" };
 
   const target = modelLocalPath(model, file.file);
-  const resumeKey = resumeKeyFor(model, file.file);
+  const resumeKey = resumeKeyFor(model, file.file, file);
 
   const saved = await AsyncStorage.getItem(resumeKey)
     .then((raw) => {
@@ -97,7 +102,7 @@ async function downloadFile(
 
   const buildTask = (resumeData?: string) =>
     FileSystem.createDownloadResumable(
-      hfFileUrl(model, file.file),
+      hfFileUrl(model, file.file, file),
       target,
       {},
       (progress) => {

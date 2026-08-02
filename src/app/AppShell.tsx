@@ -16,7 +16,7 @@ import type { AskAssistantMiniapp } from "../domain/askAssistant";
 import { useAskAssistantController } from "./askAssistantController";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
 import { MODEL_REGISTRY, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
-import { downloadModelBundle, isModelBundleDownloaded, modelLocalPath, type BundleProgress } from "../engine/ModelDownloader";
+import { downloadModelBundle, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
 import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineMessage, type EngineTurnOptions } from "../engine/LlamaService";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapExaSourcesToChat } from "../agent/webSearchTool";
 
@@ -56,6 +56,9 @@ export function AppShell() {
   const [download, setDownload] = useState<{ bytesReceived: number; bytesTotal: number; progress: number } | null>(null);
   const [modelError, setModelError] = useState<string | null>(null);
   const currentModel = MODEL_REGISTRY[modelIndex];
+  // Ref speculare per il race tra check iniziale e load della preferenza.
+  const modelIndexRef = useRef(modelIndex);
+  modelIndexRef.current = modelIndex;
 
   // Riconoscimento modello all'avvio: ripristina l'ultimo modello usato
   // (come la selezione persistita), NON sempre il default.
@@ -94,15 +97,19 @@ export function AppShell() {
     };
   }, []);
 
-  // Controllo iniziale: il modello default è già scaricato?
+  // Controllo iniziale: il modello corrente è già scaricato?
   useEffect(() => {
     let mounted = true;
+    const checkedIndex = modelIndexRef.current;
     void (async () => {
       try {
-        const ok = await isModelBundleDownloaded(currentModel);
-        if (mounted) setModelState(ok ? "ready" : "missing");
+        const ok = await isModelBundleDownloaded(MODEL_REGISTRY[checkedIndex]);
+        // Il modello selezionato potrebbe essere cambiato nel frattempo (load preferenza).
+        if (mounted && modelIndexRef.current === checkedIndex) {
+          setModelState(ok ? "ready" : "missing");
+        }
       } catch {
-        if (mounted) setModelState("missing");
+        if (mounted && modelIndexRef.current === checkedIndex) setModelState("missing");
       }
     })();
     return () => {
@@ -118,7 +125,14 @@ export function AppShell() {
     setModelState("loading");
     try {
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
-      await initEngine(modelLocalPath(model, model.file), model.id, mmprojPath);
+      await initEngine(modelLocalPath(model, model.file), model.id, {
+        mmprojPath,
+        nCtx: model.engineCtx,
+        cacheTypeK: model.kvCache.k,
+        cacheTypeV: model.kvCache.v,
+        kvUnified: model.kvUnified,
+        mtpNMax: model.mtp?.nMax,
+      });
       if (generation !== engineGenerationRef.current) return false;
       setModelState("ready");
       return true;
@@ -140,6 +154,8 @@ export function AppShell() {
         setModelIndex(wrapped);
         setModelState("checking");
         setModelError(null);
+        // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
+        AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[wrapped].id).catch(() => undefined);
       });
     },
     [modelIndex, modelState],
@@ -179,7 +195,14 @@ export function AppShell() {
       }
       setModelState("loading");
       const mmprojPath = currentModel.mmproj ? modelLocalPath(currentModel, currentModel.mmproj.file) : null;
-      await initEngine(outcome.model.uri, currentModel.id, mmprojPath);
+      await initEngine(outcome.model.uri, currentModel.id, {
+        mmprojPath,
+        nCtx: currentModel.engineCtx,
+        cacheTypeK: currentModel.kvCache.k,
+        cacheTypeV: currentModel.kvCache.v,
+        kvUnified: currentModel.kvUnified,
+        mtpNMax: currentModel.mtp?.nMax,
+      });
       if (generation !== engineGenerationRef.current) return;
       setModelState("ready");
       showNotice(`${currentModel.name} pronto.`);
@@ -294,7 +317,10 @@ export function AppShell() {
       case "checking":
         return { label: "Checking…", color: colors.muted };
       case "missing":
-        return { label: `Download ${formatBytes(currentModel.sizeBytes)}`, color: colors.accent };
+        return {
+          label: `Download ${formatBytes(currentModel.sizeBytes + (currentModel.mmproj?.sizeBytes ?? 0))}`,
+          color: colors.accent,
+        };
       case "downloading":
         return { label: `Downloading… ${progressPercent}%`, color: colors.accent };
       case "loading":
