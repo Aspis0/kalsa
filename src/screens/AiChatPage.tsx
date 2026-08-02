@@ -624,6 +624,19 @@ export function AiChatPage({
     abortRef.current?.abort();
   }, []);
 
+  const exportChat = useCallback(() => {
+    if (!messages.length) return;
+    const markdown = messages
+      .map(
+        (message) =>
+          `${message.role === "user" ? "**You**" : "**AI**"}:\n${message.text}`,
+      )
+      .join("\n\n---\n\n");
+    void Share.share({ message: markdown, title: "AI Chat — conversation export" }).catch(
+      () => undefined,
+    );
+  }, [messages]);
+
   const clearChat = useCallback(() => {
     abortRef.current?.abort();
     // BLOCKER-1 (audit): reset sending state synchronously so composer unlocks immediately
@@ -794,11 +807,27 @@ export function AiChatPage({
                 style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: colors.good }}
               />
               <Text style={[typography.bodyXs, { color: colors.compute, fontWeight: "600" }]}>
-                Aspis AI
+                AI Chat
               </Text>
               <ChevronDown size={12} color={colors.compute} />
             </View>
           </View>
+
+          {/* Right: export chat */}
+          <Pressable
+            onPress={exportChat}
+            hitSlop={8}
+            accessibilityLabel="Export chat"
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Download size={18} color={colors.muted} />
+          </Pressable>
 
           {/* Right: new chat */}
           <Pressable
