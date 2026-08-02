@@ -1,3 +1,4 @@
+import { getStrings, type Locale } from "../i18n";
 import { exaSearch } from "../search/ExaMCP";
 import type { EngineTool, EngineToolResult } from "../engine/LlamaService";
 
@@ -30,17 +31,18 @@ export const WEB_SEARCH_TOOL: EngineTool = {
   },
 };
 
-export function makeWebSearchExecutor(): (
+export function makeWebSearchExecutor(locale: Locale): (
   name: string,
   args: Record<string, unknown>,
   signal?: AbortSignal,
 ) => Promise<EngineToolResult> {
   return async (name, args, signal) => {
+    const strings = getStrings(locale);
     if (name !== "web_search") {
-      return { text: `Unknown tool: ${name}` };
+      return { text: strings.errors.unknownTool.replace("{name}", name) };
     }
     const query = String(args.query ?? "").trim();
-    if (!query) return { text: "Empty search query." };
+    if (!query) return { text: strings.errors.emptySearchQuery };
 
     const numResults = Math.max(1, Math.min(5, Math.floor(Number(args.numResults) || 4)));
     const results = await exaSearch.search(query, { numResults, signal });
@@ -60,7 +62,7 @@ export function makeWebSearchExecutor(): (
                 .slice(0, 500)}`,
           )
           .join("\n\n")
-      : "No results found.";
+      : strings.errors.noResultsFound;
 
     return { text, sources };
   };
@@ -69,11 +71,13 @@ export function makeWebSearchExecutor(): (
 /** Mappa le sorgenti Exa sul formato chat (MessageSource: title/authors/doi). */
 export function mapExaSourcesToChat(
   sources: unknown[],
+  locale: Locale,
 ): Array<{ title: string; authors?: string; doi?: string }> {
+  const fallback = getStrings(locale).errors.source;
   return (sources as Array<{ title?: string; url?: string; publishedDate?: string }>)
     .filter((source) => source && typeof source === "object")
     .map((source) => ({
-      title: source.title || source.url || "Source",
+      title: source.title || source.url || fallback,
       ...(source.publishedDate ? { authors: source.publishedDate.slice(0, 10) } : {}),
     }));
 }

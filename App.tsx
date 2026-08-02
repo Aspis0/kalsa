@@ -22,6 +22,7 @@ import { useResponsiveMetrics } from "./src/theme/responsiveMetrics";
 import { THEME_STORAGE_KEY, normalizeThemeMode } from "./src/theme/themeStorage";
 import { ThemeContext, useLabTheme } from "./src/ui/labTheme";
 import { AppShell } from "./src/app/AppShell";
+import { LocaleProvider, useLocale } from "./src/i18n";
 
 type ThemeContextValue = {
   colors: ThemeColors;
@@ -32,6 +33,7 @@ type ThemeContextValue = {
 };
 
 function AppContent() {
+  const { ready: localeReady } = useLocale();
   const [themeMode, setThemeMode] = useState<ThemeMode>("light");
   const [themeLoaded, setThemeLoaded] = useState(false);
   const [fontsLoaded, fontError] = useAgoraFonts();
@@ -69,7 +71,8 @@ function AppContent() {
     [changeThemeMode, palette, responsiveMetrics, themeMode],
   );
 
-  if (!themeLoaded) return null;
+  // Wait for theme + locale storage before first paint (avoids EN flash).
+  if (!themeLoaded || !localeReady) return null;
   if (!fontsLoaded && !fontError) return null;
 
   // Errore font: renderizza comunque con i font di sistema (mai blank screen).
@@ -95,7 +98,9 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AppContent />
+        <LocaleProvider>
+          <AppContent />
+        </LocaleProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

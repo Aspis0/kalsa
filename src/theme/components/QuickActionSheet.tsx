@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Camera, FileText, Beaker, History } from "lucide-react-native";
+import { useLocale } from "../../i18n";
 import { useLabTheme } from "../../ui/labTheme";
 import { radius, spacing } from "../tokens";
 import { typography } from "../typography";
@@ -15,17 +16,42 @@ type Props = {
   onAction: (action: QuickAction) => void;
 };
 
-const ACTIONS: Array<{ id: QuickAction; label: string; sub: string; Icon: any }> = [
-  { id: "chat",     label: "New chat",      sub: "Start a conversation",            Icon: FileText },
-  { id: "search",   label: "Web search",    sub: "Ask the web for an answer",       Icon: Camera },
-  { id: "miniapp",  label: "New miniapp",   sub: "Generate an interactive block",   Icon: Beaker },
-  { id: "openLast", label: "Open last item", sub: "Jump back to your most recent",  Icon: History },
-];
-
 // Bottom sheet triggered by long-press on the FAB.
 export function QuickActionSheet({ visible, onClose, onAction }: Props) {
   const { colors } = useLabTheme<any>();
+  const { t } = useLocale();
   const insets = useSafeAreaInsets();
+
+  const actions = useMemo(
+    () =>
+      [
+        {
+          id: "chat" as const,
+          label: t("quickActions.newChat"),
+          sub: t("quickActions.newChatSub"),
+          Icon: FileText,
+        },
+        {
+          id: "search" as const,
+          label: t("quickActions.webSearch"),
+          sub: t("quickActions.webSearchSub"),
+          Icon: Camera,
+        },
+        {
+          id: "miniapp" as const,
+          label: t("quickActions.newMiniapp"),
+          sub: t("quickActions.newMiniappSub"),
+          Icon: Beaker,
+        },
+        {
+          id: "openLast" as const,
+          label: t("quickActions.openLast"),
+          sub: t("quickActions.openLastSub"),
+          Icon: History,
+        },
+      ] satisfies Array<{ id: QuickAction; label: string; sub: string; Icon: any }>,
+    [t],
+  );
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -33,8 +59,10 @@ export function QuickActionSheet({ visible, onClose, onAction }: Props) {
         <Pressable onPress={() => {}} style={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.md }}>
           <GlassPanel2 rounded="lg">
             <View style={{ padding: spacing.md, gap: spacing.xs }}>
-              <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>Quick actions</Text>
-              {ACTIONS.map(({ id, label, sub, Icon }) => (
+              <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
+                {t("quickActions.title")}
+              </Text>
+              {actions.map(({ id, label, sub, Icon }) => (
                 <Pressable
                   key={id}
                   onPress={() => {

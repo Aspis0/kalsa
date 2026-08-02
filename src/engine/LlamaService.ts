@@ -7,6 +7,8 @@ import {
   type TokenData,
 } from "llama.rn";
 
+import { getStrings, type Locale } from "../i18n";
+
 /**
  * Engine locale — Fase 1/2/4: llama.rn (binding llama.cpp, MIT).
  *
@@ -25,22 +27,11 @@ let activeModelId: string | null = null;
 let activeMmprojPath: string | null = null;
 let activeEngineCtx = 0;
 
-const SYSTEM_PROMPT =
-  "You are AI Chat, a private assistant running fully on this device (no cloud, no account). " +
-  "Answer concisely and helpfully in the user's language. " +
-  "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
-  "metric, tabs, expandable and html.";
-
-const SYSTEM_PROMPT_WITH_SEARCH =
-  "You are AI Chat, a private assistant running fully on this device (no cloud, no account). " +
-  "Answer concisely and helpfully in the user's language. " +
-  "You have a web_search tool: use it ALWAYS when the user asks about current information, " +
-  "recent news, prices, events, or anything time-sensitive, or when they explicitly mention " +
-  "searching the web (e.g. 'search online', 'websearch', 'look it up'). " +
-  "Never answer time-sensitive questions from memory alone. " +
-  "Cite the sources you used by referencing their titles. " +
-  "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
-  "metric, tabs, expandable and html.";
+/** System prompt for the on-device model, localized via settings locale. */
+export function buildSystemPrompt(locale: Locale, withTools: boolean): string {
+  const strings = getStrings(locale);
+  return withTools ? strings.systemPromptWithSearch : strings.systemPrompt;
+}
 
 const STOP_WORDS = [
   "<|im_end|>",
@@ -142,6 +133,8 @@ export type EngineInitOptions = {
   kvUnified?: boolean;
   /** MTP (NextN speculative) embedded nel GGUF. */
   mtpNMax?: number;
+  /** Settings locale for user-facing init errors (required). */
+  locale: Locale;
 };
 
 /**
@@ -149,8 +142,9 @@ export type EngineInitOptions = {
  * `mmprojPath` presente → initMultimodal obbligatorio: se restituisce false
  * o il supporto vision non risulta attivo, l'engine NON si considera pronto.
  */
-export function initEngine(modelPath: string, modelId: string, options: EngineInitOptions = {}): Promise<void> {
+export function initEngine(modelPath: string, modelId: string, options: EngineInitOptions): Promise<void> {
   return withLifecycleLock(async () => {
+    const strings = getStrings(options.locale);
     const engineCtx = options.nCtx ?? 8192;
     if (
       context &&
@@ -199,12 +193,12 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       const enabled = await context.initMultimodal({ path: options.mmprojPath, use_gpu: true });
       if (!enabled) {
         await disposeEngineLocked();
-        throw new Error("Vision non disponibile: initMultimodal non riuscito per questo modello.");
+        throw new Error(strings.errors.visionInitFailed);
       }
       const support = await context.getMultimodalSupport().catch(() => null);
       if (!support?.vision) {
         await disposeEngineLocked();
-        throw new Error("Vision non disponibile: il modello non supporta le immagini.");
+        throw new Error(strings.errors.visionNotSupported);
       }
     }
   });
@@ -270,15 +264,22 @@ function buildUserMessage(message: EngineMessage): RNLlamaOAICompatibleMessage {
   return { role: "user", content: parts };
 }
 
+export type StreamTurnOptions = EngineTurnOptions & {
+  /** Settings locale — drives system prompt language (required). */
+  locale: Locale;
+};
+
 export async function streamAssistantTurn(
   messages: EngineMessage[],
   callbacks: EngineCallbacks,
-  signal?: AbortSignal,
-  options?: EngineTurnOptions,
+  signal: AbortSignal | undefined,
+  options: StreamTurnOptions,
 ): Promise<void> {
   const engine = context;
+  const locale: Locale = options.locale;
+  const strings = getStrings(locale);
   if (!engine) {
-    callbacks.onError(new Error("Model not loaded. Download and load a model first."));
+    callbacks.onError(new Error(strings.errors.modelNotLoaded));
     return;
   }
 
@@ -323,7 +324,7 @@ export async function streamAssistantTurn(
 
   const userIndex = messages.length - 1;
   let currentMessages: ToolChatMessage[] = [
-    { role: "system", content: hasTools ? SYSTEM_PROMPT_WITH_SEARCH : SYSTEM_PROMPT },
+    { role: "system", content: buildSystemPrompt(locale, hasTools) },
     ...messages.map((message, index) =>
       index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
     ),
@@ -349,7 +350,7 @@ export async function streamAssistantTurn(
   };
 
   try {
-    callbacks.onStatus?.({ label: "Thinking" });
+    callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
 
     for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
       const result = await trackCompletion(
@@ -385,9 +386,7 @@ export async function streamAssistantTurn(
 
       if (result.context_full) {
         finishOnce(() =>
-          callbacks.onError(
-            new Error("Contesto pieno: la conversazione è troppo lunga per questo modello. Riprova con messaggi più brevi."),
-          ),
+          callbacks.onError(new Error(strings.errors.contextFull)),
         );
         return;
       }
@@ -415,15 +414,18 @@ export async function streamAssistantTurn(
         const name = call.function?.name ?? "";
         const args = parseToolArguments(call.function?.arguments);
         callbacks.onTool?.({ name, arguments: args });
-        callbacks.onStatus?.({ label: `Searching the web…` });
+        callbacks.onStatus?.({ label: strings.chat.searching });
 
         let toolContent: string;
         try {
           const outcome = await options.executeTool(name, args, signal);
           if (outcome.sources?.length) callbacks.onSources?.(outcome.sources);
-          toolContent = (outcome.text ?? "").slice(0, 6000) || "No results.";
+          toolContent = (outcome.text ?? "").slice(0, 6000) || strings.errors.noResults;
         } catch (error) {
-          toolContent = `Tool error: ${error instanceof Error ? error.message : String(error)}`;
+          toolContent = strings.errors.toolError.replace(
+            "{message}",
+            error instanceof Error ? error.message : String(error),
+          );
         }
         if (finished || aborted) return;
 
@@ -443,7 +445,7 @@ export async function streamAssistantTurn(
           content: entry.content,
         })),
       ];
-      callbacks.onStatus?.({ label: "Thinking" });
+      callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
     }
 
     // Raggiunto il massimo dei round senza risposta testuale: chiudi comunque.

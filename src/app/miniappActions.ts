@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 
 import type { AskAssistantMiniapp } from "../domain/askAssistant";
+import { getStrings, type Locale } from "../i18n";
 
 /**
  * Helper ed export dei miniapp, estratti dal monolite App.tsx originale.
@@ -70,13 +71,13 @@ export function summarizeMiniappForPrompt(miniapp: AskAssistantMiniapp): string 
   return json.length > 12000 ? `${json.slice(0, 12000)}... [truncated]` : json;
 }
 
-export function buildMiniappCsv(miniapp: AskAssistantMiniapp): string {
+export function buildMiniappCsv(miniapp: AskAssistantMiniapp, locale: Locale): string {
   const blocks = flattenMiniappBlocks(miniapp.blocks);
   const tableBlock = blocks.find((block) =>
     ["data_table", "result_table", "table", "input_table", "editable_table"].includes(String(block.type || "")),
   );
   const rows = asMiniappRows(tableBlock?.rows);
-  if (!rows.length) return "message\nNo exportable rows in this miniapp.\n";
+  if (!rows.length) return getStrings(locale).miniapp.noExportableRows;
   const columns = Array.from(new Set(rows.flatMap((row) => Object.keys(row)))).slice(0, 24);
   return [
     columns.map(quoteMiniappCsvCell).join(","),
@@ -97,6 +98,7 @@ export type MiniappActionCallbacks = {
   setAskAssistantDraft: (value: string) => void;
   setFeedback: (value: string) => void;
   setMobileError: (value: string) => void;
+  locale: Locale;
 };
 
 export async function handleAskAssistantMiniappAction(
@@ -105,11 +107,10 @@ export async function handleAskAssistantMiniappAction(
   callbacks: MiniappActionCallbacks,
 ): Promise<void> {
   const actionId = String(action.id || "").trim().toLowerCase();
+  const strings = getStrings(callbacks.locale);
 
   if (actionId === "generate_report") {
-    callbacks.setFeedback(
-      "Report: esporta il miniapp come JSON e chiedi alla chat di generare il report.",
-    );
+    callbacks.setFeedback(strings.miniapp.reportHint);
     return;
   }
 
@@ -118,13 +119,18 @@ export async function handleAskAssistantMiniappAction(
       const directory = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
       if (!directory) throw new Error("missing_export_directory");
       const uri = `${directory}${miniappExportFileName(miniapp, "csv")}`;
-      await FileSystem.writeAsStringAsync(uri, buildMiniappCsv(miniapp), { encoding: "utf8" });
+      await FileSystem.writeAsStringAsync(uri, buildMiniappCsv(miniapp, callbacks.locale), {
+        encoding: "utf8",
+      });
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { dialogTitle: "Export miniapp CSV", mimeType: "text/csv" });
+        await Sharing.shareAsync(uri, {
+          dialogTitle: strings.miniapp.exportCsvTitle,
+          mimeType: "text/csv",
+        });
       }
-      callbacks.setFeedback("Miniapp CSV exported");
+      callbacks.setFeedback(strings.miniapp.csvExported);
     } catch {
-      callbacks.setMobileError("Could not export the miniapp result.");
+      callbacks.setMobileError(strings.miniapp.exportFailed);
     }
     return;
   }
@@ -136,17 +142,20 @@ export async function handleAskAssistantMiniappAction(
       const uri = `${directory}${miniappExportFileName(miniapp, "json")}`;
       await FileSystem.writeAsStringAsync(uri, JSON.stringify(miniapp, null, 2), { encoding: "utf8" });
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { dialogTitle: "Export miniapp JSON", mimeType: "application/json" });
+        await Sharing.shareAsync(uri, {
+          dialogTitle: strings.miniapp.exportJsonTitle,
+          mimeType: "application/json",
+        });
       }
-      callbacks.setFeedback("Miniapp JSON exported");
+      callbacks.setFeedback(strings.miniapp.jsonExported);
     } catch {
-      callbacks.setMobileError("Could not export the miniapp result.");
+      callbacks.setMobileError(strings.miniapp.exportFailed);
     }
     return;
   }
 
   // Azioni bio legacy rifiutate: il formato miniapp generale non ha plate maps.
   if (actionId === "export_plate_map") {
-    callbacks.setMobileError("Plate maps are not part of the general miniapp format.");
+    callbacks.setMobileError(strings.miniapp.plateMapsUnsupported);
   }
 }

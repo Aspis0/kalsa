@@ -3,6 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
+import { useLocale } from "../i18n";
 
 /**
  * PdfToImages — renderizza un PDF locale in immagini JPEG (max 5 pagine)
@@ -40,6 +41,7 @@ type BridgeMessage =
   | { error: string };
 
 export function PdfToImages({ pdfUri, maxPages = DEFAULT_MAX_PAGES, maxBytes = DEFAULT_MAX_BYTES, onPage, onDone, onError }: Props) {
+  const { t } = useLocale();
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const chunksRef = useRef<Record<number, string[]>>({});
@@ -69,7 +71,7 @@ export function PdfToImages({ pdfUri, maxPages = DEFAULT_MAX_PAGES, maxBytes = D
         ]);
         if (!mounted) return;
         if (pdfB64.length > maxBytes * 1.34) {
-          setError("PDF too large (max 5 MB).");
+          setError(t("errors.pdfTooLarge"));
           return;
         }
         setHtml(buildPdfHtml(pdfSrc, workerSrc, pdfB64, maxPages));
@@ -86,7 +88,7 @@ export function PdfToImages({ pdfUri, maxPages = DEFAULT_MAX_PAGES, maxBytes = D
 
   const armPageTimer = () => {
     if (pageTimerRef.current) clearTimeout(pageTimerRef.current);
-    pageTimerRef.current = setTimeout(() => fail("PDF page rendering timed out."), PAGE_TIMEOUT_MS);
+    pageTimerRef.current = setTimeout(() => fail(t("errors.pdfTimeout")), PAGE_TIMEOUT_MS);
   };
 
   const handleMessage = useCallback(

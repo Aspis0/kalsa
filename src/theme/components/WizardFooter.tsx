@@ -1,6 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react-native";
+import { useLocale } from "../../i18n";
 import { useLabTheme } from "../../ui/labTheme";
 import { spacing } from "../tokens";
 import { Button } from "./Button";
@@ -20,17 +21,21 @@ type Props = {
 // Pass either onNext (intermediate steps) or onDone (final step).
 export function WizardFooter({
   onBack,
-  backLabel = "Back",
+  backLabel,
   onNext,
-  nextLabel = "Next",
+  nextLabel,
   nextDisabled = false,
   onDone,
-  doneLabel = "Save",
+  doneLabel,
   doneDisabled = false,
 }: Props) {
   const { colors } = useLabTheme<any>();
+  const { t } = useLocale();
+  const resolvedBack = backLabel ?? t("wizard.back");
+  const resolvedNext = nextLabel ?? t("wizard.next");
+  const resolvedDone = doneLabel ?? t("wizard.save");
   const primaryIsDone = Boolean(onDone) && !onNext;
-  const primaryLabel = primaryIsDone ? doneLabel : nextLabel;
+  const primaryLabel = primaryIsDone ? resolvedDone : resolvedNext;
   const primaryPress = primaryIsDone ? onDone : onNext;
   const primaryDisabled = primaryIsDone ? doneDisabled : nextDisabled;
   const primaryTrailing = primaryIsDone ? (
@@ -54,7 +59,7 @@ export function WizardFooter({
     >
       {onBack ? (
         <Button
-          label={backLabel}
+          label={resolvedBack}
           variant="ghost"
           size="md"
           leadingIcon={<ChevronLeft color={colors.accent} size={16} strokeWidth={2.2} />}

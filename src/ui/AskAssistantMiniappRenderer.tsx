@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { computeStatistics, convertVolumeDensityToMass, fitRegression } from "../domain/miniappMathCore";
+import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 
 const MAX_BLOCK_DEPTH = 3;
 const MAX_CHILD_BLOCKS = 24;
@@ -100,6 +101,8 @@ type RendererContext = {
   computed: ComputedMiniapp;
   inputs: Record<string, number>;
   index: number;
+  locale: Locale;
+  t: TranslateFn;
   pathwayViewport: PathwayViewport;
   runAction: (action: MiniappAction) => void;
   setInput: (key: string, value: string) => void;
@@ -273,6 +276,10 @@ const LOCAL_ACTIONS = {
 const TABLE_ACTION_BLOCK_TYPES = new Set(["table", "data_table", "result_table", "input_table", "editable_table"]);
 // Action legacy bio (plate/pathway editor) non più raggiungibili dal registro:
 // bloccate esplicitamente nel dispatcher runAction.
+//
+// Pathway editor status strings (add/rename/move/delete node|edge) stay English on purpose:
+// that editor is legacy lab-only chrome, not a general user-facing surface. Plate/sample
+// statuses below ARE localized because they can still surface as statusText.
 const LEGACY_LAB_ACTION_IDS = new Set([
   "add_sample",
   "auto_fill_replicates",
@@ -1124,9 +1131,10 @@ function findNextAvailableWell(block: MiniappBlock, wells: Array<Record<string, 
   return null;
 }
 
-function addSampleToMiniapp(miniapp: Miniapp): ActionResult {
+function addSampleToMiniapp(miniapp: Miniapp, locale: Locale): ActionResult {
   let changed = false;
   let nextIndex = 1;
+  const strings = getStrings(locale);
   const nextBlocks = asArray<MiniappBlock>(miniapp.blocks, MAX_CHILD_BLOCKS).map((block) => {
     if (block.type === "plate_grid") {
       const wells = asArray<Record<string, unknown>>(block.wells, MAX_WELLS);
@@ -1153,12 +1161,15 @@ function addSampleToMiniapp(miniapp: Miniapp): ActionResult {
   });
   return {
     miniapp: { ...miniapp, blocks: nextBlocks },
-    status: changed ? `Added Sample ${nextIndex}.` : "No editable plate or table was available.",
+    status: changed
+      ? strings.miniapp.addedSample.replace("{n}", String(nextIndex))
+      : strings.miniapp.noEditablePlate,
   };
 }
 
-function autoFillReplicatesInMiniapp(miniapp: Miniapp): ActionResult {
+function autoFillReplicatesInMiniapp(miniapp: Miniapp, locale: Locale): ActionResult {
   let added = 0;
+  const strings = getStrings(locale);
   const nextBlocks = asArray<MiniappBlock>(miniapp.blocks, MAX_CHILD_BLOCKS).map((block) => {
     if (!TABLE_ACTION_BLOCK_TYPES.has(toStringValue(block.type))) return block;
     const rows = asArray(block.rows, MAX_TABLE_ROWS);
@@ -1179,28 +1190,32 @@ function autoFillReplicatesInMiniapp(miniapp: Miniapp): ActionResult {
   });
   return {
     miniapp: { ...miniapp, blocks: nextBlocks },
-    status: added ? `Auto-filled ${added} replicate assignment${added === 1 ? "" : "s"}.` : "Replicates already look complete.",
+    status: added
+      ? strings.miniapp.autoFilledReplicates.replace("{n}", String(added))
+      : strings.miniapp.replicatesComplete,
   };
 }
 
-function clearPlateInMiniapp(miniapp: Miniapp): ActionResult {
+function clearPlateInMiniapp(miniapp: Miniapp, locale: Locale): ActionResult {
+  const strings = getStrings(locale);
   const nextBlocks = asArray<MiniappBlock>(miniapp.blocks, MAX_CHILD_BLOCKS).map((block) => {
     if (block.type === "plate_grid") return { ...block, wells: [] };
     if (TABLE_ACTION_BLOCK_TYPES.has(toStringValue(block.type))) return { ...block, rows: [] };
     return block;
   });
-  return { miniapp: { ...miniapp, blocks: nextBlocks }, status: "Plate assignments cleared." };
+  return { miniapp: { ...miniapp, blocks: nextBlocks }, status: strings.miniapp.plateCleared };
 }
 
 function applyLocalAction(
   action: MiniappAction,
   miniapp: Miniapp,
   pathwaySelectionState: PathwayEditorState,
+  locale: Locale,
 ): ActionResult | null {
   const actionId = getActionId(action);
-  if (actionId === LOCAL_ACTIONS.ADD_SAMPLE) return addSampleToMiniapp(miniapp);
-  if (actionId === LOCAL_ACTIONS.AUTO_FILL_REPLICATES) return autoFillReplicatesInMiniapp(miniapp);
-  if (actionId === LOCAL_ACTIONS.CLEAR_PLATE) return clearPlateInMiniapp(miniapp);
+  if (actionId === LOCAL_ACTIONS.ADD_SAMPLE) return addSampleToMiniapp(miniapp, locale);
+  if (actionId === LOCAL_ACTIONS.AUTO_FILL_REPLICATES) return autoFillReplicatesInMiniapp(miniapp, locale);
+  if (actionId === LOCAL_ACTIONS.CLEAR_PLATE) return clearPlateInMiniapp(miniapp, locale);
   if (actionId === LOCAL_ACTIONS.ADD_NODE) return addPathwayNode(miniapp, pathwaySelectionState);
   if (actionId === LOCAL_ACTIONS.ADD_EDGE) return addPathwayEdge(miniapp, pathwaySelectionState);
   if (actionId === LOCAL_ACTIONS.RENAME_NODE) return renamePathwayNode(miniapp, pathwaySelectionState, parseNodeLabelFromAction(action));
@@ -1388,8 +1403,10 @@ function getPlateWellMap(block: MiniappBlock, rows: string[], columns: string[])
 function fallbackDepthBlock(context: RendererContext) {
   return (
     <View style={context.styles.miniappFallbackBlock}>
-      <Text style={context.styles.miniappBlockTitle}>Blocked render path</Text>
-      <Text style={context.styles.miniappFallbackText}>Nested content is capped at {MAX_BLOCK_DEPTH} levels.</Text>
+      <Text style={context.styles.miniappBlockTitle}>{context.t("renderer.blockedRenderPath")}</Text>
+      <Text style={context.styles.miniappFallbackText}>
+        {context.t("renderer.nestedDepthCapped", { depth: MAX_BLOCK_DEPTH })}
+      </Text>
     </View>
   );
 }
@@ -1397,9 +1414,9 @@ function fallbackDepthBlock(context: RendererContext) {
 function HeroSummaryBlockView({ block, context }: { block: MiniappBlock; context: RendererContext }) {
   return (
     <View style={context.styles.miniappHeroBlock}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Summary")}</Text>
+      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, context.t("renderer.summary"))}</Text>
       <Text style={context.styles.miniappFallbackText}>
-        {toStringValue(block.body, toStringValue(block.text, "No summary yet."))}
+        {toStringValue(block.body, toStringValue(block.text, context.t("renderer.noSummaryYet")))}
       </Text>
     </View>
   );
@@ -1434,7 +1451,7 @@ function InputPanelBlockView({ block, context }: { block: MiniappBlock; context:
   const fields = asArray(block.fields, MAX_CHILD_BLOCKS);
   return (
     <View style={context.styles.miniappInputGrid}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Inputs")}</Text>
+      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, context.t("renderer.inputs"))}</Text>
       {fields.map((field, fieldIndex) => {
         if (!field || typeof field !== "object") return null;
         const record = asRecord(field);
@@ -1457,7 +1474,7 @@ function InputNumberBlockView({ block, context }: { block: MiniappBlock; context
   const fieldId = toStringValue(block.id, `input_${context.index}`);
   return (
     <View style={context.styles.miniappInputGrid}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Input")}</Text>
+      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, context.t("renderer.input"))}</Text>
       <NumberField
         label={toStringValue(block.label, fieldId)}
         onChange={(value) => context.setInput(fieldId, value)}
@@ -1472,7 +1489,7 @@ function FormulaResultBlockView({ block, context, label }: { block: MiniappBlock
   return (
     <View style={context.styles.miniappFormulaBox}>
       <Text style={context.styles.miniappFormulaLabel}>{toStringValue(block.title, label)}</Text>
-      <Text style={context.styles.miniappFormulaText}>{toStringValue(block.value, "No result.")}</Text>
+      <Text style={context.styles.miniappFormulaText}>{toStringValue(block.value, context.t("renderer.noResult"))}</Text>
     </View>
   );
 }
@@ -1480,10 +1497,10 @@ function FormulaResultBlockView({ block, context, label }: { block: MiniappBlock
 function FormulaTraceBlockView({ block, context }: { block: MiniappBlock; context: RendererContext }) {
   return (
     <View style={context.styles.miniappFormulaBox}>
-      <Text style={context.styles.miniappFormulaLabel}>{toStringValue(block.title, "Formula")}</Text>
+      <Text style={context.styles.miniappFormulaLabel}>{toStringValue(block.title, context.t("renderer.formula"))}</Text>
       {asArray(block.steps, MAX_TABLE_ROWS).map((step, stepIndex) => (
         <Text key={stepIndex} style={context.styles.miniappFormulaText}>
-          {toStringValue((step as Record<string, unknown>)?.expr, "Calculation step unavailable")}
+          {toStringValue((step as Record<string, unknown>)?.expr, context.t("renderer.calculationUnavailable"))}
         </Text>
       ))}
     </View>
@@ -1491,10 +1508,10 @@ function FormulaTraceBlockView({ block, context }: { block: MiniappBlock; contex
 }
 
 function WarningBlockView({ block, context }: { block: MiniappBlock; context: RendererContext }) {
-  const fallbackBody = toStringValue(block.label, toStringValue(block.value, toStringValue(block.status, "Warning")));
+  const fallbackBody = toStringValue(block.label, toStringValue(block.value, toStringValue(block.status, context.t("renderer.warning"))));
   return (
     <View style={context.styles.miniappFallbackBlock}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Warning")}</Text>
+      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, context.t("renderer.warning"))}</Text>
       <Text style={context.styles.miniappFallbackText}>
         {toStringValue(block.body, toStringValue(block.message, toStringValue(block.text, fallbackBody)))}
       </Text>
@@ -1506,7 +1523,7 @@ function ActionRowBlockView({ block, context }: { block: MiniappBlock; context: 
   const actions = asArray(block.actions, MAX_CHILD_BLOCKS).concat(asArray(block.actionItems, MAX_CHILD_BLOCKS));
   return (
     <View style={context.styles.miniappActionRow}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Actions")}</Text>
+      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, context.t("renderer.actions"))}</Text>
       {actions.map((action, actionIndex) => {
         const actionRecord = asRecord(action);
         return (
@@ -1532,14 +1549,14 @@ function StatisticsSummaryBlockView({ block, context }: { block: MiniappBlock; c
   const values = parseNumericCsv(rawValues);
   const stats = computeStatistics(values);
   const outlierText = stats.outlier
-    ? `${formatMiniappNumber(stats.outlier.value)} (${stats.outlier.isOutlier ? "flagged" : "not significant"})`
-    : "Need at least 3 values";
+    ? `${formatMiniappNumber(stats.outlier.value)} (${stats.outlier.isOutlier ? context.t("renderer.flagged") : context.t("renderer.notSignificant")})`
+    : context.t("renderer.needThreeValues");
 
   return (
     <View style={context.styles.miniappInputGrid}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Statistics")}</Text>
+      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, context.t("renderer.statistics"))}</Text>
       <View style={context.styles.miniappInputCard}>
-        <Text style={context.styles.miniappInputLabel}>Values</Text>
+        <Text style={context.styles.miniappInputLabel}>{context.t("renderer.values")}</Text>
         <TextInput
           keyboardType="numbers-and-punctuation"
           onChangeText={setRawValues}
@@ -1549,9 +1566,9 @@ function StatisticsSummaryBlockView({ block, context }: { block: MiniappBlock; c
         />
       </View>
       <View style={context.styles.miniappMetricGrid}>
-        <Metric label="Mean" styles={context.styles} value={formatMiniappNumber(stats.mean, 4)} />
-        <Metric label="Sample SD" styles={context.styles} value={formatMiniappNumber(stats.sampleStdDev, 4)} />
-        <Metric label="Outlier" styles={context.styles} value={outlierText} wide />
+        <Metric label={context.t("renderer.mean")} styles={context.styles} value={formatMiniappNumber(stats.mean, 4)} />
+        <Metric label={context.t("renderer.sampleSd")} styles={context.styles} value={formatMiniappNumber(stats.sampleStdDev, 4)} />
+        <Metric label={context.t("renderer.outlier")} styles={context.styles} value={outlierText} wide />
       </View>
       <Text style={context.styles.miniappFallbackText}>
         Grubbs alpha 0.05: G {formatMiniappNumber(stats.outlier?.gStatistic)} / critical {formatMiniappNumber(stats.outlier?.criticalValue)}
@@ -1595,12 +1612,12 @@ function UnitConverterBlockView({ block, context }: { block: MiniappBlock; conte
 
   return (
     <View style={context.styles.miniappInputGrid}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Mass from density")}</Text>
-      <NumberField label="Volume (mL)" onChange={(value) => setVolume(toNumber(value, volume))} styles={context.styles} value={volume} />
-      <NumberField label="Density (g/mL)" onChange={(value) => setDensity(toNumber(value, density))} styles={context.styles} value={density} />
+      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, context.t("renderer.massFromDensity"))}</Text>
+      <NumberField label={context.t("renderer.volumeMl")} onChange={(value) => setVolume(toNumber(value, volume))} styles={context.styles} value={volume} />
+      <NumberField label={context.t("renderer.densityGml")} onChange={(value) => setDensity(toNumber(value, density))} styles={context.styles} value={density} />
       <View style={context.styles.miniappFormulaBox}>
-        <Text style={context.styles.miniappFormulaLabel}>Mass</Text>
-        <Text style={context.styles.miniappMetricValue}>{result.ok ? `${formatMiniappNumber(result.mass, 4)} ${result.massUnit}` : "Unsupported unit"}</Text>
+        <Text style={context.styles.miniappFormulaLabel}>{context.t("renderer.mass")}</Text>
+        <Text style={context.styles.miniappMetricValue}>{result.ok ? `${formatMiniappNumber(result.mass, 4)} ${result.massUnit}` : context.t("renderer.unsupportedUnit")}</Text>
         <Text style={context.styles.miniappFormulaText}>{result.formula}</Text>
         {result.error ? <Text style={context.styles.miniappFallbackText}>{result.error.replace(/_/g, " ")}</Text> : null}
       </View>
@@ -1617,7 +1634,7 @@ function ScientificPlotBlockView({ block, context }: { block: MiniappBlock; cont
 
   return (
     <View style={context.styles.miniappPlotBlock}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Chart")}</Text>
+      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, context.t("renderer.chart"))}</Text>
       <View style={context.styles.miniappSegmentRow}>
         {(["linear", "quadratic"] as const).map((option) => (
           <Pressable
@@ -1656,7 +1673,7 @@ function ScientificPlotBlockView({ block, context }: { block: MiniappBlock; cont
 function TableBlockView({ block, rows, context }: { block: MiniappBlock; rows: ReturnType<typeof normalizeTable>; context: RendererContext }) {
   return (
     <View style={context.styles.miniappTableBlock}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Table")}</Text>
+      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, context.t("renderer.table"))}</Text>
       {rows.columns.length ? (
         <View style={context.styles.miniappTableHeaderRow}>
           {rows.columns.map((column, index) => (
@@ -1677,11 +1694,14 @@ function TableBlockView({ block, rows, context }: { block: MiniappBlock; rows: R
           </View>
         ))
       ) : (
-        <Text style={context.styles.miniappFallbackText}>No rows yet.</Text>
+        <Text style={context.styles.miniappFallbackText}>{context.t("renderer.noRowsYet")}</Text>
       )}
       {rows.hasMoreRows || rows.hasMoreColumns ? (
         <Text style={context.styles.miniappTableOverflowNotice}>
-          Showing up to {Math.min(rows.rows.length, MAX_TABLE_ROWS)} rows and {Math.min(rows.columns.length, MAX_TABLE_COLUMNS)} columns.
+          {context.t("renderer.showingUpTo", {
+            rows: Math.min(rows.rows.length, MAX_TABLE_ROWS),
+            cols: Math.min(rows.columns.length, MAX_TABLE_COLUMNS),
+          })}
         </Text>
       ) : null}
     </View>
@@ -1876,6 +1896,7 @@ function PathwayEditorPanel({
   edges: PathwayEdge[];
   nodes: PathwayNode[];
 }) {
+  const { t } = useLocale();
   const pathwayViewport = context.pathwayViewport;
   const selectedNode = getPathwayNodeById(nodes, context.selectedPathwayNodeId);
   const selectedEdge = getPathwayEdgeById(edges, context.selectedPathwayEdgeId);
@@ -1912,14 +1933,14 @@ function PathwayEditorPanel({
             ),
           )
         ) : (
-          <Text style={context.styles.miniappFallbackText}>No nodes available.</Text>
+          <Text style={context.styles.miniappFallbackText}>{t("renderer.noNodesAvailable")}</Text>
         )}
       </View>
     );
   };
 
-  const selectedNodeTitle = selectedNode ? toStringValue(selectedNode.label, selectedNode.id) : "No node selected";
-  const selectedEdgeTitle = selectedEdge ? toStringValue(selectedEdge.label, `${toStringValue(selectedEdge.from)} → ${toStringValue(selectedEdge.to)}`) : "No edge selected";
+  const selectedNodeTitle = selectedNode ? toStringValue(selectedNode.label, selectedNode.id) : t("renderer.noNodeSelected");
+  const selectedEdgeTitle = selectedEdge ? toStringValue(selectedEdge.label, `${toStringValue(selectedEdge.from)} → ${toStringValue(selectedEdge.to)}`) : t("renderer.noEdgeSelected");
   const safeLayer = Number.isFinite(toNumber(selectedNode?.layer)) ? clampRange(toNumber(selectedNode?.layer), 0, 4) : 0;
   const safeSlot = Number.isFinite(toNumber(selectedNode?.slot)) ? clampRange(toNumber(selectedNode?.slot), 0, 15) : 0;
 
@@ -1931,18 +1952,18 @@ function PathwayEditorPanel({
         pathwayViewport.isTablet ? context.styles.miniappPathwayEditorPanelTablet : null,
       ]}
     >
-      <Text style={context.styles.miniappBlockTitle}>Pathway editor</Text>
+      <Text style={context.styles.miniappBlockTitle}>{t("renderer.pathwayEditor")}</Text>
       <View style={[context.styles.miniappPathwayEditorSection, pathwayViewport.isTablet ? context.styles.miniappPathwayEditorSectionTablet : null]}>
-        <Text style={context.styles.miniappPathwayEditorLabel}>Node: {selectedNodeTitle}</Text>
+        <Text style={context.styles.miniappPathwayEditorLabel}>{t("renderer.nodePrefix", { label: selectedNodeTitle })}</Text>
         <TextInput
           editable={Boolean(selectedNode)}
           onChangeText={context.pathwayEditor.setNodeLabel}
-          placeholder="Rename node"
+          placeholder={t("miniapp.renameNode")}
           selectTextOnFocus
           style={context.styles.miniappPathwayEditorInput}
           value={selectedNode ? selectedNode.label : ""}
         />
-        <Text style={context.styles.miniappPathwayEditorSmallLabel}>Node kind</Text>
+        <Text style={context.styles.miniappPathwayEditorSmallLabel}>{t("renderer.nodeKind")}</Text>
         <View style={context.styles.miniappPathwayChipRow}>
           {PATHWAY_NODE_KIND_OPTIONS.map((kind) => (
             <Pressable
@@ -1955,7 +1976,7 @@ function PathwayEditorPanel({
             </Pressable>
           ))}
         </View>
-        <Text style={context.styles.miniappPathwayEditorSmallLabel}>Location</Text>
+        <Text style={context.styles.miniappPathwayEditorSmallLabel}>{t("renderer.location")}</Text>
         <Text style={context.styles.miniappFallbackText}>
           layer {safeLayer} • slot {safeSlot}
         </Text>
@@ -1995,14 +2016,14 @@ function PathwayEditorPanel({
         </View>
       </View>
       <View style={[context.styles.miniappPathwayEditorSection, pathwayViewport.isTablet ? context.styles.miniappPathwayEditorSectionTablet : null]}>
-        <Text style={context.styles.miniappPathwayEditorLabel}>Edge: {selectedEdgeTitle}</Text>
-        <Text style={context.styles.miniappPathwayEditorSmallLabel}>Source</Text>
+        <Text style={context.styles.miniappPathwayEditorLabel}>{t("renderer.edgePrefix", { label: selectedEdgeTitle })}</Text>
+        <Text style={context.styles.miniappPathwayEditorSmallLabel}>{t("renderer.source")}</Text>
         {renderSourceTargetChips(
           "fromId",
           edgeSource,
           selectedNodeId && selectedEdge ? selectedNodeId : null,
         )}
-        <Text style={context.styles.miniappPathwayEditorSmallLabel}>Target</Text>
+        <Text style={context.styles.miniappPathwayEditorSmallLabel}>{t("renderer.target")}</Text>
         {renderSourceTargetChips(
           "toId",
           edgeTarget,
@@ -2011,12 +2032,12 @@ function PathwayEditorPanel({
         <TextInput
           editable={Boolean(selectedEdge)}
           onChangeText={context.pathwayEditor.setEdgeLabel}
-          placeholder="Edge label"
+          placeholder={t("miniapp.edgeLabel")}
           selectTextOnFocus
           style={context.styles.miniappPathwayEditorInput}
           value={selectedEdge ? toStringValue(selectedEdge.label) : ""}
         />
-        <Text style={context.styles.miniappPathwayEditorSmallLabel}>Edge kind</Text>
+        <Text style={context.styles.miniappPathwayEditorSmallLabel}>{t("renderer.edgeKind")}</Text>
         <View style={context.styles.miniappPathwayChipRow}>
           {PATHWAY_EDGE_KIND_OPTIONS.map((kind) => (
             <Pressable
@@ -2032,20 +2053,20 @@ function PathwayEditorPanel({
       </View>
       <View style={[context.styles.miniappPathwayEditorSection, pathwayViewport.isTablet ? context.styles.miniappPathwayEditorSectionTablet : null]}>
         <Pressable accessibilityRole="button" onPress={() => context.pathwayEditor.addNode()} style={context.styles.miniappPrimaryAction}>
-          <Text style={context.styles.miniappPrimaryActionText}>Add node</Text>
+          <Text style={context.styles.miniappPrimaryActionText}>{t("renderer.addNode")}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => context.pathwayEditor.addEdge()} style={context.styles.miniappPrimaryAction}>
-          <Text style={context.styles.miniappPrimaryActionText}>Add edge</Text>
+          <Text style={context.styles.miniappPrimaryActionText}>{t("renderer.addEdge")}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={() => context.pathwayEditor.deleteSelected()}
           style={context.styles.miniappPathwayDangerAction}
         >
-          <Text style={context.styles.miniappFallbackText}>Delete selected</Text>
+          <Text style={context.styles.miniappFallbackText}>{t("renderer.deleteSelected")}</Text>
         </Pressable>
       </View>
-      <Text style={context.styles.miniappFallbackText}>Tap a node or edge to select it. Node changes then affect local actions.</Text>
+      <Text style={context.styles.miniappFallbackText}>{t("renderer.pathwayHint")}</Text>
     </View>
   );
 }
@@ -2084,7 +2105,7 @@ function EvidencePanelBlockView({ block, context }: { block: MiniappBlock; conte
   const items = asArray(block.items, MAX_CHILD_BLOCKS);
   return (
     <View style={context.styles.miniappFallbackBlock}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Evidence panel")}</Text>
+      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, context.t("renderer.evidencePanel"))}</Text>
       <View style={context.styles.miniappEvidencePanel}>
         {items.length ? (
           items.map((entry, index) => {
@@ -2097,13 +2118,17 @@ function EvidencePanelBlockView({ block, context }: { block: MiniappBlock; conte
                 <Text style={context.styles.miniappFallbackText}>
                   <Text style={context.styles.miniappBlockTitle}>{statement}</Text>
                 </Text>
-                {source ? <Text style={context.styles.miniappFallbackText}>Source: {source}</Text> : null}
+                {source ? (
+                  <Text style={context.styles.miniappFallbackText}>
+                    {context.t("renderer.source")}: {source}
+                  </Text>
+                ) : null}
                 {note ? <Text style={context.styles.miniappFallbackText}>{note}</Text> : null}
               </View>
             );
           })
         ) : (
-          <Text style={context.styles.miniappFallbackText}>No evidence notes available.</Text>
+          <Text style={context.styles.miniappFallbackText}>{context.t("renderer.noEvidenceNotes")}</Text>
         )}
       </View>
     </View>
@@ -2504,7 +2529,7 @@ function TableCellFallback({ children, context }: { children: string; context: R
 function EmptyBlockFallback({ context }: { context: RendererContext }) {
   return (
     <View style={context.styles.miniappFallbackBlock}>
-      <Text style={context.styles.miniappFallbackText}>No content in this block.</Text>
+      <Text style={context.styles.miniappFallbackText}>{context.t("renderer.noContentInBlock")}</Text>
     </View>
   );
 }
@@ -2633,7 +2658,7 @@ export const ASK_ASSISTANT_MINIAPP_BLOCK_REGISTRY: Record<string, MiniappBlockRe
     aiActionSupport: false,
     backendActionSupport: false,
     visual: { accent: "lime", density: "comfortable", liquidGlassSurface: "metric_glass", motion: "none", role: "calculated_result" },
-    render: ({ block, context }) => <FormulaResultBlockView block={block} context={context} label="Formula result" />,
+    render: ({ block, context }) => <FormulaResultBlockView block={block} context={context} label={context.t("renderer.formula")} />,
   }),
   formula_trace: defineMiniappBlock({
     schemaFields: ["steps", "title"],
@@ -2651,7 +2676,7 @@ export const ASK_ASSISTANT_MINIAPP_BLOCK_REGISTRY: Record<string, MiniappBlockRe
     aiActionSupport: false,
     backendActionSupport: false,
     visual: { accent: "lime", density: "comfortable", liquidGlassSurface: "metric_glass", motion: "none", role: "formula" },
-    render: ({ block, context }) => <FormulaResultBlockView block={block} context={context} label="Formula" />,
+    render: ({ block, context }) => <FormulaResultBlockView block={block} context={context} label={context.t("renderer.formula")} />,
   }),
   hero_summary: defineMiniappBlock({
     schemaFields: ["body", "eyebrow", "title"],
@@ -2726,7 +2751,7 @@ export const ASK_ASSISTANT_MINIAPP_BLOCK_REGISTRY: Record<string, MiniappBlockRe
     aiActionSupport: false,
     backendActionSupport: false,
     visual: { accent: "lime", density: "comfortable", liquidGlassSurface: "metric_glass", motion: "none", role: "result_card" },
-    render: ({ block, context }) => <FormulaResultBlockView block={block} context={context} label="Result" />,
+    render: ({ block, context }) => <FormulaResultBlockView block={block} context={context} label={context.t("renderer.formula")} />,
   }),
   result_table: defineMiniappBlock({
     schemaFields: ["columns", "rows", "title"],
@@ -2905,7 +2930,7 @@ function HtmlBlockView({ block, context }: { block: MiniappBlock; context: Rende
   const wrapped = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'none'; connect-src 'none'; font-src 'none'; frame-src 'none'"><style>html,body{margin:0;padding:12px;background:${backgroundColor};color:#e6f0ec;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.55}img{max-width:100%}a{color:#5eead4}pre{white-space:pre-wrap;background:rgba(255,255,255,.06);padding:10px;border-radius:10px;overflow-x:auto}table{border-collapse:collapse}td,th{border:1px solid rgba(255,255,255,.18);padding:6px 10px}</style></head><body>${html}</body></html>`;
 
   if (!html.trim()) {
-    return <Text style={context.styles.miniappFallbackText}>Empty html block</Text>;
+    return <Text style={context.styles.miniappFallbackText}>{context.t("renderer.emptyHtmlBlock")}</Text>;
   }
 
   return (
@@ -2932,7 +2957,9 @@ function HtmlBlockView({ block, context }: { block: MiniappBlock; context: Rende
 function UnsupportedBlock({ block, context }: { block: MiniappBlock; context: RendererContext }) {
   return (
     <View style={context.styles.miniappFallbackBlock}>
-      <Text style={context.styles.miniappFallbackText}>Unsupported miniapp block: {toStringValue(block.type, "unknown")}</Text>
+      <Text style={context.styles.miniappFallbackText}>
+        {context.t("renderer.unsupportedBlock", { type: toStringValue(block.type, "unknown") })}
+      </Text>
     </View>
   );
 }
@@ -3049,6 +3076,7 @@ export function AskAssistantMiniappRenderer({
   onAction,
   styles,
 }: Props) {
+  const { t, locale } = useLocale();
   const windowDimensions = useWindowDimensions();
   const [localMiniapp, setLocalMiniapp] = useState<Miniapp>(() => normalizeMiniappState(miniapp));
   const [inputs, setInputs] = useState<Record<string, number>>(() => seedInputs(miniapp));
@@ -3105,7 +3133,7 @@ export function AskAssistantMiniappRenderer({
   };
 
   const applyPathwayActionLocally = (action: MiniappAction) => {
-    const localResult = applyLocalAction(action, localMiniapp, pathwaySelectionState);
+    const localResult = applyLocalAction(action, localMiniapp, pathwaySelectionState, locale);
     if (!localResult) return false;
     const nextMiniapp = localResult.miniapp;
     setLocalMiniapp(nextMiniapp);
@@ -3163,7 +3191,7 @@ export function AskAssistantMiniappRenderer({
       ) {
         try {
           if (!miniappExportSurfaceRef.current || Platform.OS === "web") {
-            setStatusText("Export is currently available on native platforms only.");
+            setStatusText(t("miniapp.exportNativeOnly"));
             return;
           }
 
@@ -3177,11 +3205,11 @@ export function AskAssistantMiniappRenderer({
             if (onAction) onAction({ ...action, resultUri: imageUri }, localMiniapp);
             if (await Sharing.isAvailableAsync()) {
               await Sharing.shareAsync(imageUri, {
-                dialogTitle: `Export miniapp ${format.toUpperCase()}`,
+                dialogTitle: t("miniapp.exportDialogTitle", { format: format.toUpperCase() }),
                 mimeType: format === "png" ? "image/png" : "image/jpeg",
               });
             }
-            setStatusText(`Miniapp exported as ${format.toUpperCase()}.`);
+            setStatusText(t("miniapp.exportedAs", { format: format.toUpperCase() }));
             return;
           }
 
@@ -3192,7 +3220,7 @@ export function AskAssistantMiniappRenderer({
           if (onAction) onAction({ ...action, resultUri: targetUri }, localMiniapp);
           if (await Sharing.isAvailableAsync()) {
             await Sharing.shareAsync(targetUri, {
-              dialogTitle: `Export miniapp ${extension.toUpperCase()}`,
+              dialogTitle: t("miniapp.exportDialogTitle", { format: extension.toUpperCase() }),
                 mimeType: extension === "json"
                   ? "application/json"
                   : extension === "svg"
@@ -3200,32 +3228,32 @@ export function AskAssistantMiniappRenderer({
                     : "image/jpeg",
             });
           }
-          setStatusText(`Miniapp exported as ${extension.toUpperCase()}.`);
+          setStatusText(t("miniapp.exportedAs", { format: extension.toUpperCase() }));
         } catch {
-          setStatusText("Could not export miniapp.");
+          setStatusText(t("miniapp.couldNotExport"));
         }
         return;
       }
 
       if (LEGACY_LAB_ACTION_IDS.has(actionId)) {
-        setStatusText("Legacy lab actions are not part of the general miniapp format.");
+        setStatusText(t("miniapp.legacyLabActions"));
         return;
       }
       if (applyPathwayActionLocally(action)) {
         return;
       }
       if (isMiniappExportAction(action) || getActionId(action) === LOCAL_ACTIONS.GENERATE_REPORT) {
-        setStatusText("Preparing action...");
+        setStatusText(t("miniapp.preparingAction"));
       }
       onAction?.(action, localMiniapp);
     };
     if (action.requiresConfirm) {
       Alert.alert(
-        action.label || "Run action",
-        "This action may use AI to generate a result from your current calculator values.",
+        action.label || t("miniapp.runAction"),
+        t("miniapp.confirmAction"),
         [
-          { style: "cancel", text: "Cancel" },
-          { onPress: () => { void execute(); }, text: "Continue" },
+          { style: "cancel", text: t("common.cancel") },
+          { onPress: () => { void execute(); }, text: t("common.continue") },
         ],
       );
       return;
@@ -3237,6 +3265,8 @@ export function AskAssistantMiniappRenderer({
     computed,
     index: 0,
     inputs,
+    locale,
+    t,
     pathwayViewport,
     runAction,
     setInput,
@@ -3295,13 +3325,13 @@ export function AskAssistantMiniappRenderer({
 
   return (
     <GlassSurface styles={styles} variant={glassVariant}>
-      <View accessibilityLabel={`Interactive miniapp: ${localMiniapp.title}`} ref={miniappExportSurfaceRef}>
+      <View accessibilityLabel={t("renderer.interactiveMiniappA11y", { title: localMiniapp.title })} ref={miniappExportSurfaceRef}>
         <View style={styles.miniappHeader}>
           <View style={styles.miniappIconBadge}>
             <Ionicons color={colors.primaryText} name="sparkles-outline" size={18} />
           </View>
           <View style={styles.flexOne}>
-            <Text style={styles.miniappEyebrow}>Interactive miniapp</Text>
+            <Text style={styles.miniappEyebrow}>{t("renderer.interactiveMiniapp")}</Text>
             <Text style={styles.miniappTitle}>{localMiniapp.title}</Text>
             <Text style={styles.miniappSubtitle}>{String(localMiniapp.kind || "").replace(/_/g, " ")}</Text>
           </View>
@@ -3345,7 +3375,7 @@ export function AskAssistantMiniappRenderer({
                 onPress={() => runAction(action)}
                 style={({ pressed }) => [styles.miniappPrimaryAction, pressed ? styles.miniappPrimaryActionPressed : null]}
               >
-                <Text style={styles.miniappPrimaryActionText}>{String(action.label || action.id || "Run")}</Text>
+                <Text style={styles.miniappPrimaryActionText}>{String(action.label || action.id || t("renderer.run"))}</Text>
                 {action.requiresAi ? <Ionicons color={colors.ink ?? colors.primaryText} name="sparkles-outline" size={14} /> : null}
               </Pressable>
             ))}

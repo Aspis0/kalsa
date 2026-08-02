@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, Modal, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLocale } from "../../i18n";
 import { useLabTheme } from "../../ui/labTheme";
 import { radius, spacing } from "../tokens";
 import { typography } from "../typography";
@@ -29,6 +30,7 @@ type Props = {
 // animating closed so the slide-out is visible (open prop drives anim).
 export function Drawer({ open, onClose, brand = "Kalsa", subtitle, items }: Props) {
   const { colors } = useLabTheme<any>();
+  const { t } = useLocale();
   const insets = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -77,7 +79,7 @@ export function Drawer({ open, onClose, brand = "Kalsa", subtitle, items }: Prop
             <View style={{ height: 1, backgroundColor: colors.line, marginHorizontal: spacing.md }} />
             <View style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.sm }}>
               <Text style={[typography.bodyXs, { color: colors.muted, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }]}>
-                Tools
+                {t("drawer.toolsSection")}
               </Text>
               {items.map(({ id, label, Icon, lastUsed, onPress }) => (
                 <Pressable

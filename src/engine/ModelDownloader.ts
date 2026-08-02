@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 
+import { getStrings, type Locale } from "../i18n";
 import type { ModelInfo, ModelFileSpec } from "./ModelRegistry";
 
 /**
@@ -35,6 +36,8 @@ export type DownloadOptions = {
   onProgress?: (progress: DownloadProgress) => void;
   onBundleProgress?: (progress: BundleProgress) => void;
   signal?: AbortSignal;
+  /** Settings locale for user-facing download errors (required). */
+  locale: Locale;
 };
 
 export function modelLocalPath(model: ModelInfo, file: string): string {
@@ -76,16 +79,46 @@ function resumeKeyFor(model: ModelInfo, file: string, spec?: ModelFileSpec): str
 const PROGRESS_THROTTLE_MS = 200;
 const STALL_TIMEOUT_MS = 30_000; // nessun progresso per 30s → download bloccato
 
-/** Normalizza gli errori di rete nativi in messaggi leggibili. */
-export function friendlyNetworkError(error: unknown): Error {
+export type FriendlyErrorFallback = "raw" | "engine" | "download";
+
+/**
+ * Normalizza errori di rete / storage / engine in messaggi localizzati.
+ * `fallback` sceglie cosa restituire se nessun pattern noto matcha.
+ */
+export function friendlyNetworkError(
+  error: unknown,
+  locale: Locale,
+  fallback: FriendlyErrorFallback = "raw",
+): Error {
+  const strings = getStrings(locale);
   const message = error instanceof Error ? error.message : String(error);
   if (/connection abort|socket|ECONNRESET|timed? ?out|timeout/i.test(message)) {
-    return new Error("Connection lost — check your network and retry. Il download riprenderà da dove era.");
+    return new Error(strings.errors.connectionLost);
   }
   if (/failed to connect|unreachable|no route|network is unreachable/i.test(message)) {
-    return new Error("Network unreachable — check your connection.");
+    return new Error(strings.errors.networkUnreachable);
   }
-  return error instanceof Error ? error : new Error(String(error));
+  if (/ENOENT|EACCES|ENOSPC|EPERM|no such file|permission denied|not enough space|disk full|filesystem/i.test(message)) {
+    return new Error(strings.errors.storageFailed);
+  }
+  // Already localized by our own code paths — keep as-is.
+  const known = new Set([
+    strings.errors.connectionLost,
+    strings.errors.networkUnreachable,
+    strings.errors.storageFailed,
+    strings.errors.engineInitFailed,
+    strings.errors.visionInitFailed,
+    strings.errors.visionNotSupported,
+    strings.errors.modelNotLoaded,
+    strings.download.failed,
+    strings.download.stalled,
+  ]);
+  if (known.has(message) || message.startsWith(strings.download.incompleteBytes.split("(")[0])) {
+    return error instanceof Error ? error : new Error(message);
+  }
+  if (fallback === "engine") return new Error(strings.errors.engineInitFailed);
+  if (fallback === "download") return new Error(strings.download.failed);
+  return error instanceof Error ? error : new Error(message);
 }
 
 async function downloadFile(
@@ -94,6 +127,8 @@ async function downloadFile(
   options: DownloadOptions,
   onProgress: (progress: DownloadProgress) => void,
 ): Promise<DownloadOutcome> {
+  const locale = options.locale;
+  const strings = getStrings(locale);
   if (options.signal?.aborted) return { status: "aborted" };
   await ensureModelsDir(model);
   if (options.signal?.aborted) return { status: "aborted" };
@@ -213,10 +248,10 @@ async function downloadFile(
         try {
           result = await retryOnce();
         } catch (retryError) {
-          throw friendlyNetworkError(retryError);
+          throw friendlyNetworkError(retryError, locale);
         }
       } else {
-        throw friendlyNetworkError(error);
+        throw friendlyNetworkError(error, locale);
       }
     }
     if (options.signal?.aborted) return { status: "aborted" };
@@ -228,19 +263,21 @@ async function downloadFile(
       try {
         result = await retryOnce();
       } catch (retryError) {
-        throw friendlyNetworkError(retryError);
+        throw friendlyNetworkError(retryError, locale);
       }
     }
     if (!result?.uri) {
-      throw stalled
-        ? new Error("Download stalled — check your connection. Riprova: riprenderà da dove era.")
-        : new Error("Download failed");
+      throw new Error(stalled ? strings.download.stalled : strings.download.failed);
     }
 
     // Dimensione ESATTA: un file diverso (parziale/corrotto) non passa mai.
     const info = await FileSystem.getInfoAsync(target);
     if (!info.exists || (info.size ?? 0) !== file.sizeBytes) {
-      throw new Error(`Download incomplete (${info.exists ? (info.size ?? 0) : 0} != ${file.sizeBytes} bytes)`);
+      throw new Error(
+        strings.download.incompleteBytes
+          .replace("{got}", String(info.exists ? (info.size ?? 0) : 0))
+          .replace("{expected}", String(file.sizeBytes)),
+      );
     }
 
     await AsyncStorage.removeItem(resumeKey).catch(() => undefined);
@@ -254,7 +291,7 @@ async function downloadFile(
 /** Scarica GGUF + mmproj (se presente), con progresso aggregato. */
 export async function downloadModelBundle(
   model: ModelInfo,
-  options: DownloadOptions = {},
+  options: DownloadOptions,
 ): Promise<{ model: DownloadOutcome; mmproj?: DownloadOutcome }> {
   const mmprojTotal = model.mmproj ? model.mmproj.sizeBytes : 0;
   const totalBytes = model.sizeBytes + mmprojTotal;

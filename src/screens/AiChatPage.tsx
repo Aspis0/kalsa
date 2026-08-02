@@ -40,6 +40,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as DocumentPicker from "expo-document-picker";
 import { PdfToImages } from "../components/PdfToImages";
+import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
 import { typography } from "../theme/typography";
@@ -136,39 +137,43 @@ type SuggestionItem = {
   Icon: React.ComponentType<{ size: number; color: string }>;
 };
 
-const SUGGESTIONS: SuggestionItem[] = [
-  {
-    text: "Explain a concept clearly",
-    sub: "Chat · local model",
-    colorKey: "compute",
-    Icon: Sparkles,
-  },
-  {
-    text: "Search the web: latest news on [topic]",
-    sub: "Websearch · coming soon (Phase 2)",
-    colorKey: "accent",
-    Icon: Globe,
-  },
-  {
-    text: "Build a comparison table",
-    sub: "Miniapp · interactive table",
-    colorKey: "accent",
-    Icon: BarChart2,
-  },
-  {
-    text: "Summarize this text",
-    sub: "Chat · long input",
-    colorKey: "compute",
-    Icon: BookOpen,
-  },
-];
+function buildSuggestions(t: TranslateFn): SuggestionItem[] {
+  return [
+    {
+      text: t("chat.suggestion1"),
+      sub: t("chat.suggestion1Sub"),
+      colorKey: "compute",
+      Icon: Sparkles,
+    },
+    {
+      text: t("chat.suggestion2"),
+      sub: t("chat.suggestion2Sub"),
+      colorKey: "accent",
+      Icon: Globe,
+    },
+    {
+      text: t("chat.suggestion3"),
+      sub: t("chat.suggestion3Sub"),
+      colorKey: "accent",
+      Icon: BarChart2,
+    },
+    {
+      text: t("chat.suggestion4"),
+      sub: t("chat.suggestion4Sub"),
+      colorKey: "compute",
+      Icon: BookOpen,
+    },
+  ];
+}
 
-const QUICK_TOOLS = [
-  { label: "Chat", Icon: Sparkles },
-  { label: "Websearch", Icon: Globe },
-  { label: "Miniapp", Icon: ClipboardList },
-  { label: "Tools", Icon: Grid2x2 },
-];
+function buildQuickTools(t: TranslateFn) {
+  return [
+    { label: t("chat.toolChat"), Icon: Sparkles },
+    { label: t("chat.toolWebsearch"), Icon: Globe },
+    { label: t("chat.toolMiniapp"), Icon: ClipboardList },
+    { label: t("chat.toolTools"), Icon: Grid2x2 },
+  ];
+}
 
 // ── Feature 2: miniapp icon map ─────────────────────────────────────────────
 function miniappIcon(kind: string): React.ComponentType<{ size: number; color: string }> {
@@ -209,22 +214,24 @@ function parseMessageSegments(text: string): MessageSegment[] {
 
 const MONO_FONT = Platform.OS === "ios" ? "Menlo" : "monospace";
 
-function greetingForHour(h: number): string {
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
+function greetingForHour(h: number, t: TranslateFn): string {
+  if (h < 12) return t("chat.greetingMorning");
+  if (h < 18) return t("chat.greetingAfternoon");
+  return t("chat.greetingEvening");
 }
 
-function formatDayLabel(ts: number): string {
+function formatDayLabel(ts: number, t: TranslateFn, locale: Locale): string {
   const d = new Date(ts);
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
   if (d.toDateString() === today.toDateString()) {
-    return `Today · ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    const time = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    return t("chat.today", { time });
   }
-  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  if (d.toDateString() === yesterday.toDateString()) return t("chat.yesterday");
+  const tag = locale === "it" ? "it-IT" : "en-US";
+  return d.toLocaleDateString(tag, { weekday: "long", month: "short", day: "numeric" });
 }
 
 function isSameDay(a: number, b: number): boolean {
@@ -244,8 +251,9 @@ function nextMsgId(prefix: string): string {
 // PDF attach rimosso (Fase 3): nessun endpoint remoto, tutto locale.
 
 /** Sanitizza lo storico persistito: ogni campo (anche annidato) è validato, niente crash su payload corrotti. */
-function sanitizeHistoryMessages(raw: unknown): Message[] {
+function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
   if (!Array.isArray(raw)) return [];
+  const strings = getStrings(locale);
   const result: Message[] = [];
   const MAX_TEXT = 100_000;
   const MAX_ITEMS = 100;
@@ -286,7 +294,7 @@ function sanitizeHistoryMessages(raw: unknown): Message[] {
             (typeof s.title === "string" && s.title.trim() ? s.title : "" ) ||
             (typeof s.url === "string" ? s.url : "") ||
             (typeof s.host === "string" ? s.host : "") ||
-            "Source",
+            strings.common.source,
           ...(typeof s.authors === "string" ? { authors: s.authors.slice(0, 300) } : {}),
           ...(typeof s.doi === "string" ? { doi: s.doi.slice(0, 300) } : {}),
           ...(typeof s.url === "string" ? { url: s.url.slice(0, 2000) } : {}),
@@ -315,7 +323,7 @@ function sanitizeHistoryMessages(raw: unknown): Message[] {
         .map((a) => ({
           id: typeof a.id === "string" ? a.id : `att-${Date.now()}`,
           kind: a.kind === "pdf" || a.kind === "image" ? a.kind : "image",
-          name: typeof a.name === "string" ? a.name.slice(0, 300) : "Attachment",
+          name: typeof a.name === "string" ? a.name.slice(0, 300) : strings.common.attachment,
           // Le URI sono cache temporanea: non persistite (non disponibili al reload).
           uri: "",
           ...(typeof a.pageCount === "number" && a.pageCount > 0
@@ -332,7 +340,7 @@ function sanitizeHistoryMessages(raw: unknown): Message[] {
         .slice(0, MAX_ITEMS)
         .map((i) => ({
           id: typeof i.id === "string" ? i.id : `img-${Date.now()}`,
-          label: typeof i.label === "string" ? i.label.slice(0, 300) : "Image",
+          label: typeof i.label === "string" ? i.label.slice(0, 300) : strings.common.image,
           url: (i.url as string).slice(0, 2000),
           ...(typeof i.artifactType === "string" ? { artifactType: i.artifactType } : {}),
         }));
@@ -346,7 +354,7 @@ function sanitizeHistoryMessages(raw: unknown): Message[] {
         .slice(0, MAX_ITEMS)
         .map((d) => ({
           id: typeof d.id === "string" ? d.id : `dl-${Date.now()}`,
-          label: typeof d.label === "string" ? d.label.slice(0, 300) : "Download",
+          label: typeof d.label === "string" ? d.label.slice(0, 300) : strings.common.download,
           url: (d.url as string).slice(0, 2000),
           ...(typeof d.artifactType === "string" ? { artifactType: d.artifactType } : {}),
         }));
@@ -382,12 +390,15 @@ export function AiChatPage({
   onCtaPress,
 }: Props) {
   const { colors } = useLabTheme<any>();
+  const { t, locale } = useLocale();
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
-  const [greeting] = useState<string>(() => greetingForHour(new Date().getHours()));
+  const greeting = useMemo(() => greetingForHour(new Date().getHours(), t), [t]);
+  const suggestions = useMemo(() => buildSuggestions(t), [t]);
+  const quickTools = useMemo(() => buildQuickTools(t), [t]);
 
   // ── Persistenza conversazione (Fase 1) ──────────────────────────────────
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -398,7 +409,8 @@ export function AiChatPage({
         if (!mounted || !raw) return;
         try {
           const parsed = JSON.parse(raw);
-          const valid = sanitizeHistoryMessages(parsed);
+          // locale is already resolved (App gates on localeReady).
+          const valid = sanitizeHistoryMessages(parsed, locale);
           if (valid.length) setMessages(valid);
         } catch {
           // storico corrotto: ignora e riparti pulito
@@ -411,6 +423,8 @@ export function AiChatPage({
     return () => {
       mounted = false;
     };
+    // Load once on mount; locale is stable after LocaleProvider ready gate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -589,7 +603,7 @@ export function AiChatPage({
             role: "assistant",
             text: "",
             streaming: true,
-            statusLabel: "Thinking…",
+            statusLabel: t("chat.thinking"),
             statusHistory: [],
             createdAt: now,
           },
@@ -634,7 +648,9 @@ export function AiChatPage({
                     contrastId: action.contrast_id || null,
                     id: `output-${action.output_id}-${action.artifact_type || "artifact"}`,
                     kind: "output" as const,
-                    label: action.label ? `Open ${action.label}` : "Open output picker",
+                    label: action.label
+                      ? t("chat.openAction", { label: action.label })
+                      : t("chat.openOutputPicker"),
                     outputId: action.output_id,
                     target: "outputs",
                   }));
@@ -661,7 +677,7 @@ export function AiChatPage({
           updateMessage(assistantId, {
             streaming: false,
             statusLabel: undefined,
-            text: "Backend not wired.",
+            text: t("chat.backendNotWired"),
           });
         }
       } catch (err: any) {
@@ -675,8 +691,8 @@ export function AiChatPage({
           // BLOCKER-5: surface error as chat text instead of leaving zombie spinner
           const msg =
             err?.message?.includes("quota") || err?.message?.includes("limit")
-              ? "You've reached your query limit for today."
-              : "Couldn't reach the AI service. Please try again.";
+              ? t("chat.queryLimit")
+              : t("chat.serviceUnreachable");
           updateMessage(assistantId, { streaming: false, statusLabel: undefined, text: msg });
         }
       } finally {
@@ -690,7 +706,7 @@ export function AiChatPage({
         if (mountedRef.current) setSending(false);
       }
     },
-    [historyLoaded, messages, onSendStream, updateMessage],
+    [historyLoaded, messages, onSendStream, t, updateMessage],
   );
 
   const handleStop = useCallback(() => {
@@ -702,13 +718,13 @@ export function AiChatPage({
     const markdown = messages
       .map(
         (message) =>
-          `${message.role === "user" ? "**You**" : "**AI**"}:\n${message.text}`,
+          `${message.role === "user" ? t("chat.exportYou") : t("chat.exportAi")}:\n${message.text}`,
       )
       .join("\n\n---\n\n");
-    void Share.share({ message: markdown, title: "Kalsa — conversation export" }).catch(
+    void Share.share({ message: markdown, title: t("chat.exportTitle") }).catch(
       () => undefined,
     );
-  }, [messages]);
+  }, [messages, t]);
 
   const clearChat = useCallback(() => {
     abortRef.current?.abort();
@@ -757,7 +773,7 @@ export function AiChatPage({
           {/* Left: hamburger → drawer (settings) */}
           <Pressable
             onPress={onMenuPress}
-            accessibilityLabel="Menu"
+            accessibilityLabel={t("chat.a11yMenu")}
             style={({ pressed }) => ({
               width: 36,
               height: 36,
@@ -798,7 +814,7 @@ export function AiChatPage({
           <Pressable
             onPress={exportChat}
             hitSlop={8}
-            accessibilityLabel="Export chat"
+            accessibilityLabel={t("chat.a11yExport")}
             style={({ pressed }) => ({
               width: 36,
               height: 36,
@@ -814,7 +830,7 @@ export function AiChatPage({
           <Pressable
             onPress={clearChat}
             hitSlop={8}
-            accessibilityLabel="New chat"
+            accessibilityLabel={t("chat.a11yNewChat")}
             style={({ pressed }) => ({
               width: 36,
               height: 36,
@@ -844,13 +860,19 @@ export function AiChatPage({
         >
           <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: colors.compute }} />
           <Text style={[typography.bodyXs, { flex: 1, color: colors.ink }]} numberOfLines={1}>
-            Selected run: {selectedRun.accession || selectedRun.jobId}
-            {selectedRun.organism ? ` · ${selectedRun.organism}` : ""}
-            {selectedRun.status ? ` · ${selectedRun.status}` : ""}
+            {t("chat.selectedRun", {
+              label: [
+                selectedRun.accession || selectedRun.jobId,
+                selectedRun.organism,
+                selectedRun.status,
+              ]
+                .filter(Boolean)
+                .join(" · "),
+            })}
           </Text>
           {onClearSelectedRun ? (
-            <Pressable onPress={onClearSelectedRun} hitSlop={8} accessibilityLabel="Clear selected run">
-              <Text style={[typography.bodyXs, { color: colors.muted }]}>Clear</Text>
+            <Pressable onPress={onClearSelectedRun} hitSlop={8} accessibilityLabel={t("chat.a11yClearRun")}>
+              <Text style={[typography.bodyXs, { color: colors.muted }]}>{t("common.clear")}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -878,11 +900,11 @@ export function AiChatPage({
               {"."}
             </Text>
             <Text style={[typography.bodyMd, { color: colors.muted, marginBottom: spacing.xl }]}>
-              What do you want to investigate today?
+              {t("chat.welcomePrompt")}
             </Text>
 
             {/* Suggestion cards */}
-            {SUGGESTIONS.map((s) => {
+            {suggestions.map((s) => {
               const iconColor =
                 s.colorKey === "compute" ? colors.compute : colors.accent;
               const iconBg =
@@ -950,7 +972,7 @@ export function AiChatPage({
               >
                 <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
                 <Text style={[typography.bodyXs, { color: colors.muted }]}>
-                  {formatDayLabel(m.createdAt)}
+                  {formatDayLabel(m.createdAt, t, locale)}
                 </Text>
                 <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
               </View>
@@ -1088,7 +1110,7 @@ export function AiChatPage({
                     onLongPress={() => {
                       if (m.text) Share.share({ message: m.text });
                     }}
-                    accessibilityLabel="Long press to copy or share"
+                    accessibilityLabel={t("chat.a11yLongPress")}
                   >
                     {/* Feature 3: render parsed segments */}
                     {segments.map((seg, segIdx) => {
@@ -1123,7 +1145,7 @@ export function AiChatPage({
                                 hitSlop={8}
                               >
                                 <Text style={[typography.bodyXs, { color: colors.compute }]}>
-                                  Copy
+                                  {t("chat.copy")}
                                 </Text>
                               </Pressable>
                             </View>
@@ -1326,11 +1348,11 @@ export function AiChatPage({
             gap: spacing.xs,
           }}
         >
-          {QUICK_TOOLS.map((qt) => (
+          {quickTools.map((qt) => (
             <Pressable
               key={qt.label}
               disabled
-              accessibilityLabel={`${qt.label} context (coming soon)`}
+              accessibilityLabel={t("chat.a11yToolComingSoon", { label: qt.label })}
               style={{
                 flex: 1,
                 alignItems: "center",
@@ -1426,7 +1448,7 @@ export function AiChatPage({
           {/* Attach: foto/PDF per la vision */}
           <Pressable
             onPress={() => setAttachSheetOpen(true)}
-            accessibilityLabel="Add attachment"
+            accessibilityLabel={t("chat.a11yAttach")}
             style={({ pressed }) => ({
               width: 36,
               height: 36,
@@ -1445,7 +1467,7 @@ export function AiChatPage({
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder="Ask a question…"
+            placeholder={t("chat.placeholder")}
             placeholderTextColor={colors.muted}
             editable={!sending}
             onSubmitEditing={() => handleSend(draft, attachedItems)}
@@ -1468,7 +1490,7 @@ export function AiChatPage({
           {sending ? (
             <Pressable
               onPress={handleStop}
-              accessibilityLabel="Stop generation"
+              accessibilityLabel={t("chat.a11yStop")}
               style={({ pressed }) => ({
                 width: 36,
                 height: 36,
@@ -1487,7 +1509,7 @@ export function AiChatPage({
             <Pressable
               onPress={() => handleSend(draft, attachedItems)}
               disabled={!canSend}
-              accessibilityLabel="Send"
+              accessibilityLabel={t("chat.a11ySend")}
               style={({ pressed }) => ({
                 width: 36,
                 height: 36,
@@ -1525,19 +1547,19 @@ export function AiChatPage({
               >
                 <AttachSheetRow
                   icon={<ImageIcon size={18} color={colors.ink} />}
-                  label="Photo from library"
+                  label={t("chat.photoLibrary")}
                   onPress={() => void addImageAttachment("library")}
                   colors={colors}
                 />
                 <AttachSheetRow
                   icon={<Camera size={18} color={colors.ink} />}
-                  label="Take photo"
+                  label={t("chat.takePhoto")}
                   onPress={() => void addImageAttachment("camera")}
                   colors={colors}
                 />
                 <AttachSheetRow
                   icon={<FileText size={18} color={colors.ink} />}
-                  label="PDF document"
+                  label={t("chat.pdfDocument")}
                   onPress={() => void addPdfAttachment()}
                   colors={colors}
                 />
@@ -1589,6 +1611,7 @@ function MiniappCard({
   colors: any;
   onOpen?: () => void;
 }) {
+  const { t } = useLocale();
   const IconComp = miniappIcon(miniapp.kind);
   return (
     <View
@@ -1616,12 +1639,12 @@ function MiniappCard({
           }}
         >
           <Text style={[typography.bodyXs, { color: "#ffffff", fontWeight: "600" }]}>
-            Interactive
+            {t("chat.interactive")}
           </Text>
         </View>
       </View>
       <Text style={[typography.bodyXs, { color: colors.muted }]}>
-        Interactive miniapp · tap to open
+        {t("chat.miniappTap")}
       </Text>
       <Pressable
         onPress={onOpen}
@@ -1633,7 +1656,7 @@ function MiniappCard({
           gap: 4,
         }}
       >
-        <Text style={[typography.bodySm, { color: colors.compute }]}>Open tool</Text>
+        <Text style={[typography.bodySm, { color: colors.compute }]}>{t("chat.openTool")}</Text>
         <ChevronRight size={14} color={colors.compute} />
       </Pressable>
     </View>

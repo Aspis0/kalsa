@@ -19,6 +19,7 @@ import { MODEL_REGISTRY, getDefaultModel, formatBytes, type ModelInfo } from "..
 import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
 import { disposeEngine, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineMessage, type EngineTurnOptions } from "../engine/LlamaService";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapExaSourcesToChat } from "../agent/webSearchTool";
+import { useLocale } from "../i18n";
 
 type ModelState = "checking" | "missing" | "downloading" | "loading" | "ready" | "error";
 
@@ -40,6 +41,7 @@ const MODEL_STORAGE_KEY = "kalsa.model.id";
 export function AppShell() {
   const { colors, styles } = useLabTheme<any>();
   const insets = useSafeAreaInsets();
+  const { locale, t } = useLocale();
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -47,8 +49,11 @@ export function AppShell() {
   // (info attuali, notizie, o richiesta esplicita). Le query partono solo
   // quando il tool viene chiamato (privacy by design).
   const agentOptions = useMemo<EngineTurnOptions>(
-    () => ({ tools: [WEB_SEARCH_TOOL], executeTool: makeWebSearchExecutor() }),
-    [],
+    () => ({
+      tools: [WEB_SEARCH_TOOL],
+      executeTool: makeWebSearchExecutor(locale),
+    }),
+    [locale],
   );
 
   // ── Drawer + exclusive overlay (settings | miniapp | null) ────────────────
@@ -60,19 +65,22 @@ export function AppShell() {
     .hitSlop({ left: 0, width: 48 }) // solo dal bordo sinistro: niente conflitti con sources/scroll
     .runOnJS(true)
     .onStart(() => setDrawerOpen(true));
-  const drawerItems: DrawerItem[] = [
-    {
-      id: "settings",
-      label: "Settings",
-      Icon: LucideSettings,
-      onPress: () => {
-        Keyboard.dismiss();
-        setDrawerOpen(false);
-        // Opening settings replaces any open miniapp (exclusive overlay).
-        setActiveOverlay({ kind: "settings" });
+  const drawerItems: DrawerItem[] = useMemo(
+    () => [
+      {
+        id: "settings",
+        label: t("common.settings"),
+        Icon: LucideSettings,
+        onPress: () => {
+          Keyboard.dismiss();
+          setDrawerOpen(false);
+          // Opening settings replaces any open miniapp (exclusive overlay).
+          setActiveOverlay({ kind: "settings" });
+        },
       },
-    },
-  ];
+    ],
+    [t],
+  );
 
   // Android hardware back: miniapp Modal owns onRequestClose first; when only
   // Settings is open (View overlay, not Modal) consume back and close it.
@@ -96,7 +104,7 @@ export function AppShell() {
       // Android 8+: le notifiche devono appartenere a un channel. Il canale
       // "default" è quello usato dalle notifiche immediate (trigger null).
       await Notifications.setNotificationChannelAsync("default", {
-        name: "Kalsa",
+        name: t("notify.channelName"),
         importance: Notifications.AndroidImportance.DEFAULT,
       });
       await Notifications.scheduleNotificationAsync({
@@ -107,7 +115,7 @@ export function AppShell() {
       // notifiche non disponibili: non bloccante, ma non silenzioso in debug
       console.warn("[notifyDownload]", error);
     }
-  }, []);
+  }, [t]);
 
   // ── Stato modello ────────────────────────────────────────────────────────
   const [modelIndex, setModelIndex] = useState(() =>
@@ -193,6 +201,7 @@ export function AppShell() {
         cacheTypeV: model.kvCache.v,
         kvUnified: model.kvUnified,
         mtpNMax: model.mtp?.nMax,
+        locale,
       });
       if (generation !== engineGenerationRef.current) return false;
       setModelState("ready");
@@ -200,10 +209,10 @@ export function AppShell() {
     } catch (error) {
       if (generation !== engineGenerationRef.current) return false;
       setModelState("error");
-      setModelError(error instanceof Error ? error.message : String(error));
+      setModelError(friendlyNetworkError(error, locale, "engine").message);
       return false;
     }
-  }, []);
+  }, [locale]);
 
   const selectModel = useCallback(
     (nextIndex: number) => {
@@ -243,6 +252,7 @@ export function AppShell() {
           });
         },
         signal: controller.signal,
+        locale,
       });
       if (generation !== engineGenerationRef.current) return;
       if (outcome.model.status === "aborted" || outcome.mmproj?.status === "aborted") {
@@ -251,7 +261,7 @@ export function AppShell() {
       }
       if (!(await isModelBundleDownloaded(currentModel))) {
         setModelState("error");
-        setModelError("Download incomplete — tap to retry.");
+        setModelError(t("download.incomplete"));
         return;
       }
       setModelState("loading");
@@ -263,11 +273,15 @@ export function AppShell() {
         cacheTypeV: currentModel.kvCache.v,
         kvUnified: currentModel.kvUnified,
         mtpNMax: currentModel.mtp?.nMax,
+        locale,
       });
       if (generation !== engineGenerationRef.current) return;
       setModelState("ready");
-      showNotice(`${currentModel.name} pronto.`);
-      void notifyDownload("Kalsa", `${currentModel.name} scaricato e pronto.`);
+      showNotice(t("download.readyNotice", { name: currentModel.name }));
+      void notifyDownload(
+        t("notify.channelName"),
+        t("download.notifyReady", { name: currentModel.name }),
+      );
     } catch (error) {
       if (generation !== engineGenerationRef.current) return;
       if (controller.signal.aborted) {
@@ -275,27 +289,30 @@ export function AppShell() {
         return;
       }
       setModelState("error");
-      setModelError(error instanceof Error ? error.message : String(error));
-      const friendly = friendlyNetworkError(error).message;
-      void notifyDownload("Kalsa", `Download fallito: ${friendly}`);
+      const friendly = friendlyNetworkError(error, locale, "download").message;
+      setModelError(friendly);
+      void notifyDownload(
+        t("notify.channelName"),
+        t("download.notifyFailed", { error: friendly }),
+      );
     } finally {
       downloadInFlight.current = false;
       downloadAbortRef.current = null;
     }
-  }, [currentModel, modelState, showNotice]);
+  }, [currentModel, locale, modelState, notifyDownload, showNotice, t]);
 
   // Conferma esplicita prima del download (mai automatico).
   const confirmDownload = useCallback(() => {
     const total = currentModel.sizeBytes + (currentModel.mmproj?.sizeBytes ?? 0);
     Alert.alert(
-      "Download model",
-      `Scarica ${currentModel.name} (${formatBytes(total)})? Serve una connessione stabile e spazio su disco. Se si interrompe, riprende da dove era.`,
+      t("download.title"),
+      t("download.confirmBody", { name: currentModel.name, size: formatBytes(total) }),
       [
-        { text: "Cancel", style: "cancel" },
-        { text: "Download", onPress: () => void startDownload() },
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.download"), onPress: () => void startDownload() },
       ],
     );
-  }, [currentModel, startDownload]);
+  }, [currentModel, startDownload, t]);
 
   // ── Chat wiring ──────────────────────────────────────────────────────────
   const handleMiniappAction = useCallback(
@@ -304,9 +321,10 @@ export function AppShell() {
         setAskAssistantDraft: () => undefined,
         setFeedback: showNotice,
         setMobileError: (value) => showNotice(`⚠️ ${value}`),
+        locale,
       });
     },
-    [showNotice],
+    [locale, showNotice],
   );
 
   const handleSendStream = useCallback(
@@ -319,7 +337,7 @@ export function AppShell() {
         void (async () => {
           try {
             if (!(await ensureEngineForModel(currentModel))) {
-              fail(`Model not downloaded yet. Tap the model bar to download ${currentModel.name}.`);
+              fail(t("chat.modelNotDownloaded", { name: currentModel.name }));
               return;
             }
           } catch (error) {
@@ -368,7 +386,8 @@ export function AppShell() {
             {
               onDelta: callbacks.onDelta,
               onStatus: (status) => callbacks.onStatus?.(status),
-              onSources: (sources) => callbacks.onSources?.(mapExaSourcesToChat(sources as any)),
+              onSources: (sources) =>
+                callbacks.onSources?.(mapExaSourcesToChat(sources as any, locale)),
               onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
               onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
               onDone: () => resolve(),
@@ -378,11 +397,11 @@ export function AppShell() {
               },
             },
             signal,
-            agentOptions,
+            { ...agentOptions, locale },
           );
         })();
       }),
-    [agentOptions, currentModel, ensureEngineForModel],
+    [agentOptions, currentModel, ensureEngineForModel, locale, t],
   );
 
   // ── Render barra modello ─────────────────────────────────────────────────
@@ -392,20 +411,28 @@ export function AppShell() {
     const engineLoaded = isEngineReady() && getActiveModelId() === currentModel.id;
     switch (modelState) {
       case "checking":
-        return { label: "Checking…", color: colors.muted };
+        return { label: t("download.checking"), color: colors.muted };
       case "missing":
         return {
-          label: `Download ${formatBytes(currentModel.sizeBytes + (currentModel.mmproj?.sizeBytes ?? 0))}`,
+          label: t("download.missing", {
+            size: formatBytes(currentModel.sizeBytes + (currentModel.mmproj?.sizeBytes ?? 0)),
+          }),
           color: colors.accent,
         };
       case "downloading":
-        return { label: `Downloading… ${progressPercent}%`, color: colors.accent };
+        return {
+          label: t("download.downloading", { percent: progressPercent }),
+          color: colors.accent,
+        };
       case "loading":
-        return { label: "Loading model…", color: colors.muted };
+        return { label: t("download.loading"), color: colors.muted };
       case "error":
-        return { label: "Download failed — tap to retry", color: colors.bad };
+        return { label: t("download.failedRetry"), color: colors.bad };
       case "ready":
-        return { label: engineLoaded ? "Ready · local" : "Downloaded", color: engineLoaded ? colors.good : colors.muted };
+        return {
+          label: engineLoaded ? t("download.readyLocal") : t("download.downloaded"),
+          color: engineLoaded ? colors.good : colors.muted,
+        };
     }
   })();
 
@@ -435,7 +462,7 @@ export function AppShell() {
               ]}
               numberOfLines={1}
             >
-              AI Chat
+              Kalsa
             </Text>
             {/* Tap: se serve il download → conferma; altrimenti cicla il modello */}
             <Pressable
@@ -467,7 +494,9 @@ export function AppShell() {
             }}
           >
             <LucideGlobe size={11} color={colors.accent} />
-            <Text style={[typography.monoXs, { color: colors.accent, fontWeight: "700" }]}>Web</Text>
+            <Text style={[typography.monoXs, { color: colors.accent, fontWeight: "700" }]}>
+              {t("common.web")}
+            </Text>
           </View>
         </View>
 
@@ -545,7 +574,7 @@ export function AppShell() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         brand="Kalsa"
-        subtitle="Local · private"
+        subtitle={t("drawer.subtitle")}
         items={drawerItems}
       />
 
