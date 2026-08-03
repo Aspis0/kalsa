@@ -1,0 +1,21 @@
+# Modelli e file enormi — mai in git
+*.gguf
+*.safetensors
+models/
+.cache/
+hf_cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Build llama.cpp / fork (si clona a parte, non dentro questo repo)
+llama.cpp/
+BigMoeOnEdge/
+build/
+
+# Rumore
+*.tmp
+.DS_Store
+Thumbs.db
