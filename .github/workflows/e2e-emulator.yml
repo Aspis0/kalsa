@@ -3,9 +3,13 @@ name: E2E emulator (real inference)
 # Runs the app on a KVM-accelerated emulator and proves a real on-device
 # inference turn: sideloads a GGUF, sends a message, captures the reply.
 on:
-  # Runs on this feature branch without needing the workflow on main first.
   push:
-    branches: [v4.2-context-compaction]
+    branches: [main, v4.2-context-compaction]
+    # A ~35 min emulator run is pointless for docs-only commits.
+    paths-ignore:
+      - "**/*.md"
+      - LICENSE
+      - docs/**
   workflow_dispatch:
     inputs:
       model:
@@ -26,6 +30,10 @@ on:
         default: "off"
         type: choice
         options: [off, budget256, budget512]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   e2e:
