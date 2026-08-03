@@ -152,20 +152,38 @@ send_and_wait() {
   prev_count=$(sql "SELECT substr(value,-30000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" \
     | grep -o '"role":"assistant"' | wc -l | tr -d ' ')
 
-  tap_node "Ask a question…" || { log "composer not found for: $msg"; return 1; }
+  # Focus the composer. The placeholder only exists while the field is EMPTY:
+  # once text is in, "Ask a question…" is gone, so a retry must target the
+  # EditText itself (that mismatch failed 4 of 6 arms on the first bench run).
+  tap_node "Ask a question…" || tap_editable || { log "composer not found for: $msg"; return 1; }
   sleep 3
   adb shell input text "$msg"
-  sleep 3
-  if ! dump_ui | grep -qF "$msg"; then
-    log "text not visible yet — retrying once"
-    tap_node "Ask a question…" || true
-    sleep 3
+
+  # `input text` injects character by character and a long string can take
+  # several seconds to appear: poll instead of assuming a fixed delay.
+  local typed=false t=0
+  while [ "$t" -lt 30 ]; do
+    if dump_ui | grep -qF "$msg"; then typed=true; break; fi
+    sleep 3; t=$((t + 3))
+  done
+  if [ "$typed" = false ]; then
+    log "text not visible after ${t}s — clearing and retyping once"
+    tap_editable || true
+    sleep 2
+    # Wipe whatever partial text landed, so the retry cannot concatenate.
+    adb shell input keyevent KEYCODE_MOVE_END
+    for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
+    sleep 2
     adb shell input text "$msg"
-    sleep 3
+    t=0
+    while [ "$t" -lt 30 ]; do
+      if dump_ui | grep -qF "$msg"; then typed=true; break; fi
+      sleep 3; t=$((t + 3))
+    done
   fi
   adb shell input keyevent 111   # ESC: hide IME so bounds are stable
   sleep 2
-  if ! ui_texts | grep -qF "$msg"; then
+  if [ "$typed" = false ] && ! ui_texts | grep -qF "$msg"; then
     log "typing did not land in the composer: $msg"
     return 1
   fi
@@ -199,20 +217,20 @@ send_and_wait() {
 }
 
 if [ "$PHASE" = "fase0" ]; then
-  PLANT="IlGattoDiMarcoSiChiamaLeopoldo"
+  PLANT="GattoLeopoldo"
   # 5 filler turns, not 1: rebuilds land on user-turns 1,4,7 (K=3) and the
   # verbatim window keeps the last 6 messages. With a single filler the planted
   # fact is still IN the verbatim window at probe time, so all block formats
   # score identically and the A/B measures nothing. With 5 fillers the turn-4
   # rebuild has pushed the fact into the compacted "older" side before the probe.
   FILLERS=(
-    "ParlamiInBreveDiComeFunzionaInternet"
-    "DimmiTreCittaItalianeSulMare"
-    "SpiegamiCosaEUnAlgoritmoInDueFrasi"
-    "QualELaDifferenzaTraPiovereENevicare"
-    "ElencaDueSportOlimpiciInvernali"
+    "CosaEInternet"
+    "CittaSulMare"
+    "CosaEAlgoritmo"
+    "PioggiaONeve"
+    "SportInvernali"
   )
-  PROBE="ComeSiChiamaIlGattoDiMarco"
+  PROBE="NomeDelGatto"
 
   for run in $(seq 1 "$RUNS_PER_ARM"); do
     log "=== fase0 run $run/$RUNS_PER_ARM ==="
@@ -236,7 +254,7 @@ if [ "$PHASE" = "fase0" ]; then
   done
 
 elif [ "$PHASE" = "fase4" ]; then
-  PLANT="MioGattoLeopoldo Budget4500 Scadenza14Marzo ColoreBlu"
+  PLANT="GattoLeopoldo Budget4500 Scadenza14Marzo ColoreBlu"
   FILLERS=(
     "SpiegaComeFunzionaUnMotoreElettrico"
     "DammiUnaRicettaVelocePerLaCena"
@@ -245,8 +263,8 @@ elif [ "$PHASE" = "fase4" ]; then
     "ComeSiOrganizzaUnViaggioInTreno"
     "SpiegaLaDifferenzaTraClimaEMeteo"
   )
-  PROBE1="ComeSiChiamaIlMioGatto"
-  PROBE2="QualEIlBudgetCheTiHoDetto"
+  PROBE1="NomeDelGatto"
+  PROBE2="QualeBudget"
 
   new_conversation
 

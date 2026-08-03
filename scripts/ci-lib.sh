@@ -69,3 +69,16 @@ install_and_sideload() {
   adb shell am start -n "$PKG/.MainActivity" >/dev/null; sleep 25
   adb shell am force-stop "$PKG"; sleep 3
 }
+
+# Tap the composer by widget class — works whether or not it already has text
+# (the "Ask a question…" placeholder disappears as soon as the user types).
+tap_editable() {
+  local b
+  b=$(dump_ui | tr '>' '\n' | grep 'class="android.widget.EditText"' \
+      | grep -o 'bounds="\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]"' | head -1)
+  [ -z "$b" ] && { log "no EditText on screen"; return 1; }
+  local n; n=$(echo "$b" | grep -o '[0-9]\+' | tr '\n' ' ')
+  local x1 y1 x2 y2; read -r x1 y1 x2 y2 <<< "$n"
+  log "tap EditText at $(( (x1 + x2) / 2 )),$(( (y1 + y2) / 2 ))"
+  adb shell input tap $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 ))
+}
