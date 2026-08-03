@@ -547,17 +547,29 @@ Non c'è FAIL possibile in F3: è pura misura.
 
 ### F4 — Streaming: BigMoeOnEdge (telefono; ~3-5 giorni) — **cuore del piano**
 
-- **F4.1 Build del fork** in Termux (script da F0.5; se fallisce → cross-compile NDK su RunPod).
-- **F4.2 Riproduzione**: UD-IQ2_M, configurazione più vicina a quella dichiarata dal fork
-  (cache scalata alla nostra RAM: partire da `--cache-mb 2000`), `-n 64 -c 512`, 3 run.
+- **F4.1 Build** in Termux (script F0.5). **[Aggiornato post-F0.4]** BigMoeOnEdge NON è un
+  fork di llama.cpp: è un monorepo con engine proprio (~5.4 kLOC streaming) + llama.cpp come
+  submodule con UNA patch di 28 righe (hook expert-ready per `--overlap`). Il binario di
+  misura è **`bmoe-cli`**, non `llama-cli`. Build SOLO da sorgente ai pin auditati (monorepo
+  `b0c4e5b`, submodule `5236140e5`); mai APK/release. Se la build Termux fallisce → NDK su RunPod.
+- **F4.2 Riproduzione**: UD-IQ2_M, `bmoe-cli --moe-stream --cache-mb 2000 --dense-weights anon
+  --overlap --io-threads 4`, `-n 64 -c 512`, 3 run.
   Domanda unica: **quanti tok/s su S23/UFS3.1 con 8GB?** (il riferimento è 5.0 su 12GB/UFS4
   con un file di 22GB — noi abbiamo metà RAM e storage più lento ma un file di metà taglia).
-- **F4.3 Sweep parametri** — config base = quella di F4.2 (cache-mb 2000, `k`/drop-cold ai
-  default del fork, thread = migliore di F2.2, ctx 512). Sweep **greedy, una variabile alla
-  volta tenendo il best-so-far, in quest'ordine**: `--cache-mb` {1000, 1500, 2000, 2500} →
-  `k` (valori decisi dopo che F0.4 ne ha chiarito la semantica) → `--drop-cold-experts` on/off
-  → thread {4,5,6} → ctx {512, 2048}. Per ogni run: tok/s, ttft, majflt/token,
-  read_bytes/token, RAM peak, temp.
+- **F4.3 Sweep parametri** — config base = quella di F4.2 (thread = migliore di F2.2, ctx 512).
+  Vincolo dal fork: `--cache-mb` ha un **floor di 1500** (1-1499 rifiutati senza
+  `--force-cache`). Sweep **greedy, una variabile alla volta tenendo il best-so-far, in
+  quest'ordine**: `--cache-mb` {1500, 2000, auto} → `--overlap` on/off → `--io-threads`
+  {2, 4, 8} → `--prefetch` {0, 1, 2} → thread {4,5,6} → ctx {512, 2048}. Per ogni run: tok/s,
+  ttft, **`cache_hit_pct` (nativo nel fork: summary/CSV)**, MiB/token letti (nativo),
+  majflt/token, read_bytes/token, RAM peak, temp.
+- **F4.3b Knob LOSSY — separati, MAI nella baseline scientifica** [da F0.4]:
+  `--n-expert-used` {6, 4} (è il "k" dei bench del fork = override del top-k del routing:
+  deterministico ma cambia il modello) e `--drop-cold-experts` {0.75} (salta esperti routed
+  su cache-miss sotto soglia: lossy e NON riproducibile per design). Ciascuno si misura vs la
+  config best-so-far di F4.3 E si accompagna al check qualità di F4.5. I numeri "headline"
+  del progetto restano quelli SENZA knob lossy; le varianti lossy vanno in tabella dichiarate
+  come tali.
 - **F4.4 K-quant vs IQ**: ripetere la config migliore con UD-Q2_K_XL (12.29GB). Decidere la
   quant di progetto su (tok/s, qualità percepita su 3 prompt fissi).
 - **F4.5 Qualità**: con la config migliore, 5 prompt qualitativi (chat IT, reasoning semplice,
@@ -614,10 +626,12 @@ senza MTP, con majflt/token **invariato o ridotto**; qualunque altro esito = "no
 
 ### F7 — Ricerca: trace, simulatore, predictor (PC/RunPod + telefono per i trace; ~2-4 settimane)
 
-- **F7.1 Trace di attivazione**: patch C++ minimale (sul fork o mainline) che logga per ogni
-  token e layer gli 8 expert-id scelti + top-16 router prob (formato binario compatto, no
-  overhead percepibile). Raccogliere ≥50k token di trace su telefono con task realistici Kalsa
-  (chat IT/EN, coding, summarization, tool-calling) + prompt lunghi.
+- **F7.1 Trace di attivazione**: **NESSUNA patch necessaria** [esito F0.4] — il fork ha già
+  `--route-trace` (RouterHook → righe: step, layer, slot, expert, weight, residency, dropped;
+  sink CSV). Raccogliere ≥50k token di trace su telefono con task realistici Kalsa (chat
+  IT/EN, coding, summarization, tool-calling) + prompt lunghi. Se per il predictor
+  cross-layer (F7.3c) servono anche le top-16 router prob, aggiungere un sink alternativo
+  sulla stessa callback (patch piccola, fuori dal critical path).
 - **F7.2 Simulatore offline** (Python, su PC): replay dei trace contro modelli di cache
   parametrici: LRU, LFU, frequency+decay, costo-aware (score = P(riuso) × costo_reload / size),
   con budget cache variabile 500MB-3GB. Output: curve hit-rate vs budget per policy.
@@ -632,6 +646,9 @@ senza MTP, con majflt/token **invariato o ridotto**; qualunque altro esito = "no
   d) adapter low-rank stile SpecPrefetch (6.5M parametri, training su RunPod coi trace) —
      SOLO se (c) non basta.
   Metrica: hit-rate simulato vs LRU a parità di budget + costo compute del predictor.
+  **Nota [da F0.4]**: il fork ha già un prefetch predittivo sperimentale (`--predict-prefetch`,
+  gate-early, + `--route-ahead`): vanno misurati come baseline aggiuntive — il nostro
+  predictor deve battere anche loro, non solo LRU.
 - **F7.4 Analisi H6 (packing)**: dai trace, matrice di co-attivazione → clustering degli
   esperti → stima di quanto un riordino su disco convertirebbe i miss in letture sequenziali
   (usando le curve fio F2.1). Solo analisi, niente implementazione qui.
@@ -644,9 +661,12 @@ negativo ma utile, coerente con 2505.16056) e F8 si riduce a hardening del fork.
 
 ### F8 — Runtime predittivo + eval finale (PC + telefono; ~2-4 settimane)
 
-- Implementare nel runtime (fork o mainline+lazy-experts, decisione presa in F0.4/F4) la
-  policy vincente di F7: predictor + prefetch asincrono con budget I/O + eviction cost-aware
-  + contatori hit/miss esposti nei log.
+- Implementare nel runtime la policy vincente di F7 — **decisione presa al checkpoint F0.4:
+  si estende BigMoeOnEdge** (predictor come nuovo caller di `IExpertSource::prefetch/retain`
+  + aggancio nel RouterHook, senza toccare ggml; eviction cost-aware al posto della LRU in
+  `ExpertStreamSource`). Piano B (mainline + PR #26003) resta attivabile SOLO se F4 mostra
+  immaturità runtime (crash, silent-wrong, thrashing non governabile). Contatori hit/miss:
+  già esposti dal fork, estendere non sostituire.
 - Rieseguire l'intera griglia F4 (stessa metodologia, stessi prompt) con la config finale.
 - **Eval finale "paper-grade"**: tabella §9 completa, confronto A/B/C/D/E, 3 seed, tutte le
   metriche §8. Se i numeri reggono (§10 livello buono+), questo è il materiale per un
@@ -781,6 +801,19 @@ F4: ≥3 tok/s? ──sì──> F5 → F6 → F7 → F8 → (F9, write-up)
 F6: MTP paga? ──sì──> resta nella config finale ──no──> documentare e togliere
 F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + write-up del risultato negativo
 ```
+
+---
+
+## Registro checkpoint
+
+- **2026-08-03 — Checkpoint F0.4: PASS confermato (verdetto Claude).** Spot-check
+  indipendente sul clone locale (pin submodule `5236140e5` identico al report,
+  `LLAMA_CURL OFF FORCE`, LRU/route-trace/`bmoe-cli` presenti nel tree): il report
+  `reports/moe-f0.4.md` riflette il codice reale. Adottata la raccomandazione F8 = estendere
+  BigMoeOnEdge. Emendamenti applicati al piano: F4.1-F4.3b (bmoe-cli, floor cache 1500,
+  overlap/io-threads/prefetch nella griglia, knob lossy separati), F7.1 (route-trace già
+  presente, zero patch), F7.3 (baseline aggiuntive `--predict-prefetch`/`--route-ahead`),
+  F8 (base runtime decisa). **Autorizzato procedere con F0.5-F0.6 e, a telefono pronto, F1+.**
 
 ---
 
