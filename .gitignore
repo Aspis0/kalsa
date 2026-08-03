@@ -19,3 +19,6 @@ build/
 *.tmp
 .DS_Store
 Thumbs.db
+
+# Stato interno pi (goal state)
+.pi/
