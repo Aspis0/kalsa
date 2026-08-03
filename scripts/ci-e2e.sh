@@ -72,11 +72,22 @@ log "screen size: $(adb shell wm size | tr -d '\r')"
 
 
 log "type message"
-MSG="Ciao, chi sei?"
+# Keep the prompt alphanumeric: `adb shell input text` mangles punctuation and
+# does not reliably turn '+' into spaces, which made the assertion below fail
+# even though the tap was correct.
+MSG="CiaoChiSei"
 tap_node "Ask a question…" || die "composer not found"
 sleep 4
-adb shell input text "Ciao,+chi+sei?"
+adb shell input text "$MSG"
 sleep 3
+# One retry: the IME can swallow the first keystrokes right after focus.
+if ! dump_ui | grep -qF "$MSG"; then
+  log "text not visible yet — retrying once"
+  tap_node "Ask a question…" || true
+  sleep 3
+  adb shell input text "$MSG"
+  sleep 3
+fi
 adb shell input keyevent 111   # ESC: hide IME so bounds are stable
 sleep 3
 shot 02_typed
