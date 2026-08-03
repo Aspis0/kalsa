@@ -124,37 +124,37 @@ jobs:
             seed: 1
             compaction: off
             block_format: none
-            thinking: default
+            thinking: budget256
           - phase: fase4
             arm: baseline
             seed: 2
             compaction: off
             block_format: none
-            thinking: default
+            thinking: budget256
           - phase: fase4
             arm: baseline
             seed: 3
             compaction: off
             block_format: none
-            thinking: default
+            thinking: budget256
           - phase: fase4
             arm: v42
             seed: 1
             compaction: on
             block_format: none
-            thinking: default
+            thinking: budget256
           - phase: fase4
             arm: v42
             seed: 2
             compaction: on
             block_format: none
-            thinking: default
+            thinking: budget256
           - phase: fase4
             arm: v42
             seed: 3
             compaction: on
             block_format: none
-            thinking: default
+            thinking: budget256
     # `matrix` is not available in a job-level `if`, so the phase filter lives
     # inside the matrix itself: entries carry their phase and the emulator step
     # is skipped for the non-selected ones (see the step-level `if`).
