@@ -1,0 +1,253 @@
+name: Bench (PIANO V4.2)
+
+# Fase 0 (block-format × thinking A/B) and Fase 4 (compaction-survival,
+# baseline vs V4.2) benchmark campaigns. One inference turn costs ~8.6 min
+# on a 2-vCPU runner (see .github/workflows/e2e-emulator.yml, run 30836136405:
+# reply after 516s) — so the APK is built EXACTLY ONCE by `build` and shared
+# via artifact with every arm in `bench`, which runs the 6 arms of the chosen
+# phase as parallel matrix jobs (fail-fast: false, so one flaky arm never
+# takes the others down with it).
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: "Benchmark phase"
+        required: true
+        default: "fase0"
+        type: choice
+        options: [fase0, fase4]
+      model:
+        description: "Model to test"
+        required: true
+        default: "qwen3.5-2b"
+        type: choice
+        options: [qwen3.5-2b, qwen3.5-4b]
+      runs_per_arm:
+        description: "Fase 0 ONLY — in-job repeat count per arm (PIANO: '3 run/formato'). Fase 4 always uses the fixed 3-seed matrix below, independent of this input."
+        required: true
+        default: "2"
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Typecheck + logic harnesses
+        run: |
+          npm run typecheck
+          node scripts/retrieverHarness.mjs
+          node scripts/compactorHarness.mjs
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc /usr/local/share/boost || true
+          df -h /
+
+      - name: Prebuild (CNG)
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build APK (x86_64 only — emulator ABI, keeps CI fast)
+        run: |
+          cd android
+          ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --console=plain
+          ls -la app/build/outputs/apk/release/
+
+      - name: Upload APK (built ONCE, shared by every bench arm below)
+        uses: actions/upload-artifact@v4
+        with:
+          name: kalsa-bench-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 3
+          if-no-files-found: error
+
+  bench:
+    needs: build
+    runs-on: ubuntu-latest
+    # Generous safety ceiling: worst case is RUNS_PER_ARM(3)*3 turns (fase0) or
+    # 9 turns (fase4), each gated at 1500s by ci-bench.sh's send_and_wait — well
+    # under this, and WAY under GitHub's 6h hard job limit. Real turns finish in
+    # ~8.6 min (516s), so typical wall-clock is closer to 90-100 min per arm.
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── Fase 0 — 3 block formats × 2 thinking modes (6 arms, 1 job each) ──
+          - phase: fase0
+            arm: none_off
+            block_format: none
+            thinking: off
+          - phase: fase0
+            arm: none_budget256
+            block_format: none
+            thinking: budget256
+          - phase: fase0
+            arm: user-prefix_off
+            block_format: user-prefix
+            thinking: off
+          - phase: fase0
+            arm: user-prefix_budget256
+            block_format: user-prefix
+            thinking: budget256
+          - phase: fase0
+            arm: user-note_off
+            block_format: user-note
+            thinking: off
+          - phase: fase0
+            arm: user-note_budget256
+            block_format: user-note
+            thinking: budget256
+          # ── Fase 4 — 2 arms (baseline / v42) × 3 seeds (6 arms, 1 job each) ──
+          # blockFormat/thinking stay at production defaults ("none"/"default")
+          # in BOTH arms — Fase 4 isolates ONE variable, compaction on/off; the
+          # "none" format still auto-upgrades to user-prefix once compaction
+          # produces real digest/summary content (see applyOperativeBlockFormat
+          # in src/engine/LlamaService.ts), exactly matching what a real user
+          # gets with default settings.
+          - phase: fase4
+            arm: baseline
+            seed: 1
+            compaction: off
+            block_format: none
+            thinking: default
+          - phase: fase4
+            arm: baseline
+            seed: 2
+            compaction: off
+            block_format: none
+            thinking: default
+          - phase: fase4
+            arm: baseline
+            seed: 3
+            compaction: off
+            block_format: none
+            thinking: default
+          - phase: fase4
+            arm: v42
+            seed: 1
+            compaction: on
+            block_format: none
+            thinking: default
+          - phase: fase4
+            arm: v42
+            seed: 2
+            compaction: on
+            block_format: none
+            thinking: default
+          - phase: fase4
+            arm: v42
+            seed: 3
+            compaction: on
+            block_format: none
+            thinking: default
+    # Only the 6 arms of the SELECTED phase actually run; the other 6 are
+    # skipped near-instantly (no KVM/emulator cost). A dynamic matrix (via a
+    # separate "generate matrix" job) would avoid the 6 skip-entries in the
+    # Actions UI but adds a moving part for no real benefit at 12 fixed arms.
+    if: matrix.phase == inputs.phase
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - name: Download shared APK
+        uses: actions/download-artifact@v4
+        with:
+          name: kalsa-bench-apk
+          path: android/app/build/outputs/apk/release/
+
+      - name: Download GGUF model
+        run: |
+          set -e
+          if [ "${{ inputs.model || 'qwen3.5-2b' }}" = "qwen3.5-4b" ]; then
+            URL="https://huggingface.co/unsloth/Qwen3.5-4B-MTP-GGUF/resolve/86835bf9949e4d14d6860f7910b1340ad4f271a9/Qwen3.5-4B-Q4_K_M.gguf?download=true"
+            echo "MODEL_FILE=Qwen3.5-4B-Q4_K_M.gguf" >> $GITHUB_ENV
+            echo "MODEL_DIR=qwen3.5-4b" >> $GITHUB_ENV
+          else
+            URL="https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf?download=true"
+            echo "MODEL_FILE=Qwen3.5-2B-Q4_K_M.gguf" >> $GITHUB_ENV
+            echo "MODEL_DIR=qwen3.5-2b" >> $GITHUB_ENV
+          fi
+          curl -sL -o model.gguf "$URL"
+          ls -la model.gguf
+
+      - name: Run bench arm on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          # Without a profile the AVD comes up at 320x640 and every tap lands
+          # off-screen; a real phone profile also matches the app's layout.
+          profile: pixel_6
+          # Public repo => 4-vCPU runners; a turn costs ~185s at 4 cores vs 516s at 2.
+          cores: 4
+          ram-size: 8192M
+          disk-size: 8192M
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash scripts/ci-bench.sh
+        env:
+          PHASE: ${{ matrix.phase }}
+          ARM: ${{ matrix.arm }}
+          SEED: ${{ matrix.seed }}
+          BLOCK_FORMAT: ${{ matrix.block_format }}
+          THINKING: ${{ matrix.thinking }}
+          COMPACTION: ${{ matrix.compaction }}
+          RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
+          MODEL_DIR: ${{ env.MODEL_DIR }}
+          MODEL_FILE: ${{ env.MODEL_FILE }}
+
+      - name: Upload arm result + evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-result-${{ matrix.phase }}-${{ matrix.arm }}-seed${{ matrix.seed || '0' }}
+          path: bench-out/**
+          if-no-files-found: warn
+
+  aggregate:
+    needs: bench
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download every arm's result.json
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bench-result-*
+          path: all-results
+          if-no-files-found: warn
+
+      - name: Aggregate + permutation test
+        run: node scripts/benchAggregate.mjs all-results | tee "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload aggregate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-aggregate-${{ inputs.phase }}
+          path: bench-out/AGGREGATE.md
+          if-no-files-found: warn

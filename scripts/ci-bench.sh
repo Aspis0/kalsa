@@ -200,7 +200,18 @@ send_and_wait() {
 
 if [ "$PHASE" = "fase0" ]; then
   PLANT="IlGattoDiMarcoSiChiamaLeopoldo"
-  FILLER="ParlamiInBreveDiComeFunzionaInternet"
+  # 5 filler turns, not 1: rebuilds land on user-turns 1,4,7 (K=3) and the
+  # verbatim window keeps the last 6 messages. With a single filler the planted
+  # fact is still IN the verbatim window at probe time, so all block formats
+  # score identically and the A/B measures nothing. With 5 fillers the turn-4
+  # rebuild has pushed the fact into the compacted "older" side before the probe.
+  FILLERS=(
+    "ParlamiInBreveDiComeFunzionaInternet"
+    "DimmiTreCittaItalianeSulMare"
+    "SpiegamiCosaEUnAlgoritmoInDueFrasi"
+    "QualELaDifferenzaTraPiovereENevicare"
+    "ElencaDueSportOlimpiciInvernali"
+  )
   PROBE="ComeSiChiamaIlGattoDiMarco"
 
   for run in $(seq 1 "$RUNS_PER_ARM"); do
@@ -210,11 +221,14 @@ if [ "$PHASE" = "fase0" ]; then
     send_and_wait "$PLANT" 1500 || die "run $run: timeout/failure on plant turn"
     add_turn "${run}.1" "$PLANT" "$SAW_ELAPSED" "$SAW_REPLY"
 
-    send_and_wait "$FILLER" 1500 || die "run $run: timeout/failure on filler turn"
-    add_turn "${run}.2" "$FILLER" "$SAW_ELAPSED" "$SAW_REPLY"
+    for i in "${!FILLERS[@]}"; do
+      f="${FILLERS[$i]}"
+      send_and_wait "$f" 1500 || die "run $run: timeout/failure on filler $((i+1))"
+      add_turn "${run}.$((i+2))" "$f" "$SAW_ELAPSED" "$SAW_REPLY"
+    done
 
     send_and_wait "$PROBE" 1500 || die "run $run: timeout/failure on probe turn"
-    add_turn "${run}.3" "$PROBE" "$SAW_ELAPSED" "$SAW_REPLY"
+    add_turn "${run}.7" "$PROBE" "$SAW_ELAPSED" "$SAW_REPLY"
 
     found=false
     printf '%s' "$SAW_REPLY" | grep -qi "leopoldo" && found=true
