@@ -8,50 +8,15 @@ MODEL_DIR="${MODEL_DIR:-qwen3.5-2b}"
 COMPACTION_IN="${COMPACTION:-on}"
 THINKING="${THINKING:-off}"
 PKG=com.kalsa.app
-DB=/data/data/$PKG/databases/RKStorage
 
-log() { echo "[e2e] $*"; }
-dump_ui() { adb shell uiautomator dump /data/local/tmp/ui.xml >/dev/null 2>&1; adb shell cat /data/local/tmp/ui.xml 2>/dev/null; }
-ui_texts() { dump_ui | grep -o 'text="[^"]\{1,200\}"' | sed 's/^text="//; s/"$//'; }
-shot() { adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null; }
-sql() { adb shell "sqlite3 $DB \"$1\"" 2>&1 | tr -d '\r'; }
-# Tap a node found by content-desc OR text, using its LIVE bounds. Never use
-# fixed coordinates: the CI AVD resolution differs from any dev device (a 320x640
-# default AVD once swallowed every tap), and the IME shifts the layout.
-tap_node() {
-  local needle="$1"
-  local b
-  b=$(dump_ui | tr '>' '\n' \
-      | grep -E "content-desc=\"$needle\"|text=\"$needle\"" \
-      | grep -o 'bounds="\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]"' | head -1)
-  [ -z "$b" ] && { log "node '$needle' NOT FOUND"; return 1; }
-  local n; n=$(echo "$b" | grep -o '[0-9]\+' | tr '\n' ' ')
-  local x1 y1 x2 y2; read -r x1 y1 x2 y2 <<< "$n"
-  local cx=$(( (x1 + x2) / 2 )) cy=$(( (y1 + y2) / 2 ))
-  log "tap '$needle' at ${cx},${cy}"
-  adb shell input tap "$cx" "$cy"
-}
-die() { log "FATAL: $*"; ui_texts > "$OUT/fatal_state.txt"; shot fatal; exit 1; }
+# shellcheck source=ci-lib.sh
+source "$(dirname "$0")/ci-lib.sh"
 
-adb wait-for-device
-adb shell settings put global hide_error_dialogs 1 || true
-adb root >/dev/null 2>&1 || true; sleep 5; adb wait-for-device
-
-log "install APK"
-adb install -r android/app/build/outputs/apk/release/app-release.apk 2>&1 | tail -2
-
-log "sideload model $MODEL_FILE"
-adb push model.gguf /data/local/tmp/model.gguf 2>&1 | tail -1
-adb shell "mkdir -p /data/data/$PKG/files/models/$MODEL_DIR"
-adb shell "cp /data/local/tmp/model.gguf /data/data/$PKG/files/models/$MODEL_DIR/$MODEL_FILE"
-adb shell "rm -f /data/local/tmp/model.gguf"
-UID_LINE=$(adb shell "stat -c %U /data/data/$PKG" | tr -d '\r')
-adb shell "chown -R $UID_LINE:$UID_LINE /data/data/$PKG/files/models"
-adb shell "ls -la /data/data/$PKG/files/models/$MODEL_DIR/" | tr -d '\r'
-
-log "first launch (creates AsyncStorage db)"
-adb shell am start -n $PKG/.MainActivity >/dev/null; sleep 25
-adb shell am force-stop $PKG; sleep 3
+install_and_sideload \
+  "android/app/build/outputs/apk/release/app-release.apk" \
+  "model.gguf" \
+  "$MODEL_DIR" \
+  "$MODEL_FILE"
 
 log "set prefs: model=$MODEL_DIR compaction=$COMPACTION_IN thinking=$THINKING"
 sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR');"

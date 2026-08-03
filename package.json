@@ -56,5 +56,6 @@
     "pdfjs-dist": "^3.11.174",
     "typescript": "~6.0.3"
   },
-  "private": true
+  "private": true,
+  "license": "Apache-2.0"
 }
