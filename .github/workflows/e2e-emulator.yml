@@ -94,6 +94,9 @@ jobs:
           api-level: 34
           target: google_apis
           arch: x86_64
+          # Without a profile the AVD comes up at 320x640 and every tap lands
+          # off-screen; a real phone profile also matches the app's layout.
+          profile: pixel_6
           ram-size: 4096M
           disk-size: 8192M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none

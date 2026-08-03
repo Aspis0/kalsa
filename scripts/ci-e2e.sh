@@ -15,17 +15,23 @@ dump_ui() { adb shell uiautomator dump /data/local/tmp/ui.xml >/dev/null 2>&1; a
 ui_texts() { dump_ui | grep -o 'text="[^"]\{1,200\}"' | sed 's/^text="//; s/"$//'; }
 shot() { adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null; }
 sql() { adb shell "sqlite3 $DB \"$1\"" 2>&1 | tr -d '\r'; }
-# Find a clickable node's tap point by content-desc (bounds are live, so this
-# survives keyboard-driven layout shifts — the trap that cost us on RunPod).
-tap_desc() {
-  local desc="$1"
+# Tap a node found by content-desc OR text, using its LIVE bounds. Never use
+# fixed coordinates: the CI AVD resolution differs from any dev device (a 320x640
+# default AVD once swallowed every tap), and the IME shifts the layout.
+tap_node() {
+  local needle="$1"
   local b
-  b=$(dump_ui | tr '>' '\n' | grep "content-desc=\"$desc\"" | grep -o 'bounds="\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]"' | head -1)
-  [ -z "$b" ] && { log "node '$desc' not found"; return 1; }
+  b=$(dump_ui | tr '>' '\n' \
+      | grep -E "content-desc=\"$needle\"|text=\"$needle\"" \
+      | grep -o 'bounds="\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]"' | head -1)
+  [ -z "$b" ] && { log "node '$needle' NOT FOUND"; return 1; }
   local n; n=$(echo "$b" | grep -o '[0-9]\+' | tr '\n' ' ')
   local x1 y1 x2 y2; read -r x1 y1 x2 y2 <<< "$n"
-  adb shell input tap $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 ))
+  local cx=$(( (x1 + x2) / 2 )) cy=$(( (y1 + y2) / 2 ))
+  log "tap '$needle' at ${cx},${cy}"
+  adb shell input tap "$cx" "$cy"
 }
+die() { log "FATAL: $*"; ui_texts > "$OUT/fatal_state.txt"; shot fatal; exit 1; }
 
 adb wait-for-device
 adb shell settings put global hide_error_dialogs 1 || true
@@ -60,21 +66,34 @@ adb shell am start -n $PKG/.MainActivity >/dev/null
 sleep 30
 shot 01_home
 ui_texts > "$OUT/01_home.txt"
-grep -qi "kalsa" "$OUT/01_home.txt" || log "WARNING: app UI not detected"
+
+
+log "screen size: $(adb shell wm size | tr -d '\r')"
+
 
 log "type message"
-tap_desc "Ask a question…" 2>/dev/null || adb shell input tap 600 2276
+MSG="Ciao, chi sei?"
+tap_node "Ask a question…" || die "composer not found"
 sleep 4
-adb shell input text "Ciao,+chi+sei?+Rispondi+in+una+frase."
+adb shell input text "Ciao,+chi+sei?"
 sleep 3
 adb shell input keyevent 111   # ESC: hide IME so bounds are stable
 sleep 3
 shot 02_typed
 ui_texts > "$OUT/02_typed.txt"
+# Hard gate: if the text is not in the composer there is nothing to send, and
+# waiting for a reply would burn 15 minutes for nothing (it did, once).
+grep -qF "$MSG" "$OUT/02_typed.txt" || die "typing did not land in the composer"
+log "text confirmed in composer"
 
 log "send"
-tap_desc "Send" || { log "FATAL: Send button not found"; ui_texts > "$OUT/send_missing.txt"; }
+tap_node "Send" || die "Send button not found"
 SENT=$(date +%s)
+sleep 20
+ui_texts > "$OUT/03_sent.txt"
+shot 03_sent
+grep -qF "$MSG" "$OUT/03_sent.txt" || die "message did not appear in the conversation after send"
+log "message is in the conversation — engine should be running"
 log "sent at $SENT — polling for the reply"
 
 REPLY=""
