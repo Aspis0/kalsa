@@ -97,7 +97,11 @@ jobs:
           # Without a profile the AVD comes up at 320x640 and every tap lands
           # off-screen; a real phone profile also matches the app's layout.
           profile: pixel_6
-          ram-size: 4096M
+          # Public repo => 4-vCPU / 16 GB runners. Give the AVD all 4 cores and
+          # more RAM: llama.cpp scales with threads, and one turn cost ~8.6 min
+          # on the old 2-vCPU runner.
+          cores: 4
+          ram-size: 8192M
           disk-size: 8192M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
