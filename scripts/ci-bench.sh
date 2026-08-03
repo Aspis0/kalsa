@@ -157,7 +157,9 @@ send_and_wait() {
   # EditText itself (that mismatch failed 4 of 6 arms on the first bench run).
   tap_node "Ask a question…" || tap_editable || { log "composer not found for: $msg"; return 1; }
   sleep 3
-  adb shell input text "$msg"
+  # Spaces must be sent as %s: `adb shell input text "a b"` reaches the device
+  # as two args and only the first word is typed (this failed all 6 Fase 4 arms).
+  adb shell input text "${msg// /%s}"
 
   # `input text` injects character by character and a long string can take
   # several seconds to appear: poll instead of assuming a fixed delay.
@@ -174,7 +176,7 @@ send_and_wait() {
     adb shell input keyevent KEYCODE_MOVE_END
     for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
     sleep 2
-    adb shell input text "$msg"
+    adb shell input text "${msg// /%s}"
     t=0
     while [ "$t" -lt 30 ]; do
       if dump_ui | grep -qF "$msg"; then typed=true; break; fi
