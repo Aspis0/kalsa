@@ -155,15 +155,14 @@ jobs:
             compaction: on
             block_format: none
             thinking: default
-    # Only the 6 arms of the SELECTED phase actually run; the other 6 are
-    # skipped near-instantly (no KVM/emulator cost). A dynamic matrix (via a
-    # separate "generate matrix" job) would avoid the 6 skip-entries in the
-    # Actions UI but adds a moving part for no real benefit at 12 fixed arms.
-    if: matrix.phase == inputs.phase
+    # `matrix` is not available in a job-level `if`, so the phase filter lives
+    # inside the matrix itself: entries carry their phase and the emulator step
+    # is skipped for the non-selected ones (see the step-level `if`).
     steps:
       - uses: actions/checkout@v4
 
       - name: Enable KVM
+        if: matrix.phase == inputs.phase
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
@@ -171,12 +170,14 @@ jobs:
           ls -la /dev/kvm
 
       - name: Download shared APK
+        if: matrix.phase == inputs.phase
         uses: actions/download-artifact@v4
         with:
           name: kalsa-bench-apk
           path: android/app/build/outputs/apk/release/
 
       - name: Download GGUF model
+        if: matrix.phase == inputs.phase
         run: |
           set -e
           if [ "${{ inputs.model || 'qwen3.5-2b' }}" = "qwen3.5-4b" ]; then
@@ -192,6 +193,7 @@ jobs:
           ls -la model.gguf
 
       - name: Run bench arm on emulator
+        if: matrix.phase == inputs.phase
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -219,7 +221,7 @@ jobs:
           MODEL_FILE: ${{ env.MODEL_FILE }}
 
       - name: Upload arm result + evidence
-        if: always()
+        if: always() && matrix.phase == inputs.phase
         uses: actions/upload-artifact@v4
         with:
           name: bench-result-${{ matrix.phase }}-${{ matrix.arm }}-seed${{ matrix.seed || '0' }}
