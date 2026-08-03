@@ -3,6 +3,9 @@ name: E2E emulator (real inference)
 # Runs the app on a KVM-accelerated emulator and proves a real on-device
 # inference turn: sideloads a GGUF, sends a message, captures the reply.
 on:
+  # Runs on this feature branch without needing the workflow on main first.
+  push:
+    branches: [v4.2-context-compaction]
   workflow_dispatch:
     inputs:
       model:
@@ -73,7 +76,7 @@ jobs:
       - name: Download GGUF model
         run: |
           set -e
-          if [ "${{ inputs.model }}" = "qwen3.5-4b" ]; then
+          if [ "${{ inputs.model || 'qwen3.5-2b' }}" = "qwen3.5-4b" ]; then
             URL="https://huggingface.co/unsloth/Qwen3.5-4B-MTP-GGUF/resolve/86835bf9949e4d14d6860f7910b1340ad4f271a9/Qwen3.5-4B-Q4_K_M.gguf?download=true"
             echo "MODEL_FILE=Qwen3.5-4B-Q4_K_M.gguf" >> $GITHUB_ENV
             echo "MODEL_DIR=qwen3.5-4b" >> $GITHUB_ENV
@@ -97,14 +100,14 @@ jobs:
           disable-animations: true
           script: bash scripts/ci-e2e.sh
         env:
-          COMPACTION: ${{ inputs.compaction }}
-          THINKING: ${{ inputs.thinking }}
+          COMPACTION: ${{ inputs.compaction || 'on' }}
+          THINKING: ${{ inputs.thinking || 'off' }}
 
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-evidence-${{ inputs.model }}-compaction-${{ inputs.compaction }}
+          name: e2e-evidence-${{ inputs.model || 'qwen3.5-2b' }}-compaction-${{ inputs.compaction || 'on' }}
           path: |
             e2e-out/**
           if-no-files-found: warn
