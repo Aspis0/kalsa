@@ -1,7 +1,11 @@
 /**
  * Runtime A/B bench knobs (AsyncStorage).
- * Defaults preserve production behaviour; change via adb without rebuild:
- *   adb shell run-as <pkg> … or AsyncStorage.setItem from a debug path.
+ * Defaults preserve production behaviour.
+ *
+ * Configure without root / rebuild via chat command (adb input text works):
+ *   /bench thinking <default|off|budget256|budget512>
+ *   /bench format <none|system-end|user-prefix|user-note>
+ *   /bench show
  *
  * Keys:
  * - kalsa.bench.thinking: "default" | "off" | "budget256" | "budget512"
@@ -52,4 +56,80 @@ export async function getBlockFormat(): Promise<BlockFormat> {
     // best-effort
   }
   return "none";
+}
+
+/** Persist thinking mode. Returns false if value is invalid. */
+export async function setThinkingMode(mode: string): Promise<boolean> {
+  if (!THINKING_MODES.has(mode)) return false;
+  try {
+    await AsyncStorage.setItem(BENCH_THINKING_KEY, mode);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Persist block format. Returns false if value is invalid. */
+export async function setBlockFormat(format: string): Promise<boolean> {
+  if (!BLOCK_FORMATS.has(format)) return false;
+  try {
+    await AsyncStorage.setItem(BENCH_FORMAT_KEY, format);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Current config as a short debug string. */
+export async function formatBenchStatus(): Promise<string> {
+  const thinking = await getThinkingMode();
+  const format = await getBlockFormat();
+  return `bench: thinking=${thinking}, format=${format}`;
+}
+
+const BENCH_USAGE =
+  "bench usage: /bench thinking <default|off|budget256|budget512> | /bench format <none|system-end|user-prefix|user-note> | /bench show";
+
+/**
+ * If `text` is a `/bench …` debug command, apply it and return a confirmation
+ * reply. Returns null when the text is not a bench command (normal chat path).
+ * Never throws — storage failures surface as a reply string.
+ */
+export async function tryHandleBenchCommand(text: string): Promise<string | null> {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("/bench ")) return null;
+
+  const parts = trimmed.slice("/bench ".length).trim().split(/\s+/).filter(Boolean);
+  const sub = (parts[0] ?? "").toLowerCase();
+  const arg = (parts[1] ?? "").toLowerCase();
+
+  if (sub === "show" || sub === "") {
+    return formatBenchStatus();
+  }
+
+  if (sub === "thinking") {
+    if (!arg) {
+      return `bench: missing thinking mode. ${BENCH_USAGE}`;
+    }
+    if (!THINKING_MODES.has(arg)) {
+      return `bench: invalid thinking mode "${arg}". ${BENCH_USAGE}`;
+    }
+    const ok = await setThinkingMode(arg);
+    if (!ok) return "bench: failed to write thinking mode";
+    return formatBenchStatus();
+  }
+
+  if (sub === "format") {
+    if (!arg) {
+      return `bench: missing format. ${BENCH_USAGE}`;
+    }
+    if (!BLOCK_FORMATS.has(arg)) {
+      return `bench: invalid format "${arg}". ${BENCH_USAGE}`;
+    }
+    const ok = await setBlockFormat(arg);
+    if (!ok) return "bench: failed to write format";
+    return formatBenchStatus();
+  }
+
+  return `bench: unknown subcommand "${sub}". ${BENCH_USAGE}`;
 }

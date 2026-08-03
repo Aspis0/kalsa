@@ -47,6 +47,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as DocumentPicker from "expo-document-picker";
 import { PdfToImages } from "../components/PdfToImages";
+import { tryHandleBenchCommand } from "../bench/benchConfig";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
 import { translateText } from "../engine/LlamaService";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
@@ -881,6 +882,46 @@ export function AiChatPage({
       ) {
         return;
       }
+
+      // Debug bench knobs via chat (adb input text; no root / no extra perms).
+      // Does not call the model. History may keep the exchange for harness logs.
+      if (trimmed.startsWith("/bench ")) {
+        voiceRunIdRef.current += 1;
+        sendingRef.current = true;
+        setSending(true);
+        setDraft("");
+        const userMsgId = nextMsgId("u");
+        const assistantId = nextMsgId("a");
+        const now = Date.now();
+        let reply = "bench: error";
+        try {
+          reply = (await tryHandleBenchCommand(trimmed)) ?? "bench: not a command";
+        } catch {
+          reply = "bench: failed";
+        }
+        if (mountedRef.current) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: userMsgId,
+              role: "user",
+              text: trimmed,
+              createdAt: now,
+            },
+            {
+              id: assistantId,
+              role: "assistant",
+              text: reply,
+              streaming: false,
+              createdAt: now + 1,
+            },
+          ]);
+        }
+        sendingRef.current = false;
+        if (mountedRef.current) setSending(false);
+        return;
+      }
+
       // Invalidate any in-flight transcription so a late result cannot rewrite draft
       // after this send clears it.
       voiceRunIdRef.current += 1;
