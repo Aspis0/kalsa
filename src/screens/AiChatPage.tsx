@@ -47,7 +47,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as DocumentPicker from "expo-document-picker";
 import { PdfToImages } from "../components/PdfToImages";
-import { tryHandleBenchCommand } from "../bench/benchConfig";
+import { isBenchCommand, tryHandleBenchCommand } from "../bench/benchConfig";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
 import { translateText } from "../engine/LlamaService";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
@@ -885,7 +885,8 @@ export function AiChatPage({
 
       // Debug bench knobs via chat (adb input text; no root / no extra perms).
       // Does not call the model. History may keep the exchange for harness logs.
-      if (trimmed.startsWith("/bench ")) {
+      // Accept /bench … and slash-free bench:… (Git Bash mangles leading / via adb).
+      if (isBenchCommand(trimmed)) {
         voiceRunIdRef.current += 1;
         sendingRef.current = true;
         setSending(true);

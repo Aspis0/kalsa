@@ -136,7 +136,7 @@ async function downloadFile(
   const target = modelLocalPath(model, file.file);
   const resumeKey = resumeKeyFor(model, file.file, file);
 
-  const saved = await AsyncStorage.getItem(resumeKey)
+  let saved = await AsyncStorage.getItem(resumeKey)
     .then((raw) => {
       if (!raw) return null;
       try {
@@ -148,6 +148,22 @@ async function downloadFile(
     })
     .catch(() => null);
 
+  // Resume corrotto: se totalBytesExpectedToWrite ≠ size del registry (>1%), scarta.
+  // Altrimenti un expected sbagliato (es. 9.1MB) fa arrivare la barra al 100% su un file troncato
+  // e al retry si riutilizza lo stesso resume → loop infinito.
+  if (saved) {
+    const expectedRaw = (saved as { totalBytesExpectedToWrite?: unknown }).totalBytesExpectedToWrite;
+    const expected =
+      typeof expectedRaw === "number" && Number.isFinite(expectedRaw) ? expectedRaw : 0;
+    if (expected > 0 && file.sizeBytes > 0) {
+      const delta = Math.abs(expected - file.sizeBytes) / file.sizeBytes;
+      if (delta > 0.01) {
+        await AsyncStorage.removeItem(resumeKey).catch(() => undefined);
+        saved = null;
+      }
+    }
+  }
+
   const buildTask = (resumeData?: string) =>
     FileSystem.createDownloadResumable(
       hfFileUrl(model, file.file, file),
@@ -156,13 +172,13 @@ async function downloadFile(
       (progress) => {
         lastProgressAt = Date.now();
         const now = Date.now();
+        // Always use registry size for progress: server Content-Length can be wrong
+        // (redirects/HTML error pages) and would falsely report 100% on a truncated file.
+        const bytesTotal = file.sizeBytes;
         const isFinalChunk =
-          progress.totalBytesExpectedToWrite > 0 &&
-          progress.totalBytesWritten >= progress.totalBytesExpectedToWrite;
+          bytesTotal > 0 && progress.totalBytesWritten >= bytesTotal;
         if (now - lastProgressEmit < PROGRESS_THROTTLE_MS && !isFinalChunk) return;
         lastProgressEmit = now;
-        const bytesTotal =
-          progress.totalBytesExpectedToWrite > 0 ? progress.totalBytesExpectedToWrite : file.sizeBytes;
         onProgress({
           bytesReceived: progress.totalBytesWritten,
           bytesTotal,
@@ -271,8 +287,12 @@ async function downloadFile(
     }
 
     // Dimensione ESATTA: un file diverso (parziale/corrotto) non passa mai.
+    // Pulisci resume + file troncato PRIMA del throw, altrimenti il retry riusa
+    // lo stesso resume corrotto e ricomincia il loop "100% → incomplete".
     const info = await FileSystem.getInfoAsync(target);
     if (!info.exists || (info.size ?? 0) !== file.sizeBytes) {
+      await AsyncStorage.removeItem(resumeKey).catch(() => undefined);
+      await FileSystem.deleteAsync(target, { idempotent: true }).catch(() => undefined);
       throw new Error(
         strings.download.incompleteBytes
           .replace("{got}", String(info.exists ? (info.size ?? 0) : 0))

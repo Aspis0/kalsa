@@ -6,6 +6,10 @@
  *   /bench thinking <default|off|budget256|budget512>
  *   /bench format <none|system-end|user-prefix|user-note>
  *   /bench show
+ * Prefer the slash-free form on Windows Git Bash (adb mangles leading `/`):
+ *   bench:thinking off
+ *   bench:format user-note
+ *   bench:show
  *
  * Keys:
  * - kalsa.bench.thinking: "default" | "off" | "budget256" | "budget512"
@@ -88,18 +92,38 @@ export async function formatBenchStatus(): Promise<string> {
 }
 
 const BENCH_USAGE =
-  "bench usage: /bench thinking <default|off|budget256|budget512> | /bench format <none|system-end|user-prefix|user-note> | /bench show";
+  "bench usage: /bench thinking <…> | bench:thinking <…> | /bench format <…> | bench:format <…> | /bench show | bench:show";
+
+/** True when text is a bench debug command (`/bench …` or slash-free `bench:…`). */
+export function isBenchCommand(text: string): boolean {
+  const trimmed = text.trim();
+  const lower = trimmed.toLowerCase();
+  return lower.startsWith("/bench ") || lower.startsWith("bench:");
+}
+
+/** Strip either accepted prefix; empty string if not a bench command. */
+function stripBenchPrefix(trimmed: string): string {
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith("/bench ")) {
+    return trimmed.slice("/bench ".length).trim();
+  }
+  if (lower.startsWith("bench:")) {
+    return trimmed.slice("bench:".length).trim();
+  }
+  return "";
+}
 
 /**
- * If `text` is a `/bench …` debug command, apply it and return a confirmation
- * reply. Returns null when the text is not a bench command (normal chat path).
- * Never throws — storage failures surface as a reply string.
+ * If `text` is a bench debug command (`/bench …` or `bench:…`), apply it and
+ * return a confirmation reply. Returns null when the text is not a bench
+ * command (normal chat path). Never throws — storage failures surface as a
+ * reply string.
  */
 export async function tryHandleBenchCommand(text: string): Promise<string | null> {
   const trimmed = text.trim();
-  if (!trimmed.startsWith("/bench ")) return null;
+  if (!isBenchCommand(trimmed)) return null;
 
-  const parts = trimmed.slice("/bench ".length).trim().split(/\s+/).filter(Boolean);
+  const parts = stripBenchPrefix(trimmed).split(/\s+/).filter(Boolean);
   const sub = (parts[0] ?? "").toLowerCase();
   const arg = (parts[1] ?? "").toLowerCase();
 
