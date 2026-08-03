@@ -82,3 +82,22 @@ tap_editable() {
   log "tap EditText at $(( (x1 + x2) / 2 )),$(( (y1 + y2) / 2 ))"
   adb shell input tap $(( (x1 + x2) / 2 )) $(( (y1 + y2) / 2 ))
 }
+
+# Type a possibly multi-word string reliably.
+# `adb shell input text "a b"` reaches the device as two arguments (only "a" is
+# typed) and the %s escape is not honoured consistently across images, so type
+# each word and press KEYCODE_SPACE (62) in between.
+type_text() {
+  local msg="$1" first=1 w
+  for w in $msg; do
+    [ "$first" -eq 1 ] || adb shell input keyevent 62
+    adb shell input text "$w"
+    first=0
+  done
+}
+
+# What is actually in the EditText right now (for diagnostics).
+composer_text() {
+  dump_ui | tr '>' '\n' | grep 'class="android.widget.EditText"' \
+    | grep -o 'text="[^"]*"' | head -1 | sed 's/^text="//; s/"$//'
+}

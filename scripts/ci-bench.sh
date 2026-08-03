@@ -159,7 +159,7 @@ send_and_wait() {
   sleep 3
   # Spaces must be sent as %s: `adb shell input text "a b"` reaches the device
   # as two args and only the first word is typed (this failed all 6 Fase 4 arms).
-  adb shell input text "${msg// /%s}"
+  type_text "$msg"
 
   # `input text` injects character by character and a long string can take
   # several seconds to appear: poll instead of assuming a fixed delay.
@@ -176,7 +176,7 @@ send_and_wait() {
     adb shell input keyevent KEYCODE_MOVE_END
     for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
     sleep 2
-    adb shell input text "${msg// /%s}"
+    type_text "$msg"
     t=0
     while [ "$t" -lt 30 ]; do
       if dump_ui | grep -qF "$msg"; then typed=true; break; fi
@@ -187,6 +187,7 @@ send_and_wait() {
   sleep 2
   if [ "$typed" = false ] && ! ui_texts | grep -qF "$msg"; then
     log "typing did not land in the composer: $msg"
+    log "composer actually contains: [$(composer_text)]"
     return 1
   fi
 
