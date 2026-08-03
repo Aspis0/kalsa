@@ -49,11 +49,12 @@ import * as DocumentPicker from "expo-document-picker";
 import { PdfToImages } from "../components/PdfToImages";
 import { isBenchCommand, tryHandleBenchCommand } from "../bench/benchConfig";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
+import { classifyChatContent, type ContentFilterReason } from "../domain/contentFilter";
 import { translateText } from "../engine/LlamaService";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
-import { typography } from "../theme/typography";
+import { typography, useTypography } from "../theme/typography";
 import {
   cancelCapture,
   CaptureBusyError,
@@ -70,6 +71,10 @@ import {
 import * as TtsService from "../voice/TtsService";
 
 const HISTORY_KEY = "kalsa.messages.v1";
+
+/** V4.2 §Fase 3.5: one-shot long-conversation nudge thresholds. */
+const LONG_CHAT_MESSAGE_THRESHOLD = 40;
+const LONG_CHAT_TOKEN_THRESHOLD = 6000; // chars/4 heuristic
 
 export type AiChatSelectedRun = {
   jobId: string;
@@ -276,6 +281,31 @@ function isSameDay(a: number, b: number): boolean {
   return new Date(a).toDateString() === new Date(b).toDateString();
 }
 
+// X2: localized copy for the pre-send content gate (src/domain/contentFilter.js).
+// classifyChatContent's own formatChatContentFilterMessage() is English-only —
+// route the user-visible text through i18n instead, keyed on the same reasons.
+function contentFilterMessage(reason: ContentFilterReason | null, t: TranslateFn): string {
+  switch (reason) {
+    case "self_harm":
+      return t("contentFilter.selfHarm");
+    case "child_exploitation":
+    case "sex_crimes":
+      return t("contentFilter.sexualAbuse");
+    case "unsafe_bio":
+    case "unsafe_chem":
+      return t("contentFilter.unsafeScience");
+    case "privacy":
+      return t("contentFilter.privacy");
+    case "prompt_injection":
+      return t("contentFilter.promptInjection");
+    case "non_violent_crime":
+    case "violent_crime":
+      return t("contentFilter.illegalActivity");
+    default:
+      return t("contentFilter.generic");
+  }
+}
+
 // Module-level counter — avoids Date.now() collisions when two IDs
 // are generated in the same millisecond within the same synchronous block.
 // Seed univoco per sessione: gli id non devono collidere con quelli della
@@ -435,9 +465,17 @@ export function AiChatPage({
   ttsEnabled = true,
 }: Props) {
   const { colors } = useLabTheme<any>();
+  // Shadows the module-level `typography` import for this component only
+  // (AttachSheetRow/TranslationBlock/MiniappCard below keep the static one —
+  // they always remount together with AiChatPage on a font-scale change, see
+  // AppShell's key={fontScaleId}). Reading it from context here makes the
+  // chat text reactive without depending on that remount.
+  const typography = useTypography();
   const { t, locale } = useLocale();
   const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
+  /** One-shot long-chat nudge for this conversation; reset on clearChat. */
+  const [longChatNudgeShown, setLongChatNudgeShown] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [voiceUi, setVoiceUi] = useState<VoiceUiState>("idle");
@@ -491,12 +529,22 @@ export function AiChatPage({
     const timer = setTimeout(() => {
       // Normalizza lo stato transitorio: niente streaming parziale persistito
       // (i messaggi in corso vengono saltati del tutto).
+      // X4: attachments[].uri/pages are local file:// cache paths — never valid
+      // after reload. Strip them here to mirror sanitizeHistoryMessages (read
+      // side) exactly, so nothing sensitive/dangling ever reaches AsyncStorage.
       const clean = messages
         .filter((message) => !message.streaming)
         .map((message) => ({
           ...message,
           streaming: undefined,
           statusHistory: undefined,
+          attachments: message.attachments?.map((a) => ({
+            id: a.id,
+            kind: a.kind,
+            name: a.name,
+            uri: "",
+            ...(typeof a.pageCount === "number" && a.pageCount > 0 ? { pageCount: a.pageCount } : {}),
+          })),
         }));
       AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(clean)).catch(() => undefined);
     }, 400);
@@ -531,6 +579,20 @@ export function AiChatPage({
   const translationInFlightRef = useRef(false);
   /** Abort controller for the active translateText job (clearChat / unmount). */
   const translateAbortRef = useRef<AbortController | null>(null);
+
+  // V4.2 §Fase 3.5: long-conversation nudge (one-shot per conversation).
+  const longChat = useMemo(() => {
+    if (messages.length > LONG_CHAT_MESSAGE_THRESHOLD) return true;
+    const estimatedTokens = messages.reduce(
+      (sum, m) => sum + Math.ceil((m.text?.length ?? 0) / 4),
+      0,
+    );
+    return estimatedTokens > LONG_CHAT_TOKEN_THRESHOLD;
+  }, [messages]);
+
+  useEffect(() => {
+    if (longChat && !longChatNudgeShown) setLongChatNudgeShown(true);
+  }, [longChat, longChatNudgeShown]);
 
   const showVoiceNote = useCallback((text: string) => {
     setVoiceNote(text);
@@ -712,23 +774,37 @@ export function AiChatPage({
       try {
         if (speakingId === id && (await TtsService.isSpeaking())) {
           await TtsService.stop();
+          // Audit follow-up: unmount can race this await same as the
+          // callbacks below — guard before touching state.
+          if (!mountedRef.current) return;
           setSpeakingId(null);
           return;
         }
         await TtsService.stop();
+        if (!mountedRef.current) return;
         setSpeakingId(id);
         TtsService.speak(cleaned, locale, {
-          onDone: () => setSpeakingId((cur) => (cur === id ? null : cur)),
-          onStopped: () => setSpeakingId((cur) => (cur === id ? null : cur)),
+          // M8: TTS callbacks fire asynchronously after the component may have
+          // unmounted (nav away mid-speech) — guard with mountedRef like the
+          // rest of the file does for async completions.
+          onDone: () => {
+            if (!mountedRef.current) return;
+            setSpeakingId((cur) => (cur === id ? null : cur));
+          },
+          onStopped: () => {
+            if (!mountedRef.current) return;
+            setSpeakingId((cur) => (cur === id ? null : cur));
+          },
           onError: () => {
+            if (!mountedRef.current) return;
             setSpeakingId((cur) => (cur === id ? null : cur));
             // Least invasive: short status line under the composer.
             showVoiceNote(t("voice.ttsError"));
           },
         });
       } catch {
-        setSpeakingId(null);
-        showVoiceNote(t("voice.ttsError"));
+        if (mountedRef.current) setSpeakingId(null);
+        if (mountedRef.current) showVoiceNote(t("voice.ttsError"));
       }
     },
     [locale, showVoiceNote, speakingId, t, ttsEnabled],
@@ -742,6 +818,10 @@ export function AiChatPage({
         source === "camera"
           ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.9 })
           : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.9 });
+      // Audit follow-up: nav-away while the native picker is open unmounts
+      // the screen — guard before touching state, consistent with the rest
+      // of the file's async completions.
+      if (!mountedRef.current) return;
       if (result.canceled || !result.assets?.length) return;
       const asset = result.assets[0];
       // HEIC/WebP non supportati da mtmd: conversione a JPEG + resize cap.
@@ -750,8 +830,15 @@ export function AiChatPage({
         [{ resize: { width: 1280 } }],
         { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG },
       );
+      if (!mountedRef.current) return;
       setAttachedItems((prev) => {
-        if (prev.length >= MAX_IMAGE_ATTACHMENTS) return prev;
+        if (prev.length >= MAX_IMAGE_ATTACHMENTS) {
+          // Audit follow-up: was a silent no-op — surface the same class of
+          // notice handlePdfDone already shows on cap (generic copy, this
+          // path isn't PDF-specific).
+          showVoiceNote(t("errors.attachmentLimitReachedGeneric", { max: MAX_IMAGE_ATTACHMENTS }));
+          return prev;
+        }
         return [
           ...prev,
           {
@@ -766,7 +853,7 @@ export function AiChatPage({
     } catch {
       // picker annullato/errore: ignora
     }
-  }, []);
+  }, [showVoiceNote, t]);
 
   const addPdfAttachment = useCallback(async () => {
     try {
@@ -775,6 +862,8 @@ export function AiChatPage({
         copyToCacheDirectory: true,
         multiple: false,
       });
+      // Audit follow-up: same nav-away-during-picker race as addImageAttachment.
+      if (!mountedRef.current) return;
       if (picked.canceled || !picked.assets?.length) return;
       const asset = picked.assets[0];
       setAttachSheetOpen(false);
@@ -790,12 +879,22 @@ export function AiChatPage({
   }, []);
 
   const handlePdfDone = useCallback(() => {
+    // Audit follow-up: the WebView bridge callback can fire after unmount
+    // (nav away mid-conversion) — guard like the rest of the file's async
+    // completions before touching state.
+    if (!mountedRef.current) return;
     setPdfToRender((prev) => {
       if (prev) {
         const pages = pdfPagesRef.current;
         if (pages.length) {
           setAttachedItems((current) => {
-            if (current.length >= MAX_IMAGE_ATTACHMENTS) return current;
+            if (current.length >= MAX_IMAGE_ATTACHMENTS) {
+              // U8: cap already reached — surface a notice instead of silently
+              // discarding the converted PDF (composer would otherwise look
+              // like the attach just did nothing).
+              showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+              return current;
+            }
             return [
               ...current,
               { id: nextMsgId("pdf"), kind: "pdf", name: prev.name, uri: prev.uri, pages, pageCount: pages.length },
@@ -806,9 +905,13 @@ export function AiChatPage({
       }
       return null;
     });
-  }, []);
+  }, [showVoiceNote, t]);
 
   const handlePdfError = useCallback(() => {
+    // Audit follow-up: same WebView bridge as handlePdfDone (30s page timer
+    // or async FS failure can fire fail() after nav-away) — guard before
+    // touching state.
+    if (!mountedRef.current) return;
     pdfPagesRef.current = [];
     setPdfToRender(null);
   }, []);
@@ -818,6 +921,15 @@ export function AiChatPage({
   // BLOCKER-3: synchronous in-flight guard (React state updates are async)
   const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  /**
+   * U1: generation token for a send turn (same idiom as voiceRunIdRef /
+   * translateRunRef). clearChat() aborts + synchronously resets
+   * sendingRef/setSending; without this token the aborted handleSend's own
+   * finally block resets them again later, clobbering a newer turn's state.
+   * Incremented at the top of handleSend and in clearChat; every place that
+   * resets sending state must check the captured id still equals current.
+   */
+  const sendRunIdRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -873,15 +985,26 @@ export function AiChatPage({
       // BLOCKER-3: synchronous ref check — not subject to React batching.
       // Also ignore send while a translation holds the engine (silent),
       // or while voice is listening/transcribing (voiceBusyRef is sync).
+      // Audit follow-up: also belt-and-braces block while a PDF conversion
+      // is in flight — the composer-side guards (onSubmitEditing, send
+      // button) already block this, but handleSend can also be invoked
+      // directly (suggestion cards) so it needs its own check too.
       if (
         !trimmed ||
         sendingRef.current ||
         translationInFlightRef.current ||
         voiceBusyRef.current ||
+        !!pdfToRender ||
         !historyLoaded
       ) {
         return;
       }
+
+      // U1: this turn's generation token. clearChat() may abort + reset
+      // sending state while this async turn (bench / filter / stream) is
+      // still in flight — every reset below must check this id first so a
+      // stale turn can never clobber a newer one's sending state.
+      const runId = ++sendRunIdRef.current;
 
       // Debug bench knobs via chat (adb input text; no root / no extra perms).
       // Does not call the model. History may keep the exchange for harness logs.
@@ -900,7 +1023,10 @@ export function AiChatPage({
         } catch {
           reply = "bench: failed";
         }
-        if (mountedRef.current) {
+        // Audit follow-up: clearChat() may fire during the await above —
+        // gate the push on the same generation token used for the sending
+        // reset, otherwise the stale bench Q&A reappears in the cleared chat.
+        if (mountedRef.current && sendRunIdRef.current === runId) {
           setMessages((prev) => [
             ...prev,
             {
@@ -918,8 +1044,55 @@ export function AiChatPage({
             },
           ]);
         }
-        sendingRef.current = false;
-        if (mountedRef.current) setSending(false);
+        if (sendRunIdRef.current === runId) {
+          sendingRef.current = false;
+          if (mountedRef.current) setSending(false);
+        }
+        return;
+      }
+
+      // X2: pre-send content gate (src/domain/contentFilter.js). Blocking
+      // categories (block / safety_block → shouldCallProvider === false)
+      // never reach the model — append the localized decline and stop.
+      // "warn" (mild profanity) and "allow" keep shouldCallProvider true and
+      // fall through to the normal stream below.
+      const classification = classifyChatContent(trimmed);
+      if (!classification.shouldCallProvider) {
+        voiceRunIdRef.current += 1;
+        sendingRef.current = true;
+        setSending(true);
+        setDraft("");
+        const gateAttachments = currentAttachments ?? [];
+        const userMsgId = nextMsgId("u");
+        const assistantId = nextMsgId("a");
+        const now = Date.now();
+        // Audit follow-up: gate for symmetry with the bench branch above —
+        // currently synchronous (no await before this point) so inert today,
+        // but future-proofs against this branch growing an await.
+        if (mountedRef.current && sendRunIdRef.current === runId) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: userMsgId,
+              role: "user",
+              text: trimmed,
+              createdAt: now,
+              attachments: gateAttachments.length > 0 ? gateAttachments : undefined,
+            },
+            {
+              id: assistantId,
+              role: "assistant",
+              text: contentFilterMessage(classification.reason, t),
+              streaming: false,
+              createdAt: now + 1,
+            },
+          ]);
+        }
+        setAttachedItems([]);
+        if (sendRunIdRef.current === runId) {
+          sendingRef.current = false;
+          if (mountedRef.current) setSending(false);
+        }
         return;
       }
 
@@ -1075,11 +1248,16 @@ export function AiChatPage({
             }),
           );
         }
-        sendingRef.current = false;
-        if (mountedRef.current) setSending(false);
+        // U1: only reset the global sending indicators if this is still the
+        // latest turn — clearChat() already reset them synchronously for a
+        // newer turn, and this stale finally must not clobber it.
+        if (sendRunIdRef.current === runId) {
+          sendingRef.current = false;
+          if (mountedRef.current) setSending(false);
+        }
       }
     },
-    [historyLoaded, messages, onSendStream, t, updateMessage],
+    [historyLoaded, messages, onSendStream, pdfToRender, t, updateMessage],
   );
 
   const handleStop = useCallback(() => {
@@ -1101,6 +1279,9 @@ export function AiChatPage({
 
   const clearChat = useCallback(() => {
     abortRef.current?.abort();
+    // U1: invalidate any in-flight send turn so its later finally/bench/gate
+    // reset cannot clobber the synchronous reset below.
+    sendRunIdRef.current += 1;
     // Abort any in-flight translation (mutex job will stopCompletion).
     translateAbortRef.current?.abort();
     translateAbortRef.current = null;
@@ -1109,7 +1290,17 @@ export function AiChatPage({
     sendingRef.current = false;
     setSending(false);
     setMessages([]);
+    setLongChatNudgeShown(false);
     setDraft("");
+    // U9: reset any in-flight PDF conversion so a stale WebView/instance never
+    // resurfaces attachments or a stuck "Reading pages…" composer state.
+    setPdfToRender(null);
+    pdfPagesRef.current = [];
+    setAttachSheetOpen(false);
+    // Audit follow-up: also drop already-queued attachments — otherwise a
+    // stale chip (image/PDF picked before "New chat") rides into the fresh
+    // conversation and gets sent with the next message.
+    setAttachedItems([]);
     // Voice: invalidate transcription token, cancel capture, stop TTS, clear UI.
     voiceRunIdRef.current += 1;
     voiceBusyRef.current = false;
@@ -1244,8 +1435,12 @@ export function AiChatPage({
       !sending &&
       !translatingId &&
       historyLoaded &&
-      !voiceBlocksComposer,
-    [draft, historyLoaded, sending, translatingId, voiceBlocksComposer],
+      !voiceBlocksComposer &&
+      // Audit follow-up: block submission while a PDF conversion is in
+      // flight — otherwise the late handlePdfDone queues the PDF chip into
+      // the NEXT message instead of the one being sent now.
+      !pdfToRender,
+    [draft, historyLoaded, pdfToRender, sending, translatingId, voiceBlocksComposer],
   );
 
   // ── Attach chip color helper ────────────────────────────────────────────
@@ -1360,6 +1555,30 @@ export function AiChatPage({
               <Text style={[typography.bodyXs, { color: colors.muted }]}>{t("common.clear")}</Text>
             </Pressable>
           ) : null}
+        </View>
+      ) : null}
+
+      {/* ── Long-conversation nudge (V4.2 §Fase 3.5) ── */}
+      {longChatNudgeShown ? (
+        <View
+          style={{
+            marginHorizontal: spacing.md,
+            marginTop: spacing.sm,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+            padding: spacing.sm + 2,
+            backgroundColor: colors.computeSoft,
+            borderRadius: 12,
+          }}
+        >
+          <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: colors.compute }} />
+          <Text style={[typography.bodyXs, { flex: 1, color: colors.ink }]} numberOfLines={2}>
+            {t("chat.longChatNudge")}
+          </Text>
+          <Pressable onPress={clearChat} hitSlop={8} accessibilityLabel={t("chat.a11yNewChat")}>
+            <Text style={[typography.bodyXs, { color: colors.muted }]}>{t("chat.longChatNudgeAction")}</Text>
+          </Pressable>
         </View>
       ) : null}
 
@@ -1963,6 +2182,10 @@ export function AiChatPage({
         {pdfToRender ? (
           <View style={{ paddingHorizontal: spacing.md, paddingBottom: 4 }}>
             <PdfToImages
+              // U2: force a full remount when the selected PDF changes so a
+              // re-selection mid-conversion never reuses stale doneRef/
+              // chunksRef/html state from the previous document.
+              key={pdfToRender.uri}
               pdfUri={pdfToRender.uri}
               onPage={handlePdfPage}
               onDone={handlePdfDone}
@@ -2036,12 +2259,14 @@ export function AiChatPage({
 
         <View style={{ flexDirection: "row", alignItems: "flex-end", gap: spacing.xs }}>
           {/* Attach: foto/PDF per la vision — blocked during voice capture/transcribe */}
+          {/* U2: also blocked while a PDF conversion is in flight — reusing the
+              attach sheet mid-conversion is what causes the stuck-composer bug. */}
           <Pressable
             onPress={() => {
-              if (voiceBusyRef.current || voiceUi !== "idle") return;
+              if (voiceBusyRef.current || voiceUi !== "idle" || pdfToRender) return;
               setAttachSheetOpen(true);
             }}
-            disabled={sending || voiceBlocksComposer}
+            disabled={sending || voiceBlocksComposer || !!pdfToRender}
             accessibilityLabel={t("chat.a11yAttach")}
             style={({ pressed }) => ({
               width: 36,
@@ -2053,7 +2278,7 @@ export function AiChatPage({
               alignItems: "center",
               justifyContent: "center",
               opacity:
-                sending || voiceBlocksComposer ? 0.45 : pressed ? 0.7 : 1,
+                sending || voiceBlocksComposer || pdfToRender ? 0.45 : pressed ? 0.7 : 1,
             })}
           >
             <Plus color={colors.muted} size={18} />
@@ -2115,7 +2340,12 @@ export function AiChatPage({
             placeholder={t("chat.placeholder")}
             placeholderTextColor={colors.muted}
             editable={!sending && !voiceBlocksComposer}
-            onSubmitEditing={() => handleSend(draft, attachedItems)}
+            onSubmitEditing={() => {
+              // Audit follow-up: typing stays enabled during a PDF
+              // conversion, but submission must not start mid-conversion.
+              if (pdfToRender) return;
+              handleSend(draft, attachedItems);
+            }}
             returnKeyType="send"
             multiline
             style={{
@@ -2153,7 +2383,10 @@ export function AiChatPage({
             </Pressable>
           ) : (
             <Pressable
-              onPress={() => handleSend(draft, attachedItems)}
+              onPress={() => {
+                if (pdfToRender) return;
+                handleSend(draft, attachedItems);
+              }}
               disabled={!canSend}
               accessibilityLabel={t("chat.a11ySend")}
               style={({ pressed }) => ({

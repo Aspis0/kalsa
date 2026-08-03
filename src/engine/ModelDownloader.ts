@@ -77,7 +77,10 @@ function resumeKeyFor(model: ModelInfo, file: string, spec?: ModelFileSpec): str
 }
 
 const PROGRESS_THROTTLE_MS = 200;
-const STALL_TIMEOUT_MS = 30_000; // nessun progresso per 30s → download bloccato
+// Nessun progresso per 90s → download bloccato. Alzato da 30s: reti mobili (e in
+// particolare MIUI/Xiaomi con power management aggressivo) hanno stalli brevi e
+// legittimi che con 30s facevano scattare retry/pause inutili.
+const STALL_TIMEOUT_MS = 90_000;
 
 export type FriendlyErrorFallback = "raw" | "engine" | "download";
 
@@ -235,6 +238,10 @@ async function downloadFile(
   // trasferimento attivo, quindi l'unico resume valido è quello di una pausa.
   const retryOnce = async (): Promise<FileSystem.FileSystemDownloadResult | undefined> => {
     await new Promise((resolve) => setTimeout(resolve, 1_500));
+    // Un cancel atterrato nella finestra stallo→retry non deve far ripartire
+    // un download multi-GB che poi arriva a fine corsa PRIMA di segnalare
+    // l'abort: bail subito, prima di ricreare il task e avviarlo.
+    if (options.signal?.aborted) return undefined;
     const savedNow = await AsyncStorage.getItem(resumeKey)
       .then((raw) => {
         if (!raw) return null;
@@ -247,6 +254,14 @@ async function downloadFile(
       })
       .catch(() => null);
     stalled = false;
+    // `pausing` è per-tentativo: senza reset, dopo il primo stallo il watchdog
+    // resta disabilitato per sempre (early-return) e onAbort ignora il cancel
+    // dell'utente in silenzio → un secondo stallo si blocca per sempre.
+    pausing = false;
+    // Il nuovo task riparte da zero progresso osservato: senza reset il
+    // watchdog vedrebbe subito >STALL_TIMEOUT_MS (misurato dal tentativo
+    // precedente) e ripauserebbe il task appena ricreato.
+    lastProgressAt = Date.now();
     task = buildTask(
       typeof savedNow?.resumeData === "string" ? (savedNow.resumeData as string) : undefined,
     );
@@ -281,6 +296,10 @@ async function downloadFile(
       } catch (retryError) {
         throw friendlyNetworkError(retryError, locale);
       }
+      // Stesso check del path sopra: senza questo, un abort atterrato durante
+      // il retry da stallo cade nel throw "stalled/failed" invece di riportare
+      // correttamente {status:"aborted"}.
+      if (options.signal?.aborted) return { status: "aborted" };
     }
     if (!result?.uri) {
       throw new Error(stalled ? strings.download.stalled : strings.download.failed);
@@ -359,9 +378,15 @@ export async function downloadModelBundle(
 }
 
 export async function deleteModelFiles(model: ModelInfo): Promise<void> {
-  const files = [model.file, ...(model.mmproj ? [model.mmproj.file] : [])];
-  for (const file of files) {
+  // La resume key va calcolata con lo STESSO spec usato in scrittura (vedi
+  // downloadFile): per il mmproj questo è model.mmproj (revision propria,
+  // spesso diversa da model.revision), non il fallback su model.revision.
+  const entries: Array<{ file: string; spec?: ModelFileSpec }> = [
+    { file: model.file },
+    ...(model.mmproj ? [{ file: model.mmproj.file, spec: model.mmproj }] : []),
+  ];
+  for (const { file, spec } of entries) {
     await FileSystem.deleteAsync(modelLocalPath(model, file), { idempotent: true }).catch(() => undefined);
-    await AsyncStorage.removeItem(resumeKeyFor(model, file)).catch(() => undefined);
+    await AsyncStorage.removeItem(resumeKeyFor(model, file, spec)).catch(() => undefined);
   }
 }

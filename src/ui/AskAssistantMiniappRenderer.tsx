@@ -29,7 +29,6 @@ type MiniappAction = {
   primary?: boolean;
   advanced?: boolean;
   exportFormat?: "png" | "jpg" | "jpeg" | "svg" | "json" | "csv";
-  resultUri?: string;
 };
 
 type MiniappNavigationItem = {
@@ -282,6 +281,9 @@ const TABLE_ACTION_BLOCK_TYPES = new Set(["table", "data_table", "result_table",
 // Pathway editor status strings (add/rename/move/delete node|edge) stay English on purpose:
 // that editor is legacy lab-only chrome, not a general user-facing surface. Plate/sample
 // statuses below ARE localized because they can still surface as statusText.
+//
+// export_plate_map is rejected here too: the general mini-app format has no plate maps,
+// so this action never reaches handleAskAssistantMiniappAction (miniappActions.ts).
 const LEGACY_LAB_ACTION_IDS = new Set([
   "add_sample",
   "auto_fill_replicates",
@@ -2931,8 +2933,11 @@ export const ASK_ASSISTANT_MINIAPP_BLOCK_REGISTRY: Record<string, MiniappBlockRe
     exportSupport: false,
     editable: true,
     aiActionSupport: true,
-    backendActionSupport: true,
-    capabilities: { aiActionSupport: true, backendActionSupport: true, interactive: true, stateful: true },
+    // No backend exists anymore (100% local app): don't advertise a backend-routed
+    // capability that isn't real. Unhandled action ids still surface feedback via the
+    // fallthrough in handleAskAssistantMiniappAction (miniappActions.ts).
+    backendActionSupport: false,
+    capabilities: { aiActionSupport: true, backendActionSupport: false, interactive: true, stateful: true },
     visual: { accent: "indigo", density: "compact", liquidGlassSurface: "command_bar", motion: "press", role: "command_bar" },
     render: ({ block, context }) => <ActionRowBlockView block={block} context={context} />,
   }),
@@ -2941,7 +2946,8 @@ export const ASK_ASSISTANT_MINIAPP_BLOCK_REGISTRY: Record<string, MiniappBlockRe
     exportSupport: false,
     editable: true,
     aiActionSupport: true,
-    backendActionSupport: true,
+    // See action_bar above: no backend to route to anymore.
+    backendActionSupport: false,
     visual: { accent: "indigo", density: "compact", liquidGlassSurface: "command_bar", motion: "press", role: "inline_actions" },
     render: ({ block, context }) => <ActionRowBlockView block={block} context={context} />,
   }),
@@ -3599,7 +3605,9 @@ export function AskAssistantMiniappRenderer({
               quality: 1,
               result: "tmpfile",
             });
-            if (onAction) onAction({ ...action, resultUri: imageUri }, localMiniapp);
+            // PNG/JPEG are fully handled here (capture + share): do not also notify
+            // onAction, which would route to handleAskAssistantMiniappAction and could
+            // double-handle the export if a handler is ever added there.
             if (await Sharing.isAvailableAsync()) {
               await Sharing.shareAsync(imageUri, {
                 dialogTitle: t("miniapp.exportDialogTitle", { format: format.toUpperCase() }),
@@ -3610,19 +3618,18 @@ export function AskAssistantMiniappRenderer({
             return;
           }
 
-          const extension = actionId === LOCAL_ACTIONS.EXPORT_SVG ? "svg" : actionId === LOCAL_ACTIONS.EXPORT_JPEG ? "jpg" : "json";
+          // Only SVG/JSON reach here: PNG/JPEG already returned in the branch above.
+          const extension = actionId === LOCAL_ACTIONS.EXPORT_SVG ? "svg" : "json";
           const targetUri = buildMiniappExportFileName(localMiniapp, extension);
           const payload = actionId === LOCAL_ACTIONS.EXPORT_SVG ? buildMiniappSvgText(localMiniapp) : JSON.stringify(localMiniapp, null, 2);
           await FileSystem.writeAsStringAsync(targetUri, payload, { encoding: "utf8" });
-          if (onAction) onAction({ ...action, resultUri: targetUri }, localMiniapp);
+          // SVG/JSON are fully handled here (write + share): do not also notify onAction,
+          // which routes to handleAskAssistantMiniappAction and (for JSON) used to
+          // re-derive a filename, re-write the file, and re-open the share sheet.
           if (await Sharing.isAvailableAsync()) {
             await Sharing.shareAsync(targetUri, {
               dialogTitle: t("miniapp.exportDialogTitle", { format: extension.toUpperCase() }),
-                mimeType: extension === "json"
-                  ? "application/json"
-                  : extension === "svg"
-                    ? "image/svg+xml"
-                    : "image/jpeg",
+              mimeType: extension === "svg" ? "image/svg+xml" : "application/json",
             });
           }
           setStatusText(t("miniapp.exportedAs", { format: extension.toUpperCase() }));

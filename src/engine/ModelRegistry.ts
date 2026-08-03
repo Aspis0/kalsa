@@ -14,6 +14,9 @@
  *   costo ~90MB extra sul Q4_K_M.
  */
 
+import type { RamTier } from "./contextProfile";
+import type { TranslationKey } from "../i18n";
+
 export type ModelFileSpec = {
   file: string;
   sizeBytes: number;
@@ -39,15 +42,37 @@ export type ModelInfo = {
   /** Proiettore multimodale (vision) — assente = modello text-only. */
   mmproj?: ModelFileSpec;
   contextLength: number;
-  /** n_ctx usato dall'engine (più piccolo del contextLength nativo). */
+  /**
+   * Catalog soft default for n_ctx. Runtime prefers resolveContextProfile
+   * (hybrid + RAM ≥6GB → 16k; otherwise 8192). Catalog values remain as
+   * documentation / non-hybrid fallback reference.
+   */
   engineCtx: number;
   /** Cache KV quantizzata (K/V). */
   kvCache: KvCacheProfile;
+  /**
+   * Hybrid architecture (Gated DeltaNet + attention subset, e.g. Qwen3.5).
+   * Drives adaptive n_ctx via resolveContextProfile (V4.2 §Fase 0.5).
+   * KV types always come from `kvCache` (catalog is authoritative).
+   */
+  hybrid?: boolean;
   /** Modelli ibridi/ricorrenti (Qwen3.5): stato unificato. */
   kvUnified?: boolean;
   /** MTP (NextN speculative) embedded nel GGUF. */
   mtp?: { nMax: number };
-  description: string;
+  /** i18n key for the user-facing description shown in Settings (en master + it). */
+  descriptionKey: TranslationKey;
+  /**
+   * i18n key for a compact RAM badge (e.g. "8 GB+ RAM") shown in Settings.
+   * Only set for models that are part of the qwen3.5 RAM-tier fallback chain.
+   */
+  ramBadgeKey?: TranslationKey;
+  /**
+   * Minimum RAM tier this model is recommended for (advisory only — see
+   * contextProfile.ts §RAM tiers). Only set for the qwen3.5 fallback chain;
+   * other models (Gemma, Whisper) are not part of that tier scheme.
+   */
+  minRamTier?: RamTier;
   default?: boolean;
 };
 
@@ -69,12 +94,15 @@ export const MODEL_REGISTRY: ModelInfo[] = [
       revision: "e87f176479d0855a907a41277aca2f8ee7a09523",
     },
     contextLength: 262144,
-    engineCtx: 8192, // prudente: 16K solo dopo test su device 8GB+
+    engineCtx: 8192, // soft catalog; runtime may UPGRADE via resolveContextProfile on high-RAM hybrids
+    // V-cache quant: q4_0 baseline; revisit after Fase 4 quality bench.
     kvCache: { k: "q8_0", v: "q4_0" },
+    hybrid: true,
     kvUnified: true,
     mtp: { nMax: 3 },
-    description:
-      "Default. Function calling nativo, multimodale, MTP embedded (~1.5-2x, text-only), ibrido DeltaNet (context lungo a costo contenuto).",
+    descriptionKey: "models.qwen4b.description",
+    ramBadgeKey: "models.qwen4b.ramBadge",
+    minRamTier: "high",
     default: true,
   },
   {
@@ -94,10 +122,14 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     },
     contextLength: 262144,
     engineCtx: 8192,
+    // Low-RAM hybrid: q4/q4 KV (~half of q8) so Q3 weights + KV fit on ~4GB devices.
     kvCache: { k: "q4_0", v: "q4_0" },
+    hybrid: true,
     kvUnified: true,
     // MTP non impostato: GGUF Q3 non validato con tensori NextN (da device test).
-    description: "Low-RAM: stesso modello, quant Q3_K_M + KV compatta (device <6GB).",
+    descriptionKey: "models.qwen4bQ3.description",
+    ramBadgeKey: "models.qwen4bQ3.ramBadge",
+    minRamTier: "mid",
   },
   {
     id: "gemma-4-e2b",
@@ -112,8 +144,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     contextLength: 131072,
     engineCtx: 8192,
     kvCache: { k: "q8_0", v: "q4_0" },
-    description:
-      "Edge-optimized (PLE): vision/audio CERTIFICATA nel binding, tool calling DSL. MTP: richiede GGUF con tensori iniettati (leftover).",
+    descriptionKey: "models.gemmaE2b.description",
   },
   {
     id: "qwen3.5-2b",
@@ -125,10 +156,15 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     file: "Qwen3.5-2B-Q4_K_M.gguf",
     sizeBytes: 1_280_835_840,
     contextLength: 262144,
+    // Catalog-authoritative: resolveContextProfile never downgrades this (16k on all devices).
     engineCtx: 16384,
+    // V-cache quant: q4_0 baseline; revisit after Fase 4 quality bench.
     kvCache: { k: "q8_0", v: "q4_0" },
+    hybrid: true,
     kvUnified: true,
-    description: "Fallback veloce text-only per device mid-range.",
+    descriptionKey: "models.qwen2b.description",
+    ramBadgeKey: "models.qwen2b.ramBadge",
+    minRamTier: "low",
   },
 ];
 
@@ -155,8 +191,7 @@ export const WHISPER_MODEL: ModelInfo = {
   contextLength: 0,
   engineCtx: 0,
   kvCache: { k: "f16", v: "f16" },
-  description:
-    "On-device speech recognition (multilingual tiny). ~75 MB. Used for voice dictation only.",
+  descriptionKey: "models.whisperTiny.description",
 };
 
 export function getDefaultModel(): ModelInfo {

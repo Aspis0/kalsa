@@ -135,27 +135,18 @@ export async function handleAskAssistantMiniappAction(
     return;
   }
 
-  if (actionId === "export_json") {
-    try {
-      const directory = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
-      if (!directory) throw new Error("missing_export_directory");
-      const uri = `${directory}${miniappExportFileName(miniapp, "json")}`;
-      await FileSystem.writeAsStringAsync(uri, JSON.stringify(miniapp, null, 2), { encoding: "utf8" });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          dialogTitle: strings.miniapp.exportJsonTitle,
-          mimeType: "application/json",
-        });
-      }
-      callbacks.setFeedback(strings.miniapp.jsonExported);
-    } catch {
-      callbacks.setMobileError(strings.miniapp.exportFailed);
-    }
-    return;
-  }
+  // export_json (and export_png/export_jpeg/export_svg) are fully handled by
+  // AskAssistantMiniappRenderer itself (capture/write + share); it no longer forwards
+  // those actions here, so there is intentionally no handler for them in this file.
+  // Adding one back would reintroduce a double file-write / double share-sheet bug.
 
-  // Azioni bio legacy rifiutate: il formato miniapp generale non ha plate maps.
-  if (actionId === "export_plate_map") {
-    callbacks.setMobileError(strings.miniapp.plateMapsUnsupported);
-  }
+  // export_plate_map is intercepted earlier, in the renderer's LEGACY_LAB_ACTION_IDS
+  // dispatcher (AskAssistantMiniappRenderer.tsx), so it can never reach this function —
+  // no handler needed here.
+
+  // Fallthrough: any other action id (model-defined "requiresAi"/custom actions) has no
+  // local handler — this is the only kind of action id that can actually reach here, since
+  // every other known id is handled above or intercepted earlier in the renderer. Surface
+  // feedback instead of a silent no-op tap.
+  callbacks.setMobileError(strings.miniapp.actionNotSupported);
 }

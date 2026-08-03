@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { ChevronRight, CircleQuestionMark, Trash2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,11 +31,19 @@ import {
   formatBytes,
   type ModelInfo,
 } from "../engine/ModelRegistry";
+import {
+  getDeviceTotalMemoryBytes,
+  getRamTier,
+  ramTierMeets,
+  recommendedModelId,
+} from "../engine/contextProfile";
 import * as MemoryStore from "../memory/MemoryStore";
 import type { MemoryFact } from "../memory/MemoryStore";
+import { COMPACTION_ENABLED_KEY } from "../context/compactor";
+import { getThinkingMode, setThinkingMode, type ThinkingMode } from "../bench/benchConfig";
 import { GlassPanel2, Header } from "../theme/components";
 import { radius, spacing } from "../theme/tokens";
-import { typography, type FontScaleId } from "../theme/typography";
+import { useTypography, type FontScaleId } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 
 export type SettingsModelProps = {
@@ -43,6 +52,8 @@ export type SettingsModelProps = {
   /** 0–100 while downloading; null otherwise. */
   downloadPercent: number | null;
   modelError: string | null;
+  /** Extra guidance for connectivity-shaped failures (e.g. "keep the app open"); null otherwise. */
+  modelErrorHint: string | null;
   /** True while an assistant stream is in flight — Select is disabled. */
   streaming: boolean;
   /** Presence map from a one-shot disk scan (keys appear after scan). */
@@ -91,6 +102,7 @@ function modelBundleSize(model: ModelInfo): number {
  */
 export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
   const { colors, fontScaleId, setFontScaleId } = useLabTheme<any>();
+  const typography = useTypography();
   const insets = useSafeAreaInsets();
   const { locale, setLocale, t } = useLocale();
 
@@ -107,6 +119,14 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
     { id: "xl", short: "XL", label: t("settings.fontSizeXl") },
   ];
 
+  // "default" (production knob) and "off" are behaviourally identical today
+  // (see buildThinkingCompletionFields) — Off is shown selected for both.
+  const thinkingOptions: Array<{ id: ThinkingMode; label: string }> = [
+    { id: "off", label: t("settings.thinkingOff") },
+    { id: "budget256", label: t("settings.thinkingShort") },
+    { id: "budget512", label: t("settings.thinkingExtended") },
+  ];
+
   const [providerId, setProviderId] = useState<SearchProviderId>("exa-mcp");
   const [apiKey, setApiKey] = useState("");
   /** Last successfully saved snapshot — used for dirty detection. */
@@ -118,6 +138,12 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   const [statusMessage, setStatusMessage] = useState("");
 
+  // ── Context compaction (ConversationCompactor — default OFF) ─────────────
+  const [compactionEnabled, setCompactionEnabled] = useState(false);
+
+  // ── Thinking mode (bench/benchConfig — same storage key as /bench thinking) ──
+  const [thinkingMode, setThinkingModeState] = useState<ThinkingMode>("default");
+
   // ── Local memory (facts) ─────────────────────────────────────────────────
   // OPT-IN: default off until storage says otherwise.
   const [memoryEnabled, setMemoryEnabled] = useState(false);
@@ -125,12 +151,12 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
   const [memoryDraft, setMemoryDraft] = useState("");
   const [memoryBusy, setMemoryBusy] = useState(false);
   const [memoryNotice, setMemoryNotice] = useState("");
-  const memoryMountedRef = useRef(true);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    memoryMountedRef.current = true;
+    mountedRef.current = true;
     return () => {
-      memoryMountedRef.current = false;
+      mountedRef.current = false;
     };
   }, []);
 
@@ -140,7 +166,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         MemoryStore.getEnabled(),
         MemoryStore.listFacts(),
       ]);
-      if (!memoryMountedRef.current) return;
+      if (!mountedRef.current) return;
       setMemoryEnabled(enabled);
       setMemoryFacts(facts);
     } catch {
@@ -152,6 +178,68 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
     void reloadMemory();
   }, [reloadMemory]);
 
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(COMPACTION_ENABLED_KEY)
+      .then((raw) => {
+        if (!mounted) return;
+        setCompactionEnabled(raw === "1" || raw === "true");
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleToggleCompaction = useCallback(
+    (next: boolean) => {
+      const previous = compactionEnabled;
+      setCompactionEnabled(next);
+      void (async () => {
+        try {
+          await AsyncStorage.setItem(COMPACTION_ENABLED_KEY, next ? "1" : "0");
+        } catch {
+          if (mountedRef.current) setCompactionEnabled(previous);
+        }
+      })();
+    },
+    [compactionEnabled],
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    getThinkingMode()
+      .then((mode) => {
+        if (!mounted) return;
+        setThinkingModeState(mode);
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // "default" renders as the "off" option (see thinkingOptions comment above).
+  const effectiveThinkingSelection: ThinkingMode =
+    thinkingMode === "default" ? "off" : thinkingMode;
+
+  const handleSelectThinkingMode = useCallback(
+    (mode: ThinkingMode) => {
+      if (mode === effectiveThinkingSelection) return;
+      const previous = thinkingMode;
+      setThinkingModeState(mode);
+      void (async () => {
+        try {
+          const ok = await setThinkingMode(mode);
+          if (!ok && mountedRef.current) setThinkingModeState(previous);
+        } catch {
+          if (mountedRef.current) setThinkingModeState(previous);
+        }
+      })();
+    },
+    [effectiveThinkingSelection, thinkingMode],
+  );
+
   const handleToggleMemory = useCallback(
     (next: boolean) => {
       const previous = memoryEnabled;
@@ -161,7 +249,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         try {
           await MemoryStore.setEnabled(next);
         } catch {
-          if (!memoryMountedRef.current) return;
+          if (!mountedRef.current) return;
           setMemoryEnabled(previous);
           setMemoryNotice(t("memory.saveError"));
         }
@@ -177,20 +265,20 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
     setMemoryNotice("");
     try {
       await MemoryStore.addFact(text);
-      if (!memoryMountedRef.current) return;
+      if (!mountedRef.current) return;
       setMemoryDraft("");
       await reloadMemory();
-      if (!memoryMountedRef.current) return;
+      if (!mountedRef.current) return;
       setMemoryNotice(t("memory.addDone"));
     } catch (error) {
-      if (!memoryMountedRef.current) return;
+      if (!mountedRef.current) return;
       if (error instanceof MemoryStore.SensitiveFactError) {
         setMemoryNotice(t("memory.sensitive"));
       } else {
         setMemoryNotice(t("memory.saveError"));
       }
     } finally {
-      if (memoryMountedRef.current) setMemoryBusy(false);
+      if (mountedRef.current) setMemoryBusy(false);
     }
   }, [memoryBusy, memoryDraft, reloadMemory, t]);
 
@@ -207,7 +295,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                 await MemoryStore.removeFact(fact.id);
                 await reloadMemory();
               } catch {
-                if (!memoryMountedRef.current) return;
+                if (!mountedRef.current) return;
                 setMemoryNotice(t("memory.saveError"));
               }
             })();
@@ -229,10 +317,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
             try {
               await MemoryStore.clearFacts();
               await reloadMemory();
-              if (!memoryMountedRef.current) return;
+              if (!mountedRef.current) return;
               setMemoryNotice(t("memory.clearDone"));
             } catch {
-              if (!memoryMountedRef.current) return;
+              if (!mountedRef.current) return;
               setMemoryNotice(t("memory.saveError"));
             }
           })();
@@ -457,6 +545,23 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
     }
   }, [model.downloadPercent, model.modelState, t]);
 
+  // ── Device RAM tier (Settings → Models: advisory recommendation only) ────
+  // Stable for the process lifetime — computed once, never re-read.
+  const deviceTotalMemoryBytes = useMemo(() => getDeviceTotalMemoryBytes(), []);
+  const deviceRamGb = useMemo(
+    () =>
+      deviceTotalMemoryBytes !== null
+        ? Math.round(deviceTotalMemoryBytes / 1_000_000_000)
+        : null,
+    [deviceTotalMemoryBytes],
+  );
+  // null when RAM is unknown: skip recommendation/warning UI entirely rather
+  // than guessing (getRamTier(null) is conservative "low" for engine use,
+  // but showing "recommended for your device" when the device is unknown
+  // would be misleading).
+  const deviceRamTier = deviceTotalMemoryBytes !== null ? getRamTier(deviceTotalMemoryBytes) : null;
+  const recommendedModel = deviceRamTier !== null ? recommendedModelId(deviceRamTier) : null;
+
   const voiceStatusLabel = useMemo(() => {
     switch (voice.state) {
       case "checking":
@@ -605,6 +710,83 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
           >
             {t("settings.fontSizePreview")}
           </Text>
+        </GlassPanel2>
+
+        {/* ── Context (ConversationCompactor) ──────────────────────────── */}
+        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+            {t("settings.context")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
+            {t("settings.contextCompactionHint")}
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+              marginTop: spacing.xs,
+            }}
+          >
+            <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
+              {t("settings.contextCompaction")}
+            </Text>
+            <Switch
+              value={compactionEnabled}
+              onValueChange={handleToggleCompaction}
+              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+              thumbColor={compactionEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("settings.contextCompaction")}
+            />
+          </View>
+        </GlassPanel2>
+
+        {/* ── Thinking ─────────────────────────────────────────────────── */}
+        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+            {t("settings.thinking")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
+            {t("settings.thinkingHint")}
+          </Text>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            {thinkingOptions.map((option) => {
+              const selected = effectiveThinkingSelection === option.id;
+              return (
+                <Pressable
+                  key={option.id}
+                  onPress={() => handleSelectThinkingMode(option.id)}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={option.label}
+                  style={{
+                    flex: 1,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: selected ? colors.accent : colors.line,
+                    backgroundColor: selected ? `${colors.accent}22` : "transparent",
+                    alignItems: "center",
+                    opacity: busy ? 0.5 : 1,
+                  }}
+                >
+                  <Text
+                    style={[
+                      typography.bodySm,
+                      {
+                        color: selected ? colors.accent : colors.ink,
+                        fontWeight: selected ? "700" : "500",
+                      },
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </GlassPanel2>
 
         {/* ── Memory ───────────────────────────────────────────────────── */}
@@ -1054,12 +1236,23 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
           <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
             {t("settings.modelsHint")}
           </Text>
+          {deviceRamGb !== null ? (
+            <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
+              {t("models.deviceRam", { gb: deviceRamGb })}
+            </Text>
+          ) : null}
 
           <View style={{ gap: spacing.sm }}>
             {MODEL_REGISTRY.map((entry) => {
               const active = entry.id === model.currentModelId;
               const sizeLabel = formatBytes(modelBundleSize(entry));
               const downloaded = model.downloadedById[entry.id];
+              const ramBadgeLabel = entry.ramBadgeKey ? t(entry.ramBadgeKey) : null;
+              const isRecommended = recommendedModel !== null && entry.id === recommendedModel;
+              const exceedsDeviceTier =
+                deviceRamTier !== null &&
+                entry.minRamTier !== undefined &&
+                !ramTierMeets(deviceRamTier, entry.minRamTier);
               return (
                 <View
                   key={entry.id}
@@ -1096,7 +1289,36 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                       </Text>
                       <Text style={[typography.bodyXs, { color: colors.muted }]} numberOfLines={1}>
                         {entry.quant} · {sizeLabel}
+                        {ramBadgeLabel ? ` · ${ramBadgeLabel}` : ""}
                       </Text>
+                      <Text
+                        style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}
+                        numberOfLines={3}
+                      >
+                        {t(entry.descriptionKey)}
+                      </Text>
+                      {isRecommended ? (
+                        <Text
+                          style={[
+                            typography.bodyXs,
+                            { color: colors.good, fontWeight: "600", marginTop: 2 },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {t("models.recommended")}
+                        </Text>
+                      ) : null}
+                      {exceedsDeviceTier ? (
+                        <Text
+                          style={[
+                            typography.bodyXs,
+                            { color: colors.bad ?? colors.muted, marginTop: 2 },
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {t("models.mayNotFit")}
+                        </Text>
+                      ) : null}
                       {typeof downloaded === "boolean" ? (
                         <Text
                           style={[
@@ -1201,6 +1423,15 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                           numberOfLines={2}
                         >
                           {model.modelError}
+                        </Text>
+                      ) : null}
+
+                      {model.modelErrorHint ? (
+                        <Text
+                          style={[typography.bodyXs, { color: colors.muted }]}
+                          numberOfLines={2}
+                        >
+                          {model.modelErrorHint}
                         </Text>
                       ) : null}
 

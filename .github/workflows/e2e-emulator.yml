@@ -1,0 +1,110 @@
+name: E2E emulator (real inference)
+
+# Runs the app on a KVM-accelerated emulator and proves a real on-device
+# inference turn: sideloads a GGUF, sends a message, captures the reply.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Model to test"
+        required: true
+        default: "qwen3.5-2b"
+        type: choice
+        options: [qwen3.5-2b, qwen3.5-4b]
+      compaction:
+        description: "Context compaction (PIANO V4.2)"
+        required: true
+        default: "on"
+        type: choice
+        options: [on, off]
+      thinking:
+        description: "Thinking mode"
+        required: true
+        default: "off"
+        type: choice
+        options: [off, budget256, budget512]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Typecheck + logic harnesses
+        run: |
+          npm run typecheck
+          node scripts/retrieverHarness.mjs
+          node scripts/compactorHarness.mjs
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc /usr/local/share/boost || true
+          df -h /
+
+      - name: Prebuild (CNG)
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build APK (x86_64 only — emulator ABI, keeps CI fast)
+        run: |
+          cd android
+          ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --console=plain
+          ls -la app/build/outputs/apk/release/
+
+      - name: Download GGUF model
+        run: |
+          set -e
+          if [ "${{ inputs.model }}" = "qwen3.5-4b" ]; then
+            URL="https://huggingface.co/unsloth/Qwen3.5-4B-MTP-GGUF/resolve/86835bf9949e4d14d6860f7910b1340ad4f271a9/Qwen3.5-4B-Q4_K_M.gguf?download=true"
+            echo "MODEL_FILE=Qwen3.5-4B-Q4_K_M.gguf" >> $GITHUB_ENV
+            echo "MODEL_DIR=qwen3.5-4b" >> $GITHUB_ENV
+          else
+            URL="https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf?download=true"
+            echo "MODEL_FILE=Qwen3.5-2B-Q4_K_M.gguf" >> $GITHUB_ENV
+            echo "MODEL_DIR=qwen3.5-2b" >> $GITHUB_ENV
+          fi
+          curl -sL -o model.gguf "$URL"
+          ls -la model.gguf
+
+      - name: Run E2E on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          ram-size: 4096M
+          disk-size: 8192M
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash scripts/ci-e2e.sh
+        env:
+          COMPACTION: ${{ inputs.compaction }}
+          THINKING: ${{ inputs.thinking }}
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-evidence-${{ inputs.model }}-compaction-${{ inputs.compaction }}
+          path: |
+            e2e-out/**
+          if-no-files-found: warn

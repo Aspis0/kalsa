@@ -85,3 +85,47 @@ Tre formati per il blocco operativo + 3 settaggi thinking, benchmark mini su emu
 Come da regola: review personale prima della build, poi E2E emulatore, report, APK.
 
 **Riferimenti**: 2605.12922 · Aspis0/CisWire · 2310.08560 (MemGPT) · 2505.21091 · 2602.15228 · 2502.12197 · 2505.10570 · 2505.06120 · 2308.15022 · 2503.13222 · 2511.10051 · Chroma Context Rot 2025 · 2506.13734 · 2607.26228
+
+---
+
+# PIANO V4.2 (2026-08-03 — review ostile personale + verifica online)
+
+## Fatti nuovi verificati (fonti: llama.rn/rn-completion.cpp, llama.cpp, template Gemma 4, HF Qwen3.5-4B)
+
+1. **llama.rn RIUSA la KV cache tra turni** (smentisce l'autocritica #7 di V4.1): `loadPrompt()` calcola il prefisso comune di token col turno precedente e ridecodifica SOLO la coda; per i modelli ibridi (Qwen3.5 = Gated DeltaNet + Gated Attention) usa snapshot di stato ai confini dei messaggi. Conseguenza: **un prefisso frozen byte-identico = prefill quasi gratis**. Qualsiasi cosa cambi all'inizio del prompt (summary aggiornato, finestra che scorre, blocco in coda) invalida il cache dal punto di divergenza in poi.
+2. **Formato A (system-role in coda) è MORTO**: per Gemma 4 il template tratta solo `messages[0]` come system block — un system in coda è un turno `system` anomalo, out-of-distribution; e comunque romperebbe il prefix cache. L'A/B testa solo **B** (prefisso del messaggio user corrente) vs **C** ([SYSTEM NOTE] user sintetico) vs baseline none.
+3. **Bug thinking Qwen3.5 ancora aperti** (#20182/#20476, luglio 2026): usare SEMPRE la doppia cintura `enable_thinking:false` **e** `thinking_budget_tokens:0`, e ritestare a ogni bump di llama.rn.
+4. **KV math corretta per Qwen3.5-4B ibrido**: solo 8 layer di full attention (KV heads 4, head_dim 256) → ~16KB/token a q8 → **~256MB a 16k** (+ stato ibrido). La stima "12KB/token" di V4.1 usava l'architettura densa sbagliata. Il buffer è riservato a init per l'intero n_ctx.
+5. **BM25 su italiano**: whitespace-token nudo degrada (flessioni); mitigazione consolidata in letteratura = lowercase + fold accenti + **char n-grams 3-4** (eventualmente fusion word+char). Meglio dello stemming Snowball per chat corta con refusi.
+6. **Budget summary 30s**: realistico su fascia media SOLO con thinking off, output ≤400 token e prefix cache attivo; su low-end può sforare — budget soft, non hard.
+
+## Correzioni al design (dalla review ostile)
+
+- **Layout del prompt cache-friendly (nuovo principio guida, CORRETTO post-audit 1b)**: `[system fisso] + [finestra recente CRESCENTE, append-only] + [blocco operativo (digest+summary frozen) nel prefisso dell'ultimo user (formato B/C)]`. ATTENZIONE (verità di design emersa in audit): una finestra recente che *scorre* (`slice(-R)`) fa divergere i token subito dopo il system prompt A OGNI turno → il prefix cache non guadagna nulla oltre la legacy. La finestra deve invece partire dal **boundary di compattazione** (fisso per K turni) e CRESCERE append-only tra un rebuild e l'altro (da ~R a ~R+2K messaggi); al rebuild il boundary avanza e si paga UN re-prefill. Il blocco volatile sta in coda (attention-friendly per Context Rot) e non invalida nulla perché viene dopo la history. Il benchmark Fase 0/4 deve misurare ANCHE il prefill (tempo al primo token), non solo il recall — è lì che si verifica il claim. `clearCache()` al cambio conversazione.
+- **Fast-track retriever CONGELATO per K turni** (stessa medicina del summary — V4.1 si contraddiceva: fast-track query-dependent a ogni turno ≠ frozen). Gli snippet recuperati entrano nel blocco operativo (fine prompt), non nel prefisso.
+- **Retriever** (`src/context/retriever.ts`): BM25+ su **char 3-4 grams** con lowercase+fold accenti; unità = frase con ruolo + vicinato (frase±1), dedup; RRF con salience query-agnostic (entità/numeri/verbi dichiarativi). Zero dipendenze, millisecondi.
+- **n_ctx ADATTIVO, non 16k fisso** (fonde il leftover "auto-profilo RAM"): il `engineCtx` di catalogo è autoritativo (mai downgrade — il 2B resta a 16k ovunque); il gate RAM fa solo UPGRADE del 4B a 16k su device ≥ ~8GB reali (7.5e9 — sulla classe 6GB il +130MB di KV con mmproj residente è rischio OOM). V-cache: baseline q4_0 (revisit dopo il bench qualità Fase 4). Budget finestra: rebuild anticipato oltre ~16k char (~4k token) + rebuild forzato su `context_full`.
+- **Note di design accettate (audit finale 2026-08-03)**: (1) il summary in background gira solo sul turno K-1, così il suo clearCache è assorbito dal re-prefill inevitabile del turno di rebuild; (2) il summary resta indietro di un rebuild rispetto al boundary (il chunk intermedio è coperto solo dal digest) — rivalutare dopo il bench; (3) il flip del cap caratteri con immagini rompe il prefisso KV per quel turno (stessa classe della legacy); (4) una risposta che INIZIA con un `<think>` letterale mai chiuso viene soppressa (trade-off contro il leak del reasoning troncato — caso raro, accettato); (5) il nudge "nuova chat" usa la history UI, non il prompt engine: con compaction ON può suonare prima del necessario — copy da rivedere dopo il bench.
+- **Tool result: troncare a ~2500 char** (non 800 di V4.1 né 6000 attuali) + 1 riga di regola in coda al tool_result. Da validare in Fase 4.
+- **Summary in background PREEMPTABILE**: l'invio utente aborta il job di summary (non solo epoch-guard) — l'engine FIFO non deve mai far attendere un turno utente dietro un summarize. Output ≤400 token, thinking off.
+- **Multi-chat**: chiave summary per conversazione (`kalsa.chat.summary.<chatId>`; oggi chatId="default").
+- **Vision nel budget**: le immagini contano nel budget di compattazione (stima conservativa per immagine; con allegati la finestra si dimezza già oggi — il compactor mantiene almeno quella riduzione).
+- **Benchmark**: qualità/recall su emulatore ok, **velocità solo su device reale**; probe recall anche a risposta chiusa (multiple choice, grep-abile) oltre al grep esatto; 5 run/braccio × 3 seed.
+- **Infra bench (VERIFICATO EMPIRICAMENTE 2026-08-03)**: RunPod è **fuori gioco** per l'emulatore — probe SSH su pod CPU (US-KS-2, kernel 6.17) e GPU RTX4090 (US-NC-1, kernel 6.8): dentro il container NIENTE `/dev/kvm`, niente binder/ashmem → né redroid né emulatore accelerato (l'immagine redroid infatti crash-loopa). Scala di fallback:
+  1. **Emulatore locale con settaggi conservativi** (primo tentativo: cold boot, `-no-snapshot`, `-memory 2048`, `-gpu swiftshader_indirect`, un solo AVD) — gratis, rischio crash PC noto.
+  2. **GitHub Actions** per i bench SCRIPTATI (A/B + compaction-survival): i runner Linux hosted espongono `/dev/kvm` → `reactivecircus/android-emulator-runner` + script adb, risultati come artifact. Robusto, non tocca il PC, gratis entro la quota del repo.
+  3. **Cloud Android interattivo** (Genymotion SaaS o AWS Device Farm remote access) per l'E2E pilotato se il locale crasha — richiede account/spesa: decisione utente.
+  4. Device fisico quando disponibile (validazione finale velocità, come da piano).
+
+## Ordine di implementazione V4.2
+
+1. **Fase 1a** — `src/context/retriever.ts` (BM25+ char-ngrams + RRF) + unit harness Node con corpus IT/EN (puro TS, zero device).
+2. **Fase 1b** — ConversationCompactor: binario veloce (retriever, frozen per K) + summary frozen ogni K turni; store per-chat; Settings "Contesto" on/off; layout prompt cache-friendly in AppShell/LlamaService.
+3. **Fase 2b** — hookup `summary` nel blocco operativo (già predisposto, oggi null) nel formato B di default (pending A/B).
+4. **Fase 0.5** — n_ctx adattivo per RAM + cache_type q8_0.
+5. **Fase 3** — tool hardening (2500 char + riga regola nel tool_result).
+6. **Fase 3.5** — nudge "nuova chat" oltre soglia.
+7. **Fase 0/4 (bench, OBBLIGATORIA prima di attivare di default)** — emulatore locale o RunPod: A/B formati B/C/none × thinking (false+budget0 vs budget256) col harness `/bench` esistente, poi compaction-survival (baseline sliding-window attuale vs V4.2, 5 run × 3 seed, permutation test). Attivazione di default SOLO se il benchmark vince sulla baseline.
+8. **Fase 5** — E2E + APK (già in coda).
+
+**Nota (2026-08-03)**: il default di produzione del thinking (`"default"` = off, doppia cintura) resta **PROVVISORIO** finché la Fase 0 (bench A/B) non lo conferma o lo cambia. Nel frattempo l'utente può cambiarlo a mano da Settings → Thinking (Off / Short=budget256 / Extended=budget512), persistito sulla stessa chiave `kalsa.bench.thinking` usata dal comando `/bench thinking` — un'unica fonte di verità, letta fresh a ogni turno in `streamAssistantTurn`.

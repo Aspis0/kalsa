@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale } from "../i18n";
 import { GlassPanel2, Header } from "../theme/components";
 import { spacing } from "../theme/tokens";
-import { typography } from "../theme/typography";
+import { useTypography } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 
 type Props = {
@@ -80,6 +80,7 @@ const FAQ_ITEMS: FaqItem[] = [
  */
 export function HelpScreen({ onBack }: Props) {
   const { colors } = useLabTheme<any>();
+  const typography = useTypography();
   const insets = useSafeAreaInsets();
   const { t } = useLocale();
 

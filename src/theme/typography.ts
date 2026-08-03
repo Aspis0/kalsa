@@ -1,5 +1,7 @@
 import { Platform, TextStyle } from "react-native";
 
+import { useLabTheme } from "../ui/labTheme";
+
 // Font family resolves to the loaded @expo-google-fonts/* family name.
 // useFonts is wired in App.tsx; until it resolves, App renders null.
 const display = Platform.select({
@@ -162,4 +164,16 @@ export function applyFontScale(scale: number): Record<string, TextStyle> {
     if (typeof next.lineHeight === "number") live.lineHeight = next.lineHeight;
   }
   return scaled;
+}
+
+/**
+ * Reactive typography tokens, memoized per the current Settings font-scale
+ * preference. Unlike the static `typography` import (mutated in place —
+ * relies on an unrelated re-render to become visible), this reads the value
+ * ThemeContext already computes in App.tsx (`applyFontScale` + `useMemo`), so
+ * components using this hook re-render whenever the scale actually changes.
+ * Prefer this over `import { typography }` in new/updated screens.
+ */
+export function useTypography(): Record<string, TextStyle> {
+  return useLabTheme<{ typography: Record<string, TextStyle> }>().typography;
 }

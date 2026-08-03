@@ -67,6 +67,10 @@ export async function isSpeaking(): Promise<boolean> {
 }
 
 export async function stop(): Promise<void> {
+  // Bump the generation BEFORE calling Speech.stop() so the segment chain
+  // (speakSegmentChain) is cut regardless of which native callback fires —
+  // some platforms report onDone instead of onStopped, or neither fires.
+  speakGeneration += 1;
   try {
     await Speech.stop();
   } catch {
@@ -122,14 +126,17 @@ async function resolveVoice(
 
 /** Split text into segments of roughly `maxChars`, preferring whitespace breaks. */
 function splitSegments(text: string, maxChars: number): string[] {
-  if (text.length <= maxChars) return [text];
+  // Defense in depth: a non-positive maxChars would never shrink `rest` below,
+  // freezing the JS thread in an infinite loop. Guarantee forward progress.
+  const safeMaxChars = maxChars > 0 ? maxChars : 1;
+  if (text.length <= safeMaxChars) return [text];
   const segments: string[] = [];
   let rest = text;
-  while (rest.length > maxChars) {
-    let cut = rest.lastIndexOf(" ", maxChars);
-    if (cut < maxChars * 0.4) {
+  while (rest.length > safeMaxChars) {
+    let cut = rest.lastIndexOf(" ", safeMaxChars);
+    if (cut < safeMaxChars * 0.4) {
       // No good break — hard cut.
-      cut = maxChars;
+      cut = safeMaxChars;
     }
     segments.push(rest.slice(0, cut).trim());
     rest = rest.slice(cut).trim();
@@ -189,15 +196,25 @@ function speakSegmentChain(
       }
     },
     onStopped: () => {
-      // User/stop() interrupted — abandon remaining segments.
-      speakGeneration += 1;
+      // User/stop() interrupted — abandon remaining segments. Only bump if
+      // this callback still owns the current generation: a late callback
+      // from an already-superseded utterance must not invalidate a newer,
+      // legitimately-started generation.
+      if (generation === speakGeneration) {
+        speakGeneration += 1;
+      }
       handlers?.onStopped?.();
     },
     onError: (error) => {
-      speakGeneration += 1;
-      handlers?.onError?.(
-        error instanceof Error ? error : new Error(String(error)),
-      );
+      // A late error from an already-superseded generation must neither bump
+      // the current generation nor surface a spurious error toast while a
+      // newer, legitimately-started utterance is playing.
+      if (generation === speakGeneration) {
+        speakGeneration += 1;
+        handlers?.onError?.(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      }
     },
   });
 }
@@ -226,7 +243,10 @@ export function speak(
     typeof Speech.maxSpeechInputLength === "number"
       ? Speech.maxSpeechInputLength
       : 4000;
-  const segmentSize = Math.min(SEGMENT_CHARS, platformMax);
+  // Clamp to at least 1: a platform reporting maxSpeechInputLength === 0 would
+  // otherwise make segmentSize 0, and splitSegments' while-loop would never
+  // shrink `rest`, freezing the JS thread.
+  const segmentSize = Math.max(1, Math.min(SEGMENT_CHARS, platformMax));
 
   // Resolve voice asynchronously, then start the chain.
   void (async () => {

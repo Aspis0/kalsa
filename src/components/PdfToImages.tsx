@@ -62,6 +62,18 @@ export function PdfToImages({ pdfUri, maxPages = DEFAULT_MAX_PAGES, maxBytes = D
   // Carica gli asset pdf.js + il PDF (base64) e compone l'html della WebView.
   useEffect(() => {
     let mounted = true;
+    // U2 defense in depth: even if this instance were ever reused across a
+    // different pdfUri (normally prevented by `key={pdfUri}` at the call
+    // site), reset all per-document state so a stale doneRef/chunksRef never
+    // swallows the new document's completion/errors.
+    doneRef.current = false;
+    chunksRef.current = {};
+    setError(null);
+    setHtml(null);
+    if (pageTimerRef.current) {
+      clearTimeout(pageTimerRef.current);
+      pageTimerRef.current = null;
+    }
     void (async () => {
       try {
         const [pdfSrc, workerSrc, pdfB64] = await Promise.all([
@@ -105,12 +117,17 @@ export function PdfToImages({ pdfUri, maxPages = DEFAULT_MAX_PAGES, maxBytes = D
         fail(message.error);
         return;
       }
-      if ("done" in message && message.done) {
-        doneRef.current = true;
-        onDone();
-        return;
-      }
-      if ("page" in message && !("done" in message)) {
+      // X1: page-scoped messages ({page, done:true} per-page completion, or
+      // {page, chunk, total, data} chunk) MUST be checked before the overall
+      // {done:true} (no page key) completion — otherwise the first per-page
+      // done is mistaken for overall completion and multi-page PDFs truncate
+      // to page 1.
+      if ("page" in message) {
+        if ("done" in message) {
+          // pagina completata → prossima
+          armPageTimer();
+          return;
+        }
         // chunk di base64 di una pagina
         const pageChunks = chunksRef.current[message.page] ?? (chunksRef.current[message.page] = []);
         pageChunks[message.chunk] = message.data;
@@ -127,18 +144,20 @@ export function PdfToImages({ pdfUri, maxPages = DEFAULT_MAX_PAGES, maxBytes = D
         armPageTimer();
         return;
       }
-      if ("page" in message && message.done === true) {
-        // pagina completata → prossima
-        armPageTimer();
+      // Only a done message WITHOUT a page key is overall completion.
+      if ("done" in message && message.done) {
+        doneRef.current = true;
+        onDone();
+        return;
       }
     },
-    [fail, onPage],
+    [fail, onDone, onPage],
   );
 
   if (error) {
     return (
       <View style={styles.box}>
-        <Text style={styles.error}>PDF: {error}</Text>
+        <Text style={styles.error}>{t("pdf.errorPrefix", { error })}</Text>
       </View>
     );
   }
@@ -147,7 +166,7 @@ export function PdfToImages({ pdfUri, maxPages = DEFAULT_MAX_PAGES, maxBytes = D
     return (
       <View style={styles.box}>
         <ActivityIndicator size="small" />
-        <Text style={styles.loading}>Preparing PDF…</Text>
+        <Text style={styles.loading}>{t("pdf.preparing")}</Text>
       </View>
     );
   }
@@ -166,7 +185,7 @@ export function PdfToImages({ pdfUri, maxPages = DEFAULT_MAX_PAGES, maxBytes = D
         }
         onMessage={handleMessage}
       />
-      <Text style={styles.loading}>Reading pages…</Text>
+      <Text style={styles.loading}>{t("pdf.readingPages")}</Text>
     </View>
   );
 }

@@ -64,6 +64,9 @@ build/
 .metro-cache/
 node_modules/.cache/
 
+# Harness tsc outDir (compactorHarness / retrieverHarness)
+scripts/.build/
+
 # Expo extras
 .expo-shared/
 .expo/types/
@@ -76,3 +79,8 @@ yarn-error.log*
 # Altri materiali di firma
 *.p12
 *.pfx
+
+# Agent/tool scratchpads
+.grok/
+.scratchpad/
+scripts/.build/

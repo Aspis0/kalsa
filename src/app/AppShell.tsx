@@ -10,20 +10,56 @@ import { SettingsScreen } from "../screens/SettingsScreen";
 import { AskAssistantMiniappRenderer } from "../ui/AskAssistantMiniappRenderer";
 import { Drawer, PainterlyBg, type DrawerItem } from "../theme/components";
 import { spacing } from "../theme/tokens";
-import { typography } from "../theme/typography";
+import { useTypography } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 import type { AskAssistantMiniapp } from "../domain/askAssistant";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { MODEL_REGISTRY, WHISPER_MODEL, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
 import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
-import { disposeEngine, extractMemory, getActiveModelId, initEngine, isEngineReady, streamAssistantTurn, type EngineMessage, type EngineTurnOptions } from "../engine/LlamaService";
+import { resolveContextProfile } from "../engine/contextProfile";
+import {
+  disposeEngine,
+  extractMemory,
+  getActiveModelId,
+  initEngine,
+  isEngineReady,
+  streamAssistantTurn,
+  summarizeConversation,
+  type EngineMessage,
+  type EngineTurnOptions,
+} from "../engine/LlamaService";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import { useLocale } from "../i18n";
 import * as MemoryStore from "../memory/MemoryStore";
 import { isWhisperModelDownloaded, releaseWhisper } from "../voice/WhisperService";
 import { isTtsEnabled, setTtsEnabled } from "../voice/TtsService";
+import { RetrieverIndex } from "../context/retriever";
+import {
+  assembleEngineHistory,
+  buildSummaryTranscript,
+  COMPACTION_ENABLED_KEY,
+  computeRebuildBoundary,
+  compactorStorageKey,
+  countUserTurns,
+  DEFAULT_CHAT_ID,
+  DEFAULT_COMPACTOR_CONFIG,
+  emptyCompactorState,
+  parseCompactorState,
+  rebuildFrozenDigest,
+  resolveBoundaryIndex,
+  serializeCompactorState,
+  shouldRebuild,
+  splitAtBoundary,
+  summaryStorageKey,
+  SUMMARY_BUDGET_CHARS,
+  toRetrievalUnits,
+  truncateBudget,
+  type CompactorState,
+  type HistoryRoleMessage,
+} from "../context/compactor";
 
 /** Shared model pipeline states (download / load / ready) — used by Settings. */
 export type ModelPipelineState =
@@ -53,6 +89,121 @@ type ActiveOverlay =
 
 const MODEL_STORAGE_KEY = "kalsa.model.id";
 
+// ── Model download: keep-awake + progress notification (MIUI/Xiaomi fix) ──
+// Aggressive Android power managers (MIUI in particular) freeze the app the
+// moment it is backgrounded or the screen locks, killing the in-flight
+// multi-GB download socket ("Connection lost"). Keeping the CPU awake for the
+// whole download — plus a visible progress notification so the user knows to
+// leave the screen on — avoids that.
+const DOWNLOAD_KEEP_AWAKE_TAG = "model-download";
+const DOWNLOADS_CHANNEL_ID = "downloads";
+const DOWNLOAD_PROGRESS_NOTIFICATION_ID = "kalsa-model-download-progress";
+/** Never post a notification update more than once per this window. */
+const DOWNLOAD_NOTIFY_THROTTLE_MS = 2_000;
+
+// ── ConversationCompactor (per-chat, module-level — survives remounts) ─────
+const compactorStateByChat = new Map<string, CompactorState>();
+/** Pending LLM summary (promoted into frozen rollingSummary on next rebuild). */
+const pendingSummaryByChat = new Map<string, string>();
+/** Last known history length per chat — clearChat detection (shrink). */
+const lastHistoryLenByChat = new Map<string, number>();
+/** Force next-turn digest rebuild after context_full (compaction ON). */
+const forceRebuildByChat = new Map<string, boolean>();
+/**
+ * Cap older-turns corpus fed to the throwaway RetrieverIndex.
+ * Unbounded corpus → linear rebuild cost (~1.3s at 5000 turns desktop).
+ */
+const MAX_DIGEST_CORPUS_MESSAGES = 400;
+/** Soft message cap before buildSummaryTranscript's existing char budget. */
+const MAX_SUMMARY_CORPUS_MESSAGES = 200;
+/**
+ * MULTI-CHAT LANDMINE: summaryAbortController / summaryDebounceTimer are GLOBAL
+ * singletons while other compactor state is per-chat Maps. Fine today because
+ * chatId is hardcoded "default". These MUST become per-chat Maps before
+ * multi-chat ships, or a send/clear on chat A will abort chat B's summary.
+ */
+let summaryAbortController: AbortController | null = null;
+/** Debounce timer: schedule summary only after idle (8s post-turn). */
+let summaryDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+const SUMMARY_IDLE_DEBOUNCE_MS = 8_000;
+
+/**
+ * Exclude error bubbles and abort-orphaned user turns from digest/summary
+ * corpora. Engine history assembly is untouched.
+ * - assistant text starting with "⚠️" → skip
+ * - user with no assistant reply immediately after → skip (except last message)
+ */
+function filterCorpusHygiene(
+  messages: HistoryRoleMessage[],
+): HistoryRoleMessage[] {
+  if (!Array.isArray(messages) || messages.length === 0) return [];
+  const out: HistoryRoleMessage[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    if (!m) continue;
+    if (m.role === "assistant" && m.text.startsWith("⚠️")) continue;
+    if (m.role === "user") {
+      const isLast = i === messages.length - 1;
+      if (!isLast) {
+        const next = messages[i + 1];
+        if (!next || next.role !== "assistant") continue;
+      }
+    }
+    out.push(m);
+  }
+  return out;
+}
+
+function abortBackgroundSummary(): void {
+  if (summaryDebounceTimer) {
+    clearTimeout(summaryDebounceTimer);
+    summaryDebounceTimer = null;
+  }
+  if (summaryAbortController) {
+    try {
+      summaryAbortController.abort();
+    } catch {
+      // ignore
+    }
+    summaryAbortController = null;
+  }
+}
+
+async function resetCompactorChat(chatId: string): Promise<void> {
+  const id = chatId || DEFAULT_CHAT_ID;
+  compactorStateByChat.delete(id);
+  pendingSummaryByChat.delete(id);
+  lastHistoryLenByChat.delete(id);
+  forceRebuildByChat.delete(id);
+  try {
+    await AsyncStorage.multiRemove([
+      compactorStorageKey(id),
+      summaryStorageKey(id),
+    ]);
+  } catch {
+    // best-effort
+  }
+}
+
+function validateHistoryMessages(history: unknown[] | undefined): HistoryRoleMessage[] {
+  const out: HistoryRoleMessage[] = [];
+  for (const m of history ?? []) {
+    if (
+      m &&
+      typeof m === "object" &&
+      typeof (m as { text?: unknown }).text === "string" &&
+      ((m as { role?: unknown }).role === "user" ||
+        (m as { role?: unknown }).role === "assistant")
+    ) {
+      out.push({
+        role: (m as { role: "user" | "assistant" }).role,
+        text: (m as { text: string }).text,
+      });
+    }
+  }
+  return out;
+}
+
 /**
  * AppShell — la schermata unica di AI Chat (Fase 1).
  *
@@ -61,7 +212,8 @@ const MODEL_STORAGE_KEY = "kalsa.model.id";
  * llama.rn; la barra modello gestisce download/switch dei GGUF.
  */
 export function AppShell() {
-  const { colors, styles } = useLabTheme<any>();
+  const { colors, styles, fontScaleId } = useLabTheme<any>();
+  const typography = useTypography();
   const insets = useSafeAreaInsets();
   const { locale, t } = useLocale();
   const [notice, setNotice] = useState<string | null>(null);
@@ -137,12 +289,72 @@ export function AppShell() {
     }
   }, [t]);
 
+  // ── Model download progress notification (sticky, "downloads" channel) ───
+  // Whether the permission check for THIS download session succeeded. Cached
+  // once per download (see startDownload) so a denial cannot re-prompt the
+  // user on every throttled progress tick during a multi-minute transfer.
+  const downloadNotifyAllowedRef = useRef(false);
+  const lastDownloadNotifyAtRef = useRef(0);
+
+  /** Create the low-importance "downloads" channel + check/request permission once. */
+  const beginDownloadNotifications = useCallback(async () => {
+    lastDownloadNotifyAtRef.current = 0;
+    downloadNotifyAllowedRef.current = false;
+    try {
+      await Notifications.setNotificationChannelAsync(DOWNLOADS_CHANNEL_ID, {
+        name: t("notify.downloadsChannelName"),
+        importance: Notifications.AndroidImportance.LOW,
+        sound: null,
+      });
+      const settings = await Notifications.getPermissionsAsync();
+      const granted = settings.granted || (await Notifications.requestPermissionsAsync()).granted;
+      downloadNotifyAllowedRef.current = granted;
+    } catch (error) {
+      // Never block the download on notification setup — skip silently.
+      downloadNotifyAllowedRef.current = false;
+      console.warn("[beginDownloadNotifications]", error);
+    }
+  }, [t]);
+
+  const showDownloadProgressNotification = useCallback(
+    async (modelName: string, percent: number) => {
+      if (!downloadNotifyAllowedRef.current) return;
+      try {
+        await Notifications.scheduleNotificationAsync({
+          identifier: DOWNLOAD_PROGRESS_NOTIFICATION_ID,
+          content: {
+            title: t("download.notifyProgressTitle", { name: modelName }),
+            body: t("download.notifyProgressBody", { percent }),
+            sticky: true,
+            autoDismiss: false,
+            sound: false,
+          },
+          // channelId-only trigger = immediate delivery on that channel.
+          trigger: { channelId: DOWNLOADS_CHANNEL_ID },
+        });
+      } catch (error) {
+        console.warn("[showDownloadProgressNotification]", error);
+      }
+    },
+    [t],
+  );
+
+  const dismissDownloadProgressNotification = useCallback(async () => {
+    try {
+      await Notifications.dismissNotificationAsync(DOWNLOAD_PROGRESS_NOTIFICATION_ID);
+    } catch {
+      // best-effort
+    }
+  }, []);
+
   // ── User memory (local facts for system prompt personalization) ──────────
   const [memoryFacts, setMemoryFacts] = useState<string[]>([]);
   const memoryFactsRef = useRef<string[]>(memoryFacts);
   memoryFactsRef.current = memoryFacts;
   /** Mirror of MemoryStore.getEnabled — never inject facts when false. */
   const memoryEnabledRef = useRef(false);
+  /** Mirror of kalsa.context.compaction — default OFF (legacy sliding window). */
+  const compactionEnabledRef = useRef(false);
   /** Serialize extractMemory so it never overlaps a chat completion on the same engine. */
   const memoryExtractRef = useRef<Promise<void> | null>(null);
 
@@ -227,6 +439,9 @@ export function AppShell() {
       downloadAbortRef.current = null;
       voiceDownloadAbortRef.current?.abort();
       voiceDownloadAbortRef.current = null;
+      // Preempt background summary before dispose so FIFO does not hold a
+      // half-finished summarize across unmount.
+      abortBackgroundSummary();
       void disposeEngine();
       void releaseWhisper();
     };
@@ -289,11 +504,19 @@ export function AppShell() {
     setModelState("loading");
     try {
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
+      // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx (no silent downgrade)
+      // + optional high-RAM upgrade for hybrids + catalog-authoritative KV.
+      // initEngine does not re-resolve — pass nCtx and cache types explicitly.
+      const profile = resolveContextProfile({
+        hybrid: model.hybrid,
+        kvCache: model.kvCache,
+        catalogCtx: model.engineCtx,
+      });
       await initEngine(modelLocalPath(model, model.file), model.id, {
         mmprojPath,
-        nCtx: model.engineCtx,
-        cacheTypeK: model.kvCache.k,
-        cacheTypeV: model.kvCache.v,
+        nCtx: profile.nCtx,
+        cacheTypeK: profile.cacheTypeK,
+        cacheTypeV: profile.cacheTypeV,
         kvUnified: model.kvUnified,
         mtpNMax: model.mtp?.nMax,
         locale,
@@ -331,6 +554,10 @@ export function AppShell() {
       setModelError(null);
       // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
       AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
+
+      // Preempt background summary BEFORE dispose — same rule as send: never
+      // leave a summarize job holding the engine across a model switch.
+      abortBackgroundSummary();
 
       // Extraction holds the engine: wait briefly so dispose does not race it.
       // Epoch checks discard any delayed writes after the engine is gone.
@@ -402,6 +629,14 @@ export function AppShell() {
     setModelError(null);
     const bundleTotal = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
     setDownload({ bytesReceived: 0, bytesTotal: bundleTotal, progress: 0 });
+
+    // Keep the CPU awake for the whole download: MIUI/aggressive Android power
+    // management otherwise freezes the app as soon as it is backgrounded or
+    // the screen locks, killing the socket mid-transfer ("Connection lost").
+    await activateKeepAwakeAsync(DOWNLOAD_KEEP_AWAKE_TAG).catch(() => undefined);
+    await beginDownloadNotifications();
+    void showDownloadProgressNotification(model.name, 0);
+
     try {
       const outcome = await downloadModelBundle(model, {
         onBundleProgress: (progress) => {
@@ -411,6 +646,11 @@ export function AppShell() {
             bytesTotal: bundleTotal,
             progress: progress.overall,
           });
+          const now = Date.now();
+          if (now - lastDownloadNotifyAtRef.current >= DOWNLOAD_NOTIFY_THROTTLE_MS) {
+            lastDownloadNotifyAtRef.current = now;
+            void showDownloadProgressNotification(model.name, Math.round(progress.overall * 100));
+          }
         },
         signal: controller.signal,
         locale,
@@ -429,11 +669,17 @@ export function AppShell() {
       if (!stillCurrent()) return;
       setModelState("loading");
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
+      // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx + optional high-RAM upgrade.
+      const profile = resolveContextProfile({
+        hybrid: model.hybrid,
+        kvCache: model.kvCache,
+        catalogCtx: model.engineCtx,
+      });
       await initEngine(outcome.model.uri, model.id, {
         mmprojPath,
-        nCtx: model.engineCtx,
-        cacheTypeK: model.kvCache.k,
-        cacheTypeV: model.kvCache.v,
+        nCtx: profile.nCtx,
+        cacheTypeK: profile.cacheTypeK,
+        cacheTypeV: profile.cacheTypeV,
         kvUnified: model.kvUnified,
         mtpNMax: model.mtp?.nMax,
         locale,
@@ -462,8 +708,19 @@ export function AppShell() {
     } finally {
       downloadInFlight.current = false;
       downloadAbortRef.current = null;
+      await deactivateKeepAwake(DOWNLOAD_KEEP_AWAKE_TAG).catch(() => undefined);
+      await dismissDownloadProgressNotification();
     }
-  }, [locale, modelState, notifyDownload, showNotice, t]);
+  }, [
+    beginDownloadNotifications,
+    dismissDownloadProgressNotification,
+    locale,
+    modelState,
+    notifyDownload,
+    showDownloadProgressNotification,
+    showNotice,
+    t,
+  ]);
 
   // Conferma esplicita prima del download (mai automatico) — always bound to modelId.
   const confirmDownload = useCallback(
@@ -619,6 +876,7 @@ export function AppShell() {
           let turnFailed = false;
           let assistantFull = "";
           let extractScheduled = false;
+          let compactionFollowupScheduled = false;
 
           /**
            * Register extract job BEFORE finish() resolves the turn.
@@ -672,6 +930,10 @@ export function AppShell() {
           };
 
           try {
+            // PREEMPT summary BEFORE any engine wait/enqueue so the FIFO never
+            // makes a user turn sit behind a background summarize job.
+            abortBackgroundSummary();
+
             // Wait out a pending memory extract so we never dual-complete on the engine.
             if (memoryExtractRef.current) {
               try {
@@ -685,24 +947,191 @@ export function AppShell() {
               fail(t("chat.modelNotDownloaded", { name: currentModel.name }));
               return;
             }
-            // Memoria conversazionale: ultimi N messaggi (validati e limitati).
-            // Con immagini il budget di contesto si riduce: 8 messaggi × 2000 char.
+
+            const chatId = DEFAULT_CHAT_ID;
             const hasImages = Boolean(attachments?.length);
-            const maxHistory = hasImages ? 8 : 20;
-            const maxChars = hasImages ? 2000 : 4000;
-            const engineMessages: EngineMessage[] = (history ?? [])
-              .filter(
-                (m) =>
-                  m &&
-                  typeof m === "object" &&
-                  typeof (m as { text?: unknown }).text === "string" &&
-                  ((m as { role?: unknown }).role === "user" || (m as { role?: unknown }).role === "assistant"),
-              )
-              .slice(-maxHistory)
-              .map((m) => ({
-                role: (m as { role: string }).role as "user" | "assistant",
-                content: ((m as { text: string }).text as string).slice(0, maxChars),
-              }));
+            const validatedHistory = validateHistoryMessages(history);
+
+            // Detect clearChat: history shrank vs last send → reset stores.
+            const prevLen = lastHistoryLenByChat.get(chatId) ?? 0;
+            if (validatedHistory.length < prevLen) {
+              await resetCompactorChat(chatId);
+            }
+            lastHistoryLenByChat.set(chatId, validatedHistory.length);
+
+            // Re-read toggles each turn so Settings apply without remount.
+            try {
+              memoryEnabledRef.current = await MemoryStore.getEnabled();
+            } catch {
+              memoryEnabledRef.current = false;
+            }
+            if (!memoryEnabledRef.current) {
+              setMemoryFacts([]);
+            }
+            try {
+              const raw = await AsyncStorage.getItem(COMPACTION_ENABLED_KEY);
+              compactionEnabledRef.current = raw === "1" || raw === "true";
+            } catch {
+              compactionEnabledRef.current = false;
+            }
+
+            const compactionOn = compactionEnabledRef.current;
+            let operativeContext: { digest?: string; summary?: string } | null = null;
+            let olderForSummary: HistoryRoleMessage[] = [];
+            let boundaryForAssemble = 0;
+
+            if (compactionOn) {
+              const userTurnCount = countUserTurns(validatedHistory, true);
+
+              // Load frozen state (memory → AsyncStorage).
+              let state = compactorStateByChat.get(chatId);
+              if (!state) {
+                try {
+                  const raw = await AsyncStorage.getItem(compactorStorageKey(chatId));
+                  state = parseCompactorState(raw, chatId);
+                  // Prefer dedicated summary key if present (may be newer pending).
+                  const sumRaw = await AsyncStorage.getItem(summaryStorageKey(chatId));
+                  if (typeof sumRaw === "string" && sumRaw.trim()) {
+                    state = {
+                      ...state,
+                      rollingSummary: truncateBudget(sumRaw.trim(), SUMMARY_BUDGET_CHARS),
+                    };
+                  }
+                  compactorStateByChat.set(chatId, state);
+                } catch {
+                  state = emptyCompactorState(chatId);
+                  compactorStateByChat.set(chatId, state);
+                }
+              }
+
+              // Load-time guards: stale digest/summary after clearChat + app restart
+              // (in-memory lastHistoryLen dies with the process; AsyncStorage survives).
+              // (1) State belongs to a longer (deleted) conversation.
+              // (2) First send of an empty conversation still has persisted state.
+              const persistedCompactorExists =
+                state.builtAtUserTurn >= 0 ||
+                Boolean(state.frozenDigest?.trim()) ||
+                Boolean(state.rollingSummary?.trim()) ||
+                state.boundaryIndex >= 0;
+              if (
+                state.builtAtUserTurn > countUserTurns(validatedHistory) ||
+                (validatedHistory.length === 0 && persistedCompactorExists)
+              ) {
+                await resetCompactorChat(chatId);
+                state = emptyCompactorState(chatId);
+                compactorStateByChat.set(chatId, state);
+              }
+
+              // Force rebuild after context_full (set in onError); consume once.
+              const forceRebuild = forceRebuildByChat.get(chatId) === true;
+              if (forceRebuild) forceRebuildByChat.delete(chatId);
+
+              // Char-budget path needs the current verbatim window.
+              const boundaryProbe = resolveBoundaryIndex(
+                state,
+                validatedHistory.length,
+              );
+              const recentForBudget = splitAtBoundary(
+                validatedHistory,
+                boundaryProbe,
+              ).recent;
+
+              if (
+                shouldRebuild(state, userTurnCount, null, recentForBudget) ||
+                forceRebuild
+              ) {
+                // At rebuild: boundary so remaining window = most recent R msgs.
+                const newBoundary = computeRebuildBoundary(
+                  validatedHistory.length,
+                  hasImages,
+                );
+                const { older } = splitAtBoundary(validatedHistory, newBoundary);
+                // Hygiene: drop error bubbles + abort-orphaned user turns.
+                const olderClean = filterCorpusHygiene(older);
+                // Summary: soft message cap; buildSummaryTranscript also char-caps at 6000.
+                olderForSummary =
+                  olderClean.length > MAX_SUMMARY_CORPUS_MESSAGES
+                    ? olderClean.slice(-MAX_SUMMARY_CORPUS_MESSAGES)
+                    : olderClean;
+                // Digest corpus: last N older messages (unbounded → linear rebuild cost).
+                const olderForDigest =
+                  olderClean.length > MAX_DIGEST_CORPUS_MESSAGES
+                    ? olderClean.slice(-MAX_DIGEST_CORPUS_MESSAGES)
+                    : olderClean;
+                const oldUnits = toRetrievalUnits(olderForDigest);
+                // Throwaway index from older only — single source of truth (no warm index).
+                const digestIndex =
+                  oldUnits.length > 0
+                    ? (() => {
+                        const tmp = new RetrieverIndex();
+                        tmp.append(oldUnits);
+                        return tmp;
+                      })()
+                    : null;
+                const pending = pendingSummaryByChat.get(chatId);
+                state = rebuildFrozenDigest(state, {
+                  chatId,
+                  userTurnCount,
+                  historyLength: validatedHistory.length,
+                  hasImages,
+                  index: digestIndex,
+                  oldTurns: oldUnits,
+                  currentQuery: text,
+                  nextSummary:
+                    typeof pending === "string"
+                      ? pending
+                      : state.rollingSummary,
+                });
+                if (pending !== undefined) pendingSummaryByChat.delete(chatId);
+                compactorStateByChat.set(chatId, state);
+                try {
+                  await AsyncStorage.setItem(
+                    compactorStorageKey(chatId),
+                    serializeCompactorState(state),
+                  );
+                  await AsyncStorage.setItem(
+                    summaryStorageKey(chatId),
+                    state.rollingSummary,
+                  );
+                } catch {
+                  // best-effort persistence
+                }
+              } else {
+                // Between rebuilds: older slice for summary is still pre-boundary.
+                const b = resolveBoundaryIndex(state, validatedHistory.length);
+                const olderBetween = filterCorpusHygiene(
+                  splitAtBoundary(validatedHistory, b).older,
+                );
+                olderForSummary =
+                  olderBetween.length > MAX_SUMMARY_CORPUS_MESSAGES
+                    ? olderBetween.slice(-MAX_SUMMARY_CORPUS_MESSAGES)
+                    : olderBetween;
+              }
+
+              boundaryForAssemble = resolveBoundaryIndex(
+                state,
+                validatedHistory.length,
+              );
+
+              if (state.frozenDigest || state.rollingSummary) {
+                operativeContext = {
+                  digest: state.frozenDigest || undefined,
+                  summary: state.rollingSummary || undefined,
+                };
+              }
+            }
+
+            // History assembly: legacy sliding window (OFF) or boundary→end (ON,
+            // append-only growth between rebuilds — preserves KV prefix).
+            const assembled = assembleEngineHistory(validatedHistory, {
+              compactionEnabled: compactionOn,
+              hasImages,
+              boundaryIndex: boundaryForAssemble,
+            });
+            const engineMessages: EngineMessage[] = assembled.map((m) => ({
+              role: m.role,
+              content: m.content,
+            }));
 
             // Immagini da allegare all'ultimo messaggio user (cap 5):
             // immagini dirette + pagine PDF renderizzate.
@@ -722,17 +1151,76 @@ export function AppShell() {
             if (images.length) userMessage.images = images;
             engineMessages.push(userMessage);
 
-            // Re-read enabled each turn so a Settings toggle applies without remount.
-            // Never inject facts when memory is off (even if memoryFacts state is stale).
-            try {
-              memoryEnabledRef.current = await MemoryStore.getEnabled();
-            } catch {
-              memoryEnabledRef.current = false;
-            }
-            if (!memoryEnabledRef.current) {
-              setMemoryFacts([]);
-            }
             const promptFacts = memoryEnabledRef.current ? memoryFactsRef.current : [];
+
+            /**
+             * Schedule a preemptable background summary (debounced 8s idle) only
+             * when the NEXT user turn will rebuild anyway (turnsSinceRebuild ===
+             * K-1). Summary completion / clearCache destroys the KV prefix; by
+             * aligning with the pre-rebuild turn that destruction is absorbed by
+             * the rebuild turn's inevitable cold prefill (not a warm mid-cycle
+             * turn). Pending-summary promotion at rebuild time is unchanged.
+             */
+            const scheduleCompactionFollowup = () => {
+              if (compactionFollowupScheduled) return;
+              compactionFollowupScheduled = true;
+              if (!compactionOn || turnFailed || signal.aborted) return;
+              if (olderForSummary.length === 0) return;
+
+              // turnsSinceRebuild after this turn's state (post-rebuild → 0).
+              const st = compactorStateByChat.get(chatId);
+              const K = DEFAULT_COMPACTOR_CONFIG.rebuildEveryKUserTurns;
+              const turnsSinceRebuild =
+                st && typeof st.builtAtUserTurn === "number" && st.builtAtUserTurn >= 0
+                  ? countUserTurns(validatedHistory, true) - st.builtAtUserTurn
+                  : 0;
+              if (turnsSinceRebuild !== K - 1) return;
+
+              const transcript = buildSummaryTranscript(olderForSummary);
+              if (!transcript.trim()) return;
+
+              if (summaryDebounceTimer) clearTimeout(summaryDebounceTimer);
+              summaryDebounceTimer = setTimeout(() => {
+                summaryDebounceTimer = null;
+                // Still idle? streamInFlight means user already sent again.
+                if (streamInFlightRef.current) return;
+
+                const ac = new AbortController();
+                summaryAbortController = ac;
+                const capturedLocale = locale;
+                const capturedChatId = chatId;
+                void (async () => {
+                  try {
+                    const summary = await summarizeConversation(
+                      transcript,
+                      capturedLocale,
+                      ac.signal,
+                    );
+                    if (ac.signal.aborted || !summary.trim()) return;
+                    const trimmed = truncateBudget(
+                      summary.trim(),
+                      SUMMARY_BUDGET_CHARS,
+                    );
+                    // Store as pending — applied on next digest rebuild (frozen).
+                    pendingSummaryByChat.set(capturedChatId, trimmed);
+                    try {
+                      await AsyncStorage.setItem(
+                        summaryStorageKey(capturedChatId),
+                        trimmed,
+                      );
+                    } catch {
+                      // best-effort
+                    }
+                  } catch {
+                    // keep previous rollingSummary
+                  } finally {
+                    if (summaryAbortController === ac) {
+                      summaryAbortController = null;
+                    }
+                  }
+                })();
+              }, SUMMARY_IDLE_DEBOUNCE_MS);
+            };
 
             await streamAssistantTurn(
               engineMessages,
@@ -749,10 +1237,20 @@ export function AppShell() {
                 onDone: () => {
                   // Register extract BEFORE unlocking the turn for the next message.
                   scheduleMemoryExtract();
+                  scheduleCompactionFollowup();
                   finish();
                 },
                 onError: (error) => {
                   turnFailed = true;
+                  // context_full + compaction ON → force rebuild next send.
+                  if (
+                    compactionOn &&
+                    error &&
+                    typeof error === "object" &&
+                    (error as { code?: string }).code === "context_full"
+                  ) {
+                    forceRebuildByChat.set(chatId, true);
+                  }
                   callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
                   finish();
                 },
@@ -762,10 +1260,12 @@ export function AppShell() {
                 ...agentOptions,
                 locale,
                 memoryFacts: promptFacts,
+                operativeContext,
               },
             );
             // Safety: if the stream returns without onDone/onError (e.g. abort path).
             scheduleMemoryExtract();
+            scheduleCompactionFollowup();
             finish();
           } catch (error) {
             fail(error instanceof Error ? error.message : String(error));
@@ -777,6 +1277,16 @@ export function AppShell() {
 
   // ── Render barra modello ─────────────────────────────────────────────────
   const progressPercent = download ? Math.round(download.progress * 100) : 0;
+
+  // Extra guidance only for connectivity-shaped download failures (not e.g.
+  // storage-full or incomplete-bytes) — the MIUI/background-kill fix is a
+  // "keep the app open" hint, not a generic retry message.
+  const modelErrorHint =
+    modelState === "error" &&
+    modelError &&
+    (modelError === t("errors.connectionLost") || modelError === t("errors.networkUnreachable"))
+      ? t("download.keepOpenHint")
+      : null;
 
   const modelBarStatus = (() => {
     const engineLoaded = isEngineReady() && getActiveModelId() === currentModel.id;
@@ -808,7 +1318,20 @@ export function AppShell() {
   })();
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.shell }}>
+    // key=fontScaleId: force a full remount of the visible tree on text-size
+    // change. Most of theme/components/* still reads the static `typography`
+    // singleton at module scope instead of useTypography() — a plain
+    // re-render leaves their already-created style objects looking stale even
+    // though the singleton's fontSize/lineHeight are updated (React does not
+    // know to re-render a component that isn't itself subscribed to the
+    // change). Remounting is the small, low-risk fix: AppShell's own hooks
+    // (engine refs, download state, model index) live above this element and
+    // are untouched, so the loaded model/engine and any in-flight downloads
+    // are NOT torn down — only the display subtree (chat, drawer, settings,
+    // help) unmounts and remounts, re-reading the (already-updated) typography
+    // values. AiChatPage reloads its message list from AsyncStorage on mount,
+    // which is written on every change, so no chat data is lost.
+    <View key={fontScaleId} style={{ flex: 1, backgroundColor: colors.shell }}>
       <PainterlyBg />
       <GestureDetector gesture={edgeSwipe}>
       <View style={{ flex: 1 }}>
@@ -898,6 +1421,18 @@ export function AppShell() {
           </Text>
         ) : null}
 
+        {modelErrorHint ? (
+          <Text
+            style={[
+              typography.bodyXs,
+              { color: colors.muted, marginHorizontal: spacing.lg, marginBottom: spacing.xs },
+            ]}
+            numberOfLines={2}
+          >
+            {modelErrorHint}
+          </Text>
+        ) : null}
+
         <View style={{ flex: 1 }}>
           <AiChatPage
             userName={null}
@@ -963,6 +1498,7 @@ export function AppShell() {
             modelState,
             downloadPercent: modelState === "downloading" ? progressPercent : null,
             modelError,
+            modelErrorHint,
             streaming,
             downloadedById,
             onSelectModel: selectModelById,

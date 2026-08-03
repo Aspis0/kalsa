@@ -13,8 +13,14 @@ import {
   type BlockFormat,
   type ThinkingMode,
 } from "../bench/benchConfig";
-import { buildOperativeBlock } from "../context/operativeBlock";
+import {
+  buildOperativeBlock,
+  hasOperativeContext,
+  type OperativeBlockContext,
+} from "../context/operativeBlock";
+import { replaceLiteral } from "../context/compactor";
 import { getStrings, type Locale } from "../i18n";
+import { DEFAULT_N_CTX } from "./contextProfile";
 
 /**
  * Engine locale — Fase 1/2/4: llama.rn (binding llama.cpp, MIT).
@@ -33,6 +39,17 @@ let context: LlamaContext | null = null;
 let activeModelId: string | null = null;
 let activeMmprojPath: string | null = null;
 let activeEngineCtx = 0;
+let activeCacheTypeK: string | null = null;
+let activeCacheTypeV: string | null = null;
+
+/**
+ * True while disposeEngineLocked is unwinding a context. streamAssistantTurn's
+ * bailIfStopped checks this before every completion() call as an early, cheap
+ * signal. The AUTHORITATIVE guard against use-after-free is the identity check
+ * (captured `engine` !== module-level `context`) in bailIfStopped itself, which
+ * stays correct even after disposeEngineLocked's `finally` resets this flag.
+ */
+let disposing = false;
 
 /** Max user-memory facts injected into the system prompt. */
 const MAX_PROMPT_FACTS = 10;
@@ -44,6 +61,21 @@ const EXTRACT_MEMORY_TIMEOUT_MS = 20_000;
 const TRANSLATE_TIMEOUT_MS = 30_000;
 /** Hard cap on source text fed to translateText (chars). */
 const MAX_TRANSLATION_CHARS = 4000;
+/** summarizeConversation wall-clock timeout (ms). */
+const SUMMARIZE_TIMEOUT_MS = 30_000;
+/** Hard cap on transcript fed to summarizeConversation (chars). */
+const MAX_SUMMARIZE_CHARS = 6000;
+/** Output token cap for summarizeConversation. */
+const SUMMARIZE_N_PREDICT = 400;
+/**
+ * Last-resort safety net for disposeEngineLocked's wait on the FIFO job chain.
+ * Must stay well above the longest internal job timeout (translate: 30s) — the
+ * `disposing` flag is what actually cuts jobs short; this only guards against a
+ * job stuck outside any completion (e.g. a tool network fetch with no timeout).
+ * If it trips we log and force release() rather than hang forever, but this is
+ * flagged loudly (never silent).
+ */
+const DISPOSE_SAFETY_TIMEOUT_MS = 60_000;
 
 /** English language names for translation prompts (models expect EN names). */
 const TARGET_LANG_NAME: Record<Locale, string> = {
@@ -94,6 +126,47 @@ const STOP_WORDS = [
 
 const MAX_TOOL_ROUNDS = 2;
 const MAX_IMAGES_PER_TURN = 5;
+/**
+ * Model-directed content injected into the transcript for a tool_call dropped
+ * by the per-round cap (S2) — fed back to the LLM as a tool-role result, never
+ * shown to the user directly. Intentionally not localized, same convention as
+ * the raw (often English) exception messages already interpolated into
+ * strings.errors.toolError elsewhere in the tool loop.
+ */
+const TOOL_CALL_SKIPPED_MESSAGE = "skipped: per-round tool call limit reached";
+
+/** V4.2 §Fase 3: tool-result cap 2500 (was 6000). Benchmarkable — do not raise without re-bench. */
+const TOOL_RESULT_MAX_CHARS = 2500;
+
+/** Appended when the tool body is truncated to fit the budget (counts toward 2500). */
+const TOOL_RESULT_TRUNC_MARKER = "\n…[truncated]";
+
+/**
+ * Model-directed one-liner appended to every tool-role result (English, not i18n —
+ * same convention as TOOL_CALL_SKIPPED_MESSAGE). V4.2 §Fase 3: answer from results
+ * or admit absence; do not restate the full operative block on tool rounds.
+ * Counts toward TOOL_RESULT_MAX_CHARS together with body + optional trunc marker.
+ */
+const TOOL_RESULT_USE_RULE =
+  "Use these results to answer; if they don't contain the answer, say so.";
+
+/**
+ * Cap tool-role content to TOOL_RESULT_MAX_CHARS total (body + optional
+ * truncation marker + rule line). Marker only when the body is actually cut.
+ */
+function formatToolResultContent(raw: string): string {
+  const hasRule = raw.includes(TOOL_RESULT_USE_RULE);
+  const rulePart = hasRule ? "" : `\n${TOOL_RESULT_USE_RULE}`;
+  const budget = Math.max(0, TOOL_RESULT_MAX_CHARS - rulePart.length);
+
+  let body = raw;
+  if (body.length > budget) {
+    const sliceLen = Math.max(0, budget - TOOL_RESULT_TRUNC_MARKER.length);
+    body = body.slice(0, sliceLen) + TOOL_RESULT_TRUNC_MARKER;
+  }
+
+  return body + rulePart;
+}
 
 export type EngineMessage = {
   role: "user" | "assistant";
@@ -192,6 +265,10 @@ export function isVisionEnabled(): boolean {
  */
 export type EngineInitOptions = {
   mmprojPath?: string | null;
+  /**
+   * n_ctx for this load. Callers (AppShell) resolve via resolveContextProfile
+   * once and pass the value; omitted → DEFAULT_N_CTX only (no RAM re-resolve here).
+   */
   nCtx?: number;
   cacheTypeK?: ContextParams["cache_type_k"];
   cacheTypeV?: ContextParams["cache_type_v"];
@@ -203,19 +280,30 @@ export type EngineInitOptions = {
 };
 
 /**
- * Carica il modello (idempotente per la stessa coppia model+mmproj).
+ * Carica il modello (idempotente per la stessa coppia model+mmproj+nCtx+KV).
  * `mmprojPath` presente → initMultimodal obbligatorio: se restituisce false
  * o il supporto vision non risulta attivo, l'engine NON si considera pronto.
+ *
+ * Context sizing / KV: resolve once at the call site (AppShell + contextProfile);
+ * this function does not re-run RAM detection.
  */
 export function initEngine(modelPath: string, modelId: string, options: EngineInitOptions): Promise<void> {
   return withLifecycleLock(async () => {
     const strings = getStrings(options.locale);
-    const engineCtx = options.nCtx ?? 8192;
+    const engineCtx =
+      typeof options.nCtx === "number" && Number.isFinite(options.nCtx)
+        ? options.nCtx
+        : DEFAULT_N_CTX;
+    // Catalog/profile values from caller; dense practice fallback if omitted.
+    const cacheTypeK = options.cacheTypeK ?? "q8_0";
+    const cacheTypeV = options.cacheTypeV ?? "q4_0";
     if (
       context &&
       activeModelId === modelId &&
       activeMmprojPath === (options.mmprojPath ?? null) &&
-      activeEngineCtx === engineCtx
+      activeEngineCtx === engineCtx &&
+      activeCacheTypeK === cacheTypeK &&
+      activeCacheTypeV === cacheTypeV
     )
       return;
     await disposeEngineLocked();
@@ -224,13 +312,13 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     const params: ContextParams = {
       model: modelPath,
       use_mlock: true,
-      n_ctx: engineCtx, // context per modello (multi-chat)
+      n_ctx: engineCtx, // context per modello (multi-chat); caller may pass 16k
       n_batch: 512,
       n_ubatch: 256,
       n_gpu_layers: 99, // Metal (iOS) / OpenCL (Android); senza GPU degrada a CPU
       flash_attn_type: "auto",
-      cache_type_k: options.cacheTypeK ?? "q8_0", // KV quantizzata: q8_0 ≈98% qualità FP16
-      cache_type_v: options.cacheTypeV ?? "q4_0", // V in q4 è la pratica comune (K resta q8)
+      cache_type_k: cacheTypeK, // KV quantizzata: q8_0 ≈98% qualità FP16
+      cache_type_v: cacheTypeV, // from catalog (hybrid q8 or Q3 q4; dense V often q4)
       ...(options.kvUnified ? { kv_unified: true } : {}), // ibridi/ricorrenti (Qwen3.5 DeltaNet)
       // Richiesto per multimodal: senza context shifting i media restano ancorati.
       ctx_shift: isMultimodal ? false : true,
@@ -243,8 +331,8 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
         type: "draft-mtp",
         n_max: options.mtpNMax,
         draft: {
-          cache_type_k: options.cacheTypeK ?? "q8_0",
-          cache_type_v: options.cacheTypeV ?? "q4_0",
+          cache_type_k: cacheTypeK,
+          cache_type_v: cacheTypeV,
         },
       };
     }
@@ -253,6 +341,8 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     activeModelId = modelId;
     activeMmprojPath = options.mmprojPath ?? null;
     activeEngineCtx = engineCtx;
+    activeCacheTypeK = cacheTypeK;
+    activeCacheTypeV = cacheTypeV;
 
     if (isMultimodal && options.mmprojPath) {
       const enabled = await context.initMultimodal({ path: options.mmprojPath, use_gpu: true });
@@ -274,43 +364,64 @@ export function disposeEngine(): Promise<void> {
 }
 
 async function disposeEngineLocked(): Promise<void> {
-  // Invalidate first so any job that has not yet captured context sees null.
-  const current = context;
-  context = null;
-  activeModelId = null;
-  activeMmprojPath = null;
-  activeEngineCtx = 0;
-  if (current) {
-    // Unblock any in-flight native completion, then wait for the FIFO job
-    // chain (and tracked completions) to settle before release().
-    try {
-      await current.stopCompletion();
-    } catch {
-      // best effort
+  // Set BEFORE invalidating context: any job already running (or about to run)
+  // in engineJobChain sees this immediately and bails before its next completion().
+  disposing = true;
+  try {
+    // Invalidate first so any job that has not yet captured context sees null.
+    const current = context;
+    context = null;
+    activeModelId = null;
+    activeMmprojPath = null;
+    activeEngineCtx = 0;
+    activeCacheTypeK = null;
+    activeCacheTypeV = null;
+    if (current) {
+      // Unblock any in-flight native completion, then wait for the FIFO job
+      // chain (and tracked completions) to settle before release(). No arbitrary
+      // cap: the `disposing` flag (checked by streamAssistantTurn before every
+      // completion) is what bounds this wait, not a timeout race.
+      try {
+        await current.stopCompletion();
+      } catch {
+        // best effort
+      }
+      const settled = await Promise.race([
+        Promise.allSettled([
+          engineJobChain.then(() => undefined, () => undefined),
+          ...activeCompletionSet,
+        ]).then(() => true),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), DISPOSE_SAFETY_TIMEOUT_MS)),
+      ]);
+      if (!settled) {
+        console.warn(
+          "[disposeEngineLocked] safety timeout: job chain non si è liberata in tempo, forzo release()",
+        );
+      }
+      try {
+        await current.releaseMultimodal();
+      } catch {
+        // best effort
+      }
+      try {
+        await current.release();
+      } catch {
+        // rilascio best-effort
+      }
+    } else {
+      // Still drain the job queue in case a job is mid-flight with a captured ctx.
+      const settled = await Promise.race([
+        engineJobChain.then(() => true, () => true),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), DISPOSE_SAFETY_TIMEOUT_MS)),
+      ]);
+      if (!settled) {
+        console.warn(
+          "[disposeEngineLocked] safety timeout: job chain non si è liberata in tempo (no context attivo)",
+        );
+      }
     }
-    await Promise.race([
-      Promise.allSettled([
-        engineJobChain.then(() => undefined, () => undefined),
-        ...activeCompletionSet,
-      ]).then(() => undefined),
-      new Promise<void>((resolve) => setTimeout(resolve, 5000)),
-    ]);
-    try {
-      await current.releaseMultimodal();
-    } catch {
-      // best effort
-    }
-    try {
-      await current.release();
-    } catch {
-      // rilascio best-effort
-    }
-  } else {
-    // Still drain the job queue in case a job is mid-flight with a captured ctx.
-    await Promise.race([
-      engineJobChain.then(() => undefined, () => undefined),
-      new Promise<void>((resolve) => setTimeout(resolve, 5000)),
-    ]);
+  } finally {
+    disposing = false;
   }
 }
 
@@ -368,23 +479,32 @@ function prefixUserMessageContent(
 
 /**
  * Insert the operative block into the engine message list according to bench format.
- * "none" → identity (production path). Synthetic user-note is engine-only (not UI history).
+ * "none" → identity (production path) unless compaction context is present, in which
+ * case format B (user-prefix) is used so digest/summary ride on the last user message.
+ * Synthetic user-note is engine-only (not UI history).
  */
 function applyOperativeBlockFormat(
   systemMessage: { role: "system"; content: string },
   historyMessages: RNLlamaOAICompatibleMessage[],
   format: BlockFormat,
   locale: Locale,
+  operativeCtx?: OperativeBlockContext | null,
 ): Array<RNLlamaOAICompatibleMessage | { role: "system"; content: string }> {
-  if (format === "none" || historyMessages.length === 0) {
+  const hasCtx = hasOperativeContext(operativeCtx ?? null);
+  // Production default: no block. Compaction-only context still uses format B.
+  let effective: BlockFormat = format;
+  if (format === "none" && hasCtx) {
+    effective = "user-prefix";
+  }
+  if (effective === "none" || historyMessages.length === 0) {
     return [systemMessage, ...historyMessages];
   }
 
-  const block = buildOperativeBlock(locale, null);
+  const block = buildOperativeBlock(locale, operativeCtx ?? null);
   const beforeUser = historyMessages.slice(0, -1);
   const lastUser = historyMessages[historyMessages.length - 1]!;
 
-  if (format === "system-end") {
+  if (effective === "system-end") {
     // system (main) + history except last user + system (operative) + last user
     return [
       systemMessage,
@@ -394,7 +514,7 @@ function applyOperativeBlockFormat(
     ];
   }
 
-  if (format === "user-prefix") {
+  if (effective === "user-prefix") {
     return [
       systemMessage,
       ...beforeUser,
@@ -430,6 +550,10 @@ function buildThinkingCompletionFields(mode: ThinkingMode): {
     case "off":
       return {
         enable_thinking: false,
+        // Second belt: llama.cpp #20182/#20476 — on Qwen3.5 `enable_thinking:false`
+        // alone is often ignored and the model emits a long hidden reasoning block
+        // (burns tokens, UI stalls on "thinking"). A zero budget forces it shut.
+        thinking_budget_tokens: 0,
         reasoning_format: "none",
         chat_template_kwargs: { enable_thinking: false },
       };
@@ -445,13 +569,30 @@ function buildThinkingCompletionFields(mode: ThinkingMode): {
       };
     case "default":
     default:
-      // Production path — identical to pre-bench hard-coded options.
+      // Production path — same double belt as "off" (see comment above).
       return {
         enable_thinking: false,
+        thinking_budget_tokens: 0,
         reasoning_format: "none",
         chat_template_kwargs: { enable_thinking: false },
       };
   }
+}
+
+const THINK_OPEN = "<think>";
+const THINK_CLOSE = "</think>";
+
+/**
+ * Length of the longest suffix of `s` that is a strict prefix of `tag`.
+ * Used to hold back a partial tag (e.g. "<thi") at the end of a stream delta
+ * until the next delta resolves whether it is really a tag.
+ */
+function partialTagSuffixLength(s: string, tag: string): number {
+  const maxLen = Math.min(s.length, tag.length - 1);
+  for (let len = maxLen; len > 0; len -= 1) {
+    if (s.slice(s.length - len) === tag.slice(0, len)) return len;
+  }
+  return 0;
 }
 
 export type StreamTurnOptions = EngineTurnOptions & {
@@ -459,6 +600,13 @@ export type StreamTurnOptions = EngineTurnOptions & {
   locale: Locale;
   /** Durable user facts to inject into the system prompt (max 10 used). */
   memoryFacts?: string[];
+  /**
+   * Frozen compaction context (digest + rolling summary) for the operative block.
+   * When present and non-empty, injected via format B (user-prefix) even if the
+   * bench format knob is "none". Omit / empty when compaction is OFF so prompts
+   * stay byte-identical to the legacy path.
+   */
+  operativeContext?: OperativeBlockContext | null;
 };
 
 export async function streamAssistantTurn(
@@ -492,7 +640,14 @@ export async function streamAssistantTurn(
     const abort = () => {
       aborted = true;
       finishOnce(() => callbacks.onDone());
-      void engine.stopCompletion().catch(() => undefined);
+      // Same identity guard as bailIfStopped: after the disposeEngineLocked
+      // safety-net timeout forces a release(), `engine` no longer matches the
+      // live module-level `context` — calling stopCompletion() on it would be
+      // a UAF on the released native context. A late abort in that window is
+      // a no-op here (there is nothing left to stop).
+      if (engine === context) {
+        void engine.stopCompletion().catch(() => undefined);
+      }
     };
     signal?.addEventListener("abort", abort, { once: true });
     if (signal?.aborted) {
@@ -533,37 +688,187 @@ export async function streamAssistantTurn(
       historyMessages,
       blockFormat,
       locale,
+      options.operativeContext ?? null,
     ) as ToolChatMessage[];
 
     // Accumulo locale del testo: streaming garantito anche se il campo
     // `accumulated_text` di llama.rn non fosse popolato dal binding.
     let streamedText = "";
 
-    // Qwen3.5 emette un blocco `<think></think>` (vuoto) anche con
-    // enable_thinking:false: va rimosso, insieme a eventuali tag residui.
-    const cleanDelta = (text: string) =>
+    // Qwen3.5 emette un blocco <think>...</think> SOLO in testa all'output di
+    // un round (vuoto quando enable_thinking:false, popolato altrimenti). Un
+    // <think> che compare più avanti nel testo è markup letterale del modello
+    // (es. "Use <think> tags in markdown") e va preservato verbatim — non è
+    // il marker di un blocco di ragionamento.
+    // Full-text (risultato finale, non streaming): nessun rischio di tag
+    // spezzato a metà tra due callback, ma un round troncato può lasciare un
+    // <think> di apertura MAI chiuso — va rimosso anch'esso, SOLO se il
+    // blocco inizia proprio in testa al testo (altrimenti è testo letterale),
+    // altrimenti il contenuto del pensiero finisce verbatim nella risposta
+    // finale, sovrascrivendo il testo pulito già mostrato in streaming
+    // (mirror di cleanTranslationOutput, ma con l'ancoraggio in testa).
+    const stripThinkTags = (text: string) =>
       text
+        // Coppie chiuse ovunque nel testo: parità con il comportamento storico.
         .replace(/<think>[\s\S]*?<\/think>/g, "")
-        .replace(/<\/?think>/g, "");
+        // Blocco APERTO mai chiuso: solo se inizia in testa al testo (whitespace
+        // iniziale ammesso) — un <think> aperto più avanti è testo letterale.
+        .replace(/^\s*<think>[\s\S]*$/, "")
+        // Marker di chiusura orfano (nessun <think> di apertura corrispondente):
+        // resta uno scarto rimuovibile ovunque. Il marker di apertura NON viene
+        // più rimosso qui: se non è stato già catturato dalle due regex sopra,
+        // è testo letterale (vedi commento in cima).
+        .replace(/<\/think>/g, "");
+
+    // Streaming per-token: un tag <think>/</think> può arrivare spezzato tra
+    // due callback consecutive — stato per-round (insideThink + carry di un
+    // eventuale prefisso di tag in sospeso) evita che frammenti di tag trapelino
+    // in UI. `thinkDecided` blocca l'apertura di un blocco di pensiero non
+    // appena il round produce contenuto non-whitespace senza che <think> sia
+    // apparso: da quel punto in poi ogni <think> successivo è testo letterale.
+    let insideThink = false;
+    let thinkCarry = "";
+    let thinkDecided = false;
+    const cleanStreamDelta = (raw: string): string => {
+      let text = thinkCarry + raw;
+      thinkCarry = "";
+      let out = "";
+
+      // Fase di decisione: ancora possibile che il round apra con un vero
+      // blocco <think> (solo whitespace visto finora, nessuna decisione presa).
+      if (!insideThink && !thinkDecided) {
+        const trimmed = text.replace(/^[ \t\r\n]+/, "");
+        if (trimmed.startsWith(THINK_OPEN)) {
+          // Blocco reale in testa all'output: whitespace + tag di apertura
+          // scartati, si prosegue lo scan del resto in modalità insideThink.
+          insideThink = true;
+          thinkDecided = true;
+          text = trimmed.slice(THINK_OPEN.length);
+        } else if (trimmed.length === 0 || THINK_OPEN.startsWith(trimmed)) {
+          // Ancora indeciso: quanto visto finora è whitespace, oppure un
+          // prefisso parziale di "<think>" — trattieni tutto e attendi altri
+          // token prima di decidere.
+          thinkCarry = text;
+          return "";
+        } else {
+          // Diverge da "<think>": niente blocco reale in questo round, la
+          // decisione è definitiva — il testo (whitespace incluso) è letterale.
+          thinkDecided = true;
+        }
+      }
+
+      let i = 0;
+      while (i < text.length) {
+        if (insideThink) {
+          const closeIdx = text.indexOf(THINK_CLOSE, i);
+          if (closeIdx === -1) {
+            const tail = partialTagSuffixLength(text.slice(i), THINK_CLOSE);
+            if (tail > 0) thinkCarry = text.slice(text.length - tail);
+            i = text.length;
+            break;
+          }
+          insideThink = false;
+          i = closeIdx + THINK_CLOSE.length;
+          continue;
+        }
+        // Non in un blocco di pensiero: <think> è ormai testo letterale (la
+        // decisione è presa), ma un </think> orfano (nessuna apertura reale
+        // corrispondente) resta uno scarto da rimuovere, ovunque compaia.
+        const closeIdx = text.indexOf(THINK_CLOSE, i);
+        if (closeIdx === -1) {
+          const tail = partialTagSuffixLength(text.slice(i), THINK_CLOSE);
+          out += text.slice(i, text.length - tail);
+          if (tail > 0) thinkCarry = text.slice(text.length - tail);
+          i = text.length;
+          break;
+        }
+        out += text.slice(i, closeIdx);
+        i = closeIdx + THINK_CLOSE.length;
+      }
+      return out;
+    };
 
     const emitFinalText = (raw: { text: string; content?: string }) => {
-      const finalText = cleanDelta(
+      let finalText = stripThinkTags(
         typeof raw.content === "string" && raw.content.length > 0 ? raw.content : (raw.text ?? ""),
       );
+      // Un round troncato esattamente a metà di un tag (es. finisce con
+      // "<thi") non viene intercettato da stripThinkTags (richiede il tag
+      // completo). Va scartato SOLO se appartiene chiaramente a markup di
+      // pensiero: il round è finito dentro un blocco reale mai chiuso
+      // (insideThink) oppure l'intero output è un tentativo di apertura mai
+      // risolto in testa al testo (thinkCarry ancora "in decisione"). In ogni
+      // altro caso è testo letterale genuino e va mantenuto.
+      if (insideThink || (!thinkDecided && thinkCarry)) {
+        const tail = Math.max(
+          partialTagSuffixLength(finalText, THINK_OPEN),
+          partialTagSuffixLength(finalText, THINK_CLOSE),
+        );
+        if (tail > 0) finalText = finalText.slice(0, finalText.length - tail);
+      }
       if (finalText) callbacks.onDelta(finalText, finalText);
       finishOnce(() => callbacks.onDone());
+    };
+
+    // E1 (disposeEngineLocked race) + E4 (abort landing during the bench-knob
+    // awaits above): single guard checked right before entering the round loop
+    // and at the top of every round, immediately before each completion() call,
+    // right after every completion() call, and after every tool execution.
+    const bailIfStopped = (): boolean => {
+      if (finished || aborted) {
+        finishOnce(() => callbacks.onDone());
+        return true;
+      }
+      // Identity check is the AUTHORITATIVE guard, not `disposing` alone:
+      // `engine` is the context captured at job start; disposeEngineLocked
+      // nulls the module-level `context` before release() and only a NEW
+      // initEngine reassigns it. This survives any timing of disposeEngineLocked's
+      // `finally { disposing = false; }` — e.g. a tool fetch stuck past the
+      // safety-net timeout, resuming after release() already ran and disposing
+      // was reset, still sees `engine !== context` and bails instead of calling
+      // completion() on a released context (the exact UAF this guards against).
+      // `disposing` is kept as an earlier, cheaper signal for the common case
+      // (bails before disposeEngineLocked even finishes stopCompletion()).
+      if (disposing || engine !== context) {
+        // Not a normal completion nor a caller-initiated abort (that path sets
+        // `aborted` and resolves via onDone because `signal` is already
+        // aborted by then). Here the engine was pulled out from under an
+        // in-flight turn (e.g. model switch while streaming): route through
+        // onError — like contextFull below — so callers gate memory
+        // extraction the same way they gate any failed turn. onDone would
+        // look like a clean finish even though assistantFull may hold
+        // truncated text.
+        aborted = true;
+        finishOnce(() => callbacks.onError(new Error(strings.errors.turnInterrupted)));
+        return true;
+      }
+      return false;
     };
 
     try {
       callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
 
+      if (bailIfStopped()) return;
+
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
+        if (bailIfStopped()) return;
+        // Fresh think-tag state for this round's stream (each round is a new completion).
+        insideThink = false;
+        thinkCarry = "";
+        thinkDecided = false;
+        // Last round: force text-only output (no more tool_calls) so the model
+        // must synthesize from the gathered tool results instead of exiting
+        // the loop with no completion (blank assistant bubble).
+        const isFinalToolRound = round === MAX_TOOL_ROUNDS - 1;
         const result = await trackCompletion(
           engine.completion(
             {
               messages: currentMessages as RNLlamaOAICompatibleMessage[],
               ...(hasTools
-                ? { tools: options!.tools as EngineTool[], tool_choice: "auto" as const }
+                ? {
+                    tools: options!.tools as EngineTool[],
+                    tool_choice: isFinalToolRound ? "none" : ("auto" as const),
+                  }
                 : {}),
               n_predict: 512,
               stop: STOP_WORDS,
@@ -579,7 +884,7 @@ export async function streamAssistantTurn(
               // Token callbacks run inside this job — not blocked by the FIFO gate.
               if (finished || aborted) return;
               const raw = data.content ?? (hasTools ? "" : data.token) ?? "";
-              const delta = cleanDelta(raw);
+              const delta = cleanStreamDelta(raw);
               if (delta) {
                 streamedText += delta;
                 callbacks.onDelta(delta, streamedText);
@@ -588,12 +893,17 @@ export async function streamAssistantTurn(
           ),
         );
 
-        if (finished || aborted) return;
+        if (bailIfStopped()) return;
 
         if (result.context_full) {
-          finishOnce(() =>
-            callbacks.onError(new Error(strings.errors.contextFull)),
-          );
+          finishOnce(() => {
+            const err = new Error(strings.errors.contextFull) as Error & {
+              code?: string;
+            };
+            // Machine-readable marker for AppShell force-rebuild (compaction ON).
+            err.code = "context_full";
+            callbacks.onError(err);
+          });
           return;
         }
 
@@ -607,16 +917,22 @@ export async function streamAssistantTurn(
         // tool_calls + i relativi risultati tool (formato OpenAI).
         // Gli id vengono NORMALIZZATI: il binding può restituire `id: null`
         // (json.type_error 302 al re-parse) — l'esempio ufficiale fa lo stesso.
-        const normalizedCalls = toolCalls.slice(0, 2).map((call, index) => ({
+        // Tutte le tool_calls richieste sono normalizzate (id sempre presente),
+        // ma solo le prime 2 vengono eseguite (S2): le altre vanno comunque nel
+        // messaggio assistant + un risultato tool "skipped" così il transcript
+        // resta coerente (nessuna tool_call orfana senza risposta).
+        const normalizedCalls = toolCalls.map((call, index) => ({
           type: "function" as const,
           id: typeof call.id === "string" && call.id ? call.id : `call-${round}-${index}`,
           function: call.function,
         }));
+        const executableCalls = normalizedCalls.slice(0, 2);
+        const skippedCalls = normalizedCalls.slice(2);
         const executed: Array<{
           call: (typeof normalizedCalls)[number];
           content: string;
         }> = [];
-        for (const call of normalizedCalls) {
+        for (const call of executableCalls) {
           const name = call.function?.name ?? "";
           const args = parseToolArguments(call.function?.arguments);
           callbacks.onTool?.({ name, arguments: args });
@@ -626,26 +942,41 @@ export async function streamAssistantTurn(
           try {
             const outcome = await options.executeTool(name, args, signal);
             if (outcome.sources?.length) callbacks.onSources?.(outcome.sources);
-            toolContent = (outcome.text ?? "").slice(0, 6000) || strings.errors.noResults;
+            toolContent = formatToolResultContent(
+              (outcome.text ?? "") || strings.errors.noResults,
+            );
           } catch (error) {
-            toolContent = strings.errors.toolError.replace(
-              "{message}",
-              error instanceof Error ? error.message : String(error),
+            toolContent = formatToolResultContent(
+              strings.errors.toolError.replace(
+                "{message}",
+                error instanceof Error ? error.message : String(error),
+              ),
             );
           }
-          if (finished || aborted) return;
+          if (bailIfStopped()) return;
 
           executed.push({ call, content: toolContent });
         }
+        const skipped = skippedCalls.map((call) => ({
+          call,
+          content: strings.errors.toolError.replace("{message}", TOOL_CALL_SKIPPED_MESSAGE),
+        }));
 
+        // Executed tool-role results already include use-rule (+ trunc marker) within budget.
+        // Skipped messages stay as-is (already a skip reason).
         currentMessages = [
           ...currentMessages,
           {
             role: "assistant",
             content: "",
-            tool_calls: executed.map((entry) => entry.call),
+            tool_calls: [...executed.map((entry) => entry.call), ...skipped.map((entry) => entry.call)],
           },
           ...executed.map((entry) => ({
+            role: "tool",
+            tool_call_id: entry.call.id,
+            content: entry.content,
+          })),
+          ...skipped.map((entry) => ({
             role: "tool",
             tool_call_id: entry.call.id,
             content: entry.content,
@@ -946,6 +1277,124 @@ export async function translateText(
       signal?.removeEventListener("abort", onAbort);
     }
   });
+}
+
+/**
+ * Background, preemptable conversation summary for ConversationCompactor.
+ * Mirror of translateText: withEngineJob + clearCache + wall-clock timeout +
+ * AbortSignal. Thinking fully off (enable_thinking:false AND thinking_budget_tokens:0).
+ * n_predict ≤ 400. Fail-closed → empty string (caller keeps previous rollingSummary).
+ *
+ * IMPORTANT: callers must abort this job BEFORE enqueueing a user turn so the
+ * FIFO gate never makes the user wait behind a summary.
+ */
+export async function summarizeConversation(
+  transcript: string,
+  locale: Locale,
+  signal?: AbortSignal,
+): Promise<string> {
+  const sourceFull = (transcript ?? "").trim();
+  if (!sourceFull) return "";
+  const source = sourceFull.slice(0, MAX_SUMMARIZE_CHARS);
+
+  const strings = getStrings(locale);
+  const prompt = replaceLiteral(
+    replaceLiteral(
+      strings.summarize.prompt,
+      "{targetLang}",
+      TARGET_LANG_NAME[locale] ?? TARGET_LANG_NAME.en,
+    ),
+    "{transcript}",
+    source,
+  );
+
+  return withEngineJob(async () => {
+    if (signal?.aborted) return "";
+
+    const engine = context;
+    if (!engine) return "";
+
+    let timedOut = false;
+    let aborted = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const onAbort = () => {
+      aborted = true;
+      // Identity guard: only stopCompletion on the still-live context (same
+      // authoritative check as bailIfStopped — dispose may have released `engine`).
+      if (engine === context) {
+        void engine.stopCompletion().catch(() => undefined);
+      }
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) {
+      signal.removeEventListener("abort", onAbort);
+      return "";
+    }
+
+    try {
+      try {
+        await engine.clearCache();
+      } catch {
+        // best effort
+      }
+      if (aborted || signal?.aborted || engine !== context) return "";
+
+      timer = setTimeout(() => {
+        timedOut = true;
+        if (engine === context) {
+          void engine.stopCompletion().catch(() => undefined);
+        }
+      }, SUMMARIZE_TIMEOUT_MS);
+
+      const result = await trackCompletion(
+        engine.completion({
+          messages: [{ role: "user", content: prompt }] as RNLlamaOAICompatibleMessage[],
+          n_predict: SUMMARIZE_N_PREDICT,
+          stop: STOP_WORDS,
+          temperature: 0.2,
+          top_k: 20,
+          top_p: 0.9,
+          enable_thinking: false,
+          thinking_budget_tokens: 0,
+          reasoning_format: "none",
+          chat_template_kwargs: { enable_thinking: false },
+        }),
+      );
+
+      // Fail-closed: timeout, abort, or engine torn down mid-flight (dispose /
+      // model switch) must never promote a truncated summary as success.
+      if (timedOut || aborted || signal?.aborted || engine !== context) return "";
+
+      const raw =
+        typeof result.content === "string" && result.content.length > 0
+          ? result.content
+          : (result.text ?? "");
+      return cleanSummaryOutput(raw);
+    } catch {
+      return "";
+    } finally {
+      if (timer) clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+    }
+  });
+}
+
+/** Strip think tags / fences / preambles from a summary; keep plain prose. */
+function cleanSummaryOutput(raw: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  let out = raw;
+  out = out.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  out = out.replace(/<think>[\s\S]*$/gi, "");
+  out = out.replace(/<\/?think>/gi, "");
+  out = out.trim();
+  const fenced = out.match(/^```(?:\w+)?\s*\n?([\s\S]*?)\n?```$/);
+  if (fenced) {
+    out = fenced[1].trim();
+  }
+  // Soft cap for storage / operative block (hard cap applied again at inject).
+  if (out.length > 800) out = out.slice(0, 800).trim();
+  return out;
 }
 
 /**

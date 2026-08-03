@@ -9,7 +9,10 @@ const UNSAFE_BIO_PATTERNS = [
   /\bweaponi[sz]e\b/i,
   /\baerosoli[sz]e\s+anthrax\b/i,
   /\bincrease\s+virulence\b/i,
-  /\bgain[-\s]?of[-\s]?function\b/i,
+  // "gain of function" alone is a legitimate topic to ask about/explain
+  // (education, awareness); only block when combined with a clear
+  // operational/how-to intent.
+  /\b(?:how\s+to\s+|help\s+me\s+|teach\s+me\s+(?:how\s+)?to\s+|show\s+me\s+how\s+to\s+|perform|conduct|carry\s+out)\b[^.?!]{0,30}\bgain[-\s]?of[-\s]?function\b/i,
   /\bmake\s+(?:a\s+)?pathogen\s+more\s+(?:virulent|infectious|deadly)\b/i,
   /\b(?:anthrax|ebola|smallpox|botulinum|ricin)\b.*\b(?:weapon|virulence|aerosoli[sz]e|disseminat)/i,
 ];
@@ -22,7 +25,11 @@ const UNSAFE_CHEM_PATTERNS = [
 const CHILD_EXPLOITATION_PATTERNS = [
   /\bchild\s+porn\b/i,
   /\bchild\s+sexual\s+abuse\s+material\b/i,
-  /\bcsam\b/i,
+  // Bare "csam" alone covers awareness/definition questions ("what is CSAM
+  // and how is it detected?"); only block when paired with creation/access
+  // intent. Overt requests are still caught by the other patterns below.
+  /\b(?:generate|create|make|produce|find|download|access|get|share|distribute|watch|view)\b[^.?!]{0,30}\bcsam\b/i,
+  /\bcsam\b[^.?!]{0,30}\b(?:generate|create|make|produce|find|download|access|get|share|distribute|watch|view)\b/i,
   /\bminor\s+nude\b/i,
   /\bunderage\s+sex\b/i,
   /\bsexual\s+exploitation\s+of\s+children\b/i,
@@ -31,6 +38,9 @@ const CHILD_EXPLOITATION_PATTERNS = [
   /\bteen\s+sex\s+with\s+a\s+minor\b/i,
   /\blolicon\s+porn\b/i,
   /\bgenerate\s+underage\s+nude\s+image\b/i,
+  /\bpedopornografia\b/i,
+  /\bmateriale\s+pedopornografico\b/i,
+  /\bsfruttamento\s+(?:sessuale\s+)?(?:dei\s+)?minori\b/i,
 ];
 
 const SEX_CRIME_PATTERNS = [
@@ -43,6 +53,9 @@ const SEX_CRIME_PATTERNS = [
   /\bcoerce\s+someone\s+into\s+sex\b/i,
   /\bforce\s+someone\s+sexually\b/i,
   /\bremove\s+consent\s+from\s+this\s+sex\s+scene\b/i,
+  /\bviolentare\s+qualcuno\b/i,
+  /\bstuprare\s+qualcuno\b/i,
+  /\bdrogare\s+qualcuno\b/i,
 ];
 
 const SELF_HARM_PATTERNS = [
@@ -56,27 +69,57 @@ const SELF_HARM_PATTERNS = [
   /\bways\s+to\s+cut\s+myself\b/i,
   /\bi\s+want\s+to\s+end\s+my\s+life\b/i,
   /\bhelp\s+me\s+harm\s+myself\b/i,
+  // Italian.
+  /\bfarla\s+finita\b/i,
+  /\bammazzarmi\b/i,
+  /\bsuicidarmi\b/i,
+  /\btogliermi\s+la\s+vita\b/i,
+  /\bnon\s+voglio\s+piu\s+vivere\b/i,
 ];
 
 const VIOLENT_CRIME_PATTERNS = [
-  /\bhow\s+to\s+kill\b/i,
+  // Require a harm-shaped object: excludes "how to kill a background
+  // process/task/daemon" (dev question) while still catching "how to kill
+  // someone/a person/him/her/etc.".
+  /\bhow\s+to\s+kill\s+(?!(?:a\s+|an\s+|the\s+|my\s+)?(?:background\s+)?(?:process|task|daemon|thread|program|application|app|job|service)\b)/i,
   /\bhide\s+a\s+body\b/i,
   /\bmake\s+a\s+bomb\b/i,
   /\bstab\s+someone\b/i,
   /\bpoison\s+someone\b/i,
+  // Italian.
+  /\bcome\s+uccidere\s+(?!(?:un\s+)?(?:processo|programma|servizio|applicazione)\b)/i,
+  /\bnascondere\s+un\s+cadavere\b/i,
+  /\bcome\s+fare\s+una\s+bomba\b/i,
 ];
 
+// A "victim" marker distinguishes exfiltration intent ("extract the user's
+// password") from generic dev/UI questions ("extract access token from url",
+// "show password checkbox in html") which must not be blocked.
+const PRIVACY_VICTIM_MARKER =
+  "(?:someone|somebody|another\\s+person|other\\s+people|a\\s+user|the\\s+user|other\\s+users|an?\\s+admin|the\\s+admin|a\\s+customer|the\\s+customer|a\\s+patient|the\\s+patient|a\\s+victim|their|his|her|the\\s+database|the\\s+server|the\\s+system|a\\s+company|an?\\s+employee)";
+
 const PRIVACY_EXFILTRATION_PATTERNS = [
-  /\b(?:reveal|extract|dump|show|steal|leak)\b.*\b(?:api\s+key|access\s+token|password|private\s+key|secret\s+key|patient\s+name|patient\s+email|social\s+security\s+number)\b/i,
-  /\b(?:api\s+key|access\s+token|password|private\s+key|secret\s+key|patient\s+name|patient\s+email|social\s+security\s+number)\b.*\b(?:reveal|extract|dump|show|steal|leak)\b/i,
+  new RegExp(
+    `(?=.*\\b${PRIVACY_VICTIM_MARKER}\\b).*\\b(?:reveal|extract|dump|show|steal|leak)\\b.*\\b(?:api\\s+key|access\\s+token|password|private\\s+key|secret\\s+key|patient\\s+name|patient\\s+email|social\\s+security\\s+number)\\b`,
+    "i",
+  ),
+  new RegExp(
+    `(?=.*\\b${PRIVACY_VICTIM_MARKER}\\b).*\\b(?:api\\s+key|access\\s+token|password|private\\s+key|secret\\s+key|patient\\s+name|patient\\s+email|social\\s+security\\s+number)\\b.*\\b(?:reveal|extract|dump|show|steal|leak)\\b`,
+    "i",
+  ),
 ];
 
 const NON_VIOLENT_CRIME_PATTERNS = [
   /\bsteal\s+credit\s+card\b/i,
   /\bfake\s+passport\b/i,
   /\bforge\s+signature\b/i,
-  /\bbypass\s+paywall\b/i,
-  /\bphishing\s+email\b/i,
+  // "bypass paywall" / "phishing email" alone are pass-through (questions
+  // about legality, spotting phishing, etc.) — only block with clear
+  // perpetration intent.
+  /\b(?:how\s+to\s+bypass|help\s+me\s+bypass|show\s+me\s+how\s+to\s+bypass|write\s+(?:me\s+)?(?:a\s+)?(?:script|code)\s+to\s+bypass)\s+(?:a\s+|the\s+|this\s+)?paywall\b/i,
+  /\b(?:create|write|craft|build|design|generate|make|send|set\s+up)\s+(?:a\s+|an\s+)?phishing\b/i,
+  /\bhelp\s+me\s+phish\b/i,
+  /\bphish\s+someone\b/i,
 ];
 
 const PROMPT_INJECTION_PATTERNS = [
@@ -84,7 +127,11 @@ const PROMPT_INJECTION_PATTERNS = [
   /\bignore\s+system\s+prompt\b/i,
   /\breveal\s+system\s+prompt\b/i,
   /\bdeveloper\s+message\b/i,
-  /\bjailbreak\b/i,
+  // Bare "jailbreak" also matches unrelated topics (phone jailbreaking);
+  // only block when it targets the model/assistant itself.
+  /\bjailbreak\s+(?:this\s+|the\s+|your\s+)?(?:model|ai|assistant|chatbot|gpt|bot|system|you)\b/i,
+  /\bhelp\s+me\s+jailbreak\b/i,
+  /\bhow\s+to\s+jailbreak\s+(?:this|you|the\s+model|the\s+ai|chatgpt|an?\s+ai)\b/i,
   /\bbypass\s+safety\b/i,
   /\bact\s+as\s+dan\b/i,
 ];
