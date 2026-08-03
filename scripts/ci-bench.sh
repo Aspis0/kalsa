@@ -257,14 +257,16 @@ if [ "$PHASE" = "fase0" ]; then
   done
 
 elif [ "$PHASE" = "fase4" ]; then
-  PLANT="GattoLeopoldo Budget4500 Scadenza14Marzo ColoreBlu"
+  # The CI composer truncated a 35-char entry to 32, so keep the plant short.
+  # Two facts still give two probes per conversation (6 obs/arm over 3 seeds).
+  PLANT="GattoLeopoldo Budget4500"
   FILLERS=(
-    "SpiegaComeFunzionaUnMotoreElettrico"
-    "DammiUnaRicettaVelocePerLaCena"
-    "QualiSonoIBeneficiDelloSportRegolare"
-    "RaccontaUnaCuriositaSulloSpazio"
-    "ComeSiOrganizzaUnViaggioInTreno"
-    "SpiegaLaDifferenzaTraClimaEMeteo"
+    "MotoreElettrico"
+    "RicettaVeloce"
+    "BeneficiSport"
+    "CuriositaSpazio"
+    "ViaggioInTreno"
+    "ClimaOMeteo"
   )
   PROBE1="NomeDelGatto"
   PROBE2="QualeBudget"

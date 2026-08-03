@@ -21,6 +21,12 @@ import {
 import { replaceLiteral } from "../context/compactor";
 import { getStrings, type Locale } from "../i18n";
 import { DEFAULT_N_CTX } from "./contextProfile";
+import {
+  createToolCallDeltaStripper,
+  parseFallbackToolCall,
+  partialTagSuffixLength,
+  stripToolCallTagsFinal,
+} from "./toolCallParser";
 
 /**
  * Engine locale — Fase 1/2/4: llama.rn (binding llama.cpp, MIT).
@@ -195,6 +201,8 @@ export type EngineTurnOptions = {
     name: string,
     args: Record<string, unknown>,
     signal?: AbortSignal,
+    /** Text content of the current user turn (privacy guards, e.g. web_search). */
+    lastUserMessage?: string,
   ) => Promise<EngineToolResult>;
 };
 
@@ -582,19 +590,6 @@ function buildThinkingCompletionFields(mode: ThinkingMode): {
 const THINK_OPEN = "<think>";
 const THINK_CLOSE = "</think>";
 
-/**
- * Length of the longest suffix of `s` that is a strict prefix of `tag`.
- * Used to hold back a partial tag (e.g. "<thi") at the end of a stream delta
- * until the next delta resolves whether it is really a tag.
- */
-function partialTagSuffixLength(s: string, tag: string): number {
-  const maxLen = Math.min(s.length, tag.length - 1);
-  for (let len = maxLen; len > 0; len -= 1) {
-    if (s.slice(s.length - len) === tag.slice(0, len)) return len;
-  }
-  return 0;
-}
-
 export type StreamTurnOptions = EngineTurnOptions & {
   /** Settings locale — drives system prompt language (required). */
   locale: Locale;
@@ -680,6 +675,9 @@ export async function streamAssistantTurn(
       | { role: "tool"; tool_call_id: string; content: string };
 
     const userIndex = messages.length - 1;
+    // Current user turn's plain text — fed to executeTool (e.g. web_search
+    // privacy guard) alongside the model-chosen query; never logged here.
+    const lastUserMessageText = messages[userIndex]?.content ?? "";
     const historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) =>
       index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
     );
@@ -729,6 +727,12 @@ export async function streamAssistantTurn(
     let insideThink = false;
     let thinkCarry = "";
     let thinkDecided = false;
+    // Fallback-dialect tool_call markup (see toolCallParser.ts): some model
+    // outputs leak a literal <tool_call>...</tool_call> block instead of a
+    // structured tool_calls entry. Stripped from the visible stream exactly
+    // like <think>, on top of think-tag removal. Fresh instance per round
+    // (reset alongside the think-state vars below).
+    let toolCallStrip = createToolCallDeltaStripper();
     const cleanStreamDelta = (raw: string): string => {
       let text = thinkCarry + raw;
       thinkCarry = "";
@@ -785,13 +789,15 @@ export async function streamAssistantTurn(
         out += text.slice(i, closeIdx);
         i = closeIdx + THINK_CLOSE.length;
       }
-      return out;
+      return toolCallStrip(out);
     };
 
+    /** Prefer `content` (post-filter) over `text` (original) — same choice as emitFinalText. */
+    const extractRawResultText = (raw: { text: string; content?: string }): string =>
+      typeof raw.content === "string" && raw.content.length > 0 ? raw.content : (raw.text ?? "");
+
     const emitFinalText = (raw: { text: string; content?: string }) => {
-      let finalText = stripThinkTags(
-        typeof raw.content === "string" && raw.content.length > 0 ? raw.content : (raw.text ?? ""),
-      );
+      let finalText = stripToolCallTagsFinal(stripThinkTags(extractRawResultText(raw)));
       // Un round troncato esattamente a metà di un tag (es. finisce con
       // "<thi") non viene intercettato da stripThinkTags (richiede il tag
       // completo). Va scartato SOLO se appartiene chiaramente a markup di
@@ -852,10 +858,11 @@ export async function streamAssistantTurn(
 
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
-        // Fresh think-tag state for this round's stream (each round is a new completion).
+        // Fresh think-tag / tool_call-tag state for this round's stream (each round is a new completion).
         insideThink = false;
         thinkCarry = "";
         thinkDecided = false;
+        toolCallStrip = createToolCallDeltaStripper();
         // Last round: force text-only output (no more tool_calls) so the model
         // must synthesize from the gathered tool results instead of exiting
         // the loop with no completion (blank assistant bubble).
@@ -907,7 +914,23 @@ export async function streamAssistantTurn(
           return;
         }
 
-        const toolCalls = result.tool_calls ?? [];
+        let toolCalls = result.tool_calls ?? [];
+        // Fallback dialect: the binding found no structured tool_calls, but the
+        // raw text may still contain a literal <tool_call>...</tool_call> block
+        // (see toolCallParser.ts). Parse it and feed it through the SAME
+        // execution path below (round cap, skipped-call bookkeeping, tool-result
+        // rule all still apply) instead of showing the markup / an empty reply.
+        if (!toolCalls.length && options?.executeTool) {
+          const fallback = parseFallbackToolCall(extractRawResultText(result));
+          if (fallback) {
+            toolCalls = [
+              {
+                type: "function" as const,
+                function: { name: fallback.name, arguments: JSON.stringify(fallback.arguments) },
+              },
+            ];
+          }
+        }
         if (!toolCalls.length || !options?.executeTool) {
           emitFinalText(result);
           return;
@@ -940,7 +963,7 @@ export async function streamAssistantTurn(
 
           let toolContent: string;
           try {
-            const outcome = await options.executeTool(name, args, signal);
+            const outcome = await options.executeTool(name, args, signal, lastUserMessageText);
             if (outcome.sources?.length) callbacks.onSources?.(outcome.sources);
             toolContent = formatToolResultContent(
               (outcome.text ?? "") || strings.errors.noResults,

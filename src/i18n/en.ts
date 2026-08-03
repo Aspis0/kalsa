@@ -449,6 +449,8 @@ export const en = {
     noResults: "No results.",
     noResultsFound: "No results found.",
     emptySearchQuery: "Empty search query.",
+    webSearchPrivacyBlocked:
+      "Search skipped: the query only restates information the user provided about themselves. Answer directly from the conversation instead of searching.",
     unknownTool: "Unknown tool: {name}",
     toolError: "Tool error: {message}",
     source: "Source",
@@ -567,9 +569,9 @@ export const en = {
       "source titles from web_search may stay in their original language; " +
       "never translate URLs, JSON keys, block type names, or the tool name web_search.",
     webSearch:
-      "Tool web_search: use it always for current, recent, or time-sensitive information and whenever " +
-      "the user asks to search the web; never answer time-sensitive questions from memory alone; " +
-      "after search, base the answer only on the results and cite source titles.",
+      "Tool web_search: use it only for questions that need current or external information; " +
+      "never use it to look up something the user just told you about themselves, and never put " +
+      "personal details in the query; after search, base the answer only on the results and cite source titles.",
     honesty:
       "Honesty: never invent facts, dates, names, numbers, quotes, sources, or citations; " +
       "if you don't know or are unsure, say so explicitly — never guess; " +

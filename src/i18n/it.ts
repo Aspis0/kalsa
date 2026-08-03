@@ -447,6 +447,8 @@ export const it: typeof en = {
     noResults: "Nessun risultato.",
     noResultsFound: "Nessun risultato trovato.",
     emptySearchQuery: "Query di ricerca vuota.",
+    webSearchPrivacyBlocked:
+      "Ricerca saltata: la query si limita a ripetere informazioni che l'utente ha fornito su di sé. Rispondi direttamente dalla conversazione invece di cercare.",
     unknownTool: "Tool sconosciuto: {name}",
     toolError: "Errore tool: {message}",
     source: "Fonte",
@@ -556,9 +558,9 @@ export const it: typeof en = {
       "i titoli delle fonti da web_search possono restare nella lingua originale; " +
       "non tradurre URL, chiavi JSON, nomi dei tipi di blocco, né il nome del tool web_search.",
     webSearch:
-      "Tool web_search: usalo sempre per informazioni aggiornate, recenti o time-sensitive e quando " +
-      "l'utente chiede di cercare sul web; non rispondere a domande time-sensitive solo dalla memoria; " +
-      "dopo la ricerca, basa la risposta solo sui risultati e cita i titoli delle fonti.",
+      "Tool web_search: usalo solo per domande che richiedono informazioni attuali o esterne; " +
+      "non usarlo mai per cercare qualcosa che l'utente ti ha appena detto su di sé, e non inserire mai " +
+      "dati personali nella query; dopo la ricerca, basa la risposta solo sui risultati e cita i titoli delle fonti.",
     honesty:
       "Onestà: non inventare mai fatti, date, nomi, numeri, citazioni, fonti o riferimenti; " +
       "se non sai o non sei sicuro, dillo esplicitamente — non indovinare; " +
