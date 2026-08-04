@@ -19,12 +19,14 @@ BINARY="${BINARY:-$HOME/src/llama.cpp/build-safe/bin/llama-cli}"
 PROMPT_FILE="${PROMPT_FILE:-$HOME/experiments/prompts/short.txt}"
 DURATION_S="${DURATION_S:-600}"
 BLOCK_S="${BLOCK_S:-30}"
-THREADS="${THREADS:-5}"
-N_CTX="${N_CTX:-1024}"
+THREADS="${THREADS:-4}"
+N_CTX="${N_CTX:-512}"
 KV_TYPE="${KV_TYPE:-q8_0}"
 N_GEN_BLOCK="${N_GEN_BLOCK:-64}"
 OUT_CSV="${OUT_CSV:-$HOME/experiments/results/thermal_f2.csv}"
 MAX_START_TEMP="32.0"
+# Prefer cool start for continuous run (PLAN §8.2)
+MAX_COOL_TEMP="${MAX_COOL_TEMP:-30.0}"
 
 export LD_LIBRARY_PATH="${HOME}/src/llama.cpp/build-safe/bin:${LD_LIBRARY_PATH:-}"
 export TMPDIR="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
@@ -56,6 +58,21 @@ case "$BINARY" in
         exit 6
         ;;
 esac
+case "$BINARY" in
+    */build-safe/*) ;;
+    *)
+        echo "ERROR: binary must be under build-safe/: $BINARY" >&2
+        exit 6
+        ;;
+esac
+if [ ! -f "$MODEL" ]; then
+    echo "ERROR: model missing: $MODEL (scripts never download)" >&2
+    exit 3
+fi
+if [ ! -x "$BINARY" ] && [ ! -f "$BINARY" ]; then
+    echo "ERROR: binary missing: $BINARY" >&2
+    exit 6
+fi
 
 read_batt() {
     _json="$(timeout 12 termux-battery-status 2>/dev/null || true)"
@@ -73,22 +90,38 @@ if [ ! -f "$OUT_CSV" ]; then
 fi
 
 _prompt="$(cat "$PROMPT_FILE")"
-_t0_wall="$(date +%s)"
-_bat0="$(read_batt)"
-_pl0="$(printf '%s' "$_bat0" | awk '{print $1}')"
-_temp0="$(printf '%s' "$_bat0" | awk '{print $2}')"
-if [ "$_pl0" != "UNPLUGGED" ]; then
-    echo "ERROR: need UNPLUGGED, got $_pl0" >&2
-    exit 4
-fi
-if [ -n "$_temp0" ]; then
-    _hot="$(awk -v t="$_temp0" -v m="$MAX_START_TEMP" 'BEGIN{print (t+0>m+0)?1:0}')"
-    if [ "$_hot" = "1" ]; then
-        echo "ERROR: start temp $_temp0 > $MAX_START_TEMP" >&2
+# cool gate before continuous run
+_waited=0
+while true; do
+    _bat0="$(read_batt)"
+    _pl0="$(printf '%s' "$_bat0" | awk '{print $1}')"
+    _temp0="$(printf '%s' "$_bat0" | awk '{print $2}')"
+    if [ "$_pl0" != "UNPLUGGED" ]; then
+        echo "ERROR: need UNPLUGGED, got $_pl0" >&2
+        exit 4
+    fi
+    if [ -z "$_temp0" ]; then
+        echo "WAIT: battery temp empty — sleep 30s" >&2
+        sleep 30
+        _waited=$((_waited + 30))
+    else
+        _hot="$(awk -v t="$_temp0" -v m="$MAX_COOL_TEMP" 'BEGIN{print (t+0>m+0)?1:0}')"
+        _hot_abs="$(awk -v t="$_temp0" -v m="$MAX_START_TEMP" 'BEGIN{print (t+0>m+0)?1:0}')"
+        if [ "$_hot" = "1" ] || [ "$_hot_abs" = "1" ]; then
+            echo "WAIT: start temp $_temp0 need ≤$MAX_COOL_TEMP — sleep 30s" >&2
+            sleep 30
+            _waited=$((_waited + 30))
+        else
+            break
+        fi
+    fi
+    if [ "$_waited" -ge 1800 ]; then
+        echo "ERROR: could not cool to ≤$MAX_COOL_TEMP within 1800s (last=$_temp0)" >&2
         exit 5
     fi
-fi
+done
 
+_t0_wall="$(date +%s)"
 echo "F2.4 thermal start temp=$_temp0 duration=${DURATION_S}s block=${BLOCK_S}s t=$THREADS c=$N_CTX kv=$KV_TYPE" >&2
 _block=0
 while :; do
