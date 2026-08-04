@@ -1417,7 +1417,9 @@ export function AppShell() {
       <PainterlyBg />
       <GestureDetector gesture={edgeSwipe}>
       <View style={{ flex: 1 }}>
-      {/* AiChatPage gestisce già le proprie safe-area (nav top + composer bottom). */}
+      {/* Top safe-area belongs to the header below (paddingTop: insets.top + 4).
+          AiChatPage owns only the bottom inset, for the composer — it used to add
+          the top inset too, which reserved the status-bar height twice. */}
       <SafeAreaView style={{ flex: 1 }} edges={[]}>
         {/* Header compatto: titolo + modello/stato in una riga */}
         <View

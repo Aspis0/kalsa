@@ -1461,7 +1461,12 @@ export function AiChatPage({
       {/* ── Nav bar ── */}
       <View
         style={{
-          paddingTop: insets.top,
+          // No top inset here: AppShell's model bar sits directly above this row
+          // and already applies `insets.top`. Applying it again reserved the
+          // status-bar height a second time and left an empty band under the
+          // model name — invisible while surfaces were translucent, obvious once
+          // this header got an opaque background and a bottom border.
+          // `insets.bottom` is still used below, for the composer.
           backgroundColor: colors.shell,
           borderBottomWidth: 1,
           borderBottomColor: colors.line,
