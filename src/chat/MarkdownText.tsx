@@ -372,7 +372,9 @@ function renderInline(
               onLongPress={onLongPress}
               accessibilityLabel={a11y}
             >
+              {"\u2009"}
               {String(node.index)}
+              {"\u2009"}
             </Text>
           );
         }
@@ -387,7 +389,9 @@ function renderInline(
             accessibilityLabel={a11y}
             accessibilityRole="link"
           >
+            {"\u2009"}
             {String(node.index)}
+            {"\u2009"}
           </Text>
         );
       }
