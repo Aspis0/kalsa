@@ -50,14 +50,7 @@ export function MarkdownText({
   sources,
 }: MarkdownTextProps) {
   const { colors } = useLabTheme<{
-    colors: {
-      ink: string;
-      muted: string;
-      accent: string;
-      accentSoft: string;
-      line: string;
-      surfaceSunken: string;
-    };
+    colors: ThemeColors;
   }>();
   const typography = useTypography();
 
@@ -109,6 +102,8 @@ type ThemeColors = {
   muted: string;
   accent: string;
   accentSoft: string;
+  /** Foreground for text sitting on `accent` — used by the citation chip. */
+  primaryText: string;
   line: string;
   surfaceSunken: string;
 };
