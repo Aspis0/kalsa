@@ -26,6 +26,7 @@ Una riga = un run. Header creato automaticamente se assente.
 | Pressure | protocollo F5 (browser / camera / combinato) |
 | Temperatura | scarta run se batteria **> 32.0°C** a inizio (exit 5) |
 | Carica | scarta se `plugged != UNPLUGGED` (exit 4) — misure invalide in carica |
+| Gate batteria | fail-closed: API assente o `plugged` sconosciuto → exit **7** (salvo `--allow-no-battery`, solo smoke) |
 | Determinismo | `--temp 0` hardcodato nell'harness |
 | Una variabile | ogni run cambia UN parametro vs il precedente (§2.2) |
 | Sweep intermedi | solo warm; cold+warm solo sulle config promosse (§9) |
@@ -38,18 +39,35 @@ Una riga = un run. Header creato automaticamente se assente.
 | `temperature > 32.0°C` | 5 | run scartato: temperatura iniziale >32°C |
 | binario assente (`command -v`) | 6 | binario non trovato |
 | argomento/usage errato | 3 | — |
-| `termux-battery-status` assente | — | **warn + prosegue** (non blocca) |
+| `termux-battery-status` assente / `plugged` UNKNOWN | **7** | gate batteria non disponibile/incerto (salvo `--allow-no-battery`) |
 
 ### Exit codes harness
 
 | Code | Significato | Riga CSV? |
 |---:|---|---|
 | 0 | run ok | sì |
-| 1 | llama-cli fallito | sì (`FAIL rc=…` in notes; timings vuoti se assenti) |
+| 1 | llama/bmoe fallito | sì (`FAIL rc=…` in notes; timings vuoti se assenti) |
 | 3 | usage / path invalidi | no |
 | 4 | in carica | no |
 | 5 | troppo caldo | no |
 | 6 | binary missing | no |
+| 7 | gate batteria non disponibile/incerto | no |
+
+`--allow-no-battery`: **solo smoke/dry-run**. Mai per run scientifici. Con questo flag, se l'API batteria manca o `plugged` è sconosciuto, l'harness prosegue (con warning).
+
+## Runtime → binario e flag set
+
+| `--runtime` | binario default | flag KV / display | note |
+|---|---|---|---|
+| `mainline` | `llama-cli` | `-ctk <kv> -ctv <kv> --no-display-prompt --temp 0` | + `-m -p -n -t -c` |
+| `ik` | `llama-cli` | come mainline | |
+| `custom` | `llama-cli` | come mainline | |
+| `bigmoe` | `bmoe-cli` | **solo** `--temp 0` (+ `-m -p -n -t -c`) | **niente** `-ctk/-ctv`, **niente** `--no-display-prompt` (non supportati; bmoe gestisce KV internamente) |
+
+- `--binary NAME` override sempre il default.
+- `--temp 0` è hardcodato per determinismo (§8.2) su entrambi i runtime.
+- Colonna CSV `kv_type`: sempre popolata (informativa). Con `bigmoe` **non** viene passata al binario.
+- `--print-cmd`: stampa la cmdline esatta (flag runtime-appropriate) ed esce 0, **senza** eseguire e **senza** riga CSV. Utile per test e operator sanity.
 
 ## Colonne (ordine fisso)
 
@@ -66,7 +84,7 @@ Una riga = un run. Header creato automaticamente se assente.
 | 9 | `flags` | string | `--flags` | flag extra; virgole → `;` |
 | 10 | `threads` | int | `--threads` / `-t` | default 4 |
 | 11 | `n_ctx` | int | `--ctx` / `-c` | default 512 |
-| 12 | `kv_type` | enum | `--kv-type` | `f16` \| `q8_0` → `-ctk/-ctv` |
+| 12 | `kv_type` | enum | `--kv-type` | `f16` \| `q8_0`; passato come `-ctk/-ctv` **solo** a llama-cli; con bmoe-cli resta **informativo** (KV gestito internamente) |
 | 13 | `n_gen` | int | `--n-gen` / `-n` | default 64 (35B); 128 per piccoli |
 | 14 | `run_type` | enum | `--run-type` | `cold` \| `warm` \| `pressure` |
 | 15 | `prompt_id` | string | `--prompt-id` | default `short`; anche `medium`, `code` |
@@ -78,7 +96,7 @@ Una riga = un run. Header creato automaticamente se assente.
 | 21 | `read_bytes_delta` | int byte | `/proc/<pid>/io` | `read_bytes` end−start |
 | 22 | `vmrss_peak_mb` | int MB | `/proc/<pid>/status` VmRSS | picco campionato ogni 0.5 s |
 | 23 | `memfree_min_mb` | int MB | `/proc/meminfo` MemFree | minimo durante il run |
-| 24 | `batt_temp_start` | float °C | `termux-battery-status` | gate ≤32.0; vuoto se API assente |
+| 24 | `batt_temp_start` | float °C | `termux-battery-status` | gate ≤32.0; vuoto se API assente (solo con `--allow-no-battery`) |
 | 25 | `batt_temp_end` | float °C | `termux-battery-status` | post-run |
 | 26 | `expert_hit_rate` | string | log fork (best-effort) | es. `94.2%`; vuoto se assente |
 | 27 | `notes` | string | `--notes` + auto | single-line, no virgole/newline; prefisso utente |
@@ -117,6 +135,7 @@ Non è un true TTFT strumentato (timestamp del primo token). È il tempo di **pr
 
 ```bash
 # cold, post-riavvio, -n 32
+# binario default = llama-cli (da --runtime mainline)
 ./scripts/run_bench.sh \
   --model ~/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf \
   --prompt-file ~/experiments/prompts/short.txt \
@@ -134,6 +153,8 @@ Non è un true TTFT strumentato (timestamp del primo token). È il tempo di **pr
 ### F4.2 — BigMoeOnEdge riproduzione
 
 ```bash
+# binario default = bmoe-cli (da --runtime bigmoe)
+# flag: -m -p -n -t -c --temp 0  (+ EXTRA); NO -ctk/-ctv, NO --no-display-prompt
 ./scripts/run_bench.sh \
   --model ~/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf \
   --prompt-file ~/experiments/prompts/short.txt \
@@ -149,11 +170,15 @@ Non è un true TTFT strumentato (timestamp del primo token). È il tempo di **pr
   --notes "F4.2 riproduzione cache-mb 2000"
 ```
 
-### Override binario legacy / CSV
+### Override binario / print-cmd / CSV
 
 ```bash
 # build vecchia dove l'eseguibile si chiama ancora "main"
 ./scripts/run_bench.sh --binary main -m ~/models/foo.gguf -p ~/experiments/prompts/short.txt
+
+# operator sanity: stampa cmdline senza eseguire
+./scripts/run_bench.sh -m m.gguf -p p.txt --runtime bigmoe --print-cmd --allow-no-battery
+./scripts/run_bench.sh -m m.gguf -p p.txt --runtime mainline --print-cmd --allow-no-battery
 
 # CSV custom (o export RUNS_CSV=...)
 ./scripts/run_bench.sh --csv ~/experiments/results/runs-f4.csv \
@@ -165,9 +190,10 @@ Non è un true TTFT strumentato (timestamp del primo token). È il tempo di **pr
 ## Dipendenze Termux
 
 ```bash
-pkg install termux-api   # termux-battery-status (gate termico/carica)
+pkg install termux-api   # termux-battery-status (gate termico/carica, FAIL-CLOSED)
 pkg install jq           # opzionale, parsing JSON batteria più robusto
-# binario: llama-cli (llama.cpp >= b4xxx) oppure --binary main
+# binario: llama-cli (runtime mainline/ik/custom) oppure bmoe-cli (runtime bigmoe)
+# override: --binary NAME
 ```
 
 Riferimenti: PLAN.md §8.1 (metriche), §8.2 (regole), §8.3 (schema), §2.2 (una var / 3-run mediana).

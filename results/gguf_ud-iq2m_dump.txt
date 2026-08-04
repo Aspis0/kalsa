@@ -797,37 +797,61 @@ Kind osservati (primi layer): ['ffn_down_exps', 'ffn_down_shexp', 'ffn_gate_exps
 
 --- layer 0 ---
   ffn_down_exps          shape=(512, 2048, 256) dtype=18 tensor=102760448 (98.0000 MiB / 102.7604 MB) n_exp_dim=256 per_expert=401408 (392.0000 KiB) off=664007136
+    expected_bytes_per_expert (product(inner)*dtype_size) = 401408
+    slice/stride: VERIFICATO contiguous: stride=bytes_per_expert=401408 (product(inner)*dtype_size match, n_exp=256)
   ffn_down_shexp         shape=(512, 2048) dtype=14 tensor=860160 (840.0000 KiB) n_exp_dim=None per_expert=860160 (840.0000 KiB) off=766767584
   ffn_gate_exps          shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=767627744
+    expected_bytes_per_expert (product(inner)*dtype_size) = 270336
+    slice/stride: VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
   ffn_gate_shexp         shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=838939104
   ffn_up_exps            shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=839660000
+    expected_bytes_per_expert (product(inner)*dtype_size) = 270336
+    slice/stride: VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
   ffn_up_shexp           shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=908866016
   TOTALE layer (tutti gli esperti): 241172480 (230.0000 MiB / 241.1725 MB)
   TOTALE per 1 esperto (somma matrici): 942080 (920.0000 KiB)
 --- layer 1 ---
   ffn_down_exps          shape=(512, 2048, 256) dtype=18 tensor=102760448 (98.0000 MiB / 102.7604 MB) n_exp_dim=256 per_expert=401408 (392.0000 KiB) off=934442208
+    expected_bytes_per_expert (product(inner)*dtype_size) = 401408
+    slice/stride: VERIFICATO contiguous: stride=bytes_per_expert=401408 (product(inner)*dtype_size match, n_exp=256)
   ffn_down_shexp         shape=(512, 2048) dtype=14 tensor=860160 (840.0000 KiB) n_exp_dim=None per_expert=860160 (840.0000 KiB) off=1037202656
   ffn_gate_exps          shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=1038062816
+    expected_bytes_per_expert (product(inner)*dtype_size) = 270336
+    slice/stride: VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
   ffn_gate_shexp         shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=1109374176
   ffn_up_exps            shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=1110095072
+    expected_bytes_per_expert (product(inner)*dtype_size) = 270336
+    slice/stride: VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
   ffn_up_shexp           shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=1179301088
   TOTALE layer (tutti gli esperti): 241172480 (230.0000 MiB / 241.1725 MB)
   TOTALE per 1 esperto (somma matrici): 942080 (920.0000 KiB)
 --- layer 2 ---
   ffn_down_exps          shape=(512, 2048, 256) dtype=18 tensor=102760448 (98.0000 MiB / 102.7604 MB) n_exp_dim=256 per_expert=401408 (392.0000 KiB) off=1204877280
+    expected_bytes_per_expert (product(inner)*dtype_size) = 401408
+    slice/stride: VERIFICATO contiguous: stride=bytes_per_expert=401408 (product(inner)*dtype_size match, n_exp=256)
   ffn_down_shexp         shape=(512, 2048) dtype=14 tensor=860160 (840.0000 KiB) n_exp_dim=None per_expert=860160 (840.0000 KiB) off=1307637728
   ffn_gate_exps          shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=1308497888
+    expected_bytes_per_expert (product(inner)*dtype_size) = 270336
+    slice/stride: VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
   ffn_gate_shexp         shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=1379809248
   ffn_up_exps            shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=1380530144
+    expected_bytes_per_expert (product(inner)*dtype_size) = 270336
+    slice/stride: VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
   ffn_up_shexp           shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=1449736160
   TOTALE layer (tutti gli esperti): 241172480 (230.0000 MiB / 241.1725 MB)
   TOTALE per 1 esperto (somma matrici): 942080 (920.0000 KiB)
 --- layer 39 ---
   ffn_down_exps          shape=(512, 2048, 256) dtype=23 tensor=142606336 (136.0000 MiB / 142.6063 MB) n_exp_dim=256 per_expert=557056 (544.0000 KiB) off=11237268448
+    expected_bytes_per_expert (product(inner)*dtype_size) = 557056
+    slice/stride: VERIFICATO contiguous: stride=bytes_per_expert=557056 (product(inner)*dtype_size match, n_exp=256)
   ffn_down_shexp         shape=(512, 2048) dtype=14 tensor=860160 (840.0000 KiB) n_exp_dim=None per_expert=860160 (840.0000 KiB) off=11379874784
   ffn_gate_exps          shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=11380734944
+    expected_bytes_per_expert (product(inner)*dtype_size) = 270336
+    slice/stride: VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
   ffn_gate_shexp         shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=11452046304
   ffn_up_exps            shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=11452767200
+    expected_bytes_per_expert (product(inner)*dtype_size) = 270336
+    slice/stride: VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
   ffn_up_shexp           shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=11521973216
   TOTALE layer (tutti gli esperti): 281018368 (268.0000 MiB / 281.0184 MB)
   TOTALE per 1 esperto (somma matrici): 1097728 (1.0469 MiB / 1.0977 MB)
@@ -914,8 +938,8 @@ layer 39:
 ### Contiguita' per-layer degli esperti ROUTED (*_exps, no shexp)
 
 Test A: i 3 tensori *_exps di un layer sono adiacenti tra loro (nessun tensore in mezzo)?
-Test B: all'interno di ogni tensore, 1 esperto e' un blocco contiguo
-        (assunzione: dim n_expert = ultima dim GGUF = ne[n-1] = outermost → SI).
+Test B: all'interno di ogni tensore *_exps, le slice esperto sono contigue
+        (stride = bytes_per_expert; formula product(inner)*dtype_size).
   layer 0: exps range=[664007136,908866016) span=244858880 -> NON contigui (4 in mezzo)
     gap ffn_down_exps -> ffn_gate_exps: 860160 B
     gap ffn_gate_exps -> ffn_up_exps: 2826240 B
@@ -948,6 +972,24 @@ Test B: all'interno di ogni tensore, 1 esperto e' un blocco contiguo
 Layer con i 3 *_exps mutuamente contigui: 0/40
 Nota: ordine tipico per layer = down_exps, down_shexp, gate_exps, gate_inp,
       gate_inp_shexp, gate_shexp, up_exps, up_shexp → shexp+router spezzano i 3 exps.
+
+### Test B — slice contigue per-esperto (stride = bytes_per_expert)
+
+  tensori *_exps verificati: 120/120 VERIFICATO
+  tensori *_exps assunti:    0/120 ASSUNTO
+  tensori *_exps FAIL:       0/120
+  layer 0 ffn_down_exps: b_per=401408 expected=401408 n_exp=256 nb=102760448 → VERIFICATO contiguous: stride=bytes_per_expert=401408 (product(inner)*dtype_size match, n_exp=256)
+  layer 0 ffn_gate_exps: b_per=270336 expected=270336 n_exp=256 nb=69206016 → VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
+  layer 0 ffn_up_exps: b_per=270336 expected=270336 n_exp=256 nb=69206016 → VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
+  layer 1 ffn_down_exps: b_per=401408 expected=401408 n_exp=256 nb=102760448 → VERIFICATO contiguous: stride=bytes_per_expert=401408 (product(inner)*dtype_size match, n_exp=256)
+  layer 1 ffn_gate_exps: b_per=270336 expected=270336 n_exp=256 nb=69206016 → VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
+  layer 1 ffn_up_exps: b_per=270336 expected=270336 n_exp=256 nb=69206016 → VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
+  layer 2 ffn_down_exps: b_per=401408 expected=401408 n_exp=256 nb=102760448 → VERIFICATO contiguous: stride=bytes_per_expert=401408 (product(inner)*dtype_size match, n_exp=256)
+  layer 2 ffn_gate_exps: b_per=270336 expected=270336 n_exp=256 nb=69206016 → VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
+  layer 2 ffn_up_exps: b_per=270336 expected=270336 n_exp=256 nb=69206016 → VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
+  layer 39 ffn_down_exps: b_per=557056 expected=557056 n_exp=256 nb=142606336 → VERIFICATO contiguous: stride=bytes_per_expert=557056 (product(inner)*dtype_size match, n_exp=256)
+  layer 39 ffn_gate_exps: b_per=270336 expected=270336 n_exp=256 nb=69206016 → VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
+  layer 39 ffn_up_exps: b_per=270336 expected=270336 n_exp=256 nb=69206016 → VERIFICATO contiguous: stride=bytes_per_expert=270336 (product(inner)*dtype_size match, n_exp=256)
 Tensori esperti in ordine di layer crescente (stabile): True
 
 ### Pattern interleaving (tra esperti layer L e L+1)
@@ -958,19 +1000,31 @@ Tensori esperti in ordine di layer crescente (stabile): True
 
 ## 5. Numeri chiave: per-esperto, traffico naive, sanity
 
-  bytes / esperto / layer (misurato) = 942080  (0.9421 MB / 0.8984 MiB)
+  bytes / esperto / layer (mediana)  = 942080  (0.9421 MB / 0.8984 MiB)
+  distribuzione bytes/esperto/layer:
+    942080 B × 37 layer
+    1097728 B × 3 layer
   n_expert (metadata)                = 256
   n_expert_used (metadata)           = 8
-  n_shared (metadata)                = 1
+  n_shared (metadata/inferito)       = 1
   n_routed usati per traffico naive  = 8  (= expert_used_count; shared e' additivo/residente)
   n_layers con esperti               = 40
-  Traffico naive / token (0% hit)    = 8 × 40 × 942080 = 301465600 B = 301.47 MB/token
+  Traffico naive / token — mediana   = 8 × 40 × 942080 = 301465600 B = 301.47 MB/token
+  Traffico naive / token — pesato (reale) = 8 × (37×942080 + 3×1097728) = 8 × 38150144 = 305201152 B = 305.20 MB/token
+  → mediana  = 301465600 B/token  (semplificato, layer uniformi)
+  → pesato (reale) = 305201152 B/token  (somma per-layer)
 
   Breakdown matrici (byte per 1 esperto, media su layer):
-    ffn_down_exps          413081.6 B  (0.4131 MB)
-    ffn_gate_exps          270336.0 B  (0.2703 MB)
-    ffn_up_exps            270336.0 B  (0.2703 MB)
+    ffn_down_exps          413081.6 B  (0.4131 MB)  min=401408 max=557056
+    ffn_gate_exps          270336.0 B  (0.2703 MB)  min=270336 max=270336
+    ffn_up_exps            270336.0 B  (0.2703 MB)  min=270336 max=270336
     SOMMA matrici routed           953753.6 B  (0.9538 MB)
+
+  Breakdown per-layer per-matrice (byte/esperto, sample):
+    layer 0: ffn_down_exps=401408, ffn_gate_exps=270336, ffn_up_exps=270336  SUM=942080
+    layer 1: ffn_down_exps=401408, ffn_gate_exps=270336, ffn_up_exps=270336  SUM=942080
+    layer 2: ffn_down_exps=401408, ffn_gate_exps=270336, ffn_up_exps=270336  SUM=942080
+    layer 39: ffn_down_exps=557056, ffn_gate_exps=270336, ffn_up_exps=270336  SUM=1097728
 
   Sanity parametri (da metadata):
     hidden=2048  moe_ff=512
@@ -984,8 +1038,10 @@ Tensori esperti in ordine di layer crescente (stabile): True
 ## 6. Formula guida aggiornata
 
   t_token ≈ t_compute(3B attivi, CPU 8g2) + n_miss × t_load_esperto
-  t_load_esperto ≈ tempo UFS per caricare 0.942 MB (942080 B) random
-  n_miss = 8 × 40 × (1 − hit_rate) = 320 × (1 − h)
-  traffico_flash/token = n_miss × 0.942 MB
+  t_load_esperto ≈ tempo UFS per caricare ~0.942 MB (mediana 942080 B) random; layer grandi differiscono
+  n_miss = 8 × 40 × (1 − hit_rate) = 320 × (1 − h)  (conteggio miss; byte = pesato)
+  traffico_flash/token (0% hit) mediana  = 301.47 MB  (301465600 B)
+  traffico_flash/token (0% hit) pesato (reale) = 305.20 MB  (305201152 B)
+  traffico_flash/token (hit h) = pesato × (1 − h)
 
 ## DONE

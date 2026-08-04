@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# run_bench.sh — harness di telemetria per run llama.cpp su Termux (S23)
+# run_bench.sh — harness di telemetria per run llama.cpp / bmoe-cli su Termux (S23)
 #
-# Scopo: wrappare un run di llama-cli, catturare telemetria pre/durante/post e
-# appendere UNA riga a runs.csv (schema §8.3).
+# Scopo: wrappare un run di llama-cli o bmoe-cli, catturare telemetria pre/durante/post
+# e appendere UNA riga a runs.csv (schema §8.3).
 #
 # Uso:
 #   ./run_bench.sh --model <gguf> --prompt-file <file> [opzioni]
@@ -17,9 +17,14 @@
 #   ./run_bench.sh -m ~/models/qwen35b-udiq2m.gguf -p ~/experiments/prompts/short.txt \
 #       --phase F4.2 --runtime bigmoe --flags "--moe-stream --cache-mb 2000"
 #
+#   # Solo stampa cmdline (niente run, niente CSV)
+#   ./run_bench.sh -m m.gguf -p p.txt --runtime bigmoe --print-cmd --allow-no-battery
+#
 # Riferimenti: PLAN.md §8.1 (metriche), §8.2 (regole di misura), §8.3 (schema CSV)
 # Exit: 0=ok+riga · 1=llama fail (riga con FAIL) · 3=usage · 4=in carica ·
-#       5=troppo caldo · 6=binario assente
+#       5=troppo caldo · 6=binario assente · 7=gate batteria non disponibile/incerto
+#
+# Test: source con RUN_BENCH_LIB_ONLY=1 per caricare solo le helper di parsing.
 # =============================================================================
 
 set -o pipefail
@@ -46,7 +51,169 @@ LOG_PATH=""
 NOTES_USER=""
 CSV_PATH="${RUNS_CSV:-$HOME/experiments/results/runs.csv}"
 RUN_ID=""
-BINARY="llama-cli"
+# Vuoto = scelto da --runtime (mainline/ik/custom→llama-cli, bigmoe→bmoe-cli)
+BINARY=""
+PRINT_CMD=0
+ALLOW_NO_BATTERY=0
+
+# ---------------------------------------------------------------------------
+# Helper: parsing /proc (esposte per i test via RUN_BENCH_LIB_ONLY=1)
+# ---------------------------------------------------------------------------
+
+# Estrae minflt e majflt da /proc/<pid>/stat in modo robusto
+# (campo 2 = comm tra parentesi, può contenere spazi)
+# Dopo strip fino all'ULTIMA ')', nel resto: minflt=campo 8, majflt=campo 10
+read_flt() {
+    _pid="$1"
+    _stat="/proc/${_pid}/stat"
+    if [ ! -r "$_stat" ]; then
+        echo "0 0"
+        return
+    fi
+    # strip fino all'ultima ')' inclusa
+    _rest="$(sed 's/.*) //' "$_stat" 2>/dev/null)"
+    if [ -z "$_rest" ]; then
+        echo "0 0"
+        return
+    fi
+    # shell word-split sul resto
+    # shellcheck disable=SC2086
+    set -- $_rest
+    # $1=state ... $8=minflt $10=majflt
+    _minflt="${8:-0}"
+    _majflt="${10:-0}"
+    echo "${_minflt} ${_majflt}"
+}
+
+read_read_bytes() {
+    _pid="$1"
+    _io="/proc/${_pid}/io"
+    if [ ! -r "$_io" ]; then
+        echo "0"
+        return
+    fi
+    awk '/^read_bytes:/{print $2; found=1} END{if(!found) print 0}' "$_io" 2>/dev/null
+}
+
+read_vmrss_kb() {
+    _pid="$1"
+    _st="/proc/${_pid}/status"
+    if [ ! -r "$_st" ]; then
+        echo "0"
+        return
+    fi
+    awk '/^VmRSS:/{print $2; found=1} END{if(!found) print 0}' "$_st" 2>/dev/null
+}
+
+read_meminfo() {
+    # stampa: MemFree_kB MemAvailable_kB
+    if [ ! -r /proc/meminfo ]; then
+        echo "0 0"
+        return
+    fi
+    awk '
+        /^MemFree:/{free=$2}
+        /^MemAvailable:/{avail=$2}
+        END{print free+0, avail+0}
+    ' /proc/meminfo
+}
+
+# Sanitizza notes per CSV: niente virgole/newline
+sanitize_notes() {
+    printf '%s' "$1" | tr ',\n\r' ';;;' | tr -s ';' | sed 's/^;//;s/;$//'
+}
+
+# Mappa runtime → binario di default
+default_binary_for_runtime() {
+    case "$1" in
+        bigmoe) echo "bmoe-cli" ;;
+        mainline|ik|custom) echo "llama-cli" ;;
+        *) echo "llama-cli" ;;
+    esac
+}
+
+# Costruisce la cmdline (stringa) con flag runtime-appropriate.
+# Argomento opzionale: testo prompt (default: placeholder per --print-cmd).
+# --temp 0 sempre hardcodato (§8.2 determinismo).
+# llama-cli: -ctk/-ctv + --no-display-prompt
+# bmoe-cli:  NO -ctk/-ctv, NO --no-display-prompt (non supportati; KV gestito internamente)
+build_run_cmdline() {
+    _prompt_text="${1:-<prompt>}"
+    _bin="${BINARY}"
+    _cmd="$_bin"
+    _cmd="$_cmd -m $(printf '%q' "$MODEL")"
+    _cmd="$_cmd -p $(printf '%q' "$_prompt_text")"
+    _cmd="$_cmd -n $(printf '%q' "$N_GEN")"
+    _cmd="$_cmd -t $(printf '%q' "$THREADS")"
+    _cmd="$_cmd -c $(printf '%q' "$N_CTX")"
+    case "$RUNTIME" in
+        bigmoe)
+            # bmoe gestisce KV internamente; -ctk/-ctv e --no-display-prompt non supportati
+            _cmd="$_cmd --temp 0"
+            ;;
+        *)
+            _cmd="$_cmd -ctk $(printf '%q' "$KV_TYPE")"
+            _cmd="$_cmd -ctv $(printf '%q' "$KV_TYPE")"
+            _cmd="$_cmd --temp 0"
+            _cmd="$_cmd --no-display-prompt"
+            ;;
+    esac
+    if [ -n "$EXTRA_FLAGS" ]; then
+        # EXTRA_FLAGS word-split intenzionale (flag forniti dall'operatore)
+        # shellcheck disable=SC2086
+        _cmd="$_cmd $EXTRA_FLAGS"
+    fi
+    printf '%s\n' "$_cmd"
+}
+
+# ---------------------------------------------------------------------------
+# Helper: batteria (termux-api)
+# ---------------------------------------------------------------------------
+# Ritorna via stdout: "plugged temperature_c" oppure vuoto se non disponibile.
+# temperature_c normalizzata in °C (gestisce sia float °C sia 0.1°C interi).
+BATTERY_AVAILABLE=0
+
+read_battery() {
+    if ! command -v termux-battery-status >/dev/null 2>&1; then
+        echo ""
+        return 1
+    fi
+    _json="$(termux-battery-status 2>/dev/null)" || {
+        echo ""
+        return 1
+    }
+    if [ -z "$_json" ]; then
+        echo ""
+        return 1
+    fi
+
+    # Preferisci jq se presente; fallback a sed/grep grezzo
+    if command -v jq >/dev/null 2>&1; then
+        _plugged="$(printf '%s\n' "$_json" | jq -r '.plugged // empty' 2>/dev/null)"
+        _temp_raw="$(printf '%s\n' "$_json" | jq -r '.temperature // empty' 2>/dev/null)"
+    else
+        _plugged="$(printf '%s\n' "$_json" | sed -n 's/.*"plugged"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+        _temp_raw="$(printf '%s\n' "$_json" | sed -n 's/.*"temperature"[[:space:]]*:[[:space:]]*\([0-9.][0-9.]*\).*/\1/p' | head -n1)"
+    fi
+
+    if [ -z "$_temp_raw" ]; then
+        _temp_c=""
+    else
+        # se >100, interpreta come decimi di °C (es. 285 → 28.5)
+        _temp_c="$(awk -v t="$_temp_raw" 'BEGIN{
+            if (t+0 > 100) printf "%.1f", t/10.0;
+            else printf "%.1f", t+0;
+        }')"
+    fi
+
+    echo "${_plugged} ${_temp_c}"
+    return 0
+}
+
+# Solo le helper (per scripts/test_run_bench.sh)
+if [ "${RUN_BENCH_LIB_ONLY:-0}" = "1" ]; then
+    return 0 2>/dev/null || exit 0
+fi
 
 usage() {
     cat <<'EOF' >&2
@@ -62,11 +229,15 @@ Opzionali:
   --quant NAME              nome quant (default: derivato dal filename)
   --file-gb NUM             dimensione file in GB
   --runtime NAME            mainline|bigmoe|ik|custom (default: mainline)
+                            → binario default: mainline/ik/custom=llama-cli,
+                              bigmoe=bmoe-cli
   --runtime-commit HASH     commit del runtime
-  --flags "STR"             flag extra per llama-cli (es. "--moe-stream --cache-mb 2000")
+  --flags "STR"             flag extra per il binario (es. "--moe-stream --cache-mb 2000")
   -t, --threads N           thread (default: 4)
   -c, --ctx N               contesto (default: 512)
-  --kv-type TYPE            f16|q8_0 (default: q8_0) → -ctk/-ctv
+  --kv-type TYPE            f16|q8_0 (default: q8_0)
+                            → passato come -ctk/-ctv SOLO a llama-cli;
+                              con bmoe-cli resta informativo in CSV (bmoe gestisce KV)
   -n, --n-gen N             token da generare (default: 64)
   --run-type TYPE           cold|warm|pressure (default: warm)
   --log PATH                log grezzo (default: auto in results/logs/)
@@ -74,10 +245,16 @@ Opzionali:
   --csv PATH                CSV destinazione (default: ~/experiments/results/runs.csv
                             o env RUNS_CSV)
   --run-id ID               override run_id
-  --binary NAME             binario llama (default: llama-cli)
+  --binary NAME             override binario (default: da --runtime)
+  --print-cmd               stampa la cmdline esatta (flag runtime-appropriate)
+                            ed esce 0 SENZA eseguire nulla e SENZA riga CSV
+  --allow-no-battery        SOLO smoke/dry-run: salta il gate batteria fail-closed.
+                            MAI per run scientifici (senza di questo: exit 7 se
+                            termux-battery-status assente o plugged sconosciuto)
   -h, --help                questo aiuto
 
 Exit: 0 ok · 1 llama fail · 3 usage · 4 charging · 5 too hot · 6 binary missing
+      7 gate batteria non disponibile/incerto
 EOF
 }
 
@@ -143,6 +320,10 @@ while [ $# -gt 0 ]; do
         --binary)
             [ $# -ge 2 ] || { echo "ERRORE: $1 richiede un argomento" >&2; usage; exit 3; }
             BINARY="$2"; shift 2 ;;
+        --print-cmd)
+            PRINT_CMD=1; shift ;;
+        --allow-no-battery)
+            ALLOW_NO_BATTERY=1; shift ;;
         -h|--help)
             usage; exit 0 ;;
         --)
@@ -169,14 +350,16 @@ if [ -z "$MODEL" ] || [ -z "$PROMPT_FILE" ]; then
     exit 3
 fi
 
-if [ ! -f "$MODEL" ]; then
-    echo "ERRORE: modello non trovato: $MODEL" >&2
-    exit 3
-fi
-
-if [ ! -f "$PROMPT_FILE" ]; then
-    echo "ERRORE: prompt-file non trovato: $PROMPT_FILE" >&2
-    exit 3
+# Con --print-cmd i path possono essere fittizi (operator sanity / test)
+if [ "$PRINT_CMD" -eq 0 ]; then
+    if [ ! -f "$MODEL" ]; then
+        echo "ERRORE: modello non trovato: $MODEL" >&2
+        exit 3
+    fi
+    if [ ! -f "$PROMPT_FILE" ]; then
+        echo "ERRORE: prompt-file non trovato: $PROMPT_FILE" >&2
+        exit 3
+    fi
 fi
 
 case "$RUNTIME" in
@@ -202,6 +385,11 @@ case "$KV_TYPE" in
         exit 3
         ;;
 esac
+
+# Runtime → binario default (solo se --binary non ha override)
+if [ -z "$BINARY" ]; then
+    BINARY="$(default_binary_for_runtime "$RUNTIME")"
+fi
 
 # Quant derivato dal filename se non specificato
 if [ -z "$QUANT" ]; then
@@ -240,142 +428,43 @@ if [ -z "$LOG_PATH" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Helper: parsing /proc
-# ---------------------------------------------------------------------------
-
-# Estrae minflt e majflt da /proc/<pid>/stat in modo robusto
-# (campo 2 = comm tra parentesi, può contenere spazi)
-# Dopo strip fino all'ULTIMA ')', nel resto: minflt=campo 8, majflt=campo 10
-read_flt() {
-    _pid="$1"
-    _stat="/proc/${_pid}/stat"
-    if [ ! -r "$_stat" ]; then
-        echo "0 0"
-        return
-    fi
-    # strip fino all'ultima ')' inclusa
-    _rest="$(sed 's/.*) //' "$_stat" 2>/dev/null)"
-    if [ -z "$_rest" ]; then
-        echo "0 0"
-        return
-    fi
-    # shell word-split sul resto
-    set -- $_rest
-    # $1=state ... $8=minflt $10=majflt
-    _minflt="${8:-0}"
-    _majflt="${10:-0}"
-    echo "${_minflt} ${_majflt}"
-}
-
-read_read_bytes() {
-    _pid="$1"
-    _io="/proc/${_pid}/io"
-    if [ ! -r "$_io" ]; then
-        echo "0"
-        return
-    fi
-    awk '/^read_bytes:/{print $2; found=1} END{if(!found) print 0}' "$_io" 2>/dev/null
-}
-
-read_vmrss_kb() {
-    _pid="$1"
-    _st="/proc/${_pid}/status"
-    if [ ! -r "$_st" ]; then
-        echo "0"
-        return
-    fi
-    awk '/^VmRSS:/{print $2; found=1} END{if(!found) print 0}' "$_st" 2>/dev/null
-}
-
-read_meminfo() {
-    # stampa: MemFree_kB MemAvailable_kB
-    if [ ! -r /proc/meminfo ]; then
-        echo "0 0"
-        return
-    fi
-    awk '
-        /^MemFree:/{free=$2}
-        /^MemAvailable:/{avail=$2}
-        END{print free+0, avail+0}
-    ' /proc/meminfo
-}
-
-# ---------------------------------------------------------------------------
-# Helper: batteria (termux-api)
-# ---------------------------------------------------------------------------
-# Ritorna via stdout: "plugged temperature_c" oppure vuoto se non disponibile.
-# temperature_c normalizzata in °C (gestisce sia float °C sia 0.1°C interi).
-BATTERY_AVAILABLE=0
-
-read_battery() {
-    if ! command -v termux-battery-status >/dev/null 2>&1; then
-        echo ""
-        return 1
-    fi
-    _json="$(termux-battery-status 2>/dev/null)" || {
-        echo ""
-        return 1
-    }
-    if [ -z "$_json" ]; then
-        echo ""
-        return 1
-    fi
-
-    # Preferisci jq se presente; fallback a sed/grep grezzo
-    if command -v jq >/dev/null 2>&1; then
-        _plugged="$(printf '%s\n' "$_json" | jq -r '.plugged // empty' 2>/dev/null)"
-        _temp_raw="$(printf '%s\n' "$_json" | jq -r '.temperature // empty' 2>/dev/null)"
-    else
-        _plugged="$(printf '%s\n' "$_json" | sed -n 's/.*"plugged"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
-        _temp_raw="$(printf '%s\n' "$_json" | sed -n 's/.*"temperature"[[:space:]]*:[[:space:]]*\([0-9.][0-9.]*\).*/\1/p' | head -n1)"
-    fi
-
-    if [ -z "$_temp_raw" ]; then
-        _temp_c=""
-    else
-        # se >100, interpreta come decimi di °C (es. 285 → 28.5)
-        _temp_c="$(awk -v t="$_temp_raw" 'BEGIN{
-            if (t+0 > 100) printf "%.1f", t/10.0;
-            else printf "%.1f", t+0;
-        }')"
-    fi
-
-    echo "${_plugged} ${_temp_c}"
-    return 0
-}
-
-# ---------------------------------------------------------------------------
 # Pre-run checks (hard rules §8.2)
 # ---------------------------------------------------------------------------
 
-# 1) binario
-if ! command -v "$BINARY" >/dev/null 2>&1; then
-    echo "ERRORE: binario non trovato: $BINARY (command -v fallito)" >&2
-    echo "Suggerimento: builda llama.cpp, oppure --binary main (nome legacy)" >&2
-    exit 6
-fi
-
-# 2) batteria
+# 1) batteria — FAIL-CLOSED (exit 7) salvo --allow-no-battery (solo smoke/dry-run)
 _batt="$(read_battery)"
 _batt_rc=$?
 if [ $_batt_rc -ne 0 ] || [ -z "$_batt" ]; then
-    echo "AVVISO: termux-battery-status non disponibile — proseguo senza gate termico/carica" >&2
-    echo "         (installa: pkg install termux-api)" >&2
-    BATTERY_AVAILABLE=0
-    BATT_PLUGGED="UNKNOWN"
-    BATT_TEMP_START=""
+    if [ "$ALLOW_NO_BATTERY" -eq 1 ]; then
+        echo "AVVISO: termux-battery-status non disponibile — proseguo (--allow-no-battery)" >&2
+        echo "         MAI usare --allow-no-battery per run scientifici" >&2
+        BATTERY_AVAILABLE=0
+        BATT_PLUGGED="UNKNOWN"
+        BATT_TEMP_START=""
+    else
+        echo "ERRORE: gate batteria non disponibile/incerto (termux-battery-status assente o fallito)" >&2
+        echo "        Installa: pkg install termux-api" >&2
+        echo "        Oppure, SOLO per smoke/dry-run: --allow-no-battery" >&2
+        exit 7
+    fi
 else
     BATTERY_AVAILABLE=1
+    # shellcheck disable=SC2086
     set -- $_batt
     BATT_PLUGGED="${1:-UNKNOWN}"
     BATT_TEMP_START="${2:-}"
 
-    # Gate carica: solo se plugged noto e NON UNPLUGGED
     case "$BATT_PLUGGED" in
         UNPLUGGED)
             ;;
         UNKNOWN|"")
-            echo "AVVISO: campo plugged assente/sconosciuto — proseguo" >&2
+            if [ "$ALLOW_NO_BATTERY" -eq 1 ]; then
+                echo "AVVISO: campo plugged assente/sconosciuto — proseguo (--allow-no-battery)" >&2
+            else
+                echo "ERRORE: gate batteria non disponibile/incerto (plugged=$BATT_PLUGGED)" >&2
+                echo "        Serve plugged=UNPLUGGED. SOLO smoke: --allow-no-battery" >&2
+                exit 7
+            fi
             ;;
         *)
             # PLUGGED / AC / USB / WIRELESS / ecc.
@@ -393,8 +482,32 @@ else
             exit 5
         fi
     else
-        echo "AVVISO: temperatura batteria non leggibile — proseguo" >&2
+        if [ "$ALLOW_NO_BATTERY" -eq 1 ]; then
+            echo "AVVISO: temperatura batteria non leggibile — proseguo (--allow-no-battery)" >&2
+        else
+            echo "ERRORE: gate batteria non disponibile/incerto (temperatura assente)" >&2
+            echo "        SOLO smoke/dry-run: --allow-no-battery" >&2
+            exit 7
+        fi
     fi
+fi
+
+# --print-cmd: stampa cmdline runtime-appropriate ed esce (niente binario, niente CSV)
+if [ "$PRINT_CMD" -eq 1 ]; then
+    if [ -f "$PROMPT_FILE" ]; then
+        _pcontent="$(cat "$PROMPT_FILE")"
+    else
+        _pcontent="<prompt>"
+    fi
+    build_run_cmdline "$_pcontent"
+    exit 0
+fi
+
+# 2) binario (dopo --print-cmd: non serve per la sola stampa)
+if ! command -v "$BINARY" >/dev/null 2>&1; then
+    echo "ERRORE: binario non trovato: $BINARY (command -v fallito)" >&2
+    echo "Suggerimento: builda llama.cpp / BigMoeOnEdge, oppure --binary <nome>" >&2
+    exit 6
 fi
 
 # ---------------------------------------------------------------------------
@@ -413,6 +526,7 @@ fi
 # ---------------------------------------------------------------------------
 # Snapshot PRE
 # ---------------------------------------------------------------------------
+# shellcheck disable=SC2046
 set -- $(read_meminfo)
 MEMFREE_START_KB="${1:-0}"
 MEMAVAIL_START_KB="${2:-0}"
@@ -423,7 +537,8 @@ MEMFREE_MIN_KB="$MEMFREE_START_KB"
 PROMPT_CONTENT="$(cat "$PROMPT_FILE")"
 
 # Header log (sovrascrittura: ogni run ha il suo file)
-# --temp 0 hardcodato (§8.2 determinismo); -ctk/-ctv = KV cache type
+# --temp 0 hardcodato (§8.2 determinismo)
+# llama-cli: -ctk/-ctv; bmoe-cli: KV interno (kv_type solo informativo in CSV)
 echo "=== run_bench ===" | tee "$LOG_PATH" >&2
 echo "run_id=$RUN_ID phase=$PHASE runtime=$RUNTIME run_type=$RUN_TYPE" | tee -a "$LOG_PATH" >&2
 echo "model=$MODEL quant=$QUANT" | tee -a "$LOG_PATH" >&2
@@ -447,34 +562,59 @@ mkfifo "$FIFO" || {
 tee -a "$LOG_PATH" < "$FIFO" >&2 &
 TEE_PID=$!
 
-# Lancia llama-cli in background: stdout+stderr → FIFO
+# Lancia binario in background: stdout+stderr → FIFO
+# Flag set runtime-appropriate (v. build_run_cmdline)
 # EXTRA_FLAGS word-split intenzionale (flag forniti dall'operatore).
 # shellcheck disable=SC2086
-if [ -n "$EXTRA_FLAGS" ]; then
-    "$BINARY" \
-        -m "$MODEL" \
-        -p "$(cat "$PROMPT_TMP")" \
-        -n "$N_GEN" \
-        -t "$THREADS" \
-        -c "$N_CTX" \
-        -ctk "$KV_TYPE" \
-        -ctv "$KV_TYPE" \
-        --temp 0 \
-        --no-display-prompt \
-        $EXTRA_FLAGS \
-        > "$FIFO" 2>&1 &
+_PROMPT_ARG="$(cat "$PROMPT_TMP")"
+if [ "$RUNTIME" = "bigmoe" ]; then
+    if [ -n "$EXTRA_FLAGS" ]; then
+        "$BINARY" \
+            -m "$MODEL" \
+            -p "$_PROMPT_ARG" \
+            -n "$N_GEN" \
+            -t "$THREADS" \
+            -c "$N_CTX" \
+            --temp 0 \
+            $EXTRA_FLAGS \
+            > "$FIFO" 2>&1 &
+    else
+        "$BINARY" \
+            -m "$MODEL" \
+            -p "$_PROMPT_ARG" \
+            -n "$N_GEN" \
+            -t "$THREADS" \
+            -c "$N_CTX" \
+            --temp 0 \
+            > "$FIFO" 2>&1 &
+    fi
 else
-    "$BINARY" \
-        -m "$MODEL" \
-        -p "$(cat "$PROMPT_TMP")" \
-        -n "$N_GEN" \
-        -t "$THREADS" \
-        -c "$N_CTX" \
-        -ctk "$KV_TYPE" \
-        -ctv "$KV_TYPE" \
-        --temp 0 \
-        --no-display-prompt \
-        > "$FIFO" 2>&1 &
+    if [ -n "$EXTRA_FLAGS" ]; then
+        "$BINARY" \
+            -m "$MODEL" \
+            -p "$_PROMPT_ARG" \
+            -n "$N_GEN" \
+            -t "$THREADS" \
+            -c "$N_CTX" \
+            -ctk "$KV_TYPE" \
+            -ctv "$KV_TYPE" \
+            --temp 0 \
+            --no-display-prompt \
+            $EXTRA_FLAGS \
+            > "$FIFO" 2>&1 &
+    else
+        "$BINARY" \
+            -m "$MODEL" \
+            -p "$_PROMPT_ARG" \
+            -n "$N_GEN" \
+            -t "$THREADS" \
+            -c "$N_CTX" \
+            -ctk "$KV_TYPE" \
+            -ctv "$KV_TYPE" \
+            --temp 0 \
+            --no-display-prompt \
+            > "$FIFO" 2>&1 &
+    fi
 fi
 LLAMA_PID=$!
 
@@ -497,6 +637,7 @@ done
 
 # Snapshot iniziale del processo (se ancora vivo)
 if [ -d "/proc/$LLAMA_PID" ]; then
+    # shellcheck disable=SC2046
     set -- $(read_flt "$LLAMA_PID")
     MINFLT_START="${1:-0}"
     MAJFLT_START="${2:-0}"
@@ -531,12 +672,14 @@ printf '%s\n' "$MEMFREE_MIN_KB" > "$MEMFREE_FILE"
                 _peak="$_rss"
                 printf '%s\n' "$_peak" > "$PEAK_FILE"
             fi
+            # shellcheck disable=SC2046
             set -- $(read_flt "$LLAMA_PID")
             _mf_last="${1:-0}"
             _Mj_last="${2:-0}"
             _rb_last="$(read_read_bytes "$LLAMA_PID")"
             printf '%s %s %s\n' "$_mf_last" "$_Mj_last" "$_rb_last" > "$PROC_FILE"
         fi
+        # shellcheck disable=SC2046
         set -- $(read_meminfo)
         _mf="${1:-0}"
         if [ "${_mf:-0}" -gt 0 ] 2>/dev/null; then
@@ -551,6 +694,7 @@ printf '%s\n' "$MEMFREE_MIN_KB" > "$MEMFREE_FILE"
 SAMPLER_PID=$!
 
 # Attendi llama (senza set -e: controlliamo rc a mano)
+# wait + $? sulla riga successiva (rc capture robusto)
 wait "$LLAMA_PID"
 LLAMA_RC=$?
 
@@ -571,6 +715,7 @@ MINFLT_END="$MINFLT_START"
 MAJFLT_END="$MAJFLT_START"
 READ_BYTES_END="$READ_BYTES_START"
 if [ -f "$PROC_FILE" ]; then
+    # shellcheck disable=SC2046
     set -- $(cat "$PROC_FILE" 2>/dev/null)
     MINFLT_END="${1:-$MINFLT_START}"
     MAJFLT_END="${2:-$MAJFLT_START}"
@@ -586,6 +731,7 @@ fi
 rm -f "$PEAK_FILE" "$MEMFREE_FILE" "$PROC_FILE" 2>/dev/null || true
 
 # Snapshot meminfo post
+# shellcheck disable=SC2046
 set -- $(read_meminfo)
 MEMFREE_END_KB="${1:-0}"
 # aggiorna min con end
@@ -600,6 +746,7 @@ BATT_TEMP_END=""
 if [ "$BATTERY_AVAILABLE" -eq 1 ]; then
     _batt2="$(read_battery)"
     if [ -n "$_batt2" ]; then
+        # shellcheck disable=SC2086
         set -- $_batt2
         BATT_TEMP_END="${2:-}"
     fi
@@ -706,7 +853,7 @@ if [ -n "$TIMING_NOTE" ]; then
     fi
 fi
 # strip virgole e newline
-NOTES_FINAL="$(printf '%s' "$NOTES_FINAL" | tr ',\n\r' ';;;' | tr -s ';' | sed 's/^;//;s/;$//')"
+NOTES_FINAL="$(sanitize_notes "$NOTES_FINAL")"
 
 # Flags stringa per CSV (niente virgole)
 FLAGS_CSV="$(printf '%s' "$EXTRA_FLAGS" | tr ',' ';' | tr '\n' ' ')"

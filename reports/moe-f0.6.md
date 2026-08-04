@@ -41,7 +41,8 @@ Shared expert (`*_shexp`) per layer: **2 301 952 B ≈ 2.30 MB** × 40 = 92.
 
 ```
 traffico_naive/token = 8 routed × 40 layer × 942080 B
-                     = 301 465 600 B ≈ 301.5 MB/token   [V]
+                     = 301 465 600 B ≈ 301.5 MB/token (mediana) [V]
+                     = **305 201 152 B ≈ 305.2 MB/token (pesato reale, 3 layer con down IQ4_XS)** [V]
 
 t_token ≈ t_compute(3B attivi, CPU 8g2)
         + n_miss × t_load_esperto(UFS 3.1, random ~0.942 MB)
@@ -72,7 +73,7 @@ A 300 MB/s random [S] → ~1.0 s I/O/token ≈ **1.0 tok/s** di solo flash (muro
 4. **Quant mista per-layer sulla down:** 3 layer finali (34/38/39) a IQ4_XS (+16.5% byte/esperto). Headline = mediana 0.942 MB, non la media.
 5. **Layout spezzato:** shexp+router intercalati tra i 3 exps → prefetch per-esperto deve fare 3 I/O (o leggere span ~245 MB che include shexp/router inutili per quel miss). Rilevante per H6 (reorder GGUF).
 6. **§4 core budget:** 22.6 GB [S] → **30.7 GB [V]** se si tengono base+MTP; documentata alternativa swap-in-F6.
-7. Stima pre-F0.6 ~1.0–1.3 MB/esperto e ~350 MB/token era **leggermente pessimista** (reale 0.942 / 301.5): il muro resta della stessa ordine di grandezza.
+7. Stima pre-F0.6 ~1.0–1.3 MB/esperto e ~350 MB/token era **leggermente pessimista** (reale 0.942 mediana / 305.2 pesato): il muro resta della stessa ordine di grandezza.
 
 ## Verdetto gate: PASS
 
@@ -82,7 +83,7 @@ A 300 MB/s random [S] → ~1.0 s I/O/token ≈ **1.0 tok/s** di solo flash (muro
 
 ## Prossima azione proposta
 
-1. Procedere F0 restanti / F1 (push modello sul telefono) usando **0.942 MB/esperto** e **301.5 MB/token** come costanti di design.
+1. Procedere F0 restanti / F1 (push modello sul telefono) usando **0.942 MB/esperto** e **305.2 MB/token (pesato)** come costanti di design.
 2. In F2.1 (fio): misurare random read a granularità **~256k–1M**, non 4K.
 3. In design cache (F4/F7): valutare grana di caricamento (per-matrice 3 I/O vs span layer) alla luce del layout non contiguo.
 4. F6: preferire **swap** del GGUF target con variante MTP piuttosto che tenere 11.52+11.37 GB affiancati.

@@ -199,32 +199,50 @@ if [ ! -d "$BMOE_ROOT" ]; then
 fi
 cd "$BMOE_ROOT"
 
-if [ -d .git ] || [ -f .git ]; then
-    if [ "$SKIP_CHECKOUT" != "1" ]; then
-        CUR="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
-        echo "HEAD monorepo: $CUR"
-        if [ "$CUR" != "$PIN_MONOREPO" ]; then
-            if ! git cat-file -e "${PIN_MONOREPO}^{commit}" 2>/dev/null; then
-                echo "fetch pin monorepo (1+1 retry)"
-                git fetch --depth=1 origin "$PIN_MONOREPO" || {
-                    sleep 2
-                    git fetch --depth=1 origin "$PIN_MONOREPO" || \
-                        echo "AVVISO: fetch fallito, resto su $CUR" >&2
-                }
+if [ ! -d .git ] && [ ! -f .git ]; then
+    echo "ERRORE: $BMOE_ROOT non è un checkout git — impossibile verificare pin monorepo" >&2
+    echo "        atteso pin monorepo=$PIN_MONOREPO" >&2
+    exit 1
+fi
+
+if [ "$SKIP_CHECKOUT" != "1" ]; then
+    CUR="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+    echo "HEAD monorepo: $CUR"
+    if [ "$CUR" != "$PIN_MONOREPO" ]; then
+        if ! git cat-file -e "${PIN_MONOREPO}^{commit}" 2>/dev/null; then
+            echo "fetch pin monorepo (1+1 retry)"
+            if ! git fetch --depth=1 origin "$PIN_MONOREPO"; then
+                sleep 2
+                if ! git fetch --depth=1 origin "$PIN_MONOREPO"; then
+                    echo "ERRORE: fetch pin monorepo fallito (rete?)." >&2
+                    echo "        atteso=$PIN_MONOREPO  attuale=$CUR" >&2
+                    exit 1
+                fi
             fi
-            if git cat-file -e "${PIN_MONOREPO}^{commit}" 2>/dev/null; then
-                git checkout "$PIN_MONOREPO"
-            fi
+        fi
+        if git cat-file -e "${PIN_MONOREPO}^{commit}" 2>/dev/null; then
+            git checkout "$PIN_MONOREPO"
         fi
     fi
+fi
+
+# FAIL-CLOSED: monorepo HEAD deve coincidere col pin prima del configure
+CUR="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+if [ "$CUR" != "$PIN_MONOREPO" ]; then
+    echo "ERRORE: pin monorepo mismatch (fail-closed)" >&2
+    echo "        atteso=$PIN_MONOREPO" >&2
+    echo "        attuale=$CUR" >&2
+    echo "        (SKIP_CHECKOUT=1 salta solo il force-checkout, non la verifica)" >&2
+    exit 1
+fi
+echo "pin monorepo OK ($PIN_MONOREPO)"
+
+if ! git submodule update --init --recursive; then
+    echo "submodule update retry"
+    sleep 2
     if ! git submodule update --init --recursive; then
-        echo "submodule update retry"
-        sleep 2
-        if ! git submodule update --init --recursive; then
-            echo "ERRORE: submodule update fallito dopo retry" >&2
-            [ -f third_party/llama.cpp/CMakeLists.txt ] || exit 3
-            echo "proseguo con submodule locale" >&2
-        fi
+        echo "ERRORE: submodule update fallito dopo retry" >&2
+        exit 3
     fi
 fi
 
@@ -233,10 +251,21 @@ if [ ! -f third_party/llama.cpp/CMakeLists.txt ]; then
     exit 3
 fi
 
-if [ -d third_party/llama.cpp/.git ] || [ -f third_party/llama.cpp/.git ]; then
-    LLAMA_HEAD="$(git -C third_party/llama.cpp rev-parse HEAD 2>/dev/null || echo unknown)"
-    echo "HEAD llama.cpp: $LLAMA_HEAD (atteso $PIN_LLAMA)"
+# FAIL-CLOSED: pin submodule llama.cpp
+if [ ! -d third_party/llama.cpp/.git ] && [ ! -f third_party/llama.cpp/.git ]; then
+    echo "ERRORE: third_party/llama.cpp non è un checkout git — impossibile verificare pin" >&2
+    echo "        atteso pin llama.cpp=$PIN_LLAMA" >&2
+    exit 1
 fi
+LLAMA_HEAD="$(git -C third_party/llama.cpp rev-parse HEAD 2>/dev/null || echo unknown)"
+echo "HEAD llama.cpp: $LLAMA_HEAD (atteso $PIN_LLAMA)"
+if [ "$LLAMA_HEAD" != "$PIN_LLAMA" ]; then
+    echo "ERRORE: pin llama.cpp mismatch (fail-closed)" >&2
+    echo "        atteso=$PIN_LLAMA" >&2
+    echo "        attuale=$LLAMA_HEAD" >&2
+    exit 1
+fi
+echo "pin llama.cpp OK ($PIN_LLAMA)"
 
 # ---------------------------------------------------------------------------
 # Configure — mirror esatto di scripts/build-android.ps1

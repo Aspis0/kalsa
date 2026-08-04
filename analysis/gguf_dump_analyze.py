@@ -14,10 +14,10 @@ from __future__ import annotations
 import os
 import re
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
-from gguf import GGUFReader
+from gguf import GGML_QUANT_SIZES, GGUFReader
 
 
 # Chiavi metadata di interesse per architettura MoE
@@ -220,6 +220,45 @@ def main() -> int:
 
     per_expert_bytes_per_layer = []  # lista di byte totali per 1 esperto (somma matrici)
     matrix_bytes_per_expert = defaultdict(list)  # kind -> [bytes_per_expert per layer]
+    # Verifica stride/offset per ogni tensore *_exps
+    slice_verify_rows = []  # (layer, kind, b_per, expected_b_per, nb_ok, stride_status)
+
+    def _product(dims):
+        p = 1
+        for d in dims:
+            p *= int(d)
+        return p
+
+    def _expected_bytes_per_expert(t, shape, n_exp_dim):
+        """bytes_per_expert attesi = product(inner dims) scalato per block quant."""
+        if not n_exp_dim or n_exp_dim <= 0:
+            return None
+        # n_expert = ultima dim GGUF (outermost nel layout file)
+        inner = [int(x) for x in shape if True]
+        # rimuovi UNA occorrenza di n_exp_dim (preferisci ultima)
+        if int(shape[-1]) == int(n_exp_dim):
+            inner = [int(x) for x in shape[:-1]]
+        else:
+            # fallback: rimuovi la prima occorrenza
+            inner = list(shape)
+            try:
+                idx = inner.index(n_exp_dim)
+                del inner[idx]
+            except ValueError:
+                return None
+        n_elem_per = _product(inner) if inner else 0
+        try:
+            block_size, type_size = GGML_QUANT_SIZES[t.tensor_type]
+        except Exception:  # noqa: BLE001
+            # fallback: n_bytes / n_expert (misurato, non formula)
+            return None
+        if block_size <= 0:
+            return None
+        if n_elem_per % block_size != 0:
+            # non allineato a blocco quant: formula non applicabile in modo pulito
+            return None
+        n_blocks = n_elem_per // block_size
+        return int(n_blocks * type_size)
 
     for layer in layers:
         kinds = by_layer[layer]
@@ -232,6 +271,8 @@ def main() -> int:
             # shexp e' un unico esperto shared: shape senza dim 256.
             n_exp_dim = None
             b_per = None
+            expected_b_per = None
+            stride_status = "n/a"
             if not is_shexp:
                 if n_expert and n_expert in shape:
                     n_exp_dim = n_expert
@@ -239,25 +280,57 @@ def main() -> int:
                     # GGUF: ultima dim del reader = ne[n_dims-1] spesso = n_expert
                     n_exp_dim = int(shape[-1])
                 if n_exp_dim:
-                    b_per = nb // n_exp_dim
+                    if nb % n_exp_dim != 0:
+                        b_per = nb // n_exp_dim  # floor, ma segnaliamo
+                        stride_status = f"FAIL n_bytes%{n_exp_dim}!={0} (nb={nb})"
+                    else:
+                        b_per = nb // n_exp_dim
+                        # Contiguità slice esperti nel file: layout outermost = n_expert
+                        # → expert i inizia a off + i * b_per (stride = b_per). VERIFICATO
+                        # se n_bytes == n_exp * b_per e formula quant combacia.
+                        expected_b_per = _expected_bytes_per_expert(t, shape, n_exp_dim)
+                        if expected_b_per is not None and expected_b_per == b_per:
+                            stride_status = (
+                                f"VERIFICATO contiguous: stride=bytes_per_expert={b_per} "
+                                f"(product(inner)*dtype_size match, n_exp={n_exp_dim})"
+                            )
+                        elif expected_b_per is not None:
+                            stride_status = (
+                                f"FAIL formula: measured={b_per} expected={expected_b_per} "
+                                f"(product(inner)*dtype_size)"
+                            )
+                        else:
+                            # Non abbiamo type size: assumiamo contiguità da outermost dim
+                            stride_status = (
+                                f"ASSUNTO contiguous: outermost dim=n_expert, "
+                                f"stride=bytes_per_expert={b_per} "
+                                f"(formula quant non applicabile)"
+                            )
                     layer_total_all_experts += nb
                     layer_per_expert += b_per
                     matrix_bytes_per_expert[kind].append(b_per)
+                    slice_verify_rows.append(
+                        (layer, kind, b_per, expected_b_per, nb, n_exp_dim, stride_status)
+                    )
             else:
                 # shared: il "per expert" e' l'intero tensore
                 b_per = nb
                 matrix_bytes_per_expert[kind].append(b_per)
-            detail.append((kind, shape, dtype, nb, n_exp_dim, b_per, off))
+            detail.append((kind, shape, dtype, nb, n_exp_dim, b_per, off, expected_b_per, stride_status))
         per_expert_bytes_per_layer.append(layer_per_expert)
 
         if layer in show_layers:
             print(f"--- layer {layer} ---")
-            for kind, shape, dtype, nb, n_exp_dim, b_per, off in detail:
+            for kind, shape, dtype, nb, n_exp_dim, b_per, off, expected_b_per, stride_status in detail:
                 print(
                     f"  {kind:<22} shape={shape} dtype={dtype} "
                     f"tensor={fmt_bytes(nb)} n_exp_dim={n_exp_dim} "
                     f"per_expert={fmt_bytes(b_per) if b_per else 'n/a'} off={off}"
                 )
+                if expected_b_per is not None:
+                    print(f"    expected_bytes_per_expert (product(inner)*dtype_size) = {expected_b_per}")
+                if stride_status != "n/a":
+                    print(f"    slice/stride: {stride_status}")
             print(f"  TOTALE layer (tutti gli esperti): {fmt_bytes(layer_total_all_experts)}")
             print(f"  TOTALE per 1 esperto (somma matrici): {fmt_bytes(layer_per_expert)}")
 
@@ -270,7 +343,6 @@ def main() -> int:
             print(f"  Uniforme su tutti i {len(per_expert_bytes_per_layer)} layer: {fmt_bytes(per_expert_bytes_per_layer[0])}")
         else:
             # Mostra distribuzione
-            from collections import Counter
             c = Counter(per_expert_bytes_per_layer)
             for val, cnt in sorted(c.items()):
                 print(f"  {fmt_bytes(val)} → {cnt} layer")
@@ -302,8 +374,8 @@ def main() -> int:
     # (nessun tensore non-esperto intercalato tra il min e max offset degli esperti del layer)
     print("\n### Contiguita' per-layer degli esperti ROUTED (*_exps, no shexp)\n")
     print("Test A: i 3 tensori *_exps di un layer sono adiacenti tra loro (nessun tensore in mezzo)?")
-    print("Test B: all'interno di ogni tensore, 1 esperto e' un blocco contiguo")
-    print("        (assunzione: dim n_expert = ultima dim GGUF = ne[n-1] = outermost → SI).")
+    print("Test B: all'interno di ogni tensore *_exps, le slice esperto sono contigue")
+    print("        (stride = bytes_per_expert; formula product(inner)*dtype_size).")
     contiguous_exps_count = 0
     for layer in layers:
         kinds = by_layer[layer]
@@ -341,6 +413,26 @@ def main() -> int:
     print("Nota: ordine tipico per layer = down_exps, down_shexp, gate_exps, gate_inp,")
     print("      gate_inp_shexp, gate_shexp, up_exps, up_shexp → shexp+router spezzano i 3 exps.")
 
+    # Test B summary: slice contiguity / stride verification
+    print("\n### Test B — slice contigue per-esperto (stride = bytes_per_expert)\n")
+    n_verified = sum(1 for r in slice_verify_rows if r[6].startswith("VERIFICATO"))
+    n_assumed = sum(1 for r in slice_verify_rows if r[6].startswith("ASSUNTO"))
+    n_fail = sum(1 for r in slice_verify_rows if r[6].startswith("FAIL"))
+    print(f"  tensori *_exps verificati: {n_verified}/{len(slice_verify_rows)} VERIFICATO")
+    print(f"  tensori *_exps assunti:    {n_assumed}/{len(slice_verify_rows)} ASSUNTO")
+    print(f"  tensori *_exps FAIL:       {n_fail}/{len(slice_verify_rows)}")
+    # Mostra un sample (primi 3 layer + eventuali FAIL)
+    shown = 0
+    for layer, kind, b_per, expected_b_per, nb, n_exp_dim, status in slice_verify_rows:
+        if layer in show_layers or status.startswith("FAIL"):
+            print(
+                f"  layer {layer} {kind}: b_per={b_per} expected={expected_b_per} "
+                f"n_exp={n_exp_dim} nb={nb} → {status}"
+            )
+            shown += 1
+            if shown >= 20 and not status.startswith("FAIL"):
+                break
+
     # Ordine globale: gli esperti sono ordinati per layer crescente?
     expert_layer_order = [layer for _, layer, _, _, _, _, _, _ in expert_tensors]
     is_layer_sorted = expert_layer_order == sorted(expert_layer_order)
@@ -370,10 +462,15 @@ def main() -> int:
         print("ERRORE: nessun tensore esperto misurato.")
         return 1
 
-    # Usa la mediana (o il valore uniforme) come byte/esperto/layer
-    bytes_per_expert_layer = sorted(per_expert_bytes_per_layer)[len(per_expert_bytes_per_layer) // 2]
-    mb_per_expert = bytes_per_expert_layer / 1e6
-    mib_per_expert = bytes_per_expert_layer / (1 << 20)
+    # Mediana (o valore uniforme) come byte/esperto/layer — etichetta "mediana"
+    bytes_per_expert_layer_med = sorted(per_expert_bytes_per_layer)[
+        len(per_expert_bytes_per_layer) // 2
+    ]
+    mb_per_expert_med = bytes_per_expert_layer_med / 1e6
+    mib_per_expert_med = bytes_per_expert_layer_med / (1 << 20)
+
+    # Distribuzione reale per-layer (per traffico pesato)
+    layer_bytes_hist = Counter(per_expert_bytes_per_layer)
 
     # Routed experts per token: qwen35moe.expert_used_count = 8 (solo routed).
     # Shared expert (shexp) è ADDITIVO e residente — non conta nel traffico flash.
@@ -384,32 +481,52 @@ def main() -> int:
         if not p:
             continue
         n_shared = n_shared or get_int(f"{p}.expert_shared_count")
-    has_shexp = any("shexp" in kind for kind, _ in matrix_bytes_per_expert.items())
-    if n_shared is not None:
-        # Se metadata conta lo shared dentro used, sottrai; altrimenti used=routed
-        n_routed = n_used - n_shared if n_used > n_shared else n_used
-    elif has_shexp:
-        n_routed = n_used  # used = solo routed; shared a parte
+    # shared count non sempre in metadata: se c'è shexp, shared=1
+    has_shexp = any("shexp" in kind for kind in matrix_bytes_per_expert)
+    if n_shared is None and has_shexp:
         n_shared = 1
-    else:
-        n_routed = n_used
+    # used = solo routed (shared a parte / residente)
+    n_routed = n_used
     n_layers_eff = len(layers) if layers else (n_layer or 40)
 
-    naive_bytes = n_routed * n_layers_eff * bytes_per_expert_layer
-    naive_mb = naive_bytes / 1e6
+    # Traffico mediana (semplificato, può sottostimare se i layer non sono uniformi)
+    naive_bytes_med = n_routed * n_layers_eff * bytes_per_expert_layer_med
+    naive_mb_med = naive_bytes_med / 1e6
 
-    print(f"  bytes / esperto / layer (misurato) = {bytes_per_expert_layer}  "
-          f"({mb_per_expert:.4f} MB / {mib_per_expert:.4f} MiB)")
+    # Traffico pesato (reale): somma sui layer dei byte/esperto × n_routed
+    # es. 8 × (37×942080 + 3×1097728) = 305201152
+    weighted_bytes_one_expert_all_layers = sum(per_expert_bytes_per_layer)
+    naive_bytes_weighted = n_routed * weighted_bytes_one_expert_all_layers
+    naive_mb_weighted = naive_bytes_weighted / 1e6
+
+    print(f"  bytes / esperto / layer (mediana)  = {bytes_per_expert_layer_med}  "
+          f"({mb_per_expert_med:.4f} MB / {mib_per_expert_med:.4f} MiB)")
+    print(f"  distribuzione bytes/esperto/layer:")
+    for val, cnt in sorted(layer_bytes_hist.items()):
+        print(f"    {val} B × {cnt} layer")
     print(f"  n_expert (metadata)                = {n_expert}")
     print(f"  n_expert_used (metadata)           = {n_used}")
-    print(f"  n_shared (metadata)                = {n_shared}")
+    print(f"  n_shared (metadata/inferito)       = {n_shared}")
     print(f"  n_routed usati per traffico naive  = {n_routed}  "
           f"(= expert_used_count; shared e' additivo/residente)")
     print(f"  n_layers con esperti               = {n_layers_eff}")
-    print(f"  Traffico naive / token (0% hit)    = {n_routed} × {n_layers_eff} × "
-          f"{bytes_per_expert_layer} = {naive_bytes} B = {naive_mb:.2f} MB/token")
+    # Formula esplicita pesata
+    parts = " + ".join(f"{cnt}×{val}" for val, cnt in sorted(layer_bytes_hist.items()))
+    print(f"  Traffico naive / token — mediana   = {n_routed} × {n_layers_eff} × "
+          f"{bytes_per_expert_layer_med} = {naive_bytes_med} B = {naive_mb_med:.2f} MB/token")
+    print(f"  Traffico naive / token — pesato (reale) = {n_routed} × ({parts}) "
+          f"= {n_routed} × {weighted_bytes_one_expert_all_layers} "
+          f"= {naive_bytes_weighted} B = {naive_mb_weighted:.2f} MB/token")
+    print(f"  → mediana  = {naive_bytes_med} B/token  (semplificato, layer uniformi)")
+    print(f"  → pesato (reale) = {naive_bytes_weighted} B/token  (somma per-layer)")
 
-    # Breakdown matrici (media)
+    # Alias per sezioni successive (usano pesato come default "vero")
+    bytes_per_expert_layer = bytes_per_expert_layer_med
+    mb_per_expert = mb_per_expert_med
+    naive_bytes = naive_bytes_weighted
+    naive_mb = naive_mb_weighted
+
+    # Breakdown matrici (media + per-layer dove serve)
     print("\n  Breakdown matrici (byte per 1 esperto, media su layer):")
     matrix_sum = 0
     for kind, vals in sorted(matrix_bytes_per_expert.items()):
@@ -417,8 +534,28 @@ def main() -> int:
             continue  # shared non conta nel per-esperto routed
         avg = sum(vals) / len(vals)
         matrix_sum += avg
-        print(f"    {kind:<22} {avg:.1f} B  ({avg/1e6:.4f} MB)")
+        print(f"    {kind:<22} {avg:.1f} B  ({avg/1e6:.4f} MB)  "
+              f"min={min(vals)} max={max(vals)}")
     print(f"    SOMMA matrici routed           {matrix_sum:.1f} B  ({matrix_sum/1e6:.4f} MB)")
+
+    # Per-layer per-matrice (primi 3 + ultimo) — utile a ricostruire il pesato
+    print("\n  Breakdown per-layer per-matrice (byte/esperto, sample):")
+    for layer in show_layers:
+        kinds = by_layer[layer]
+        parts_m = []
+        tot = 0
+        for kind, (_, _, shape, dtype, off, nb) in sorted(kinds.items()):
+            if "shexp" in kind:
+                continue
+            n_exp_dim = n_expert if (n_expert and n_expert in shape) else (
+                int(shape[-1]) if shape else None
+            )
+            if not n_exp_dim:
+                continue
+            b_per = nb // n_exp_dim
+            tot += b_per
+            parts_m.append(f"{kind}={b_per}")
+        print(f"    layer {layer}: {', '.join(parts_m)}  SUM={tot}")
 
     # Sanity params
     if hidden and moe_ff:
@@ -459,11 +596,14 @@ def main() -> int:
     # Formula aggiornata
     print("\n## 6. Formula guida aggiornata\n")
     print(f"  t_token ≈ t_compute(3B attivi, CPU 8g2) + n_miss × t_load_esperto")
-    print(f"  t_load_esperto ≈ tempo UFS per caricare {mb_per_expert:.3f} MB "
-          f"({bytes_per_expert_layer} B) random")
+    print(f"  t_load_esperto ≈ tempo UFS per caricare ~{mb_per_expert_med:.3f} MB "
+          f"(mediana {bytes_per_expert_layer_med} B) random; layer grandi differiscono")
     print(f"  n_miss = {n_routed} × {n_layers_eff} × (1 − hit_rate) = "
-          f"{n_routed * n_layers_eff} × (1 − h)")
-    print(f"  traffico_flash/token = n_miss × {mb_per_expert:.3f} MB")
+          f"{n_routed * n_layers_eff} × (1 − h)  (conteggio miss; byte = pesato)")
+    print(f"  traffico_flash/token (0% hit) mediana  = {naive_mb_med:.2f} MB  ({naive_bytes_med} B)")
+    print(f"  traffico_flash/token (0% hit) pesato (reale) = {naive_mb_weighted:.2f} MB  "
+          f"({naive_bytes_weighted} B)")
+    print(f"  traffico_flash/token (hit h) = pesato × (1 − h)")
 
     print("\n## DONE")
     return 0

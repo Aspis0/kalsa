@@ -115,44 +115,55 @@ fi
 cd "$BMOE_ROOT"
 
 if [ ! -d .git ] && [ ! -f .git ]; then
-    echo "AVVISO: $BMOE_ROOT non è un checkout git — salto verifica pin" >&2
-else
-    if [ "$SKIP_CHECKOUT" != "1" ]; then
-        CUR="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
-        echo "HEAD monorepo: $CUR"
-        if [ "$CUR" != "$PIN_MONOREPO" ]; then
-            echo "--- checkout monorepo → $PIN_MONOREPO ---"
-            # fetch solo se manca l'oggetto (rete opzionale)
-            if ! git cat-file -e "${PIN_MONOREPO}^{commit}" 2>/dev/null; then
-                echo "oggetto pin assente in locale — git fetch (1 tentativo + 1 retry)"
+    echo "ERRORE: $BMOE_ROOT non è un checkout git — impossibile verificare pin monorepo" >&2
+    echo "        atteso pin monorepo=$PIN_MONOREPO" >&2
+    exit 1
+fi
+
+if [ "$SKIP_CHECKOUT" != "1" ]; then
+    CUR="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+    echo "HEAD monorepo: $CUR"
+    if [ "$CUR" != "$PIN_MONOREPO" ]; then
+        echo "--- checkout monorepo → $PIN_MONOREPO ---"
+        # fetch solo se manca l'oggetto (rete opzionale)
+        if ! git cat-file -e "${PIN_MONOREPO}^{commit}" 2>/dev/null; then
+            echo "oggetto pin assente in locale — git fetch (1 tentativo + 1 retry)"
+            if ! git fetch --depth=1 origin "$PIN_MONOREPO"; then
+                echo "fetch #1 fallito — retry una volta"
+                sleep 2
                 if ! git fetch --depth=1 origin "$PIN_MONOREPO"; then
-                    echo "fetch #1 fallito — retry una volta"
-                    sleep 2
-                    if ! git fetch --depth=1 origin "$PIN_MONOREPO"; then
-                        echo "ERRORE: rete fallita, pin monorepo non raggiungibile. Non forzo checkout." >&2
-                        echo "Continuo con HEAD=$CUR (documentare in report F1)." >&2
-                    fi
+                    echo "ERRORE: rete fallita, pin monorepo non raggiungibile." >&2
+                    echo "        atteso=$PIN_MONOREPO  attuale=$CUR" >&2
+                    exit 1
                 fi
             fi
-            if git cat-file -e "${PIN_MONOREPO}^{commit}" 2>/dev/null; then
-                git checkout "$PIN_MONOREPO"
-            fi
-        else
-            echo "pin monorepo già a posto"
         fi
+        if git cat-file -e "${PIN_MONOREPO}^{commit}" 2>/dev/null; then
+            git checkout "$PIN_MONOREPO"
+        fi
+    else
+        echo "pin monorepo già a posto"
     fi
+fi
 
-    echo "--- git submodule update --init --recursive ---"
+# FAIL-CLOSED: monorepo HEAD deve coincidere col pin prima del configure
+CUR="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+if [ "$CUR" != "$PIN_MONOREPO" ]; then
+    echo "ERRORE: pin monorepo mismatch (fail-closed)" >&2
+    echo "        atteso=$PIN_MONOREPO" >&2
+    echo "        attuale=$CUR" >&2
+    echo "        (SKIP_CHECKOUT=1 salta solo il force-checkout, non la verifica)" >&2
+    exit 1
+fi
+echo "pin monorepo OK ($PIN_MONOREPO)"
+
+echo "--- git submodule update --init --recursive ---"
+if ! git submodule update --init --recursive; then
+    echo "submodule update #1 fallito — retry una volta"
+    sleep 2
     if ! git submodule update --init --recursive; then
-        echo "submodule update #1 fallito — retry una volta"
-        sleep 2
-        if ! git submodule update --init --recursive; then
-            echo "ERRORE: submodule update fallito dopo retry (rete?). Non scarico altro." >&2
-            if [ ! -f third_party/llama.cpp/CMakeLists.txt ]; then
-                exit 3
-            fi
-            echo "CMakeLists.txt submodule presente — proseguo con lo stato locale." >&2
-        fi
+        echo "ERRORE: submodule update fallito dopo retry (rete?)." >&2
+        exit 3
     fi
 fi
 
@@ -162,20 +173,21 @@ if [ ! -f third_party/llama.cpp/CMakeLists.txt ]; then
     exit 3
 fi
 
-# Verifica pin submodule
-if [ -d third_party/llama.cpp/.git ] || [ -f third_party/llama.cpp/.git ]; then
-    LLAMA_HEAD="$(git -C third_party/llama.cpp rev-parse HEAD 2>/dev/null || echo unknown)"
-    echo "HEAD llama.cpp: $LLAMA_HEAD"
-    case "$LLAMA_HEAD" in
-        ${PIN_LLAMA}*)
-            echo "pin llama.cpp OK ($PIN_LLAMA)"
-            ;;
-        *)
-            echo "AVVISO: llama.cpp HEAD=$LLAMA_HEAD (atteso $PIN_LLAMA)" >&2
-            echo "         proseguo comunque — documentare eventuale mismatch in F1." >&2
-            ;;
-    esac
+# FAIL-CLOSED: pin submodule llama.cpp
+if [ ! -d third_party/llama.cpp/.git ] && [ ! -f third_party/llama.cpp/.git ]; then
+    echo "ERRORE: third_party/llama.cpp non è un checkout git — impossibile verificare pin" >&2
+    echo "        atteso pin llama.cpp=$PIN_LLAMA" >&2
+    exit 1
 fi
+LLAMA_HEAD="$(git -C third_party/llama.cpp rev-parse HEAD 2>/dev/null || echo unknown)"
+echo "HEAD llama.cpp: $LLAMA_HEAD"
+if [ "$LLAMA_HEAD" != "$PIN_LLAMA" ]; then
+    echo "ERRORE: pin llama.cpp mismatch (fail-closed)" >&2
+    echo "        atteso=$PIN_LLAMA" >&2
+    echo "        attuale=$LLAMA_HEAD" >&2
+    exit 1
+fi
+echo "pin llama.cpp OK ($PIN_LLAMA)"
 
 # ---------------------------------------------------------------------------
 # Configure (canonico build-host.sh + Ninja + off-flag CPU-only)

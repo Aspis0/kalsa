@@ -35,11 +35,11 @@ F0.6 completata: download + analisi `GGUFReader` su `models/Qwen3.6-35B-A3B-UD-I
   - **37/40 layer:** **942 080 B = 0.942 MB** (gate IQ2_XXS 270 336 + up IQ2_XXS 270 336 + down IQ3_XXS 401 408).
   - **3/40 layer (34, 38, 39):** **1 097 728 B = 1.098 MB** (down alzato a IQ4_XS 557 056).
   - Mediana = 942 080 B; media = 953 754 B.
-- **Traffico naive / token [V]:** 8 routed × 40 layer × 942 080 = **301 465 600 B ≈ 301.5 MB/token** (0% hit; shared residente escluso).
+- **Traffico naive / token [V]:** 8 routed × 40 layer × 942 080 = **301 465 600 B ≈ 301.5 MB/token (mediana)**; pesato reale (37 L × 942 080 + 3 L × 1 097 728) × 8 = **305 201 152 B ≈ 305.2 MB/token** (0% hit; shared residente escluso).
 - **Sanity params [V]:** 3·2048·512 = **3 145 728** params/esperto/layer; 256×40×3.15M = **32.21B** esperti + resto ≈ 35.9B; bpw esperti effettivo ≈ **2.40**.
 - **Layout [V]:** non fused (gate/up/down separati); i 3 `*_exps` di un layer **non** sono contigui tra loro (in mezzo: shexp + router `ffn_gate_inp`); ordinati per layer 0→39; 1 esperto = slice contigua dentro ogni tensore (dim 256 outermost). Overhead metadata: **10 990 048 B (0.095%)**.
 - **§4 budget core aggiornato [V]:** voci 1+2+3+5 = 2.74+5.04+11.52+11.37 = **≈30.67 GB** (non 22.6). Alternativa F6: swap del file target con variante MTP (stesso footprint ~11–12 GB), senza tenere base+MTP insieme.
-- **§5 stime [S] sostituite:** ~1.0–1.3 MB/esperto → **0.942 MB** (mediana); ~350 MB/token → **301.5 MB/token**. Vedi §5 riscritto sotto.
+- **§5 stime [S] sostituite:** ~1.0–1.3 MB/esperto → **0.942 MB** (mediana, 0.954 media); ~350 MB/token → **305.2 MB/token (pesato reale)**. Vedi §5 riscritto sotto.
 
 ---
 
@@ -400,7 +400,7 @@ Numeri F0.6 misurati su `Qwen3.6-35B-A3B-UD-IQ2_M.gguf` (2026-08-03, source:
   (Sanity: 256×40×3.15M ≈ 32.21B esperti + attention/shared/embed ≈ 3.7B ≈ 35.9B ✓;
   bpw esperti effettivo ≈ 2.40 [V].)
 - Traffico naive per token (0% hit) [V]: 8 routed × 40 layer × 942 080 B =
-  **301 465 600 B ≈ 301.5 MB/token** (shared shexp residente, escluso).
+  **301 465 600 B ≈ 301.5 MB/token (mediana)**, pesato reale (3 L con down IQ4_XS) **305 201 152 B ≈ 305.2 MB/token** [V] (shared shexp residente, escluso).
   A 300 MB/s di random read effettivo [S] → **~1.0 s/token di solo I/O ≈ 1.0 tok/s**: ecco il muro.
   (Il placeholder 300MB/s va sostituito col dato fio di F2.1 alla granularità **~0.9–1.1MB —
   colonna random 256k-1M, NON la 4K**: le letture del progetto sono esperti da **0.942 MB** [V].)
@@ -431,7 +431,7 @@ traffico_flash/token ≈ n_miss × 0.942 MB
 | ID | Ipotesi | Attesa quantitativa (da letteratura) | Dove si testa |
 |---|---|---|---|
 | H1 | Località temporale degli esperti su Qwen3.6-35B-A3B in task chat/coding reali | hit-rate LRU ≥80% con cache ≈2× working set (2505.16056: 81-97%) | F7 (trace), conferma indiretta in F4 |
-| H2 | Una cache esperti in DRAM con budget ~2GB riduce il traffico flash ≥5× vs naive | da **301.5 MB/token [V]** a ≤50 MB/token [S] | F4 (BigMoeOnEdge), F8 |
+| H2 | Una cache esperti in DRAM con budget ~2GB riduce il traffico flash ≥5× vs naive | da **305.2 MB/token [V]** a ≤50 MB/token [S] | F4 (BigMoeOnEdge), F8 |
 | H3 | Il prefetch predittivo batte LRU/LFU puro | +5-15 punti di hit-rate (ExpertFlow: +61% vs LRU è su GPU serving, non ci aspettiamo tanto) | F7 simulatore → F8 runtime |
 | H4 | MTP/speculative riduce i caricamenti per token utile (meno passi target) | DraftExpert: 1.45x; EVICT: −32.5% esperti attivati. Ma RTX3090: 0 speedup → esito aperto su CPU+flash | F6 |
 | H5 | Il degrado sotto memory pressure è governabile con cache applicativa esplicita (vs page cache) | BigMoeOnEdge vs mmap nudo: 5.0 vs 0.09 tok/s (già quasi-provata altrove) | F5 |
