@@ -23,13 +23,13 @@ on:
         required: true
         default: "on"
         type: choice
-        options: [on, off]
+        options: ["on", "off"]
       thinking:
         description: "Thinking mode"
         required: true
         default: "off"
         type: choice
-        options: [off, budget256, budget512]
+        options: ["off", budget256, budget512]
 
 concurrency:
   group: e2e-${{ github.ref }}
