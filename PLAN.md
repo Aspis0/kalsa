@@ -401,11 +401,14 @@ Numeri F0.6 misurati su `Qwen3.6-35B-A3B-UD-IQ2_M.gguf` (2026-08-03, source:
   bpw esperti effettivo ≈ 2.40 [V].)
 - Traffico naive per token (0% hit) [V]: 8 routed × 40 layer × 942 080 B =
   **301 465 600 B ≈ 301.5 MB/token (mediana)**, pesato reale (3 L con down IQ4_XS) **305 201 152 B ≈ 305.2 MB/token** [V] (shared shexp residente, escluso).
-  A 300 MB/s di random read effettivo [S] → **~1.0 s/token di solo I/O ≈ 1.0 tok/s**: ecco il muro.
-  (Il placeholder 300MB/s va sostituito col dato fio di F2.1 alla granularità **~0.9–1.1MB —
-  colonna random 256k-1M, NON la 4K**: le letture del progetto sono esperti da **0.942 MB** [V].)
+  **[MISURATO F2.1, 2026-08-04 — placeholder sostituito]** Random read UFS 3.1 (qd1, mediane
+  fio): 1M = **413 MiB/s**, 256k = 214, 64k = 83, 4k = 21. Per letture a grana esperto
+  (0.942 MB [V]) banda effettiva stimata **~370-410 MiB/s** → naive ≈ 305 MB ÷ ~400 MB/s ≈
+  **~0.75-0.85 s/token di solo I/O ≈ 1.2-1.3 tok/s**: il muro, misurato. (Mai usare la
+  colonna 4K in questa formula. Nota: qd>1/io_uring inaffidabile su Termux — il parallelismo
+  reale lo danno gli `--io-threads` del fork, da misurare in F4.)
 - Con hit-rate 90% (plausibile da letteratura con cache ≈ 2× working set): ~30.1 MB/token →
-  ~0.10 s di I/O → **5-8 tok/s combinando compute** [S]. Il progetto vive o muore qui.
+  **~0.08 s di I/O** → **5-8 tok/s combinando compute** [S]. Il progetto vive o muore qui.
 - Budget RAM S23 [S]: 8GB fisici − OS/OneUI ≈ 3-3.5GB → **~4.5GB usabili in Termux** senza
   farsi uccidere da lmkd. Allocazione target: pesi densi+shared residenti ~1.5-2GB + KV+buffer
   ~0.5GB + **cache esperti 1500-2500MB** (`--cache-mb`).
@@ -745,6 +748,18 @@ negativo ma utile, coerente con 2505.16056) e F8 si riduce a hardening del fork.
   warm. In §9 le celle non misurate si riempiono con "—", mai lasciate vuote.
 - Prompt fissi (short/medium/code), `--temp 0` nei run di misura (determinismo), `-n` fisso
   per confronti (64 per il 35B, 128 per i piccoli).
+- **[2026-08-04, lezione F2.2] Cooldown tra run**: ≥3 min di idle E temperatura batteria
+  ≤30.0°C prima di OGNI rep. La batteria è un proxy LENTO del SoC: run back-to-back
+  si auto-throttlano anche con batteria a 30-31°C (misurato: stessa config 8.9 tok/s da
+  fresco vs 5.9 back-to-back).
+- **[2026-08-04] Sentinella anti-drift**: alla fine di ogni stage di sweep si RIPETE la
+  config vincente; se devia >15% dalla sua mediana, lo stage è invalido (ordine/termica)
+  e si rifà col cooldown. Nessun "best-so-far" è valido senza sentinella.
+- **[2026-08-04] majflt/token si legge INSIEME a tok/s**: run con majflt alto (>50k) =
+  page-cache evicted, regime memoria — si annota come tale e NON entra nella mediana di
+  baseline (misurato: tok/s correla inversamente con majflt a parità di config). Le mediane
+  di baseline si calcolano sui run a majflt basso; il regime alto è un dato di pressione,
+  non di prestazione.
 
 ### 8.3 Schema `runs.csv`
 
@@ -846,6 +861,20 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   overlap/io-threads/prefetch nella griglia, knob lossy separati), F7.1 (route-trace già
   presente, zero patch), F7.3 (baseline aggiuntive `--predict-prefetch`/`--route-ahead`),
   F8 (base runtime decisa). **Autorizzato procedere con F0.5-F0.6 e, a telefono pronto, F1+.**
+
+- **2026-08-04 — Nota di revisione F2.2 (Claude, non un gate).** Analisi di `runs.csv`:
+  la preoccupazione "4B < 8-10 tok/s" del report F2 è quasi certamente un **artefatto di
+  protocollo**, non un problema del device. Evidenza: stessa config (t4, c512) → 5.9 tok/s
+  back-to-back vs **8.9/8.7 tok/s** da telefono riposato (run `…-083319`/`…-083413`); i run
+  lenti hanno majflt_delta 200-450k (page-cache eviction) vs 11k del run veloce; degrado
+  progressivo dentro ogni stage (c4096: 8.5→5.5→4.9 con batteria 31.7→32.6°C).
+  **Azioni per Grok**: (1) applicare le tre nuove regole di §8.2 (cooldown ≥3min + ≤30.0°C,
+  sentinella anti-drift, majflt come covariata); (2) **rifare lo stage threads** col nuovo
+  protocollo prima di fidarsi di "t4 best" (fu misurato tutto in regime caldo); (3) completare
+  ctx/kv con cooldown; (4) la diagnostica profonda pre-F3 proposta nel report F2 NON serve:
+  il device raggiunge già la fascia attesa da fresco; (5) nit harness: colonne `ttft_ms` e
+  `flags` del CSV sono vuote — riempirle. Gate F2 resta da chiudere con F2.2 completa +
+  F2.3 (LFM2) + F2.4 (termica).
 
 ---
 
