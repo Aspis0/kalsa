@@ -12,6 +12,9 @@ on:
       - scripts/ci-screens.sh
       - scripts/ci-lib.sh
       - .github/workflows/screens.yml
+      # Rendering changes are exactly what these captures exist to check.
+      - src/chat/**
+      - src/theme/**
   workflow_dispatch:
 
 concurrency:
