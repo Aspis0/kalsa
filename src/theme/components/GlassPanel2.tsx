@@ -9,13 +9,26 @@ type Props = {
   rounded?: keyof typeof radius;
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
+  /**
+   * When true, skip BlurView and use an opaque `colors.panelSolid` fill.
+   * Required for primary navigation (drawer) so legibility never depends on
+   * GPU blur — expo-blur degrades to a translucent veil on many Android devices.
+   */
+  opaque?: boolean;
 };
 
 // 2-layer glass: BlurView (tinted) + inset highlight overlay.
 // Replaces the 8-layer GlassPrimitives.GlassPanel for nav/modal/sheet/drawer.
 // On light theme, BlurView with tint "light" + subtle dark tint overlay.
 // On dark theme, BlurView with tint "dark" + subtle white highlight overlay.
-export function GlassPanel2({ intensity = 28, rounded = "lg", style, children }: Props) {
+// Pass opaque for surfaces that must remain readable without blur support.
+export function GlassPanel2({
+  intensity = 28,
+  rounded = "lg",
+  style,
+  children,
+  opaque = false,
+}: Props) {
   const { palette, colors } = useLabTheme<any>();
   const tint: "light" | "dark" = palette?.blurTint === "light" ? "light" : "dark";
   const isDark = tint === "dark";
@@ -30,24 +43,29 @@ export function GlassPanel2({ intensity = 28, rounded = "lg", style, children }:
           borderColor: isDark
             ? "rgba(255, 255, 255, 0.12)"
             : "rgba(20, 25, 35, 0.08)",
+          ...(opaque ? { backgroundColor: colors.panelSolid } : null),
         },
         style,
       ]}
     >
-      <BlurView
-        intensity={Platform.OS === "android" ? Math.min(intensity, 24) : intensity}
-        tint={tint}
-        style={StyleSheet.absoluteFill}
-      />
-      <View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            backgroundColor: isDark ? colors.blackGlass : "rgba(255, 255, 255, 0.55)",
-          },
-        ]}
-      />
+      {!opaque ? (
+        <>
+          <BlurView
+            intensity={Platform.OS === "android" ? Math.min(intensity, 24) : intensity}
+            tint={tint}
+            style={StyleSheet.absoluteFill}
+          />
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: isDark ? colors.blackGlass : "rgba(255, 255, 255, 0.55)",
+              },
+            ]}
+          />
+        </>
+      ) : null}
       <View
         pointerEvents="none"
         style={[

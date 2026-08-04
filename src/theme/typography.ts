@@ -18,6 +18,9 @@ const displayExtra = Platform.select({
 const body = Platform.select({
   default: "PlusJakartaSans_400Regular",
 });
+const bodyItalic = Platform.select({
+  default: "PlusJakartaSans_400Regular_Italic",
+});
 const bodyMedium = Platform.select({
   default: "PlusJakartaSans_500Medium",
 });
@@ -36,6 +39,7 @@ export const fontFamilies = {
   displayBold,
   displayExtra,
   body,
+  bodyItalic,
   bodyMedium,
   bodySemi,
   mono,

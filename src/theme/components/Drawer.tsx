@@ -69,7 +69,7 @@ export function Drawer({ open, onClose, brand = "Kalsa", subtitle, items }: Prop
             transform: [{ translateX }],
           }}
         >
-          <GlassPanel2 rounded="lg" style={{ flex: 1, borderRadius: 0, paddingTop: insets.top, paddingBottom: insets.bottom }}>
+          <GlassPanel2 opaque rounded="lg" style={{ flex: 1, borderRadius: 0, paddingTop: insets.top, paddingBottom: insets.bottom }}>
             <View style={{ padding: spacing.lg, paddingBottom: spacing.md }}>
               <Text style={[typography.displayMd, { color: colors.ink }]}>{brand}</Text>
               {subtitle ? (

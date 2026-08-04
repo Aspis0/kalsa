@@ -1450,7 +1450,9 @@ export function AppShell() {
               disabled={modelState !== "missing" && modelState !== "error"}
               hitSlop={6}
             >
-              <Text style={[typography.bodyXs, { color: modelBarStatus.color, lineHeight: 15 }]} numberOfLines={1}>
+              {/* Allow wrap at large font scales so the status segment
+                  (Ready / Download …) is never clipped. Do not shrink type. */}
+              <Text style={[typography.bodyXs, { color: modelBarStatus.color, lineHeight: 15 }]}>
                 {currentModel.name} · {currentModel.quant} · {modelBarStatus.label}
               </Text>
             </Pressable>

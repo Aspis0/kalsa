@@ -82,7 +82,7 @@ export function QuizBlockView({ block, styles, t }: Props) {
         {toText(block.title) ? (
           <Text style={styles.miniappBlockTitle}>{toText(block.title)}</Text>
         ) : null}
-        <Text style={[styles.miniappFallbackText, { marginBottom: 10 }]}>{question}</Text>
+        <Text style={[styles.miniappPrimaryText, { marginBottom: 10 }]}>{question}</Text>
         <Text style={styles.miniappFallbackText}>{t("quiz.notGradable")}</Text>
       </View>
     );
@@ -93,7 +93,7 @@ export function QuizBlockView({ block, styles, t }: Props) {
       {toText(block.title) ? (
         <Text style={styles.miniappBlockTitle}>{toText(block.title)}</Text>
       ) : null}
-      <Text style={[styles.miniappFallbackText, { marginBottom: 10 }]}>{question}</Text>
+      <Text style={[styles.miniappPrimaryText, { marginBottom: 10 }]}>{question}</Text>
 
       <View
         accessibilityRole="radiogroup"
@@ -129,7 +129,7 @@ export function QuizBlockView({ block, styles, t }: Props) {
                 pressed && !checked ? { opacity: 0.85 } : null,
               ]}
             >
-              <Text style={styles.miniappFallbackText}>
+              <Text style={styles.miniappPrimaryText}>
                 {String.fromCharCode(65 + index)}. {label}
                 {showCorrect ? `  ${t("quiz.correct")}` : null}
                 {showWrong ? `  ${t("quiz.wrong")}` : null}

@@ -1125,6 +1125,13 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontSize: 12,
   },
+  /** Primary body copy inside miniapps (question text, option labels). */
+  miniappPrimaryText: {
+    ...textClear,
+    color: colors.ink,
+    fontSize: 12,
+    lineHeight: 17,
+  },
   miniappFallbackText: {
     ...textClear,
     color: colors.muted,

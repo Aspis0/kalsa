@@ -2,6 +2,7 @@ import { JetBrainsMono_400Regular, JetBrainsMono_700Bold } from "@expo-google-fo
 import {
   useFonts as usePlusJakartaSans,
   PlusJakartaSans_400Regular,
+  PlusJakartaSans_400Regular_Italic,
   PlusJakartaSans_500Medium,
   PlusJakartaSans_600SemiBold,
   PlusJakartaSans_700Bold,
@@ -14,6 +15,7 @@ import {
 export function useAgoraFonts(): [boolean, Error | null] {
   return usePlusJakartaSans({
     PlusJakartaSans_400Regular,
+    PlusJakartaSans_400Regular_Italic,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,

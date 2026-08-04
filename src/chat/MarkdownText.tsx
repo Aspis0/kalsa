@@ -130,15 +130,25 @@ function BlockView({
   }
 
   if (block.type === "heading") {
+    // Heading scale larger than body (chatBody 16/25) and clearly stepped:
+    // H1 displayLg 22/28 ExtraBold, H2 displayMd 18/24 Bold,
+    // H3 body size with SemiBold. More space above than below so structure reads.
     const style =
       block.level === 1
-        ? typography.displayMd
+        ? typography.displayLg
         : block.level === 2
-          ? typography.displaySm
-          : typography.label;
+          ? typography.displayMd
+          : [typography.chatBody, { fontFamily: fontFamilies.bodySemi }];
     return (
       <Text
-        style={[style, { color: ink, marginTop: spacing.xs }]}
+        style={[
+          style,
+          {
+            color: ink,
+            marginTop: spacing.lg,
+            marginBottom: spacing.xs,
+          },
+        ]}
         onLongPress={onLongPress}
       >
         {renderInline(block.inline, colors, ink, onLongPress)}
@@ -243,11 +253,13 @@ function renderInline(
           </Text>
         );
       case "italic":
-        // Plus Jakarta Sans has no italic face loaded — weight cue only.
+        // Real italic face (PlusJakartaSans_400Regular_Italic) — family name
+        // carries the slant; never use fontStyle: "italic" (Android synthesizes
+        // neither for custom families).
         return (
           <Text
             key={i}
-            style={{ color: baseColor, fontFamily: fontFamilies.bodyMedium }}
+            style={{ color: baseColor, fontFamily: fontFamilies.bodyItalic }}
             onLongPress={onLongPress}
           >
             {node.text}

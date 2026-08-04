@@ -10,6 +10,9 @@ OUT="e2e-out"; mkdir -p "$OUT" "$OUT/seeds"
 PKG=com.kalsa.app
 MODEL_DIR="${MODEL_DIR:-qwen3.5-2b}"
 MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
+# Must match ModelRegistry sizeBytes for qwen3.5-2b — isModelBundleDownloaded
+# requires exact byte length, not just file presence.
+MODEL_SIZE_BYTES="${MODEL_SIZE_BYTES:-1280835840}"
 APK_PATH="${APK_PATH:-android/app/build/outputs/apk/release/app-release.apk}"
 
 # shellcheck source=ci-lib.sh
@@ -17,6 +20,9 @@ source "$(dirname "$0")/ci-lib.sh"
 
 # ── Result bookkeeping (capture tool, not a gate) ───────────────────────────
 : > "$OUT/RESULT.txt"
+# Model-ready UI: harness sparse-pads the GGUF to registry sizeBytes so
+# isModelBundleDownloaded is true. Content is not a real model (no inference).
+printf 'NOTE  model file is size-padded for UI coherence (no inference in screens)\n' >> "$OUT/RESULT.txt"
 record() {
   # record OK|FAILED name "note"
   local status="$1" name="$2" note="$3"
@@ -318,6 +324,24 @@ if [ ! -f model.gguf ]; then
 fi
 
 install_and_sideload "$APK_PATH" "model.gguf" "$MODEL_DIR" "$MODEL_FILE"
+
+# isModelBundleDownloaded (ModelDownloader.ts) requires the GGUF to exist at
+# exact registry sizeBytes. A tiny dummy fails that check → header shows
+# "Download 1.3 GB" and Settings shows Active + Not downloaded while chat is
+# seeded. Sparse-pad on device so size matches without filling the disk;
+# screens never run inference so zero-filled content is fine.
+# Skip when the file is already the expected size (real model present).
+MODEL_ON_DEVICE="/data/data/$PKG/files/models/$MODEL_DIR/$MODEL_FILE"
+actual_size=$(adb shell "stat -c %s '$MODEL_ON_DEVICE' 2>/dev/null" | tr -d '\r' || echo 0)
+if [ "$actual_size" != "$MODEL_SIZE_BYTES" ]; then
+  log "pad model file to ${MODEL_SIZE_BYTES} bytes (was ${actual_size:-0}) for ready-state UI"
+  adb shell "dd if=/dev/zero of='$MODEL_ON_DEVICE' bs=1 count=0 seek=${MODEL_SIZE_BYTES}" 2>&1 | tr -d '\r' || true
+  uid_line=$(adb shell "stat -c %U /data/data/$PKG" | tr -d '\r')
+  adb shell "chown -R $uid_line:$uid_line /data/data/$PKG/files/models" 2>/dev/null || true
+  adb shell "ls -la /data/data/$PKG/files/models/$MODEL_DIR/" | tr -d '\r' || true
+else
+  log "model file already ${MODEL_SIZE_BYTES} bytes — leaving as-is"
+fi
 
 log "base prefs (light, medium font, model id)"
 adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
