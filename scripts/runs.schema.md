@@ -88,9 +88,9 @@ Una riga = un run. Header creato automaticamente se assente.
 | 13 | `n_gen` | int | `--n-gen` / `-n` | default 64 (35B); 128 per piccoli |
 | 14 | `run_type` | enum | `--run-type` | `cold` \| `warm` \| `pressure` |
 | 15 | `prompt_id` | string | `--prompt-id` | default `short`; anche `medium`, `code` |
-| 16 | `prompt_tok_s` | float (2 dec) | log llama.cpp | tokens/s prompt eval; **vuoto se assente** |
-| 17 | `eval_tok_s` | float (2 dec) | log llama.cpp | tokens/s decode; **vuoto se assente** |
-| 18 | `ttft_ms` | int ms | log llama.cpp | **proxy** = `prompt eval time` ms (non true time-to-first-token strumentato) |
+| 16 | `prompt_tok_s` | float (2 dec) | log runtime | tokens/s prompt/prefill; **vuoto se assente** |
+| 17 | `eval_tok_s` | float (2 dec) | log runtime | tokens/s decode/generation; **vuoto se assente** |
+| 18 | `ttft_ms` | int ms | log runtime | bmoe = `TTFT` s×1000; llama = proxy `prompt eval time` ms (non true TTFT strumentato) |
 | 19 | `majflt_delta` | int | `/proc/<pid>/stat` | major faults end−start (letture da flash/page-in) |
 | 20 | `minflt_delta` | int | `/proc/<pid>/stat` | minor faults end−start |
 | 21 | `read_bytes_delta` | int byte | `/proc/<pid>/io` | `read_bytes` end−start |
@@ -98,7 +98,7 @@ Una riga = un run. Header creato automaticamente se assente.
 | 23 | `memfree_min_mb` | int MB | `/proc/meminfo` MemFree | minimo durante il run |
 | 24 | `batt_temp_start` | float °C | `termux-battery-status` | gate ≤32.0; vuoto se API assente (solo con `--allow-no-battery`) |
 | 25 | `batt_temp_end` | float °C | `termux-battery-status` | post-run |
-| 26 | `expert_hit_rate` | string | log fork (best-effort) | es. `94.2%`; vuoto se assente |
+| 26 | `expert_hit_rate` | string | log bmoe (`moe-cache:`) o best-effort | es. `94.2%`; vuoto se assente |
 | 27 | `notes` | string | `--notes` + auto | single-line, no virgole/newline; prefisso utente |
 
 ### Parsing `/proc/<pid>/stat` (majflt / minflt)
@@ -111,9 +111,35 @@ Il campo 2 (`comm`) è tra parentesi e **può contenere spazi**. L'harness:
 
 I valori di **fine** sono l'ultimo sample del loop 0.5 s (dopo `wait` `/proc/<pid>` non esiste più).
 
-### Parsing timings llama.cpp
+### Parsing timings — due formati runtime
 
-Blocco tipico `llama_perf_context_print`:
+L'harness (`parse_timings`) legge il log grezzo. Preferenza per runtime:
+
+| `--runtime` / binario | Formato primario | Fallback |
+|---|---|---|
+| `bigmoe` / `bmoe-cli` | summary lines bmoe-cli | `llama_perf_context_print` se bmoe assente |
+| `mainline` / `ik` / `custom` / `llama-cli` | `llama_perf_context_print` | summary bmoe se llama assente |
+
+Se **entrambi** i formati mancano: campi timing **vuoti** + `no timings in log` in `notes`. **Mai inventare numeri.**
+
+#### bmoe-cli (BigMoeOnEdge/cli/main.cpp)
+
+```
+generation: 64 tokens, 0.054 s/token (18.519 tok/s)
+prefill: 128 tokens, 2.346 s (54.6 tok/s) | model load 1.235 s | TTFT 3.581 s
+moe-cache: 94.2% hit, resident 1800.5 MiB, budget 2000 MiB (auto)
+# oppure senza budget:
+moe-cache: 94.2% hit, resident 1800.5 MiB
+```
+
+| Campo CSV | Sorgente riga | Estrazione |
+|---|---|---|
+| `prompt_tok_s` | `prefill:` | valore in `(%.1f tok/s)` |
+| `eval_tok_s` | `generation:` | valore in `(%.3f tok/s)` |
+| `ttft_ms` | `prefill:` | `TTFT %.3f s` × 1000, arrotondato a intero |
+| `expert_hit_rate` | `moe-cache:` | `%.1f%%` prima di ` hit` (es. `94.2%`) |
+
+#### llama-cli (`llama_perf_context_print`)
 
 ```
 prompt eval time =  2345.67 ms /  128 tokens ( 18.32 ms per token,  54.57 tokens per second)
@@ -121,11 +147,15 @@ prompt eval time =  2345.67 ms /  128 tokens ( 18.32 ms per token,  54.57 tokens
 ```
 
 - Preferisce il "tokens per second" già stampato; altrimenti `tokens / (ms/1000)`.
-- Se le righe mancano: campi timing **vuoti** + `no timings in log` in `notes`. **Mai inventare numeri.**
+- `ttft_ms` = `prompt eval time` ms (proxy, non true TTFT).
+- `expert_hit_rate`: best-effort su righe con "hit" (raro su mainline).
 
 ### `ttft_ms` — avvertenza
 
-Non è un true TTFT strumentato (timestamp del primo token). È il tempo di **prompt eval** riportato da llama.cpp, usato come proxy di latenza al primo token. Documentare così nei report.
+- **bmoe-cli**: TTFT riportato dal binario (`load_s + prefill_s`), convertito in ms.
+- **llama-cli**: non è un true TTFT strumentato (timestamp del primo token). È il tempo di **prompt eval** riportato da llama.cpp, usato come proxy di latenza al primo token.
+
+Documentare la distinzione nei report.
 
 ---
 

@@ -38,33 +38,26 @@ fail() {
 }
 
 # ---------------------------------------------------------------------------
-# 1) Parsing /proc — source helper dall'harness
+# 1) Parsing /proc — source helper dall'harness e invoca le funzioni REALI
 # ---------------------------------------------------------------------------
 echo "=== 1) /proc parsing helpers ==="
 
 TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/test_run_bench.XXXXXX")"
-# Fake pid namespace: creiamo TMP_ROOT/proc/<pid>/{stat,io,status}
-# e temporarily bind-override non è portabile su Windows/Git Bash —
-# quindi reimplementiamo i path: le helper usano /proc hardcodato.
-# Soluzione: creiamo un wrapper che invoca le stesse formule su file fake
-# DOPO aver sourcato le funzioni, patchando via env non possibile.
-# Invece: source le helper e invochiamole su un pid fittizio SOLO se /proc
-# è scrivibile (Linux). Su Git Bash/Windows: replica esatta della formula
-# e confronta con l'output atteso della stessa logica sourcata.
 
-# Carica helper (read_flt, read_read_bytes, read_vmrss_kb, sanitize_notes, …)
+# Carica helper (read_flt, read_read_bytes, read_vmrss_kb, parse_timings, …)
 # shellcheck disable=SC1090
 RUN_BENCH_LIB_ONLY=1 source "$HARNESS"
 
 # Verifica che le funzioni esistano
 if ! declare -f read_flt >/dev/null 2>&1; then
     fail "source helpers" "read_flt non definita dopo source RUN_BENCH_LIB_ONLY=1"
+elif ! declare -f parse_timings >/dev/null 2>&1; then
+    fail "source helpers" "parse_timings non definita dopo source RUN_BENCH_LIB_ONLY=1"
 else
-    pass "source helpers (read_flt/read_read_bytes/read_vmrss_kb/sanitize_notes)"
+    pass "source helpers (read_flt/read_read_bytes/read_vmrss_kb/parse_timings/sanitize_notes)"
 fi
 
-# Crea un mini /proc fittizio e un wrapper di parsing che usa lo stesso algoritmo
-# delle helper ma su path custom (per non dipendere da /proc reale scrivibile).
+# Albero /proc fake: le helper leggono da PROC_ROOT (default /proc)
 FAKE_PROC="$TMP_ROOT/proc"
 FAKE_PID=4242
 mkdir -p "$FAKE_PROC/$FAKE_PID"
@@ -73,7 +66,6 @@ mkdir -p "$FAKE_PROC/$FAKE_PID"
 #   1=state 2=ppid 3=pgrp 4=session 5=tty_nr 6=tpgid 7=flags
 #   8=minflt 9=cminflt 10=majflt 11=cmajflt …
 # Usiamo minflt=111 majflt=222
-# Formato: pid (comm with spaces) state ppid ... 
 cat > "$FAKE_PROC/$FAKE_PID/stat" <<'EOF'
 4242 (llama cli moe) R 1 1 1 0 -1 4194304 111 0 222 0 10 20 0 0 20 0 1 0 12345 0 0 18446744073709551615 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 EOF
@@ -95,46 +87,15 @@ VmRSS:	  524288 kB
 VmSize:	 1048576 kB
 EOF
 
-# Replica ESATTA dell'algoritmo harness, ma su path fake (stesso sed/awk)
-parse_flt_from() {
-    _stat="$1"
-    if [ ! -r "$_stat" ]; then
-        echo "0 0"
-        return
-    fi
-    _rest="$(sed 's/.*) //' "$_stat" 2>/dev/null)"
-    if [ -z "$_rest" ]; then
-        echo "0 0"
-        return
-    fi
-    # shellcheck disable=SC2086
-    set -- $_rest
-    echo "${8:-0} ${10:-0}"
-}
-
-parse_read_bytes_from() {
-    _io="$1"
-    if [ ! -r "$_io" ]; then
-        echo "0"
-        return
-    fi
-    awk '/^read_bytes:/{print $2; found=1} END{if(!found) print 0}' "$_io" 2>/dev/null
-}
-
-parse_vmrss_from() {
-    _st="$1"
-    if [ ! -r "$_st" ]; then
-        echo "0"
-        return
-    fi
-    awk '/^VmRSS:/{print $2; found=1} END{if(!found) print 0}' "$_st" 2>/dev/null
-}
-
-# Asserisci che la formula sourcata (read_flt) e la replica producano lo stesso
-# algoritmo: verifichiamo la replica su fake file (identica al body di read_flt)
-_flt="$(parse_flt_from "$FAKE_PROC/$FAKE_PID/stat")"
-_rb="$(parse_read_bytes_from "$FAKE_PROC/$FAKE_PID/io")"
-_rss="$(parse_vmrss_from "$FAKE_PROC/$FAKE_PID/status")"
+# Invoca le funzioni REALI dell'harness contro l'albero fake
+export PROC_ROOT="$FAKE_PROC"
+_flt="$(read_flt "$FAKE_PID")"
+_rb="$(read_read_bytes "$FAKE_PID")"
+_rss="$(read_vmrss_kb "$FAKE_PID")"
+unset PROC_ROOT
+# ripristina default (source ha settato PROC_ROOT=/proc; re-export esplicito)
+PROC_ROOT="/proc"
+export PROC_ROOT
 
 # shellcheck disable=SC2086
 set -- $_flt
@@ -142,29 +103,27 @@ _minflt="$1"
 _majflt="$2"
 
 if [ "$_minflt" = "111" ] && [ "$_majflt" = "222" ]; then
-    pass "parse minflt/majflt con comm che contiene spazi (minflt=111 majflt=222)"
+    pass "read_flt REAL: minflt/majflt con comm spazi (minflt=111 majflt=222)"
 else
-    fail "parse minflt/majflt" "got minflt=$_minflt majflt=$_majflt (atteso 111 222); rest-fields da stat con comm '(llama cli moe)'"
+    fail "read_flt REAL minflt/majflt" "got minflt=$_minflt majflt=$_majflt (atteso 111 222)"
 fi
 
 if [ "$_rb" = "9876543210" ]; then
-    pass "parse read_bytes=9876543210"
+    pass "read_read_bytes REAL: read_bytes=9876543210"
 else
-    fail "parse read_bytes" "got '$_rb' atteso 9876543210"
+    fail "read_read_bytes REAL" "got '$_rb' atteso 9876543210"
 fi
 
 if [ "$_rss" = "524288" ]; then
-    pass "parse VmRSS=524288"
+    pass "read_vmrss_kb REAL: VmRSS=524288"
 else
-    fail "parse VmRSS" "got '$_rss' atteso 524288"
+    fail "read_vmrss_kb REAL" "got '$_rss' atteso 524288"
 fi
 
-# Verifica che le funzioni sourcate abbiano lo stesso body-algoritmo:
-# confrontiamo l'output di `type read_flt` contiene il sed pattern chiave
-if declare -f read_flt | grep -q "s/.*) //"; then
-    pass "read_flt sourcata usa strip fino all'ultima ')'"
+if declare -f read_flt | grep -q "PROC_ROOT"; then
+    pass "read_flt sourcata usa PROC_ROOT (testable)"
 else
-    fail "read_flt sourcata" "pattern sed 's/.*) //' assente nel body"
+    fail "read_flt sourcata" "PROC_ROOT assente nel body"
 fi
 
 # ---------------------------------------------------------------------------
@@ -362,6 +321,122 @@ if [ "$_rc_yes" -eq 0 ]; then
     fi
 else
     fail "--allow-no-battery dovrebbe exit 0" "got rc=$_rc_yes stderr=$(head -c 200 "$TMP_ROOT/batt_ok_err.txt")"
+fi
+
+# ---------------------------------------------------------------------------
+# 5) parse_timings — bmoe-cli summary lines + llama_perf fallback
+# ---------------------------------------------------------------------------
+echo "=== 5) parse_timings (bmoe + llama) ==="
+
+if ! declare -f parse_timings >/dev/null 2>&1; then
+    fail "parse_timings definita" "funzione assente"
+else
+    pass "parse_timings esposta via RUN_BENCH_LIB_ONLY=1"
+fi
+
+# Log sintetico con formati ESATTI da BigMoeOnEdge/cli/main.cpp (~787, 834, 847-855)
+_BMOE_LOG="$TMP_ROOT/bmoe_sample.log"
+cat > "$_BMOE_LOG" <<'EOF'
+=== answer ===
+hello world
+=== perf ===
+generation: 64 tokens, 0.054 s/token (18.519 tok/s)
+prefill: 128 tokens, 2.346 s (54.6 tok/s) | model load 1.235 s | TTFT 3.581 s
+moe-cache: 94.2% hit, resident 1800.5 MiB, budget 2000 MiB (auto)
+EOF
+
+parse_timings "$_BMOE_LOG" "bigmoe" "bmoe-cli"
+
+if [ "$PROMPT_TOK_S" = "54.60" ]; then
+    pass "bmoe prefill → prompt_tok_s=54.60"
+else
+    fail "bmoe prompt_tok_s" "got '$PROMPT_TOK_S' atteso 54.60"
+fi
+
+if [ "$EVAL_TOK_S" = "18.52" ]; then
+    pass "bmoe generation → eval_tok_s=18.52"
+else
+    fail "bmoe eval_tok_s" "got '$EVAL_TOK_S' atteso 18.52"
+fi
+
+if [ "$TTFT_MS" = "3581" ]; then
+    pass "bmoe TTFT 3.581 s → ttft_ms=3581"
+else
+    fail "bmoe ttft_ms" "got '$TTFT_MS' atteso 3581"
+fi
+
+if [ "$EXPERT_HIT_RATE" = "94.2%" ]; then
+    pass "bmoe moe-cache → expert_hit_rate=94.2%"
+else
+    fail "bmoe expert_hit_rate" "got '$EXPERT_HIT_RATE' atteso 94.2%"
+fi
+
+if [ -z "${TIMING_NOTE:-}" ]; then
+    pass "bmoe timings presenti → TIMING_NOTE vuoto"
+else
+    fail "bmoe TIMING_NOTE" "got '$TIMING_NOTE' (atteso vuoto)"
+fi
+
+# Variante moe-cache senza budget (auto)
+_BMOE_LOG2="$TMP_ROOT/bmoe_cache_nobi.log"
+cat > "$_BMOE_LOG2" <<'EOF'
+generation: 32 tokens, 0.100 s/token (10.000 tok/s)
+prefill: 64 tokens, 1.000 s (64.0 tok/s) | model load 0.500 s | TTFT 1.500 s
+moe-cache: 88.5% hit, resident 900.0 MiB
+EOF
+parse_timings "$_BMOE_LOG2" "bigmoe" "bmoe-cli"
+if [ "$EXPERT_HIT_RATE" = "88.5%" ] && [ "$PROMPT_TOK_S" = "64.00" ] && [ "$EVAL_TOK_S" = "10.00" ] && [ "$TTFT_MS" = "1500" ]; then
+    pass "bmoe moe-cache senza budget + timings (88.5%/64.00/10.00/1500)"
+else
+    fail "bmoe cache-no-budget" "hit=$EXPERT_HIT_RATE prompt=$PROMPT_TOK_S eval=$EVAL_TOK_S ttft=$TTFT_MS"
+fi
+
+# llama_perf_context_print (mainline)
+_LLAMA_LOG="$TMP_ROOT/llama_sample.log"
+cat > "$_LLAMA_LOG" <<'EOF'
+llama_perf_context_print:        load time =    1234.56 ms
+llama_perf_context_print: prompt eval time =    2345.67 ms /   128 tokens (   18.32 ms per token,    54.57 tokens per second)
+llama_perf_context_print:        eval time =    3456.78 ms /    64 runs   (   54.01 ms per token,    18.51 tokens per second)
+EOF
+parse_timings "$_LLAMA_LOG" "mainline" "llama-cli"
+if [ "$PROMPT_TOK_S" = "54.57" ] && [ "$EVAL_TOK_S" = "18.51" ] && [ "$TTFT_MS" = "2346" ]; then
+    pass "llama_perf → prompt=54.57 eval=18.51 ttft_ms=2346"
+else
+    fail "llama_perf parse" "prompt=$PROMPT_TOK_S eval=$EVAL_TOK_S ttft=$TTFT_MS"
+fi
+
+# Log vuoto → no timings in log (mai inventare)
+_EMPTY_LOG="$TMP_ROOT/empty.log"
+: > "$_EMPTY_LOG"
+parse_timings "$_EMPTY_LOG" "bigmoe" "bmoe-cli"
+if [ -z "$PROMPT_TOK_S" ] && [ -z "$EVAL_TOK_S" ] && [ -z "$TTFT_MS" ] && [ "$TIMING_NOTE" = "no timings in log" ]; then
+    pass "log vuoto → TIMING_NOTE=no timings in log (campi vuoti)"
+else
+    fail "empty log" "prompt=$PROMPT_TOK_S eval=$EVAL_TOK_S ttft=$TTFT_MS note=$TIMING_NOTE"
+fi
+
+# Preferenza runtime bigmoe: se ENTRAMBI i formati sono nel log, usa bmoe
+_MIXED_LOG="$TMP_ROOT/mixed.log"
+cat > "$_MIXED_LOG" <<'EOF'
+llama_perf_context_print: prompt eval time =    9999.00 ms /   10 tokens (  999.00 ms per token,     1.00 tokens per second)
+llama_perf_context_print:        eval time =    9999.00 ms /    10 runs   (  999.00 ms per token,     1.00 tokens per second)
+generation: 64 tokens, 0.054 s/token (18.519 tok/s)
+prefill: 128 tokens, 2.346 s (54.6 tok/s) | model load 1.235 s | TTFT 3.581 s
+moe-cache: 94.2% hit, resident 1800.5 MiB, budget 2000 MiB (auto)
+EOF
+parse_timings "$_MIXED_LOG" "bigmoe" "bmoe-cli"
+if [ "$PROMPT_TOK_S" = "54.60" ] && [ "$EVAL_TOK_S" = "18.52" ] && [ "$TTFT_MS" = "3581" ] && [ "$EXPERT_HIT_RATE" = "94.2%" ]; then
+    pass "mixed log + runtime bigmoe → preferisce bmoe (54.60/18.52/3581/94.2%)"
+else
+    fail "mixed bigmoe preference" "prompt=$PROMPT_TOK_S eval=$EVAL_TOK_S ttft=$TTFT_MS hit=$EXPERT_HIT_RATE"
+fi
+
+# Preferenza mainline: usa llama_perf anche se bmoe è presente
+parse_timings "$_MIXED_LOG" "mainline" "llama-cli"
+if [ "$PROMPT_TOK_S" = "1.00" ] && [ "$EVAL_TOK_S" = "1.00" ] && [ "$TTFT_MS" = "9999" ]; then
+    pass "mixed log + runtime mainline → preferisce llama_perf (1.00/1.00/9999)"
+else
+    fail "mixed mainline preference" "prompt=$PROMPT_TOK_S eval=$EVAL_TOK_S ttft=$TTFT_MS"
 fi
 
 # ---------------------------------------------------------------------------

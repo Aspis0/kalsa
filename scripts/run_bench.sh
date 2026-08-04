@@ -58,14 +58,16 @@ ALLOW_NO_BATTERY=0
 
 # ---------------------------------------------------------------------------
 # Helper: parsing /proc (esposte per i test via RUN_BENCH_LIB_ONLY=1)
+# PROC_ROOT override (default /proc) permette ai test di puntare a un albero fake.
 # ---------------------------------------------------------------------------
+PROC_ROOT="${PROC_ROOT:-/proc}"
 
-# Estrae minflt e majflt da /proc/<pid>/stat in modo robusto
+# Estrae minflt e majflt da <PROC_ROOT>/<pid>/stat in modo robusto
 # (campo 2 = comm tra parentesi, può contenere spazi)
 # Dopo strip fino all'ULTIMA ')', nel resto: minflt=campo 8, majflt=campo 10
 read_flt() {
     _pid="$1"
-    _stat="/proc/${_pid}/stat"
+    _stat="${PROC_ROOT}/${_pid}/stat"
     if [ ! -r "$_stat" ]; then
         echo "0 0"
         return
@@ -87,7 +89,7 @@ read_flt() {
 
 read_read_bytes() {
     _pid="$1"
-    _io="/proc/${_pid}/io"
+    _io="${PROC_ROOT}/${_pid}/io"
     if [ ! -r "$_io" ]; then
         echo "0"
         return
@@ -97,7 +99,7 @@ read_read_bytes() {
 
 read_vmrss_kb() {
     _pid="$1"
-    _st="/proc/${_pid}/status"
+    _st="${PROC_ROOT}/${_pid}/status"
     if [ ! -r "$_st" ]; then
         echo "0"
         return
@@ -107,7 +109,7 @@ read_vmrss_kb() {
 
 read_meminfo() {
     # stampa: MemFree_kB MemAvailable_kB
-    if [ ! -r /proc/meminfo ]; then
+    if [ ! -r "${PROC_ROOT}/meminfo" ]; then
         echo "0 0"
         return
     fi
@@ -115,12 +117,168 @@ read_meminfo() {
         /^MemFree:/{free=$2}
         /^MemAvailable:/{avail=$2}
         END{print free+0, avail+0}
-    ' /proc/meminfo
+    ' "${PROC_ROOT}/meminfo"
 }
 
 # Sanitizza notes per CSV: niente virgole/newline
 sanitize_notes() {
     printf '%s' "$1" | tr ',\n\r' ';;;' | tr -s ';' | sed 's/^;//;s/;$//'
+}
+
+# ---------------------------------------------------------------------------
+# Helper: parsing timings da log (esposte per i test via RUN_BENCH_LIB_ONLY=1)
+# ---------------------------------------------------------------------------
+# parse_timings <logfile> [runtime] [binary]
+# Imposta: PROMPT_TOK_S EVAL_TOK_S TTFT_MS EXPERT_HIT_RATE TIMING_NOTE
+#
+# Formati supportati (mai inventare numeri):
+#   llama-cli  → blocco llama_perf_context_print (prompt eval / eval time)
+#   bmoe-cli   → summary lines (BigMoeOnEdge/cli/main.cpp):
+#     generation: %d tokens, %.3f s/token (%.3f tok/s)
+#     prefill: %d tokens, %.3f s (%.1f tok/s) | model load %.3f s | TTFT %.3f s
+#     moe-cache: %.1f%% hit, resident %.1f MiB[, budget %.0f MiB (auto)]
+# Preferenza: bigmoe runtime o binario bmoe-cli → bmoe first; altrimenti llama first.
+# Se il formato preferito manca, prova l'altro. Se entrambi assenti → TIMING_NOTE.
+parse_timings() {
+    _pt_log="${1:-}"
+    _pt_runtime="${2:-}"
+    _pt_binary="${3:-}"
+
+    PROMPT_TOK_S=""
+    EVAL_TOK_S=""
+    TTFT_MS=""
+    EXPERT_HIT_RATE=""
+    TIMING_NOTE=""
+
+    if [ -z "$_pt_log" ] || [ ! -r "$_pt_log" ]; then
+        TIMING_NOTE="no timings in log"
+        return 0
+    fi
+
+    _prefer_bmoe=0
+    if [ "$_pt_runtime" = "bigmoe" ]; then
+        _prefer_bmoe=1
+    fi
+    case "$_pt_binary" in
+        bmoe-cli|*bmoe-cli*) _prefer_bmoe=1 ;;
+    esac
+
+    if [ "$_prefer_bmoe" -eq 1 ]; then
+        _parse_bmoe_timings "$_pt_log"
+        if [ -z "$PROMPT_TOK_S" ] && [ -z "$EVAL_TOK_S" ] && [ -z "$TTFT_MS" ]; then
+            _parse_llama_timings "$_pt_log"
+        fi
+    else
+        _parse_llama_timings "$_pt_log"
+        if [ -z "$PROMPT_TOK_S" ] && [ -z "$EVAL_TOK_S" ] && [ -z "$TTFT_MS" ]; then
+            _parse_bmoe_timings "$_pt_log"
+        fi
+    fi
+
+    # expert_hit_rate: formato esplicito moe-cache (bmoe) prima; fallback best-effort
+    _parse_expert_hit_rate "$_pt_log"
+
+    if [ -z "$PROMPT_TOK_S" ] && [ -z "$EVAL_TOK_S" ] && [ -z "$TTFT_MS" ]; then
+        TIMING_NOTE="no timings in log"
+    fi
+    return 0
+}
+
+# bmoe-cli summary lines (cli/main.cpp ~787, 834, 847-855)
+_parse_bmoe_timings() {
+    _log="$1"
+
+    # prefill: N tokens, X.XXX s (Y.Y tok/s) | model load Z.ZZZ s | TTFT W.WWW s
+    _pline="$(grep -E '^prefill:|^[[:space:]]*prefill:' "$_log" 2>/dev/null | tail -n1 || true)"
+    if [ -n "$_pline" ]; then
+        _ptps="$(printf '%s\n' "$_pline" | sed -n -E 's/.*\(([0-9.]+)[[:space:]]*tok\/s\).*/\1/p')"
+        _ttft_s="$(printf '%s\n' "$_pline" | sed -n -E 's/.*TTFT[[:space:]]+([0-9.]+)[[:space:]]*s.*/\1/p')"
+        if [ -n "$_ptps" ]; then
+            PROMPT_TOK_S="$(awk -v x="$_ptps" 'BEGIN{printf "%.2f", x+0}')"
+        fi
+        if [ -n "$_ttft_s" ]; then
+            # TTFT seconds → ms (round to int)
+            TTFT_MS="$(awk -v s="$_ttft_s" 'BEGIN{printf "%d", (s+0)*1000 + 0.5}')"
+        fi
+    fi
+
+    # generation: N tokens, X.XXX s/token (Y.YYY tok/s)
+    _eline="$(grep -E '^generation:|^[[:space:]]*generation:' "$_log" 2>/dev/null | tail -n1 || true)"
+    if [ -n "$_eline" ]; then
+        _etps="$(printf '%s\n' "$_eline" | sed -n -E 's/.*\(([0-9.]+)[[:space:]]*tok\/s\).*/\1/p')"
+        if [ -n "$_etps" ]; then
+            EVAL_TOK_S="$(awk -v x="$_etps" 'BEGIN{printf "%.2f", x+0}')"
+        fi
+    fi
+}
+
+# llama_perf_context_print block (llama-cli)
+_parse_llama_timings() {
+    _log="$1"
+
+    # prompt eval time line
+    _pline="$(grep -E 'prompt eval time' "$_log" 2>/dev/null | tail -n1 || true)"
+    if [ -n "$_pline" ]; then
+        # ms: primo numero dopo '='
+        _pms="$(printf '%s\n' "$_pline" | sed -n -E 's/.*prompt eval time[[:space:]]*=[[:space:]]*([0-9.]+).*/\1/p')"
+        # tokens: numero prima di 'tokens' o 'token'
+        _ptok="$(printf '%s\n' "$_pline" | sed -n -E 's/.*\/[[:space:]]*([0-9]+)[[:space:]]+tokens?.*/\1/p')"
+        # tokens per second se presente
+        _ptps="$(printf '%s\n' "$_pline" | sed -n -E 's/.*[[:space:]]([0-9.]+)[[:space:]]+tokens per second.*/\1/p')"
+        if [ -n "$_ptps" ]; then
+            PROMPT_TOK_S="$(awk -v x="$_ptps" 'BEGIN{printf "%.2f", x+0}')"
+        elif [ -n "$_pms" ] && [ -n "$_ptok" ]; then
+            PROMPT_TOK_S="$(awk -v ms="$_pms" -v n="$_ptok" 'BEGIN{
+                if (ms+0 > 0) printf "%.2f", n / (ms/1000.0);
+                else print "";
+            }')"
+        fi
+        if [ -n "$_pms" ]; then
+            # ttft_ms = prompt eval ms (proxy first-token latency, v. schema)
+            TTFT_MS="$(awk -v ms="$_pms" 'BEGIN{printf "%d", ms+0.5}')"
+        fi
+    fi
+
+    # eval time line (attenzione: NON matchare "prompt eval time")
+    _eline="$(grep -E '[[:space:]]eval time' "$_log" 2>/dev/null | grep -v 'prompt eval' | tail -n1 || true)"
+    if [ -n "$_eline" ]; then
+        _ems="$(printf '%s\n' "$_eline" | sed -n -E 's/.*eval time[[:space:]]*=[[:space:]]*([0-9.]+).*/\1/p')"
+        # token count: "N runs" oppure "N tokens"
+        _etok="$(printf '%s\n' "$_eline" | sed -n -E 's/.*\/[[:space:]]*([0-9]+)[[:space:]]+(runs|tokens).*/\1/p')"
+        _etps="$(printf '%s\n' "$_eline" | sed -n -E 's/.*[[:space:]]([0-9.]+)[[:space:]]+tokens per second.*/\1/p')"
+        if [ -n "$_etps" ]; then
+            EVAL_TOK_S="$(awk -v x="$_etps" 'BEGIN{printf "%.2f", x+0}')"
+        elif [ -n "$_ems" ] && [ -n "$_etok" ]; then
+            EVAL_TOK_S="$(awk -v ms="$_ems" -v n="$_etok" 'BEGIN{
+                if (ms+0 > 0) printf "%.2f", n / (ms/1000.0);
+                else print "";
+            }')"
+        fi
+    fi
+}
+
+# expert_hit_rate: moe-cache esplicito, poi best-effort generico
+_parse_expert_hit_rate() {
+    _log="$1"
+    EXPERT_HIT_RATE=""
+
+    # bmoe: "moe-cache: 94.2% hit, resident …"
+    _hitline="$(grep -E 'moe-cache:[[:space:]]*[0-9.]+%[[:space:]]*hit' "$_log" 2>/dev/null | tail -n1 || true)"
+    if [ -n "$_hitline" ]; then
+        _hit="$(printf '%s\n' "$_hitline" | sed -n -E 's/.*moe-cache:[[:space:]]*([0-9.]+)%[[:space:]]*hit.*/\1/p')"
+        if [ -n "$_hit" ]; then
+            EXPERT_HIT_RATE="${_hit}%"
+            return 0
+        fi
+    fi
+
+    # fallback best-effort: percentuale vicino a "hit"
+    _hitline="$(grep -iE 'hit[[:space:]]*[:=]|hit_rate|expert.*hit|cache hit' "$_log" 2>/dev/null | tail -n1 || true)"
+    if [ -n "$_hitline" ]; then
+        EXPERT_HIT_RATE="$(printf '%s\n' "$_hitline" | sed -n -E 's/.*([0-9]+[.]?[0-9]*[[:space:]]*%).*/\1/p' | head -n1)"
+        EXPERT_HIT_RATE="$(printf '%s' "$EXPERT_HIT_RATE" | tr -d ' ')"
+    fi
+    return 0
 }
 
 # Mappa runtime → binario di default
@@ -766,70 +924,9 @@ VMRSS_PEAK_MB="$(awk -v k="$VMRSS_PEAK_KB" 'BEGIN{printf "%d", (k+0)/1024}')"
 MEMFREE_MIN_MB="$(awk -v k="$MEMFREE_MIN_KB" 'BEGIN{printf "%d", (k+0)/1024}')"
 
 # ---------------------------------------------------------------------------
-# Parsing timings da log (llama_perf_context_print)
-# Formato tipico:
-#   llama_perf_context_print:        load time =    1234.56 ms
-#   llama_perf_context_print: prompt eval time =    2345.67 ms /   128 tokens (   18.32 ms per token,    54.57 tokens per second)
-#   llama_perf_context_print:        eval time =    3456.78 ms /    64 runs   (   54.01 ms per token,    18.51 tokens per second)
+# Parsing timings da log (parse_timings: bmoe-cli summary lines O llama_perf)
 # ---------------------------------------------------------------------------
-PROMPT_TOK_S=""
-EVAL_TOK_S=""
-TTFT_MS=""
-EXPERT_HIT_RATE=""
-TIMING_NOTE=""
-
-# prompt eval time line
-_pline="$(grep -E 'prompt eval time' "$LOG_PATH" 2>/dev/null | tail -n1 || true)"
-if [ -n "$_pline" ]; then
-    # ms: primo numero dopo '='
-    _pms="$(printf '%s\n' "$_pline" | sed -n -E 's/.*prompt eval time[[:space:]]*=[[:space:]]*([0-9.]+).*/\1/p')"
-    # tokens: numero prima di 'tokens' o 'token'
-    _ptok="$(printf '%s\n' "$_pline" | sed -n -E 's/.*\/[[:space:]]*([0-9]+)[[:space:]]+tokens?.*/\1/p')"
-    # tokens per second se presente
-    _ptps="$(printf '%s\n' "$_pline" | sed -n -E 's/.*[[:space:]]([0-9.]+)[[:space:]]+tokens per second.*/\1/p')"
-    if [ -n "$_ptps" ]; then
-        PROMPT_TOK_S="$(awk -v x="$_ptps" 'BEGIN{printf "%.2f", x+0}')"
-    elif [ -n "$_pms" ] && [ -n "$_ptok" ]; then
-        PROMPT_TOK_S="$(awk -v ms="$_pms" -v n="$_ptok" 'BEGIN{
-            if (ms+0 > 0) printf "%.2f", n / (ms/1000.0);
-            else print "";
-        }')"
-    fi
-    if [ -n "$_pms" ]; then
-        # ttft_ms = prompt eval ms (proxy first-token latency, v. schema)
-        TTFT_MS="$(awk -v ms="$_pms" 'BEGIN{printf "%d", ms+0.5}')"
-    fi
-fi
-
-# eval time line (attenzione: NON matchare "prompt eval time")
-_eline="$(grep -E '[[:space:]]eval time' "$LOG_PATH" 2>/dev/null | grep -v 'prompt eval' | tail -n1 || true)"
-if [ -n "$_eline" ]; then
-    _ems="$(printf '%s\n' "$_eline" | sed -n -E 's/.*eval time[[:space:]]*=[[:space:]]*([0-9.]+).*/\1/p')"
-    # token count: "N runs" oppure "N tokens"
-    _etok="$(printf '%s\n' "$_eline" | sed -n -E 's/.*\/[[:space:]]*([0-9]+)[[:space:]]+(runs|tokens).*/\1/p')"
-    _etps="$(printf '%s\n' "$_eline" | sed -n -E 's/.*[[:space:]]([0-9.]+)[[:space:]]+tokens per second.*/\1/p')"
-    if [ -n "$_etps" ]; then
-        EVAL_TOK_S="$(awk -v x="$_etps" 'BEGIN{printf "%.2f", x+0}')"
-    elif [ -n "$_ems" ] && [ -n "$_etok" ]; then
-        EVAL_TOK_S="$(awk -v ms="$_ems" -v n="$_etok" 'BEGIN{
-            if (ms+0 > 0) printf "%.2f", n / (ms/1000.0);
-            else print "";
-        }')"
-    fi
-fi
-
-if [ -z "$PROMPT_TOK_S" ] && [ -z "$EVAL_TOK_S" ] && [ -z "$TTFT_MS" ]; then
-    TIMING_NOTE="no timings in log"
-fi
-
-# Expert hit rate (BigMoeOnEdge): cerca riga con hit/miss
-# Formato sconosciuto — cattura best-effort una percentuale vicino a "hit"
-_hitline="$(grep -iE 'hit[[:space:]]*[:=]|hit_rate|expert.*hit|cache hit' "$LOG_PATH" 2>/dev/null | tail -n1 || true)"
-if [ -n "$_hitline" ]; then
-    EXPERT_HIT_RATE="$(printf '%s\n' "$_hitline" | sed -n -E 's/.*([0-9]+[.]?[0-9]*[[:space:]]*%).*/\1/p' | head -n1)"
-    # normalizza spazi
-    EXPERT_HIT_RATE="$(printf '%s' "$EXPERT_HIT_RATE" | tr -d ' ')"
-fi
+parse_timings "$LOG_PATH" "$RUNTIME" "$BINARY"
 
 # ---------------------------------------------------------------------------
 # Notes (single-line, no commas/newlines)
