@@ -157,34 +157,28 @@ ensure_data_file() {
     mkdir -p "$(dirname "$DATA_PATH")"
     _need="$(size_to_bytes "$SIZE")"
     _have=0
+    _marker="${DATA_PATH}.materialized"
     if [ -f "$DATA_PATH" ]; then
         _have="$(stat -c %s "$DATA_PATH" 2>/dev/null || wc -c <"$DATA_PATH" | tr -d ' ')"
     fi
-    if [ "$_have" -ge "$_need" ] 2>/dev/null; then
-        echo "data file OK: $DATA_PATH ($_have bytes)" >&2
+    # fallocate/sparse zeros on Android give fake multi-GB/s (zero pages).
+    # Require full non-sparse write (marker) so random reads hit UFS.
+    if [ "$_have" -ge "$_need" ] 2>/dev/null && [ -f "$_marker" ]; then
+        echo "data file OK (materialized): $DATA_PATH ($_have bytes)" >&2
         return 0
     fi
-    echo "creating data file $DATA_PATH size=$SIZE (need $_need bytes)..." >&2
-    # Prefer fallocate; fallback dd
-    if command -v fallocate >/dev/null 2>&1; then
-        fallocate -l "$_need" "$DATA_PATH" || true
-    fi
-    _have=0
-    if [ -f "$DATA_PATH" ]; then
-        _have="$(stat -c %s "$DATA_PATH" 2>/dev/null || echo 0)"
-    fi
-    if [ "$_have" -lt "$_need" ] 2>/dev/null; then
-        # write sparse-ish with dd from /dev/urandom in 64M chunks is too slow;
-        # use zeros for capacity (random read still exercises flash mapping)
-        dd if=/dev/zero of="$DATA_PATH" bs=1M count=$((_need/1024/1024)) status=progress 2>&1 || \
-          dd if=/dev/zero of="$DATA_PATH" bs=1048576 count=$((_need/1048576)) 2>&1
-    fi
+    echo "creating NON-SPARSE data file $DATA_PATH size=$SIZE (need $_need bytes)..." >&2
+    _mib=$((_need / 1024 / 1024))
+    if [ "$_mib" -lt 1 ]; then _mib=1; fi
+    dd if=/dev/zero of="$DATA_PATH" bs=1M count="$_mib" conv=fsync status=progress 2>&1 || \
+      dd if=/dev/zero of="$DATA_PATH" bs=1048576 count="$_mib" conv=fsync 2>&1
     _have="$(stat -c %s "$DATA_PATH" 2>/dev/null || echo 0)"
     if [ "$_have" -lt "$_need" ] 2>/dev/null; then
         echo "ERROR: data file troppo piccolo ($_have < $_need)" >&2
         exit 1
     fi
-    echo "data file ready: $_have bytes" >&2
+    date -Iseconds 2>/dev/null >"$_marker" || date >"$_marker"
+    echo "data file ready (materialized): $_have bytes" >&2
 }
 
 if ! command -v "$FIO_BIN" >/dev/null 2>&1; then
@@ -219,8 +213,14 @@ for bs in $BS_LIST; do
             _outj="$_jobdir/${_rid}.json"
             _outlog="$_jobdir/${_rid}.log"
             echo "RUN $_rid bs=$bs iodepth=$qd rep=$rep temp=${_t0} plugged=${_pl0}" >&2
+            _run_notes="$NOTES_USER"
 
-            # libaio may be unavailable on Android/Termux → use psync
+            # iodepth>1 needs async engine; psync is always depth 1.
+            # Prefer io_uring on Android; fallback psync.
+            _eng="psync"
+            if [ "$qd" -gt 1 ] 2>/dev/null; then
+                _eng="io_uring"
+            fi
             set +e
             "$FIO_BIN" \
                 --name="randread_${bs}_qd${qd}" \
@@ -228,8 +228,9 @@ for bs in $BS_LIST; do
                 --rw=randread \
                 --bs="$bs" \
                 --iodepth="$qd" \
-                --ioengine=psync \
+                --ioengine="$_eng" \
                 --direct=1 \
+                --invalidate=1 \
                 --numjobs=1 \
                 --runtime="$RUNTIME_S" \
                 --time_based=1 \
@@ -238,6 +239,27 @@ for bs in $BS_LIST; do
                 --output="$_outj" \
                 >"$_outlog" 2>&1
             _ec=$?
+            if [ "$_ec" -ne 0 ] && [ "$_eng" = "io_uring" ]; then
+                echo "WARN: io_uring failed, fallback psync" >&2
+                "$FIO_BIN" \
+                    --name="randread_${bs}_qd${qd}_psync" \
+                    --filename="$DATA_PATH" \
+                    --rw=randread \
+                    --bs="$bs" \
+                    --iodepth=1 \
+                    --ioengine=psync \
+                    --direct=1 \
+                    --invalidate=1 \
+                    --numjobs=1 \
+                    --runtime="$RUNTIME_S" \
+                    --time_based=1 \
+                    --group_reporting=1 \
+                    --output-format=json \
+                    --output="$_outj" \
+                    >"$_outlog" 2>&1
+                _ec=$?
+                _run_notes="${_run_notes:+$_run_notes;}io_uring_fallback_psync"
+            fi
             set -e
 
             _bat_end="$(read_battery || true)"
@@ -251,7 +273,9 @@ for bs in $BS_LIST; do
 import json,sys
 p=sys.argv[1]
 try:
-    d=json.load(open(p))
+    raw=open(p,errors="replace").read()
+    i=raw.find("{")
+    d=json.loads(raw[i:] if i>=0 else raw)
     j=d["jobs"][0]
     r=j.get("read",{})
     bw=r.get("bw")  # KiB/s in fio
@@ -287,7 +311,7 @@ PY
                 _bw_mib="$(awk -v k="$_bw_kib" 'BEGIN{printf "%.3f", (k+0)/1024.0}')"
             fi
 
-            _notes="$NOTES_USER"
+            _notes="$_run_notes"
             if [ "$_ec" -ne 0 ]; then
                 _notes="${_notes:+$_notes;}FAIL rc=$_ec"
             fi

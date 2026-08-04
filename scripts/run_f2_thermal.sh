@@ -58,7 +58,7 @@ case "$BINARY" in
 esac
 
 read_batt() {
-    _json="$(termux-battery-status 2>/dev/null || true)"
+    _json="$(timeout 12 termux-battery-status 2>/dev/null || true)"
     _pl="$(printf '%s' "$_json" | sed -n 's/.*"plugged"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
     _tr="$(printf '%s' "$_json" | sed -n 's/.*"temperature"[[:space:]]*:[[:space:]]*\([0-9.][0-9.]*\).*/\1/p' | head -n1)"
     _tc="$(awk -v t="${_tr:-}" 'BEGIN{

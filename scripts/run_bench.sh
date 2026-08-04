@@ -365,10 +365,18 @@ read_battery() {
         echo ""
         return 1
     fi
-    _json="$(termux-battery-status 2>/dev/null)" || {
-        echo ""
-        return 1
-    }
+    # termux-api can hang indefinitely after heavy loads; hard timeout
+    if command -v timeout >/dev/null 2>&1; then
+        _json="$(timeout 12 termux-battery-status 2>/dev/null)" || {
+            echo ""
+            return 1
+        }
+    else
+        _json="$(termux-battery-status 2>/dev/null)" || {
+            echo ""
+            return 1
+        }
+    fi
     if [ -z "$_json" ]; then
         echo ""
         return 1

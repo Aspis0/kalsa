@@ -110,7 +110,7 @@ gate_ok() {
         log "BLOCKED: termux-battery-status missing"
         exit 7
     fi
-    _json="$(termux-battery-status 2>/dev/null || true)"
+    _json="$(timeout 12 termux-battery-status 2>/dev/null || true)"
     _pl="$(printf '%s' "$_json" | sed -n 's/.*"plugged"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
     _tr="$(printf '%s' "$_json" | sed -n 's/.*"temperature"[[:space:]]*:[[:space:]]*\([0-9.][0-9.]*\).*/\1/p' | head -n1)"
     _tc="$(awk -v t="${_tr:-0}" 'BEGIN{if(t+0>100) printf "%.1f",t/10; else printf "%.1f",t+0}')"
@@ -160,7 +160,7 @@ run_one() {
         log "WARN: run_bench exit $_ec (row may still be FAIL) t=$_t c=$_c kv=$_k"
     fi
     # detect reboot/drop: if we cannot read battery after, stop
-    if ! termux-battery-status >/dev/null 2>&1; then
+    if ! timeout 12 termux-battery-status >/dev/null 2>&1; then
         log "BLOCKED: lost battery/API after run — possible instability"
         exit 91
     fi
