@@ -84,3 +84,6 @@ yarn-error.log*
 .grok/
 .scratchpad/
 scripts/.build/
+
+# CI capture output (screenshots, ui dumps, seeds)
+e2e-out/
