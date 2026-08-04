@@ -1,0 +1,991 @@
+==============================================================================
+F0.6 — GGUF dump + analisi esperti — 2026-08-03
+File: models\Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+Size su disco: 11522702304 (10.7314 GiB / 11.5227 GB)
+Atteso UD-IQ2_M: 11522702304 bytes — match=True
+==============================================================================
+
+## 1. Metadata (chiavi architettura / MoE)
+
+general.architecture = 'qwen35moe'
+  general.architecture = 'qwen35moe'
+  general.name = 'Qwen3.6-35B-A3B'
+  general.file_type = 29
+  general.quantization_version = 2
+  general.size_label = '35B-A3B'
+  general.basename = 'Qwen3.6-35B-A3B'
+  general.type = 'model'
+  qwen35moe.block_count = 40
+  qwen35moe.context_length = 262144
+  qwen35moe.embedding_length = 2048
+  qwen35moe.expert_count = 256
+  qwen35moe.expert_used_count = 8
+  qwen35moe.expert_feed_forward_length = 512
+  qwen35moe.attention.head_count = 16
+  qwen35moe.attention.head_count_kv = 2
+  qwen35moe.attention.key_length = 256
+  qwen35moe.attention.value_length = 256
+  qwen35moe.rope.dimension_count = 64
+  qwen35moe.ssm.conv_kernel = 4
+  qwen35moe.ssm.inner_size = 4096
+  qwen35moe.ssm.state_size = 128
+  qwen35moe.ssm.time_step_rank = 32
+  qwen35moe.ssm.group_count = 16
+  qwen35moe.rope.dimension_sections = [11, 11, 10, 0]
+  qwen35moe.rope.freq_base = 10000000.0
+  qwen35moe.attention.layer_norm_rms_epsilon = 9.999999974752427e-07
+  qwen35moe.expert_shared_feed_forward_length = 512
+  qwen35moe.full_attention_interval = 4
+
+Parametri risolti per i calcoli:
+  n_layer (block_count)           = 40
+  n_expert (expert_count)         = 256
+  n_expert_used (per token)       = 8
+  hidden (embedding_length)       = 2048
+  moe_intermediate (expert_ff)    = 512
+
+## 2. Inventario tensori (tutti)
+
+   #          offset         n_bytes  dtype         shape                         name
+--------------------------------------------------------------------------------------------------------------
+   0        10990048       286064640  12            (2048, 248320)                output.weight
+   1       297054688            8192  0             (2048,)                       output_norm.weight
+   2       297062880       349634560  13            (2048, 248320)                token_embd.weight
+   3       646697440         5767168  13            (2048, 4096)                  blk.0.attn_gate.weight
+   4       652464608            8192  0             (2048,)                       blk.0.attn_norm.weight
+   5       652472800        11534336  13            (2048, 8192)                  blk.0.attn_qkv.weight
+   6       664007136       102760448  18            (512, 2048, 256)              blk.0.ffn_down_exps.weight
+   7       766767584          860160  14            (512, 2048)                   blk.0.ffn_down_shexp.weight
+   8       767627744        69206016  16            (2048, 512, 256)              blk.0.ffn_gate_exps.weight
+   9       836833760         2097152  0             (2048, 256)                   blk.0.ffn_gate_inp.weight
+  10       838930912            8192  0             (2048,)                       blk.0.ffn_gate_inp_shexp.weight
+  11       838939104          720896  13            (2048, 512)                   blk.0.ffn_gate_shexp.weight
+  12       839660000        69206016  16            (2048, 512, 256)              blk.0.ffn_up_exps.weight
+  13       908866016          720896  13            (2048, 512)                   blk.0.ffn_up_shexp.weight
+  14       909586912            8192  0             (2048,)                       blk.0.post_attention_norm.weight
+  15       909595104             128  0             (32,)                         blk.0.ssm_a
+  16       909595232          262144  0             (2048, 32)                    blk.0.ssm_alpha.weight
+  17       909857376          262144  0             (2048, 32)                    blk.0.ssm_beta.weight
+  18       910119520          131072  0             (4, 8192)                     blk.0.ssm_conv1d.weight
+  19       910250592             128  0             (32,)                         blk.0.ssm_dt.bias
+  20       910250720             512  0             (128,)                        blk.0.ssm_norm.weight
+  21       910251232         6881280  14            (4096, 2048)                  blk.0.ssm_out.weight
+  22       917132512         5767168  13            (2048, 4096)                  blk.1.attn_gate.weight
+  23       922899680            8192  0             (2048,)                       blk.1.attn_norm.weight
+  24       922907872        11534336  13            (2048, 8192)                  blk.1.attn_qkv.weight
+  25       934442208       102760448  18            (512, 2048, 256)              blk.1.ffn_down_exps.weight
+  26      1037202656          860160  14            (512, 2048)                   blk.1.ffn_down_shexp.weight
+  27      1038062816        69206016  16            (2048, 512, 256)              blk.1.ffn_gate_exps.weight
+  28      1107268832         2097152  0             (2048, 256)                   blk.1.ffn_gate_inp.weight
+  29      1109365984            8192  0             (2048,)                       blk.1.ffn_gate_inp_shexp.weight
+  30      1109374176          720896  13            (2048, 512)                   blk.1.ffn_gate_shexp.weight
+  31      1110095072        69206016  16            (2048, 512, 256)              blk.1.ffn_up_exps.weight
+  32      1179301088          720896  13            (2048, 512)                   blk.1.ffn_up_shexp.weight
+  33      1180021984            8192  0             (2048,)                       blk.1.post_attention_norm.weight
+  34      1180030176             128  0             (32,)                         blk.1.ssm_a
+  35      1180030304          262144  0             (2048, 32)                    blk.1.ssm_alpha.weight
+  36      1180292448          262144  0             (2048, 32)                    blk.1.ssm_beta.weight
+  37      1180554592          131072  0             (4, 8192)                     blk.1.ssm_conv1d.weight
+  38      1180685664             128  0             (32,)                         blk.1.ssm_dt.bias
+  39      1180685792             512  0             (128,)                        blk.1.ssm_norm.weight
+  40      1180686304         6881280  14            (4096, 2048)                  blk.1.ssm_out.weight
+  41      1187567584         5767168  13            (2048, 4096)                  blk.2.attn_gate.weight
+  42      1193334752            8192  0             (2048,)                       blk.2.attn_norm.weight
+  43      1193342944        11534336  13            (2048, 8192)                  blk.2.attn_qkv.weight
+  44      1204877280       102760448  18            (512, 2048, 256)              blk.2.ffn_down_exps.weight
+  45      1307637728          860160  14            (512, 2048)                   blk.2.ffn_down_shexp.weight
+  46      1308497888        69206016  16            (2048, 512, 256)              blk.2.ffn_gate_exps.weight
+  47      1377703904         2097152  0             (2048, 256)                   blk.2.ffn_gate_inp.weight
+  48      1379801056            8192  0             (2048,)                       blk.2.ffn_gate_inp_shexp.weight
+  49      1379809248          720896  13            (2048, 512)                   blk.2.ffn_gate_shexp.weight
+  50      1380530144        69206016  16            (2048, 512, 256)              blk.2.ffn_up_exps.weight
+  51      1449736160          720896  13            (2048, 512)                   blk.2.ffn_up_shexp.weight
+  52      1450457056            8192  0             (2048,)                       blk.2.post_attention_norm.weight
+  53      1450465248             128  0             (32,)                         blk.2.ssm_a
+  54      1450465376          262144  0             (2048, 32)                    blk.2.ssm_alpha.weight
+  55      1450727520          262144  0             (2048, 32)                    blk.2.ssm_beta.weight
+  56      1450989664          131072  0             (4, 8192)                     blk.2.ssm_conv1d.weight
+  57      1451120736             128  0             (32,)                         blk.2.ssm_dt.bias
+  58      1451120864             512  0             (128,)                        blk.2.ssm_norm.weight
+  59      1451121376         6881280  14            (4096, 2048)                  blk.2.ssm_out.weight
+  60      1458002656          720896  13            (2048, 512)                   blk.3.attn_k.weight
+  61      1458723552            1024  0             (256,)                        blk.3.attn_k_norm.weight
+  62      1458724576            8192  0             (2048,)                       blk.3.attn_norm.weight
+  63      1458732768         5767168  13            (4096, 2048)                  blk.3.attn_output.weight
+  64      1464499936        11534336  13            (2048, 8192)                  blk.3.attn_q.weight
+  65      1476034272            1024  0             (256,)                        blk.3.attn_q_norm.weight
+  66      1476035296          720896  13            (2048, 512)                   blk.3.attn_v.weight
+  67      1476756192       102760448  18            (512, 2048, 256)              blk.3.ffn_down_exps.weight
+  68      1579516640          860160  14            (512, 2048)                   blk.3.ffn_down_shexp.weight
+  69      1580376800        69206016  16            (2048, 512, 256)              blk.3.ffn_gate_exps.weight
+  70      1649582816         2097152  0             (2048, 256)                   blk.3.ffn_gate_inp.weight
+  71      1651679968            8192  0             (2048,)                       blk.3.ffn_gate_inp_shexp.weight
+  72      1651688160          720896  13            (2048, 512)                   blk.3.ffn_gate_shexp.weight
+  73      1652409056        69206016  16            (2048, 512, 256)              blk.3.ffn_up_exps.weight
+  74      1721615072          720896  13            (2048, 512)                   blk.3.ffn_up_shexp.weight
+  75      1722335968            8192  0             (2048,)                       blk.3.post_attention_norm.weight
+  76      1722344160         5767168  13            (2048, 4096)                  blk.4.attn_gate.weight
+  77      1728111328            8192  0             (2048,)                       blk.4.attn_norm.weight
+  78      1728119520        11534336  13            (2048, 8192)                  blk.4.attn_qkv.weight
+  79      1739653856       102760448  18            (512, 2048, 256)              blk.4.ffn_down_exps.weight
+  80      1842414304          860160  14            (512, 2048)                   blk.4.ffn_down_shexp.weight
+  81      1843274464        69206016  16            (2048, 512, 256)              blk.4.ffn_gate_exps.weight
+  82      1912480480         2097152  0             (2048, 256)                   blk.4.ffn_gate_inp.weight
+  83      1914577632            8192  0             (2048,)                       blk.4.ffn_gate_inp_shexp.weight
+  84      1914585824          720896  13            (2048, 512)                   blk.4.ffn_gate_shexp.weight
+  85      1915306720        69206016  16            (2048, 512, 256)              blk.4.ffn_up_exps.weight
+  86      1984512736          720896  13            (2048, 512)                   blk.4.ffn_up_shexp.weight
+  87      1985233632            8192  0             (2048,)                       blk.4.post_attention_norm.weight
+  88      1985241824             128  0             (32,)                         blk.4.ssm_a
+  89      1985241952          262144  0             (2048, 32)                    blk.4.ssm_alpha.weight
+  90      1985504096          262144  0             (2048, 32)                    blk.4.ssm_beta.weight
+  91      1985766240          131072  0             (4, 8192)                     blk.4.ssm_conv1d.weight
+  92      1985897312             128  0             (32,)                         blk.4.ssm_dt.bias
+  93      1985897440             512  0             (128,)                        blk.4.ssm_norm.weight
+  94      1985897952         6881280  14            (4096, 2048)                  blk.4.ssm_out.weight
+  95      1992779232         5767168  13            (2048, 4096)                  blk.5.attn_gate.weight
+  96      1998546400            8192  0             (2048,)                       blk.5.attn_norm.weight
+  97      1998554592        11534336  13            (2048, 8192)                  blk.5.attn_qkv.weight
+  98      2010088928       102760448  18            (512, 2048, 256)              blk.5.ffn_down_exps.weight
+  99      2112849376          860160  14            (512, 2048)                   blk.5.ffn_down_shexp.weight
+ 100      2113709536        69206016  16            (2048, 512, 256)              blk.5.ffn_gate_exps.weight
+ 101      2182915552         2097152  0             (2048, 256)                   blk.5.ffn_gate_inp.weight
+ 102      2185012704            8192  0             (2048,)                       blk.5.ffn_gate_inp_shexp.weight
+ 103      2185020896          720896  13            (2048, 512)                   blk.5.ffn_gate_shexp.weight
+ 104      2185741792        69206016  16            (2048, 512, 256)              blk.5.ffn_up_exps.weight
+ 105      2254947808          720896  13            (2048, 512)                   blk.5.ffn_up_shexp.weight
+ 106      2255668704            8192  0             (2048,)                       blk.5.post_attention_norm.weight
+ 107      2255676896             128  0             (32,)                         blk.5.ssm_a
+ 108      2255677024          262144  0             (2048, 32)                    blk.5.ssm_alpha.weight
+ 109      2255939168          262144  0             (2048, 32)                    blk.5.ssm_beta.weight
+ 110      2256201312          131072  0             (4, 8192)                     blk.5.ssm_conv1d.weight
+ 111      2256332384             128  0             (32,)                         blk.5.ssm_dt.bias
+ 112      2256332512             512  0             (128,)                        blk.5.ssm_norm.weight
+ 113      2256333024         6881280  14            (4096, 2048)                  blk.5.ssm_out.weight
+ 114      2263214304         5767168  13            (2048, 4096)                  blk.6.attn_gate.weight
+ 115      2268981472            8192  0             (2048,)                       blk.6.attn_norm.weight
+ 116      2268989664        11534336  13            (2048, 8192)                  blk.6.attn_qkv.weight
+ 117      2280524000       102760448  18            (512, 2048, 256)              blk.6.ffn_down_exps.weight
+ 118      2383284448          860160  14            (512, 2048)                   blk.6.ffn_down_shexp.weight
+ 119      2384144608        69206016  16            (2048, 512, 256)              blk.6.ffn_gate_exps.weight
+ 120      2453350624         2097152  0             (2048, 256)                   blk.6.ffn_gate_inp.weight
+ 121      2455447776            8192  0             (2048,)                       blk.6.ffn_gate_inp_shexp.weight
+ 122      2455455968          720896  13            (2048, 512)                   blk.6.ffn_gate_shexp.weight
+ 123      2456176864        69206016  16            (2048, 512, 256)              blk.6.ffn_up_exps.weight
+ 124      2525382880          720896  13            (2048, 512)                   blk.6.ffn_up_shexp.weight
+ 125      2526103776            8192  0             (2048,)                       blk.6.post_attention_norm.weight
+ 126      2526111968             128  0             (32,)                         blk.6.ssm_a
+ 127      2526112096          262144  0             (2048, 32)                    blk.6.ssm_alpha.weight
+ 128      2526374240          262144  0             (2048, 32)                    blk.6.ssm_beta.weight
+ 129      2526636384          131072  0             (4, 8192)                     blk.6.ssm_conv1d.weight
+ 130      2526767456             128  0             (32,)                         blk.6.ssm_dt.bias
+ 131      2526767584             512  0             (128,)                        blk.6.ssm_norm.weight
+ 132      2526768096         6881280  14            (4096, 2048)                  blk.6.ssm_out.weight
+ 133      2533649376          720896  13            (2048, 512)                   blk.7.attn_k.weight
+ 134      2534370272            1024  0             (256,)                        blk.7.attn_k_norm.weight
+ 135      2534371296            8192  0             (2048,)                       blk.7.attn_norm.weight
+ 136      2534379488         5767168  13            (4096, 2048)                  blk.7.attn_output.weight
+ 137      2540146656        11534336  13            (2048, 8192)                  blk.7.attn_q.weight
+ 138      2551680992            1024  0             (256,)                        blk.7.attn_q_norm.weight
+ 139      2551682016          720896  13            (2048, 512)                   blk.7.attn_v.weight
+ 140      2552402912       102760448  18            (512, 2048, 256)              blk.7.ffn_down_exps.weight
+ 141      2655163360          860160  14            (512, 2048)                   blk.7.ffn_down_shexp.weight
+ 142      2656023520        69206016  16            (2048, 512, 256)              blk.7.ffn_gate_exps.weight
+ 143      2725229536         2097152  0             (2048, 256)                   blk.7.ffn_gate_inp.weight
+ 144      2727326688            8192  0             (2048,)                       blk.7.ffn_gate_inp_shexp.weight
+ 145      2727334880          720896  13            (2048, 512)                   blk.7.ffn_gate_shexp.weight
+ 146      2728055776        69206016  16            (2048, 512, 256)              blk.7.ffn_up_exps.weight
+ 147      2797261792          720896  13            (2048, 512)                   blk.7.ffn_up_shexp.weight
+ 148      2797982688            8192  0             (2048,)                       blk.7.post_attention_norm.weight
+ 149      2797990880         5767168  13            (2048, 4096)                  blk.8.attn_gate.weight
+ 150      2803758048            8192  0             (2048,)                       blk.8.attn_norm.weight
+ 151      2803766240        11534336  13            (2048, 8192)                  blk.8.attn_qkv.weight
+ 152      2815300576       102760448  18            (512, 2048, 256)              blk.8.ffn_down_exps.weight
+ 153      2918061024          860160  14            (512, 2048)                   blk.8.ffn_down_shexp.weight
+ 154      2918921184        69206016  16            (2048, 512, 256)              blk.8.ffn_gate_exps.weight
+ 155      2988127200         2097152  0             (2048, 256)                   blk.8.ffn_gate_inp.weight
+ 156      2990224352            8192  0             (2048,)                       blk.8.ffn_gate_inp_shexp.weight
+ 157      2990232544          720896  13            (2048, 512)                   blk.8.ffn_gate_shexp.weight
+ 158      2990953440        69206016  16            (2048, 512, 256)              blk.8.ffn_up_exps.weight
+ 159      3060159456          720896  13            (2048, 512)                   blk.8.ffn_up_shexp.weight
+ 160      3060880352            8192  0             (2048,)                       blk.8.post_attention_norm.weight
+ 161      3060888544             128  0             (32,)                         blk.8.ssm_a
+ 162      3060888672          262144  0             (2048, 32)                    blk.8.ssm_alpha.weight
+ 163      3061150816          262144  0             (2048, 32)                    blk.8.ssm_beta.weight
+ 164      3061412960          131072  0             (4, 8192)                     blk.8.ssm_conv1d.weight
+ 165      3061544032             128  0             (32,)                         blk.8.ssm_dt.bias
+ 166      3061544160             512  0             (128,)                        blk.8.ssm_norm.weight
+ 167      3061544672         6881280  14            (4096, 2048)                  blk.8.ssm_out.weight
+ 168      3068425952         5767168  13            (2048, 4096)                  blk.9.attn_gate.weight
+ 169      3074193120            8192  0             (2048,)                       blk.9.attn_norm.weight
+ 170      3074201312        11534336  13            (2048, 8192)                  blk.9.attn_qkv.weight
+ 171      3085735648       102760448  18            (512, 2048, 256)              blk.9.ffn_down_exps.weight
+ 172      3188496096          860160  14            (512, 2048)                   blk.9.ffn_down_shexp.weight
+ 173      3189356256        69206016  16            (2048, 512, 256)              blk.9.ffn_gate_exps.weight
+ 174      3258562272         2097152  0             (2048, 256)                   blk.9.ffn_gate_inp.weight
+ 175      3260659424            8192  0             (2048,)                       blk.9.ffn_gate_inp_shexp.weight
+ 176      3260667616          720896  13            (2048, 512)                   blk.9.ffn_gate_shexp.weight
+ 177      3261388512        69206016  16            (2048, 512, 256)              blk.9.ffn_up_exps.weight
+ 178      3330594528          720896  13            (2048, 512)                   blk.9.ffn_up_shexp.weight
+ 179      3331315424            8192  0             (2048,)                       blk.9.post_attention_norm.weight
+ 180      3331323616             128  0             (32,)                         blk.9.ssm_a
+ 181      3331323744          262144  0             (2048, 32)                    blk.9.ssm_alpha.weight
+ 182      3331585888          262144  0             (2048, 32)                    blk.9.ssm_beta.weight
+ 183      3331848032          131072  0             (4, 8192)                     blk.9.ssm_conv1d.weight
+ 184      3331979104             128  0             (32,)                         blk.9.ssm_dt.bias
+ 185      3331979232             512  0             (128,)                        blk.9.ssm_norm.weight
+ 186      3331979744         6881280  14            (4096, 2048)                  blk.9.ssm_out.weight
+ 187      3338861024         5767168  13            (2048, 4096)                  blk.10.attn_gate.weight
+ 188      3344628192            8192  0             (2048,)                       blk.10.attn_norm.weight
+ 189      3344636384        11534336  13            (2048, 8192)                  blk.10.attn_qkv.weight
+ 190      3356170720       102760448  18            (512, 2048, 256)              blk.10.ffn_down_exps.weight
+ 191      3458931168          860160  14            (512, 2048)                   blk.10.ffn_down_shexp.weight
+ 192      3459791328        69206016  16            (2048, 512, 256)              blk.10.ffn_gate_exps.weight
+ 193      3528997344         2097152  0             (2048, 256)                   blk.10.ffn_gate_inp.weight
+ 194      3531094496            8192  0             (2048,)                       blk.10.ffn_gate_inp_shexp.weight
+ 195      3531102688          720896  13            (2048, 512)                   blk.10.ffn_gate_shexp.weight
+ 196      3531823584        69206016  16            (2048, 512, 256)              blk.10.ffn_up_exps.weight
+ 197      3601029600          720896  13            (2048, 512)                   blk.10.ffn_up_shexp.weight
+ 198      3601750496            8192  0             (2048,)                       blk.10.post_attention_norm.weight
+ 199      3601758688             128  0             (32,)                         blk.10.ssm_a
+ 200      3601758816          262144  0             (2048, 32)                    blk.10.ssm_alpha.weight
+ 201      3602020960          262144  0             (2048, 32)                    blk.10.ssm_beta.weight
+ 202      3602283104          131072  0             (4, 8192)                     blk.10.ssm_conv1d.weight
+ 203      3602414176             128  0             (32,)                         blk.10.ssm_dt.bias
+ 204      3602414304             512  0             (128,)                        blk.10.ssm_norm.weight
+ 205      3602414816         6881280  14            (4096, 2048)                  blk.10.ssm_out.weight
+ 206      3609296096          720896  13            (2048, 512)                   blk.11.attn_k.weight
+ 207      3610016992            1024  0             (256,)                        blk.11.attn_k_norm.weight
+ 208      3610018016            8192  0             (2048,)                       blk.11.attn_norm.weight
+ 209      3610026208         5767168  13            (4096, 2048)                  blk.11.attn_output.weight
+ 210      3615793376        11534336  13            (2048, 8192)                  blk.11.attn_q.weight
+ 211      3627327712            1024  0             (256,)                        blk.11.attn_q_norm.weight
+ 212      3627328736          720896  13            (2048, 512)                   blk.11.attn_v.weight
+ 213      3628049632       102760448  18            (512, 2048, 256)              blk.11.ffn_down_exps.weight
+ 214      3730810080          860160  14            (512, 2048)                   blk.11.ffn_down_shexp.weight
+ 215      3731670240        69206016  16            (2048, 512, 256)              blk.11.ffn_gate_exps.weight
+ 216      3800876256         2097152  0             (2048, 256)                   blk.11.ffn_gate_inp.weight
+ 217      3802973408            8192  0             (2048,)                       blk.11.ffn_gate_inp_shexp.weight
+ 218      3802981600          720896  13            (2048, 512)                   blk.11.ffn_gate_shexp.weight
+ 219      3803702496        69206016  16            (2048, 512, 256)              blk.11.ffn_up_exps.weight
+ 220      3872908512          720896  13            (2048, 512)                   blk.11.ffn_up_shexp.weight
+ 221      3873629408            8192  0             (2048,)                       blk.11.post_attention_norm.weight
+ 222      3873637600         5767168  13            (2048, 4096)                  blk.12.attn_gate.weight
+ 223      3879404768            8192  0             (2048,)                       blk.12.attn_norm.weight
+ 224      3879412960        11534336  13            (2048, 8192)                  blk.12.attn_qkv.weight
+ 225      3890947296       102760448  18            (512, 2048, 256)              blk.12.ffn_down_exps.weight
+ 226      3993707744          860160  14            (512, 2048)                   blk.12.ffn_down_shexp.weight
+ 227      3994567904        69206016  16            (2048, 512, 256)              blk.12.ffn_gate_exps.weight
+ 228      4063773920         2097152  0             (2048, 256)                   blk.12.ffn_gate_inp.weight
+ 229      4065871072            8192  0             (2048,)                       blk.12.ffn_gate_inp_shexp.weight
+ 230      4065879264          720896  13            (2048, 512)                   blk.12.ffn_gate_shexp.weight
+ 231      4066600160        69206016  16            (2048, 512, 256)              blk.12.ffn_up_exps.weight
+ 232      4135806176          720896  13            (2048, 512)                   blk.12.ffn_up_shexp.weight
+ 233      4136527072            8192  0             (2048,)                       blk.12.post_attention_norm.weight
+ 234      4136535264             128  0             (32,)                         blk.12.ssm_a
+ 235      4136535392          262144  0             (2048, 32)                    blk.12.ssm_alpha.weight
+ 236      4136797536          262144  0             (2048, 32)                    blk.12.ssm_beta.weight
+ 237      4137059680          131072  0             (4, 8192)                     blk.12.ssm_conv1d.weight
+ 238      4137190752             128  0             (32,)                         blk.12.ssm_dt.bias
+ 239      4137190880             512  0             (128,)                        blk.12.ssm_norm.weight
+ 240      4137191392         6881280  14            (4096, 2048)                  blk.12.ssm_out.weight
+ 241      4144072672         5767168  13            (2048, 4096)                  blk.13.attn_gate.weight
+ 242      4149839840            8192  0             (2048,)                       blk.13.attn_norm.weight
+ 243      4149848032        11534336  13            (2048, 8192)                  blk.13.attn_qkv.weight
+ 244      4161382368       102760448  18            (512, 2048, 256)              blk.13.ffn_down_exps.weight
+ 245      4264142816          860160  14            (512, 2048)                   blk.13.ffn_down_shexp.weight
+ 246      4265002976        69206016  16            (2048, 512, 256)              blk.13.ffn_gate_exps.weight
+ 247      4334208992         2097152  0             (2048, 256)                   blk.13.ffn_gate_inp.weight
+ 248      4336306144            8192  0             (2048,)                       blk.13.ffn_gate_inp_shexp.weight
+ 249      4336314336          720896  13            (2048, 512)                   blk.13.ffn_gate_shexp.weight
+ 250      4337035232        69206016  16            (2048, 512, 256)              blk.13.ffn_up_exps.weight
+ 251      4406241248          720896  13            (2048, 512)                   blk.13.ffn_up_shexp.weight
+ 252      4406962144            8192  0             (2048,)                       blk.13.post_attention_norm.weight
+ 253      4406970336             128  0             (32,)                         blk.13.ssm_a
+ 254      4406970464          262144  0             (2048, 32)                    blk.13.ssm_alpha.weight
+ 255      4407232608          262144  0             (2048, 32)                    blk.13.ssm_beta.weight
+ 256      4407494752          131072  0             (4, 8192)                     blk.13.ssm_conv1d.weight
+ 257      4407625824             128  0             (32,)                         blk.13.ssm_dt.bias
+ 258      4407625952             512  0             (128,)                        blk.13.ssm_norm.weight
+ 259      4407626464         6881280  14            (4096, 2048)                  blk.13.ssm_out.weight
+ 260      4414507744         5767168  13            (2048, 4096)                  blk.14.attn_gate.weight
+ 261      4420274912            8192  0             (2048,)                       blk.14.attn_norm.weight
+ 262      4420283104        11534336  13            (2048, 8192)                  blk.14.attn_qkv.weight
+ 263      4431817440       102760448  18            (512, 2048, 256)              blk.14.ffn_down_exps.weight
+ 264      4534577888          860160  14            (512, 2048)                   blk.14.ffn_down_shexp.weight
+ 265      4535438048        69206016  16            (2048, 512, 256)              blk.14.ffn_gate_exps.weight
+ 266      4604644064         2097152  0             (2048, 256)                   blk.14.ffn_gate_inp.weight
+ 267      4606741216            8192  0             (2048,)                       blk.14.ffn_gate_inp_shexp.weight
+ 268      4606749408          720896  13            (2048, 512)                   blk.14.ffn_gate_shexp.weight
+ 269      4607470304        69206016  16            (2048, 512, 256)              blk.14.ffn_up_exps.weight
+ 270      4676676320          720896  13            (2048, 512)                   blk.14.ffn_up_shexp.weight
+ 271      4677397216            8192  0             (2048,)                       blk.14.post_attention_norm.weight
+ 272      4677405408             128  0             (32,)                         blk.14.ssm_a
+ 273      4677405536          262144  0             (2048, 32)                    blk.14.ssm_alpha.weight
+ 274      4677667680          262144  0             (2048, 32)                    blk.14.ssm_beta.weight
+ 275      4677929824          131072  0             (4, 8192)                     blk.14.ssm_conv1d.weight
+ 276      4678060896             128  0             (32,)                         blk.14.ssm_dt.bias
+ 277      4678061024             512  0             (128,)                        blk.14.ssm_norm.weight
+ 278      4678061536         6881280  14            (4096, 2048)                  blk.14.ssm_out.weight
+ 279      4684942816          720896  13            (2048, 512)                   blk.15.attn_k.weight
+ 280      4685663712            1024  0             (256,)                        blk.15.attn_k_norm.weight
+ 281      4685664736            8192  0             (2048,)                       blk.15.attn_norm.weight
+ 282      4685672928         5767168  13            (4096, 2048)                  blk.15.attn_output.weight
+ 283      4691440096        11534336  13            (2048, 8192)                  blk.15.attn_q.weight
+ 284      4702974432            1024  0             (256,)                        blk.15.attn_q_norm.weight
+ 285      4702975456          720896  13            (2048, 512)                   blk.15.attn_v.weight
+ 286      4703696352       102760448  18            (512, 2048, 256)              blk.15.ffn_down_exps.weight
+ 287      4806456800          860160  14            (512, 2048)                   blk.15.ffn_down_shexp.weight
+ 288      4807316960        69206016  16            (2048, 512, 256)              blk.15.ffn_gate_exps.weight
+ 289      4876522976         2097152  0             (2048, 256)                   blk.15.ffn_gate_inp.weight
+ 290      4878620128            8192  0             (2048,)                       blk.15.ffn_gate_inp_shexp.weight
+ 291      4878628320          720896  13            (2048, 512)                   blk.15.ffn_gate_shexp.weight
+ 292      4879349216        69206016  16            (2048, 512, 256)              blk.15.ffn_up_exps.weight
+ 293      4948555232          720896  13            (2048, 512)                   blk.15.ffn_up_shexp.weight
+ 294      4949276128            8192  0             (2048,)                       blk.15.post_attention_norm.weight
+ 295      4949284320         5767168  13            (2048, 4096)                  blk.16.attn_gate.weight
+ 296      4955051488            8192  0             (2048,)                       blk.16.attn_norm.weight
+ 297      4955059680        11534336  13            (2048, 8192)                  blk.16.attn_qkv.weight
+ 298      4966594016       102760448  18            (512, 2048, 256)              blk.16.ffn_down_exps.weight
+ 299      5069354464          860160  14            (512, 2048)                   blk.16.ffn_down_shexp.weight
+ 300      5070214624        69206016  16            (2048, 512, 256)              blk.16.ffn_gate_exps.weight
+ 301      5139420640         2097152  0             (2048, 256)                   blk.16.ffn_gate_inp.weight
+ 302      5141517792            8192  0             (2048,)                       blk.16.ffn_gate_inp_shexp.weight
+ 303      5141525984          720896  13            (2048, 512)                   blk.16.ffn_gate_shexp.weight
+ 304      5142246880        69206016  16            (2048, 512, 256)              blk.16.ffn_up_exps.weight
+ 305      5211452896          720896  13            (2048, 512)                   blk.16.ffn_up_shexp.weight
+ 306      5212173792            8192  0             (2048,)                       blk.16.post_attention_norm.weight
+ 307      5212181984             128  0             (32,)                         blk.16.ssm_a
+ 308      5212182112          262144  0             (2048, 32)                    blk.16.ssm_alpha.weight
+ 309      5212444256          262144  0             (2048, 32)                    blk.16.ssm_beta.weight
+ 310      5212706400          131072  0             (4, 8192)                     blk.16.ssm_conv1d.weight
+ 311      5212837472             128  0             (32,)                         blk.16.ssm_dt.bias
+ 312      5212837600             512  0             (128,)                        blk.16.ssm_norm.weight
+ 313      5212838112         6881280  14            (4096, 2048)                  blk.16.ssm_out.weight
+ 314      5219719392         5767168  13            (2048, 4096)                  blk.17.attn_gate.weight
+ 315      5225486560            8192  0             (2048,)                       blk.17.attn_norm.weight
+ 316      5225494752        11534336  13            (2048, 8192)                  blk.17.attn_qkv.weight
+ 317      5237029088       102760448  18            (512, 2048, 256)              blk.17.ffn_down_exps.weight
+ 318      5339789536          860160  14            (512, 2048)                   blk.17.ffn_down_shexp.weight
+ 319      5340649696        69206016  16            (2048, 512, 256)              blk.17.ffn_gate_exps.weight
+ 320      5409855712         2097152  0             (2048, 256)                   blk.17.ffn_gate_inp.weight
+ 321      5411952864            8192  0             (2048,)                       blk.17.ffn_gate_inp_shexp.weight
+ 322      5411961056          720896  13            (2048, 512)                   blk.17.ffn_gate_shexp.weight
+ 323      5412681952        69206016  16            (2048, 512, 256)              blk.17.ffn_up_exps.weight
+ 324      5481887968          720896  13            (2048, 512)                   blk.17.ffn_up_shexp.weight
+ 325      5482608864            8192  0             (2048,)                       blk.17.post_attention_norm.weight
+ 326      5482617056             128  0             (32,)                         blk.17.ssm_a
+ 327      5482617184          262144  0             (2048, 32)                    blk.17.ssm_alpha.weight
+ 328      5482879328          262144  0             (2048, 32)                    blk.17.ssm_beta.weight
+ 329      5483141472          131072  0             (4, 8192)                     blk.17.ssm_conv1d.weight
+ 330      5483272544             128  0             (32,)                         blk.17.ssm_dt.bias
+ 331      5483272672             512  0             (128,)                        blk.17.ssm_norm.weight
+ 332      5483273184         6881280  14            (4096, 2048)                  blk.17.ssm_out.weight
+ 333      5490154464         5767168  13            (2048, 4096)                  blk.18.attn_gate.weight
+ 334      5495921632            8192  0             (2048,)                       blk.18.attn_norm.weight
+ 335      5495929824        11534336  13            (2048, 8192)                  blk.18.attn_qkv.weight
+ 336      5507464160       102760448  18            (512, 2048, 256)              blk.18.ffn_down_exps.weight
+ 337      5610224608          860160  14            (512, 2048)                   blk.18.ffn_down_shexp.weight
+ 338      5611084768        69206016  16            (2048, 512, 256)              blk.18.ffn_gate_exps.weight
+ 339      5680290784         2097152  0             (2048, 256)                   blk.18.ffn_gate_inp.weight
+ 340      5682387936            8192  0             (2048,)                       blk.18.ffn_gate_inp_shexp.weight
+ 341      5682396128          720896  13            (2048, 512)                   blk.18.ffn_gate_shexp.weight
+ 342      5683117024        69206016  16            (2048, 512, 256)              blk.18.ffn_up_exps.weight
+ 343      5752323040          720896  13            (2048, 512)                   blk.18.ffn_up_shexp.weight
+ 344      5753043936            8192  0             (2048,)                       blk.18.post_attention_norm.weight
+ 345      5753052128             128  0             (32,)                         blk.18.ssm_a
+ 346      5753052256          262144  0             (2048, 32)                    blk.18.ssm_alpha.weight
+ 347      5753314400          262144  0             (2048, 32)                    blk.18.ssm_beta.weight
+ 348      5753576544          131072  0             (4, 8192)                     blk.18.ssm_conv1d.weight
+ 349      5753707616             128  0             (32,)                         blk.18.ssm_dt.bias
+ 350      5753707744             512  0             (128,)                        blk.18.ssm_norm.weight
+ 351      5753708256         6881280  14            (4096, 2048)                  blk.18.ssm_out.weight
+ 352      5760589536          720896  13            (2048, 512)                   blk.19.attn_k.weight
+ 353      5761310432            1024  0             (256,)                        blk.19.attn_k_norm.weight
+ 354      5761311456            8192  0             (2048,)                       blk.19.attn_norm.weight
+ 355      5761319648         5767168  13            (4096, 2048)                  blk.19.attn_output.weight
+ 356      5767086816        11534336  13            (2048, 8192)                  blk.19.attn_q.weight
+ 357      5778621152            1024  0             (256,)                        blk.19.attn_q_norm.weight
+ 358      5778622176          720896  13            (2048, 512)                   blk.19.attn_v.weight
+ 359      5779343072       102760448  18            (512, 2048, 256)              blk.19.ffn_down_exps.weight
+ 360      5882103520          860160  14            (512, 2048)                   blk.19.ffn_down_shexp.weight
+ 361      5882963680        69206016  16            (2048, 512, 256)              blk.19.ffn_gate_exps.weight
+ 362      5952169696         2097152  0             (2048, 256)                   blk.19.ffn_gate_inp.weight
+ 363      5954266848            8192  0             (2048,)                       blk.19.ffn_gate_inp_shexp.weight
+ 364      5954275040          720896  13            (2048, 512)                   blk.19.ffn_gate_shexp.weight
+ 365      5954995936        69206016  16            (2048, 512, 256)              blk.19.ffn_up_exps.weight
+ 366      6024201952          720896  13            (2048, 512)                   blk.19.ffn_up_shexp.weight
+ 367      6024922848            8192  0             (2048,)                       blk.19.post_attention_norm.weight
+ 368      6024931040         5767168  13            (2048, 4096)                  blk.20.attn_gate.weight
+ 369      6030698208            8192  0             (2048,)                       blk.20.attn_norm.weight
+ 370      6030706400        11534336  13            (2048, 8192)                  blk.20.attn_qkv.weight
+ 371      6042240736       102760448  18            (512, 2048, 256)              blk.20.ffn_down_exps.weight
+ 372      6145001184          860160  14            (512, 2048)                   blk.20.ffn_down_shexp.weight
+ 373      6145861344        69206016  16            (2048, 512, 256)              blk.20.ffn_gate_exps.weight
+ 374      6215067360         2097152  0             (2048, 256)                   blk.20.ffn_gate_inp.weight
+ 375      6217164512            8192  0             (2048,)                       blk.20.ffn_gate_inp_shexp.weight
+ 376      6217172704          720896  13            (2048, 512)                   blk.20.ffn_gate_shexp.weight
+ 377      6217893600        69206016  16            (2048, 512, 256)              blk.20.ffn_up_exps.weight
+ 378      6287099616          720896  13            (2048, 512)                   blk.20.ffn_up_shexp.weight
+ 379      6287820512            8192  0             (2048,)                       blk.20.post_attention_norm.weight
+ 380      6287828704             128  0             (32,)                         blk.20.ssm_a
+ 381      6287828832          262144  0             (2048, 32)                    blk.20.ssm_alpha.weight
+ 382      6288090976          262144  0             (2048, 32)                    blk.20.ssm_beta.weight
+ 383      6288353120          131072  0             (4, 8192)                     blk.20.ssm_conv1d.weight
+ 384      6288484192             128  0             (32,)                         blk.20.ssm_dt.bias
+ 385      6288484320             512  0             (128,)                        blk.20.ssm_norm.weight
+ 386      6288484832         6881280  14            (4096, 2048)                  blk.20.ssm_out.weight
+ 387      6295366112         5767168  13            (2048, 4096)                  blk.21.attn_gate.weight
+ 388      6301133280            8192  0             (2048,)                       blk.21.attn_norm.weight
+ 389      6301141472        11534336  13            (2048, 8192)                  blk.21.attn_qkv.weight
+ 390      6312675808       102760448  18            (512, 2048, 256)              blk.21.ffn_down_exps.weight
+ 391      6415436256          860160  14            (512, 2048)                   blk.21.ffn_down_shexp.weight
+ 392      6416296416        69206016  16            (2048, 512, 256)              blk.21.ffn_gate_exps.weight
+ 393      6485502432         2097152  0             (2048, 256)                   blk.21.ffn_gate_inp.weight
+ 394      6487599584            8192  0             (2048,)                       blk.21.ffn_gate_inp_shexp.weight
+ 395      6487607776          720896  13            (2048, 512)                   blk.21.ffn_gate_shexp.weight
+ 396      6488328672        69206016  16            (2048, 512, 256)              blk.21.ffn_up_exps.weight
+ 397      6557534688          720896  13            (2048, 512)                   blk.21.ffn_up_shexp.weight
+ 398      6558255584            8192  0             (2048,)                       blk.21.post_attention_norm.weight
+ 399      6558263776             128  0             (32,)                         blk.21.ssm_a
+ 400      6558263904          262144  0             (2048, 32)                    blk.21.ssm_alpha.weight
+ 401      6558526048          262144  0             (2048, 32)                    blk.21.ssm_beta.weight
+ 402      6558788192          131072  0             (4, 8192)                     blk.21.ssm_conv1d.weight
+ 403      6558919264             128  0             (32,)                         blk.21.ssm_dt.bias
+ 404      6558919392             512  0             (128,)                        blk.21.ssm_norm.weight
+ 405      6558919904         6881280  14            (4096, 2048)                  blk.21.ssm_out.weight
+ 406      6565801184         5767168  13            (2048, 4096)                  blk.22.attn_gate.weight
+ 407      6571568352            8192  0             (2048,)                       blk.22.attn_norm.weight
+ 408      6571576544        11534336  13            (2048, 8192)                  blk.22.attn_qkv.weight
+ 409      6583110880       102760448  18            (512, 2048, 256)              blk.22.ffn_down_exps.weight
+ 410      6685871328          860160  14            (512, 2048)                   blk.22.ffn_down_shexp.weight
+ 411      6686731488        69206016  16            (2048, 512, 256)              blk.22.ffn_gate_exps.weight
+ 412      6755937504         2097152  0             (2048, 256)                   blk.22.ffn_gate_inp.weight
+ 413      6758034656            8192  0             (2048,)                       blk.22.ffn_gate_inp_shexp.weight
+ 414      6758042848          720896  13            (2048, 512)                   blk.22.ffn_gate_shexp.weight
+ 415      6758763744        69206016  16            (2048, 512, 256)              blk.22.ffn_up_exps.weight
+ 416      6827969760          720896  13            (2048, 512)                   blk.22.ffn_up_shexp.weight
+ 417      6828690656            8192  0             (2048,)                       blk.22.post_attention_norm.weight
+ 418      6828698848             128  0             (32,)                         blk.22.ssm_a
+ 419      6828698976          262144  0             (2048, 32)                    blk.22.ssm_alpha.weight
+ 420      6828961120          262144  0             (2048, 32)                    blk.22.ssm_beta.weight
+ 421      6829223264          131072  0             (4, 8192)                     blk.22.ssm_conv1d.weight
+ 422      6829354336             128  0             (32,)                         blk.22.ssm_dt.bias
+ 423      6829354464             512  0             (128,)                        blk.22.ssm_norm.weight
+ 424      6829354976         6881280  14            (4096, 2048)                  blk.22.ssm_out.weight
+ 425      6836236256          720896  13            (2048, 512)                   blk.23.attn_k.weight
+ 426      6836957152            1024  0             (256,)                        blk.23.attn_k_norm.weight
+ 427      6836958176            8192  0             (2048,)                       blk.23.attn_norm.weight
+ 428      6836966368         5767168  13            (4096, 2048)                  blk.23.attn_output.weight
+ 429      6842733536        11534336  13            (2048, 8192)                  blk.23.attn_q.weight
+ 430      6854267872            1024  0             (256,)                        blk.23.attn_q_norm.weight
+ 431      6854268896          720896  13            (2048, 512)                   blk.23.attn_v.weight
+ 432      6854989792       102760448  18            (512, 2048, 256)              blk.23.ffn_down_exps.weight
+ 433      6957750240          860160  14            (512, 2048)                   blk.23.ffn_down_shexp.weight
+ 434      6958610400        69206016  16            (2048, 512, 256)              blk.23.ffn_gate_exps.weight
+ 435      7027816416         2097152  0             (2048, 256)                   blk.23.ffn_gate_inp.weight
+ 436      7029913568            8192  0             (2048,)                       blk.23.ffn_gate_inp_shexp.weight
+ 437      7029921760          720896  13            (2048, 512)                   blk.23.ffn_gate_shexp.weight
+ 438      7030642656        69206016  16            (2048, 512, 256)              blk.23.ffn_up_exps.weight
+ 439      7099848672          720896  13            (2048, 512)                   blk.23.ffn_up_shexp.weight
+ 440      7100569568            8192  0             (2048,)                       blk.23.post_attention_norm.weight
+ 441      7100577760         5767168  13            (2048, 4096)                  blk.24.attn_gate.weight
+ 442      7106344928            8192  0             (2048,)                       blk.24.attn_norm.weight
+ 443      7106353120        11534336  13            (2048, 8192)                  blk.24.attn_qkv.weight
+ 444      7117887456       102760448  18            (512, 2048, 256)              blk.24.ffn_down_exps.weight
+ 445      7220647904          860160  14            (512, 2048)                   blk.24.ffn_down_shexp.weight
+ 446      7221508064        69206016  16            (2048, 512, 256)              blk.24.ffn_gate_exps.weight
+ 447      7290714080         2097152  0             (2048, 256)                   blk.24.ffn_gate_inp.weight
+ 448      7292811232            8192  0             (2048,)                       blk.24.ffn_gate_inp_shexp.weight
+ 449      7292819424          720896  13            (2048, 512)                   blk.24.ffn_gate_shexp.weight
+ 450      7293540320        69206016  16            (2048, 512, 256)              blk.24.ffn_up_exps.weight
+ 451      7362746336          720896  13            (2048, 512)                   blk.24.ffn_up_shexp.weight
+ 452      7363467232            8192  0             (2048,)                       blk.24.post_attention_norm.weight
+ 453      7363475424             128  0             (32,)                         blk.24.ssm_a
+ 454      7363475552          262144  0             (2048, 32)                    blk.24.ssm_alpha.weight
+ 455      7363737696          262144  0             (2048, 32)                    blk.24.ssm_beta.weight
+ 456      7363999840          131072  0             (4, 8192)                     blk.24.ssm_conv1d.weight
+ 457      7364130912             128  0             (32,)                         blk.24.ssm_dt.bias
+ 458      7364131040             512  0             (128,)                        blk.24.ssm_norm.weight
+ 459      7364131552         6881280  14            (4096, 2048)                  blk.24.ssm_out.weight
+ 460      7371012832         5767168  13            (2048, 4096)                  blk.25.attn_gate.weight
+ 461      7376780000            8192  0             (2048,)                       blk.25.attn_norm.weight
+ 462      7376788192        11534336  13            (2048, 8192)                  blk.25.attn_qkv.weight
+ 463      7388322528       102760448  18            (512, 2048, 256)              blk.25.ffn_down_exps.weight
+ 464      7491082976          860160  14            (512, 2048)                   blk.25.ffn_down_shexp.weight
+ 465      7491943136        69206016  16            (2048, 512, 256)              blk.25.ffn_gate_exps.weight
+ 466      7561149152         2097152  0             (2048, 256)                   blk.25.ffn_gate_inp.weight
+ 467      7563246304            8192  0             (2048,)                       blk.25.ffn_gate_inp_shexp.weight
+ 468      7563254496          720896  13            (2048, 512)                   blk.25.ffn_gate_shexp.weight
+ 469      7563975392        69206016  16            (2048, 512, 256)              blk.25.ffn_up_exps.weight
+ 470      7633181408          720896  13            (2048, 512)                   blk.25.ffn_up_shexp.weight
+ 471      7633902304            8192  0             (2048,)                       blk.25.post_attention_norm.weight
+ 472      7633910496             128  0             (32,)                         blk.25.ssm_a
+ 473      7633910624          262144  0             (2048, 32)                    blk.25.ssm_alpha.weight
+ 474      7634172768          262144  0             (2048, 32)                    blk.25.ssm_beta.weight
+ 475      7634434912          131072  0             (4, 8192)                     blk.25.ssm_conv1d.weight
+ 476      7634565984             128  0             (32,)                         blk.25.ssm_dt.bias
+ 477      7634566112             512  0             (128,)                        blk.25.ssm_norm.weight
+ 478      7634566624         6881280  14            (4096, 2048)                  blk.25.ssm_out.weight
+ 479      7641447904         5767168  13            (2048, 4096)                  blk.26.attn_gate.weight
+ 480      7647215072            8192  0             (2048,)                       blk.26.attn_norm.weight
+ 481      7647223264        11534336  13            (2048, 8192)                  blk.26.attn_qkv.weight
+ 482      7658757600       102760448  18            (512, 2048, 256)              blk.26.ffn_down_exps.weight
+ 483      7761518048          860160  14            (512, 2048)                   blk.26.ffn_down_shexp.weight
+ 484      7762378208        69206016  16            (2048, 512, 256)              blk.26.ffn_gate_exps.weight
+ 485      7831584224         2097152  0             (2048, 256)                   blk.26.ffn_gate_inp.weight
+ 486      7833681376            8192  0             (2048,)                       blk.26.ffn_gate_inp_shexp.weight
+ 487      7833689568          720896  13            (2048, 512)                   blk.26.ffn_gate_shexp.weight
+ 488      7834410464        69206016  16            (2048, 512, 256)              blk.26.ffn_up_exps.weight
+ 489      7903616480          720896  13            (2048, 512)                   blk.26.ffn_up_shexp.weight
+ 490      7904337376            8192  0             (2048,)                       blk.26.post_attention_norm.weight
+ 491      7904345568             128  0             (32,)                         blk.26.ssm_a
+ 492      7904345696          262144  0             (2048, 32)                    blk.26.ssm_alpha.weight
+ 493      7904607840          262144  0             (2048, 32)                    blk.26.ssm_beta.weight
+ 494      7904869984          131072  0             (4, 8192)                     blk.26.ssm_conv1d.weight
+ 495      7905001056             128  0             (32,)                         blk.26.ssm_dt.bias
+ 496      7905001184             512  0             (128,)                        blk.26.ssm_norm.weight
+ 497      7905001696         6881280  14            (4096, 2048)                  blk.26.ssm_out.weight
+ 498      7911882976          720896  13            (2048, 512)                   blk.27.attn_k.weight
+ 499      7912603872            1024  0             (256,)                        blk.27.attn_k_norm.weight
+ 500      7912604896            8192  0             (2048,)                       blk.27.attn_norm.weight
+ 501      7912613088         5767168  13            (4096, 2048)                  blk.27.attn_output.weight
+ 502      7918380256        11534336  13            (2048, 8192)                  blk.27.attn_q.weight
+ 503      7929914592            1024  0             (256,)                        blk.27.attn_q_norm.weight
+ 504      7929915616          720896  13            (2048, 512)                   blk.27.attn_v.weight
+ 505      7930636512       102760448  18            (512, 2048, 256)              blk.27.ffn_down_exps.weight
+ 506      8033396960          860160  14            (512, 2048)                   blk.27.ffn_down_shexp.weight
+ 507      8034257120        69206016  16            (2048, 512, 256)              blk.27.ffn_gate_exps.weight
+ 508      8103463136         2097152  0             (2048, 256)                   blk.27.ffn_gate_inp.weight
+ 509      8105560288            8192  0             (2048,)                       blk.27.ffn_gate_inp_shexp.weight
+ 510      8105568480          720896  13            (2048, 512)                   blk.27.ffn_gate_shexp.weight
+ 511      8106289376        69206016  16            (2048, 512, 256)              blk.27.ffn_up_exps.weight
+ 512      8175495392          720896  13            (2048, 512)                   blk.27.ffn_up_shexp.weight
+ 513      8176216288            8192  0             (2048,)                       blk.27.post_attention_norm.weight
+ 514      8176224480         5767168  13            (2048, 4096)                  blk.28.attn_gate.weight
+ 515      8181991648            8192  0             (2048,)                       blk.28.attn_norm.weight
+ 516      8181999840        11534336  13            (2048, 8192)                  blk.28.attn_qkv.weight
+ 517      8193534176       102760448  18            (512, 2048, 256)              blk.28.ffn_down_exps.weight
+ 518      8296294624          860160  14            (512, 2048)                   blk.28.ffn_down_shexp.weight
+ 519      8297154784        69206016  16            (2048, 512, 256)              blk.28.ffn_gate_exps.weight
+ 520      8366360800         2097152  0             (2048, 256)                   blk.28.ffn_gate_inp.weight
+ 521      8368457952            8192  0             (2048,)                       blk.28.ffn_gate_inp_shexp.weight
+ 522      8368466144          720896  13            (2048, 512)                   blk.28.ffn_gate_shexp.weight
+ 523      8369187040        69206016  16            (2048, 512, 256)              blk.28.ffn_up_exps.weight
+ 524      8438393056          720896  13            (2048, 512)                   blk.28.ffn_up_shexp.weight
+ 525      8439113952            8192  0             (2048,)                       blk.28.post_attention_norm.weight
+ 526      8439122144             128  0             (32,)                         blk.28.ssm_a
+ 527      8439122272          262144  0             (2048, 32)                    blk.28.ssm_alpha.weight
+ 528      8439384416          262144  0             (2048, 32)                    blk.28.ssm_beta.weight
+ 529      8439646560          131072  0             (4, 8192)                     blk.28.ssm_conv1d.weight
+ 530      8439777632             128  0             (32,)                         blk.28.ssm_dt.bias
+ 531      8439777760             512  0             (128,)                        blk.28.ssm_norm.weight
+ 532      8439778272         6881280  14            (4096, 2048)                  blk.28.ssm_out.weight
+ 533      8446659552         5767168  13            (2048, 4096)                  blk.29.attn_gate.weight
+ 534      8452426720            8192  0             (2048,)                       blk.29.attn_norm.weight
+ 535      8452434912        11534336  13            (2048, 8192)                  blk.29.attn_qkv.weight
+ 536      8463969248       102760448  18            (512, 2048, 256)              blk.29.ffn_down_exps.weight
+ 537      8566729696          860160  14            (512, 2048)                   blk.29.ffn_down_shexp.weight
+ 538      8567589856        69206016  16            (2048, 512, 256)              blk.29.ffn_gate_exps.weight
+ 539      8636795872         2097152  0             (2048, 256)                   blk.29.ffn_gate_inp.weight
+ 540      8638893024            8192  0             (2048,)                       blk.29.ffn_gate_inp_shexp.weight
+ 541      8638901216          720896  13            (2048, 512)                   blk.29.ffn_gate_shexp.weight
+ 542      8639622112        69206016  16            (2048, 512, 256)              blk.29.ffn_up_exps.weight
+ 543      8708828128          720896  13            (2048, 512)                   blk.29.ffn_up_shexp.weight
+ 544      8709549024            8192  0             (2048,)                       blk.29.post_attention_norm.weight
+ 545      8709557216             128  0             (32,)                         blk.29.ssm_a
+ 546      8709557344          262144  0             (2048, 32)                    blk.29.ssm_alpha.weight
+ 547      8709819488          262144  0             (2048, 32)                    blk.29.ssm_beta.weight
+ 548      8710081632          131072  0             (4, 8192)                     blk.29.ssm_conv1d.weight
+ 549      8710212704             128  0             (32,)                         blk.29.ssm_dt.bias
+ 550      8710212832             512  0             (128,)                        blk.29.ssm_norm.weight
+ 551      8710213344         6881280  14            (4096, 2048)                  blk.29.ssm_out.weight
+ 552      8717094624         5767168  13            (2048, 4096)                  blk.30.attn_gate.weight
+ 553      8722861792            8192  0             (2048,)                       blk.30.attn_norm.weight
+ 554      8722869984        11534336  13            (2048, 8192)                  blk.30.attn_qkv.weight
+ 555      8734404320       102760448  18            (512, 2048, 256)              blk.30.ffn_down_exps.weight
+ 556      8837164768          860160  14            (512, 2048)                   blk.30.ffn_down_shexp.weight
+ 557      8838024928        69206016  16            (2048, 512, 256)              blk.30.ffn_gate_exps.weight
+ 558      8907230944         2097152  0             (2048, 256)                   blk.30.ffn_gate_inp.weight
+ 559      8909328096            8192  0             (2048,)                       blk.30.ffn_gate_inp_shexp.weight
+ 560      8909336288          720896  13            (2048, 512)                   blk.30.ffn_gate_shexp.weight
+ 561      8910057184        69206016  16            (2048, 512, 256)              blk.30.ffn_up_exps.weight
+ 562      8979263200          720896  13            (2048, 512)                   blk.30.ffn_up_shexp.weight
+ 563      8979984096            8192  0             (2048,)                       blk.30.post_attention_norm.weight
+ 564      8979992288             128  0             (32,)                         blk.30.ssm_a
+ 565      8979992416          262144  0             (2048, 32)                    blk.30.ssm_alpha.weight
+ 566      8980254560          262144  0             (2048, 32)                    blk.30.ssm_beta.weight
+ 567      8980516704          131072  0             (4, 8192)                     blk.30.ssm_conv1d.weight
+ 568      8980647776             128  0             (32,)                         blk.30.ssm_dt.bias
+ 569      8980647904             512  0             (128,)                        blk.30.ssm_norm.weight
+ 570      8980648416         6881280  14            (4096, 2048)                  blk.30.ssm_out.weight
+ 571      8987529696          720896  13            (2048, 512)                   blk.31.attn_k.weight
+ 572      8988250592            1024  0             (256,)                        blk.31.attn_k_norm.weight
+ 573      8988251616            8192  0             (2048,)                       blk.31.attn_norm.weight
+ 574      8988259808         5767168  13            (4096, 2048)                  blk.31.attn_output.weight
+ 575      8994026976        11534336  13            (2048, 8192)                  blk.31.attn_q.weight
+ 576      9005561312            1024  0             (256,)                        blk.31.attn_q_norm.weight
+ 577      9005562336          720896  13            (2048, 512)                   blk.31.attn_v.weight
+ 578      9006283232       102760448  18            (512, 2048, 256)              blk.31.ffn_down_exps.weight
+ 579      9109043680          860160  14            (512, 2048)                   blk.31.ffn_down_shexp.weight
+ 580      9109903840        69206016  16            (2048, 512, 256)              blk.31.ffn_gate_exps.weight
+ 581      9179109856         2097152  0             (2048, 256)                   blk.31.ffn_gate_inp.weight
+ 582      9181207008            8192  0             (2048,)                       blk.31.ffn_gate_inp_shexp.weight
+ 583      9181215200          720896  13            (2048, 512)                   blk.31.ffn_gate_shexp.weight
+ 584      9181936096        69206016  16            (2048, 512, 256)              blk.31.ffn_up_exps.weight
+ 585      9251142112          720896  13            (2048, 512)                   blk.31.ffn_up_shexp.weight
+ 586      9251863008            8192  0             (2048,)                       blk.31.post_attention_norm.weight
+ 587      9251871200         5767168  13            (2048, 4096)                  blk.32.attn_gate.weight
+ 588      9257638368            8192  0             (2048,)                       blk.32.attn_norm.weight
+ 589      9257646560        11534336  13            (2048, 8192)                  blk.32.attn_qkv.weight
+ 590      9269180896       102760448  18            (512, 2048, 256)              blk.32.ffn_down_exps.weight
+ 591      9371941344          860160  14            (512, 2048)                   blk.32.ffn_down_shexp.weight
+ 592      9372801504        69206016  16            (2048, 512, 256)              blk.32.ffn_gate_exps.weight
+ 593      9442007520         2097152  0             (2048, 256)                   blk.32.ffn_gate_inp.weight
+ 594      9444104672            8192  0             (2048,)                       blk.32.ffn_gate_inp_shexp.weight
+ 595      9444112864          720896  13            (2048, 512)                   blk.32.ffn_gate_shexp.weight
+ 596      9444833760        69206016  16            (2048, 512, 256)              blk.32.ffn_up_exps.weight
+ 597      9514039776          720896  13            (2048, 512)                   blk.32.ffn_up_shexp.weight
+ 598      9514760672            8192  0             (2048,)                       blk.32.post_attention_norm.weight
+ 599      9514768864             128  0             (32,)                         blk.32.ssm_a
+ 600      9514768992          262144  0             (2048, 32)                    blk.32.ssm_alpha.weight
+ 601      9515031136          262144  0             (2048, 32)                    blk.32.ssm_beta.weight
+ 602      9515293280          131072  0             (4, 8192)                     blk.32.ssm_conv1d.weight
+ 603      9515424352             128  0             (32,)                         blk.32.ssm_dt.bias
+ 604      9515424480             512  0             (128,)                        blk.32.ssm_norm.weight
+ 605      9515424992         6881280  14            (4096, 2048)                  blk.32.ssm_out.weight
+ 606      9522306272         5767168  13            (2048, 4096)                  blk.33.attn_gate.weight
+ 607      9528073440            8192  0             (2048,)                       blk.33.attn_norm.weight
+ 608      9528081632        11534336  13            (2048, 8192)                  blk.33.attn_qkv.weight
+ 609      9539615968       102760448  18            (512, 2048, 256)              blk.33.ffn_down_exps.weight
+ 610      9642376416          860160  14            (512, 2048)                   blk.33.ffn_down_shexp.weight
+ 611      9643236576        69206016  16            (2048, 512, 256)              blk.33.ffn_gate_exps.weight
+ 612      9712442592         2097152  0             (2048, 256)                   blk.33.ffn_gate_inp.weight
+ 613      9714539744            8192  0             (2048,)                       blk.33.ffn_gate_inp_shexp.weight
+ 614      9714547936          720896  13            (2048, 512)                   blk.33.ffn_gate_shexp.weight
+ 615      9715268832        69206016  16            (2048, 512, 256)              blk.33.ffn_up_exps.weight
+ 616      9784474848          720896  13            (2048, 512)                   blk.33.ffn_up_shexp.weight
+ 617      9785195744            8192  0             (2048,)                       blk.33.post_attention_norm.weight
+ 618      9785203936             128  0             (32,)                         blk.33.ssm_a
+ 619      9785204064          262144  0             (2048, 32)                    blk.33.ssm_alpha.weight
+ 620      9785466208          262144  0             (2048, 32)                    blk.33.ssm_beta.weight
+ 621      9785728352          131072  0             (4, 8192)                     blk.33.ssm_conv1d.weight
+ 622      9785859424             128  0             (32,)                         blk.33.ssm_dt.bias
+ 623      9785859552             512  0             (128,)                        blk.33.ssm_norm.weight
+ 624      9785860064         6881280  14            (4096, 2048)                  blk.33.ssm_out.weight
+ 625      9792741344         5767168  13            (2048, 4096)                  blk.34.attn_gate.weight
+ 626      9798508512            8192  0             (2048,)                       blk.34.attn_norm.weight
+ 627      9798516704        11534336  13            (2048, 8192)                  blk.34.attn_qkv.weight
+ 628      9810051040       142606336  23            (512, 2048, 256)              blk.34.ffn_down_exps.weight
+ 629      9952657376          860160  14            (512, 2048)                   blk.34.ffn_down_shexp.weight
+ 630      9953517536        69206016  16            (2048, 512, 256)              blk.34.ffn_gate_exps.weight
+ 631     10022723552         2097152  0             (2048, 256)                   blk.34.ffn_gate_inp.weight
+ 632     10024820704            8192  0             (2048,)                       blk.34.ffn_gate_inp_shexp.weight
+ 633     10024828896          720896  13            (2048, 512)                   blk.34.ffn_gate_shexp.weight
+ 634     10025549792        69206016  16            (2048, 512, 256)              blk.34.ffn_up_exps.weight
+ 635     10094755808          720896  13            (2048, 512)                   blk.34.ffn_up_shexp.weight
+ 636     10095476704            8192  0             (2048,)                       blk.34.post_attention_norm.weight
+ 637     10095484896             128  0             (32,)                         blk.34.ssm_a
+ 638     10095485024          262144  0             (2048, 32)                    blk.34.ssm_alpha.weight
+ 639     10095747168          262144  0             (2048, 32)                    blk.34.ssm_beta.weight
+ 640     10096009312          131072  0             (4, 8192)                     blk.34.ssm_conv1d.weight
+ 641     10096140384             128  0             (32,)                         blk.34.ssm_dt.bias
+ 642     10096140512             512  0             (128,)                        blk.34.ssm_norm.weight
+ 643     10096141024         6881280  14            (4096, 2048)                  blk.34.ssm_out.weight
+ 644     10103022304          720896  13            (2048, 512)                   blk.35.attn_k.weight
+ 645     10103743200            1024  0             (256,)                        blk.35.attn_k_norm.weight
+ 646     10103744224            8192  0             (2048,)                       blk.35.attn_norm.weight
+ 647     10103752416         5767168  13            (4096, 2048)                  blk.35.attn_output.weight
+ 648     10109519584        11534336  13            (2048, 8192)                  blk.35.attn_q.weight
+ 649     10121053920            1024  0             (256,)                        blk.35.attn_q_norm.weight
+ 650     10121054944          720896  13            (2048, 512)                   blk.35.attn_v.weight
+ 651     10121775840       102760448  18            (512, 2048, 256)              blk.35.ffn_down_exps.weight
+ 652     10224536288          860160  14            (512, 2048)                   blk.35.ffn_down_shexp.weight
+ 653     10225396448        69206016  16            (2048, 512, 256)              blk.35.ffn_gate_exps.weight
+ 654     10294602464         2097152  0             (2048, 256)                   blk.35.ffn_gate_inp.weight
+ 655     10296699616            8192  0             (2048,)                       blk.35.ffn_gate_inp_shexp.weight
+ 656     10296707808          720896  13            (2048, 512)                   blk.35.ffn_gate_shexp.weight
+ 657     10297428704        69206016  16            (2048, 512, 256)              blk.35.ffn_up_exps.weight
+ 658     10366634720          720896  13            (2048, 512)                   blk.35.ffn_up_shexp.weight
+ 659     10367355616            8192  0             (2048,)                       blk.35.post_attention_norm.weight
+ 660     10367363808         5767168  13            (2048, 4096)                  blk.36.attn_gate.weight
+ 661     10373130976            8192  0             (2048,)                       blk.36.attn_norm.weight
+ 662     10373139168        11534336  13            (2048, 8192)                  blk.36.attn_qkv.weight
+ 663     10384673504       102760448  18            (512, 2048, 256)              blk.36.ffn_down_exps.weight
+ 664     10487433952          860160  14            (512, 2048)                   blk.36.ffn_down_shexp.weight
+ 665     10488294112        69206016  16            (2048, 512, 256)              blk.36.ffn_gate_exps.weight
+ 666     10557500128         2097152  0             (2048, 256)                   blk.36.ffn_gate_inp.weight
+ 667     10559597280            8192  0             (2048,)                       blk.36.ffn_gate_inp_shexp.weight
+ 668     10559605472          720896  13            (2048, 512)                   blk.36.ffn_gate_shexp.weight
+ 669     10560326368        69206016  16            (2048, 512, 256)              blk.36.ffn_up_exps.weight
+ 670     10629532384          720896  13            (2048, 512)                   blk.36.ffn_up_shexp.weight
+ 671     10630253280            8192  0             (2048,)                       blk.36.post_attention_norm.weight
+ 672     10630261472             128  0             (32,)                         blk.36.ssm_a
+ 673     10630261600          262144  0             (2048, 32)                    blk.36.ssm_alpha.weight
+ 674     10630523744          262144  0             (2048, 32)                    blk.36.ssm_beta.weight
+ 675     10630785888          131072  0             (4, 8192)                     blk.36.ssm_conv1d.weight
+ 676     10630916960             128  0             (32,)                         blk.36.ssm_dt.bias
+ 677     10630917088             512  0             (128,)                        blk.36.ssm_norm.weight
+ 678     10630917600         6881280  14            (4096, 2048)                  blk.36.ssm_out.weight
+ 679     10637798880         5767168  13            (2048, 4096)                  blk.37.attn_gate.weight
+ 680     10643566048            8192  0             (2048,)                       blk.37.attn_norm.weight
+ 681     10643574240        11534336  13            (2048, 8192)                  blk.37.attn_qkv.weight
+ 682     10655108576       102760448  18            (512, 2048, 256)              blk.37.ffn_down_exps.weight
+ 683     10757869024          860160  14            (512, 2048)                   blk.37.ffn_down_shexp.weight
+ 684     10758729184        69206016  16            (2048, 512, 256)              blk.37.ffn_gate_exps.weight
+ 685     10827935200         2097152  0             (2048, 256)                   blk.37.ffn_gate_inp.weight
+ 686     10830032352            8192  0             (2048,)                       blk.37.ffn_gate_inp_shexp.weight
+ 687     10830040544          720896  13            (2048, 512)                   blk.37.ffn_gate_shexp.weight
+ 688     10830761440        69206016  16            (2048, 512, 256)              blk.37.ffn_up_exps.weight
+ 689     10899967456          720896  13            (2048, 512)                   blk.37.ffn_up_shexp.weight
+ 690     10900688352            8192  0             (2048,)                       blk.37.post_attention_norm.weight
+ 691     10900696544             128  0             (32,)                         blk.37.ssm_a
+ 692     10900696672          262144  0             (2048, 32)                    blk.37.ssm_alpha.weight
+ 693     10900958816          262144  0             (2048, 32)                    blk.37.ssm_beta.weight
+ 694     10901220960          131072  0             (4, 8192)                     blk.37.ssm_conv1d.weight
+ 695     10901352032             128  0             (32,)                         blk.37.ssm_dt.bias
+ 696     10901352160             512  0             (128,)                        blk.37.ssm_norm.weight
+ 697     10901352672         6881280  14            (4096, 2048)                  blk.37.ssm_out.weight
+ 698     10908233952         5767168  13            (2048, 4096)                  blk.38.attn_gate.weight
+ 699     10914001120            8192  0             (2048,)                       blk.38.attn_norm.weight
+ 700     10914009312        11534336  13            (2048, 8192)                  blk.38.attn_qkv.weight
+ 701     10925543648       142606336  23            (512, 2048, 256)              blk.38.ffn_down_exps.weight
+ 702     11068149984          860160  14            (512, 2048)                   blk.38.ffn_down_shexp.weight
+ 703     11069010144        69206016  16            (2048, 512, 256)              blk.38.ffn_gate_exps.weight
+ 704     11138216160         2097152  0             (2048, 256)                   blk.38.ffn_gate_inp.weight
+ 705     11140313312            8192  0             (2048,)                       blk.38.ffn_gate_inp_shexp.weight
+ 706     11140321504          720896  13            (2048, 512)                   blk.38.ffn_gate_shexp.weight
+ 707     11141042400        69206016  16            (2048, 512, 256)              blk.38.ffn_up_exps.weight
+ 708     11210248416          720896  13            (2048, 512)                   blk.38.ffn_up_shexp.weight
+ 709     11210969312            8192  0             (2048,)                       blk.38.post_attention_norm.weight
+ 710     11210977504             128  0             (32,)                         blk.38.ssm_a
+ 711     11210977632          262144  0             (2048, 32)                    blk.38.ssm_alpha.weight
+ 712     11211239776          262144  0             (2048, 32)                    blk.38.ssm_beta.weight
+ 713     11211501920          131072  0             (4, 8192)                     blk.38.ssm_conv1d.weight
+ 714     11211632992             128  0             (32,)                         blk.38.ssm_dt.bias
+ 715     11211633120             512  0             (128,)                        blk.38.ssm_norm.weight
+ 716     11211633632         6881280  14            (4096, 2048)                  blk.38.ssm_out.weight
+ 717     11218514912          720896  13            (2048, 512)                   blk.39.attn_k.weight
+ 718     11219235808            1024  0             (256,)                        blk.39.attn_k_norm.weight
+ 719     11219236832            8192  0             (2048,)                       blk.39.attn_norm.weight
+ 720     11219245024         5767168  13            (4096, 2048)                  blk.39.attn_output.weight
+ 721     11225012192        11534336  13            (2048, 8192)                  blk.39.attn_q.weight
+ 722     11236546528            1024  0             (256,)                        blk.39.attn_q_norm.weight
+ 723     11236547552          720896  13            (2048, 512)                   blk.39.attn_v.weight
+ 724     11237268448       142606336  23            (512, 2048, 256)              blk.39.ffn_down_exps.weight
+ 725     11379874784          860160  14            (512, 2048)                   blk.39.ffn_down_shexp.weight
+ 726     11380734944        69206016  16            (2048, 512, 256)              blk.39.ffn_gate_exps.weight
+ 727     11449940960         2097152  0             (2048, 256)                   blk.39.ffn_gate_inp.weight
+ 728     11452038112            8192  0             (2048,)                       blk.39.ffn_gate_inp_shexp.weight
+ 729     11452046304          720896  13            (2048, 512)                   blk.39.ffn_gate_shexp.weight
+ 730     11452767200        69206016  16            (2048, 512, 256)              blk.39.ffn_up_exps.weight
+ 731     11521973216          720896  13            (2048, 512)                   blk.39.ffn_up_shexp.weight
+ 732     11522694112            8192  0             (2048,)                       blk.39.post_attention_norm.weight
+
+Totale tensori: 733
+Somma n_bytes tensori: 11511712256 (10.7211 GiB / 11.5117 GB)
+Overhead metadata (file - sum tensor): 10990048 (10.4809 MiB / 10.9900 MB)  (0.0954%)
+Nota offset: GGUFReader espone data_offset (offset assoluto nel file del payload tensore).
+
+## 3. Tensori esperti MoE
+
+Trovati 240 tensori esperti (ffn_*_exps / shexp).
+Layer con tensori esperti: 40  (min=0, max=39)
+Kind osservati (primi layer): ['ffn_down_exps', 'ffn_down_shexp', 'ffn_gate_exps', 'ffn_gate_shexp', 'ffn_up_exps', 'ffn_up_shexp']
+
+### Breakdown per-layer (primi 3 + ultimo)
+
+--- layer 0 ---
+  ffn_down_exps          shape=(512, 2048, 256) dtype=18 tensor=102760448 (98.0000 MiB / 102.7604 MB) n_exp_dim=256 per_expert=401408 (392.0000 KiB) off=664007136
+  ffn_down_shexp         shape=(512, 2048) dtype=14 tensor=860160 (840.0000 KiB) n_exp_dim=None per_expert=860160 (840.0000 KiB) off=766767584
+  ffn_gate_exps          shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=767627744
+  ffn_gate_shexp         shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=838939104
+  ffn_up_exps            shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=839660000
+  ffn_up_shexp           shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=908866016
+  TOTALE layer (tutti gli esperti): 241172480 (230.0000 MiB / 241.1725 MB)
+  TOTALE per 1 esperto (somma matrici): 942080 (920.0000 KiB)
+--- layer 1 ---
+  ffn_down_exps          shape=(512, 2048, 256) dtype=18 tensor=102760448 (98.0000 MiB / 102.7604 MB) n_exp_dim=256 per_expert=401408 (392.0000 KiB) off=934442208
+  ffn_down_shexp         shape=(512, 2048) dtype=14 tensor=860160 (840.0000 KiB) n_exp_dim=None per_expert=860160 (840.0000 KiB) off=1037202656
+  ffn_gate_exps          shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=1038062816
+  ffn_gate_shexp         shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=1109374176
+  ffn_up_exps            shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=1110095072
+  ffn_up_shexp           shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=1179301088
+  TOTALE layer (tutti gli esperti): 241172480 (230.0000 MiB / 241.1725 MB)
+  TOTALE per 1 esperto (somma matrici): 942080 (920.0000 KiB)
+--- layer 2 ---
+  ffn_down_exps          shape=(512, 2048, 256) dtype=18 tensor=102760448 (98.0000 MiB / 102.7604 MB) n_exp_dim=256 per_expert=401408 (392.0000 KiB) off=1204877280
+  ffn_down_shexp         shape=(512, 2048) dtype=14 tensor=860160 (840.0000 KiB) n_exp_dim=None per_expert=860160 (840.0000 KiB) off=1307637728
+  ffn_gate_exps          shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=1308497888
+  ffn_gate_shexp         shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=1379809248
+  ffn_up_exps            shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=1380530144
+  ffn_up_shexp           shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=1449736160
+  TOTALE layer (tutti gli esperti): 241172480 (230.0000 MiB / 241.1725 MB)
+  TOTALE per 1 esperto (somma matrici): 942080 (920.0000 KiB)
+--- layer 39 ---
+  ffn_down_exps          shape=(512, 2048, 256) dtype=23 tensor=142606336 (136.0000 MiB / 142.6063 MB) n_exp_dim=256 per_expert=557056 (544.0000 KiB) off=11237268448
+  ffn_down_shexp         shape=(512, 2048) dtype=14 tensor=860160 (840.0000 KiB) n_exp_dim=None per_expert=860160 (840.0000 KiB) off=11379874784
+  ffn_gate_exps          shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=11380734944
+  ffn_gate_shexp         shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=11452046304
+  ffn_up_exps            shape=(2048, 512, 256) dtype=16 tensor=69206016 (66.0000 MiB / 69.2060 MB) n_exp_dim=256 per_expert=270336 (264.0000 KiB) off=11452767200
+  ffn_up_shexp           shape=(2048, 512) dtype=13 tensor=720896 (704.0000 KiB) n_exp_dim=None per_expert=720896 (704.0000 KiB) off=11521973216
+  TOTALE layer (tutti gli esperti): 281018368 (268.0000 MiB / 281.0184 MB)
+  TOTALE per 1 esperto (somma matrici): 1097728 (1.0469 MiB / 1.0977 MB)
+
+Byte per 1 esperto per layer (somma matrici): min=942080 max=1097728 unique_values=2
+  942080 (920.0000 KiB) → 37 layer
+  1097728 (1.0469 MiB / 1.0977 MB) → 3 layer
+
+### Byte medi per-esperto per matrice (su tutti i layer)
+
+  ffn_down_exps          n=40  mean=413081.6 B (0.4131 MB)  min=401408 max=557056
+  ffn_down_shexp         n=40  mean=860160.0 B (0.8602 MB)  min=860160 max=860160
+  ffn_gate_exps          n=40  mean=270336.0 B (0.2703 MB)  min=270336 max=270336
+  ffn_gate_shexp         n=40  mean=720896.0 B (0.7209 MB)  min=720896 max=720896
+  ffn_up_exps            n=40  mean=270336.0 B (0.2703 MB)  min=270336 max=270336
+  ffn_up_shexp           n=40  mean=720896.0 B (0.7209 MB)  min=720896 max=720896
+
+## 4. Layout nel file (ordine e contiguità)
+
+### Primi 30 tensori (ordine di file = ordine reader.tensors)
+
+  [   0] off=    10990048  output.weight  shape=(2048, 248320)  12
+  [   1] off=   297054688  output_norm.weight  shape=(2048,)  0
+  [   2] off=   297062880  token_embd.weight  shape=(2048, 248320)  13
+  [   3] off=   646697440  blk.0.attn_gate.weight  shape=(2048, 4096)  13
+  [   4] off=   652464608  blk.0.attn_norm.weight  shape=(2048,)  0
+  [   5] off=   652472800  blk.0.attn_qkv.weight  shape=(2048, 8192)  13
+  [   6] off=   664007136  blk.0.ffn_down_exps.weight  shape=(512, 2048, 256)  18
+  [   7] off=   766767584  blk.0.ffn_down_shexp.weight  shape=(512, 2048)  14
+  [   8] off=   767627744  blk.0.ffn_gate_exps.weight  shape=(2048, 512, 256)  16
+  [   9] off=   836833760  blk.0.ffn_gate_inp.weight  shape=(2048, 256)  0
+  [  10] off=   838930912  blk.0.ffn_gate_inp_shexp.weight  shape=(2048,)  0
+  [  11] off=   838939104  blk.0.ffn_gate_shexp.weight  shape=(2048, 512)  13
+  [  12] off=   839660000  blk.0.ffn_up_exps.weight  shape=(2048, 512, 256)  16
+  [  13] off=   908866016  blk.0.ffn_up_shexp.weight  shape=(2048, 512)  13
+  [  14] off=   909586912  blk.0.post_attention_norm.weight  shape=(2048,)  0
+  [  15] off=   909595104  blk.0.ssm_a  shape=(32,)  0
+  [  16] off=   909595232  blk.0.ssm_alpha.weight  shape=(2048, 32)  0
+  [  17] off=   909857376  blk.0.ssm_beta.weight  shape=(2048, 32)  0
+  [  18] off=   910119520  blk.0.ssm_conv1d.weight  shape=(4, 8192)  0
+  [  19] off=   910250592  blk.0.ssm_dt.bias  shape=(32,)  0
+  [  20] off=   910250720  blk.0.ssm_norm.weight  shape=(128,)  0
+  [  21] off=   910251232  blk.0.ssm_out.weight  shape=(4096, 2048)  14
+  [  22] off=   917132512  blk.1.attn_gate.weight  shape=(2048, 4096)  13
+  [  23] off=   922899680  blk.1.attn_norm.weight  shape=(2048,)  0
+  [  24] off=   922907872  blk.1.attn_qkv.weight  shape=(2048, 8192)  13
+  [  25] off=   934442208  blk.1.ffn_down_exps.weight  shape=(512, 2048, 256)  18
+  [  26] off=  1037202656  blk.1.ffn_down_shexp.weight  shape=(512, 2048)  14
+  [  27] off=  1038062816  blk.1.ffn_gate_exps.weight  shape=(2048, 512, 256)  16
+  [  28] off=  1107268832  blk.1.ffn_gate_inp.weight  shape=(2048, 256)  0
+  [  29] off=  1109365984  blk.1.ffn_gate_inp_shexp.weight  shape=(2048,)  0
+
+### Tensori esperti layer 0, 1, 2 e ultimo — indici e offset
+
+layer 0:
+  idx=   6 off=   664007136 end=   766767584  ffn_down_exps  bytes=102760448
+  idx=   7 off=   766767584 end=   767627744  ffn_down_shexp  bytes=860160
+  idx=   8 off=   767627744 end=   836833760  ffn_gate_exps  bytes=69206016
+  idx=  11 off=   838939104 end=   839660000  ffn_gate_shexp  bytes=720896
+  idx=  12 off=   839660000 end=   908866016  ffn_up_exps  bytes=69206016
+  idx=  13 off=   908866016 end=   909586912  ffn_up_shexp  bytes=720896
+layer 1:
+  idx=  25 off=   934442208 end=  1037202656  ffn_down_exps  bytes=102760448
+  idx=  26 off=  1037202656 end=  1038062816  ffn_down_shexp  bytes=860160
+  idx=  27 off=  1038062816 end=  1107268832  ffn_gate_exps  bytes=69206016
+  idx=  30 off=  1109374176 end=  1110095072  ffn_gate_shexp  bytes=720896
+  idx=  31 off=  1110095072 end=  1179301088  ffn_up_exps  bytes=69206016
+  idx=  32 off=  1179301088 end=  1180021984  ffn_up_shexp  bytes=720896
+layer 2:
+  idx=  44 off=  1204877280 end=  1307637728  ffn_down_exps  bytes=102760448
+  idx=  45 off=  1307637728 end=  1308497888  ffn_down_shexp  bytes=860160
+  idx=  46 off=  1308497888 end=  1377703904  ffn_gate_exps  bytes=69206016
+  idx=  49 off=  1379809248 end=  1380530144  ffn_gate_shexp  bytes=720896
+  idx=  50 off=  1380530144 end=  1449736160  ffn_up_exps  bytes=69206016
+  idx=  51 off=  1449736160 end=  1450457056  ffn_up_shexp  bytes=720896
+layer 39:
+  idx= 724 off= 11237268448 end= 11379874784  ffn_down_exps  bytes=142606336
+  idx= 725 off= 11379874784 end= 11380734944  ffn_down_shexp  bytes=860160
+  idx= 726 off= 11380734944 end= 11449940960  ffn_gate_exps  bytes=69206016
+  idx= 729 off= 11452046304 end= 11452767200  ffn_gate_shexp  bytes=720896
+  idx= 730 off= 11452767200 end= 11521973216  ffn_up_exps  bytes=69206016
+  idx= 731 off= 11521973216 end= 11522694112  ffn_up_shexp  bytes=720896
+
+### Contiguita' per-layer degli esperti ROUTED (*_exps, no shexp)
+
+Test A: i 3 tensori *_exps di un layer sono adiacenti tra loro (nessun tensore in mezzo)?
+Test B: all'interno di ogni tensore, 1 esperto e' un blocco contiguo
+        (assunzione: dim n_expert = ultima dim GGUF = ne[n-1] = outermost → SI).
+  layer 0: exps range=[664007136,908866016) span=244858880 -> NON contigui (4 in mezzo)
+    gap ffn_down_exps -> ffn_gate_exps: 860160 B
+    gap ffn_gate_exps -> ffn_up_exps: 2826240 B
+    in mezzo: idx=7 off=766767584 blk.0.ffn_down_shexp.weight
+    in mezzo: idx=9 off=836833760 blk.0.ffn_gate_inp.weight
+    in mezzo: idx=10 off=838930912 blk.0.ffn_gate_inp_shexp.weight
+    in mezzo: idx=11 off=838939104 blk.0.ffn_gate_shexp.weight
+  layer 1: exps range=[934442208,1179301088) span=244858880 -> NON contigui (4 in mezzo)
+    gap ffn_down_exps -> ffn_gate_exps: 860160 B
+    gap ffn_gate_exps -> ffn_up_exps: 2826240 B
+    in mezzo: idx=26 off=1037202656 blk.1.ffn_down_shexp.weight
+    in mezzo: idx=28 off=1107268832 blk.1.ffn_gate_inp.weight
+    in mezzo: idx=29 off=1109365984 blk.1.ffn_gate_inp_shexp.weight
+    in mezzo: idx=30 off=1109374176 blk.1.ffn_gate_shexp.weight
+  layer 2: exps range=[1204877280,1449736160) span=244858880 -> NON contigui (4 in mezzo)
+    gap ffn_down_exps -> ffn_gate_exps: 860160 B
+    gap ffn_gate_exps -> ffn_up_exps: 2826240 B
+    in mezzo: idx=45 off=1307637728 blk.2.ffn_down_shexp.weight
+    in mezzo: idx=47 off=1377703904 blk.2.ffn_gate_inp.weight
+    in mezzo: idx=48 off=1379801056 blk.2.ffn_gate_inp_shexp.weight
+    in mezzo: idx=49 off=1379809248 blk.2.ffn_gate_shexp.weight
+  layer 39: exps range=[11237268448,11521973216) span=284704768 -> NON contigui (4 in mezzo)
+    gap ffn_down_exps -> ffn_gate_exps: 860160 B
+    gap ffn_gate_exps -> ffn_up_exps: 2826240 B
+    in mezzo: idx=725 off=11379874784 blk.39.ffn_down_shexp.weight
+    in mezzo: idx=727 off=11449940960 blk.39.ffn_gate_inp.weight
+    in mezzo: idx=728 off=11452038112 blk.39.ffn_gate_inp_shexp.weight
+    in mezzo: idx=729 off=11452046304 blk.39.ffn_gate_shexp.weight
+
+Layer con i 3 *_exps mutuamente contigui: 0/40
+Nota: ordine tipico per layer = down_exps, down_shexp, gate_exps, gate_inp,
+      gate_inp_shexp, gate_shexp, up_exps, up_shexp → shexp+router spezzano i 3 exps.
+Tensori esperti in ordine di layer crescente (stabile): True
+
+### Pattern interleaving (tra esperti layer L e L+1)
+
+  tra layer 0 e 1: 11 tensori (gap=24855296 B) → ['blk.0.post_attention_norm.weight', 'blk.0.ssm_a', 'blk.0.ssm_alpha.weight', 'blk.0.ssm_beta.weight', 'blk.0.ssm_conv1d.weight', 'blk.0.ssm_dt.bias', 'blk.0.ssm_norm.weight', 'blk.0.ssm_out.weight']...
+  tra layer 1 e 2: 11 tensori (gap=24855296 B) → ['blk.1.post_attention_norm.weight', 'blk.1.ssm_a', 'blk.1.ssm_alpha.weight', 'blk.1.ssm_beta.weight', 'blk.1.ssm_conv1d.weight', 'blk.1.ssm_dt.bias', 'blk.1.ssm_norm.weight', 'blk.1.ssm_out.weight']...
+  tra layer 2 e 3: 15 tensori (gap=26299136 B) → ['blk.2.post_attention_norm.weight', 'blk.2.ssm_a', 'blk.2.ssm_alpha.weight', 'blk.2.ssm_beta.weight', 'blk.2.ssm_conv1d.weight', 'blk.2.ssm_dt.bias', 'blk.2.ssm_norm.weight', 'blk.2.ssm_out.weight']...
+
+## 5. Numeri chiave: per-esperto, traffico naive, sanity
+
+  bytes / esperto / layer (misurato) = 942080  (0.9421 MB / 0.8984 MiB)
+  n_expert (metadata)                = 256
+  n_expert_used (metadata)           = 8
+  n_shared (metadata)                = 1
+  n_routed usati per traffico naive  = 8  (= expert_used_count; shared e' additivo/residente)
+  n_layers con esperti               = 40
+  Traffico naive / token (0% hit)    = 8 × 40 × 942080 = 301465600 B = 301.47 MB/token
+
+  Breakdown matrici (byte per 1 esperto, media su layer):
+    ffn_down_exps          413081.6 B  (0.4131 MB)
+    ffn_gate_exps          270336.0 B  (0.2703 MB)
+    ffn_up_exps            270336.0 B  (0.2703 MB)
+    SOMMA matrici routed           953753.6 B  (0.9538 MB)
+
+  Sanity parametri (da metadata):
+    hidden=2048  moe_ff=512
+    params/esperto/layer (3·H·I) = 3,145,728
+    256×40×params               = 32,212,254,720 (32.21B)
+    byte totali esperti (n_exp×L×b)  = 9646899200 (8.9844 GiB / 9.6469 GB)
+    bpw effettivo esperti            = 2.396 bit/weight
+
+  Shared expert (shexp) per layer: mean=2301952 (2.1953 MiB / 2.3020 MB)  × 40 layer = 92078080 (87.8125 MiB / 92.0781 MB)
+
+## 6. Formula guida aggiornata
+
+  t_token ≈ t_compute(3B attivi, CPU 8g2) + n_miss × t_load_esperto
+  t_load_esperto ≈ tempo UFS per caricare 0.942 MB (942080 B) random
+  n_miss = 8 × 40 × (1 − hit_rate) = 320 × (1 − h)
+  traffico_flash/token = n_miss × 0.942 MB
+
+## DONE

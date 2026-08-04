@@ -14,6 +14,7 @@ __pycache__/
 llama.cpp/
 BigMoeOnEdge/
 build/
+build-*/
 
 # Rumore
 *.tmp

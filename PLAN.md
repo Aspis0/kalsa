@@ -25,6 +25,22 @@ Ri-verifica online F0.1 (GitHub API + HF tree API + `common/arg.cpp` master). Re
 - **Flag mainline `--load-mode`:** modi attuali = `none | mmap | mlock | mmap+mlock | dio` (default `mmap`). Non esiste un modo `on-demand` / `map` con quel nome. Source: `https://raw.githubusercontent.com/ggml-org/llama.cpp/master/common/arg.cpp` (b10244 era il latest release al momento del check).
 - **Invariati (confermati):** PR #26003 OPEN non mergiata; PR #24156 OPEN; PR #22673 MERGED 2026-05-16; GGUF size §3/§4 (GB decimali) match byte-esatti HF; llama.rn **0.12.8** (GitHub + npm); famiglia `--spec-draft-*` + `--spec-type` + `-ctk/-ctv` + `--no-warmup` presenti; fork flag `--moe-stream/--cache-mb/--dense-weights/--drop-cold-experts` presenti nel README.
 
+### Aggiornamenti gguf-dump — 2026-08-03
+
+F0.6 completata: download + analisi `GGUFReader` su `models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf`. Report: `reports/moe-f0.6.md`, dump grezzo: `results/gguf_ud-iq2m_dump.txt`.
+
+- **Size file [V]:** **11 522 702 304** byte — match byte-esatto HF (nessun re-download necessario se già presente).
+- **Metadata [V]:** `general.architecture=qwen35moe`; `block_count=40`; `expert_count=256`; `expert_used_count=8` (solo routed; shared a parte); `embedding_length=2048`; `expert_feed_forward_length=512`; `expert_shared_feed_forward_length=512`; `full_attention_interval=4`; `attention.head_count_kv=2`; `attention.key/value_length=256`.
+- **Per-esperto per-layer [V] (routed, somma gate+up+down):**
+  - **37/40 layer:** **942 080 B = 0.942 MB** (gate IQ2_XXS 270 336 + up IQ2_XXS 270 336 + down IQ3_XXS 401 408).
+  - **3/40 layer (34, 38, 39):** **1 097 728 B = 1.098 MB** (down alzato a IQ4_XS 557 056).
+  - Mediana = 942 080 B; media = 953 754 B.
+- **Traffico naive / token [V]:** 8 routed × 40 layer × 942 080 = **301 465 600 B ≈ 301.5 MB/token** (0% hit; shared residente escluso).
+- **Sanity params [V]:** 3·2048·512 = **3 145 728** params/esperto/layer; 256×40×3.15M = **32.21B** esperti + resto ≈ 35.9B; bpw esperti effettivo ≈ **2.40**.
+- **Layout [V]:** non fused (gate/up/down separati); i 3 `*_exps` di un layer **non** sono contigui tra loro (in mezzo: shexp + router `ffn_gate_inp`); ordinati per layer 0→39; 1 esperto = slice contigua dentro ogni tensore (dim 256 outermost). Overhead metadata: **10 990 048 B (0.095%)**.
+- **§4 budget core aggiornato [V]:** voci 1+2+3+5 = 2.74+5.04+11.52+11.37 = **≈30.67 GB** (non 22.6). Alternativa F6: swap del file target con variante MTP (stesso footprint ~11–12 GB), senza tenere base+MTP insieme.
+- **§5 stime [S] sostituite:** ~1.0–1.3 MB/esperto → **0.942 MB** (mediana); ~350 MB/token → **301.5 MB/token**. Vedi §5 riscritto sotto.
+
 ---
 
 ## 0. TL;DR — le decisioni già prese e cosa cambia rispetto al piano precedente
@@ -351,11 +367,14 @@ Download list per il telefono (home Termux, `~/models/`), in ordine di priorità
 | 2 | LFM2-8B-A1B Q4_K_M (`LiquidAI/LFM2-8B-A1B-GGUF`) | 5.04 | sì — controllo MoE-in-RAM |
 | 3 | **Qwen3.6-35B-A3B UD-IQ2_M** (`unsloth/Qwen3.6-35B-A3B-GGUF`) | 11.52 | sì — target primario |
 | 4 | Qwen3.6-35B-A3B UD-Q2_K_XL | 12.29 | sì, ma si scarica SOLO al momento di F4.4 (servono 12.3GB liberi allora; cancellabile dopo il confronto) |
-| 5 | Qwen3.6-35B-A3B-MTP GGUF (repo unsloth o ggml-org, quant minima disponibile) | ~2-3 [S] | sì — serve per F6 (dimensione esatta da verificare in F0.1) |
+| 5 | Qwen3.6-35B-A3B-MTP GGUF (repo unsloth; quant minima = UD-IQ1_M full+MTP) | **11.37 [V]** (ex ~2–3 [S]; F0.1) | sì — serve per F6; **non** è un draft leggero |
 | 6 | Qwen3.6-35B-A3B UD-IQ3_XXS | 13.21 | solo se gate F4 = PASS |
 | 7 | Gemma-4-26B-A4B UD-IQ2_XXS (`unsloth/gemma-4-26B-A4B-it-GGUF`) | 9.92 | opzionale (cross-check) |
 
-Spazio (matematica esplicita): core residente iniziale = voci 1+2+3+5 ≈ **22.6GB** [S].
+Spazio (matematica esplicita, edit 2026-08-03): core residente iniziale = voci 1+2+3+5 =
+2.74+5.04+11.52+11.37 ≈ **30.7 GB [V]** (non più 22.6 [S]). Alternativa per non sforare:
+tenere solo 1+2+3 (~19.3 GB) e in F6 **sostituire** il file target con la variante MTP
+(stesso ordine di grandezza, niente base+MTP affiancati).
 Requisito d'ingresso: **≥40GB liberi** — copre il core, il margine di lavoro e la voce 4 al
 momento di F4.4 (che va cancellata dopo il confronto se lo spazio è sotto i 15GB liberi).
 Le voci 6-7 (≈23GB in più) SOLO se al momento restano ≥15GB liberi dopo il download previsto.
@@ -370,34 +389,39 @@ niente hash streaming disponibile per file da 11GB+, la size esatta + load riusc
 
 ## 5. La fisica del problema (aggiornata coi numeri veri)
 
-Tutti i numeri seguenti [S] vanno ricalcolati ESATTAMENTE in F0.6 con `gguf-dump` sul file
-UD-IQ2_M; qui fissano gli ordini di grandezza e il framing:
+Numeri F0.6 misurati su `Qwen3.6-35B-A3B-UD-IQ2_M.gguf` (2026-08-03, source:
+`results/gguf_ud-iq2m_dump.txt`). I [S] restanti sono solo I/O UFS e budget RAM device.
 
-- Parametri per esperto per layer ≈ 3 matrici × hidden × 512. Con hidden ≈ 2048 [S]:
-  ≈ **3.15M parametri/esperto/layer** → a ~2.6 bpw medi ≈ **~1.0-1.3 MB per esperto** [S].
-  (Sanity check: 256 esperti × 40 layer × 3.15M ≈ 32.2B + attention/shared/embed ≈ 3.7B ≈
-  35.9B totali ✓)
-- Traffico naive per token (0% hit): 8 esperti routed × 40 layer × ~1.1MB ≈ **~350MB/token** [S].
-  A 300 MB/s di random read effettivo [S] → **~1.2 s/token di solo I/O ≈ 0.85 tok/s**: ecco il muro.
-  (Il placeholder 300MB/s va sostituito col dato fio di F2.1 alla granularità **~1MB — colonna
-  random 256k-1M, NON la 4K**: le letture del progetto sono esperti da ~1.1MB, non pagine da 4K.)
-- Con hit-rate 90% (plausibile da letteratura con cache ≈ 2× working set): ~35MB/token →
-  ~0.12s di I/O → **5-8 tok/s combinando compute** [S]. Il progetto vive o muore qui.
+- Parametri per esperto per layer [V]: 3 matrici × hidden 2048 × moe_ff 512 =
+  **3 145 728 params/esperto/layer**. Quant mista Unsloth UD-IQ2_M:
+  gate/up = IQ2_XXS, down = IQ3_XXS (37 layer) o IQ4_XS (layer 34/38/39).
+  → **942 080 B = 0.942 MB per esperto** (37/40 layer) [V];
+  1 097 728 B = 1.098 MB (3/40 layer) [V]; media 0.954 MB.
+  (Sanity: 256×40×3.15M ≈ 32.21B esperti + attention/shared/embed ≈ 3.7B ≈ 35.9B ✓;
+  bpw esperti effettivo ≈ 2.40 [V].)
+- Traffico naive per token (0% hit) [V]: 8 routed × 40 layer × 942 080 B =
+  **301 465 600 B ≈ 301.5 MB/token** (shared shexp residente, escluso).
+  A 300 MB/s di random read effettivo [S] → **~1.0 s/token di solo I/O ≈ 1.0 tok/s**: ecco il muro.
+  (Il placeholder 300MB/s va sostituito col dato fio di F2.1 alla granularità **~0.9–1.1MB —
+  colonna random 256k-1M, NON la 4K**: le letture del progetto sono esperti da **0.942 MB** [V].)
+- Con hit-rate 90% (plausibile da letteratura con cache ≈ 2× working set): ~30.1 MB/token →
+  ~0.10 s di I/O → **5-8 tok/s combinando compute** [S]. Il progetto vive o muore qui.
 - Budget RAM S23 [S]: 8GB fisici − OS/OneUI ≈ 3-3.5GB → **~4.5GB usabili in Termux** senza
   farsi uccidere da lmkd. Allocazione target: pesi densi+shared residenti ~1.5-2GB + KV+buffer
   ~0.5GB + **cache esperti 1500-2500MB** (`--cache-mb`).
-- KV cache: solo 10 layer di full attention su 40, 2 KV head × head_dim 256 → a q8_0
-  ≈ **10KB/token** [S] → 4k contesto ≈ 40MB: trascurabile. L'ibrido DeltaNet è un
+- KV cache: `full_attention_interval=4` → 10 layer full-attn su 40 [V]; 2 KV head × head_dim 256
+  → a q8_0 ≈ **10KB/token** [S] → 4k contesto ≈ 40MB: trascurabile. L'ibrido DeltaNet/SSM è un
   regalo per questo progetto (in un MoE classico il KV competerebbe con la cache esperti).
-- Cache "utile" in numeri di esperti: 2000MB / ~1.1MB ≈ **~1800 esperti su 10,240 totali
-  (256×40) ≈ 17%** — la letteratura (2505.16056) dice che con questa copertura l'hit-rate
+- Cache "utile" in numeri di esperti: 2000MB / 0.942MB ≈ **~2120 slot su 10 240 totali
+  (256×40) ≈ 21%** [V] — la letteratura (2505.16056) dice che con questa copertura l'hit-rate
   LRU su finestre medie supera l'85-90%: coerente con l'ipotesi H2.
 
 Formula guida (da riportare in ogni report di fase):
 
 ```
-t_token ≈ t_compute(3B attivi, CPU 8g2) + n_miss × t_load_esperto(UFS 3.1, random)
+t_token ≈ t_compute(3B attivi, CPU 8g2) + n_miss × t_load_esperto(UFS 3.1, random ~0.942 MB)
 hit-rate → n_miss = 320 esperti-layer/token × (1 − h)
+traffico_flash/token ≈ n_miss × 0.942 MB
 ```
 
 ---
@@ -407,7 +431,7 @@ hit-rate → n_miss = 320 esperti-layer/token × (1 − h)
 | ID | Ipotesi | Attesa quantitativa (da letteratura) | Dove si testa |
 |---|---|---|---|
 | H1 | Località temporale degli esperti su Qwen3.6-35B-A3B in task chat/coding reali | hit-rate LRU ≥80% con cache ≈2× working set (2505.16056: 81-97%) | F7 (trace), conferma indiretta in F4 |
-| H2 | Una cache esperti in DRAM con budget ~2GB riduce il traffico flash ≥5× vs naive | da ~350MB/token a ≤50MB/token [S] | F4 (BigMoeOnEdge), F8 |
+| H2 | Una cache esperti in DRAM con budget ~2GB riduce il traffico flash ≥5× vs naive | da **301.5 MB/token [V]** a ≤50 MB/token [S] | F4 (BigMoeOnEdge), F8 |
 | H3 | Il prefetch predittivo batte LRU/LFU puro | +5-15 punti di hit-rate (ExpertFlow: +61% vs LRU è su GPU serving, non ci aspettiamo tanto) | F7 simulatore → F8 runtime |
 | H4 | MTP/speculative riduce i caricamenti per token utile (meno passi target) | DraftExpert: 1.45x; EVICT: −32.5% esperti attivati. Ma RTX3090: 0 speedup → esito aperto su CPU+flash | F6 |
 | H5 | Il degrado sotto memory pressure è governabile con cache applicativa esplicita (vs page cache) | BigMoeOnEdge vs mmap nudo: 5.0 vs 0.09 tok/s (già quasi-provata altrove) | F5 |
