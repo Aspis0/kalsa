@@ -3,18 +3,6 @@ name: Screens (visual capture)
 # Captures many app states on a KVM-accelerated emulator for visual review.
 # Seeds AsyncStorage — no GGUF download, no inference. Manual only.
 on:
-  # workflow_dispatch alone is not enough: GitHub only exposes a dispatchable
-  # workflow once it exists on the default branch. Until this lands on main,
-  # a push trigger scoped to the feature branch is how it gets to run.
-  push:
-    branches: [ui-light-redesign]
-    paths:
-      - scripts/ci-screens.sh
-      - scripts/ci-lib.sh
-      - .github/workflows/screens.yml
-      # Rendering changes are exactly what these captures exist to check.
-      - src/chat/**
-      - src/theme/**
   workflow_dispatch:
 
 concurrency:
