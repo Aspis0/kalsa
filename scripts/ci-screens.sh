@@ -306,6 +306,62 @@ JSON
 
   # 16 — font xl uses markdown seed so chat body is visible at large type
   cp "$OUT/seeds/markdown.json" "$OUT/seeds/font_xl.json"
+
+  # 17 — short chat (3 msgs) with enough vision attachments to trip the
+  # long-chat token estimate (pageCount/image slots × ESTIMATED_TOKENS_PER_IMAGE).
+  # pageCount is the only PDF metadata sanitizeHistoryMessages keeps.
+  cat > "$OUT/seeds/attachments_long.json" <<'JSON'
+[
+  {
+    "id": "att-long-user-1",
+    "role": "user",
+    "text": "Please review these PDF pages and figures. ATTACH_LONG_MARKER",
+    "createdAt": 1700000001000,
+    "attachments": [
+      {
+        "id": "att-pdf-1",
+        "kind": "pdf",
+        "name": "paper.pdf",
+        "uri": "",
+        "pageCount": 5
+      },
+      {
+        "id": "att-img-1",
+        "kind": "image",
+        "name": "fig1.png",
+        "uri": ""
+      },
+      {
+        "id": "att-img-2",
+        "kind": "image",
+        "name": "fig2.png",
+        "uri": ""
+      }
+    ]
+  },
+  {
+    "id": "att-long-asst-1",
+    "role": "assistant",
+    "text": "I have looked at the attached pages. ATTACH_LONG_MARKER summary follows.",
+    "createdAt": 1700000002000
+  },
+  {
+    "id": "att-long-user-2",
+    "role": "user",
+    "text": "Here is the supplement as well.",
+    "createdAt": 1700000003000,
+    "attachments": [
+      {
+        "id": "att-pdf-2",
+        "kind": "pdf",
+        "name": "supplement.pdf",
+        "uri": "",
+        "pageCount": 5
+      }
+    ]
+  }
+]
+JSON
 }
 
 write_seeds
@@ -512,6 +568,11 @@ fi
 log "16_font_xl"
 seed_chat "$OUT/seeds/font_xl.json" "kalsa.fontScale:xl"
 capture 16_font_xl "MD_MARKDOWN_MARKER" "font scale xl"
+
+# 17_chat_attachments_long — short history + heavy attachments → long-chat nudge
+log "17_chat_attachments_long"
+seed_chat "$OUT/seeds/attachments_long.json"
+capture 17_chat_attachments_long "This conversation is getting long" "attachment-heavy long-chat nudge"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Dark theme captures
