@@ -231,6 +231,32 @@ if printf '%s' "$_CMD_MAIN" | grep -q -- '--no-display-prompt'; then
 else
     fail "mainline deve avere --no-display-prompt" "cmd='$_CMD_MAIN'"
 fi
+if printf '%s' "$_CMD_MAIN" | grep -q -- '--no-conversation'; then
+    pass "mainline ha --no-conversation"
+else
+    fail "mainline deve avere --no-conversation (evita hang conversation mode)" "cmd='$_CMD_MAIN'"
+fi
+if printf '%s' "$_CMD_MAIN" | grep -q -- '--single-turn'; then
+    pass "mainline ha --single-turn"
+else
+    fail "mainline deve avere --single-turn (exit after one generation)" "cmd='$_CMD_MAIN'"
+fi
+if printf '%s' "$_CMD_MAIN" | grep -q -- '--simple-io'; then
+    pass "mainline ha --simple-io"
+else
+    fail "mainline deve avere --simple-io" "cmd='$_CMD_MAIN'"
+fi
+# short -no-cnv is ambiguous with -n and must NOT appear
+if printf '%s' "$_CMD_MAIN" | grep -qE -- '(^| )-no-cnv( |$)'; then
+    fail "mainline NON deve usare short -no-cnv (ambiguo con -n)" "cmd='$_CMD_MAIN'"
+else
+    pass "mainline senza short -no-cnv"
+fi
+if printf '%s' "$_CMD_BIGMOE" | grep -qE -- '(^| )-no-cnv( |$)|--no-conversation'; then
+    fail "bigmoe NON deve avere --no-conversation" "cmd='$_CMD_BIGMOE'"
+else
+    pass "bigmoe senza --no-conversation"
+fi
 if printf '%s' "$_CMD_MAIN" | grep -qE -- '(^| )-ctk( |$)'; then
     pass "mainline ha -ctk"
 else
@@ -437,6 +463,20 @@ if [ "$PROMPT_TOK_S" = "1.00" ] && [ "$EVAL_TOK_S" = "1.00" ] && [ "$TTFT_MS" = 
     pass "mixed log + runtime mainline → preferisce llama_perf (1.00/1.00/9999)"
 else
     fail "mixed mainline preference" "prompt=$PROMPT_TOK_S eval=$EVAL_TOK_S ttft=$TTFT_MS"
+fi
+
+# New chat UI summary line (b10244 S23): [ Prompt: X t/s | Generation: Y t/s ]
+_CHAT_LOG="$TMP_ROOT/chat_summary.log"
+cat > "$_CHAT_LOG" <<'EOF'
+[Start thinking]
+Thinking Process:
+[ Prompt: 18.1 t/s | Generation: 6.0 t/s ]
+EOF
+parse_timings "$_CHAT_LOG" "mainline" "llama-cli"
+if [ "$PROMPT_TOK_S" = "18.10" ] && [ "$EVAL_TOK_S" = "6.00" ]; then
+    pass "chat summary Prompt/Generation t/s → 18.10/6.00"
+else
+    fail "chat summary timings" "prompt=$PROMPT_TOK_S eval=$EVAL_TOK_S"
 fi
 
 # ---------------------------------------------------------------------------

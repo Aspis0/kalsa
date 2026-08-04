@@ -55,12 +55,17 @@ RUN_ID=""
 BINARY=""
 PRINT_CMD=0
 ALLOW_NO_BATTERY=0
+# ISA preflight: 1=sempre · 0=UNSAFE esplicito (vietato F1–F4) · auto=default (mandatory su F1–F4)
+PREFLIGHT_ISA="${PREFLIGHT_ISA:-auto}"
 
 # ---------------------------------------------------------------------------
 # Helper: parsing /proc (esposte per i test via RUN_BENCH_LIB_ONLY=1)
 # PROC_ROOT override (default /proc) permette ai test di puntare a un albero fake.
 # ---------------------------------------------------------------------------
 PROC_ROOT="${PROC_ROOT:-/proc}"
+
+# Path script (per preflight + lib)
+_RUN_BENCH_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" 2>/dev/null || dirname "$0")" && pwd 2>/dev/null || true)"
 
 # Estrae minflt e majflt da <PROC_ROOT>/<pid>/stat in modo robusto
 # (campo 2 = comm tra parentesi, può contenere spazi)
@@ -255,6 +260,22 @@ _parse_llama_timings() {
             }')"
         fi
     fi
+
+    # New llama-cli chat summary (observed on b10244 / S23):
+    #   [ Prompt: 18.1 t/s | Generation: 6.0 t/s ]
+    if [ -z "$PROMPT_TOK_S" ] || [ -z "$EVAL_TOK_S" ]; then
+        _sumline="$(grep -E '\[\s*Prompt:[[:space:]]*[0-9.]+[[:space:]]*t/s' "$_log" 2>/dev/null | tail -n1 || true)"
+        if [ -n "$_sumline" ]; then
+            _ptps="$(printf '%s\n' "$_sumline" | sed -n -E 's/.*Prompt:[[:space:]]*([0-9.]+)[[:space:]]*t\/s.*/\1/p')"
+            _etps="$(printf '%s\n' "$_sumline" | sed -n -E 's/.*Generation:[[:space:]]*([0-9.]+)[[:space:]]*t\/s.*/\1/p')"
+            if [ -z "$PROMPT_TOK_S" ] && [ -n "$_ptps" ]; then
+                PROMPT_TOK_S="$(awk -v x="$_ptps" 'BEGIN{printf "%.2f", x+0}')"
+            fi
+            if [ -z "$EVAL_TOK_S" ] && [ -n "$_etps" ]; then
+                EVAL_TOK_S="$(awk -v x="$_etps" 'BEGIN{printf "%.2f", x+0}')"
+            fi
+        fi
+    fi
 }
 
 # expert_hit_rate: moe-cache esplicito, poi best-effort generico
@@ -293,8 +314,11 @@ default_binary_for_runtime() {
 # Costruisce la cmdline (stringa) con flag runtime-appropriate.
 # Argomento opzionale: testo prompt (default: placeholder per --print-cmd).
 # --temp 0 sempre hardcodato (§8.2 determinismo).
-# llama-cli: -ctk/-ctv + --no-display-prompt
-# bmoe-cli:  NO -ctk/-ctv, NO --no-display-prompt (non supportati; KV gestito internamente)
+# llama-cli: -ctk/-ctv + --no-display-prompt + --no-conversation
+# IMPORTANT: use long form --no-conversation (NOT -no-cnv).
+# Short -no-cnv is ambiguous with -n <n_predict> in common CLI parsers and can
+# leave conversation mode ON → infinite interactive ">" spam (observed on S23).
+# bmoe-cli:  NO -ctk/-ctv, NO --no-display-prompt/--no-conversation
 build_run_cmdline() {
     _prompt_text="${1:-<prompt>}"
     _bin="${BINARY}"
@@ -310,10 +334,15 @@ build_run_cmdline() {
             _cmd="$_cmd --temp 0"
             ;;
         *)
+            # Chat models default to conversation/interactive and spam ">" forever
+            # unless single-turn + no-conversation. Prefer long forms only.
             _cmd="$_cmd -ctk $(printf '%q' "$KV_TYPE")"
             _cmd="$_cmd -ctv $(printf '%q' "$KV_TYPE")"
             _cmd="$_cmd --temp 0"
             _cmd="$_cmd --no-display-prompt"
+            _cmd="$_cmd --no-conversation"
+            _cmd="$_cmd --single-turn"
+            _cmd="$_cmd --simple-io"
             ;;
     esac
     if [ -n "$EXTRA_FLAGS" ]; then
@@ -368,6 +397,12 @@ read_battery() {
     return 0
 }
 
+# Helper ISA (path/arch/extra-flags) — usati da run e da test
+if [ -n "${_RUN_BENCH_SCRIPT_DIR:-}" ] && [ -f "$_RUN_BENCH_SCRIPT_DIR/lib_isa_safe.sh" ]; then
+    # shellcheck disable=SC1091
+    source "$_RUN_BENCH_SCRIPT_DIR/lib_isa_safe.sh"
+fi
+
 # Solo le helper (per scripts/test_run_bench.sh)
 if [ "${RUN_BENCH_LIB_ONLY:-0}" = "1" ]; then
     return 0 2>/dev/null || exit 0
@@ -409,7 +444,11 @@ Opzionali:
   --allow-no-battery        SOLO smoke/dry-run: salta il gate batteria fail-closed.
                             MAI per run scientifici (senza di questo: exit 7 se
                             termux-battery-status assente o plugged sconosciuto)
-  -h, --help                questo aiuto
+
+Env:
+  PREFLIGHT_ISA=auto|1|0    auto/1 = preflight ISA obbligatorio su F1–F4;
+                            0 = UNSAFE esplicito (rifiutato per fasi scientifiche)
+  --flags NON può sovrascrivere -m/-p/-n/--temp/-t/-c/-ctk/-ctv/--no-display-prompt
 
 Exit: 0 ok · 1 llama fail · 3 usage · 4 charging · 5 too hot · 6 binary missing
       7 gate batteria non disponibile/incerto
@@ -544,6 +583,30 @@ case "$KV_TYPE" in
         ;;
 esac
 
+# PREFLIGHT_ISA: solo auto|1|0 (e sinonimi espliciti)
+case "$PREFLIGHT_ISA" in
+    1|yes|true|on|auto|0|no|false|off) ;;
+    *)
+        echo "ERRORE: PREFLIGHT_ISA non valido: '$PREFLIGHT_ISA' (usa auto|1|0)" >&2
+        exit 3
+        ;;
+esac
+
+# EXTRA_FLAGS non può sovrascrivere opzioni di misura obbligatorie
+if declare -f isa_check_reserved_extra_flags >/dev/null 2>&1; then
+    if ! isa_check_reserved_extra_flags "$EXTRA_FLAGS"; then
+        exit 3
+    fi
+else
+    # fallback minimale se lib assente
+    case " $EXTRA_FLAGS " in
+        *" -m "*|*' --model '*|*' -p '*|*' --prompt '*|*' --temp '*|*' -n '*)
+            echo "ERRORE: EXTRA_FLAGS contiene opzioni riservate (-m/-p/-n/--temp/…)" >&2
+            exit 3
+            ;;
+    esac
+fi
+
 # Runtime → binario default (solo se --binary non ha override)
 if [ -z "$BINARY" ]; then
     BINARY="$(default_binary_for_runtime "$RUNTIME")"
@@ -665,7 +728,134 @@ fi
 if ! command -v "$BINARY" >/dev/null 2>&1; then
     echo "ERRORE: binario non trovato: $BINARY (command -v fallito)" >&2
     echo "Suggerimento: builda llama.cpp / BigMoeOnEdge, oppure --binary <nome>" >&2
+    echo "              mainline safe: scripts/build_llama_termux.sh" >&2
     exit 6
+fi
+
+# 2b) preflight ISA — blocca binari con GGML_NATIVE / mcpu=native prima di -m
+#     (reports/moe-f1-sigill.md: probe SVE/SME → SIGILL su S23)
+#     Fasi F1–F4: SEMPRE mandatory; PREFLIGHT_ISA=0 rifiutato (niente misura valida).
+_scientific=0
+if declare -f isa_is_scientific_phase >/dev/null 2>&1; then
+    if isa_is_scientific_phase "$PHASE"; then
+        _scientific=1
+    fi
+else
+    case "$PHASE" in F1|F1.*|F2|F2.*|F3|F3.*|F4|F4.*) _scientific=1 ;; esac
+fi
+
+_run_isa_preflight=0
+_preflight_mode=""
+case "$PREFLIGHT_ISA" in
+    1|yes|true|on)
+        _run_isa_preflight=1
+        _preflight_mode="forced"
+        ;;
+    0|no|false|off)
+        if [ "$_scientific" -eq 1 ]; then
+            echo "ERRORE: PREFLIGHT_ISA=0 rifiutato per fase scientifica ($PHASE)" >&2
+            echo "        le misure F1–F4 richiedono provenance ISA (CMakeCache + preflight)" >&2
+            echo "        rimuovi PREFLIGHT_ISA=0 o usa una fase non scientifica per smoke" >&2
+            exit 6
+        fi
+        echo "AVVISO: PREFLIGHT_ISA=0 — check ISA disattivato (NON scientifico; niente misura valida)" >&2
+        _run_isa_preflight=0
+        _preflight_mode="unsafe_skip"
+        ;;
+    auto)
+        # Default: mandatory su F1–F4; altrimenti se c'è CMakeCache vicino al binario
+        if [ "$_scientific" -eq 1 ]; then
+            _run_isa_preflight=1
+            _preflight_mode="scientific_mandatory"
+        else
+            _bin_path="$(command -v "$BINARY" 2>/dev/null || true)"
+            if [ -n "$_bin_path" ] && [ -e "$_bin_path" ]; then
+                # risolvi symlink
+                if [ -L "$_bin_path" ] && declare -f isa_realpath >/dev/null 2>&1; then
+                    _rp="$(isa_realpath "$_bin_path")"
+                    if [ -n "$_rp" ]; then _bin_path="$_rp"; fi
+                fi
+                _bin_dir="$(cd "$(dirname "$_bin_path")" && pwd -P)"
+                for _cand in "$_bin_dir/../CMakeCache.txt" "$_bin_dir/../../CMakeCache.txt" \
+                             "$_bin_dir/CMakeCache.txt"; do
+                    if [ -f "$_cand" ]; then
+                        _run_isa_preflight=1
+                        _preflight_mode="auto_cache"
+                        break
+                    fi
+                done
+            fi
+        fi
+        ;;
+esac
+
+if [ "$_run_isa_preflight" -eq 1 ]; then
+    _pre_script=""
+    _here="${_RUN_BENCH_SCRIPT_DIR:-}"
+    if [ -z "$_here" ]; then
+        _here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    fi
+    if [ -f "$_here/preflight_llama_isa.sh" ]; then
+        _pre_script="$_here/preflight_llama_isa.sh"
+    elif [ -f "$HOME/experiments/scripts/preflight_llama_isa.sh" ]; then
+        _pre_script="$HOME/experiments/scripts/preflight_llama_isa.sh"
+    fi
+    if [ -z "$_pre_script" ]; then
+        echo "ERRORE: preflight_llama_isa.sh assente — NON avvio -m" >&2
+        echo "        richiesto per PREFLIGHT_ISA=$PREFLIGHT_ISA (mode=$_preflight_mode)" >&2
+        exit 6
+    fi
+
+    _bin_path="$(command -v "$BINARY" 2>/dev/null || echo "$BINARY")"
+    if [ -L "$_bin_path" ] && declare -f isa_realpath >/dev/null 2>&1; then
+        _rp="$(isa_realpath "$_bin_path")"
+        if [ -n "$_rp" ] && [ -e "$_rp" ]; then
+            _bin_path="$_rp"
+        fi
+    fi
+    if [ ! -e "$_bin_path" ]; then
+        echo "ERRORE: binario non risolvibile per preflight: $BINARY" >&2
+        exit 6
+    fi
+    _bin_dir="$(cd "$(dirname "$_bin_path")" && pwd -P)"
+    _bdir=""
+    for _cand in "$_bin_dir/.." "$_bin_dir/../.." "$_bin_dir"; do
+        if [ -f "$_cand/CMakeCache.txt" ]; then
+            _bdir="$(cd "$_cand" && pwd -P)"
+            break
+        fi
+    done
+
+    # Run scientifici: provenance (build-dir + cache) OBBLIGATORIA
+    if [ "$_scientific" -eq 1 ] && [ -z "$_bdir" ]; then
+        echo "ERRORE: fase scientifica ($PHASE) senza CMakeCache accanto al binario" >&2
+        echo "        binario=$_bin_path" >&2
+        echo "        rebuild safe: bash scripts/build_llama_termux.sh" >&2
+        echo "        (GGML_NATIVE=OFF + compile_commands; v. reports/moe-f1-sigill.md)" >&2
+        exit 6
+    fi
+
+    echo "--- preflight ISA (PREFLIGHT_ISA=$PREFLIGHT_ISA mode=$_preflight_mode) ---"
+    _pf_args=(--binary "$_bin_path")
+    if [ -n "$_bdir" ]; then
+        _pf_args+=(--build-dir "$_bdir")
+    elif [ "$_scientific" -eq 1 ]; then
+        # già gestito sopra; difesa in profondità
+        echo "ERRORE: preflight scientifico richiede --build-dir" >&2
+        exit 6
+    fi
+    # binary-only (senza build-dir) non è ammesso per F1–F4 (già bloccato);
+    # per smoke non-scientifici senza cache si salta solo se mode non force
+    if [ -z "$_bdir" ] && [ "$_scientific" -eq 0 ] && [ "$_preflight_mode" != "forced" ]; then
+        echo "AVVISO: nessun CMakeCache — preflight binary-only non eseguito (non scientifico)" >&2
+    else
+        if ! bash "$_pre_script" "${_pf_args[@]}"; then
+            echo "ERRORE: preflight ISA fallito — NON avvio -m" >&2
+            echo "        rebuild: bash scripts/build_llama_termux.sh" >&2
+            echo "        (GGML_NATIVE=OFF + arch esplicita; v. reports/moe-f1-sigill.md)" >&2
+            exit 6
+        fi
+    fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -706,12 +896,40 @@ echo "batt_plugged=$BATT_PLUGGED batt_temp_start=$BATT_TEMP_START" | tee -a "$LO
 echo "log=$LOG_PATH csv=$CSV_PATH" | tee -a "$LOG_PATH" >&2
 echo "--- llama start $(date -Iseconds 2>/dev/null || date) ---" | tee -a "$LOG_PATH" >&2
 
+# Temp dir: Termux/Android often cannot write /tmp (Permission denied).
+# Prefer TMPDIR, then PREFIX/tmp, HOME/tmp, /data/local/tmp, finally /tmp.
+_RB_TMPDIR=""
+for _cand in \
+    "${TMPDIR:-}" \
+    "${PREFIX:-}/tmp" \
+    "${HOME:-}/tmp" \
+    "${HOME:-}/.tmp" \
+    "${HOME:-}/experiments/tmp" \
+    /data/local/tmp \
+    /tmp
+do
+    [ -n "$_cand" ] || continue
+    mkdir -p "$_cand" 2>/dev/null || true
+    if [ -d "$_cand" ] && [ -w "$_cand" ]; then
+        _RB_TMPDIR="$_cand"
+        break
+    fi
+done
+if [ -z "$_RB_TMPDIR" ]; then
+    echo "ERRORE: nessuna directory temp scrivibile (TMPDIR/PREFIX/tmp/HOME/tmp)" >&2
+    exit 3
+fi
+export TMPDIR="$_RB_TMPDIR"
+
 # Prompt su tempfile (evita quoting di newline nella cmdline)
-PROMPT_TMP="$(mktemp "${TMPDIR:-/tmp}/run_bench_prompt.XXXXXX" 2>/dev/null || echo "${TMPDIR:-/tmp}/run_bench_prompt.$$")"
-printf '%s' "$PROMPT_CONTENT" > "$PROMPT_TMP"
+PROMPT_TMP="$(mktemp "$_RB_TMPDIR/run_bench_prompt.XXXXXX" 2>/dev/null || echo "$_RB_TMPDIR/run_bench_prompt.$$")"
+printf '%s' "$PROMPT_CONTENT" > "$PROMPT_TMP" || {
+    echo "ERRORE: non scrivo prompt tmp ($PROMPT_TMP)" >&2
+    exit 3
+}
 
 # FIFO + tee: output su log E stderr, PID = processo llama reale (no subshell)
-FIFO="$(mktemp -u "${TMPDIR:-/tmp}/run_bench_fifo.XXXXXX" 2>/dev/null || echo "${TMPDIR:-/tmp}/run_bench_fifo.$$")"
+FIFO="$(mktemp -u "$_RB_TMPDIR/run_bench_fifo.XXXXXX" 2>/dev/null || echo "$_RB_TMPDIR/run_bench_fifo.$$")"
 mkfifo "$FIFO" || {
     echo "ERRORE: mkfifo fallito ($FIFO)" >&2
     rm -f "$PROMPT_TMP"
@@ -735,7 +953,7 @@ if [ "$RUNTIME" = "bigmoe" ]; then
             -c "$N_CTX" \
             --temp 0 \
             $EXTRA_FLAGS \
-            > "$FIFO" 2>&1 &
+            < /dev/null > "$FIFO" 2>&1 &
     else
         "$BINARY" \
             -m "$MODEL" \
@@ -744,7 +962,7 @@ if [ "$RUNTIME" = "bigmoe" ]; then
             -t "$THREADS" \
             -c "$N_CTX" \
             --temp 0 \
-            > "$FIFO" 2>&1 &
+            < /dev/null > "$FIFO" 2>&1 &
     fi
 else
     if [ -n "$EXTRA_FLAGS" ]; then
@@ -758,8 +976,11 @@ else
             -ctv "$KV_TYPE" \
             --temp 0 \
             --no-display-prompt \
+            --no-conversation \
+            --single-turn \
+            --simple-io \
             $EXTRA_FLAGS \
-            > "$FIFO" 2>&1 &
+            < /dev/null > "$FIFO" 2>&1 &
     else
         "$BINARY" \
             -m "$MODEL" \
@@ -771,7 +992,10 @@ else
             -ctv "$KV_TYPE" \
             --temp 0 \
             --no-display-prompt \
-            > "$FIFO" 2>&1 &
+            --no-conversation \
+            --single-turn \
+            --simple-io \
+            < /dev/null > "$FIFO" 2>&1 &
     fi
 fi
 LLAMA_PID=$!

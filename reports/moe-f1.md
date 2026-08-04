@@ -1,98 +1,161 @@
-# F1 — Setup telefono — 2026-08-03
+# F1 — Setup telefono — 2026-08-04
 
 ## Cosa è stato fatto (vs piano)
 
 ### Checklist device (pre-F1 + F1)
 | Voce | Stato | Note |
 |---|---|---|
-| ≥40GB liberi su `/data` | OK | 93GB free (pre-check orchestratore) |
-| Batteria >50% | OK a setup | 50%→56% durante setup; **in carica AC** |
+| ≥40GB liberi su `/data` | OK | 78–93GB free durante campagna |
+| Batteria >50% | OK | setup 50–56%; gate F1 a 74% UNPLUGGED |
 | Device vergine dedicato | OK | SM-S911U (S23 US), Android 16 |
-| Nessun blocco schermo | OK | `locksettings get-disabled=true` (pre-F1) |
-| Termux SENZA storage permission | OK | mai eseguito `termux-setup-storage`; READ_EXTERNAL_STORAGE non granted |
-| RAM Plus OFF | OK | `ram_expand_size=0` (pre-F1) |
-| Termux da F-Droid/GitHub (mai Play) | OK | GitHub releases v0.118.3 **github-debug arm64-v8a** |
-| Ottimizzazione batteria disattivata | PARZIALE | `deviceidle whitelist +com.termux`; appops RUN_IN_BACKGROUND/RUN_ANY_IN_BACKGROUND/WAKE_LOCK allow. Non verificata UI Device Care post-drop |
-| `termux-wake-lock` | OK | installato `termux-api` pkg; boot script lo invoca; chiamato in sessione |
-| Phantom process killer workaround | OK | `settings_enable_monitor_phantom_procs=false`, `max_phantom_processes=2147483647` (pre-F1) |
+| Nessun blocco schermo | OK | `locksettings get-disabled=true` |
+| Termux SENZA storage permission | OK | mai `termux-setup-storage` |
+| RAM Plus OFF | OK | `ram_expand_size=0` |
+| Termux da F-Droid/GitHub (mai Play) | OK | GitHub releases v0.118.3 github-debug arm64-v8a |
+| Ottimizzazione batteria disattivata | OK | `deviceidle whitelist +com.termux`; appops background/WAKE_LOCK allow |
+| `termux-wake-lock` | OK | termux-api + boot script |
+| Phantom process killer workaround | OK | `settings_enable_monitor_phantom_procs=false`, `max_phantom_processes=2147483647` |
 | Modelli in `~/models/` (mai `/sdcard`) | OK | path home Termux only |
-| Misure non sotto carica / ≤32°C | NON ESEGUITE | batteria `PLUGGED_AC`, temp ~31–33°C; gate non lanciato |
+| Misure non sotto carica / ≤32°C | OK al gate | gate F1: `plugged=UNPLUGGED`, start 29.8°C → end 31.4°C |
 
 ### Phase A — Install Termux + addons
-- **termux-app** v0.118.3 `+github-debug_arm64-v8a.apk` (scelta deliberata: `android:debuggable=true` → `run-as com.termux` per setup scriptabile; GitHub releases autorizzati dal piano). Install via `pm install -r -t -d` dopo push su `/data/local/tmp` (install stream falliva con `INSTALL_FAILED_VERIFICATION_FAILURE`; workaround: `verifier_verify_adb_installs=0`, `package_verifier_enable=0`).
-- **termux-api** v0.53.0 github.debug, **termux-boot** v0.8.1 github.debug — installati.
-- Primo avvio: crash iniziale `BackgroundServiceStartNotAllowedException` con schermo spento (`am start` da adb in background). Fix: wake screen (`KEYCODE_WAKEUP` + `svc power stayon true`) → bootstrap OK (`files/usr/bin/bash` presente, ~389 bin).
+- **termux-app** v0.118.3 `+github-debug_arm64-v8a.apk` (debuggable → `run-as com.termux`). Install via push+`pm install` (stream adb falliva con `INSTALL_FAILED_VERIFICATION_FAILURE`).
+- **termux-api** v0.53.0, **termux-boot** v0.8.1 — installati.
+- Primo avvio: crash se display asleep; fix wake screen + bootstrap.
 
 ### Phase B — Controllo remoto SSH
-- Keypair PC: `~/.ssh/moe_s23` (ed25519, no passphrase, comment `moe-s23`).
-- `~/.ssh/authorized_keys` scritto via `run-as` (chmod 700/600).
-- Boot script `~/.termux/boot/start-sshd.sh`: shebang Termux, `termux-wake-lock` + `sshd` (commento IT).
-- `openssh` installato; `sshd` in ascolto su **8022** (default Termux).
-- Accesso verificato: `ssh -p 8022 -i ~/.ssh/moe_s23 u0_a344@192.168.1.152 'echo OK'` → **OK** (utente `u0_a344`).
+- Keypair PC: `~/.ssh/moe_s23` (ed25519).
+- `sshd` su **8022**, user `u0_a344`.
+- Boot script `~/.termux/boot/start-sshd.sh`: `termux-wake-lock` + `sshd`.
+- Accesso verificato pre e post gate F1: `ssh -p 8022 … 'echo OK'`.
 
 ### Phase C — Pacchetti, build, modelli, harness
-**Pacchetti installati:** git, cmake, ninja, clang, make, python, curl, jq, openssh, termux-api, llama-cpp (pkg `0.0.0-b10092-0`, smoke-only).  
-**fio:** package **non presente** nei mirror Termux al momento del setup → rimandato a F2 (build da sorgente o mirror alternativo).
 
-**Build llama.cpp mainline:**
+**Pacchetti:** git, cmake, ninja, clang, make, python, curl, jq, openssh, termux-api, llama-cpp (pkg `b10092`, smoke-only).  
+**fio:** assente nei mirror Termux al setup → rimandato a F2 (build da sorgente).
+
+#### Build mainline — tree NON sicuro (storico, non usare)
 - Clone tag **b10244**, commit `67d5978bb1ba490070ddbd2a7c59c7ec5a60b7cc`
-- Configure: `cmake -B build -DCMAKE_BUILD_TYPE=Release -DLLAMA_CURL=OFF -DGGML_OPENCL=OFF`
-- Build: `cmake --build build -j4 --target llama-cli llama-bench llama-perf`
-- **Risultato:** `llama-cli` + `llama-bench` prodotti in `~/src/llama.cpp/build/bin/` (BUILD_EXIT=2 perché target `llama-perf` assente/fallito su b10244 — non bloccante; gate usa `llama-cli`).
-- bmoe **NON** buildato qui (F4).
+- Configure iniziale con `GGML_NATIVE` default **ON** → probe `-mcpu=native+sve/+sme` → SIGILL tombstone in CMakeScratch.
+- Binario in `~/src/llama.cpp/build/bin/` (flag finali `-mcpu=native+dotprod+i8mm+nosve+nosme`).
+- **Vietato** per misure F1–F4. Dettaglio: `reports/moe-f1-sigill.md`.
 
-**Modelli (`~/models/`, size byte-esatti via `stat -c %s`):**
+#### Build mainline — tree SAFE (gate F1)
+- Script: `scripts/build_llama_termux.sh` → `BUILD_DIR=build-safe`
+- Pin: tag **b10244** / `67d5978bb1ba490070ddbd2a7c59c7ec5a60b7cc`
+- CMake: `GGML_NATIVE=OFF`, `GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16`, `CMAKE_EXPORT_COMPILE_COMMANDS=ON`, CURL/OPENCL OFF, Release
+- Binario: `~/src/llama.cpp/build-safe/bin/llama-cli` (+ `llama-bench`, shared libs)
+- **Preflight ISA** (`scripts/preflight_llama_isa.sh`): **EXIT 0**
+  - cache: `GGML_NATIVE=OFF`, arch esplicita
+  - compile_commands: solo `-march=armv8.2-a+dotprod+i8mm+fp16`
+  - CPU features: asimddp/i8mm/fp16 presenti; no sve/sme
+  - `llama-cli --version` → `version: 1 (67d5978)`
+- Tree vecchio `build/` **conservato ma non usato** nelle misure.
+
+#### Harness aggiornamenti F1 (repo)
+- `run_bench.sh`: preflight ISA obbligatorio su F1–F4; flag long-form `--no-conversation --single-turn --simple-io` (evita hang chat interattivo); parser timings b10244 `[ Prompt: X t/s | Generation: Y t/s ]`; TMPDIR Termux-safe.
+- `lib_isa_safe.sh`, `preflight_llama_isa.sh`, `build_llama_termux.sh`, `f1_gate_run.sh`, test suite ISA/bench.
+- Script sincronizzati su telefono: `~/experiments/scripts/`.
+
+#### Modelli (`~/models/`, size byte-esatti)
 | File | Atteso (B) | Ottenuto (B) | Metodo | Verdetto |
 |---|---:|---:|---|---|
 | `Qwen3.5-4B-Q4_K_M.gguf` | 2 740 937 888 | 2 740 937 888 | curl HF su telefono | MATCH |
-| `Qwen3.6-35B-A3B-UD-IQ2_M.gguf` | 11 522 702 304 | 11 522 702 304 | scp da PC (Wi-Fi) | MATCH |
-| `LFM2-8B-A1B-Q4_K_M.gguf` | 5 044 779 712 | parziale | curl telefono troppo lento (~300 kB/s) → kill; download ripreso su PC in background (`models/`, ~1.2GB+ al drop) poi scp | PENDING |
+| `Qwen3.6-35B-A3B-UD-IQ2_M.gguf` | 11 522 702 304 | 11 522 702 304 | scp da PC | MATCH |
+| `LFM2-8B-A1B-Q4_K_M.gguf` | 5 044 779 712 | parziale sul telefono (792 133 632); su PC file errato 5 431 528 128 poi re-download HF in corso | PENDING F2 | **PENDING** |
 
-**Prompt fissi** in `~/experiments/prompts/`: `short.txt`, `medium.txt`, `code.txt` (testi campagna, non da modificare in F2–F4).  
-**Harness:** `scripts/run_bench.sh` + `runs.schema.md` copiati in `~/experiments/scripts/` (eseguibile). Dirs: `~/experiments/{results,logs,scripts,prompts}`.
+Prompt fissi in `~/experiments/prompts/`: `short.txt`, `medium.txt`, `code.txt`.
 
-**Smoke test `llama-cli` 4B:** avviato (`-m Qwen3.5-4B-Q4_K_M.gguf -p "Hello" -n 16 -t 4`); durante il load del modello la sessione SSH è caduta (connection reset). **Output di generazione non recuperato** prima della perdita di connettività. Verifica smoke → da ripetere al ripristino accesso.
+### Gate F1 — run scientifico (VALID)
 
-### Deviazioni / sorprese / bug
-1. **Install APK:** `adb install` stream → `INSTALL_FAILED_VERIFICATION_FAILURE` su OneUI/Android 16; fix push+`pm install` + disabilitazione verifier adb.
-2. **Primo launch Termux:** crash se display asleep (Android 16 background service ban); serve schermo acceso.
-3. **Stack TLS bootstrap:** mismatch `libngtcp2_crypto_ossl` / OpenSSL dopo bootstrap → `curl`/`git-remote-https` rotti; fix con upgrade openssl/libnghttp2 + reinstall curl.
-4. **fio assente** nei repo Termux consultati.
-5. **llama-perf** non buildabile come target su b10244 (exit 2 non bloccante).
-6. **LFM2 via curl sul telefono** troppo lento; strategia corretta = download PC + scp (come 35B).
-7. **Drop connettività:** wireless debugging spento (probabile reboot/sessione scaduta). adb devices vuoto, porta 8022 refused, ping IP ancora OK. **Richiede gualt:** riattivare Debug wireless e ripair/reconnect.
+```bash
+# UNPLUGGED, temp start 29.8°C; binary SAFE only
+bash ~/experiments/scripts/run_bench.sh \
+  --binary ~/src/llama.cpp/build-safe/bin/llama-cli \
+  -m ~/models/Qwen3.5-4B-Q4_K_M.gguf \
+  -p ~/experiments/prompts/short.txt \
+  --phase F1 --runtime mainline --run-type warm -n 128 \
+  --notes "F1 gate safe binary --no-conversation"
+```
+
+| Campo | Valore |
+|---|---|
+| run_id | `Qwen3.5-4B-Q4_K_M-20260804-011324` |
+| date | `2026-08-04T01:13:24-04:00` |
+| EXIT | **0** |
+| phase / runtime | F1 / mainline |
+| threads / n_ctx / kv / n_gen | 4 / 512 / q8_0 / 128 |
+| run_type / prompt_id | warm / short |
+| prompt_tok_s | **17.00** |
+| eval_tok_s | **4.30** |
+| ttft_ms | (vuoto — summary chat b10244 senza proxy ms) |
+| majflt_delta | 9131 |
+| minflt_delta | 918550 |
+| read_bytes_delta | 3 697 500 160 |
+| vmrss_peak_mb | 4512 |
+| memfree_min_mb | 15 |
+| batt_temp_start → end | **29.8 → 31.4** °C |
+| plugged | UNPLUGGED (pre/post) |
+| notes | F1 gate safe binary --no-conversation |
+| log | `results/f1/Qwen3.5-4B-Q4_K_M-20260804-011324.log` (copia PC) |
+| console | `results/f1/f1_gate_console.txt` — testo generato + `Exiting...` + CSV row |
+
+**Riga CSV (header + data):**
+```
+run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,batt_temp_start,batt_temp_end,expert_hit_rate,notes
+Qwen3.5-4B-Q4_K_M-20260804-011324,2026-08-04T01:13:24-04:00,F1,Qwen3.5-4B-Q4_K_M.gguf,Q4_K_M,,mainline,,,4,512,q8_0,128,warm,short,17.00,4.30,,9131,918550,3697500160,4512,15,29.8,31.4,,F1 gate safe binary --no-conversation
+```
+
+### Evidenza no-reboot / stabilità sessione
+- Boot id sessione gate: `4ddc2054-0498-444b-9fd7-114498b497ff` (stabile post-gate).
+- Uptime monotono durante sessione safe-build + F1 (daily log: ~2900s → ~6500s+ pre-drop precedente; post reconnect sessione continua senza reboot durante gate).
+- Smoke diagnostico precedente (conversation hang senza `--single-turn`): kill forzato, **nessun reboot**; non conteggiato come misura scientifica.
+- Gate F1: processo esce clean (`Exiting...`, rc=0), `no_llama` residuale assente post-run.
+- SSH + adb wireless restano vivi dopo il gate.
+
+### Smoke interattivo (non scientifico)
+Prima del gate, load modello OK su safe binary ma hang UI chat senza `--no-conversation/--single-turn`. Documentato in `results/f1/f1_smoke_note.txt`. Fix harness applicato; solo il run con EXIT 0 + CSV conta per il gate.
 
 ## Numeri chiave (tabella, riferimenti a run_id)
 
 | Voce | Valore |
 |---|---|
 | Device | SM-S911U, Android 16, IP 192.168.1.152 |
-| Termux | 0.118.3 github-debug arm64, package `com.termux` |
-| SSH | porta 8022, user `u0_a344`, key `~/.ssh/moe_s23` — **verificato pre-drop** |
-| llama.cpp | tag b10244 / `67d5978b…` — `llama-cli`+`llama-bench` OK |
+| Termux | 0.118.3 github-debug arm64, `com.termux` / uid `u0_a344` |
+| SSH | porta 8022, key `~/.ssh/moe_s23` |
+| llama.cpp SAFE | b10244 / `67d5978` · `build-safe` · NATIVE=OFF · arch armv8.2-a+dotprod+i8mm+fp16 |
+| Preflight ISA | EXIT 0 |
 | 4B size | 2 740 937 888 B MATCH |
 | 35B size | 11 522 702 304 B MATCH |
-| LFM2 size | PENDING (PC download in corso) |
-| Gate run_id | **nessuno** (non eseguito) |
-| Batteria al check | `PLUGGED_AC`, 56%, **31.3°C** |
+| LFM2 size | **PENDING** (F2.1/F2.3: re-download PC size esatto 5 044 779 712 + scp) |
+| Gate run_id | `Qwen3.5-4B-Q4_K_M-20260804-011324` |
+| prompt/eval tok/s | 17.00 / 4.30 |
+| Batteria gate | UNPLUGGED 74%, 29.8→31.4°C |
 
 ## Deviazioni / sorprese / bug
-Vedi elenco sopra. Nessuna riga CSV prodotta. Nessuna misura sotto carica (corretto).
+1. Build iniziale `GGML_NATIVE=ON` → SIGILL probe SVE/SME; rebuild safe obbligatorio (`build-safe`).
+2. `llama-cli` b10244 in conversation mode hang senza `--no-conversation --single-turn --simple-io`; short `-no-cnv` ambiguo con `-n`.
+3. Parser timings: serve summary `[ Prompt: … | Generation: … ]` oltre a `llama_perf_context_print`.
+4. Termux: `/tmp` Permission denied → harness usa `TMPDIR`/`PREFIX/tmp`.
+5. **eval_tok_s=4.30** sul gate F1 (t=4, ctx=512, warm short) è sotto la soglia orientativa F2 (~8–10 tok/s [S]); non invalida F1 (gate = genera + CSV). Da ottimizzare in F2.2 (sweep thread/ctx/KV).
+6. fio assente → F2.1.
+7. LFM2 incompleto/errato size → F2 (non bloccante per gate F1: gate usa 4B).
+8. Drop connettività mid-setup storico (wireless debug off); ripristinato; gate eseguito dopo restore.
 
-## Verdetto gate: BLOCKED(connettività telefono persa — gualt deve riattivare Debug wireless; gate F1 run anche pending-unplug: batteria PLUGGED_AC)
+## Verdetto gate: **PASS**
 
-Setup software sostanzialmente completo (Termux, sshd, build, 4B+35B, harness, prompt). Manca per chiudere il gate:
-1. **gualt:** riattivare Wireless debugging (e, se serve, re-pair) → ripristino adb + sshd (boot script o `am start` Termux a schermo acceso).
-2. Completare LFM2 (PC download → scp, size 5 044 779 712 B).
-3. Smoke `llama-cli` 4B fino a testo generato.
-4. **gualt:** staccare caricatore AC; verificare `termux-battery-status` → `UNPLUGGED` e temperature ≤32°C.
-5. Eseguire:  
-   `cd ~/experiments && ./scripts/run_bench.sh -m ~/models/Qwen3.5-4B-Q4_K_M.gguf -p ~/experiments/prompts/short.txt --phase F1 --runtime mainline --run-type warm --n-gen 128 --notes "F1 gate"`  
-   e copiare la riga CSV valida nel report.
+Criteri PLAN F1 soddisfatti:
+1. llama.cpp buildato (safe) gira → preflight EXIT 0 + `--version` 67d5978.
+2. Qwen3.5-4B genera testo → log/console gate con output e `Exiting...`.
+3. Harness produce riga CSV valida con majflt/read_bytes/temperatura → `runs.csv` + pull PC `results/runs.csv`.
+
+Pending **non-gate** (non bloccano F1): LFM2 size-exact su telefono; fio; sweep F2.
 
 ## Prossima azione proposta
-1. gualt riattiva Debug wireless → orchestratore/Grok riconnette adb (SDK `adb.exe` diretto, non tool pi rotto).
-2. Riavvia Termux a schermo acceso → sshd (boot o manuale); test `ssh -p 8022 … 'echo OK'`.
-3. Finire LFM2 scp; smoke 4B; unplug; gate `run_bench.sh`; aggiornare questo report a PASS con run_id.
+1. F2.1: fio UFS random-read curve (build fio da sorgente se serve).
+2. Completare LFM2 PC → scp, verify **5 044 779 712** B.
+3. F2.2 griglia greedy 4B; F2.3 LFM2; F2.4 termica 10 min.
+4. **Non** usare `~/src/llama.cpp/build`; solo `build-safe`.
+5. Non aprire F3 finché F2 non ha report.
 
 DONE

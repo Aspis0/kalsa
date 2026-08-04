@@ -1,0 +1,1 @@
+smoke_partial: model loaded on build-safe; hung in conversation mode without -no-cnv; killed; phone stayed up

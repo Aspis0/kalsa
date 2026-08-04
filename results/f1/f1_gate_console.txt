@@ -1,0 +1,124 @@
+F1_START 2026-08-04T01:13:24-04:00
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 29.8,
+  "voltage": 4096,
+  "current": -1147,
+  "current_average": -132,
+  "percentage": 74,
+  "level": 74,
+  "scale": 100,
+  "charge_counter": 2835000,
+  "cycle": 0
+}
+--- preflight ISA (PREFLIGHT_ISA=auto mode=scientific_mandatory) ---
+=== preflight_llama_isa ===
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli
+build_dir=/data/data/com.termux/files/home/src/llama.cpp/build-safe
+arm_arch=<none>
+OK: binario regolare eseguibile (/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli)
+cache: GGML_NATIVE:BOOL=OFF
+cache: GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+OK: GGML_NATIVE=OFF
+OK: GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16
+OK: compile_commands.json presente
+compile flags -march:
+  -march=armv8.2-a+dotprod+i8mm+fp16
+OK: -march matcha ARM_ARCH (armv8.2-a+dotprod+i8mm+fp16)
+cpu Features: Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+OK: asimddp (dotprod) in /proc/cpuinfo
+OK: i8mm in /proc/cpuinfo
+OK: fp16 (fphp/asimdhp) in /proc/cpuinfo
+--- /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli --version (no model) ---
+version: 1 (67d5978)
+built with Clang 21.1.8 for Android aarch64
+OK: version/help exit=0
+--- static scan /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so (sve/sme) ---
+OK: nessun smstart/smstop in /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so
+=== PREFLIGHT OK ===
+=== run_bench ===
+run_id=Qwen3.5-4B-Q4_K_M-20260804-011324 phase=F1 runtime=mainline run_type=warm
+model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf quant=Q4_K_M
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=512 kv=q8_0 n_gen=128
+flags=
+batt_plugged=UNPLUGGED batt_temp_start=29.8
+log=/data/data/com.termux/files/home/experiments/results/logs/Qwen3.5-4B-Q4_K_M-20260804-011324.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-04T01:13:45-04:00 ---
+llama_pid=11483 tee_pid=11481
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   **Role:** Helpful technical assistant.
+    *   **Task:** Answer a specific technical question about LLM inference on a modern smartphone (8GB RAM, UFS 3.1 flash).
+    *   **Question:** Why does a dense 4B model run smoothly while a 35B MoE model (3B active params) needs careful expert streaming from flash?
+    *   **Constraints:**
+        *   Clear, plain English.
+        *   One short paragraph.
+        *   Two bullet points.
+
+[ Prompt: 17.0 t/s | Generation: 4.3 t/s ]
+
+
+Exiting...
+--- llama end rc=0 2026-08-04T01:15:47-04:00 ---
+=== CSV row written → /data/data/com.termux/files/home/experiments/results/runs.csv ===
+Qwen3.5-4B-Q4_K_M-20260804-011324,2026-08-04T01:13:24-04:00,F1,Qwen3.5-4B-Q4_K_M.gguf,Q4_K_M,,mainline,,,4,512,q8_0,128,warm,short,17.00,4.30,,9131,918550,3697500160,4512,15,29.8,31.4,,F1 gate safe binary --no-conversation
+prompt_tok_s=17.00 eval_tok_s=4.30 ttft_ms=
+majflt_delta=9131 minflt_delta=918550 read_bytes_delta=3697500160
+vmrss_peak_mb=4512 memfree_min_mb=15
+batt_temp_start=29.8 batt_temp_end=31.4
+F1_EXIT=0
+F1_END 2026-08-04T01:15:59-04:00
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 31.4,
+  "voltage": 4070,
+  "current": -28000,
+  "current_average": -240,
+  "percentage": 74,
+  "level": 74,
+  "scale": 100,
+  "charge_counter": 2793750,
+  "cycle": 0
+}
