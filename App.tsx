@@ -139,10 +139,10 @@ function AppContent() {
 }
 
 function ThemedApp() {
-  const { colors } = useLabTheme<ThemeContextValue>();
+  const { colors, palette } = useLabTheme<ThemeContextValue>();
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor={colors.shell} />
+      <StatusBar barStyle={palette.statusBar} backgroundColor={colors.shell} />
       <AppShell />
     </>
   );

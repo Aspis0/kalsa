@@ -19,7 +19,7 @@ type Props = {
 
 // Top bar for screens. Three slots:
 //   leading: hamburger (onMenu) or back chevron (onBack); takes priority back > menu.
-//   title:   Fraunces display.md, with optional subtitle below in muted bodyXs.
+//   title:   Plus Jakarta Sans display.md, with optional subtitle below in muted bodyXs.
 //   trailing: free slot (AskAIChip, action icons).
 // Sticky (caller positions it at top); transparent=true skips background for
 // pages that want the painterly wash to read straight through.

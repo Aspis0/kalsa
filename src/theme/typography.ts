@@ -4,20 +4,25 @@ import { useLabTheme } from "../ui/labTheme";
 
 // Font family resolves to the loaded @expo-google-fonts/* family name.
 // useFonts is wired in App.tsx; until it resolves, App renders null.
+// On Android, fontWeight is NOT synthesized for custom families — weight MUST
+// come from the fontFamily name (never pair a custom family with numeric fontWeight).
 const display = Platform.select({
-  default: "Fraunces_500Medium",
+  default: "PlusJakartaSans_600SemiBold",
 });
 const displayBold = Platform.select({
-  default: "Fraunces_600SemiBold",
+  default: "PlusJakartaSans_700Bold",
+});
+const displayExtra = Platform.select({
+  default: "PlusJakartaSans_800ExtraBold",
 });
 const body = Platform.select({
-  default: "Inter_400Regular",
+  default: "PlusJakartaSans_400Regular",
 });
 const bodyMedium = Platform.select({
-  default: "Inter_500Medium",
+  default: "PlusJakartaSans_500Medium",
 });
 const bodySemi = Platform.select({
-  default: "Inter_600SemiBold",
+  default: "PlusJakartaSans_600SemiBold",
 });
 const mono = Platform.select({
   default: "JetBrainsMono_400Regular",
@@ -29,6 +34,7 @@ const monoBold = Platform.select({
 export const fontFamilies = {
   display,
   displayBold,
+  displayExtra,
   body,
   bodyMedium,
   bodySemi,
@@ -68,22 +74,33 @@ function roundSize(n: number): number {
 /** Base type scale at scale=1. Components should not import this for rendering. */
 export const baseTypography: Record<string, TextStyle> = {
   displayXl: {
-    fontFamily: display,
-    fontSize: 32,
-    lineHeight: 38,
-    letterSpacing: -0.2,
+    fontFamily: displayExtra,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.4,
   },
   displayLg: {
-    fontFamily: displayBold,
-    fontSize: 24,
-    lineHeight: 30,
-    letterSpacing: -0.1,
+    fontFamily: displayExtra,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.3,
   },
   displayMd: {
     fontFamily: displayBold,
-    fontSize: 20,
-    lineHeight: 26,
-    letterSpacing: 0,
+    fontSize: 18,
+    lineHeight: 24,
+    letterSpacing: -0.2,
+  },
+  displaySm: {
+    fontFamily: displayBold,
+    fontSize: 16,
+    lineHeight: 20,
+    letterSpacing: -0.1,
+  },
+  chatBody: {
+    fontFamily: body,
+    fontSize: 16,
+    lineHeight: 25,
   },
   bodyLg: {
     fontFamily: body,
@@ -92,32 +109,34 @@ export const baseTypography: Record<string, TextStyle> = {
   },
   bodyMd: {
     fontFamily: body,
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 22,
   },
   bodySm: {
     fontFamily: bodyMedium,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  label: {
+    fontFamily: bodySemi,
     fontSize: 13,
     lineHeight: 18,
   },
   bodyXs: {
     fontFamily: bodySemi,
-    fontSize: 11,
-    lineHeight: 16,
-    letterSpacing: 1.3,
-    textTransform: "uppercase",
-  },
-  monoSm: {
-    fontFamily: monoBold,
     fontSize: 12,
     lineHeight: 16,
   },
+  monoSm: {
+    fontFamily: mono,
+    fontSize: 13,
+    lineHeight: 19,
+  },
   monoXs: {
     fontFamily: monoBold,
-    fontSize: 10,
-    lineHeight: 14,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
+    fontSize: 11,
+    lineHeight: 15,
+    letterSpacing: 0.4,
   },
 };
 

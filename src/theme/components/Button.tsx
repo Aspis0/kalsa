@@ -52,7 +52,7 @@ export function Button({
       break;
     case "destructive":
       bg = colors.bad;
-      text = "#ffffff";
+      text = colors.primaryText;
       border = "transparent";
       break;
     case "compute":

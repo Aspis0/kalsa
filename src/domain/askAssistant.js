@@ -262,18 +262,22 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-/** True only for an explicit integer in 0..3. Missing/NaN/out-of-range → null (no grading). */
-function parseAnswerIndex(raw) {
+/**
+ * True only for an explicit integer addressing a real option (0..optionCount-1).
+ * Missing/NaN/out-of-range → null (no grading). Matches QuizBlock renderer.
+ */
+function parseAnswerIndex(raw, optionCount) {
   if (typeof raw !== "number" && typeof raw !== "string") return null;
   // Reject non-integer strings like "1.5" / "01" / "1e0" — require exact integer form.
   if (typeof raw === "string" && !/^\s*-?\d+\s*$/.test(raw)) return null;
   const n = typeof raw === "number" ? raw : Number(raw);
-  if (!Number.isInteger(n) || n < 0 || n > 3) return null;
+  if (!Number.isInteger(n) || n < 0 || n >= optionCount) return null;
   return n;
 }
 
 /**
  * Normalize a quiz block.
+ * Real options only — never invent synthetic "Option N" pads (user could pick a fake answer).
  * answerIndex is null when missing/invalid so the UI disables grading instead of
  * falsely marking option 0 as correct.
  */
@@ -282,10 +286,7 @@ function normalizeQuizBlock(block) {
   const options = rawOptions
     .slice(0, MAX_QUIZ_OPTIONS)
     .map((entry, index) => clipString(entry, MAX_OPTION, `Option ${index + 1}`));
-  while (options.length < MAX_QUIZ_OPTIONS) {
-    options.push(`Option ${options.length + 1}`);
-  }
-  const answerIndex = parseAnswerIndex(block.answerIndex);
+  const answerIndex = parseAnswerIndex(block.answerIndex, options.length);
   const question = clipString(block.question ?? block.title, MAX_QUESTION, "Question");
   const explanation = clipString(block.explanation, MAX_EXPLANATION, "");
   const title = clipString(block.title, MAX_TITLE, "");

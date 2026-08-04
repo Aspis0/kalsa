@@ -10,7 +10,7 @@ import { SettingsScreen } from "../screens/SettingsScreen";
 import { AskAssistantMiniappRenderer } from "../ui/AskAssistantMiniappRenderer";
 import { Drawer, PainterlyBg, type DrawerItem } from "../theme/components";
 import { spacing } from "../theme/tokens";
-import { useTypography } from "../theme/typography";
+import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 import type { AskAssistantMiniapp } from "../domain/askAssistant";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
@@ -1434,7 +1434,7 @@ export function AppShell() {
             <Text
               style={[
                 typography.bodyMd,
-                { color: colors.ink, fontWeight: "700", letterSpacing: 0.2, lineHeight: 20 },
+                { color: colors.ink, fontFamily: fontFamilies.displayBold, letterSpacing: 0.2, lineHeight: 20 },
               ]}
               numberOfLines={1}
             >
@@ -1469,7 +1469,7 @@ export function AppShell() {
             }}
           >
             <LucideGlobe size={11} color={colors.accent} />
-            <Text style={[typography.monoXs, { color: colors.accent, fontWeight: "700" }]}>
+            <Text style={[typography.monoXs, { color: colors.accent }]}>
               {t("common.web")}
             </Text>
           </View>
@@ -1625,7 +1625,7 @@ export function AppShell() {
               }}
             >
               <Text
-                style={{ flex: 1, fontSize: 16, fontWeight: "600", color: colors.ink }}
+                style={{ flex: 1, fontSize: 16, fontFamily: fontFamilies.bodySemi, color: colors.ink }}
                 numberOfLines={1}
               >
                 {activeOverlay.miniapp.title}

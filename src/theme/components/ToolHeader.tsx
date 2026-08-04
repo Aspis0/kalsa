@@ -17,7 +17,7 @@ type Props = {
 // Slim header used by each Bench tool screen reached from the drawer.
 // Sits inline at the top of the tool's render tree (unlike `Header` which
 // expects to be the screen-level top bar with safe-area inset padding).
-// Visual: back chevron + Fraunces title + AskAIChip trailing slot.
+// Visual: back chevron + Plus Jakarta Sans title + AskAIChip trailing slot.
 export function ToolHeader({ title, subtitle, onBack, onAskAi, trailing }: Props) {
   const { colors } = useLabTheme<any>();
   return (

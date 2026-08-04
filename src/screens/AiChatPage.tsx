@@ -47,6 +47,8 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as DocumentPicker from "expo-document-picker";
 import { PdfToImages } from "../components/PdfToImages";
+import { MarkdownText } from "../chat/MarkdownText";
+import { isSafeHttpUrl } from "../chat/markdown";
 import { isBenchCommand, tryHandleBenchCommand } from "../bench/benchConfig";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
 import { classifyChatContent, type ContentFilterReason } from "../domain/contentFilter";
@@ -54,7 +56,7 @@ import { translateText } from "../engine/LlamaService";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
-import { typography, useTypography } from "../theme/typography";
+import { typography, useTypography, fontFamilies } from "../theme/typography";
 import {
   cancelCapture,
   CaptureBusyError,
@@ -493,6 +495,7 @@ export function AiChatPage({
   const voiceRunIdRef = useRef(0);
   const voiceNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const inputRef = useRef<TextInput>(null);
   const greeting = useMemo(() => greetingForHour(new Date().getHours(), t), [t]);
   const suggestions = useMemo(() => buildSuggestions(t), [t]);
   const quickTools = useMemo(() => buildQuickTools(t), [t]);
@@ -1689,7 +1692,7 @@ export function AiChatPage({
                   <View
                     style={{
                       alignSelf: "flex-end",
-                      maxWidth: "84%",
+                      maxWidth: "85%",
                       marginTop: dayDivider ? 0 : topGap,
                     }}
                   >
@@ -1742,7 +1745,7 @@ export function AiChatPage({
                         paddingHorizontal: spacing.md,
                       }}
                     >
-                      <Text style={[typography.bodyMd, { color: colors.ink }]}>{m.text}</Text>
+                      <Text style={[typography.chatBody, { color: colors.ink }]}>{m.text}</Text>
                     </Pressable>
 
                     {translatingId === m.id ? (
@@ -1802,7 +1805,7 @@ export function AiChatPage({
                       backgroundColor: colors.compute,
                     }}
                   />
-                  <Text style={[typography.bodyXs, { color: colors.muted }]}>Kalsa</Text>
+                  <Text style={[typography.label, { color: colors.muted }]}>Kalsa</Text>
                 </View>
 
                 {/* Feature 1: status history stamps */}
@@ -1855,8 +1858,10 @@ export function AiChatPage({
                           <View
                             key={segIdx}
                             style={{
-                              backgroundColor: colors.panel,
-                              borderRadius: radius.md,
+                              backgroundColor: colors.surfaceSunken,
+                              borderWidth: 1,
+                              borderColor: colors.lineStrong,
+                              borderRadius: radius.sm,
                               marginVertical: 4,
                               overflow: "hidden",
                             }}
@@ -1870,7 +1875,7 @@ export function AiChatPage({
                                 paddingHorizontal: spacing.sm,
                                 paddingVertical: 4,
                                 borderBottomWidth: 1,
-                                borderBottomColor: colors.line,
+                                borderBottomColor: colors.lineStrong,
                               }}
                             >
                               <Text style={[typography.bodyXs, { color: colors.muted }]}>
@@ -1883,7 +1888,7 @@ export function AiChatPage({
                                 hitSlop={8}
                                 accessibilityLabel={t("common.share")}
                               >
-                                <Text style={[typography.bodyXs, { color: colors.compute }]}>
+                                <Text style={[typography.bodyXs, { color: colors.accent }]}>
                                   {t("common.share")}
                                 </Text>
                               </Pressable>
@@ -1895,13 +1900,14 @@ export function AiChatPage({
                               showsHorizontalScrollIndicator={false}
                             >
                               <Text
-                                style={{
-                                  fontFamily: MONO_FONT,
-                                  fontSize: (typography.monoSm.fontSize as number) ?? 12,
-                                  lineHeight: (typography.monoSm.lineHeight as number) ?? 16,
-                                  color: colors.ink,
-                                  padding: spacing.sm,
-                                }}
+                                style={[
+                                  typography.monoSm,
+                                  {
+                                    fontFamily: MONO_FONT,
+                                    color: colors.ink,
+                                    padding: spacing.sm,
+                                  },
+                                ]}
                               >
                                 {seg.content}
                               </Text>
@@ -1909,12 +1915,14 @@ export function AiChatPage({
                           </View>
                         );
                       }
-                      // text segment
+                      // text segment — markdown subset (fenced code stays above)
                       return (
-                        <Text key={segIdx} style={[typography.bodyMd, { color: colors.ink }]}>
-                          {seg.content}
-                          {segIdx === segments.length - 1 && showCursor ? "▋" : ""}
-                        </Text>
+                        <MarkdownText
+                          key={segIdx}
+                          text={seg.content}
+                          showCursor={segIdx === segments.length - 1 && showCursor}
+                          onLongPress={() => openMessageMenu(m.id, m.text, m.role, m.streaming)}
+                        />
                       );
                     })}
                   </Pressable>
@@ -1970,24 +1978,17 @@ export function AiChatPage({
                       <View
                         key={s.doi || s.title || String(sIdx)}
                         style={{
+                          backgroundColor: colors.panelSolid,
                           borderRadius: radius.sm,
                           borderWidth: 1,
                           borderColor: colors.line,
-                          paddingHorizontal: spacing.xs,
-                          paddingVertical: 2,
+                          padding: spacing.sm,
                           maxWidth: 220,
                         }}
                       >
-                        <Text
-                          style={[typography.bodyXs, { color: colors.muted }]}
-                          numberOfLines={1}
-                        >
-                          {s.title}
-                          {s.authors ? ` — ${s.authors}` : ""}
-                        </Text>
                         {s.provider ? (
                           <Text
-                            style={[typography.bodyXs, { color: colors.muted, opacity: 0.75, fontSize: 10 }]}
+                            style={[typography.bodyXs, { color: colors.muted }]}
                             numberOfLines={1}
                           >
                             {t("errors.sourceVia", {
@@ -2004,6 +2005,12 @@ export function AiChatPage({
                             })}
                           </Text>
                         ) : null}
+                        <Text
+                          style={[typography.label, { color: colors.ink }]}
+                          numberOfLines={2}
+                        >
+                          {s.title}{s.authors ? ` — ${s.authors}` : ""}
+                        </Text>
                       </View>
                     ))}
                   </ScrollView>
@@ -2031,7 +2038,7 @@ export function AiChatPage({
                         })}
                       >
                         <ChevronRight size={12} color={cta.kind === "run_monitor_recovery" ? colors.accent : colors.compute} />
-                        <Text style={[typography.bodyXs, { color: cta.kind === "run_monitor_recovery" ? colors.accent : colors.compute, fontWeight: "600" }]}>
+                        <Text style={[typography.bodyXs, { color: cta.kind === "run_monitor_recovery" ? colors.accent : colors.compute, fontFamily: fontFamilies.bodySemi }]}>
                           {cta.label}
                         </Text>
                       </Pressable>
@@ -2047,43 +2054,53 @@ export function AiChatPage({
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.sm }}
                   >
-                    {m.images.map((img) => (
-                      <Pressable
-                        key={img.id}
-                        onPress={() => Linking.openURL(img.url).catch(() => undefined)}
-                        style={{
-                          width: 140,
-                          borderRadius: radius.md,
-                          overflow: "hidden",
-                          borderWidth: 1,
-                          borderColor: colors.line,
-                          backgroundColor: colors.panel,
-                        }}
-                      >
-                        <Image
-                          source={{ uri: img.url }}
-                          style={{ width: 140, height: 100 }}
-                          resizeMode="cover"
-                        />
-                        <View
+                    {m.images.map((img) => {
+                      const safe = isSafeHttpUrl(img.url);
+                      return (
+                        <Pressable
+                          key={img.id}
+                          disabled={!safe}
+                          onPress={
+                            safe
+                              ? () => Linking.openURL(img.url).catch(() => undefined)
+                              : undefined
+                          }
                           style={{
-                            padding: 6,
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 4,
+                            width: 140,
+                            borderRadius: radius.md,
+                            overflow: "hidden",
+                            borderWidth: 1,
+                            borderColor: colors.line,
+                            backgroundColor: colors.panel,
+                            // Non-tappable (unsafe URL): same dim cue as disabled quick-tools.
+                            opacity: safe ? 1 : 0.55,
                           }}
                         >
-                          <Text
-                            style={[typography.bodyXs, { color: colors.muted, flex: 1 }]}
-                            numberOfLines={1}
+                          <Image
+                            source={{ uri: img.url }}
+                            style={{ width: 140, height: 100 }}
+                            resizeMode="cover"
+                          />
+                          <View
+                            style={{
+                              padding: 6,
+                              flexDirection: "row",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 4,
+                            }}
                           >
-                            {img.label}
-                          </Text>
-                          <Download size={12} color={colors.compute} />
-                        </View>
-                      </Pressable>
-                    ))}
+                            <Text
+                              style={[typography.bodyXs, { color: colors.muted, flex: 1 }]}
+                              numberOfLines={1}
+                            >
+                              {img.label}
+                            </Text>
+                            {safe ? <Download size={12} color={colors.compute} /> : null}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
                   </ScrollView>
                 ) : null}
 
@@ -2097,27 +2114,36 @@ export function AiChatPage({
                       paddingTop: spacing.xs,
                     }}
                   >
-                    {m.downloads.map((dl) => (
-                      <Pressable
-                        key={dl.id}
-                        onPress={() => Linking.openURL(dl.url).catch(() => undefined)}
-                        style={({ pressed }) => ({
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 4,
-                          backgroundColor: colors.computeSoft,
-                          borderRadius: radius.pill,
-                          paddingHorizontal: 8,
-                          paddingVertical: 4,
-                          opacity: pressed ? 0.7 : 1,
-                        })}
-                      >
-                        <Download size={11} color={colors.compute} />
-                        <Text style={[typography.bodyXs, { color: colors.compute }]}>
-                          {dl.label}
-                        </Text>
-                      </Pressable>
-                    ))}
+                    {m.downloads.map((dl) => {
+                      const safe = isSafeHttpUrl(dl.url);
+                      return (
+                        <Pressable
+                          key={dl.id}
+                          disabled={!safe}
+                          onPress={
+                            safe
+                              ? () => Linking.openURL(dl.url).catch(() => undefined)
+                              : undefined
+                          }
+                          style={({ pressed }) => ({
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 4,
+                            backgroundColor: colors.computeSoft,
+                            borderRadius: radius.pill,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            // Non-tappable (unsafe URL): dim + no download affordance.
+                            opacity: safe ? (pressed ? 0.7 : 1) : 0.55,
+                          })}
+                        >
+                          {safe ? <Download size={11} color={colors.compute} /> : null}
+                          <Text style={[typography.bodyXs, { color: colors.compute }]}>
+                            {dl.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 ) : null}
               </View>
@@ -2257,151 +2283,178 @@ export function AiChatPage({
           </Text>
         ) : null}
 
-        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: spacing.xs }}>
-          {/* Attach: foto/PDF per la vision — blocked during voice capture/transcribe */}
-          {/* U2: also blocked while a PDF conversion is in flight — reusing the
-              attach sheet mid-conversion is what causes the stuck-composer bug. */}
-          <Pressable
-            onPress={() => {
-              if (voiceBusyRef.current || voiceUi !== "idle" || pdfToRender) return;
-              setAttachSheetOpen(true);
-            }}
-            disabled={sending || voiceBlocksComposer || !!pdfToRender}
-            accessibilityLabel={t("chat.a11yAttach")}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: colors.panel,
-              borderWidth: 1,
-              borderColor: colors.line,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity:
-                sending || voiceBlocksComposer || pdfToRender ? 0.45 : pressed ? 0.7 : 1,
-            })}
-          >
-            <Plus color={colors.muted} size={18} />
-          </Pressable>
-
-          {/* Mic: tap to talk → stop → draft (on-device whisper).
-              Disabled while sending/transcribing; stays pressable when model
-              missing so the user still gets the download hint. Listening stays
-              enabled so the user can stop. */}
-          <Pressable
-            onPress={() => {
-              void handleMicPress();
-            }}
-            disabled={sending || voiceUi === "transcribing"}
-            accessibilityState={{
-              disabled: sending || voiceUi === "transcribing",
-              busy: voiceUi === "transcribing",
-            }}
-            accessibilityLabel={
-              voiceUi === "listening"
-                ? t("voice.a11yMicStop")
-                : !voiceReady
-                  ? t("voice.modelMissing")
-                  : t("voice.a11yMic")
-            }
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor:
-                voiceUi === "listening"
-                  ? (colors.bad ?? "#c0392b")
-                  : colors.panel,
-              borderWidth: 1,
-              borderColor: voiceUi === "listening" ? (colors.bad ?? "#c0392b") : colors.line,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity:
-                sending || voiceUi === "transcribing"
-                  ? 0.45
-                  : pressed
-                    ? 0.7
-                    : voiceReady
-                      ? 1
-                      : 0.55,
-            })}
-          >
-            <Mic
-              color={
-                voiceUi === "listening" ? "#ffffff" : colors.muted
-              }
-              size={18}
-            />
-          </Pressable>
-
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={t("chat.placeholder")}
-            placeholderTextColor={colors.muted}
-            editable={!sending && !voiceBlocksComposer}
-            onSubmitEditing={() => {
-              // Audit follow-up: typing stays enabled during a PDF
-              // conversion, but submission must not start mid-conversion.
-              if (pdfToRender) return;
-              handleSend(draft, attachedItems);
-            }}
-            returnKeyType="send"
-            multiline
-            style={{
-              flex: 1,
-              maxHeight: 120,
-              color: colors.ink,
-              backgroundColor: colors.inputNativeFill,
-              borderRadius: radius.pill,
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm,
-              fontSize: (typography.bodyLg.fontSize as number) ?? 16,
-              lineHeight: (typography.bodyLg.lineHeight as number) ?? 24,
-              fontFamily: typography.bodyMd.fontFamily as string | undefined,
-            }}
-          />
-
-          {/* Stop button during streaming; Send when ready; nothing (opacity 0) when empty+idle */}
-          {sending ? (
-            <Pressable
-              onPress={handleStop}
-              accessibilityLabel={t("chat.a11yStop")}
-              style={({ pressed }) => ({
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: colors.panel,
-                borderWidth: 1,
-                borderColor: colors.line,
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <Square size={16} color={colors.ink} />
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={() => {
+        {/* Elevated composer surface — input on top, actions row below */}
+        <View
+          style={{
+            backgroundColor: colors.panelSolid,
+            borderWidth: 1,
+            borderColor: colors.lineStrong,
+            borderRadius: radius.lg,
+            padding: spacing.xs,
+          }}
+        >
+          {/* Input-area only: taps on padding focus the field without wrapping the action row. */}
+          <Pressable onPress={() => inputRef.current?.focus()}>
+            <TextInput
+              ref={inputRef}
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={t("chat.placeholder")}
+              placeholderTextColor={colors.muted}
+              editable={!sending && !voiceBlocksComposer}
+              onSubmitEditing={() => {
+                // Audit follow-up: typing stays enabled during a PDF
+                // conversion, but submission must not start mid-conversion.
                 if (pdfToRender) return;
                 handleSend(draft, attachedItems);
               }}
-              disabled={!canSend}
-              accessibilityLabel={t("chat.a11ySend")}
-              style={({ pressed }) => ({
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: canSend ? colors.accent : colors.panel,
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: canSend ? (pressed ? 0.85 : 1) : 0.35,
-              })}
-            >
-              <Send color={canSend ? "#ffffff" : colors.muted} size={18} />
-            </Pressable>
-          )}
+              returnKeyType="send"
+              multiline
+              style={[
+                typography.chatBody,
+                {
+                  maxHeight: 120,
+                  color: colors.ink,
+                  paddingHorizontal: spacing.xs,
+                  paddingVertical: spacing.xs,
+                },
+              ]}
+            />
+          </Pressable>
+
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginTop: spacing.xs,
+            }}
+          >
+            {/* Left: attach and other action icons */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+              {/* Attach: foto/PDF per la vision — blocked during voice capture/transcribe */}
+              {/* U2: also blocked while a PDF conversion is in flight — reusing the
+                  attach sheet mid-conversion is what causes the stuck-composer bug. */}
+              <Pressable
+                onPress={() => {
+                  if (voiceBusyRef.current || voiceUi !== "idle" || pdfToRender) return;
+                  setAttachSheetOpen(true);
+                }}
+                disabled={sending || voiceBlocksComposer || !!pdfToRender}
+                accessibilityLabel={t("chat.a11yAttach")}
+                style={({ pressed }) => ({
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: colors.panel,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity:
+                    sending || voiceBlocksComposer || pdfToRender ? 0.45 : pressed ? 0.7 : 1,
+                })}
+              >
+                <Plus color={colors.muted} size={18} />
+              </Pressable>
+            </View>
+
+            {/* Right: mic + send/stop */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+              {/* Mic: tap to talk → stop → draft (on-device whisper).
+                  Disabled while sending/transcribing; stays pressable when model
+                  missing so the user still gets the download hint. Listening stays
+                  enabled so the user can stop. */}
+              <Pressable
+                onPress={() => {
+                  void handleMicPress();
+                }}
+                disabled={sending || voiceUi === "transcribing"}
+                accessibilityState={{
+                  disabled: sending || voiceUi === "transcribing",
+                  busy: voiceUi === "transcribing",
+                }}
+                accessibilityLabel={
+                  voiceUi === "listening"
+                    ? t("voice.a11yMicStop")
+                    : !voiceReady
+                      ? t("voice.modelMissing")
+                      : t("voice.a11yMic")
+                }
+                style={({ pressed }) => ({
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor:
+                    voiceUi === "listening"
+                      ? (colors.bad ?? "#c0392b")
+                      : colors.panel,
+                  borderWidth: 1,
+                  borderColor: voiceUi === "listening" ? (colors.bad ?? "#c0392b") : colors.line,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity:
+                    sending || voiceUi === "transcribing"
+                      ? 0.45
+                      : pressed
+                        ? 0.7
+                        : voiceReady
+                          ? 1
+                          : 0.55,
+                })}
+              >
+                <Mic
+                  color={
+                    voiceUi === "listening" ? colors.primaryText : colors.muted
+                  }
+                  size={18}
+                />
+              </Pressable>
+
+              {/* Stop button during streaming; Send when ready; dimmed when empty+idle */}
+              {sending ? (
+                <Pressable
+                  onPress={handleStop}
+                  accessibilityLabel={t("chat.a11yStop")}
+                  style={({ pressed }) => ({
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: colors.panel,
+                    borderWidth: 1,
+                    borderColor: colors.line,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Square size={16} color={colors.ink} />
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => {
+                    if (pdfToRender) return;
+                    handleSend(draft, attachedItems);
+                  }}
+                  disabled={!canSend}
+                  accessibilityLabel={t("chat.a11ySend")}
+                  accessibilityElementsHidden={!canSend}
+                  importantForAccessibility={canSend ? "yes" : "no-hide-descendants"}
+                  style={({ pressed }) => ({
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: colors.accent,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    opacity: canSend ? (pressed ? 0.85 : 1) : 0,
+                  })}
+                >
+                  <Send color={colors.primaryText} size={18} />
+                </Pressable>
+              )}
+            </View>
+          </View>
         </View>
       </View>
 
@@ -2692,7 +2745,7 @@ function MiniappCard({
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
         <IconComp size={16} color={colors.compute} />
-        <Text style={[typography.bodySm, { color: colors.ink, flex: 1, fontWeight: "600" }]}>
+        <Text style={[typography.bodySm, { color: colors.ink, flex: 1, fontFamily: fontFamilies.bodySemi }]}>
           {miniapp.title}
         </Text>
         <View
@@ -2703,7 +2756,7 @@ function MiniappCard({
             paddingVertical: 2,
           }}
         >
-          <Text style={[typography.bodyXs, { color: "#ffffff", fontWeight: "600" }]}>
+          <Text style={[typography.bodyXs, { color: colors.primaryText, fontFamily: fontFamilies.bodySemi }]}>
             {t("chat.interactive")}
           </Text>
         </View>

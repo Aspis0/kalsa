@@ -100,9 +100,9 @@ export function normalizeMiniapp(raw: unknown): AskAssistantMiniapp | null;
 export function normalizeMiniappBlock(block: unknown): Record<string, unknown>;
 
 /**
- * Normalize a quiz block: 4 options.
- * answerIndex is an explicit integer 0-3, or null when missing/invalid
- * (grading disabled — never defaults to 0).
+ * Normalize a quiz block: real options only (max 4, no synthetic pads).
+ * answerIndex is an explicit integer in 0..options.length-1, or null when
+ * missing/invalid (grading disabled — never defaults to 0).
  */
 export function normalizeQuizBlock(block: Record<string, unknown>): {
   type: "quiz";

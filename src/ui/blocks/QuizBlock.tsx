@@ -24,21 +24,24 @@ function toText(value: unknown, fallback = ""): string {
 }
 
 function normalizeOptions(raw: unknown): string[] {
+  // Real options only — never invent synthetic "Option N" pads (user could pick a fake answer).
   const list = Array.isArray(raw) ? raw : [];
-  const options = list.slice(0, 4).map((entry, index) => toText(entry, `Option ${index + 1}`));
-  while (options.length < 4) options.push(`Option ${options.length + 1}`);
-  return options;
+  return list.slice(0, 4).map((entry, index) => toText(entry, `Option ${index + 1}`));
 }
 
 /**
- * Only an explicit integer 0-3 is gradable.
+ * Only an explicit integer that addresses a REAL option is gradable.
  * Missing / non-integer / out-of-range → null (never default to 0).
+ *
+ * `optionCount` matters since options are no longer padded to 4: a payload with
+ * two options and answerIndex 3 would otherwise read as gradable while pointing
+ * at an option that does not exist, so the user could never be right.
  */
-function normalizeAnswerIndex(raw: unknown): number | null {
+function normalizeAnswerIndex(raw: unknown, optionCount: number): number | null {
   if (typeof raw !== "number" && typeof raw !== "string") return null;
   if (typeof raw === "string" && !/^\s*-?\d+\s*$/.test(raw)) return null;
   const n = typeof raw === "number" ? raw : Number(raw);
-  if (!Number.isInteger(n) || n < 0 || n > 3) return null;
+  if (!Number.isInteger(n) || n < 0 || n >= optionCount) return null;
   return n;
 }
 
@@ -51,7 +54,7 @@ function normalizeAnswerIndex(raw: unknown): number | null {
 export function QuizBlockView({ block, styles, t }: Props) {
   const question = toText(block.question ?? block.title, t("quiz.questionFallback"));
   const options = normalizeOptions(block.options);
-  const answerIndex = normalizeAnswerIndex(block.answerIndex);
+  const answerIndex = normalizeAnswerIndex(block.answerIndex, options.length);
   const explanation = toText(block.explanation, "");
   const gradable = answerIndex !== null;
 
@@ -72,6 +75,19 @@ export function QuizBlockView({ block, styles, t }: Props) {
     setChecked(false);
   };
 
+  // Zero options: no selectable answers — show answer-not-available fallback (not a dead end UI).
+  if (options.length === 0) {
+    return (
+      <View style={styles.miniappFallbackBlock}>
+        {toText(block.title) ? (
+          <Text style={styles.miniappBlockTitle}>{toText(block.title)}</Text>
+        ) : null}
+        <Text style={[styles.miniappFallbackText, { marginBottom: 10 }]}>{question}</Text>
+        <Text style={styles.miniappFallbackText}>{t("quiz.notGradable")}</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.miniappFallbackBlock}>
       {toText(block.title) ? (
@@ -87,20 +103,6 @@ export function QuizBlockView({ block, styles, t }: Props) {
           const isSelected = selected === index;
           const showCorrect = checked && gradable && index === answerIndex;
           const showWrong = checked && gradable && isSelected && index !== answerIndex;
-          const borderColor = showCorrect
-            ? "#22c55e"
-            : showWrong
-              ? "#ef4444"
-              : isSelected
-                ? "#5eead4"
-                : "rgba(255,255,255,0.14)";
-          const bg = showCorrect
-            ? "rgba(34,197,94,0.14)"
-            : showWrong
-              ? "rgba(239,68,68,0.14)"
-              : isSelected
-                ? "rgba(94,234,212,0.10)"
-                : "rgba(255,255,255,0.04)";
 
           // Explicit text (not color alone) for a11y when graded.
           const a11ySuffix = showCorrect
@@ -118,15 +120,13 @@ export function QuizBlockView({ block, styles, t }: Props) {
               key={`quiz-opt-${index}`}
               onPress={() => setSelected(index)}
               style={({ pressed }) => [
-                {
-                  borderColor,
-                  backgroundColor: bg,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  opacity: pressed && !checked ? 0.85 : 1,
-                  paddingHorizontal: 12,
-                  paddingVertical: 12,
-                },
+                styles.miniappQuizOption,
+                // Keep selection tint after check when answer is not gradable
+                // (old inline styles did; !checked alone dropped it).
+                isSelected && (!checked || !gradable) ? styles.miniappQuizOptionSelected : null,
+                showCorrect ? styles.miniappQuizOptionCorrect : null,
+                showWrong ? styles.miniappQuizOptionWrong : null,
+                pressed && !checked ? { opacity: 0.85 } : null,
               ]}
             >
               <Text style={styles.miniappFallbackText}>
@@ -173,7 +173,7 @@ export function QuizBlockView({ block, styles, t }: Props) {
           style={{ marginTop: 12, gap: 6 }}
         >
           {notGradable ? (
-            <Text style={[styles.miniappFallbackText, { fontWeight: "600" }]}>
+            <Text style={styles.miniappFallbackText}>
               {t("quiz.notGradable")}
             </Text>
           ) : (
@@ -182,7 +182,7 @@ export function QuizBlockView({ block, styles, t }: Props) {
                 accessibilityRole="text"
                 style={[
                   styles.miniappFallbackText,
-                  { color: isCorrect ? "#4ade80" : "#f87171", fontWeight: "600" },
+                  isCorrect ? styles.miniappQuizFeedbackCorrect : styles.miniappQuizFeedbackWrong,
                 ]}
               >
                 {isCorrect ? t("quiz.correct") : t("quiz.wrong")}

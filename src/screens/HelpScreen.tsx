@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale } from "../i18n";
 import { GlassPanel2, Header } from "../theme/components";
 import { spacing } from "../theme/tokens";
-import { useTypography } from "../theme/typography";
+import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 
 type Props = {
@@ -133,7 +133,7 @@ export function HelpScreen({ onBack }: Props) {
             rounded="lg"
             style={{ padding: spacing.lg, gap: spacing.sm }}
           >
-            <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+            <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
               {t(section.titleKey)}
             </Text>
             <Text style={[typography.bodySm, { color: colors.muted }]}>
@@ -148,12 +148,12 @@ export function HelpScreen({ onBack }: Props) {
         ))}
 
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.md }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("help.faq.title")}
           </Text>
           {FAQ_ITEMS.map((item) => (
             <View key={item.qKey} style={{ gap: spacing.xs }}>
-              <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+              <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
                 {t(item.qKey)}
               </Text>
               <Text style={[typography.bodySm, { color: colors.muted }]}>

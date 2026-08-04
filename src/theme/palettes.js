@@ -1,70 +1,79 @@
 // Aspis Bio "Agora" palettes for the mobile app.
 // Dark theme is the primary direction (matches the new website's Agora theme).
-// Light theme is its own tuned palette, NOT an inversion.
-// Keys preserved from previous palette so existing createStyles.ts compiles
-// unchanged; new keys (accentDeep, inkSoft, good, warn, bad) added for primitives.
+// Light theme ("Sage paper"): on a light page, elevated surfaces go LIGHTER /
+// WHITER (opaque whites and near-whites) — never "more transparent black".
+// Borders sit at ≥ ~10% black equivalent so they remain visible on #E8EEE7.
+// Keys preserved so existing createStyles.ts compiles unchanged.
 
 const THEME_OPTIONS = [
-  { id: "light", label: "Light", name: "Porcelain glass" },
+  { id: "light", label: "Light", name: "Sage paper" },
   { id: "dark", label: "Dark", name: "Navy glass" },
 ];
 
 const palettes = {
   light: {
     id: "light",
-    name: "Porcelain glass",
+    name: "Sage paper",
     blurTint: "light",
     statusBar: "dark-content",
     colors: {
-      // Legacy keys (read by createStyles.ts, 631 styles) — values retuned.
-      ink: "#1b1f26",
-      muted: "#5d6571",
-      quiet: "#2d3340",
+      // text
+      ink: "#17201C",
+      muted: "#58615B",
+      quiet: "#2C3630",
+      // page + surfaces (OPAQUE — elevated surfaces go lighter on a light page)
       shell: "#E8EEE7",
-      shellElevated: "#F2F7F1",
-      panelSolid: "#DCE5DB",
-      panel: "rgba(20, 25, 35, 0.03)",
-      panelSoft: "rgba(20, 25, 35, 0.02)",
-      panelBright: "rgba(20, 25, 35, 0.04)",
-      inputNativeFill: "rgba(20, 25, 35, 0.04)",
-      line: "rgba(20, 25, 35, 0.10)",
-      lineStrong: "rgba(20, 25, 35, 0.18)",
-      accent: "#2E5E55",
-      compute: "#0f8f7a",
-      cyan: "#4a93a8",
-      violet: "#6a4b9f",
-      amber: "#c79117",
-      danger: "#dc2626",
-      blackGlass: "rgba(20, 25, 35, 0.04)",
-      whiteGlass: "rgba(232, 238, 231, 0.55)",
-      navGlass: "rgba(232, 238, 231, 0.85)",
-      glowTop: "rgba(211, 90, 31, 0.06)",
-      glowMid: "rgba(15, 143, 122, 0.06)",
-      progressTrack: "rgba(20, 25, 35, 0.08)",
-      primaryText: "#ffffff",
+      shellElevated: "#F4F8F3",
+      panelSolid: "#FFFFFF",
+      panel: "#F4F8F3",
+      panelSoft: "#EDF2EC",
+      panelBright: "#FFFFFF",
+      inputNativeFill: "#FFFFFF",
+      cardStrong: "#FFFFFF",
+      surfaceElev: "#FFFFFF",
+      surfaceSunken: "#D8E0D7",
       materialTop: "#E8EEE7",
       materialMid: "#E8EEE7",
       materialBottom: "#E8EEE7",
-      materialVeil: "rgba(250, 247, 242, 0)",
-      // New keys consumed by primitives in src/theme/components/.
-      accentDeep: "#244C45",
-      inkSoft: "#2d3340",
-      good: "#16a34a",
-      warn: "#d97706",
-      bad: "#dc2626",
-      cardStrong: "rgba(20, 25, 35, 0.04)",
-      surfaceElev: "#F2F7F1",
-      // RNA-seq mobile port — soft tints, plot colors, line hairline.
-      lineSoft: "rgba(20, 25, 35, 0.06)",
-      accentSoft: "rgba(211, 90, 31, 0.10)",
-      computeDeep: "#0a7060",
-      computeSoft: "rgba(15, 143, 122, 0.10)",
-      goodSoft: "rgba(22, 163, 74, 0.10)",
-      warnSoft: "rgba(217, 119, 6, 0.10)",
-      badSoft: "rgba(220, 38, 38, 0.10)",
-      plotUp: "#d4452c",
-      plotDown: "#2a64c8",
-      plotNs: "rgba(20, 25, 35, 0.18)",
+      // borders — 10% black is the floor for visibility on this page
+      line: "#D3DAD2",
+      lineStrong: "#C2CAC1",
+      lineSoft: "#DFE5DE",
+      progressTrack: "#D3DAD2",
+      // one accent, used structurally (send / links / progress / focus)
+      accent: "#1F5F4E",
+      accentDeep: "#17493C",
+      accentSoft: "#DCE6DE",
+      primaryText: "#FFFFFF",
+      // semantic — recomputed to pass WCAG AA (4.5:1) on the page
+      compute: "#0A6A5A",
+      computeDeep: "#083F35",
+      cyan: "#2E6E80",
+      violet: "#5B3F8C",
+      amber: "#8A6410",
+      good: "#146B33",
+      warn: "#8A6410",
+      bad: "#B3261E",
+      danger: "#B3261E",
+      computeSoft: "#D9E8E3",
+      goodSoft: "#DCEBDF",
+      // Soft violet — plate-grid control wells (distinct from goodSoft sample green).
+      controlSoft: "#E8E0F2",
+      warnSoft: "#F2E6CC",
+      badSoft: "#F5DEDC",
+      // plots
+      plotUp: "#B3261E",
+      plotDown: "#1D4ED8",
+      plotNs: "#A8B0A7",
+      // scrims / overlays — layered over content, MUST stay translucent
+      blackGlass: "rgba(23, 32, 28, 0.06)",
+      whiteGlass: "rgba(255, 255, 255, 0.75)",
+      navGlass: "rgba(232, 238, 231, 0.92)",
+      materialVeil: "rgba(244, 248, 243, 0)",
+      glowTop: "rgba(31, 95, 78, 0.05)",
+      glowMid: "rgba(10, 106, 90, 0.05)",
+      // kept for key parity (createStyles / primitives still read it)
+      inkSoft: "#2C3630",
     },
   },
   dark: {
@@ -111,12 +120,15 @@ const palettes = {
       bad: "#ef4444",
       cardStrong: "rgba(255, 255, 255, 0.12)",
       surfaceElev: "#181d27",
+      surfaceSunken: "#0E1520",
       // RNA-seq mobile port — soft tints, plot colors, line hairline.
       lineSoft: "rgba(255, 255, 255, 0.08)",
       accentSoft: "rgba(240, 122, 63, 0.16)",
       computeDeep: "#3aa890",
       computeSoft: "rgba(95, 210, 189, 0.14)",
       goodSoft: "rgba(34, 197, 94, 0.16)",
+      // Soft violet from palette violet #b594dd — plate-grid control wells.
+      controlSoft: "rgba(181, 148, 221, 0.18)",
       warnSoft: "rgba(245, 158, 11, 0.16)",
       badSoft: "rgba(239, 68, 68, 0.18)",
       plotUp: "#ff8a78",

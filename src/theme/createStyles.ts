@@ -8,12 +8,14 @@ import { radius, spacing } from "./tokens";
 export type ResponsiveMetrics = typeof DEFAULT_RESPONSIVE_METRICS;
 
 export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = DEFAULT_RESPONSIVE_METRICS) {
-  // Agora redesign fonts: Inter for body, Fraunces for display. Loaded via
-  // useAgoraFonts (App.tsx blocks render until ready), so we can reference
-  // these family names directly. Falls back to System if the load somehow
-  // bypassed the gate (e.g. very early in render before the gate kicks in).
-  const fontBody = "Inter_400Regular";
-  const fontDisplay = "Fraunces_600SemiBold";
+  // Plus Jakarta Sans for all UI text. On Android RN does NOT synthesize
+  // weight for custom families — the face name encodes weight (…_400Regular,
+  // …_500Medium, …_600SemiBold, …_700Bold). Do NOT also set a numeric weight
+  // property on these faces. Loaded via useAgoraFonts (App.tsx blocks render
+  // until ready). Falls back to System if the load somehow bypassed the gate.
+  const fontBody = "PlusJakartaSans_400Regular";
+  const fontSemi = "PlusJakartaSans_600SemiBold";
+  const fontDisplay = "PlusJakartaSans_700Bold";
   const textClear = { includeFontPadding: false };
   const androidGlassSurface = Platform.OS === "android" ? colors.panelSolid : "transparent";
   return StyleSheet.create({
@@ -62,10 +64,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.sm,
   },
   errorText: {
+    fontFamily: fontDisplay,
     color: colors.danger,
     flex: 1,
     fontSize: 13,
-    fontWeight: "800",
   },
   statusNotice: {
     alignItems: "center",
@@ -77,15 +79,15 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.xs,
   },
   statusNoticeTitle: {
+    fontFamily: fontDisplay,
     ...textClear,
     fontSize: 13,
-    fontWeight: "900",
   },
   statusNoticeDetail: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 11,
-    fontWeight: "700",
   },
   retryButton: {
     backgroundColor: androidGlassSurface,
@@ -105,10 +107,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 3,
   },
   retryButtonText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.ink,
     fontSize: 12,
-    fontWeight: "900",
   },
   askAssistantSheet: {
     bottom: metrics.askAssistantBottom,
@@ -161,7 +163,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 16,
-    fontWeight: "900",
   },
   askAssistantSubtitle: {
     ...textClear,
@@ -182,7 +183,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.accent,
     fontFamily: fontDisplay,
     fontSize: 10,
-    fontWeight: "900",
     textTransform: "uppercase",
   },
   askAssistantCloseButton: {
@@ -242,10 +242,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     lineHeight: 18,
   },
   askAssistantBubbleUserText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.primaryText,
     fontSize: 13,
-    fontWeight: "800",
     lineHeight: 18,
   },
   askAssistantSources: {
@@ -261,10 +261,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: 7,
   },
   askAssistantSourceTitle: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.ink,
     fontSize: 11,
-    fontWeight: "800",
     lineHeight: 14,
   },
   askAssistantSourceMeta: {
@@ -275,7 +275,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     marginTop: 2,
   },
   miniappIosShell: {
-    borderColor: "rgba(255,255,255,0.42)",
+    borderColor: colors.lineStrong,
     borderRadius: 28,
     borderWidth: 1,
     elevation: 8,
@@ -287,8 +287,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     shadowRadius: 32,
   },
   miniappAndroidShell: {
-    backgroundColor: "rgba(255,255,255,0.13)",
-    borderColor: "rgba(255,255,255,0.22)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 28,
     borderWidth: 1,
     elevation: 12,
@@ -300,7 +300,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     shadowRadius: 22,
   },
   miniappVisionShell: {
-    borderColor: "rgba(255,255,255,0.58)",
+    borderColor: colors.lineStrong,
     borderRadius: 34,
     borderWidth: 1,
     elevation: 14,
@@ -315,7 +315,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     ...(StyleSheet as any).absoluteFillObject,
   },
   miniappVisionHighlight: {
-    backgroundColor: "rgba(255,255,255,0.72)",
+    backgroundColor: colors.whiteGlass,
     borderRadius: 999,
     height: 90,
     left: -20,
@@ -325,10 +325,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: 190,
   },
   miniappAndroidGlow: {
-    backgroundColor: "rgba(120,170,255,0.28)",
+    backgroundColor: colors.cyan,
     borderRadius: 999,
     height: 150,
-    opacity: 0.85,
+    opacity: 0.28,
     position: "absolute",
     right: -48,
     top: -52,
@@ -347,46 +347,46 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.lg,
   },
   miniappBlockSurfaceBase: {
-    borderColor: "rgba(255,255,255,0.26)",
+    borderColor: colors.line,
     borderRadius: 24,
     borderWidth: 1,
     overflow: "hidden",
   },
   miniappSurfaceHeroGlass: {
-    backgroundColor: "rgba(255,255,255,0.20)",
+    backgroundColor: colors.panelSolid,
     borderRadius: 28,
     padding: spacing.md,
   },
   miniappSurfaceMetricGlass: {
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: colors.panel,
     padding: spacing.sm,
   },
   miniappSurfaceScientificCanvas: {
-    backgroundColor: "rgba(244,251,255,0.18)",
+    backgroundColor: colors.panel,
     minHeight: 150,
     padding: spacing.sm,
   },
   miniappSurfaceWellPlate: {
-    backgroundColor: "rgba(246,252,255,0.16)",
+    backgroundColor: colors.panel,
     padding: spacing.sm,
   },
   miniappSurfaceDataSheet: {
-    backgroundColor: "rgba(255,255,255,0.10)",
+    backgroundColor: colors.panel,
     padding: spacing.xs,
   },
   miniappSurfaceCommandBar: {
-    backgroundColor: "rgba(255,255,255,0.16)",
+    backgroundColor: colors.panel,
     borderRadius: 999,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
   miniappSurfaceFloatingControl: {
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: colors.panel,
     borderRadius: 22,
     padding: spacing.xs,
   },
   miniappSurfaceFrostedPanel: {
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: colors.panel,
     padding: spacing.sm,
   },
   miniappSurfaceDensityCompact: {
@@ -399,31 +399,31 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     marginTop: spacing.md,
   },
   miniappSurfaceAccentCyan: {
-    borderLeftColor: "rgba(34,211,238,0.72)",
+    borderLeftColor: colors.cyan,
     borderLeftWidth: 3,
   },
   miniappSurfaceAccentIndigo: {
-    borderLeftColor: "rgba(129,140,248,0.72)",
+    borderLeftColor: colors.violet,
     borderLeftWidth: 3,
   },
   miniappSurfaceAccentLime: {
-    borderLeftColor: "rgba(163,230,53,0.72)",
+    borderLeftColor: colors.good,
     borderLeftWidth: 3,
   },
   miniappSurfaceAccentRose: {
-    borderLeftColor: "rgba(251,113,133,0.72)",
+    borderLeftColor: colors.bad,
     borderLeftWidth: 3,
   },
   miniappSurfaceAccentViolet: {
-    borderLeftColor: "rgba(196,181,253,0.72)",
+    borderLeftColor: colors.violet,
     borderLeftWidth: 3,
   },
   miniappSurfaceAccentZinc: {
-    borderLeftColor: "rgba(212,212,216,0.64)",
+    borderLeftColor: colors.lineStrong,
     borderLeftWidth: 3,
   },
   miniappSurfaceInteractive: {
-    borderColor: "rgba(255,255,255,0.42)",
+    borderColor: colors.lineStrong,
   },
   miniappSurfaceStateful: {
     shadowColor: "#000",
@@ -439,8 +439,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   },
   miniappIconBadge: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.28)",
-    borderColor: "rgba(255,255,255,0.48)",
+    backgroundColor: colors.panelSolid,
+    borderColor: colors.lineStrong,
     borderRadius: 999,
     borderWidth: 1,
     height: 44,
@@ -448,35 +448,35 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: 44,
   },
   miniappEyebrow: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
-    fontWeight: "900",
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
   miniappTitle: {
+    fontFamily: fontDisplay,
     ...textClear,
-    color: colors.primaryText,
+    color: colors.ink,
     fontSize: 17,
-    fontWeight: "900",
     lineHeight: 22,
   },
   miniappSubtitle: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 11,
-    fontWeight: "700",
     lineHeight: 15,
   },
   miniappHeroBlock: {
     gap: spacing.xs,
   },
   miniappBlockTitle: {
+    fontFamily: fontDisplay,
     ...textClear,
-    color: colors.primaryText,
+    color: colors.ink,
     fontSize: 13,
-    fontWeight: "900",
     lineHeight: 17,
   },
   miniappMetricGrid: {
@@ -485,8 +485,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     gap: spacing.sm,
   },
   miniappMetricCard: {
-    backgroundColor: "rgba(255,255,255,0.24)",
-    borderColor: "rgba(255,255,255,0.34)",
+    backgroundColor: colors.panelSolid,
+    borderColor: colors.line,
     borderRadius: 24,
     borderWidth: 1,
     flexGrow: 1,
@@ -494,86 +494,86 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.sm,
   },
   miniappMetricCardWide: {
-    backgroundColor: "rgba(255,255,255,0.17)",
-    borderColor: "rgba(255,255,255,0.30)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 24,
     borderWidth: 1,
     flexBasis: "100%",
     padding: spacing.sm,
   },
   miniappMetricLabel: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
-    fontWeight: "900",
     textTransform: "uppercase",
   },
   miniappMetricValue: {
+    fontFamily: fontDisplay,
     ...textClear,
-    color: colors.primaryText,
+    color: colors.ink,
     fontSize: 25,
-    fontWeight: "900",
     lineHeight: 31,
     marginTop: 2,
   },
   miniappQualityText: {
+    fontFamily: fontDisplay,
     ...textClear,
-    color: colors.primaryText,
+    color: colors.ink,
     fontSize: 18,
-    fontWeight: "900",
     marginTop: 3,
   },
   miniappInputGrid: {
     gap: spacing.sm,
   },
   miniappInputCard: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderColor: "rgba(255,255,255,0.32)",
+    backgroundColor: colors.panelSolid,
+    borderColor: colors.line,
     borderRadius: 24,
     borderWidth: 1,
     padding: spacing.sm,
   },
   miniappInputLabel: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 11,
-    fontWeight: "900",
     marginBottom: 4,
   },
   miniappInput: {
+    fontFamily: fontDisplay,
     ...textClear,
-    color: colors.primaryText,
+    color: colors.ink,
     fontSize: 18,
-    fontWeight: "900",
     paddingVertical: 4,
   },
   miniappFormulaBox: {
-    backgroundColor: "rgba(255,255,255,0.14)",
-    borderColor: "rgba(255,255,255,0.28)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 24,
     borderWidth: 1,
     padding: spacing.sm,
   },
   miniappFormulaLabel: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
-    fontWeight: "900",
     textTransform: "uppercase",
   },
   miniappFormulaText: {
+    fontFamily: fontDisplay,
     ...textClear,
-    color: colors.primaryText,
+    color: colors.ink,
     fontSize: 13,
-    fontWeight: "800",
     marginTop: 2,
   },
   miniappPlotBlock: {
     gap: spacing.xs,
   },
   miniappPlotFrame: {
-    backgroundColor: "rgba(255,255,255,0.14)",
-    borderColor: "rgba(255,255,255,0.28)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 24,
     borderWidth: 1,
     minHeight: 110,
@@ -590,15 +590,15 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: "84%",
   },
   miniappPlotText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 11,
-    fontWeight: "800",
     marginTop: spacing.sm,
   },
   miniappTableBlock: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderColor: "rgba(255,255,255,0.24)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 24,
     borderWidth: 1,
     gap: spacing.xs,
@@ -613,22 +613,22 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     gap: spacing.xs,
   },
   miniappTableCell: {
+    fontFamily: fontDisplay,
     ...textClear,
-    color: colors.primaryText,
+    color: colors.ink,
     flex: 1,
     fontSize: 11,
-    fontWeight: "700",
     minWidth: 40,
   },
   miniappTableHeaderCell: {
+    fontFamily: fontDisplay,
     color: colors.muted,
-    fontWeight: "900",
   },
   miniappTableOverflowNotice: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
-    fontWeight: "700",
     marginTop: 2,
   },
   miniappPathwayScroller: {
@@ -650,8 +650,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     minHeight: 180,
   },
   miniappPathwayNode: {
-    backgroundColor: "rgba(255,255,255,0.22)",
-    borderColor: "rgba(255,255,255,0.45)",
+    backgroundColor: colors.panelSolid,
+    borderColor: colors.lineStrong,
     borderRadius: 16,
     borderWidth: 1,
     padding: spacing.sm,
@@ -669,37 +669,37 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: 164,
   },
   miniappPathwayNodeGene: {
-    borderLeftColor: "rgba(34,211,238,0.95)",
+    borderLeftColor: colors.cyan,
     borderLeftWidth: 3,
   },
   miniappPathwayNodeProtein: {
-    borderLeftColor: "rgba(129,140,248,0.95)",
+    borderLeftColor: colors.violet,
     borderLeftWidth: 3,
   },
   miniappPathwayNodeDrug: {
-    borderLeftColor: "rgba(251,113,133,0.95)",
+    borderLeftColor: colors.danger,
     borderLeftWidth: 3,
   },
   miniappPathwayNodeProcess: {
-    borderLeftColor: "rgba(163,230,53,0.95)",
+    borderLeftColor: colors.good,
     borderLeftWidth: 3,
   },
   miniappPathwayNodePhenotype: {
-    borderLeftColor: "rgba(196,181,253,0.95)",
+    borderLeftColor: colors.violet,
     borderLeftWidth: 3,
   },
   miniappPathwayNodeLabel: {
+    fontFamily: fontDisplay,
     ...textClear,
-    color: colors.primaryText,
+    color: colors.ink,
     fontSize: 12,
-    fontWeight: "800",
     marginTop: 2,
   },
   miniappPathwayNodeKind: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
-    fontWeight: "900",
     marginTop: 1,
     textTransform: "uppercase",
   },
@@ -708,23 +708,23 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     height: 2,
     left: 0,
     top: 0,
-    backgroundColor: "rgba(148,163,184,0.8)",
+    backgroundColor: colors.muted,
   },
   miniappPathwayEdgeActivation: {
     opacity: 0.9,
-    backgroundColor: "rgba(34,211,238,0.9)",
+    backgroundColor: colors.cyan,
   },
   miniappPathwayEdgeInhibition: {
     opacity: 0.9,
-    backgroundColor: "rgba(251,113,133,0.95)",
+    backgroundColor: colors.danger,
   },
   miniappPathwayEdgeBinding: {
     opacity: 0.9,
-    backgroundColor: "rgba(196,181,253,0.9)",
+    backgroundColor: colors.violet,
   },
   miniappPathwayEdgeUnknown: {
     opacity: 0.62,
-    backgroundColor: "rgba(148,163,184,0.9)",
+    backgroundColor: colors.muted,
   },
   miniappPathwayEdgeArrow: {
     borderLeftColor: "transparent",
@@ -738,7 +738,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: 0,
   },
   miniappPathwayEdgeTerminus: {
-    borderColor: "rgba(251,113,133,0.95)",
+    borderColor: colors.danger,
     borderRadius: 999,
     borderWidth: 2,
     height: 10,
@@ -746,10 +746,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: 10,
   },
   miniappPathwayEdgeLabel: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 11,
-    fontWeight: "700",
     position: "absolute",
   },
   miniappPathwayEdgePressable: {
@@ -758,25 +758,25 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     position: "absolute",
   },
   miniappPathwaySelectedNode: {
-    backgroundColor: "rgba(125,211,252,0.24)",
-    borderColor: "rgba(186,230,253,0.96)",
-    shadowColor: "#7dd3fc",
+    backgroundColor: colors.computeSoft,
+    borderColor: colors.cyan,
+    shadowColor: colors.cyan,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.22,
     shadowRadius: 20,
     elevation: 6,
   },
   miniappPathwaySelectedEdge: {
-    backgroundColor: "rgba(125,211,252,0.92)",
-    shadowColor: "#7dd3fc",
+    backgroundColor: colors.cyan,
+    shadowColor: colors.cyan,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.28,
     shadowRadius: 14,
     elevation: 5,
   },
   miniappPathwayEditorPanel: {
-    backgroundColor: "rgba(255,255,255,0.16)",
-    borderColor: "rgba(255,255,255,0.38)",
+    backgroundColor: colors.panelSolid,
+    borderColor: colors.lineStrong,
     borderRadius: 26,
     borderWidth: 1,
     elevation: 10,
@@ -798,8 +798,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.md,
   },
   miniappPathwayEditorSection: {
-    backgroundColor: "rgba(255,255,255,0.13)",
-    borderColor: "rgba(255,255,255,0.26)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 22,
     borderWidth: 1,
     gap: spacing.xs,
@@ -809,28 +809,28 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.md,
   },
   miniappPathwayEditorLabel: {
+    fontFamily: fontDisplay,
     ...textClear,
-    color: colors.primaryText,
+    color: colors.ink,
     fontSize: 12,
-    fontWeight: "900",
   },
   miniappPathwayEditorSmallLabel: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
-    fontWeight: "900",
     marginTop: 4,
     textTransform: "uppercase",
   },
   miniappPathwayEditorInput: {
+    fontFamily: fontDisplay,
     ...textClear,
-    backgroundColor: "rgba(255,255,255,0.20)",
-    borderColor: "rgba(255,255,255,0.34)",
+    backgroundColor: colors.panelSolid,
+    borderColor: colors.line,
     borderRadius: 18,
     borderWidth: 1,
-    color: colors.primaryText,
+    color: colors.ink,
     fontSize: 14,
-    fontWeight: "800",
     minHeight: 42,
     paddingHorizontal: spacing.sm,
     paddingVertical: 9,
@@ -841,8 +841,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     gap: spacing.xs,
   },
   miniappPathwayChip: {
-    backgroundColor: "rgba(255,255,255,0.13)",
-    borderColor: "rgba(255,255,255,0.28)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 999,
     borderWidth: 1,
     minHeight: 44,
@@ -850,8 +850,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: 10,
   },
   miniappPathwayChipActive: {
-    backgroundColor: "rgba(34,211,238,0.22)",
-    borderColor: "rgba(34,211,238,0.82)",
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
   },
   miniappPathwayMoveControls: {
     gap: spacing.xs,
@@ -868,8 +868,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   },
   miniappPathwayDangerAction: {
     alignItems: "center",
-    backgroundColor: "rgba(248,113,113,0.18)",
-    borderColor: "rgba(248,113,113,0.46)",
+    backgroundColor: colors.badSoft,
+    borderColor: colors.bad,
     borderRadius: 999,
     borderWidth: 1,
     minHeight: 38,
@@ -881,8 +881,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     marginTop: spacing.xs,
   },
   miniappMechanismLegendItem: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderColor: "rgba(255,255,255,0.28)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: spacing.sm,
@@ -893,26 +893,26 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     marginTop: spacing.xs,
   },
   miniappEvidenceItem: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderColor: "rgba(255,255,255,0.22)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 16,
     borderWidth: 1,
     padding: spacing.sm,
     gap: 2,
   },
   miniappHypothesisCard: {
-    backgroundColor: "rgba(255,255,255,0.10)",
-    borderColor: "rgba(255,255,255,0.24)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 20,
     borderWidth: 1,
     gap: spacing.xs,
     padding: spacing.sm,
   },
   miniappHypothesisStatement: {
+    fontFamily: fontDisplay,
     ...textClear,
-    color: colors.primaryText,
+    color: colors.ink,
     fontSize: 13,
-    fontWeight: "900",
   },
   miniappExperimentMatrix: {
     gap: spacing.xs,
@@ -922,15 +922,15 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     maxWidth: "100%",
   },
   miniappExperimentMatrixHeader: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
-    fontWeight: "900",
     minWidth: 92,
   },
   miniappExperimentMatrixCell: {
     ...textClear,
-    color: colors.primaryText,
+    color: colors.ink,
     fontSize: 10,
     minWidth: 90,
   },
@@ -938,8 +938,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     gap: spacing.xs,
   },
   miniappPlannerTimelineItem: {
-    backgroundColor: "rgba(255,255,255,0.10)",
-    borderColor: "rgba(255,255,255,0.24)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 16,
     borderWidth: 1,
     gap: 4,
@@ -950,8 +950,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.xs,
   },
   miniappDecisionTreeBranch: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderColor: "rgba(255,255,255,0.24)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 16,
     borderWidth: 1,
     marginTop: 2,
@@ -962,28 +962,28 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     gap: spacing.xs,
   },
   miniappRiskChip: {
-    backgroundColor: "rgba(255,255,255,0.14)",
-    borderColor: "rgba(255,255,255,0.28)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
   },
   miniappRiskChipGood: {
-    borderColor: "rgba(34,211,238,0.5)",
-    backgroundColor: "rgba(34,211,238,0.14)",
+    borderColor: colors.good,
+    backgroundColor: colors.goodSoft,
   },
   miniappRiskChipWarning: {
-    borderColor: "rgba(251,191,36,0.5)",
-    backgroundColor: "rgba(251,191,36,0.14)",
+    borderColor: colors.warn,
+    backgroundColor: colors.warnSoft,
   },
   miniappRiskChipDanger: {
-    borderColor: "rgba(248,113,113,0.5)",
-    backgroundColor: "rgba(248,113,113,0.14)",
+    borderColor: colors.bad,
+    backgroundColor: colors.badSoft,
   },
   miniappPlateGridBlock: {
-    backgroundColor: "rgba(255,255,255,0.10)",
-    borderColor: "rgba(255,255,255,0.24)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 24,
     borderWidth: 1,
     gap: spacing.sm,
@@ -1001,24 +1001,24 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     gap: 4,
   },
   miniappPlateAxisLabel: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
-    fontWeight: "900",
     textAlign: "center",
     width: 20,
   },
   miniappPlateColumnHeader: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
-    fontWeight: "900",
     textAlign: "center",
     width: 24,
   },
   miniappPlateGridCell: {
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderColor: "rgba(255,255,255,0.2)",
+    backgroundColor: colors.panelSoft,
+    borderColor: colors.line,
     borderRadius: 4,
     borderWidth: 1,
     height: 22,
@@ -1026,16 +1026,16 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: 24,
   },
   miniappPlateGridCellStandard: {
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: colors.panel,
   },
   miniappPlateGridCellSample: {
-    backgroundColor: "rgba(0, 160, 120, 0.48)",
+    backgroundColor: colors.goodSoft,
   },
   miniappPlateGridCellControl: {
-    backgroundColor: "rgba(120, 80, 255, 0.48)",
+    backgroundColor: colors.controlSoft,
   },
   miniappPlateGridCellEmpty: {
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: colors.panelSoft,
   },
   miniappPlateGridCellText: {
     ...textClear,
@@ -1048,41 +1048,47 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     gap: spacing.sm,
   },
   miniappSegment: {
-    backgroundColor: "rgba(255,255,255,0.24)",
-    borderColor: "rgba(255,255,255,0.34)",
+    backgroundColor: colors.panelSolid,
+    borderColor: colors.line,
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: spacing.sm,
     paddingVertical: 8,
   },
   miniappSegmentActive: {
-    backgroundColor: "rgba(255,255,255,0.72)",
-    borderColor: "rgba(255,255,255,0.90)",
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   miniappSegmentText: {
+    fontFamily: fontDisplay,
     ...textClear,
-    color: colors.primaryText,
+    color: colors.ink,
     fontSize: 11,
-    fontWeight: "900",
+  },
+  miniappSegmentTextActive: {
+    color: colors.primaryText,
+    fontFamily: fontDisplay,
+    ...textClear,
+    fontSize: 11,
   },
   miniappTabBlock: {
-    backgroundColor: "rgba(255,255,255,0.10)",
-    borderColor: "rgba(255,255,255,0.24)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 24,
     borderWidth: 1,
     gap: spacing.sm,
     padding: spacing.sm,
   },
   miniappTabPanel: {
-    borderColor: "rgba(255,255,255,0.26)",
+    borderColor: colors.line,
     borderRadius: 16,
     borderWidth: 1,
     gap: spacing.xs,
     padding: spacing.sm,
   },
   miniappFallbackBlock: {
-    backgroundColor: "rgba(255,255,255,0.10)",
-    borderColor: "rgba(255,255,255,0.22)",
+    backgroundColor: colors.panel,
+    borderColor: colors.line,
     borderRadius: 24,
     borderWidth: 1,
     gap: spacing.xs,
@@ -1095,8 +1101,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   },
   miniappPrimaryAction: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.84)",
-    borderColor: "rgba(255,255,255,0.95)",
+    backgroundColor: colors.panelSolid,
+    borderColor: colors.lineStrong,
     borderRadius: 999,
     borderWidth: 1,
     elevation: 4,
@@ -1114,16 +1120,45 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     transform: [{ scale: 0.98 }],
   },
   miniappPrimaryActionText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.ink,
     fontSize: 12,
-    fontWeight: "900",
   },
   miniappFallbackText: {
     ...textClear,
     color: colors.muted,
     fontSize: 12,
     lineHeight: 17,
+  },
+  miniappQuizOption: {
+    backgroundColor: colors.panelSoft,
+    borderColor: colors.line,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  miniappQuizOptionSelected: {
+    backgroundColor: colors.computeSoft,
+    borderColor: colors.compute,
+  },
+  miniappQuizOptionCorrect: {
+    backgroundColor: colors.goodSoft,
+    borderColor: colors.good,
+  },
+  miniappQuizOptionWrong: {
+    backgroundColor: colors.badSoft,
+    borderColor: colors.bad,
+  },
+  miniappQuizFeedbackCorrect: {
+    color: colors.good,
+    fontFamily: fontSemi,
+  },
+  miniappQuizFeedbackWrong: {
+    // plotUp is the WCAG-safe error red on dark panel surfaces (bad is 4.3:1 there).
+    color: colors.plotUp,
+    fontFamily: fontSemi,
   },
   askAssistantThinkingText: {
     color: colors.muted,
@@ -1167,7 +1202,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 11,
-    fontWeight: "800",
   },
   askAssistantInputRow: {
     alignItems: "center",
@@ -1234,7 +1268,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     fontSize: 12,
     includeFontPadding: false,
     lineHeight: 16,
-    fontWeight: "900",
     textAlign: "center",
   },
   askAssistantHeaderButtonTextActive: {
@@ -1267,14 +1300,14 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.lg,
   },
   labBookDate: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 13,
-    fontWeight: "900",
   },
   labBookTitleInput: {
+    fontFamily: fontDisplay,
     fontSize: 20,
-    fontWeight: "900",
   },
   labBookBodyInput: {
     minHeight: 210,
@@ -1306,11 +1339,11 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingHorizontal: spacing.sm,
   },
   labBookAttachmentText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.ink,
     flexShrink: 1,
     fontSize: 12,
-    fontWeight: "800",
   },
   labBookZoomGrid: {
     flexDirection: "row",
@@ -1343,9 +1376,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   labBookQuickNoteTitle: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontBody,
+    fontFamily: fontSemi,
     fontSize: 14,
-    fontWeight: "600",
   },
   labBookQuickNoteHint: {
     ...textClear,
@@ -1411,10 +1443,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingHorizontal: spacing.md,
   },
   labBookReaderSearchText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.ink,
     fontSize: 12,
-    fontWeight: "900",
   },
   labBookReaderScroll: {
     flexGrow: 0,
@@ -1448,15 +1480,13 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 30,
-    fontWeight: "800",
     lineHeight: 34,
   },
   labBookReaderExcerpt: {
     ...textClear,
     color: colors.ink,
-    fontFamily: fontBody,
+    fontFamily: fontDisplay,
     fontSize: 15,
-    fontWeight: "700",
     lineHeight: 23,
     opacity: 0.76,
   },
@@ -1505,23 +1535,23 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 8,
   },
   labBookMiniDate: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.accent,
     fontSize: 11,
-    fontWeight: "900",
     textTransform: "uppercase",
   },
   labBookMiniTitle: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.ink,
     fontSize: 17,
-    fontWeight: "900",
   },
   labBookMiniExcerpt: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.ink,
     fontSize: 12,
-    fontWeight: "700",
     lineHeight: 17,
     minHeight: 50,
     opacity: 0.72,
@@ -1610,6 +1640,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     justifyContent: "flex-end",
   },
   labBookFanLabel: {
+    fontFamily: fontDisplay,
     ...textClear,
     backgroundColor: androidGlassSurface,
     borderColor: colors.line,
@@ -1619,7 +1650,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     borderWidth: 1,
     color: colors.ink,
     fontSize: 12,
-    fontWeight: "900",
     overflow: "hidden",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
@@ -1817,7 +1847,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.muted,
     fontFamily: fontDisplay,
     fontSize: 10,
-    fontWeight: "800",
   },
   navTextActive: {
     color: colors.ink,
@@ -1830,7 +1859,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.accent,
     fontFamily: fontDisplay,
     fontSize: 11,
-    fontWeight: "800",
     marginBottom: spacing.xs,
     textTransform: "uppercase",
   },
@@ -1839,7 +1867,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 22,
-    fontWeight: "800",
     letterSpacing: 0,
   },
   heroTitleRow: {
@@ -1888,7 +1915,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 11,
-    fontWeight: "900",
   },
   section: {
     gap: spacing.sm,
@@ -1898,7 +1924,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 16,
-    fontWeight: "800",
   },
   organismGrid: {
     flexDirection: "row",
@@ -1932,7 +1957,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 16,
-    fontWeight: "800",
   },
   cardMeta: {
     ...textClear,
@@ -2064,14 +2088,12 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 15,
-    fontWeight: "900",
   },
   qpcrMetricLabel: {
     ...textClear,
     color: colors.quiet,
     fontFamily: fontDisplay,
     fontSize: 10,
-    fontWeight: "900",
     marginTop: 2,
     textTransform: "uppercase",
   },
@@ -2121,10 +2143,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 5,
   },
   qpcrQuickPickText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: "900",
   },
   qpcrQuickPickTextActive: {
     color: colors.primaryText,
@@ -2158,10 +2180,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 4,
   },
   columnChipText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: "900",
   },
   columnChipTextActive: {
     color: colors.primaryText,
@@ -2197,9 +2219,9 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     padding: spacing.md,
   },
   issueText: {
+    fontFamily: fontDisplay,
     color: colors.amber,
     fontSize: 13,
-    fontWeight: "800",
     lineHeight: 18,
   },
   previewPanel: {
@@ -2262,9 +2284,9 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     shadowColor: colors.compute,
   },
   primaryButtonText: {
+    fontFamily: fontDisplay,
     color: colors.primaryText,
     fontSize: 15,
-    fontWeight: "900",
   },
   statusPanel: {
     gap: spacing.md,
@@ -2286,9 +2308,9 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.xs,
   },
   statusBadgeText: {
+    fontFamily: fontDisplay,
     ...textClear,
     fontSize: 11,
-    fontWeight: "900",
   },
   jobCard: {
     gap: spacing.md,
@@ -2303,13 +2325,12 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 24,
-    fontWeight: "900",
   },
   rnaAnalysisBody: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 13,
-    fontWeight: "700",
     lineHeight: 19,
   },
   rnaAnalysisOrb: {
@@ -2347,13 +2368,12 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 18,
-    fontWeight: "900",
   },
   rnaAnalysisStatLabel: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 11,
-    fontWeight: "900",
     textTransform: "uppercase",
   },
   rnaActionGrid: {
@@ -2389,13 +2409,12 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 15,
-    fontWeight: "900",
   },
   rnaActionBody: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: "700",
     lineHeight: 17,
   },
   rnaActionCount: {
@@ -2403,7 +2422,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.accent,
     fontFamily: fontDisplay,
     fontSize: 18,
-    fontWeight: "900",
     minWidth: 24,
     textAlign: "right",
   },
@@ -2411,10 +2429,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     gap: spacing.sm,
   },
   analysisDate: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.quiet,
     fontSize: 12,
-    fontWeight: "900",
     marginTop: spacing.xs,
   },
   analysisCard: {
@@ -2438,8 +2456,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     minHeight: 44,
   },
   textButtonText: {
+    fontFamily: fontDisplay,
     fontSize: 13,
-    fontWeight: "900",
   },
   deletePanel: {
     gap: spacing.md,
@@ -2467,10 +2485,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     borderColor: colors.accent,
   },
   analysisTabText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: "900",
   },
   analysisTabTextActive: {
     color: colors.primaryText,
@@ -2511,9 +2529,9 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.xs,
   },
   privacyBadgeLabel: {
+    fontFamily: fontDisplay,
     ...textClear,
     fontSize: 11,
-    fontWeight: "900",
     textTransform: "uppercase",
   },
   rnaSamplesheetPanel: {
@@ -2562,13 +2580,12 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 13,
-    fontWeight: "900",
   },
   disclosureCardSummary: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: "700",
     marginTop: 2,
   },
   disclosureCardBody: {
@@ -2595,10 +2612,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     borderColor: colors.accent,
   },
   rnaSourceStatusText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
-    fontWeight: "900",
     textTransform: "uppercase",
   },
   rnaSourceStatusTextActive: {
@@ -2623,13 +2640,12 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 15,
-    fontWeight: "900",
   },
   rnaCompactStatLabel: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 10,
-    fontWeight: "900",
     textTransform: "uppercase",
   },
   rnaSubmitReviewHero: {
@@ -2651,13 +2667,12 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 16,
-    fontWeight: "900",
   },
   rnaSubmitReviewBody: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: "700",
   },
   rnaWizardRail: {
     backgroundColor: androidGlassSurface,
@@ -2717,7 +2732,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.muted,
     fontFamily: fontDisplay,
     fontSize: 11,
-    fontWeight: "900",
   },
   rnaWizardStepIndexTextActive: {
     color: colors.primaryText,
@@ -2728,7 +2742,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     flexShrink: 1,
     fontFamily: fontDisplay,
     fontSize: 12,
-    fontWeight: "900",
   },
   rnaWizardStepLabelActive: {
     color: colors.primaryText,
@@ -2781,7 +2794,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.primaryText,
     fontFamily: fontDisplay,
     fontSize: 12,
-    fontWeight: "900",
   },
   rnaSampleRow: {
     alignItems: "stretch",
@@ -2812,7 +2824,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.muted,
     fontFamily: fontDisplay,
     fontSize: 11,
-    fontWeight: "900",
   },
   rnaSampleRowActions: {
     alignItems: "center",
@@ -2837,7 +2848,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.amber,
     fontFamily: fontDisplay,
     fontSize: 10,
-    fontWeight: "900",
     textTransform: "uppercase",
   },
   rnaSampleStatusTextReady: {
@@ -2878,7 +2888,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.muted,
     fontFamily: fontDisplay,
     fontSize: 11,
-    fontWeight: "900",
     textTransform: "uppercase",
   },
   rnaConditionChipTextActive: {
@@ -2896,7 +2905,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     flex: 1,
     fontFamily: fontDisplay,
     fontSize: 11,
-    fontWeight: "900",
     textAlign: "center",
     textTransform: "uppercase",
   },
@@ -2917,8 +2925,8 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.xs,
   },
   qcBadgeText: {
+    fontFamily: fontDisplay,
     fontSize: 11,
-    fontWeight: "900",
     textTransform: "uppercase",
   },
   progressTrack: {
@@ -2979,9 +2987,9 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     top: 7,
   },
   qpcrDotText: {
+    fontFamily: fontDisplay,
     color: colors.primaryText,
     fontSize: 10,
-    fontWeight: "900",
   },
   qpcrGraphPadPanel: {
     gap: spacing.md,
@@ -3069,14 +3077,12 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     ...textClear,
     fontFamily: fontDisplay,
     fontSize: 10,
-    fontWeight: "900",
   },
   rnaLiveStepText: {
     ...textClear,
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 11,
-    fontWeight: "900",
     maxWidth: 58,
   },
   metricsGrid: {
@@ -3099,7 +3105,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     ...textClear,
     fontFamily: fontDisplay,
     fontSize: 23,
-    fontWeight: "800",
     marginTop: spacing.xs,
   },
   textPanel: {
@@ -3140,7 +3145,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 22,
-    fontWeight: "800",
     letterSpacing: 0,
   },
   toolHeroBody: {
@@ -3180,14 +3184,12 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 17,
-    fontWeight: "800",
   },
   toolStatLabel: {
     ...textClear,
     color: colors.quiet,
     fontFamily: fontDisplay,
     fontSize: 10,
-    fontWeight: "900",
     marginTop: 3,
     textTransform: "uppercase",
   },
@@ -3236,15 +3238,13 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 28,
-    fontWeight: "900",
     letterSpacing: 0,
   },
   benchToolbarMeta: {
     ...textClear,
     color: colors.muted,
-    fontFamily: fontBody,
+    fontFamily: fontDisplay,
     fontSize: 12,
-    fontWeight: "700",
     lineHeight: 17,
     marginTop: 2,
   },
@@ -3339,21 +3339,21 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     backgroundColor: "rgba(232,238,231,0.28)",
   },
   benchToolTitle: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.ink,
     fontSize: 10,
-    fontWeight: "900",
     textAlign: "center",
   },
   benchToolTitleActive: {
     color: colors.primaryText,
   },
   benchToolMeta: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     flexShrink: 1,
     fontSize: 11,
-    fontWeight: "700",
     lineHeight: 15,
     marginTop: 2,
   },
@@ -3402,7 +3402,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.quiet,
     fontFamily: fontDisplay,
     fontSize: 10,
-    fontWeight: "900",
     textTransform: "uppercase",
   },
   benchCalcInput: {
@@ -3412,11 +3411,11 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     minHeight: 86,
   },
   benchCalcInputSuffix: {
+    fontFamily: fontDisplay,
     ...textClear,
     bottom: 12,
     color: colors.quiet,
     fontSize: 10,
-    fontWeight: "900",
     position: "absolute",
     right: spacing.sm,
   },
@@ -3446,10 +3445,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 5,
   },
   plateTypeChipText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 12,
-    fontWeight: "900",
   },
   plateTypeChipTextActive: {
     color: colors.primaryText,
@@ -3467,10 +3466,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     marginBottom: 4,
   },
   plateAxisCell: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.quiet,
     fontSize: 10,
-    fontWeight: "900",
     height: 34,
     lineHeight: 34,
     textAlign: "center",
@@ -3499,10 +3498,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     borderColor: colors.accent,
   },
   plateWellText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.quiet,
     fontSize: 10,
-    fontWeight: "900",
     textAlign: "center",
   },
   benchCalcIcon: {
@@ -3537,10 +3536,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     backgroundColor: "#8DD8FF",
   },
   benchCalcPrimary: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.ink,
     fontSize: 22,
-    fontWeight: "900",
   },
   benchCalcRow: {
     borderTopColor: colors.line,
@@ -3549,10 +3548,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingTop: spacing.xs,
   },
   benchCalcValue: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.ink,
     fontSize: 14,
-    fontWeight: "900",
   },
   dnaInput: {
     minHeight: 180,
@@ -3585,10 +3584,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingVertical: spacing.xs,
   },
   monoBadgeText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.ink,
     fontSize: 11,
-    fontWeight: "900",
   },
   authPanel: {
     gap: spacing.md,
@@ -3666,7 +3665,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 12,
-    fontWeight: "900",
   },
   askAiUsageBudgetLine: {
     alignItems: "center",
@@ -3715,17 +3713,16 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     borderRadius: radius.sm,
     borderWidth: 1,
     color: colors.muted,
-    fontFamily: fontBody,
+    fontFamily: fontDisplay,
     flex: 1,
     fontSize: 11,
-    fontWeight: "700",
     minHeight: 30,
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.xs,
   },
   csvHeader: {
+    fontFamily: fontDisplay,
     color: colors.ink,
-    fontWeight: "900",
   },
   bodyText: {
     ...textClear,
@@ -3748,7 +3745,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.ink,
     fontFamily: fontDisplay,
     fontSize: 14,
-    fontWeight: "800",
   },
   openButton: {
     alignItems: "center",
@@ -3814,7 +3810,6 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     color: colors.muted,
     fontFamily: fontDisplay,
     fontSize: 13,
-    fontWeight: "900",
   },
   themeOptionTextActive: {
     color: colors.primaryText,
@@ -3847,10 +3842,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     opacity: 0.42,
   },
   primaryMiniButtonText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.primaryText,
     fontSize: 13,
-    fontWeight: "900",
   },
   secondaryMiniButton: {
     alignItems: "center",
@@ -3873,10 +3868,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 4,
   },
   secondaryMiniButtonText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.muted,
     fontSize: 13,
-    fontWeight: "900",
   },
   disabledMiniButton: {
     alignItems: "center",
@@ -3893,10 +3888,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     paddingHorizontal: spacing.md,
   },
   disabledMiniButtonText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.quiet,
     fontSize: 13,
-    fontWeight: "900",
   },
   dangerButton: {
     alignItems: "center",
@@ -3917,10 +3912,10 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     elevation: 7,
   },
   dangerButtonText: {
+    fontFamily: fontDisplay,
     ...textClear,
     color: colors.primaryText,
     fontSize: 13,
-    fontWeight: "900",
   },
   avatar: {
     alignItems: "center",

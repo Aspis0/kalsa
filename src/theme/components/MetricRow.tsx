@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, ViewStyle, StyleProp } from "react-native";
 import { useLabTheme } from "../../ui/labTheme";
 import { spacing } from "../tokens";
-import { typography } from "../typography";
+import { fontFamilies, typography } from "../typography";
 
 type Props = {
   label: string;
@@ -26,7 +26,9 @@ export function MetricRow({ label, value, style }: Props) {
     >
       <Text style={[typography.bodySm, { color: colors.muted }]}>{label}</Text>
       {typeof value === "string" ? (
-        <Text style={[typography.monoSm, { color: colors.ink }]}>{value}</Text>
+        <Text style={[typography.monoSm, { color: colors.ink, fontFamily: fontFamilies.monoBold }]}>
+          {value}
+        </Text>
       ) : (
         value
       )}

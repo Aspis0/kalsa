@@ -43,7 +43,7 @@ import { COMPACTION_ENABLED_KEY } from "../context/compactor";
 import { getThinkingMode, setThinkingMode, type ThinkingMode } from "../bench/benchConfig";
 import { GlassPanel2, Header } from "../theme/components";
 import { radius, spacing } from "../theme/tokens";
-import { useTypography, type FontScaleId } from "../theme/typography";
+import { useTypography, type FontScaleId, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 
 export type SettingsModelProps = {
@@ -604,7 +604,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
       >
         {/* ── Language ─────────────────────────────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.language")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
@@ -637,7 +637,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                       typography.bodySm,
                       {
                         color: selected ? colors.accent : colors.ink,
-                        fontWeight: selected ? "700" : "500",
+                        fontFamily: selected ? fontFamilies.displayBold : fontFamilies.bodyMedium,
                       },
                     ]}
                   >
@@ -651,7 +651,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
 
         {/* ── Appearance / text size ───────────────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.fontSize")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
@@ -687,7 +687,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                       typography.bodySm,
                       {
                         color: selected ? colors.accent : colors.ink,
-                        fontWeight: selected ? "700" : "500",
+                        fontFamily: selected ? fontFamilies.displayBold : fontFamilies.bodyMedium,
                       },
                     ]}
                   >
@@ -714,7 +714,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
 
         {/* ── Context (ConversationCompactor) ──────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.context")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
@@ -744,7 +744,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
 
         {/* ── Thinking ─────────────────────────────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.thinking")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
@@ -777,7 +777,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                       typography.bodySm,
                       {
                         color: selected ? colors.accent : colors.ink,
-                        fontWeight: selected ? "700" : "500",
+                        fontFamily: selected ? fontFamilies.displayBold : fontFamilies.bodyMedium,
                       },
                     ]}
                   >
@@ -791,7 +791,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
 
         {/* ── Memory ───────────────────────────────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("memory.title")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
@@ -920,7 +920,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                 }}
                 accessibilityLabel={t("memory.addFact")}
               >
-                <Text style={[typography.bodySm, { color: "#fff", fontWeight: "600" }]}>
+                <Text style={[typography.bodySm, { color: colors.primaryText, fontFamily: fontFamilies.bodySemi }]}>
                   {t("memory.addFact")}
                 </Text>
               </Pressable>
@@ -955,7 +955,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
 
         {/* ── Web search ───────────────────────────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.webSearch")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
@@ -993,7 +993,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                           typography.bodySm,
                           {
                             color: selected ? colors.accent : colors.ink,
-                            fontWeight: selected ? "700" : "500",
+                            fontFamily: selected ? fontFamilies.displayBold : fontFamilies.bodyMedium,
                           },
                         ]}
                       >
@@ -1021,7 +1021,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                       hitSlop={8}
                       disabled={busy}
                     >
-                      <Text style={[typography.bodyXs, { color: colors.accent, fontWeight: "600" }]}>
+                      <Text style={[typography.bodyXs, { color: colors.accent, fontFamily: fontFamilies.bodySemi }]}>
                         {showKey ? t("settings.hideKey") : t("settings.showKey")}
                       </Text>
                     </Pressable>
@@ -1090,7 +1090,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                   opacity: busy ? 0.6 : 1,
                 }}
               >
-                <Text style={[typography.bodySm, { color: "#fff", fontWeight: "700" }]}>
+                <Text style={[typography.bodySm, { color: colors.primaryText, fontFamily: fontFamilies.displayBold }]}>
                   {saving ? t("settings.saving") : t("common.save")}
                 </Text>
               </Pressable>
@@ -1100,7 +1100,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                   style={[
                     typography.bodyXs,
                     {
-                      color: status === "error" ? "#c0392b" : colors.accent,
+                      color: status === "error" ? colors.bad : colors.accent,
                       marginTop: spacing.xs,
                     },
                   ]}
@@ -1114,7 +1114,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
 
         {/* ── Voice (ASR + TTS) ────────────────────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("voice.title")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
@@ -1135,7 +1135,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
             <Text style={[typography.bodyXs, { color: colors.muted }]}>
               {t("voice.asrModel")}
             </Text>
-            <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+            <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
               {t("voice.asrModelName")}
             </Text>
             <Text style={[typography.bodyXs, { color: colors.muted }]}>
@@ -1194,7 +1194,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                 }}
                 accessibilityLabel={t("voice.download")}
               >
-                <Text style={[typography.bodySm, { color: "#fff", fontWeight: "700" }]}>
+                <Text style={[typography.bodySm, { color: colors.primaryText, fontFamily: fontFamilies.displayBold }]}>
                   {t("voice.download")}
                 </Text>
               </Pressable>
@@ -1230,7 +1230,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
 
         {/* ── Models ───────────────────────────────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.models")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
@@ -1280,7 +1280,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                           typography.bodySm,
                           {
                             color: colors.ink,
-                            fontWeight: active ? "700" : "600",
+                            fontFamily: active ? fontFamilies.displayBold : fontFamilies.bodySemi,
                           },
                         ]}
                         numberOfLines={1}
@@ -1301,7 +1301,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                         <Text
                           style={[
                             typography.bodyXs,
-                            { color: colors.good, fontWeight: "600", marginTop: 2 },
+                            { color: colors.good, fontFamily: fontFamilies.bodySemi, marginTop: 2 },
                           ]}
                           numberOfLines={1}
                         >
@@ -1349,7 +1349,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                         <Text
                           style={[
                             typography.bodyXs,
-                            { color: colors.accent, fontWeight: "700" },
+                            { color: colors.accent, fontFamily: fontFamilies.displayBold },
                           ]}
                         >
                           {t("settings.modelActive")}
@@ -1371,7 +1371,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                         <Text
                           style={[
                             typography.bodyXs,
-                            { color: colors.ink, fontWeight: "600" },
+                            { color: colors.ink, fontFamily: fontFamilies.bodySemi },
                           ]}
                         >
                           {t("settings.modelSelect")}
@@ -1451,7 +1451,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                           <Text
                             style={[
                               typography.bodySm,
-                              { color: "#fff", fontWeight: "700" },
+                              { color: colors.primaryText, fontFamily: fontFamilies.displayBold },
                             ]}
                           >
                             {t("settings.modelDownload")}
@@ -1468,7 +1468,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
 
         {/* ── Privacy ──────────────────────────────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.privacy")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
@@ -1492,7 +1492,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
           >
             <CircleQuestionMark size={18} color={colors.accent} />
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+              <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
                 {t("settings.help")}
               </Text>
               <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
@@ -1505,10 +1505,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
 
         {/* ── About ────────────────────────────────────────────────────── */}
         <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "600" }]}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.about")}
           </Text>
-          <Text style={[typography.bodySm, { color: colors.ink, fontWeight: "700" }]}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.displayBold }]}>
             {t("settings.aboutAppName")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted }]}>

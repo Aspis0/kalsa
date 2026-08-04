@@ -10,7 +10,9 @@ import { WebView } from "react-native-webview";
 import { normalizeMiniappBlock } from "../domain/askAssistant";
 import { computeStatistics, convertVolumeDensityToMass, fitRegression } from "../domain/miniappMathCore";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
+import type { ThemeColors } from "../theme/palettes";
 import { QuizBlockView } from "./blocks/QuizBlock";
+import { useLabTheme } from "./labTheme";
 
 const MAX_BLOCK_DEPTH = 3;
 const MAX_CHILD_BLOCKS = 24;
@@ -69,10 +71,8 @@ type Miniapp = {
 };
 
 type Props = {
-  colors: {
-    ink?: string;
-    primaryText: string;
-  };
+  /** Full theme palette — all surface/ink tokens required (no partial fallbacks). */
+  colors: ThemeColors;
   glassVariant?: "ios" | "android" | "vision";
   miniapp: Miniapp;
   onAction?: (action: MiniappAction, miniapp: Miniapp) => void;
@@ -99,6 +99,7 @@ type PathwayViewport = {
 };
 
 type RendererContext = {
+  colors: Props["colors"];
   computed: ComputedMiniapp;
   inputs: Record<string, number>;
   index: number;
@@ -608,15 +609,20 @@ function escapeXmlText(value: unknown): string {
 function buildMiniappSvgText(miniapp: Miniapp): string {
   const title = escapeXmlText(toStringValue(miniapp.title, miniapp.kind));
   const kind = escapeXmlText(toStringValue(miniapp.kind));
-  const blocks = asArray<MiniappBlock>(miniapp.blocks, MAX_CHILD_BLOCKS).slice(0, 80);
+  // Title @28, kind @48; block rows start @72, step 24, stay inside 720 viewBox (y ≤ 660).
+  const blockStartY = 72;
+  const blockStep = 24;
+  const maxBlockY = 660;
+  const maxBlockRows = Math.floor((maxBlockY - blockStartY) / blockStep) + 1;
+  const blocks = asArray<MiniappBlock>(miniapp.blocks, MAX_CHILD_BLOCKS).slice(0, maxBlockRows);
   const blockRows = blocks.map((block, index) => {
     const blockType = escapeXmlText(toStringValue(block.type, `block_${index + 1}`));
     const blockTitle = escapeXmlText(toStringValue(block.title, blockType));
-    const y = 48 + index * 24;
+    const y = blockStartY + index * blockStep;
     return `<text x="20" y="${y}" fill="#111827" font-size="14">${blockTitle} (${blockType})</text>`;
   });
-  const summary = escapeXmlText(JSON.stringify(miniapp, null, 2));
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="900" height="720" viewBox="0 0 900 720">\n  <rect width="900" height="720" fill="#ffffff"/>\n  <text x="20" y="28" fill="#111827" font-size="20">${title}</text>\n  <text x="20" y="48" fill="#4b5563" font-size="12">kind: ${kind}</text>\n  ${blockRows.join("\\n  ")}\n  <text x="20" y="660" fill="#6b7280" font-size="10">${summary}</text>\n</svg>`;
+  // No raw JSON payload — export is title, kind, and block rows only (avoid leaking model/user content).
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="900" height="720" viewBox="0 0 900 720">\n  <rect width="900" height="720" fill="#ffffff"/>\n  <text x="20" y="28" fill="#111827" font-size="20">${title}</text>\n  <text x="20" y="48" fill="#4b5563" font-size="12">kind: ${kind}</text>\n  ${blockRows.join("\n  ")}\n</svg>`;
 }
 
 function normalizePathwayNode(raw: unknown): PathwayNode | null {
@@ -1691,7 +1697,7 @@ function ScientificPlotBlockView({ block, context }: { block: MiniappBlock; cont
             onPress={() => setFitType(option)}
             style={[context.styles.miniappSegment, fitType === option ? context.styles.miniappSegmentActive : null]}
           >
-            <Text style={context.styles.miniappSegmentText}>{option}</Text>
+            <Text style={[context.styles.miniappSegmentText, fitType === option ? context.styles.miniappSegmentTextActive : null]}>{option}</Text>
           </Pressable>
         ))}
       </View>
@@ -2007,6 +2013,7 @@ function PathwayEditorPanel({
           editable={Boolean(selectedNode)}
           onChangeText={context.pathwayEditor.setNodeLabel}
           placeholder={t("miniapp.renameNode")}
+          placeholderTextColor={context.colors.muted}
           selectTextOnFocus
           style={context.styles.miniappPathwayEditorInput}
           value={selectedNode ? selectedNode.label : ""}
@@ -2035,14 +2042,14 @@ function PathwayEditorPanel({
               onPress={() => context.pathwayEditor.moveSelectedNode("up")}
               style={[context.styles.miniappPathwayMoveButton, context.styles.miniappPathwayChip]}
             >
-              <Ionicons color="white" name="chevron-up" size={13} />
+              <Ionicons color={context.colors.ink} name="chevron-up" size={13} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
               onPress={() => context.pathwayEditor.moveSelectedNode("down")}
               style={[context.styles.miniappPathwayMoveButton, context.styles.miniappPathwayChip]}
             >
-              <Ionicons color="white" name="chevron-down" size={13} />
+              <Ionicons color={context.colors.ink} name="chevron-down" size={13} />
             </Pressable>
           </View>
           <View style={context.styles.miniappPathwayMoveRow}>
@@ -2051,14 +2058,14 @@ function PathwayEditorPanel({
               onPress={() => context.pathwayEditor.moveSelectedNode("left")}
               style={[context.styles.miniappPathwayMoveButton, context.styles.miniappPathwayChip]}
             >
-              <Ionicons color="white" name="chevron-back" size={13} />
+              <Ionicons color={context.colors.ink} name="chevron-back" size={13} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
               onPress={() => context.pathwayEditor.moveSelectedNode("right")}
               style={[context.styles.miniappPathwayMoveButton, context.styles.miniappPathwayChip]}
             >
-              <Ionicons color="white" name="chevron-forward" size={13} />
+              <Ionicons color={context.colors.ink} name="chevron-forward" size={13} />
             </Pressable>
           </View>
         </View>
@@ -2081,6 +2088,7 @@ function PathwayEditorPanel({
           editable={Boolean(selectedEdge)}
           onChangeText={context.pathwayEditor.setEdgeLabel}
           placeholder={t("miniapp.edgeLabel")}
+          placeholderTextColor={context.colors.muted}
           selectTextOnFocus
           style={context.styles.miniappPathwayEditorInput}
           value={selectedEdge ? toStringValue(selectedEdge.label) : ""}
@@ -2193,7 +2201,7 @@ function HypothesisCardBlockView({ block, context }: { block: MiniappBlock; cont
       <Text style={context.styles.miniappHypothesisStatement}>{statement}</Text>
       <Text style={context.styles.miniappFallbackText}>Prediction: {prediction}</Text>
       <View>
-        {assumptions.length ? <Text>Assumptions:</Text> : null}
+        {assumptions.length ? <Text style={context.styles.miniappBlockTitle}>Assumptions:</Text> : null}
         {assumptions.map((assumption, index) => (
           <Text key={index} numberOfLines={2} style={context.styles.miniappFallbackText}>
             • {toStringValue(assumption)}
@@ -2418,7 +2426,7 @@ function TabsBlockView({ block, context, depth }: { block: MiniappBlock; context
               onPress={() => setActiveIndex(index)}
               style={[context.styles.miniappSegment, selected ? context.styles.miniappSegmentActive : null]}
             >
-              <Text style={context.styles.miniappSegmentText}>{title}</Text>
+              <Text style={[context.styles.miniappSegmentText, selected ? context.styles.miniappSegmentTextActive : null]}>{title}</Text>
             </Pressable>
           );
         })}
@@ -3309,11 +3317,29 @@ export const ASK_ASSISTANT_MINIAPP_SUPPORTED_BLOCK_TYPES = Object.freeze(Object.
 // nessuno storage, nessuna navigazione esterna e CSP rigida (niente risorse
 // remote, solo data: per le immagini). Fase 3: se serviranno HTML interattivi
 // (chart JS), abilitare con una policy rivista + consenso esplicito.
+/** Allow only opaque 6-digit hex into the HTML wrapper style block (no rgb/rgba). */
+function sanitizeCssColor(value: string, fallback: string): string {
+  const v = String(value ?? "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) return v;
+  return fallback;
+}
+
+// CSP must stay byte-identical (audit-verified end-to-end). Only theme colours in <style> change.
+const HTML_BLOCK_CSP =
+  "default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'none'; connect-src 'none'; font-src 'none'; frame-src 'none'";
+
 function HtmlBlockView({ block, context }: { block: MiniappBlock; context: RendererContext }) {
   const html = toStringValue(block.html ?? block.source ?? "");
   const height = Math.max(160, Math.min(1200, Math.floor(Number(block.height) || 480)));
-  const backgroundColor = "#0b1512";
-  const wrapped = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'none'; connect-src 'none'; font-src 'none'; frame-src 'none'"><style>html,body{margin:0;padding:12px;background:${backgroundColor};color:#e6f0ec;font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.55}img{max-width:100%}a{color:#5eead4}pre{white-space:pre-wrap;background:rgba(255,255,255,.06);padding:10px;border-radius:10px;overflow-x:auto}table{border-collapse:collapse}td,th{border:1px solid rgba(255,255,255,.18);padding:6px 10px}</style></head><body>${html}</body></html>`;
+  // Opaque tokens only — translucent panel/line composite to white under WebView's canvas.
+  const pageBg = sanitizeCssColor(context.colors.panelSolid, "#FFFFFF");
+  const textColor = sanitizeCssColor(context.colors.ink, "#17201C");
+  const linkColor = sanitizeCssColor(context.colors.accent, "#1F5F4E");
+  const preBg = sanitizeCssColor(context.colors.surfaceSunken, "#D8E0D7");
+  // line is translucent in dark; muted is opaque hex in both palettes.
+  const borderColor = sanitizeCssColor(context.colors.muted, "#58615B");
+  const backgroundColor = pageBg;
+  const wrapped = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${HTML_BLOCK_CSP}"><style>html,body{margin:0;padding:12px;background:${pageBg};color:${textColor};font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.55}img{max-width:100%}a{color:${linkColor}}pre{white-space:pre-wrap;background:${preBg};padding:10px;border-radius:10px;overflow-x:auto}table{border-collapse:collapse}td,th{border:1px solid ${borderColor};padding:6px 10px}</style></head><body>${html}</body></html>`;
   // Navigation lock: permit about:/data: only while the initial source.html is
   // bootstrapping (RN may hit about:blank then data:). Once the document has
   // loaded (or a data: body was accepted), EVERY further request is denied —
@@ -3420,20 +3446,25 @@ function MiniappBlockRenderer({ block, depth, context }: MiniappBlockRendererPro
 
 function GlassSurface({
   children,
+  colors,
   styles,
   variant,
 }: {
   children: React.ReactNode;
+  colors: Props["colors"];
   styles: Record<string, any>;
   variant?: "ios" | "android" | "vision";
 }) {
   const resolvedVariant = variant || Platform.select({ ios: "ios", android: "android", default: "android" });
+  const { palette } = useLabTheme<{ palette?: { blurTint?: "light" | "dark" } }>();
+  const blurTint: "light" | "dark" = palette?.blurTint === "dark" ? "dark" : "light";
+  const { panelBright, panel, panelSoft } = colors;
 
   if (resolvedVariant === "vision") {
     return (
-      <BlurView intensity={52} tint="light" style={styles.miniappVisionShell}>
+      <BlurView intensity={52} tint={blurTint} style={styles.miniappVisionShell}>
         <LinearGradient
-          colors={["rgba(255,255,255,0.7)", "rgba(255,255,255,0.26)", "rgba(255,255,255,0.14)"]}
+          colors={[panelBright, panel, panelSoft]}
           end={{ x: 1, y: 1 }}
           start={{ x: 0, y: 0 }}
           style={styles.miniappGlassOverlay}
@@ -3446,9 +3477,9 @@ function GlassSurface({
 
   if (resolvedVariant === "ios") {
     return (
-      <BlurView intensity={40} tint="light" style={styles.miniappIosShell}>
+      <BlurView intensity={40} tint={blurTint} style={styles.miniappIosShell}>
         <LinearGradient
-          colors={["rgba(255,255,255,0.44)", "rgba(255,255,255,0.18)", "rgba(255,255,255,0.10)"]}
+          colors={[panelBright, panel, panelSoft]}
           end={{ x: 1, y: 1 }}
           start={{ x: 0, y: 0 }}
           style={styles.miniappGlassOverlay}
@@ -3461,7 +3492,7 @@ function GlassSurface({
   return (
     <View style={styles.miniappAndroidShell}>
       <LinearGradient
-        colors={["rgba(255,255,255,0.24)", "rgba(255,255,255,0.10)", "rgba(255,255,255,0.06)"]}
+        colors={[panel, panelSoft, panelSoft]}
         end={{ x: 1, y: 1 }}
         start={{ x: 0, y: 0 }}
         style={styles.miniappGlassOverlay}
@@ -3666,6 +3697,7 @@ export function AskAssistantMiniappRenderer({
   };
 
   const blockContext: RendererContext = {
+    colors,
     computed,
     index: 0,
     inputs,
@@ -3728,11 +3760,11 @@ export function AskAssistantMiniappRenderer({
   );
 
   return (
-    <GlassSurface styles={styles} variant={glassVariant}>
+    <GlassSurface colors={colors} styles={styles} variant={glassVariant}>
       <View accessibilityLabel={t("renderer.interactiveMiniappA11y", { title: localMiniapp.title })} ref={miniappExportSurfaceRef}>
         <View style={styles.miniappHeader}>
           <View style={styles.miniappIconBadge}>
-            <Ionicons color={colors.primaryText} name="sparkles-outline" size={18} />
+            <Ionicons color={colors.ink} name="sparkles-outline" size={18} />
           </View>
           <View style={styles.flexOne}>
             <Text style={styles.miniappEyebrow}>{t("renderer.interactiveMiniapp")}</Text>
@@ -3754,7 +3786,7 @@ export function AskAssistantMiniappRenderer({
                   onPress={() => setActiveView(item.id)}
                   style={[styles.miniappSegment, selected ? styles.miniappSegmentActive : null]}
                 >
-                  <Text style={styles.miniappSegmentText}>{item.label}</Text>
+                  <Text style={[styles.miniappSegmentText, selected ? styles.miniappSegmentTextActive : null]}>{item.label}</Text>
                 </Pressable>
               );
             })}
@@ -3781,7 +3813,7 @@ export function AskAssistantMiniappRenderer({
                 style={({ pressed }) => [styles.miniappPrimaryAction, pressed ? styles.miniappPrimaryActionPressed : null]}
               >
                 <Text style={styles.miniappPrimaryActionText}>{String(action.label || action.id || t("renderer.run"))}</Text>
-                {action.requiresAi ? <Ionicons color={colors.ink ?? colors.primaryText} name="sparkles-outline" size={14} /> : null}
+                {action.requiresAi ? <Ionicons color={colors.ink} name="sparkles-outline" size={14} /> : null}
               </Pressable>
             ))}
           </View>

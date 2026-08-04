@@ -7,13 +7,12 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
+    "harness:markdown": "node scripts/markdownHarness.mjs",
     "doctor": "expo-doctor"
   },
   "dependencies": {
-    "@expo-google-fonts/caveat": "^0.4.2",
-    "@expo-google-fonts/fraunces": "^0.4.1",
-    "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/jetbrains-mono": "^0.4.1",
+    "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@fugood/react-native-audio-pcm-stream": "^1.1.4",
     "@react-native-async-storage/async-storage": "2.2.0",

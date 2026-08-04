@@ -38,12 +38,14 @@ export type ThemeColors = {
   bad: string;
   cardStrong: string;
   surfaceElev: string;
+  surfaceSunken: string;
   // Added for RNA-seq mobile port — read by Pill tones, plot SVGs, soft tints.
   lineSoft: string;
   accentSoft: string;
   computeDeep: string;
   computeSoft: string;
   goodSoft: string;
+  controlSoft: string;
   warnSoft: string;
   badSoft: string;
   plotUp: string;
