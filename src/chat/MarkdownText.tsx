@@ -356,11 +356,15 @@ function renderInline(
               ? source.title.trim()
               : String(node.index);
         const a11y = `Source ${node.index}, ${host}`;
+        // Solid accent, not an accentSoft tint: a citation sits inline in running
+        // text, and accentSoft measures 1.09:1 against the page — the chip read as
+        // a stray character rather than a marker. A filled pill with primaryText
+        // is 7.49:1 and unmistakably a control.
         const chipStyle = {
-          color: colors.accent,
-          backgroundColor: colors.accentSoft,
-          borderRadius: radius.xs,
-          paddingHorizontal: spacing.xxs,
+          color: colors.primaryText,
+          backgroundColor: colors.accent,
+          borderRadius: radius.pill,
+          paddingHorizontal: spacing.xs,
           overflow: "hidden" as const,
           ...(typography.bodyXs as object),
         };
