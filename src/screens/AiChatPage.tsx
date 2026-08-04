@@ -47,7 +47,7 @@ import * as ImageManipulator from "expo-image-manipulator";
 import * as DocumentPicker from "expo-document-picker";
 import { PdfToImages } from "../components/PdfToImages";
 import { MarkdownText } from "../chat/MarkdownText";
-import { isSafeHttpUrl } from "../chat/markdown";
+import { isSafeHttpUrl } from "../util/url";
 import { isBenchCommand, tryHandleBenchCommand } from "../bench/benchConfig";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
 import { classifyChatContent, type ContentFilterReason } from "../domain/contentFilter";
@@ -86,6 +86,8 @@ export type AiChatSelectedRun = {
 
 export type MessageSource = {
   title: string;
+  /** Landing URL from web_search (optional — older history may lack it). */
+  url?: string;
   authors?: string;
   doi?: string;
   /** Search provider id that produced this source (e.g. "brave", "exa-mcp"). */
@@ -1917,6 +1919,7 @@ export function AiChatPage({
                           text={seg.content}
                           showCursor={segIdx === segments.length - 1 && showCursor}
                           onLongPress={() => openMessageMenu(m.id, m.text, m.role, m.streaming)}
+                          sources={m.sources}
                         />
                       );
                     })}
@@ -1968,46 +1971,90 @@ export function AiChatPage({
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={{ gap: spacing.xs, paddingTop: spacing.xs }}
                   >
-                    {m.sources.map((s, sIdx) => (
+                    {m.sources.map((s, sIdx) => {
                       // HIGH-4: stable key from doi/title, not array index
-                      <View
-                        key={s.doi || s.title || String(sIdx)}
-                        style={{
-                          backgroundColor: colors.panelSolid,
-                          borderRadius: radius.sm,
-                          borderWidth: 1,
-                          borderColor: colors.line,
-                          padding: spacing.sm,
-                          maxWidth: 220,
-                        }}
-                      >
-                        {s.provider ? (
-                          <Text
-                            style={[typography.bodyXs, { color: colors.muted }]}
-                            numberOfLines={1}
-                          >
-                            {t("errors.sourceVia", {
-                              provider:
-                                s.provider === "exa-mcp"
-                                  ? t("settings.providerExaMcp")
-                                  : s.provider === "exa"
-                                    ? t("settings.providerExa")
-                                    : s.provider === "brave"
-                                      ? t("settings.providerBrave")
-                                      : s.provider === "tavily"
-                                        ? t("settings.providerTavily")
-                                        : s.provider,
-                            })}
-                          </Text>
-                        ) : null}
-                        <Text
-                          style={[typography.label, { color: colors.ink }]}
-                          numberOfLines={2}
+                      const rawUrl = typeof s.url === "string" ? s.url.trim() : "";
+                      const safe = rawUrl.length > 0 && isSafeHttpUrl(rawUrl);
+                      // a11y: match inline citation chips — "Source N, host-or-title"
+                      const hostMatch = safe
+                        ? /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\/([^/?#]+)/.exec(rawUrl)
+                        : null;
+                      const a11yHost =
+                        hostMatch?.[1] ||
+                        (s.title && s.title.trim()) ||
+                        String(sIdx + 1);
+                      return (
+                        <Pressable
+                          key={s.doi || s.title || String(sIdx)}
+                          disabled={!safe}
+                          onPress={
+                            safe
+                              ? () => {
+                                  void Linking.openURL(rawUrl).catch(() => undefined);
+                                }
+                              : undefined
+                          }
+                          accessibilityLabel={`Source ${sIdx + 1}, ${a11yHost}`}
+                          accessibilityRole={safe ? "link" : "text"}
+                          style={({ pressed }) => ({
+                            backgroundColor: colors.panelSolid,
+                            borderRadius: radius.sm,
+                            borderWidth: 1,
+                            borderColor: colors.line,
+                            padding: spacing.sm,
+                            maxWidth: 220,
+                            flexDirection: "row",
+                            alignItems: "flex-start",
+                            gap: spacing.xs,
+                            // Non-tappable (missing/unsafe URL): same dim cue as image/download pills.
+                            opacity: safe ? (pressed ? 0.7 : 1) : 0.55,
+                          })}
                         >
-                          {s.title}{s.authors ? ` — ${s.authors}` : ""}
-                        </Text>
-                      </View>
-                    ))}
+                          {/* 1-based index chip — same accent treatment as inline citations */}
+                          <Text
+                            style={[
+                              typography.bodyXs,
+                              {
+                                color: colors.accent,
+                                backgroundColor: colors.accentSoft,
+                                borderRadius: radius.xs,
+                                paddingHorizontal: spacing.xxs,
+                                overflow: "hidden",
+                              },
+                            ]}
+                          >
+                            {sIdx + 1}
+                          </Text>
+                          <View style={{ flexShrink: 1, minWidth: 0 }}>
+                            {s.provider ? (
+                              <Text
+                                style={[typography.bodyXs, { color: colors.muted }]}
+                                numberOfLines={1}
+                              >
+                                {t("errors.sourceVia", {
+                                  provider:
+                                    s.provider === "exa-mcp"
+                                      ? t("settings.providerExaMcp")
+                                      : s.provider === "exa"
+                                        ? t("settings.providerExa")
+                                        : s.provider === "brave"
+                                          ? t("settings.providerBrave")
+                                          : s.provider === "tavily"
+                                            ? t("settings.providerTavily")
+                                            : s.provider,
+                                })}
+                              </Text>
+                            ) : null}
+                            <Text
+                              style={[typography.label, { color: colors.ink }]}
+                              numberOfLines={2}
+                            >
+                              {s.title}{s.authors ? ` — ${s.authors}` : ""}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
                   </ScrollView>
                 ) : null}
 

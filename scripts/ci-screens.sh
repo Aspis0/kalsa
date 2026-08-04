@@ -206,7 +206,7 @@ JSON
   {
     "id": "src-asst-1",
     "role": "assistant",
-    "text": "I found a few relevant sources. SOURCES_MARKER",
+    "text": "Alpha reports one thing [1] and Beta another [3]. A number with no source [9] must stay literal, and [a link](https://example.com/x) must stay a link. SOURCES_MARKER",
     "createdAt": 1700000002000,
     "sources": [
       {

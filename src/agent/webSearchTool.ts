@@ -1,6 +1,7 @@
 import { getStrings, type Locale } from "../i18n";
 import { normalizeNumResults, PROVIDERS, searchWeb, type SearchProviderId } from "../search";
 import type { EngineTool, EngineToolResult } from "../engine/LlamaService";
+import { isSafeHttpUrl } from "../util/url";
 
 /**
  * Tool websearch — esposto al modello locale come function calling.
@@ -162,15 +163,21 @@ export function makeWebSearchExecutor(locale: Locale): (
         )}\n\n`
       : "";
 
-    return { text: `${note}${body}`, sources };
+    // Cite instruction sits next to the numbered list — only when search returned results.
+    const cite =
+      outcome.results.length > 0
+        ? `\n\n${strings.errors.webSearchCiteInstruction}`
+        : "";
+
+    return { text: `${note}${body}${cite}`, sources };
   };
 }
 
-/** Map search sources onto chat MessageSource (title/authors/doi/provider). */
+/** Map search sources onto chat MessageSource (title/url/authors/doi/provider). */
 export function mapSearchSourcesToChat(
   sources: unknown[],
   locale: Locale,
-): Array<{ title: string; authors?: string; doi?: string; provider?: string }> {
+): Array<{ title: string; url?: string; authors?: string; doi?: string; provider?: string }> {
   const fallback = getStrings(locale).errors.source;
   return (
     sources as Array<{
@@ -183,6 +190,11 @@ export function mapSearchSourcesToChat(
     .filter((source) => source && typeof source === "object")
     .map((source) => ({
       title: source.title || source.url || fallback,
+      // Boundary gate: provider responses are untrusted. Only persist http(s)
+      // URLs that pass isSafeHttpUrl — drop the field otherwise (no placeholder).
+      ...(typeof source.url === "string" && isSafeHttpUrl(source.url)
+        ? { url: source.url.trim() }
+        : {}),
       ...(source.publishedDate ? { authors: source.publishedDate.slice(0, 10) } : {}),
       ...(typeof source.provider === "string" && source.provider
         ? { provider: source.provider }

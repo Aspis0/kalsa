@@ -455,6 +455,14 @@ export const it: typeof en = {
       "Il provider di ricerca principale non ha funzionato; usato Exa MCP gratuito.",
     searchFallbackUsedNamed:
       "{provider} non disponibile; usato Exa MCP gratuito.",
+    /**
+     * Appended to web_search tool results so the model cites numbered results.
+     * Only present on turns where a search actually returned a result list.
+     */
+    webSearchCiteInstruction:
+      "Quando usi questi risultati, citali con numeri tra parentesi quadre che corrispondono a questa lista. " +
+      "Una affermazione presa dal risultato 2 deve essere seguita da [2]. Puoi combinarne diversi ([1][3]). " +
+      "Non inventare un numero che non è in questa lista.",
     searchBothFailed: "{primary}; fallback Exa MCP: {fallback}",
     searchDeadline: "Ricerca scaduta per timeout. Riprova.",
     searchInvalidResponse: "Risposta non valida da {provider}",

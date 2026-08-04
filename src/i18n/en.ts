@@ -457,6 +457,14 @@ export const en = {
       "Primary search provider failed; used free Exa MCP instead.",
     searchFallbackUsedNamed:
       "{provider} unavailable; used free Exa MCP instead.",
+    /**
+     * Appended to web_search tool results so the model cites numbered results.
+     * Only present on turns where a search actually returned a result list.
+     */
+    webSearchCiteInstruction:
+      "When you use these results, cite them with bracketed numbers that match this list. " +
+      "A claim taken from result 2 should be followed by [2]. You may combine several ([1][3]). " +
+      "Do not invent a number that is not in this list.",
     searchBothFailed: "{primary}; fallback Exa MCP: {fallback}",
     searchDeadline: "Search timed out. Try again.",
     searchInvalidResponse: "Invalid response from {provider}",

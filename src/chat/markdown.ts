@@ -16,7 +16,9 @@ export type InlineNode =
   | { type: "bold"; text: string }
   | { type: "italic"; text: string }
   | { type: "code"; text: string }
-  | { type: "link"; text: string; href: string };
+  | { type: "link"; text: string; href: string }
+  /** Numeric citation marker like `[2]`. `text` is the literal source (`"[2]"`). */
+  | { type: "citation"; index: number; text: string };
 
 export type MdBlock =
   | { type: "paragraph"; inline: InlineNode[] }
@@ -26,33 +28,10 @@ export type MdBlock =
   | { type: "rule" };
 
 /**
- * Invisible / format characters that can rewrite apparent URL authority
- * (e.g. zero-width space before `@`). Written as `\u` escapes only.
+ * URL scheme gate — single implementation lives in `src/util/url.ts`.
+ * Re-exported here so existing chat/markdown consumers keep working.
  */
-const INVISIBLE_OR_FORMAT =
-  /[\u00ad\u0085\u180e\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060-\u206f\ufeff]/;
-
-/** True only when href has scheme exactly http or https (parsed, not substring). */
-export function isSafeHttpUrl(href: string): boolean {
-  const trimmed = href.trim();
-  if (!trimmed) return false;
-  // Parsed by hand instead of via `new URL()`: React Native ships a partial URL
-  // polyfill whose `protocol` getter does not lowercase the scheme, and whose
-  // constructor throws on some inputs (a '#' with no '://' hits
-  // `undefined.includes`). Node and the device would therefore disagree, and the
-  // harness would be validating a function the app never runs.
-  // Raw whitespace and control characters are never valid in a URL.
-  if (/[\s\u0000-\u001f\u007f]/.test(trimmed)) return false;
-  // Zero-width / format chars: "https://example.com\u200b@evil.com" must fail.
-  if (INVISIBLE_OR_FORMAT.test(trimmed)) return false;
-  // Scheme grammar, RFC 3986: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." ) ":"
-  const scheme = /^([a-zA-Z][a-zA-Z\d+\-.]*):/.exec(trimmed);
-  if (!scheme) return false; // scheme-less ("example.com", "/path") is not tappable
-  const proto = scheme[1].toLowerCase();
-  if (proto !== "http" && proto !== "https") return false;
-  // Require an authority, so "http:" alone or "https:evil" is not tappable either.
-  return /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\/[^/?#]+/.test(trimmed);
-}
+export { isSafeHttpUrl } from "../util/url";
 
 /** Concatenate plain text of every inline node (rules contribute nothing). */
 export function flattenBlockText(blocks: MdBlock[]): string {
@@ -448,13 +427,27 @@ export function parseInline(src: string): InlineNode[] {
       continue;
     }
 
-    // Link: [text](url) with optional title; O(1) `]` via nextBracket table
+    // Link: [text](url) with optional title; O(1) `]` via nextBracket table.
+    // Links win over citations: `[1](https://…)` is always a link.
     if (c === "[") {
       const link = tryParseLink(src, i, nextBracket);
       if (link) {
         flush();
         nodes.push({ type: "link", text: link.text, href: link.href });
         i = link.end;
+        continue;
+      }
+      // Citation: `[` + ASCII digits + `]` not immediately followed by `(`.
+      // Pure parser: records the number only; renderer decides chip vs literal.
+      const citation = tryParseCitation(src, i);
+      if (citation) {
+        flush();
+        nodes.push({
+          type: "citation",
+          index: citation.index,
+          text: citation.text,
+        });
+        i = citation.end;
         continue;
       }
       buf += "[";
@@ -558,6 +551,41 @@ function findUnderscoreClose(s: string, from: number): number {
     return -1;
   }
   return -1;
+}
+
+/**
+ * Try to parse a numeric citation `[N]` at `start` (must be on '[').
+ * Only `[` + one or more ASCII digits + `]`. Not a citation when immediately
+ * followed by `(` (markdown link wins). Unterminated `[1` → null (literal).
+ * Linear: scans only the digits inside the brackets.
+ */
+function tryParseCitation(
+  s: string,
+  start: number,
+): { index: number; text: string; end: number } | null {
+  if (s[start] !== "[") return null;
+  let j = start + 1;
+  if (j >= s.length) return null;
+  // Require at least one ASCII digit; [a], [], [1a], [ 1 ] are not citations.
+  const digit0 = s.charCodeAt(j);
+  if (digit0 < 0x30 || digit0 > 0x39) return null;
+  j += 1;
+  while (j < s.length) {
+    const code = s.charCodeAt(j);
+    if (code < 0x30 || code > 0x39) break;
+    j += 1;
+  }
+  if (j >= s.length || s[j] !== "]") return null;
+  // `[N](` is a markdown link label, not a citation — even if the link is incomplete.
+  if (s[j + 1] === "(") return null;
+  const numStr = s.slice(start + 1, j);
+  // parseInt is safe: we already verified the slice is pure ASCII digits.
+  const index = parseInt(numStr, 10);
+  return {
+    index,
+    text: s.slice(start, j + 1),
+    end: j + 1,
+  };
 }
 
 /**

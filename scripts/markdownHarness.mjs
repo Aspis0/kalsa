@@ -27,11 +27,14 @@ function check(name, cond, detail = "") {
 }
 
 function compile() {
+  // Compile markdown + util/url together: isSafeHttpUrl lives in util/url and
+  // is re-exported from markdown. Harness assertions must hit the real app code.
   const r = spawnSync(
     "npx",
     [
       "tsc",
       "src/chat/markdown.ts",
+      "src/util/url.ts",
       "--outDir",
       "scripts/.build",
       "--module",
@@ -44,6 +47,8 @@ function compile() {
       "--ignoreConfig",
       "--declaration",
       "false",
+      "--rootDir",
+      "src",
     ],
     { cwd: projectRoot, encoding: "utf8", shell: true },
   );
@@ -55,8 +60,8 @@ function compile() {
 
 function resolveBuilt() {
   const candidates = [
-    path.join(projectRoot, "scripts/.build/markdown.js"),
     path.join(projectRoot, "scripts/.build/chat/markdown.js"),
+    path.join(projectRoot, "scripts/.build/markdown.js"),
     path.join(projectRoot, "scripts/.build/src/chat/markdown.js"),
   ];
   for (const c of candidates) {
@@ -81,6 +86,8 @@ function inlineShape(nodes) {
   return nodes
     .map((n) => {
       if (n.type === "link") return `link(${JSON.stringify(n.text)}→${JSON.stringify(n.href)})`;
+      if (n.type === "citation")
+        return `citation(${n.index},${JSON.stringify(n.text)})`;
       return `${n.type}(${JSON.stringify(n.text)})`;
     })
     .join("|");
@@ -324,6 +331,58 @@ const GOLDEN = [
     src: "see [one](https://a.test/1) and [two](https://b.test/2) end",
     visible: "see one and two end",
     hrefs: ["https://a.test/1", "https://b.test/2"],
+  },
+  // ── Citations `[N]` ─────────────────────────────────────────────────────
+  {
+    name: "golden citation basic multi",
+    src: "Fact [1] and other [12].",
+    // Citation nodes keep literal text so no-content-loss holds.
+    visible: "Fact [1] and other [12].",
+    shape:
+      'paragraph(text("Fact ")|citation(1,"[1]")|text(" and other ")|citation(12,"[12]")|text("."))',
+  },
+  {
+    name: "golden citation link wins over [N]",
+    src: "[1](https://x.test/a)",
+    visible: "1",
+    href: "https://x.test/a",
+    shape: 'paragraph(link("1"→"https://x.test/a"))',
+    noType: "citation",
+  },
+  {
+    name: "golden citation rejects non-numeric brackets",
+    src: "[a] [] [1a] [ 1 ]",
+    visible: "[a] [] [1a] [ 1 ]",
+    shape: 'paragraph(text("[a] [] [1a] [ 1 ]"))',
+    noType: "citation",
+  },
+  {
+    name: "golden citation unterminated stays literal",
+    src: "unterminated [1",
+    visible: "unterminated [1",
+    shape: 'paragraph(text("unterminated [1"))',
+    noType: "citation",
+  },
+  {
+    name: "golden citation zero index",
+    // Parser records index 0; renderer falls back to literal (no sources[-1]).
+    src: "[0]",
+    visible: "[0]",
+    shape: 'paragraph(citation(0,"[0]"))',
+    hasType: "citation",
+  },
+  {
+    name: "golden citation after bold before punctuation",
+    src: "**bold**[2].",
+    visible: "bold[2].",
+    shape: 'paragraph(bold("bold")|citation(2,"[2]")|text("."))',
+  },
+  {
+    name: "golden citation adjacent multi",
+    src: "Combined [1][3] claim.",
+    visible: "Combined [1][3] claim.",
+    shape:
+      'paragraph(text("Combined ")|citation(1,"[1]")|citation(3,"[3]")|text(" claim."))',
   },
 ];
 
@@ -763,6 +822,13 @@ async function main() {
     "\\*escaped\\*",
     "***triple***",
     '[t](https://x.com "title")',
+    "Fact [1] and other [12].",
+    "[1](https://x.test/a)",
+    "[a] [] [1a] [ 1 ]",
+    "unterminated [1",
+    "[0]",
+    "**bold**[2].",
+    "Combined [1][3] claim.",
   ];
   check("corpus size ≥ 20", corpus.length >= 20, `got ${corpus.length}`);
 
@@ -793,6 +859,8 @@ async function main() {
     "# Title of the answer",
     "",
     "Here is a **bold** claim and some *italic* nuance with `code`.",
+    "",
+    "A cited fact [1] and a multi [1][3].",
     "",
     "Relevant links: [docs](https://example.com/docs) and more.",
     "",

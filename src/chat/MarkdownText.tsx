@@ -25,24 +25,36 @@ import {
   parseMarkdownBlocks,
 } from "./markdown";
 
+export type MarkdownSource = {
+  url?: string;
+  title?: string;
+};
+
 export type MarkdownTextProps = {
   text: string;
   /** Append streaming cursor after the last block (not parsed as markdown). */
   showCursor?: boolean;
   /** Forwarded so long-press still works over tappable links. */
   onLongPress?: () => void;
+  /**
+   * 1-based citation chips map to `sources[N - 1]`. Parser only records the
+   * number; missing/out-of-range entries render as literal `[N]` text.
+   */
+  sources?: MarkdownSource[];
 };
 
 export function MarkdownText({
   text,
   showCursor = false,
   onLongPress,
+  sources,
 }: MarkdownTextProps) {
   const { colors } = useLabTheme<{
     colors: {
       ink: string;
       muted: string;
       accent: string;
+      accentSoft: string;
       line: string;
       surfaceSunken: string;
     };
@@ -79,6 +91,7 @@ export function MarkdownText({
             ink={ink}
             cursor={cursor}
             onLongPress={onLongPress}
+            sources={sources}
           />
         );
       })}
@@ -95,6 +108,7 @@ type ThemeColors = {
   ink: string;
   muted: string;
   accent: string;
+  accentSoft: string;
   line: string;
   surfaceSunken: string;
 };
@@ -108,6 +122,7 @@ function BlockView({
   ink,
   cursor,
   onLongPress,
+  sources,
 }: {
   block: MdBlock;
   colors: ThemeColors;
@@ -115,6 +130,7 @@ function BlockView({
   ink: string;
   cursor: string;
   onLongPress?: () => void;
+  sources?: MarkdownSource[];
 }) {
   if (block.type === "rule") {
     return (
@@ -151,7 +167,7 @@ function BlockView({
         ]}
         onLongPress={onLongPress}
       >
-        {renderInline(block.inline, colors, ink, onLongPress)}
+        {renderInline(block.inline, colors, typography, ink, onLongPress, sources)}
         {cursor}
       </Text>
     );
@@ -172,7 +188,7 @@ function BlockView({
           style={[typography.chatBody, { color: colors.muted }]}
           onLongPress={onLongPress}
         >
-          {renderInline(block.inline, colors, colors.muted, onLongPress)}
+          {renderInline(block.inline, colors, typography, colors.muted, onLongPress, sources)}
           {cursor}
         </Text>
       </View>
@@ -212,7 +228,7 @@ function BlockView({
           style={[typography.chatBody, { color: ink, flex: 1 }]}
           onLongPress={onLongPress}
         >
-          {renderInline(block.inline, colors, ink, onLongPress)}
+          {renderInline(block.inline, colors, typography, ink, onLongPress, sources)}
           {cursor}
         </Text>
       </View>
@@ -222,17 +238,25 @@ function BlockView({
   // paragraph
   return (
     <Text style={[typography.chatBody, { color: ink }]} onLongPress={onLongPress}>
-      {renderInline(block.inline, colors, ink, onLongPress)}
+      {renderInline(block.inline, colors, typography, ink, onLongPress, sources)}
       {cursor}
     </Text>
   );
 }
 
+/** Host for a11y labels — hand-parsed (same RN URL-polyfill caveats as isSafeHttpUrl). */
+function hostLabelFromUrl(url: string): string {
+  const m = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\/([^/?#]+)/.exec(url.trim());
+  return m?.[1] ?? url.trim();
+}
+
 function renderInline(
   nodes: InlineNode[],
   colors: ThemeColors,
+  typography: Typo,
   baseColor: string,
   onLongPress?: () => void,
+  sources?: MarkdownSource[],
 ): React.ReactNode[] {
   return nodes.map((node, i) => {
     switch (node.type) {
@@ -310,6 +334,61 @@ function renderInline(
             onLongPress={onLongPress}
           >
             {node.text}
+          </Text>
+        );
+      }
+      case "citation": {
+        // 1-based index into sources; missing/out-of-range → literal text (no dead chip).
+        const source = sources?.[node.index - 1];
+        if (!source) {
+          return (
+            <Text key={i} style={{ color: baseColor }} onLongPress={onLongPress}>
+              {node.text}
+            </Text>
+          );
+        }
+        const rawUrl = typeof source.url === "string" ? source.url.trim() : "";
+        const safe = rawUrl.length > 0 && isSafeHttpUrl(rawUrl);
+        const host =
+          safe
+            ? hostLabelFromUrl(rawUrl)
+            : typeof source.title === "string" && source.title.trim()
+              ? source.title.trim()
+              : String(node.index);
+        const a11y = `Source ${node.index}, ${host}`;
+        const chipStyle = {
+          color: colors.accent,
+          backgroundColor: colors.accentSoft,
+          borderRadius: radius.xs,
+          paddingHorizontal: spacing.xxs,
+          overflow: "hidden" as const,
+          ...(typography.bodyXs as object),
+        };
+        if (!safe) {
+          // Known source but unsafe/missing URL — styled chip, not tappable.
+          return (
+            <Text
+              key={i}
+              style={chipStyle}
+              onLongPress={onLongPress}
+              accessibilityLabel={a11y}
+            >
+              {String(node.index)}
+            </Text>
+          );
+        }
+        return (
+          <Text
+            key={i}
+            style={chipStyle}
+            onPress={() => {
+              void Linking.openURL(rawUrl).catch(() => undefined);
+            }}
+            onLongPress={onLongPress}
+            accessibilityLabel={a11y}
+            accessibilityRole="link"
+          >
+            {String(node.index)}
           </Text>
         );
       }
