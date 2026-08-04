@@ -701,6 +701,14 @@ negativo ma utile, coerente con 2505.16056) e F8 si riduce a hardening del fork.
 1. **Quantizzazione mista per-esperto** (HOBBIT-style, G4): esperti hot a 3-4 bit residenti,
    cold a 2 bit su flash; oppure "miss serviti a bassa precisione". Richiede tooling di
    ri-quantizzazione GGUF per-tensore (fattibile con llama-quantize custom).
+   **1b. Expert pruning trace-driven** (variante degenere della 1: cold → 0 bit). Filone
+   LOSSY, mai nella baseline. Razionale [2026-08-04]: nello streaming il pruning NON riduce il
+   traffico di decode (8 attivi restano 8) e muove poco l'hit-rate; beneficio reale solo su
+   prefill/TTFT (unione esperti più piccola) e copertura cache marginale. Se si fa: decisione
+   dai NOSTRI route-trace F7.1 (carico Kalsa IT/EN), NON con pruned generici da HF calibrati
+   su benchmark inglesi; check qualità F4.5 obbligatorio, con attenzione all'italiano.
+   Da valutare anche il trade "pool −25% ma quant +1 tier": file uguale ma traffico/token
+   +~30% — ambiguo, solo misura può dirlo.
 2. **Expert packing su flash** (H6/G3): riscrittura del GGUF con esperti riordinati per
    co-attivazione. Contributo potenzialmente originale, nessun paper lo fa su single-device.
 3. **DraftExpert-style** (G4): training per distillazione dei draft expert su RunPod
