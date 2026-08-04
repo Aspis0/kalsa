@@ -29,7 +29,6 @@ import {
   Download,
   FileText,
   Globe,
-  Grid2x2,
   Image as ImageIcon,
   Languages,
   Menu,
@@ -209,14 +208,6 @@ function buildSuggestions(t: TranslateFn): SuggestionItem[] {
   ];
 }
 
-function buildQuickTools(t: TranslateFn) {
-  return [
-    { label: t("chat.toolChat"), Icon: Sparkles },
-    { label: t("chat.toolWebsearch"), Icon: Globe },
-    { label: t("chat.toolMiniapp"), Icon: ClipboardList },
-    { label: t("chat.toolTools"), Icon: Grid2x2 },
-  ];
-}
 
 // ── Feature 2: miniapp icon map ─────────────────────────────────────────────
 function miniappIcon(kind: string): React.ComponentType<{ size: number; color: string }> {
@@ -498,7 +489,6 @@ export function AiChatPage({
   const inputRef = useRef<TextInput>(null);
   const greeting = useMemo(() => greetingForHour(new Date().getHours(), t), [t]);
   const suggestions = useMemo(() => buildSuggestions(t), [t]);
-  const quickTools = useMemo(() => buildQuickTools(t), [t]);
 
   // ── Persistenza conversazione (Fase 1) ──────────────────────────────────
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -2157,45 +2147,6 @@ export function AiChatPage({
           })
         )}
       </ScrollView>
-
-      {/* ── Quick-tools row — only in empty/welcome state ── */}
-      {messages.length === 0 ? (
-        <View
-          style={{
-            flexDirection: "row",
-            paddingHorizontal: spacing.md,
-            paddingBottom: spacing.xs,
-            gap: spacing.xs,
-          }}
-        >
-          {quickTools.map((qt) => (
-            <Pressable
-              key={qt.label}
-              disabled
-              accessibilityLabel={t("chat.a11yToolComingSoon", { label: qt.label })}
-              style={{
-                flex: 1,
-                alignItems: "center",
-                gap: 4,
-                paddingVertical: spacing.xs,
-                backgroundColor: colors.panel,
-                borderRadius: radius.md,
-                borderWidth: 1,
-                borderColor: colors.line,
-                opacity: 0.55,
-              }}
-            >
-              <qt.Icon size={16} color={colors.muted} />
-              <Text
-                style={[typography.bodyXs, { color: colors.muted, fontSize: 10 }]}
-                numberOfLines={1}
-              >
-                {qt.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
 
       {/* ── Composer ── */}
       <View

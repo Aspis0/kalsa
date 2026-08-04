@@ -312,10 +312,6 @@ export const en = {
     suggestion3Sub: "Miniapp · interactive table",
     suggestion4: "Summarize this text",
     suggestion4Sub: "Chat · long input",
-    toolChat: "Chat",
-    toolWebsearch: "Websearch",
-    toolMiniapp: "Miniapp",
-    toolTools: "Tools",
     a11yMenu: "Menu",
     a11yExport: "Export chat",
     a11yNewChat: "New chat",
@@ -324,7 +320,6 @@ export const en = {
     a11yAttach: "Add attachment",
     a11yStop: "Stop generation",
     a11ySend: "Send",
-    a11yToolComingSoon: "{label} context (coming soon)",
   },
 
   notify: {

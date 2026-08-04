@@ -310,10 +310,6 @@ export const it: typeof en = {
     suggestion3Sub: "Mini-app · tabella interattiva",
     suggestion4: "Riassumi questo testo",
     suggestion4Sub: "Chat · testo lungo",
-    toolChat: "Chat",
-    toolWebsearch: "Websearch",
-    toolMiniapp: "Mini-app",
-    toolTools: "Strumenti",
     a11yMenu: "Menu",
     a11yExport: "Esporta chat",
     a11yNewChat: "Nuova chat",
@@ -322,7 +318,6 @@ export const it: typeof en = {
     a11yAttach: "Aggiungi allegato",
     a11yStop: "Interrompi generazione",
     a11ySend: "Invia",
-    a11yToolComingSoon: "Contesto {label} (in arrivo)",
   },
 
   notify: {
