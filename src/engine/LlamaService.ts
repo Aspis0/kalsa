@@ -489,6 +489,8 @@ function prefixUserMessageContent(
  * Insert the operative block into the engine message list according to bench format.
  * "none" → identity (production path) unless compaction context is present, in which
  * case format B (user-prefix) is used so digest/summary ride on the last user message.
+ * Because the block is in the last-user tail, a query-time digest that changes every
+ * turn re-encodes only that tail — the stable history prefix (and its KV) is preserved.
  * Synthetic user-note is engine-only (not UI history).
  */
 function applyOperativeBlockFormat(
@@ -596,10 +598,14 @@ export type StreamTurnOptions = EngineTurnOptions & {
   /** Durable user facts to inject into the system prompt (max 10 used). */
   memoryFacts?: string[];
   /**
-   * Frozen compaction context (digest + rolling summary) for the operative block.
-   * When present and non-empty, injected via format B (user-prefix) even if the
-   * bench format knob is "none". Omit / empty when compaction is OFF so prompts
-   * stay byte-identical to the legacy path.
+   * Compaction context for the operative block:
+   * - digest: query-time BM25 (refreshed every user turn)
+   * - summary: rolling LLM summary (frozen on K-turn boundary cadence)
+   * Both ride on the last user message via format B (user-prefix), so a changing
+   * digest does not invalidate the stable history prefix (KV cache).
+   * When present and non-empty, injected via format B even if the bench format
+   * knob is "none". Omit / empty when compaction is OFF so prompts stay
+   * byte-identical to the legacy path.
    */
   operativeContext?: OperativeBlockContext | null;
 };

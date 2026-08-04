@@ -38,17 +38,17 @@ import { isWhisperModelDownloaded, releaseWhisper } from "../voice/WhisperServic
 import { isTtsEnabled, setTtsEnabled } from "../voice/TtsService";
 import { RetrieverIndex } from "../context/retriever";
 import {
+  advanceCompactionBoundary,
   assembleEngineHistory,
   buildSummaryTranscript,
   COMPACTION_ENABLED_KEY,
-  computeRebuildBoundary,
   compactorStorageKey,
   countUserTurns,
   DEFAULT_CHAT_ID,
   DEFAULT_COMPACTOR_CONFIG,
   emptyCompactorState,
   parseCompactorState,
-  rebuildFrozenDigest,
+  refreshQueryDigest,
   resolveBoundaryIndex,
   serializeCompactorState,
   shouldRebuild,
@@ -103,14 +103,24 @@ const DOWNLOAD_NOTIFY_THROTTLE_MS = 2_000;
 
 // ── ConversationCompactor (per-chat, module-level — survives remounts) ─────
 const compactorStateByChat = new Map<string, CompactorState>();
-/** Pending LLM summary (promoted into frozen rollingSummary on next rebuild). */
+/** Pending LLM summary (promoted into frozen rollingSummary on next boundary rebuild). */
 const pendingSummaryByChat = new Map<string, string>();
 /** Last known history length per chat — clearChat detection (shrink). */
 const lastHistoryLenByChat = new Map<string, number>();
-/** Force next-turn digest rebuild after context_full (compaction ON). */
+/** Force next-turn boundary rebuild after context_full (compaction ON). */
 const forceRebuildByChat = new Map<string, boolean>();
 /**
- * Cap older-turns corpus fed to the throwaway RetrieverIndex.
+ * Warm per-chat BM25 index over the compacted ("older") corpus.
+ * Query-time digest hits this every turn (~3 ms); full rebuild only when the
+ * boundary advances or state is reset. Cap avoids O(n) blow-up at huge chats.
+ */
+const digestIndexByChat = new Map<string, RetrieverIndex>();
+/** Absolute history index covered by the warm index (older = [0, covered)). */
+const digestIndexCoveredByChat = new Map<string, number>();
+/** Message-unit count currently in the warm index (for cap / append bookkeeping). */
+const digestIndexCorpusLenByChat = new Map<string, number>();
+/**
+ * Cap older-turns corpus fed to the warm RetrieverIndex.
  * Unbounded corpus → linear rebuild cost (~1.3s at 5000 turns desktop).
  */
 const MAX_DIGEST_CORPUS_MESSAGES = 400;
@@ -169,12 +179,89 @@ function abortBackgroundSummary(): void {
   }
 }
 
+function resetDigestIndex(chatId: string): void {
+  const id = chatId || DEFAULT_CHAT_ID;
+  digestIndexByChat.delete(id);
+  digestIndexCoveredByChat.delete(id);
+  digestIndexCorpusLenByChat.delete(id);
+}
+
+/**
+ * Keep the warm RetrieverIndex in sync with the older corpus under `boundary`.
+ * - Same boundary as last sync → reuse index (query-time path).
+ * - Boundary advanced and under cap → append newly older messages.
+ * - Boundary shrunk / over cap / missing → full rebuild from last N older.
+ */
+function syncDigestIndex(
+  chatId: string,
+  history: HistoryRoleMessage[],
+  boundary: number,
+): RetrieverIndex {
+  const id = chatId || DEFAULT_CHAT_ID;
+  const b = Math.max(0, Math.min(boundary, history.length));
+  const olderRaw = history.slice(0, b);
+  const olderClean = filterCorpusHygiene(olderRaw);
+  const corpus =
+    olderClean.length > MAX_DIGEST_CORPUS_MESSAGES
+      ? olderClean.slice(-MAX_DIGEST_CORPUS_MESSAGES)
+      : olderClean;
+
+  let idx = digestIndexByChat.get(id);
+  const covered = digestIndexCoveredByChat.get(id) ?? -1;
+  const corpusLen = digestIndexCorpusLenByChat.get(id) ?? 0;
+
+  const needsFullRebuild =
+    !idx ||
+    covered < 0 ||
+    b < covered ||
+    // Cap sliding window dropped older units — ordinals/DF would be wrong if we only append.
+    (olderClean.length > MAX_DIGEST_CORPUS_MESSAGES &&
+      (b !== covered || corpus.length !== corpusLen));
+
+  if (needsFullRebuild) {
+    idx = new RetrieverIndex();
+    if (corpus.length > 0) {
+      // turnIndex = absolute history index of each kept message (approx after hygiene).
+      const startIdx = Math.max(0, b - corpus.length);
+      idx.append(toRetrievalUnits(corpus, startIdx));
+    }
+    digestIndexByChat.set(id, idx);
+    digestIndexCoveredByChat.set(id, b);
+    digestIndexCorpusLenByChat.set(id, corpus.length);
+    return idx;
+  }
+
+  if (b > covered) {
+    const delta = filterCorpusHygiene(history.slice(covered, b));
+    if (delta.length > 0) {
+      if (corpusLen + delta.length > MAX_DIGEST_CORPUS_MESSAGES) {
+        // Append would exceed cap → rebuild from last N of full older corpus.
+        idx = new RetrieverIndex();
+        if (corpus.length > 0) {
+          const startIdx = Math.max(0, b - corpus.length);
+          idx.append(toRetrievalUnits(corpus, startIdx));
+        }
+        digestIndexByChat.set(id, idx);
+        digestIndexCoveredByChat.set(id, b);
+        digestIndexCorpusLenByChat.set(id, corpus.length);
+        return idx;
+      }
+      idx!.append(toRetrievalUnits(delta, covered));
+      digestIndexCorpusLenByChat.set(id, corpusLen + delta.length);
+    }
+    digestIndexCoveredByChat.set(id, b);
+  }
+
+  return idx!;
+}
+
 async function resetCompactorChat(chatId: string): Promise<void> {
   const id = chatId || DEFAULT_CHAT_ID;
   compactorStateByChat.delete(id);
   pendingSummaryByChat.delete(id);
   lastHistoryLenByChat.delete(id);
   forceRebuildByChat.delete(id);
+  resetDigestIndex(id);
   try {
     await AsyncStorage.multiRemove([
       compactorStorageKey(id),
@@ -983,7 +1070,7 @@ export function AppShell() {
             if (compactionOn) {
               const userTurnCount = countUserTurns(validatedHistory, true);
 
-              // Load frozen state (memory → AsyncStorage).
+              // Load per-chat compactor state (memory → AsyncStorage).
               let state = compactorStateByChat.get(chatId);
               if (!state) {
                 try {
@@ -1022,7 +1109,7 @@ export function AppShell() {
                 compactorStateByChat.set(chatId, state);
               }
 
-              // Force rebuild after context_full (set in onError); consume once.
+              // Force boundary rebuild after context_full (set in onError); consume once.
               const forceRebuild = forceRebuildByChat.get(chatId) === true;
               if (forceRebuild) forceRebuildByChat.delete(chatId);
 
@@ -1036,82 +1123,77 @@ export function AppShell() {
                 boundaryProbe,
               ).recent;
 
+              // Boundary + rolling summary: K-turn cadence (or early size / force).
+              // Verbatim window stays append-only between these rebuilds (KV prefix).
               if (
                 shouldRebuild(state, userTurnCount, null, recentForBudget) ||
                 forceRebuild
               ) {
-                // At rebuild: boundary so remaining window = most recent R msgs.
-                const newBoundary = computeRebuildBoundary(
-                  validatedHistory.length,
-                  hasImages,
-                );
-                const { older } = splitAtBoundary(validatedHistory, newBoundary);
-                // Hygiene: drop error bubbles + abort-orphaned user turns.
-                const olderClean = filterCorpusHygiene(older);
-                // Summary: soft message cap; buildSummaryTranscript also char-caps at 6000.
-                olderForSummary =
-                  olderClean.length > MAX_SUMMARY_CORPUS_MESSAGES
-                    ? olderClean.slice(-MAX_SUMMARY_CORPUS_MESSAGES)
-                    : olderClean;
-                // Digest corpus: last N older messages (unbounded → linear rebuild cost).
-                const olderForDigest =
-                  olderClean.length > MAX_DIGEST_CORPUS_MESSAGES
-                    ? olderClean.slice(-MAX_DIGEST_CORPUS_MESSAGES)
-                    : olderClean;
-                const oldUnits = toRetrievalUnits(olderForDigest);
-                // Throwaway index from older only — single source of truth (no warm index).
-                const digestIndex =
-                  oldUnits.length > 0
-                    ? (() => {
-                        const tmp = new RetrieverIndex();
-                        tmp.append(oldUnits);
-                        return tmp;
-                      })()
-                    : null;
                 const pending = pendingSummaryByChat.get(chatId);
-                state = rebuildFrozenDigest(state, {
+                state = advanceCompactionBoundary(state, {
                   chatId,
                   userTurnCount,
                   historyLength: validatedHistory.length,
                   hasImages,
-                  index: digestIndex,
-                  oldTurns: oldUnits,
-                  currentQuery: text,
                   nextSummary:
                     typeof pending === "string"
                       ? pending
                       : state.rollingSummary,
                 });
                 if (pending !== undefined) pendingSummaryByChat.delete(chatId);
-                compactorStateByChat.set(chatId, state);
-                try {
-                  await AsyncStorage.setItem(
-                    compactorStorageKey(chatId),
-                    serializeCompactorState(state),
-                  );
-                  await AsyncStorage.setItem(
-                    summaryStorageKey(chatId),
-                    state.rollingSummary,
-                  );
-                } catch {
-                  // best-effort persistence
-                }
-              } else {
-                // Between rebuilds: older slice for summary is still pre-boundary.
-                const b = resolveBoundaryIndex(state, validatedHistory.length);
-                const olderBetween = filterCorpusHygiene(
-                  splitAtBoundary(validatedHistory, b).older,
-                );
-                olderForSummary =
-                  olderBetween.length > MAX_SUMMARY_CORPUS_MESSAGES
-                    ? olderBetween.slice(-MAX_SUMMARY_CORPUS_MESSAGES)
-                    : olderBetween;
               }
 
               boundaryForAssemble = resolveBoundaryIndex(
                 state,
                 validatedHistory.length,
               );
+
+              // Older corpus for summary scheduling + warm-index sync.
+              const olderClean = filterCorpusHygiene(
+                splitAtBoundary(validatedHistory, boundaryForAssemble).older,
+              );
+              olderForSummary =
+                olderClean.length > MAX_SUMMARY_CORPUS_MESSAGES
+                  ? olderClean.slice(-MAX_SUMMARY_CORPUS_MESSAGES)
+                  : olderClean;
+
+              // Warm index: append as boundary advances; query every turn.
+              const digestIndex = syncDigestIndex(
+                chatId,
+                validatedHistory,
+                boundaryForAssemble,
+              );
+              const olderForDigest =
+                olderClean.length > MAX_DIGEST_CORPUS_MESSAGES
+                  ? olderClean.slice(-MAX_DIGEST_CORPUS_MESSAGES)
+                  : olderClean;
+              const oldUnits = toRetrievalUnits(olderForDigest);
+
+              // Query-time BM25 digest — current user message is the retrieval query.
+              // (Digest rides on last user message via format B; freezing it saved
+              // zero prefill and cost recall — see RESEARCH_CONTEXT_LOSS.md.)
+              state = refreshQueryDigest(state, {
+                chatId,
+                index: digestIndex,
+                oldTurns: oldUnits,
+                currentQuery: text,
+              });
+              compactorStateByChat.set(chatId, state);
+
+              // Persist boundary/summary meta every turn (cheap JSON); digest is
+              // recomputed from warm index + query so staleness is not critical.
+              try {
+                await AsyncStorage.setItem(
+                  compactorStorageKey(chatId),
+                  serializeCompactorState(state),
+                );
+                await AsyncStorage.setItem(
+                  summaryStorageKey(chatId),
+                  state.rollingSummary,
+                );
+              } catch {
+                // best-effort persistence
+              }
 
               if (state.frozenDigest || state.rollingSummary) {
                 operativeContext = {
@@ -1201,7 +1283,7 @@ export function AppShell() {
                       summary.trim(),
                       SUMMARY_BUDGET_CHARS,
                     );
-                    // Store as pending — applied on next digest rebuild (frozen).
+                    // Store as pending — promoted into rollingSummary on next boundary rebuild.
                     pendingSummaryByChat.set(capturedChatId, trimmed);
                     try {
                       await AsyncStorage.setItem(

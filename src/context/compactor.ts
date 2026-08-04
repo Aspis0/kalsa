@@ -4,20 +4,32 @@
  * Pure TypeScript: no React Native / AsyncStorage imports. Callers inject storage.
  *
  * KV-prefix design (growing recent window):
- * - `boundaryIndex` marks where frozen-digest coverage ends and the verbatim
- *   window begins. It moves ONLY at rebuild time (every K user turns).
- * - Between rebuilds the verbatim window is ALL messages from boundaryIndex
- *   onward — append-only growth (~R up to ~R+2K). That keeps the token prefix
- *   after the system prompt byte-identical so llama.rn reuses the KV cache.
- * - At rebuild: recompute digest over history[0..boundary), set boundary so the
- *   remaining window is the most recent R messages, reset growth.
+ * - `boundaryIndex` marks where older (retrieval corpus) ends and the verbatim
+ *   window begins. It moves ONLY at boundary rebuild (every K user turns).
+ * - Between boundary rebuilds the verbatim window is ALL messages from
+ *   boundaryIndex onward — append-only growth (~R up to ~R+2K). That keeps the
+ *   token prefix after the system prompt byte-identical so llama.rn reuses the
+ *   KV cache.
+ * - At boundary rebuild: set boundary so the remaining window is the most recent
+ *   R messages; rolling LLM summary is refreshed on this same K-turn cadence.
+ *
+ * Query-time BM25 digest (2026-08-03 reverse of freeze):
+ * - Digest is rebuilt EVERY user turn with the CURRENT user message as query
+ *   against the compacted ("older") corpus. It is NOT frozen for K turns.
+ * - Rationale: the operative block (digest+summary) is stapled to the last user
+ *   message (format B / user-prefix). Everything after the last stable token is
+ *   re-encoded every turn anyway, so freezing the digest saved zero prefill and
+ *   cost recall (benchmark: frozen digest 33.3% vs CisWire 100% — see
+ *   docs/RESEARCH_CONTEXT_LOSS.md).
+ * - Callers should hold one warm RetrieverIndex per chat (append older units as
+ *   the boundary advances); throwaway rebuild every turn is wasteful at scale.
  *
  * Accepted caveats (revisit after Fase 4 bench):
  * (1) Per-message char cap flips 4000↔2000 when the current turn has images,
  *     which breaks the byte-identical prefix for that turn (same class as legacy).
  * (2) The rolling summary lags one rebuild behind the boundary: the chunk
  *     [boundary_T, boundary_T+K) can leave the window without ever entering a
- *     summary — covered only by the digest.
+ *     summary — covered only by the query-time digest.
  */
 
 import {
@@ -30,31 +42,34 @@ import {
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface CompactorState {
-  /** Fast-track retriever digest (may be ""). Frozen between rebuilds. */
+  /**
+   * Last query-time BM25 digest (may be ""). Refreshed every user turn with the
+   * current query; field name kept for AsyncStorage wire compatibility.
+   */
   frozenDigest: string;
-  /** LLM rolling summary (may be ""). Frozen between rebuilds. */
+  /** LLM rolling summary (may be ""). Frozen between boundary rebuilds (K turns). */
   rollingSummary: string;
-  /** User-turn counter when digest was last rebuilt. */
+  /** User-turn counter when the boundary / summary were last rebuilt. */
   builtAtUserTurn: number;
   /**
-   * Absolute history index where frozen-digest coverage ends and the verbatim
-   * window begins. Moves ONLY at rebuild. -1 = never set (treat as 0).
+   * Absolute history index where older (retrieval corpus) ends and the verbatim
+   * window begins. Moves ONLY at boundary rebuild. -1 = never set (treat as 0).
    */
   boundaryIndex: number;
   chatId: string;
 }
 
 export interface CompactorConfig {
-  /** Rebuild frozen digest every K user turns (default 3). */
+  /** Advance boundary + refresh rolling summary every K user turns (default 3). */
   rebuildEveryKUserTurns: number;
   /** Recent messages kept verbatim without images (default 6). */
   recentWindow: number;
   /** Recent messages kept verbatim when the turn has images (default 4). */
   recentWindowWithImages: number;
-  /** Max chars for the frozen digest block (default 900). */
+  /** Max chars for the query-time digest block (default 900). */
   digestBudgetChars: number;
   /**
-   * Max chars of the verbatim recent window before forcing an early rebuild
+   * Max chars of the verbatim recent window before forcing an early boundary rebuild
    * (~4k tokens at ~4 chars/token). Default 16000.
    */
   windowCharBudget: number;
@@ -95,7 +110,7 @@ export const DEFAULT_COMPACTOR_CONFIG: CompactorConfig = {
 /** AsyncStorage key: compaction feature toggle (default OFF). */
 export const COMPACTION_ENABLED_KEY = "kalsa.context.compaction";
 
-/** Per-chat frozen compactor state (digest + meta). */
+/** Per-chat compactor state (last digest + boundary + summary meta). */
 export function compactorStorageKey(chatId: string): string {
   return `kalsa.chat.compactor.${chatId || "default"}`;
 }
@@ -204,9 +219,12 @@ export function estimateWindowChars(
 }
 
 /**
- * Rebuild when there is no prior state, never-built marker, ≥ K user turns
- * have elapsed since the last rebuild, or the verbatim window exceeds
+ * Whether to advance the boundary / refresh the rolling summary.
+ * True when there is no prior state, never-built marker, ≥ K user turns have
+ * elapsed since the last boundary rebuild, or the verbatim window exceeds
  * windowCharBudget (when `recent` is provided).
+ *
+ * Does NOT gate the BM25 digest — that is query-time every turn.
  */
 export function shouldRebuild(
   state: CompactorState | null | undefined,
@@ -257,16 +275,16 @@ export function truncateBudget(s: string, maxChars: number): string {
 }
 
 /**
- * Deterministic fast-track digest from retriever top-N snippets.
+ * Deterministic query-time digest from retriever top-N snippets.
  * Joined with " · ", capped at digestBudgetChars.
  *
- * The digest is built from the LAST user query at rebuild time and then FROZEN
- * for K turns — callers must not invoke this every turn.
+ * Call every user turn with the CURRENT user message as `currentQuery`. Prefer a
+ * warm per-chat RetrieverIndex (append older units as the boundary advances);
+ * if `index` is empty/null a throwaway index is built from `oldTurns`.
  *
- * @param index RetrieverIndex (or compatible) already holding old turns; if empty
- *              or null, a throwaway index is built from `oldTurns`.
- * @param oldTurns Turns before the boundary (retrieval corpus).
- * @param currentQuery User query at rebuild time (frozen with the digest).
+ * @param index Warm RetrieverIndex (or compatible) holding older turns.
+ * @param oldTurns Turns before the boundary (retrieval corpus; fallback only).
+ * @param currentQuery Current user message (retrieval query).
  */
 export function buildDigest(
   index: DigestIndex | null | undefined,
@@ -461,8 +479,75 @@ export function toRetrievalUnits(
 }
 
 /**
- * Apply a rebuild: compute new frozen digest over older turns, set boundary so
- * the verbatim window is the most recent R messages, advance builtAtUserTurn.
+ * Advance the compaction boundary and optionally promote the rolling summary.
+ * Cadence: every K user turns (or early size trigger). Does NOT recompute the
+ * BM25 digest — call `refreshQueryDigest` every turn for that.
+ */
+export function advanceCompactionBoundary(
+  prev: CompactorState | null | undefined,
+  args: {
+    chatId: string;
+    userTurnCount: number;
+    /** Absolute history length at rebuild time (prior messages, no current user). */
+    historyLength: number;
+    hasImages: boolean;
+    config?: Partial<CompactorConfig> | null;
+    /** If set, becomes the new rollingSummary; else keep previous. */
+    nextSummary?: string | null;
+  },
+): CompactorState {
+  const chatId = args.chatId || DEFAULT_CHAT_ID;
+  const boundaryIndex = computeRebuildBoundary(
+    args.historyLength,
+    args.hasImages,
+    args.config,
+  );
+  const prevSummary =
+    typeof args.nextSummary === "string"
+      ? args.nextSummary
+      : (prev?.rollingSummary ?? "");
+  return {
+    frozenDigest: prev?.frozenDigest ?? "",
+    rollingSummary: truncateBudget(prevSummary, SUMMARY_BUDGET_CHARS),
+    builtAtUserTurn: Math.floor(args.userTurnCount),
+    boundaryIndex,
+    chatId,
+  };
+}
+
+/**
+ * Refresh the BM25 digest for the current user query (every turn).
+ * Leaves boundary, builtAtUserTurn, and rollingSummary unchanged.
+ */
+export function refreshQueryDigest(
+  prev: CompactorState | null | undefined,
+  args: {
+    chatId?: string;
+    index: DigestIndex | null | undefined;
+    oldTurns: RetrievalUnit[];
+    currentQuery: string;
+    config?: Partial<CompactorConfig> | null;
+  },
+): CompactorState {
+  const base = prev ?? emptyCompactorState(args.chatId || DEFAULT_CHAT_ID);
+  const digest = buildDigest(
+    args.index,
+    args.oldTurns,
+    args.currentQuery,
+    args.config,
+  );
+  return {
+    ...base,
+    frozenDigest: digest,
+    chatId: args.chatId || base.chatId || DEFAULT_CHAT_ID,
+  };
+}
+
+/**
+ * Boundary rebuild + query-time digest in one step (harness / one-shot callers).
+ * Production path prefers `advanceCompactionBoundary` (K-turn) +
+ * `refreshQueryDigest` (every turn) so the digest can change without moving
+ * the boundary.
  */
 export function rebuildFrozenDigest(
   prev: CompactorState | null | undefined,
@@ -480,29 +565,21 @@ export function rebuildFrozenDigest(
     nextSummary?: string | null;
   },
 ): CompactorState {
-  const chatId = args.chatId || DEFAULT_CHAT_ID;
-  const boundaryIndex = computeRebuildBoundary(
-    args.historyLength,
-    args.hasImages,
-    args.config,
-  );
-  const digest = buildDigest(
-    args.index,
-    args.oldTurns,
-    args.currentQuery,
-    args.config,
-  );
-  const prevSummary =
-    typeof args.nextSummary === "string"
-      ? args.nextSummary
-      : (prev?.rollingSummary ?? "");
-  return {
-    frozenDigest: digest,
-    rollingSummary: truncateBudget(prevSummary, SUMMARY_BUDGET_CHARS),
-    builtAtUserTurn: Math.floor(args.userTurnCount),
-    boundaryIndex,
-    chatId,
-  };
+  const advanced = advanceCompactionBoundary(prev, {
+    chatId: args.chatId,
+    userTurnCount: args.userTurnCount,
+    historyLength: args.historyLength,
+    hasImages: args.hasImages,
+    config: args.config,
+    nextSummary: args.nextSummary,
+  });
+  return refreshQueryDigest(advanced, {
+    chatId: args.chatId,
+    index: args.index,
+    oldTurns: args.oldTurns,
+    currentQuery: args.currentQuery,
+    config: args.config,
+  });
 }
 
 /** Serialize / parse helpers for AsyncStorage (caller-owned I/O). */

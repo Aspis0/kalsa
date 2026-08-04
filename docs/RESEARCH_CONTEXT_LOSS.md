@@ -101,8 +101,8 @@ Come da regola: review personale prima della build, poi E2E emulatore, report, A
 
 ## Correzioni al design (dalla review ostile)
 
-- **Layout del prompt cache-friendly (nuovo principio guida, CORRETTO post-audit 1b)**: `[system fisso] + [finestra recente CRESCENTE, append-only] + [blocco operativo (digest+summary frozen) nel prefisso dell'ultimo user (formato B/C)]`. ATTENZIONE (verità di design emersa in audit): una finestra recente che *scorre* (`slice(-R)`) fa divergere i token subito dopo il system prompt A OGNI turno → il prefix cache non guadagna nulla oltre la legacy. La finestra deve invece partire dal **boundary di compattazione** (fisso per K turni) e CRESCERE append-only tra un rebuild e l'altro (da ~R a ~R+2K messaggi); al rebuild il boundary avanza e si paga UN re-prefill. Il blocco volatile sta in coda (attention-friendly per Context Rot) e non invalida nulla perché viene dopo la history. Il benchmark Fase 0/4 deve misurare ANCHE il prefill (tempo al primo token), non solo il recall — è lì che si verifica il claim. `clearCache()` al cambio conversazione.
-- **Fast-track retriever CONGELATO per K turni** (stessa medicina del summary — V4.1 si contraddiceva: fast-track query-dependent a ogni turno ≠ frozen). Gli snippet recuperati entrano nel blocco operativo (fine prompt), non nel prefisso.
+- **Layout del prompt cache-friendly (nuovo principio guida, CORRETTO post-audit 1b; digest query-time dal 2026-08-03)**: `[system fisso] + [finestra recente CRESCENTE, append-only] + [blocco operativo (digest query-time + summary frozen-K) nel prefisso dell'ultimo user (formato B/C)]`. ATTENZIONE (verità di design emersa in audit): una finestra recente che *scorre* (`slice(-R)`) fa divergere i token subito dopo il system prompt A OGNI turno → il prefix cache non guadagna nulla oltre la legacy. La finestra deve invece partire dal **boundary di compattazione** (fisso per K turni) e CRESCERE append-only tra un rebuild e l'altro (da ~R a ~R+2K messaggi); al rebuild il boundary avanza e si paga UN re-prefill. Il blocco operativo sta in coda (attention-friendly per Context Rot): il digest può cambiare ogni turno **senza** invalidare il prefisso history. Il benchmark Fase 0/4 deve misurare ANCHE il prefill (tempo al primo token), non solo il recall — è lì che si verifica il claim. `clearCache()` al cambio conversazione.
+- **Fast-track retriever**: in V4.2 era **congelato per K turni** (stessa medicina del summary). **REVOCATO 2026-08-03** — vedi sezione "Query-time BM25 digest" sotto: il freeze non salva prefill in posizione user-prefix e costa recall. Resta frozen solo il rolling summary LLM; il digest BM25 è query-time ogni turno.
 - **Retriever** (`src/context/retriever.ts`): BM25+ su **char 3-4 grams** con lowercase+fold accenti; unità = frase con ruolo + vicinato (frase±1), dedup; RRF con salience query-agnostic (entità/numeri/verbi dichiarativi). Zero dipendenze, millisecondi.
 - **n_ctx ADATTIVO, non 16k fisso** (fonde il leftover "auto-profilo RAM"): il `engineCtx` di catalogo è autoritativo (mai downgrade — il 2B resta a 16k ovunque); il gate RAM fa solo UPGRADE del 4B a 16k su device ≥ ~8GB reali (7.5e9 — sulla classe 6GB il +130MB di KV con mmproj residente è rischio OOM). V-cache: baseline q4_0 (revisit dopo il bench qualità Fase 4). Budget finestra: rebuild anticipato oltre ~16k char (~4k token) + rebuild forzato su `context_full`.
 - **Note di design accettate (audit finale 2026-08-03)**: (1) il summary in background gira solo sul turno K-1, così il suo clearCache è assorbito dal re-prefill inevitabile del turno di rebuild; (2) il summary resta indietro di un rebuild rispetto al boundary (il chunk intermedio è coperto solo dal digest) — rivalutare dopo il bench; (3) il flip del cap caratteri con immagini rompe il prefisso KV per quel turno (stessa classe della legacy); (4) una risposta che INIZIA con un `<think>` letterale mai chiuso viene soppressa (trade-off contro il leak del reasoning troncato — caso raro, accettato); (5) il nudge "nuova chat" usa la history UI, non il prompt engine: con compaction ON può suonare prima del necessario — copy da rivedere dopo il bench.
@@ -120,7 +120,7 @@ Come da regola: review personale prima della build, poi E2E emulatore, report, A
 ## Ordine di implementazione V4.2
 
 1. **Fase 1a** — `src/context/retriever.ts` (BM25+ char-ngrams + RRF) + unit harness Node con corpus IT/EN (puro TS, zero device).
-2. **Fase 1b** — ConversationCompactor: binario veloce (retriever, frozen per K) + summary frozen ogni K turni; store per-chat; Settings "Contesto" on/off; layout prompt cache-friendly in AppShell/LlamaService.
+2. **Fase 1b** — ConversationCompactor: binario veloce (retriever BM25 **query-time ogni turno**, warm index per chat) + summary frozen ogni K turni + boundary append-only; store per-chat; Settings "Contesto" on/off; layout prompt cache-friendly in AppShell/LlamaService. (Digest freeze revocato 2026-08-03.)
 3. **Fase 2b** — hookup `summary` nel blocco operativo (già predisposto, oggi null) nel formato B di default (pending A/B).
 4. **Fase 0.5** — n_ctx adattivo per RAM + cache_type q8_0.
 5. **Fase 3** — tool hardening (2500 char + riga regola nel tool_result).
@@ -129,3 +129,52 @@ Come da regola: review personale prima della build, poi E2E emulatore, report, A
 8. **Fase 5** — E2E + APK (già in coda).
 
 **Nota (2026-08-03)**: il default di produzione del thinking (`"default"` = off, doppia cintura) resta **PROVVISORIO** finché la Fase 0 (bench A/B) non lo conferma o lo cambia. Nel frattempo l'utente può cambiarlo a mano da Settings → Thinking (Off / Short=budget256 / Extended=budget512), persistito sulla stessa chiave `kalsa.bench.thinking` usata dal comando `/bench thinking` — un'unica fonte di verità, letta fresh a ogni turno in `streamAssistantTurn`.
+
+---
+
+# Query-time BM25 digest (2026-08-03) — revoca del freeze
+
+## Benchmark esterno (forza la decisione)
+
+3 run/braccio, tutti validi, modello **deepseek-v4-flash**, 16 fatti piantati, grading exact-token:
+
+| arm | recall |
+|---|---|
+| CisWire (facts re-injected every turn) | 100% |
+| bare agent | 97.9% |
+| **Kalsa (frozen BM25 digest)** | **33.3%** |
+| Kalsa, compaction off (legacy sliding window) | 2.1% |
+
+### Diagnostica per-probe
+- **Probe 1**: il digest congelato — keyed sull'ultima query FILLER — conteneva **0/16** fatti piantati → i probe precoci falliscono.
+- **Probe 3**: un rebuild scatta usando il probe stesso come query → il digest sale a 3 fatti; da probe 6 in poi ~8 fatti. I pass tracciano **esattamente** il contenuto del digest.
+
+**Conclusione**: il retrieval BM25 funziona; è il **FREEZE** a costare recall — a domanda N rispondi con un digest keyed sul topic della domanda N−2.
+
+## Perché il freeze era inutile (insight meccanico)
+
+Il digest era stato congelato per proteggere il **KV prefix cache** di llama.rn. Ma nel layout shippato il blocco operativo (digest + summary) è spillato sull'**ultimo messaggio user** (`user-prefix` / formato B — vedi `applyOperativeBlockFormat` in `LlamaService.ts`: "digest/summary ride on the last user message").
+
+Tutto ciò che sta **dopo l'ultimo token stabile** viene ri-encodato **ogni turno** comunque. Quindi congelare il digest **in quella posizione**:
+- **salva zero prefill**
+- **costa solo recall**
+
+Il pezzo che *davvero* protegge il prefisso è la **finestra verbatim append-only** ancorata al `boundaryIndex` (fisso per K turni). Quella non si tocca.
+
+## Design nuovo (inverso rispetto a V4.2 freeze)
+
+| pezzo | cadenza | note |
+|---|---|---|
+| **BM25 digest** | **ogni turno user**, query = messaggio corrente | corpus = lato "older" (pre-boundary); deterministico, ~ms |
+| **Rolling LLM summary** | frozen ogni **K** user turns | costoso da rigenerare; non query-dependent |
+| **Boundary / finestra verbatim** | avanza ogni **K** user turns (o early size / `context_full`) | append-only tra rebuild → KV prefix intatto |
+| **Warm `RetrieverIndex` per chat** | append messaggi "older" al advance del boundary; query ogni turno; reset su clearChat / stale | throwaway index: ~26 ms @ 200 turni, ~1.3 s @ 5000; query warm ~3 ms |
+
+### API (`src/context/compactor.ts`)
+- `refreshQueryDigest` — ogni turno
+- `advanceCompactionBoundary` — solo cadenza K / size / force
+- `shouldRebuild` — garda **solo** boundary/summary, non il digest
+- campo stato `frozenDigest` **tenuto per wire AsyncStorage** ma semanticamente è "last query-time digest"
+
+### Razionale esplicita
+Questa sezione **revoca** la decisione V4.2 "Fast-track retriever CONGELATO per K turni". Il freeze era coerente se il digest fosse stato nel prefisso stabile; con formato B in coda all'user non lo è. Il summary resta frozen perché (1) è query-agnostic e (2) rigenerarlo ogni turno costa decine di secondi on-device.
