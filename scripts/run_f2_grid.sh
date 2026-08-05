@@ -238,8 +238,9 @@ run_one() {
     _extra=()
     [ -n "$FILE_GB" ] && _extra+=(--file-gb "$FILE_GB")
     [ -n "$QUANT" ] && _extra+=(--quant "$QUANT")
-    # fill flags so CSV flags column is not empty (nit §8.2 review)
-    _flags="-t ${_t} -c ${_c} -ctk ${_k} -ctv ${_k} --temp 0 --no-conversation --single-turn --simple-io"
+    # Do NOT pass harness options via --flags: run_bench treats --flags as EXTRA
+    # binary flags and refuses -t/-c/-ctk/-ctv/--temp/--no-conversation (reserved).
+    # threads/ctx/kv already have dedicated CSV columns; notes carry protocol tags.
     set +e
     # keep run_bench chatter on stderr/log only so callers can capture status
     bash "$RUN_BENCH" \
@@ -255,13 +256,12 @@ run_one() {
         --ctx "$_c" \
         --kv-type "$_k" \
         --n-gen "$N_GEN" \
-        --flags "$_flags" \
         --notes "$_note majflt_gate=${MAJFLT_BASELINE_MAX}" \
         "${_extra[@]}" >>"$LOG_FILE" 2>&1
     _ec=$?
     set -e
-    if [ "$_ec" -eq 4 ] || [ "$_ec" -eq 5 ] || [ "$_ec" -eq 7 ]; then
-        log "BLOCKED: run_bench exit $_ec for t=$_t c=$_c kv=$_k"
+    if [ "$_ec" -eq 3 ] || [ "$_ec" -eq 4 ] || [ "$_ec" -eq 5 ] || [ "$_ec" -eq 6 ] || [ "$_ec" -eq 7 ]; then
+        log "BLOCKED: run_bench exit $_ec for t=$_t c=$_c kv=$_k (config/safety/binary)"
         exit "$_ec"
     fi
     if [ "$_ec" -ne 0 ]; then

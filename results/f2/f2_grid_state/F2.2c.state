@@ -1,0 +1,2 @@
+phase=F2.2c model=Qwen3.5-4B-Q4_K_M.gguf start=2026-08-04T14:38:11-04:00 protocol=cool180_T30.0_maj50000
+best_t=4 best_c=1024 best_k=f16 median=8.90

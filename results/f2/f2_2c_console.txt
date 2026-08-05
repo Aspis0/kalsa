@@ -1,0 +1,174 @@
+2026-08-04T14:38:11-04:00 === start F2.2c model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli cooldown=180s cool_temp≤30.0 majflt_max=50000 ===
+2026-08-04T14:38:12-04:00 STAGE threads {4,5,6} with c=1024 kv=q8_0 (attempt 1)
+2026-08-04T14:38:12-04:00 measure threads rep 1/3 t=4 c=1024 kv=q8_0
+2026-08-04T14:38:12-04:00 cooldown idle 180s
+2026-08-04T14:41:12-04:00 gate OK plugged=UNPLUGGED temp=26.4 lvl=93 cool≤30.0 cooldown=180s
+2026-08-04T14:41:45-04:00 measure threads rep 2/3 t=4 c=1024 kv=q8_0
+2026-08-04T14:41:45-04:00 cooldown idle 180s
+2026-08-04T14:44:46-04:00 gate OK plugged=UNPLUGGED temp=27.9 lvl=93 cool≤30.0 cooldown=180s
+2026-08-04T14:45:15-04:00 measure threads rep 3/3 t=4 c=1024 kv=q8_0
+2026-08-04T14:45:15-04:00 cooldown idle 180s
+2026-08-04T14:48:16-04:00 gate OK plugged=UNPLUGGED temp=28.3 lvl=92 cool≤30.0 cooldown=180s
+2026-08-04T14:48:46-04:00 measure threads rep 1/3 t=5 c=1024 kv=q8_0
+2026-08-04T14:48:46-04:00 cooldown idle 180s
+2026-08-04T14:51:47-04:00 gate OK plugged=UNPLUGGED temp=28.7 lvl=92 cool≤30.0 cooldown=180s
+2026-08-04T14:52:17-04:00 measure threads rep 2/3 t=5 c=1024 kv=q8_0
+2026-08-04T14:52:17-04:00 cooldown idle 180s
+2026-08-04T14:55:18-04:00 gate OK plugged=UNPLUGGED temp=29.1 lvl=91 cool≤30.0 cooldown=180s
+2026-08-04T14:58:02-04:00 measure threads rep 3/3 t=5 c=1024 kv=q8_0
+2026-08-04T14:58:02-04:00 cooldown idle 180s
+2026-08-04T15:07:53-04:00 gate OK plugged=UNPLUGGED temp=27.5 lvl=91 cool≤30.0 cooldown=180s
+2026-08-04T15:11:34-04:00 measure threads rep 1/3 t=6 c=1024 kv=q8_0
+2026-08-04T15:11:34-04:00 cooldown idle 180s
+2026-08-04T15:21:53-04:00 gate OK plugged=UNPLUGGED temp=27.4 lvl=90 cool≤30.0 cooldown=180s
+2026-08-04T15:25:49-04:00 measure threads rep 2/3 t=6 c=1024 kv=q8_0
+2026-08-04T15:25:49-04:00 cooldown idle 180s
+2026-08-04T15:35:17-04:00 gate OK plugged=UNPLUGGED temp=27.4 lvl=89 cool≤30.0 cooldown=180s
+2026-08-04T15:40:26-04:00 measure threads rep 3/3 t=6 c=1024 kv=q8_0
+2026-08-04T15:40:27-04:00 cooldown idle 180s
+2026-08-04T15:50:28-04:00 gate OK plugged=UNPLUGGED temp=26.7 lvl=88 cool≤30.0 cooldown=180s
+2026-08-04T15:54:45-04:00 median threads t=4 → 9.10 (last 3 rows, low-majflt preferred)
+2026-08-04T15:54:45-04:00 median threads t=5 → 4.70 (last 3 rows, low-majflt preferred)
+2026-08-04T15:54:45-04:00 median threads t=6 → 3.40 (last 3 rows, low-majflt preferred)
+2026-08-04T15:54:45-04:00 BEST threads → 4
+2026-08-04T15:54:45-04:00 SENTINEL threads winner t=4 c=1024 kv=q8_0 median=9.10 — extra run
+2026-08-04T15:54:45-04:00 cooldown idle 180s
+2026-08-04T16:05:01-04:00 gate OK plugged=UNPLUGGED temp=26.5 lvl=88 cool≤30.0 cooldown=180s
+2026-08-04T16:08:06-04:00 SENTINEL threads last=4.90 median=9.10 drift=0.4615 (max 0.15)
+2026-08-04T16:08:07-04:00 SENTINEL FAIL threads drift 0.4615 > 0.15
+2026-08-04T16:08:07-04:00 STAGE threads INVALID — will redo with new reps (attempt was 1)
+2026-08-04T16:08:07-04:00 STAGE threads {4,5,6} with c=1024 kv=q8_0 (attempt 2)
+2026-08-04T16:08:09-04:00 measure threads rep 5/7 t=4 c=1024 kv=q8_0
+2026-08-04T16:08:09-04:00 cooldown idle 180s
+2026-08-04T16:18:54-04:00 gate OK plugged=UNPLUGGED temp=26.9 lvl=87 cool≤30.0 cooldown=180s
+2026-08-04T16:22:31-04:00 measure threads rep 6/7 t=4 c=1024 kv=q8_0
+2026-08-04T16:22:31-04:00 cooldown idle 180s
+2026-08-04T16:32:20-04:00 gate OK plugged=UNPLUGGED temp=26.7 lvl=86 cool≤30.0 cooldown=180s
+2026-08-04T16:33:18-04:00 measure threads rep 7/7 t=4 c=1024 kv=q8_0
+2026-08-04T16:33:19-04:00 cooldown idle 180s
+2026-08-04T16:43:23-04:00 gate OK plugged=UNPLUGGED temp=26.7 lvl=86 cool≤30.0 cooldown=180s
+2026-08-04T16:46:21-04:00 measure threads rep 4/6 t=5 c=1024 kv=q8_0
+2026-08-04T16:46:21-04:00 cooldown idle 180s
+2026-08-04T16:56:40-04:00 gate OK plugged=UNPLUGGED temp=27.4 lvl=85 cool≤30.0 cooldown=180s
+2026-08-04T17:00:52-04:00 measure threads rep 5/6 t=5 c=1024 kv=q8_0
+2026-08-04T17:00:52-04:00 cooldown idle 180s
+2026-08-04T17:10:54-04:00 gate OK plugged=UNPLUGGED temp=26.9 lvl=84 cool≤30.0 cooldown=180s
+2026-08-04T17:14:20-04:00 measure threads rep 6/6 t=5 c=1024 kv=q8_0
+2026-08-04T17:14:20-04:00 cooldown idle 180s
+2026-08-04T17:24:18-04:00 gate OK plugged=UNPLUGGED temp=26.8 lvl=83 cool≤30.0 cooldown=180s
+2026-08-04T17:27:51-04:00 measure threads rep 4/6 t=6 c=1024 kv=q8_0
+2026-08-04T17:27:51-04:00 cooldown idle 180s
+2026-08-04T17:38:10-04:00 gate OK plugged=UNPLUGGED temp=26.6 lvl=83 cool≤30.0 cooldown=180s
+2026-08-04T17:41:49-04:00 measure threads rep 5/6 t=6 c=1024 kv=q8_0
+2026-08-04T17:41:49-04:00 cooldown idle 180s
+2026-08-04T17:51:48-04:00 gate OK plugged=UNPLUGGED temp=27.5 lvl=82 cool≤30.0 cooldown=180s
+2026-08-04T17:55:13-04:00 measure threads rep 6/6 t=6 c=1024 kv=q8_0
+2026-08-04T17:55:13-04:00 cooldown idle 180s
+2026-08-04T18:04:30-04:00 gate OK plugged=UNPLUGGED temp=27.7 lvl=81 cool≤30.0 cooldown=180s
+2026-08-04T18:07:27-04:00 median threads t=4 → 5.40 (last 3 rows, low-majflt preferred)
+2026-08-04T18:07:27-04:00 median threads t=5 → 4.80 (last 3 rows, low-majflt preferred)
+2026-08-04T18:07:28-04:00 median threads t=6 → 4.30 (last 3 rows, low-majflt preferred)
+2026-08-04T18:07:28-04:00 BEST threads → 4
+2026-08-04T18:07:28-04:00 SENTINEL threads winner t=4 c=1024 kv=q8_0 median=5.40 — extra run
+2026-08-04T18:07:28-04:00 cooldown idle 180s
+2026-08-04T18:15:34-04:00 gate OK plugged=UNPLUGGED temp=27.4 lvl=80 cool≤30.0 cooldown=180s
+2026-08-04T18:18:51-04:00 SENTINEL threads last=4.60 median=5.40 drift=0.1481 (max 0.15)
+2026-08-04T18:18:51-04:00 SENTINEL PASS threads
+2026-08-04T18:18:51-04:00 STAGE ctx {512,1024,4096} with t=4 kv=q8_0 (attempt 1)
+2026-08-04T18:18:53-04:00 measure ctx rep 1/3 t=4 c=512 kv=q8_0
+2026-08-04T18:18:53-04:00 cooldown idle 180s
+2026-08-04T18:28:52-04:00 gate OK plugged=UNPLUGGED temp=27.6 lvl=80 cool≤30.0 cooldown=180s
+2026-08-04T18:32:12-04:00 measure ctx rep 2/3 t=4 c=512 kv=q8_0
+2026-08-04T18:32:12-04:00 cooldown idle 180s
+2026-08-04T18:42:15-04:00 gate OK plugged=UNPLUGGED temp=27.3 lvl=79 cool≤30.0 cooldown=180s
+2026-08-04T18:45:28-04:00 measure ctx rep 3/3 t=4 c=512 kv=q8_0
+2026-08-04T18:45:28-04:00 cooldown idle 180s
+2026-08-04T18:55:50-04:00 gate OK plugged=UNPLUGGED temp=27.9 lvl=78 cool≤30.0 cooldown=180s
+2026-08-04T18:59:29-04:00 skip already have 8>=3 rows for t=4 c=1024 kv=q8_0
+2026-08-04T18:59:29-04:00 measure ctx rep 1/3 t=4 c=4096 kv=q8_0
+2026-08-04T18:59:30-04:00 cooldown idle 180s
+2026-08-04T19:10:03-04:00 gate OK plugged=UNPLUGGED temp=26.9 lvl=77 cool≤30.0 cooldown=180s
+2026-08-04T19:13:34-04:00 measure ctx rep 2/3 t=4 c=4096 kv=q8_0
+2026-08-04T19:13:34-04:00 cooldown idle 180s
+2026-08-04T19:23:14-04:00 gate OK plugged=UNPLUGGED temp=27.4 lvl=77 cool≤30.0 cooldown=180s
+2026-08-04T19:26:54-04:00 measure ctx rep 3/3 t=4 c=4096 kv=q8_0
+2026-08-04T19:26:54-04:00 cooldown idle 180s
+2026-08-04T19:36:22-04:00 gate OK plugged=UNPLUGGED temp=27.1 lvl=76 cool≤30.0 cooldown=180s
+2026-08-04T19:39:39-04:00 median ctx c=512 → 4.60 (last 3 rows, low-majflt preferred)
+2026-08-04T19:39:39-04:00 median ctx c=1024 → 5.40 (last 3 rows, low-majflt preferred)
+2026-08-04T19:39:39-04:00 median ctx c=4096 → 4.50 (last 3 rows, low-majflt preferred)
+2026-08-04T19:39:39-04:00 BEST ctx → 1024
+2026-08-04T19:39:39-04:00 SENTINEL ctx winner t=4 c=1024 kv=q8_0 median=5.40 — extra run
+2026-08-04T19:39:39-04:00 cooldown idle 180s
+2026-08-04T19:49:34-04:00 gate OK plugged=UNPLUGGED temp=27.4 lvl=75 cool≤30.0 cooldown=180s
+2026-08-04T19:54:01-04:00 SENTINEL ctx last=3.20 median=5.40 drift=0.4074 (max 0.15)
+2026-08-04T19:54:02-04:00 SENTINEL FAIL ctx drift 0.4074 > 0.15
+2026-08-04T19:54:02-04:00 STAGE ctx INVALID — will redo with new reps (attempt was 1)
+2026-08-04T19:54:02-04:00 STAGE ctx {512,1024,4096} with t=4 kv=q8_0 (attempt 2)
+2026-08-04T19:54:04-04:00 measure ctx rep 4/6 t=4 c=512 kv=q8_0
+2026-08-04T19:54:04-04:00 cooldown idle 180s
+2026-08-04T20:03:36-04:00 gate OK plugged=UNPLUGGED temp=26.9 lvl=75 cool≤30.0 cooldown=180s
+2026-08-04T20:08:16-04:00 measure ctx rep 5/6 t=4 c=512 kv=q8_0
+2026-08-04T20:08:16-04:00 cooldown idle 180s
+2026-08-04T20:17:16-04:00 gate OK plugged=UNPLUGGED temp=26.9 lvl=74 cool≤30.0 cooldown=180s
+2026-08-04T20:21:38-04:00 measure ctx rep 6/6 t=4 c=512 kv=q8_0
+2026-08-04T20:21:39-04:00 cooldown idle 180s
+2026-08-04T20:31:56-04:00 gate OK plugged=UNPLUGGED temp=27.0 lvl=73 cool≤30.0 cooldown=180s
+2026-08-04T20:34:52-04:00 measure ctx rep 10/12 t=4 c=1024 kv=q8_0
+2026-08-04T20:34:52-04:00 cooldown idle 180s
+2026-08-04T20:42:11-04:00 gate OK plugged=UNPLUGGED temp=27.5 lvl=72 cool≤30.0 cooldown=180s
+2026-08-04T20:42:45-04:00 measure ctx rep 11/12 t=4 c=1024 kv=q8_0
+2026-08-04T20:42:45-04:00 cooldown idle 180s
+2026-08-04T20:45:46-04:00 gate OK plugged=UNPLUGGED temp=28.3 lvl=72 cool≤30.0 cooldown=180s
+2026-08-04T20:46:16-04:00 measure ctx rep 12/12 t=4 c=1024 kv=q8_0
+2026-08-04T20:46:16-04:00 cooldown idle 180s
+2026-08-04T20:49:16-04:00 gate OK plugged=UNPLUGGED temp=29.1 lvl=71 cool≤30.0 cooldown=180s
+2026-08-04T20:49:49-04:00 measure ctx rep 4/6 t=4 c=4096 kv=q8_0
+2026-08-04T20:49:49-04:00 cooldown idle 180s
+2026-08-04T20:55:25-04:00 gate OK plugged=UNPLUGGED temp=28.7 lvl=70 cool≤30.0 cooldown=180s
+2026-08-04T20:58:29-04:00 measure ctx rep 5/6 t=4 c=4096 kv=q8_0
+2026-08-04T20:58:29-04:00 cooldown idle 180s
+2026-08-04T21:09:08-04:00 gate OK plugged=UNPLUGGED temp=27.1 lvl=70 cool≤30.0 cooldown=180s
+2026-08-04T21:12:31-04:00 measure ctx rep 6/6 t=4 c=4096 kv=q8_0
+2026-08-04T21:12:33-04:00 cooldown idle 180s
+2026-08-04T21:21:00-04:00 gate OK plugged=UNPLUGGED temp=27.2 lvl=69 cool≤30.0 cooldown=180s
+2026-08-04T21:24:25-04:00 median ctx c=512 → 3.30 (last 3 rows, low-majflt preferred)
+2026-08-04T21:24:26-04:00 median ctx c=1024 → 9.00 (last 3 rows, low-majflt preferred)
+2026-08-04T21:24:26-04:00 median ctx c=4096 → 5.00 (last 3 rows, low-majflt preferred)
+2026-08-04T21:24:26-04:00 BEST ctx → 1024
+2026-08-04T21:24:26-04:00 SENTINEL ctx winner t=4 c=1024 kv=q8_0 median=9.00 — extra run
+2026-08-04T21:24:26-04:00 cooldown idle 180s
+2026-08-04T21:34:51-04:00 gate OK plugged=UNPLUGGED temp=26.9 lvl=68 cool≤30.0 cooldown=180s
+2026-08-04T21:37:11-04:00 SENTINEL ctx last=6.50 median=9.00 drift=0.2778 (max 0.15)
+2026-08-04T21:37:11-04:00 SENTINEL FAIL ctx drift 0.2778 > 0.15
+2026-08-04T21:37:11-04:00 STAGE ctx INVALID — will redo with new reps (attempt was 2)
+2026-08-04T21:37:11-04:00 WARN: ctx sentinel failed twice — keeping BEST_C=1024 with warning
+2026-08-04T21:37:11-04:00 STAGE kv {f16,q8_0} with t=4 c=1024 (attempt 1)
+2026-08-04T21:37:11-04:00 measure kv rep 1/3 t=4 c=1024 kv=f16
+2026-08-04T21:37:11-04:00 cooldown idle 180s
+2026-08-04T21:40:12-04:00 gate OK plugged=UNPLUGGED temp=27.8 lvl=68 cool≤30.0 cooldown=180s
+2026-08-04T21:40:44-04:00 measure kv rep 2/3 t=4 c=1024 kv=f16
+2026-08-04T21:40:44-04:00 cooldown idle 180s
+2026-08-04T21:43:44-04:00 gate OK plugged=UNPLUGGED temp=28.4 lvl=67 cool≤30.0 cooldown=180s
+2026-08-04T21:44:16-04:00 measure kv rep 3/3 t=4 c=1024 kv=f16
+2026-08-04T21:44:16-04:00 cooldown idle 180s
+2026-08-04T21:47:17-04:00 gate OK plugged=UNPLUGGED temp=28.9 lvl=66 cool≤30.0 cooldown=180s
+2026-08-04T21:50:52-04:00 skip already have 13>=3 rows for t=4 c=1024 kv=q8_0
+2026-08-04T21:50:53-04:00 median kv k=f16 → 8.90 (last 3 rows, low-majflt preferred)
+2026-08-04T21:50:53-04:00 median kv k=q8_0 → 8.90 (last 3 rows, low-majflt preferred)
+2026-08-04T21:50:53-04:00 BEST kv → f16
+2026-08-04T21:50:53-04:00 SENTINEL kv winner t=4 c=1024 kv=f16 median=8.90 — extra run
+2026-08-04T21:50:53-04:00 cooldown idle 180s
+2026-08-04T22:00:56-04:00 gate OK plugged=UNPLUGGED temp=28.4 lvl=66 cool≤30.0 cooldown=180s
+2026-08-04T22:02:00-04:00 SENTINEL kv last=8.90 median=8.90 drift=0.0000 (max 0.15)
+2026-08-04T22:02:00-04:00 SENTINEL PASS kv
+# F2.2c summary
+
+- model: `Qwen3.5-4B-Q4_K_M.gguf`
+- best: threads=4 ctx=1024 kv=f16
+- median eval_tok_s (low-majflt preferred): 8.90
+- protocol: cooldown=180s cool_temp≤30.0 majflt_max=50000 sentinel_drift≤0.15
+- n_gen: 128 prompt: short
+- binary: `/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli`
+- finished: 2026-08-04T22:02:01-04:00
+2026-08-04T22:02:01-04:00 === done F2.2c best t=4 c=1024 kv=f16 median=8.90 ===
