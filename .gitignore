@@ -87,3 +87,4 @@ scripts/.build/
 
 # CI capture output (screenshots, ui dumps, seeds)
 e2e-out/
+scripts/.build*/

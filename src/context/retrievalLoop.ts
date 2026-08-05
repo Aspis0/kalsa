@@ -12,7 +12,8 @@
  *     excluded from later rounds (budget-dropped carriers are unrecoverable)
  *  4. Mechanical trigger + hard cap + replacement — coverage/floor trigger only
  *     (always evaluated on the post-round MERGED selection), maxRounds clamped
- *     to [1, 3], final passages replace via RRF rank fusion (budget + Jaccard)
+ *     to [1, 3], final passages replace via RRF rank fusion (budget + Jaccard
+ *     + containment / superset preference)
  */
 
 import {
@@ -25,7 +26,10 @@ import {
   tokenCount,
   sharedGramCount,
   bm25plus,
-  jaccardWords,
+  jaccardWordSets,
+  wordSet,
+  containmentForm,
+  isTextuallyContained,
   truncateWithEllipsis,
 } from "./retriever";
 
@@ -344,9 +348,47 @@ function comparePassageMerge(a: RetrievedPassage, b: RetrievedPassage): number {
 }
 
 /**
+ * Classify how two passages relate for dedup.
+ * - textual: `isTextuallyContained` on already-normalized texts (substring of
+ *   containmentForm — the single source of truth for the metric)
+ * - jaccard: bag-of-words near-dup (unchanged threshold)
+ *
+ * Scan-order independent: callers collect ALL replace slots and ANY hard block
+ * across the full kept list before deciding.
+ *
+ * @param pNorm already-normalized passage text (same path as the loop)
+ * @param kNorm already-normalized kept text
+ */
+function relationToKept(
+  pNorm: string,
+  pWords: Set<string>,
+  kNorm: string,
+  kWords: Set<string>,
+): "none" | "skip" | "replace" {
+  if (isTextuallyContained(pNorm, kNorm)) {
+    // Which side is the sequence superset? Longer containmentForm wins.
+    const pForm = containmentForm(pNorm);
+    const kForm = containmentForm(kNorm);
+    if (pForm.length > kForm.length) return "replace";
+    // Equal forms or kept is the container → incoming is redundant.
+    return "skip";
+  }
+  if (jaccardWordSets(pWords, kWords) >= JACCARD_DEDUP) return "skip";
+  return "none";
+}
+
+/**
  * Greedy budget pack ordered by RRF rank fusion across rounds.
  * Passages REPLACE — a top-ranked residual hit can displace a lower-ranked
  * round-1 passage that no longer fits the budget.
+ *
+ * Textual superset rule: the short sentence usually arrives first (higher RRF
+ * from round 1). If an incoming passage textually contains an already-kept one
+ * (shorter containmentForm is a contiguous substring of the longer) and the
+ * incoming is longer, REPLACE the kept subset when the budget still fits after
+ * removal. If it does not fit even after removal, skip the incoming and keep
+ * the subset (budget-aware — never drop both). Word sets / forms are computed
+ * once per passage (not re-normalized per comparison).
  */
 function mergePassages(
   pool: RetrievedPassage[],
@@ -355,25 +397,59 @@ function mergePassages(
   if (pool.length === 0 || budgetChars <= 0) return [];
 
   const sorted = pool.slice().sort(comparePassageMerge);
-  const kept: RetrievedPassage[] = [];
+  type Kept = {
+    passage: RetrievedPassage;
+    words: Set<string>;
+    norm: string;
+  };
+  const kept: Kept[] = [];
   let used = 0;
 
   for (const p of sorted) {
-    const norm = normalize(p.text);
-    let dup = false;
-    for (const k of kept) {
-      if (jaccardWords(norm, normalize(k.text)) >= JACCARD_DEDUP) {
-        dup = true;
-        break;
+    const pNorm = normalize(p.text);
+    const pWords = wordSet(pNorm);
+    // Full scan: collect every replaceable subset; any hard skip blocks the add.
+    const replaceAt: number[] = [];
+    let skipAsDup = false;
+
+    for (let ki = 0; ki < kept.length; ki++) {
+      const k = kept[ki];
+      const rel = relationToKept(pNorm, pWords, k.norm, k.words);
+      if (rel === "none") continue;
+      if (rel === "replace") {
+        replaceAt.push(ki);
+      } else {
+        skipAsDup = true;
       }
     }
-    if (dup) continue;
+
+    // Hard near-dup against something we cannot replace → drop incoming.
+    // (Even if it also supersets other kept rows — cannot keep a Jaccard twin.)
+    if (skipAsDup) continue;
+
+    if (replaceAt.length > 0) {
+      // Drop all kept subsets that p textually supersets; fit p in freed budget.
+      let freed = 0;
+      for (const ki of replaceAt) freed += kept[ki].passage.text.length;
+      const usedAfter = used - freed + p.text.length;
+      if (usedAfter > budgetChars) continue; // keep subsets; do not drop both
+
+      replaceAt.sort((a, b) => b - a);
+      for (const ki of replaceAt) {
+        used -= kept[ki].passage.text.length;
+        kept.splice(ki, 1);
+      }
+      kept.push({ passage: p, words: pWords, norm: pNorm });
+      used += p.text.length;
+      continue;
+    }
+
     if (used + p.text.length > budgetChars) continue;
-    kept.push(p);
+    kept.push({ passage: p, words: pWords, norm: pNorm });
     used += p.text.length;
   }
 
-  return kept;
+  return kept.map((k) => k.passage);
 }
 
 /**
@@ -513,31 +589,96 @@ export class DocRetrieverIndex {
       return compareChunkTiebreak(idx.chunks[ia], idx.chunks[ib]);
     });
 
-    const selected: number[] = [];
-    for (const i of candidates) {
+    // Prefer the longer chunk when one textually contains the other, comparing
+    // the truncated form merge will actually pack (maxChars). Replaced subsets
+    // are demoted (not discarded) so merge can re-pack them if the superset is
+    // later budget-dropped. rankInRound is recomputed from score after selection.
+    type Sel = {
+      idx: number;
+      words: Set<string>;
+      norm: string;
+      text: string;
+    };
+    const selected: Sel[] = [];
+    const demoted: Sel[] = [];
+
+    const makeSel = (i: number): Sel => {
       const d = idx.chunks[i];
-      let dup = false;
-      for (const s of selected) {
-        if (
-          jaccardWords(d.normalized, idx.chunks[s].normalized) >= JACCARD_DEDUP
-        ) {
-          dup = true;
-          break;
+      const text = truncateWithEllipsis(d.original, maxChars);
+      const norm = normalize(text);
+      return {
+        idx: i,
+        words: wordSet(norm),
+        norm,
+        text,
+      };
+    };
+
+    for (const i of candidates) {
+      const cand = makeSel(i);
+      const replaceAt: number[] = [];
+      let skipAsDup = false;
+
+      for (let si = 0; si < selected.length; si++) {
+        const s = selected[si];
+        const rel = relationToKept(cand.norm, cand.words, s.norm, s.words);
+        if (rel === "none") continue;
+        if (rel === "replace") {
+          // Only prefer longer on the truncated text merge will see.
+          if (cand.text.length > s.text.length) replaceAt.push(si);
+          else skipAsDup = true;
+        } else {
+          skipAsDup = true;
         }
       }
-      if (!dup) selected.push(i);
-      if (selected.length >= topN) break;
+
+      if (skipAsDup) continue;
+
+      if (replaceAt.length > 0) {
+        // Demote replaced subsets (budget recovery at merge); keep one slot.
+        replaceAt.sort((a, b) => a - b);
+        const keepSlot = replaceAt[0];
+        for (let j = replaceAt.length - 1; j >= 0; j--) {
+          const si = replaceAt[j];
+          demoted.push(selected[si]);
+          if (si === keepSlot) {
+            selected[si] = cand;
+          } else {
+            selected.splice(si, 1);
+          }
+        }
+      } else if (selected.length < topN) {
+        selected.push(cand);
+      }
+      // When full, later candidates only enter via textual-superset replace.
     }
 
+    // Re-emit demoted subsets so merge can keep them if the superset is dropped.
+    // Dedup by chunk idx against selected.
+    const selectedIdx = new Set(selected.map((s) => s.idx));
+    const emitted: Sel[] = selected.slice();
+    for (const d of demoted) {
+      if (selectedIdx.has(d.idx)) continue;
+      selectedIdx.add(d.idx);
+      emitted.push(d);
+    }
+
+    // rankInRound = score order (interface contract), not selection/replace slot.
+    emitted.sort((a, b) => {
+      const ds = (scores.get(b.idx) ?? 0) - (scores.get(a.idx) ?? 0);
+      if (ds !== 0) return ds > 0 ? 1 : -1;
+      return compareChunkTiebreak(idx.chunks[a.idx], idx.chunks[b.idx]);
+    });
+
     const results: RetrievedPassage[] = [];
-    for (let r = 0; r < selected.length; r++) {
-      const i = selected[r];
+    for (let r = 0; r < emitted.length; r++) {
+      const i = emitted[r].idx;
       const d = idx.chunks[i];
       results.push({
         docId: d.docId,
         chunkId: d.chunkId,
         granularity: d.granularity,
-        text: truncateWithEllipsis(d.original, maxChars),
+        text: emitted[r].text,
         score: scores.get(i) ?? 0,
         round: opts.round,
         rankInRound: r + 1,

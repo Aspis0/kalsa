@@ -3,10 +3,14 @@
  * Compiles with tsc, runs named PASS/FAIL contracts, exit 0 only if all pass.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  runMutationMatrix,
+  wordSetContainedAt,
+} from "./retrievalLoopMutations.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -191,7 +195,7 @@ async function main() {
   const mod = await import(pathToFileURL(loopPath).href);
   const retMod = await import(pathToFileURL(retrieverPath).href);
   const { DocRetrieverIndex, runRetrievalLoop } = mod;
-  const { normalize } = retMod;
+  const { normalize, containmentForm, isTextuallyContained } = retMod;
   if (typeof DocRetrieverIndex !== "function") {
     console.error("DocRetrieverIndex not exported");
     process.exit(1);
@@ -202,6 +206,10 @@ async function main() {
   }
   if (typeof normalize !== "function") {
     console.error("normalize not exported from retriever");
+    process.exit(1);
+  }
+  if (typeof containmentForm !== "function" || typeof isTextuallyContained !== "function") {
+    console.error("containmentForm/isTextuallyContained not exported from retriever");
     process.exit(1);
   }
 
@@ -791,6 +799,281 @@ async function main() {
       ok,
       `finalCov=${finalCov} missing=${missing.join(",")} residual="${residual.slice(0, 80)}" trig=${res.trace.triggerReason} n=${res.passages.length}`,
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // 15+. Textual containment: predicate unit contracts + loop contracts
+  // -------------------------------------------------------------------------
+  {
+    function countSubstr(hay, needle) {
+      if (!needle) return 0;
+      let n = 0;
+      let from = 0;
+      while (true) {
+        const at = hay.indexOf(needle, from);
+        if (at < 0) break;
+        n++;
+        from = at + 1;
+      }
+      return n;
+    }
+
+    const CORE =
+      "Noam proposed scaled dot-product attention, multi-head";
+    const FINGERPRINT = "Noam proposed scaled dot-product attention";
+    if (FINGERPRINT.length < 40) {
+      throw new Error("fixture containment: fingerprint must be ≥40 chars");
+    }
+    const sentenceUnit =
+      CORE + " attention mechanisms reshaped neural machine translation.";
+    const paraBody =
+      "The transformer architecture redesigns every aspect of this work. " +
+      sentenceUnit +
+      " Further residual stream details and layer-norm recipes made deep stacks trainable at scale with warmup schedules.";
+    const topicB =
+      "Separately the canary lane ZEPHYR-CONTAIN-42 routes telemetry exclusively through the blue filter.";
+    const containDoc = {
+      docId: "contain-attn",
+      text: paraBody + "\n\n" + topicB,
+    };
+    const forceR2 = {
+      maxRounds: 2,
+      topNPerRound: 4,
+      maxCharsPerPassage: 500,
+      coverageThreshold: 0.95,
+      minPassagesFloor: 10,
+    };
+    const containQ =
+      "Noam proposed scaled dot-product attention multi-head ZEPHYR-CONTAIN-42";
+
+    // ---- 15. PREDICATE unit contracts (loop-independent; gate the metric) ----
+    {
+      const notPairs = [
+        [
+          "the dose was not increased",
+          "the dose was increased and the patient was not monitored",
+        ],
+        [
+          "revenue grew in 2024",
+          "revenue did not grow in 2024 although costs grew",
+        ],
+        [
+          "Rome is the capital of Italy",
+          "Paris is the capital of France and Rome is a city in Italy",
+        ],
+        [
+          "The model is accurate",
+          "The model is not accurate in edge cases",
+        ],
+      ];
+      let notOk = true;
+      const notDetails = [];
+      for (const [a, b] of notPairs) {
+        const na = normalize(a);
+        const nb = normalize(b);
+        const got = isTextuallyContained(na, nb);
+        // wordSetContainedAt lives in the harness only (test material).
+        const wordSetWould = wordSetContainedAt(na, nb, 0.9);
+        if (got !== false) notOk = false;
+        notDetails.push(
+          `${JSON.stringify(a).slice(0, 32)} got=${got} ws=${wordSetWould}`,
+        );
+      }
+
+      const paraNoFinalDot = paraBody.replace(
+        "neural machine translation.",
+        "neural machine translation",
+      );
+      const nSent = normalize(sentenceUnit);
+      const nPara = normalize(paraBody);
+      const nParaNoDot = normalize(paraNoFinalDot);
+      const yesReal = isTextuallyContained(nSent, nPara) === true;
+      const yesNoDot = isTextuallyContained(nSent, nParaNoDot) === true;
+      const yesIdent = isTextuallyContained(nSent, nSent) === true;
+      const rawIncludesNoDot = nParaNoDot.includes(nSent);
+      const formSavesPunct = !rawIncludesNoDot && yesNoDot;
+      const formStrips =
+        /[.,]/.test(nSent) && !/[.,]/.test(containmentForm(nSent));
+      const yesOk =
+        yesReal && yesNoDot && yesIdent && formStrips && formSavesPunct;
+
+      record(
+        "15a predicate: NOT contained (negation/reorder pairs)",
+        notOk,
+        notDetails.join(" | "),
+      );
+      record(
+        "15b predicate: IS contained (real + punct-stripped + identity)",
+        yesOk,
+        `real=${yesReal} noDot=${yesNoDot} ident=${yesIdent} formSavesPunct=${formSavesPunct} strips=${formStrips}`,
+      );
+    }
+
+    // ---- 16. Loop: sentence ⊂ paragraph dedups once as paragraph ----
+    {
+      const idx = new DocRetrieverIndex();
+      idx.append([containDoc]);
+      const res = runRetrievalLoop(idx, containQ, {
+        ...forceR2,
+        budgetChars: 2500,
+      });
+      const delivered = res.passages.map((p) => p.text).join("\n");
+      const hits = countSubstr(delivered, FINGERPRINT);
+      const carriers = res.passages.filter((p) => p.text.includes(FINGERPRINT));
+      const ok =
+        hits === 1 &&
+        carriers.length === 1 &&
+        carriers[0].granularity === "paragraph" &&
+        /every aspect of this work/i.test(carriers[0].text) &&
+        res.trace.roundsRun === 2;
+      const res2 = runRetrievalLoop(idx, containQ, {
+        ...forceR2,
+        budgetChars: 2500,
+      });
+      const det = deepEqual(res, res2);
+      record(
+        "16 loop: sentence⊂paragraph deduped once as paragraph",
+        ok && det,
+        `hits=${hits} gran=${carriers[0]?.granularity ?? "-"} n=${res.passages.length} det=${det}`,
+      );
+    }
+
+    // ---- 17. Demotion: replaced subset re-emitted from retrieveRound ----
+    // Short scores higher, long textually supersets it → replace + demote.
+    // Catches demotion_off (n drops to 1).
+    {
+      const short = "Noam proposed scaled attention heads.";
+      const long =
+        "Noam proposed scaled attention heads and residual streams for deep stacks at scale.";
+      const idx = new DocRetrieverIndex();
+      idx.append([{ docId: "demote-doc", text: short + " " + long }]);
+      const r = idx.retrieveRound(
+        "Noam proposed scaled attention heads",
+        "sentence",
+        new Set(),
+        { topN: 4, maxChars: 300, round: 1 },
+      );
+      const hasShort = r.some((p) =>
+        /^Noam proposed scaled attention heads\.?$/i.test(p.text.trim()),
+      );
+      const hasLong = r.some((p) => /residual streams/i.test(p.text));
+      // rankInRound must be score-ordered
+      let rankOk = true;
+      const byRank = r.slice().sort((a, b) => a.rankInRound - b.rankInRound);
+      for (let j = 1; j < byRank.length; j++) {
+        if (byRank[j].score > byRank[j - 1].score + 1e-12) rankOk = false;
+      }
+      const ok = r.length === 2 && hasShort && hasLong && rankOk;
+      record(
+        "17 demotion: retrieveRound re-emits replaced subset (n=2)",
+        ok,
+        `n=${r.length} hasShort=${hasShort} hasLong=${hasLong} rankOk=${rankOk}`,
+      );
+    }
+
+    // ---- 18. MARKER-77 not dropped by longer near-overlap (word-set catcher) ----
+    {
+      const short =
+        "alpha beta gamma delta epsilon zeta eta theta iota MARKER-77 protocol.";
+      const longer =
+        "alpha beta gamma delta epsilon zeta eta theta iota protocol requires cold storage ambient monitoring and review.";
+      const idx = new DocRetrieverIndex();
+      idx.append([
+        { docId: "mark-short", text: short },
+        { docId: "mark-long", text: longer },
+      ]);
+      const res = runRetrievalLoop(
+        idx,
+        "alpha beta MARKER-77 protocol storage monitoring",
+        {
+          maxRounds: 2,
+          topNPerRound: 4,
+          budgetChars: 2000,
+          maxCharsPerPassage: 400,
+          coverageThreshold: 0.5,
+          minPassagesFloor: 1,
+        },
+      );
+      const hasMarker = /MARKER-77/i.test(
+        res.passages.map((p) => p.text).join(" "),
+      );
+      record(
+        "18 loop: MARKER-77 not dropped by longer near-overlap",
+        hasMarker,
+        `hasMarker=${hasMarker} n=${res.passages.length}`,
+      );
+    }
+
+    // ---- 19. Negation: standalone affirmative passage (not only span-in-paragraph) ----
+    // Word-set collapses the short affirmative into the longer negated sentence;
+    // a paragraph that carries BOTH clauses does NOT satisfy standalone.
+    // This is the honest loop-level word-set discriminator for the audit fixture.
+    {
+      const idx = new DocRetrieverIndex();
+      idx.append([
+        {
+          docId: "neg-model",
+          text:
+            "The model is accurate. The model is not accurate in edge cases. Additional notes on evaluation protocols follow.",
+        },
+      ]);
+      const res = runRetrievalLoop(idx, "is the model accurate");
+      const texts = res.passages.map((p) => p.text);
+      const hasStandaloneAffirmative = texts.some(
+        (t) =>
+          /the model is accurate/i.test(t) && !/not accurate/i.test(t),
+      );
+      const hasNegative = texts.some((t) => /not accurate/i.test(t));
+      record(
+        "19 loop: negation keeps standalone affirmative passage",
+        hasStandaloneAffirmative && hasNegative,
+        `standaloneAff=${hasStandaloneAffirmative} neg=${hasNegative} n=${res.passages.length} texts=${JSON.stringify(texts)}`,
+      );
+    }
+
+    // ---- Mutation matrix (temp-dir patch; no production seam) ----
+    try {
+      const matrixRows = await runMutationMatrix(mod, retMod);
+      const wordset = matrixRows.find((r) => r.name === "wordset");
+      const baseline = matrixRows.find((r) => r.name === "BASELINE");
+      const matrixOk =
+        baseline &&
+        wordset &&
+        baseline["15a"] &&
+        baseline["18"] &&
+        baseline["19"] &&
+        !wordset["15a"] &&
+        !wordset["18"] &&
+        !wordset["19"];
+      record(
+        "20 mutation matrix: wordset turns 15a/18/19 red (no src seam)",
+        matrixOk,
+        `baseline=${baseline ? "ok" : "missing"} wordset15a=${wordset?.["15a"]} wordset18=${wordset?.["18"]} wordset19=${wordset?.["19"]}`,
+      );
+      try {
+        const outPath =
+          "C:/Users/gualt/AppData/Local/Temp/claude/C--Users-gualt-Desktop-Kalsa/8e332d1a-fdb9-4976-a152-34e44d9d40c0/scratchpad/agents/impl-containment/mutation-matrix.txt";
+        writeFileSync(
+          outPath,
+          matrixRows
+            .map((r) =>
+              [
+                r.name,
+                r["15a"] ? "PASS" : "FAIL",
+                r["18"] ? "PASS" : "FAIL",
+                r["19"] ? "PASS" : "FAIL",
+              ].join("\t"),
+            )
+            .join("\n") + "\n",
+          "utf8",
+        );
+      } catch (e) {
+        console.log("(matrix file write skipped)", e.message);
+      }
+    } catch (e) {
+      record("20 mutation matrix: wordset turns 15a/18/19 red (no src seam)", false, String(e));
+      console.error(e);
+    }
   }
 
   const allPass = results.every((r) => r.pass);

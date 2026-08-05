@@ -299,9 +299,17 @@ export function bm25plus(
   return score;
 }
 
-export function jaccardWords(a: string, b: string): number {
-  const setA = new Set(a.split(/\s+/).filter(Boolean));
-  const setB = new Set(b.split(/\s+/).filter(Boolean));
+/**
+ * Word set used by jaccardWords.
+ * Callers that already hold normalized text should build the set once and
+ * reuse it across comparisons (hot path in merge / candidate selection).
+ */
+export function wordSet(normalized: string): Set<string> {
+  return new Set(normalized.split(/\s+/).filter(Boolean));
+}
+
+/** Jaccard similarity over precomputed word sets (same tokenization as jaccardWords). */
+export function jaccardWordSets(setA: Set<string>, setB: Set<string>): number {
   if (setA.size === 0 && setB.size === 0) return 0;
   let inter = 0;
   for (const w of setA) {
@@ -310,6 +318,43 @@ export function jaccardWords(a: string, b: string): number {
   const union = setA.size + setB.size - inter;
   if (union === 0) return 0;
   return inter / union;
+}
+
+export function jaccardWords(a: string, b: string): number {
+  return jaccardWordSets(wordSet(a), wordSet(b));
+}
+
+/**
+ * Sequence form for textual (substring) containment, from already-normalized text.
+ *
+ * `normalize` keeps punctuation (verified: "accurate." ≠ "accurate"), so a
+ * sentence-final `.` that a paragraph window dropped would defeat raw
+ * `includes`. This form strips non-letter/non-digit runs to spaces and
+ * collapses whitespace so the real sentence⊂paragraph fixture matches while
+ * meaning-inverting pairs (negation, word reordering) do not.
+ *
+ * No word-count floor: a passage that is a literal contiguous substring of
+ * another adds no new text, so it is always safe to collapse.
+ */
+export function containmentForm(normalized: string): string {
+  return normalized
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * True when the shorter non-empty containmentForm is a contiguous substring of
+ * the longer (equal forms count as contained). Empty forms never match.
+ *
+ * Callers must pass already-`normalize`d text (same path as the retrieval loop).
+ */
+export function isTextuallyContained(normA: string, normB: string): boolean {
+  const fa = containmentForm(normA);
+  const fb = containmentForm(normB);
+  if (!fa || !fb) return false;
+  if (fa.length <= fb.length) return fb.includes(fa);
+  return fa.includes(fb);
 }
 
 function stableSortIndices(
