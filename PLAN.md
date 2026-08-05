@@ -858,6 +858,15 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-05 mattina — Nota di revisione F2.3c (Claude).** F2.2c chiusa pulita: 4B =
+  **8.90 tok/s** (t4/c1024/f16) → soglia F2 di fatto raggiunta. F2.3c invece è "done with
+  warning": sentinella kv FALLITA due volte (drift 0.95), majflt milionari e ~10GB riletti
+  per 128 token anche col protocollo conforme → **LFM2 Q4_K_M (5.04GB) è memory-bound su
+  questo device: il 5.30 tok/s NON è un baseline affidabile**. Azioni per Grok al resume:
+  (1) F2.3c-bis con **LFM2 Q4_0 (4.73GB)** — stessa griglia ridotta (threads best + ctx best,
+  3 rep + sentinella) — prima di dichiarare il numero prodotto; (2) F2.4 termica; (3) report
+  gate F2. Telefono in ricarica ≥80% (regola §8.2) prima di F3.
+
 - **2026-08-03 — Checkpoint F0.4: PASS confermato (verdetto Claude).** Spot-check
   indipendente sul clone locale (pin submodule `5236140e5` identico al report,
   `LLAMA_CURL OFF FORCE`, LRU/route-trace/`bmoe-cli` presenti nel tree): il report
