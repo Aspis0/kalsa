@@ -469,6 +469,13 @@ export const en = {
       "A claim taken from result 2 should be followed by [2]. You may combine several ([1][3]). " +
       "Do not invent a number that is not in this list.",
     /**
+     * Fetch body is a list of passages from ONE page (not a list of sources).
+     * {index} = absolute source number for that page in the turn-accumulated list.
+     */
+    webFetchCiteInstruction:
+      "All passages above come from source [{index}]. Cite any claim taken from them as [{index}]; " +
+      "do not use other numbers for this page.",
+    /**
      * When tool sources are offset in the turn-accumulated list (e.g. fetch after
      * search), map list items to absolute citation numbers: "{mapping}" looks like
      * "1→[5], 2→[6]".

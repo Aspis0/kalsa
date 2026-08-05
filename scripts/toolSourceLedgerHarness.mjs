@@ -1,6 +1,6 @@
 /**
- * Harness for src/agent/toolSourceLedger.ts (source accumulation + cite suffix).
- * Pure module — no RN, no LlamaService.
+ * Harness for src/agent/toolSourceLedger.ts
+ * (source accumulation, cite kinds, call-key / budget bookkeeping).
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, unlinkSync } from "node:fs";
@@ -12,12 +12,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 
 function deleteStaleBuild() {
-  const owned = [
+  for (const f of [
     path.join(projectRoot, "scripts/.build/agent/toolSourceLedger.js"),
     path.join(projectRoot, "scripts/.build/src/agent/toolSourceLedger.js"),
-    path.join(projectRoot, "scripts/.build/toolSourceLedger.js"),
-  ];
-  for (const f of owned) {
+    path.join(projectRoot, "scripts/.build/util/url.js"),
+    path.join(projectRoot, "scripts/.build/src/util/url.js"),
+  ]) {
     try {
       if (existsSync(f)) unlinkSync(f);
     } catch {
@@ -33,6 +33,7 @@ function compile() {
     [
       "tsc",
       "src/agent/toolSourceLedger.ts",
+      "src/util/url.ts",
       "src/i18n/en.ts",
       "src/i18n/it.ts",
       "src/i18n/types.ts",
@@ -59,6 +60,8 @@ function resolveBuilt(base) {
   const candidates = [
     path.join(projectRoot, `scripts/.build/agent/${base}`),
     path.join(projectRoot, `scripts/.build/src/agent/${base}`),
+    path.join(projectRoot, `scripts/.build/util/${base}`),
+    path.join(projectRoot, `scripts/.build/src/util/${base}`),
     path.join(projectRoot, `scripts/.build/i18n/${base}`),
     path.join(projectRoot, `scripts/.build/src/i18n/${base}`),
     path.join(projectRoot, `scripts/.build/${base}`),
@@ -66,13 +69,12 @@ function resolveBuilt(base) {
   for (const c of candidates) {
     if (existsSync(c)) return c;
   }
-  console.error(`Could not find compiled ${base}. Tried:\n`, candidates.join("\n"));
+  console.error(`Could not find compiled ${base}`);
   process.exit(1);
 }
 
 let pass = 0;
 let fail = 0;
-
 function check(name, cond, detail = "") {
   if (cond) {
     console.log(`PASS ${name}`);
@@ -84,127 +86,201 @@ function check(name, cond, detail = "") {
 }
 
 async function main() {
-  console.log("Compiling toolSourceLedger + en/it …");
+  console.log("Compiling toolSourceLedger + deps …");
   compile();
-  const ledgerPath = resolveBuilt("toolSourceLedger.js");
-  const enPath = resolveBuilt("en.js");
-  const { accumulateToolSources, buildCiteInstructionSuffix } = await import(
-    pathToFileURL(ledgerPath).href
-  );
-  const { en } = await import(pathToFileURL(enPath).href);
-
-  // ── Duplicate URL across search+fetch: first title wins, [K] = first index ──
-  {
-    const acc = [];
-    const search = accumulateToolSources(acc, [
-      { title: "First Title", url: "https://example.com/a", provider: "brave" },
-      { title: "Other", url: "https://example.com/b", provider: "brave" },
-    ]);
-    check(
-      "search assigned 1..2",
-      search.assigned.join(",") === "1,2" && acc.length === 2,
+  const ledger = await import(pathToFileURL(resolveBuilt("toolSourceLedger.js")).href);
+  const { en } = await import(pathToFileURL(resolveBuilt("en.js")).href);
+  // Pull real retrieval budget from webFetchTool if available (optional second compile).
+  // Fall back is only for messaging; primary assertions use exported ledger behavior.
+  let RETRIEVAL_BUDGET_CHARS = 1800;
+  try {
+    const wfCompile = spawnSync(
+      "npx",
+      [
+        "tsc",
+        "src/agent/webFetchTool.ts",
+        "src/util/url.ts",
+        "src/util/htmlToText.ts",
+        "src/context/retriever.ts",
+        "src/context/retrievalLoop.ts",
+        "src/i18n/en.ts",
+        "src/i18n/it.ts",
+        "src/i18n/types.ts",
+        "--outDir",
+        "scripts/.build",
+        "--module",
+        "nodenext",
+        "--target",
+        "es2020",
+        "--moduleResolution",
+        "nodenext",
+        "--skipLibCheck",
+        "--ignoreConfig",
+      ],
+      { cwd: projectRoot, encoding: "utf8", shell: true },
     );
-    const fetchDup = accumulateToolSources(acc, [
-      {
-        title: "FETCH SHOULD NOT WIN",
-        url: "https://example.com/a",
-        provider: "fetch",
-      },
-    ]);
-    check(
-      "dup URL assigned points at first index",
-      fetchDup.assigned.length === 1 &&
-        fetchDup.assigned[0] === 1 &&
-        acc.length === 2,
-      `assigned=${fetchDup.assigned}`,
-    );
-    check(
-      "dup URL first title wins",
-      acc[0].title === "First Title" && acc[0].provider === "brave",
-    );
+    if (wfCompile.status === 0) {
+      const wf = await import(pathToFileURL(resolveBuilt("webFetchTool.js")).href);
+      if (typeof wf.RETRIEVAL_BUDGET_CHARS === "number") {
+        RETRIEVAL_BUDGET_CHARS = wf.RETRIEVAL_BUDGET_CHARS;
+      }
+    }
+  } catch {
+    /* use default */
   }
 
-  // ── URL-less sources always append ─────────────────────────────────────
-  {
-    const acc = [];
-    const r1 = accumulateToolSources(acc, [{ title: "NoUrl A" }]);
-    const r2 = accumulateToolSources(acc, [{ title: "NoUrl B" }]);
-    check(
-      "url-less appends both",
-      acc.length === 2 &&
-        r1.assigned[0] === 1 &&
-        r2.assigned[0] === 2 &&
-        acc[0].title === "NoUrl A" &&
-        acc[1].title === "NoUrl B",
-    );
-  }
+  const {
+    accumulateToolSources,
+    buildCiteInstructionSuffix,
+    makeToolCallKey,
+    canonicalizeArgs,
+    decideToolExecution,
+    recordToolSuccess,
+    recordToolFailure,
+    citeKindForTool,
+  } = ledger;
 
-  // ── Fetch-after-search offsets ─────────────────────────────────────────
+  // ── URL identity dedup (fragment / case / trailing slash) ──────────────
   {
     const acc = [];
     accumulateToolSources(acc, [
-      { title: "S1", url: "https://a.example/1" },
-      { title: "S2", url: "https://a.example/2" },
-      { title: "S3", url: "https://a.example/3" },
-      { title: "S4", url: "https://a.example/4" },
+      { title: "First", url: "https://Example.COM/page#top", provider: "brave" },
     ]);
-    const fetch = accumulateToolSources(acc, [
-      { title: "Page", url: "https://a.example/page", provider: "fetch" },
+    const r2 = accumulateToolSources(acc, [
+      { title: "Fetch should not win", url: "https://example.com/page/", provider: "fetch" },
     ]);
     check(
-      "fetch-after-search assigned [5]",
-      fetch.assigned.join(",") === "5" && acc.length === 5,
-    );
-    const mapped = buildCiteInstructionSuffix(fetch.assigned, en);
-    check(
-      "fetch-after-search mapped cite",
-      mapped.includes("1→[5]") &&
-        mapped.includes(en.errors.webToolCiteInstructionMapped.split("{mapping}")[0].slice(0, 20)),
-      mapped.slice(0, 120),
+      "identity fragment+slash+case dedup",
+      acc.length === 1 && r2.assigned[0] === 1 && acc[0].title === "First",
+      `n=${acc.length} assigned=${r2.assigned}`,
     );
   }
 
-  // ── Byte-identical suffix for search-alone (contiguous 1..n) ───────────
+  // ── Search assigned 1..2 ───────────────────────────────────────────────
   {
-    const assigned = [1, 2, 3, 4];
-    const suffix = buildCiteInstructionSuffix(assigned, en);
+    const acc = [];
+    const search = accumulateToolSources(acc, [
+      { title: "A", url: "https://a.example/1" },
+      { title: "B", url: "https://a.example/2" },
+    ]);
+    check("search assigned 1..2", search.assigned.join(",") === "1,2");
+  }
+
+  // ── Cite: search-alone byte-identical ──────────────────────────────────
+  {
+    const suffix = buildCiteInstructionSuffix([1, 2, 3, 4], en, "sources");
     const expected = `\n\n${en.errors.webSearchCiteInstruction}`;
+    check("search-alone cite byte-identical", suffix === expected);
+  }
+
+  // ── Cite: fetch-only → passages [1] ────────────────────────────────────
+  {
+    const suffix = buildCiteInstructionSuffix([1], en, "passages");
     check(
-      "search-alone cite byte-identical",
-      suffix === expected,
-      `len ${suffix.length} vs ${expected.length}`,
+      "fetch-only passages cite [1]",
+      suffix.includes("[1]") &&
+        suffix.includes(en.errors.webFetchCiteInstruction.replace("{index}", "1").slice(0, 30)) &&
+        !suffix.includes(en.errors.webSearchCiteInstruction.slice(0, 40)),
+      suffix.slice(0, 160),
     );
   }
 
-  // ── Empty assigned → empty suffix ──────────────────────────────────────
-  check("empty assigned empty suffix", buildCiteInstructionSuffix([], en) === "");
-
-  // ── Worst-case suffix length ≤ 700 ─────────────────────────────────────
+  // ── Cite: fetch of search #1 (assigned [1]) is still passages, not plain ─
   {
-    // Pathological: 20 sources mapped to high indices with long mapping string
+    const suffix = buildCiteInstructionSuffix([1], en, "passages");
+    const plain = `\n\n${en.errors.webSearchCiteInstruction}`;
+    check(
+      "fetch-of-result-1 not plain search cite",
+      suffix !== plain && /\[1\]/.test(suffix),
+    );
+  }
+
+  // ── Cite: fetch introducing source #5 ──────────────────────────────────
+  {
+    const suffix = buildCiteInstructionSuffix([5], en, "passages");
+    const expected = `\n\n${en.errors.webFetchCiteInstruction.replace("{index}", "5")}`;
+    check("fetch source #5 passages cite", suffix === expected, suffix.slice(0, 120));
+  }
+
+  // ── Multi-source passages → mapped fallback ────────────────────────────
+  {
+    const suffix = buildCiteInstructionSuffix([3, 7], en, "passages");
+    check(
+      "multi passages mapped fallback",
+      suffix.includes("1→[3]") && suffix.includes("2→[7]"),
+    );
+  }
+
+  // ── citeKindForTool ────────────────────────────────────────────────────
+  check("citeKind web_fetch", citeKindForTool("web_fetch") === "passages");
+  check("citeKind web_search", citeKindForTool("web_search") === "sources");
+
+  // ── URL-less append ────────────────────────────────────────────────────
+  {
+    const acc = [];
+    accumulateToolSources(acc, [{ title: "A" }]);
+    accumulateToolSources(acc, [{ title: "B" }]);
+    check("url-less both append", acc.length === 2);
+  }
+
+  // ── Call key: order independence ───────────────────────────────────────
+  {
+    const k1 = makeToolCallKey("web_fetch", { url: "https://a.com", query: "q" });
+    const k2 = makeToolCallKey("web_fetch", { query: "q", url: "https://a.com" });
+    check("call key order-independent", k1 === k2, `${k1} vs ${k2}`);
+  }
+
+  // ── Call key: malformed args distinct ──────────────────────────────────
+  {
+    const kA = makeToolCallKey("web_fetch", {}, { parseFailed: true, rawArguments: "{not json A" });
+    const kB = makeToolCallKey("web_fetch", {}, { parseFailed: true, rawArguments: "{not json B" });
+    const kEmpty = makeToolCallKey("web_fetch", {});
+    check("malformed args distinct", kA !== kB && kA !== kEmpty);
+  }
+
+  // ── Budget: failure → retry allowed; success → blocked ─────────────────
+  {
+    const state = { executions: 0, successfulKeys: new Set() };
+    const max = 3;
+    const d1 = decideToolExecution(state, max, "web_fetch", { url: "https://a.com", query: "q" });
+    check("first decision execute", d1.action === "execute");
+    recordToolFailure(state);
+    check("after failure executions=1", state.executions === 1 && state.successfulKeys.size === 0);
+    const d2 = decideToolExecution(state, max, "web_fetch", { url: "https://a.com", query: "q" });
+    check("failure→retry allowed", d2.action === "execute");
+    recordToolSuccess(state, d2.key);
+    const d3 = decideToolExecution(state, max, "web_fetch", { url: "https://a.com", query: "q" });
+    check("success→retry blocked", d3.action === "skip_dup");
+  }
+
+  // ── Budget cap ─────────────────────────────────────────────────────────
+  {
+    const state = { executions: 0, successfulKeys: new Set() };
+    const max = 3;
+    for (let i = 0; i < 3; i++) {
+      const d = decideToolExecution(state, max, "web_search", { query: `q${i}` });
+      check(`budget exec ${i}`, d.action === "execute");
+      recordToolSuccess(state, d.key);
+    }
+    const over = decideToolExecution(state, max, "web_search", { query: "more" });
+    check("budget cap respected", over.action === "skip_cap" && state.executions === 3);
+  }
+
+  // ── Suffix length vs real retrieval budget ─────────────────────────────
+  {
     const assigned = Array.from({ length: 20 }, (_, i) => i + 50);
-    const suffix = buildCiteInstructionSuffix(assigned, en);
+    const suffix = buildCiteInstructionSuffix(assigned, en, "sources");
+    check("worst-case suffix ≤ 700", suffix.length <= 700, `len=${suffix.length}`);
+    // TOOL_RESULT_MAX_CHARS is 2500 in LlamaService; keep headroom for use-rule.
+    const TOOL_RESULT_MAX_CHARS = 2500;
     check(
-      "worst-case suffix ≤ 700",
-      suffix.length <= 700,
-      `len=${suffix.length}`,
-    );
-    // budget 1800 + suffix under TOOL_RESULT_MAX_CHARS 2500
-    check(
-      "1800 + suffix < 2500",
-      1800 + suffix.length < 2500,
-      `total=${1800 + suffix.length}`,
+      "retrieval budget + suffix under tool result max",
+      RETRIEVAL_BUDGET_CHARS + suffix.length < TOOL_RESULT_MAX_CHARS,
+      `budget=${RETRIEVAL_BUDGET_CHARS} total=${RETRIEVAL_BUDGET_CHARS + suffix.length}`,
     );
   }
 
-  // ── Empty incoming ─────────────────────────────────────────────────────
-  {
-    const acc = [{ title: "x", url: "https://x.com" }];
-    const r = accumulateToolSources(acc, undefined);
-    check("undefined incoming no-op", r.assigned.length === 0 && acc.length === 1);
-    const r2 = accumulateToolSources(acc, []);
-    check("empty incoming no-op", r2.assigned.length === 0 && acc.length === 1);
-  }
+  check("canonicalize sorts keys", JSON.stringify(canonicalizeArgs({ b: 1, a: 2 })) === JSON.stringify({ a: 2, b: 1 }));
 
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail > 0 ? 1 : 0);

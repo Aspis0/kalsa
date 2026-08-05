@@ -183,14 +183,25 @@ Questa sezione **revoca** la decisione V4.2 "Fast-track retriever CONGELATO per 
 ## Web fetch (2026-08-05)
 
 The tool-round budget was raised from 2 to 3 so a turn can do search → fetch → answer.
-That bump and the new per-turn execution cap (MAX_TOOL_EXECUTIONS_PER_TURN = 3) are
+That bump and the new per-turn execution cap (`MAX_TOOL_EXECUTIONS_PER_TURN = 3`) are
 **not yet benchmarked**. The V4.2 rule (do not raise tool budgets without re-bench) is
 **deferred, not waived**.
 
-What to measure before treating 3 rounds as production-settled:
-- prefill cost and tokens/s per tool round (1 vs 2 vs 3)
-- end-to-end turn latency with search-only (2 rounds) vs search+fetch (3 rounds)
-- tool-result transcript growth under the 2500-char tool-result cap
-- any regression in blank-bubble / final-round 	ool_choice: none completion rates
+**Existing Fase 0/4 arms cannot track this change** — they do not exercise tool rounds.
+NEW bench arms must be written (varying tool rounds 1/2/3, measuring per-round prefill
+and end-to-end turn latency) before 3 rounds is considered settled. Do not treat a
+green Fase 0/4 run as evidence that the tool-round bump is safe.
 
-Track under the usual Fase 0/4 harness; do not raise the cap further without that data.
+What those new arms must measure:
+- prefill cost and tokens/s per tool round (1 vs 2 vs 3)
+- end-to-end turn latency with search-only (≤2 rounds) vs search+fetch (3 rounds)
+- tool-result transcript growth under the 2500-char tool-result cap
+- any regression in blank-bubble / final-round `tool_choice: "none"` completion rates
+
+Other production notes:
+- Indexing is capped at **120k characters** of extracted page text (HTML and text/plain);
+  content beyond that is not searched (bounds JS-thread work inside the engine FIFO).
+- Redirects may land on another path/port of the **same host** (or an already-allowlisted
+  URL); they must not widen the allowlist to a new host.
+- On React Native the transport buffers the full body before JS sees it — Content-Length
+  is an early exit only, not an OOM bound.

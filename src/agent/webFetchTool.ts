@@ -8,14 +8,25 @@
  * the allowlist: final URL must be publicly routable and either same-host or
  * already allowlisted; https→http downgrades are refused.
  *
+ * Host gate policy (fail-closed): accept ONLY a canonical dotted-quad IPv4 or a
+ * boring DNS name. Anything else is refused — the gate never tries to predict
+ * what the platform HTTP client (OkHttp / URL) would resolve. IPv6 literals,
+ * shorthand IPv4, percent-encoding in the authority, backslashes, and non-ASCII
+ * are all rejected.
+ *
+ * Indexing: only the first MAX_INDEX_CHARS of extracted text are searched
+ * (HTML and text/plain); content beyond that is not indexed.
+ *
  * Pure enough for the Node harness: no LlamaService / React Native imports.
  * Catalog strings come from en/it directly so tsc --ignoreConfig stays RN-free.
  *
  * Accepted limitations (audit):
- * - F7: abort signal listener fan-in when AbortSignal.any is missing is bounded
- *   by the turn (one manual combine per fetch); not a process-lifetime leak.
- * - F12: non-UTF-8 response bodies may mojibake via response.text(); RN fetch
- *   has no charset/stream control on this path — accepted residual.
+ * - Abort-signal listener fan-in when AbortSignal.any is missing is bounded by
+ *   the turn (one manual combine per fetch); not a process-lifetime leak.
+ * - On React Native the whole body is buffered by the transport (XHR) before
+ *   JavaScript sees it, so a Content-Length pre-check is only an early exit —
+ *   a hostile allowlisted host can still exhaust memory within FETCH_TIMEOUT_MS.
+ *   A real fix needs a native streaming module. Do not claim otherwise.
  */
 
 import { en } from "../i18n/en";
@@ -23,7 +34,10 @@ import { it } from "../i18n/it";
 import type { Locale } from "../i18n/types";
 import { DocRetrieverIndex, runRetrievalLoop } from "../context/retrievalLoop";
 import { htmlToText } from "../util/htmlToText";
-import { isSafeHttpUrl } from "../util/url";
+import { normalizeFetchUrl } from "../util/url";
+
+/** Re-export for callers that import normalize from this module. */
+export { normalizeFetchUrl } from "../util/url";
 
 /** Structural match for EngineTool (avoid importing LlamaService in the harness). */
 export type WebFetchToolDef = {
@@ -46,9 +60,17 @@ export type WebFetchToolResult = {
   sources?: WebFetchSource[];
 };
 
-const FETCH_TIMEOUT_MS = 15_000;
-const BODY_HARD_CAP = 1_500_000;
-const RETRIEVAL_BUDGET_CHARS = 1800;
+/** Shorter download window; does not bound peak memory on RN (see header). */
+export const FETCH_TIMEOUT_MS = 8_000;
+/** Declared Content-Length / post-read byteLength hard stop. */
+export const BODY_HARD_CAP = 1_500_000;
+/**
+ * Max chars fed into the retrieval index (both HTML and text/plain).
+ * Content beyond this is not searched. Matches htmlToText's default output cap.
+ */
+export const MAX_INDEX_CHARS = 120_000;
+export const RETRIEVAL_BUDGET_CHARS = 1800;
+const TITLE_CARD_MAX = 120;
 
 const ALLOWED_CONTENT_TYPES = new Set([
   "text/html",
@@ -64,7 +86,7 @@ export const WEB_FETCH_TOOL: WebFetchToolDef = {
   function: {
     name: "web_fetch",
     description:
-      "Fetch a web page the model has seen in search results (or that the user pasted) and extract the passages relevant to a query.",
+      "Fetch a web page the model has seen in search results (or that the user pasted) and extract the passages relevant to a query. Only the first ~120k characters of page text are searched.",
     parameters: {
       type: "object",
       properties: {
@@ -89,63 +111,25 @@ export interface FetchAllowlist {
 }
 
 /**
- * Normalize for allowlist comparison and for the actual fetch (F8):
- * - trim, drop trailing `)` `,` `.` `;` artifacts
- * - scheme + host case-insensitive
- * - path + query case-sensitive
- * - ignore `#fragment`
- */
-export function normalizeFetchUrl(raw: string): string | null {
-  if (typeof raw !== "string") return null;
-  let s = raw.trim();
-  if (!s) return null;
-  // Drop trailing punctuation / closing parens commonly glued to URLs in prose.
-  while (s.length > 0 && /[),\.;]$/.test(s)) {
-    s = s.slice(0, -1);
-  }
-  s = s.trim();
-  if (!s) return null;
-
-  const m = /^([a-zA-Z][a-zA-Z\d+\-.]*):\/\/([^/?#]+)([^?#]*)(\?[^#]*)?(#.*)?$/.exec(s);
-  if (!m) {
-    // Not a parseable absolute URL — still store a best-effort key so exact
-    // re-checks of the same string can match after trailing-punct strip.
-    return s;
-  }
-  const scheme = m[1].toLowerCase();
-  const authority = m[2];
-  // Host is case-insensitive; userinfo (if any) is preserved in the key for
-  // identity, but isPubliclyRoutableHttpUrl rejects userinfo outright.
-  const at = authority.lastIndexOf("@");
-  const userinfo = at >= 0 ? authority.slice(0, at + 1) : "";
-  const hostPort = (at >= 0 ? authority.slice(at + 1) : authority).toLowerCase();
-  const path = m[3] ?? "";
-  const query = m[4] ?? "";
-  return `${scheme}://${userinfo}${hostPort}${path}${query}`;
-}
-
-/**
- * Extract host (no port, no brackets for IPv6) from an http(s) URL.
+ * Extract host (no port) from an http(s) URL for same-host / display.
  * Hand-parsed — no Node/RN URL constructor. Returns lowercased host or null.
+ * Does not accept userinfo (caller should already have rejected it).
  */
 export function extractHttpHost(url: string): string | null {
   if (typeof url !== "string") return null;
   const m = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\/([^/?#]+)/.exec(url.trim());
   if (!m) return null;
   let authority = m[1];
-  // Reject / strip userinfo: presence of @ is rejected by isPubliclyRoutableHttpUrl;
-  // for host extraction take the part after the last @.
   const at = authority.lastIndexOf("@");
   if (at >= 0) authority = authority.slice(at + 1);
 
-  // IPv6 in brackets: [2001:db8::1]:443
+  // Bracketed hosts are not publicly routable under our gate; still extract for diagnostics.
   if (authority.startsWith("[")) {
     const end = authority.indexOf("]");
     if (end < 0) return null;
     return authority.slice(1, end).toLowerCase();
   }
 
-  // Host:port — strip port (last : for IPv4/hostname; IPv6 without brackets is rare).
   const colon = authority.lastIndexOf(":");
   if (colon >= 0 && /^\d+$/.test(authority.slice(colon + 1))) {
     authority = authority.slice(0, colon);
@@ -165,19 +149,6 @@ export function sameHost(a: string, b: string): boolean {
   return ha != null && hb != null && ha === hb;
 }
 
-function parseIPv4(host: string): number[] | null {
-  const parts = host.split(".");
-  if (parts.length !== 4) return null;
-  const nums: number[] = [];
-  for (const p of parts) {
-    if (!/^\d{1,3}$/.test(p)) return null;
-    const n = Number(p);
-    if (!Number.isInteger(n) || n < 0 || n > 255) return null;
-    nums.push(n);
-  }
-  return nums;
-}
-
 function isBlockedIPv4(octets: number[]): boolean {
   const [a, b, c] = octets;
   if (a === 0) return true; // 0.0.0.0/8
@@ -194,71 +165,88 @@ function isBlockedIPv4(octets: number[]): boolean {
   return false;
 }
 
-function isBlockedIPv6(host: string): boolean {
-  const h = host.toLowerCase();
-  if (h === "::" || h === "0:0:0:0:0:0:0:0") return true;
-  if (h === "::1" || h === "0:0:0:0:0:0:0:1") return true;
-
-  // IPv4-mapped ::ffff:a.b.c.d
-  const v4dot = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(h);
-  if (v4dot) {
-    const oct = parseIPv4(v4dot[1]);
-    return oct ? isBlockedIPv4(oct) : true;
-  }
-  // IPv4-mapped hex form ::ffff:7f00:1 → 127.0.0.1
-  const v4hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i.exec(h);
-  if (v4hex) {
-    const hi = parseInt(v4hex[1], 16);
-    const lo = parseInt(v4hex[2], 16);
-    if (!Number.isFinite(hi) || !Number.isFinite(lo)) return true;
-    const octets = [(hi >> 8) & 0xff, hi & 0xff, (lo >> 8) & 0xff, lo & 0xff];
-    return isBlockedIPv4(octets);
-  }
-
-  // Leading hextet checks (ULA fc00::/7, link-local fe80::/10).
-  if (h.startsWith("::")) {
-    // Compressed forms that are not :: or ::1 already handled; remaining ::x
-    // are not ULA/link-local by prefix.
-    return false;
-  }
-  const firstTok = h.split(":")[0] ?? "";
-  if (!/^[0-9a-f]{1,4}$/i.test(firstTok)) return false;
-  const first = parseInt(firstTok, 16);
-  if ((first & 0xfe00) === 0xfc00) return true; // fc00::/7
-  if ((first & 0xffc0) === 0xfe80) return true; // fe80::/10
-  return false;
-}
-
 /**
- * True only if the URL is safe http(s) AND the host is publicly routable
- * (blocks localhost, RFC1918, CGNAT, link-local, ULA, multicast, bare intranet
- * names, and any userinfo). Hand-parsed — no URL constructor.
+ * Fail-closed public-host gate for web_fetch.
+ *
+ * True ONLY for canonical dotted-quad IPv4 (then not in private ranges) or a
+ * boring DNS name (two+ labels, ASCII alnum/hyphen, alphabetic TLD ≥ 2).
+ * Anything else is refused — the gate never tries to predict what the platform
+ * HTTP client would resolve (OkHttp shorthand, IPv6 forms, backslash authority
+ * truncation, percent-encoding tricks, etc.).
  */
 export function isPubliclyRoutableHttpUrl(url: string): boolean {
-  if (!isSafeHttpUrl(url)) return false;
+  if (typeof url !== "string") return false;
+  const s = url.trim();
+  if (!s) return false;
 
-  const trimmed = url.trim();
-  // Authority between :// and first /?#
-  const authMatch = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\/([^/?#]+)/.exec(trimmed);
-  if (!authMatch) return false;
-  const authority = authMatch[1];
+  // Whole-URL hygiene: no backslash, no whitespace/control, no non-ASCII.
+  for (let i = 0; i < s.length; i++) {
+    const code = s.charCodeAt(i);
+    if (code === 0x5c /* \ */) return false;
+    if (code <= 0x20 || code === 0x7f) return false;
+    if (code > 0x7f) return false;
+  }
 
-  // Userinfo → reject outright (credential injection / confusing authority).
-  if (authority.includes("@")) return false;
+  const schemeMatch = /^(https?):\/\//i.exec(s);
+  if (!schemeMatch) return false;
+  const scheme = schemeMatch[1].toLowerCase();
+  if (scheme !== "http" && scheme !== "https") return false;
 
-  const host = extractHttpHost(trimmed);
+  const afterScheme = s.slice(schemeMatch[0].length);
+  let authEnd = afterScheme.length;
+  for (let i = 0; i < afterScheme.length; i++) {
+    const c = afterScheme[i];
+    if (c === "/" || c === "?" || c === "#") {
+      authEnd = i;
+      break;
+    }
+  }
+  const authority = afterScheme.slice(0, authEnd);
+  if (!authority) return false;
+
+  // No percent-encoding tricks and no userinfo in the authority.
+  if (authority.includes("%") || authority.includes("@")) return false;
+
+  // Any bracketed / IPv6 literal host is refused outright.
+  if (authority.includes("[") || authority.includes("]")) return false;
+
+  let host = authority;
+  const colon = authority.lastIndexOf(":");
+  if (colon >= 0) {
+    const portStr = authority.slice(colon + 1);
+    if (!/^\d{1,5}$/.test(portStr)) return false;
+    const port = Number(portStr);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) return false;
+    host = authority.slice(0, colon);
+  }
   if (!host) return false;
 
-  if (host === "localhost" || host.endsWith(".localhost")) return false;
+  // Canonical dotted-quad IPv4: exactly 4 parts, no leading zeros (except "0").
+  if (/^\d/.test(host) || /^[\d.]+$/.test(host)) {
+    const parts = host.split(".");
+    if (parts.length !== 4) return false;
+    const octets: number[] = [];
+    for (const p of parts) {
+      if (!/^(0|[1-9]\d{0,2})$/.test(p)) return false;
+      const n = Number(p);
+      if (n > 255) return false;
+      octets.push(n);
+    }
+    return !isBlockedIPv4(octets);
+  }
 
-  const v4 = parseIPv4(host);
-  if (v4) return !isBlockedIPv4(v4);
-
-  // IPv6 (contains ':' — brackets already stripped by extractHttpHost)
-  if (host.includes(":")) return !isBlockedIPv6(host);
-
-  // Bare single-label hostname (intranet) — no dot.
-  if (!host.includes(".")) return false;
+  // DNS name: ≥2 labels, each [a-z0-9-], no leading/trailing hyphen, TLD alphabetic ≥2.
+  if (host.length > 253) return false;
+  if (host.endsWith(".")) return false;
+  const labels = host.toLowerCase().split(".");
+  if (labels.length < 2) return false;
+  for (const label of labels) {
+    if (label.length < 1 || label.length > 63) return false;
+    if (label.startsWith("-") || label.endsWith("-")) return false;
+    if (!/^[a-z0-9-]+$/.test(label)) return false;
+  }
+  const tld = labels[labels.length - 1] ?? "";
+  if (tld.length < 2 || !/^[a-z]+$/.test(tld)) return false;
 
   return true;
 }
@@ -294,6 +282,11 @@ function hostOf(url: string): string {
   return extractHttpHost(url) ?? url;
 }
 
+function clampTitle(title: string): string {
+  if (title.length <= TITLE_CARD_MAX) return title;
+  return title.slice(0, TITLE_CARD_MAX);
+}
+
 function isAbortError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const e = error as { name?: string; code?: string };
@@ -303,6 +296,75 @@ function isAbortError(error: unknown): boolean {
 function mediaTypeOf(contentTypeHeader: string | null): string | null {
   if (contentTypeHeader == null || contentTypeHeader === "") return null;
   return contentTypeHeader.split(";")[0]?.trim().toLowerCase() || null;
+}
+
+function charsetOf(contentTypeHeader: string | null): string {
+  if (!contentTypeHeader) return "utf-8";
+  const m = /;\s*charset\s*=\s*("?)([^";\s]+)\1/i.exec(contentTypeHeader);
+  if (!m) return "utf-8";
+  const label = m[2].trim().toLowerCase();
+  return label || "utf-8";
+}
+
+/**
+ * Decode response body with charset awareness when arrayBuffer + TextDecoder
+ * exist; fall back to response.text(). byteLength is gated against BODY_HARD_CAP
+ * before decoding (cheap on runtimes that already buffered).
+ */
+async function readResponseBody(
+  response: Response,
+  contentTypeHeader: string | null,
+  onTooLarge: () => void,
+): Promise<{ ok: true; text: string } | { ok: false; tooLarge: boolean; message?: string }> {
+  const hasArrayBuffer = typeof (response as { arrayBuffer?: unknown }).arrayBuffer === "function";
+  const hasTextDecoder = typeof TextDecoder !== "undefined";
+
+  if (hasArrayBuffer && hasTextDecoder) {
+    try {
+      const buf = await (response as Response).arrayBuffer();
+      if (buf.byteLength > BODY_HARD_CAP) {
+        onTooLarge();
+        return { ok: false, tooLarge: true };
+      }
+      const charset = charsetOf(contentTypeHeader);
+      try {
+        const text = new TextDecoder(charset).decode(buf);
+        return { ok: true, text };
+      } catch {
+        // Unsupported label must not throw out of the tool — retry as utf-8.
+        const text = new TextDecoder("utf-8").decode(buf);
+        return { ok: true, text };
+      }
+    } catch (error) {
+      if (isAbortError(error)) {
+        return { ok: false, tooLarge: false, message: "abort" };
+      }
+      return {
+        ok: false,
+        tooLarge: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  // Fallback path (older RN / incomplete Response mock).
+  try {
+    const raw = await response.text();
+    const text = typeof raw === "string" ? raw : String(raw ?? "");
+    if (text.length > BODY_HARD_CAP) {
+      return { ok: true, text: text.slice(0, BODY_HARD_CAP) };
+    }
+    return { ok: true, text };
+  } catch (error) {
+    if (isAbortError(error)) {
+      return { ok: false, tooLarge: false, message: "abort" };
+    }
+    return {
+      ok: false,
+      tooLarge: false,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 export type WebFetchExecutorDeps = {
@@ -339,7 +401,7 @@ export function makeWebFetchExecutor(
     if (!rawUrl) return { text: errors.webFetchEmptyUrl };
     if (!query) return { text: errors.webFetchEmptyQuery };
 
-    // F8: fetch exactly the normalized form used for allowlist comparison.
+    // Fetch exactly the normalized form used for allowlist comparison.
     const url = normalizeFetchUrl(rawUrl) ?? rawUrl;
 
     if (!isPubliclyRoutableHttpUrl(url)) {
@@ -361,7 +423,7 @@ export function makeWebFetchExecutor(
         } else if (signal.aborted) {
           combined = signal;
         } else {
-          // Manual combine when AbortSignal.any is unavailable.
+          // Manual combine when AbortSignal.any is unavailable (RN path).
           const manual = new AbortController();
           const onAbort = () => manual.abort();
           signal.addEventListener("abort", onAbort, { once: true });
@@ -372,8 +434,7 @@ export function makeWebFetchExecutor(
 
       let response: Response;
       try {
-        // redirect mode: browsers/RN follow by default; we re-validate response.url.
-        // Explicit "follow" is a no-op on most implementations (native default).
+        // redirect: native default follows; we re-validate response.url after.
         response = await fetchImpl(url, {
           signal: combined,
           redirect: "follow",
@@ -390,8 +451,8 @@ export function makeWebFetchExecutor(
         };
       }
 
-      // Post-redirect URL: empty response.url falls back to the requested url
-      // (fail-safe — re-validates the original). Never read body on refusal.
+      // Empty response.url falls back to the requested url (fail-safe).
+      // Never read body on policy refusal.
       const finalUrl =
         typeof response.url === "string" && response.url.trim() ? response.url.trim() : url;
 
@@ -412,17 +473,16 @@ export function makeWebFetchExecutor(
         };
       }
 
-      const mediaType = mediaTypeOf(response.headers?.get?.("content-type") ?? null);
+      const contentTypeHeader = response.headers?.get?.("content-type") ?? null;
+      const mediaType = mediaTypeOf(contentTypeHeader);
       if (mediaType && !ALLOWED_CONTENT_TYPES.has(mediaType)) {
         return {
           text: errors.webFetchUnsupportedContent.replace("{type}", mediaType),
         };
       }
 
-      // F2: Content-Length pre-check — refuse before buffering the body when the
-      // declared size exceeds BODY_HARD_CAP. Residual risk (audit F2): when the
-      // header is absent we still fully buffer via response.text() before the
-      // post-read slice; streaming is not available through RN's fetch/Blob path.
+      // Content-Length early exit only — on RN the transport may already have
+      // buffered the body; this is not an OOM mitigation (see module header).
       const clRaw = response.headers?.get?.("content-length");
       if (clRaw != null && clRaw !== "") {
         const declared = Number(clRaw);
@@ -439,22 +499,33 @@ export function makeWebFetchExecutor(
         }
       }
 
-      let bodyText: string;
-      try {
-        const raw = await response.text();
-        bodyText = typeof raw === "string" ? raw : String(raw ?? "");
-      } catch (error) {
-        if (isAbortError(error)) {
+      const bodyResult = await readResponseBody(response, contentTypeHeader, () => {
+        try {
+          timeoutController.abort();
+        } catch {
+          /* ignore */
+        }
+      });
+
+      if (!bodyResult.ok) {
+        if (bodyResult.tooLarge) {
+          const sizeKb = Math.max(1, Math.ceil(BODY_HARD_CAP / 1024));
+          return {
+            text: errors.webFetchTooLarge.replace("{sizeKb}", String(sizeKb)),
+          };
+        }
+        if (bodyResult.message === "abort") {
           return { text: errors.webFetchTimeout };
         }
         return {
           text: errors.webFetchFailed.replace(
             "{message}",
-            error instanceof Error ? error.message : String(error),
+            bodyResult.message ?? "read failed",
           ),
         };
       }
 
+      let bodyText = bodyResult.text;
       if (bodyText.length > BODY_HARD_CAP) {
         bodyText = bodyText.slice(0, BODY_HARD_CAP);
       }
@@ -463,9 +534,14 @@ export function makeWebFetchExecutor(
       let title: string | null = null;
       let pageText: string;
       if (isPlain) {
-        pageText = bodyText;
+        // Cap index input explicitly (content beyond MAX_INDEX_CHARS is not searched).
+        pageText =
+          bodyText.length > MAX_INDEX_CHARS
+            ? bodyText.slice(0, MAX_INDEX_CHARS)
+            : bodyText;
       } else {
-        const extracted = htmlToText(bodyText);
+        // Pass maxChars so the 120k cap is visible at the call site (not a hidden default).
+        const extracted = htmlToText(bodyText, MAX_INDEX_CHARS);
         title = extracted.title;
         pageText = extracted.text;
       }
@@ -477,12 +553,12 @@ export function makeWebFetchExecutor(
       });
 
       const pageHost = hostOf(finalUrl);
-      const displayTitle = title ?? pageHost;
+      const displayTitle = clampTitle(title ?? pageHost);
 
       // Char n-grams can score weak BM25 hits with zero content-word coverage;
-      // treat coverage 0 (or no passages) as a true nothing-matched outcome.
-      // F6: no sources on this path — no cite instruction / source card.
-      // F11: use host (not untrusted <title>) inside the directive message.
+      // treat coverage 0 (or no passages) as nothing-matched.
+      // No sources on this path — no cite instruction / source card.
+      // Use host (not untrusted <title>) inside the directive message.
       const lastCoverage =
         trace.coverageByRound.length > 0
           ? (trace.coverageByRound[trace.coverageByRound.length - 1] ?? 0)
@@ -502,10 +578,12 @@ export function makeWebFetchExecutor(
         .map((p, i) => `${i + 1}. ${p.text}`)
         .join("\n\n");
 
-      // Cite instruction is appended by LlamaService with absolute source numbers.
+      // Cite instruction is appended by LlamaService with absolute source numbers
+      // and kind "passages" so the model does not treat passage indices as sources.
       return { text: body, sources };
     } finally {
       clearTimeout(timer);
     }
   };
 }
+

@@ -22,6 +22,10 @@ import { replaceLiteral } from "../context/compactor";
 import {
   accumulateToolSources,
   buildCiteInstructionSuffix,
+  citeKindForTool,
+  decideToolExecution,
+  recordToolFailure,
+  recordToolSuccess,
 } from "../agent/toolSourceLedger";
 import { getStrings, type Locale } from "../i18n";
 import { DEFAULT_N_CTX } from "./contextProfile";
@@ -151,7 +155,8 @@ const TOOL_CALL_SKIPPED_MESSAGE = "skipped: per-round tool call limit reached";
 /** Sibling of TOOL_CALL_SKIPPED_MESSAGE for the per-turn total execution cap (F3). */
 const TOOL_CALL_TURN_CAP_MESSAGE = "skipped: per-turn tool execution limit reached";
 /** F10: identical name+args already executed this turn — do not re-run. */
-const TOOL_CALL_DUP_MESSAGE = "already fetched in this turn; use the previous result";
+const TOOL_CALL_DUP_MESSAGE =
+  "this exact call was already made in this turn; use the result above";
 
 /** V4.2 §Fase 3: tool-result cap 2500 (was 6000). Benchmarkable — do not raise without re-bench. */
 const TOOL_RESULT_MAX_CHARS = 2500;
@@ -445,13 +450,20 @@ async function disposeEngineLocked(): Promise<void> {
   }
 }
 
-function parseToolArguments(raw: string | undefined): Record<string, unknown> {
-  if (!raw) return {};
+function parseToolArguments(raw: string | undefined): {
+  args: Record<string, unknown>;
+  parseFailed: boolean;
+  raw: string;
+} {
+  if (!raw) return { args: {}, parseFailed: false, raw: "" };
   try {
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return { args: parsed as Record<string, unknown>, parseFailed: false, raw };
+    }
+    return { args: {}, parseFailed: true, raw };
   } catch {
-    return {};
+    return { args: {}, parseFailed: true, raw };
   }
 }
 
@@ -876,9 +888,11 @@ export async function streamAssistantTurn(
 
       // Sources from every tool in this turn (search + fetch), deduped by url.
       const accumulatedSources: unknown[] = [];
-      // F3: total successful executions across rounds; F10: identical call de-dupe.
-      let toolExecutionsThisTurn = 0;
-      const executedCallKeys = new Set<string>();
+      // F3: total executions across rounds; success-only de-dupe set (F10).
+      const toolExecState = {
+        executions: 0,
+        successfulKeys: new Set<string>(),
+      };
 
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
@@ -984,42 +998,47 @@ export async function streamAssistantTurn(
         // across search + fetch in the same turn (AiChatPage replaces, not merges).
         for (const call of executableCalls) {
           const name = call.function?.name ?? "";
-          const args = parseToolArguments(call.function?.arguments);
+          const rawArguments =
+            typeof call.function?.arguments === "string" ? call.function.arguments : "";
+          const { args, parseFailed } = parseToolArguments(
+            typeof call.function?.arguments === "string" ? call.function.arguments : undefined,
+          );
           callbacks.onTool?.({ name, arguments: args });
-          callbacks.onStatus?.({
-            label:
-              name === "web_fetch" ? strings.chat.fetching : strings.chat.searching,
-          });
 
           let toolContent: string;
 
-          // F3: total executions across all rounds of this turn.
-          if (toolExecutionsThisTurn >= MAX_TOOL_EXECUTIONS_PER_TURN) {
+          // Cap / dedup gates BEFORE status flash so skipped calls do not pollute
+          // the persisted status history with "Fetching page…".
+          const decision = decideToolExecution(
+            toolExecState,
+            MAX_TOOL_EXECUTIONS_PER_TURN,
+            name,
+            args,
+            { rawArguments, parseFailed },
+          );
+
+          if (decision.action === "skip_cap") {
             toolContent = formatToolResultContent(
               strings.errors.toolError.replace("{message}", TOOL_CALL_TURN_CAP_MESSAGE),
             );
             executed.push({ call, content: toolContent });
             continue;
           }
-
-          // F10: identical name+args already ran this turn — do not re-execute.
-          let argsJson: string;
-          try {
-            argsJson = JSON.stringify(args ?? {});
-          } catch {
-            argsJson = "";
-          }
-          const callKey = `${name}:${argsJson}`;
-          if (executedCallKeys.has(callKey)) {
+          if (decision.action === "skip_dup") {
             toolContent = formatToolResultContent(TOOL_CALL_DUP_MESSAGE);
             executed.push({ call, content: toolContent });
             continue;
           }
 
+          callbacks.onStatus?.({
+            label:
+              name === "web_fetch" ? strings.chat.fetching : strings.chat.searching,
+          });
+
           try {
             const outcome = await options.executeTool(name, args, signal, lastUserMessageText);
-            toolExecutionsThisTurn += 1;
-            executedCallKeys.add(callKey);
+            // Only successful runs land in the de-dupe set (failures remain retryable).
+            recordToolSuccess(toolExecState, decision.key);
             const { assigned } = accumulateToolSources(
               accumulatedSources,
               outcome.sources,
@@ -1027,15 +1046,14 @@ export async function streamAssistantTurn(
             if (assigned.length) {
               callbacks.onSources?.(accumulatedSources);
             }
+            const citeKind = citeKindForTool(name);
             const bodyWithCite =
               ((outcome.text ?? "") || strings.errors.noResults) +
-              buildCiteInstructionSuffix(assigned, strings);
+              buildCiteInstructionSuffix(assigned, strings, citeKind);
             toolContent = formatToolResultContent(bodyWithCite);
           } catch (error) {
-            // Failed attempts still count toward the execution budget so a
-            // thrashing model cannot burn unbounded tool work per turn.
-            toolExecutionsThisTurn += 1;
-            executedCallKeys.add(callKey);
+            // Failures still consume the per-turn budget; key is NOT recorded.
+            recordToolFailure(toolExecState);
             toolContent = formatToolResultContent(
               strings.errors.toolError.replace(
                 "{message}",

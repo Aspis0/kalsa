@@ -322,7 +322,8 @@ export function AppShell() {
   // (info attuali, notizie, o richiesta esplicita). Le query / fetch partono solo
   // quando il tool viene chiamato (privacy by design).
   // Per-turn allowlist: URLs from the user message + every web_search result;
-  // web_fetch may only open those (closes crafted-URL exfiltration).
+  // web_fetch may only open those (closes crafted-URL exfiltration). Redirects
+  // may land on another path/port of the SAME host, or an already-allowlisted URL.
   const agentOptions = useMemo<EngineTurnOptions>(() => {
     const searchExec = makeWebSearchExecutor(locale);
     // Recreated when fetchAllowlistTurnSeq advances (each send); held across

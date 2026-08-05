@@ -465,6 +465,9 @@ export const it: typeof en = {
       "Quando usi questi risultati, citali con numeri tra parentesi quadre che corrispondono a questa lista. " +
       "Una affermazione presa dal risultato 2 deve essere seguita da [2]. Puoi combinarne diversi ([1][3]). " +
       "Non inventare un numero che non è in questa lista.",
+    webFetchCiteInstruction:
+      "Tutti i brani sopra provengono dalla fonte [{index}]. Cita qualsiasi affermazione presa da essi come [{index}]; " +
+      "non usare altri numeri per questa pagina.",
     webToolCiteInstructionMapped:
       "Quando usi questi risultati, citali con i numeri tra parentesi quadre di questa mappa " +
       "(voce della lista → citazione): {mapping}. Non inventare un numero che non è elencato.",

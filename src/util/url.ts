@@ -31,3 +31,44 @@ export function isSafeHttpUrl(href: string): boolean {
   // Require an authority, so "http:" alone or "https:evil" is not tappable either.
   return /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\/[^/?#]+/.test(trimmed);
 }
+
+/**
+ * Normalize an http(s) URL for allowlist / source-ledger identity:
+ * - trim, drop trailing `)` `,` `.` `;` artifacts
+ * - scheme lowercased; host lowercased
+ * - path + query case-sensitive
+ * - drop `#fragment`
+ * - drop a single trailing `/` on non-root paths (`/page/` ≡ `/page`;
+ *   bare `https://host/` stays as `https://host/`)
+ *
+ * Returns null for non-strings / empty after trim.
+ */
+export function normalizeFetchUrl(raw: string): string | null {
+  if (typeof raw !== "string") return null;
+  let s = raw.trim();
+  if (!s) return null;
+  // Drop trailing punctuation / closing parens commonly glued to URLs in prose.
+  while (s.length > 0 && /[),\.;]$/.test(s)) {
+    s = s.slice(0, -1);
+  }
+  s = s.trim();
+  if (!s) return null;
+
+  const m = /^([a-zA-Z][a-zA-Z\d+\-.]*):\/\/([^/?#]+)([^?#]*)(\?[^#]*)?(#.*)?$/.exec(s);
+  if (!m) {
+    // Not a parseable absolute URL — best-effort key after trailing-punct strip.
+    return s;
+  }
+  const scheme = m[1].toLowerCase();
+  const authority = m[2];
+  const at = authority.lastIndexOf("@");
+  const userinfo = at >= 0 ? authority.slice(0, at + 1) : "";
+  const hostPort = (at >= 0 ? authority.slice(at + 1) : authority).toLowerCase();
+  let path = m[3] ?? "";
+  // Collapse trailing slash on non-root paths only.
+  if (path.length > 1 && path.endsWith("/")) {
+    path = path.slice(0, -1);
+  }
+  const query = m[4] ?? "";
+  return `${scheme}://${userinfo}${hostPort}${path}${query}`;
+}

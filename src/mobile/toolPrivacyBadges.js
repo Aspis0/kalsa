@@ -15,7 +15,7 @@ const TOOL_PRIVACY_BADGES = {
   },
   web_fetch: {
     detail:
-      "Only opens pages already returned by search or links you pasted; the page text is fetched on demand and cited in chat.",
+      "Only opens pages already returned by search or links you pasted (redirects may land on another path or port of the same host); the page text is fetched on demand and cited in chat.",
     label: "Cloud on demand",
     mode: "export",
   },
