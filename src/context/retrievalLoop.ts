@@ -194,16 +194,25 @@ function splitSentencesForParagraphs(text: string): string[] {
 
 /**
  * Split text into paragraph windows.
- * Blank-line separated; drop < 20 chars; windows ≤ 600 never mid-sentence.
+ * Blank-line separated; drop paragraphs shorter than MIN_PARAGRAPH_LEN (20),
+ * except bullet blocks from htmlToText (paragraphs starting with `- `) which
+ * are kept when length ≥ 6 (sentence-level MIN_KEEP_LEN in retriever.ts — not
+ * imported; literal keeps the modules decoupled). Windows ≤ 600, never mid-sentence.
  */
 function segmentParagraphs(text: string): string[] {
   if (!text) return [];
   const rawParas = text.split(/\n\s*\n/);
   const out: string[] = [];
+  // Sentence-level MIN_KEEP_LEN equivalent (retriever.ts); bullet short-list floor.
+  const MIN_BULLET_PARA_LEN = 6;
 
   for (const raw of rawParas) {
     const p = raw.trim();
-    if (p.length < MIN_PARAGRAPH_LEN) continue;
+    if (p.length < MIN_PARAGRAPH_LEN) {
+      // Bullet exemption: htmlToText emits lists as one `- ` paragraph; short
+      // lists (e.g. "- cat\n- dog") must still be indexed.
+      if (!(p.startsWith("- ") && p.length >= MIN_BULLET_PARA_LEN)) continue;
+    }
 
     if (p.length <= MAX_PARAGRAPH_WINDOW) {
       out.push(p);
