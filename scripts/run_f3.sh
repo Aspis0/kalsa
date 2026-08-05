@@ -49,6 +49,9 @@ MAX_COOL_TEMP="30.0"
 MAJFLT_BASELINE_MAX="${MAJFLT_BASELINE_MAX:-50000}"
 BATTERY_FLOOR=40
 MAX_COOL_WAIT_S="${MAX_COOL_WAIT_S:-1800}"
+# Run-level wall timeout per llama invocation (floor 2700 s = 45 min).
+# 35B naive load alone can take 10–30+ min under thrash — never kill mid-load.
+RUN_TIMEOUT_S="${RUN_TIMEOUT_S:-2700}"
 # skip idle cooldown before the very first rep (fresh boot already cold)
 SKIP_FIRST_COOLDOWN=1
 
@@ -67,6 +70,11 @@ Uso: run_f3.sh --variant default|numa|nowarmup [opts]
   --cooldown SEC               (default 180; floor 180)
   --max-cool-temp C            (default 30.0; ceiling 30.0)
   --majflt-max N               (default 50000; covariate only in F3)
+  --run-timeout SEC            (default 2700; floor 2700 = 45 min per run)
+
+Cold+warm pairing (§8.2 promoted B/B2):
+  --first-run-type cold --reps 3  → rep1 cold + rep2 warm + rep3 warm SAME boot
+  (no reboot between reps; log line "PAIR cold+warm same boot")
 EOF
 }
 
@@ -82,6 +90,7 @@ while [ $# -gt 0 ]; do
         --cooldown) COOLDOWN_S="${2:-}"; shift 2 ;;
         --max-cool-temp) MAX_COOL_TEMP="${2:-}"; shift 2 ;;
         --majflt-max) MAJFLT_BASELINE_MAX="${2:-}"; shift 2 ;;
+        --run-timeout) RUN_TIMEOUT_S="${2:-}"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
         *) echo "arg: $1" >&2; usage; exit 3 ;;
     esac
@@ -162,6 +171,18 @@ if [ "$_ct_bad" = "1" ]; then
     exit 3
 fi
 
+# Run-timeout floor 2700 s (45 min). Reject below floor — never silent clamp.
+case "$RUN_TIMEOUT_S" in
+    ''|*[!0-9]*)
+        echo "ERROR: --run-timeout must be positive int (got: $RUN_TIMEOUT_S)" >&2
+        exit 3
+        ;;
+esac
+if [ "$RUN_TIMEOUT_S" -lt 2700 ]; then
+    echo "ERROR: --run-timeout $RUN_TIMEOUT_S < 2700 (floor 45 min; 35B naive load can take 10–30+ min)" >&2
+    exit 3
+fi
+
 if [ ! -x "$BINARY" ] && [ ! -f "$BINARY" ]; then
     echo "ERROR: binary missing: $BINARY" >&2
     exit 6
@@ -195,6 +216,26 @@ SUMMARY_FILE="$STATE_DIR/${PHASE}.summary.md"
 LOG_FILE="$STATE_DIR/${PHASE}.runner.log"
 # also keep aggregate F3.runner.log for start_f3
 AGG_LOG="$STATE_DIR/F3.runner.log"
+
+# Graceful drop of nowarmup if pinned binary lacks --no-warmup (do not error).
+# --numa is hard-required for the numa variant (already validated by start_f3).
+# Skip the --help probe when RUN_BENCH is a test stub (offline harness tests).
+if [ "$VARIANT" = "nowarmup" ] && [ -x "$BINARY" ] && [ "${F3_SKIP_BINARY_HELP:-0}" != "1" ]; then
+    if command -v timeout >/dev/null 2>&1; then
+        _help_now="$(timeout 8 "$BINARY" --help 2>&1 || true)"
+    else
+        _help_now="$("$BINARY" --help 2>&1 || true)"
+    fi
+    if [ -n "$_help_now" ] && ! printf '%s' "$_help_now" | grep -q -- '--no-warmup'; then
+        _drop_msg="NOTE: pinned binary lacks --no-warmup — dropping F3-nowarmup variant gracefully (not an error)"
+        echo "$_drop_msg" | tee -a "$LOG_FILE" >>"$AGG_LOG" >&2
+        echo "nowarmup_dropped=1 reason=flag_unsupported binary=$BINARY" | tee -a "$LOG_FILE" >>"$AGG_LOG"
+        echo "dropped=nowarmup" >"$STATE_FILE"
+        exit 0
+    fi
+    # Empty help (fake binary / probe failed) → leave decision to start_f3 / operator;
+    # do not false-drop on empty output.
+fi
 
 log() {
     _line="$(printf '%s %s' "$(date -Iseconds 2>/dev/null || date)" "$*")"
@@ -344,6 +385,8 @@ run_one() {
     fi
 
     set +e
+    # F3: --classic-perf drops --simple-io so llama_perf fills ttft_ms;
+    # --run-timeout protects against mid-load kill (floor 2700 s).
     bash "$RUN_BENCH" \
         --binary "$BINARY" \
         -m "$MODEL" \
@@ -359,6 +402,8 @@ run_one() {
         --n-gen "$N_GEN" \
         --file-gb "$FILE_GB" \
         --quant "$QUANT" \
+        --classic-perf \
+        --run-timeout "$RUN_TIMEOUT_S" \
         --notes "${PHASE} ${VARIANT_TAG} ${_note_tag} rep=${_rep} rtype=${_rtype} cool${COOLDOWN_S}s T<=${MAX_COOL_TEMP} majflt_gate=${MAJFLT_BASELINE_MAX}" \
         "${_flags_args[@]}" >>"$LOG_FILE" 2>&1
     _ec=$?
@@ -369,8 +414,13 @@ run_one() {
         log "BLOCKED: run_bench exit $_ec (config/safety/binary) variant=$VARIANT rtype=$_rtype"
         exit "$_ec"
     fi
+    # exit 8 = harness run-timeout — NOT valid F3 data (distinct from lmkd/OOM)
+    if [ "$_ec" -eq 8 ]; then
+        log "BLOCKED/timeout: run_bench exit 8 (harness run-timeout ${RUN_TIMEOUT_S}s) — NOT valid F3 data rtype=$_rtype rep=$_rep"
+        # Continue remaining reps only if operator wants; treat as annotated miss, do not abort campaign.
+        # (A killed mid-load run is not a scientific row; CSV may still have BLOCKED/timeout notes.)
     # exit 1 = llama fail (lmkd/OOM/crash) — VALID F3 data if CSV row written
-    if [ "$_ec" -eq 1 ]; then
+    elif [ "$_ec" -eq 1 ]; then
         log "ANNOTATE: run_bench exit 1 (likely lmkd/OOM/crash) — valid F3 data if row present rtype=$_rtype rep=$_rep"
     elif [ "$_ec" -ne 0 ]; then
         log "WARN: run_bench exit $_ec rtype=$_rtype rep=$_rep"
@@ -386,12 +436,21 @@ run_one() {
     log "post-run batt: $_bat_post"
 }
 
-log "=== start F3 phase=$PHASE variant=$VARIANT first=$FIRST_RUN_TYPE reps=$REPS model=$(basename "$MODEL") size=$_msz binary=$BINARY flags='${EXTRA_FLAGS}' cooldown=${COOLDOWN_S}s cool≤${MAX_COOL_TEMP} ==="
+log "=== start F3 phase=$PHASE variant=$VARIANT first=$FIRST_RUN_TYPE reps=$REPS model=$(basename "$MODEL") size=$_msz binary=$BINARY flags='${EXTRA_FLAGS}' cooldown=${COOLDOWN_S}s cool≤${MAX_COOL_TEMP} run_timeout=${RUN_TIMEOUT_S}s classic_perf=1 ==="
+# Explicit cold+warm same-boot pairing for promoted rows B/B2 (§8.2)
+if [ "$FIRST_RUN_TYPE" = "cold" ] && [ "$REPS" -ge 2 ]; then
+    log "PAIR cold+warm same boot: rep1=cold, reps 2..$REPS=warm (no reboot between; phase=$PHASE variant=$VARIANT)"
+elif [ "$FIRST_RUN_TYPE" = "cold" ]; then
+    log "PAIR cold only (reps=1): single cold rep this invocation; warm must be same boot if added later"
+fi
 {
     echo "phase=$PHASE variant=$VARIANT first=$FIRST_RUN_TYPE reps=$REPS"
     echo "model=$(basename "$MODEL") size=$_msz flags=${EXTRA_FLAGS:-<none>}"
     echo "start=$(date -Iseconds 2>/dev/null || date)"
-    echo "protocol=cool${COOLDOWN_S}_T${MAX_COOL_TEMP}_maj${MAJFLT_BASELINE_MAX}_floor${BATTERY_FLOOR}"
+    echo "protocol=cool${COOLDOWN_S}_T${MAX_COOL_TEMP}_maj${MAJFLT_BASELINE_MAX}_floor${BATTERY_FLOOR}_timeout${RUN_TIMEOUT_S}_classic_perf"
+    if [ "$FIRST_RUN_TYPE" = "cold" ] && [ "$REPS" -ge 2 ]; then
+        echo "pair=cold+warm_same_boot"
+    fi
 } >"$STATE_FILE"
 
 # Resume: if phase already has enough measure rows, skip (not counting sentinel notes)

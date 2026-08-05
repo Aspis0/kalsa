@@ -3,6 +3,19 @@
 # Cold runs must be launched AFTER a fresh reboot (empty page cache).
 # No broad pkill. No network. Scripts never download models.
 #
+# Exact operator sequence (promoted rows B / B2 = cold+warm same boot):
+#   1. reboot phone (empty page cache)
+#   2. bash start_f3.sh --variant default --first-run-type cold --reps 3
+#        → rep1 cold + rep2 warm + rep3 warm SAME boot (PAIR cold+warm)
+#   3. reboot
+#   4. bash start_f3.sh --variant numa --first-run-type cold --reps 3
+#        → same pairing for F3-numa (B2)
+#   5. if battery ≥40% AND binary supports --no-warmup:
+#        reboot (optional; or --first-run-type cold --reps 1)
+#        bash start_f3.sh --variant nowarmup --first-run-type cold --reps 1 --no-sentinel
+#      else: skip nowarmup gracefully (logged, not error)
+#   Sentinel warm rep is optional (default on; --no-sentinel to skip).
+#
 # Uso:
 #   bash start_f3.sh --variant default --first-run-type cold
 #   bash start_f3.sh --variant numa --first-run-type cold
@@ -83,8 +96,10 @@ case "$VARIANT" in
     ;;
   nowarmup)
     if ! printf '%s' "$_help" | grep -q -- '--no-warmup'; then
-      echo "ERROR: pinned binary lacks --no-warmup; cannot run F3-nowarmup" >&2
-      exit 3
+      # Graceful drop (not error): log and exit 0 so campaign can continue.
+      echo "NOTE: pinned binary lacks --no-warmup — dropping F3-nowarmup gracefully (not an error)"
+      echo "nowarmup_dropped=1 reason=flag_unsupported binary=$BINARY" >>"$HOME/experiments/results/f3_state/F3.runner.log" 2>/dev/null || true
+      exit 0
     fi
     ;;
 esac
@@ -163,7 +178,10 @@ nohup bash "$GRID" \
   "${_extra[@]}" \
   >"$OUT" 2>&1 &
 echo $! >"$PIDF"
-echo "PID=$(cat "$PIDF") phase=$PHASE_TAG variant=$VARIANT first=$FIRST_RUN_TYPE reps=$REPS cooldown=180 cool≤30.0 size OK"
+echo "PID=$(cat "$PIDF") phase=$PHASE_TAG variant=$VARIANT first=$FIRST_RUN_TYPE reps=$REPS cooldown=180 cool≤30.0 run_timeout=2700 classic_perf=1 size OK"
+if [ "$FIRST_RUN_TYPE" = "cold" ] && [ "$REPS" -ge 2 ]; then
+  echo "PAIR cold+warm same boot: rep1=cold, reps 2..$REPS=warm (no reboot between)"
+fi
 sleep 3
 head -40 "$OUT" || true
 ps -ef 2>/dev/null | grep -E "run_f3|run_bench|llama-cli" | grep -v grep || true

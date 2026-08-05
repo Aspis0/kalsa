@@ -55,6 +55,12 @@ RUN_ID=""
 BINARY=""
 PRINT_CMD=0
 ALLOW_NO_BATTERY=0
+# Run-level wall timeout (s). Floor 2700 (45 min): 35B naive load alone can take 10–30+ min.
+# Harness timeout is NOT scientific data (exit 8, notes BLOCKED/timeout); only lmkd/OOM is.
+RUN_TIMEOUT_S="${RUN_TIMEOUT_S:-2700}"
+# 1 = drop --simple-io so classic llama_perf_context_print (and ttft_ms) appears (F3+).
+# Default 0 keeps compact summary for F2/F4-compat.
+CLASSIC_PERF=0
 # ISA preflight: 1=sempre · 0=UNSAFE esplicito (vietato F1–F4) · auto=default (mandatory su F1–F4)
 PREFLIGHT_ISA="${PREFLIGHT_ISA:-auto}"
 
@@ -342,7 +348,11 @@ build_run_cmdline() {
             _cmd="$_cmd --no-display-prompt"
             _cmd="$_cmd --no-conversation"
             _cmd="$_cmd --single-turn"
-            _cmd="$_cmd --simple-io"
+            # --simple-io: compact [Prompt|Generation] only (no ttft_ms).
+            # --classic-perf drops it so llama_perf_context_print fills ttft_ms (F3+).
+            if [ "${CLASSIC_PERF:-0}" -eq 0 ]; then
+                _cmd="$_cmd --simple-io"
+            fi
             ;;
     esac
     if [ -n "$EXTRA_FLAGS" ]; then
@@ -452,14 +462,21 @@ Opzionali:
   --allow-no-battery        SOLO smoke/dry-run: salta il gate batteria fail-closed.
                             MAI per run scientifici (senza di questo: exit 7 se
                             termux-battery-status assente o plugged sconosciuto)
+  --run-timeout SEC         per-run wall timeout (default 2700 = 45 min; floor 2700).
+                            On expiry: kill llama, notes BLOCKED/timeout, exit 8
+                            (NOT valid F3 data; only lmkd/OOM exit 1 is data).
+  --classic-perf            drop --simple-io so llama_perf_context_print appears
+                            (fills ttft_ms via prompt eval ms). Use for F3+.
+                            Default keeps --simple-io (compact [Prompt|Generation] only).
 
 Env:
   PREFLIGHT_ISA=auto|1|0    auto/1 = preflight ISA obbligatorio su F1–F4;
                             0 = UNSAFE esplicito (rifiutato per fasi scientifiche)
+  RUN_TIMEOUT_S=SEC         same as --run-timeout (default 2700, floor 2700)
   --flags NON può sovrascrivere -m/-p/-n/--temp/-t/-c/-ctk/-ctv/--no-display-prompt
 
-Exit: 0 ok · 1 llama fail · 3 usage · 4 charging · 5 too hot · 6 binary missing
-      7 gate batteria non disponibile/incerto
+Exit: 0 ok · 1 llama fail (lmkd/OOM = valid F3 data) · 3 usage · 4 charging ·
+      5 too hot · 6 binary missing · 7 gate batteria · 8 harness run-timeout
 EOF
 }
 
@@ -529,6 +546,11 @@ while [ $# -gt 0 ]; do
             PRINT_CMD=1; shift ;;
         --allow-no-battery)
             ALLOW_NO_BATTERY=1; shift ;;
+        --run-timeout)
+            [ $# -ge 2 ] || { echo "ERRORE: $1 richiede un argomento" >&2; usage; exit 3; }
+            RUN_TIMEOUT_S="$2"; shift 2 ;;
+        --classic-perf|--no-simple-io)
+            CLASSIC_PERF=1; shift ;;
         -h|--help)
             usage; exit 0 ;;
         --)
@@ -590,6 +612,18 @@ case "$KV_TYPE" in
         exit 3
         ;;
 esac
+
+# Run-level timeout: integer, floor 2700 s (45 min). Never silent-clamp below floor.
+case "$RUN_TIMEOUT_S" in
+    ''|*[!0-9]*)
+        echo "ERRORE: --run-timeout deve essere intero secondi (got: $RUN_TIMEOUT_S)" >&2
+        exit 3
+        ;;
+esac
+if [ "$RUN_TIMEOUT_S" -lt 2700 ]; then
+    echo "ERRORE: --run-timeout $RUN_TIMEOUT_S < 2700 (floor 45 min; 35B naive load can take 10–30+ min)" >&2
+    exit 3
+fi
 
 # PREFLIGHT_ISA: solo auto|1|0 (e sinonimi espliciti)
 case "$PREFLIGHT_ISA" in
@@ -973,42 +1007,77 @@ if [ "$RUNTIME" = "bigmoe" ]; then
             < /dev/null > "$FIFO" 2>&1 &
     fi
 else
-    if [ -n "$EXTRA_FLAGS" ]; then
-        "$BINARY" \
-            -m "$MODEL" \
-            -p "$_PROMPT_ARG" \
-            -n "$N_GEN" \
-            -t "$THREADS" \
-            -c "$N_CTX" \
-            -ctk "$KV_TYPE" \
-            -ctv "$KV_TYPE" \
-            --temp 0 \
-            --no-display-prompt \
-            --no-conversation \
-            --single-turn \
-            --simple-io \
-            $EXTRA_FLAGS \
-            < /dev/null > "$FIFO" 2>&1 &
+    # CLASSIC_PERF=1 drops --simple-io so llama_perf_context_print (ttft_ms) appears.
+    if [ "$CLASSIC_PERF" -eq 1 ]; then
+        if [ -n "$EXTRA_FLAGS" ]; then
+            "$BINARY" \
+                -m "$MODEL" \
+                -p "$_PROMPT_ARG" \
+                -n "$N_GEN" \
+                -t "$THREADS" \
+                -c "$N_CTX" \
+                -ctk "$KV_TYPE" \
+                -ctv "$KV_TYPE" \
+                --temp 0 \
+                --no-display-prompt \
+                --no-conversation \
+                --single-turn \
+                $EXTRA_FLAGS \
+                < /dev/null > "$FIFO" 2>&1 &
+        else
+            "$BINARY" \
+                -m "$MODEL" \
+                -p "$_PROMPT_ARG" \
+                -n "$N_GEN" \
+                -t "$THREADS" \
+                -c "$N_CTX" \
+                -ctk "$KV_TYPE" \
+                -ctv "$KV_TYPE" \
+                --temp 0 \
+                --no-display-prompt \
+                --no-conversation \
+                --single-turn \
+                < /dev/null > "$FIFO" 2>&1 &
+        fi
     else
-        "$BINARY" \
-            -m "$MODEL" \
-            -p "$_PROMPT_ARG" \
-            -n "$N_GEN" \
-            -t "$THREADS" \
-            -c "$N_CTX" \
-            -ctk "$KV_TYPE" \
-            -ctv "$KV_TYPE" \
-            --temp 0 \
-            --no-display-prompt \
-            --no-conversation \
-            --single-turn \
-            --simple-io \
-            < /dev/null > "$FIFO" 2>&1 &
+        if [ -n "$EXTRA_FLAGS" ]; then
+            "$BINARY" \
+                -m "$MODEL" \
+                -p "$_PROMPT_ARG" \
+                -n "$N_GEN" \
+                -t "$THREADS" \
+                -c "$N_CTX" \
+                -ctk "$KV_TYPE" \
+                -ctv "$KV_TYPE" \
+                --temp 0 \
+                --no-display-prompt \
+                --no-conversation \
+                --single-turn \
+                --simple-io \
+                $EXTRA_FLAGS \
+                < /dev/null > "$FIFO" 2>&1 &
+        else
+            "$BINARY" \
+                -m "$MODEL" \
+                -p "$_PROMPT_ARG" \
+                -n "$N_GEN" \
+                -t "$THREADS" \
+                -c "$N_CTX" \
+                -ctk "$KV_TYPE" \
+                -ctv "$KV_TYPE" \
+                --temp 0 \
+                --no-display-prompt \
+                --no-conversation \
+                --single-turn \
+                --simple-io \
+                < /dev/null > "$FIFO" 2>&1 &
+        fi
     fi
 fi
 LLAMA_PID=$!
+LLAMA_START_EPOCH="$(date +%s 2>/dev/null || echo 0)"
 
-echo "llama_pid=$LLAMA_PID tee_pid=$TEE_PID" >&2
+echo "llama_pid=$LLAMA_PID tee_pid=$TEE_PID classic_perf=$CLASSIC_PERF run_timeout_s=$RUN_TIMEOUT_S" >&2
 
 # Attendi che /proc/<pid> esista (max ~2s)
 _i=0
@@ -1083,10 +1152,49 @@ printf '%s\n' "$MEMFREE_MIN_KB" > "$MEMFREE_FILE"
 ) &
 SAMPLER_PID=$!
 
-# Attendi llama (senza set -e: controlliamo rc a mano)
-# wait + $? sulla riga successiva (rc capture robusto)
-wait "$LLAMA_PID"
-LLAMA_RC=$?
+# Attendi llama con run-level wall timeout (≥2700 s default).
+# Harness timeout → kill llama, notes BLOCKED/timeout, exit 8 (NOT valid data).
+# lmkd/OOM → natural death, exit 1, VALID F3 data.
+HARNESS_TIMEOUT=0
+LLAMA_RC=0
+if command -v timeout >/dev/null 2>&1; then
+    # Use a separate wait-wrapper via background + sleep watchdog so we keep
+    # the real LLAMA_PID for /proc sampling (timeout(1) would re-parent).
+    (
+        sleep "$RUN_TIMEOUT_S"
+        if kill -0 "$LLAMA_PID" 2>/dev/null; then
+            echo "--- HARNESS RUN-TIMEOUT ${RUN_TIMEOUT_S}s exceeded; killing llama_pid=$LLAMA_PID ---" | tee -a "$LOG_PATH" >&2
+            # TERM then KILL; process group if possible
+            kill -TERM "$LLAMA_PID" 2>/dev/null || true
+            sleep 2
+            kill -KILL "$LLAMA_PID" 2>/dev/null || true
+            # mark timeout file for parent
+            printf '1\n' > "${TMPDIR:-/tmp}/run_bench_timeout.$$"
+        fi
+    ) &
+    WATCHDOG_PID=$!
+    wait "$LLAMA_PID"
+    LLAMA_RC=$?
+    # stop watchdog if llama finished first
+    kill "$WATCHDOG_PID" 2>/dev/null || true
+    wait "$WATCHDOG_PID" 2>/dev/null || true
+    if [ -f "${TMPDIR:-/tmp}/run_bench_timeout.$$" ]; then
+        HARNESS_TIMEOUT=1
+        rm -f "${TMPDIR:-/tmp}/run_bench_timeout.$$" 2>/dev/null || true
+        echo "BLOCKED/timeout: harness run-timeout ${RUN_TIMEOUT_S}s killed llama (rc=$LLAMA_RC) — NOT valid F3 data" | tee -a "$LOG_PATH" >&2
+    fi
+else
+    # No timeout(1) / sleep watchdog still works with pure bash sleep above;
+    # if even sleep fails we fall back to unconditional wait (should not happen).
+    wait "$LLAMA_PID"
+    LLAMA_RC=$?
+fi
+
+LLAMA_END_EPOCH="$(date +%s 2>/dev/null || echo 0)"
+WALL_S=""
+if [ "${LLAMA_START_EPOCH:-0}" -gt 0 ] 2>/dev/null && [ "${LLAMA_END_EPOCH:-0}" -gt 0 ] 2>/dev/null; then
+    WALL_S="$((LLAMA_END_EPOCH - LLAMA_START_EPOCH))"
+fi
 
 # tee termina quando la FIFO si chiude (writer morto); attendilo
 wait "$TEE_PID" 2>/dev/null || true
@@ -1098,7 +1206,7 @@ wait "$SAMPLER_PID" 2>/dev/null || true
 # Cleanup tmp
 rm -f "$PROMPT_TMP" "$FIFO" 2>/dev/null || true
 
-echo "--- llama end rc=$LLAMA_RC $(date -Iseconds 2>/dev/null || date) ---" | tee -a "$LOG_PATH" >&2
+echo "--- llama end rc=$LLAMA_RC harness_timeout=$HARNESS_TIMEOUT wall_s=${WALL_S:-?} $(date -Iseconds 2>/dev/null || date) ---" | tee -a "$LOG_PATH" >&2
 
 # Valori di fine: ultimo sample del loop (o start se mai campionato)
 MINFLT_END="$MINFLT_START"
@@ -1160,6 +1268,21 @@ MEMFREE_MIN_MB="$(awk -v k="$MEMFREE_MIN_KB" 'BEGIN{printf "%d", (k+0)/1024}')"
 # ---------------------------------------------------------------------------
 parse_timings "$LOG_PATH" "$RUNTIME" "$BINARY"
 
+# load_s: wall-clock from process spawn to end (or first-token proxy via prompt eval).
+# Prefer classic perf "load time = NNN ms" if present; else wall_s from harness clock.
+LOAD_S=""
+_load_line="$(grep -E 'load time[[:space:]]*=' "$LOG_PATH" 2>/dev/null | tail -n1 || true)"
+if [ -n "$_load_line" ]; then
+    _load_ms="$(printf '%s\n' "$_load_line" | sed -n -E 's/.*load time[[:space:]]*=[[:space:]]*([0-9.]+).*/\1/p')"
+    if [ -n "$_load_ms" ]; then
+        LOAD_S="$(awk -v ms="$_load_ms" 'BEGIN{printf "%d", (ms+0)/1000 + 0.5}')"
+    fi
+fi
+if [ -z "$LOAD_S" ] && [ -n "${WALL_S:-}" ]; then
+    # Fallback: whole-process wall (includes gen). Still useful for 35B thrash runs.
+    LOAD_S="$WALL_S"
+fi
+
 # ---------------------------------------------------------------------------
 # Notes (single-line, no commas/newlines)
 # ---------------------------------------------------------------------------
@@ -1167,7 +1290,15 @@ NOTES_FINAL=""
 if [ -n "$NOTES_USER" ]; then
     NOTES_FINAL="$NOTES_USER"
 fi
-if [ "$LLAMA_RC" -ne 0 ]; then
+if [ "$HARNESS_TIMEOUT" -eq 1 ]; then
+    # Distinct from FAIL rc= (lmkd/OOM): harness kill is NOT scientific data.
+    _to_note="BLOCKED/timeout run_timeout_s=${RUN_TIMEOUT_S}"
+    if [ -n "$NOTES_FINAL" ]; then
+        NOTES_FINAL="${NOTES_FINAL}; ${_to_note}"
+    else
+        NOTES_FINAL="$_to_note"
+    fi
+elif [ "$LLAMA_RC" -ne 0 ]; then
     if [ -n "$NOTES_FINAL" ]; then
         NOTES_FINAL="${NOTES_FINAL}; FAIL rc=${LLAMA_RC}"
     else
@@ -1179,6 +1310,20 @@ if [ -n "$TIMING_NOTE" ]; then
         NOTES_FINAL="${NOTES_FINAL}; ${TIMING_NOTE}"
     else
         NOTES_FINAL="$TIMING_NOTE"
+    fi
+fi
+if [ -n "$LOAD_S" ]; then
+    if [ -n "$NOTES_FINAL" ]; then
+        NOTES_FINAL="${NOTES_FINAL}; load_s=${LOAD_S}"
+    else
+        NOTES_FINAL="load_s=${LOAD_S}"
+    fi
+fi
+if [ "$CLASSIC_PERF" -eq 1 ]; then
+    if [ -n "$NOTES_FINAL" ]; then
+        NOTES_FINAL="${NOTES_FINAL}; classic_perf=1"
+    else
+        NOTES_FINAL="classic_perf=1"
     fi
 fi
 # strip virgole e newline
@@ -1232,12 +1377,19 @@ printf '%s\n' "$CSV_LINE" >> "$CSV_PATH"
 
 echo "=== CSV row written → $CSV_PATH ===" >&2
 echo "$CSV_LINE" >&2
-echo "prompt_tok_s=$PROMPT_TOK_S eval_tok_s=$EVAL_TOK_S ttft_ms=$TTFT_MS" >&2
+echo "prompt_tok_s=$PROMPT_TOK_S eval_tok_s=$EVAL_TOK_S ttft_ms=$TTFT_MS load_s=${LOAD_S:-}" >&2
 echo "majflt_delta=$MAJFLT_DELTA minflt_delta=$MINFLT_DELTA read_bytes_delta=$READ_BYTES_DELTA" >&2
 echo "vmrss_peak_mb=$VMRSS_PEAK_MB memfree_min_mb=$MEMFREE_MIN_MB" >&2
 echo "batt_temp_start=$BATT_TEMP_START batt_temp_end=$BATT_TEMP_END" >&2
+echo "harness_timeout=$HARNESS_TIMEOUT run_timeout_s=$RUN_TIMEOUT_S classic_perf=$CLASSIC_PERF" >&2
 
-# Exit code: 0 se llama ok, 1 se llama fallito (riga comunque scritta)
+# Exit codes:
+#   0 = llama ok
+#   1 = llama fail (lmkd/OOM/crash) — VALID F3 data if row present
+#   8 = harness run-timeout — NOT valid data (notes BLOCKED/timeout)
+if [ "$HARNESS_TIMEOUT" -eq 1 ]; then
+    exit 8
+fi
 if [ "$LLAMA_RC" -ne 0 ]; then
     exit 1
 fi
