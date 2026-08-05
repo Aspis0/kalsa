@@ -24,10 +24,10 @@ export type RetrieveOptions = {
   maxCharsPerSnippet?: number;
 };
 
-const K1 = 1.2;
-const B = 0.75;
-const DELTA = 1.0;
-const RRF_K = 60;
+export const K1 = 1.2;
+export const B = 0.75;
+export const DELTA = 1.0;
+export const RRF_K = 60;
 const DEFAULT_TOP_N = 4;
 const DEFAULT_MAX_CHARS = 240;
 /** Drop below this; 6–9 char fragments are merged (see segmentSentences). */
@@ -35,9 +35,9 @@ const MIN_SENTENCE_LEN = 10;
 const MIN_KEEP_LEN = 6;
 const MAX_SENTENCE_LEN = 300;
 const MAX_QUERY_LEN = 2000;
-const JACCARD_DEDUP = 0.7;
+export const JACCARD_DEDUP = 0.7;
 /** Privacy gate: require this many shared content n-grams AND BM25+ > 0. */
-const MIN_SHARED_GRAMS = 3;
+export const MIN_SHARED_GRAMS = 3;
 
 /**
  * Declarative / durable-fact anchors (IT + EN). Multi-word phrases first.
@@ -100,7 +100,7 @@ function applyTranslit(s: string): string {
   return out;
 }
 
-function normalize(s: string): string {
+export function normalize(s: string): string {
   return applyTranslit(s)
     .toLowerCase()
     .normalize("NFKD")
@@ -146,7 +146,7 @@ function restoreSpans(text: string, spans: string[]): string {
  * - cap at MAX_SENTENCE_LEN; accept if final length ≥ MIN_SENTENCE_LEN (10)
  *   or was a merged short fact (≥ MIN_KEEP_LEN)
  */
-function segmentSentences(text: string): string[] {
+export function segmentSentences(text: string): string[] {
   if (!text) return [];
   const { text: protectedText, spans } = protectSpans(text);
   const parts = protectedText.split(/[.!?\n]+/);
@@ -197,7 +197,7 @@ function segmentSentences(text: string): string[] {
  * Character 3-grams and 4-grams over space-padded normalized text.
  * Single forward pass; only one string pad allocation.
  */
-function ngramCounts(normalized: string): Map<string, number> {
+export function ngramCounts(normalized: string): Map<string, number> {
   const counts = new Map<string, number>();
   if (!normalized) return counts;
   const padded = ` ${normalized} `;
@@ -214,14 +214,14 @@ function ngramCounts(normalized: string): Map<string, number> {
   return counts;
 }
 
-function tokenCount(tf: Map<string, number>): number {
+export function tokenCount(tf: Map<string, number>): number {
   let n = 0;
   for (const c of tf.values()) n += c;
   return n;
 }
 
 /** Count distinct query n-grams present in the document (content overlap). */
-function sharedGramCount(
+export function sharedGramCount(
   queryGrams: Map<string, number>,
   docTf: Map<string, number>,
 ): number {
@@ -269,13 +269,19 @@ function computeSalience(original: string): number {
   return score;
 }
 
-function idf(N: number, df: number): number {
+export function idf(N: number, df: number): number {
   return Math.log((N - df + 0.5) / (df + 0.5) + 1);
 }
 
-function bm25plus(
+/** Minimal doc shape for BM25+ (tf map + document length). */
+export interface Bm25Doc {
+  tf: Map<string, number>;
+  dl: number;
+}
+
+export function bm25plus(
   queryGrams: Map<string, number>,
-  doc: SentenceDoc,
+  doc: Bm25Doc,
   dfMap: Map<string, number>,
   N: number,
   avgdl: number,
@@ -293,7 +299,7 @@ function bm25plus(
   return score;
 }
 
-function jaccardWords(a: string, b: string): number {
+export function jaccardWords(a: string, b: string): number {
   const setA = new Set(a.split(/\s+/).filter(Boolean));
   const setB = new Set(b.split(/\s+/).filter(Boolean));
   if (setA.size === 0 && setB.size === 0) return 0;
@@ -316,7 +322,7 @@ function stableSortIndices(
 }
 
 /** Truncate to max code units, never splitting a surrogate pair; append … if cut. */
-function truncateWithEllipsis(s: string, maxChars: number): string {
+export function truncateWithEllipsis(s: string, maxChars: number): string {
   if (maxChars <= 0) return "";
   if (s.length <= maxChars) return s;
   if (maxChars === 1) return "…";

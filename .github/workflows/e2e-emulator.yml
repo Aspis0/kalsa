@@ -66,6 +66,7 @@ jobs:
           npm run typecheck
           node scripts/retrieverHarness.mjs
           node scripts/compactorHarness.mjs
+          node scripts/retrievalLoopHarness.mjs
 
       - name: Free disk space
         run: |
