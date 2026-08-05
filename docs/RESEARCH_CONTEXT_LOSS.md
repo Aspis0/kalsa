@@ -178,3 +178,19 @@ Il pezzo che *davvero* protegge il prefisso è la **finestra verbatim append-onl
 
 ### Razionale esplicita
 Questa sezione **revoca** la decisione V4.2 "Fast-track retriever CONGELATO per K turni". Il freeze era coerente se il digest fosse stato nel prefisso stabile; con formato B in coda all'user non lo è. Il summary resta frozen perché (1) è query-agnostic e (2) rigenerarlo ogni turno costa decine di secondi on-device.
+
+
+## Web fetch (2026-08-05)
+
+The tool-round budget was raised from 2 to 3 so a turn can do search → fetch → answer.
+That bump and the new per-turn execution cap (MAX_TOOL_EXECUTIONS_PER_TURN = 3) are
+**not yet benchmarked**. The V4.2 rule (do not raise tool budgets without re-bench) is
+**deferred, not waived**.
+
+What to measure before treating 3 rounds as production-settled:
+- prefill cost and tokens/s per tool round (1 vs 2 vs 3)
+- end-to-end turn latency with search-only (2 rounds) vs search+fetch (3 rounds)
+- tool-result transcript growth under the 2500-char tool-result cap
+- any regression in blank-bubble / final-round 	ool_choice: none completion rates
+
+Track under the usual Fase 0/4 harness; do not raise the cap further without that data.

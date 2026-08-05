@@ -57,6 +57,7 @@ export const en = {
     providerExa: "Exa API",
     providerBrave: "Brave Search",
     providerTavily: "Tavily",
+    providerFetch: "Page fetch",
     apiKey: "API key",
     apiKeyPlaceholder: "Paste your API key",
     apiKeyHint:
@@ -283,6 +284,7 @@ export const en = {
     thinking: "Thinking…",
     thinkingStatus: "Thinking",
     searching: "Searching the web…",
+    fetching: "Fetching page…",
     today: "Today · {time}",
     yesterday: "Yesterday",
     exportTitle: "Kalsa — conversation export",
@@ -460,11 +462,36 @@ export const en = {
     /**
      * Appended to web_search tool results so the model cites numbered results.
      * Only present on turns where a search actually returned a result list.
+     * Used when source indices are 1..n (no prior accumulated sources).
      */
     webSearchCiteInstruction:
       "When you use these results, cite them with bracketed numbers that match this list. " +
       "A claim taken from result 2 should be followed by [2]. You may combine several ([1][3]). " +
       "Do not invent a number that is not in this list.",
+    /**
+     * When tool sources are offset in the turn-accumulated list (e.g. fetch after
+     * search), map list items to absolute citation numbers: "{mapping}" looks like
+     * "1→[5], 2→[6]".
+     */
+    webToolCiteInstructionMapped:
+      "When you use these results, cite them with the bracketed numbers in this mapping " +
+      "(list item → citation): {mapping}. Do not invent a number that is not listed.",
+    webFetchEmptyUrl: "Missing page URL.",
+    webFetchEmptyQuery: "Missing query for page fetch.",
+    webFetchBlockedAllowlist:
+      "Fetch refused: that URL was not in this turn's search results or user message. " +
+      "Only pages already surfaced may be opened.",
+    webFetchBlockedRedirect:
+      "Fetch refused: the page redirected to a URL that is not allowed " +
+      "(private network, different host not in this turn's results, or https downgrade).",
+    webFetchUnsafeUrl: "Fetch refused: URL is not a safe publicly routable http(s) address.",
+    webFetchTimeout: "Page fetch timed out. Try again.",
+    webFetchHttpError: "Page fetch failed (HTTP {status}).",
+    webFetchUnsupportedContent: "Unsupported content type for fetch: {type}.",
+    webFetchTooLarge: "Page too large to fetch (declared {sizeKb} KB). Try a more specific page.",
+    webFetchNothingMatched:
+      "Page fetched ({host}) but nothing matched the query. Do not invent content from the page.",
+    webFetchFailed: "Page fetch failed: {message}",
     searchBothFailed: "{primary}; fallback Exa MCP: {fallback}",
     searchDeadline: "Search timed out. Try again.",
     searchInvalidResponse: "Invalid response from {provider}",
@@ -648,6 +675,7 @@ export const en = {
     "Never answer time-sensitive questions from memory alone. " +
     "If asked about something that may have changed (prices, news, events, people), use web_search — but only report what the search results actually say. " +
     "After web_search, base your answer on the results; if the results don't contain the answer, say so. " +
+    "You also have web_fetch: use it to open a promising search result or a user-provided link, always with a specific query. " +
     "Cite the sources you used by referencing their titles. " +
     "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
     "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). " +

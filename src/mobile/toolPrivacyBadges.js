@@ -13,6 +13,12 @@ const TOOL_PRIVACY_BADGES = {
     label: "Cloud on demand",
     mode: "export",
   },
+  web_fetch: {
+    detail:
+      "Only opens pages already returned by search or links you pasted; the page text is fetched on demand and cited in chat.",
+    label: "Cloud on demand",
+    mode: "export",
+  },
   calculator: {
     detail: "Math runs on device. Exports only happen when you share a file.",
     label: "Local only",

@@ -58,6 +58,7 @@ export const it: typeof en = {
     providerExa: "Exa API",
     providerBrave: "Brave Search",
     providerTavily: "Tavily",
+    providerFetch: "Fetch pagina",
     apiKey: "API key",
     apiKeyPlaceholder: "Incolla la tua API key",
     apiKeyHint:
@@ -280,6 +281,7 @@ export const it: typeof en = {
     thinking: "Sto pensando…",
     thinkingStatus: "Sto pensando",
     searching: "Cerco sul web…",
+    fetching: "Recupero pagina…",
     today: "Oggi · {time}",
     yesterday: "Ieri",
     exportTitle: "Kalsa — esportazione conversazione",
@@ -463,6 +465,25 @@ export const it: typeof en = {
       "Quando usi questi risultati, citali con numeri tra parentesi quadre che corrispondono a questa lista. " +
       "Una affermazione presa dal risultato 2 deve essere seguita da [2]. Puoi combinarne diversi ([1][3]). " +
       "Non inventare un numero che non è in questa lista.",
+    webToolCiteInstructionMapped:
+      "Quando usi questi risultati, citali con i numeri tra parentesi quadre di questa mappa " +
+      "(voce della lista → citazione): {mapping}. Non inventare un numero che non è elencato.",
+    webFetchEmptyUrl: "URL della pagina mancante.",
+    webFetchEmptyQuery: "Query mancante per il fetch della pagina.",
+    webFetchBlockedAllowlist:
+      "Fetch rifiutato: quell'URL non era nei risultati di ricerca di questo turno né nel messaggio utente. " +
+      "Si possono aprire solo pagine già emerse.",
+    webFetchBlockedRedirect:
+      "Fetch rifiutato: la pagina ha reindirizzato a un URL non consentito " +
+      "(rete privata, host diverso non nei risultati di questo turno, o downgrade https).",
+    webFetchUnsafeUrl: "Fetch rifiutato: l'URL non è un indirizzo http(s) pubblico e sicuro.",
+    webFetchTimeout: "Fetch della pagina scaduto per timeout. Riprova.",
+    webFetchHttpError: "Fetch della pagina fallito (HTTP {status}).",
+    webFetchUnsupportedContent: "Tipo di contenuto non supportato per il fetch: {type}.",
+    webFetchTooLarge: "Pagina troppo grande da recuperare (dichiarati {sizeKb} KB). Prova una pagina più specifica.",
+    webFetchNothingMatched:
+      "Pagina recuperata ({host}) ma nulla corrisponde alla query. Non inventare contenuti dalla pagina.",
+    webFetchFailed: "Fetch della pagina fallito: {message}",
     searchBothFailed: "{primary}; fallback Exa MCP: {fallback}",
     searchDeadline: "Ricerca scaduta per timeout. Riprova.",
     searchInvalidResponse: "Risposta non valida da {provider}",
@@ -623,6 +644,7 @@ export const it: typeof en = {
     "Non rispondere mai a domande time-sensitive solo dalla memoria. " +
     "Se ti chiedono qualcosa che può essere cambiato (prezzi, notizie, eventi, persone), usa web_search — ma riporta solo ciò che dicono davvero i risultati. " +
     "Dopo web_search, basa la risposta sui risultati; se i risultati non contengono la risposta, dillo. " +
+    "Hai anche web_fetch: usalo per aprire un risultato di ricerca promettente o un link fornito dall'utente, sempre con una query specifica. " +
     "Cita le fonti usate facendo riferimento ai titoli. " +
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
     "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). " +

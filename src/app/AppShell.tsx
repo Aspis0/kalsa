@@ -32,7 +32,13 @@ import {
   type EngineTurnOptions,
 } from "../engine/LlamaService";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
-import { useLocale } from "../i18n";
+import {
+  WEB_FETCH_TOOL,
+  makeFetchAllowlist,
+  makeWebFetchExecutor,
+  type FetchAllowlist,
+} from "../agent/webFetchTool";
+import { getStrings, useLocale } from "../i18n";
 import * as MemoryStore from "../memory/MemoryStore";
 import { isWhisperModelDownloaded, releaseWhisper } from "../voice/WhisperService";
 import { isTtsEnabled, setTtsEnabled } from "../voice/TtsService";
@@ -133,6 +139,12 @@ const MAX_SUMMARY_CORPUS_MESSAGES = 200;
  * multi-chat ships, or a send/clear on chat A will abort chat B's summary.
  */
 let summaryAbortController: AbortController | null = null;
+/**
+ * Monotonic per-send turn id for the web_fetch allowlist (F5).
+ * Keying on message text alone re-used the allowlist when the user re-sent the
+ * same text; identical consecutive messages must get a fresh allowlist.
+ */
+let fetchAllowlistTurnSeq = 0;
 /** Debounce timer: schedule summary only after idle (8s post-turn). */
 let summaryDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const SUMMARY_IDLE_DEBOUNCE_MS = 8_000;
@@ -306,16 +318,55 @@ export function AppShell() {
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Websearch (Fase 2): SEMPRE ATTIVO — è il modello a decidere se usarlo
-  // (info attuali, notizie, o richiesta esplicita). Le query partono solo
+  // ── Web tools (search + fetch): SEMPRE ATTIVI — il modello decide se usarli
+  // (info attuali, notizie, o richiesta esplicita). Le query / fetch partono solo
   // quando il tool viene chiamato (privacy by design).
-  const agentOptions = useMemo<EngineTurnOptions>(
-    () => ({
-      tools: [WEB_SEARCH_TOOL],
-      executeTool: makeWebSearchExecutor(locale),
-    }),
-    [locale],
-  );
+  // Per-turn allowlist: URLs from the user message + every web_search result;
+  // web_fetch may only open those (closes crafted-URL exfiltration).
+  const agentOptions = useMemo<EngineTurnOptions>(() => {
+    const searchExec = makeWebSearchExecutor(locale);
+    // Recreated when fetchAllowlistTurnSeq advances (each send); held across
+    // tool rounds within the same turn so search results stay allowlisted.
+    let allowlist: FetchAllowlist = makeFetchAllowlist();
+    let fetchExec = makeWebFetchExecutor(locale, allowlist);
+    let seededTurnSeq: number | null = null;
+
+    const ensureAllowlistForTurn = (lastUserMessage?: string) => {
+      if (seededTurnSeq === fetchAllowlistTurnSeq) return;
+      allowlist = makeFetchAllowlist();
+      if (lastUserMessage) allowlist.addFromText(lastUserMessage);
+      fetchExec = makeWebFetchExecutor(locale, allowlist);
+      seededTurnSeq = fetchAllowlistTurnSeq;
+    };
+
+    return {
+      tools: [WEB_SEARCH_TOOL, WEB_FETCH_TOOL],
+      executeTool: async (name, args, signal, lastUserMessage) => {
+        ensureAllowlistForTurn(lastUserMessage);
+
+        if (name === "web_search") {
+          const outcome = await searchExec(name, args, signal, lastUserMessage);
+          const sources = outcome.sources as Array<{ url?: string }> | undefined;
+          if (sources?.length) {
+            for (const source of sources) {
+              if (typeof source?.url === "string" && source.url) {
+                allowlist.add(source.url);
+              }
+            }
+          }
+          return outcome;
+        }
+
+        if (name === "web_fetch") {
+          return fetchExec(name, args, signal);
+        }
+
+        return {
+          text: getStrings(locale).errors.unknownTool.replace("{name}", name),
+        };
+      },
+    };
+  }, [locale]);
 
   // ── Drawer + exclusive overlay (settings | miniapp | null) ────────────────
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -958,6 +1009,8 @@ export function AppShell() {
 
         streamInFlightRef.current = true;
         setStreaming(true);
+        // Fresh web_fetch allowlist for every send (F5), even if text matches the previous turn.
+        fetchAllowlistTurnSeq += 1;
 
         void (async () => {
           let turnFailed = false;

@@ -2041,7 +2041,9 @@ export function AiChatPage({
                                           ? t("settings.providerBrave")
                                           : s.provider === "tavily"
                                             ? t("settings.providerTavily")
-                                            : s.provider,
+                                            : s.provider === "fetch"
+                                              ? t("settings.providerFetch")
+                                              : s.provider,
                                 })}
                               </Text>
                             ) : null}

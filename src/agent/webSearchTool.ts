@@ -163,13 +163,9 @@ export function makeWebSearchExecutor(locale: Locale): (
         )}\n\n`
       : "";
 
-    // Cite instruction sits next to the numbered list — only when search returned results.
-    const cite =
-      outcome.results.length > 0
-        ? `\n\n${strings.errors.webSearchCiteInstruction}`
-        : "";
-
-    return { text: `${note}${body}${cite}`, sources };
+    // Cite instruction with absolute source numbers is appended by LlamaService
+    // after per-turn source accumulation (search + fetch share one [N] space).
+    return { text: `${note}${body}`, sources };
   };
 }
 

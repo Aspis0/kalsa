@@ -54,6 +54,8 @@ jobs:
           node scripts/compactorHarness.mjs
           node scripts/retrievalLoopHarness.mjs
           node scripts/htmlToTextHarness.mjs
+          node scripts/webFetchHarness.mjs
+          node scripts/toolSourceLedgerHarness.mjs
 
       - name: Free disk space
         run: |
