@@ -341,6 +341,17 @@ Fatti [V] che vincolano il design:
 | FlashMoE (arXiv:2601.17063) | SSD offload + cache ML recency+frequency | hit +51% vs LRU/LFU, 2.6x — ma DESKTOP | — |
 | **DraftExpert** (arXiv:2607.24434) | draft expert residenti distillati per layer, self-speculative + prefetch del target | **1.45x**, acceptance 84-87%, prefetch hit 86-88% (DeepSeek-V2-Lite, Moonlight-16B-A3B; scenari CPU→GPU e Flash→NPU) | no |
 | EVICT (arXiv:2605.00342) | speculative decoding expert-aware (albero di draft che minimizza l'unione di esperti) | −32.5% esperti attivati vs EAGLE-3 | — |
+| **kimi-k3-in-c** (FareedKhan-dev, 2026) | C99 puro, `pread` **O_DIRECT** (bypassa il page cache), LRU + batch prefetch; anche il trunk denso (109GB bf16) è streamato via ring buffer; budget RAM "a manopola" con output byte-identico a ogni preset | Kimi K3 **2.78T** (896 esperti/layer, 16 attivi) in 8.24GB RSS — ma **~32 s/token** su dual EPYC 7763 + NVMe 5-6 GB/s | sì (Linux x86-64 only: O_DIRECT, no ARM/Android) |
+
+Nota su kimi-k3-in-c (aggiunta 2026-08-05): è la dimostrazione più estrema del principio di
+questo progetto (checkpoint/RAM ≈ 190:1 contro il nostro ≈ 1.6:1), ma il caso "8GB" è lento
+(~0.03 tok/s) proprio perché lì **anche il trunk denso viene ri-letto da disco a ogni token**;
+nel nostro setup trunk+shared expert stanno in RAM e si streamano solo i routed → regime
+molto più favorevole, la finestra 5-8 tok/s resta plausibile. Takeaway tecnico per F8: la
+loro scelta `O_DIRECT`+`pread` batte l'I/O bufferizzato e **non inquina il page cache** —
+rilevante per noi visti i majflt storm di F2; da valutare se il read path di BigMoeOnEdge
+possa usare O_DIRECT su f2fs/FBE Android (esperimento, non prerequisito). NON è un runtime
+candidato per S23.
 
 **Gap che questo progetto copre** (dai report, riformulati come obiettivi):
 
