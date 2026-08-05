@@ -1,0 +1,9 @@
+# F3 connectivity evidence (PC-side)
+reboot_issued: 2026-08-05T16:46:25-04:00
+pre_reboot_battery: 93% UNPLUGGED 27.8C
+pre_reboot_model_size: 11522702304
+pre_reboot_binary_pin: 67d5978
+post_reboot_ping: OK 192.168.1.152
+post_reboot_ssh_8022: CLOSED / Connection refused through 2026-08-05T17:08:00-04:00 (~21 min)
+post_reboot_adb: no devices
+status: BLOCKED(connettivita post-reboot)
