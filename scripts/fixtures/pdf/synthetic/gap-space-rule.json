@@ -1,0 +1,89 @@
+{
+  "synthetic": true,
+  "source": "hand-constructed TextItems (geometry from measured Helvetica 12pt widths of 07-gap-space-rule.pdf dump)",
+  "changed": "Not a pdf.js stream. Alpha/Beta with no intermediate space TextItem (wide gap); Glue/Me as separate runs with sub-threshold gap; Wi-/Fi for dehyphen. Real getTextContent() synthesizes a space between Alpha/Beta and merges GlueMe.",
+  "why": "pdf.js merges runs and inserts its own space items, so the gap-rule branch fires zero times on all 10 verbatim fixture pages. Merging cannot be switched off with the vendored build: disableCombineTextItems was removed in pdf.js 3.0 and is absent from 3.11.174 (the 2026-08-05 probe-nocombine.js run passed an ignored option, which is why its two columns were identical). The branch still guards PDFs whose inter-run gap falls between pdf.js's space threshold and ours; our corpus does not contain one, so this stream is hand-built.",
+  "pdfjsVersion": "n/a (synthetic)",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "items": [
+        {
+          "str": "Alpha",
+          "width": 30.684,
+          "transform": [
+            12,
+            0,
+            0,
+            12,
+            50,
+            700
+          ]
+        },
+        {
+          "str": "Beta",
+          "hasEOL": true,
+          "width": 24.684,
+          "transform": [
+            12,
+            0,
+            0,
+            12,
+            95,
+            700
+          ]
+        },
+        {
+          "str": "Glue",
+          "width": 25.344,
+          "transform": [
+            12,
+            0,
+            0,
+            12,
+            50,
+            670
+          ]
+        },
+        {
+          "str": "Me",
+          "hasEOL": true,
+          "width": 16.668,
+          "transform": [
+            12,
+            0,
+            0,
+            12,
+            76,
+            670
+          ]
+        },
+        {
+          "str": "Wi-",
+          "hasEOL": true,
+          "width": 17.988,
+          "transform": [
+            12,
+            0,
+            0,
+            12,
+            50,
+            640
+          ]
+        },
+        {
+          "str": "Fi network adapter",
+          "width": 99.372,
+          "transform": [
+            12,
+            0,
+            0,
+            12,
+            50,
+            626
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "generatedBy": "spike-pdf/dump-golden.js",
+  "pdfjsVersion": "3.11.174",
+  "sourcePdf": "05-cjk-needs-cmap.pdf",
+  "note": "Verbatim pdf.js getTextContent() items (trimmed). Do not hand-edit values.",
+  "maxItemsPerPage": 200,
+  "pages": [
+    {
+      "source": "cjk-needs-cmap",
+      "pageNumber": 1,
+      "itemCountFull": 0,
+      "itemCount": 0,
+      "items": []
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "ascii",
+    "error": "missing pdf"
+  },
+  {
+    "name": "italian-accents",
+    "error": "missing pdf"
+  },
+  {
+    "name": "two-columns",
+    "error": "missing pdf"
+  },
+  {
+    "name": "cjk-needs-cmap",
+    "error": "missing pdf"
+  },
+  {
+    "name": "cjk-tounicode",
+    "error": "missing pdf"
+  },
+  {
+    "name": "arxiv",
+    "error": "missing pdf"
+  },
+  {
+    "name": "italian-const",
+    "error": "missing pdf"
+  },
+  {
+    "name": "tracemonkey",
+    "error": "missing pdf"
+  },
+  {
+    "name": "jp-stat",
+    "error": "missing pdf"
+  },
+  {
+    "name": "iso-dense",
+    "error": "missing pdf"
+  }
+]

@@ -1,0 +1,3297 @@
+{
+  "generatedBy": "spike-pdf/dump-golden.js",
+  "pdfjsVersion": "3.11.174",
+  "sourcePdf": "real/arxiv-1706.03762.pdf",
+  "note": "Verbatim pdf.js getTextContent() items (trimmed). Do not hand-edit values.",
+  "maxItemsPerPage": 200,
+  "pages": [
+    {
+      "source": "arxiv",
+      "pageNumber": 1,
+      "itemCountFull": 99,
+      "itemCount": 99,
+      "items": [
+        {
+          "str": "Provided proper attribution is provided, Google hereby grants permission to",
+          "hasEOL": true,
+          "width": 362.6729472,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            124.666,
+            710.037
+          ]
+        },
+        {
+          "str": "reproduce the tables and figures in this paper solely for use in journalistic or",
+          "hasEOL": true,
+          "width": 363.58154240000016,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            124.313,
+            696.09
+          ]
+        },
+        {
+          "str": "scholarly works.",
+          "width": 78.90432000000003,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            267.594,
+            682.142
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            17.2154,
+            0,
+            0,
+            17.2154,
+            211.488,
+            629.957
+          ]
+        },
+        {
+          "str": "Attention Is All You Need",
+          "width": 188.4053376000001,
+          "transform": [
+            17.2154,
+            0,
+            0,
+            17.2154,
+            211.488,
+            629.957
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            132.908,
+            549.305
+          ]
+        },
+        {
+          "str": "Ashish Vaswani",
+          "width": 66.89885899999999,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            132.908,
+            549.305
+          ]
+        },
+        {
+          "str": "∗",
+          "width": 4.08176514,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            199.807,
+            552.92
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            139.379,
+            538.396
+          ]
+        },
+        {
+          "str": "Google Brain",
+          "width": 53.95744159999999,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            139.379,
+            538.396
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            116.68099999999998,
+            527.487
+          ]
+        },
+        {
+          "str": "avaswani@google.com",
+          "width": 99.35800605999998,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            116.68099999999998,
+            527.487
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            239.06199999999998,
+            549.305
+          ]
+        },
+        {
+          "str": "Noam Shazeer",
+          "width": 61.698381800000014,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            239.06199999999998,
+            549.305
+          ]
+        },
+        {
+          "str": "∗",
+          "width": 4.08176514,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            300.76,
+            552.92
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            242.932,
+            538.396
+          ]
+        },
+        {
+          "str": "Google Brain",
+          "width": 53.95744160000002,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            242.932,
+            538.396
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            230.69199999999998,
+            527.487
+          ]
+        },
+        {
+          "str": "noam@google.com",
+          "width": 78.44053109999999,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            230.69199999999998,
+            527.487
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            338.692,
+            549.305
+          ]
+        },
+        {
+          "str": "Niki Parmar",
+          "width": 53.857815600000016,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            338.692,
+            549.305
+          ]
+        },
+        {
+          "str": "∗",
+          "width": 4.08176514,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            392.549,
+            552.92
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            331.45399999999995,
+            538.396
+          ]
+        },
+        {
+          "str": "Google Research",
+          "width": 68.33347340000002,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            331.45399999999995,
+            538.396
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            323.787,
+            527.487
+          ]
+        },
+        {
+          "str": "nikip@google.com",
+          "width": 83.66989983999999,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            323.787,
+            527.487
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            424.29999999999995,
+            549.305
+          ]
+        },
+        {
+          "str": "Jakob Uszkoreit",
+          "width": 68.83160340000009,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            424.29999999999995,
+            549.305
+          ]
+        },
+        {
+          "str": "∗",
+          "width": 4.08176514,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            493.131,
+            552.92
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            424.549,
+            538.396
+          ]
+        },
+        {
+          "str": "Google Research",
+          "width": 68.33347340000002,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            424.549,
+            538.396
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            422.11199999999997,
+            527.487
+          ]
+        },
+        {
+          "str": "usz@google.com",
+          "width": 73.21116235999999,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            422.11199999999997,
+            527.487
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            144.29199999999997,
+            499.308
+          ]
+        },
+        {
+          "str": "Llion Jones",
+          "width": 48.84662779999999,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            144.29199999999997,
+            499.308
+          ]
+        },
+        {
+          "str": "∗",
+          "width": 4.08176514,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            193.13799999999998,
+            502.923
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            134.54799999999997,
+            488.399
+          ]
+        },
+        {
+          "str": "Google Research",
+          "width": 68.33347339999999,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            134.54799999999997,
+            488.399
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            126.88199999999998,
+            477.489
+          ]
+        },
+        {
+          "str": "llion@google.com",
+          "width": 83.66989983999999,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            126.88199999999998,
+            477.489
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            248.76099999999997,
+            499.308
+          ]
+        },
+        {
+          "str": "Aidan N. Gomez",
+          "width": 70.56509580000004,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            248.76099999999997,
+            499.308
+          ]
+        },
+        {
+          "str": "∗ †",
+          "width": 10.963510980000008,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            319.32599999999996,
+            502.923
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            244.57499999999996,
+            488.399
+          ]
+        },
+        {
+          "str": "University of Toronto",
+          "width": 86.24622820000009,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            244.57499999999996,
+            488.399
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            235.40699999999995,
+            477.489
+          ]
+        },
+        {
+          "str": "aidan@cs.toronto.edu",
+          "width": 104.58737479999998,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            235.40699999999995,
+            477.489
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            394.12499999999994,
+            499.308
+          ]
+        },
+        {
+          "str": "Łukasz Kaiser",
+          "width": 61.71830700000001,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            394.12499999999994,
+            499.308
+          ]
+        },
+        {
+          "str": "∗",
+          "width": 4.08176514,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            455.8419999999999,
+            502.923
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            398.00499999999994,
+            488.399
+          ]
+        },
+        {
+          "str": "Google Brain",
+          "width": 53.95744160000002,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            398.00499999999994,
+            488.399
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            364.84899999999993,
+            477.49
+          ]
+        },
+        {
+          "str": "lukaszkaiser@google.com",
+          "width": 120.26551841999998,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            364.84899999999993,
+            477.49
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            268.8069999999999,
+            449.31
+          ]
+        },
+        {
+          "str": "Illia Polosukhin",
+          "width": 67.07818580000003,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            268.8069999999999,
+            449.31
+          ]
+        },
+        {
+          "str": "∗ ‡",
+          "width": 10.963510980000008,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            335.8839999999999,
+            452.926
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            238.0219999999999,
+            438.401
+          ]
+        },
+        {
+          "str": "illia.polosukhin@gmail.com",
+          "width": 135.95362464,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            238.0219999999999,
+            438.401
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            283.7579999999999,
+            397.219
+          ]
+        },
+        {
+          "str": "Abstract",
+          "width": 44.4852992,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            283.7579999999999,
+            397.219
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            143.557,
+            371.035
+          ]
+        },
+        {
+          "str": "The dominant sequence transduction models are based on complex recurrent or",
+          "hasEOL": true,
+          "width": 324.7423043640002,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            143.557,
+            371.035
+          ]
+        },
+        {
+          "str": "convolutional neural networks that include an encoder and a decoder. The best",
+          "hasEOL": true,
+          "width": 324.2646973200001,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            143.866,
+            360.126
+          ]
+        },
+        {
+          "str": "performing models also connect the encoder and decoder through an attention",
+          "hasEOL": true,
+          "width": 324.26469732000004,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            143.866,
+            349.217
+          ]
+        },
+        {
+          "str": "mechanism. We propose a new simple network architecture, the Transformer,",
+          "hasEOL": true,
+          "width": 325.5146051160002,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            143.866,
+            338.308
+          ]
+        },
+        {
+          "str": "based solely on attention mechanisms, dispensing with recurrence and convolutions",
+          "hasEOL": true,
+          "width": 324.2700771239999,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            143.866,
+            327.399
+          ]
+        },
+        {
+          "str": "entirely.",
+          "width": 32.934562332000006,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            143.866,
+            316.49
+          ]
+        },
+        {
+          "str": " ",
+          "width": 6.007447800000002,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            176.800562332,
+            316.49
+          ]
+        },
+        {
+          "str": "Experiments on two machine translation tasks show these models to",
+          "hasEOL": true,
+          "width": 285.20253823199994,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            182.928159088,
+            316.49
+          ]
+        },
+        {
+          "str": "be superior in quality while being more parallelizable and requiring significantly",
+          "hasEOL": true,
+          "width": 324.6150221863998,
+          "transform": [
+            10.0821512,
+            0,
+            0,
+            9.9626,
+            143.866,
+            305.581
+          ]
+        },
+        {
+          "str": "less time to train. Our model achieves 28.4 BLEU on the WMT 2014 English-",
+          "hasEOL": true,
+          "width": 325.9210791959997,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            143.866,
+            294.672
+          ]
+        },
+        {
+          "str": "to-German translation task, improving over the existing best results, including",
+          "hasEOL": true,
+          "width": 324.26469732,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            143.866,
+            283.762
+          ]
+        },
+        {
+          "str": "ensembles, by over 2 BLEU. On the WMT 2014 English-to-French translation task,",
+          "hasEOL": true,
+          "width": 325.51002231999985,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            143.866,
+            272.853
+          ]
+        },
+        {
+          "str": "our model establishes a new single-model state-of-the-art BLEU score of 41.8 after",
+          "hasEOL": true,
+          "width": 324.43605404000004,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            143.866,
+            261.944
+          ]
+        },
+        {
+          "str": "training for 3.5 days on eight GPUs, a small fraction of the training costs of the",
+          "hasEOL": true,
+          "width": 324.26469732,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            143.866,
+            251.035
+          ]
+        },
+        {
+          "str": "best models from the literature. We show that the Transformer generalizes well to",
+          "hasEOL": true,
+          "width": 324.26553417839995,
+          "transform": [
+            9.9227496,
+            0,
+            0,
+            9.9626,
+            143.866,
+            240.126
+          ]
+        },
+        {
+          "str": "other tasks by applying it successfully to English constituency parsing both with",
+          "hasEOL": true,
+          "width": 324.27286665199995,
+          "transform": [
+            10.112039,
+            0,
+            0,
+            9.9626,
+            143.866,
+            229.217
+          ]
+        },
+        {
+          "str": "large and limited training data.",
+          "width": 122.4005036,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            143.866,
+            218.308
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            5.9776,
+            0,
+            0,
+            5.9776,
+            119.822,
+            189.954
+          ]
+        },
+        {
+          "str": "∗",
+          "width": 3.8190886399999995,
+          "transform": [
+            5.9776,
+            0,
+            0,
+            5.9776,
+            119.822,
+            189.954
+          ]
+        },
+        {
+          "str": "Equal contribution. Listing order is random. Jakob proposed replacing RNNs with self-attention and started",
+          "hasEOL": true,
+          "width": 379.8569183039999,
+          "transform": [
+            8.7960384,
+            0,
+            0,
+            8.9664,
+            124.14,
+            186.145
+          ]
+        },
+        {
+          "str": "the effort to evaluate this idea. Ashish, with Illia, designed and implemented the first Transformer models and",
+          "hasEOL": true,
+          "width": 395.99668039679966,
+          "transform": [
+            9.0381312,
+            0,
+            0,
+            8.9664,
+            108,
+            176.183
+          ]
+        },
+        {
+          "str": "has been crucially involved in every aspect of this work. Noam proposed scaled dot-product attention, multi-head",
+          "hasEOL": true,
+          "width": 395.99818675200004,
+          "transform": [
+            8.787072,
+            0,
+            0,
+            8.9664,
+            108,
+            166.22
+          ]
+        },
+        {
+          "str": "attention and the parameter-free position representation and became the other person involved in nearly every",
+          "hasEOL": true,
+          "width": 396.3140640576004,
+          "transform": [
+            9.0650304,
+            0,
+            0,
+            8.9664,
+            108,
+            156.257
+          ]
+        },
+        {
+          "str": "detail. Niki designed, implemented, tuned and evaluated countless model variants in our original codebase and",
+          "hasEOL": true,
+          "width": 395.99651900159984,
+          "transform": [
+            8.9484672,
+            0,
+            0,
+            8.9664,
+            108,
+            146.295
+          ]
+        },
+        {
+          "str": "tensor2tensor. Llion also experimented with novel model variants, was responsible for our initial codebase, and",
+          "hasEOL": true,
+          "width": 395.9995496448,
+          "transform": [
+            8.8946688,
+            0,
+            0,
+            8.9664,
+            108,
+            136.332
+          ]
+        },
+        {
+          "str": "efficient inference and visualizations. Lukasz and Aidan spent countless long days designing various parts of and",
+          "hasEOL": true,
+          "width": 395.9981867520001,
+          "transform": [
+            8.787072,
+            0,
+            0,
+            8.9664,
+            108,
+            126.369
+          ]
+        },
+        {
+          "str": "implementing tensor2tensor, replacing our earlier codebase, greatly improving results and massively accelerating",
+          "hasEOL": true,
+          "width": 395.99818675199987,
+          "transform": [
+            8.787072,
+            0,
+            0,
+            8.9664,
+            108,
+            116.407
+          ]
+        },
+        {
+          "str": "our research.",
+          "width": 46.302489600000015,
+          "transform": [
+            8.9664,
+            0,
+            0,
+            8.9664,
+            108,
+            106.444
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            5.9776,
+            0,
+            0,
+            5.9776,
+            120.21000000000001,
+            99.304
+          ]
+        },
+        {
+          "str": "†",
+          "width": 3.43174016,
+          "transform": [
+            5.9776,
+            0,
+            0,
+            5.9776,
+            120.21000000000001,
+            99.304
+          ]
+        },
+        {
+          "str": "Work performed while at Google Brain.",
+          "width": 143.21134080000007,
+          "transform": [
+            8.9664,
+            0,
+            0,
+            8.9664,
+            124.14000000000001,
+            95.495
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            5.9776,
+            0,
+            0,
+            5.9776,
+            120.21000000000001,
+            88.355
+          ]
+        },
+        {
+          "str": "‡",
+          "width": 3.43174016,
+          "transform": [
+            5.9776,
+            0,
+            0,
+            5.9776,
+            120.21000000000001,
+            88.355
+          ]
+        },
+        {
+          "str": "Work performed while at Google Research.",
+          "hasEOL": true,
+          "width": 156.1498560000001,
+          "transform": [
+            8.9664,
+            0,
+            0,
+            8.9664,
+            124.14000000000001,
+            84.546
+          ]
+        },
+        {
+          "str": "31st Conference on Neural Information Processing Systems (NIPS 2017), Long Beach, CA, USA.",
+          "width": 352.13742720000016,
+          "transform": [
+            8.9664,
+            0,
+            0,
+            8.9664,
+            108.00000000000001,
+            52.123000000000005
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            0,
+            20,
+            -20,
+            0,
+            32,
+            237
+          ]
+        },
+        {
+          "str": "arXiv:1706.03762v7 [cs.CL] 2 Aug 2023",
+          "width": 341.08,
+          "transform": [
+            0,
+            20,
+            -20,
+            0,
+            32,
+            237
+          ]
+        }
+      ]
+    },
+    {
+      "source": "arxiv",
+      "pageNumber": 2,
+      "itemCountFull": 165,
+      "itemCount": 165,
+      "items": [
+        {
+          "str": "1",
+          "width": 5.9776,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            108,
+            710.037
+          ]
+        },
+        {
+          "str": " ",
+          "width": 11.955200000000005,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            113.9776,
+            710.037
+          ]
+        },
+        {
+          "str": "Introduction",
+          "width": 64.8808704,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            125.9328,
+            710.037
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            685.354
+          ]
+        },
+        {
+          "str": "Recurrent neural networks, long short-term memory [",
+          "width": 218.95742504400016,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            685.354
+          ]
+        },
+        {
+          "str": "13",
+          "width": 9.9626,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            326.954,
+            685.354
+          ]
+        },
+        {
+          "str": "] and gated recurrent [",
+          "width": 90.80630947200011,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            336.916,
+            685.354
+          ]
+        },
+        {
+          "str": "7",
+          "width": 4.9813,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            427.722,
+            685.354
+          ]
+        },
+        {
+          "str": "] neural networks",
+          "hasEOL": true,
+          "width": 71.29555363200005,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            432.703,
+            685.354
+          ]
+        },
+        {
+          "str": "in particular, have been firmly established as state of the art approaches in sequence modeling and",
+          "hasEOL": true,
+          "width": 395.9976887927999,
+          "transform": [
+            10.131964199999999,
+            0,
+            0,
+            9.9626,
+            108,
+            674.445
+          ]
+        },
+        {
+          "str": "transduction problems such as language modeling and machine translation [",
+          "width": 312.29403566400003,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            663.536
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.002964336000502499,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            420.2940356639995,
+            663.536
+          ]
+        },
+        {
+          "str": "35",
+          "width": 9.9626,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            420.297,
+            663.536
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0003921568627581163,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            430.2596,
+            663.536
+          ]
+        },
+        {
+          "str": ",",
+          "width": 2.540463,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            430.26,
+            663.536
+          ]
+        },
+        {
+          "str": " ",
+          "width": 2.9635370000000307,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            432.800463,
+            663.536
+          ]
+        },
+        {
+          "str": "2",
+          "width": 4.9813,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            435.764,
+            663.536
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0006862745097988391,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            440.7453,
+            663.536
+          ]
+        },
+        {
+          "str": ",",
+          "width": 2.540463,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            440.746,
+            663.536
+          ]
+        },
+        {
+          "str": " ",
+          "width": 2.964537000000007,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            443.28646299999997,
+            663.536
+          ]
+        },
+        {
+          "str": "5",
+          "width": 4.9813,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            446.251,
+            663.536
+          ]
+        },
+        {
+          "str": "]. Numerous",
+          "hasEOL": true,
+          "width": 52.77049743599997,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            451.232,
+            663.536
+          ]
+        },
+        {
+          "str": "efforts have since continued to push the boundaries of recurrent language models and encoder-decoder",
+          "hasEOL": true,
+          "width": 396.1673717959998,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            108,
+            652.627
+          ]
+        },
+        {
+          "str": "architectures [38, 24, 15].",
+          "hasEOL": true,
+          "width": 102.365715,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            108,
+            641.718
+          ]
+        },
+        {
+          "str": "Recurrent models typically factor computation along the symbol positions of the input and output",
+          "hasEOL": true,
+          "width": 395.9972105879996,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            625.329
+          ]
+        },
+        {
+          "str": "sequences. Aligning the positions to steps in computation time, they generate a sequence of hidden",
+          "hasEOL": true,
+          "width": 395.997011336,
+          "transform": [
+            10.0024504,
+            0,
+            0,
+            9.9626,
+            108,
+            614.42
+          ]
+        },
+        {
+          "str": "states",
+          "width": 21.915528228,
+          "transform": [
+            9.862974,
+            0,
+            0,
+            9.9626,
+            108,
+            603.511
+          ]
+        },
+        {
+          "str": " ",
+          "width": 2.5156280525252877,
+          "transform": [
+            9.862974,
+            0,
+            0,
+            9.9626,
+            129.91552822799997,
+            603.511
+          ]
+        },
+        {
+          "str": "h",
+          "width": 5.74045012,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            132.406,
+            603.511
+          ]
+        },
+        {
+          "str": "t",
+          "width": 3.00989208,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            138.14600000000002,
+            602.0169999999999
+          ]
+        },
+        {
+          "str": ", as a function of the previous hidden state",
+          "width": 166.77302736600004,
+          "transform": [
+            9.862974,
+            0,
+            0,
+            9.9626,
+            141.654,
+            603.511
+          ]
+        },
+        {
+          "str": " ",
+          "width": 2.5191642767676647,
+          "transform": [
+            9.862974,
+            0,
+            0,
+            9.9626,
+            308.427027366,
+            603.511
+          ]
+        },
+        {
+          "str": "h",
+          "width": 5.74045012,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            310.921,
+            603.511
+          ]
+        },
+        {
+          "str": "t",
+          "width": 3.00989208,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            316.661,
+            602.0169999999999
+          ]
+        },
+        {
+          "str": "−",
+          "width": 6.2269060199999995,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            319.67,
+            602.0169999999999
+          ]
+        },
+        {
+          "str": "1",
+          "width": 3.9715790999999996,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            325.897,
+            602.0169999999999
+          ]
+        },
+        {
+          "str": " ",
+          "width": 2.988420900000051,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            329.8685791,
+            602.0169999999999
+          ]
+        },
+        {
+          "str": "and the input for position",
+          "width": 99.82315985400001,
+          "transform": [
+            9.862974,
+            0,
+            0,
+            9.9626,
+            332.857,
+            603.511
+          ]
+        },
+        {
+          "str": " ",
+          "width": 2.5190304505049608,
+          "transform": [
+            9.862974,
+            0,
+            0,
+            9.9626,
+            432.68015985400007,
+            603.511
+          ]
+        },
+        {
+          "str": "t",
+          "width": 3.5974948600000003,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            435.174,
+            603.511
+          ]
+        },
+        {
+          "str": ". This inherently",
+          "hasEOL": true,
+          "width": 65.57891412599996,
+          "transform": [
+            9.862974,
+            0,
+            0,
+            9.9626,
+            438.772,
+            603.511
+          ]
+        },
+        {
+          "str": "sequential nature precludes parallelization within training examples, which becomes critical at longer",
+          "hasEOL": true,
+          "width": 396.16737179599977,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            108,
+            592.602
+          ]
+        },
+        {
+          "str": "sequence lengths, as memory constraints limit batching across examples. Recent work has achieved",
+          "hasEOL": true,
+          "width": 395.9973699895999,
+          "transform": [
+            9.9327122,
+            0,
+            0,
+            9.9626,
+            108,
+            581.693
+          ]
+        },
+        {
+          "str": "significant improvements in computational efficiency through factorization tricks [",
+          "width": 320.27686779199973,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            108,
+            570.784
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0011322080005129465,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            428.2768677919995,
+            570.784
+          ]
+        },
+        {
+          "str": "21",
+          "width": 9.9626,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            428.278,
+            570.784
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.00040816326531967206,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            438.2406,
+            570.784
+          ]
+        },
+        {
+          "str": "] and conditional",
+          "hasEOL": true,
+          "width": 65.75614877999996,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            438.241,
+            570.784
+          ]
+        },
+        {
+          "str": "computation [",
+          "width": 56.571667690400005,
+          "transform": [
+            10.1419268,
+            0,
+            0,
+            9.9626,
+            108,
+            559.875
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.004332309599988093,
+          "transform": [
+            10.1419268,
+            0,
+            0,
+            9.9626,
+            164.5716676904,
+            559.875
+          ]
+        },
+        {
+          "str": "32",
+          "width": 9.9626,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            164.576,
+            559.875
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0003929273084330618,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            174.5386,
+            559.875
+          ]
+        },
+        {
+          "str": "], while also improving model performance in case of the latter. The fundamental",
+          "hasEOL": true,
+          "width": 329.4604920980001,
+          "transform": [
+            10.1419268,
+            0,
+            0,
+            9.9626,
+            174.539,
+            559.875
+          ]
+        },
+        {
+          "str": "constraint of sequential computation, however, remains.",
+          "hasEOL": true,
+          "width": 222.52463360000016,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            108,
+            548.966
+          ]
+        },
+        {
+          "str": "Attention mechanisms have become an integral part of compelling sequence modeling and transduc-",
+          "hasEOL": true,
+          "width": 398.0143182847999,
+          "transform": [
+            9.9028244,
+            0,
+            0,
+            9.9626,
+            107.641,
+            532.577
+          ]
+        },
+        {
+          "str": "tion models in various tasks, allowing modeling of dependencies without regard to their distance in",
+          "hasEOL": true,
+          "width": 395.99701133599956,
+          "transform": [
+            10.0024504,
+            0,
+            0,
+            9.9626,
+            108,
+            521.668
+          ]
+        },
+        {
+          "str": "the input or output sequences [",
+          "width": 119.84509670000008,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            108,
+            510.759
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0019032999998955802,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            227.8450967000001,
+            510.759
+          ]
+        },
+        {
+          "str": "2",
+          "width": 4.9813,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            227.847,
+            510.759
+          ]
+        },
+        {
+          "str": ",",
+          "width": 2.440837,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            232.828,
+            510.759
+          ]
+        },
+        {
+          "str": " ",
+          "width": 2.3851630000000057,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            235.268837,
+            510.759
+          ]
+        },
+        {
+          "str": "19",
+          "width": 9.9626,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            237.654,
+            510.759
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0004081632652906703,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            247.6166,
+            510.759
+          ]
+        },
+        {
+          "str": "]. In all but a few cases [",
+          "width": 95.79797057600004,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            247.617,
+            510.759
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0020294240001703656,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            343.4149705759998,
+            510.759
+          ]
+        },
+        {
+          "str": "27",
+          "width": 9.9626,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            343.417,
+            510.759
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0004081632653776756,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            353.3795999999999,
+            510.759
+          ]
+        },
+        {
+          "str": "], however, such attention mechanisms",
+          "hasEOL": true,
+          "width": 150.61916959600012,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            353.38,
+            510.759
+          ]
+        },
+        {
+          "str": "are used in conjunction with a recurrent network.",
+          "hasEOL": true,
+          "width": 195.78501520000003,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            108,
+            499.85
+          ]
+        },
+        {
+          "str": "In this work we propose the Transformer, a model architecture eschewing recurrence and instead",
+          "hasEOL": true,
+          "width": 395.99721058799986,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            483.461
+          ]
+        },
+        {
+          "str": "relying entirely on an attention mechanism to draw global dependencies between input and output.",
+          "hasEOL": true,
+          "width": 397.73895202079945,
+          "transform": [
+            10.1020764,
+            0,
+            0,
+            9.9626,
+            108,
+            472.552
+          ]
+        },
+        {
+          "str": "The Transformer allows for significantly more parallelization and can reach a new state of the art in",
+          "hasEOL": true,
+          "width": 396.3122280000002,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            107.691,
+            461.643
+          ]
+        },
+        {
+          "str": "translation quality after being trained for as little as twelve hours on eight P100 GPUs.",
+          "width": 344.357269,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            108,
+            450.734
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            108,
+            419.724
+          ]
+        },
+        {
+          "str": "2",
+          "width": 5.9776,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            108,
+            419.724
+          ]
+        },
+        {
+          "str": " ",
+          "width": 11.955200000000005,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            113.9776,
+            419.724
+          ]
+        },
+        {
+          "str": "Background",
+          "width": 62.896307199999995,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            125.9328,
+            419.724
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.8430488,
+            0,
+            0,
+            9.9626,
+            107.691,
+            395.041
+          ]
+        },
+        {
+          "str": "The goal of reducing sequential computation also forms the foundation of the Extended Neural GPU",
+          "hasEOL": true,
+          "width": 396.3106738343997,
+          "transform": [
+            9.8430488,
+            0,
+            0,
+            9.9626,
+            107.691,
+            395.041
+          ]
+        },
+        {
+          "str": "[",
+          "width": 3.251194884,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            108,
+            384.132
+          ]
+        },
+        {
+          "str": "16",
+          "width": 9.9626,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            111.251,
+            384.132
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0004081632652906703,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            121.21360000000001,
+            384.132
+          ]
+        },
+        {
+          "str": "], ByteNet [",
+          "width": 46.18063603999999,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            121.214,
+            384.132
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0003639599999587517,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            167.39463604000005,
+            384.132
+          ]
+        },
+        {
+          "str": "18",
+          "width": 9.9626,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            167.395,
+            384.132
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0004081632652906703,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            177.35760000000002,
+            384.132
+          ]
+        },
+        {
+          "str": "] and ConvS2S [",
+          "width": 64.09637961999998,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            177.358,
+            384.132
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0006203799999866533,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            241.45437962000003,
+            384.132
+          ]
+        },
+        {
+          "str": "9",
+          "width": 4.9813,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            241.455,
+            384.132
+          ]
+        },
+        {
+          "str": "], all of which use convolutional neural networks as basic building",
+          "hasEOL": true,
+          "width": 257.566883588,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            246.436,
+            384.132
+          ]
+        },
+        {
+          "str": "block, computing hidden representations in parallel for all input and output positions. In these models,",
+          "hasEOL": true,
+          "width": 397.2413400759998,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            108,
+            373.223
+          ]
+        },
+        {
+          "str": "the number of operations required to relate signals from two arbitrary input or output positions grows",
+          "hasEOL": true,
+          "width": 396.0013948799994,
+          "transform": [
+            9.763348,
+            0,
+            0,
+            9.9626,
+            108,
+            362.313
+          ]
+        },
+        {
+          "str": "in the distance between positions, linearly for ConvS2S and logarithmically for ByteNet. This makes",
+          "hasEOL": true,
+          "width": 395.9992828087997,
+          "transform": [
+            9.7932358,
+            0,
+            0,
+            9.9626,
+            108,
+            351.404
+          ]
+        },
+        {
+          "str": "it more difficult to learn dependencies between distant positions [",
+          "width": 270.1731591240001,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            340.495
+          ]
+        },
+        {
+          "str": "12",
+          "width": 9.9626,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            378.169,
+            340.495
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0003921568628138451,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            388.13159999999993,
+            340.495
+          ]
+        },
+        {
+          "str": "]. In the Transformer this is",
+          "hasEOL": true,
+          "width": 115.86543650400012,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            388.132,
+            340.495
+          ]
+        },
+        {
+          "str": "reduced to a constant number of operations, albeit at the cost of reduced effective resolution due",
+          "hasEOL": true,
+          "width": 395.9972105879999,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            329.586
+          ]
+        },
+        {
+          "str": "to averaging attention-weighted positions, an effect we counteract with Multi-Head Attention as",
+          "hasEOL": true,
+          "width": 395.9972105879997,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            318.677
+          ]
+        },
+        {
+          "str": "described in section 3.2.",
+          "hasEOL": true,
+          "width": 96.56748179999998,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            108,
+            307.768
+          ]
+        },
+        {
+          "str": "Self-attention, sometimes called intra-attention is an attention mechanism relating different positions",
+          "hasEOL": true,
+          "width": 395.9995816867997,
+          "transform": [
+            9.8231236,
+            0,
+            0,
+            9.9626,
+            108,
+            291.379
+          ]
+        },
+        {
+          "str": "of a single sequence in order to compute a representation of the sequence. Self-attention has been",
+          "hasEOL": true,
+          "width": 395.9972105880001,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            280.47
+          ]
+        },
+        {
+          "str": "used successfully in a variety of tasks including reading comprehension, abstractive summarization,",
+          "hasEOL": true,
+          "width": 397.2495691835999,
+          "transform": [
+            9.9526374,
+            0,
+            0,
+            9.9626,
+            108,
+            269.561
+          ]
+        },
+        {
+          "str": "textual entailment and learning task-independent sentence representations [4, 27, 28, 22].",
+          "hasEOL": true,
+          "width": 355.116877,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            108,
+            258.652
+          ]
+        },
+        {
+          "str": "End-to-end memory networks are based on a recurrent attention mechanism instead of sequence-",
+          "hasEOL": true,
+          "width": 397.65359246399987,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            242.264
+          ]
+        },
+        {
+          "str": "aligned recurrence and have been shown to perform well on simple-language question answering and",
+          "hasEOL": true,
+          "width": 395.99499889079954,
+          "transform": [
+            9.7733106,
+            0,
+            0,
+            9.9626,
+            108,
+            231.355
+          ]
+        },
+        {
+          "str": "language modeling tasks [34].",
+          "hasEOL": true,
+          "width": 120.0891804,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            108,
+            220.445
+          ]
+        },
+        {
+          "str": "To the best of our knowledge, however, the Transformer is the first transduction model relying",
+          "hasEOL": true,
+          "width": 396.3122279999997,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            107.691,
+            204.057
+          ]
+        },
+        {
+          "str": "entirely on self-attention to compute representations of its input and output without using sequence-",
+          "hasEOL": true,
+          "width": 397.65717899999964,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            108,
+            193.148
+          ]
+        },
+        {
+          "str": "aligned RNNs or convolution. In the following sections, we will describe the Transformer, motivate",
+          "hasEOL": true,
+          "width": 395.9973699895998,
+          "transform": [
+            9.9327122,
+            0,
+            0,
+            9.9626,
+            108,
+            182.239
+          ]
+        },
+        {
+          "str": "self-attention and discuss its advantages over models such as [17, 18] and [9].",
+          "width": 309.3486926000002,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            108,
+            171.33
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            108,
+            140.32000000000002
+          ]
+        },
+        {
+          "str": "3",
+          "width": 5.9776,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            108,
+            140.32000000000002
+          ]
+        },
+        {
+          "str": " ",
+          "width": 11.955200000000005,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            113.9776,
+            140.32000000000002
+          ]
+        },
+        {
+          "str": "Model Architecture",
+          "width": 100.1606656,
+          "transform": [
+            11.9552,
+            0,
+            0,
+            11.9552,
+            125.9328,
+            140.32000000000002
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            9.912787,
+            0,
+            0,
+            9.9626,
+            108,
+            115.636
+          ]
+        },
+        {
+          "str": "Most competitive neural sequence transduction models have an encoder-decoder structure [",
+          "width": 362.0843707489998,
+          "transform": [
+            9.912787,
+            0,
+            0,
+            9.9626,
+            108,
+            115.636
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0006292509997933848,
+          "transform": [
+            9.912787,
+            0,
+            0,
+            9.9626,
+            470.0843707490002,
+            115.636
+          ]
+        },
+        {
+          "str": "5",
+          "width": 4.9813,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            470.085,
+            115.636
+          ]
+        },
+        {
+          "str": ",",
+          "width": 2.47819675,
+          "transform": [
+            9.912787,
+            0,
+            0,
+            9.9626,
+            475.066,
+            115.636
+          ]
+        },
+        {
+          "str": " ",
+          "width": 2.4988032500000372,
+          "transform": [
+            9.912787,
+            0,
+            0,
+            9.9626,
+            477.54419674999997,
+            115.636
+          ]
+        },
+        {
+          "str": "2",
+          "width": 4.9813,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            480.043,
+            115.636
+          ]
+        },
+        {
+          "str": " ",
+          "width": 0.0007035175879344883,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            485.0243,
+            115.636
+          ]
+        },
+        {
+          "str": ",",
+          "width": 2.47819675,
+          "transform": [
+            9.912787,
+            0,
+            0,
+            9.9626,
+            485.025,
+            115.636
+          ]
+        },
+        {
+          "str": " ",
+          "width": 2.4988032500000372,
+          "transform": [
+            9.912787,
+            0,
+            0,
+            9.9626,
+            487.50319675,
+            115.636
+          ]
+        },
+        {
+          "str": "35",
+          "width": 9.9626,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            490.002,
+            115.636
+          ]
+        },
+        {
+          "str": "].",
+          "hasEOL": true,
+          "width": 5.779154821,
+          "transform": [
+            9.912787,
+            0,
+            0,
+            9.9626,
+            499.964,
+            115.636
+          ]
+        },
+        {
+          "str": "Here, the encoder maps an input sequence of symbol representations",
+          "width": 286.625197512,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            104.727
+          ]
+        },
+        {
+          "str": " ",
+          "width": 3.3135318509808895,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            394.6251975119995,
+            104.727
+          ]
+        },
+        {
+          "str": "(",
+          "width": 3.87445514,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            398.005,
+            104.727
+          ]
+        },
+        {
+          "str": "x",
+          "width": 5.6936259,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            401.879,
+            104.727
+          ]
+        },
+        {
+          "str": "1",
+          "width": 3.9715790999999996,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            407.57300000000004,
+            103.233
+          ]
+        },
+        {
+          "str": ", ..., x",
+          "width": 22.849223100000003,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            412.04200000000003,
+            104.727
+          ]
+        },
+        {
+          "str": "n",
+          "width": 4.92489756,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            434.894,
+            103.233
+          ]
+        },
+        {
+          "str": ")",
+          "width": 3.87445514,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            440.317,
+            104.727
+          ]
+        },
+        {
+          "str": " ",
+          "width": 3.382544859999996,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            444.19145514,
+            104.727
+          ]
+        },
+        {
+          "str": "to a sequence",
+          "hasEOL": true,
+          "width": 56.42876415599995,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            447.574,
+            104.727
+          ]
+        },
+        {
+          "str": "of continuous representations",
+          "width": 121.96254770400006,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            93.818
+          ]
+        },
+        {
+          "str": " ",
+          "width": 3.622992447058753,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            229.96254770400006,
+            93.818
+          ]
+        },
+        {
+          "str": "z",
+          "width": 5.09188486,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            233.658,
+            93.818
+          ]
+        },
+        {
+          "str": " ",
+          "width": 4.991115140000005,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            238.74988485999998,
+            93.818
+          ]
+        },
+        {
+          "str": "= (",
+          "width": 16.614628019999998,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            243.74099999999999,
+            93.818
+          ]
+        },
+        {
+          "str": "z",
+          "width": 4.63360526,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            260.354,
+            93.818
+          ]
+        },
+        {
+          "str": "1",
+          "width": 3.9715790999999996,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            264.988,
+            92.324
+          ]
+        },
+        {
+          "str": ", ..., z",
+          "width": 21.789202460000002,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            269.457,
+            93.818
+          ]
+        },
+        {
+          "str": "n",
+          "width": 4.92489756,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            291.248,
+            92.324
+          ]
+        },
+        {
+          "str": ")",
+          "width": 3.87445514,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            296.671,
+            93.818
+          ]
+        },
+        {
+          "str": ".",
+          "width": 2.540463,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            300.545,
+            93.818
+          ]
+        },
+        {
+          "str": " ",
+          "width": 6.555390799999994,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            303.085463,
+            93.818
+          ]
+        },
+        {
+          "str": "Given",
+          "width": 24.439254060000003,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            309.771961616,
+            93.818
+          ]
+        },
+        {
+          "str": " ",
+          "width": 3.6203767882353515,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            334.21121567599994,
+            93.818
+          ]
+        },
+        {
+          "str": "z",
+          "width": 5.09188486,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            337.904,
+            93.818
+          ]
+        },
+        {
+          "str": ", the decoder then generates an output",
+          "hasEOL": true,
+          "width": 161.00438308800014,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            342.996,
+            93.818
+          ]
+        },
+        {
+          "str": "sequence",
+          "width": 37.24318758,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            108,
+            82.909
+          ]
+        },
+        {
+          "str": " ",
+          "width": 2.508639627450962,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            145.24318758,
+            82.909
+          ]
+        },
+        {
+          "str": "(",
+          "width": 3.87445514,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            147.802,
+            82.909
+          ]
+        },
+        {
+          "str": "y",
+          "width": 4.88466278,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            151.676,
+            82.909
+          ]
+        },
+        {
+          "str": "1",
+          "width": 3.9715790999999996,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            156.56099999999998,
+            81.415
+          ]
+        },
+        {
+          "str": ", ..., y",
+          "width": 22.040259980000002,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            161.02999999999997,
+            82.909
+          ]
+        },
+        {
+          "str": "m",
+          "width": 7.06934106,
+          "transform": [
+            6.9738,
+            0,
+            0,
+            6.9738,
+            183.07299999999998,
+            81.415
+          ]
+        },
+        {
+          "str": ")",
+          "width": 3.87445514,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            190.64,
+            82.909
+          ]
+        },
+        {
+          "str": " ",
+          "width": 2.559544860000017,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            194.51445514,
+            82.909
+          ]
+        },
+        {
+          "str": "of symbols one element at a time. At each step the model is auto-regressive",
+          "hasEOL": true,
+          "width": 306.9285778080001,
+          "transform": [
+            10.161852,
+            0,
+            0,
+            9.9626,
+            197.074,
+            82.909
+          ]
+        },
+        {
+          "str": "[10], consuming the previously generated symbols as additional input when generating the next.",
+          "hasEOL": true,
+          "width": 382.5638399999999,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            108,
+            72
+          ]
+        },
+        {
+          "str": "2",
+          "width": 4.9813,
+          "transform": [
+            9.9626,
+            0,
+            0,
+            9.9626,
+            303.509,
+            42.111999999999995
+          ]
+        }
+      ]
+    }
+  ]
+}
