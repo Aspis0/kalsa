@@ -755,6 +755,11 @@ negativo ma utile, coerente con 2505.16056) e F8 si riduce a hardening del fork.
 - **[2026-08-04] Sentinella anti-drift**: alla fine di ogni stage di sweep si RIPETE la
   config vincente; se devia >15% dalla sua mediana, lo stage è invalido (ordine/termica)
   e si rifà col cooldown. Nessun "best-so-far" è valido senza sentinella.
+- **[2026-08-04, sera] Floor batteria**: nessun rep di misura parte con batteria <40%
+  (sotto quota, Android/SoC attivano risparmi che falsano i numeri). Il runner si mette in
+  attesa e segnala CHARGE_NEEDED nel log. La ricarica avviene SOLO tra una fase e l'altra
+  (mai durante le misure — regola UNPLUGGED invariata); in particolare: **ricaricare a ≥80%
+  tra la fine di F2 e l'inizio di F3** (F3 è la fase più energivora della campagna).
 - **[2026-08-04] majflt/token si legge INSIEME a tok/s**: run con majflt alto (>50k) =
   page-cache evicted, regime memoria — si annota come tale e NON entra nella mediana di
   baseline (misurato: tok/s correla inversamente con majflt a parità di config). Le mediane
