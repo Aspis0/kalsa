@@ -442,6 +442,9 @@ export const en = {
     visionNotSupported: "Vision unavailable: this model does not support images.",
     pdfTooLarge: "PDF too large (max 5 MB).",
     pdfTimeout: "PDF page rendering timed out.",
+    pdfExtractTimeout: "PDF text extraction timed out.",
+    pdfExtractCap: "PDF extraction aborted ({reason}).",
+    pdfExtractFailed: "PDF text extraction failed.",
     searchCancelled: "Search cancelled",
     noResults: "No results.",
     noResultsFound: "No results found.",
@@ -514,6 +517,7 @@ export const en = {
   pdf: {
     preparing: "Preparing PDF…",
     readingPages: "Reading pages…",
+    extractingText: "Extracting text…",
     errorPrefix: "PDF: {error}",
   },
 

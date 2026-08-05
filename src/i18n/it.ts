@@ -440,6 +440,9 @@ export const it: typeof en = {
     visionNotSupported: "Vision non disponibile: il modello non supporta le immagini.",
     pdfTooLarge: "PDF troppo grande (max 5 MB).",
     pdfTimeout: "Timeout nel rendering della pagina PDF.",
+    pdfExtractTimeout: "Timeout nell'estrazione del testo PDF.",
+    pdfExtractCap: "Estrazione PDF interrotta ({reason}).",
+    pdfExtractFailed: "Estrazione del testo PDF non riuscita.",
     searchCancelled: "Ricerca annullata",
     noResults: "Nessun risultato.",
     noResultsFound: "Nessun risultato trovato.",
@@ -501,6 +504,7 @@ export const it: typeof en = {
   pdf: {
     preparing: "Preparazione PDF…",
     readingPages: "Lettura pagine…",
+    extractingText: "Estrazione testo…",
     errorPrefix: "PDF: {error}",
   },
 
