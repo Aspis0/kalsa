@@ -1,0 +1,47 @@
+2026-08-05T14:41:43-04:00 === start F2.3c-bis model=/data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_0.gguf binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli cooldown=180s cool_temp≤30.0 majflt_max=50000 ===
+2026-08-05T14:41:44-04:00 F2.3c-bis reduced grid: fixed cell t=4 c=512 kv=q8_0 (from F2.3c best)
+2026-08-05T14:41:44-04:00 STAGE reduced-cell t=4 c=512 kv=q8_0 (attempt 1)
+2026-08-05T14:41:44-04:00 measure reduced rep 1/3 t=4 c=512 kv=q8_0
+2026-08-05T14:41:44-04:00 cooldown idle 180s
+2026-08-05T14:44:44-04:00 gate OK plugged=UNPLUGGED temp=27.5 lvl=100 cool≤30.0 cooldown=180s
+2026-08-05T14:45:21-04:00 measure reduced rep 2/3 t=4 c=512 kv=q8_0
+2026-08-05T14:45:21-04:00 cooldown idle 180s
+2026-08-05T14:54:23-04:00 gate OK plugged=UNPLUGGED temp=27.4 lvl=100 cool≤30.0 cooldown=180s
+2026-08-05T14:57:39-04:00 measure reduced rep 3/3 t=4 c=512 kv=q8_0
+2026-08-05T14:57:39-04:00 cooldown idle 180s
+2026-08-05T15:06:49-04:00 gate OK plugged=UNPLUGGED temp=28.1 lvl=99 cool≤30.0 cooldown=180s
+2026-08-05T15:09:50-04:00 median reduced t=4 c=512 kv=q8_0 → 6.20 (last 3 rows, low-majflt preferred)
+2026-08-05T15:09:50-04:00 SENTINEL reduced winner t=4 c=512 kv=q8_0 median=6.20 — extra run
+2026-08-05T15:09:50-04:00 cooldown idle 180s
+2026-08-05T15:19:53-04:00 gate OK plugged=UNPLUGGED temp=27.4 lvl=98 cool≤30.0 cooldown=180s
+2026-08-05T15:23:00-04:00 SENTINEL reduced last=14.40 median=6.20 drift=1.3226 (max 0.15)
+2026-08-05T15:23:00-04:00 SENTINEL FAIL reduced drift 1.3226 > 0.15
+2026-08-05T15:23:00-04:00 STAGE reduced INVALID — will redo with new reps (attempt was 1)
+2026-08-05T15:23:02-04:00 STAGE reduced-cell t=4 c=512 kv=q8_0 (attempt 2)
+2026-08-05T15:23:03-04:00 measure reduced rep 5/7 t=4 c=512 kv=q8_0
+2026-08-05T15:23:03-04:00 cooldown idle 180s
+2026-08-05T15:32:58-04:00 gate OK plugged=UNPLUGGED temp=27.2 lvl=98 cool≤30.0 cooldown=180s
+2026-08-05T15:35:40-04:00 measure reduced rep 6/7 t=4 c=512 kv=q8_0
+2026-08-05T15:35:40-04:00 cooldown idle 180s
+2026-08-05T15:44:39-04:00 gate OK plugged=UNPLUGGED temp=27.2 lvl=97 cool≤30.0 cooldown=180s
+2026-08-05T15:47:51-04:00 measure reduced rep 7/7 t=4 c=512 kv=q8_0
+2026-08-05T15:47:51-04:00 cooldown idle 180s
+2026-08-05T15:57:51-04:00 gate OK plugged=UNPLUGGED temp=27.0 lvl=96 cool≤30.0 cooldown=180s
+2026-08-05T16:00:56-04:00 median reduced t=4 c=512 kv=q8_0 → 7.60 (last 3 rows, low-majflt preferred)
+2026-08-05T16:00:56-04:00 SENTINEL reduced winner t=4 c=512 kv=q8_0 median=7.60 — extra run
+2026-08-05T16:00:56-04:00 cooldown idle 180s
+2026-08-05T16:11:17-04:00 gate OK plugged=UNPLUGGED temp=26.8 lvl=95 cool≤30.0 cooldown=180s
+2026-08-05T16:14:05-04:00 SENTINEL reduced last=10.10 median=7.60 drift=0.3289 (max 0.15)
+2026-08-05T16:14:05-04:00 SENTINEL FAIL reduced drift 0.3289 > 0.15
+2026-08-05T16:14:05-04:00 STAGE reduced INVALID — will redo with new reps (attempt was 2)
+2026-08-05T16:14:05-04:00 WARN: reduced sentinel failed twice — keeping cell t=4 c=512 kv=q8_0 with warning
+# F2.3c-bis summary
+
+- model: `LFM2-8B-A1B-Q4_0.gguf`
+- best: threads=4 ctx=512 kv=q8_0
+- median eval_tok_s (low-majflt preferred): 9.30
+- protocol: cooldown=180s cool_temp≤30.0 majflt_max=50000 sentinel_drift≤0.15
+- n_gen: 128 prompt: short
+- binary: `/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli`
+- finished: 2026-08-05T16:14:05-04:00
+2026-08-05T16:14:05-04:00 === done F2.3c-bis best t=4 c=512 kv=q8_0 median=9.30 ===

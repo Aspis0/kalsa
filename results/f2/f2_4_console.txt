@@ -1,0 +1,7 @@
+F2.4 thermal start temp=28.2 duration=600s block=30s t=4 c=1024 kv=f16
+block=1 elapsed=78 temp=28.5 eval=5.5 ec=0
+block=2 elapsed=230 temp=28.6 eval=3.2 ec=0
+block=3 elapsed=382 temp=28.7 eval=3.2 ec=0
+block=4 elapsed=517 temp=29.0 eval=4.5 ec=0
+block=5 elapsed=601 temp=30.2 eval=7.0 ec=0
+F2.4 complete blocks=5 csv=/data/data/com.termux/files/home/experiments/results/thermal_f2.csv

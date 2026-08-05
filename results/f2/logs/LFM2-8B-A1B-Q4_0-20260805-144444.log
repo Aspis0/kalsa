@@ -1,0 +1,48 @@
+=== run_bench ===
+run_id=LFM2-8B-A1B-Q4_0-20260805-144444 phase=F2.3c-bis runtime=mainline run_type=warm
+model=/data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_0.gguf quant=Q4_0
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=512 kv=q8_0 n_gen=128
+flags=
+batt_plugged=UNPLUGGED batt_temp_start=27.5
+log=/data/data/com.termux/files/home/experiments/results/logs/LFM2-8B-A1B-Q4_0-20260805-144444.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-05T14:44:48-04:00 ---
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_0.gguf
+ftype      : Q4_0
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:
+A dense 4B language model uses a large number of parameters in a compact form, fitting efficiently in 8GB RAM with UFS 3.1’s fast read speeds, minimizing page faults and keeping memory access smooth. In contrast, a 35B model with only 3B active parameters relies heavily on streaming from slower flash storage due to frequent data loading, increased page faults, and higher thermal pressure from sustained high memory usage.  
+
+- The 4B model fits well in available RAM, reducing reliance on slow flash and lowering thermal load.  
+- The 35B model’s sheer size causes frequent page faults and
+
+[ Prompt: 30.5 t/s | Generation: 13.8 t/s ]
+
+
+Exiting...
+--- llama end rc=0 2026-08-05T14:45:19-04:00 ---
