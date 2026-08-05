@@ -858,6 +858,18 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-05 — Addendum F3 (Claude, durante la fase — 2 punti critici per l'harness):**
+  (1) **Timeout harness**: i timeout calibrati sul 4B (load in secondi) NON valgono per il
+  35B naive — il solo caricamento può durare 10-30+ minuti in thrashing. Timeout per-run in
+  F3 ≥ 45 min, altrimenti l'harness ammazza run validi e registra spazzatura. Un run ucciso
+  DA NOI non è un dato: solo lmkd/OOM di Android lo è.
+  (2) **ttft_ms VA POPOLATO da questa fase in poi** (in F2 la colonna è rimasta vuota): in
+  F3 il tempo-al-primo-token È una metrica primaria del muro, non un nice-to-have. Se il
+  parser non lo estrae dai timing di llama-cli, va sistemato PRIMA dei run, e in ogni caso
+  registrare anche il wall-clock load-time (da log runner) come colonna note.
+  (3) Promemoria §8.2: le righe B/B2 sono "promosse" → per ciascuna variante servono il
+  cold (post-riavvio) E il warm immediato senza riavvio, in coppia.
+
 - **2026-08-05 sera — Gate F2 ACCETTATO (Claude): PASS-CONDIZIONATO → via libera a F3.**
   Numeri chiave: 4B denso 8.90 tok/s burst / **4.68 sostenuti su 10 min** (il sostenuto vale
   ~metà del burst su questo device: metro per giudicare F4); fio fatto; LFM2 = risultato
