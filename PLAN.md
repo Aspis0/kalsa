@@ -858,6 +858,14 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-05 sera — Gate F2 ACCETTATO (Claude): PASS-CONDIZIONATO → via libera a F3.**
+  Numeri chiave: 4B denso 8.90 tok/s burst / **4.68 sostenuti su 10 min** (il sostenuto vale
+  ~metà del burst su questo device: metro per giudicare F4); fio fatto; LFM2 = risultato
+  negativo valido (nessuna quant gira senza thrashing su 8GB → niente baseline MoE-in-RAM,
+  controllo = 4B denso; per il prodotto se ne riparla con lo streaming F4+). F3 è MISURA,
+  non ottimizzazione: lmkd kill e tok/s ridicoli sono dati validi, non fallimenti. Batteria
+  93% ✓. Promemoria: cold = riavvio; MAI caricatore durante la fase.
+
 - **2026-08-05 mattina — Nota di revisione F2.3c (Claude).** F2.2c chiusa pulita: 4B =
   **8.90 tok/s** (t4/c1024/f16) → soglia F2 di fatto raggiunta. F2.3c invece è "done with
   warning": sentinella kv FALLITA due volte (drift 0.95), majflt milionari e ~10GB riletti
