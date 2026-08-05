@@ -14,6 +14,7 @@
 # Uso:
 #   bash scripts/run_f2_grid.sh --model ~/models/Qwen3.5-4B-Q4_K_M.gguf --phase F2.2c
 #   bash scripts/run_f2_grid.sh --model ~/models/LFM2-8B-A1B-Q4_K_M.gguf --phase F2.3c
+#   bash scripts/run_f2_grid.sh --model ~/models/LFM2-8B-A1B-Q4_0.gguf --phase F2.3c-bis
 #
 # Binary default: $HOME/src/llama.cpp/build-safe/bin/llama-cli
 # NEVER uses old build/ tree.
@@ -53,7 +54,7 @@ mkdir -p "$TMPDIR" 2>/dev/null || true
 
 usage() {
     cat <<'EOF' >&2
-Uso: run_f2_grid.sh --model PATH --phase F2.2c|F2.3c [opts]
+Uso: run_f2_grid.sh --model PATH --phase F2.2c|F2.3c|F2.3c-bis [opts]
   --binary PATH           (must be build-safe llama-cli)
   --prompt-file PATH
   --n-gen N
@@ -65,6 +66,7 @@ Uso: run_f2_grid.sh --model PATH --phase F2.2c|F2.3c [opts]
   --majflt-max N          (default 50000)
 
 Legacy phases F2.2/F2.3 are REFUSED (noncompliant protocol). Use F2.2c/F2.3c.
+F2.3c-bis = reduced single-cell (t=4 c=512 kv=q8_0 from F2.3c best) + sentinel.
 EOF
 }
 
@@ -94,13 +96,13 @@ fi
 
 # Only compliant phase tags (legacy F2.2/F2.3 refuse — no silent remap)
 case "$PHASE" in
-    F2.2c|F2.3c) ;;
+    F2.2c|F2.3c|F2.3c-bis) ;;
     F2.2|F2.3)
         echo "ERROR: phase $PHASE refused (legacy/noncompliant). Use ${PHASE}c with cooldown≥180 and cool≤30.0" >&2
         exit 3
         ;;
     *)
-        echo "ERROR: phase must be F2.2c or F2.3c (got: $PHASE)" >&2
+        echo "ERROR: phase must be F2.2c, F2.3c, or F2.3c-bis (got: $PHASE)" >&2
         exit 3
         ;;
 esac
@@ -144,11 +146,18 @@ if [ ! -f "$RUN_BENCH" ]; then
     exit 3
 fi
 
-# F2.3c: explicit LFM2 size gate (no network download ever)
+# F2.3c / F2.3c-bis: explicit LFM2 size gate (no network download ever)
 if [ "$PHASE" = "F2.3c" ]; then
     _msz="$(stat -c '%s' "$MODEL" 2>/dev/null || stat -f '%z' "$MODEL" 2>/dev/null || echo 0)"
     if [ "$_msz" != "5044779712" ]; then
         echo "ERROR: F2.3c model size $_msz != 5044779712 (LFM2 Q4_K_M). Fix file on device; scripts never download." >&2
+        exit 3
+    fi
+fi
+if [ "$PHASE" = "F2.3c-bis" ]; then
+    _msz="$(stat -c '%s' "$MODEL" 2>/dev/null || stat -f '%z' "$MODEL" 2>/dev/null || echo 0)"
+    if [ "$_msz" != "4733893312" ]; then
+        echo "ERROR: F2.3c-bis model size $_msz != 4733893312 (LFM2 Q4_0). Fix file on device; scripts never download." >&2
         exit 3
     fi
 fi
@@ -207,6 +216,20 @@ gate_ok() {
         if [ "$_pl" != "UNPLUGGED" ]; then
             log "BLOCKED: plugged=$_pl (need UNPLUGGED)"
             exit 4
+        fi
+        # §8.2 battery floor: no measurement rep starts below 40%
+        if [ -n "$_lv" ]; then
+            _low_batt="$(awk -v l="$_lv" 'BEGIN{print (l+0 < 40)?1:0}')"
+            if [ "$_low_batt" = "1" ]; then
+                log "CHARGE_NEEDED: battery $_lv% <40% floor — wait (no measure below floor; charge only between phases)"
+                sleep 30
+                _waited=$((_waited + 30))
+                if [ "$_waited" -ge "$MAX_COOL_WAIT_S" ]; then
+                    log "BLOCKED: battery below 40% floor for ${MAX_COOL_WAIT_S}s (last=$_lv%)"
+                    exit 92
+                fi
+                continue
+            fi
         fi
         _hot_abs="$(awk -v t="$_tc" -v m="$MAX_START_TEMP" 'BEGIN{print (t+0>m+0)?1:0}')"
         _hot_cool="$(awk -v t="$_tc" -v m="$MAX_COOL_TEMP" 'BEGIN{print (t+0>m+0)?1:0}')"
@@ -411,11 +434,6 @@ pick_best() {
 log "=== start $PHASE model=$MODEL binary=$BINARY cooldown=${COOLDOWN_S}s cool_temp≤${MAX_COOL_TEMP} majflt_max=${MAJFLT_BASELINE_MAX} ==="
 echo "phase=$PHASE model=$(basename "$MODEL") start=$(date -Iseconds 2>/dev/null || date) protocol=cool${COOLDOWN_S}_T${MAX_COOL_TEMP}_maj${MAJFLT_BASELINE_MAX}" >"$STATE_FILE"
 
-# declared start config (PLAN F2.2)
-BEST_T=5
-BEST_C=1024
-BEST_K="q8_0"
-
 # need_for_attempt t c k → REPS on first try; have+REPS on redo (always REPS fresh rows)
 need_for_attempt() {
     if [ "$_stage_try" -le 1 ]; then
@@ -426,102 +444,134 @@ need_for_attempt() {
     fi
 }
 
-# --- stage 1: threads ---
-# Declared start: BEST_T=5 BEST_C=1024 BEST_K=q8_0 (measure all of {4,5,6})
-_stage_try=1
-while [ "$_stage_try" -le 2 ]; do
-    log "STAGE threads {4,5,6} with c=$BEST_C kv=$BEST_K (attempt $_stage_try)"
-    for t in 4 5 6; do
-        _need_total="$(need_for_attempt "$t" "$BEST_C" "$BEST_K")"
-        measure_config "$t" "$BEST_C" "$BEST_K" "threads" "$_need_total"
-    done
-    _best_line=""
-    for t in 4 5 6; do
-        _m="$(median_eval_for_config "$t" "$BEST_C" "$BEST_K")"
-        log "median threads t=$t → ${_m:-NA} (last ${REPS} rows, low-majflt preferred)"
-        if [ -n "$_m" ]; then
-            _best_line="${_best_line}${_m} ${t}\n"
+if [ "$PHASE" = "F2.3c-bis" ]; then
+    # Reduced single-cell from F2.3c best (PLAN 2026-08-05): t=4 c=512 kv=q8_0
+    # 3 reps + sentinel; redo once on sentinel fail. One variable at a time = fixed cell.
+    BEST_T=4
+    BEST_C=512
+    BEST_K="q8_0"
+    log "F2.3c-bis reduced grid: fixed cell t=$BEST_T c=$BEST_C kv=$BEST_K (from F2.3c best)"
+    _stage_try=1
+    while [ "$_stage_try" -le 2 ]; do
+        log "STAGE reduced-cell t=$BEST_T c=$BEST_C kv=$BEST_K (attempt $_stage_try)"
+        _need_total="$(need_for_attempt "$BEST_T" "$BEST_C" "$BEST_K")"
+        measure_config "$BEST_T" "$BEST_C" "$BEST_K" "reduced" "$_need_total"
+        _m="$(median_eval_for_config "$BEST_T" "$BEST_C" "$BEST_K")"
+        log "median reduced t=$BEST_T c=$BEST_C kv=$BEST_K → ${_m:-NA} (last ${REPS} rows, low-majflt preferred)"
+        _sres="$(sentinel_check "$BEST_T" "$BEST_C" "$BEST_K" "reduced")"
+        if [ "$_sres" = "pass" ]; then
+            break
+        fi
+        log "STAGE reduced INVALID — will redo with new reps (attempt was $_stage_try)"
+        _stage_try=$((_stage_try + 1))
+        if [ "$_stage_try" -gt 2 ]; then
+            log "WARN: reduced sentinel failed twice — keeping cell t=$BEST_T c=$BEST_C kv=$BEST_K with warning"
         fi
     done
-    _pick="$(printf '%b' "$_best_line" | pick_best)"
-    if [ -n "$_pick" ]; then
-        BEST_T="$_pick"
-    fi
-    log "BEST threads → $BEST_T"
-    _sres="$(sentinel_check "$BEST_T" "$BEST_C" "$BEST_K" "threads")"
-    if [ "$_sres" = "pass" ]; then
-        break
-    fi
-    log "STAGE threads INVALID — will redo with new reps (attempt was $_stage_try)"
-    _stage_try=$((_stage_try + 1))
-    if [ "$_stage_try" -gt 2 ]; then
-        log "WARN: threads sentinel failed twice — keeping BEST_T=$BEST_T with warning"
-    fi
-done
+else
+    # declared start config (PLAN F2.2 / F2.3c full greedy)
+    BEST_T=5
+    BEST_C=1024
+    BEST_K="q8_0"
 
-# --- stage 2: ctx ---
-_stage_try=1
-while [ "$_stage_try" -le 2 ]; do
-    log "STAGE ctx {512,1024,4096} with t=$BEST_T kv=$BEST_K (attempt $_stage_try)"
-    for c in 512 1024 4096; do
-        _need_total="$(need_for_attempt "$BEST_T" "$c" "$BEST_K")"
-        measure_config "$BEST_T" "$c" "$BEST_K" "ctx" "$_need_total"
-    done
-    _best_line=""
-    for c in 512 1024 4096; do
-        _m="$(median_eval_for_config "$BEST_T" "$c" "$BEST_K")"
-        log "median ctx c=$c → ${_m:-NA} (last ${REPS} rows, low-majflt preferred)"
-        if [ -n "$_m" ]; then
-            _best_line="${_best_line}${_m} ${c}\n"
+    # --- stage 1: threads ---
+    # Declared start: BEST_T=5 BEST_C=1024 BEST_K=q8_0 (measure all of {4,5,6})
+    _stage_try=1
+    while [ "$_stage_try" -le 2 ]; do
+        log "STAGE threads {4,5,6} with c=$BEST_C kv=$BEST_K (attempt $_stage_try)"
+        for t in 4 5 6; do
+            _need_total="$(need_for_attempt "$t" "$BEST_C" "$BEST_K")"
+            measure_config "$t" "$BEST_C" "$BEST_K" "threads" "$_need_total"
+        done
+        _best_line=""
+        for t in 4 5 6; do
+            _m="$(median_eval_for_config "$t" "$BEST_C" "$BEST_K")"
+            log "median threads t=$t → ${_m:-NA} (last ${REPS} rows, low-majflt preferred)"
+            if [ -n "$_m" ]; then
+                _best_line="${_best_line}${_m} ${t}\n"
+            fi
+        done
+        _pick="$(printf '%b' "$_best_line" | pick_best)"
+        if [ -n "$_pick" ]; then
+            BEST_T="$_pick"
+        fi
+        log "BEST threads → $BEST_T"
+        _sres="$(sentinel_check "$BEST_T" "$BEST_C" "$BEST_K" "threads")"
+        if [ "$_sres" = "pass" ]; then
+            break
+        fi
+        log "STAGE threads INVALID — will redo with new reps (attempt was $_stage_try)"
+        _stage_try=$((_stage_try + 1))
+        if [ "$_stage_try" -gt 2 ]; then
+            log "WARN: threads sentinel failed twice — keeping BEST_T=$BEST_T with warning"
         fi
     done
-    _pick="$(printf '%b' "$_best_line" | pick_best)"
-    if [ -n "$_pick" ]; then
-        BEST_C="$_pick"
-    fi
-    log "BEST ctx → $BEST_C"
-    _sres="$(sentinel_check "$BEST_T" "$BEST_C" "$BEST_K" "ctx")"
-    if [ "$_sres" = "pass" ]; then
-        break
-    fi
-    log "STAGE ctx INVALID — will redo with new reps (attempt was $_stage_try)"
-    _stage_try=$((_stage_try + 1))
-    if [ "$_stage_try" -gt 2 ]; then
-        log "WARN: ctx sentinel failed twice — keeping BEST_C=$BEST_C with warning"
-    fi
-done
 
-# --- stage 3: kv ---
-_stage_try=1
-while [ "$_stage_try" -le 2 ]; do
-    log "STAGE kv {f16,q8_0} with t=$BEST_T c=$BEST_C (attempt $_stage_try)"
-    for k in f16 q8_0; do
-        _need_total="$(need_for_attempt "$BEST_T" "$BEST_C" "$k")"
-        measure_config "$BEST_T" "$BEST_C" "$k" "kv" "$_need_total"
-    done
-    _best_line=""
-    for k in f16 q8_0; do
-        _m="$(median_eval_for_config "$BEST_T" "$BEST_C" "$k")"
-        log "median kv k=$k → ${_m:-NA} (last ${REPS} rows, low-majflt preferred)"
-        if [ -n "$_m" ]; then
-            _best_line="${_best_line}${_m} ${k}\n"
+    # --- stage 2: ctx ---
+    _stage_try=1
+    while [ "$_stage_try" -le 2 ]; do
+        log "STAGE ctx {512,1024,4096} with t=$BEST_T kv=$BEST_K (attempt $_stage_try)"
+        for c in 512 1024 4096; do
+            _need_total="$(need_for_attempt "$BEST_T" "$c" "$BEST_K")"
+            measure_config "$BEST_T" "$c" "$BEST_K" "ctx" "$_need_total"
+        done
+        _best_line=""
+        for c in 512 1024 4096; do
+            _m="$(median_eval_for_config "$BEST_T" "$c" "$BEST_K")"
+            log "median ctx c=$c → ${_m:-NA} (last ${REPS} rows, low-majflt preferred)"
+            if [ -n "$_m" ]; then
+                _best_line="${_best_line}${_m} ${c}\n"
+            fi
+        done
+        _pick="$(printf '%b' "$_best_line" | pick_best)"
+        if [ -n "$_pick" ]; then
+            BEST_C="$_pick"
+        fi
+        log "BEST ctx → $BEST_C"
+        _sres="$(sentinel_check "$BEST_T" "$BEST_C" "$BEST_K" "ctx")"
+        if [ "$_sres" = "pass" ]; then
+            break
+        fi
+        log "STAGE ctx INVALID — will redo with new reps (attempt was $_stage_try)"
+        _stage_try=$((_stage_try + 1))
+        if [ "$_stage_try" -gt 2 ]; then
+            log "WARN: ctx sentinel failed twice — keeping BEST_C=$BEST_C with warning"
         fi
     done
-    _pick="$(printf '%b' "$_best_line" | pick_best)"
-    if [ -n "$_pick" ]; then
-        BEST_K="$_pick"
-    fi
-    log "BEST kv → $BEST_K"
-    _sres="$(sentinel_check "$BEST_T" "$BEST_C" "$BEST_K" "kv")"
-    if [ "$_sres" = "pass" ]; then
-        break
-    fi
-    log "STAGE kv INVALID — will redo with new reps (attempt was $_stage_try)"
-    _stage_try=$((_stage_try + 1))
-    if [ "$_stage_try" -gt 2 ]; then
-        log "WARN: kv sentinel failed twice — keeping BEST_K=$BEST_K with warning"
-    fi
-done
+
+    # --- stage 3: kv ---
+    _stage_try=1
+    while [ "$_stage_try" -le 2 ]; do
+        log "STAGE kv {f16,q8_0} with t=$BEST_T c=$BEST_C (attempt $_stage_try)"
+        for k in f16 q8_0; do
+            _need_total="$(need_for_attempt "$BEST_T" "$BEST_C" "$k")"
+            measure_config "$BEST_T" "$BEST_C" "$k" "kv" "$_need_total"
+        done
+        _best_line=""
+        for k in f16 q8_0; do
+            _m="$(median_eval_for_config "$BEST_T" "$BEST_C" "$k")"
+            log "median kv k=$k → ${_m:-NA} (last ${REPS} rows, low-majflt preferred)"
+            if [ -n "$_m" ]; then
+                _best_line="${_best_line}${_m} ${k}\n"
+            fi
+        done
+        _pick="$(printf '%b' "$_best_line" | pick_best)"
+        if [ -n "$_pick" ]; then
+            BEST_K="$_pick"
+        fi
+        log "BEST kv → $BEST_K"
+        _sres="$(sentinel_check "$BEST_T" "$BEST_C" "$BEST_K" "kv")"
+        if [ "$_sres" = "pass" ]; then
+            break
+        fi
+        log "STAGE kv INVALID — will redo with new reps (attempt was $_stage_try)"
+        _stage_try=$((_stage_try + 1))
+        if [ "$_stage_try" -gt 2 ]; then
+            log "WARN: kv sentinel failed twice — keeping BEST_K=$BEST_K with warning"
+        fi
+    done
+fi
+
 
 _final_med="$(median_eval_for_config "$BEST_T" "$BEST_C" "$BEST_K")"
 {

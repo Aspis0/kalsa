@@ -29,7 +29,7 @@ fail() { echo "FAIL  $1"; [ -n "${2:-}" ] && echo "      $2"; FAIL_N=$((FAIL_N +
 echo "=== 1) bash -n syntax ==="
 for f in \
   run_f2_grid.sh run_f2_thermal.sh \
-  start_f2_2c.sh start_f2_3c.sh start_f2_2_resume.sh start_f2_3.sh
+  start_f2_2c.sh start_f2_3c.sh start_f2_3c_bis.sh start_f2_2_resume.sh start_f2_3.sh
 do
   if bash -n "$SCRIPT_DIR/$f" 2>/tmp/tfg_syn.err; then
     pass "bash -n $f"
@@ -58,6 +58,7 @@ TMP="$(mktemp -d "${TMPDIR:-/tmp}/test_f2_grid.XXXXXX")"
 mkdir -p "$TMP/build-safe/bin" "$TMP/build/bin" "$TMP/models"
 echo fake >"$TMP/models/Qwen3.5-4B-Q4_K_M.gguf"
 echo fake >"$TMP/models/LFM2-8B-A1B-Q4_K_M.gguf"
+echo fake >"$TMP/models/LFM2-8B-A1B-Q4_0.gguf"
 : >"$TMP/build-safe/bin/llama-cli"
 chmod +x "$TMP/build-safe/bin/llama-cli" 2>/dev/null || true
 : >"$TMP/build/bin/llama-cli"
@@ -131,6 +132,16 @@ else
   fail "reject F2.3c wrong model size" "ec=$ec $(head -3 "$TMP/err")"
 fi
 
+# F2.3c-bis wrong size (fake file size != 4733893312)
+run_grid --model "$TMP/models/LFM2-8B-A1B-Q4_0.gguf" --phase F2.3c-bis   --binary "$TMP/build-safe/bin/llama-cli" --cooldown 180
+ec=$?
+if [ "$ec" -eq 3 ] && grep -qi 'size\|4733893312' "$TMP/err"; then
+  pass "reject F2.3c-bis wrong model size"
+else
+  fail "reject F2.3c-bis wrong model size" "ec=$ec $(head -3 "$TMP/err")"
+fi
+
+
 # missing model
 run_grid --model "$TMP/models/nope.gguf" --phase F2.2c \
   --binary "$TMP/build-safe/bin/llama-cli" --cooldown 180
@@ -147,7 +158,7 @@ live_pkill() {
   # remove full-line comments and trailing comments, then look for pkill/killall tokens
   sed -e 's/[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' "$1" | grep -nE '(^|[[:space:]])(pkill|killall)([[:space:]]|$)' || true
 }
-for f in start_f2_2c.sh start_f2_3c.sh; do
+for f in start_f2_2c.sh start_f2_3c.sh start_f2_3c_bis.sh; do
   hits="$(live_pkill "$SCRIPT_DIR/$f")"
   if [ -n "$hits" ]; then
     fail "$f contains live pkill/killall" "$hits"
@@ -165,7 +176,7 @@ fi
 echo "=== 5) no network download in F2 scripts ==="
 if grep -nE 'curl |wget |huggingface|hf download|git clone' \
   "$SCRIPT_DIR/run_f2_grid.sh" "$SCRIPT_DIR/run_f2_thermal.sh" \
-  "$SCRIPT_DIR/start_f2_2c.sh" "$SCRIPT_DIR/start_f2_3c.sh" \
+  "$SCRIPT_DIR/start_f2_2c.sh" "$SCRIPT_DIR/start_f2_3c.sh" "$SCRIPT_DIR/start_f2_3c_bis.sh" \
   "$SCRIPT_DIR/start_f2_2_resume.sh" "$SCRIPT_DIR/start_f2_3.sh" \
   >/tmp/tfg_net.err 2>/dev/null; then
   fail "network download pattern found" "$(cat /tmp/tfg_net.err)"
@@ -247,6 +258,19 @@ if grep -q 'BEST_T=5' "$GRID" && grep -q 'BEST_C=1024' "$GRID"; then
 else
   fail "declared start defaults missing in grid"
 fi
+
+if grep -q 'F2.3c-bis' "$GRID" && grep -q 'BEST_T=4' "$GRID" && grep -q 'BEST_C=512' "$GRID"; then
+  pass "F2.3c-bis reduced cell t=4 c=512 present"
+else
+  fail "F2.3c-bis reduced cell missing in grid"
+fi
+
+if grep -q 'CHARGE_NEEDED' "$GRID"; then
+  pass "battery floor CHARGE_NEEDED present in grid"
+else
+  fail "CHARGE_NEEDED missing in grid"
+fi
+
 
 rm -rf "$TMP"
 
