@@ -111,6 +111,27 @@ const DOWNLOAD_PROGRESS_NOTIFICATION_ID = "kalsa-model-download-progress";
 /** Never post a notification update more than once per this window. */
 const DOWNLOAD_NOTIFY_THROTTLE_MS = 2_000;
 
+/**
+ * Untranslated on-device diagnostic string from a thrown value.
+ * Suppresses empty / bare "Error:" noise; truncates surrogate-safe to 200 chars.
+ */
+function rawErrorDetail(error: unknown): string | null {
+  let rawSource: string;
+  if (error instanceof Error) {
+    rawSource = `${error.name}: ${error.message}`;
+  } else {
+    try {
+      const json = JSON.stringify(error);
+      rawSource = json === undefined ? String(error) : json;
+    } catch {
+      rawSource = String(error);
+    }
+  }
+  const rawTrimmed = rawSource.trim();
+  if (!rawTrimmed || rawTrimmed === "Error:" || rawTrimmed === "Error: ") return null;
+  return Array.from(rawTrimmed).slice(0, 200).join("");
+}
+
 // ── ConversationCompactor (per-chat, module-level — survives remounts) ─────
 const compactorStateByChat = new Map<string, CompactorState>();
 /** Pending LLM summary (promoted into frozen rollingSummary on next boundary rebuild). */
@@ -704,7 +725,7 @@ export function AppShell() {
       if (!stillCurrent()) return false;
       setModelState("error");
       setModelError(friendlyNetworkError(error, locale, "engine").message);
-      setModelErrorDetail(null);
+      setModelErrorDetail(rawErrorDetail(error));
       return false;
     }
   }, [locale]);
@@ -878,24 +899,7 @@ export function AppShell() {
         return;
       }
       setModelState("error");
-      // Untranslated raw for on-device diagnostics; suppress empty / bare "Error: ".
-      let rawSource: string;
-      if (error instanceof Error) {
-        rawSource = `${error.name}: ${error.message}`;
-      } else {
-        try {
-          const json = JSON.stringify(error);
-          rawSource = json === undefined ? String(error) : json;
-        } catch {
-          rawSource = String(error);
-        }
-      }
-      const rawTrimmed = rawSource.trim();
-      const rawDetail =
-        !rawTrimmed || rawTrimmed === "Error:" || rawTrimmed === "Error: "
-          ? null
-          : Array.from(rawTrimmed).slice(0, 200).join("");
-      setModelErrorDetail(rawDetail);
+      setModelErrorDetail(rawErrorDetail(error));
       const friendly = friendlyNetworkError(error, locale, "download").message;
       setModelError(friendly);
       void notifyDownload(
