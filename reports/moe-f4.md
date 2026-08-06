@@ -81,12 +81,15 @@ Stesso totale 8 “braccia”, 1 core spostato da compute a I/O.
 
 ## Aperti
 
+0. **QUALITÀ DEL TESTO — MAI VERIFICATA (il rischio che invalida tutto).** In tutta F4 non abbiamo mai letto una frase prodotta dal modello: i run sono benchmark da 64 token con `--temp 0` e nessuno ha ispezionato l'output. A ~2.5 bpw (UD-IQ2_M) il modello potrebbe generare testo incoerente, e 5 tok/s di testo inutilizzabile non valgono nulla. È il gate **F4.5** del piano (5 prompt qualitativi: chat IT, reasoning semplice, coding breve, summarization, tool-call stile Kalsa; giudizio a 3 livelli vs Qwen3.5-4B e LFM2). Da fare PRIMA di qualunque conclusione di prodotto; se UD-IQ2_M è spazzatura → riprovare UD-IQ3_XXS o K-quant e rivalutare. Nessuna decisione di prodotto (F5+) può prescinderne.
 1. **ttft ~27.5 s** — ostacolo di prodotto (load+prefill); non attaccato da F4.4.
 2. **Sostenuto**: F2 mostrava ~metà del burst a 10 min; ora anche schermo acceso (confondente top-app). F5 pressure/long-run ancora da fare.
 3. **Hit-rate 56.9%** fermo a cache 2000: working set > budget o packing subottimale (266 vs fio ~413 MiB/s a 1 MiB).
 4. **Demotion mid-run** a `/moderate` o background: gate pre-run non basta; nproc binario in CSV è obbligatorio per scartare.
 
 ## Raccomandazioni (ramo I/O)
+
+> **Priorità assoluta prima di proseguire**: F4.5 qualità (voce 0 in Aperti). Nessuna ottimizzazione di throughput ha senso se l'output non è mai stato letto.
 
 | leva | stato | nota |
 |---|---|---|
