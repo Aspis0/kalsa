@@ -945,6 +945,43 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 sera — Coda dei lavori dopo il gate, con due correzioni a quanto avevo
+  scritto io.**
+
+  **1. Correzione: NON è vero che «l'unica leva rimasta è il packing».** Lo sweep
+  `--cache-mb` è stato *invalidato* (misurato pre-`top-app` su 3 core), il che significa
+  «non sappiamo», non «non conta». La cella **`cache-3000` nel regime valido** è il test
+  mancante più economico (~16 min) e va fatta prima di dichiarare chiusa quella famiglia.
+  **Aspettativa da calibrare prima di misurare, per non raccontarsela dopo**: senza cache il
+  traffico sarebbe ~343 MB/token (37 layer × 9 × 0.942 MB + 3 × 9 × 1.098). Ne leggiamo
+  **88.8 MB**, cioè il **26%** → la cache dà già circa il **74% di hit A LIVELLO DI BYTE**.
+  Il **56.9%** riportato dal runtime è quasi certamente un hit **per richiesta**: sono due
+  metriche diverse e la seconda sovrastima il margine. Con 1.5× di cache un salto realistico
+  del byte-hit è verso 80-82%, cioè 60-65 MB/token: **10-15% sul ramo lento**, non un
+  dimezzamento. Vale i 16 minuti, ma sapendo cosa aspettarsi.
+  *(Da verificare nel codice del runtime quale delle due metriche sia il 56.9%.)*
+
+  **2. Lacuna grave che nessuno dei due aveva messo in coda: NON ABBIAMO MAI GUARDATO COSA
+  SCRIVE IL MODELLO.** Giriamo a ~2.4 bpw e in tutta la campagna non è stata letta **una
+  sola frase** di output. Abbiamo ottimizzato per giorni la velocità di un oggetto senza
+  verificare che produca testo sensato — **in italiano**, che è il caso d'uso di Kalsa e su
+  cui le quantizzazioni aggressive degradano prima che sull'inglese. Se a 2.4 bpw il modello
+  è incoerente, tutto il resto è ginnastica: staremmo perfezionando qualcosa che non si può
+  spedire. Costa pochissimo (un prompt, dieci righe, lette da un umano) e va fatto **prima**
+  di investire settimane nel packing. È F4.5, che era in fondo alla lista: va promosso.
+
+  **Coda decisa:**
+  1. **Gate di rifiuto** (core attesi + harness vivo) — prima di qualunque altra misura.
+     Deve coprire due guasti distinti visti oggi: uscita da `top-app` (→ 3 core) e **morte
+     completa di Termux** (lmkd l'ha ucciso, non solo sshd). Harness sotto `nohup`/`setsid`.
+  2. **F4.5 qualità** — vedi sopra.
+  3. **`cache-3000`** nel regime valido.
+  4. **`t=5` appaiato** (oggi 5.16 con una rep sola; la sequenza 4.84 → 5.06 → 5.16 per
+     t=3/4/5 è coerente ma non conclusiva).
+  5. **Packing degli esperti** o **MTP**. Packing favorito: attacca i **byte**, non solo la
+     banda, ed è l'intervento che converge con la fusione dei matmul. Ma costa settimane —
+     si spendono solo dopo il punto 2.
+
 - **2026-08-06 sera — F4.4 (parziale, sessione chiusa dalla batteria): dare più thread
   all'I/O NON aiuta. Il vincolo è il pattern di accesso, non le braccia.**
 
