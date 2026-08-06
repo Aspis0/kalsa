@@ -884,7 +884,7 @@ usarla in un confronto.
 | B | 35B UD-IQ2_M, mainline mmap naive | 0.10 | 0.10 | n/a | ~3.6e5 | ~9.7e3 (9.5 GiB) | ~4.4–4.8 GB | **il muro** (F3); cold=fadv; no OOM/lmkd |
 | B2 | come B + --numa/MADV_RANDOM | 0.10 | 0.10 | n/a | ~3.6e5 | ~9.7e3 (9.4 GiB) | ~4.7–4.8 GB | F3; indistinguibile da B **alla risoluzione dello strumento** (±0.05 tok/s) |
 | B2alt | come B + --no-warmup | 0.10 | — | n/a | ~3.5e5 | ~9.4e3 (9.2 GiB) | ~4.7 GB | F3, **esplorativa** (1 rep cold, nessun warm): non riga promossa |
-| C | 35B UD-IQ2_M, BigMoeOnEdge default | | | | | | | F4.2 |
+| C | 35B UD-IQ2_M, BigMoeOnEdge default | 5.06 | 5.02–5.08 | 56.9% | ~458 | 84.7 | ~4.6 GB | **F4.2/4.3-bis, GATE F4 PASS**; `--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4`, t=4, **top-app nproc=7**; ttft 27.5 s |
 | C2 | C + sweep migliore (cache-mb/k/…) | | | | | | | F4.3 |
 | C3 | 35B UD-Q2_K_XL, config C2 | | | | | | | F4.4 K vs IQ |
 | D | C2 + MTP | | | | | | | F6 |
@@ -944,6 +944,57 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-06 — ✅ GATE F4: PASS. 5.06 tok/s sul 35B, stage valido.**
+
+  Braccio `F4.3-bis C-topapp`, config `--moe-stream --cache-mb 2000 --dense-weights anon
+  --overlap --io-threads 4`, `t=4`, runtime BigMoeOnEdge `b0c4e5b`, in `top-app` con
+  `nproc=7`:
+
+  | rep | tipo | eval | ttft |
+  |---|---|---:|---:|
+  | 1 | **cold** (fadv) | 5.06 | 27.5 s |
+  | 2 | warm | 5.02 | 27.6 s |
+  | 3 | warm | 5.08 | 27.7 s |
+  | sentinella | warm | **4.97** | 27.5 s |
+
+  **Mediana 5.06, drift sentinella 1.8%** (soglia 15%) → **stage VALIDO**. Dispersione 1.2%:
+  la misura più stabile dell'intera campagna. Cold ≈ warm, come atteso ora che il file non
+  entra comunque in RAM. Riga **C** di §9 compilata.
+  **Soglia del gate: ≥3 tok/s = PASS. Ottenuto 5.06 → PASS con margine.**
+
+  **Il percorso completo, per memoria:**
+  | configurazione | tok/s |
+  |---|---:|
+  | mmap naive, mainline (F3) | 0.10 |
+  | BigMoeOnEdge, ma su 3 core A510 | 0.82 |
+  | BigMoeOnEdge, `top-app`, 7 core | **5.06** |
+
+  **50× rispetto al naive**, e **6.2×** rispetto a quello che credevamo di avere stamattina.
+
+  **Scomposizione finale — l'I/O è il ramo lento, senza ambiguità:**
+  ```
+  decode 0.201 = compute 0.116 + cache mgmt 0.012 + flash I/O 0.319 (in overlap), 266 MiB/s
+  cache: 56.9% hit, 2000 MiB residenti, 8843 evizioni, 4848 ri-letture (75.8/token)
+  ```
+  L'I/O costa **2.7× il calcolo**. Se fosse gratis: `1/(0.116+0.012)` ≈ **7.8 tok/s**. È il
+  tetto dell'architettura attuale, e la distanza da 5.06 è **tutta I/O**.
+
+  **Quindi la frontiera di F4.4+ è l'I/O, e le leve sono già tutte in piano:** rifare lo
+  sweep `--cache-mb` (il vecchio è ritirato, misurato nel regime sbagliato) partendo da un
+  hit-rate del 56.9% con 4848 byte ri-letti; **expert packing** (H6/G3) per convertire
+  letture sparse in sequenziali — la banda è 266 MiB/s contro i **413 MiB/s** che fio misura
+  a 1 MiB; **`--load-mode dio`**; e infine il **prefetch predittivo** (H3, F7) contro lo
+  stall residuo. Il calcolo (0.116 s) resta interessante solo per alzare il tetto dei 7.8,
+  non per arrivarci.
+
+  **Restano aperti due problemi che il gate non copre:**
+  1. **TTFT = 27.5 s.** Per un'app di chat è il vero ostacolo di prodotto: throughput e
+     tempo-al-primo-token sono problemi diversi, con leve diverse. Va trattato come metrica
+     di pari dignità, non come colonna di contorno.
+  2. **Sostenuto vs burst**: questi sono run da 64 token. F2 aveva mostrato sul 4B che il
+     sostenuto su 10 minuti è ~metà del burst. Prima di dichiarare "5 tok/s" come numero di
+     prodotto serve la prova di durata (F5), con lo schermo acceso che ora aggiunge calore.
 
 - **2026-08-06 — 🎯 4.48 tok/s CON I CORE GIUSTI. Il muro torna a essere l'I/O, e il piano
   originale aveva ragione.**
