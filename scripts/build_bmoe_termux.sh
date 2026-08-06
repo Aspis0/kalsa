@@ -44,9 +44,11 @@ BUILD_DIR_IN="${BUILD_DIR:-build-termux}"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 # S23-safe explicit ISA (no native probes). Portable: armv8.2-a+dotprod+fp16
 ARM_ARCH="${ARM_ARCH:-armv8.2-a+dotprod+i8mm+fp16}"
-# Termux default __ANDROID_MIN_SDK_VERSION__=24; AHardwareBuffer needs API>=26
-# (platform_io.cpp pinned_alloc / --dense-weights ahwb). Device S23 is API 36.
-ANDROID_API="${ANDROID_API:-28}"
+# Termux default API 24 marks AHardwareBuffer unavailable.
+# Raising API globally breaks libc++. Use CXX wrapper so only
+# platform_io.cpp is compiled with -U__ANDROID__ (ahwb stubbed).
+# F4 headline uses --dense-weights anon; ahwb not required.
+ENABLE_AHWB="${ENABLE_AHWB:-0}"
 JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 4)}"
 SKIP_PKG="${SKIP_PKG:-0}"
 SKIP_CHECKOUT="${SKIP_CHECKOUT:-0}"
@@ -70,7 +72,7 @@ Opzioni / env:
   BUILD_TYPE=TYPE     Release|Debug|RelWithDebInfo (default: Release)
   ARM_ARCH=string     default: armv8.2-a+dotprod+i8mm+fp16
                       grammar: armv8.2-a[+dotprod][+i8mm][+fp16]
-  ANDROID_API=N       default 28 (AHardwareBuffer needs >=26; Termux default is 24)
+  ENABLE_AHWB=1       attempt ahwb (default 0: stub via CXX wrapper; F4 uses anon)
   JOBS=N              parallelismo (default: nproc)
   SKIP_PKG=1          non eseguire pkg install
   SKIP_CHECKOUT=1     non forzare checkout del pin monorepo
@@ -108,7 +110,7 @@ BUILD_DIR_ABS="$ISA_BUILD_DIR"
 echo "=== build_bmoe_termux.sh (path A, on-device, safe ISA) ==="
 echo "BMOE_ROOT=$BMOE_ROOT"
 echo "BUILD_DIR=$BUILD_DIR_NAME ($BUILD_DIR_ABS) BUILD_TYPE=$BUILD_TYPE JOBS=$JOBS"
-echo "ARM_ARCH=$ARM_ARCH (GGML_NATIVE=OFF) ANDROID_API=$ANDROID_API"
+echo "ARM_ARCH=$ARM_ARCH (GGML_NATIVE=OFF) ENABLE_AHWB=$ENABLE_AHWB"
 echo "PIN monorepo=$PIN_MONOREPO"
 echo "PIN llama.cpp=$PIN_LLAMA"
 
@@ -237,15 +239,49 @@ if [ -f "$BUILD_DIR_ABS/CMakeCache.txt" ]; then
     fi
 fi
 
-# Raise min SDK so AHardwareBuffer_* is not marked unavailable (Termux default API 24).
-# Toolchain flag only — no source patch. ahwb remains optional at runtime.
-_BMOE_API_FLAGS="-D__ANDROID_API__=${ANDROID_API} -D__ANDROID_MIN_SDK_VERSION__=${ANDROID_API}"
-echo "ANDROID_API=$ANDROID_API (AHardwareBuffer compile gate)"
+# Termux AHardwareBuffer compile gate:
+# platform_io.cpp uses AHardwareBuffer under #if defined(__ANDROID__). Termux
+# headers mark those symbols unavailable at API 24. Raising __ANDROID_API__
+# globally breaks libc++. Solution (no monorepo source patch): wrap the CXX
+# compiler so ONLY platform_io.cpp is compiled with -U__ANDROID__, selecting
+# the non-Android pinned_alloc stub. F4 headline config uses --dense-weights
+# anon, so ahwb is not required for gate numbers. ENABLE_AHWB=1 skips wrapper.
+_CMAKE_CXX_EXTRA=()
+if [ "${ENABLE_AHWB}" = "1" ]; then
+    echo "ENABLE_AHWB=1 — no CXX wrapper (may fail on Termux API 24 headers)"
+else
+    _WRAP_DIR="$BUILD_DIR_ABS"
+    mkdir -p "$_WRAP_DIR"
+    _WRAP="$_WRAP_DIR/cxx_wrap_no_ahwb.sh"
+    cat > "$_WRAP" <<'WRAP'
+#!/data/data/com.termux/files/usr/bin/bash
+# Compiler wrapper: for platform_io.cpp only, undefine __ANDROID__ so the
+# AHardwareBuffer path is not compiled (non-Android stub used). All other
+# TUs compile normally. No source tree modification.
+set -euo pipefail
+REAL_CXX="${BMOE_REAL_CXX:-c++}"
+is_pio=0
+for a in "$@"; do
+    case "$a" in
+        *platform_io.cpp) is_pio=1 ;;
+    esac
+done
+if [ "$is_pio" -eq 1 ]; then
+    exec "$REAL_CXX" -U__ANDROID__ "$@"
+else
+    exec "$REAL_CXX" "$@"
+fi
+WRAP
+    chmod +x "$_WRAP"
+    export BMOE_REAL_CXX="$(command -v c++ || command -v clang++)"
+    _CMAKE_CXX_EXTRA=(-DCMAKE_CXX_COMPILER="$_WRAP")
+    echo "CXX wrapper: $_WRAP (platform_io.cpp -> -U__ANDROID__, ahwb stubbed)"
+    echo "BMOE_REAL_CXX=$BMOE_REAL_CXX"
+fi
 cmake -S . -B "$BUILD_DIR_ABS" -G Ninja \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-    -DCMAKE_C_FLAGS="$_BMOE_API_FLAGS" \
-    -DCMAKE_CXX_FLAGS="$_BMOE_API_FLAGS" \
+    "${_CMAKE_CXX_EXTRA[@]}" \
     -DLLAMA_CURL=OFF \
     -DGGML_OPENCL=OFF \
     -DGGML_NATIVE=OFF \
