@@ -987,6 +987,21 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
     codice. Da provare in F4 accanto a `mmap`, non da rimandare a F8.
   - Difetto minore dell'harness: il gate batteria scatta **prima** di `--print-cmd`, che
     non esegue nulla; stampare la cmdline a telefono collegato è impossibile.
+  - **Aggiornamento 2026-08-06 mattina — altre 5 ipotesi cadute, e 2 fatti nuovi.**
+    Cadute: pseudo-terminale (crasha anche con `ssh -tt`), riavvio pulito, flag
+    `-ctk/-ctv`, secondo binario (`build/`), stato del telefono (scollegato, 100%, 26°C).
+    **Fatto nuovo 1 — il workaround regge sul modello che conta**: 35B + flag esatti di
+    F3 + `--load-mode mmap` → nessun abort, e i numeri **coincidono con F3**
+    (`[ Prompt: 1.8 t/s | Generation: 0.1 t/s ]`). È una **conferma indipendente del muro
+    di F3**, ottenuta con un percorso diverso: 0.10 tok/s non era un artefatto dell'harness.
+    **Fatto nuovo 2 — `--perf` NON produce il blocco perf nemmeno così**: `ttft_ms` resta
+    vuoto. La spiegazione di Grok regge, ma la conseguenza cambia strategia: **smettere di
+    inseguire `llama_perf_context_print`**. L'harness legge già lo stream di output del
+    processo, quindi il TTFT va misurato **fuori dal binario**, prendendo il wall-clock
+    del primo token emesso sullo stream. Più robusto e indipendente dal runtime — utile
+    anche per `bmoe-cli` in F4, che ha un formato di output diverso.
+    Confermato anche il blocco post-generazione: il 35B genera e poi **non esce**
+    (rc=124 al timeout). Sotto l'harness usciva con rc=0 — differenza ancora non spiegata.
 
 - **2026-08-06 — Gate F3 ACCETTATO (Claude): PASS, con 4 correzioni. Il muro è misurato.**
   Numeri: **0.10 tok/s** su tutte e tre le varianti (default, `--numa distribute`,
