@@ -1,0 +1,89 @@
+name: APK (device build)
+
+# Builds an installable APK for a real phone. The other three workflows build
+# -PreactNativeArchitectures=x86_64 because they only ever run on an emulator —
+# those APKs do not run on an arm64 device. This one exists to produce something
+# you can sideload.
+#
+# Release is signed with the committed debug keystore (see android/app/build.gradle):
+# sideloadable, not publishable. Uninstall a previous build first if it was signed
+# with a different key.
+on:
+  workflow_dispatch:
+    inputs:
+      abi:
+        description: "Target ABI"
+        required: true
+        default: "arm64-v8a"
+        type: choice
+        options: [arm64-v8a, "arm64-v8a,armeabi-v7a", x86_64]
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install JS deps
+        run: npm ci
+
+      # Same gate as every other workflow: a build that ships is a build whose
+      # logic passed. No emulator here, so no inference — contracts only.
+      - name: Typecheck + logic harnesses
+        run: |
+          npm run typecheck
+          node scripts/retrieverHarness.mjs
+          node scripts/compactorHarness.mjs
+          node scripts/retrievalLoopHarness.mjs
+          node scripts/htmlToTextHarness.mjs
+          node scripts/pdfTextHarness.mjs
+          node scripts/pdfBridgeHarness.mjs
+          node scripts/pdfTextServiceHarness.mjs
+          node scripts/webFetchHarness.mjs
+          node scripts/toolSourceLedgerHarness.mjs
+          node scripts/base64Harness.mjs
+          node scripts/pdfCacheFsHarness.mjs
+          node scripts/longChatEstimateHarness.mjs
+          node scripts/webFetchPdfMutationMatrix.mjs
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc /usr/local/share/boost || true
+          df -h /
+
+      - name: Prebuild (CNG)
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build APK (${{ inputs.abi }})
+        run: |
+          cd android
+          ./gradlew assembleRelease -PreactNativeArchitectures="${{ inputs.abi }}" --console=plain
+          ls -la app/build/outputs/apk/release/
+
+      - name: Report APK size and ABIs
+        run: |
+          cd android/app/build/outputs/apk/release
+          ls -la app-release.apk
+          unzip -l app-release.apk | grep -E "lib/[a-z0-9-]+/" | awk -F/ '{print $2}' | sort -u
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kalsa-apk-${{ inputs.abi }}-${{ github.sha }}
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
