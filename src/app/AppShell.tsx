@@ -40,7 +40,7 @@ import {
   type PdfCacheFs,
 } from "../agent/webFetchTool";
 import { PdfTextExtractorHost } from "../pdf/PdfTextExtractorHost";
-import { requestPdfText } from "../pdf/pdfTextService";
+import { isPdfTextExtractionBusy, requestPdfText } from "../pdf/pdfTextService";
 import * as FileSystem from "expo-file-system/legacy";
 import { getStrings, useLocale } from "../i18n";
 import * as MemoryStore from "../memory/MemoryStore";
@@ -372,6 +372,7 @@ export function AppShell() {
         opts?: { sourceId?: string; title?: string | null; signal?: AbortSignal },
       ) => requestPdfText(fileUri, opts),
       pdfCacheFs,
+      isPdfTextExtractionBusy,
     };
     let allowlist: FetchAllowlist = makeFetchAllowlist();
     let fetchExec = makeWebFetchExecutor(locale, allowlist, fetchDeps);

@@ -51,9 +51,36 @@ import {
  * - text items streamed first; RN reconstructs via pdfText.ts
  * - pages without a usable text layer are rasterized in-place via injectJavaScript
  * - image-only default path must not regress (cap fail-closed, in-flight writes)
+ *
+ * `mode="text"`: text layer only — no JPEG rasterize (tool path; images cannot
+ * reach the model from a tool result).
  */
 
-export type PdfExtractMode = "images" | "textWithImageFallback";
+export type PdfExtractMode = "images" | "textWithImageFallback" | "text";
+
+function isTextExtractMode(mode: PdfExtractMode): boolean {
+  return mode === "textWithImageFallback" || mode === "text";
+}
+
+/**
+ * Typed extract failure so the tool host can map timeouts without matching
+ * localized strings (substring matching was removed from mapPdfExtractError).
+ */
+export type PdfExtractErrorCode =
+  | "timeout"
+  | "page_timeout"
+  | "cap"
+  | "failed";
+
+export class PdfExtractError extends Error {
+  readonly code: PdfExtractErrorCode;
+
+  constructor(code: PdfExtractErrorCode, message: string) {
+    super(message);
+    this.name = "PdfExtractError";
+    this.code = code;
+  }
+}
 
 /** Per-page instrumentation (Hermes reconstructPageText ms + WebView getTextContent). */
 export type PdfPageExtractMetrics = {
@@ -135,6 +162,8 @@ export function PdfToImages({
     Map<number, { items: PdfTextItem[]; meta: TextPageMeta; reconstructMs: number; text: string }>
   >(new Map());
   const textDocsEmittedRef = useRef(false);
+  /** Uncapped pdf.numPages from textPassDone, when reported. */
+  const documentPageCountRef = useRef<number | null>(null);
   const rasterizeInjectedRef = useRef(false);
   const metricsPagesRef = useRef<PdfPageExtractMetrics[]>([]);
   /** In-flight JPEG writes — global done must wait (image-mode last-page race). */
@@ -167,14 +196,14 @@ export function PdfToImages({
   }, []);
 
   const fail = useCallback(
-    (message: string) => {
+    (message: string, code: PdfExtractErrorCode = "failed") => {
       if (doneRef.current) return;
       doneRef.current = true;
       pendingGlobalDoneRef.current = false;
       clearTimers();
       deleteCreatedImages();
       setError(message);
-      onError(new Error(message));
+      onError(new PdfExtractError(code, message));
     },
     [deleteCreatedImages, onError],
   );
@@ -210,6 +239,7 @@ export function PdfToImages({
     accRef.current = new PdfBridgeAccumulator({ maxPages: pages });
     textPagesRef.current = new Map();
     textDocsEmittedRef.current = false;
+    documentPageCountRef.current = null;
     rasterizeInjectedRef.current = false;
     metricsPagesRef.current = [];
     deleteCreatedImages();
@@ -228,7 +258,7 @@ export function PdfToImages({
           setError(t("errors.pdfTooLarge"));
           return;
         }
-        if (mode === "textWithImageFallback") {
+        if (isTextExtractMode(mode)) {
           setHtml(buildPdfHtmlTextMode(pdfSrc, workerSrc, pdfB64, pages));
         } else {
           setHtml(buildPdfHtml(pdfSrc, workerSrc, pdfB64, pages));
@@ -250,14 +280,17 @@ export function PdfToImages({
 
   const armPageTimer = useCallback(() => {
     if (pageTimerRef.current) clearTimeout(pageTimerRef.current);
-    pageTimerRef.current = setTimeout(() => fail(t("errors.pdfTimeout")), PAGE_TIMEOUT_MS);
+    pageTimerRef.current = setTimeout(
+      () => fail(t("errors.pdfTimeout"), "page_timeout"),
+      PAGE_TIMEOUT_MS,
+    );
   }, [fail, t]);
 
   const armTotalTimer = useCallback(() => {
     if (totalTimerRef.current) clearTimeout(totalTimerRef.current);
-    if (mode !== "textWithImageFallback") return;
+    if (!isTextExtractMode(mode)) return;
     totalTimerRef.current = setTimeout(
-      () => fail(t("errors.pdfExtractTimeout")),
+      () => fail(t("errors.pdfExtractTimeout"), "timeout"),
       TOTAL_EXTRACTION_TIMEOUT_MS,
     );
   }, [fail, mode, t]);
@@ -268,7 +301,14 @@ export function PdfToImages({
       textDocsEmittedRef.current = true;
 
       const sid = sanitizePdfSourceId(pdfUri, sourceId);
-      const result = pdfPagesToRetrievalDocs(sid, title, pageTexts);
+      const base = pdfPagesToRetrievalDocs(sid, title, pageTexts);
+      const docPages = documentPageCountRef.current;
+      const result: PdfRetrievalDocsResult = {
+        ...base,
+        ...(typeof docPages === "number" && docPages > 0
+          ? { documentPageCount: docPages }
+          : {}),
+      };
 
       const pages = metricsPagesRef.current.slice().sort((a, b) => a.pageNumber - b.pageNumber);
       const metrics: PdfDocumentExtractMetrics = {
@@ -283,12 +323,17 @@ export function PdfToImages({
       console.log(
         `[pdf-extract] pages=${metrics.pageCount} items=${metrics.totalItems} ` +
           `projectedBytes=${metrics.totalProjectedBytes} reconstructMs=${metrics.totalReconstructMs} ` +
-          `getTextContentMs=${metrics.totalGetTextContentMs} skipped=${metrics.skippedPages.length}`,
+          `getTextContentMs=${metrics.totalGetTextContentMs} skipped=${metrics.skippedPages.length}` +
+          (result.documentPageCount != null
+            ? ` documentPageCount=${result.documentPageCount}`
+            : ""),
       );
       onExtractMetrics?.(metrics);
       onTextDocs?.(result);
 
-      if (result.skippedPages.length === 0) {
+      // Text-only mode (tool path): never rasterize skipped pages — JPEGs cannot
+      // reach the model from a tool result, and late writes can orphan files.
+      if (mode === "text" || result.skippedPages.length === 0) {
         finishDone();
         return;
       }
@@ -304,6 +349,7 @@ export function PdfToImages({
     [
       armPageTimer,
       finishDone,
+      mode,
       onExtractMetrics,
       onTextDocs,
       pdfUri,
@@ -320,7 +366,7 @@ export function PdfToImages({
       if (!parsed.ok) {
         // Cap exceeded → fail-closed (never silent page drop). Malformed → ignore.
         if (parsed.category === "cap") {
-          fail(t("errors.pdfExtractCap", { reason: parsed.reason }));
+          fail(t("errors.pdfExtractCap", { reason: parsed.reason }), "cap");
         }
         return;
       }
@@ -334,7 +380,7 @@ export function PdfToImages({
         return;
       }
       if (eventOut.type === "cap_exceeded") {
-        fail(t("errors.pdfExtractCap", { reason: eventOut.reason }));
+        fail(t("errors.pdfExtractCap", { reason: eventOut.reason }), "cap");
         return;
       }
 
@@ -372,6 +418,13 @@ export function PdfToImages({
       }
 
       if (eventOut.type === "text_pass_done") {
+        if (
+          typeof eventOut.documentPageCount === "number" &&
+          Number.isFinite(eventOut.documentPageCount) &&
+          eventOut.documentPageCount > 0
+        ) {
+          documentPageCountRef.current = Math.floor(eventOut.documentPageCount);
+        }
         const completed = Array.from(textPagesRef.current.keys());
         const { missing, expected } = reconcileTextPassPages(
           completed,
@@ -460,7 +513,7 @@ export function PdfToImages({
 
       // X1: global_done only from messages without a page key (enforced in protocol).
       if (eventOut.type === "global_done") {
-        if (mode === "textWithImageFallback" && !textDocsEmittedRef.current) {
+        if (isTextExtractMode(mode) && !textDocsEmittedRef.current) {
           fail(t("errors.pdfExtractFailed"));
           return;
         }
@@ -486,7 +539,7 @@ export function PdfToImages({
   );
 
   useEffect(() => {
-    if (html && mode === "textWithImageFallback") {
+    if (html && isTextExtractMode(mode)) {
       armTotalTimer();
       armPageTimer();
     }
@@ -526,7 +579,7 @@ export function PdfToImages({
         onMessage={handleMessage}
       />
       <Text style={styles.loading}>
-        {mode === "textWithImageFallback" ? t("pdf.extractingText") : t("pdf.readingPages")}
+        {isTextExtractMode(mode) ? t("pdf.extractingText") : t("pdf.readingPages")}
       </Text>
     </View>
   );
@@ -641,10 +694,11 @@ function buildPdfHtmlTextMode(
     pdfjsLib.getDocument({data: pdfData}).promise.then(function(pdf){
       pdfDoc = pdf;
       var total = Math.min(pdf.numPages, MAX_PAGES);
+      var documentPageCount = pdf.numPages;
       var current = 0;
       function extractPage(){
         if (current >= total) {
-          post({kind: "textPassDone", pageCount: total});
+          post({kind: "textPassDone", pageCount: total, documentPageCount: documentPageCount});
           return;
         }
         var pageNum = current + 1;

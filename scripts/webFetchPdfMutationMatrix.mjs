@@ -70,10 +70,76 @@ const MUTATIONS = [
     name: "no-text-layer-branch",
     description: "Empty docs always use invalid, never no-text-layer message",
     pattern:
-      /if\s*\(\s*pageCount\s*>\s*0\s*\)\s*\{\s*return\s*\{\s*text:\s*errors\.webFetchPdfNoTextLayer/,
+      /if\s*\(\s*skippedPages\.length\s*>\s*0\s*\)\s*\{\s*const pages = documentPageCount/,
     replace:
-      "if (false && pageCount > 0) { return { text: errors.webFetchPdfNoTextLayer",
+      "if (false && skippedPages.length > 0) { const pages = documentPageCount",
     expectRed: ["pdf no-text-layer explicit message"],
+  },
+  {
+    name: "post-read-size-cap",
+    description: "Disable post-read byteLength PDF size gate",
+    pattern:
+      /if\s*\(\s*buf\.byteLength\s*>\s*hardCap\s*\)\s*\{\s*onTooLarge\(\);\s*return\s*\{\s*ok:\s*false,\s*tooLarge:\s*true/,
+    replace:
+      "if (false && buf.byteLength > hardCap) { onTooLarge(); return { ok: false, tooLarge: true",
+    expectRed: ["pdf post-read size cap measured"],
+  },
+  {
+    name: "https-downgrade-check",
+    description: "Skip https→http downgrade refusal",
+    pattern:
+      /const downgrade\s*=\s*requestedScheme\s*===\s*"https"\s*&&\s*finalScheme\s*!==\s*null\s*&&\s*finalScheme\s*!==\s*"https"\s*;/,
+    replace: 'const downgrade = false; /* mutated */',
+    expectRed: [
+      "pdf https→http downgrade refused",
+      "F1d https→http refused",
+    ],
+  },
+  {
+    name: "final-url-public-gate",
+    description: "Skip final URL public-host check (redirect policy)",
+    pattern:
+      /if\s*\(\s*!finalPublic\s*\|\|\s*!finalAllowed\s*\|\|\s*downgrade\s*\)\s*\{/,
+    replace: "if (false && (!finalPublic || !finalAllowed || downgrade) /* mutated */) {",
+    expectRed: [
+      "pdf redirect to private refused",
+      "F1a private redirect no body",
+    ],
+  },
+  {
+    name: "pdf-index-cap",
+    description:
+      "Make capDocsForIndex a no-op identity so second-page probe stays indexed",
+    apply(src) {
+      const re =
+        /export function capDocsForIndex\([\s\S]*?\n\}/;
+      if (!re.test(src)) throw new Error("pdf-index-cap: function not found");
+      return src.replace(
+        re,
+        `export function capDocsForIndex(
+  docs: Array<{ docId: string; title?: string; text: string }>,
+  _maxChars: number,
+): Array<{ docId: string; title?: string; text: string }> {
+  // MUTATED: identity — no cap
+  return Array.isArray(docs) ? docs.slice() : [];
+}`,
+      );
+    },
+    expectRed: [
+      "pdf index cap pure drops tail",
+      "pdf index cap pure drops second doc",
+      "pdf index cap drops second page by budget",
+    ],
+  },
+  {
+    name: "pdf-index-cap-callsite",
+    description:
+      "Delete the capDocsForIndex call in handlePdfResponse (auditor finding)",
+    // Leave the exported helper intact — only the production call site goes away.
+    pattern:
+      /urlDocs\s*=\s*capDocsForIndex\s*\(\s*urlDocs\s*,\s*MAX_INDEX_CHARS\s*\)\s*;/,
+    replace: "/* mutated: call site removed */",
+    expectRed: ["pdf index cap drops second page by budget"],
   },
   {
     name: "pn-docid-remap",

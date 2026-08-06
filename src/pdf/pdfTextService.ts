@@ -285,6 +285,7 @@ function normalizeResult(result: PdfExtractionResult): PdfExtractionResult {
   const skippedPages = Array.isArray(result?.skippedPages)
     ? result.skippedPages
     : [];
+  const docCount = result?.documentPageCount;
   return {
     docs: docs.map((d) => ({
       docId: typeof d?.docId === "string" ? d.docId : "",
@@ -294,5 +295,10 @@ function normalizeResult(result: PdfExtractionResult): PdfExtractionResult {
     skippedPages: skippedPages.filter(
       (p): p is number => typeof p === "number" && Number.isInteger(p) && p >= 1,
     ),
+    ...(typeof docCount === "number" &&
+    Number.isInteger(docCount) &&
+    docCount >= 1
+      ? { documentPageCount: docCount }
+      : {}),
   };
 }

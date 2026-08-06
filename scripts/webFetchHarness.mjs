@@ -812,6 +812,21 @@ async function main() {
       urlPathLooksLikePdf("https://host/page?file=a.pdf") === false &&
         resolveFetchNetworkTimeoutMs("https://host/page?file=a.pdf") === FETCH_TO,
     );
+    check(
+      "timeout: %2Epdf path recognised",
+      urlPathLooksLikePdf("https://host/doc%2Epdf") === true &&
+        resolveFetchNetworkTimeoutMs("https://host/doc%2Epdf") === PDF_FETCH_TIMEOUT_MS,
+    );
+    check(
+      "timeout: path param after .pdf recognised",
+      urlPathLooksLikePdf("https://host/a.pdf;x=1") === true,
+    );
+    check(
+      "timeout: matrix param mid-path still PDF",
+      urlPathLooksLikePdf("https://host/dir;param/file.pdf") === true &&
+        resolveFetchNetworkTimeoutMs("https://host/dir;param/file.pdf") ===
+          PDF_FETCH_TIMEOUT_MS,
+    );
     // Integration: extractor wired + HTML URL still uses short timeout for the
     // resolve helper (executor calls the same pure function). PDF URL uses long.
     const { fs } = (() => {
@@ -923,9 +938,8 @@ async function main() {
     };
   }
 
-  // PDF without extractor → unsupported; extractor never called
+  // PDF without extractor → unsupported (no extractPdfText in deps)
   {
-    let extractCalls = 0;
     const allow = makeFetchAllowlist();
     allow.add("https://cdn.example/doc.pdf");
     const out = await makeWebFetchExecutor("en", allow, {
@@ -943,7 +957,6 @@ async function main() {
       /unsupported|application\/pdf/i.test(out.text),
       out.text?.slice(0, 120),
     );
-    check("pdf no-extractor extract never called", extractCalls === 0);
   }
 
   // PDF with extractor → routed; never htmlToText (no HTML artifact; #pN docIds)
@@ -1068,12 +1081,19 @@ async function main() {
           arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
         }),
       pdfCacheFs: fs,
-      extractPdfText: async () => ({ docs: [], skippedPages: [1, 2, 3] }),
+      extractPdfText: async () => ({
+        docs: [],
+        skippedPages: [1, 2, 3],
+        documentPageCount: 10,
+      }),
     })("web_fetch", { url: pdfUrl, query: "anything climate temperature" });
     check(
       "pdf no-text-layer explicit message",
-      /no text layer/i.test(out.text) && /3/.test(out.text) && !/unsupported/i.test(out.text),
-      out.text?.slice(0, 160),
+      /no extractable text layer/i.test(out.text) &&
+        /reports 10 pages/i.test(out.text) &&
+        /3 inspected/i.test(out.text) &&
+        !/unsupported/i.test(out.text),
+      out.text?.slice(0, 200),
     );
     check(
       "pdf cache deleted on no-text",
@@ -1081,7 +1101,7 @@ async function main() {
     );
   }
 
-  // Partial: page 1 text, page 2 none → passages + skipped statement
+  // Partial: page 1 text, pages 9–10 none, document has 10 pages
   {
     const pdfUrl = "https://mixed.example/doc.pdf";
     const allow = makeFetchAllowlist();
@@ -1101,8 +1121,17 @@ async function main() {
             docId: "x#p1",
             text: "Renewable energy capacity expanded rapidly with solar and wind generating record electricity share climate policy.",
           },
+          {
+            docId: "x#p2",
+            text: "Further climate policy details on solar incentives and wind capacity expansion across regions.",
+          },
+          {
+            docId: "x#p3",
+            text: "Additional renewable energy findings for retrieval matching temperature and climate terms.",
+          },
         ],
-        skippedPages: [2],
+        skippedPages: [9, 10],
+        documentPageCount: 10,
       }),
     })("web_fetch", {
       url: pdfUrl,
@@ -1111,8 +1140,48 @@ async function main() {
     check(
       "pdf partial passages + skipped note",
       /renewable|solar/i.test(out.text) &&
-        /1 of 2|no extractable text layer/i.test(out.text),
-      out.text?.slice(0, 280),
+        /2 of 5 inspected/i.test(out.text) &&
+        /document reports 10 pages/i.test(out.text),
+      out.text?.slice(0, 320),
+    );
+  }
+
+  // Forged documentPageCount below processed is clamped up (surfaced via skip note)
+  {
+    const pdfUrl = "https://forge.example/a.pdf";
+    const allow = makeFetchAllowlist();
+    allow.add(pdfUrl);
+    const { fs } = makeFakeFs();
+    const out = await makeWebFetchExecutor("en", allow, {
+      fetchImpl: async () =>
+        mockResponse({
+          contentType: "application/pdf",
+          url: pdfUrl,
+          arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+        }),
+      pdfCacheFs: fs,
+      extractPdfText: async () => ({
+        docs: [
+          {
+            docId: "x#p1",
+            text: "Climate temperature assessment findings for retrieval matching renewable energy policy.",
+          },
+          {
+            docId: "x#p2",
+            text: "Sea levels research findings climate report details about coastal expansion.",
+          },
+        ],
+        skippedPages: [3, 4],
+        documentPageCount: 1, // attacker-low; processed=4
+      }),
+    })("web_fetch", {
+      url: pdfUrl,
+      query: "climate temperature renewable",
+    });
+    check(
+      "pdf forged pageCount clamped to processed",
+      /reports 4 pages/i.test(out.text) && !/reports 1 pages/i.test(out.text),
+      out.text?.slice(0, 320),
     );
   }
 
@@ -1234,6 +1303,472 @@ async function main() {
       /claimed to be a PDF|no pages|not.*extract/i.test(out.text) &&
         !/undefined|TypeError/i.test(out.text),
       out.text?.slice(0, 160),
+    );
+  }
+
+  // H2: throwing pdfCacheFs.write → i18n, never reject, path-free
+  {
+    const pdfUrl = "https://disk.example/a.pdf";
+    const allow = makeFetchAllowlist();
+    allow.add(pdfUrl);
+    let rejected = false;
+    let out;
+    try {
+      out = await makeWebFetchExecutor("en", allow, {
+        fetchImpl: async () =>
+          mockResponse({
+            contentType: "application/pdf",
+            url: pdfUrl,
+            arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+          }),
+        pdfCacheFs: {
+          async write() {
+            throw new Error("ENOSPC: write failed at /data/user/0/com.app/cache/web-fetch-pdf-xyz.pdf");
+          },
+          async remove() {},
+        },
+        extractPdfText: async () => ({ docs: [], skippedPages: [] }),
+      })("web_fetch", { url: pdfUrl, query: "x" });
+    } catch {
+      rejected = true;
+    }
+    check("pdf write throw never rejects", !rejected && typeof out?.text === "string");
+    check(
+      "pdf write throw sanitized i18n",
+      /extract/i.test(out?.text ?? "") &&
+        !/\/data\/user/i.test(out?.text ?? "") &&
+        !/web-fetch-pdf/i.test(out?.text ?? ""),
+      out?.text?.slice(0, 160),
+    );
+  }
+
+  // H3: busy pre-check → 0 network calls
+  {
+    let fetches = 0;
+    const allow = makeFetchAllowlist();
+    allow.add("https://busy.example/a.pdf");
+    const out = await makeWebFetchExecutor("en", allow, {
+      fetchImpl: async () => {
+        fetches += 1;
+        return mockResponse({ contentType: "application/pdf" });
+      },
+      extractPdfText: async () => ({ docs: [], skippedPages: [] }),
+      pdfCacheFs: makeFakeFs().fs,
+      isPdfTextExtractionBusy: () => true,
+    })("web_fetch", { url: "https://busy.example/a.pdf", query: "x" });
+    check(
+      "pdf busy pre-check 0 fetches",
+      fetches === 0 && /already being extracted|Wait for it/i.test(out.text),
+      out.text?.slice(0, 120),
+    );
+  }
+
+  // PDF post-read byteLength gate (measured size message)
+  {
+    const pdfUrl = "https://bigbody.example/a.pdf";
+    const allow = makeFetchAllowlist();
+    allow.add(pdfUrl);
+    const huge = new Uint8Array(PDF_BODY_HARD_CAP + 50);
+    huge.fill(0x41);
+    let extractCalls = 0;
+    const { fs, log } = makeFakeFs();
+    const out = await makeWebFetchExecutor("en", allow, {
+      fetchImpl: async () =>
+        mockResponse({
+          contentType: "application/pdf",
+          url: pdfUrl,
+          contentLength: "100",
+          arrayBufferBytes: huge,
+        }),
+      pdfCacheFs: fs,
+      extractPdfText: async () => {
+        extractCalls += 1;
+        return { docs: [], skippedPages: [] };
+      },
+    })("web_fetch", { url: pdfUrl, query: "x" });
+    check(
+      "pdf post-read size cap measured",
+      /measured/i.test(out.text) && /too large/i.test(out.text) && extractCalls === 0,
+      out.text?.slice(0, 120),
+    );
+    check("pdf post-read size no cache", log.writes.length === 0);
+  }
+
+  // Host missing / extract timeout / abort mapping (by code, not substring)
+  {
+    const pdfUrl = "https://map.example/a.pdf";
+    const allow = makeFetchAllowlist();
+    allow.add(pdfUrl);
+    const { fs } = makeFakeFs();
+    const base = {
+      fetchImpl: async () =>
+        mockResponse({
+          contentType: "application/pdf",
+          url: pdfUrl,
+          arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+        }),
+      pdfCacheFs: fs,
+    };
+    const hostOut = await makeWebFetchExecutor("en", allow, {
+      ...base,
+      extractPdfText: async () => {
+        throw Object.assign(new Error("host is not mounted"), { code: "no_host" });
+      },
+    })("web_fetch", { url: pdfUrl, query: "x" });
+    check(
+      "pdf host-missing mapping",
+      /unavailable|not mounted/i.test(hostOut.text),
+      hostOut.text?.slice(0, 100),
+    );
+
+    const toOut = await makeWebFetchExecutor("en", allow, {
+      ...base,
+      extractPdfText: async () => {
+        throw Object.assign(new Error("PDF text extraction timed out"), {
+          code: "timeout",
+        });
+      },
+    })("web_fetch", { url: pdfUrl, query: "x" });
+    check(
+      "pdf extract-timeout mapping",
+      /extraction timed out/i.test(toOut.text) && /Try again/i.test(toOut.text),
+      toOut.text?.slice(0, 100),
+    );
+
+    const abOut = await makeWebFetchExecutor("en", allow, {
+      ...base,
+      extractPdfText: async () => {
+        throw Object.assign(new Error("PDF text extraction aborted"), {
+          code: "aborted",
+        });
+      },
+    })("web_fetch", { url: pdfUrl, query: "x" });
+    check(
+      "pdf abort mapping no try-again",
+      /cancell?ed/i.test(abOut.text) && !/Try again/i.test(abOut.text),
+      abOut.text?.slice(0, 100),
+    );
+
+    // pdf.js-like "timed out" without code must NOT become extract-timeout
+    const jsOut = await makeWebFetchExecutor("en", allow, {
+      ...base,
+      extractPdfText: async () => {
+        throw new Error("Rendering timed out in worker");
+      },
+    })("web_fetch", { url: pdfUrl, query: "x" });
+    check(
+      "pdf substring timed out not remapped",
+      /extract/i.test(jsOut.text) && !/extraction timed out/i.test(jsOut.text),
+      jsOut.text?.slice(0, 120),
+    );
+  }
+
+  // fs not configured
+  {
+    const pdfUrl = "https://nofs.example/a.pdf";
+    const allow = makeFetchAllowlist();
+    allow.add(pdfUrl);
+    const out = await makeWebFetchExecutor("en", allow, {
+      fetchImpl: async () =>
+        mockResponse({
+          contentType: "application/pdf",
+          url: pdfUrl,
+          arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+        }),
+      extractPdfText: async () => ({ docs: [], skippedPages: [] }),
+      // no pdfCacheFs
+    })("web_fetch", { url: pdfUrl, query: "x" });
+    check(
+      "pdf fs-not-configured message",
+      /cache filesystem is not configured/i.test(out.text),
+      out.text?.slice(0, 120),
+    );
+  }
+
+  // sanitizeToolErrorMessage: strip paths, keep https URLs
+  {
+    const { sanitizeToolErrorMessage } = mod;
+    check(
+      "sanitize strips absolute paths",
+      typeof sanitizeToolErrorMessage === "function" &&
+        !sanitizeToolErrorMessage(
+          "ENOSPC at /data/user/0/com.app/cache/web-fetch-pdf-1.pdf",
+        ).includes("/data/user"),
+    );
+    const urlMsg = sanitizeToolErrorMessage(
+      "fetch failed for https://example.com/a/b/c",
+    );
+    check(
+      "sanitize keeps https URL intact",
+      urlMsg.includes("https://example.com/a/b/c") && !urlMsg.includes("https:/[path]"),
+      urlMsg,
+    );
+    check(
+      "sanitize strips file://",
+      !sanitizeToolErrorMessage("err file:///tmp/x/y/z.pdf more").includes("file://"),
+    );
+    check(
+      "sanitize strips Windows path",
+      !sanitizeToolErrorMessage("err C:\\Users\\me\\cache\\a.pdf").includes("C:\\"),
+    );
+    check(
+      "sanitize strips UNC",
+      !sanitizeToolErrorMessage("err \\\\server\\share\\folder\\a.pdf").includes("\\\\server"),
+    );
+    check(
+      "sanitize strips percent-encoded absolute",
+      !sanitizeToolErrorMessage("err %2Fdata%2Fuser%2F0%2Fcom.app%2Fcache").includes("%2Fdata"),
+    );
+  }
+
+  // MAX_INDEX_CHARS cap on PDF path — pin the CALL SITE in handlePdfResponse,
+  // not only the pure helper. Two-page fixture: page 1 fills the entire budget
+  // with retrievable terms (no probe); page 2 holds a unique probe token that
+  // is only indexed when the call is removed / the helper is a no-op.
+  {
+    const { capDocsForIndex } = mod;
+    const filler = "w".repeat(MAX_INDEX_CHARS);
+    const pureBig = `${filler} MARKERONLYINTAIL999 end`;
+    check("pdf index fixture longer than cap", pureBig.length > MAX_INDEX_CHARS);
+    const pureCapped = capDocsForIndex(
+      [{ docId: "d#p1", text: pureBig }],
+      MAX_INDEX_CHARS,
+    );
+    check(
+      "pdf index cap pure drops tail",
+      pureCapped.length === 1 &&
+        pureCapped[0].text.length === MAX_INDEX_CHARS &&
+        !pureCapped[0].text.includes("MARKERONLYINTAIL999"),
+      `len=${pureCapped[0]?.text?.length}`,
+    );
+
+    const PROBE = "zebrafishchromatophore991";
+    const unit =
+      "climate temperature sea levels research findings uniqueHEADTOKEN777. ";
+    let page1 = "";
+    while (page1.length + unit.length <= MAX_INDEX_CHARS) page1 += unit;
+    // Exact budget fill so remaining chars for page 2 is 0 after the call.
+    page1 = page1.padEnd(MAX_INDEX_CHARS, "x");
+    check("pdf index page1 exactly MAX_INDEX_CHARS", page1.length === MAX_INDEX_CHARS);
+    check("pdf index page1 has no probe", !page1.includes(PROBE));
+
+    const page2 =
+      `Only page two documents the rare token ${PROBE} for chromatophore studies.`;
+    check("pdf index page2 carries probe", page2.includes(PROBE));
+
+    // Pure multi-doc: after cap only page 1 remains.
+    const multiCapped = capDocsForIndex(
+      [
+        { docId: "x#p1", text: page1 },
+        { docId: "x#p2", text: page2 },
+      ],
+      MAX_INDEX_CHARS,
+    );
+    check(
+      "pdf index cap pure drops second doc",
+      multiCapped.length === 1 &&
+        multiCapped[0].docId.endsWith("#p1") &&
+        !multiCapped.some((d) => d.text.includes(PROBE)),
+      multiCapped.map((d) => d.docId).join(","),
+    );
+
+    const pdfUrl = "https://longpdf.example/a.pdf";
+    const allow = makeFetchAllowlist();
+    allow.add(pdfUrl);
+    const { fs } = makeFakeFs();
+    const extractTwoPages = async () => ({
+      docs: [
+        { docId: "x#p1", text: page1 },
+        { docId: "x#p2", text: page2 },
+      ],
+      skippedPages: [],
+    });
+    const mockPdf = () =>
+      mockResponse({
+        contentType: "application/pdf",
+        url: pdfUrl,
+        arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      });
+
+    // Probe query: with the call site intact, page 2 is never indexed →
+    // nothing-matched (or at least no probe token in the body).
+    const outProbe = await makeWebFetchExecutor("en", allow, {
+      fetchImpl: async () => mockPdf(),
+      pdfCacheFs: fs,
+      extractPdfText: extractTwoPages,
+    })("web_fetch", { url: pdfUrl, query: PROBE });
+    check(
+      "pdf index cap drops second page by budget",
+      (/nothing matched|no.*match/i.test(outProbe.text) ||
+        !outProbe.text.includes(PROBE)) &&
+        !outProbe.text.includes(PROBE),
+      outProbe.text?.slice(0, 160),
+    );
+
+    // Head still reachable — so a broken executor cannot pass the probe test.
+    const outHead = await makeWebFetchExecutor("en", allow, {
+      fetchImpl: async () => mockPdf(),
+      pdfCacheFs: fs,
+      extractPdfText: extractTwoPages,
+    })("web_fetch", {
+      url: pdfUrl,
+      query: "climate temperature uniqueHEADTOKEN777",
+    });
+    check(
+      "pdf index cap first page still searchable",
+      /climate|temperature|uniqueHEADTOKEN777/i.test(outHead.text),
+      outHead.text?.slice(0, 120),
+    );
+  }
+
+  // Post-CT busy (non-.pdf URL serving application/pdf)
+  {
+    let fetches = 0;
+    const allow = makeFetchAllowlist();
+    allow.add("https://sneaky.example/page");
+    const out = await makeWebFetchExecutor("en", allow, {
+      fetchImpl: async () => {
+        fetches += 1;
+        return mockResponse({
+          contentType: "application/pdf",
+          url: "https://sneaky.example/page",
+          arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+        });
+      },
+      extractPdfText: async () => ({ docs: [], skippedPages: [] }),
+      pdfCacheFs: makeFakeFs().fs,
+      isPdfTextExtractionBusy: () => true,
+    })("web_fetch", { url: "https://sneaky.example/page", query: "x" });
+    check(
+      "pdf busy after content-type 0 body extract",
+      fetches === 1 && /already being extracted|Wait for it/i.test(out.text),
+      `fetches=${fetches} ${out.text?.slice(0, 80)}`,
+    );
+  }
+
+  // mapPdfExtractError busy + unmounted
+  {
+    const pdfUrl = "https://codes.example/a.pdf";
+    const allow = makeFetchAllowlist();
+    allow.add(pdfUrl);
+    const { fs } = makeFakeFs();
+    const base = {
+      fetchImpl: async () =>
+        mockResponse({
+          contentType: "application/pdf",
+          url: pdfUrl,
+          arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+        }),
+      pdfCacheFs: fs,
+    };
+    const busyOut = await makeWebFetchExecutor("en", allow, {
+      ...base,
+      extractPdfText: async () => {
+        throw Object.assign(new Error("already in progress"), { code: "busy" });
+      },
+    })("web_fetch", { url: pdfUrl, query: "x" });
+    check(
+      "pdf map code busy",
+      /already being extracted|Wait for it/i.test(busyOut.text),
+      busyOut.text?.slice(0, 100),
+    );
+    const unOut = await makeWebFetchExecutor("en", allow, {
+      ...base,
+      extractPdfText: async () => {
+        throw Object.assign(new Error("host unmounted"), { code: "unmounted" });
+      },
+    })("web_fetch", { url: pdfUrl, query: "x" });
+    check(
+      "pdf map code unmounted → cancelled",
+      /cancell?ed/i.test(unOut.text) && !/Try again/i.test(unOut.text),
+      unOut.text?.slice(0, 100),
+    );
+  }
+
+  // Fetch-phase abort: turn vs timer; both-aborted → cancelled
+  {
+    const pdfUrl = "https://abort.example/a.pdf";
+    const allow = makeFetchAllowlist();
+    allow.add(pdfUrl);
+    const ac = new AbortController();
+    ac.abort();
+    const turnOut = await makeWebFetchExecutor("en", allow, {
+      fetchImpl: async (_u, init) => {
+        // Simulate abort via signal
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        throw err;
+      },
+      extractPdfText: async () => ({ docs: [], skippedPages: [] }),
+      pdfCacheFs: makeFakeFs().fs,
+    })("web_fetch", { url: pdfUrl, query: "x" }, ac.signal);
+    check(
+      "pdf fetch turn abort → cancelled",
+      /cancell?ed/i.test(turnOut.text) && !/Try again/i.test(turnOut.text),
+      turnOut.text?.slice(0, 100),
+    );
+
+    const timerOut = await makeWebFetchExecutor("en", allow, {
+      fetchImpl: async () => {
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        throw err;
+      },
+      extractPdfText: async () => ({ docs: [], skippedPages: [] }),
+      pdfCacheFs: makeFakeFs().fs,
+    })("web_fetch", { url: pdfUrl, query: "x" });
+    check(
+      "pdf fetch timer abort → try again",
+      /timed out/i.test(timerOut.text) && /Try again/i.test(timerOut.text),
+      timerOut.text?.slice(0, 100),
+    );
+
+    // Both aborted: turn wins
+    const bothAc = new AbortController();
+    bothAc.abort();
+    const bothOut = await makeWebFetchExecutor("en", allow, {
+      fetchImpl: async () => {
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        throw err;
+      },
+      extractPdfText: async () => ({ docs: [], skippedPages: [] }),
+      pdfCacheFs: makeFakeFs().fs,
+    })("web_fetch", { url: pdfUrl, query: "x" }, bothAc.signal);
+    check(
+      "pdf both-aborted → cancelled not try-again",
+      /cancell?ed/i.test(bothOut.text) && !/Try again/i.test(bothOut.text),
+      bothOut.text?.slice(0, 100),
+    );
+  }
+
+  // component-timeout path (service code timeout) → extract timeout copy
+  {
+    const pdfUrl = "https://compto.example/a.pdf";
+    const allow = makeFetchAllowlist();
+    allow.add(pdfUrl);
+    const { fs } = makeFakeFs();
+    const out = await makeWebFetchExecutor("en", allow, {
+      fetchImpl: async () =>
+        mockResponse({
+          contentType: "application/pdf",
+          url: pdfUrl,
+          arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+        }),
+      pdfCacheFs: fs,
+      // Host maps PdfExtractError(timeout) → PdfTextServiceError(timeout)
+      extractPdfText: async () => {
+        throw Object.assign(new Error("PDF text extraction timed out"), {
+          code: "timeout",
+        });
+      },
+    })("web_fetch", { url: pdfUrl, query: "x" });
+    check(
+      "pdf component-timeout → extractTimeout not failed",
+      /extraction timed out/i.test(out.text) &&
+        /Try again/i.test(out.text) &&
+        !/extraction failed/i.test(out.text),
+      out.text?.slice(0, 120),
     );
   }
 

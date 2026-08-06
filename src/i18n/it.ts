@@ -484,26 +484,33 @@ export const it: typeof en = {
       "(rete privata, host diverso non nei risultati di questo turno, o downgrade https).",
     webFetchUnsafeUrl: "Fetch rifiutato: l'URL non è un indirizzo http(s) pubblico e sicuro.",
     webFetchTimeout: "Fetch della pagina scaduto per timeout. Riprova.",
+    webFetchAborted: "Fetch della pagina annullato.",
     webFetchHttpError: "Fetch della pagina fallito (HTTP {status}).",
     webFetchUnsupportedContent: "Tipo di contenuto non supportato per il fetch: {type}.",
     webFetchTooLarge: "Pagina troppo grande da recuperare (dichiarati {sizeKb} KB). Prova una pagina più specifica.",
+    webFetchTooLargeMeasured:
+      "Pagina troppo grande da recuperare ({sizeKb} KB misurati). Prova una pagina più specifica.",
     webFetchNothingMatched:
       "Pagina recuperata ({host}) ma nulla corrisponde alla query. Non inventare contenuti dalla pagina.",
     webFetchFailed: "Fetch della pagina fallito: {message}",
     webFetchPdfTooLarge:
       "PDF troppo grande da recuperare (dichiarati {sizeKb} KB). Prova un documento più piccolo.",
+    webFetchPdfTooLargeMeasured:
+      "PDF troppo grande da recuperare ({sizeKb} KB misurati). Prova un documento più piccolo.",
     webFetchPdfTimeout: "Download del PDF scaduto per timeout. Riprova.",
     webFetchPdfExtractTimeout: "Estrazione del testo dal PDF scaduta per timeout. Riprova.",
+    webFetchPdfAborted: "Fetch del PDF annullato.",
     webFetchPdfExtractFailed: "Estrazione del testo dal PDF fallita: {message}",
     webFetchPdfBusy:
       "Un altro PDF è già in estrazione. Attendi che finisca, poi riprova.",
     webFetchPdfHostMissing:
       "Estrazione testo PDF non disponibile (host estrattore non montato).",
     webFetchPdfNoTextLayer:
-      "Questo PDF non ha uno strato di testo ({pages} pagine). Il testo non può essere estratto; " +
-      "diglielo all'utente invece di ripetere lo stesso fetch.",
+      "Questo PDF non ha uno strato di testo estraibile (il documento riporta {pages} pagine; {processed} ispezionate). " +
+      "Diglielo all'utente invece di ripetere lo stesso fetch.",
     webFetchPdfSkippedPages:
-      "Nota: {skipped} di {total} pagine non avevano uno strato di testo estraibile.",
+      "Nota: {skipped} delle {processed} pagine ispezionate non avevano uno strato di testo estraibile " +
+      "(il documento riporta {pages} pagine).",
     webFetchPdfInvalid:
       "La risposta dichiarava un PDF ma non è stato possibile estrarre pagine. Non inventare contenuti.",
     webFetchPdfCiteInstruction:

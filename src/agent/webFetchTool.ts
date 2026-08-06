@@ -15,7 +15,7 @@
  * are all rejected.
  *
  * Indexing: only the first MAX_INDEX_CHARS of extracted text are searched
- * (HTML and text/plain); content beyond that is not indexed.
+ * (HTML, text/plain, and PDF page docs); content beyond that is not indexed.
  *
  * Pure enough for the Node harness: no LlamaService / React Native imports.
  * Catalog strings come from en/it directly so tsc --ignoreConfig stays RN-free.
@@ -73,6 +73,8 @@ export type WebFetchToolResult = {
 export type PdfTextExtractResult = {
   docs: Array<{ docId: string; title?: string; text: string }>;
   skippedPages: number[];
+  /** Real document page count (uncapped), when known. */
+  documentPageCount?: number;
 };
 
 export type ExtractPdfTextFn = (
@@ -106,13 +108,23 @@ export const BODY_HARD_CAP = 1_500_000;
  */
 export const PDF_BODY_HARD_CAP = 5 * 1024 * 1024;
 /**
- * PDF download timeout — multi-MB on mobile needs more than FETCH_TIMEOUT_MS.
+ * PDF **network** timeout only (download body), not extraction.
+ * Chosen from the URL path (and re-derived from the final URL after redirects
+ * when the final path looks like a PDF). Extraction runs after the body is
+ * fully read under the turn abort signal + the PdfTextService/component
+ * timeouts (up to ~160s) — not under this window.
  * Same RN buffering caveat as PDF_BODY_HARD_CAP.
+ *
+ * Limitation: a non-`.pdf` URL that redirects to a PDF re-arms only when the
+ * response arrives (cheap); time already spent counts against the new window
+ * only from re-arm. Encoded `.` (`%2E`) and path parameters after `;` are
+ * normalised in `urlPathLooksLikePdf`.
  */
 export const PDF_FETCH_TIMEOUT_MS = 20_000;
 /**
- * Max chars fed into the retrieval index (both HTML and text/plain).
- * Content beyond this is not searched. Matches htmlToText's default output cap.
+ * Max chars fed into the retrieval index (HTML, text/plain, and PDF page docs).
+ * Content beyond this is not searched. Matches htmlToText's default output cap
+ * and the WEB_FETCH_TOOL description.
  */
 export const MAX_INDEX_CHARS = 120_000;
 export const RETRIEVAL_BUDGET_CHARS = 1800;
@@ -194,6 +206,8 @@ function extractScheme(url: string): string | null {
  * True when the URL *path* (query and fragment stripped) ends with `.pdf`
  * case-insensitively. Used only to pick the network timeout before headers
  * arrive — not a content-type gate. A query like `?file=a.pdf` does NOT match.
+ * Decodes percent-encoding (`%2Epdf` → `.pdf`) and strips path parameters after
+ * `;` (`a.pdf;x=1` → `a.pdf`).
  */
 export function urlPathLooksLikePdf(url: string): boolean {
   if (typeof url !== "string" || !url) return false;
@@ -213,6 +227,19 @@ export function urlPathLooksLikePdf(url: string): boolean {
   }
   // No path component (e.g. https://host) is not a PDF URL for timeout purposes.
   if (!path) return false;
+  // Path parameters (RFC 3986 matrix-style): strip `;…` only inside the last
+  // segment so `/dir;param/file.pdf` stays a PDF URL (8s vs 20s regression).
+  const lastSlash = path.lastIndexOf("/");
+  const dir = lastSlash >= 0 ? path.slice(0, lastSlash + 1) : "";
+  let lastSeg = lastSlash >= 0 ? path.slice(lastSlash + 1) : path;
+  const semi = lastSeg.indexOf(";");
+  if (semi >= 0) lastSeg = lastSeg.slice(0, semi);
+  path = dir + lastSeg;
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    /* keep raw path if malformed encoding */
+  }
   return path.toLowerCase().endsWith(".pdf");
 }
 
@@ -460,6 +487,12 @@ export type WebFetchExecutorDeps = {
   extractPdfText?: ExtractPdfTextFn;
   /** Required for the PDF path when extractPdfText is set (write body + finally delete). */
   pdfCacheFs?: PdfCacheFs;
+  /**
+   * Single-flight pre-check (H3). When true for a PDF URL / PDF response, the
+   * executor returns webFetchPdfBusy without fetching or reading the body.
+   * Production wires isPdfTextExtractionBusy from pdfTextService.
+   */
+  isPdfTextExtractionBusy?: () => boolean;
 };
 
 /**
@@ -478,6 +511,7 @@ export function makeWebFetchExecutor(
   const fetchImpl = deps?.fetchImpl ?? fetch;
   const extractPdfText = deps?.extractPdfText;
   const pdfCacheFs = deps?.pdfCacheFs;
+  const isBusy = deps?.isPdfTextExtractionBusy;
   const pdfPathEnabled = typeof extractPdfText === "function";
 
   return async (name, args, signal) => {
@@ -505,20 +539,42 @@ export function makeWebFetchExecutor(
       return { text: errors.webFetchBlockedAllowlist };
     }
 
+    // H3: refuse a concurrent PDF before any network call when the path looks
+    // like a PDF (single-flight is in the service, reached only after download
+    // otherwise — wasteful on mobile).
+    if (
+      pdfPathEnabled &&
+      urlPathLooksLikePdf(url) &&
+      typeof isBusy === "function" &&
+      isBusy()
+    ) {
+      return { text: errors.webFetchPdfBusy };
+    }
+
     // Network timeout from the URL path, not from "extractor wired".
     // On RN the transport buffers the whole body before JS sees headers, so we
     // cannot peek at Content-Type and then extend the deadline. Using the long
     // PDF window whenever extractPdfText is present would make every HTML fetch
     // wait up to 20s (the 8s cap was deliberately lowered for phone UX).
-    // Rule: path (no query/fragment, case-insensitive) ends in ".pdf" → PDF
-    // timeout; otherwise → FETCH_TIMEOUT_MS even when the extractor is wired.
-    // A PDF served from a URL without a .pdf path therefore gets 8s and may
-    // time out — acceptable: those PDFs are unsupported by this heuristic
-    // today, whereas slowing every HTML fetch would be a regression. No HEAD
-    // pre-flight (extra RTT; many servers mishandle HEAD).
-    const networkTimeoutMs = resolveFetchNetworkTimeoutMs(url);
+    // Rule: path ends in ".pdf" → PDF timeout; otherwise FETCH_TIMEOUT_MS.
+    // Re-derived from finalUrl after redirects (M2). No HEAD pre-flight.
+    let networkTimeoutMs = resolveFetchNetworkTimeoutMs(url);
     const timeoutController = new AbortController();
-    const timer = setTimeout(() => timeoutController.abort(), networkTimeoutMs);
+    let timer: ReturnType<typeof setTimeout> | null = setTimeout(
+      () => timeoutController.abort(),
+      networkTimeoutMs,
+    );
+    const clearNetworkTimer = () => {
+      if (timer != null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+    const rearmNetworkTimer = (ms: number) => {
+      clearNetworkTimer();
+      networkTimeoutMs = ms;
+      timer = setTimeout(() => timeoutController.abort(), ms);
+    };
 
     let combined: AbortSignal = timeoutController.signal;
     try {
@@ -537,6 +593,15 @@ export function makeWebFetchExecutor(
         }
       }
 
+      const abortMessage = (preferPdf: boolean): string => {
+        // User stop wins even when the network timer also aborted (both-aborted).
+        // A user stop must never say "try again".
+        if (signal?.aborted) {
+          return preferPdf ? errors.webFetchPdfAborted : errors.webFetchAborted;
+        }
+        return preferPdf ? errors.webFetchPdfTimeout : errors.webFetchTimeout;
+      };
+
       let response: Response;
       try {
         // redirect: native default follows; we re-validate response.url after.
@@ -546,14 +611,16 @@ export function makeWebFetchExecutor(
         });
       } catch (error) {
         if (isAbortError(error) || combined.aborted || timeoutController.signal.aborted) {
-          // Content-type unknown here — keep the generic fetch timeout message.
-          // PDF-specific timeout copy is used only after application/pdf is confirmed.
-          return { text: errors.webFetchTimeout };
+          return {
+            text: abortMessage(urlPathLooksLikePdf(url)),
+          };
         }
         return {
           text: errors.webFetchFailed.replace(
             "{message}",
-            error instanceof Error ? error.message : String(error),
+            sanitizeToolErrorMessage(
+              error instanceof Error ? error.message : String(error),
+            ),
           ),
         };
       }
@@ -572,6 +639,20 @@ export function makeWebFetchExecutor(
 
       if (!finalPublic || !finalAllowed || downgrade) {
         return { text: errors.webFetchBlockedRedirect };
+      }
+
+      // M2: re-derive network window from the final URL after redirects.
+      const finalNetworkMs = resolveFetchNetworkTimeoutMs(finalUrl);
+      if (finalNetworkMs !== networkTimeoutMs && !timeoutController.signal.aborted) {
+        rearmNetworkTimer(finalNetworkMs);
+        // Rebuild combined so a late network abort still reaches body reads.
+        if (signal) {
+          if (typeof AbortSignal !== "undefined" && typeof AbortSignal.any === "function") {
+            combined = AbortSignal.any([signal, timeoutController.signal]);
+          }
+        } else {
+          combined = timeoutController.signal;
+        }
       }
 
       if (response.status < 200 || response.status >= 300) {
@@ -594,6 +675,10 @@ export function makeWebFetchExecutor(
 
       // ── PDF path ──────────────────────────────────────────────────────────
       if (isPdf && pdfPathEnabled) {
+        // H3: busy after CT confirm (non-.pdf URL that served a PDF).
+        if (typeof isBusy === "function" && isBusy()) {
+          return { text: errors.webFetchPdfBusy };
+        }
         return await handlePdfResponse({
           response,
           finalUrl,
@@ -601,12 +686,13 @@ export function makeWebFetchExecutor(
           errors,
           extractPdfText: extractPdfText as ExtractPdfTextFn,
           pdfCacheFs,
-          combined,
+          turnSignal: signal,
           timeoutController,
+          clearNetworkTimer,
         });
       }
 
-      // ── HTML / plain path (unchanged) ─────────────────────────────────────
+      // ── HTML / plain path ─────────────────────────────────────────────────
       // Content-Length early exit only — on RN the transport may already have
       // buffered the body; this is not an OOM mitigation (see module header).
       const clRaw = response.headers?.get?.("content-length");
@@ -637,16 +723,16 @@ export function makeWebFetchExecutor(
         if (bodyResult.tooLarge) {
           const sizeKb = Math.max(1, Math.ceil(BODY_HARD_CAP / 1024));
           return {
-            text: errors.webFetchTooLarge.replace("{sizeKb}", String(sizeKb)),
+            text: errors.webFetchTooLargeMeasured.replace("{sizeKb}", String(sizeKb)),
           };
         }
         if (bodyResult.message === "abort") {
-          return { text: errors.webFetchTimeout };
+          return { text: abortMessage(false) };
         }
         return {
           text: errors.webFetchFailed.replace(
             "{message}",
-            bodyResult.message ?? "read failed",
+            sanitizeToolErrorMessage(bodyResult.message ?? "read failed"),
           ),
         };
       }
@@ -708,7 +794,7 @@ export function makeWebFetchExecutor(
       // and kind "passages" so the model does not treat passage indices as sources.
       return { text: body, sources };
     } finally {
-      clearTimeout(timer);
+      clearNetworkTimer();
     }
   };
 }
@@ -722,8 +808,11 @@ async function handlePdfResponse(ctx: {
   errors: ErrorCatalog;
   extractPdfText: ExtractPdfTextFn;
   pdfCacheFs: PdfCacheFs | undefined;
-  combined: AbortSignal;
+  /** Caller's turn signal only — used for extraction after network timer clears. */
+  turnSignal: AbortSignal | undefined;
   timeoutController: AbortController;
+  /** End the network deadline once the body is fully buffered. */
+  clearNetworkTimer: () => void;
 }): Promise<WebFetchToolResult> {
   const {
     response,
@@ -732,8 +821,9 @@ async function handlePdfResponse(ctx: {
     errors,
     extractPdfText,
     pdfCacheFs,
-    combined,
+    turnSignal,
     timeoutController,
+    clearNetworkTimer,
   } = ctx;
 
   // Content-Length early exit — same RN buffering caveat as HTML (see header).
@@ -777,23 +867,43 @@ async function handlePdfResponse(ctx: {
         Math.ceil((bytesResult.byteLength ?? PDF_BODY_HARD_CAP) / 1024),
       );
       return {
-        text: errors.webFetchPdfTooLarge.replace("{sizeKb}", String(sizeKb)),
+        text: errors.webFetchPdfTooLargeMeasured.replace("{sizeKb}", String(sizeKb)),
       };
     }
     if (bytesResult.message === "abort") {
+      // User stop wins over network timer when both are aborted.
+      if (turnSignal?.aborted) {
+        return { text: errors.webFetchPdfAborted };
+      }
       return { text: errors.webFetchPdfTimeout };
     }
     return {
       text: errors.webFetchFailed.replace(
         "{message}",
-        bytesResult.message ?? "read failed",
+        sanitizeToolErrorMessage(bytesResult.message ?? "read failed"),
       ),
     };
   }
 
+  // H1: body fully read — network window ends. Extraction uses the turn signal
+  // plus the service/component timeouts (not the 8s/20s download deadline).
+  clearNetworkTimer();
+
   let cacheUri: string | null = null;
   try {
-    cacheUri = await pdfCacheFs.write(bytesResult.bytes);
+    try {
+      cacheUri = await pdfCacheFs.write(bytesResult.bytes);
+    } catch (error) {
+      // H2: never throw; never leak filesystem paths into the model prompt.
+      return {
+        text: errors.webFetchPdfExtractFailed.replace(
+          "{message}",
+          sanitizeToolErrorMessage(
+            error instanceof Error ? error.message : String(error),
+          ),
+        ),
+      };
+    }
 
     let extracted: PdfTextExtractResult;
     try {
@@ -801,10 +911,13 @@ async function handlePdfResponse(ctx: {
         // sourceId is remapped below to finalUrl; pass host-safe hint only.
         sourceId: hostOf(finalUrl),
         title: null,
-        signal: combined,
+        // Turn signal only — network timer already cleared.
+        signal: turnSignal,
       });
     } catch (error) {
-      return mapPdfExtractError(error, errors);
+      return mapPdfExtractError(error, errors, {
+        turnAborted: Boolean(turnSignal?.aborted),
+      });
     }
 
     const docs = Array.isArray(extracted?.docs) ? extracted.docs : [];
@@ -813,20 +926,46 @@ async function handlePdfResponse(ctx: {
           (p): p is number => typeof p === "number" && Number.isInteger(p) && p >= 1,
         )
       : [];
+    const processed = docs.length + skippedPages.length;
+    // pdf.numPages is attacker-controlled; never print a count below what we
+    // actually inspected, and hedge the copy ("reports") in i18n.
+    let documentPageCount: number | null =
+      typeof extracted?.documentPageCount === "number" &&
+      Number.isInteger(extracted.documentPageCount) &&
+      extracted.documentPageCount >= 1
+        ? extracted.documentPageCount
+        : processed > 0
+          ? processed
+          : null;
+    if (documentPageCount != null && processed > 0) {
+      documentPageCount = Math.max(documentPageCount, processed);
+    }
 
     // Remap docIds onto the fetched URL (never a filesystem path) so passages
     // carry `${url}#pN` and citations point at the remote source.
-    const urlDocs = remapPdfDocsToSourceUrl(docs, finalUrl);
+    let urlDocs = remapPdfDocsToSourceUrl(docs, finalUrl);
+    // L: apply the same MAX_INDEX_CHARS budget the tool description advertises.
+    urlDocs = capDocsForIndex(urlDocs, MAX_INDEX_CHARS);
 
-    if (urlDocs.length === 0) {
-      const pageCount = skippedPages.length;
-      if (pageCount > 0) {
+    if (urlDocs.length === 0 && docs.length === 0) {
+      if (skippedPages.length > 0) {
+        const pages = documentPageCount ?? skippedPages.length;
         return {
-          text: errors.webFetchPdfNoTextLayer.replace("{pages}", String(pageCount)),
+          text: errors.webFetchPdfNoTextLayer
+            .replace("{pages}", String(pages))
+            .replace("{processed}", String(processed || skippedPages.length)),
           sources: [],
         };
       }
       return { text: errors.webFetchPdfInvalid, sources: [] };
+    }
+
+    if (urlDocs.length === 0) {
+      // All text was truncated by the index cap — treat as nothing matched.
+      return {
+        text: errors.webFetchNothingMatched.replace("{host}", hostOf(finalUrl)),
+        sources: [],
+      };
     }
 
     const index = new DocRetrieverIndex();
@@ -873,17 +1012,18 @@ async function handlePdfResponse(ctx: {
       .join("\n\n");
 
     if (skippedPages.length > 0) {
-      const total = urlDocs.length + skippedPages.length;
+      const pages = documentPageCount ?? processed;
       body +=
         "\n\n" +
         errors.webFetchPdfSkippedPages
           .replace("{skipped}", String(skippedPages.length))
-          .replace("{total}", String(total));
+          .replace("{processed}", String(processed))
+          .replace("{pages}", String(pages));
     }
 
     return { text: body, sources };
   } finally {
-    if (cacheUri) {
+    if (cacheUri && pdfCacheFs) {
       try {
         await pdfCacheFs.remove(cacheUri);
       } catch {
@@ -893,9 +1033,14 @@ async function handlePdfResponse(ctx: {
   }
 }
 
+/**
+ * Map extractor failures. Prefer `code` on PdfTextServiceError — never remap
+ * arbitrary pdf.js messages that happen to contain "timed out".
+ */
 function mapPdfExtractError(
   error: unknown,
   errors: ErrorCatalog,
+  opts?: { turnAborted?: boolean },
 ): WebFetchToolResult {
   const code =
     error && typeof error === "object" && "code" in error
@@ -903,21 +1048,97 @@ function mapPdfExtractError(
       : "";
   const message = error instanceof Error ? error.message : String(error);
 
-  if (code === "no_host" || /host is not mounted/i.test(message)) {
+  if (code === "no_host") {
     return { text: errors.webFetchPdfHostMissing };
   }
-  if (code === "busy" || /already in progress/i.test(message)) {
+  if (code === "busy") {
     return { text: errors.webFetchPdfBusy };
   }
-  if (code === "timeout" || /timed out/i.test(message)) {
+  if (code === "timeout") {
     return { text: errors.webFetchPdfExtractTimeout };
   }
-  if (code === "aborted" || isAbortError(error)) {
-    return { text: errors.webFetchPdfTimeout };
+  if (code === "aborted" || code === "unmounted") {
+    // User stop / host teardown — never "try again".
+    return { text: errors.webFetchPdfAborted };
+  }
+  if (isAbortError(error) || opts?.turnAborted) {
+    return { text: errors.webFetchPdfAborted };
   }
   return {
-    text: errors.webFetchPdfExtractFailed.replace("{message}", message),
+    text: errors.webFetchPdfExtractFailed.replace(
+      "{message}",
+      sanitizeToolErrorMessage(message),
+    ),
   };
+}
+
+/**
+ * Strip path-like tokens and truncate before injecting into model-facing text.
+ * Prevents cache paths / ENOSPC strings from leaking into the prompt (H2).
+ * http(s) URLs are preserved intact (parked while path rules run) so the model
+ * still sees which URL failed. Linear replacements only — no nested quantifiers.
+ */
+export function sanitizeToolErrorMessage(raw: string): string {
+  let s = typeof raw === "string" ? raw : String(raw ?? "");
+  s = s.replace(/\r?\n/g, " ").trim();
+
+  // Park http(s) URLs so path rules cannot eat `/a/b` after the authority.
+  const parked: string[] = [];
+  s = s.replace(/https?:\/\/[^\s<>"']+/gi, (m) => {
+    const i = parked.length;
+    parked.push(m);
+    return `\u0000URL${i}\u0000`;
+  });
+
+  // file:// URIs (full) — not parked; strip as paths.
+  s = s.replace(/file:\/\/[^\s]+/gi, "[path]");
+  // Percent-encoded absolute paths (%2Fdata%2Fuser%2F…)
+  s = s.replace(
+    /(?:%2[fF])(?:[\w.-]|%[0-9A-Fa-f]{2}){2,}(?:%2[fF](?:[\w.-]|%[0-9A-Fa-f]{2})+)*/g,
+    "[path]",
+  );
+  // Known absolute roots (POSIX app / system)
+  s = s.replace(/\/(?:data|var|tmp|private|Users|home|storage)\/[^\s]+/gi, "[path]");
+  // Windows drive paths
+  s = s.replace(/[A-Za-z]:\\[^\s]+/g, "[path]");
+  // UNC paths \\server\share\…
+  s = s.replace(/\\\\[^\s]+/g, "[path]");
+  // Generic multi-segment absolute path (not preceded by ':').
+  s = s.replace(/\/[\w.-]+(?:\/[\w.-]+){2,}/g, (match, offset, full) => {
+    if (typeof offset === "number" && offset > 0 && full[offset - 1] === ":") {
+      return match;
+    }
+    return "[path]";
+  });
+
+  // Restore parked http(s) URLs.
+  s = s.replace(/\u0000URL(\d+)\u0000/g, (_, idx) => parked[Number(idx)] ?? "");
+
+  if (s.length > 160) s = s.slice(0, 160) + "…";
+  return s.length > 0 ? s : "unknown error";
+}
+
+/** Cap total indexed PDF text to MAX_INDEX_CHARS (tool description promise). */
+export function capDocsForIndex(
+  docs: Array<{ docId: string; title?: string; text: string }>,
+  maxChars: number,
+): Array<{ docId: string; title?: string; text: string }> {
+  if (!Array.isArray(docs) || maxChars <= 0) return [];
+  let remaining = maxChars;
+  const out: Array<{ docId: string; title?: string; text: string }> = [];
+  for (const d of docs) {
+    if (remaining <= 0) break;
+    const text = typeof d.text === "string" ? d.text : "";
+    if (!text) continue;
+    if (text.length <= remaining) {
+      out.push({ docId: d.docId, title: d.title, text });
+      remaining -= text.length;
+    } else {
+      out.push({ docId: d.docId, title: d.title, text: text.slice(0, remaining) });
+      remaining = 0;
+    }
+  }
+  return out;
 }
 
 /**

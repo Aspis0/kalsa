@@ -59,6 +59,12 @@ export interface PdfRetrievalDoc {
 export interface PdfRetrievalDocsResult {
   docs: PdfRetrievalDoc[];
   skippedPages: number[];
+  /**
+   * Real document page count from the PDF (pdf.js numPages), when known.
+   * May exceed docs.length + skippedPages.length when only the first N pages
+   * were processed (MAX_PDF_PAGES cap).
+   */
+  documentPageCount?: number;
 }
 
 export interface ReconstructStats {

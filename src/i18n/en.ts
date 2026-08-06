@@ -496,9 +496,13 @@ export const en = {
       "(private network, different host not in this turn's results, or https downgrade).",
     webFetchUnsafeUrl: "Fetch refused: URL is not a safe publicly routable http(s) address.",
     webFetchTimeout: "Page fetch timed out. Try again.",
+    /** User/turn abort — never "try again". */
+    webFetchAborted: "Page fetch was cancelled.",
     webFetchHttpError: "Page fetch failed (HTTP {status}).",
     webFetchUnsupportedContent: "Unsupported content type for fetch: {type}.",
     webFetchTooLarge: "Page too large to fetch (declared {sizeKb} KB). Try a more specific page.",
+    webFetchTooLargeMeasured:
+      "Page too large to fetch ({sizeKb} KB measured). Try a more specific page.",
     webFetchNothingMatched:
       "Page fetched ({host}) but nothing matched the query. Do not invent content from the page.",
     webFetchFailed: "Page fetch failed: {message}",
@@ -508,18 +512,27 @@ export const en = {
      */
     webFetchPdfTooLarge:
       "PDF too large to fetch (declared {sizeKb} KB). Try a smaller document.",
+    webFetchPdfTooLargeMeasured:
+      "PDF too large to fetch ({sizeKb} KB measured). Try a smaller document.",
     webFetchPdfTimeout: "PDF download timed out. Try again.",
     webFetchPdfExtractTimeout: "PDF text extraction timed out. Try again.",
+    /** User/turn abort during PDF download or extract — never "try again". */
+    webFetchPdfAborted: "PDF fetch was cancelled.",
     webFetchPdfExtractFailed: "PDF text extraction failed: {message}",
     webFetchPdfBusy:
       "Another PDF is already being extracted. Wait for it to finish, then retry.",
     webFetchPdfHostMissing:
       "PDF text extraction is unavailable (extractor host not mounted).",
+    /**
+     * {pages} = document-reported page count (clamped ≥ processed; pdf.numPages
+     * is untrusted); {processed} = pages we actually inspected (capped).
+     */
     webFetchPdfNoTextLayer:
-      "This PDF has no text layer ({pages} pages). The text cannot be extracted; " +
-      "tell the user rather than retrying the same fetch.",
+      "This PDF has no extractable text layer (the document reports {pages} pages; {processed} inspected). " +
+      "Tell the user rather than retrying the same fetch.",
     webFetchPdfSkippedPages:
-      "Note: {skipped} of {total} pages had no extractable text layer.",
+      "Note: {skipped} of {processed} inspected pages had no extractable text layer " +
+      "(the document reports {pages} pages).",
     webFetchPdfInvalid:
       "The response claimed to be a PDF but no pages could be extracted. Do not invent content.",
     /**
