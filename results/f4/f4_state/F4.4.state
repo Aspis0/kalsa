@@ -1,0 +1,9 @@
+phase=F4.4
+finished=2026-08-06T16:19:27-04:00
+status=PARTIAL
+cell1=F4.4-io5 DONE rows=4 med_warm=4.83
+cell2=F4.4-cache3000 INTERRUPTED after gate OK 2026-08-06T16:16:28 no CSV row (process dead; Termux/sshd restarted)
+battery_end=43
+nproc=7
+affinity=df
+note=battery 43% after interrupt; floor 42; not restarting incomplete cell2
