@@ -945,6 +945,63 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 — GPU/NPU: la porta è stretta ma non è murata. Verifica dello stato reale.**
+  La domanda «perché non usiamo tutto il telefono?» è stata rifatta ora che il muro è il
+  calcolo (prima non aveva senso: per un muro di I/O la GPU non serve). §3.2 diceva
+  "OpenCL non supporta i tensori MoE" e "Vulkan rotto su Adreno 740": **la prima è ormai
+  FALSA, la seconda è imprecisa.** Fonte principale: talk Qualcomm a IWOCL 2026 (Wang et
+  al.) + `docs/backend/OPENCL.md`.
+  - **OpenCL**: `MUL_MAT_ID` **è mergiato** nel backend pubblico. Ma Qualcomm stessa lo
+    classifica **"MoE (mul_mat_id): partial — routing works, per-expert tuning ongoing"**,
+    contro "full" di CUDA/Metal/Vulkan. Quant supportati: Q4_0/1, Q5_0/1, Q8_0, Q4_K, Q5_K,
+    Q6_K, MXFP4, IQ4_NL — **nessun IQ a 2 bit**, e i kernel `MUL_MAT_ID` esistono solo per
+    **Q4_0, Q4_1, Q4_K, MXFP4**. Con UD-IQ2_M il MoE su GPU **non è eseguibile**, punto.
+  - **Adreno 740 non è nella lista verificata** (750, 810, 830, 840, X1-85, X2-90). Le slide
+    Qualcomm parlano genericamente di "7xx e 8xx": discrepanza da risolvere **empiricamente**
+    (test da 30 minuti: compila con `-DGGML_OPENCL=ON` e vedi se carica).
+  - **Il dato che ridimensiona tutto**: i numeri spettacolari di Qualcomm (5×, 600+ tok/s in
+    prefill su gpt-oss-20B MXFP4) sono su **Snapdragon X2 Elite — un chip da laptop** — con
+    **kernel ILA in assembly interni, non pubblici**. E **il nostro modello, Qwen3.5/3.6-A3B,
+    è nella loro lista dei supportati ma marcato "Internal ILA path; flagship demo"**. Cioè:
+    gira benissimo nel loro laboratorio, su codice chiuso, su hardware che non è un telefono.
+    Sul percorso pubblico non esiste **nessun numero** per la nostra combinazione. È G5 in
+    forma pura: i sistemi migliori esistono e non sono pubblicati.
+  - **Vulkan**: `MUL_MAT_ID` c'è (shader generici), ma i driver Adreno crashano in modo
+    ricorrente e trasversale alle generazioni — sul 740 c'è un `createComputePipeline:
+    ErrorUnknown` proprio sulla pipeline `matmul_q4_k` (issue #6713, stale). Qualcomm
+    stessa dà a Vulkan priorità inferiore rispetto a OpenCL. **Non è la strada.**
+  - **Hexagon NPU**: backend sperimentale in mainline; 8 Gen 2 = Hexagon **v73**, "elencato
+    ma non verificato" (verificati v75/v79/v81). Esempio MoE esistente solo su **OLMoE-1B-7B**,
+    giocattolo. Resta aperta la questione **firma del codice DSP** su un S23 Samsung con
+    Knox: non verificato. GenieX (SDK Qualcomm 2026) **esclude esplicitamente 8 Gen 2**.
+    **Parcheggiare.**
+  - **Fisica**: 8 Gen 2 ha ~67 GB/s di banda **condivisa** fra CPU e GPU. La GPU non alza
+    il tetto di banda: aiuta solo se il limite è ALU/dequant sui byte già letti — che è
+    plausibilmente il nostro caso, ma va dimostrato.
+  - **Termica, avvertimento serio per il prodotto**: su S24 Ultra è documentato un **floor
+    di frequenza GPU imposto dall'OS che TERMINA l'inferenza** sotto carico sostenuto (gli
+    autori hanno dovuto spegnere lo schermo e ridurre il contesto). Niente di equivalente
+    riportato per la CPU. Per un'app di chat un guadagno che si spegne da solo non è un
+    guadagno.
+
+  **L'unico bersaglio realistico, e converge con l'analisi CPU**: mettere sulla GPU **solo il
+  tronco denso** (attention + shared expert) via **OpenCL**, tenendo gli esperti routed sulla
+  CPU con `-ngl` + `--n-cpu-moe`/`-ot`. È l'unico pezzo che la tabella Qualcomm dà come
+  **"full"** (GEMM/GEMV densa), non tocca il percorso MoE "partial", non richiede i kernel
+  ILA chiusi. E i pesi densi sono **residenti**: si caricano una volta, non si streamano —
+  quindi il costo di portarli in memoria GPU si paga una volta sola. **Stessa conclusione a
+  cui porta l'analisi della quantizzazione**: densi in Q4_0 = kernel ARM veloci sulla CPU
+  *e* formato pienamente supportato da OpenCL. La quantizzazione mista per residenza è ora
+  giustificata da tre direzioni indipendenti.
+  Prerequisiti prima di investirci: (1) il backend OpenCL carica davvero su Adreno 740?
+  (2) quanto costa portare i densi in memoria GPU senza zero-copy — AHardwareBuffer non è
+  integrato in ggml, andrebbe scritto.
+
+  **Da valutare, unico software pubblico con focus MoE-on-edge**: `mllm`
+  (UbiquitousLearning, base di EdgeMoE) — ARM CPU + OpenCL + QNN, ma scala provata
+  8x2B, lontanissima dai nostri 35B. **PowerInfer-2 confermato NON pubblico** (issue #207
+  senza risposta): resta paper.
+
 - **2026-08-06 — F4.2: IL COLLO DI BOTTIGLIA SI È SPOSTATO. Riorientamento del piano (Claude).**
   Primi numeri BigMoeOnEdge (35B UD-IQ2_M, `--moe-stream --cache-mb 2000 --dense-weights anon
   --overlap --io-threads 4`): **0.93-0.97 tok/s**, ttft ~86 s. Dal log del runtime:
