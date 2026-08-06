@@ -884,7 +884,7 @@ usarla in un confronto.
 | B | 35B UD-IQ2_M, mainline mmap naive | 0.10 | 0.10 | n/a | ~3.6e5 | ~9.7e3 (9.5 GiB) | ~4.4–4.8 GB | **il muro** (F3); cold=fadv; no OOM/lmkd |
 | B2 | come B + --numa/MADV_RANDOM | 0.10 | 0.10 | n/a | ~3.6e5 | ~9.7e3 (9.4 GiB) | ~4.7–4.8 GB | F3; indistinguibile da B **alla risoluzione dello strumento** (±0.05 tok/s) |
 | B2alt | come B + --no-warmup | 0.10 | — | n/a | ~3.5e5 | ~9.4e3 (9.2 GiB) | ~4.7 GB | F3, **esplorativa** (1 rep cold, nessun warm): non riga promossa |
-| C | 35B UD-IQ2_M, BigMoeOnEdge default | 5.06 | 5.02–5.08 | 56.9% | ~458 | 84.7 | ~4.6 GB | **F4.2/4.3-bis, GATE F4 PASS**; `--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4`, t=4, **top-app nproc=7**; ttft 27.5 s |
+| C | 35B UD-IQ2_M, BigMoeOnEdge default | 5.06 | **5.02** | 56.9% | ~458 | 84.7 | ~4.6 GB | **F4.3-bis, GATE F4 PASS** (x = mediana warm = 5.02); `--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4`, t=4, **top-app**; ttft 27.5 s |
 | C2 | C + sweep migliore (cache-mb/k/…) | | | | | | | F4.3 |
 | C3 | 35B UD-Q2_K_XL, config C2 | | | | | | | F4.4 K vs IQ |
 | D | C2 + MTP | | | | | | | F6 |
@@ -1074,7 +1074,11 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   | 3 | warm | 5.08 | 27.7 s |
   | sentinella | warm | **4.97** | 27.5 s |
 
-  **Mediana 5.06, drift sentinella 1.8%** (soglia 15%) → **stage VALIDO**. Dispersione 1.2%:
+  **Mediana warm 5.02, drift sentinella 1.0%** (soglia 15%) → **stage VALIDO**.
+  *(Correzione 2026-08-06 sera, rilevata da Grok: §10 definisce x come **mediana WARM** della
+  config migliore, quindi il numero di gate è **5.02** — mediana di {5.02, 5.08, 4.97}. Il
+  5.06 che avevo scritto includeva la rep **cold** e non è la definizione. Differenza dello
+  0.8%, irrilevante per il verdetto, ma va un numero solo in giro.)* Dispersione 1.2%:
   la misura più stabile dell'intera campagna. Cold ≈ warm, come atteso ora che il file non
   entra comunque in RAM. Riga **C** di §9 compilata.
   **Soglia del gate: ≥3 tok/s = PASS. Ottenuto 5.06 → PASS con margine.**
