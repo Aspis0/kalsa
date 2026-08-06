@@ -61,9 +61,24 @@ int main(int argc, char **argv) {
         fsync(fd);
         int r = posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
         long after = resident_pages(fd, st.st_size, page);
-        printf("%s size=%lld resident_before=%ld resident_after=%ld pages fadvise_rc=%d\n",
-               argv[i], (long long)st.st_size, before, after, r);
-        if (after > 0) {
+
+        // before/after are counts, but -1 means "could not measure": print
+        // that as "?" rather than a number, so it can't be mistaken for a
+        // real (zero-ish) resident count downstream.
+        char before_buf[16], after_buf[16];
+        if (before < 0) snprintf(before_buf, sizeof(before_buf), "?");
+        else snprintf(before_buf, sizeof(before_buf), "%ld", before);
+        if (after < 0) snprintf(after_buf, sizeof(after_buf), "?");
+        else snprintf(after_buf, sizeof(after_buf), "%ld", after);
+
+        printf("%s size=%lld resident_before=%s resident_after=%s pages fadvise_rc=%d\n",
+               argv[i], (long long)st.st_size, before_buf, after_buf, r);
+        if (after < 0) {
+            // Not "confirmed cold" — the measurement itself failed, distinct
+            // from both success (0) and still-warm (>0).
+            fprintf(stderr, "fadv: could not verify %s (mmap/mincore failed)\n", argv[i]);
+            rc = 2;
+        } else if (after > 0) {
             fprintf(stderr, "fadv: WARNING %s still has %ld resident pages (%.1f MiB)\n",
                     argv[i], after, (double)after * (double)page / 1048576.0);
             rc = 3;

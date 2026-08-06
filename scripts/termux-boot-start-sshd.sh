@@ -18,13 +18,27 @@ pgrep -x sshd >/dev/null 2>&1 || sshd
 sleep 2
 if pgrep -x sshd >/dev/null 2>&1; then
   echo "sshd UP pid=$(pgrep -x sshd | tr '\n' ' ')"
+  sshd_up=1
 else
   echo "sshd FAILED, retrying once"
   sleep 5
   sshd
-  pgrep -x sshd >/dev/null 2>&1 && echo "sshd UP (retry)" || echo "sshd DEAD"
+  if pgrep -x sshd >/dev/null 2>&1; then
+    echo "sshd UP (retry)"
+    sshd_up=1
+  else
+    echo "sshd DEAD"
+    sshd_up=0
+  fi
 fi
-echo "$(date -Iseconds)" > "$HOME/.boot_ready"
+
+# Single place that decides the marker: a poller watching .boot_ready must
+# never see it after a run where sshd stayed dead.
+if [ "$sshd_up" = 1 ]; then
+  echo "$(date -Iseconds)" > "$HOME/.boot_ready"
+else
+  echo "$(date -Iseconds)" > "$HOME/.boot_failed"
+fi
 
 # Best-effort from here on; nothing below may delay the control channel.
 timeout 60 termux-wake-lock && echo "wake-lock ok" || echo "wake-lock skipped/failed"
