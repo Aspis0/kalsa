@@ -945,6 +945,58 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 — 🎯 4.48 tok/s CON I CORE GIUSTI. Il muro torna a essere l'I/O, e il piano
+  originale aveva ragione.**
+
+  Primo run con pinning sui core veloci (`taskset 3-7`, cioè A715/A710/X3) dopo il passaggio
+  a `top-app`. Config invariata (`--moe-stream --cache-mb 2000 --dense-weights anon
+  --overlap --io-threads 4`, `t=5`):
+
+  | metrica | prima (3 core A510) | dopo (pin 3-7) | fattore |
+  |---|---:|---:|---|
+  | **eval tok/s** | 0.82 | **4.48** | **5.5×** |
+  | decode s/token | 1.070 | 0.223 | 4.8× |
+  | **compute s/token** | **0.913** | **0.134** | **6.8×** |
+  | flash I/O s/token | 0.764 | 0.320 | 2.4× |
+  | banda effettiva | 111 MiB/s | **264 MiB/s** | 2.4× |
+  | **ttft** | ~91-96 s | **31 s** | 3× |
+  | load_s | 157 | 47 | 3.3× |
+
+  **Il run è verificato, non è un artefatto**: stessi 64 token, **stesso** traffico da flash
+  (33.09 GB), stessi majflt (~29k), stessa RSS (4630 MB) delle misure lente. Lavoro identico,
+  hardware diverso.
+
+  **Il collo di bottiglia si è ribaltato di nuovo, e stavolta in modo definitivo:**
+  ```
+  decode 0.223 = compute 0.134 + cache mgmt 0.013 + flash I/O 0.320 (in overlap)
+  stall = 0.076 s/token  ← il calcolo che ASPETTA l'I/O
+  ```
+  **`flash I/O 0.320` > `compute 0.134`**: l'I/O è tornato a essere il ramo lento, con uno
+  stall esplicito di 76 ms per token. Se l'I/O fosse gratis, decode ≈ 0.147 s/token = **~6.8
+  tok/s**. È quello il tetto attuale dell'architettura, e la distanza da 4.48 è tutta I/O.
+
+  **Conseguenze sul piano — quasi tutto ciò che oggi era stato declassato torna valido:**
+  - **H3 (prefetch predittivo), H6/G3 (expert packing), F7 (trace + simulatore + predictor)
+    tornano centrali.** Erano stati messi da parte stamattina perché «l'I/O non è il ramo
+    critico»: lo era, ma solo perché il calcolo era artificialmente lento su tre A510.
+  - **Il "risultato negativo" dello sweep cache è RITIRATO**: misurato in un regime dove
+    l'I/O non era vincolante, quindi non poteva mostrare nulla. Va rifatto. La cache è al
+    **56.9% di hit** con 2000 MiB e ha **4848 ri-letture** di byte già pagati: c'è margine.
+  - La banda effettiva è 264 MiB/s contro i **413 MiB/s** che fio misura su letture da 1 MiB:
+    margine anche lì, ed è esattamente ciò che l'**expert packing** dovrebbe catturare.
+  - **`--load-mode dio` (DirectIO)** torna in cima alla lista, non più come curiosità.
+  - Le teorie sul calcolo (kernel IQ2 lenti, matmul minuscoli, quant mista per residenza)
+    **non sono confutate ma sono molto meno urgenti**: il calcolo ora è il ramo veloce.
+    Restano rilevanti per il tetto dei 6.8 tok/s, non per arrivarci.
+
+  **Gate F4**: la soglia era **≥3 tok/s = PASS**. 4.48 la supera. Da confermare con le 3 rep
+  + sentinella e in `top-app` stabile prima di dichiararlo formalmente.
+
+  **Nota su `taskset 3-7`**: include CPU 6 e 7, che il cpuset `top-app` (mask 0x3f = CPU 0-5)
+  in teoria non concede. Da verificare quale sia l'affinità **effettiva** del processo, non
+  quella richiesta — il numero potrebbe migliorare ancora se il prime X3 fosse davvero
+  raggiungibile.
+
 - **2026-08-06 — ⚠ CAUSA RADICE DI TUTTA LA GIORNATA: misuravamo su 3 core lenti su 8.
   Ogni numero di calcolo va rifatto.**
 
