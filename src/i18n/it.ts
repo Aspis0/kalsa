@@ -490,6 +490,27 @@ export const it: typeof en = {
     webFetchNothingMatched:
       "Pagina recuperata ({host}) ma nulla corrisponde alla query. Non inventare contenuti dalla pagina.",
     webFetchFailed: "Fetch della pagina fallito: {message}",
+    webFetchPdfTooLarge:
+      "PDF troppo grande da recuperare (dichiarati {sizeKb} KB). Prova un documento più piccolo.",
+    webFetchPdfTimeout: "Download del PDF scaduto per timeout. Riprova.",
+    webFetchPdfExtractTimeout: "Estrazione del testo dal PDF scaduta per timeout. Riprova.",
+    webFetchPdfExtractFailed: "Estrazione del testo dal PDF fallita: {message}",
+    webFetchPdfBusy:
+      "Un altro PDF è già in estrazione. Attendi che finisca, poi riprova.",
+    webFetchPdfHostMissing:
+      "Estrazione testo PDF non disponibile (host estrattore non montato).",
+    webFetchPdfNoTextLayer:
+      "Questo PDF non ha uno strato di testo ({pages} pagine). Il testo non può essere estratto; " +
+      "diglielo all'utente invece di ripetere lo stesso fetch.",
+    webFetchPdfSkippedPages:
+      "Nota: {skipped} di {total} pagine non avevano uno strato di testo estraibile.",
+    webFetchPdfInvalid:
+      "La risposta dichiarava un PDF ma non è stato possibile estrarre pagine. Non inventare contenuti.",
+    webFetchPdfCiteInstruction:
+      "Tutti i passaggi sopra provengono dalla fonte [{index}] (pagine PDF: {pages}). " +
+      "Cita ogni affermazione presa da essi come [{index}] e indica la pagina " +
+      "(es. p. 7) quando un passaggio è etichettato con quella pagina; " +
+      "non usare altri numeri per questo documento.",
     searchBothFailed: "{primary}; fallback Exa MCP: {fallback}",
     searchDeadline: "Ricerca scaduta per timeout. Riprova.",
     searchInvalidResponse: "Risposta non valida da {provider}",

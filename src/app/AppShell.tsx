@@ -37,7 +37,11 @@ import {
   makeFetchAllowlist,
   makeWebFetchExecutor,
   type FetchAllowlist,
+  type PdfCacheFs,
 } from "../agent/webFetchTool";
+import { PdfTextExtractorHost } from "../pdf/PdfTextExtractorHost";
+import { requestPdfText } from "../pdf/pdfTextService";
+import * as FileSystem from "expo-file-system/legacy";
 import { getStrings, useLocale } from "../i18n";
 import * as MemoryStore from "../memory/MemoryStore";
 import { isWhisperModelDownloaded, releaseWhisper } from "../voice/WhisperService";
@@ -303,6 +307,39 @@ function validateHistoryMessages(history: unknown[] | undefined): HistoryRoleMes
   return out;
 }
 
+/** Uint8Array → base64 for expo-file-system writes (no Node Buffer on RN). */
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  if (typeof globalThis.btoa !== "function") {
+    throw new Error("base64 encoder unavailable");
+  }
+  const chunk = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunk) {
+    const slice = bytes.subarray(i, i + chunk);
+    binary += String.fromCharCode.apply(null, Array.from(slice) as number[]);
+  }
+  return globalThis.btoa(binary);
+}
+
+/** Cache FS for remote PDF bodies fetched by web_fetch (deleted in finally). */
+function makePdfCacheFs(): PdfCacheFs {
+  return {
+    async write(bytes: Uint8Array): Promise<string> {
+      const dir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? "";
+      if (!dir) throw new Error("No cache directory available for PDF body");
+      const uri = `${dir}web-fetch-pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.pdf`;
+      const b64 = uint8ArrayToBase64(bytes);
+      await FileSystem.writeAsStringAsync(uri, b64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      return uri;
+    },
+    async remove(fileUri: string): Promise<void> {
+      await FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => undefined);
+    },
+  };
+}
+
 /**
  * AppShell — la schermata unica di AI Chat (Fase 1).
  *
@@ -328,15 +365,23 @@ export function AppShell() {
     const searchExec = makeWebSearchExecutor(locale);
     // Recreated when fetchAllowlistTurnSeq advances (each send); held across
     // tool rounds within the same turn so search results stay allowlisted.
+    const pdfCacheFs = makePdfCacheFs();
+    const fetchDeps = {
+      extractPdfText: (
+        fileUri: string,
+        opts?: { sourceId?: string; title?: string | null; signal?: AbortSignal },
+      ) => requestPdfText(fileUri, opts),
+      pdfCacheFs,
+    };
     let allowlist: FetchAllowlist = makeFetchAllowlist();
-    let fetchExec = makeWebFetchExecutor(locale, allowlist);
+    let fetchExec = makeWebFetchExecutor(locale, allowlist, fetchDeps);
     let seededTurnSeq: number | null = null;
 
     const ensureAllowlistForTurn = (lastUserMessage?: string) => {
       if (seededTurnSeq === fetchAllowlistTurnSeq) return;
       allowlist = makeFetchAllowlist();
       if (lastUserMessage) allowlist.addFromText(lastUserMessage);
-      fetchExec = makeWebFetchExecutor(locale, allowlist);
+      fetchExec = makeWebFetchExecutor(locale, allowlist, fetchDeps);
       seededTurnSeq = fetchAllowlistTurnSeq;
     };
 
@@ -1718,6 +1763,8 @@ export function AppShell() {
           </SafeAreaView>
         </Modal>
       ) : null}
+      {/* Mount-once PDF text host for web_fetch extractPdfText (hidden WebView). */}
+      <PdfTextExtractorHost />
     </View>
   );
 }

@@ -502,6 +502,35 @@ export const en = {
     webFetchNothingMatched:
       "Page fetched ({host}) but nothing matched the query. Do not invent content from the page.",
     webFetchFailed: "Page fetch failed: {message}",
+    /**
+     * PDF path (web_fetch + extractPdfText). Size/timeout are separate from the
+     * HTML body caps — real PDFs are multi-MB and need a longer download window.
+     */
+    webFetchPdfTooLarge:
+      "PDF too large to fetch (declared {sizeKb} KB). Try a smaller document.",
+    webFetchPdfTimeout: "PDF download timed out. Try again.",
+    webFetchPdfExtractTimeout: "PDF text extraction timed out. Try again.",
+    webFetchPdfExtractFailed: "PDF text extraction failed: {message}",
+    webFetchPdfBusy:
+      "Another PDF is already being extracted. Wait for it to finish, then retry.",
+    webFetchPdfHostMissing:
+      "PDF text extraction is unavailable (extractor host not mounted).",
+    webFetchPdfNoTextLayer:
+      "This PDF has no text layer ({pages} pages). The text cannot be extracted; " +
+      "tell the user rather than retrying the same fetch.",
+    webFetchPdfSkippedPages:
+      "Note: {skipped} of {total} pages had no extractable text layer.",
+    webFetchPdfInvalid:
+      "The response claimed to be a PDF but no pages could be extracted. Do not invent content.",
+    /**
+     * Cite instruction when passages come from a multi-page PDF.
+     * {index} = absolute source number; {pages} = "p. 1, p. 3" list.
+     */
+    webFetchPdfCiteInstruction:
+      "All passages above come from source [{index}] (PDF pages: {pages}). " +
+      "Cite any claim taken from them as [{index}] and name the page " +
+      "(e.g. p. 7) when a passage is labeled with that page; " +
+      "do not use other numbers for this document.",
     searchBothFailed: "{primary}; fallback Exa MCP: {fallback}",
     searchDeadline: "Search timed out. Try again.",
     searchInvalidResponse: "Invalid response from {provider}",

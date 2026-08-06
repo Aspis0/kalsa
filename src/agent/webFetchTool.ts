@@ -20,13 +20,20 @@
  * Pure enough for the Node harness: no LlamaService / React Native imports.
  * Catalog strings come from en/it directly so tsc --ignoreConfig stays RN-free.
  *
+ * PDF path (optional): when `extractPdfText` is injected, `application/pdf` is
+ * accepted. The executor stays React-free — the app supplies the extractor
+ * (WebView host via requestPdfText) and a cache FS. Without the extractor, PDF
+ * responses keep today's unsupported-content behaviour (no hidden fallbacks).
+ *
  * Accepted limitations (audit):
  * - Abort-signal listener fan-in when AbortSignal.any is missing is bounded by
  *   the turn (one manual combine per fetch); not a process-lifetime leak.
  * - On React Native the whole body is buffered by the transport (XHR) before
  *   JavaScript sees it, so a Content-Length pre-check is only an early exit —
- *   a hostile allowlisted host can still exhaust memory within FETCH_TIMEOUT_MS.
- *   A real fix needs a native streaming module. Do not claim otherwise.
+ *   a hostile allowlisted host can still exhaust memory within FETCH_TIMEOUT_MS
+ *   (HTML) or PDF_FETCH_TIMEOUT_MS (when the PDF extractor is wired). These caps
+ *   are an early exit, not real memory protection. A real fix needs a native
+ *   streaming module. Do not claim otherwise.
  */
 
 import { en } from "../i18n/en";
@@ -53,6 +60,8 @@ type WebFetchSource = {
   title: string;
   url: string;
   provider: string;
+  /** Distinct PDF page numbers present in this outcome (cite instruction). */
+  pdfPages?: number[];
 };
 
 export type WebFetchToolResult = {
@@ -60,10 +69,47 @@ export type WebFetchToolResult = {
   sources?: WebFetchSource[];
 };
 
-/** Shorter download window; does not bound peak memory on RN (see header). */
+/** Docs returned by the injected PDF text extractor (matches pdfPagesToRetrievalDocs). */
+export type PdfTextExtractResult = {
+  docs: Array<{ docId: string; title?: string; text: string }>;
+  skippedPages: number[];
+};
+
+export type ExtractPdfTextFn = (
+  fileUri: string,
+  opts?: {
+    sourceId?: string;
+    title?: string | null;
+    signal?: AbortSignal;
+  },
+) => Promise<PdfTextExtractResult>;
+
+/**
+ * Cache FS for the PDF body. Injected so the harness can observe write/delete
+ * and the production app can use expo-file-system without RN imports here.
+ */
+export type PdfCacheFs = {
+  /** Persist bytes; return a file URI the extractor can open. */
+  write(bytes: Uint8Array): Promise<string>;
+  /** Best-effort delete (success, error, and timeout paths all call this). */
+  remove(fileUri: string): Promise<void>;
+};
+
+/** Shorter download window for HTML/plain; does not bound peak memory on RN (see header). */
 export const FETCH_TIMEOUT_MS = 8_000;
-/** Declared Content-Length / post-read byteLength hard stop. */
+/** Declared Content-Length / post-read byteLength hard stop for HTML/plain. */
 export const BODY_HARD_CAP = 1_500_000;
+/**
+ * PDF download body cap — matches PdfToImages DEFAULT_MAX_BYTES (5 MB).
+ * On RN the whole body is buffered by the transport before JS sees it, so this
+ * is an early exit only, not real memory protection (see module header).
+ */
+export const PDF_BODY_HARD_CAP = 5 * 1024 * 1024;
+/**
+ * PDF download timeout — multi-MB on mobile needs more than FETCH_TIMEOUT_MS.
+ * Same RN buffering caveat as PDF_BODY_HARD_CAP.
+ */
+export const PDF_FETCH_TIMEOUT_MS = 20_000;
 /**
  * Max chars fed into the retrieval index (both HTML and text/plain).
  * Content beyond this is not searched. Matches htmlToText's default output cap.
@@ -77,6 +123,8 @@ const ALLOWED_CONTENT_TYPES = new Set([
   "application/xhtml+xml",
   "text/plain",
 ]);
+
+const PDF_MEDIA_TYPE = "application/pdf";
 
 /** Extract http(s) URLs from free text (user messages). */
 const URL_IN_TEXT_RE = /https?:\/\/[^\s<>"'\\)\]]+/gi;
@@ -140,6 +188,40 @@ export function extractHttpHost(url: string): string | null {
 function extractScheme(url: string): string | null {
   const m = /^([a-zA-Z][a-zA-Z\d+\-.]*)/.exec(url.trim());
   return m ? m[1].toLowerCase() : null;
+}
+
+/**
+ * True when the URL *path* (query and fragment stripped) ends with `.pdf`
+ * case-insensitively. Used only to pick the network timeout before headers
+ * arrive — not a content-type gate. A query like `?file=a.pdf` does NOT match.
+ */
+export function urlPathLooksLikePdf(url: string): boolean {
+  if (typeof url !== "string" || !url) return false;
+  // Strip fragment, then query, then take the path after the authority.
+  let s = url.trim();
+  const hash = s.indexOf("#");
+  if (hash >= 0) s = s.slice(0, hash);
+  const q = s.indexOf("?");
+  if (q >= 0) s = s.slice(0, q);
+  // Path is everything after scheme://authority, or the whole remainder.
+  const schemeEnd = s.indexOf("://");
+  let path = s;
+  if (schemeEnd >= 0) {
+    const afterScheme = s.slice(schemeEnd + 3);
+    const slash = afterScheme.indexOf("/");
+    path = slash >= 0 ? afterScheme.slice(slash) : "";
+  }
+  // No path component (e.g. https://host) is not a PDF URL for timeout purposes.
+  if (!path) return false;
+  return path.toLowerCase().endsWith(".pdf");
+}
+
+/**
+ * Network deadline for a fetch URL. Independent of whether extractPdfText is
+ * wired — see comment at the call site in makeWebFetchExecutor.
+ */
+export function resolveFetchNetworkTimeoutMs(url: string): number {
+  return urlPathLooksLikePdf(url) ? PDF_FETCH_TIMEOUT_MS : FETCH_TIMEOUT_MS;
 }
 
 /** Case-insensitive host equality (no suffix matching); ports ignored. */
@@ -370,6 +452,14 @@ async function readResponseBody(
 export type WebFetchExecutorDeps = {
   /** Injected fetch for harnesses; defaults to global fetch. */
   fetchImpl?: typeof fetch;
+  /**
+   * When present, `application/pdf` responses are accepted and routed here.
+   * When absent, PDF keeps `webFetchUnsupportedContent` (no hidden fallback).
+   * Must stay free of React — production wires requestPdfText from the host.
+   */
+  extractPdfText?: ExtractPdfTextFn;
+  /** Required for the PDF path when extractPdfText is set (write body + finally delete). */
+  pdfCacheFs?: PdfCacheFs;
 };
 
 /**
@@ -386,6 +476,9 @@ export function makeWebFetchExecutor(
   signal?: AbortSignal,
 ) => Promise<WebFetchToolResult> {
   const fetchImpl = deps?.fetchImpl ?? fetch;
+  const extractPdfText = deps?.extractPdfText;
+  const pdfCacheFs = deps?.pdfCacheFs;
+  const pdfPathEnabled = typeof extractPdfText === "function";
 
   return async (name, args, signal) => {
     const errors = catalog(locale).errors;
@@ -412,8 +505,20 @@ export function makeWebFetchExecutor(
       return { text: errors.webFetchBlockedAllowlist };
     }
 
+    // Network timeout from the URL path, not from "extractor wired".
+    // On RN the transport buffers the whole body before JS sees headers, so we
+    // cannot peek at Content-Type and then extend the deadline. Using the long
+    // PDF window whenever extractPdfText is present would make every HTML fetch
+    // wait up to 20s (the 8s cap was deliberately lowered for phone UX).
+    // Rule: path (no query/fragment, case-insensitive) ends in ".pdf" → PDF
+    // timeout; otherwise → FETCH_TIMEOUT_MS even when the extractor is wired.
+    // A PDF served from a URL without a .pdf path therefore gets 8s and may
+    // time out — acceptable: those PDFs are unsupported by this heuristic
+    // today, whereas slowing every HTML fetch would be a regression. No HEAD
+    // pre-flight (extra RTT; many servers mishandle HEAD).
+    const networkTimeoutMs = resolveFetchNetworkTimeoutMs(url);
     const timeoutController = new AbortController();
-    const timer = setTimeout(() => timeoutController.abort(), FETCH_TIMEOUT_MS);
+    const timer = setTimeout(() => timeoutController.abort(), networkTimeoutMs);
 
     let combined: AbortSignal = timeoutController.signal;
     try {
@@ -441,6 +546,8 @@ export function makeWebFetchExecutor(
         });
       } catch (error) {
         if (isAbortError(error) || combined.aborted || timeoutController.signal.aborted) {
+          // Content-type unknown here — keep the generic fetch timeout message.
+          // PDF-specific timeout copy is used only after application/pdf is confirmed.
           return { text: errors.webFetchTimeout };
         }
         return {
@@ -475,12 +582,31 @@ export function makeWebFetchExecutor(
 
       const contentTypeHeader = response.headers?.get?.("content-type") ?? null;
       const mediaType = mediaTypeOf(contentTypeHeader);
+      const isPdf = mediaType === PDF_MEDIA_TYPE;
+
       if (mediaType && !ALLOWED_CONTENT_TYPES.has(mediaType)) {
-        return {
-          text: errors.webFetchUnsupportedContent.replace("{type}", mediaType),
-        };
+        if (!(isPdf && pdfPathEnabled)) {
+          return {
+            text: errors.webFetchUnsupportedContent.replace("{type}", mediaType),
+          };
+        }
       }
 
+      // ── PDF path ──────────────────────────────────────────────────────────
+      if (isPdf && pdfPathEnabled) {
+        return await handlePdfResponse({
+          response,
+          finalUrl,
+          query,
+          errors,
+          extractPdfText: extractPdfText as ExtractPdfTextFn,
+          pdfCacheFs,
+          combined,
+          timeoutController,
+        });
+      }
+
+      // ── HTML / plain path (unchanged) ─────────────────────────────────────
       // Content-Length early exit only — on RN the transport may already have
       // buffered the body; this is not an OOM mitigation (see module header).
       const clRaw = response.headers?.get?.("content-length");
@@ -585,5 +711,309 @@ export function makeWebFetchExecutor(
       clearTimeout(timer);
     }
   };
+}
+
+type ErrorCatalog = ReturnType<typeof catalog>["errors"];
+
+async function handlePdfResponse(ctx: {
+  response: Response;
+  finalUrl: string;
+  query: string;
+  errors: ErrorCatalog;
+  extractPdfText: ExtractPdfTextFn;
+  pdfCacheFs: PdfCacheFs | undefined;
+  combined: AbortSignal;
+  timeoutController: AbortController;
+}): Promise<WebFetchToolResult> {
+  const {
+    response,
+    finalUrl,
+    query,
+    errors,
+    extractPdfText,
+    pdfCacheFs,
+    combined,
+    timeoutController,
+  } = ctx;
+
+  // Content-Length early exit — same RN buffering caveat as HTML (see header).
+  const clRaw = response.headers?.get?.("content-length");
+  if (clRaw != null && clRaw !== "") {
+    const declared = Number(clRaw);
+    if (Number.isFinite(declared) && declared > PDF_BODY_HARD_CAP) {
+      try {
+        timeoutController.abort();
+      } catch {
+        /* ignore */
+      }
+      const sizeKb = Math.max(1, Math.ceil(declared / 1024));
+      return {
+        text: errors.webFetchPdfTooLarge.replace("{sizeKb}", String(sizeKb)),
+      };
+    }
+  }
+
+  if (!pdfCacheFs || typeof pdfCacheFs.write !== "function") {
+    return {
+      text: errors.webFetchPdfExtractFailed.replace(
+        "{message}",
+        "PDF cache filesystem is not configured",
+      ),
+    };
+  }
+
+  const bytesResult = await readResponseBytes(response, PDF_BODY_HARD_CAP, () => {
+    try {
+      timeoutController.abort();
+    } catch {
+      /* ignore */
+    }
+  });
+
+  if (!bytesResult.ok) {
+    if (bytesResult.tooLarge) {
+      const sizeKb = Math.max(
+        1,
+        Math.ceil((bytesResult.byteLength ?? PDF_BODY_HARD_CAP) / 1024),
+      );
+      return {
+        text: errors.webFetchPdfTooLarge.replace("{sizeKb}", String(sizeKb)),
+      };
+    }
+    if (bytesResult.message === "abort") {
+      return { text: errors.webFetchPdfTimeout };
+    }
+    return {
+      text: errors.webFetchFailed.replace(
+        "{message}",
+        bytesResult.message ?? "read failed",
+      ),
+    };
+  }
+
+  let cacheUri: string | null = null;
+  try {
+    cacheUri = await pdfCacheFs.write(bytesResult.bytes);
+
+    let extracted: PdfTextExtractResult;
+    try {
+      extracted = await extractPdfText(cacheUri, {
+        // sourceId is remapped below to finalUrl; pass host-safe hint only.
+        sourceId: hostOf(finalUrl),
+        title: null,
+        signal: combined,
+      });
+    } catch (error) {
+      return mapPdfExtractError(error, errors);
+    }
+
+    const docs = Array.isArray(extracted?.docs) ? extracted.docs : [];
+    const skippedPages = Array.isArray(extracted?.skippedPages)
+      ? extracted.skippedPages.filter(
+          (p): p is number => typeof p === "number" && Number.isInteger(p) && p >= 1,
+        )
+      : [];
+
+    // Remap docIds onto the fetched URL (never a filesystem path) so passages
+    // carry `${url}#pN` and citations point at the remote source.
+    const urlDocs = remapPdfDocsToSourceUrl(docs, finalUrl);
+
+    if (urlDocs.length === 0) {
+      const pageCount = skippedPages.length;
+      if (pageCount > 0) {
+        return {
+          text: errors.webFetchPdfNoTextLayer.replace("{pages}", String(pageCount)),
+          sources: [],
+        };
+      }
+      return { text: errors.webFetchPdfInvalid, sources: [] };
+    }
+
+    const index = new DocRetrieverIndex();
+    index.append(
+      urlDocs.map((d) => ({
+        docId: d.docId,
+        title: d.title,
+        text: d.text,
+      })),
+    );
+    const { passages, trace } = runRetrievalLoop(index, query, {
+      budgetChars: RETRIEVAL_BUDGET_CHARS,
+    });
+
+    const pageHost = hostOf(finalUrl);
+    const lastCoverage =
+      trace.coverageByRound.length > 0
+        ? (trace.coverageByRound[trace.coverageByRound.length - 1] ?? 0)
+        : 0;
+    if (!passages.length || lastCoverage <= 0) {
+      return {
+        text: errors.webFetchNothingMatched.replace("{host}", pageHost),
+        sources: [],
+      };
+    }
+
+    const pdfPages = pagesFromDocIds(passages.map((p) => p.docId));
+    const displayTitle = clampTitle(pageHost);
+    const sources: WebFetchSource[] = [
+      {
+        title: displayTitle,
+        url: finalUrl,
+        provider: "fetch",
+        pdfPages: pdfPages.length > 0 ? pdfPages : undefined,
+      },
+    ];
+
+    let body = passages
+      .map((p, i) => {
+        const page = pageFromDocId(p.docId);
+        const label = page != null ? ` (p. ${page})` : "";
+        return `${i + 1}.${label} ${p.text}`;
+      })
+      .join("\n\n");
+
+    if (skippedPages.length > 0) {
+      const total = urlDocs.length + skippedPages.length;
+      body +=
+        "\n\n" +
+        errors.webFetchPdfSkippedPages
+          .replace("{skipped}", String(skippedPages.length))
+          .replace("{total}", String(total));
+    }
+
+    return { text: body, sources };
+  } finally {
+    if (cacheUri) {
+      try {
+        await pdfCacheFs.remove(cacheUri);
+      } catch {
+        /* best-effort cleanup */
+      }
+    }
+  }
+}
+
+function mapPdfExtractError(
+  error: unknown,
+  errors: ErrorCatalog,
+): WebFetchToolResult {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String((error as { code?: unknown }).code ?? "")
+      : "";
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (code === "no_host" || /host is not mounted/i.test(message)) {
+    return { text: errors.webFetchPdfHostMissing };
+  }
+  if (code === "busy" || /already in progress/i.test(message)) {
+    return { text: errors.webFetchPdfBusy };
+  }
+  if (code === "timeout" || /timed out/i.test(message)) {
+    return { text: errors.webFetchPdfExtractTimeout };
+  }
+  if (code === "aborted" || isAbortError(error)) {
+    return { text: errors.webFetchPdfTimeout };
+  }
+  return {
+    text: errors.webFetchPdfExtractFailed.replace("{message}", message),
+  };
+}
+
+/**
+ * Read response body as bytes with a hard byteLength gate.
+ * Never decodes as text (PDF is binary).
+ */
+async function readResponseBytes(
+  response: Response,
+  hardCap: number,
+  onTooLarge: () => void,
+): Promise<
+  | { ok: true; bytes: Uint8Array }
+  | { ok: false; tooLarge: boolean; byteLength?: number; message?: string }
+> {
+  const hasArrayBuffer = typeof (response as { arrayBuffer?: unknown }).arrayBuffer === "function";
+  if (!hasArrayBuffer) {
+    // Fallback: older mocks may only expose text() — treat as latin1 bytes.
+    try {
+      const raw = await response.text();
+      const text = typeof raw === "string" ? raw : String(raw ?? "");
+      if (text.length > hardCap) {
+        onTooLarge();
+        return { ok: false, tooLarge: true, byteLength: text.length };
+      }
+      const bytes = new Uint8Array(text.length);
+      for (let i = 0; i < text.length; i++) {
+        bytes[i] = text.charCodeAt(i) & 0xff;
+      }
+      return { ok: true, bytes };
+    } catch (error) {
+      if (isAbortError(error)) {
+        return { ok: false, tooLarge: false, message: "abort" };
+      }
+      return {
+        ok: false,
+        tooLarge: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  try {
+    const buf = await (response as Response).arrayBuffer();
+    if (buf.byteLength > hardCap) {
+      onTooLarge();
+      return { ok: false, tooLarge: true, byteLength: buf.byteLength };
+    }
+    return { ok: true, bytes: new Uint8Array(buf) };
+  } catch (error) {
+    if (isAbortError(error)) {
+      return { ok: false, tooLarge: false, message: "abort" };
+    }
+    return {
+      ok: false,
+      tooLarge: false,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/** Rebuild docIds as `${sourceUrl}#pN` from extractor output. */
+export function remapPdfDocsToSourceUrl(
+  docs: Array<{ docId: string; title?: string; text: string }>,
+  sourceUrl: string,
+): Array<{ docId: string; title?: string; text: string }> {
+  return docs
+    .filter((d) => d && typeof d.text === "string" && d.text.length > 0)
+    .map((d) => {
+      const page = pageFromDocId(typeof d.docId === "string" ? d.docId : "");
+      const n = page ?? 1;
+      return {
+        docId: `${sourceUrl}#p${n}`,
+        title: d.title,
+        text: d.text,
+      };
+    });
+}
+
+export function pageFromDocId(docId: string): number | null {
+  if (typeof docId !== "string") return null;
+  const m = /#p(\d+)$/.exec(docId);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isInteger(n) && n >= 1 ? n : null;
+}
+
+function pagesFromDocIds(docIds: string[]): number[] {
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const id of docIds) {
+    const p = pageFromDocId(id);
+    if (p == null || seen.has(p)) continue;
+    seen.add(p);
+    out.push(p);
+  }
+  out.sort((a, b) => a - b);
+  return out;
 }
 

@@ -24,6 +24,7 @@ import {
   buildCiteInstructionSuffix,
   citeKindForTool,
   decideToolExecution,
+  pdfPagesFromSources,
   recordToolFailure,
   recordToolSuccess,
 } from "../agent/toolSourceLedger";
@@ -1047,9 +1048,15 @@ export async function streamAssistantTurn(
               callbacks.onSources?.(accumulatedSources);
             }
             const citeKind = citeKindForTool(name);
+            const pdfPages = pdfPagesFromSources(outcome.sources);
             const bodyWithCite =
               ((outcome.text ?? "") || strings.errors.noResults) +
-              buildCiteInstructionSuffix(assigned, strings, citeKind);
+              buildCiteInstructionSuffix(
+                assigned,
+                strings,
+                citeKind,
+                pdfPages.length > 0 ? { pdfPages } : undefined,
+              );
             toolContent = formatToolResultContent(bodyWithCite);
           } catch (error) {
             // Failures still consume the per-turn budget; key is NOT recorded.

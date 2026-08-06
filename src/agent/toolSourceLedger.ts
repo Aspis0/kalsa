@@ -26,7 +26,19 @@ export type CiteStrings = {
     webSearchCiteInstruction: string;
     webToolCiteInstructionMapped: string;
     webFetchCiteInstruction: string;
+    /** Optional; used when passages carry PDF page numbers. */
+    webFetchPdfCiteInstruction?: string;
   };
+};
+
+/** Optional extras for cite-suffix formatting (PDF page labels, etc.). */
+export type CiteSuffixOptions = {
+  /**
+   * Distinct 1-based PDF page numbers represented in this tool outcome.
+   * When present with kind "passages" and a single assigned index, the PDF
+   * cite instruction names those pages so the model can write "p. 7".
+   */
+  pdfPages?: number[];
 };
 
 /**
@@ -64,16 +76,28 @@ export function accumulateToolSources(
  *
  * kind "passages" (web_fetch): NEVER the plain list instruction. Single assigned
  * index → webFetchCiteInstruction with {index}; multiple → mapped form.
+ * When options.pdfPages is non-empty and webFetchPdfCiteInstruction is present,
+ * the single-index path names those pages (e.g. "p. 1, p. 3") so the model can
+ * write "p. 7" rather than a bare source number.
  */
 export function buildCiteInstructionSuffix(
   assigned: number[],
   strings: CiteStrings,
   kind: CiteKind = "sources",
+  options?: CiteSuffixOptions,
 ): string {
   if (!assigned.length) return "";
 
   if (kind === "passages") {
     if (assigned.length === 1) {
+      const pages = normalizePdfPages(options?.pdfPages);
+      const pdfTpl = strings.errors.webFetchPdfCiteInstruction;
+      if (pages.length > 0 && typeof pdfTpl === "string" && pdfTpl.length > 0) {
+        const pageList = pages.map((p) => `p. ${p}`).join(", ");
+        return `\n\n${pdfTpl
+          .replace("{index}", String(assigned[0]))
+          .replace("{pages}", pageList)}`;
+      }
       return `\n\n${strings.errors.webFetchCiteInstruction.replace(
         "{index}",
         String(assigned[0]),
@@ -90,6 +114,41 @@ export function buildCiteInstructionSuffix(
   }
   const mapping = assigned.map((n, i) => `${i + 1}→[${n}]`).join(", ");
   return `\n\n${strings.errors.webToolCiteInstructionMapped.replace("{mapping}", mapping)}`;
+}
+
+/** Collect positive integer page numbers, unique, sorted ascending. */
+export function normalizePdfPages(pages: unknown): number[] {
+  if (!Array.isArray(pages)) return [];
+  const out: number[] = [];
+  const seen = new Set<number>();
+  for (const p of pages) {
+    if (typeof p !== "number" || !Number.isInteger(p) || p < 1) continue;
+    if (seen.has(p)) continue;
+    seen.add(p);
+    out.push(p);
+  }
+  out.sort((a, b) => a - b);
+  return out;
+}
+
+/**
+ * Best-effort pdfPages from tool outcome sources (provider "fetch" cards).
+ * Used by LlamaService when appending the cite suffix.
+ */
+export function pdfPagesFromSources(sources: unknown[] | undefined): number[] {
+  if (!sources?.length) return [];
+  const collected: number[] = [];
+  for (const source of sources) {
+    if (!source || typeof source !== "object") continue;
+    const pp = (source as { pdfPages?: unknown }).pdfPages;
+    if (!Array.isArray(pp)) continue;
+    for (const p of pp) {
+      if (typeof p === "number" && Number.isInteger(p) && p >= 1) {
+        collected.push(p);
+      }
+    }
+  }
+  return normalizePdfPages(collected);
 }
 
 // ── Call-key + per-turn budget (F10 / execution cap) ─────────────────────────
