@@ -44,6 +44,7 @@ jobs:
           node scripts/htmlToTextHarness.mjs
           node scripts/pdfTextHarness.mjs
           node scripts/pdfBridgeHarness.mjs
+          node scripts/pdfTextServiceHarness.mjs
           node scripts/webFetchHarness.mjs
           node scripts/toolSourceLedgerHarness.mjs
 
