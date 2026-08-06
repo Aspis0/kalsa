@@ -945,6 +945,45 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 sera — Il floor batteria proteggeva la COMPARABILITÀ, non il telefono.
+  Due nuove fasi: F4.5 qualità (priorità assoluta) e F4.7 curva batteria.**
+
+  **Chiarimento su §8.2 (osservazione di gualt, correzione a un mio errore di metodo).** La
+  regola «nessun rep sotto il 40%» esiste per rendere i run **confrontabili fra loro**, non
+  perché sotto quella soglia il telefono smetta di essere utile. Applicarla come un muro
+  fisico ha per due volte fermato del lavoro che si poteva fare. **Regola aggiornata**: sotto
+  il 40% non si producono numeri destinati a un confronto con le fasi precedenti, ma si
+  possono raccogliere dati di **natura diversa**, a condizione che siano marcati come **fase
+  separata** e non finiscano mai accanto a quelli del gate.
+
+  **F4.5 — QUALITÀ. Priorità assoluta, prima di F5 e di qualunque conclusione di prodotto.**
+  In tutta la campagna non è stata letta **una sola frase** prodotta dal modello. A ~2.4 bpw
+  il rischio è reale, e 5 tok/s di testo incoerente valgono zero.
+  - **Non richiede il protocollo di misura**: niente cooldown, niente 3 rep, niente
+    sentinella, niente gate termico. Quelle regole rendono confrontabili dei *tempi*; qui si
+    legge del testo.
+  - **È indipendente dalla batteria**: con `--temp 0` l'output è deterministico — a 5 tok/s
+    o a 1 tok/s il modello scrive le stesse identiche parole. Si può fare a qualunque carica.
+  - Disegno: **5 prompt**, almeno 3 **in italiano** (il caso d'uso di Kalsa: le quantizzazioni
+    aggressive degradano prima sulle lingue non inglesi) + 1 di codice + 1 di ragionamento
+    breve. `--temp 0`, ~200 token ciascuno. Giudizio umano a 3 livelli (usabile / degradato /
+    inutilizzabile), **output riportato per intero nel report**, non riassunto.
+  - Se UD-IQ2_M risulta inutilizzabile: la strada è UD-IQ3_XXS (13.21 GB) o un K-quant, e
+    **tutti i numeri di throughput vanno rivalutati su quella base**.
+
+  **F4.7 — CURVA BATTERIA-PRESTAZIONI (fase nuova, idea di gualt).** Configurazione **fissa**
+  (quella del gate: `t=4 --io-threads 4 --cache-mb 2000 --dense-weights anon --overlap`),
+  ripetuta mentre la carica scende da ~40% verso ~10%, **registrando il livello a ogni run**.
+  Risponde in modo diretto alla domanda rimasta aperta («la carica influenza le prestazioni?»),
+  che finora era senza risposta perché `battery_pct` non è mai stata una colonna.
+  - **Marcare la fase `F4.7-batt-curve`**: questi numeri non vanno MAI confrontati con quelli
+    del gate. È l'intero motivo per cui il floor esisteva.
+  - **Registrare se si attiva il risparmio energetico** (sotto il ~15% Android tipicamente lo
+    accende, cambiando frequenze e cpuset). Se succede è **parte del risultato**, non un
+    guasto — ma va annotato, altrimenti è la trappola dei tre core una seconda volta.
+  - Valore di prodotto: un'app di chat gira anche al 15% di batteria. Se lì dimezza, è un
+    fatto che l'utente sente e che va saputo.
+
 - **2026-08-06 sera — Coda dei lavori dopo il gate, con due correzioni a quanto avevo
   scritto io.**
 
