@@ -44,6 +44,9 @@ BUILD_DIR_IN="${BUILD_DIR:-build-termux}"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
 # S23-safe explicit ISA (no native probes). Portable: armv8.2-a+dotprod+fp16
 ARM_ARCH="${ARM_ARCH:-armv8.2-a+dotprod+i8mm+fp16}"
+# Termux default __ANDROID_MIN_SDK_VERSION__=24; AHardwareBuffer needs API>=26
+# (platform_io.cpp pinned_alloc / --dense-weights ahwb). Device S23 is API 36.
+ANDROID_API="${ANDROID_API:-28}"
 JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 4)}"
 SKIP_PKG="${SKIP_PKG:-0}"
 SKIP_CHECKOUT="${SKIP_CHECKOUT:-0}"
@@ -67,6 +70,7 @@ Opzioni / env:
   BUILD_TYPE=TYPE     Release|Debug|RelWithDebInfo (default: Release)
   ARM_ARCH=string     default: armv8.2-a+dotprod+i8mm+fp16
                       grammar: armv8.2-a[+dotprod][+i8mm][+fp16]
+  ANDROID_API=N       default 28 (AHardwareBuffer needs >=26; Termux default is 24)
   JOBS=N              parallelismo (default: nproc)
   SKIP_PKG=1          non eseguire pkg install
   SKIP_CHECKOUT=1     non forzare checkout del pin monorepo
@@ -104,7 +108,7 @@ BUILD_DIR_ABS="$ISA_BUILD_DIR"
 echo "=== build_bmoe_termux.sh (path A, on-device, safe ISA) ==="
 echo "BMOE_ROOT=$BMOE_ROOT"
 echo "BUILD_DIR=$BUILD_DIR_NAME ($BUILD_DIR_ABS) BUILD_TYPE=$BUILD_TYPE JOBS=$JOBS"
-echo "ARM_ARCH=$ARM_ARCH (GGML_NATIVE=OFF)"
+echo "ARM_ARCH=$ARM_ARCH (GGML_NATIVE=OFF) ANDROID_API=$ANDROID_API"
 echo "PIN monorepo=$PIN_MONOREPO"
 echo "PIN llama.cpp=$PIN_LLAMA"
 
@@ -233,10 +237,14 @@ if [ -f "$BUILD_DIR_ABS/CMakeCache.txt" ]; then
     fi
 fi
 
+# Raise min SDK so AHardwareBuffer_* is not marked unavailable (Termux default API 24).
+# Toolchain flag only — no source patch. ahwb remains optional at runtime.
+_BMOE_API_FLAGS="-D__ANDROID_API__=${ANDROID_API} -D__ANDROID_MIN_SDK_VERSION__=${ANDROID_API}"
+echo "ANDROID_API=$ANDROID_API (AHardwareBuffer compile gate)"
 cmake -S . -B "$BUILD_DIR_ABS" -G Ninja \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-    -DLLAMA_CURL=OFF \
+    -DCMAKE_C_FLAGS="$_BMOE_API_FLAGS" \n    -DCMAKE_CXX_FLAGS="$_BMOE_API_FLAGS" \n    -DLLAMA_CURL=OFF \
     -DGGML_OPENCL=OFF \
     -DGGML_NATIVE=OFF \
     -DGGML_CPU_ARM_ARCH="$ARM_ARCH" \
