@@ -945,6 +945,46 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 — Ri-prioritizzazione dopo il gate: le teorie di giornata restano valide, ma
+  due CAMBIANO SEGNO.** Le ipotesi costruite stamattina non sono state confutate dalla
+  scoperta dei core: sono state **ricollocate**. Ora che il quadro è `compute 0.116` vs
+  `flash I/O 0.319`, ecco dove va ciascuna.
+
+  **Salgono (agiscono sul ramo lento, cioè l'I/O):**
+  1. **MTP / speculative decoding — INVERSIONE.** Stamattina l'avevo declassata, e per un
+     motivo corretto: il suo meccanismo è **ammortizzare letture memory-bound su N token**, e
+     in regime compute-bound serve a poco. Ora l'I/O domina e ogni token costa **84.7 MiB**:
+     generare 2 token per forward pass **dimezza i MiB per token**. È tornata a essere una
+     delle leve più forti. Resta il dato scomodo (su GPU, per Qwen3.6-35B-A3B, lo speculative
+     ha perso 19 volte su 19) — ma quello era un regime completamente diverso.
+  2. **Ripartizione core compute/IO — INVERSIONE.** Avevo proposto di spostare core **dall'I/O
+     al calcolo**. Con l'I/O che costa 2.7× il calcolo, la direzione giusta è **l'opposta**:
+     provare `--io-threads` 5-6 con `t` 3-4. Cheap, e va fatto presto.
+  3. **Expert packing (H6/G3) + DirectIO + sweep cache**: già in cima, v. voce del gate.
+
+  **Convergenza importante — packing e fusione degli esperti sono lo STESSO intervento.**
+  L'idea "fondere i 9 esperti attivi in 3 matmul larghe" (per togliere overhead di dispatch)
+  e l'idea "riordinare gli esperti su flash per letture sequenziali" (per alzare la banda)
+  richiedono entrambe **che gli esperti attivi stiano contigui in memoria**. Un solo lavoro
+  sul layout serve tutti e due i rami. È il contributo originale più forte rimasto, ed è
+  possibile **solo perché la cache è nostra**: con mmap il layout lo detta il file.
+
+  **Restano valide ma spostate sul "tetto" (7.8 tok/s), non sul numero attuale:**
+  4. **Quantizzazione mista per residenza** (densi in Q4_0, esperti routed a 2 bit): riduce
+     il calcolo **senza toccare l'I/O**, quindi alza il tetto. Nota che la variante ingenua
+     (tutto in Q4) sarebbe ora **controproducente**: raddoppierebbe i byte per token sul ramo
+     che è già il collo di bottiglia.
+  5. **Sonda `--n-expert-used`** (dot-product vs overhead di dispatch): ancora da fare, ma
+     ora informa il tetto, non la strada per arrivarci.
+
+  **Scendono:**
+  6. **GPU (tronco denso su OpenCL)**: il calcolo è 0.116 s e non è il vincolo. Spostarlo su
+     GPU libera core per l'I/O, il che non è nulla, ma il beneficio diretto è piccolo.
+     Declassata, non cancellata.
+
+  **Invariata e ancora da fare**: la misura di **J/token**, che con 5× di velocità dovrebbe
+  migliorare in proporzione se la potenza resta simile — da verificare, non da assumere.
+
 - **2026-08-06 — ✅ GATE F4: PASS. 5.06 tok/s sul 35B, stage valido.**
 
   Braccio `F4.3-bis C-topapp`, config `--moe-stream --cache-mb 2000 --dense-weights anon
