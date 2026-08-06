@@ -349,9 +349,12 @@ build_run_cmdline() {
             _cmd="$_cmd --no-conversation"
             _cmd="$_cmd --single-turn"
             # --simple-io: compact [Prompt|Generation] only (no ttft_ms).
-            # --classic-perf drops it so llama_perf_context_print fills ttft_ms (F3+).
+            # --classic-perf drops it and enables --perf so llama_perf_context_print
+            # fills ttft_ms (F3+). On pin 67d5978 --perf defaults to false.
             if [ "${CLASSIC_PERF:-0}" -eq 0 ]; then
                 _cmd="$_cmd --simple-io"
+            else
+                _cmd="$_cmd --perf"
             fi
             ;;
     esac
@@ -465,8 +468,8 @@ Opzionali:
   --run-timeout SEC         per-run wall timeout (default 2700 = 45 min; floor 2700).
                             On expiry: kill llama, notes BLOCKED/timeout, exit 8
                             (NOT valid F3 data; only lmkd/OOM exit 1 is data).
-  --classic-perf            drop --simple-io so llama_perf_context_print appears
-                            (fills ttft_ms via prompt eval ms). Use for F3+.
+  --classic-perf            drop --simple-io and pass --perf so llama_perf_context_print
+                            appears (fills ttft_ms via prompt eval ms). Use for F3+.
                             Default keeps --simple-io (compact [Prompt|Generation] only).
 
 Env:
@@ -1007,7 +1010,8 @@ if [ "$RUNTIME" = "bigmoe" ]; then
             < /dev/null > "$FIFO" 2>&1 &
     fi
 else
-    # CLASSIC_PERF=1 drops --simple-io so llama_perf_context_print (ttft_ms) appears.
+    # CLASSIC_PERF=1: drop --simple-io and enable --perf (pin 67d5978 default false)
+    # so llama_perf_context_print appears and fills ttft_ms (F3+).
     if [ "$CLASSIC_PERF" -eq 1 ]; then
         if [ -n "$EXTRA_FLAGS" ]; then
             "$BINARY" \
@@ -1022,6 +1026,7 @@ else
                 --no-display-prompt \
                 --no-conversation \
                 --single-turn \
+                --perf \
                 $EXTRA_FLAGS \
                 < /dev/null > "$FIFO" 2>&1 &
         else
@@ -1037,6 +1042,7 @@ else
                 --no-display-prompt \
                 --no-conversation \
                 --single-turn \
+                --perf \
                 < /dev/null > "$FIFO" 2>&1 &
         fi
     else

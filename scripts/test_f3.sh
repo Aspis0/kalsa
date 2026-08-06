@@ -208,6 +208,11 @@ if printf '%s' "$_cmd_cl" | grep -q -- '--simple-io'; then
 else
   pass "--classic-perf drops --simple-io"
 fi
+if printf '%s' "$_cmd_cl" | grep -qE -- '--perf'; then
+  pass "--classic-perf enables --perf (ttft source)"
+else
+  fail "--classic-perf must pass --perf" "cmd=$_cmd_cl"
+fi
 if printf '%s' "$_cmd_cl" | grep -q -- '--no-conversation' && printf '%s' "$_cmd_cl" | grep -q -- '--single-turn'; then
   pass "--classic-perf keeps no-conversation + single-turn"
 else
