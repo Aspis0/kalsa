@@ -1,0 +1,58 @@
+2026-08-05T23:05:12-04:00 === start F3 phase=F3-numa variant=numa first=cold reps=3 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli flags='--numa distribute' cooldown=180s cool≤30.0 run_timeout=2700s classic_perf=1 cold_method=fadv ===
+2026-08-05T23:05:12-04:00 PAIR cold+warm same session: rep1=cold(fadv), reps 2..3=warm (no reboot between; phase=F3-numa variant=numa)
+2026-08-05T23:05:12-04:00 measure F3-numa rep 1/3 run_type=cold flags='--numa distribute'
+2026-08-05T23:05:12-04:00 cooldown idle 180s
+2026-08-05T23:08:13-04:00 gate OK plugged=UNPLUGGED temp=28.4 lvl=72 cool≤30.0 variant=numa phase=F3-numa
+2026-08-05T23:08:13-04:00 cold_model fadv start: /data/data/com.termux/files/home/bin/cold_model.sh /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+2026-08-05T23:08:21-04:00 cold_model fadv OK (rep=1)
+2026-08-05T23:16:57-04:00 OK: run_bench exit 0 rtype=cold rep=1
+2026-08-05T23:16:58-04:00 post-run batt: UNPLUGGED 33.5 69
+2026-08-05T23:16:58-04:00 measure F3-numa rep 2/3 run_type=warm flags='--numa distribute'
+2026-08-05T23:16:58-04:00 cooldown idle 180s
+2026-08-05T23:19:59-04:00 WAIT: temp 31.5 need ≤30.0 (abs≤32.0) lvl=68 — sleep 30s (waited 0s)
+2026-08-05T23:20:30-04:00 WAIT: temp 30.3 need ≤30.0 (abs≤32.0) lvl=68 — sleep 30s (waited 30s)
+2026-08-05T23:21:01-04:00 WAIT: temp 30.3 need ≤30.0 (abs≤32.0) lvl=68 — sleep 30s (waited 60s)
+2026-08-05T23:21:32-04:00 WAIT: temp 30.3 need ≤30.0 (abs≤32.0) lvl=68 — sleep 30s (waited 90s)
+2026-08-05T23:22:04-04:00 WAIT: temp 30.3 need ≤30.0 (abs≤32.0) lvl=68 — sleep 30s (waited 120s)
+2026-08-05T23:22:35-04:00 WAIT: temp 30.3 need ≤30.0 (abs≤32.0) lvl=68 — sleep 30s (waited 150s)
+2026-08-05T23:23:06-04:00 gate OK plugged=UNPLUGGED temp=29.1 lvl=68 cool≤30.0 variant=numa phase=F3-numa
+2026-08-05T23:31:47-04:00 OK: run_bench exit 0 rtype=warm rep=2
+2026-08-05T23:31:48-04:00 post-run batt: UNPLUGGED 35.7 65
+2026-08-05T23:31:48-04:00 measure F3-numa rep 3/3 run_type=warm flags='--numa distribute'
+2026-08-05T23:31:48-04:00 cooldown idle 180s
+2026-08-05T23:34:49-04:00 WAIT: temp 32.6 need ≤30.0 (abs≤32.0) lvl=65 — sleep 30s (waited 0s)
+2026-08-05T23:35:21-04:00 WAIT: temp 31.2 need ≤30.0 (abs≤32.0) lvl=65 — sleep 30s (waited 30s)
+2026-08-05T23:35:52-04:00 WAIT: temp 31.2 need ≤30.0 (abs≤32.0) lvl=65 — sleep 30s (waited 60s)
+2026-08-05T23:36:23-04:00 WAIT: temp 31.2 need ≤30.0 (abs≤32.0) lvl=65 — sleep 30s (waited 90s)
+2026-08-05T23:36:54-04:00 WAIT: temp 31.2 need ≤30.0 (abs≤32.0) lvl=65 — sleep 30s (waited 120s)
+2026-08-05T23:37:25-04:00 gate OK plugged=UNPLUGGED temp=29.8 lvl=65 cool≤30.0 variant=numa phase=F3-numa
+2026-08-05T23:46:17-04:00 OK: run_bench exit 0 rtype=warm rep=3
+2026-08-05T23:46:18-04:00 post-run batt: UNPLUGGED 34.8 62
+2026-08-05T23:46:19-04:00 sentinel warm for F3-numa (optional; battery gate may CHARGE_NEEDED)
+2026-08-05T23:46:19-04:00 cooldown idle 180s
+2026-08-05T23:49:20-04:00 WAIT: temp 32.1 need ≤30.0 (abs≤32.0) lvl=61 — sleep 30s (waited 0s)
+2026-08-05T23:49:51-04:00 WAIT: temp 32.1 need ≤30.0 (abs≤32.0) lvl=61 — sleep 30s (waited 30s)
+2026-08-05T23:50:22-04:00 WAIT: temp 32.1 need ≤30.0 (abs≤32.0) lvl=61 — sleep 30s (waited 60s)
+2026-08-05T23:50:53-04:00 WAIT: temp 32.1 need ≤30.0 (abs≤32.0) lvl=61 — sleep 30s (waited 90s)
+2026-08-05T23:51:24-04:00 WAIT: temp 30.9 need ≤30.0 (abs≤32.0) lvl=61 — sleep 30s (waited 120s)
+2026-08-05T23:51:55-04:00 WAIT: temp 30.9 need ≤30.0 (abs≤32.0) lvl=61 — sleep 30s (waited 150s)
+2026-08-05T23:52:26-04:00 WAIT: temp 30.9 need ≤30.0 (abs≤32.0) lvl=61 — sleep 30s (waited 180s)
+2026-08-05T23:52:58-04:00 WAIT: temp 30.9 need ≤30.0 (abs≤32.0) lvl=61 — sleep 30s (waited 210s)
+2026-08-05T23:53:29-04:00 WAIT: temp 30.9 need ≤30.0 (abs≤32.0) lvl=61 — sleep 30s (waited 240s)
+2026-08-05T23:54:00-04:00 gate OK plugged=UNPLUGGED temp=29.7 lvl=61 cool≤30.0 variant=numa phase=F3-numa
+2026-08-06T00:02:41-04:00 OK: run_bench exit 0 rtype=warm rep=sentinel
+2026-08-06T00:02:42-04:00 post-run batt: UNPLUGGED 35.9 58
+# F3-numa summary
+
+- model: `Qwen3.6-35B-A3B-UD-IQ2_M.gguf` size=11522702304
+- variant: numa flags=`--numa distribute`
+- threads=4 ctx=512 kv=q8_0 n_gen=32
+- rows total=4 cold=1 warm=3
+- median eval_tok_s cold: 0.10
+- median eval_tok_s warm: 0.10
+- protocol: cooldown=180s cool≤30.0 majflt_gate=50000 floor=40%
+- binary: `/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli` commit=67d5978
+- finished: 2026-08-06T00:02:43-04:00
+
+F3 is pure measurement — any recorded naive numbers (incl. OOM/lmkd) are PASS.
+2026-08-06T00:02:43-04:00 === done F3-numa rows=4 med_cold=0.10 med_warm=0.10 ===

@@ -1,0 +1,1 @@
+variant=nowarmup phase=F3-nowarmup pid_file=/data/data/com.termux/files/home/experiments/results/f3_nowarmup.pid start=2026-08-06T00:08:13-04:00

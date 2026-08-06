@@ -1,0 +1,53 @@
+2026-08-05T21:57:19-04:00 === start F3 phase=F3 variant=default first=cold reps=3 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli flags='' cooldown=180s cool≤30.0 run_timeout=2700s classic_perf=1 cold_method=fadv ===
+2026-08-05T21:57:19-04:00 PAIR cold+warm same session: rep1=cold(fadv), reps 2..3=warm (no reboot between; phase=F3 variant=default)
+2026-08-05T21:57:20-04:00 measure F3 rep 1/3 run_type=cold flags=''
+2026-08-05T21:57:20-04:00 cooldown idle 180s
+2026-08-05T22:00:21-04:00 gate OK plugged=UNPLUGGED temp=26.4 lvl=85 cool≤30.0 variant=default phase=F3
+2026-08-05T22:00:21-04:00 cold_model fadv start: /data/data/com.termux/files/home/bin/cold_model.sh /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+2026-08-05T22:00:26-04:00 cold_model fadv OK (rep=1)
+2026-08-05T22:09:00-04:00 OK: run_bench exit 0 rtype=cold rep=1
+2026-08-05T22:09:01-04:00 post-run batt: UNPLUGGED 33.0 82
+2026-08-05T22:09:01-04:00 measure F3 rep 2/3 run_type=warm flags=''
+2026-08-05T22:09:01-04:00 cooldown idle 180s
+2026-08-05T22:12:02-04:00 WAIT: temp 30.7 need ≤30.0 (abs≤32.0) lvl=82 — sleep 30s (waited 0s)
+2026-08-05T22:12:33-04:00 WAIT: temp 30.7 need ≤30.0 (abs≤32.0) lvl=82 — sleep 30s (waited 30s)
+2026-08-05T22:13:04-04:00 gate OK plugged=UNPLUGGED temp=29.3 lvl=82 cool≤30.0 variant=default phase=F3
+2026-08-05T22:21:42-04:00 OK: run_bench exit 0 rtype=warm rep=2
+2026-08-05T22:21:43-04:00 post-run batt: UNPLUGGED 35.0 79
+2026-08-05T22:21:43-04:00 measure F3 rep 3/3 run_type=warm flags=''
+2026-08-05T22:21:43-04:00 cooldown idle 180s
+2026-08-05T22:24:45-04:00 WAIT: temp 32.4 need ≤30.0 (abs≤32.0) lvl=79 — sleep 30s (waited 0s)
+2026-08-05T22:25:16-04:00 WAIT: temp 31.1 need ≤30.0 (abs≤32.0) lvl=79 — sleep 30s (waited 30s)
+2026-08-05T22:25:47-04:00 WAIT: temp 31.1 need ≤30.0 (abs≤32.0) lvl=79 — sleep 30s (waited 60s)
+2026-08-05T22:26:18-04:00 WAIT: temp 31.1 need ≤30.0 (abs≤32.0) lvl=79 — sleep 30s (waited 90s)
+2026-08-05T22:26:49-04:00 WAIT: temp 31.1 need ≤30.0 (abs≤32.0) lvl=79 — sleep 30s (waited 120s)
+2026-08-05T22:27:20-04:00 gate OK plugged=UNPLUGGED temp=29.8 lvl=79 cool≤30.0 variant=default phase=F3
+2026-08-05T22:36:02-04:00 OK: run_bench exit 0 rtype=warm rep=3
+2026-08-05T22:36:02-04:00 post-run batt: UNPLUGGED 35.9 76
+2026-08-05T22:36:03-04:00 sentinel warm for F3 (optional; battery gate may CHARGE_NEEDED)
+2026-08-05T22:36:03-04:00 cooldown idle 180s
+2026-08-05T22:39:04-04:00 WAIT: temp 32.4 need ≤30.0 (abs≤32.0) lvl=75 — sleep 30s (waited 0s)
+2026-08-05T22:39:35-04:00 WAIT: temp 32.4 need ≤30.0 (abs≤32.0) lvl=75 — sleep 30s (waited 30s)
+2026-08-05T22:40:06-04:00 WAIT: temp 32.4 need ≤30.0 (abs≤32.0) lvl=75 — sleep 30s (waited 60s)
+2026-08-05T22:40:37-04:00 WAIT: temp 32.4 need ≤30.0 (abs≤32.0) lvl=75 — sleep 30s (waited 90s)
+2026-08-05T22:41:08-04:00 WAIT: temp 31.0 need ≤30.0 (abs≤32.0) lvl=75 — sleep 30s (waited 120s)
+2026-08-05T22:41:39-04:00 WAIT: temp 31.0 need ≤30.0 (abs≤32.0) lvl=75 — sleep 30s (waited 150s)
+2026-08-05T22:42:10-04:00 WAIT: temp 31.0 need ≤30.0 (abs≤32.0) lvl=75 — sleep 30s (waited 180s)
+2026-08-05T22:42:42-04:00 WAIT: temp 31.0 need ≤30.0 (abs≤32.0) lvl=75 — sleep 30s (waited 210s)
+2026-08-05T22:43:13-04:00 gate OK plugged=UNPLUGGED temp=29.8 lvl=75 cool≤30.0 variant=default phase=F3
+2026-08-05T22:51:58-04:00 OK: run_bench exit 0 rtype=warm rep=sentinel
+2026-08-05T22:51:59-04:00 post-run batt: UNPLUGGED 35.5 72
+# F3 summary
+
+- model: `Qwen3.6-35B-A3B-UD-IQ2_M.gguf` size=11522702304
+- variant: default flags=``
+- threads=4 ctx=512 kv=q8_0 n_gen=32
+- rows total=4 cold=1 warm=3
+- median eval_tok_s cold: 0.10
+- median eval_tok_s warm: 0.10
+- protocol: cooldown=180s cool≤30.0 majflt_gate=50000 floor=40%
+- binary: `/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli` commit=67d5978
+- finished: 2026-08-05T22:51:59-04:00
+
+F3 is pure measurement — any recorded naive numbers (incl. OOM/lmkd) are PASS.
+2026-08-05T22:52:00-04:00 === done F3 rows=4 med_cold=0.10 med_warm=0.10 ===

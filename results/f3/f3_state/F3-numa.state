@@ -1,0 +1,7 @@
+phase=F3-numa variant=numa first=cold reps=3
+model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 flags=--numa distribute
+start=2026-08-05T23:05:12-04:00
+protocol=cool180_T30.0_maj50000_floor40_timeout2700_classic_perf_coldfadv
+cold_method=fadv
+pair=cold+warm_same_session
+rows=4 med_cold=0.10 med_warm=0.10

@@ -1,0 +1,101 @@
+2026-08-06T00:08:13-04:00 === start F3 phase=F3-nowarmup variant=nowarmup first=cold reps=1 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli flags='--no-warmup' cooldown=180s cool≤30.0 run_timeout=2700s classic_perf=1 cold_method=fadv ===
+2026-08-06T00:08:13-04:00 PAIR cold only (reps=1 cold_method=fadv): single cold rep this invocation; warm must be same session if added later
+2026-08-06T00:08:13-04:00 measure F3-nowarmup rep 1/1 run_type=cold flags='--no-warmup'
+2026-08-06T00:08:13-04:00 cooldown idle 180s
+2026-08-06T00:11:14-04:00 WAIT: temp 30.6 need ≤30.0 (abs≤32.0) lvl=58 — sleep 30s (waited 0s)
+2026-08-06T00:11:45-04:00 WAIT: temp 30.6 need ≤30.0 (abs≤32.0) lvl=58 — sleep 30s (waited 30s)
+2026-08-06T00:12:16-04:00 WAIT: temp 30.6 need ≤30.0 (abs≤32.0) lvl=58 — sleep 30s (waited 60s)
+2026-08-06T00:12:48-04:00 WAIT: temp 30.6 need ≤30.0 (abs≤32.0) lvl=58 — sleep 30s (waited 90s)
+2026-08-06T00:13:19-04:00 WAIT: temp 30.6 need ≤30.0 (abs≤32.0) lvl=58 — sleep 30s (waited 120s)
+2026-08-06T00:13:50-04:00 gate OK plugged=UNPLUGGED temp=29.4 lvl=58 cool≤30.0 variant=nowarmup phase=F3-nowarmup
+2026-08-06T00:13:50-04:00 cold_model fadv start: /data/data/com.termux/files/home/bin/cold_model.sh /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=829093 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-06T00:13:58-04:00
+2026-08-06T00:13:58-04:00 cold_model fadv OK (rep=1)
+--- preflight ISA (PREFLIGHT_ISA=auto mode=auto_cache) ---
+=== preflight_llama_isa ===
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli
+build_dir=/data/data/com.termux/files/home/src/llama.cpp/build-safe
+arm_arch=<none>
+OK: binario regolare eseguibile (/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli)
+cache: GGML_NATIVE:BOOL=OFF
+cache: GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+OK: GGML_NATIVE=OFF
+OK: GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16
+OK: compile_commands.json presente
+compile flags -march:
+  -march=armv8.2-a+dotprod+i8mm+fp16
+OK: -march matcha ARM_ARCH (armv8.2-a+dotprod+i8mm+fp16)
+cpu Features: Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+OK: asimddp (dotprod) in /proc/cpuinfo
+OK: i8mm in /proc/cpuinfo
+OK: fp16 (fphp/asimdhp) in /proc/cpuinfo
+--- /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli --version (no model) ---
+version: 1 (67d5978)
+built with Clang 21.1.8 for Android aarch64
+OK: version/help exit=0
+--- static scan /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so (sve/sme) ---
+OK: nessun smstart/smstop in /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so
+=== PREFLIGHT OK ===
+=== run_bench ===
+run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260806-001358 phase=F3-nowarmup runtime=mainline run_type=cold
+model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf quant=UD-IQ2_M
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=512 kv=q8_0 n_gen=32
+flags=--no-warmup
+batt_plugged=UNPLUGGED batt_temp_start=29.4
+log=/data/data/com.termux/files/home/experiments/results/logs/Qwen3.6-35B-A3B-UD-IQ2_M-20260806-001358.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-06T00:14:09-04:00 ---
+llama_pid=24251 tee_pid=24249 classic_perf=1 run_timeout_s=2700
+
+
+Loading model... |-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/ 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+ftype      : IQ2_M - 2.7 bpw
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:
+
+[Start thinking]
+
+Here's a thinking process:
+
+1.  **Analyze User Input:**
+   - **Device:** Modern smartphone with 8GB RAM and UFS
+
+[ Prompt: 1.8 t/s | Generation: 0.1 t/s ]
+
+
+Exiting...
+--- llama end rc=0 harness_timeout=0 wall_s=490 2026-08-06T00:22:19-04:00 ---
+=== CSV row written → /data/data/com.termux/files/home/experiments/results/runs.csv ===
+Qwen3.6-35B-A3B-UD-IQ2_M-20260806-001358,2026-08-06T00:13:58-04:00,F3-nowarmup,Qwen3.6-35B-A3B-UD-IQ2_M.gguf,UD-IQ2_M,11.52,mainline,67d5978,--no-warmup,4,512,q8_0,32,cold,short,1.80,0.10,,11130037,1989377,316321484800,4691,12,29.4,36.6,,F3-nowarmup no_warmup measure rep=1 rtype=cold cool180s T<=30.0 majflt_gate=50000 cold=fadv; load_s=490; classic_perf=1; memavail_start_mb=5076
+prompt_tok_s=1.80 eval_tok_s=0.10 ttft_ms= load_s=490
+majflt_delta=11130037 minflt_delta=1989377 read_bytes_delta=316321484800
+vmrss_peak_mb=4691 memfree_min_mb=12 memavail_start_mb=5076
+batt_temp_start=29.4 batt_temp_end=36.6
+harness_timeout=0 run_timeout_s=2700 classic_perf=1
+2026-08-06T00:22:22-04:00 OK: run_bench exit 0 rtype=cold rep=1
+2026-08-06T00:22:23-04:00 post-run batt: UNPLUGGED 36.6 54
+2026-08-06T00:22:23-04:00 === done F3-nowarmup rows=1 med_cold=0.10 med_warm=NA ===

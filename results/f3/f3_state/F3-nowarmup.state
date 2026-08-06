@@ -1,0 +1,6 @@
+phase=F3-nowarmup variant=nowarmup first=cold reps=1
+model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 flags=--no-warmup
+start=2026-08-06T00:08:13-04:00
+protocol=cool180_T30.0_maj50000_floor40_timeout2700_classic_perf_coldfadv
+cold_method=fadv
+rows=1 med_cold=0.10 med_warm=
