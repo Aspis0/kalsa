@@ -989,6 +989,25 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   cosa diversa e si comporta in modo diverso (il power save è una scelta del sistema
   operativo, reversibile; la batteria scarica no).
 
+  **Difetto di disegno della fase, e il controllo che lo chiude (obbligatorio).** F4.7 ha una
+  variabile che si muove in una sola direzione: la batteria scende e non risale. Dentro la
+  fase, quindi, **un effetto batteria e una deriva di sessione producono la stessa curva** e
+  non sono distinguibili. Non è teoria: questa campagna è già stata ingannata due volte da una
+  deriva (lo sweep thread del pomeriggio, e il falso gradino termico che era un riavvio di
+  Termux). Coi primi tre punti — 32%→4.84, 30%→4.98, 27%→4.84, media **4.89** contro baseline
+  **5.02**, cioè −2.6% — siamo esattamente nella zona ambigua: troppo piccolo per gridare a un
+  effetto, troppo sistematico per ignorarlo.
+
+  **Il controllo: 3 rep della config identica a batteria ≥80%, subito dopo la ricarica e prima
+  di qualunque altra fase.** Costa ~10 minuti e discrimina in modo netto:
+  - torna a ~5.02 → il calo era **stato del device** (batteria o accumulo di sessione), e la
+    curva misura qualcosa di reale;
+  - resta a ~4.87 → era **deriva**, la curva non misura la batteria, e va buttata.
+
+  Questa rimisurazione **non è opzionale e non è rimandabile**: la finestra esiste solo tra la
+  ricarica e la fase successiva. Se si perde, F4.7 resta un dato non interpretabile e i tre
+  punti raccolti stasera sono sprecati.
+
 - **2026-08-06 sera — REAP: il pruning degli esperti va PROMOSSO da F9.1b (lossy, in fondo)
   a leva di prima linea. Il ragionamento che l'aveva declassato era sbagliato.**
 
