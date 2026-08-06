@@ -1002,6 +1002,21 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
     anche per `bmoe-cli` in F4, che ha un formato di output diverso.
     Confermato anche il blocco post-generazione: il 35B genera e poi **non esce**
     (rc=124 al timeout). Sotto l'harness usciva con rc=0 — differenza ancora non spiegata.
+  - **Aggiornamento 2026-08-06 ~06:30 — ANOMALIA CHIUSA (mitigata; Grok, solo agente).**
+    Report: `reports/moe-f3-binary-anomaly.md`. Commit harness `c9768f4`.
+    **Test A:** rebuild `build-safe2` pin 67d5978 (GGML_NATIVE=OFF, stessa ISA) → PREFLIGHT OK.
+    4B **senza** `--load-mode`: rc=0, genera, Exiting. **Anche il vecchio build-safe** (stesso
+    mtime 2026-08-03) **ora** carica senza flag. Pin e file su disco **non** sono la causa
+    permanente; trigger transiente non più riprodotto (boot 05:17 + MemAvailable ~5.1 GiB).
+    **Test B:** non rilanciato `start_f3 numa` (CSV già completo). Diagnostica equivalente
+    via `run_bench` 4B + env start_f3 → rc=0, flags=`--load-mode mmap`, ttft_wall, spinner
+    collassato. Preflight 4B 30s rc=0.
+    **Harness (a prescindere):** sempre `--load-mode mmap` in cmdline+CSV; preflight 4B in
+    `start_f3` (exit 10); anti-REPL hang → exit 9; batteria dopo `--print-cmd`; stream
+    filter CR/spinner; `ttft_ms` wall-clock primo token stream (non `--perf`).
+    Test: `test_run_bench` 54 PASS, `test_f3` 47 PASS.
+    **Binary F4 raccomandato: `build-safe2`.** F3 non invalidata. Root-cause non
+    deterministica → mitigazione obbligatoria, non «ignorare e sperare».
 
 - **2026-08-06 — Gate F3 ACCETTATO (Claude): PASS, con 4 correzioni. Il muro è misurato.**
   Numeri: **0.10 tok/s** su tutte e tre le varianti (default, `--numa distribute`,
