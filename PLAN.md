@@ -945,6 +945,50 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 sera — ✅ F4.5 QUALITÀ: UD-IQ2_M è USABILE. Il rischio che poteva invalidare
+  tutta la campagna è chiuso.**
+
+  6 run, `--temp 0`, `-n 200`, `--chatml --no-think`, config del gate, binario con
+  `nproc=8 mask=ff` su tutti. Output letti **per intero**, non riassunti.
+
+  **Lingua — buona.** Italiano corretto in tutti i prompt italiani: apostrofi e accenti
+  giusti, congiuntivi corretti («per garantire che il processo **resti** in foreground»),
+  registro adeguato al ruolo richiesto. **Nessuna ripetizione a ciclo, nessuna deriva verso
+  l'inglese, nessun collasso grammaticale** — i tre modi tipici in cui cede una quant
+  aggressiva. Difetto reale ma contenuto: **~2 parole malformate su ~1000 token**
+  (`nascuro` per *nascosto*, `giusterebbe` per *giustificherebbe*) più un `Quale è` per
+  *qual è*. È esattamente il degrado che ci si aspetta a 2.4 bpw, e non compromette l'uso.
+
+  **Aderenza alle istruzioni — forte, con UNA violazione.** Rispettati: limite di 120 parole;
+  **esattamente** tre frasi + **esattamente** due domande su richiesta; divieto di titoli,
+  elenchi e prefazioni; divieto di rispondere in inglese; scelta di una sola opzione.
+  **Violato**: `No markdown fences` nel prompt di codice — ha aperto con ```` ```python ````.
+  Piccolo, ma è il tipo di errore che rompe un'integrazione che si aspetta codice puro.
+
+  **Ragionamento — corretto su un problema non banale.** Al prompt che chiedeva di
+  diagnosticare un calo 5.0 → 1.2 tok/s a temperatura invariata, scegliendo fra (A) throttle
+  termico, (B) cpuset a 3 core little, (C) quant cambiata, ha risposto **(B)**, con
+  l'argomento discriminante giusto — *«un throttle termico causerebbe un calo graduale, non
+  un salto netto tra run separati»* — e ha indicato come verifica **`/proc/<pid>/status`,
+  riga `Cpus_allowed_list`**. Cioè ha risolto in ~30 s, e nominando il file esatto, il
+  rompicapo che a noi è costato mezza giornata.
+
+  **Codice — logica corretta.** `median_eval_tok_s` filtra i `None`, filtra `nproc < 6`,
+  ordina e gestisce il caso dispari correttamente; troncato dal limite di token sul caso pari.
+
+  **Errore fattuale da annotare**: nella spiegazione MoE afferma che si caricano «solo gli
+  esperti attivi (**circa 6 GB**)» — a 2.4 bpw, 3B attivi stanno sotto **1 GB**. Sbaglia di
+  ~6×, con sicurezza. È il modo tipico in cui questi modelli sbagliano: il ragionamento
+  intorno è corretto, il numero è inventato.
+
+  **Nota di metodo per la prossima volta**: `-n 200` ha **troncato a metà frase 2 risposte su
+  6** (la spiegazione da 180 parole e il codice). Su quelle non si può giudicare né la
+  chiusura né il rispetto del limite di parole. **Servono ≥400 token** per un giudizio pieno.
+
+  **Verdetto: USABILE.** Non serve passare a UD-IQ3_XXS né a un K-quant, e **tutti i numeri
+  di throughput restano validi sulla base attuale**. Il rischio che avrebbe reso vana la
+  campagna è chiuso — e siamo autorizzati a spendere settimane sul layout degli esperti.
+
 - **2026-08-06 sera — Il floor batteria proteggeva la COMPARABILITÀ, non il telefono.
   Due nuove fasi: F4.5 qualità (priorità assoluta) e F4.7 curva batteria.**
 
