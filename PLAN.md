@@ -945,6 +945,67 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 — F4.2: IL COLLO DI BOTTIGLIA SI È SPOSTATO. Riorientamento del piano (Claude).**
+  Primi numeri BigMoeOnEdge (35B UD-IQ2_M, `--moe-stream --cache-mb 2000 --dense-weights anon
+  --overlap --io-threads 4`): **0.93-0.97 tok/s**, ttft ~86 s. Dal log del runtime:
+  ```
+  read 84.73 MiB/token, decode 1.070 s/token
+     (compute 0.913 + cache mgmt 0.050 + flash I/O 0.764 s/token, 111 MiB/s)
+  cache: 56.9% hit, resident 1999.7 MiB, 8843 evictions, 4848 re-reads (75.8/token)
+  ```
+  - **H2 non solo confermata, stravinta**: 9.5 GiB/token (F3) → **84.7 MiB/token**, cioè
+    **115×**; majflt 11.4M → 33k (340×). Lo streaming degli esperti funziona.
+  - **MA con `--overlap` il percorso critico è il CALCOLO**: compute 0.913 s vs I/O 0.764 s.
+    **Se l'I/O andasse a zero saremmo a 1.1 tok/s.** Tutto il ramo I/O del piano — H3
+    (predictor), H6/G3 (packing), F7 (trace+simulatore), cache più grande — **non è
+    sbagliato, è diventato prematuro**: ottimizza un ramo già coperto dall'overlap.
+  - **L'anomalia da spiegare**: il 4B denso Q4_K_M fa 0.112 s/token con ~4B parametri
+    attivi; qui ~3B attivi costano 0.913 s. **8× peggio per parametro attivo.** Un MoE
+    dovrebbe costare MENO di un denso di pari attivi.
+
+  **Ricerca 2026-08-06 — cause e leve (fonti in §13):**
+  1. **IQ2 su ARM è il percorso peggiore possibile** [CONFERMATO]. Gli IQ memorizzano indici
+     in un codebook: il loop interno fa lookup + ricostruzione invece di mappare diretto su
+     NEON dotprod. In mainline llama.cpp **solo Q4_0 e IQ4_NL hanno kernel ARM veloci**;
+     KleidiAI accelera **solo Q4_0/Q8_0**; il repack online copre Q4_0; l'ottimizzazione
+     i8mm di Arm ha toccato Q6_K/Q4_K su Neoverse, **niente a 2 bit**. Stima 2-5× — grossa,
+     ma **non spiega tutto l'8×**.
+  2. **Thread**: su big.LITTLE il numero ottimo è **il numero di core grandi**; aggiungere
+     gli efficiency core **peggiora** (straggler sulla barriera), e in decode il degrado è
+     più marcato. 8 Gen 2 = 1 prime + 4 perf + 3 eff → **`-t 5`**, non 4 (ereditato da F2,
+     regime diverso) né 8.
+  3. **i8mm su Android**: regressione nota di detection in alcune versioni llama.cpp
+     (`lscpu` lo vede, llama.cpp no → fallback scalare). **Da verificare sul nostro build.**
+  4. **Esperti minuscoli** (`moe_intermediate_size` 512, 9 attivi × 3 matmul × 40 layer):
+     overhead di dispatch/barriera pagato ~1080 volte per token invece di ~120. Meccanismo
+     plausibile ma **non quantificato in letteratura per questa forma**. Attenzione: il
+     grouped GEMM **non riduce i FLOP a batch=1** — con un token solo non c'è nulla da
+     raggruppare; il guadagno sarebbe solo di overhead. Ridimensiona l'idea "fondere gli
+     esperti".
+  5. **MTP/speculative: aspettative da abbassare.** Tutti i numeri di llama.cpp (PR #22673,
+     1.7-1.85×) sono **GPU**. Nessun benchmark CPU-only per MoE. E su **Qwen3.6-35B-A3B
+     specificamente** lo speculative è risultato **in perdita netta su RTX3090 in 19
+     configurazioni su 19**. Il meccanismo (ammortizzare letture memory-bound su N token)
+     è più debole in regime compute-bound. **H4 va declassata**, non promossa.
+  6. **Lead nuovo con codice**: i **Trellis quant di ik_llama.cpp** (IQ2_KT/IQ3_KT/IQ4_KT)
+     sostituiscono il lookup su codebook con aritmetica a trellis, con supporto NEON —
+     nati esattamente contro il problema del punto 1. ik_llama.cpp dichiara 4.6-7× sui
+     kernel ARM vs mainline. Nessun confronto controllato Trellis vs IQ2_M a 2 bit: da
+     misurare noi.
+
+  **Scala degli esperimenti (dal più economico), da eseguire in F4.3:**
+  | # | Cosa | Costo | Atteso |
+  |---|---|---|---|
+  | 1 | sweep `-t` {4,5,6,8} sulla config attuale | minuti | 1.1-1.3× |
+  | 2 | verificare che il build usi davvero i8mm/dotprod | minuti | 0 o molto |
+  | 3 | profilare quanto degli 0.913 s è dispatch/barriera vs dot-product | ore | diagnosi |
+  | 4 | **UD-Q2_K_XL vs UD-IQ2_M** (era F4.4, ora prioritaria) | ore | ? — nota: anche i K-quant su ARM non hanno kernel dedicati, il salto vero è verso Q4_0 |
+  | 5 | **Quant mista per residenza (idea nuova)**: tensori RESIDENTI (trunk denso, attention, shared expert) in **Q4_0** = kernel ARM veloci, costo solo RAM e **zero traffico flash**; esperti ROUTED restano a 2 bit perché sono quelli che si streamano. Oggi paghiamo il kernel lento anche su ciò che non viene mai streamato. | 1-2 giorni (requant per-tensore) | potenzialmente il più grande |
+  | 6 | Trellis quant ik_llama.cpp | giorni (altro runtime) | ignoto, alto |
+
+  Ordine deciso: 1-2-3 subito (misura, nessun codice), poi 4, poi 5. MTP (F6) **rinviata**
+  finché il calcolo non scende: oggi non è la leva giusta.
+
 - **2026-08-06 notte — ANOMALIA APERTA sul binario: da risolvere PRIMA di F4 (Claude).**
   Cercando di capire perché `ttft_ms` resta vuoto ho trovato un problema più grosso, e
   **non l'ho risolto**: quello che segue è un referto, non una diagnosi chiusa.
