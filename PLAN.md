@@ -1258,8 +1258,15 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
      stesso blocco e confrontando le coppie adiacenti, **non** con bracci sequenziali.
   2. Ogni sweep si chiude **ri-misurando il primo braccio** come controllo d'ordine, in
      aggiunta alla sentinella del vincitore.
-  3. `battery_pct` e `batt_temp` vanno riportate **nel summary di ogni stage**, non solo
-     nelle righe: sono covariate della deriva, non contorno.
+  3. `battery_pct` deve essere una **COLONNA del CSV per ogni riga** (oggi non c'è: il
+     livello di carica è usato solo come gate operativo e non viene mai registrato, quindi
+     a posteriori **non si può verificare se abbia influenzato una misura** — lacuna emersa
+     il 2026-08-06 su domanda di gualt). Insieme a `batt_temp_start/end`, che invece c'è.
+     Vanno riportate anche nel summary di ogni stage: sono covariate, non contorno.
+     *Controllo fatto con i dati disponibili (dal monitor, non dal CSV)*: nella fascia
+     **44-56%** la carica **non** spiega le differenze — il valore più alto misurato (5.16)
+     è stato ottenuto al **49%**, cioè con meno carica del 5.06 ottenuto al 56%. Sotto il
+     30% l'effetto potrebbe esistere (sag di tensione) e va verificato quando capiterà.
   4. I numeri assoluti **non sono confrontabili fra sessioni**. Solo confronti interni a un
      blocco appaiato lo sono.
 
