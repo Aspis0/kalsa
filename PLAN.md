@@ -945,6 +945,59 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 — ⚠ CAUSA RADICE DI TUTTA LA GIORNATA: misuravamo su 3 core lenti su 8.
+  Ogni numero di calcolo va rifatto.**
+
+  **Il fatto.** Il processo di inferenza girava nel cgroup `cpuset:/background` +
+  `cpu:/background` + `blkio:/low`, cioè **confinato alle CPU 0-2**. Su Snapdragon 8 Gen 2
+  quelle tre CPU hanno `CPU part 0xd46` = **Cortex-A510, gli efficiency core**. I quattro
+  performance core (0xd4d = A715 su CPU 3-4, 0xd47 = A710 su CPU 5-6) e il prime
+  (0xd4e = **Cortex-X3** su CPU 7) **non sono mai stati usati**.
+  Non era aggirabile dall'interno: `taskset -c 0-7 nproc` restituiva comunque **3**, perché
+  il cpuset del cgroup ha l'ultima parola sull'affinità.
+
+  **La cura, immediata e gratuita: portare Termux in primo piano.**
+  ```
+  background : cpuset:/background  nproc=3  mask=0x07   (CPU 0-2, solo A510)
+  top-app    : cpuset:/top-app     nproc=6  mask=0x3f   (CPU 0-5)
+  ```
+  Il cambio si propaga **anche ai processi già in esecuzione**. Schermo tenuto acceso
+  (`settings put system screen_off_timeout 1800000`) perché l'app non ricada in background
+  a metà misura.
+
+  **Cosa invalida.** *Tutta* l'analisi di giornata sul calcolo — «il compute è il collo di
+  bottiglia», «0.913 s/token», «8× peggio per parametro attivo del 4B denso», i kernel IQ2
+  lenti, i mille matmul minuscoli — parte da numeri raccolti **su tre core deboli**. Le
+  ipotesi non sono necessariamente sbagliate, ma **la base numerica non è valida** e va
+  rifatta prima di ragionarci sopra. In particolare il famoso **fattore 8 rispetto al 4B
+  potrebbe essere in buona parte un artefatto**: se F2 girò con più core disponibili,
+  stavamo confrontando un modello su 6 core con uno su 3. **Da verificare per F2 e F3.**
+
+  **E spiega il gradino delle 12:05→12:40** (0.94 → 0.82 a config identica): quando lmkd ha
+  ucciso la sessione Termux e **l'ho riavviata io via adb**, l'app è finita in background, e
+  con lei tutte le misure successive. Il gradino l'ha causato un'azione dell'operatore, non
+  il telefono. La «deriva di sessione del 14%» della voce precedente è quindi **spiegata**:
+  non è deriva, è un cambio di cpuset. (E lo sweep thread resta comunque non interpretabile,
+  perché con 3 core `t=4` era già in sovrascrizione: il minimo utile sarebbe stato `t=3`,
+  che non abbiamo mai misurato.)
+
+  **Regole nuove, non negoziabili:**
+  1. **Gate di preflight sui core**: prima di OGNI run, verificare `nproc` e la maschera di
+     affinità; se non corrispondono all'atteso, **il run non parte**. È il controllo che
+     oggi avrebbe risparmiato otto ore di misure inutili.
+  2. **Registrare `nproc` e `affinity_mask` come colonne del CSV.** Senza, una riga non è
+     interpretabile a posteriori — come si è visto.
+  3. **`top-app` è la condizione realistica di prodotto**, non un trucco da benchmark:
+     un'app di chat gira in primo piano con lo schermo acceso e l'utente che guarda.
+     Misurare in background era insieme lento e irrealistico. Nota il confondente da
+     dichiarare: schermo acceso = più consumo e più calore, quindi va tenuto costante fra
+     le configurazioni confrontate, non acceso e spento a caso.
+  4. La sessione Termux non va mai riavviata a metà campagna senza rifare la baseline.
+
+  **Aperto**: nemmeno `top-app` dà le CPU 6 e 7 (un A710 e il **prime X3**). Se si trova un
+  modo di raggiungerle c'è un ulteriore margine, probabilmente il più grande di tutti visto
+  che l'X3 è il core più veloce del chip.
+
 - **2026-08-06 — SWEEP THREAD INVALIDO: c'è una DERIVA DI SESSIONE del 14% che maschera
   tutto. Voce unica, scritta a bracci chiusi (le tre voci intermedie di giornata, con due
   tesi poi ritirate, sono state sostituite da questa).**
