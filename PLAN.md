@@ -945,6 +945,50 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 sera — F4.7: `power_saver=UNKNOWN` non è sciatteria, è il sandbox. Aperto un
+  canale laterale via adb, altrimenti la riga interessante della curva sarà muta.**
+
+  **Primi due punti della curva** (UNPLUGGED, schermo acceso, top-app, nproc=8 mask=`ff`):
+
+  | batteria | eval tok/s |
+  |---:|---:|
+  | 32% | 4.84 |
+  | 30% | 4.98 |
+
+  Baseline di riferimento: mediana warm **5.02**, sentinella 4.97, rep singole 5.02/5.06/5.08.
+  I due punti stanno **dentro il rumore** (±1.5%) e il più scarico è il più veloce: a 30% di
+  carica **non c'è alcun effetto batteria**. Questo chiude in negativo l'ipotesi di gualt sul
+  calo di `t3io5` — quel calo era la **demotion dei core** (nproc=3, mask `07`, già a verbale),
+  non la carica.
+
+  **Perché non c'è ancora nulla: nessun regime è cambiato.** Stato letto da adb a 29%:
+  `low_power=0`, `mSettingBatterySaverEnabled=false`, `mBatteryLevelLow=false`,
+  `Thermal Status: 0` (AP 30.7 °C), `mPlugType=0`. Il telefono a 29% si comporta esattamente
+  come a 70%. Il dato che cerchiamo sta più giù, dove Android cambia politica.
+
+  **La lacuna.** L'harness gira come uid non fidato dentro Termux, e da lì lo stato del
+  risparmio energetico **non è leggibile**: `settings get global low_power` →
+  `SecurityException: requires android.permission.INTERACT_ACROSS_USERS`; `dumpsys power`
+  restituisce vuoto; `/sys/class/power_supply/battery/capacity` → permission denied. Ecco
+  perché ogni riga F4.7 porta `power_saver=UNKNOWN`. Non è un difetto del report: è il
+  confine del sandbox, e Grok da lì non può farci niente.
+
+  **Il rimedio.** adb gira come uid 2000 e lo legge. Campionatore lato PC (monitor
+  `bxhl6lzzo`, `scratchpad/powersaver_timeline.sh`) che ogni 120 s appende a
+  `f47_powersaver.csv`: `ts_utc,batt,plug,low_power,saver_enabled,batt_low,thermal_status,ap_temp`,
+  da incrociare con le righe del CSV per timestamp del `run_id`. Notifica solo sui **cambi di
+  regime**: saver on/off, thermal status, e telefono attaccato alla corrente (violazione del
+  protocollo).
+
+  **Confondente dichiarato, non nascosto:** due chiamate binder ogni 120 s mentre un run da 64
+  token dura ~13 s. È poco, non è zero; sta scritto qui perché chi legge la curva lo sappia.
+
+  **Regola di lettura della fase.** Un calo di tok/s vale come *effetto batteria* **solo se**
+  la timeline mostra `saver_enabled=false` e `thermal_status=0` in quell'istante. Altrimenti
+  è un cambio di regime — throttling o power save — e va etichettato come tale, perché è una
+  cosa diversa e si comporta in modo diverso (il power save è una scelta del sistema
+  operativo, reversibile; la batteria scarica no).
+
 - **2026-08-06 sera — REAP: il pruning degli esperti va PROMOSSO da F9.1b (lossy, in fondo)
   a leva di prima linea. Il ragionamento che l'aveva declassato era sbagliato.**
 
