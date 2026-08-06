@@ -1,20 +1,18 @@
 #!/usr/bin/env bash
 # Start F3 "Il muro" variant on phone (safe binary only). Detached.
-# Cold runs must be launched AFTER a fresh reboot (empty page cache).
-# No broad pkill. No network. Scripts never download models.
+# Cold runs use ~/bin/cold_model.sh (fadvise DONTNEED + mincore). Reboot is NOT required.
+# No broad pkill. No network. Scripts never download models. SSH-only control (no adb).
 #
-# Exact operator sequence (promoted rows B / B2 = cold+warm same boot):
-#   1. reboot phone (empty page cache)
-#   2. bash start_f3.sh --variant default --first-run-type cold --reps 3
-#        → rep1 cold + rep2 warm + rep3 warm SAME boot (PAIR cold+warm)
-#   3. reboot
-#   4. bash start_f3.sh --variant numa --first-run-type cold --reps 3
-#        → same pairing for F3-numa (B2)
-#   5. if battery ≥40% AND binary supports --no-warmup:
-#        reboot (optional; or --first-run-type cold --reps 1)
+# Exact operator sequence (promoted rows B / B2 = cold+warm same session):
+#   1. bash start_f3.sh --variant default --first-run-type cold --reps 3
+#        → cold_model.sh then rep1 cold + rep2 warm + rep3 warm (PAIR cold+warm)
+#   2. bash start_f3.sh --variant numa --first-run-type cold --reps 3
+#        → same pairing for F3-numa (B2); cold_model again before its cold rep
+#   3. if battery ≥40% AND binary supports --no-warmup:
 #        bash start_f3.sh --variant nowarmup --first-run-type cold --reps 1 --no-sentinel
 #      else: skip nowarmup gracefully (logged, not error)
 #   Sentinel warm rep is optional (default on; --no-sentinel to skip).
+#   Notes always mark cold=fadv (or cold=reboot only with --cold-method reboot).
 #
 # Uso:
 #   bash start_f3.sh --variant default --first-run-type cold
@@ -32,6 +30,8 @@ VARIANT="default"
 FIRST_RUN_TYPE="cold"
 REPS=3
 NO_SENTINEL=0
+COLD_METHOD="${COLD_METHOD:-fadv}"
+COLD_MODEL_SH="${COLD_MODEL_SH:-$HOME/bin/cold_model.sh}"
 BINARY="$HOME/src/llama.cpp/build-safe/bin/llama-cli"
 MODEL="$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf"
 GRID="$HOME/experiments/scripts/run_f3.sh"
@@ -43,8 +43,9 @@ while [ $# -gt 0 ]; do
     --first-run-type) FIRST_RUN_TYPE="${2:-}"; shift 2 ;;
     --reps) REPS="${2:-}"; shift 2 ;;
     --no-sentinel) NO_SENTINEL=1; shift ;;
+    --cold-method) COLD_METHOD="${2:-}"; shift 2 ;;
     -h|--help)
-      echo "Uso: start_f3.sh --variant default|numa|nowarmup [--first-run-type cold|warm] [--reps N] [--no-sentinel]"
+      echo "Uso: start_f3.sh --variant default|numa|nowarmup [--first-run-type cold|warm] [--reps N] [--no-sentinel] [--cold-method fadv|reboot]"
       exit 0
       ;;
     *) echo "arg: $1" >&2; exit 3 ;;
@@ -59,6 +60,10 @@ case "$FIRST_RUN_TYPE" in
   cold|warm) ;;
   *) echo "ERROR: --first-run-type cold|warm" >&2; exit 3 ;;
 esac
+case "$COLD_METHOD" in
+  fadv|reboot) ;;
+  *) echo "ERROR: --cold-method fadv|reboot" >&2; exit 3 ;;
+esac
 
 SIZE="$(stat -c '%s' "$MODEL" 2>/dev/null || stat -f '%z' "$MODEL" 2>/dev/null || echo 0)"
 if [ "$SIZE" != "$EXPECTED_SIZE" ]; then
@@ -71,6 +76,19 @@ if ps -ef 2>/dev/null | grep -E 'run_f3\.sh|run_f2_grid\.sh|run_bench\.sh|llama-
   echo "ERROR: residual campaign process present; stop exact PIDs first:" >&2
   ps -ef 2>/dev/null | grep -E 'run_f3\.sh|run_f2_grid\.sh|run_bench\.sh|llama-cli|run_f2_thermal' | grep -v grep || true
   exit 9
+fi
+
+# cold_model required for fadv cold (no reboot assumption)
+if [ "$FIRST_RUN_TYPE" = "cold" ] && [ "$COLD_METHOD" = "fadv" ]; then
+  if [ ! -x "$COLD_MODEL_SH" ]; then
+    echo "ERROR: cold_model.sh missing/not executable: $COLD_MODEL_SH" >&2
+    exit 3
+  fi
+  if [ ! -x "${FADV:-$HOME/bin/fadv}" ] && [ ! -x "$HOME/bin/fadv" ]; then
+    echo "ERROR: ~/bin/fadv missing (needed by cold_model.sh)" >&2
+    exit 3
+  fi
+  echo "cold_model OK: $COLD_MODEL_SH (method=fadv)"
 fi
 
 echo "=== preflight binary (build-safe only) ==="
@@ -175,12 +193,13 @@ nohup bash "$GRID" \
   --cooldown 180 \
   --max-cool-temp 30.0 \
   --majflt-max 50000 \
+  --cold-method "$COLD_METHOD" \
   "${_extra[@]}" \
   >"$OUT" 2>&1 &
 echo $! >"$PIDF"
-echo "PID=$(cat "$PIDF") phase=$PHASE_TAG variant=$VARIANT first=$FIRST_RUN_TYPE reps=$REPS cooldown=180 cool≤30.0 run_timeout=2700 classic_perf=1 size OK"
+echo "PID=$(cat "$PIDF") phase=$PHASE_TAG variant=$VARIANT first=$FIRST_RUN_TYPE reps=$REPS cooldown=180 cool≤30.0 run_timeout=2700 classic_perf=1 cold_method=$COLD_METHOD size OK"
 if [ "$FIRST_RUN_TYPE" = "cold" ] && [ "$REPS" -ge 2 ]; then
-  echo "PAIR cold+warm same boot: rep1=cold, reps 2..$REPS=warm (no reboot between)"
+  echo "PAIR cold+warm same session: rep1=cold($COLD_METHOD), reps 2..$REPS=warm (no reboot between)"
 fi
 sleep 3
 head -40 "$OUT" || true

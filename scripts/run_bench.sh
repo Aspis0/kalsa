@@ -1326,6 +1326,19 @@ if [ "$CLASSIC_PERF" -eq 1 ]; then
         NOTES_FINAL="classic_perf=1"
     fi
 fi
+# MemAvailable at run start (kB → MB) — required covariate for cold=fadv (§8.2 2026-08-05).
+# fadvise DONTNEED evicts file pages but does not reset fragmentation/lmkd state.
+MEMAVAIL_START_MB=""
+if [ -n "${MEMAVAIL_START_KB:-}" ] && [ "${MEMAVAIL_START_KB}" -gt 0 ] 2>/dev/null; then
+    MEMAVAIL_START_MB="$(awk -v k="$MEMAVAIL_START_KB" 'BEGIN{printf "%d", (k+0)/1024}')"
+fi
+if [ -n "$MEMAVAIL_START_MB" ]; then
+    if [ -n "$NOTES_FINAL" ]; then
+        NOTES_FINAL="${NOTES_FINAL}; memavail_start_mb=${MEMAVAIL_START_MB}"
+    else
+        NOTES_FINAL="memavail_start_mb=${MEMAVAIL_START_MB}"
+    fi
+fi
 # strip virgole e newline
 NOTES_FINAL="$(sanitize_notes "$NOTES_FINAL")"
 
@@ -1379,7 +1392,7 @@ echo "=== CSV row written → $CSV_PATH ===" >&2
 echo "$CSV_LINE" >&2
 echo "prompt_tok_s=$PROMPT_TOK_S eval_tok_s=$EVAL_TOK_S ttft_ms=$TTFT_MS load_s=${LOAD_S:-}" >&2
 echo "majflt_delta=$MAJFLT_DELTA minflt_delta=$MINFLT_DELTA read_bytes_delta=$READ_BYTES_DELTA" >&2
-echo "vmrss_peak_mb=$VMRSS_PEAK_MB memfree_min_mb=$MEMFREE_MIN_MB" >&2
+echo "vmrss_peak_mb=$VMRSS_PEAK_MB memfree_min_mb=$MEMFREE_MIN_MB memavail_start_mb=${MEMAVAIL_START_MB:-}" >&2
 echo "batt_temp_start=$BATT_TEMP_START batt_temp_end=$BATT_TEMP_END" >&2
 echo "harness_timeout=$HARNESS_TIMEOUT run_timeout_s=$RUN_TIMEOUT_S classic_perf=$CLASSIC_PERF" >&2
 

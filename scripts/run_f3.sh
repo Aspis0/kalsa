@@ -6,16 +6,18 @@
 #   model: Qwen3.6-35B-A3B-UD-IQ2_M.gguf (hard size 11522702304 B)
 #   n_gen=32, ctx=512, kv=q8_0, threads=4 (best F2.2c), mainline mmap
 #   variants: default (phase F3) | --numa distribute (F3-numa) | --no-warmup (F3-nowarmup)
-#   3 reps per variant: cold first (post-reboot, empty page cache) then warm
+#   3 reps per variant: cold first (via cold_model.sh fadvise DONTNEED) then warm
 #   cooldown ≥180 s between reps; T≤30.0 sentinel; abs start T≤32
 #   battery floor 40% → CHARGE_NEEDED exit 92 (no wait for charger)
 #   majflt >50k = high-pressure regime (expected for ALL F3 runs; still recorded)
 #   lmkd/OOM = valid data (run_bench FAIL row + notes), not harness failure
+#   cold=fadv (default, cold_model.sh) or cold=reboot (only if operator sets COLD_METHOD)
+#   MemAvailable start MB recorded in notes as memavail_start_mb=N (covariate)
 #
 # Binary: $HOME/src/llama.cpp/build-safe/bin/llama-cli only (pin 67d5978).
-# NEVER old build/. No network. No broad pkill.
+# NEVER old build/. No network. No broad pkill. SSH-only control (no adb dependency).
 #
-# Uso (on phone, typically after reboot for cold):
+# Uso (on phone; reboot NOT required — cold via ~/bin/cold_model.sh):
 #   bash scripts/run_f3.sh --variant default --first-run-type cold
 #   bash scripts/run_f3.sh --variant numa --first-run-type cold
 #   bash scripts/run_f3.sh --variant nowarmup --first-run-type cold --reps 1
@@ -52,8 +54,16 @@ MAX_COOL_WAIT_S="${MAX_COOL_WAIT_S:-1800}"
 # Run-level wall timeout per llama invocation (floor 2700 s = 45 min).
 # 35B naive load alone can take 10–30+ min under thrash — never kill mid-load.
 RUN_TIMEOUT_S="${RUN_TIMEOUT_S:-2700}"
-# skip idle cooldown before the very first rep (fresh boot already cold)
-SKIP_FIRST_COOLDOWN=1
+# Cold method: fadv (default, via cold_model.sh) or reboot (operator-declared only).
+# Never ambiguous in CSV notes: always cold=fadv or cold=reboot.
+COLD_METHOD="${COLD_METHOD:-fadv}"
+COLD_MODEL_SH="${COLD_MODEL_SH:-$HOME/bin/cold_model.sh}"
+# With fadv cold, first-rep cooldown is still required (thermal protocol).
+# Only reboot-cold may skip the first idle wait (phone just finished boot cool-down).
+SKIP_FIRST_COOLDOWN=0
+if [ "$COLD_METHOD" = "reboot" ]; then
+    SKIP_FIRST_COOLDOWN=1
+fi
 
 export LD_LIBRARY_PATH="${HOME}/src/llama.cpp/build-safe/bin:${LD_LIBRARY_PATH:-}"
 export TMPDIR="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
@@ -62,7 +72,7 @@ mkdir -p "$TMPDIR" 2>/dev/null || true
 usage() {
     cat <<'EOF' >&2
 Uso: run_f3.sh --variant default|numa|nowarmup [opts]
-  --first-run-type cold|warm   (default cold; cold = post-reboot only)
+  --first-run-type cold|warm   (default cold; cold via cold_model.sh unless COLD_METHOD=reboot)
   --reps N                     (default 3; first is first-run-type, rest warm)
   --no-sentinel                skip optional sentinel warm rep
   --model PATH
@@ -71,10 +81,12 @@ Uso: run_f3.sh --variant default|numa|nowarmup [opts]
   --max-cool-temp C            (default 30.0; ceiling 30.0)
   --majflt-max N               (default 50000; covariate only in F3)
   --run-timeout SEC            (default 2700; floor 2700 = 45 min per run)
+  --cold-method fadv|reboot    (default fadv; reboot only when human rebooted)
 
 Cold+warm pairing (§8.2 promoted B/B2):
-  --first-run-type cold --reps 3  → rep1 cold + rep2 warm + rep3 warm SAME boot
-  (no reboot between reps; log line "PAIR cold+warm same boot")
+  --first-run-type cold --reps 3  → rep1 cold + rep2 warm + rep3 warm SAME session
+  cold via ~/bin/cold_model.sh (fadvise DONTNEED + mincore verify); exit non-zero aborts
+  before run_bench so a failed cold never enters CSV. Notes always carry cold=fadv|reboot.
 EOF
 }
 
@@ -91,6 +103,7 @@ while [ $# -gt 0 ]; do
         --max-cool-temp) MAX_COOL_TEMP="${2:-}"; shift 2 ;;
         --majflt-max) MAJFLT_BASELINE_MAX="${2:-}"; shift 2 ;;
         --run-timeout) RUN_TIMEOUT_S="${2:-}"; shift 2 ;;
+        --cold-method) COLD_METHOD="${2:-}"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
         *) echo "arg: $1" >&2; usage; exit 3 ;;
     esac
@@ -110,6 +123,18 @@ case "$FIRST_RUN_TYPE" in
         exit 3
         ;;
 esac
+case "$COLD_METHOD" in
+    fadv|reboot) ;;
+    *)
+        echo "ERROR: --cold-method must be fadv|reboot (got: $COLD_METHOD)" >&2
+        exit 3
+        ;;
+esac
+# Recompute first-cooldown skip after CLI may have changed COLD_METHOD
+SKIP_FIRST_COOLDOWN=0
+if [ "$COLD_METHOD" = "reboot" ]; then
+    SKIP_FIRST_COOLDOWN=1
+fi
 case "$REPS" in
     ''|*[!0-9]*)
         echo "ERROR: --reps must be positive int (got: $REPS)" >&2
@@ -373,20 +398,53 @@ run_one() {
     _rep="$2"
     _note_tag="$3"
     if [ "$SKIP_FIRST_COOLDOWN" -eq 1 ] && [ "$_rep" = "1" ] && [ "$_rtype" = "cold" ]; then
-        log "skip cooldown before first cold rep (fresh boot)"
+        log "skip cooldown before first cold rep (cold_method=$COLD_METHOD)"
     else
         cooldown_idle
     fi
     gate_ok
+
+    # Cold path: fadvise DONTNEED via cold_model.sh BEFORE run_bench.
+    # Non-zero exit => abort without CSV row (never report warm as cold).
+    _cold_note=""
+    if [ "$_rtype" = "cold" ]; then
+        if [ "$COLD_METHOD" = "fadv" ]; then
+            if [ ! -x "$COLD_MODEL_SH" ]; then
+                log "BLOCKED: cold_model.sh missing/not executable: $COLD_MODEL_SH"
+                exit 3
+            fi
+            log "cold_model fadv start: $COLD_MODEL_SH $MODEL"
+            set +e
+            "$COLD_MODEL_SH" "$MODEL" >>"$LOG_FILE" 2>&1
+            _cold_ec=$?
+            set -e
+            if [ "$_cold_ec" -ne 0 ]; then
+                log "BLOCKED: cold_model.sh exit $_cold_ec — cold run NOT started, no CSV row (rtype=cold rep=$_rep)"
+                exit 3
+            fi
+            log "cold_model fadv OK (rep=$_rep)"
+            _cold_note="cold=fadv"
+        else
+            # Operator declared a real reboot; do not call fadv.
+            log "cold_method=reboot (operator-declared; no cold_model.sh call) rep=$_rep"
+            _cold_note="cold=reboot"
+        fi
+    fi
 
     _flags_args=()
     if [ -n "$EXTRA_FLAGS" ]; then
         _flags_args=(--flags "$EXTRA_FLAGS")
     fi
 
+    _notes="${PHASE} ${VARIANT_TAG} ${_note_tag} rep=${_rep} rtype=${_rtype} cool${COOLDOWN_S}s T<=${MAX_COOL_TEMP} majflt_gate=${MAJFLT_BASELINE_MAX}"
+    if [ -n "$_cold_note" ]; then
+        _notes="${_notes} ${_cold_note}"
+    fi
+
     set +e
     # F3: --classic-perf drops --simple-io so llama_perf fills ttft_ms;
     # --run-timeout protects against mid-load kill (floor 2700 s).
+    # memavail_start_mb is appended by run_bench from /proc/meminfo at start.
     bash "$RUN_BENCH" \
         --binary "$BINARY" \
         -m "$MODEL" \
@@ -404,7 +462,7 @@ run_one() {
         --quant "$QUANT" \
         --classic-perf \
         --run-timeout "$RUN_TIMEOUT_S" \
-        --notes "${PHASE} ${VARIANT_TAG} ${_note_tag} rep=${_rep} rtype=${_rtype} cool${COOLDOWN_S}s T<=${MAX_COOL_TEMP} majflt_gate=${MAJFLT_BASELINE_MAX}" \
+        --notes "$_notes" \
         "${_flags_args[@]}" >>"$LOG_FILE" 2>&1
     _ec=$?
     set -e
@@ -436,20 +494,21 @@ run_one() {
     log "post-run batt: $_bat_post"
 }
 
-log "=== start F3 phase=$PHASE variant=$VARIANT first=$FIRST_RUN_TYPE reps=$REPS model=$(basename "$MODEL") size=$_msz binary=$BINARY flags='${EXTRA_FLAGS}' cooldown=${COOLDOWN_S}s cool≤${MAX_COOL_TEMP} run_timeout=${RUN_TIMEOUT_S}s classic_perf=1 ==="
+log "=== start F3 phase=$PHASE variant=$VARIANT first=$FIRST_RUN_TYPE reps=$REPS model=$(basename "$MODEL") size=$_msz binary=$BINARY flags='${EXTRA_FLAGS}' cooldown=${COOLDOWN_S}s cool≤${MAX_COOL_TEMP} run_timeout=${RUN_TIMEOUT_S}s classic_perf=1 cold_method=$COLD_METHOD ==="
 # Explicit cold+warm same-boot pairing for promoted rows B/B2 (§8.2)
 if [ "$FIRST_RUN_TYPE" = "cold" ] && [ "$REPS" -ge 2 ]; then
-    log "PAIR cold+warm same boot: rep1=cold, reps 2..$REPS=warm (no reboot between; phase=$PHASE variant=$VARIANT)"
+    log "PAIR cold+warm same session: rep1=cold($COLD_METHOD), reps 2..$REPS=warm (no reboot between; phase=$PHASE variant=$VARIANT)"
 elif [ "$FIRST_RUN_TYPE" = "cold" ]; then
-    log "PAIR cold only (reps=1): single cold rep this invocation; warm must be same boot if added later"
+    log "PAIR cold only (reps=1 cold_method=$COLD_METHOD): single cold rep this invocation; warm must be same session if added later"
 fi
 {
     echo "phase=$PHASE variant=$VARIANT first=$FIRST_RUN_TYPE reps=$REPS"
     echo "model=$(basename "$MODEL") size=$_msz flags=${EXTRA_FLAGS:-<none>}"
     echo "start=$(date -Iseconds 2>/dev/null || date)"
-    echo "protocol=cool${COOLDOWN_S}_T${MAX_COOL_TEMP}_maj${MAJFLT_BASELINE_MAX}_floor${BATTERY_FLOOR}_timeout${RUN_TIMEOUT_S}_classic_perf"
+    echo "protocol=cool${COOLDOWN_S}_T${MAX_COOL_TEMP}_maj${MAJFLT_BASELINE_MAX}_floor${BATTERY_FLOOR}_timeout${RUN_TIMEOUT_S}_classic_perf_cold${COLD_METHOD}"
+    echo "cold_method=$COLD_METHOD"
     if [ "$FIRST_RUN_TYPE" = "cold" ] && [ "$REPS" -ge 2 ]; then
-        echo "pair=cold+warm_same_boot"
+        echo "pair=cold+warm_same_session"
     fi
 } >"$STATE_FILE"
 

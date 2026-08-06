@@ -141,15 +141,30 @@ if grep -q 'classic-perf' "$F3" && grep -q 'run-timeout' "$F3" && grep -q 'RUN_T
 else
   fail "run_f3 does not wire classic-perf/timeout"
 fi
-if grep -q 'PAIR cold+warm same boot' "$F3"; then
-  pass "run_f3 logs PAIR cold+warm same boot"
+if grep -qE 'PAIR cold\+warm same (boot|session)' "$F3"; then
+  pass "run_f3 logs PAIR cold+warm same session/boot"
 else
   fail "run_f3 missing PAIR cold+warm guard log"
 fi
-if grep -q 'Exact operator sequence' "$START" || grep -q 'PAIR cold+warm same boot' "$START"; then
+if grep -q 'Exact operator sequence' "$START" || grep -qE 'PAIR cold\+warm same (boot|session)' "$START"; then
   pass "start_f3 documents cold+warm operator sequence"
 else
   fail "start_f3 missing sequence docs"
+fi
+if grep -q 'cold_model' "$F3" && grep -q 'cold=fadv' "$F3" && grep -q 'COLD_METHOD' "$F3"; then
+  pass "run_f3 wires cold_model.sh + cold=fadv notes"
+else
+  fail "run_f3 missing cold_model/fadv wiring"
+fi
+if grep -q 'cold_model' "$START" && grep -qE -- '--cold-method' "$START"; then
+  pass "start_f3 checks cold_model + passes --cold-method"
+else
+  fail "start_f3 missing cold_model/--cold-method"
+fi
+if grep -q 'memavail_start_mb' "$BENCH"; then
+  pass "run_bench records memavail_start_mb covariate in notes"
+else
+  fail "run_bench missing memavail_start_mb"
 fi
 
 # Floor reject: --run-timeout 60 must exit 3
