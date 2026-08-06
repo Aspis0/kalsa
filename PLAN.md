@@ -945,6 +945,46 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 sera — Il gate termico misura la BATTERIA, cioè una massa termica lenta, non il
+  silicio. Il sensore giusto era leggibile da Termux dall'inizio. Da correggere PRIMA di F5.**
+
+  **Il fatto.** Fra un run e l'altro, letti nello stesso istante: `termux-battery-status`
+  **31.1 °C**, `cpu-1-5` **36.4 °C**. E un campione caduto *dentro* un decode ha visto l'AP a
+  **47.1 °C** mentre il sensore batteria si muoveva di 0.2. Il die oscilla di ~16 °C dentro un
+  singolo run da 64 token; la batteria non se ne accorge, perché è una massa termica che
+  smorza e ritarda.
+
+  **Perché è grave, e perché non lo è ancora.** Tutto il protocollo di §8.2 — cooldown ≥180 s,
+  gate `T ≤ 30.0` — è costruito sulla temperatura **batteria**. Oggi non ci sta falsando le
+  misure: `Thermal Status` è 0 anche a 47 °C, cioè Android non sta throttlando, e la baseline
+  regge. Ma **F5 è per definizione la fase in cui il die sale e ci resta** (memory pressure,
+  long-run, sostenuto), ed è esattamente lì che il gate direbbe "freddo, procedi" mentre il SoC
+  è già in throttling. Ci arriveremmo con lo strumento cieco proprio dove serve vedere.
+
+  È lo stesso errore del cpuset, nella forma: misurare la cosa giusta **sull'entità sbagliata**.
+
+  **La correzione è disponibile e costa niente.** `dumpsys` non esiste nel PATH di Termux, ma
+  il sysfs termico Qualcomm **sì**, senza permessi speciali: 45+ zone in
+  `/sys/class/thermal/thermal_zone*/{type,temp}` (milli-°C), fra cui `cpu-0-0..2` e
+  `cpu-1-0..10` (per-core), `gpuss-0..7` (GPU), `ddr`, `nspss-0..3` (DSP/NPU), `aoss`, `video`.
+
+  ```sh
+  # max sui sensori di CPU, in °C — questo è il gate corretto
+  for z in /sys/class/thermal/thermal_zone*; do
+    case "$(cat "$z/type" 2>/dev/null)" in cpu-*)
+      v=$(cat "$z/temp" 2>/dev/null); [ -n "$v" ] && echo "$v";; esac
+  done | sort -n | tail -1 | awk '{printf "%.1f\n", $1/1000}'
+  ```
+
+  **Direttiva per il prossimo mandato harness** (NON durante una campagna in corso):
+  1. Il gate di cooldown passa a `max(cpu-*)`; la soglia va **ritarata** — 30.0 era su batteria
+     e su die è irraggiungibile a riposo (a freddo, fra i run, si sta già a 34-36).
+  2. Nuove colonne CSV: `soc_temp_start`, `soc_temp_end` (max cpu-*), accanto alle
+     `batt_temp_*` esistenti, che **restano** — non si butta una serie storica, si affianca.
+  3. `gpuss-*` e `ddr` vanno campionati anche adesso che la GPU è inattiva: sono la baseline
+     contro cui si leggerà qualunque tentativo OpenCL/Adreno di F9.
+  4. `nspss-*` (i DSP Hexagon) sono leggibili: se un giorno si tocca l'NPU, il termometro c'è già.
+
 - **2026-08-06 sera — F4.7: `power_saver=UNKNOWN` non è sciatteria, è il sandbox. Aperto un
   canale laterale via adb, altrimenti la riga interessante della curva sarà muta.**
 
