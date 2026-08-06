@@ -32,11 +32,17 @@ COLD_METHOD="${COLD_METHOD:-fadv}"
 COLD_MODEL_SH="${COLD_MODEL_SH:-$HOME/bin/cold_model.sh}"
 SKIP_FIRST_COOLDOWN=0
 if [ "$COLD_METHOD" = "reboot" ]; then SKIP_FIRST_COOLDOWN=1; fi
+TASKSET_CPUS="${TASKSET_CPUS:-}"
+LOSSY_NOTE=""
 export TMPDIR="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
 mkdir -p "$TMPDIR" 2>/dev/null || true
 
 usage() {
-    echo "Uso: run_f4.sh --cell C|C2-cache1500|C2-cache2000|C2-cacheauto|C2-ahwb|C2-dio-mainline|C2-no-overlap|C2-io2|C2-io8 [opts]" >&2
+    echo "Uso: run_f4.sh --cell C|C-topapp|C3bis-t{3,4,5,6}|F4.4-io5|F4.4-cache3000|F4.4-cache2500|... [opts]" >&2
+    echo "  C / C-topapp: F4.2 baseline (t=4 cache-mb 2000); C-topapp tags F4.3-bis top-app remeasure" >&2
+    echo "  C3bis-t{N}: F4.3-bis paired thread sweep -t N (cache-mb 2000 fixed)" >&2
+    echo "  C3-t{N}/C3-k{N}: legacy F4.3 cells (INVALID under background cpuset)" >&2
+    echo "  C3-t5-pin: -t 5 + taskset (may be clipped by cpuset)" >&2
 }
 
 while [ $# -gt 0 ]; do
@@ -53,6 +59,8 @@ while [ $# -gt 0 ]; do
         --max-cool-temp) MAX_COOL_TEMP="${2:-}"; shift 2 ;;
         --run-timeout) RUN_TIMEOUT_S="${2:-}"; shift 2 ;;
         --cold-method) COLD_METHOD="${2:-}"; shift 2 ;;
+        --threads|-t) THREADS="${2:-}"; shift 2 ;;
+        --taskset) TASKSET_CPUS="${2:-}"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
         *) echo "arg: $1" >&2; usage; exit 3 ;;
     esac
@@ -74,6 +82,11 @@ VARIANT_TAG=""
 case "$CELL" in
     C)
         PHASE="F4.2"; VARIANT_TAG="C"
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4"
+        ;;
+    C-topapp)
+        # F4.3-bis: same config as C, new phase/tag so rows don't collide with invalidated F4.2
+        PHASE="F4.3-bis"; VARIANT_TAG="C-topapp"; THREADS=4
         EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4"
         ;;
     C2-cache1500)
@@ -110,6 +123,82 @@ case "$CELL" in
         BINARY="${BINARY_MAINLINE:-$HOME/src/llama.cpp/build-safe2/bin/llama-cli}"
         RUNTIME_COMMIT="${RUNTIME_COMMIT_MAINLINE:-67d5978}"
         N_GEN=32
+        ;;
+    # --- F4.3 compute-attack: thread sweep (fixed cache-mb 2000) ---
+    C3-t4)
+        PHASE="F4.3"; VARIANT_TAG="C3-t4"; THREADS=4
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4"
+        ;;
+    C3-t5)
+        PHASE="F4.3"; VARIANT_TAG="C3-t5"; THREADS=5
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4"
+        ;;
+    C3-t6)
+        PHASE="F4.3"; VARIANT_TAG="C3-t6"; THREADS=6
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4"
+        ;;
+    C3-t8)
+        PHASE="F4.3"; VARIANT_TAG="C3-t8"; THREADS=8
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4"
+        ;;
+    # --- F4.3-bis paired thread sweep (top-app remeasure) ---
+    C3bis-t3)
+        PHASE="F4.3-bis"; VARIANT_TAG="C3bis-t3"; THREADS=3
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4"
+        ;;
+    C3bis-t4)
+        PHASE="F4.3-bis"; VARIANT_TAG="C3bis-t4"; THREADS=4
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4"
+        ;;
+    C3bis-t5)
+        PHASE="F4.3-bis"; VARIANT_TAG="C3bis-t5"; THREADS=5
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4"
+        ;;
+    C3bis-t6)
+        PHASE="F4.3-bis"; VARIANT_TAG="C3bis-t6"; THREADS=6
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4"
+        ;;
+    # --- F4.4 I/O attack (post gate PASS) ---
+    F4.4-io5)
+        # t=3 + io-threads 5: move one core from compute to I/O (total still 8)
+        PHASE="F4.4"; VARIANT_TAG="F4.4-io5"; THREADS=3
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 5"
+        ;;
+    F4.4-cache3000)
+        # more cache to reduce re-reads (hit-rate 56.9% baseline)
+        PHASE="F4.4"; VARIANT_TAG="F4.4-cache3000"; THREADS=4
+        EXTRA_FLAGS="--moe-stream --cache-mb 3000 --dense-weights anon --overlap --io-threads 4"
+        ;;
+    F4.4-cache2500)
+        # safer RAM margin if 3000 triggers lmkd
+        PHASE="F4.4"; VARIANT_TAG="F4.4-cache2500"; THREADS=4
+        EXTRA_FLAGS="--moe-stream --cache-mb 2500 --dense-weights anon --overlap --io-threads 4"
+        ;;
+    C3-t5-pin)
+        # -t 5 pinned to big cores: cpu3-6 perf (2.8GHz) + cpu7 prime (3.36GHz)
+        PHASE="F4.3"; VARIANT_TAG="C3-t5-pin"; THREADS=5
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4"
+        TASKSET_CPUS="${TASKSET_CPUS:-3-7}"
+        ;;
+    # --- F4.3 compute-attack: n-expert-used LOSSY diagnostic probe ---
+    C3-k8)
+        PHASE="F4.3"; VARIANT_TAG="C3-k8"
+        # THREADS may be overridden via --threads (default best from thread sweep; else 5)
+        if [ "$THREADS" = "4" ]; then THREADS=5; fi
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 8"
+        LOSSY_NOTE="LOSSY n-expert-used=8 diagnostic-only not-for-section9"
+        ;;
+    C3-k6)
+        PHASE="F4.3"; VARIANT_TAG="C3-k6"
+        if [ "$THREADS" = "4" ]; then THREADS=5; fi
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6"
+        LOSSY_NOTE="LOSSY n-expert-used=6 diagnostic-only not-for-section9"
+        ;;
+    C3-k4)
+        PHASE="F4.3"; VARIANT_TAG="C3-k4"
+        if [ "$THREADS" = "4" ]; then THREADS=5; fi
+        EXTRA_FLAGS="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 4"
+        LOSSY_NOTE="LOSSY n-expert-used=4 diagnostic-only not-for-section9"
         ;;
     *)
         echo "ERROR: unknown --cell $CELL" >&2
@@ -197,8 +286,48 @@ check_alive() {
     fi
 }
 
+# Hard gate: Termux must be top-app with >=6 cores covering CPU 0-5.
+# Expected: nproc>=6 and affinity mask includes bits 0..5 (0x3f).
+# Exit 93 if not (same class as battery gate — no CSV row).
+gate_cpuset() {
+    # Wait/retry like thermal gate: OEM can demote Termux to /moderate during idle.
+    # Exit 93 only after MAX_COOL_WAIT_S without recovery.
+    _waited=0
+    while true; do
+        _np="$(nproc 2>/dev/null || echo 0)"
+        _mask=""
+        if command -v taskset >/dev/null 2>&1; then
+            _mask="$(taskset -p $$ 2>/dev/null | awk '{print $NF}')"
+        fi
+        _mask="$(printf '%s' "$_mask" | tr 'A-F' 'a-f' | sed 's/^0x//')"
+        _cg="$(cat /proc/self/cgroup 2>/dev/null | awk -F: '/cpuset/{print $3; exit}')"
+        _bits=0
+        if [ -n "$_mask" ]; then
+            _bits="$(bash -c 'm="$1"; v=$((16#$m)); c=0; while [ $v -gt 0 ]; do c=$((c+(v&1))); v=$((v>>1)); done; echo $c' bash "$_mask" 2>/dev/null || echo 0)"
+        fi
+        _ok=1
+        if [ -z "$_np" ] || [ "$_np" -lt 6 ] 2>/dev/null; then _ok=0; fi
+        case "$_cg" in
+            *background*|*system-background*|*moderate*) _ok=0 ;;
+        esac
+        if [ -n "$_mask" ] && [ "$_bits" -lt 6 ] 2>/dev/null; then _ok=0; fi
+        if [ "$_ok" -eq 1 ]; then
+            log "cpuset OK nproc=$_np mask=${_mask:-?} bits=${_bits:-?} cgroup=${_cg:-?}"
+            return 0
+        fi
+        log "WAIT/cpuset: nproc=${_np:-?} mask=${_mask:-?} bits=${_bits:-?} cgroup=${_cg:-?} — need top-app >=6 cores (waited ${_waited}s)"
+        sleep 30
+        _waited=$((_waited + 30))
+        if [ "$_waited" -ge "$MAX_COOL_WAIT_S" ]; then
+            log "BLOCKED/cpuset: no top-app recovery within ${MAX_COOL_WAIT_S}s (last nproc=${_np:-?} mask=${_mask:-?} cgroup=${_cg:-?})"
+            exit 93
+        fi
+    done
+}
+
 gate_ok() {
     check_alive
+    gate_cpuset
     if ! command -v termux-battery-status >/dev/null 2>&1; then
         log "BLOCKED: termux-battery-status missing"
         exit 7
@@ -337,9 +466,21 @@ run_one() {
         _flags_args=(--flags "$EXTRA_FLAGS")
     fi
 
-    _notes="${PHASE} ${VARIANT_TAG} ${_note_tag} rep=${_rep} rtype=${_rtype} cool${COOLDOWN_S}s T<=${MAX_COOL_TEMP}"
+    _np_now="$(nproc 2>/dev/null || echo ?)"
+    _mask_now=""
+    if command -v taskset >/dev/null 2>&1; then
+        _mask_now="$(taskset -p $$ 2>/dev/null | awk '{print $NF}' | tr 'A-F' 'a-f' | sed 's/^0x//')"
+    fi
+    _screen_note="screen=on"
+    _notes="${PHASE} ${VARIANT_TAG} ${_note_tag} rep=${_rep} rtype=${_rtype} cool${COOLDOWN_S}s T<=${MAX_COOL_TEMP} t=${THREADS} nproc=${_np_now} mask=${_mask_now:-\?} ${_screen_note}"
     if [ -n "$_cold_note" ]; then
         _notes="${_notes} ${_cold_note}"
+    fi
+    if [ -n "${LOSSY_NOTE:-}" ]; then
+        _notes="${_notes} ${LOSSY_NOTE}"
+    fi
+    if [ -n "${TASKSET_CPUS:-}" ]; then
+        _notes="${_notes} taskset=${TASKSET_CPUS}"
     fi
 
     _classic=()
@@ -348,6 +489,12 @@ run_one() {
     fi
 
     set +e
+    if [ -n "${TASKSET_CPUS:-}" ]; then
+        export TASKSET_CPUS
+        log "taskset affinity: $TASKSET_CPUS"
+    else
+        unset TASKSET_CPUS 2>/dev/null || true
+    fi
     bash "$RUN_BENCH" \
         --binary "$BINARY" \
         -m "$MODEL" \

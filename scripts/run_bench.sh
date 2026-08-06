@@ -141,6 +141,116 @@ sanitize_notes() {
     printf '%s' "$1" | tr ',\n\r' ';;;' | tr -s ';' | sed 's/^;//;s/;$//'
 }
 
+# Shell cpuset (preflight only). NOT for CSV — harness may differ from binary.
+read_cpuset_info() {
+    _nproc="$(nproc 2>/dev/null || echo "")"
+    _mask=""
+    if command -v taskset >/dev/null 2>&1; then
+        _mask="$(taskset -p $$ 2>/dev/null | awk '{print $NF}')"
+    fi
+    _mask="$(printf '%s' "$_mask" | tr 'A-F' 'a-f' | sed 's/^0x//')"
+    echo "${_nproc} ${_mask}"
+}
+
+# Count CPUs in a Linux Cpus_allowed_list (e.g. "0-5", "0-4,6", "0,1,2,3,4,5").
+count_cpu_list() {
+    _list="$1"
+    _n=0
+    [ -n "$_list" ] || { echo 0; return; }
+    _IFS="$IFS"
+    IFS=','
+    # shellcheck disable=SC2086
+    set -- $_list
+    IFS="$_IFS"
+    for _part in "$@"; do
+        case "$_part" in
+            *-*)
+                _a="${_part%-*}"
+                _b="${_part#*-}"
+                if [ -n "$_a" ] && [ -n "$_b" ] 2>/dev/null; then
+                    _n=$((_n + _b - _a + 1))
+                fi
+                ;;
+            *)
+                if [ -n "$_part" ]; then _n=$((_n + 1)); fi
+                ;;
+        esac
+    done
+    echo "$_n"
+}
+
+# Hex popcount (lowercase hex, no 0x).
+popcount_hex() {
+    _hex="$(printf '%s' "$1" | tr 'A-F' 'a-f' | sed 's/^0x//')"
+    [ -n "$_hex" ] || { echo 0; return; }
+    bash -c 'm="$1"; v=$((16#$m)); c=0; while [ $v -gt 0 ]; do c=$((c+(v&1))); v=$((v>>1)); done; echo $c' bash "$_hex" 2>/dev/null || echo 0
+}
+
+# Binary-process cpuset from /proc/<pid>/status.
+# Prints: nproc affinity_mask
+# Prefer Cpus_allowed (hex mask) + popcount; fallback Cpus_allowed_list count.
+# Empty if unreadable. Uses PROC_ROOT for tests.
+read_pid_cpuset() {
+    _pid="$1"
+    _st="${PROC_ROOT}/${_pid}/status"
+    if [ ! -r "$_st" ]; then
+        echo " "
+        return
+    fi
+    _list="$(awk -F: '/^Cpus_allowed_list:/{gsub(/^[ \t]+/,"",$2); gsub(/[ \t]+$/,"",$2); print $2; exit}' "$_st" 2>/dev/null)"
+    _mask="$(awk -F: '/^Cpus_allowed:/{gsub(/^[ \t]+/,"",$2); gsub(/[ \t]+$/,"",$2); print $2; exit}' "$_st" 2>/dev/null)"
+    _mask="$(printf '%s' "$_mask" | tr 'A-F' 'a-f' | sed 's/^0x//')"
+    _n=""
+    if [ -n "$_mask" ]; then
+        _n="$(popcount_hex "$_mask")"
+    fi
+    if [ -z "$_n" ] || [ "$_n" = "0" ]; then
+        _n="$(count_cpu_list "$_list")"
+    fi
+    # if mask empty but list present, leave mask empty (list is authoritative for n)
+    echo "${_n} ${_mask}"
+}
+
+# Ensure runs.csv header has nproc,affinity_mask (migrate old 27-col files in place).
+ensure_csv_header() {
+    _csv="$1"
+    _new_header="run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,batt_temp_start,batt_temp_end,expert_hit_rate,nproc,affinity_mask,notes"
+    if [ ! -f "$_csv" ]; then
+        printf '%s
+' "$_new_header" > "$_csv"
+        return 0
+    fi
+    _old="$(head -n1 "$_csv" 2>/dev/null || true)"
+    case "$_old" in
+        *",nproc,affinity_mask,notes") return 0 ;;
+        *",expert_hit_rate,notes")
+            _tmp="${_csv}.schema_migrate.$$"
+            {
+                printf '%s
+' "$_new_header"
+                # insert two empty fields before the last column (notes)
+                tail -n +2 "$_csv" | awk -F, 'BEGIN{OFS=","} {
+                    n=NF
+                    if (n < 2) { print; next }
+                    out=$1
+                    for (i=2; i<n; i++) out=out OFS $i
+                    out=out OFS "" OFS "" OFS $n
+                    print out
+                }'
+            } > "$_tmp" && mv "$_tmp" "$_csv"
+            return 0
+            ;;
+        *)
+            if [ ! -s "$_csv" ]; then
+                printf '%s
+' "$_new_header" > "$_csv"
+            fi
+            return 0
+            ;;
+    esac
+}
+
+
 # ---------------------------------------------------------------------------
 # Helper: parsing timings da log (esposte per i test via RUN_BENCH_LIB_ONLY=1)
 # ---------------------------------------------------------------------------
@@ -194,8 +304,38 @@ parse_timings() {
     # expert_hit_rate: formato esplicito moe-cache (bmoe) prima; fallback best-effort
     _parse_expert_hit_rate "$_pt_log"
 
+    # F4.3 compute-attack: parse moe-stream breakdown into BMOE_* globals for notes
+    _parse_bmoe_breakdown "$_pt_log"
+
     if [ -z "$PROMPT_TOK_S" ] && [ -z "$EVAL_TOK_S" ] && [ -z "$TTFT_MS" ]; then
         TIMING_NOTE="no timings in log"
+    fi
+    return 0
+}
+
+# moe-stream: read X MiB (Y MiB/token), decode Z s/token (compute A + cache mgmt B + flash I/O C s/token, D MiB/s)
+_parse_bmoe_breakdown() {
+    _log="$1"
+    BMOE_DECODE_S=""
+    BMOE_COMPUTE_S=""
+    BMOE_CACHE_MGMT_S=""
+    BMOE_FLASH_IO_S=""
+    BMOE_IO_MIB_S=""
+    BMOE_READ_MIB_TOK=""
+    BMOE_STALL_S=""
+    _bline="$(grep -E 'moe-stream:.*decode' "$_log" 2>/dev/null | tail -n1 || true)"
+    if [ -z "$_bline" ]; then
+        return 0
+    fi
+    BMOE_READ_MIB_TOK="$(printf '%s\n' "$_bline" | sed -n -E 's/.*\(([0-9.]+)[[:space:]]*MiB\/token\).*/\1/p')"
+    BMOE_DECODE_S="$(printf '%s\n' "$_bline" | sed -n -E 's/.*decode[[:space:]]+([0-9.]+)[[:space:]]*s\/token.*/\1/p')"
+    BMOE_COMPUTE_S="$(printf '%s\n' "$_bline" | sed -n -E 's/.*\(compute[[:space:]]+([0-9.]+).*/\1/p')"
+    BMOE_CACHE_MGMT_S="$(printf '%s\n' "$_bline" | sed -n -E 's/.*cache mgmt[[:space:]]+([0-9.]+).*/\1/p')"
+    BMOE_FLASH_IO_S="$(printf '%s\n' "$_bline" | sed -n -E 's/.*flash I\/O[[:space:]]+([0-9.]+).*/\1/p')"
+    BMOE_IO_MIB_S="$(printf '%s\n' "$_bline" | sed -n -E 's/.*[[:space:]]([0-9.]+)[[:space:]]*MiB\/s\).*/\1/p')"
+    _sline="$(grep -E 'moe-overlap:[[:space:]]*stall' "$_log" 2>/dev/null | tail -n1 || true)"
+    if [ -n "$_sline" ]; then
+        BMOE_STALL_S="$(printf '%s\n' "$_sline" | sed -n -E 's/.*stall[[:space:]]+([0-9.]+)[[:space:]]*s\/token.*/\1/p')"
     fi
     return 0
 }
@@ -1045,11 +1185,9 @@ mkdir -p "$(dirname "$CSV_PATH")" 2>/dev/null || true
 mkdir -p "$(dirname "$LOG_PATH")" 2>/dev/null || true
 
 # Header CSV se assente
-CSV_HEADER="run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,batt_temp_start,batt_temp_end,expert_hit_rate,notes"
+CSV_HEADER="run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,batt_temp_start,batt_temp_end,expert_hit_rate,nproc,affinity_mask,notes"
 
-if [ ! -f "$CSV_PATH" ]; then
-    printf '%s\n' "$CSV_HEADER" > "$CSV_PATH"
-fi
+ensure_csv_header "$CSV_PATH"
 
 # ---------------------------------------------------------------------------
 # Snapshot PRE
@@ -1060,6 +1198,12 @@ MEMFREE_START_KB="${1:-0}"
 MEMAVAIL_START_KB="${2:-0}"
 # memfree_min traccia il minimo durante il run (inizializza a start)
 MEMFREE_MIN_KB="$MEMFREE_START_KB"
+
+# cpuset covariates (F4.3-bis): empty if tools missing
+# shellcheck disable=SC2046
+set -- $(read_cpuset_info)
+NPROC_RUN="${1:-}"
+AFFINITY_MASK="${2:-}"
 
 # Prompt content (cat una sola volta; gestisce spazi/newline)
 PROMPT_CONTENT="$(cat "$PROMPT_FILE")"
@@ -1073,6 +1217,7 @@ echo "model=$MODEL quant=$QUANT" | tee -a "$LOG_PATH" >&2
 echo "binary=$BINARY threads=$THREADS ctx=$N_CTX kv=$KV_TYPE n_gen=$N_GEN" | tee -a "$LOG_PATH" >&2
 echo "flags=$EXTRA_FLAGS" | tee -a "$LOG_PATH" >&2
 echo "batt_plugged=$BATT_PLUGGED batt_temp_start=$BATT_TEMP_START" | tee -a "$LOG_PATH" >&2
+echo "harness_nproc=${NPROC_RUN:-} harness_affinity_mask=${AFFINITY_MASK:-} (pre-spawn shell; CSV uses binary /proc/pid)" | tee -a "$LOG_PATH" >&2
 echo "log=$LOG_PATH csv=$CSV_PATH" | tee -a "$LOG_PATH" >&2
 echo "--- llama start $(date -Iseconds 2>/dev/null || date) ---" | tee -a "$LOG_PATH" >&2
 
@@ -1171,9 +1316,17 @@ if [ "$RUNTIME" != "bigmoe" ]; then
         _LOAD_MODE_ARGS=(--load-mode "${LOAD_MODE:-mmap}")
     fi
 fi
+# Optional CPU affinity (F4.3 big.LITTLE pin). TASKSET_CPUS e.g. "3-7".
+_BIN_CMD=("$BINARY")
+if [ -n "${TASKSET_CPUS:-}" ] && command -v taskset >/dev/null 2>&1; then
+    _BIN_CMD=(taskset -c "$TASKSET_CPUS" "$BINARY")
+    echo "taskset -c $TASKSET_CPUS" | tee -a "$LOG_PATH" >&2
+elif [ -n "${TASKSET_CPUS:-}" ]; then
+    echo "WARN: TASKSET_CPUS=$TASKSET_CPUS set but taskset not found — running unpinned" | tee -a "$LOG_PATH" >&2
+fi
 if [ "$RUNTIME" = "bigmoe" ]; then
     if [ -n "$EXTRA_FLAGS" ]; then
-        "$BINARY" \
+        "${_BIN_CMD[@]}" \
             -m "$MODEL" \
             -p "$_PROMPT_ARG" \
             -n "$N_GEN" \
@@ -1183,7 +1336,7 @@ if [ "$RUNTIME" = "bigmoe" ]; then
             $EXTRA_FLAGS \
             < /dev/null > "$FIFO" 2>&1 &
     else
-        "$BINARY" \
+        "${_BIN_CMD[@]}" \
             -m "$MODEL" \
             -p "$_PROMPT_ARG" \
             -n "$N_GEN" \
@@ -1319,6 +1472,12 @@ if [ -d "/proc/$LLAMA_PID" ]; then
     MAJFLT_START="${2:-0}"
     READ_BYTES_START="$(read_read_bytes "$LLAMA_PID")"
     VMRSS_START_KB="$(read_vmrss_kb "$LLAMA_PID")"
+    # CSV nproc/affinity from BINARY process (not harness shell)
+    # shellcheck disable=SC2046
+    set -- $(read_pid_cpuset "$LLAMA_PID")
+    if [ -n "${1:-}" ]; then NPROC_RUN="$1"; fi
+    if [ -n "${2:-}" ]; then AFFINITY_MASK="$2"; fi
+    echo "binary_cpuset nproc=${NPROC_RUN:-} affinity_mask=${AFFINITY_MASK:-} (pid=$LLAMA_PID)" | tee -a "$LOG_PATH" >&2
 else
     MINFLT_START=0
     MAJFLT_START=0
@@ -1333,9 +1492,11 @@ VMRSS_PEAK_KB="$VMRSS_START_KB"
 # di FINE devono essere l'ultimo sample preso a processo ancora vivo.
 PEAK_FILE="$(mktemp "${TMPDIR:-/tmp}/run_bench_peak.XXXXXX" 2>/dev/null || echo "${TMPDIR:-/tmp}/run_bench_peak.$$")"
 PROC_FILE="$(mktemp "${TMPDIR:-/tmp}/run_bench_proc.XXXXXX" 2>/dev/null || echo "${TMPDIR:-/tmp}/run_bench_proc.$$")"
+CPUSET_FILE="$(mktemp "${TMPDIR:-/tmp}/run_bench_cpuset.XXXXXX" 2>/dev/null || echo "${TMPDIR:-/tmp}/run_bench_cpuset.$$")"
 MEMFREE_FILE="$(mktemp "${TMPDIR:-/tmp}/run_bench_memfree.XXXXXX" 2>/dev/null || echo "${TMPDIR:-/tmp}/run_bench_memfree.$$")"
 printf '%s\n' "$VMRSS_PEAK_KB" > "$PEAK_FILE"
 printf '%s %s %s\n' "$MINFLT_START" "$MAJFLT_START" "$READ_BYTES_START" > "$PROC_FILE"
+printf '%s %s\n' "${NPROC_RUN:-}" "${AFFINITY_MASK:-}" > "$CPUSET_FILE"
 printf '%s\n' "$MEMFREE_MIN_KB" > "$MEMFREE_FILE"
 
 (
@@ -1348,12 +1509,18 @@ printf '%s\n' "$MEMFREE_MIN_KB" > "$MEMFREE_FILE"
                 _peak="$_rss"
                 printf '%s\n' "$_peak" > "$PEAK_FILE"
             fi
-            # shellcheck disable=SC2046
+                        # shellcheck disable=SC2046
             set -- $(read_flt "$LLAMA_PID")
             _mf_last="${1:-0}"
             _Mj_last="${2:-0}"
             _rb_last="$(read_read_bytes "$LLAMA_PID")"
             printf '%s %s %s\n' "$_mf_last" "$_Mj_last" "$_rb_last" > "$PROC_FILE"
+            # refresh binary cpuset (last sample → CSV)
+            # shellcheck disable=SC2046
+            set -- $(read_pid_cpuset "$LLAMA_PID")
+            if [ -n "${1:-}" ] || [ -n "${2:-}" ]; then
+                printf '%s %s\n' "${1:-}" "${2:-}" > "$CPUSET_FILE"
+            fi
         fi
         # shellcheck disable=SC2046
         set -- $(read_meminfo)
@@ -1446,6 +1613,12 @@ if [ -f "$PROC_FILE" ]; then
     MAJFLT_END="${2:-$MAJFLT_START}"
     READ_BYTES_END="${3:-$READ_BYTES_START}"
 fi
+if [ -f "$CPUSET_FILE" ]; then
+    # shellcheck disable=SC2046
+    set -- $(cat "$CPUSET_FILE" 2>/dev/null)
+    if [ -n "${1:-}" ]; then NPROC_RUN="$1"; fi
+    if [ -n "${2:-}" ]; then AFFINITY_MASK="$2"; fi
+fi
 
 if [ -f "$PEAK_FILE" ]; then
     VMRSS_PEAK_KB="$(cat "$PEAK_FILE" 2>/dev/null || echo "$VMRSS_PEAK_KB")"
@@ -1453,7 +1626,7 @@ fi
 if [ -f "$MEMFREE_FILE" ]; then
     MEMFREE_MIN_KB="$(cat "$MEMFREE_FILE" 2>/dev/null || echo "$MEMFREE_MIN_KB")"
 fi
-rm -f "$PEAK_FILE" "$MEMFREE_FILE" "$PROC_FILE" 2>/dev/null || true
+rm -f "$PEAK_FILE" "$CPUSET_FILE" "$MEMFREE_FILE" "$PROC_FILE" 2>/dev/null || true
 
 # Snapshot meminfo post
 # shellcheck disable=SC2046
@@ -1614,6 +1787,28 @@ if [ -n "$MEMAVAIL_START_MB" ]; then
         NOTES_FINAL="memavail_start_mb=${MEMAVAIL_START_MB}"
     fi
 fi
+# F4.3: append compute breakdown (decode/compute/cache_mgmt/flash_io) — critical metric
+if [ -n "${BMOE_COMPUTE_S:-}" ]; then
+    _bd="decode=${BMOE_DECODE_S}s/tok compute=${BMOE_COMPUTE_S} cache_mgmt=${BMOE_CACHE_MGMT_S} flash_io=${BMOE_FLASH_IO_S} mib_s=${BMOE_IO_MIB_S}"
+    if [ -n "${BMOE_READ_MIB_TOK:-}" ]; then
+        _bd="${_bd} mib_tok=${BMOE_READ_MIB_TOK}"
+    fi
+    if [ -n "${BMOE_STALL_S:-}" ]; then
+        _bd="${_bd} stall=${BMOE_STALL_S}"
+    fi
+    if [ -n "$NOTES_FINAL" ]; then
+        NOTES_FINAL="${NOTES_FINAL}; ${_bd}"
+    else
+        NOTES_FINAL="$_bd"
+    fi
+fi
+if [ -n "${TASKSET_CPUS:-}" ]; then
+    if [ -n "$NOTES_FINAL" ]; then
+        NOTES_FINAL="${NOTES_FINAL}; taskset=${TASKSET_CPUS}"
+    else
+        NOTES_FINAL="taskset=${TASKSET_CPUS}"
+    fi
+fi
 # strip virgole e newline
 NOTES_FINAL="$(sanitize_notes "$NOTES_FINAL")"
 
@@ -1630,9 +1825,9 @@ MODEL_CSV="$(basename "$MODEL")"
 # run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,
 # n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,
 # majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,
-# batt_temp_start,batt_temp_end,expert_hit_rate,notes
+# batt_temp_start,batt_temp_end,expert_hit_rate,nproc,affinity_mask,notes
 # ---------------------------------------------------------------------------
-CSV_LINE="$(printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' \
+CSV_LINE="$(printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' \
     "$RUN_ID" \
     "$DATE_ISO" \
     "$PHASE" \
@@ -1659,6 +1854,8 @@ CSV_LINE="$(printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
     "$BATT_TEMP_START" \
     "$BATT_TEMP_END" \
     "$EXPERT_HIT_RATE" \
+    "${NPROC_RUN:-}" \
+    "${AFFINITY_MASK:-}" \
     "$NOTES_FINAL"
 )"
 
@@ -1670,6 +1867,7 @@ echo "prompt_tok_s=$PROMPT_TOK_S eval_tok_s=$EVAL_TOK_S ttft_ms=$TTFT_MS load_s=
 echo "majflt_delta=$MAJFLT_DELTA minflt_delta=$MINFLT_DELTA read_bytes_delta=$READ_BYTES_DELTA" >&2
 echo "vmrss_peak_mb=$VMRSS_PEAK_MB memfree_min_mb=$MEMFREE_MIN_MB memavail_start_mb=${MEMAVAIL_START_MB:-}" >&2
 echo "batt_temp_start=$BATT_TEMP_START batt_temp_end=$BATT_TEMP_END" >&2
+echo "nproc=${NPROC_RUN:-} affinity_mask=${AFFINITY_MASK:-} (binary Cpus_allowed)" >&2
 echo "harness_timeout=$HARNESS_TIMEOUT run_timeout_s=$RUN_TIMEOUT_S classic_perf=$CLASSIC_PERF" >&2
 
 # Exit codes:

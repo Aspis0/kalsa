@@ -99,7 +99,9 @@ Una riga = un run. Header creato automaticamente se assente.
 | 24 | `batt_temp_start` | float °C | `termux-battery-status` | gate ≤32.0; vuoto se API assente (solo con `--allow-no-battery`) |
 | 25 | `batt_temp_end` | float °C | `termux-battery-status` | post-run |
 | 26 | `expert_hit_rate` | string | log bmoe (`moe-cache:`) o best-effort | es. `94.2%`; vuoto se assente |
-| 27 | `notes` | string | `--notes` + auto | single-line, no virgole/newline; prefisso utente |
+| 27 | `nproc` | int o vuoto | popcount `Cpus_allowed` del **binario** (`/proc/<pid>/status`) | core del processo di inferenza (non shell harness). Obbligatorio da F4.3-bis; pre-F4.3-bis vuoto |
+| 28 | `affinity_mask` | hex string o vuoto | `Cpus_allowed` del **binario** | hex lowercase (es. 3f/5f/bf/df). OEM-rotante; non correla con tok/s. Vuoto se unreadable |
+| 29 | `notes` | string | `--notes` + auto | single-line, no virgole/newline; prefisso utente; include breakdown decode/compute/cache_mgmt/flash_io quando bmoe |
 
 ### Parsing `/proc/<pid>/stat` (majflt / minflt)
 
@@ -158,6 +160,15 @@ prompt eval time =  2345.67 ms /  128 tokens ( 18.32 ms per token,  54.57 tokens
 Documentare la distinzione nei report.
 
 ---
+
+## Cpuset gate (F4.3-bis)
+
+| Condizione | Exit | CSV? |
+|---|---:|---|
+| nproc < 6, cgroup background, o affinity popcount < 6 | **93** (run_f4.sh gate_cpuset) | no |
+| batteria < 40% | **92** (CHARGE_NEEDED) | no |
+
+Colonne nproc e affinity_mask sono covariate obbligatorie: senza di esse una riga non e interpretabile a posteriori (lezione 2026-08-06: misure su cpuset background = 3 core A510).
 
 ## Esempi di invocazione
 

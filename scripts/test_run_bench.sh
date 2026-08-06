@@ -120,6 +120,50 @@ else
     fail "read_vmrss_kb REAL" "got '$_rss' atteso 524288"
 fi
 
+# --- nproc/affinity from binary /proc/<pid>/status (F4.3-bis fix) ---
+if declare -f read_pid_cpuset >/dev/null 2>&1; then
+    cat > "$FAKE_PROC/$FAKE_PID/status" <<'EOF'
+Name:	llama cli moe
+State:	R (running)
+VmRSS:	  524288 kB
+Cpus_allowed:	3f
+Cpus_allowed_list:	0-5
+EOF
+    export PROC_ROOT="$FAKE_PROC"
+    _cs="$(read_pid_cpuset "$FAKE_PID")"
+    unset PROC_ROOT; PROC_ROOT=/proc; export PROC_ROOT
+    # shellcheck disable=SC2086
+    set -- $_cs
+    if [ "$1" = "6" ] && [ "$2" = "3f" ]; then
+        pass "read_pid_cpuset: Cpus_allowed=3f list=0-5 -> nproc=6 mask=3f"
+    else
+        fail "read_pid_cpuset 3f/0-5" "got nproc=$1 mask=$2"
+    fi
+    cat > "$FAKE_PROC/$FAKE_PID/status" <<'EOF'
+Name:	bmoe
+State:	R (running)
+Cpus_allowed:	5f
+Cpus_allowed_list:	0-4,6
+EOF
+    export PROC_ROOT="$FAKE_PROC"
+    _cs="$(read_pid_cpuset "$FAKE_PID")"
+    unset PROC_ROOT; PROC_ROOT=/proc; export PROC_ROOT
+    # shellcheck disable=SC2086
+    set -- $_cs
+    if [ "$1" = "6" ] && [ "$2" = "5f" ]; then
+        pass "read_pid_cpuset: mask=5f list=0-4,6 -> nproc=6 mask=5f"
+    else
+        fail "read_pid_cpuset 5f" "got nproc=$1 mask=$2"
+    fi
+    if [ "$(count_cpu_list 0-5)" = "6" ] && [ "$(count_cpu_list 0-4,6)" = "6" ] && [ "$(count_cpu_list 0-7)" = "8" ]; then
+        pass "count_cpu_list: 0-5=6, 0-4,6=6, 0-7=8"
+    else
+        fail "count_cpu_list" "bad counts"
+    fi
+else
+    fail "read_pid_cpuset defined" "missing after RUN_BENCH_LIB_ONLY=1"
+fi
+
 if declare -f read_flt | grep -q "PROC_ROOT"; then
     pass "read_flt sourcata usa PROC_ROOT (testable)"
 else
