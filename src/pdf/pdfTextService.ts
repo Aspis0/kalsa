@@ -41,6 +41,7 @@ export type PdfTextServiceErrorCode =
   | "no_host"
   | "busy"
   | "timeout"
+  | "renderer_gone"
   | "unmounted"
   | "aborted"
   | "failed";
@@ -98,9 +99,11 @@ export function isPdfTextExtractionBusy(): boolean {
 export function registerPdfTextHost(bridge: HostBridge): () => void {
   host = bridge;
   return () => {
-    if (host === bridge) {
-      host = null;
-    }
+    // Only the currently registered host may clear and reject in-flight work.
+    // A stale unregister (dev double-mount / StrictMode) must not kill a live
+    // extraction owned by a newer host.
+    if (host !== bridge) return;
+    host = null;
     if (inflight && !inflight.settled) {
       settleReject(
         new PdfTextServiceError(

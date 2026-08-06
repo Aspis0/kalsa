@@ -70,6 +70,7 @@ export type PdfExtractErrorCode =
   | "timeout"
   | "page_timeout"
   | "cap"
+  | "renderer_gone"
   | "failed";
 
 export class PdfExtractError extends Error {
@@ -577,6 +578,17 @@ export function PdfToImages({
           request.url.startsWith("about:") || request.url.startsWith("data:")
         }
         onMessage={handleMessage}
+        // Android: renderer killed under memory pressure (app process survives).
+        // Without this the message stream stops until the page/total timer fires
+        // with a misleading "timed out — try again".
+        onRenderProcessGone={() => {
+          fail(t("errors.pdfRendererGone"), "renderer_gone");
+          return true;
+        }}
+        // iOS: WKWebView content process terminated.
+        onContentProcessDidTerminate={() => {
+          fail(t("errors.pdfRendererGone"), "renderer_gone");
+        }}
       />
       <Text style={styles.loading}>
         {isTextExtractMode(mode) ? t("pdf.extractingText") : t("pdf.readingPages")}
@@ -708,17 +720,18 @@ function buildPdfHtmlTextMode(
             var t1 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
             var ms = Math.max(0, t1 - t0);
             var raw = (tc && tc.items) ? tc.items : [];
-            var items = [];
+            // Exact O(n) payload budget: stringify each item once, accumulate
+            // lengths. Avoids estimate/JSON.stringify divergence (control chars
+            // escape to 6 units) and the O(n²) pop+re-stringify cut.
+            var pieces = [];
             var limit = Math.min(raw.length, MAX_ITEMS);
-            // Budget projected payload BEFORE JSON.stringify (UTF-16 code units).
-            var est = 2;
+            var total = 2; // "[]"
+            var first = true;
             for (var i = 0; i < limit; i++) {
               var it = raw[i];
               if (!it || typeof it.str !== "string") continue;
               var s = it.str;
               if (s.length > MAX_STR) s = s.slice(0, MAX_STR);
-              var itemEst = s.length + 96;
-              if (est + itemEst > MAX_PAYLOAD) break;
               var projected = { str: s };
               if (it.hasEOL === true) projected.hasEOL = true;
               if (typeof it.width === "number" && isFinite(it.width)) projected.width = it.width;
@@ -728,14 +741,14 @@ function buildPdfHtmlTextMode(
                   +it.transform[3] || 0, +it.transform[4] || 0, +it.transform[5] || 0
                 ];
               }
-              items.push(projected);
-              est += itemEst;
+              var piece = JSON.stringify(projected);
+              var add = piece.length + (first ? 0 : 1);
+              if (total + add > MAX_PAYLOAD) break;
+              pieces.push(piece);
+              total += add;
+              first = false;
             }
-            var json = JSON.stringify(items);
-            while (items.length > 0 && json.length > MAX_PAYLOAD) {
-              items.pop();
-              json = JSON.stringify(items);
-            }
+            var json = "[" + pieces.join(",") + "]";
             if (json.length > MAX_PAYLOAD) {
               post({error: "text_payload_cap"});
               return;
@@ -747,7 +760,7 @@ function buildPdfHtmlTextMode(
             }
             sendTextChunks(pageNum, json, {
               getTextContentMs: ms,
-              itemCount: items.length,
+              itemCount: pieces.length,
               projectedBytes: json.length
             });
           }).catch(function(e){ post({error: String((e && e.message) || e)}); });

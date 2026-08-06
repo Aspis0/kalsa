@@ -119,9 +119,14 @@ const MUTATIONS = [
         `export function capDocsForIndex(
   docs: Array<{ docId: string; title?: string; text: string }>,
   _maxChars: number,
-): Array<{ docId: string; title?: string; text: string }> {
+): CapDocsForIndexResult {
   // MUTATED: identity — no cap
-  return Array.isArray(docs) ? docs.slice() : [];
+  return {
+    docs: Array.isArray(docs) ? docs.slice() : [],
+    droppedCount: 0,
+    droppedPageNumbers: [],
+    lastTruncated: false,
+  };
 }`,
       );
     },
@@ -137,9 +142,42 @@ const MUTATIONS = [
       "Delete the capDocsForIndex call in handlePdfResponse (auditor finding)",
     // Leave the exported helper intact — only the production call site goes away.
     pattern:
-      /urlDocs\s*=\s*capDocsForIndex\s*\(\s*urlDocs\s*,\s*MAX_INDEX_CHARS\s*\)\s*;/,
-    replace: "/* mutated: call site removed */",
+      /const capResult = capDocsForIndex\(remapped, MAX_INDEX_CHARS\);\s*const urlDocs = capResult\.docs;/,
+    replace:
+      "const capResult = { docs: remapped, droppedCount: 0, droppedPageNumbers: [], lastTruncated: false };\n    const urlDocs = capResult.docs;",
     expectRed: ["pdf index cap drops second page by budget"],
+  },
+  {
+    name: "plain-index-cap-callsite",
+    description:
+      "Delete the text/plain MAX_INDEX_CHARS slice so the far token stays searchable",
+    apply(src) {
+      const re =
+        /pageText\s*=\s*\n\s*bodyText\.length > MAX_INDEX_CHARS\s*\n\s*\?\s*bodyText\.slice\(0, MAX_INDEX_CHARS\)\s*\n\s*:\s*bodyText;/;
+      if (!re.test(src)) {
+        throw new Error("plain-index-cap-callsite: pattern not found");
+      }
+      return src.replace(re, "pageText = bodyText; /* mutated: plain index cap removed */");
+    },
+    expectRed: ["plain index cap truncates searchable region"],
+  },
+  {
+    name: "pdf-host-missing-mapping",
+    description: "Delete the no_host branch so fallback could swallow the fixture",
+    pattern:
+      /if \(code === "no_host"\) \{\s*return \{ text: errors\.webFetchPdfHostMissing \};\s*\}/,
+    replace: "/* mutated: no_host mapping removed */",
+    expectRed: ["pdf host-missing mapping"],
+  },
+  {
+    name: "pdf-sanitize-callsite",
+    description:
+      "mapPdfExtractError uses raw message instead of sanitizeToolErrorMessage",
+    pattern:
+      /text: errors\.webFetchPdfExtractFailed\.replace\(\s*"\{message\}",\s*sanitizeToolErrorMessage\(message\),\s*\)/,
+    replace:
+      'text: errors.webFetchPdfExtractFailed.replace("{message}", message)',
+    expectRed: ["pdf extract untyped path sanitized"],
   },
   {
     name: "pn-docid-remap",
@@ -154,6 +192,7 @@ const MUTATIONS = [
         `export function remapPdfDocsToSourceUrl(
   docs: Array<{ docId: string; title?: string; text: string }>,
   sourceUrl: string,
+  _opts?: { maxPage?: number },
 ): Array<{ docId: string; title?: string; text: string }> {
   // MUTATED: lose page provenance
   return docs

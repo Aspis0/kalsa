@@ -443,6 +443,8 @@ export const en = {
     pdfTooLarge: "PDF too large (max 5 MB).",
     pdfTimeout: "PDF page rendering timed out.",
     pdfExtractTimeout: "PDF text extraction timed out.",
+    pdfRendererGone:
+      "PDF renderer process died (document too large or complex for this device).",
     pdfExtractCap: "PDF extraction aborted ({reason}).",
     pdfExtractFailed: "PDF text extraction failed.",
     searchCancelled: "Search cancelled",
@@ -516,16 +518,25 @@ export const en = {
       "PDF too large to fetch ({sizeKb} KB measured). Try a smaller document.",
     webFetchPdfTimeout: "PDF download timed out. Try again.",
     webFetchPdfExtractTimeout: "PDF text extraction timed out. Try again.",
+    /**
+     * WebView renderer process died (Android OOM / iOS content process kill).
+     * Do NOT say "try again" — the same document will kill the renderer again.
+     */
+    webFetchPdfRendererGone:
+      "PDF text extraction failed: the document is too large or too complex for this device. " +
+      "Do not retry the same fetch; tell the user the PDF could not be read here.",
     /** User/turn abort during PDF download or extract — never "try again". */
     webFetchPdfAborted: "PDF fetch was cancelled.",
     webFetchPdfExtractFailed: "PDF text extraction failed: {message}",
+    /** Cache dir missing when writing a fetched PDF body (model-facing). */
+    webFetchPdfNoCacheDir: "No cache directory available for PDF body",
     webFetchPdfBusy:
       "Another PDF is already being extracted. Wait for it to finish, then retry.",
     webFetchPdfHostMissing:
       "PDF text extraction is unavailable (extractor host not mounted).",
     /**
      * {pages} = document-reported page count (clamped ≥ processed; pdf.numPages
-     * is untrusted); {processed} = pages we actually inspected (capped).
+     * is untrusted); {processed} = pages we actually inspected after index cap.
      */
     webFetchPdfNoTextLayer:
       "This PDF has no extractable text layer (the document reports {pages} pages; {processed} inspected). " +
@@ -533,6 +544,13 @@ export const en = {
     webFetchPdfSkippedPages:
       "Note: {skipped} of {processed} inspected pages had no extractable text layer " +
       "(the document reports {pages} pages).",
+    /**
+     * Index budget dropped whole pages and/or truncated the last kept page.
+     * {dropped} = count of whole pages not searched; {pageList} = "3, 5" or "none".
+     */
+    webFetchPdfIndexCapped:
+      "Note: the searchable text budget was exhausted; {dropped} page(s) were not searched " +
+      "({pageList}). The answer may be in pages that were not searched.",
     webFetchPdfInvalid:
       "The response claimed to be a PDF but no pages could be extracted. Do not invent content.",
     /**

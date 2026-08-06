@@ -89,12 +89,19 @@ export function PdfTextExtractorHost() {
           /* resolve/reject already handled via onTextDocs / onError. */
         }}
         onError={(error) => {
-          // Map typed component timeouts without matching localized strings.
+          // Map typed component codes without matching localized strings.
           if (error instanceof PdfExtractError) {
             if (error.code === "timeout" || error.code === "page_timeout") {
               rejectPdfTextRequest(
                 request.id,
                 new PdfTextServiceError("timeout", error.message),
+              );
+              return;
+            }
+            if (error.code === "renderer_gone") {
+              rejectPdfTextRequest(
+                request.id,
+                new PdfTextServiceError("renderer_gone", error.message),
               );
               return;
             }

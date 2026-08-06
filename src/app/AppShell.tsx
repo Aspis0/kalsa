@@ -37,9 +37,9 @@ import {
   makeFetchAllowlist,
   makeWebFetchExecutor,
   type FetchAllowlist,
-  type PdfCacheFs,
 } from "../agent/webFetchTool";
 import { PdfTextExtractorHost } from "../pdf/PdfTextExtractorHost";
+import { makePdfCacheFs } from "../pdf/pdfCacheFs";
 import { isPdfTextExtractionBusy, requestPdfText } from "../pdf/pdfTextService";
 import * as FileSystem from "expo-file-system/legacy";
 import { getStrings, useLocale } from "../i18n";
@@ -307,39 +307,6 @@ function validateHistoryMessages(history: unknown[] | undefined): HistoryRoleMes
   return out;
 }
 
-/** Uint8Array → base64 for expo-file-system writes (no Node Buffer on RN). */
-function uint8ArrayToBase64(bytes: Uint8Array): string {
-  if (typeof globalThis.btoa !== "function") {
-    throw new Error("base64 encoder unavailable");
-  }
-  const chunk = 0x8000;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += chunk) {
-    const slice = bytes.subarray(i, i + chunk);
-    binary += String.fromCharCode.apply(null, Array.from(slice) as number[]);
-  }
-  return globalThis.btoa(binary);
-}
-
-/** Cache FS for remote PDF bodies fetched by web_fetch (deleted in finally). */
-function makePdfCacheFs(): PdfCacheFs {
-  return {
-    async write(bytes: Uint8Array): Promise<string> {
-      const dir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? "";
-      if (!dir) throw new Error("No cache directory available for PDF body");
-      const uri = `${dir}web-fetch-pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.pdf`;
-      const b64 = uint8ArrayToBase64(bytes);
-      await FileSystem.writeAsStringAsync(uri, b64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      return uri;
-    },
-    async remove(fileUri: string): Promise<void> {
-      await FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => undefined);
-    },
-  };
-}
-
 /**
  * AppShell — la schermata unica di AI Chat (Fase 1).
  *
@@ -365,7 +332,17 @@ export function AppShell() {
     const searchExec = makeWebSearchExecutor(locale);
     // Recreated when fetchAllowlistTurnSeq advances (each send); held across
     // tool rounds within the same turn so search results stay allowlisted.
-    const pdfCacheFs = makePdfCacheFs();
+    const pdfCacheFs = makePdfCacheFs({
+      getDirectory: () =>
+        FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? "",
+      writeAsBase64: (uri, base64) =>
+        FileSystem.writeAsStringAsync(uri, base64, {
+          encoding: FileSystem.EncodingType.Base64,
+        }),
+      deleteAsync: (uri) =>
+        FileSystem.deleteAsync(uri, { idempotent: true }).then(() => undefined),
+      noCacheDirMessage: getStrings(locale).errors.webFetchPdfNoCacheDir,
+    });
     const fetchDeps = {
       extractPdfText: (
         fileUri: string,
@@ -1512,20 +1489,26 @@ export function AppShell() {
   })();
 
   return (
-    // key=fontScaleId: force a full remount of the visible tree on text-size
-    // change. Most of theme/components/* still reads the static `typography`
-    // singleton at module scope instead of useTypography() — a plain
-    // re-render leaves their already-created style objects looking stale even
-    // though the singleton's fontSize/lineHeight are updated (React does not
-    // know to re-render a component that isn't itself subscribed to the
-    // change). Remounting is the small, low-risk fix: AppShell's own hooks
-    // (engine refs, download state, model index) live above this element and
-    // are untouched, so the loaded model/engine and any in-flight downloads
-    // are NOT torn down — only the display subtree (chat, drawer, settings,
-    // help) unmounts and remounts, re-reading the (already-updated) typography
-    // values. AiChatPage reloads its message list from AsyncStorage on mount,
-    // which is written on every change, so no chat data is lost.
-    <View key={fontScaleId} style={{ flex: 1, backgroundColor: colors.shell }}>
+    // Outer shell is NOT keyed: PdfTextExtractorHost must survive font-scale
+    // remounts (otherwise an in-flight extract is rejected as "unmounted" /
+    // cancelled while the user only changed text size).
+    <View style={{ flex: 1, backgroundColor: colors.shell }}>
+    {/*
+      key=fontScaleId: force a full remount of the visible tree on text-size
+      change. Most of theme/components/* still reads the static `typography`
+      singleton at module scope instead of useTypography() — a plain
+      re-render leaves their already-created style objects looking stale even
+      though the singleton's fontSize/lineHeight are updated (React does not
+      know to re-render a component that isn't itself subscribed to the
+      change). Remounting is the small, low-risk fix: AppShell's own hooks
+      (engine refs, download state, model index) live above this element and
+      are untouched, so the loaded model/engine and any in-flight downloads
+      are NOT torn down — only the display subtree (chat, drawer, settings,
+      help) unmounts and remounts, re-reading the (already-updated) typography
+      values. AiChatPage reloads its message list from AsyncStorage on mount,
+      which is written on every change, so no chat data is lost.
+    */}
+    <View key={fontScaleId} style={{ flex: 1 }}>
       <PainterlyBg />
       <GestureDetector gesture={edgeSwipe}>
       <View style={{ flex: 1 }}>
@@ -1764,7 +1747,8 @@ export function AppShell() {
           </SafeAreaView>
         </Modal>
       ) : null}
-      {/* Mount-once PDF text host for web_fetch extractPdfText (hidden WebView). */}
+    </View>
+      {/* Sibling of the fontScale-keyed tree — never remounts on text-size change. */}
       <PdfTextExtractorHost />
     </View>
   );

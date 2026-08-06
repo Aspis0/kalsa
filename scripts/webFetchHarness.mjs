@@ -1,31 +1,24 @@
 /**
  * Harness for src/agent/webFetchTool.ts
  * Allowlist, fail-closed host gate, redirect policy, body decode, index cap.
+ *
+ * Build isolation: each harness uses scripts/.build/<harnessName> so running
+ * harnesses in any order cannot leave a stale rootDir-inferred layout that
+ * poisons a later compile (tsc rootDir depends on the entry-file set).
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
-
-function deleteStaleBuild() {
-  for (const f of [
-    path.join(projectRoot, "scripts/.build/agent/webFetchTool.js"),
-    path.join(projectRoot, "scripts/.build/src/agent/webFetchTool.js"),
-  ]) {
-    try {
-      if (existsSync(f)) unlinkSync(f);
-    } catch {
-      /* ignore */
-    }
-  }
-}
+const outDir = path.join(projectRoot, "scripts/.build/webFetchHarness");
 
 function compile() {
-  deleteStaleBuild();
+  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(outDir, { recursive: true });
   const r = spawnSync(
     "npx",
     [
@@ -39,7 +32,7 @@ function compile() {
       "src/i18n/it.ts",
       "src/i18n/types.ts",
       "--outDir",
-      "scripts/.build",
+      outDir,
       "--module",
       "nodenext",
       "--target",
@@ -59,15 +52,15 @@ function compile() {
 
 function resolveBuilt(base) {
   const candidates = [
-    path.join(projectRoot, `scripts/.build/agent/${base}`),
-    path.join(projectRoot, `scripts/.build/src/agent/${base}`),
-    path.join(projectRoot, `scripts/.build/util/${base}`),
-    path.join(projectRoot, `scripts/.build/src/util/${base}`),
-    path.join(projectRoot, `scripts/.build/context/${base}`),
-    path.join(projectRoot, `scripts/.build/src/context/${base}`),
-    path.join(projectRoot, `scripts/.build/i18n/${base}`),
-    path.join(projectRoot, `scripts/.build/src/i18n/${base}`),
-    path.join(projectRoot, `scripts/.build/${base}`),
+    path.join(outDir, `agent/${base}`),
+    path.join(outDir, `src/agent/${base}`),
+    path.join(outDir, `util/${base}`),
+    path.join(outDir, `src/util/${base}`),
+    path.join(outDir, `context/${base}`),
+    path.join(outDir, `src/context/${base}`),
+    path.join(outDir, `i18n/${base}`),
+    path.join(outDir, `src/i18n/${base}`),
+    path.join(outDir, base),
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;
@@ -160,6 +153,27 @@ async function main() {
   check("exports MAX_INDEX_CHARS", typeof MAX_INDEX_CHARS === "number" && MAX_INDEX_CHARS === 120_000);
   check("exports FETCH_TIMEOUT_MS 8s", FETCH_TIMEOUT_MS === 8_000);
   check("exports RETRIEVAL_BUDGET", RETRIEVAL_BUDGET_CHARS === 1800);
+  {
+    const desc = WEB_FETCH_TOOL?.function?.description ?? "";
+    const urlDesc = WEB_FETCH_TOOL?.function?.parameters?.properties?.url?.description ?? "";
+    // Pinned budget so the 4B prompt does not grow silently (audit item 10).
+    const DESC_BUDGET = 420;
+    check(
+      "tool description mentions PDF and page labels",
+      /PDF/i.test(desc) && /page/i.test(desc) && /PDF/i.test(urlDesc),
+      desc.slice(0, 120),
+    );
+    check(
+      "tool description keeps ~120k claim",
+      /120k|120\s*k/i.test(desc),
+      desc,
+    );
+    check(
+      "tool description under character budget",
+      desc.length <= DESC_BUDGET,
+      `len=${desc.length} budget=${DESC_BUDGET}`,
+    );
+  }
 
   // ── Fail-closed host gate: REFUSED families ────────────────────────────
   const refused = [
@@ -522,6 +536,38 @@ async function main() {
       /too large|KB/i.test(out.text),
       out.text?.slice(0, 100),
     );
+
+    // Same constant, both paths: arrayBuffer hard-error vs text() fail-closed
+    // (no silent truncate). Outcomes must match on over-cap input.
+    const overText = "z".repeat(BODY_HARD_CAP + 50);
+    const allowT = makeFetchAllowlist();
+    allowT.add("https://textpath.example/p");
+    allowT.add("https://bufpath.example/p");
+    const textPathOut = await makeWebFetchExecutor("en", allowT, {
+      fetchImpl: async () =>
+        mockResponse({
+          body: overText,
+          contentType: "text/plain",
+          url: "https://textpath.example/p",
+          // no arrayBuffer → text() fallback
+        }),
+    })("web_fetch", { url: "https://textpath.example/p", query: "zzzz" });
+    const bufPathOut = await makeWebFetchExecutor("en", allowT, {
+      fetchImpl: async () =>
+        mockResponse({
+          body: "",
+          contentType: "text/plain",
+          url: "https://bufpath.example/p",
+          arrayBufferBytes: new Uint8Array(BODY_HARD_CAP + 50).fill(0x7a),
+        }),
+    })("web_fetch", { url: "https://bufpath.example/p", query: "zzzz" });
+    check(
+      "body hard cap same outcome both paths",
+      /too large/i.test(textPathOut.text) &&
+        /too large/i.test(bufPathOut.text) &&
+        !textPathOut.text.includes(overText.slice(0, 80)),
+      `text=${textPathOut.text?.slice(0, 80)} buf=${bufPathOut.text?.slice(0, 80)}`,
+    );
   }
 
   // ── Content-types ──────────────────────────────────────────────────────
@@ -609,13 +655,18 @@ async function main() {
   {
     const allow = makeFetchAllowlist();
     allow.add("https://long.example/t");
-    // Body longer than MAX_INDEX_CHARS; unique token only past the cap would be unfindable
-    // if we correctly slice. Put needle in the first cap chars so retrieval works,
-    // and assert we didn't throw; also put a far token after cap that must not match alone.
-    const head = `climate temperature research findings ${"word ".repeat(1000)}`;
-    const tail = ` UNIQUEFARTOKEN999 ${"z".repeat(MAX_INDEX_CHARS)}`;
-    const body = head + tail;
+    // Body longer than MAX_INDEX_CHARS. Head fills the entire searchable budget
+    // with retrievable climate terms; UNIQUEFARTOKEN999 lives ONLY past the cap.
+    const unit = "climate temperature research findings word. ";
+    let head = "";
+    while (head.length + unit.length <= MAX_INDEX_CHARS) head += unit;
+    head = head.padEnd(MAX_INDEX_CHARS, "x");
+    const body = head + " UNIQUEFARTOKEN999 beyond the index cap tail.";
     check("fixture longer than cap", body.length > MAX_INDEX_CHARS);
+    check(
+      "plain fixture far token only past cap",
+      body.indexOf("UNIQUEFARTOKEN999") >= MAX_INDEX_CHARS,
+    );
     const out = await makeWebFetchExecutor("en", allow, {
       fetchImpl: async () =>
         mockResponse({
@@ -643,13 +694,13 @@ async function main() {
       url: "https://long.example/t",
       query: "UNIQUEFARTOKEN999 only in the tail beyond index cap",
     });
-    // Either nothing-matched or no raw full dump of the far token as primary dump
+    // Far token lives only past MAX_INDEX_CHARS — must not appear in the result.
+    // (Previously a tautology: `!outFar.text.includes(token.repeat?.(1) && body)`
+    // always held because body is >120k and the result is ≤1800 chars.)
     check(
       "plain index cap truncates searchable region",
-      /nothing matched|no.*match/i.test(outFar.text) ||
-        !outFar.text.includes("UNIQUEFARTOKEN999".repeat?.(1) && body),
-      // Prefer nothing-matched when only the far token is queried
-      outFar.text?.slice(0, 100),
+      !outFar.text.includes("UNIQUEFARTOKEN999"),
+      outFar.text?.slice(0, 160),
     );
   }
 
@@ -758,12 +809,13 @@ async function main() {
       url: "https://title.example/p",
       query: "temperature climate sea levels",
     });
-    if (out.sources?.[0]) {
-      check("title clamped ≤120", out.sources[0].title.length <= 120);
-    } else {
-      // nothing matched still ok for clamp contract on success path
-      check("title clamped ≤120 (no sources skip)", true);
-    }
+    check(
+      "title clamped ≤120",
+      Boolean(out.sources?.[0]) && out.sources[0].title.length <= 120,
+      out.sources?.[0]
+        ? `len=${out.sources[0].title.length}`
+        : `no sources: ${out.text?.slice(0, 80)}`,
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -916,6 +968,39 @@ async function main() {
       return r[0]?.docId === "https://docs.example/a.pdf#p3" && pageFromDocId(r[0].docId) === 3;
     })(),
   );
+  check(
+    "remapPdfDocsToSourceUrl missing page does not invent #p1",
+    (() => {
+      const r = remapPdfDocsToSourceUrl(
+        [{ docId: "local-no-page", text: "hello world climate", title: "t" }],
+        "https://docs.example/a.pdf",
+      );
+      return (
+        r.length === 1 &&
+        r[0].docId === "https://docs.example/a.pdf" &&
+        !r[0].docId.includes("#p") &&
+        pageFromDocId(r[0].docId) == null
+      );
+    })(),
+  );
+  check(
+    "remapPdfDocsToSourceUrl rejects page > maxPage",
+    (() => {
+      const r = remapPdfDocsToSourceUrl(
+        [
+          { docId: "x#p2", text: "page two climate", title: "t" },
+          { docId: "x#p7", text: "page seven should drop", title: "t" },
+        ],
+        "https://docs.example/a.pdf",
+        { maxPage: 5 },
+      );
+      return (
+        r.length === 1 &&
+        r[0].docId === "https://docs.example/a.pdf#p2" &&
+        !r.some((d) => d.docId.includes("#p7"))
+      );
+    })(),
+  );
 
   function makeFakeFs() {
     const files = new Map();
@@ -1036,7 +1121,7 @@ async function main() {
         "src/i18n/it.ts",
         "src/i18n/types.ts",
         "--outDir",
-        "scripts/.build",
+        outDir,
         "--module",
         "nodenext",
         "--target",
@@ -1409,16 +1494,20 @@ async function main() {
         }),
       pdfCacheFs: fs,
     };
+    // Fixture message has NO keywords the fallback path would echo — only
+    // the no_host branch can produce the catalog string.
     const hostOut = await makeWebFetchExecutor("en", allow, {
       ...base,
       extractPdfText: async () => {
-        throw Object.assign(new Error("host is not mounted"), { code: "no_host" });
+        throw Object.assign(new Error("xyz-no-keywords-fixture"), { code: "no_host" });
       },
     })("web_fetch", { url: pdfUrl, query: "x" });
+    const hostCatalog =
+      "PDF text extraction is unavailable (extractor host not mounted).";
     check(
       "pdf host-missing mapping",
-      /unavailable|not mounted/i.test(hostOut.text),
-      hostOut.text?.slice(0, 100),
+      hostOut.text === hostCatalog,
+      hostOut.text?.slice(0, 120),
     );
 
     const toOut = await makeWebFetchExecutor("en", allow, {
@@ -1447,6 +1536,43 @@ async function main() {
       "pdf abort mapping no try-again",
       /cancell?ed/i.test(abOut.text) && !/Try again/i.test(abOut.text),
       abOut.text?.slice(0, 100),
+    );
+
+    // renderer_gone → distinct message, never "try again" / timeout copy
+    const rgCatalogEn =
+      "PDF text extraction failed: the document is too large or too complex for this device. " +
+      "Do not retry the same fetch; tell the user the PDF could not be read here.";
+    const rgOut = await makeWebFetchExecutor("en", allow, {
+      ...base,
+      extractPdfText: async () => {
+        throw Object.assign(new Error("renderer process gone"), {
+          code: "renderer_gone",
+        });
+      },
+    })("web_fetch", { url: pdfUrl, query: "x" });
+    check(
+      "pdf renderer_gone mapping",
+      rgOut.text === rgCatalogEn &&
+        !/Try again/i.test(rgOut.text) &&
+        !/extraction timed out/i.test(rgOut.text),
+      rgOut.text?.slice(0, 160),
+    );
+
+    // Untyped extractor throw with a cache path must be sanitized via mapPdfExtractError.
+    const pathOut = await makeWebFetchExecutor("en", allow, {
+      ...base,
+      extractPdfText: async () => {
+        throw new Error(
+          "pdf.js failed at /data/user/0/com.kalsa.app/cache/web-fetch-pdf-1.pdf",
+        );
+      },
+    })("web_fetch", { url: pdfUrl, query: "x" });
+    check(
+      "pdf extract untyped path sanitized",
+      pathOut.text.includes("[path]") &&
+        !pathOut.text.includes("/data/") &&
+        /extraction failed/i.test(pathOut.text),
+      pathOut.text?.slice(0, 160),
     );
 
     // pdf.js-like "timed out" without code must NOT become extract-timeout
@@ -1519,6 +1645,15 @@ async function main() {
       "sanitize strips percent-encoded absolute",
       !sanitizeToolErrorMessage("err %2Fdata%2Fuser%2F0%2Fcom.app%2Fcache").includes("%2Fdata"),
     );
+    const contentUri = sanitizeToolErrorMessage(
+      "open failed content://media/external/file/42 more",
+    );
+    check(
+      "sanitize does not mangle content:// scheme",
+      contentUri.includes("content://media/external/file/42") &&
+        !contentUri.includes("content:/[path]"),
+      contentUri,
+    );
   }
 
   // MAX_INDEX_CHARS cap on PDF path — pin the CALL SITE in handlePdfResponse,
@@ -1536,10 +1671,11 @@ async function main() {
     );
     check(
       "pdf index cap pure drops tail",
-      pureCapped.length === 1 &&
-        pureCapped[0].text.length === MAX_INDEX_CHARS &&
-        !pureCapped[0].text.includes("MARKERONLYINTAIL999"),
-      `len=${pureCapped[0]?.text?.length}`,
+      pureCapped.docs.length === 1 &&
+        pureCapped.docs[0].text.length === MAX_INDEX_CHARS &&
+        !pureCapped.docs[0].text.includes("MARKERONLYINTAIL999") &&
+        pureCapped.lastTruncated === true,
+      `len=${pureCapped.docs[0]?.text?.length}`,
     );
 
     const PROBE = "zebrafishchromatophore991";
@@ -1566,10 +1702,12 @@ async function main() {
     );
     check(
       "pdf index cap pure drops second doc",
-      multiCapped.length === 1 &&
-        multiCapped[0].docId.endsWith("#p1") &&
-        !multiCapped.some((d) => d.text.includes(PROBE)),
-      multiCapped.map((d) => d.docId).join(","),
+      multiCapped.docs.length === 1 &&
+        multiCapped.docs[0].docId.endsWith("#p1") &&
+        !multiCapped.docs.some((d) => d.text.includes(PROBE)) &&
+        multiCapped.droppedCount === 1 &&
+        multiCapped.droppedPageNumbers.includes(2),
+      multiCapped.docs.map((d) => d.docId).join(","),
     );
 
     const pdfUrl = "https://longpdf.example/a.pdf";
@@ -1591,7 +1729,7 @@ async function main() {
       });
 
     // Probe query: with the call site intact, page 2 is never indexed →
-    // nothing-matched (or at least no probe token in the body).
+    // nothing-matched AND an index-cap note naming the dropped page.
     const outProbe = await makeWebFetchExecutor("en", allow, {
       fetchImpl: async () => mockPdf(),
       pdfCacheFs: fs,
@@ -1599,10 +1737,11 @@ async function main() {
     })("web_fetch", { url: pdfUrl, query: PROBE });
     check(
       "pdf index cap drops second page by budget",
-      (/nothing matched|no.*match/i.test(outProbe.text) ||
-        !outProbe.text.includes(PROBE)) &&
-        !outProbe.text.includes(PROBE),
-      outProbe.text?.slice(0, 160),
+      !outProbe.text.includes(PROBE) &&
+        /nothing matched|no.*match/i.test(outProbe.text) &&
+        /not searched/i.test(outProbe.text) &&
+        /\b2\b/.test(outProbe.text),
+      outProbe.text?.slice(0, 220),
     );
 
     // Head still reachable — so a broken executor cannot pass the probe test.
@@ -1619,6 +1758,85 @@ async function main() {
       /climate|temperature|uniqueHEADTOKEN777/i.test(outHead.text),
       outHead.text?.slice(0, 120),
     );
+
+    // Reproduction: 5 × 30k pages (120_078 total, cap 120_000), answer on page 5.
+    // Must not silently say "nothing matched" without naming the dropped page.
+    {
+      const ANSWER = "UNICORNFINALPAGEANSWER888";
+      const pageDocs = [];
+      for (let p = 1; p <= 5; p++) {
+        const base =
+          p === 5
+            ? `Page five holds the answer ${ANSWER} for the rare query. `
+            : `Page ${p} filler climate temperature research findings sea. `;
+        let text = base;
+        while (text.length < 30_000) text += base;
+        text = text.slice(0, 30_000);
+        pageDocs.push({ docId: `x#p${p}`, text });
+      }
+      const total = pageDocs.reduce((s, d) => s + d.text.length, 0);
+      check("pdf index 5x30k total over cap", total > MAX_INDEX_CHARS && total === 150_000);
+      const fiveUrl = "https://a2.example/long.pdf";
+      allow.add(fiveUrl);
+      const outFive = await makeWebFetchExecutor("en", allow, {
+        fetchImpl: async () =>
+          mockResponse({
+            contentType: "application/pdf",
+            url: fiveUrl,
+            arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+          }),
+        pdfCacheFs: fs,
+        extractPdfText: async () => ({
+          docs: pageDocs,
+          skippedPages: [],
+          documentPageCount: 5,
+        }),
+      })("web_fetch", {
+        url: fiveUrl,
+        query: ANSWER,
+      });
+      check(
+        "pdf index cap 5x30k note names dropped page",
+        !outFive.text.includes(ANSWER) &&
+          /not searched/i.test(outFive.text) &&
+          /\b5\b/.test(outFive.text),
+        outFive.text?.slice(0, 280),
+      );
+    }
+
+    // Under budget: note must be absent.
+    {
+      const smallUrl = "https://smallpdf.example/a.pdf";
+      allow.add(smallUrl);
+      const outSmall = await makeWebFetchExecutor("en", allow, {
+        fetchImpl: async () =>
+          mockResponse({
+            contentType: "application/pdf",
+            url: smallUrl,
+            arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+          }),
+        pdfCacheFs: fs,
+        extractPdfText: async () => ({
+          docs: [
+            {
+              docId: "s#p1",
+              text: "Short climate temperature sea levels research findings only.",
+            },
+          ],
+          skippedPages: [],
+        }),
+      })("web_fetch", {
+        url: smallUrl,
+        query: "climate temperature sea levels",
+      });
+      check(
+        "pdf index cap note absent when nothing dropped",
+        /climate|temperature/i.test(outSmall.text) &&
+          !/not searched/i.test(outSmall.text) &&
+          !/budget was exhausted/i.test(outSmall.text),
+        outSmall.text?.slice(0, 160),
+      );
+    }
   }
 
   // Post-CT busy (non-.pdf URL serving application/pdf)
@@ -1723,11 +1941,14 @@ async function main() {
       timerOut.text?.slice(0, 100),
     );
 
-    // Both aborted: turn wins
+    // Both aborted: fire the network timer AND the turn signal so the
+    // precedence path is real (not a pre-aborted signal with a sync throw).
     const bothAc = new AbortController();
-    bothAc.abort();
     const bothOut = await makeWebFetchExecutor("en", allow, {
-      fetchImpl: async () => {
+      resolveNetworkTimeoutMs: () => 30,
+      fetchImpl: async (_u, init) => {
+        await new Promise((r) => setTimeout(r, 80));
+        bothAc.abort();
         const err = new Error("aborted");
         err.name = "AbortError";
         throw err;
@@ -1740,6 +1961,52 @@ async function main() {
       /cancell?ed/i.test(bothOut.text) && !/Try again/i.test(bothOut.text),
       bothOut.text?.slice(0, 100),
     );
+
+    // H1: clearNetworkTimer before extraction — 50 ms network window, 200 ms
+    // fake extract must still complete (pre-fix code would kill at ~50 ms).
+    {
+      const slowUrl = "https://slowextract.example/a.pdf";
+      allow.add(slowUrl);
+      const { fs } = makeFakeFs();
+      let extractStarted = 0;
+      let extractFinished = 0;
+      const out = await makeWebFetchExecutor("en", allow, {
+        resolveNetworkTimeoutMs: () => 50,
+        fetchImpl: async () =>
+          mockResponse({
+            contentType: "application/pdf",
+            url: slowUrl,
+            arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+          }),
+        pdfCacheFs: fs,
+        extractPdfText: async () => {
+          extractStarted = Date.now();
+          await new Promise((r) => setTimeout(r, 200));
+          extractFinished = Date.now();
+          return {
+            docs: [
+              {
+                docId: "s#p1",
+                text: "climate temperature sea levels research findings slow extract.",
+              },
+            ],
+            skippedPages: [],
+          };
+        },
+      })("web_fetch", {
+        url: slowUrl,
+        query: "climate temperature sea levels",
+      });
+      check(
+        "pdf clearNetworkTimer allows long extract",
+        extractStarted > 0 &&
+          extractFinished > 0 &&
+          extractFinished - extractStarted >= 150 &&
+          /climate|temperature/i.test(out.text) &&
+          !/timed out/i.test(out.text),
+        out.text?.slice(0, 160),
+      );
+    }
   }
 
   // component-timeout path (service code timeout) → extract timeout copy

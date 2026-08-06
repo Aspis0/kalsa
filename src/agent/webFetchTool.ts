@@ -146,13 +146,14 @@ export const WEB_FETCH_TOOL: WebFetchToolDef = {
   function: {
     name: "web_fetch",
     description:
-      "Fetch a web page the model has seen in search results (or that the user pasted) and extract the passages relevant to a query. Only the first ~120k characters of page text are searched.",
+      "Fetch a web page or a PDF the model has seen in search results (or that the user pasted) and extract the passages relevant to a query. PDF text is extracted per page; passages are labeled with their page number. A scanned PDF with no text layer cannot be read (the tool says so). Only the first ~120k characters of page text are searched.",
     parameters: {
       type: "object",
       properties: {
         url: {
           type: "string",
-          description: "Page URL to fetch — must be a search result or a link the user provided.",
+          description:
+            "Web page or PDF URL to fetch — must be a search result or a link the user provided.",
         },
         query: {
           type: "string",
@@ -457,11 +458,21 @@ async function readResponseBody(
   }
 
   // Fallback path (older RN / incomplete Response mock).
+  // Same hard-error behaviour as the arrayBuffer path — never silent truncate.
   try {
     const raw = await response.text();
     const text = typeof raw === "string" ? raw : String(raw ?? "");
-    if (text.length > BODY_HARD_CAP) {
-      return { ok: true, text: text.slice(0, BODY_HARD_CAP) };
+    // Prefer a true byte measurement when TextEncoder exists (UTF-16 length ≠ bytes).
+    if (typeof TextEncoder !== "undefined") {
+      const byteLength = new TextEncoder().encode(text).byteLength;
+      if (byteLength > BODY_HARD_CAP) {
+        onTooLarge();
+        return { ok: false, tooLarge: true };
+      }
+    } else if (text.length > BODY_HARD_CAP) {
+      // Cannot measure bytes — fail closed with the same hard error (not truncate).
+      onTooLarge();
+      return { ok: false, tooLarge: true };
     }
     return { ok: true, text };
   } catch (error) {
@@ -493,6 +504,12 @@ export type WebFetchExecutorDeps = {
    * Production wires isPdfTextExtractionBusy from pdfTextService.
    */
   isPdfTextExtractionBusy?: () => boolean;
+  /**
+   * Harness override for the network deadline (ms) resolution. Production leaves
+   * this unset so path-based resolveFetchNetworkTimeoutMs is used. Lets contracts
+   * pin clearNetworkTimer / both-aborted precedence with short windows.
+   */
+  resolveNetworkTimeoutMs?: (url: string) => number;
 };
 
 /**
@@ -512,6 +529,8 @@ export function makeWebFetchExecutor(
   const extractPdfText = deps?.extractPdfText;
   const pdfCacheFs = deps?.pdfCacheFs;
   const isBusy = deps?.isPdfTextExtractionBusy;
+  const resolveTimeout =
+    deps?.resolveNetworkTimeoutMs ?? resolveFetchNetworkTimeoutMs;
   const pdfPathEnabled = typeof extractPdfText === "function";
 
   return async (name, args, signal) => {
@@ -558,7 +577,7 @@ export function makeWebFetchExecutor(
     // wait up to 20s (the 8s cap was deliberately lowered for phone UX).
     // Rule: path ends in ".pdf" → PDF timeout; otherwise FETCH_TIMEOUT_MS.
     // Re-derived from finalUrl after redirects (M2). No HEAD pre-flight.
-    let networkTimeoutMs = resolveFetchNetworkTimeoutMs(url);
+    let networkTimeoutMs = resolveTimeout(url);
     const timeoutController = new AbortController();
     let timer: ReturnType<typeof setTimeout> | null = setTimeout(
       () => timeoutController.abort(),
@@ -642,7 +661,7 @@ export function makeWebFetchExecutor(
       }
 
       // M2: re-derive network window from the final URL after redirects.
-      const finalNetworkMs = resolveFetchNetworkTimeoutMs(finalUrl);
+      const finalNetworkMs = resolveTimeout(finalUrl);
       if (finalNetworkMs !== networkTimeoutMs && !timeoutController.signal.aborted) {
         rearmNetworkTimer(finalNetworkMs);
         // Rebuild combined so a late network abort still reaches body reads.
@@ -737,10 +756,8 @@ export function makeWebFetchExecutor(
         };
       }
 
-      let bodyText = bodyResult.text;
-      if (bodyText.length > BODY_HARD_CAP) {
-        bodyText = bodyText.slice(0, BODY_HARD_CAP);
-      }
+      const bodyText = bodyResult.text;
+      // readResponseBody already hard-errors over BODY_HARD_CAP (both paths).
 
       const isPlain = mediaType === "text/plain";
       let title: string | null = null;
@@ -926,26 +943,45 @@ async function handlePdfResponse(ctx: {
           (p): p is number => typeof p === "number" && Number.isInteger(p) && p >= 1,
         )
       : [];
-    const processed = docs.length + skippedPages.length;
+    // Pre-cap extraction counts — used only to clamp documentPageCount.
+    const extractedProcessed = docs.length + skippedPages.length;
     // pdf.numPages is attacker-controlled; never print a count below what we
-    // actually inspected, and hedge the copy ("reports") in i18n.
+    // actually extracted, and hedge the copy ("reports") in i18n.
     let documentPageCount: number | null =
       typeof extracted?.documentPageCount === "number" &&
       Number.isInteger(extracted.documentPageCount) &&
       extracted.documentPageCount >= 1
         ? extracted.documentPageCount
-        : processed > 0
-          ? processed
+        : extractedProcessed > 0
+          ? extractedProcessed
           : null;
-    if (documentPageCount != null && processed > 0) {
-      documentPageCount = Math.max(documentPageCount, processed);
+    if (documentPageCount != null && extractedProcessed > 0) {
+      documentPageCount = Math.max(documentPageCount, extractedProcessed);
     }
 
     // Remap docIds onto the fetched URL (never a filesystem path) so passages
     // carry `${url}#pN` and citations point at the remote source.
-    let urlDocs = remapPdfDocsToSourceUrl(docs, finalUrl);
+    // maxPage rejects over-range #pN (defence in depth; producer always clamps).
+    const remapped = remapPdfDocsToSourceUrl(docs, finalUrl, {
+      maxPage: documentPageCount ?? extractedProcessed,
+    });
     // L: apply the same MAX_INDEX_CHARS budget the tool description advertises.
-    urlDocs = capDocsForIndex(urlDocs, MAX_INDEX_CHARS);
+    const capResult = capDocsForIndex(remapped, MAX_INDEX_CHARS);
+    const urlDocs = capResult.docs;
+    // Message counts from the POST-cap set: dropped pages were never searched.
+    const processed = urlDocs.length + skippedPages.length;
+
+    const indexCapNote =
+      capResult.droppedCount > 0 || capResult.lastTruncated
+        ? errors.webFetchPdfIndexCapped
+            .replace("{dropped}", String(capResult.droppedCount))
+            .replace(
+              "{pageList}",
+              capResult.droppedPageNumbers.length > 0
+                ? capResult.droppedPageNumbers.join(", ")
+                : "none",
+            )
+        : null;
 
     if (urlDocs.length === 0 && docs.length === 0) {
       if (skippedPages.length > 0) {
@@ -961,11 +997,10 @@ async function handlePdfResponse(ctx: {
     }
 
     if (urlDocs.length === 0) {
-      // All text was truncated by the index cap — treat as nothing matched.
-      return {
-        text: errors.webFetchNothingMatched.replace("{host}", hostOf(finalUrl)),
-        sources: [],
-      };
+      // All text was dropped by the index cap — nothing searchable, but say so.
+      let text = errors.webFetchNothingMatched.replace("{host}", hostOf(finalUrl));
+      if (indexCapNote) text += "\n\n" + indexCapNote;
+      return { text, sources: [] };
     }
 
     const index = new DocRetrieverIndex();
@@ -986,10 +1021,10 @@ async function handlePdfResponse(ctx: {
         ? (trace.coverageByRound[trace.coverageByRound.length - 1] ?? 0)
         : 0;
     if (!passages.length || lastCoverage <= 0) {
-      return {
-        text: errors.webFetchNothingMatched.replace("{host}", pageHost),
-        sources: [],
-      };
+      let text = errors.webFetchNothingMatched.replace("{host}", pageHost);
+      // Never fire "nothing matched" silently when pages went unsearched.
+      if (indexCapNote) text += "\n\n" + indexCapNote;
+      return { text, sources: [] };
     }
 
     const pdfPages = pagesFromDocIds(passages.map((p) => p.docId));
@@ -1019,6 +1054,10 @@ async function handlePdfResponse(ctx: {
           .replace("{skipped}", String(skippedPages.length))
           .replace("{processed}", String(processed))
           .replace("{pages}", String(pages));
+    }
+
+    if (indexCapNote) {
+      body += "\n\n" + indexCapNote;
     }
 
     return { text: body, sources };
@@ -1056,6 +1095,10 @@ function mapPdfExtractError(
   }
   if (code === "timeout") {
     return { text: errors.webFetchPdfExtractTimeout };
+  }
+  if (code === "renderer_gone") {
+    // Document too large/hostile for the device — never "try again".
+    return { text: errors.webFetchPdfRendererGone };
   }
   if (code === "aborted" || code === "unmounted") {
     // User stop / host teardown — never "try again".
@@ -1103,10 +1146,20 @@ export function sanitizeToolErrorMessage(raw: string): string {
   s = s.replace(/[A-Za-z]:\\[^\s]+/g, "[path]");
   // UNC paths \\server\share\…
   s = s.replace(/\\\\[^\s]+/g, "[path]");
-  // Generic multi-segment absolute path (not preceded by ':').
+  // Generic multi-segment absolute path. Do not match:
+  // - immediately after `:` (e.g. `file:` leftovers already handled)
+  // - the second slash of a `scheme://` URI (`content://media/...` would
+  //   otherwise become `content:/[path]` because offset-1 is `/`, not `:`).
   s = s.replace(/\/[\w.-]+(?:\/[\w.-]+){2,}/g, (match, offset, full) => {
-    if (typeof offset === "number" && offset > 0 && full[offset - 1] === ":") {
-      return match;
+    if (typeof offset === "number" && offset > 0) {
+      if (full[offset - 1] === ":") return match;
+      if (
+        full[offset - 1] === "/" &&
+        offset >= 2 &&
+        full[offset - 2] === ":"
+      ) {
+        return match;
+      }
     }
     return "[path]";
   });
@@ -1118,17 +1171,48 @@ export function sanitizeToolErrorMessage(raw: string): string {
   return s.length > 0 ? s : "unknown error";
 }
 
+/** Result of capping PDF page docs to the searchable index budget. */
+export type CapDocsForIndexResult = {
+  docs: Array<{ docId: string; title?: string; text: string }>;
+  /** Whole docs dropped after the budget was exhausted. */
+  droppedCount: number;
+  /** Page numbers (from #pN) of dropped docs; may be shorter than droppedCount. */
+  droppedPageNumbers: number[];
+  /** True if the last kept doc was sliced to fit the remaining budget. */
+  lastTruncated: boolean;
+};
+
 /** Cap total indexed PDF text to MAX_INDEX_CHARS (tool description promise). */
 export function capDocsForIndex(
   docs: Array<{ docId: string; title?: string; text: string }>,
   maxChars: number,
-): Array<{ docId: string; title?: string; text: string }> {
-  if (!Array.isArray(docs) || maxChars <= 0) return [];
+): CapDocsForIndexResult {
+  const empty = (dropped: number, pages: number[]): CapDocsForIndexResult => ({
+    docs: [],
+    droppedCount: dropped,
+    droppedPageNumbers: pages,
+    lastTruncated: false,
+  });
+  if (!Array.isArray(docs) || maxChars <= 0) {
+    if (!Array.isArray(docs)) return empty(0, []);
+    const pages: number[] = [];
+    let n = 0;
+    for (const d of docs) {
+      if (!d || typeof d.text !== "string" || !d.text) continue;
+      n++;
+      const p = pageFromDocId(typeof d.docId === "string" ? d.docId : "");
+      if (p != null) pages.push(p);
+    }
+    return empty(n, pages);
+  }
   let remaining = maxChars;
   const out: Array<{ docId: string; title?: string; text: string }> = [];
-  for (const d of docs) {
+  let lastTruncated = false;
+  let i = 0;
+  for (; i < docs.length; i++) {
     if (remaining <= 0) break;
-    const text = typeof d.text === "string" ? d.text : "";
+    const d = docs[i];
+    const text = typeof d?.text === "string" ? d.text : "";
     if (!text) continue;
     if (text.length <= remaining) {
       out.push({ docId: d.docId, title: d.title, text });
@@ -1136,9 +1220,21 @@ export function capDocsForIndex(
     } else {
       out.push({ docId: d.docId, title: d.title, text: text.slice(0, remaining) });
       remaining = 0;
+      lastTruncated = true;
+      i++; // this doc was kept (truncated); remaining docs are dropped
+      break;
     }
   }
-  return out;
+  const droppedPageNumbers: number[] = [];
+  let droppedCount = 0;
+  for (let j = i; j < docs.length; j++) {
+    const d = docs[j];
+    if (!d || typeof d.text !== "string" || !d.text) continue;
+    droppedCount++;
+    const p = pageFromDocId(typeof d.docId === "string" ? d.docId : "");
+    if (p != null) droppedPageNumbers.push(p);
+  }
+  return { docs: out, droppedCount, droppedPageNumbers, lastTruncated };
 }
 
 /**
@@ -1199,22 +1295,41 @@ async function readResponseBytes(
   }
 }
 
-/** Rebuild docIds as `${sourceUrl}#pN` from extractor output. */
+/**
+ * Rebuild docIds as `${sourceUrl}#pN` from extractor output.
+ * - Missing #pN → no page label (docId = sourceUrl only); never invent page 1.
+ * - page > maxPage (when set) → doc is dropped (defence in depth).
+ */
 export function remapPdfDocsToSourceUrl(
   docs: Array<{ docId: string; title?: string; text: string }>,
   sourceUrl: string,
+  opts?: { maxPage?: number },
 ): Array<{ docId: string; title?: string; text: string }> {
-  return docs
-    .filter((d) => d && typeof d.text === "string" && d.text.length > 0)
-    .map((d) => {
-      const page = pageFromDocId(typeof d.docId === "string" ? d.docId : "");
-      const n = page ?? 1;
-      return {
-        docId: `${sourceUrl}#p${n}`,
-        title: d.title,
-        text: d.text,
-      };
+  const maxPage =
+    typeof opts?.maxPage === "number" &&
+    Number.isInteger(opts.maxPage) &&
+    opts.maxPage >= 1
+      ? opts.maxPage
+      : null;
+  const out: Array<{ docId: string; title?: string; text: string }> = [];
+  for (const d of docs) {
+    if (!d || typeof d.text !== "string" || d.text.length === 0) continue;
+    const page = pageFromDocId(typeof d.docId === "string" ? d.docId : "");
+    if (page == null) {
+      // No inventing "#p1" — passages will carry no "(p. N)" label.
+      out.push({ docId: sourceUrl, title: d.title, text: d.text });
+      continue;
+    }
+    if (maxPage != null && page > maxPage) {
+      continue; // reject out-of-range page numbers
+    }
+    out.push({
+      docId: `${sourceUrl}#p${page}`,
+      title: d.title,
+      text: d.text,
     });
+  }
+  return out;
 }
 
 export function pageFromDocId(docId: string): number | null {

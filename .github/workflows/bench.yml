@@ -59,6 +59,10 @@ jobs:
           node scripts/pdfTextServiceHarness.mjs
           node scripts/webFetchHarness.mjs
           node scripts/toolSourceLedgerHarness.mjs
+          node scripts/base64Harness.mjs
+          node scripts/pdfCacheFsHarness.mjs
+          node scripts/longChatEstimateHarness.mjs
+          node scripts/webFetchPdfMutationMatrix.mjs
 
       - name: Free disk space
         run: |
