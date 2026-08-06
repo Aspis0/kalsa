@@ -947,7 +947,16 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 - **2026-08-06 — Sweep thread: la letteratura sbaglia bersaglio nel NOSTRO caso. Correggere l'asse.**
   Misure: `t=4` → 0.81/0.82/0.83, sentinella 0.80 (drift 2.4%, stage valido), **mediana 0.82**.
-  `t=5` → **0.69, 0.65**: calo del 16-21%, non il +10-30% atteso.
+  `t=5` → **0.69, 0.65, 0.86**: mediana 0.69, ma **dispersione del 32%** (0.65-0.86) contro il
+  4% di `t=4`. **CORREZIONE (scritta dopo la terza rep, la voce iniziale si fermava alle prime
+  due e concludeva "calo del 16-21%": era una conclusione su due punti, ritirata).** Il dato
+  vero non è "t=5 è peggio", è **"t=5 è instabile"**: la terza rep è il valore più alto di
+  tutto lo sweep. Con questa varianza la mediana non è confrontabile con quella di `t=4` e
+  la sentinella quasi certamente fallirà il controllo di drift §8.2 (>15%) → **stage da
+  rifare prima di qualunque conclusione**.
+  La varianza però **non smentisce** l'ipotesi sotto, la sostiene: sotto sovrascrizione il
+  piazzamento dei thread da parte dello scheduler cambia da run a run, e l'esito oscilla
+  invece di degradare in modo pulito. Ma è un'ipotesi, non un risultato.
   **Perché**: la regola "thread = numero di core grandi" viene da benchmark di **puro
   calcolo**. Noi giriamo anche `--io-threads 4` che streamano gli esperti in parallelo, quindi
   la domanda reale di core è **compute + I/O**. `t=4` + `io=4` = 8 = esattamente i core del
