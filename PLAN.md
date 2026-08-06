@@ -1006,6 +1006,27 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   Ordine deciso: 1-2-3 subito (misura, nessun codice), poi 4, poi 5. MTP (F6) **rinviata**
   finché il calcolo non scende: oggi non è la leva giusta.
 
+  **Conferma sperimentale del riorientamento (8 righe `F4.3`, sweep `--cache-mb`).** Grok
+  aveva lanciato lo sweep della cache — il vecchio F4.3, deciso quando credevamo che il muro
+  fosse il flash. Esito: `--cache-mb 1500` → 0.90-0.95, `auto` → 0.93-0.96, contro `2000` →
+  0.93-0.97 di F4.2. **Tutto entro il rumore: la dimensione della cache non sposta niente.**
+  È esattamente ciò che prevede l'analisi — con `--overlap`, ridurre l'I/O agisce su un ramo
+  che non è il percorso critico. Risultato negativo valido: **il ramo I/O è chiuso**, non ci
+  si torna finché il calcolo non scende sotto l'I/O. Le 8 righe restano in archivio come
+  prova, non come sweep da estendere.
+  Da guardare: l'harness segnala `ttft_lt_load` su queste righe (ttft ~86 s < load_s ~157 s).
+  Con lo streaming il "load" può completarsi in background dopo il primo token, quindi non è
+  necessariamente un bug — ma il check va interpretato, non lasciato acceso a vuoto.
+
+  **Lezione operativa (2026-08-06, canale caduto durante F4).** sshd è morto **senza
+  riavvio** (uptime 7 h): Android ha ucciso la sessione Termux durante i run del 35B
+  (~4.7 GB RSS + 2 GB di cache esperti = pressione di memoria, lmkd). Recuperato via adb in
+  un minuto senza intervento umano (`am start` di Termux + `input text 'sshd'`), quindi
+  **non è un'azione umana obbligata** come sembrava. Mitigazioni per F4.3+: lanciare
+  l'harness sotto `nohup`/`setsid` così sopravvive alla morte della sessione ssh, riarmare
+  `termux-wake-lock` all'inizio di ogni blocco, e ricordare che il CSV è scritto in modo
+  incrementale — un canale caduto non perde i run già chiusi.
+
 - **2026-08-06 notte — ANOMALIA APERTA sul binario: da risolvere PRIMA di F4 (Claude).**
   Cercando di capire perché `ttft_ms` resta vuoto ho trovato un problema più grosso, e
   **non l'ho risolto**: quello che segue è un referto, non una diagnosi chiusa.
