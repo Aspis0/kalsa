@@ -868,10 +868,48 @@ fi
 
 # 2) binario (dopo --print-cmd: non serve per la sola stampa)
 if ! command -v "$BINARY" >/dev/null 2>&1; then
-    echo "ERRORE: binario non trovato: $BINARY (command -v fallito)" >&2
-    echo "Suggerimento: builda llama.cpp / BigMoeOnEdge, oppure --binary <nome>" >&2
-    echo "              mainline safe: scripts/build_llama_termux.sh" >&2
-    exit 6
+    # absolute path fallback (command -v can fail for paths not on PATH on some shells)
+    if [ ! -e "$BINARY" ]; then
+        echo "ERRORE: binario non trovato: $BINARY (command -v fallito)" >&2
+        echo "Suggerimento: builda llama.cpp / BigMoeOnEdge, oppure --binary <nome>" >&2
+        echo "              mainline safe: scripts/build_llama_termux.sh" >&2
+        echo "              bigmoe:        scripts/build_bmoe_termux.sh" >&2
+        exit 6
+    fi
+fi
+
+# 2a) LD_LIBRARY_PATH = dir del binario (stub .so: llama-cli 6KB / bmoe-cli linka libllama.so).
+# Root cause anomalia F3: senza LD il loader risolve .so di un'altra build → SIGABRT load_tensors.
+# Obbligatorio per mainline E bigmoe (reports/moe-f3-binary-anomaly.md §3).
+# Esteso qui (non solo run_f3/start_f3) così ogni invocazione run_bench è sicura.
+_ld_bin="$BINARY"
+if [ ! -e "$_ld_bin" ]; then
+    _ld_bin="$(command -v "$BINARY" 2>/dev/null || true)"
+fi
+if [ -n "$_ld_bin" ] && [ -e "$_ld_bin" ]; then
+    if [ -L "$_ld_bin" ] && declare -f isa_realpath >/dev/null 2>&1; then
+        _ld_rp="$(isa_realpath "$_ld_bin" 2>/dev/null || true)"
+        if [ -n "$_ld_rp" ] && [ -e "$_ld_rp" ]; then
+            _ld_bin="$_ld_rp"
+        fi
+    fi
+    _ld_dir="$(cd "$(dirname "$_ld_bin")" && pwd -P 2>/dev/null || dirname "$_ld_bin")"
+    # Binary dir FIRST; keep any pre-existing entries after (dedup).
+    _ld_new="$_ld_dir"
+    _ld_seen="|${_ld_dir}|"
+    IFS=':'
+    for _ld_part in ${LD_LIBRARY_PATH:-}; do
+        case "$_ld_seen" in
+            *"|$_ld_part|"*) continue ;;
+        esac
+        if [ -n "$_ld_part" ]; then
+            _ld_new="${_ld_new}:${_ld_part}"
+            _ld_seen="${_ld_seen}${_ld_part}|"
+        fi
+    done
+    unset IFS
+    export LD_LIBRARY_PATH="$_ld_new"
+    echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >&2
 fi
 
 # 2b) preflight ISA — blocca binari con GGML_NATIVE / mcpu=native prima di -m
