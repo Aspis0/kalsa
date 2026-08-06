@@ -76,8 +76,38 @@ Preflight 4B stile `start_f3` (timeout 30s, `--load-mode mmap`): **rc=0**, timin
 | Codice pin 67d5978 sempre abort senza `--load-mode` | **FALSA** — rebuild e old binary caricano senza flag *ora* |
 | Corruzione permanente di `build-safe` su disco | **FALSA** — stesso binario ora ok |
 | Ambiente di invocazione (ssh BatchMode / no TTY) | **FALSA** oggi — stessa via funziona |
-| Stato ambiente **transiente** (RAM/fragmentation/page-cache/thermal/lmkd residual) | **PIÙ PLAUSIBILE** — anomalia riprodotta ~15× da Claude, poi sparita dopo boot 05:17 + rebuild 20′ + MemAvailable ~5.1 GiB |
+| Stato ambiente **transiente** (RAM/fragmentation/page-cache/thermal/lmkd residual) | ~~PIÙ PLAUSIBILE~~ **FALSA** — v. sotto |
+| **`LD_LIBRARY_PATH` non impostata** | **✅ CAUSA CONFERMATA (Claude, 2026-08-06)** — v. sotto |
 | Default implicito di load-mode fragile sotto stress | **APERTA ma mitigata** — `--load-mode mmap` esplicito elimina la dipendenza dal default |
+
+### Root cause trovata (Claude, 2026-08-06) — NON è transiente
+
+Esperimento a variabile singola: **stesso** binario `build-safe` (quello "malato"), **stesso**
+comando, **senza** `--load-mode`, cambiando solo `LD_LIBRARY_PATH`:
+
+```
+LD_LIBRARY_PATH assente  -> rc=134  fatal=1   (abort in load_tensors)
+LD=build-safe/bin        -> rc=0    [ Prompt: 6.7 t/s | Generation: 2.3 t/s ]
+LD=build-safe2/bin       -> rc=0    [ Prompt: 6.7 t/s | Generation: 2.3 t/s ]
+```
+
+`llama-cli` è uno **stub da 6088 byte**: tutto il codice sta in `libllama.so` /
+`libggml*.so` caricate a runtime. Senza `LD_LIBRARY_PATH` il loader risolveva quelle
+librerie altrove (altra build presente sul device), con ABI incompatibile → abort dentro
+`load_tensors`, deterministico e insensibile a flag/modello/riavvio/TTY/termica — perché
+nessuna di quelle cose c'entrava.
+
+Questo spiega **tutta** la contraddizione senza residui: Grok esportava `LD_LIBRARY_PATH`
+(era nel suo ambiente durante F3), Claude no. Stessa macchina, stesso binario, due esiti
+opposti, ~20 prove con correlazione perfetta. Corregge anche il test A2 di §1, che girava
+lo stub vecchio contro le librerie **nuove**: non dimostrava la guarigione del binario.
+
+Conseguenze: (a) `--load-mode mmap` **non** era un rimedio, aggirava solo il punto di
+divergenza — resta comunque utile perché esplicita una variabile di misura; (b) il fix
+vero è quello già in `run_f3.sh`/`start_f3.sh` (`LD_LIBRARY_PATH` dalla dir del binario):
+**va esteso a `run_bench.sh` e a qualunque invocazione di `bmoe-cli` in F4**, che avrà le
+proprie librerie e lo stesso identico problema; (c) preflight e watchdog restano
+giustificati, ma come rete di sicurezza, non come compensazione di un mistero.
 
 **F3 resta valida:** i run notturni hanno caricato, generato, `rc=0`, numeri coerenti. L’anomalia non li riscrive.
 
