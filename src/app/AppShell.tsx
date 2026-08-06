@@ -547,6 +547,8 @@ export function AppShell() {
   const [modelState, setModelState] = useState<ModelState>("checking");
   const [download, setDownload] = useState<{ bytesReceived: number; bytesTotal: number; progress: number } | null>(null);
   const [modelError, setModelError] = useState<string | null>(null);
+  // Raw download error (untranslated) for on-device diagnostics when friendly text is generic.
+  const [modelErrorDetail, setModelErrorDetail] = useState<string | null>(null);
   const currentModel = MODEL_REGISTRY[modelIndex];
   // Same resolve path as initEngine — catalog n_ctx (+ optional high-RAM hybrid
   // upgrade). Passed to AiChatPage for the long-chat nudge ceiling so the
@@ -702,6 +704,7 @@ export function AppShell() {
       if (!stillCurrent()) return false;
       setModelState("error");
       setModelError(friendlyNetworkError(error, locale, "engine").message);
+      setModelErrorDetail(null);
       return false;
     }
   }, [locale]);
@@ -726,6 +729,7 @@ export function AppShell() {
       setModelIndex(nextIndex);
       setModelState("checking");
       setModelError(null);
+      setModelErrorDetail(null);
       // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
       AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
 
@@ -801,6 +805,7 @@ export function AppShell() {
     downloadAbortRef.current = controller;
     setModelState("downloading");
     setModelError(null);
+    setModelErrorDetail(null);
     const bundleTotal = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
     setDownload({ bytesReceived: 0, bytesTotal: bundleTotal, progress: 0 });
 
@@ -873,6 +878,24 @@ export function AppShell() {
         return;
       }
       setModelState("error");
+      // Untranslated raw for on-device diagnostics; suppress empty / bare "Error: ".
+      let rawSource: string;
+      if (error instanceof Error) {
+        rawSource = `${error.name}: ${error.message}`;
+      } else {
+        try {
+          const json = JSON.stringify(error);
+          rawSource = json === undefined ? String(error) : json;
+        } catch {
+          rawSource = String(error);
+        }
+      }
+      const rawTrimmed = rawSource.trim();
+      const rawDetail =
+        !rawTrimmed || rawTrimmed === "Error:" || rawTrimmed === "Error: "
+          ? null
+          : Array.from(rawTrimmed).slice(0, 200).join("");
+      setModelErrorDetail(rawDetail);
       const friendly = friendlyNetworkError(error, locale, "download").message;
       setModelError(friendly);
       void notifyDownload(
@@ -1449,15 +1472,29 @@ export function AppShell() {
   // ── Render barra modello ─────────────────────────────────────────────────
   const progressPercent = download ? Math.round(download.progress * 100) : 0;
 
-  // Extra guidance only for connectivity-shaped download failures (not e.g.
-  // storage-full or incomplete-bytes) — the MIUI/background-kill fix is a
-  // "keep the app open" hint, not a generic retry message.
-  const modelErrorHint =
-    modelState === "error" &&
-    modelError &&
-    (modelError === t("errors.connectionLost") || modelError === t("errors.networkUnreachable"))
-      ? t("download.keepOpenHint")
+  // Extra guidance for connectivity-shaped failures (keep-open hint), plus the
+  // raw download error as an untranslated diagnostic when it differs from the
+  // friendly message (no adb access on user devices).
+  const modelErrorHint = (() => {
+    if (modelState !== "error") return null;
+    const isConnectivity =
+      !!modelError &&
+      (modelError === t("errors.connectionLost") ||
+        modelError === t("errors.networkUnreachable"));
+    // Detail is always "Name: message"; strip that prefix before comparing so a
+    // zero-value duplicate of the friendly text is not shown as a "hint".
+    const detailBody = modelErrorDetail
+      ? modelErrorDetail.replace(/^(?:[A-Za-z]+Error?|Error):\s*/, "")
       : null;
+    const raw =
+      modelErrorDetail && detailBody !== modelError ? modelErrorDetail : null;
+    if (isConnectivity) {
+      const keepOpen = t("download.keepOpenHint");
+      // Raw first so numberOfLines ellipsis keeps the diagnostic, not the hint.
+      return raw ? `${raw} — ${keepOpen}` : keepOpen;
+    }
+    return raw;
+  })();
 
   const modelBarStatus = (() => {
     const engineLoaded = isEngineReady() && getActiveModelId() === currentModel.id;
@@ -1608,7 +1645,7 @@ export function AppShell() {
               typography.bodyXs,
               { color: colors.muted, marginHorizontal: spacing.lg, marginBottom: spacing.xs },
             ]}
-            numberOfLines={2}
+            numberOfLines={4}
           >
             {modelErrorHint}
           </Text>

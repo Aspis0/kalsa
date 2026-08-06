@@ -174,6 +174,7 @@ async function downloadFile(
       {},
       (progress) => {
         lastProgressAt = Date.now();
+        lastBytesWritten = progress.totalBytesWritten;
         const now = Date.now();
         // Always use registry size for progress: server Content-Length can be wrong
         // (redirects/HTML error pages) and would falsely report 100% on a truncated file.
@@ -212,6 +213,7 @@ async function downloadFile(
   // Watchdog anti-stallo: nessun progresso per STALL_TIMEOUT_MS → pausa ATTESA
   // (salva il resume reale) e lascia che downloadAsync si concluda.
   let lastProgressAt = Date.now();
+  let lastBytesWritten = 0;
   let stalled = false;
   let retried = false;
   let pausing = false;
@@ -302,7 +304,12 @@ async function downloadFile(
       if (options.signal?.aborted) return { status: "aborted" };
     }
     if (!result?.uri) {
-      throw new Error(stalled ? strings.download.stalled : strings.download.failed);
+      // Localized base text + bracket facts so AppShell's raw-detail path surfaces
+      // why downloadAsync returned no URI (not just a duplicate "Download failed").
+      const resumeSaved = !!(saved && typeof (saved as { resumeData?: unknown }).resumeData === "string");
+      throw new Error(
+        `${stalled ? strings.download.stalled : strings.download.failed} [no-uri, stalled=${stalled}, retried=${retried}, resumeSaved=${resumeSaved}, bytes=${lastBytesWritten}]`,
+      );
     }
 
     // Dimensione ESATTA: un file diverso (parziale/corrotto) non passa mai.
