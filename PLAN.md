@@ -945,6 +945,45 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 sera — F4.4 (parziale, sessione chiusa dalla batteria): dare più thread
+  all'I/O NON aiuta. Il vincolo è il pattern di accesso, non le braccia.**
+
+  **Cella `F4.4-io5`** (`t=3 --io-threads 5`, totale 8 come la config vincente ma spostato
+  verso l'I/O; resto identico: `--cache-mb 2000 --dense-weights anon --overlap`):
+  **4.85 · 4.83 · 4.84** → mediana **4.84**, dispersione **0.4%** (la più stretta mai vista).
+  Manca solo la sentinella, chiusa dal floor batteria.
+  Confronto: `t=4/io=4` = **5.06** · `t=5/io=4` = **5.16** (1 rep) · `t=3/io=5` = **4.84**.
+
+  **Lettura: l'I/O non è thread-limited.** Togliere un core al calcolo per darlo all'I/O
+  costa ~4% e non guadagna nulla sul ramo lento. Quindi il vincolo dei 0.319 s/token non è
+  la capacità di emettere richieste, ma **il pattern**: letture sparse da ~1 MiB su UFS,
+  dove fio misura 413 MiB/s in sequenziale contro i **266 MiB/s** che otteniamo. Nessuna
+  manopola di configurazione può cambiarlo — serve intervenire sul **layout degli esperti**
+  (H6/G3, expert packing), che è anche l'intervento che converge con la fusione dei matmul.
+  È un risultato negativo pulito e utile: **elimina un'intera famiglia di tentativi** e
+  concentra il lavoro sull'unica leva che resta sul ramo lento.
+
+  **Nota sul thread sweep rifatto in top-app**: `t=5` (5.16) ≥ `t=4` (5.06), cioè
+  **l'opposto** di quanto sembrava nello sweep invalido su 3 core, dove `t=4` era già in
+  sovrascrizione. Coerente, ma `t=5` ha una rep sola: non è una conclusione.
+
+  **INCIDENTE, e la lezione vale più del dato.** A metà cella lo `screen_off_timeout` (30
+  min) è scaduto: lo schermo si è spento, Termux è uscito da `top-app`, il processo è
+  tornato sui 3 core A510 e una rep è finita nel CSV a **1.24 tok/s**. Il timeout è ora al
+  massimo (2147483647). Ma il punto è un altro: **le colonne `nproc`/`affinity_mask` hanno
+  registrato fedelmente il crollo, e il run è partito lo stesso.** Avere la telemetria non
+  basta: serve il **rifiuto**. Prima di ogni rep il numero di core va confrontato con la
+  soglia attesa e, se non torna, il run non deve partire — exit dedicato, come il gate
+  batteria. **Un dato sbagliato che entra nel CSV è peggio di un run non fatto.**
+  Quella riga va marcata `INVALID/3-core` ed esclusa da ogni mediana.
+
+  **Chiarimento sulle due metriche di core** (si contraddicono solo in apparenza):
+  `Cpus_allowed_list` del processo = insieme **permesso** (0-7 in top-app, 0-2 in
+  background); `nproc` = core **online E permessi**, e Android ne spegne e riaccende di
+  continuo (viste maschere `df`, `bf`, `5f`, `3f`). Vanno registrate **entrambe**: la prima
+  distingue il regime, la seconda misura la capacità effettiva del momento. Verificato che
+  la differenza 6 vs 7 core online **non correla** col tok/s (5.08 con 6, 5.06 con 7).
+
 - **2026-08-06 — Ri-prioritizzazione dopo il gate: le teorie di giornata restano valide, ma
   due CAMBIANO SEGNO.** Le ipotesi costruite stamattina non sono state confutate dalla
   scoperta dei core: sono state **ricollocate**. Ora che il quadro è `compute 0.116` vs
