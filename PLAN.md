@@ -182,6 +182,34 @@ di §2.1 per tutto ciò che è remotizzabile.
    telefono è stato sbloccato almeno una volta → sul device di test (S23 VERGINE dedicato,
    nessun dato personale) NON impostare alcun blocco schermo: così `adb reboot` + ripartenza
    di sshd sono completamente autonomi, senza intervento umano.
+
+   **[2026-08-05 — incidente e fix definitivo]** Dopo un riavvio sshd NON è ripartito. Causa
+   reale: `com.termux.boot` risultava `stopped=true notLaunched=true` — installata ma **mai
+   aperta**, e Android non consegna `BOOT_COMPLETED` a un pacchetto in stato *stopped*
+   (`FLAG_EXCLUDE_STOPPED_PACKAGES`). Non era un problema di permessi: `RECEIVE_BOOT_COMPLETED`
+   era già `granted=true`. Fix applicato e verificato con un riavvio reale:
+   - `adb shell monkey -p com.termux.boot 1` (una sola volta nella vita del device) → l'app
+     esce da *stopped*; da lì in poi Termux:Boot riceve `BOOT_COMPLETED` a ogni riavvio;
+   - `adb shell cmd deviceidle whitelist +com.termux +com.termux.boot` (esenzione doze).
+
+   **Regole per lo script di boot** (imparate dal `boot.log` del riavvio di verifica):
+   - `sshd` va lanciato **per primo e incondizionatamente**. Tutto il resto è best-effort e
+     va dopo, con `timeout`: se lo script si blocca prima di sshd il telefono resta
+     irraggiungibile finché qualcuno non lo tocca a mano.
+   - **Mai** sondare la rete con `ip addr show wlan0`: è negato agli uid app untrusted, non
+     dà errore, semplicemente non ritorna nulla — nella v1 dello script ha bruciato 90 s di
+     attesa **ritardando sshd di 90 s**. Per l'IP si usa `termux-wifi-connectioninfo`.
+   - `/proc/uptime` è negato da SELinux su questo device (`/proc/meminfo` invece è leggibile).
+   - Marker `~/.boot_ready` (timestamp) scritto subito dopo sshd + log in `~/boot.log`.
+
+   **Limite accertato (testato, non aggirabile senza root):** il riavvio **non** può essere
+   innescato da Termux — `svc power reboot` → *"Neither user 10344 nor current process has
+   android.permission.REBOOT"*; `/system/bin/reboot` → *Permission denied*; `am start -a
+   android.intent.action.REBOOT` → *SecurityException*. E `setprop persist.adb.tcp.port`
+   (che renderebbe adb-over-TCP persistente) è bloccato da SELinux anche da uid shell. Il
+   toggle "Debug wireless" di Android si spegne **by design** a ogni riavvio. Conseguenza
+   operativa: **ssh è il canale di controllo, adb no**. Ogni script deve funzionare via ssh;
+   `adb` si usa solo quando gualt ha appena riattivato il debug o col cavo collegato.
 5. **REGOLA CRITICA — carica**: USB collegato = telefono in carica = misure invalide (§8.2).
    Quindi: setup, build e push di file grossi via USB; **i run di misura SEMPRE con cavo
    staccato**, controllo via Wi-Fi (wireless debugging / `adb tcpip 5555` + ssh sull'IP Wi-Fi).
@@ -754,6 +782,17 @@ negativo ma utile, coerente con 2505.16056) e F8 si riduce a hardening del fork.
 
 - 3 run per configurazione, si riporta la mediana; run scartato se temperatura iniziale >32°C.
 - Cold = post-riavvio telefono. Warm = run successivo senza riavvio. Pressure = protocollo F5.
+- **[2026-08-05] Cold SENZA riavvio — meccanismo primario**: il riavvio on-demand non è
+  ottenibile in autonomia (v. §2.3: nessun permesso REBOOT da Termux, adb wireless non
+  sopravvive al riavvio). Il cold operativo si ottiene con `~/bin/cold_model.sh MODEL.gguf`,
+  che chiama `posix_fadvise(DONTNEED)` sul file del modello (`~/bin/fadv`, sorgente
+  `scripts/fadv.c`): evieta **esattamente** le pagine del file sotto test, verifica con
+  `mincore` che le residenti siano 0 e **esce non-zero se non lo sono** (un run "cold" non
+  può quindi essere riportato per sbaglio come tale). Verificato 2026-08-05: 153856 pagine
+  residenti → 0. Rispetto al riavvio è più chirurgico ma non azzera frammentazione/lmkd/
+  termica: per questo **ogni riga CSV deve registrare `MemAvailable` a inizio run** come
+  covariata (`/proc/meminfo` è leggibile da Termux). Il riavvio vero resta il gold standard
+  e si usa quando gualt è presente; in quel caso la nota del run dice `cold=reboot`.
 - Cold+warm si misurano ENTRAMBE solo per le configurazioni promosse (la migliore di ogni
   fase → righe B, B2, C2, C3, D, E di §9); gli sweep intermedi (F2.2, F4.3) si misurano solo
   warm. In §9 le celle non misurate si riempiono con "—", mai lasciate vuote.
@@ -868,6 +907,26 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-05 notte — Canale di controllo riparato (Claude). LEGGERE PRIMA DI RIPARTIRE.**
+  Dopo un riavvio il telefono era irraggiungibile (sshd giù, adb wireless spento). Causa,
+  fix e limiti accertati sono in **§2.3**; qui la parte che cambia il lavoro di Grok:
+  1. **sshd ora riparte da solo a ogni riavvio** (verificato con un riavvio reale: sshd su
+     ~80 s dopo il boot, marker `~/.boot_ready`, log `~/boot.log`). Non serve più toccare il
+     telefono per riavere il canale.
+  2. **adb NON è più un canale affidabile**: il toggle "Debug wireless" muore a ogni riavvio
+     e non è riattivabile da software (testato: `svc power reboot`, `/system/bin/reboot`,
+     `am ... REBOOT`, `setprop persist.adb.tcp.port` — tutti negati). **Ogni script deve
+     funzionare interamente via ssh.** Se un passo richiede `adb`, va segnalato a gualt come
+     azione umana, non assunto come disponibile.
+  3. **Cold senza riavvio**: sul telefono ci sono ora `~/bin/fadv` (sorgente
+     `scripts/fadv.c`) e `~/bin/cold_model.sh`. Verificato: 153856 pagine residenti → 0,
+     con exit non-zero se il file resta residente. **Compito di Grok**: cablare
+     `cold_model.sh "$MODEL"` dentro `run_f3.sh`/`start_f3.sh` al posto dell'assunzione
+     "il run cold parte dopo un riavvio umano", e aggiungere `MemAvailable` (da
+     `/proc/meminfo`, leggibile) come colonna/covariata di ogni riga CSV. Finché non è
+     cablato, le righe cold di F3 vanno marcate `cold=fadv` o `cold=reboot` nelle note —
+     mai lasciate ambigue.
 
 - **2026-08-05 — Addendum F3 (Claude, durante la fase — 2 punti critici per l'harness):**
   (1) **Timeout harness**: i timeout calibrati sul 4B (load in secondi) NON valgono per il
