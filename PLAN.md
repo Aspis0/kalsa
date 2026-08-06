@@ -945,55 +945,67 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
-- **2026-08-06 — Sweep thread: la letteratura sbaglia bersaglio nel NOSTRO caso. Correggere l'asse.**
-  Misure: `t=4` → 0.81/0.82/0.83, sentinella 0.80 (drift 2.4%, stage valido), **mediana 0.82**.
-  `t=5` → **0.69, 0.65, 0.86**: mediana 0.69, ma **dispersione del 32%** (0.65-0.86) contro il
-  4% di `t=4`. **CORREZIONE (scritta dopo la terza rep, la voce iniziale si fermava alle prime
-  due e concludeva "calo del 16-21%": era una conclusione su due punti, ritirata).** Il dato
-  vero non è "t=5 è peggio", è **"t=5 è instabile"**: la terza rep è il valore più alto di
-  tutto lo sweep. Con questa varianza la mediana non è confrontabile con quella di `t=4` e
-  la sentinella quasi certamente fallirà il controllo di drift §8.2 (>15%) → **stage da
-  rifare prima di qualunque conclusione**.
-  La varianza però **non smentisce** l'ipotesi sotto, la sostiene: sotto sovrascrizione il
-  piazzamento dei thread da parte dello scheduler cambia da run a run, e l'esito oscilla
-  invece di degradare in modo pulito. Ma è un'ipotesi, non un risultato.
+- **2026-08-06 — SWEEP THREAD INVALIDO: c'è una DERIVA DI SESSIONE del 14% che maschera
+  tutto. Voce unica, scritta a bracci chiusi (le tre voci intermedie di giornata, con due
+  tesi poi ritirate, sono state sostituite da questa).**
 
-  **Sentinella `t=5` = 0.87 contro mediana 0.69: drift 26% → STAGE INVALIDO (§8.2).**
-  E la sequenza non è casuale, è **monotòna crescente**: 0.69 → 0.65 → 0.86 → 0.87. Non
-  sembra rumore, sembra **deriva sistematica dentro il braccio**: qualcosa migliora col
-  passare dei run (page cache che trattiene più modello fra un run e l'altro? affinità dei
-  thread che si assesta? DVFS?). La temperatura sale (29.1 → 30.4) mentre le prestazioni
-  salgono, quindi **non** è throttling termico.
+  **La prova, ed è indipendente dalla sentinella.** La configurazione **identica**
+  (`t=4 --cache-mb 2000 --overlap --io-threads 4`) è stata misurata due volte nella stessa
+  giornata:
 
-  **Conseguenza metodologica seria, più importante del singolo braccio.** Se esiste una
-  deriva crescente nel tempo, allora **i bracci misurati dopo sembrano migliori di quelli
-  misurati prima**, e l'intero sweep è confuso dall'ordine: `t=4` è stato misurato per
-  primo, `t=5` per secondo. La sentinella §8.2 controlla la deriva **dentro** uno stage, non
-  **fra** stage: è un buco del protocollo che finora non era emerso perché nessuno sweep
-  aveva mostrato una deriva così netta.
-  **Controllo da fare subito, prima di qualunque altro braccio: ri-misurare `t=4` adesso.**
-  Se ora dà ~0.86-0.87, la differenza fra i bracci era **tutta deriva** e lo sweep thread non
-  ha ancora prodotto nessuna informazione. Se ridà ~0.82, allora `t=5` è davvero diverso (e
-  instabile). È il run più informativo disponibile in questo momento.
-  **Regola nuova da adottare negli sweep successivi**: alternare o randomizzare l'ordine dei
-  bracci, oppure chiudere ogni sweep con una **ri-misura del primo braccio** come controllo
-  d'ordine, non solo con la sentinella del vincitore.
-  **Perché**: la regola "thread = numero di core grandi" viene da benchmark di **puro
-  calcolo**. Noi giriamo anche `--io-threads 4` che streamano gli esperti in parallelo, quindi
-  la domanda reale di core è **compute + I/O**. `t=4` + `io=4` = 8 = esattamente i core del
-  chip. `t=5` + `io=4` = **9 thread su 8 core** → sovrascrizione e stragglers sulla barriera,
-  cioè lo stesso meccanismo per cui la letteratura sconsiglia gli efficiency core, solo che
-  ce lo procuriamo da soli. Proseguire con `t=6` e `t=8` a `io=4` fisso significa misurare
-  10 e 12 thread su 8 core: **ore di telefono per confermare la sovrascrizione**, non per
-  capire il calcolo.
-  **Asse corretto: tenere la somma a 8 e variare la ripartizione** — `t=4/io=4` (già fatto,
-  0.82), `t=5/io=3`, `t=6/io=2`. Abbiamo un motivo forte per spostare core dall'I/O al
-  calcolo: **l'I/O non è il ramo critico** (0.764 s contro 0.913 s, e sotto overlap), quindi
-  può permettersi di rallentare finché non torna a essere il ramo lento. Il punto di pareggio
-  atteso è dove I/O ≈ compute: è quello il massimo, e si trova per misura.
-  **Nota**: è una configurazione che nessuno degli studi letti ha esplorato, perché nessuno
-  di loro **streama pesi mentre calcola**. Non è una taratura, è una caratteristica del
-  nostro regime.
+  | quando | letture | mediana | dispersione |
+  |---|---|---|---|
+  | F4.2 «C» | 0.93 · 0.96 · 0.97 · sent 0.94 | **0.95** | 4% |
+  | F4.3 «C3-t4» | 0.81 · 0.82 · 0.83 · sent 0.80 | **0.82** | 4% |
+
+  Ogni braccio è **internamente compatto e riproducibile**; i due bracci differiscono del
+  **14%**. E l'intera sessione scende in modo **monotòno nell'ordine di esecuzione**:
+  `cache-auto 0.95 → cache-1500 0.93 → t=4 0.82 → t=5 0.69 → t=6 0.68 → t=8 0.51`, mentre
+  la batteria va da 74% a 63% e la temperatura da 29.1 a 30.7 °C.
+
+  **Conseguenza: lo sweep non ha misurato i thread, ha misurato il tempo.** La differenza
+  `t=4` vs `t=6` è del 21%, ma la deriva vale già 14% e i bracci sono stati eseguiti in
+  quell'ordine: le due cose **non sono separabili** con questi dati. Tutte le conclusioni
+  sul numero ottimo di thread sono **ritirate**, comprese le due che avevo scritto oggi
+  (prima «t=5 peggiora del 16-21%», poi «t=5 è instabile per sovrascrizione»: la seconda è
+  crollata quando `t=6` è risultato compatto a 0.68, e `t=5` resta l'unico braccio con
+  dispersione anomala, causa ignota).
+  Bracci per il verbale: `t=4` 0.82 (sent. drift 2.4%, VALIDO) · `t=5` 0.69 (sent. drift
+  26%, **INVALIDO**) · `t=6` 0.68 (sent. drift 0%, VALIDO) · `t=8` 0.51 (1 rep).
+  Le due letture alte di `t=5` (0.86/0.87) **non sono artefatti**: stessi 64 token, stesso
+  TTFT, stessi majflt, stesso `read_bytes`, stessa RSS delle basse. Lavoro identico,
+  velocità diversa → è il sistema che esegue diversamente, non il carico che cambia.
+
+  **Il buco del protocollo.** La sentinella §8.2 controlla la deriva **dentro** uno stage;
+  non esiste nessun controllo **fra** stage. Con bracci sequenziali e una deriva del 14%,
+  qualunque effetto sotto il 20% è indistinguibile dall'ordine di esecuzione. Non era mai
+  emerso perché finora gli sweep confrontavano bracci adiacenti con effetti grandi.
+
+  **Regole nuove, da adottare da ora:**
+  1. **Disegno appaiato**: confronti fra configurazioni si fanno alternando A/B/A/B nello
+     stesso blocco e confrontando le coppie adiacenti, **non** con bracci sequenziali.
+  2. Ogni sweep si chiude **ri-misurando il primo braccio** come controllo d'ordine, in
+     aggiunta alla sentinella del vincitore.
+  3. `battery_pct` e `batt_temp` vanno riportate **nel summary di ogni stage**, non solo
+     nelle righe: sono covariate della deriva, non contorno.
+  4. I numeri assoluti **non sono confrontabili fra sessioni**. Solo confronti interni a un
+     blocco appaiato lo sono.
+
+  **Primo esperimento da fare (diagnosi della causa)**: ricarica al 100%, stacca, fai
+  raffreddare, **ri-misura `t=4` con la config identica**. Se torna ~0.95, la deriva è
+  legata allo stato di batteria/termica accumulata e non ai thread — e allora ogni campagna
+  lunga va spezzata in blocchi con lo stesso stato di partenza. Finché non è chiuso, **non**
+  proseguire con `t=8` né con la variante somma-costante: si rimisurerebbe la deriva.
+
+  **Cosa resta valido dello sweep**: l'idea di variare la ripartizione **a somma costante**
+  (`t=5/io=3`, `t=6/io=2`) resta la più sensata da provare — ma per il motivo giusto, cioè
+  separare calcolo e contesa, non perché `t=5` sia risultato peggiore. E resta vero che
+  `t + io` è la domanda reale di core, un vincolo che nessuno degli studi letti ha, perché
+  nessuno di loro **streama pesi mentre calcola**.
+
+  **Non toccati dalla deriva**: il passo 2 (verifica i8mm) e il passo 3 (sonda
+  `--n-expert-used`) — il primo è un controllo di configurazione, il secondo è robusto a un
+  fattore di scala comune perché guarda la **forma** della curva, non i valori assoluti.
 
 - **2026-08-06 — Due lacune che la campagna si porta dietro dall'inizio (Claude).**
 
