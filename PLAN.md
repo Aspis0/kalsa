@@ -989,6 +989,40 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   di throughput restano validi sulla base attuale**. Il rischio che avrebbe reso vana la
   campagna è chiuso — e siamo autorizzati a spendere settimane sul layout degli esperti.
 
+  **SCOPERTA COLLATERALE, e vale più del verdetto: l'HIT-RATE DIPENDE DAL CONTENUTO.**
+  Il 56.9% su cui è stata costruita tutta l'analisi della cache **è il caso peggiore** — il
+  prompt sintetico di benchmark (`short.txt`, inglese). Su contenuto reale:
+
+  | prompt | hit-rate |
+  |---|---:|
+  | IT esplicativo | **77.0%** |
+  | IT istruzioni letterali | 75.9% |
+  | IT scrittura breve | 71.6% |
+  | IT ragionamento | 71.6% |
+  | **codice Python** | **67.0%** |
+  | benchmark `short.txt` (EN) | 56.9% |
+
+  **Venti punti di escursione.** Conseguenze: (a) **nell'uso reale il traffico da flash è più
+  basso di quanto misurato**, quindi il throughput di un'app di chat è probabilmente migliore
+  dei nostri numeri da benchmark — che sono conservativi, non ottimistici; (b) **H1 (località
+  degli esperti) è confermata sul nostro modello e sul nostro carico**, ed è **dipendente dal
+  contenuto**, cosa che la letteratura misura in simulazione e noi abbiamo su hardware vero;
+  (c) il **codice è il caso più difficile** (67%), coerente con l'attivazione di esperti più
+  eterogenei; (d) **da rifare le stime sulla cache** usando l'hit-rate del carico reale, non
+  quello del prompt sintetico.
+
+  **Riferimento 4B: NON VALIDO, da ripetere.** Il run `Qwen3.5-4B-Q4_K_M` è girato **con il
+  ragionamento attivo** (il 35B aveva `--chatml --no-think`), ha consumato tutti i 200 token
+  dentro il blocco di *thinking* **in inglese** e **non ha mai prodotto la risposta italiana**.
+  Confronto impossibile: configurazioni diverse e una risposta assente. Da rifare con gli
+  stessi flag e ≥400 token.
+  Un indizio dal poco prodotto: il 4B ha letto *«il ruolo dello streaming da flash»* come
+  **«Flash Attention streaming»**, confondendo lo streaming dei pesi con il meccanismo di
+  attenzione. Il 35B sullo stesso prompt aveva capito. Indizio a favore del modello grande,
+  ma **è un indizio, non un risultato**: da un blocco di ragionamento troncato non si conclude.
+  **Velocità (questa sì valida)**: 4B **8.00 tok/s** vs 35B ~5.5 sugli stessi prompt →
+  il modello **9× più grande costa 1.45× in tempo**.
+
 - **2026-08-06 sera — Il floor batteria proteggeva la COMPARABILITÀ, non il telefono.
   Due nuove fasi: F4.5 qualità (priorità assoluta) e F4.7 curva batteria.**
 
