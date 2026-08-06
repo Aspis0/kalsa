@@ -60,11 +60,11 @@ Lancio: `start_f3.sh --variant nowarmup --first-run-type cold --reps 1 --no-sent
 
 ### Tabella §9 (celle F3)
 
-| ID | Configurazione | tok/s cold | tok/s warm | hit-rate | majflt/tok* | MB flash/tok† | RAM peak | Note |
+| ID | Configurazione | tok/s cold | tok/s warm | hit-rate | majflt/tok* | MiB flash/tok† | RAM peak | Note |
 |---|---|---:|---:|---:|---:|---:|---:|---|
-| B | 35B UD-IQ2_M mmap naive | 0.10 | 0.10 | n/a | ~3.6e5 | ~1.0e7 | ~4.4–4.8 GB | cold=fadv; wall~load_s 500–511; regime majflt alto; no OOM |
-| B2 | B + `--numa distribute` | 0.10 | 0.10 | n/a | ~3.6e5 | ~1.0e7 | ~4.7–4.8 GB | identico a B entro rumore; MADV_RANDOM path no gain |
-| B2alt | B + `--no-warmup` | 0.10 | — | n/a | ~3.5e5 | ~9.9e6 | ~4.7 GB | 1 rep cold only; stesso muro |
+| B | 35B UD-IQ2_M mmap naive | 0.10 | 0.10 | n/a | ~3.6e5 | **~9.7e3** (9.5 GiB) | ~4.4–4.8 GB | cold=fadv; wall~load_s 500–511; regime majflt alto; no OOM |
+| B2 | B + `--numa distribute` | 0.10 | 0.10 | n/a | ~3.6e5 | **~9.7e3** (9.4 GiB) | ~4.7–4.8 GB | indistinguibile da B **alla risoluzione dello strumento** (v. Correzioni) |
+| B2alt | B + `--no-warmup` | 0.10 | — | n/a | ~3.5e5 | **~9.4e3** (9.2 GiB) | ~4.7 GB | 1 sola rep cold, nessun warm: esplorativo, NON riga promossa |
 
 \* majflt/tok ≈ majflt_delta / n_gen (n_gen=32); ordine di grandezza — fault principalmente da mmap load + expert re-fault.  
 † MB flash/tok ≈ read_bytes_delta / (1024²) / n_gen; include fault del file modello intero.
@@ -76,6 +76,56 @@ Lancio: `start_f3.sh --variant nowarmup --first-run-type cold --reps 1 --no-sent
 4. **Sentinel default `read_bytes_delta=0`**: anomalia contatore (altre metriche coerenti); non usato come fallimento.
 5. **Temp post-run 33–36°C**: cooldown automatico runner ha atteso ≤30.0 prima di ogni rep (fino a ~4 min extra). Nessun abort termico.
 6. **Batteria**: start numa 72% → fine nowarmup **54%** UNPLUGGED. Floor 40% non toccato. **Serve ≥80% prima di F4** (§8.2).
+
+## Correzioni post-audit (Claude, 2026-08-06 — audit ostile su commit 2877ef5..c28a2e0)
+
+Il testo sopra è di Grok; la tabella §9 è stata corretta in place e queste sono le
+correzioni, con il motivo. I dati grezzi in `runs.csv` **non** sono stati toccati: erano
+giusti loro, era sbagliata una colonna derivata.
+
+1. **[BLOCKER, corretto] "MB flash/tok" era 1024× troppo alto.** I valori `~1.0e7` /
+   `~9.9e6` erano KiB/token calcolati con `/1024`, non MiB/token come dichiarava la nota †
+   (`/1024²`). Valori veri: **~9.7e3 MiB/token ≈ 9.5 GiB/token** (B), 9.4 GiB (B2),
+   9.2 GiB (B2alt). Perché è grave e non cosmetico: F4 misurerà la riduzione di traffico
+   di BigMoeOnEdge **contro questa baseline**, e un fondoscala gonfiato di 1024× farebbe
+   sembrare qualunque risultato di F4 mille volte migliore del reale. Ogni colonna derivata
+   di §9 va ricontrollata a mano prima di essere usata per un confronto.
+2. **[Metodologico] "0.10 tok/s" ha una risoluzione di ±0.05, non ±0.005.** Il numero non
+   viene da `llama_perf_context_print` ma dalla riga compatta `[ … | Generation: 0.1 t/s ]`,
+   che ha **una sola cifra significativa**; il `printf "%.2f"` dell'harness aggiunge uno
+   zero, non precisione. Conseguenze: (a) "sentinel drift 0%" è garantito dall'arrotondamento,
+   non è prova di stabilità; (b) **non si può affermare che `--numa` e `--no-warmup` non
+   diano guadagno**: a questa risoluzione una differenza reale anche del ±40% sarebbe
+   invisibile. Quello che i dati sostengono è più debole e va detto così: *nessuna variante
+   sposta il muro di un fattore misurabile con questo strumento*. A 8.90 tok/s (F2) lo stesso
+   formato dà ±0.5% ed è ininfluente — il problema esiste solo ai valori piccolissimi, cioè
+   esattamente qui. Da F4 in poi serve il blocco perf vero (v. punto 3 di "Prossima azione").
+3. **[Copertura] `--no-warmup` non è una riga promossa.** In PLAN.md §9 non esiste nessuna
+   riga "B2alt" e §8.2 elenca come promosse solo B, B2, C2, C3, D, E; `--no-warmup` era una
+   domanda esplorativa laterale (§F3). Con 1 sola rep cold e zero warm, "COMPLETATA" e
+   "stesso muro" dicono più di quanto sia stato misurato: il warm≈cold è dimostrato per B e
+   B2, per B2alt è inferito per analogia. Tenuta in tabella ma marcata esplorativa.
+4. **[Telemetria] `read_bytes_delta=0` significa "non misurato", non "zero".**
+   `read_read_bytes()` restituisce `"0"` sia quando il contatore dice davvero 0 sia quando
+   `/proc/<pid>/io` non è leggibile — e l'ultimo campionamento cade nella finestra zombie
+   subito dopo l'uscita del processo, dove `io` può sparire prima di `stat` (infatti majflt
+   e minflt di quella riga sono normali). Vale per la sentinella di B e per alcune righe F2.
+   Da sistemare come già fa `fadv.c`: sentinella `-1` per "non misurabile".
+
+**Cosa invece regge, verificato riga per riga:** `cold=fadv` fa davvero il suo lavoro
+(`resident_after=0`, `fadvise_rc=0` in tutti e 3 i cold, e un fallimento aborta il run senza
+scrivere CSV); il timeout 2700 s è imposto dal codice, non solo documentato, e
+`harness_timeout=0` su tutte le righe — **nessun run è stato ucciso da noi**; il CSV è
+integro (27 colonne ovunque, zero run_id duplicati, conteggi coerenti col telefono);
+`ttft_ms` vuoto è una vera assenza di input, non una regressione del parser (`--perf` era
+in cmdline); `majflt/tok ≈3.6e5` è calcolato bene; e i ~325 GB letti per 32 token sono
+architetturalmente coerenti (~28 KB per fault = readahead del kernel su mmap random).
+
+**Non verificabile da questo repo:** che `--numa distribute` attivi un path `MADV_RANDOM`
+sul mmap del modello. In mainline quel flag governa l'affinità NUMA di thread e buffer, e
+l'S23 è a nodo singolo — quindi "identico a B" potrebbe voler dire semplicemente che il
+flag non fa nulla su questo hardware, non che MADV_RANDOM non aiuti. Da chiarire leggendo
+il sorgente del pin prima di trarne conclusioni di design.
 
 ## Verdetto gate: **PASS**
 

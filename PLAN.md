@@ -871,12 +871,19 @@ DONE
 
 ## 9. Tabella comparativa finale (da riempire progressivamente)
 
-| ID | Configurazione | tok/s cold | tok/s warm | hit-rate | majflt/tok | MB flash/tok | RAM peak | Note |
+**Unità, per non ripetere l'errore di F3**: `MiB flash/tok` = `read_bytes_delta / 1024² /
+n_gen`. In F3 questa colonna era stata riempita dividendo per 1024 → valori **1024× troppo
+alti**, con il rischio di far sembrare mille volte migliore qualunque riduzione di traffico
+misurata in F4 contro questa baseline. Ricontrollare a mano ogni colonna derivata prima di
+usarla in un confronto.
+
+| ID | Configurazione | tok/s cold | tok/s warm | hit-rate | majflt/tok | MiB flash/tok | RAM peak | Note |
 |---|---|---:|---:|---:|---:|---:|---:|---|
-| A | Qwen3.5-4B Q4_K_M (denso, in RAM) | | | n/a | | ~0 | | controllo |
-| A2 | LFM2-8B-A1B Q4_K_M (MoE, in RAM) | | | n/a | | ~0 | | controllo MoE |
-| B | 35B UD-IQ2_M, mainline mmap naive | | | n/a | | | | il muro (F3) |
-| B2 | come B + --numa/MADV_RANDOM | | | n/a | | | | F3 |
+| A | Qwen3.5-4B Q4_K_M (denso, in RAM) | — | **8.90** | n/a | basso | ~0 | — | controllo, F2.2c t4/c1024/f16; sostenuto 10 min **4.68** (F2.4) |
+| A2 | LFM2-8B-A1B Q4_K_M (MoE, in RAM) | — | — | n/a | ~2e6/rep | — | — | **nessun baseline valido**: thrash su 8GB anche a Q4_0, sentinella FAIL×2 (F2.3c/bis) |
+| B | 35B UD-IQ2_M, mainline mmap naive | 0.10 | 0.10 | n/a | ~3.6e5 | ~9.7e3 (9.5 GiB) | ~4.4–4.8 GB | **il muro** (F3); cold=fadv; no OOM/lmkd |
+| B2 | come B + --numa/MADV_RANDOM | 0.10 | 0.10 | n/a | ~3.6e5 | ~9.7e3 (9.4 GiB) | ~4.7–4.8 GB | F3; indistinguibile da B **alla risoluzione dello strumento** (±0.05 tok/s) |
+| B2alt | come B + --no-warmup | 0.10 | — | n/a | ~3.5e5 | ~9.4e3 (9.2 GiB) | ~4.7 GB | F3, **esplorativa** (1 rep cold, nessun warm): non riga promossa |
 | C | 35B UD-IQ2_M, BigMoeOnEdge default | | | | | | | F4.2 |
 | C2 | C + sweep migliore (cache-mb/k/…) | | | | | | | F4.3 |
 | C3 | 35B UD-Q2_K_XL, config C2 | | | | | | | F4.4 K vs IQ |
@@ -937,6 +944,24 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-06 — Gate F3 ACCETTATO (Claude): PASS, con 4 correzioni. Il muro è misurato.**
+  Numeri: **0.10 tok/s** su tutte e tre le varianti (default, `--numa distribute`,
+  `--no-warmup`), **~11.4M majflt** e **~9.5 GiB letti da flash per token** — l'intero
+  modello riletto ~28 volte ogni 32 token. **Warm ≈ cold**: con 7 GB di RAM la page cache
+  non trattiene il working set. Zero OOM, zero lmkd, sentinella a drift 0. Il piano
+  stimava 1.2–1.3 tok/s: la realtà è **12× peggio**, il che rafforza la tesi del progetto
+  invece di indebolirla — nessuna manopola di mmap salva il naive.
+  Correzioni applicate a `reports/moe-f3.md` (sezione "Correzioni post-audit") e a §9:
+  (1) la colonna MiB/tok era **1024× troppo alta** (KiB spacciati per MiB) — pericoloso
+  perché F4 misura la riduzione di traffico contro questa baseline; (2) **"0.10" ha
+  risoluzione ±0.05** (viene dalla riga compatta a 1 cifra significativa, non dal blocco
+  perf): quindi "numa non dà guadagno" NON è dimostrato, è solo non misurabile con questo
+  strumento; (3) `--no-warmup` è esplorativa, non riga promossa (1 rep, nessun warm);
+  (4) `read_bytes_delta=0` va letto come "non misurato", non come zero.
+  **Prerequisito per F4** oltre a batteria ≥80% e ≤30°C: far stampare il blocco perf vero
+  (`llama_perf_context_print`) — senza `ttft_ms` e con 1 cifra significativa, F4 non
+  potrebbe distinguere un 3 tok/s da un 5 tok/s in modo difendibile.
 
 - **2026-08-05 notte — Canale di controllo riparato (Claude). LEGGERE PRIMA DI RIPARTIRE.**
   Dopo un riavvio il telefono era irraggiungibile (sshd giù, adb wireless spento). Causa,
