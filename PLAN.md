@@ -993,6 +993,25 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   **Cancellato dalla coda**: il rifacimento del riferimento 4B (decisione di gualt) — era un
   confronto di contorno, il valore è nel MoE.
 
+  **CONTRAPPESO (obiezione di gualt: «il pruning è sempre un rischio elevato»). Accolta.**
+  La quantizzazione perde **precisione**, il pruning perde **capacità**: se un esperto
+  gestiva la morfologia verbale italiana e lo togli, nessuna ottimizzazione a runtime lo
+  riporta indietro. Ed è irreversibile.
+  **Il problema vero però non è il rischio in sé, è l'asimmetria**: oggi sappiamo **causare**
+  il danno molto meglio di quanto sappiamo **misurarlo**. F4.5 sono 5 prompt letti da un
+  umano — becca una catastrofe, non becca un degrado del 5% sparso sulle parole rare, che è
+  precisamente il modo in cui il pruning si manifesta. Abbiamo stimato ~2 parole malformate
+  su ~1000 token; per distinguere 2 da 3 serve un campione un ordine di grandezza più grande.
+  **Prerequisito non negoziabile prima di qualunque pruning: costruire il rilevatore.**
+  Perplessità su un corpus **italiano** (llama.cpp ha il tool), misurata prima sul modello
+  attuale come baseline. È oggettiva, sensibile ai degradi piccoli, e costa un run — mentre
+  leggere cinque risposte non lo è e non lo fa.
+  **Ordine rivisto**: (1) esaurire prima le leve **senza perdita** — cache nel regime valido,
+  expert packing, DirectIO: reversibili e a qualità intatta; (2) costruire la misura di
+  perplessità italiana; (3) **solo allora** pruning, a gradini, con la qualità misurata a
+  ogni gradino. Il pruning resta la leva col guadagno più alto, ma è anche l'unica che non
+  si può annullare — quindi va per ultima, non per prima.
+
 - **2026-08-06 sera — ✅ F4.5 QUALITÀ: UD-IQ2_M è USABILE. Il rischio che poteva invalidare
   tutta la campagna è chiuso.**
 
