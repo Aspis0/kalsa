@@ -957,6 +957,27 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   La varianza però **non smentisce** l'ipotesi sotto, la sostiene: sotto sovrascrizione il
   piazzamento dei thread da parte dello scheduler cambia da run a run, e l'esito oscilla
   invece di degradare in modo pulito. Ma è un'ipotesi, non un risultato.
+
+  **Sentinella `t=5` = 0.87 contro mediana 0.69: drift 26% → STAGE INVALIDO (§8.2).**
+  E la sequenza non è casuale, è **monotòna crescente**: 0.69 → 0.65 → 0.86 → 0.87. Non
+  sembra rumore, sembra **deriva sistematica dentro il braccio**: qualcosa migliora col
+  passare dei run (page cache che trattiene più modello fra un run e l'altro? affinità dei
+  thread che si assesta? DVFS?). La temperatura sale (29.1 → 30.4) mentre le prestazioni
+  salgono, quindi **non** è throttling termico.
+
+  **Conseguenza metodologica seria, più importante del singolo braccio.** Se esiste una
+  deriva crescente nel tempo, allora **i bracci misurati dopo sembrano migliori di quelli
+  misurati prima**, e l'intero sweep è confuso dall'ordine: `t=4` è stato misurato per
+  primo, `t=5` per secondo. La sentinella §8.2 controlla la deriva **dentro** uno stage, non
+  **fra** stage: è un buco del protocollo che finora non era emerso perché nessuno sweep
+  aveva mostrato una deriva così netta.
+  **Controllo da fare subito, prima di qualunque altro braccio: ri-misurare `t=4` adesso.**
+  Se ora dà ~0.86-0.87, la differenza fra i bracci era **tutta deriva** e lo sweep thread non
+  ha ancora prodotto nessuna informazione. Se ridà ~0.82, allora `t=5` è davvero diverso (e
+  instabile). È il run più informativo disponibile in questo momento.
+  **Regola nuova da adottare negli sweep successivi**: alternare o randomizzare l'ordine dei
+  bracci, oppure chiudere ogni sweep con una **ri-misura del primo braccio** come controllo
+  d'ordine, non solo con la sentinella del vincitore.
   **Perché**: la regola "thread = numero di core grandi" viene da benchmark di **puro
   calcolo**. Noi giriamo anche `--io-threads 4` che streamano gli esperti in parallelo, quindi
   la domanda reale di core è **compute + I/O**. `t=4` + `io=4` = 8 = esattamente i core del
