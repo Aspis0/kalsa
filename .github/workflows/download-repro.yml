@@ -1,0 +1,79 @@
+name: "Download repro (in-app over real network)"
+
+# Diagnostic-only: reproduces the in-app model download (Settings -> tap a
+# model row -> Alert -> "Download") on a real emulator over the real
+# network, and captures the true failure. ci-e2e.sh never exercises this
+# path because it sideloads the GGUF via adb instead. Speed matters here —
+# this is not a merge gate, so it skips the typecheck/harness step that
+# e2e-emulator.yml runs.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: download-repro-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc /usr/local/share/boost || true
+          df -h /
+
+      - name: Prebuild (CNG)
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build APK (x86_64 only — emulator ABI, keeps CI fast)
+        run: |
+          cd android
+          ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --console=plain
+          ls -la app/build/outputs/apk/release/
+
+      - name: Run download repro on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          # Without a profile the AVD comes up at 320x640 and every tap lands
+          # off-screen; a real phone profile also matches the app's layout.
+          profile: pixel_6
+          cores: 4
+          ram-size: 8192M
+          disk-size: 8192M
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash scripts/ci-download.sh
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: download-repro-evidence
+          path: |
+            download-out/**
+          if-no-files-found: warn
