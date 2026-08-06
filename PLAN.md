@@ -207,9 +207,39 @@ di §2.1 per tutto ciò che è remotizzabile.
    android.permission.REBOOT"*; `/system/bin/reboot` → *Permission denied*; `am start -a
    android.intent.action.REBOOT` → *SecurityException*. E `setprop persist.adb.tcp.port`
    (che renderebbe adb-over-TCP persistente) è bloccato da SELinux anche da uid shell. Il
-   toggle "Debug wireless" di Android si spegne **by design** a ogni riavvio. Conseguenza
-   operativa: **ssh è il canale di controllo, adb no**. Ogni script deve funzionare via ssh;
-   `adb` si usa solo quando gualt ha appena riattivato il debug o col cavo collegato.
+   toggle "Debug wireless" di Android si spegne **by design** a ogni riavvio.
+
+5b. **App helper per il Debug wireless** — `tools/adb-boot-helper/` (sorgente + `build.ps1`,
+   niente Gradle: due classi e un manifest, si compila con javac/d8/aapt2/apksigner dell'SDK).
+   Il toggle "Debug wireless" non è riaccendibile da shell (`settings` vuole
+   INTERACT_ACROSS_USERS, `content` vuole ACCESS_CONTENT_PROVIDERS_EXTERNALLY), ma **un'app
+   installata che detiene `WRITE_SECURE_SETTINGS` sì**, tramite la normale API Settings — e
+   quel permesso, concesso una volta con `pm grant`, sopravvive ai riavvii. L'app scrive
+   `adb_wifi_enabled=1` a `BOOT_COMPLETED`.
+   Installazione (una volta sola, richiede adb attivo in quel momento):
+   ```
+   adb install -r tools/adb-boot-helper/moe-adb-boot.apk
+   adb shell pm grant com.moe.adbboot android.permission.WRITE_SECURE_SETTINGS
+   adb shell monkey -p com.moe.adbboot 1          # esce da "stopped", v. sopra
+   adb shell cmd deviceidle whitelist +com.moe.adbboot
+   ```
+   Scelte di design imposte dall'audit ostile (2026-08-05) — non regredire:
+   - il receiver è `exported="false"` e **non** espone azioni custom: con un receiver
+     esportato qualsiasi app installata, senza alcun permesso, poteva riaccendere il debug
+     wireless in silenzio. I broadcast di sistema arrivano lo stesso a un receiver non
+     esportato, e `BOOT_COMPLETED` è protetto (nessuna app può falsificarlo);
+   - i retry girano in un **JobScheduler job**, non in un `Thread` lanciato da `onReceive`:
+     appena `onReceive` ritorna il processo non ha più componenti attivi e diventa un empty
+     process, primo candidato di LMKD durante il boot storm — verrebbe ucciso con SIGKILL,
+     senza eccezione né log. Serve perché al `BOOT_COMPLETED` il Wi-Fi spesso non è ancora
+     associato e adbd rifiuta di aprire il listener TLS;
+   - l'uscita richiede **3 successi consecutivi**, non uno: adbd può ripulire il flag se
+     parte dopo la prima scrittura.
+   Diagnostica: `adb logcat -s MoeAdbBoot`.
+
+   Conseguenza operativa che resta valida comunque: **ssh è il canale di controllo, adb è un
+   comfort.** Ogni script deve funzionare via ssh; se l'helper fallisce su un firmware
+   futuro, il lavoro non si ferma.
 5. **REGOLA CRITICA — carica**: USB collegato = telefono in carica = misure invalide (§8.2).
    Quindi: setup, build e push di file grossi via USB; **i run di misura SEMPRE con cavo
    staccato**, controllo via Wi-Fi (wireless debugging / `adb tcpip 5555` + ssh sull'IP Wi-Fi).
