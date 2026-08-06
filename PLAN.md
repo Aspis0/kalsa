@@ -945,6 +945,54 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 sera — REAP: il pruning degli esperti va PROMOSSO da F9.1b (lossy, in fondo)
+  a leva di prima linea. Il ragionamento che l'aveva declassato era sbagliato.**
+
+  **Cos'è** (segnalato da gualt): REAP — *Router-weighted Expert Activation Pruning*,
+  Cerebras, [arXiv:2510.13999](https://arxiv.org/abs/2510.13999), **codice pubblico**
+  ([CerebrasResearch/reap](https://github.com/CerebrasResearch/reap)). One-shot, sceglie gli
+  esperti da eliminare combinando i valori del router e la norma delle attivazioni. Rimuove
+  **fino al 50% degli esperti** mantenendo ~**97%** della qualità su modelli fino a 1T; già
+  **esteso all'architettura Qwen3.5**, cioè la nostra classe (`qwen3_5_moe`), comprese le
+  attenzioni ibride.
+
+  **Perché il piano l'aveva declassato, e perché era un errore.** §F9.1b diceva: *«nello
+  streaming il pruning NON riduce il traffico di decode (8 attivi restano 8) e muove poco
+  l'hit-rate»*. La prima metà è vera — i byte **richiesti** per token non cambiano. La
+  seconda è falsa, e la differenza è tutto: **il traffico verso la flash non è dato dai byte
+  richiesti ma dai byte MANCANTI in cache**.
+  Conti attuali: pool esperti ≈ **9.6 GB** (256 × 40 × 0.942 MB); cache 2000 MiB ≈ 2.1 GB,
+  cioè copre il **22%** del pool; hit osservato **67-77%** (grazie alla località).
+  **Dimezzando il pool a ~4.8 GB, la stessa cache ne copre il 44%.** L'hit-rate sale, e ogni
+  punto di hit toglie byte dal **ramo critico**. Se il byte-hit passasse da ~74% a ~87%, il
+  traffico crollerebbe da 88.8 a ~44 MB/token e il flash I/O da 0.319 a ~0.16 s — **sotto il
+  compute (0.116)**, cioè tornerebbe compute-bound intorno ai **7 tok/s**.
+  In più il file dimezza (11.5 → ~6 GB): **load da 19 s a ~10 s, quindi TTFT quasi dimezzato**
+  — che attacca l'unico problema di prodotto rimasto.
+
+  **La condizione, ed è quella che il piano aveva già indicato giustamente**: il pruning va
+  calibrato **sul NOSTRO dominio**. Il modello pruned che circola (`Qwen3.5-18B-REAP-A3B-Coding`)
+  è tarato **per il codice**, che per Kalsa è il dominio sbagliato — e F4.5 ha appena mostrato
+  che il codice è il carico con la **peggiore** località (hit 67% contro il 77% dell'italiano
+  discorsivo). Serve calibrare su **chat italiana**.
+  E qui i pezzi combaciano: **F7.1 (route trace) esiste già** — `--route-trace` è nel runtime,
+  zero patch — quindi possiamo produrre noi la statistica di attivazione sul carico Kalsa e
+  darla in pasto a REAP. **Non è più una fase di ricerca lontana: è il passo che abilita la
+  leva più forte che abbiamo.**
+
+  **Rischio, da misurare non da assumere**: il pruning è lossy e il 97% dichiarato è su
+  benchmark di coding in inglese. Ma ora abbiamo **F4.5 come metro di qualità**, quindi il
+  danno si misura invece di temerlo. Ordine sensato: trace → prune 25% → F4.5 → prune 50% →
+  F4.5, e ci si ferma dove la qualità italiana cede.
+
+  **Domanda aperta da verificare (gualt)**: gli esperti di Qwen3.6 sono stati addestrati/
+  rilasciati nativamente a bassa precisione (stile MXFP4 di GPT-OSS)? Se sì, il nostro IQ2_M
+  a 2.4 bpw sta **sotto la precisione nativa** e sarebbe una spiegazione diretta delle parole
+  malformate di F4.5. Da controllare in `config.json`/model card, non da assumere.
+
+  **Cancellato dalla coda**: il rifacimento del riferimento 4B (decisione di gualt) — era un
+  confronto di contorno, il valore è nel MoE.
+
 - **2026-08-06 sera — ✅ F4.5 QUALITÀ: UD-IQ2_M è USABILE. Il rischio che poteva invalidare
   tutta la campagna è chiuso.**
 
