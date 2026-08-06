@@ -945,6 +945,26 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 — Sweep thread: la letteratura sbaglia bersaglio nel NOSTRO caso. Correggere l'asse.**
+  Misure: `t=4` → 0.81/0.82/0.83, sentinella 0.80 (drift 2.4%, stage valido), **mediana 0.82**.
+  `t=5` → **0.69, 0.65**: calo del 16-21%, non il +10-30% atteso.
+  **Perché**: la regola "thread = numero di core grandi" viene da benchmark di **puro
+  calcolo**. Noi giriamo anche `--io-threads 4` che streamano gli esperti in parallelo, quindi
+  la domanda reale di core è **compute + I/O**. `t=4` + `io=4` = 8 = esattamente i core del
+  chip. `t=5` + `io=4` = **9 thread su 8 core** → sovrascrizione e stragglers sulla barriera,
+  cioè lo stesso meccanismo per cui la letteratura sconsiglia gli efficiency core, solo che
+  ce lo procuriamo da soli. Proseguire con `t=6` e `t=8` a `io=4` fisso significa misurare
+  10 e 12 thread su 8 core: **ore di telefono per confermare la sovrascrizione**, non per
+  capire il calcolo.
+  **Asse corretto: tenere la somma a 8 e variare la ripartizione** — `t=4/io=4` (già fatto,
+  0.82), `t=5/io=3`, `t=6/io=2`. Abbiamo un motivo forte per spostare core dall'I/O al
+  calcolo: **l'I/O non è il ramo critico** (0.764 s contro 0.913 s, e sotto overlap), quindi
+  può permettersi di rallentare finché non torna a essere il ramo lento. Il punto di pareggio
+  atteso è dove I/O ≈ compute: è quello il massimo, e si trova per misura.
+  **Nota**: è una configurazione che nessuno degli studi letti ha esplorato, perché nessuno
+  di loro **streama pesi mentre calcola**. Non è una taratura, è una caratteristica del
+  nostro regime.
+
 - **2026-08-06 — Due lacune che la campagna si porta dietro dall'inizio (Claude).**
 
   **1. Non abbiamo MAI misurato l'energia.** Per giorni abbiamo inseguito i tok/s e trattato
