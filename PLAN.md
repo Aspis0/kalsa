@@ -945,6 +945,46 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 — Due lacune che la campagna si porta dietro dall'inizio (Claude).**
+
+  **1. Non abbiamo MAI misurato l'energia.** Per giorni abbiamo inseguito i tok/s e trattato
+  la batteria solo come vincolo operativo (floor 40%, mai in carica), mai come metrica. Per
+  un'app su telefono i **joule per token** contano quanto i token al secondo: un modello due
+  volte più veloce che consuma il triplo non è un progresso. E si misura quasi gratis —
+  `termux-battery-status` dà `voltage` e `current`, quindi la potenza istantanea, e il numero
+  di token generati lo abbiamo già.
+  **Da fare in harness**: colonna `j_per_token` = (V × I medi durante il run × durata) /
+  n_gen, più `power_w_mean`. Campionare la corrente insieme al resto della telemetria, non
+  solo a inizio/fine (la corrente varia molto fra prefill e decode). Ordine di grandezza dai
+  dati esistenti, da confermare: 35B in streaming ≈ 6 J/token, 4B denso ≈ 1.5 J/token — cioè
+  il 4B non è solo ~8× più veloce, è anche ~4× più efficiente per token. Se il numero regge,
+  è un argomento di prodotto, non solo tecnico.
+  Nota di principio: sui telefoni conviene **"correre e poi dormire"** — finire sui core
+  grandi e tornare in idle consuma meno che spalmare il lavoro su tutti i core. È un secondo
+  motivo, indipendente dalla velocità, per non usare gli efficiency core.
+
+  **2. Il binario denso (Qwen3.5-4B) eredita 3 scoperte su 4, e la GPU gli si applica MEGLIO.**
+  Il 4B è il candidato prodotto a breve per Kalsa, e finora l'abbiamo lasciato fermo ai
+  numeri di F2. Cosa trasferisce:
+  - **Quantizzazione**: gira a **Q4_K_M**, cioè su un K-quant che su ARM **non ha kernel
+    dedicati** e cade sul percorso generico. Q4_0 è l'unico formato con KleidiAI + repack
+    online. Taglia quasi identica (4.5 vs 4.8 bpw). **A/B Q4_0 vs Q4_K_M con misura di
+    velocità E di qualità** — su un 4B la perdita per bit si sente più che su un 35B, quindi
+    la qualità non è opzionale.
+  - **Thread**: F2 aveva scelto `-t 4`; l'evidenza big.LITTLE dice numero di core grandi = 5.
+  - **i8mm**: stesso controllo del 35B.
+  - **GPU: qui il 4B è avvantaggiato**, non svantaggiato. Tutto il blocco sul 35B è
+    `MUL_MAT_ID` ("partial", e inesistente per IQ2). **Un modello denso non usa quell'op**:
+    gli serve solo la matmul densa, che OpenCL dà come **"full"**, in Q4_0 — lo stesso
+    formato verso cui lo sposteremmo comunque per la CPU. È esattamente il caso che gira già
+    in giro (denso + Q4_0 + backend GPU). Restano i due dubbi veri: il backend carica su
+    Adreno 740, e quanto dura prima del throttling.
+  - **Non trasferisce**: tutto lo streaming/cache/expert-packing — il 4B sta in RAM.
+
+  **Metrica di prodotto, da non dimenticare**: il numero del 4B **non è 8.90 tok/s** (burst a
+  telefono fresco) ma **4.68** (sostenuto 10 min, F2.4). Ogni ottimizzazione va riportata sul
+  sostenuto: è quello che l'utente sente dal secondo messaggio in poi.
+
 - **2026-08-06 — GPU/NPU: la porta è stretta ma non è murata. Verifica dello stato reale.**
   La domanda «perché non usiamo tutto il telefono?» è stata rifatta ora che il muro è il
   calcolo (prima non aveva senso: per un muro di I/O la GPU non serve). §3.2 diceva
