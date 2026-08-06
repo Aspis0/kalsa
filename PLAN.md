@@ -945,6 +945,143 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 notte — TAVOLA ROTONDA AVVERSARIALE (Grok ↔ DeepSeek, 4 round + arbitrato).
+  Ha corretto quattro nostri numeri, chiuso la disputa sulla banda, e trovato il lavoro più
+  prezioso del progetto in un posto dove non stavamo guardando.**
+
+  Metodo: R0 Grok (letteratura + ipotesi) → R1 DeepSeek (attacco ostile + ipotesi proprie) →
+  R2 Grok (concessione/difesa/mutazione + controattacco) → R3 DeepSeek (sintesi + raccolto
+  della collisione). Fra R2 e R3 ho iniettato `ARBITER-NOTES.md`, fatti letti da me nel
+  sorgente. Artefatti: `scratchpad/agents/moe-theory/{BRIEF,r0-dossier,r1-attack,r2-rebuttal,
+  r3-synthesis,ARBITER-NOTES}.md`.
+
+  ### 1. La disputa sulla banda è CHIUSA, e non come diceva nessuno dei due
+
+  - R0: «425 MiB/s di parete ≈ 413 di fio ⇒ siamo al tetto, l'I/O è morto».
+  - R1: «no: le letture sono da 264/264/392 KiB, cioè classe 256k = **214 MiB/s**; il 266 del
+    runtime è la firma di quel pattern, e il 425 è gonfiato dalla page cache».
+  - **Arbitrato, dai log [M]: `o_direct=1` in tutti i 50 run** (38× con io_threads=4
+    cache=2000). O_DIRECT **bypassa la page cache**, quindi l'argomento di R1 è impossibile:
+    gli 84.73 MiB/tok vengono tutti dal flash e **425 MiB/s è banda di disco reale**.
+
+  Conseguenza che nessuno dei due ha tratto: a **314 KiB** medi otteniamo **425 MiB/s** dove
+  fio a 256k-QD1 ne dà 214 ⇒ **la coda a 4 corsie raddoppia la banda**. La domanda vera non è
+  «siamo al tetto» ma **«la curva dimensione→banda è ancora ripida a 942 KiB, o è già piatta?»**
+
+  ### 2. Lo strumento esisteva già, e nessuno dei due lo sapeva
+
+  `BigMoeOnEdge/tools/iobench.cpp` — scritto dall'autore del runtime **per esattamente questa
+  domanda**. Dalla sua intestazione: *«`--scatter N` … today one routed expert costs one pread
+  per projection at offsets an expert-stride apart (scatter ~3), while a contiguous per-expert
+  sidecar would serve the same bytes in a single window (scatter 1). If bandwidth at scatter 1
+  is not materially above scatter 3 for the same slice, the sidecar has no prize and must not
+  be built.»* Usa **lo stesso `FileReader` del motore** (stesso O_DIRECT, stesso bounce,
+  stessa verifica) e ha `--compute-load` per misurare mentre i thread ggml girano.
+
+  ```
+  bmoe-iobench -m <gguf> --lanes 4 --slice-kb 942 --scatter 3 --compute-load 4
+  bmoe-iobench -m <gguf> --lanes 4 --slice-kb 942 --scatter 1 --compute-load 4
+  ```
+
+  Stessi byte, stesse corsie, cambia solo la contiguità. Vale più di fio, che su Termux è
+  **inaffidabile sopra QD1** (§5 lo annota già; le celle qd4 in archivio danno 87 MiB/s a
+  256k, cioè numeri da buttare). **Questo è il primo esperimento da fare, e costa minuti.**
+
+  ### 3. I contatori: nessuno era rotto, il reporting mescolava due finestre
+
+  Avevo trovato una contraddizione (8843 evizioni richiedono ≥9944 MiB, ne risultano letti
+  5423 — fattore 1.83). R3 l'ha chiusa: **`moe_read_mib` è solo-decode; `evictions`/`rereads`/
+  `cache_hit_pct` sono cumulativi (prefill+decode)**. Ricostruzione, ogni riga verificata:
+
+  ```
+  letture decode   = 84.73 × 64        = 5423 MiB
+  miss decode      = 5423 / 0.8984     = 6036
+  lookup decode    = 64 × 8 × 40       = 20480   ⇒ hit decode = 70.5%
+  inserimenti tot  = 8843 + 2226       = 11069
+  inserimenti prefill = 11069 − 6036   = 5033    ⇒ 4521 MiB a ~450 MiB/s ≈ 10 s = prefill misurato ✓
+  evizioni decode  = 8843 − 2807       = 6036    = miss decode ✓ (identità esatta)
+  ```
+
+  - **Il 56.9% non è mai stato l'hit-rate del decode.** L'hit di decode è **70.5%**, che
+    coincide col byte-hit 70.9%. Entrambe le metriche erano giuste, entrambe lette male.
+  - **I livelli di F4.5 (71-77% "dipendenza dal contenuto") sono cumulativi**, diluiti da un
+    prefill freddo: la **classifica** fra prompt regge, i **valori assoluti** no.
+  - Fix: 6 righe in `GenTally::record` (delta per-finestra dei contatori). Costo 30 minuti.
+
+  ### 4. Il prefill è l'evento di I/O più grande del run, ed era invisibile
+
+  **4.5 GiB letti in prefill al ~3.2% di hit**, per un prompt da ~16 token — più del decode
+  intero (5.4 GiB per 64 token). La cache che il decode usa **è riempita dal prefill**, quindi
+  «lo stato stazionario» su una finestra da 64 token è una finzione. Invisibile perché i
+  contatori mescolavano le finestre.
+
+  ### 5. Il pezzo più prezioso: 19 s di caricamento per ~2 GiB residenti
+
+  Il trunk residente (dense + shared + embed) è **1.75-2.5 GiB**. A banda sequenziale sarebbero
+  **1-6 s**; ne servono **19**. Ma `11.52 GiB / 19 s ≈ 620 MiB/s` è esattamente banda
+  sequenziale: **il loader legge quasi tutto il file**, compresi i corpi degli esperti che poi
+  ricollega e non usa. Il sorgente lo rende plausibile: `vm_reserve` + `vm_commit` on-miss
+  (`expert_stream_source.cpp:157-166`) ⇒ la cache **non** aggiunge RSS al load, quindi i 19 s e
+  la morte di cache-3000 in `create_tensor` si spiegano coi **page fault dell'mmap del file**,
+  non con la cache.
+
+  **~10-15 s dei 27.5 s di TTFT sono probabilmente spreco software.** Con anche il preload
+  degli esperti caldi e un prefill consapevole: **TTFT 27.5 → 12-16 s**, senza toccare il
+  decode, senza costo di qualità. Era invisibile perché la cornice del progetto è
+  «streaming+cache del **decode**», e «caricare» non è «streammare».
+
+  ### 6. La roofline e i suoi confini (R1, calibrata sui nostri numeri)
+
+  `t_token = t_cache + max(A/Π, (1−h)·B_naive/B_dev)`, che riproduce il 5.02 misurato.
+
+  | confine | valore | significato |
+  |---|---|---|
+  | tetto architetturale | **7.8 tok/s** | con questo compute, anche a I/O gratis |
+  | crossover hit-rate | **h\* = 0.82** | siamo a 0.705: **12 punti e ogni lavoro sulla cache smette di pagare** |
+  | crossover banda | **730 MiB/s** | oltre, il collo diventa il calcolo |
+  | squilibrio | **1.7×** | I/O-bound, ma di poco |
+
+  Il premio dell'intero ramo I/O è **finito e vicino**. Oltre 7.8 tok/s bisogna attaccare il
+  calcolo (Π = 54 GFLOPS, ~5-10% del silicio) — non più l'I/O.
+
+  ### 7. Correzioni al piano (tutte da recepire)
+
+  1. **§5 / §7 H2 è FALSIFICATA**: prometteva ≤50 MB/token con 2 GB; ne leggiamo **88.8**.
+     Riduzione 3.4×, non 5×. Era così da giorni e non l'aveva notato nessuno.
+  2. `343 MB/token` in Registro era mio errore (9 esperti/layer invece di 8: contavo lo shared
+     residente come traffico). Il valore giusto, già in §5 [V], è **305.2 MB/token**; il
+     byte-hit è **70.9%**, non 74%.
+  3. Il **56.9%** va ritirato come «hit-rate»: è cumulativo. Usare **70.5% (decode)**.
+  4. **Mio errore di stasera, esplicito**: avevo stimato la fusione delle letture a **1.6× →
+     7.7 tok/s**, interpolando la scala fio **QD1** (4k=21, 64k=83, 256k=214, 1M=413) su un
+     carico che gira a **QD4**. Non è un'inferenza valida: a QD4 la curva può essere già
+     piatta. La stima onesta resta aperta fra **+0.4 e +2.5 tok/s** finché non gira iobench.
+     È il quinto caso in questa campagna di una quantità **derivata** che eredita un input
+     sbagliato — stavolta l'ho fatto io, dopo aver scritto la nota che avverte del pattern.
+
+  ### 8. Sequenza decisa (esperimenti che DISCRIMINANO prima delle manopole)
+
+  | # | cosa | dove | costo | cosa decide |
+  |---|---|---|---|---|
+  | M2 | grep `o_direct` nei log | PC | **fatto** | ✅ O_DIRECT attivo ⇒ 425 è disco vero |
+  | M4 | **`bmoe-iobench --scatter 3 vs 1`** | telefono | minuti | se il repack per-esperto ha un premio |
+  | M3 | patch finestre contatori (6 righe) | PC | 30 min | ogni cifra futura di cache onesta |
+  | M1 | run strumentato: `read_bytes` a load / prefill / decode + RSS | telefono | 3 h | verdetto su E1 (il bug del loader) e primo punto di h(C) |
+  | P5 | **gate perplessità italiana** ≥500k token, soglie ΔPPL congelate prima | PC | 3-5 gg | sblocca ogni leva lossy; senza, nessuna |
+  | M5 | trace di routing su prompt italiani | entrambi | 1 gg | alimenta policy, D1, preload, packing |
+  | P1 | fix del loader (non toccare i corpi degli esperti) | PC | 2-4 gg | TTFT −10-14 s |
+  | P2 | repack + `preadv` scatter | PC | 2-4 gg | solo se M4 dà ≥1.25× |
+  | F5 | **10 minuti sostenuti con `max(cpu-*)` e J/token** | telefono | 3 h | **prima di qualunque affermazione di prodotto** |
+
+  ### 9. Il modo più probabile in cui tutto questo fallisce
+
+  **Ogni numero di titolo è un burst da 13 secondi a ≤32 °C, e il prodotto è una conversazione
+  da 10 minuti.** Il 4B denso di controllo ha già mostrato sostenuto ≈ metà del burst
+  (8.90 → 4.68 [M, F2.4]); il die tocca 47 °C dentro un singolo burst [M]; lmkd vive ~1 GB
+  sopra la RSS stazionaria [M]. In tutta la campagna **nessuno ha mai fatto girare il 35B per
+  cinque minuti nel regime valido**. Se il decode decade verso 2.5-3 tok/s, o il processo
+  muore, niente di quanto sopra conta. Costa un pomeriggio saperlo, e va saputo **prima**.
+
 - **2026-08-06 sera — Il gate termico misura la BATTERIA, cioè una massa termica lenta, non il
   silicio. Il sensore giusto era leggibile da Termux dall'inizio. Da correggere PRIMA di F5.**
 
