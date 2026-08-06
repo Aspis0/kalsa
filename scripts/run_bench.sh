@@ -58,9 +58,14 @@ ALLOW_NO_BATTERY=0
 # Run-level wall timeout (s). Floor 2700 (45 min): 35B naive load alone can take 10–30+ min.
 # Harness timeout is NOT scientific data (exit 8, notes BLOCKED/timeout); only lmkd/OOM is.
 RUN_TIMEOUT_S="${RUN_TIMEOUT_S:-2700}"
-# 1 = drop --simple-io so classic llama_perf_context_print (and ttft_ms) appears (F3+).
+# 1 = drop --simple-io so classic llama_perf_context_print appears (F3+).
 # Default 0 keeps compact summary for F2/F4-compat.
+# Note: ttft_ms is measured OUTSIDE the binary (wall-clock first token on stream);
+# classic-perf no longer required for ttft (pin 67d5978 --perf does not emit the block).
 CLASSIC_PERF=0
+# Always pass --load-mode mmap to llama-cli (pin 67d5978 aborts in load_tensors without it).
+# Registered in CSV flags column; default declared by binary → comparable with F3.
+LOAD_MODE="${LOAD_MODE:-mmap}"
 # ISA preflight: 1=sempre · 0=UNSAFE esplicito (vietato F1–F4) · auto=default (mandatory su F1–F4)
 PREFLIGHT_ISA="${PREFLIGHT_ISA:-auto}"
 
@@ -193,6 +198,66 @@ parse_timings() {
         TIMING_NOTE="no timings in log"
     fi
     return 0
+}
+
+# Wall-clock ms since epoch (portable: date %s%3N, python, or seconds*1000).
+now_ms() {
+    _ms="$(date +%s%3N 2>/dev/null || true)"
+    case "$_ms" in
+        ''|*[!0-9]*|*N*)
+            if command -v python3 >/dev/null 2>&1; then
+                python3 -c 'import time; print(int(time.time()*1000))' 2>/dev/null && return 0
+            fi
+            if command -v python >/dev/null 2>&1; then
+                python -c 'import time; print(int(time.time()*1000))' 2>/dev/null && return 0
+            fi
+            _s="$(date +%s 2>/dev/null || echo 0)"
+            printf '%s\n' "$((_s * 1000))"
+            ;;
+        *)
+            printf '%s\n' "$_ms"
+            ;;
+    esac
+}
+
+# True if filtered line is spinner / empty noise (should not bloat the log).
+is_spinner_or_noise_line() {
+    _ln="$1"
+    [ -z "$_ln" ] && return 0
+    case "$_ln" in
+        'Loading model...'*) return 0 ;;
+    esac
+    # line made only of spinner glyphs / spaces after backspace strip
+    _only="$(printf '%s' "$_ln" | tr -d ' |/\\-')"
+    [ -z "$_only" ] && return 0
+    return 1
+}
+
+# True if line is a wall-clock first-token marker (generation started).
+is_first_token_line() {
+    _ln="$1"
+    case "$_ln" in
+        '[Start thinking]'*|'[Start Thinking]'*) return 0 ;;
+        '=== answer ==='*) return 0 ;;
+    esac
+    return 1
+}
+
+# Post-generation REPL hang: timing summary present, no clean exit, process still live.
+# (Help banner with /exit|/regen alone is normal on pin 67d5978 — do NOT use it as hang signal.)
+has_repl_hang_signal() {
+    _log="$1"
+    [ -r "$_log" ] || return 1
+    if grep -qE '^Exiting' "$_log" 2>/dev/null; then
+        return 1
+    fi
+    if grep -qE '\[\s*Prompt:[[:space:]]*[0-9.]+[[:space:]]*t/s' "$_log" 2>/dev/null; then
+        return 0
+    fi
+    if grep -qE 'tokens per second|generation:[[:space:]]*[0-9]+[[:space:]]*tokens' "$_log" 2>/dev/null; then
+        return 0
+    fi
+    return 1
 }
 
 # bmoe-cli summary lines (cli/main.cpp ~787, 834, 847-855)
@@ -348,9 +413,17 @@ build_run_cmdline() {
             _cmd="$_cmd --no-display-prompt"
             _cmd="$_cmd --no-conversation"
             _cmd="$_cmd --single-turn"
-            # --simple-io: compact [Prompt|Generation] only (no ttft_ms).
-            # --classic-perf drops it and enables --perf so llama_perf_context_print
-            # fills ttft_ms (F3+). On pin 67d5978 --perf defaults to false.
+            # --load-mode mmap: pin 67d5978 aborts in load_tensors without explicit mode.
+            # Always pass; skip only if EXTRA_FLAGS already sets --load-mode (e.g. dio for F4).
+            _has_lm=0
+            case " ${EXTRA_FLAGS:-} " in
+                *' --load-mode '*|*' --load-mode='*) _has_lm=1 ;;
+            esac
+            if [ "$_has_lm" -eq 0 ]; then
+                _cmd="$_cmd --load-mode $(printf '%q' "${LOAD_MODE:-mmap}")"
+            fi
+            # --simple-io: compact [Prompt|Generation] only.
+            # --classic-perf drops it and enables --perf (diagnostic; ttft is wall-clock).
             if [ "${CLASSIC_PERF:-0}" -eq 0 ]; then
                 _cmd="$_cmd --simple-io"
             else
@@ -364,6 +437,28 @@ build_run_cmdline() {
         _cmd="$_cmd $EXTRA_FLAGS"
     fi
     printf '%s\n' "$_cmd"
+}
+
+# CSV flags column: EXTRA_FLAGS + harness-owned load-mode for mainline.
+# Becomes part of the measured configuration (not an implicit detail).
+build_flags_csv() {
+    _fc="${EXTRA_FLAGS:-}"
+    case "$RUNTIME" in
+        bigmoe) ;;
+        *)
+            case " $_fc " in
+                *' --load-mode '*|*' --load-mode='*) ;;
+                *)
+                    if [ -n "$_fc" ]; then
+                        _fc="$_fc --load-mode ${LOAD_MODE:-mmap}"
+                    else
+                        _fc="--load-mode ${LOAD_MODE:-mmap}"
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
+    printf '%s' "$_fc" | tr ',' ';' | tr '\n' ' '
 }
 
 # ---------------------------------------------------------------------------
@@ -697,7 +792,20 @@ fi
 # Pre-run checks (hard rules §8.2)
 # ---------------------------------------------------------------------------
 
+# --print-cmd FIRST: stampa cmdline ed esce SENZA gate batteria.
+# (gate scattava prima e bloccava la sola ispezione a telefono collegato)
+if [ "$PRINT_CMD" -eq 1 ]; then
+    if [ -f "$PROMPT_FILE" ]; then
+        _pcontent="$(cat "$PROMPT_FILE")"
+    else
+        _pcontent="<prompt>"
+    fi
+    build_run_cmdline "$_pcontent"
+    exit 0
+fi
+
 # 1) batteria — FAIL-CLOSED (exit 7) salvo --allow-no-battery (solo smoke/dry-run)
+#    DOPO --print-cmd: la cmdline resta stampabile anche a telefono in carica.
 _batt="$(read_battery)"
 _batt_rc=$?
 if [ $_batt_rc -ne 0 ] || [ -z "$_batt" ]; then
@@ -756,17 +864,6 @@ else
             exit 7
         fi
     fi
-fi
-
-# --print-cmd: stampa cmdline runtime-appropriate ed esce (niente binario, niente CSV)
-if [ "$PRINT_CMD" -eq 1 ]; then
-    if [ -f "$PROMPT_FILE" ]; then
-        _pcontent="$(cat "$PROMPT_FILE")"
-    else
-        _pcontent="<prompt>"
-    fi
-    build_run_cmdline "$_pcontent"
-    exit 0
 fi
 
 # 2) binario (dopo --print-cmd: non serve per la sola stampa)
@@ -980,7 +1077,44 @@ mkfifo "$FIFO" || {
     rm -f "$PROMPT_TMP"
     exit 3
 }
-tee -a "$LOG_PATH" < "$FIFO" >&2 &
+
+# Stream filter: collapse CR/spinner (observed 398 MB "Loading model..." spam),
+# record wall-clock first-token ms, surface REPL hang early.
+TTFT_FILE="$(mktemp "$_RB_TMPDIR/run_bench_ttft.XXXXXX" 2>/dev/null || echo "$_RB_TMPDIR/run_bench_ttft.$$")"
+REPL_FLAG_FILE="$(mktemp "$_RB_TMPDIR/run_bench_repl.XXXXXX" 2>/dev/null || echo "$_RB_TMPDIR/run_bench_repl.$$")"
+: > "$TTFT_FILE"
+: > "$REPL_FLAG_FILE"
+START_MS_FILE="$(mktemp "$_RB_TMPDIR/run_bench_startms.XXXXXX" 2>/dev/null || echo "$_RB_TMPDIR/run_bench_startms.$$")"
+printf '0\n' > "$START_MS_FILE"
+
+# Reader: binary → FIFO → filter → LOG + stderr. Captures TTFT wall-clock.
+(
+    _ttft_set=0
+    _spinner_note=0
+    # tr: CR→NL so spinner frames become lines; strip backspace noise
+    tr '\r' '\n' < "$FIFO" | tr -d '\010' | while IFS= read -r _line || [ -n "$_line" ]; do
+        if is_spinner_or_noise_line "$_line"; then
+            if [ "$_spinner_note" -eq 0 ]; then
+                printf '%s\n' "[spinner suppressed: Loading model...]" | tee -a "$LOG_PATH" >/dev/null
+                printf '%s\n' "[spinner suppressed: Loading model...]" >&2
+                _spinner_note=1
+            fi
+            continue
+        fi
+        printf '%s\n' "$_line" | tee -a "$LOG_PATH" >&2
+        if [ "$_ttft_set" -eq 0 ] && is_first_token_line "$_line"; then
+            _now="$(now_ms)"
+            _start="$(cat "$START_MS_FILE" 2>/dev/null || echo 0)"
+            case "$_start" in ''|*[!0-9]*) _start=0 ;; esac
+            if [ "$_start" -gt 0 ] 2>/dev/null; then
+                _delta="$((_now - _start))"
+                if [ "$_delta" -lt 0 ] 2>/dev/null; then _delta=0; fi
+                printf '%s\n' "$_delta" > "$TTFT_FILE"
+                _ttft_set=1
+            fi
+        fi
+    done
+) &
 TEE_PID=$!
 
 # Lancia binario in background: stdout+stderr → FIFO
@@ -988,6 +1122,17 @@ TEE_PID=$!
 # EXTRA_FLAGS word-split intenzionale (flag forniti dall'operatore).
 # shellcheck disable=SC2086
 _PROMPT_ARG="$(cat "$PROMPT_TMP")"
+# Resolve --load-mode for mainline (skip if EXTRA_FLAGS already sets it, e.g. dio).
+_LOAD_MODE_ARGS=()
+if [ "$RUNTIME" != "bigmoe" ]; then
+    _has_lm=0
+    case " ${EXTRA_FLAGS:-} " in
+        *' --load-mode '*|*' --load-mode='*) _has_lm=1 ;;
+    esac
+    if [ "$_has_lm" -eq 0 ]; then
+        _LOAD_MODE_ARGS=(--load-mode "${LOAD_MODE:-mmap}")
+    fi
+fi
 if [ "$RUNTIME" = "bigmoe" ]; then
     if [ -n "$EXTRA_FLAGS" ]; then
         "$BINARY" \
@@ -1010,8 +1155,9 @@ if [ "$RUNTIME" = "bigmoe" ]; then
             < /dev/null > "$FIFO" 2>&1 &
     fi
 else
-    # CLASSIC_PERF=1: drop --simple-io and enable --perf (pin 67d5978 default false)
-    # so llama_perf_context_print appears and fills ttft_ms (F3+).
+    # CLASSIC_PERF=1: drop --simple-io and enable --perf (diagnostic).
+    # --load-mode mmap always (pin 67d5978 aborts without it).
+    # ttft_ms comes from wall-clock first token on stream, not from --perf.
     if [ "$CLASSIC_PERF" -eq 1 ]; then
         if [ -n "$EXTRA_FLAGS" ]; then
             "$BINARY" \
@@ -1026,6 +1172,7 @@ else
                 --no-display-prompt \
                 --no-conversation \
                 --single-turn \
+                "${_LOAD_MODE_ARGS[@]}" \
                 --perf \
                 $EXTRA_FLAGS \
                 < /dev/null > "$FIFO" 2>&1 &
@@ -1042,6 +1189,7 @@ else
                 --no-display-prompt \
                 --no-conversation \
                 --single-turn \
+                "${_LOAD_MODE_ARGS[@]}" \
                 --perf \
                 < /dev/null > "$FIFO" 2>&1 &
         fi
@@ -1059,6 +1207,7 @@ else
                 --no-display-prompt \
                 --no-conversation \
                 --single-turn \
+                "${_LOAD_MODE_ARGS[@]}" \
                 --simple-io \
                 $EXTRA_FLAGS \
                 < /dev/null > "$FIFO" 2>&1 &
@@ -1075,6 +1224,7 @@ else
                 --no-display-prompt \
                 --no-conversation \
                 --single-turn \
+                "${_LOAD_MODE_ARGS[@]}" \
                 --simple-io \
                 < /dev/null > "$FIFO" 2>&1 &
         fi
@@ -1082,8 +1232,31 @@ else
 fi
 LLAMA_PID=$!
 LLAMA_START_EPOCH="$(date +%s 2>/dev/null || echo 0)"
+# Wall-clock origin for stream TTFT (must be after spawn).
+printf '%s\n' "$(now_ms)" > "$START_MS_FILE"
 
-echo "llama_pid=$LLAMA_PID tee_pid=$TEE_PID classic_perf=$CLASSIC_PERF run_timeout_s=$RUN_TIMEOUT_S" >&2
+echo "llama_pid=$LLAMA_PID tee_pid=$TEE_PID classic_perf=$CLASSIC_PERF load_mode=${LOAD_MODE:-mmap} run_timeout_s=$RUN_TIMEOUT_S" >&2
+
+# Anti-REPL watchdog: if timing summary appears and process stays alive without
+# "Exiting", mark invalid and kill immediately (do not wait for run-timeout).
+(
+    while kill -0 "$LLAMA_PID" 2>/dev/null; do
+        if has_repl_hang_signal "$LOG_PATH"; then
+            # allow a short grace for clean Exiting...
+            sleep 8
+            if kill -0 "$LLAMA_PID" 2>/dev/null && has_repl_hang_signal "$LOG_PATH"; then
+                echo "--- REPL hang detected after timing summary; killing llama_pid=$LLAMA_PID ---" | tee -a "$LOG_PATH" >&2
+                printf '1\n' > "$REPL_FLAG_FILE"
+                kill -TERM "$LLAMA_PID" 2>/dev/null || true
+                sleep 2
+                kill -KILL "$LLAMA_PID" 2>/dev/null || true
+                exit 0
+            fi
+        fi
+        sleep 2
+    done
+) &
+REPL_WATCH_PID=$!
 
 # Attendi che /proc/<pid> esista (max ~2s)
 _i=0
@@ -1196,13 +1369,23 @@ else
     LLAMA_RC=$?
 fi
 
+# stop anti-REPL watcher
+kill "${REPL_WATCH_PID:-}" 2>/dev/null || true
+wait "${REPL_WATCH_PID:-}" 2>/dev/null || true
+
+REPL_HANG=0
+if [ -f "$REPL_FLAG_FILE" ] && [ "$(cat "$REPL_FLAG_FILE" 2>/dev/null)" = "1" ]; then
+    REPL_HANG=1
+    echo "INVALID/repl: process hung in interactive mode after generation — NOT valid data" | tee -a "$LOG_PATH" >&2
+fi
+
 LLAMA_END_EPOCH="$(date +%s 2>/dev/null || echo 0)"
 WALL_S=""
 if [ "${LLAMA_START_EPOCH:-0}" -gt 0 ] 2>/dev/null && [ "${LLAMA_END_EPOCH:-0}" -gt 0 ] 2>/dev/null; then
     WALL_S="$((LLAMA_END_EPOCH - LLAMA_START_EPOCH))"
 fi
 
-# tee termina quando la FIFO si chiude (writer morto); attendilo
+# tee/filter termina quando la FIFO si chiude (writer morto); attendilo
 wait "$TEE_PID" 2>/dev/null || true
 
 # Ferma sampler e attendi che flush-i gli ultimi sample
@@ -1210,7 +1393,7 @@ kill "$SAMPLER_PID" 2>/dev/null || true
 wait "$SAMPLER_PID" 2>/dev/null || true
 
 # Cleanup tmp
-rm -f "$PROMPT_TMP" "$FIFO" 2>/dev/null || true
+rm -f "$PROMPT_TMP" "$FIFO" "$START_MS_FILE" 2>/dev/null || true
 
 echo "--- llama end rc=$LLAMA_RC harness_timeout=$HARNESS_TIMEOUT wall_s=${WALL_S:-?} $(date -Iseconds 2>/dev/null || date) ---" | tee -a "$LOG_PATH" >&2
 
@@ -1274,6 +1457,22 @@ MEMFREE_MIN_MB="$(awk -v k="$MEMFREE_MIN_KB" 'BEGIN{printf "%d", (k+0)/1024}')"
 # ---------------------------------------------------------------------------
 parse_timings "$LOG_PATH" "$RUNTIME" "$BINARY"
 
+# TTFT strategy (2026-08-06): stop chasing llama_perf_context_print.
+# Measure wall-clock of first generation marker on the process stream
+# (is_first_token_line: "[Start thinking]" / "=== answer ==="). Same metric
+# for llama-cli and bmoe-cli. Prefer stream wall-clock over any binary TTFT.
+TTFT_WALL_MS=""
+if [ -f "$TTFT_FILE" ]; then
+    TTFT_WALL_MS="$(tr -d '[:space:]' < "$TTFT_FILE" 2>/dev/null || true)"
+fi
+rm -f "$TTFT_FILE" "$REPL_FLAG_FILE" 2>/dev/null || true
+case "$TTFT_WALL_MS" in
+    ''|*[!0-9]*) TTFT_WALL_MS="" ;;
+esac
+if [ -n "$TTFT_WALL_MS" ]; then
+    TTFT_MS="$TTFT_WALL_MS"
+fi
+
 # load_s: wall-clock from process spawn to end (or first-token proxy via prompt eval).
 # Prefer classic perf "load time = NNN ms" if present; else wall_s from harness clock.
 LOAD_S=""
@@ -1289,6 +1488,17 @@ if [ -z "$LOAD_S" ] && [ -n "${WALL_S:-}" ]; then
     LOAD_S="$WALL_S"
 fi
 
+# Sanity: ttft_ms must be >= load_s (load is part of time-to-first-token).
+# If wall TTFT is shorter than load_s*1000, keep the value but annotate.
+TTFT_VS_LOAD_NOTE=""
+if [ -n "$TTFT_MS" ] && [ -n "$LOAD_S" ]; then
+    _load_ms_cmp="$(awk -v s="$LOAD_S" 'BEGIN{printf "%d", (s+0)*1000}')"
+    _ttft_lt="$(awk -v t="$TTFT_MS" -v l="$_load_ms_cmp" 'BEGIN{print (t+0 < l+0)?1:0}')"
+    if [ "$_ttft_lt" = "1" ]; then
+        TTFT_VS_LOAD_NOTE="ttft_lt_load (ttft_ms=$TTFT_MS load_ms=$_load_ms_cmp)"
+    fi
+fi
+
 # ---------------------------------------------------------------------------
 # Notes (single-line, no commas/newlines)
 # ---------------------------------------------------------------------------
@@ -1296,7 +1506,14 @@ NOTES_FINAL=""
 if [ -n "$NOTES_USER" ]; then
     NOTES_FINAL="$NOTES_USER"
 fi
-if [ "$HARNESS_TIMEOUT" -eq 1 ]; then
+if [ "${REPL_HANG:-0}" -eq 1 ]; then
+    _repl_note="INVALID/repl hang after generation"
+    if [ -n "$NOTES_FINAL" ]; then
+        NOTES_FINAL="${NOTES_FINAL}; ${_repl_note}"
+    else
+        NOTES_FINAL="$_repl_note"
+    fi
+elif [ "$HARNESS_TIMEOUT" -eq 1 ]; then
     # Distinct from FAIL rc= (lmkd/OOM): harness kill is NOT scientific data.
     _to_note="BLOCKED/timeout run_timeout_s=${RUN_TIMEOUT_S}"
     if [ -n "$NOTES_FINAL" ]; then
@@ -1332,6 +1549,20 @@ if [ "$CLASSIC_PERF" -eq 1 ]; then
         NOTES_FINAL="classic_perf=1"
     fi
 fi
+if [ -n "${TTFT_WALL_MS:-}" ]; then
+    if [ -n "$NOTES_FINAL" ]; then
+        NOTES_FINAL="${NOTES_FINAL}; ttft_wall=1"
+    else
+        NOTES_FINAL="ttft_wall=1"
+    fi
+fi
+if [ -n "${TTFT_VS_LOAD_NOTE:-}" ]; then
+    if [ -n "$NOTES_FINAL" ]; then
+        NOTES_FINAL="${NOTES_FINAL}; ${TTFT_VS_LOAD_NOTE}"
+    else
+        NOTES_FINAL="$TTFT_VS_LOAD_NOTE"
+    fi
+fi
 # MemAvailable at run start (kB → MB) — required covariate for cold=fadv (§8.2 2026-08-05).
 # fadvise DONTNEED evicts file pages but does not reset fragmentation/lmkd state.
 MEMAVAIL_START_MB=""
@@ -1348,8 +1579,9 @@ fi
 # strip virgole e newline
 NOTES_FINAL="$(sanitize_notes "$NOTES_FINAL")"
 
-# Flags stringa per CSV (niente virgole)
-FLAGS_CSV="$(printf '%s' "$EXTRA_FLAGS" | tr ',' ';' | tr '\n' ' ')"
+# Flags stringa per CSV (niente virgole). Include harness-owned --load-mode mmap
+# so the measured configuration is explicit (F3 comparable; pin 67d5978 needs it).
+FLAGS_CSV="$(build_flags_csv)"
 
 # Model name per CSV = basename
 MODEL_CSV="$(basename "$MODEL")"
@@ -1406,6 +1638,10 @@ echo "harness_timeout=$HARNESS_TIMEOUT run_timeout_s=$RUN_TIMEOUT_S classic_perf
 #   0 = llama ok
 #   1 = llama fail (lmkd/OOM/crash) — VALID F3 data if row present
 #   8 = harness run-timeout — NOT valid data (notes BLOCKED/timeout)
+#   9 = REPL hang after generation — NOT valid data (notes INVALID/repl)
+if [ "${REPL_HANG:-0}" -eq 1 ]; then
+    exit 9
+fi
 if [ "$HARNESS_TIMEOUT" -eq 1 ]; then
     exit 8
 fi

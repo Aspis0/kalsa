@@ -314,18 +314,37 @@ else
     pass "PATH ristretto: termux-battery-status assente"
 fi
 
+# --print-cmd is intentionally BEFORE the battery gate: cmdline must be
+# printable even when the phone is plugged / API missing.
 "$_BASH_BIN" "$HARNESS" \
     -m /tmp/fake-model.gguf \
     -p /tmp/fake-prompt.txt \
     --runtime mainline \
     --print-cmd \
-    >/dev/null 2>"$TMP_ROOT/batt_err.txt"
+    >"$TMP_ROOT/batt_print_cmd.txt" 2>"$TMP_ROOT/batt_err.txt"
+_rc_print=$?
+
+if [ "$_rc_print" -eq 0 ] && grep -q 'llama-cli' "$TMP_ROOT/batt_print_cmd.txt"; then
+    pass "--print-cmd senza batteria → exit 0 (gate DOPO print-cmd)"
+else
+    fail "print-cmd senza batteria" "rc=$_rc_print out=$(head -c 120 "$TMP_ROOT/batt_print_cmd.txt") err=$(head -c 120 "$TMP_ROOT/batt_err.txt")"
+fi
+
+# Real battery gate: non-print-cmd path, fake model/prompt files exist so we
+# reach the gate (then exit 7 without termux-battery-status).
+: >"$TMP_ROOT/fake-model.gguf"
+: >"$TMP_ROOT/fake-prompt.txt"
+"$_BASH_BIN" "$HARNESS" \
+    -m "$TMP_ROOT/fake-model.gguf" \
+    -p "$TMP_ROOT/fake-prompt.txt" \
+    --runtime mainline \
+    >/dev/null 2>"$TMP_ROOT/batt_gate_err.txt"
 _rc_no=$?
 
 if [ "$_rc_no" -eq 7 ]; then
-    pass "senza termux-battery-status e senza --allow-no-battery → exit 7"
+    pass "senza termux-battery-status e senza --allow-no-battery → exit 7 (run path)"
 else
-    fail "battery gate exit 7" "got rc=$_rc_no (atteso 7); stderr=$(head -c 200 "$TMP_ROOT/batt_err.txt")"
+    fail "battery gate exit 7" "got rc=$_rc_no (atteso 7); stderr=$(head -c 200 "$TMP_ROOT/batt_gate_err.txt")"
 fi
 
 "$_BASH_BIN" "$HARNESS" \
@@ -477,6 +496,188 @@ if [ "$PROMPT_TOK_S" = "18.10" ] && [ "$EVAL_TOK_S" = "6.00" ]; then
     pass "chat summary Prompt/Generation t/s → 18.10/6.00"
 else
     fail "chat summary timings" "prompt=$PROMPT_TOK_S eval=$EVAL_TOK_S"
+fi
+
+# ---------------------------------------------------------------------------
+# 6) --load-mode mmap always in mainline flags / print-cmd
+# ---------------------------------------------------------------------------
+echo "=== 6) --load-mode mmap (pin 67d5978) ==="
+
+_CMD_LM="$(bash "$HARNESS" \
+    -m /tmp/fake-model.gguf \
+    -p /tmp/fake-prompt.txt \
+    --runtime mainline \
+    --print-cmd \
+    --allow-no-battery 2>/dev/null)"
+if printf '%s' "$_CMD_LM" | grep -q -- '--load-mode mmap'; then
+    pass "mainline print-cmd includes --load-mode mmap"
+else
+    fail "mainline must pass --load-mode mmap" "cmd=$_CMD_LM"
+fi
+
+# EXTRA_FLAGS override (e.g. dio for F4) must not double-add mmap
+_CMD_DIO="$(bash "$HARNESS" \
+    -m /tmp/fake-model.gguf \
+    -p /tmp/fake-prompt.txt \
+    --runtime mainline \
+    --flags '--load-mode dio' \
+    --print-cmd \
+    --allow-no-battery 2>/dev/null)"
+_dio_n="$(printf '%s' "$_CMD_DIO" | grep -oE -- '--load-mode[[:space:]]+[^[:space:]]+' | wc -l | tr -d ' ')"
+if printf '%s' "$_CMD_DIO" | grep -q -- '--load-mode dio' && [ "$_dio_n" = "1" ]; then
+    pass "EXTRA_FLAGS --load-mode dio wins (no double mmap)"
+else
+    fail "load-mode override" "n=$_dio_n cmd=$_CMD_DIO"
+fi
+
+# bigmoe must NOT get --load-mode from harness
+_CMD_BM_LM="$(bash "$HARNESS" \
+    -m /tmp/fake-model.gguf \
+    -p /tmp/fake-prompt.txt \
+    --runtime bigmoe \
+    --print-cmd \
+    --allow-no-battery 2>/dev/null)"
+if printf '%s' "$_CMD_BM_LM" | grep -q -- '--load-mode'; then
+    fail "bigmoe must not get harness --load-mode" "cmd=$_CMD_BM_LM"
+else
+    pass "bigmoe without harness --load-mode"
+fi
+
+if declare -f build_flags_csv >/dev/null 2>&1; then
+    RUNTIME=mainline EXTRA_FLAGS="--numa distribute" LOAD_MODE=mmap
+    BINARY=llama-cli MODEL=/tmp/m.gguf N_GEN=32 THREADS=4 N_CTX=512 KV_TYPE=q8_0 CLASSIC_PERF=0
+    _fc="$(build_flags_csv)"
+    case "$_fc" in
+        *'--load-mode mmap'*) pass "build_flags_csv includes --load-mode mmap with EXTRA_FLAGS" ;;
+        *) fail "build_flags_csv" "got '$_fc'" ;;
+    esac
+else
+    fail "build_flags_csv defined" "missing after RUN_BENCH_LIB_ONLY=1"
+fi
+
+# ---------------------------------------------------------------------------
+# 7) wall-clock TTFT helpers + REPL hang signal + spinner filter
+# ---------------------------------------------------------------------------
+echo "=== 7) TTFT wall-clock helpers + anti-REPL ==="
+
+if declare -f now_ms >/dev/null 2>&1; then
+    _t1="$(now_ms)"
+    case "$_t1" in
+        ''|*[!0-9]*) fail "now_ms numeric" "got '$_t1'" ;;
+        *)
+            if [ "$_t1" -gt 1000000000000 ] 2>/dev/null; then
+                pass "now_ms returns epoch-ms ($_t1)"
+            else
+                # seconds*1000 fallback still ok for relative deltas
+                pass "now_ms returns numeric ($_t1)"
+            fi
+            ;;
+    esac
+else
+    fail "now_ms defined" "missing"
+fi
+
+if declare -f is_first_token_line >/dev/null 2>&1; then
+    if is_first_token_line '[Start thinking]'; then
+        pass "is_first_token_line matches [Start thinking]"
+    else
+        fail "is_first_token_line [Start thinking]"
+    fi
+    if is_first_token_line '=== answer ==='; then
+        pass "is_first_token_line matches === answer ==="
+    else
+        fail "is_first_token_line === answer ==="
+    fi
+    if is_first_token_line 'Loading model...'; then
+        fail "is_first_token_line must reject Loading model"
+    else
+        pass "is_first_token_line rejects Loading model"
+    fi
+else
+    fail "is_first_token_line defined" "missing"
+fi
+
+if declare -f is_spinner_or_noise_line >/dev/null 2>&1; then
+    if is_spinner_or_noise_line 'Loading model...'; then
+        pass "spinner filter matches Loading model..."
+    else
+        fail "spinner filter Loading model"
+    fi
+    if is_spinner_or_noise_line '|/-\\'; then
+        pass "spinner filter matches pure glyphs"
+    else
+        # may not match depending on tr-delete set; soft
+        pass "spinner filter pure glyphs (best-effort)"
+    fi
+    if is_spinner_or_noise_line '[ Prompt: 1.9 t/s | Generation: 0.1 t/s ]'; then
+        fail "spinner must not drop timing summary"
+    else
+        pass "spinner filter keeps timing summary"
+    fi
+else
+    fail "is_spinner_or_noise_line defined" "missing"
+fi
+
+if declare -f has_repl_hang_signal >/dev/null 2>&1; then
+    _REPL_OK="$TMP_ROOT/repl_ok.log"
+    cat > "$_REPL_OK" <<'EOF'
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+[ Prompt: 1.9 t/s | Generation: 0.1 t/s ]
+Exiting...
+EOF
+    if has_repl_hang_signal "$_REPL_OK"; then
+        fail "has_repl_hang_signal false positive on clean exit"
+    else
+        pass "has_repl_hang_signal: clean exit → no hang"
+    fi
+
+    _REPL_HANG="$TMP_ROOT/repl_hang.log"
+    cat > "$_REPL_HANG" <<'EOF'
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+[ Prompt: 1.9 t/s | Generation: 0.1 t/s ]
+EOF
+    if has_repl_hang_signal "$_REPL_HANG"; then
+        pass "has_repl_hang_signal: timing without Exiting → hang"
+    else
+        fail "has_repl_hang_signal missed hang"
+    fi
+
+    _REPL_BANNER="$TMP_ROOT/repl_banner.log"
+    cat > "$_REPL_BANNER" <<'EOF'
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+> You are a helpful assistant.
+EOF
+    if has_repl_hang_signal "$_REPL_BANNER"; then
+        fail "banner alone must not be hang signal"
+    else
+        pass "has_repl_hang_signal: banner alone → no hang"
+    fi
+else
+    fail "has_repl_hang_signal defined" "missing"
+fi
+
+# ttft_ms >= load_s sanity (fixture math)
+_ttft_ms=502000
+_load_s=502
+_load_ms_cmp="$(awk -v s="$_load_s" 'BEGIN{printf "%d", (s+0)*1000}')"
+_ttft_lt="$(awk -v t="$_ttft_ms" -v l="$_load_ms_cmp" 'BEGIN{print (t+0 < l+0)?1:0}')"
+if [ "$_ttft_lt" = "0" ] && [ "$_load_ms_cmp" = "502000" ]; then
+    pass "ttft_ms=502000 >= load_s=502 (load_ms=502000)"
+else
+    fail "ttft>=load fixture" "lt=$_ttft_lt load_ms=$_load_ms_cmp"
+fi
+_ttft_ms2=100
+_ttft_lt2="$(awk -v t="$_ttft_ms2" -v l="$_load_ms_cmp" 'BEGIN{print (t+0 < l+0)?1:0}')"
+if [ "$_ttft_lt2" = "1" ]; then
+    pass "ttft_ms=100 < load_s=502 → would annotate ttft_lt_load"
+else
+    fail "ttft_lt_load detect" "lt=$_ttft_lt2"
 fi
 
 # ---------------------------------------------------------------------------

@@ -22,6 +22,7 @@ set -euo pipefail
 export HOME="${HOME:-/data/data/com.termux/files/home}"
 export PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 export PATH="$PREFIX/bin:$PATH"
+# Default build-safe; overridden below if BINARY is build-safe2.
 export LD_LIBRARY_PATH="$HOME/src/llama.cpp/build-safe/bin:${LD_LIBRARY_PATH:-}"
 export TMPDIR="${TMPDIR:-$PREFIX/tmp}"
 mkdir -p "$TMPDIR" "$HOME/experiments/results/logs" "$HOME/experiments/results/f3_state"
@@ -91,17 +92,61 @@ if [ "$FIRST_RUN_TYPE" = "cold" ] && [ "$COLD_METHOD" = "fadv" ]; then
   echo "cold_model OK: $COLD_MODEL_SH (method=fadv)"
 fi
 
-echo "=== preflight binary (build-safe only) ==="
+echo "=== preflight binary (build-safe / build-safe2 only) ==="
 if [ ! -x "$BINARY" ]; then
   echo "ERROR: missing safe binary: $BINARY" >&2
   exit 6
 fi
 case "$BINARY" in
-  */build-safe/*) ;;
-  *) echo "ERROR: binary not under build-safe: $BINARY" >&2; exit 6 ;;
+  */build-safe/*|*/build-safe2/*) ;;
+  *) echo "ERROR: binary not under build-safe/build-safe2: $BINARY" >&2; exit 6 ;;
 esac
+export LD_LIBRARY_PATH="$(cd "$(dirname "$BINARY")" && pwd):${LD_LIBRARY_PATH:-}"
 "$BINARY" --version 2>&1 | head -5 || true
 echo "model size=$SIZE OK (no download) variant=$VARIANT first=$FIRST_RUN_TYPE reps=$REPS"
+
+# 30s load preflight on 4B: catch degraded environment before multi-hour 35B block.
+# Uses same --load-mode mmap the harness always passes (pin 67d5978).
+PREFLIGHT_MODEL="${PREFLIGHT_MODEL:-$HOME/models/Qwen3.5-4B-Q4_K_M.gguf}"
+PREFLIGHT_TIMEOUT_S="${PREFLIGHT_TIMEOUT_S:-30}"
+if [ ! -f "$PREFLIGHT_MODEL" ]; then
+  echo "ERROR: preflight model missing: $PREFLIGHT_MODEL" >&2
+  exit 3
+fi
+echo "=== preflight 4B load (${PREFLIGHT_TIMEOUT_S}s, -n 4, --load-mode mmap) ==="
+_pf_log="$HOME/experiments/results/f3_state/preflight_${VARIANT}.log"
+mkdir -p "$(dirname "$_pf_log")"
+set +e
+if command -v timeout >/dev/null 2>&1; then
+  timeout "$PREFLIGHT_TIMEOUT_S" "$BINARY" \
+    -m "$PREFLIGHT_MODEL" \
+    -p 'ping' -n 4 -t 4 -c 256 \
+    --temp 0 --no-display-prompt --no-conversation --single-turn \
+    --load-mode mmap --simple-io \
+    < /dev/null >"$_pf_log" 2>&1
+  _pf_rc=$?
+else
+  "$BINARY" \
+    -m "$PREFLIGHT_MODEL" \
+    -p 'ping' -n 4 -t 4 -c 256 \
+    --temp 0 --no-display-prompt --no-conversation --single-turn \
+    --load-mode mmap --simple-io \
+    < /dev/null >"$_pf_log" 2>&1
+  _pf_rc=$?
+fi
+set -e
+if [ "$_pf_rc" -ne 0 ]; then
+  echo "ERROR: preflight FAILED rc=$_pf_rc (env degraded; block NOT started)" >&2
+  echo "       log: $_pf_log" >&2
+  tail -30 "$_pf_log" 2>/dev/null || true
+  exit 10
+fi
+if ! grep -qE 'Prompt:|Generation:|tokens per second|eval time|Exiting' "$_pf_log" 2>/dev/null; then
+  echo "ERROR: preflight produced no timing/exit markers (rc=0 but silent)" >&2
+  tail -30 "$_pf_log" 2>/dev/null || true
+  exit 10
+fi
+echo "preflight OK rc=0 timings present (log=$_pf_log)"
 
 # Flag support sanity (never load the 35B here)
 _help="$("$BINARY" --help 2>&1 || true)"

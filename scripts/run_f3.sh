@@ -65,7 +65,7 @@ if [ "$COLD_METHOD" = "reboot" ]; then
     SKIP_FIRST_COOLDOWN=1
 fi
 
-export LD_LIBRARY_PATH="${HOME}/src/llama.cpp/build-safe/bin:${LD_LIBRARY_PATH:-}"
+# LD_LIBRARY_PATH set after --binary is parsed (build-safe or build-safe2).
 export TMPDIR="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
 mkdir -p "$TMPDIR" 2>/dev/null || true
 
@@ -214,17 +214,19 @@ if [ ! -x "$BINARY" ] && [ ! -f "$BINARY" ]; then
 fi
 case "$BINARY" in
     */build/bin/*)
-        echo "ERROR: refused old build/ tree: $BINARY (use build-safe)" >&2
+        echo "ERROR: refused old build/ tree: $BINARY (use build-safe or build-safe2)" >&2
         exit 6
         ;;
 esac
 case "$BINARY" in
-    */build-safe/*) ;;
+    */build-safe/*|*/build-safe2/*) ;;
     *)
-        echo "ERROR: binary must be under build-safe/: $BINARY" >&2
+        echo "ERROR: binary must be under build-safe/ or build-safe2/: $BINARY" >&2
         exit 6
         ;;
 esac
+# Shared libs live next to llama-cli (build-safe or build-safe2).
+export LD_LIBRARY_PATH="$(cd "$(dirname "$BINARY")" && pwd):${LD_LIBRARY_PATH:-}"
 if [ ! -f "$RUN_BENCH" ]; then
     echo "ERROR: run_bench missing: $RUN_BENCH" >&2
     exit 3
@@ -477,6 +479,9 @@ run_one() {
         log "BLOCKED/timeout: run_bench exit 8 (harness run-timeout ${RUN_TIMEOUT_S}s) — NOT valid F3 data rtype=$_rtype rep=$_rep"
         # Continue remaining reps only if operator wants; treat as annotated miss, do not abort campaign.
         # (A killed mid-load run is not a scientific row; CSV may still have BLOCKED/timeout notes.)
+    # exit 9 = REPL hang after generation — NOT valid data
+    elif [ "$_ec" -eq 9 ]; then
+        log "INVALID/repl: run_bench exit 9 (hung in interactive mode) — NOT valid F3 data rtype=$_rtype rep=$_rep"
     # exit 1 = llama fail (lmkd/OOM/crash) — VALID F3 data if CSV row written
     elif [ "$_ec" -eq 1 ]; then
         log "ANNOTATE: run_bench exit 1 (likely lmkd/OOM/crash) — valid F3 data if row present rtype=$_rtype rep=$_rep"

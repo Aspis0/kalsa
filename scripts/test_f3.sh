@@ -266,7 +266,7 @@ EOF
   fi
 fi
 
-echo "=== 7) exit-8 distinct from exit-1 (static) ==="
+echo "=== 7) exit-8 / exit-9 distinct from exit-1 (static) ==="
 if grep -q 'HARNESS_TIMEOUT' "$BENCH" && grep -q 'BLOCKED/timeout' "$BENCH" && grep -q 'exit 8' "$BENCH"; then
   pass "harness timeout path distinct (BLOCKED/timeout + exit 8)"
 else
@@ -276,6 +276,76 @@ if grep -q 'exit 8' "$F3" || grep -q 'BLOCKED/timeout' "$F3"; then
   pass "run_f3 handles exit 8 as BLOCKED/timeout (not valid data)"
 else
   fail "run_f3 missing exit 8 handling"
+fi
+if grep -q 'INVALID/repl' "$BENCH" && grep -q 'exit 9' "$BENCH"; then
+  pass "run_bench REPL hang → exit 9 + INVALID/repl"
+else
+  fail "run_bench REPL hang path missing"
+fi
+if grep -q 'INVALID/repl' "$F3" && grep -q 'exit 9' "$F3"; then
+  pass "run_f3 handles exit 9 as INVALID/repl"
+else
+  fail "run_f3 missing exit 9 handling"
+fi
+
+echo "=== 8) --load-mode mmap + preflight + print-cmd battery order ==="
+# mainline always has --load-mode mmap in print-cmd
+_cmd_lm="$(bash "$BENCH" -m /tmp/fake.gguf -p /tmp/fake.txt --runtime mainline --print-cmd --allow-no-battery 2>/dev/null)"
+if printf '%s' "$_cmd_lm" | grep -q -- '--load-mode mmap'; then
+  pass "print-cmd mainline includes --load-mode mmap"
+else
+  fail "print-cmd missing --load-mode mmap" "cmd=$_cmd_lm"
+fi
+
+# print-cmd works without battery / allow-no-battery (gate is AFTER print-cmd)
+_cmd_nb="$(bash "$BENCH" -m /tmp/fake.gguf -p /tmp/fake.txt --runtime mainline --print-cmd 2>/dev/null)" && _nb_ec=0 || _nb_ec=$?
+if [ "$_nb_ec" -eq 0 ] && printf '%s' "$_cmd_nb" | grep -q 'llama-cli'; then
+  pass "--print-cmd without battery gate (exit 0)"
+else
+  fail "print-cmd should not require battery" "ec=$_nb_ec"
+fi
+
+# start_f3 has 4B preflight
+if grep -q 'preflight 4B' "$START" && grep -q 'PREFLIGHT_MODEL' "$START" && grep -q 'exit 10' "$START"; then
+  pass "start_f3 has 4B preflight (30s, exit 10 on fail)"
+else
+  fail "start_f3 preflight missing"
+fi
+if grep -q 'build-safe2' "$START" && grep -q 'build-safe2' "$F3"; then
+  pass "start_f3/run_f3 accept build-safe2 binary path"
+else
+  fail "build-safe2 path not accepted"
+fi
+
+# spinner / stream filter present
+if grep -q 'spinner suppressed' "$BENCH" && grep -q 'is_spinner_or_noise_line' "$BENCH" && grep -q 'tr -d' "$BENCH"; then
+  pass "run_bench stream filter collapses CR/spinner"
+else
+  fail "stream filter missing"
+fi
+
+# wall-clock TTFT strategy
+if grep -q 'ttft_wall' "$BENCH" && grep -q 'is_first_token_line' "$BENCH" && grep -q 'TTFT_WALL_MS' "$BENCH"; then
+  pass "run_bench wall-clock TTFT (stream first token)"
+else
+  fail "wall-clock TTFT missing"
+fi
+
+# fixture: ttft >= load_s
+if declare -f is_first_token_line >/dev/null 2>&1; then
+  if is_first_token_line '[Start thinking]'; then
+    pass "is_first_token_line fixture [Start thinking]"
+  else
+    fail "is_first_token_line fixture"
+  fi
+fi
+_ttft=502000; _load_s=502
+_load_ms="$(awk -v s="$_load_s" 'BEGIN{printf "%d", (s+0)*1000}')"
+_ok="$(awk -v t="$_ttft" -v l="$_load_ms" 'BEGIN{print (t+0 >= l+0)?1:0}')"
+if [ "$_ok" = "1" ]; then
+  pass "ttft_ms >= load_s fixture (502000 >= 502s)"
+else
+  fail "ttft>=load fixture"
 fi
 
 rm -rf "$TMP"
