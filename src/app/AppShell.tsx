@@ -525,6 +525,18 @@ export function AppShell() {
   const [download, setDownload] = useState<{ bytesReceived: number; bytesTotal: number; progress: number } | null>(null);
   const [modelError, setModelError] = useState<string | null>(null);
   const currentModel = MODEL_REGISTRY[modelIndex];
+  // Same resolve path as initEngine — catalog n_ctx (+ optional high-RAM hybrid
+  // upgrade). Passed to AiChatPage for the long-chat nudge ceiling so the
+  // warning tracks whatever model is selected, not a fixed magic number.
+  const chatEngineCtx = useMemo(
+    () =>
+      resolveContextProfile({
+        hybrid: currentModel.hybrid,
+        kvCache: currentModel.kvCache,
+        catalogCtx: currentModel.engineCtx,
+      }).nCtx,
+    [currentModel],
+  );
   // Ref speculare per il race tra check iniziale e load della preferenza.
   const modelIndexRef = useRef(modelIndex);
   modelIndexRef.current = modelIndex;
@@ -1581,6 +1593,7 @@ export function AppShell() {
             onSendStream={handleSendStream}
             voiceReady={voiceState === "ready"}
             ttsEnabled={ttsEnabled}
+            engineCtx={chatEngineCtx}
             onOpenMiniapp={(miniapp) => {
               // Policy: ignore miniapp open while Settings/Help is active
               // (exclusive overlay; stays until user closes it).

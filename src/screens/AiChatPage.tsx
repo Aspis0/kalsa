@@ -70,12 +70,9 @@ import {
   transcribePcm,
 } from "../voice/WhisperService";
 import * as TtsService from "../voice/TtsService";
+import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
 
 const HISTORY_KEY = "kalsa.messages.v1";
-
-/** V4.2 §Fase 3.5: one-shot long-conversation nudge thresholds. */
-const LONG_CHAT_MESSAGE_THRESHOLD = 40;
-const LONG_CHAT_TOKEN_THRESHOLD = 6000; // chars/4 heuristic
 
 export type AiChatSelectedRun = {
   jobId: string;
@@ -172,6 +169,12 @@ type Props = {
   voiceReady?: boolean;
   /** Settings → Voice TTS toggle (default true). */
   ttsEnabled?: boolean;
+  /**
+   * Resolved n_ctx for the loaded (or selected) model — from AppShell's
+   * resolveContextProfile. Used by the long-chat nudge as its token ceiling.
+   * Omitted → longChatEstimate.LONG_CHAT_DEFAULT_N_CTX.
+   */
+  engineCtx?: number;
 };
 
 type SuggestionItem = {
@@ -458,6 +461,7 @@ export function AiChatPage({
   onCtaPress,
   voiceReady = false,
   ttsEnabled = true,
+  engineCtx,
 }: Props) {
   const { colors } = useLabTheme<any>();
   // Shadows the module-level `typography` import for this component only
@@ -576,14 +580,12 @@ export function AiChatPage({
   const translateAbortRef = useRef<AbortController | null>(null);
 
   // V4.2 §Fase 3.5: long-conversation nudge (one-shot per conversation).
-  const longChat = useMemo(() => {
-    if (messages.length > LONG_CHAT_MESSAGE_THRESHOLD) return true;
-    const estimatedTokens = messages.reduce(
-      (sum, m) => sum + Math.ceil((m.text?.length ?? 0) / 4),
-      0,
-    );
-    return estimatedTokens > LONG_CHAT_TOKEN_THRESHOLD;
-  }, [messages]);
+  // Token estimate includes attachment vision cost; threshold is a fraction of
+  // the resolved model n_ctx (see longChatEstimate.ts).
+  const longChat = useMemo(
+    () => shouldShowLongChatNudge(messages, engineCtx),
+    [messages, engineCtx],
+  );
 
   useEffect(() => {
     if (longChat && !longChatNudgeShown) setLongChatNudgeShown(true);

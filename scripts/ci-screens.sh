@@ -33,20 +33,35 @@ record() {
 # Always writes NN_slug.png / .txt even on failure.
 capture() {
   local name="$1" marker="${2:-}" note="${3:-}"
-  sleep 2
-  shot "$name"
-  ui_texts > "$OUT/${name}.txt" 2>/dev/null || true
-  if [ -n "$marker" ]; then
-    if grep -qF "$marker" "$OUT/${name}.txt" 2>/dev/null; then
-      record OK "$name" "${note:-marker ok}"
+  # Bounded retry: a cold start on a shared runner is sometimes slower than the
+  # fixed sleeps, and a single missed marker used to be recorded as FAILED with
+  # no second look. Still fails after the last attempt — this hides flakiness,
+  # not real breakage.
+  local attempts=3 i=1
+  while [ "$i" -le "$attempts" ]; do
+    sleep 2
+    shot "$name"
+    ui_texts > "$OUT/${name}.txt" 2>/dev/null || true
+    if [ -z "$marker" ]; then
+      record OK "$name" "${note:-captured (no marker)}"
       return 0
     fi
-    record FAILED "$name" "${note:-marker missing}: expected «${marker}»"
-    return 0
-  fi
-  record OK "$name" "${note:-captured (no marker)}"
+    if grep -qF "$marker" "$OUT/${name}.txt" 2>/dev/null; then
+      if [ "$i" -eq 1 ]; then
+        record OK "$name" "${note:-marker ok}"
+      else
+        record OK "$name" "${note:-marker ok} (attempt $i)"
+      fi
+      return 0
+    fi
+    log "  marker not found for $name (attempt $i/$attempts)"
+    i=$((i + 1))
+    [ "$i" -le "$attempts" ] && sleep 6
+  done
+  record FAILED "$name" "${note:-marker missing}: expected «${marker}» after $attempts attempts"
   return 0
 }
+
 
 # ── Device helpers ──────────────────────────────────────────────────────────
 restart_app() {
@@ -306,6 +321,146 @@ JSON
 
   # 16 — font xl uses markdown seed so chat body is visible at large type
   cp "$OUT/seeds/markdown.json" "$OUT/seeds/font_xl.json"
+
+  # 17 — short chat (3 msgs) with enough vision attachments to trip the
+  # long-chat token estimate (pageCount/image slots × ESTIMATED_TOKENS_PER_IMAGE).
+  # pageCount is the only PDF metadata sanitizeHistoryMessages keeps.
+  cat > "$OUT/seeds/attachments_long.json" <<'JSON'
+[
+  {
+    "id": "att-long-user-1",
+    "role": "user",
+    "text": "Please review these PDF pages and figures. ATTACH_LONG_MARKER",
+    "createdAt": 1700000002000,
+    "attachments": [
+      {
+        "id": "att-pdf-1",
+        "kind": "pdf",
+        "name": "paper-1.pdf",
+        "uri": "",
+        "pageCount": 5
+      },
+      {
+        "id": "att-img-1a",
+        "kind": "image",
+        "name": "fig1a.png",
+        "uri": ""
+      },
+      {
+        "id": "att-img-1b",
+        "kind": "image",
+        "name": "fig1b.png",
+        "uri": ""
+      }
+    ]
+  },
+  {
+    "id": "att-long-asst-1",
+    "role": "assistant",
+    "text": "Reviewed batch 1: the figures show the expected trend.",
+    "createdAt": 1700000003000
+  },
+  {
+    "id": "att-long-user-2",
+    "role": "user",
+    "text": "More pages and figures, batch 2.",
+    "createdAt": 1700000004000,
+    "attachments": [
+      {
+        "id": "att-pdf-2",
+        "kind": "pdf",
+        "name": "paper-2.pdf",
+        "uri": "",
+        "pageCount": 5
+      },
+      {
+        "id": "att-img-2a",
+        "kind": "image",
+        "name": "fig2a.png",
+        "uri": ""
+      },
+      {
+        "id": "att-img-2b",
+        "kind": "image",
+        "name": "fig2b.png",
+        "uri": ""
+      }
+    ]
+  },
+  {
+    "id": "att-long-asst-2",
+    "role": "assistant",
+    "text": "Reviewed batch 2: the figures show the expected trend.",
+    "createdAt": 1700000005000
+  },
+  {
+    "id": "att-long-user-3",
+    "role": "user",
+    "text": "More pages and figures, batch 3.",
+    "createdAt": 1700000006000,
+    "attachments": [
+      {
+        "id": "att-pdf-3",
+        "kind": "pdf",
+        "name": "paper-3.pdf",
+        "uri": "",
+        "pageCount": 5
+      },
+      {
+        "id": "att-img-3a",
+        "kind": "image",
+        "name": "fig3a.png",
+        "uri": ""
+      },
+      {
+        "id": "att-img-3b",
+        "kind": "image",
+        "name": "fig3b.png",
+        "uri": ""
+      }
+    ]
+  },
+  {
+    "id": "att-long-asst-3",
+    "role": "assistant",
+    "text": "Reviewed batch 3: the figures show the expected trend.",
+    "createdAt": 1700000007000
+  },
+  {
+    "id": "att-long-user-4",
+    "role": "user",
+    "text": "More pages and figures, batch 4.",
+    "createdAt": 1700000008000,
+    "attachments": [
+      {
+        "id": "att-pdf-4",
+        "kind": "pdf",
+        "name": "paper-4.pdf",
+        "uri": "",
+        "pageCount": 5
+      },
+      {
+        "id": "att-img-4a",
+        "kind": "image",
+        "name": "fig4a.png",
+        "uri": ""
+      },
+      {
+        "id": "att-img-4b",
+        "kind": "image",
+        "name": "fig4b.png",
+        "uri": ""
+      }
+    ]
+  },
+  {
+    "id": "att-long-asst-4",
+    "role": "assistant",
+    "text": "Reviewed batch 4: the figures show the expected trend.",
+    "createdAt": 1700000009000
+  }
+]
+JSON
 }
 
 write_seeds
@@ -512,6 +667,11 @@ fi
 log "16_font_xl"
 seed_chat "$OUT/seeds/font_xl.json" "kalsa.fontScale:xl"
 capture 16_font_xl "MD_MARKDOWN_MARKER" "font scale xl"
+
+# 17_chat_attachments_long — short history + heavy attachments → long-chat nudge
+log "17_chat_attachments_long"
+seed_chat "$OUT/seeds/attachments_long.json"
+capture 17_chat_attachments_long "This conversation is getting long" "attachment-heavy long-chat nudge"
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Dark theme captures
