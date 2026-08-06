@@ -945,6 +945,49 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 notte — ANOMALIA APERTA sul binario: da risolvere PRIMA di F4 (Claude).**
+  Cercando di capire perché `ttft_ms` resta vuoto ho trovato un problema più grosso, e
+  **non l'ho risolto**: quello che segue è un referto, non una diagnosi chiusa.
+  - **Fatto 1 — riproducibile.** `build-safe/bin/llama-cli` (pin 67d5978) **aborta in
+    `load_tensors`** (`SIGABRT`, `src/llama.cpp:62: fatal error`, top frame
+    `llama_load_mode_from_str`) su **tutti e tre i modelli** (4B, LFM2, 35B) quando
+    `--load-mode` non è passato. Con **`--load-mode mmap` esplicito carica e genera**
+    (`[ Prompt: 2.5 t/s | Generation: 2.2 t/s ]` sul 4B). Testato ~8 volte, deterministico
+    in entrambe le direzioni. Non è memoria (4.2 GB `MemAvailable`), non è `TMPDIR`, non è
+    un file corrotto (crashano tutti e tre), non è il binario cambiato (mtime 2026-08-03
+    23:57, cioè **precedente** ai run F2 riusciti), non sono variabili d'ambiente
+    (nessuna `LLAMA_*`/`GGML_*` né in shell interattiva né di login).
+  - **Fatto 2 — non spiegato, ed è questo il punto.** La riga di comando dell'harness
+    (`run_bench.sh:1033-1046`) è **identica** a quella che fallisce — stessi flag, stesso
+    ordine, stesso `< /dev/null` — e alle 22:00-00:22 ha caricato e generato senza
+    problemi 9 volte di fila, exit 0. Alle 01:00 la stessa riga aborta.
+    **Un ambiente che cambia comportamento in silenzio invalida qualunque confronto**: se
+    F4 gira in queste condizioni non sapremo se un delta viene da BigMoeOnEdge o dal
+    binario. Va chiuso prima, non "aggirato".
+  - **Fatto 3.** Con `--load-mode mmap` il processo carica, genera, e poi **non esce**:
+    resta appeso oltre `--single-turn`/`--no-conversation` fino al timeout (rc=124), e in
+    un run manuale ha mostrato il banner della REPL interattiva (`> `, `/exit`, `/regen`).
+    Sotto l'harness invece usciva con rc=0. Se in F4 ricapita, un run resta appeso 45
+    minuti e finisce come `BLOCKED/timeout` invece che come dato.
+  - **F3 NON è invalidata**: quei run hanno caricato, generato, chiuso con rc=0 e prodotto
+    numeri coerenti fra loro sullo stesso percorso mmap.
+  - **Test decisivo che non ho potuto fare**: lanciare `run_bench.sh` così com'è. Il gate
+    batteria lo blocca perché il telefono è in carica (corretto che lo faccia) — quindi va
+    rifatto **a telefono scollegato**. È il primo passo prima di qualsiasi cosa in F4:
+    se l'harness passa e la mano fallisce, la differenza è nell'ambiente di invocazione e
+    va trovata lì; se fallisce anche l'harness, si ricostruisce il binario.
+  - **Solo dopo**, se confermato: passare `--load-mode mmap` esplicito in
+    `build_run_cmdline` (e registrarlo nella colonna flags, perché diventa parte della
+    configurazione misurata), più un guard che fallisca subito se nel log compare il
+    banner della REPL.
+  - **Scoperta collaterale che vale una riga in F4**: questa build espone
+    **`--load-mode dio` (DirectIO)**. Visti i **9.5 GiB riletti per token** di F3, causati
+    dalla page cache continuamente sfrattata, bypassarla del tutto è esattamente
+    l'esperimento suggerito da kimi-k3-in-c (§3.3) — ed è già disponibile, senza scrivere
+    codice. Da provare in F4 accanto a `mmap`, non da rimandare a F8.
+  - Difetto minore dell'harness: il gate batteria scatta **prima** di `--print-cmd`, che
+    non esegue nulla; stampare la cmdline a telefono collegato è impossibile.
+
 - **2026-08-06 — Gate F3 ACCETTATO (Claude): PASS, con 4 correzioni. Il muro è misurato.**
   Numeri: **0.10 tok/s** su tutte e tre le varianti (default, `--numa distribute`,
   `--no-warmup`), **~11.4M majflt** e **~9.5 GiB letti da flash per token** — l'intero
