@@ -389,7 +389,23 @@ function isAllowedCodePoint(cp: number): boolean {
   // Noncharacters: FDD0–FDEF and any plane's FFFE/FFFF
   if (cp >= 0xfdd0 && cp <= 0xfdef) return false;
   if ((cp & 0xffff) >= 0xfffe) return false;
+  // U+200B–U+200F: ZWSP, ZWNJ, ZWJ, LRM, RLM
+  if (cp >= 0x200b && cp <= 0x200f) return false;
   return true;
+}
+
+/** Drop code points rejected by isAllowedCodePoint from literal text (not only entities). */
+function stripDisallowedCodePoints(s: string): string {
+  if (!s) return s;
+  const parts: string[] = [];
+  for (let i = 0; i < s.length; ) {
+    const cp = s.codePointAt(i)!;
+    const w = cp > 0xffff ? 2 : 1;
+    i += w;
+    if (!isAllowedCodePoint(cp)) continue;
+    parts.push(String.fromCodePoint(cp));
+  }
+  return parts.join("");
 }
 
 /**
@@ -848,12 +864,15 @@ export function htmlToText(
   let title: string | null = null;
   if (titleBuf.length > 0 || titleLen > 0) {
     const rawTitle = titleBuf.join("");
-    const decoded = collapseWs(decodeEntities(rawTitle));
+    const decoded = collapseWs(
+      stripDisallowedCodePoints(decodeEntities(rawTitle)),
+    );
     title = decoded.length > 0 ? decoded : null;
   }
 
   let text = body.join("");
   text = decodeEntities(text);
+  text = stripDisallowedCodePoints(text);
   text = normalizeWhitespace(text);
 
   const cap = resolveMaxChars(maxChars);

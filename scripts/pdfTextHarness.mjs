@@ -609,6 +609,22 @@ async function main() {
         !t.includes("\uFEFF"),
       JSON.stringify(t),
     );
+    // U+200B–U+200F: ZWSP, ZWNJ, ZWJ, LRM, RLM
+    const zw = reconstructPageText([
+      {
+        str: "a\u200B\u200C\u200D\u200E\u200Fb",
+        transform: [12, 0, 0, 12, 0, 0],
+        width: 20,
+      },
+    ]);
+    check(
+      "zero-width marks stripped (U+200B–U+200F)",
+      zw === "ab" &&
+        !zw.includes("\u200B") &&
+        !zw.includes("\u200D") &&
+        !zw.includes("\u200F"),
+      JSON.stringify(zw),
+    );
   }
 
   // ── Defensive ──────────────────────────────────────────────────────────

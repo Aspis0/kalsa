@@ -1,42 +1,52 @@
 [
   {
     "name": "ascii",
-    "error": "missing pdf"
+    "error": "missing pdf",
+    "provenance": "Produced offline by spike-pdf/dump-golden.js (pdf.js 3.11.174) from 01-ascii-plain.pdf. Source PDF and generator are not retained in this repo; the JSON is the only retained artifact. Widths are consistent with real font metrics."
   },
   {
     "name": "italian-accents",
-    "error": "missing pdf"
+    "error": "missing pdf",
+    "provenance": "Produced offline by spike-pdf/dump-golden.js (pdf.js 3.11.174) from an Italian-accents sample PDF. Source PDF and generator are not retained in this repo."
   },
   {
     "name": "two-columns",
-    "error": "missing pdf"
+    "error": "missing pdf",
+    "provenance": "Produced offline by spike-pdf/dump-golden.js (pdf.js 3.11.174) from a two-column layout sample. Source PDF and generator are not retained in this repo."
   },
   {
     "name": "cjk-needs-cmap",
-    "error": "missing pdf"
+    "error": "missing pdf",
+    "provenance": "CONSTRUCTED empty-text-layer fixture (items: []). Not a verbatim cmap-less dump. Real pdf.js output for a cmap-less CJK PDF would contain raw character-code items, not zero items. Source PDF not retained."
   },
   {
     "name": "cjk-tounicode",
-    "error": "missing pdf"
+    "error": "missing pdf",
+    "provenance": "Produced offline by spike-pdf/dump-golden.js (pdf.js 3.11.174) from a CJK PDF with a ToUnicode CMap. Source PDF and generator are not retained in this repo."
   },
   {
     "name": "arxiv",
-    "error": "missing pdf"
+    "error": "missing pdf",
+    "provenance": "Produced offline by spike-pdf/dump-golden.js (pdf.js 3.11.174) from an arXiv paper sample. Source PDF and generator are not retained in this repo."
   },
   {
     "name": "italian-const",
-    "error": "missing pdf"
+    "error": "missing pdf",
+    "provenance": "Produced offline by spike-pdf/dump-golden.js (pdf.js 3.11.174) from an Italian constitutional text sample. Source PDF and generator are not retained in this repo."
   },
   {
     "name": "tracemonkey",
-    "error": "missing pdf"
+    "error": "missing pdf",
+    "provenance": "Produced offline by spike-pdf/dump-golden.js (pdf.js 3.11.174) from Mozilla's TraceMonkey paper PDF (common pdf.js demo). Source PDF and generator are not retained in this repo."
   },
   {
     "name": "jp-stat",
-    "error": "missing pdf"
+    "error": "missing pdf",
+    "provenance": "Produced offline by spike-pdf/dump-golden.js (pdf.js 3.11.174) from a Japanese statistics PDF sample. Source PDF and generator are not retained in this repo."
   },
   {
     "name": "iso-dense",
-    "error": "missing pdf"
+    "error": "missing pdf",
+    "provenance": "Produced offline by spike-pdf/dump-golden.js (pdf.js 3.11.174) from a dense ISO-layout sample. Source PDF and generator are not retained in this repo."
   }
 ]

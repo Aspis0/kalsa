@@ -59,6 +59,12 @@ export interface PdfRetrievalDoc {
 export interface PdfRetrievalDocsResult {
   docs: PdfRetrievalDoc[];
   skippedPages: number[];
+  /**
+   * Real document page count from the PDF (pdf.js numPages), when known.
+   * May exceed docs.length + skippedPages.length when only the first N pages
+   * were processed (MAX_PDF_PAGES cap).
+   */
+  documentPageCount?: number;
 }
 
 export interface ReconstructStats {
@@ -148,7 +154,7 @@ function itemStr(item: PdfTextItem | null | undefined): string {
   return item.str;
 }
 
-/** Aligned with htmlToText isAllowedCodePoint + bidi overrides. */
+/** Aligned with htmlToText isAllowedCodePoint + bidi overrides + ZW marks. */
 function isAllowedCodePoint(cp: number): boolean {
   if (cp >= 0xd800 && cp <= 0xdfff) return false;
   if (cp === 0) return false;
@@ -156,6 +162,8 @@ function isAllowedCodePoint(cp: number): boolean {
   if (cp >= 0x7f && cp <= 0x9f) return false;
   if (cp >= 0xfdd0 && cp <= 0xfdef) return false;
   if ((cp & 0xffff) >= 0xfffe) return false;
+  // U+200B–U+200F: ZWSP, ZWNJ, ZWJ, LRM, RLM
+  if (cp >= 0x200b && cp <= 0x200f) return false;
   if (cp >= 0x202a && cp <= 0x202e) return false;
   if (cp >= 0x2066 && cp <= 0x2069) return false;
   if (cp === 0xfeff) return false;

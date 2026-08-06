@@ -140,10 +140,14 @@ export type TextPageDoneMessage = {
 /**
  * All pages' text pass finished. `pageCount` is how many pages the WebView
  * processed so RN can reconcile missing pages (never silently shrink the set).
+ * `documentPageCount` is the uncapped pdf.js `numPages` when known (may exceed
+ * the processed cap) so callers can tell the user the document is longer.
  */
 export type TextPassDoneMessage = {
   kind: "textPassDone";
   pageCount: number;
+  /** Real document page count from pdf.js (not clamped to MAX_PDF_PAGES). */
+  documentPageCount?: number;
 };
 
 export type BridgeMessage =
@@ -328,7 +332,22 @@ export function parseBridgeMessage(raw: unknown): ParseResult {
     if (m.pageCount > MAX_PDF_PAGES) {
       return cap("page_cap");
     }
-    return { ok: true, message: { kind: "textPassDone", pageCount: m.pageCount } };
+    let documentPageCount: number | undefined;
+    if (m.documentPageCount !== undefined) {
+      if (!isNonNegInt(m.documentPageCount)) {
+        return malformed("bad_document_page_count");
+      }
+      // Hard sanity bound only — not MAX_PDF_PAGES (real docs can be huge).
+      documentPageCount = Math.min(m.documentPageCount, 1_000_000);
+    }
+    return {
+      ok: true,
+      message: {
+        kind: "textPassDone",
+        pageCount: m.pageCount,
+        ...(documentPageCount !== undefined ? { documentPageCount } : {}),
+      },
+    };
   }
 
   // Error (original shape)
@@ -393,7 +412,7 @@ export type TextPageMeta = {
 export type AccumulatorEvent =
   | { type: "image_page"; page: number; base64: string }
   | { type: "text_page"; page: number; items: ProjectedTextItem[]; meta: TextPageMeta }
-  | { type: "text_pass_done"; pageCount: number }
+  | { type: "text_pass_done"; pageCount: number; documentPageCount?: number }
   | { type: "global_done" }
   | { type: "error"; error: string }
   | { type: "cap_exceeded"; reason: string }
@@ -665,7 +684,13 @@ export class PdfBridgeAccumulator {
         if (this.textPassDone) return { type: "noop" };
         this.textPassDone = true;
         this.reportedTextPageCount = message.pageCount;
-        return { type: "text_pass_done", pageCount: message.pageCount };
+        return {
+          type: "text_pass_done",
+          pageCount: message.pageCount,
+          ...(typeof message.documentPageCount === "number"
+            ? { documentPageCount: message.documentPageCount }
+            : {}),
+        };
       }
     }
 

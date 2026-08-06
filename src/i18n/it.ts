@@ -441,6 +441,8 @@ export const it: typeof en = {
     pdfTooLarge: "PDF troppo grande (max 5 MB).",
     pdfTimeout: "Timeout nel rendering della pagina PDF.",
     pdfExtractTimeout: "Timeout nell'estrazione del testo PDF.",
+    pdfRendererGone:
+      "Processo renderer PDF terminato (documento troppo grande o complesso per questo dispositivo).",
     pdfExtractCap: "Estrazione PDF interrotta ({reason}).",
     pdfExtractFailed: "Estrazione del testo PDF non riuscita.",
     searchCancelled: "Ricerca annullata",
@@ -484,12 +486,56 @@ export const it: typeof en = {
       "(rete privata, host diverso non nei risultati di questo turno, o downgrade https).",
     webFetchUnsafeUrl: "Fetch rifiutato: l'URL non è un indirizzo http(s) pubblico e sicuro.",
     webFetchTimeout: "Fetch della pagina scaduto per timeout. Riprova.",
+    webFetchAborted: "Fetch della pagina annullato.",
     webFetchHttpError: "Fetch della pagina fallito (HTTP {status}).",
     webFetchUnsupportedContent: "Tipo di contenuto non supportato per il fetch: {type}.",
     webFetchTooLarge: "Pagina troppo grande da recuperare (dichiarati {sizeKb} KB). Prova una pagina più specifica.",
+    webFetchTooLargeMeasured:
+      "Pagina troppo grande da recuperare ({sizeKb} KB misurati). Prova una pagina più specifica.",
     webFetchNothingMatched:
       "Pagina recuperata ({host}) ma nulla corrisponde alla query. Non inventare contenuti dalla pagina.",
     webFetchFailed: "Fetch della pagina fallito: {message}",
+    webFetchPdfTooLarge:
+      "PDF troppo grande da recuperare (dichiarati {sizeKb} KB). Prova un documento più piccolo.",
+    webFetchPdfTooLargeMeasured:
+      "PDF troppo grande da recuperare ({sizeKb} KB misurati). Prova un documento più piccolo.",
+    webFetchPdfTimeout: "Download del PDF scaduto per timeout. Riprova.",
+    webFetchPdfExtractTimeout: "Estrazione del testo dal PDF scaduta per timeout. Riprova.",
+    /**
+     * Processo renderer WebView morto (OOM Android / content process iOS).
+     * Non dire "riprova" — lo stesso documento lo uccide di nuovo.
+     */
+    webFetchPdfRendererGone:
+      "Estrazione del testo dal PDF fallita: il documento è troppo grande o troppo complesso per questo dispositivo. " +
+      "Non ripetere lo stesso fetch; digli all'utente che il PDF non può essere letto qui.",
+    webFetchPdfAborted: "Fetch del PDF annullato.",
+    webFetchPdfExtractFailed: "Estrazione del testo dal PDF fallita: {message}",
+    /** Directory cache assente quando si scrive un PDF scaricato (verso il modello). */
+    webFetchPdfNoCacheDir: "Nessuna directory di cache disponibile per il corpo del PDF",
+    webFetchPdfBusy:
+      "Un altro PDF è già in estrazione. Attendi che finisca, poi riprova.",
+    webFetchPdfHostMissing:
+      "Estrazione testo PDF non disponibile (host estrattore non montato).",
+    webFetchPdfNoTextLayer:
+      "Questo PDF non ha uno strato di testo estraibile (il documento riporta {pages} pagine; {processed} ispezionate). " +
+      "Diglielo all'utente invece di ripetere lo stesso fetch.",
+    webFetchPdfSkippedPages:
+      "Nota: {skipped} delle {processed} pagine ispezionate non avevano uno strato di testo estraibile " +
+      "(il documento riporta {pages} pagine).",
+    /**
+     * Budget indice: pagine intere scartate e/o ultima pagina troncata.
+     * {dropped} = pagine intere non cercate; {pageList} = "3, 5" o "none".
+     */
+    webFetchPdfIndexCapped:
+      "Nota: il budget di testo ricercabile è esaurito; {dropped} pagina/e non sono state cercate " +
+      "({pageList}). La risposta potrebbe essere nelle pagine non cercate.",
+    webFetchPdfInvalid:
+      "La risposta dichiarava un PDF ma non è stato possibile estrarre pagine. Non inventare contenuti.",
+    webFetchPdfCiteInstruction:
+      "Tutti i passaggi sopra provengono dalla fonte [{index}] (pagine PDF: {pages}). " +
+      "Cita ogni affermazione presa da essi come [{index}] e indica la pagina " +
+      "(es. p. 7) quando un passaggio è etichettato con quella pagina; " +
+      "non usare altri numeri per questo documento.",
     searchBothFailed: "{primary}; fallback Exa MCP: {fallback}",
     searchDeadline: "Ricerca scaduta per timeout. Riprova.",
     searchInvalidResponse: "Risposta non valida da {provider}",

@@ -655,6 +655,17 @@ async function main() {
       JSON.stringify(f10.text),
     );
 
+    // U+200B–U+200F zero-width / directional marks stripped from passages.
+    const f10zw = htmlToText(`<p>a\u200B\u200C\u200D\u200E\u200Fb</p>`);
+    check(
+      "zero-width marks stripped (U+200B–U+200F)",
+      f10zw.text.includes("ab") &&
+        !f10zw.text.includes("\u200B") &&
+        !f10zw.text.includes("\u200D") &&
+        !f10zw.text.includes("\u200F"),
+      JSON.stringify(f10zw.text),
+    );
+
     // F15: textarea content PRESENT + tag-like spans stripped (decision 2)
     const f15 = htmlToText(
       `<p>Before</p><textarea>a < b <script>x</script> c F15_CODE_SAMPLE <b>bold</b></textarea><p>After</p>`,

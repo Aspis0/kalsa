@@ -2,7 +2,8 @@
   "generatedBy": "spike-pdf/dump-golden.js",
   "pdfjsVersion": "3.11.174",
   "sourcePdf": "05-cjk-needs-cmap.pdf",
-  "note": "Verbatim pdf.js getTextContent() items (trimmed). Do not hand-edit values.",
+  "note": "CONSTRUCTED empty-text-layer case (items: []). Not a real cmap-less dump — a real pdf.js dump of a cmap-less CJK PDF would contain items with raw character codes, not zero items. Kept to pin the empty-page reconstruct path. Source PDF not retained in-repo.",
+  "provenance": "constructed-for-harness; source PDF not retained; name is historical",
   "maxItemsPerPage": 200,
   "pages": [
     {
