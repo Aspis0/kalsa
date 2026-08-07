@@ -945,6 +945,80 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 notte — M5 VERIFICATA (Claude): tre rami si chiudono, ma Belady dice che il
+  premio esiste e nessuno dei tre meccanismi ovvi lo prende. E una correzione a una mia
+  ambiguità che aveva ribaltato un verdetto nel verso sbagliato.**
+
+  Analisi di Grok su PC delle 6 route-trace di F4.8 (`reports/moe-m5.md`, commit `f9d4efb`,
+  fix `81bc264`). Verifica mia.
+
+  ### Il cancello del simulatore è passato in modo netto
+
+  hit misurato dallo stdout **48.1%** vs simulato **48.1%**, scarto **−0.05 pp**. Riproduzione
+  esatta ⇒ il modello del comportamento della cache è corretto e tutto ciò che segue poggia su
+  basi solide. In più il simulatore riproduce **entrambe** le finestre (cumulativa 48.1%,
+  solo-decode **72.2%**): **terza conferma indipendente** della faccenda prefill/decode, dopo
+  la derivazione del round 3 e la misura di F4.8.
+
+  ### I quattro verdetti
+
+  | domanda | numero | verdetto |
+  |---|---|---|
+  | politiche di cache | Belady − LRU = **17.79 pp** | premio GRANDE… |
+  | …ma LFU | 72.12 vs LRU 72.24 | **+0** |
+  | …e W-TinyLFU | 59.45 | **−12.8** |
+  | MTP | vedi correzione sotto | **negativo sui byte** |
+  | prefetch cross-layer | Recall@8 **19.2%**, extra-fetch **274%** | **morto** |
+  | dipendenza dal contenuto | hit decode **67.5–80.9%** (Δ13.4 pp) | reale, rifatta bene |
+
+  **Il prefetch muore due volte**, e la seconda è aritmetica: 84.73 × 3.74 = **317 MiB/token**,
+  che a 5 tok/s vorrebbe **1583 MiB/s** contro i 1204 che il device sa dare. Non ci sta nemmeno
+  spendendo tutta la banda che F4.8 ha appena scoperto.
+
+  ### Il filo che lega i tre verdetti, ed è il risultato vero
+
+  **17.79 punti sono sul tavolo e nessuno dei tre meccanismi ovvi ne prende un pezzo.** La
+  frequenza non aiuta (LFU +0, W-TinyLFU −12.8), la co-occorrenza col layer precedente non
+  predice (Recall@8 19.2%), il batching non ammortizza (0.00%). Quadro coerente: **l'accesso
+  agli esperti non è guidato dalla frequenza e non è deducibile dal routing precedente.**
+  Belady vince solo perché conosce il futuro, e quel futuro non si estrae dal passato.
+
+  Belady usa un segnale che nessuna delle tre prova: la **distanza di riuso**. Il bake-off è
+  quindi incompleto proprio dove puntano i dati. Due aggiunte, gratis perché il simulatore è
+  già scritto e validato:
+  1. **ARC e LIRS** — progettate esattamente per «LRU thrasha e LFU non aiuta», lavorano sulla
+     distanza di riuso. Mai provate.
+  2. **Politiche che usano il punteggio del router** (la colonna score è nel trace): evincere
+     per score più basso, o ammettere solo sopra soglia. È un segnale **specifico del dominio**
+     che nessuna cache generica possiede — la direzione in cui si può fare qualcosa che la
+     letteratura del caching non ha.
+
+  ### ⚠ Correzione: il "fix" del Passo 3 ha peggiorato il numero, e la colpa è del mandato mio
+
+  Il commit `81bc264` cambia il residual MTP da `miss@t ∧ miss@t+1` (**0.00%**) a `miss@t fra
+  l'overlap` (**5.04%**), e il verdetto da MTP_NEGATIVO a IN_MEZZO. **La definizione originale
+  era quella giusta.** Il meccanismo, su un esperto E attivo sia a t sia a t+1:
+
+  - **senza MTP**: miss a t ⇒ 1 lettura; a t+1 è in cache (LRU lo tiene ~24 token) ⇒ 0. **Tot 1.**
+  - **con MTP**: i due token si verificano insieme, E sta nell'unione ⇒ **1. Tot 1.**
+
+  Risparmio **zero**. MTP guadagna un byte **solo** se E viene sfrattato fra t e t+1, cioè
+  `miss@t ∧ miss@t+1` = **0.00%**. Il 5.04% conta gli esperti che **LRU già cattura** (il
+  report stesso li chiama `miss@t ∧ hit@t+1 = 0.050` due righe sopra): un risparmio già
+  incassato, non uno che MTP aggiunge. Cade con esso il break-even «accettazione ≥85%», che
+  calcola il pareggio su un beneficio inesistente.
+
+  **Causa: la formulazione del mio mandato M5 Passo 3b era ambigua** — la prosa descriveva la
+  quantità giusta, la formula `(i) ∧ (ii)` che ho scritto sotto ne descriveva un'altra.
+  L'audit ha implementato le mie parole letterali. Lezione: in un mandato, prosa e formula
+  devono dire la stessa cosa, e se divergono vince chi legge la formula.
+
+  **Verdetto d'arbitrato: MTP resta NEGATIVO sui byte. F6 non si apre per ammortamento.**
+  Resta vivo un solo caso, e di natura diversa: verificare 2 token insieme porta i miss per
+  layer da 2.36 a ~4.7 e **riempie meglio la coda di I/O**. Con il device a 1204 MiB/s e noi a
+  425, in regime di latenza, quello è l'unico asse su cui MTP può pagare — utilizzo delle
+  corsie, non byte risparmiati. I draft rifiutati costano comunque byte veri.
+
 - **2026-08-07 notte — F4.8 VERIFICATA (Claude): E1 confermata in modo spettacolare, e il
   device è QUASI TRE VOLTE più veloce di quanto tutto il piano assumeva. I numeri fio su cui
   abbiamo ragionato per giorni sono sbagliati di un fattore 2.**
