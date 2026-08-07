@@ -945,6 +945,90 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 mattina — CHIUSURA DELLA NOTTE: il ramo cache è finito, e non perché le
+  politiche non funzionino — perché non è rimasto quasi niente da vincere. Il metro di qualità
+  resta BLOCCATO ed è ora l'ostacolo numero uno.**
+
+  Report `reports/moe-notte.md`. Verifica mia.
+
+  ### C1 — nessuna politica raggiunge la soglia, e la soglia era già generosa
+
+  | politica | Δ vs LRU (short_bench) | Δ medio 6 trace | verdetto |
+  |---|---:|---:|---|
+  | **layer_equal** (budget uguale per layer) | **+3.85** | **+4.62** | IN_MEZZO |
+  | layer_prop_top8 | +2.92 | +3.74 | IN_MEZZO |
+  | layer_prop_invH | +2.79 | +3.71 | IN_MEZZO |
+  | ARC-2L | −0.04 | +0.26 | archivia |
+  | LFU | −0.12 | +0.14 | archivia |
+  | SCORE-ADMIT (q10/q25/q50) | −1.3 / −2.8 / −4.6 | — | archivia |
+  | SCORE-EVICT | −8.60 | −9.89 | archivia |
+  | LIRS-HIR | −30.2 | −29.4 | archivia (variante size-aware, non la LIRS del paper) |
+
+  Nessuna arriva a +5.9 (un terzo del divario). Le due idee **specifiche del dominio** che
+  avevo proposto danno esiti opposti: il **budget per-layer funziona** (ed è la variante più
+  semplice, `layer_equal`, a vincere — non quelle pesate sull'entropia), mentre **il punteggio
+  del router peggiora sempre**, in tutte le forme provate.
+
+  ### La ricaduta che chiude il ramo: il divario si misura sul carico sbagliato
+
+  La mia obiezione di stanotte, confermata da Grok con il numero:
+
+  ```
+  divario Belady − LRU su short_bench  : +17.79 pp
+  divario Belady − LRU su long_512     : **+6.37 pp**      (LRU 89.25 → Belady 95.62)
+  ```
+
+  Quindi sul carico reale **il premio massimo di QUALUNQUE politica possibile è 6.37 punti**, e
+  la migliore che abbiamo ne cattura ~22-26% ⇒ **~1.4 punti**. Tradotto in velocità:
+
+  ```
+  miss 10.75% → 9.35%  ⇒  traffico 31.14 → 27.1 MiB/tok
+  stall esposto 0.032 → 0.028 s/tok  ⇒  decode 0.159 → 0.155  ⇒  6.27 → 6.45 tok/s
+  ```
+
+  **L'intero ramo delle politiche di cache vale ~3% sul carico vero.** Chiuso.
+
+  ### Il meccanismo, che spiega tutti i fallimenti in una riga
+
+  Distanza di riuso mediana: **80 batch-step ≈ 2 token** (p90 = 680, p99 = 1240). Il segnale
+  dominante è **recenza a brevissimo termine**, ed è esattamente ciò che LRU cattura in modo
+  perfetto. Da qui, tutto:
+  - **LFU e ARC ≈ 0**: non c'è un segnale di frequenza da sfruttare, il riuso è immediato.
+  - **Belady vince poco**: il suo vantaggio sta nella coda p90-p99, che è una frazione piccola.
+  - **Il prefetch cross-layer fallisce ma non serve**: ciò che serve fra 2 token è già in RAM.
+  - **MTP non ammortizza**: stessa ragione, con il conto già fatto.
+
+  ### C3 — due fatti collaterali che valgono
+
+  1. **Nessun degrado sulle generazioni lunghe**: hit per blocchi da 64 token 87.1 · 90.8 ·
+     90.4 · 89.2 · 88.7 · 89.0 · 89.2 · 89.6 — piatto (+0.48 pp fra primo e ultimo quarto).
+     Il timore che il sostenuto crollasse (il 4B denso perdeva metà) **non si materializza**
+     sul MoE in streaming, e per un motivo strutturale: il 4B thrashava, questo ha una cache
+     che regge.
+  2. **Il working set cresce ma il riuso no**: esperti distinti visti 2944 @64 → 4717 @256 →
+     5681 @512. A 512 token il working set (5681 voci ≈ 5.35 GB) è **2.5× la cache**, eppure
+     l'hit è 89%. L'impronta è larga, il riuso è concentrato **nel tempo**, non nello spazio.
+
+  ### C2 — BLOCCATA: manca il tooling per la perplessità
+
+  Grok si è fermato al passo 1 come da mandato (giusto: non ha bruciato la notte su un percorso
+  morto). Non è un problema di batteria o di carica: **non esiste un percorso perplessità su
+  questo stack**. Conseguenza: **ogni leva lossy — REAP, precisione ridotta, cache a doppia
+  precisione — resta bloccata**, perché nessuna si può nemmeno ordinare senza un metro.
+
+  **È ora l'ostacolo numero uno del piano.** E va risolto costruendo lo strumento, non
+  aggirandolo: la strada più promettente è (c) del mandato — logprob per token via bmoe-cli su
+  un testo fisso, con la perplessità calcolata a mano. Serve solo che il binario esponga i
+  logprob; se non lo fa, è una patch piccola e ben delimitata al runtime.
+
+  ### Dove siamo, in una riga
+
+  Il ramo I/O è **chiuso** su tutti i fronti misurati: politiche ~3%, prefetch morto, MTP
+  morto, e il residuo esposto totale è il 20% del decode. Restano **tre** cose:
+  1. **Il calcolo** — kernel IQ2 a mano, l'unico che sposti il tetto (7.87 → ~14 tok/s).
+  2. **Il TTFT** — fix del loader, ~17 s su 28 (E1, già misurata e confermata).
+  3. **Il metro di qualità** — che sblocca tutto ciò che è lossy, e oggi non esiste.
+
 - **2026-08-07 notte — ⚠⚠ IL RISULTATO PIÙ IMPORTANTE DELLA CAMPAGNA: il benchmark del gate
   NON RAPPRESENTA il carico del prodotto. Su contenuto conversazionale italiano il traffico
   crolla del 61%, l'hit sale a 89.2% e il sistema diventa COMPUTE-BOUND.**
