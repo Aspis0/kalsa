@@ -1,0 +1,63 @@
+[2026-08-07T13:17:19-0400] === F5.4 START pid=10430 MARK='F5.4 IN-CARICA' ===
+[2026-08-07T13:17:19-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli runtime_commit=b0c4e5b
+[2026-08-07T13:17:19-0400] model35=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf q40=/data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_0.gguf q4km=/data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_K_M.gguf
+[2026-08-07T13:17:19-0400] ORDER: C → D1 → B → D2
+[2026-08-07T13:17:19-0400] nproc=6 cpuset=/top-app
+[2026-08-07T13:17:19-0400] LD_LIBRARY_PATH=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/..:
+[2026-08-07T13:17:19-0400] FLAG_OK --ubatch
+[2026-08-07T13:17:19-0400] FLAG_OK --session
+[2026-08-07T13:17:19-0400] FLAG_OK --compute-trace
+[2026-08-07T13:17:19-0400] FLAG_OK --cache-mb
+[2026-08-07T13:17:19-0400] FLAG_OK --moe-stream
+[2026-08-07T13:17:19-0400] FLAG_OK --overlap
+[2026-08-07T13:17:19-0400] FREQ_OK cpu0=1017600
+[2026-08-07T13:17:19-0400] FREQ_OK cpu3=2803200
+[2026-08-07T13:17:19-0400] FREQ_OK cpu5=2188800
+[2026-08-07T13:17:19-0400] FREQ_OK cpu7=864000
+[2026-08-07T13:17:19-0400] battery_start: {
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 33.4,
+  "voltage": 3826,
+  "current": 367000,
+  "current_average": 723,
+  "percentage": 29,
+  "level": 29,
+  "scale": 100,
+  "charge_counter": 1091250,
+  "cycle": 0
+}
+[2026-08-07T13:17:19-0400] plugged=PLUGGED_AC
+[2026-08-07T13:17:20-0400] safety OK:die=44.9:batt=29:plugged=PLUGGED_AC
+prompt_src_sha=b74f074858db2703e0a88a11838e05c4df5598d485e23c23714d55ba3128aaaa
+long_it_sha=7bcfde615c79e0319b1bcbdb3301389484ab5e5731881a2bd64e8d10231ba174
+d1_prompt_sha=96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650
+b_prompt_sha=c64a9cc35636e9cab4fd9e80abd92fbc1d18388380c36ff03e41c0b229651a37
+ 2205 /data/data/com.termux/files/home/experiments/results/f5.4/prompts/b_prompt.txt
+ 5210 /data/data/com.termux/files/home/experiments/results/f5.4/prompts/d1_prompt.txt
+  314 /data/data/com.termux/files/home/experiments/results/f5.4/prompts/hashes.txt
+ 4509 /data/data/com.termux/files/home/experiments/results/f5.4/prompts/long_it.txt
+12238 total
+[2026-08-07T13:17:22-0400] ==== PHASE C start cache sweep 2000 2500 3000 3500 ubatch=512 ====
+[2026-08-07T13:17:23-0400] ==== CELL F5.4-C-cache2000-r1 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf cache=2000 ubatch=512 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T13:17:24-0400] safety OK:die=49.0:batt=29:plugged=PLUGGED_AC
+[2026-08-07T13:17:27-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=1 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T13:17:30-04:00
+[2026-08-07T13:20:29-0400] F5.4-C-cache2000-r1 DONE tokens=256 tok_s=.5.45.420001..5.130 prefill_tps=0 compute=0.154 hit=71.1 mib_tok=.5.45.420001..32.93 sched=501.02 freq_prime=2035591.8 work=313481.1 die_max=90.8 rss_peak=4459876 batt 29->28 reason=ok
+[2026-08-07T13:20:30-0400] cool OK die=50.5C <= 55C
+[2026-08-07T13:20:32-0400] ==== CELL F5.4-C-cache2000-r2 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf cache=2000 ubatch=512 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T13:20:34-0400] safety OK:die=49.8:batt=28:plugged=PLUGGED_AC
+[2026-08-07T13:20:37-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=5999 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T13:20:41-04:00
+[2026-08-07T13:24:10-0400] F5.4-C-cache2000-r2 DONE tokens=256 tok_s=.5.45.420002..4.332 prefill_tps=0 compute=0.179 hit=71.1 mib_tok=.5.45.420002..32.93 sched=501.02 freq_prime=1541877.6 work=275996.1 die_max=89.5 rss_peak=4505324 batt 28->28 reason=ok
+[2026-08-07T13:24:12-0400] cool OK die=49.0C <= 55C
+[2026-08-07T13:24:14-0400] ==== CELL F5.4-C-cache2500-r1 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf cache=2500 ubatch=512 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T13:24:16-0400] safety OK:die=48.9:batt=28:plugged=PLUGGED_AC
+[2026-08-07T13:24:18-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=19856 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T13:24:24-04:00

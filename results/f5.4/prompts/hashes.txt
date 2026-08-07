@@ -1,0 +1,9 @@
+prompt_src_sha=b74f074858db2703e0a88a11838e05c4df5598d485e23c23714d55ba3128aaaa
+long_it_sha=7bcfde615c79e0319b1bcbdb3301389484ab5e5731881a2bd64e8d10231ba174
+d1_prompt_sha=96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650
+b_prompt_sha=c64a9cc35636e9cab4fd9e80abd92fbc1d18388380c36ff03e41c0b229651a37
+ 2205 /data/data/com.termux/files/home/experiments/results/f5.4/prompts/b_prompt.txt
+ 5210 /data/data/com.termux/files/home/experiments/results/f5.4/prompts/d1_prompt.txt
+  314 /data/data/com.termux/files/home/experiments/results/f5.4/prompts/hashes.txt
+ 4509 /data/data/com.termux/files/home/experiments/results/f5.4/prompts/long_it.txt
+12238 total
