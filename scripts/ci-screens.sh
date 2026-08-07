@@ -641,6 +641,44 @@ if tap_node "Ask a question…"; then
     sleep 2
   fi
   capture 13_composer_typed "ComposerTypedMarker" "composer with text + keyboard"
+  # 13b: geometric assert — composer bottom must sit above IME top.
+  # uiautomator reports nodes even when visually covered by the keyboard.
+  if adb shell dumpsys input_method 2>/dev/null | tr -d '\r' | grep -q 'mInputShown=true'; then
+    # IME top: InsetsSource ime frame=[l,t][r,b] or frame=[l,t-r,b] → second int.
+    ime_top=$(adb shell dumpsys window displays 2>/dev/null | tr -d '\r' \
+      | grep -i 'ime' \
+      | grep -oE 'frame=\[[0-9]+,[0-9]+' \
+      | head -1 \
+      | grep -oE '[0-9]+' | sed -n '2p' || true)
+    ime_note=""
+    # Sanity floor: some dumps expose a zero/degenerate ime frame even with the
+    # keyboard up — an ime top in the top fifth of the screen is not plausible.
+    if [ -z "${ime_top:-}" ] || ! [ "$ime_top" -gt 200 ] 2>/dev/null; then
+      read -r _ screen_h <<< "$(screen_wh)"
+      ime_top=$((screen_h * 55 / 100))
+      ime_note=" (ime top estimated)"
+    fi
+    # Composer bottom from bounds of typed marker (EditText fallback).
+    composer_b=$(dump_ui | tr '>' '\n' \
+      | grep -F "ComposerTypedMarker" \
+      | grep -oE 'bounds="\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]"' | head -1 \
+      | grep -oE '[0-9]+' | sed -n '4p' || true)
+    if [ -z "${composer_b:-}" ]; then
+      composer_b=$(dump_ui | tr '>' '\n' \
+        | grep -F 'android.widget.EditText' \
+        | grep -oE 'bounds="\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]"' | head -1 \
+        | grep -oE '[0-9]+' | sed -n '4p' || true)
+    fi
+    if [ -z "${composer_b:-}" ] || ! [ "$composer_b" -ge 0 ] 2>/dev/null; then
+      record FAILED 13b_composer_above_ime "composer bounds not found${ime_note}"
+    elif [ "$composer_b" -le $((ime_top + 8)) ]; then
+      record OK 13b_composer_above_ime "composer bottom ${composer_b} <= ime top ${ime_top}${ime_note}"
+    else
+      record FAILED 13b_composer_above_ime "composer bottom ${composer_b} > ime top ${ime_top} — composer covered by keyboard${ime_note}"
+    fi
+  else
+    record FAILED 13b_composer_above_ime "IME not shown"
+  fi
   # Dismiss IME for subsequent taps
   adb shell input keyevent 111
   sleep 1
