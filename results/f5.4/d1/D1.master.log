@@ -1,0 +1,20 @@
+[2026-08-07T14:46:46-0400] D1 ONLY start pid=22856 mark=F5.4 IN-CARICA PATH_has_termux=/data/data/com.termux/files/usr/bin/termux-battery-status
+[2026-08-07T14:46:49-0400] preflight safety: ok pct=39 plug=PLUGGED_AC die=42.9
+[2026-08-07T14:46:50-0400] installed STABLE_PROMPT from /data/data/com.termux/files/home/experiments/results/f5.4/prompts/d1_prompt.txt
+[2026-08-07T14:46:50-0400] prompt path=/data/data/com.termux/files/home/experiments/prompts/d1_long.txt sha256=96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650 bytes=5210
+[2026-08-07T14:46:50-0400] ==== CELL F5.4-D1-ubatch512 ubatch=512 ====
+[2026-08-07T14:46:54-0400] safety ok pct=39 plug=PLUGGED_AC die=39.8
+[2026-08-07T14:47:01-0400] die_start=43.7 batt_start=39 cold_model...
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T14:47:21-04:00
+[2026-08-07T14:50:32-0400] F5.4-D1-ubatch512 DONE rc=0 n_prompt=1318 tokens=256 die_max=90.3 batt 39->38 elapsed=183s
+[2026-08-07T14:50:33-0400] rc1=0 cool before run2...
+[2026-08-07T14:50:40-0400] ==== CELL F5.4-D1-ubatch2048 ubatch=2048 ====
+[2026-08-07T14:50:43-0400] safety ok pct=38 plug=PLUGGED_AC die=47.7
+[2026-08-07T14:50:49-0400] die_start=64.4 batt_start=38 cold_model...
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=23429 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T14:51:06-04:00
+[2026-08-07T14:54:35-0400] F5.4-D1-ubatch2048 DONE rc=0 n_prompt=1318 tokens=256 die_max=89.9 batt 38->38 elapsed=200s
+[2026-08-07T14:54:35-0400] rc2=0
+[2026-08-07T14:54:35-0400] compare: len_512=1006 len_2048=1006 len_raw_512=1007 len_raw_2048=1007 head_512='L’orologio digitale sul muro della carrozza 7 segn' head_2048='L’orologio digitale sul muro della carrozza 7 segn' VERDICT=IDENTICAL first_diff_at=-1 --- F5.4-D1-ubatch512 meta --- cell=F5.4-D1-ubatch512 mark=F5.4 IN-CARICA ubatch=512 n_ctx=2048 n_pred=256 cache_mb=2000 temp=0 prompt_sha=96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650 n_prompt=1318 tokens=256 rc=0 elapsed=183 die_start=43.7 die_end=50.9 die_max=90.3 batt_start=39 batt_end=38 prompt_path=/data/data/com.termux/files/home/experiments/prompts/d1_long.txt --- F5.4-D1-ubatch2048 meta --- cell=F5.4-D1-ubatch2048 mark=F5.4 IN-CARICA ubatch=2048 n_ctx=2048 n_pred=256 cache_mb=2000 temp=0 prompt_sha=96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650 n_prompt=1318 tokens=256 rc=0 elapsed=200 die_start=64.4 die_end=52.1 die_max=89.9 batt_start=38 batt_end=38 prompt_path=/data/data/com.termux/files/home/experiments/prompts/d1_long.txt 
+[2026-08-07T14:54:35-0400] PHASE D1 done rc1=0 rc2=0

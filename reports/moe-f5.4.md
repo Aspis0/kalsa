@@ -1,19 +1,19 @@
 # F5.4 — IN CARICA, METRICA INVARIANTE — 2026-08-07 (finale)
 
-**Stato:** DONE_PARTIAL — runner `start_f5_4_resume2.sh` (PID 2472) morto a metà **C-cache3500-r2** (prefill, stdout 0 B).  
-**Device:** Samsung S23 (SM-S911U), **PLUGGED_AC / CHARGING**, top-app.  
-**Runtime:** `bmoe-cli` commit `b0c4e5b`, modello Qwen3.6-35B-A3B-UD-IQ2_M.  
-**Harness:** `scripts/start_f5_4.sh` → resume → `scripts/start_f5_4_resume2.sh --run` (detached, ppid=1).  
-**HEAD al monitor:** `dddc1b0`.  
+**Stato:** DONE_PARTIAL — C quasi completo (crash 3500-r2) + **D1 DONE** (ubatch output IDENTICAL). B/D2 non eseguiti.  
+**Device:** Samsung S23 (SM-S911U), **PLUGGED_AC / CHARGING**.  
+**Runtime:** `bmoe-cli` commit `b0c4e5b`, modello Qwen3.6-35B-A3B-UD-IQ2_M (size gate 11522702304 B).  
+**Harness C:** `scripts/start_f5_4.sh` → resume → `scripts/start_f5_4_resume2.sh --run` (detached).  
+**Harness D1:** `results/f5.4/d1/run_d1_only.sh` (detached setsid/nohup, PID 22856) — solo cella D1.  
 **Marca:** tutte le righe **F5.4 IN-CARICA** — non entrano nelle mediane del gate.  
-**Stop:** processo harness + bmoe spariti durante C-cache3500-r2 (prefill: sampler fino ~34 GB read_bytes, RSS ~1.9 GiB, die ~90 °C, stdout/metrics vuoti). Memoria post-crash libera (~4.1 GiB available) → compatibile con kill/OOM/lmk. SSH/adb wireless caduti a tratti; ripristinati via adb + `sshd -p 8022`.
+**Stop C:** runner morto a metà C-cache3500-r2 (prefill, stdout 0 B). D1 rilanciato separato dopo ripristino sshd + PREFIX/PATH.
 
 ## Ordine previsto vs eseguito
 
 | fase | piano | esito |
 |---|---|---|
 | **C** cache-mb 2000/2500/3000/3500 ×2 | hit% vs sim M5 | **quasi completo:** 2000/2500/3000 ×2 ok; 3500-r1 ok (hit 76.1); **3500-r2 crash mid-prefill** |
-| **D1** ubatch 512 vs 2048, temp 0, stesso file | equivalenza output | **non eseguita** |
+| **D1** ubatch 512 vs 2048, temp 0, stesso file | equivalenza output | **DONE — IDENTICAL** (n_prompt=1318) |
 | **B** Q4_0 vs Q4_K_M A/B×3 + work | ramo ri-quant | **non eseguita** |
 | **D2** ubatch 256/512/1024/2048 | prefill_tps + decode | **non eseguita** |
 
@@ -63,22 +63,47 @@ Rif. `results/f4.8/m5/pass2_curve.tsv`:
 
 **Verdetto C:** M5 ha ragione sulla **direzione** (hit↑ con cache) ma **sbaglia la pendenza**: scarto monotono −1.1 → −8.0 pt; guadagno reale 2000→3500 ≈ **+5 pt**, non +12. Regola prodotto ≥+3 pt su 2000→3500: **sì numericamente (+5)**, ma il costo RSS/termico a 3500 (crash r2, work outlier, die 90.8 °C) e lo scarto sim crescente **non** supportano promuovere cache grande in config di prodotto. **Non** promuovere cache 3000–3500; M5 **non** è affidabile come predittore quantitativo oltre ~2000–2500 MiB.
 
-## D1 / B / D2
+## D1 — ubatch cambia l'output? (F5.4 IN-CARICA)
 
-**Non eseguiti** (runner morto prima di uscire da C). Nessun file utile in `results/f5.4/d1|b|d2`.
+**Eseguito** 2026-08-07T14:46–14:54 EDT via `run_d1_only.sh` (gates batt+die attivi; `termux-battery-status` dopo `export PREFIX/PATH`).  
+**Config:** `-t 4 -c 2048 -n 256 --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --moe-stream --chatml --no-think --temp 0`.  
+**Prompt:** `~/experiments/prompts/d1_long.txt` (copia stabile di `results/f5.4/prompts/d1_prompt.txt`, sha256 `96629f53…e37650`, 5210 B) — **stesso file byte-identico** per entrambe le run.  
+**n_prompt:** **1318** (confermato `prefill: 1318 tokens` in entrambi i log; **>512** → i due ubatch processano in blocchi multipli).
+
+| cella | ubatch | n_prompt | tokens | tok/s | prefill_tps | die max °C | batt | rc |
+|---|---:|---:|---:|---:|---:|---:|---|---:|
+| F5.4-D1-ubatch512 | 512 | **1318** | 256 | 4.824 | 12.0 | **90.3** | 39→38 | 0 |
+| F5.4-D1-ubatch2048 | 2048 | **1318** | 256 | 4.393 | 10.9 | **89.9** | 38→38 | 0 |
+
+**Confronto carattere-per-carattere** (`compare.txt` + `diff` locale):
+
+- `len_512=1006` = `len_2048=1006` (gen strip); raw 1007 = 1007.
+- `VERDICT=IDENTICAL` · `first_diff_at=-1`.
+- head (primi ~50 char, entrambi):
+  `L'orologio digitale sul muro della carrozza 7 segn`
+- sha256 gen (entrambi): `d335145116b93eb5…` (identico).
+
+**Verdetto D1:** output **identici** a temp 0 con prompt byte-identico e n_prompt=1318>512. **ubatch è trasparente** sul testo generato — questione chiusa. Il confronto F5.1 vs F5.3 resta invalidato **solo dall'accento** nel prompt, non da ubatch. Nessun sospetto bug nel percorso a blocchi da questi dati. Marca **F5.4 IN-CARICA** (non entra nelle mediane gate).
+
+Artefatti: `results/f5.4/d1/ubatch512.out`, `ubatch2048.out`, `*.gen.txt`, `compare.txt`, `D1.master.log`, `run_d1_only.sh`.
+
+## B / D2
+
+**Non eseguiti** (mandati separati; runner C morto prima; D1 solo rilanciato).
 
 | fase | verdetto |
 |---|---|
-| D1 ubatch 512 vs 2048 output | **NON DECISO** |
+| D1 ubatch 512 vs 2048 output | **IDENTICAL — ubatch trasparente** |
 | B Q4_0 vs Q4_K_M (work) | **NON DECISO** |
 | D2 sweep ubatch prefill_tps | **NON DECISO** |
 
 ## Sicurezza
 
-- die max osservato **90.8 °C** (C-2000-r1 e C-3500-r1); mai ≥95 (soglia STOP).  
-- batteria start ~29% PLUGGED_AC → fine pull **30% CHARGING** (ac:true). Floor 30% non applicato (mandato in carica).  
+- die max osservato **90.8 °C** (C-2000-r1 e C-3500-r1); D1 max **90.3 °C** (ubatch512); mai ≥95 (soglia STOP).  
+- batteria C: start ~29% PLUGGED_AC; D1: **39→38% PLUGGED_AC** (termux-battery-status OK dopo fix PREFIX/PATH). Floor 30% non applicato (mandato in carica).  
 - nessuno scollegamento caricatore, no broad pkill, no reboot.  
-- ssh/adb caduta ≠ fail del design detached; processo comunque morto su 3500-r2 (non solo link).
+- Gate D1: `termux-battery-status` + die thermal (STOP ≥95, wait_cool ≤80) attivi preflight e pre-cella.  
+- ssh/adb caduta ≠ fail del design detached; processo C comunque morto su 3500-r2 (non solo link).
 
 ## Deviazioni / bug harness
 
@@ -89,22 +114,24 @@ Rif. `results/f4.8/m5/pass2_curve.tsv`:
 
 ## Cosa non dice
 
-- Non decide D1 (output ubatch-equivalenza).  
+- D1: **deciso** — ubatch non cambia l'output a temp 0 (identici).  
 - Non decide B (work Q4_0 vs Q4_K_M).  
-- Non decide D2 (ubatch ottimo prefill).  
-- Non produce numeri da mediane gate (tutto IN-CARICA + parziale).  
+- Non decide D2 (ubatch ottimo prefill — D1 non misura speed, solo equivalenza testo).  
+- Non produce numeri da mediane gate (tutto IN-CARICA + C parziale).  
 - Non valida la metrica invariante work su 6+ turni stabili (outlier a 3500-r1).  
 - 3500 ha un solo rep valido — hit 76.1 non ha replica.
 
 ## Artefatti
 
 - `results/f5.4/` pull completo (cells, master, c/*, prompts, STATUS DONE_PARTIAL)  
+- `results/f5.4/d1/` pull completo (ubatch512/2048 .out/.gen, compare, meta, sampler, metrics, master, run_d1_only.sh)  
 - `scripts/start_f5_4.sh`, `start_f5_4_resume.sh`, `start_f5_4_resume2.sh`, `reparse_f54.py`, `_mk_resume_f54.py`  
-- celle complete: C 2000/2500/3000 ×2 + 3500-r1  
+- celle complete: C 2000/2500/3000 ×2 + 3500-r1; **D1 ubatch512 + ubatch2048**  
 - cella crash: `F5.4-C-cache3500-r2` (stderr load only)
 
 ## Verdetto gate
 
-**BLOCKED / DONE_PARTIAL.**  
+**BLOCKED / DONE_PARTIAL** (B/D2 aperti; C parziale).  
 C: cache grande **non** da promuovere (M5 sovrastima; crash a 3500; +5 pt reali ma costo alto).  
-D1/B/D2: **non decisi**.
+**D1: CHIUSO — ubatch trasparente** (output IDENTICAL a temp 0, n_prompt=1318).  
+B/D2: **non decisi**.

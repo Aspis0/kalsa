@@ -1,0 +1,9 @@
+cell=F5.4-D1-ubatch512
+mark=F5.4 IN-CARICA
+ubatch=512 n_ctx=2048 n_pred=256 cache_mb=2000 temp=0
+prompt_sha=96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650
+n_prompt=1318 tokens=256
+rc=0 elapsed=183
+die_start=43.7 die_end=50.9 die_max=90.3
+batt_start=39 batt_end=38
+prompt_path=/data/data/com.termux/files/home/experiments/prompts/d1_long.txt
