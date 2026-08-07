@@ -978,15 +978,25 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   divario Belady − LRU su long_512     : **+6.37 pp**      (LRU 89.25 → Belady 95.62)
   ```
 
-  Quindi sul carico reale **il premio massimo di QUALUNQUE politica possibile è 6.37 punti**, e
-  la migliore che abbiamo ne cattura ~22-26% ⇒ **~1.4 punti**. Tradotto in velocità:
+  Quindi sul carico reale **il premio massimo di QUALUNQUE politica possibile è 6.37 punti**.
+  Avevo stimato che la migliore ne catturasse ~22-26% ⇒ ~1.4 punti ⇒ ~3% di velocità.
 
-  ```
-  miss 10.75% → 9.35%  ⇒  traffico 31.14 → 27.1 MiB/tok
-  stall esposto 0.032 → 0.028 s/tok  ⇒  decode 0.159 → 0.155  ⇒  6.27 → 6.45 tok/s
-  ```
+  **Misurato (commit `98a27b6`, bake-off rifatto con `long_512` dentro): la stima era
+  ottimistica. Sul carico reale NESSUNA politica batte LRU, e la più promettente lo peggiora.**
 
-  **L'intero ramo delle politiche di cache vale ~3% sul carico vero.** Chiuso.
+  | politica | Δ su short_bench | **Δ su long_512** |
+  |---|---:|---:|
+  | layer_equal | **+3.85** | **−0.95** |
+  | layer_prop_top8 | +2.92 | −2.88 |
+  | LFU | −0.12 | +0.76 |
+  | ARC-2L | −0.04 | +0.28 |
+  | SCORE-ADMIT | −1.31 | +0.16 |
+
+  **Il ramo delle politiche di cache non è marginale: è VUOTO.** E `layer_equal` — l'idea che
+  sembrava l'unica viva, e che avevo proposto io — era un **artefatto del benchmark non
+  rappresentativo**: dà +3.85 sul carico sbagliato e −0.95 su quello giusto. Il che è anche la
+  dimostrazione più pulita del perché la scoperta sul contenuto valeva più di tutto il resto:
+  senza `long_512`, avremmo implementato una politica che peggiora il prodotto.
 
   ### Il meccanismo, che spiega tutti i fallimenti in una riga
 
