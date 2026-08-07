@@ -65,7 +65,7 @@
 | cache 3000/3500 va più **veloce**? (sappiamo solo che taglia il traffico del 56%) | misura **scollegata** |
 | `ubatch` 512 o 2048? (2048 dà +9.9 pt di hit, il doppio di quanto rendano gli stessi MB in cache) | misura **scollegata** |
 | il sostenuto si assesta o continua a scendere? | run lungo **scollegato** |
-| perché il simulatore M5 sovrastima di **2.4×**? | solo PC |
+| ~~perché il simulatore M5 sovrastima?~~ **CHIUSA**: non sovrastimava — era un mio confronto fra metriche e tracce diverse (F5.5-C) | — |
 | `k=6` regge la qualità su più prompt? | deterministico, si può in carica |
 
 ## Regole operative imparate a caro prezzo
@@ -78,7 +78,11 @@
   ribaltato una conclusione (`--session`, `iobench`, `--compute-trace`, `--ubatch`, `--mtp`).
 - **Chiedersi su QUALE CARICO si sta misurando prima di quale opzione vince**: il benchmark del
   gate è 2.6× peggiore del carico reale, e una politica che vinceva su quello **peggiora** il
-  prodotto.
+  prodotto. **Vale anche per le PREVISIONI**: una stima porta con sé la traccia e la metrica su
+  cui è stata fatta, e confrontarla con altro è un errore di categoria — ci sono cascato io
+  dichiarando rotto un simulatore che era fedele allo 0.05%.
+- **Se una misura andrà confrontata con una simulazione, catturare la route-trace INSIEME alla
+  misura.**
 - Un gate che legge da un **comando esterno fallisce aperto**, uno su **sysfs fallisce chiuso**.
 
 ---
@@ -1218,28 +1222,43 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   ubatch. La disciplina del prompt byte-identico con checksum — nata da quell'errore stamattina —
   ha pagato al primo utilizzo: senza, questo confronto sarebbe stato inconcludente come quello.
 
-  ### ⚠ Il simulatore M5 sovrastima la pendenza di 2.4×
+  ### ⚠️ RITIRATO — «il simulatore sovrastima di 2.4×» era un ERRORE MIO, non del simulatore
 
-  ```
-  previsto da M5 su 2000→3500:  +11.8 punti
-  misurato:                      +5.0 punti
-  ```
+  > **Avevo scritto**: il simulatore prevede +11.8 punti fra cache 2000 e 3500, ne misuriamo
+  > +5.0, quindi sovrastima di 2.4×; e per ricaduta il divario di Belady e il bake-off delle
+  > politiche vanno scontati. **Tutto falso, ed è colpa mia.**
 
-  A C=2000 il simulatore era **vicino** (72.2 previsto contro 71.1 misurato, −1.1 pt) — ma quello
-  è il punto su cui era stato tarato. **Azzeccare il valore e sbagliare la derivata è esattamente
-  il rischio che una validazione a un punto solo non può escludere**, ed è successo.
+  **Causa (diagnosi F5.5-C):** confronto apples-to-oranges. Ho messo nella stessa tabella:
+  - la **previsione** del simulatore: `lru_hit_req_dec`, **solo-decode**, sulla trace **corta**
+    `short_bench` (102 prompt + 32 generati);
+  - la **misura** F5.4-C: hit **cumulativo** (prefill+decode) su un **prompt italiano lungo**
+    (1138 + 256).
 
-  **Ricaduta all'indietro, da applicare:** il simulatore è lo stesso oggetto che ha prodotto il
-  divario di Belady (17.79 su short_bench, 6.37 su long_512) e l'intero bake-off delle politiche.
-  Tutte quelle sono previsioni della forma *«quanto si può guadagnare rispetto a LRU»*, e se la
-  stima è sistematicamente ottimista dello stesso ordine, **il premio del ramo politiche è ancora
-  più piccolo di quanto avevamo concluso**. La direzione della conclusione (ramo vuoto) regge e
-  anzi si rafforza; ciò che cade è la fiducia nei valori assoluti del simulatore.
+  **Due metriche diverse su due carichi diversi.** Da lì ho concluso che lo strumento fosse
+  rotto e ci ho costruito sopra una raccomandazione infondata.
 
-  **Meccanismo da indagare offline** (costa zero, è PC): rieseguire il simulatore esattamente ai
-  4 budget misurati e confrontare punto per punto. Candidati per lo scarto: capacità effettiva
-  minore di quella nominale (riserve per letture in volo), granularità di eviction diversa, o il
-  fatto che il runtime reale ha prefetch/`retain` che il simulatore non modella.
+  **Il simulatore è fedele**, verificato:
+  - riproduce i propri numeri esattamente (Δ = 0.000);
+  - **stessa trace, stessa metrica**: short `48.05` contro `48.1` misurato (−0.05 pt),
+    long_512 `86.58` contro `86.6` (−0.018 pt).
+
+  Ipotesi che avevo elencato come candidate per lo scarto, tutte **escluse**: capacità effettiva
+  scontata (residente ≈ nominale), taglia della voce (è già per-layer; uniformarla muove +0.5 pt),
+  prefetch non modellato, granularità di eviction (è già a livello di voce).
+
+  **I verdetti M5/M5b REGGONO invariati**: Belady−LRU **+17.79** su short decode-only (vivo),
+  **+6.2** su long cumulativo, LFU ≈ LRU, W-TinyLFU peggiore. Non c'era niente da riaprire.
+
+  **La lezione è la mia stessa regola, applicata male.** Nella sezione STATO CORRENTE ho scritto
+  *«chiedersi su QUALE CARICO si sta misurando prima di quale opzione vince»* — e poi ho
+  confrontato una previsione su short_bench decode-only con una misura su prosa IT cumulativa.
+  **Le previsioni portano con sé la traccia e la metrica su cui sono state fatte: confrontarle
+  con altro è un errore di categoria, non un'imprecisione.**
+
+  **Regola operativa nuova**: se una misura sul telefono dovrà essere confrontata con una
+  simulazione, **catturare la route-trace INSIEME alla misura**. Per predire F5.4-C servirebbe
+  la trace di quella specifica run, che non è stata raccolta — nessun blocco oggi, ma è il
+  motivo per cui la verifica ha richiesto una diagnosi invece di un confronto diretto.
 
   ### ⚠ La metrica `work = compute × freq` NON regge qui (errore mio)
 
