@@ -50,6 +50,7 @@ jobs:
           node scripts/base64Harness.mjs
           node scripts/pdfCacheFsHarness.mjs
           node scripts/longChatEstimateHarness.mjs
+          node scripts/thinkStripperHarness.mjs
 
       - name: Free disk space
         run: |

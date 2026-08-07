@@ -37,9 +37,10 @@ import { DEFAULT_N_CTX } from "./contextProfile";
 import {
   createToolCallDeltaStripper,
   parseFallbackToolCall,
-  partialTagSuffixLength,
   stripToolCallTagsFinal,
 } from "./toolCallParser";
+import { QWEN35_NO_THINK_CHAT_TEMPLATE } from "./qwenNoThinkTemplate";
+import { createThinkStreamCleaner } from "./thinkStream";
 
 /**
  * Engine locale — Fase 1/2/4: llama.rn (binding llama.cpp, MIT).
@@ -643,14 +644,36 @@ function applyOperativeBlockFormat(
 }
 
 /**
+ * Per-completion chat_template override for Qwen3.5 when thinking must stay OFF.
+ *
+ * llama.rn 0.12.8 accepts `chat_template` on CompletionBaseParams (and at
+ * initLlama). Per-completion is preferred: off/default get the force-closed
+ * prefill; budget256/512 keep the stock GGUF template so thinking can open —
+ * no engine re-init when the bench knob flips.
+ *
+ * Only model ids starting with "qwen3.5" (Gemma path untouched).
+ */
+function qwenNoThinkChatTemplateFields(): { chat_template?: string } {
+  if (activeModelId?.startsWith("qwen3.5")) {
+    return { chat_template: QWEN35_NO_THINK_CHAT_TEMPLATE };
+  }
+  return {};
+}
+
+/**
  * Map bench thinking mode → NativeCompletionParams fields (enable_thinking / budget).
  * "default" keeps production options identical (thinking off + reasoning_format none).
+ *
+ * Rank-1 fix (report §5): for Qwen3.5 off/default also pass the no-think
+ * chat_template so generation always prefills empty think block
+ * (`<think>\n\n</think>\n\n`) — kwargs alone are unreliable on device.
  */
 function buildThinkingCompletionFields(mode: ThinkingMode): {
   enable_thinking?: boolean;
   thinking_budget_tokens?: number;
   reasoning_format?: "none" | "auto" | "deepseek";
   chat_template_kwargs?: { enable_thinking: boolean };
+  chat_template?: string;
 } {
   switch (mode) {
     case "off":
@@ -660,8 +683,11 @@ function buildThinkingCompletionFields(mode: ThinkingMode): {
         // alone is often ignored and the model emits a long hidden reasoning block
         // (burns tokens, UI stalls on "thinking"). A zero budget forces it shut.
         thinking_budget_tokens: 0,
+        // Keep "none": app owns THINK_OPEN/THINK_CLOSE stream stripping; do not
+        // switch to "auto" (changes stream shape the UI expects).
         reasoning_format: "none",
         chat_template_kwargs: { enable_thinking: false },
+        ...qwenNoThinkChatTemplateFields(),
       };
     case "budget256":
       return {
@@ -675,18 +701,16 @@ function buildThinkingCompletionFields(mode: ThinkingMode): {
       };
     case "default":
     default:
-      // Production path — same double belt as "off" (see comment above).
+      // Production path — same belts as "off" (kwargs + budget 0 + template).
       return {
         enable_thinking: false,
         thinking_budget_tokens: 0,
         reasoning_format: "none",
         chat_template_kwargs: { enable_thinking: false },
+        ...qwenNoThinkChatTemplateFields(),
       };
   }
 }
-
-const THINK_OPEN = "<think>";
-const THINK_CLOSE = "</think>";
 
 export type StreamTurnOptions = EngineTurnOptions & {
   /** Settings locale — drives system prompt language (required). */
@@ -795,125 +819,28 @@ export async function streamAssistantTurn(
     // `accumulated_text` di llama.rn non fosse popolato dal binding.
     let streamedText = "";
 
-    // Qwen3.5 emette un blocco <think>...</think> SOLO in testa all'output di
-    // un round (vuoto quando enable_thinking:false, popolato altrimenti). Un
-    // <think> che compare più avanti nel testo è markup letterale del modello
-    // (es. "Use <think> tags in markdown") e va preservato verbatim — non è
-    // il marker di un blocco di ragionamento.
-    // Full-text (risultato finale, non streaming): nessun rischio di tag
-    // spezzato a metà tra due callback, ma un round troncato può lasciare un
-    // <think> di apertura MAI chiuso — va rimosso anch'esso, SOLO se il
-    // blocco inizia proprio in testa al testo (altrimenti è testo letterale),
-    // altrimenti il contenuto del pensiero finisce verbatim nella risposta
-    // finale, sovrascrivendo il testo pulito già mostrato in streaming
-    // (mirror di cleanTranslationOutput, ma con l'ancoraggio in testa).
-    const stripThinkTags = (text: string) =>
-      text
-        // Coppie chiuse ovunque nel testo: parità con il comportamento storico.
-        .replace(/<think>[\s\S]*?<\/think>/g, "")
-        // Blocco APERTO mai chiuso: solo se inizia in testa al testo (whitespace
-        // iniziale ammesso) — un <think> aperto più avanti è testo letterale.
-        .replace(/^\s*<think>[\s\S]*$/, "")
-        // Marker di chiusura orfano (nessun <think> di apertura corrispondente):
-        // resta uno scarto rimuovibile ovunque. Il marker di apertura NON viene
-        // più rimosso qui: se non è stato già catturato dalle due regex sopra,
-        // è testo letterale (vedi commento in cima).
-        .replace(/<\/think>/g, "");
-
-    // Streaming per-token: un tag <think>/</think> può arrivare spezzato tra
-    // due callback consecutive — stato per-round (insideThink + carry di un
-    // eventuale prefisso di tag in sospeso) evita che frammenti di tag trapelino
-    // in UI. `thinkDecided` blocca l'apertura di un blocco di pensiero non
-    // appena il round produce contenuto non-whitespace senza che <think> sia
-    // apparso: da quel punto in poi ogni <think> successivo è testo letterale.
-    let insideThink = false;
-    let thinkCarry = "";
-    let thinkDecided = false;
+    // Think-tag stripper: pure module (src/engine/thinkStream.ts). Stream is
+    // conservative (holds after mid-text <think>); finalize does full-round
+    // arbitration (single unclosed mid-text open kept verbatim; ≥2 → strip
+    // from first open; leading block always stripped incl. whitespace).
+    // Fresh instance per completion round (reset below).
+    let thinkCleaner = createThinkStreamCleaner();
     // Fallback-dialect tool_call markup (see toolCallParser.ts): some model
     // outputs leak a literal <tool_call>...</tool_call> block instead of a
     // structured tool_calls entry. Stripped from the visible stream exactly
     // like <think>, on top of think-tag removal. Fresh instance per round
-    // (reset alongside the think-state vars below).
+    // (reset alongside the think cleaner below).
     let toolCallStrip = createToolCallDeltaStripper();
-    const cleanStreamDelta = (raw: string): string => {
-      let text = thinkCarry + raw;
-      thinkCarry = "";
-      let out = "";
-
-      // Fase di decisione: ancora possibile che il round apra con un vero
-      // blocco <think> (solo whitespace visto finora, nessuna decisione presa).
-      if (!insideThink && !thinkDecided) {
-        const trimmed = text.replace(/^[ \t\r\n]+/, "");
-        if (trimmed.startsWith(THINK_OPEN)) {
-          // Blocco reale in testa all'output: whitespace + tag di apertura
-          // scartati, si prosegue lo scan del resto in modalità insideThink.
-          insideThink = true;
-          thinkDecided = true;
-          text = trimmed.slice(THINK_OPEN.length);
-        } else if (trimmed.length === 0 || THINK_OPEN.startsWith(trimmed)) {
-          // Ancora indeciso: quanto visto finora è whitespace, oppure un
-          // prefisso parziale di "<think>" — trattieni tutto e attendi altri
-          // token prima di decidere.
-          thinkCarry = text;
-          return "";
-        } else {
-          // Diverge da "<think>": niente blocco reale in questo round, la
-          // decisione è definitiva — il testo (whitespace incluso) è letterale.
-          thinkDecided = true;
-        }
-      }
-
-      let i = 0;
-      while (i < text.length) {
-        if (insideThink) {
-          const closeIdx = text.indexOf(THINK_CLOSE, i);
-          if (closeIdx === -1) {
-            const tail = partialTagSuffixLength(text.slice(i), THINK_CLOSE);
-            if (tail > 0) thinkCarry = text.slice(text.length - tail);
-            i = text.length;
-            break;
-          }
-          insideThink = false;
-          i = closeIdx + THINK_CLOSE.length;
-          continue;
-        }
-        // Non in un blocco di pensiero: <think> è ormai testo letterale (la
-        // decisione è presa), ma un </think> orfano (nessuna apertura reale
-        // corrispondente) resta uno scarto da rimuovere, ovunque compaia.
-        const closeIdx = text.indexOf(THINK_CLOSE, i);
-        if (closeIdx === -1) {
-          const tail = partialTagSuffixLength(text.slice(i), THINK_CLOSE);
-          out += text.slice(i, text.length - tail);
-          if (tail > 0) thinkCarry = text.slice(text.length - tail);
-          i = text.length;
-          break;
-        }
-        out += text.slice(i, closeIdx);
-        i = closeIdx + THINK_CLOSE.length;
-      }
-      return toolCallStrip(out);
-    };
+    const cleanStreamDelta = (raw: string): string => toolCallStrip(thinkCleaner.cleanDelta(raw));
 
     /** Prefer `content` (post-filter) over `text` (original) — same choice as emitFinalText. */
     const extractRawResultText = (raw: { text: string; content?: string }): string =>
       typeof raw.content === "string" && raw.content.length > 0 ? raw.content : (raw.text ?? "");
 
     const emitFinalText = (raw: { text: string; content?: string }) => {
-      let finalText = stripToolCallTagsFinal(stripThinkTags(extractRawResultText(raw)));
-      // Un round troncato esattamente a metà di un tag (es. finisce con
-      // "<thi") non viene intercettato da stripThinkTags (richiede il tag
-      // completo). Va scartato SOLO se appartiene chiaramente a markup di
-      // pensiero: il round è finito dentro un blocco reale mai chiuso
-      // (insideThink) oppure l'intero output è un tentativo di apertura mai
-      // risolto in testa al testo (thinkCarry ancora "in decisione"). In ogni
-      // altro caso è testo letterale genuino e va mantenuto.
-      if (insideThink || (!thinkDecided && thinkCarry)) {
-        const tail = Math.max(
-          partialTagSuffixLength(finalText, THINK_OPEN),
-          partialTagSuffixLength(finalText, THINK_CLOSE),
-        );
-        if (tail > 0) finalText = finalText.slice(0, finalText.length - tail);
-      }
+      // Round-end arbitration (thinkStream.finalize) + tool_call final strip.
+      // Partial tag carry is trimmed inside finalize (F4).
+      const finalText = stripToolCallTagsFinal(thinkCleaner.finalize(extractRawResultText(raw)));
       if (finalText) callbacks.onDelta(finalText, finalText);
       finishOnce(() => callbacks.onDone());
     };
@@ -969,9 +896,7 @@ export async function streamAssistantTurn(
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
         // Fresh think-tag / tool_call-tag state for this round's stream (each round is a new completion).
-        insideThink = false;
-        thinkCarry = "";
-        thinkDecided = false;
+        thinkCleaner = createThinkStreamCleaner();
         toolCallStrip = createToolCallDeltaStripper();
         // Last round: force text-only output (no more tool_calls) so the model
         // must synthesize from the gathered tool results instead of exiting
@@ -1305,8 +1230,10 @@ export async function extractMemory(
           top_k: 20,
           top_p: 0.9,
           enable_thinking: false,
+          thinking_budget_tokens: 0,
           reasoning_format: "none",
           chat_template_kwargs: { enable_thinking: false },
+          ...qwenNoThinkChatTemplateFields(),
         }),
       );
 
@@ -1443,8 +1370,10 @@ export async function translateText(
           top_k: 20,
           top_p: 0.9,
           enable_thinking: false,
+          thinking_budget_tokens: 0,
           reasoning_format: "none",
           chat_template_kwargs: { enable_thinking: false },
+          ...qwenNoThinkChatTemplateFields(),
         }),
       );
 
@@ -1545,6 +1474,7 @@ export async function summarizeConversation(
           thinking_budget_tokens: 0,
           reasoning_format: "none",
           chat_template_kwargs: { enable_thinking: false },
+          ...qwenNoThinkChatTemplateFields(),
         }),
       );
 

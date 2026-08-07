@@ -103,4 +103,17 @@ sql "SELECT substr(value,1,4000) FROM catalystLocalStorage WHERE key='kalsa.mess
 cat "$OUT/RESULT.txt"
 
 [ -n "$REPLY" ] || { log "FAIL: no assistant reply captured"; exit 1; }
+
+# Regression: Thinking=Off must not persist raw think tags in THIS turn's reply
+# (Qwen3.5 force-closed template + stream stripper). Scope to $REPLY (current
+# turn) — whole-history grep false-positives under adb install -r keep-data.
+# Skip when THINKING != off.
+if [ "$THINKING" = "off" ]; then
+  if printf '%s' "$REPLY" | grep -qE '<[/]?think>|<thi'; then
+    log "FAIL: THINKING=off but current-turn REPLY still contains think markup (<think>/</think>/<thi) — template override / stripper regression"
+    exit 1
+  fi
+  log "OK: no think markup in current-turn REPLY under THINKING=off"
+fi
+
 log "PASS: real on-device inference completed"

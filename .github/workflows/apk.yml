@@ -58,6 +58,7 @@ jobs:
           node scripts/base64Harness.mjs
           node scripts/pdfCacheFsHarness.mjs
           node scripts/longChatEstimateHarness.mjs
+          node scripts/thinkStripperHarness.mjs
           node scripts/webFetchPdfMutationMatrix.mjs
 
       - name: Free disk space
