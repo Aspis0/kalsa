@@ -468,7 +468,17 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     if (isMultimodal && options.mmprojPath) {
       let enabled: boolean;
       try {
-        enabled = await context.initMultimodal({ path: options.mmprojPath, use_gpu: true });
+        // use_gpu MUST stay false on Android: the LLM is CPU-only (Hexagon
+        // offload was fatal, see n_gpu_layers above) and the first on-device
+        // image turn with use_gpu:true died natively in
+        // lm_ggml_gallocr_alloc_graph inside the OpenCL vision graph (MIUI
+        // crash report, Xiaomi 14, 2026-08-07 17:12). CPU encode is seconds
+        // slower but stable. GPU vision is a deliberate benchmark (task:
+        // vision-GPU experiment), not a default.
+        enabled = await context.initMultimodal({
+          path: options.mmprojPath,
+          use_gpu: Platform.OS === "ios",
+        });
       } catch (error) {
         rethrowWithNativeTail(error);
       }
