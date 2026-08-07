@@ -252,11 +252,39 @@ export function resolveFetchNetworkTimeoutMs(url: string): number {
   return urlPathLooksLikePdf(url) ? PDF_FETCH_TIMEOUT_MS : FETCH_TIMEOUT_MS;
 }
 
-/** Case-insensitive host equality (no suffix matching); ports ignored. */
+/** Effective host:port key (scheme default port filled in) for origin equality. */
+function hostPortKey(url: string): string | null {
+  const host = extractHttpHost(url);
+  if (host == null) return null;
+  const scheme = extractScheme(url);
+  const m = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\/([^/?#]+)/.exec(url.trim());
+  let explicitPort: string | null = null;
+  if (m) {
+    let authority = m[1];
+    const at = authority.lastIndexOf("@");
+    if (at >= 0) authority = authority.slice(at + 1);
+    // Ignore the colon inside a bracketed IPv6 authority.
+    if (!authority.startsWith("[")) {
+      const colon = authority.lastIndexOf(":");
+      if (colon >= 0 && /^\d+$/.test(authority.slice(colon + 1))) {
+        explicitPort = authority.slice(colon + 1);
+      }
+    }
+  }
+  const port = explicitPort ?? (scheme === "http" ? "80" : scheme === "https" ? "443" : "");
+  return `${host}:${port}`;
+}
+
+/**
+ * Same-origin (host AND effective port) equality — used to re-validate a
+ * followed redirect. Port-aware so a server-driven redirect cannot hop from
+ * `example.com:443` to `example.com:2222` and have its body read (the port was
+ * the last widening left in the final-URL gate). No suffix matching.
+ */
 export function sameHost(a: string, b: string): boolean {
-  const ha = extractHttpHost(a);
-  const hb = extractHttpHost(b);
-  return ha != null && hb != null && ha === hb;
+  const ka = hostPortKey(a);
+  const kb = hostPortKey(b);
+  return ka != null && kb != null && ka === kb;
 }
 
 function isBlockedIPv4(octets: number[]): boolean {

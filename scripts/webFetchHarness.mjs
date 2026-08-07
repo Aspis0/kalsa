@@ -229,6 +229,10 @@ async function main() {
 
   check("sameHost true", sameHost("https://Ex.COM/a", "https://ex.com/b"));
   check("sameHost false", !sameHost("https://a.com/x", "https://b.com/x"));
+  // Port is part of the origin: a redirect to another port must NOT match.
+  check("sameHost diff port false", !sameHost("https://ex.com:2222/a", "https://ex.com/b"));
+  check("sameHost explicit-443 == default", sameHost("https://ex.com:443/a", "https://ex.com/b"));
+  check("sameHost http-80 vs https-443 false", !sameHost("http://ex.com/a", "https://ex.com/b"));
 
   // ── Allowlist refusal ──────────────────────────────────────────────────
   {
