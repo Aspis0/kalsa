@@ -1,0 +1,21 @@
+cache_mb=400 n_ctx=4096 n_pred=256 ubatch=512 threads=4
+=== Q4_0 n=3 ===
+  F5.4-B-Q4_0-r1: work=128217.6 compute=0.063 io_s_tok=0.458 freq=None rss=None mem_min=None tok_s=None
+  F5.4-B-Q4_0-r2: work=107581.4 compute=0.068 io_s_tok=0.448 freq=None rss=None mem_min=None tok_s=None
+  F5.4-B-Q4_0-r3: work=102620.2 compute=0.068 io_s_tok=0.454 freq=None rss=None mem_min=None tok_s=None
+work_min=102620.2 work_max=128217.6 work_med=107581.4 spread_pct=22.18 max_dev_from_med_pct=19.18 tol=10.0
+rss_min=0.0 rss_max=0.0
+mem_min_kb range: 0.0..0.0
+STAB_Q4_0=FAIL
+=== Q4_K_M n=3 ===
+  F5.4-B-Q4_K_M-r1: work=102752.3 compute=0.063 io_s_tok=0.514 freq=None rss=None mem_min=None tok_s=None
+  F5.4-B-Q4_K_M-r2: work=96456.4 compute=0.062 io_s_tok=0.508 freq=None rss=None mem_min=None tok_s=None
+  F5.4-B-Q4_K_M-r3: work=83028.6 compute=0.061 io_s_tok=0.503 freq=None rss=None mem_min=None tok_s=None
+work_min=83028.6 work_max=102752.3 work_med=96456.4 spread_pct=21.23 max_dev_from_med_pct=13.92 tol=10.0
+rss_min=0.0 rss_max=0.0
+mem_min_kb range: 0.0..0.0
+STAB_Q4_K_M=FAIL
+RSS_mean Q4_0=0 Q4_K_M=0 delta_pct=0.00
+VERDICT_B=INVALID_UNSTABLE
+B_VALID=0
+B non valida: work instabile (regime memoria diverso tra repliche) o dati mancanti

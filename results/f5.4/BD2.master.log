@@ -1,0 +1,141 @@
+[2026-08-07T15:08:18-0400] === F5.4 B+D2 START pid=13537 MARK='F5.4 IN-CARICA' ===
+[2026-08-07T15:08:18-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli LD_LIBRARY_PATH=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:
+[2026-08-07T15:08:18-0400] PATH_has_termux=/data/data/com.termux/files/usr/bin/termux-battery-status
+[2026-08-07T15:08:18-0400] nproc=6 cpuset=/
+[2026-08-07T15:08:18-0400] sizes OK q40=4733893312 q4km=5044779712 m35=11522702304
+[2026-08-07T15:08:18-0400] FREQ_OK cpu0=672000
+[2026-08-07T15:08:18-0400] FREQ_OK cpu3=2803200
+[2026-08-07T15:08:18-0400] FREQ_OK cpu5=614400
+[2026-08-07T15:08:18-0400] FREQ_OK cpu7=864000
+[2026-08-07T15:08:18-0400] B_PROMPT=/data/data/com.termux/files/home/experiments/results/f5.4/prompts/b_prompt.txt sha=c64a9cc35636e9cab4fd9e80abd92fbc1d18388380c36ff03e41c0b229651a37 bytes=2205
+[2026-08-07T15:08:18-0400] D2_PROMPT=/data/data/com.termux/files/home/experiments/results/f5.4/d1/d1_prompt.txt sha=96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650 bytes=5210
+[2026-08-07T15:08:18-0400] mem_total_kb=7243744 mem_available_kb=4781916
+[2026-08-07T15:08:22-0400] preflight safety: ok pct=42 plug=PLUGGED_AC die=40.2
+[2026-08-07T15:08:23-0400] ==== PHASE B start Q4_0 vs Q4_K_M interleaved ====
+[2026-08-07T15:08:23-0400] B CONFIG IDENTICAL: -t 4 -c 4096 -n 256 --ubatch 512 --moe-stream --cache-mb 400 --force-cache --dense-weights anon --io-threads 4 --chatml --no-think --temp 0 (NO --overlap; force-cache for <1500)
+[2026-08-07T15:08:23-0400] B cache reduced to 400 so BOTH Q4_0 (4.7GB) and Q4_K_M (5.0GB) stay same memory regime; RSS+MemAvailable recorded per run
+[2026-08-07T15:08:23-0400] B order: Q4_0 / Q4_K_M x3; cold each; work=compute*freq_prime; cache_mb=400 (small for same memory regime)
+[2026-08-07T15:08:27-0400] ==== CELL F5.4-B-Q4_0-r1 model=LFM2-8B-A1B-Q4_0.gguf cache=400 ubatch=512 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T15:08:30-0400] safety ok pct=42 plug=PLUGGED_AC die=47.4
+[2026-08-07T15:08:32-0400] mem_pre available_kb=4775064 total_kb=7243744
+[2026-08-07T15:08:32-0400] cold_model /data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_0.gguf
+/data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_0.gguf size=4733893312 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T15:08:53-04:00
+[2026-08-07T15:12:24-0400] F5.4-B-Q4_0-r1 DONE tokens=256 tok_s=.5.45.4401..1.535 prefill_tps=0 compute=0.063 hit=0.0 sched=136.00 freq_prime=2035200.0 work=128217.6 die_max=90.8 rss_peak=3110180 mem_pre=4775064 mem_min=3865096 mem_post=4820552 batt 42->41 reason=ok
+[2026-08-07T15:12:27-0400] cool OK die=62.8 <= 80
+[2026-08-07T15:12:30-0400] ==== CELL F5.4-B-Q4_K_M-r1 model=LFM2-8B-A1B-Q4_K_M.gguf cache=400 ubatch=512 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T15:12:33-0400] safety ok pct=41 plug=PLUGGED_AC die=65.6
+[2026-08-07T15:12:34-0400] mem_pre available_kb=4821912 total_kb=7243744
+[2026-08-07T15:12:34-0400] cold_model /data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_K_M.gguf
+/data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_K_M.gguf size=5044779712 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T15:12:57-04:00
+[2026-08-07T15:16:36-0400] F5.4-B-Q4_K_M-r1 DONE tokens=256 tok_s=.5.45.441..1.404 prefill_tps=0 compute=0.063 hit=0.0 sched=136.00 freq_prime=1630989.5 work=102752.3 die_max=90.8 rss_peak=3244740 mem_pre=4821912 mem_min=3885436 mem_post=4850424 batt 41->41 reason=ok
+[2026-08-07T15:16:39-0400] cool OK die=54.1 <= 80
+[2026-08-07T15:16:43-0400] ==== CELL F5.4-B-Q4_0-r2 model=LFM2-8B-A1B-Q4_0.gguf cache=400 ubatch=512 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T15:16:47-0400] safety ok pct=41 plug=PLUGGED_AC die=49.7
+[2026-08-07T15:16:49-0400] mem_pre available_kb=4852320 total_kb=7243744
+[2026-08-07T15:16:49-0400] cold_model /data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_0.gguf
+/data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_0.gguf size=4733893312 resident_before=429 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T15:17:14-04:00
+[2026-08-07T15:20:37-0400] F5.4-B-Q4_0-r2 DONE tokens=256 tok_s=.5.45.4402..1.640 prefill_tps=0 compute=0.068 hit=0.0 sched=136.00 freq_prime=1582080.0 work=107581.4 die_max=90.3 rss_peak=3521472 mem_pre=4852320 mem_min=3952288 mem_post=4915352 batt 41->40 reason=ok
+[2026-08-07T15:20:41-0400] cool OK die=51.3 <= 80
+[2026-08-07T15:20:44-0400] ==== CELL F5.4-B-Q4_K_M-r2 model=LFM2-8B-A1B-Q4_K_M.gguf cache=400 ubatch=512 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T15:20:48-0400] safety ok pct=40 plug=PLUGGED_AC die=50.1
+[2026-08-07T15:20:50-0400] mem_pre available_kb=4909108 total_kb=7243744
+[2026-08-07T15:20:50-0400] cold_model /data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_K_M.gguf
+/data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_K_M.gguf size=5044779712 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T15:21:15-04:00
+[2026-08-07T15:24:49-0400] F5.4-B-Q4_K_M-r2 DONE tokens=256 tok_s=.5.45.442..1.462 prefill_tps=0 compute=0.062 hit=0.0 sched=136.00 freq_prime=1555748.6 work=96456.4 die_max=90.3 rss_peak=3229240 mem_pre=4909108 mem_min=3982572 mem_post=4985172 batt 40->40 reason=ok
+[2026-08-07T15:24:52-0400] cool OK die=54.9 <= 80
+[2026-08-07T15:24:56-0400] ==== CELL F5.4-B-Q4_0-r3 model=LFM2-8B-A1B-Q4_0.gguf cache=400 ubatch=512 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T15:25:00-0400] safety ok pct=40 plug=PLUGGED_AC die=50.1
+[2026-08-07T15:25:01-0400] mem_pre available_kb=4973648 total_kb=7243744
+[2026-08-07T15:25:01-0400] cold_model /data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_0.gguf
+/data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_0.gguf size=4733893312 resident_before=37 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T15:25:27-04:00
+[2026-08-07T15:28:46-0400] F5.4-B-Q4_0-r3 DONE tokens=256 tok_s=.5.45.4403..1.613 prefill_tps=0 compute=0.068 hit=0.0 sched=136.00 freq_prime=1509120.0 work=102620.2 die_max=90.3 rss_peak=3736448 mem_pre=4973648 mem_min=3967820 mem_post=4913404 batt 40->40 reason=ok
+[2026-08-07T15:28:48-0400] cool OK die=55.7 <= 80
+[2026-08-07T15:28:53-0400] ==== CELL F5.4-B-Q4_K_M-r3 model=LFM2-8B-A1B-Q4_K_M.gguf cache=400 ubatch=512 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T15:28:57-0400] safety ok pct=40 plug=PLUGGED_AC die=50.5
+[2026-08-07T15:28:58-0400] mem_pre available_kb=4917000 total_kb=7243744
+[2026-08-07T15:28:58-0400] cold_model /data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_K_M.gguf
+/data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_K_M.gguf size=5044779712 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T15:29:21-04:00
+[2026-08-07T15:32:56-0400] F5.4-B-Q4_K_M-r3 DONE tokens=256 tok_s=.5.45.443..1.505 prefill_tps=0 compute=0.061 hit=0.0 sched=136.00 freq_prime=1361124.3 work=83028.6 die_max=89.9 rss_peak=3808920 mem_pre=4917000 mem_min=3986804 mem_post=4961368 batt 40->39 reason=ok
+[2026-08-07T15:33:00-0400] cool OK die=53.7 <= 80
+=== Q4_0 n=3 ===
+  F5.4-B-Q4_0-r1: work=128217.6 compute=0.063 io_s_tok=0.458 freq=None rss=None mem_min=None tok_s=None
+  F5.4-B-Q4_0-r2: work=107581.4 compute=0.068 io_s_tok=0.448 freq=None rss=None mem_min=None tok_s=None
+  F5.4-B-Q4_0-r3: work=102620.2 compute=0.068 io_s_tok=0.454 freq=None rss=None mem_min=None tok_s=None
+work_min=102620.2 work_max=128217.6 work_med=107581.4 spread_pct=22.18 max_dev_from_med_pct=19.18 tol=10.0
+rss_min=0.0 rss_max=0.0
+mem_min_kb range: 0.0..0.0
+STAB_Q4_0=FAIL
+=== Q4_K_M n=3 ===
+  F5.4-B-Q4_K_M-r1: work=102752.3 compute=0.063 io_s_tok=0.514 freq=None rss=None mem_min=None tok_s=None
+  F5.4-B-Q4_K_M-r2: work=96456.4 compute=0.062 io_s_tok=0.508 freq=None rss=None mem_min=None tok_s=None
+  F5.4-B-Q4_K_M-r3: work=83028.6 compute=0.061 io_s_tok=0.503 freq=None rss=None mem_min=None tok_s=None
+work_min=83028.6 work_max=102752.3 work_med=96456.4 spread_pct=21.23 max_dev_from_med_pct=13.92 tol=10.0
+rss_min=0.0 rss_max=0.0
+mem_min_kb range: 0.0..0.0
+STAB_Q4_K_M=FAIL
+RSS_mean Q4_0=0 Q4_K_M=0 delta_pct=0.00
+VERDICT_B=INVALID_UNSTABLE
+B_VALID=0
+B non valida: work instabile (regime memoria diverso tra repliche) o dati mancanti
+[2026-08-07T15:33:00-0400] B STABILITY FAIL — report will say non valida; sentinels skipped
+[2026-08-07T15:33:00-0400] PHASE B incomplete or invalid — continue to D2
+[2026-08-07T15:33:00-0400] ==== PHASE D2 start ubatch sweep 256 512 1024 2048 ====
+[2026-08-07T15:33:00-0400] D2 CONFIG: -t 4 -c 4096 -n 256 --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --moe-stream --chatml --no-think --temp 0
+[2026-08-07T15:33:00-0400] D2 prompt=/data/data/com.termux/files/home/experiments/results/f5.4/d1/d1_prompt.txt
+[2026-08-07T15:33:04-0400] ==== CELL F5.4-D2-ubatch256 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf cache=2000 ubatch=256 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T15:33:08-0400] safety ok pct=39 plug=PLUGGED_AC die=51.3
+[2026-08-07T15:33:09-0400] mem_pre available_kb=4947520 total_kb=7243744
+[2026-08-07T15:33:09-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T15:33:36-04:00
+[2026-08-07T15:37:56-0400] F5.4-D2-ubatch256 DONE tokens=256 tok_s=.5.425.42256..4.024 prefill_tps=0 compute=0.185 hit=60.2 sched=250.51 freq_prime=1373714.3 work=254137.1 die_max=86.3 rss_peak=4108164 mem_pre=4947520 mem_min=1004772 mem_post=5033300 batt 39->39 reason=ok
+[2026-08-07T15:37:59-0400] cool OK die=50.5 <= 80
+[2026-08-07T15:38:03-0400] ==== CELL F5.4-D2-ubatch512 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf cache=2000 ubatch=512 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T15:38:07-0400] safety ok pct=39 plug=PLUGGED_AC die=49.7
+[2026-08-07T15:38:08-0400] mem_pre available_kb=5010344 total_kb=7243744
+[2026-08-07T15:38:08-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=37941 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T15:38:30-04:00
+[2026-08-07T15:42:34-0400] F5.4-D2-ubatch512 DONE tokens=256 tok_s=.5.425.42512..3.574 prefill_tps=0 compute=0.215 hit=69.3 sched=501.02 freq_prime=1506694.7 work=323939.4 die_max=90.3 rss_peak=4136788 mem_pre=5010344 mem_min=972288 mem_post=5045568 batt 39->39 reason=ok
+[2026-08-07T15:42:37-0400] cool OK die=52.1 <= 80
+[2026-08-07T15:42:41-0400] ==== CELL F5.4-D2-ubatch1024 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf cache=2000 ubatch=1024 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T15:42:45-0400] safety ok pct=39 plug=PLUGGED_AC die=48.9
+[2026-08-07T15:42:46-0400] mem_pre available_kb=5020204 total_kb=7243744
+[2026-08-07T15:42:46-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=20477 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T15:43:10-04:00
+[2026-08-07T15:47:14-0400] F5.4-D2-ubatch1024 DONE tokens=256 tok_s=.5.425.421024..3.574 prefill_tps=0 compute=0.212 hit=73.8 sched=1002.04 freq_prime=1515323.1 work=321248.5 die_max=89.5 rss_peak=4623016 mem_pre=5020204 mem_min=896916 mem_post=5034492 batt 39->39 reason=ok
+[2026-08-07T15:47:18-0400] cool OK die=54.9 <= 80
+[2026-08-07T15:47:21-0400] ==== CELL F5.4-D2-ubatch2048 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf cache=2000 ubatch=2048 n_ctx=4096 n_pred=256 extra=[] ====
+[2026-08-07T15:47:25-0400] safety ok pct=39 plug=PLUGGED_AC die=59.1
+[2026-08-07T15:47:26-0400] mem_pre available_kb=5034892 total_kb=7243744
+[2026-08-07T15:47:26-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=9161 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T15:47:51-04:00
+[2026-08-07T15:51:43-0400] F5.4-D2-ubatch2048 DONE tokens=256 tok_s=.5.425.422048..4.157 prefill_tps=0 compute=0.178 hit=79.2 sched=2004.08 freq_prime=1468540.5 work=261400.2 die_max=89.9 rss_peak=4294584 mem_pre=5034892 mem_min=822480 mem_post=5064248 batt 39->39 reason=ok
+[2026-08-07T15:51:47-0400] cool OK die=50.9 <= 80
+[2026-08-07T15:51:47-0400] PHASE D2 done
+[2026-08-07T15:51:52-0400] batt_end: {
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 43.6,
+  "voltage": 3802,
+  "current": 426000,
+  "current_average": 347,
+  "percentage": 39,
+  "level": 39,
+  "scale": 100,
+  "charge_counter": 1473750,
+  "cycle": 0
+}
+[2026-08-07T15:51:53-0400] die_end=48.9
+[2026-08-07T15:51:53-0400] === F5.4 B+D2 COMPLETE B_OK=0 D2_OK=1 ===

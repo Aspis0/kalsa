@@ -1,0 +1,5 @@
+DONE 2026-08-07T15:51:53-0400
+B_OK=0 D2_OK=1
+mark=F5.4 IN-CARICA
+die_end=48.9
+B_cache_mb=400
