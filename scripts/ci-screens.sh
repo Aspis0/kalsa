@@ -643,7 +643,17 @@ if tap_node "Ask a question…"; then
   capture 13_composer_typed "ComposerTypedMarker" "composer with text + keyboard"
   # 13b: geometric assert — composer bottom must sit above IME top.
   # uiautomator reports nodes even when visually covered by the keyboard.
-  if adb shell dumpsys input_method 2>/dev/null | tr -d '\r' | grep -q 'mInputShown=true'; then
+  # IME-shown probes: field names vary by API level (mInputShown on older,
+  # isInputViewShown / mVisibleBound on newer); fall back to the insets source.
+  ime_shown=false
+  if adb shell dumpsys input_method 2>/dev/null | tr -d '\r' \
+      | grep -qE 'mInputShown=true|isInputViewShown=true|mIsInputViewShown=true'; then
+    ime_shown=true
+  elif adb shell dumpsys window displays 2>/dev/null | tr -d '\r' \
+      | grep -iE 'InsetsSource.*ime' | grep -q 'visible=true'; then
+    ime_shown=true
+  fi
+  if [ "$ime_shown" = true ]; then
     # IME top: InsetsSource ime frame=[l,t][r,b] or frame=[l,t-r,b] → second int.
     ime_top=$(adb shell dumpsys window displays 2>/dev/null | tr -d '\r' \
       | grep -i 'ime' \

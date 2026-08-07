@@ -4,6 +4,11 @@ name: Screens (visual capture)
 # Seeds AsyncStorage — no GGUF download, no inference. Manual only.
 on:
   workflow_dispatch:
+    inputs:
+      enable_animations:
+        description: "Run with system animations ON (keyboard-controller needs WindowInsetsAnimation onStart; disable-animations suppresses it on the emulator)"
+        type: boolean
+        default: false
 
 concurrency:
   group: screens-${{ github.ref }}
@@ -82,7 +87,7 @@ jobs:
           ram-size: 8192M
           disk-size: 8192M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
+          disable-animations: ${{ !inputs.enable_animations }}
           script: bash scripts/ci-screens.sh
 
       - name: Upload screens
