@@ -12,6 +12,77 @@
 
 ---
 
+# ⭐ STATO CORRENTE — aggiornato 2026-08-07
+
+> **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
+> sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
+> checkpoint` (§dopo la 12) è il log cronologico completo, 37 voci: è la fonte, ma non si legge
+> per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
+
+## Dove siamo, in numeri
+
+| | valore | dove |
+|---|---|---|
+| **config attuale** | `--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 -t 4`, **`--ubatch 512`** | |
+| velocità, burst su benchmark | **5.02 tok/s** | gate F4 |
+| velocità, **carico reale** (prosa IT) | **6.07** primo turno, scollegato | F4.9-B |
+| velocità, **sostenuto multi-turno** | **3.5-3.8** e non si assesta | F5.3-A |
+| **TTFT** | 9 s al turno 1 → **376 s al turno 10** | F5.3-A |
+| traffico | **31-34 MiB/token** (naive 305) | F4.9, F5.3 |
+| hit esperti (decode) | **89%** su prosa lunga, **76-80%** multi-turno | C3, F5.1 |
+| energia | **1.0-1.4 J/token**, ~40k token per carica | F4.7 |
+| qualità | UD-IQ2_M **usabile**; filo del discorso regge su 5+ turni | F4.5, F5.1 |
+| **collo di bottiglia** | **il CALCOLO** (I/O esposto = 20% del decode) | F4.9, F5.2 |
+| frequenza a regime | **41% del picco** (1.39 di 3.36 GHz) | F5.3-A3 |
+
+## Le 3 cose che contano, in ordine
+
+1. 🔴 **Prefill incrementale** — al turno 5 sono **165 s su 237**, il 70% dell'attesa, e cresce.
+   Il KV **non** persiste fra i turni, la cache esperti **sì**. È ingegneria nota (match del
+   prefisso comune, quello che fa `llama-server`), non ricerca. **Nessuna ottimizzazione del
+   decode recupera 165 secondi.**
+2. 🔴 **Fix del loader (E1)** — legge **20.76 GiB** per materializzarne 2.8 (fault di mmap sul
+   file intero). Radice comune di **tre** problemi: 17 s di TTFT, picco termico a 92 °C,
+   fragilità di memoria (la cascata OOM che ha ucciso 10 processi).
+3. 🟡 **Metro di perplessità** — **non esiste**, e blocca *tutto* il ramo lossy: `k=6`,
+   `--drop-cold-experts`, REAP. `--progress` non emette logprob (verificato): serve una
+   modifica piccola e isolata al runtime.
+
+## Deciso e CHIUSO (non riaprire senza un fatto nuovo)
+
+| ramo | verdetto | perché |
+|---|---|---|
+| politiche di cache | **vuoto** | nessuna batte LRU sul carico vero; `layer_equal` +3.85 sul benchmark ma **−0.95** su prosa. Belady−LRU = 6.37 pt sul carico reale |
+| prefetch cross-layer | **morto** | Recall@8 19.2%, extra-fetch 274% ⇒ 317 MiB/tok contro 1204 MiB/s disponibili. Godwit conferma: predittore all'87-91% vale **+3.1%** |
+| MTP / speculazione | **morto** | non ammortizza i byte (0.00%); il nostro GGUF **non ha la testa nextn**; `--ngram` non trova match su prosa IT |
+| ri-quantizzazione Q4_0/IQ4_NL | **pareggia** | guadagno sul calcolo e penale sui byte hanno la stessa taglia. E il percorso `repack` è **irraggiungibile dallo streaming** (serve il buffer type) |
+| kernel IQ2 a mano | **rinviato** | il GEMM esperti è il 50% del calcolo, ma la via economica pareggia e quella cara costa settimane |
+
+## Aperto, e cosa serve per chiuderlo
+
+| domanda | serve |
+|---|---|
+| cache 3000/3500 va più **veloce**? (sappiamo solo che taglia il traffico del 56%) | misura **scollegata** |
+| `ubatch` 512 o 2048? (2048 dà +9.9 pt di hit, il doppio di quanto rendano gli stessi MB in cache) | misura **scollegata** |
+| il sostenuto si assesta o continua a scendere? | run lungo **scollegato** |
+| perché il simulatore M5 sovrastima di **2.4×**? | solo PC |
+| `k=6` regge la qualità su più prompt? | deterministico, si può in carica |
+
+## Regole operative imparate a caro prezzo
+
+- **In carica i TEMPI non sono affidabili**, nemmeno normalizzati (dispersione 25-27% fra
+  repliche identiche, 3 celle di fila). In carica si misurano **byte, hit, output, dimensioni**.
+- **Prompt byte-identici con checksum** fra fasi confrontabili: un accento ha già invalidato un
+  confronto.
+- **Prima di progettare, leggere `--help` per intero**: 5 volte una funzionalità già presente ha
+  ribaltato una conclusione (`--session`, `iobench`, `--compute-trace`, `--ubatch`, `--mtp`).
+- **Chiedersi su QUALE CARICO si sta misurando prima di quale opzione vince**: il benchmark del
+  gate è 2.6× peggiore del carico reale, e una politica che vinceva su quello **peggiora** il
+  prodotto.
+- Un gate che legge da un **comando esterno fallisce aperto**, uno su **sysfs fallisce chiuso**.
+
+---
+
 ## Aggiornamenti ri-verifica — 2026-08-03
 
 Ri-verifica online F0.1 (GitHub API + HF tree API + `common/arg.cpp` master). Report: `reports/moe-f0.1.md`.
@@ -43,7 +114,7 @@ F0.6 completata: download + analisi `GGUFReader` su `models/Qwen3.6-35B-A3B-UD-I
 
 ---
 
-## 0. TL;DR — le decisioni già prese e cosa cambia rispetto al piano precedente
+## 0. TL;DR — le decisioni già prese (⚠ STORICO 2026-08-03, superato dallo STATO CORRENTE in cima)
 
 Il piano precedente (quello ricevuto da un altro assistente, basato solo sul titolo del documento)
 era ragionevole nell'impianto ma sbagliato o superato in punti chiave. Correzioni verificate:
@@ -498,7 +569,7 @@ traffico_flash/token ≈ n_miss × 0.942 MB
 
 ---
 
-## 6. Ipotesi scientifiche (riformulate con attese quantitative)
+## 6. Ipotesi scientifiche (⚠ STORICO — esiti in STATO CORRENTE e nel Registro: H1 confermata, H2 soddisfatta sul carico vero, H3 falsificata, H4 falsificata, H5 confermata, H6 parziale)
 
 | ID | Ipotesi | Attesa quantitativa (da letteratura) | Dove si testa |
 |---|---|---|---|
@@ -511,7 +582,7 @@ traffico_flash/token ≈ n_miss × 0.942 MB
 
 ---
 
-## 7. Roadmap: fasi F0-F8 (+ estensioni F9)
+## 7. Roadmap: fasi F0-F8 (⚠ STORICO — F0-F5 eseguite, F6 chiusa, F7 eseguita come M5, F9.1 ri-quant chiusa; le priorità vive sono in STATO CORRENTE)
 
 > Ogni fase ha: obiettivo, task, gate d'uscita. Le fasi F0 è su PC (Grok da solo); F1-F6 sono
 > PC+telefono (Grok prepara, gualt esegue); F7-F8 tornano pesantemente su PC/RunPod.
