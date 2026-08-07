@@ -968,7 +968,13 @@ export async function streamAssistantTurn(
                     tool_choice: isFinalToolRound ? "none" : ("auto" as const),
                   }
                 : {}),
-              n_predict: 512,
+              // 1024, not 512: table/list miniapps emit verbose JSON that blew
+              // past 512 mid-payload — the user waited through a long prefill
+              // only to get a truncated, unparseable miniapp (field report,
+              // 2026-08-07). A cap is a ceiling, not a target: normal turns
+              // still end at EOS/stop words; only the degenerate worst case
+              // doubles. Matches the ask-assistant path below.
+              n_predict: 1024,
               stop: STOP_WORDS,
               temperature: 0.7,
               top_k: 40,
