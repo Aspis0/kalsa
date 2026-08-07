@@ -1213,7 +1213,7 @@ export function AiChatPage({
             role: "assistant",
             text: "",
             streaming: true,
-            statusLabel: t("chat.thinking"),
+            statusLabel: t("chat.writingStatus"),
             statusHistory: [],
             createdAt: now,
           },
@@ -2534,7 +2534,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             <ActivityIndicator size="small" color={colors.muted} />
             <Text style={[typography.bodyXs, { color: colors.muted }]}>{m.statusLabel}</Text>
           </View>
-        ) : m.text || showCursor ? (
+        ) : m.text.trim() || showCursor ? (
           <Pressable
             onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
             accessibilityLabel={t("chat.a11yLongPress")}

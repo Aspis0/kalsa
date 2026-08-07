@@ -5,11 +5,10 @@
  * token for sub-spacing hairlines and they must stay device-pixel thin.
  * No numeric fontWeight; no fontStyle italic; no hardcoded hex or font sizes.
  *
- * React.memo is intentionally NOT used on MarkdownText / BlockView: the call
- * site in AiChatPage passes `onLongPress={() => openMessageMenu(...)}`, a fresh
- * arrow every parent render, so memo never skips. The real fix would be a
- * memoized per-message row with a stable handler — out of scope here (long-press
- * is verified working and must not be put at risk). The useMemo around
+ * ChatMessageRow (AiChatPage) is memoized with a stable onLongPress handler, so
+ * completed rows skip re-render when siblings update. MarkdownText itself stays
+ * unmemoized: during streaming its `text` prop changes on every coalescer flush
+ * anyway, so a memo wrapper would never skip. The useMemo around
  * parseMarkdownBlocks still helps: string deps compare by value.
  */
 import React, { useMemo } from "react";

@@ -858,6 +858,10 @@ export async function streamAssistantTurn(
     // Accumulo locale del testo: streaming garantito anche se il campo
     // `accumulated_text` di llama.rn non fosse popolato dal binding.
     let streamedText = "";
+    // Cleaned visible prose already streamed from PRIOR rounds (snapshot at
+    // each round start). Used by emitFinalText so the final full-replacement
+    // onDelta does not wipe round-1 prose from the bubble / history.
+    let streamedTextAtRoundStart = "";
 
     // Think-tag stripper: pure module (src/engine/thinkStream.ts). Stream is
     // conservative (holds after mid-text <think>); finalize does full-round
@@ -880,8 +884,11 @@ export async function streamAssistantTurn(
     const emitFinalText = (raw: { text: string; content?: string }) => {
       // Round-end arbitration (thinkStream.finalize) + tool_call final strip.
       // Partial tag carry is trimmed inside finalize (F4).
+      // Prepend prior-round streamed prefix: finalText is LAST-round only, but
+      // the UI already shows round-1 prose via streaming; a bare full-replace
+      // used to wipe that prose from the bubble and persisted history.
       const finalText = stripToolCallTagsFinal(thinkCleaner.finalize(extractRawResultText(raw)));
-      if (finalText) callbacks.onDelta(finalText, finalText);
+      if (finalText) callbacks.onDelta(finalText, streamedTextAtRoundStart + finalText);
       finishOnce(() => callbacks.onDone());
     };
 
@@ -942,6 +949,8 @@ export async function streamAssistantTurn(
 
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
+        // Snapshot prior-round cleaned prose before this round's stream starts.
+        streamedTextAtRoundStart = streamedText;
         // Fresh think-tag / tool_call-tag state for this round's stream (each round is a new completion).
         thinkCleaner = createThinkStreamCleaner();
         toolCallStrip = createToolCallDeltaStripper();
