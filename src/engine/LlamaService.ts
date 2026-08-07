@@ -477,6 +477,12 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
         enabled = await context.initMultimodal({
           path: options.mmprojPath,
           use_gpu: Platform.OS === "ios",
+          // Cap image tokens for dynamic-resolution models (Qwen3.5-VL):
+          // uncapped, a 1280px photo explodes into thousands of image tokens
+          // and the CPU encode+prefill runs for minutes with no feedback
+          // (field: "descrivi immagine" stuck, 2026-08-07). PocketPal ships
+          // 512 in production on the same binding.
+          image_max_tokens: 512,
         });
       } catch (error) {
         rethrowWithNativeTail(error);
