@@ -40,6 +40,11 @@ import {
   stripToolCallTagsFinal,
 } from "./toolCallParser";
 import { createThinkStreamCleaner } from "./thinkStream";
+import {
+  formatTelemetryLine,
+  roundTelemetryFromResult,
+  type CompletionLikeResult,
+} from "./turnTelemetry";
 
 /**
  * Engine locale — Fase 1/2/4: llama.rn (binding llama.cpp, MIT).
@@ -69,6 +74,9 @@ let activeCacheTypeV: string | null = null;
  * stays correct even after disposeEngineLocked's `finally` resets this flag.
  */
 let disposing = false;
+
+/** Monotonic turn id for KALSA_TELEMETRY lines. No Date.now — stable, parseable. */
+let turnSeq = 0;
 
 // ── llama.cpp native log tail (on-device diagnostics; no adb) ─────────────
 const NATIVE_LOG_CAP = 50;
@@ -332,6 +340,20 @@ function trackCompletion<T>(promise: Promise<T>): Promise<T> {
   });
   activeCompletionSet.add(tracked);
   return tracked;
+}
+
+/** Emit one KALSA_TELEMETRY line. Must never throw out of a turn. */
+function emitTurnTelemetry(
+  turnId: string,
+  round: number,
+  result: CompletionLikeResult,
+): void {
+  try {
+    const r = roundTelemetryFromResult(result, round);
+    console.log(formatTelemetryLine(turnId, r));
+  } catch {
+    // Telemetry must never break a turn.
+  }
 }
 
 function withLifecycleLock<T>(fn: () => Promise<T>): Promise<T> {
@@ -789,6 +811,9 @@ export async function streamAssistantTurn(
       return;
     }
 
+    // One monotonic id for all rounds of this turn (incl. tool rounds).
+    const turnId = String(++turnSeq);
+
     let finished = false;
     let aborted = false;
     const finishOnce = (fn: () => void) => {
@@ -1002,6 +1027,9 @@ export async function streamAssistantTurn(
             },
           ),
         );
+
+        // Per-round counters+timings only — never user text / completion content.
+        emitTurnTelemetry(turnId, round, result);
 
         if (bailIfStopped()) return;
 
@@ -1307,6 +1335,8 @@ export async function extractMemory(
         }),
       );
 
+      emitTurnTelemetry(`util-extractMemory-${++turnSeq}`, 0, result);
+
       if (timedOut) return { add: [], remove: [] };
 
       const raw =
@@ -1446,6 +1476,8 @@ export async function translateText(
         }),
       );
 
+      emitTurnTelemetry(`util-translateText-${++turnSeq}`, 0, result);
+
       if (timedOut || aborted || signal?.aborted) return { text: "", truncated };
 
       const raw =
@@ -1545,6 +1577,8 @@ export async function summarizeConversation(
           chat_template_kwargs: { enable_thinking: false },
         }),
       );
+
+      emitTurnTelemetry(`util-summarizeConversation-${++turnSeq}`, 0, result);
 
       // Fail-closed: timeout, abort, or engine torn down mid-flight (dispose /
       // model switch) must never promote a truncated summary as success.

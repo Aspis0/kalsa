@@ -57,6 +57,7 @@ jobs:
           node scripts/longChatEstimateHarness.mjs
           node scripts/thinkStripperHarness.mjs
           node scripts/streamCoalescerHarness.mjs
+          node scripts/turnTelemetryHarness.mjs
 
       - name: Free disk space
         run: |
