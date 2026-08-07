@@ -1,0 +1,7 @@
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 512 KiB x scatter 1, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4        987.6       2.02      9881     4940.50     direct
+
+peak 987.6 MiB/s at 4 lanes

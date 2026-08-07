@@ -1,0 +1,13 @@
+Sei un copywriter tecnico. Scrivi in italiano, tono professionale ma diretto.
+
+Compito: scrivi un messaggio breve (massimo 120 parole) per un collega che deve testare un'app di chat on-device su Samsung S23. Spiega che useremo un modello MoE quantizzato a circa 2.4 bit per peso, che la velocità attesa è intorno a 5 token al secondo, e che lo schermo deve restare acceso per mantenere il processo in foreground. Chiudi con una riga su cosa annotare (temperatura, batteria, tok/s).Ciao,
+
+per il test dell’app di chat on-device su Samsung S23, stiamo utilizzando un modello MoE quantizzato a circa 2.
+
+generation: 32 tokens, 0.203 s/token (4.918 tok/s)
+compute: 75.4% CPU occupancy (0.6136 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 133 tokens, 12.054 s (11.0 tok/s) | model load 19.047 s | TTFT 31.101 s
+moe-stream: read 2385.0 MiB (74.53 MiB/token), decode 0.203 s/token (compute 0.133 + cache mgmt 0.013 + flash I/O 0.285 s/token, 261 MiB/s)
+moe-cache: 48.7% hit, resident 1999.3 MiB
+moe-cache: 5842 evictions, 2287 re-reads (71.5/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.058 s/token (flash reads overlapped with FFN compute)

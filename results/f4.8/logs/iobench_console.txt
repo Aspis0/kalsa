@@ -1,0 +1,148 @@
+batt_pre={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "PLUGGED_AC",   "status": "CHARGING",   "temperature": 29.8,   "voltage": 3832,   "current": -392000,   "current_average": 653,   "percentage": 21,   "level": 21,   "scale": 100,   "charge_counter": 802500,   "cycle": 0 } 
+IOBENCH start 2026-08-06T22:18:20-04:00
+=== a1_scatter3: --lanes 4 --slice-kb 942 --scatter 3 --seconds 5 --compute-load 4 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 3, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4        905.4       1.36     14676     4528.92     direct
+
+peak 905.4 MiB/s at 4 lanes
+=== a1_scatter1: --lanes 4 --slice-kb 942 --scatter 1 --seconds 5 --compute-load 4 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 1, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4       1150.8       3.19      6247     5758.95     direct
+
+peak 1150.8 MiB/s at 4 lanes
+=== a2_scatter3: --lanes 4 --slice-kb 942 --scatter 3 --seconds 5 --compute-load 4 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 3, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4        912.3       1.35     14793     4565.03     direct
+
+peak 912.3 MiB/s at 4 lanes
+=== a2_scatter1: --lanes 4 --slice-kb 942 --scatter 1 --seconds 5 --compute-load 4 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 1, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4       1136.0       3.24      6167     5685.20     direct
+
+peak 1136.0 MiB/s at 4 lanes
+=== b_264: --lanes 4 --scatter 1 --slice-kb 264 --seconds 5 --compute-load 4 ===
+exit=0 wall=6s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 264 KiB x scatter 1, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4        844.8       1.22     16388     4225.03     direct
+
+peak 844.8 MiB/s at 4 lanes
+=== b_512: --lanes 4 --scatter 1 --slice-kb 512 --seconds 5 --compute-load 4 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 512 KiB x scatter 1, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4        987.6       2.02      9881     4940.50     direct
+
+peak 987.6 MiB/s at 4 lanes
+=== b_942: --lanes 4 --scatter 1 --slice-kb 942 --seconds 5 --compute-load 4 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 1, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4       1204.2       3.05      6535     6024.45     direct
+
+peak 1204.2 MiB/s at 4 lanes
+=== b_2048: --lanes 4 --scatter 1 --slice-kb 2048 --seconds 5 --compute-load 4 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 2048 KiB x scatter 1, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4       1369.3       5.83      3427     6854.00     direct
+
+peak 1369.3 MiB/s at 4 lanes
+=== c_lanes1: --slice-kb 942 --scatter 1 --lanes 1 --seconds 5 --compute-load 4 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 1, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     1        850.6       1.08      4614     4253.53     direct
+
+peak 850.6 MiB/s at 1 lanes
+=== c_lanes2: --slice-kb 942 --scatter 1 --lanes 2 --seconds 5 --compute-load 4 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 1, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     2       1184.2       1.55      6425     5923.05     direct
+
+peak 1184.2 MiB/s at 2 lanes
+=== c_lanes4: --slice-kb 942 --scatter 1 --lanes 4 --seconds 5 --compute-load 4 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 1, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4        868.4       4.23      4713     4344.80     direct
+
+peak 868.4 MiB/s at 4 lanes
+=== c_lanes8: --slice-kb 942 --scatter 1 --lanes 8 --seconds 5 --compute-load 4 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 1, 5.0 s per row, compute load 4 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     8       1152.6       6.39      6258     5769.09     direct
+
+peak 1152.6 MiB/s at 8 lanes
+=== d_scatter3_noload: --lanes 4 --slice-kb 942 --scatter 3 --seconds 5 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 3, 5.0 s per row, compute load 0 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4        932.1       1.32     15108     4662.23     direct
+
+peak 932.1 MiB/s at 4 lanes
+=== d_scatter1_noload: --lanes 4 --slice-kb 942 --scatter 1 --seconds 5 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 1, 5.0 s per row, compute load 0 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4       1113.6       3.31      6044     5571.81     direct
+
+peak 1113.6 MiB/s at 4 lanes
+=== d2_scatter3_noload: --lanes 4 --slice-kb 942 --scatter 3 --seconds 5 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 3, 5.0 s per row, compute load 0 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4        884.4       1.40     14337     4424.31     direct
+
+peak 884.4 MiB/s at 4 lanes
+=== d2_scatter1_noload: --lanes 4 --slice-kb 942 --scatter 1 --seconds 5 ===
+exit=0 wall=5s
+model     /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+read size 942 KiB x scatter 1, 5.0 s per row, compute load 0 threads
+
+ lanes        MiB/s     lat_ms     reads    read_MiB       mode
+     4       1145.6       3.22      6216     5730.38     direct
+
+peak 1145.6 MiB/s at 4 lanes
+batt_post={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "PLUGGED_AC",   "status": "CHARGING",   "temperature": 32.9,   "voltage": 3717,   "current": -142000,   "current_average": 8,   "percentage": 21,   "level": 21,   "scale": 100,   "charge_counter": 795000,   "cycle": 0 } 
+IOBENCH_DONE 2026-08-06T22:19:41-04:00

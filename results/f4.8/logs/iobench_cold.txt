@@ -1,0 +1,2 @@
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=103281 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-06T22:18:20-04:00

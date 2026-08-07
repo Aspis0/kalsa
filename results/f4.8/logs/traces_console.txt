@@ -1,0 +1,79 @@
+TRACE start 2026-08-06T22:20:28-04:00
+batt={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "PLUGGED_AC",   "status": "CHARGING",   "temperature": 32.7,   "voltage": 3823,   "current": 198000,   "current_average": 740,   "percentage": 21,   "level": 21,   "scale": 100,   "charge_counter": 806250,   "cycle": 0 } 
+=== TRACE short_bench n=32 file=/data/data/com.termux/files/home/experiments/prompts/short.txt extras= ===
+exit=0 wall=35s
+trace_file=short_bench.route.tsv bytes=1364764 lines=42923
+# route_trace v1
+# model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf arch=qwen35moe n_layer=40 n_expert=256 n_expert_used=8
+# layer=0 expert_bytes=942080 dense_bytes=29262592
+generation: 32 tokens, 0.205 s/token (4.879 tok/s)
+prefill: 102 tokens, 8.996 s (11.3 tok/s) | model load 18.763 s | TTFT 27.759 s
+moe-stream: read 2613.1 MiB (81.66 MiB/token), decode 0.205 s/token (compute 0.127 + cache mgmt 0.012 + flash I/O 0.299 s/token, 273 MiB/s)
+=== TRACE f45_1_esplicativo n=32 file=/data/data/com.termux/files/home/experiments/prompts/f45_1_esplicativo.txt extras=--chatml --no-think ===
+exit=0 wall=36s
+trace_file=f45_1_esplicativo.route.tsv bytes=1553142 lines=49003
+# route_trace v1
+# model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf arch=qwen35moe n_layer=40 n_expert=256 n_expert_used=8
+# layer=0 expert_bytes=942080 dense_bytes=29262592
+generation: 32 tokens, 0.194 s/token (5.150 tok/s)
+prefill: 121 tokens, 10.813 s (11.2 tok/s) | model load 18.609 s | TTFT 29.422 s
+moe-stream: read 2137.5 MiB (66.80 MiB/token), decode 0.194 s/token (compute 0.127 + cache mgmt 0.010 + flash I/O 0.249 s/token, 268 MiB/s)
+=== TRACE f45_2_scrittura n=32 file=/data/data/com.termux/files/home/experiments/prompts/f45_2_scrittura.txt extras=--chatml --no-think ===
+exit=0 wall=38s
+trace_file=f45_2_scrittura.route.tsv bytes=1676178 lines=52843
+# route_trace v1
+# model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf arch=qwen35moe n_layer=40 n_expert=256 n_expert_used=8
+# layer=0 expert_bytes=942080 dense_bytes=29262592
+generation: 32 tokens, 0.203 s/token (4.918 tok/s)
+prefill: 133 tokens, 12.054 s (11.0 tok/s) | model load 19.047 s | TTFT 31.101 s
+moe-stream: read 2385.0 MiB (74.53 MiB/token), decode 0.203 s/token (compute 0.133 + cache mgmt 0.013 + flash I/O 0.285 s/token, 261 MiB/s)
+=== TRACE f45_3_istruzioni n=32 file=/data/data/com.termux/files/home/experiments/prompts/f45_3_istruzioni.txt extras=--chatml --no-think ===
+exit=0 wall=43s
+trace_file=f45_3_istruzioni.route.tsv bytes=1477992 lines=46763
+# route_trace v1
+# model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf arch=qwen35moe n_layer=40 n_expert=256 n_expert_used=8
+# layer=0 expert_bytes=942080 dense_bytes=29262592
+generation: 32 tokens, 0.248 s/token (4.028 tok/s)
+prefill: 114 tokens, 11.788 s (9.7 tok/s) | model load 21.948 s | TTFT 33.736 s
+moe-stream: read 1782.6 MiB (55.71 MiB/token), decode 0.248 s/token (compute 0.190 + cache mgmt 0.012 + flash I/O 0.233 s/token, 239 MiB/s)
+=== TRACE f45_4_codice n=32 file=/data/data/com.termux/files/home/experiments/prompts/f45_4_codice.txt extras=--chatml --no-think ===
+exit=0 wall=49s
+trace_file=f45_4_codice.route.tsv bytes=1835642 lines=57643
+# route_trace v1
+# model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf arch=qwen35moe n_layer=40 n_expert=256 n_expert_used=8
+# layer=0 expert_bytes=942080 dense_bytes=29262592
+generation: 32 tokens, 0.290 s/token (3.442 tok/s)
+prefill: 148 tokens, 15.984 s (9.3 tok/s) | model load 23.060 s | TTFT 39.044 s
+moe-stream: read 3054.7 MiB (95.46 MiB/token), decode 0.290 s/token (compute 0.196 + cache mgmt 0.018 + flash I/O 0.398 s/token, 240 MiB/s)
+=== TRACE f45_5_ragionamento n=32 file=/data/data/com.termux/files/home/experiments/prompts/f45_5_ragionamento.txt extras=--chatml --no-think ===
+exit=0 wall=49s
+trace_file=f45_5_ragionamento.route.tsv bytes=1993070 lines=62763
+# route_trace v1
+# model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf arch=qwen35moe n_layer=40 n_expert=256 n_expert_used=8
+# layer=0 expert_bytes=942080 dense_bytes=29262592
+generation: 32 tokens, 0.240 s/token (4.174 tok/s)
+prefill: 164 tokens, 17.256 s (9.5 tok/s) | model load 22.744 s | TTFT 40.000 s
+moe-stream: read 2766.1 MiB (86.44 MiB/token), decode 0.240 s/token (compute 0.158 + cache mgmt 0.018 + flash I/O 0.344 s/token, 251 MiB/s)
+batt_post={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "PLUGGED_AC",   "status": "CHARGING",   "temperature": 37.8,   "voltage": 3744,   "current": 58000,   "current_average": -230,   "percentage": 20,   "level": 20,   "scale": 100,   "charge_counter": 776250,   "cycle": 0 } 
+TRACE_DONE 2026-08-06T22:24:42-04:00
+total 10075
+drwx------. 2 u0_a344 u0_a344    3452 Aug  6 22:23 .
+drwx------. 6 u0_a344 u0_a344    3452 Aug  6 22:20 ..
+-rw-------. 1 u0_a344 u0_a344 1553142 Aug  6 22:21 f45_1_esplicativo.route.tsv
+-rw-------. 1 u0_a344 u0_a344   60552 Aug  6 22:21 f45_1_esplicativo.stderr.txt
+-rw-------. 1 u0_a344 u0_a344    1118 Aug  6 22:21 f45_1_esplicativo.stdout.txt
+-rw-------. 1 u0_a344 u0_a344 1676178 Aug  6 22:22 f45_2_scrittura.route.tsv
+-rw-------. 1 u0_a344 u0_a344   60552 Aug  6 22:22 f45_2_scrittura.stderr.txt
+-rw-------. 1 u0_a344 u0_a344    1184 Aug  6 22:22 f45_2_scrittura.stdout.txt
+-rw-------. 1 u0_a344 u0_a344 1477992 Aug  6 22:23 f45_3_istruzioni.route.tsv
+-rw-------. 1 u0_a344 u0_a344   60552 Aug  6 22:23 f45_3_istruzioni.stderr.txt
+-rw-------. 1 u0_a344 u0_a344    1162 Aug  6 22:23 f45_3_istruzioni.stdout.txt
+-rw-------. 1 u0_a344 u0_a344 1835642 Aug  6 22:23 f45_4_codice.route.tsv
+-rw-------. 1 u0_a344 u0_a344   60552 Aug  6 22:23 f45_4_codice.stderr.txt
+-rw-------. 1 u0_a344 u0_a344    1236 Aug  6 22:23 f45_4_codice.stdout.txt
+-rw-------. 1 u0_a344 u0_a344 1993070 Aug  6 22:24 f45_5_ragionamento.route.tsv
+-rw-------. 1 u0_a344 u0_a344   60552 Aug  6 22:24 f45_5_ragionamento.stderr.txt
+-rw-------. 1 u0_a344 u0_a344    1257 Aug  6 22:24 f45_5_ragionamento.stdout.txt
+-rw-------. 1 u0_a344 u0_a344 1364764 Aug  6 22:21 short_bench.route.tsv
+-rw-------. 1 u0_a344 u0_a344   60552 Aug  6 22:21 short_bench.stderr.txt
+-rw-------. 1 u0_a344 u0_a344    1143 Aug  6 22:21 short_bench.stdout.txt

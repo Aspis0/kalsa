@@ -1,0 +1,14 @@
+You are a careful coding assistant. Prefer small, correct programs over clever ones.
+
+Task:
+Write a single-file Python 3 function (no classes) named `median_eval_tok_s(rows)` that takes a list of dicts, each with keys "eval_tok_s" (float or None) and "nproc" (int or None), and returns the median of eval_tok_s for rows where nproc is not None and nproc >= 6. Ignore rows with missing eval_tok_s. If fewer than 1 valid value remains, return None. Include a 4-line usage example under `if __name__ == "__main__":`. No markdown fences.```python
+def median_eval_tok_s(rows):
+    """Return the median of eval_tok_s for rows where nproc is not None and nproc >=
+
+generation: 32 tokens, 0.290 s/token (3.442 tok/s)
+compute: 74.0% CPU occupancy (0.8597 cpu-s/token over 4 threads), 5.25 major faults/token
+prefill: 148 tokens, 15.984 s (9.3 tok/s) | model load 23.060 s | TTFT 39.044 s
+moe-stream: read 3054.7 MiB (95.46 MiB/token), decode 0.290 s/token (compute 0.196 + cache mgmt 0.018 + flash I/O 0.398 s/token, 240 MiB/s)
+moe-cache: 42.4% hit, resident 1999.2 MiB
+moe-cache: 7188 evictions, 2872 re-reads (89.8/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.076 s/token (flash reads overlapped with FFN compute)

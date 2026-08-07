@@ -1,0 +1,4 @@
+[1/4] Building CXX object tools/CMakeFiles/bmoe-iobench.dir/__/core/src/io/platform_io.cpp.o
+[2/4] Building CXX object tools/CMakeFiles/bmoe-iobench.dir/__/core/src/io/file_reader.cpp.o
+[3/4] Building CXX object tools/CMakeFiles/bmoe-iobench.dir/iobench.cpp.o
+[4/4] Linking CXX executable tools/bmoe-iobench

@@ -1,0 +1,13 @@
+Ragiona passo per passo in italiano, in modo breve e ordinato.
+
+Problema: su un telefono, un benchmark MoE ha dato 5.0 tok/s con 8 core disponibili e 1.2 tok/s in un run successivo. La temperatura batteria era simile (circa 30°C). Quale spiegazione è più plausibile tra: (A) throttle termico della CPU, (B) il processo è finito in un cpuset con solo 3 core little, (C) la quantizzazione del modello è cambiata? Scegli una sola opzione, motiva in al massimo 5 frasi, e indica un controllo concreto da fare (quale file o comando leggere) per verificarla.La spiegazione più plausibile è la **(B) il processo è finito in un cpuset con solo 3 core little**.
+
+I benchmark MoE
+
+generation: 32 tokens, 0.240 s/token (4.174 tok/s)
+compute: 78.6% CPU occupancy (0.7530 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 164 tokens, 17.256 s (9.5 tok/s) | model load 22.744 s | TTFT 40.000 s
+moe-stream: read 2766.1 MiB (86.44 MiB/token), decode 0.240 s/token (compute 0.158 + cache mgmt 0.018 + flash I/O 0.344 s/token, 251 MiB/s)
+moe-cache: 45.1% hit, resident 1999.8 MiB
+moe-cache: 6566 evictions, 2700 re-reads (84.4/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.064 s/token (flash reads overlapped with FFN compute)

@@ -1,0 +1,15 @@
+Segui le istruzioni alla lettera. Rispondi in italiano.
+
+Istruzioni:
+1) Scrivi esattamente tre frasi complete sul tema "perché misurare le prestazioni a batteria scarica è diverso dal misurarle a batteria piena".
+2) Dopo le tre frasi, scrivi esattamente due domande utili per un protocollo di misura su telefono.
+3) Non aggiungere titoli, elenchi, prefazioni o conclusioni oltre a quanto richiesto.
+4) Non scrivere in inglese.Misurare le prestazioni a batteria scarica rivela i limiti termici e la degradazione della tensione, mentre il test a batteria piena non sempre evidenzia
+
+generation: 32 tokens, 0.248 s/token (4.028 tok/s)
+compute: 77.9% CPU occupancy (0.7740 cpu-s/token over 4 threads), 15.03 major faults/token
+prefill: 114 tokens, 11.788 s (9.7 tok/s) | model load 21.948 s | TTFT 33.736 s
+moe-stream: read 1782.6 MiB (55.71 MiB/token), decode 0.248 s/token (compute 0.190 + cache mgmt 0.012 + flash I/O 0.233 s/token, 239 MiB/s)
+moe-cache: 54.1% hit, resident 1999.8 MiB
+moe-cache: 4832 evictions, 1571 re-reads (49.1/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.047 s/token (flash reads overlapped with FFN compute)

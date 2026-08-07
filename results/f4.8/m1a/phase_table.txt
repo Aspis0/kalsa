@@ -1,0 +1,5 @@
+load_s=19.563 prefill_s=8.575
+t0=1786068758874 samples=107 max_hwm_kB=4521624
+load: drb_GiB=20.7604 drc_GiB=1.6202 dur=19.563 mibs_rb=1086.7 mibs_rc=84.8 rss_end_MiB=2827.9 hwm=4521624
+prefill: drb_GiB=4.5502 drc_GiB=4.5463 dur=8.575 mibs_rb=543.4 mibs_rc=542.9 rss_end_MiB=3829.7 hwm=4521624
+decode: drb_GiB=0.3011 drc_GiB=0.2937 dur=0.561 mibs_rb=549.6 mibs_rc=536.0 rss_end_MiB=2011.3 hwm=4521624
