@@ -1,7 +1,15 @@
 import { getStrings, type Locale } from "../i18n";
-import { normalizeNumResults, PROVIDERS, searchWeb, type SearchProviderId } from "../search";
+import {
+  buildWebSearchSnippet,
+  normalizeNumResults,
+  PROVIDERS,
+  searchWeb,
+  type SearchProviderId,
+} from "../search";
 import type { EngineTool, EngineToolResult } from "../engine/LlamaService";
 import { isSafeHttpUrl } from "../util/url";
+
+export { buildWebSearchSnippet, NO_PREVIEW_SNIPPET } from "../search";
 
 /**
  * Tool websearch — esposto al modello locale come function calling.
@@ -14,7 +22,7 @@ export const WEB_SEARCH_TOOL: EngineTool = {
   function: {
     name: "web_search",
     description:
-      "Search the web for current information: news, facts, prices, events, people — anything the local model may not know. Returns top results with title, url and highlights.",
+      "Search the web for current information: news, facts, prices, events, people — anything the local model may not know. Returns top results with title, url and highlights. Results without preview text are worth opening with web_fetch.",
     parameters: {
       type: "object",
       properties: {
@@ -142,13 +150,7 @@ export function makeWebSearchExecutor(locale: Locale): (
     const body = outcome.results.length
       ? outcome.results
           .map((result, index) => {
-            const snippetParts =
-              result.highlights && result.highlights.length > 0
-                ? result.highlights
-                : result.text
-                  ? [result.text]
-                  : [];
-            const snippet = snippetParts.join(" ").slice(0, 500);
+            const snippet = buildWebSearchSnippet(result);
             return `${index + 1}. ${result.title}\n   URL: ${result.url}\n   ${snippet}`;
           })
           .join("\n\n")

@@ -2155,6 +2155,131 @@ async function main() {
     }
   }
 
+  // ── web_search delivery hardening (parseExaTextResults + thin-snippet marker) ──
+  // Closest harness for search delivery path; pure modules only (no secretStore/network).
+  {
+    console.log("\nCompiling search delivery helpers (ExaMCP + SearchProvider) …");
+    const searchOut = path.join(projectRoot, "scripts/.build/webSearchDelivery");
+    rmSync(searchOut, { recursive: true, force: true });
+    mkdirSync(searchOut, { recursive: true });
+    const sr = spawnSync(
+      "npx",
+      [
+        "tsc",
+        "src/search/ExaMCP.ts",
+        "src/search/http.ts",
+        "src/search/SearchProvider.ts",
+        "--outDir",
+        searchOut,
+        "--module",
+        "nodenext",
+        "--target",
+        "es2020",
+        "--moduleResolution",
+        "nodenext",
+        "--skipLibCheck",
+        "--ignoreConfig",
+      ],
+      { cwd: projectRoot, encoding: "utf8", shell: true },
+    );
+    if (sr.status !== 0) {
+      console.error("search delivery tsc failed:\n", sr.stdout, sr.stderr);
+      process.exit(1);
+    }
+    const resolveSearch = (base) => {
+      const candidates = [
+        path.join(searchOut, `search/${base}`),
+        path.join(searchOut, `src/search/${base}`),
+        path.join(searchOut, base),
+      ];
+      for (const c of candidates) {
+        if (existsSync(c)) return c;
+      }
+      console.error(`Could not find compiled search ${base}`);
+      process.exit(1);
+    };
+    const exaMod = await import(pathToFileURL(resolveSearch("ExaMCP.js")).href);
+    const spMod = await import(pathToFileURL(resolveSearch("SearchProvider.js")).href);
+    const { parseExaTextResults } = exaMod;
+    const { buildWebSearchSnippet, NO_PREVIEW_SNIPPET } = spMod;
+
+    // Case 1: Published "N/A" must yield no publishedDate
+    {
+      const text = [
+        "Title: NWS Forecast Office New York, NY",
+        "URL: https://www.weather.gov/okx/",
+        "Published: N/A",
+        "Author: N/A",
+        "Highlights:",
+        "New York, NY forecast text",
+      ].join("\n");
+      const results = parseExaTextResults(text);
+      check(
+        "parseExa: Published N/A → no publishedDate",
+        results.length === 1 && results[0].publishedDate === undefined,
+        JSON.stringify(results[0]),
+      );
+    }
+    // Real date still kept
+    {
+      const text = [
+        "Title: Dated article",
+        "URL: https://example.com/a",
+        "Published: 2026-08-07",
+        "Highlights:",
+        "body",
+      ].join("\n");
+      const results = parseExaTextResults(text);
+      check(
+        "parseExa: real date kept",
+        results[0]?.publishedDate === "2026-08-07",
+        JSON.stringify(results[0]),
+      );
+    }
+    // Case 2: bare --- separator must not leak into highlights
+    {
+      const text = [
+        "Title: First",
+        "URL: https://example.com/1",
+        "Highlights:",
+        "highlight one",
+        "---",
+        "Title: Second",
+        "URL: https://example.com/2",
+        "Highlights:",
+        "highlight two",
+      ].join("\n");
+      const results = parseExaTextResults(text);
+      const leaked = results.some((r) =>
+        (r.highlights ?? []).some((h) => h === "---" || h.includes("---")),
+      );
+      check(
+        "parseExa: --- separator not in highlights",
+        results.length === 2 && !leaked,
+        JSON.stringify(results.map((r) => r.highlights)),
+      );
+    }
+    // Case 3: empty highlights → no-preview marker
+    {
+      const empty = buildWebSearchSnippet({ title: "Bare", url: "https://example.com/x" });
+      check(
+        "snippet: empty highlights → no-preview marker",
+        empty === NO_PREVIEW_SNIPPET &&
+          /no preview/i.test(empty) &&
+          /web_fetch/i.test(empty),
+        empty,
+      );
+      const withHl = buildWebSearchSnippet({
+        highlights: ["some preview text"],
+      });
+      check(
+        "snippet: highlights used when present",
+        withHl === "some preview text",
+        withHl,
+      );
+    }
+  }
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail > 0 ? 1 : 0);
 }

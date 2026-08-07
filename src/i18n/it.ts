@@ -698,6 +698,7 @@ export const it: typeof en = {
     "Se ti chiedono qualcosa che può essere cambiato (prezzi, notizie, eventi, persone), usa web_search — ma riporta solo ciò che dicono davvero i risultati. " +
     "Dopo web_search, basa la risposta sui risultati; se i risultati non contengono la risposta, dillo. " +
     "Hai anche web_fetch: usalo per aprire un risultato di ricerca promettente o un link fornito dall'utente, sempre con una query specifica. " +
+    "Se un risultato di ricerca non ha testo di anteprima, chiama web_fetch sull'URL più promettente per leggere la pagina. " +
     "Cita le fonti usate facendo riferimento ai titoli. " +
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
     "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). " +

@@ -50,7 +50,14 @@ function parseJsonRpcEnvelope(text: string): JsonRpcEnvelope | null {
   }
 }
 
-function parseExaTextResults(text: string): SearchResult[] {
+/** Exa placeholder strings that must not become publishedDate (UI would show "— N/A"). */
+const PLACEHOLDER_META = /^(n\/a|-|unknown)$/i;
+
+/**
+ * Parse flat Exa MCP tool text ("Title: …\nURL: …\nPublished: …\nHighlights:\n…")
+ * into SearchResult[]. Exported for harness coverage of metadata sanitization.
+ */
+export function parseExaTextResults(text: string): SearchResult[] {
   const results: SearchResult[] = [];
   let current: Partial<SearchResult> | null = null;
 
@@ -64,13 +71,22 @@ function parseExaTextResults(text: string): SearchResult[] {
   for (const rawLine of text.split("\n")) {
     const line = rawLine.trim();
     if (!line) continue;
+    // Bare section separators between results must not enter highlights.
+    if (line === "---") continue;
     if (line.startsWith("Title:")) {
       flush();
       current = { title: line.slice("Title:".length).trim() };
     } else if (line.startsWith("URL:")) {
       if (current) current.url = line.slice("URL:".length).trim();
     } else if (line.startsWith("Published:")) {
-      if (current) current.publishedDate = line.slice("Published:".length).trim();
+      if (current) {
+        const value = line.slice("Published:".length).trim();
+        // Only keep values that plausibly look like a date (contain a digit);
+        // drop Exa placeholders like "N/A", "-", "unknown".
+        if (value && !PLACEHOLDER_META.test(value) && /\d/.test(value)) {
+          current.publishedDate = value;
+        }
+      }
     } else if (line.startsWith("Author:") || line.startsWith("Highlights:")) {
       // salta header; le righe seguenti sono highlight
     } else if (current) {

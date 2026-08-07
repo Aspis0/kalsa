@@ -15,6 +15,7 @@ import type { SearchResult } from "./SearchProvider";
 import { secretStore } from "./secretStore";
 
 export type { SearchResult, SearchOptions, SearchProvider } from "./SearchProvider";
+export { buildWebSearchSnippet, NO_PREVIEW_SNIPPET } from "./SearchProvider";
 export type { SearchProviderId, ProviderMeta } from "./registry";
 export {
   PROVIDERS,
