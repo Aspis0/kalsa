@@ -1057,6 +1057,39 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   **Coerenza del trace verificata:** 209 643 righe contro `(143+512) × 320 = 209 600` eventi
   di routing attesi più l'header. Torna esatto ⇒ il trace copre prefill+decode e ogni evento.
 
+  ### ⚠ Ricaduta immediata su M5 e su M5b: i verdetti sono TARATI SUL TRACE SBAGLIATO
+
+  Tutti i verdetti di M5 — e il bake-off M5b in corso — sono misurati sulle **sei trace brevi**,
+  e la regola di decisione è valutata specificamente su `short_bench`. Verificato nel sorgente
+  (`scripts/analysis/m5b_policy_bakeoff.py:562` e `:625`):
+
+  ```python
+  names = ["short_bench","f45_1_esplicativo","f45_2_scrittura",
+           "f45_3_istruzioni","f45_4_codice","f45_5_ragionamento"]   # long_512 ASSENTE
+  gap = belady_dec["short_bench"] - lru_dec["short_bench"]
+  ```
+
+  **`short_bench` è il trace che abbiamo appena dimostrato essere 2.6× peggiore del carico
+  reale.** Conseguenza aritmetica certa, indipendente da quanto valga Belady:
+
+  ```
+  su short_bench:  LRU 72.2%  →  Belady 90.03%  →  divario 17.79 pp   ("politiche VIVE")
+  su long_512:     LRU 89.2%  →  divario massimo CONCEPIBILE = 10.8 pp
+  ```
+
+  Il premio del ramo politiche è **al più il 60%** di quello che M5b riporterà, e realisticamente
+  molto meno (Belady non arriva al 100%). **Il verdetto "vale costruire una politica migliore"
+  potrebbe ribaltarsi sul carico vero.**
+
+  **Da rifare prima di decidere**: aggiungere `long_512` alla lista dei trace e valutare la
+  regola su di esso, non su `short_bench`. È una modifica di una riga; il simulatore è già
+  validato. Finché non è fatto, **nessuna decisione sulle politiche di cache**.
+
+  Nota di portata: la stessa obiezione **non** tocca il verdetto su MTP, il cui meccanismo
+  (`miss@t ∧ miss@t+1`) è indipendente dalla lunghezza e dal contenuto; e difficilmente ribalta
+  quello sul prefetch, che manca la soglia di 50 punti (19.2% contro 70%). Colpisce **il ramo
+  politiche**, che è esattamente quello ancora aperto.
+
 - **2026-08-07 notte — M5 VERIFICATA (Claude): tre rami si chiudono, ma Belady dice che il
   premio esiste e nessuno dei tre meccanismi ovvi lo prende. E una correzione a una mia
   ambiguità che aveva ribaltato un verdetto nel verso sbagliato.**
