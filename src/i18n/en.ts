@@ -84,7 +84,7 @@ export const en = {
     thinkingExtended: "Extended",
     models: "Models",
     modelsHint:
-      "Choose the on-device model. Download runs only when you ask for it; incomplete downloads resume.",
+      "Choose the on-device model. Download runs only when you ask for it; incomplete downloads resume. Models live in the app's private storage: uninstalling the app deletes them.",
     modelActive: "Active",
     modelSelect: "Select",
     modelDownload: "Download",
@@ -186,7 +186,7 @@ export const en = {
     models: {
       title: "Downloading models",
       body:
-        "Open Settings → Models. Pick a model (Qwen 4B is the recommended default; use the 2B model on low-RAM devices). Download asks for confirmation, shows progress, and may send a notification if notifications are enabled. You need free disk space (about 3.5 GB for the default Qwen 3.5 4B bundle; the exact size is shown in Settings). Incomplete downloads resume where they left off.",
+        "Open Settings → Models. Pick a model (Qwen 4B is the recommended default; use the 2B model on low-RAM devices). Download asks for confirmation, shows progress, and may send a notification if notifications are enabled. You need free disk space (about 3.5 GB for the default Qwen 3.5 4B bundle; the exact size is shown in Settings). Incomplete downloads resume where they left off. Updating the app keeps your models; uninstalling it deletes them (they live in the app's private storage).",
     },
     websearch: {
       title: "Web search",

@@ -85,7 +85,7 @@ export const it: typeof en = {
     thinkingExtended: "Esteso",
     models: "Modelli",
     modelsHint:
-      "Scegli il modello sul dispositivo. Il download parte solo se lo chiedi; i download interrotti riprendono da dove erano.",
+      "Scegli il modello sul dispositivo. Il download parte solo se lo chiedi; i download interrotti riprendono da dove erano. I modelli vivono nello storage privato dell'app: disinstallandola vengono eliminati.",
     modelActive: "Attivo",
     modelSelect: "Seleziona",
     modelDownload: "Scarica",
@@ -182,7 +182,7 @@ export const it: typeof en = {
     models: {
       title: "Scaricare i modelli",
       body:
-        "Apri Impostazioni → Modelli. Scegli un modello (Qwen 4B è il default consigliato; usa il 2B su dispositivi con poca RAM). Il download chiede conferma, mostra il progresso e può inviare una notifica se le notifiche sono abilitate. Serve spazio su disco (circa 3,5 GB per il bundle Qwen 3.5 4B predefinito; la dimensione esatta è mostrata in Impostazioni). I download interrotti riprendono da dove erano.",
+        "Apri Impostazioni → Modelli. Scegli un modello (Qwen 4B è il default consigliato; usa il 2B su dispositivi con poca RAM). Il download chiede conferma, mostra il progresso e può inviare una notifica se le notifiche sono abilitate. Serve spazio su disco (circa 3,5 GB per il bundle Qwen 3.5 4B predefinito; la dimensione esatta è mostrata in Impostazioni). I download interrotti riprendono da dove erano. Aggiornare l'app mantiene i modelli; disinstallarla li elimina (vivono nello storage privato dell'app).",
     },
     websearch: {
       title: "Ricerca web",
