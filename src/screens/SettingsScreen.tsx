@@ -54,12 +54,16 @@ export type SettingsModelProps = {
   modelError: string | null;
   /** Extra guidance for connectivity-shaped failures (e.g. "keep the app open"); null otherwise. */
   modelErrorHint: string | null;
+  /** Discriminates download vs engine-init errors when modelState === "error". */
+  modelErrorKind: "download" | "engine" | null;
   /** True while an assistant stream is in flight — Select is disabled. */
   streaming: boolean;
   /** Presence map from a one-shot disk scan (keys appear after scan). */
   downloadedById: Record<string, boolean>;
   onSelectModel: (modelId: string) => void;
   onDownloadModel: (modelId: string) => void;
+  /** Retry engine init when the bundle is already on disk. */
+  onRetryLoad: () => void;
 };
 
 export type SettingsVoiceProps = {
@@ -1437,7 +1441,14 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
 
                       {model.modelState === "missing" || model.modelState === "error" ? (
                         <Pressable
-                          onPress={() => model.onDownloadModel(entry.id)}
+                          onPress={() => {
+                            const engineRetry =
+                              model.modelState === "error" &&
+                              (model.modelErrorKind === "engine" ||
+                                model.downloadedById[entry.id] === true);
+                            if (engineRetry) model.onRetryLoad();
+                            else model.onDownloadModel(entry.id);
+                          }}
                           disabled={modelBusy}
                           style={{
                             marginTop: 2,
@@ -1454,7 +1465,11 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                               { color: colors.primaryText, fontFamily: fontFamilies.displayBold },
                             ]}
                           >
-                            {t("settings.modelDownload")}
+                            {model.modelState === "error" &&
+                            (model.modelErrorKind === "engine" ||
+                              model.downloadedById[entry.id] === true)
+                              ? t("settings.modelRetryLoad")
+                              : t("settings.modelDownload")}
                           </Text>
                         </Pressable>
                       ) : null}

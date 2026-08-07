@@ -89,6 +89,7 @@ export const it: typeof en = {
     modelActive: "Attivo",
     modelSelect: "Seleziona",
     modelDownload: "Scarica",
+    modelRetryLoad: "Riprova caricamento",
     modelDownloading: "Scaricamento… {percent}%",
     modelLoading: "Caricamento…",
     modelChecking: "Verifica…",
@@ -256,6 +257,7 @@ export const it: typeof en = {
     downloading: "Scaricamento… {percent}%",
     loading: "Caricamento modello…",
     failedRetry: "Download non riuscito — tocca per riprovare",
+    loadFailedRetry: "Caricamento non riuscito — tocca per riprovare",
     readyLocal: "Pronto · locale",
     downloaded: "Scaricato",
     incomplete: "Download incompleto — tocca per riprovare.",
@@ -292,6 +294,8 @@ export const it: typeof en = {
     serviceUnreachable: "Impossibile raggiungere il servizio AI. Riprova.",
     modelNotDownloaded:
       "Modello non ancora scaricato. Apri Impostazioni → Modelli per scaricare {name}.",
+    modelLoadFailed:
+      "Caricamento del modello non riuscito. Apri Impostazioni → Modelli e tocca Riprova caricamento per {name}.",
     openAction: "Apri {label}",
     openOutputPicker: "Apri selettore output",
     selectedRun: "Esecuzione selezionata: {label}",

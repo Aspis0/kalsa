@@ -139,6 +139,17 @@ async function downloadFile(
   const target = modelLocalPath(model, file.file);
   const resumeKey = resumeKeyFor(model, file.file, file);
 
+  // Complete file: never re-download or touch stale resume data.
+  if (await isFileComplete(target, file.sizeBytes)) {
+    await AsyncStorage.removeItem(resumeKey).catch(() => undefined);
+    onProgress({
+      bytesReceived: file.sizeBytes,
+      bytesTotal: file.sizeBytes,
+      progress: 1,
+    });
+    return { status: "done", uri: target };
+  }
+
   let saved = await AsyncStorage.getItem(resumeKey)
     .then((raw) => {
       if (!raw) return null;

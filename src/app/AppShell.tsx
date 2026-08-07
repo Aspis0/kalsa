@@ -570,6 +570,8 @@ export function AppShell() {
   const [modelError, setModelError] = useState<string | null>(null);
   // Raw download error (untranslated) for on-device diagnostics when friendly text is generic.
   const [modelErrorDetail, setModelErrorDetail] = useState<string | null>(null);
+  /** Discriminates download vs engine-init failures when modelState === "error". */
+  const [modelErrorKind, setModelErrorKind] = useState<"download" | "engine" | null>(null);
   const currentModel = MODEL_REGISTRY[modelIndex];
   // Same resolve path as initEngine — catalog n_ctx (+ optional high-RAM hybrid
   // upgrade). Passed to AiChatPage for the long-chat nudge ceiling so the
@@ -695,11 +697,18 @@ export function AppShell() {
       MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
 
     if (isEngineReady() && getActiveModelId() === model.id) return true;
-    if (!(await isModelBundleDownloaded(model))) return false;
-    if (!stillCurrent()) return false;
-
-    setModelState("loading");
+    // Disk probe can throw on rare FS errors — keep it inside try so bar/Settings
+    // void-retry sites never produce an unhandled rejection.
     try {
+      if (!(await isModelBundleDownloaded(model))) return false;
+      if (!stillCurrent()) return false;
+
+      // Clear previous error banner before retry so "Ready" never coexists with
+      // a stale "Could not load the model" under the header / in Settings.
+      setModelState("loading");
+      setModelError(null);
+      setModelErrorDetail(null);
+      setModelErrorKind(null);
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx (no silent downgrade)
       // + optional high-RAM upgrade for hybrids + catalog-authoritative KV.
@@ -720,10 +729,17 @@ export function AppShell() {
       });
       if (!stillCurrent()) return false;
       setModelState("ready");
+      // End-based clear too: two concurrent ensures (double-tap in the probe
+      // window) where the first fails and the second succeeds must not leave
+      // "Ready" coexisting with a stale red banner.
+      setModelError(null);
+      setModelErrorDetail(null);
+      setModelErrorKind(null);
       return true;
     } catch (error) {
       if (!stillCurrent()) return false;
       setModelState("error");
+      setModelErrorKind("engine");
       setModelError(friendlyNetworkError(error, locale, "engine").message);
       setModelErrorDetail(rawErrorDetail(error));
       return false;
@@ -751,6 +767,7 @@ export function AppShell() {
       setModelState("checking");
       setModelError(null);
       setModelErrorDetail(null);
+      setModelErrorKind(null);
       // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
       AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
 
@@ -827,6 +844,7 @@ export function AppShell() {
     setModelState("downloading");
     setModelError(null);
     setModelErrorDetail(null);
+    setModelErrorKind(null);
     const bundleTotal = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
     setDownload({ bytesReceived: 0, bytesTotal: bundleTotal, progress: 0 });
 
@@ -837,6 +855,8 @@ export function AppShell() {
     await beginDownloadNotifications();
     void showDownloadProgressNotification(model.name, 0);
 
+    // Tracks which phase failed so the catch can distinguish download vs engine init.
+    let errorPhase: "download" | "engine" = "download";
     try {
       const outcome = await downloadModelBundle(model, {
         onBundleProgress: (progress) => {
@@ -863,10 +883,12 @@ export function AppShell() {
       if (!(await isModelBundleDownloaded(model))) {
         if (!stillCurrent()) return;
         setModelState("error");
+        setModelErrorKind("download");
         setModelError(t("download.incomplete"));
         return;
       }
       if (!stillCurrent()) return;
+      errorPhase = "engine";
       setModelState("loading");
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx + optional high-RAM upgrade.
@@ -886,6 +908,10 @@ export function AppShell() {
       });
       if (!stillCurrent()) return;
       setModelState("ready");
+      // Same end-based clear as ensureEngineForModel: no stale banner on ready.
+      setModelError(null);
+      setModelErrorDetail(null);
+      setModelErrorKind(null);
       setDownloadedById((prev) => ({ ...prev, [model.id]: true }));
       showNotice(t("download.readyNotice", { name: model.name }));
       void notifyDownload(
@@ -899,8 +925,9 @@ export function AppShell() {
         return;
       }
       setModelState("error");
+      setModelErrorKind(errorPhase);
       setModelErrorDetail(rawErrorDetail(error));
-      const friendly = friendlyNetworkError(error, locale, "download").message;
+      const friendly = friendlyNetworkError(error, locale, errorPhase).message;
       setModelError(friendly);
       void notifyDownload(
         t("notify.channelName"),
@@ -1147,7 +1174,15 @@ export function AppShell() {
               memoryExtractRef.current = null;
             }
             if (!(await ensureEngineForModel(currentModel))) {
-              fail(t("chat.modelNotDownloaded", { name: currentModel.name }));
+              // Bundle missing → download prompt; engine error → load-failed + Settings retry.
+              // ensureEngineForModel early-returns false when bundle is missing without setting
+              // modelErrorKind, so re-check disk rather than relying on modelErrorKind alone.
+              const downloaded = await isModelBundleDownloaded(currentModel).catch(() => false);
+              if (downloaded) {
+                fail(t("chat.modelLoadFailed", { name: currentModel.name }));
+              } else {
+                fail(t("chat.modelNotDownloaded", { name: currentModel.name }));
+              }
               return;
             }
 
@@ -1520,7 +1555,10 @@ export function AppShell() {
       case "loading":
         return { label: t("download.loading"), color: colors.muted };
       case "error":
-        return { label: t("download.failedRetry"), color: colors.bad };
+        return {
+          label: modelErrorKind === "engine" ? t("download.loadFailedRetry") : t("download.failedRetry"),
+          color: colors.bad,
+        };
       case "ready":
         return {
           label: engineLoaded ? t("download.readyLocal") : t("download.downloaded"),
@@ -1581,7 +1619,15 @@ export function AppShell() {
             {/* Indicatore modello (selezione in Settings). Tap = download se manca/errore. */}
             <Pressable
               onPress={() => {
-                if (modelState === "missing" || modelState === "error") confirmDownload(currentModel.id);
+                if (modelState === "missing") {
+                  confirmDownload(currentModel.id);
+                } else if (modelState === "error") {
+                  if (modelErrorKind === "engine") {
+                    void ensureEngineForModel(currentModel);
+                  } else {
+                    confirmDownload(currentModel.id);
+                  }
+                }
               }}
               disabled={modelState !== "missing" && modelState !== "error"}
               hitSlop={6}
@@ -1722,10 +1768,14 @@ export function AppShell() {
             downloadPercent: modelState === "downloading" ? progressPercent : null,
             modelError,
             modelErrorHint,
+            modelErrorKind,
             streaming,
             downloadedById,
             onSelectModel: selectModelById,
             onDownloadModel: confirmDownload,
+            onRetryLoad: () => {
+              void ensureEngineForModel(currentModel);
+            },
           }}
           voice={{
             state: voiceState,
