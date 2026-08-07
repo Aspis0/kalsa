@@ -945,6 +945,75 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 — 🔴 LA SESSIONE È MORTA AL TURNO 6, E LA CAUSA SPIEGA TUTTI I PROBLEMI DI RAM
+  DELLA CAMPAGNA: il buffer di calcolo è dimensionato su `n_ctx` perché nessuno ha limitato
+  `--ubatch`.**
+
+  F5.1 non ha completato 8 turni: il turno 6 è una riga di zeri in `turns.csv`
+  (`n_prompt=0, tokens=0, tok_s=0, hit=-1`, contatori `/proc` in negativo) e il master log dice
+  `sampler exit (bmoe dead)` → `TURN 6 FAIL rc=1 line=DEAD`.
+
+  **Non era overflow del contesto** (`n_ctx=4096`, il turno 6 ne chiedeva ~2030). La riga che
+  spiega tutto è nello stderr della sessione:
+
+  ```
+  sched_reserve: CPU compute buffer size = 4008.16 MiB
+  ```
+
+  `--ubatch` ha come default *«as wide as the context»*, quindi con `n_ctx=4096` il buffer di
+  calcolo viene riservato per **4096 token in un colpo**:
+
+  ```
+  dense anon          1664 MiB
+  cache esperti       2000 MiB
+  buffer di calcolo   4008 MiB
+  overhead             ~300 MiB
+                     ─────────
+                     ~7.7 GB    contro i ~5.6 GB dove lmkd uccide
+  ```
+
+  ⇒ **ucciso da lmkd.**
+
+  ### Il rapporto è esattamente lineare, e il rimedio è un flag che avevamo già
+
+  | n_ctx / ubatch | buffer di calcolo | fonte |
+  |---:|---:|---|
+  | 512 | **501.52 MiB** | log F4.8 [M] |
+  | 4096 | **4008.16 MiB** | log F5.1 [M] |
+
+  `4008/501.5 = 7.99` contro `4096/512 = 8.00`. **≈0.98 MiB per token di ubatch.** Quindi
+  `--ubatch 512` tiene `n_ctx=4096` per le conversazioni lunghe pagando **500 MiB invece di
+  4000**, e libera **~3.5 GB**. Il costo è che il prefill viene spezzato in blocchi da 512 —
+  comportamento standard, effetto trascurabile sul throughput.
+
+  ### Cosa questo spiega, a posteriori, di tutta la campagna
+
+  Ogni problema di memoria che ci portiamo dietro da giorni ha ORA una causa unica e nota:
+
+  | sintomo | quando | spiegazione |
+  |---|---|---|
+  | `cache-mb 3000` uccisa in `create_tensor` | F4.4 | budget totale oltre lmkd |
+  | `memfree_min_mb = 12` | F4.9 (`n_ctx=2048`) | ~2 GB di buffer di calcolo |
+  | sessione morta al turno 6 | F5.1 (`n_ctx=4096`) | ~4 GB di buffer di calcolo |
+
+  **Non eravamo al limite della RAM per natura del problema: eravamo al limite perché nessuno
+  aveva limitato `ubatch`.** È la quinta volta che una funzionalità già presente nel runtime
+  cambia una conclusione — e stavolta la conclusione era «8 GB di RAM sono il vincolo duro».
+
+  ### Cosa si apre
+
+  Liberati ~3.5 GB, tornano praticabili cose che avevamo archiviato come impossibili:
+  - **`--cache-mb 3000-3500`**, mai misurata in regime valido (h(C) ha ancora un solo punto
+    reale); il simulatore prevede un guadagno modesto ma il ramo non era chiuso per merito, era
+    chiuso per lmkd.
+  - **Conversazioni lunghe senza morire**: `n_ctx` 8k-16k con `--ubatch` piccolo, che è
+    esattamente ciò che serve a un prodotto di chat.
+  - **Margine termico e di memoria** per la speculazione (`--mtp` alloca il draft).
+
+  **Da fare subito, costa un flag**: rieseguire F5.1 con `--ubatch 512` e `n_ctx` alto, e
+  vedere fino a che turno arriva. È anche l'unico modo di sapere se la curva del sostenuto si
+  assesta — cosa che i 5 turni disponibili non dicono.
+
 - **2026-08-07 — 🔴 F5.1: IL PROBLEMA N.1 DEL PRODOTTO NON È LA VELOCITÀ. Ogni messaggio
   ri-prefilla l'intera conversazione: 165 s di attesa al quinto turno. E la cache degli
   esperti invece persiste — le due persistenze hanno esito opposto.**
