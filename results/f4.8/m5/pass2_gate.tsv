@@ -1,0 +1,2 @@
+trace	C_mib	policy	measured_hit_pct	simulated_hit_pct	simulated_decode_hit_pct	gap_pp	passed	tolerance_pp	lookups	hits	dec_lookups	dec_hits	read_mib	dec_read_mib
+short_bench	2000.0	lru	48.1	48.054	72.236	-0.046	True	2.0	15393	7397	10240	7397	7265.992	2579.789

@@ -1,0 +1,7 @@
+trace	n_events	expected	v1_ok	dec_mib	stdout_mib	gap_pct	v2_ok	hit_acc	hit_dec	stdout_hit	gap_pp	v3_ok
+short_bench	42880	42880	True	2579.789	2613.1	-1.275	True	48.054	72.236	48.1	-0.046	True
+f45_1_esplicativo	48960	48960	True	2110.062	2137.5	-1.284	True	51.014	77.148	51.0	0.014	True
+f45_2_scrittura	52800	52800	True	2354.414	2385.0	-1.282	True	48.67	74.521	48.7	-0.03	True
+f45_3_istruzioni	46720	46720	True	1759.695	1782.6	-1.285	True	54.064	80.928	54.1	-0.036	True
+f45_4_codice	57600	57600	True	3015.672	3054.7	-1.278	True	42.424	67.51	42.4	0.024	True
+f45_5_ragionamento	62720	62720	True	2730.672	2766.1	-1.281	True	45.137	70.479	45.1	0.037	True

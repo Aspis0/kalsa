@@ -1,0 +1,7 @@
+trace	hit_pct_accounting	hit_pct_decode	stdout_hit_pct	mib_per_tok_decode_trace	stdout_mib_per_tok	coverage_top256	coverage_top1024	never_activated_of_10240	n_decode	n_prefill
+short_bench	48.05	72.24	48.1	80.62	81.66	0.3052	0.6933	7087	32	102
+f45_1_esplicativo	51.01	77.15	51.0	65.94	66.8	0.4367	0.775	7505	32	121
+f45_2_scrittura	48.67	74.52	48.7	73.58	74.53	0.3803	0.7303	7296	32	133
+f45_3_istruzioni	54.06	80.93	54.1	54.99	55.71	0.4455	0.8126	7867	32	114
+f45_4_codice	42.42	67.51	42.4	94.24	95.46	0.3148	0.6526	6764	32	148
+f45_5_ragionamento	45.14	70.48	45.1	85.33	86.44	0.3497	0.6963	7104	32	164

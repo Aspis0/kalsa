@@ -1,0 +1,7 @@
+trace	raw_overlap	residual_pct	captured_frac	already_frac	verdict
+short_bench	0.3644	0.0	0.0504	0.314	MTP_NEGATIVO
+f45_1_esplicativo	0.415	0.0	0.0429	0.3721	MTP_NEGATIVO
+f45_2_scrittura	0.4316	0.0	0.0627	0.3689	MTP_NEGATIVO
+f45_3_istruzioni	0.4471	0.0	0.0412	0.4058	MTP_NEGATIVO
+f45_4_codice	0.3382	0.0	0.0629	0.2753	MTP_NEGATIVO
+f45_5_ragionamento	0.3681	0.0	0.0608	0.3074	MTP_NEGATIVO
