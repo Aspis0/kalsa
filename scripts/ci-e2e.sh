@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Drives Kalsa on a KVM-accelerated emulator and proves one real inference turn.
-# Evidence (screenshots, UI dumps, logcat, chat DB) lands in ./e2e-out.
+# Drives Kalsa on a KVM-accelerated emulator and proves real on-device inference
+# (two turns in one conversation so KV-cache prefix-reuse can be measured).
+# Evidence (screenshots, UI dumps, logcat, chat DB, telemetry) lands in ./e2e-out.
 set -uo pipefail
 OUT="e2e-out"; mkdir -p "$OUT"
 MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
@@ -116,4 +117,120 @@ if [ "$THINKING" = "off" ]; then
   log "OK: no think markup in current-turn REPLY under THINKING=off"
 fi
 
-log "PASS: real on-device inference completed"
+# ---------------------------------------------------------------------------
+# TURN 2 — same conversation; measures KV prefix-reuse via tokensCached.
+# ---------------------------------------------------------------------------
+log "type message (turn 2)"
+# Alphanumeric for adb `input text` (same constraint as MSG / turn 1).
+# Intent: short follow-up distinct from turn 1 ("E dimmi un altro fatto breve.").
+MSG2="EDimmiUnAltroFattoBreve"
+tap_node "Ask a question…" || die "composer not found (turn 2)"
+sleep 4
+adb shell input text "$MSG2"
+sleep 3
+if ! dump_ui | grep -qF "$MSG2"; then
+  log "text not visible yet (turn 2) — retrying once"
+  tap_node "Ask a question…" || true
+  sleep 3
+  adb shell input text "$MSG2"
+  sleep 3
+fi
+adb shell input keyevent 111
+sleep 3
+shot 04_typed2
+ui_texts > "$OUT/04_typed2.txt"
+grep -qF "$MSG2" "$OUT/04_typed2.txt" || die "typing did not land in the composer (turn 2)"
+log "text confirmed in composer (turn 2)"
+
+log "send (turn 2)"
+tap_node "Send" || die "Send button not found (turn 2)"
+SENT2=$(date +%s)
+sleep 20
+ui_texts > "$OUT/05_sent2.txt"
+shot 05_sent2
+grep -qF "$MSG2" "$OUT/05_sent2.txt" || die "message did not appear in the conversation after send (turn 2)"
+log "message is in the conversation (turn 2) — engine should be running"
+log "sent at $SENT2 — polling for the reply (turn 2)"
+
+REPLY2=""
+for i in $(seq 1 60); do
+  sleep 15
+  ui_texts > "$OUT/poll2_$i.txt"
+  shot "poll2_$i" 2>/dev/null
+  # Need a *second* assistant bubble; turn-1 alone must not satisfy this poll.
+  HIST2=$(sql "SELECT substr(value,1,8000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';")
+  echo "$HIST2" > "$OUT/history2_$i.json"
+  ASSISTANT_N=$(printf '%s' "$HIST2" | grep -o '"role":"assistant"' | wc -l | tr -d ' \r')
+  if [ "${ASSISTANT_N:-0}" -ge 2 ]; then
+    REPLY2=$(echo "$HIST2" | sed 's/.*"role":"assistant","text":"//; s/".*//' | head -c 1500)
+    log "REPLY2 AFTER $(( $(date +%s) - SENT2 ))s: $REPLY2"
+    break
+  fi
+  log "poll2 $i: still generating ($(( $(date +%s) - SENT2 ))s) assistants=${ASSISTANT_N:-0}"
+done
+
+shot 06_reply2
+ui_texts > "$OUT/06_reply2.txt"
+sql "SELECT substr(value,1,8000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" > "$OUT/history2_final.json"
+
+{
+  echo "elapsed_to_reply2_s=$(( $(date +%s) - SENT2 ))"
+  echo "reply2<<<"
+  echo "$REPLY2"
+  echo ">>>"
+} >> "$OUT/RESULT.txt"
+
+[ -n "$REPLY2" ] || die "FAIL: no assistant reply captured on turn 2"
+
+# Telemetry capture — KV-cache health probe (data first; COLD does not fail the job).
+log "capturing KALSA_TELEMETRY from logcat"
+adb logcat -d | grep -F "KALSA_TELEMETRY" | sed 's/.*KALSA_TELEMETRY /KALSA_TELEMETRY /' > "$OUT/telemetry.txt" || true
+
+node -e '
+const fs = require("fs");
+const path = process.argv[1];
+let raw = "";
+try { raw = fs.readFileSync(path, "utf8"); } catch (_) {}
+const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+const payloads = [];
+for (const line of lines) {
+  const idx = line.indexOf("{");
+  if (idx < 0) continue;
+  try { payloads.push(JSON.parse(line.slice(idx))); } catch (_) {}
+}
+const n = (o, k) => (o && typeof o[k] === "number" ? o[k] : (o && o[k] != null ? Number(o[k]) : 0));
+const fmt = (label, o) => {
+  if (!o) return label + ": cached=? evaluated=? predicted=? promptMs=? (missing)";
+  return label + ": cached=" + n(o, "tokensCached")
+    + " evaluated=" + n(o, "tokensEvaluated")
+    + " predicted=" + n(o, "tokensPredicted")
+    + " promptMs=" + n(o, "promptMs");
+};
+const t1 = payloads.length ? payloads[0] : null;
+const t2 = payloads.length ? payloads[payloads.length - 1] : null;
+const linesOut = [fmt("turn1", t1), fmt("turn2", t2)];
+const c2 = t2 ? n(t2, "tokensCached") : 0;
+const e1 = t1 ? n(t1, "tokensEvaluated") : 0;
+let kv;
+if (t2 && c2 === 0 && e1 > 50) {
+  kv = "KV_CACHE: COLD (turn2 re-prefilled everything)";
+} else if (t2) {
+  kv = "KV_CACHE: WARM (turn2 cached=" + c2 + ")";
+} else {
+  kv = "KV_CACHE: UNKNOWN (no telemetry lines)";
+}
+linesOut.push(kv);
+process.stdout.write(linesOut.join("\n") + "\n");
+' "$OUT/telemetry.txt" | tee -a "$OUT/RESULT.txt"
+
+if grep -qF "KV_CACHE: COLD" "$OUT/RESULT.txt"; then
+  log "KV_CACHE: COLD (turn2 re-prefilled everything) — logged, not failing job"
+elif grep -qF "KV_CACHE: WARM" "$OUT/RESULT.txt"; then
+  log "KV_CACHE: WARM — prefix reuse observed"
+else
+  log "KV_CACHE: UNKNOWN — no usable KALSA_TELEMETRY lines"
+fi
+
+cat "$OUT/RESULT.txt"
+
+log "PASS: real on-device inference completed (2 turns + telemetry)"
