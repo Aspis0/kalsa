@@ -945,6 +945,103 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 — RILETTURA DEL PIANO PRIMA DEL KERNEL (richiesta di gualt). Il runtime contiene
+  già un profiler del calcolo, un motore di speculazione e un override del top-k, e non ne
+  abbiamo mai usato nessuno. Inoltre due delle sei ipotesi vanno rivalutate, e MTP l'ho ucciso
+  sull'asse sbagliato.**
+
+  ### 1. Le sei ipotesi di §6, ri-giudicate sul carico vero
+
+  | | ipotesi | attesa | esito |
+  |---|---|---|---|
+  | H1 | località temporale, hit ≥80% con cache ≈2× working set | 81-97% | **CONFERMATA e superata**: 89% con una cache che è **0.37×** il working set (2 GB contro 5.35 GB di esperti distinti a 512 token). Meglio della letteratura, con un rapporto molto peggiore |
+  | H2 | cache 2 GB riduce il traffico ≥5× vs naive, ≤50 MB/token | ≤50 | **SODDISFATTA — avevo sbagliato a dichiararla falsificata.** Sul benchmark 88.8 MB/token (fallisce), ma sul **carico vero 33.96 MiB = 35.6 MB/token** ⇒ `305.2/35.6 =` **8.6×**, ben oltre il 5× richiesto |
+  | H3 | il prefetch predittivo batte LRU/LFU | +5-15 pt | **FALSIFICATA**: Recall@8 19.2%, extra-fetch 274%, e nessuna politica batte LRU sul carico vero |
+  | H4 | MTP riduce i caricamenti per token utile | 1.45× | **falsificata sul flash, MA VEDI §3: uccisa sull'asse sbagliato** |
+  | H5 | il degrado sotto pressione è governabile con cache esplicita | 5.0 vs 0.09 | **CONFERMATA** |
+  | H6 | riordinare gli esperti converte random in sequenziale | — | **PARZIALE**: `iobench` dà 1.26×, ma ora che l'I/O esposto è il 20% del decode il premio è tagliato in proporzione |
+
+  **Due correzioni al mio stesso verbale**: H2 non era falsificata, lo era la sua misura sul
+  benchmark; e H1 è confermata in modo più forte di come la letteratura la formulava.
+
+  ### 2. ⚠ L'audit della superficie dei flag: il runtime ha molto più di quanto usiamo
+
+  È la **quarta** volta che scopro una funzionalità dopo aver costruito un'analisi che la
+  assumeva assente (`--session`, `tools/iobench`, i contatori a finestre, e ora questa lista).
+  Ho quindi eseguito `bmoe-cli --help` per intero. Mai usati:
+
+  | flag | cosa fa | perché conta ORA |
+  |---|---|---|
+  | **`--compute-trace` / `--compute-trace-layers`** | **profila il calcolo** | **stavamo per scrivere un kernel IQ2 senza sapere dove vanno i 0.124 s/token** |
+  | **`--n-expert-used N`** | override del top-k, *«lower = faster»* | leva **diretta** su calcolo *e* traffico, zero codice, solo qualità da misurare |
+  | **`--mtp` / `--ngram` / `--draft N`** | speculazione già implementata | vedi §3 |
+  | `--drop-cold-experts F` | salta un esperto in miss di peso basso | lossy, taglia insieme flash e calcolo |
+  | `--prefetch K`, `--route-ahead`, `--predict-prefetch`, `--predict-log` | prefetch predittivo | il piano (F7.3) diceva di usarli come baseline; mai fatto |
+  | `--progress`, `--csv`, `--io-trace` | telemetria per token / per lettura | risponde a «la velocità cala DENTRO una generazione?» |
+  | `--io-two-wave`, `--ubatch`, `--no-odirect` | varianti del percorso I/O | `--no-odirect` è l'A/B che chiude la vecchia disputa sulla page cache |
+
+  **Regola operativa che ne ricavo, e che vale per il futuro: prima di progettare qualcosa,
+  leggere `--help` per intero.** Quattro analisi di questa campagna sono state costruite su
+  un'assunzione di assenza, e quattro volte l'assunzione era falsa.
+
+  ### 3. ⚠ Correzione mia: ho ucciso MTP sull'asse sbagliato
+
+  Ho dichiarato F6 morta perché MTP non ammortizza i byte di **flash** — e quel ragionamento
+  regge: con LRU che tiene una voce ~24 token, un esperto condiviso fra t e t+1 costa una
+  lettura con o senza MTP (`miss@t ∧ miss@t+1 = 0.00%`, misurato).
+
+  **Ma il flash è la parte piccola.** Per token il calcolo legge dalla **RAM**:
+
+  ```
+  8 esperti × 40 layer × 0.942 MB = 301 MB/token di pesi letti dalla RAM
+  di cui dal flash: 34 MiB (i miss)  ⇒  dalla RAM: ~267 MB
+  a 6 tok/s ⇒ ~1.8 GB/s di traffico RAM solo per i pesi degli esperti
+  ```
+
+  **Quei 267 MB non li avevo considerati.** Verificare k token in un batch legge l'unione dei
+  loro esperti **una volta sola** invece di k volte, e trasforma k GEMV separate in una GEMM a
+  k colonne. Con una sovrapposizione misurata del ~36% fra token consecutivi, un batch da 4
+  leggerebbe ~205 slot/token invece di 320: **−36% di traffico RAM**, più l'efficienza della
+  GEMM. Su un sistema **compute-bound** è esattamente il risparmio che serve.
+
+  **F6 si riapre, sull'asse RAM+calcolo invece che flash.** E il costo del test è nullo: `--mtp`
+  e `--ngram` esistono già nel binario. `--ngram` in particolare ha un draft che costa
+  praticamente zero (guarda i token recenti nel prompt), quindi il rischio di draft rifiutati
+  costosi è minore che con MTP.
+
+  ### 4. Le estensioni F9, rilette
+
+  1. **Quantizzazione mista per-esperto (F9.1) — SI CAPOVOLGE.** Era «hot a 3-4 bit residenti,
+     cold a 2 bit su flash», cioè meno byte. Ma ora siamo **compute-bound con l'80% della banda
+     di storage inutilizzata** (425 di 1204 MiB/s). Il baratto giusto corre **al contrario**:
+     conviene una quantizzazione **più grande ma più veloce da calcolare**. E sappiamo quale —
+     **Q4_0 e IQ4_NL hanno percorsi ARM veloci in mainline, IQ2 no** (codebook, ostile alla
+     cache). È la versione **economica** dell'idea del kernel: giorni di ri-quantizzazione
+     invece di settimane di NEON scritto a mano, per lo stesso obiettivo. Contro: esperti 1.86×
+     più grandi ⇒ meno voci nella stessa cache ⇒ hit più basso. **Ambiguo, e solo la misura
+     decide** — ma è la stessa ambiguità che il piano già annotava («pool −25% ma quant +1
+     tier»), letta con il collo di bottiglia giusto.
+  2. **Expert packing (F9.2)**: premio tagliato dal 20% di quota I/O.
+  3. **DraftExpert (F9.3)**: resta l'ultima delle speculazioni, dopo `--ngram` e `--mtp` che
+     sono gratis.
+  4. **Binario prodotto / llama.rn (F9.4)**: si lega direttamente alla domanda sulla sessione —
+     è il posto dove si decide se il processo resta vivo fra i messaggi.
+  5. **Multi-device (F9.5) — SI RIFORMULA.** Era «UFS 4.0 per lo storage più veloce». Ma lo
+     storage non è più il collo: **serve CPU sostenuta e massa termica**. Un S25 conta per il
+     silicio, non per il flash; e un tablet, con più superficie di dissipazione, potrebbe essere
+     un prodotto migliore di un telefono.
+
+  ### 5. Ordine proposto, che mette il kernel DOPO le cose gratis
+
+  | # | cosa | costo | cosa decide |
+  |---|---|---|---|
+  | 1 | **`--compute-trace`** sul carico vero | ore | **dove vanno i 0.124 s/token.** Prerequisito del kernel: senza, si ottimizza alla cieca |
+  | 2 | **F5.1 sessione multi-turno** (già scritta) | un run | TTFT per-sessione o per-messaggio + dove si assesta il sostenuto |
+  | 3 | **`--ngram` e `--mtp` A/B** | un run | F6 sull'asse RAM: −36% di traffico pesi previsto |
+  | 4 | **`--n-expert-used` 8→6→4** | un run + qualità | leva diretta su calcolo e traffico insieme |
+  | 5 | ri-quantizzazione Q4_0/IQ4_NL | giorni | la versione economica del kernel |
+  | 6 | **kernel IQ2 a mano** | settimane | solo se 1 dice che la GEMM degli esperti domina *e* 5 non basta |
+
 - **2026-08-07 — F4.9: ⚠ IL DIE ARRIVA A 92 °C E IL CALO SOSTENUTO ESISTE — ma è tutto sul
   CALCOLO, non sull'I/O. Risposta a F5 arrivata da una cella che non doveva cercarla.**
 
