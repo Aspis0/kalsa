@@ -678,9 +678,22 @@ export function makeWebFetchExecutor(
         typeof response.url === "string" && response.url.trim() ? response.url.trim() : url;
 
       const finalPublic = isPubliclyRoutableHttpUrl(finalUrl);
-      const finalAllowed = allowlist.has(finalUrl) || sameHost(finalUrl, url);
       const requestedScheme = extractScheme(url);
       const finalScheme = extractScheme(finalUrl);
+      // sameHost is port-aware (same-scheme origin equality). Also allow a
+      // same-HOST http→https upgrade redirect (common 301) without loosening
+      // sameHost — a same-scheme port hop (:443→:2222) still fails sameHost
+      // and is not an upgrade, so it stays refused. https→http is still blocked.
+      const hostA = extractHttpHost(finalUrl);
+      const hostB = extractHttpHost(url);
+      const httpToHttpsUpgrade =
+        requestedScheme === "http" &&
+        finalScheme === "https" &&
+        hostA != null &&
+        hostB != null &&
+        hostA === hostB;
+      const finalAllowed =
+        allowlist.has(finalUrl) || sameHost(finalUrl, url) || httpToHttpsUpgrade;
       const downgrade =
         requestedScheme === "https" && finalScheme !== null && finalScheme !== "https";
 

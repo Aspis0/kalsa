@@ -17,8 +17,13 @@
  *    - Leading think block (optional leading whitespace + `<think>`) → stripped
  *      whether closed or truncated, including the leading whitespace.
  *    - ≥2 unclosed mid-text opens → degenerate loop → strip from first open to end.
- *    - Exactly ONE unclosed mid-text open → keep VERBATIM (literal mention /
- *      code sample). The final full-text replace repaints the bubble (pop-in).
+ *    - Exactly ONE unclosed mid-text open:
+ *        · nothing but whitespace after the open → strip from open (truncation
+ *          cut right after a bare `<think>`, not a literal mention);
+ *        · non-whitespace after the open → keep VERBATIM (literal mention /
+ *          code sample, e.g. `"Use <think> tags"`). Pop-in at finalize is fine.
+ *    - After open/close strip: residual orphan `</think>` and detached partial
+ *      close fragments (`</th…`) are swept (finalize only; not stream).
  *    - Pending partial tag carry at round end → trimmed from final (no `<thi`
  *      / `</thi` pop-in).
  *
@@ -78,12 +83,31 @@ export function arbitrateThinkTags(raw: string): string {
     // Degenerate loop: strip from first unclosed open to end.
     text = text.slice(0, openIndexes[0]);
   } else if (openIndexes.length === 1) {
-    // Exactly one mid-text unclosed open → keep VERBATIM (literal mention).
-    // Do not strip residual content after the open.
-  } else {
-    // No unclosed opens: drop residual orphan closes.
-    text = text.replace(/<\/think>/g, "");
+    const openIdx = openIndexes[0];
+    const afterOpen = text.slice(openIdx + THINK_OPEN.length);
+    if (afterOpen.trim() === "") {
+      // Truncation: bare open with only trailing whitespace → strip from open.
+      // A literal mention always has non-whitespace after the tag.
+      text = text.slice(0, openIdx);
+    }
+    // else: keep VERBATIM (literal mention / code sample).
   }
+
+  // Residual orphan full closes (a lone </think> with no matching open is
+  // leftover markup, not content). We deliberately do NOT sweep mid-string
+  // partial fragments like "</th": that prefix is shared by real HTML the
+  // model may output (</th>, </thead>), and eating it corrupts legitimate
+  // content — a worse trade than the rare, transient "</th<think>…" fragment
+  // (which only persists on a kill mid-finalize). Full-close removal + the
+  // end-of-string partial trim below are the safe subset.
+  text = text.replace(/<\/think>/g, "");
+
+  // Trailing partial close at the very end (a completed reply ending in a bare
+  // "</th"…"</think" with nothing after is truncated markup). Floor ≥4 so a
+  // reply ending in "</" or "</t" — plausible real text — is never touched;
+  // "</th>" etc. end with ">", so a bare prefix at end cannot be valid HTML.
+  const tail = partialTagSuffixLength(text, THINK_CLOSE);
+  if (tail >= 4) text = text.slice(0, text.length - tail);
 
   return text;
 }

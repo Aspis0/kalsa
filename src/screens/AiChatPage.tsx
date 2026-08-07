@@ -1333,8 +1333,12 @@ export function AiChatPage({
             // Persist is fire-and-forget / invocation-level only: a kill before
             // the AsyncStorage write lands can still leave the last throttle
             // partial (interrupted:true) on disk; acceptable by design.
+            // Pure compose over queue-applied prev (no side effects). Side
+            // effects (persist + messagesRef) are gated on runId *inside* the
+            // setState updater: React still applies queued updaters after
+            // clearChat, so an outer gate alone cannot stop resurrection.
             const applyFinalize = (prev: Message[]): Message[] => {
-              const next = prev.map((message) => {
+              return prev.map((message) => {
                 if (message.id !== assistantId) return message;
                 const base: Message = {
                   ...message,
@@ -1351,10 +1355,6 @@ export function AiChatPage({
                   miniapp: extracted.miniapp as Message["miniapp"],
                 };
               });
-              // Keep ref in lockstep so AppState/unmount flushes cannot re-read
-              // a pre-finalize streaming bubble during the pre-commit window.
-              messagesRef.current = next;
-              return next;
             };
             if (mountedRef.current) {
               // Stash the updater's return value so persist uses the same array
@@ -1362,7 +1362,15 @@ export function AiChatPage({
               // the updater receives the queue-applied prev).
               let finalized: Message[] | null = null;
               setMessages((prev) => {
+                // clearChat bumped sendRunId: skip persist + ref write and keep
+                // the cleared (or newer) prev — do not resurrect wiped history.
+                if (sendRunIdRef.current !== runId) {
+                  return prev;
+                }
                 finalized = applyFinalize(prev);
+                // Keep ref in lockstep so AppState/unmount flushes cannot re-read
+                // a pre-finalize streaming bubble during the pre-commit window.
+                messagesRef.current = finalized;
                 // Persist from the stashed snapshot. Eager path: runs sync
                 // when setMessages is called. Deferred path (pending final
                 // onDelta lanes): runs at render after React applies the
@@ -1370,8 +1378,10 @@ export function AiChatPage({
                 persistMessagesNow(finalized);
                 return finalized;
               });
-            } else {
-              persistMessagesNow(applyFinalize(messagesRef.current));
+            } else if (sendRunIdRef.current === runId) {
+              const next = applyFinalize(messagesRef.current);
+              messagesRef.current = next;
+              persistMessagesNow(next);
             }
           }
         }

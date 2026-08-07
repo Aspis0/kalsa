@@ -355,6 +355,12 @@ export function AppShell() {
   const memoryFactsRef = useRef<string[]>([]);
   /** Mirror of MemoryStore.getEnabled — never inject facts when false. */
   const memoryEnabledRef = useRef(false);
+  /**
+   * Facts actually injected into the system prompt for the CURRENT turn.
+   * Captured at send time so the search echo guard still matches them if the
+   * user disables memory mid-turn (live enabled/facts refs would go empty).
+   */
+  const injectedFactsRef = useRef<string[]>([]);
 
   // ── Web tools (search + fetch): SEMPRE ATTIVI — il modello decide se usarli
   // (info attuali, notizie, o richiesta esplicita). Le query / fetch partono solo
@@ -364,8 +370,7 @@ export function AppShell() {
   // may land on another path/port of the SAME host, or an already-allowlisted URL.
   const agentOptions = useMemo<EngineTurnOptions>(() => {
     const searchExec = makeWebSearchExecutor(locale, {
-      getMemoryFacts: () =>
-        memoryEnabledRef.current ? memoryFactsRef.current : [],
+      getMemoryFacts: () => injectedFactsRef.current,
     });
     // Recreated when fetchAllowlistTurnSeq advances (each send); held across
     // tool rounds within the same turn so search results stay allowlisted.
@@ -1399,6 +1404,9 @@ export function AppShell() {
             engineMessages.push(userMessage);
 
             const promptFacts = memoryEnabledRef.current ? memoryFactsRef.current : [];
+            // Echo guard uses exactly the facts injected this turn (immune to
+            // mid-turn memory disable). Empty when memory off / no facts.
+            injectedFactsRef.current = promptFacts;
 
             /**
              * Schedule a preemptable background summary (debounced 8s idle) only

@@ -378,6 +378,52 @@ async function main() {
     });
     check("F1d https→http refused", textReads === 0 && /redirect|refused/i.test(out.text));
   }
+  // http→https same-host upgrade (common 301) must be allowed; sameHost alone
+  // is port-aware and treats http:80 vs https:443 as different origins.
+  {
+    const allow = makeFetchAllowlist();
+    allow.add("http://upgrade.example/start");
+    const exec = makeWebFetchExecutor("en", allow, {
+      fetchImpl: async () =>
+        mockResponse({
+          body: FIXTURE_HTML,
+          url: "https://upgrade.example/final",
+        }),
+    });
+    const out = await exec("web_fetch", {
+      url: "http://upgrade.example/start",
+      query: "temperature climate sea",
+    });
+    check(
+      "F1e http→https same-host upgrade allowed",
+      /temperature|climate/i.test(out.text) &&
+        out.sources?.[0]?.url === "https://upgrade.example/final",
+    );
+  }
+  // Same-scheme port hop still refused (sameHost port semantics unchanged).
+  {
+    const allow = makeFetchAllowlist();
+    allow.add("https://porthop.example/start");
+    let textReads = 0;
+    const exec = makeWebFetchExecutor("en", allow, {
+      fetchImpl: async () =>
+        mockResponse({
+          body: FIXTURE_HTML,
+          url: "https://porthop.example:2222/final",
+          onText: () => {
+            textReads += 1;
+          },
+        }),
+    });
+    const out = await exec("web_fetch", {
+      url: "https://porthop.example/start",
+      query: "climate",
+    });
+    check(
+      "F1f same-scheme port hop refused",
+      textReads === 0 && /redirect|refused/i.test(out.text),
+    );
+  }
 
   // ── Empty response.url fail-safe ───────────────────────────────────────
   {

@@ -245,9 +245,13 @@ function formatToolResultContent(
 ): string {
   const hasRule = raw.includes(TOOL_RESULT_USE_RULE);
   const rulePart = hasRule ? "" : `\n${TOOL_RESULT_USE_RULE}`;
-  const needsProvenance =
-    !!options?.webProvenance && !raw.includes(WEB_TOOL_RESULT_PROVENANCE);
-  const provenancePart = needsProvenance ? `\n${WEB_TOOL_RESULT_PROVENANCE}` : "";
+  // Always append provenance when requested — never suppress because the body
+  // already contains the sentence (a hostile page could embed it to drop our
+  // only untrusted-data framing). Each call formats one fresh tool result, so
+  // the pipeline cannot double-append from our own code.
+  const provenancePart = options?.webProvenance
+    ? `\n${WEB_TOOL_RESULT_PROVENANCE}`
+    : "";
   const suffix = provenancePart + rulePart;
   const budget = Math.max(0, TOOL_RESULT_MAX_CHARS - suffix.length);
 
@@ -417,6 +421,8 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       // the dense 4B peaks at t=4; adding efficiency cores makes it WORSE
       // (straggler at the barrier — never 8). llama.rn's default happens to be
       // hw_concurrency/2 = 4 today; pin it so a default drift can't cost ~2x.
+      // No cheap cross-platform core count in RN without a new dep — leave 4:
+      // all currently-supported devices are ≥6 cores (Xiaomi 14 / S23 class).
       n_threads: 4,
       // iOS: Metal. Android: MUST be 0 — with 99, llama.rn's Hexagon backend
       // offloads layers to the Snapdragon NPU (HTP0) while Flash Attention

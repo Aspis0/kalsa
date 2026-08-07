@@ -170,6 +170,31 @@ async function main() {
     );
   }
 
+  // ── 5b. Single bare trailing open (truncation) → strip from open ───────
+  {
+    const raw = "Answer: yes\n<think>";
+    const { stream, final } = runRound(createThinkStreamCleaner, [raw]);
+    check(
+      "trailing bare open: final strips open (truncation, not literal)",
+      final === "Answer: yes\n" && !final.includes(THINK_OPEN),
+      JSON.stringify(final),
+    );
+    check(
+      "trailing bare open: stream holds after open",
+      stream === "Answer: yes\n" && !stream.includes(THINK_OPEN),
+      JSON.stringify(stream),
+    );
+  }
+  {
+    const raw = "Answer: yes\n<think>   \n";
+    const { final } = runRound(createThinkStreamCleaner, [raw]);
+    check(
+      "trailing open + ws only: final strips open",
+      final === "Answer: yes\n" && !final.includes(THINK_OPEN),
+      JSON.stringify(final),
+    );
+  }
+
   // ── 6. Mid-text closed pair → stripped ─────────────────────────────────
   {
     const raw = "Before <think>hidden</think> after";
@@ -203,28 +228,48 @@ async function main() {
   // ── 8. Partial close then open adjacency (F6) ──────────────────────────
   {
     const deltas = ["abc", "</th", "<think>", "def", "ghi"];
-    // No close ever — ≥1 unclosed; with only one open, finalize keeps from open.
-    // But stream must not leak "</th".
+    // No close ever — ≥1 unclosed; with only one open, finalize keeps from open
+    // (body after open is non-ws → literal-style keep). Stream must not leak "</th".
     const raw = deltas.join("");
     const { stream, final } = runRound(createThinkStreamCleaner, deltas, raw);
     check("F6: stream has no </th leak", !stream.includes("</th"), JSON.stringify(stream));
     check("F6: stream prefix is abc", stream === "abc", JSON.stringify(stream));
-    // One unclosed open → final keeps verbatim after arbitration (incl. open).
-    // Partial </th was before the open in raw: arbitrate doesn't strip partials
-    // unless thinkCarry — carry may be empty after open consumed. Raw is
-    // "abc</th<think>defghi" — one unclosed open → keep from open: but closed
-    // pairs none, one open at index of <think>, keep verbatim including "</th".
-    // So final may still contain "</th" from the RAW text (F6 is stream-focused;
-    // user said full-round arbitration may clean it OR stream must not leak).
-    // Stream must not leak — asserted above. Optionally clean final too via
-    // not requiring final free of </th if arbitration keeps one open.
     check(
       "F6: stream does not show think body",
       !stream.includes("def") && !stream.includes("ghi"),
       JSON.stringify(stream),
     );
-    // Silence unused final for this case if we only care about stream leak
-    void final;
+    // Single unclosed open + non-ws body after it → indistinguishable from a
+    // literal mention ("Use <think> tags"), so finalize keeps it VERBATIM
+    // (accepted pop-in). Stream stayed clean ("abc"); final is the raw text.
+    // The </th is likewise not swept (would corrupt real HTML </th>/</thead>).
+    check("F6: final keeps verbatim (literal-mention policy)", final === raw, JSON.stringify(final));
+  }
+
+  // ── 8b. Partial close BEFORE a *closed* think pair (F3 with-close) ─────
+  // Documented trade-off: the closed pair IS stripped (no think leak), but the
+  // detached "</th" fragment is NOT swept mid-string (see arbitrateThinkTags).
+  {
+    const raw = "x</th<think>y</think>z";
+    const { stream, final } = runRound(createThinkStreamCleaner, [raw]);
+    check("F3 with-close single: stream clean", stream === "xz", JSON.stringify(stream));
+    check(
+      "F3 with-close single: pair stripped, no full think tags",
+      final === "x</thz" && !final.includes(THINK_OPEN) && !final.includes(THINK_CLOSE),
+      JSON.stringify(final),
+    );
+  }
+
+  // ── 8c. Real HTML close tags must survive finalize (no </th eating) ───────
+  {
+    for (const [name, raw] of [
+      ["th", "Row: <th>Name</th> done"],
+      ["thead", "Table <thead>head</thead> end"],
+      ["bare th close", "cell</th>"],
+    ]) {
+      const { final } = runRound(createThinkStreamCleaner, [raw]);
+      check(`HTML ${name} preserved verbatim`, final === raw, JSON.stringify(final));
+    }
   }
 
   // ── 9. Multiple rounds: state resets ───────────────────────────────────
