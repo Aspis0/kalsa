@@ -153,7 +153,14 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <KeyboardProvider>
+        {/* statusBar/navigationBarTranslucent: on API<=34 RN's edge-to-edge flag
+            never turns on (targetSdk-gated), so keyboard-controller subtracts
+            the nav bar from the measured IME height and the composer lands
+            ~40px short (KeyboardAnimationCallback.getCurrentKeyboardHeight).
+            The lib forces the window edge-to-edge on every API itself, so the
+            full IME inset is always the correct lift; these props make its
+            math match. No-op on API>=35 (forced true there). */}
+        <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
           <LocaleProvider>
             <AppContent />
           </LocaleProvider>
