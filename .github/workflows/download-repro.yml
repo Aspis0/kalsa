@@ -56,7 +56,9 @@ jobs:
       - name: Run download repro on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          # API 35: minSdkVersion 35 (Android 15+ ship policy) — API 34 emulators
+          # fail install with INSTALL_FAILED_OLDER_SDK (run 31223190695).
+          api-level: 35
           target: google_apis
           arch: x86_64
           # Without a profile the AVD comes up at 320x640 and every tap lands
