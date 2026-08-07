@@ -93,28 +93,28 @@ Regole dichiarate **prima** di guardare i numeri (mandato M5).
 - **Belady − LRU = 17.79 pp**
 - **VERDETTO: VIVO** — Belady−LRU = 17.79 pp >= 8: vale costruire una politica migliore
 
-Nota sulle politiche online misurate: **LFU ≈ LRU** (72.12 vs 72.24): la sola
-frequenza non sposta nulla a C=2000. **W-TinyLFU** (CMS + admission, implementazione
-offline onesta, non Caffeine) è **peggio** di LRU (59.5%): l'admission a frequenza
-rifiuta miss che poi servono entro pochi token. Il tetto Belady resta il numero
-decisivo; una politica migliore dovrà usare segnali che Belady vede (next-use /
-layer-ahead / peso router), non sola frequenza grezza.
-
 ### 3.2 MTP / sovrapposizione non catturata (F6)
 
-- short_bench residual non-catturato: **0.00%**
+- short_bench residual mandato (miss@t tra overlap): **5.04%**
 - raw overlap medio (frazione degli 8): **0.364**
-- di cui già catturata da LRU@2000: **0.050**
-- range residual sulle 6 trace: 0.00% … 0.00%
-- **VERDETTO (short_bench): MTP_NEGATIVO** — sovrapposizione non-già-catturata = 0.00% < 5%: F6 muore (salvo effetto batch sulla coda I/O)
-- verdetti per-trace: MTP_NEGATIVO
+- di cui catturata da LRU@2000 (miss@t ∧ hit@t+1): **0.050**
+- già in cache a t (hit@t): **0.314**
+- finestra cache (miss@t ∧ miss@t+1, diagnostica): **0.00%**
+- range residual mandato sulle 6 trace: 4.12% … 6.29%
+- **VERDETTO (short_bench): IN_MEZZO** — residual mandato (miss@t tra overlap) = 5.04% in [5, 15): serve tasso di accettazione draft abbastanza alto da ammortizzare i miss sprecati dei draft rifiutati
+- break-even accettazione (naive): 85%
+  (naive: serve accettazione ≥ 85% se un draft rifiutato costa ~94 miss e uno accettato ne risparmia ~16.1)
+- verdetti per-trace: IN_MEZZO, MTP_NEGATIVO
 
-Lettura: l'overlap grezzo c'è (~36–45% degli 8 esperti di t+1 erano già in t), ma
-di quell'overlap ~86% era **già residente prima di t** e il resto (~14% dell'overlap,
-~5% degli 8) è un miss a t che LRU **mantiene fino a t+1** (captured). Zero esperti
-sono miss a t e di nuovo miss a t+1: a C=2000 LRU non evince tra due token consecutivi
-quello che t ha appena pagato. Quindi MTP non ammortizza byte oltre a quanto fa già
-la cache; i draft rifiutati aggiungerebbero solo miss.
+> **Nota audit (fix Passo 3):** Errore corretto dopo audit: la definizione di residual
+> richiedeva miss@t AND miss@t+1 (misurava la finestra cache); la definizione del mandato
+> è miss@t (ammortamento MTP). Il verdetto cambia da MTP_NEGATIVO a IN_MEZZO.
+
+Lettura: l'overlap grezzo c'è (~34–45% degli 8 esperti di t+1 erano già in t). Di
+quell'overlap la maggior parte era già residente prima di t; il residual mandato
+(~4–6% degli 8) sono miss pagati da t e riusati a t+1 — ammortizzabili da MTP se il
+draft li propone. La finestra cache (miss@t ∧ miss@t+1) resta ~0%: a C=2000 LRU non
+evince tra due token consecutivi quello che t ha appena pagato.
 
 ### 3.3 Prefetch cross-layer
 
@@ -186,18 +186,20 @@ differenze di entropia/unique set. L38/L39 hanno anche `expert_bytes` maggiore
 
 Teorico full-read decode (no cache) short_bench: **9314.0 MiB** (291.1 MiB/token).
 
-Belady satura a ~94% già da C=2500: il residuale ~6% sono compulsory miss (primo tocco di esperti nuovi nel decode). LRU a C=5000 arriva a 93.4%, a 1.6 pp da Belady — a budget generoso la politica non conta più; a C=2000 (budget del telefono) conta.
-
 ### 4.4 Sovrapposizione MTP per trace
 
-| trace | raw overlap | residual non-catturato | catturata da LRU | verdetto |
-|-------|------------:|-----------------------:|-----------------:|----------|
-| short_bench | 0.364 | 0.00% | 0.050 | MTP_NEGATIVO |
-| f45_1_esplicativo | 0.415 | 0.00% | 0.043 | MTP_NEGATIVO |
-| f45_2_scrittura | 0.432 | 0.00% | 0.063 | MTP_NEGATIVO |
-| f45_3_istruzioni | 0.447 | 0.00% | 0.041 | MTP_NEGATIVO |
-| f45_4_codice | 0.338 | 0.00% | 0.063 | MTP_NEGATIVO |
-| f45_5_ragionamento | 0.368 | 0.00% | 0.061 | MTP_NEGATIVO |
+Residual mandato = frazione degli 8 esperti di t+1 che (i) erano fra quelli di t
+e (ii) erano miss al momento di t (senza richiedere miss@t+1). Le colonne
+`catturata da LRU` e `finestra cache` sono diagnostica secondaria.
+
+| trace | raw overlap | residual mandato | catturata da LRU | finestra cache | già in cache | verdetto |
+|-------|------------:|-----------------:|-----------------:|---------------:|-------------:|----------|
+| short_bench | 0.364 | 5.04% | 0.050 | 0.00% | 0.314 | IN_MEZZO |
+| f45_1_esplicativo | 0.415 | 4.29% | 0.043 | 0.00% | 0.372 | MTP_NEGATIVO |
+| f45_2_scrittura | 0.432 | 6.27% | 0.063 | 0.00% | 0.369 | IN_MEZZO |
+| f45_3_istruzioni | 0.447 | 4.12% | 0.041 | 0.00% | 0.406 | MTP_NEGATIVO |
+| f45_4_codice | 0.338 | 6.29% | 0.063 | 0.00% | 0.275 | IN_MEZZO |
+| f45_5_ragionamento | 0.368 | 6.08% | 0.061 | 0.00% | 0.307 | IN_MEZZO |
 
 ### 4.5 Prefetch recall/costo (test held-out)
 
@@ -217,7 +219,7 @@ Overfit check (train):
 
 ### 4.6 Contenuto: 6 prompt a confronto (finestra corretta)
 
-| trace | hit acc% | hit dec% | stdout hit% | MiB/tok trace | MiB/tok stdout | cov@256 | cov@1024 | never (decode-only) |
+| trace | hit acc% | hit dec% | stdout hit% | MiB/tok trace | MiB/tok stdout | cov@256 | cov@1024 | never |
 |-------|---------:|---------:|------------:|--------------:|---------------:|--------:|---------:|------:|
 | short_bench | 48.0 | 72.2 | 48.1 | 80.6 | 81.7 | 0.305 | 0.693 | 7087 |
 | f45_1_esplicativo | 51.0 | 77.2 | 51.0 | 65.9 | 66.8 | 0.437 | 0.775 | 7505 |

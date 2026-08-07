@@ -749,8 +749,18 @@ def pass2_cache(traces: list[dict], stdout_by_name: dict) -> dict:
 
 # ── Pass 3: consecutive-token overlap (MTP) ──────────────────────────────────
 def pass3_mtp(tr: dict) -> dict:
-    """Overlap of experts between consecutive decode tokens, and residual not
-    already captured by LRU cache at C=2000.
+    """Overlap of experts between consecutive decode tokens; MTP residual per mandate.
+
+    Mandate residual (decision number) = fraction of the 8 experts of t+1 that
+    (i) were among the 8 of t AND (ii) were a MISS at the moment of t.
+    That is the share of t+1's experts whose flash read was paid by t and could
+    be amortised by MTP if the draft reuses them immediately. No requirement
+    that they also be miss@t+1.
+
+    Secondary diagnostics (cache window, not the decision number):
+      - paid_and_miss_at_t1  (= old residual): miss@t AND miss@t+1 among overlap
+      - captured_by_cache    : miss@t AND hit@t+1 among overlap (LRU kept them)
+      - already_in_cache     : hit@t among overlap
     """
     # Build per-(step, layer) set of 8 experts for decode
     dec_steps = sorted(set(int(s) for s in tr["step"][tr["phase"] == 1]))
@@ -775,27 +785,14 @@ def pass3_mtp(tr: dict) -> dict:
     raw_mean = float(np.mean(overlaps)) if overlaps else 0.0
     raw_median = float(np.median(overlaps)) if overlaps else 0.0
 
-    # (b) residual: of the overlapping experts at t+1, how many were a MISS at t?
-    # Replay LRU C=2000 and, for each decode token transition, count experts of
-    # t+1 that (i) were in t's set AND (ii) at the moment of t were a miss
-    # (i.e. not already resident when t demanded them — so t paid the flash read;
-    # if LRU keeps them until t+1, MTP would share that read; if LRU already would
-    # keep them, MTP's incremental amortisation is zero for those).
-    #
-    # More precisely per the mandate:
-    #   "esperti di t+1 che (i) erano fra quelli di t, E (ii) al momento di t erano un miss"
-    # Then: of that fraction, how much is NOT already captured by the cache?
-    # "quanta NON era già catturata dalla cache" = those that the cache would have
-    # already kept from t to t+1 under LRU are CAPTURED; residual = overlap misses
-    # that the cache EVICTS before t+1.
-    #
-    # Implementation: during LRU replay, record for every decode batch whether each
-    # expert was a miss; then at t+1, for each overlapping expert, check if it was
-    # a miss at t AND is a miss again at t+1 (cache did not keep it) → residual.
-    # Also count overlap that is a hit at t+1 (cache captured it).
+    # (b) mandate residual + cache-window diagnostics via LRU C=2000 replay.
+    # For each consecutive (t, t+1) and layer, among experts of t+1 that also
+    # appear in t:
+    #   residual (mandate) = miss@t          ← decision number
+    #   paid_and_miss_at_t1 = miss@t AND miss@t+1  (cache window residual)
+    #   captured_by_cache   = miss@t AND hit@t+1
+    #   already_in_cache    = hit@t
 
-    batches, n_prefill = build_batches(tr)
-    # Instrument a custom run
     ebytes = tr["ebytes"]
     budget = int(2000 * MIB)
     resident: dict[int, int] = {}
@@ -806,15 +803,8 @@ def pass3_mtp(tr: dict) -> dict:
     def key(il, e):
         return il * N_EXPERT + e
 
-    # per batch index: dict expert_id_in_layer_space -> was_miss (bool)
-    # We index by (step, layer) for decode
     was_miss_at: dict[tuple[int, int], dict[int, bool]] = {}
-    # also: is the expert resident just BEFORE the batch? (for t+1 check)
-    # actually was_miss tells us; for residual we need miss-at-t AND miss-at-t+1
 
-    # Map batch index -> (step, layer) for decode
-    batch_meta = []
-    # rebuild with meta
     pref: dict[int, list] = defaultdict(list)
     dec: dict[tuple[int, int], list] = defaultdict(list)
     for i in range(tr["n"]):
@@ -866,16 +856,12 @@ def pass3_mtp(tr: dict) -> dict:
         if kind == "dec":
             was_miss_at[(st, il)] = miss_map
 
-    # Now compute residual
-    # For each consecutive (t, t+1), each layer:
-    #   overlap = experts in both
-    #   residual = those in overlap that were miss at t AND miss at t+1
-    #   captured = those in overlap that were miss at t AND hit at t+1
-    #   (overlap that was hit at t: already in cache before t, not "paid by t")
+    # Mandate residual + secondary cache-window stats
     n_overlap = 0
-    n_residual = 0  # miss@t AND miss@t+1 among overlap
-    n_captured = 0  # miss@t AND hit@t+1 among overlap
-    n_already = 0   # hit@t among overlap (cache already had it)
+    n_residual = 0            # mandate: miss@t among overlap
+    n_paid_miss_t1 = 0        # cache window: miss@t AND miss@t+1
+    n_captured = 0            # miss@t AND hit@t+1
+    n_already = 0             # hit@t among overlap
     n_total_t1 = 0
     per_layer_res = defaultdict(list)
 
@@ -888,37 +874,48 @@ def pass3_mtp(tr: dict) -> dict:
             n_overlap += len(inter)
             mm_t = was_miss_at.get((t, il), {})
             mm_t1 = was_miss_at.get((t1, il), {})
-            r = c = a = 0
+            r = r_cw = c = a = 0
             for e in inter:
-                if mm_t.get(e, True):  # miss at t
-                    if mm_t1.get(e, True):  # miss at t+1 too → residual
-                        r += 1
+                if mm_t.get(e, True):  # miss at t → paid by t (mandate residual)
+                    r += 1
+                    if mm_t1.get(e, True):  # also miss at t+1 → cache window residual
+                        r_cw += 1
                     else:
-                        c += 1  # captured by cache
+                        c += 1  # captured by cache (hit@t+1)
                 else:
                     a += 1
             n_residual += r
+            n_paid_miss_t1 += r_cw
             n_captured += c
             n_already += a
             per_layer_res[il].append(r / N_USED)
 
     # Fractions relative to the 8 experts of t+1
     n_pairs_layers = max(1, len(dec_steps) - 1) * N_LAYER
-    frac_overlap = n_overlap / (n_pairs_layers * N_USED)
-    frac_residual = n_residual / (n_pairs_layers * N_USED)
-    frac_captured = n_captured / (n_pairs_layers * N_USED)
+    denom = n_pairs_layers * N_USED
+    frac_overlap = n_overlap / denom
+    frac_residual = n_residual / denom          # mandate decision number
+    frac_captured = n_captured / denom
+    frac_paid_miss_t1 = n_paid_miss_t1 / denom  # old (cache-window) residual
+    frac_already = n_already / denom
 
-    residual_pct = 100.0 * frac_residual  # the decision number (as % of experts of t+1)
+    residual_pct = 100.0 * frac_residual
 
     decision = {
         "raw_overlap_frac": round(raw_mean, 4),
         "raw_overlap_median": round(raw_median, 4),
+        # mandate residual (decision number): miss@t among overlap, as % of 8@t+1
         "residual_not_captured_frac": round(frac_residual, 4),
         "residual_not_captured_pct": round(residual_pct, 3),
+        "residual_definition": "mandate: miss@t among experts of t+1 that were also in t (MTP amortisation)",
+        # secondary: cache window (old residual definition)
+        "cache_window_residual_frac": round(frac_paid_miss_t1, 4),
+        "cache_window_residual_pct": round(100.0 * frac_paid_miss_t1, 3),
         "captured_by_cache_frac": round(frac_captured, 4),
-        "already_in_cache_frac": round(n_already / (n_pairs_layers * N_USED), 4),
+        "already_in_cache_frac": round(frac_already, 4),
         "n_overlap": n_overlap,
         "n_residual": n_residual,
+        "n_cache_window_residual": n_paid_miss_t1,
         "n_captured": n_captured,
         "n_pairs_layers": n_pairs_layers,
         "rule": "<5% → MTP NEGATIVO; >=15% → MTP vivo; in mezzo → tasso accettazione per pari",
@@ -926,29 +923,25 @@ def pass3_mtp(tr: dict) -> dict:
     if residual_pct < 5.0:
         decision["verdict"] = "MTP_NEGATIVO"
         decision["reason"] = (
-            f"sovrapposizione non-già-catturata = {residual_pct:.2f}% < 5%: "
+            f"residual mandato (miss@t tra overlap) = {residual_pct:.2f}% < 5%: "
             "F6 muore (salvo effetto batch sulla coda I/O)"
         )
     elif residual_pct >= 15.0:
         decision["verdict"] = "MTP_VIVO"
         decision["reason"] = (
-            f"sovrapposizione non-già-catturata = {residual_pct:.2f}% >= 15%: "
+            f"residual mandato (miss@t tra overlap) = {residual_pct:.2f}% >= 15%: "
             "MTP ha un caso reale, F6 si apre"
         )
     else:
-        # break-even acceptance: residual_frac * accept >= cost of rejected drafts
-        # rough: need accept rate a such that a * residual >= (1-a) * waste_factor
-        # report the residual and leave acceptance math to reader
         decision["verdict"] = "IN_MEZZO"
         decision["reason"] = (
-            f"sovrapposizione non-già-catturata = {residual_pct:.2f}% in [5, 15): "
+            f"residual mandato (miss@t tra overlap) = {residual_pct:.2f}% in [5, 15): "
             "serve tasso di accettazione draft abbastanza alto da ammortizzare i miss "
             "sprecati dei draft rifiutati"
         )
         # naive break-even: if rejected draft costs a full extra token of misses
         # (~94 miss/token at 72% hit of 320), and accepted saves residual*320 experts
-        # → a * residual_frac * 320 >= (1-a) * 320 * miss_frac ≈ (1-a)*94
-        # a * residual_pct/100 * 320 >= (1-a)*94
+        # → a * residual_frac * 320 >= (1-a) * 94
         miss_per_tok = 94.0  # approximate from short_bench
         save_per_tok = frac_residual * N_LAYER * N_USED  # residual experts/token
         # a*S >= (1-a)*M → a*(S+M) >= M → a >= M/(S+M)
@@ -960,7 +953,7 @@ def pass3_mtp(tr: dict) -> dict:
                 f"~{miss_per_tok:.0f} miss e uno accettato ne risparmia ~{save_per_tok:.1f}"
             )
 
-    # per-layer residual mean
+    # per-layer residual mean (mandate definition)
     per_layer = {il: round(float(np.mean(v)), 4) for il, v in sorted(per_layer_res.items())}
 
     return {
@@ -1310,10 +1303,13 @@ def build_report(p0, p1, p2, p3, p4, p5, schema_src: str) -> str:
     mtp_rows = p3
     primary = next(r for r in mtp_rows if r["trace"] == "short_bench")
     residuals = [r["decision"]["residual_not_captured_pct"] for r in mtp_rows]
-    L(f"- short_bench residual non-catturato: **{primary['decision']['residual_not_captured_pct']:.2f}%**")
+    L(f"- short_bench residual mandato (miss@t tra overlap): **{primary['decision']['residual_not_captured_pct']:.2f}%**")
     L(f"- raw overlap medio (frazione degli 8): **{primary['decision']['raw_overlap_frac']:.3f}**")
-    L(f"- di cui già catturata da LRU@2000: **{primary['decision']['captured_by_cache_frac']:.3f}**")
-    L(f"- range residual sulle 6 trace: {min(residuals):.2f}% … {max(residuals):.2f}%")
+    L(f"- di cui catturata da LRU@2000 (miss@t ∧ hit@t+1): **{primary['decision']['captured_by_cache_frac']:.3f}**")
+    L(f"- già in cache a t (hit@t): **{primary['decision']['already_in_cache_frac']:.3f}**")
+    L(f"- finestra cache (miss@t ∧ miss@t+1, diagnostica): "
+      f"**{primary['decision'].get('cache_window_residual_pct', 0):.2f}%**")
+    L(f"- range residual mandato sulle 6 trace: {min(residuals):.2f}% … {max(residuals):.2f}%")
     L(f"- **VERDETTO (short_bench): {primary['decision']['verdict']}** — {primary['decision']['reason']}")
     if "break_even_accept_rate_naive" in primary["decision"]:
         L(f"- break-even accettazione (naive): {primary['decision']['break_even_accept_rate_naive']:.0%}")
@@ -1321,6 +1317,16 @@ def build_report(p0, p1, p2, p3, p4, p5, schema_src: str) -> str:
     # all-trace verdict consistency
     verdicts = {r["decision"]["verdict"] for r in mtp_rows}
     L(f"- verdetti per-trace: {', '.join(sorted(verdicts))}")
+    L("")
+    L("> **Nota audit (fix Passo 3):** Errore corretto dopo audit: la definizione di residual")
+    L("> richiedeva miss@t AND miss@t+1 (misurava la finestra cache); la definizione del mandato")
+    L("> è miss@t (ammortamento MTP). Il verdetto cambia da MTP_NEGATIVO a IN_MEZZO.")
+    L("")
+    L("Lettura: l'overlap grezzo c'è (~34–45% degli 8 esperti di t+1 erano già in t). Di")
+    L("quell'overlap la maggior parte era già residente prima di t; il residual mandato")
+    L("(~4–6% degli 8) sono miss pagati da t e riusati a t+1 — ammortizzabili da MTP se il")
+    L("draft li propone. La finestra cache (miss@t ∧ miss@t+1) resta ~0%: a C=2000 LRU non")
+    L("evince tra due token consecutivi quello che t ha appena pagato.")
     L("")
 
     # Prefetch
@@ -1401,12 +1407,17 @@ def build_report(p0, p1, p2, p3, p4, p5, schema_src: str) -> str:
 
     L("### 4.4 Sovrapposizione MTP per trace")
     L("")
-    L("| trace | raw overlap | residual non-catturato | catturata da LRU | verdetto |")
-    L("|-------|------------:|-----------------------:|-----------------:|----------|")
+    L("Residual mandato = frazione degli 8 esperti di t+1 che (i) erano fra quelli di t")
+    L("e (ii) erano miss al momento di t (senza richiedere miss@t+1). Le colonne")
+    L("`catturata da LRU` e `finestra cache` sono diagnostica secondaria.")
+    L("")
+    L("| trace | raw overlap | residual mandato | catturata da LRU | finestra cache | già in cache | verdetto |")
+    L("|-------|------------:|-----------------:|-----------------:|---------------:|-------------:|----------|")
     for r in mtp_rows:
         d = r["decision"]
         L(f"| {r['trace']} | {d['raw_overlap_frac']:.3f} | "
           f"{d['residual_not_captured_pct']:.2f}% | {d['captured_by_cache_frac']:.3f} | "
+          f"{d.get('cache_window_residual_pct', 0):.2f}% | {d['already_in_cache_frac']:.3f} | "
           f"{d['verdict']} |")
     L("")
 
@@ -1641,18 +1652,25 @@ enum RouteResidency : uint8_t {
         p3.append(pass3_mtp(tr))
     write_tsv(out / "pass3_mtp.tsv",
               ["trace", "raw_overlap", "residual_pct", "captured_frac",
-               "already_frac", "verdict"],
+               "already_frac", "cache_window_residual_pct", "verdict",
+               "break_even_accept"],
               [{
                   "trace": r["trace"],
                   "raw_overlap": r["decision"]["raw_overlap_frac"],
                   "residual_pct": r["decision"]["residual_not_captured_pct"],
                   "captured_frac": r["decision"]["captured_by_cache_frac"],
                   "already_frac": r["decision"]["already_in_cache_frac"],
+                  "cache_window_residual_pct": r["decision"].get(
+                      "cache_window_residual_pct", 0.0),
                   "verdict": r["decision"]["verdict"],
+                  "break_even_accept": r["decision"].get(
+                      "break_even_accept_rate_naive", ""),
               } for r in p3])
     for r in p3:
+        be = r["decision"].get("break_even_accept_rate_naive")
+        be_s = f" be={be:.0%}" if be is not None else ""
         print(f"  {r['trace']}: residual={r['decision']['residual_not_captured_pct']:.2f}% "
-              f"-> {r['decision']['verdict']}", flush=True)
+              f"-> {r['decision']['verdict']}{be_s}", flush=True)
 
     # Pass 4
     print("pass 4: cross-layer prefetch", flush=True)
