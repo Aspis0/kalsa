@@ -945,9 +945,17 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
-- **2026-08-07 notte — ⚠⚠ IL RISULTATO PIÙ IMPORTANTE DELLA CAMPAGNA: il benchmark da 64
-  token misurava il RISCALDAMENTO DELLA CACHE, non il regime. Su 512 token il traffico crolla
-  del 63%, l'hit sale a 86.6% e il sistema diventa COMPUTE-BOUND.**
+- **2026-08-07 notte — ⚠⚠ IL RISULTATO PIÙ IMPORTANTE DELLA CAMPAGNA: il benchmark del gate
+  NON RAPPRESENTA il carico del prodotto. Su contenuto conversazionale italiano il traffico
+  crolla del 61%, l'hit sale a 89.2% e il sistema diventa COMPUTE-BOUND.**
+
+  > **Correzione applicata la stessa notte, un'ora dopo la prima stesura.** Avevo scritto che
+  > il benchmark «misurava il riscaldamento della cache». **Falso**, e l'ho smontato io stesso
+  > analizzando la trace: l'hit per blocchi di 64 token è **piatto** (85.6 · 90.5 · 90.8 · 90.2
+  > · 87.9 · 89.3 · 88.3 · 91.8), già all'85% dal primo blocco di decode — nessuna rampa. La
+  > cache arriva a regime **durante il prefill** (143 token × 320 = 45 760 lookup riempiono
+  > 2226 voci molte volte). La causa vera è **il contenuto**, e la scomposizione è sotto.
+  > La conclusione (compute-bound nel regime reale) **regge intatta**; cambia il perché.
 
   Cella C3 del mandato notturno (trace lunga, deterministica, telefono in carica).
 
@@ -969,9 +977,42 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   | re-read | 75.8 /tok | **30.7** | −60% |
   | stall I/O esposto | — | **0.032 s/tok** | **20% del decode** |
 
-  **Ogni numero di questa campagna è stato preso su una finestra da 64 token, cioè dentro il
-  transitorio in cui la cache si riempie.** La cache tiene 2226 voci; in 64 token non fa in
-  tempo a scaldarsi. In 512 sì, e il problema dell'I/O si scioglie da solo.
+  ### La scomposizione: contenuto e lunghezza, misurati separatamente
+
+  Sette trace, tutte con `--temp 0` e stessa config, quindi confrontabili. Hit **solo-decode**:
+
+  | trace | prefill tok | decode tok | hit decode | MiB/tok |
+  |---|---:|---:|---:|---:|
+  | f45_3 istruzioni | 114 | 32 | 80.9% | 54.99 |
+  | f45_1 esplicativo | 121 | 32 | 77.1% | 65.94 |
+  | f45_2 scrittura | 133 | 32 | 74.5% | 73.58 |
+  | **short_bench** | 102 | 32 | **72.2%** | **80.62** |
+  | f45_5 ragionamento | 164 | 32 | 70.5% | 85.33 |
+  | f45_4 codice | 148 | 32 | 67.5% | 94.24 |
+  | **long_512** (prosa IT) | 143 | **512** | **89.2%** | **31.14** |
+
+  **La lunghezza del PROMPT non spiega nulla**: `f45_5` ha il prefill più lungo (164) e uno
+  degli hit più bassi (70.5%); `f45_3` ha il più corto (114) e il più alto fra i brevi (80.9%).
+  Nessuna correlazione.
+
+  Per separare contenuto e lunghezza della generazione ho ricalcolato `long_512` **troncata ai
+  suoi primi 32 token di decode**, cioè a parità esatta con gli altri:
+
+  ```
+  short_bench            32 tok  →  hit 72.2%   80.62 MiB/tok
+  long_512 (primi 32)    32 tok  →  hit 83.6%   47.32 MiB/tok    ← effetto CONTENUTO: +11.4 pp, −41%
+  long_512 (completa)   512 tok  →  hit 89.2%   31.14 MiB/tok    ← effetto LUNGHEZZA:  +5.6 pp, −34%
+  ```
+
+  **Il fattore dominante è il CONTENUTO** (+11.4 punti), la lunghezza è secondaria (+5.6). Ma
+  entrambi puntano nella stessa direzione, e **entrambi valgono per il prodotto vero**: prosa
+  conversazionale italiana, risposte lunghe.
+
+  **Conseguenza vera, e più scomoda di quella che avevo scritto prima: la campagna ha
+  ottimizzato per quasi due settimane contro un benchmark il cui comportamento di I/O è 2.6×
+  peggiore del carico reale.** La «dipendenza dal contenuto» che M5 aveva relegato alla sezione
+  3.4 come curiosità è in realtà **il fatto di primo ordine**: sposta l'hit di 16 punti
+  (codice 67.5% → prosa 83.6%) e il traffico di 2×.
 
   ### Il sistema è passato dall'altra parte del crinale
 
