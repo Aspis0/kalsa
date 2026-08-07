@@ -1,0 +1,108 @@
+[2026-08-07T12:18:24-0400] === F5.3 START pid=31241 ===
+[2026-08-07T12:18:24-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli runtime_commit=b0c4e5b
+[2026-08-07T12:18:24-0400] model35=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf q40=/data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_0.gguf q4km=/data/data/com.termux/files/home/models/LFM2-8B-A1B-Q4_K_M.gguf
+[2026-08-07T12:18:24-0400] nproc=6 cpuset=/top-app
+[2026-08-07T12:18:24-0400] LD_LIBRARY_PATH=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/..:
+[2026-08-07T12:18:24-0400] FLAG_OK --ubatch
+[2026-08-07T12:18:24-0400] FLAG_OK --session
+[2026-08-07T12:18:24-0400] FLAG_OK --compute-trace
+[2026-08-07T12:18:24-0400] FLAG_OK --compute-trace-layers
+[2026-08-07T12:18:24-0400] FLAG_OK --cache-mb
+[2026-08-07T12:18:24-0400] FLAG_OK --moe-stream
+[2026-08-07T12:18:24-0400] FREQ_OK cpu0=1017600
+[2026-08-07T12:18:24-0400] FREQ_OK cpu3=2457600
+[2026-08-07T12:18:24-0400] FREQ_OK cpu5=2592000
+[2026-08-07T12:18:24-0400] FREQ_OK cpu7=864000
+[2026-08-07T12:18:25-0400] battery_start: {
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 30.3,
+  "voltage": 3852,
+  "current": -566000,
+  "current_average": -188,
+  "percentage": 50,
+  "level": 50,
+  "scale": 100,
+  "charge_counter": 1901250,
+  "cycle": 0
+}
+[2026-08-07T12:18:26-0400] safety OK:die=40.9:batt=50:plugged=UNPLUGGED
+[2026-08-07T12:18:28-0400] ==== PHASE A start ubatch=512 n_ctx=8192 n_turns=10 ====
+[2026-08-07T12:18:29-0400] safety_pre_A: OK:die=45.4:batt=50:plugged=UNPLUGGED
+[2026-08-07T12:18:31-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=85818 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T12:18:35-04:00
+[2026-08-07T12:18:35-0400] cold_model OK
+[2026-08-07T12:18:35-0400] flags: -m /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf -t 4 -c 8192 -n 256 --chatml --no-think --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --session
+[2026-08-07T12:18:35-0400] bmoe pid=400
+[2026-08-07T12:18:35-0400] sampler pid=405
+[2026-08-07T12:18:35-0400] waiting BMOE_READY...
+[2026-08-07T12:18:55-0400] READY: BMOE_READY {"load_s":20.074,"arch":"qwen35moe","n_ctx":8192,"think_ctl":"template","n_expert_used":8}
+[2026-08-07T12:18:57-0400] safety_pre_A_T1: OK:die=66.4:batt=50:plugged=UNPLUGGED
+[2026-08-07T12:18:57-0400] ---- F5.3-A-T1 start clear_kv=true ----
+[2026-08-07T12:18:58-0400] send id=1 bytes=415
+[2026-08-07T12:19:57-0400] F5.3-A-T1 DONE n_prompt=96 n_past=352 tokens=256 tok_s=5.275 compute=0.1374 cur_freq_prime=2509963.6 die 59.5->66.4 batt 50->49
+[2026-08-07T12:19:58-0400] safety_post_A_T1: OK:die=62.4:batt=49:plugged=UNPLUGGED
+[2026-08-07T12:19:58-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T12:20:00-0400] safety_pre_A_T2: OK:die=59.1:batt=49:plugged=UNPLUGGED
+[2026-08-07T12:20:00-0400] ---- F5.3-A-T2 start clear_kv=false ----
+[2026-08-07T12:20:01-0400] send id=2 bytes=343
+[2026-08-07T12:21:39-0400] F5.3-A-T2 DONE n_prompt=435 n_past=691 tokens=256 tok_s=4.442 compute=0.1736 cur_freq_prime=1772160.0 die 59.1->60.8 batt 49->47
+[2026-08-07T12:21:41-0400] safety_post_A_T2: OK:die=55.9:batt=47:plugged=UNPLUGGED
+[2026-08-07T12:21:41-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T12:21:42-0400] safety_pre_A_T3: OK:die=54.7:batt=47:plugged=UNPLUGGED
+[2026-08-07T12:21:43-0400] ---- F5.3-A-T3 start clear_kv=false ----
+[2026-08-07T12:21:44-0400] send id=3 bytes=375
+[2026-08-07T12:24:00-0400] F5.3-A-T3 DONE n_prompt=774 n_past=1030 tokens=256 tok_s=4.272 compute=0.1789 cur_freq_prime=1645580.5 die 52.2->68.5 batt 47->46
+[2026-08-07T12:24:02-0400] safety_post_A_T3: OK:die=57.3:batt=46:plugged=UNPLUGGED
+[2026-08-07T12:24:02-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T12:24:03-0400] safety_pre_A_T4: OK:die=55.1:batt=46:plugged=UNPLUGGED
+[2026-08-07T12:24:03-0400] ---- F5.3-A-T4 start clear_kv=false ----
+[2026-08-07T12:24:05-0400] send id=4 bytes=346
+[2026-08-07T12:27:13-0400] F5.3-A-T4 DONE n_prompt=1118 n_past=1374 tokens=256 tok_s=3.819 compute=0.2040 cur_freq_prime=1474635.3 die 53.9->60.4 batt 46->44
+[2026-08-07T12:27:15-0400] safety_post_A_T4: OK:die=55.9:batt=44:plugged=UNPLUGGED
+[2026-08-07T12:27:15-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T12:27:17-0400] safety_pre_A_T5: OK:die=54.3:batt=44:plugged=UNPLUGGED
+[2026-08-07T12:27:17-0400] ---- F5.3-A-T5 start clear_kv=false ----
+[2026-08-07T12:27:19-0400] send id=5 bytes=298
+[2026-08-07T12:31:09-0400] F5.3-A-T5 DONE n_prompt=1440 n_past=1696 tokens=256 tok_s=3.704 compute=0.2095 cur_freq_prime=1406006.6 die 52.9->63.2 batt 44->42
+[2026-08-07T12:31:11-0400] safety_post_A_T5: OK:die=56.5:batt=42:plugged=UNPLUGGED
+[2026-08-07T12:31:11-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T12:31:13-0400] safety_pre_A_T6: OK:die=54.1:batt=42:plugged=UNPLUGGED
+[2026-08-07T12:31:13-0400] ---- F5.3-A-T6 start clear_kv=false ----
+[2026-08-07T12:31:15-0400] send id=6 bytes=343
+[2026-08-07T12:35:49-0400] F5.3-A-T6 DONE n_prompt=1780 n_past=2036 tokens=256 tok_s=3.589 compute=0.2162 cur_freq_prime=1401600.0 die 51.7->65.2 batt 42->40
+[2026-08-07T12:35:51-0400] safety_post_A_T6: OK:die=55.7:batt=40:plugged=UNPLUGGED
+[2026-08-07T12:35:51-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T12:35:53-0400] safety_pre_A_T7: OK:die=54.7:batt=40:plugged=UNPLUGGED
+[2026-08-07T12:35:53-0400] ---- F5.3-A-T7 start clear_kv=false ----
+[2026-08-07T12:35:55-0400] send id=7 bytes=311
+[2026-08-07T12:41:04-0400] F5.3-A-T7 DONE n_prompt=2112 n_past=2368 tokens=256 tok_s=3.832 compute=0.2075 cur_freq_prime=1394660.2 die 52.5->59.7 batt 40->38
+[2026-08-07T12:41:06-0400] safety_post_A_T7: OK:die=55.7:batt=38:plugged=UNPLUGGED
+[2026-08-07T12:41:06-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T12:41:08-0400] safety_pre_A_T8: OK:die=57.3:batt=37:plugged=UNPLUGGED
+[2026-08-07T12:41:08-0400] ---- F5.3-A-T8 start clear_kv=false ----
+[2026-08-07T12:41:10-0400] send id=8 bytes=332
+[2026-08-07T12:47:20-0400] F5.3-A-T8 DONE n_prompt=2441 n_past=2697 tokens=256 tok_s=3.123 compute=0.2605 cur_freq_prime=1346425.3 die 54.5->56.5 batt 37->34
+[2026-08-07T12:47:22-0400] safety_post_A_T8: OK:die=53.7:batt=34:plugged=UNPLUGGED
+[2026-08-07T12:47:22-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T12:47:24-0400] safety_pre_A_T9: OK:die=52.9:batt=34:plugged=UNPLUGGED
+[2026-08-07T12:47:24-0400] ---- F5.3-A-T9 start clear_kv=false ----
+[2026-08-07T12:47:26-0400] send id=9 bytes=302
+[2026-08-07T12:53:57-0400] F5.3-A-T9 DONE n_prompt=2763 n_past=3019 tokens=256 tok_s=3.635 compute=0.2219 cur_freq_prime=1400320.0 die 52.1->58.9 batt 34->31
+[2026-08-07T12:53:59-0400] safety_post_A_T9: OK:die=54.1:batt=31:plugged=UNPLUGGED
+[2026-08-07T12:53:59-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T12:54:02-0400] safety_pre_A_T10: OK:die=53.3:batt=31:plugged=UNPLUGGED
+[2026-08-07T12:54:02-0400] ---- F5.3-A-T10 start clear_kv=false ----
+[2026-08-07T12:54:04-0400] send id=10 bytes=290
+[2026-08-07T13:01:43-0400] F5.3-A-T10 DONE n_prompt=3081 n_past=3337 tokens=256 tok_s=3.197 compute=0.2505 cur_freq_prime=1289379.3 die 52.6->60.8 batt 31->28
+[2026-08-07T13:01:46-0400] safety_post_A_T10: STOP_BATT:28
+[2026-08-07T13:01:46-0400] SAFETY STOP after A turn 10: STOP_BATT:28
+[2026-08-07T13:01:46-0400] A sending close
+[2026-08-07T13:01:47-0400] sampler A exit
+[2026-08-07T13:01:48-0400] PHASE A done stopped_at=11 reason=STOP_BATT:28
+[2026-08-07T13:01:48-0400] phase A rc=0
+[2026-08-07T13:01:50-0400] STOP after A before B: STOP_BATT:28

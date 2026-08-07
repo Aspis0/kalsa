@@ -1,0 +1,1 @@
+BMOE_READY {"load_s":20.074,"arch":"qwen35moe","n_ctx":8192,"think_ctl":"template","n_expert_used":8}
