@@ -1,0 +1,18 @@
+Domanda: cos'è un modello Mixture-of-Experts (MoE) e perché, su uno smartphone con 8 GB di RAM, un MoE da 35B parametri con circa 3B attivi per token può essere più pratico di un modello denso da 7B? Spiega memoria, routing degli esperti e il ruolo dello streaming da flash. Non superare le 180 parole.
+[Start thinking]
+Thinking Process:
+1.  **Analyze the Request:**
+    *   **Role:** Technical assistant for Italian developers.
+    *   **Language:** Italian.
+    *   **Tone:** Clear and concrete.
+    *   **Topic:** Mixture-of-Experts (MoE) models.
+    *   **Specific Question:** Why is a 35B MoE (3B active) more practical than a 7B dense model on an 8GB RAM smartphone?
+    *   **Key Concepts to Explain:** Memory, expert routing, Flash Attention streaming.
+    *   **Constraint:** Maximum 180 words.
+2.  **Drafting - Key Points:**
+    *   Define MoE briefly (sparse activation).
+    *   Compare memory footprint (35B total vs 7B dense).
+    *   Explain active parameters (3B vs 7B).
+    *   Mention routing (
+[ Prompt: 27.7 t/s | Generation: 8.0 t/s ]
+Exiting...

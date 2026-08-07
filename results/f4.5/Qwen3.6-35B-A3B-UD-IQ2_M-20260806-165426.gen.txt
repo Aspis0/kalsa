@@ -1,0 +1,4 @@
+Misurare le prestazioni a batteria scarica rivela i limiti termici e la degradazione della tensione, mentre il test a batteria piena non sempre evidenzia questi colli di bottiglia critici.
+La stabilità della frequenza di clock tende a crollare sotto carico quando l'alimentazione è ridotta, un fenomeno che rimane nascuro con una carica ottimale.
+Questo approccio differenziato permette di identificare le reali capacità di gestione dell'energia del dispositivo in condizioni estreme.
+Quali sono i valori di temperatura massima raggiunti durante il test a batteria scarica?

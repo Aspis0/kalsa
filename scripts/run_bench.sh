@@ -214,7 +214,7 @@ read_pid_cpuset() {
 # Ensure runs.csv header has nproc,affinity_mask (migrate old 27-col files in place).
 ensure_csv_header() {
     _csv="$1"
-    _new_header="run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,batt_temp_start,batt_temp_end,expert_hit_rate,nproc,affinity_mask,notes"
+    _new_header="run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,batt_temp_start,batt_temp_end,battery_pct,expert_hit_rate,nproc,affinity_mask,notes"
     if [ ! -f "$_csv" ]; then
         printf '%s
 ' "$_new_header" > "$_csv"
@@ -222,19 +222,35 @@ ensure_csv_header() {
     fi
     _old="$(head -n1 "$_csv" 2>/dev/null || true)"
     case "$_old" in
-        *",nproc,affinity_mask,notes") return 0 ;;
+        *",battery_pct,expert_hit_rate,nproc,affinity_mask,notes") return 0 ;;
+        *",nproc,affinity_mask,notes")
+            # 29-col (post nproc/affinity, pre battery_pct): insert empty battery_pct after batt_temp_end (col 25)
+            _tmp="${_csv}.schema_migrate.$$"
+            {
+                printf '%s\n' "$_new_header"
+                tail -n +2 "$_csv" | awk -F, 'BEGIN{OFS=","} {
+                    n=NF
+                    if (n < 2) { print; next }
+                    out=$1
+                    for (i=2; i<=25 && i<=n; i++) out=out OFS $i
+                    out=out OFS ""
+                    for (i=26; i<=n; i++) out=out OFS $i
+                    print out
+                }'
+            } > "$_tmp" && mv "$_tmp" "$_csv"
+            return 0
+            ;;
         *",expert_hit_rate,notes")
             _tmp="${_csv}.schema_migrate.$$"
             {
-                printf '%s
-' "$_new_header"
-                # insert two empty fields before the last column (notes)
+                printf '%s\n' "$_new_header"
+                # insert battery_pct + nproc + affinity_mask empty before notes
                 tail -n +2 "$_csv" | awk -F, 'BEGIN{OFS=","} {
                     n=NF
                     if (n < 2) { print; next }
                     out=$1
                     for (i=2; i<n; i++) out=out OFS $i
-                    out=out OFS "" OFS "" OFS $n
+                    out=out OFS "" OFS "" OFS "" OFS $n
                     print out
                 }'
             } > "$_tmp" && mv "$_tmp" "$_csv"
@@ -242,8 +258,7 @@ ensure_csv_header() {
             ;;
         *)
             if [ ! -s "$_csv" ]; then
-                printf '%s
-' "$_new_header" > "$_csv"
+                printf '%s\n' "$_new_header" > "$_csv"
             fi
             return 0
             ;;
@@ -609,6 +624,7 @@ build_flags_csv() {
 BATTERY_AVAILABLE=0
 
 read_battery() {
+    # stdout: "plugged temperature_c battery_pct" (pct may be empty)
     if ! command -v termux-battery-status >/dev/null 2>&1; then
         echo ""
         return 1
@@ -634,9 +650,14 @@ read_battery() {
     if command -v jq >/dev/null 2>&1; then
         _plugged="$(printf '%s\n' "$_json" | jq -r '.plugged // empty' 2>/dev/null)"
         _temp_raw="$(printf '%s\n' "$_json" | jq -r '.temperature // empty' 2>/dev/null)"
+        _pct_raw="$(printf '%s\n' "$_json" | jq -r '.percentage // .level // empty' 2>/dev/null)"
     else
         _plugged="$(printf '%s\n' "$_json" | sed -n 's/.*"plugged"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
         _temp_raw="$(printf '%s\n' "$_json" | sed -n 's/.*"temperature"[[:space:]]*:[[:space:]]*\([0-9.][0-9.]*\).*/\1/p' | head -n1)"
+        _pct_raw="$(printf '%s\n' "$_json" | sed -n 's/.*"percentage"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n1)"
+        if [ -z "$_pct_raw" ]; then
+            _pct_raw="$(printf '%s\n' "$_json" | sed -n 's/.*"level"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n1)"
+        fi
     fi
 
     if [ -z "$_temp_raw" ]; then
@@ -649,7 +670,17 @@ read_battery() {
         }')"
     fi
 
-    echo "${_plugged} ${_temp_c}"
+    _pct=""
+    case "$_pct_raw" in
+        ''|*[!0-9]*) _pct="" ;;
+        *)
+            if [ "$_pct_raw" -ge 0 ] 2>/dev/null && [ "$_pct_raw" -le 100 ] 2>/dev/null; then
+                _pct="$_pct_raw"
+            fi
+            ;;
+    esac
+
+    echo "${_plugged} ${_temp_c} ${_pct}"
     return 0
 }
 
@@ -946,6 +977,7 @@ fi
 
 # 1) batteria — FAIL-CLOSED (exit 7) salvo --allow-no-battery (solo smoke/dry-run)
 #    DOPO --print-cmd: la cmdline resta stampabile anche a telefono in carica.
+BATT_PCT_START=""
 _batt="$(read_battery)"
 _batt_rc=$?
 if [ $_batt_rc -ne 0 ] || [ -z "$_batt" ]; then
@@ -955,6 +987,7 @@ if [ $_batt_rc -ne 0 ] || [ -z "$_batt" ]; then
         BATTERY_AVAILABLE=0
         BATT_PLUGGED="UNKNOWN"
         BATT_TEMP_START=""
+        BATT_PCT_START=""
     else
         echo "ERRORE: gate batteria non disponibile/incerto (termux-battery-status assente o fallito)" >&2
         echo "        Installa: pkg install termux-api" >&2
@@ -967,6 +1000,7 @@ else
     set -- $_batt
     BATT_PLUGGED="${1:-UNKNOWN}"
     BATT_TEMP_START="${2:-}"
+    BATT_PCT_START="${3:-}"
 
     case "$BATT_PLUGGED" in
         UNPLUGGED)
@@ -1185,7 +1219,7 @@ mkdir -p "$(dirname "$CSV_PATH")" 2>/dev/null || true
 mkdir -p "$(dirname "$LOG_PATH")" 2>/dev/null || true
 
 # Header CSV se assente
-CSV_HEADER="run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,batt_temp_start,batt_temp_end,expert_hit_rate,nproc,affinity_mask,notes"
+CSV_HEADER="run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,batt_temp_start,batt_temp_end,battery_pct,expert_hit_rate,nproc,affinity_mask,notes"
 
 ensure_csv_header "$CSV_PATH"
 
@@ -1216,7 +1250,7 @@ echo "run_id=$RUN_ID phase=$PHASE runtime=$RUNTIME run_type=$RUN_TYPE" | tee -a 
 echo "model=$MODEL quant=$QUANT" | tee -a "$LOG_PATH" >&2
 echo "binary=$BINARY threads=$THREADS ctx=$N_CTX kv=$KV_TYPE n_gen=$N_GEN" | tee -a "$LOG_PATH" >&2
 echo "flags=$EXTRA_FLAGS" | tee -a "$LOG_PATH" >&2
-echo "batt_plugged=$BATT_PLUGGED batt_temp_start=$BATT_TEMP_START" | tee -a "$LOG_PATH" >&2
+echo "batt_plugged=$BATT_PLUGGED batt_temp_start=$BATT_TEMP_START battery_pct=$BATT_PCT_START" | tee -a "$LOG_PATH" >&2
 echo "harness_nproc=${NPROC_RUN:-} harness_affinity_mask=${AFFINITY_MASK:-} (pre-spawn shell; CSV uses binary /proc/pid)" | tee -a "$LOG_PATH" >&2
 echo "log=$LOG_PATH csv=$CSV_PATH" | tee -a "$LOG_PATH" >&2
 echo "--- llama start $(date -Iseconds 2>/dev/null || date) ---" | tee -a "$LOG_PATH" >&2
@@ -1825,9 +1859,9 @@ MODEL_CSV="$(basename "$MODEL")"
 # run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,
 # n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,
 # majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,
-# batt_temp_start,batt_temp_end,expert_hit_rate,nproc,affinity_mask,notes
+# batt_temp_start,batt_temp_end,battery_pct,expert_hit_rate,nproc,affinity_mask,notes
 # ---------------------------------------------------------------------------
-CSV_LINE="$(printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' \
+CSV_LINE="$(printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' \
     "$RUN_ID" \
     "$DATE_ISO" \
     "$PHASE" \
@@ -1853,6 +1887,7 @@ CSV_LINE="$(printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
     "$MEMFREE_MIN_MB" \
     "$BATT_TEMP_START" \
     "$BATT_TEMP_END" \
+    "${BATT_PCT_START:-}" \
     "$EXPERT_HIT_RATE" \
     "${NPROC_RUN:-}" \
     "${AFFINITY_MASK:-}" \
@@ -1866,7 +1901,7 @@ echo "$CSV_LINE" >&2
 echo "prompt_tok_s=$PROMPT_TOK_S eval_tok_s=$EVAL_TOK_S ttft_ms=$TTFT_MS load_s=${LOAD_S:-}" >&2
 echo "majflt_delta=$MAJFLT_DELTA minflt_delta=$MINFLT_DELTA read_bytes_delta=$READ_BYTES_DELTA" >&2
 echo "vmrss_peak_mb=$VMRSS_PEAK_MB memfree_min_mb=$MEMFREE_MIN_MB memavail_start_mb=${MEMAVAIL_START_MB:-}" >&2
-echo "batt_temp_start=$BATT_TEMP_START batt_temp_end=$BATT_TEMP_END" >&2
+echo "batt_temp_start=$BATT_TEMP_START batt_temp_end=$BATT_TEMP_END battery_pct=${BATT_PCT_START:-}" >&2
 echo "nproc=${NPROC_RUN:-} affinity_mask=${AFFINITY_MASK:-} (binary Cpus_allowed)" >&2
 echo "harness_timeout=$HARNESS_TIMEOUT run_timeout_s=$RUN_TIMEOUT_S classic_perf=$CLASSIC_PERF" >&2
 
