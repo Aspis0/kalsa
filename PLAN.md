@@ -1020,6 +1020,90 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 sera — 🟢 F6 SI RIAPRE: esiste un draft DFlash per IL NOSTRO target, pesa 421 MB,
+  ci sta in RAM, e la verifica è output-lossless. Manca solo che il fork sappia caricarlo.**
+
+  Segnalazione di gualt (link in fondo). Prima volta in tutta la campagna che una leva ha
+  **tutte e quattro** le proprietà giuste insieme.
+
+  ### Cos'è DFlash, davvero (avevo capito male al primo colpo)
+
+  Al primo link avevo letto *«block-diffusion decoding»* e concluso che fosse una modalità di
+  decodifica applicabile a un modello autoregressivo. **Falso.** Verificato nel nostro albero:
+
+  ```c
+  bool llm_arch_is_diffusion(const llm_arch & arch) {
+      case LLM_ARCH_DREAM: case LLM_ARCH_LLADA:
+      case LLM_ARCH_LLADA_MOE: case LLM_ARCH_RND1: return true;
+      default: return false;    // ← DFLASH NON è qui
+  }
+  // e separatamente:  { LLM_ARCH_DFLASH, "dflash" }
+  ```
+
+  **DFlash è l'architettura del MODELLO DI BOZZA per lo speculative decoding.** Il target resta
+  un autoregressivo normale; il pezzo nuovo è un draft veloce che propone k token e il target ne
+  verifica k in un passaggio solo.
+
+  ### Perché questo risolve esattamente ciò che aveva ucciso F6 due volte
+
+  F6 l'avevo chiusa due volte, e **nessuna delle due per l'idea in sé**:
+  - **M5**: MTP non ammortizza i **byte di flash** (`miss@t ∧ miss@t+1` = 0.00%). Vero e resta vero.
+  - **F5.2**: sull'asse RAM/calcolo, `--mtp` **fallisce** (`this gguf has no nextn block`) e
+    `--ngram` **non ha mai draftato** (0 di 128 step su prosa IT).
+
+  Il secondo verdetto non diceva «l'idea non funziona»: diceva **«il meccanismo di bozza non
+  produce bozze»**. Un draft model separato e addestrato risolve precisamente quello. E il
+  guadagno che cercavo è reale: verificare k token in un batch legge i pesi degli esperti **una
+  volta invece di k volte** — l'ammortamento sulla RAM (301 MB/token di pesi letti, di cui solo
+  34 dal flash) che non ero riuscito a misurare.
+
+  ### Lo stato, voce per voce
+
+  | | |
+  |---|---|
+  | draft per **il nostro** target | ✅ [`Alittlehammmer/Qwen3.6-35B-A3B-DFlash-GGUF-llama.cpp`](https://huggingface.co/Alittlehammmer/Qwen3.6-35B-A3B-DFlash-GGUF-llama.cpp) |
+  | dimensione | ✅ **Q8_0 421 MB**, Q4_K_M 235 MB, Q6_K 326 MB |
+  | ci sta in RAM | ✅ oggi `1664 + 2000 + 500 ≈ 4.2 GB`, picco 4.6 ⇒ con 421 MB si sta **sotto lmkd**, stretto |
+  | qualità | ✅ verifica greedy **output-lossless**: MATH-500 88.0% vs 87.0%, differenza attribuita a rumore FP |
+  | il nostro llama.cpp conosce l'arch | ✅ `LLM_ARCH_DFLASH` registrato nel submodule |
+  | **il nostro fork lo carica** | ❌ **l'unica cosa che manca** |
+
+  ### Cosa manca, esattamente
+
+  `session.cpp:534` — il contesto di bozza nasce **dallo stesso modello**:
+
+  ```cpp
+  llama_context * ctx_dft = llama_init_from_model(model, dparams);
+  if (!ctx_dft) return fail("failed to create the MTP draft context");
+  ```
+
+  Nessun `--model-draft`, nessun `--spec-type`, nessuna gestione di `dflash` in `cli/main.cpp`.
+  **Ma è impianto idraulico, non ricerca**: llama.cpp ha già la macchina dello speculative con
+  draft esterno, il fork ha già un contesto di bozza e chiama già `common_speculative_begin()`.
+  Serve caricare un secondo modello, creargli il contesto, e puntare l'helper lì invece che alla
+  testa MTP. **Giorni, non settimane.**
+
+  ### Le due incognite che ne decidono la taglia — da MISURARE, non stimare
+
+  1. **Tasso di accettazione sulla prosa italiana.** `--ngram` non ha draftato **mai** in
+     italiano; un draft *addestrato* dovrebbe, ma non è verificato. E con verifica greedy ogni
+     bozza rifiutata è **calcolo buttato** su un sistema che gira al 41% della frequenza di picco.
+  2. **Il costo dell'unione MoE.** Verificare k token carica l'unione dei loro esperti. Misurato:
+     **36% di sovrapposizione** fra token consecutivi ⇒ per k=4 servono ~23 esperti per layer
+     invece di 8. Il traffico sale, e paga **solo se l'accettazione è alta**.
+
+  **Condizione di riapertura (dichiarata ora):** F6 vive se, misurato sul carico vero,
+  `tok/s netti ≥ +15%` con `mib_tok` che non più che raddoppia. Sotto, si archivia per la terza
+  e ultima volta.
+
+  ### Nota di metodo
+
+  Le tre chiusure di F6 (flash, RAM, e ora la riapertura) sono lo stesso schema: **avevo
+  archiviato un'idea per il fallimento del suo strumento, non dell'idea.** `--ngram` che non
+  drafta e un GGUF senza testa MTP non dicono niente su se lo speculative decoding paghi qui.
+  Vale la pena tenerlo: *quando una leva muore, chiedersi se è morta lei o il modo in cui l'ho
+  provata.*
+
 - **2026-08-07 — IL RAMO RI-QUANTIZZAZIONE È CHIUSO, con il conto invece che con l'intuizione.
   E `--ubatch` si rivela una leva sulla cache, non solo sulla memoria.**
 
