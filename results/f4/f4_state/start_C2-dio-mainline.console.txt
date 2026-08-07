@@ -1,0 +1,4 @@
+2026-08-06T12:12:42-04:00 === start F4 cell=C2-dio-mainline phase=F4.3 first=warm reps=3 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe2/bin/llama-cli flags='--load-mode dio' runtime=mainline commit=67d5978 cooldown=180s cool≤30.0 run_timeout=2700s cold_method=fadv LD=/data/data/com.termux/files/home/src/llama.cpp/build-safe2/bin:/data/data/com.termux/files/home/src/llama.cpp/build-safe2/bin:/data/data/com.termux/files/home/src/llama.cpp/build-safe2: ===
+2026-08-06T12:12:43-04:00 measure F4.3 C2-dio-mainline rep 1/3 run_type=warm flags='--load-mode dio'
+2026-08-06T12:12:43-04:00 cooldown idle 180s
+2026-08-06T12:15:44-04:00 gate OK plugged=UNPLUGGED temp=28.2 lvl=74 cell=C2-dio-mainline phase=F4.3

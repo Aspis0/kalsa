@@ -1,0 +1,40 @@
+2026-08-06T10:35:55-04:00 === start F4 cell=C phase=F4.2 first=cold reps=3 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 binary=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4' runtime=bigmoe commit=b0c4e5b cooldown=180s cool≤30.0 run_timeout=2700s cold_method=fadv LD=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli::/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/bin ===
+2026-08-06T10:35:55-04:00 PAIR cold+warm same session: rep1=cold(fadv), reps 2..3=warm
+2026-08-06T10:35:55-04:00 measure F4.2 C rep 1/3 run_type=cold flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4'
+2026-08-06T10:35:55-04:00 cooldown idle 180s
+2026-08-06T10:38:56-04:00 gate OK plugged=UNPLUGGED temp=28.3 lvl=84 cell=C phase=F4.2
+2026-08-06T10:38:56-04:00 cold_model fadv start: /data/data/com.termux/files/home/bin/cold_model.sh /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+2026-08-06T10:39:01-04:00 cold_model fadv OK (rep=1)
+2026-08-06T10:41:51-04:00 OK: run_bench exit 0 rtype=cold rep=1
+2026-08-06T10:41:51-04:00 ttft_ms OK = 87401 (run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260806-103901)
+2026-08-06T10:41:52-04:00 post-run batt: UNPLUGGED 29.5 83
+2026-08-06T10:41:52-04:00 measure F4.2 C rep 2/3 run_type=warm flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4'
+2026-08-06T10:41:52-04:00 cooldown idle 180s
+2026-08-06T10:44:53-04:00 gate OK plugged=UNPLUGGED temp=29.5 lvl=83 cell=C phase=F4.2
+2026-08-06T10:47:41-04:00 OK: run_bench exit 0 rtype=warm rep=2
+2026-08-06T10:47:41-04:00 ttft_ms OK = 87011 (run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260806-104453)
+2026-08-06T10:47:42-04:00 post-run batt: UNPLUGGED 30.3 82
+2026-08-06T10:47:42-04:00 measure F4.2 C rep 3/3 run_type=warm flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4'
+2026-08-06T10:47:42-04:00 cooldown idle 180s
+2026-08-06T10:50:43-04:00 gate OK plugged=UNPLUGGED temp=29.1 lvl=82 cell=C phase=F4.2
+2026-08-06T10:53:30-04:00 OK: run_bench exit 0 rtype=warm rep=3
+2026-08-06T10:53:30-04:00 ttft_ms OK = 87092 (run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260806-105043)
+2026-08-06T10:53:31-04:00 post-run batt: UNPLUGGED 30.4 82
+2026-08-06T10:53:31-04:00 sentinel warm for C
+2026-08-06T10:53:31-04:00 cooldown idle 180s
+2026-08-06T10:56:32-04:00 gate OK plugged=UNPLUGGED temp=29.2 lvl=82 cell=C phase=F4.2
+2026-08-06T10:59:19-04:00 OK: run_bench exit 0 rtype=warm rep=sentinel
+2026-08-06T10:59:19-04:00 ttft_ms OK = 85505 (run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260806-105632)
+2026-08-06T10:59:20-04:00 post-run batt: UNPLUGGED 29.9 81
+# F4.2 C summary
+
+- model: `Qwen3.6-35B-A3B-UD-IQ2_M.gguf` size=11522702304
+- cell: C flags=`--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4`
+- runtime=bigmoe threads=4 ctx=512 n_gen=64
+- rows total=4 cold=1 warm=3
+- median eval_tok_s cold: 0.93
+- median eval_tok_s warm: 0.96
+- protocol: cooldown=180s cool≤30.0 floor=40%
+- binary: `/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli` commit=b0c4e5b
+- finished: 2026-08-06T10:59:21-04:00
+2026-08-06T10:59:21-04:00 === done F4.2 C rows=4 med_cold=0.93 med_warm=0.96 ===

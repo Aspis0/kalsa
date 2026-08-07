@@ -1,0 +1,211 @@
+=== F4.3-bis start 2026-08-06T14:58:50-04:00 ===
+binary=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+LD_LIBRARY_PATH=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli::/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/bin
+runtime_commit=b0c4e5b
+model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304
+pid=25622
+nproc=6
+affinity=pid 25622's current affinity mask: 3f
+cgroup=5:freezer:/ 4:cpuset:/top-app 3:cpuacct:/top-app 2:cpu:/top-app 1:blkio:/top 0::/apps/uid_10344/pid_26004 
+2026-08-06T14:58:50-04:00 battery: {
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 29.2,
+  "voltage": 3856,
+  "current": -289000,
+  "current_average": -259,
+  "percentage": 55,
+  "level": 55,
+  "scale": 100,
+  "charge_counter": 2096250,
+  "cycle": 0
+}
+2026-08-06T14:58:50-04:00 cpuset early OK nproc=7 mask=bf bits=7 cgroup=/top-app
+2026-08-06T14:58:50-04:00 === preflight ISA ===
+=== preflight_llama_isa ===
+binary=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+build_dir=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe
+arm_arch=<none>
+OK: binario regolare eseguibile (/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli)
+cache: GGML_NATIVE:BOOL=OFF
+cache: GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+OK: GGML_NATIVE=OFF
+OK: GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16
+OK: compile_commands.json presente
+compile flags -march:
+  -march=armv8.2-a+dotprod+i8mm+fp16
+OK: -march matcha ARM_ARCH (armv8.2-a+dotprod+i8mm+fp16)
+cpu Features: Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+OK: asimddp (dotprod) in /proc/cpuinfo
+OK: i8mm in /proc/cpuinfo
+OK: fp16 (fphp/asimdhp) in /proc/cpuinfo
+--- /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli --version (no model) ---
+0.19.0
+OK: version/help exit=0
+=== PREFLIGHT OK ===
+2026-08-06T14:58:51-04:00 === preflight 4B mainline (timeout 30s) ===
+2026-08-06T14:59:00-04:00 preflight 4B exit=0
+0.19.0
+=== i8mm / CPU feature evidence (F4.3-bis) ===
+Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+GGML_NATIVE:BOOL=OFF
+  "command": "/data/data/com.termux/files/usr/bin/cc -DGGML_BACKEND_BUILD -DGGML_BACKEND_SHARED -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_CPU_REPACK -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_cpu_EXPORTS -I/data/data/com.termux/files/home/src/BigMoeOnEdge/third_party/llama.cpp/ggml/src/.. -I/data/data/com.termux/files/home/src/BigMoeOnEdge/third_party/cpu online: 0-7
+cpu0 max_freq=2016000
+cpu1 max_freq=2016000
+cpu2 max_freq=2016000
+cpu3 max_freq=2803200
+cpu4 max_freq=2803200
+cpu5 max_freq=2803200
+cpu6 max_freq=2803200
+cpu7 max_freq=3360000
+note: top-app typically excludes CPU 6-7 (prime/X3)
+2026-08-06T14:59:00-04:00 === cell C-topapp first=warm reps=3 no_sentinel=0 ===
+2026-08-06T15:15:06-04:00 cell C-topapp exit=0
+2026-08-06T15:15:06-04:00 === paired round 1/3 order=C3bis-t4 C3bis-t5 C3bis-t3 C3bis-t6 ===
+2026-08-06T15:15:06-04:00 === cell C3bis-t4 first=warm reps=1 no_sentinel=1 ===
+2026-08-06T15:30:01-04:00 cell C3bis-t4 exit=0
+2026-08-06T15:30:02-04:00 === cell C3bis-t5 first=warm reps=1 no_sentinel=1 ===
+2026-08-06T15:37:53-04:00 cell C3bis-t5 exit=0
+2026-08-06T15:37:53-04:00 === cell C3bis-t3 first=warm reps=1 no_sentinel=1 ===
+vtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+GGML_NATIVE:BOOL=OFF
+  "command": "/data/data/com.termux/files/usr/bin/cc -DGGML_BACKEND_BUILD -DGGML_BACKEND_SHARED -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_CPU_REPACK -DGGML_USE_LLAMAFILE -DGGML_USE_OPENMP -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_cpu_EXPORTS -I/data/data/com.termux/files/home/src/BigMoeOnEdge/third_party/llama.cpp/ggml/src/.. -I/data/data/com.termux/files/home/src/BigMoeOnEdge/third_party/cpu online: 0-7
+cpu0 max_freq=2016000
+cpu1 max_freq=2016000
+cpu2 max_freq=2016000
+cpu3 max_freq=2803200
+cpu4 max_freq=2803200
+cpu5 max_freq=2803200
+cpu6 max_freq=2803200
+cpu7 max_freq=3360000
+note: top-app typically excludes CPU 6-7 (prime/X3)
+2026-08-06T14:59:00-04:00 === cell C-topapp first=warm reps=3 no_sentinel=0 ===
+2026-08-06T14:59:01-04:00 === start F4 cell=C-topapp phase=F4.3-bis first=warm reps=3 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 binary=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4' runtime=bigmoe commit=b0c4e5b cooldown=180s cool≤30.0 run_timeout=2700s cold_method=fadv LD=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli::/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/bin ===
+2026-08-06T14:59:01-04:00 skip rep 1 already have 1 rows for C-topapp
+2026-08-06T14:59:01-04:00 measure F4.3-bis C-topapp rep 2/3 run_type=warm flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4'
+2026-08-06T14:59:01-04:00 cooldown idle 180s
+2026-08-06T15:02:01-04:00 cpuset OK nproc=6 mask=3f bits=6 cgroup=/top-app
+2026-08-06T15:02:01-04:00 gate OK plugged=UNPLUGGED temp=29.2 lvl=55 cell=C-topapp phase=F4.3-bis
+2026-08-06T15:02:48-04:00 OK: run_bench exit 0 rtype=warm rep=2
+2026-08-06T15:02:48-04:00 ttft_ms OK = 27643 (run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260806-150201)
+2026-08-06T15:02:48-04:00 post-run batt: UNPLUGGED 32.0 54
+2026-08-06T15:02:48-04:00 measure F4.3-bis C-topapp rep 3/3 run_type=warm flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4'
+2026-08-06T15:02:48-04:00 cooldown idle 180s
+2026-08-06T15:05:48-04:00 cpuset OK nproc=6 mask=3f bits=6 cgroup=/top-app
+2026-08-06T15:05:49-04:00 WAIT: temp 30.8 need ≤30.0 lvl=54 — sleep 30s
+2026-08-06T15:06:19-04:00 WAIT: temp 30.8 need ≤30.0 lvl=54 — sleep 30s
+2026-08-06T15:06:49-04:00 WAIT: temp 30.8 need ≤30.0 lvl=54 — sleep 30s
+2026-08-06T15:07:20-04:00 WAIT: temp 30.8 need ≤30.0 lvl=54 — sleep 30s
+2026-08-06T15:07:50-04:00 gate OK plugged=UNPLUGGED temp=29.6 lvl=54 cell=C-topapp phase=F4.3-bis
+2026-08-06T15:08:36-04:00 OK: run_bench exit 0 rtype=warm rep=3
+2026-08-06T15:08:36-04:00 ttft_ms OK = 27700 (run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260806-150750)
+2026-08-06T15:08:36-04:00 post-run batt: UNPLUGGED 31.0 54
+2026-08-06T15:08:36-04:00 sentinel warm for C-topapp
+2026-08-06T15:08:36-04:00 cooldown idle 180s
+2026-08-06T15:11:36-04:00 cpuset OK nproc=6 mask=5f bits=6 cgroup=/top-app
+2026-08-06T15:11:37-04:00 WAIT: temp 31.0 need ≤30.0 lvl=53 — sleep 30s
+2026-08-06T15:12:07-04:00 WAIT: temp 31.0 need ≤30.0 lvl=53 — sleep 30s
+2026-08-06T15:12:37-04:00 WAIT: temp 31.0 need ≤30.0 lvl=53 — sleep 30s
+2026-08-06T15:13:08-04:00 WAIT: temp 31.0 need ≤30.0 lvl=53 — sleep 30s
+2026-08-06T15:13:38-04:00 WAIT: temp 31.0 need ≤30.0 lvl=53 — sleep 30s
+2026-08-06T15:14:08-04:00 gate OK plugged=UNPLUGGED temp=29.8 lvl=53 cell=C-topapp phase=F4.3-bis
+2026-08-06T15:15:05-04:00 OK: run_bench exit 0 rtype=warm rep=sentinel
+2026-08-06T15:15:05-04:00 ttft_ms OK = 27479 (run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260806-151408)
+2026-08-06T15:15:06-04:00 post-run batt: UNPLUGGED 32.5 52
+# F4.3-bis C-topapp summary
+
+- model: `Qwen3.6-35B-A3B-UD-IQ2_M.gguf` size=11522702304
+- cell: C-topapp flags=`--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4`
+- runtime=bigmoe threads=4 ctx=512 n_gen=64
+- rows total=4 cold=1 warm=3
+- median eval_tok_s cold: 5.06
+- median eval_tok_s warm: 5.02
+- protocol: cooldown=180s cool≤30.0 floor=40%
+- binary: `/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli` commit=b0c4e5b
+- finished: 2026-08-06T15:15:06-04:00
+2026-08-06T15:15:06-04:00 === done F4.3-bis C-topapp rows=4 med_cold=5.06 med_warm=5.02 ===
+2026-08-06T15:15:06-04:00 cell C-topapp exit=0
+2026-08-06T15:15:06-04:00 === paired round 1/3 order=C3bis-t4 C3bis-t5 C3bis-t3 C3bis-t6 ===
+2026-08-06T15:15:06-04:00 === cell C3bis-t4 first=warm reps=1 no_sentinel=1 ===
+2026-08-06T15:15:06-04:00 === start F4 cell=C3bis-t4 phase=F4.3-bis first=warm reps=1 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 binary=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4' runtime=bigmoe commit=b0c4e5b cooldown=180s cool≤30.0 run_timeout=2700s cold_method=fadv LD=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli::/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/bin ===
+2026-08-06T15:15:07-04:00 measure F4.3-bis C3bis-t4 rep 1/1 run_type=warm flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4'
+2026-08-06T15:15:07-04:00 cooldown idle 180s
+2026-08-06T15:18:07-04:00 cpuset OK nproc=6 mask=3f bits=6 cgroup=/top-app
+2026-08-06T15:18:07-04:00 WAIT: temp 31.4 need ≤30.0 lvl=52 — sleep 30s
+2026-08-06T15:18:37-04:00 WAIT: temp 31.4 need ≤30.0 lvl=52 — sleep 30s
+2026-08-06T15:19:08-04:00 WAIT: temp 31.4 need ≤30.0 lvl=52 — sleep 30s
+2026-08-06T15:19:38-04:00 WAIT: temp 31.4 need ≤30.0 lvl=52 — sleep 30s
+2026-08-06T15:20:08-04:00 WAIT: temp 31.4 need ≤30.0 lvl=52 — sleep 30s
+2026-08-06T15:20:39-04:00 WAIT: temp 30.2 need ≤30.0 lvl=52 — sleep 30s
+2026-08-06T15:21:09-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:21:39-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:22:10-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:22:40-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:23:11-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:23:41-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:24:11-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:24:42-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:25:12-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:25:42-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:26:13-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:26:43-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:27:14-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:27:44-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:28:15-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:28:45-04:00 WAIT: temp 30.1 need ≤30.0 lvl=51 — sleep 30s
+2026-08-06T15:29:15-04:00 gate OK plugged=UNPLUGGED temp=28.9 lvl=51 cell=C3bis-t4 phase=F4.3-bis
+2026-08-06T15:30:01-04:00 OK: run_bench exit 0 rtype=warm rep=1
+2026-08-06T15:30:01-04:00 ttft_ms OK = 27555 (run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260806-152915)
+2026-08-06T15:30:01-04:00 post-run batt: UNPLUGGED 31.2 50
+# F4.3-bis C3bis-t4 summary
+
+- model: `Qwen3.6-35B-A3B-UD-IQ2_M.gguf` size=11522702304
+- cell: C3bis-t4 flags=`--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4`
+- runtime=bigmoe threads=4 ctx=512 n_gen=64
+- rows total=1 cold=0 warm=1
+- median eval_tok_s cold: NA
+- median eval_tok_s warm: 4.84
+- protocol: cooldown=180s cool≤30.0 floor=40%
+- binary: `/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli` commit=b0c4e5b
+- finished: 2026-08-06T15:30:01-04:00
+2026-08-06T15:30:01-04:00 === done F4.3-bis C3bis-t4 rows=1 med_cold=NA med_warm=4.84 ===
+2026-08-06T15:30:01-04:00 cell C3bis-t4 exit=0
+2026-08-06T15:30:02-04:00 === cell C3bis-t5 first=warm reps=1 no_sentinel=1 ===
+2026-08-06T15:30:02-04:00 === start F4 cell=C3bis-t5 phase=F4.3-bis first=warm reps=1 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 binary=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4' runtime=bigmoe commit=b0c4e5b cooldown=180s cool≤30.0 run_timeout=2700s cold_method=fadv LD=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli::/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/bin ===
+2026-08-06T15:30:02-04:00 measure F4.3-bis C3bis-t5 rep 1/1 run_type=warm flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4'
+2026-08-06T15:30:02-04:00 cooldown idle 180s
+2026-08-06T15:33:02-04:00 cpuset OK nproc=6 mask=3f bits=6 cgroup=/top-app
+2026-08-06T15:33:02-04:00 WAIT: temp 30.2 need ≤30.0 lvl=50 — sleep 30s
+2026-08-06T15:33:33-04:00 WAIT: temp 30.2 need ≤30.0 lvl=50 — sleep 30s
+2026-08-06T15:34:03-04:00 WAIT: temp 30.2 need ≤30.0 lvl=50 — sleep 30s
+2026-08-06T15:34:33-04:00 WAIT: temp 30.2 need ≤30.0 lvl=50 — sleep 30s
+2026-08-06T15:35:04-04:00 WAIT: temp 30.2 need ≤30.0 lvl=50 — sleep 30s
+2026-08-06T15:35:34-04:00 WAIT: temp 30.2 need ≤30.0 lvl=50 — sleep 30s
+2026-08-06T15:36:04-04:00 WAIT: temp 30.2 need ≤30.0 lvl=50 — sleep 30s
+2026-08-06T15:36:35-04:00 WAIT: temp 30.2 need ≤30.0 lvl=50 — sleep 30s
+2026-08-06T15:37:05-04:00 gate OK plugged=UNPLUGGED temp=29.3 lvl=49 cell=C3bis-t5 phase=F4.3-bis
+2026-08-06T15:37:52-04:00 OK: run_bench exit 0 rtype=warm rep=1
+2026-08-06T15:37:52-04:00 ttft_ms OK = 28729 (run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260806-153705)
+2026-08-06T15:37:53-04:00 post-run batt: UNPLUGGED 33.1 49
+# F4.3-bis C3bis-t5 summary
+
+- model: `Qwen3.6-35B-A3B-UD-IQ2_M.gguf` size=11522702304
+- cell: C3bis-t5 flags=`--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4`
+- runtime=bigmoe threads=5 ctx=512 n_gen=64
+- rows total=1 cold=0 warm=1
+- median eval_tok_s cold: NA
+- median eval_tok_s warm: 5.16
+- protocol: cooldown=180s cool≤30.0 floor=40%
+- binary: `/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli` commit=b0c4e5b
+- finished: 2026-08-06T15:37:53-04:00
+2026-08-06T15:37:53-04:00 === done F4.3-bis C3bis-t5 rows=1 med_cold=NA med_warm=5.16 ===
+2026-08-06T15:37:53-04:00 cell C3bis-t5 exit=0
+2026-08-06T15:37:53-04:00 === cell C3bis-t3 first=warm reps=1 no_sentinel=1 ===
+2026-08-06T15:37:53-04:00 === start F4 cell=C3bis-t3 phase=F4.3-bis first=warm reps=1 model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 binary=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4' runtime=bigmoe commit=b0c4e5b cooldown=180s cool≤30.0 run_timeout=2700s cold_method=fadv LD=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli::/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/bin ===
+2026-08-06T15:37:53-04:00 measure F4.3-bis C3bis-t3 rep 1/1 run_type=warm flags='--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4'
+2026-08-06T15:37:53-04:00 cooldown idle 180s

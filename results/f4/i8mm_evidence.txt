@@ -1,0 +1,15 @@
+F4.3 i8mm evidence (2026-08-06 S23)
+CPU /proc/cpuinfo: i8mm present (also asimddp/dotprod, fphp/fp16)
+Compile: GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16, GGML_NATIVE=OFF
+compile_commands.json: -march=armv8.2-a+dotprod+i8mm+fp16
+Runtime (ctypes dlopen libggml-cpu.so):
+  ggml_cpu_has_neon=1
+  ggml_cpu_has_dotprod=1
+  ggml_cpu_has_matmul_int8=1   # this is i8mm
+  ggml_cpu_has_fp16_va=1
+  ggml_cpu_has_sve=0
+  ggml_cpu_has_sme=0
+Note: i8mm is DETECTED and ACTIVE at runtime. However IQ2 kernels are still
+lookup+reconstruct (ggml_vec_dot_iq2_* present); KleidiAI i8mm paths target
+Q4_0/Q8_0-class mats, not IQ2_M. So i8mm ON does not accelerate this quant.
+No rebuild needed for PASSO 2.

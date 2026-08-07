@@ -1,0 +1,6 @@
+phase=F4.3 cell=C3-t4 first=cold reps=3
+model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 flags=--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4
+binary=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli runtime=bigmoe commit=b0c4e5b
+start=2026-08-06T12:37:03-04:00
+protocol=cool180_T30.0_floor40_timeout2700_coldfadv
+cold_method=fadv

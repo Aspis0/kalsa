@@ -1,0 +1,6 @@
+phase=F4.3 cell=C2-dio-mainline first=warm reps=3
+model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 flags=--load-mode dio
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe2/bin/llama-cli runtime=mainline commit=67d5978
+start=2026-08-06T12:12:42-04:00
+protocol=cool180_T30.0_floor40_timeout2700_coldfadv
+cold_method=fadv
