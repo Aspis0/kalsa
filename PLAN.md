@@ -945,6 +945,109 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 — F5.2: IL PROFILER RISPONDE. Il GEMM degli esperti è metà del calcolo,
+  l'attenzione è il 7%, e il calo sostenuto è RIDUZIONE DI FREQUENZA, non contesto. Tre mie
+  affermazioni cadono.**
+
+  Report `reports/moe-f5.2.md`, commit `b954ec9`. Le quattro celle usavano solo flag già
+  presenti nel binario, mai usati prima.
+
+  ### C1 — dove va il calcolo (`--compute-trace`)
+
+  | bucket | @300 tok | quota | @1500 tok | quota |
+  |---|---:|---:|---:|---:|
+  | **GEMM esperti** (`MUL_MAT_ID` gate+up+down) | 98.7 ms | **50.5%** | 151.2 ms | **50.0%** |
+  | esperti totale (+ dispatch) | 106.5 | **54.5%** | 164.7 | **54.5%** |
+  | attenzione piena (10 layer) | 9.2 | 4.7% | 20.5 | **6.8%** |
+  | └ `FLASH_ATTN_EXT` da solo | 2.12 | 1.1% | **9.27** | 3.1% |
+  | attenzione GDN (30 layer) | 27.6 | 14.1% | 43.0 | 14.2% |
+  | router + barriere | 8.9 | 4.5% | 12.9 | 4.2% |
+
+  **Nessuna delle tre soglie che avevo dichiarato scatta**, ma il segnale pratico è netto: il
+  GEMM degli esperti è **metà del calcolo e la sua quota non cambia col contesto**.
+
+  ### ⚠ Correzione 1 — «su conversazione lunga il collo è l'attenzione, non il MoE». Falso.
+
+  L'avevo scritto ieri leggendo il +41% di `compute` di F5.1. L'attenzione piena è il **6.8%**
+  del token a 1500 di contesto, non il 30%. `FLASH_ATTN_EXT` cresce sul serio (×4.4: 2.12 →
+  9.27 ms/tok) ma parte da così poco che resta il **3.1%**. Il ramo quantizzazione/kernel
+  attacca il bucket giusto — è quello sbagliato che avevo indicato io.
+
+  ### ⚠ Correzione 2 — «il calo è il contesto, non il termico». Falso, e il ragionamento era rovesciato.
+
+  Guardando la crescita **assoluta** di ogni bucket fra 300 e 1500 token:
+
+  ```
+  GEMM esperti   +53%      attenzione GDN  +56%      router     +47%
+  shared_ffn     +59%      barriere        +43%      rest       +49%
+  ────────────────────────────────────────────────────────────────────
+  lm_head         +9%      FLASH_ATTN_EXT +337%   ← le uniche due eccezioni
+  ```
+
+  **Quasi tutto rallenta dello stesso ~50%, incluso il GEMM degli esperti — il cui lavoro per
+  token è IDENTICO a qualunque contesto** (8 esperti × 40 layer, fisso). Se un lavoro invariante
+  richiede il 53% di tempo in più, non è cambiato il lavoro: **è rallentata la macchina.** Un
+  rallentamento uniforme su bucket invarianti è la firma di una **riduzione di frequenza**.
+
+  E il mio errore di lettura era peggiore del verdetto: in F5.1 avevo concluso «il die respira
+  fra 72 e 76 °C senza accumulare, quindi non è termico». **È l'inverso.** Un die che resta
+  piatto mentre il carico si prolunga è la prova che il governor **sta funzionando** — e il modo
+  in cui tiene la temperatura è tagliare la frequenza. La temperatura stabile era il sintomo
+  del throttling, non la sua assenza.
+
+  **Verifica diretta, cheap, da fare**: campionare `cpufreq/scaling_cur_freq` (non `max_freq`,
+  che è un tetto e infatti non si muove mai) durante un run lungo. Chiude la questione in un run.
+
+  ### ⚠ Correzione 3 — avevo riaperto F6 sull'asse RAM. Chiusa, per due ragioni pratiche.
+
+  - **`--mtp` fallisce**: `error: --mtp needs a model with a trained MTP head, and this gguf has
+    no nextn block`. **Il nostro GGUF di prodotto non porta la testa MTP.**
+  - **`--ngram` non ha mai draftato**: `drafted on 0 of 128 steps` su prosa italiana libera.
+    Senza ripetizioni non trova match, e il ±6% fra le varianti è rumore termico (`mib_tok`
+    identico a 32.40, accept 0).
+
+  Il mio argomento sui 267 MB/token di pesi letti dalla RAM **non è stato confutato**: è
+  rimasto **non misurabile**, perché nessuno dei due meccanismi riesce a produrre un draft su
+  questo modello e questo carico. **F6 chiusa su due assi** (flash in M5, RAM qui). Si riapre
+  solo con un GGUF MTP vero, o su carichi ad alta ridondanza (codice), non sulla chat.
+
+  ### C4 — le leve lossy, e una convalida incrociata elegante
+
+  | | tok/s | compute | mib_tok | qualità (lettura umana) |
+  |---|---:|---:|---:|---|
+  | k=8 (default) | 4.045 | 0.197 | 47.52 | riferimento |
+  | k=6 | 3.719 | 0.209 | 26.14 | **indistinguibile** da k=8 |
+  | **k=4** | **5.296 (+31%)** | **0.152** | 13.12 | **visibilmente peggiore**: sbaglia l'aritmetica del budget, inventa un vettore aereo, deforma i toponimi |
+  | drop F=1.0 | 4.859 (+20%) | 0.176 | **7.78** | struttura ok, errori sparsi |
+
+  **La convalida incrociata**: `k=4` dimezza il lavoro degli esperti. Se il GEMM esperti è il
+  50.5% del calcolo, il compute dovrebbe scendere di `0.505/2 = 25%` ⇒ `0.197 × 0.7475 = 0.147`.
+  **Misurato: 0.152.** Entro il 3%. **Un esperimento indipendente conferma la ripartizione di
+  C1** — cosa che nessuno aveva chiesto e che vale più del verdetto formale.
+
+  Nota di cautela già nel report: `k=6` più lento di `k=8` è **anomalo** (una sola replica,
+  stati termici diversi). Non usare quel confronto senza ripetizione.
+
+  **Informazione forte comunque**: a **k=6 il modello non collassa**. Instrada 8 esperti quando
+  su questo testo 6 gli bastano. Ma nessuna leva lossy entra in prodotto senza il metro di
+  perplessità, che resta bloccato.
+
+  ### Dove porta
+
+  Il GEMM degli esperti è **metà del calcolo, invariante col contesto, e riducibile** — lo
+  dimostra k=4. Un kernel ARM veloce su quel bucket, a parità di lavoro, vale:
+
+  ```
+  GEMM esperti 2× più veloce ⇒ compute −25% ⇒ decode 0.197 → 0.148 ⇒ +33% di tok/s
+  ```
+
+  **E il risparmio si compone col termico**: meno tempo di calcolo per token significa meno
+  energia dissipata, quindi meno riduzione di frequenza, quindi meno degrado nel sostenuto. È
+  l'unica leva che attacca insieme il picco e la tenuta.
+
+  **Ordine confermato dai dati**: ri-quantizzazione **Q4_0 / IQ4_NL** (giorni, percorsi ARM già
+  ottimizzati in mainline) **prima** del kernel IQ2 a mano (settimane).
+
 - **2026-08-07 — 🔴 LA SESSIONE È MORTA AL TURNO 6, E LA CAUSA SPIEGA TUTTI I PROBLEMI DI RAM
   DELLA CAMPAGNA: il buffer di calcolo è dimensionato su `n_ctx` perché nessuno ha limitato
   `--ubatch`.**
