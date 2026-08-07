@@ -692,22 +692,25 @@ function applyOperativeBlockFormat(
  * Map bench thinking mode → NativeCompletionParams fields (enable_thinking / budget).
  * "default" keeps production options identical (thinking off + reasoning_format none).
  *
- * NO chat_template override (removed 2026-08-07). The old unconditional
- * no-think template backfired: llama.cpp's differential autoparser derives the
- * thinking start/end tags FROM the template (renders with enable_thinking
- * true/false and diffs), and an unconditional template renders identically →
- * no tags detected → jinjaResult carries no thinking_end_tag → JSIParams never
- * arms the reasoning-budget sampler → `thinking_budget_tokens: 0` was a NO-OP
- * and a model-initiated `<think>` reopen ran unchecked to the n_predict cap
- * (field-proven: fresh-chat A/B showed off ≡ budget256 wall time — off was
- * silently burning hidden reasoning tokens with no belt).
+ * NO chat_template override (removed 2026-08-07, hostile-review-corrected).
+ * What IS verified in the installed llama.rn 0.12.8 (chain traced file:line by
+ * review of 464c349): stock template + enable_thinking:false closes the
+ * prefill (both Qwen3.5 polarities), the autoparser detects the think tags
+ * (compare_reasoning_presence — flag-independent — plus the conditional
+ * generation branch), jinjaResult carries thinking_end_tag, and JSIParams arms
+ * the reasoning-budget sampler with budget 0: a model-initiated <think> reopen
+ * is force-closed within a token.
  *
- * Stock template + enable_thinking:false instead: the flag reaches the jinja
- * context typed (traced: src/index.ts:805 → RNLlamaJSI.cpp:841 →
- * rn-llama.cpp:600 → chat.cpp:908-913), both Qwen3.5 template polarities
- * close the prefill (4B "open unless false", 2B "closed unless true"), the
- * autoparser sees a CONDITIONAL template so tags are detected, and budget 0 is
- * genuinely armed: a reopened <think> is force-closed by the sampler at once.
+ * What the override actually cost (and this removal buys): a full
+ * common_chat_templates_init PER COMPLETION (rn-llama.cpp:629, marked
+ * "probably slow" upstream). NOTE the earlier belief that the override
+ * disarmed the budget belt was REFUTED by review: compare_reasoning_presence
+ * detected tags from the override's history branch too, and the off prefill
+ * was byte-identical before/after. The field observation that off ≈ budget256
+ * wall time is real but its cause is UNPROVEN — candidates: longer un-reasoned
+ * answers, runtime flag-delivery failure (needs device trace), per-completion
+ * template re-init. Adjudication: perf telemetry (tokens_predicted off vs
+ * budget on identical prompts).
  */
 function buildThinkingCompletionFields(mode: ThinkingMode): {
   enable_thinking?: boolean;
