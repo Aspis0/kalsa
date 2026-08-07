@@ -945,6 +945,110 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 — F5.4: la curva h(C) misurata dice +5.0 punti dove il simulatore ne prevedeva
+  +11.8. E la metrica invariante che avevo proposto NON regge sotto pressione di memoria.**
+
+  Cella C completa (in carica, ma hit e traffico sono deterministici ⇒ pienamente validi).
+
+  ### La curva, riproducibile alla decimale
+
+  | cache MiB | hit % | mib_tok | Δ hit | RSS picco |
+  |---:|---:|---:|---:|---:|
+  | 2000 | **71.1** | 32.93 | — | 4459 MB |
+  | 2500 | **73.3** | 24.80 | +2.2 | 4554 |
+  | 3000 | **75.1** | 18.35 | +1.8 | 4664 |
+  | 3500 | **76.1** | 14.63 | +1.0 | 4646 |
+
+  Le repliche danno hit **identico alla decimale** (71.1/71.1, 73.3/73.3, 75.1/75.1) — conferma
+  che a `--temp 0` la sequenza di accesso è deterministica, come assumevamo senza averlo mai
+  verificato su due run separati.
+
+  **Totale 2000 → 3500: +5.0 punti di hit, −56% di traffico** (32.93 → 14.63 MiB/token). Forma
+  concava corretta (+2.2, +1.8, +1.0). La regola dichiarata (≥+3 punti) è **superata**.
+
+  ### ⚠ Il simulatore M5 sovrastima la pendenza di 2.4×
+
+  ```
+  previsto da M5 su 2000→3500:  +11.8 punti
+  misurato:                      +5.0 punti
+  ```
+
+  A C=2000 il simulatore era **vicino** (72.2 previsto contro 71.1 misurato, −1.1 pt) — ma quello
+  è il punto su cui era stato tarato. **Azzeccare il valore e sbagliare la derivata è esattamente
+  il rischio che una validazione a un punto solo non può escludere**, ed è successo.
+
+  **Ricaduta all'indietro, da applicare:** il simulatore è lo stesso oggetto che ha prodotto il
+  divario di Belady (17.79 su short_bench, 6.37 su long_512) e l'intero bake-off delle politiche.
+  Tutte quelle sono previsioni della forma *«quanto si può guadagnare rispetto a LRU»*, e se la
+  stima è sistematicamente ottimista dello stesso ordine, **il premio del ramo politiche è ancora
+  più piccolo di quanto avevamo concluso**. La direzione della conclusione (ramo vuoto) regge e
+  anzi si rafforza; ciò che cade è la fiducia nei valori assoluti del simulatore.
+
+  **Meccanismo da indagare offline** (costa zero, è PC): rieseguire il simulatore esattamente ai
+  4 budget misurati e confrontare punto per punto. Candidati per lo scarto: capacità effettiva
+  minore di quella nominale (riserve per letture in volo), granularità di eviction diversa, o il
+  fatto che il runtime reale ha prefetch/`retain` che il simulatore non modella.
+
+  ### ⚠ La metrica `work = compute × freq` NON regge qui (errore mio)
+
+  L'avevo proposta come misura del calcolo invariante rispetto al throttling, giustificandola con
+  F5.3 dove era costante entro il ±2%. In questa cella si sfascia:
+
+  ```
+  cache3000-r1   compute 0.394   freq 1.63 GHz   work   641 495
+  cache3000-r2   compute 0.231   freq 1.61 GHz   work   371 374
+  cache3500-r1   compute 0.842   freq 2.59 GHz   work 2 183 542   ← freq ALTA, compute pessimo
+  ```
+
+  Repliche della **stessa identica configurazione** che differiscono di 2×, e a 3500 un run con
+  la CPU al massimo e il calcolo cinque volte peggiore. **Il motivo:** `work = compute × freq`
+  assume implicitamente che il collo sia la CPU. Quando a stallare è la **memoria** — reclaim,
+  cache che compete col buffer di calcolo — la CPU gira veloce e **aspetta**, e il prodotto
+  esplode invece di restare costante. In F5.3 reggeva perché lì il vincolo era davvero termico.
+
+  **Conseguenza operativa: di questa cella sono utilizzabili SOLO hit e traffico, non i tempi.**
+  Quindi sappiamo che la cache grande taglia il traffico del 56% e **non sappiamo se questo si
+  traduca in velocità**. Con l'RSS a 4.65 GB e la cascata OOM già vista, il costo potrebbe
+  superare il beneficio. **Non promuovere cache 3000-3500 in config di prodotto su questa base.**
+
+  ### La cascata OOM: confermata dal log di sistema, e la radice è E1
+
+  Il primo tentativo a cache 2500 era morto con diagnosi «OOM sospetto, non loggato». Letto da
+  adb il buffer eventi di Android (non accessibile da Termux), alle 13:26:47-48 in **1.2 secondi**:
+
+  ```
+  am_proc_died  com.sec.epdg · ext.services · gms.persistent · adservices · messaging:rcs
+                mcfserver · nsflp2 · easysetup · com.google.android.gms · com.termux  ← ultimo
+  ```
+
+  **Dieci processi in 1.2 s**: non è stato scelto il nostro processo, è il **sistema intero**
+  andato in reclaim d'emergenza, con Termux ultimo a cadere. L'aritmetica statica tornerebbe
+  (`1664 + 2500 + 500 ≈ 4.7 GB` sotto i 5.6), ma **il loader fa fault su 20.76 GiB di file**
+  [M, F4.8]: quelle pagine riempiono la page cache e azzerano il margine.
+
+  **Quindi E1 è la radice comune di tre problemi distinti**: i ~17 s di TTFT, il picco termico a
+  92 °C, e la fragilità di memoria. Tre sintomi, una causa, un fix.
+
+  ### Bug operativo: sshd riavviato da adb ha perso l'ambiente Termux
+
+  Dopo la cascata OOM, sshd è stato riavviato via adb e **ha ereditato l'ambiente Android nudo**:
+  `PREFIX` non definito, `$PREFIX/bin` assente dal PATH. Ogni sessione ssh figlia lo eredita.
+  `termux-battery-status` sembrava «mancante» ma era solo irraggiungibile.
+
+  **Portata reale, verificata (Grok):** il **gate termico legge da sysfs**
+  (`/sys/class/thermal/...`), che **non dipende dal PATH** ⇒ è rimasto attivo per tutte le celle
+  C e **i die registrati sono letture vere**. Il **gate batteria** era invece cieco (ritornava
+  `-1`) dopo il ripristino via adb — ma in F5.4 il floor di batteria era **disabilitato per
+  progetto** (mandato in carica), quindi l'impatto è nullo su questa fase.
+
+  **Resta però la lezione generale, che vale per i prossimi mandati non-in-carica**: un gate che
+  legge da un comando esterno fallisce *aperto* (non trova il comando → non blocca → prosegue),
+  mentre un gate che legge da sysfs fallisce *chiuso*. **Preferire sempre sysfs dove esiste**, e
+  dove non esiste, far fallire il gate in modo esplicito invece che silenzioso.
+
+  Fix: `export PREFIX=/data/data/com.termux/files/usr; export PATH=$PREFIX/bin:$PATH` nel wrapper
+  del launcher, non affidandosi al profilo.
+
 - **2026-08-07 — F5.2: IL PROFILER RISPONDE. Il GEMM degli esperti è metà del calcolo,
   l'attenzione è il 7%, e il calo sostenuto è RIDUZIONE DI FREQUENZA, non contesto. Tre mie
   affermazioni cadono.**
