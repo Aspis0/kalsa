@@ -1,0 +1,65 @@
+[2026-08-07T09:52:42-0400] === F5.1 START pid=10964 ===
+[2026-08-07T09:52:42-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf expected_size=11522702304
+[2026-08-07T09:52:42-0400] flags: -m /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf -t 4 -c 4096 -n 256 --chatml --no-think --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --session
+[2026-08-07T09:52:42-0400] n_ctx=4096 n_predict=256 threads=4 (stima contesto: 8*(user~80+gen~256+wrap)~ 8*360 ≈ 2880 + system; n_ctx=4096)
+[2026-08-07T09:52:42-0400] nproc=7 cpuset=/top-app
+[2026-08-07T09:52:42-0400] battery_start: {
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 34.2,
+  "voltage": 4189,
+  "current": -223000,
+  "current_average": -174,
+  "percentage": 85,
+  "level": 85,
+  "scale": 100,
+  "charge_counter": 3206250,
+  "cycle": 0
+}
+[2026-08-07T09:52:43-0400] die_start_mc=48200 (48.2C)
+[2026-08-07T09:52:43-0400] LD_LIBRARY_PATH=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/..:
+[2026-08-07T09:52:43-0400] cold_model.sh /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=10 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T09:52:46-04:00
+[2026-08-07T09:52:46-0400] cold_model OK
+[2026-08-07T09:52:46-0400] starting bmoe-cli --session
+[2026-08-07T09:52:46-0400] bmoe pid=12142
+[2026-08-07T09:52:46-0400] sampler pid=12146
+[2026-08-07T09:52:46-0400] waiting BMOE_READY (load)...
+[2026-08-07T09:53:07-0400] READY: BMOE_READY {"load_s":20.271,"arch":"qwen35moe","n_ctx":4096,"think_ctl":"template","n_expert_used":8}
+[2026-08-07T09:53:08-0400] safety_pre_turn1: OK:die=62.0:batt=85
+[2026-08-07T09:53:08-0400] ---- TURN 1 start clear_kv=true ----
+[2026-08-07T09:53:09-0400] send id=1 bytes=420
+[2026-08-07T09:54:14-0400] TURN 1 DONE n_prompt=97 n_past=353 tokens=256 tok_s=4.776 prefill_s=9.118 hit=79.6 die 64.4->64.4 batt 85->84
+[2026-08-07T09:54:16-0400] safety_post_turn1: OK:die=57.1:batt=84
+[2026-08-07T09:54:16-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T09:54:18-0400] safety_pre_turn2: OK:die=54.9:batt=84
+[2026-08-07T09:54:18-0400] ---- TURN 2 start clear_kv=false ----
+[2026-08-07T09:54:19-0400] send id=2 bytes=343
+[2026-08-07T09:56:03-0400] TURN 2 DONE n_prompt=436 n_past=692 tokens=256 tok_s=4.274 prefill_s=41.159 hit=77.6 die 53.1->59.9 batt 84->83
+[2026-08-07T09:56:05-0400] safety_post_turn2: OK:die=55.9:batt=83
+[2026-08-07T09:56:05-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T09:56:07-0400] safety_pre_turn3: OK:die=55.1:batt=83
+[2026-08-07T09:56:07-0400] ---- TURN 3 start clear_kv=false ----
+[2026-08-07T09:56:09-0400] send id=3 bytes=375
+[2026-08-07T09:58:35-0400] TURN 3 DONE n_prompt=776 n_past=1032 tokens=256 tok_s=3.843 prefill_s=76.348 hit=76.3 die 52.1->58.9 batt 83->82
+[2026-08-07T09:58:37-0400] safety_post_turn3: OK:die=54.3:batt=82
+[2026-08-07T09:58:37-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T09:58:39-0400] safety_pre_turn4: OK:die=55.1:batt=82
+[2026-08-07T09:58:39-0400] ---- TURN 4 start clear_kv=false ----
+[2026-08-07T09:58:41-0400] send id=4 bytes=346
+[2026-08-07T10:01:55-0400] TURN 4 DONE n_prompt=1119 n_past=1375 tokens=256 tok_s=3.800 prefill_s=123.885 hit=76.1 die 53.9->60.1 batt 82->80
+[2026-08-07T10:01:58-0400] safety_post_turn4: OK:die=54.5:batt=80
+[2026-08-07T10:01:58-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T10:01:59-0400] safety_pre_turn5: OK:die=52.9:batt=80
+[2026-08-07T10:01:59-0400] ---- TURN 5 start clear_kv=false ----
+[2026-08-07T10:02:01-0400] send id=5 bytes=298
+[2026-08-07T10:06:02-0400] TURN 5 DONE n_prompt=1441 n_past=1697 tokens=256 tok_s=3.539 prefill_s=165.253 hit=75.9 die 51.8->59.3 batt 80->78
+[2026-08-07T10:06:04-0400] safety_post_turn5: OK:die=55.3:batt=78
+[2026-08-07T10:06:04-0400] NO COOLDOWN — next turn immediately
+[2026-08-07T10:06:06-0400] safety_pre_turn6: OK:die=55.1:batt=78
+[2026-08-07T10:06:06-0400] ---- TURN 6 start clear_kv=false ----
+[2026-08-07T10:06:08-0400] send id=6 bytes=343

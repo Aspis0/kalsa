@@ -1,0 +1,12 @@
+===== TURNO 1 =====
+USER: Ciao! Sto pianificando un viaggio di 7 giorni in Sicilia partendo da Milano a metà settembre. Budget circa 1200 euro a persona, volo incluso. Preferisco mare e un po di cultura, niente resort tutto incluso. Dammi una bozza di itinerario giorno per giorno, realistica sui tempi di spostamento. Rispondi in italiano, max 250 parole.
+ASSISTANT: Ciao! Con 1200€ a persona (volo incluso) a settembre, il budget è sostenibile ma richiede scelte mirate. Evita le zone più costose come Taormina centro. Ecco un itinerario realistico:
+
+**Giorno 1:** Volo Milano-Catania. Rientro in hotel a Catania o Siracusa.
+**Giorno 2:** Siracusa. Visita il Parco Archeologico della Neapolis (Teatro, Orecchio di Dionisio) e il centro storico (Ortigia). Cena a Ortigia.
+**Giorno 3:** Noto e i Val di Noto. Mattina a Noto (capitale barocca), pomeriggio a Caltagirone per i famosi gradini di ceramica.
+**Giorno 4:** Ragusa Ibla e Modica. Mattina a Ragusa Ibla (UNESCO), pomeriggio a Modica per il cioccolato e il centro storico.
+**Giorno 5:** Trasferimento verso la costa ionica. Check-in a Porto Palo o Marina di Noto. Mattina libera in spiaggia.
+**Giorno 6:** Gita a Capo d’Orlando o Isola Bella (Taorm
+META: n_prompt=97 n_past=353 tokens=256 tok_s=5.461 prefill_s=8.342 cache_hit_pct=79.6 ttft_s=8.342
+
