@@ -393,7 +393,16 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       use_mlock: true,
       n_ctx: engineCtx, // context per modello (multi-chat); caller may pass 16k
       n_batch: 512,
+      // HARD GUARD (moe-experiments F5.1): llama.cpp's ubatch defaults to n_ctx
+      // wide — at 4096 that is a ~4 GB compute buffer and an lmkd kill; every
+      // "RAM ceiling" of that campaign traced back to it. Keep ≤512 even if
+      // n_ctx grows to 16k (256 ≈ 250 MB buffer).
       n_ubatch: 256,
+      // Big cores only. Measured twice on-device (moe-experiments F2.2c, F4.5):
+      // the dense 4B peaks at t=4; adding efficiency cores makes it WORSE
+      // (straggler at the barrier — never 8). llama.rn's default happens to be
+      // hw_concurrency/2 = 4 today; pin it so a default drift can't cost ~2x.
+      n_threads: 4,
       // iOS: Metal. Android: MUST be 0 — with 99, llama.rn's Hexagon backend
       // offloads layers to the Snapdragon NPU (HTP0) while Flash Attention
       // stays on CPU, and llama_init_from_model fails to initialize the
