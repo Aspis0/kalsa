@@ -78,7 +78,13 @@ jobs:
       - name: Capture screens on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          # API 35, not 34: the app targets the Android 15/16 edge-to-edge era
+          # (mandatory since SDK 35) — the field device class. On API<=34 RN's
+          # edge-to-edge flag never enables and keyboard-controller keeps a
+          # ~navbar-height shortfall (empirically unchanged by the provider's
+          # translucent props, runs 31219016159/31221427122) — a known legacy
+          # residual, not our target world. 13b asserts the world we ship for.
+          api-level: 35
           target: google_apis
           arch: x86_64
           # Without a profile the AVD comes up at 320x640 and every tap lands

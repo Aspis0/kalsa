@@ -153,13 +153,16 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        {/* statusBar/navigationBarTranslucent: on API<=34 RN's edge-to-edge flag
-            never turns on (targetSdk-gated), so keyboard-controller subtracts
-            the nav bar from the measured IME height and the composer lands
-            ~40px short (KeyboardAnimationCallback.getCurrentKeyboardHeight).
-            The lib forces the window edge-to-edge on every API itself, so the
-            full IME inset is always the correct lift; these props make its
-            math match. No-op on API>=35 (forced true there). */}
+        {/* statusBar/navigationBarTranslucent: the lib's documented props for
+            edge-to-edge windows; no-op on API>=35 where the provider forces
+            them true. NOTE: they were expected to close the API<=34 nav-bar
+            shortfall (~40px composer under-lift, source-traced to
+            getCurrentKeyboardHeight subtracting navigationBars.bottom) but an
+            emulator A/B (runs 31219016159 vs 31221427122, identical geometry)
+            refuted that — API<=34 keeps the shortfall regardless. Kept because
+            harmless and correct for the edge-to-edge window the lib enforces;
+            the target device class (Android 15/16) computes the full IME
+            height either way. */}
         <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
           <LocaleProvider>
             <AppContent />
