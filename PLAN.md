@@ -945,6 +945,100 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 mattina — LA GENERAZIONE LUNGA È IL CASO BUONO, non quello cattivo. E c'è un
+  buco nel piano che vale più di tutte le leve rimaste: la MODALITÀ SESSIONE, che esiste nel
+  runtime e non abbiamo mai usato.**
+
+  ### Tre dei quattro meccanismi temuti sono misurati e assenti
+
+  F5 («Stabilità: memory pressure, termica, lunga durata») è impostata attorno al timore che il
+  lungo periodo sia peggio del burst — il 4B denso di controllo perdeva metà (8.90 → 4.68
+  [M, F2.4]). Sul MoE in streaming, misurato:
+
+  | meccanismo temuto | misura | esito |
+  |---|---|---|
+  | la RAM cresce con la lunghezza | RSS ~4.6 GB a 64 token **e** a 512 | **assente** |
+  | la KV esplode | ~10-20 KB/token ⇒ ~40 MB a 4k | **trascurabile** |
+  | la cache degrada | hit per blocchi da 64 tok: 87.1 · 90.8 · 90.4 · 89.2 · 88.7 · 89.0 · 89.2 · 89.6 | **assente** (+0.48 pp) |
+  | il termico | batteria +6.6 °C ogni 90 s di decode (29.9 → 36.5) | **vivo, unico superstite** |
+
+  **La KV è trascurabile per una ragione architetturale, non per fortuna**: `full_attention_interval=4`
+  ⇒ solo **10 layer su 40** hanno attenzione piena; gli altri **30 sono Gated DeltaNet**, cioè
+  attenzione lineare con **stato di dimensione fissa**, che non cresce col contesto. Un denso
+  classico da 40 layer pagherebbe ~4× la KV. È il regalo strutturale di questa architettura, e
+  vale la pena saperlo perché **rende il contesto lungo economico** proprio dove ce lo
+  aspettavamo caro.
+
+  **Riformulazione di F5**: non è più «regge il lungo periodo?» ma **«regge il termico?»**. Tre
+  quarti della fase sono già risolti senza averla eseguita.
+
+  ### ⚠ Il buco: `bmoe-cli` ha una modalità sessione e non l'abbiamo mai usata
+
+  Dallo schema della route-trace, prima colonna:
+
+  ```
+  turn | int | session-mode turn (0 for a one-shot run)
+  ```
+
+  **Tutti i nostri run, senza eccezione, sono `turn=0` — one-shot.** Ma il prodotto è una chat
+  multi-turno, e la domanda che ne discende è la più importante rimasta aperta:
+
+  > **A ogni turno il prefill si ripaga da capo?**
+
+  Il prefill costa **~45.7 MiB/token** a cache fredda (4.55 GiB per 102 token [M, F4.8]).
+  Se KV e cache esperti **non** sopravvivono fra un messaggio e l'altro, il costo cresce col
+  procedere della conversazione, perché ogni turno ri-prefilla **tutto lo storico**:
+
+  ```
+  turno 1 (≈150 tok di contesto):    ~7 GiB      → TTFT ~28 s
+  turno 3 (≈1500 tok):              ~30-60 GiB   → TTFT ~30-60 s
+  turno 5 (≈2400 tok):              ~48+ GiB     → TTFT ~40-60 s
+  ```
+
+  Cioè **il TTFT di 28 s non sarebbe il costo di apertura dell'app: sarebbe il costo di OGNI
+  risposta, e crescente**. Se invece il processo resta vivo e KV + cache esperti persistono,
+  si paga una volta per sessione e ogni turno successivo prefilla solo i token nuovi, con la
+  cache già calda al ~89%.
+
+  **Questa è una domanda di INTEGRAZIONE, non di runtime**: dipende da se il prodotto tiene il
+  processo vivo fra i messaggi o ne lancia uno per messaggio. Un'integrazione ingenua fa la
+  seconda, e pagherebbe **19 s di caricamento + prefill completo a ogni messaggio**.
+
+  **Perché ha il miglior rapporto valore/costo di tutto ciò che resta**: non richiede di
+  scrivere niente. La modalità esiste. Richiede di misurare **due turni invece di uno** e
+  guardare il traffico del secondo. Confronto:
+
+  | leva | costo | guadagno atteso |
+  |---|---|---|
+  | **sessione multi-turno** | **una misura** | **decide se il TTFT è per-sessione o per-messaggio** |
+  | fix del loader | 2-4 giorni | −17 s di TTFT, una volta per sessione |
+  | kernel IQ2 | settimane | tetto 7.87 → ~14 tok/s |
+  | politiche di cache | — | **zero** (misurato) |
+
+  **Da fare come prossima cella, prima del kernel e prima del fix del loader**: due turni
+  consecutivi in modalità sessione, e misurare `read_bytes` e TTFT del **secondo**. Se il
+  secondo turno prefilla solo il delta, il prodotto è già molto meglio di come lo raccontiamo.
+  Se ri-prefilla tutto, quella è la prima cosa da sistemare e rende marginale tutto il resto.
+
+  ### Decisioni operative su F4.9 in corso
+
+  - **Cancello termico alzato 30.0 → 31.5 per la sola cella B.** Motivo: la soglia era tarata
+    su burst da 13 s; il carico lungo scalda la batteria di 6.6 °C per rep e in ambiente caldo
+    non ridiscende (stallo osservato di 660 s a 30.5 °C).
+  - **Il rep già riuscito (6.07, `batt_temp_start=29.9`) NON si rifà.** Avevo proposto di
+    rifarlo per uniformità termica; **gualt ha obiettato ed aveva ragione**, e i dati lo
+    confermano: in F4.7 su 2.8 °C di escursione della T di partenza (28.5-31.3) non c'è
+    **nessuna correlazione** col throughput (il più caldo fa 4.84, il più freddo 4.64). In più
+    l'autoriscaldamento del run (6.6 °C) domina di 4× la differenza di soglia (1.6 °C).
+    `batt_temp_start/end` vanno comunque registrati su ogni rep, così la non-correlazione è
+    **verificabile a posteriori invece che assunta**.
+  - **Deviazione dichiarata: `n_ctx=2048`** (il gate usa `-c 512`, ma 143 prompt + 512 generati
+    = 655 non ci stanno). I due primi rep falliti hanno questa causa.
+  - **Osservazione da tenere d'occhio: `memfree_min_mb=12`** durante il run lungo, con
+    `vmrss_peak_mb=4577`. Non è colpa di `n_ctx` (la KV a 2048 sono ~20 MB): siamo
+    strutturalmente al limite. Un kill di lmkd a metà di una generazione da 512 token costa
+    molto più che su un burst.
+
 - **2026-08-07 mattina — CHIUSURA DELLA NOTTE: il ramo cache è finito, e non perché le
   politiche non funzionino — perché non è rimasto quasi niente da vincere. Il metro di qualità
   resta BLOCCATO ed è ora l'ostacolo numero uno.**
