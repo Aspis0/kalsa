@@ -1,0 +1,25 @@
+LONG512 start 2026-08-07T00:03:29-04:00
+batt_pre={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "PLUGGED_AC",   "status": "CHARGING",   "temperature": 28.7,   "voltage": 4003,   "current": 355000,   "current_average": 730,   "percentage": 56,   "level": 56,   "scale": 100,   "charge_counter": 2100000,   "cycle": 0 } 
+nproc=7
+LD_LIBRARY_PATH=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/../bin:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/../bin:
+prompt_chars=518
+exit=0 wall=113s
+trace_bytes=6696010 lines=209643
+# route_trace v1
+# model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf arch=qwen35moe n_layer=40 n_expert=256 n_expert_used=8
+# layer=0 expert_bytes=942080 dense_bytes=29262592
+# layer=1 expert_bytes=942080 dense_bytes=29262592
+# layer=2 expert_bytes=942080 dense_bytes=29262592
+# layer=3 expert_bytes=942080 dense_bytes=23169024
+--- stdout ---
+Sei un narratore. Scrivi in italiano un racconto continuo e dettagliato, senza elenchi puntati e senza interrompere la prosa. Ambientazione: un treno notturno da Milano a Napoli. Descrivi i passeggeri, i paesaggi che scorrono oltre il finestrino, i pensieri del protagonista che torna a casa dopo anni, i rumori del vagone, le stazioni intermedie, un incontro casuale in corridoio, e come la memoria si intreccia al presente. Continua a scrivere finché non ti fermo: una storia fluida, paragrafi lunghi, niente titoli.Il treno scivolava nell’oscurità come una bestia silenziosa e pesante, il suo respiro meccanico un battito costante che rimbombava nel petto di Luca, seduto da ore nella sua cabina numero quattro del letto con la porta socchiusa a spiracchi di luce. Fuori, la pianura padana si era dissolta in una nebbia densa e grigia, trasformata in un velo di cenere che il vento spingeva contro i vetri con insistenza, mentre le luci dei paesi addormentati si accendevano e si spegnevano in sequenze irregolari, come pulsazioni di un cuore gigante e invisibile. Luca aveva gli occhi fissi su quel vuoto liquido, ma la sua mente non era lì; era tornata indietro, attraversando decenni di silenzi e distanze, fino a quel pomeriggio di vent’anni prima quando aveva lasciato Milano con una valigia stracolma di sogni malinconici e la certezza di non tornare mai, o almeno, non per molto. Ora, il biglietto in tasca gli pesava come una condanna o forse come una redenzione, a seconda di come guardava la data stampata sulla carta: Napoli, sera, arrivo previsto alle undici. Il vagone era semivuoto, popolato da quelle figure enigmatiche che popolano i viaggi notturni, persone che sembrano esistere solo in relazione allo spazio confinato del treno. In fondo al corridoio, una donna anziana dormiva con la bocca leggermente aperta, il capo appoggiato contro il vetro, le mani intrecciate sul grembo come se pregasse in silenzio; accanto a lei, un uomo d’affari con la cravatta allentata e gli occhi rossi per la stanchezza teneva aperto un giornale che non leggeva, fissando il vuoto con la stessa intensità con cui Luca osservava il paesaggio. Il rumore delle ruote sul binario era un ronzio basso, quasi impercettibile quando il treno accelerava, ma si trasformava in un clangore metallico e ritmico quando affrontava le curve, un suono che sembrava scavare nella memoria di Luca, evocando immagini frammentate di notti insonni in stanze affittate, di telefonate interrotte, di promesse fatte a se stesso che ora sembravano appartenere a un’altra vita. Passarono Bologna, con i suoi bin
+
+generation: 512 tokens, 0.159 s/token (6.273 tok/s)
+compute: 81.3% CPU occupancy (0.5182 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 143 tokens, 11.845 s (12.1 tok/s) | model load 19.107 s | TTFT 30.952 s
+moe-stream: read 16150.4 MiB (31.54 MiB/token), decode 0.159 s/token (compute 0.120 + cache mgmt 0.007 + flash I/O 0.134 s/token, 236 MiB/s)
+moe-cache: 86.6% hit, resident 1999.3 MiB
+moe-cache: 20454 evictions, 15719 re-reads (30.7/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.032 s/token (flash reads overlapped with FFN compute)
+batt_post={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "PLUGGED_AC",   "status": "CHARGING",   "temperature": 36.0,   "voltage": 3839,   "current": 236000,   "current_average": -657,   "percentage": 55,   "level": 55,   "scale": 100,   "charge_counter": 2073750,   "cycle": 0 } 
+LONG512 done 2026-08-07T00:05:24-04:00

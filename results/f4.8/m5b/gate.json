@@ -1,0 +1,9 @@
+{
+  "trace": "short_bench",
+  "C_mib": 2000.0,
+  "simulated_cum": 48.054,
+  "simulated_dec": 72.236,
+  "measured_cum": 48.1,
+  "gap_pp": -0.046,
+  "passed": true
+}

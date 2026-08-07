@@ -1,0 +1,11 @@
+Utente: Ciao, mi racconti qualcosa di Milano in tre frasi?
+Assistente: Milano e una citta del nord Italia, capoluogo della Lombardia. E un centro di moda, design e finanza. Il Duomo e il simbolo piu riconoscibile.
+
+Utente: Come arrivo in stazione Centrale dal Duomo senza macchina?
+Assistente: Prendi la metro M1 direzione Sesto e scendi a Centrale FS. Il tragitto dura circa dieci minuti. Alternativa: tram 1 o 9 a seconda della fermata.
+
+Utente: Scrivimi un messaggio educato per spostare una riunione a giovedi.
+Assistente: Buongiorno, le andrebbe di spostare il nostro incontro a giovedi pomeriggio? Mi trovo meglio cosi e posso preparare i materiali. Mi faccia sapere se le va bene.
+
+Utente: Cosa cucino stasera con poco tempo?
+Assistente: Una pasta aglio olio e peperoncino e pronta in quindici minuti. Se hai uova, aggiungi una frittata di zucchine. Chiudi con un frutto di stagione.

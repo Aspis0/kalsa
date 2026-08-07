@@ -1,0 +1,44 @@
+{
+  "status": "BLOCKED",
+  "date": "2026-08-07",
+  "phase": "F4.8/notte C2",
+  "model": {
+    "path": "/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf",
+    "size_bytes": 11522702304,
+    "name": "Qwen3.6-35B-A3B-UD-IQ2_M.gguf"
+  },
+  "binary": {
+    "path": "/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli",
+    "runtime_commit": "b0c4e5b",
+    "help_has_perplexity": false,
+    "help_has_ppl": false,
+    "help_has_logprob": false,
+    "progress_json_has_logprob": false,
+    "token_metrics_has_logprob": false
+  },
+  "candidates": [
+    {
+      "id": "a_bmoe_cli",
+      "result": "FAIL",
+      "detail": "bmoe-cli --help has no --perplexity/--ppl/--logprob. TokenMetrics (metrics.h) has wall/io/mgmt/compute/stall/cache_hit but no logprob/NLL. Source core/cli: no logprob export path."
+    },
+    {
+      "id": "b_llama_perplexity",
+      "result": "FAIL_IMPRACTICAL",
+      "detail": "llama-perplexity binary NOT present in build-safe2/bin (only llama-cli, llama-bench). CMakeFiles for perplexity exist as incomplete build dirs. Even if rebuilt: without moe-stream it mmaps the full 11.5GB model and falls into F3 wall (~0.10 tok/s). Not usable for a night baseline on this phone."
+    },
+    {
+      "id": "c_manual_logprob",
+      "result": "FAIL",
+      "detail": "No per-token logprob surface from bmoe-cli (progress JSON, CSV sink, or stdout). Cannot compute PPL by hand without log p(token)."
+    }
+  ],
+  "gate_config": "--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 -t 4",
+  "what_is_missing": [
+    "Either: bmoe-cli flag to emit per-token logprob/NLL under moe-stream (preferred: keeps streaming path)",
+    "Or: llama-perplexity built AND a streaming/lazy-expert path so it does not mmap the whole 11.5GB",
+    "Corpus prep script is ready (see scripts/quality/prepare_it_ppl_corpus.py) but unused until tool exists"
+  ],
+  "ppl": null,
+  "notes": "Deterministic quality meter is blocked on tooling, not on battery/charge. Do not invent a proxy. STOP after feasibility as mandated."
+}

@@ -1,0 +1,29 @@
+{
+  "reuse_distance": {
+    "n": 9627,
+    "mean": 240.0914095772307,
+    "median": 80.0,
+    "p90": 680.0,
+    "p99": 1240.0,
+    "frac_reuse_le_40": 0.4066687441570583,
+    "frac_reuse_le_200": 0.6661472940687649,
+    "frac_reuse_le_800": 0.9175236314532045,
+    "frac_reuse_gt_2000": 0.0
+  },
+  "score_vs_reuse": {
+    "n": 2800,
+    "pearson_score_vs_med_reuse": -0.2224,
+    "med_reuse_high_score": 160.0,
+    "med_reuse_low_score": 380.0,
+    "note": "negative pearson => high score -> short reuse"
+  },
+  "score_quantiles": {
+    "q10": 0.06276201456785202,
+    "q25": 0.08027178049087524,
+    "q50": 0.1060824990272522,
+    "q75": 0.15024100244045258,
+    "q90": 0.21143749356269836,
+    "mean": 0.125,
+    "n": 42880
+  }
+}

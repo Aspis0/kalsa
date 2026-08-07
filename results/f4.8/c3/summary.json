@@ -1,0 +1,118 @@
+{
+  "overall": {
+    "n_events": 209600,
+    "n_prefill_batches": 40,
+    "n_decode_batches": 20480,
+    "gen_tokens_stdout": 512,
+    "measured_hit_pct": 86.6,
+    "lru_cum": 86.582,
+    "lru_dec": 89.249,
+    "belady_cum": 92.763,
+    "belady_dec": 95.621,
+    "belady_minus_lru_dec": 6.371,
+    "lru_dec_read_mib": 15943.977,
+    "belady_dec_read_mib": 6502.547,
+    "n_decode_steps": 512
+  },
+  "block_hit_trend": {
+    "trend": "piatto",
+    "delta_pp_last_quarter_minus_first": 0.475,
+    "first_quarter_mean": 88.94800000000001,
+    "last_quarter_mean": 89.42349999999999,
+    "block_size_tok": 64,
+    "blocks": [
+      {
+        "block_start_tok": 0,
+        "block_end_tok": 63,
+        "n_tok": 64,
+        "lookups": 20480,
+        "hits": 17829,
+        "hit_pct": 87.056
+      },
+      {
+        "block_start_tok": 64,
+        "block_end_tok": 127,
+        "n_tok": 64,
+        "lookups": 20480,
+        "hits": 18604,
+        "hit_pct": 90.84
+      },
+      {
+        "block_start_tok": 128,
+        "block_end_tok": 191,
+        "n_tok": 64,
+        "lookups": 20480,
+        "hits": 18513,
+        "hit_pct": 90.396
+      },
+      {
+        "block_start_tok": 192,
+        "block_end_tok": 255,
+        "n_tok": 64,
+        "lookups": 20480,
+        "hits": 18264,
+        "hit_pct": 89.18
+      },
+      {
+        "block_start_tok": 256,
+        "block_end_tok": 319,
+        "n_tok": 64,
+        "lookups": 20480,
+        "hits": 18162,
+        "hit_pct": 88.682
+      },
+      {
+        "block_start_tok": 320,
+        "block_end_tok": 383,
+        "n_tok": 64,
+        "lookups": 20480,
+        "hits": 18226,
+        "hit_pct": 88.994
+      },
+      {
+        "block_start_tok": 384,
+        "block_end_tok": 447,
+        "n_tok": 64,
+        "lookups": 20480,
+        "hits": 18277,
+        "hit_pct": 89.243
+      },
+      {
+        "block_start_tok": 448,
+        "block_end_tok": 511,
+        "n_tok": 64,
+        "lookups": 20480,
+        "hits": 18351,
+        "hit_pct": 89.604
+      }
+    ]
+  },
+  "working_set": {
+    "unique_at_end": 5681,
+    "unique_at_64": 2944,
+    "unique_at_256": 4717,
+    "unique_at_512": 5681,
+    "n_decode_tokens": 512
+  },
+  "belady_gap_long": 6.371,
+  "belady_gap_short_mean": 17.763666666666666,
+  "belady_gap_short_by_trace": {
+    "f45_1_esplicativo": 16.914,
+    "f45_2_scrittura": 17.559,
+    "f45_3_istruzioni": 15.342,
+    "f45_4_codice": 19.219,
+    "f45_5_ragionamento": 19.755,
+    "short_bench": 17.793
+  },
+  "stdout": {
+    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\f4.8\\traces\\long_512.stdout.txt",
+    "gen_tokens": 512,
+    "prefill_tokens": 143,
+    "read_mib": 16150.4,
+    "mib_per_tok": 31.54,
+    "hit_pct": 86.6,
+    "resident_mib": 1999.3,
+    "evictions": 20454,
+    "rereads": 15719
+  }
+}

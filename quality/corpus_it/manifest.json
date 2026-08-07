@@ -1,0 +1,38 @@
+{
+  "sources": [
+    {
+      "id": "divina_commedia",
+      "kind": "prose",
+      "url": "https://www.gutenberg.org/files/1012/1012-0.txt",
+      "status": "skipped_no_download"
+    },
+    {
+      "id": "promessi_sposi",
+      "kind": "prose",
+      "url": "https://www.gutenberg.org/files/45334/45334-0.txt",
+      "status": "skipped_no_download"
+    },
+    {
+      "id": "conversational_seed",
+      "kind": "conversational",
+      "local": "quality/corpus_it/seed_conversational_it.txt",
+      "sha256": "690743e795a4b46b6589a53694c9e98829606afbe3842f3c7645ee64a44bfe4a",
+      "bytes": 902
+    }
+  ],
+  "files": {
+    "prose_it.txt": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "conversational_it.txt": {
+      "sha256": "690743e795a4b46b6589a53694c9e98829606afbe3842f3c7645ee64a44bfe4a",
+      "bytes": 902
+    },
+    "mixed_it.txt": {
+      "sha256": "92f1c090fb64c9e37fa1e5e31abb99edb5ff97deaaf7e1194a8d51cf5dcc82d9",
+      "bytes": 926
+    }
+  },
+  "note": "Token counts MUST use model tokenizer, not wc. Night target 50-100k tokens if 500k too slow."
+}
