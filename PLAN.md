@@ -966,6 +966,29 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   **Totale 2000 → 3500: +5.0 punti di hit, −56% di traffico** (32.93 → 14.63 MiB/token). Forma
   concava corretta (+2.2, +1.8, +1.0). La regola dichiarata (≥+3 punti) è **superata**.
 
+  ### ✅ D1 — `--ubatch` è TRASPARENTE sull'output (questione chiusa)
+
+  Prompt da **1318 token** (>512, quindi il percorso a blocchi è stato davvero esercitato),
+  `--temp 0`, **stesso file** per entrambi i run con `sha256` registrato.
+
+  ```
+  --ubatch 512  vs  --ubatch 2048   →   output BYTE-IDENTICI (1006 char, zero divergenze)
+  ```
+
+  Più forte di quanto avessi previsto: avevo detto *«matematicamente equivalente in teoria, ma
+  la virgola mobile non è associativa quindi può divergere»*. Non diverge nemmeno di un bit. Il
+  motivo: i kernel di matmul CPU riducono lungo assi fissi **indipendenti dalla dimensione del
+  batch**, quindi l'ordine delle somme per ogni elemento di output non cambia — il batch è un
+  asse separato, non un riordino.
+
+  **Conseguenza: `--ubatch 512` si adotta senza alcun rischio di qualità**, e porta con sé i
+  3.5 GB di RAM liberati e la sopravvivenza della sessione (F5.3-A1, 10/10 turni). Resta da
+  misurare solo se un altro valore sia più *veloce* (cella D2, issue upstream #18725).
+
+  E la divergenza F5.1 vs F5.3 resta attribuita **interamente all'accento** nel prompt, non a
+  ubatch. La disciplina del prompt byte-identico con checksum — nata da quell'errore stamattina —
+  ha pagato al primo utilizzo: senza, questo confronto sarebbe stato inconcludente come quello.
+
   ### ⚠ Il simulatore M5 sovrastima la pendenza di 2.4×
 
   ```
