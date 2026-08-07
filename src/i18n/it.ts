@@ -282,6 +282,7 @@ export const it: typeof en = {
     welcomePrompt: "Cosa vuoi approfondire oggi?",
     thinking: "Sto pensando…",
     thinkingStatus: "Sto pensando",
+    writingStatus: "Scrivo",
     interrupted: "Generazione interrotta.",
     searching: "Cerco sul web…",
     fetching: "Recupero pagina…",

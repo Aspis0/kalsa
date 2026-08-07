@@ -52,6 +52,7 @@ import { isBenchCommand, tryHandleBenchCommand } from "../bench/benchConfig";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
 import { classifyChatContent, type ContentFilterReason } from "../domain/contentFilter";
 import { translateText } from "../engine/LlamaService";
+import { createStreamCoalescer } from "../engine/streamCoalescer";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
@@ -1225,8 +1226,14 @@ export function AiChatPage({
       const controller = new AbortController();
       abortRef.current = controller;
 
-      // Track whether any text has streamed — used to decide whether to remove empty placeholder on abort
+      // Track whether any text has streamed — used to decide whether to remove empty placeholder on abort.
+      // Set on onDelta (not on coalescer flush) so abort-before-first-flush still keeps the bubble.
       let anyTextStreamed = false;
+      // ~30 fps UI flush: llama.rn is 5–15 tok/s; setState every token is wasteful.
+      // Coalescer overwrites with the latest full text and flushes on a 33 ms cadence.
+      const streamCoalescer = createStreamCoalescer((fullText) => {
+        updateMessage(assistantId, { text: fullText, statusLabel: undefined });
+      });
 
       try {
         if (onSendStream) {
@@ -1235,7 +1242,7 @@ export function AiChatPage({
             {
               onDelta: (_delta, full) => {
                 anyTextStreamed = true;
-                updateMessage(assistantId, { text: full, statusLabel: undefined });
+                streamCoalescer.push(full);
               },
               // Feature 1: append to history AND set current label
               onStatus: (status) =>
@@ -1306,6 +1313,8 @@ export function AiChatPage({
           // If partial text was streamed, the finally block finalizes it cleanly — no action needed
         } else if (mountedRef.current) {
           // BLOCKER-5: surface error as chat text instead of leaving zombie spinner
+          // Flush any pending stream text first, then overwrite with the error message.
+          streamCoalescer.finalize();
           const msg =
             err?.message?.includes("quota") || err?.message?.includes("limit")
               ? t("chat.queryLimit")
@@ -1313,6 +1322,13 @@ export function AiChatPage({
           updateMessage(assistantId, { streaming: false, statusLabel: undefined, text: msg });
         }
       } finally {
+        // Drain or drop the coalescer BEFORE finalize logic so the last token
+        // is not stuck in a pending timeout, and discarded aborts never paint.
+        if (controller.signal.aborted && !anyTextStreamed) {
+          streamCoalescer.cancel();
+        } else {
+          streamCoalescer.finalize();
+        }
         // Abort senza testo: rimuovi il placeholder vuoto (niente bubble fantasma).
         if (controller.signal.aborted && !anyTextStreamed) {
           setMessages(prev => prev.filter(m => m.id !== assistantId));
@@ -1467,12 +1483,15 @@ export function AiChatPage({
   const openMessageMenu = useCallback(
     (id: string, text: string, role: Message["role"], streaming?: boolean) => {
       // Skip while this message streams, a chat turn is in flight, or a translate is running.
-      // Use refs (sync) so the window between setState and re-render is also closed.
+      // Refs ONLY (no state reads): ChatMessageRow's memo comparator ignores
+      // callback identity, so a state-capturing closure would freeze inside
+      // memoized rows (user rows created mid-send froze sending=true and their
+      // long-press menu died — hostile-review finding 1a). sendingRef /
+      // translationInFlightRef mirror the state synchronously and keep this
+      // callback identity-stable, which is what makes the memo safe.
       if (
         streaming ||
-        sending ||
         sendingRef.current ||
-        translatingId ||
         translationInFlightRef.current ||
         !text.trim()
       ) {
@@ -1480,7 +1499,7 @@ export function AiChatPage({
       }
       setMessageMenu({ id, text, role });
     },
-    [sending, translatingId],
+    [],
   );
 
   const copyTextToClipboard = useCallback(async (value: string): Promise<boolean> => {
@@ -1562,6 +1581,10 @@ export function AiChatPage({
     translationInFlightRef.current = false;
     setTranslatingId(null);
     setTranslationResult(null);
+  }, []);
+
+  const toggleTranslationExpanded = useCallback(() => {
+    setTranslationExpanded((v) => !v);
   }, []);
 
   // ── PDF attach rimosso (Fase 3): nessun endpoint remoto, tutto locale. ──
@@ -1807,548 +1830,31 @@ export function AiChatPage({
           </View>
         ) : (
           messages.map((m, idx) => {
-            const isUser = m.role === "user";
             const prev = idx > 0 ? messages[idx - 1] : null;
-            // HIGH-5: correct turn-start detection for any role change
             const isTurnStart = !prev || prev.role !== m.role;
             const topGap = idx === 0 ? 0 : isTurnStart ? spacing.lg : spacing.md;
             const showDayDivider = !prev || !isSameDay(prev.createdAt, m.createdAt);
-
-            const dayDivider = showDayDivider ? (
-              <View
-                key={`day-${m.id}`}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginTop: idx === 0 ? 0 : spacing.lg,
-                  marginBottom: spacing.sm,
-                  gap: spacing.sm,
-                }}
-              >
-                <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
-                <Text style={[typography.bodyXs, { color: colors.muted }]}>
-                  {formatDayLabel(m.createdAt, t, locale)}
-                </Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
-              </View>
-            ) : null;
-
-            if (isUser) {
-              return (
-                <React.Fragment key={m.id}>
-                  {dayDivider}
-                  <View
-                    style={{
-                      alignSelf: "flex-end",
-                      maxWidth: "85%",
-                      marginTop: dayDivider ? 0 : topGap,
-                    }}
-                  >
-                    {/* Feature 4: attachment chips above user bubble */}
-                    {m.attachments && m.attachments.length > 0 ? (
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          flexWrap: "wrap",
-                          gap: spacing.xs,
-                          marginBottom: 4,
-                          justifyContent: "flex-end",
-                        }}
-                      >
-                        {m.attachments.map(att => {
-                          const { dot, bg } = chipColorForKind(att.kind);
-                          return (
-                            <View
-                              key={att.id}
-                              style={{
-                                flexDirection: "row",
-                                alignItems: "center",
-                                gap: 4,
-                                backgroundColor: bg,
-                                borderRadius: radius.pill,
-                                paddingHorizontal: 8,
-                                paddingVertical: 3,
-                              }}
-                            >
-                              {att.kind === "pdf" ? (
-                                <FileText size={11} color={dot} />
-                              ) : (
-                                <ImageIcon size={11} color={dot} />
-                              )}
-                              <Text style={[typography.bodyXs, { color: colors.ink }]} numberOfLines={1}>
-                                {att.name}
-                              </Text>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    ) : null}
-                    <Pressable
-                      onLongPress={() => openMessageMenu(m.id, m.text, m.role, m.streaming)}
-                      accessibilityLabel={t("chat.a11yLongPress")}
-                      style={{
-                        backgroundColor: colors.accentSoft,
-                        borderRadius: radius.lg,
-                        paddingVertical: spacing.sm,
-                        paddingHorizontal: spacing.md,
-                      }}
-                    >
-                      <Text style={[typography.chatBody, { color: colors.ink }]}>{m.text}</Text>
-                    </Pressable>
-
-                    {translatingId === m.id ? (
-                      <View
-                        style={{
-                          marginTop: spacing.xs,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: spacing.xs,
-                          alignSelf: "flex-end",
-                        }}
-                      >
-                        <ActivityIndicator size="small" color={colors.muted} />
-                        <Text style={[typography.bodyXs, { color: colors.muted }]}>
-                          {t("translate.translating")}
-                        </Text>
-                      </View>
-                    ) : null}
-
-                    {translationResult?.id === m.id ? (
-                      <TranslationBlock
-                        result={translationResult}
-                        expanded={translationExpanded}
-                        colors={colors}
-                        t={t}
-                        onToggle={() => setTranslationExpanded((v) => !v)}
-                        onCopy={() => {
-                          if (translationResult.text) void copyTextToClipboard(translationResult.text);
-                        }}
-                        onClose={closeTranslation}
-                        onRetry={() => void runTranslate(m.id, m.text)}
-                      />
-                    ) : null}
-                  </View>
-                </React.Fragment>
-              );
-            }
-
-            const showToolStrip = !!m.statusLabel && !m.text;
-            const showCursor = !!m.streaming && !!m.text;
-
-            // Feature 3: parse code blocks only when not streaming
-            const segments: MessageSegment[] = (!m.streaming && m.text)
-              ? parseMessageSegments(m.text)
-              : [{ type: "text", content: m.text }];
-
+            const dayLabel = showDayDivider ? formatDayLabel(m.createdAt, t, locale) : null;
             return (
-              <React.Fragment key={m.id}>
-                {dayDivider}
-              <View style={{ gap: 4, marginTop: dayDivider ? 0 : topGap }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
-                  <View
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 999,
-                      backgroundColor: colors.compute,
-                    }}
-                  />
-                  <Text style={[typography.label, { color: colors.muted }]}>Kalsa</Text>
-                </View>
-
-                {/* Feature 1: status history stamps */}
-                {m.statusHistory && m.statusHistory.length > 0
-                  ? m.statusHistory.map((label, i) => (
-                      <View
-                        key={i}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 4,
-                          paddingVertical: 1,
-                        }}
-                      >
-                        <Check size={12} color={colors.muted} />
-                        <Text
-                          style={[
-                            typography.bodyXs,
-                            { color: colors.muted, fontFamily: MONO_FONT },
-                          ]}
-                        >
-                          {label}
-                        </Text>
-                      </View>
-                    ))
-                  : null}
-
-                {showToolStrip ? (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: spacing.xs,
-                      paddingVertical: 2,
-                    }}
-                  >
-                    <ActivityIndicator size="small" color={colors.muted} />
-                    <Text style={[typography.bodyXs, { color: colors.muted }]}>{m.statusLabel}</Text>
-                  </View>
-                ) : (
-                  (m.text || showCursor) ? (
-                  <Pressable
-                    onLongPress={() => openMessageMenu(m.id, m.text, m.role, m.streaming)}
-                    accessibilityLabel={t("chat.a11yLongPress")}
-                  >
-                    {/* Feature 3: render parsed segments */}
-                    {segments.map((seg, segIdx) => {
-                      if (seg.type === "code") {
-                        return (
-                          <View
-                            key={segIdx}
-                            style={{
-                              backgroundColor: colors.surfaceSunken,
-                              borderWidth: 1,
-                              borderColor: colors.lineStrong,
-                              borderRadius: radius.sm,
-                              marginVertical: 4,
-                              overflow: "hidden",
-                            }}
-                          >
-                            {/* Code block header */}
-                            <View
-                              style={{
-                                flexDirection: "row",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                paddingHorizontal: spacing.sm,
-                                paddingVertical: 4,
-                                borderBottomWidth: 1,
-                                borderBottomColor: colors.lineStrong,
-                              }}
-                            >
-                              <Text style={[typography.bodyXs, { color: colors.muted }]}>
-                                {seg.lang}
-                              </Text>
-                              <Pressable
-                                onPress={() => {
-                                  void Share.share({ message: seg.content }).catch(() => undefined);
-                                }}
-                                hitSlop={8}
-                                accessibilityLabel={t("common.share")}
-                              >
-                                <Text style={[typography.bodyXs, { color: colors.accent }]}>
-                                  {t("common.share")}
-                                </Text>
-                              </Pressable>
-                            </View>
-                            {/* Code block body */}
-                            <ScrollView
-                              horizontal
-                              nestedScrollEnabled
-                              showsHorizontalScrollIndicator={false}
-                            >
-                              <Text
-                                style={[
-                                  typography.monoSm,
-                                  {
-                                    fontFamily: MONO_FONT,
-                                    color: colors.ink,
-                                    padding: spacing.sm,
-                                  },
-                                ]}
-                              >
-                                {seg.content}
-                              </Text>
-                            </ScrollView>
-                          </View>
-                        );
-                      }
-                      // text segment — markdown subset (fenced code stays above)
-                      return (
-                        <MarkdownText
-                          key={segIdx}
-                          text={seg.content}
-                          showCursor={segIdx === segments.length - 1 && showCursor}
-                          onLongPress={() => openMessageMenu(m.id, m.text, m.role, m.streaming)}
-                          sources={m.sources}
-                        />
-                      );
-                    })}
-                  </Pressable>
-                  ) : null
-                )}
-
-                {m.interrupted ? (
-                  <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
-                    {t("chat.interrupted")}
-                  </Text>
-                ) : null}
-
-                {translatingId === m.id ? (
-                  <View
-                    style={{
-                      marginTop: spacing.xs,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: spacing.xs,
-                    }}
-                  >
-                    <ActivityIndicator size="small" color={colors.muted} />
-                    <Text style={[typography.bodyXs, { color: colors.muted }]}>
-                      {t("translate.translating")}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {translationResult?.id === m.id ? (
-                  <TranslationBlock
-                    result={translationResult}
-                    expanded={translationExpanded}
-                    colors={colors}
-                    t={t}
-                    onToggle={() => setTranslationExpanded((v) => !v)}
-                    onCopy={() => {
-                      if (translationResult.text) void copyTextToClipboard(translationResult.text);
-                    }}
-                    onClose={closeTranslation}
-                    onRetry={() => void runTranslate(m.id, m.text)}
-                  />
-                ) : null}
-
-                {/* Feature 2: miniapp card */}
-                {m.miniapp ? (
-                  <MiniappCard miniapp={m.miniapp} colors={colors} onOpen={onOpenMiniapp ? () => onOpenMiniapp(m.miniapp!) : undefined} />
-                ) : null}
-
-                {m.sources && m.sources.length > 0 ? (
-                  // WARN-4: nestedScrollEnabled prevents Android touch conflict
-                  <ScrollView
-                    horizontal
-                    nestedScrollEnabled
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: spacing.xs, paddingTop: spacing.xs }}
-                  >
-                    {m.sources.map((s, sIdx) => {
-                      // HIGH-4: stable key from doi/title, not array index
-                      const rawUrl = typeof s.url === "string" ? s.url.trim() : "";
-                      const safe = rawUrl.length > 0 && isSafeHttpUrl(rawUrl);
-                      // a11y: match inline citation chips — "Source N, host-or-title"
-                      const hostMatch = safe
-                        ? /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\/([^/?#]+)/.exec(rawUrl)
-                        : null;
-                      const a11yHost =
-                        hostMatch?.[1] ||
-                        (s.title && s.title.trim()) ||
-                        String(sIdx + 1);
-                      return (
-                        <Pressable
-                          key={s.doi || s.title || String(sIdx)}
-                          disabled={!safe}
-                          onPress={
-                            safe
-                              ? () => {
-                                  void Linking.openURL(rawUrl).catch(() => undefined);
-                                }
-                              : undefined
-                          }
-                          accessibilityLabel={`Source ${sIdx + 1}, ${a11yHost}`}
-                          accessibilityRole={safe ? "link" : "text"}
-                          style={({ pressed }) => ({
-                            backgroundColor: colors.panelSolid,
-                            borderRadius: radius.sm,
-                            borderWidth: 1,
-                            borderColor: colors.line,
-                            padding: spacing.sm,
-                            maxWidth: 220,
-                            flexDirection: "row",
-                            alignItems: "flex-start",
-                            gap: spacing.xs,
-                            // Non-tappable (missing/unsafe URL): same dim cue as image/download pills.
-                            opacity: safe ? (pressed ? 0.7 : 1) : 0.55,
-                          })}
-                        >
-                          {/* 1-based index chip — same accent treatment as inline citations */}
-                          <Text
-                            style={[
-                              typography.bodyXs,
-                              {
-                                color: colors.accent,
-                                backgroundColor: colors.accentSoft,
-                                borderRadius: radius.xs,
-                                paddingHorizontal: spacing.xxs,
-                                overflow: "hidden",
-                              },
-                            ]}
-                          >
-                            {sIdx + 1}
-                          </Text>
-                          <View style={{ flexShrink: 1, minWidth: 0 }}>
-                            {s.provider ? (
-                              <Text
-                                style={[typography.bodyXs, { color: colors.muted }]}
-                                numberOfLines={1}
-                              >
-                                {t("errors.sourceVia", {
-                                  provider:
-                                    s.provider === "exa-mcp"
-                                      ? t("settings.providerExaMcp")
-                                      : s.provider === "exa"
-                                        ? t("settings.providerExa")
-                                        : s.provider === "brave"
-                                          ? t("settings.providerBrave")
-                                          : s.provider === "tavily"
-                                            ? t("settings.providerTavily")
-                                            : s.provider === "fetch"
-                                              ? t("settings.providerFetch")
-                                              : s.provider,
-                                })}
-                              </Text>
-                            ) : null}
-                            <Text
-                              style={[typography.label, { color: colors.ink }]}
-                              numberOfLines={2}
-                            >
-                              {s.title}{s.authors ? ` — ${s.authors}` : ""}
-                            </Text>
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
-                ) : null}
-
-                {m.ctas && m.ctas.length > 0 ? (
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, paddingTop: spacing.xs }}>
-                    {m.ctas.map((cta, ctaIdx) => (
-                      <Pressable
-                        key={cta.id || `${cta.kind}-${ctaIdx}`}
-                        onPress={() => onCtaPress?.(cta)}
-                        accessibilityRole="button"
-                        accessibilityLabel={cta.label}
-                        style={({ pressed }) => ({
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 5,
-                          backgroundColor: cta.kind === "run_monitor_recovery" ? colors.accentSoft : colors.computeSoft,
-                          borderColor: cta.kind === "run_monitor_recovery" ? colors.accent : colors.compute,
-                          borderRadius: radius.pill,
-                          borderWidth: 1,
-                          opacity: pressed ? 0.72 : 1,
-                          paddingHorizontal: spacing.sm,
-                          paddingVertical: 5,
-                        })}
-                      >
-                        <ChevronRight size={12} color={cta.kind === "run_monitor_recovery" ? colors.accent : colors.compute} />
-                        <Text style={[typography.bodyXs, { color: cta.kind === "run_monitor_recovery" ? colors.accent : colors.compute, fontFamily: fontFamilies.bodySemi }]}>
-                          {cta.label}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                ) : null}
-
-                {/* Result images: tap to open presigned URL in the system browser */}
-                {m.images && m.images.length > 0 ? (
-                  <ScrollView
-                    horizontal
-                    nestedScrollEnabled
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.sm }}
-                  >
-                    {m.images.map((img) => {
-                      const safe = isSafeHttpUrl(img.url);
-                      return (
-                        <Pressable
-                          key={img.id}
-                          disabled={!safe}
-                          onPress={
-                            safe
-                              ? () => Linking.openURL(img.url).catch(() => undefined)
-                              : undefined
-                          }
-                          style={{
-                            width: 140,
-                            borderRadius: radius.md,
-                            overflow: "hidden",
-                            borderWidth: 1,
-                            borderColor: colors.line,
-                            backgroundColor: colors.panel,
-                            // Non-tappable (unsafe URL): same dim cue as disabled quick-tools.
-                            opacity: safe ? 1 : 0.55,
-                          }}
-                        >
-                          <Image
-                            source={{ uri: img.url }}
-                            style={{ width: 140, height: 100 }}
-                            resizeMode="cover"
-                          />
-                          <View
-                            style={{
-                              padding: 6,
-                              flexDirection: "row",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              gap: 4,
-                            }}
-                          >
-                            <Text
-                              style={[typography.bodyXs, { color: colors.muted, flex: 1 }]}
-                              numberOfLines={1}
-                            >
-                              {img.label}
-                            </Text>
-                            {safe ? <Download size={12} color={colors.compute} /> : null}
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
-                ) : null}
-
-                {/* Download pills: CSV / ZIP artifacts */}
-                {m.downloads && m.downloads.length > 0 ? (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      flexWrap: "wrap",
-                      gap: spacing.xs,
-                      paddingTop: spacing.xs,
-                    }}
-                  >
-                    {m.downloads.map((dl) => {
-                      const safe = isSafeHttpUrl(dl.url);
-                      return (
-                        <Pressable
-                          key={dl.id}
-                          disabled={!safe}
-                          onPress={
-                            safe
-                              ? () => Linking.openURL(dl.url).catch(() => undefined)
-                              : undefined
-                          }
-                          style={({ pressed }) => ({
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 4,
-                            backgroundColor: colors.computeSoft,
-                            borderRadius: radius.pill,
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            // Non-tappable (unsafe URL): dim + no download affordance.
-                            opacity: safe ? (pressed ? 0.7 : 1) : 0.55,
-                          })}
-                        >
-                          {safe ? <Download size={11} color={colors.compute} /> : null}
-                          <Text style={[typography.bodyXs, { color: colors.compute }]}>
-                            {dl.label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ) : null}
-              </View>
-              </React.Fragment>
+              <ChatMessageRow
+                key={m.id}
+                message={m}
+                topGap={topGap}
+                dayLabel={dayLabel}
+                isFirst={idx === 0}
+                isTranslating={translatingId === m.id}
+                translationResult={translationResult?.id === m.id ? translationResult : null}
+                translationExpanded={translationExpanded}
+                colors={colors}
+                t={t}
+                onOpenMessageMenu={openMessageMenu}
+                onCopyText={(text) => { void copyTextToClipboard(text); }}
+                onCloseTranslation={closeTranslation}
+                onRetryTranslate={runTranslate}
+                onToggleTranslationExpanded={toggleTranslationExpanded}
+                onOpenMiniapp={onOpenMiniapp}
+                onCtaPress={onCtaPress}
+              />
             );
           })
         )}
@@ -2779,6 +2285,623 @@ function AttachSheetRow({
     </Pressable>
   );
 }
+
+
+// ── Memoized chat row: history rows skip re-render during streaming flushes ──
+// updateMessage only replaces the streaming message's object identity; other
+// Message refs stay stable. Custom compare ignores callback identity so parent
+// re-renders (new inline arrows) do not force history rows to repaint.
+type ChatMessageRowProps = {
+  message: Message;
+  topGap: number;
+  dayLabel: string | null;
+  isFirst: boolean;
+  isTranslating: boolean;
+  translationResult: {
+    id: string;
+    text: string;
+    lang: Locale;
+    error?: boolean;
+    truncated?: boolean;
+  } | null;
+  translationExpanded: boolean;
+  colors: any;
+  t: TranslateFn;
+  onOpenMessageMenu: (
+    id: string,
+    text: string,
+    role: Message["role"],
+    streaming?: boolean,
+  ) => void;
+  onCopyText: (text: string) => void;
+  onCloseTranslation: () => void;
+  onRetryTranslate: (id: string, text: string) => void;
+  onToggleTranslationExpanded: () => void;
+  onOpenMiniapp?: (miniapp: any) => void;
+  onCtaPress?: (cta: ChatCta) => void;
+};
+
+function chatMessageRowPropsEqual(prev: ChatMessageRowProps, next: ChatMessageRowProps): boolean {
+  return (
+    prev.message === next.message &&
+    prev.topGap === next.topGap &&
+    prev.dayLabel === next.dayLabel &&
+    prev.isFirst === next.isFirst &&
+    prev.isTranslating === next.isTranslating &&
+    prev.translationResult === next.translationResult &&
+    prev.translationExpanded === next.translationExpanded &&
+    prev.colors === next.colors &&
+    prev.t === next.t
+  );
+}
+
+const ChatMessageRow = React.memo(function ChatMessageRow({
+  message: m,
+  topGap,
+  dayLabel,
+  isFirst,
+  isTranslating,
+  translationResult,
+  translationExpanded,
+  colors,
+  t,
+  onOpenMessageMenu,
+  onCopyText,
+  onCloseTranslation,
+  onRetryTranslate,
+  onToggleTranslationExpanded,
+  onOpenMiniapp,
+  onCtaPress,
+}: ChatMessageRowProps) {
+  const isUser = m.role === "user";
+  const dayDivider = dayLabel ? (
+    <View
+      key={`day-${m.id}`}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: isFirst ? 0 : spacing.lg,
+        marginBottom: spacing.sm,
+        gap: spacing.sm,
+      }}
+    >
+      <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
+      <Text style={[typography.bodyXs, { color: colors.muted }]}>
+        {dayLabel}
+      </Text>
+      <View style={{ flex: 1, height: 1, backgroundColor: colors.line }} />
+    </View>
+  ) : null;
+
+  if (isUser) {
+    return (
+      <React.Fragment>
+        {dayDivider}
+        <View
+          style={{
+            alignSelf: "flex-end",
+            maxWidth: "85%",
+            marginTop: dayDivider ? 0 : topGap,
+          }}
+        >
+          {m.attachments && m.attachments.length > 0 ? (
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                gap: spacing.xs,
+                marginBottom: 4,
+                justifyContent: "flex-end",
+              }}
+            >
+              {m.attachments.map((att) => {
+                const { dot, bg } =
+                  att.kind === "pdf"
+                    ? { dot: colors.compute, bg: colors.computeSoft }
+                    : { dot: colors.accent, bg: colors.accentSoft };
+                return (
+                  <View
+                    key={att.id}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 4,
+                      backgroundColor: bg,
+                      borderRadius: radius.pill,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                    }}
+                  >
+                    {att.kind === "pdf" ? (
+                      <FileText size={11} color={dot} />
+                    ) : (
+                      <ImageIcon size={11} color={dot} />
+                    )}
+                    <Text style={[typography.bodyXs, { color: colors.ink }]} numberOfLines={1}>
+                      {att.name}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+          <Pressable
+            onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+            accessibilityLabel={t("chat.a11yLongPress")}
+            style={{
+              backgroundColor: colors.accentSoft,
+              borderRadius: radius.lg,
+              paddingVertical: spacing.sm,
+              paddingHorizontal: spacing.md,
+            }}
+          >
+            <Text style={[typography.chatBody, { color: colors.ink }]}>{m.text}</Text>
+          </Pressable>
+
+          {isTranslating ? (
+            <View
+              style={{
+                marginTop: spacing.xs,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.xs,
+                alignSelf: "flex-end",
+              }}
+            >
+              <ActivityIndicator size="small" color={colors.muted} />
+              <Text style={[typography.bodyXs, { color: colors.muted }]}>
+                {t("translate.translating")}
+              </Text>
+            </View>
+          ) : null}
+
+          {translationResult ? (
+            <TranslationBlock
+              result={translationResult}
+              expanded={translationExpanded}
+              colors={colors}
+              t={t}
+              onToggle={onToggleTranslationExpanded}
+              onCopy={() => {
+                if (translationResult.text) onCopyText(translationResult.text);
+              }}
+              onClose={onCloseTranslation}
+              onRetry={() => void onRetryTranslate(m.id, m.text)}
+            />
+          ) : null}
+        </View>
+      </React.Fragment>
+    );
+  }
+
+  const showToolStrip = !!m.statusLabel && !m.text;
+  const showCursor = !!m.streaming && !!m.text;
+
+  const segments: MessageSegment[] =
+    !m.streaming && m.text
+      ? parseMessageSegments(m.text)
+      : [{ type: "text", content: m.text }];
+
+  return (
+    <React.Fragment>
+      {dayDivider}
+      <View style={{ gap: 4, marginTop: dayDivider ? 0 : topGap }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 999,
+              backgroundColor: colors.compute,
+            }}
+          />
+          <Text style={[typography.label, { color: colors.muted }]}>Kalsa</Text>
+        </View>
+
+        {m.statusHistory && m.statusHistory.length > 0
+          ? m.statusHistory.map((label, i) => (
+              <View
+                key={i}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  paddingVertical: 1,
+                }}
+              >
+                <Check size={12} color={colors.muted} />
+                <Text
+                  style={[
+                    typography.bodyXs,
+                    { color: colors.muted, fontFamily: MONO_FONT },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </View>
+            ))
+          : null}
+
+        {showToolStrip ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.xs,
+              paddingVertical: 2,
+            }}
+          >
+            <ActivityIndicator size="small" color={colors.muted} />
+            <Text style={[typography.bodyXs, { color: colors.muted }]}>{m.statusLabel}</Text>
+          </View>
+        ) : m.text || showCursor ? (
+          <Pressable
+            onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+            accessibilityLabel={t("chat.a11yLongPress")}
+          >
+            {segments.map((seg, segIdx) => {
+              if (seg.type === "code") {
+                return (
+                  <View
+                    key={segIdx}
+                    style={{
+                      backgroundColor: colors.surfaceSunken,
+                      borderWidth: 1,
+                      borderColor: colors.lineStrong,
+                      borderRadius: radius.sm,
+                      marginVertical: 4,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 4,
+                        borderBottomWidth: 1,
+                        borderBottomColor: colors.lineStrong,
+                      }}
+                    >
+                      <Text style={[typography.bodyXs, { color: colors.muted }]}>
+                        {seg.lang}
+                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          void Share.share({ message: seg.content }).catch(() => undefined);
+                        }}
+                        hitSlop={8}
+                        accessibilityLabel={t("common.share")}
+                      >
+                        <Text style={[typography.bodyXs, { color: colors.accent }]}>
+                          {t("common.share")}
+                        </Text>
+                      </Pressable>
+                    </View>
+                    <ScrollView
+                      horizontal
+                      nestedScrollEnabled
+                      showsHorizontalScrollIndicator={false}
+                    >
+                      <Text
+                        style={[
+                          typography.monoSm,
+                          {
+                            fontFamily: MONO_FONT,
+                            color: colors.ink,
+                            padding: spacing.sm,
+                          },
+                        ]}
+                      >
+                        {seg.content}
+                      </Text>
+                    </ScrollView>
+                  </View>
+                );
+              }
+              return (
+                <MarkdownText
+                  key={segIdx}
+                  text={seg.content}
+                  showCursor={segIdx === segments.length - 1 && showCursor}
+                  onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+                  sources={m.sources}
+                />
+              );
+            })}
+          </Pressable>
+        ) : null}
+
+        {m.interrupted ? (
+          <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
+            {t("chat.interrupted")}
+          </Text>
+        ) : null}
+
+        {isTranslating ? (
+          <View
+            style={{
+              marginTop: spacing.xs,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.xs,
+            }}
+          >
+            <ActivityIndicator size="small" color={colors.muted} />
+            <Text style={[typography.bodyXs, { color: colors.muted }]}>
+              {t("translate.translating")}
+            </Text>
+          </View>
+        ) : null}
+
+        {translationResult ? (
+          <TranslationBlock
+            result={translationResult}
+            expanded={translationExpanded}
+            colors={colors}
+            t={t}
+            onToggle={onToggleTranslationExpanded}
+            onCopy={() => {
+              if (translationResult.text) onCopyText(translationResult.text);
+            }}
+            onClose={onCloseTranslation}
+            onRetry={() => void onRetryTranslate(m.id, m.text)}
+          />
+        ) : null}
+
+        {m.miniapp ? (
+          <MiniappCard
+            miniapp={m.miniapp}
+            colors={colors}
+            onOpen={onOpenMiniapp ? () => onOpenMiniapp(m.miniapp!) : undefined}
+          />
+        ) : null}
+
+        {m.sources && m.sources.length > 0 ? (
+          <ScrollView
+            horizontal
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: spacing.xs, paddingTop: spacing.xs }}
+          >
+            {m.sources.map((s, sIdx) => {
+              const rawUrl = typeof s.url === "string" ? s.url.trim() : "";
+              const safe = rawUrl.length > 0 && isSafeHttpUrl(rawUrl);
+              const hostMatch = safe
+                ? /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\/([^/?#]+)/.exec(rawUrl)
+                : null;
+              const a11yHost =
+                hostMatch?.[1] || (s.title && s.title.trim()) || String(sIdx + 1);
+              return (
+                <Pressable
+                  key={s.doi || s.title || String(sIdx)}
+                  disabled={!safe}
+                  onPress={
+                    safe
+                      ? () => {
+                          void Linking.openURL(rawUrl).catch(() => undefined);
+                        }
+                      : undefined
+                  }
+                  accessibilityLabel={`Source ${sIdx + 1}, ${a11yHost}`}
+                  accessibilityRole={safe ? "link" : "text"}
+                  style={({ pressed }) => ({
+                    backgroundColor: colors.panelSolid,
+                    borderRadius: radius.sm,
+                    borderWidth: 1,
+                    borderColor: colors.line,
+                    padding: spacing.sm,
+                    maxWidth: 220,
+                    flexDirection: "row",
+                    alignItems: "flex-start",
+                    gap: spacing.xs,
+                    opacity: safe ? (pressed ? 0.7 : 1) : 0.55,
+                  })}
+                >
+                  <Text
+                    style={[
+                      typography.bodyXs,
+                      {
+                        color: colors.accent,
+                        backgroundColor: colors.accentSoft,
+                        borderRadius: radius.xs,
+                        paddingHorizontal: spacing.xxs,
+                        overflow: "hidden",
+                      },
+                    ]}
+                  >
+                    {sIdx + 1}
+                  </Text>
+                  <View style={{ flexShrink: 1, minWidth: 0 }}>
+                    {s.provider ? (
+                      <Text
+                        style={[typography.bodyXs, { color: colors.muted }]}
+                        numberOfLines={1}
+                      >
+                        {t("errors.sourceVia", {
+                          provider:
+                            s.provider === "exa-mcp"
+                              ? t("settings.providerExaMcp")
+                              : s.provider === "exa"
+                                ? t("settings.providerExa")
+                                : s.provider === "brave"
+                                  ? t("settings.providerBrave")
+                                  : s.provider === "tavily"
+                                    ? t("settings.providerTavily")
+                                    : s.provider === "fetch"
+                                      ? t("settings.providerFetch")
+                                      : s.provider,
+                        })}
+                      </Text>
+                    ) : null}
+                    <Text
+                      style={[typography.label, { color: colors.ink }]}
+                      numberOfLines={2}
+                    >
+                      {s.title}
+                      {s.authors ? ` — ${s.authors}` : ""}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        ) : null}
+
+        {m.ctas && m.ctas.length > 0 ? (
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: spacing.xs,
+              paddingTop: spacing.xs,
+            }}
+          >
+            {m.ctas.map((cta, ctaIdx) => (
+              <Pressable
+                key={cta.id || `${cta.kind}-${ctaIdx}`}
+                onPress={() => onCtaPress?.(cta)}
+                accessibilityRole="button"
+                accessibilityLabel={cta.label}
+                style={({ pressed }) => ({
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 5,
+                  backgroundColor:
+                    cta.kind === "run_monitor_recovery" ? colors.accentSoft : colors.computeSoft,
+                  borderColor:
+                    cta.kind === "run_monitor_recovery" ? colors.accent : colors.compute,
+                  borderRadius: radius.pill,
+                  borderWidth: 1,
+                  opacity: pressed ? 0.72 : 1,
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: 5,
+                })}
+              >
+                <ChevronRight
+                  size={12}
+                  color={
+                    cta.kind === "run_monitor_recovery" ? colors.accent : colors.compute
+                  }
+                />
+                <Text
+                  style={[
+                    typography.bodyXs,
+                    {
+                      color:
+                        cta.kind === "run_monitor_recovery" ? colors.accent : colors.compute,
+                      fontFamily: fontFamilies.bodySemi,
+                    },
+                  ]}
+                >
+                  {cta.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
+        {m.images && m.images.length > 0 ? (
+          <ScrollView
+            horizontal
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.sm }}
+          >
+            {m.images.map((img) => {
+              const safe = isSafeHttpUrl(img.url);
+              return (
+                <Pressable
+                  key={img.id}
+                  disabled={!safe}
+                  onPress={
+                    safe
+                      ? () => Linking.openURL(img.url).catch(() => undefined)
+                      : undefined
+                  }
+                  style={{
+                    width: 140,
+                    borderRadius: radius.md,
+                    overflow: "hidden",
+                    borderWidth: 1,
+                    borderColor: colors.line,
+                    backgroundColor: colors.panel,
+                    opacity: safe ? 1 : 0.55,
+                  }}
+                >
+                  <Image
+                    source={{ uri: img.url }}
+                    style={{ width: 140, height: 100 }}
+                    resizeMode="cover"
+                  />
+                  <View
+                    style={{
+                      padding: 6,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 4,
+                    }}
+                  >
+                    <Text
+                      style={[typography.bodyXs, { color: colors.muted, flex: 1 }]}
+                      numberOfLines={1}
+                    >
+                      {img.label}
+                    </Text>
+                    {safe ? <Download size={12} color={colors.compute} /> : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        ) : null}
+
+        {m.downloads && m.downloads.length > 0 ? (
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: spacing.xs,
+              paddingTop: spacing.xs,
+            }}
+          >
+            {m.downloads.map((dl) => {
+              const safe = isSafeHttpUrl(dl.url);
+              return (
+                <Pressable
+                  key={dl.id}
+                  disabled={!safe}
+                  onPress={
+                    safe
+                      ? () => Linking.openURL(dl.url).catch(() => undefined)
+                      : undefined
+                  }
+                  style={({ pressed }) => ({
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    backgroundColor: colors.computeSoft,
+                    borderRadius: radius.pill,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    opacity: safe ? (pressed ? 0.7 : 1) : 0.55,
+                  })}
+                >
+                  {safe ? <Download size={11} color={colors.compute} /> : null}
+                  <Text style={[typography.bodyXs, { color: colors.compute }]}>
+                    {dl.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+      </View>
+    </React.Fragment>
+  );
+}, chatMessageRowPropsEqual);
 
 /** Volatile translation result card under a message (not part of history). */
 function TranslationBlock({

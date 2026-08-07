@@ -910,8 +910,15 @@ export async function streamAssistantTurn(
       return false;
     };
 
+    // Honest status label: "Thinking" only when bench thinking budgets are on;
+    // otherwise the model is just generating tokens ("Writing").
+    const statusLabel =
+      thinkingMode === "budget256" || thinkingMode === "budget512"
+        ? strings.chat.thinkingStatus
+        : strings.chat.writingStatus;
+
     try {
-      callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
+      callbacks.onStatus?.({ label: statusLabel });
 
       if (bailIfStopped()) return;
 
@@ -954,8 +961,14 @@ export async function streamAssistantTurn(
             },
             (data: TokenData) => {
               // Token callbacks run inside this job — not blocked by the FIFO gate.
+              // Always use data.token (incremental sent_count slice). data.content
+              // is a CUMULATIVE parse of accumulated text (llama.rn TokenData
+              // docstring / common_chat_parse) — appending it duplicates the
+              // whole string every callback on tool turns. data.token is the
+              // official incremental field; cleanStreamDelta strips any
+              // <think>/<tool_call> markup that appears in the raw token stream.
               if (finished || aborted) return;
-              const raw = data.content ?? (hasTools ? "" : data.token) ?? "";
+              const raw = data.token ?? "";
               const delta = cleanStreamDelta(raw);
               if (delta) {
                 streamedText += delta;
@@ -1126,7 +1139,7 @@ export async function streamAssistantTurn(
             content: entry.content,
           })),
         ];
-        callbacks.onStatus?.({ label: strings.chat.thinkingStatus });
+        callbacks.onStatus?.({ label: statusLabel });
       }
 
       // Raggiunto il massimo dei round senza risposta testuale: chiudi comunque.
