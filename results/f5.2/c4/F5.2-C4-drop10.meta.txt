@@ -1,0 +1,8 @@
+cell=F5.2-C4-drop10
+rc=0 elapsed_s=90
+die_start=47.7 die_end=53.7 die_max=74.9
+batt 53 -> 52
+tokens=256 tok_s=.5.245.2410..4.859 compute_s_tok=0.176 io_s_tok=0.079 stall_s_tok=0
+read_mib=1992.5 mib_tok=.5.245.2410..7.78 cache_hit=90.4 n_past=0
+mtp_drafted=0 mtp_accepted=0 mtp_decodes=0 drafted_steps=0 accept_pct=0
+extra=--drop-cold-experts 1.0

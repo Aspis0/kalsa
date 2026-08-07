@@ -1,0 +1,8 @@
+cell=F5.2-C3-mtp3
+rc=1 elapsed_s=13
+die_start=48.9 die_end=52.1 die_max=56.7
+batt 57 -> 57
+tokens=0 tok_s=0 compute_s_tok=0 io_s_tok=0 stall_s_tok=0
+read_mib=0 mib_tok=0 cache_hit=-1 n_past=0
+mtp_drafted=0 mtp_accepted=0 mtp_decodes=0 drafted_steps=0 accept_pct=0
+extra=--mtp --draft 3

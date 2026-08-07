@@ -61,3 +61,6 @@
 [2026-08-07T10:06:06-0400] safety_pre_turn6: OK:die=55.1:batt=78
 [2026-08-07T10:06:06-0400] ---- TURN 6 start clear_kv=false ----
 [2026-08-07T10:06:08-0400] send id=6 bytes=343
+[2026-08-07T10:08:25-0400] TURN 6 FAIL rc=1 line=DEAD
+[2026-08-07T10:08:25-0400] process died during turn 6
+[2026-08-07T10:08:25-0400] sending close

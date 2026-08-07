@@ -1,0 +1,145 @@
+[2026-08-07T11:03:22-0400] === F5.2 START pid=22414 ===
+[2026-08-07T11:03:22-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+[2026-08-07T11:03:22-0400] nproc=6 cpuset=/top-app
+[2026-08-07T11:03:22-0400] LD_LIBRARY_PATH=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/..:
+[2026-08-07T11:03:23-0400] FLAG_OK --compute-trace
+[2026-08-07T11:03:23-0400] FLAG_OK --compute-trace-layers
+[2026-08-07T11:03:23-0400] FLAG_OK --n-expert-used
+[2026-08-07T11:03:23-0400] FLAG_OK --mtp
+[2026-08-07T11:03:23-0400] FLAG_OK --ngram
+[2026-08-07T11:03:23-0400] FLAG_OK --draft
+[2026-08-07T11:03:23-0400] FLAG_OK --drop-cold-experts
+[2026-08-07T11:03:23-0400] battery_start: {
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 28.8,
+  "voltage": 4081,
+  "current": -988000,
+  "current_average": -164,
+  "percentage": 74,
+  "level": 74,
+  "scale": 100,
+  "charge_counter": 2786250,
+  "cycle": 0
+}
+[2026-08-07T11:03:24-0400] safety OK:die=38.9:batt=74:plugged=UNPLUGGED
+[2026-08-07T11:03:26-0400] ======== C1 BEGIN ========
+[2026-08-07T11:03:26-0400] ==== CELL F5.2-C1-300-node oneshot n_ctx=1024 n_pred=48 extra=[--compute-trace /data/data/com.termux/files/home/experiments/results/f5.2/c1/ct_300_node.csv] ====
+[2026-08-07T11:03:27-0400] safety OK:die=39.3:batt=74:plugged=UNPLUGGED
+[2026-08-07T11:03:29-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+[2026-08-07T11:04:29-0400] CELL F5.2-C1-300-node DONE tok_s=.5.215.21300..5.116 compute=0.140 mib_tok=.5.215.21300..40.77 accept=0 die 42.5->65.2 max=90.3 batt 74->73 rc=0
+[2026-08-07T11:04:37-0400] cool OK die=53.9C <= 58C
+[2026-08-07T11:04:37-0400] ==== CELL F5.2-C1-300-layers oneshot n_ctx=1024 n_pred=48 extra=[--compute-trace-layers /data/data/com.termux/files/home/experiments/results/f5.2/c1/ct_300_layers.csv] ====
+[2026-08-07T11:04:38-0400] safety OK:die=50.2:batt=73:plugged=UNPLUGGED
+[2026-08-07T11:05:37-0400] CELL F5.2-C1-300-layers DONE tok_s=.5.215.21300..4.993 compute=0.136 mib_tok=.5.215.21300..40.77 accept=0 die 47.0->63.6 max=91.6 batt 73->73 rc=0
+[2026-08-07T11:05:39-0400] cool OK die=55.3C <= 58C
+[2026-08-07T11:05:39-0400] ==== CELL F5.2-C1-1500-node oneshot n_ctx=2048 n_pred=32 extra=[--compute-trace /data/data/com.termux/files/home/experiments/results/f5.2/c1/ct_1500_node.csv] ====
+[2026-08-07T11:05:40-0400] safety OK:die=56.1:batt=72:plugged=UNPLUGGED
+[2026-08-07T11:05:42-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+[2026-08-07T11:08:20-0400] CELL F5.2-C1-1500-node DONE tok_s=.5.215.211500..3.309 compute=0.220 mib_tok=.5.215.211500..56.42 accept=0 die 51.0->57.7 max=91.2 batt 72->70 rc=0
+[2026-08-07T11:08:23-0400] cool OK die=53.1C <= 58C
+[2026-08-07T11:08:23-0400] ==== CELL F5.2-C1-1500-layers oneshot n_ctx=2048 n_pred=32 extra=[--compute-trace-layers /data/data/com.termux/files/home/experiments/results/f5.2/c1/ct_1500_layers.csv] ====
+[2026-08-07T11:08:25-0400] safety OK:die=48.9:batt=70:plugged=UNPLUGGED
+[2026-08-07T11:11:07-0400] CELL F5.2-C1-1500-layers DONE tok_s=.5.215.211500..4.101 compute=0.177 mib_tok=.5.215.211500..56.42 accept=0 die 45.8->59.3 max=77.0 batt 70->69 rc=0
+[2026-08-07T11:11:08-0400] ======== C1 END ========
+[2026-08-07T11:11:10-0400] cool OK die=52.9C <= 55C
+[2026-08-07T11:11:10-0400] ======== C2a GROWING BEGIN ========
+[2026-08-07T11:11:10-0400] ==== SESSION F5.2-C2a mode=growing turns=5 ====
+[2026-08-07T11:11:14-0400] cold_model for F5.2-C2a
+[2026-08-07T11:11:20-0400] bmoe session pid=4766
+[2026-08-07T11:11:20-0400] waiting BMOE_READY...
+[2026-08-07T11:11:44-0400] READY F5.2-C2a
+[2026-08-07T11:11:46-0400] ---- F5.2-C2a-T1 clear_kv=false ----
+[2026-08-07T11:13:01-0400] F5.2-C2a-T1 DONE n_prompt=96 n_past=352 tok_s=4.211 compute=0.1837 die 54.7->58.1
+[2026-08-07T11:13:03-0400] ---- F5.2-C2a-T2 clear_kv=false ----
+[2026-08-07T11:14:58-0400] F5.2-C2a-T2 DONE n_prompt=435 n_past=691 tok_s=4.064 compute=0.1935 die 52.5->64.8
+[2026-08-07T11:15:00-0400] ---- F5.2-C2a-T3 clear_kv=false ----
+[2026-08-07T11:17:33-0400] F5.2-C2a-T3 DONE n_prompt=774 n_past=1030 tok_s=3.945 compute=0.1979 die 53.1->62.4
+[2026-08-07T11:17:35-0400] ---- F5.2-C2a-T4 clear_kv=false ----
+[2026-08-07T11:20:49-0400] F5.2-C2a-T4 DONE n_prompt=1118 n_past=1374 tok_s=3.866 compute=0.2016 die 53.3->60.1
+[2026-08-07T11:20:51-0400] ---- F5.2-C2a-T5 clear_kv=false ----
+[2026-08-07T11:24:36-0400] F5.2-C2a-T5 DONE n_prompt=1440 n_past=1696 tok_s=4.099 compute=0.1928 die 53.3->64.0
+[2026-08-07T11:24:40-0400] session F5.2-C2a closed
+[2026-08-07T11:24:40-0400] ======== C2a END ========
+[2026-08-07T11:24:42-0400] cool OK die=50.9C <= 55C
+[2026-08-07T11:24:42-0400] ======== C2b TRUNCATED BEGIN ========
+[2026-08-07T11:24:42-0400] ==== SESSION F5.2-C2b mode=truncated turns=5 ====
+[2026-08-07T11:24:47-0400] cold_model for F5.2-C2b
+[2026-08-07T11:24:53-0400] bmoe session pid=21980
+[2026-08-07T11:24:53-0400] waiting BMOE_READY...
+[2026-08-07T11:25:18-0400] READY F5.2-C2b
+[2026-08-07T11:25:20-0400] ---- F5.2-C2b-T1 clear_kv=true ----
+[2026-08-07T11:26:39-0400] F5.2-C2b-T1 DONE n_prompt=96 n_past=352 tok_s=4.109 compute=0.1888 die 56.7->61.7
+[2026-08-07T11:26:41-0400] ---- F5.2-C2b-T2 clear_kv=true ----
+[2026-08-07T11:28:04-0400] F5.2-C2b-T2 DONE n_prompt=85 n_past=341 tok_s=3.845 compute=0.2053 die 55.3->57.7
+[2026-08-07T11:28:06-0400] ---- F5.2-C2b-T3 clear_kv=true ----
+[2026-08-07T11:29:35-0400] F5.2-C2b-T3 DONE n_prompt=86 n_past=342 tok_s=3.690 compute=0.2149 die 52.9->58.5
+[2026-08-07T11:29:37-0400] ---- F5.2-C2b-T4 clear_kv=true ----
+[2026-08-07T11:31:01-0400] F5.2-C2b-T4 DONE n_prompt=90 n_past=346 tok_s=3.892 compute=0.2073 die 53.1->59.1
+[2026-08-07T11:31:04-0400] ---- F5.2-C2b-T5 clear_kv=true ----
+[2026-08-07T11:32:24-0400] F5.2-C2b-T5 DONE n_prompt=68 n_past=304 tok_s=3.600 compute=0.2176 die 52.1->59.7
+[2026-08-07T11:32:29-0400] session F5.2-C2b closed
+[2026-08-07T11:32:29-0400] ======== C2b END ========
+[2026-08-07T11:32:30-0400] cool OK die=50.1C <= 55C
+[2026-08-07T11:32:30-0400] ======== C3 BEGIN ========
+[2026-08-07T11:32:31-0400] ==== CELL F5.2-C3-baseline oneshot n_ctx=2048 n_pred=128 extra=[] ====
+[2026-08-07T11:32:33-0400] safety OK:die=49.3:batt=59:plugged=UNPLUGGED
+[2026-08-07T11:32:35-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+[2026-08-07T11:33:51-0400] CELL F5.2-C3-baseline DONE tok_s=.5.235.23..4.882 compute=0.162 mib_tok=.5.235.23..32.40 accept=0 die 48.5->57.3 max=89.5 batt 59->58 rc=0
+[2026-08-07T11:33:54-0400] cool OK die=51.7C <= 58C
+[2026-08-07T11:33:54-0400] ==== CELL F5.2-C3-ngram3 oneshot n_ctx=2048 n_pred=128 extra=[--ngram --draft 3] ====
+[2026-08-07T11:33:56-0400] safety OK:die=51.3:batt=58:plugged=UNPLUGGED
+[2026-08-07T11:35:09-0400] CELL F5.2-C3-ngram3 DONE tok_s=.5.235.233..4.827 compute=0.162 mib_tok=.5.235.233..32.40 accept=0.0 die 48.5->55.7 max=86.7 batt 58->58 rc=0
+[2026-08-07T11:35:12-0400] cool OK die=51.3C <= 58C
+[2026-08-07T11:35:13-0400] ==== CELL F5.2-C3-ngram5 oneshot n_ctx=2048 n_pred=128 extra=[--ngram --draft 5] ====
+[2026-08-07T11:35:15-0400] safety OK:die=50.5:batt=58:plugged=UNPLUGGED
+[2026-08-07T11:36:27-0400] CELL F5.2-C3-ngram5 DONE tok_s=.5.235.235..5.173 compute=0.153 mib_tok=.5.235.235..32.40 accept=0.0 die 49.3->56.9 max=77.4 batt 57->57 rc=0
+[2026-08-07T11:36:31-0400] cool OK die=52.1C <= 58C
+[2026-08-07T11:36:31-0400] ==== CELL F5.2-C3-mtp3 oneshot n_ctx=2048 n_pred=128 extra=[--mtp --draft 3] ====
+[2026-08-07T11:36:33-0400] safety OK:die=51.3:batt=57:plugged=UNPLUGGED
+[2026-08-07T11:36:54-0400] CELL F5.2-C3-mtp3 DONE tok_s=0 compute=0 mib_tok=0 accept=0 die 48.9->52.1 max=56.7 batt 57->57 rc=1
+[2026-08-07T11:36:56-0400] ======== C3 END ========
+[2026-08-07T11:36:57-0400] cool OK die=52.1C <= 55C
+[2026-08-07T11:36:57-0400] ======== C4 BEGIN ========
+[2026-08-07T11:36:57-0400] ==== CELL F5.2-C4-k8 oneshot n_ctx=2048 n_pred=256 extra=[--n-expert-used 8] ====
+[2026-08-07T11:36:58-0400] safety OK:die=51.0:batt=57:plugged=UNPLUGGED
+[2026-08-07T11:37:01-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+[2026-08-07T11:38:47-0400] CELL F5.2-C4-k8 DONE tok_s=.5.245.248..4.045 compute=0.197 mib_tok=.5.245.248..47.52 accept=0 die 53.1->52.1 max=90.3 batt 57->56 rc=0
+[2026-08-07T11:38:52-0400] cool OK die=50.5C <= 58C
+[2026-08-07T11:38:52-0400] ==== CELL F5.2-C4-k6 oneshot n_ctx=2048 n_pred=256 extra=[--n-expert-used 6] ====
+[2026-08-07T11:38:54-0400] safety OK:die=49.7:batt=56:plugged=UNPLUGGED
+/data/data/com.termux/files/home/experiments/scripts/start_f5_2.sh: line 271: /proc/13292/cmdline: No such file or directory
+[2026-08-07T11:40:50-0400] CELL F5.2-C4-k6 DONE tok_s=.5.245.246..3.719 compute=0.209 mib_tok=.5.245.246..26.14 accept=0 die 48.9->51.7 max=74.1 batt 56->55 rc=0
+[2026-08-07T11:40:54-0400] cool OK die=49.7C <= 58C
+[2026-08-07T11:40:54-0400] ==== CELL F5.2-C4-k4 oneshot n_ctx=2048 n_pred=256 extra=[--n-expert-used 4] ====
+[2026-08-07T11:40:56-0400] safety OK:die=49.3:batt=55:plugged=UNPLUGGED
+[2026-08-07T11:42:27-0400] CELL F5.2-C4-k4 DONE tok_s=.5.245.244..5.296 compute=0.152 mib_tok=.5.245.244..13.12 accept=0 die 47.3->55.7 max=74.1 batt 55->54 rc=0
+[2026-08-07T11:42:31-0400] cool OK die=50.9C <= 58C
+[2026-08-07T11:42:31-0400] ==== CELL F5.2-C4-drop05 oneshot n_ctx=2048 n_pred=256 extra=[--drop-cold-experts 0.5] ====
+[2026-08-07T11:42:34-0400] safety OK:die=50.1:batt=54:plugged=UNPLUGGED
+[2026-08-07T11:44:31-0400] CELL F5.2-C4-drop05 DONE tok_s=.5.245.2405..3.752 compute=0.214 mib_tok=.5.245.2405..38.27 accept=0 die 48.5->51.7 max=72.5 batt 54->53 rc=0
+[2026-08-07T11:44:35-0400] cool OK die=50.5C <= 58C
+[2026-08-07T11:44:35-0400] ==== CELL F5.2-C4-drop10 oneshot n_ctx=2048 n_pred=256 extra=[--drop-cold-experts 1.0] ====
+[2026-08-07T11:44:37-0400] safety OK:die=48.9:batt=53:plugged=UNPLUGGED
+[2026-08-07T11:46:14-0400] CELL F5.2-C4-drop10 DONE tok_s=.5.245.2410..4.859 compute=0.176 mib_tok=.5.245.2410..7.78 accept=0 die 47.7->53.7 max=74.9 batt 53->52 rc=0
+[2026-08-07T11:46:17-0400] ======== C4 END ========
+[2026-08-07T11:46:19-0400] FINAL die=51.3 batt={
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 43.0,
+  "voltage": 3804,
+  "current": -393000,
+  "current_average": -702,
+  "percentage": 52,
+  "level": 52,
+  "scale": 100,
+  "charge_counter": 1995000,
+  "cycle": 0
+}
+[2026-08-07T11:46:19-0400] === F5.2 COMPLETE ===
