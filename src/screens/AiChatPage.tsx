@@ -120,6 +120,8 @@ type Message = {
   role: "user" | "assistant";
   text: string;
   streaming?: boolean;
+  /** Terminal marker: generation was interrupted mid-stream (partial text kept). */
+  interrupted?: boolean;
   // Feature 1: status history
   statusLabel?: string;
   statusHistory?: string[];
@@ -316,6 +318,62 @@ function nextMsgId(prefix: string): string {
 
 // PDF attach rimosso (Fase 3): nessun endpoint remoto, tutto locale.
 
+/**
+ * Build the AsyncStorage payload for chat history.
+ * Normal path skips live streaming messages (no token-churn writes).
+ * With allowStreamingPartial, in-flight assistant bubbles with non-empty text
+ * are written as interrupted partials so a process kill can still restore them.
+ */
+function buildPersistableMessages(
+  messagesSnapshot: Message[],
+  opts?: { allowStreamingPartial?: boolean },
+): Message[] {
+  const allowStreamingPartial = opts?.allowStreamingPartial === true;
+  return messagesSnapshot
+    .filter((message) => {
+      if (!message.streaming) return true;
+      if (!allowStreamingPartial) return false;
+      // Skip empty thinking placeholders — no useful partial to restore.
+      return typeof message.text === "string" && message.text.trim().length > 0;
+    })
+    .map((message) => {
+      const attachments = message.attachments?.map((a) => ({
+        id: a.id,
+        kind: a.kind,
+        name: a.name,
+        uri: "",
+        ...(typeof a.pageCount === "number" && a.pageCount > 0 ? { pageCount: a.pageCount } : {}),
+      }));
+      if (message.streaming && allowStreamingPartial) {
+        return {
+          ...message,
+          streaming: undefined,
+          statusLabel: undefined,
+          statusHistory: undefined,
+          interrupted: true,
+          attachments,
+        };
+      }
+      return {
+        ...message,
+        streaming: undefined,
+        statusHistory: undefined,
+        attachments,
+      };
+    });
+}
+
+/** Immediate history write (AppState / unmount / throttle) — fire-and-forget. */
+function persistMessagesNow(
+  messagesSnapshot: Message[],
+  opts?: { allowStreamingPartial?: boolean },
+): void {
+  if (!messagesSnapshot.length) return;
+  const clean = buildPersistableMessages(messagesSnapshot, opts);
+  if (!clean.length) return;
+  AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(clean)).catch(() => undefined);
+}
+
 /** Sanitizza lo storico persistito: ogni campo (anche annidato) è validato, niente crash su payload corrotti. */
 function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
   if (!Array.isArray(raw)) return [];
@@ -343,6 +401,12 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
       text: record.text.slice(0, MAX_TEXT),
       createdAt: typeof record.createdAt === "number" ? record.createdAt : Date.now(),
     };
+    // interrupted is terminal (partial kept after kill) — restore so the UI marker shows.
+    // Only with non-empty text so a corrupt payload cannot render a floating marker.
+    // Transient `streaming` is never restored (no eternal spinners).
+    if (record.interrupted === true && message.text.trim().length > 0) {
+      message.interrupted = true;
+    }
     // Gli stati transitori non vengono mai ripristinati: niente spinner eterni.
     if (typeof record.statusLabel === "string") message.statusLabel = record.statusLabel.slice(0, 200);
     if (Array.isArray(record.statusHistory) && record.statusHistory.length <= MAX_ITEMS) {
@@ -498,6 +562,12 @@ export function AiChatPage({
 
   // ── Persistenza conversazione (Fase 1) ──────────────────────────────────
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  /** Always mirrors latest messages for flush paths (AppState / unmount / throttle). */
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  /** Throttle for mid-stream safety-net persists (at most once / 10s). */
+  const lastPartialPersistAtRef = useRef(0);
+
   useEffect(() => {
     let mounted = true;
     AsyncStorage.getItem(HISTORY_KEY)
@@ -523,31 +593,39 @@ export function AiChatPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Debounced normal path: skip while any turn is streaming so the 400ms quiet
+  // gap cannot clobber a throttled/AppState partial (drops streaming messages).
+  // Partials are owned exclusively by the 10s throttle + AppState/unmount flushes;
+  // on completion (streaming cleared) this path resumes and overwrites the partial.
   useEffect(() => {
     if (!historyLoaded || !messages.length) return;
+    if (messages.some((m) => m.streaming)) return;
     const timer = setTimeout(() => {
-      // Normalizza lo stato transitorio: niente streaming parziale persistito
-      // (i messaggi in corso vengono saltati del tutto).
-      // X4: attachments[].uri/pages are local file:// cache paths — never valid
-      // after reload. Strip them here to mirror sanitizeHistoryMessages (read
-      // side) exactly, so nothing sensitive/dangling ever reaches AsyncStorage.
-      const clean = messages
-        .filter((message) => !message.streaming)
-        .map((message) => ({
-          ...message,
-          streaming: undefined,
-          statusHistory: undefined,
-          attachments: message.attachments?.map((a) => ({
-            id: a.id,
-            kind: a.kind,
-            name: a.name,
-            uri: "",
-            ...(typeof a.pageCount === "number" && a.pageCount > 0 ? { pageCount: a.pageCount } : {}),
-          })),
-        }));
-      AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(clean)).catch(() => undefined);
+      // X4: attachments[].uri/pages stripped inside buildPersistableMessages.
+      persistMessagesNow(messages);
     }, 400);
     return () => clearTimeout(timer);
+  }, [historyLoaded, messages]);
+
+  // Safety net while streaming: at most one partial persist every 10s.
+  useEffect(() => {
+    const streamingWithText = messages.some(
+      (m) => m.streaming && typeof m.text === "string" && m.text.trim().length > 0,
+    );
+    if (!streamingWithText) {
+      lastPartialPersistAtRef.current = 0;
+      return;
+    }
+    if (!historyLoaded) return;
+    const now = Date.now();
+    if (
+      lastPartialPersistAtRef.current !== 0 &&
+      now - lastPartialPersistAtRef.current < 10_000
+    ) {
+      return;
+    }
+    lastPartialPersistAtRef.current = now;
+    persistMessagesNow(messages, { allowStreamingPartial: true });
   }, [historyLoaded, messages]);
 
   // Feature 4: attach state (immagini/foto/PDF → vision)
@@ -671,9 +749,18 @@ export function AiChatPage({
   }, []);
 
   // Background / inactive → cancel capture + invalidate pending transcription.
+  // Also flush any in-flight assistant partial so a process kill can restore it.
   useEffect(() => {
     const onAppState = (next: AppStateStatus) => {
       if (next === "background" || next === "inactive") {
+        const snap = messagesRef.current;
+        if (
+          snap.some(
+            (m) => m.streaming && typeof m.text === "string" && m.text.trim().length > 0,
+          )
+        ) {
+          persistMessagesNow(snap, { allowStreamingPartial: true });
+        }
         if (isCapturing() || voiceBusyRef.current || voiceUi !== "idle") {
           invalidateVoice();
         } else {
@@ -930,6 +1017,9 @@ export function AiChatPage({
 
   useEffect(() => {
     return () => {
+      // Flush partial from ref BEFORE abort: updateMessage no-ops once unmounted,
+      // and finally may never rewrite state — ref still holds latest streamed text.
+      persistMessagesNow(messagesRef.current, { allowStreamingPartial: true });
       mountedRef.current = false;
       abortRef.current?.abort();
       translateAbortRef.current?.abort();
@@ -1230,20 +1320,60 @@ export function AiChatPage({
           // Extract miniapp JSON from the final assistant text (local models emit
           // schema miniapp_v1 in the prose / fenced block; cloud path may also
           // call onMiniapp directly).
-          setMessages((prev) =>
-            prev.map((message) => {
-              if (message.id !== assistantId) return message;
-              const base = { ...message, streaming: false, statusLabel: undefined };
-              if (base.miniapp) return base;
-              const extracted = parseMiniappFromText(base.text || "");
-              if (!extracted.miniapp) return base;
-              return {
-                ...base,
-                text: extracted.text || base.text,
-                miniapp: extracted.miniapp as Message["miniapp"],
-              };
-            }),
-          );
+          // Abort-with-partial → interrupted marker; successful completion clears it.
+          // Gate on sendRunId so a clearChat mid-turn cannot resurrect wiped history
+          // via messagesRef + persistMessagesNow (clearChat bumps sendRunId first).
+          if (sendRunIdRef.current === runId) {
+            const wasInterrupted = controller.signal.aborted && anyTextStreamed;
+            // Finalize via functional updater so we compose over any queued final
+            // onDelta (⚠️ error text, thinkStream final, miniapp payload) that has
+            // not committed yet under Fabric. Compute the snapshot INSIDE the
+            // updater (prev is queue-applied), stash the result, then flush
+            // storage from that same array — not messagesRef (stale pre-commit).
+            // Persist is fire-and-forget / invocation-level only: a kill before
+            // the AsyncStorage write lands can still leave the last throttle
+            // partial (interrupted:true) on disk; acceptable by design.
+            const applyFinalize = (prev: Message[]): Message[] => {
+              const next = prev.map((message) => {
+                if (message.id !== assistantId) return message;
+                const base: Message = {
+                  ...message,
+                  streaming: false,
+                  statusLabel: undefined,
+                  interrupted: wasInterrupted ? true : undefined,
+                };
+                if (base.miniapp) return base;
+                const extracted = parseMiniappFromText(base.text || "");
+                if (!extracted.miniapp) return base;
+                return {
+                  ...base,
+                  text: extracted.text || base.text,
+                  miniapp: extracted.miniapp as Message["miniapp"],
+                };
+              });
+              // Keep ref in lockstep so AppState/unmount flushes cannot re-read
+              // a pre-finalize streaming bubble during the pre-commit window.
+              messagesRef.current = next;
+              return next;
+            };
+            if (mountedRef.current) {
+              // Stash the updater's return value so persist uses the same array
+              // scheduled into React state (includes any queued final delta —
+              // the updater receives the queue-applied prev).
+              let finalized: Message[] | null = null;
+              setMessages((prev) => {
+                finalized = applyFinalize(prev);
+                // Persist from the stashed snapshot. Eager path: runs sync
+                // when setMessages is called. Deferred path (pending final
+                // onDelta lanes): runs at render after React applies the
+                // queued delta first — still the correct composed result.
+                persistMessagesNow(finalized);
+                return finalized;
+              });
+            } else {
+              persistMessagesNow(applyFinalize(messagesRef.current));
+            }
+          }
         }
         // U1: only reset the global sending indicators if this is still the
         // latest turn — clearChat() already reset them synchronously for a
@@ -1287,6 +1417,9 @@ export function AiChatPage({
     sendingRef.current = false;
     setSending(false);
     setMessages([]);
+    // Sync ref immediately so AppState/unmount/throttle flushes cannot
+    // re-persist pre-clear messages during the Fabric pre-commit window.
+    messagesRef.current = [];
     setLongChatNudgeShown(false);
     setDraft("");
     // U9: reset any in-flight PDF conversion so a stale WebView/instance never
@@ -1937,6 +2070,12 @@ export function AiChatPage({
                   </Pressable>
                   ) : null
                 )}
+
+                {m.interrupted ? (
+                  <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
+                    {t("chat.interrupted")}
+                  </Text>
+                ) : null}
 
                 {translatingId === m.id ? (
                   <View

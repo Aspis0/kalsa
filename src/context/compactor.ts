@@ -87,6 +87,8 @@ export interface DigestIndex {
 export type HistoryRoleMessage = {
   role: "user" | "assistant";
   text: string;
+  /** Terminal partial kept after kill/abort — exclude from BM25/summary corpus. */
+  interrupted?: boolean;
 };
 
 export type EngineHistoryMessage = {

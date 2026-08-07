@@ -285,6 +285,7 @@ export const en = {
     welcomePrompt: "What do you want to investigate today?",
     thinking: "Thinking…",
     thinkingStatus: "Thinking",
+    interrupted: "Generation was interrupted.",
     searching: "Searching the web…",
     fetching: "Fetching page…",
     today: "Today · {time}",

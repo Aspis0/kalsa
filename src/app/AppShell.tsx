@@ -175,9 +175,10 @@ let summaryDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const SUMMARY_IDLE_DEBOUNCE_MS = 8_000;
 
 /**
- * Exclude error bubbles and abort-orphaned user turns from digest/summary
- * corpora. Engine history assembly is untouched.
+ * Exclude error bubbles, kill-recovered partials, and abort-orphaned user turns
+ * from digest/summary corpora. Engine history assembly is untouched.
  * - assistant text starting with "⚠️" → skip
+ * - assistant with interrupted === true → skip (truncated kill-recovered fragment)
  * - user with no assistant reply immediately after → skip (except last message)
  */
 function filterCorpusHygiene(
@@ -189,6 +190,7 @@ function filterCorpusHygiene(
     const m = messages[i];
     if (!m) continue;
     if (m.role === "assistant" && m.text.startsWith("⚠️")) continue;
+    if (m.role === "assistant" && m.interrupted === true) continue;
     if (m.role === "user") {
       const isLast = i === messages.length - 1;
       if (!isLast) {
@@ -319,10 +321,15 @@ function validateHistoryMessages(history: unknown[] | undefined): HistoryRoleMes
       ((m as { role?: unknown }).role === "user" ||
         (m as { role?: unknown }).role === "assistant")
     ) {
-      out.push({
-        role: (m as { role: "user" | "assistant" }).role,
-        text: (m as { text: string }).text,
-      });
+      const role = (m as { role: "user" | "assistant" }).role;
+      const text = (m as { text: string }).text;
+      const interrupted =
+        (m as { interrupted?: unknown }).interrupted === true ? true : undefined;
+      out.push(
+        interrupted !== undefined
+          ? { role, text, interrupted }
+          : { role, text },
+      );
     }
   }
   return out;
