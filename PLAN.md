@@ -945,6 +945,95 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 — 🔴 F5.1: IL PROBLEMA N.1 DEL PRODOTTO NON È LA VELOCITÀ. Ogni messaggio
+  ri-prefilla l'intera conversazione: 165 s di attesa al quinto turno. E la cache degli
+  esperti invece persiste — le due persistenze hanno esito opposto.**
+
+  Prima conversazione vera della campagna: 5 turni consecutivi in `--session`, **senza
+  cooldown**, italiano, contesto che cresce davvero (viaggio in Sicilia, budget, vincolo
+  bambino). Report `reports/moe-f5.1.md`.
+
+  ### Misura A — le due persistenze, esiti opposti
+
+  | turno | n_prompt | TTFT | hit% |
+  |---:|---:|---:|---:|
+  | 1 | 97 | **9.1 s** | 79.6 |
+  | 2 | **436** | **41.2 s** | 77.6 |
+  | 3 | **776** | **76.3 s** | 76.3 |
+  | 4 | **1119** | **123.9 s** | 76.1 |
+  | 5 | **1441** | **165.3 s** | 75.9 |
+
+  - **KV: PER-MESSAGGIO.** `n_prompt` non è il messaggio nuovo (~80-100 token): è **l'intero
+    contesto accumulato**, e cresce di ~+330 a turno. Il TTFT scala quasi linearmente.
+  - **Cache esperti: CALDA.** 79.6 → 75.9%, non crolla al ~3% da freddo. **Sopravvive fra i
+    turni.** Era la distinzione che avevo chiesto di fare, ed era giusto farla: gli esperti sì,
+    il KV no.
+
+  **Precisione che il report tiene bene**: non dice che il KV «non esiste», dice che l'API di
+  sessione con `clear_kv=false` + `--chatml` **ri-prefilla**. Cioè è un problema di **riuso del
+  prefisso**, non di memoria. È esattamente ciò che `llama-server` risolve col match del
+  prefisso comune. **Ingegneria, non ricerca.**
+
+  ### L'aritmetica dell'esperienza utente
+
+  ```
+  turno 1:   9 s di attesa + 256 tok / 4.78 tok/s =  54 s  ⇒   63 s
+  turno 5: 165 s di attesa + 256 tok / 3.54 tok/s =  72 s  ⇒  237 s   (~4 minuti)
+                ↑ il 70% del turno è ri-lettura di ciò che il modello ha già letto
+  ```
+
+  Con il prefill incrementale il turno 5 diventerebbe `~10 s + 72 s ≈ 82 s`: **−65% di latenza
+  percepita**, senza toccare né il decode né la qualità né un solo bit del modello.
+
+  **Questa voce scavalca tutto il resto del piano**, kernel IQ2 compreso: nessuna ottimizzazione
+  del decode può recuperare 165 secondi, e il decode è la parte che l'utente aspetta *meno*.
+
+  ### Misura B — il sostenuto non regge, e il calo NON è solo termico
+
+  | turno | tok/s | compute | stall | die inizio→fine (picco) |
+  |---:|---:|---:|---:|---|
+  | 1 | 4.776 | 0.159 | 0.040 | 64.4→64.4 (90.3) |
+  | 2 | 4.274 | 0.180 | 0.041 | 53.1→59.9 (75.8) |
+  | 3 | 3.843 | 0.204 | 0.041 | 52.1→58.9 (73.3) |
+  | 4 | 3.800 | 0.205 | 0.044 | 53.9→60.1 (72.1) |
+  | 5 | **3.539** | **0.225** | 0.044 | 51.8→59.3 (73.3) |
+
+  **−26% su cinque turni**, discesa monotona, sotto 4.0 dal terzo. Il criterio di prodotto
+  («ultimi 3 entro il 10% e sopra 4.0») **non regge**.
+
+  **Ma il die NON accumula**: respira fra 72-76 °C nei turni e 52-55 °C in mezzo, senza deriva
+  verso i 98. Eppure `compute` sale del **41%** mentre `stall` resta piatto a 0.04. Quindi il
+  termico non basta a spiegarlo, e il candidato è il **contesto che cresce**: i 10 layer di
+  attenzione piena costano di più man mano che la sequenza si allunga. **È un secondo effetto
+  sul calcolo, strutturale e distinto dal throttling**, e nessuna delle nostre misure precedenti
+  poteva vederlo perché erano tutte a contesto fisso e corto.
+
+  **Da separare con una misura** (facile): due sequenze di turni, una a contesto che cresce e
+  una a contesto troncato costante, stessa durata. Se il calo resta solo nella prima, è il
+  contesto; se c'è in entrambe, è termico.
+
+  ### Misura C — quello che è venuto gratis
+
+  - **Qualità multi-turno: sufficiente.** Il filo regge su 5 turni (il T3 cita esplicitamente i
+    vincoli introdotti prima), nessuna parola malformata evidente. Difetti: qualche imprecisione
+    geografica e una confusione sul budget. Il troncamento a metà frase è **artefatto di
+    `-n 256`**, non del modello.
+  - **Sopravvivenza: OK.** RSS stabile 3.8-4.1 GB, nessun kill di lmkd, sessione ancora viva al
+    turno 6.
+  - **Sicurezza: mai sopra 98 °C**, batteria 85 → 78%.
+
+  ### Riordino delle priorità
+
+  | # | cosa | perché ora |
+  |---|---|---|
+  | **1** | **prefill incrementale (riuso del prefisso)** | **−65% di latenza percepita al turno 5. Ingegneria nota, non ricerca** |
+  | 2 | `--compute-trace` | dove vanno i 0.159→0.225 s/token — e **quanto è attenzione contro esperti** al crescere del contesto |
+  | 3 | separare termico da contesto | una misura, decide se il calo è governabile |
+  | 4 | `--ngram` / `--mtp` | F6 sull'asse RAM |
+  | 5 | `--n-expert-used` | leva diretta su calcolo e traffico |
+  | 6 | ri-quantizzazione Q4_0/IQ4_NL | versione economica del kernel |
+  | 7 | kernel IQ2 a mano | solo se 2 lo giustifica e 6 non basta |
+
 - **2026-08-07 — RILETTURA DEL PIANO PRIMA DEL KERNEL (richiesta di gualt). Il runtime contiene
   già un profiler del calcolo, un motore di speculazione e un override del top-k, e non ne
   abbiamo mai usato nessuno. Inoltre due delle sei ipotesi vanno rivalutate, e MTP l'ho ucciso
