@@ -5,7 +5,6 @@ import {
   AppState,
   type AppStateStatus,
   Image,
-  KeyboardAvoidingView,
   Linking,
   Modal,
   Platform,
@@ -16,6 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BarChart2,
@@ -1589,16 +1589,13 @@ export function AiChatPage({
   }
 
   return (
-    // KeyboardAvoidingView behavior="padding" on BOTH platforms. On Android,
-    // "height" pins the KAV to _initialFrameHeight captured once at mount and
-    // only recomputes when the KAV's own height changes — so when content
-    // ABOVE it grows while the keyboard is open (AppShell header: modelError,
-    // the 4-line error hint, the download progress bar), the KAV slides down
-    // and its bottom ends up under the IME with no recompute ever firing.
-    // "padding" recomputes from the current frame on every keyboard event, and
-    // since this KAV is the bottom-anchored last child of a full-height column
-    // the padding always equals exactly the IME height (no
-    // keyboardVerticalOffset needed).
+    // react-native-keyboard-controller KAV (not core RN). Edge-to-edge is
+    // mandatory since SDK 53 / Android 15: soft-input adjustResize behaves like
+    // adjustNothing, so core KeyboardAvoidingView under-compensates and leaves
+    // the composer half-hidden under the IME (Android 16 field bug). This KAV
+    // tracks IME WindowInsetsAnimation natively and works on both platforms
+    // with behavior="padding". No keyboardVerticalOffset — the KAV is the
+    // bottom-anchored last child of a full-height column.
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.shell }}
       behavior="padding"

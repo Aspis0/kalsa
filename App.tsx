@@ -3,6 +3,7 @@ import * as Notifications from "expo-notifications";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StatusBar } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 // Mostra le notifiche locali anche con l'app in foreground.
@@ -152,9 +153,11 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <LocaleProvider>
-          <AppContent />
-        </LocaleProvider>
+        <KeyboardProvider>
+          <LocaleProvider>
+            <AppContent />
+          </LocaleProvider>
+        </KeyboardProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
