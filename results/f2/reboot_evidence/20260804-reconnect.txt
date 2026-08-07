@@ -1,0 +1,47 @@
+# F2 mid-run connectivity loss — reboot evidence
+collected_at_pc: 2026-08-04T08:32:02-04:00
+
+## adb getprop
+SM-S911U
+reboot
+reboot,1785830074
+reboot,1785814458
+reboot,1785814000
+reboot,1785807578
+reboot
+reboot
+
+## boot_id / uptime (via SSH after restore)
+29e4a732-8534-439c-9c02-7a07d11e7f1e
+ 08:32:05 up  4:37,  load average: 0.41, 1.19, 1.26
+2026-08-04T08:32:05-04:00
+
+## battery at reconnect
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 28.0,
+  "voltage": 3901,
+  "current": -1082,
+  "current_average": -184,
+  "percentage": 58,
+  "level": 58,
+  "scale": 100,
+  "charge_counter": 2178750,
+  "cycle": 0
+}
+
+## dropbox/pstore
+dropbox: Permission denied (unrooted)
+pstore: Permission denied (unrooted)
+last_kmsg: Permission denied
+
+## interpretation
+CONFIRMED REBOOT: ro.boot.bootreason=reboot; sys.boot.reason=reboot;
+persist.sys.boot.reason.history contains multiple reboot,<epoch> entries.
+Current uptime ~4.5h at reconnect (~08:30 EDT 2026-08-04).
+F2.2 last successful CSV row: ...-032226 (ctx512 rep1) at 03:22;
+resume attempt at 03:52 then connectivity lost; device later rebooted.

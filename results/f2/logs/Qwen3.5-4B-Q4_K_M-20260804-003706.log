@@ -1,0 +1,8 @@
+=== run_bench ===
+run_id=Qwen3.5-4B-Q4_K_M-20260804-003706 phase=F1 runtime=mainline run_type=warm
+model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf quant=Q4_K_M
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=512 kv=q8_0 n_gen=128
+flags=
+batt_plugged=UNPLUGGED batt_temp_start=29.3
+log=/data/data/com.termux/files/home/experiments/results/logs/Qwen3.5-4B-Q4_K_M-20260804-003706.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-04T00:37:31-04:00 ---

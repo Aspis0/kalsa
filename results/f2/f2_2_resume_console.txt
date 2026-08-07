@@ -1,0 +1,769 @@
+2026-08-04T08:33:18-04:00 === start F2.2 model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli ===
+2026-08-04T08:33:18-04:00 STAGE threads {4,5,6} with c=1024 kv=q8_0
+2026-08-04T08:33:18-04:00 skip already have 3>=3 rows for t=4 c=1024 kv=q8_0
+2026-08-04T08:33:18-04:00 skip already have 3>=3 rows for t=5 c=1024 kv=q8_0
+2026-08-04T08:33:18-04:00 skip already have 3>=3 rows for t=6 c=1024 kv=q8_0
+2026-08-04T08:33:18-04:00 median threads t=4 → 5.30
+2026-08-04T08:33:18-04:00 median threads t=5 → 4.70
+2026-08-04T08:33:18-04:00 median threads t=6 → 4.20
+2026-08-04T08:33:19-04:00 BEST threads → 4
+2026-08-04T08:33:19-04:00 STAGE ctx {512,1024,4096} with t=4 kv=q8_0
+2026-08-04T08:33:19-04:00 measure ctx rep 2/3 t=4 c=512 kv=q8_0
+2026-08-04T08:33:19-04:00 gate OK plugged=UNPLUGGED temp=28.0
+--- preflight ISA (PREFLIGHT_ISA=auto mode=scientific_mandatory) ---
+=== preflight_llama_isa ===
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli
+build_dir=/data/data/com.termux/files/home/src/llama.cpp/build-safe
+arm_arch=<none>
+OK: binario regolare eseguibile (/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli)
+cache: GGML_NATIVE:BOOL=OFF
+cache: GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+OK: GGML_NATIVE=OFF
+OK: GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16
+OK: compile_commands.json presente
+compile flags -march:
+  -march=armv8.2-a+dotprod+i8mm+fp16
+OK: -march matcha ARM_ARCH (armv8.2-a+dotprod+i8mm+fp16)
+cpu Features: Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+OK: asimddp (dotprod) in /proc/cpuinfo
+OK: i8mm in /proc/cpuinfo
+OK: fp16 (fphp/asimdhp) in /proc/cpuinfo
+--- /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli --version (no model) ---
+version: 1 (67d5978)
+built with Clang 21.1.8 for Android aarch64
+OK: version/help exit=0
+--- static scan /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so (sve/sme) ---
+OK: nessun smstart/smstop in /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so
+=== PREFLIGHT OK ===
+=== run_bench ===
+run_id=Qwen3.5-4B-Q4_K_M-20260804-083319 phase=F2.2 runtime=mainline run_type=warm
+model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf quant=Q4_K_M
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=512 kv=q8_0 n_gen=128
+flags=
+batt_plugged=UNPLUGGED batt_temp_start=28.0
+log=/data/data/com.termux/files/home/experiments/results/logs/Qwen3.5-4B-Q4_K_M-20260804-083319.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-04T08:33:22-04:00 ---
+llama_pid=18619 tee_pid=18617
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   **Role:** Helpful technical assistant.
+    *   **Task:** Answer a specific technical question about LLM inference on a modern smartphone (8GB RAM, UFS 3.1 flash).
+    *   **Question:** Why does a dense 4B model run smoothly while a 35B MoE model (3B active params) needs careful expert streaming from flash?
+    *   **Constraints:**
+        *   Clear, plain English.
+        *   One short paragraph.
+        *   Two bullet points.
+
+[ Prompt: 32.8 t/s | Generation: 8.9 t/s ]
+
+
+Exiting...
+--- llama end rc=0 2026-08-04T08:33:49-04:00 ---
+=== CSV row written → /data/data/com.termux/files/home/experiments/results/runs.csv ===
+Qwen3.5-4B-Q4_K_M-20260804-083319,2026-08-04T08:33:19-04:00,F2.2,Qwen3.5-4B-Q4_K_M.gguf,Q4_K_M,2.74,mainline,67d5978,,4,512,q8_0,128,warm,short,32.80,8.90,,11707,914486,3605245952,4495,12,28.0,31.0,,F2.2 ctx t=4 c=512 kv=q8_0 rep=2
+prompt_tok_s=32.80 eval_tok_s=8.90 ttft_ms=
+majflt_delta=11707 minflt_delta=914486 read_bytes_delta=3605245952
+vmrss_peak_mb=4495 memfree_min_mb=12
+batt_temp_start=28.0 batt_temp_end=31.0
+2026-08-04T08:34:13-04:00 measure ctx rep 3/3 t=4 c=512 kv=q8_0
+2026-08-04T08:34:13-04:00 gate OK plugged=UNPLUGGED temp=31.0
+--- preflight ISA (PREFLIGHT_ISA=auto mode=scientific_mandatory) ---
+=== preflight_llama_isa ===
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli
+build_dir=/data/data/com.termux/files/home/src/llama.cpp/build-safe
+arm_arch=<none>
+OK: binario regolare eseguibile (/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli)
+cache: GGML_NATIVE:BOOL=OFF
+cache: GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+OK: GGML_NATIVE=OFF
+OK: GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16
+OK: compile_commands.json presente
+compile flags -march:
+  -march=armv8.2-a+dotprod+i8mm+fp16
+OK: -march matcha ARM_ARCH (armv8.2-a+dotprod+i8mm+fp16)
+cpu Features: Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+OK: asimddp (dotprod) in /proc/cpuinfo
+OK: i8mm in /proc/cpuinfo
+OK: fp16 (fphp/asimdhp) in /proc/cpuinfo
+--- /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli --version (no model) ---
+version: 1 (67d5978)
+built with Clang 21.1.8 for Android aarch64
+OK: version/help exit=0
+--- static scan /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so (sve/sme) ---
+OK: nessun smstart/smstop in /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so
+=== PREFLIGHT OK ===
+=== run_bench ===
+run_id=Qwen3.5-4B-Q4_K_M-20260804-083413 phase=F2.2 runtime=mainline run_type=warm
+model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf quant=Q4_K_M
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=512 kv=q8_0 n_gen=128
+flags=
+batt_plugged=UNPLUGGED batt_temp_start=31.0
+log=/data/data/com.termux/files/home/experiments/results/logs/Qwen3.5-4B-Q4_K_M-20260804-083413.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-04T08:34:17-04:00 ---
+llama_pid=19327 tee_pid=19325
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   **Role:** Helpful technical assistant.
+    *   **Task:** Answer a specific technical question about LLM inference on a modern smartphone (8GB RAM, UFS 3.1 flash).
+    *   **Question:** Why does a dense 4B model run smoothly while a 35B MoE model (3B active params) needs careful expert streaming from flash?
+    *   **Constraints:**
+        *   Clear, plain English.
+        *   One short paragraph.
+        *   Two bullet points.
+
+[ Prompt: 32.4 t/s | Generation: 8.7 t/s ]
+
+
+Exiting...
+--- llama end rc=0 2026-08-04T08:34:41-04:00 ---
+=== CSV row written → /data/data/com.termux/files/home/experiments/results/runs.csv ===
+Qwen3.5-4B-Q4_K_M-20260804-083413,2026-08-04T08:34:13-04:00,F2.2,Qwen3.5-4B-Q4_K_M.gguf,Q4_K_M,2.74,mainline,67d5978,,4,512,q8_0,128,warm,short,32.40,8.70,,191837,912306,798965760,4373,36,31.0,31.2,,F2.2 ctx t=4 c=512 kv=q8_0 rep=3
+prompt_tok_s=32.40 eval_tok_s=8.70 ttft_ms=
+majflt_delta=191837 minflt_delta=912306 read_bytes_delta=798965760
+vmrss_peak_mb=4373 memfree_min_mb=36
+batt_temp_start=31.0 batt_temp_end=31.2
+2026-08-04T08:35:04-04:00 skip already have 3>=3 rows for t=4 c=1024 kv=q8_0
+2026-08-04T08:35:04-04:00 measure ctx rep 1/3 t=4 c=4096 kv=q8_0
+2026-08-04T08:35:04-04:00 WAIT: temp 33.3 > 32.0 — sleeping 60s
+2026-08-04T08:36:05-04:00 gate OK plugged=UNPLUGGED temp=31.7
+--- preflight ISA (PREFLIGHT_ISA=auto mode=scientific_mandatory) ---
+=== preflight_llama_isa ===
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli
+build_dir=/data/data/com.termux/files/home/src/llama.cpp/build-safe
+arm_arch=<none>
+OK: binario regolare eseguibile (/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli)
+cache: GGML_NATIVE:BOOL=OFF
+cache: GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+OK: GGML_NATIVE=OFF
+OK: GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16
+OK: compile_commands.json presente
+compile flags -march:
+  -march=armv8.2-a+dotprod+i8mm+fp16
+OK: -march matcha ARM_ARCH (armv8.2-a+dotprod+i8mm+fp16)
+cpu Features: Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+OK: asimddp (dotprod) in /proc/cpuinfo
+OK: i8mm in /proc/cpuinfo
+OK: fp16 (fphp/asimdhp) in /proc/cpuinfo
+--- /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli --version (no model) ---
+version: 1 (67d5978)
+built with Clang 21.1.8 for Android aarch64
+OK: version/help exit=0
+--- static scan /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so (sve/sme) ---
+OK: nessun smstart/smstop in /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so
+=== PREFLIGHT OK ===
+=== run_bench ===
+run_id=Qwen3.5-4B-Q4_K_M-20260804-083605 phase=F2.2 runtime=mainline run_type=warm
+model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf quant=Q4_K_M
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=4096 kv=q8_0 n_gen=128
+flags=
+batt_plugged=UNPLUGGED batt_temp_start=31.7
+log=/data/data/com.termux/files/home/experiments/results/logs/Qwen3.5-4B-Q4_K_M-20260804-083605.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-04T08:36:09-04:00 ---
+llama_pid=20074 tee_pid=20072
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   **Role:** Helpful technical assistant.
+    *   **Task:** Answer a specific technical question about LLM inference on a modern smartphone (8GB RAM, UFS 3.1 flash).
+    *   **Question:** Why does a dense 4B model run smoothly while a 35B MoE model (3B active params) needs careful expert streaming from flash?
+    *   **Constraints:**
+        *   Clear, plain English.
+        *   One short paragraph.
+        *   Two bullet points.
+
+[ Prompt: 31.0 t/s | Generation: 8.5 t/s ]
+
+
+Exiting...
+--- llama end rc=0 2026-08-04T08:36:34-04:00 ---
+=== CSV row written → /data/data/com.termux/files/home/experiments/results/runs.csv ===
+Qwen3.5-4B-Q4_K_M-20260804-083605,2026-08-04T08:36:05-04:00,F2.2,Qwen3.5-4B-Q4_K_M.gguf,Q4_K_M,2.74,mainline,67d5978,,4,4096,q8_0,128,warm,short,31.00,8.50,,111751,928159,1642676224,4255,56,31.7,31.7,,F2.2 ctx t=4 c=4096 kv=q8_0 rep=1
+prompt_tok_s=31.00 eval_tok_s=8.50 ttft_ms=
+majflt_delta=111751 minflt_delta=928159 read_bytes_delta=1642676224
+vmrss_peak_mb=4255 memfree_min_mb=56
+batt_temp_start=31.7 batt_temp_end=31.7
+2026-08-04T08:36:55-04:00 measure ctx rep 2/3 t=4 c=4096 kv=q8_0
+2026-08-04T08:36:56-04:00 WAIT: temp 33.9 > 32.0 — sleeping 60s
+2026-08-04T08:37:56-04:00 WAIT: temp 32.3 > 32.0 — sleeping 60s
+2026-08-04T08:38:57-04:00 WAIT: temp 32.3 > 32.0 — sleeping 60s
+2026-08-04T08:39:57-04:00 WAIT: temp 32.3 > 32.0 — sleeping 60s
+2026-08-04T08:41:17-04:00 gate OK plugged=UNPLUGGED temp=31.2
+--- preflight ISA (PREFLIGHT_ISA=auto mode=scientific_mandatory) ---
+=== preflight_llama_isa ===
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli
+build_dir=/data/data/com.termux/files/home/src/llama.cpp/build-safe
+arm_arch=<none>
+OK: binario regolare eseguibile (/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli)
+cache: GGML_NATIVE:BOOL=OFF
+cache: GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+OK: GGML_NATIVE=OFF
+OK: GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16
+OK: compile_commands.json presente
+compile flags -march:
+  -march=armv8.2-a+dotprod+i8mm+fp16
+OK: -march matcha ARM_ARCH (armv8.2-a+dotprod+i8mm+fp16)
+cpu Features: Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+OK: asimddp (dotprod) in /proc/cpuinfo
+OK: i8mm in /proc/cpuinfo
+OK: fp16 (fphp/asimdhp) in /proc/cpuinfo
+--- /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli --version (no model) ---
+version: 1 (67d5978)
+built with Clang 21.1.8 for Android aarch64
+OK: version/help exit=0
+--- static scan /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so (sve/sme) ---
+OK: nessun smstart/smstop in /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so
+=== PREFLIGHT OK ===
+=== run_bench ===
+run_id=Qwen3.5-4B-Q4_K_M-20260804-084117 phase=F2.2 runtime=mainline run_type=warm
+model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf quant=Q4_K_M
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=4096 kv=q8_0 n_gen=128
+flags=
+batt_plugged=UNPLUGGED batt_temp_start=31.2
+log=/data/data/com.termux/files/home/experiments/results/logs/Qwen3.5-4B-Q4_K_M-20260804-084117.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-04T08:41:33-04:00 ---
+llama_pid=21417 tee_pid=21415
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   **Role:** Helpful technical assistant.
+    *   **Task:** Answer a specific technical question about LLM inference on a modern smartphone (8GB RAM, UFS 3.1 flash).
+    *   **Question:** Why does a dense 4B model run smoothly while a 35B MoE model (3B active params) needs careful expert streaming from flash?
+    *   **Constraints:**
+        *   Clear, plain English.
+        *   One short paragraph.
+        *   Two bullet points.
+
+[ Prompt: 21.9 t/s | Generation: 5.5 t/s ]
+
+
+Exiting...
+--- llama end rc=0 2026-08-04T08:43:26-04:00 ---
+=== CSV row written → /data/data/com.termux/files/home/experiments/results/runs.csv ===
+Qwen3.5-4B-Q4_K_M-20260804-084117,2026-08-04T08:41:17-04:00,F2.2,Qwen3.5-4B-Q4_K_M.gguf,Q4_K_M,2.74,mainline,67d5978,,4,4096,q8_0,128,warm,short,21.90,5.50,,202741,927332,1856450560,4388,13,31.2,32.4,,F2.2 ctx t=4 c=4096 kv=q8_0 rep=2
+prompt_tok_s=21.90 eval_tok_s=5.50 ttft_ms=
+majflt_delta=202741 minflt_delta=927332 read_bytes_delta=1856450560
+vmrss_peak_mb=4388 memfree_min_mb=13
+batt_temp_start=31.2 batt_temp_end=32.4
+2026-08-04T08:44:52-04:00 measure ctx rep 3/3 t=4 c=4096 kv=q8_0
+2026-08-04T08:44:52-04:00 WAIT: temp 32.4 > 32.0 — sleeping 60s
+2026-08-04T08:47:56-04:00 gate OK plugged=UNPLUGGED temp=31.2
+--- preflight ISA (PREFLIGHT_ISA=auto mode=scientific_mandatory) ---
+=== preflight_llama_isa ===
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli
+build_dir=/data/data/com.termux/files/home/src/llama.cpp/build-safe
+arm_arch=<none>
+OK: binario regolare eseguibile (/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli)
+cache: GGML_NATIVE:BOOL=OFF
+cache: GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+OK: GGML_NATIVE=OFF
+OK: GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16
+OK: compile_commands.json presente
+compile flags -march:
+  -march=armv8.2-a+dotprod+i8mm+fp16
+OK: -march matcha ARM_ARCH (armv8.2-a+dotprod+i8mm+fp16)
+cpu Features: Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+OK: asimddp (dotprod) in /proc/cpuinfo
+OK: i8mm in /proc/cpuinfo
+OK: fp16 (fphp/asimdhp) in /proc/cpuinfo
+--- /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli --version (no model) ---
+version: 1 (67d5978)
+built with Clang 21.1.8 for Android aarch64
+OK: version/help exit=0
+--- static scan /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so (sve/sme) ---
+OK: nessun smstart/smstop in /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so
+=== PREFLIGHT OK ===
+=== run_bench ===
+run_id=Qwen3.5-4B-Q4_K_M-20260804-084757 phase=F2.2 runtime=mainline run_type=warm
+model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf quant=Q4_K_M
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=4096 kv=q8_0 n_gen=128
+flags=
+batt_plugged=UNPLUGGED batt_temp_start=31.2
+log=/data/data/com.termux/files/home/experiments/results/logs/Qwen3.5-4B-Q4_K_M-20260804-084757.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-04T08:48:19-04:00 ---
+llama_pid=22472 tee_pid=22470
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   **Role:** Helpful technical assistant.
+    *   **Task:** Answer a specific technical question about LLM inference on a modern smartphone (8GB RAM, UFS 3.1 flash).
+    *   **Question:** Why does a dense 4B model run smoothly while a 35B MoE model (3B active params) needs careful expert streaming from flash?
+    *   **Constraints:**
+        *   Clear, plain English.
+        *   One short paragraph.
+        *   Two bullet points.
+
+[ Prompt: 21.9 t/s | Generation: 4.9 t/s ]
+
+
+Exiting...
+--- llama end rc=0 2026-08-04T08:50:12-04:00 ---
+=== CSV row written → /data/data/com.termux/files/home/experiments/results/runs.csv ===
+Qwen3.5-4B-Q4_K_M-20260804-084757,2026-08-04T08:47:57-04:00,F2.2,Qwen3.5-4B-Q4_K_M.gguf,Q4_K_M,2.74,mainline,67d5978,,4,4096,q8_0,128,warm,short,21.90,4.90,,218054,919430,1362919424,4155,62,31.2,32.6,,F2.2 ctx t=4 c=4096 kv=q8_0 rep=3
+prompt_tok_s=21.90 eval_tok_s=4.90 ttft_ms=
+majflt_delta=218054 minflt_delta=919430 read_bytes_delta=1362919424
+vmrss_peak_mb=4155 memfree_min_mb=62
+batt_temp_start=31.2 batt_temp_end=32.6
+2026-08-04T08:51:30-04:00 median ctx c=512 → 8.70
+2026-08-04T08:51:30-04:00 median ctx c=1024 → 5.30
+2026-08-04T08:51:31-04:00 median ctx c=4096 → 5.50
+2026-08-04T08:51:31-04:00 BEST ctx → 512
+2026-08-04T08:51:31-04:00 STAGE kv {f16,q8_0} with t=4 c=512
+2026-08-04T08:51:32-04:00 measure kv rep 1/3 t=4 c=512 kv=f16
+2026-08-04T08:51:36-04:00 WAIT: temp 32.6 > 32.0 — sleeping 60s
+2026-08-04T08:54:55-04:00 gate OK plugged=UNPLUGGED temp=31.2
+--- preflight ISA (PREFLIGHT_ISA=auto mode=scientific_mandatory) ---
+=== preflight_llama_isa ===
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli
+build_dir=/data/data/com.termux/files/home/src/llama.cpp/build-safe
+arm_arch=<none>
+OK: binario regolare eseguibile (/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli)
+cache: GGML_NATIVE:BOOL=OFF
+cache: GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+OK: GGML_NATIVE=OFF
+OK: GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16
+OK: compile_commands.json presente
+compile flags -march:
+  -march=armv8.2-a+dotprod+i8mm+fp16
+OK: -march matcha ARM_ARCH (armv8.2-a+dotprod+i8mm+fp16)
+cpu Features: Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+OK: asimddp (dotprod) in /proc/cpuinfo
+OK: i8mm in /proc/cpuinfo
+OK: fp16 (fphp/asimdhp) in /proc/cpuinfo
+--- /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli --version (no model) ---
+version: 1 (67d5978)
+built with Clang 21.1.8 for Android aarch64
+OK: version/help exit=0
+--- static scan /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so (sve/sme) ---
+OK: nessun smstart/smstop in /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so
+=== PREFLIGHT OK ===
+=== run_bench ===
+run_id=Qwen3.5-4B-Q4_K_M-20260804-085455 phase=F2.2 runtime=mainline run_type=warm
+model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf quant=Q4_K_M
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=512 kv=f16 n_gen=128
+flags=
+batt_plugged=UNPLUGGED batt_temp_start=31.2
+log=/data/data/com.termux/files/home/experiments/results/logs/Qwen3.5-4B-Q4_K_M-20260804-085455.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-04T08:55:14-04:00 ---
+llama_pid=23538 tee_pid=23536
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   **Role:** Helpful technical assistant.
+    *   **Task:** Answer a specific technical question about LLM inference on a modern smartphone (8GB RAM, UFS 3.1 flash).
+    *   **Question:** Why does a dense 4B model run smoothly while a 35B MoE model (3B active params) needs careful expert streaming?
+    *   **Constraints:**
+        *   Clear, plain English.
+        *   One short paragraph.
+        *   Two bullet points.
+       
+
+[ Prompt: 17.4 t/s | Generation: 4.8 t/s ]
+
+
+Exiting...
+--- llama end rc=0 2026-08-04T08:57:44-04:00 ---
+=== CSV row written → /data/data/com.termux/files/home/experiments/results/runs.csv ===
+Qwen3.5-4B-Q4_K_M-20260804-085455,2026-08-04T08:54:55-04:00,F2.2,Qwen3.5-4B-Q4_K_M.gguf,Q4_K_M,2.74,mainline,67d5978,,4,512,f16,128,warm,short,17.40,4.80,,254468,1082474,1705308160,4430,16,31.2,32.2,,F2.2 kv t=4 c=512 kv=f16 rep=1
+prompt_tok_s=17.40 eval_tok_s=4.80 ttft_ms=
+majflt_delta=254468 minflt_delta=1082474 read_bytes_delta=1705308160
+vmrss_peak_mb=4430 memfree_min_mb=16
+batt_temp_start=31.2 batt_temp_end=32.2
+2026-08-04T08:58:50-04:00 measure kv rep 2/3 t=4 c=512 kv=f16
+2026-08-04T08:58:55-04:00 WAIT: temp 32.2 > 32.0 — sleeping 60s
+2026-08-04T09:02:01-04:00 gate OK plugged=UNPLUGGED temp=31.0
+--- preflight ISA (PREFLIGHT_ISA=auto mode=scientific_mandatory) ---
+=== preflight_llama_isa ===
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli
+build_dir=/data/data/com.termux/files/home/src/llama.cpp/build-safe
+arm_arch=<none>
+OK: binario regolare eseguibile (/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli)
+cache: GGML_NATIVE:BOOL=OFF
+cache: GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+OK: GGML_NATIVE=OFF
+OK: GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16
+OK: compile_commands.json presente
+compile flags -march:
+  -march=armv8.2-a+dotprod+i8mm+fp16
+OK: -march matcha ARM_ARCH (armv8.2-a+dotprod+i8mm+fp16)
+cpu Features: Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+OK: asimddp (dotprod) in /proc/cpuinfo
+OK: i8mm in /proc/cpuinfo
+OK: fp16 (fphp/asimdhp) in /proc/cpuinfo
+--- /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli --version (no model) ---
+version: 1 (67d5978)
+built with Clang 21.1.8 for Android aarch64
+OK: version/help exit=0
+--- static scan /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so (sve/sme) ---
+OK: nessun smstart/smstop in /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so
+=== PREFLIGHT OK ===
+=== run_bench ===
+run_id=Qwen3.5-4B-Q4_K_M-20260804-090201 phase=F2.2 runtime=mainline run_type=warm
+model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf quant=Q4_K_M
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=512 kv=f16 n_gen=128
+flags=
+batt_plugged=UNPLUGGED batt_temp_start=31.0
+log=/data/data/com.termux/files/home/experiments/results/logs/Qwen3.5-4B-Q4_K_M-20260804-090201.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-04T09:02:25-04:00 ---
+llama_pid=24767 tee_pid=24765
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   **Role:** Helpful technical assistant.
+    *   **Task:** Answer a specific technical question about LLM inference on a modern smartphone (8GB RAM, UFS 3.1 flash).
+    *   **Question:** Why does a dense 4B model run smoothly while a 35B MoE model (3B active params) needs careful expert streaming?
+    *   **Constraints:**
+        *   Clear, plain English.
+        *   One short paragraph.
+        *   Two bullet points.
+       
+
+[ Prompt: 15.2 t/s | Generation: 5.5 t/s ]
+
+
+Exiting...
+--- llama end rc=0 2026-08-04T09:04:44-04:00 ---
+=== CSV row written → /data/data/com.termux/files/home/experiments/results/runs.csv ===
+Qwen3.5-4B-Q4_K_M-20260804-090201,2026-08-04T09:02:01-04:00,F2.2,Qwen3.5-4B-Q4_K_M.gguf,Q4_K_M,2.74,mainline,67d5978,,4,512,f16,128,warm,short,15.20,5.50,,342419,906562,1512517632,4256,48,31.0,32.2,,F2.2 kv t=4 c=512 kv=f16 rep=2
+prompt_tok_s=15.20 eval_tok_s=5.50 ttft_ms=
+majflt_delta=342419 minflt_delta=906562 read_bytes_delta=1512517632
+vmrss_peak_mb=4256 memfree_min_mb=48
+batt_temp_start=31.0 batt_temp_end=32.2
+2026-08-04T09:06:02-04:00 measure kv rep 3/3 t=4 c=512 kv=f16
+2026-08-04T09:06:03-04:00 WAIT: temp 32.2 > 32.0 — sleeping 60s
+2026-08-04T09:09:09-04:00 gate OK plugged=UNPLUGGED temp=31.0
+--- preflight ISA (PREFLIGHT_ISA=auto mode=scientific_mandatory) ---
+=== preflight_llama_isa ===
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli
+build_dir=/data/data/com.termux/files/home/src/llama.cpp/build-safe
+arm_arch=<none>
+OK: binario regolare eseguibile (/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli)
+cache: GGML_NATIVE:BOOL=OFF
+cache: GGML_CPU_ARM_ARCH:STRING=armv8.2-a+dotprod+i8mm+fp16
+OK: GGML_NATIVE=OFF
+OK: GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16
+OK: compile_commands.json presente
+compile flags -march:
+  -march=armv8.2-a+dotprod+i8mm+fp16
+OK: -march matcha ARM_ARCH (armv8.2-a+dotprod+i8mm+fp16)
+cpu Features: Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+OK: asimddp (dotprod) in /proc/cpuinfo
+OK: i8mm in /proc/cpuinfo
+OK: fp16 (fphp/asimdhp) in /proc/cpuinfo
+--- /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli --version (no model) ---
+version: 1 (67d5978)
+built with Clang 21.1.8 for Android aarch64
+OK: version/help exit=0
+--- static scan /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so (sve/sme) ---
+OK: nessun smstart/smstop in /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/libggml-cpu.so
+=== PREFLIGHT OK ===
+=== run_bench ===
+run_id=Qwen3.5-4B-Q4_K_M-20260804-090910 phase=F2.2 runtime=mainline run_type=warm
+model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf quant=Q4_K_M
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=512 kv=f16 n_gen=128
+flags=
+batt_plugged=UNPLUGGED batt_temp_start=31.0
+log=/data/data/com.termux/files/home/experiments/results/logs/Qwen3.5-4B-Q4_K_M-20260804-090910.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-04T09:09:36-04:00 ---
+llama_pid=26160 tee_pid=26158
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   **Role:** Helpful technical assistant.
+    *   **Task:** Answer a specific technical question about LLM inference on a modern smartphone (8GB RAM, UFS 3.1 flash).
+    *   **Question:** Why does a dense 4B model run smoothly while a 35B MoE model (3B active params) needs careful expert streaming?
+    *   **Constraints:**
+        *   Clear, plain English.
+        *   One short paragraph.
+        *   Two bullet points.
+       
+
+[ Prompt: 20.4 t/s | Generation: 5.3 t/s ]
+
+
+Exiting...
+--- llama end rc=0 2026-08-04T09:11:45-04:00 ---
+=== CSV row written → /data/data/com.termux/files/home/experiments/results/runs.csv ===
+Qwen3.5-4B-Q4_K_M-20260804-090910,2026-08-04T09:09:10-04:00,F2.2,Qwen3.5-4B-Q4_K_M.gguf,Q4_K_M,2.74,mainline,67d5978,,4,512,f16,128,warm,short,20.40,5.30,,155984,916357,2084741120,4237,18,31.0,32.3,,F2.2 kv t=4 c=512 kv=f16 rep=3
+prompt_tok_s=20.40 eval_tok_s=5.30 ttft_ms=
+majflt_delta=155984 minflt_delta=916357 read_bytes_delta=2084741120
+vmrss_peak_mb=4237 memfree_min_mb=18
+batt_temp_start=31.0 batt_temp_end=32.3
+2026-08-04T09:12:59-04:00 skip already have 3>=3 rows for t=4 c=512 kv=q8_0
+2026-08-04T09:12:59-04:00 median kv k=f16 → 5.30
+2026-08-04T09:12:59-04:00 median kv k=q8_0 → 8.70
+2026-08-04T09:12:59-04:00 BEST kv → q8_0
+# F2.2 summary
+
+- model: `Qwen3.5-4B-Q4_K_M.gguf`
+- best: threads=4 ctx=512 kv=q8_0
+- median eval_tok_s: 8.70
+- n_gen: 128 prompt: short
+- binary: `/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli`
+- finished: 2026-08-04T09:12:59-04:00
+2026-08-04T09:12:59-04:00 === done F2.2 best t=4 c=512 kv=q8_0 median=8.70 ===

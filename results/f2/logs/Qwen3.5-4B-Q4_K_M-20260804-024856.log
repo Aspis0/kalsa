@@ -1,0 +1,57 @@
+=== run_bench ===
+run_id=Qwen3.5-4B-Q4_K_M-20260804-024856 phase=F2.2 runtime=mainline run_type=warm
+model=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf quant=Q4_K_M
+binary=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-cli threads=4 ctx=1024 kv=q8_0 n_gen=128
+flags=
+batt_plugged=UNPLUGGED batt_temp_start=29.4
+log=/data/data/com.termux/files/home/experiments/results/logs/Qwen3.5-4B-Q4_K_M-20260804-024856.log csv=/data/data/com.termux/files/home/experiments/results/runs.csv
+--- llama start 2026-08-04T02:49:15-04:00 ---
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   **Role:** Helpful technical assistant.
+    *   **Task:** Answer a specific technical question about LLM inference on a modern smartphone (8GB RAM, UFS 3.1 flash).
+    *   **Question:** Why does a dense 4B model run smoothly while a 35B MoE model (3B active params) needs careful expert streaming from flash?
+    *   **Constraints:**
+        *   Clear, plain English.
+        *   One short paragraph.
+        *   Two bullet points.
+
+[ Prompt: 18.3 t/s | Generation: 5.3 t/s ]
+
+
+Exiting...
+--- llama end rc=0 2026-08-04T02:51:46-04:00 ---
