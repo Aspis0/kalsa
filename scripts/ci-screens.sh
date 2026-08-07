@@ -627,7 +627,7 @@ fi
 
 # 13_composer_typed — text in composer, keyboard visible (no ESC)
 log "13_composer_typed"
-seed_chat CLEAR
+seed_chat CLEAR "kalsa.kbDebug:1"
 if tap_node "Ask a question…"; then
   sleep 3
   type_text "ComposerTypedMarker"
@@ -668,23 +668,26 @@ if tap_node "Ask a question…"; then
       ime_top=$((screen_h * 55 / 100))
       ime_note=" (ime top estimated)"
     fi
-    # Composer bottom from bounds of typed marker (EditText fallback).
+    # Composer bottom from app EditText / marker (not Gboard suggestion echo).
+    # Marker text also appears in the IME suggestion strip — require package.
     composer_b=$(dump_ui | tr '>' '\n' \
+      | grep 'package="com.kalsa.app"' \
       | grep -F "ComposerTypedMarker" \
       | grep -oE 'bounds="\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]"' | head -1 \
       | grep -oE '[0-9]+' | sed -n '4p' || true)
     if [ -z "${composer_b:-}" ]; then
       composer_b=$(dump_ui | tr '>' '\n' \
-        | grep -F 'android.widget.EditText' \
+        | grep 'package="com.kalsa.app"' \
+        | grep -F 'class="android.widget.EditText"' \
         | grep -oE 'bounds="\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]"' | head -1 \
         | grep -oE '[0-9]+' | sed -n '4p' || true)
     fi
     if [ -z "${composer_b:-}" ] || ! [ "$composer_b" -ge 0 ] 2>/dev/null; then
-      record FAILED 13b_composer_above_ime "composer bounds not found${ime_note}"
+      record FAILED 13b_composer_above_ime "composer bounds not found (app-node)${ime_note}"
     elif [ "$composer_b" -le $((ime_top + 8)) ]; then
-      record OK 13b_composer_above_ime "composer bottom ${composer_b} <= ime top ${ime_top}${ime_note}"
+      record OK 13b_composer_above_ime "composer bottom ${composer_b} <= ime top ${ime_top} (app-node)${ime_note}"
     else
-      record FAILED 13b_composer_above_ime "composer bottom ${composer_b} > ime top ${ime_top} — composer covered by keyboard${ime_note}"
+      record FAILED 13b_composer_above_ime "composer bottom ${composer_b} > ime top ${ime_top} — composer covered by keyboard (app-node)${ime_note}"
     fi
   else
     record FAILED 13b_composer_above_ime "IME not shown"
@@ -695,6 +698,8 @@ if tap_node "Ask a question…"; then
 else
   capture 13_composer_typed "ComposerTypedMarker" "composer not found"
 fi
+# Reset kb debug seed so later steps do not keep the overlay flag.
+seed_kv "kalsa.kbDebug" "0"
 
 # 14_miniapp_quiz — card visible in chat
 log "14_miniapp_quiz"

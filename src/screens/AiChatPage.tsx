@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   AppState,
   type AppStateStatus,
+  Dimensions,
   Image,
   Linking,
   Modal,
@@ -13,9 +14,16 @@ import {
   Share,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
+import Animated, {
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BarChart2,
@@ -537,6 +545,68 @@ export function AiChatPage({
   const typography = useTypography();
   const { t, locale } = useLocale();
   const insets = useSafeAreaInsets();
+  // Manual keyboard padding from the lib's animated height (see Animated.View below).
+  const { height: kbHeight } = useReanimatedKeyboardAnimation();
+  const kbPad = useAnimatedStyle(() => ({
+    paddingBottom: Math.max(0, -kbHeight.value),
+  }));
+  const winH = useWindowDimensions().height;
+  const screenH = Dimensions.get("screen").height;
+  const [kbDebugOn, setKbDebugOn] = useState(
+    () =>
+      __DEV__ === true ||
+      (globalThis as any).KALSA_KB_DEBUG === true,
+  );
+  const [kbDebugLabel, setKbDebugLabel] = useState("kb=…");
+  // Mirror for the worklet so runOnJS is never scheduled when the pill is off.
+  const kbDebugOnSV = useSharedValue(kbDebugOn ? 1 : 0);
+  const kbDebugLastMs = useSharedValue(0);
+
+  useEffect(() => {
+    kbDebugOnSV.value = kbDebugOn ? 1 : 0;
+  }, [kbDebugOn, kbDebugOnSV]);
+
+  useEffect(() => {
+    if (kbDebugOn) return; // already on from __DEV__/global
+    let cancelled = false;
+    AsyncStorage.getItem("kalsa.kbDebug")
+      .then((v) => {
+        if (!cancelled && v === "1") setKbDebugOn(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [kbDebugOn]);
+
+  const updateKbDebug = useCallback(
+    (h: number) => {
+      // h is negative when open (lib convention); display absolute height.
+      const abs = Math.max(0, Math.round(-h));
+      setKbDebugLabel(`kb=${abs}px win=${winH}px screen=${screenH}px`);
+    },
+    [winH, screenH],
+  );
+
+  useEffect(() => {
+    // Seed label from current height when the pill turns on (keyboard may already be open).
+    if (kbDebugOn) updateKbDebug(kbHeight.value);
+  }, [kbDebugOn, updateKbDebug, kbHeight]);
+
+  // Throttle to ~4 Hz while debug is on; skip the JS bridge entirely when off.
+  useAnimatedReaction(
+    () => Math.round(kbHeight.value),
+    (h) => {
+      "worklet";
+      if (kbDebugOnSV.value !== 1) return;
+      const now = Date.now();
+      if (now - kbDebugLastMs.value < 250) return;
+      kbDebugLastMs.value = now;
+      runOnJS(updateKbDebug)(h);
+    },
+    [updateKbDebug],
+  );
+
   const [messages, setMessages] = useState<Message[]>([]);
   /** One-shot long-chat nudge for this conversation; reset on clearChat. */
   const [longChatNudgeShown, setLongChatNudgeShown] = useState(false);
@@ -1612,17 +1682,12 @@ export function AiChatPage({
   }
 
   return (
-    // react-native-keyboard-controller KAV (not core RN). Edge-to-edge is
-    // mandatory since SDK 53 / Android 15: soft-input adjustResize behaves like
-    // adjustNothing, so core KeyboardAvoidingView under-compensates and leaves
-    // the composer half-hidden under the IME (Android 16 field bug). This KAV
-    // tracks IME WindowInsetsAnimation natively and works on both platforms
-    // with behavior="padding". No keyboardVerticalOffset — the KAV is the
-    // bottom-anchored last child of a full-height column.
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.shell }}
-      behavior="padding"
-    >
+    // Manual padding from the lib's animated keyboard height — the lib KAV's
+    // frame-diff formula under-lifted by a constant on API 34/35 emulators and
+    // Android 16 field device (runs 31219016159/31221427122/31223107657); raw
+    // height has no frame math to get wrong; sign is negative-when-open per
+    // lib convention.
+    <Animated.View style={[{ flex: 1, backgroundColor: colors.shell }, kbPad]}>
 
       {/* ── Nav bar ── */}
       <View
@@ -2253,7 +2318,34 @@ export function AiChatPage({
           </Pressable>
         </Modal>
       ) : null}
-    </KeyboardAvoidingView>
+
+      {kbDebugOn ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: insets.top + 4,
+            right: 8,
+            zIndex: 9999,
+            backgroundColor: colors.muted,
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+            borderRadius: 4,
+            opacity: 0.9,
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: MONO_FONT,
+              fontSize: 10,
+              color: colors.shell,
+            }}
+          >
+            {kbDebugLabel}
+          </Text>
+        </View>
+      ) : null}
+    </Animated.View>
   );
 }
 
