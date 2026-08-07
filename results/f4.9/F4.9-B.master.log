@@ -1,0 +1,56 @@
+=== F4.9-B start 2026-08-07T09:21:30-04:00 ===
+binary=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli LD=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli::/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/bin
+n_ctx=2048 n_gen=512 flags=--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4
+NOTE: n_ctx=2048 (historical long_512); FAIL rows with n_ctx=512 remain in CSV as FAIL
+pid=13997 nproc=6 affinity=pid 13997's current affinity mask: 3f
+2026-08-07T09:21:30-04:00 F4.9-B main begin
+2026-08-07T09:21:30-04:00 cpuset OK nproc=7 mask=bf bits=7 cgroup=/top-app
+2026-08-07T09:21:30-04:00 battery now: plugged=UNPLUGGED T=32.5 pct=91
+2026-08-07T09:21:30-04:00 === preflight 4B ===
+2026-08-07T09:21:39-04:00 preflight 4B exit=0
+0.19.0
+2026-08-07T09:21:39-04:00 valid B rows so far: 2 (need 3); FAIL n_ctx=512 rows ignored for counting
+2026-08-07T09:21:39-04:00 === PREP F4.9-real-workload rep=sentinel rtype=warm cold=0 n_ctx=2048 ===
+2026-08-07T09:21:39-04:00 cooldown 180s
+2026-08-07T09:24:39-04:00 cpuset OK nproc=6 mask=3f bits=6 cgroup=/top-app
+2026-08-07T09:24:39-04:00 gate OK plugged=UNPLUGGED temp=31.4 lvl=90 floor=15
+2026-08-07T09:24:39-04:00 batt_start plugged=UNPLUGGED T=31.4 pct=90
+2026-08-07T09:24:39-04:00 === RUN F4.9-real-workload rep=sentinel n_gen=512 n_ctx=2048 sample=/data/data/com.termux/files/home/experiments/results/f4.9/sample_F4.9-real-workload_sentinel_warm.csv ===
+2026-08-07T09:24:40-04:00 sampler attach bmoe-cli pid=16303 after ~0s
+2026-08-07T09:27:07-04:00 === END F4.9-real-workload rep=sentinel rc=0 ===
+2026-08-07T09:27:08-04:00 batt_end plugged=UNPLUGGED T=38.2 pct=88
+2026-08-07T09:27:09-04:00 CELL B DONE valid_rows=3 final_batt plugged=UNPLUGGED T=38.2 pct=88
+2026-08-07T09:27:09-04:00 F4.9-B ALL DONE
++C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful assistant. Say hi in one sentence.
+
+[Start thinking]
+
+Thinking Process:
+
+
+[ Prompt: 23.7 t/s | Generation: 12.1 t/s ]
+
+
+Exiting...
+2026-08-07T09:21:39-04:00 preflight 4B exit=0
+0.19.0
+2026-08-07T09:21:39-04:00 valid B rows so far: 2 (need 3); FAIL n_ctx=512 rows ignored for counting
+2026-08-07T09:21:39-04:00 === PREP F4.9-real-workload rep=sentinel rtype=warm cold=0 n_ctx=2048 ===
+2026-08-07T09:21:39-04:00 cooldown 180s
+2026-08-07T09:24:39-04:00 cpuset OK nproc=6 mask=3f bits=6 cgroup=/top-app
+2026-08-07T09:24:39-04:00 gate OK plugged=UNPLUGGED temp=31.4 lvl=90 floor=15
+2026-08-07T09:24:39-04:00 batt_start plugged=UNPLUGGED T=31.4 pct=90
+2026-08-07T09:24:39-04:00 === RUN F4.9-real-workload rep=sentinel n_gen=512 n_ctx=2048 sample=/data/data/com.termux/files/home/experiments/results/f4.9/sample_F4.9-real-workload_sentinel_warm.csv ===
+2026-08-07T09:24:40-04:00 sampler attach bmoe-cli pid=16303 after ~0s
+2026-08-07T09:27:07-04:00 === END F4.9-real-workload rep=sentinel rc=0 ===
+2026-08-07T09:27:08-04:00 batt_end plugged=UNPLUGGED T=38.2 pct=88
+2026-08-07T09:27:09-04:00 CELL B DONE valid_rows=3 final_batt plugged=UNPLUGGED T=38.2 pct=88
+2026-08-07T09:27:09-04:00 F4.9-B ALL DONE

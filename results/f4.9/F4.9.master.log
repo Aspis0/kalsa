@@ -1,0 +1,144 @@
+=== F4.9 start 2026-08-07T08:22:21-04:00 ===
+binary=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+LD_LIBRARY_PATH=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli::/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/bin
+runtime_commit=b0c4e5b
+model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304
+pid=26317
+nproc=6
+affinity=pid 26317's current affinity mask: 3f
+cgroup=5:freezer:/ 4:cpuset:/top-app 3:cpuacct:/top-app 2:cpu:/top-app 1:blkio:/top 0::/apps/uid_10344/pid_30669 
+flags=--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4
+2026-08-07T08:22:21-04:00 F4.9 main begin
+2026-08-07T08:22:21-04:00 cpuset OK nproc=7 mask=bf bits=7 cgroup=/top-app
+2026-08-07T08:22:21-04:00 battery now: plugged=UNPLUGGED T=27.4 pct=100
+2026-08-07T08:22:22-04:00 === preflight 4B mainline (timeout 30s) ===
+2026-08-07T08:22:31-04:00 preflight 4B exit=0
+0.19.0
+2026-08-07T08:22:31-04:00 CELL A start have_rows=0 floor=90
+2026-08-07T08:22:31-04:00 === PREP F4.9-batt-control rep=1 rtype=cold floor=90 cold=1 sample=0 ===
+2026-08-07T08:22:31-04:00 cooldown 180s
+2026-08-07T08:25:31-04:00 cpuset OK nproc=6 mask=5f bits=6 cgroup=/top-app
+2026-08-07T08:25:32-04:00 gate OK plugged=UNPLUGGED temp=27.4 lvl=100 floor=90
+2026-08-07T08:25:32-04:00 batt_start plugged=UNPLUGGED T=27.4 pct=100
+2026-08-07T08:25:32-04:00 cold_model fadv: /data/data/com.termux/files/home/bin/cold_model.sh /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+2026-08-07T08:25:35-04:00 cold_model OK
+2026-08-07T08:25:35-04:00 === RUN F4.9-batt-control rep=1 n_gen=64 ===
+2026-08-07T08:26:20-04:00 === END F4.9-batt-control rep=1 rc=0 ===
+2026-08-07T08:26:20-04:00 batt_end plugged=UNPLUGGED T=30.9 pct=100
+2026-08-07T08:26:20-04:00 === PREP F4.9-batt-control rep=2 rtype=warm floor=90 cold=0 sample=0 ===
+2026-08-07T08:26:20-04:00 cooldown 180s
+2026-08-07T08:29:20-04:00 cpuset OK nproc=6 mask=3f bits=6 cgroup=/top-app
+2026-08-07T08:29:21-04:00 gate OK plugged=UNPLUGGED temp=29.3 lvl=100 floor=90
+2026-08-07T08:29:21-04:00 batt_start plugged=UNPLUGGED T=29.3 pct=100
+2026-08-07T08:29:21-04:00 === RUN F4.9-batt-control rep=2 n_gen=64 ===
+2026-08-07T08:30:06-04:00 === END F4.9-batt-control rep=2 rc=0 ===
+2026-08-07T08:30:07-04:00 batt_end plugged=UNPLUGGED T=30.4 pct=99
+2026-08-07T08:30:07-04:00 === PREP F4.9-batt-control rep=3 rtype=warm floor=90 cold=0 sample=0 ===
+2026-08-07T08:30:07-04:00 cooldown 180s
+2026-08-07T08:33:07-04:00 cpuset OK nproc=6 mask=7f bits=7 cgroup=/top-app
+2026-08-07T08:33:07-04:00 gate OK plugged=UNPLUGGED temp=29.6 lvl=99 floor=90
+2026-08-07T08:33:07-04:00 batt_start plugged=UNPLUGGED T=29.6 pct=99
+2026-08-07T08:33:07-04:00 === RUN F4.9-batt-control rep=3 n_gen=64 ===
+2026-08-07T08:33:54-04:00 === END F4.9-batt-control rep=3 rc=0 ===
+2026-08-07T08:33:54-04:00 batt_end plugged=UNPLUGGED T=32.6 pct=98
+2026-08-07T08:33:54-04:00 === PREP F4.9-batt-control rep=sentinel rtype=warm floor=90 cold=0 sample=0 ===
+2026-08-07T08:33:54-04:00 cooldown 180s
+2026-08-07T08:36:54-04:00 cpuset OK nproc=6 mask=3f bits=6 cgroup=/top-app
+2026-08-07T08:36:55-04:00 gate OK plugged=UNPLUGGED temp=29.9 lvl=98 floor=90
+2026-08-07T08:36:55-04:00 batt_start plugged=UNPLUGGED T=29.9 pct=98
+2026-08-07T08:36:55-04:00 === RUN F4.9-batt-control rep=sentinel n_gen=64 ===
+2026-08-07T08:37:40-04:00 === END F4.9-batt-control rep=sentinel rc=0 ===
+2026-08-07T08:37:40-04:00 batt_end plugged=UNPLUGGED T=31.5 pct=98
+2026-08-07T08:37:40-04:00 CELL A DONE rows=4
+2026-08-07T08:37:40-04:00 post-A battery: plugged=UNPLUGGED T=31.5 pct=98
+2026-08-07T08:37:40-04:00 === preflight 4B mainline (timeout 30s) ===
+2026-08-07T08:37:48-04:00 preflight 4B exit=0
+0.19.0
+2026-08-07T08:37:48-04:00 CELL B start have_rows=0 floor=15
+2026-08-07T08:37:48-04:00 === PREP F4.9-real-workload rep=1 rtype=warm floor=15 cold=1 sample=1 ===
+2026-08-07T08:37:48-04:00 cooldown 180s
+2026-08-07T08:40:49-04:00 cpuset OK nproc=6 mask=3f bits=6 cgroup=/top-app
+2026-08-07T08:40:49-04:00 WAIT: temp 32.0 > 30.0 lvl=97 waited=0s
+2026-08-07T08:41:19-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=30s
+2026-08-07T08:41:49-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=60s
+2026-08-07T08:42:20-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=90s
+2026-08-07T08:42:50-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=120s
+2026-08-07T08:43:20-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=150s
+2026-08-07T08:43:51-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=180s
+2026-08-07T08:44:21-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=210s
+2026-08-07T08:44:51-04:00 gate OK plugged=UNPLUGGED temp=29.5 lvl=97 floor=15
+2026-08-07T08:44:52-04:00 batt_start plugged=UNPLUGGED T=29.5 pct=97
+2026-08-07T08:44:52-04:00 cold_model fadv: /data/data/com.termux/files/home/bin/cold_model.sh /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+2026-08-07T08:44:55-04:00 cold_model OK
+2026-08-07T08:44:55-04:00 sampler target file=/data/data/com.termux/files/home/experiments/results/f4.9/sample_F4.9-real-workload_1_warm.csv
+2026-08-07T08:44:55-04:00 === RUN F4.9-real-workload rep=1 n_gen=512 ===
+2026-08-07T08:45:19-04:00 === END F4.9-real-workload rep=1 rc=1 ===
+2026-08-07T08:45:59-04:00 batt_end plugged=UNPLUGGED T=31.4 pct=97
+2026-08-07T08:45:59-04:00 === PREP F4.9-real-workload rep=2 rtype=warm floor=15 cold=0 sample=1 ===
+2026-08-07T08:45:59-04:00 cooldown 180s
+2026-08-07T08:48:59-04:00 cpuset OK nproc=6 mask=3f bits=6 cgroup=/top-app
+2026-08-07T08:48:59-04:00 gate OK plugged=UNPLUGGED temp=29.9 lvl=96 floor=15
+2026-08-07T08:49:00-04:00 batt_start plugged=UNPLUGGED T=29.9 pct=96
+2026-08-07T08:49:00-04:00 sampler target file=/data/data/com.termux/files/home/experiments/results/f4.9/sample_F4.9-real-workload_2_warm.csv
+2026-08-07T08:49:00-04:00 === RUN F4.9-real-workload rep=2 n_gen=512 ===
+   ██
+                                    ▀▀    ▀▀
+
+build      : b1-67d5978
+model      : /data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a helpful assistant. Say hi in one sentence.
+
+[Start thinking]
+
+Thinking Process:
+
+
+[ Prompt: 20.3 t/s | Generation: 12.3 t/s ]
+
+
+Exiting...
+2026-08-07T08:37:48-04:00 preflight 4B exit=0
+0.19.0
+2026-08-07T08:37:48-04:00 CELL B start have_rows=0 floor=15
+2026-08-07T08:37:48-04:00 === PREP F4.9-real-workload rep=1 rtype=warm floor=15 cold=1 sample=1 ===
+2026-08-07T08:37:48-04:00 cooldown 180s
+2026-08-07T08:40:49-04:00 cpuset OK nproc=6 mask=3f bits=6 cgroup=/top-app
+2026-08-07T08:40:49-04:00 WAIT: temp 32.0 > 30.0 lvl=97 waited=0s
+2026-08-07T08:41:19-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=30s
+2026-08-07T08:41:49-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=60s
+2026-08-07T08:42:20-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=90s
+2026-08-07T08:42:50-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=120s
+2026-08-07T08:43:20-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=150s
+2026-08-07T08:43:51-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=180s
+2026-08-07T08:44:21-04:00 WAIT: temp 30.7 > 30.0 lvl=97 waited=210s
+2026-08-07T08:44:51-04:00 gate OK plugged=UNPLUGGED temp=29.5 lvl=97 floor=15
+2026-08-07T08:44:52-04:00 batt_start plugged=UNPLUGGED T=29.5 pct=97
+2026-08-07T08:44:52-04:00 cold_model fadv: /data/data/com.termux/files/home/bin/cold_model.sh /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T08:44:55-04:00
+2026-08-07T08:44:55-04:00 cold_model OK
+2026-08-07T08:44:55-04:00 sampler target file=/data/data/com.termux/files/home/experiments/results/f4.9/sample_F4.9-real-workload_1_warm.csv
+2026-08-07T08:44:55-04:00 === RUN F4.9-real-workload rep=1 n_gen=512 ===
+2026-08-07T08:45:19-04:00 === END F4.9-real-workload rep=1 rc=1 ===
+2026-08-07T08:45:59-04:00 WARN: sampler could not find bmoe-cli within ~60s
+2026-08-07T08:45:59-04:00 WARN: sampler could not find bmoe-cli within ~60s
+2026-08-07T08:45:59-04:00 batt_end plugged=UNPLUGGED T=31.4 pct=97
+2026-08-07T08:45:59-04:00 === PREP F4.9-real-workload rep=2 rtype=warm floor=15 cold=0 sample=1 ===
+2026-08-07T08:45:59-04:00 cooldown 180s
+2026-08-07T08:48:59-04:00 cpuset OK nproc=6 mask=3f bits=6 cgroup=/top-app
+2026-08-07T08:48:59-04:00 gate OK plugged=UNPLUGGED temp=29.9 lvl=96 floor=15
+2026-08-07T08:49:00-04:00 batt_start plugged=UNPLUGGED T=29.9 pct=96
+2026-08-07T08:49:00-04:00 sampler target file=/data/data/com.termux/files/home/experiments/results/f4.9/sample_F4.9-real-workload_2_warm.csv
+2026-08-07T08:49:00-04:00 === RUN F4.9-real-workload rep=2 n_gen=512 ===

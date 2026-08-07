@@ -1,0 +1,8 @@
+run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260807-082535 phase=F4.9-batt-control rep=1 batt_start=100 batt_end=100 T_start=27.4 T_end=30.9 eval=5.02 rc=0 sample=none
+run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260807-082921 phase=F4.9-batt-control rep=2 batt_start=100 batt_end=99 T_start=29.3 T_end=30.4 eval=5.06 rc=0 sample=none
+run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260807-083307 phase=F4.9-batt-control rep=3 batt_start=99 batt_end=98 T_start=29.6 T_end=32.6 eval=4.87 rc=0 sample=none
+run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260807-083655 phase=F4.9-batt-control rep=sentinel batt_start=98 batt_end=98 T_start=29.9 T_end=31.5 eval=5.01 rc=0 sample=none
+run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260807-084455 phase=F4.9-real-workload rep=1 batt_start=97 batt_end=97 T_start=29.5 T_end=31.4 eval= rc=1 sample=/data/data/com.termux/files/home/experiments/results/f4.9/sample_F4.9-real-workload_1_warm.csv
+run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260807-085439 phase=F4.9-real-workload rep=1 batt_start=96 batt_end=94 T_start=29.9 T_end=36.5 eval=6.07 rc=0 sample=/data/data/com.termux/files/home/experiments/results/f4.9/sample_F4.9-real-workload_1_warm.csv n_ctx=2048
+run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260807-091224 phase=F4.9-real-workload rep=2 batt_start=93 batt_end=91 T_start=29.3 T_end=36.4 eval=5.40 rc=0 sample=/data/data/com.termux/files/home/experiments/results/f4.9/sample_F4.9-real-workload_2_warm.csv n_ctx=2048
+run_id=Qwen3.6-35B-A3B-UD-IQ2_M-20260807-092439 phase=F4.9-real-workload rep=sentinel batt_start=90 batt_end=88 T_start=31.4 T_end=38.2 eval=4.59 rc=0 sample=/data/data/com.termux/files/home/experiments/results/f4.9/sample_F4.9-real-workload_sentinel_warm.csv n_ctx=2048

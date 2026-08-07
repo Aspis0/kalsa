@@ -1,0 +1,9 @@
+ts,cell,phase,rep,run_type,battery_pct_start,battery_pct_end,temp_start,temp_end,eval_tok_s,nproc,affinity_mask,run_id,rc,notes
+2026-08-07T08:26:20-04:00,F4.9-batt-control,F4.9-batt-control,1,cold,100,100,27.4,30.9,5.02,8,ff,Qwen3.6-35B-A3B-UD-IQ2_M-20260807-082535,0,batt_start=100 batt_end=100
+2026-08-07T08:30:07-04:00,F4.9-batt-control,F4.9-batt-control,2,warm,100,99,29.3,30.4,5.06,8,ff,Qwen3.6-35B-A3B-UD-IQ2_M-20260807-082921,0,batt_start=100 batt_end=99
+2026-08-07T08:33:54-04:00,F4.9-batt-control,F4.9-batt-control,3,warm,99,98,29.6,32.6,4.87,7,df,Qwen3.6-35B-A3B-UD-IQ2_M-20260807-083307,0,batt_start=99 batt_end=98
+2026-08-07T08:37:40-04:00,F4.9-batt-control,F4.9-batt-control,sentinel,warm,98,98,29.9,31.5,5.01,8,ff,Qwen3.6-35B-A3B-UD-IQ2_M-20260807-083655,0,batt_start=98 batt_end=98
+2026-08-07T08:45:59-04:00,F4.9-real-workload,F4.9-real-workload,1,warm,97,97,29.5,31.4,,8,ff,Qwen3.6-35B-A3B-UD-IQ2_M-20260807-084455,1,batt_start=97 batt_end=97
+2026-08-07T08:56:39-04:00,F4.9-real-workload,F4.9-real-workload,1,warm,96,94,29.9,36.5,6.07,8,ff,Qwen3.6-35B-A3B-UD-IQ2_M-20260807-085439,0,batt_start=96 batt_end=94 n_ctx=2048
+2026-08-07T09:14:35-04:00,F4.9-real-workload,F4.9-real-workload,2,warm,93,91,29.3,36.4,5.40,8,ff,Qwen3.6-35B-A3B-UD-IQ2_M-20260807-091224,0,batt_start=93 batt_end=91 n_ctx=2048
+2026-08-07T09:27:08-04:00,F4.9-real-workload,F4.9-real-workload,sentinel,warm,90,88,31.4,38.2,4.59,8,ff,Qwen3.6-35B-A3B-UD-IQ2_M-20260807-092439,0,batt_start=90 batt_end=88 n_ctx=2048
