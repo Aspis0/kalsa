@@ -945,6 +945,164 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 — IL RAMO RI-QUANTIZZAZIONE È CHIUSO, con il conto invece che con l'intuizione.
+  E `--ubatch` si rivela una leva sulla cache, non solo sulla memoria.**
+
+  ### B — invalida sulla metrica, ma la chiusura analitica funziona
+
+  L'A/B LFM2 Q4_0 vs Q4_K_M è **INVALIDO** per la regola che avevo dichiarato: `work` fra
+  repliche dello stesso arm va da 102k a 128k (25%, oltre il ±10%), e Q4_0 sta
+  sistematicamente sopra Q4_K_M pur avendo `compute` quasi identico. I 300 MB di differenza
+  fra i file mettono i due arm in regimi di memoria diversi — **esattamente il rischio che
+  avevo previsto dopo il fallimento della metrica in C**.
+
+  Ma la chiusura per via analitica regge, ed è più informativa del test:
+
+  | modello | geometria | FLOP/token | compute | GFLOP/s |
+  |---|---|---:|---:|---:|
+  | 35B **IQ2** | 40 layer × 8 exp, 2048×512 | 2.01 G | 98.7 ms | **20.4** |
+  | LFM2 **Q4_0** | 24 × 4, 2048×1792 | 2.11 G | 63 ms | **33.6** |
+  | LFM2 **Q4_K_M** | idem | 2.11 G | 61 ms | **34.7** |
+
+  I due modelli fanno quasi lo stesso lavoro aritmetico per token (2.01 vs 2.11 GFLOP), il che
+  rende il confronto insolitamente pulito. **IQ2 ottiene il 60% dei GFLOP/s dei formati a
+  blocchi.** Confondente dichiarato: il 35B fa **320 matmul piccole** (2048×512) contro le
+  **96 grandi** di LFM2 (2048×1792), e le matrici piccole sono meno efficienti — quindi
+  l'1.65× mescola costo del codebook e geometria, in proporzione ignota.
+
+  ### ⚠ Il meccanismo, letto nel sorgente (e una correzione mia)
+
+  **Correzione**: ho ripetuto per giorni che «IQ2 non ha un percorso ARM veloce». **Falso** —
+  un kernel NEON ce l'ha (`ggml_vec_dot_iq2_xxs_q8_K`, `arch/arm/quants.c:3631`). Quello che
+  non ha è un **codebook che sta in un registro**:
+
+  ```c
+  // MXFP4 (arch/arm/quants.c:767) — la tabella entra in UN registro, una volta
+  const int8x16_t values = vld1q_s8(kvalues_mxfp4);
+
+  // IQ2_XXS (arch/arm/quants.c:3664) — otto load dalla MEMORIA per blocco da 32,
+  // a indirizzi che dipendono dal dato appena letto
+  q2u.val[0] = vcombine_s8(vld1_s8(iq2xxs_grid + aux8[0]), vld1_s8(iq2xxs_grid + aux8[1]));
+  ```
+
+  Gather dipendenti dal dato, non vettorizzabili, che spezzano la pipeline del prodotto
+  scalare. **È lì che se ne vanno i GFLOP/s.**
+
+  ### ⚠ E il percorso veloce di llama.cpp è IRRAGGIUNGIBILE dallo streaming
+
+  `repack.cpp:4793` pretende **due** condizioni: tipo fra {Q4_0, Q4_K, Q8_0, IQ4_NL} **e**
+  `op->src[0]->buffer->buft == ggml_backend_cpu_repack_buffer_type()`. Lo streaming degli
+  esperti alloca memoria propria (`vm_reserve`/`vm_commit`), quindi la seconda non è mai
+  soddisfatta.
+
+  | configurazione | percorso |
+  |---|---|
+  | 35B IQ2 in streaming (oggi) | generico (IQ2 non è comunque supportato) |
+  | 35B **Q4_0 in streaming** | **ancora generico** — tipo giusto, buffer sbagliato |
+  | modello non-streamed | repack, veloce |
+
+  **Questo spiega anche perché il test B non ha visto differenze**: entrambi gli arm giravano
+  con `--moe-stream` (cache 400 MiB, hit 0.0%), quindi **nessuno dei due usava il percorso
+  repack**. Il test confrontava due kernel generici, dove Q4_0 e Q4_K sono equivalenti. **Non
+  ha testato l'ipotesi.**
+
+  **Eccezione importante: MXFP4.** Il suo vantaggio sta nel `vec_dot` **generico**, non nel
+  repack — quindi sarebbe **raggiungibile** dallo streaming, a differenza di Q4_0.
+
+  ### La ricerca: l'idea del pre-pack su disco è stata FATTA e ABBANDONATA
+
+  Su obiezione di gualt («sicuro che nessuno lo fa? forse c'è un motivo negativo?»), ricerca
+  dedicata. Risposta: **sì, è stata fatta.** I tipi GGUF `Q4_0_4_4`, `Q4_0_4_8`, `Q4_0_8_8`
+  sono esistiti su disco da metà 2024 e sono stati **rimossi il 7 dic 2024**
+  ([PR #10446](https://github.com/ggml-org/llama.cpp/pull/10446), commit `19d8762`) in favore
+  del repack a runtime. L'errore è ancora nel codice: `TYPE_Q4_0_4_4 REMOVED, use Q4_0 with
+  runtime repacking`.
+
+  **Motivazione, testuale (Djip007):** *«be prepare to have lot of new type (AVX512 will like
+  bloc of 16xN, AVX512BF16 of 2x16xN, AVX2 of 8xN, RDNA3 of 16x16 …)»* — e (slaren):
+  *«support for Q4_0_N_M model files has been removed and cannot be made anymore»*.
+
+  **È una ragione di ECOSISTEMA, non tecnica**: proliferazione di formati su disco per hardware
+  eterogeneo. **Non ci tocca**: un SoC, un telefono, artefatto privato di ricerca.
+
+  **Cercato e NON trovato** (che è a sua volta un risultato): nessun documento dice che il
+  pre-tiling rompa lo streaming MoE; nessun manutentore sostiene che rompa la correttezza
+  numerica (hanno verificato la parità di perplessità); la dimensione del file **non** aumenta
+  col tile; **non esiste** un'API ggml tipo `already_packed=true`.
+
+  ### Il conto che chiude il ramo
+
+  Normalizzando il decode di oggi (compute 0.137 di cui GEMM esperti 50.5%, stall 0.043):
+
+  ```
+  Q4_0, cache 2000:  esperti 1.70 MB → 1176 voci (da 2226), hit 76→~68, traffico ×2.4
+                     compute 0.110   stall 0.103   decode 0.220   → PEGGIO del 16%
+  Q4_0, cache 3500:  2059 voci ≈ come oggi, traffico ×1.80
+                     compute 0.110   stall 0.077   decode 0.194   → PAREGGIO
+  ```
+
+  **Il guadagno sul calcolo e la penale sui byte hanno la stessa taglia.** Anche nel caso
+  migliore si pareggia. **Non si spendono 20 GB e giorni di lavoro per un pareggio. RAMO CHIUSO.**
+
+  ### La ragione strutturale per cui non esiste una via d'uscita
+
+  **Pochi bit e dequantizzazione economica sono in tensione per costruzione.** A 2 bit servono
+  codebook grandi per conservare qualità — è tutto il senso della griglia di IQ2 — e un codebook
+  grande non sta in un registro NEON. MXFP4 ha la tabella in un registro **perché** ha 16 valori,
+  e ne ha 16 **perché** è a 4 bit. Il formato che vorremmo (2-3 bit con codebook in registro)
+  non esiste, e non è un caso.
+
+  ### D2 — `--ubatch` è anche una leva sulla CACHE, non solo sulla memoria
+
+  | ubatch | buffer MiB | hit % | tok/s | work |
+  |---:|---:|---:|---:|---:|
+  | 256 | 250.51 | **60.2** | 4.024 | 254 137 |
+  | 512 | 501.02 | **69.3** | 3.574 | 323 939 |
+  | 1024 | 1002.04 | **73.8** | 3.574 | 321 249 |
+  | 2048 | 2004.08 | **79.2** | 4.157 | 261 400 |
+
+  1. **Il buffer scala esattamente**: `0.979 MiB per token di ubatch` (avevo stimato 0.98).
+  2. **L'hit rate sale con ubatch, 60.2 → 79.2** — effetto non previsto. Non dovrebbe dipendere
+     da ubatch (in decode c'è un token solo in volo), ma il contatore è cumulativo e dominato
+     dal **prefill**: con ubatch piccolo il prompt passa in tanti blocchi e fra l'uno e l'altro
+     la cache evince esperti che il blocco dopo richiede di nuovo.
+  3. **Ne esce un confronto che nessuno aveva posto:**
+
+  ```
+  +1500 MB in CACHE  (2000→3500)  →  +5.0 punti di hit
+  +1500 MB in UBATCH (512→2048)   →  +9.9 punti di hit
+  ```
+
+  **A parità di RAM, l'ubatch compra il doppio dell'hit.** Il che rimette in discussione la
+  raccomandazione «adottare 512»: 512 era la scelta sicura sulla memoria, ma se i 3.5 GB
+  liberati si possono spendere, forse vanno spesi in ubatch e non in cache.
+
+  ### Convergenze da Godwit (github.com/rayl15/Godwit)
+
+  Runtime MoE su Apple Silicon, GPT-OSS-120B su 16 GB. Tre cose che ci riguardano:
+  - **Conferma indipendente**: *«layer adiacenti condividono solo il 4.8% degli esperti»* ⇒
+    prefetch per ripetizione impossibile. Noi: Recall@8 = 19.2%. Stessa conclusione, sistemi e
+    modelli diversi.
+  - **Il dato che chiude il ramo prefetch**: hanno un predittore *vero* (eseguono il router sul
+    residuo in ingresso, prima dell'attenzione) con **87-91% di accuratezza**. Guadagno:
+    **+3.1%**, e loro sono **I/O-bound**. Noi siamo compute-bound con il 20% di I/O esposto:
+    un predittore perfetto ci darebbe meno.
+  - **Il contrasto**: loro GPU al 17.6%, hit 38%, **1.4-1.5 tok/s** su M4. Noi compute-bound,
+    hit 76-89%, **3.5-5.3 tok/s** su un telefono. Modelli diversi (120B vs 35B), ma siamo in un
+    regime strutturalmente migliore — perché il nostro modello è 11.5 GB contro 59, quindi la
+    cache ne copre una frazione molto maggiore.
+
+  ### ⚠ Pattern metodologico: in carica i TEMPI non sono affidabili, nemmeno normalizzati
+
+  Terza cella di fila (C, B, D2) in cui i conteggi deterministici reggono e i tempi no:
+  dispersione di `work` fra repliche identiche del **25-27%**, contro una soglia di validità del
+  ±10%. La metrica `work = compute × freq` regge solo quando il collo è la CPU; sotto pressione
+  di memoria la CPU gira e **aspetta**.
+
+  **Regola per i prossimi mandati: le campagne di timing si fanno SCOLLEGATE, o non si fanno.**
+  In carica si misurano solo byte, hit, output e dimensioni — che però sono tantissime cose, e
+  infatti tutte le conclusioni utili di F5.4 vengono da lì.
+
 - **2026-08-07 — F5.4: la curva h(C) misurata dice +5.0 punti dove il simulatore ne prevedeva
   +11.8. E la metrica invariante che avevo proposto NON regge sotto pressione di memoria.**
 
