@@ -559,7 +559,7 @@ def verdict(delta_pp):
 
 def run_bakeoff(traces_dir, out_dir, layer_tsv, write_report):
     out_dir = Path(out_dir); out_dir.mkdir(parents=True, exist_ok=True)
-    names = ["short_bench","f45_1_esplicativo","f45_2_scrittura","f45_3_istruzioni","f45_4_codice","f45_5_ragionamento"]
+    names = ["short_bench","f45_1_esplicativo","f45_2_scrittura","f45_3_istruzioni","f45_4_codice","f45_5_ragionamento","long_512"]
     traces=[]; stdout_by={}
     for name in names:
         tp = Path(traces_dir) / (name + ".route.tsv"); sp = Path(traces_dir) / (name + ".stdout.txt")
@@ -621,9 +621,12 @@ def run_bakeoff(traces_dir, out_dir, layer_tsv, write_report):
         deltas = [trmap[t]["hit_req_dec"] - lru_dec[t] for t in trmap]
         sb = trmap.get("short_bench")
         sb_delta = (sb["hit_req_dec"] - lru_dec["short_bench"]) if sb else float("nan")
+        lng = trmap.get("long_512")
+        lng_delta = (lng["hit_req_dec"] - lru_dec["long_512"]) if lng else float("nan")
         mean_delta = float(np.mean(deltas)) if deltas else float("nan")
         gap = belady_dec["short_bench"] - lru_dec["short_bench"]
-        summary_rows.append({"policy": pol, "short_bench_dec": sb["hit_req_dec"] if sb else None, "short_bench_delta_vs_lru": round(sb_delta, 3), "mean_delta_vs_lru_6tr": round(mean_delta, 3), "min_delta": round(min(deltas), 3) if deltas else None, "max_delta": round(max(deltas), 3) if deltas else None, "verdict_short_bench": verdict(sb_delta), "verdict_mean": verdict(mean_delta), "belady_gap_captured_frac_sb": round(sb_delta / gap, 3) if sb and gap else None})
+        gap_lng = (belady_dec["long_512"] - lru_dec["long_512"]) if "long_512" in belady_dec else float("nan")
+        summary_rows.append({"policy": pol, "short_bench_dec": sb["hit_req_dec"] if sb else None, "short_bench_delta_vs_lru": round(sb_delta, 3), "long_512_dec": lng["hit_req_dec"] if lng else None, "long_512_delta_vs_lru": round(lng_delta, 3) if lng else None, "mean_delta_vs_lru_all": round(mean_delta, 3), "min_delta": round(min(deltas), 3) if deltas else None, "max_delta": round(max(deltas), 3) if deltas else None, "verdict_short_bench": verdict(sb_delta), "verdict_long_512": verdict(lng_delta) if lng else None, "belady_gap_captured_frac_sb": round(sb_delta / gap, 3) if sb and gap else None, "belady_gap_captured_frac_long512": round(lng_delta / gap_lng, 3) if lng and gap_lng else None})
     sep = chr(9)
     cols = ["trace", "policy", "hit_req_cum", "hit_req_dec", "dec_read_mib", "extra"]
     with (out_dir / "policies_C2000.tsv").open("w") as f:
@@ -642,7 +645,7 @@ def run_bakeoff(traces_dir, out_dir, layer_tsv, write_report):
     (out_dir / "gate.json").write_text(json.dumps(gate, indent=2), encoding="utf-8")
     result = {"gate": gate, "lru_short_dec": lru_dec.get("short_bench"), "belady_short_dec": belady_dec.get("short_bench"), "belady_minus_lru": round(belady_dec["short_bench"] - lru_dec["short_bench"], 3) if "short_bench" in belady_dec else None, "summary": summary_rows, "policy_rows": policy_rows, "mechanism": mechanism, "partition_rows": partition_rows}
     if write_report: write_m5b_report(REPO / "reports" / "moe-m5b.md", result)
-    print(json.dumps({"gate": gate, "belady_minus_lru": result["belady_minus_lru"], "verdicts": [{k: r[k] for k in ("policy", "short_bench_dec", "short_bench_delta_vs_lru", "mean_delta_vs_lru_6tr", "verdict_short_bench", "belady_gap_captured_frac_sb")} for r in summary_rows]}, indent=2))
+    print(json.dumps({"gate": gate, "belady_minus_lru": result["belady_minus_lru"], "verdicts": [{k: r[k] for k in ("policy", "short_bench_dec", "short_bench_delta_vs_lru", "long_512_delta_vs_lru", "mean_delta_vs_lru_all", "verdict_short_bench", "verdict_long_512", "belady_gap_captured_frac_sb")} for r in summary_rows]}, indent=2))
     return result
 
 def write_m5b_report(path, result):
@@ -685,8 +688,8 @@ def write_m5b_report(path, result):
     lines.append("")
     lines.append("| policy | mean d | min | max | verdetto media |")
     lines.append("|---|---:|---:|---:|---|")
-    for r in sorted(result["summary"], key=lambda x: x["mean_delta_vs_lru_6tr"], reverse=True):
-        lines.append("| %s | %+.3f | %+.3f | %+.3f | %s |" % (r["policy"], r["mean_delta_vs_lru_6tr"], r["min_delta"], r["max_delta"], r["verdict_mean"]))
+    for r in sorted(result["summary"], key=lambda x: (x.get("long_512_delta_vs_lru") is None, -(x.get("long_512_delta_vs_lru") or -99)), reverse=False):
+        lines.append("| %s | %+.3f | %+.3f | %+.3f | %s | %s |" % (r["policy"], r.get("long_512_delta_vs_lru") or 0, r.get("mean_delta_vs_lru_all") or 0, r.get("min_delta") or 0, r.get("verdict_long_512") or "?", r.get("verdict_short_bench") or "?"))
     mech = result["mechanism"]
     lines.append("")
     lines.append("## Meccanismo")

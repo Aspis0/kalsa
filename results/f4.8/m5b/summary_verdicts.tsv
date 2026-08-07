@@ -1,11 +1,11 @@
-policy	short_bench_dec	short_bench_delta_vs_lru	mean_delta_vs_lru_6tr	min_delta	max_delta	verdict_short_bench	verdict_mean	belady_gap_captured_frac_sb
-arc2l	72.197	-0.039	0.262	-0.157	0.976	ARCHIVIA	ARCHIVIA	-0.002
-layer_equal	76.084	3.848	4.624	3.282	6.631	IN_MEZZO	IN_MEZZO	0.216
-layer_prop_invH	75.029	2.793	3.706	2.11	6.084	IN_MEZZO	IN_MEZZO	0.157
-layer_prop_top8	75.156	2.92	3.737	2.305	6.094	IN_MEZZO	IN_MEZZO	0.164
-lfu	72.119	-0.117	0.135	-0.117	0.566	ARCHIVIA	ARCHIVIA	-0.007
-lirs_hir	42.031	-30.205	-29.416	-31.514	-27.47	ARCHIVIA	ARCHIVIA	-1.698
-score_admit_q10	70.928	-1.308	-1.105	-1.562	-0.333	ARCHIVIA	ARCHIVIA	-0.074
-score_admit_q25	69.453	-2.783	-2.301	-2.783	-1.163	ARCHIVIA	ARCHIVIA	-0.156
-score_admit_q50	67.598	-4.638	-4.543	-6.944	-2.276	ARCHIVIA	ARCHIVIA	-0.261
-score_evict	63.633	-8.603	-9.886	-15.098	-7.452	ARCHIVIA	ARCHIVIA	-0.484
+policy	short_bench_dec	short_bench_delta_vs_lru	long_512_dec	long_512_delta_vs_lru	mean_delta_vs_lru_all	min_delta	max_delta	verdict_short_bench	verdict_long_512	belady_gap_captured_frac_sb	belady_gap_captured_frac_long512
+arc2l	72.197	-0.039	89.529	0.28	0.265	-0.157	0.976	ARCHIVIA	ARCHIVIA	-0.002	0.044
+layer_equal	76.084	3.848	88.298	-0.951	3.828	-0.951	6.631	IN_MEZZO	ARCHIVIA	0.216	-0.149
+layer_prop_invH	75.029	2.793	86.145	-3.104	2.733	-3.104	6.084	IN_MEZZO	ARCHIVIA	0.157	-0.487
+layer_prop_top8	75.156	2.92	86.366	-2.883	2.791	-2.883	6.094	IN_MEZZO	ARCHIVIA	0.164	-0.452
+lfu	72.119	-0.117	90.012	0.763	0.225	-0.117	0.763	ARCHIVIA	ARCHIVIA	-0.007	0.12
+lirs_hir	42.031	-30.205	51.036	-38.213	-30.672	-38.213	-27.47	ARCHIVIA	ARCHIVIA	-1.698	-5.997
+score_admit_q10	70.928	-1.308	89.413	0.164	-0.924	-1.562	0.164	ARCHIVIA	ARCHIVIA	-0.074	0.026
+score_admit_q25	69.453	-2.783	88.934	-0.315	-2.018	-2.783	-0.315	ARCHIVIA	ARCHIVIA	-0.156	-0.049
+score_admit_q50	67.598	-4.638	87.374	-1.875	-4.162	-6.944	-1.875	ARCHIVIA	ARCHIVIA	-0.261	-0.294
+score_evict	63.633	-8.603	73.239	-16.01	-10.761	-16.01	-7.452	ARCHIVIA	ARCHIVIA	-0.484	-2.513

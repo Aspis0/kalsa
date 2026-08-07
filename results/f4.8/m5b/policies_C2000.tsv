@@ -71,3 +71,15 @@ f45_5_ragionamento	score_admit_q50	43.68	68.203	2934.961	thr=0.108646;adm=5034;r
 f45_5_ragionamento	layer_prop_invH	48.671	75.996	2219.492	
 f45_5_ragionamento	layer_prop_top8	48.546	75.801	2235.086	
 f45_5_ragionamento	layer_equal	48.846	76.27	2202.352	
+long_512	lru	86.582	89.249	15943.977	
+long_512	belady	92.763	95.621	6502.547	
+long_512	lfu	87.322	90.012	14814.25	
+long_512	arc2l	86.853	89.529	15531.297	final_p_mib=0.0
+long_512	lirs_hir	49.51	51.036	72175.398	lir_frac=0.99
+long_512	score_evict	71.049	73.239	40299.844	
+long_512	score_admit_q10	86.74	89.413	15719.523	thr=0.071229;adm=17557;rej=4837
+long_512	score_admit_q25	86.276	88.934	16437.555	thr=0.087120;adm=13042;rej=10136
+long_512	score_admit_q50	84.763	87.374	18740.789	thr=0.110669;adm=7397;rej=18337
+long_512	layer_prop_invH	83.57	86.145	20457.023	
+long_512	layer_prop_top8	83.785	86.366	20124.812	
+long_512	layer_equal	85.659	88.298	17325.195	

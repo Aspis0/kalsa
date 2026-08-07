@@ -44,16 +44,16 @@ Solo PC. Stesse trace di M5. C=2000 MiB. Finestra decode-only per i delta.
 
 | policy | mean d | min | max | verdetto media |
 |---|---:|---:|---:|---|
-| layer_equal | +4.624 | +3.282 | +6.631 | IN_MEZZO |
-| layer_prop_top8 | +3.737 | +2.305 | +6.094 | IN_MEZZO |
-| layer_prop_invH | +3.706 | +2.110 | +6.084 | IN_MEZZO |
-| arc2l | +0.262 | -0.157 | +0.976 | ARCHIVIA |
-| lfu | +0.135 | -0.117 | +0.566 | ARCHIVIA |
-| score_admit_q10 | -1.105 | -1.562 | -0.333 | ARCHIVIA |
-| score_admit_q25 | -2.301 | -2.783 | -1.163 | ARCHIVIA |
-| score_admit_q50 | -4.543 | -6.944 | -2.276 | ARCHIVIA |
-| score_evict | -9.886 | -15.098 | -7.452 | ARCHIVIA |
-| lirs_hir | -29.416 | -31.514 | -27.470 | ARCHIVIA |
+| lfu | +0.763 | +0.225 | -0.117 | ARCHIVIA | ARCHIVIA |
+| arc2l | +0.280 | +0.265 | -0.157 | ARCHIVIA | ARCHIVIA |
+| score_admit_q10 | +0.164 | -0.924 | -1.562 | ARCHIVIA | ARCHIVIA |
+| score_admit_q25 | -0.315 | -2.018 | -2.783 | ARCHIVIA | ARCHIVIA |
+| layer_equal | -0.951 | +3.828 | -0.951 | ARCHIVIA | IN_MEZZO |
+| score_admit_q50 | -1.875 | -4.162 | -6.944 | ARCHIVIA | ARCHIVIA |
+| layer_prop_top8 | -2.883 | +2.791 | -2.883 | ARCHIVIA | IN_MEZZO |
+| layer_prop_invH | -3.104 | +2.733 | -3.104 | ARCHIVIA | IN_MEZZO |
+| score_evict | -16.010 | -10.761 | -16.010 | ARCHIVIA | ARCHIVIA |
+| lirs_hir | -38.213 | -30.672 | -38.213 | ARCHIVIA | ARCHIVIA |
 
 ## Meccanismo
 
