@@ -945,6 +945,101 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 — F4.9: ⚠ IL DIE ARRIVA A 92 °C E IL CALO SOSTENUTO ESISTE — ma è tutto sul
+  CALCOLO, non sull'I/O. Risposta a F5 arrivata da una cella che non doveva cercarla.**
+
+  ### Cella A — lo scalino di F4.7 era REALE
+
+  A batteria 100%, config del gate: cold 5.02, warm 5.06 / 4.87 (nproc=7) / sentinella 5.01.
+  **Mediana warm 5.01 ≈ baseline 5.02**, tutte entro ±3%, anti-drift 0.9%. ⇒ il calo del 5%
+  sotto il 13% di carica **non era deriva di sessione**: la curva F4.7 è **valida**. Il
+  controllo obbligatorio è chiuso, e la finestra è stata usata.
+
+  ### Cella B — compute-bound confermato, e il modo in cui lo conferma è più forte del verdetto
+
+  | rep | eval | decode | compute | stall | **stall/decode** | **mib_tok** | load_s | T_batt |
+  |---|---:|---:|---:|---:|---:|---:|---:|---|
+  | 1 (cold) | **6.07** | 0.165 | 0.124 | 0.034 | **20.6%** | **33.96** | 115 | 29.9→36.5 |
+  | 2 warm | **5.40** | 0.185 | 0.141 | 0.038 | **20.5%** | **33.96** | 126 | 29.3→36.4 |
+  | sentinella | **4.59** | 0.218 | 0.166 | 0.045 | **20.6%** | **33.96** | 144 | 31.4→38.2 |
+
+  Verdetto formale: `stall/decode 20.6% ≤ 25%` e `compute 0.141 ≥ 0.11` ⇒ **COMPUTE-BOUND
+  CONFERMATO** nel regime valido, scollegato. Il ramo I/O è chiuso non più per inferenza da un
+  run in carica, ma per misura.
+
+  **Ma l'isolamento è la parte importante.** Su tre rep consecutive, con 180 s di cooldown fra
+  l'una e l'altra:
+
+  ```
+  traffico       33.96 MiB/token   IDENTICO   (deterministico, come deve)
+  quota I/O      20.6%             IDENTICA
+  compute        0.124 → 0.166     +34%
+  velocità       6.07 → 4.59       −24%
+  caricamento    115 s → 144 s     +25%
+  ```
+
+  **Stessi byte, stesso I/O, un terzo di tempo di calcolo in più.** Non c'è modo di attribuirlo
+  a qualcosa che non sia il **throttling termico della CPU**. La sentinella fallisce l'anti-drift
+  (20% > 15%) e lo segnala correttamente: non è rumore di misura, è degrado fisico.
+
+  ### Il numero che nessun protocollo di questa campagna aveva mai visto: 92 °C
+
+  Curva del die (max `cpu-*`, campionata a 500 ms, rep 2):
+
+  ```
+  t=0     53.9 °C   (attach)
+  t=6.5   77.8 °C   (load)
+  t≈40    92.0 °C   ← PICCO
+  t=70-90 78-86 °C  (decode)
+  t=125   70.9 °C
+  ```
+
+  Sentinella: picco **90.3 °C**. **Per tutta la campagna abbiamo gattato su un sensore che
+  segnava ≤30 °C mentre il silicio stava a novanta.** La voce del Registro che segnalava il
+  gate sul sensore sbagliato stimava uno scarto di 16 °C sulla base di un burst da 13 s; sul
+  carico vero lo scarto è di **sessanta**.
+
+  Nota che il picco è **durante il caricamento**, non durante il decode — coerente con E1: i
+  20.76 GiB di I/O inutile più la conversione dense sono anche la fase più calda. **Il fix del
+  loader non è solo TTFT: è meno calore all'inizio di ogni sessione**, cioè più margine termico
+  per il decode che segue.
+
+  ### ⚠ Correzione a quanto avevo scritto stamattina
+
+  Avevo chiuso la voce «la generazione lunga è il caso buono» dicendo che *«il timore che il
+  sostenuto crollasse non si materializza»*. **Vero per la cache, falso per il sistema.** La
+  cache è piatta su 512 token (+0.48 pp, misurato), ma il **calcolo** degrada del 34% su tre
+  esecuzioni consecutive. Avevo verificato il meccanismo che sospettavo e concluso sull'intero
+  sistema: errore di portata, non di misura.
+
+  **Riformulazione definitiva di F5**: memoria ✅ non cresce, KV ✅ trascurabile (DeltaNet),
+  cache ✅ piatta, **termica ❌ è il collo, e agisce sul calcolo**.
+
+  ### Cosa cambia nelle priorità
+
+  1. **Il kernel IQ2 vale il doppio di quanto pensassimo.** Non solo alza il tetto (7.87 → ~14):
+     meno tempo di calcolo significa **meno energia dissipata per token**, quindi meno
+     throttling, quindi meno degrado sostenuto. È l'unica leva che attacca insieme velocità di
+     picco e tenuta nel tempo.
+  2. **Il fix del loader guadagna una seconda ragione**: toglie il picco termico a 92 °C
+     dall'inizio di ogni sessione.
+  3. **Il numero di prodotto non è 6.07 né 5.40.** In uso sostenuto reale — turni consecutivi
+     senza 180 s di cooldown fra l'uno e l'altro — è **≤ 4.6 e in calo**. Ogni cifra di questo
+     piano va letta con questa in mente.
+  4. **Serve un run F5 vero**: turni back-to-back senza cooldown, die campionato, finché non si
+     stabilizza. Solo così si sa dove si assesta la curva invece di dove comincia.
+
+  ### Deviazioni dichiarate (F4.9)
+
+  - Gate termico **31.5 °C** (batteria) per la sola cella B — il gate a 30.0 è tarato su burst
+    e in ambiente caldo va in stallo (osservati 660 s a 30.5).
+  - **`n_ctx=2048`** (il gate usa `-c 512`, ma 143 prompt + 512 generati = 655 non ci stanno).
+    Le due prime rep sono fallite per questo; restano in `runs.csv` come FAIL storici.
+  - Rep 1 **non rifatta** dopo l'innalzamento del gate: i dati F4.7 mostrano nessuna
+    correlazione fra T di partenza e throughput su 28.5-31.3 °C, e l'autoriscaldamento (6.6-7.1
+    °C/rep) domina di 4× la differenza di soglia. La tabella `T_batt start→end` è nel report,
+    quindi la non-correlazione è **verificabile**, non assunta.
+
 - **2026-08-07 mattina — LA GENERAZIONE LUNGA È IL CASO BUONO, non quello cattivo. E c'è un
   buco nel piano che vale più di tutte le leve rimaste: la MODALITÀ SESSIONE, che esiste nel
   runtime e non abbiamo mai usato.**
