@@ -366,7 +366,11 @@ async function main() {
       fetchImpl: async () =>
         mockResponse({
           body: FIXTURE_HTML,
-          url: "http://secure.example/a",
+          // Same effective port (http on :443) so the port-aware sameHost gate
+          // ALLOWS the origin — isolating the https→http downgrade guard as the
+          // sole refuser (a default-port :80 downgrade would also be caught by
+          // the port mismatch, masking the downgrade mutation).
+          url: "http://secure.example:443/a",
           onText: () => {
             textReads += 1;
           },
@@ -2185,7 +2189,9 @@ async function main() {
         fetchImpl: async () =>
           mockResponse({
             contentType: "application/pdf",
-            url: "http://secure.example/a.pdf",
+            // Same effective port (http on :443) so only the downgrade guard
+            // refuses it (see F1d HTML case) — isolates the downgrade mutation.
+            url: "http://secure.example:443/a.pdf",
             arrayBufferBytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
           }),
         pdfCacheFs: fs,
