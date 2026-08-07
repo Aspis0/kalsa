@@ -1,0 +1,10 @@
+cell=f45_3_istruzioni-k8
+prompt=f45_3_istruzioni k=8 n_expert_used_flag=8 n_expert_used_hdr=8
+rc=0 elapsed_s=67 attempt=1
+die_start=76.2 die_end=53.7 die_max=89.9
+batt 44 -> 44 plugged=PLUGGED_AC
+n_prompt=114 tokens=135 gen_chars=659
+cache_hit=75.9 mib_tok=.5.54538.44.36 read_mib=5989.1
+cache_mb=2000 ubatch=512 n_ctx=4096 n_gen=200 temp=0
+stopped=ok
+pfile_sha=ac1e64e271aacce3cd4e9b02e8c9101abb032077aca42119d9bac232245a03d9

@@ -1,0 +1,10 @@
+cell=f45_1_esplicativo-k4
+prompt=f45_1_esplicativo k=4 n_expert_used_flag=4 n_expert_used_hdr=4
+rc=0 elapsed_s=69 attempt=1
+die_start=46.5 die_end=54.1 die_max=89.9
+batt 45 -> 45 plugged=PLUGGED_AC
+n_prompt=121 tokens=200 gen_chars=757
+cache_hit=80.9 mib_tok=.5.54514.15.39 read_mib=3077.9
+cache_mb=2000 ubatch=512 n_ctx=4096 n_gen=200 temp=0
+stopped=ok
+pfile_sha=bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf

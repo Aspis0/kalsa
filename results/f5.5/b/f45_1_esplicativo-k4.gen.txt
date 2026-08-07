@@ -1,0 +1,3 @@
+Un modello Mixture-of-Experts (MoE) divide i parametri in "cucine" specializzate, attivando solo una parte per ogni token. Con 35 miliardi di parametri totali ma soli 3 miliardi attivi, la computazione effettiva è paragonabile a un modello denso da 7B, garantendo velocità di inferzione simile, ma a parità di capacità complessiva molto superiore.
+
+Su smartphone con 8 GB di RAM, un denso da 7B è ideale: la memoria è sufficiente e il caricamento è immediato. Il MoE da 35B, invece, presenta sfide: caricare 35B di parametri (circa 70 GB in precisione intera) è impossibile in sola RAM, ma il *routing* intelligente permette di caricare solo gli esperti necessari. Lo *streaming* da flash (spesso tramite formati 4/5/6-bit) ottimizza l'accesso alla

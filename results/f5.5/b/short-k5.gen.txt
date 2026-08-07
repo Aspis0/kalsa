@@ -1,0 +1,4 @@
+The 4B model fits entirely within the 8GB RAM, allowing for fast, direct access to all parameters without the overhead of loading and unloading data, whereas the 35B MoE model exceeds available RAM and must stream experts from the slower UFS 3.1 storage, which introduces significant latency and thermal constraints.
+
+*   **Memory Footprint:** The 4B model’s weights occupy roughly 16GB in full precision, but with quantization (e.g., INT4), it shrizes to ~2GB, easily fitting in 8GB RAM alongside the context window; the 35B MoE model, even with only 3B active parameters, has a total parameter count that far exceeds the device's memory capacity, forcing reliance on external storage.
+*   **Page Faults and Thermal Limits:** Streaming experts from flash storage causes frequent page faults and high I/O wait times, generating heat that triggers thermal throttling; the 4

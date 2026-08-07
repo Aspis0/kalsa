@@ -1,0 +1,5 @@
+La spiegazione più plausibile è la **(B) il processo è finito in un cpuset con solo 3 core little**.
+
+I benchmark MoE moderni sono altamente parallelizzati e richiedono multi-threading; passare da 8 core a 3 core "little" (generalmente lenti) ridurrebbe drasticamente la velocità da 5.0 a circa 1.2 tok/s, mentre un throttle termico (A) causerebbe un calo graduale, non un salto netto tra run separati. La quantizzazione (C) influisce sulla velocità ma non giusterebbe un divario così ampio senza altri cambiamenti hardware.
+
+Per verificare, controlla il file `/proc/<pid>/status` cercando la riga `Cpus_allowed_list` per confermare i core assegnati.

@@ -1,0 +1,10 @@
+cell=f45_5_ragionamento-k5
+prompt=f45_5_ragionamento k=5 n_expert_used_flag=5 n_expert_used_hdr=5
+rc=0 elapsed_s=80 attempt=1
+die_start=62.0 die_end=52.5 die_max=89.5
+batt 44 -> 44 plugged=PLUGGED_AC
+n_prompt=164 tokens=156 gen_chars=648
+cache_hit=73.2 mib_tok=.5.54555.29.77 read_mib=4644.6
+cache_mb=2000 ubatch=512 n_ctx=4096 n_gen=200 temp=0
+stopped=ok
+pfile_sha=a6ddeb2fadf737585b0a9923f996e144932f8f84912398cc21a5fe7827ecd5d1

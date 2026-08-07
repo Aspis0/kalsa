@@ -1,0 +1,165 @@
+prompt | k | hit% | mib_tok | n_prompt | tokens | gen_chars | n_expert | die_max
+----------------------------------------------------------------------------------------------------
+short                    |  8 |  74.1 |   57.15 |  114 |  200 | 1005 | 8 | 91.6
+short                    |  6 |  74.2 |   39.74 |  114 |  190 |  854 | 6 | 89.9
+short                    |  5 |  75.5 |   30.16 |  114 |  200 |  873 | 5 | 92.0
+short                    |  4 |  76.5 |   21.17 |  114 |  200 | 1005 | 4 | 82.6
+f45_1_esplicativo        |  8 |  77.0 |   49.05 |  121 |  200 |  759 | 8 | 90.3
+f45_1_esplicativo        |  6 |  79.7 |   28.57 |  121 |  200 |  793 | 6 | 89.5
+f45_1_esplicativo        |  5 |  81.9 |   18.34 |  121 |  200 |  819 | 5 | 83.1
+f45_1_esplicativo        |  4 |  80.9 |   15.39 |  121 |  200 |  749 | 4 | 89.9
+f45_2_scrittura          |  8 |  71.6 |   57.68 |  133 |  139 |  588 | 8 | 77.4
+f45_2_scrittura          |  6 |  74.3 |   35.08 |  133 |  147 |  639 | 6 | 89.9
+f45_2_scrittura          |  5 |  73.3 |   29.18 |  133 |  143 |  622 | 5 | 91.2
+f45_2_scrittura          |  4 |  71.1 |   23.98 |  133 |  131 |  525 | 4 | 90.3
+f45_3_istruzioni         |  8 |  75.9 |   44.36 |  114 |  135 |  655 | 8 | 89.9
+f45_3_istruzioni         |  6 |  79.3 |   25.54 |  114 |  156 |  724 | 6 | 89.9
+f45_3_istruzioni         |  5 |  82.3 |   17.84 |  114 |  199 |  957 | 5 | 90.3
+f45_3_istruzioni         |  4 |  81.3 |   13.66 |  114 |  184 |  927 | 4 | 90.3
+f45_4_codice             |  8 |  67.0 |   78.53 |  148 |  200 |  699 | 8 | 90.3
+f45_4_codice             |  6 |  69.9 |   49.71 |  148 |  200 |  667 | 6 | 89.5
+f45_4_codice             |  5 |  70.8 |   38.12 |  148 |  200 |  668 | 5 | 90.3
+f45_4_codice             |  4 |  70.1 |   30.16 |  148 |  200 |  711 | 4 | 89.9
+f45_5_ragionamento       |  8 |  71.6 |   60.44 |  164 |  165 |  651 | 8 | 79.0
+f45_5_ragionamento       |  6 |  73.6 |   37.36 |  164 |  161 |  630 | 6 | 90.3
+f45_5_ragionamento       |  5 |  73.2 |   29.77 |  164 |  156 |  642 | 5 | 89.5
+f45_5_ragionamento       |  4 |  73.1 |   23.07 |  164 |  165 |  713 | 4 | 90.8
+long_conversational_it   |  8 |  84.2 |   31.18 |  143 |  256 | 1022 | 8 | 90.3
+long_conversational_it   |  6 |  85.2 |   19.55 |  143 |  256 | 1092 | 6 | 88.7
+long_conversational_it   |  5 |  86.2 |   13.54 |  143 |  256 | 1064 | 5 | 89.1
+long_conversational_it   |  4 |  85.8 |   10.66 |  143 |  256 |  984 | 4 | 76.2
+d1_long                  |  8 |  69.3 |   36.33 | 1318 |  256 | 1007 | 8 | 86.7
+d1_long                  |  6 |  67.0 |   24.99 | 1318 |  256 | 1019 | 6 | 90.8
+d1_long                  |  5 |  66.3 |   17.75 | 1318 |  256 |  980 | 5 | 82.6
+d1_long                  |  4 |  64.6 |   12.26 | 1318 |  256 |  973 | 4 | 81.0
+
+=== means by k (all prompts) ===
+k=4: n=8 hit mean=75.4 med=74.8  mib_tok mean=18.79 med=18.28
+k=5: n=8 hit mean=76.2 med=74.4  mib_tok mean=24.34 med=23.76
+k=6: n=8 hit mean=75.4 med=74.2  mib_tok mean=32.57 med=31.82
+k=8: n=8 hit mean=73.8 med=72.8  mib_tok mean=51.84 med=53.10
+
+=== pairwise text diffs (k8 vs kN) ===
+short: k8 vs k6: identical=False len 1005/854 common_prefix=25 chars
+  k8@25: 'within the 8GB RAM, allowing the system to keep all weights '
+  k6@25: 'in the 8GB RAM, allowing the system to keep all weights in f'
+  k8 head: 'A 4B model fits entirely within the 8GB RAM, allowing the system to keep all weights in fast memory for immediate access'
+  k6 head: 'A 4B model fits entirely in the 8GB RAM, allowing the system to keep all weights in fast memory for immediate access, wh'
+short: k8 vs k5: identical=False len 1005/873 common_prefix=0 chars
+  k8@0: 'A 4B model fits entirely within the 8GB RAM, allowing the sy'
+  k5@0: 'The 4B model fits entirely within the 8GB RAM, allowing for '
+  k8 head: 'A 4B model fits entirely within the 8GB RAM, allowing the system to keep all weights in fast memory for immediate access'
+  k5 head: 'The 4B model fits entirely within the 8GB RAM, allowing for fast, direct access to all parameters without the overhead o'
+short: k8 vs k4: identical=False len 1005/1005 common_prefix=0 chars
+  k8@0: 'A 4B model fits entirely within the 8GB RAM, allowing the sy'
+  k4@0: 'Running a dense 4B model is generally smoother because its e'
+  k8 head: 'A 4B model fits entirely within the 8GB RAM, allowing the system to keep all weights in fast memory for immediate access'
+  k4 head: "Running a dense 4B model is generally smoother because its entire weight matrix fits comfortably within the smartphone's"
+f45_1_esplicativo: k8 vs k6: identical=False len 759/793 common_prefix=74 chars
+  k8@74: ' parametri in "esperti" specializzati. A differenza dei mode'
+  k6@74: 'l modello in "esperti" specializzati. A differenza dei model'
+  k8 head: 'Un modello Mixture-of-Experts (MoE) è un’architettura neurale che divide i parametri in "esperti" specializzati. A diffe'
+  k6 head: 'Un modello Mixture-of-Experts (MoE) è un’architettura neurale che divide il modello in "esperti" specializzati. A differ'
+f45_1_esplicativo: k8 vs k5: identical=False len 759/819 common_prefix=74 chars
+  k8@74: ' parametri in "esperti" specializzati. A differenza dei mode'
+  k5@74: 'l peso computazionale in "esperti" specializzati, attivandon'
+  k8 head: 'Un modello Mixture-of-Experts (MoE) è un’architettura neurale che divide i parametri in "esperti" specializzati. A diffe'
+  k5 head: 'Un modello Mixture-of-Experts (MoE) è un’architettura neurale che divide il peso computazionale in "esperti" specializza'
+f45_1_esplicativo: k8 vs k4: identical=False len 759/749 common_prefix=36 chars
+  k8@36: 'è un’architettura neurale che divide i parametri in "esperti'
+  k4@36: 'divide i parametri in "cucine" specializzate, attivando solo'
+  k8 head: 'Un modello Mixture-of-Experts (MoE) è un’architettura neurale che divide i parametri in "esperti" specializzati. A diffe'
+  k4 head: 'Un modello Mixture-of-Experts (MoE) divide i parametri in "cucine" specializzate, attivando solo una parte per ogni toke'
+f45_2_scrittura: k8 vs k6: identical=False len 588/639 common_prefix=48 chars
+  k8@48: ' Samsung S23, stiamo utilizzando un modello MoE quantizzato '
+  k6@48: 'l Samsung S23, stiamo utilizzando un modello MoE quantizzato'
+  k8 head: 'Ciao,\n\nper il test dell’app di chat on-device su Samsung S23, stiamo utilizzando un modello MoE quantizzato a circa 2.4 '
+  k6 head: 'Ciao,\n\nper il test dell’app di chat on-device sul Samsung S23, stiamo utilizzando un modello MoE quantizzato a circa 2.4'
+f45_2_scrittura: k8 vs k5: identical=False len 588/622 common_prefix=48 chars
+  k8@48: ' Samsung S23, stiamo utilizzando un modello MoE quantizzato '
+  k5@48: 'l Samsung S23, confermo l’uso di un modello MoE quantizzato '
+  k8 head: 'Ciao,\n\nper il test dell’app di chat on-device su Samsung S23, stiamo utilizzando un modello MoE quantizzato a circa 2.4 '
+  k5 head: 'Ciao,\n\nper il test dell’app di chat on-device sul Samsung S23, confermo l’uso di un modello MoE quantizzato a circa 2.4 '
+f45_2_scrittura: k8 vs k4: identical=False len 588/525 common_prefix=62 chars
+  k8@62: 'stiamo utilizzando un modello MoE quantizzato a circa 2.4 bi'
+  k4@62: 'confermo i parametri tecnici. Stiamo utilizzando un modello '
+  k8 head: 'Ciao,\n\nper il test dell’app di chat on-device su Samsung S23, stiamo utilizzando un modello MoE quantizzato a circa 2.4 '
+  k4 head: 'Ciao,\n\nper il test dell’app di chat on-device su Samsung S23, confermo i parametri tecnici. Stiamo utilizzando un modell'
+f45_3_istruzioni: k8 vs k6: identical=False len 655/724 common_prefix=24 chars
+  k8@24: 'a batteria scarica rivela i limiti termici e la degradazione'
+  k6@24: 'con la batteria carica garantisce una tensione stabile che p'
+  k8 head: 'Misurare le prestazioni a batteria scarica rivela i limiti termici e la degradazione della tensione, mentre il test a ba'
+  k6 head: 'Misurare le prestazioni con la batteria carica garantisce una tensione stabile che permette al processore di mantenere l'
+f45_3_istruzioni: k8 vs k5: identical=False len 655/957 common_prefix=24 chars
+  k8@24: 'a batteria scarica rivela i limiti termici e la degradazione'
+  k5@24: 'con batteria scarica elimina le variabili legate alla gestio'
+  k8 head: 'Misurare le prestazioni a batteria scarica rivela i limiti termici e la degradazione della tensione, mentre il test a ba'
+  k5 head: 'Misurare le prestazioni con batteria scarica elimina le variabili legate alla gestione termica e alla tensione del alime'
+f45_3_istruzioni: k8 vs k4: identical=False len 655/927 common_prefix=24 chars
+  k8@24: 'a batteria scarica rivela i limiti termici e la degradazione'
+  k4@24: 'con la batteria in esaurizione rivela la vera capacità del s'
+  k8 head: 'Misurare le prestazioni a batteria scarica rivela i limiti termici e la degradazione della tensione, mentre il test a ba'
+  k4 head: 'Misurare le prestazioni con la batteria in esaurizione rivela la vera capacità del sistema di gestire picchi di carico s'
+f45_4_codice: k8 vs k6: identical=False len 699/667 common_prefix=67 chars
+  k8@67: 'eval_tok_s for rows where nproc is not None and nproc >= 6.\n'
+  k6@67: "'eval_tok_s' for rows where nproc is not None and >= 6.\n    "
+  k8 head: '```python\ndef median_eval_tok_s(rows):\n    """Return the median of eval_tok_s for rows where nproc is not None and nproc'
+  k6 head: '```python\ndef median_eval_tok_s(rows):\n    """Return the median of \'eval_tok_s\' for rows where nproc is not None and >= '
+f45_4_codice: k8 vs k5: identical=False len 699/668 common_prefix=115 chars
+  k8@115: 'nproc >= 6.\n    \n    Ignores rows with missing eval_tok_s. R'
+  k5@115: '>= 6.\n    \n    Rows with missing (None) eval_tok_s are ignor'
+  k8 head: '```python\ndef median_eval_tok_s(rows):\n    """Return the median of eval_tok_s for rows where nproc is not None and nproc'
+  k5 head: '```python\ndef median_eval_tok_s(rows):\n    """Return the median of eval_tok_s for rows where nproc is not None and >= 6.'
+f45_4_codice: k8 vs k4: identical=False len 699/711 common_prefix=0 chars
+  k8@0: '```python\ndef median_eval_tok_s(rows):\n    """Return the med'
+  k4@0: 'def median_eval_tok_s(rows):\n    # Collect valid eval_tok_s '
+  k8 head: '```python\ndef median_eval_tok_s(rows):\n    """Return the median of eval_tok_s for rows where nproc is not None and nproc'
+  k4 head: 'def median_eval_tok_s(rows):\n    # Collect valid eval_tok_s values where nproc is not None and >= 6\n    valid_values = ['
+f45_5_ragionamento: k8 vs k6: identical=False len 651/630 common_prefix=40 chars
+  k8@40: ' il processo è finito in un cpuset con solo 3 core little**.'
+  k6@40: '**, poiché il calo di prestazioni (da 5.0 a 1.2 tok/s) corri'
+  k8 head: 'La spiegazione più plausibile è la **(B) il processo è finito in un cpuset con solo 3 core little**.\n\nI benchmark MoE mo'
+  k6 head: 'La spiegazione più plausibile è la **(B)**, poiché il calo di prestazioni (da 5.0 a 1.2 tok/s) corrisponde esattamente a'
+f45_5_ragionamento: k8 vs k5: identical=False len 651/642 common_prefix=100 chars
+  k8@100: '\n\nI benchmark MoE moderni sono altamente parallelizzati e ri'
+  k5@100: ' I core "little" (a basso consumo) hanno una larghezza di ba'
+  k8 head: 'La spiegazione più plausibile è la **(B) il processo è finito in un cpuset con solo 3 core little**.\n\nI benchmark MoE mo'
+  k5 head: 'La spiegazione più plausibile è la **(B) il processo è finito in un cpuset con solo 3 core little**. I core "little" (a '
+f45_5_ragionamento: k8 vs k4: identical=False len 651/713 common_prefix=82 chars
+  k8@82: 'o 3 core little**.\n\nI benchmark MoE moderni sono altamente p'
+  k4@82: 'i 3 core little**.\n\nPoiché la temperatura era bassa e i benc'
+  k8 head: 'La spiegazione più plausibile è la **(B) il processo è finito in un cpuset con solo 3 core little**.\n\nI benchmark MoE mo'
+  k4 head: 'La spiegazione più plausibile è la **(B) il processo è finito in un cpuset con soli 3 core little**.\n\nPoiché la temperat'
+long_conversational_it: k8 vs k6: identical=False len 1022/1092 common_prefix=10 chars
+  k8@10: 'civolava nell’oscurità come una bestia silenziosa e pesante,'
+  k6@10: 'i staccava dalla piattaforma di Milano Centrale con un lamen'
+  k8 head: 'Il treno scivolava nell’oscurità come una bestia silenziosa e pesante, il suo respiro meccanico un battito costante che '
+  k6 head: 'Il treno si staccava dalla piattaforma di Milano Centrale con un lamento metallico che sembrava strappare via gli ultimi'
+long_conversational_it: k8 vs k5: identical=False len 1022/1064 common_prefix=9 chars
+  k8@9: 'scivolava nell’oscurità come una bestia silenziosa e pesante'
+  k5@9: 'notturno ronzava con una costanza meccanica che sembrava ess'
+  k8 head: 'Il treno scivolava nell’oscurità come una bestia silenziosa e pesante, il suo respiro meccanico un battito costante che '
+  k5 head: 'Il treno notturno ronzava con una costanza meccanica che sembrava essere l’unica cosa vera in quel mondo sospeso tra il '
+long_conversational_it: k8 vs k4: identical=False len 1022/984 common_prefix=3 chars
+  k8@3: 'treno scivolava nell’oscurità come una bestia silenziosa e p'
+  k4@3: 'bagagliaio del treno si stendeva come un fiume d’acciaio e g'
+  k8 head: 'Il treno scivolava nell’oscurità come una bestia silenziosa e pesante, il suo respiro meccanico un battito costante che '
+  k4 head: 'Il bagagliaio del treno si stendeva come un fiume d’acciaio e ghiaia al buio, un’arteria metallica che si snodava nella '
+d1_long: k8 vs k6: identical=False len 1007/1019 common_prefix=21 chars
+  k8@21: 'ul muro della carrozza 7 segna con precisione chirurgica le '
+  k6@21: 'opra la testiera segna con implacabile precisione l’orario 2'
+  k8 head: 'L’orologio digitale sul muro della carrozza 7 segna con precisione chirurgica le 23:17, un’ora che non appartiene a ness'
+  k6 head: 'L’orologio digitale sopra la testiera segna con implacabile precisione l’orario 23:17, un numero che sembra sospeso nel '
+d1_long: k8 vs k5: identical=False len 1007/980 common_prefix=1 chars
+  k8@1: '’orologio digitale sul muro della carrozza 7 segna con preci'
+  k5@1: "'orologio del vagone segna l'ora esatta, 23:17, un minuto pr"
+  k8 head: 'L’orologio digitale sul muro della carrozza 7 segna con precisione chirurgica le 23:17, un’ora che non appartiene a ness'
+Traceback (most recent call last):
+  File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scripts\analyze_f5_5_b.py", line 244, in <module>
+    main()
+  File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scripts\analyze_f5_5_b.py", line 224, in main
+    print(f"  k{k} head: {b[:120]!r}")
+  File "C:\Users\gualt\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u51dd' in position 109: character maps to <undefined>

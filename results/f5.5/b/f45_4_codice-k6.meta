@@ -1,0 +1,10 @@
+cell=f45_4_codice-k6
+prompt=f45_4_codice k=6 n_expert_used_flag=6 n_expert_used_hdr=6
+rc=0 elapsed_s=89 attempt=1
+die_start=47.3 die_end=54.1 die_max=89.5
+batt 44 -> 44 plugged=PLUGGED_AC
+n_prompt=148 tokens=200 gen_chars=667
+cache_hit=69.9 mib_tok=.5.54546.49.71 read_mib=9942.2
+cache_mb=2000 ubatch=512 n_ctx=4096 n_gen=200 temp=0
+stopped=ok
+pfile_sha=0da7e292bda861df7fd1d97ba55fbfc21e3eb195737d4a2a96068f37ee80e199

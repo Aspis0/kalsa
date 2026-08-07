@@ -1,0 +1,278 @@
+[2026-08-07T16:16:18-0400] === F5.5-B START pid=12337 ===
+[2026-08-07T16:16:18-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+[2026-08-07T16:16:18-0400] base_flags=--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512
+[2026-08-07T16:16:18-0400] nproc=6 cpuset=/
+[2026-08-07T16:16:18-0400] LD_LIBRARY_PATH=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli:/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/..:
+[2026-08-07T16:16:18-0400] FLAG_OK --n-expert-used
+[2026-08-07T16:16:18-0400] prompt checksums written
+[2026-08-07T16:16:18-0400] battery_start: {
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 34.4,
+  "voltage": 3911,
+  "current": -73000,
+  "current_average": 665,
+  "percentage": 46,
+  "level": 46,
+  "scale": 100,
+  "charge_counter": 1732500,
+  "cycle": 0
+}
+[2026-08-07T16:16:22-0400] safety OK:die=40.6:batt=46:plugged=PLUGGED_AC
+[2026-08-07T16:16:24-0400] === SMOKE n=1 k=8 then k=6 ===
+[2026-08-07T16:16:30-0400] prestart OK die=40.5C nproc=6 OK:die=39.3:batt=46:plugged=PLUGGED_AC
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:16:49-04:00
+[2026-08-07T16:16:49-0400] SMOKE k=8 n=1
+[2026-08-07T16:17:13-0400] SMOKE k=8 rc=0 override_lines: llama_model_loader: - kv  26:                qwen35moe.expert_used_count u32              = 8
+validate_override: Using metadata override (  int) 'qwen35moe.expert_used_count' = 8
+print_info: n_expert_used         = 8
+[2026-08-07T16:17:14-0400] SMOKE k=8 CONFIRM override present
+BMOE_LOAD {"mb":245.28,"ms":326.0}
+BMOE_PROGRESS {"step":1,"steps":1,"wall_ms":562.6,"io_ms":326.0,"compute_ms":194.5,"mgmt_ms":42.1,"stall_ms":0.0,"read_mb":245.28,"cache_hit_pct":2.5,"majflt":0,"cpu_ms":2247.1,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":"C"}
+=== answer ===
+C
+=== perf ===
+generation: 1 tokens, 0.563 s/token (1.777 tok/s)
+print_info: n_expert_used         = 8
+[2026-08-07T16:17:18-0400] SMOKE k=6 n=1
+[2026-08-07T16:17:41-0400] SMOKE k=6 rc=0 override_lines: llama_model_loader: - kv  26:                qwen35moe.expert_used_count u32              = 8
+validate_override: Using metadata override (  int) 'qwen35moe.expert_used_count' = 6
+print_info: n_expert_used         = 6
+[2026-08-07T16:17:41-0400] SMOKE k=6 CONFIRM override present
+BMOE_LOAD {"mb":162.45,"ms":236.0}
+BMOE_PROGRESS {"step":1,"steps":1,"wall_ms":408.3,"io_ms":236.0,"compute_ms":158.1,"mgmt_ms":14.1,"stall_ms":0.0,"read_mb":162.45,"cache_hit_pct":3.8,"majflt":0,"cpu_ms":1545.9,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":"C"}
+=== answer ===
+C
+=== perf ===
+generation: 1 tokens, 0.408 s/token (2.449 tok/s)
+print_info: n_expert_used         = 6
+[2026-08-07T16:17:58-0400] cool OK die=45.8C <= 75C
+[2026-08-07T16:17:58-0400] ==== CELL short-k8 attempt=1 n_gen=200 ====
+[2026-08-07T16:18:05-0400] prestart OK die=49.8C nproc=6 OK:die=45.3:batt=46:plugged=PLUGGED_AC
+[2026-08-07T16:18:07-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=572544 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:18:22-04:00
+[2026-08-07T16:19:51-0400] CELL short-k8 DONE hit=74.1 mib_tok=.5.58.57.15 tokens=200 gen_chars=1009 die 88.7->56.5 max=91.6 batt 46->45 rc=0 stopped=ok
+[2026-08-07T16:19:53-0400] cool OK die=66.0C <= 70C
+[2026-08-07T16:19:53-0400] ==== CELL short-k6 attempt=1 n_gen=200 ====
+[2026-08-07T16:19:59-0400] prestart OK die=65.6C nproc=7 OK:die=65.2:batt=45:plugged=PLUGGED_AC
+[2026-08-07T16:20:01-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=94264 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:20:19-04:00
+[2026-08-07T16:21:39-0400] CELL short-k6 DONE hit=74.2 mib_tok=.5.56.39.74 tokens=190 gen_chars=862 die 76.2->50.9 max=89.9 batt 45->45 rc=0 stopped=ok
+[2026-08-07T16:21:43-0400] cool OK die=47.7C <= 70C
+[2026-08-07T16:21:43-0400] ==== CELL short-k5 attempt=1 n_gen=200 ====
+[2026-08-07T16:21:51-0400] prestart OK die=46.9C nproc=6 OK:die=45.3:batt=45:plugged=PLUGGED_AC
+[2026-08-07T16:21:53-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=118260 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:22:12-04:00
+[2026-08-07T16:23:29-0400] CELL short-k5 DONE hit=75.5 mib_tok=.5.55.30.16 tokens=200 gen_chars=875 die 46.9->61.2 max=92.0 batt 45->45 rc=0 stopped=ok
+[2026-08-07T16:23:32-0400] cool OK die=63.2C <= 70C
+[2026-08-07T16:23:32-0400] ==== CELL short-k4 attempt=1 n_gen=200 ====
+[2026-08-07T16:23:38-0400] prestart OK die=68.9C nproc=7 OK:die=69.7:batt=45:plugged=PLUGGED_AC
+[2026-08-07T16:23:40-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=136356 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:24:05-04:00
+[2026-08-07T16:25:31-0400] CELL short-k4 DONE hit=76.5 mib_tok=.5.54.21.17 tokens=200 gen_chars=1005 die 49.8->58.7 max=82.6 batt 45->45 rc=0 stopped=ok
+[2026-08-07T16:25:34-0400] cool OK die=50.1C <= 70C
+[2026-08-07T16:25:34-0400] ==== CELL f45_1_esplicativo-k8 attempt=1 n_gen=200 ====
+[2026-08-07T16:25:41-0400] prestart OK die=48.1C nproc=6 OK:die=46.9:batt=45:plugged=PLUGGED_AC
+[2026-08-07T16:25:43-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=121356 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:26:07-04:00
+[2026-08-07T16:27:35-0400] CELL f45_1_esplicativo-k8 DONE hit=77.0 mib_tok=.5.54518.49.05 tokens=200 gen_chars=766 die 46.5->53.7 max=90.3 batt 45->45 rc=0 stopped=ok
+[2026-08-07T16:27:38-0400] cool OK die=50.5C <= 70C
+[2026-08-07T16:27:38-0400] ==== CELL f45_1_esplicativo-k6 attempt=1 n_gen=200 ====
+[2026-08-07T16:27:46-0400] prestart OK die=49.3C nproc=6 OK:die=48.5:batt=45:plugged=PLUGGED_AC
+[2026-08-07T16:27:48-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=78543 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:28:12-04:00
+[2026-08-07T16:29:38-0400] CELL f45_1_esplicativo-k6 DONE hit=79.7 mib_tok=.5.54516.28.57 tokens=200 gen_chars=800 die 46.5->60.9 max=89.5 batt 45->45 rc=0 stopped=ok
+[2026-08-07T16:29:42-0400] cool OK die=51.7C <= 70C
+[2026-08-07T16:29:42-0400] ==== CELL f45_1_esplicativo-k5 attempt=1 n_gen=200 ====
+[2026-08-07T16:29:50-0400] prestart OK die=49.7C nproc=6 OK:die=48.5:batt=45:plugged=PLUGGED_AC
+[2026-08-07T16:29:52-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=95054 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:30:15-04:00
+[2026-08-07T16:31:42-0400] CELL f45_1_esplicativo-k5 DONE hit=81.9 mib_tok=.5.54515.18.34 tokens=200 gen_chars=830 die 66.4->51.0 max=83.1 batt 45->45 rc=0 stopped=ok
+[2026-08-07T16:31:46-0400] cool OK die=50.1C <= 70C
+[2026-08-07T16:31:46-0400] ==== CELL f45_1_esplicativo-k4 attempt=1 n_gen=200 ====
+[2026-08-07T16:31:54-0400] prestart OK die=48.5C nproc=6 OK:die=46.9:batt=45:plugged=PLUGGED_AC
+[2026-08-07T16:31:56-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=147029 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:32:18-04:00
+[2026-08-07T16:33:35-0400] CELL f45_1_esplicativo-k4 DONE hit=80.9 mib_tok=.5.54514.15.39 tokens=200 gen_chars=757 die 46.5->54.1 max=89.9 batt 45->45 rc=0 stopped=ok
+[2026-08-07T16:33:39-0400] cool OK die=50.9C <= 70C
+[2026-08-07T16:33:39-0400] ==== CELL f45_2_scrittura-k8 attempt=1 n_gen=200 ====
+[2026-08-07T16:33:47-0400] prestart OK die=49.3C nproc=6 OK:die=48.9:batt=45:plugged=PLUGGED_AC
+[2026-08-07T16:33:49-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=106865 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:34:08-04:00
+[2026-08-07T16:35:37-0400] CELL f45_2_scrittura-k8 DONE hit=71.6 mib_tok=.5.54528.57.68 tokens=139 gen_chars=598 die 66.4->53.1 max=77.4 batt 45->45 rc=0 stopped=ok
+[2026-08-07T16:35:40-0400] cool OK die=63.6C <= 70C
+[2026-08-07T16:35:40-0400] ==== CELL f45_2_scrittura-k6 attempt=1 n_gen=200 ====
+[2026-08-07T16:35:46-0400] prestart OK die=64.0C nproc=7 OK:die=63.2:batt=45:plugged=PLUGGED_AC
+[2026-08-07T16:35:48-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=117810 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:36:09-04:00
+[2026-08-07T16:37:25-0400] CELL f45_2_scrittura-k6 DONE hit=74.3 mib_tok=.5.54526.35.08 tokens=147 gen_chars=649 die 46.6->65.2 max=89.9 batt 45->44 rc=0 stopped=ok
+[2026-08-07T16:37:27-0400] cool OK die=64.4C <= 70C
+[2026-08-07T16:37:28-0400] ==== CELL f45_2_scrittura-k5 attempt=1 n_gen=200 ====
+[2026-08-07T16:37:33-0400] prestart OK die=63.6C nproc=7 OK:die=64.4:batt=44:plugged=PLUGGED_AC
+[2026-08-07T16:37:35-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=145312 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:37:58-04:00
+[2026-08-07T16:39:03-0400] CELL f45_2_scrittura-k5 DONE hit=73.3 mib_tok=.5.54525.29.18 tokens=143 gen_chars=634 die 48.5->54.9 max=91.2 batt 45->44 rc=0 stopped=ok
+[2026-08-07T16:39:07-0400] cool OK die=51.7C <= 70C
+[2026-08-07T16:39:07-0400] ==== CELL f45_2_scrittura-k4 attempt=1 n_gen=200 ====
+[2026-08-07T16:39:14-0400] prestart OK die=50.1C nproc=6 OK:die=49.7:batt=44:plugged=PLUGGED_AC
+[2026-08-07T16:39:16-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=137776 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:39:36-04:00
+[2026-08-07T16:40:50-0400] CELL f45_2_scrittura-k4 DONE hit=71.1 mib_tok=.5.54524.23.98 tokens=131 gen_chars=533 die 48.5->70.9 max=90.3 batt 44->44 rc=0 stopped=ok
+[2026-08-07T16:40:53-0400] cool OK die=68.9C <= 70C
+[2026-08-07T16:40:53-0400] ==== CELL f45_3_istruzioni-k8 attempt=1 n_gen=200 ====
+[2026-08-07T16:40:57-0400] prestart OK die=68.9C nproc=7 OK:die=68.9:batt=44:plugged=PLUGGED_AC
+[2026-08-07T16:41:00-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=141136 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:41:19-04:00
+[2026-08-07T16:42:33-0400] CELL f45_3_istruzioni-k8 DONE hit=75.9 mib_tok=.5.54538.44.36 tokens=135 gen_chars=659 die 76.2->53.7 max=89.9 batt 44->44 rc=0 stopped=ok
+[2026-08-07T16:42:37-0400] cool OK die=51.3C <= 70C
+[2026-08-07T16:42:37-0400] ==== CELL f45_3_istruzioni-k6 attempt=1 n_gen=200 ====
+[2026-08-07T16:42:44-0400] prestart OK die=48.9C nproc=6 OK:die=48.1:batt=44:plugged=PLUGGED_AC
+[2026-08-07T16:42:47-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=156577 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:43:13-04:00
+[2026-08-07T16:44:40-0400] CELL f45_3_istruzioni-k6 DONE hit=79.3 mib_tok=.5.54536.25.54 tokens=156 gen_chars=724 die 48.1->50.9 max=89.9 batt 44->44 rc=0 stopped=ok
+[2026-08-07T16:44:43-0400] cool OK die=51.3C <= 70C
+[2026-08-07T16:44:44-0400] ==== CELL f45_3_istruzioni-k5 attempt=1 n_gen=200 ====
+[2026-08-07T16:44:51-0400] prestart OK die=49.3C nproc=6 OK:die=48.1:batt=44:plugged=PLUGGED_AC
+[2026-08-07T16:44:54-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=39067 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:45:19-04:00
+[2026-08-07T16:46:49-0400] CELL f45_3_istruzioni-k5 DONE hit=82.3 mib_tok=.5.54535.17.84 tokens=199 gen_chars=961 die 47.7->59.1 max=90.3 batt 44->44 rc=0 stopped=ok
+[2026-08-07T16:46:52-0400] cool OK die=58.7C <= 70C
+[2026-08-07T16:46:52-0400] ==== CELL f45_3_istruzioni-k4 attempt=1 n_gen=200 ====
+[2026-08-07T16:46:58-0400] prestart OK die=58.7C nproc=7 OK:die=59.1:batt=44:plugged=PLUGGED_AC
+[2026-08-07T16:47:01-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=119989 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:47:27-04:00
+[2026-08-07T16:48:49-0400] CELL f45_3_istruzioni-k4 DONE hit=81.3 mib_tok=.5.54534.13.66 tokens=184 gen_chars=935 die 47.8->50.1 max=90.3 batt 44->44 rc=0 stopped=ok
+[2026-08-07T16:48:53-0400] cool OK die=48.5C <= 70C
+[2026-08-07T16:48:53-0400] ==== CELL f45_4_codice-k8 attempt=1 n_gen=200 ====
+[2026-08-07T16:49:01-0400] prestart OK die=47.7C nproc=6 OK:die=47.3:batt=44:plugged=PLUGGED_AC
+[2026-08-07T16:49:03-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=121930 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:49:28-04:00
+[2026-08-07T16:51:10-0400] CELL f45_4_codice-k8 DONE hit=67.0 mib_tok=.5.54548.78.53 tokens=200 gen_chars=699 die 46.5->63.6 max=90.3 batt 44->44 rc=0 stopped=ok
+[2026-08-07T16:51:13-0400] cool OK die=64.0C <= 70C
+[2026-08-07T16:51:13-0400] ==== CELL f45_4_codice-k6 attempt=1 n_gen=200 ====
+[2026-08-07T16:51:20-0400] prestart OK die=62.8C nproc=7 OK:die=60.4:batt=44:plugged=PLUGGED_AC
+[2026-08-07T16:51:23-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=124376 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:51:49-04:00
+[2026-08-07T16:53:27-0400] CELL f45_4_codice-k6 DONE hit=69.9 mib_tok=.5.54546.49.71 tokens=200 gen_chars=667 die 47.3->54.1 max=89.5 batt 44->44 rc=0 stopped=ok
+[2026-08-07T16:53:31-0400] cool OK die=58.3C <= 70C
+[2026-08-07T16:53:31-0400] ==== CELL f45_4_codice-k5 attempt=1 n_gen=200 ====
+[2026-08-07T16:53:38-0400] prestart OK die=50.1C nproc=6 OK:die=48.9:batt=44:plugged=PLUGGED_AC
+[2026-08-07T16:53:41-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=122796 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:54:07-04:00
+[2026-08-07T16:55:41-0400] CELL f45_4_codice-k5 DONE hit=70.8 mib_tok=.5.54545.38.12 tokens=200 gen_chars=668 die 47.0->52.1 max=90.3 batt 44->44 rc=0 stopped=ok
+[2026-08-07T16:55:45-0400] cool OK die=50.1C <= 70C
+[2026-08-07T16:55:45-0400] ==== CELL f45_4_codice-k4 attempt=1 n_gen=200 ====
+[2026-08-07T16:55:53-0400] prestart OK die=48.9C nproc=6 OK:die=47.7:batt=44:plugged=PLUGGED_AC
+[2026-08-07T16:55:55-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=92573 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:56:21-04:00
+[2026-08-07T16:57:57-0400] CELL f45_4_codice-k4 DONE hit=70.1 mib_tok=.5.54544.30.16 tokens=200 gen_chars=711 die 46.5->62.0 max=89.9 batt 44->44 rc=0 stopped=ok
+[2026-08-07T16:58:00-0400] cool OK die=59.9C <= 70C
+[2026-08-07T16:58:00-0400] ==== CELL f45_5_ragionamento-k8 attempt=1 n_gen=200 ====
+[2026-08-07T16:58:07-0400] prestart OK die=61.2C nproc=7 OK:die=63.2:batt=44:plugged=PLUGGED_AC
+[2026-08-07T16:58:10-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=120134 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T16:58:33-04:00
+[2026-08-07T17:00:13-0400] CELL f45_5_ragionamento-k8 DONE hit=71.6 mib_tok=.5.54558.60.44 tokens=165 gen_chars=657 die 49.3->52.1 max=79.0 batt 44->44 rc=0 stopped=ok
+[2026-08-07T17:00:17-0400] cool OK die=51.3C <= 70C
+[2026-08-07T17:00:17-0400] ==== CELL f45_5_ragionamento-k6 attempt=1 n_gen=200 ====
+[2026-08-07T17:00:25-0400] prestart OK die=50.5C nproc=6 OK:die=48.9:batt=44:plugged=PLUGGED_AC
+[2026-08-07T17:00:27-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=151494 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T17:00:54-04:00
+[2026-08-07T17:02:16-0400] CELL f45_5_ragionamento-k6 DONE hit=73.6 mib_tok=.5.54556.37.36 tokens=161 gen_chars=634 die 46.9->59.5 max=90.3 batt 44->44 rc=0 stopped=ok
+[2026-08-07T17:02:19-0400] cool OK die=61.6C <= 70C
+[2026-08-07T17:02:19-0400] ==== CELL f45_5_ragionamento-k5 attempt=1 n_gen=200 ====
+[2026-08-07T17:02:24-0400] prestart OK die=60.8C nproc=7 OK:die=61.2:batt=44:plugged=PLUGGED_AC
+[2026-08-07T17:02:27-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=122930 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T17:02:48-04:00
+[2026-08-07T17:04:18-0400] CELL f45_5_ragionamento-k5 DONE hit=73.2 mib_tok=.5.54555.29.77 tokens=156 gen_chars=648 die 62.0->52.5 max=89.5 batt 44->44 rc=0 stopped=ok
+[2026-08-07T17:04:22-0400] cool OK die=50.1C <= 70C
+[2026-08-07T17:04:22-0400] ==== CELL f45_5_ragionamento-k4 attempt=1 n_gen=200 ====
+[2026-08-07T17:04:30-0400] prestart OK die=48.5C nproc=6 OK:die=48.1:batt=44:plugged=PLUGGED_AC
+[2026-08-07T17:04:33-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=125739 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T17:04:59-04:00
+[2026-08-07T17:06:22-0400] CELL f45_5_ragionamento-k4 DONE hit=73.1 mib_tok=.5.54554.23.07 tokens=165 gen_chars=718 die 77.0->50.9 max=90.8 batt 44->44 rc=0 stopped=ok
+[2026-08-07T17:06:25-0400] cool OK die=50.5C <= 70C
+[2026-08-07T17:06:25-0400] ==== CELL long_conversational_it-k8 attempt=1 n_gen=256 ====
+[2026-08-07T17:06:33-0400] prestart OK die=48.5C nproc=6 OK:die=47.3:batt=44:plugged=PLUGGED_AC
+[2026-08-07T17:06:36-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=140336 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T17:07:01-04:00
+[2026-08-07T17:08:54-0400] CELL long_conversational_it-k8 DONE hit=84.2 mib_tok=.5.58.31.18 tokens=256 gen_chars=1028 die 48.5->58.5 max=90.3 batt 44->44 rc=0 stopped=ok
+[2026-08-07T17:08:57-0400] cool OK die=55.3C <= 70C
+[2026-08-07T17:08:57-0400] ==== CELL long_conversational_it-k6 attempt=1 n_gen=256 ====
+[2026-08-07T17:09:03-0400] prestart OK die=59.1C nproc=7 OK:die=59.1:batt=44:plugged=PLUGGED_AC
+[2026-08-07T17:09:06-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=95755 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T17:09:28-04:00
+[2026-08-07T17:11:12-0400] CELL long_conversational_it-k6 DONE hit=85.2 mib_tok=.5.56.19.55 tokens=256 gen_chars=1095 die 48.5->54.1 max=88.7 batt 44->44 rc=0 stopped=ok
+[2026-08-07T17:11:16-0400] cool OK die=51.7C <= 70C
+[2026-08-07T17:11:16-0400] ==== CELL long_conversational_it-k5 attempt=1 n_gen=256 ====
+[2026-08-07T17:11:24-0400] prestart OK die=49.3C nproc=6 OK:die=48.9:batt=44:plugged=PLUGGED_AC
+[2026-08-07T17:11:26-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=42847 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T17:11:52-04:00
+[2026-08-07T17:13:31-0400] CELL long_conversational_it-k5 DONE hit=86.2 mib_tok=.5.55.13.54 tokens=256 gen_chars=1076 die 72.5->62.0 max=89.1 batt 44->44 rc=0 stopped=ok
+[2026-08-07T17:13:34-0400] cool OK die=59.5C <= 70C
+[2026-08-07T17:13:34-0400] ==== CELL long_conversational_it-k4 attempt=1 n_gen=256 ====
+[2026-08-07T17:13:40-0400] prestart OK die=59.1C nproc=7 OK:die=58.7:batt=44:plugged=PLUGGED_AC
+[2026-08-07T17:13:43-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=121154 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T17:14:06-04:00
+[2026-08-07T17:15:57-0400] CELL long_conversational_it-k4 DONE hit=85.8 mib_tok=.5.54.10.66 tokens=256 gen_chars=994 die 48.9->53.7 max=76.2 batt 44->44 rc=0 stopped=ok
+[2026-08-07T17:16:01-0400] cool OK die=50.5C <= 70C
+[2026-08-07T17:16:01-0400] ==== CELL d1_long-k8 attempt=1 n_gen=256 ====
+[2026-08-07T17:16:08-0400] prestart OK die=50.1C nproc=6 OK:die=48.9:batt=44:plugged=PLUGGED_AC
+[2026-08-07T17:16:11-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=126014 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T17:16:37-04:00
+[2026-08-07T17:20:59-0400] CELL d1_long-k8 DONE hit=69.3 mib_tok=.5.518.36.33 tokens=256 gen_chars=1018 die 73.7->58.9 max=86.7 batt 44->44 rc=0 stopped=ok
+[2026-08-07T17:21:02-0400] cool OK die=52.5C <= 70C
+[2026-08-07T17:21:02-0400] ==== CELL d1_long-k6 attempt=1 n_gen=256 ====
+[2026-08-07T17:21:09-0400] prestart OK die=50.9C nproc=7 OK:die=55.9:batt=44:plugged=PLUGGED_AC
+[2026-08-07T17:21:12-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=16273 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T17:21:37-04:00
+[2026-08-07T17:25:41-0400] CELL d1_long-k6 DONE hit=67.0 mib_tok=.5.516.24.99 tokens=256 gen_chars=1026 die 47.3->49.3 max=90.8 batt 44->43 rc=0 stopped=ok
+[2026-08-07T17:25:44-0400] cool OK die=58.7C <= 70C
+[2026-08-07T17:25:44-0400] ==== CELL d1_long-k5 attempt=1 n_gen=256 ====
+[2026-08-07T17:25:49-0400] prestart OK die=59.9C nproc=7 OK:die=60.8:batt=43:plugged=PLUGGED_AC
+[2026-08-07T17:25:52-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=68899 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T17:26:14-04:00
+[2026-08-07T17:30:02-0400] CELL d1_long-k5 DONE hit=66.3 mib_tok=.5.515.17.75 tokens=256 gen_chars=985 die 65.6->49.3 max=82.6 batt 44->43 rc=0 stopped=ok
+[2026-08-07T17:30:05-0400] cool OK die=49.7C <= 70C
+[2026-08-07T17:30:05-0400] ==== CELL d1_long-k4 attempt=1 n_gen=256 ====
+[2026-08-07T17:30:11-0400] prestart OK die=49.8C nproc=7 OK:die=56.7:batt=43:plugged=PLUGGED_AC
+[2026-08-07T17:30:14-0400] cold_model /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=32124 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T17:30:37-04:00
+[2026-08-07T17:34:20-0400] CELL d1_long-k4 DONE hit=64.6 mib_tok=.5.514.12.26 tokens=256 gen_chars=978 die 77.4->60.4 max=81.0 batt 44->43 rc=0 stopped=ok
+[2026-08-07T17:34:23-0400] cool OK die=58.7C <= 70C
+[2026-08-07T17:34:23-0400] === F5.5-B DONE ok=32 fail=0 total=32 ===

@@ -1,0 +1,4 @@
+A 4B model fits entirely in the 8GB RAM, allowing the system to keep all weights in fast memory for immediate access, whereas the 35B MoE model far exceeds available RAM and must constantly stream data from slower flash storage, creating significant bottlenecks.
+
+*   **Memory Footprint & Page Faults:** The 4B model’s weights occupy roughly 16GB in full precision but can be quantized to fit within 8GB, avoiding the massive page faults and memory thrashing that occur when the 35B model’s full parameter set cannot reside in RAM, forcing frequent swaps between flash and memory.
+*   **Thermal Limits:** Streaming the 35B model’s sparse activations from UFS 3.1 storage generates intense heat due to high I/O throughput requirements, whereas the 4B model’s self-contained operation minimizes sustained disk activity and keeps thermal output manageable.

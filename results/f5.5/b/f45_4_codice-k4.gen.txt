@@ -1,0 +1,23 @@
+def median_eval_tok_s(rows):
+    # Collect valid eval_tok_s values where nproc is not None and >= 6
+    valid_values = []
+    for row in rows:
+        nproc = row.get("nproc")
+        eval_tok_s = row.get("eval_tok_s")
+        # Check if nproc is not None and >= 6
+        if nproc is not None and nproc >= 6:
+            # Check if eval_tok_s is not None
+            if eval_tok_s is not None:
+                valid_values.append(eval_tok_s)
+    
+    # If fewer than 1 valid value, return None
+    if len(valid_values) < 1:
+        return None
+    
+    # Sort the valid values to find the median
+    valid_values.sort()
+    n = len(valid_values)
+    mid = n // 2
+    
+    # Calculate median
+    if n % 2 == 0:

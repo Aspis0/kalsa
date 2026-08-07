@@ -1,0 +1,10 @@
+cell=short-k5
+prompt=short k=5 n_expert_used_flag=5 n_expert_used_hdr=5
+rc=0 elapsed_s=69 attempt=1
+die_start=46.9 die_end=61.2 die_max=92.0
+batt 45 -> 45 plugged=PLUGGED_AC
+n_prompt=114 tokens=200 gen_chars=875
+cache_hit=75.5 mib_tok=.5.55.30.16 read_mib=6031.4
+cache_mb=2000 ubatch=512 n_ctx=4096 n_gen=200 temp=0
+stopped=ok
+pfile_sha=197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619

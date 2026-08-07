@@ -1,0 +1,4 @@
+La spiegazione più plausibile è la **(B)**, poiché il calo di prestazioni (da 5.0 a 1.2 tok/s) corrisponde esattamente alla riduzione del numero di core attivi (da 8 a 3), mentre la temperatura era stabile.
+Un throttle termico (A) causerebbe un degrado graduale e progressivo, non un crollo netto e improvviso.
+La quantizzazione (C) influisce sulla precisione ma non giusterebbe un divario di prestazioni così marcato senza altri cambiamenti hardware.
+Per verificare, controlla il file `/proc/<pid>/status` o usa il comando `cat /proc/<pid>/cpuset` per confermare che il processo sia vincolato a un sottoinsieme limitato di core.

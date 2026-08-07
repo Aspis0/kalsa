@@ -1,0 +1,10 @@
+cell=d1_long-k4
+prompt=d1_long k=4 n_expert_used_flag=4 n_expert_used_hdr=4
+rc=0 elapsed_s=215 attempt=1
+die_start=77.4 die_end=60.4 die_max=81.0
+batt 44 -> 43 plugged=PLUGGED_AC
+n_prompt=1318 tokens=256 gen_chars=978
+cache_hit=64.6 mib_tok=.5.514.12.26 read_mib=3139.6
+cache_mb=2000 ubatch=512 n_ctx=4096 n_gen=256 temp=0
+stopped=ok
+pfile_sha=96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650

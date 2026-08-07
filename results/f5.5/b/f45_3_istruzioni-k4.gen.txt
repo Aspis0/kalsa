@@ -1,0 +1,4 @@
+Misurare le prestazioni con la batteria in esaurizione rivela la vera capacità del sistema di gestire picchi di carico senza l'aiuto del sistema di gestione termico o della limitazione di tensione tipica delle fasi di scarica. Al contrario, una batteria carica offre una resistenza interna più bassa e una tensione di scarica più stabile, consentendo al processore di mantenere frequenze più elevate per periodi più lunghi prima di raggiungere i limiti termici. Questa differenza fondamentale rende i dati di efficienza energetica e la stabilità delle prestazioni ottenuti in condizioni di scarica completamente diversi da quelli registrati con un livello di carica elevato.
+
+Come si confrontano i picchi di frequenza del processore tra i due stati di carica durante un rendering video pesante?
+Qual è l'impatto sulla frequenza di aggiornamento dello schermo quando la batteria scende sotto il 20% rispetto a quando è al 100%?

@@ -1,0 +1,10 @@
+cell=long_conversational_it-k5
+prompt=long_conversational_it k=5 n_expert_used_flag=5 n_expert_used_hdr=5
+rc=0 elapsed_s=92 attempt=1
+die_start=72.5 die_end=62.0 die_max=89.1
+batt 44 -> 44 plugged=PLUGGED_AC
+n_prompt=143 tokens=256 gen_chars=1076
+cache_hit=86.2 mib_tok=.5.55.13.54 read_mib=3466.4
+cache_mb=2000 ubatch=512 n_ctx=4096 n_gen=256 temp=0
+stopped=ok
+pfile_sha=b74f074858db2703e0a88a11838e05c4df5598d485e23c23714d55ba3128aaaa

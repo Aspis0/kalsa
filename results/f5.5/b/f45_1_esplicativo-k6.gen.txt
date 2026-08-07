@@ -1,0 +1,5 @@
+Un modello Mixture-of-Experts (MoE) è un’architettura neurale che divide il modello in "esperti" specializzati. A differenza dei modelli densi, dove ogni token attiva l’intera rete, un MoE attiva solo un sottoinsieme di esperti per ogni passaggio in avanti.
+
+Con 8 GB di RAM, un modello denso da 7B (FP16) richiede circa 14 GB solo per i pesi, rendendolo impossibile da eseguire localmente. Al contrario, un MoE da 35B con soli 3B parametri attivi per token mantiene un carico computazionale e di memoria attiva paragonabile al modello da 7B. Questo permette di caricare l’intero modello da 35B nella RAM dello smartphone, sfruttando la memoria non attiva per il contesto, mentre la GPU elabora solo i 3B attivi.
+
+Il routing degli esperti seleziona dinamicamente quali blocchi di rete process

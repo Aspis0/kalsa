@@ -1,0 +1,332 @@
+======================================================================
+PROMPT short
+--- k=8 len=1005 ---
+A 4B model fits entirely within the 8GB RAM, allowing the system to keep all weights in fast memory for immediate access, whereas the 35B MoE model exceeds available RAM and must constantly swap inactive experts between the slower flash storage and RAM. This frequent data movement creates significant page faults and I/O bottlenecks, as the system struggles to fetch the correct expert subsets quickly enough to maintain smooth inference speeds.
+
+*   **Memory Footprint and Page Faults:** The 4B model’s compact size avoids the need for constant swapping, while the larger MoE model triggers excessive page faults because its total parameter count far exceeds the 8GB limit, forcing the OS to repeatedly move data between RAM and UFS 3.1 storage.
+*   **Thermal Limits:** The intense I/O operations required to stream experts from flash storage generate substantial heat, pushing the smartphone’s thermal limits and potentially triggering throttling that degrades performance, whereas the self-contained 
+
+
+--- k=6 len=854 ---
+A 4B model fits entirely in the 8GB RAM, allowing the system to keep all weights in fast memory for immediate access, whereas the 35B MoE model far exceeds available RAM and must constantly stream data from slower flash storage, creating significant bottlenecks.
+
+*   **Memory Footprint & Page Faults:** The 4B model’s weights occupy roughly 16GB in full precision but can be quantized to fit within 8GB, avoiding the massive page faults and memory thrashing that occur when the 35B model’s full parameter set cannot reside in RAM, forcing frequent swaps between flash and memory.
+*   **Thermal Limits:** Streaming the 35B model’s sparse activations from UFS 3.1 storage generates intense heat due to high I/O throughput requirements, whereas the 4B model’s self-contained operation minimizes sustained disk activity and keeps thermal output manageable.
+
+
+--- k=5 len=873 ---
+The 4B model fits entirely within the 8GB RAM, allowing for fast, direct access to all parameters without the overhead of loading and unloading data, whereas the 35B MoE model exceeds available RAM and must stream experts from the slower UFS 3.1 storage, which introduces significant latency and thermal constraints.
+
+*   **Memory Footprint:** The 4B model’s weights occupy roughly 16GB in full precision, but with quantization (e.g., INT4), it shrizes to ~2GB, easily fitting in 8GB RAM alongside the context window; the 35B MoE model, even with only 3B active parameters, has a total parameter count that far exceeds the device's memory capacity, forcing reliance on external storage.
+*   **Page Faults and Thermal Limits:** Streaming experts from flash storage causes frequent page faults and high I/O wait times, generating heat that triggers thermal throttling; the 4
+
+
+--- k=4 len=1005 ---
+Running a dense 4B model is generally smoother because its entire weight matrix fits comfortably within the smartphone's 8GB RAM, allowing for efficient, direct access without the overhead of managing sparse data structures. In contrast, the 35B MoE model, despite activating only 3B parameters, requires significant memory bandwidth and storage I/O to dynamically load and unload expert weights, which introduces complexity in managing the memory footprint and increases the risk of page faults as the system swaps data between RAM and the faster UFS 3.1 storage.
+
+*   **Memory and Storage Overhead:** While the active parameters of the MoE model are small, the sheer size of the full 35B parameter model often exceeds available RAM, forcing the system to constantly stream expert weights from flash storage, which is slower than RAM and can cause bottlenecks.
+*   **Thermal and Performance Constraints:** The constant reading and writing of expert weights to and from flash storage to handle the sparse
+
+
+======================================================================
+PROMPT f45_1_esplicativo
+--- k=8 len=759 ---
+Un modello Mixture-of-Experts (MoE) è un’architettura neurale che divide i parametri in "esperti" specializzati. A differenza dei modelli densi, dove ogni token attiva tutti i parametri, un MoE attiva solo un sottoinsieme selezionato tramite un meccanismo di routing (instradamento).
+
+Su uno smartphone con 8 GB di RAM, un MoE da 35B parametri ma con soli 3B attivi per token è più pratico di un denso da 7B per due motivi chiave. Innanzitutto, la memoria: caricare un denso da 7B (FP16) richiede circa 14 GB, superando la RAM disponibile. Il MoE, invece, mantiene i 35B parametri sul disco (o nella memoria non volatile), caricando in RAM solo gli esperti attivi (circa 6 GB), permettendo l’esecuzione senza crash.
+
+Secondo, lo streaming da flash: grazie al
+
+
+--- k=6 len=793 ---
+Un modello Mixture-of-Experts (MoE) è un’architettura neurale che divide il modello in "esperti" specializzati. A differenza dei modelli densi, dove ogni token attiva l’intera rete, un MoE attiva solo un sottoinsieme di esperti per ogni passaggio in avanti.
+
+Con 8 GB di RAM, un modello denso da 7B (FP16) richiede circa 14 GB solo per i pesi, rendendolo impossibile da eseguire localmente. Al contrario, un MoE da 35B con soli 3B parametri attivi per token mantiene un carico computazionale e di memoria attiva paragonabile al modello da 7B. Questo permette di caricare l’intero modello da 35B nella RAM dello smartphone, sfruttando la memoria non attiva per il contesto, mentre la GPU elabora solo i 3B attivi.
+
+Il routing degli esperti seleziona dinamicamente quali blocchi di rete process
+
+
+--- k=5 len=819 ---
+Un modello Mixture-of-Experts (MoE) è un’architettura neurale che divide il peso computazionale in "esperti" specializzati, attivandone solo un sottoinsieme per ogni token. A differenza dei modelli densi, dove l’intero peso viene processato, negli MoE si attiva solo una frazione dei parametri totali.
+
+Nel tuo caso, un modello da 35B ma con soli 3B parametri attivi per token offre un vantaggio cruciale su smartphone con 8 GB di RAM. Sebbene il modello completo sia troppo grande per essere caricato interamente nella memoria, l’architettura MoE permette di caricare solo i pesi necessari agli esperti attivi. Poiché l’inferazione coinvolge attivamente solo 3B di parametri (circa 12 GB in precisione intera, ma ottimizzabili), il carico di memoria effettivo per il calcolo è gestibile, a patto che i pesi non attivi
+
+
+--- k=4 len=749 ---
+Un modello Mixture-of-Experts (MoE) divide i parametri in "cucine" specializzate, attivando solo una parte per ogni token. Con 35 miliardi di parametri totali ma soli 3 miliardi attivi, la computazione effettiva è paragonabile a un modello denso da 7B, garantendo velocità di inferzione simile, ma a parità di capacità complessiva molto superiore.
+
+Su smartphone con 8 GB di RAM, un denso da 7B è ideale: la memoria è sufficiente e il caricamento è immediato. Il MoE da 35B, invece, presenta sfide: caricare 35B di parametri (circa 70 GB in precisione intera) è impossibile in sola RAM, ma il *routing* intelligente permette di caricare solo gli esperti necessari. Lo *streaming* da flash (spesso tramite formati 4/5/6-bit) ottimizza l'accesso alla
+
+
+======================================================================
+PROMPT f45_2_scrittura
+--- k=8 len=588 ---
+Ciao,
+
+per il test dell’app di chat on-device su Samsung S23, stiamo utilizzando un modello MoE quantizzato a circa 2.4 bit per peso. L’obiettivo è verificare le prestazioni in scenari reali.
+
+La velocità attesa è di circa 5 token al secondo. Per garantire che il processo resti in foreground e non venga sospeso dal sistema, è fondamentale mantenere lo schermo acceso durante l’intera sessione.
+
+Per favore, annota con precisione:
+- La temperatura del dispositivo durante il test.
+- Il consumo di batteria.
+- I token generati al secondo (tok/s) effettivi.
+
+Grazie per la collaborazione.
+
+
+--- k=6 len=639 ---
+Ciao,
+
+per il test dell’app di chat on-device sul Samsung S23, stiamo utilizzando un modello MoE quantizzato a circa 2.4 bit per peso. L’obiettivo è verificare le prestazioni in scenari reali.
+
+La velocità attesa si attesta intorno ai 5 token al secondo. Per garantire il corretto funzionamento del processo, è fondamentale mantenere lo schermo acceso, assicurando così che l’app rimanga in foreground senza essere sospesa dal sistema.
+
+Durante la sessione, ti preghiamo di annotare con precisione:
+- Il valore di temperatura impostato;
+- Il consumo medio di batteria;
+- I token generati al secondo (tok/s).
+
+Grazie per la collaborazione.
+
+
+--- k=5 len=622 ---
+Ciao,
+
+per il test dell’app di chat on-device sul Samsung S23, confermo l’uso di un modello MoE quantizzato a circa 2.4 bit/peso. L’obiettivo è verificare le prestazioni in scenari reali.
+
+La velocità attesa si attesta intorno ai 5 token al secondo. Per garantire il corretto funzionamento del processo in background, è fondamentale mantenere lo schermo acceso (foreground) durante l’intera sessione di test.
+
+Ti invito a monitorare con attenzione i seguenti parametri e annotarli regolarmente:
+- Valore di temperatura rilevato
+- Consumo batteria
+- Velocità effettiva di generazione (tok/s)
+
+Grazie per la collaborazione.
+
+
+--- k=4 len=525 ---
+Ciao,
+
+per il test dell’app di chat on-device su Samsung S23, confermo i parametri tecnici. Stiamo utilizzando un modello MoE quantizzato a circa 2.4 bit per peso. L’obiettivo è ottenere una velocità di generazione di circa 5 token al secondo.
+
+Ti ricordo di mantenere lo schermo sempre acceso: è fondamentale per tenere il processo in foreground e garantire le prestazioni attese.
+
+Per la reportistica, annota solo i seguenti dati:
+- Valore di temperatura
+- Consumo batteria
+- Velocità effettiva (tok/s)
+
+Grazie,
+[Tuo Nome]
+
+
+======================================================================
+PROMPT f45_3_istruzioni
+--- k=8 len=655 ---
+Misurare le prestazioni a batteria scarica rivela i limiti termici e la degradazione della tensione, mentre il test a batteria piena non sempre evidenzia questi colli di bottiglia critici.
+La stabilità della frequenza di clock tende a crollare sotto carico quando l'alimentazione è ridotta, un fenomeno che rimane nascuro con una carica ottimale.
+Questo approccio differenziato permette di identificare le reali capacità di gestione dell'energia del dispositivo in condizioni estreme.
+Quali sono i valori di temperatura massima raggiunti durante il test a batteria scarica?
+Quale è il calo percentuale delle prestazioni rispetto al test a batteria piena?
+
+
+--- k=6 len=724 ---
+Misurare le prestazioni con la batteria carica garantisce una tensione stabile che permette al processore di mantenere le frequenze massime per tutta la durata del test.
+Al contrario, con la batteria scarica il sistema di gestione dell'alimentazione tende a limitare la potenza disponibile per prevenire lo spegnimento improvviso.
+Questa differenza di comportamento hardware rende i benchmark a batteria piena un indicatore di picco, mentre quelli a batteria scarica riflettono le prestazioni reali sotto carico prolungato.
+Quali sono le soglie di tensione critiche che attivano il throtting termico durante i test di stress?
+Come varia l'intervallo di clock della CPU quando la carica scende sotto il 20% rispetto al 100%?
+
+
+--- k=5 len=957 ---
+Misurare le prestazioni con batteria scarica elimina le variabili legate alla gestione termica e alla tensione del alimentatore, fornendo un benchmark più stabile e riproducibile rispetto alla misurazione a carica piena dove i limiti termici possono imporre un throttling precoce.
+La differenza sostanziale risiede nella costanza della potenza erogata, poiché i sistemi moderni riducono la frequenza del processore non appena la temperatura interna supera una soglia critica, un fenomeno meno probabile o ritardato con l'alimentazione da rete.
+Pertanto, i dati raccolti a batteria scarica riflettono la potenza di picco sostenuta, mentre quelli a batteria piena o con carica variabile mostrano un compromesso dinamico tra prestazioni massime e gestione termica.
+
+Quali sono i valori di temperatura del SoC al momento del raggiungimento del picco di frequenza?
+Qual è la durata media del test prima che il sistema attivi la modalità di risparmio energetico?
+
+
+--- k=4 len=927 ---
+Misurare le prestazioni con la batteria in esaurizione rivela la vera capacità del sistema di gestire picchi di carico senza l'aiuto del sistema di gestione termico o della limitazione di tensione tipica delle fasi di scarica. Al contrario, una batteria carica offre una resistenza interna più bassa e una tensione di scarica più stabile, consentendo al processore di mantenere frequenze più elevate per periodi più lunghi prima di raggiungere i limiti termici. Questa differenza fondamentale rende i dati di efficienza energetica e la stabilità delle prestazioni ottenuti in condizioni di scarica completamente diversi da quelli registrati con un livello di carica elevato.
+
+Come si confrontano i picchi di frequenza del processore tra i due stati di carica durante un rendering video pesante?
+Qual è l'impatto sulla frequenza di aggiornamento dello schermo quando la batteria scende sotto il 20% rispetto a quando è al 100%?
+
+
+======================================================================
+PROMPT f45_4_codice
+--- k=8 len=699 ---
+```python
+def median_eval_tok_s(rows):
+    """Return the median of eval_tok_s for rows where nproc is not None and nproc >= 6.
+    
+    Ignores rows with missing eval_tok_s. Returns None if fewer than 1 valid value remains.
+    """
+    valid_values = []
+    for row in rows:
+        eval_tok_s = row.get("eval_tok_s")
+        nproc = row.get("nproc")
+        if eval_tok_s is None:
+            continue
+        if nproc is None or nproc < 6:
+            continue
+        valid_values.append(eval_tok_s)
+    
+    if len(valid_values) < 1:
+        return None
+    
+    valid_values.sort()
+    n = len(valid_values)
+    if n % 2 == 1:
+        return valid_values[n // 2]
+    else:
+        mid = n // 2
+
+
+--- k=6 len=667 ---
+```python
+def median_eval_tok_s(rows):
+    """Return the median of 'eval_tok_s' for rows where nproc is not None and >= 6.
+    
+    Rows with missing (None) 'eval_tok_s' are ignored.
+    If fewer than 1 valid value remains, return None.
+    """
+    values = []
+    for row in rows:
+        nproc = row.get("nproc")
+        eval_tok_s = row.get("eval_tok_s")
+        if nproc is not None and nproc >= 6 and eval_tok_s is not None:
+            values.append(eval_tok_s)
+    
+    if len(values) < 1:
+        return None
+    
+    values.sort()
+    n = len(values)
+    if n % 2 == 1:
+        return values[n // 2]
+    else:
+        mid = n // 2
+        return (values[mid
+
+
+--- k=5 len=668 ---
+```python
+def median_eval_tok_s(rows):
+    """Return the median of eval_tok_s for rows where nproc is not None and >= 6.
+    
+    Rows with missing (None) eval_tok_s are ignored.
+    If fewer than 1 valid value remains, return None.
+    """
+    values = []
+    for row in rows:
+        nproc = row.get("nproc")
+        eval_tok_s = row.get("eval_tok_s")
+        if nproc is not None and nproc >= 6 and eval_tok_s is not None:
+            values.append(eval_tok_s)
+    
+    if len(values) < 1:
+        return None
+    
+    values.sort()
+    n = len(values)
+    if n % 2 == 1:
+        return values[n // 2]
+    else:
+        mid = n // 2
+        return (values[mid - 1]
+
+
+--- k=4 len=711 ---
+def median_eval_tok_s(rows):
+    # Collect valid eval_tok_s values where nproc is not None and >= 6
+    valid_values = []
+    for row in rows:
+        nproc = row.get("nproc")
+        eval_tok_s = row.get("eval_tok_s")
+        # Check if nproc is not None and >= 6
+        if nproc is not None and nproc >= 6:
+            # Check if eval_tok_s is not None
+            if eval_tok_s is not None:
+                valid_values.append(eval_tok_s)
+    
+    # If fewer than 1 valid value, return None
+    if len(valid_values) < 1:
+        return None
+    
+    # Sort the valid values to find the median
+    valid_values.sort()
+    n = len(valid_values)
+    mid = n // 2
+    
+    # Calculate median
+    if n % 2 == 0:
+
+
+======================================================================
+PROMPT f45_5_ragionamento
+--- k=8 len=651 ---
+La spiegazione più plausibile è la **(B) il processo è finito in un cpuset con solo 3 core little**.
+
+I benchmark MoE moderni sono altamente parallelizzati e richiedono multi-threading; passare da 8 core a 3 core "little" (generalmente lenti) ridurrebbe drasticamente la velocità da 5.0 a circa 1.2 tok/s, mentre un throttle termico (A) causerebbe un calo graduale, non un salto netto tra run separati. La quantizzazione (C) influisce sulla velocità ma non giusterebbe un divario così ampio senza altri cambiamenti hardware.
+
+Per verificare, controlla il file `/proc/<pid>/status` cercando la riga `Cpus_allowed_list` per confermare i core assegnati.
+
+
+--- k=6 len=630 ---
+La spiegazione più plausibile è la **(B)**, poiché il calo di prestazioni (da 5.0 a 1.2 tok/s) corrisponde esattamente alla riduzione del numero di core attivi (da 8 a 3), mentre la temperatura era stabile.
+Un throttle termico (A) causerebbe un degrado graduale e progressivo, non un crollo netto e improvviso.
+La quantizzazione (C) influisce sulla precisione ma non giusterebbe un divario di prestazioni così marcato senza altri cambiamenti hardware.
+Per verificare, controlla il file `/proc/<pid>/status` o usa il comando `cat /proc/<pid>/cpuset` per confermare che il processo sia vincolato a un sottoinsieme limitato di core.
+
+
+--- k=5 len=642 ---
+La spiegazione più plausibile è la **(B) il processo è finito in un cpuset con solo 3 core little**. I core "little" (a basso consumo) hanno una larghezza di banda della memoria e una potenza di calcolo inferiori rispetto ai core "big", spiegando il crollo delle prestazioni nonostante la temperatura bassa. Il throttle termico (A) è improbabile dato che la temperatura era stabile a 30°C, mentre un cambio di quantizzazione (C) di per sé non spiegherebbe il calo drastico senza un cambiamento di hardware. Per verificare, controlla il file `/proc/self/cpuset` o usa il comando `cat /proc/self/cgroup` per confermare il confinamento ai core.
+
+
+--- k=4 len=713 ---
+La spiegazione più plausibile è la **(B) il processo è finito in un cpuset con soli 3 core little**.
+
+Poiché la temperatura era bassa e i benchmark MoE richiedono elevate risorse di calcolo, il calo drastico delle prestazioni (da 5.0 a 1.2 tok/s) indica che il sistema operativo ha limitato attivamente il parallelismo disponibile, costringendo il carico di lavoro a operare su un numero ridotto di core a bassa potenza (little) anzessiare quelli ad alte prestazioni (big).
+
+Per verificare ciò, si deve controllare il file di stato del processo con il comando `cat /proc/<PID>/status | grep Cpus_allowed`, analizzando la variabile `Cpus_allowed_list` per confermare la limitazione dei core assegnati al processo.
+
+
+======================================================================
+PROMPT long_conversational_it
+--- k=8 len=1022 ---
+Il treno scivolava nell’oscurità come una bestia silenziosa e pesante, il suo respiro meccanico un battito costante che rimbombava nel petto di Luca, seduto da ore nella sua cabina numero quattro del letto con la porta socchiusa a spiracchi di luce. Fuori, la pianura padana si era dissolta in una nebbia densa e grigia, trasformata in un velo di cenere che il vento spingeva contro i vetri con insistenza, mentre le luci dei paesi addormentati si accendevano e si spegnevano in sequenze irregolari, come pulsazioni di un cuore gigante e invisibile. Luca aveva gli occhi fissi su quel vuoto liquido, ma la sua mente non era lì; era tornata indietro, attraversando decenni di silenzi e distanze, fino a quel pomeriggio di vent’anni prima quando aveva lasciato Milano con una valigia stracolma di sogni malinconici e la certezza di non tornare mai, o almeno, non per molto. Ora, il biglietto in tasca gli pesava come una condanna o forse come una redenzione, a seconda di come guardava la data stampata sulla carta: Napoli,
+
+
+--- k=6 len=1092 ---
+Il treno si staccava dalla piattaforma di Milano Centrale con un lamento metallico che sembrava strappare via gli ultimi frammenti di una città grigia e industriale, lasciando il viaggiatore sospeso in una dimensione sospesa tra il sonno e la veglia, dove il tempo non scorreva a scatti ma si allungava come una gomma da masticare sotto la suola di un vecchio stivello. Fuori dal finestrino, la luce artificiale delle stazioni e delle case si dissolveva in strisce di neon e ombre, mentre la campagna lombarda, quella pianura infinita e piatta che si estendeva fino all'orizzonte, iniziava a rivelare i suoi contorni solo quando i fari del convoglio tagliavano l'oscurità come lame di luce fredda. Luca aveva scelto il posto a sinistra, quello con la vista libera, perché sapeva che il viaggio verso sud non sarebbe stato solo un trasferimento geografico, ma un viaggio nel tempo, un ritorno indietro attraverso le vene di ferro che collegavano la sua infanzia alla sua vita adulta, una vita trascorsa tra uffici lucidi e promesse non mantenute, mentre lui, con la valigia in mano e il cuore
+
+
+--- k=5 len=1064 ---
+Il treno notturno ronzava con una costanza meccanica che sembrava essere l’unica cosa vera in quel mondo sospeso tra il buio e la luce artificella dei corridoi, un ronzio basso e profondo che vibrava nelle ossa di chi, come me, aveva scelto il posto vicino alla finestra per non perdere nemmeno l’ombra delle colline toscane che si stagliavano contro il cielo notturno, un blu profondo e infinito punteggiato da stelle che forse non vedevo più da anni, vissute com’ero stato in città dove il cielo era un ricordo astratto, cancellato dai riflettori e dal cemento. Ero seduto in prima classe, o forse era la seconda, non sapevo più distinguere le sfumature della mia vita precedente, quelle legate alla fretta e alle scadense, e ora mi ritrovavo con una valigia di tela logora in piedi accanto al sedile, una valigia che conteneva anni di silenzi e di promesse non mantenute, pronta a riportarmi a Napoli, quella Napoli che avevo lasciato con la stessa leggerezza con cui si lascia un cappotto d’inverno, credendo di non averne più bisogno, ma che ora mi aspettava
+
+
+--- k=4 len=984 ---
+Il bagagliaio del treno si stendeva come un fiume d’acciaio e ghiaia al buio, un’arteria metallica che si snodava nella notte lombarda prima di lanciarsi verso i passi alpini, portando quella carcassa di carrozze con i suo carico umano verso il sud, verso il calore soffocante e la memoria. Il suono era una litania ossessiva, un battito ritmico di ruote d’acciaio su rotaie di acciaio, un metronomo imperterrito che segnava il passo di chi, come Marco, non aveva fretta ma nemmeno il coraggio di fermarsi, aggrappato alla ringhiera del vagone letto per non perdere l’equilibro mentre il convoglio superava le curve a causa della velocità ridotta dalle gallerie appenniniche. Fuori dal finestrino, la realtà si dissolveva in una peluria grigia, in macchie di luce urbana che si allungavano in strisce di neon sbiaditi prima di essere ingoiate dal nulla delle campagne, dove i campi di foraggio e i vigneti dormivano in silenzio sotto la coltre di nebbia che si addensava nelle valli.
+
+
+======================================================================
+PROMPT d1_long
+--- k=8 len=1007 ---
+L’orologio digitale sul muro della carrozza 7 segna con precisione chirurgica le 23:17, un’ora che non appartiene a nessuno e a tutti allo stesso tempo, sospesa tra la fine della giornata e l’inizio di un sogno che non si vuole fare. Il finestrino lato corridoio è appannato da una nebbia fredda che si forma ogni volta che il treno attraversa una galleria, e attraverso quel vetro opaco si intravede solo un frammento del paesaggio milanese che si dissolve nella notte, sostituito da luci al neon che sfociano via come stelle cadute. La valigia blu, con la cerniera arrugginita e l’etichetta del viaggio ancora appiccicata sul lato, poggia sul pavimento accanto al mio piede, un peso silenzioso che contiene anni di silenzi e di assenze, pronta a essere riportata a casa dopo una lontananza durata troppo a lungo. Il biglietto, con il posto 14B stampato in caratteri neri e definiti, è il mio unico ancoraggio a questa realtà mobile, un pezzo di carta che mi dice dove devo stare, dove devo essere, mentre
+
+
+--- k=6 len=1019 ---
+L’orologio digitale sopra la testiera segna con implacabile precisione l’orario 23:17, un numero che sembra sospeso nel tempo come una promessa non ancora mantenuta, mentre il bagliore verde illumina il volto stanco di chi, seduto nel finestrino lato corridoio della carrozza 7, cerca nella monotonia del viaggio una tregua dai rimpianti. La valigia blu, con le cerniere arrugginite e la pelle consumata dai viaggi precedenti, è sistemata con cura tra le gambe, il suo peso familiare un ancoraggio fisico in un mondo che sembra aver perso i suoi punti di riferimento, mentre il biglietto con la dicitura posto 14B è stato riposto con cura nella tasca interna della giacca, a contatto con il cuore, a simboleggiare un ritorno che non è solo geografico ma esistenziale. Fuori dal vetro, la notte si stende come un sipario di velluto nero, interrotta solo dalle luci fugaci delle stazioni intermedie dove i binari si intrecciano in nodi complessi, ricordando le vite che si incrociano e si separano senza mai davvero fond
+
+
+--- k=5 len=980 ---
+L'orologio del vagone segna l'ora esatta, 23:17, un minuto preciso in cui il tempo sembra essersi凝ato in una sospensione silenziosa, mentre il viaggiatore fissa il finestrino lato corridoio di carrozza 7, dove la realtà esterna si frammenta in strisce di buio e luci fugaci che non appartengono a nessuna mappa nota. La valigia blu, con le sue cerniere d'acciaio ormai opacizzate dall'uso, poggia con una pesantezza rassicante sul pavimento, accanto allo sgabello del posto 14B, il cui biglietto stampato è stato accuratamente infilato nella tasca interna della giacca, a contatto con il cuore, a simboleggiare un ritorno che non è solo fisico ma esistenziale, un ritorno a casa dopo anni di assenza e silenzi incolmabili. Fuori dal vetro, il paesaggio si dissolve in una melassa di ombre e luci artificiali, campi che non si distinguono se non per la loro forma massiccia e per i rami nudi degli alberi che sembrano dita artigliate a strappo contro il cielo notturno, mentre all
+
+
+--- k=4 len=973 ---
+Alle ore 23:17 in punto, mentre la città di Milano si dissolveva definitivamente nell'ombra plumbea della pianura padana, il viaggiatore sistemò con cura la valigia blu sotto il sedile, il suo colore acceso a contrasto con i velluti grangi del vagoto, e si sistemò comodamente nella carrozza 7, sistemandosi con una grazia faticosa nel posto 14B, un sedile imbottito che sembrava aver accolchie infinite volte, sebbene la sua pelle non si ricordasse di averlo mai visto prima. Il finestrino lato corridoio era il suo unico confine con la notte, un rettangolo di vetro scuro che rifletteva il suo volto stanco e i lampadari azzurrati dal bagliore dei pannelli a LED, trasformando lo spazio angusto in una capsula di silenzio relativo dove il fruscio delle lenzuola a righe e il respiro pesante dello scompartito si mescolavano a un ritmo ipnotico. Fu allora che un'ombra si stagliò nel corridoio, un uomo con un soprabito pesante e una valigetta di pelle scura che si fermò
+
+

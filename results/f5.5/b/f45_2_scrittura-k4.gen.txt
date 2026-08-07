@@ -1,0 +1,13 @@
+Ciao,
+
+per il test dell’app di chat on-device su Samsung S23, confermo i parametri tecnici. Stiamo utilizzando un modello MoE quantizzato a circa 2.4 bit per peso. L’obiettivo è ottenere una velocità di generazione di circa 5 token al secondo.
+
+Ti ricordo di mantenere lo schermo sempre acceso: è fondamentale per tenere il processo in foreground e garantire le prestazioni attese.
+
+Per la reportistica, annota solo i seguenti dati:
+- Valore di temperatura
+- Consumo batteria
+- Velocità effettiva (tok/s)
+
+Grazie,
+[Tuo Nome]

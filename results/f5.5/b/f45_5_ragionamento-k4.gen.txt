@@ -1,0 +1,5 @@
+La spiegazione più plausibile è la **(B) il processo è finito in un cpuset con soli 3 core little**.
+
+Poiché la temperatura era bassa e i benchmark MoE richiedono elevate risorse di calcolo, il calo drastico delle prestazioni (da 5.0 a 1.2 tok/s) indica che il sistema operativo ha limitato attivamente il parallelismo disponibile, costringendo il carico di lavoro a operare su un numero ridotto di core a bassa potenza (little) anzessiare quelli ad alte prestazioni (big).
+
+Per verificare ciò, si deve controllare il file di stato del processo con il comando `cat /proc/<PID>/status | grep Cpus_allowed`, analizzando la variabile `Cpus_allowed_list` per confermare la limitazione dei core assegnati al processo.

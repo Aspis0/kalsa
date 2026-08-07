@@ -1,0 +1,6 @@
+Misurare le prestazioni con batteria scarica elimina le variabili legate alla gestione termica e alla tensione del alimentatore, fornendo un benchmark più stabile e riproducibile rispetto alla misurazione a carica piena dove i limiti termici possono imporre un throttling precoce.
+La differenza sostanziale risiede nella costanza della potenza erogata, poiché i sistemi moderni riducono la frequenza del processore non appena la temperatura interna supera una soglia critica, un fenomeno meno probabile o ritardato con l'alimentazione da rete.
+Pertanto, i dati raccolti a batteria scarica riflettono la potenza di picco sostenuta, mentre quelli a batteria piena o con carica variabile mostrano un compromesso dinamico tra prestazioni massime e gestione termica.
+
+Quali sono i valori di temperatura del SoC al momento del raggiungimento del picco di frequenza?
+Qual è la durata media del test prima che il sistema attivi la modalità di risparmio energetico?

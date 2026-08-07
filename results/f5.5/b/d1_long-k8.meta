@@ -1,0 +1,10 @@
+cell=d1_long-k8
+prompt=d1_long k=8 n_expert_used_flag=8 n_expert_used_hdr=8
+rc=0 elapsed_s=255 attempt=1
+die_start=73.7 die_end=58.9 die_max=86.7
+batt 44 -> 44 plugged=PLUGGED_AC
+n_prompt=1318 tokens=256 gen_chars=1018
+cache_hit=69.3 mib_tok=.5.518.36.33 read_mib=9299.6
+cache_mb=2000 ubatch=512 n_ctx=4096 n_gen=256 temp=0
+stopped=ok
+pfile_sha=96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650

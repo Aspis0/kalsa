@@ -1,0 +1,10 @@
+cell=f45_2_scrittura-k4
+prompt=f45_2_scrittura k=4 n_expert_used_flag=4 n_expert_used_hdr=4
+rc=0 elapsed_s=66 attempt=1
+die_start=48.5 die_end=70.9 die_max=90.3
+batt 44 -> 44 plugged=PLUGGED_AC
+n_prompt=133 tokens=131 gen_chars=533
+cache_hit=71.1 mib_tok=.5.54524.23.98 read_mib=3141.2
+cache_mb=2000 ubatch=512 n_ctx=4096 n_gen=200 temp=0
+stopped=ok
+pfile_sha=5cd6c45c4fcdeafb3f0b242231c9e997cad225ac62fc6332f2a91e71bedc0f79

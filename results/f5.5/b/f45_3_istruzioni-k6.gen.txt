@@ -1,0 +1,5 @@
+Misurare le prestazioni con la batteria carica garantisce una tensione stabile che permette al processore di mantenere le frequenze massime per tutta la durata del test.
+Al contrario, con la batteria scarica il sistema di gestione dell'alimentazione tende a limitare la potenza disponibile per prevenire lo spegnimento improvviso.
+Questa differenza di comportamento hardware rende i benchmark a batteria piena un indicatore di picco, mentre quelli a batteria scarica riflettono le prestazioni reali sotto carico prolungato.
+Quali sono le soglie di tensione critiche che attivano il throtting termico durante i test di stress?
+Come varia l'intervallo di clock della CPU quando la carica scende sotto il 20% rispetto al 100%?

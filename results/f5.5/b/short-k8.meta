@@ -1,0 +1,10 @@
+cell=short-k8
+prompt=short k=8 n_expert_used_flag=8 n_expert_used_hdr=8
+rc=0 elapsed_s=81 attempt=1
+die_start=88.7 die_end=56.5 die_max=91.6
+batt 46 -> 45 plugged=PLUGGED_AC
+n_prompt=114 tokens=200 gen_chars=1009
+cache_hit=74.1 mib_tok=.5.58.57.15 read_mib=11429.8
+cache_mb=2000 ubatch=512 n_ctx=4096 n_gen=200 temp=0
+stopped=ok
+pfile_sha=197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619
