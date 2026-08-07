@@ -1,0 +1,13 @@
+cell=F5.4-C-cache3000-r2
+mark=F5.4 IN-CARICA
+model=Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+cache_mb=3000 ubatch=512 n_ctx=4096 n_pred=256
+tokens=256 tok_s=3.339 prefill_s=149.577 prefill_tps=7.61
+compute_s_tok=0.231 io_s_tok=0.180
+cache_hit=75.1 mib_tok=18.35 read_mib=4698.0
+sched_reserve_mib=501.02
+cur_freq0=1589760.0 cur_freq3=1607680.0 cur_freq5=1607680.0 cur_freq7=1822080.0 cur_freq_prime=1607680.0
+work=371374.1
+die_max=89.5 rss_peak=4710840 elapsed=251
+batt_start=33 batt_end=33
+rc=0 reason=ok

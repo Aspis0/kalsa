@@ -1064,9 +1064,10 @@ graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n
 sched_reserve:        CPU compute buffer size =   501.02 MiB
 sched_reserve: graph nodes  = 3727
 sched_reserve: graph splits = 1
-sched_reserve: reserve took 18.90 ms, sched copies = 1
+sched_reserve: reserve took 17.27 ms, sched copies = 1
 set_n_threads: n_threads = 4, n_threads_batch = 4
 set_abort_callback: call
 bmoe: dense-weights=anon — 1664 MiB in 613 anon buffers
 bmoe: dense-weights=anon — dropped 1662 MiB of now-unused mmap pages
 bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=2500 MiB shards=1
+~llama_context:        CPU compute buffer size is 501.0196 MiB, matches expectation of 501.0196 MiB

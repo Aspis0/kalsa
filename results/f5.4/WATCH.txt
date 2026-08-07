@@ -1,9 +1,1 @@
-Fri Aug  7 13:26:46 EDT 2026
-CELL F5.4-C-cache2500-r1 2026-08-07T13:24:14-0400
-DONE_COUNT=2
-F5.4-C-cache2000-r1 DONE tokens=256 hit=71.1
-F5.4-C-cache2000-r2 DONE tokens=256 hit=71.1
-done_c=2
-done_d1=0
-done_b=0
-done_d2=0
+HB 2026-08-07T14:13:50-0400 pid=2472 cell=F5.4-C-cache3500-r2 start
