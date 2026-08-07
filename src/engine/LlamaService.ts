@@ -39,7 +39,6 @@ import {
   parseFallbackToolCall,
   stripToolCallTagsFinal,
 } from "./toolCallParser";
-import { QWEN35_NO_THINK_CHAT_TEMPLATE } from "./qwenNoThinkTemplate";
 import { createThinkStreamCleaner } from "./thinkStream";
 
 /**
@@ -684,50 +683,43 @@ function applyOperativeBlockFormat(
 }
 
 /**
- * Per-completion chat_template override for Qwen3.5 when thinking must stay OFF.
- *
- * llama.rn 0.12.8 accepts `chat_template` on CompletionBaseParams (and at
- * initLlama). Per-completion is preferred: off/default get the force-closed
- * prefill; budget256/512 keep the stock GGUF template so thinking can open —
- * no engine re-init when the bench knob flips.
- *
- * Only model ids starting with "qwen3.5" (Gemma path untouched).
- */
-function qwenNoThinkChatTemplateFields(): { chat_template?: string } {
-  if (activeModelId?.startsWith("qwen3.5")) {
-    return { chat_template: QWEN35_NO_THINK_CHAT_TEMPLATE };
-  }
-  return {};
-}
-
-/**
  * Map bench thinking mode → NativeCompletionParams fields (enable_thinking / budget).
  * "default" keeps production options identical (thinking off + reasoning_format none).
  *
- * Rank-1 fix (report §5): for Qwen3.5 off/default also pass the no-think
- * chat_template so generation always prefills empty think block
- * (`<think>\n\n</think>\n\n`) — kwargs alone are unreliable on device.
+ * NO chat_template override (removed 2026-08-07). The old unconditional
+ * no-think template backfired: llama.cpp's differential autoparser derives the
+ * thinking start/end tags FROM the template (renders with enable_thinking
+ * true/false and diffs), and an unconditional template renders identically →
+ * no tags detected → jinjaResult carries no thinking_end_tag → JSIParams never
+ * arms the reasoning-budget sampler → `thinking_budget_tokens: 0` was a NO-OP
+ * and a model-initiated `<think>` reopen ran unchecked to the n_predict cap
+ * (field-proven: fresh-chat A/B showed off ≡ budget256 wall time — off was
+ * silently burning hidden reasoning tokens with no belt).
+ *
+ * Stock template + enable_thinking:false instead: the flag reaches the jinja
+ * context typed (traced: src/index.ts:805 → RNLlamaJSI.cpp:841 →
+ * rn-llama.cpp:600 → chat.cpp:908-913), both Qwen3.5 template polarities
+ * close the prefill (4B "open unless false", 2B "closed unless true"), the
+ * autoparser sees a CONDITIONAL template so tags are detected, and budget 0 is
+ * genuinely armed: a reopened <think> is force-closed by the sampler at once.
  */
 function buildThinkingCompletionFields(mode: ThinkingMode): {
   enable_thinking?: boolean;
   thinking_budget_tokens?: number;
   reasoning_format?: "none" | "auto" | "deepseek";
   chat_template_kwargs?: { enable_thinking: boolean };
-  chat_template?: string;
 } {
   switch (mode) {
     case "off":
       return {
         enable_thinking: false,
-        // Second belt: llama.cpp #20182/#20476 — on Qwen3.5 `enable_thinking:false`
-        // alone is often ignored and the model emits a long hidden reasoning block
-        // (burns tokens, UI stalls on "thinking"). A zero budget forces it shut.
+        // Second belt — now ACTUALLY armed (see doc above): budget 0 means the
+        // sampler forces the end tag the moment a think block opens.
         thinking_budget_tokens: 0,
         // Keep "none": app owns THINK_OPEN/THINK_CLOSE stream stripping; do not
         // switch to "auto" (changes stream shape the UI expects).
         reasoning_format: "none",
         chat_template_kwargs: { enable_thinking: false },
-        ...qwenNoThinkChatTemplateFields(),
       };
     case "budget256":
       return {
@@ -741,13 +733,12 @@ function buildThinkingCompletionFields(mode: ThinkingMode): {
       };
     case "default":
     default:
-      // Production path — same belts as "off" (kwargs + budget 0 + template).
+      // Production path — same belts as "off" (kwargs + armed budget 0).
       return {
         enable_thinking: false,
         thinking_budget_tokens: 0,
         reasoning_format: "none",
         chat_template_kwargs: { enable_thinking: false },
-        ...qwenNoThinkChatTemplateFields(),
       };
   }
 }
@@ -1304,7 +1295,6 @@ export async function extractMemory(
           thinking_budget_tokens: 0,
           reasoning_format: "none",
           chat_template_kwargs: { enable_thinking: false },
-          ...qwenNoThinkChatTemplateFields(),
         }),
       );
 
@@ -1444,7 +1434,6 @@ export async function translateText(
           thinking_budget_tokens: 0,
           reasoning_format: "none",
           chat_template_kwargs: { enable_thinking: false },
-          ...qwenNoThinkChatTemplateFields(),
         }),
       );
 
@@ -1545,7 +1534,6 @@ export async function summarizeConversation(
           thinking_budget_tokens: 0,
           reasoning_format: "none",
           chat_template_kwargs: { enable_thinking: false },
-          ...qwenNoThinkChatTemplateFields(),
         }),
       );
 
