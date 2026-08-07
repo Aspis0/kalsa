@@ -68,6 +68,11 @@ const config = {
       {
         android: {
           newArchEnabled: true,
+          // Ship policy (owner, 2026-08-07): Android 15+ ONLY. Edge-to-edge is
+          // mandatory there, keyboard-controller computes the full IME height,
+          // and the API<=34 nav-bar shortfall class is out of scope by
+          // construction. CI screens emulator runs API 35 to match.
+          minSdkVersion: 35,
         },
       },
     ],
