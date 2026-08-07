@@ -223,6 +223,23 @@ sched_reserve **esatto** da stderr `CPU compute buffer size` — scala ~lineare 
 - work come metrica invariante: fragile quando I/O domina o freq deriva (B e C-3500).  
 - Pre-packing esperti nel GGUF: **ipotesi di leva**, non implementata né misurata qui.
 
+## Scoperta aggiuntiva — ubatch è una leva sul riscaldamento della cache (emendamento post-audit)
+
+Osservazione di gualt verificata sui dati D2: l'hit-rate **cumulativo** (dominato dal prefill) sale con ubatch:
+
+| ubatch | hit% |
+|---:|---:|
+| 256 | 60.2 |
+| 512 | 69.3 |
+| 1024 | 73.8 |
+| 2048 | **79.2** |
+
+**+19 punti** da 256 a 2048 — non rumore. Meccanismo: con ubatch piccolo il prompt viene masticato in tanti blocchi e fra un blocco e l'altro la cache evince esperti che il blocco successivo richiede di nuovo; con ubatch grande il prompt passa in un colpo e la cache si riempie meglio.
+
+**Conseguenza**: ubatch non è solo un compromesso memoria/velocità di prefill — è anche una leva sul riscaldamento della cache esperti. E spiega (almeno in parte) l'anomalia del decode in D2: l'hit-rate diverso del prefill cambia lo stato della cache a inizio decode.
+
+**Contaminazione retroattiva da dichiarare**: l'hit 71.1% di F5.4-C era a ubatch 512; F5.1/F5.2 usavano ubatch di default (n_ctx-sized ≈ ubatch grande). I confronti di hit-rate fra fasi con ubatch diversi non sono omogenei.
+
 ## Artefatti
 
 - `results/f5.4/` — cells C, BD2.master.log, bd2_cells.csv, STATUS  
