@@ -945,6 +945,115 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 notte — F4.8 VERIFICATA (Claude): E1 confermata in modo spettacolare, e il
+  device è QUASI TRE VOLTE più veloce di quanto tutto il piano assumeva. I numeri fio su cui
+  abbiamo ragionato per giorni sono sbagliati di un fattore 2.**
+
+  Mandato eseguito da Grok in carica (solo conteggi di byte e routing, nessuna misura di
+  velocità). Report `reports/moe-f4.8.md`, commit `1b3222b`. Qui la **mia verifica indipendente**
+  sui dati grezzi, con due correzioni a quanto avevo detto io.
+
+  ### 1. E1: confermata, e peggio del previsto
+
+  ```
+  load:    read_bytes = 20.76 GiB   rchar = 1.62 GiB   19.563 s   1086.7 MiB/s
+  prefill: read_bytes =  4.55 GiB   rchar = 4.55 GiB    8.575 s    543.4 MiB/s   (102 token)
+  TTFT = 28.138 s
+  ```
+
+  Il caricamento fa **20.76 GiB di traffico di blocco** per materializzare un trunk residente
+  da 2.8 GiB. Il file intero ne pesa 11.52: **ne legge 1.8 volte tanto**. E `rchar` (le
+  `read()` logiche) è solo 1.62 GiB ⇒ **19.14 GiB dei 20.76 sono page fault di mmap**.
+
+  Sequenza, dalla timeline campionata ogni 200 ms:
+  - t≈9.6 s: **l'intero file è già faultato** in RAM
+  - t=12-15 s: le pagine mmap vengono rilasciate (`dropped 1662 MiB of now-unused mmap pages`)
+  - t≈17.5 s: `rchar` sale — il trunk dense viene **riletto** via O_DIRECT in buffer anon
+
+  Cioè il file viene letto **due volte**: tutto per fault, poi la parte dense di nuovo.
+  L'aritmetica del tempo chiude senza residui: 20.76 GiB a 1086.7 MiB/s = **19.1 s** su 19.563
+  misurati. Il caricamento è *solo* volume di byte, e 1086 MiB/s è già banda piena.
+
+  **Un loader che legge i ~2.8 GiB che gli servono: ~2.6 s invece di 19.6 ⇒ TTFT 28.1 → ~11 s.**
+
+  ### 2. ⚠ IL DEVICE FA 1200 MiB/s, NON 413. Il piano è tarato su numeri fio sbagliati.
+
+  `bmoe-iobench` (stesso `FileReader` del motore, stesso O_DIRECT, con `--compute-load 4`):
+
+  | dimensione | MiB/s | | corsie @942 KiB | MiB/s |
+  |---|---:|---|---|---:|
+  | 264 KiB | 844.8 | | 1 | 850.6 |
+  | 512 KiB | 987.6 | | 2 | 1184.2 |
+  | **942 KiB** | **1204.2** | | 4 | 1204.2 |
+  | 2048 KiB | 1369.3 | | | |
+
+  §5 del piano dice `fio: 1M = 413 MiB/s [MISURATO F2.1]`. iobench a **942 KiB / 1 corsia**
+  misura **850.6**. Stesso device, stessa classe di dimensione, profondità di coda 1 in
+  entrambi: **fattore 2.06 di discrepanza**. Lo strumento credibile è iobench, perché usa il
+  percorso di codice reale invece di un binario fio che su Termux dà già segni di malfunzionamento
+  (le celle qd4 in archivio leggono 87 MiB/s a 256k, e i job log contengono
+  `clock setaffinity failed`).
+
+  **Conseguenza: il runtime ottiene 425 MiB/s dove il suo stesso strato di I/O ne fa 1204.
+  Siamo al 35% della capacità del device.** Tutte le conclusioni della tavola rotonda sul
+  "tetto dello storage" — la mia inclusa — poggiavano su 413. **Non siamo mai stati al tetto.**
+
+  ### 3. Il rapporto scatter passa la soglia, ma c'è una trappola dentro
+
+  `scatter1/scatter3 = 1150.8/905.4 = 1.271` e `1136.0/912.3 = 1.245` ⇒ **1.26 ≥ 1.25**: per la
+  regola dichiarata prima, il repack per-esperto **ha un caso**. Ma il numero va letto insieme
+  alla latenza, e allora si ribalta:
+
+  - le corsie **saturano a 2** (1→2 = 1.39×, 2→4 = 1.02×), e noi facciamo solo ~2.36 miss/layer
+  - **scatter 3**: 7.1 letture da 1.36 ms si spalmano sulle corsie ⇒ ~2.7 ms/layer
+  - **scatter 1**: 2.36 letture da 3.19 ms, una sola tornata ⇒ ~3.2 ms/layer
+
+  In regime di **banda** il repack vince del 26%. In regime di **latenza con corsie libere**
+  perde. E il collo sembra essere la latenza: gli esperti del layer L+1 non sono noti finché L
+  non ha calcolato ⇒ **40 catene dipendenti per token**, che nessuna banda accorcia.
+
+  **Questo riapre il prefetch cross-layer (H4), che il round 3 aveva dichiarato morto sulla
+  premessa «siamo rate-bound, non latency-bound». I dati dicono il contrario.**
+
+  ### 4. Due correzioni a quanto avevo detto io stanotte
+
+  1. **Sul picco di RAM avevo torto.** Avevo detto «il picco non è il caricamento, è il regime».
+     La serie temporale dice il contrario: **HWM 4416 MiB a t≈8.2 s, dentro il load**, contro
+     **3920 MiB a regime** con cache 2000. Il picco sta 500 MiB sopra lo stazionario ed è la
+     tempesta di fault. Quindi **sistemare il loader sblocca davvero una cache più grande** —
+     toglie la punta che uccide cache-3000 in `create_tensor`. Con un limite però: a regime la
+     RAM è `dense 1664 + cache + ~250`, quindi cache-3000 ⇒ ~4.9 GiB e cache-3500 ⇒ ~5.4 GiB,
+     sul filo di lmkd. **La pista arriva a ~3000-3500, non oltre.**
+  2. Avevo derivato l'errore dai soli valori di fine fase senza guardare la serie. È lo stesso
+     schema che il Registro nomina da giorni: una conclusione presa su una quantità derivata
+     senza controllare il dato sotto.
+
+  ### 5. Conferme collaterali
+
+  - **Prefill misurato 4.55 GiB per 102 token.** Il round 3 lo aveva **derivato** per pura
+    aritmetica dai contatori mescolati: **4521 MiB**. Errore del 3%. La chiusura N4b regge.
+  - **Qualità**: sul prompt di ragionamento — *«5.0 tok/s con 8 core, 1.2 tok/s nel run
+    successivo, stessa temperatura: throttle termico, cpuset a 3 core little, o quantizzazione
+    cambiata?»* — il 35B a 2.4 bit ha scelto **(B)**, la risposta giusta, che è esattamente il
+    bug che ci è costato una giornata. Test di qualità molto migliore dei 5 di F4.5: ha una
+    risposta verificabile invece di richiedere un giudizio a occhio.
+  - Un run in carica riporta `moe-overlap: stall 0.064 s/token` con scomposizione **additiva**
+    esatta (`0.158 compute + 0.018 cache + 0.064 stall = 0.240 decode`). Se regge nel regime
+    valido, **l'I/O esposto è solo il 27% del decode** — ancora un'altra storia rispetto
+    all'«I/O-bound di 1.7×» della roofline. **Da rifare sulla config del gate, scollegato.**
+
+  ### 6. Cosa cambia nella coda
+
+  1. **Rifare la scala fio** con iobench, e **ritirare i numeri fio da §5**: sono la base di
+     troppi ragionamenti per lasciarli lì sbagliati di 2×.
+  2. **Il fix del loader sale in cima**: vale ~17 s di TTFT *e* sblocca cache 2500-3000.
+  3. **Il repack per-esperto scende**: passa la soglia ma il guadagno di banda potrebbe essere
+     annullato dalla perdita di parallelismo. Prima serve sapere se siamo latency- o
+     bandwidth-bound, e lo dice il punto 4.
+  4. **Rimisurare `moe-overlap: stall` nel regime valido**: decide quale roofline è vera, e
+     quindi se il ramo I/O vale il 27% o il 60%.
+  5. **Riaprire il prefetch cross-layer** con la premessa corretta.
+
 - **2026-08-06 notte — F4.7 CHIUSA: la batteria non conta fino al 17%, poi costa il 5%. E in
   regalo, la prima misura di ENERGIA della campagna.**
 
