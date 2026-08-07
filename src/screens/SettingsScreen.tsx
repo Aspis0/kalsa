@@ -1429,7 +1429,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                       {model.modelErrorHint ? (
                         <Text
                           style={[typography.bodyXs, { color: colors.muted }]}
-                          numberOfLines={4}
+                          numberOfLines={8}
                         >
                           {model.modelErrorHint}
                         </Text>

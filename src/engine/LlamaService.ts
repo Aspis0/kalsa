@@ -1,5 +1,7 @@
 import {
+  addNativeLogListener,
   initLlama,
+  toggleNativeLog,
   type ContextParams,
   type LlamaContext,
   type RNLlamaMessagePart,
@@ -65,6 +67,54 @@ let activeCacheTypeV: string | null = null;
  * stays correct even after disposeEngineLocked's `finally` resets this flag.
  */
 let disposing = false;
+
+// ── llama.cpp native log tail (on-device diagnostics; no adb) ─────────────
+const NATIVE_LOG_CAP = 50;
+const nativeLogTail: string[] = [];
+let nativeLogSetupDone = false;
+
+async function ensureNativeLogCapture(): Promise<void> {
+  if (nativeLogSetupDone) return;
+  nativeLogSetupDone = true;
+  try {
+    await toggleNativeLog(true);
+    addNativeLogListener((level, text) => {
+      nativeLogTail.push(`${level} ${text}`);
+      if (nativeLogTail.length > NATIVE_LOG_CAP) {
+        nativeLogTail.splice(0, nativeLogTail.length - NATIVE_LOG_CAP);
+      }
+    });
+  } catch {
+    // Logging must never break engine init.
+  }
+}
+
+/** Last few diagnostic native-log lines for UI / Error.message enrichment. */
+export function nativeLogSummary(): string {
+  const diagnosticRe = /error|fail|invalid|unable|unsupported|missing|magic|version/i;
+  const matched = nativeLogTail.filter((line) => diagnosticRe.test(line));
+  const slice = (matched.length > 0 ? matched : nativeLogTail).slice(-3);
+  const joined = slice.join(" | ");
+  return Array.from(joined).slice(0, 300).join("");
+}
+
+function logNativeTailOnFailure(): void {
+  console.log("[engine-init-native-tail]", nativeLogTail.join("\n"));
+}
+
+function withNativeTail(message: string): string {
+  const summary = nativeLogSummary();
+  return summary ? `${message} || native: ${summary}` : message;
+}
+
+function rethrowWithNativeTail(error: unknown): never {
+  logNativeTailOnFailure();
+  if (error instanceof Error) {
+    error.message = withNativeTail(error.message);
+    throw error;
+  }
+  throw new Error(withNativeTail(String(error)));
+}
 
 /** Max user-memory facts injected into the system prompt. */
 const MAX_PROMPT_FACTS = 10;
@@ -363,7 +413,14 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       };
     }
 
-    context = await initLlama(params);
+    // Capture llama.cpp native log before init so field devices without adb
+    // can surface mmap/tensor/arch failures that never reach JS Error.message.
+    await ensureNativeLogCapture();
+    try {
+      context = await initLlama(params);
+    } catch (error) {
+      rethrowWithNativeTail(error);
+    }
     activeModelId = modelId;
     activeMmprojPath = options.mmprojPath ?? null;
     activeEngineCtx = engineCtx;
@@ -371,15 +428,22 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     activeCacheTypeV = cacheTypeV;
 
     if (isMultimodal && options.mmprojPath) {
-      const enabled = await context.initMultimodal({ path: options.mmprojPath, use_gpu: true });
+      let enabled: boolean;
+      try {
+        enabled = await context.initMultimodal({ path: options.mmprojPath, use_gpu: true });
+      } catch (error) {
+        rethrowWithNativeTail(error);
+      }
       if (!enabled) {
         await disposeEngineLocked();
-        throw new Error(strings.errors.visionInitFailed);
+        logNativeTailOnFailure();
+        throw new Error(withNativeTail(strings.errors.visionInitFailed));
       }
       const support = await context.getMultimodalSupport().catch(() => null);
       if (!support?.vision) {
         await disposeEngineLocked();
-        throw new Error(strings.errors.visionNotSupported);
+        logNativeTailOnFailure();
+        throw new Error(withNativeTail(strings.errors.visionNotSupported));
       }
     }
   });

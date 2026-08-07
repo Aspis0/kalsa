@@ -113,7 +113,7 @@ const DOWNLOAD_NOTIFY_THROTTLE_MS = 2_000;
 
 /**
  * Untranslated on-device diagnostic string from a thrown value.
- * Suppresses empty / bare "Error:" noise; truncates surrogate-safe to 200 chars.
+ * Suppresses empty / bare "Error:" noise; truncates surrogate-safe to 400 chars.
  */
 function rawErrorDetail(error: unknown): string | null {
   let rawSource: string;
@@ -129,7 +129,7 @@ function rawErrorDetail(error: unknown): string | null {
   }
   const rawTrimmed = rawSource.trim();
   if (!rawTrimmed || rawTrimmed === "Error:" || rawTrimmed === "Error: ") return null;
-  return Array.from(rawTrimmed).slice(0, 200).join("");
+  return Array.from(rawTrimmed).slice(0, 400).join("");
 }
 
 // ── ConversationCompactor (per-chat, module-level — survives remounts) ─────
