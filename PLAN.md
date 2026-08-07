@@ -945,6 +945,73 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-06 notte — F4.7 CHIUSA: la batteria non conta fino al 17%, poi costa il 5%. E in
+  regalo, la prima misura di ENERGIA della campagna.**
+
+  Campagna terminata da sola a `STOP_PCT=9`. Otto punti, config fissa, top-app, `nproc=8`
+  `mask=ff` su tutti, scollegato. Carica = quella a **inizio** run (dal summary di fase):
+
+  | batteria % | 32 | 30 | 27 | 25 | 21 | 17 | **13** | **10** |
+  |---|---|---|---|---|---|---|---|---|
+  | tok/s | 4.84 | 4.98 | 4.84 | 4.92 | 4.88 | 5.00 | **4.64** | **4.69** |
+  | T inizio °C | 31.3 | 30.3 | 29.0 | 29.4 | 28.7 | 28.6 | 28.5 | 28.9 |
+
+  **Verdetto: piatta da 32% a 17% (media 4.91, dispersione ±1.6% = la ripetibilità dello
+  strumento), poi uno scalino di −5.0% sotto il 13% (media 4.665).** La rottura sta fra 17 e 13.
+
+  **Non è policy del sistema operativo** — canale adb, campionato ogni 120 s per tutta la
+  fase: `low_power=0` e `mSettingBatterySaverEnabled=false` **sempre**, `Thermal Status: 0`
+  **sempre**, `mPlugType=0` sempre. `scaling_max_freq` invariato ai massimi di fabbrica
+  (cpu0 2016 / cpu3 2803 / cpu7 3360 MHz) anche a batteria 12%. L'unica cosa che cambia è
+  `mBatteryLevelLow: false → true` **al 15%**, che è solo il flag del popup e non tocca né
+  scheduler né frequenze.
+
+  **Non è deriva di sessione, e lo dicono le temperature.** I run vanno dalle 17:24 alle 20:58;
+  se ci fosse una deriva sarebbe confusa con l'effetto. Ma `temp_start` **scende** lungo la
+  sessione (31.3 → 28.5 °C): le ultime due misure sono **le più fredde e le più lente**. Una
+  deriva termica avrebbe prodotto il contrario. Resta comunque obbligatorio il controllo a
+  ≥80% (voce sotto) — due punti sono due punti.
+
+  **Il meccanismo è elettrico, e ha evidenza.** Dallo storico dei broadcast `BATTERY_CHANGED`
+  (letto via adb — non lo stavamo registrando), tensione e corrente **sotto carico**:
+
+  | livello | V a riposo | V sotto carico | I |
+  |---|---|---|---|
+  | 21% | 3720 mV | 3570 mV | −1443 mA |
+  | 17% | 3697 | **3469** | −2039 mA |
+  | 13% | 3659 | 3496 | −1439 mA |
+  | 12% | 3657 | 3596 | −1830 mA |
+
+  Resistenza interna ≈ **104-113 mΩ**, in lieve salita. Il minimo di tensione sotto carico
+  **scende** (3570 al 21% → 3469 al 17%) e il PMIC di una Li-ion inizia a limitare la corrente
+  intorno ai **3.4 V**: stiamo entrando in quella regione proprio dove compare lo scalino. La
+  frequenza *massima* resta invariata ma la *permanenza* in turbo no — ed è invisibile in
+  `scaling_max_freq`, che è un tetto, non una frequenza raggiunta. Strumento giusto per
+  confermarlo: `cpufreq/stats/time_in_state` campionato attorno al run.
+
+  ### ENERGIA — prima misura della campagna, e non era in programma
+
+  Sotto carico il sistema tira **1.4-2.0 A a ~3.6 V = 5.2-7.1 W**. A 5.0 tok/s:
+
+  **≈ 1.0-1.4 J/token**, schermo acceso incluso (quindi è un **tetto** sul costo del modello).
+
+  - Batteria S23 ~3900 mAh × 3.8 V ≈ 14.8 Wh ≈ 53 kJ ⇒ **~40 000 token generati per carica**.
+  - Ritira la stima a verbale di **6 J/token** (era fuori di 4-6×) e batte anche la stima
+    «1.5-2.5 J/token [speculazione]» della tavola rotonda: il valore reale è più basso.
+  - **Conseguenza di prodotto**: il 35B in streaming **non è energeticamente proibitivo** su
+    questo telefono. È la prima volta che lo si può dire con una misura invece che con
+    un'impressione, e chiude in positivo la domanda §5.6 del brief.
+  - Da industrializzare: aggiungere `voltage_now`/`current_now` alle colonne CSV e campionarli
+    a inizio/fine run. Il dato è disponibile da `dumpsys battery` e da
+    `termux-battery-status` (`current`, `current_average`), quindi **anche dall'harness**, non
+    solo da adb.
+
+  ### Cosa NON dice questa fase
+
+  Le righe F4.7 portano `DO_NOT_COMPARE_TO_GATE` e vanno lasciate fuori da qualunque mediana
+  del gate. E lo scalino del 5% è un risultato **di caratterizzazione**, non una leva: non si
+  guadagna nulla tenendo il telefono carico, si evita solo di perdere il 5% quando è scarico.
+
 - **2026-08-06 notte — TAVOLA ROTONDA AVVERSARIALE (Grok ↔ DeepSeek, 4 round + arbitrato).
   Ha corretto quattro nostri numeri, chiuso la disputa sulla banda, e trovato il lavoro più
   prezioso del progetto in un posto dove non stavamo guardando.**
