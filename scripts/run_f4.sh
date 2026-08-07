@@ -2,6 +2,8 @@
 # run_f4.sh — F4 BigMoeOnEdge streaming 35B on S23 (PLAN F4 + §8.2)
 # Cold=fadv via cold_model.sh. Battery floor 40%. LD_LIBRARY_PATH from binary dir.
 set -euo pipefail
+export PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+export PATH="$PREFIX/bin:$PATH"
 export LC_ALL=C
 
 CELL="C"

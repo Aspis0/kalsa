@@ -28,6 +28,8 @@
 # =============================================================================
 
 set -o pipefail
+export PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+export PATH="$PREFIX/bin:$PATH"
 export LC_ALL=C
 
 # ---------------------------------------------------------------------------
