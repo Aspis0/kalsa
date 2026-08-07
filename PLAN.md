@@ -945,6 +945,77 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-07 notte — ⚠⚠ IL RISULTATO PIÙ IMPORTANTE DELLA CAMPAGNA: il benchmark da 64
+  token misurava il RISCALDAMENTO DELLA CACHE, non il regime. Su 512 token il traffico crolla
+  del 63%, l'hit sale a 86.6% e il sistema diventa COMPUTE-BOUND.**
+
+  Cella C3 del mandato notturno (trace lunga, deterministica, telefono in carica).
+
+  ```
+  generation: 512 token, 6.273 tok/s
+  prefill:    143 token, 11.845 s | model load 19.107 s | TTFT 30.952 s
+  moe-stream: read 16150.4 MiB (31.54 MiB/token), decode 0.159 s/token
+              = compute 0.120 + cache mgmt 0.007 + flash I/O 0.134
+  moe-cache:  86.6% hit, 20454 evictions, 15719 re-reads (30.7/token)
+  moe-overlap: stall 0.032 s/token
+  ```
+
+  ### Il confronto che ribalta la campagna
+
+  | | bench 64 token | **long 512 token** | Δ |
+  |---|---:|---:|---|
+  | traffico | 84.73 MiB/tok | **31.54** | **−63%** |
+  | hit (contatore cumulativo) | 48.1% | **86.6%** | +38.5 pp |
+  | re-read | 75.8 /tok | **30.7** | −60% |
+  | stall I/O esposto | — | **0.032 s/tok** | **20% del decode** |
+
+  **Ogni numero di questa campagna è stato preso su una finestra da 64 token, cioè dentro il
+  transitorio in cui la cache si riempie.** La cache tiene 2226 voci; in 64 token non fa in
+  tempo a scaldarsi. In 512 sì, e il problema dell'I/O si scioglie da solo.
+
+  ### Il sistema è passato dall'altra parte del crinale
+
+  La roofline del round 1 poneva il **crossover dell'hit-rate a h\* = 0.82**: oltre quella
+  soglia l'I/O smette di legare e il collo diventa il calcolo. Era scritta come un confine
+  teorico lontano (eravamo a 0.705). **Siamo a 0.866: l'abbiamo superato.** E i dati lo
+  confermano direttamente: `compute 0.120` contro `stall esposto 0.032`.
+
+  ```
+  tetto architetturale = 1/(0.120 + 0.007) = 7.87 tok/s
+  osservato = 6.27  ⇒  siamo all'80% del massimo, e il residuo 20% è I/O
+  ```
+
+  ### Cosa questo fa al piano
+
+  1. **Tutto il ramo I/O vale molto meno di quanto crediamo.** Cache policy, packing,
+     prefetch, repack per-esperto, DirectIO: si contendono un residuo del **20%**, non del
+     60%. Il premio massimo di TUTTO il ramo è ~1.6 tok/s (da 6.27 a 7.87).
+  2. **Il collo è il CALCOLO, e lo è adesso.** 54 GFLOPS su un SoC che ne fa molti di più,
+     con quantizzazioni IQ che in mainline **non hanno un percorso ARM veloce** (solo Q4_0 e
+     IQ4_NL ce l'hanno; KleidiAI copre Q4_0/Q8_0). **Il kernel IQ2 scritto a mano — l'idea di
+     gualt — passa da "il muro successivo" a LA priorità.** Dimezzare `compute` porterebbe il
+     tetto da 7.87 a ~14 tok/s.
+  3. **Il gate F4 (5.02 tok/s) sottostima il prodotto.** Non è sbagliato: è misurato nel
+     transitorio. Una conversazione vera vive nel regime lungo.
+  4. **La domanda sul "sostenuto" si ribalta.** Temevamo che il lungo periodo fosse peggio del
+     burst (il 4B denso perdeva metà). Qui è **meglio**, e per un motivo strutturale: il 4B era
+     memory-bound e thrashava, questo ha una cache che si scalda.
+
+  ### Cautele, dichiarate
+
+  - Il **6.27 tok/s è in carica** e non è confrontabile col 5.02 del gate. Va rimisurato
+    scollegato. Ma i numeri di **traffico e hit sono deterministici** e pienamente comparabili,
+    ed è da lì che viene la conclusione — non dal tok/s.
+  - Prompt diverso (143 token contro quello del bench) e lunghezza diversa: i due effetti sono
+    confusi. La cella C3 chiede l'hit-rate **in funzione della posizione** a blocchi di 64
+    token, che separa i due e mostra la curva di riscaldamento. **Quella è la misura che
+    conferma o smonta questa lettura.**
+  - Il verdetto "compute-bound" poggia su `moe-overlap: stall`, un contatore che non abbiamo
+    ancora validato in modo indipendente. Va incrociato col `read_bytes` di `/proc`.
+
+  **Coerenza del trace verificata:** 209 643 righe contro `(143+512) × 320 = 209 600` eventi
+  di routing attesi più l'header. Torna esatto ⇒ il trace copre prefill+decode e ogni evento.
+
 - **2026-08-07 notte — M5 VERIFICATA (Claude): tre rami si chiudono, ma Belady dice che il
   premio esiste e nessuno dei tre meccanismi ovvi lo prende. E una correzione a una mia
   ambiguità che aveva ribaltato un verdetto nel verso sbagliato.**
