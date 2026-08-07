@@ -98,6 +98,19 @@ export function looksLikeEchoOfUserFacts(query: string, lastUserMessage: string)
   return hasSharedSubstring(q, u, 12);
 }
 
+/**
+ * Same ≥12-char echo check for an injected MEMORY FACT, WITHOUT the isQuestion
+ * gate: a stored fact is third-person data ("User's home city is Milan"), never
+ * a question the user is asking, so a question-shaped fact must not slip the
+ * guard (Residual A). Never logs the fact.
+ */
+export function queryEchoesMemoryFact(query: string, fact: string): boolean {
+  const q = query.trim();
+  const f = (fact ?? "").trim();
+  if (!q || !f) return false;
+  return hasSharedSubstring(q, f, 12);
+}
+
 function labelForPrimaryFailure(
   primaryError: string | undefined,
   usedProvider: SearchProviderId,
@@ -115,7 +128,10 @@ function labelForPrimaryFailure(
   return "Primary";
 }
 
-export function makeWebSearchExecutor(locale: Locale): (
+export function makeWebSearchExecutor(
+  locale: Locale,
+  options?: { getMemoryFacts?: () => readonly string[] },
+): (
   name: string,
   args: Record<string, unknown>,
   signal?: AbortSignal,
@@ -134,6 +150,14 @@ export function makeWebSearchExecutor(locale: Locale): (
     // network call made, no content logged either way.
     if (looksLikeEchoOfUserFacts(query, lastUserMessage ?? "")) {
       return { text: strings.errors.webSearchPrivacyBlocked };
+    }
+    // Same echo guard against injected memory facts (max 10), without the
+    // isQuestion gate (a fact is data, never the user's question).
+    const facts = options?.getMemoryFacts?.() ?? [];
+    for (const fact of facts.slice(0, 10)) {
+      if (queryEchoesMemoryFact(query, fact)) {
+        return { text: strings.errors.webSearchPrivacyBlocked };
+      }
     }
 
     // searchWeb also clamps; tool-level default is 4.

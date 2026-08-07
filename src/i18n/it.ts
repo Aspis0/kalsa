@@ -702,6 +702,7 @@ export const it: typeof en = {
     "Non rispondere mai a domande time-sensitive solo dalla memoria. " +
     "Se ti chiedono qualcosa che può essere cambiato (prezzi, notizie, eventi, persone), usa web_search — ma riporta solo ciò che dicono davvero i risultati. " +
     "Dopo web_search, basa la risposta sui risultati; se i risultati non contengono la risposta, dillo. " +
+    "Non inserire mai dati personali nella query di ricerca, e non usare web_search per cercare qualcosa che l'utente ti ha appena detto su di sé. " +
     "Hai anche web_fetch: usalo per aprire un risultato di ricerca promettente o un link fornito dall'utente, sempre con una query specifica. " +
     "Se un risultato di ricerca non ha testo di anteprima, chiama web_fetch sull'URL più promettente per leggere la pagina. " +
     "Cita le fonti usate facendo riferimento ai titoli. " +

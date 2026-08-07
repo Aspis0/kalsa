@@ -350,6 +350,12 @@ export function AppShell() {
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── User memory refs (declared early so agentOptions can read via getter) ──
+  // State/sync for memoryFacts lives below; only injected facts count when enabled.
+  const memoryFactsRef = useRef<string[]>([]);
+  /** Mirror of MemoryStore.getEnabled — never inject facts when false. */
+  const memoryEnabledRef = useRef(false);
+
   // ── Web tools (search + fetch): SEMPRE ATTIVI — il modello decide se usarli
   // (info attuali, notizie, o richiesta esplicita). Le query / fetch partono solo
   // quando il tool viene chiamato (privacy by design).
@@ -357,7 +363,10 @@ export function AppShell() {
   // web_fetch may only open those (closes crafted-URL exfiltration). Redirects
   // may land on another path/port of the SAME host, or an already-allowlisted URL.
   const agentOptions = useMemo<EngineTurnOptions>(() => {
-    const searchExec = makeWebSearchExecutor(locale);
+    const searchExec = makeWebSearchExecutor(locale, {
+      getMemoryFacts: () =>
+        memoryEnabledRef.current ? memoryFactsRef.current : [],
+    });
     // Recreated when fetchAllowlistTurnSeq advances (each send); held across
     // tool rounds within the same turn so search results stay allowlisted.
     const pdfCacheFs = makePdfCacheFs({
@@ -538,11 +547,9 @@ export function AppShell() {
   }, []);
 
   // ── User memory (local facts for system prompt personalization) ──────────
+  // Refs declared above agentOptions; keep state + sync here.
   const [memoryFacts, setMemoryFacts] = useState<string[]>([]);
-  const memoryFactsRef = useRef<string[]>(memoryFacts);
   memoryFactsRef.current = memoryFacts;
-  /** Mirror of MemoryStore.getEnabled — never inject facts when false. */
-  const memoryEnabledRef = useRef(false);
   /** Mirror of kalsa.context.compaction — default OFF (legacy sliding window). */
   const compactionEnabledRef = useRef(false);
   /** Serialize extractMemory so it never overlaps a chat completion on the same engine. */
