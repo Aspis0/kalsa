@@ -1,0 +1,98 @@
+load traces...
+short: n=42880 n_pref_batches=40 hit=48.1 ebytes L0=942080 L34=1097728
+long512: n=209600 n_pref_batches=40 hit=86.6
+F5.4-C: n_pref=1138 n_dec=256 meas=[71.1, 73.3, 75.1, 76.1]
+load+batch in 1.2s
+
+=== H0: riproduzione M5 short_bench decode-only ===
+  C=2000: cum=48.054 dec=72.236 vs_report=+0.000 vs_meas_dec=-1.136
+  C=2500: cum=50.737 dec=76.270 vs_report=-0.000 vs_meas_dec=-2.970
+  C=3000: cum=53.251 dec=80.049 vs_report=-0.000 vs_meas_dec=-4.949
+  C=3500: cum=55.935 dec=84.082 vs_report=+0.000 vs_meas_dec=-7.982
+H0: PASS  slope_dec=+11.8 (report +11.8; meas_cum +5.0)
+
+=== H1: metrica cum vs decode-only (short_bench) ===
+  C=2000: sim_cum=48.1 sim_dec=72.2 meas=71.1 gap_dec=-1.1 gap_cum=+23.0
+  C=2500: sim_cum=50.7 sim_dec=76.3 meas=73.3 gap_dec=-3.0 gap_cum=+22.6
+  C=3000: sim_cum=53.3 sim_dec=80.0 meas=75.1 gap_dec=-4.9 gap_cum=+21.8
+  C=3500: sim_cum=55.9 sim_dec=84.1 meas=76.1 gap_dec=-8.0 gap_cum=+20.2
+pendenze: sim_dec=+11.8 sim_cum=+7.9 meas=+5.0
+H1: CONFERMATO mismatch metrica (F5.4: dec sim vs cum runtime). Non sufficiente: cum-vs-cum su short lascia gap ~+20 pt.
+
+=== H2: short_bench vs long_512 (stessa metrica cum) ===
+  long curve in 39.7s
+  C=2000: long_cum=86.6 long_dec=89.2 meas=71.1 gap_cum=-15.5
+  C=2500: long_cum=89.7 long_dec=92.5 meas=73.3 gap_cum=-16.4
+  C=3000: long_cum=91.8 long_dec=94.6 meas=75.1 gap_cum=-16.7
+  C=3500: long_cum=93.3 long_dec=96.2 meas=76.1 gap_cum=-17.2
+H2 gate long@2000: sim_cum=86.582 meas=86.6 gap=-0.018 pp
+H2 pendenza long_cum=+6.7 vs meas +5.0
+H2: sim FEDELE same-trace (gap -0.02). Gap F5.4 = cross-trace + cross-metric. long_512=143+512 (decode-dom); F5.4=1138+256 (prefill-heavy).
+
+=== H3: sconto capacita (short decode-only) ===
+  frac=1.00: slope=+11.8 mae=4.26 hits=[72.236, 76.27, 80.049, 84.082]
+  frac=0.95: slope=+11.5 mae=3.13 hits=[71.152, 75.381, 78.906, 82.666]
+  frac=0.90: slope=+11.1 mae=2.42 hits=[70.303, 74.258, 77.734, 81.377]
+  frac=0.85: slope=+10.3 mae=1.73 hits=[69.609, 73.213, 76.67, 79.873]
+  frac=0.80: slope=+9.5 mae=1.50 hits=[68.955, 72.236, 75.488, 78.486]
+H3 ESCLUSA: F5.4 resident ~= budget nominale (1999.9/2499.6/2999.5/3499.9). Sconto 20% non porta slope a +5.
+
+=== H4: multi-ubatch (pref F4.8 << 512) ===
+  short_single npb=40: cum=[48.054, 50.737, 53.251, 55.935]
+  short_ub512 npb=40: cum=[48.054, 50.737, 53.251, 55.935]
+  long_single npb=40: cum=[86.582, 89.731, 91.811, 93.305]
+  long_ub512 npb=40: cum=[86.582, 89.731, 91.811, 93.305]
+H4: su F4.8 (pref 102/143 < 512) multi-chunk = single. Rilevante solo per n_prompt>ubatch (F5.4=1138).
+
+=== H5: voice size uniforme vs per-layer ===
+  C=2000: per-layer=72.236 uni=72.744 d=+0.508
+  C=2500: per-layer=76.270 uni=76.729 d=+0.459
+  C=3000: per-layer=80.049 uni=80.586 d=+0.537
+  C=3500: per-layer=84.082 uni=84.512 d=+0.430
+H5 ESCLUSA: M5 gia per-layer (L34/38/39=1097728). Uniforme ~0.5 pp.
+
+=== H6a: envelope I/O F5.4 (decode-attributed) ===
+  C=2000: mib/tok=32.93 -> approx_byte_hit_dec=88.7%
+  C=2500: mib/tok=24.8 -> approx_byte_hit_dec=91.5%
+  C=3000: mib/tok=18.35 -> approx_byte_hit_dec=93.7%
+  C=3500: mib/tok=14.63 -> approx_byte_hit_dec=95.0%
+H6a: decode-hit F5.4 ~88.7->95% -- allineato a long_512 (~89->96), NON a short_bench (72->84). Pendenza shallow = cumulativo prefill-heavy.
+
+=== H6b: synth 1138+256 da dist long_512 (sensibilita lunghezza/ubatch) ===
+  synth n=446080 in 2.1s
+  single npb=40 (37.1s): cum=[70.859, 76.943, 81.435, 84.549] slope=+13.7 mae=4.67
+  ub512 npb=120 (89.8s): cum=[63.458, 69.024, 73.169, 76.197] slope=+12.7 mae=3.49
+H6b: synth i.i.d. non cattura dipendenza temporale del router reale; serve solo a mostrare che lunghezza+ubatch spostano cum e slope. Senza route-trace F5.4 non si chiude lo scarto al punto.
+
+=== H7: Belady-LRU @2000 ===
+  short_dec: LRU=72.24 Belady=90.03 d=+17.79 -> VIVO (12.8s)
+  short_cum: LRU=48.05 Belady=59.89 d=+11.84 -> VIVO (12.9s)
+  long_cum: LRU=86.58 Belady=92.76 d=+6.18 -> IN_MEZZO (50.6s)
+  long_dec: LRU=89.25 Belady=95.62 d=+6.37 -> IN_MEZZO (52.2s)
+
+=== H7b: bake-off LRU/LFU/W-TinyLFU @2000 ===
+  short_dec lru: 72.24
+  short_dec lfu: 72.12
+  short_dec wtinylfu: 59.45
+  long_cum lru: 86.58
+  long_cum lfu: 87.32
+  long_cum wtinylfu: 77.36
+
+=== SINTESI CAUSA ===
+CAUSA: confronto apples-to-oranges in F5.4-C, NON bug del simulatore.
+Evidenza:
+  1) H0 PASS: M5 riproduce pass2_curve al millesimo.
+  2) Gate same-trace: short cum 48.05~48.1; long cum 86.58~86.6.
+  3) F5.4 tabella: lru_hit_req_DEC (72..84) vs hit CUM runtime (71..76)
+     su PROMPT diverso (1138+256 vs 102+32).
+  4) I/O F5.4 (32.9->14.6 MiB/tok) => decode-hit ~89->95% = long-like,
+     non short; pendenza shallow = cum prefill-heavy, non LRU rotto.
+  5) H3 capacita ESCLUSA (resident~nominale).
+  6) H5 voice ESCLUSA (gia per-layer; uni ~0.5 pp).
+  7) Prefetch off in F5.4; --overlap non cambia residency accounting.
+Belady-LRU: short_dec resta VIVO (~+17.8). long riduce il gap ma non
+  rovescia i verdetti M5/M5b. Bake-off: LFU~LRU, W-TinyLFU peggiore.
+Correzione sim: non necessaria per fedelta same-trace.
+Policy confronto: stessa traccia + stessa metrica (cum o dec, dichiarata).
+
+Totale 545.5s
