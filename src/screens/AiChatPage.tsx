@@ -1446,10 +1446,19 @@ export function AiChatPage({
   }
 
   return (
-    // WARN-5: KeyboardAvoidingView keeps the composer above the keyboard on iOS
+    // KeyboardAvoidingView behavior="padding" on BOTH platforms. On Android,
+    // "height" pins the KAV to _initialFrameHeight captured once at mount and
+    // only recomputes when the KAV's own height changes — so when content
+    // ABOVE it grows while the keyboard is open (AppShell header: modelError,
+    // the 4-line error hint, the download progress bar), the KAV slides down
+    // and its bottom ends up under the IME with no recompute ever firing.
+    // "padding" recomputes from the current frame on every keyboard event, and
+    // since this KAV is the bottom-anchored last child of a full-height column
+    // the padding always equals exactly the IME height (no
+    // keyboardVerticalOffset needed).
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.shell }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior="padding"
     >
 
       {/* ── Nav bar ── */}
@@ -2207,6 +2216,9 @@ export function AiChatPage({
           borderTopColor: colors.line,
           paddingHorizontal: spacing.md,
           paddingTop: spacing.sm,
+          // insets.bottom is nav-bar-only on safe-area-context 5.7 (no IME),
+          // so it cannot stack with the KAV keyboard padding. An upgrade to an
+          // IME-aware safe-area release WOULD double-count here — re-check then.
           paddingBottom: spacing.sm + Math.max(0, insets.bottom - 8),
           gap: spacing.xs,
         }}
