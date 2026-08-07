@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 import {
   addNativeLogListener,
   initLlama,
@@ -391,7 +393,12 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       n_ctx: engineCtx, // context per modello (multi-chat); caller may pass 16k
       n_batch: 512,
       n_ubatch: 256,
-      n_gpu_layers: 99, // Metal (iOS) / OpenCL (Android); senza GPU degrada a CPU
+      // iOS: Metal. Android: MUST be 0 — with 99, llama.rn's Hexagon backend
+      // offloads layers to the Snapdragon NPU (HTP0) while Flash Attention
+      // stays on CPU, and llama_init_from_model fails to initialize the
+      // context (field-debugged on a Xiaomi 14 / SD 8 Gen 3; the emulator has
+      // no NPU, so CI never saw it). The app is CPU-only on Android by design.
+      n_gpu_layers: Platform.OS === "ios" ? 99 : 0,
       flash_attn_type: "auto",
       cache_type_k: cacheTypeK, // KV quantizzata: q8_0 ≈98% qualità FP16
       cache_type_v: cacheTypeV, // from catalog (hybrid q8 or Q3 q4; dense V often q4)
