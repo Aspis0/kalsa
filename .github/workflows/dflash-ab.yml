@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       include_dflash:
-        description: "Run the DFlash arm too (BROKEN on llama.rn 0.12.8: pure draft-dflash no-ops, dual-types hangs — needs a binding patch; see LlamaService comment). Default runs BASELINE vs MTP only."
+        description: "Run the DFlash arm too. Pure draft-dflash is now enabled by patches/llama.rn+0.12.8.patch (draft loader + spec init gates extended to DFLASH) — first run after the patch is the empirical gate: draftTokens>0, no hang, MTP arm unchanged. Default runs BASELINE vs MTP only."
         type: boolean
         default: false
 

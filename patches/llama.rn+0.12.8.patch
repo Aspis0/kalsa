@@ -1,0 +1,88 @@
+diff --git a/node_modules/llama.rn/cpp/rn-llama.cpp b/node_modules/llama.rn/cpp/rn-llama.cpp
+index 1126dec..22c9ef0 100644
+--- a/node_modules/llama.rn/cpp/rn-llama.cpp
++++ b/node_modules/llama.rn/cpp/rn-llama.cpp
+@@ -488,8 +488,12 @@ bool llama_rn_context::loadModel(common_params &params_)
+         return false;
+     }
+ 
++    // Kalsa patch: DFlash needs the standalone draft model too — upstream gated
++    // the loader on MTP only, so a pure ["draft-dflash"] config silently ran
++    // without a draft (common_speculative_init requires ctx_dft for DFLASH).
+     if (params.speculative.has_dft() &&
+-        has_speculative_type(params.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_MTP)) {
++        (has_speculative_type(params.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_MTP) ||
++         has_speculative_type(params.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH))) {
+         const auto & draft_params = params.speculative.draft;
+         common_params params_dft = params;
+         params_dft.devices = draft_params.devices;
+@@ -559,7 +563,12 @@ llama_context * llama_rn_context::createMTPDraftContext(const common_params &par
+     }
+ 
+     auto cparams = common_context_params_to_llama(params_for_context);
+-    cparams.ctx_type = LLAMA_CONTEXT_TYPE_MTP;
++    // Kalsa patch: a MTP-type context on a model without nextn layers returns
++    // nullptr (llama-context.cpp init guard). Standalone drafts (DFlash) may
++    // lack them — fall back to a default context for those.
++    cparams.ctx_type = llama_model_n_layer_nextn(model_dft) > 0
++        ? LLAMA_CONTEXT_TYPE_MTP
++        : LLAMA_CONTEXT_TYPE_DEFAULT;
+     cparams.n_rs_seq = 0;
+     cparams.type_k = params_for_context.speculative.draft.cache_type_k;
+     cparams.type_v = params_for_context.speculative.draft.cache_type_v;
+diff --git a/node_modules/llama.rn/cpp/rn-completion.cpp b/node_modules/llama.rn/cpp/rn-completion.cpp
+index a60bd15..8734e6c 100644
+--- a/node_modules/llama.rn/cpp/rn-completion.cpp
++++ b/node_modules/llama.rn/cpp/rn-completion.cpp
+@@ -626,9 +626,14 @@ void llama_rn_context_completion::updateGenerationTiming() {
+ }
+ 
+ bool llama_rn_context_completion::shouldUseMTP() const {
++    // Kalsa patch: DFLASH rides the same draft-speculative init/decode path as
++    // MTP (common_speculative dispatches per-type); without this the whole
++    // speculative machinery never initializes for a pure draft-dflash config.
+     const auto & types = parent_ctx->params.speculative.types;
+-    return std::find(types.begin(), types.end(), COMMON_SPECULATIVE_TYPE_DRAFT_MTP) != types.end() &&
+-        parent_ctx->params.speculative.draft.n_max > 0;
++    const bool has_draft_type =
++        std::find(types.begin(), types.end(), COMMON_SPECULATIVE_TYPE_DRAFT_MTP) != types.end() ||
++        std::find(types.begin(), types.end(), COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH) != types.end();
++    return has_draft_type && parent_ctx->params.speculative.draft.n_max > 0;
+ }
+ 
+ void llama_rn_context_completion::resetSpeculative() {
+diff --git a/node_modules/llama.rn/cpp/rn-slot.cpp b/node_modules/llama.rn/cpp/rn-slot.cpp
+index 9debb77..4e62827 100644
+--- a/node_modules/llama.rn/cpp/rn-slot.cpp
++++ b/node_modules/llama.rn/cpp/rn-slot.cpp
+@@ -335,8 +335,11 @@ bool llama_rn_slot::should_use_mtp() const {
+         return false;
+     }
+ 
++    // Kalsa patch: keep the slot path consistent with shouldUseMTP — DFLASH
++    // uses the same draft-speculative machinery as MTP.
+     const auto & types = params->speculative.types;
+-    return std::find(types.begin(), types.end(), COMMON_SPECULATIVE_TYPE_DRAFT_MTP) != types.end();
++    return std::find(types.begin(), types.end(), COMMON_SPECULATIVE_TYPE_DRAFT_MTP) != types.end() ||
++           std::find(types.begin(), types.end(), COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH) != types.end();
+ }
+ 
+ void llama_rn_slot::reset_speculative() {
+diff --git a/node_modules/llama.rn/cpp/jsi/JSIParams.cpp b/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
+index 650349e..c11f9d9 100644
+--- a/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
++++ b/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
+@@ -300,9 +300,11 @@ namespace rnllama_jsi {
+ 
+         applySpeculativeTypeNames(cparams.speculative, typeNames);
+ 
+-        if (hasSpeculativeType(cparams.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_MTP) &&
++        // Kalsa patch: DFLASH shares the draft machinery — same n_max requirement.
++        if ((hasSpeculativeType(cparams.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_MTP) ||
++             hasSpeculativeType(cparams.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH)) &&
+             cparams.speculative.draft.n_max <= 0) {
+-            throw std::invalid_argument("MTP requires spec_draft_n_max > 0");
++            throw std::invalid_argument("MTP/DFlash requires spec_draft_n_max > 0");
+         }
+     }
+ 
