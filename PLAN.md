@@ -1047,12 +1047,19 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
     stile F5.5-B (f45_1=121). Nessuna regressione single-turn.
   - **Smoke post-pin PASS**: due-turni col binario pinnato → `n_common=71`, `n_prompt=41`.
     Il binario di campagna è quello col fix, provato, non presunto.
-  - **Riavvio delle 15:21**: `boot.reason = reboot` (non thermal, non watchdog, non
-    `shell`, non `userrequested`); dropbox `LAST_KMSG_KP` senza stack panic nel testo
-    stampabile; pstore inaccessibile senza root. Classe **UMANO/SOFTWARE**, con riserva:
-    il suffisso `_KP` (convenzione Samsung per kernel panic) senza testo recuperabile non
-    basta per PANIC ma nemmeno per escluderlo. **Domanda aperta a gualt: ha riavviato lui
-    a ~15:21?** Se no, il prossimo riavvio inspiegato scala a indagine seria.
+  - **Riavvio delle 15:21 — RICLASSIFICATO (risposta di gualt: non è stato lui, era
+    fuori casa)**: `boot.reason = reboot` senza `shell`/`userrequested`, dropbox
+    `LAST_KMSG_KP` (convenzione Samsung per kernel panic) senza stack recuperabile,
+    pstore inaccessibile senza root. Classe finale: **INSPIEGATO, sospetto kernel panic
+    sotto carico** — avvenuto a metà suite (4 thread, streaming O_DIRECT, in carica,
+    die ~90 °C nelle fasi di load). Un solo evento non fa una causa, ma da ora:
+    (a) ogni suite gira con un **flight recorder** su flash (timestamp, die °C, memfree,
+    batteria, fsync per riga) così l'ultima riga prima di un boot inatteso dice lo stato
+    alla morte; (b) a ogni boot inatteso rilevato, PRIMA di ogni altra cosa si cattura
+    `persist.sys.boot.reason.history` + lista dropbox; (c) un **secondo** riavvio
+    inspiegato = STOP campagna e indagine dedicata. Nota a favore: il fix del loader ha
+    già tolto metà dell'I/O (e del calore) proprio dalla fase incriminata, e dense2 ne
+    toglierà altro.
   - `ALLOW_UNPINNED=1` usato solo per il G-K3 su KVFIX pre-pin (gate, non misura),
     annotato nei meta. Lo smoke post-pin è passato dal pin normale.
 

@@ -75,8 +75,23 @@ conversione dense, log `dense-anon: memcpy=<MiB> odirect=<MiB> ranges_fallback=<
 il drop esperti, log `expert-mmap: dropped <MiB>`. Sono le due righe che rendono G-D2
 interpretabile senza indovinare.
 
+## ADDENDUM (2026-08-08, dopo la riclassificazione del riavvio delle 15:21)
+
+Il riavvio di ieri a metà suite è **inspiegato** (gualt non c'era; `LAST_KMSG_KP` senza
+stack). Da questo mandato in poi, per ogni run:
+
+1. **Flight recorder**: un loop leggero che ogni ~5 s appende su file in flash
+   `timestamp, die °C, memfree, batteria%` con flush/fsync per riga (il sampler G3 fa già
+   quasi tutto: basta tenerne acceso una variante minima per l'intera suite, non solo al
+   load). File in `~/experiments/results/dense2/flight.log`. Se il telefono muore, l'ultima
+   riga è la testimonianza.
+2. **A ogni boot inatteso** (uptime < inizio suite): PRIMA di ogni altra azione, catturare
+   `getprop persist.sys.boot.reason.history` + `dumpsys dropbox | tail -30` e salvarli.
+   Poi STOP e riportare: un secondo riavvio inspiegato ferma la campagna.
+
 ## Deliverable
 
 `reports/moe-dense2.md`: commit hash (2), tabella G-D1, tabella G-D2 con le due righe di
-log per run, verdetto secondo le regole, sha256 di DENSE2. Artefatti in
-`results/dense2/`. **STOP al report** — niente re-pin, lo decide gualt.
+log per run, verdetto secondo le regole, sha256 di DENSE2, e conferma che il flight
+recorder era attivo (+ ultima riga registrata). Artefatti in `results/dense2/`.
+**STOP al report** — niente re-pin, lo decide gualt.
