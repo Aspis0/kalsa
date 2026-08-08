@@ -246,6 +246,16 @@ run_two_turns() {
   echo "reply_t2<<<" >> "$OUT/${config}_turns.txt"
   echo "$LAST_REPLY" >> "$OUT/${config}_turns.txt"
   echo ">>>" >> "$OUT/${config}_turns.txt"
+
+  # Turns 3-4: the first A/B (run 31239117041) rode on 9-33 draft tokens —
+  # too thin to call a winner. t3 = long-form open generation (the regime
+  # where MTP acceptance collapsed to 30%); t4 = structured/list output
+  # (predictable regime where the embedded head shone). Alphanumeric-only
+  # prompts (adb input text constraint).
+  run_turn "${config}_t3" "RaccontamiLaStoriaDiPalermoInDieciFrasi" 3
+  echo "elapsed_t3_s=$LAST_ELAPSED" >> "$OUT/${config}_turns.txt"
+  run_turn "${config}_t4" "ElencaVentiCittaItalianeUnaPerRiga" 4
+  echo "elapsed_t4_s=$LAST_ELAPSED" >> "$OUT/${config}_turns.txt"
 }
 
 capture_telemetry() {
@@ -363,6 +373,19 @@ function pickTurns(payloads) {
   return { t1, t2 };
 }
 
+// Aggregate decode tok/s over WARM turns (skip payload[0] = cold turn 1):
+// sum(predicted)/sum(predictedMs). More draft tokens mean more statistical
+// weight than any single-turn ratio. (No apostrophes here: single-quoted node -e.)
+function warmAggregate(payloads) {
+  let tok = 0, ms = 0;
+  for (const o of payloads.slice(1)) {
+    const p = n(o, "tokensPredicted") ?? n(o, "predicted") ?? 0;
+    const t = n(o, "predictedMs") ?? 0;
+    if (p > 0 && t > 0) { tok += p; ms += t; }
+  }
+  return ms > 0 ? (1000 * tok) / ms : null;
+}
+
 function acceptancePct(payloads) {
   let dt = 0, da = 0;
   for (const o of payloads) {
@@ -388,12 +411,10 @@ lines.push("model=qwen3.5-4b thinking=off");
 lines.push("draftPath=" + (process.env.DRAFT_DEV_PATH || ""));
 lines.push("");
 lines.push("=== CONFIG MTP (control) ===");
-lines.push(turnMetrics("turn1", m.t1));
-lines.push(turnMetrics("turn2", m.t2));
+mtp.forEach((o, i) => lines.push(turnMetrics("turn" + (i + 1), o)));
 lines.push("");
 lines.push("=== CONFIG DFLASH ===");
-lines.push(turnMetrics("turn1", d.t1));
-lines.push(turnMetrics("turn2", d.t2));
+dflash.forEach((o, i) => lines.push(turnMetrics("turn" + (i + 1), o)));
 lines.push("");
 
 const m1 = pps(m.t1); const m2 = pps(m.t2);
@@ -402,19 +423,22 @@ const mAcc = acceptancePct(mtp).toFixed(1);
 const dAcc = acceptancePct(dflash).toFixed(1);
 const fmt = (v) => (v != null ? v.toFixed(2) : "?");
 
-lines.push("MTP    : tg tok/s turn1=" + fmt(m1) + " turn2=" + fmt(m2) + " acceptance=" + mAcc + "%");
-lines.push("DFLASH : tg tok/s turn1=" + fmt(d1) + " turn2=" + fmt(d2) + " acceptance=" + dAcc + "%");
+const mWarm = warmAggregate(mtp);
+const dWarm = warmAggregate(dflash);
+lines.push("MTP    : tg tok/s turn1=" + fmt(m1) + " warm-aggregate=" + fmt(mWarm) + " acceptance=" + mAcc + "%");
+lines.push("DFLASH : tg tok/s turn1=" + fmt(d1) + " warm-aggregate=" + fmt(dWarm) + " acceptance=" + dAcc + "%");
 
-// VERDICT on turn2 decode (predictedPerSecond). Measurement only — no exit 1.
-if (m2 != null && d2 != null && m2 > 0) {
-  const delta = ((d2 / m2) * 100) - 100;
+// VERDICT on warm-aggregate decode (turns 2..N pooled: sum tokens / sum ms).
+// Measurement only — no exit 1.
+if (mWarm != null && dWarm != null && mWarm > 0) {
+  const delta = ((dWarm / mWarm) * 100) - 100;
   if (delta >= 0) {
-    lines.push("VERDICT: DFLASH is " + delta.toFixed(1) + "% faster on decode (turn2 predictedPerSecond)");
+    lines.push("VERDICT: DFLASH is " + delta.toFixed(1) + "% faster on decode (warm-aggregate tok/s, turns 2..N)");
   } else {
-    lines.push("VERDICT: DFLASH is " + Math.abs(delta).toFixed(1) + "% slower on decode (turn2 predictedPerSecond)");
+    lines.push("VERDICT: DFLASH is " + Math.abs(delta).toFixed(1) + "% slower on decode (warm-aggregate tok/s, turns 2..N)");
   }
 } else {
-  lines.push("VERDICT: UNKNOWN (missing turn2 predictedPerSecond for comparison)");
+  lines.push("VERDICT: UNKNOWN (missing warm-aggregate for comparison)");
 }
 
 fs.writeFileSync(path.join(outDir, "RESULT.txt"), lines.join("\n") + "\n");
