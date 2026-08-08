@@ -159,7 +159,8 @@ force_stop_relaunch() {
 # Prefix for evidence files: $OUT/${tag}_*
 run_turn() {
   local tag="$1" msg="$2" min_assistants="$3"
-  local sent i hist n reply poll_prefix
+  local sent i hist n reply poll_prefix lines_now quiesced prev_lines
+  prev_lines=""
 
   log "[$tag] type message: $msg"
   dismiss_anr
@@ -209,9 +210,19 @@ run_turn() {
     # EARLY (run 31252095679: partial-turn persistence saves the streaming
     # bubble mid-generation — harness moved on while t3 was still Writing,
     # then t4 typing hit a busy app and the extracted "reply" was a fragment).
-    # util-* lines (memory-extract) excluded from the count.
-    n=$(adb logcat -d 2>/dev/null | grep -F "KALSA_TELEMETRY" | grep -v '"turnId":"util-' | wc -l | tr -d ' \r')
-    if [ "${n:-0}" -ge "$min_assistants" ]; then
+    # util-* excluded; DISTINCT turnIds, not lines: web tools are always on by
+    # design ("il modello decide") and a tool round emits one line per round —
+    # all sharing the turn's id — so a search-y turn must not double-count.
+    # Plus QUIESCENCE: a tool turn emits its round-0 line before the tool even
+    # runs, so the id shows up mid-turn; require no NEW line since the last
+    # 15s poll before declaring the turn done.
+    n=$(adb logcat -d 2>/dev/null | grep -F "KALSA_TELEMETRY" | grep -v '"turnId":"util-' \
+        | grep -oE '"turnId":"[0-9]+"' | sort -u | wc -l | tr -d ' \r')
+    lines_now=$(adb logcat -d 2>/dev/null | grep -cF "KALSA_TELEMETRY" | tr -d ' \r')
+    quiesced=0
+    if [ "${lines_now:-0}" = "${prev_lines:-x}" ]; then quiesced=1; fi
+    prev_lines="$lines_now"
+    if [ "${n:-0}" -ge "$min_assistants" ] && [ "$quiesced" = 1 ]; then
       hist=$(sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';")
       echo "$hist" > "$OUT/${tag}_history_$i.json"
       reply=$(echo "$hist" | sed 's/.*"role":"assistant","text":"//; s/".*//' | head -c 1500)
