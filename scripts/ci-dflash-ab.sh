@@ -118,6 +118,19 @@ set_base_prefs() {
   sql "SELECT key,substr(value,1,80) FROM catalystLocalStorage;" | tee "$OUT/prefs.txt"
 }
 
+# Run 31235650917: a "Pixel Launcher isn't responding" ANR dialog covered the
+# screen at presend (AVD strained after 3.5GB of pushes) and the composer was
+# unfindable. Tap Wait (keeps processes) and re-foreground the app.
+dismiss_anr() {
+  if dump_ui | grep -qE "isn.{1,3}t responding"; then
+    log "ANR dialog detected — tapping Wait + relaunching activity"
+    tap_node "Wait" || true
+    sleep 3
+    adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1 || true
+    sleep 8
+  fi
+}
+
 wait_ready() {
   # Engine load is LAZY: it starts on the first SEND, not at app launch — an
   # idle app never shows "Ready" (run 31232372791: stuck at "Downloaded",
@@ -128,6 +141,7 @@ wait_ready() {
   local label="$1"
   log "settle before first send ($label) — engine loads lazily on send"
   sleep 20
+  dismiss_anr
   shot "presend_${label}"
   ui_texts > "$OUT/presend_${label}.txt"
 }
@@ -148,7 +162,8 @@ run_turn() {
   local sent i hist n reply poll_prefix
 
   log "[$tag] type message: $msg"
-  tap_node "Ask a question…" || die "composer not found ($tag)"
+  dismiss_anr
+  tap_node "Ask a question…" || { dismiss_anr; tap_node "Ask a question…" || die "composer not found ($tag)"; }
   sleep 4
   adb shell input text "$msg"
   sleep 3
