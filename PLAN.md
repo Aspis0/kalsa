@@ -1034,6 +1034,35 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-08 — 🟡 DENSE2: PARZIALE onesto. Metà del dense si copia gratis, l'altra metà
+  non è più residente quando serve. Comunque strettamente meglio su ogni asse misurato.**
+
+  Report: `reports/moe-dense2.md`, commit `f907200` (memcpy con piano `mincore`
+  page-by-page, fallback O_DIRECT per-range) + `313cde9` (drop mmap esperti post-rebind).
+  Verificato dal coordinatore: commit su tree PC, VERDICT coerente, strumentazione per-run.
+
+  - **G-D1 8/8 PASS** — i buchi O_DIRECT riempiono lo stesso buffer: byte-identità piena.
+  - **G-D2 PARZIALE per la regola dichiarata** (soglia PASS: Δ≥1.3 GiB): Δread_bytes
+    **−0.81 GiB** (10.18→9.37), rchar **dimezzato** (1.66→0.84, allineato al volume
+    memcpy), VmHWM **−321 MiB**. Flight recorder attivo per tutta la suite: 260 righe,
+    nessun boot, die mai oltre ~42 °C fuori load.
+  - **La diagnosi del perché**: `memcpy≈815 MiB` su 1664 di trunk — al momento del piano
+    `mincore`, ~metà delle pagine dense è già stata reclaimata (pressione durante il load:
+    memfree a decine di MiB in volo). Il fix non può copiare pagine che non ci sono più;
+    il fallback per-range fa esattamente il suo lavoro (~670 range a O_DIRECT).
+  - **Pezzo 2 come da attese**: `dropped 9313 MiB` di range esperto orfane, VmHWM giù.
+  - **Nessuna regola violata**: l'esecutore non ha proposto l'adozione (la soglia non era
+    raggiunta) e ha riportato la diagnosi invece di forzare. Da manuale.
+
+  **Raccomandazione del coordinatore a gualt: ADOTTARE comunque DENSE2** — la soglia 1.3
+  era il criterio di *auto-proposta*, non un divieto: il binario domina strettamente
+  CAMPAIGN su ogni asse (−0.81 GiB I/O, −0.82 rchar, −321 MiB VmHWM, identità 8/8 provata,
+  strumentazione permanente in più). Il residuo (~0.85 GiB) resta sul tavolo come
+  follow-up opzionale, che parte da un esperimento da 10 minuti, non da una teoria: uno
+  snapshot `mincore` del dense a fine warm-up. Se la metà mancante è già sparita LÌ, il
+  riordino della conversione non recupererebbe nulla → si chiude; se è ancora residente,
+  spostare la conversione prima della pressione la recupera → si fa.
+
 - **2026-08-08 — ✅ CAMPAGNA KV CHIUSA E ADOTTATA: G-K3 8/8 sul path `-p`, CAMPAIGN
   re-pinnato al fix (`ede3ac7c…`), riavvio classificato UMANO/SOFTWARE con domanda aperta.**
 
