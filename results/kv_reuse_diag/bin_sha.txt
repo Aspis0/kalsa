@@ -1,0 +1,2 @@
+374b44477738bdef4c596abec7307d8cabfa52c3fb38e75d937447398f017a58  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.DIAG
+7354947b8a16cce01dbcaf9ac79c6a4b6f9f74a1fe29eabe4c53d315a69d1331  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.NEW
