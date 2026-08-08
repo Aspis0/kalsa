@@ -1135,7 +1135,7 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 - **2026-08-08 — ⚫ LA SCALA k È ANNIENTATA. E il metro appena costruito rivela il proprio
   limite: misura il MODELLO, non le decisioni del runtime in decode.**
 
-  Report `reports/moe-f5.6.md`, commit `48bcc8b`. Scala completa su `part1` (34 003 posizioni,
+  Report `reports/moe-f5.6.md`, commit `62ba1f0`. Scala completa su `part1` (34 003 posizioni,
   confronto appaiato, `cache 0`, un solo flag diverso per volta).
 
   ### Passo 0 superato
@@ -1251,7 +1251,7 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
   ### ⚠ Errata: una mia conclusione delle 02:42 era falsa
 
-  Nel messaggio del commit `0e614fb` ho scritto *«la catena notturna copriva solo la baseline,
+  Nel messaggio del commit `784c8c6` ho scritto *«la catena notturna copriva solo la baseline,
   non la scala; il telefono è fermo dalle 02:37»*. **Falso.** Avevo campionato lo stato **alle
   02:42**, cioè nella finestra fra la baseline che chiudeva alle 02:37 e la scala che partiva
   alle 03:13. L'osservazione era corretta; **la conclusione — uno stato permanente dedotto da
@@ -1654,7 +1654,7 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   l'attenzione è il 7%, e il calo sostenuto è RIDUZIONE DI FREQUENZA, non contesto. Tre mie
   affermazioni cadono.**
 
-  Report `reports/moe-f5.2.md`, commit `b954ec9`. Le quattro celle usavano solo flag già
+  Report `reports/moe-f5.2.md`, commit `0f34855`. Le quattro celle usavano solo flag già
   presenti nel binario, mai usati prima.
 
   ### C1 — dove va il calcolo (`--compute-trace`)
@@ -2233,7 +2233,7 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   Quindi sul carico reale **il premio massimo di QUALUNQUE politica possibile è 6.37 punti**.
   Avevo stimato che la migliore ne catturasse ~22-26% ⇒ ~1.4 punti ⇒ ~3% di velocità.
 
-  **Misurato (commit `98a27b6`, bake-off rifatto con `long_512` dentro): la stima era
+  **Misurato (commit `dec8307`, bake-off rifatto con `long_512` dentro): la stima era
   ottimistica. Sul carico reale NESSUNA politica batte LRU, e la più promettente lo peggiora.**
 
   | politica | Δ su short_bench | **Δ su long_512** |
@@ -2440,8 +2440,8 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   premio esiste e nessuno dei tre meccanismi ovvi lo prende. E una correzione a una mia
   ambiguità che aveva ribaltato un verdetto nel verso sbagliato.**
 
-  Analisi di Grok su PC delle 6 route-trace di F4.8 (`reports/moe-m5.md`, commit `f9d4efb`,
-  fix `81bc264`). Verifica mia.
+  Analisi di Grok su PC delle 6 route-trace di F4.8 (`reports/moe-m5.md`, commit `41ac652`,
+  fix `7ff26f9`). Verifica mia.
 
   ### Il cancello del simulatore è passato in modo netto
 
@@ -2486,7 +2486,7 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
   ### ⚠ Correzione: il "fix" del Passo 3 ha peggiorato il numero, e la colpa è del mandato mio
 
-  Il commit `81bc264` cambia il residual MTP da `miss@t ∧ miss@t+1` (**0.00%**) a `miss@t fra
+  Il commit `7ff26f9` cambia il residual MTP da `miss@t ∧ miss@t+1` (**0.00%**) a `miss@t fra
   l'overlap` (**5.04%**), e il verdetto da MTP_NEGATIVO a IN_MEZZO. **La definizione originale
   era quella giusta.** Il meccanismo, su un esperto E attivo sia a t sia a t+1:
 
@@ -2515,7 +2515,7 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   abbiamo ragionato per giorni sono sbagliati di un fattore 2.**
 
   Mandato eseguito da Grok in carica (solo conteggi di byte e routing, nessuna misura di
-  velocità). Report `reports/moe-f4.8.md`, commit `1b3222b`. Qui la **mia verifica indipendente**
+  velocità). Report `reports/moe-f4.8.md`, commit `520b84e`. Qui la **mia verifica indipendente**
   sui dati grezzi, con due correzioni a quanto avevo detto io.
 
   ### 1. E1: confermata, e peggio del previsto
@@ -3692,7 +3692,7 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
     Confermato anche il blocco post-generazione: il 35B genera e poi **non esce**
     (rc=124 al timeout). Sotto l'harness usciva con rc=0 — differenza ancora non spiegata.
   - **Aggiornamento 2026-08-06 ~06:30 — ANOMALIA CHIUSA (mitigata; Grok, solo agente).**
-    Report: `reports/moe-f3-binary-anomaly.md`. Commit harness `c9768f4`.
+    Report: `reports/moe-f3-binary-anomaly.md`. Commit harness `bc1ee61`.
     **Test A:** rebuild `build-safe2` pin 67d5978 (GGML_NATIVE=OFF, stessa ISA) → PREFLIGHT OK.
     4B **senza** `--load-mode`: rc=0, genera, Exiting. **Anche il vecchio build-safe** (stesso
     mtime 2026-08-03) **ora** carica senza flag. Pin e file su disco **non** sono la causa
