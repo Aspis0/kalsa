@@ -5,11 +5,16 @@
  * Configure without root / rebuild via chat command (adb input text works):
  *   /bench thinking <default|off|budget256|budget512>
  *   /bench format <none|system-end|user-prefix|user-note>
+ *   /bench speculative <none|mtp|clear>
  *   /bench show
  * Prefer the slash-free form on Windows Git Bash (adb mangles leading `/`):
  *   bench:thinking off
  *   bench:format user-note
+ *   bench:speculative none
  *   bench:show
+ *
+ * Speculative applies at ENGINE INIT — force-stop + relaunch the app for the
+ * new value to take effect (chat write alone is not enough mid-session).
  *
  * Keys:
  * - kalsa.bench.thinking: "default" | "off" | "budget256" | "budget512"
@@ -80,6 +85,10 @@ export async function getBlockFormat(): Promise<BlockFormat> {
  * CI seed (seed_kv / sqlite INSERT OR REPLACE):
  *   seed_kv kalsa.bench.speculative '{"type":"draft-dflash","draftModelPath":"/data/data/com.kalsa.app/files/models/draft/Qwen3.5-4B-DFlash-Q8_0.gguf"}'
  * Draft GGUF is adb-pushed into app files dir + models/draft/ — no download manager.
+ *
+ * Chat path (device A/B, no root): `/bench speculative none|mtp|clear` —
+ * dflash still needs draftModelPath, so seed via JSON as above (not via chat).
+ * Applies at ENGINE INIT — force-stop + relaunch after writing.
  */
 export async function getSpeculativeOverride(): Promise<SpeculativeOverride | undefined> {
   try {
@@ -99,6 +108,28 @@ export async function getSpeculativeOverride(): Promise<SpeculativeOverride | un
     return out;
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * Pure parse of a `/bench speculative <arg>` token.
+ * Returns a SpeculativeOverride to persist, `"clear"` to remove the key
+ * (production path), or null if the arg is not supported via chat
+ * (e.g. dflash needs draftModelPath — seed JSON instead).
+ */
+export function parseSpeculativeArg(
+  arg: string,
+): SpeculativeOverride | "clear" | null {
+  switch (arg) {
+    case "none":
+      return { type: "none" };
+    case "mtp":
+      return { type: "draft-mtp" };
+    case "clear":
+    case "default":
+      return "clear";
+    default:
+      return null;
   }
 }
 
@@ -124,15 +155,37 @@ export async function setBlockFormat(format: string): Promise<boolean> {
   }
 }
 
+/**
+ * Persist speculative override for A/B. Returns false if mode is invalid.
+ * `"none"` / `"mtp"` write JSON; `"clear"` / `"default"` remove the key
+ * (production path). dflash is intentionally not supported here.
+ */
+export async function setSpeculativeOverride(mode: string): Promise<boolean> {
+  const parsed = parseSpeculativeArg(mode);
+  if (parsed === null) return false;
+  try {
+    if (parsed === "clear") {
+      await AsyncStorage.removeItem(BENCH_SPECULATIVE_KEY);
+    } else {
+      await AsyncStorage.setItem(BENCH_SPECULATIVE_KEY, JSON.stringify(parsed));
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Current config as a short debug string. */
 export async function formatBenchStatus(): Promise<string> {
   const thinking = await getThinkingMode();
   const format = await getBlockFormat();
-  return `bench: thinking=${thinking}, format=${format}`;
+  const speculative = await getSpeculativeOverride();
+  const speculativeLabel = speculative?.type ?? "default";
+  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}`;
 }
 
 const BENCH_USAGE =
-  "bench usage: /bench thinking <…> | bench:thinking <…> | /bench format <…> | bench:format <…> | /bench show | bench:show";
+  "bench usage: /bench thinking <…> | bench:thinking <…> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench show | bench:show";
 
 /** True when text is a bench debug command (`/bench …` or slash-free `bench:…`). */
 export function isBenchCommand(text: string): boolean {
@@ -192,6 +245,18 @@ export async function tryHandleBenchCommand(text: string): Promise<string | null
     }
     const ok = await setBlockFormat(arg);
     if (!ok) return "bench: failed to write format";
+    return formatBenchStatus();
+  }
+
+  if (sub === "speculative") {
+    if (!arg) {
+      return `bench: missing speculative mode. ${BENCH_USAGE}`;
+    }
+    if (parseSpeculativeArg(arg) === null) {
+      return `bench: invalid speculative mode "${arg}". ${BENCH_USAGE}`;
+    }
+    const ok = await setSpeculativeOverride(arg);
+    if (!ok) return "bench: failed to write speculative mode";
     return formatBenchStatus();
   }
 
