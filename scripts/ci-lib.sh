@@ -18,6 +18,20 @@ ui_texts() { dump_ui | grep -o 'text="[^"]\{1,200\}"' | sed 's/^text="//; s/"$//
 shot() { adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null; }
 sql() { adb shell "sqlite3 $DB \"$1\"" 2>&1 | tr -d '\r'; }
 
+# Dismiss a system ANR dialog ("<app> isn't responding") covering the screen —
+# the loaded CI AVD throws these for Pixel Launcher after multi-GB pushes and
+# every node lookup then fails (runs 31235650917/31278860896). Tap Wait (keeps
+# processes) and re-foreground the app under test.
+dismiss_anr() {
+  if dump_ui | grep -qE "isn.{1,3}t responding"; then
+    log "ANR dialog detected — tapping Wait + refocusing $PKG"
+    tap_node "Wait" || true
+    sleep 3
+    adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1 || true
+    sleep 8
+  fi
+}
+
 # Tap a node found by content-desc OR text, using its LIVE bounds. Never use
 # fixed coordinates: the CI AVD resolution differs from any dev device, and
 # the IME shifts the layout.

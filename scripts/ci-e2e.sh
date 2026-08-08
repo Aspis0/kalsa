@@ -20,7 +20,8 @@ source "$(dirname "$0")/ci-lib.sh"
 # ci-dflash-ab. Returns 0 when the text is visible in the UI dump.
 type_into_composer() {
   local msg="$1" attempt
-  tap_node "Ask a question…" || return 1
+  dismiss_anr
+  tap_node "Ask a question…" || { dismiss_anr; tap_node "Ask a question…" || return 1; }
   sleep 4
   for attempt in 1 2 3 4; do
     adb shell input text "$msg"
@@ -29,9 +30,12 @@ type_into_composer() {
       return 0
     fi
     log "text not visible (attempt $attempt) — re-tapping composer"
+    dismiss_anr
     tap_node "Ask a question…" || true
     sleep 3
   done
+  ui_texts > "$OUT/typing_failed_ui.txt" 2>/dev/null || true
+  shot typing_failed 2>/dev/null || true
   return 1
 }
 

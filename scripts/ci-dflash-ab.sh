@@ -141,18 +141,8 @@ set_base_prefs() {
   sql "SELECT key,substr(value,1,80) FROM catalystLocalStorage;" | tee "$OUT/prefs.txt"
 }
 
-# Run 31235650917: a "Pixel Launcher isn't responding" ANR dialog covered the
-# screen at presend (AVD strained after 3.5GB of pushes) and the composer was
-# unfindable. Tap Wait (keeps processes) and re-foreground the app.
-dismiss_anr() {
-  if dump_ui | grep -qE "isn.{1,3}t responding"; then
-    log "ANR dialog detected — tapping Wait + relaunching activity"
-    tap_node "Wait" || true
-    sleep 3
-    adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1 || true
-    sleep 8
-  fi
-}
+# dismiss_anr now lives in ci-lib.sh (shared with ci-e2e — run 31278860896 hit
+# the same launcher ANR on a cold turn-1 typing).
 
 wait_ready() {
   # Engine load is LAZY: it starts on the first SEND, not at app launch — an
