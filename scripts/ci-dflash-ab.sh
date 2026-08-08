@@ -379,6 +379,12 @@ adb logcat -c
 # ---------------------------------------------------------------------------
 # CONFIG B — DFlash: seed knobs, force-stop + relaunch (re-read at engine init).
 # ---------------------------------------------------------------------------
+# DFlash arm broken on llama.rn 0.12.8 (loader gate / dual-types hang — see
+# LlamaService comment). Skipped unless the workflow input opts in.
+if [ "${INCLUDE_DFLASH:-0}" != "1" ]; then
+  log "=== CONFIG B: DFlash SKIPPED (binding hole; include_dflash=false) ==="
+  : > "$OUT/telemetry_dflash.txt"
+else
 log "=== CONFIG B: DFlash ==="
 SPEC_JSON="{\"type\":\"draft-dflash\",\"draftModelPath\":\"$DRAFT_DEV_PATH\"}"
 log "seed kalsa.bench.speculative=$SPEC_JSON"
@@ -402,6 +408,7 @@ capture_telemetry "dflash"
 if ! grep -o '"draftTokens":[0-9]*' "$OUT/telemetry_dflash.txt" | grep -vq '"draftTokens":0'; then
   die "dflash arm did NOT speculate (all draftTokens=0) — draft model not engaged"
 fi
+fi  # INCLUDE_DFLASH
 
 # ---------------------------------------------------------------------------
 # RESULT.txt — per-config per-turn metrics + final comparison.

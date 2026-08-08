@@ -5,6 +5,11 @@ name: DFlash vs MTP A/B (manual)
 # Never fails on a slow verdict — only on install/Ready/telemetry absence.
 on:
   workflow_dispatch:
+    inputs:
+      include_dflash:
+        description: "Run the DFlash arm too (BROKEN on llama.rn 0.12.8: pure draft-dflash no-ops, dual-types hangs — needs a binding patch; see LlamaService comment). Default runs BASELINE vs MTP only."
+        type: boolean
+        default: false
 
 concurrency:
   group: dflash-ab-${{ github.ref }}
@@ -177,6 +182,7 @@ jobs:
           script: bash scripts/ci-dflash-ab.sh
         env:
           THINKING: "off"
+          INCLUDE_DFLASH: ${{ inputs.include_dflash && '1' || '0' }}
           MODEL_FILE: ${{ env.MODEL_FILE }}
           MODEL_DIR: ${{ env.MODEL_DIR }}
           DRAFT_FILE: ${{ env.DRAFT_FILE }}

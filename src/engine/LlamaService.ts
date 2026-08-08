@@ -536,18 +536,18 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       const override = options.speculativeOverride;
       // binding accepts the string; TS union NativeSpeculativeType is stale
       // (only 'none'|'draft-mtp'|'mtp') — cast required to pass "draft-dflash"
-      // Binding hole (llama.rn 0.12.8, rn-llama.cpp:491-492): the separate
-      // draft GGUF is loaded ONLY when the speculative types include
-      // draft-mtp — a pure draft-dflash config silently never loads the draft
-      // and speculation no-ops (first real A/B run 31270817640: dflash arm
-      // draftTokens=0 across all turns). Workaround: include draft-mtp in the
-      // types list purely to trip the loader gate; dflash stays first so the
-      // dflash impl (which reads dflash.block_size from the draft's metadata)
-      // is the one that engages on a dflash-arch draft.
+      // KNOWN BINDING HOLE (llama.rn 0.12.8): draft-dflash cannot work through
+      // this binding today. The separate draft GGUF is loaded ONLY when the
+      // speculative types include draft-mtp (rn-llama.cpp:491-492) — a pure
+      // draft-dflash config silently never loads the draft and speculation
+      // no-ops (run 31270817640: draftTokens=0). The dual-types workaround
+      // (["draft-dflash","draft-mtp"]) is WORSE: the mtp impl on a dflash-arch
+      // draft hangs the native turn (run 31274549105: 35 min, zero tokens).
+      // Real fix = 1-line binding patch extending the loader gate to
+      // COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH (upstream issue material).
+      // Until then the harness's fail-closed assert names the no-op arm.
       params.speculative = {
-        ...(override.type === "draft-dflash"
-          ? { types: ["draft-dflash", "draft-mtp"] as any }
-          : { type: override.type as any }),
+        type: override.type as any,
         ...(override.nMax ? { n_max: override.nMax } : {}),
         draft: {
           ...(override.draftModelPath ? { model_draft: override.draftModelPath } : {}),
