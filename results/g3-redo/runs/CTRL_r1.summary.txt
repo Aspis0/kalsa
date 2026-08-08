@@ -1,0 +1,29 @@
+label=CTRL
+rep=1
+phase=B2
+bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.G3P
+bin_sha256=a17e58ffb3e3b1bfdfb7c7c2086b4c2f6153e565ddb3a29f41a75deda034e050
+boundary_src=primary
+boundary_line=1786214867.854 bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+boundary_ts=1786214867.854
+primary_line=1786214867.854 bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+secondary_line=1786214856.917 set_abort_callback: call
+tertiary_line=1786214867.852 bmoe: dense-weights=anon — dropped 1662 MiB of now-unused mmap pages
+read_bytes_at_load=22625873920
+read_bytes_at_load_GiB=21.0720
+rchar_at_load=1770735200
+rchar_at_load_GiB=1.6491
+VmHWM_at_load_MiB=4653.6
+peak_read_bytes=25009025024
+peak_read_bytes_GiB=23.2915
+peak_VmHWM_MiB=4653.6
+wall_s=25.635
+n_samples=126
+interval_median_s=0.20099997520446777
+interval_p95_s=0.22300004959106445
+interval_min_s=0.20000004768371582
+interval_max_s=0.2330000400543213
+read_bytes_rate_before=1097372920.2122746
+read_bytes_rate_after=510748212.709418
+first_ts=1786214847.145 first_rb=81920
+last_ts=1786214872.603 last_rb=25009025024

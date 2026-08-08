@@ -18,7 +18,7 @@ N_GEN=64
 THREADS=4
 N_CTX=512
 KV_TYPE="q8_0"
-BINARY="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli}"
+BINARY="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN}"
 RUN_BENCH="${RUN_BENCH:-$HOME/experiments/scripts/run_bench.sh}"
 CSV_PATH="${RUNS_CSV:-$HOME/experiments/results/runs.csv}"
 RUNTIME_COMMIT="${RUNTIME_COMMIT:-b0c4e5b}"
@@ -217,10 +217,10 @@ fi
 
 if [ ! -x "$BINARY" ] && [ ! -f "$BINARY" ]; then
     for _cand in \
-        "$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli" \
+        "$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN" \
         "$HOME/src/BigMoeOnEdge/build-bmoe/bin/bmoe-cli" \
         "$HOME/src/BigMoeOnEdge/build-termux/cli/bmoe-cli" \
-        "$HOME/experiments/BigMoeOnEdge/build-bmoe/cli/bmoe-cli"
+        "$HOME/experiments/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN"
     do
         if [ -x "$_cand" ]; then BINARY="$_cand"; break; fi
     done

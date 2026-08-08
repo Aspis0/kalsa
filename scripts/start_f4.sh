@@ -13,7 +13,7 @@ FIRST_RUN_TYPE="cold"
 REPS=3
 NO_SENTINEL=0
 COLD_METHOD="${COLD_METHOD:-fadv}"
-BINARY="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli}"
+BINARY="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN}"
 MODEL="$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf"
 GRID="$HOME/experiments/scripts/run_f4.sh"
 EXPECTED_SIZE="11522702304"
@@ -53,7 +53,7 @@ fi
 
 if [ ! -x "$BINARY" ]; then
   for _c in \
-    "$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli" \
+    "$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN" \
     "$HOME/src/BigMoeOnEdge/build-bmoe/bin/bmoe-cli" \
     "$HOME/src/BigMoeOnEdge/build-termux/cli/bmoe-cli"
   do

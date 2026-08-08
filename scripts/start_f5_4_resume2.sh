@@ -22,7 +22,41 @@ SAFETY_LOG="$OUTDIR/safety.log"
 CSV_ALL="$OUTDIR/cells.csv"
 WATCH="$OUTDIR/WATCH.txt"
 
-BIN="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli}"
+BIN="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN}"
+
+# --- campaign binary pin (fix-bloccanti-audit §C) ---
+_PIN_LIB=""
+for _d in \
+  "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)" \
+  "$HOME/experiments/scripts" \
+  "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." 2>/dev/null && pwd)/scripts" \
+  "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../../.." 2>/dev/null && pwd)/scripts"
+do
+  [ -n "$_d" ] && [ -f "$_d/lib_campaign_pin.sh" ] && _PIN_LIB="$_d/lib_campaign_pin.sh" && break
+done
+if [ -n "$_PIN_LIB" ]; then
+  # shellcheck disable=SC1090
+  source "$_PIN_LIB"
+  assert_campaign_pin "$BIN"
+else
+  _sha_file="${CAMPAIGN_SHA_FILE:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/CAMPAIGN.sha256}"
+  _exp=$(awk 'NF{print $1; exit}' "$_sha_file" 2>/dev/null || true)
+  _got=$(sha256sum "$BIN" 2>/dev/null | awk '{print $1}')
+  BIN_SHA256="$_got"
+  if [ "${ALLOW_UNPINNED:-0}" != "1" ]; then
+    case "$BIN" in *.CAMPAIGN) ;; *)
+      echo "ERRORE pin campagna: usare bmoe-cli.CAMPAIGN (got $BIN). ALLOW_UNPINNED=1 per override." >&2
+      exit 6
+    ;; esac
+    if [ -z "$_exp" ] || [ "$_got" != "$_exp" ]; then
+      echo "ERRORE pin campagna: sha mismatch got=$_got expected=$_exp ($_sha_file)" >&2
+      exit 6
+    fi
+  fi
+fi
+export BIN_SHA256="${BIN_SHA256:-}"
+# --- end pin ---
+
 MODEL35="${MODEL35:-$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf}"
 EXPECTED_SIZE35="11522702304"
 MODEL_Q40="${MODEL_Q40:-$HOME/models/LFM2-8B-A1B-Q4_0.gguf}"

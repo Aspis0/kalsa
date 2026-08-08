@@ -1,0 +1,61 @@
+[2026-08-08T14:44:34-0400] === G3-REDO START v2 ===
+[2026-08-08T14:44:34-0400] CTRL=a17e58ffb3e3b1bfdfb7c7c2086b4c2f6153e565ddb3a29f41a75deda034e050  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.G3P
+[2026-08-08T14:44:34-0400] NEW=ad058660f42e7c4029cfe76979d891d38db341c631720237bb45e4b40e97cb17  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+[2026-08-08T14:44:34-0400] short.txt sha=197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619 expect=197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619
+[2026-08-08T14:44:34-0400] boundary_re=bmoe: expert streaming ON
+[2026-08-08T14:44:36-0400] nproc=7 die=90.8C
+[2026-08-08T14:44:36-0400] ==== B0 B0_CTRL rep=0 bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.G3P ====
+[2026-08-08T14:44:38-0400] wait prestart die=89.5C
+[2026-08-08T14:44:56-0400] prestart OK die=45.0C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=940807 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T14:45:23-04:00
+[2026-08-08T14:45:48-0400] B0 B0_CTRL r0 done
+[2026-08-08T14:45:53-0400] cool OK die=52.9C
+[2026-08-08T14:45:53-0400] ==== B0 B0_NEW rep=0 bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN ====
+[2026-08-08T14:45:56-0400] prestart OK die=45.7C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=198104 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T14:46:22-04:00
+[2026-08-08T14:46:39-0400] B0 B0_NEW r0 done
+[2026-08-08T14:46:56-0400] cool OK die=42.6C
+[2026-08-08T14:46:56-0400] G-B PASS — proceeding to B2
+[2026-08-08T14:46:56-0400] ==== B2 CTRL rep=1 bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.G3P ====
+[2026-08-08T14:47:00-0400] prestart OK die=43.0C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=181681 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T14:47:27-04:00
+[2026-08-08T14:47:53-0400] B2 CTRL r1 done
+[2026-08-08T14:47:57-0400] cool OK die=54.1C
+[2026-08-08T14:47:57-0400] ==== B2 NEW rep=1 bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN ====
+[2026-08-08T14:48:01-0400] prestart OK die=49.0C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=183221 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T14:48:27-04:00
+[2026-08-08T14:48:44-0400] B2 NEW r1 done
+[2026-08-08T14:48:47-0400] cool OK die=51.7C
+[2026-08-08T14:48:47-0400] ==== B2 CTRL rep=2 bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.G3P ====
+[2026-08-08T14:48:51-0400] prestart OK die=46.1C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=185097 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T14:49:11-04:00
+[2026-08-08T14:49:37-0400] B2 CTRL r2 done
+[2026-08-08T14:49:41-0400] cool OK die=56.9C
+[2026-08-08T14:49:41-0400] ==== B2 NEW rep=2 bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN ====
+[2026-08-08T14:49:45-0400] prestart OK die=48.9C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=188443 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T14:50:03-04:00
+[2026-08-08T14:50:22-0400] B2 NEW r2 done
+[2026-08-08T14:50:27-0400] cool OK die=51.7C
+[2026-08-08T14:50:27-0400] === G3-REDO DONE ===
+ctrl_read_bytes_median=22598858752.0
+new_read_bytes_median=11069036544.0
+reduction=0.5101948879157276
+ctrl_rchar_median=1770735178.0
+new_rchar_median=1770735024.5
+ctrl_VmHWM_MiB_median=4635.8
+new_VmHWM_MiB_median=2707.45
+ctrl_wall_s_median=25.3545
+new_wall_s_median=17.039499999999997
+verdict=G3_CONFERMATO
+note=rchar_new_~1.6GiB_like_F4.8_historical
+--- per run ---
+CTRL_r1 rb=22625873920 (21.0720 GiB) rchar=1770735200 hwm=4653.6 wall=25.635 src=primary iv_med=0.20099997520446777
+CTRL_r2 rb=22571843584 (21.0217 GiB) rchar=1770735156 hwm=4618.0 wall=25.074 src=primary iv_med=0.20099997520446777
+NEW_r1 rb=11064815616 (10.3049 GiB) rchar=1770735227 hwm=2704.0 wall=16.188 src=primary iv_med=0.20099997520446777
+NEW_r2 rb=11073257472 (10.3128 GiB) rchar=1770734822 hwm=2710.9 wall=17.891 src=primary iv_med=0.20099997520446777

@@ -213,20 +213,29 @@ read_pid_cpuset() {
     echo "${_n} ${_mask}"
 }
 
-# Ensure runs.csv header has nproc,affinity_mask (migrate old 27-col files in place).
+# Ensure runs.csv header has nproc,affinity_mask,bin_sha256 (migrate old files in place).
+# bin_sha256 is ALWAYS appended at the end — existing columns never shift.
 ensure_csv_header() {
     _csv="$1"
-    _new_header="run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,batt_temp_start,batt_temp_end,battery_pct,expert_hit_rate,nproc,affinity_mask,notes"
+    _new_header="run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,batt_temp_start,batt_temp_end,battery_pct,expert_hit_rate,nproc,affinity_mask,notes,bin_sha256"
     if [ ! -f "$_csv" ]; then
-        printf '%s
-' "$_new_header" > "$_csv"
+        printf '%s\n' "$_new_header" > "$_csv"
         return 0
     fi
     _old="$(head -n1 "$_csv" 2>/dev/null || true)"
     case "$_old" in
-        *",battery_pct,expert_hit_rate,nproc,affinity_mask,notes") return 0 ;;
+        *",notes,bin_sha256") return 0 ;;
+        *",battery_pct,expert_hit_rate,nproc,affinity_mask,notes")
+            # 30-col current pre-pin: append empty bin_sha256
+            _tmp="${_csv}.schema_migrate.$$"
+            {
+                printf '%s\n' "$_new_header"
+                tail -n +2 "$_csv" | awk -F, 'BEGIN{OFS=","} { print $0 OFS "" }'
+            } > "$_tmp" && mv "$_tmp" "$_csv"
+            return 0
+            ;;
         *",nproc,affinity_mask,notes")
-            # 29-col (post nproc/affinity, pre battery_pct): insert empty battery_pct after batt_temp_end (col 25)
+            # 29-col (post nproc/affinity, pre battery_pct): insert empty battery_pct after batt_temp_end (col 25) + bin_sha256
             _tmp="${_csv}.schema_migrate.$$"
             {
                 printf '%s\n' "$_new_header"
@@ -237,6 +246,7 @@ ensure_csv_header() {
                     for (i=2; i<=25 && i<=n; i++) out=out OFS $i
                     out=out OFS ""
                     for (i=26; i<=n; i++) out=out OFS $i
+                    out=out OFS ""
                     print out
                 }'
             } > "$_tmp" && mv "$_tmp" "$_csv"
@@ -246,13 +256,13 @@ ensure_csv_header() {
             _tmp="${_csv}.schema_migrate.$$"
             {
                 printf '%s\n' "$_new_header"
-                # insert battery_pct + nproc + affinity_mask empty before notes
+                # insert battery_pct + nproc + affinity_mask empty before notes, then bin_sha256
                 tail -n +2 "$_csv" | awk -F, 'BEGIN{OFS=","} {
                     n=NF
                     if (n < 2) { print; next }
                     out=$1
                     for (i=2; i<n; i++) out=out OFS $i
-                    out=out OFS "" OFS "" OFS "" OFS $n
+                    out=out OFS "" OFS "" OFS "" OFS $n OFS ""
                     print out
                 }'
             } > "$_tmp" && mv "$_tmp" "$_csv"
@@ -261,6 +271,13 @@ ensure_csv_header() {
         *)
             if [ ! -s "$_csv" ]; then
                 printf '%s\n' "$_new_header" > "$_csv"
+            elif ! printf '%s' "$_old" | grep -q ',bin_sha256$'; then
+                # Unknown older header: append bin_sha256 column only (do not reshuffle).
+                _tmp="${_csv}.schema_migrate.$$"
+                {
+                    printf '%s,bin_sha256\n' "$_old"
+                    tail -n +2 "$_csv" | awk -F, 'BEGIN{OFS=","} { print $0 OFS "" }'
+                } > "$_tmp" && mv "$_tmp" "$_csv"
             fi
             return 0
             ;;
@@ -531,9 +548,16 @@ _parse_expert_hit_rate() {
 }
 
 # Mappa runtime → binario di default
+# bigmoe: path assoluto a bmoe-cli.CAMPAIGN (mai bmoe-cli nudo; pin campagna).
 default_binary_for_runtime() {
     case "$1" in
-        bigmoe) echo "bmoe-cli" ;;
+        bigmoe)
+            if declare -f default_campaign_binary_path >/dev/null 2>&1; then
+                default_campaign_binary_path
+            else
+                echo "${HOME}/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN"
+            fi
+            ;;
         mainline|ik|custom) echo "llama-cli" ;;
         *) echo "llama-cli" ;;
     esac
@@ -690,6 +714,11 @@ read_battery() {
 if [ -n "${_RUN_BENCH_SCRIPT_DIR:-}" ] && [ -f "$_RUN_BENCH_SCRIPT_DIR/lib_isa_safe.sh" ]; then
     # shellcheck disable=SC1091
     source "$_RUN_BENCH_SCRIPT_DIR/lib_isa_safe.sh"
+fi
+# Pin binario di campagna (bmoe-cli.CAMPAIGN + CAMPAIGN.sha256)
+if [ -n "${_RUN_BENCH_SCRIPT_DIR:-}" ] && [ -f "$_RUN_BENCH_SCRIPT_DIR/lib_campaign_pin.sh" ]; then
+    # shellcheck disable=SC1091
+    source "$_RUN_BENCH_SCRIPT_DIR/lib_campaign_pin.sh"
 fi
 
 # Solo le helper (per scripts/test_run_bench.sh)
@@ -1054,6 +1083,36 @@ if ! command -v "$BINARY" >/dev/null 2>&1; then
     fi
 fi
 
+# 2b) pin campagna: bigmoe / bmoe-cli* devono coincidere con bmoe-cli.CAMPAIGN
+# (sha256 scritto in runs.csv colonna bin_sha256; abort se mismatch salvo ALLOW_UNPINNED=1).
+BIN_SHA256=""
+case "$RUNTIME" in
+    bigmoe)
+        if declare -f assert_campaign_pin >/dev/null 2>&1; then
+            assert_campaign_pin "$BINARY"
+        else
+            echo "ERRORE: lib_campaign_pin.sh non caricata — impossibile verificare il pin" >&2
+            exit 6
+        fi
+        ;;
+    *)
+        # non-bigmoe: se qualcuno punta comunque a un bmoe-cli, applica lo stesso pin
+        case "$(basename -- "$BINARY" 2>/dev/null || echo "$BINARY")" in
+            bmoe-cli|bmoe-cli.CAMPAIGN|bmoe-cli.NEW|bmoe-cli.ABI_FIX)
+                if declare -f assert_campaign_pin >/dev/null 2>&1; then
+                    assert_campaign_pin "$BINARY"
+                fi
+                ;;
+            *)
+                if declare -f compute_bin_sha256 >/dev/null 2>&1; then
+                    BIN_SHA256="$(compute_bin_sha256 "$BINARY" 2>/dev/null || true)"
+                fi
+                ;;
+        esac
+        ;;
+esac
+export BIN_SHA256
+
 # 2a) LD_LIBRARY_PATH = dir del binario (stub .so: llama-cli 6KB / bmoe-cli linka libllama.so).
 # Root cause anomalia F3: senza LD il loader risolve .so di un'altra build → SIGABRT load_tensors.
 # Obbligatorio per mainline E bigmoe (reports/moe-f3-binary-anomaly.md §3).
@@ -1220,8 +1279,8 @@ fi
 mkdir -p "$(dirname "$CSV_PATH")" 2>/dev/null || true
 mkdir -p "$(dirname "$LOG_PATH")" 2>/dev/null || true
 
-# Header CSV se assente
-CSV_HEADER="run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,batt_temp_start,batt_temp_end,battery_pct,expert_hit_rate,nproc,affinity_mask,notes"
+# Header CSV se assente (bin_sha256 in coda — colonne esistenti non si spostano)
+CSV_HEADER="run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,batt_temp_start,batt_temp_end,battery_pct,expert_hit_rate,nproc,affinity_mask,notes,bin_sha256"
 
 ensure_csv_header "$CSV_PATH"
 
@@ -1857,13 +1916,13 @@ MODEL_CSV="$(basename "$MODEL")"
 
 # ---------------------------------------------------------------------------
 # Append riga CSV (atomico: un solo >>)
-# Ordine §8.3:
+# Ordine §8.3 + bin_sha256 in coda:
 # run_id,date,phase,model,quant,file_gb,runtime,runtime_commit,flags,threads,
 # n_ctx,kv_type,n_gen,run_type,prompt_id,prompt_tok_s,eval_tok_s,ttft_ms,
 # majflt_delta,minflt_delta,read_bytes_delta,vmrss_peak_mb,memfree_min_mb,
-# batt_temp_start,batt_temp_end,battery_pct,expert_hit_rate,nproc,affinity_mask,notes
+# batt_temp_start,batt_temp_end,battery_pct,expert_hit_rate,nproc,affinity_mask,notes,bin_sha256
 # ---------------------------------------------------------------------------
-CSV_LINE="$(printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' \
+CSV_LINE="$(printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' \
     "$RUN_ID" \
     "$DATE_ISO" \
     "$PHASE" \
@@ -1893,7 +1952,8 @@ CSV_LINE="$(printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
     "$EXPERT_HIT_RATE" \
     "${NPROC_RUN:-}" \
     "${AFFINITY_MASK:-}" \
-    "$NOTES_FINAL"
+    "$NOTES_FINAL" \
+    "${BIN_SHA256:-}"
 )"
 
 printf '%s\n' "$CSV_LINE" >> "$CSV_PATH"

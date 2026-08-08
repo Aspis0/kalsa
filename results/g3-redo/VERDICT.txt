@@ -1,0 +1,16 @@
+ctrl_read_bytes_median=22598858752.0
+new_read_bytes_median=11069036544.0
+reduction=0.5101948879157276
+ctrl_rchar_median=1770735178.0
+new_rchar_median=1770735024.5
+ctrl_VmHWM_MiB_median=4635.8
+new_VmHWM_MiB_median=2707.45
+ctrl_wall_s_median=25.3545
+new_wall_s_median=17.039499999999997
+verdict=G3_CONFERMATO
+note=rchar_new_~1.6GiB_like_F4.8_historical
+--- per run ---
+CTRL_r1 rb=22625873920 (21.0720 GiB) rchar=1770735200 hwm=4653.6 wall=25.635 src=primary iv_med=0.20099997520446777
+CTRL_r2 rb=22571843584 (21.0217 GiB) rchar=1770735156 hwm=4618.0 wall=25.074 src=primary iv_med=0.20099997520446777
+NEW_r1 rb=11064815616 (10.3049 GiB) rchar=1770735227 hwm=2704.0 wall=16.188 src=primary iv_med=0.20099997520446777
+NEW_r2 rb=11073257472 (10.3128 GiB) rchar=1770734822 hwm=2710.9 wall=17.891 src=primary iv_med=0.20099997520446777

@@ -10,7 +10,7 @@ export TMPDIR="${TMPDIR:-$PREFIX/tmp}"
 export LC_ALL=C
 mkdir -p "$TMPDIR" "$HOME/experiments/results/logs" "$HOME/experiments/results/f4_state"
 
-BINARY="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli}"
+BINARY="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN}"
 MODEL="$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf"
 EXPECTED_SIZE="11522702304"
 GRID="$HOME/experiments/scripts/run_f4.sh"
@@ -40,7 +40,7 @@ fi
 
 if [ ! -x "$BINARY" ]; then
   for _c in \
-    "$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli" \
+    "$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN" \
     "$HOME/src/BigMoeOnEdge/build-bmoe/bin/bmoe-cli"
   do
     if [ -x "$_c" ]; then BINARY="$_c"; break; fi

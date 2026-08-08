@@ -1,0 +1,67 @@
+n=197
+median_s=0.20099997520446777
+p95_s=0.22119994163513182
+min_s=0.19999980926513672
+max_s=0.5699999332427979
+hist_le={0.1: 0, 0.2: 1, 0.3: 195, 0.4: 0, 0.5: 0, 0.6: 1, 0.8: 0, 1.0: 0, 2.0: 0, 5.0: 0, 99: 0}
+
+label=B0_CTRL
+rep=0
+phase=B0
+bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.G3P
+bin_sha256=a17e58ffb3e3b1bfdfb7c7c2086b4c2f6153e565ddb3a29f41a75deda034e050
+boundary_src=primary
+boundary_line=1786214743.350 bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+boundary_ts=1786214743.35
+primary_line=1786214743.350 bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+secondary_line=1786214733.216 set_abort_callback: call
+tertiary_line=1786214743.348 bmoe: dense-weights=anon — dropped 1662 MiB of now-unused mmap pages
+read_bytes_at_load=22666280960
+read_bytes_at_load_GiB=21.1096
+rchar_at_load=1770735295
+rchar_at_load_GiB=1.6491
+VmHWM_at_load_MiB=4536.0
+peak_read_bytes=25055354880
+peak_read_bytes_GiB=23.3346
+peak_VmHWM_MiB=4536.0
+wall_s=24.298
+n_samples=118
+interval_median_s=0.20099997520446777
+interval_p95_s=0.2202000141143799
+interval_min_s=0.20000004768371582
+interval_max_s=0.5699999332427979
+read_bytes_rate_before=1161047029.435431
+read_bytes_rate_after=534947128.78327626
+first_ts=1786214723.754 first_rb=0
+last_ts=1786214747.887 last_rb=25055354880
+
+---
+label=B0_NEW
+rep=0
+phase=B0
+bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+bin_sha256=ad058660f42e7c4029cfe76979d891d38db341c631720237bb45e4b40e97cb17
+boundary_src=primary
+boundary_line=1786214793.814 bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+boundary_ts=1786214793.814
+primary_line=1786214793.814 bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+secondary_line=1786214783.525 set_abort_callback: call
+tertiary_line=1786214793.812 bmoe: dense-weights=anon — dropped 1662 MiB of now-unused mmap pages
+read_bytes_at_load=11149754368
+read_bytes_at_load_GiB=10.3840
+rchar_at_load=1770734958
+rchar_at_load_GiB=1.6491
+VmHWM_at_load_MiB=2693.1
+peak_read_bytes=13531693056
+peak_read_bytes_GiB=12.6024
+peak_VmHWM_MiB=4006.1
+wall_s=16.499
+n_samples=81
+interval_median_s=0.20099997520446777
+interval_p95_s=0.22199989557266236
+interval_min_s=0.19999980926513672
+interval_max_s=0.25300002098083496
+read_bytes_rate_before=976335772.8798668
+read_bytes_rate_after=506514207.092533
+first_ts=1786214782.354 first_rb=0
+last_ts=1786214798.667 last_rb=13531693056
