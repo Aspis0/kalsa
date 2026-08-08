@@ -1,0 +1,48 @@
+# F5.5-A non-regression vs F5.5-B k=8 gens  2026-08-07T18:17:12-0400
+# binary: /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+5c95cb5fe2cc97f3b7a0ae4245ccca4975236b2a29f1be393d9e33ca055f059d  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+# pristine: /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.pristine
+ab80050684baf49476bcab5c46bcb54540fe39445661ca508592c32a295c5b38  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.pristine
+# ref dir: /data/data/com.termux/files/home/experiments/results/f5.5/b
+[2026-08-07T18:17:12-0400] === cell short-k8 n_gen=200 ===
+[2026-08-07T18:17:15-0400] prestart wait die=89.9C nproc=6
+[2026-08-07T18:17:34-0400] prestart OK die=48.9C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=350711 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T18:17:51-04:00
+[2026-08-07T18:19:11-0400] cell short-k8 IDENTICAL rc=0
+[2026-08-07T18:19:11-0400] === cell f45_1_esplicativo-k8 n_gen=200 ===
+[2026-08-07T18:19:14-0400] prestart OK die=56.5C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=210284 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T18:19:35-04:00
+[2026-08-07T18:21:12-0400] cell f45_1_esplicativo-k8 IDENTICAL rc=0
+[2026-08-07T18:21:12-0400] === cell f45_2_scrittura-k8 n_gen=200 ===
+[2026-08-07T18:21:15-0400] prestart OK die=52.1C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=207309 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T18:21:36-04:00
+[2026-08-07T18:22:57-0400] cell f45_2_scrittura-k8 IDENTICAL rc=0
+[2026-08-07T18:22:57-0400] === cell f45_3_istruzioni-k8 n_gen=200 ===
+[2026-08-07T18:23:01-0400] prestart OK die=52.5C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=218616 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T18:23:21-04:00
+[2026-08-07T18:24:38-0400] cell f45_3_istruzioni-k8 IDENTICAL rc=0
+[2026-08-07T18:24:38-0400] === cell f45_4_codice-k8 n_gen=200 ===
+[2026-08-07T18:24:42-0400] prestart OK die=54.1C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=194265 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T18:25:06-04:00
+[2026-08-07T18:26:43-0400] cell f45_4_codice-k8 IDENTICAL rc=0
+[2026-08-07T18:26:43-0400] === cell f45_5_ragionamento-k8 n_gen=200 ===
+[2026-08-07T18:26:47-0400] prestart OK die=52.5C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=209033 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T18:27:09-04:00
+[2026-08-07T18:28:49-0400] cell f45_5_ragionamento-k8 IDENTICAL rc=0
+[2026-08-07T18:28:49-0400] === cell long_conversational_it-k8 n_gen=256 ===
+[2026-08-07T18:28:52-0400] prestart OK die=62.0C nproc=7
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=189049 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T18:29:14-04:00
+[2026-08-07T18:31:02-0400] cell long_conversational_it-k8 IDENTICAL rc=0
+[2026-08-07T18:31:02-0400] === cell d1_long-k8 n_gen=256 ===
+[2026-08-07T18:31:06-0400] prestart OK die=61.6C nproc=7
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=184905 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T18:31:26-04:00
+[2026-08-07T18:35:59-0400] cell d1_long-k8 IDENTICAL rc=0
+SUMMARY ok=8 fail=0 total=8 2026-08-07T18:35:59-0400

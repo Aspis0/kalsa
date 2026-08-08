@@ -1,0 +1,15 @@
+# F5.5-A non-regression vs F5.5-B k=8 gens  2026-08-07T18:17:12-0400
+# binary: /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+5c95cb5fe2cc97f3b7a0ae4245ccca4975236b2a29f1be393d9e33ca055f059d  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+# pristine: /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.pristine
+ab80050684baf49476bcab5c46bcb54540fe39445661ca508592c32a295c5b38  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.pristine
+# ref dir: /data/data/com.termux/files/home/experiments/results/f5.5/b
+short-k8 IDENTICAL new=9a3f4175a08474fa9bf4339fac11b085449e3787cc23ed8ab848775d0cb3a008 ref=9a3f4175a08474fa9bf4339fac11b085449e3787cc23ed8ab848775d0cb3a008
+f45_1_esplicativo-k8 IDENTICAL new=2424179fe22e5cfed996029c1b3646795af28950bed80c963a2240dca5915675 ref=2424179fe22e5cfed996029c1b3646795af28950bed80c963a2240dca5915675
+f45_2_scrittura-k8 IDENTICAL new=71216127365912c87c03f8908cee38d794b5f262e60092d6083fa6bf5616be13 ref=71216127365912c87c03f8908cee38d794b5f262e60092d6083fa6bf5616be13
+f45_3_istruzioni-k8 IDENTICAL new=baadf7b31955c23a4bdc69058eccb23e662b595abfaeed08c34fbb727caaceb0 ref=baadf7b31955c23a4bdc69058eccb23e662b595abfaeed08c34fbb727caaceb0
+f45_4_codice-k8 IDENTICAL new=d9c57c56fa8af23b126b5e0e36f6b61a7f07895f1a250cae46ed0b9b0b621376 ref=d9c57c56fa8af23b126b5e0e36f6b61a7f07895f1a250cae46ed0b9b0b621376
+f45_5_ragionamento-k8 IDENTICAL new=9397d763d446894d37b46be3a6d26b8b8bd8c515d018fdbc7779d2d673e71741 ref=9397d763d446894d37b46be3a6d26b8b8bd8c515d018fdbc7779d2d673e71741
+long_conversational_it-k8 IDENTICAL new=64f6f2bd655ca0f5e50b51259fd67a4e0dca80569db1b09b8a4ef539be1f2d41 ref=64f6f2bd655ca0f5e50b51259fd67a4e0dca80569db1b09b8a4ef539be1f2d41
+d1_long-k8 IDENTICAL new=50b17f329c6c19fcb269ead312504c25a18e9b5bbde5d7ae477855b0d93c21c6 ref=50b17f329c6c19fcb269ead312504c25a18e9b5bbde5d7ae477855b0d93c21c6
+SUMMARY ok=8 fail=0 total=8 2026-08-07T18:35:59-0400

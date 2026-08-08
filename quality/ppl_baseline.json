@@ -1,7 +1,10 @@
 {
-  "status": "BLOCKED",
-  "date": "2026-08-07",
-  "phase": "F4.8/notte C2",
+  "status": "COMPLETE",
+  "date": "2026-08-08",
+  "phase": "F5.5-A",
+  "rc": 0,
+  "method": "split_2_halves_paragraph_aligned_cache_mb_0",
+  "method_note": "bmoe-cli SIGKILL (rc=137) at ~45k scored tokens / ~2h with both cache-mb 2000 and 0. Corpus split paragraph-aligned mid-file; sequential PPL on halves; combine sum_logprob/n_scored. PPL path already uses non-overlapping n_ctx windows with memory clear.",
   "model": {
     "path": "/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf",
     "size_bytes": 11522702304,
@@ -9,36 +12,96 @@
   },
   "binary": {
     "path": "/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli",
-    "runtime_commit": "b0c4e5b",
-    "help_has_perplexity": false,
-    "help_has_ppl": false,
-    "help_has_logprob": false,
-    "progress_json_has_logprob": false,
-    "token_metrics_has_logprob": false
+    "sha256": "5c95cb5fe2cc97f3b7a0ae4245ccca4975236b2a29f1be393d9e33ca055f059d",
+    "runtime_commit_base": "b0c4e5b",
+    "fork_commit": "7567e9f",
+    "feature": "--ppl-file teacher-forced logprob",
+    "binary_sha256_prefix": "5c95cb5f"
   },
-  "candidates": [
+  "corpus": {
+    "file": "quality/corpus_it/mixed_it.txt",
+    "path_phone": "/data/data/com.termux/files/home/experiments/quality/corpus_it/mixed_it.txt",
+    "sha256": "4175f3acd383c4125820df704967c3e7959817f46634c27f4a4a7d00cd147fc5",
+    "bytes": 217375,
+    "n_tokens": 68193,
+    "n_scored": 68175,
+    "split": "2 halves paragraph-aligned",
+    "parts": [
+      {
+        "path": "/data/data/com.termux/files/home/experiments/results/f5.5/a/split/mixed_it.part1.txt",
+        "sha256": "8f7042252f01642bddfaa80278012f8f68345498f411cbb851d3f6ca587d2cb2",
+        "bytes": 105125
+      },
+      {
+        "path": "/data/data/com.termux/files/home/experiments/results/f5.5/a/split/mixed_it.part2.txt",
+        "sha256": "8bff98e8bb17d8707c943afdcab9d638addc4e95e9bc6980cbbc571dbde9941a",
+        "bytes": 105296
+      }
+    ]
+  },
+  "gate_config": "--moe-stream --cache-mb 0 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 8 -c 4096 -t 4",
+  "gate_config_note": "cache-mb=0 for PPL only (LMK under cache-mb=2000). Decode campaign gate remains cache-mb 2000. Batch effective=16 under MoE streaming in perplexity().",
+  "parts": [
     {
-      "id": "a_bmoe_cli",
-      "result": "FAIL",
-      "detail": "bmoe-cli --help has no --perplexity/--ppl/--logprob. TokenMetrics (metrics.h) has wall/io/mgmt/compute/stall/cache_hit but no logprob/NLL. Source core/cli: no logprob export path."
+      "n_tokens": 34012,
+      "n_scored": 34003,
+      "sum_logprob": -31909.9509012,
+      "ppl": 2.556004,
+      "seconds": 6097.218,
+      "cancelled": false,
+      "file": "/data/data/com.termux/files/home/experiments/results/f5.5/a/split/mixed_it.part1.txt",
+      "part": 1,
+      "corpus_sha256": "8f7042252f01642bddfaa80278012f8f68345498f411cbb851d3f6ca587d2cb2",
+      "csv": "/data/data/com.termux/files/home/experiments/results/f5.5/a/split/part1.per_token.csv"
     },
     {
-      "id": "b_llama_perplexity",
-      "result": "FAIL_IMPRACTICAL",
-      "detail": "llama-perplexity binary NOT present in build-safe2/bin (only llama-cli, llama-bench). CMakeFiles for perplexity exist as incomplete build dirs. Even if rebuilt: without moe-stream it mmaps the full 11.5GB model and falls into F3 wall (~0.10 tok/s). Not usable for a night baseline on this phone."
-    },
-    {
-      "id": "c_manual_logprob",
-      "result": "FAIL",
-      "detail": "No per-token logprob surface from bmoe-cli (progress JSON, CSV sink, or stdout). Cannot compute PPL by hand without log p(token)."
+      "n_tokens": 34181,
+      "n_scored": 34172,
+      "sum_logprob": -37772.75592154,
+      "ppl": 3.020346,
+      "seconds": 6117.166,
+      "cancelled": false,
+      "file": "/data/data/com.termux/files/home/experiments/results/f5.5/a/split/mixed_it.part2.txt",
+      "part": 2,
+      "corpus_sha256": "8bff98e8bb17d8707c943afdcab9d638addc4e95e9bc6980cbbc571dbde9941a",
+      "csv": "/data/data/com.termux/files/home/experiments/results/f5.5/a/split/part2.per_token.csv"
     }
   ],
-  "gate_config": "--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 -t 4",
-  "what_is_missing": [
-    "Either: bmoe-cli flag to emit per-token logprob/NLL under moe-stream (preferred: keeps streaming path)",
-    "Or: llama-perplexity built AND a streaming/lazy-expert path so it does not mmap the whole 11.5GB",
-    "Corpus prep script is ready (see scripts/quality/prepare_it_ppl_corpus.py) but unused until tool exists"
-  ],
-  "ppl": null,
-  "notes": "Deterministic quality meter is blocked on tooling, not on battery/charge. Do not invent a proxy. STOP after feasibility as mandated."
+  "n_tokens": 68193,
+  "n_scored": 68175,
+  "sum_logprob": -69682.70682274,
+  "mean_logprob": -1.022115244924679,
+  "ppl": 2.7790669584892753,
+  "seconds": 12214.384,
+  "audit_csv_independent": {
+    "n_rows": 68175,
+    "sum_logprob": -69682.70682379967,
+    "mean_logprob": -1.0221152449402224,
+    "ppl": 2.7790669585324714,
+    "delta_ppl_vs_phone": 4.319611335290574e-11,
+    "note": "Recomputed on PC from part1+part2 per_token.csv"
+  },
+  "audit_csv_phone": {
+    "n_rows": 68175,
+    "sum_logprob": -69682.70682380014,
+    "mean_logprob": -1.0221152449402293,
+    "ppl": 2.7790669585324905
+  },
+  "non_regression": {
+    "ok": 8,
+    "fail": 0,
+    "total": 8,
+    "ref": "F5.5-B",
+    "summary": "ok=8 fail=0 total=8",
+    "artifact": "results/f5.5/a/regression_checksums.txt",
+    "binary_sha256": "5c95cb5fe2cc97f3b7a0ae4245ccca4975236b2a29f1be393d9e33ca055f059d"
+  },
+  "command": "export PREFIX=/data/data/com.termux/files/usr; export PATH=$PREFIX/bin:$PATH\nBIN=~/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli\nexport LD_LIBRARY_PATH=$(dirname $BIN)\nOUT=~/experiments/results/f5.5/a\n# part1\n$BIN -m ~/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf -t 4 -c 4096 --moe-stream --cache-mb 0 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 8 --ppl-file $OUT/split/mixed_it.part1.txt --ppl-csv $OUT/split/part1.per_token.csv\n# part2\n$BIN -m ~/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf -t 4 -c 4096 --moe-stream --cache-mb 0 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 8 --ppl-file $OUT/split/mixed_it.part2.txt --ppl-csv $OUT/split/part2.per_token.csv\n# combine: ppl=exp(-(s1+s2)/(n1+n2))",
+  "notes": [
+    "SIGKILL rc=137 at ~45k tokens forced split-2-halves workaround",
+    "~5.6 tok/s charged (not a campaign speed metric)",
+    "Deterministic gate: --temp 0 for regression; PPL is teacher-forced",
+    "18 unscored tokens = first position of each n_ctx window (9+9 windows)",
+    "PPL absolute high-ish for IQ2_M; use for relative \u0394PPL only"
+  ]
 }

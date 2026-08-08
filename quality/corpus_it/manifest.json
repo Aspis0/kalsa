@@ -4,13 +4,17 @@
       "id": "divina_commedia",
       "kind": "prose",
       "url": "https://www.gutenberg.org/files/1012/1012-0.txt",
-      "status": "skipped_no_download"
+      "sha256": "db0181a5820b1a60b93b87036351cad97b86ea3ab0d725b16dbc6017ab5ccd37",
+      "bytes": 606316,
+      "status": "ok"
     },
     {
       "id": "promessi_sposi",
       "kind": "prose",
       "url": "https://www.gutenberg.org/files/45334/45334-0.txt",
-      "status": "skipped_no_download"
+      "sha256": "c77cbedc6cc9e54b4ea277a91a8923023b65e574a87e91b52b8d51ec6c16b73f",
+      "bytes": 1452729,
+      "status": "ok"
     },
     {
       "id": "conversational_seed",
@@ -22,16 +26,16 @@
   ],
   "files": {
     "prose_it.txt": {
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "bytes": 0
+      "sha256": "d9d9b28405cffbfe3f9f8886636fe883c98963703a561857db6e8e482e5d2257",
+      "bytes": 216449
     },
     "conversational_it.txt": {
       "sha256": "690743e795a4b46b6589a53694c9e98829606afbe3842f3c7645ee64a44bfe4a",
       "bytes": 902
     },
     "mixed_it.txt": {
-      "sha256": "92f1c090fb64c9e37fa1e5e31abb99edb5ff97deaaf7e1194a8d51cf5dcc82d9",
-      "bytes": 926
+      "sha256": "4175f3acd383c4125820df704967c3e7959817f46634c27f4a4a7d00cd147fc5",
+      "bytes": 217375
     }
   },
   "note": "Token counts MUST use model tokenizer, not wc. Night target 50-100k tokens if 500k too slow."

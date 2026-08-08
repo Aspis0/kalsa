@@ -1,0 +1,44 @@
+[2026-08-07T23:11:48-0400] F5.5-A PPL baseline SPLIT start (cache-mb=0, 2 halves; LMK workaround)
+[2026-08-07T23:11:48-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+5c95cb5fe2cc97f3b7a0ae4245ccca4975236b2a29f1be393d9e33ca055f059d  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+[2026-08-07T23:11:48-0400] corpus_full=/data/data/com.termux/files/home/experiments/quality/corpus_it/mixed_it.txt
+4175f3acd383c4125820df704967c3e7959817f46634c27f4a4a7d00cd147fc5  /data/data/com.termux/files/home/experiments/quality/corpus_it/mixed_it.txt
+[2026-08-07T23:11:48-0400] parts:
+8f7042252f01642bddfaa80278012f8f68345498f411cbb851d3f6ca587d2cb2  /data/data/com.termux/files/home/experiments/results/f5.5/a/split/mixed_it.part1.txt
+8bff98e8bb17d8707c943afdcab9d638addc4e95e9bc6980cbbc571dbde9941a  /data/data/com.termux/files/home/experiments/results/f5.5/a/split/mixed_it.part2.txt
+[2026-08-07T23:11:49-0400] model=11522702304 /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+[2026-08-07T23:11:49-0400] NOTE: split paragraph-aligned mid-file. PPL already non-overlapping n_ctx windows; combine sum_logprob/n_scored.
+[2026-08-07T23:11:51-0400] prestart OK die=47.3C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-07T23:12:13-04:00
+[2026-08-07T23:12:13-0400] PART 1 START corpus=/data/data/com.termux/files/home/experiments/results/f5.5/a/split/mixed_it.part1.txt
+[2026-08-08T00:54:13-0400] PART 1 rc=0 die_start=46.1 die_end=66.0
+ppl: n_tokens=34012 n_ctx=4096 batch=16 moe=1
+ppl: scored 4095 / 34011 tokens (sum_logprob=-2634.3491)
+ppl: scored 8190 / 34011 tokens (sum_logprob=-5929.3344)
+ppl: scored 12285 / 34011 tokens (sum_logprob=-9505.5636)
+ppl: scored 16380 / 34011 tokens (sum_logprob=-13346.8600)
+ppl: scored 20475 / 34011 tokens (sum_logprob=-17405.7959)
+ppl: scored 24570 / 34011 tokens (sum_logprob=-21620.6017)
+ppl: scored 28665 / 34011 tokens (sum_logprob=-25835.7213)
+ppl: scored 32760 / 34011 tokens (sum_logprob=-30293.9527)
+ppl: scored 34003 / 34011 tokens (sum_logprob=-31909.9509)
+BMOE_PPL {"n_tokens":34012,"n_scored":34003,"sum_logprob":-31909.95090120,"ppl":2.556004,"seconds":6097.218,"cancelled":false,"file":"/data/data/com.termux/files/home/experiments/results/f5.5/a/split/mixed_it.part1.txt"}
+[2026-08-08T00:54:13-0400] cool-down 20s between parts
+[2026-08-08T00:54:37-0400] prestart OK die=50.1C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=150341 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T00:55:04-04:00
+[2026-08-08T00:55:04-0400] PART 2 START corpus=/data/data/com.termux/files/home/experiments/results/f5.5/a/split/mixed_it.part2.txt
+[2026-08-08T02:37:29-0400] PART 2 rc=0 die_start=50.1 die_end=60.9
+ppl: n_tokens=34181 n_ctx=4096 batch=16 moe=1
+ppl: scored 4095 / 34180 tokens (sum_logprob=-4318.0626)
+ppl: scored 8190 / 34180 tokens (sum_logprob=-8888.7331)
+ppl: scored 12285 / 34180 tokens (sum_logprob=-13719.1883)
+ppl: scored 16380 / 34180 tokens (sum_logprob=-17626.1585)
+ppl: scored 20475 / 34180 tokens (sum_logprob=-22112.3922)
+ppl: scored 24570 / 34180 tokens (sum_logprob=-26602.8417)
+ppl: scored 28665 / 34180 tokens (sum_logprob=-30886.1337)
+ppl: scored 32760 / 34180 tokens (sum_logprob=-35720.0823)
+ppl: scored 34172 / 34180 tokens (sum_logprob=-37772.7559)
+BMOE_PPL {"n_tokens":34181,"n_scored":34172,"sum_logprob":-37772.75592154,"ppl":3.020346,"seconds":6117.166,"cancelled":false,"file":"/data/data/com.termux/files/home/experiments/results/f5.5/a/split/mixed_it.part2.txt"}
+[2026-08-08T02:37:29-0400] COMBINED n_scored=68175 sum_logprob=-69682.70682274 mean=-1.022115244924679 ppl=2.7790669584892753 audit_ppl=2.7790669585324905
