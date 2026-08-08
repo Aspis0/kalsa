@@ -240,18 +240,23 @@ log "=== RESTART LEG (session restore) ==="
 # .kvs write is a multi-hundred-MB file and runs seconds after the reply is
 # detected (run 31274549471: force-stop ~3s after turn 2 left turn-1-era meta
 # on disk → meta_mismatch → cold). Up to 90s for a save line ok:true.
-save_seen=0
-for i in $(seq 1 18); do
-  if adb logcat -d 2>/dev/null | grep -F 'KALSA_SESSION' | grep -F '"op":"save"' | grep -qF '"ok":true'; then
-    save_seen=1
-    log "session save confirmed after ~$((i * 5))s"
+# Require BOTH turns' saves (>=2 ok:true): run 31275960345 rerun still hit
+# meta_mismatch:historyHash and 'any ok:true' cannot tell a turn-1-only save
+# (stale hash) from a complete turn-2 save. Pre-restart lines are preserved to
+# a file since the restart clears logcat.
+save_ok_n=0
+for i in $(seq 1 24); do
+  save_ok_n=$(adb logcat -d 2>/dev/null | grep -F 'KALSA_SESSION' | grep -F '"op":"save"' | grep -cF '"ok":true' | tr -d ' \r')
+  if [ "${save_ok_n:-0}" -ge 2 ]; then
+    log "both turn saves confirmed after ~$((i * 5))s (ok saves: $save_ok_n)"
     break
   fi
   sleep 5
 done
-if [ "$save_seen" = 0 ]; then
-  log "WARN: no ok:true session save within 90s — restart will likely be COLD (reason will say why)"
-  adb logcat -d 2>/dev/null | grep -F 'KALSA_SESSION' | tail -5 | sed 's/^/[ci]   save-tail: /' || true
+adb logcat -d 2>/dev/null | grep -F 'KALSA_SESSION' > "$OUT/session_prerestart.txt" || true
+if [ "${save_ok_n:-0}" -lt 2 ]; then
+  log "WARN: only ${save_ok_n:-0} ok:true saves within 120s — restore will use a stale hash (see session_prerestart.txt)"
+  tail -6 "$OUT/session_prerestart.txt" | sed 's/^/[ci]   save-tail: /' || true
 fi
 adb shell am force-stop $PKG
 sleep 3
