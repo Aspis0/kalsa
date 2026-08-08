@@ -53,6 +53,37 @@ tap_node() {
 # or before the first call that can fail).
 die() { log "FATAL: $*"; ui_texts > "$OUT/fatal_state.txt" 2>/dev/null; shot fatal; exit 1; }
 
+# After a primary turn-end signal (telemetry / SQL), confirm the chat UI is
+# idle before the next type_into_composer. Soft-fail on timeout.
+wait_ui_idle() {
+  local cap_s="${1:-240}"
+  local poll_s=5
+  local elapsed=0
+  local dump="$OUT/.wait_ui_idle_dump.txt"
+  log "wait_ui_idle: confirming UI idle (cap ${cap_s}s)"
+  while [ "$elapsed" -lt "$cap_s" ]; do
+    ui_texts > "$dump" 2>/dev/null || true
+    # Cursor check runs on the RAW dump: ui_texts caps each text attr at 200
+    # chars, so the trailing ▋ of a long streaming bubble never reaches $dump
+    # (hostile-review F0) — status labels are short nodes and stay reliable.
+    if grep -qF "Ask a question…" "$dump" 2>/dev/null \
+      && ! grep -qF "Writing" "$dump" 2>/dev/null \
+      && ! grep -qF "Thinking" "$dump" 2>/dev/null \
+      && ! grep -qF "Searching" "$dump" 2>/dev/null \
+      && ! grep -qF "Reading" "$dump" 2>/dev/null \
+      && ! dump_ui 2>/dev/null | grep -qF "▋"; then
+      log "wait_ui_idle: UI idle after ${elapsed}s"
+      return 0
+    fi
+    sleep "$poll_s"
+    elapsed=$((elapsed + poll_s))
+    log "wait_ui_idle: still in-flight (${elapsed}s/${cap_s}s)"
+  done
+  log "WARN: wait_ui_idle timed out after ${cap_s}s — continuing (soft-fail; dump → turnend_timeout_ui.txt)"
+  ui_texts > "$OUT/turnend_timeout_ui.txt" 2>/dev/null || true
+  return 0
+}
+
 # Installs the APK, sideloads the GGUF into files/models/<model_dir>/<model_file>,
 # and does the first-launch dance that creates the AsyncStorage sqlite db.
 #   install_and_sideload <apk_path> <model_src_path> <model_dir> <model_file>

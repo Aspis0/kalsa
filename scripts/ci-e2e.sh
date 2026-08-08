@@ -104,6 +104,8 @@ for i in $(seq 1 60); do
   log "poll $i: still generating ($(( $(date +%s) - SENT ))s)"
 done
 
+wait_ui_idle
+
 adb logcat -d | grep -iE "RNLlama|llama|ReactNativeJS" | tail -80 > "$OUT/logcat.txt" 2>/dev/null
 shot 99_final
 ui_texts > "$OUT/99_final.txt"
@@ -173,6 +175,8 @@ for i in $(seq 1 60); do
   fi
   log "poll2 $i: still generating ($(( $(date +%s) - SENT2 ))s) assistants=${ASSISTANT_N:-0}"
 done
+
+wait_ui_idle
 
 shot 06_reply2
 ui_texts > "$OUT/06_reply2.txt"
@@ -313,6 +317,8 @@ for i in $(seq 1 60); do
   fi
   log "poll3 $i: still generating ($(( $(date +%s) - SENT3 ))s) assistants=${ASSISTANT_N3:-0}"
 done
+
+wait_ui_idle
 
 shot 10_reply3
 ui_texts > "$OUT/10_reply3.txt"

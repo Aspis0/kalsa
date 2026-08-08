@@ -245,6 +245,8 @@ run_turn() {
     log "[$tag] poll $i: still generating ($(( $(date +%s) - sent ))s) telemetry_lines=${n:-0}"
   done
 
+  wait_ui_idle
+
   LAST_REPLY="$reply"
   LAST_ELAPSED=$(( $(date +%s) - sent ))
   [ -n "$LAST_REPLY" ] || die "no assistant reply captured ($tag)"
