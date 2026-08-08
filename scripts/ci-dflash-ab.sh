@@ -308,12 +308,26 @@ capture_telemetry() {
 # net-positive vs plain decode when free-text acceptance sits at 30-44%?).
 # ---------------------------------------------------------------------------
 log "=== CONFIG 0: BASELINE (no speculation) ==="
+# The AsyncStorage DB exists only after the app's FIRST run — seeding before
+# that lands in a file RN then recreates (run 31263568869: the baseline arm
+# silently ran production MTP; its telemetry showed draft tokens). Launch once
+# to materialize the DB, then seed, then relaunch.
+force_stop_relaunch
 set_base_prefs
 seed_kv "kalsa.bench.speculative" '{"type":"none"}'
+# Fail-closed: a baseline without its seed is silent garbage science.
+sql "SELECT key,value FROM catalystLocalStorage WHERE key='kalsa.bench.speculative';" \
+  | tee "$OUT/prefs_none.txt"
+grep -q '"type":"none"' "$OUT/prefs_none.txt" \
+  || die "baseline seed did not land (kalsa.bench.speculative missing)"
 force_stop_relaunch
 wait_ready "none"
 run_two_turns "none"
 capture_telemetry "none"
+# Impossible-by-construction assert: the baseline must have ZERO draft tokens.
+if grep -o '"draftTokens":[0-9]*' "$OUT/telemetry_none.txt" | grep -vq '"draftTokens":0'; then
+  die "baseline arm SPECULATED (draftTokens>0 in telemetry_none.txt) — knob not honored"
+fi
 adb logcat -c
 
 # ---------------------------------------------------------------------------
