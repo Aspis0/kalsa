@@ -26,6 +26,12 @@ DRAFT_HOST="${DRAFT_HOST:-draft.gguf}"
 # shellcheck source=ci-lib.sh
 source "$(dirname "$0")/ci-lib.sh"
 
+# Run 31234384102: zero KALSA_TELEMETRY at end-capture even though both MTP
+# turns completed — the default logcat ring buffer rotated the lines out over
+# the ~8-min config. Belt 1: grow the buffer. (Belt 2: per-turn snapshots in
+# run_turn; capture_telemetry merges them.)
+adb logcat -G 16M 2>/dev/null || true
+
 [ -f "$APK_PATH" ] || die "APK not found at $APK_PATH"
 [ -f "model.gguf" ] || die "model.gguf not found in cwd (download step missing?)"
 [ -n "$DRAFT_FILE" ] || die "DRAFT_FILE env empty — workflow must resolve HF .gguf name"
@@ -190,6 +196,12 @@ run_turn() {
   LAST_REPLY="$reply"
   LAST_ELAPSED=$(( $(date +%s) - sent ))
   [ -n "$LAST_REPLY" ] || die "no assistant reply captured ($tag)"
+
+  # Belt 2 vs logcat rotation: snapshot telemetry lines NOW, seconds after the
+  # turn emitted them, instead of trusting the buffer at config end.
+  adb logcat -d | grep -F "KALSA_TELEMETRY" \
+    | sed 's/.*KALSA_TELEMETRY /KALSA_TELEMETRY /' \
+    >> "$OUT/telemetry_snap_${tag}.txt" 2>/dev/null || true
 }
 
 # Two-turn conversation identical to ci-e2e.sh prompts (alphanumeric for adb).
@@ -212,7 +224,14 @@ run_two_turns() {
 capture_telemetry() {
   local config="$1" dest="$OUT/telemetry_${config}.txt"
   log "capturing KALSA_TELEMETRY → telemetry_${config}.txt"
-  adb logcat -d | grep -F "KALSA_TELEMETRY" | sed 's/.*KALSA_TELEMETRY /KALSA_TELEMETRY /' > "$dest" || true
+  # Merge per-turn snapshots (belt 2, chronologically first) with the
+  # end-capture; dedupe PRESERVING ORDER (report parsing relies on first line =
+  # turn1 round0, last = turn2 final round) and drop util-* completions
+  # (memory-extract etc.) so they can never masquerade as a chat turn.
+  {
+    cat "$OUT"/telemetry_snap_${config}_*.txt 2>/dev/null || true
+    adb logcat -d | grep -F "KALSA_TELEMETRY" | sed 's/.*KALSA_TELEMETRY /KALSA_TELEMETRY /' || true
+  } | grep -v '"turnId":"util-' | awk '!seen[$0]++' > "$dest" || true
   if [ ! -s "$dest" ]; then
     die "no KALSA_TELEMETRY lines for config=$config (speculative knob / engine path did not emit telemetry)"
   fi
