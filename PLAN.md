@@ -37,14 +37,15 @@
 
 ## Le 3 cose che contano, in ordine
 
-1. 🟢 **Prefill incrementale — FIX FATTO E PROVATO (2026-08-08, commit fork `2c675a5`).**
-   Due pezzi: history grezza quando il parse spoglia uno span think **vuoto** +
-   `preserve_thinking=true` al template (il template Qwen scarta `<think>` sui turni passati).
-   G-K1 PASS: t2 `n_common=71`, `n_prompt 108→41`, prefill **11.95→4.23 s**. G-K2 PASS (la
-   prova regina): riuso vs ri-prefill completo a pari history → **testo byte-identico**
-   (sha `5590b1ee…` uguale), 4.23 vs 10.68 s. Manca solo la chiusura di G-K3 (8/8 sul path
-   `-p` dei riferimenti; il run è stato interrotto da un **riavvio del telefono**) prima
-   dell'adozione come campagna. Binario: `bmoe-cli.KVFIX` (`ede3ac7c…`), CAMPAIGN intatto.
+1. ✅ **Prefill incrementale — FATTO, PROVATO e ADOTTATO (2026-08-08, commit fork
+   `2c675a5`).** Due pezzi: history grezza quando il parse spoglia uno span think vuoto +
+   `preserve_thinking=true` al template. G-K1 PASS (`n_common=71`, `n_prompt 108→41`,
+   prefill 11.95→4.23 s), G-K2 PASS (riuso vs ri-prefill: **testo byte-identico**), G-K3
+   **8/8 PASS** sul path `-p` dei riferimenti. **CAMPAIGN = fix KV**: re-pin
+   `ad058660… → ede3ac7c…`, smoke post-pin PASS, verificato dal coordinatore via ssh
+   (sha, read-only, sha-file). Report: `moe-kv-reuse-fix.md` + `moe-kv-close.md`.
+   Vincolo permanente scoperto: memoria ibrida attention+SSM → **niente rollback parziale
+   della KV** su questo modello (edit/regenerate = ri-prefill completo).
 2. 🟢 **Fix del loader (E1) — FATTO e MISURATO PULITO (2026-08-08).** Tri-stato
    `mmap_prefetch` (ABI-safe, fixup `e5605f3`), gate 8/8 byte-identici, G3 rifatto con
    sampler sano (mediana 201 ms) e confine verificato: **21.05 → 10.31 GiB** al load
@@ -1032,6 +1033,33 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-08 — ✅ CAMPAGNA KV CHIUSA E ADOTTATA: G-K3 8/8 sul path `-p`, CAMPAIGN
+  re-pinnato al fix (`ede3ac7c…`), riavvio classificato UMANO/SOFTWARE con domanda aperta.**
+
+  Report: `reports/moe-kv-close.md`. Verifica indipendente del coordinatore via ssh:
+  `bmoe-cli.CAMPAIGN` sha = `ede3ac7c…` = KVFIX = `CAMPAIGN.sha256`, binario read-only,
+  `KVCTRL`/`DIAG` rimossi, `nproc=6` in shell fresca (ripristino cpuset persistente).
+
+  - **G-K3 8/8 PASS sul path `-p`** — come previsto dall'arbitrato: sul path dei
+    riferimenti il codice multi-turno non esegue nemmeno; la divergenza vista sul path
+    `--session` era il delta di 3 token pre-esistente, non il fix. `n_prompt` tornati in
+    stile F5.5-B (f45_1=121). Nessuna regressione single-turn.
+  - **Smoke post-pin PASS**: due-turni col binario pinnato → `n_common=71`, `n_prompt=41`.
+    Il binario di campagna è quello col fix, provato, non presunto.
+  - **Riavvio delle 15:21**: `boot.reason = reboot` (non thermal, non watchdog, non
+    `shell`, non `userrequested`); dropbox `LAST_KMSG_KP` senza stack panic nel testo
+    stampabile; pstore inaccessibile senza root. Classe **UMANO/SOFTWARE**, con riserva:
+    il suffisso `_KP` (convenzione Samsung per kernel panic) senza testo recuperabile non
+    basta per PANIC ma nemmeno per escluderlo. **Domanda aperta a gualt: ha riavviato lui
+    a ~15:21?** Se no, il prossimo riavvio inspiegato scala a indagine seria.
+  - `ALLOW_UNPINNED=1` usato solo per il G-K3 su KVFIX pre-pin (gate, non misura),
+    annotato nei meta. Lo smoke post-pin è passato dal pin normale.
+
+  **La parte "righello + fix di prodotto" è chiusa.** In un solo giorno: loader −51% di
+  I/O al load, prefill incrementale (165→~10 s attesi al turno 5), binario pinnato con sha
+  in ogni riga di CSV, meter PPL operativo. Si apre la fase di spinta: dense double-pass →
+  misure da staccato → scorer decode-path.
 
 - **2026-08-08 — ⚰️ F6 (DFlash draft esterno) CHIUSO senza spendere il porting. Evidenza
   esterna + la nostra misura convergono: la speculazione su CPU non paga.**
