@@ -175,12 +175,18 @@ run_turn() {
       typed_ok=1
       break
     fi
-    log "[$tag] text not visible (attempt $attempt) — re-focusing"
+    log "[$tag] text not visible (attempt $attempt) — clearing field and re-focusing"
     adb shell input keyevent 111
     sleep 2
     dismiss_anr
     tap_node "Ask a question…" || true
-    sleep 3
+    sleep 2
+    # CLEAR before retyping: retries were APPENDING to the truncated leftovers
+    # (run 31249441015 composer held 3 concatenated fragments). Move to end,
+    # then a DEL burst larger than any prompt in use.
+    adb shell input keyevent 123
+    for _ in $(seq 1 45); do adb shell input keyevent 67; done
+    sleep 2
   done
   adb shell input keyevent 111
   sleep 3
@@ -252,9 +258,12 @@ run_two_turns() {
   # where MTP acceptance collapsed to 30%); t4 = structured/list output
   # (predictable regime where the embedded head shone). Alphanumeric-only
   # prompts (adb input text constraint).
-  run_turn "${config}_t3" "RaccontamiLaStoriaDiPalermoInDieciFrasi" 3
+  # <=28 chars: adb `input text` TRUNCATES long strings on a loaded AVD (run
+  # 31249441015: three ~32-char truncations of a 39-char prompt concatenated
+  # in the composer — retries appended instead of replacing).
+  run_turn "${config}_t3" "StoriaDiPalermoDieciFrasi" 3
   echo "elapsed_t3_s=$LAST_ELAPSED" >> "$OUT/${config}_turns.txt"
-  run_turn "${config}_t4" "ElencaVentiCittaItalianeUnaPerRiga" 4
+  run_turn "${config}_t4" "ElencaVentiCittaItaliane" 4
   echo "elapsed_t4_s=$LAST_ELAPSED" >> "$OUT/${config}_turns.txt"
 }
 
