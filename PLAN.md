@@ -1023,6 +1023,69 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-08 — ⚫ k=6 È ARCHIVIATO CON UN MARGINE DI 6×. Il metro dà in un colpo la risposta
+  che 24 coppie lette a occhio non avevano potuto dare.**
+
+  Prima variante della scala F5.6, completata alle 04:32.
+
+  ### Il numero
+
+  Attenzione al confronto — la baseline da `PPL 2.779` era su **part1+part2**, mentre le
+  varianti girano su **part1 sola**. Confrontarle direttamente sarebbe **lo stesso errore di
+  categoria** che ho commesso ieri col simulatore. Baseline su part1 ricavata per sottrazione:
+
+  ```
+  combinata:  n=68175   sum_logprob=-69682.70682
+  part2:      n=34172   sum_logprob=-37772.75592
+  ────────────────────────────────────────────────
+  part1:      n=34003   sum_logprob=-31909.95090
+              mean = -0.938441   ⇒   PPL = 2.556
+  ```
+
+  `k6` riporta `n_scored=34003`: **stesso identico conteggio**, quindi il confronto è appaiato
+  sullo stesso testo.
+
+  ```
+  k=8  →  PPL 2.556
+  k=6  →  PPL 3.497          ΔPPL = +0.941   (+37% relativo)
+  ```
+
+  **Soglia dichiarata per archiviare: ΔPPL > 0.15. Siamo a +0.94, sei volte tanto.**
+  `k=6` non è «quasi indistinguibile»: è **materialmente peggiore**, senza ambiguità.
+
+  ### Perché questo giustifica da solo tutto il lavoro sul metro
+
+  Il 2026-08-07 ho letto **24 coppie di output** a occhio, prompt per prompt. Ho trovato errori
+  che **non si ordinavano per k**: l'errore fattuale peggiore a k=6, quello tecnico a k=5, la
+  fisica più corretta a k=4, e parole malformate a **ogni** k incluso 8. Ne avevo concluso —
+  onestamente, ed era il massimo che quello strumento permettesse — che **non riuscivo a
+  distinguere il degrado dal rumore fra traiettorie**.
+
+  Il metro, su **34 003 posizioni** invece di 24 campioni, lo distingue in un colpo e senza
+  margine di dubbio. **Era rumore la mia incapacità di vedere il segnale, non il segnale.**
+
+  Ricaduta sulla domanda di gualt di ieri (*«k=8 è l'unica opzione?»*): **per k, sì**, e con un
+  margine che non lascia spazio. Resta aperto `--drop-cold-experts`, che taglia per **costo**
+  (solo ciò che è insieme miss di cache e marginale nel peso del router) invece che per **rango**
+  — ed è l'unica leva della famiglia lossy ancora in gioco.
+
+  ### ⚠ Errata: una mia conclusione delle 02:42 era falsa
+
+  Nel messaggio del commit `0e614fb` ho scritto *«la catena notturna copriva solo la baseline,
+  non la scala; il telefono è fermo dalle 02:37»*. **Falso.** Avevo campionato lo stato **alle
+  02:42**, cioè nella finestra fra la baseline che chiudeva alle 02:37 e la scala che partiva
+  alle 03:13. L'osservazione era corretta; **la conclusione — uno stato permanente dedotto da
+  una finestra di cinque minuti — no.**
+
+  gualt ha detto «non è vero, controlla meglio» ed è bastato guardare l'elenco completo dei
+  processi: `poller.sh` dalle 03:13, `run_scale_rest.sh` dalle 04:35, `bmoe-cli` con 56 minuti
+  di CPU al 371%.
+
+  **Lezione, che è la stessa di ieri in forma nuova:** ieri avevo confrontato una previsione con
+  una misura di un'altra cosa; oggi ho dedotto uno stato stabile da un campione istantaneo. In
+  entrambi i casi il dato era giusto e l'inferenza no. **Per stati che evolvono, un campione non
+  è una misura: serve o una serie, o un'attesa, o un artefatto persistente da leggere.**
+
 - **2026-08-07 sera — 🟢 F6 SI RIAPRE: esiste un draft DFlash per IL NOSTRO target, pesa 421 MB,
   ci sta in RAM, e la verifica è output-lossless. Manca solo che il fork sappia caricarlo.**
 
