@@ -1033,6 +1033,37 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-08 — ⚰️ F6 (DFlash draft esterno) CHIUSO senza spendere il porting. Evidenza
+  esterna + la nostra misura convergono: la speculazione su CPU non paga.**
+
+  L'altra sessione Claude su Kalsa (`ai-chat`, CI emulatore) ha misurato con un A/B a tre
+  bracci (BASELINE / MTP / DFlash, assert fail-closed, braccio dflash verificato davvero
+  dflash dopo il fix `9015f14`) che **MTP e DFlash PEGGIORANO la velocità su CPU** anche su
+  Qwen3.5-4B denso — il caso *facile*: niente streaming, solo compute.
+
+  Trasferimento al nostro caso, ed è peggio su tutti e tre i termini:
+  1. su CPU la verifica di k token costa ~k× il compute di un token (niente amortamento
+     GPU-style del batch) — è la ragione per cui perde anche sul denso;
+  2. da noi il compute è già il collo (expert GEMM 50.5%, ceiling 7.8 tok/s) e scala con k;
+  3. l'unica speranza era l'ammortamento dei BYTE (esperti condivisi fra token consecutivi)
+     — e l'abbiamo **già misurata: 0.00%** sul nostro trace (miss@t ∧ miss@t+1, F5).
+
+  Il gate dichiarato per F6 era ≥+15% tok/s con ≤2× i byte: con questi tre termini contro,
+  è irraggiungibile. **Decisione: F6 va nella tabella CHIUSO** — si riapre solo con un fatto
+  nuovo di regime (es. verifica offloadata su NPU/GPU). Risparmiato: il plumbing del draft
+  esterno nel fork (ctx_dft da modello separato), che era il lavoro più grosso in coda.
+
+  Nota di convergenza: la stessa sessione ha appena spedito la **persistenza KV di sessione**
+  nell'app (`7d34747`, llama.rn) — lo stesso insight del nostro fix KV, trovato due volte
+  indipendentemente. Il multi-turno senza ri-prefill è LA feature, su entrambi gli stack.
+
+  Piano di spinta aggiornato (dopo `close-kv-campaign`):
+  1. **dense double-pass** (chiude E1 sotto gli 8 GiB);
+  2. **sessione di misure da staccato** (cache 3000/3500, ubatch speed, plateau sostenuto);
+  3. **scorer PPL decode-path + sweep `--drop-cold-experts`** — al posto di DFlash: l'unica
+     leva lossy rimasta con un metro per giudicarla (il meter teacher-forced non la vede,
+     serve lo scorer nel decode).
+
 - **2026-08-08 — 🏆 IL FIX KV FUNZIONA: `n_common=71`, prefill t2 da 12 a 4.2 s, testo
   byte-identico col riuso. G-K3 resta aperto per un riavvio del telefono, e NON è una
   regressione del fix.**
