@@ -1,0 +1,4 @@
+/data/data/com.termux/files/home/experiments/results/adopt_dense2/diag2/diag2.stderr:bmoe: DIAG dense-resident-at-warmup-end: 899 / 1664
+/data/data/com.termux/files/home/experiments/results/adopt_dense2/diag2/diag2.stderr:bmoe: expert-mmap: dropped 9313 MiB
+/data/data/com.termux/files/home/experiments/results/adopt_dense2/diag2/diag2.stderr:bmoe: dense-anon: memcpy=900 odirect=764 ranges_fallback=586
+/data/data/com.termux/files/home/experiments/results/adopt_dense2/diag2/diag2.stderr:bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=2000 MiB shards=1

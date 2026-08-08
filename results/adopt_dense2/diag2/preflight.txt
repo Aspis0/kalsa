@@ -1,0 +1,2 @@
+preflight die=38100 nproc=6
+bin=d7ea8a9bd29c508ad87e77f935aa1cba46ae83fa69548ee62693f9dd868c13f3  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.DIAG2

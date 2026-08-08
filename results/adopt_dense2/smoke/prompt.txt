@@ -1,0 +1,1 @@
+Spiega in tre frasi cos e la memoria KV in un transformer. Rispondi in italiano, max 80 parole.

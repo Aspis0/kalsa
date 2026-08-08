@@ -1,0 +1,6 @@
+/data/data/com.termux/files/home/experiments/results/adopt_dense2/diag2/diag2.stderr:bmoe: DIAG dense-resident-at-warmup-end: 899 / 1664
+/data/data/com.termux/files/home/experiments/results/adopt_dense2/diag2/diag2.stderr:bmoe: expert-mmap: dropped 9313 MiB
+/data/data/com.termux/files/home/experiments/results/adopt_dense2/diag2/diag2.stderr:bmoe: dense-anon: memcpy=900 odirect=764 ranges_fallback=586
+/data/data/com.termux/files/home/experiments/results/adopt_dense2/diag2/diag2.stderr:bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+/data/data/com.termux/files/home/experiments/results/adopt_dense2/diag2/diag2.stdout:User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+/data/data/com.termux/files/home/experiments/results/adopt_dense2/diag2/diag2.stdout:prefill: 114 tokens, 9.532 s (12.0 tok/s) | model load 9.097 s | TTFT 18.629 s
