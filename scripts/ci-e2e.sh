@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Drives Kalsa on a KVM-accelerated emulator and proves real on-device inference
-# (two turns in one conversation so KV-cache prefix-reuse can be measured).
+# (two turns in one conversation so KV-cache prefix-reuse can be measured, then
+# a third turn after force-stop/restart to prove KV session restore).
 # Evidence (screenshots, UI dumps, logcat, chat DB, telemetry) lands in ./e2e-out.
 set -uo pipefail
 OUT="e2e-out"; mkdir -p "$OUT"
@@ -231,6 +232,153 @@ else
   log "KV_CACHE: UNKNOWN — no usable KALSA_TELEMETRY lines"
 fi
 
+# ---------------------------------------------------------------------------
+# RESTART LEG — force-stop + relaunch; TURN 3 proves KV session restore.
+# ---------------------------------------------------------------------------
+log "=== RESTART LEG (session restore) ==="
+adb shell am force-stop $PKG
+sleep 3
+# Simpler-to-assert: clear logcat so post-restart turn ids restart from 1 in the
+# new process (KALSA_TELEMETRY / KALSA_SESSION lines below are only from this leg).
+# Do NOT keep pre-restart logcat — turn numbering continuity is not required here.
+adb logcat -c
+adb shell am start -n $PKG/.MainActivity >/dev/null
+# Engine is lazy; session LOAD happens at first engine init on send, not at launch.
+sleep 25
+shot 07_restarted
+ui_texts > "$OUT/07_restarted.txt"
+
+log "type message (turn 3 / post-restart)"
+# Alphanumeric for adb `input text` (same constraint as MSG / MSG2).
+# Intent: short final follow-up ("Un ultimo fatto breve, grazie").
+MSG3="UnUltimoFattoBreveGrazie"
+tap_node "Ask a question…" || die "composer not found (turn 3)"
+sleep 4
+adb shell input text "$MSG3"
+sleep 3
+if ! dump_ui | grep -qF "$MSG3"; then
+  log "text not visible yet (turn 3) — retrying once"
+  tap_node "Ask a question…" || true
+  sleep 3
+  adb shell input text "$MSG3"
+  sleep 3
+fi
+adb shell input keyevent 111
+sleep 3
+shot 08_typed3
+ui_texts > "$OUT/08_typed3.txt"
+grep -qF "$MSG3" "$OUT/08_typed3.txt" || die "typing did not land in the composer (turn 3)"
+log "text confirmed in composer (turn 3)"
+
+log "send (turn 3)"
+tap_node "Send" || die "Send button not found (turn 3)"
+SENT3=$(date +%s)
+sleep 20
+ui_texts > "$OUT/09_sent3.txt"
+shot 09_sent3
+grep -qF "$MSG3" "$OUT/09_sent3.txt" || die "message did not appear in the conversation after send (turn 3)"
+log "message is in the conversation (turn 3) — engine should be running (session load on init)"
+log "sent at $SENT3 — polling for the reply (turn 3)"
+
+# History persists across restart (catalystLocalStorage keep-data); need a *third*
+# assistant bubble. Same assistant-count style as turn 2 (not dflash telemetry poll).
+REPLY3=""
+for i in $(seq 1 60); do
+  sleep 15
+  ui_texts > "$OUT/poll3_$i.txt"
+  shot "poll3_$i" 2>/dev/null
+  HIST3=$(sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';")
+  echo "$HIST3" > "$OUT/history3_$i.json"
+  ASSISTANT_N3=$(printf '%s' "$HIST3" | grep -o '"role":"assistant"' | wc -l | tr -d ' \r')
+  if [ "${ASSISTANT_N3:-0}" -ge 3 ]; then
+    REPLY3=$(echo "$HIST3" | sed 's/.*"role":"assistant","text":"//; s/".*//' | head -c 1500)
+    log "REPLY3 AFTER $(( $(date +%s) - SENT3 ))s: $REPLY3"
+    break
+  fi
+  log "poll3 $i: still generating ($(( $(date +%s) - SENT3 ))s) assistants=${ASSISTANT_N3:-0}"
+done
+
+shot 10_reply3
+ui_texts > "$OUT/10_reply3.txt"
+sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" > "$OUT/history3_final.json"
+
+{
+  echo "elapsed_to_reply3_s=$(( $(date +%s) - SENT3 ))"
+  echo "reply3<<<"
+  echo "$REPLY3"
+  echo ">>>"
+} >> "$OUT/RESULT.txt"
+
+[ -n "$REPLY3" ] || die "FAIL: no assistant reply captured on turn 3 (post-restart)"
+
+# Session + turn-3 telemetry (logcat was cleared at restart; only this process).
+log "capturing KALSA_SESSION + post-restart KALSA_TELEMETRY from logcat"
+adb logcat -d | grep -F "KALSA_SESSION" | sed 's/.*KALSA_SESSION /KALSA_SESSION /' > "$OUT/session_telemetry.txt" || true
+adb logcat -d | grep -F "KALSA_TELEMETRY" | sed 's/.*KALSA_TELEMETRY /KALSA_TELEMETRY /' > "$OUT/telemetry_restart.txt" || true
+
+node -e '
+const fs = require("fs");
+const sessionPath = process.argv[1];
+const telemPath = process.argv[2];
+
+function readLines(p) {
+  let raw = "";
+  try { raw = fs.readFileSync(p, "utf8"); } catch (_) {}
+  return raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+}
+function payloads(lines) {
+  const out = [];
+  for (const line of lines) {
+    const idx = line.indexOf("{");
+    if (idx < 0) continue;
+    try { out.push(JSON.parse(line.slice(idx))); } catch (_) {}
+  }
+  return out;
+}
+const n = (o, k) => (o && typeof o[k] === "number" ? o[k] : (o && o[k] != null ? Number(o[k]) : 0));
+
+const sess = payloads(readLines(sessionPath));
+const loads = sess.filter(o => o && o.op === "load");
+let sessionLine;
+if (!loads.length) {
+  sessionLine = "SESSION_RESTORE: MISS (reason=no_load_line)";
+} else {
+  const last = loads[loads.length - 1];
+  if (last.ok === true) {
+    sessionLine = "SESSION_RESTORE: HIT";
+  } else {
+    const reason = last.reason != null ? String(last.reason) : "unknown";
+    sessionLine = "SESSION_RESTORE: MISS (reason=" + reason + ")";
+  }
+}
+
+const telem = payloads(readLines(telemPath));
+// logcat -c at restart: first (and typically only) telemetry line is turn 3.
+const t3 = telem.length ? telem[telem.length - 1] : null;
+const cached = t3 ? n(t3, "tokensCached") : 0;
+const evaluated = t3 ? n(t3, "tokensEvaluated") : 0;
+const promptMs = t3 ? n(t3, "promptMs") : 0;
+const turn3Line = t3
+  ? ("turn3(restart): cached=" + cached + " evaluated=" + evaluated + " promptMs=" + promptMs)
+  : "turn3(restart): cached=? evaluated=? promptMs=? (missing)";
+
+const loadOk = loads.some(o => o && o.ok === true);
+const warm = loadOk && t3 && cached > (evaluated * 60 / 100);
+const verdict = warm
+  ? "SESSION_RESTORE: WARM RESTART CONFIRMED"
+  : "SESSION_RESTORE: COLD (see reasons)";
+
+process.stdout.write([sessionLine, turn3Line, verdict].join("\n") + "\n");
+' "$OUT/session_telemetry.txt" "$OUT/telemetry_restart.txt" | tee -a "$OUT/RESULT.txt"
+
+if grep -qF "SESSION_RESTORE: WARM RESTART CONFIRMED" "$OUT/RESULT.txt"; then
+  log "SESSION_RESTORE: WARM RESTART CONFIRMED"
+elif grep -qF "SESSION_RESTORE: HIT" "$OUT/RESULT.txt"; then
+  log "SESSION_RESTORE: HIT but COLD KV (logged, not failing job)"
+else
+  log "SESSION_RESTORE: COLD/MISS (logged, not failing job — data first)"
+fi
+
 cat "$OUT/RESULT.txt"
 
-log "PASS: real on-device inference completed (2 turns + telemetry)"
+log "PASS: real on-device inference completed (3 turns + telemetry + session restore leg)"
