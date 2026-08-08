@@ -44,9 +44,12 @@
 2. 🔴 **Fix del loader (E1)** — legge **20.76 GiB** per materializzarne 2.8 (fault di mmap sul
    file intero). Radice comune di **tre** problemi: 17 s di TTFT, picco termico a 92 °C,
    fragilità di memoria (la cascata OOM che ha ucciso 10 processi).
-3. 🟡 **Metro di perplessità** — **non esiste**, e blocca *tutto* il ramo lossy: `k=6`,
-   `--drop-cold-experts`, REAP. `--progress` non emette logprob (verificato): serve una
-   modifica piccola e isolata al runtime.
+3. ✅ **Metro di perplessità — ESISTE (2026-08-08 02:37).** `PPL = 2.7790669585` su **68 175
+   token italiani**, con `audit_ppl` ricalcolato per via indipendente che coincide alla decima
+   cifra. La modifica al runtime ha superato la non-regressione **8/8 byte-identici** contro i
+   riferimenti k=8, quindi **il binario nuovo è equivalente sul decode e tutte le misure
+   storiche restano confrontabili**. Il ramo lossy (k, `--drop-cold-experts`, REAP) non è più
+   bloccato: manca solo di applicare il metro alle varianti (mandato F5.6, scritto).
 
 ## Deciso e CHIUSO (non riaprire senza un fatto nuovo)
 
