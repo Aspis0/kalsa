@@ -249,7 +249,10 @@ run_two_turns() {
 }
 
 capture_telemetry() {
-  local config="$1" dest="$OUT/telemetry_${config}.txt"
+  # Split locals: in `local a="$1" b="...$a..."` bash expands ALL args BEFORE
+  # any assignment, so $a is unbound under set -u (run 31237878782, line 252).
+  local config="$1"
+  local dest="$OUT/telemetry_${config}.txt"
   log "capturing KALSA_TELEMETRY → telemetry_${config}.txt"
   # Merge per-turn snapshots (belt 2, chronologically first) with the
   # end-capture; dedupe PRESERVING ORDER (report parsing relies on first line =
