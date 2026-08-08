@@ -31,6 +31,7 @@ import {
   type EngineMessage,
   type EngineTurnOptions,
 } from "../engine/LlamaService";
+import { getSpeculativeOverride } from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import {
   WEB_FETCH_TOOL,
@@ -737,6 +738,7 @@ export function AppShell() {
         kvCache: model.kvCache,
         catalogCtx: model.engineCtx,
       });
+      const speculativeOverride = await getSpeculativeOverride();
       await initEngine(modelLocalPath(model, model.file), model.id, {
         mmprojPath,
         nCtx: profile.nCtx,
@@ -744,6 +746,7 @@ export function AppShell() {
         cacheTypeV: profile.cacheTypeV,
         kvUnified: model.kvUnified,
         mtpNMax: model.mtp?.nMax,
+        speculativeOverride,
         locale,
       });
       if (!stillCurrent()) return false;
@@ -916,6 +919,7 @@ export function AppShell() {
         kvCache: model.kvCache,
         catalogCtx: model.engineCtx,
       });
+      const speculativeOverride = await getSpeculativeOverride();
       await initEngine(outcome.model.uri, model.id, {
         mmprojPath,
         nCtx: profile.nCtx,
@@ -923,6 +927,7 @@ export function AppShell() {
         cacheTypeV: profile.cacheTypeV,
         kvUnified: model.kvUnified,
         mtpNMax: model.mtp?.nMax,
+        speculativeOverride,
         locale,
       });
       if (!stillCurrent()) return;

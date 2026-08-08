@@ -14,6 +14,7 @@
  * Keys:
  * - kalsa.bench.thinking: "default" | "off" | "budget256" | "budget512"
  * - kalsa.bench.format:   "none" | "system-end" | "user-prefix" | "user-note"
+ * - kalsa.bench.speculative: JSON { type, nMax?, draftModelPath? } (CI A/B only)
  *
  * No in-memory cache: one fresh read per turn (best-effort).
  */
@@ -22,9 +23,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const BENCH_THINKING_KEY = "kalsa.bench.thinking";
 export const BENCH_FORMAT_KEY = "kalsa.bench.format";
+export const BENCH_SPECULATIVE_KEY = "kalsa.bench.speculative";
 
 export type ThinkingMode = "default" | "off" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
+
+export type SpeculativeOverride = {
+  type: "draft-mtp" | "draft-dflash";
+  nMax?: number;
+  draftModelPath?: string;
+};
 
 const THINKING_MODES: ReadonlySet<string> = new Set([
   "default",
@@ -60,6 +68,37 @@ export async function getBlockFormat(): Promise<BlockFormat> {
     // best-effort
   }
   return "none";
+}
+
+/**
+ * Bench-only DFlash/MTP speculative override for CI A/B.
+ * AsyncStorage key `kalsa.bench.speculative` = JSON
+ *   { "type": "draft-dflash"|"draft-mtp", "nMax"?: number, "draftModelPath"?: string }
+ * absent/invalid → undefined (production MTP path via catalog mtpNMax).
+ *
+ * CI seed (seed_kv / sqlite INSERT OR REPLACE):
+ *   seed_kv kalsa.bench.speculative '{"type":"draft-dflash","draftModelPath":"/data/data/com.kalsa.app/files/models/draft/Qwen3.5-4B-DFlash-Q8_0.gguf"}'
+ * Draft GGUF is adb-pushed into app files dir + models/draft/ — no download manager.
+ */
+export async function getSpeculativeOverride(): Promise<SpeculativeOverride | undefined> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_SPECULATIVE_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return undefined;
+    const o = parsed as Record<string, unknown>;
+    if (o.type !== "draft-mtp" && o.type !== "draft-dflash") return undefined;
+    const out: SpeculativeOverride = { type: o.type };
+    if (typeof o.nMax === "number" && Number.isFinite(o.nMax) && o.nMax > 0) {
+      out.nMax = o.nMax;
+    }
+    if (typeof o.draftModelPath === "string" && o.draftModelPath.length > 0) {
+      out.draftModelPath = o.draftModelPath;
+    }
+    return out;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Persist thinking mode. Returns false if value is invalid. */

@@ -65,6 +65,8 @@ let activeMmprojPath: string | null = null;
 let activeEngineCtx = 0;
 let activeCacheTypeK: string | null = null;
 let activeCacheTypeV: string | null = null;
+/** Fingerprint of bench-only speculativeOverride; forces reload when it changes. */
+let activeSpeculativeOverrideKey: string | null = null;
 
 /**
  * True while disposeEngineLocked is unwinding a context. streamAssistantTurn's
@@ -394,6 +396,18 @@ export type EngineInitOptions = {
   kvUnified?: boolean;
   /** MTP (NextN speculative) embedded nel GGUF. */
   mtpNMax?: number;
+  /**
+   * Bench-only knob for DFlash-vs-MTP CI A/B. When present, REPLACES the
+   * mtpNMax-based speculative block. The draft GGUF's dflash.block_size
+   * drives depth when nMax is omitted. No user-facing UI — CI seeds via
+   * AsyncStorage (`kalsa.bench.speculative`). Expected draft path convention:
+   * app files dir + models/draft/ (CI adb-pushes the GGUF; no download mgr).
+   */
+  speculativeOverride?: {
+    type: "draft-mtp" | "draft-dflash";
+    nMax?: number;
+    draftModelPath?: string;
+  };
   /** Settings locale for user-facing init errors (required). */
   locale: Locale;
 };
@@ -416,13 +430,15 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     // Catalog/profile values from caller; dense practice fallback if omitted.
     const cacheTypeK = options.cacheTypeK ?? "q8_0";
     const cacheTypeV = options.cacheTypeV ?? "q4_0";
+    const speculativeOverrideKey = JSON.stringify(options.speculativeOverride ?? null);
     if (
       context &&
       activeModelId === modelId &&
       activeMmprojPath === (options.mmprojPath ?? null) &&
       activeEngineCtx === engineCtx &&
       activeCacheTypeK === cacheTypeK &&
-      activeCacheTypeV === cacheTypeV
+      activeCacheTypeV === cacheTypeV &&
+      activeSpeculativeOverrideKey === speculativeOverrideKey
     )
       return;
     await disposeEngineLocked();
@@ -461,7 +477,22 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
 
     // MTP (NextN): speculative decoding embedded — ~1.5-2x più veloce.
     // La cache del DRAFT viene quantizzata come la target (non F16 di default).
-    if (options.mtpNMax && options.mtpNMax > 0) {
+    // Bench-only speculativeOverride (DFlash A/B) replaces the mtpNMax path when set.
+    if (options.speculativeOverride) {
+      const override = options.speculativeOverride;
+      // binding accepts the string; TS union NativeSpeculativeType is stale
+      // (only 'none'|'draft-mtp'|'mtp') — cast required to pass "draft-dflash"
+      params.speculative = {
+        type: override.type as any,
+        ...(override.nMax ? { n_max: override.nMax } : {}),
+        draft: {
+          ...(override.draftModelPath ? { model_draft: override.draftModelPath } : {}),
+          cache_type_k: cacheTypeK,
+          cache_type_v: cacheTypeV,
+        },
+      };
+    } else if (options.mtpNMax && options.mtpNMax > 0) {
+      // existing path — keep byte-identical when override is absent
       params.speculative = {
         type: "draft-mtp",
         n_max: options.mtpNMax,
@@ -485,6 +516,7 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     activeEngineCtx = engineCtx;
     activeCacheTypeK = cacheTypeK;
     activeCacheTypeV = cacheTypeV;
+    activeSpeculativeOverrideKey = speculativeOverrideKey;
 
     if (isMultimodal && options.mmprojPath) {
       let enabled: boolean;
@@ -541,6 +573,7 @@ async function disposeEngineLocked(): Promise<void> {
     activeEngineCtx = 0;
     activeCacheTypeK = null;
     activeCacheTypeV = null;
+    activeSpeculativeOverrideKey = null;
     if (current) {
       // Unblock any in-flight native completion, then wait for the FIFO job
       // chain (and tracked completions) to settle before release(). No arbitrary
