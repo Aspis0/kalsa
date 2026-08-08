@@ -404,7 +404,7 @@ export type EngineInitOptions = {
    * app files dir + models/draft/ (CI adb-pushes the GGUF; no download mgr).
    */
   speculativeOverride?: {
-    type: "draft-mtp" | "draft-dflash";
+    type: "none" | "draft-mtp" | "draft-dflash";
     nMax?: number;
     draftModelPath?: string;
   };
