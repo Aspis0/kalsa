@@ -1078,7 +1078,13 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
   Il gate dichiarato per F6 era ≥+15% tok/s con ≤2× i byte: con questi tre termini contro,
   è irraggiungibile. **Decisione: F6 va nella tabella CHIUSO** — si riapre solo con un fatto
-  nuovo di regime (es. verifica offloadata su NPU/GPU). Risparmiato: il plumbing del draft
+  nuovo di regime (es. verifica offloadata su NPU/GPU). *Addendum stesso giorno*: la
+  letteratura conferma su tre fronti indipendenti (roofline CPU compute-bound: Nightjar,
+  OpenInfer; design GPU-native di DFlash: NVIDIA; expert scattering nei MoE: MoE-SpeQ,
+  EcoSpec) — e delimita il confine: su CPU la speculazione PUÒ vincere (denso 3B
+  memory-bound, 1.72×) ma serve memory-bound + acceptance ≥60% + niente scattering; noi
+  falliamo tutte e tre. Nota completa con fonti e **criteri di riapertura**:
+  `reports/research/speculative-cpu-literature.md`. Risparmiato: il plumbing del draft
   esterno nel fork (ctx_dft da modello separato), che era il lavoro più grosso in coda.
 
   Nota di convergenza: la stessa sessione ha appena spedito la **persistenza KV di sessione**
