@@ -1,0 +1,8 @@
+G4_OK short-k8 rc=0
+G4_OK f45_1_esplicativo-k8 rc=0
+G4_OK f45_2_scrittura-k8 rc=0
+G4_OK f45_3_istruzioni-k8 rc=0
+G4_OK f45_4_codice-k8 rc=0
+G4_OK f45_5_ragionamento-k8 rc=0
+G4_OK long_conversational_it-k8 rc=0
+G4_OK d1_long-k8 rc=0

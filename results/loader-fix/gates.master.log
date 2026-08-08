@@ -1,0 +1,84 @@
+[2026-08-08T11:25:30-0400] === GATES START ===
+[2026-08-08T11:25:31-0400] NEW=7354947b8a16cce01dbcaf9ac79c6a4b6f9f74a1fe29eabe4c53d315a69d1331  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.NEW
+[2026-08-08T11:25:31-0400] PRE=198c554b0d64df87ed2de1ca316fbc68d33df9d00bab1090e4ad8036ab162ff3  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.G3_PREFAULT
+[2026-08-08T11:25:32-0400] nproc=7 die=89.9C
+[2026-08-08T11:25:32-0400] ==== G3 PREFAULT bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.G3_PREFAULT ====
+[2026-08-08T11:25:34-0400] wait prestart die=89.9C
+[2026-08-08T11:25:48-0400] prestart OK die=53.9C nproc=7
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=300099 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T11:26:12-04:00
+[2026-08-08T11:26:37-0400] G3 PREFAULT done load_s=18.608
+[2026-08-08T11:27:07-0400] cool OK die=43.0C
+[2026-08-08T11:27:07-0400] ==== G3 NEW bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.NEW ====
+[2026-08-08T11:27:10-0400] prestart OK die=44.6C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=174302 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T11:27:26-04:00
+[2026-08-08T11:27:43-0400] G3 NEW done load_s=10.570
+[2026-08-08T11:27:48-0400] cool OK die=51.7C
+[2026-08-08T11:27:48-0400] === G2 START ===
+[2026-08-08T11:27:48-0400] ==== G2 short-k8 n=200 ====
+[2026-08-08T11:27:52-0400] prestart OK die=48.5C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=165649 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T11:28:17-04:00
+[2026-08-08T11:29:23-0400] G2 PASS short-k8
+generation: 200 tokens, 0.221 s/token (4.528 tok/s)
+prefill: 114 tokens, 10.163 s (11.2 tok/s) | model load 10.059 s | TTFT 20.223 s
+[2026-08-08T11:29:27-0400] cool OK die=54.1C
+[2026-08-08T11:29:27-0400] ==== G2 f45_1_esplicativo-k8 n=200 ====
+[2026-08-08T11:29:30-0400] prestart OK die=50.5C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=132109 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T11:29:52-04:00
+[2026-08-08T11:31:16-0400] G2 PASS f45_1_esplicativo-k8
+generation: 200 tokens, 0.291 s/token (3.438 tok/s)
+prefill: 121 tokens, 11.910 s (10.2 tok/s) | model load 11.842 s | TTFT 23.753 s
+[2026-08-08T11:31:21-0400] cool OK die=61.2C
+[2026-08-08T11:31:21-0400] ==== G2 f45_2_scrittura-k8 n=200 ====
+[2026-08-08T11:31:23-0400] prestart OK die=58.7C nproc=7
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=98345 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T11:31:50-04:00
+[2026-08-08T11:32:56-0400] G2 PASS f45_2_scrittura-k8
+generation: 139 tokens, 0.262 s/token (3.814 tok/s)
+prefill: 133 tokens, 15.784 s (8.4 tok/s) | model load 11.773 s | TTFT 27.557 s
+[2026-08-08T11:33:00-0400] cool OK die=52.5C
+[2026-08-08T11:33:00-0400] ==== G2 f45_3_istruzioni-k8 n=200 ====
+[2026-08-08T11:33:04-0400] prestart OK die=49.3C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=80424 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T11:33:34-04:00
+[2026-08-08T11:34:31-0400] G2 PASS f45_3_istruzioni-k8
+generation: 135 tokens, 0.247 s/token (4.053 tok/s)
+prefill: 114 tokens, 10.215 s (11.2 tok/s) | model load 11.437 s | TTFT 21.652 s
+[2026-08-08T11:34:35-0400] cool OK die=62.4C
+[2026-08-08T11:34:35-0400] ==== G2 f45_4_codice-k8 n=200 ====
+[2026-08-08T11:34:38-0400] prestart OK die=61.2C nproc=7
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=122361 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T11:35:08-04:00
+[2026-08-08T11:36:28-0400] G2 PASS f45_4_codice-k8
+generation: 200 tokens, 0.278 s/token (3.595 tok/s)
+prefill: 148 tokens, 12.974 s (11.4 tok/s) | model load 10.042 s | TTFT 23.016 s
+[2026-08-08T11:36:32-0400] cool OK die=55.3C
+[2026-08-08T11:36:32-0400] ==== G2 f45_5_ragionamento-k8 n=200 ====
+[2026-08-08T11:36:35-0400] prestart OK die=60.4C nproc=7
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=124401 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T11:36:58-04:00
+[2026-08-08T11:38:20-0400] G2 PASS f45_5_ragionamento-k8
+generation: 165 tokens, 0.328 s/token (3.048 tok/s)
+prefill: 164 tokens, 14.607 s (11.2 tok/s) | model load 11.205 s | TTFT 25.812 s
+[2026-08-08T11:38:25-0400] cool OK die=64.0C
+[2026-08-08T11:38:25-0400] ==== G2 long_conversational_it-k8 n=256 ====
+[2026-08-08T11:38:29-0400] prestart OK die=56.3C nproc=7
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=83385 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T11:38:58-04:00
+[2026-08-08T11:40:16-0400] G2 PASS long_conversational_it-k8
+generation: 256 tokens, 0.205 s/token (4.873 tok/s)
+prefill: 143 tokens, 12.136 s (11.8 tok/s) | model load 11.575 s | TTFT 23.710 s
+[2026-08-08T11:40:21-0400] cool OK die=51.7C
+[2026-08-08T11:40:21-0400] ==== G2 d1_long-k8 n=256 ====
+[2026-08-08T11:40:25-0400] prestart OK die=49.3C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=125068 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T11:40:52-04:00
+[2026-08-08T11:44:40-0400] G2 PASS d1_long-k8
+generation: 256 tokens, 0.282 s/token (3.541 tok/s)
+prefill: 1318 tokens, 142.716 s (9.2 tok/s) | model load 10.231 s | TTFT 152.946 s
+[2026-08-08T11:44:45-0400] cool OK die=53.3C
+G2_PASS=8 G2_FAIL=0
+[2026-08-08T11:44:45-0400] === GATES DONE G2_PASS=8 G2_FAIL=0 ===

@@ -1,0 +1,11 @@
+label=NEW
+select=last_phase_load
+load_seconds=10.57
+read_bytes_at_load=12967768064
+read_bytes_at_load_GiB=12.0772
+rchar_at_load=3663512963
+rchar_at_load_GiB=3.4119
+VmHWM_at_load_MiB=3786.2
+peak_read_bytes_GiB=12.0772
+peak_VmHWM_MiB=3786.2
+n_samples=6

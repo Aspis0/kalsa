@@ -1,0 +1,43 @@
+=== G3 PREFAULT ===
+label=PREFAULT
+select=last_phase_load
+load_seconds=18.608
+read_bytes_at_load=24398163968
+read_bytes_at_load_GiB=22.7226
+rchar_at_load=3480962428
+rchar_at_load_GiB=3.2419
+VmHWM_at_load_MiB=4536.4
+peak_read_bytes_GiB=22.7226
+peak_VmHWM_MiB=4536.4
+n_samples=9
+=== G3 NEW ===
+label=NEW
+select=last_phase_load
+load_seconds=10.57
+read_bytes_at_load=12967768064
+read_bytes_at_load_GiB=12.0772
+rchar_at_load=3663512963
+rchar_at_load_GiB=3.4119
+VmHWM_at_load_MiB=3786.2
+peak_read_bytes_GiB=12.0772
+peak_VmHWM_MiB=3786.2
+n_samples=6
+=== G2 ===
+short-k8 PASS 9a3f4175a08474fa9bf4339fac11b085449e3787cc23ed8ab848775d0cb3a008
+f45_1_esplicativo-k8 PASS 2424179fe22e5cfed996029c1b3646795af28950bed80c963a2240dca5915675
+f45_2_scrittura-k8 PASS 71216127365912c87c03f8908cee38d794b5f262e60092d6083fa6bf5616be13
+f45_3_istruzioni-k8 PASS baadf7b31955c23a4bdc69058eccb23e662b595abfaeed08c34fbb727caaceb0
+f45_4_codice-k8 PASS d9c57c56fa8af23b126b5e0e36f6b61a7f07895f1a250cae46ed0b9b0b621376
+f45_5_ragionamento-k8 PASS 9397d763d446894d37b46be3a6d26b8b8bd8c515d018fdbc7779d2d673e71741
+long_conversational_it-k8 PASS 64f6f2bd655ca0f5e50b51259fd67a4e0dca80569db1b09b8a4ef539be1f2d41
+d1_long-k8 PASS 50b17f329c6c19fcb269ead312504c25a18e9b5bbde5d7ae477855b0d93c21c6
+G2_PASS=8 G2_FAIL=0
+=== G4 ===
+G4_OK short-k8 rc=0
+G4_OK f45_1_esplicativo-k8 rc=0
+G4_OK f45_2_scrittura-k8 rc=0
+G4_OK f45_3_istruzioni-k8 rc=0
+G4_OK f45_4_codice-k8 rc=0
+G4_OK f45_5_ragionamento-k8 rc=0
+G4_OK long_conversational_it-k8 rc=0
+G4_OK d1_long-k8 rc=0
