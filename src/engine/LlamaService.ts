@@ -772,7 +772,12 @@ export async function saveEngineSession(
       } catch {
         // ignore
       }
-      const tokens = await context.saveSession(tmpPath);
+      // llama.rn asymmetry (0.12.8): loadSession strips the file:// URI prefix
+      // (src/index.ts:645) but saveSession does NOT (:649-655) — the native
+      // fopen gets "file:///..." and fails instantly (e2e run 31271420320:
+      // save error in 5ms, restore MISS no_meta). Strip it ourselves for the
+      // native call only; expo-file-system ops keep the URI form.
+      const tokens = await context.saveSession(tmpPath.replace(/^file:\/\//, ""));
       // Replace real file only after a complete tmp write. moveAsync fails if
       // dest exists, and a plain delete-then-move leaves a loss window (kill
       // between the two loses the previous good file — re-verify finding 2).
