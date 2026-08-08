@@ -1,0 +1,57 @@
+[2026-08-08T18:01:51-0400] === G-D1 START pid=28926 ALLOW_UNPINNED=1 ===
+[2026-08-08T18:01:51-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.DENSE2
+[2026-08-08T18:01:51-0400] bin_sha=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+ALLOW_UNPINNED=1 reason=DENSE2 non-CAMPAIGN gate G-D1
+[2026-08-08T18:01:51-0400] flight_pid=22828 last=1786226509.311,2026-08-08T18:01:49-0400,32.6,3611060,100
+[2026-08-08T18:01:51-0400] nproc=6
+[2026-08-08T18:01:51-0400] prompt sha OK
+[2026-08-08T18:01:53-0400] ==== CELL short-k8 n_gen=200 ====
+[2026-08-08T18:01:54-0400] prestart OK die=36.8C nproc=6 batt=100
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=122051 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:01:57-04:00
+[2026-08-08T18:02:57-0400] RESULT short-k8 PASS gen=9a3f4175a084 ref=9a3f4175a084
+[2026-08-08T18:02:58-0400] cool OK die=57.5C
+[2026-08-08T18:02:58-0400] ==== CELL f45_1_esplicativo-k8 n_gen=200 ====
+[2026-08-08T18:02:59-0400] prestart OK die=55.5C nproc=6 batt=100
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=30092 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:03:03-04:00
+[2026-08-08T18:04:02-0400] RESULT f45_1_esplicativo-k8 PASS gen=2424179fe22e ref=2424179fe22e
+[2026-08-08T18:04:03-0400] cool OK die=56.7C
+[2026-08-08T18:04:03-0400] ==== CELL f45_2_scrittura-k8 n_gen=200 ====
+[2026-08-08T18:04:05-0400] prestart OK die=57.9C nproc=6 batt=100
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=68595 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:04:10-04:00
+[2026-08-08T18:05:03-0400] RESULT f45_2_scrittura-k8 PASS gen=712161273659 ref=712161273659
+[2026-08-08T18:05:04-0400] cool OK die=55.9C
+[2026-08-08T18:05:04-0400] ==== CELL f45_3_istruzioni-k8 n_gen=200 ====
+[2026-08-08T18:05:06-0400] prestart OK die=52.1C nproc=6 batt=100
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=51654 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:05:12-04:00
+[2026-08-08T18:06:03-0400] RESULT f45_3_istruzioni-k8 PASS gen=baadf7b31955 ref=baadf7b31955
+[2026-08-08T18:06:04-0400] cool OK die=52.6C
+[2026-08-08T18:06:04-0400] ==== CELL f45_4_codice-k8 n_gen=200 ====
+[2026-08-08T18:06:06-0400] prestart OK die=52.1C nproc=6 batt=100
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=72104 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:06:12-04:00
+[2026-08-08T18:07:28-0400] RESULT f45_4_codice-k8 PASS gen=d9c57c56fa8a ref=d9c57c56fa8a
+[2026-08-08T18:07:29-0400] cool OK die=57.1C
+[2026-08-08T18:07:29-0400] ==== CELL f45_5_ragionamento-k8 n_gen=200 ====
+[2026-08-08T18:07:31-0400] prestart OK die=54.1C nproc=6 batt=100
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=15891 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:07:38-04:00
+[2026-08-08T18:08:48-0400] RESULT f45_5_ragionamento-k8 PASS gen=9397d763d446 ref=9397d763d446
+[2026-08-08T18:08:49-0400] cool OK die=50.6C
+[2026-08-08T18:08:49-0400] ==== CELL long_conversational_it-k8 n_gen=256 ====
+[2026-08-08T18:08:51-0400] prestart OK die=49.3C nproc=6 batt=100
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=74811 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:08:59-04:00
+[2026-08-08T18:10:20-0400] RESULT long_conversational_it-k8 PASS gen=64f6f2bd655c ref=64f6f2bd655c
+[2026-08-08T18:10:22-0400] cool OK die=51.3C
+[2026-08-08T18:10:22-0400] ==== CELL d1_long-k8 n_gen=256 ====
+[2026-08-08T18:10:24-0400] prestart OK die=50.9C nproc=6 batt=100
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=53298 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:10:32-04:00
+[2026-08-08T18:14:05-0400] RESULT d1_long-k8 PASS gen=50b17f329c6c ref=50b17f329c6c
+[2026-08-08T18:14:06-0400] cool OK die=53.3C
+[2026-08-08T18:14:06-0400] === G-D1 DONE 8/8 ===
+[2026-08-08T18:14:06-0400] flight_last=1786227245.790,2026-08-08T18:14:05-0400,52.5,4198180,100

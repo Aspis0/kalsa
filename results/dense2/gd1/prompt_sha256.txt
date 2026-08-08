@@ -1,0 +1,9 @@
+# G-D1 prompt checksums 2026-08-08T18:01:51-0400
+197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619  /data/data/com.termux/files/home/experiments/prompts/short.txt
+bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf  /data/data/com.termux/files/home/experiments/prompts/f45_1_esplicativo.txt
+5cd6c45c4fcdeafb3f0b242231c9e997cad225ac62fc6332f2a91e71bedc0f79  /data/data/com.termux/files/home/experiments/prompts/f45_2_scrittura.txt
+ac1e64e271aacce3cd4e9b02e8c9101abb032077aca42119d9bac232245a03d9  /data/data/com.termux/files/home/experiments/prompts/f45_3_istruzioni.txt
+0da7e292bda861df7fd1d97ba55fbfc21e3eb195737d4a2a96068f37ee80e199  /data/data/com.termux/files/home/experiments/prompts/f45_4_codice.txt
+a6ddeb2fadf737585b0a9923f996e144932f8f84912398cc21a5fe7827ecd5d1  /data/data/com.termux/files/home/experiments/prompts/f45_5_ragionamento.txt
+b74f074858db2703e0a88a11838e05c4df5598d485e23c23714d55ba3128aaaa  /data/data/com.termux/files/home/experiments/prompts/long_conversational_it.txt
+96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650  /data/data/com.termux/files/home/experiments/prompts/d1_long.txt

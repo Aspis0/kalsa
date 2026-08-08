@@ -1,0 +1,25 @@
+```python
+def median_eval_tok_s(rows):
+    """Return the median of eval_tok_s for rows where nproc is not None and nproc >= 6.
+    
+    Ignores rows with missing eval_tok_s. Returns None if fewer than 1 valid value remains.
+    """
+    valid_values = []
+    for row in rows:
+        eval_tok_s = row.get("eval_tok_s")
+        nproc = row.get("nproc")
+        if eval_tok_s is None:
+            continue
+        if nproc is None or nproc < 6:
+            continue
+        valid_values.append(eval_tok_s)
+    
+    if len(valid_values) < 1:
+        return None
+    
+    valid_values.sort()
+    n = len(valid_values)
+    if n % 2 == 1:
+        return valid_values[n // 2]
+    else:
+        mid = n // 2

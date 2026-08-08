@@ -1,0 +1,72 @@
+[2026-08-08T18:14:19-0400] === G-D2 START v1 ALLOW_UNPINNED=1 ===
+[2026-08-08T18:14:19-0400] CTRL=ede3ac7cc91af03da3fcee883c22c6b99d246ae0b0a5c9426674a09608b03178  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+[2026-08-08T18:14:19-0400] NEW=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.DENSE2
+ALLOW_UNPINNED=1 reason=DENSE2 non-CAMPAIGN gate G-D2
+[2026-08-08T18:14:19-0400] flight_ok last=1786227256.449,2026-08-08T18:14:16-0400,48.6,4147876,100
+[2026-08-08T18:14:19-0400] short.txt sha=197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619 expect=197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619
+[2026-08-08T18:14:19-0400] boundary_re=bmoe: expert streaming ON
+[2026-08-08T18:14:21-0400] nproc=6 die=47.8C
+[2026-08-08T18:14:21-0400] ==== B0 B0_CTRL rep=0 bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN ====
+[2026-08-08T18:14:21-0400] flight_ok last=1786227256.449,2026-08-08T18:14:16-0400,48.6,4147876,100
+[2026-08-08T18:14:22-0400] prestart OK die=48.2C nproc=7
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=236 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:14:29-04:00
+[2026-08-08T18:14:44-0400] B0 B0_CTRL r0 done
+[2026-08-08T18:14:46-0400] cool OK die=52.1C
+[2026-08-08T18:14:46-0400] ==== B0 B0_NEW rep=0 bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.DENSE2 ====
+[2026-08-08T18:14:46-0400] flight_ok last=1786227284.628,2026-08-08T18:14:44-0400,58.3,3938012,100
+[2026-08-08T18:14:48-0400] prestart OK die=51.7C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=162142 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:14:55-04:00
+1786227303.813 bmoe: expert-mmap: dropped 9313 MiB
+1786227305.539 bmoe: dense-anon: memcpy=785 odirect=878 ranges_fallback=724
+[2026-08-08T18:15:09-0400] B0 B0_NEW r0 done
+[2026-08-08T18:15:11-0400] cool OK die=54.7C
+[2026-08-08T18:15:11-0400] G-B PASS — B2
+[2026-08-08T18:15:11-0400] ==== B2 CTRL rep=1 bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN ====
+[2026-08-08T18:15:11-0400] flight_ok last=1786227308.180,2026-08-08T18:15:08-0400,72.9,63948,100
+[2026-08-08T18:15:13-0400] prestart OK die=54.5C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=148702 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:15:20-04:00
+[2026-08-08T18:15:34-0400] B2 CTRL r1 done
+[2026-08-08T18:15:36-0400] cool OK die=54.9C
+[2026-08-08T18:15:36-0400] ==== B2 NEW rep=1 bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.DENSE2 ====
+[2026-08-08T18:15:36-0400] flight_ok last=1786227332.232,2026-08-08T18:15:32-0400,74.5,30304,100
+[2026-08-08T18:15:37-0400] prestart OK die=55.1C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=156185 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:15:43-04:00
+1786227351.573 bmoe: expert-mmap: dropped 9313 MiB
+1786227353.225 bmoe: dense-anon: memcpy=840 odirect=824 ranges_fallback=671
+[2026-08-08T18:15:57-0400] B2 NEW r1 done
+[2026-08-08T18:15:59-0400] cool OK die=55.7C
+[2026-08-08T18:15:59-0400] ==== B2 CTRL rep=2 bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN ====
+[2026-08-08T18:15:59-0400] flight_ok last=1786227357.106,2026-08-08T18:15:57-0400,68.9,4026940,100
+[2026-08-08T18:16:00-0400] prestart OK die=58.7C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=182183 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:16:06-04:00
+[2026-08-08T18:16:20-0400] B2 CTRL r2 done
+[2026-08-08T18:16:22-0400] cool OK die=57.5C
+[2026-08-08T18:16:22-0400] ==== B2 NEW rep=2 bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.DENSE2 ====
+[2026-08-08T18:16:22-0400] flight_ok last=1786227380.264,2026-08-08T18:16:20-0400,68.1,4092948,100
+[2026-08-08T18:16:23-0400] prestart OK die=57.5C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=121033 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T18:16:30-04:00
+1786227397.903 bmoe: expert-mmap: dropped 9313 MiB
+1786227399.451 bmoe: dense-anon: memcpy=790 odirect=873 ranges_fallback=673
+[2026-08-08T18:16:43-0400] B2 NEW r2 done
+[2026-08-08T18:16:45-0400] cool OK die=59.1C
+[2026-08-08T18:16:45-0400] === G-D2 DONE ===
+[2026-08-08T18:16:45-0400] flight_last=1786227403.194,2026-08-08T18:16:43-0400,67.7,4052112,100
+ctrl_read_bytes_median=10932715520.0
+new_read_bytes_median=10060343296.0
+delta_read_bytes_GiB=0.8124599456787109
+ctrl_rchar_median=1779929396.5
+new_rchar_median=897977331.0
+ctrl_VmHWM_MiB_median=2907.85
+new_VmHWM_MiB_median=2586.4
+verdict=PARZIALE
+--- per run ---
+CTRL_r1 rb=10951970816 (10.1998 GiB) rchar=1789122868 (1.6663 GiB) hwm=3020.5 wall=13.601 src=primary instr=[]
+CTRL_r2 rb=10913460224 (10.1640 GiB) rchar=1770735925 (1.6491 GiB) hwm=2795.2 wall=13.542 src=primary instr=[]
+NEW_r1 rb=10025054208 (9.3366 GiB) rchar=887911757 (0.8269 GiB) hwm=2564.0 wall=13.119 src=primary instr=['bmoe: expert-mmap: dropped 9313 MiB', 'bmoe: dense-anon: memcpy=840 odirect=824 ranges_fallback=671']
+NEW_r2 rb=10095632384 (9.4023 GiB) rchar=908042905 (0.8457 GiB) hwm=2608.8 wall=12.782 src=primary instr=['bmoe: expert-mmap: dropped 9313 MiB', 'bmoe: dense-anon: memcpy=790 odirect=873 ranges_fallback=673']

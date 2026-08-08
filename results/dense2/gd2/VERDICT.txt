@@ -1,0 +1,13 @@
+ctrl_read_bytes_median=10932715520.0
+new_read_bytes_median=10060343296.0
+delta_read_bytes_GiB=0.8124599456787109
+ctrl_rchar_median=1779929396.5
+new_rchar_median=897977331.0
+ctrl_VmHWM_MiB_median=2907.85
+new_VmHWM_MiB_median=2586.4
+verdict=PARZIALE
+--- per run ---
+CTRL_r1 rb=10951970816 (10.1998 GiB) rchar=1789122868 (1.6663 GiB) hwm=3020.5 wall=13.601 src=primary instr=[]
+CTRL_r2 rb=10913460224 (10.1640 GiB) rchar=1770735925 (1.6491 GiB) hwm=2795.2 wall=13.542 src=primary instr=[]
+NEW_r1 rb=10025054208 (9.3366 GiB) rchar=887911757 (0.8269 GiB) hwm=2564.0 wall=13.119 src=primary instr=['bmoe: expert-mmap: dropped 9313 MiB', 'bmoe: dense-anon: memcpy=840 odirect=824 ranges_fallback=671']
+NEW_r2 rb=10095632384 (9.4023 GiB) rchar=908042905 (0.8457 GiB) hwm=2608.8 wall=12.782 src=primary instr=['bmoe: expert-mmap: dropped 9313 MiB', 'bmoe: dense-anon: memcpy=790 odirect=873 ranges_fallback=673']

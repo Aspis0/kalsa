@@ -1,0 +1,19 @@
+label=NEW
+rep=2
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+boundary_ts=1786227399.481
+boundary_src=primary
+boundary_line=1786227399.481 bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+read_bytes_at_load=10095632384
+read_bytes_at_load_GiB=9.4023
+rchar_at_load=908042905
+rchar_at_load_GiB=0.8457
+VmHWM_at_load_MiB=2608.8
+peak_read_bytes=12511748096
+peak_VmHWM_MiB=3863.6
+wall_s=12.782
+n_samples=64
+interval_median_s=0.20099997520446777
+interval_p95_s=0.20600008964538574
+instr0=bmoe: expert-mmap: dropped 9313 MiB
+instr1=bmoe: dense-anon: memcpy=790 odirect=873 ranges_fallback=673

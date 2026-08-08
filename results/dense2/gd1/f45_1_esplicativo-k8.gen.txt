@@ -1,0 +1,5 @@
+Un modello Mixture-of-Experts (MoE) è un’architettura neurale che divide i parametri in "esperti" specializzati. A differenza dei modelli densi, dove ogni token attiva tutti i parametri, un MoE attiva solo un sottoinsieme selezionato tramite un meccanismo di routing (instradamento).
+
+Su uno smartphone con 8 GB di RAM, un MoE da 35B parametri ma con soli 3B attivi per token è più pratico di un denso da 7B per due motivi chiave. Innanzitutto, la memoria: caricare un denso da 7B (FP16) richiede circa 14 GB, superando la RAM disponibile. Il MoE, invece, mantiene i 35B parametri sul disco (o nella memoria non volatile), caricando in RAM solo gli esperti attivi (circa 6 GB), permettendo l’esecuzione senza crash.
+
+Secondo, lo streaming da flash: grazie al

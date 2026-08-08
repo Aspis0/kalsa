@@ -1,0 +1,76 @@
+[2026-08-08T18:01:51-0400] === G-D1 START pid=28926 ALLOW_UNPINNED=1 ===
+[2026-08-08T18:01:51-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.DENSE2
+[2026-08-08T18:01:51-0400] bin_sha=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+ALLOW_UNPINNED=1 reason=DENSE2 non-CAMPAIGN gate G-D1
+[2026-08-08T18:01:51-0400] flight_pid=22828 last=1786226509.311,2026-08-08T18:01:49-0400,32.6,3611060,100
+[2026-08-08T18:01:51-0400] nproc=6
+# G-D1 prompt checksums 2026-08-08T18:01:51-0400
+197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619  /data/data/com.termux/files/home/experiments/prompts/short.txt
+bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf  /data/data/com.termux/files/home/experiments/prompts/f45_1_esplicativo.txt
+5cd6c45c4fcdeafb3f0b242231c9e997cad225ac62fc6332f2a91e71bedc0f79  /data/data/com.termux/files/home/experiments/prompts/f45_2_scrittura.txt
+ac1e64e271aacce3cd4e9b02e8c9101abb032077aca42119d9bac232245a03d9  /data/data/com.termux/files/home/experiments/prompts/f45_3_istruzioni.txt
+0da7e292bda861df7fd1d97ba55fbfc21e3eb195737d4a2a96068f37ee80e199  /data/data/com.termux/files/home/experiments/prompts/f45_4_codice.txt
+a6ddeb2fadf737585b0a9923f996e144932f8f84912398cc21a5fe7827ecd5d1  /data/data/com.termux/files/home/experiments/prompts/f45_5_ragionamento.txt
+b74f074858db2703e0a88a11838e05c4df5598d485e23c23714d55ba3128aaaa  /data/data/com.termux/files/home/experiments/prompts/long_conversational_it.txt
+96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650  /data/data/com.termux/files/home/experiments/prompts/d1_long.txt
+PROMPT_SHA_OK
+[2026-08-08T18:01:51-0400] prompt sha OK
+[2026-08-08T18:01:53-0400] ==== CELL short-k8 n_gen=200 ====
+[2026-08-08T18:01:54-0400] prestart OK die=36.8C nproc=6 batt=100
+bmoe: expert-mmap: dropped 9313 MiB
+bmoe: dense-anon: memcpy=868 odirect=795 ranges_fallback=603
+short	PASS	9a3f4175a08474fa9bf4339fac11b085449e3787cc23ed8ab848775d0cb3a008	9a3f4175a08474fa9bf4339fac11b085449e3787cc23ed8ab848775d0cb3a008	114	200	0
+[2026-08-08T18:02:57-0400] RESULT short-k8 PASS gen=9a3f4175a084 ref=9a3f4175a084
+[2026-08-08T18:02:58-0400] cool OK die=57.5C
+[2026-08-08T18:02:58-0400] ==== CELL f45_1_esplicativo-k8 n_gen=200 ====
+[2026-08-08T18:02:59-0400] prestart OK die=55.5C nproc=6 batt=100
+bmoe: expert-mmap: dropped 9313 MiB
+bmoe: dense-anon: memcpy=865 odirect=798 ranges_fallback=615
+f45_1_esplicativo	PASS	2424179fe22e5cfed996029c1b3646795af28950bed80c963a2240dca5915675	2424179fe22e5cfed996029c1b3646795af28950bed80c963a2240dca5915675	121	200	0
+[2026-08-08T18:04:02-0400] RESULT f45_1_esplicativo-k8 PASS gen=2424179fe22e ref=2424179fe22e
+[2026-08-08T18:04:03-0400] cool OK die=56.7C
+[2026-08-08T18:04:03-0400] ==== CELL f45_2_scrittura-k8 n_gen=200 ====
+[2026-08-08T18:04:05-0400] prestart OK die=57.9C nproc=6 batt=100
+bmoe: expert-mmap: dropped 9313 MiB
+bmoe: dense-anon: memcpy=820 odirect=843 ranges_fallback=656
+f45_2_scrittura	PASS	71216127365912c87c03f8908cee38d794b5f262e60092d6083fa6bf5616be13	71216127365912c87c03f8908cee38d794b5f262e60092d6083fa6bf5616be13	133	139	0
+[2026-08-08T18:05:03-0400] RESULT f45_2_scrittura-k8 PASS gen=712161273659 ref=712161273659
+[2026-08-08T18:05:04-0400] cool OK die=55.9C
+[2026-08-08T18:05:04-0400] ==== CELL f45_3_istruzioni-k8 n_gen=200 ====
+[2026-08-08T18:05:06-0400] prestart OK die=52.1C nproc=6 batt=100
+bmoe: expert-mmap: dropped 9313 MiB
+bmoe: dense-anon: memcpy=832 odirect=832 ranges_fallback=656
+f45_3_istruzioni	PASS	baadf7b31955c23a4bdc69058eccb23e662b595abfaeed08c34fbb727caaceb0	baadf7b31955c23a4bdc69058eccb23e662b595abfaeed08c34fbb727caaceb0	114	135	0
+[2026-08-08T18:06:03-0400] RESULT f45_3_istruzioni-k8 PASS gen=baadf7b31955 ref=baadf7b31955
+[2026-08-08T18:06:04-0400] cool OK die=52.6C
+[2026-08-08T18:06:04-0400] ==== CELL f45_4_codice-k8 n_gen=200 ====
+[2026-08-08T18:06:06-0400] prestart OK die=52.1C nproc=6 batt=100
+bmoe: expert-mmap: dropped 9313 MiB
+bmoe: dense-anon: memcpy=1142 odirect=521 ranges_fallback=356
+f45_4_codice	PASS	d9c57c56fa8af23b126b5e0e36f6b61a7f07895f1a250cae46ed0b9b0b621376	d9c57c56fa8af23b126b5e0e36f6b61a7f07895f1a250cae46ed0b9b0b621376	148	200	0
+[2026-08-08T18:07:28-0400] RESULT f45_4_codice-k8 PASS gen=d9c57c56fa8a ref=d9c57c56fa8a
+[2026-08-08T18:07:29-0400] cool OK die=57.1C
+[2026-08-08T18:07:29-0400] ==== CELL f45_5_ragionamento-k8 n_gen=200 ====
+[2026-08-08T18:07:31-0400] prestart OK die=54.1C nproc=6 batt=100
+bmoe: expert-mmap: dropped 9313 MiB
+bmoe: dense-anon: memcpy=883 odirect=780 ranges_fallback=619
+f45_5_ragionamento	PASS	9397d763d446894d37b46be3a6d26b8b8bd8c515d018fdbc7779d2d673e71741	9397d763d446894d37b46be3a6d26b8b8bd8c515d018fdbc7779d2d673e71741	164	165	0
+[2026-08-08T18:08:48-0400] RESULT f45_5_ragionamento-k8 PASS gen=9397d763d446 ref=9397d763d446
+[2026-08-08T18:08:49-0400] cool OK die=50.6C
+[2026-08-08T18:08:49-0400] ==== CELL long_conversational_it-k8 n_gen=256 ====
+[2026-08-08T18:08:51-0400] prestart OK die=49.3C nproc=6 batt=100
+bmoe: expert-mmap: dropped 9313 MiB
+bmoe: dense-anon: memcpy=1210 odirect=453 ranges_fallback=303
+long_conversational_it	PASS	64f6f2bd655ca0f5e50b51259fd67a4e0dca80569db1b09b8a4ef539be1f2d41	64f6f2bd655ca0f5e50b51259fd67a4e0dca80569db1b09b8a4ef539be1f2d41	143	256	0
+[2026-08-08T18:10:20-0400] RESULT long_conversational_it-k8 PASS gen=64f6f2bd655c ref=64f6f2bd655c
+[2026-08-08T18:10:22-0400] cool OK die=51.3C
+[2026-08-08T18:10:22-0400] ==== CELL d1_long-k8 n_gen=256 ====
+[2026-08-08T18:10:24-0400] prestart OK die=50.9C nproc=6 batt=100
+bmoe: expert-mmap: dropped 9313 MiB
+bmoe: dense-anon: memcpy=831 odirect=832 ranges_fallback=649
+d1_long	PASS	50b17f329c6c19fcb269ead312504c25a18e9b5bbde5d7ae477855b0d93c21c6	50b17f329c6c19fcb269ead312504c25a18e9b5bbde5d7ae477855b0d93c21c6	1318	256	0
+[2026-08-08T18:14:05-0400] RESULT d1_long-k8 PASS gen=50b17f329c6c ref=50b17f329c6c
+[2026-08-08T18:14:06-0400] cool OK die=53.3C
+PASS=8 FAIL=0 ALL=8/8
+[2026-08-08T18:14:06-0400] === G-D1 DONE 8/8 ===
+[2026-08-08T18:14:06-0400] flight_last=1786227245.790,2026-08-08T18:14:05-0400,52.5,4198180,100

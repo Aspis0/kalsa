@@ -1,0 +1,17 @@
+label=CTRL
+rep=1
+bin_sha256=ede3ac7cc91af03da3fcee883c22c6b99d246ae0b0a5c9426674a09608b03178
+boundary_ts=1786227330.302
+boundary_src=primary
+boundary_line=1786227330.302 bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+read_bytes_at_load=10951970816
+read_bytes_at_load_GiB=10.1998
+rchar_at_load=1789122868
+rchar_at_load_GiB=1.6663
+VmHWM_at_load_MiB=3020.5
+peak_read_bytes=13308321792
+peak_VmHWM_MiB=4012.3
+wall_s=13.601
+n_samples=68
+interval_median_s=0.20099997520446777
+interval_p95_s=0.20769996643066407
