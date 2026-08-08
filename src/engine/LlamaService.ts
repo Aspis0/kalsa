@@ -45,6 +45,21 @@ import {
   roundTelemetryFromResult,
   type CompletionLikeResult,
 } from "./turnTelemetry";
+import {
+  computePromptEnvHash,
+  deleteOtherModelSessions,
+  deleteSessionArtifacts,
+  ensureSessionsDir,
+  estimateSessionBytes,
+  hasEnoughDiskForSession,
+  readSessionMeta,
+  sessionFileExists,
+  sessionFilePath,
+  sessionMetaMatches,
+  writeSessionMeta,
+  type SessionMeta,
+} from "./sessionPersistence";
+import * as FileSystem from "expo-file-system/legacy";
 
 /**
  * Engine locale — Fase 1/2/4: llama.rn (binding llama.cpp, MIT).
@@ -67,6 +82,23 @@ let activeCacheTypeK: string | null = null;
 let activeCacheTypeV: string | null = null;
 /** Fingerprint of bench-only speculativeOverride; forces reload when it changes. */
 let activeSpeculativeOverrideKey: string | null = null;
+/** Speculative knobs for session meta (save/load match). Cleared on dispose. */
+let activeMtpNMax: number | undefined;
+/** "draft-mtp" | "draft-dflash" | "none" | undefined (production MTP path). */
+let activeSpecType: string | undefined;
+/**
+ * True only when the native KV still holds chat-turn state (post streamAssistantTurn
+ * or successful loadSession). Utility jobs (extract/translate/summarize) call
+ * clearCache and leave a non-chat prompt in the context — saving then would
+ * restore a useless prefix on next start. Cleared on dispose / utility clearCache.
+ */
+let kvHoldsChatSession = false;
+/**
+ * promptEnvHash of the system-prompt inputs that produced the current chat KV
+ * (locale + memoryFacts + hasTools). Set on streamAssistantTurn / successful load.
+ * Written into session meta on save so restore can reject wasted cold-prefills.
+ */
+let lastPromptEnvHash: string | undefined;
 
 /**
  * True while disposeEngineLocked is unwinding a context. streamAssistantTurn's
@@ -411,6 +443,15 @@ export type EngineInitOptions = {
     nMax?: number;
     draftModelPath?: string;
   };
+  /**
+   * If set, attempt to restore native KV session after initLlama when the
+   * on-disk meta matches history + engine config + prompt env.
+   */
+  sessionRestore?: {
+    historyHash: string;
+    /** djb2 of system-prompt env (locale/memoryFacts/hasTools). */
+    promptEnvHash: string;
+  };
   /** Settings locale for user-facing init errors (required). */
   locale: Locale;
 };
@@ -481,11 +522,16 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     // MTP (NextN): speculative decoding embedded — ~1.5-2x più veloce.
     // La cache del DRAFT viene quantizzata come la target (non F16 di default).
     // Bench-only speculativeOverride (DFlash A/B) replaces the mtpNMax path when set.
+    // Session meta: production mtp path keeps specType undefined; override arms set it.
+    let nextMtpNMax: number | undefined;
+    let nextSpecType: string | undefined;
     if (options.speculativeOverride?.type === "none") {
       // Baseline arm: plain autoregressive decode, no speculation at all —
       // the missing control for the MTP-vs-DFlash A/B (is MTP net-positive
       // vs not speculating when acceptance sits at 30-44% on free text?).
       // Simply omit params.speculative.
+      nextSpecType = "none";
+      nextMtpNMax = undefined;
     } else if (options.speculativeOverride) {
       const override = options.speculativeOverride;
       // binding accepts the string; TS union NativeSpeculativeType is stale
@@ -499,6 +545,8 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
           cache_type_v: cacheTypeV,
         },
       };
+      nextSpecType = override.type;
+      nextMtpNMax = override.nMax;
     } else if (options.mtpNMax && options.mtpNMax > 0) {
       // existing path — keep byte-identical when override is absent
       params.speculative = {
@@ -509,6 +557,9 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
           cache_type_v: cacheTypeV,
         },
       };
+      // Production MTP: mtpNMax set, specType left undefined (session meta).
+      nextMtpNMax = options.mtpNMax;
+      nextSpecType = undefined;
     }
 
     // Capture llama.cpp native log before init so field devices without adb
@@ -525,6 +576,22 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     activeCacheTypeK = cacheTypeK;
     activeCacheTypeV = cacheTypeV;
     activeSpeculativeOverrideKey = speculativeOverrideKey;
+    activeMtpNMax = nextMtpNMax;
+    activeSpecType = nextSpecType;
+
+    // Restore native KV when meta matches (cold prefill kill after app restart).
+    // Runs before multimodal: KV belongs to the LLM context, not the projector.
+    if (options.sessionRestore?.historyHash) {
+      await tryLoadEngineSession(modelId, {
+        historyHash: options.sessionRestore.historyHash,
+        promptEnvHash: options.sessionRestore.promptEnvHash,
+        nCtx: engineCtx,
+        cacheTypeK,
+        cacheTypeV,
+        mtpNMax: nextMtpNMax,
+        specType: nextSpecType,
+      });
+    }
 
     if (isMultimodal && options.mmprojPath) {
       let enabled: boolean;
@@ -582,6 +649,12 @@ async function disposeEngineLocked(): Promise<void> {
     activeCacheTypeK = null;
     activeCacheTypeV = null;
     activeSpeculativeOverrideKey = null;
+    activeMtpNMax = undefined;
+    activeSpecType = undefined;
+    kvHoldsChatSession = false;
+    lastPromptEnvHash = undefined;
+    // Intentionally do NOT delete session files here — they survive dispose
+    // so the next initEngine can restore KV after app restart / model reload.
     if (current) {
       // Unblock any in-flight native completion, then wait for the FIFO job
       // chain (and tracked completions) to settle before release(). No arbitrary
@@ -629,6 +702,241 @@ async function disposeEngineLocked(): Promise<void> {
   } finally {
     disposing = false;
   }
+}
+
+/** Telemetry-safe error tag (name/enum only — never message/path/user data). */
+function sessionErrorReason(error: unknown): string {
+  const raw =
+    error instanceof Error
+      ? error.name || "Error"
+      : typeof error === "string"
+        ? "string"
+        : "unknown";
+  const cleaned = raw.replace(/[^A-Za-z0-9_]/g, "").slice(0, 40);
+  return `error:${cleaned || "unknown"}`;
+}
+
+/**
+ * Persist native KV + meta for the active model. Serialized via withEngineJob
+ * so it never races a completion. Never throws; returns false on skip/failure.
+ *
+ * Write is atomic-ish: native save goes to `<path>.tmp`, then moveAsync over the
+ * real file; meta is written only after a successful rename. On ANY failure only
+ * the tmp is deleted — the previous good `.kvs` + meta stay intact.
+ */
+export async function saveEngineSession(
+  modelId: string,
+  historyHashValue: string,
+): Promise<boolean> {
+  return withEngineJob(async () => {
+    const t0 = Date.now();
+    const estimatedBytes = estimateSessionBytes(activeEngineCtx);
+    const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
+      try {
+        console.log(
+          `KALSA_SESSION ${JSON.stringify({
+            op: "save",
+            ms: Date.now() - t0,
+            ok,
+            estimatedBytes,
+            ...extra,
+          })}`,
+        );
+      } catch {
+        // telemetry must never throw
+      }
+    };
+    const path = sessionFilePath(modelId);
+    const tmpPath = `${path}.tmp`;
+    try {
+      if (!context || activeModelId !== modelId) {
+        log(false, { reason: "no_context" });
+        return false;
+      }
+      if (disposing) {
+        log(false, { reason: "disposing" });
+        return false;
+      }
+      if (!kvHoldsChatSession) {
+        log(false, { reason: "kv_not_chat" });
+        return false;
+      }
+      if (!(await hasEnoughDiskForSession(activeEngineCtx))) {
+        log(false, { reason: "disk" });
+        return false;
+      }
+      await ensureSessionsDir();
+      // Drop any stale tmp from a previous interrupted save.
+      try {
+        await FileSystem.deleteAsync(tmpPath, { idempotent: true });
+      } catch {
+        // ignore
+      }
+      const tokens = await context.saveSession(tmpPath);
+      // Replace real file only after a complete tmp write. moveAsync fails if
+      // dest exists, and a plain delete-then-move leaves a loss window (kill
+      // between the two loses the previous good file — re-verify finding 2).
+      // Backup-rename instead: dest → .bak, tmp → dest, drop .bak; on failure
+      // restore .bak so the last good restore point always survives.
+      const bakPath = `${path}.bak`;
+      try {
+        await FileSystem.deleteAsync(bakPath, { idempotent: true });
+      } catch {
+        // ignore
+      }
+      let hadPrevious = false;
+      try {
+        const prev = await FileSystem.getInfoAsync(path);
+        hadPrevious = !!prev.exists;
+        if (hadPrevious) await FileSystem.moveAsync({ from: path, to: bakPath });
+      } catch {
+        // ignore — treat as no previous file
+      }
+      try {
+        await FileSystem.moveAsync({ from: tmpPath, to: path });
+      } catch (moveError) {
+        // Restore the previous good file before propagating to the outer catch.
+        if (hadPrevious) {
+          try {
+            await FileSystem.moveAsync({ from: bakPath, to: path });
+          } catch {
+            // ignore — worst case cold start
+          }
+        }
+        throw moveError;
+      }
+      try {
+        await FileSystem.deleteAsync(bakPath, { idempotent: true });
+      } catch {
+        // ignore
+      }
+      const meta: SessionMeta = {
+        formatVersion: 1,
+        nCtx: activeEngineCtx,
+        cacheTypeK: activeCacheTypeK ?? "",
+        cacheTypeV: activeCacheTypeV ?? "",
+        historyHash: historyHashValue,
+        savedAt: Date.now(),
+      };
+      if (lastPromptEnvHash !== undefined) meta.promptEnvHash = lastPromptEnvHash;
+      if (activeMtpNMax !== undefined) meta.mtpNMax = activeMtpNMax;
+      if (activeSpecType !== undefined) meta.specType = activeSpecType;
+      // Meta after rename so a kill between file and meta keeps the previous
+      // meta (hash mismatch → cold) or pairs old meta with complete new file
+      // when history is unchanged (valid restore).
+      await writeSessionMeta(modelId, meta);
+      // Only after a successful write: drop other models' sessions (keep current).
+      await deleteOtherModelSessions(modelId);
+      log(true, { tokens: typeof tokens === "number" ? tokens : 0 });
+      return true;
+    } catch (error) {
+      console.warn("[saveEngineSession]", error);
+      // Failed save: delete ONLY the tmp. Leave previous .kvs + meta intact.
+      try {
+        await FileSystem.deleteAsync(tmpPath, { idempotent: true });
+      } catch {
+        // ignore
+      }
+      log(false, { reason: sessionErrorReason(error) });
+      return false;
+    }
+  });
+}
+
+/**
+ * Attempt to restore native KV after initLlama. Called only from initEngine
+ * (lifecycle lock held; no concurrent completion). Never throws.
+ */
+async function tryLoadEngineSession(
+  modelId: string,
+  expected: {
+    historyHash: string;
+    promptEnvHash?: string;
+    nCtx: number;
+    cacheTypeK: string;
+    cacheTypeV: string;
+    mtpNMax?: number;
+    specType?: string;
+  },
+): Promise<boolean> {
+  const t0 = Date.now();
+  const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
+    try {
+      console.log(
+        `KALSA_SESSION ${JSON.stringify({ op: "load", ms: Date.now() - t0, ok, ...extra })}`,
+      );
+    } catch {
+      // telemetry must never throw
+    }
+  };
+  try {
+    if (!context) {
+      log(false, { reason: "no_context" });
+      return false;
+    }
+    const stored = await readSessionMeta(modelId);
+    if (!stored) {
+      log(false, { reason: "no_meta" });
+      return false;
+    }
+    if (!(await sessionFileExists(modelId))) {
+      await deleteSessionArtifacts(modelId);
+      log(false, { reason: "no_file" });
+      return false;
+    }
+    const expectedMeta: SessionMeta = {
+      formatVersion: 1,
+      nCtx: expected.nCtx,
+      cacheTypeK: expected.cacheTypeK,
+      cacheTypeV: expected.cacheTypeV,
+      historyHash: expected.historyHash,
+    };
+    if (expected.promptEnvHash !== undefined) {
+      expectedMeta.promptEnvHash = expected.promptEnvHash;
+    }
+    if (expected.mtpNMax !== undefined) expectedMeta.mtpNMax = expected.mtpNMax;
+    if (expected.specType !== undefined) expectedMeta.specType = expected.specType;
+    if (!sessionMetaMatches(stored, expectedMeta)) {
+      await deleteSessionArtifacts(modelId);
+      log(false, { reason: "meta_mismatch" });
+      return false;
+    }
+    const result = await context.loadSession(sessionFilePath(modelId));
+    kvHoldsChatSession = true;
+    // Keep lastPromptEnvHash aligned with the restored KV for a later save.
+    lastPromptEnvHash =
+      stored.promptEnvHash ?? expected.promptEnvHash ?? lastPromptEnvHash;
+    log(true, {
+      tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,
+    });
+    return true;
+  } catch (error) {
+    console.warn("[tryLoadEngineSession]", error);
+    await deleteSessionArtifacts(modelId);
+    log(false, { reason: sessionErrorReason(error) });
+    return false;
+  }
+}
+
+/**
+ * Drop on-disk KV + meta for a model (clearChat / model switch).
+ * Serialized on the engine job chain so a queued save cannot resurrect
+ * the file after invalidation. Never throws.
+ */
+export async function invalidateEngineSession(modelId: string): Promise<void> {
+  if (!modelId) return;
+  return withEngineJob(async () => {
+    try {
+      // Also mark in-memory KV ineligible if this is the active model
+      // (clearChat leaves the engine up; a later background must not save).
+      if (activeModelId === modelId) {
+        kvHoldsChatSession = false;
+      }
+      await deleteSessionArtifacts(modelId);
+    } catch {
+      // never throw
+    }
+  });
 }
 
 function parseToolArguments(raw: string | undefined): {
@@ -913,6 +1221,10 @@ export async function streamAssistantTurn(
     const historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) =>
       index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
     );
+    // Capture prompt-env hash from the same inputs buildSystemPrompt uses so a
+    // later saveEngineSession can reject restores whose system prompt drifted.
+    lastPromptEnvHash = computePromptEnvHash(locale, options.memoryFacts);
+
     let currentMessages: ToolChatMessage[] = applyOperativeBlockFormat(
       { role: "system", content: buildSystemPrompt(locale, hasTools, options.memoryFacts) },
       historyMessages,
@@ -1272,6 +1584,11 @@ export async function streamAssistantTurn(
       finishOnce(() => callbacks.onError(error instanceof Error ? error : new Error(String(error))));
     } finally {
       signal?.removeEventListener("abort", abort);
+      // Chat completions leave conversation tokens in the native KV — eligible
+      // for saveSession on background (utility jobs clear this flag).
+      if (engine === context && !disposing) {
+        kvHoldsChatSession = true;
+      }
     }
   });
 }
@@ -1380,6 +1697,8 @@ export async function extractMemory(
       } catch {
         // best effort — extract still proceeds
       }
+      // clearCache + synthetic prompt — native KV no longer holds the chat session.
+      kvHoldsChatSession = false;
 
       timer = setTimeout(() => {
         timedOut = true;
@@ -1518,6 +1837,7 @@ export async function translateText(
       } catch {
         // best effort — translate still proceeds
       }
+      kvHoldsChatSession = false;
       if (aborted || signal?.aborted) return { text: "", truncated };
 
       timer = setTimeout(() => {
@@ -1621,6 +1941,7 @@ export async function summarizeConversation(
       } catch {
         // best effort
       }
+      kvHoldsChatSession = false;
       if (aborted || signal?.aborted || engine !== context) return "";
 
       timer = setTimeout(() => {

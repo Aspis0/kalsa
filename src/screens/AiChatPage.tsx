@@ -59,7 +59,13 @@ import { isSafeHttpUrl } from "../util/url";
 import { isBenchCommand, tryHandleBenchCommand } from "../bench/benchConfig";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
 import { classifyChatContent, type ContentFilterReason } from "../domain/contentFilter";
-import { translateText } from "../engine/LlamaService";
+import {
+  getActiveModelId,
+  invalidateEngineSession,
+  saveEngineSession,
+  translateText,
+} from "../engine/LlamaService";
+import { historyHash } from "../engine/sessionPersistence";
 import { createStreamCoalescer } from "../engine/streamCoalescer";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
@@ -161,6 +167,14 @@ type StreamCallbacks = {
 
 type VoiceUiState = "idle" | "listening" | "transcribing";
 
+type SendStreamResult = {
+  /**
+   * Call after turn-end saveEngineSession settles so memory extract runs after
+   * the KV snapshot is on disk (extract clearCache's the chat KV).
+   */
+  afterSessionSave?: () => void;
+};
+
 type Props = {
   onSendStream?: (
     text: string,
@@ -168,7 +182,7 @@ type Props = {
     signal: AbortSignal,
     attachments?: LocalAttachment[],
     history?: unknown[],
-  ) => Promise<void>;
+  ) => Promise<SendStreamResult | void>;
   selectedRun?: AiChatSelectedRun | null;
   prefillText?: string | null;
   onClearSelectedRun?: () => void;
@@ -821,6 +835,8 @@ export function AiChatPage({
 
   // Background / inactive → cancel capture + invalidate pending transcription.
   // Also flush any in-flight assistant partial so a process kill can restore it.
+  // Native KV session save: `background` only (iOS `inactive` fires on Control
+  // Center / shade pulls — full saveSession is tens of MB and too expensive there).
   useEffect(() => {
     const onAppState = (next: AppStateStatus) => {
       if (next === "background" || next === "inactive") {
@@ -831,6 +847,24 @@ export function AiChatPage({
           )
         ) {
           persistMessagesNow(snap, { allowStreamingPartial: true });
+        }
+        // KV save + clean history overwrite only on true background + idle.
+        // While sending, keep the allowStreamingPartial payload above (pre-diff
+        // behavior) — a clean buildPersistableMessages would drop the partial.
+        if (next === "background" && !sendingRef.current) {
+          const modelId = getActiveModelId();
+          if (modelId) {
+            const clean = buildPersistableMessages(snap);
+            if (!clean.length) {
+              // Empty chat: drop stale session so next load stays cold-clean.
+              void invalidateEngineSession(modelId);
+            } else {
+              // Same JSON as HISTORY_KEY write so ensureEngine load hash matches.
+              const payload = JSON.stringify(clean);
+              AsyncStorage.setItem(HISTORY_KEY, payload).catch(() => undefined);
+              void saveEngineSession(modelId, historyHash(payload));
+            }
+          }
         }
         if (isCapturing() || voiceBusyRef.current || voiceUi !== "idle") {
           invalidateVoice();
@@ -1311,9 +1345,11 @@ export function AiChatPage({
         updateMessage(assistantId, { text: fullText, statusLabel: undefined });
       });
 
+      /** Memory extract deferred until after turn-end KV save (see AppShell). */
+      let afterSessionSave: (() => void) | undefined;
       try {
         if (onSendStream) {
-          await onSendStream(
+          const streamResult = await onSendStream(
             trimmed,
             {
               onDelta: (_delta, full) => {
@@ -1373,6 +1409,9 @@ export function AiChatPage({
             snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
             messages,
           );
+          if (streamResult && typeof streamResult === "object") {
+            afterSessionSave = streamResult.afterSessionSave;
+          }
         } else {
           updateMessage(assistantId, {
             streaming: false,
@@ -1468,12 +1507,52 @@ export function AiChatPage({
                 // onDelta lanes): runs at render after React applies the
                 // queued delta first — still the correct composed result.
                 persistMessagesNow(finalized);
+                // Turn-end order (FIFO): saveEngineSession FIRST, then memory
+                // extract. extractMemory clearCache's the chat KV and flips
+                // kvHoldsChatSession=false — if extract is queued first the
+                // save always skips (reason: kv_not_chat). Fire-and-forget so
+                // the UI is not blocked; gates (runId, memory, non-empty reply)
+                // live inside afterSessionSave / scheduleMemoryExtract.
+                {
+                  const mid = getActiveModelId();
+                  const runAfterSave = afterSessionSave;
+                  if (mid) {
+                    const payload = JSON.stringify(buildPersistableMessages(finalized));
+                    void (async () => {
+                      try {
+                        await saveEngineSession(mid, historyHash(payload));
+                      } finally {
+                        if (sendRunIdRef.current === runId) {
+                          runAfterSave?.();
+                        }
+                      }
+                    })();
+                  } else if (sendRunIdRef.current === runId) {
+                    runAfterSave?.();
+                  }
+                }
                 return finalized;
               });
             } else if (sendRunIdRef.current === runId) {
               const next = applyFinalize(messagesRef.current);
               messagesRef.current = next;
               persistMessagesNow(next);
+              const mid = getActiveModelId();
+              const runAfterSave = afterSessionSave;
+              if (mid) {
+                const payload = JSON.stringify(buildPersistableMessages(next));
+                void (async () => {
+                  try {
+                    await saveEngineSession(mid, historyHash(payload));
+                  } finally {
+                    if (sendRunIdRef.current === runId) {
+                      runAfterSave?.();
+                    }
+                  }
+                })();
+              } else {
+                runAfterSave?.();
+              }
             }
           }
         }
@@ -1612,6 +1691,9 @@ export function AiChatPage({
     setTranslationResult(null);
     setCopiedFlash(false);
     AsyncStorage.removeItem(HISTORY_KEY).catch(() => undefined);
+    // Drop native KV so a restored empty chat cannot reuse stale prefill.
+    const activeId = getActiveModelId();
+    if (activeId) void invalidateEngineSession(activeId);
   }, []);
 
   /** Open message action sheet (Copy + Translate + Read aloud). No-op while streaming / engine busy. */

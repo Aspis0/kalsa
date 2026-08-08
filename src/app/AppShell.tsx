@@ -25,12 +25,14 @@ import {
   extractMemory,
   getActiveModelId,
   initEngine,
+  invalidateEngineSession,
   isEngineReady,
   streamAssistantTurn,
   summarizeConversation,
   type EngineMessage,
   type EngineTurnOptions,
 } from "../engine/LlamaService";
+import { computePromptEnvHash, historyHash } from "../engine/sessionPersistence";
 import { getSpeculativeOverride } from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import {
@@ -739,6 +741,29 @@ export function AppShell() {
         catalogCtx: model.engineCtx,
       });
       const speculativeOverride = await getSpeculativeOverride();
+      // Hash exact HISTORY_KEY payload so save (JSON.stringify(clean)) matches load.
+      let sessionHistoryHash = historyHash("[]");
+      try {
+        const raw = await AsyncStorage.getItem("kalsa.messages.v1");
+        if (raw) sessionHistoryHash = historyHash(raw);
+      } catch {
+        // cold start without history is fine
+      }
+      // Same memoryFacts slice the system prompt uses (newest 10, or [] if off).
+      let sessionPromptEnvHash = computePromptEnvHash(locale, []);
+      try {
+        const enabled = await MemoryStore.getEnabled();
+        if (enabled) {
+          const facts = await MemoryStore.listFacts();
+          sessionPromptEnvHash = computePromptEnvHash(
+            locale,
+            facts.map((f) => f.text).slice(-10),
+          );
+        }
+      } catch {
+        // empty facts → match disabled / cold
+      }
+      if (!stillCurrent()) return false;
       await initEngine(modelLocalPath(model, model.file), model.id, {
         mmprojPath,
         nCtx: profile.nCtx,
@@ -747,6 +772,10 @@ export function AppShell() {
         kvUnified: model.kvUnified,
         mtpNMax: model.mtp?.nMax,
         speculativeOverride,
+        sessionRestore: {
+          historyHash: sessionHistoryHash,
+          promptEnvHash: sessionPromptEnvHash,
+        },
         locale,
       });
       if (!stillCurrent()) return false;
@@ -780,6 +809,12 @@ export function AppShell() {
       }
       if (nextIndex < 0 || nextIndex >= MODEL_REGISTRY.length) return;
       if (nextIndex === modelIndex) return;
+
+      // Single-file policy: drop the previous model's session artifacts on switch.
+      // A successful save also runs deleteOtherModelSessions — only one model's
+      // .kvs is kept at a time, so switch-back is always a cold start.
+      const prevId = MODEL_REGISTRY[modelIndex]?.id;
+      if (prevId) void invalidateEngineSession(prevId);
 
       // Sync transition: bump generation + show checking before dispose awaits.
       modelSwitchInFlightRef.current = true;
@@ -920,6 +955,27 @@ export function AppShell() {
         catalogCtx: model.engineCtx,
       });
       const speculativeOverride = await getSpeculativeOverride();
+      let sessionHistoryHash = historyHash("[]");
+      try {
+        const raw = await AsyncStorage.getItem("kalsa.messages.v1");
+        if (raw) sessionHistoryHash = historyHash(raw);
+      } catch {
+        // ignore
+      }
+      let sessionPromptEnvHash = computePromptEnvHash(locale, []);
+      try {
+        const enabled = await MemoryStore.getEnabled();
+        if (enabled) {
+          const facts = await MemoryStore.listFacts();
+          sessionPromptEnvHash = computePromptEnvHash(
+            locale,
+            facts.map((f) => f.text).slice(-10),
+          );
+        }
+      } catch {
+        // empty facts → match disabled / cold
+      }
+      if (!stillCurrent()) return;
       await initEngine(outcome.model.uri, model.id, {
         mmprojPath,
         nCtx: profile.nCtx,
@@ -928,6 +984,10 @@ export function AppShell() {
         kvUnified: model.kvUnified,
         mtpNMax: model.mtp?.nMax,
         speculativeOverride,
+        sessionRestore: {
+          historyHash: sessionHistoryHash,
+          promptEnvHash: sessionPromptEnvHash,
+        },
         locale,
       });
       if (!stillCurrent()) return;
@@ -1105,16 +1165,29 @@ export function AppShell() {
     [locale, showNotice],
   );
 
+  /**
+   * Stream a chat turn. Resolves with `afterSessionSave` so the UI can run
+   * turn-end KV save first, then schedule memory extract (extract clearCache's
+   * the chat KV — save must win the FIFO).
+   */
   const handleSendStream = useCallback(
-    (text: string, callbacks: any, signal: AbortSignal, attachments?: LocalAttachment[], history?: unknown[]) =>
-      new Promise<void>((resolve) => {
+    (
+      text: string,
+      callbacks: any,
+      signal: AbortSignal,
+      attachments?: LocalAttachment[],
+      history?: unknown[],
+    ) =>
+      new Promise<{ afterSessionSave?: () => void }>((resolve) => {
         let settled = false;
+        /** Deferred extract hook — set once scheduleMemoryExtract is defined. */
+        let afterSessionSave: (() => void) | undefined;
         const finish = () => {
           if (settled) return;
           settled = true;
           streamInFlightRef.current = false;
           setStreaming(false);
-          resolve();
+          resolve(afterSessionSave ? { afterSessionSave } : {});
         };
         const fail = (message: string) => {
           callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
@@ -1133,10 +1206,19 @@ export function AppShell() {
           let compactionFollowupScheduled = false;
 
           /**
-           * Register extract job BEFORE finish() resolves the turn.
-           * Otherwise a concurrent next turn can start while the ref is still null.
+           * Turn-end order (must preserve for KV save effectiveness):
+           *   1) armMemoryExtract at onDone — registers memoryExtractRef so a
+           *      concurrent next send waits, but does NOT yet queue extractMemory
+           *   2) AiChatPage awaits saveEngineSession (FIFO)
+           *   3) afterSessionSave releases the save-gate → extractMemory runs
+           *
+           * extractMemory clearCache's the chat KV (kvHoldsChatSession=false).
+           * If extract were queued before save, save would always skip with
+           * reason kv_not_chat. Gates: memory enabled, non-empty reply, not
+           * aborted/failed, sendRunId (AiChatPage).
            */
-          const scheduleMemoryExtract = () => {
+          let releaseSaveGate: (() => void) | undefined;
+          const armMemoryExtract = () => {
             if (extractScheduled) return;
             extractScheduled = true;
             if (signal.aborted || turnFailed || !assistantFull.trim()) return;
@@ -1145,8 +1227,28 @@ export function AppShell() {
             const capturedUser = text;
             const startEpoch = MemoryStore.getEpoch();
 
+            const saveGate = new Promise<void>((resolve) => {
+              releaseSaveGate = resolve;
+            });
+            // clearChat/stop aborts the signal — release so we never hang the ref.
+            const onAbortRelease = () => {
+              releaseSaveGate?.();
+            };
+            signal.addEventListener("abort", onAbortRelease, { once: true });
+            // Safety valve (re-verify finding 1c): if NO path releases the gate
+            // (rapid re-send inside the save window, a skipped save branch, a
+            // Fabric-lane ordering glitch), the extract must still run — a
+            // stranded gate keeps memoryExtractRef set and DEADLOCKS the next
+            // send. Worst case of firing early: the save skips with
+            // kv_not_chat, which is the pre-feature behavior, never a hang.
+            const gateTimeoutId = setTimeout(() => {
+              releaseSaveGate?.();
+            }, 10_000);
+
             const extractJob = (async () => {
               try {
+                await saveGate;
+                if (signal.aborted || turnFailed) return;
                 if (!(await MemoryStore.getEnabled())) return;
                 if (MemoryStore.getEpoch() !== startEpoch) return;
 
@@ -1172,6 +1274,13 @@ export function AppShell() {
                 }
               } catch {
                 // ignore — extraction must never surface to the user
+              } finally {
+                clearTimeout(gateTimeoutId);
+                try {
+                  signal.removeEventListener("abort", onAbortRelease);
+                } catch {
+                  // ignore
+                }
               }
             })();
 
@@ -1181,6 +1290,19 @@ export function AppShell() {
                 memoryExtractRef.current = null;
               }
             });
+          };
+          // AiChatPage: await saveEngineSession → afterSessionSave() (releases gate).
+          afterSessionSave = () => {
+            const release = releaseSaveGate;
+            if (release) {
+              release();
+              return;
+            }
+            // Fallback if arm ran without a gate (empty/aborted) or ordering glitch:
+            // arm now and release immediately so extract is not silently dropped.
+            armMemoryExtract();
+            const releaseAfterArm = releaseSaveGate;
+            if (releaseAfterArm) releaseAfterArm();
           };
 
           try {
@@ -1495,8 +1617,9 @@ export function AppShell() {
                 onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
                 onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
                 onDone: () => {
-                  // Register extract BEFORE unlocking the turn for the next message.
-                  scheduleMemoryExtract();
+                  // Arm extract (memoryExtractRef) before unlocking; gate opens
+                  // only after AiChatPage's turn-end save settles.
+                  armMemoryExtract();
                   scheduleCompactionFollowup();
                   finish();
                 },
@@ -1524,7 +1647,8 @@ export function AppShell() {
               },
             );
             // Safety: if the stream returns without onDone/onError (e.g. abort path).
-            scheduleMemoryExtract();
+            // Arm extract (no-ops if aborted/empty); gate opens post-save.
+            armMemoryExtract();
             scheduleCompactionFollowup();
             finish();
           } catch (error) {
