@@ -1024,6 +1024,61 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-08 — 🎯 E1 SCOPERCHIATA: i 19 GiB di spreco sono UN DEFAULT di llama.cpp, e il fix
+  è una riga (o ~20 fatte bene). Diagnosi in sola lettura, nessun file toccato.**
+
+  ### La causa
+
+  ```cpp
+  // third_party/llama.cpp/src/llama-model.cpp:1506
+  ml.init_mappings(true, use_mlock ? &pimpl->mlock_mmaps : nullptr);
+  //               ^^^^ prefetch — default true in llama-model-loader.h:189
+  ```
+
+  `init_mappings(prefetch=true)` fa **`MAP_POPULATE` + `MADV_WILLNEED` sull'intero file**, e il
+  percorso di load lo chiama **sempre** così. L'unica chiamata con `prefetch=false` in tutto
+  l'albero è in **quantizzazione** (`llama-quant.cpp:885`), non nel runtime.
+
+  **E nessun parametro pubblico lo disattiva**: `llama_model_params` (`llama.h:324-327`) espone
+  solo `use_mmap`, `use_direct_io`, `use_mlock`, `check_tensors`. Non era il flag gratis che
+  speravo — è un default cablato.
+
+  **Per noi è spreco integrale**: con `--moe-stream` gli esperti si leggono via O_DIRECT quando
+  servono, e con `--dense-weights anon` il trunk denso viene **copiato fuori** dall'mmap. Il
+  prefault dell'intero GGUF non serve a nulla di ciò che facciamo — riempie la page cache con
+  9 GiB di esperti che poi rilasciamo (`dropped 1662 MiB of now-unused mmap pages`).
+
+  ### Il fix
+
+  | | |
+  |---|---|
+  | minimo | `init_mappings(false, …)` — **1 riga**, ma cambia il comportamento per tutti |
+  | corretto | campo `mmap_prefetch` in `llama_model_params` (default `true` per compat) → propagato a `init_mappings` → messo a `false` in `session.cpp` **solo se `--moe-stream`** — **~15-30 righe** |
+  | effetto atteso | load I/O **20.76 GiB → ~4-5 GiB**, tempo **19.6 s → ~4-5 s** |
+  | per arrivare a ~2.6 s | serve anche il **fix secondario**: con `anon` il dense è letto due volte (fault + O_DIRECT). Mitigazione: `memcpy` dalle pagine mmap già residenti invece di rileggere — ~20-40 righe in `dense_weights.cpp` |
+  | decode | **non toccato** |
+  | rischio | un load *senza* streaming che contava sul populate per nascondere i fault dentro `load_seconds` li vedrebbe spostati al primo token. Con `--moe-stream` è **esattamente il comportamento voluto** |
+  | vincolo di processo | la modifica è **nel submodule** ⇒ patch sul fork `Helldez/llama.cpp` + bump, **non** patch silenziosa in-tree |
+
+  ### Tre finte soluzioni, escluse con motivazione
+
+  - **`use_mmap=false`** → materializza **tutto** in RAM: peggio.
+  - **`use_direct_io` sul model load** → disabilita l'mmap (`llama-model-loader.cpp:565-568`):
+    stesso esito.
+  - **`--dense-weights mmap` da solo** → toglie i 1.62 GiB del secondo passaggio, **lascia i
+    19 GiB di fault**, e regredisce la residenza dense in decode oltre-RAM.
+
+  ### Perché questa voce vale più di tutte le altre
+
+  È **la stessa causa di tre problemi** che avevamo trattato come distinti: ~17 s di TTFT su 28,
+  il picco termico a **92 °C** (il momento più caldo della sessione è il *caricamento*, non la
+  generazione), e la fragilità di memoria che ha prodotto la **cascata OOM di 10 processi**.
+  Un fix da ~20 righe, senza costo di qualità, che tocca tutti e tre.
+
+  **Gate di accettazione, non negoziabile:** ri-superare la non-regressione **8/8 output
+  byte-identici** contro i riferimenti k=8. A `temp 0` su questo stack gli output sono
+  bit-identici (dimostrato in F5.4-D1), quindi **una sola differenza è un difetto, non rumore**.
+
 - **2026-08-08 — ⚫ LA SCALA k È ANNIENTATA. E il metro appena costruito rivela il proprio
   limite: misura il MODELLO, non le decisioni del runtime in decode.**
 
