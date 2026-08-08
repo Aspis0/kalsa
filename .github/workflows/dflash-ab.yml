@@ -1,0 +1,175 @@
+name: DFlash vs MTP A/B (manual)
+
+# Manual-only measurement: one emulator session, Qwen3.5-4B, two configs
+# sequentially (MTP control then DFlash draft) on the same install.
+# Never fails on a slow verdict — only on install/Ready/telemetry absence.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: dflash-ab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dflash-ab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Typecheck + logic harnesses
+        run: |
+          npm run typecheck
+          node scripts/retrieverHarness.mjs
+          node scripts/compactorHarness.mjs
+          node scripts/retrievalLoopHarness.mjs
+          node scripts/htmlToTextHarness.mjs
+          node scripts/pdfTextHarness.mjs
+          node scripts/pdfBridgeHarness.mjs
+          node scripts/pdfTextServiceHarness.mjs
+          node scripts/webFetchHarness.mjs
+          node scripts/toolSourceLedgerHarness.mjs
+          node scripts/base64Harness.mjs
+          node scripts/pdfCacheFsHarness.mjs
+          node scripts/longChatEstimateHarness.mjs
+          node scripts/thinkStripperHarness.mjs
+          node scripts/streamCoalescerHarness.mjs
+          node scripts/turnTelemetryHarness.mjs
+          node scripts/webFetchPdfMutationMatrix.mjs
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc /usr/local/share/boost || true
+          df -h /
+
+      - name: Prebuild (CNG)
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build APK (x86_64 only — emulator ABI, keeps CI fast)
+        run: |
+          cd android
+          ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --console=plain
+          ls -la app/build/outputs/apk/release/
+
+      # Qwen3.5-4B-Q4_K_M from ModelRegistry (unsloth/Qwen3.5-4B-MTP-GGUF,
+      # revision 86835bf…, sizeBytes 2834975040). Only model with a DFlash draft.
+      - name: Download GGUF model (Qwen3.5-4B)
+        run: |
+          set -euo pipefail
+          URL="https://huggingface.co/unsloth/Qwen3.5-4B-MTP-GGUF/resolve/86835bf9949e4d14d6860f7910b1340ad4f271a9/Qwen3.5-4B-Q4_K_M.gguf?download=true"
+          echo "MODEL_FILE=Qwen3.5-4B-Q4_K_M.gguf" >> "$GITHUB_ENV"
+          echo "MODEL_DIR=qwen3.5-4b" >> "$GITHUB_ENV"
+          curl -sL -o model.gguf "$URL"
+          ls -la model.gguf
+          SZ=$(stat -c%s model.gguf)
+          EXPECTED=2834975040
+          if [ "$SZ" != "$EXPECTED" ]; then
+            echo "FATAL: model size $SZ != ModelRegistry sizeBytes $EXPECTED"
+            exit 1
+          fi
+
+      # Discover the exact .gguf under AtomicChat/Qwen3.5-4B-DFlash-GGUF (do not
+      # hardcode — HF may rename quant labels). Fail if zero or multiple.
+      - name: Resolve DFlash draft filename
+        id: draft
+        run: |
+          set -euo pipefail
+          TREE=$(curl -sS "https://huggingface.co/api/models/AtomicChat/Qwen3.5-4B-DFlash-GGUF/tree/main")
+          mapfile -t FILES < <(printf '%s' "$TREE" | node -e '
+            let d=""; process.stdin.on("data",c=>d+=c); process.stdin.on("end",()=>{
+              const arr=JSON.parse(d);
+              const ggufs=arr.filter(e=>e.type==="file" && typeof e.path==="string" && e.path.endsWith(".gguf")).map(e=>e.path);
+              for (const p of ggufs) process.stdout.write(p+"\n");
+            });
+          ')
+          N=${#FILES[@]}
+          if [ "$N" -eq 0 ]; then
+            echo "FATAL: no .gguf in AtomicChat/Qwen3.5-4B-DFlash-GGUF/tree/main"
+            echo "$TREE" | head -c 2000
+            exit 1
+          fi
+          if [ "$N" -gt 1 ]; then
+            echo "FATAL: ambiguous DFlash draft — expected exactly one .gguf, got $N:"
+            printf '  %s\n' "${FILES[@]}"
+            exit 1
+          fi
+          DRAFT_FILE="${FILES[0]}"
+          echo "DRAFT_FILE=$DRAFT_FILE" >> "$GITHUB_ENV"
+          echo "file=$DRAFT_FILE" >> "$GITHUB_OUTPUT"
+          echo "Resolved DFlash draft: $DRAFT_FILE"
+
+      - name: Cache DFlash draft GGUF
+        id: cache-draft
+        uses: actions/cache@v4
+        with:
+          path: draft.gguf
+          key: dflash-draft-${{ steps.draft.outputs.file }}
+
+      - name: Download DFlash draft
+        if: steps.cache-draft.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          URL="https://huggingface.co/AtomicChat/Qwen3.5-4B-DFlash-GGUF/resolve/main/${DRAFT_FILE}"
+          echo "Downloading $URL"
+          curl -sL -o draft.gguf "$URL"
+          ls -la draft.gguf
+          SZ=$(stat -c%s draft.gguf)
+          if [ "$SZ" -lt 1000000 ]; then
+            echo "FATAL: draft.gguf too small ($SZ bytes) — download failed?"
+            exit 1
+          fi
+
+      - name: Verify draft present
+        run: |
+          set -euo pipefail
+          [ -f draft.gguf ] || { echo "FATAL: draft.gguf missing after cache/download"; exit 1; }
+          ls -la draft.gguf
+          echo "DRAFT_HOST_SIZE=$(stat -c%s draft.gguf)" >> "$GITHUB_ENV"
+
+      - name: Run DFlash A/B on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          # API 35: minSdkVersion 35 (Android 15+ ship policy) — same as e2e.
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          cores: 4
+          ram-size: 8192M
+          disk-size: 8192M
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: bash scripts/ci-dflash-ab.sh
+        env:
+          THINKING: "off"
+          MODEL_FILE: ${{ env.MODEL_FILE }}
+          MODEL_DIR: ${{ env.MODEL_DIR }}
+          DRAFT_FILE: ${{ env.DRAFT_FILE }}
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dflash-ab-evidence
+          path: |
+            dflash-ab-out/**
+          if-no-files-found: warn
