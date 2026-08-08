@@ -113,28 +113,17 @@ set_base_prefs() {
 }
 
 wait_ready() {
-  # Engine load of 4B (2.8GB) + mmproj (0.67GB) on the CI AVD is SLOW: run
-  # 31230993302 proved 10 min is not enough (bundle accepted, engine still
-  # loading or dying). 25 min ceiling; on failure dump native logcat so the
-  # next diagnosis has llama.cpp's own words (load progress vs lmkd death).
-  local label="$1" i
-  log "waiting for Ready ($label)"
-  for i in $(seq 1 100); do
-    sleep 15
-    if dump_ui | grep -qE 'text="Ready|content-desc="Ready|text="Pronto'; then
-      log "Ready after ~$((i * 15))s ($label)"
-      shot "ready_${label}"
-      ui_texts > "$OUT/ready_${label}.txt"
-      return 0
-    fi
-    log "ready poll $i ($label): not yet"
-  done
-  ui_texts > "$OUT/ready_fail_${label}.txt"
-  shot "ready_fail_${label}"
-  adb logcat -d | grep -iE "RNLlama|llama|lmkd|lowmemorykiller|am_kill|FATAL" | tail -120 \
-    > "$OUT/ready_fail_${label}_logcat.txt" 2>/dev/null || true
-  adb shell dumpsys meminfo "$PKG" 2>/dev/null | head -40 > "$OUT/ready_fail_${label}_meminfo.txt" || true
-  die "app did not reach Ready ($label) within ~25 min"
+  # Engine load is LAZY: it starts on the first SEND, not at app launch — an
+  # idle app never shows "Ready" (run 31232372791: stuck at "Downloaded",
+  # native heap 31MB, zero llama logcat: nothing was ever asked to load; the
+  # 2B e2e works precisely because it sends first and its reply poll absorbs
+  # the load). So: settle briefly, then let run_two_turns trigger the load;
+  # the turn-1 poll ceiling covers 4B load+prefill on the AVD.
+  local label="$1"
+  log "settle before first send ($label) — engine loads lazily on send"
+  sleep 20
+  shot "presend_${label}"
+  ui_texts > "$OUT/presend_${label}.txt"
 }
 
 force_stop_relaunch() {
@@ -180,7 +169,9 @@ run_turn() {
 
   reply=""
   poll_prefix="${tag}_poll"
-  for i in $(seq 1 60); do
+  # 120×15s = 30 min ceiling: turn 1 pays lazy engine load (4B 2.8GB + mmproj)
+  # PLUS prefill on the AVD; turn 2 finishes early and just exits the loop.
+  for i in $(seq 1 120); do
     sleep 15
     ui_texts > "$OUT/${poll_prefix}_$i.txt"
     shot "${poll_prefix}_$i" 2>/dev/null
