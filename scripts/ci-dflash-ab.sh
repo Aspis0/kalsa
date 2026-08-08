@@ -100,6 +100,29 @@ seed_kv() {
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('$key','$esc');"
 }
 
+# JSON-safe seeding: sql() wraps the statement in shell double quotes, which EAT
+# the JSON's own double quotes — the stored value became {type:none} (invalid
+# JSON), JSON.parse failed, the knob fell back to production MTP, and EVERY
+# "dflash" arm to date silently ran MTP (prefs_dflash.txt evidence, runs up to
+# 31269775645). Host-side SQL file + adb push, same pattern as ci-screens.
+seed_kv_json() {
+  local key="$1" value="$2"
+  local sql_file="$OUT/_seed.sql"
+  printf '%s' "$value" > "$OUT/_seed_val.json"
+  node -e 'const fs=require("fs");const key=process.argv[1];const val=fs.readFileSync(process.argv[2],"utf8");const esc=val.replace(/\x27/g,"\x27\x27");fs.writeFileSync(process.argv[3],"INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES (\x27"+key+"\x27,\x27"+esc+"\x27);\n");' \
+    "$key" "$OUT/_seed_val.json" "$sql_file"
+  adb push "$sql_file" /data/local/tmp/kalsa_seed.sql >/dev/null 2>&1
+  adb shell "sqlite3 $DB < /data/local/tmp/kalsa_seed.sql" 2>&1 | tr -d '\r' || true
+}
+
+# Fail-closed seed verify: the stored value must round-trip as the EXACT JSON.
+verify_seed_json() {
+  local key="$1" expect_sub="$2" out_file="$3"
+  sql "SELECT key,value FROM catalystLocalStorage WHERE key='$key';" | tee "$out_file"
+  grep -qF "$expect_sub" "$out_file" \
+    || die "seed for $key did not land verbatim (expected substring: $expect_sub)"
+}
+
 clear_speculative() {
   sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.speculative';" || true
 }
@@ -325,12 +348,9 @@ sleep 3
 sql "CREATE TABLE IF NOT EXISTS catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL);" \
   | tee "$OUT/seed_table_create.txt"
 set_base_prefs
-SEED_OUT=$(seed_kv "kalsa.bench.speculative" '{"type":"none"}')
-# Fail-closed: a baseline without its seed is silent garbage science.
-sql "SELECT key,value FROM catalystLocalStorage WHERE key='kalsa.bench.speculative';" \
-  | tee "$OUT/prefs_none.txt"
-grep -q '"type":"none"' "$OUT/prefs_none.txt" \
-  || die "baseline seed did not land (kalsa.bench.speculative missing; insert said: ${SEED_OUT:-<empty>}; tables: $(sql '.tables'))"
+seed_kv_json "kalsa.bench.speculative" '{"type":"none"}'
+# Fail-closed: a baseline without its VERBATIM seed is silent garbage science.
+verify_seed_json "kalsa.bench.speculative" '"type":"none"' "$OUT/prefs_none.txt"
 force_stop_relaunch
 wait_ready "none"
 run_two_turns "none"
@@ -366,9 +386,10 @@ adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
 sleep 2
 reset_chat
 set_base_prefs
-seed_kv "kalsa.bench.speculative" "$SPEC_JSON"
-sql "SELECT key,substr(value,1,120) FROM catalystLocalStorage WHERE key='kalsa.bench.speculative';" \
-  | tee "$OUT/prefs_dflash.txt"
+seed_kv_json "kalsa.bench.speculative" "$SPEC_JSON"
+# Fail-closed on the dflash arm too — the quoting bug ran every prior "dflash"
+# arm as silent MTP; an arm that cannot prove its own config must die loudly.
+verify_seed_json "kalsa.bench.speculative" '"type":"draft-dflash"' "$OUT/prefs_dflash.txt"
 # Relaunch so LlamaService re-reads the override at init (idempotence fingerprint).
 force_stop_relaunch
 wait_ready "dflash"
