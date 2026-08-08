@@ -1,0 +1,58 @@
+[2026-08-08T03:00:23-0400] F5.6 scale start (priority k6,k4,k5; drop BLOCKED)
+8f7042252f01642bddfaa80278012f8f68345498f411cbb851d3f6ca587d2cb2  /data/data/com.termux/files/home/experiments/results/f5.6/corpus/mixed_it.part1.txt
+5c95cb5fe2cc97f3b7a0ae4245ccca4975236b2a29f1be393d9e33ca055f059d  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+[2026-08-08T03:00:23-0400] corpus bytes=105125
+[2026-08-08T03:00:25-0400] prestart OK die=46.1C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=352536 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T03:00:46-04:00
+[2026-08-08T03:00:46-0400] START k6 die_s=46.2C extra=[--n-expert-used 6]
+[2026-08-08T04:32:40-0400] END k6 rc=0 die_s=46.2 die_e=59.3
+/data/data/com.termux/files/home/experiments/results/f5.6/k6/stdout:BMOE_PPL {"n_tokens":34012,"n_scored":34003,"sum_logprob":-42567.63854530,"ppl":3.496907,"seconds":5492.699,"cancelled":false,"file":"/data/data/com.termux/files/home/experiments/results/f5.6/corpus/mixed_it.part1.txt"}
+/data/data/com.termux/files/home/experiments/results/f5.6/k6/stderr:ppl: n_tokens=34012 n_ctx=4096 batch=16 moe=1
+/data/data/com.termux/files/home/experiments/results/f5.6/k6/stderr:ppl: scored 4095 / 34011 tokens (sum_logprob=-3630.1292)
+/data/data/com.termux/files/home/experiments/results/f5.6/k6/stderr:ppl: scored 8190 / 34011 tokens (sum_logprob=-8167.5284)
+/data/data/com.termux/files/home/experiments/results/f5.6/k6/stderr:ppl: scored 12285 / 34011 tokens (sum_logprob=-13011.5799)
+/data/data/com.termux/files/home/experiments/results/f5.6/k6/stderr:ppl: scored 16380 / 34011 tokens (sum_logprob=-18209.7023)
+/data/data/com.termux/files/home/experiments/results/f5.6/k6/stderr:ppl: scored 20475 / 34011 tokens (sum_logprob=-23665.6244)
+/data/data/com.termux/files/home/experiments/results/f5.6/k6/stderr:ppl: scored 24570 / 34011 tokens (sum_logprob=-29245.6016)
+/data/data/com.termux/files/home/experiments/results/f5.6/k6/stderr:ppl: scored 28665 / 34011 tokens (sum_logprob=-34756.5687)
+/data/data/com.termux/files/home/experiments/results/f5.6/k6/stderr:ppl: scored 32760 / 34011 tokens (sum_logprob=-40589.4379)
+/data/data/com.termux/files/home/experiments/results/f5.6/k6/stderr:ppl: scored 34003 / 34011 tokens (sum_logprob=-42567.6385)
+[2026-08-08T04:35:17-0400] F5.6 scale REST start (k4, k5; k6 already done)
+8f7042252f01642bddfaa80278012f8f68345498f411cbb851d3f6ca587d2cb2  /data/data/com.termux/files/home/experiments/results/f5.6/corpus/mixed_it.part1.txt
+5c95cb5fe2cc97f3b7a0ae4245ccca4975236b2a29f1be393d9e33ca055f059d  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+[2026-08-08T04:35:19-0400] prestart OK die=48.9C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=174669 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T04:35:46-04:00
+[2026-08-08T04:35:46-0400] START k4 die_s=49.0C extra=[--n-expert-used 4]
+[2026-08-08T05:58:10-0400] END k4 rc=0 die_s=49.0 die_e=57.7
+/data/data/com.termux/files/home/experiments/results/f5.6/k4/stdout:BMOE_PPL {"n_tokens":34012,"n_scored":34003,"sum_logprob":-77756.96212678,"ppl":9.843070,"seconds":4921.470,"cancelled":false,"file":"/data/data/com.termux/files/home/experiments/results/f5.6/corpus/mixed_it.part1.txt"}
+/data/data/com.termux/files/home/experiments/results/f5.6/k4/stderr:ppl: n_tokens=34012 n_ctx=4096 batch=16 moe=1
+/data/data/com.termux/files/home/experiments/results/f5.6/k4/stderr:ppl: scored 4095 / 34011 tokens (sum_logprob=-7724.3309)
+/data/data/com.termux/files/home/experiments/results/f5.6/k4/stderr:ppl: scored 8190 / 34011 tokens (sum_logprob=-16423.0585)
+/data/data/com.termux/files/home/experiments/results/f5.6/k4/stderr:ppl: scored 12285 / 34011 tokens (sum_logprob=-25505.8899)
+/data/data/com.termux/files/home/experiments/results/f5.6/k4/stderr:ppl: scored 16380 / 34011 tokens (sum_logprob=-34918.7521)
+/data/data/com.termux/files/home/experiments/results/f5.6/k4/stderr:ppl: scored 20475 / 34011 tokens (sum_logprob=-44721.5376)
+/data/data/com.termux/files/home/experiments/results/f5.6/k4/stderr:ppl: scored 24570 / 34011 tokens (sum_logprob=-54560.5280)
+/data/data/com.termux/files/home/experiments/results/f5.6/k4/stderr:ppl: scored 28665 / 34011 tokens (sum_logprob=-64338.3639)
+/data/data/com.termux/files/home/experiments/results/f5.6/k4/stderr:ppl: scored 32760 / 34011 tokens (sum_logprob=-74463.9300)
+/data/data/com.termux/files/home/experiments/results/f5.6/k4/stderr:ppl: scored 34003 / 34011 tokens (sum_logprob=-77756.9621)
+[2026-08-08T05:58:10-0400] COMPLETE k4 ppl ok
+[2026-08-08T05:58:44-0400] prestart OK die=48.1C nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=230893 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T05:59:10-04:00
+[2026-08-08T05:59:10-0400] START k5 die_s=47.3C extra=[--n-expert-used 5]
+[2026-08-08T07:29:08-0400] END k5 rc=0 die_s=47.3 die_e=56.9
+/data/data/com.termux/files/home/experiments/results/f5.6/k5/stdout:BMOE_PPL {"n_tokens":34012,"n_scored":34003,"sum_logprob":-55512.88647594,"ppl":5.117100,"seconds":5374.081,"cancelled":false,"file":"/data/data/com.termux/files/home/experiments/results/f5.6/corpus/mixed_it.part1.txt"}
+/data/data/com.termux/files/home/experiments/results/f5.6/k5/stderr:ppl: n_tokens=34012 n_ctx=4096 batch=16 moe=1
+/data/data/com.termux/files/home/experiments/results/f5.6/k5/stderr:ppl: scored 4095 / 34011 tokens (sum_logprob=-4988.3266)
+/data/data/com.termux/files/home/experiments/results/f5.6/k5/stderr:ppl: scored 8190 / 34011 tokens (sum_logprob=-10963.0830)
+/data/data/com.termux/files/home/experiments/results/f5.6/k5/stderr:ppl: scored 12285 / 34011 tokens (sum_logprob=-17559.8620)
+/data/data/com.termux/files/home/experiments/results/f5.6/k5/stderr:ppl: scored 16380 / 34011 tokens (sum_logprob=-24437.6274)
+/data/data/com.termux/files/home/experiments/results/f5.6/k5/stderr:ppl: scored 20475 / 34011 tokens (sum_logprob=-31461.6117)
+/data/data/com.termux/files/home/experiments/results/f5.6/k5/stderr:ppl: scored 24570 / 34011 tokens (sum_logprob=-38642.7449)
+/data/data/com.termux/files/home/experiments/results/f5.6/k5/stderr:ppl: scored 28665 / 34011 tokens (sum_logprob=-45573.1424)
+/data/data/com.termux/files/home/experiments/results/f5.6/k5/stderr:ppl: scored 32760 / 34011 tokens (sum_logprob=-53013.7023)
+/data/data/com.termux/files/home/experiments/results/f5.6/k5/stderr:ppl: scored 34003 / 34011 tokens (sum_logprob=-55512.8865)
+[2026-08-08T07:29:08-0400] COMPLETE k5 ppl ok
+[2026-08-08T07:29:38-0400] ALL DONE

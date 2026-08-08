@@ -1,0 +1,23 @@
+{
+  "k8": {
+    "n_tokens": 2405,
+    "n_scored": 2404,
+    "sum_logprob": -1533.06526122,
+    "ppl": 1.892151,
+    "seconds": 414.765,
+    "cancelled": false,
+    "file": "/data/data/com.termux/files/home/experiments/results/f5.6/corpus/short_2k.txt"
+  },
+  "k4": {
+    "n_tokens": 2405,
+    "n_scored": 2404,
+    "sum_logprob": -4460.21487745,
+    "ppl": 6.393812,
+    "seconds": 323.333,
+    "cancelled": false,
+    "file": "/data/data/com.termux/files/home/experiments/results/f5.6/corpus/short_2k.txt"
+  },
+  "delta_ppl_k4_minus_k8": 4.5016609999999995,
+  "same_to_4dp": false,
+  "verdict": "DIFFERS_FLAG_TOUCHES_PREFILL"
+}

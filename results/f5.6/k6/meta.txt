@@ -1,0 +1,4 @@
+rc=0
+die_start_mc=46200
+die_end_mc=59300
+extra=--n-expert-used 6

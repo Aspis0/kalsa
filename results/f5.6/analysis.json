@@ -1,0 +1,168 @@
+{
+  "phase": "F5.6",
+  "subset": "mixed_it.part1",
+  "n_scored": 34003,
+  "block_bootstrap": {
+    "block": 512,
+    "n_boot": 5000
+  },
+  "thresholds": {
+    "candidabile": "DeltaPPL <= 0.05",
+    "solo_con_lettura_umana": "0.05 < DeltaPPL <= 0.15",
+    "archiviata": "DeltaPPL > 0.15"
+  },
+  "k8_ppl": 2.5560041591024585,
+  "rows": [
+    {
+      "variant": "k8",
+      "k": 8,
+      "n_scored": 34003,
+      "ppl": 2.5560041591024585,
+      "delta_ppl_vs_k8": 0.0,
+      "boot": {
+        "n_blocks": 66,
+        "block": 512,
+        "n_boot": 5000,
+        "delta_ppl_point": 0.0,
+        "delta_ppl_boot_mean": 0.0,
+        "ci95_lo": 0.0,
+        "ci95_hi": 0.0
+      },
+      "hit_pct": 0.0,
+      "mib_tok_theoretical_frac": 1.0,
+      "traffic_saved_pct_theoretical": 0.0,
+      "cost_per_traffic_theoretical": null,
+      "mib_tok_f52_decode_ref": 47.52,
+      "traffic_saved_pct_f52_mib": 0.0,
+      "cost_per_traffic_f52_mib": null,
+      "verdict": "riferimento",
+      "n_degraded": 0
+    },
+    {
+      "variant": "k6",
+      "k": 6,
+      "n_scored": 34003,
+      "ppl": 3.496907159335262,
+      "delta_ppl_vs_k8": 0.9409030002328036,
+      "boot": {
+        "n_blocks": 66,
+        "block": 512,
+        "n_boot": 5000,
+        "delta_ppl_point": 0.9409030002328036,
+        "delta_ppl_boot_mean": 0.9403428675788915,
+        "ci95_lo": 0.8604666373668299,
+        "ci95_hi": 1.0178159725241989
+      },
+      "hit_pct": 0.0,
+      "mib_tok_theoretical_frac": 0.75,
+      "traffic_saved_pct_theoretical": 25.0,
+      "cost_per_traffic_theoretical": 0.03763612000931214,
+      "mib_tok_f52_decode_ref": 26.14,
+      "traffic_saved_pct_f52_mib": 44.99158249158249,
+      "cost_per_traffic_f52_mib": 0.02091286743267672,
+      "verdict": "archiviata",
+      "n_degraded": 3401
+    },
+    {
+      "variant": "k5",
+      "k": 5,
+      "n_scored": 34003,
+      "ppl": 5.117100158299747,
+      "delta_ppl_vs_k8": 2.561095999197289,
+      "boot": {
+        "n_blocks": 66,
+        "block": 512,
+        "n_boot": 5000,
+        "delta_ppl_point": 2.561095999197289,
+        "delta_ppl_boot_mean": 2.556181248699477,
+        "ci95_lo": 2.3724079676174434,
+        "ci95_hi": 2.7452272026839664
+      },
+      "hit_pct": 0.0,
+      "mib_tok_theoretical_frac": 0.625,
+      "traffic_saved_pct_theoretical": 37.5,
+      "cost_per_traffic_theoretical": 0.0682958933119277,
+      "mib_tok_f52_decode_ref": null,
+      "traffic_saved_pct_f52_mib": null,
+      "cost_per_traffic_f52_mib": null,
+      "verdict": "archiviata",
+      "n_degraded": 3401
+    },
+    {
+      "variant": "k4",
+      "k": 4,
+      "n_scored": 34003,
+      "ppl": 9.84307045683045,
+      "delta_ppl_vs_k8": 7.287066297727991,
+      "boot": {
+        "n_blocks": 66,
+        "block": 512,
+        "n_boot": 5000,
+        "delta_ppl_point": 7.287066297727991,
+        "delta_ppl_boot_mean": 7.275018550411908,
+        "ci95_lo": 6.837475157770653,
+        "ci95_hi": 7.725450122433338
+      },
+      "hit_pct": 0.0,
+      "mib_tok_theoretical_frac": 0.5,
+      "traffic_saved_pct_theoretical": 50.0,
+      "cost_per_traffic_theoretical": 0.14574132595455982,
+      "mib_tok_f52_decode_ref": 13.12,
+      "traffic_saved_pct_f52_mib": 72.39057239057239,
+      "cost_per_traffic_f52_mib": 0.1006631949034983,
+      "verdict": "archiviata",
+      "n_degraded": 3401
+    }
+  ],
+  "position_overlap": {
+    "q_worst": 0.9,
+    "pairs": [
+      {
+        "pair": "k6_vs_k5",
+        "jaccard": 0.32437694704049846,
+        "overlap_a_in_b": 0.4898559247280212,
+        "overlap_b_in_a": 0.4898559247280212,
+        "n_a": 3401,
+        "n_b": 3401,
+        "n_inter": 1666
+      },
+      {
+        "pair": "k6_vs_k4",
+        "jaccard": 0.21659810409586835,
+        "overlap_a_in_b": 0.35607174360482213,
+        "overlap_b_in_a": 0.35607174360482213,
+        "n_a": 3401,
+        "n_b": 3401,
+        "n_inter": 1211
+      },
+      {
+        "pair": "k5_vs_k4",
+        "jaccard": 0.29315589353612165,
+        "overlap_a_in_b": 0.45339605998235816,
+        "overlap_b_in_a": 0.45339605998235816,
+        "n_a": 3401,
+        "n_b": 3401,
+        "n_inter": 1542
+      }
+    ],
+    "triple_intersection_n": 856,
+    "triple_union_n": 6640,
+    "triple_jaccard": 0.12891566265060242,
+    "spearman_delta_lp": [
+      {
+        "pair": "k6_vs_k5",
+        "spearman_delta_lp": 0.578790115597419
+      },
+      {
+        "pair": "k6_vs_k4",
+        "spearman_delta_lp": 0.456792710392666
+      },
+      {
+        "pair": "k5_vs_k4",
+        "spearman_delta_lp": 0.6243509996678754
+      }
+    ],
+    "interpretation_guide": "High Jaccard / Spearman \u2192 degradation on SAME positions (true quality loss). Low / near-chance \u2192 different trajectories (noise)."
+  },
+  "drop_status": "BLOCKED (requires cache_mb>0; PPL path is prefill-phase, drop_prefill off)"
+}

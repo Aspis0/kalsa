@@ -1,0 +1,39 @@
+[2026-08-08T02:43:21-0400] PASSO0 start corpus=/data/data/com.termux/files/home/experiments/results/f5.6/corpus/short_2k.txt
+a1659a1e122c122d14a766461e571ffff2c937b4e4405a6ec9b6a8d1f931ee1e  /data/data/com.termux/files/home/experiments/results/f5.6/corpus/short_2k.txt
+5c95cb5fe2cc97f3b7a0ae4245ccca4975236b2a29f1be393d9e33ca055f059d  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+[2026-08-08T02:43:24-0400] wait die=84.3 nproc=6
+[2026-08-08T02:43:43-0400] prestart OK die=43.0 nproc=6
+[2026-08-08T02:43:46-0400] START k=8 die_s=43.0
+[2026-08-08T02:51:03-0400] END k=8 rc=0 die_e=58.1
+/data/data/com.termux/files/home/experiments/results/f5.6/passo0/k8/stdout:BMOE_PPL {"n_tokens":2405,"n_scored":2404,"sum_logprob":-1533.06526122,"ppl":1.892151,"seconds":414.765,"cancelled":false,"file":"/data/data/com.termux/files/home/experiments/results/f5.6/corpus/short_2k.txt"}
+/data/data/com.termux/files/home/experiments/results/f5.6/passo0/k8/stderr:ppl: n_tokens=2405 n_ctx=4096 batch=16 moe=1
+/data/data/com.termux/files/home/experiments/results/f5.6/passo0/k8/stderr:ppl: scored 2404 / 2404 tokens (sum_logprob=-1533.0653)
+load_tensors:   CPU_Mapped model buffer size = 10978.42 MiB
+llama_context:        CPU  output buffer size =     0.95 MiB
+llama_kv_cache:        CPU KV buffer size =    80.00 MiB
+llama_kv_cache: size =   80.00 MiB (  4096 cells,  10 layers,  1/1 seqs), K (f16):   40.00 MiB, V (f16):   40.00 MiB
+llama_memory_recurrent:        CPU RS buffer size =    62.81 MiB
+llama_memory_recurrent: size =   62.81 MiB (     1 cells,  40 layers,  1 seqs  0 rs_seq), R (f32):    2.81 MiB, S (f32):   60.00 MiB
+sched_reserve:        CPU compute buffer size =   501.02 MiB
+bmoe: dense-weights=anon — 1664 MiB in 613 anon buffers
+bmoe: dense-weights=anon — dropped 1662 MiB of now-unused mmap pages
+bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=0 MiB shards=1
+~llama_context:        CPU compute buffer size is 501.0196 MiB, matches expectation of 501.0196 MiB
+[2026-08-08T02:51:26-0400] prestart OK die=59.5 nproc=7
+[2026-08-08T02:51:28-0400] START k=4 die_s=62.8
+[2026-08-08T02:57:22-0400] END k=4 rc=0 die_e=64.4
+/data/data/com.termux/files/home/experiments/results/f5.6/passo0/k4/stdout:BMOE_PPL {"n_tokens":2405,"n_scored":2404,"sum_logprob":-4460.21487745,"ppl":6.393812,"seconds":323.333,"cancelled":false,"file":"/data/data/com.termux/files/home/experiments/results/f5.6/corpus/short_2k.txt"}
+/data/data/com.termux/files/home/experiments/results/f5.6/passo0/k4/stderr:ppl: n_tokens=2405 n_ctx=4096 batch=16 moe=1
+/data/data/com.termux/files/home/experiments/results/f5.6/passo0/k4/stderr:ppl: scored 2404 / 2404 tokens (sum_logprob=-4460.2149)
+load_tensors:   CPU_Mapped model buffer size = 10978.42 MiB
+llama_context:        CPU  output buffer size =     0.95 MiB
+llama_kv_cache:        CPU KV buffer size =    80.00 MiB
+llama_kv_cache: size =   80.00 MiB (  4096 cells,  10 layers,  1/1 seqs), K (f16):   40.00 MiB, V (f16):   40.00 MiB
+llama_memory_recurrent:        CPU RS buffer size =    62.81 MiB
+llama_memory_recurrent: size =   62.81 MiB (     1 cells,  40 layers,  1 seqs  0 rs_seq), R (f32):    2.81 MiB, S (f32):   60.00 MiB
+sched_reserve:        CPU compute buffer size =   501.02 MiB
+bmoe: dense-weights=anon — 1664 MiB in 613 anon buffers
+bmoe: dense-weights=anon — dropped 1662 MiB of now-unused mmap pages
+bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=0 MiB shards=1
+~llama_context:        CPU compute buffer size is 501.0196 MiB, matches expectation of 501.0196 MiB
+[2026-08-08T02:57:43-0400] PASSO0 complete

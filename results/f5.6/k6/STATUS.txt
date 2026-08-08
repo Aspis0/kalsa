@@ -1,0 +1,1 @@
+COMPLETE k6 ppl=3.496907 n_scored=34003

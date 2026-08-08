@@ -1,0 +1,23 @@
+{
+  "variant": "k6",
+  "flag": "--n-expert-used 6",
+  "ppl": {
+    "n_tokens": 34012,
+    "n_scored": 34003,
+    "sum_logprob": -42567.6385453,
+    "ppl": 3.496907,
+    "seconds": 5492.699,
+    "cancelled": false,
+    "file": "/data/data/com.termux/files/home/experiments/results/f5.6/corpus/mixed_it.part1.txt"
+  },
+  "corpus_sha256": "8f7042252f01642bddfaa80278012f8f68345498f411cbb851d3f6ca587d2cb2",
+  "binary_sha256": "5c95cb5fe2cc97f3b7a0ae4245ccca4975236b2a29f1be393d9e33ca055f059d",
+  "csv_sha256": "bf03e8fb5394edb8ad53ab899b4fc2add09b0867b3a1c8e4b501933029a80824",
+  "csv_rows": 34003,
+  "k": 6,
+  "traffic_frac_vs_k8_theoretical": 0.75,
+  "traffic_saved_pct_theoretical": 25.0,
+  "hit_pct": 0.0,
+  "mib_tok_note": "ppl path does not emit BMOE_PROGRESS; with cache_mb=0 hit=0; theoretical mib proportional to k",
+  "ts": "2026-08-08T04:32:41-0400"
+}

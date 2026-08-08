@@ -1,0 +1,23 @@
+{
+  "status": "BLOCKED",
+  "reason": [
+    "config.cpp: drop_cold_frac requires cache_mb>0 (or cache_auto); with cache_mb=0 validation fails: degenerates into unconditional weight cut",
+    "drop_prefill defaults false; PPL path marks every batch as prefill (session.cpp), so even with cache drop does not apply to teacher-forced PPL unless --drop-in-prefill",
+    "baseline PPL config is cache_mb=0 (identical to F5.5-A); changing cache_mb would violate one-parameter rule and break bit-repro of k reference",
+    "measured: --drop-cold-experts 0.5 --cache-mb 0 -> config error (passo0 probe)"
+  ],
+  "flag_exists": true,
+  "flag_syntax": "--drop-cold-experts F  F in (0,1]; useful max 1.0",
+  "related_flags": [
+    "--drop-in-prefill",
+    "--drop-no-renorm"
+  ],
+  "what_it_does": "skip routed expert if cache MISS AND weight < F*(1/top-k); cache-dependent, non-reproducible; designed for DECODE not prefill",
+  "f5_2_decode_mib_tok_ref": {
+    "k8": 47.52,
+    "drop05": 38.27,
+    "drop10": 7.78,
+    "save_drop10_pct": 83.6
+  },
+  "ts": "2026-08-08T02:59:56-0400"
+}
