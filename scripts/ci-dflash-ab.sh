@@ -304,9 +304,25 @@ capture_telemetry() {
 }
 
 # ---------------------------------------------------------------------------
+# CONFIG 0 — BASELINE: speculation OFF entirely (the missing control: is MTP
+# net-positive vs plain decode when free-text acceptance sits at 30-44%?).
+# ---------------------------------------------------------------------------
+log "=== CONFIG 0: BASELINE (no speculation) ==="
+set_base_prefs
+seed_kv "kalsa.bench.speculative" '{"type":"none"}'
+force_stop_relaunch
+wait_ready "none"
+run_two_turns "none"
+capture_telemetry "none"
+adb logcat -c
+
+# ---------------------------------------------------------------------------
 # CONFIG A — MTP (control): production path, no speculative seed.
 # ---------------------------------------------------------------------------
 log "=== CONFIG A: MTP (control) ==="
+adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+sleep 2
+reset_chat
 set_base_prefs
 clear_speculative
 force_stop_relaunch
@@ -420,45 +436,44 @@ function pps(o) {
   return v != null && v > 0 ? v : null;
 }
 
+const baseline = load("none");
 const mtp = load("mtp");
 const dflash = load("dflash");
-const m = pickTurns(mtp);
-const d = pickTurns(dflash);
 
 const lines = [];
 lines.push("model=qwen3.5-4b thinking=off");
 lines.push("draftPath=" + (process.env.DRAFT_DEV_PATH || ""));
 lines.push("");
-lines.push("=== CONFIG MTP (control) ===");
+lines.push("=== CONFIG BASELINE (no speculation) ===");
+baseline.forEach((o, i) => lines.push(turnMetrics("turn" + (i + 1), o)));
+lines.push("");
+lines.push("=== CONFIG MTP ===");
 mtp.forEach((o, i) => lines.push(turnMetrics("turn" + (i + 1), o)));
 lines.push("");
 lines.push("=== CONFIG DFLASH ===");
 dflash.forEach((o, i) => lines.push(turnMetrics("turn" + (i + 1), o)));
 lines.push("");
 
-const m1 = pps(m.t1); const m2 = pps(m.t2);
-const d1 = pps(d.t1); const d2 = pps(d.t2);
-const mAcc = acceptancePct(mtp).toFixed(1);
-const dAcc = acceptancePct(dflash).toFixed(1);
 const fmt = (v) => (v != null ? v.toFixed(2) : "?");
-
+const bWarm = warmAggregate(baseline);
 const mWarm = warmAggregate(mtp);
 const dWarm = warmAggregate(dflash);
-lines.push("MTP    : tg tok/s turn1=" + fmt(m1) + " warm-aggregate=" + fmt(mWarm) + " acceptance=" + mAcc + "%");
-lines.push("DFLASH : tg tok/s turn1=" + fmt(d1) + " warm-aggregate=" + fmt(dWarm) + " acceptance=" + dAcc + "%");
+lines.push("BASELINE: warm-aggregate tok/s=" + fmt(bWarm) + " (no drafts by construction)");
+lines.push("MTP     : warm-aggregate tok/s=" + fmt(mWarm) + " acceptance=" + acceptancePct(mtp).toFixed(1) + "%");
+lines.push("DFLASH  : warm-aggregate tok/s=" + fmt(dWarm) + " acceptance=" + acceptancePct(dflash).toFixed(1) + "%");
 
-// VERDICT on warm-aggregate decode (turns 2..N pooled: sum tokens / sum ms).
-// Measurement only — no exit 1.
-if (mWarm != null && dWarm != null && mWarm > 0) {
-  const delta = ((dWarm / mWarm) * 100) - 100;
-  if (delta >= 0) {
-    lines.push("VERDICT: DFLASH is " + delta.toFixed(1) + "% faster on decode (warm-aggregate tok/s, turns 2..N)");
+// VERDICTS vs the plain-decode baseline (warm turns pooled). Measurement only.
+function verdictVs(name, w) {
+  if (bWarm != null && w != null && bWarm > 0) {
+    const delta = ((w / bWarm) * 100) - 100;
+    const dir = delta >= 0 ? "faster" : "slower";
+    lines.push("VERDICT: " + name + " is " + Math.abs(delta).toFixed(1) + "% " + dir + " than BASELINE (warm-aggregate)");
   } else {
-    lines.push("VERDICT: DFLASH is " + Math.abs(delta).toFixed(1) + "% slower on decode (warm-aggregate tok/s, turns 2..N)");
+    lines.push("VERDICT: " + name + " vs BASELINE UNKNOWN (missing warm-aggregate)");
   }
-} else {
-  lines.push("VERDICT: UNKNOWN (missing warm-aggregate for comparison)");
 }
+verdictVs("MTP", mWarm);
+verdictVs("DFLASH", dWarm);
 
 fs.writeFileSync(path.join(outDir, "RESULT.txt"), lines.join("\n") + "\n");
 process.stdout.write(lines.join("\n") + "\n");

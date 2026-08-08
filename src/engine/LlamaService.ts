@@ -478,7 +478,12 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     // MTP (NextN): speculative decoding embedded — ~1.5-2x più veloce.
     // La cache del DRAFT viene quantizzata come la target (non F16 di default).
     // Bench-only speculativeOverride (DFlash A/B) replaces the mtpNMax path when set.
-    if (options.speculativeOverride) {
+    if (options.speculativeOverride?.type === "none") {
+      // Baseline arm: plain autoregressive decode, no speculation at all —
+      // the missing control for the MTP-vs-DFlash A/B (is MTP net-positive
+      // vs not speculating when acceptance sits at 30-44% on free text?).
+      // Simply omit params.speculative.
+    } else if (options.speculativeOverride) {
       const override = options.speculativeOverride;
       // binding accepts the string; TS union NativeSpeculativeType is stale
       // (only 'none'|'draft-mtp'|'mtp') — cast required to pass "draft-dflash"

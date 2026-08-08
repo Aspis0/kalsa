@@ -29,7 +29,8 @@ export type ThinkingMode = "default" | "off" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
 
 export type SpeculativeOverride = {
-  type: "draft-mtp" | "draft-dflash";
+  /** "none" disables speculation entirely — the plain-decode baseline arm. */
+  type: "none" | "draft-mtp" | "draft-dflash";
   nMax?: number;
   draftModelPath?: string;
 };
@@ -87,7 +88,7 @@ export async function getSpeculativeOverride(): Promise<SpeculativeOverride | un
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object") return undefined;
     const o = parsed as Record<string, unknown>;
-    if (o.type !== "draft-mtp" && o.type !== "draft-dflash") return undefined;
+    if (o.type !== "none" && o.type !== "draft-mtp" && o.type !== "draft-dflash") return undefined;
     const out: SpeculativeOverride = { type: o.type };
     if (typeof o.nMax === "number" && Number.isFinite(o.nMax) && o.nMax > 0) {
       out.nMax = o.nMax;
