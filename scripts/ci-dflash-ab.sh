@@ -165,28 +165,22 @@ run_turn() {
   dismiss_anr
   tap_node "Ask a question…" || { dismiss_anr; tap_node "Ask a question…" || die "composer not found ($tag)"; }
   sleep 4
-  # AVD IME focus is flaky right after a long generation (run 31236583365:
-  # a single retry was not enough on turn 2). 3 attempts, re-asserting focus.
+  # PROVEN retry shape only: tap + retype (runs 4/6/7 always landed by the 2nd
+  # attempt). The v2.1 ESC+DEL-burst variant defocused the field and went 0/3
+  # (run 31250710247). Short prompts (<=25 chars) already dodge the ~32-char
+  # adb input-text truncation that caused fragment appends.
   typed_ok=0
-  for attempt in 1 2 3; do
+  for attempt in 1 2 3 4; do
     adb shell input text "$msg"
     sleep 3
     if dump_ui | grep -qF "$msg"; then
       typed_ok=1
       break
     fi
-    log "[$tag] text not visible (attempt $attempt) — clearing field and re-focusing"
-    adb shell input keyevent 111
-    sleep 2
+    log "[$tag] text not visible (attempt $attempt) — re-tapping composer"
     dismiss_anr
     tap_node "Ask a question…" || true
-    sleep 2
-    # CLEAR before retyping: retries were APPENDING to the truncated leftovers
-    # (run 31249441015 composer held 3 concatenated fragments). Move to end,
-    # then a DEL burst larger than any prompt in use.
-    adb shell input keyevent 123
-    for _ in $(seq 1 45); do adb shell input keyevent 67; done
-    sleep 2
+    sleep 3
   done
   adb shell input keyevent 111
   sleep 3
