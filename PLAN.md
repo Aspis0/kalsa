@@ -1024,6 +1024,69 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-08 — ARBITRATO SULL'AUDIT DEL LOADER FIX: un bloccante confermato e aggravato,
+  uno declassato, uno chiuso da me, più un rischio di processo che nessuno aveva visto.**
+
+  Audit ostile in `reports/audit-loader-fix.md`. Due bloccanti, una verifica lasciata aperta.
+
+  ### ✅ Punto 6 — CHIUSO: la rete di sicurezza esiste
+
+  L'audit non poteva verificarlo (vincolo di sola lettura). Verificato via ssh:
+  `bmoe-cli.PREFAULT` presente, `sha256 = 5c95cb5f…` **identico all'atteso**. La via di ritorno
+  c'è.
+
+  ### 🔴 Bloccante 2 (ABI) — CONFERMATO, ed è il più grave. La patch mente nel messaggio.
+
+  L'audit ha ragione e il punto è più serio di come è scritto. `llama_model_params` è una
+  **struct aggregate**: aggiungere un `bool` in coda significa che
+
+  ```cpp
+  llama_model_params p{};        // value-init  → mmap_prefetch = FALSE
+  ```
+
+  cioè **chi non tocca nulla ottiene il prefault DISATTIVATO**, che è il comportamento *nuovo*,
+  non quello vecchio. Il default `true` vale **solo** per chi passa da
+  `llama_model_default_params()`.
+
+  Il messaggio del commit dichiara *«default true for classic warm-load compatibility […]
+  everyone else is unchanged»*. **La seconda metà è falsa**, e va corretta: non è una sfumatura,
+  è la promessa su cui si regge l'idea di poterla un giorno proporre a monte.
+
+  **Impatto reale sul nostro fork: nullo oggi** — controlliamo tutti i chiamanti e passiamo tutti
+  da `default_params()`. **Impatto se la si propone upstream: bloccante.** Il fix pulito è quello
+  che l'audit indica: sentinella (`int32_t`, `-1` = non impostato ⇒ comportamento precedente)
+  invece di un `bool` che si azzera da solo.
+
+  ### 🟡 Bloccante 1 (G3) — CONFERMATO sui numeri assoluti, DECLASSATO sulla conclusione
+
+  L'audit ha ragione che la strumentazione è difettosa: campionamento reale a **2.5-3.3 s** e non
+  ai 200 ms dichiarati, e il confine di fine-load dedotto da una stringa che compare tardi ⇒
+  `read_bytes_at_load` può includere traffico post-load. Lo conferma un sintomo che il report
+  aveva liquidato come «differenza di strumentazione»: `rchar` **3.24/3.41 GiB** contro gli
+  **1.62** storici.
+
+  **Ma la conclusione sopravvive, e la ragione è G2.** L'A/B usa la **stessa** metodologia
+  difettosa sui due bracci, e il decode è **byte-identico** fra loro: la contaminazione è
+  in gran parte **di modo comune** e si cancella nella differenza. Le finestre hanno durate
+  diverse (22.2 s contro 12.5 s), quindi il delta può essere sporcato di ~1-2 GiB — su **10.65**
+  misurati.
+
+  ⇒ **Non bloccante per la decisione** (il fix funziona, la direzione e l'ordine di grandezza
+  reggono), **bloccante per il verbale**: i numeri assoluti non vanno citati come misura finché
+  G3 non è rifatto con un marker esplicito di fine-load e un campionatore davvero periodico.
+
+  ### ⚠ Il rischio che nessuno aveva visto: il binario di campagna non è pinnato
+
+  Verificato: `bmoe-cli` e `bmoe-cli.NEW` hanno lo **stesso sha256** (`7354947b…`). Non è
+  un'adozione furtiva — è che la build produce `bmoe-cli` e le copie etichettate sono snapshot
+  *a posteriori*. Ma la conseguenza è che **l'harness invoca l'output dell'ultima build**, non un
+  binario scelto: un `make` distratto cambia il binario di campagna senza che nessuno lo decida.
+
+  **Fix di processo**: l'harness deve invocare un percorso **pinnato e nominato** (es.
+  `bmoe-cli.CAMPAIGN`, aggiornato solo da una decisione esplicita), e registrarne lo `sha256` in
+  ogni riga di `runs.csv`. Costa poco e chiude una classe intera di errori silenziosi — la stessa
+  classe del cpuset e dei contatori a finestre mescolate.
+
 - **2026-08-08 — ✅ CONFERMATO: `n_common = 0`. I 165 s di ri-prefill al quinto turno sono un
   DIFETTO, non il prezzo del multi-turno. E la domanda si stringe a una riga di codice.**
 
