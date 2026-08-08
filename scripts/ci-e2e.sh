@@ -14,6 +14,27 @@ PKG=com.kalsa.app
 # shellcheck source=ci-lib.sh
 source "$(dirname "$0")/ci-lib.sh"
 
+# Robust typing: the AVD IME swallows keystrokes right after focus, and a
+# single retry proved insufficient under load (runs 31236583365/31272714706).
+# 4 attempts, re-tapping the composer between tries — the shape proven in
+# ci-dflash-ab. Returns 0 when the text is visible in the UI dump.
+type_into_composer() {
+  local msg="$1" attempt
+  tap_node "Ask a question…" || return 1
+  sleep 4
+  for attempt in 1 2 3 4; do
+    adb shell input text "$msg"
+    sleep 3
+    if dump_ui | grep -qF "$msg"; then
+      return 0
+    fi
+    log "text not visible (attempt $attempt) — re-tapping composer"
+    tap_node "Ask a question…" || true
+    sleep 3
+  done
+  return 1
+}
+
 install_and_sideload \
   "android/app/build/outputs/apk/release/app-release.apk" \
   "model.gguf" \
@@ -43,18 +64,7 @@ log "type message"
 # does not reliably turn '+' into spaces, which made the assertion below fail
 # even though the tap was correct.
 MSG="CiaoChiSei"
-tap_node "Ask a question…" || die "composer not found"
-sleep 4
-adb shell input text "$MSG"
-sleep 3
-# One retry: the IME can swallow the first keystrokes right after focus.
-if ! dump_ui | grep -qF "$MSG"; then
-  log "text not visible yet — retrying once"
-  tap_node "Ask a question…" || true
-  sleep 3
-  adb shell input text "$MSG"
-  sleep 3
-fi
+type_into_composer "$MSG" || die "composer typing failed (turn 1)"
 adb shell input keyevent 111   # ESC: hide IME so bounds are stable
 sleep 3
 shot 02_typed
@@ -125,17 +135,7 @@ log "type message (turn 2)"
 # Alphanumeric for adb `input text` (same constraint as MSG / turn 1).
 # Intent: short follow-up distinct from turn 1 ("E dimmi un altro fatto breve.").
 MSG2="EDimmiUnAltroFattoBreve"
-tap_node "Ask a question…" || die "composer not found (turn 2)"
-sleep 4
-adb shell input text "$MSG2"
-sleep 3
-if ! dump_ui | grep -qF "$MSG2"; then
-  log "text not visible yet (turn 2) — retrying once"
-  tap_node "Ask a question…" || true
-  sleep 3
-  adb shell input text "$MSG2"
-  sleep 3
-fi
+type_into_composer "$MSG2" || die "composer typing failed (turn 2)"
 adb shell input keyevent 111
 sleep 3
 shot 04_typed2
@@ -252,17 +252,7 @@ log "type message (turn 3 / post-restart)"
 # Alphanumeric for adb `input text` (same constraint as MSG / MSG2).
 # Intent: short final follow-up ("Un ultimo fatto breve, grazie").
 MSG3="UnUltimoFattoBreveGrazie"
-tap_node "Ask a question…" || die "composer not found (turn 3)"
-sleep 4
-adb shell input text "$MSG3"
-sleep 3
-if ! dump_ui | grep -qF "$MSG3"; then
-  log "text not visible yet (turn 3) — retrying once"
-  tap_node "Ask a question…" || true
-  sleep 3
-  adb shell input text "$MSG3"
-  sleep 3
-fi
+type_into_composer "$MSG3" || die "composer typing failed (turn 3)"
 adb shell input keyevent 111
 sleep 3
 shot 08_typed3
