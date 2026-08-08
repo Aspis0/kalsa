@@ -42,6 +42,22 @@ MODEL_DEV_SZ=$(adb shell "stat -c %s $MODEL_DEV_PATH" 2>/dev/null | tr -d '\r')
 [ "$MODEL_DEV_SZ" = "$EXPECTED_MODEL_BYTES" ] \
   || die "main model size on device '$MODEL_DEV_SZ' != ModelRegistry sizeBytes $EXPECTED_MODEL_BYTES"
 
+# The 4B bundle also REQUIRES the mmproj: isModelBundleDownloaded checks BOTH
+# files by exact byte size. Run 31229531625 failed at Ready with the header
+# showing "Download 3.5 GB" because only the main GGUF was present.
+EXPECTED_MMPROJ_BYTES=672423616
+MMPROJ_FILE="mmproj-F16.gguf"
+[ -f "mmproj.gguf" ] || die "mmproj.gguf not found in cwd (download step missing?)"
+adb push mmproj.gguf /data/local/tmp/mmproj.gguf 2>&1 | tail -1
+adb shell "cp /data/local/tmp/mmproj.gguf /data/data/$PKG/files/models/$MODEL_DIR/$MMPROJ_FILE"
+adb shell "rm -f /data/local/tmp/mmproj.gguf"
+MMPROJ_UID=$(adb shell "stat -c %U /data/data/$PKG" | tr -d '\r')
+adb shell "chown -R $MMPROJ_UID:$MMPROJ_UID /data/data/$PKG/files/models"
+MMPROJ_DEV_SZ=$(adb shell "stat -c %s /data/data/$PKG/files/models/$MODEL_DIR/$MMPROJ_FILE" 2>/dev/null | tr -d '\r')
+[ "$MMPROJ_DEV_SZ" = "$EXPECTED_MMPROJ_BYTES" ] \
+  || die "mmproj size on device '$MMPROJ_DEV_SZ' != ModelRegistry mmproj.sizeBytes $EXPECTED_MMPROJ_BYTES"
+log "mmproj OK ($MMPROJ_DEV_SZ bytes)"
+
 install_draft() {
   # Release APK is non-debuggable → run-as is unreliable; adb root (set by
   # install_and_sideload) + direct /data/data paths match ci-lib sideload.

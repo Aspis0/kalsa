@@ -87,6 +87,22 @@ jobs:
             exit 1
           fi
 
+      # The 4B bundle REQUIRES the mmproj (isModelBundleDownloaded checks BOTH
+      # files by exact size) — first run failed at Ready with "Download 3.5 GB"
+      # because only the main GGUF was sideloaded. mmproj lives in the BASE
+      # repo (unsloth/Qwen3.5-4B-GGUF), not the MTP one (ModelRegistry:90-95).
+      - name: Download mmproj (Qwen3.5-4B vision projector)
+        run: |
+          set -euo pipefail
+          URL="https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/mmproj-F16.gguf?download=true"
+          curl -sL -o mmproj.gguf "$URL"
+          SZ=$(stat -c%s mmproj.gguf)
+          EXPECTED=672423616
+          if [ "$SZ" != "$EXPECTED" ]; then
+            echo "FATAL: mmproj size $SZ != ModelRegistry mmproj.sizeBytes $EXPECTED"
+            exit 1
+          fi
+
       # Discover the exact .gguf under AtomicChat/Qwen3.5-4B-DFlash-GGUF (do not
       # hardcode — HF may rename quant labels). Fail if zero or multiple.
       - name: Resolve DFlash draft filename
