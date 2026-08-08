@@ -165,15 +165,23 @@ run_turn() {
   dismiss_anr
   tap_node "Ask a question…" || { dismiss_anr; tap_node "Ask a question…" || die "composer not found ($tag)"; }
   sleep 4
-  adb shell input text "$msg"
-  sleep 3
-  if ! dump_ui | grep -qF "$msg"; then
-    log "[$tag] text not visible yet — retrying once"
-    tap_node "Ask a question…" || true
-    sleep 3
+  # AVD IME focus is flaky right after a long generation (run 31236583365:
+  # a single retry was not enough on turn 2). 3 attempts, re-asserting focus.
+  typed_ok=0
+  for attempt in 1 2 3; do
     adb shell input text "$msg"
     sleep 3
-  fi
+    if dump_ui | grep -qF "$msg"; then
+      typed_ok=1
+      break
+    fi
+    log "[$tag] text not visible (attempt $attempt) — re-focusing"
+    adb shell input keyevent 111
+    sleep 2
+    dismiss_anr
+    tap_node "Ask a question…" || true
+    sleep 3
+  done
   adb shell input keyevent 111
   sleep 3
   shot "${tag}_typed"
@@ -217,6 +225,10 @@ run_turn() {
   adb logcat -d | grep -F "KALSA_TELEMETRY" \
     | sed 's/.*KALSA_TELEMETRY /KALSA_TELEMETRY /' \
     >> "$OUT/telemetry_snap_${tag}.txt" 2>/dev/null || true
+  # Diagnostic probe (run 31236583365: snap EMPTY even seconds after the turn —
+  # not buffer rotation): are ReactNativeJS console lines present AT ALL?
+  adb logcat -d -s ReactNativeJS 2>/dev/null | tail -40 \
+    > "$OUT/rnjs_probe_${tag}.txt" || true
 }
 
 # Two-turn conversation identical to ci-e2e.sh prompts (alphanumeric for adb).
