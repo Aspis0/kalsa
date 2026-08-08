@@ -1024,6 +1024,39 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-08 — 🎯 DIAGNOSI KV CHIUSA: non divergono a posizione 0 — divergono a 35 sul
+  blocco `<think>` vuoto, e poi il fallback butta via anche i 35 token buoni.**
+
+  Report: `reports/moe-kv-reuse-diagnosis.md` (build usa-e-getta `bmoe-cli.DIAG`, campagna
+  intatta). **Due difetti in serie**, entrambi verificati da me sul sorgente:
+
+  1. **La divergenza (session.cpp:1533-1539).** Con `--no-think` il modello emette comunque
+     ` <think>\n\n</think>\n\n ` (4 token) prima della risposta; quei token entrano in
+     `kv_tokens`. Ma la history committa il messaggio **parsato** — `content` senza i marker —
+     e il re-render del turno 2 produce `<|im_start|>assistant\n` seguito subito da `La…`.
+     Match grezzo: **35 token su 71** (posizioni 0..34 identiche, rottura a 35:
+     `kv=<think>` vs `tok=La`).
+  2. **Il wipe (session.cpp:985-988).** Col match a 35, `llama_memory_seq_rm(0, 35, -1)`
+     **fallisce** e il fallback fa `llama_memory_clear` + `n_common = 0`: si perde anche il
+     prefisso valido. Il commento a riga 983 lo anticipava ("SWA-style memory can refuse a
+     partial removal") — il fallback è deliberato, ma totale. Da capire (diagnostica nel
+     mandato di fix): perché questo modello rifiuta la rimozione parziale — sospetto
+     architettura ibrida/ricorrente, dove il rewind parziale è impossibile per costruzione.
+
+  **Conseguenza di design**: se il difetto 1 è risolto (re-render byte-identico allo stream
+  che la KV ha visto), nel caso append-only della chat il `seq_rm` parziale **non serve più**
+  (n_common = tutta la KV, coda da rimuovere vuota). Il fix giusto è quindi **uno solo, nel
+  commit della history**: conservare la forma grezza quando il parse ha spogliato uno span
+  think vuoto. Il caso thinking-ON resta fuori scope (Kalsa spedisce no-think; con reasoning
+  vero lo strip della history è raccomandato e il riuso lì non può funzionare senza chirurgia
+  mid-KV, che è unsound).
+
+  Soglia di successo dichiarata dal report: `n_common ≈ 71`, `n_prompt(t2) ≈ 37-41`,
+  prefill t2 nell'ordine del turno 1 (~5 s, non ~12 s). Valore in gioco invariato: turno 5
+  da **165 s a ~10 s**. Mandato di fix: `mandates/kv-reuse-fix.md` — da eseguire in
+  **sequenza** con `mandates/fix-bloccanti-audit.md` (entrambi toccano session.cpp), mai in
+  parallelo.
+
 - **2026-08-08 — ARBITRATO SULL'AUDIT DEL LOADER FIX: un bloccante confermato e aggravato,
   uno declassato, uno chiuso da me, più un rischio di processo che nessuno aveva visto.**
 
