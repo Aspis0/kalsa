@@ -55,7 +55,7 @@ import {
   readSessionMeta,
   sessionFileExists,
   sessionFilePath,
-  sessionMetaMatches,
+  sessionMetaMismatchField,
   writeSessionMeta,
   type SessionMeta,
 } from "./sessionPersistence";
@@ -911,9 +911,13 @@ async function tryLoadEngineSession(
     }
     if (expected.mtpNMax !== undefined) expectedMeta.mtpNMax = expected.mtpNMax;
     if (expected.specType !== undefined) expectedMeta.specType = expected.specType;
-    if (!sessionMetaMatches(stored, expectedMeta)) {
+    const mismatchField = sessionMetaMismatchField(stored, expectedMeta);
+    if (mismatchField !== null) {
       await deleteSessionArtifacts(modelId);
-      log(false, { reason: "meta_mismatch" });
+      // Field name only (enum-like) — attributable cold starts: historyHash =
+      // save missed/raced; promptEnvHash = memory facts / locale changed
+      // (semantically correct cold); nCtx/KV = config change.
+      log(false, { reason: `meta_mismatch:${mismatchField}` });
       return false;
     }
     const result = await context.loadSession(sessionFilePath(modelId));

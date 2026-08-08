@@ -100,16 +100,26 @@ export function computePromptEnvHash(
  * undefined are treated as equal. promptEnvHash must match (missing ≡ undefined).
  */
 export function sessionMetaMatches(a: SessionMeta, b: SessionMeta): boolean {
-  return (
-    a.formatVersion === b.formatVersion &&
-    a.nCtx === b.nCtx &&
-    a.cacheTypeK === b.cacheTypeK &&
-    a.cacheTypeV === b.cacheTypeV &&
-    a.historyHash === b.historyHash &&
-    a.promptEnvHash === b.promptEnvHash &&
-    a.mtpNMax === b.mtpNMax &&
-    a.specType === b.specType
-  );
+  return sessionMetaMismatchField(a, b) === null;
+}
+
+/**
+ * First mismatching field name, or null when the metas match.
+ * Diagnostic companion to sessionMetaMatches — telemetry logs
+ * meta_mismatch:<field> so cold starts are attributable (e2e run 31274549471
+ * reported a bare meta_mismatch that could be either a missed turn-2 save or
+ * a legitimate memory-facts change).
+ */
+export function sessionMetaMismatchField(a: SessionMeta, b: SessionMeta): string | null {
+  if (a.formatVersion !== b.formatVersion) return "formatVersion";
+  if (a.nCtx !== b.nCtx) return "nCtx";
+  if (a.cacheTypeK !== b.cacheTypeK) return "cacheTypeK";
+  if (a.cacheTypeV !== b.cacheTypeV) return "cacheTypeV";
+  if (a.historyHash !== b.historyHash) return "historyHash";
+  if (a.promptEnvHash !== b.promptEnvHash) return "promptEnvHash";
+  if (a.mtpNMax !== b.mtpNMax) return "mtpNMax";
+  if (a.specType !== b.specType) return "specType";
+  return null;
 }
 
 // ── Impure I/O (expo / AsyncStorage) ────────────────────────────────────────

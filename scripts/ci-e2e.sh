@@ -236,6 +236,23 @@ fi
 # RESTART LEG — force-stop + relaunch; TURN 3 proves KV session restore.
 # ---------------------------------------------------------------------------
 log "=== RESTART LEG (session restore) ==="
+# Wait for the turn-end session SAVE to finish before killing the app: the
+# .kvs write is a multi-hundred-MB file and runs seconds after the reply is
+# detected (run 31274549471: force-stop ~3s after turn 2 left turn-1-era meta
+# on disk → meta_mismatch → cold). Up to 90s for a save line ok:true.
+save_seen=0
+for i in $(seq 1 18); do
+  if adb logcat -d 2>/dev/null | grep -F 'KALSA_SESSION' | grep -F '"op":"save"' | grep -qF '"ok":true'; then
+    save_seen=1
+    log "session save confirmed after ~$((i * 5))s"
+    break
+  fi
+  sleep 5
+done
+if [ "$save_seen" = 0 ]; then
+  log "WARN: no ok:true session save within 90s — restart will likely be COLD (reason will say why)"
+  adb logcat -d 2>/dev/null | grep -F 'KALSA_SESSION' | tail -5 | sed 's/^/[ci]   save-tail: /' || true
+fi
 adb shell am force-stop $PKG
 sleep 3
 # Simpler-to-assert: clear logcat so post-restart turn ids restart from 1 in the
