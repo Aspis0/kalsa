@@ -1024,6 +1024,59 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-08 — ✅ CONFERMATO: `n_common = 0`. I 165 s di ri-prefill al quinto turno sono un
+  DIFETTO, non il prezzo del multi-turno. E la domanda si stringe a una riga di codice.**
+
+  Mandato lampo, due sessioni da 5 minuti, nessuna modifica al binario.
+
+  ```
+  Y (clear_kv=true)    turno 1: n_prompt=39   n_past=71
+                       turno 2: n_prompt=39   n_past=71     ← storia azzerata
+  X (clear_kv=false)   turno 1: n_prompt=39   n_past=71
+                       turno 2: n_prompt=108  n_past=140     prefill 9.1 s a 11.9 tok/s
+  ```
+
+  ### ⚠ Il mio A/B era progettato male — e serve comunque
+
+  Avevo proposto di confrontare `n_prompt` del turno 2 fra `clear_kv` true e false. **Non
+  discrimina**: `session.cpp:864` mostra che `clear_kv=true` fa anche `im.chat_history.clear()`,
+  quindi nel braccio Y il turno 2 renderizza **solo il messaggio nuovo**, non la conversazione.
+  I due bracci non renderizzano lo stesso prompt. Errore mio di lettura del codice.
+
+  **Ma Y è servito lo stesso, come calibrazione**: dice che il blocco
+  `[utente P][apertura assistente]` vale **39 token**.
+
+  ### L'aritmetica che chiude la questione
+
+  Dopo il turno 1 la KV contiene **71 token** (39 di render + 32 generati). Il render del turno 2
+  **comincia con quegli stessi 71** e poi aggiunge chiusura, secondo blocco utente e apertura:
+
+  ```
+  render_2 ≈ 39 + 32 + ~2 + 39 ≈ 108-112
+  n_prompt misurato = 108   ⇒   n_common = 0
+  ```
+
+  Se il riuso avesse funzionato, `n_common = 71` e `n_prompt ≈ 37`. Il tempo conferma: **9.1 s
+  per 108 token a 11.9 tok/s**, cioè li ha prefillati tutti.
+
+  ### La domanda che resta, e perché è piccola
+
+  La macchina del riuso **esiste ed è completa** (`session.cpp:963-980`), `im.kv_tokens` **è
+  mantenuto** (righe 1100 e 1355), `clear_kv=false` **arriva davvero** (verificato nel JSON
+  dell'harness). Eppure il confronto `im.kv_tokens[i] == tokens[i]` fallisce **alla posizione 0**.
+
+  Il turno 2 comincia con lo stesso blocco `[utente P]` del turno 1 — **a meno che il template
+  non renda diversamente quando i messaggi sono più di uno** (per esempio inserendo un blocco di
+  sistema assente al primo turno, o un BOS trattato in modo diverso).
+
+  **Il passo successivo è mirato e minimo**: non «loggare `n_common`», ma **stampare i primi 10
+  token di `im.kv_tokens` e i primi 10 di `tokens`** al momento del confronto. Se divergono a
+  posizione 0 si vede subito *cosa* il template ha messo davanti, e **il fix è nel rendering,
+  non nel confronto**.
+
+  **Valore in gioco, invariato:** turno 5 da **165 s a ~10 s**, cioè −65% di latenza percepita,
+  senza toccare decode, qualità o modello.
+
 - **2026-08-08 — 🎯 E1 SCOPERCHIATA: i 19 GiB di spreco sono UN DEFAULT di llama.cpp, e il fix
   è una riga (o ~20 fatte bene). Diagnosi in sola lettura, nessun file toccato.**
 
