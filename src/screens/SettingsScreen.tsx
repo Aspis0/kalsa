@@ -124,7 +124,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
   ];
 
   // "default" (production knob) and "off" are behaviourally identical today
-  // (see buildThinkingCompletionFields) — Off is shown selected for both.
+  // (see resolveThinkingParams) — Off is shown selected for both.
   const thinkingOptions: Array<{ id: ThinkingMode; label: string }> = [
     { id: "off", label: t("settings.thinkingOff") },
     { id: "budget256", label: t("settings.thinkingShort") },

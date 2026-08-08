@@ -60,6 +60,12 @@ export type ModelInfo = {
   kvUnified?: boolean;
   /** MTP (NextN speculative) embedded nel GGUF. */
   mtp?: { nMax: number };
+  /**
+   * Per-model thinking budgets (tokens) for Settings "Short"/"Extended" modes,
+   * plus an n_predict ceiling override when a budget mode is active (the think
+   * block + answer must both fit under n_predict). Absent → 256/512/1024.
+   */
+  thinking?: { short: number; extended: number; nPredict?: number };
   /** i18n key for the user-facing description shown in Settings (en master + it). */
   descriptionKey: TranslationKey;
   /**
@@ -100,6 +106,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     hybrid: true,
     kvUnified: true,
     mtp: { nMax: 3 },
+    thinking: { short: 256, extended: 512 },
     descriptionKey: "models.qwen4b.description",
     ramBadgeKey: "models.qwen4b.ramBadge",
     minRamTier: "high",
@@ -127,6 +134,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     hybrid: true,
     kvUnified: true,
     // MTP non impostato: GGUF Q3 non validato con tensori NextN (da device test).
+    thinking: { short: 256, extended: 512 },
     descriptionKey: "models.qwen4bQ3.description",
     ramBadgeKey: "models.qwen4bQ3.ramBadge",
     minRamTier: "mid",
@@ -162,6 +170,9 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     kvCache: { k: "q8_0", v: "q4_0" },
     hybrid: true,
     kvUnified: true,
+    // nPredict 2560 = extended 1536 + the 1024 answer floor (miniapp JSON blew
+    // past 512; n_predict counts think + answer, so 2048 would leave only 512).
+    thinking: { short: 512, extended: 1536, nPredict: 2560 },
     descriptionKey: "models.qwen2b.description",
     ramBadgeKey: "models.qwen2b.ramBadge",
     minRamTier: "low",

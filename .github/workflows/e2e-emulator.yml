@@ -79,6 +79,7 @@ jobs:
           node scripts/thinkStripperHarness.mjs
           node scripts/streamCoalescerHarness.mjs
           node scripts/turnTelemetryHarness.mjs
+          node scripts/thinkingBudgetsHarness.mjs
           # ~140s from a cold build. It belongs here and not only in bench.yml,
           # which is workflow_dispatch-only: a mutation matrix that runs on no
           # push is the same decoration as no matrix at all.

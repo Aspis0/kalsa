@@ -58,6 +58,7 @@ jobs:
           node scripts/thinkStripperHarness.mjs
           node scripts/streamCoalescerHarness.mjs
           node scripts/turnTelemetryHarness.mjs
+          node scripts/thinkingBudgetsHarness.mjs
 
       - name: Free disk space
         run: |

@@ -15,7 +15,6 @@ import {
   getBlockFormat,
   getThinkingMode,
   type BlockFormat,
-  type ThinkingMode,
 } from "../bench/benchConfig";
 import {
   buildOperativeBlock,
@@ -59,6 +58,8 @@ import {
   writeSessionMeta,
   type SessionMeta,
 } from "./sessionPersistence";
+import { resolveThinkingParams } from "./thinkingBudgets";
+import { getModelById } from "./ModelRegistry";
 import * as FileSystem from "expo-file-system/legacy";
 
 /**
@@ -1078,70 +1079,6 @@ function applyOperativeBlockFormat(
   ];
 }
 
-/**
- * Map bench thinking mode → NativeCompletionParams fields (enable_thinking / budget).
- * "default" keeps production options identical (thinking off + reasoning_format none).
- *
- * NO chat_template override (removed 2026-08-07, hostile-review-corrected).
- * What IS verified in the installed llama.rn 0.12.8 (chain traced file:line by
- * review of 464c349): stock template + enable_thinking:false closes the
- * prefill (both Qwen3.5 polarities), the autoparser detects the think tags
- * (compare_reasoning_presence — flag-independent — plus the conditional
- * generation branch), jinjaResult carries thinking_end_tag, and JSIParams arms
- * the reasoning-budget sampler with budget 0: a model-initiated <think> reopen
- * is force-closed within a token.
- *
- * What the override actually cost (and this removal buys): a full
- * common_chat_templates_init PER COMPLETION (rn-llama.cpp:629, marked
- * "probably slow" upstream). NOTE the earlier belief that the override
- * disarmed the budget belt was REFUTED by review: compare_reasoning_presence
- * detected tags from the override's history branch too, and the off prefill
- * was byte-identical before/after. The field observation that off ≈ budget256
- * wall time is real but its cause is UNPROVEN — candidates: longer un-reasoned
- * answers, runtime flag-delivery failure (needs device trace), per-completion
- * template re-init. Adjudication: perf telemetry (tokens_predicted off vs
- * budget on identical prompts).
- */
-function buildThinkingCompletionFields(mode: ThinkingMode): {
-  enable_thinking?: boolean;
-  thinking_budget_tokens?: number;
-  reasoning_format?: "none" | "auto" | "deepseek";
-  chat_template_kwargs?: { enable_thinking: boolean };
-} {
-  switch (mode) {
-    case "off":
-      return {
-        enable_thinking: false,
-        // Second belt — now ACTUALLY armed (see doc above): budget 0 means the
-        // sampler forces the end tag the moment a think block opens.
-        thinking_budget_tokens: 0,
-        // Keep "none": app owns THINK_OPEN/THINK_CLOSE stream stripping; do not
-        // switch to "auto" (changes stream shape the UI expects).
-        reasoning_format: "none",
-        chat_template_kwargs: { enable_thinking: false },
-      };
-    case "budget256":
-      return {
-        enable_thinking: true,
-        thinking_budget_tokens: 256,
-      };
-    case "budget512":
-      return {
-        enable_thinking: true,
-        thinking_budget_tokens: 512,
-      };
-    case "default":
-    default:
-      // Production path — same belts as "off" (kwargs + armed budget 0).
-      return {
-        enable_thinking: false,
-        thinking_budget_tokens: 0,
-        reasoning_format: "none",
-        chat_template_kwargs: { enable_thinking: false },
-      };
-  }
-}
-
 export type StreamTurnOptions = EngineTurnOptions & {
   /** Settings locale — drives system prompt language (required). */
   locale: Locale;
@@ -1213,7 +1150,10 @@ export async function streamAssistantTurn(
     // Bench knobs (AsyncStorage) — read once per turn; defaults keep production path.
     const blockFormat = await getBlockFormat();
     const thinkingMode = await getThinkingMode();
-    const thinkingFields = buildThinkingCompletionFields(thinkingMode);
+    // activeModelId === null → null model (defaults); unknown id still falls back
+    // via getModelById (acceptable) but null must not invent a model.
+    const activeModel = activeModelId ? getModelById(activeModelId) : null;
+    const { fields: thinkingFields, nPredict } = resolveThinkingParams(thinkingMode, activeModel);
 
     const hasTools = Boolean(options?.tools?.length && options?.executeTool);
     // Le immagini vivono SOLO nel messaggio user corrente.
@@ -1364,7 +1304,7 @@ export async function streamAssistantTurn(
         // with a budget mode, turn thinking off for that completion only.
         const roundThinkingFields =
           textOnlyRound && (thinkingMode === "budget256" || thinkingMode === "budget512")
-            ? buildThinkingCompletionFields("off")
+            ? resolveThinkingParams("off", activeModel).fields
             : thinkingFields;
         const result = await trackCompletion(
           engine.completion(
@@ -1376,13 +1316,13 @@ export async function streamAssistantTurn(
                     tool_choice: textOnlyRound ? "none" : ("auto" as const),
                   }
                 : {}),
-              // 1024, not 512: table/list miniapps emit verbose JSON that blew
-              // past 512 mid-payload — the user waited through a long prefill
-              // only to get a truncated, unparseable miniapp (field report,
-              // 2026-08-07). A cap is a ceiling, not a target: normal turns
-              // still end at EOS/stop words; only the degenerate worst case
-              // doubles. Matches the ask-assistant path below.
-              n_predict: 1024,
+              // nPredict floor is 1024 (see resolveThinkingParams): table/list miniapps emit
+              // verbose JSON that blew past 512 mid-payload — the user waited through a long
+              // prefill only to get a truncated, unparseable miniapp (field report,
+              // 2026-08-07). A cap is a ceiling, not a target: normal turns still end at
+              // EOS/stop words; only the degenerate worst case doubles. Per-model overrides
+              // may raise the ceiling (e.g. 2B extended thinking).
+              n_predict: nPredict,
               stop: STOP_WORDS,
               temperature: 0.7,
               top_k: 40,
