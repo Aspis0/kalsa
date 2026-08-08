@@ -1,0 +1,1 @@
+La memoria KV è una cache che memorizza i valori e le chiavi delle precedenti sequenze di token. Questo meccanismo evita di ricalcolare l'attenzione
