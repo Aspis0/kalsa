@@ -286,6 +286,7 @@ export const it: typeof en = {
     interrupted: "Generazione interrotta.",
     searching: "Cerco sul web…",
     fetching: "Recupero pagina…",
+    toolFailed: "Strumento fallito — continuo senza",
     today: "Oggi · {time}",
     yesterday: "Ieri",
     exportTitle: "Kalsa — esportazione conversazione",

@@ -1085,6 +1085,8 @@ export function AiChatPage({
    * resets sending state must check the captured id still equals current.
    */
   const sendRunIdRef = useRef(0);
+  /** 3s recovery if abort never settles native completion (sending stuck true). */
+  const stopWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
@@ -1095,6 +1097,10 @@ export function AiChatPage({
       abortRef.current?.abort();
       translateAbortRef.current?.abort();
       translationInFlightRef.current = false;
+      if (stopWatchdogRef.current != null) {
+        clearTimeout(stopWatchdogRef.current);
+        stopWatchdogRef.current = null;
+      }
     };
   }, []);
 
@@ -1474,9 +1480,15 @@ export function AiChatPage({
         // U1: only reset the global sending indicators if this is still the
         // latest turn — clearChat() already reset them synchronously for a
         // newer turn, and this stale finally must not clobber it.
+        // Also clear the stop watchdog only for THIS run: a stale finally must
+        // not cancel a newer turn's watchdog (e.g. after force-unlock + re-send).
         if (sendRunIdRef.current === runId) {
           sendingRef.current = false;
           if (mountedRef.current) setSending(false);
+          if (stopWatchdogRef.current != null) {
+            clearTimeout(stopWatchdogRef.current);
+            stopWatchdogRef.current = null;
+          }
         }
       }
     },
@@ -1485,6 +1497,54 @@ export function AiChatPage({
 
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
+    // If native completion never settles after abort, unlock the composer
+    // after 3s for the same run (mirrors clearChat ordering so a late finally
+    // no-ops on runId gates and cannot resurrect interrupted state).
+    if (stopWatchdogRef.current != null) {
+      clearTimeout(stopWatchdogRef.current);
+      stopWatchdogRef.current = null;
+    }
+    const runIdAtStop = sendRunIdRef.current;
+    stopWatchdogRef.current = setTimeout(() => {
+      stopWatchdogRef.current = null;
+      if (!mountedRef.current) return;
+      if (!sendingRef.current || sendRunIdRef.current !== runIdAtStop) return;
+      // 1) Invalidate first so the engine's late finally no-ops its runId gates.
+      // ownedRunId is our post-bump token: if clearChat/new-send bumps again
+      // before React applies the updater, the inner gate no-ops (same reason
+      // finally gates persist+messagesRef inside the setState updater).
+      sendRunIdRef.current += 1;
+      const ownedRunId = sendRunIdRef.current;
+      // 2) Mark streaming assistants interrupted + persist in lockstep (like finally).
+      // Empty placeholders (no streamed text) are dropped, mirroring the abort path.
+      setMessages((prev) => {
+        if (sendRunIdRef.current !== ownedRunId) {
+          return prev;
+        }
+        const next = prev
+          .filter((message) => !(message.streaming && !(message.text ?? "").trim()))
+          .map((message) => {
+            if (!message.streaming) return message;
+            return {
+              ...message,
+              streaming: false,
+              statusLabel: undefined,
+              interrupted: true,
+            };
+          });
+        messagesRef.current = next;
+        persistMessagesNow(next);
+        return next;
+      });
+      // 3) Unlock composer only if we still own the generation token.
+      // Note: if native completion truly never settles, withEngineJob's FIFO may
+      // still be wedged — UI unlock is intentional; a follow-up send may queue
+      // until dispose/model-switch releases the hung job.
+      if (sendRunIdRef.current === ownedRunId) {
+        sendingRef.current = false;
+        setSending(false);
+      }
+    }, 3000);
   }, []);
 
   const exportChat = useCallback(() => {
@@ -1505,6 +1565,11 @@ export function AiChatPage({
     // U1: invalidate any in-flight send turn so its later finally/bench/gate
     // reset cannot clobber the synchronous reset below.
     sendRunIdRef.current += 1;
+    // Drop stop watchdog so it cannot fire after a wiped history.
+    if (stopWatchdogRef.current != null) {
+      clearTimeout(stopWatchdogRef.current);
+      stopWatchdogRef.current = null;
+    }
     // Abort any in-flight translation (mutex job will stopCompletion).
     translateAbortRef.current?.abort();
     translateAbortRef.current = null;
@@ -2156,15 +2221,13 @@ export function AiChatPage({
                     width: 36,
                     height: 36,
                     borderRadius: 18,
-                    backgroundColor: colors.panel,
-                    borderWidth: 1,
-                    borderColor: colors.line,
+                    backgroundColor: colors.accent,
                     alignItems: "center",
                     justifyContent: "center",
-                    opacity: pressed ? 0.7 : 1,
+                    opacity: pressed ? 0.85 : 1,
                   })}
                 >
-                  <Square size={16} color={colors.ink} />
+                  <Square size={16} color={colors.primaryText} />
                 </Pressable>
               ) : (
                 <Pressable

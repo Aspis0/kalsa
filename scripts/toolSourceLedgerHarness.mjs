@@ -240,12 +240,15 @@ async function main() {
 
   // ── Budget: failure → retry allowed; success → blocked ─────────────────
   {
-    const state = { executions: 0, successfulKeys: new Set() };
+    const state = { executions: 0, successfulKeys: new Set(), failedKeys: new Map() };
     const max = 3;
     const d1 = decideToolExecution(state, max, "web_fetch", { url: "https://a.com", query: "q" });
     check("first decision execute", d1.action === "execute");
-    recordToolFailure(state);
-    check("after failure executions=1", state.executions === 1 && state.successfulKeys.size === 0);
+    recordToolFailure(state, d1.key);
+    check(
+      "after failure executions=1",
+      state.executions === 1 && state.successfulKeys.size === 0 && state.failedKeys.get(d1.key) === 1,
+    );
     const d2 = decideToolExecution(state, max, "web_fetch", { url: "https://a.com", query: "q" });
     check("failure→retry allowed", d2.action === "execute");
     recordToolSuccess(state, d2.key);
@@ -253,9 +256,27 @@ async function main() {
     check("success→retry blocked", d3.action === "skip_dup");
   }
 
+  // ── Budget: two failures of same key → skip_failed_repeat ──────────────
+  {
+    const state = { executions: 0, successfulKeys: new Set(), failedKeys: new Map() };
+    const max = 3;
+    const d1 = decideToolExecution(state, max, "web_search", { query: "same" });
+    check("failed-repeat first execute", d1.action === "execute");
+    recordToolFailure(state, d1.key);
+    const d2 = decideToolExecution(state, max, "web_search", { query: "same" });
+    check("failed-repeat second execute (1 fail)", d2.action === "execute");
+    recordToolFailure(state, d2.key);
+    check("failed-repeat failCount=2", state.failedKeys.get(d1.key) === 2 && state.executions === 2);
+    const d3 = decideToolExecution(state, max, "web_search", { query: "same" });
+    check("two failures → skip_failed_repeat", d3.action === "skip_failed_repeat");
+    // Different key still allowed (budget not exhausted).
+    const d4 = decideToolExecution(state, max, "web_search", { query: "other" });
+    check("different key still execute after skip_failed_repeat", d4.action === "execute");
+  }
+
   // ── Budget cap ─────────────────────────────────────────────────────────
   {
-    const state = { executions: 0, successfulKeys: new Set() };
+    const state = { executions: 0, successfulKeys: new Set(), failedKeys: new Map() };
     const max = 3;
     for (let i = 0; i < 3; i++) {
       const d = decideToolExecution(state, max, "web_search", { query: `q${i}` });

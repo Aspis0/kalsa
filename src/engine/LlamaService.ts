@@ -220,6 +220,9 @@ const TOOL_CALL_TURN_CAP_MESSAGE = "skipped: per-turn tool execution limit reach
 /** F10: identical name+args already executed this turn — do not re-run. */
 const TOOL_CALL_DUP_MESSAGE =
   "this exact call was already made in this turn; use the result above";
+/** Same key failed twice this turn — do not re-run; force text-only synthesis. */
+const TOOL_CALL_FAILED_REPEAT_MESSAGE =
+  "TOOL UNAVAILABLE: repeated failures — answer from what you have";
 
 /** V4.2 §Fase 3: tool-result cap 2500 (was 6000). Benchmarkable — do not raise without re-bench. */
 const TOOL_RESULT_MAX_CHARS = 2500;
@@ -1004,11 +1007,16 @@ export async function streamAssistantTurn(
 
       // Sources from every tool in this turn (search + fetch), deduped by url.
       const accumulatedSources: unknown[] = [];
-      // F3: total executions across rounds; success-only de-dupe set (F10).
+      // F3: total executions across rounds; success-only de-dupe set (F10);
+      // failedKeys tracks per-key fail counts (2 → skip_failed_repeat).
       const toolExecState = {
         executions: 0,
         successfulKeys: new Set<string>(),
+        failedKeys: new Map<string, number>(),
       };
+      // Force tool_choice "none" after repeated failures or 2 successful web_search.
+      let forceTextOnly = false;
+      let successfulWebSearchCount = 0;
 
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
@@ -1017,10 +1025,16 @@ export async function streamAssistantTurn(
         // Fresh think-tag / tool_call-tag state for this round's stream (each round is a new completion).
         thinkCleaner = createThinkStreamCleaner();
         toolCallStrip = createToolCallDeltaStripper();
-        // Last round: force text-only output (no more tool_calls) so the model
-        // must synthesize from the gathered tool results instead of exiting
-        // the loop with no completion (blank assistant bubble).
+        // Last round (or forceTextOnly): text-only so the model synthesizes from
+        // gathered tool results instead of exiting the loop with no completion.
         const isFinalToolRound = round === MAX_TOOL_ROUNDS - 1;
+        const textOnlyRound = isFinalToolRound || forceTextOnly;
+        // Budget thinking burns tokens before synthesis; for text-only rounds
+        // with a budget mode, turn thinking off for that completion only.
+        const roundThinkingFields =
+          textOnlyRound && (thinkingMode === "budget256" || thinkingMode === "budget512")
+            ? buildThinkingCompletionFields("off")
+            : thinkingFields;
         const result = await trackCompletion(
           engine.completion(
             {
@@ -1028,7 +1042,7 @@ export async function streamAssistantTurn(
               ...(hasTools
                 ? {
                     tools: options!.tools as EngineTool[],
-                    tool_choice: isFinalToolRound ? "none" : ("auto" as const),
+                    tool_choice: textOnlyRound ? "none" : ("auto" as const),
                   }
                 : {}),
               // 1024, not 512: table/list miniapps emit verbose JSON that blew
@@ -1044,7 +1058,8 @@ export async function streamAssistantTurn(
               top_p: 0.95,
               // Bench thinking axis: "default"/"off" keep production (thinking off);
               // budget* enables thinking with a token budget (NativeCompletionParams).
-              ...thinkingFields,
+              // Text-only + budget mode uses off fields (see roundThinkingFields).
+              ...roundThinkingFields,
               ...(hasImages ? { speculative: false as const } : {}),
             },
             (data: TokenData) => {
@@ -1160,6 +1175,13 @@ export async function streamAssistantTurn(
             executed.push({ call, content: toolContent });
             continue;
           }
+          if (decision.action === "skip_failed_repeat") {
+            // Two failures of this key already — do not re-execute; force synthesis.
+            toolContent = formatToolResultContent(TOOL_CALL_FAILED_REPEAT_MESSAGE);
+            forceTextOnly = true;
+            executed.push({ call, content: toolContent });
+            continue;
+          }
 
           callbacks.onStatus?.({
             label:
@@ -1168,8 +1190,14 @@ export async function streamAssistantTurn(
 
           try {
             const outcome = await options.executeTool(name, args, signal, lastUserMessageText);
-            // Only successful runs land in the de-dupe set (failures remain retryable).
+            // Only successful runs land in the de-dupe set (failures remain retryable once).
             recordToolSuccess(toolExecState, decision.key);
+            if (name === "web_search") {
+              successfulWebSearchCount += 1;
+              if (successfulWebSearchCount >= 2) {
+                forceTextOnly = true;
+              }
+            }
             const { assigned } = accumulateToolSources(
               accumulatedSources,
               outcome.sources,
@@ -1191,8 +1219,9 @@ export async function streamAssistantTurn(
               webProvenance: name === "web_search" || name === "web_fetch",
             });
           } catch (error) {
-            // Failures still consume the per-turn budget; key is NOT recorded.
-            recordToolFailure(toolExecState);
+            // Failures still consume the per-turn budget; key failCount incremented.
+            recordToolFailure(toolExecState, decision.key);
+            callbacks.onStatus?.({ label: strings.chat.toolFailed });
             // No webProvenance here: this is our own error template, not web data.
             toolContent = formatToolResultContent(
               strings.errors.toolError.replace(

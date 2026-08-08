@@ -289,6 +289,7 @@ export const en = {
     interrupted: "Generation was interrupted.",
     searching: "Searching the web…",
     fetching: "Fetching page…",
+    toolFailed: "Tool failed — continuing without it",
     today: "Today · {time}",
     yesterday: "Yesterday",
     exportTitle: "Kalsa — conversation export",

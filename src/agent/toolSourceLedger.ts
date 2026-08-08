@@ -193,14 +193,29 @@ export function makeToolCallKey(
 export type ToolExecDecision =
   | { action: "execute"; key: string }
   | { action: "skip_cap" }
-  | { action: "skip_dup" };
+  | { action: "skip_dup" }
+  | { action: "skip_failed_repeat" };
+
+/** Per-turn tool execution bookkeeping (budget, success de-dupe, fail counts). */
+export type ToolExecState = {
+  executions: number;
+  successfulKeys: Set<string>;
+  /** Normalized call key → consecutive-or-total fail count this turn. */
+  failedKeys: Map<string, number>;
+};
 
 /**
  * Decide whether to run a tool call under the per-turn budget + success-only
- * de-dupe set. Does not mutate state.
+ * de-dupe set + repeated-failure skip. Does not mutate state.
+ *
+ * Order: skip_cap → key → skip_dup → skip_failed_repeat (≥2 fails) → execute.
  */
 export function decideToolExecution(
-  state: { executions: number; successfulKeys: ReadonlySet<string> },
+  state: {
+    executions: number;
+    successfulKeys: ReadonlySet<string>;
+    failedKeys: ReadonlyMap<string, number>;
+  },
   maxExecutions: number,
   name: string,
   args: Record<string, unknown>,
@@ -213,12 +228,19 @@ export function decideToolExecution(
   if (state.successfulKeys.has(key)) {
     return { action: "skip_dup" };
   }
+  if ((state.failedKeys.get(key) ?? 0) >= 2) {
+    return { action: "skip_failed_repeat" };
+  }
   return { action: "execute", key };
 }
 
 /** After a successful tool run: count execution + remember the key. */
 export function recordToolSuccess(
-  state: { executions: number; successfulKeys: Set<string> },
+  state: {
+    executions: number;
+    successfulKeys: Set<string>;
+    failedKeys: Map<string, number>;
+  },
   key: string,
 ): void {
   state.executions += 1;
@@ -226,14 +248,19 @@ export function recordToolSuccess(
 }
 
 /**
- * After a failed tool run: count execution only (key NOT recorded so a retry
- * with the same args is still allowed within the budget).
+ * After a failed tool run: count execution + increment failCount for the key
+ * (one retry allowed; two failures → skip_failed_repeat on next decide).
  */
-export function recordToolFailure(state: {
-  executions: number;
-  successfulKeys: Set<string>;
-}): void {
+export function recordToolFailure(
+  state: {
+    executions: number;
+    successfulKeys: Set<string>;
+    failedKeys: Map<string, number>;
+  },
+  key: string,
+): void {
   state.executions += 1;
+  state.failedKeys.set(key, (state.failedKeys.get(key) ?? 0) + 1);
 }
 
 /** Derive cite kind from the tool name (call site in LlamaService). */
