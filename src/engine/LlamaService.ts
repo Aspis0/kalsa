@@ -533,20 +533,27 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       // Simply omit params.speculative.
       nextSpecType = "none";
       nextMtpNMax = undefined;
+    } else if (
+      options.speculativeOverride?.type === "draft-mtp" &&
+      !(options.mtpNMax && options.mtpNMax > 0) &&
+      !options.speculativeOverride?.draftModelPath
+    ) {
+      // Hostile-review F1: chat-set "mtp" on a model whose catalog carries no
+      // MTP (2B, 4B-Q3, Gemma — no NextN tensors) would force same-model draft
+      // speculation; the documented failure mode is a native hang at init
+      // (run 31274549105: 35 min, zero tokens). Fall back to plain decode.
+      nextSpecType = "none";
+      nextMtpNMax = undefined;
     } else if (options.speculativeOverride) {
       const override = options.speculativeOverride;
       // binding accepts the string; TS union NativeSpeculativeType is stale
-      // (only 'none'|'draft-mtp'|'mtp') — cast required to pass "draft-dflash"
-      // KNOWN BINDING HOLE (llama.rn 0.12.8): draft-dflash cannot work through
-      // this binding today. The separate draft GGUF is loaded ONLY when the
-      // speculative types include draft-mtp (rn-llama.cpp:491-492) — a pure
-      // draft-dflash config silently never loads the draft and speculation
-      // no-ops (run 31270817640: draftTokens=0). The dual-types workaround
-      // (["draft-dflash","draft-mtp"]) is WORSE: the mtp impl on a dflash-arch
-      // draft hangs the native turn (run 31274549105: 35 min, zero tokens).
-      // Real fix = 1-line binding patch extending the loader gate to
-      // COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH (upstream issue material).
-      // Until then the harness's fail-closed assert names the no-op arm.
+      // (only 'none'|'draft-mtp'|'mtp') — cast required to pass "draft-dflash".
+      // The 0.12.8 binding's MTP-only gates (draft loader, spec init) are
+      // extended to draft-dflash by patches/llama.rn+0.12.8.patch — before it,
+      // a pure draft-dflash config silently never loaded the draft
+      // (run 31270817640: draftTokens=0) and the dual-types workaround hung
+      // the native turn (run 31274549105). Empirical gate: dflash-ab with
+      // include_dflash=true must show draftTokens>0 on the dflash arm.
       params.speculative = {
         type: override.type as any,
         ...(override.nMax ? { n_max: override.nMax } : {}),
