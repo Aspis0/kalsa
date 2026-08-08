@@ -318,13 +318,19 @@ log "=== CONFIG 0: BASELINE (no speculation) ==="
 force_stop_relaunch
 adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
 sleep 3
+# AsyncStorage creates its TABLE only on the app's first WRITE — a freshly
+# launched idle app may leave RKStorage table-less, and the seed INSERT dies
+# silently with 'no such table' (runs 31267900199/31268901866). Create it
+# ourselves with AsyncStorage's own schema; harmless if it already exists.
+sql "CREATE TABLE IF NOT EXISTS catalystLocalStorage (key TEXT PRIMARY KEY, value TEXT NOT NULL);" \
+  | tee "$OUT/seed_table_create.txt"
 set_base_prefs
-seed_kv "kalsa.bench.speculative" '{"type":"none"}'
+SEED_OUT=$(seed_kv "kalsa.bench.speculative" '{"type":"none"}')
 # Fail-closed: a baseline without its seed is silent garbage science.
 sql "SELECT key,value FROM catalystLocalStorage WHERE key='kalsa.bench.speculative';" \
   | tee "$OUT/prefs_none.txt"
 grep -q '"type":"none"' "$OUT/prefs_none.txt" \
-  || die "baseline seed did not land (kalsa.bench.speculative missing)"
+  || die "baseline seed did not land (kalsa.bench.speculative missing; insert said: ${SEED_OUT:-<empty>}; tables: $(sql '.tables'))"
 force_stop_relaunch
 wait_ready "none"
 run_two_turns "none"
