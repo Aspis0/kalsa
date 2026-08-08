@@ -310,9 +310,14 @@ capture_telemetry() {
 log "=== CONFIG 0: BASELINE (no speculation) ==="
 # The AsyncStorage DB exists only after the app's FIRST run — seeding before
 # that lands in a file RN then recreates (run 31263568869: the baseline arm
-# silently ran production MTP; its telemetry showed draft tokens). Launch once
-# to materialize the DB, then seed, then relaunch.
+# silently ran production MTP; its telemetry showed draft tokens). AND the
+# seed must run with the app STOPPED: RN holds the sqlite lock while running
+# (run 31267900199: seed after force_stop_relaunch — which STARTS the app —
+# did not land; the fail-closed assert caught it). Launch once to materialize
+# the DB, STOP, seed, verify, relaunch.
 force_stop_relaunch
+adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+sleep 3
 set_base_prefs
 seed_kv "kalsa.bench.speculative" '{"type":"none"}'
 # Fail-closed: a baseline without its seed is silent garbage science.
