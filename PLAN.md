@@ -69,7 +69,8 @@
 | `ubatch` 512 o 2048? (2048 dà +9.9 pt di hit, il doppio di quanto rendano gli stessi MB in cache) | misura **scollegata** |
 | il sostenuto si assesta o continua a scendere? | run lungo **scollegato** |
 | ~~perché il simulatore M5 sovrastima?~~ **CHIUSA**: non sovrastimava — era un mio confronto fra metriche e tracce diverse (F5.5-C) | — |
-| `k=6` regge la qualità su più prompt? | deterministico, si può in carica |
+| ~~`k=6` regge la qualità?~~ **CHIUSA**: no — ΔPPL +0.94, archiviata con k5 e k4 (F5.6) | — |
+| `--drop-cold-experts` quanto costa? | **serve uno scorer sul percorso di DECODE**: il metro attuale è prefill-only e non lo vede |
 
 ## Regole operative imparate a caro prezzo
 
@@ -1022,6 +1023,77 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-08 — ⚫ LA SCALA k È ANNIENTATA. E il metro appena costruito rivela il proprio
+  limite: misura il MODELLO, non le decisioni del runtime in decode.**
+
+  Report `reports/moe-f5.6.md`, commit `48bcc8b`. Scala completa su `part1` (34 003 posizioni,
+  confronto appaiato, `cache 0`, un solo flag diverso per volta).
+
+  ### Passo 0 superato
+
+  `--n-expert-used` **tocca il prefill**: sonda corta k=8 vs k=4 ⇒ ΔPPL **+4.50**. Se avesse
+  agito solo in decode le due PPL sarebbero coincise e l'intero mandato sarebbe stato vuoto.
+  Sesta verifica di un'assunzione su un flag; la prima che risulta **vera**.
+
+  ### La scala
+
+  | | k | PPL | ΔPPL vs k8 | CI95 | costo = ΔPPL / % traffico risparmiato |
+  |---|---:|---:|---:|---|---:|
+  | k8 | 8 | **2.556** | — | — | riferimento |
+  | k6 | 6 | **3.497** | **+0.941** | [0.860, 1.018] | 0.0376 |
+  | k5 | 5 | **5.117** | **+2.561** | [2.372, 2.745] | 0.0683 |
+  | k4 | 4 | **9.843** | **+7.287** | [6.837, 7.725] | **0.1457** |
+
+  A k=4 la perplessità è **quasi quadruplicata**. Nessun intervallo si avvicina allo zero.
+  Soglia dichiarata per archiviare: 0.15 ⇒ **tutte e tre archiviate**, k6 di 6×.
+
+  **E il costo-per-traffico peggiora MONOTONICAMENTE** (0.038 → 0.068 → 0.146): ogni gradino
+  verso il basso rende peggio del precedente. **k non è una manopola con un ottimo: è una
+  direzione strettamente dominata.** Non esiste un k «giusto» sotto 8.
+
+  ### ⚠ Il risultato metodologico, che vale quanto i numeri
+
+  Il 2026-08-07 ho letto l'output di **k=4** e ho scritto, nel verbale, che il codice era
+  corretto e che la fisica della batteria era *«la più corretta di tutto il set»*. **Era vero.**
+  E quel modello aveva una perplessità **4× peggiore**.
+
+  **Testo che sembra a posto non è prova di qualità preservata.** È esattamente il modo in cui
+  si spedisce un prodotto rotto fidandosi dell'occhio — e le 24 coppie che avevo letto non
+  erano un campione troppo piccolo per *caso*: erano lo strumento sbagliato. Un modello
+  degradato produce ancora frasi fluenti e, a volte, fatti giusti; quello che perde è la
+  *distribuzione*, che a occhio non si vede.
+
+  ### ⚠ `--drop-cold-experts` è BLOCCATO, e il perché è una scoperta sul metro
+
+  Diagnosi confermata da probe + lettura di `config.cpp`:
+  1. `drop_cold_frac` con `cache_mb=0` viene **rifiutato** (degenera in taglio di pesi);
+  2. il percorso PPL marca **ogni batch come prefill**, e `drop_prefill` è **off di default**.
+
+  Cioè: `--drop-cold-experts` è un meccanismo **di decode con cache**, il protocollo PPL è
+  **prefill con cache 0**. Incompatibili per progetto, non per svista.
+
+  **Il limite generale che ne discende:** il metro costruito da A misura il **modello** —
+  quanto bene predice il testo — non le **decisioni del runtime durante la generazione**.
+  Qualunque leva che agisca solo in decode (drop-cold oggi, e chiunque altro domani) **gli è
+  invisibile**.
+
+  **Il rimedio, che è un'estensione modesta di ciò che A ha già costruito:** uno **scorer sul
+  percorso di decode** — teacher forcing un token alla volta invece che in batch di prefill.
+  A ~6 tok/s sono ~1.6 ore per gli stessi 34k token: fattibile. È l'unico modo di dare a
+  `drop-cold` la stessa prova che ha demolito k, invece di archiviarlo per non-misurabilità.
+
+  ### Stato del ramo lossy
+
+  | leva | esito |
+  |---|---|
+  | `k=6/5/4` | **archiviate**, ΔPPL da +0.94 a +7.29 |
+  | `--drop-cold-experts` | **non misurabile** col metro attuale — serve lo scorer di decode |
+  | REAP (pruning) | non ancora toccato; il metro ora esiste, ma vale per il modello, e il pruning è una modifica **del modello** ⇒ **misurabile con il metro attuale** |
+
+  **Ricaduta su REAP**: è l'unica leva lossy che il metro attuale può giudicare così com'è,
+  perché cambia i pesi e non il comportamento a runtime. Se un giorno si vorrà provarla, la
+  prova è già disponibile.
 
 - **2026-08-08 — ⚫ k=6 È ARCHIVIATO CON UN MARGINE DI 6×. Il metro dà in un colpo la risposta
   che 24 coppie lette a occhio non avevano potuto dare.**
