@@ -204,16 +204,21 @@ run_turn() {
     sleep 15
     ui_texts > "$OUT/${poll_prefix}_$i.txt"
     shot "${poll_prefix}_$i" 2>/dev/null
-    # History can grow; pull enough for multi-turn assistant count.
-    hist=$(sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';")
-    echo "$hist" > "$OUT/${tag}_history_$i.json"
-    n=$(printf '%s' "$hist" | grep -o '"role":"assistant"' | wc -l | tr -d ' \r')
+    # TRUE turn-end signal = the KALSA_TELEMETRY line, emitted only when the
+    # native completion returns. Counting assistant bubbles in the DB fired
+    # EARLY (run 31252095679: partial-turn persistence saves the streaming
+    # bubble mid-generation — harness moved on while t3 was still Writing,
+    # then t4 typing hit a busy app and the extracted "reply" was a fragment).
+    # util-* lines (memory-extract) excluded from the count.
+    n=$(adb logcat -d 2>/dev/null | grep -F "KALSA_TELEMETRY" | grep -v '"turnId":"util-' | wc -l | tr -d ' \r')
     if [ "${n:-0}" -ge "$min_assistants" ]; then
+      hist=$(sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';")
+      echo "$hist" > "$OUT/${tag}_history_$i.json"
       reply=$(echo "$hist" | sed 's/.*"role":"assistant","text":"//; s/".*//' | head -c 1500)
-      log "[$tag] REPLY AFTER $(( $(date +%s) - sent ))s (assistants=$n): $reply"
+      log "[$tag] REPLY AFTER $(( $(date +%s) - sent ))s (telemetry_lines=$n): $reply"
       break
     fi
-    log "[$tag] poll $i: still generating ($(( $(date +%s) - sent ))s) assistants=${n:-0}"
+    log "[$tag] poll $i: still generating ($(( $(date +%s) - sent ))s) telemetry_lines=${n:-0}"
   done
 
   LAST_REPLY="$reply"
