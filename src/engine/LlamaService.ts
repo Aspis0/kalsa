@@ -536,8 +536,18 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       const override = options.speculativeOverride;
       // binding accepts the string; TS union NativeSpeculativeType is stale
       // (only 'none'|'draft-mtp'|'mtp') — cast required to pass "draft-dflash"
+      // Binding hole (llama.rn 0.12.8, rn-llama.cpp:491-492): the separate
+      // draft GGUF is loaded ONLY when the speculative types include
+      // draft-mtp — a pure draft-dflash config silently never loads the draft
+      // and speculation no-ops (first real A/B run 31270817640: dflash arm
+      // draftTokens=0 across all turns). Workaround: include draft-mtp in the
+      // types list purely to trip the loader gate; dflash stays first so the
+      // dflash impl (which reads dflash.block_size from the draft's metadata)
+      // is the one that engages on a dflash-arch draft.
       params.speculative = {
-        type: override.type as any,
+        ...(override.type === "draft-dflash"
+          ? { types: ["draft-dflash", "draft-mtp"] as any }
+          : { type: override.type as any }),
         ...(override.nMax ? { n_max: override.nMax } : {}),
         draft: {
           ...(override.draftModelPath ? { model_draft: override.draftModelPath } : {}),

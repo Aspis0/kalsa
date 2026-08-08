@@ -395,6 +395,13 @@ force_stop_relaunch
 wait_ready "dflash"
 run_two_turns "dflash"
 capture_telemetry "dflash"
+# Symmetric impossible-by-construction assert: the dflash arm MUST speculate.
+# Run 31270817640: seed landed verbatim but the binding never loaded the draft
+# (draft-mtp-only loader gate) → draftTokens=0 → the arm was a silent second
+# baseline. An arm that cannot prove it differs from control dies loudly.
+if ! grep -o '"draftTokens":[0-9]*' "$OUT/telemetry_dflash.txt" | grep -vq '"draftTokens":0'; then
+  die "dflash arm did NOT speculate (all draftTokens=0) — draft model not engaged"
+fi
 
 # ---------------------------------------------------------------------------
 # RESULT.txt — per-config per-turn metrics + final comparison.
