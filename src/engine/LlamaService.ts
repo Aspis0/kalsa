@@ -843,7 +843,10 @@ export async function saveEngineSession(
       await writeSessionMeta(modelId, meta);
       // Only after a successful write: drop other models' sessions (keep current).
       await deleteOtherModelSessions(modelId);
-      log(true, { tokens: typeof tokens === "number" ? tokens : 0 });
+      log(true, {
+        tokens: typeof tokens === "number" ? tokens : 0,
+        hash: historyHashValue,
+      });
       return true;
     } catch (error) {
       console.warn("[saveEngineSession]", error);
@@ -918,7 +921,14 @@ async function tryLoadEngineSession(
       // Field name only (enum-like) — attributable cold starts: historyHash =
       // save missed/raced; promptEnvHash = memory facts / locale changed
       // (semantically correct cold); nCtx/KV = config change.
-      log(false, { reason: `meta_mismatch:${mismatchField}` });
+      // metaHash/bootHash only for historyHash MISS so CI can compare at a glance
+      // without changing the grepped reason string.
+      log(false, {
+        reason: `meta_mismatch:${mismatchField}`,
+        ...(mismatchField === "historyHash"
+          ? { metaHash: stored.historyHash, bootHash: expected.historyHash }
+          : {}),
+      });
       return false;
     }
     const result = await context.loadSession(sessionFilePath(modelId));
@@ -1224,7 +1234,12 @@ export async function streamAssistantTurn(
       // Prepend prior-round streamed prefix: finalText is LAST-round only, but
       // the UI already shows round-1 prose via streaming; a bare full-replace
       // used to wipe that prose from the bubble and persisted history.
-      const finalText = stripToolCallTagsFinal(thinkCleaner.finalize(extractRawResultText(raw)));
+      let finalText = stripToolCallTagsFinal(thinkCleaner.finalize(extractRawResultText(raw)));
+      // Binding's parsed content keeps `\n\n` left by an empty think block while
+      // the streamed cleaner strips it — full-replace then differs by leading
+      // whitespace only (blank lines atop the bubble + late DB rewrite). Only
+      // when there is no prior-round prefix.
+      if (!streamedTextAtRoundStart) finalText = finalText.trimStart();
       if (finalText) callbacks.onDelta(finalText, streamedTextAtRoundStart + finalText);
       finishOnce(() => callbacks.onDone());
     };

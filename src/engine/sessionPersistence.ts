@@ -75,6 +75,28 @@ export function computeHistoryHashFromMessages(messages: unknown): string {
   return historyHash(JSON.stringify(arr));
 }
 
+let bootHistoryHashPromise: Promise<string> | null = null;
+/**
+ * History hash captured ONCE per app process, at first call (AppShell mount) —
+ * BEFORE any send can append the in-flight turn to kalsa.messages.v1. The KV
+ * session gate must compare against the history the conversation STARTS from,
+ * not a mid-send snapshot (lazy engine init reads after the user message is
+ * already persisted → guaranteed mismatch; CI run 31279879254).
+ */
+export function getBootHistoryHash(): Promise<string> {
+  if (!bootHistoryHashPromise) {
+    bootHistoryHashPromise = (async () => {
+      try {
+        const raw = await AsyncStorage.getItem("kalsa.messages.v1");
+        return historyHash(raw || "[]");
+      } catch {
+        return historyHash("[]");
+      }
+    })();
+  }
+  return bootHistoryHashPromise;
+}
+
 /**
  * Hash of system-prompt env inputs that are not covered by historyHash.
  * `hasTools` is always the literal `true` today (tools wired on every chat turn).

@@ -32,7 +32,7 @@ import {
   type EngineMessage,
   type EngineTurnOptions,
 } from "../engine/LlamaService";
-import { computePromptEnvHash, historyHash } from "../engine/sessionPersistence";
+import { computePromptEnvHash, getBootHistoryHash } from "../engine/sessionPersistence";
 import { getSpeculativeOverride } from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import {
@@ -627,6 +627,11 @@ export function AppShell() {
     };
   }, []);
 
+  // Capture pre-send history for the KV gate (before any send mutates kalsa.messages.v1).
+  useEffect(() => {
+    void getBootHistoryHash();
+  }, []);
+
   // Guard sincrone per download/switch/stream (non soggette al batching di React).
   const downloadInFlight = useRef(false);
   const downloadAbortRef = useRef<AbortController | null>(null);
@@ -741,14 +746,9 @@ export function AppShell() {
         catalogCtx: model.engineCtx,
       });
       const speculativeOverride = await getSpeculativeOverride();
-      // Hash exact HISTORY_KEY payload so save (JSON.stringify(clean)) matches load.
-      let sessionHistoryHash = historyHash("[]");
-      try {
-        const raw = await AsyncStorage.getItem("kalsa.messages.v1");
-        if (raw) sessionHistoryHash = historyHash(raw);
-      } catch {
-        // cold start without history is fine
-      }
+      // Boot-captured HISTORY_KEY hash: conversation start, not mid-send (lazy
+      // engine init would otherwise hash after the user turn is already persisted).
+      const sessionHistoryHash = await getBootHistoryHash();
       // Same memoryFacts slice the system prompt uses (newest 10, or [] if off).
       let sessionPromptEnvHash = computePromptEnvHash(locale, []);
       try {
@@ -955,13 +955,9 @@ export function AppShell() {
         catalogCtx: model.engineCtx,
       });
       const speculativeOverride = await getSpeculativeOverride();
-      let sessionHistoryHash = historyHash("[]");
-      try {
-        const raw = await AsyncStorage.getItem("kalsa.messages.v1");
-        if (raw) sessionHistoryHash = historyHash(raw);
-      } catch {
-        // ignore
-      }
+      // Boot-captured HISTORY_KEY hash: conversation start, not mid-send (lazy
+      // engine init would otherwise hash after the user turn is already persisted).
+      const sessionHistoryHash = await getBootHistoryHash();
       let sessionPromptEnvHash = computePromptEnvHash(locale, []);
       try {
         const enabled = await MemoryStore.getEnabled();
