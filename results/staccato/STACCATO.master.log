@@ -1,0 +1,131 @@
+[2026-08-08T19:03:31-0400] === STACCATO START pid=4673 ===
+[2026-08-08T19:03:31-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN sha=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-08T19:03:31-0400] model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+[2026-08-08T19:03:33-0400] flight started pid=4847
+[2026-08-08T19:03:33-0400] prompt sha archived → /data/data/com.termux/files/home/experiments/results/staccato/prompt_sha256.txt
+prompt,sha256,bytes
+f5_1_t1,e6aacbf55c290609c469ca218d5a88dcca0d8c286ea5ea0ca9b4a34004f2de7b,331
+f5_1_t2,c4e4c18765fa0dbfe9919b7881240382d5f0e0375f1b4781ae06731310ac5882,257
+f5_1_t3,66dcf043d0950a7c75c0e28443a98299acca426add7890980ae7e28f3f482a3c,289
+f5_1_t4,7b93a8c4441f3e9f41337f4337d5fb32e72120975993fb5f35eb0ae3dce52ee1,260
+f5_1_t5,bb7067bca1468069698749faf95632fa5b6c18a6c6c07e0b6f6251dc928b929f,212
+short,197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619,454
+f45_1_esplicativo,bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf,410
+d1_long,96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650,5210
+batt_start 2026-08-08T19:03:33-0400 100 4380 -1218 28.5 UNPLUGGED
+[2026-08-08T19:03:33-0400] ==== CELLA1 rep=1 START ====
+[2026-08-08T19:03:34-0400] PREFLIGHT cella1_rep1 nproc=7 die=46.2C batt=100% plugged=UNPLUGGED btemp=28.5
+[2026-08-08T19:03:35-0400] PREFLIGHT cella1_rep1 OK die=46.2C batt=100 nproc=7
+[2026-08-08T19:03:35-0400] cold_model (cella1 rep1)
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=150952 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T19:03:40-04:00
+[2026-08-08T19:03:40-0400] cella1 rep1 bmoe pid=8046
+[2026-08-08T19:03:50-0400] READY rep1: BMOE_READY {"load_s":9.247,"arch":"qwen35moe","n_ctx":4096,"think_ctl":"template","n_expert_used":8}
+[2026-08-08T19:03:51-0400] C1 rep1 TURN 1 clear_kv=true
+[2026-08-08T19:05:01-0400] C1 r1 T1 DONE n_prompt=97 n_common=0 n_past=353 prefill_s=9.046 tok_s=4.508 wall=68s
+[2026-08-08T19:05:02-0400] C1 rep1 TURN 2 clear_kv=false
+[2026-08-08T19:06:22-0400] C1 r1 T2 DONE n_prompt=87 n_common=353 n_past=696 prefill_s=8.876 tok_s=3.876 wall=76s
+[2026-08-08T19:06:24-0400] C1 rep1 TURN 3 clear_kv=false
+[2026-08-08T19:07:51-0400] C1 r1 T3 DONE n_prompt=88 n_common=696 n_past=1040 prefill_s=10.221 tok_s=3.513 wall=83s
+[2026-08-08T19:07:53-0400] C1 rep1 TURN 4 clear_kv=false
+[2026-08-08T19:09:23-0400] C1 r1 T4 DONE n_prompt=92 n_common=1040 n_past=1388 prefill_s=11.020 tok_s=3.481 wall=86s
+[2026-08-08T19:09:25-0400] C1 rep1 TURN 5 clear_kv=false
+[2026-08-08T19:10:54-0400] C1 r1 T5 DONE n_prompt=70 n_common=1388 n_past=1714 prefill_s=8.917 tok_s=3.430 wall=85s
+[2026-08-08T19:10:57-0400] ==== CELLA1 rep=1 DONE ====
+[2026-08-08T19:10:58-0400] ==== CELLA1 rep=2 START ====
+[2026-08-08T19:11:00-0400] PREFLIGHT cella1_rep2 nproc=6 die=48.9C batt=96% plugged=UNPLUGGED btemp=39.6
+[2026-08-08T19:11:01-0400] PREFLIGHT cella1_rep2 OK die=49.4C batt=96 nproc=6
+[2026-08-08T19:11:01-0400] cold_model (cella1 rep2)
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=329 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T19:11:09-04:00
+[2026-08-08T19:11:09-0400] cella1 rep2 bmoe pid=14093
+[2026-08-08T19:11:20-0400] READY rep2: BMOE_READY {"load_s":10.487,"arch":"qwen35moe","n_ctx":4096,"think_ctl":"template","n_expert_used":8}
+[2026-08-08T19:11:22-0400] C1 rep2 TURN 1 clear_kv=true
+[2026-08-08T19:12:53-0400] C1 r2 T1 DONE n_prompt=97 n_common=0 n_past=353 prefill_s=10.778 tok_s=3.388 wall=88s
+[2026-08-08T19:12:55-0400] C1 rep2 TURN 2 clear_kv=false
+[2026-08-08T19:14:31-0400] C1 r2 T2 DONE n_prompt=87 n_common=353 n_past=696 prefill_s=10.521 tok_s=3.156 wall=92s
+[2026-08-08T19:14:33-0400] C1 rep2 TURN 3 clear_kv=false
+[2026-08-08T19:16:09-0400] C1 r2 T3 DONE n_prompt=88 n_common=696 n_past=1040 prefill_s=11.766 tok_s=3.242 wall=92s
+[2026-08-08T19:16:12-0400] C1 rep2 TURN 4 clear_kv=false
+[2026-08-08T19:17:48-0400] C1 r2 T4 DONE n_prompt=92 n_common=1040 n_past=1388 prefill_s=12.406 tok_s=3.238 wall=93s
+[2026-08-08T19:17:50-0400] C1 rep2 TURN 5 clear_kv=false
+[2026-08-08T19:19:28-0400] C1 r2 T5 DONE n_prompt=70 n_common=1388 n_past=1714 prefill_s=9.828 tok_s=3.083 wall=94s
+[2026-08-08T19:19:30-0400] ==== CELLA1 rep=2 DONE ====
+[2026-08-08T19:19:32-0400] CELLA1 complete
+[2026-08-08T19:19:32-0400] ==== CELLA2 START ====
+[2026-08-08T19:19:34-0400] PREFLIGHT cella2 nproc=6 die=50.6C batt=92% plugged=UNPLUGGED btemp=41.6
+[2026-08-08T19:19:36-0400] PREFLIGHT cella2 OK die=51.3C batt=92 nproc=6
+[2026-08-08T19:19:38-0400] PREFLIGHT cella2_C2000 nproc=6 die=49.7C batt=92% plugged=UNPLUGGED btemp=41.6
+[2026-08-08T19:19:39-0400] PREFLIGHT cella2_C2000 OK die=49.0C batt=92 nproc=6
+[2026-08-08T19:19:40-0400] cold_model for cache=2000
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=3 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T19:19:47-04:00
+[2026-08-08T19:19:49-0400] PREFLIGHT cella2_C2000_short_r1 nproc=7 die=50.1C batt=92% plugged=UNPLUGGED btemp=41.6
+[2026-08-08T19:19:50-0400] PREFLIGHT cella2_C2000_short_r1 OK die=52.2C batt=92 nproc=7
+[2026-08-08T19:19:52-0400] ---- single c2-C2000-short-r1 pid=short n=200 cache=2000 ubatch=512 ----
+[2026-08-08T19:20:40-0400] CELLA2 winner_cache=2000 (see decision.log)
+# baseline 2000 med_eval=None n=0
+# C=3000 skip (no data)
+# C=3500 skip (no data)
+[2026-08-08T19:20:40-0400] ==== CELLA3 START win_cache=2000 ====
+[2026-08-08T19:20:43-0400] PREFLIGHT cella3 nproc=6 die=52.9C batt=92% plugged=UNPLUGGED btemp=41.6
+[2026-08-08T19:20:44-0400] PREFLIGHT cella3 OK die=50.5C batt=92 nproc=6
+[2026-08-08T19:20:46-0400] PREFLIGHT cella3_ub512_r1 nproc=6 die=49.8C batt=92% plugged=UNPLUGGED btemp=41.6
+[2026-08-08T19:20:48-0400] PREFLIGHT cella3_ub512_r1 OK die=50.5C batt=92 nproc=6
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=101941 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T19:20:56-04:00
+[2026-08-08T19:20:58-0400] ---- single c3-ub512-r1 pid=d1_long n=64 cache=2000 ubatch=512 ----
+[2026-08-08T19:21:37-0400] CELLA3 winner_ubatch=512
+# ub512 med_prefill=None n=0
+# ub2048 med_prefill=None n=0
+[2026-08-08T19:21:37-0400] ==== CELLA4 START cache=2000 ubatch=512 ====
+[2026-08-08T19:21:39-0400] PREFLIGHT cella4 nproc=7 die=52.1C batt=92% plugged=UNPLUGGED btemp=41.6
+[2026-08-08T19:21:40-0400] PREFLIGHT cella4 OK die=52.5C batt=92 nproc=7
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=54899 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-08T19:21:49-04:00
+[2026-08-08T19:21:49-0400] cella4 bmoe pid=12903
+rc=0 wall=43
+eval_tok_s=3.641 prompt_tok_s=6.3 hit=69.8%
+batt 92->91
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-08T19:22:34-0400] ==== CELLA4 DONE ====
+batt_end 2026-08-08T19:22:34-0400 91 4210 -363000 40.4 UNPLUGGED
+[2026-08-08T19:22:35-0400] === STACCATO COMPLETE win_c=2000 win_ub=512 rc=0 ===
+===== RESUME from cella 2 2026-08-08T19:33:17-0400 =====
+[2026-08-08T19:33:17-0400] === STACCATO START pid=23864 start_cell=2 ===
+[2026-08-08T19:33:17-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN sha=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-08T19:33:17-0400] model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+[2026-08-08T19:33:19-0400] flight started pid=23975
+[2026-08-08T19:33:19-0400] prompt sha archived → /data/data/com.termux/files/home/experiments/results/staccato/prompt_sha256.txt
+prompt,sha256,bytes
+f5_1_t1,e6aacbf55c290609c469ca218d5a88dcca0d8c286ea5ea0ca9b4a34004f2de7b,331
+f5_1_t2,c4e4c18765fa0dbfe9919b7881240382d5f0e0375f1b4781ae06731310ac5882,257
+f5_1_t3,66dcf043d0950a7c75c0e28443a98299acca426add7890980ae7e28f3f482a3c,289
+f5_1_t4,7b93a8c4441f3e9f41337f4337d5fb32e72120975993fb5f35eb0ae3dce52ee1,260
+f5_1_t5,bb7067bca1468069698749faf95632fa5b6c18a6c6c07e0b6f6251dc928b929f,212
+short,197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619,454
+f45_1_esplicativo,bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf,410
+d1_long,96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650,5210
+batt_window 2026-08-08T19:33:19-0400 91 4264 -188000 32.1 UNPLUGGED start_cell=2
+[2026-08-08T19:33:20-0400] SKIP CELLA1 (resume start_cell=2) — turns.csv preserved
+[2026-08-08T19:33:20-0400] ==== CELLA2 START ====
+[2026-08-08T19:33:23-0400] PREFLIGHT cella2 nproc=3 die=39.8C batt=91% plugged=UNPLUGGED btemp=32.1
+[2026-08-08T19:33:23-0400] FATAL nproc=3 < 6
+[2026-08-08T19:33:23-0400] cella2 exit 0
+[2026-08-08T19:33:24-0400] CELLA2 winner_cache=2000 (see decision.log)
+# baseline 2000 med_eval=None n=0
+# C=3000 skip (no data)
+# C=3500 skip (no data)
+[2026-08-08T19:33:24-0400] ==== CELLA3 START win_cache=2000 ====
+[2026-08-08T19:33:27-0400] PREFLIGHT cella3 nproc=3 die=38.6C batt=91% plugged=UNPLUGGED btemp=32.1
+[2026-08-08T19:33:27-0400] FATAL nproc=3 < 6
+[2026-08-08T19:33:27-0400] cella3 exit 0
+[2026-08-08T19:33:27-0400] CELLA3 winner_ubatch=512
+# ub512 med_prefill=None n=0
+# ub2048 med_prefill=None n=0
+[2026-08-08T19:33:27-0400] ==== CELLA4 START cache=2000 ubatch=512 ====
+[2026-08-08T19:33:31-0400] PREFLIGHT cella4 nproc=3 die=40.6C batt=91% plugged=UNPLUGGED btemp=32.1
+[2026-08-08T19:33:31-0400] FATAL nproc=3 < 6
+[2026-08-08T19:33:31-0400] cella4 exit 0
+batt_end 2026-08-08T19:33:31-0400 91 4264 -180000 32.1 UNPLUGGED
+[2026-08-08T19:33:32-0400] === STACCATO COMPLETE win_c=2000 win_ub=512 rc=0 ===

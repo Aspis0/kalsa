@@ -1036,6 +1036,40 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-08 — 🏆🏆 IL NUMERO DEL PRODOTTO, MISURATO: turno 5 da 165 s a ~9 s di
+  prefill (−94%), da staccato, partenza fredda, conversazione vera. E la causa della
+  mezza-suite persa non è un reset: è il timeout schermo.**
+
+  Cella 1 di `misure-staccato` COMPLETA (2 rep, prompt F5.1 con sha a verbale,
+  `bin_sha256=cab20432…` in ogni riga):
+
+  | turno | n_common | n_prompt | prefill_s (r1/r2) | tok/s (r1/r2) |
+  |---|---:|---:|---|---|
+  | 1 | 0 | 97 | 9.0 / 10.8 | 4.51 / 3.39 |
+  | 2 | 353 | 87 | 8.9 / 10.5 | 3.88 / 3.16 |
+  | 3 | 696 | 88 | 10.2 / 11.8 | 3.51 / 3.24 |
+  | 4 | 1040 | 92 | 11.0 / 12.4 | 3.48 / 3.24 |
+  | **5** | **1388** | **70** | **8.9 / 9.8** | 3.43 / 3.08 |
+
+  Il riuso scala: ogni turno prefilla SOLO il nuovo messaggio, `n_common` cresce fino a
+  1388. Load freddo sul campo: 9.2/10.5 s (DENSE2). Decode cala 4.5→3.1 tok/s col
+  crescere di `n_past` e col die a ~79 °C in decode — il costo dell'attenzione più il
+  termico, tutto atteso. Storico da battere: 165 s (F5.1). **Battuto: −94%.**
+
+  **Le celle 2-3-4 sono perse, e NON per un reset** (uptime continuo dalle 15:21, gualt
+  aveva temuto un secondo riavvio — smentito): sessione partita 19:03, timeout schermo 30
+  min scaduto alle 19:33 esatte → Samsung declassa Termux dal cpuset top-app → `nproc=3`
+  → preflight FATAL e celle saltate. Due lezioni di processo:
+  1. **il timeout schermo è un limite di sessione**: le suite da staccato devono tenere
+     lo schermo acceso oltre i 30 min (screen_off_timeout alzato via adb per la durata,
+     poi ripristinato) o promuovere Termux periodicamente;
+  2. **bug dell'harness**: STATUS con `rc=0` e "winner 2000/512" che sono DEFAULT senza
+     dati — una chiusura che mente. Una cella saltata deve produrre SKIPPED esplicito e
+     rc≠0, mai un winner di default.
+
+  Rimedio: `mandates/misure-staccato-2.md` (solo celle 2-3-4, schermo gestito, preflight
+  che aspetta invece di saltare, STATUS onesto). Batteria al 90%: margine per la parte 2.
+
 - **2026-08-08 — ✅ DENSE2 ADOTTATO (CAMPAIGN = `cab20432…`) e residuo CHIUSO PER
   ESPERIMENTO: il reclaim è DURANTE il warm-up, il riordino non avrebbe recuperato nulla.**
 
