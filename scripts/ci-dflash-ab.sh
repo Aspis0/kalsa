@@ -113,10 +113,13 @@ set_base_prefs() {
 }
 
 wait_ready() {
-  # Engine load of 4B + draft can take several minutes on the CI AVD.
+  # Engine load of 4B (2.8GB) + mmproj (0.67GB) on the CI AVD is SLOW: run
+  # 31230993302 proved 10 min is not enough (bundle accepted, engine still
+  # loading or dying). 25 min ceiling; on failure dump native logcat so the
+  # next diagnosis has llama.cpp's own words (load progress vs lmkd death).
   local label="$1" i
   log "waiting for Ready ($label)"
-  for i in $(seq 1 40); do
+  for i in $(seq 1 100); do
     sleep 15
     if dump_ui | grep -qE 'text="Ready|content-desc="Ready|text="Pronto'; then
       log "Ready after ~$((i * 15))s ($label)"
@@ -128,7 +131,10 @@ wait_ready() {
   done
   ui_texts > "$OUT/ready_fail_${label}.txt"
   shot "ready_fail_${label}"
-  die "app did not reach Ready ($label) within ~10 min"
+  adb logcat -d | grep -iE "RNLlama|llama|lmkd|lowmemorykiller|am_kill|FATAL" | tail -120 \
+    > "$OUT/ready_fail_${label}_logcat.txt" 2>/dev/null || true
+  adb shell dumpsys meminfo "$PKG" 2>/dev/null | head -40 > "$OUT/ready_fail_${label}_meminfo.txt" || true
+  die "app did not reach Ready ($label) within ~25 min"
 }
 
 force_stop_relaunch() {
