@@ -41,9 +41,14 @@
    Il KV **non** persiste fra i turni, la cache esperti **sì**. È ingegneria nota (match del
    prefisso comune, quello che fa `llama-server`), non ricerca. **Nessuna ottimizzazione del
    decode recupera 165 secondi.**
-2. 🔴 **Fix del loader (E1)** — legge **20.76 GiB** per materializzarne 2.8 (fault di mmap sul
-   file intero). Radice comune di **tre** problemi: 17 s di TTFT, picco termico a 92 °C,
-   fragilità di memoria (la cascata OOM che ha ucciso 10 processi).
+2. 🟢 **Fix del loader (E1) — FATTO e MISURATO PULITO (2026-08-08).** Tri-stato
+   `mmap_prefetch` (ABI-safe, fixup `e5605f3`), gate 8/8 byte-identici, G3 rifatto con
+   sampler sano (mediana 201 ms) e confine verificato: **21.05 → 10.31 GiB** al load
+   (**−51%**), VmHWM **4636 → 2708 MiB**, `rchar` 1.65 GiB ≈ storico (la contaminazione era
+   del vecchio sampler). Numeri canonici in `reports/moe-blockers-fix.md` — sostituiscono
+   quelli di `moe-loader-fix.md`. Binario di campagna **pinnato**: `bmoe-cli.CAMPAIGN`
+   (sha `ad058660…`), colonna `bin_sha256` in `runs.csv`. Residuo aperto: 10.31 GiB è ancora
+   sopra la soglia 8 — restano warm-up fault e doppio passaggio del dense (mandato a parte).
 3. ✅ **Metro di perplessità — ESISTE (2026-08-08 02:37).** `PPL = 2.7790669585` su **68 175
    token italiani**, con `audit_ppl` ricalcolato per via indipendente che coincide alla decima
    cifra. La modifica al runtime ha superato la non-regressione **8/8 byte-identici** contro i
@@ -1023,6 +1028,42 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-08 — ✅ TRE BLOCCANTI CHIUSI IN UN COLPO (mandato `fix-bloccanti-audit.md`),
+  arbitrato da me con verifica su disco. G3 CONFERMATO: −51%.**
+
+  Report: `reports/moe-blockers-fix.md`. Verificato: commit sul tree PC (`e5605f3` fixup
+  submodule, `5e6778c` session, `bd0cb35` bump), implementazione tri-stato conforme
+  (`llama.h:333` `int32_t`, default 0, `init_mappings(params.mmap_prefetch >= 0, …)` a
+  `llama-model.cpp:1506` → **zero-init riproduce il comportamento storico**, la promessa di
+  compatibilità ora è vera), pin helper (`scripts/lib_campaign_pin.sh`: abort su mismatch,
+  path nudo vietato, override solo `ALLOW_UNPINNED=1`), artefatti G3 completi.
+
+  1. **ABI (bloccante 2)** — chiuso. Fixup sopra `206a8fe7f` senza rebase; il messaggio
+     corregge esplicitamente il claim falso. Nit da sistemare al prossimo passaggio: il
+     commento in `llama.h:332` è in italiano, per l'upstream va in inglese.
+  2. **Pin (rischio di processo)** — chiuso. `bmoe-cli.CAMPAIGN` sha `ad058660…`,
+     `chmod a-w`, 26 script harness aggiornati, colonna `bin_sha256` in coda a `runs.csv`.
+  3. **G3 (bloccante 1)** — rifatto e **CONFERMATO**: sampler on-device (mediana 201 ms,
+     p95 221 ms, G-B PASS), confine = riga `bmoe: expert streaming ON` verificata dal cambio
+     di regime I/O su entrambi i bracci. **CTRL 21.05 GiB vs NEW 10.31 GiB = −51.0%**;
+     VmHWM −41.6%; scarto fra ripetizioni <1%. E la prova regina: `rchar` **1.649 GiB in
+     entrambi i bracci** ≈ F4.8 storico (1.62) — i 3.2-3.4 GiB del G3 originale erano
+     contaminazione del vecchio sampler, come sospettato nell'arbitrato dell'audit.
+     **I numeri di `moe-blockers-fix.md` sostituiscono quelli di `moe-loader-fix.md`.**
+
+  **Deviazione legittima e documentata**: `bmoe-cli.PREFAULT` (binario pre-campo) va in
+  SIGSEGV con la `libllama` tri-stato — atteso: struct cresciuta, binari vecchi richiedono
+  la lib vecchia. Il ctrl è diventato `G3P` (stesso tree, `mmap_prefetch=1`): **controllo
+  migliore**, una sola variabile. ⚠️ Conseguenza da ricordare: PREFAULT come "via di
+  ritorno" non è più eseguibile con le lib attuali — il rollback vero è ricostruire da git
+  (`b0c4e5b`/`206a8fe7f`), lo sha intatto serve da riferimento storico, non da binario
+  pronto.
+
+  G-A 8/8 byte-identici → il binario ABI (= CAMPAIGN) è equivalente sul decode: **tutte le
+  misure storiche restano confrontabili**. Restano in coda: fix KV
+  (`mandates/kv-reuse-fix.md`, ora eseguibile — l'albero è quello post-blocchi), dense
+  double-pass, nit del commento.
 
 - **2026-08-08 — 🎯 DIAGNOSI KV CHIUSA: non divergono a posizione 0 — divergono a 35 sul
   blocco `<think>` vuoto, e poi il fallback butta via anche i 35 token buoni.**
