@@ -46,14 +46,16 @@
    (sha, read-only, sha-file). Report: `moe-kv-reuse-fix.md` + `moe-kv-close.md`.
    Vincolo permanente scoperto: memoria ibrida attention+SSM → **niente rollback parziale
    della KV** su questo modello (edit/regenerate = ri-prefill completo).
-2. 🟢 **Fix del loader (E1) — FATTO e MISURATO PULITO (2026-08-08).** Tri-stato
-   `mmap_prefetch` (ABI-safe, fixup `e5605f3`), gate 8/8 byte-identici, G3 rifatto con
-   sampler sano (mediana 201 ms) e confine verificato: **21.05 → 10.31 GiB** al load
-   (**−51%**), VmHWM **4636 → 2708 MiB**, `rchar` 1.65 GiB ≈ storico (la contaminazione era
-   del vecchio sampler). Numeri canonici in `reports/moe-blockers-fix.md` — sostituiscono
-   quelli di `moe-loader-fix.md`. Binario di campagna **pinnato**: `bmoe-cli.CAMPAIGN`
-   (sha `ad058660…`), colonna `bin_sha256` in `runs.csv`. Residuo aperto: 10.31 GiB è ancora
-   sopra la soglia 8 — restano warm-up fault e doppio passaggio del dense (mandato a parte).
+2. ✅ **Loader (E1) — CAPITOLO CHIUSO (2026-08-08).** Tre fix adottati in sequenza:
+   prefault tri-stato (−51%: 21.05→10.31 GiB), poi dense2 (memcpy pagine residenti + drop
+   mmap esperti: 10.18→**9.37 GiB**, rchar dimezzato, VmHWM −321 MiB). CAMPAIGN =
+   `cab20432…` (pin verificato, colonna `bin_sha256` in `runs.csv`). Il residuo (~0.85 GiB
+   di dense rilétto) è **chiuso per esperimento, non per stanchezza**: mincore a fine
+   warm-up = 899/1664 MiB, identico al memcpy della conversione nello stesso run → il
+   reclaim avviene DURANTE il warm-up, nessun riordino lo recupererebbe. La soglia 8 GiB
+   non si raggiunge per questa via: ciò che resta è fault di warm-up sotto pressione,
+   fisica di un device da 8 GB. Report: `moe-blockers-fix.md`, `moe-dense2.md`,
+   `moe-adopt-dense2.md`.
 3. ✅ **Metro di perplessità — ESISTE (2026-08-08 02:37).** `PPL = 2.7790669585` su **68 175
    token italiani**, con `audit_ppl` ricalcolato per via indipendente che coincide alla decima
    cifra. La modifica al runtime ha superato la non-regressione **8/8 byte-identici** contro i
@@ -1033,6 +1035,27 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-08 — ✅ DENSE2 ADOTTATO (CAMPAIGN = `cab20432…`) e residuo CHIUSO PER
+  ESPERIMENTO: il reclaim è DURANTE il warm-up, il riordino non avrebbe recuperato nulla.**
+
+  Report: `reports/moe-adopt-dense2.md`. Re-pin `ede3ac7c… → cab20432…` con doppio smoke:
+  (a) due-turni KV sul pin nuovo → `n_common=71`, `n_prompt=41` (il fix KV è nella base,
+  provato); (b) firma DENSE2 in stderr (`dense-anon: memcpy=…`, `expert-mmap: dropped …`).
+  KVFIX/DIAG2/KVCTRL rimossi, PREFAULT intatto.
+
+  **L'esperimento da 10 minuti ha chiuso la domanda**: mincore sulle range dense a fine
+  capture warm-up (prima di rebind/drop/conversione) = **899/1664 MiB** — e nello stesso
+  run la conversione ha copiato 900 MiB. Perfettamente allineati: fra fine warm-up e
+  conversione **non si perde nulla**; la metà mancante sparisce durante il warm-up stesso
+  (pressione di memoria mentre si decode-a per il capture). Nessun riordino
+  drop/conversione può recuperare pagine già assenti a fine warm-up → **residuo chiuso
+  definitivamente, nessun mandato di riordino**. Terza vittoria del metodo
+  "esperimento-prima-della-narrativa": stavolta l'esperimento ha ucciso il fix *prima* di
+  scriverlo, costo 10 minuti invece di un mandato intero.
+
+  Verifica ssh indipendente del pin rimandata a fine sessione misure (in volo): non si
+  tocca il telefono durante le celle di timing.
 
 - **2026-08-08 — 🟡 DENSE2: PARZIALE onesto. Metà del dense si copia gratis, l'altra metà
   non è più residente quando serve. Comunque strettamente meglio su ogni asse misurato.**
