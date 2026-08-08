@@ -37,10 +37,14 @@
 
 ## Le 3 cose che contano, in ordine
 
-1. 🔴 **Prefill incrementale** — al turno 5 sono **165 s su 237**, il 70% dell'attesa, e cresce.
-   Il KV **non** persiste fra i turni, la cache esperti **sì**. È ingegneria nota (match del
-   prefisso comune, quello che fa `llama-server`), non ricerca. **Nessuna ottimizzazione del
-   decode recupera 165 secondi.**
+1. 🟢 **Prefill incrementale — FIX FATTO E PROVATO (2026-08-08, commit fork `2c675a5`).**
+   Due pezzi: history grezza quando il parse spoglia uno span think **vuoto** +
+   `preserve_thinking=true` al template (il template Qwen scarta `<think>` sui turni passati).
+   G-K1 PASS: t2 `n_common=71`, `n_prompt 108→41`, prefill **11.95→4.23 s**. G-K2 PASS (la
+   prova regina): riuso vs ri-prefill completo a pari history → **testo byte-identico**
+   (sha `5590b1ee…` uguale), 4.23 vs 10.68 s. Manca solo la chiusura di G-K3 (8/8 sul path
+   `-p` dei riferimenti; il run è stato interrotto da un **riavvio del telefono**) prima
+   dell'adozione come campagna. Binario: `bmoe-cli.KVFIX` (`ede3ac7c…`), CAMPAIGN intatto.
 2. 🟢 **Fix del loader (E1) — FATTO e MISURATO PULITO (2026-08-08).** Tri-stato
    `mmap_prefetch` (ABI-safe, fixup `e5605f3`), gate 8/8 byte-identici, G3 rifatto con
    sampler sano (mediana 201 ms) e confine verificato: **21.05 → 10.31 GiB** al load
@@ -1028,6 +1032,46 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-08 — 🏆 IL FIX KV FUNZIONA: `n_common=71`, prefill t2 da 12 a 4.2 s, testo
+  byte-identico col riuso. G-K3 resta aperto per un riavvio del telefono, e NON è una
+  regressione del fix.**
+
+  Report: `reports/moe-kv-reuse-fix.md`, commit fork `2c675a5` (verificato sul tree PC:
+  22 righe, solo session.cpp). Arbitrato:
+
+  - **Il fix ha DUE pezzi, non uno** — e la nota di esecuzione lo prova: la sola history
+    grezza ha dato ancora `n_common=0`. Il template Qwen del GGUF **scarta** `<think>` sugli
+    assistant passati salvo `preserve_thinking`; con `--no-think` lo span vuoto sta nel
+    *generation prompt* (quindi in `kv_tokens`), non nello stream generato. Serviva anche
+    `chat_template_kwargs["preserve_thinking"]="true"` al render.
+  - **G-K1 PASS**: t2 `n_prompt=41`, `n_common=71`, prefill 4.23 s (prima: 108 / 0 / 11.95).
+  - **G-K2 PASS — la prova regina**: `KVCTRL` (stesso albero, `n_common` forzato a 0,
+    `n_prompt=112` = il 108+4 predetto dalla diagnosi) produce **lo stesso identico testo**
+    (sha `5590b1ee…`) in 10.68 s contro 4.23. Il riuso non corrompe il contesto.
+  - **G-K3 PARZIALE, declassato a problema di harness**: `f45_1` diverge dai ref F5.5-B
+    (`6c45cb91` vs `2424179f`) ma **KVFIX ≡ CAMPAIGN byte-identici sullo stesso harness** —
+    il path `--session` rende `n_prompt=124` contro i 121 del path `-p` dei ref, differenza
+    di 3 token **pre-esistente sul binario pinnato**. Non è il commit. La suite va chiusa
+    rilanciando gli 8/8 sul path `-p` (quello dei ref), dove il codice modificato non
+    esegue nemmeno (nessuna history al primo turno).
+  - **Il telefono si è RIAVVIATO a metà suite** (uptime 3 min, cpuset degradato a 0-2,
+    `nproc=3`). Causa non indagata. Prima di qualunque altra misura: ripristino cpuset e
+    setup standard. I run post-reboot valgono solo come A/B interni (stesso stato per
+    entrambi i bracci), mai contro riferimenti.
+  - **Bonus, e va inciso nella pietra**: dal log di load, arch `qwen35moe` con tensori
+    SSM/Mamba (`ssm_d_state=128`, `n_swa=0`) → **memoria ibrida attention+ricorrente**.
+    Il `seq_rm` parziale rifiuta perché lo stato ricorrente non si ritaglia: **su questo
+    modello il rollback parziale della KV è impossibile per costruzione** — vale per
+    sempre (edit/regenerate = ri-prefill completo). Col fix, il caso append-only non ne ha
+    più bisogno.
+  - **Nota di scope**: `preserve_thinking=true` è incondizionato nel path chat → con
+    thinking reale i reasoning passati resterebbero nei re-render (cambio di semantica
+    oltre lo scope dichiarato). Oggi impatto nullo (si spedisce no-think); da ricordare se
+    mai si riattiva il thinking.
+
+  **Adozione: non ancora.** Percorso: ripristino telefono → 8/8 su path `-p` con KVFIX →
+  se PASS, re-pin deliberato di CAMPAIGN (nuovo sha in `CAMPAIGN.sha256`).
 
 - **2026-08-08 — ✅ TRE BLOCCANTI CHIUSI IN UN COLPO (mandato `fix-bloccanti-audit.md`),
   arbitrato da me con verifica su disco. G3 CONFERMATO: −51%.**
