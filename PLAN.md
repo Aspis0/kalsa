@@ -1036,6 +1036,37 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-09 — ✅ INDAGINE CHIUSA: non era il kernel, era ANDROID che staccava la spina.
+  `reboot,rescueparty` — il framework ha eutanasizzato un sistema in thrashing. STOP
+  revocato da gualt: celle 3-4 ripartite con i guardrail attivi.**
+
+  Report: `reports/moe-reboot2.md`. La catena completa, ricostruita dal dropbox:
+
+  1. ~20:34 — C3500 in thrashing: bmoe a 136-160% CPU, **kswapd0 al 90%**, PSI memoria
+     78%, major fault ~379k. Le app di sistema muoiono di fame: ANR di
+     `com.android.phone` e `systemui`;
+  2. 20:34:33 — **`system_server_crash`: "Lost network stack"** → ecco perché ssh e adb
+     sono caduti alle 20:47: la rete è morta 15 minuti PRIMA del riavvio;
+  3. 20:35 e 20:45 — due `SYSTEM_RESTART` (escalation);
+  4. 20:51 — **RescueParty riavvia il device**: `reboot,rescueparty`, suffisso `RP`.
+
+  **Classificazione**: SOFTWARE (recovery del framework), operativamente **RIPRODUCIBILE**
+  sotto la firma die 88-93 °C sostenuti + MemFree ≪100 MiB. Il riavvio #1 (15:21) resta a
+  firma diversa (`reboot` nudo, `_KP`) ma stessa famiglia operativa. La causa kernel
+  esatta di #1 resta aperta — e non serve: la mitigazione è identica, **non restare in
+  quel regime**.
+
+  Fatti anche: `screen_off_timeout` ripristinato (1800000, verificato), pull integrale di
+  staccato2 nel repo (flight.log completo: die max 92.8 °C, 28 sample sopra 88, MemFree
+  min 14.0 MiB), guardrail in `scripts/lib_guardrails.sh` cablati in entrambi gli harness
+  (PAUSE_THERMAL 88 °C/60 s con resume a 80, ABORT_MEM <100 MiB/10 s, HARD_STOP 98
+  legacy) — il vecchio MEM_ABORT (25 MiB ×4 sample, solo cache≥3000) era troppo tardi.
+
+  Lezione da incidere: su Android il limite non è il kernel panic — è **RescueParty**: se
+  affami system_server abbastanza a lungo, il sistema si riavvia "da solo" con un reason
+  che non nomina né thermal né OOM. Senza il flight recorder e il dropbox avremmo dato la
+  colpa al hardware.
+
 - **2026-08-09 — 🔴 SECONDO RIAVVIO INSPIEGATO (20:52 di ieri, durante C3500): scatta la
   regola — CAMPAGNA IN STOP finché l'indagine non chiude. E stavolta abbiamo la
   testimonianza: die ~90 °C sostenuti + memfree 14 MiB al momento della morte.**
