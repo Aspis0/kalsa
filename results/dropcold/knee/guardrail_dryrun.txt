@@ -1,0 +1,17 @@
+=== CASE A: mem bassa (13 MiB) + die freddo (29 C) -> NO kill, solo MEM_LOW ===
+[2026-08-09T17:39:50-0400] GUARDRAIL,1786311590.211669800,2026-08-09T17:39:50-0400,MEM_LOW,mf_kb=13312 die_mc=29000 low_s=10.0 thr_kb=102400 die_thr_mc=85000 (no kill: die cold)
+  GR_ACTION=CONTINUE (expect CONTINUE)
+  GR_LOW_MF_S=11.0 GR_MEM_COMBINED_S=0 GR_MEM_LOW_LOGGED=1
+PASS A
+=== CASE B: mem bassa (13 MiB) + die 86 C sostenuto -> ABORT_MEM ===
+  GR_ACTION=ABORT_MEM (expect ABORT_MEM)
+  GR_LAST_DETAIL=mf_kb=13312 die_mc=86000 combined_s=11.0 thr_kb=102400 die_thr_mc=85000 hold_s=10
+  GR_MEM_COMBINED_S=11.0
+PASS B
+=== CASE C: mem ok (500 MiB) + die 86 C -> NO ABORT_MEM ===
+  GR_ACTION=CONTINUE (expect CONTINUE)
+PASS C
+=== CASE D: early combined (5s < 10s hold) -> no abort yet ===
+  GR_ACTION=CONTINUE GR_MEM_COMBINED_S=5.0 (expect CONTINUE, ~5s)
+PASS D
+ALL DRY-RUN PASS

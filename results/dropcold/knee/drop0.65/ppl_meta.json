@@ -1,0 +1,20 @@
+{
+  "F": 0.65,
+  "thr": 0.08125,
+  "rc": 0,
+  "n_scored": 10098,
+  "sum_logprob": -7961.47551504,
+  "ppl": 2.19992,
+  "baseline_ppl": 2.0954498302339,
+  "delta_ppl": 0.10447016976609991,
+  "bmoe": {
+    "n_tokens": 10101,
+    "n_scored": 10098,
+    "sum_logprob": -7961.47551504,
+    "ppl": 2.19992,
+    "seconds": 2226.351,
+    "cancelled": false,
+    "mode": "decode",
+    "file": "/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt"
+  }
+}

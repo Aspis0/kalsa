@@ -1,0 +1,36 @@
+[2026-08-09T17:41:47-0400] KNEE start DECLARED_VALUES=0.65 0.80 BASE_PPL=2.0954498302339 HIST_BASE_MIB=49.05
+[2026-08-09T17:41:47-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+[2026-08-09T17:41:47-0400] corpus=/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt
+46efe834a89206aadf10bd66b0ab7a58a61ca2696aeb260070c649b3dc943153  /data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt
+[2026-08-09T17:41:47-0400] prompt_twin=/data/data/com.termux/files/home/experiments/prompts/f45_1_esplicativo.txt
+bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf  /data/data/com.termux/files/home/experiments/prompts/f45_1_esplicativo.txt
+[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248
+[2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 ===
+[2026-08-09T17:41:50-0400] prestart OK die=41700 n=6
+[2026-08-09T18:19:07-0400] ppl rc=0
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stdout:BMOE_PPL {"n_tokens":10101,"n_scored":10098,"sum_logprob":-7961.47551504,"ppl":2.199920,"seconds":2226.351,"cancelled":false,"mode":"decode","file":"/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt"}
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stderr:ppl-decode: n_tokens=10101 n_ctx=4096 batch=1 moe=1 drop_cold=0.650 k=8
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stderr:ppl-decode: scored 4095 / 10100 tokens (sum_logprob=-2769.1151)
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stderr:ppl-decode: scored 8190 / 10100 tokens (sum_logprob=-6234.5431)
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stderr:ppl-decode: scored 10098 / 10100 tokens (sum_logprob=-7961.4755)
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stderr:ppl done (decode): n_scored=10098 ppl=2.1999 sum_logprob=-7961.4755 (2226.4 s)
+[2026-08-09T18:19:07-0400] twin generate F=0.65
+[2026-08-09T18:19:09-0400] prestart OK die=56100 n=7
+[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100
+[2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 ===
+[2026-08-09T18:20:23-0400] prestart OK die=51700 n=6
+[2026-08-09T18:57:13-0400] ppl rc=0
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stdout:BMOE_PPL {"n_tokens":10101,"n_scored":10098,"sum_logprob":-8276.53318643,"ppl":2.269640,"seconds":2197.293,"cancelled":false,"mode":"decode","file":"/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt"}
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stderr:ppl-decode: n_tokens=10101 n_ctx=4096 batch=1 moe=1 drop_cold=0.800 k=8
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stderr:ppl-decode: scored 4095 / 10100 tokens (sum_logprob=-2895.8006)
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stderr:ppl-decode: scored 8190 / 10100 tokens (sum_logprob=-6492.9747)
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stderr:ppl-decode: scored 10098 / 10100 tokens (sum_logprob=-8276.5332)
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stderr:ppl done (decode): n_scored=10098 ppl=2.2696 sum_logprob=-8276.5332 (2197.3 s)
+[2026-08-09T18:57:13-0400] twin generate F=0.80
+[2026-08-09T18:57:15-0400] prestart OK die=56500 n=6
+[2026-08-09T18:58:27-0400] cell drop0.80 done batt=? die=56900
+[2026-08-09T18:58:27-0400] KNEE complete
+F	thr	ppl	delta_ppl	bytes_mib_tok	bytes_delta_pct	hit_pct	drop_pct	n_scored	rc_ppl	rc_twin	verdict
+0.65	0.08125	2.19992	0.10447016976609991	28.59	-41.71253822629969	82.4	6.1	10098	0	0	CANDIDATO_SOSTITUZIONE
+0.8	0.1	2.26964	0.1741901697660997	18.54	-62.201834862385326	85.0	11.6	10098	0	0	ARCHIVED_PPL

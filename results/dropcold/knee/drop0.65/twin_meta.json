@@ -1,0 +1,12 @@
+{
+  "F": 0.65,
+  "rc": 0,
+  "read_mib": 5717.9,
+  "mib_per_token": 28.59,
+  "cache_hit_pct": 82.4,
+  "n_generated": 200,
+  "experts_dropped": 3929,
+  "experts_routed": 64000,
+  "drop_pct": 6.1,
+  "tok_s": 4.771
+}
