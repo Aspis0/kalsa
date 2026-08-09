@@ -1036,6 +1036,37 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-09 — 🔴 SECONDO RIAVVIO INSPIEGATO (20:52 di ieri, durante C3500): scatta la
+  regola — CAMPAGNA IN STOP finché l'indagine non chiude. E stavolta abbiamo la
+  testimonianza: die ~90 °C sostenuti + memfree 14 MiB al momento della morte.**
+
+  Il telefono è andato "offline" alle 20:47 durante la parte 2 delle misure: non era la
+  rete — **si è riavviato** (boot ~20:52, verificato via uptime stamattina). È il secondo
+  evento in 6 ore, entrambi sotto pressione estrema:
+
+  | | riavvio 1 (15:21) | riavvio 2 (20:52) |
+  |---|---|---|
+  | contesto | suite G-K3, load ripetuti | C3500 f45, thrashing |
+  | die | ~90-92 °C (fasi di load) | 88-90 °C sostenuti (flight recorder) |
+  | memoria | pressione da load | **memfree 14-18 MiB** per minuti |
+  | ultima evidenza | — | 20:50:46: die 90→72 °C, memfree 14 MiB→**4.8 GiB** (processo morto/ucciso), poi giù il sistema |
+  | boot.reason | `reboot` (dropbox `_KP` senza stack) | da catturare via adb (ssh non ha i permessi) |
+
+  **Firma comune: ~90 °C sostenuti + carenza estrema di memoria.** Il nostro HARD STOP a
+  98 °C non è mai scattato — il telefono muore prima, a ~90: il guardrail era calibrato
+  su una soglia che la realtà non rispetta. Il flight recorder (introdotto dopo il primo
+  riavvio) ha ripagato subito: senza, staremmo di nuovo a indovinare.
+
+  Conseguenze operative (mandato `mandates/indagine-riavvio-2.md`):
+  1. evidenze via adb per ENTRAMBI gli eventi (boot.reason.history li contiene tutti e
+     due) + dropbox, salvate a verbale;
+  2. ripristino `screen_off_timeout=1800000` (pendente dalla parte 2) + pull artefatti;
+  3. **guardrail ricalibrati nell'harness**: die >88 °C sostenuti per 60 s → pausa fino a
+     <80; memfree <100 MiB sostenuti → abort cella con ABORT_MEM esplicito. La lezione:
+     i run che il telefono non regge vanno interrotti dall'harness, non dal kernel;
+  4. campagna FERMA finché 1-3 non sono chiusi. Nota: C3500 era già respinta nei numeri
+     (−68% tok/s) — il regime che uccide il telefono è anche un regime che non ci serve.
+
 - **2026-08-08 — 🏆🏆 IL NUMERO DEL PRODOTTO, MISURATO: turno 5 da 165 s a ~9 s di
   prefill (−94%), da staccato, partenza fredda, conversazione vera. E la causa della
   mezza-suite persa non è un reset: è il timeout schermo.**
