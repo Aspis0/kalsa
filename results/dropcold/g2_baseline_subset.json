@@ -1,0 +1,10 @@
+{
+  "n_scored": 10000,
+  "pos_range": [
+    0,
+    9999
+  ],
+  "sum_logprob": -7479.90093955,
+  "ppl": 2.11274931866474,
+  "source": "part1.per_token.csv first 10k"
+}
