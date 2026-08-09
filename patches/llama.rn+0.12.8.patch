@@ -31,10 +31,33 @@ index 1126dec..22c9ef0 100644
      cparams.type_k = params_for_context.speculative.draft.cache_type_k;
      cparams.type_v = params_for_context.speculative.draft.cache_type_v;
 diff --git a/node_modules/llama.rn/cpp/rn-completion.cpp b/node_modules/llama.rn/cpp/rn-completion.cpp
-index a60bd15..72de9e9 100644
+index a60bd15..74930d6 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.cpp
 +++ b/node_modules/llama.rn/cpp/rn-completion.cpp
-@@ -459,6 +459,21 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -436,6 +436,22 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+         if (mtp_draft_mem_shared) {
+             n_common = 0;
+         }
++        // Kalsa diag: a zero common prefix while a cache EXISTS means the
++        // re-rendered prompt diverges at position 0 — the case that silently
++        // wastes a restored session. Print both heads so the divergence can be
++        // named instead of guessed (mirrors the KVDIAG idea from the MoE work).
++        if (n_common == 0 && !embd.empty() && !text_tokens.empty()) {
++            std::string a, b;
++            for (size_t i = 0; i < 12 && i < embd.size(); i++) {
++                a += std::to_string(embd[i]) + " ";
++            }
++            for (size_t i = 0; i < 12 && i < text_tokens.size(); i++) {
++                b += std::to_string(text_tokens[i]) + " ";
++            }
++            LOG_WARNING("KALSA_KVDIAG0 cache_len=%zu prompt_len=%zu cache_head=[%s] prompt_head=[%s]",
++                embd.size(), text_tokens.size(), a.c_str(), b.c_str());
++        }
++
+         n_past = (llama_pos) n_common;
+ 
+         embd = text_tokens;
+@@ -459,6 +475,21 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
                  LOG_INFO("restored state checkpoint: reusing %d/%zu prompt tokens",
                      n_past, num_prompt_tokens);
              } else {
@@ -56,7 +79,7 @@ index a60bd15..72de9e9 100644
                  LOG_WARNING("no usable state checkpoint (recurrent/hybrid/SWA model), doing full cache clear");
                  llama_memory_clear(kv, false);
                  clearStateCheckpoints();
-@@ -626,9 +641,14 @@ void llama_rn_context_completion::updateGenerationTiming() {
+@@ -626,9 +657,14 @@ void llama_rn_context_completion::updateGenerationTiming() {
  }
  
  bool llama_rn_context_completion::shouldUseMTP() const {

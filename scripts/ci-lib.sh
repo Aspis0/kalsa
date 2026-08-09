@@ -120,9 +120,15 @@ capture_kv_reuse() {
   # When checkpoint recovery failed, the patched binding names WHY (n_common vs
   # the snapshot lengths it holds) — capture it next to the reuse line.
   local diag="$OUT/kvdiag_t${turn}.txt"
-  adb logcat -d 2>/dev/null \
-    | grep -oE "KALSA_KVDIAG n_common=[0-9]+ total=[0-9]+ search_max=[0-9]+ checkpoints=\[[0-9,]*\]" \
-    | tail -1 > "$diag" || true
+  {
+    adb logcat -d 2>/dev/null \
+      | grep -oE "KALSA_KVDIAG n_common=[0-9]+ total=[0-9]+ search_max=[0-9]+ checkpoints=\[[0-9,]*\]" \
+      | tail -1
+    # Zero common prefix while a cache existed: the heads name the divergence.
+    adb logcat -d 2>/dev/null \
+      | grep -oE "KALSA_KVDIAG0 cache_len=[0-9]+ prompt_len=[0-9]+ cache_head=\[[0-9 ]*\] prompt_head=\[[0-9 ]*\]" \
+      | tail -1
+  } > "$diag" 2>/dev/null || true
   [ -f "$diag" ] || : > "$diag"
   [ -s "$diag" ] && log "kvdiag turn${turn}: $(tr -d '\r\n' < "$diag")"
   return 0
