@@ -87,9 +87,19 @@
 2. **Integrazione prodotto in Kalsa** (llama.rn ↔ BigMoeOnEdge): non ricerca ma
    ingegneria; porta i numeri della scheda dentro l'app vera. Prerequisito per shippare
    qualunque cosa di questa campagna.
-3. **Kernel IQ2 a mano (riaprire il rinviato)**: attacca lo stesso 50% del calcolo, senza
-   GPU — non sbatte su K2/K5. Via cara già stimata in settimane; la via economica
-   pareggiava. Unica opzione di RICERCA rimasta sul collo del calcolo.
+3. **Kernel i-quant CPU — GIALLO da deep research (2026-08-09, `research-iq2-kernels.md`):
+   merita lo SPIKE fail-fast (1-3 giorni), NON un cantiere al buio.** I fatti:
+   il path NEON attuale è gather-bound sul codebook (strutturale, non pigrizia);
+   **ik_llama.cpp** (MIT) ha kernel+repack con TG **1.42×** su IQ2_XXS a 4 thread
+   (misurato su M2-Max, verificato alla fonte dal coordinatore — #164); il GEMV
+   esperti è **compute-bound** (~3 GB/s impliciti vs 67 di picco → c'è headroom);
+   il fill della cache è NOSTRO → repack al fill ammortizzato dall'hit 77-87%
+   (shape %4=0, compatibili). Aritmetica onesta: f≈0.4, g=1.42 → **+13% decode**
+   (~5.0 tok/s). Il 4.7× di PP è GEMM/prefill, NON decode — upside secondario.
+   Costo se GO: port selettivo iqk + repack-al-fill, 4-10 p-settimane.
+   **Spike: `mandates/spike-iq2-kernels.md`** — g misurato sul NOSTRO S23 decide:
+   ≥1.30 GO, 1.20-1.30 condizionato, <1.20 si chiude e il plateau ~4.4 è il
+   soffitto onesto del percorso flash+CPU per questo quant.
 
 ## Regole operative imparate a caro prezzo
 
@@ -1048,6 +1058,29 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-09 — 🟡 KERNEL I-QUANT: la seconda deep research della giornata dà GIALLO
+  — niente cantiere al buio, ma lo spike da 1-3 giorni è giustificato dai numeri.**
+
+  Report: `research-iq2-kernels.md`. Fonte load-bearing (ik_llama #164) ri-verificata
+  dal coordinatore: TG IQ2_XXS 8.67→12.28 t/s (**1.42×**) e IQ3_XXS 1.36× a 4 thread
+  con `-rtr`; PP 4.75×/5.83×. I quattro fatti che reggono il piano:
+
+  1. il vec_dot IQ2/IQ3 ARM attuale è già NEON+DotProd ma **gather-bound sul
+     codebook** — il margine non è "manca la vettorizzazione", è il layout;
+  2. **compute-bound confermato dall'aritmetica**: il GEMV esperti implica ~3 GB/s
+     su 67 di picco → non siamo al muro DRAM, un kernel migliore PUÒ pagare;
+  3. l'angolo nostro: **repack al fill** — lo streamer controlla `read_slice`,
+     l'hit 77-87% ammortizza la trasformazione, le shape sono %4=0;
+  4. soffitto onesto e2e: **+10-15% decode** (Amdahl f≈0.4, g=1.3-1.4), il 4.7×
+     del PP è prefill e non va venduto come decode.
+
+  Costi a verbale: cherry-pick mainline = zero da cogliere (quants.c byte-identico
+  al nostro); port selettivo ik = 4-10 p-settimane; ex-novo = escluso. Gate 8/8
+  byte-identico si romperà coi kernel nuovi (ordine di accumulo): da ri-baselinare
+  come decisione esplicita, non bug — il metro diventa la PPL decode-path (kernel
+  esatto → budget lossy NON consumato). Mandato spike scritto:
+  `spike-iq2-kernels.md`, decide g misurato sul nostro silicio.
 
 - **2026-08-09 — 🔴 GPU ADRENO RITIRATA SENZA SPENDERE UN GIORNO DI SPIKE: la deep
   research ha ucciso il candidato in poche ore. K2: le ops del nostro modello ibrido
