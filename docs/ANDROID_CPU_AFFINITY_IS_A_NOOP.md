@@ -78,8 +78,41 @@ column.
   signature. The decisive experiment is to run the standalone binary at `-t 8` on
   that phone: if the binary is fine while the app collapses, the cause is system
   CPU starvation, not ggml.
-- Whether real pinning would help at all is unknown. On the Helio G99 the kernel's
-  EAS scheduler already places two threads on the big cores by itself. We build
-  llama.rn from source (`KALSA_LLAMA_FROM_SOURCE=1`, with a binary assertion in
-  CI), so extending the guard to `__linux__` is a patch we can make — but only
-  after measuring that it buys something.
+## It was measured: fixing the guard buys +26% prefill
+
+Changing `#elif defined(__gnu_linux__)` to `#elif defined(__linux__)` (one line;
+the branch already contains an `#ifdef __ANDROID__` path calling
+`sched_setaffinity`, written for Android and never compiled) makes affinity real.
+`llvm-readelf --dyn-syms` then gains `sched_setaffinity@LIBC` and
+`pthread_setschedparam@LIBC`, and the discriminator finally responds: one thread
+on an A55 reads 3.95 tok/s against 11.43 on an A76 — a 2.89x ratio against the
+2.94x that `cpu_capacity` predicts.
+
+Controlled A/B on the Helio G99, same patched binary, one session, forward then
+reverse, so affinity is the only variable (Qwen3.5-2B Q4_K_M, pp512/tg32):
+
+| threads | pinned | unpinned | delta |
+|---|---|---|---|
+| 8 (`0xFF`) | 28.48 / 28.47 | 21.48 / 22.54 | **+26%** |
+| 6 (`0xCF`) | 24.71 / 24.60 | 21.87 / 21.87 | **+12.5%** |
+
+Temperature is excluded: the pinned 8-thread arm reads 28.48 at 27.0 °C and 28.47
+at 32.0 °C, flat across the same drift that spans both unpinned arms.
+
+Two consequences that cut against what this file's own thread rule assumed:
+
+- **All cores is the best prefill configuration** on this SoC once pinning works
+  (28.5 at 8 threads > 24.7 at 6 > 21.2 at 2). "Never use all cores, leave the
+  little cluster out" was a rule about a mechanism that was not running.
+- **Prefill and decode want opposite configurations**: prefill wants all eight
+  pinned, decode wants the two big cores alone (6.39 vs 6.07). llama.cpp already
+  separates `n_threads` from `n_threads_batch`; the app currently sets them equal,
+  which cannot be right for both.
+
+The patch lives in the lab repo (`lab/llamabench/patches/ggml-android-affinity.patch`)
+and is **not** ported into the product yet. We build llama.rn from source
+(`KALSA_LLAMA_FROM_SOURCE=1`, with a CI assertion on the shipped binary), so
+porting it is straightforward — but one SoC and one model is not enough to change a
+default, and strictly pinning 8 of 8 cores in a process that also runs a UI and a
+JS thread is exactly the configuration suspected in the unexplained collapse above.
+Measure on the Snapdragon first.
