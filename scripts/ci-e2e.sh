@@ -226,7 +226,16 @@ const linesOut = [fmt("turn1", t1), fmt("turn2", t2)];
 // tokensCached is n_past at end of turn (not reuse). Use native Input processed line.
 let reuseRaw = "";
 try { reuseRaw = fs.readFileSync(reusePath, "utf8").trim(); } catch (_) {}
-const rm = reuseRaw.match(/n_past=(\d+),\s*embd\.size=(\d+)/);
+// reuse_tN.txt holds EVERY prompt load of the turn (newest last): pick the
+// one whose embd.size equals the tokensEvaluated of this turn, so a
+// background summarize load cannot be mistaken for the chat turn.
+const pickReuse = (raw, evaluated) => {
+  const all = [...raw.matchAll(/n_past=(\d+),\s*embd\.size=(\d+)/g)];
+  if (!all.length) return null;
+  const exact = all.filter((m) => Number(m[2]) === evaluated);
+  return exact.length ? exact[exact.length - 1] : all[all.length - 1];
+};
+const rm = pickReuse(reuseRaw, t2 ? n(t2, "tokensEvaluated") : -1);
 let kv;
 if (!rm) {
   kv = "KV_CACHE: UNKNOWN (no native Input processed line)";
@@ -403,16 +412,25 @@ const turn3Line = t3
 // tokensCached is n_past at end of turn (not reuse). Warm requires native n_past > 0.
 let reuseRaw = "";
 try { reuseRaw = fs.readFileSync(reusePath, "utf8").trim(); } catch (_) {}
-const rm = reuseRaw.match(/n_past=(\d+),\s*embd\.size=(\d+)/);
+// Same attribution rule as the turn-2 verdict: among every prompt load
+// captured for this turn, take the one whose embd.size matches what the chat
+// turn evaluated. ALSO report how many loads ran — more than one after a
+// restore means a utility completion replaced embd before the chat turn,
+// which is itself the explanation for a zero-reuse restart.
+const allLoads = [...reuseRaw.matchAll(/n_past=(\d+),\s*embd\.size=(\d+)/g)];
+const exact = allLoads.filter((m) => Number(m[2]) === evaluated);
+const rm = exact.length ? exact[exact.length - 1] : (allLoads.length ? allLoads[allLoads.length - 1] : null);
 const nPast = rm ? Number(rm[1]) : null;
 const embd = rm ? Number(rm[2]) : null;
+const loadsBefore = rm ? allLoads.indexOf(rm) : -1;
 const loadOk = loads.some(o => o && o.ok === true);
 let verdict;
 if (loadOk && nPast != null && nPast > 0) {
   verdict = "SESSION_RESTORE: WARM RESTART CONFIRMED (reused " + nPast + "/" + embd + ")";
 } else if (loadOk && nPast != null && nPast === 0) {
   // Load gate ok but binding discarded restored KV (full re-prefill).
-  verdict = "SESSION_RESTORE: LOADED BUT COLD (native discarded the restored state; reused 0/" + embd + ")";
+  verdict = "SESSION_RESTORE: LOADED BUT COLD (reused 0/" + embd
+    + "; prompt loads before the chat turn: " + loadsBefore + ")";
 } else {
   // Load itself failed / missing, or no native line when load claimed ok.
   verdict = "SESSION_RESTORE: COLD (see reasons)";

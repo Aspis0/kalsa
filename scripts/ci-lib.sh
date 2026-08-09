@@ -101,10 +101,16 @@ wait_ui_idle() {
 capture_kv_reuse() {
   local turn="$1"
   local dest="$OUT/reuse_t${turn}.txt"
-  # Always create the file (empty when no match → UNKNOWN at the verdict).
+  # ALL prompt loads since the last logcat clear, newest last — not just the
+  # tail: with compaction on, a background summarize runs after the chat turn
+  # and its own (longer) prompt would otherwise be read as the turn's. The
+  # verdict picks the line whose embd.size matches the turn's tokensEvaluated.
+  # Keeping every line also exposes utility completions that run BETWEEN a
+  # session restore and the chat turn — they replace embd and would explain an
+  # n_common of 0 after a successful restore.
   adb logcat -d 2>/dev/null \
     | grep -oE "Input processed: n_past=[0-9]+, embd\.size=[0-9]+" \
-    | tail -1 > "$dest" || true
+    | tail -20 > "$dest" || true
   [ -f "$dest" ] || : > "$dest"
   if [ -s "$dest" ]; then
     log "kv_reuse turn${turn}: $(tr -d '\r\n' < "$dest")"
