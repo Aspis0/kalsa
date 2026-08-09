@@ -58,8 +58,13 @@ export type ModelInfo = {
   hybrid?: boolean;
   /** Modelli ibridi/ricorrenti (Qwen3.5): stato unificato. */
   kvUnified?: boolean;
-  /** MTP (NextN speculative) embedded nel GGUF. */
-  mtp?: { nMax: number };
+  /**
+   * MTP (NextN speculative) embedded nel GGUF. `nMax` is the capability;
+   * `defaultEnabled` (default false) gates the PRODUCTION path — plain decode
+   * beat MTP on open text on CI (3x) and on the Xiaomi 14 (2x, +53% decode,
+   * acceptance 26-30%). `bench:speculative mtp` re-tests the arm anytime.
+   */
+  mtp?: { nMax: number; defaultEnabled?: boolean };
   /**
    * Per-model thinking budgets (tokens) for Settings "Short"/"Extended" modes,
    * plus an n_predict ceiling override when a budget mode is active (the think

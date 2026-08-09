@@ -771,6 +771,7 @@ export function AppShell() {
         cacheTypeV: profile.cacheTypeV,
         kvUnified: model.kvUnified,
         mtpNMax: model.mtp?.nMax,
+        mtpDefaultOn: model.mtp?.defaultEnabled === true,
         speculativeOverride,
         sessionRestore: {
           historyHash: sessionHistoryHash,
@@ -979,6 +980,7 @@ export function AppShell() {
         cacheTypeV: profile.cacheTypeV,
         kvUnified: model.kvUnified,
         mtpNMax: model.mtp?.nMax,
+        mtpDefaultOn: model.mtp?.defaultEnabled === true,
         speculativeOverride,
         sessionRestore: {
           historyHash: sessionHistoryHash,

@@ -430,8 +430,15 @@ export type EngineInitOptions = {
   cacheTypeK?: ContextParams["cache_type_k"];
   cacheTypeV?: ContextParams["cache_type_v"];
   kvUnified?: boolean;
-  /** MTP (NextN speculative) embedded nel GGUF. */
+  /** MTP (NextN speculative) embedded nel GGUF — capability, not a switch. */
   mtpNMax?: number;
+  /**
+   * Engage MTP on the production path (no bench override). Default FALSE:
+   * plain decode beat MTP on open text both on CI (3 replications) and on the
+   * Xiaomi 14 (2 replications, +53% decode, acceptance 26-30%). mtpNMax stays
+   * as capability so `bench:speculative mtp` can re-test the arm anytime.
+   */
+  mtpDefaultOn?: boolean;
   /**
    * Bench-only knob for DFlash-vs-MTP CI A/B. When present, REPLACES the
    * mtpNMax-based speculative block. The draft GGUF's dflash.block_size
@@ -565,8 +572,10 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       };
       nextSpecType = override.type;
       nextMtpNMax = override.nMax;
-    } else if (options.mtpNMax && options.mtpNMax > 0) {
-      // existing path — keep byte-identical when override is absent
+    } else if (options.mtpDefaultOn && options.mtpNMax && options.mtpNMax > 0) {
+      // Production MTP — now opt-in via catalog mtp.defaultEnabled: plain
+      // decode beat MTP twice on-device (+53%) and 3x on CI at 26-58%
+      // acceptance. Re-testable per-session with `bench:speculative mtp`.
       params.speculative = {
         type: "draft-mtp",
         n_max: options.mtpNMax,
