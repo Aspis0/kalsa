@@ -114,6 +114,7 @@ async function main() {
   const {
     historyHash,
     sessionMetaMatches,
+    sessionMetaMismatchField,
     sessionMetaKey,
     sessionFilePathForBase,
     computeHistoryHashFromMessages,
@@ -197,6 +198,30 @@ async function main() {
       !sessionMetaMatches({ ...base, specType: "none" }, { ...base, specType: "draft-dflash" }),
       "specType",
     );
+  });
+  test("match engineKnob equal", () => {
+    const knob = '{"nGpuLayers":20}';
+    assert(
+      sessionMetaMatches(
+        { ...base, engineKnob: knob },
+        { ...base, engineKnob: knob },
+      ),
+      "same engineKnob should match",
+    );
+  });
+  test("mismatch engineKnob → field name", () => {
+    assert(
+      sessionMetaMismatchField(
+        { ...base, engineKnob: '{"nGpuLayers":20}' },
+        { ...base, engineKnob: '{"nGpuLayers":30}' },
+      ) === "engineKnob",
+      "engineKnob",
+    );
+  });
+  test("engineKnob absent-vs-absent match", () => {
+    const a = { ...base };
+    const b = { ...base, engineKnob: undefined };
+    assert(sessionMetaMatches(a, b), "undefined === missing engineKnob");
   });
   test("mismatch formatVersion", () => {
     assert(

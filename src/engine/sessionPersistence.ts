@@ -19,6 +19,8 @@ export type SessionMeta = {
   mtpNMax?: number;
   /** e.g. "draft-mtp" | "draft-dflash" | "none"; undefined on production MTP path */
   specType?: string;
+  /** JSON.stringify of bench EngineOverride; omitted when production defaults. */
+  engineKnob?: string;
   historyHash: string;
   /**
    * djb2 over JSON.stringify({locale, memoryFactsJoined, hasTools:true}).
@@ -118,8 +120,9 @@ export function computePromptEnvHash(
 
 /**
  * True when stored meta is safe to load for the current engine + history.
- * Does NOT require savedAt equality. Optional mtpNMax/specType: missing and
- * undefined are treated as equal. promptEnvHash must match (missing ≡ undefined).
+ * Does NOT require savedAt equality. Optional mtpNMax/specType/engineKnob:
+ * missing and undefined are treated as equal. promptEnvHash must match
+ * (missing ≡ undefined).
  */
 export function sessionMetaMatches(a: SessionMeta, b: SessionMeta): boolean {
   return sessionMetaMismatchField(a, b) === null;
@@ -141,6 +144,7 @@ export function sessionMetaMismatchField(a: SessionMeta, b: SessionMeta): string
   if (a.promptEnvHash !== b.promptEnvHash) return "promptEnvHash";
   if (a.mtpNMax !== b.mtpNMax) return "mtpNMax";
   if (a.specType !== b.specType) return "specType";
+  if (a.engineKnob !== b.engineKnob) return "engineKnob";
   return null;
 }
 
@@ -212,6 +216,7 @@ export async function readSessionMeta(modelId: string): Promise<SessionMeta | nu
     };
     if (typeof parsed.mtpNMax === "number") meta.mtpNMax = parsed.mtpNMax;
     if (typeof parsed.specType === "string") meta.specType = parsed.specType;
+    if (typeof parsed.engineKnob === "string") meta.engineKnob = parsed.engineKnob;
     if (typeof parsed.promptEnvHash === "string") meta.promptEnvHash = parsed.promptEnvHash;
     if (typeof parsed.savedAt === "number") meta.savedAt = parsed.savedAt;
     return meta;

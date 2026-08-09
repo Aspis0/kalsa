@@ -6,20 +6,25 @@
  *   /bench thinking <default|off|budget256|budget512>
  *   /bench format <none|system-end|user-prefix|user-note>
  *   /bench speculative <none|mtp|clear>
+ *   /bench engine <gpu=N,threads=N,ubatch=N|clear>
  *   /bench show
  * Prefer the slash-free form on Windows Git Bash (adb mangles leading `/`):
  *   bench:thinking off
  *   bench:format user-note
  *   bench:speculative none
+ *   bench:engine gpu=20,threads=5,ubatch=256
  *   bench:show
  *
  * Speculative applies at ENGINE INIT — force-stop + relaunch the app for the
  * new value to take effect (chat write alone is not enough mid-session).
  *
+ * Engine applies at ENGINE INIT — force-stop + relaunch (same as speculative).
+ *
  * Keys:
  * - kalsa.bench.thinking: "default" | "off" | "budget256" | "budget512"
  * - kalsa.bench.format:   "none" | "system-end" | "user-prefix" | "user-note"
  * - kalsa.bench.speculative: JSON { type, nMax?, draftModelPath? } (CI A/B only)
+ * - kalsa.bench.engine: JSON { nGpuLayers?, nThreads?, nUbatch? } (CI A/B only)
  *
  * No in-memory cache: one fresh read per turn (best-effort).
  */
@@ -29,6 +34,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export const BENCH_THINKING_KEY = "kalsa.bench.thinking";
 export const BENCH_FORMAT_KEY = "kalsa.bench.format";
 export const BENCH_SPECULATIVE_KEY = "kalsa.bench.speculative";
+export const BENCH_ENGINE_KEY = "kalsa.bench.engine";
 
 export type ThinkingMode = "default" | "off" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
@@ -38,6 +44,12 @@ export type SpeculativeOverride = {
   type: "none" | "draft-mtp" | "draft-dflash";
   nMax?: number;
   draftModelPath?: string;
+};
+
+export type EngineOverride = {
+  nGpuLayers?: number;
+  nThreads?: number;
+  nUbatch?: number;
 };
 
 const THINKING_MODES: ReadonlySet<string> = new Set([
@@ -175,17 +187,119 @@ export async function setSpeculativeOverride(mode: string): Promise<boolean> {
   }
 }
 
+/**
+ * Pure parse of a `/bench engine <arg>` token.
+ * Comma-separated k=v pairs: gpu, threads, ubatch (non-negative integers;
+ * threads/ubatch must be > 0). `"clear"` / `"default"` remove the key.
+ * Returns EngineOverride, `"clear"`, or null if invalid.
+ */
+export function parseEngineArg(arg: string): EngineOverride | "clear" | null {
+  const trimmed = arg.trim();
+  if (!trimmed) return null;
+  if (trimmed === "clear" || trimmed === "default") return "clear";
+
+  const out: EngineOverride = {};
+  let any = false;
+  for (const pair of trimmed.split(",")) {
+    const p = pair.trim();
+    if (!p) return null;
+    const eq = p.indexOf("=");
+    if (eq <= 0) return null;
+    const key = p.slice(0, eq).trim();
+    const valStr = p.slice(eq + 1).trim();
+    if (!/^\d+$/.test(valStr)) return null;
+    const n = Number(valStr);
+    if (key === "gpu") {
+      if (n < 0) return null;
+      out.nGpuLayers = n;
+      any = true;
+    } else if (key === "threads") {
+      if (n <= 0) return null;
+      out.nThreads = n;
+      any = true;
+    } else if (key === "ubatch") {
+      if (n <= 0) return null;
+      out.nUbatch = n;
+      any = true;
+    } else {
+      return null;
+    }
+  }
+  return any ? out : null;
+}
+
+/**
+ * Bench-only init-time engine param override (GPU layers / threads / ubatch).
+ * AsyncStorage key `kalsa.bench.engine` = JSON
+ *   { "nGpuLayers"?: number, "nThreads"?: number, "nUbatch"?: number }
+ * absent/invalid → undefined (production defaults).
+ * Applies at ENGINE INIT — force-stop + relaunch after writing.
+ */
+export async function getEngineOverride(): Promise<EngineOverride | undefined> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_ENGINE_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return undefined;
+    const o = parsed as Record<string, unknown>;
+    const out: EngineOverride = {};
+    for (const key of ["nGpuLayers", "nThreads", "nUbatch"] as const) {
+      const n = o[key];
+      if (
+        typeof n === "number" &&
+        Number.isFinite(n) &&
+        Number.isInteger(n) &&
+        n >= 0
+      ) {
+        out[key] = n;
+      }
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Persist engine override for A/B. Returns false if arg is invalid.
+ * k=v pairs write JSON; `"clear"` / `"default"` remove the key
+ * (production defaults).
+ */
+export async function setEngineOverride(arg: string): Promise<boolean> {
+  const parsed = parseEngineArg(arg);
+  if (parsed === null) return false;
+  try {
+    if (parsed === "clear") {
+      await AsyncStorage.removeItem(BENCH_ENGINE_KEY);
+    } else {
+      await AsyncStorage.setItem(BENCH_ENGINE_KEY, JSON.stringify(parsed));
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Current config as a short debug string. */
 export async function formatBenchStatus(): Promise<string> {
   const thinking = await getThinkingMode();
   const format = await getBlockFormat();
   const speculative = await getSpeculativeOverride();
   const speculativeLabel = speculative?.type ?? "default";
-  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}`;
+  const engine = await getEngineOverride();
+  let engineLabel = "default";
+  if (engine) {
+    const parts: string[] = [];
+    if (engine.nGpuLayers !== undefined) parts.push(`gpu:${engine.nGpuLayers}`);
+    if (engine.nThreads !== undefined) parts.push(`threads:${engine.nThreads}`);
+    if (engine.nUbatch !== undefined) parts.push(`ubatch:${engine.nUbatch}`);
+    if (parts.length > 0) engineLabel = parts.join(",");
+  }
+  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, engine=${engineLabel}`;
 }
 
 const BENCH_USAGE =
-  "bench usage: /bench thinking <…> | bench:thinking <…> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench show | bench:show";
+  "bench usage: /bench thinking <…> | bench:thinking <…> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,ubatch=N]|clear> | bench:engine <…> | /bench show | bench:show";
 
 /** True when text is a bench debug command (`/bench …` or slash-free `bench:…`). */
 export function isBenchCommand(text: string): boolean {
@@ -257,6 +371,18 @@ export async function tryHandleBenchCommand(text: string): Promise<string | null
     }
     const ok = await setSpeculativeOverride(arg);
     if (!ok) return "bench: failed to write speculative mode";
+    return formatBenchStatus();
+  }
+
+  if (sub === "engine") {
+    if (!arg) {
+      return `bench: missing engine override. ${BENCH_USAGE}`;
+    }
+    if (parseEngineArg(arg) === null) {
+      return `bench: invalid engine override "${arg}". ${BENCH_USAGE}`;
+    }
+    const ok = await setEngineOverride(arg);
+    if (!ok) return "bench: failed to write engine override";
     return formatBenchStatus();
   }
 

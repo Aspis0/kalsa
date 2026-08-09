@@ -83,6 +83,10 @@ let activeCacheTypeK: string | null = null;
 let activeCacheTypeV: string | null = null;
 /** Fingerprint of bench-only speculativeOverride; forces reload when it changes. */
 let activeSpeculativeOverrideKey: string | null = null;
+/** Fingerprint of bench-only engineOverride; forces reload when it changes. */
+let activeEngineOverrideKey: string | null = null;
+/** JSON of engine override for session meta; undefined when production defaults. */
+let activeEngineKnob: string | undefined;
 /** Speculative knobs for session meta (save/load match). Cleared on dispose. */
 let activeMtpNMax: number | undefined;
 /** "draft-mtp" | "draft-dflash" | "none" | undefined (production MTP path). */
@@ -452,6 +456,17 @@ export type EngineInitOptions = {
     draftModelPath?: string;
   };
   /**
+   * Bench-only init-time engine param override (GPU layers / threads / ubatch).
+   * When present, overrides the matching ContextParams fields after production
+   * defaults. Absent = production. CI A/B via AsyncStorage `kalsa.bench.engine`.
+   * Applies at ENGINE INIT only.
+   */
+  engineOverride?: {
+    nGpuLayers?: number;
+    nThreads?: number;
+    nUbatch?: number;
+  };
+  /**
    * If set, attempt to restore native KV session after initLlama when the
    * on-disk meta matches history + engine config + prompt env.
    */
@@ -483,6 +498,7 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     const cacheTypeK = options.cacheTypeK ?? "q8_0";
     const cacheTypeV = options.cacheTypeV ?? "q4_0";
     const speculativeOverrideKey = JSON.stringify(options.speculativeOverride ?? null);
+    const engineOverrideKey = JSON.stringify(options.engineOverride ?? null);
     if (
       context &&
       activeModelId === modelId &&
@@ -490,7 +506,8 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       activeEngineCtx === engineCtx &&
       activeCacheTypeK === cacheTypeK &&
       activeCacheTypeV === cacheTypeV &&
-      activeSpeculativeOverrideKey === speculativeOverrideKey
+      activeSpeculativeOverrideKey === speculativeOverrideKey &&
+      activeEngineOverrideKey === engineOverrideKey
     )
       return;
     await disposeEngineLocked();
@@ -526,6 +543,20 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       // Richiesto per multimodal: senza context shifting i media restano ancorati.
       ctx_shift: isMultimodal ? false : true,
     };
+
+    // Bench-only engineOverride: apply after production defaults; absent fields keep production.
+    if (options.engineOverride) {
+      if (options.engineOverride.nGpuLayers !== undefined) {
+        params.n_gpu_layers = options.engineOverride.nGpuLayers;
+      }
+      if (options.engineOverride.nThreads !== undefined) {
+        params.n_threads = options.engineOverride.nThreads;
+      }
+      if (options.engineOverride.nUbatch !== undefined) {
+        const batch = params.n_batch ?? 512;
+        params.n_ubatch = Math.min(options.engineOverride.nUbatch, batch);
+      }
+    }
 
     // MTP (NextN): speculative decoding embedded — ~1.5-2x più veloce.
     // La cache del DRAFT viene quantizzata come la target (non F16 di default).
@@ -603,6 +634,11 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     activeCacheTypeK = cacheTypeK;
     activeCacheTypeV = cacheTypeV;
     activeSpeculativeOverrideKey = speculativeOverrideKey;
+    activeEngineOverrideKey = engineOverrideKey;
+    activeEngineKnob =
+      options.engineOverride !== undefined
+        ? JSON.stringify(options.engineOverride)
+        : undefined;
     activeMtpNMax = nextMtpNMax;
     activeSpecType = nextSpecType;
 
@@ -617,6 +653,7 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
         cacheTypeV,
         mtpNMax: nextMtpNMax,
         specType: nextSpecType,
+        engineKnob: activeEngineKnob,
       });
     }
 
@@ -676,6 +713,8 @@ async function disposeEngineLocked(): Promise<void> {
     activeCacheTypeK = null;
     activeCacheTypeV = null;
     activeSpeculativeOverrideKey = null;
+    activeEngineOverrideKey = null;
+    activeEngineKnob = undefined;
     activeMtpNMax = undefined;
     activeSpecType = undefined;
     kvHoldsChatSession = false;
@@ -853,6 +892,7 @@ export async function saveEngineSession(
       if (lastPromptEnvHash !== undefined) meta.promptEnvHash = lastPromptEnvHash;
       if (activeMtpNMax !== undefined) meta.mtpNMax = activeMtpNMax;
       if (activeSpecType !== undefined) meta.specType = activeSpecType;
+      if (activeEngineKnob !== undefined) meta.engineKnob = activeEngineKnob;
       // Meta after rename so a kill between file and meta keeps the previous
       // meta (hash mismatch → cold) or pairs old meta with complete new file
       // when history is unchanged (valid restore).
@@ -892,6 +932,7 @@ async function tryLoadEngineSession(
     cacheTypeV: string;
     mtpNMax?: number;
     specType?: string;
+    engineKnob?: string;
   },
 ): Promise<boolean> {
   const t0 = Date.now();
@@ -931,6 +972,7 @@ async function tryLoadEngineSession(
     }
     if (expected.mtpNMax !== undefined) expectedMeta.mtpNMax = expected.mtpNMax;
     if (expected.specType !== undefined) expectedMeta.specType = expected.specType;
+    if (expected.engineKnob !== undefined) expectedMeta.engineKnob = expected.engineKnob;
     const mismatchField = sessionMetaMismatchField(stored, expectedMeta);
     if (mismatchField !== null) {
       await deleteSessionArtifacts(modelId);

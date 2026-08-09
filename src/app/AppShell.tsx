@@ -33,7 +33,7 @@ import {
   type EngineTurnOptions,
 } from "../engine/LlamaService";
 import { computePromptEnvHash, getBootHistoryHash } from "../engine/sessionPersistence";
-import { getSpeculativeOverride } from "../bench/benchConfig";
+import { getEngineOverride, getSpeculativeOverride } from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import {
   WEB_FETCH_TOOL,
@@ -746,6 +746,7 @@ export function AppShell() {
         catalogCtx: model.engineCtx,
       });
       const speculativeOverride = await getSpeculativeOverride();
+      const engineOverride = await getEngineOverride();
       // Boot-captured HISTORY_KEY hash: conversation start, not mid-send (lazy
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
@@ -773,6 +774,7 @@ export function AppShell() {
         mtpNMax: model.mtp?.nMax,
         mtpDefaultOn: model.mtp?.defaultEnabled === true,
         speculativeOverride,
+        engineOverride,
         sessionRestore: {
           historyHash: sessionHistoryHash,
           promptEnvHash: sessionPromptEnvHash,
@@ -956,6 +958,7 @@ export function AppShell() {
         catalogCtx: model.engineCtx,
       });
       const speculativeOverride = await getSpeculativeOverride();
+      const engineOverride = await getEngineOverride();
       // Boot-captured HISTORY_KEY hash: conversation start, not mid-send (lazy
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
@@ -982,6 +985,7 @@ export function AppShell() {
         mtpNMax: model.mtp?.nMax,
         mtpDefaultOn: model.mtp?.defaultEnabled === true,
         speculativeOverride,
+        engineOverride,
         sessionRestore: {
           historyHash: sessionHistoryHash,
           promptEnvHash: sessionPromptEnvHash,
