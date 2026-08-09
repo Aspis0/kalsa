@@ -9,10 +9,24 @@
  *   Qwen3.5-4B  threads=4 → prefill 27.3  decode 8.64
  *   Qwen3.5-4B  threads=6 → prefill 34.4  decode 8.18
  *
- * Why not all cores: llama.rn's set_best_cores pins the N fastest cores; N=8 on
- * an 8-core ABBA SoC drags in the two slow efficiency cores, and every ggml
- * barrier waits for the straggler. Always leave the little cluster out.
+ * WARNING — the "pinning" story is false. llama.rn's set_best_cores fills a
+ * cpumask and sets strict_cpu, but ggml only applies affinity under
+ * __gnu_linux__ (a glibc macro); on Bionic it takes the "unsupported platforms"
+ * branch where ggml_thread_apply_affinity is `{ UNUSED(mask); return true; }`.
+ * Nothing has ever been pinned on any phone, and thread priority is a no-op too.
+ * Thread COUNT is the only lever here — see docs/ANDROID_CPU_AFFINITY_IS_A_NOOP.md
+ * for the three proofs. The threads=8 collapse above is therefore NOT explained
+ * by a slow-core straggler; it is unexplained, and the leading hypothesis is CPU
+ * starvation of system_server / the UI thread. Do not re-derive the old story.
  * llama.rn's own Android default is min(4, hardware_concurrency).
+ *
+ * Second SoC (Helio G99, 6x A55 + 2x A76, standalone binary, forward+reverse):
+ *   Qwen3.5-2B  threads=1 → prefill 11.3  decode 4.58
+ *   Qwen3.5-2B  threads=2 → prefill 21.1  decode 6.38   (best decode)
+ *   Qwen3.5-2B  threads=6 → prefill 21.6  decode 5.68
+ *   Qwen3.5-2B  threads=8 → prefill 22.5  decode 5.66
+ * i.e. a memory-bandwidth ceiling reached at 2 threads, and no collapse at 8.
+ * The two SoCs disagree, so the mapping below is NOT settled.
  *
  * Pure: no react-native / expo imports — safe under node harnesses.
  */
