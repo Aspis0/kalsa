@@ -1036,6 +1036,37 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-09 — 🎯 PRIMO CANDIDATO LOSSY DELLA CAMPAGNA: `--drop-cold-experts 0.50` —
+  ΔPPL +0.051 (≪ 0.15) con −15.9% di byte/token. Dopo che k5/k6/k4 sono morte tutte,
+  la risposta a "se non è k, cos'è" è: drop-cold. Tagliare per COSTO (miss di cache +
+  marginale nel router) paga meno qualità per byte che tagliare per RANGO.**
+
+  Report: `moe-dropcold.md`. Mandato `scorer-gate-dropcold.md` COMPLETE, regole
+  applicate esattamente come dichiarate.
+
+  1. **Semantica (PASSO 0, dal sorgente)**: `thr = F/k`; un esperto del top-k viene
+     droppato solo se (a) non è il top-weighted, (b) è cache MISS, (c) peso router
+     < thr. Residenti mai droppati, top expert sempre pinned, decode-only. È
+     esattamente "salta i miss leggeri": lossy ma cache-aware.
+  2. **G1 8/8 byte-identici** (scorer off, path `-p`). **G2 PASS**: `--ppl-decode` su
+     device, subset 10k posizioni, ΔPPL −0.0173 vs baseline prefill (tolleranza 0.02).
+     Nota: max|Δlogprob| per-token 11.1 (path GDN ibrido, atteso e dichiarato) — il
+     gate è sulla PPL di subset, non per-token.
+  3. **Re-pin**: CAMPAIGN `cab20432…` (DENSE2) → **`1ca51420…`** (SCORER, base
+     `d408e03`). Smoke KV post-pin: `n_common=71`, turno 2 = 41 token. PREFAULT
+     intatto.
+  4. **Sweep, curva completa a verbale** (baseline twin 49.05 MiB/tok, hit 77.0%):
+     | F | ΔPPL | Δbyte | verdetto |
+     |---|---|---|---|
+     | 0.25 | +0.011 | −4.1% | archiviato: quasi inerte (26 drop su 64k) |
+     | **0.50** | **+0.051** | **−15.9%** | **CANDIDATO** (hit 79.0%, drop 2.2%) |
+     | 1.00 | +0.261 | −78.8% | archiviato: la soglia è la soglia |
+     F=1.00 è la forma della curva: i byte collassano (−79%, hit 87%) ma la qualità
+     rompe il metro (+0.26). Il ginocchio utile sta tra 0.50 e 1.00 — non esplorato,
+     0.50 basta come candidato.
+  5. Tutto in carica = tutto deterministico, zero timing citati. **Nessuna adozione:
+     il candidato F=0.50 passa dal test velocità da staccato (mandato a parte).**
+
 - **2026-08-09 — ✅ NOTTE PERFETTA: celle 3-4 chiuse, cache incorniciata da entrambi i
   lati (2000 è IL numero), ubatch 2048 morto, plateau ~4 tok/s, scorer decode-path pronto
   con Δ=0. Zero incidenti, zero guardrail, floor rispettato.**
