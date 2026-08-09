@@ -1,0 +1,165 @@
+[2026-08-09T00:51:13-0400] === CACHE_DOWN NOTTE9 START bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN sha=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8 ===
+[2026-08-09T00:51:13-0400] baseline_med=4.608 OUTDIR=/data/data/com.termux/files/home/experiments/results/notte9/cache_down
+[2026-08-09T00:51:13-0400] prompt sha archived
+prompt,sha256,bytes
+short,197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619,454
+f45_1_esplicativo,bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf,410
+[2026-08-09T00:51:13-0400] flight started pid=28607
+[2026-08-09T00:51:13-0400] ==== TIER C1500 START ====
+[2026-08-09T00:51:14-0400] PREFLIGHT C1500 nproc=7 die=55.1C batt=45% plugged=UNPLUGGED btemp=34.4
+[2026-08-09T00:51:16-0400] PREFLIGHT C1500 OK die=50.2C batt=45 nproc=7
+[2026-08-09T00:51:16-0400] cold_model for cache=1500
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=3 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T00:51:20-04:00
+[2026-08-09T00:51:21-0400] PREFLIGHT C1500_short_r1 nproc=7 die=51.3C batt=45% plugged=UNPLUGGED btemp=34.4
+[2026-08-09T00:51:23-0400] PREFLIGHT C1500_short_r1 OK die=53.9C batt=45 nproc=7
+[2026-08-09T00:51:23-0400] ---- single C1500-short-r1 pid=short n=200 cache=1500 ubatch=512 ----
+label=C1500-short-r1
+rc=0
+wall_s=68
+prompt_tok_s=10.8
+eval_tok_s=4.157
+prefill_s=10.552
+ttft_ms=19916
+n_prompt=114
+expert_hit_rate=67.4%
+memfree_min_mb=21
+vmhwm_mb=3379
+lmkd_delta=0
+batt_s=45 batt_e=44
+die_s=53.1 die_e=63.6
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-09T00:52:38-0400] single C1500-short-r1 DONE eval=4.157 prefill_tps=10.8 hit=67.4% memfree_min=21 lmkd_d=0 wall=68s rc=0
+[2026-08-09T00:52:40-0400] PREFLIGHT C1500_short_r2 nproc=6 die=52.5C batt=44% plugged=UNPLUGGED btemp=38.7
+[2026-08-09T00:52:44-0400] PREFLIGHT C1500_short_r2 OK die=51.3C batt=44 nproc=7
+[2026-08-09T00:52:45-0400] ---- single C1500-short-r2 pid=short n=200 cache=1500 ubatch=512 ----
+label=C1500-short-r2
+rc=0
+wall_s=76
+prompt_tok_s=9.3
+eval_tok_s=3.853
+prefill_s=12.251
+ttft_ms=23325
+n_prompt=114
+expert_hit_rate=67.4%
+memfree_min_mb=20
+vmhwm_mb=3376
+lmkd_delta=0
+batt_s=44 batt_e=43
+die_s=50.2 die_e=59.1
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-09T00:54:09-0400] single C1500-short-r2 DONE eval=3.853 prefill_tps=9.3 hit=67.4% memfree_min=20 lmkd_d=0 wall=76s rc=0
+[2026-08-09T00:54:12-0400] PREFLIGHT C1500_f45_1_esplicativo_r1 nproc=7 die=53.7C batt=43% plugged=UNPLUGGED btemp=39.9
+[2026-08-09T00:54:15-0400] PREFLIGHT C1500_f45_1_esplicativo_r1 OK die=49.7C batt=43 nproc=7
+[2026-08-09T00:54:17-0400] ---- single C1500-f45_1_esplicativo-r1 pid=f45_1_esplicativo n=200 cache=1500 ubatch=512 ----
+label=C1500-f45_1_esplicativo-r1
+rc=0
+wall_s=78
+prompt_tok_s=9.4
+eval_tok_s=3.774
+prefill_s=12.816
+ttft_ms=23728
+n_prompt=121
+expert_hit_rate=71.1%
+memfree_min_mb=19
+vmhwm_mb=3380
+lmkd_delta=0
+batt_s=43 batt_e=42
+die_s=48.9 die_e=57.3
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-09T00:55:42-0400] single C1500-f45_1_esplicativo-r1 DONE eval=3.774 prefill_tps=9.4 hit=71.1% memfree_min=19 lmkd_d=0 wall=78s rc=0
+[2026-08-09T00:55:45-0400] PREFLIGHT C1500_f45_1_esplicativo_r2 nproc=7 die=54.5C batt=42% plugged=UNPLUGGED btemp=40.1
+[2026-08-09T00:55:48-0400] PREFLIGHT C1500_f45_1_esplicativo_r2 OK die=49.8C batt=42 nproc=7
+[2026-08-09T00:55:50-0400] ---- single C1500-f45_1_esplicativo-r2 pid=f45_1_esplicativo n=200 cache=1500 ubatch=512 ----
+label=C1500-f45_1_esplicativo-r2
+rc=0
+wall_s=74
+prompt_tok_s=9.6
+eval_tok_s=3.982
+prefill_s=12.623
+ttft_ms=23588
+n_prompt=121
+expert_hit_rate=71.1%
+memfree_min_mb=48
+vmhwm_mb=3380
+lmkd_delta=0
+batt_s=42 batt_e=41
+die_s=48.5 die_e=59.5
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-09T00:57:13-0400] single C1500-f45_1_esplicativo-r2 DONE eval=3.982 prefill_tps=9.6 hit=71.1% memfree_min=48 lmkd_d=0 wall=74s rc=0
+[2026-08-09T00:57:13-0400] ==== TIER C1500 DONE ====
+[2026-08-09T00:57:13-0400] C1500 tier completed
+baseline_med=4.608
+c1500_med=3.9175
+delta_pct=-14.985
+values:
+4.157
+3.853
+3.774
+3.982
+verdict=MIN_SANE_2000
+[2026-08-09T00:57:13-0400] C1500 verdict=baseline_med=4.608
+c1500_med=3.9175
+delta_pct=-14.985
+values:
+4.157
+3.853
+3.774
+3.982
+verdict=MIN_SANE_2000
+MIN_SANE_2000
+[2026-08-09T00:57:13-0400] C1000 not attempted: verdict=baseline_med=4.608
+c1500_med=3.9175
+delta_pct=-14.985
+values:
+4.157
+3.853
+3.774
+3.982
+verdict=MIN_SANE_2000
+MIN_SANE_2000 (only CANDIDATE proceeds)
+verdict=baseline_med=4.608
+c1500_med=3.9175
+delta_pct=-14.985
+values:
+4.157
+3.853
+3.774
+3.982
+verdict=MIN_SANE_2000
+MIN_SANE_2000
+c1000_status=SKIPPED_VERDICT_baseline_med=4.608
+c1500_med=3.9175
+delta_pct=-14.985
+values:
+4.157
+3.853
+3.774
+3.982
+verdict=MIN_SANE_2000
+MIN_SANE_2000
+final_rc=0
+baseline_med=4.608
+c1500_med=3.9175
+c1500_delta_pct=-14.985
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+ended=2026-08-09T00:57:13-0400
+[2026-08-09T00:57:15-0400] === CACHE_DOWN NOTTE9 END verdict=baseline_med=4.608
+c1500_med=3.9175
+delta_pct=-14.985
+values:
+4.157
+3.853
+3.774
+3.982
+verdict=MIN_SANE_2000
+MIN_SANE_2000 c1000=SKIPPED_VERDICT_baseline_med=4.608
+c1500_med=3.9175
+delta_pct=-14.985
+values:
+4.157
+3.853
+3.774
+3.982
+verdict=MIN_SANE_2000
+MIN_SANE_2000 rc=0 ===

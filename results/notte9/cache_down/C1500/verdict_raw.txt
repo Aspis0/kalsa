@@ -1,0 +1,9 @@
+baseline_med=4.608
+c1500_med=3.9175
+delta_pct=-14.985
+values:
+4.157
+3.853
+3.774
+3.982
+verdict=MIN_SANE_2000

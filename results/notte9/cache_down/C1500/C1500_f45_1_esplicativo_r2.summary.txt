@@ -1,0 +1,15 @@
+label=C1500-f45_1_esplicativo-r2
+rc=0
+wall_s=74
+prompt_tok_s=9.6
+eval_tok_s=3.982
+prefill_s=12.623
+ttft_ms=23588
+n_prompt=121
+expert_hit_rate=71.1%
+memfree_min_mb=48
+vmhwm_mb=3380
+lmkd_delta=0
+batt_s=42 batt_e=41
+die_s=48.5 die_e=59.5
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8

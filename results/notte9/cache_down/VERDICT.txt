@@ -1,0 +1,11 @@
+verdict=MIN_SANE_2000
+c1000_status=SKIPPED_VERDICT_MIN_SANE_2000
+final_rc=0
+baseline_med=4.608
+c1500_med=3.9175
+c1500_delta_pct=-14.985
+c1500_values=4.157,3.853,3.774,3.982
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+ended=2026-08-09T00:57:13-0400
+guardrails_fired=none
+batt_end_pct=41
