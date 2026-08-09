@@ -1070,6 +1070,13 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   Candidati rimasti per l'esperimento serio: integrazione Kalsa (ingegneria, ROI
   chiaro) o kernel IQ2 a mano (unica ricerca rimasta sul collo del calcolo).
 
+  **Addendum (verifica su device, adb read-only):** il NOSTRO S23 monta esattamente
+  il driver della misura lenta — `Adreno 740, OpenGL ES 3.2 V@0676.73` (build
+  30/05/2025, GIT dc3d4da3a2). K5 vale alla lettera sul nostro hardware, non per
+  analogia. Il driver è nel vendor partition (proprietario Qualcomm, aggiornato solo
+  da Samsung via firmware): non patchabile da noi su device stock. Da ricontrollare
+  la versione a ogni OneUI update (criterio di riapertura).
+
 - **2026-08-09 — ✅ ADOZIONE OPERATIVA + SCHEDA PRODOTTO DEFINITIVA. Tutti gli
   invarianti tenuti: il drop non tocca load né riuso KV. La scheda, col default
   completo:** load cold **9.96 s** · prefill T5 **9.34 s** (n_common 1387, riuso
