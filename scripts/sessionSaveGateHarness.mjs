@@ -1,8 +1,10 @@
 /**
- * Harness for shouldSaveSession in src/engine/sessionPersistence.ts.
+ * Harness for shouldSaveSession + kvReproducibility state machine.
  *
  * Pure save-gate: precedence of reason strings (no_context, disposing,
- * kv_not_chat, kv_not_reproducible) and the happy path. No llama.rn.
+ * kv_not_chat, kv_not_reproducible) and the happy path.
+ * Plus sticky-flag EVENT TRACES (A1 tool-round, A2 miniapp strip, recovery).
+ * No llama.rn.
  *
  * Compile-from-disk (sessionMetaHarness pattern) + local node_modules stubs
  * so expo-file-system / AsyncStorage imports resolve under Node without RN.
@@ -69,6 +71,7 @@ function compile() {
     [
       "tsc",
       "src/engine/sessionPersistence.ts",
+      "src/engine/kvReproducibility.ts",
       "--outDir",
       outDir,
       "--module",
@@ -88,16 +91,16 @@ function compile() {
   }
 }
 
-function resolveBuilt() {
+function resolveBuilt(baseName) {
   const candidates = [
-    path.join(outDir, "sessionPersistence.js"),
-    path.join(outDir, "engine/sessionPersistence.js"),
-    path.join(outDir, "src/engine/sessionPersistence.js"),
+    path.join(outDir, `${baseName}.js`),
+    path.join(outDir, "engine", `${baseName}.js`),
+    path.join(outDir, "src/engine", `${baseName}.js`),
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;
   }
-  console.error("Could not find compiled sessionPersistence.js. Tried:\n", candidates.join("\n"));
+  console.error(`Could not find compiled ${baseName}.js. Tried:\n`, candidates.join("\n"));
   process.exit(1);
 }
 
@@ -105,12 +108,35 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
 
+/** Run an event trace from the initial pure state. */
+function runTrace(events, nextKvReproState, INITIAL_KV_REPRO_STATE) {
+  let state = { ...INITIAL_KV_REPRO_STATE };
+  for (const e of events) {
+    state = nextKvReproState(state, e);
+  }
+  return state;
+}
+
+function gateFromState(state, shouldSaveSession) {
+  return shouldSaveSession({
+    hasContext: true,
+    disposing: false,
+    kvHoldsChatSession: true,
+    kvReproducible: state.reproducible,
+  });
+}
+
 async function main() {
-  console.log("Compiling sessionPersistence.ts …");
+  console.log("Compiling sessionPersistence.ts + kvReproducibility.ts …");
   compile();
-  const modPath = resolveBuilt();
-  console.log("Loading", modPath);
-  const { shouldSaveSession } = await import(pathToFileURL(modPath).href);
+  const gatePath = resolveBuilt("sessionPersistence");
+  const reproPath = resolveBuilt("kvReproducibility");
+  console.log("Loading", gatePath);
+  console.log("Loading", reproPath);
+  const { shouldSaveSession } = await import(pathToFileURL(gatePath).href);
+  const { nextKvReproState, INITIAL_KV_REPRO_STATE } = await import(
+    pathToFileURL(reproPath).href,
+  );
 
   let passed = 0;
   let failed = 0;
@@ -198,6 +224,88 @@ async function main() {
       kvReproducible: false,
     });
     assert(r.reason === "kv_not_reproducible", JSON.stringify(r));
+  });
+
+  // ── Event traces over the state machine (A1 / A2 invariants) ────────────
+  // The whole point: clean_completion after tool_calls_detected must stay false
+  // (turnInjected guard lives in the pure reducer, not simulated by the harness).
+
+  test("trace: tool turn final emit stays non-reproducible → gate refuses", () => {
+    const events = ["turn_start", "tool_calls_detected", "clean_completion"];
+    const state = runTrace(events, nextKvReproState, INITIAL_KV_REPRO_STATE);
+    assert(state.reproducible === false, `expected false, got ${JSON.stringify(state)}`);
+    const gate = gateFromState(state, shouldSaveSession);
+    assert(gate.save === false && gate.reason === "kv_not_reproducible", JSON.stringify(gate));
+  });
+
+  test("trace: recovery after tool turn → gate allows", () => {
+    const events = [
+      "turn_start",
+      "tool_calls_detected",
+      "clean_completion",
+      "turn_start",
+      "clean_completion",
+    ];
+    const state = runTrace(events, nextKvReproState, INITIAL_KV_REPRO_STATE);
+    assert(state.reproducible === true, `expected true, got ${JSON.stringify(state)}`);
+    const gate = gateFromState(state, shouldSaveSession);
+    assert(gate.save === true && gate.reason === undefined, JSON.stringify(gate));
+  });
+
+  test("trace: A2 miniapp strip recovery → gate allows", () => {
+    const events = [
+      "turn_start",
+      "clean_completion",
+      "miniapp_stripped",
+      "turn_start",
+      "clean_completion",
+    ];
+    const state = runTrace(events, nextKvReproState, INITIAL_KV_REPRO_STATE);
+    assert(state.reproducible === true, `expected true, got ${JSON.stringify(state)}`);
+    const gate = gateFromState(state, shouldSaveSession);
+    assert(gate.save === true && gate.reason === undefined, JSON.stringify(gate));
+  });
+
+  test("trace: combined tool + miniapp then clean → true", () => {
+    const events = [
+      "turn_start",
+      "tool_calls_detected",
+      "turn_start",
+      "miniapp_stripped",
+      "turn_start",
+      "clean_completion",
+    ];
+    const state = runTrace(events, nextKvReproState, INITIAL_KV_REPRO_STATE);
+    assert(state.reproducible === true, `expected true, got ${JSON.stringify(state)}`);
+  });
+
+  test("trace: abort after tool turn (stickiness) → false", () => {
+    const events = ["turn_start", "tool_calls_detected", "turn_start"];
+    const state = runTrace(events, nextKvReproState, INITIAL_KV_REPRO_STATE);
+    assert(state.reproducible === false, `expected false, got ${JSON.stringify(state)}`);
+  });
+
+  test("trace: dispose after tools → true", () => {
+    const events = ["turn_start", "tool_calls_detected", "dispose"];
+    const state = runTrace(events, nextKvReproState, INITIAL_KV_REPRO_STATE);
+    assert(state.reproducible === true, `expected true, got ${JSON.stringify(state)}`);
+    assert(state.turnInjected === false, `turnInjected should clear on dispose`);
+  });
+
+  test("trace: miniapp strip alone → gate refuses", () => {
+    const events = ["turn_start", "clean_completion", "miniapp_stripped"];
+    const state = runTrace(events, nextKvReproState, INITIAL_KV_REPRO_STATE);
+    assert(state.reproducible === false, `expected false, got ${JSON.stringify(state)}`);
+    const gate = gateFromState(state, shouldSaveSession);
+    assert(gate.save === false && gate.reason === "kv_not_reproducible", JSON.stringify(gate));
+  });
+
+  test("trace: clean turn only → gate allows (no over-block)", () => {
+    const events = ["turn_start", "clean_completion"];
+    const state = runTrace(events, nextKvReproState, INITIAL_KV_REPRO_STATE);
+    assert(state.reproducible === true, `expected true, got ${JSON.stringify(state)}`);
+    const gate = gateFromState(state, shouldSaveSession);
+    assert(gate.save === true, JSON.stringify(gate));
   });
 
   console.log(`\nsessionSaveGateHarness: ${passed} passed, ${failed} failed`);

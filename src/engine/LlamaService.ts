@@ -62,6 +62,12 @@ import {
   writeSessionMeta,
   type SessionMeta,
 } from "./sessionPersistence";
+import {
+  INITIAL_KV_REPRO_STATE,
+  nextKvReproState,
+  type KvReproEvent,
+  type KvReproState,
+} from "./kvReproducibility";
 import { resolveThinkingParams } from "./thinkingBudgets";
 import { getModelById } from "./ModelRegistry";
 import * as FileSystem from "expo-file-system/legacy";
@@ -103,16 +109,14 @@ let activeSpecType: string | undefined;
  */
 let kvHoldsChatSession = false;
 /**
- * True when the native KV can be reproduced by re-rendering persisted history.
- * Default true; reset at the start of every chat turn. Set false when a turn
- * appends content the next prompt will not contain — tool results pushed into
- * currentMessages (CI run 31303432531: search_max=1184 vs checkpoints=[2084]).
- * Think blocks stripped from persisted text are the same class, but detecting
- * them reliably without plumbing cleaner state is not done here — tool rounds
- * are the proven failure mode. When false, saveEngineSession skips so the
- * previous good .kvs survives instead of writing a non-restorable session.
+ * Whether the native KV can be reproduced by re-rendering persisted history.
+ * Sticky `reproducible` + per-turn `turnInjected`; all transitions go through
+ * nextKvReproState (the clean_completion-after-tools invariant lives there).
+ * When reproducible is false, saveEngineSession skips so the previous good
+ * .kvs survives. Think-block strip is the same class of divergence but is
+ * not detected here.
  */
-let kvReproducible = true;
+let kvReproState: KvReproState = { ...INITIAL_KV_REPRO_STATE };
 /**
  * promptEnvHash of the system-prompt inputs that produced the current chat KV
  * (locale + memoryFacts + hasTools). Set on streamAssistantTurn / successful load.
@@ -734,7 +738,7 @@ async function disposeEngineLocked(): Promise<void> {
     activeMtpNMax = undefined;
     activeSpecType = undefined;
     kvHoldsChatSession = false;
-    kvReproducible = true;
+    kvReproState = nextKvReproState(kvReproState, "dispose");
     lastPromptEnvHash = undefined;
     // Intentionally do NOT delete session files here — they survive dispose
     // so the next initEngine can restore KV after app restart / model reload.
@@ -800,6 +804,19 @@ function sessionErrorReason(error: unknown): string {
 }
 
 /**
+ * Mark the in-memory chat KV as non-reproducible from persisted history.
+ * Call when a turn mutates what we persist without matching native KV
+ * (e.g. parseMiniappFromText strips a miniapp block from assistant text).
+ * `event` is the pure-machine event applied (default miniapp_stripped).
+ * Idempotent; sticky until a later clean completion or dispose.
+ */
+export function markKvNonReproducible(
+  event: Extract<KvReproEvent, "miniapp_stripped"> = "miniapp_stripped",
+): void {
+  kvReproState = nextKvReproState(kvReproState, event);
+}
+
+/**
  * Persist native KV + meta for the active model. Serialized via withEngineJob
  * so it never races a completion. Never throws; returns false on skip/failure.
  *
@@ -840,7 +857,7 @@ export async function saveEngineSession(
         hasContext: Boolean(ctx && activeModelId === modelId),
         disposing,
         kvHoldsChatSession,
-        kvReproducible,
+        kvReproducible: kvReproState.reproducible,
       });
       if (!gate.save) {
         log(false, { reason: gate.reason ?? "no_context" });
@@ -1208,9 +1225,10 @@ export async function streamAssistantTurn(
       return;
     }
 
-    // Fresh turn: assume KV will match re-rendered history until a tool round
-    // (or similar) injects content we do not persist.
-    kvReproducible = true;
+    // Sticky reproducible: do NOT force true here. A prior tool/miniapp turn
+    // left the in-memory KV divergent; aborting this turn before completion
+    // must still refuse save. Clears per-turn turnInjected only.
+    kvReproState = nextKvReproState(kvReproState, "turn_start");
 
     // One monotonic id for all rounds of this turn (incl. tool rounds).
     const turnId = String(++turnSeq);
@@ -1327,6 +1345,10 @@ export async function streamAssistantTurn(
       // when there is no prior-round prefix.
       if (!streamedTextAtRoundStart) finalText = finalText.trimStart();
       if (finalText) callbacks.onDelta(finalText, streamedTextAtRoundStart + finalText);
+      // clean_completion: reducer sets reproducible only if !turnInjected
+      // (tool turn final emit stays false). Miniapp strip is marked later by
+      // AiChatPage via markKvNonReproducible, after this returns.
+      kvReproState = nextKvReproState(kvReproState, "clean_completion");
       finishOnce(() => callbacks.onDone());
     };
 
@@ -1492,6 +1514,13 @@ export async function streamAssistantTurn(
           return;
         }
 
+        // Round-1 (or later) finished with tool_calls already in the native KV.
+        // Those blocks are never written to persisted conversation — mark
+        // BEFORE argument parsing / decideToolExecution / executeTool so an
+        // abort mid-window still refuses save (hole A1). Reducer sets
+        // turnInjected so a later clean_completion in this turn stays false.
+        kvReproState = nextKvReproState(kvReproState, "tool_calls_detected");
+
         // Round tool: esegui le chiamate, poi UN messaggio assistant con TUTTE le
         // tool_calls + i relativi risultati tool (formato OpenAI).
         // Gli id vengono NORMALIZZATI: il binding può restituire `id: null`
@@ -1613,10 +1642,7 @@ export async function streamAssistantTurn(
 
         // Executed tool-role results already include use-rule (+ trunc marker) within budget.
         // Skipped messages stay as-is (already a skip reason).
-        // Tool results enter native KV via the next completion, but are NOT in
-        // the conversation we persist — next prompt cannot reproduce this KV
-        // (CI 31303432531: n_common=1184 vs session 2084). Skip session save.
-        kvReproducible = false;
+        // kvReproState.reproducible already false from tool_calls_detected (A1).
         currentMessages = [
           ...currentMessages,
           {

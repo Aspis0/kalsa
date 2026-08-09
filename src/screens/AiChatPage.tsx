@@ -62,9 +62,11 @@ import { classifyChatContent, type ContentFilterReason } from "../domain/content
 import {
   getActiveModelId,
   invalidateEngineSession,
+  markKvNonReproducible,
   saveEngineSession,
   translateText,
 } from "../engine/LlamaService";
+import { miniappStripMakesKvNonReproducible } from "../engine/kvReproducibility";
 import { historyHash } from "../engine/sessionPersistence";
 import { createStreamCoalescer } from "../engine/streamCoalescer";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
@@ -1533,8 +1535,14 @@ export function AiChatPage({
             // effects (persist + messagesRef) are gated on runId *inside* the
             // setState updater: React still applies queued updaters after
             // clearChat, so an outer gate alone cannot stop resurrection.
-            const applyFinalize = (prev: Message[]): Message[] => {
-              return prev.map((message) => {
+            // miniappStripped is reported out so we can mark KV
+            // non-reproducible BEFORE saveEngineSession (A2): native KV holds
+            // the raw generation, persist uses the stripped text.
+            const applyFinalize = (
+              prev: Message[],
+            ): { messages: Message[]; miniappStripped: boolean } => {
+              let miniappStripped = false;
+              const messages = prev.map((message) => {
                 if (message.id !== assistantId) return message;
                 const base: Message = {
                   ...message,
@@ -1544,13 +1552,18 @@ export function AiChatPage({
                 };
                 if (base.miniapp) return base;
                 const extracted = parseMiniappFromText(base.text || "");
-                if (!extracted.miniapp) return base;
-                return {
-                  ...base,
-                  text: extracted.text || base.text,
-                  miniapp: extracted.miniapp as Message["miniapp"],
-                };
+                // Only mark when a block was actually stripped (not every parse).
+                if (miniappStripMakesKvNonReproducible(Boolean(extracted.miniapp))) {
+                  miniappStripped = true;
+                  return {
+                    ...base,
+                    text: extracted.text || base.text,
+                    miniapp: extracted.miniapp as Message["miniapp"],
+                  };
+                }
+                return base;
               });
+              return { messages, miniappStripped };
             };
             if (mountedRef.current) {
               // Stash the updater's return value so persist uses the same array
@@ -1563,7 +1576,8 @@ export function AiChatPage({
                 if (sendRunIdRef.current !== runId) {
                   return prev;
                 }
-                finalized = applyFinalize(prev);
+                const applied = applyFinalize(prev);
+                finalized = applied.messages;
                 // Keep ref in lockstep so AppState/unmount flushes cannot re-read
                 // a pre-finalize streaming bubble during the pre-commit window.
                 messagesRef.current = finalized;
@@ -1578,6 +1592,10 @@ export function AiChatPage({
                 // save always skips (reason: kv_not_chat). Fire-and-forget so
                 // the UI is not blocked; gates (runId, memory, non-empty reply)
                 // live inside afterSessionSave / scheduleMemoryExtract.
+                // A2: mark BEFORE save when miniapp JSON was stripped from text.
+                if (applied.miniappStripped) {
+                  markKvNonReproducible("miniapp_stripped");
+                }
                 {
                   const mid = getActiveModelId();
                   const runAfterSave = afterSessionSave;
@@ -1599,9 +1617,13 @@ export function AiChatPage({
                 return finalized;
               });
             } else if (sendRunIdRef.current === runId) {
-              const next = applyFinalize(messagesRef.current);
+              const applied = applyFinalize(messagesRef.current);
+              const next = applied.messages;
               messagesRef.current = next;
               persistMessagesNow(next);
+              if (applied.miniappStripped) {
+                markKvNonReproducible("miniapp_stripped");
+              }
               const mid = getActiveModelId();
               const runAfterSave = afterSessionSave;
               if (mid) {
