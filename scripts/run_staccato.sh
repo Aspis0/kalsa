@@ -61,6 +61,19 @@ else
 fi
 export BIN_SHA256="${BIN_SHA256:-}"
 
+# --- guardrail termico/memoria (lib comune, post-riavvio #2) ---
+_GR_LIB=""
+for _d in   "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)"   "$HOME/experiments/scripts"
+do
+  [ -n "$_d" ] && [ -f "$_d/lib_guardrails.sh" ] && _GR_LIB="$_d/lib_guardrails.sh" && break
+done
+if [ -n "$_GR_LIB" ]; then
+  # shellcheck disable=SC1090
+  source "$_GR_LIB"
+else
+  echo "WARN: lib_guardrails.sh assente — solo HARD STOP 98°C legacy" >&2
+fi
+
 BINDIR=$(dirname "$BIN")
 export LD_LIBRARY_PATH="${BINDIR}:${BINDIR}/..:${LD_LIBRARY_PATH:-}"
 
@@ -555,18 +568,29 @@ run_single() {
   local BPID=$!
   echo "$BPID" > "${opfx}.pid"
 
-  # sampler + capture VmHWM/memfree
+  # sampler + capture VmHWM/memfree + guardrail 88°C/60s PAUSA, MemFree<100MiB/10s ABORT_MEM
   (
+    guardrails_reset 2>/dev/null || true
     while kill -0 "$BPID" 2>/dev/null; do
       now_ms=$(date +%s%3N 2>/dev/null || python3 -c 'import time;print(int(time.time()*1000))')
-      die_c=$(mc_to_c "$(max_die_mc)")
+      die_mc=$(max_die_mc)
+      die_c=$(mc_to_c "$die_mc")
       rss=0; hwm=0
       [ -r "/proc/$BPID/status" ] && rss=$(awk '/^VmRSS:/{print $2}' "/proc/$BPID/status")
       [ -r "/proc/$BPID/status" ] && hwm=$(awk '/^VmHWM:/{print $2}' "/proc/$BPID/status")
       mf=$(awk '/^MemFree:/{print $2}' /proc/meminfo)
       echo "${now_ms},${die_c},${rss},${hwm},${mf}" >> "$samp"
-      if [ "$(max_die_mc)" -gt "$DIE_STOP_MC" ] 2>/dev/null; then
-        kill -TERM "$BPID" 2>/dev/null || true
+      if type guardrail_tick >/dev/null 2>&1; then
+        guardrail_tick "$die_mc" "${mf:-0}"
+        if [ "$GR_ACTION" != "CONTINUE" ]; then
+          guardrail_apply_to_pid "$BPID" "$opfx"
+          echo "$?" > "${opfx}.guardrail_rc"
+          break
+        fi
+      else
+        if [ "$die_mc" -gt "$DIE_STOP_MC" ] 2>/dev/null; then
+          kill -TERM "$BPID" 2>/dev/null || true
+        fi
       fi
       sleep 0.5
     done
@@ -583,6 +607,36 @@ run_single() {
   elapsed=$((wall_e - wall_s))
   kill "$SPID" 2>/dev/null || true
   wait "$SPID" 2>/dev/null || true
+
+  local grc=0
+  if [ -f "${opfx}.guardrail_rc" ]; then
+    grc=$(cat "${opfx}.guardrail_rc" 2>/dev/null || echo 0)
+    rm -f "${opfx}.guardrail_rc"
+  fi
+  if [ "$grc" = "97" ]; then
+    log "THERMAL_PAUSE $label — wait cool <80C"
+    if type guardrail_thermal_wait_cool >/dev/null 2>&1; then
+      if ! guardrail_thermal_wait_cool 600; then
+        echo "THERMAL_PAUSE_ABORT $(ts) $label" > "$STATUS"
+        echo "THERMAL_PAUSE_TIMEOUT" > "$OUTDIR/STOP_REASON.txt"
+        return 97
+      fi
+      echo "THERMAL_PAUSE_COOLED $(ts) $label" > "$STATUS"
+      brc=97
+    else
+      brc=97
+    fi
+  elif [ "$grc" = "96" ]; then
+    log "ABORT_MEM $label"
+    echo "ABORT_MEM $(ts) $label" > "$STATUS"
+    echo "ABORT_MEM" > "$OUTDIR/STOP_REASON.txt"
+    brc=96
+  elif [ "$grc" = "99" ]; then
+    log "HARD_STOP_DIE $label"
+    echo "HARD_STOP_DIE $(ts) $label" > "$STATUS"
+    echo "DIE_98" > "$OUTDIR/STOP_REASON.txt"
+    return 99
+  fi
 
   read -r batt_e _ _ btemp_e _ <<<"$(batt_fields)"
   local die_e

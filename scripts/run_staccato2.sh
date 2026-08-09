@@ -65,6 +65,21 @@ else
 fi
 export BIN_SHA256="${BIN_SHA256:-}"
 
+# --- guardrail termico/memoria (lib comune, post-riavvio #2) ---
+_GR_LIB=""
+for _d in \
+  "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)" \
+  "$HOME/experiments/scripts"
+do
+  [ -n "$_d" ] && [ -f "$_d/lib_guardrails.sh" ] && _GR_LIB="$_d/lib_guardrails.sh" && break
+done
+if [ -n "$_GR_LIB" ]; then
+  # shellcheck disable=SC1090
+  source "$_GR_LIB"
+else
+  echo "WARN: lib_guardrails.sh assente — solo HARD STOP 98°C legacy" >&2
+fi
+
 BINDIR=$(dirname "$BIN")
 export LD_LIBRARY_PATH="${BINDIR}:${BINDIR}/..:${LD_LIBRARY_PATH:-}"
 
@@ -603,33 +618,29 @@ run_single() {
   local BPID=$!
   echo "$BPID" > "${opfx}.pid"
 
-  # sampler + capture VmHWM/memfree
-  # For large expert cache (>=3000), abort bmoe early if MemFree < 25 MiB for 4 samples
-  # so lmkd kills bmoe not the harness parent. C2000 routinely dips to ~30-60 MiB — do not abort there.
+  # sampler + capture VmHWM/memfree + guardrail 88°C/60s PAUSA, MemFree<100MiB/10s ABORT_MEM
   (
-    low_mf_streak=0
+    guardrails_reset 2>/dev/null || true
     while kill -0 "$BPID" 2>/dev/null; do
       now_ms=$(date +%s%3N 2>/dev/null || python3 -c 'import time;print(int(time.time()*1000))')
-      die_c=$(mc_to_c "$(max_die_mc)")
+      die_mc=$(max_die_mc)
+      die_c=$(mc_to_c "$die_mc")
       rss=0; hwm=0
       [ -r "/proc/$BPID/status" ] && rss=$(awk '/^VmRSS:/{print $2}' "/proc/$BPID/status")
       [ -r "/proc/$BPID/status" ] && hwm=$(awk '/^VmHWM:/{print $2}' "/proc/$BPID/status")
       mf=$(awk '/^MemFree:/{print $2}' /proc/meminfo)
       echo "${now_ms},${die_c},${rss},${hwm},${mf}" >> "$samp"
-      if [ "$(max_die_mc)" -gt "$DIE_STOP_MC" ] 2>/dev/null; then
-        kill -TERM "$BPID" 2>/dev/null || true
-      fi
-      if [ "${cmb:-0}" -ge 3000 ] 2>/dev/null && [ "${mf:-0}" -lt 25600 ] 2>/dev/null; then
-        low_mf_streak=$((low_mf_streak+1))
-        if [ "$low_mf_streak" -ge 4 ]; then
-          echo "MEM_ABORT cache=${cmb} mf_kb=$mf rss=$rss $(date -Iseconds)" >> "${opfx}.KILL.txt"
-          kill -TERM "$BPID" 2>/dev/null || true
-          sleep 1
-          kill -KILL "$BPID" 2>/dev/null || true
+      if type guardrail_tick >/dev/null 2>&1; then
+        guardrail_tick "$die_mc" "${mf:-0}"
+        if [ "$GR_ACTION" != "CONTINUE" ]; then
+          guardrail_apply_to_pid "$BPID" "$opfx"
+          echo "$?" > "${opfx}.guardrail_rc"
           break
         fi
       else
-        low_mf_streak=0
+        if [ "$die_mc" -gt "$DIE_STOP_MC" ] 2>/dev/null; then
+          kill -TERM "$BPID" 2>/dev/null || true
+        fi
       fi
       sleep 0.5
     done
@@ -646,6 +657,38 @@ run_single() {
   elapsed=$((wall_e - wall_s))
   kill "$SPID" 2>/dev/null || true
   wait "$SPID" 2>/dev/null || true
+
+  # Guardrail post-run: thermal pause → cool; ABORT_MEM → stop cell
+  local grc=0
+  if [ -f "${opfx}.guardrail_rc" ]; then
+    grc=$(cat "${opfx}.guardrail_rc" 2>/dev/null || echo 0)
+    rm -f "${opfx}.guardrail_rc"
+  fi
+  if [ "$grc" = "97" ]; then
+    log "THERMAL_PAUSE $label — wait cool <80C"
+    if type guardrail_thermal_wait_cool >/dev/null 2>&1; then
+      if guardrail_thermal_wait_cool 600; then
+        echo "THERMAL_PAUSE_COOLED $(ts) $label" > "$STATUS"
+        brc=97
+      else
+        echo "THERMAL_PAUSE_ABORT $(ts) $label" > "$STATUS"
+        echo "THERMAL_PAUSE_TIMEOUT" > "$OUTDIR/STOP_REASON.txt"
+        return 97
+      fi
+    else
+      brc=97
+    fi
+  elif [ "$grc" = "96" ]; then
+    log "ABORT_MEM $label — cella interrotta"
+    echo "ABORT_MEM $(ts) $label" > "$STATUS"
+    echo "ABORT_MEM" > "$OUTDIR/STOP_REASON.txt"
+    brc=96
+  elif [ "$grc" = "99" ]; then
+    log "HARD_STOP_DIE $label"
+    echo "HARD_STOP_DIE $(ts) $label" > "$STATUS"
+    echo "DIE_98" > "$OUTDIR/STOP_REASON.txt"
+    return 99
+  fi
 
   read -r batt_e _ _ btemp_e _ <<<"$(batt_fields)"
   local die_e
@@ -710,6 +753,10 @@ run_single() {
 
   if [ $brc -ne 0 ]; then
     log "WARN $label rc=$brc"
+  fi
+  # Propagate guardrail abort/pause to caller
+  if [ "$brc" = "96" ] || [ "$brc" = "97" ] || [ "$brc" = "99" ]; then
+    return "$brc"
   fi
   return 0
 }
@@ -1005,14 +1052,16 @@ run_cella4() {
   echo "$BPID" > "${opfx}.pid"
   log "cella4 bmoe pid=$BPID"
 
-  # monitor: parse BMOE_PROGRESS for token counts; sample die
+  # monitor: parse BMOE_PROGRESS for token counts; sample die + guardrail
   (
     last_tok=0
     block_start_t=$(date +%s.%N 2>/dev/null || date +%s)
     block_start_tok=0
+    guardrails_reset 2>/dev/null || true
     while kill -0 "$BPID" 2>/dev/null; do
       now_ms=$(date +%s%3N 2>/dev/null || python3 -c 'import time;print(int(time.time()*1000))')
-      die_c=$(mc_to_c "$(max_die_mc)")
+      die_mc=$(max_die_mc)
+      die_c=$(mc_to_c "$die_mc")
       rss=0
       [ -r "/proc/$BPID/status" ] && rss=$(awk '/^VmRSS:/{print $2}' "/proc/$BPID/status")
       mf=$(awk '/^MemFree:/{print $2}' /proc/meminfo)
@@ -1020,8 +1069,17 @@ run_cella4() {
       tok=$(grep -oE '"step":[0-9]+' "$slog" 2>/dev/null | tail -1 | cut -d: -f2)
       tok=${tok:-0}
       echo "${now_ms},${die_c},${rss},${mf},${tok}" >> "$samp"
-      if [ "$(max_die_mc)" -gt "$DIE_STOP_MC" ] 2>/dev/null; then
-        kill -TERM "$BPID" 2>/dev/null || true
+      if type guardrail_tick >/dev/null 2>&1; then
+        guardrail_tick "$die_mc" "${mf:-0}"
+        if [ "$GR_ACTION" != "CONTINUE" ]; then
+          guardrail_apply_to_pid "$BPID" "$opfx"
+          echo "$?" > "${opfx}.guardrail_rc"
+          break
+        fi
+      else
+        if [ "$die_mc" -gt "$DIE_STOP_MC" ] 2>/dev/null; then
+          kill -TERM "$BPID" 2>/dev/null || true
+        fi
       fi
       sleep 0.5
     done
