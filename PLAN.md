@@ -1036,6 +1036,28 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-09 — ✅ VELOCITÀ DA STACCATO: drop-cold 0.50 passa anche la soglia +5%
+  (mediana pooled +6.52%) — CANDIDATO ADOZIONE, decisione a gualt.**
+
+  Report: `moe-speed-dropcold.md`. ABBA cold-per-run, 2 prompt × 2 rep × 2 bracci,
+  UNPLUGGED 100→93%, lmkd 0, guardrail 0. Triangolo di coerenza col report qualità
+  perfetto: MiB/tok e hit% f45 identici alla cifra (49.05/41.23, 77.0/79.0), drop
+  2.1% vs 2.2 atteso. Smoke KV col flag ON: n_past=71 intatto (drop decode-only).
+
+  **Nota d'arbitrato (a verbale, onestà prima del tifo):** la regola dichiarata era
+  la mediana pooled dei 4 run — rispettata, +6.52%, verdetto valido. Ma la vista
+  per-prompt dice: short +3.9% (4.584→4.761), f45 +2.4% (4.293→4.398). L'effetto
+  vero è probabilmente **+3-4%**, non +6.5%: il pooling mescola le distribuzioni dei
+  due prompt e gonfia il Δ. La regola è la regola (vale nei due sensi: ha ucciso
+  F=1.00 col −79% di byte, promuove questo), ma chi legge il verbale deve sapere
+  che il numero prudente è +3-4% con −10.6% MiB/tok reali. Il giro finale di misure
+  di prodotto farà da conferma naturale.
+
+  **Watch item:** die max 91.6 °C sui run veloci e sul sostenuto B (streak <60s,
+  nessun pause) — con drop attivo si va più veloci e quindi più caldi; è la zona
+  della firma RescueParty. I guardrail hanno retto, ma il sostenuto lungo con
+  batteria bassa resta il caso da non spingere.
+
 - **2026-08-09 — 🎯 PRIMO CANDIDATO LOSSY DELLA CAMPAGNA: `--drop-cold-experts 0.50` —
   ΔPPL +0.051 (≪ 0.15) con −15.9% di byte/token. Dopo che k5/k6/k4 sono morte tutte,
   la risposta a "se non è k, cos'è" è: drop-cold. Tagliare per COSTO (miss di cache +
