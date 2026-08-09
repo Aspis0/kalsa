@@ -63,6 +63,7 @@ jobs:
           node scripts/benchSpeculativeHarness.mjs
           node scripts/bufferShimHarness.mjs
           node scripts/benchEngineHarness.mjs
+          node scripts/engineParamsHarness.mjs
           node scripts/webFetchPdfMutationMatrix.mjs
 
       - name: Free disk space

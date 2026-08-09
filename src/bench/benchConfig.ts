@@ -52,6 +52,63 @@ export type EngineOverride = {
   nUbatch?: number;
 };
 
+/**
+ * Optional getter for the engine-active knob (JSON string | undefined).
+ * LlamaService registers at module load so formatBenchStatus can report ACTIVE
+ * without importing LlamaService (import cycle + harness must not load llama.rn).
+ * Unregistered → "none" (node harness / never inited).
+ */
+let activeEngineKnobGetter: (() => string | undefined) | undefined;
+
+/** Called by LlamaService once at load. Safe to call from tests. */
+export function registerActiveEngineKnobGetter(
+  getter: () => string | undefined,
+): void {
+  activeEngineKnobGetter = getter;
+}
+
+/** Compact label for engine override (storage or ACTIVE). */
+function formatEngineLabel(engine: EngineOverride | undefined): string {
+  if (!engine) return "default";
+  const parts: string[] = [];
+  if (engine.nGpuLayers !== undefined) parts.push(`gpu:${engine.nGpuLayers}`);
+  if (engine.nThreads !== undefined) parts.push(`threads:${engine.nThreads}`);
+  if (engine.nUbatch !== undefined) parts.push(`ubatch:${engine.nUbatch}`);
+  return parts.length > 0 ? parts.join(",") : "default";
+}
+
+/**
+ * Label for the knob currently live on the running engine.
+ * "none" when getter never registered (harness path).
+ */
+function activeEngineLabel(): string {
+  if (!activeEngineKnobGetter) return "none";
+  const raw = activeEngineKnobGetter();
+  if (raw === undefined) return "default";
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return "default";
+    const o = parsed as Record<string, unknown>;
+    const engine: EngineOverride = {};
+    for (const key of ["nGpuLayers", "nThreads", "nUbatch"] as const) {
+      const n = o[key];
+      if (
+        typeof n === "number" &&
+        Number.isFinite(n) &&
+        Number.isInteger(n) &&
+        n >= 0
+      ) {
+        engine[key] = n;
+      }
+    }
+    return formatEngineLabel(
+      Object.keys(engine).length > 0 ? engine : undefined,
+    );
+  } catch {
+    return "none";
+  }
+}
+
 const THINKING_MODES: ReadonlySet<string> = new Set([
   "default",
   "off",
@@ -287,15 +344,16 @@ export async function formatBenchStatus(): Promise<string> {
   const speculative = await getSpeculativeOverride();
   const speculativeLabel = speculative?.type ?? "default";
   const engine = await getEngineOverride();
-  let engineLabel = "default";
-  if (engine) {
-    const parts: string[] = [];
-    if (engine.nGpuLayers !== undefined) parts.push(`gpu:${engine.nGpuLayers}`);
-    if (engine.nThreads !== undefined) parts.push(`threads:${engine.nThreads}`);
-    if (engine.nUbatch !== undefined) parts.push(`ubatch:${engine.nUbatch}`);
-    if (parts.length > 0) engineLabel = parts.join(",");
-  }
-  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, engine=${engineLabel}`;
+  const engineLabel = formatEngineLabel(engine);
+  // Pending (storage) vs ACTIVE (running engine init). Differ when operator
+  // wrote a knob but has not force-stop + relaunch yet — the class of mistake
+  // that invalidated a prior measurement campaign.
+  const activeLabel = activeEngineLabel();
+  const enginePart =
+    activeLabel === engineLabel
+      ? `engine=${engineLabel}`
+      : `engine=${engineLabel} (ACTIVE: ${activeLabel} — force-stop + relaunch to apply)`;
+  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, ${enginePart}`;
 }
 
 const BENCH_USAGE =
@@ -378,12 +436,29 @@ export async function tryHandleBenchCommand(text: string): Promise<string | null
     if (!arg) {
       return `bench: missing engine override. ${BENCH_USAGE}`;
     }
-    if (parseEngineArg(arg) === null) {
+    const parsedEngine = parseEngineArg(arg);
+    if (parsedEngine === null) {
       return `bench: invalid engine override "${arg}". ${BENCH_USAGE}`;
     }
     const ok = await setEngineOverride(arg);
     if (!ok) return "bench: failed to write engine override";
-    return formatBenchStatus();
+    // Machine-readable status line FIRST (CI greps it); optional warning after.
+    // threads>=7 is still accepted (measurement tool must reach the zone) but
+    // on 8-core SD8Gen3 llama.rn pins N fastest cores and efficiency cores
+    // destroy decode throughput (measured 0.06 tok/s at threads=8).
+    const status = await formatBenchStatus();
+    if (
+      parsedEngine !== "clear" &&
+      parsedEngine.nThreads !== undefined &&
+      parsedEngine.nThreads >= 7
+    ) {
+      return (
+        `${status}\n` +
+        "bench: WARNING threads>=7 includes efficiency cores — measured 0.06 tok/s " +
+        "decode on an 8-core SD8Gen3; use 6 or fewer for real numbers"
+      );
+    }
+    return status;
   }
 
   return `bench: unknown subcommand "${sub}". ${BENCH_USAGE}`;

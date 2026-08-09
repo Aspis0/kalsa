@@ -14,6 +14,7 @@ import {
 import {
   getBlockFormat,
   getThinkingMode,
+  registerActiveEngineKnobGetter,
   type BlockFormat,
 } from "../bench/benchConfig";
 import {
@@ -33,6 +34,7 @@ import {
 } from "../agent/toolSourceLedger";
 import { getStrings, type Locale } from "../i18n";
 import { DEFAULT_N_CTX } from "./contextProfile";
+import { applyEngineOverride } from "./engineParams";
 import {
   createToolCallDeltaStripper,
   parseFallbackToolCall,
@@ -415,6 +417,18 @@ export function getActiveModelId(): string | null {
   return activeModelId;
 }
 
+/**
+ * Bench engine override JSON active on the running engine (set at init).
+ * undefined when production defaults or no engine. Used by formatBenchStatus.
+ */
+export function getActiveEngineKnob(): string | undefined {
+  return activeEngineKnob;
+}
+
+// Registry so benchConfig can read ACTIVE without an import cycle (it is
+// imported by this module). No-op under node harness until this loads.
+registerActiveEngineKnobGetter(getActiveEngineKnob);
+
 export function isVisionEnabled(): boolean {
   return context !== null && activeMmprojPath !== null;
 }
@@ -545,18 +559,8 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     };
 
     // Bench-only engineOverride: apply after production defaults; absent fields keep production.
-    if (options.engineOverride) {
-      if (options.engineOverride.nGpuLayers !== undefined) {
-        params.n_gpu_layers = options.engineOverride.nGpuLayers;
-      }
-      if (options.engineOverride.nThreads !== undefined) {
-        params.n_threads = options.engineOverride.nThreads;
-      }
-      if (options.engineOverride.nUbatch !== undefined) {
-        const batch = params.n_batch ?? 512;
-        params.n_ubatch = Math.min(options.engineOverride.nUbatch, batch);
-      }
-    }
+    // Android GPU gate lives in applyEngineOverride (never override the n_gpu_layers guard above).
+    applyEngineOverride(params, options.engineOverride, Platform.OS);
 
     // MTP (NextN): speculative decoding embedded — ~1.5-2x più veloce.
     // La cache del DRAFT viene quantizzata come la target (non F16 di default).
