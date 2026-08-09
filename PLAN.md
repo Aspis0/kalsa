@@ -1036,6 +1036,36 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-09 — ✅ NOTTE PERFETTA: celle 3-4 chiuse, cache incorniciata da entrambi i
+  lati (2000 è IL numero), ubatch 2048 morto, plateau ~4 tok/s, scorer decode-path pronto
+  con Δ=0. Zero incidenti, zero guardrail, floor rispettato.**
+
+  Report: `moe-notte9.md` (+ `moe-misure-staccato-3.md`, `moe-notte9-a.md`,
+  `moe-notte9-b.md`). Commit scorer verificato su tree PC (`d408e03`, +174/−15).
+
+  1. **Cella 3 — ubatch 2048 RIGETTATO, ed era pure più lento**: prefill 9.8 vs 11.6
+     tok/s mediani (−15.5%), buffer 4× più pesante. Non "non abbastanza meglio": peggio
+     su tutto. **512 chiuso come config di campagna e prodotto.**
+  2. **Cella 4 — il numero di sostenuta per la scheda prodotto: ~3.6-4.2 tok/s su 512
+     token** (mediana eval 4.00), die ~68 °C in decode, max 81.8, nessun throttling hard.
+  3. **Cache-down C1500: −15% → `MIN_SANE_2000`**, C1000 skipped per regola. Con la
+     Cella 2 (3000/3500: −62/−68%) la curva è incorniciata da entrambi i lati: **2000 non
+     è un default, è un ottimo misurato**. L'headroom per l'app non si compra dalla
+     cache.
+  4. **Scorer `--ppl-decode` (Binario B, PC)**: percorre il testo nel decode streamato
+     vero e registra i logprob del token gold. Smoke host: **Δ=0 esatto** vs prefill a
+     ubatch=1 (56 posizioni, somme identiche alla 8ª cifra). Gate device preparato e NON
+     eseguito (serve rebuild Android + re-pin, decisione di gualt). Nota tecnica dal
+     confronto: prefill largo vs decode differiscono per la memoria ibrida GDN — un
+     motivo IN PIÙ per cui il metro delle leve runtime deve essere il decode-path.
+  5. Batteria 56→41%, mai sotto floor; `screen_off_timeout` ripristinato; nessun riavvio;
+     guardrail 0 scatti (streak massimo die>88: 15.5 s su 60 di hold — calibrazione
+     giusta).
+
+  Decisioni sul tavolo di gualt: (a) conferma 512+2000 (di fatto già campagna → CHIUSI);
+  (b) go al rebuild+re-pin con scorer per aprire finalmente lo sweep
+  `--drop-cold-experts` — la prima leva lossy giudicabile col metro giusto.
+
 - **2026-08-09 — ✅ INDAGINE CHIUSA: non era il kernel, era ANDROID che staccava la spina.
   `reboot,rescueparty` — il framework ha eutanasizzato un sistema in thrashing. STOP
   revocato da gualt: celle 3-4 ripartite con i guardrail attivi.**
