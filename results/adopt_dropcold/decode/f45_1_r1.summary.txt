@@ -1,0 +1,14 @@
+label=f45_1 rep=1
+eval_tok_s=
+prompt_tok_s=
+hit=
+drop_pct=
+mib_tok=
+load_s=
+die_max=76.2
+memfree_min_mb=16
+vmrss_peak_mb=3877
+wall_s=67
+rc=143
+batt_s=77 batt_e=76
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f

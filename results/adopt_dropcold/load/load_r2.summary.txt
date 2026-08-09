@@ -1,0 +1,6 @@
+rep=2
+load_s=28.194
+rc=0
+batt_s=75 batt_e=75
+die_max=71.7
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f

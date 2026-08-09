@@ -1,0 +1,11 @@
+label=short_r1
+eval_tok_s=4.923
+hit=74.8
+drop_pct=2.0
+mib_tok=53.67
+load_s=9.072
+die_max=91.2
+memfree_min_mb=36
+rc=0
+batt_s=73 batt_e=73
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f

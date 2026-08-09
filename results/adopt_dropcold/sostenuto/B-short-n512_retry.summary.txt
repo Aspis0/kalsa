@@ -1,0 +1,8 @@
+eval_tok_s=4.354
+hit=85.2
+drop_pct=2.0
+mib_tok=35.25
+die_max=79.8
+rc=0
+batt_s=72 batt_e=71
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f

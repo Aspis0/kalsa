@@ -1,0 +1,11 @@
+label=f45_1_r1
+eval_tok_s=4.535
+hit=79.0
+drop_pct=2.2
+mib_tok=41.23
+load_s=10.294
+die_max=81.4
+memfree_min_mb=25
+rc=0
+batt_s=72 batt_e=72
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f

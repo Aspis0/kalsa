@@ -1,0 +1,14 @@
+label=short rep=2
+eval_tok_s=3.949
+prompt_tok_s=
+hit=
+drop_pct=1265
+mib_tok=53.67
+load_s=
+die_max=83.1
+memfree_min_mb=13
+vmrss_peak_mb=3875
+wall_s=74
+rc=0
+batt_s=77 batt_e=77
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f

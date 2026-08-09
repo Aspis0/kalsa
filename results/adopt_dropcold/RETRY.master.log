@@ -1,0 +1,51 @@
+[2026-08-09T16:57:44-0400] pin ok 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T16:57:44-0400] RETRY START
+[2026-08-09T16:57:45-0400] pre OK die=47.8 nproc=6 batt=73
+[2026-08-09T16:57:46-0400] cold short_r1
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=31461 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T16:57:50-04:00
+[2026-08-09T16:57:54-0400] start short_r1 batt=73 nproc=7 die=46.2
+label=short_r1
+eval_tok_s=4.923
+hit=74.8
+drop_pct=2.0
+mib_tok=53.67
+load_s=9.072
+die_max=91.2
+memfree_min_mb=36
+rc=0
+batt_s=73 batt_e=73
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T16:58:57-0400] DONE short_r1 eval=4.923 hit=74.8 drop=2.0 rc=0
+[2026-08-09T16:58:59-0400] pre OK die=56.1 nproc=6 batt=73
+[2026-08-09T16:59:00-0400] cold f45_1_r1
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=96674 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T16:59:07-04:00
+[2026-08-09T16:59:11-0400] start f45_1_r1 batt=72 nproc=7 die=46.9
+label=f45_1_r1
+eval_tok_s=4.535
+hit=79.0
+drop_pct=2.2
+mib_tok=41.23
+load_s=10.294
+die_max=81.4
+memfree_min_mb=25
+rc=0
+batt_s=72 batt_e=72
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T17:00:19-0400] DONE f45_1_r1 eval=4.535 hit=79.0 drop=2.2 rc=0
+[2026-08-09T17:00:21-0400] pre OK die=56.1 nproc=6 batt=72
+[2026-08-09T17:00:22-0400] cold sost
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=54778 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T17:00:30-04:00
+[2026-08-09T17:00:33-0400] start sost batt=72
+eval_tok_s=4.354
+hit=85.2
+drop_pct=2.0
+mib_tok=35.25
+die_max=79.8
+rc=0
+batt_s=72 batt_e=71
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T17:02:54-0400] DONE sost eval=4.354 rc=0 die_max=79.8
+[2026-08-09T17:02:54-0400] RETRY END
