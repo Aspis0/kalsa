@@ -1036,6 +1036,31 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-09 — ✅ ADOZIONE OPERATIVA + SCHEDA PRODOTTO DEFINITIVA. Tutti gli
+  invarianti tenuti: il drop non tocca load né riuso KV. La scheda, col default
+  completo:** load cold **9.96 s** · prefill T5 **9.34 s** (n_common 1387, riuso
+  pieno) · decode **~4.44/4.46 tok/s** (short/f45, in banda B, mai sotto banda A) ·
+  sostenuto **4.35 tok/s** a die max **79.8 °C**.
+
+  Report: `moe-adopt-dropcold.md`. Parte 1: flag nei 5 harness con config di
+  campagna (commit `82c8993`), A/B e bench parametrici lasciati intatti di
+  proposito — corretto. Parser load del 1° giro buggato (wall≠load), scartato dal
+  bravo esecutore; numeri da stdout del binario.
+
+  **Arbitrato sull'incidente della sessione — 3 ABORT_MEM "false-positive":**
+  il guardrail MemFree<100 MiB/10 s (istituito dopo RescueParty) ha ucciso 3 run
+  citabili; il retry li ha chiusi SENZA mem-kill (solo HARD 98 °C). Esito benigno
+  (die max 91.2, zero incidenti), ma due cose a verbale:
+  1. la lettura è giusta: memfree_min 13–52 MiB è lo stato NORMALE di questo
+     workload (tutti i run citabili della campagna ci vivono). La firma RescueParty
+     era mem ≪100 **E** die 88-92 sostenuti per minuti — la soglia solo-memoria non
+     separa il normale dal morente;
+  2. però disattivare un guardrail a caldo è una decisione da mandato, non da
+     retry. Andata bene, non è il protocollo. → **Ricalibrazione da fare**:
+     ABORT_MEM diventa condizione COMBINATA (MemFree<100 MiB sostenuto E die>85 °C
+     sostenuto), THERMAL_PAUSE 88/60s invariato. Micro-modifica a
+     `lib_guardrails.sh`, nel prossimo mandato.
+
 - **2026-08-09 — 🏁 ADOTTATO da gualt: `--drop-cold-experts 0.50` entra nella config
   di campagna e prodotto. Prima leva lossy adottata nella storia della campagna.**
 

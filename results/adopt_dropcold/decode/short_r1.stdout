@@ -1,0 +1,7 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:A 4B model fits entirely within the 8GB RAM, allowing the system to keep all weights in fast memory for immediate access, whereas the 35B MoE model exceeds available RAM and must constantly swap inactive experts between slow flash storage and RAM. This frequent swapping causes significant page faults that stall processing, while the intense I/O activity and computational load generate excessive heat that triggers thermal throttling, degrading performance unless expert streaming is carefully managed to minimize data movement.
+
+*   **Memory Footprint and Page Faults:** The 4B model’s weights fit in RAM, avoiding the latency of loading data from flash, while the 35B model’s larger size forces constant swapping, creating page faults that disrupt smooth execution.
+*   **Thermal Limits:** The heavy I/O required to stream experts from UFS 3.1 storage generates significant heat,

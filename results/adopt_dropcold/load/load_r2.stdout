@@ -1,0 +1,13 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:A 4B model fits entirely within
+
+generation: 8 tokens, 0.299 s/token (3.342 tok/s)
+compute: 76.7% CPU occupancy (0.9178 cpu-s/token over 4 threads), 0.12 major faults/token
+prefill: 114 tokens, 13.587 s (8.4 tok/s) | model load 11.332 s | TTFT 24.920 s
+moe-stream: read 826.6 MiB (103.32 MiB/token), decode 0.299 s/token (compute 0.197 + cache mgmt 0.018 + flash I/O 0.421 s/token, 245 MiB/s)
+moe-cache: 19.7% hit, resident 1999.2 MiB
+moe-cache: 4317 evictions, 813 re-reads (101.6/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.084 s/token (flash reads overlapped with FFN compute)
+moe-drop: 66/2560 routed experts dropped (2.6%), threshold 0.50 x uniform
