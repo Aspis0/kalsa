@@ -328,7 +328,7 @@ run_cella1() {
   fi
 
   local CACHE_MB=2000 UBATCH=512 N_PREDICT=256
-  local FLAGS="-m $MODEL -t $THREADS -c $N_CTX -n $N_PREDICT --temp 0 --chatml --no-think --moe-stream --cache-mb ${CACHE_MB} --dense-weights anon --overlap --io-threads ${IO_THREADS} --ubatch ${UBATCH} --session"
+  local FLAGS="-m $MODEL -t $THREADS -c $N_CTX -n $N_PREDICT --temp 0 --chatml --no-think --moe-stream --cache-mb ${CACHE_MB} --dense-weights anon --overlap --io-threads ${IO_THREADS} --ubatch ${UBATCH} --drop-cold-experts 0.50 --session"
 
   rm -f "$REQ_FIFO"
   mkfifo "$REQ_FIFO"
@@ -492,7 +492,7 @@ PY
     # runs.csv row
     local run_id flags_s
     run_id="staccato-c1-r${rep}-t${t}-$(date +%Y%m%d-%H%M%S)"
-    flags_s="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --session clear_kv=$CK"
+    flags_s="--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --drop-cold-experts 0.50 --session clear_kv=$CK"
     local ttft_ms
     ttft_ms=$(python3 -c "print(int(float('${prefill_s:-0}')*1000))")
     append_run "${run_id},$(date -Iseconds),${TAG_PHASE}-C1,Qwen3.6-35B-A3B-UD-IQ2_M,UD-IQ2_M,11.52,bigmoe,${RUNTIME_COMMIT},${flags_s//,/;},4,4096,f16,256,warm,f5_1_t${t},${prefill_tps},${tok_s},${ttft_ms},,,,,,${btemp_s},${btemp_e},${batt_s},${cache_hit}%,$(nproc),,bin_sha256=${BIN_SHA256};n_prompt=${n_prompt};n_common=${n_common};n_past=${n_past};wall_s=${elapsed};rep=${rep}"
@@ -558,6 +558,7 @@ run_single() {
     --temp 0 --chatml --no-think --moe-stream
     --cache-mb "$cmb" --dense-weights anon --overlap
     --io-threads "$IO_THREADS" --ubatch "$ub"
+    --drop-cold-experts 0.50
   )
   if [ -n "$EXTRA" ]; then
     # shellcheck disable=SC2206
@@ -692,7 +693,7 @@ run_single() {
 
   local run_id flags_s
   run_id="staccato-${label}-$(date +%Y%m%d-%H%M%S)"
-  flags_s="--moe-stream --cache-mb ${cmb} --dense-weights anon --overlap --io-threads 4 --ubatch ${ub}"
+  flags_s="--moe-stream --cache-mb ${cmb} --dense-weights anon --overlap --io-threads 4 --ubatch ${ub} --drop-cold-experts 0.50"
   if [ -n "$EXTRA" ]; then flags_s="$flags_s $EXTRA"; fi
   append_run "${run_id},$(date -Iseconds),${TAG_PHASE},${MODEL##*/},UD-IQ2_M,11.52,bigmoe,${RUNTIME_COMMIT},${flags_s//,/;},4,4096,f16,${ngen},${rtype},${pid},${prompt_tok_s},${eval_tok_s},${ttft_ms},,,,${vmrss_peak_mb},${memfree_min_mb},${btemp_s},${btemp_e},${batt_s},${hit},${nproc_s},,bin_sha256=${BIN_SHA256};lmkd_delta=${lmkd_d};wall_s=${elapsed};n_prompt=${n_prompt};${notesx}"
 
@@ -917,7 +918,7 @@ run_cella4() {
   "$BIN" -m "$MODEL" -p "$ptext" -t "$THREADS" -c "$N_CTX" -n 512 \
     --temp 0 --chatml --no-think --moe-stream --cache-mb "${WIN_C}" \
     --dense-weights anon --overlap --io-threads "$IO_THREADS" --ubatch "$WIN_UB" \
-    --n-expert-used 8 --progress > "$slog" 2> "$serr" &
+    --n-expert-used 8 --drop-cold-experts 0.50 --progress > "$slog" 2> "$serr" &
   local BPID=$!
   echo "$BPID" > "${opfx}.pid"
   log "cella4 bmoe pid=$BPID"
@@ -1023,7 +1024,7 @@ PY
   run_single_note() { :; }
   local run_id
   run_id="staccato-c4-plateau-$(date +%Y%m%d-%H%M%S)"
-  append_run "${run_id},$(date -Iseconds),${TAG_PHASE}-C4,Qwen3.6-35B-A3B-UD-IQ2_M,UD-IQ2_M,11.52,bigmoe,${RUNTIME_COMMIT},--moe-stream --cache-mb ${WIN_C} --ubatch ${WIN_UB} --n-expert-used 8,4,4096,f16,512,warm,short,${prompt_tok_s},${eval_tok_s},,,,,,$(mc_to_c "$(max_die_mc)"),,${batt_s},${hit},$(nproc),,bin_sha256=${BIN_SHA256};cella=4;plateau;cache=${WIN_C};ubatch=${WIN_UB}"
+  append_run "${run_id},$(date -Iseconds),${TAG_PHASE}-C4,Qwen3.6-35B-A3B-UD-IQ2_M,UD-IQ2_M,11.52,bigmoe,${RUNTIME_COMMIT},--moe-stream --cache-mb ${WIN_C} --ubatch ${WIN_UB} --n-expert-used 8 --drop-cold-experts 0.50,4,4096,f16,512,warm,short,${prompt_tok_s},${eval_tok_s},,,,,,$(mc_to_c "$(max_die_mc)"),,${batt_s},${hit},$(nproc),,bin_sha256=${BIN_SHA256};cella=4;plateau;cache=${WIN_C};ubatch=${WIN_UB}"
 
   log "==== CELLA4 DONE ===="
   return 0
