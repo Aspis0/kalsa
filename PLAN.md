@@ -12,94 +12,100 @@
 
 ---
 
-# ⭐ STATO CORRENTE — aggiornato 2026-08-07
+# ⭐ STATO CORRENTE — aggiornato 2026-08-09
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 37 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 58 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
-## Dove siamo, in numeri
+## Scheda prodotto (giro finale 2026-08-09, `moe-adopt-dropcold.md`)
 
-| | valore | dove |
+| | valore | note |
 |---|---|---|
-| **config attuale** | `--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 -t 4`, **`--ubatch 512`** | |
-| velocità, burst su benchmark | **5.02 tok/s** | gate F4 |
-| velocità, **carico reale** (prosa IT) | **6.07** primo turno, scollegato | F4.9-B |
-| velocità, **sostenuto multi-turno** | **3.5-3.8** e non si assesta | F5.3-A |
-| **TTFT** | 9 s al turno 1 → **376 s al turno 10** | F5.3-A |
-| traffico | **31-34 MiB/token** (naive 305) | F4.9, F5.3 |
-| hit esperti (decode) | **89%** su prosa lunga, **76-80%** multi-turno | C3, F5.1 |
-| energia | **1.0-1.4 J/token**, ~40k token per carica | F4.7 |
-| qualità | UD-IQ2_M **usabile**; filo del discorso regge su 5+ turni | F4.5, F5.1 |
-| **collo di bottiglia** | **il CALCOLO** (I/O esposto = 20% del decode) | F4.9, F5.2 |
-| frequenza a regime | **41% del picco** (1.39 di 3.36 GHz) | F5.3-A3 |
+| **config di campagna** | `-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 8 --drop-cold-experts 0.50` | tutte voci **misurate**, nessun default ereditato |
+| **binario** | CAMPAIGN `1ca51420…` = prefault tri-stato + dense2 + fix KV + scorer + drop runtime | pin sha-verificato, `bin_sha256` in `runs.csv` |
+| **load cold** | **9.96 s** (9.37 GiB letti; inizio campagna: 21.05 GiB) | −55% byte, capitolo E1 chiuso |
+| **prefill per turno** | **~8-11 s COSTANTI** su 5 turni (T5: 9.34 s, n_common 1387) | prima del fix KV: 165 s al T5. Il TTFT non degrada più |
+| **decode** | **~4.4-4.5 tok/s** (short/f45), sostenuto n=512 **4.35** a die 79.8 °C | plateau reale, non burst |
+| traffico | **41-54 MiB/tok** col drop (f45: 41.23, −16% vs 49.05) | naive: 305 |
+| hit esperti (decode) | 75-79% multi-turno / 85% sostenuto | cache 2000 = ottimo misurato |
+| energia | 1.0-1.4 J/token, ~40k token per carica | F4.7 (pre-drop, da rinfrescare se serve) |
+| **qualità** | baseline decode-path **PPL 2.0955** (subset 10k); budget lossy **cumulativo 0.15**, spesi **0.051** (drop 0.50) | restano ~0.10 per TUTTE le leve future |
+| **collo di bottiglia** | **il CALCOLO** (I/O esposto = 20% del decode; freq a regime 41% del picco) | F4.9, F5.2, F5.3-A3 |
 
-## Le 3 cose che contano, in ordine
+## I 3 capitoli che contavano: TUTTI CHIUSI
 
-1. ✅ **Prefill incrementale — FATTO, PROVATO e ADOTTATO (2026-08-08, commit fork
-   `2c675a5`).** Due pezzi: history grezza quando il parse spoglia uno span think vuoto +
-   `preserve_thinking=true` al template. G-K1 PASS (`n_common=71`, `n_prompt 108→41`,
-   prefill 11.95→4.23 s), G-K2 PASS (riuso vs ri-prefill: **testo byte-identico**), G-K3
-   **8/8 PASS** sul path `-p` dei riferimenti. **CAMPAIGN = fix KV**: re-pin
-   `ad058660… → ede3ac7c…`, smoke post-pin PASS, verificato dal coordinatore via ssh
-   (sha, read-only, sha-file). Report: `moe-kv-reuse-fix.md` + `moe-kv-close.md`.
-   Vincolo permanente scoperto: memoria ibrida attention+SSM → **niente rollback parziale
-   della KV** su questo modello (edit/regenerate = ri-prefill completo).
-2. ✅ **Loader (E1) — CAPITOLO CHIUSO (2026-08-08).** Tre fix adottati in sequenza:
-   prefault tri-stato (−51%: 21.05→10.31 GiB), poi dense2 (memcpy pagine residenti + drop
-   mmap esperti: 10.18→**9.37 GiB**, rchar dimezzato, VmHWM −321 MiB). CAMPAIGN =
-   `cab20432…` (pin verificato, colonna `bin_sha256` in `runs.csv`). Il residuo (~0.85 GiB
-   di dense rilétto) è **chiuso per esperimento, non per stanchezza**: mincore a fine
-   warm-up = 899/1664 MiB, identico al memcpy della conversione nello stesso run → il
-   reclaim avviene DURANTE il warm-up, nessun riordino lo recupererebbe. La soglia 8 GiB
-   non si raggiunge per questa via: ciò che resta è fault di warm-up sotto pressione,
-   fisica di un device da 8 GB. Report: `moe-blockers-fix.md`, `moe-dense2.md`,
-   `moe-adopt-dense2.md`.
-3. ✅ **Metro di perplessità — ESISTE (2026-08-08 02:37).** `PPL = 2.7790669585` su **68 175
-   token italiani**, con `audit_ppl` ricalcolato per via indipendente che coincide alla decima
-   cifra. La modifica al runtime ha superato la non-regressione **8/8 byte-identici** contro i
-   riferimenti k=8, quindi **il binario nuovo è equivalente sul decode e tutte le misure
-   storiche restano confrontabili**. Il ramo lossy (k, `--drop-cold-experts`, REAP) non è più
-   bloccato: manca solo di applicare il metro alle varianti (mandato F5.6, scritto).
+1. ✅ **Prefill incrementale** (fork `2c675a5`): history grezza + `preserve_thinking=true`.
+   T5 165→9.3 s (−94%). Vincolo permanente: memoria ibrida attention+SSM → niente rollback
+   parziale KV (edit/regenerate = ri-prefill completo). Report: `moe-kv-reuse-fix.md`.
+2. ✅ **Loader E1**: prefault tri-stato (−51%) + dense2 (memcpy+drop mmap) = 21.05→9.37 GiB.
+   Residuo chiuso per esperimento (mincore: il reclaim avviene DURANTE il warm-up).
+   Report: `moe-dense2.md`, `moe-adopt-dense2.md`.
+3. ✅ **Metro PPL sul decode-path** (`--ppl-decode`, fork `d408e03`, Δ=0 esatto vs prefill
+   a ubatch=1) **+ prima leva lossy ADOTTATA**: `--drop-cold-experts 0.50` — ΔPPL +0.051
+   per +3-4% decode (prudente; pooled +6.5%) e −16% MiB/tok. Il taglio per COSTO batte il
+   taglio per RANGO (k6/k5/k4 morte con ΔPPL 0.94/2.56/7.29).
+   Report: `moe-dropcold.md`, `moe-speed-dropcold.md`, `moe-adopt-dropcold.md`.
 
 ## Deciso e CHIUSO (non riaprire senza un fatto nuovo)
 
 | ramo | verdetto | perché |
 |---|---|---|
-| politiche di cache | **vuoto** | nessuna batte LRU sul carico vero; `layer_equal` +3.85 sul benchmark ma **−0.95** su prosa. Belady−LRU = 6.37 pt sul carico reale |
-| prefetch cross-layer | **morto** | Recall@8 19.2%, extra-fetch 274% ⇒ 317 MiB/tok contro 1204 MiB/s disponibili. Godwit conferma: predittore all'87-91% vale **+3.1%** |
-| MTP / speculazione | **morto** | non ammortizza i byte (0.00%); il nostro GGUF **non ha la testa nextn**; `--ngram` non trova match su prosa IT |
-| ri-quantizzazione Q4_0/IQ4_NL | **pareggia** | guadagno sul calcolo e penale sui byte hanno la stessa taglia. E il percorso `repack` è **irraggiungibile dallo streaming** (serve il buffer type) |
-| kernel IQ2 a mano | **rinviato** | il GEMM esperti è il 50% del calcolo, ma la via economica pareggia e quella cara costa settimane |
+| politiche di cache | **vuoto** | nessuna batte LRU sul carico vero; Belady−LRU = 6.37 pt |
+| **taglia cache** | **2000, ottimo misurato** | incorniciata: 1500 −15%, 3000/3500 −62/−68% (thrash → RescueParty) |
+| **ubatch** | **512** | 2048: prefill −15.5% E buffer 4× |
+| prefetch cross-layer | **morto** | Recall@8 19.2%, extra-fetch 274%; predittore 87-91% varrebbe +3.1% |
+| MTP / speculazione | **morto, con letteratura** | 0.00% ammortizzo byte; 3 meccanismi indipendenti (roofline CPU, DFlash GPU-native, expert scattering). Riapertura solo con: NPU/GPU verify, acceptance ≥60%, overlap misurato ≫0. `research/speculative-cpu-literature.md` |
+| k ridotto (lossy) | **morto** | k6 ΔPPL +0.94 ≫ 0.15; k5/k4 peggio |
+| drop-cold estremi | **morti** | 0.25 inerte (−4% byte); 1.00 rompe il metro (+0.26) |
+| ri-quantizzazione | **pareggia** | guadagno calcolo ≈ penale byte; `repack` irraggiungibile dallo streaming |
+| kernel IQ2 a mano | **rinviato** | GEMM esperti = 50% del calcolo, ma via economica pareggia, via cara costa settimane |
 
 ## Aperto, e cosa serve per chiuderlo
 
-| domanda | serve |
+| domanda | stato |
 |---|---|
-| cache 3000/3500 va più **veloce**? (sappiamo solo che taglia il traffico del 56%) | misura **scollegata** |
-| `ubatch` 512 o 2048? (2048 dà +9.9 pt di hit, il doppio di quanto rendano gli stessi MB in cache) | misura **scollegata** |
-| il sostenuto si assesta o continua a scendere? | run lungo **scollegato** |
-| ~~perché il simulatore M5 sovrastima?~~ **CHIUSA**: non sovrastimava — era un mio confronto fra metriche e tracce diverse (F5.5-C) | — |
-| ~~`k=6` regge la qualità?~~ **CHIUSA**: no — ΔPPL +0.94, archiviata con k5 e k4 (F5.6) | — |
-| `--drop-cold-experts` quanto costa? | **serve uno scorer sul percorso di DECODE**: il metro attuale è prefill-only e non lo vede |
+| ginocchio drop-cold F ∈ {0.65, 0.80} — c'è un punto che paga ≥−25% byte a budget tenuto? | **mandato scritto** (`knee-dropcold.md`, deterministica, in carica OK); include ricalibrazione ABORT_MEM combinato (mem<100 MiB E die>85 sostenuti) |
+| **L'ESPERIMENTO SERIO — attaccare il collo del CALCOLO** (unica leva grossa rimasta) | da decidere con gualt, candidati sotto |
+| energia col drop attivo (J/token da rinfrescare) | opzionale, una cella F4.7-style |
+
+### Candidati "esperimento serio" (il collo è il calcolo a 1.39 GHz)
+
+1. **GPU Adreno 740 via OpenCL — split eterogeneo**: dense+attention (≈50% del calcolo)
+   sulla GPU, esperti streamati sulla CPU, overlap dei due. llama.cpp ha il backend OpenCL
+   ottimizzato Adreno; l'incognita è l'integrazione col percorso streaming del fork e la
+   memoria unificata (zero-copy o muore di upload). Potenziale: fino a ~2× se l'overlap è
+   pieno; realisticamente +30-50%. Rischio: settimane, non giorni. Bonus termico: sposta
+   watt su silicio diverso — il ceiling a 41% di freq è termico.
+2. **Integrazione prodotto in Kalsa** (llama.rn ↔ BigMoeOnEdge): non ricerca ma
+   ingegneria; porta i numeri della scheda dentro l'app vera. Prerequisito per shippare
+   qualunque cosa di questa campagna.
+3. **Kernel IQ2 a mano (riaprire il rinviato)**: attacca lo stesso 50% del calcolo, senza
+   GPU. Via cara già stimata in settimane, nessun bonus termico.
 
 ## Regole operative imparate a caro prezzo
 
-- **In carica i TEMPI non sono affidabili**, nemmeno normalizzati (dispersione 25-27% fra
-  repliche identiche, 3 celle di fila). In carica si misurano **byte, hit, output, dimensioni**.
-- **Prompt byte-identici con checksum** fra fasi confrontabili: un accento ha già invalidato un
-  confronto.
-- **Prima di progettare, leggere `--help` per intero**: 5 volte una funzionalità già presente ha
-  ribaltato una conclusione (`--session`, `iobench`, `--compute-trace`, `--ubatch`, `--mtp`).
-- **Chiedersi su QUALE CARICO si sta misurando prima di quale opzione vince**: il benchmark del
-  gate è 2.6× peggiore del carico reale, e una politica che vinceva su quello **peggiora** il
-  prodotto. **Vale anche per le PREVISIONI**: una stima porta con sé la traccia e la metrica su
-  cui è stata fatta, e confrontarla con altro è un errore di categoria — ci sono cascato io
-  dichiarando rotto un simulatore che era fedele allo 0.05%.
-- **Se una misura andrà confrontata con una simulazione, catturare la route-trace INSIEME alla
-  misura.**
-- Un gate che legge da un **comando esterno fallisce aperto**, uno su **sysfs fallisce chiuso**.
+- **In carica i TEMPI non sono affidabili** (dispersione 25-27%). In carica si misurano
+  byte, hit, PPL, output, dimensioni — tutto il deterministico.
+- **Prompt byte-identici con checksum** fra fasi confrontabili; **il template chat fa parte
+  del contratto** (un template che spoglia il think ha rotto il riuso KV: la re-render deve
+  essere byte-identica ai kv_tokens).
+- **Prima di progettare, leggere `--help` per intero**: 5 volte una funzionalità già
+  presente ha ribaltato una conclusione.
+- **Chiedersi su QUALE CARICO si sta misurando prima di quale opzione vince**; vale anche
+  per le previsioni (metrica+traccia viaggiano insieme).
+- **Mediana pooled ≠ effetto reale**: il pooling di prompt diversi gonfia i Δ (speed
+  drop-cold: +6.5% pooled, +2.4-3.9% per-prompt). Dichiarare l'aggregazione prima, ma
+  leggere anche la vista per-prompt nel verbale.
+- **I guardrail si cambiano per mandato, non a caldo in un retry** — anche quando la
+  lettura tecnica è giusta. Firma RescueParty: MemFree ≪100 MiB **E** die 88-92 °C
+  sostenuti per minuti (il telefono muore a ~90 sostenuti, non a 98).
+- **Budget qualità lossy CUMULATIVO**: ΔPPL ≤0.15 vs baseline originale, mai incrementale
+  per leva.
+- **Route-trace INSIEME alla misura** se andrà confrontata con una simulazione.
+- Un gate che legge da un **comando esterno fallisce aperto**, uno su **sysfs fallisce
+  chiuso**.
 
 ---
 
