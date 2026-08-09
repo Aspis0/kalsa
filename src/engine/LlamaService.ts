@@ -57,6 +57,7 @@ import {
   sessionFileExists,
   sessionFilePath,
   sessionMetaMismatchField,
+  shouldSaveSession,
   writeSessionMeta,
   type SessionMeta,
 } from "./sessionPersistence";
@@ -100,6 +101,17 @@ let activeSpecType: string | undefined;
  * restore a useless prefix on next start. Cleared on dispose / utility clearCache.
  */
 let kvHoldsChatSession = false;
+/**
+ * True when the native KV can be reproduced by re-rendering persisted history.
+ * Default true; reset at the start of every chat turn. Set false when a turn
+ * appends content the next prompt will not contain — tool results pushed into
+ * currentMessages (CI run 31303432531: search_max=1184 vs checkpoints=[2084]).
+ * Think blocks stripped from persisted text are the same class, but detecting
+ * them reliably without plumbing cleaner state is not done here — tool rounds
+ * are the proven failure mode. When false, saveEngineSession skips so the
+ * previous good .kvs survives instead of writing a non-restorable session.
+ */
+let kvReproducible = true;
 /**
  * promptEnvHash of the system-prompt inputs that produced the current chat KV
  * (locale + memoryFacts + hasTools). Set on streamAssistantTurn / successful load.
@@ -722,6 +734,7 @@ async function disposeEngineLocked(): Promise<void> {
     activeMtpNMax = undefined;
     activeSpecType = undefined;
     kvHoldsChatSession = false;
+    kvReproducible = true;
     lastPromptEnvHash = undefined;
     // Intentionally do NOT delete session files here — they survive dispose
     // so the next initEngine can restore KV after app restart / model reload.
@@ -819,16 +832,23 @@ export async function saveEngineSession(
     const path = sessionFilePath(modelId);
     const tmpPath = `${path}.tmp`;
     try {
-      if (!context || activeModelId !== modelId) {
+      // Sync gates only — early return BEFORE any tmp/backup manipulation so a
+      // skipped save (e.g. kv_not_reproducible after a tool turn) leaves the
+      // previous good .kvs + meta intact for a later warm restore.
+      const ctx = context;
+      const gate = shouldSaveSession({
+        hasContext: Boolean(ctx && activeModelId === modelId),
+        disposing,
+        kvHoldsChatSession,
+        kvReproducible,
+      });
+      if (!gate.save) {
+        log(false, { reason: gate.reason ?? "no_context" });
+        return false;
+      }
+      // gate.save implies hasContext; re-check for TS narrow + defensive.
+      if (!ctx) {
         log(false, { reason: "no_context" });
-        return false;
-      }
-      if (disposing) {
-        log(false, { reason: "disposing" });
-        return false;
-      }
-      if (!kvHoldsChatSession) {
-        log(false, { reason: "kv_not_chat" });
         return false;
       }
       if (!(await hasEnoughDiskForSession(activeEngineCtx))) {
@@ -847,7 +867,7 @@ export async function saveEngineSession(
       // fopen gets "file:///..." and fails instantly (e2e run 31271420320:
       // save error in 5ms, restore MISS no_meta). Strip it ourselves for the
       // native call only; expo-file-system ops keep the URI form.
-      const tokens = await context.saveSession(tmpPath.replace(/^file:\/\//, ""));
+      const tokens = await ctx.saveSession(tmpPath.replace(/^file:\/\//, ""));
       // Replace real file only after a complete tmp write. moveAsync fails if
       // dest exists, and a plain delete-then-move leaves a loss window (kill
       // between the two loses the previous good file — re-verify finding 2).
@@ -1187,6 +1207,10 @@ export async function streamAssistantTurn(
       callbacks.onError(new Error(strings.errors.modelNotLoaded));
       return;
     }
+
+    // Fresh turn: assume KV will match re-rendered history until a tool round
+    // (or similar) injects content we do not persist.
+    kvReproducible = true;
 
     // One monotonic id for all rounds of this turn (incl. tool rounds).
     const turnId = String(++turnSeq);
@@ -1589,6 +1613,10 @@ export async function streamAssistantTurn(
 
         // Executed tool-role results already include use-rule (+ trunc marker) within budget.
         // Skipped messages stay as-is (already a skip reason).
+        // Tool results enter native KV via the next completion, but are NOT in
+        // the conversation we persist — next prompt cannot reproduce this KV
+        // (CI 31303432531: n_common=1184 vs session 2084). Skip session save.
+        kvReproducible = false;
         currentMessages = [
           ...currentMessages,
           {

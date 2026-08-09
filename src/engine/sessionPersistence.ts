@@ -180,6 +180,31 @@ export function estimateSessionBytes(nCtx: number): number {
   return Math.max(0, nCtx) * 64 * 1024;
 }
 
+/**
+ * Synchronous save-gate for native KV sessions (no I/O, no disk check).
+ *
+ * Ordering matches saveEngineSession's early returns so CI can grep the same
+ * reason strings. Disk headroom stays async and is checked after this gate.
+ *
+ * CI run 31303432531: a web_search turn left native KV at 2084 tokens while
+ * re-rendered history only reproduced the prefix through 1184 (tool results
+ * never persist). Hybrid/recurrent models cannot roll KV back, so restore is
+ * useless — skip save when the turn made KV non-reproducible instead of
+ * writing a poisoned session.
+ */
+export function shouldSaveSession(args: {
+  hasContext: boolean;
+  disposing: boolean;
+  kvHoldsChatSession: boolean;
+  kvReproducible: boolean;
+}): { save: boolean; reason?: string } {
+  if (!args.hasContext) return { save: false, reason: "no_context" };
+  if (args.disposing) return { save: false, reason: "disposing" };
+  if (!args.kvHoldsChatSession) return { save: false, reason: "kv_not_chat" };
+  if (!args.kvReproducible) return { save: false, reason: "kv_not_reproducible" };
+  return { save: true };
+}
+
 export async function hasEnoughDiskForSession(nCtx: number): Promise<boolean> {
   try {
     const free = await FileSystem.getFreeDiskStorageAsync();

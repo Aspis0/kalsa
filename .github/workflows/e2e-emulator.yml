@@ -84,6 +84,8 @@ jobs:
           node scripts/bufferShimHarness.mjs
           node scripts/benchEngineHarness.mjs
           node scripts/engineParamsHarness.mjs
+          node scripts/sessionMetaHarness.mjs
+          node scripts/sessionSaveGateHarness.mjs
           node scripts/voiceStateHarness.mjs
           # ~140s from a cold build. It belongs here and not only in bench.yml,
           # which is workflow_dispatch-only: a mutation matrix that runs on no
