@@ -63,6 +63,7 @@ jobs:
           node scripts/bufferShimHarness.mjs
           node scripts/benchEngineHarness.mjs
           node scripts/engineParamsHarness.mjs
+          node scripts/voiceStateHarness.mjs
 
       - name: Free disk space
         run: |

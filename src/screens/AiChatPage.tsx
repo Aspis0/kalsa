@@ -85,6 +85,11 @@ import {
   transcribePcm,
 } from "../voice/WhisperService";
 import * as TtsService from "../voice/TtsService";
+import {
+  reduceVoicePhase,
+  resolveMicTap,
+  type VoiceUiPhase,
+} from "../voice/voiceUiState";
 import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
 
 const HISTORY_KEY = "kalsa.messages.v1";
@@ -165,7 +170,8 @@ type StreamCallbacks = {
   onImages?: (images: ResultImage[], downloads: ResultDownload[]) => void;
 };
 
-type VoiceUiState = "idle" | "listening" | "transcribing";
+/** UI phase for tap-to-talk (mirrors pure VoiceUiPhase). */
+type VoiceUiState = VoiceUiPhase;
 
 type SendStreamResult = {
   /**
@@ -629,6 +635,12 @@ export function AiChatPage({
   const [voiceUi, setVoiceUi] = useState<VoiceUiState>("idle");
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  /**
+   * Sync mirror of voiceUi — mic onPress must not rely on React state in the
+   * useCallback closure (stale phase + voiceBusyRef true → silent no-op on
+   * the second tap while the status line already shows "Listening…").
+   */
+  const voiceUiRef = useRef<VoiceUiState>("idle");
   /** Sync guard: true while listening/transcribing — blocks send/attach. */
   const voiceBusyRef = useRef(false);
   /** Prevents double stop+transcribe (user tap + 60s limit racing). */
@@ -640,6 +652,12 @@ export function AiChatPage({
    */
   const voiceRunIdRef = useRef(0);
   const voiceNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Keep voiceUiRef and React state in lockstep for every phase change. */
+  const setVoicePhase = useCallback((phase: VoiceUiState) => {
+    voiceUiRef.current = phase;
+    setVoiceUi(phase);
+  }, []);
   const scrollViewRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
   const greeting = useMemo(() => greetingForHour(new Date().getHours(), t), [t]);
@@ -765,15 +783,16 @@ export function AiChatPage({
     voiceRunIdRef.current += 1;
     voiceBusyRef.current = false;
     voiceStopInFlightRef.current = false;
-    setVoiceUi("idle");
+    setVoicePhase(reduceVoicePhase(voiceUiRef.current, { type: "CANCEL" }));
     void cancelCapture();
     void TtsService.stop();
     setSpeakingId(null);
-  }, []);
+  }, [setVoicePhase]);
 
   /**
    * Stop capture (if any) and transcribe into draft.
    * Honours voiceRunId: late results after cancel/send/clearChat are dropped.
+   * Any whisper/init throw returns UI to idle and surfaces a short note.
    */
   const stopAndTranscribe = useCallback(
     async (runId: number, fromLimit: boolean) => {
@@ -781,7 +800,7 @@ export function AiChatPage({
       if (voiceStopInFlightRef.current) return;
       voiceStopInFlightRef.current = true;
       voiceBusyRef.current = true;
-      setVoiceUi("transcribing");
+      setVoicePhase(reduceVoicePhase(voiceUiRef.current, { type: "STOP_BEGIN" }));
       if (fromLimit) {
         showVoiceNote(t("voice.limitReached"));
       }
@@ -789,6 +808,13 @@ export function AiChatPage({
         const pcm = await stopCapture();
         // Dropped if user cancelled / cleared / backgrounded mid-stop.
         if (voiceRunIdRef.current !== runId) return;
+        // Empty / sub-threshold buffer: skip whisper init (no hang, clear UX).
+        if (pcm.byteLength < 3200) {
+          if (!fromLimit) {
+            showVoiceNote(t("voice.empty"));
+          }
+          return;
+        }
         await ensureDefaultWhisper();
         if (voiceRunIdRef.current !== runId) return;
         const text = await transcribePcm(pcm, locale);
@@ -804,21 +830,25 @@ export function AiChatPage({
           showVoiceNote(t("voice.empty"));
         }
       } catch (error) {
+        // Always log one line for CI/logcat — even if this run was invalidated.
+        const msg = error instanceof Error ? error.message : String(error);
+        console.warn(`[voice] transcribe failed: ${msg}`);
         if (voiceRunIdRef.current !== runId) return;
         if (error instanceof WhisperModelMissingError) {
           showVoiceNote(t("voice.modelMissing"));
         } else {
-          showVoiceNote(t("voice.error"));
+          // Whisper init / JSI / OOM / decode — not a mic-permission issue.
+          showVoiceNote(t("voice.transcribeError"));
         }
       } finally {
         voiceStopInFlightRef.current = false;
         if (voiceRunIdRef.current === runId) {
-          setVoiceUi("idle");
+          setVoicePhase(reduceVoicePhase(voiceUiRef.current, { type: "DONE" }));
           voiceBusyRef.current = false;
         }
       }
     },
-    [locale, showVoiceNote, t],
+    [locale, setVoicePhase, showVoiceNote, t],
   );
 
   // Stop mic / TTS on unmount (includes "starting" via cancelCapture).
@@ -866,7 +896,11 @@ export function AiChatPage({
             }
           }
         }
-        if (isCapturing() || voiceBusyRef.current || voiceUi !== "idle") {
+        if (
+          isCapturing() ||
+          voiceBusyRef.current ||
+          voiceUiRef.current !== "idle"
+        ) {
           invalidateVoice();
         } else {
           // Still stop TTS if speaking in background.
@@ -877,21 +911,51 @@ export function AiChatPage({
     };
     const sub = AppState.addEventListener("change", onAppState);
     return () => sub.remove();
-  }, [invalidateVoice, voiceUi]);
+  }, [invalidateVoice]);
 
-  /** Tap mic: start listening; tap again: stop + transcribe into draft. */
+  /**
+   * Tap mic: start listening; tap again: stop + transcribe into draft.
+   *
+   * Phase decisions use voiceUiRef + isCapturing() (sync), not React state in
+   * the closure — otherwise a stale "idle" + voiceBusyRef true silently drops
+   * the second tap while the UI still shows Listening….
+   */
   const handleMicPress = useCallback(async () => {
-    if (sending) return;
+    const intent = resolveMicTap({
+      phase: voiceUiRef.current,
+      capturing: isCapturing(),
+      busy: voiceBusyRef.current,
+      stopInFlight: voiceStopInFlightRef.current,
+      sending,
+    });
 
-    // Stop path (user tap or already listening)
-    if (isCapturing() || voiceUi === "listening") {
+    if (intent.type === "ignore") {
+      if (
+        intent.reason === "transcribing" ||
+        intent.reason === "stop_in_flight"
+      ) {
+        // Visible hint — do not restart capture mid-transcription.
+        showVoiceNote(t("voice.transcribeBusy"));
+        return;
+      }
+      if (intent.reason === "start_in_flight") {
+        // Cancel pending start (permission / pre-init) so a second tap does not
+        // leave a stuck busy flag with no way to recover except a third tap.
+        voiceRunIdRef.current += 1;
+        voiceBusyRef.current = false;
+        void cancelCapture();
+        setVoicePhase(reduceVoicePhase(voiceUiRef.current, { type: "CANCEL" }));
+        return;
+      }
+      // sending — composer already blocked
+      return;
+    }
+
+    if (intent.type === "stop") {
       const runId = voiceRunIdRef.current;
       await stopAndTranscribe(runId, false);
       return;
     }
-
-    // Guard concurrent start (transcribing / busy).
-    if (voiceBusyRef.current || voiceUi !== "idle") return;
 
     // Start path — model missing: keep button pressable, show hint (do not hard-disable).
     if (!voiceReady) {
@@ -919,19 +983,21 @@ export function AiChatPage({
         void cancelCapture();
         return;
       }
-      setVoiceUi("listening");
+      setVoicePhase(reduceVoicePhase(voiceUiRef.current, { type: "STARTED" }));
       setVoiceNote(null);
       // Keep voiceBusyRef true for the whole listening window so handleSend /
       // attach see a sync block even before React re-renders voiceUi.
       // Stop path (mic tap) does not gate on voiceBusyRef.
     } catch (error) {
       if (voiceRunIdRef.current !== runId) return;
+      const msg = error instanceof Error ? error.message : String(error);
+      console.warn(`[voice] capture start failed: ${msg}`);
       if (error instanceof CaptureBusyError) {
         showVoiceNote(t("voice.error"));
       } else {
         showVoiceNote(t("voice.error"));
       }
-      setVoiceUi("idle");
+      setVoicePhase(reduceVoicePhase(voiceUiRef.current, { type: "ERROR" }));
       void cancelCapture();
       voiceBusyRef.current = false;
     } finally {
@@ -942,13 +1008,12 @@ export function AiChatPage({
       }
     }
   }, [
-    locale,
     sending,
+    setVoicePhase,
     showVoiceNote,
     stopAndTranscribe,
     t,
     voiceReady,
-    voiceUi,
   ]);
 
   const handleReadAloud = useCallback(
@@ -1675,7 +1740,7 @@ export function AiChatPage({
     voiceRunIdRef.current += 1;
     voiceBusyRef.current = false;
     voiceStopInFlightRef.current = false;
-    setVoiceUi("idle");
+    setVoicePhase(reduceVoicePhase(voiceUiRef.current, { type: "CANCEL" }));
     setVoiceNote(null);
     if (voiceNoteTimer.current) {
       clearTimeout(voiceNoteTimer.current);
@@ -1694,7 +1759,7 @@ export function AiChatPage({
     // Drop native KV so a restored empty chat cannot reuse stale prefill.
     const activeId = getActiveModelId();
     if (activeId) void invalidateEngineSession(activeId);
-  }, []);
+  }, [setVoicePhase]);
 
   /** Open message action sheet (Copy + Translate + Read aloud). No-op while streaming / engine busy. */
   const openMessageMenu = useCallback(

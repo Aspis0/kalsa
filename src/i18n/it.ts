@@ -158,6 +158,10 @@ export const it: typeof en = {
     transcribing: "Trascrizione…",
     empty: "Nessuna voce rilevata.",
     limitReached: "Limite di 60 secondi raggiunto. Trascrizione…",
+    /** Whisper init / JSI / OOM / decode failure (not mic permission). */
+    transcribeError: "Impossibile trascrivere. Riprova.",
+    /** Second tap while stop+transcribe is still running. */
+    transcribeBusy: "Trascrizione ancora in corso… attendi un momento.",
     micPermission:
       "Serve il permesso del microfono per dettare. Abilitalo nelle impostazioni di sistema.",
     tts: "Leggi le risposte ad alta voce",

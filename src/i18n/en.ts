@@ -162,6 +162,10 @@ export const en = {
     transcribing: "Transcribing…",
     empty: "No speech detected.",
     limitReached: "60-second limit reached. Transcribing…",
+    /** Whisper init / JSI / OOM / decode failure (not mic permission). */
+    transcribeError: "Could not transcribe speech. Try again.",
+    /** Second tap while stop+transcribe is still running. */
+    transcribeBusy: "Still transcribing… wait a moment.",
     micPermission:
       "Microphone permission is required for dictation. Enable it in system settings.",
     tts: "Read replies aloud",
