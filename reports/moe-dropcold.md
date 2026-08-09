@@ -2,7 +2,8 @@
 
 Data: 2026-08-09 · Device: Galaxy S23 (PLUGGED_AC) · Fork base: `d408e03`  
 Binario SCORER/CAMPAIGN: `1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f`  
-PREFAULT intatto: `5c95cb5f…` · Artefatti: `results/dropcold/` (PC mirror parziale) + `~/experiments/results/dropcold/` (telefono)
+PREFAULT intatto: `5c95cb5f…` · Artefatti: `results/dropcold/` (PC) + `~/experiments/results/dropcold/` (telefono)  
+**Stato mandato: COMPLETE**
 
 ## PASSO 0 — semantica di `--drop-cold-experts` (dal sorgente)
 
@@ -70,26 +71,44 @@ Procedura: `chmod u+w` → `cp SCORER→CAMPAIGN` → `chmod a-w` → `CAMPAIGN.
 
 ## PASSO 3 — sweep (metro: ΔPPL ≤ 0.15 e byte/token ≤ −10%)
 
-Baseline twin F=0 (f45_1, n=200): **49.05 MiB/tok**, hit **77.0%**.  
-Baseline PPL decode G2: **2.095450** (stesso subset).
+Baseline twin F=0 (f45_1, n=200): **49.05 MiB/tok**, hit **77.0%**, tok/s 4.773.  
+Baseline PPL decode G2: **2.095450** (stesso subset, n_scored=10098).
 
-| F | thr | ppl | ΔPPL | MiB/tok | Δbyte% | hit% | drop% | verdetto |
-|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| 0.25 | 0.03125 | 2.1062 | **+0.0107** | 47.05 | **−4.1%** | 77.6 | ~0.0* | **ARCHIVIATO** (qualità ok, byte < −10%) |
-| 0.50 | 0.0625 | 2.1466 | **+0.0512** | 41.23 | **−15.9%** | 79.0 | 2.2 | **CANDIDATO** |
-| 1.00 | 0.125 | — | — | — | — | — | — | **IN CORSO** su device (~45% ppl al wrap; pid sweep vivo) |
+Config: CAMPAIGN `1ca51420…`, `--ppl-decode` su `corpus_subset_10k.txt`, cache 2000, ubatch 512, k=8, config campagna. Twin: f45_1, n=200.
+
+| F | thr | ppl | ΔPPL | MiB/tok | Δbyte% | hit% | drop% | n_scored | verdetto |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 0 (baseline) | — | 2.0955 | — | 49.05 | — | 77.0 | — | — | baseline |
+| 0.25 | 0.03125 | 2.1062 | **+0.0107** | 47.05 | **−4.1%** | 77.6 | ~0.0* | 10098 | **ARCHIVIATO** (qualità ok, byte < −10%) |
+| 0.50 | 0.0625 | 2.1466 | **+0.0512** | 41.23 | **−15.9%** | 79.0 | 2.2 | 10098 | **CANDIDATO** |
+| 1.00 | 0.125 | 2.3568 | **+0.2613** | 10.39 | **−78.8%** | 87.1 | 17.0 | 10098 | **ARCHIVIATO** (ΔPPL > 0.15) |
 
 \* F=0.25: 26/64000 drop sul twin (0.04%) — quasi inerte a thr bassa.
 
-Regole: F=0.50 passa entrambe le soglie → **candidato velocità** (mandato staccato, gualt). F=0.25 non paga i byte. F=1.00 curva da chiudere a fine run (artefatti in `~/experiments/results/dropcold/sweep/drop1.00/`).
+### F=1.00 (chiusura)
 
-## Artefatti telefono
+- ppl-decode: rc=0, 10098 scored, ppl=**2.356775**, sum_logprob=−8656.9576, 2253.3 s.
+- ΔPPL vs baseline G2: **+0.2613 > 0.15** → **ARCHIVED_PPL**.
+- Twin: 10.39 MiB/tok (−78.8% vs 49.05), hit 87.1%, drop 17.0% (10903/64000), tok/s 4.416 (in carica, non citabile per velocità).
+- Curva completa a verbale: qualità crolla oltre F=0.50; i byte collassano (−79%) ma la soglia di k uccide il punto.
 
-- `~/experiments/results/dropcold/g1/` — G1 8/8  
-- `~/experiments/results/dropcold/g2/` — G2 compare + CSV  
-- `~/experiments/results/dropcold/smoke_kv/` — smoke n_common=71  
-- `~/experiments/results/dropcold/sweep/` — baseline_f0, drop0.25, drop0.50, drop1.00 (in corso), `table.tsv`  
+### Regole applicate
+
+| esito | regola | F |
+|---|---|---|
+| ΔPPL ≤ 0.15 e byte ≤ −10% | CANDIDATO (velocità da staccato = mandato a parte, gualt) | **0.50** |
+| ΔPPL ≤ 0.15 ma byte < −10% | archiviato (non paga) | 0.25 |
+| ΔPPL > 0.15 | archiviato (soglia di k) | 1.00 |
+
+## Artefatti
+
+Telefono `~/experiments/results/dropcold/`:
+- `g1/`, `g2/`, `smoke_kv/`
+- `sweep/baseline_f0`, `drop0.25`, `drop0.50`, `drop1.00` (cell_summary, ppl/twin meta, OVER_PPL su F=1)
+- `sweep/table.tsv`, `sweep/sweep.master.log`
 - Scripts: `run_g1.sh`, `run_g2.sh`, `run_smoke_kv.sh`, `run_dropcold_sweep.sh`
+
+PC mirror leggero: `results/dropcold/sweep/{table.tsv,sweep.master.log,drop*/cell_summary.json,drop1.00/*_meta.json}` (no GGUF, no CSV giganti).
 
 ## Verdetto sintetico
 
@@ -99,17 +118,18 @@ Regole: F=0.50 passa entrambe le soglie → **candidato velocità** (mandato sta
 | G1 8/8 | **PASS** |
 | G2 \|ΔPPL\|≤0.02 | **PASS** (0.0173) |
 | re-pin + smoke KV | **PASS** (`cab20432…` → `1ca51420…`, n_common=71) |
-| sweep F=0.25 | archiviato (ΔPPL ok, −4% byte) |
-| sweep F=0.50 | **CANDIDATO** (ΔPPL +0.051, −16% byte) |
-| sweep F=1.00 | **non chiuso in questo wrap** (run ancora attivo) |
+| sweep F=0.25 | **ARCHIVIATO** (ΔPPL +0.011, −4% byte) |
+| sweep F=0.50 | **CANDIDATO** (ΔPPL +0.051, −16% byte, hit 79%) |
+| sweep F=1.00 | **ARCHIVIATO** (ΔPPL +0.261 > 0.15; byte −79%, hit 87%) |
+| **mandato** | **COMPLETE** |
 
-## Blocker / follow-up
+## Conclusione
 
-1. **drop1.00**: ppl-decode ancora in corso al wrap (~4.5k/10k). Lasciar finire; poi twin + riga tabella; se ΔPPL>0.15 → ARCHIVIATO_PPL, se ≤0.15 e byte≤−10% → secondo candidato.  
-2. Velocità del **CANDIDATO F=0.50**: solo scollegato (mandato a parte, gualt).  
-3. max\|Δlogprob\| G2 grande: path hybrid GDN prefill vs decode; gate è sulla PPL subset, non per-token.  
-4. Non toccati: `../ai-chat`, `PLAN.md`, PREFAULT. Nessun `complete_goal`.
+Un solo CANDIDATO: **F=0.50** (thr=0.0625). Qualità tenuta sotto la soglia di campagna (+0.051 ≪ 0.15) e risparmio I/O reale (−15.9% MiB/tok). F=0.25 è inerte; F=1.00 paga i byte ma rompe la PPL (+0.26).  
+**Test velocità da staccato del candidato F=0.50: mandato a parte, deciso da gualt.** Nessuna adozione in questo wrap.
 
-## Commit
+## Note / non-blocker
 
-Vedi hash del commit padre che include questo report + script/artefatti leggeri (no GGUF/build).
+1. max\|Δlogprob\| G2 grande (11.12): path hybrid GDN prefill vs decode; gate è sulla PPL subset, non per-token.  
+2. tok/s twin in carica non citabili (mandato: nessun timing su AC).  
+3. Non toccati: `../ai-chat`, `PLAN.md`, PREFAULT. Nessun `complete_goal`.

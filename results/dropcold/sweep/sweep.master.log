@@ -1,0 +1,52 @@
+[2026-08-09T10:14:34-0400] SWEEP start DECLARED_VALUES=0.25 0.50 1.00 BASE_PPL=2.0954498302339
+[2026-08-09T10:14:34-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+[2026-08-09T10:14:34-0400] corpus=/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt
+46efe834a89206aadf10bd66b0ab7a58a61ca2696aeb260070c649b3dc943153  /data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt
+[2026-08-09T10:14:34-0400] prompt_twin=/data/data/com.termux/files/home/experiments/prompts/f45_1_esplicativo.txt
+bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf  /data/data/com.termux/files/home/experiments/prompts/f45_1_esplicativo.txt
+[2026-08-09T10:14:34-0400] === baseline twin F=0 ===
+[2026-08-09T10:14:35-0400] prestart OK die=45800 n=6
+[2026-08-09T10:15:38-0400] baseline_twin mib/tok=49.05 hit=77.0
+[2026-08-09T10:15:38-0400] === cell drop0.25 F=0.25 thr=0.03125 ===
+[2026-08-09T10:15:40-0400] prestart OK die=58900 n=6
+[2026-08-09T11:01:12-0400] ppl rc=0
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop0.25/ppl.stdout:BMOE_PPL {"n_tokens":10101,"n_scored":10098,"sum_logprob":-7521.83850201,"ppl":2.106197,"seconds":2720.121,"cancelled":false,"mode":"decode","file":"/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt"}
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop0.25/ppl.stderr:ppl-decode: n_tokens=10101 n_ctx=4096 batch=1 moe=1 drop_cold=0.250 k=8
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop0.25/ppl.stderr:ppl-decode: scored 4095 / 10100 tokens (sum_logprob=-2589.5663)
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop0.25/ppl.stderr:ppl-decode: scored 8190 / 10100 tokens (sum_logprob=-5892.2545)
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop0.25/ppl.stderr:ppl-decode: scored 10098 / 10100 tokens (sum_logprob=-7521.8385)
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop0.25/ppl.stderr:ppl done (decode): n_scored=10098 ppl=2.1062 sum_logprob=-7521.8385 (2720.1 s)
+[2026-08-09T11:01:12-0400] twin generate F=0.25
+[2026-08-09T11:01:14-0400] prestart OK die=55700 n=6
+[2026-08-09T11:02:37-0400] cell drop0.25 done
+[2026-08-09T11:02:37-0400] === cell drop0.50 F=0.50 thr=0.0625 ===
+[2026-08-09T11:02:39-0400] prestart OK die=55300 n=6
+[2026-08-09T11:49:05-0400] ppl rc=0
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop0.50/ppl.stdout:BMOE_PPL {"n_tokens":10101,"n_scored":10098,"sum_logprob":-7713.86041102,"ppl":2.146631,"seconds":2771.544,"cancelled":false,"mode":"decode","file":"/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt"}
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop0.50/ppl.stderr:ppl-decode: n_tokens=10101 n_ctx=4096 batch=1 moe=1 drop_cold=0.500 k=8
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop0.50/ppl.stderr:ppl-decode: scored 4095 / 10100 tokens (sum_logprob=-2661.5745)
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop0.50/ppl.stderr:ppl-decode: scored 8190 / 10100 tokens (sum_logprob=-6031.0358)
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop0.50/ppl.stderr:ppl-decode: scored 10098 / 10100 tokens (sum_logprob=-7713.8604)
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop0.50/ppl.stderr:ppl done (decode): n_scored=10098 ppl=2.1466 sum_logprob=-7713.8604 (2771.5 s)
+[2026-08-09T11:49:05-0400] twin generate F=0.50
+[2026-08-09T11:49:07-0400] prestart OK die=56500 n=6
+[2026-08-09T11:50:23-0400] cell drop0.50 done
+[2026-08-09T11:50:23-0400] === cell drop1.00 F=1.00 thr=0.125 ===
+[2026-08-09T11:50:25-0400] prestart OK die=56100 n=6
+[2026-08-09T12:28:12-0400] ppl rc=0
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop1.00/ppl.stdout:BMOE_PPL {"n_tokens":10101,"n_scored":10098,"sum_logprob":-8656.95757509,"ppl":2.356775,"seconds":2253.332,"cancelled":false,"mode":"decode","file":"/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt"}
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop1.00/ppl.stderr:ppl-decode: n_tokens=10101 n_ctx=4096 batch=1 moe=1 drop_cold=1.000 k=8
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop1.00/ppl.stderr:ppl-decode: scored 4095 / 10100 tokens (sum_logprob=-3095.7632)
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop1.00/ppl.stderr:ppl-decode: scored 8190 / 10100 tokens (sum_logprob=-6847.1496)
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop1.00/ppl.stderr:ppl-decode: scored 10098 / 10100 tokens (sum_logprob=-8656.9576)
+/data/data/com.termux/files/home/experiments/results/dropcold/sweep/drop1.00/ppl.stderr:ppl done (decode): n_scored=10098 ppl=2.3568 sum_logprob=-8656.9576 (2253.3 s)
+[2026-08-09T12:28:12-0400] twin generate F=1.00
+[2026-08-09T12:28:14-0400] prestart OK die=54500 n=6
+[2026-08-09T12:29:30-0400] cell drop1.00 done
+[2026-08-09T12:29:30-0400] F=1.00 ΔPPL over 0.15 — SKIP rest (each ppl ~45min)
+[2026-08-09T12:29:30-0400] SWEEP complete
+F	thr	ppl	delta_ppl	bytes_mib_tok	bytes_delta_pct	hit_pct	drop_pct	n_scored	rc_ppl	rc_twin	verdict
+0.25	0.03125	2.106197	0.010747169766099685	47.05	-4.077471967380225	77.6	0.0	10098	0	0	ARCHIVED_QUALITY_OK_NO_BYTE_GAIN
+0.5	0.0625	2.146631	0.05118116976609999	41.23	-15.942915392456678	79.0	2.2	10098	0	0	CANDIDATO
+1.0	0.125	2.356775	0.26132516976609965	10.39	-78.81753312945973	87.1	17.0	10098	0	0	ARCHIVED_PPL

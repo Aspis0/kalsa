@@ -1,0 +1,14 @@
+{
+  "F": 0.25,
+  "thr": 0.03125,
+  "ppl": 2.106197,
+  "delta_ppl": 0.010747169766099685,
+  "mib_per_token": 47.05,
+  "bytes_delta_pct": -4.077471967380225,
+  "cache_hit_pct": 77.6,
+  "drop_pct": 0.0,
+  "n_scored": 10098,
+  "rc_ppl": 0,
+  "rc_twin": 0,
+  "verdict": "ARCHIVED_QUALITY_OK_NO_BYTE_GAIN"
+}
