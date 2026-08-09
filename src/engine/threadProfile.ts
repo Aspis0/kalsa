@@ -1,63 +1,99 @@
 /**
  * Per-device n_threads default for llama.rn ContextParams.
  *
- * Measured on Xiaomi 14 / Snapdragon 8 Gen 3 (8 cores), ABBA + thermal cooldown,
- * thinking off, same conversation:
- *   Qwen3.5-2B  threads=4 → prefill 78.6  decode 19.7
- *   Qwen3.5-2B  threads=6 → prefill 103.9 decode 21.4  (+26–32% prefill)
- *   Qwen3.5-2B  threads=8 → prefill 10.8  decode 0.06 (catastrophic)
- *   Qwen3.5-4B  threads=4 → prefill 27.3  decode 8.64
- *   Qwen3.5-4B  threads=6 → prefill 34.4  decode 8.18
+ * ggml barriers make every worker wait for the slowest thread in the pool.
+ * The useful limit is therefore the number of HIGH-CAPACITY cores: beyond that
+ * the kernel places threads on efficiency cores and every barrier stalls.
  *
- * WARNING — the "pinning" story is false. llama.rn's set_best_cores fills a
- * cpumask and sets strict_cpu, but ggml only applies affinity under
- * __gnu_linux__ (a glibc macro); on Bionic it takes the "unsupported platforms"
- * branch where ggml_thread_apply_affinity is `{ UNUSED(mask); return true; }`.
- * Nothing has ever been pinned on any phone, and thread priority is a no-op too.
- * Thread COUNT is the only lever here — see docs/ANDROID_CPU_AFFINITY_IS_A_NOOP.md
- * for the three proofs. The threads=8 collapse above is therefore NOT explained
- * by a slow-core straggler; it is unexplained, and the leading hypothesis is CPU
- * starvation of system_server / the UI thread. Do not re-derive the old story.
- * llama.rn's own Android default is min(4, hardware_concurrency).
+ * Measured (standalone llama-bench, Qwen3.5-2B Q4_K_M, pp512, warm cache):
  *
- * Second SoC (Helio G99, 6x A55 + 2x A76, standalone binary, forward+reverse):
- *   Qwen3.5-2B  threads=1 → prefill 11.3  decode 4.58
- *   Qwen3.5-2B  threads=2 → prefill 21.1  decode 6.38   (best decode)
- *   Qwen3.5-2B  threads=6 → prefill 21.6  decode 5.68
- *   Qwen3.5-2B  threads=8 → prefill 22.5  decode 5.66
- * i.e. a memory-bandwidth ceiling reached at 2 threads, and no collapse at 8.
- * The two SoCs disagree, so the mapping below is NOT settled.
+ *   Snapdragon 8 Gen 2 (S23) — capacities 3x266 + 4x811 + 1x1024 (5 fast):
+ *     4 threads  76.92 / 71.32 tok/s prefill
+ *     5 threads  77.28 / 71.50   ← optimum
+ *     6 threads  27.08 / 25.57   ← 3× slower (old count-based rule picked this)
+ *     8 threads  64.57 / 46.73
+ *
+ *   Snapdragon 8 Gen 3 (Xiaomi 14) — 1 prime + 5 perf + 2 eff (6 fast):
+ *     4 → 78.6, 6 → 103.9 (+32%), 8 → 10.8 catastrophic
+ *
+ *   Helio G99 — 6x348 + 2x1024 (2 fast):
+ *     optimum decode at 2; prefill bandwidth-bound and flat past that
+ *
+ * Rule: count cores with capacity >= 50% of the maximum capacity on the SoC.
+ * That count is the thread count (clamped: min 2, max cores-1 when cores>2).
+ * Frequency is NOT a usable proxy (G99: +10% freq vs +194% capacity).
+ *
+ * When cpu_capacity is unavailable, fall back to 4 (pre-1b2e14d default, and
+ * the value that measured ~77 tok/s on the 8 Gen 2). Do NOT fall back to a
+ * core-count mapping — same total cores, different fast-core counts (8 Gen 2
+ * vs 8 Gen 3) made that rule catastrophically wrong on a ship target.
  *
  * Pure: no react-native / expo imports — safe under node harnesses.
  */
 
+/** Fallback when capacities cannot be read (or non-Android). Pre-1b2e14d default. */
+export const FALLBACK_THREAD_COUNT = 4;
+
 /**
- * Choose production n_threads from a best-effort core count.
- * `null` (unknown / iOS / probe failed) → 4, matching today's effective default.
+ * Choose n_threads from per-core `cpu_capacity` values.
+ *
+ * Counts cores whose capacity is >= 50% of the max capacity. Returns null for
+ * empty / malformed / all-zero / non-finite input (caller falls back).
+ *
+ * Guard rails:
+ * - floor at 2 (never 0 or 1)
+ * - when length > 2, never request every core (cap at length - 1)
+ * - on a 2-core device, 2 is allowed
  */
-export function chooseThreadCount(cores: number | null): number {
-  if (cores === null || !Number.isFinite(cores) || cores <= 0) {
-    return 4;
+export function chooseThreadCountFromCapacities(
+  capacities: number[],
+): number | null {
+  if (!Array.isArray(capacities) || capacities.length === 0) {
+    return null;
   }
-  if (cores >= 8) return 6;
-  if (cores >= 6) return 4;
-  return 2;
+
+  let max = -Infinity;
+  for (const c of capacities) {
+    if (typeof c !== "number" || !Number.isFinite(c) || c < 0) {
+      return null;
+    }
+    if (c > max) max = c;
+  }
+  // All-zero (or max never set to a positive value).
+  if (!(max > 0)) {
+    return null;
+  }
+
+  const threshold = max * 0.5;
+  let high = 0;
+  for (const c of capacities) {
+    if (c >= threshold) high += 1;
+  }
+
+  // Floor: never 0 or 1.
+  let threads = Math.max(2, high);
+
+  // Never ask for every core on a normal phone (leave at least one free).
+  if (capacities.length > 2) {
+    threads = Math.min(threads, capacities.length - 1);
+  }
+
+  return threads;
 }
 
 /**
- * Parse Linux CPU-list text from `/sys/devices/system/cpu/present`.
+ * Parse Linux CPU-list text into the ordered list of CPU indices.
  *
  * Format: comma-separated items, each a single index (`0`) or inclusive range
- * (`0-7`). Count is the number of CPUs listed (sum of `b - a + 1`), not `max+1`,
- * so gaps like `0-2,4-7` yield 7. Trailing newline is fine. Reject anything that
- * does not parse cleanly → `null` (caller falls back); never guess.
+ * (`0-7`). Gaps like `0-2,4-7` yield `[0,1,2,4,5,6,7]`. Trailing newline is fine.
+ * Reject anything that does not parse cleanly → `null` (caller falls back).
  */
-export function parseCpuPresent(text: string): number | null {
+export function listCpuPresent(text: string): number[] | null {
   if (typeof text !== "string") return null;
   const trimmed = text.trim();
   if (trimmed.length === 0) return null;
 
-  let total = 0;
+  const indices: number[] = [];
   const items = trimmed.split(",");
   for (const raw of items) {
     // No whitespace inside items in the kernel format; reject stray spaces.
@@ -69,22 +105,38 @@ export function parseCpuPresent(text: string): number | null {
       const b = Number(range[2]);
       // Reversed range is malformed (do not swap or return negative).
       if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return null;
-      total += b - a + 1;
+      for (let i = a; i <= b; i++) {
+        indices.push(i);
+      }
       continue;
     }
 
     if (/^\d+$/.test(raw)) {
-      total += 1;
+      indices.push(Number(raw));
       continue;
     }
 
     return null;
   }
 
-  return total > 0 ? total : null;
+  return indices.length > 0 ? indices : null;
 }
 
-/** Cached probe result: undefined = not yet read, null = unknown. */
+/**
+ * Parse Linux CPU-list text from `/sys/devices/system/cpu/present`.
+ *
+ * Count is the number of CPUs listed (sum of `b - a + 1`), not `max+1`,
+ * so gaps like `0-2,4-7` yield 7. Implemented via `listCpuPresent`.
+ */
+export function parseCpuPresent(text: string): number | null {
+  const list = listCpuPresent(text);
+  return list === null ? null : list.length;
+}
+
+/** Cached thread-count result: undefined = not yet read. */
+let cachedThreadCount: number | undefined;
+
+/** Cached core-count result: undefined = not yet read, null = unknown. */
 let cachedCoreCount: number | null | undefined;
 
 async function readSysfsText(
@@ -113,20 +165,89 @@ function countCpuinfoProcessors(text: string): number | null {
 }
 
 /**
- * Best-effort Android core count.
+ * Production n_threads for the current device.
+ *
+ * 1. Android: read `/sys/.../cpuN/cpu_capacity` for every CPU in `present`,
+ *    then `chooseThreadCountFromCapacities`.
+ * 2. Any capacity file missing / unreadable / malformed → FALLBACK_THREAD_COUNT (4).
+ *    Never fall back to a core-count rule.
+ * 3. non-Android → 4 (iOS / Metal path unchanged).
+ *
+ * Never throws. Cached for the process lifetime. No static RN import at module scope.
+ */
+export async function detectThreadCount(): Promise<number> {
+  if (cachedThreadCount !== undefined) {
+    return cachedThreadCount;
+  }
+  try {
+    // Dynamic require keeps pure exports free of static RN imports for node harnesses.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Platform } = require("react-native") as { Platform: { OS: string } };
+    if (Platform.OS !== "android") {
+      cachedThreadCount = FALLBACK_THREAD_COUNT;
+      return cachedThreadCount;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const FileSystem = require("expo-file-system/legacy") as {
+      readAsStringAsync: (uri: string) => Promise<string>;
+    };
+
+    const presentText = await readSysfsText(
+      FileSystem,
+      "/sys/devices/system/cpu/present",
+    );
+    if (presentText === null) {
+      cachedThreadCount = FALLBACK_THREAD_COUNT;
+      return cachedThreadCount;
+    }
+    const indices = listCpuPresent(presentText);
+    if (indices === null || indices.length === 0) {
+      cachedThreadCount = FALLBACK_THREAD_COUNT;
+      return cachedThreadCount;
+    }
+
+    const capacities: number[] = [];
+    for (const cpu of indices) {
+      const capText = await readSysfsText(
+        FileSystem,
+        `/sys/devices/system/cpu/cpu${cpu}/cpu_capacity`,
+      );
+      // Any missing capacity file → fall back to 4 (do NOT use count-based rule).
+      if (capText === null) {
+        cachedThreadCount = FALLBACK_THREAD_COUNT;
+        return cachedThreadCount;
+      }
+      const cap = Number(capText.trim());
+      if (!Number.isFinite(cap)) {
+        cachedThreadCount = FALLBACK_THREAD_COUNT;
+        return cachedThreadCount;
+      }
+      capacities.push(cap);
+    }
+
+    const chosen = chooseThreadCountFromCapacities(capacities);
+    cachedThreadCount =
+      chosen === null ? FALLBACK_THREAD_COUNT : chosen;
+    return cachedThreadCount;
+  } catch {
+    cachedThreadCount = FALLBACK_THREAD_COUNT;
+    return cachedThreadCount;
+  }
+}
+
+/**
+ * Best-effort Android core count (still exported for diagnostics / callers that
+ * need the raw count). Prefer `detectThreadCount` for engine n_threads.
  *
  * Prefers `/sys/devices/system/cpu/present` (full possible set, hotplug-stable).
  * Falls back to counting `processor` lines in `/proc/cpuinfo` (online only).
- * iOS → null (Metal path; do not touch). Any failure → null → chooseThreadCount(4).
- * Cached for the process lifetime.
+ * iOS → null. Any failure → null. Cached for the process lifetime.
  */
 export async function detectCores(): Promise<number | null> {
   if (cachedCoreCount !== undefined) {
     return cachedCoreCount;
   }
   try {
-    // Dynamic require keeps the pure chooseThreadCount / parseCpuPresent paths
-    // free of static RN imports for node harnesses that only load pure exports.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Platform } = require("react-native") as { Platform: { OS: string } };
     if (Platform.OS !== "android") {
@@ -138,7 +259,6 @@ export async function detectCores(): Promise<number | null> {
       readAsStringAsync: (uri: string) => Promise<string>;
     };
 
-    // Prefer present: reports the full possible CPU range regardless of hotplug.
     const presentText = await readSysfsText(
       FileSystem,
       "/sys/devices/system/cpu/present",
@@ -151,7 +271,6 @@ export async function detectCores(): Promise<number | null> {
       }
     }
 
-    // Fallback: /proc/cpuinfo lists only ONLINE CPUs (can undercount on hotplug).
     const cpuinfoText = await readSysfsText(FileSystem, "/proc/cpuinfo");
     if (cpuinfoText !== null) {
       const fromCpuinfo = countCpuinfoProcessors(cpuinfoText);
@@ -169,7 +288,8 @@ export async function detectCores(): Promise<number | null> {
   }
 }
 
-/** Test-only: reset the process cache (harness / unit tests). */
+/** Test-only: reset process caches (harness / unit tests). */
 export function __resetDetectCoresCacheForTests(): void {
   cachedCoreCount = undefined;
+  cachedThreadCount = undefined;
 }
