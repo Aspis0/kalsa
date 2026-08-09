@@ -2,9 +2,14 @@
 # lib_guardrails.sh — guardrail termico + memoria per harness di campagna
 #
 # Ricalibrati dopo riavvio #2 (2026-08-08 ~20:51, rescueparty sotto die~90 + OOM):
-#   - HARD STOP a 98 °C non è mai scattato: il telefono muore / RescueParty a ~90.
+#   - HARD STOP a 98 °C non e mai scattato: il telefono muore / RescueParty a ~90.
 #   - Limite operativo termico: die > 88 °C sostenuto 60 s → PAUSA.
-#   - MemFree < 100 MiB sostenuto 10 s → ABORT_MEM della cella.
+# Ricalibrati 2026-08-09 (adotta-dropcold: ABORT_MEM solo-memoria uccideva run citabili):
+#   - MemFree 13–52 MiB e lo stato NORMALE del workload MoE-stream.
+#   - ABORT_MEM scatta SOLO se ENTRAMBE sostenute 10 s:
+#       MemFree < 100 MiB  E  die > 85 °C
+#     (firma RescueParty: mem <<100 MiB E die 88–92 °C).
+#   - Memoria bassa con die freddo → solo log MEM_LOW sul flight, nessun kill.
 #
 # Uso (dopo aver definito max_die_mc / mc_to_c / log / FLIGHT_LOG / STATUS / OUTDIR):
 #   source lib_guardrails.sh
@@ -20,26 +25,33 @@
 #
 # shellcheck shell=bash
 
-# --- soglie (mc = milli-°C come da sysfs thermal_zone) ---
-DIE_PAUSE_MC="${DIE_PAUSE_MC:-88000}"       # 88 °C
-DIE_RESUME_MC="${DIE_RESUME_MC:-80000}"     # 80 °C
+# --- soglie (mc = milli-C come da sysfs thermal_zone) ---
+DIE_PAUSE_MC="${DIE_PAUSE_MC:-88000}"       # 88 C
+DIE_RESUME_MC="${DIE_RESUME_MC:-80000}"     # 80 C
 DIE_PAUSE_HOLD_S="${DIE_PAUSE_HOLD_S:-60}"  # secondi sostenuti sopra 88
-DIE_STOP_MC="${DIE_STOP_MC:-98000}"         # HARD STOP legacy 98 °C
+DIE_STOP_MC="${DIE_STOP_MC:-98000}"         # HARD STOP legacy 98 C
 MEM_ABORT_KB="${MEM_ABORT_KB:-102400}"      # 100 MiB
 MEM_ABORT_HOLD_S="${MEM_ABORT_HOLD_S:-10}"  # secondi sostenuti sotto 100 MiB
+DIE_MEM_COMBINED_MC="${DIE_MEM_COMBINED_MC:-85000}"  # 85 C — braccio termico di ABORT_MEM combinato
 GR_SAMPLE_DT_S="${GR_SAMPLE_DT_S:-0.5}"     # periodo del sampler che chiama tick
+# dry-run: se 1, flight_guardrail_log non scrive su disco (solo stderr/log)
+GR_DRY_RUN="${GR_DRY_RUN:-0}"
 
 # streak accumulati (secondi stimati)
 GR_HOT_S=0
 GR_LOW_MF_S=0
+GR_MEM_COMBINED_S=0
 GR_ACTION=CONTINUE
 GR_LAST_DETAIL=""
+GR_MEM_LOW_LOGGED=0
 
 guardrails_reset() {
   GR_HOT_S=0
   GR_LOW_MF_S=0
+  GR_MEM_COMBINED_S=0
   GR_ACTION=CONTINUE
   GR_LAST_DETAIL=""
+  GR_MEM_LOW_LOGGED=0
 }
 
 # Scrive una riga evento nel flight.log (e nel master se log() esiste).
@@ -52,7 +64,7 @@ flight_guardrail_log() {
   now=$(date +%s.%N 2>/dev/null || date +%s)
   iso=$(date '+%Y-%m-%dT%H:%M:%S%z')
   line="GUARDRAIL,${now},${iso},${event},${detail}"
-  if [ -n "${FLIGHT_LOG:-}" ]; then
+  if [ "${GR_DRY_RUN:-0}" != "1" ] && [ -n "${FLIGHT_LOG:-}" ]; then
     echo "$line" >> "$FLIGHT_LOG" || true
     # best-effort fsync
     if command -v python3 >/dev/null 2>&1; then
@@ -68,10 +80,14 @@ flight_guardrail_log() {
 
 # Valuta un sample. Imposta GR_ACTION in {CONTINUE,PAUSE_THERMAL,ABORT_MEM,HARD_DIE}.
 # Arg: die_mc (milli-C o C*1000), mf_kb (MemFree kB).
+# ABORT_MEM = condizione COMBINATA: MemFree < 100 MiB E die > 85 C, entrambi
+# sostenuti MEM_ABORT_HOLD_S (default 10 s). Mem bassa + die freddo → MEM_LOW only.
 guardrail_tick() {
   local die_mc="${1:-0}"
   local mf_kb="${2:-0}"
   local dt="${GR_SAMPLE_DT_S}"
+  local mem_low=0
+  local die_hot_mem=0
   GR_ACTION=CONTINUE
   GR_LAST_DETAIL=""
 
@@ -82,7 +98,7 @@ guardrail_tick() {
     return 0
   fi
 
-  # Termico operativo 88 °C
+  # Termico operativo 88 C
   if [ "$die_mc" -gt "$DIE_PAUSE_MC" ] 2>/dev/null; then
     # awk per sommare float secondi
     GR_HOT_S=$(awk -v a="$GR_HOT_S" -v d="$dt" 'BEGIN{printf "%.1f", a+d}')
@@ -95,20 +111,42 @@ guardrail_tick() {
     return 0
   fi
 
-  # Memoria 100 MiB
+  # --- ABORT_MEM COMBINATO: mem bassa E die > 85 C, stesso hold 10 s ---
   if [ "$mf_kb" -gt 0 ] 2>/dev/null && [ "$mf_kb" -lt "$MEM_ABORT_KB" ] 2>/dev/null; then
+    mem_low=1
     GR_LOW_MF_S=$(awk -v a="$GR_LOW_MF_S" -v d="$dt" 'BEGIN{printf "%.1f", a+d}')
   else
     GR_LOW_MF_S=0
+    GR_MEM_LOW_LOGGED=0
   fi
-  if awk -v a="$GR_LOW_MF_S" -v h="$MEM_ABORT_HOLD_S" 'BEGIN{exit !(a+0>=h+0)}'; then
+  if [ "$die_mc" -gt "$DIE_MEM_COMBINED_MC" ] 2>/dev/null; then
+    die_hot_mem=1
+  fi
+
+  if [ "$mem_low" = "1" ] && [ "$die_hot_mem" = "1" ]; then
+    GR_MEM_COMBINED_S=$(awk -v a="$GR_MEM_COMBINED_S" -v d="$dt" 'BEGIN{printf "%.1f", a+d}')
+  else
+    GR_MEM_COMBINED_S=0
+  fi
+
+  # Memoria bassa + die freddo: solo log MEM_LOW (una volta per streak), nessun kill
+  if [ "$mem_low" = "1" ] && [ "$die_hot_mem" = "0" ]; then
+    if awk -v a="$GR_LOW_MF_S" -v h="$MEM_ABORT_HOLD_S" 'BEGIN{exit !(a+0>=h+0)}'; then
+      if [ "$GR_MEM_LOW_LOGGED" = "0" ]; then
+        flight_guardrail_log "MEM_LOW" "mf_kb=$mf_kb die_mc=$die_mc low_s=$GR_LOW_MF_S thr_kb=$MEM_ABORT_KB die_thr_mc=$DIE_MEM_COMBINED_MC (no kill: die cold)"
+        GR_MEM_LOW_LOGGED=1
+      fi
+    fi
+  fi
+
+  if awk -v a="$GR_MEM_COMBINED_S" -v h="$MEM_ABORT_HOLD_S" 'BEGIN{exit !(a+0>=h+0)}'; then
     GR_ACTION=ABORT_MEM
-    GR_LAST_DETAIL="mf_kb=$mf_kb low_s=$GR_LOW_MF_S thr_kb=$MEM_ABORT_KB hold_s=$MEM_ABORT_HOLD_S"
+    GR_LAST_DETAIL="mf_kb=$mf_kb die_mc=$die_mc combined_s=$GR_MEM_COMBINED_S thr_kb=$MEM_ABORT_KB die_thr_mc=$DIE_MEM_COMBINED_MC hold_s=$MEM_ABORT_HOLD_S"
     return 0
   fi
 }
 
-# Attende die < 80 °C (o timeout). Logga PAUSE start/end.
+# Attende die < 80 C (o timeout). Logga PAUSE start/end.
 # Ritorna 0 se raffreddato, 1 se timeout.
 guardrail_thermal_wait_cool() {
   local timeout_s="${1:-600}"
@@ -132,15 +170,16 @@ guardrail_thermal_wait_cool() {
   done
 }
 
-# Marca ABORT_MEM nello STATUS e STOP_REASON; logga su flight.
+# Marca ABORT_MEM_COMBINED nello STATUS e STOP_REASON; logga su flight.
+# Evento flight: ABORT_MEM_COMBINED (die + memfree nel detail).
 guardrail_abort_mem() {
   local detail="${1:-$GR_LAST_DETAIL}"
-  flight_guardrail_log "ABORT_MEM" "$detail"
+  flight_guardrail_log "ABORT_MEM_COMBINED" "$detail"
   if [ -n "${STATUS:-}" ]; then
-    echo "ABORT_MEM $(date '+%Y-%m-%dT%H:%M:%S%z') $detail" > "$STATUS"
+    echo "ABORT_MEM_COMBINED $(date '+%Y-%m-%dT%H:%M:%S%z') $detail" > "$STATUS"
   fi
   if [ -n "${OUTDIR:-}" ]; then
-    echo "ABORT_MEM" > "$OUTDIR/STOP_REASON.txt"
+    echo "ABORT_MEM_COMBINED" > "$OUTDIR/STOP_REASON.txt"
   fi
 }
 
@@ -188,7 +227,7 @@ guardrail_apply_to_pid() {
     ABORT_MEM)
       guardrail_abort_mem
       if [ -n "$opfx" ]; then
-        echo "ABORT_MEM ${GR_LAST_DETAIL} $(date -Iseconds)" >> "${opfx}.KILL.txt"
+        echo "ABORT_MEM_COMBINED ${GR_LAST_DETAIL} $(date -Iseconds)" >> "${opfx}.KILL.txt"
       fi
       kill -TERM "$bpid" 2>/dev/null || true
       sleep 1
