@@ -35,6 +35,7 @@ import {
 import { getStrings, type Locale } from "../i18n";
 import { DEFAULT_N_CTX } from "./contextProfile";
 import { applyEngineOverride } from "./engineParams";
+import { chooseThreadCount, detectCores } from "./threadProfile";
 import {
   createToolCallDeltaStripper,
   parseFallbackToolCall,
@@ -549,13 +550,12 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       // "RAM ceiling" of that campaign traced back to it. Keep ≤512 even if
       // n_ctx grows to 16k (256 ≈ 250 MB buffer).
       n_ubatch: 256,
-      // Big cores only. Measured twice on-device (moe-experiments F2.2c, F4.5):
-      // the dense 4B peaks at t=4; adding efficiency cores makes it WORSE
-      // (straggler at the barrier — never 8). llama.rn's default happens to be
-      // hw_concurrency/2 = 4 today; pin it so a default drift can't cost ~2x.
-      // No cheap cross-platform core count in RN without a new dep — leave 4:
-      // all currently-supported devices are ≥6 cores (Xiaomi 14 / S23 class).
-      n_threads: 4,
+      // Big cores only — never all of hw_concurrency (llama.rn set_best_cores pins
+      // the N fastest; N=8 on ABBA SoCs pulls efficiency cores → barrier stragglers).
+      // Measured Xiaomi 14 / SD 8 Gen 3: 6 threads +26–32% prefill vs 4; 8 threads
+      // catastrophic (decode 0.06 tok/s). Set BEFORE engineOverride so bench:engine
+      // threads=N still wins via applyEngineOverride below.
+      n_threads: chooseThreadCount(await detectCores()),
       // iOS: Metal. Android: MUST be 0 — with 99, llama.rn's Hexagon backend
       // offloads layers to the Snapdragon NPU (HTP0) while Flash Attention
       // stays on CPU, and llama_init_from_model fails to initialize the
