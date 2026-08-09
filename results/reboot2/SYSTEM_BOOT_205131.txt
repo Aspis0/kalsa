@@ -1,0 +1,11 @@
+2026-08-08 20:51:31 SYSTEM_BOOT (text, 474 bytes)
+isPrevious: true
+Build: samsung/dm1qsqw/dm1q:16/BP2A.250605.031.A3/S911USQS6EYL1:user/release-keys
+Hardware: kalama
+Revision: 13
+Bootloader: S911USQS6EYL1
+Radio: null
+Kernel: Linux version 5.15.178-android13-8-31998796-abS911USQS6EYL1 (build-user@build-host) (Android (8508608, based on r450784e) clang version 14.0.7 (https://android.googlesource.com/toolchain/llvm-project 4c603efb0cca074e9238af8b4106c30add4418f6), LLD 14.0.7) #1 SMP PREEMPT Wed Dec 3 12:03:34 UTC 2025
+
+
+

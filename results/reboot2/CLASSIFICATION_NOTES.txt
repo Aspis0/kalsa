@@ -1,0 +1,14 @@
+Riavvio #2 (2026-08-08 ~20:51 EDT)
+boot.reason.history head: reboot,rescueparty,1786236677  (= 2026-08-08 20:51:17 EDT)
+sys.boot.reason / last / persist / ro.boot: reboot,rescueparty
+dropbox LAST_KMSG: SYSTEM_LAST_KMSG_0_20260808_205131_RP  (suffix RP = RescueParty, NON KP)
+Last boot reason in kmsg: reboot,rescueparty ; reboot_reason=0x7
+Catena pre-boot:
+  20:33-34 ANR com.android.phone + com.android.systemui (startup fail)
+    psi memory some avg10≈78%, bmoe-cli.CAMPAIGN 136-160% CPU, 252k-379k major faults,
+    kswapd0 90%, lmkd active, system_server thrashing
+  20:34:33 system_server_crash IllegalStateException Lost network stack (side effect)
+  20:35:41 SYSTEM_RESTART
+  20:45:00 SYSTEM_RESTART (2a escalation)
+  20:51:31 SYSTEM_BOOT + LAST_KMSG_RP
+logcat events pre-boot lmk of bmoe: buffer NON sopravvissuto (solo post-boot am_kill generici)

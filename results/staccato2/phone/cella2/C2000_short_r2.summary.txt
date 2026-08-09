@@ -1,0 +1,15 @@
+label=c2-C2000-short-r2
+rc=0
+wall_s=64
+prompt_tok_s=10.6
+eval_tok_s=4.628
+prefill_s=10.752
+ttft_ms=20289
+n_prompt=114
+expert_hit_rate=74.1%
+memfree_min_mb=56
+vmhwm_mb=3875
+lmkd_delta=0
+batt_s=89 batt_e=87
+die_s=70.9 die_e=71.7
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8

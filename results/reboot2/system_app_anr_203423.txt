@@ -1,0 +1,74 @@
+2026-08-08 20:34:23 system_app_anr (text, 2941 bytes)
+SystemUptimeMs: 18815258
+Process: com.android.systemui
+PID: 29397
+UID: 10049
+Frozen: false
+Timestamp: 2026-08-08 20:33:42.160-0400
+Flags: 0x30c83e0d
+Package: com.android.systemui v36 (16)
+Foreground: No
+Process-Runtime: 71156
+ErrorId: aed2ef39-e9b5-4a0b-934f-ded5a70c3025
+Build: samsung/dm1qsqw/dm1q:16/BP2A.250605.031.A3/S911USQS6EYL1:user/release-keys
+Loading-Progress: 1.0
+Dropped-Count: 0
+
+----- Output from /proc/pressure/memory -----
+some avg10=77.62 avg60=61.63 avg300=34.09 total=413153280
+full avg10=65.32 avg60=52.35 avg300=28.92 total=353975995
+----- End output from /proc/pressure/memory -----
+----- Output from /proc/pressure/cpu -----
+some avg10=57.53 avg60=46.68 avg300=29.13 total=1396953023
+full avg10=0.00 avg60=0.00 avg300=0.00 total=0
+----- End output from /proc/pressure/cpu -----
+----- Output from /proc/pressure/io -----
+some avg10=10.79 avg60=10.82 avg300=6.93 total=618675522
+full avg10=1.64 avg60=2.10 avg300=2.14 total=289203460
+----- End output from /proc/pressure/io -----
+
+CPU usage from 3056ms to -17224ms ago (2026-08-08 20:34:03.119 to 2026-08-08 20:34:23.408):
+  160% 24239/bmoe-cli.CAMPAIGN: 51% user + 108% kernel / faults: 15405 minor 252318 major
+  143% 26826/system_server: 4% user + 139% kernel / faults: 46522 minor 73222 major
+  90% 104/kswapd0: 0% user + 90% kernel
+  33% 26064/bootanimation: 3.1% user + 30% kernel / faults: 23363 minor 4520 major
+  22% 1730/vendor.qti.hardware.perf-hal-service: 0.1% user + 22% kernel / faults: 2404 minor 2815 major
+  12% 1801/surfaceflinger: 1.2% user + 10% kernel / faults: 7389 minor 10539 major
+  9.8% 1724/vendor.qti.hardware.display.composer-service: 0.6% user + 9.1% kernel / faults: 5604 minor 10169 major
+  9.8% 920/lmkd: 1.7% user + 8% kernel
+  8.2% 919/logd: 0.2% user + 7.9% kernel / faults: 705 minor 559 major
+  4.1% 26158/zygote64: 0% user + 4.1% kernel / faults: 1046 minor 309 major
+94% TOTAL: 9% user + 81% kernel + 1.9% iowait + 1.6% irq + 0.5% softirq
+Data File: /data/anr/anr_2026-08-08-20-34-15-976
+Subject: Process ProcessRecord{34b7922 29397:com.android.systemui/u0a49} failed to complete startup
+--- CriticalEventLog ---
+capacity: 20
+events <
+  timestamp_ms: 1786235607453
+  system_server_started <
+  >
+>
+events <
+  timestamp_ms: 1786235640590
+  anr <
+    pid: 31077
+    process: "com.android.phone"
+    process_class: 2
+    subject: "Process ProcessRecord{e471449 29424:com.android.phone/1001} failed to complete startup"
+    uid: 1001
+  >
+>
+timestamp_ms: 1786235654875
+window_ms: 300000
+
+----- dumping pid: 29397 at 18765110
+libdebuggerd_client: failed to get process tids
+libdebuggerd_client: failed to get process info: failed to open /proc/29397: No such file or directory
+libdebuggerd_client: failed to get process tids
+libdebuggerd_client: failed to send signal to pid 29397: No such process
+DurationsV5: 18765068,2,24,32406,9842,4,137,0,808,0,0,688,0,0,0,330,89,33,1,138,2,1,0,0,0
+
+----- dumping ended at 18814024
+End Data File
+
+

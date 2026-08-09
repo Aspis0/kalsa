@@ -1,0 +1,25 @@
+2026-08-08 20:34:33 system_server_crash (text, 1662 bytes)
+SystemUptimeMs: 18824540
+Process: system_server
+Timestamp: 2026-08-08 20:34:33.146-0400
+Build: samsung/dm1qsqw/dm1q:16/BP2A.250605.031.A3/S911USQS6EYL1:user/release-keys
+Crash-Handler: com.android.internal.os.RuntimeInit$KillApplicationHandler
+Loading-Progress: 1.0
+Dropped-Count: 0
+
+java.lang.IllegalStateException: Lost network stack. This is not the root cause of any issue, it is a side effect of a crash that happened earlier. Earlier logs should point to the actual issue.
+	at android.net.ConnectivityModuleConnector.maybeCrashWithTerribleFailure(qb/104115509 642a260238a2a37c6836dc7bea3a53f201826650740aa1b0d2e7de37fbd312b0:153)
+	at android.net.ConnectivityModuleConnector.-$$Nest$mmaybeCrashWithTerribleFailure(qb/104115509 642a260238a2a37c6836dc7bea3a53f201826650740aa1b0d2e7de37fbd312b0:4)
+	at android.net.ConnectivityModuleConnector$ModuleServiceConnection.onServiceDisconnected(qb/104115509 642a260238a2a37c6836dc7bea3a53f201826650740aa1b0d2e7de37fbd312b0:5)
+	at android.app.LoadedApk$ServiceDispatcher.doConnected(LoadedApk.java:2411)
+	at android.app.LoadedApk$ServiceDispatcher$RunConnection.run(LoadedApk.java:2455)
+	at android.os.Handler.handleCallback(Handler.java:995)
+	at android.os.Handler.dispatchMessage(Handler.java:103)
+	at android.os.Looper.loopOnce(Looper.java:273)
+	at android.os.Looper.loop(Looper.java:363)
+	at com.android.server.SystemServer.main(qb/104115509 642a260238a2a37c6836dc7bea3a53f201826650740aa1b0d2e7de37fbd312b0:867)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:632)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:953)
+
+

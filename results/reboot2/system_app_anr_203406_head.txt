@@ -1,0 +1,41 @@
+2026-08-08 20:34:06 system_app_anr (compressed text, 8197 bytes)
+SystemUptimeMs: 18795101
+Process: com.android.phone
+PID: 31077
+UID: 1001
+Frozen: false
+Timestamp: 2026-08-08 20:33:59.509-0400
+Flags: 0x38c83e4d
+Package: com.android.providers.telephony v36 (16)
+Package: com.android.stk v36 (16)
+Package: com.android.stk2 v36 (16)
+Package: com.android.phone v36 (16)
+Foreground: No
+Process-Runtime: 7255
+ErrorId: 060e71af-1537-40dd-8394-fbb168c66c8d
+Build: samsung/dm1qsqw/dm1q:16/BP2A.250605.031.A3/S911USQS6EYL1:user/release-keys
+Loading-Progress: 1.0
+Dropped-Count: 0
+
+----- Output from /proc/pressure/memory -----
+some avg10=78.05 avg60=57.43 avg300=31.94 total=401454915
+full avg10=65.37 avg60=48.89 avg300=27.12 total=344099663
+----- End output from /proc/pressure/memory -----
+----- Output from /proc/pressure/cpu -----
+some avg10=61.24 avg60=44.11 avg300=27.78 total=1388389347
+full avg10=0.00 avg60=0.00 avg300=0.00 total=0
+----- End output from /proc/pressure/cpu -----
+----- Output from /proc/pressure/io -----
+some avg10=15.31 avg60=11.16 avg300=6.80 total=617083874
+full avg10=2.06 avg60=2.24 avg300=2.17 total=288908507
+----- End output from /proc/pressure/io -----
+
+CPU usage from 63ms to 38609ms later (2026-08-08 20:33:24.574 to 2026-08-08 20:34:03.119):
+  136% 24239/bmoe-cli.CAMPAIGN: 45% user + 91% kernel / faults: 25094 minor 379119 major
+  118% 26826/system_server: 4.5% user + 113% kernel / faults: 66234 minor 120640 major
+  90% 104/kswapd0: 0% user + 90% kernel
+  28% 26064/bootanimation: 3.2% user + 25% kernel / faults: 43191 minor 10960 major
+  19% 919/logd: 0.8% user + 18% kernel / faults: 12517 minor 3986 major
+  17% 1730/vendor.qti.hardware.perf-hal-service: 0.1% user + 17% kernel / faults: 4706 minor 5324 major
+  12% 1801/surfaceflinger: 1.5% user + 10% kernel / faults: 16826 minor 25169 major
+  10% 920/lmkd: 1.8% user + 8.5% kernel

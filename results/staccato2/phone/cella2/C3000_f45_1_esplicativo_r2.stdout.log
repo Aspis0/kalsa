@@ -1,0 +1,15 @@
+Sei un assistente tecnico per sviluppatori italiani. Rispondi in italiano, in modo chiaro e concreto.
+
+Domanda: cos'è un modello Mixture-of-Experts (MoE) e perché, su uno smartphone con 8 GB di RAM, un MoE da 35B parametri con circa 3B attivi per token può essere più pratico di un modello denso da 7B? Spiega memoria, routing degli esperti e il ruolo dello streaming da flash. Non superare le 180 parole.Un modello Mixture-of-Experts (MoE) è un’architettura neurale che divide i parametri in "esperti" specializzati. A differenza dei modelli densi, dove ogni token attiva tutti i parametri, un MoE attiva solo un sottoinsieme selezionato tramite un meccanismo di routing (instradamento).
+
+Su uno smartphone con 8 GB di RAM, un MoE da 35B parametri ma con soli 3B attivi per token è più pratico di un denso da 7B per due motivi chiave. Innanzitutto, la memoria: caricare un denso da 7B (FP16) richiede circa 14 GB, superando la RAM disponibile. Il MoE, invece, mantiene i 35B parametri sul disco (o nella memoria non volatile), caricando in RAM solo gli esperti attivi (circa 6 GB), permettendo l’esecuzione senza crash.
+
+Secondo, lo streaming da flash: grazie al
+
+generation: 200 tokens, 0.230 s/token (4.348 tok/s)
+compute: 79.1% CPU occupancy (0.7275 cpu-s/token over 4 threads), 7.04 major faults/token
+prefill: 121 tokens, 13.126 s (9.2 tok/s) | model load 10.348 s | TTFT 23.474 s
+moe-stream: read 5060.0 MiB (25.30 MiB/token), decode 0.230 s/token (compute 0.161 + cache mgmt 0.006 + flash I/O 0.189 s/token, 134 MiB/s)
+moe-cache: 84.5% hit, resident 2999.6 MiB
+moe-cache: 7458 evictions, 4349 re-reads (21.7/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.063 s/token (flash reads overlapped with FFN compute)

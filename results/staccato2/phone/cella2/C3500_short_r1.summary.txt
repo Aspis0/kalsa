@@ -1,0 +1,16 @@
+label=c2-C3500-short-r1
+rc=0
+wall_s=0
+prompt_tok_s=5.1
+eval_tok_s=1.136
+prefill_s=22.302
+ttft_ms=
+n_prompt=114
+expert_hit_rate=84.8%
+memfree_min_mb=13
+vmhwm_mb=5006
+lmkd_delta=0
+batt_s=77 batt_e=74
+die_s=74.9 die_e=90.8
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+note=RECOVERED_AFTER_BATT_HANG

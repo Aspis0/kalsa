@@ -1,0 +1,15 @@
+label=c2-C3000-short-r1
+rc=0
+wall_s=151
+prompt_tok_s=4.0
+eval_tok_s=1.823
+prefill_s=28.861
+ttft_ms=39085
+n_prompt=114
+expert_hit_rate=82.2%
+memfree_min_mb=15
+vmhwm_mb=4412
+lmkd_delta=0
+batt_s=84 batt_e=83
+die_s=42.9 die_e=61.7
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8

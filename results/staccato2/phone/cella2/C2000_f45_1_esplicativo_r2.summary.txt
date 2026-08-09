@@ -1,0 +1,15 @@
+label=c2-C2000-f45_1_esplicativo-r2
+rc=0
+wall_s=71
+prompt_tok_s=10.1
+eval_tok_s=4.275
+prefill_s=11.993
+ttft_ms=22444
+n_prompt=121
+expert_hit_rate=77.0%
+memfree_min_mb=30
+vmhwm_mb=3876
+lmkd_delta=0
+batt_s=86 batt_e=86
+die_s=48.5 die_e=60.4
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8

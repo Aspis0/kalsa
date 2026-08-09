@@ -1,0 +1,297 @@
+Drop box contents: 146 entries
+Max entries: 1000
+Low priority rate limit period: 2000 ms
+Low priority tags: {data_app_wtf, keymaster, system_server_wtf, system_app_strictmode, system_app_wtf, system_server_strictmode, data_app_strictmode, netstats}
+
+2026-08-05 21:32:33 SYSTEM_BOOT (text, 474 bytes)
+    /data/system/dropbox/SYSTEM_BOOT@1785979953108.txt
+2026-08-05 21:32:33 SYSTEM_LAST_KMSG_0_20260805_213233_RP (compressed text, 14060 bytes)
+    /data/system/dropbox/SYSTEM_LAST_KMSG_0_20260805_213233_RP@1785979953159.txt.gz
+2026-08-05 21:32:33 SYSTEM_AUDIT (text, 474 bytes)
+    /data/system/dropbox/SYSTEM_AUDIT@1785979953206.txt
+2026-08-05 21:32:34 com.samsung.android.app.reminder (text, 54 bytes)
+    /data/system/dropbox/com.samsung.android.app.reminder@1785979954176.txt
+2026-08-05 21:32:38 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1785979958154.txt
+2026-08-05 21:32:38 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1785979958172.txt
+2026-08-05 21:32:38 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1785979958204.txt
+2026-08-05 21:32:38 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1785979958215.txt
+2026-08-05 21:49:58 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 5702 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785980998866.dat.gz
+2026-08-05 21:49:58 SYSTEM_TOMBSTONE (compressed text, 7690 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785980998875.txt.gz
+2026-08-05 22:13:01 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 5713 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785982381168.dat.gz
+2026-08-05 22:13:01 SYSTEM_TOMBSTONE (compressed text, 7700 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785982381179.txt.gz
+2026-08-05 22:13:29 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 5672 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785982409791.dat.gz
+2026-08-05 22:13:29 SYSTEM_TOMBSTONE (compressed text, 7690 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785982409838.txt.gz
+2026-08-05 23:04:27 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 5696 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785985467223.dat.gz
+2026-08-05 23:04:27 SYSTEM_TOMBSTONE (compressed text, 7733 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785985467236.txt.gz
+2026-08-05 23:04:43 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 5722 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785985483262.dat.gz
+2026-08-05 23:04:43 SYSTEM_TOMBSTONE (compressed text, 7720 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785985483272.txt.gz
+2026-08-06 00:50:48 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 5646 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785991848786.dat.gz
+2026-08-06 00:50:48 SYSTEM_TOMBSTONE (compressed text, 7659 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785991848799.txt.gz
+2026-08-06 00:50:48 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 5651 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785991848933.dat.gz
+2026-08-06 00:50:48 SYSTEM_TOMBSTONE (compressed text, 7707 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785991848941.txt.gz
+2026-08-06 00:51:31 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8110 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785991891755.dat.gz
+2026-08-06 00:51:31 SYSTEM_TOMBSTONE (compressed text, 9513 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785991891770.txt.gz
+2026-08-06 00:52:42 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 7860 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785991962338.dat.gz
+2026-08-06 00:52:42 SYSTEM_TOMBSTONE (compressed text, 8900 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785991962350.txt.gz
+2026-08-06 00:54:39 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8195 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785992079587.dat.gz
+2026-08-06 00:54:39 SYSTEM_TOMBSTONE (compressed text, 9986 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785992079598.txt.gz
+2026-08-06 00:55:45 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 5650 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785992145466.dat.gz
+2026-08-06 00:55:45 SYSTEM_TOMBSTONE (compressed text, 7656 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785992145476.txt.gz
+2026-08-06 01:37:47 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 5922 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785994667702.dat.gz
+2026-08-06 01:37:47 SYSTEM_TOMBSTONE (compressed text, 8135 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785994667712.txt.gz
+2026-08-06 01:38:59 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8171 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785994739455.dat.gz
+2026-08-06 01:38:59 SYSTEM_TOMBSTONE (compressed text, 9612 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785994739469.txt.gz
+2026-08-06 01:45:40 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 5945 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1785995140438.dat.gz
+2026-08-06 01:45:40 SYSTEM_TOMBSTONE (compressed text, 8154 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1785995140450.txt.gz
+2026-08-06 05:09:45 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8074 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786007385953.dat.gz
+2026-08-06 05:09:45 SYSTEM_TOMBSTONE (compressed text, 9872 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786007385966.txt.gz
+2026-08-06 05:11:18 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8290 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786007478055.dat.gz
+2026-08-06 05:11:18 SYSTEM_TOMBSTONE (compressed text, 9662 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786007478068.txt.gz
+2026-08-06 05:13:09 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8516 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786007589161.dat.gz
+2026-08-06 05:13:09 SYSTEM_TOMBSTONE (compressed text, 10242 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786007589172.txt.gz
+2026-08-06 05:14:07 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8517 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786007647648.dat.gz
+2026-08-06 05:14:07 SYSTEM_TOMBSTONE (compressed text, 10203 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786007647656.txt.gz
+2026-08-06 05:15:25 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8350 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786007725661.dat.gz
+2026-08-06 05:15:25 SYSTEM_TOMBSTONE (compressed text, 9987 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786007725676.txt.gz
+2026-08-06 05:15:30 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8400 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786007730015.dat.gz
+2026-08-06 05:15:30 SYSTEM_TOMBSTONE (compressed text, 10023 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786007730030.txt.gz
+2026-08-06 05:17:07 SYSTEM_BOOT (text, 474 bytes)
+    /data/system/dropbox/SYSTEM_BOOT@1786007827465.txt
+2026-08-06 05:17:07 SYSTEM_LAST_KMSG_0_20260806_051707_RP (compressed text, 14062 bytes)
+    /data/system/dropbox/SYSTEM_LAST_KMSG_0_20260806_051707_RP@1786007827671.txt.gz
+2026-08-06 05:17:07 SYSTEM_AUDIT (text, 474 bytes)
+    /data/system/dropbox/SYSTEM_AUDIT@1786007827731.txt
+2026-08-06 05:17:08 com.samsung.android.app.reminder (text, 54 bytes)
+    /data/system/dropbox/com.samsung.android.app.reminder@1786007828599.txt
+2026-08-06 05:17:12 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786007832044.txt
+2026-08-06 05:17:12 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786007832062.txt
+2026-08-06 05:17:12 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786007832100.txt
+2026-08-06 05:17:12 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786007832113.txt
+2026-08-06 05:58:35 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8468 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786010315242.dat.gz
+2026-08-06 05:58:35 SYSTEM_TOMBSTONE (compressed text, 10177 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786010315257.txt.gz
+2026-08-06 05:59:28 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 6230 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786010368057.dat.gz
+2026-08-06 05:59:28 SYSTEM_TOMBSTONE (compressed text, 8645 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786010368069.txt.gz
+2026-08-06 06:34:45 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 5722 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786012485240.dat.gz
+2026-08-06 06:34:45 SYSTEM_TOMBSTONE (compressed text, 7721 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786012485256.txt.gz
+2026-08-06 09:37:19 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8504 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786023439227.dat.gz
+2026-08-06 09:37:19 SYSTEM_TOMBSTONE (compressed text, 10184 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786023439242.txt.gz
+2026-08-06 11:22:49 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 5679 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786029769135.dat.gz
+2026-08-06 11:22:49 SYSTEM_TOMBSTONE (compressed text, 8643 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786029769153.txt.gz
+2026-08-06 16:19:38 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (data, 13895 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786047578417.dat
+2026-08-06 16:19:38 SYSTEM_TOMBSTONE (compressed text, 6552 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786047578436.txt.gz
+2026-08-07 14:10:09 storage_trim (text, 24 bytes)
+    /data/system/dropbox/storage_trim@1786126209100.txt
+2026-08-07 14:10:09 storage_trim (text, 20 bytes)
+    /data/system/dropbox/storage_trim@1786126209110.txt
+2026-08-07 14:10:09 storage_trim (text, 26 bytes)
+    /data/system/dropbox/storage_trim@1786126209128.txt
+2026-08-07 14:10:09 storage_trim (text, 25 bytes)
+    /data/system/dropbox/storage_trim@1786126209182.txt
+2026-08-07 14:10:09 storage_trim (text, 24 bytes)
+    /data/system/dropbox/storage_trim@1786126209201.txt
+2026-08-07 14:10:09 storage_trim (text, 24 bytes)
+    /data/system/dropbox/storage_trim@1786126209202.txt
+2026-08-07 14:13:02 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8486 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786126382677.dat.gz
+2026-08-07 14:13:02 SYSTEM_TOMBSTONE (compressed text, 10150 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786126382682.txt.gz
+2026-08-07 14:13:02 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8524 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786126382686.dat.gz
+2026-08-07 14:13:02 SYSTEM_TOMBSTONE (compressed text, 10172 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786126382698.txt.gz
+2026-08-07 14:13:02 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 8495 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786126382702.dat.gz
+2026-08-07 14:13:02 SYSTEM_TOMBSTONE (compressed text, 10187 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786126382713.txt.gz
+2026-08-07 14:13:11 SYSTEM_RESTART (text, 497 bytes)
+    /data/system/dropbox/SYSTEM_RESTART@1786126391730.txt
+2026-08-07 14:13:12 com.samsung.android.app.reminder (text, 54 bytes)
+    /data/system/dropbox/com.samsung.android.app.reminder@1786126392665.txt
+2026-08-07 14:13:19 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786126399035.txt
+2026-08-07 14:13:19 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786126399045.txt
+2026-08-07 14:13:19 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786126399080.txt
+2026-08-07 14:13:19 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786126399084.txt
+2026-08-07 14:15:22 system_server_crash (text, 1659 bytes)
+    /data/system/dropbox/system_server_crash@1786126522755.txt
+2026-08-07 14:17:36 SYSTEM_BOOT (text, 474 bytes)
+    /data/system/dropbox/SYSTEM_BOOT@1786126656370.txt
+2026-08-07 14:17:36 SYSTEM_LAST_KMSG_6_20260807_141736_KP (compressed text, 14065 bytes)
+    /data/system/dropbox/SYSTEM_LAST_KMSG_6_20260807_141736_KP@1786126656435.txt.gz
+2026-08-07 14:17:36 SYSTEM_AUDIT (text, 474 bytes)
+    /data/system/dropbox/SYSTEM_AUDIT@1786126656445.txt
+2026-08-07 14:17:41 com.samsung.android.app.reminder (text, 48 bytes)
+    /data/system/dropbox/com.samsung.android.app.reminder@1786126661291.txt
+2026-08-07 14:17:41 com.samsung.android.app.reminder (text, 54 bytes)
+    /data/system/dropbox/com.samsung.android.app.reminder@1786126661454.txt
+2026-08-07 14:17:56 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786126676598.txt
+2026-08-07 14:17:56 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786126676605.txt
+2026-08-07 14:17:56 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786126676645.txt
+2026-08-07 14:17:56 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786126676653.txt
+2026-08-07 14:17:56 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786126676743.txt
+2026-08-07 14:17:56 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786126676754.txt
+2026-08-08 11:20:34 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 30078 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786202434811.dat.gz
+2026-08-08 11:20:34 SYSTEM_TOMBSTONE (compressed text, 11674 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786202434824.txt.gz
+2026-08-08 14:26:04 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 30194 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786213564305.dat.gz
+2026-08-08 14:26:04 SYSTEM_TOMBSTONE (compressed text, 11723 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786213564324.txt.gz
+2026-08-08 14:31:09 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 30226 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786213869407.dat.gz
+2026-08-08 14:31:09 SYSTEM_TOMBSTONE (compressed text, 11900 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786213869434.txt.gz
+2026-08-08 14:32:53 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 30253 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786213973513.dat.gz
+2026-08-08 14:32:53 SYSTEM_TOMBSTONE (compressed text, 11822 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786213973530.txt.gz
+2026-08-08 14:34:47 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 30226 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786214087189.dat.gz
+2026-08-08 14:34:47 SYSTEM_TOMBSTONE (compressed text, 11951 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786214087209.txt.gz
+2026-08-08 14:40:44 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (compressed data, 30355 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786214444128.dat.gz
+2026-08-08 14:40:44 SYSTEM_TOMBSTONE (compressed text, 11861 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786214444164.txt.gz
+2026-08-08 15:21:13 SYSTEM_BOOT (text, 474 bytes)
+    /data/system/dropbox/SYSTEM_BOOT@1786216873055.txt
+2026-08-08 15:21:13 SYSTEM_LAST_KMSG_7_20260808_152113_KP (compressed text, 14033 bytes)
+    /data/system/dropbox/SYSTEM_LAST_KMSG_7_20260808_152113_KP@1786216873105.txt.gz
+2026-08-08 15:21:13 SYSTEM_AUDIT (text, 474 bytes)
+    /data/system/dropbox/SYSTEM_AUDIT@1786216873113.txt
+2026-08-08 15:21:13 com.samsung.android.app.reminder (text, 54 bytes)
+    /data/system/dropbox/com.samsung.android.app.reminder@1786216873813.txt
+2026-08-08 15:21:22 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786216882200.txt
+2026-08-08 15:21:22 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786216882205.txt
+2026-08-08 15:21:22 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786216882236.txt
+2026-08-08 15:21:22 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786216882245.txt
+2026-08-08 17:14:56 SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS (data, 13897 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1786223696677.dat
+2026-08-08 17:14:56 SYSTEM_TOMBSTONE (compressed text, 6518 bytes)
+    /data/system/dropbox/SYSTEM_TOMBSTONE@1786223696686.txt.gz
+2026-08-08 20:34:06 system_app_anr (compressed text, 8197 bytes)
+    /data/system/dropbox/system_app_anr@1786235646672.txt.gz
+2026-08-08 20:34:23 system_app_anr (text, 2941 bytes)
+    /data/system/dropbox/system_app_anr@1786235663953.txt
+2026-08-08 20:34:33 system_server_crash (text, 1662 bytes)
+    /data/system/dropbox/system_server_crash@1786235673161.txt
+2026-08-08 20:35:41 SYSTEM_RESTART (text, 497 bytes)
+    /data/system/dropbox/SYSTEM_RESTART@1786235741310.txt
+2026-08-08 20:35:43 com.samsung.android.app.reminder (text, 54 bytes)
+    /data/system/dropbox/com.samsung.android.app.reminder@1786235743912.txt
+2026-08-08 20:35:49 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786235749927.txt
+2026-08-08 20:35:49 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786235749938.txt
+2026-08-08 20:35:49 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786235749974.txt
+2026-08-08 20:35:49 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786235749988.txt
+2026-08-08 20:45:00 SYSTEM_RESTART (text, 497 bytes)
+    /data/system/dropbox/SYSTEM_RESTART@1786236300136.txt
+2026-08-08 20:45:01 com.samsung.android.app.reminder (text, 54 bytes)
+    /data/system/dropbox/com.samsung.android.app.reminder@1786236301278.txt
+2026-08-08 20:45:06 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786236306879.txt
+2026-08-08 20:45:06 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786236306889.txt
+2026-08-08 20:45:06 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786236306938.txt
+2026-08-08 20:45:06 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786236306950.txt
+2026-08-08 20:51:31 SYSTEM_BOOT (text, 474 bytes)
+    /data/system/dropbox/SYSTEM_BOOT@1786236691680.txt
+2026-08-08 20:51:31 SYSTEM_LAST_KMSG_0_20260808_205131_RP (compressed text, 14097 bytes)
+    /data/system/dropbox/SYSTEM_LAST_KMSG_0_20260808_205131_RP@1786236691750.txt.gz
+2026-08-08 20:51:31 SYSTEM_AUDIT (text, 474 bytes)
+    /data/system/dropbox/SYSTEM_AUDIT@1786236691771.txt
+2026-08-08 20:51:33 com.samsung.android.app.reminder (text, 48 bytes)
+    /data/system/dropbox/com.samsung.android.app.reminder@1786236693007.txt
+2026-08-08 20:51:33 com.samsung.android.app.reminder (text, 54 bytes)
+    /data/system/dropbox/com.samsung.android.app.reminder@1786236693122.txt
+2026-08-08 20:51:48 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786236708425.txt
+2026-08-08 20:51:48 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786236708434.txt
+2026-08-08 20:51:48 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786236708480.txt
+2026-08-08 20:51:48 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786236708487.txt
+2026-08-08 20:51:48 clockpackage (text, 34 bytes)
+    /data/system/dropbox/clockpackage@1786236708566.txt
+2026-08-08 20:51:48 clockpackage (text, 30 bytes)
+    /data/system/dropbox/clockpackage@1786236708576.txt

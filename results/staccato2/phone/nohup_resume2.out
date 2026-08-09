@@ -1,0 +1,55 @@
+[2026-08-08T20:39:12-0400] === STACCATO2 START pid=16528 start_cell=2 ===
+[2026-08-08T20:39:12-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN sha=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-08T20:39:12-0400] model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+[2026-08-08T20:39:12-0400] screen_off_timeout host-managed (expect 7200000 during session)
+[2026-08-08T20:39:14-0400] flight started pid=16612
+[2026-08-08T20:39:14-0400] prompt sha archived → /data/data/com.termux/files/home/experiments/results/staccato2/prompt_sha256.txt
+prompt,sha256,bytes
+f5_1_t1,e6aacbf55c290609c469ca218d5a88dcca0d8c286ea5ea0ca9b4a34004f2de7b,331
+f5_1_t2,c4e4c18765fa0dbfe9919b7881240382d5f0e0375f1b4781ae06731310ac5882,257
+f5_1_t3,66dcf043d0950a7c75c0e28443a98299acca426add7890980ae7e28f3f482a3c,289
+f5_1_t4,7b93a8c4441f3e9f41337f4337d5fb32e72120975993fb5f35eb0ae3dce52ee1,260
+f5_1_t5,bb7067bca1468069698749faf95632fa5b6c18a6c6c07e0b6f6251dc928b929f,212
+short,197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619,454
+f45_1_esplicativo,bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf,410
+d1_long,96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650,5210
+batt_window 2026-08-08T20:39:14-0400 73 4073 -1369 41.8 UNPLUGGED start_cell=2
+[2026-08-08T20:39:15-0400] SKIP CELLA1 (staccato2 scope = cells 2-3-4; parte1 already measured)
+[2026-08-08T20:39:15-0400] ==== CELLA2 START ====
+[2026-08-08T20:39:18-0400] PREFLIGHT cella2 nproc=6 die=49.7C batt=73% plugged=UNPLUGGED btemp=41.8
+[2026-08-08T20:39:24-0400] PREFLIGHT cella2 OK die=55.1C batt=73 nproc=6 cpuset=/
+[2026-08-08T20:39:27-0400] PREFLIGHT cella2_C2000 nproc=7 die=89.9C batt=73% plugged=UNPLUGGED btemp=41.8
+[2026-08-08T20:39:30-0400] preflight wait cell=cella2_C2000 nproc=7 die=89.9C cpuset=/ — re-promote
+[2026-08-08T20:40:03-0400] preflight wait cell=cella2_C2000 nproc=7 die=90.3C cpuset=/ — re-promote
+[2026-08-08T20:40:40-0400] PREFLIGHT cella2_C2000 OK die=65.6C batt=73 nproc=6 cpuset=/
+[2026-08-08T20:40:40-0400] skip cache=2000 (all 4 summaries present)
+[2026-08-08T20:40:44-0400] PREFLIGHT cella2_C3000 nproc=6 die=49.0C batt=73% plugged=UNPLUGGED btemp=41.8
+[2026-08-08T20:40:51-0400] PREFLIGHT cella2_C3000 OK die=48.9C batt=73 nproc=7 cpuset=/
+[2026-08-08T20:40:51-0400] skip cache=3000 (all 4 summaries present)
+[2026-08-08T20:40:54-0400] PREFLIGHT cella2_C3500 nproc=6 die=48.1C batt=73% plugged=UNPLUGGED btemp=41.8
+[2026-08-08T20:41:01-0400] PREFLIGHT cella2_C3500 OK die=49.0C batt=73 nproc=6 cpuset=/
+[2026-08-08T20:41:01-0400] cold_model for cache=3500
+[2026-08-08T20:41:31-0400] skip existing /data/data/com.termux/files/home/experiments/results/staccato2/cella2/C3500_short_r1.summary.txt
+[2026-08-08T20:41:33-0400] PREFLIGHT cella2_C3500_short_r2 nproc=8 die=59.1C batt=73% plugged=UNPLUGGED btemp=41.8
+[2026-08-08T20:41:38-0400] PREFLIGHT cella2_C3500_short_r2 OK die=66.8C batt=73 nproc=6 cpuset=/
+[2026-08-08T20:41:40-0400] cool before C3500 short r2 die=89.1C
+[2026-08-08T20:41:57-0400] extra drop_caches best-effort before C=3500
+[2026-08-08T20:42:02-0400] ---- single c2-C3500-short-r2 pid=short n=200 cache=3500 ubatch=512 ----
+label=c2-C3500-short-r2
+rc=0
+wall_s=154
+prompt_tok_s=4.1
+eval_tok_s=1.811
+prefill_s=27.986
+ttft_ms=41394
+n_prompt=114
+expert_hit_rate=84.8%
+memfree_min_mb=20
+vmhwm_mb=4543
+lmkd_delta=0
+batt_s=73 batt_e=-1
+die_s=89.5 die_e=90.3
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-08T20:45:00-0400] single c2-C3500-short-r2 DONE eval=1.811 prefill_tps=4.1 hit=84.8% memfree_min=20 lmkd_d=0 wall=154s rc=0
+[2026-08-08T20:45:07-0400] PREFLIGHT cella2_C3500_f45_1_esplicativo_r1 nproc=8 die=90.8C batt=-1% plugged=UNPLUGGED btemp=-1
+[2026-08-08T20:45:07-0400] FATAL batt=-1 < 30 — sessione ferma
