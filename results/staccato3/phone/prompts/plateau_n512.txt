@@ -1,0 +1,1 @@
+Scrivi un saggio tecnico dettagliato e continuo (senza elenchi numerati brevi) sul funzionamento della memoria KV e dello streaming degli expert MoE su smartphone con 8 GB di RAM. Continua a scrivere fino al limite di token: spiega prefill, decode, cache LRU, page fault, thermal throttling, e ripeti i concetti con esempi concreti su Qwen 35B-A3B. Non chiudere la risposta.

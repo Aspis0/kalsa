@@ -951,10 +951,12 @@ run_cella3() {
         safety_hard || return $?
         sleep 10
       done
-      run_single "c3-ub${ub}-r${rep}" "$PROMPTS_DIR/d1_long.txt" "d1_long" 64 "$WIN_C" "$ub" 8 warm "cella=3;ubatch=${ub};cache=${WIN_C};rep=${rep}" \
+      # n=256: abbastanza per prefill+decode (mandato misure-staccato / staccato-3)
+      run_single "c3-ub${ub}-r${rep}" "$PROMPTS_DIR/d1_long.txt" "d1_long" 256 "$WIN_C" "$ub" 8 warm "cella=3;ubatch=${ub};cache=${WIN_C};rep=${rep}" \
         "$OUTDIR/cella3/ub${ub}_r${rep}" || {
           local rc=$?
-          if [ $rc -eq 4 ] || [ $rc -eq 92 ] || [ $rc -eq 99 ]; then return $rc; fi
+          # 96=ABORT_MEM, 97=THERMAL_PAUSE, 99=HARD_DIE, 4=PLUGGED
+          if [ $rc -eq 4 ] || [ $rc -eq 92 ] || [ $rc -eq 96 ] || [ $rc -eq 97 ] || [ $rc -eq 99 ]; then return $rc; fi
         }
     done
   done
@@ -1362,7 +1364,8 @@ if [ "$START_CELL" -le 3 ]; then
   if [ $rc -ne 0 ]; then
     FINAL_RC=$rc
     echo "SKIPPED cella3 rc=$rc $(ts)" | tee -a "$OUTDIR/SKIPPED.txt" | tee -a "$STATUS"
-    if [ $rc -eq 4 ] || [ $rc -eq 92 ] || [ $rc -eq 93 ] || [ $rc -eq 99 ]; then
+    # 96=ABORT_MEM, 97=THERMAL_PAUSE, 99=HARD_DIE, 4=PLUGGED, 92/93=batt
+    if [ $rc -eq 4 ] || [ $rc -eq 92 ] || [ $rc -eq 93 ] || [ $rc -eq 96 ] || [ $rc -eq 97 ] || [ $rc -eq 99 ]; then
       echo "STOPPED_AFTER_CELLA3 rc=$rc win_c=$WIN_C $(ts)" >> "$STATUS"
       stop_flight
       batt_json > "$OUTDIR/batt_end.json"
@@ -1417,7 +1420,10 @@ if [ "$START_CELL" -le 4 ]; then
     echo "SKIPPED cella4 missing_winners win_c=$WIN_C win_ub=$WIN_UB" | tee -a "$OUTDIR/SKIPPED.txt" | tee -a "$STATUS"
     FINAL_RC=1
   else
-    if ! run_cella4 "$WIN_C" "$WIN_UB"; then
+    # Plateau: ubatch fisso 512 se CELLA4_UBATCH impostato (mandato staccato-3), altrimenti winner C3
+    UB4="${CELLA4_UBATCH:-$WIN_UB}"
+    log "CELLA4 using cache=$WIN_C ubatch=$UB4 (CELLA4_UBATCH=${CELLA4_UBATCH:-unset})"
+    if ! run_cella4 "$WIN_C" "$UB4"; then
       rc=$?
       log "cella4 exit $rc"
       FINAL_RC=$rc

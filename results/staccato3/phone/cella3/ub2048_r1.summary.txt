@@ -1,0 +1,15 @@
+label=c3-ub2048-r1
+rc=0
+wall_s=207
+prompt_tok_s=10.3
+eval_tok_s=3.816
+prefill_s=127.409
+ttft_ms=137849
+n_prompt=1318
+expert_hit_rate=79.2%
+memfree_min_mb=64
+vmhwm_mb=4072
+lmkd_delta=0
+batt_s=51 batt_e=49
+die_s=48.6 die_e=57.1
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8

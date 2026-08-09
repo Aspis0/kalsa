@@ -1,0 +1,127 @@
+===== RESUME keep=0 from cella 3 2026-08-09T00:27:51-0400 =====
+[2026-08-09T00:27:51-0400] === STACCATO2 START pid=28374 start_cell=3 ===
+[2026-08-09T00:27:51-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN sha=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-09T00:27:51-0400] model=/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+[2026-08-09T00:27:51-0400] screen_off_timeout host-managed (expect 7200000 during session)
+[2026-08-09T00:27:53-0400] flight started pid=28452
+[2026-08-09T00:27:53-0400] prompt sha archived → /data/data/com.termux/files/home/experiments/results/staccato3/prompt_sha256.txt
+prompt,sha256,bytes
+f5_1_t1,e6aacbf55c290609c469ca218d5a88dcca0d8c286ea5ea0ca9b4a34004f2de7b,331
+f5_1_t2,c4e4c18765fa0dbfe9919b7881240382d5f0e0375f1b4781ae06731310ac5882,257
+f5_1_t3,66dcf043d0950a7c75c0e28443a98299acca426add7890980ae7e28f3f482a3c,289
+f5_1_t4,7b93a8c4441f3e9f41337f4337d5fb32e72120975993fb5f35eb0ae3dce52ee1,260
+f5_1_t5,bb7067bca1468069698749faf95632fa5b6c18a6c6c07e0b6f6251dc928b929f,212
+short,197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619,454
+f45_1_esplicativo,bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf,410
+d1_long,96629f53df322550008c4a42471bf373fe851a8c59bca738dbdceb86a8e37650,5210
+batt_window 2026-08-09T00:27:53-0400 56 3900 -1400 26.1 UNPLUGGED start_cell=3
+[2026-08-09T00:27:53-0400] SKIP CELLA1 (staccato2 scope = cells 2-3-4; parte1 already measured)
+[2026-08-09T00:27:53-0400] SKIP CELLA2 using win_c=2000
+[2026-08-09T00:27:53-0400] ==== CELLA3 START win_cache=2000 ====
+[2026-08-09T00:27:55-0400] PREFLIGHT cella3 nproc=7 die=46.2C batt=56% plugged=UNPLUGGED btemp=26.1
+[2026-08-09T00:27:56-0400] PREFLIGHT cella3 OK die=44.9C batt=56 nproc=7 cpuset=/top-app
+[2026-08-09T00:27:58-0400] PREFLIGHT cella3_ub512_r1 nproc=6 die=37.2C batt=56% plugged=UNPLUGGED btemp=26.1
+[2026-08-09T00:27:59-0400] PREFLIGHT cella3_ub512_r1 OK die=46.6C batt=56 nproc=7 cpuset=/top-app
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T00:28:03-04:00
+[2026-08-09T00:28:04-0400] ---- single c3-ub512-r1 pid=d1_long n=256 cache=2000 ubatch=512 ----
+label=c3-ub512-r1
+rc=0
+wall_s=166
+prompt_tok_s=12.4
+eval_tok_s=5.211
+prefill_s=106.042
+ttft_ms=116272
+n_prompt=1318
+expert_hit_rate=69.3%
+memfree_min_mb=13
+vmhwm_mb=3910
+lmkd_delta=0
+batt_s=56 batt_e=53
+die_s=47.4 die_e=64.4
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-09T00:30:56-0400] single c3-ub512-r1 DONE eval=5.211 prefill_tps=12.4 hit=69.3% memfree_min=13 lmkd_d=0 wall=166s rc=0
+[2026-08-09T00:30:58-0400] PREFLIGHT cella3_ub512_r2 nproc=6 die=57.1C batt=53% plugged=UNPLUGGED btemp=36.1
+[2026-08-09T00:31:01-0400] PREFLIGHT cella3_ub512_r2 OK die=53.5C batt=53 nproc=7 cpuset=/top-app
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=7 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T00:31:06-04:00
+[2026-08-09T00:31:07-0400] ---- single c3-ub512-r2 pid=d1_long n=256 cache=2000 ubatch=512 ----
+label=c3-ub512-r2
+rc=0
+wall_s=192
+prompt_tok_s=10.8
+eval_tok_s=4.307
+prefill_s=122.249
+ttft_ms=131676
+n_prompt=1318
+expert_hit_rate=69.3%
+memfree_min_mb=53
+vmhwm_mb=3913
+lmkd_delta=0
+batt_s=53 batt_e=51
+die_s=53.5 die_e=63.6
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-09T00:34:26-0400] single c3-ub512-r2 DONE eval=4.307 prefill_tps=10.8 hit=69.3% memfree_min=53 lmkd_d=0 wall=192s rc=0
+[2026-08-09T00:34:28-0400] PREFLIGHT cella3_ub2048_r1 nproc=6 die=51.3C batt=51% plugged=UNPLUGGED btemp=37.1
+[2026-08-09T00:34:31-0400] PREFLIGHT cella3_ub2048_r1 OK die=53.1C batt=51 nproc=7 cpuset=/top-app
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T00:34:37-04:00
+[2026-08-09T00:34:38-0400] ---- single c3-ub2048-r1 pid=d1_long n=256 cache=2000 ubatch=2048 ----
+label=c3-ub2048-r1
+rc=0
+wall_s=207
+prompt_tok_s=10.3
+eval_tok_s=3.816
+prefill_s=127.409
+ttft_ms=137849
+n_prompt=1318
+expert_hit_rate=79.2%
+memfree_min_mb=64
+vmhwm_mb=4072
+lmkd_delta=0
+batt_s=51 batt_e=49
+die_s=48.6 die_e=57.1
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-09T00:38:12-0400] single c3-ub2048-r1 DONE eval=3.816 prefill_tps=10.3 hit=79.2% memfree_min=64 lmkd_d=0 wall=207s rc=0
+[2026-08-09T00:38:14-0400] PREFLIGHT cella3_ub2048_r2 nproc=7 die=50.5C batt=49% plugged=UNPLUGGED btemp=38.9
+[2026-08-09T00:38:18-0400] PREFLIGHT cella3_ub2048_r2 OK die=48.9C batt=49 nproc=7 cpuset=/top-app
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T00:38:23-04:00
+[2026-08-09T00:38:24-0400] ---- single c3-ub2048-r2 pid=d1_long n=256 cache=2000 ubatch=2048 ----
+label=c3-ub2048-r2
+rc=0
+wall_s=221
+prompt_tok_s=9.3
+eval_tok_s=3.737
+prefill_s=141.067
+ttft_ms=151734
+n_prompt=1318
+expert_hit_rate=79.2%
+memfree_min_mb=52
+vmhwm_mb=4056
+lmkd_delta=0
+batt_s=49 batt_e=47
+die_s=49.0 die_e=56.7
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-09T00:42:14-0400] single c3-ub2048-r2 DONE eval=3.737 prefill_tps=9.3 hit=79.2% memfree_min=52 lmkd_d=0 wall=221s rc=0
+[2026-08-09T00:42:14-0400] ==== CELLA3 DONE ====
+[2026-08-09T00:42:14-0400] cella3 exit 0
+[2026-08-09T00:42:14-0400] CELLA3 winner_ubatch=512
+# ub512 med_prefill=11.600000000000001 n=2
+# ub2048 med_prefill=9.8 n=2
+# gain=-15.52% min_mf=52 max_lmkd=0 ok=False
+[2026-08-09T00:42:14-0400] CELLA4 using cache=2000 ubatch=512 (CELLA4_UBATCH=512)
+[2026-08-09T00:42:14-0400] ==== CELLA4 START cache=2000 ubatch=512 ====
+[2026-08-09T00:42:16-0400] PREFLIGHT cella4 nproc=6 die=51.3C batt=47% plugged=UNPLUGGED btemp=39.5
+[2026-08-09T00:42:20-0400] PREFLIGHT cella4 OK die=49.8C batt=47 nproc=7 cpuset=/top-app
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T00:42:26-04:00
+[2026-08-09T00:42:27-0400] cella4 prompt_sha=644e141cea80b9e349c178ea5b69e49651001ac6ae03d5bdea30f08aea723222
+[2026-08-09T00:42:27-0400] cella4 bmoe pid=30593
+rc=0 wall=151
+eval_tok_s=4.001 prompt_tok_s=9.2 hit=83.8%
+batt 47->45
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
+[2026-08-09T00:45:00-0400] ==== CELLA4 DONE ====
+batt_end 2026-08-09T00:45:01-0400 45 3748 -467000 40.7 UNPLUGGED
+[2026-08-09T00:45:01-0400] === STACCATO2 COMPLETE win_c=2000 win_ub=512 rc=0 ===

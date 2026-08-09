@@ -1,0 +1,4 @@
+rc=0 wall=151
+eval_tok_s=4.001 prompt_tok_s=9.2 hit=83.8%
+batt 47->45
+bin_sha256=cab204321d478931be1332f816fe5ed6a6fa26bde632dde45af9bf002fa0d6c8
