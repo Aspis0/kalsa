@@ -1,0 +1,6 @@
+n=63 tok_mismatch=0
+max_abs_diff=2.11984955e+00
+mean_abs_diff=2.87370927e-01
+median_abs_diff=9.80279300e-02
+n_gt_1e-4=59
+ppl_pre=15.333836 ppl_dec=15.326327

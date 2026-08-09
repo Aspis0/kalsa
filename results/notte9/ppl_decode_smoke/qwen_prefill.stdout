@@ -1,0 +1,1 @@
+BMOE_PPL {"n_tokens":57,"n_scored":56,"sum_logprob":-48.21192065,"ppl":2.365353,"seconds":7.168,"cancelled":false,"mode":"prefill","file":"results/notte9/ppl_decode_smoke/smoke.txt"}
