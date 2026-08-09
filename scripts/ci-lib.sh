@@ -111,6 +111,15 @@ capture_kv_reuse() {
   else
     log "kv_reuse turn${turn}: (no Input processed line)"
   fi
+  # When checkpoint recovery failed, the patched binding names WHY (n_common vs
+  # the snapshot lengths it holds) — capture it next to the reuse line.
+  local diag="$OUT/kvdiag_t${turn}.txt"
+  adb logcat -d 2>/dev/null \
+    | grep -oE "KALSA_KVDIAG n_common=[0-9]+ total=[0-9]+ search_max=[0-9]+ checkpoints=\[[0-9,]*\]" \
+    | tail -1 > "$diag" || true
+  [ -f "$diag" ] || : > "$diag"
+  [ -s "$diag" ] && log "kvdiag turn${turn}: $(tr -d '\r\n' < "$diag")"
+  return 0
 }
 
 # Installs the APK, sideloads the GGUF into files/models/<model_dir>/<model_file>,
