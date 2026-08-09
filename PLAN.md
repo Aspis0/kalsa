@@ -1036,6 +1036,24 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-09 — 🏁 ADOTTATO da gualt: `--drop-cold-experts 0.50` entra nella config
+  di campagna e prodotto. Prima leva lossy adottata nella storia della campagna.**
+
+  Costo/beneficio a verbale: ΔPPL +0.051 (su soglia 0.15) per +3-4% decode (numero
+  prudente per-prompt; pooled +6.52%) e −10.6% MiB/tok. Nessun rebuild, nessun
+  re-pin: il flag è runtime, binario resta `1ca51420…`.
+
+  **Regola fissata all'adozione — budget PPL CUMULATIVO:** la soglia 0.15 si misura
+  sulla PPL totale contro la baseline originale (2.0955 decode-path, subset 10k),
+  non incrementale per leva. Spesi 0.051, restano ~0.10 per tutte le leve lossy
+  future messe insieme.
+
+  Config di campagna completa post-adozione: `-t 4 -c 4096 --moe-stream --cache-mb
+  2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 8
+  --drop-cold-experts 0.50` (+ `--temp 0 --chatml --no-think` lato prompt).
+  Mandato di esecuzione: `adopt-dropcold.md` (config negli harness + giro finale di
+  misure di prodotto col default completo).
+
 - **2026-08-09 — ✅ VELOCITÀ DA STACCATO: drop-cold 0.50 passa anche la soglia +5%
   (mediana pooled +6.52%) — CANDIDATO ADOZIONE, decisione a gualt.**
 
