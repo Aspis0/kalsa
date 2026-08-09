@@ -86,3 +86,32 @@ index 650349e..c11f9d9 100644
          }
      }
  
+diff --git a/node_modules/llama.rn/cpp/jsi/JSISession.h b/node_modules/llama.rn/cpp/jsi/JSISession.h
+index fa4cbad..50c16ca 100644
+--- a/node_modules/llama.rn/cpp/jsi/JSISession.h
++++ b/node_modules/llama.rn/cpp/jsi/JSISession.h
+@@ -99,6 +99,24 @@ namespace rnllama_jsi {
+             embd.clear();
+         }
+ 
++        // Kalsa patch #2: adopt the restored memory as a state checkpoint.
++        // On recurrent/hybrid models (Qwen3.5) loadPrompt's llama_memory_seq_rm
++        // fails, so it falls back to recoverStateCheckpoint — and in a FRESH
++        // process state_checkpoints is empty, so the just-restored memory is
++        // discarded and the whole prompt is re-prefilled ("no usable state
++        // checkpoint (recurrent/hybrid/SWA), doing full cache clear"; measured
++        // n_past=0 on a Xiaomi 14 and in CI run 31293842336 despite ok:true).
++        // Registering it at embd.size() lets findStateCheckpoint adopt it:
++        // n_common equals this length when the next prompt extends this exact
++        // history, and search_max = min(n_common, total-1) then admits it.
++        // Divergent re-renders simply fail the prefix compare and fall back to
++        // the pre-patch behaviour. Media placeholders likewise: they never match
++        // the text-only token list, so those sessions stay conservative.
++        if (!embd.empty()) {
++            ctx->completion->probeStateCache();
++            ctx->completion->captureStateCheckpoint(embd, embd.size());
++        }
++
+         // Media identity for placeholder positions; absent for text-only or
+         // legacy files (media is then conservatively reprocessed)
+         ctx->setMediaHashes(embd.empty() ? std::vector<std::string>{}
