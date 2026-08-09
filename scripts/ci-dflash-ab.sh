@@ -123,10 +123,6 @@ verify_seed_json() {
     || die "seed for $key did not land verbatim (expected substring: $expect_sub)"
 }
 
-clear_speculative() {
-  sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.speculative';" || true
-}
-
 reset_chat() {
   sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" || true
   sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.chat.compactor.default';" || true
@@ -354,18 +350,27 @@ fi
 adb logcat -c
 
 # ---------------------------------------------------------------------------
-# CONFIG A — MTP (control): production path, no speculative seed.
+# CONFIG A — MTP (control): EXPLICIT draft-mtp seed.
+# It used to rely on the production path ("no speculative seed"), but MTP is off
+# by default since abe51a5 (catalog mtp.defaultEnabled) — this arm then silently
+# became a second plain-decode baseline, and it was the only arm with no assert
+# to catch it. Seed the override explicitly and prove it engaged.
 # ---------------------------------------------------------------------------
 log "=== CONFIG A: MTP (control) ==="
 adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
 sleep 2
 reset_chat
 set_base_prefs
-clear_speculative
+seed_kv_json "kalsa.bench.speculative" '{"type":"draft-mtp"}'
+verify_seed_json "kalsa.bench.speculative" '"type":"draft-mtp"' "$OUT/prefs_mtp.txt"
 force_stop_relaunch
 wait_ready "mtp"
 run_two_turns "mtp"
 capture_telemetry "mtp"
+# Fail-closed mirror of the baseline assert: the MTP arm MUST speculate.
+if ! grep -o '"draftTokens":[0-9]*' "$OUT/telemetry_mtp.txt" | grep -vq '"draftTokens":0'; then
+  die "MTP arm did NOT speculate (all draftTokens=0 in telemetry_mtp.txt) — control is not a control"
+fi
 adb logcat -c
 
 # ---------------------------------------------------------------------------

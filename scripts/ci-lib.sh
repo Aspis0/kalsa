@@ -59,19 +59,24 @@ wait_ui_idle() {
   local cap_s="${1:-240}"
   local poll_s=5
   local elapsed=0
+  local raw="$OUT/.wait_ui_idle_raw.xml"
   local dump="$OUT/.wait_ui_idle_dump.txt"
   log "wait_ui_idle: confirming UI idle (cap ${cap_s}s)"
   while [ "$elapsed" -lt "$cap_s" ]; do
-    ui_texts > "$dump" 2>/dev/null || true
-    # Cursor check runs on the RAW dump: ui_texts caps each text attr at 200
-    # chars, so the trailing ▋ of a long streaming bubble never reaches $dump
-    # (hostile-review F0) — status labels are short nodes and stay reliable.
-    if grep -qF "Ask a question…" "$dump" 2>/dev/null \
-      && ! grep -qF "Writing" "$dump" 2>/dev/null \
-      && ! grep -qF "Thinking" "$dump" 2>/dev/null \
-      && ! grep -qF "Searching" "$dump" 2>/dev/null \
-      && ! grep -qF "Reading" "$dump" 2>/dev/null \
-      && ! dump_ui 2>/dev/null | grep -qF "▋"; then
+    # ONE dump per iteration (a uiautomator dump + cat is expensive on a loaded
+    # AVD; two of them doubled the cost for nothing).
+    dump_ui > "$raw" 2>/dev/null || true
+    grep -o 'text="[^"]\{1,200\}"' "$raw" 2>/dev/null | sed 's/^text="//; s/"$//' > "$dump" || true
+    # Status labels are matched as WHOLE text nodes (-x): a substring grep hit
+    # the assistant's own prose ("after reading the docs…") and pinned this
+    # helper at the cap on ordinary turns. STATUS_LABELS must cover every label
+    # LlamaService can set — "Fetching page…" (web_fetch) was the one missing
+    # when a fetch turn slipped through (run 31282669354).
+    # Cursor check needs the RAW xml: ui_texts truncates at 200 chars, so a long
+    # streaming bubble's trailing ▋ never reaches $dump.
+    if grep -qxF "Ask a question…" "$dump" 2>/dev/null \
+      && ! grep -qxFf <(printf '%s\n' "Writing" "Thinking" "Searching the web…" "Fetching page…" "Tool failed — continuing without it") "$dump" 2>/dev/null \
+      && ! grep -qF "▋" "$raw" 2>/dev/null; then
       log "wait_ui_idle: UI idle after ${elapsed}s"
       return 0
     fi
