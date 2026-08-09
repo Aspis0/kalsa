@@ -61,6 +61,7 @@ jobs:
           node scripts/turnTelemetryHarness.mjs
           node scripts/thinkingBudgetsHarness.mjs
           node scripts/benchSpeculativeHarness.mjs
+          node scripts/bufferShimHarness.mjs
           node scripts/benchEngineHarness.mjs
           node scripts/webFetchPdfMutationMatrix.mjs
 
