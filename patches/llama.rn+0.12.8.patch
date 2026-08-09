@@ -31,10 +31,32 @@ index 1126dec..22c9ef0 100644
      cparams.type_k = params_for_context.speculative.draft.cache_type_k;
      cparams.type_v = params_for_context.speculative.draft.cache_type_v;
 diff --git a/node_modules/llama.rn/cpp/rn-completion.cpp b/node_modules/llama.rn/cpp/rn-completion.cpp
-index a60bd15..8734e6c 100644
+index a60bd15..72de9e9 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.cpp
 +++ b/node_modules/llama.rn/cpp/rn-completion.cpp
-@@ -626,9 +626,14 @@ void llama_rn_context_completion::updateGenerationTiming() {
+@@ -459,6 +459,21 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+                 LOG_INFO("restored state checkpoint: reusing %d/%zu prompt tokens",
+                     n_past, num_prompt_tokens);
+             } else {
++                // Kalsa diag: name WHY recovery failed — n_common vs the snapshots
++                // we hold. A restored-session checkpoint is longer than
++                // search_max = min(n_common, total-1) and can never be picked,
++                // so this line distinguishes "prompt diverged" (small n_common)
++                // from "checkpoint unusable" (n_common large, sizes larger).
++                {
++                    std::string sizes;
++                    for (const auto &c : state_checkpoints) {
++                        sizes += std::to_string(c.n_tokens()) + ",";
++                    }
++                    LOG_WARNING("KALSA_KVDIAG n_common=%zu total=%zu search_max=%zu checkpoints=[%s]",
++                        n_common, (size_t) num_prompt_tokens,
++                        num_prompt_tokens > 0 ? std::min(n_common, (size_t) num_prompt_tokens - 1) : (size_t) 0,
++                        sizes.c_str());
++                }
+                 LOG_WARNING("no usable state checkpoint (recurrent/hybrid/SWA model), doing full cache clear");
+                 llama_memory_clear(kv, false);
+                 clearStateCheckpoints();
+@@ -626,9 +641,14 @@ void llama_rn_context_completion::updateGenerationTiming() {
  }
  
  bool llama_rn_context_completion::shouldUseMTP() const {
