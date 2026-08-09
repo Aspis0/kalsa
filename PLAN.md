@@ -72,17 +72,24 @@
 
 ### Candidati "esperimento serio" (il collo è il calcolo a 1.39 GHz)
 
-1. **GPU Adreno 740 via OpenCL — split eterogeneo**: dense+attention (≈50% del calcolo)
-   sulla GPU, esperti streamati sulla CPU, overlap dei due. llama.cpp ha il backend OpenCL
-   ottimizzato Adreno; l'incognita è l'integrazione col percorso streaming del fork e la
-   memoria unificata (zero-copy o muore di upload). Potenziale: fino a ~2× se l'overlap è
-   pieno; realisticamente +30-50%. Rischio: settimane, non giorni. Bonus termico: sposta
-   watt su silicio diverso — il ceiling a 41% di freq è termico.
+1. ~~**GPU Adreno 740 via OpenCL — split eterogeneo**~~ **RITIRATO 2026-08-09 dopo deep
+   research** (`research-adreno-opencl.md`). Due killer, entrambi verificati alla fonte
+   dal coordinatore: **K2** — `GATED_DELTA_NET` ❌ e `SSM_SCAN` ❌ sul backend OpenCL
+   mainline (ops.md), e il nostro modello è ibrido su ~30/40 layer → split/sync per
+   layer; **K5** — su un S23 identico al nostro (Adreno 740, driver 0676.73 senza
+   subgroup broadcast) il decode OpenCL è **più lento del CPU** già misurato in campo
+   (tg128: 5.9 vs 9.8 su Llama-3B, 10.8 vs 14.6 su Qwen-2B GDN, discussion #22791).
+   Il +30-50% è ritirato; upper bound onesto ~+15% e solo in scenari futuri.
+   Unico VERDE utile: **K1** — i nostri tensori dense sono Q5_K/Q6_K (~1.75 GiB), NON
+   i-quants: se mai si riaprisse, il requant non serve. **Criteri di riapertura:**
+   GDN+SSM_SCAN upstream su OpenCL **E** driver S23 con subgroup broadcast **E** un
+   tg OpenCL>CPU pubblicato su 740. NPU HTP: non candidato (0.67 MiB di pesi caricati).
 2. **Integrazione prodotto in Kalsa** (llama.rn ↔ BigMoeOnEdge): non ricerca ma
    ingegneria; porta i numeri della scheda dentro l'app vera. Prerequisito per shippare
    qualunque cosa di questa campagna.
 3. **Kernel IQ2 a mano (riaprire il rinviato)**: attacca lo stesso 50% del calcolo, senza
-   GPU. Via cara già stimata in settimane, nessun bonus termico.
+   GPU — non sbatte su K2/K5. Via cara già stimata in settimane; la via economica
+   pareggiava. Unica opzione di RICERCA rimasta sul collo del calcolo.
 
 ## Regole operative imparate a caro prezzo
 
@@ -1041,6 +1048,27 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-09 — 🔴 GPU ADRENO RITIRATA SENZA SPENDERE UN GIORNO DI SPIKE: la deep
+  research ha ucciso il candidato in poche ore. K2: le ops del nostro modello ibrido
+  (GATED_DELTA_NET, SSM_SCAN) non esistono sul backend OpenCL. K5: su un S23 identico
+  il decode OpenCL è già stato misurato PIÙ LENTO del CPU.**
+
+  Report: `research-adreno-opencl.md` (Grok via cheap-agents, primo mandato lanciato
+  dal coordinatore in autonomia). Le due fonti load-bearing ri-verificate dal
+  coordinatore alla fonte primaria (ops.md e discussion #22791): numeri identici alla
+  cifra. Aritmetica corretta: con f=0.25 offloadabile e GPU a 0.8× del CPU, lo split
+  sarebbe una REGRESSIONE (S≈0.93). Il +30-50% del PLAN era costruito sull'ipotesi
+  "GPU più veloce sul 50% dense" — falsa su entrambi i fattori.
+
+  Valore residuo della ricerca: (a) K1 — dense = Q5_K/Q6_K, mai servirebbe requant;
+  (b) criteri di riapertura precisi (GDN+SSM upstream + driver subgroup + tg>CPU
+  pubblicato su 740); (c) PowerInfer-2 resta chiuso, NPU HTP non carica pesi;
+  (d) lo spike vanilla S0-S2 proposto dal report NON vale 1.5 giorni: replicherebbe
+  #22791 sullo stesso identico hardware/driver. Morto per fonte, non per pigrizia.
+
+  Candidati rimasti per l'esperimento serio: integrazione Kalsa (ingegneria, ROI
+  chiaro) o kernel IQ2 a mano (unica ricerca rimasta sul collo del calcolo).
 
 - **2026-08-09 — ✅ ADOZIONE OPERATIVA + SCHEDA PRODOTTO DEFINITIVA. Tutti gli
   invarianti tenuti: il drop non tocca load né riuso KV. La scheda, col default
