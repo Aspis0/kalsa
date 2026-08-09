@@ -30,11 +30,79 @@ export function chooseThreadCount(cores: number | null): number {
   return 2;
 }
 
+/**
+ * Parse Linux CPU-list text from `/sys/devices/system/cpu/present`.
+ *
+ * Format: comma-separated items, each a single index (`0`) or inclusive range
+ * (`0-7`). Count is the number of CPUs listed (sum of `b - a + 1`), not `max+1`,
+ * so gaps like `0-2,4-7` yield 7. Trailing newline is fine. Reject anything that
+ * does not parse cleanly → `null` (caller falls back); never guess.
+ */
+export function parseCpuPresent(text: string): number | null {
+  if (typeof text !== "string") return null;
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return null;
+
+  let total = 0;
+  const items = trimmed.split(",");
+  for (const raw of items) {
+    // No whitespace inside items in the kernel format; reject stray spaces.
+    if (raw.length === 0 || /\s/.test(raw)) return null;
+
+    const range = /^(\d+)-(\d+)$/.exec(raw);
+    if (range) {
+      const a = Number(range[1]);
+      const b = Number(range[2]);
+      // Reversed range is malformed (do not swap or return negative).
+      if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return null;
+      total += b - a + 1;
+      continue;
+    }
+
+    if (/^\d+$/.test(raw)) {
+      total += 1;
+      continue;
+    }
+
+    return null;
+  }
+
+  return total > 0 ? total : null;
+}
+
 /** Cached probe result: undefined = not yet read, null = unknown. */
 let cachedCoreCount: number | null | undefined;
 
+async function readSysfsText(
+  FileSystem: { readAsStringAsync: (uri: string) => Promise<string> },
+  absPath: string,
+): Promise<string | null> {
+  try {
+    return await FileSystem.readAsStringAsync(absPath);
+  } catch {
+    try {
+      return await FileSystem.readAsStringAsync(`file://${absPath}`);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function countCpuinfoProcessors(text: string): number | null {
+  let count = 0;
+  for (const line of text.split("\n")) {
+    if (line.startsWith("processor")) {
+      count += 1;
+    }
+  }
+  return count > 0 ? count : null;
+}
+
 /**
- * Best-effort Android core count via /proc/cpuinfo (count `processor` lines).
+ * Best-effort Android core count.
+ *
+ * Prefers `/sys/devices/system/cpu/present` (full possible set, hotplug-stable).
+ * Falls back to counting `processor` lines in `/proc/cpuinfo` (online only).
  * iOS → null (Metal path; do not touch). Any failure → null → chooseThreadCount(4).
  * Cached for the process lifetime.
  */
@@ -43,8 +111,8 @@ export async function detectCores(): Promise<number | null> {
     return cachedCoreCount;
   }
   try {
-    // Dynamic require keeps the pure chooseThreadCount path free of static RN imports
-    // for node harnesses that only load this module for the pure export.
+    // Dynamic require keeps the pure chooseThreadCount / parseCpuPresent paths
+    // free of static RN imports for node harnesses that only load pure exports.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Platform } = require("react-native") as { Platform: { OS: string } };
     if (Platform.OS !== "android") {
@@ -55,21 +123,32 @@ export async function detectCores(): Promise<number | null> {
     const FileSystem = require("expo-file-system/legacy") as {
       readAsStringAsync: (uri: string) => Promise<string>;
     };
-    // Legacy expo-file-system accepts the absolute path; file:// also works on Android.
-    let text: string;
-    try {
-      text = await FileSystem.readAsStringAsync("/proc/cpuinfo");
-    } catch {
-      text = await FileSystem.readAsStringAsync("file:///proc/cpuinfo");
-    }
-    let count = 0;
-    for (const line of text.split("\n")) {
-      if (line.startsWith("processor")) {
-        count += 1;
+
+    // Prefer present: reports the full possible CPU range regardless of hotplug.
+    const presentText = await readSysfsText(
+      FileSystem,
+      "/sys/devices/system/cpu/present",
+    );
+    if (presentText !== null) {
+      const fromPresent = parseCpuPresent(presentText);
+      if (fromPresent !== null) {
+        cachedCoreCount = fromPresent;
+        return cachedCoreCount;
       }
     }
-    cachedCoreCount = count > 0 ? count : null;
-    return cachedCoreCount;
+
+    // Fallback: /proc/cpuinfo lists only ONLINE CPUs (can undercount on hotplug).
+    const cpuinfoText = await readSysfsText(FileSystem, "/proc/cpuinfo");
+    if (cpuinfoText !== null) {
+      const fromCpuinfo = countCpuinfoProcessors(cpuinfoText);
+      if (fromCpuinfo !== null) {
+        cachedCoreCount = fromCpuinfo;
+        return cachedCoreCount;
+      }
+    }
+
+    cachedCoreCount = null;
+    return null;
   } catch {
     cachedCoreCount = null;
     return null;

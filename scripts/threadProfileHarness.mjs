@@ -1,8 +1,9 @@
 /**
- * Harness for src/engine/threadProfile.ts (pure chooseThreadCount).
+ * Harness for src/engine/threadProfile.ts (pure chooseThreadCount + parseCpuPresent).
  *
  * Covers null→4, 8-core→6, big SoC→6, 6–7→4, low-end→2, and never-all-cores
- * for cores 3..16 (dual-core floor may equal cores). Compile-from-disk pattern
+ * for cores 3..16 (dual-core floor may equal cores), plus Linux CPU-list parsing
+ * for /sys/devices/system/cpu/present. Compile-from-disk pattern
  * (same as engineParamsHarness). Exit 1 on fail.
  */
 import { createRequire } from "node:module";
@@ -66,7 +67,7 @@ async function main() {
   const modPath = resolveBuilt();
   console.log("Loading", modPath);
   const mod = require(modPath);
-  const { chooseThreadCount } = mod;
+  const { chooseThreadCount, parseCpuPresent } = mod;
 
   let passed = 0;
   let failed = 0;
@@ -131,6 +132,58 @@ async function main() {
       }
       assert(t !== c || c <= 2, `never returns cores for 3..16: cores=${c} threads=${t}`);
     }
+  });
+
+  // --- parseCpuPresent (Linux CPU-list from /sys/devices/system/cpu/present) ---
+
+  await test('parseCpuPresent "0-7\\n" → 8', () => {
+    assert(parseCpuPresent("0-7\n") === 8, `got ${parseCpuPresent("0-7\n")}`);
+  });
+
+  await test('parseCpuPresent "0" → 1', () => {
+    assert(parseCpuPresent("0") === 1, `got ${parseCpuPresent("0")}`);
+  });
+
+  await test('parseCpuPresent "0-3,4-7" → 8', () => {
+    assert(parseCpuPresent("0-3,4-7") === 8, `got ${parseCpuPresent("0-3,4-7")}`);
+  });
+
+  await test('parseCpuPresent "0-2,4-7" → 7 (gap, not max+1)', () => {
+    assert(parseCpuPresent("0-2,4-7") === 7, `got ${parseCpuPresent("0-2,4-7")}`);
+  });
+
+  await test('parseCpuPresent "" → null', () => {
+    assert(parseCpuPresent("") === null, `got ${parseCpuPresent("")}`);
+  });
+
+  await test('parseCpuPresent "garbage" → null', () => {
+    assert(parseCpuPresent("garbage") === null, `got ${parseCpuPresent("garbage")}`);
+  });
+
+  await test('parseCpuPresent "0-" → null', () => {
+    assert(parseCpuPresent("0-") === null, `got ${parseCpuPresent("0-")}`);
+  });
+
+  await test('parseCpuPresent "3-1" → null (reversed range)', () => {
+    assert(parseCpuPresent("3-1") === null, `got ${parseCpuPresent("3-1")}`);
+  });
+
+  await test('parseCpuPresent "0-0" → 1 (single-cpu range)', () => {
+    assert(parseCpuPresent("0-0") === 1, `got ${parseCpuPresent("0-0")}`);
+  });
+
+  await test('parseCpuPresent trailing comma / empty item → null', () => {
+    assert(parseCpuPresent("0-3,") === null, "trailing comma");
+    assert(parseCpuPresent(",0-3") === null, "leading comma");
+  });
+
+  await test('parseCpuPresent whitespace inside item → null', () => {
+    assert(parseCpuPresent("0 - 7") === null, "spaces around dash");
+    assert(parseCpuPresent("0-3, 4-7") === null, "space after comma");
+  });
+
+  await test("parseCpuPresent is exported pure function", () => {
+    assert(typeof parseCpuPresent === "function", "missing export");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);
