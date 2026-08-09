@@ -1,0 +1,22 @@
+label=A-short-r1
+arm=A
+rc=0
+wall_s=60
+prompt_tok_s=12.3
+eval_tok_s=4.910
+prefill_s=9.284
+ttft_ms=19155
+n_prompt=114
+expert_hit_rate=74.1
+mib_per_token=57.15
+read_mib=11429.8
+drop_n=0
+drop_tot=
+drop_pct=0
+memfree_min_mb=35
+vmhwm_mb=3875
+die_max_c=91.6
+lmkd_delta=0
+batt_s=100 batt_e=100
+die_s=47.0 die_e=71.7
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f

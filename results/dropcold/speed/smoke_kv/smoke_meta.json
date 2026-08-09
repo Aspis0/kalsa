@@ -1,0 +1,19 @@
+{
+  "rc": 0,
+  "n_common": [
+    71
+  ],
+  "n_prompt": [
+    39,
+    41
+  ],
+  "n_past": [
+    71,
+    144
+  ],
+  "expected_n_common": 71,
+  "verdict": "PASS",
+  "note": "binary emits n_past on BMOE_DONE; n_common field absent. t1 n_past==71 is the KV prefix (same as baseline smoke without drop).",
+  "bin_sha256": "1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f",
+  "drop_f": 0.5
+}

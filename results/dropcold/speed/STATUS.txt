@@ -1,0 +1,1 @@
+DONE 2026-08-09T15:01:09-0400 verdict=CANDIDATO_ADOZIONE med_A=4.3185 med_B=4.6 delta_pct=6.518467060321857 drop_med_B=2.1 lmkd=0 coherent=True smoke=PASS sostenuto=DONE 
