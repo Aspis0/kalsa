@@ -89,6 +89,30 @@ wait_ui_idle() {
   return 0
 }
 
+# Capture the last native loadPrompt reuse line for turn N into $OUT/reuse_tN.txt.
+# Ground truth for prefix reuse: "Input processed: n_past=<REUSED>, embd.size=<TOTAL>".
+# Do NOT use KALSA_TELEMETRY tokensCached — that field is n_past at END of completion
+# (total context length), not tokens reused from the KV cache.
+# Attribution: `tail -1` is the chat turn's line because no utility completion
+# runs after it in CI (memory extract is opt-in and unseeded). If a background
+# summarize ever lands between the reply and this call, its own (cold) line wins
+# and the verdict under-reports warm — conservative, never a false WARM.
+#   capture_kv_reuse <turn_number>
+capture_kv_reuse() {
+  local turn="$1"
+  local dest="$OUT/reuse_t${turn}.txt"
+  # Always create the file (empty when no match → UNKNOWN at the verdict).
+  adb logcat -d 2>/dev/null \
+    | grep -oE "Input processed: n_past=[0-9]+, embd\.size=[0-9]+" \
+    | tail -1 > "$dest" || true
+  [ -f "$dest" ] || : > "$dest"
+  if [ -s "$dest" ]; then
+    log "kv_reuse turn${turn}: $(tr -d '\r\n' < "$dest")"
+  else
+    log "kv_reuse turn${turn}: (no Input processed line)"
+  fi
+}
+
 # Installs the APK, sideloads the GGUF into files/models/<model_dir>/<model_file>,
 # and does the first-launch dance that creates the AsyncStorage sqlite db.
 #   install_and_sideload <apk_path> <model_src_path> <model_dir> <model_file>

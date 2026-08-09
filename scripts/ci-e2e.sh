@@ -105,6 +105,7 @@ for i in $(seq 1 60); do
 done
 
 wait_ui_idle
+capture_kv_reuse 1
 
 adb logcat -d | grep -iE "RNLlama|llama|ReactNativeJS" | tail -80 > "$OUT/logcat.txt" 2>/dev/null
 shot 99_final
@@ -135,7 +136,7 @@ if [ "$THINKING" = "off" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# TURN 2 — same conversation; measures KV prefix-reuse via tokensCached.
+# TURN 2 — same conversation; measures KV prefix-reuse via native n_past.
 # ---------------------------------------------------------------------------
 log "type message (turn 2)"
 # Alphanumeric for adb `input text` (same constraint as MSG / turn 1).
@@ -177,6 +178,7 @@ for i in $(seq 1 60); do
 done
 
 wait_ui_idle
+capture_kv_reuse 2
 
 shot 06_reply2
 ui_texts > "$OUT/06_reply2.txt"
@@ -192,12 +194,15 @@ sql "SELECT substr(value,1,8000) FROM catalystLocalStorage WHERE key='kalsa.mess
 [ -n "$REPLY2" ] || die "FAIL: no assistant reply captured on turn 2"
 
 # Telemetry capture — KV-cache health probe (data first; COLD does not fail the job).
+# tokensCached in KALSA_TELEMETRY is n_past at END of completion (total context),
+# NOT tokens reused — warm/cold uses native loadPrompt n_past from reuse_t2.txt.
 log "capturing KALSA_TELEMETRY from logcat"
 adb logcat -d | grep -F "KALSA_TELEMETRY" | sed 's/.*KALSA_TELEMETRY /KALSA_TELEMETRY /' > "$OUT/telemetry.txt" || true
 
 node -e '
 const fs = require("fs");
 const path = process.argv[1];
+const reusePath = process.argv[2];
 let raw = "";
 try { raw = fs.readFileSync(path, "utf8"); } catch (_) {}
 const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -218,26 +223,32 @@ const fmt = (label, o) => {
 const t1 = payloads.length ? payloads[0] : null;
 const t2 = payloads.length ? payloads[payloads.length - 1] : null;
 const linesOut = [fmt("turn1", t1), fmt("turn2", t2)];
-const c2 = t2 ? n(t2, "tokensCached") : 0;
-const e1 = t1 ? n(t1, "tokensEvaluated") : 0;
+// tokensCached is n_past at end of turn (not reuse). Use native Input processed line.
+let reuseRaw = "";
+try { reuseRaw = fs.readFileSync(reusePath, "utf8").trim(); } catch (_) {}
+const rm = reuseRaw.match(/n_past=(\d+),\s*embd\.size=(\d+)/);
 let kv;
-if (t2 && c2 === 0 && e1 > 50) {
-  kv = "KV_CACHE: COLD (turn2 re-prefilled everything)";
-} else if (t2) {
-  kv = "KV_CACHE: WARM (turn2 cached=" + c2 + ")";
+if (!rm) {
+  kv = "KV_CACHE: UNKNOWN (no native Input processed line)";
 } else {
-  kv = "KV_CACHE: UNKNOWN (no telemetry lines)";
+  const nPast = Number(rm[1]);
+  const embd = Number(rm[2]);
+  if (nPast > 0) {
+    kv = "KV_CACHE: WARM (turn2 reused " + nPast + "/" + embd + " prompt tokens)";
+  } else {
+    kv = "KV_CACHE: COLD (turn2 reused 0/" + embd + " — full re-prefill)";
+  }
 }
 linesOut.push(kv);
 process.stdout.write(linesOut.join("\n") + "\n");
-' "$OUT/telemetry.txt" | tee -a "$OUT/RESULT.txt"
+' "$OUT/telemetry.txt" "$OUT/reuse_t2.txt" | tee -a "$OUT/RESULT.txt"
 
 if grep -qF "KV_CACHE: COLD" "$OUT/RESULT.txt"; then
-  log "KV_CACHE: COLD (turn2 re-prefilled everything) — logged, not failing job"
+  log "KV_CACHE: COLD (turn2 full re-prefill) — logged, not failing job"
 elif grep -qF "KV_CACHE: WARM" "$OUT/RESULT.txt"; then
-  log "KV_CACHE: WARM — prefix reuse observed"
+  log "KV_CACHE: WARM — native n_past > 0 (prefix reuse observed)"
 else
-  log "KV_CACHE: UNKNOWN — no usable KALSA_TELEMETRY lines"
+  log "KV_CACHE: UNKNOWN — no native Input processed line"
 fi
 
 # ---------------------------------------------------------------------------
@@ -319,6 +330,7 @@ for i in $(seq 1 60); do
 done
 
 wait_ui_idle
+capture_kv_reuse 3
 
 shot 10_reply3
 ui_texts > "$OUT/10_reply3.txt"
@@ -334,6 +346,8 @@ sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='kalsa.mes
 [ -n "$REPLY3" ] || die "FAIL: no assistant reply captured on turn 3 (post-restart)"
 
 # Session + turn-3 telemetry (logcat was cleared at restart; only this process).
+# tokensCached is n_past at END of completion — not reuse. Warm/cold uses
+# native loadPrompt n_past from reuse_t3.txt (HIT/MISS still from KALSA_SESSION).
 log "capturing KALSA_SESSION + post-restart KALSA_TELEMETRY from logcat"
 adb logcat -d | grep -F "KALSA_SESSION" | sed 's/.*KALSA_SESSION /KALSA_SESSION /' > "$OUT/session_telemetry.txt" || true
 adb logcat -d | grep -F "KALSA_TELEMETRY" | sed 's/.*KALSA_TELEMETRY /KALSA_TELEMETRY /' > "$OUT/telemetry_restart.txt" || true
@@ -342,6 +356,7 @@ node -e '
 const fs = require("fs");
 const sessionPath = process.argv[1];
 const telemPath = process.argv[2];
+const reusePath = process.argv[3];
 
 function readLines(p) {
   let raw = "";
@@ -376,6 +391,7 @@ if (!loads.length) {
 
 const telem = payloads(readLines(telemPath));
 // logcat -c at restart: first (and typically only) telemetry line is turn 3.
+// Format of turn3Line is kept byte-stable for greps; do not use tokensCached for warm.
 const t3 = telem.length ? telem[telem.length - 1] : null;
 const cached = t3 ? n(t3, "tokensCached") : 0;
 const evaluated = t3 ? n(t3, "tokensEvaluated") : 0;
@@ -384,19 +400,33 @@ const turn3Line = t3
   ? ("turn3(restart): cached=" + cached + " evaluated=" + evaluated + " promptMs=" + promptMs)
   : "turn3(restart): cached=? evaluated=? promptMs=? (missing)";
 
+// tokensCached is n_past at end of turn (not reuse). Warm requires native n_past > 0.
+let reuseRaw = "";
+try { reuseRaw = fs.readFileSync(reusePath, "utf8").trim(); } catch (_) {}
+const rm = reuseRaw.match(/n_past=(\d+),\s*embd\.size=(\d+)/);
+const nPast = rm ? Number(rm[1]) : null;
+const embd = rm ? Number(rm[2]) : null;
 const loadOk = loads.some(o => o && o.ok === true);
-const warm = loadOk && t3 && cached > (evaluated * 60 / 100);
-const verdict = warm
-  ? "SESSION_RESTORE: WARM RESTART CONFIRMED"
-  : "SESSION_RESTORE: COLD (see reasons)";
+let verdict;
+if (loadOk && nPast != null && nPast > 0) {
+  verdict = "SESSION_RESTORE: WARM RESTART CONFIRMED (reused " + nPast + "/" + embd + ")";
+} else if (loadOk && nPast != null && nPast === 0) {
+  // Load gate ok but binding discarded restored KV (full re-prefill).
+  verdict = "SESSION_RESTORE: LOADED BUT COLD (native discarded the restored state; reused 0/" + embd + ")";
+} else {
+  // Load itself failed / missing, or no native line when load claimed ok.
+  verdict = "SESSION_RESTORE: COLD (see reasons)";
+}
 
 process.stdout.write([sessionLine, turn3Line, verdict].join("\n") + "\n");
-' "$OUT/session_telemetry.txt" "$OUT/telemetry_restart.txt" | tee -a "$OUT/RESULT.txt"
+' "$OUT/session_telemetry.txt" "$OUT/telemetry_restart.txt" "$OUT/reuse_t3.txt" | tee -a "$OUT/RESULT.txt"
 
 if grep -qF "SESSION_RESTORE: WARM RESTART CONFIRMED" "$OUT/RESULT.txt"; then
-  log "SESSION_RESTORE: WARM RESTART CONFIRMED"
+  log "SESSION_RESTORE: WARM RESTART CONFIRMED (native n_past > 0)"
+elif grep -qF "SESSION_RESTORE: LOADED BUT COLD" "$OUT/RESULT.txt"; then
+  log "SESSION_RESTORE: LOADED BUT COLD (gate ok, native discarded KV — logged, not failing job)"
 elif grep -qF "SESSION_RESTORE: HIT" "$OUT/RESULT.txt"; then
-  log "SESSION_RESTORE: HIT but COLD KV (logged, not failing job)"
+  log "SESSION_RESTORE: HIT but COLD/UNKNOWN native reuse (logged, not failing job)"
 else
   log "SESSION_RESTORE: COLD/MISS (logged, not failing job — data first)"
 fi
