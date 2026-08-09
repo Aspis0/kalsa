@@ -73,6 +73,10 @@ jobs:
           df -h /
 
       - name: Prebuild (CNG)
+        # llama.rn ships PREBUILT jniLibs: without this env the patched cpp/ is
+        # never compiled and patches/llama.rn+*.patch is a silent no-op.
+        env:
+          KALSA_LLAMA_FROM_SOURCE: "1"
         run: npx expo prebuild --platform android --no-install
 
       - name: Build APK (x86_64 only — emulator ABI, keeps CI fast)
@@ -80,6 +84,9 @@ jobs:
           cd android
           ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --console=plain
           ls -la app/build/outputs/apk/release/
+
+      - name: Assert the native patch is in the binary
+        run: bash scripts/assert-native-patch.sh
 
       # Qwen3.5-4B-Q4_K_M from ModelRegistry (unsloth/Qwen3.5-4B-MTP-GGUF,
       # revision 86835bf…, sizeBytes 2834975040). Only model with a DFlash draft.

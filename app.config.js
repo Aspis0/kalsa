@@ -76,6 +76,9 @@ const config = {
         },
       },
     ],
+    // Compiles llama.rn cpp/ (so patches/llama.rn+*.patch actually run) when
+    // KALSA_LLAMA_FROM_SOURCE=1; no-op otherwise. See the plugin header.
+    "./plugins/withLlamaFromSource",
   ],
 };
 
