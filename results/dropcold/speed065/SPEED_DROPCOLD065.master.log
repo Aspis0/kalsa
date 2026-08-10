@@ -1,0 +1,380 @@
+[2026-08-09T22:28:09-0400] === SPEED DROPCOLD-065 START bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN sha=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f A=F0.50 B=F0.65 ===
+[2026-08-09T22:28:09-0400] OUTDIR=/data/data/com.termux/files/home/experiments/results/dropcold/speed065 design=ABBA cold_every_run n=200 cache=2000 ubatch=512 k=8
+[2026-08-09T22:28:09-0400] prompt sha archived
+prompt,sha256,bytes
+short,197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619,454
+f45_1_esplicativo,bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf,410
+[2026-08-09T22:28:09-0400] flight started pid=26671
+[2026-08-09T22:28:09-0400] ==== ABBA CELLS START ====
+[2026-08-09T22:28:10-0400] PREFLIGHT A-short-r1 nproc=8 die=44.1C batt=76% plugged=UNPLUGGED btemp=28.2
+[2026-08-09T22:28:12-0400] PREFLIGHT A-short-r1 OK die=40.9C batt=76 nproc=7
+[2026-08-09T22:28:13-0400] cold_model before A-short-r1
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T22:28:18-04:00
+[2026-08-09T22:28:18-0400] ---- single A-short-r1 arm=A n=200 ----
+label=A-short-r1
+arm=A
+rc=0
+wall_s=61
+prompt_tok_s=11.0
+eval_tok_s=5.004
+prefill_s=10.326
+ttft_ms=20730
+n_prompt=114
+expert_hit_rate=74.8
+mib_per_token=53.67
+read_mib=10733.6
+drop_n=1265
+drop_tot=64000
+drop_pct=2.0
+memfree_min_mb=22
+vmhwm_mb=3870
+die_max_c=92.0
+lmkd_delta=0
+batt_s=76 batt_e=75
+die_s=48.2 die_e=69.7
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T22:29:24-0400] single A-short-r1 DONE eval=5.004 prefill=11.0 hit=74.8% drop=2.0% mib/tok=53.67 die_max=92.0 memfree_min=22 wall=61s rc=0
+[2026-08-09T22:29:26-0400] PREFLIGHT B-short-r1 nproc=6 die=69.7C batt=75% plugged=UNPLUGGED btemp=31.4
+[2026-08-09T22:29:28-0400] PREFLIGHT B-short-r1 OK die=52.6C batt=75 nproc=7
+[2026-08-09T22:29:29-0400] cold_model before B-short-r1
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=215 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T22:29:35-04:00
+[2026-08-09T22:29:35-0400] ---- single B-short-r1 arm=B n=200 ----
+label=B-short-r1
+arm=B
+rc=0
+wall_s=60
+prompt_tok_s=10.5
+eval_tok_s=5.119
+prefill_s=10.882
+ttft_ms=20544
+n_prompt=114
+expert_hit_rate=78.4
+mib_per_token=39.19
+read_mib=7719.6
+drop_n=4097
+drop_tot=63040
+drop_pct=6.5
+memfree_min_mb=50
+vmhwm_mb=3873
+die_max_c=92.4
+lmkd_delta=0
+batt_s=75 batt_e=74
+die_s=51.8 die_e=70.9
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T22:30:41-0400] single B-short-r1 DONE eval=5.119 prefill=10.5 hit=78.4% drop=6.5% mib/tok=39.19 die_max=92.4 memfree_min=50 wall=60s rc=0
+[2026-08-09T22:30:43-0400] PREFLIGHT B-short-r2 nproc=6 die=60.8C batt=74% plugged=UNPLUGGED btemp=35.8
+[2026-08-09T22:30:46-0400] PREFLIGHT B-short-r2 OK die=55.5C batt=74 nproc=7
+[2026-08-09T22:30:46-0400] cold_model before B-short-r2
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T22:30:52-04:00
+[2026-08-09T22:30:52-0400] ---- single B-short-r2 arm=B n=200 ----
+label=B-short-r2
+arm=B
+rc=0
+wall_s=62
+prompt_tok_s=10.5
+eval_tok_s=4.928
+prefill_s=10.858
+ttft_ms=20340
+n_prompt=114
+expert_hit_rate=78.4
+mib_per_token=39.19
+read_mib=7719.6
+drop_n=4097
+drop_tot=63040
+drop_pct=6.5
+memfree_min_mb=19
+vmhwm_mb=3875
+die_max_c=91.2
+lmkd_delta=0
+batt_s=74 batt_e=73
+die_s=51.8 die_e=62.5
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T22:31:59-0400] single B-short-r2 DONE eval=4.928 prefill=10.5 hit=78.4% drop=6.5% mib/tok=39.19 die_max=91.2 memfree_min=19 wall=62s rc=0
+[2026-08-09T22:32:01-0400] PREFLIGHT A-short-r2 nproc=7 die=54.1C batt=73% plugged=UNPLUGGED btemp=37.8
+[2026-08-09T22:32:05-0400] PREFLIGHT A-short-r2 OK die=49.7C batt=73 nproc=7
+[2026-08-09T22:32:06-0400] cold_model before A-short-r2
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=486 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T22:32:13-04:00
+[2026-08-09T22:32:13-0400] ---- single A-short-r2 arm=A n=200 ----
+label=A-short-r2
+arm=A
+rc=0
+wall_s=71
+prompt_tok_s=10.0
+eval_tok_s=4.135
+prefill_s=11.455
+ttft_ms=22204
+n_prompt=114
+expert_hit_rate=74.8
+mib_per_token=53.67
+read_mib=10733.6
+drop_n=1265
+drop_tot=64000
+drop_pct=2.0
+memfree_min_mb=46
+vmhwm_mb=3874
+die_max_c=84.3
+lmkd_delta=0
+batt_s=73 batt_e=72
+die_s=48.6 die_e=61.6
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T22:33:31-0400] single A-short-r2 DONE eval=4.135 prefill=10.0 hit=74.8% drop=2.0% mib/tok=53.67 die_max=84.3 memfree_min=46 wall=71s rc=0
+[2026-08-09T22:33:34-0400] PREFLIGHT A-f45_1-r1 nproc=8 die=53.5C batt=72% plugged=UNPLUGGED btemp=38.5
+[2026-08-09T22:33:37-0400] PREFLIGHT A-f45_1-r1 OK die=50.1C batt=72 nproc=7
+[2026-08-09T22:33:38-0400] cold_model before A-f45_1-r1
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=12 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T22:33:46-04:00
+[2026-08-09T22:33:46-0400] ---- single A-f45_1-r1 arm=A n=200 ----
+label=A-f45_1-r1
+arm=A
+rc=0
+wall_s=68
+prompt_tok_s=10.0
+eval_tok_s=4.500
+prefill_s=12.123
+ttft_ms=22702
+n_prompt=121
+expert_hit_rate=79.0
+mib_per_token=41.23
+read_mib=8246.7
+drop_n=1417
+drop_tot=64000
+drop_pct=2.2
+memfree_min_mb=25
+vmhwm_mb=3875
+die_max_c=82.2
+lmkd_delta=0
+batt_s=72 batt_e=72
+die_s=48.2 die_e=60.9
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T22:35:01-0400] single A-f45_1-r1 DONE eval=4.500 prefill=10.0 hit=79.0% drop=2.2% mib/tok=41.23 die_max=82.2 memfree_min=25 wall=68s rc=0
+[2026-08-09T22:35:03-0400] PREFLIGHT B-f45_1-r1 nproc=7 die=54.7C batt=71% plugged=UNPLUGGED btemp=39.3
+[2026-08-09T22:35:06-0400] PREFLIGHT B-f45_1-r1 OK die=51.4C batt=71 nproc=7
+[2026-08-09T22:35:08-0400] cold_model before B-f45_1-r1
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=395 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T22:35:15-04:00
+[2026-08-09T22:35:15-0400] ---- single B-f45_1-r1 arm=B n=200 ----
+label=B-f45_1-r1
+arm=B
+rc=0
+wall_s=68
+prompt_tok_s=10.4
+eval_tok_s=4.466
+prefill_s=11.629
+ttft_ms=22006
+n_prompt=121
+expert_hit_rate=82.4
+mib_per_token=28.59
+read_mib=5717.9
+drop_n=3929
+drop_tot=64000
+drop_pct=6.1
+memfree_min_mb=26
+vmhwm_mb=3876
+die_max_c=89.1
+lmkd_delta=0
+batt_s=71 batt_e=71
+die_s=48.9 die_e=57.7
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T22:36:30-0400] single B-f45_1-r1 DONE eval=4.466 prefill=10.4 hit=82.4% drop=6.1% mib/tok=28.59 die_max=89.1 memfree_min=26 wall=68s rc=0
+[2026-08-09T22:36:32-0400] PREFLIGHT B-f45_1-r2 nproc=7 die=53.3C batt=71% plugged=UNPLUGGED btemp=39.3
+[2026-08-09T22:36:36-0400] PREFLIGHT B-f45_1-r2 OK die=49.8C batt=71 nproc=7
+[2026-08-09T22:36:37-0400] cold_model before B-f45_1-r2
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=9428 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T22:36:45-04:00
+[2026-08-09T22:36:45-0400] ---- single B-f45_1-r2 arm=B n=200 ----
+label=B-f45_1-r2
+arm=B
+rc=0
+wall_s=69
+prompt_tok_s=9.7
+eval_tok_s=4.404
+prefill_s=12.446
+ttft_ms=22978
+n_prompt=121
+expert_hit_rate=82.4
+mib_per_token=28.59
+read_mib=5717.9
+drop_n=3929
+drop_tot=64000
+drop_pct=6.1
+memfree_min_mb=55
+vmhwm_mb=3877
+die_max_c=83.5
+lmkd_delta=0
+batt_s=71 batt_e=70
+die_s=49.7 die_e=56.5
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T22:38:02-0400] single B-f45_1-r2 DONE eval=4.404 prefill=9.7 hit=82.4% drop=6.1% mib/tok=28.59 die_max=83.5 memfree_min=55 wall=69s rc=0
+[2026-08-09T22:38:04-0400] PREFLIGHT A-f45_1-r2 nproc=7 die=53.5C batt=70% plugged=UNPLUGGED btemp=40.3
+[2026-08-09T22:38:08-0400] PREFLIGHT A-f45_1-r2 OK die=49.3C batt=70 nproc=7
+[2026-08-09T22:38:10-0400] cold_model before A-f45_1-r2
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=783 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T22:38:18-04:00
+[2026-08-09T22:38:18-0400] ---- single A-f45_1-r2 arm=A n=200 ----
+label=A-f45_1-r2
+arm=A
+rc=0
+wall_s=70
+prompt_tok_s=10.4
+eval_tok_s=4.288
+prefill_s=11.582
+ttft_ms=22372
+n_prompt=121
+expert_hit_rate=79.0
+mib_per_token=41.23
+read_mib=8246.7
+drop_n=1417
+drop_tot=64000
+drop_pct=2.2
+memfree_min_mb=17
+vmhwm_mb=3876
+die_max_c=89.5
+lmkd_delta=0
+batt_s=70 batt_e=69
+die_s=47.3 die_e=60.5
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T22:39:36-0400] single A-f45_1-r2 DONE eval=4.288 prefill=10.4 hit=79.0% drop=2.2% mib/tok=41.23 die_max=89.5 memfree_min=17 wall=70s rc=0
+[2026-08-09T22:39:36-0400] ==== ABBA CELLS DONE ====
+[2026-08-09T22:39:36-0400] ABBA cells completed
+[2026-08-09T22:39:36-0400] ==== SMOKE KV with --drop-cold-experts 0.65 ====
+[2026-08-09T22:39:38-0400] PREFLIGHT smoke_kv nproc=6 die=53.7C batt=69% plugged=UNPLUGGED btemp=40.2
+[2026-08-09T22:39:42-0400] PREFLIGHT smoke_kv OK die=50.1C batt=69 nproc=7
+[2026-08-09T22:39:42-0400] cold_model before smoke_kv
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=167 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T22:39:50-04:00
+[2026-08-09T22:40:24-0400] smoke_kv rc=0
+llama_model_loader: - kv   0:                       general.architecture str              = qwen35moe
+llama_model_loader: - kv   1:                               general.type str              = model
+llama_model_loader: - kv   2:                     general.sampling.top_k i32              = 20
+llama_model_loader: - kv   3:                     general.sampling.top_p f32              = 0.950000
+llama_model_loader: - kv   4:                      general.sampling.temp f32              = 1.000000
+llama_model_loader: - kv   5:                               general.name str              = Qwen3.6-35B-A3B
+llama_model_loader: - kv   6:                           general.basename str              = Qwen3.6-35B-A3B
+llama_model_loader: - kv   7:                       general.quantized_by str              = Unsloth
+llama_model_loader: - kv   8:                         general.size_label str              = 35B-A3B
+llama_model_loader: - kv   9:                            general.license str              = apache-2.0
+llama_model_loader: - kv  10:                       general.license.link str              = https://huggingface.co/Qwen/Qwen3.6-3...
+llama_model_loader: - kv  11:                           general.repo_url str              = https://huggingface.co/unsloth
+llama_model_loader: - kv  12:                   general.base_model.count u32              = 1
+llama_model_loader: - kv  13:                  general.base_model.0.name str              = Qwen3.6 35B A3B
+llama_model_loader: - kv  14:          general.base_model.0.organization str              = Qwen
+llama_model_loader: - kv  15:              general.base_model.0.repo_url str              = https://huggingface.co/Qwen/Qwen3.6-3...
+llama_model_loader: - kv  16:                               general.tags arr[str,3]       = ["qwen3_5_moe", "qwen", "image-text-t...
+llama_model_loader: - kv  17:                      qwen35moe.block_count u32              = 40
+llama_model_loader: - kv  18:                   qwen35moe.context_length u32              = 262144
+llama_model_loader: - kv  19:                 qwen35moe.embedding_length u32              = 2048
+llama_model_loader: - kv  20:             qwen35moe.attention.head_count u32              = 16
+llama_model_loader: - kv  21:          qwen35moe.attention.head_count_kv u32              = 2
+llama_model_loader: - kv  22:          qwen35moe.rope.dimension_sections arr[i32,4]       = [11, 11, 10, 0]
+llama_model_loader: - kv  23:                   qwen35moe.rope.freq_base f32              = 10000000.000000
+llama_model_loader: - kv  24: qwen35moe.attention.layer_norm_rms_epsilon f32              = 0.000001
+llama_model_loader: - kv  25:                     qwen35moe.expert_count u32              = 256
+llama_model_loader: - kv  26:                qwen35moe.expert_used_count u32              = 8
+llama_model_loader: - kv  27:             qwen35moe.attention.key_length u32              = 256
+llama_model_loader: - kv  28:           qwen35moe.attention.value_length u32              = 256
+llama_model_loader: - kv  29:       qwen35moe.expert_feed_forward_length u32              = 512
+llama_model_loader: - kv  30: qwen35moe.expert_shared_feed_forward_length u32              = 512
+llama_model_loader: - kv  31:                  qwen35moe.ssm.conv_kernel u32              = 4
+llama_model_loader: - kv  32:                   qwen35moe.ssm.state_size u32              = 128
+llama_model_loader: - kv  33:                  qwen35moe.ssm.group_count u32              = 16
+llama_model_loader: - kv  34:               qwen35moe.ssm.time_step_rank u32              = 32
+llama_model_loader: - kv  35:                   qwen35moe.ssm.inner_size u32              = 4096
+llama_model_loader: - kv  36:          qwen35moe.full_attention_interval u32              = 4
+llama_model_loader: - kv  37:             qwen35moe.rope.dimension_count u32              = 64
+llama_model_loader: - kv  38:                       tokenizer.ggml.model str              = gpt2
+llama_model_loader: - kv  39:                         tokenizer.ggml.pre str              = qwen35
+llama_model_loader: - kv  40:                      tokenizer.ggml.tokens arr[str,248320]  = ["!", "\"", "#", "$", "%", "&", "'", ...
+llama_model_loader: - kv  41:                  tokenizer.ggml.token_type arr[i32,248320]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...
+llama_model_loader: - kv  42:                      tokenizer.ggml.merges arr[str,247587]  = ["Ġ Ġ", "ĠĠ ĠĠ", "i n", "Ġ t",...
+llama_model_loader: - kv  43:                tokenizer.ggml.eos_token_id u32              = 248046
+llama_model_loader: - kv  44:            tokenizer.ggml.padding_token_id u32              = 248055
+llama_model_loader: - kv  45:                tokenizer.ggml.bos_token_id u32              = 248044
+llama_model_loader: - kv  46:               tokenizer.ggml.add_bos_token bool             = false
+llama_model_loader: - kv  47:                    tokenizer.chat_template str              = {%- set image_count = namespace(value...
+llama_model_loader: - kv  48:               general.quantization_version u32              = 2
+llama_model_loader: - kv  49:                          general.file_type u32              = 29
+llama_model_loader: - kv  50:                      quantize.imatrix.file str              = Qwen3.6-35B-A3B-GGUF/imatrix_unsloth....
+llama_model_loader: - kv  51:                   quantize.imatrix.dataset str              = unsloth_calibration_Qwen3.6-35B-A3B.txt
+llama_model_loader: - kv  52:             quantize.imatrix.entries_count u32              = 510
+llama_model_loader: - kv  53:              quantize.imatrix.chunks_count u32              = 76
+print_info: n_head_kv             = 2
+create_tensor: loading tensor blk.0.attn_qkv.weight
+create_tensor: loading tensor blk.1.attn_qkv.weight
+create_tensor: loading tensor blk.2.attn_qkv.weight
+create_tensor: loading tensor blk.4.attn_qkv.weight
+create_tensor: loading tensor blk.5.attn_qkv.weight
+create_tensor: loading tensor blk.6.attn_qkv.weight
+create_tensor: loading tensor blk.8.attn_qkv.weight
+create_tensor: loading tensor blk.9.attn_qkv.weight
+create_tensor: loading tensor blk.10.attn_qkv.weight
+create_tensor: loading tensor blk.12.attn_qkv.weight
+create_tensor: loading tensor blk.13.attn_qkv.weight
+create_tensor: loading tensor blk.14.attn_qkv.weight
+create_tensor: loading tensor blk.16.attn_qkv.weight
+create_tensor: loading tensor blk.17.attn_qkv.weight
+create_tensor: loading tensor blk.18.attn_qkv.weight
+create_tensor: loading tensor blk.20.attn_qkv.weight
+create_tensor: loading tensor blk.21.attn_qkv.weight
+create_tensor: loading tensor blk.22.attn_qkv.weight
+create_tensor: loading tensor blk.24.attn_qkv.weight
+create_tensor: loading tensor blk.25.attn_qkv.weight
+create_tensor: loading tensor blk.26.attn_qkv.weight
+create_tensor: loading tensor blk.28.attn_qkv.weight
+create_tensor: loading tensor blk.29.attn_qkv.weight
+create_tensor: loading tensor blk.30.attn_qkv.weight
+create_tensor: loading tensor blk.32.attn_qkv.weight
+BMOE_DONE {"id":1,"cancelled":false,"tokens":32,"tok_s":5.399,"prefill_s":4.828,"prefill_tps":8.08,"load_s":10.733,"cache_hit_pct":60.6,"n_prompt":39,"n_past":71,"compute_s_tok":0.1387,"io_s_tok":0.1775,"cache_resident_mib":2000,"cache_budget_mib":2000,"read_mib":1416.3,"stall_s_tok":0.0361,"mgmt_s_tok":0.0104,"majflt_tok":0.00,"cpu_s_tok":0.6179,"token_demand_mib":274.7,"mtp_drafted":0,"mtp_accepted":0,"mtp_decodes":32,"mtp_draft_s_tok":0.0000,"drafted_steps":0,"loop_overhead_s_tok":0.0009,"reasoning":"","text":"La memoria KV è una cache che memorizza i valori e le chiavi dei token precedenti durante l'inferenza. Questo meccanismo evita di ricalcolare le"}
+BMOE_DONE {"id":2,"cancelled":false,"tokens":32,"tok_s":4.799,"prefill_s":4.922,"prefill_tps":8.33,"load_s":10.733,"cache_hit_pct":61.2,"n_prompt":41,"n_past":144,"compute_s_tok":0.1525,"io_s_tok":0.2279,"cache_resident_mib":2000,"cache_budget_mib":2000,"read_mib":1858.5,"stall_s_tok":0.0426,"mgmt_s_tok":0.0132,"majflt_tok":0.00,"cpu_s_tok":0.6917,"token_demand_mib":274.0,"mtp_drafted":0,"mtp_accepted":0,"mtp_decodes":32,"mtp_draft_s_tok":0.0000,"drafted_steps":0,"loop_overhead_s_tok":0.0009,"reasoning":"","text":"La memoria KV è una cache che memorizza i valori e le chiavi dei token precedenti durante l'inferenza. Questo meccanismo evita di ricalcolare le"}
+DONE PASS n_common=71 n_prompt=[39, 41] n_past=[71, 144] expected=71 rc=0
+[2026-08-09T22:40:24-0400] smoke_kv PASS n_common=71
+[2026-08-09T22:40:24-0400] smoke_kv completed PASS
+[2026-08-09T22:40:24-0400] ==== SOSTENUTO n=512 arm=B (optional) ====
+[2026-08-09T22:40:25-0400] pre-sostenuto batt=69% plugged=UNPLUGGED (need ≥38)
+[2026-08-09T22:40:27-0400] PREFLIGHT sostenuto nproc=7 die=58.1C batt=69% plugged=UNPLUGGED btemp=40.2
+[2026-08-09T22:40:30-0400] PREFLIGHT sostenuto OK die=52.1C batt=69 nproc=7
+[2026-08-09T22:40:30-0400] cold_model before sostenuto
+/data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf size=11522702304 resident_before=51590 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-09T22:40:38-04:00
+[2026-08-09T22:40:39-0400] ---- single B-short-n512 arm=B n=512 ----
+label=B-short-n512
+arm=B
+rc=0
+wall_s=71
+prompt_tok_s=8.9
+eval_tok_s=4.230
+prefill_s=12.751
+ttft_ms=23493
+n_prompt=114
+expert_hit_rate=78.4
+mib_per_token=39.19
+read_mib=7719.6
+drop_n=4097
+drop_tot=63040
+drop_pct=6.5
+memfree_min_mb=52
+vmhwm_mb=3875
+die_max_c=76.6
+lmkd_delta=0
+batt_s=69 batt_e=68
+die_s=49.3 die_e=58.9
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-09T22:41:57-0400] single B-short-n512 DONE eval=4.230 prefill=8.9 hit=78.4% drop=6.5% mib/tok=39.19 die_max=76.6 memfree_min=52 wall=71s rc=0
+[2026-08-09T22:41:57-0400] ==== SOSTENUTO DONE ====
+[2026-08-09T22:41:57-0400] sostenuto phase done
+[2026-08-09T22:41:58-0400] ==== COMPUTE VERDICT ====
+verdict=STOP_INCOHERENT_BANDA
+med_A=4.394
+med_B=4.697
+delta_pct=6.8957669549385505
+per_prompt_delta={'f45_1': 0.9330905780610006, 'short': 9.935441514388897}
+mib_B=33.89
+drop_med_B=6.3
+lmkd=0
+coherent=False (mib_B=33.89 outside 25.74..31.46 (knee 28.6±10%))
+smoke=PASS
+sostenuto=DONE
+[2026-08-09T22:41:59-0400] === SPEED DROPCOLD-065 END verdict=STOP_INCOHERENT_BANDA;med_A=4.394;med_B=4.697;delta_pct=6.8957669549385505;per_prompt_delta={'f45_1': 0.9330905780610006, 'short': 9.935441514388897};mib_B=33.89;drop_med_B=6.3;lmkd=0;coherent=False (mib_B=33.89 outside 25.74..31.46 (knee 28.6±10%));smoke=PASS;sostenuto=DONE; rc=0 ===

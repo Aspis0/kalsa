@@ -1,0 +1,22 @@
+label=B-short-n512
+arm=B
+rc=0
+wall_s=71
+prompt_tok_s=8.9
+eval_tok_s=4.230
+prefill_s=12.751
+ttft_ms=23493
+n_prompt=114
+expert_hit_rate=78.4
+mib_per_token=39.19
+read_mib=7719.6
+drop_n=4097
+drop_tot=63040
+drop_pct=6.5
+memfree_min_mb=52
+vmhwm_mb=3875
+die_max_c=76.6
+lmkd_delta=0
+batt_s=69 batt_e=68
+die_s=49.3 die_e=58.9
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f

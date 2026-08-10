@@ -1,0 +1,22 @@
+label=B-f45_1-r1
+arm=B
+rc=0
+wall_s=68
+prompt_tok_s=10.4
+eval_tok_s=4.466
+prefill_s=11.629
+ttft_ms=22006
+n_prompt=121
+expert_hit_rate=82.4
+mib_per_token=28.59
+read_mib=5717.9
+drop_n=3929
+drop_tot=64000
+drop_pct=6.1
+memfree_min_mb=26
+vmhwm_mb=3876
+die_max_c=89.1
+lmkd_delta=0
+batt_s=71 batt_e=71
+die_s=48.9 die_e=57.7
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f

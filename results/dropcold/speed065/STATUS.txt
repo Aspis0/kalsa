@@ -1,0 +1,1 @@
+DONE 2026-08-09T22:41:59-0400 verdict=STOP_INCOHERENT_BANDA med_A=4.394 med_B=4.697 delta_pct=6.8957669549385505 per_prompt_delta={'f45_1': 0.9330905780610006, 'short': 9.935441514388897} mib_B=33.89 drop_med_B=6.3 lmkd=0 coherent=False (mib_B=33.89 outside 25.74..31.46 (knee 28.6±10%)) smoke=PASS sostenuto=DONE  rc=0
