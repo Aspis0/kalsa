@@ -46,7 +46,24 @@ source "$(dirname "$0")/ci-lib.sh"
 # EditText text="…" attribute (not a real empty string). composer_text therefore
 # returns this on a truly empty field; tap_node matches it the same way.
 # Treating the placeholder as non-empty would clear-and-fail every turn.
-readonly COMPOSER_PLACEHOLDER="Ask a question…"
+# Both languages on purpose (not derived from $LOCALE / seeded kalsa.locale):
+# the list stays correct if the seed changes again, and a stale entry costs nothing.
+# Ellipsis is the single char "…", not three dots (src/i18n/{en,it}.ts chat.placeholder).
+readonly COMPOSER_PLACEHOLDERS=(
+  "Ask a question…"
+  "Fai una domanda…"
+)
+# Busy-status whole-line labels the settle check must wait out. Both languages
+# for the same reason as COMPOSER_PLACEHOLDERS. Deliberately EXCLUDES reasoning
+# headers in both languages ("Thinking" / "Sto pensando" / "Ragionamento") —
+# under THINKING=budget256 the finished bubble still shows a collapsed header
+# and treating it as live status burns the full settle cap (run 31358530713).
+readonly BUSY_STATUS_LABELS=(
+  "Writing" "Sto scrivendo"
+  "Searching the web…" "Cerco sul web…"
+  "Fetching page…" "Recupero pagina…"
+  "Tool failed — continuing without it" "Strumento fallito — continuo senza"
+)
 
 case "$PHASE" in
   fase0)
@@ -160,6 +177,47 @@ dump_ui_retry() {
   # stderr: callers capture stdout as the dump body (ui=$(dump_ui_retry)).
   log "dump failed, not an empty screen" >&2
   return 1
+}
+
+# True if $1 is blank or equals any accepted composer placeholder (empty field).
+composer_looks_empty() {
+  local t="$1" p
+  [ -z "$t" ] && return 0
+  for p in "${COMPOSER_PLACEHOLDERS[@]}"; do
+    [ "$t" = "$p" ] && return 0
+  done
+  return 1
+}
+
+# Focus via any accepted placeholder; returns 1 only if none matched.
+tap_composer_placeholder() {
+  local p
+  for p in "${COMPOSER_PLACEHOLDERS[@]}"; do
+    tap_node "$p" && return 0
+  done
+  return 1
+}
+
+# Fail-fast before any turn: a UI-string mismatch must cost minutes, not a matrix.
+# CI run 31396845208: all 12 arms dead at turn 1 because harness matched EN only
+# while kalsa.locale=it showed "Fai una domanda…".
+assert_composer_placeholder_recognised() {
+  local ui dump p found=false
+  ui=$(dump_ui_retry) || die "startup: UI dump failed before any turn"
+  dump=$(printf '%s' "$ui" | grep -o 'text="[^"]\{1,200\}"' \
+    | sed 's/^text="//; s/"$//' | sort -u)
+  for p in "${COMPOSER_PLACEHOLDERS[@]}"; do
+    if printf '%s\n' "$dump" | grep -qxF "$p"; then
+      found=true
+      break
+    fi
+  done
+  if [ "$found" = true ]; then
+    log "startup: composer placeholder recognised"
+    return 0
+  fi
+  printf '%s\n' "$dump" > "$OUT/startup_ui.txt"
+  die "composer placeholder not recognised: the app's UI language probably changed, update the accepted-placeholder list (distinct text nodes in $OUT/startup_ui.txt)"
 }
 
 # Recover focus when a foreign app's dialog steals the screen mid-arm.
@@ -321,15 +379,16 @@ send_and_wait() {
     fi
 
     # Focus the composer. The placeholder only exists while the field is EMPTY:
-    # once text is in, COMPOSER_PLACEHOLDER is gone, so a retry must target the
-    # EditText itself (that mismatch failed 4 of 6 arms on the first bench run).
+    # once text is in, any COMPOSER_PLACEHOLDERS entry is gone, so a retry must
+    # target the EditText itself (that mismatch failed 4 of 6 arms on the first
+    # bench run). Try every accepted language variant until one taps.
     # WHY ANR/foreign only on this path: dump_ui is expensive; a 13-turn arm runs
     # ~2h and is more ANR/dialog-exposed than e2e, but we still pay the dump only
     # when focus fails (happy path unchanged for campaign comparability).
-    if ! tap_node "$COMPOSER_PLACEHOLDER" && ! tap_editable; then
+    if ! tap_composer_placeholder && ! tap_editable; then
       dismiss_anr
       dismiss_foreign_dialog
-      if ! tap_node "$COMPOSER_PLACEHOLDER" && ! tap_editable; then
+      if ! tap_composer_placeholder && ! tap_editable; then
         # Diagnose dump failure vs genuinely empty (run 31367691176 misread).
         if dump_ui_retry >/dev/null; then
           log "composer not found for: $msg (attempt ${attempt}/${max_attempts})"
@@ -345,17 +404,17 @@ send_and_wait() {
     # dump_ui | grep -qF "$msg", which still passes when the field holds
     # <previous><new> — arm would record the intended prompt while the model
     # saw a different one. Fabricated evidence is worse than a failed arm.
-    # Placeholder counts as empty: uiautomator puts COMPOSER_PLACEHOLDER into
-    # EditText text="…" on a blank TextInput (see COMPOSER_PLACEHOLDER comment).
+    # Placeholder counts as empty: uiautomator puts a COMPOSER_PLACEHOLDERS
+    # entry into EditText text="…" on a blank TextInput (see array comment).
     local existing
     existing=$(composer_text)
-    if [ -n "$existing" ] && [ "$existing" != "$COMPOSER_PLACEHOLDER" ]; then
+    if ! composer_looks_empty "$existing"; then
       log "composer non-empty before type (len=${#existing}) — clearing"
       adb shell input keyevent KEYCODE_MOVE_END
       for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
       sleep 1
       existing=$(composer_text)
-      if [ -n "$existing" ] && [ "$existing" != "$COMPOSER_PLACEHOLDER" ]; then
+      if ! composer_looks_empty "$existing"; then
         log "composer still non-empty after clear: [$existing] (attempt ${attempt}/${max_attempts})"
         continue
       fi
@@ -558,15 +617,15 @@ print(json.dumps(rec, ensure_ascii=False))
 # Wait until the turn is fully settled — ALL of the following on the SAME poll:
 #   1. last assistant message JSON byte-identical to the previous poll
 #   2. raw uiautomator dump has no ▋ (streaming cursor)
-#   3. composer placeholder ($COMPOSER_PLACEHOLDER) present as a whole text node
-#   4. none of these whole-line labels: Writing, Searching the web…,
-#      Fetching page…, Tool failed — continuing without it
-# WHY NOT "Thinking": under THINKING=budget256 the finished bubble still has a
-# whole text node "Thinking" (collapsed reasoning header). wait_ui_idle treated
-# it as live status and burned its full 240s cap every turn of smoke run
-# 31358530713 (turnend_timeout_ui.txt while composer was already idle). Only
-# that label was wrong — not the cursor/placeholder checks. Conditions 2–4 are
-# wait_ui_idle minus Thinking; left driver-local so ci-e2e.sh keeps ci-lib.sh.
+#   3. any COMPOSER_PLACEHOLDERS entry present as a whole text node
+#   4. none of BUSY_STATUS_LABELS as whole-line labels
+# WHY NOT reasoning headers ("Thinking" / "Sto pensando" / "Ragionamento"): under
+# THINKING=budget256 the finished bubble still has a whole text node for the
+# collapsed header. wait_ui_idle treated it as live status and burned its full
+# 240s cap every turn of smoke run 31358530713 (turnend_timeout_ui.txt while
+# composer was already idle). Only that label was wrong — not the
+# cursor/placeholder checks. Conditions 2–4 are wait_ui_idle minus reasoning;
+# left driver-local so ci-e2e.sh keeps ci-lib.sh.
 # WHY not history-only (wait_history_stable): the model writes tokens in bursts;
 # two 10s polls can catch the same intermediate text while generation is still
 # running. Run 31361781643: all 12 fase4 arms declared settle, typed into a
@@ -616,17 +675,16 @@ wait_turn_settled() {
     # Cursor needs RAW xml: ui_texts truncates at 200 chars, so a long streaming
     # bubble's trailing ▋ never reaches $dump (same as wait_ui_idle).
     if grep -qF "▋" "$raw" 2>/dev/null; then cursor_ok=false; else cursor_ok=true; fi
-    if grep -qxF "$COMPOSER_PLACEHOLDER" "$dump" 2>/dev/null; then
+    # Any accepted placeholder language (whole text node).
+    if grep -qxFf <(printf '%s\n' "${COMPOSER_PLACEHOLDERS[@]}") "$dump" 2>/dev/null; then
       placeholder_ok=true
     else
       placeholder_ok=false
     fi
     # Whole-line labels only (-x): substring grep hit assistant prose and pinned
-    # wait_ui_idle at the cap (see ci-lib.sh). "Thinking" deliberately omitted —
-    # see header comment (run 31358530713 / collapsed reasoning header).
-    if grep -qxFf <(printf '%s\n' \
-        "Writing" "Searching the web…" "Fetching page…" \
-        "Tool failed — continuing without it") "$dump" 2>/dev/null; then
+    # wait_ui_idle at the cap (see ci-lib.sh). Reasoning headers deliberately
+    # omitted — see header comment (run 31358530713 / collapsed header).
+    if grep -qxFf <(printf '%s\n' "${BUSY_STATUS_LABELS[@]}") "$dump" 2>/dev/null; then
       labels_ok=false
     else
       labels_ok=true
@@ -765,6 +823,10 @@ if [ "$PHASE" = "fase0" ]; then
     log "=== fase0 run $run/$RUNS_PER_ARM ==="
     new_conversation
     adb logcat -c 2>/dev/null || true
+    # Once per arm (first run only): fail fast on UI-language mismatch.
+    if [ "$run" -eq 1 ]; then
+      assert_composer_placeholder_recognised
+    fi
 
     global_turn=$((global_turn + 1))
     send_and_wait "$PLANT" 1500 || die "run $run: timeout/failure on plant turn"
@@ -849,6 +911,8 @@ elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
 
   new_conversation
   adb logcat -c 2>/dev/null || true
+  # Fail-fast before any turn: UI-string mismatch must not burn a 12-arm matrix.
+  assert_composer_placeholder_recognised
   run_turn_plan
 fi
 
