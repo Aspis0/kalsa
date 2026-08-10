@@ -229,14 +229,53 @@ _startup_ui_dump() {
 # and 31399547762 (Send EN-only) both died at turn 1 for exactly this class of
 # defect, on two different strings. Does NOT send the probe — conversation starts
 # clean.
+#
+# Bounded recovery (max 3 attempts): run 31402155067 had 5/12 arms die here with
+# startup_ui.txt = Pixel Launcher ANR ("isn't responding" / Wait / Close app).
+# dismiss_anr already handles that dialog; without a retry the assertion only
+# detected the blocked screen and gave up.
 assert_input_path_ready() {
+  local attempt
+
+  # WHY before attempt 1: ANR is provoked by the 1.7 GB model copy that
+  # install_and_sideload just did — the screen is most likely blocked exactly
+  # then. Ordering is not incidental; the dialog is a consequence of the sideload.
+  dismiss_anr
+
+  for attempt in 1 2 3; do
+    log "startup: input-path check attempt $attempt/3"
+    if _assert_input_path_ready_once; then
+      return 0
+    fi
+    log "startup: attempt $attempt/3 failed — ${_startup_assert_fail:-unknown}"
+    if [ -f "$OUT/startup_ui.txt" ]; then
+      log "startup: screen when failed:"
+      while IFS= read -r line || [ -n "$line" ]; do
+        log "  $line"
+      done < "$OUT/startup_ui.txt"
+    fi
+    if [ "$attempt" -ge 3 ]; then
+      die "${_startup_assert_fail:-startup: input path not ready after 3 attempts}"
+    fi
+    dismiss_anr
+    dismiss_foreign_dialog
+    adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1 || true
+    sleep 10
+  done
+}
+
+# Single attempt of the input-path steps. On failure: write startup_ui.txt, set
+# _startup_assert_fail for the outer die message, return 1 (do not exit).
+_assert_input_path_ready_once() {
   local ui dump p found existing t
   local probe="BenchOk"
+  _startup_assert_fail=""
 
   # 1) focus the composer (any placeholder variant)
   if ! tap_composer_placeholder; then
     _startup_ui_dump > "$OUT/startup_ui.txt"
-    die "startup: focus composer failed — no COMPOSER_PLACEHOLDERS match (distinct text nodes in $OUT/startup_ui.txt)"
+    _startup_assert_fail="startup: focus composer failed — no COMPOSER_PLACEHOLDERS match (distinct text nodes in $OUT/startup_ui.txt)"
+    return 1
   fi
   sleep 2
 
@@ -255,14 +294,16 @@ assert_input_path_ready() {
   done
   if [ "$found" = false ]; then
     _startup_ui_dump > "$OUT/startup_ui.txt"
-    die "startup: probe '$probe' not visible after type (distinct text nodes in $OUT/startup_ui.txt)"
+    _startup_assert_fail="startup: probe '$probe' not visible after type (distinct text nodes in $OUT/startup_ui.txt)"
+    return 1
   fi
 
   # 4) require a Send node findable (any SEND_LABELS) — do NOT tap it
   found=false
   ui=$(dump_ui_retry) || {
     _startup_ui_dump > "$OUT/startup_ui.txt"
-    die "startup: UI dump failed while looking for Send (distinct text nodes in $OUT/startup_ui.txt)"
+    _startup_assert_fail="startup: UI dump failed while looking for Send (distinct text nodes in $OUT/startup_ui.txt)"
+    return 1
   }
   for p in "${SEND_LABELS[@]}"; do
     if printf '%s' "$ui" | grep -qE "content-desc=\"$p\"|text=\"$p\""; then
@@ -273,7 +314,8 @@ assert_input_path_ready() {
   if [ "$found" = false ]; then
     printf '%s' "$ui" | grep -o 'text="[^"]\{1,200\}"' \
       | sed 's/^text="//; s/"$//' | sort -u > "$OUT/startup_ui.txt"
-    die "startup: Send node not found (any of SEND_LABELS; distinct text nodes in $OUT/startup_ui.txt)"
+    _startup_assert_fail="startup: Send node not found (any of SEND_LABELS; distinct text nodes in $OUT/startup_ui.txt)"
+    return 1
   fi
 
   # 5) clear composer (MOVE_END + 60× DEL) and require empty again
@@ -283,10 +325,12 @@ assert_input_path_ready() {
   existing=$(composer_text)
   if ! composer_looks_empty "$existing"; then
     _startup_ui_dump > "$OUT/startup_ui.txt"
-    die "startup: composer not empty after clear (got [$existing]; distinct text nodes in $OUT/startup_ui.txt)"
+    _startup_assert_fail="startup: composer not empty after clear (got [$existing]; distinct text nodes in $OUT/startup_ui.txt)"
+    return 1
   fi
 
   log "startup: input path ready (focus, type, Send visible, clear — probe not sent)"
+  return 0
 }
 
 # Recover focus when a foreign app's dialog steals the screen mid-arm.
