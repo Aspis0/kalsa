@@ -2,11 +2,26 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Alert, Keyboard, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { X as LucideX, Globe as LucideGlobe, Settings as LucideSettings } from "lucide-react-native";
+import { X as LucideX, Globe as LucideGlobe, Settings as LucideSettings, FileText as LucideFileText } from "lucide-react-native";
 
 import { AiChatPage, type ChatCta, type LocalAttachment } from "../screens/AiChatPage";
 import { HelpScreen } from "../screens/HelpScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { DocumentsScreen } from "../screens/DocumentsScreen";
+import {
+  emptyLibraryState,
+  loadLibraryState,
+  saveLibraryState,
+  getDefaultLibraryStorage,
+  type LibraryDoc,
+  type LibraryState,
+} from "../documents/DocumentLibrary";
+import {
+  DOCUMENT_CHAT_TOOL,
+  createDocumentChatExecutor,
+} from "../documents/documentChatTool";
+import { DocRetrieverIndex } from "../context/retrievalLoop";
+import { htmlToText } from "../util/htmlToText";
 import { AskAssistantMiniappRenderer } from "../ui/AskAssistantMiniappRenderer";
 import { Drawer, PainterlyBg, type DrawerItem } from "../theme/components";
 import { spacing } from "../theme/tokens";
@@ -105,6 +120,7 @@ type ModelState = ModelPipelineState;
 type ActiveOverlay =
   | { kind: "settings" }
   | { kind: "help" }
+  | { kind: "documents" }
   | { kind: "miniapp"; miniapp: AskAssistantMiniapp }
   | null;
 
@@ -420,12 +436,47 @@ export function AppShell() {
    */
   const injectedFactsRef = useRef<string[]>([]);
 
+  // ── Document library (local PDF/TXT chat) ────────────────────────────────
+  // Owned here so the tool executor + DocumentsScreen share one snapshot.
+  // Index cache is a ref Map (not React state) — rebuilt on extract, dropped on delete.
+  const [documentLibrary, setDocumentLibrary] = useState<LibraryState>(() =>
+    emptyLibraryState(),
+  );
+  const documentLibraryRef = useRef<LibraryState>(documentLibrary);
+  documentLibraryRef.current = documentLibrary;
+  const docIndexByIdRef = useRef<Map<string, DocRetrieverIndex>>(new Map());
+  /** Mirrors chatEngineCtx for the document tool (set below after resolve). */
+  const chatEngineCtxRef = useRef<number>(4096);
+
+  useEffect(() => {
+    let mounted = true;
+    void loadLibraryState(getDefaultLibraryStorage())
+      .then((state) => {
+        if (mounted) setDocumentLibrary(state);
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleLibraryChange = useCallback((next: LibraryState) => {
+    // Drop indexes for removed docs so delete frees retrieval memory.
+    const nextIds = new Set((next.docs ?? []).map((d) => d.id));
+    for (const id of docIndexByIdRef.current.keys()) {
+      if (!nextIds.has(id)) docIndexByIdRef.current.delete(id);
+    }
+    setDocumentLibrary(next);
+    void saveLibraryState(getDefaultLibraryStorage(), next).catch(() => undefined);
+  }, []);
+
   // ── Web tools (search + fetch): SEMPRE ATTIVI — il modello decide se usarli
   // (info attuali, notizie, o richiesta esplicita). Le query / fetch partono solo
   // quando il tool viene chiamato (privacy by design).
   // Per-turn allowlist: URLs from the user message + every web_search result;
   // web_fetch may only open those (closes crafted-URL exfiltration). Redirects
   // may land on another path/port of the SAME host, or an already-allowlisted URL.
+  // document_chat sits alongside web tools and reuses requestPdfText (no new host).
   const agentOptions = useMemo<EngineTurnOptions>(() => {
     const searchExec = makeWebSearchExecutor(locale, {
       getMemoryFacts: () => injectedFactsRef.current,
@@ -463,8 +514,32 @@ export function AppShell() {
       seededTurnSeq = fetchAllowlistTurnSeq;
     };
 
+    const documentExec = createDocumentChatExecutor(
+      {
+        getLibraryDocs: () => documentLibraryRef.current.docs ?? [],
+        requestPdfText: (doc: LibraryDoc) =>
+          requestPdfText(doc.fileUri, {
+            sourceId: doc.sourceId,
+            title: doc.name,
+          }),
+        readTxt: async (doc: LibraryDoc) => {
+          const raw = await FileSystem.readAsStringAsync(doc.fileUri);
+          const looksHtml = /<\/?[a-z][\s\S]*>/i.test(raw.slice(0, 2000));
+          if (looksHtml) return htmlToText(raw).text;
+          return raw;
+        },
+        getCtxTokens: () => chatEngineCtxRef.current,
+        getIndexFor: (docId: string) =>
+          docIndexByIdRef.current.get(docId) ?? null,
+        setIndexFor: (docId: string, index: DocRetrieverIndex) => {
+          docIndexByIdRef.current.set(docId, index);
+        },
+      },
+      { locale },
+    );
+
     return {
-      tools: [WEB_SEARCH_TOOL, WEB_FETCH_TOOL],
+      tools: [WEB_SEARCH_TOOL, WEB_FETCH_TOOL, DOCUMENT_CHAT_TOOL],
       executeTool: async (name, args, signal, lastUserMessage) => {
         ensureAllowlistForTurn(lastUserMessage);
 
@@ -485,6 +560,10 @@ export function AppShell() {
           return fetchExec(name, args, signal);
         }
 
+        if (name === "document_chat") {
+          return documentExec(name, args, signal);
+        }
+
         return {
           text: getStrings(locale).errors.unknownTool.replace("{name}", name),
         };
@@ -492,7 +571,7 @@ export function AppShell() {
     };
   }, [locale]);
 
-  // ── Drawer + exclusive overlay (settings | miniapp | null) ────────────────
+  // ── Drawer + exclusive overlay (settings | documents | miniapp | null) ──
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeOverlay, setActiveOverlay] = useState<ActiveOverlay>(null);
   const edgeSwipe = Gesture.Pan()
@@ -512,6 +591,16 @@ export function AppShell() {
           setDrawerOpen(false);
           // Opening settings replaces any open miniapp (exclusive overlay).
           setActiveOverlay({ kind: "settings" });
+        },
+      },
+      {
+        id: "documents",
+        label: t("documents.title"),
+        Icon: LucideFileText,
+        onPress: () => {
+          Keyboard.dismiss();
+          setDrawerOpen(false);
+          setActiveOverlay({ kind: "documents" });
         },
       },
     ],
@@ -662,6 +751,7 @@ export function AppShell() {
       }).nCtx,
     [currentModel],
   );
+  chatEngineCtxRef.current = chatEngineCtx;
   // Ref speculare per il race tra check iniziale e load della preferenza.
   const modelIndexRef = useRef(modelIndex);
   modelIndexRef.current = modelIndex;
@@ -2032,11 +2122,15 @@ export function AppShell() {
             voiceReady={voiceState === "ready"}
             ttsEnabled={ttsEnabled}
             engineCtx={chatEngineCtx}
+            documentLibrary={documentLibrary}
+            onOpenDocuments={() => setActiveOverlay({ kind: "documents" })}
             onOpenMiniapp={(miniapp) => {
-              // Policy: ignore miniapp open while Settings/Help is active
+              // Policy: ignore miniapp open while Settings/Help/Documents is active
               // (exclusive overlay; stays until user closes it).
               setActiveOverlay((prev) =>
-                prev?.kind === "settings" || prev?.kind === "help"
+                prev?.kind === "settings" ||
+                prev?.kind === "help" ||
+                prev?.kind === "documents"
                   ? prev
                   : { kind: "miniapp", miniapp: miniapp as AskAssistantMiniapp },
               );
@@ -2109,6 +2203,14 @@ export function AppShell() {
             onDownload: confirmVoiceDownload,
             onToggleTts: handleToggleTts,
           }}
+        />
+      ) : null}
+
+      {activeOverlay?.kind === "documents" ? (
+        <DocumentsScreen
+          library={documentLibrary}
+          onLibraryChange={handleLibraryChange}
+          onBack={() => setActiveOverlay(null)}
         />
       ) : null}
 

@@ -129,13 +129,17 @@ export type ChatCta = {
 // ── Feature 4: attachment locale (vision) ─────────────────────────────────
 // `uri`/`pages` sono file di cache temporanei (NON persistiti); `pageCount` è
 // l'unico metadata persistito (sanitizer).
+// kind "document" = library PDF/TXT (retrieval source via document_chat tool);
+// carries libraryDocId so the tool can select the right entry.
 export type LocalAttachment = {
   id: string;
-  kind: "image" | "pdf";
+  kind: "image" | "pdf" | "document";
   name: string;
   uri: string;
   pages?: string[];
   pageCount?: number;
+  /** Library document id when kind === "document". */
+  libraryDocId?: string;
 };
 
 type Message = {
@@ -209,6 +213,10 @@ type Props = {
    * Omitted → longChatEstimate.LONG_CHAT_DEFAULT_N_CTX.
    */
   engineCtx?: number;
+  /** Snapshot of the local document library (for attach-from-library). */
+  documentLibrary?: { docs: Array<{ id: string; name: string; kind: string; pageCount?: number }> };
+  /** Open the Documents overlay (empty library / manage). */
+  onOpenDocuments?: () => void;
 };
 
 type SuggestionItem = {
@@ -489,12 +497,18 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
         .slice(0, MAX_ITEMS)
         .map((a) => ({
           id: typeof a.id === "string" ? a.id : `att-${Date.now()}`,
-          kind: a.kind === "pdf" || a.kind === "image" ? a.kind : "image",
+          kind:
+            a.kind === "pdf" || a.kind === "image" || a.kind === "document"
+              ? (a.kind as LocalAttachment["kind"])
+              : "image",
           name: typeof a.name === "string" ? a.name.slice(0, 300) : strings.common.attachment,
           // Le URI sono cache temporanea: non persistite (non disponibili al reload).
           uri: "",
           ...(typeof a.pageCount === "number" && a.pageCount > 0
             ? { pageCount: Math.min(a.pageCount, 10) }
+            : {}),
+          ...(typeof a.libraryDocId === "string" && a.libraryDocId.length > 0
+            ? { libraryDocId: a.libraryDocId.slice(0, 120) }
             : {}),
         }));
     }
@@ -558,6 +572,8 @@ export function AiChatPage({
   voiceReady = false,
   ttsEnabled = true,
   engineCtx,
+  documentLibrary,
+  onOpenDocuments,
 }: Props) {
   const { colors } = useLabTheme<any>();
   // Shadows the module-level `typography` import for this component only
@@ -743,9 +759,11 @@ export function AiChatPage({
     persistMessagesNow(messages, { allowStreamingPartial: true });
   }, [historyLoaded, messages]);
 
-  // Feature 4: attach state (immagini/foto/PDF → vision)
+  // Feature 4: attach state (immagini/foto/PDF → vision; library docs → document_chat)
   const [attachedItems, setAttachedItems] = useState<LocalAttachment[]>([]);
   const [attachSheetOpen, setAttachSheetOpen] = useState(false);
+  /** Nested picker: choose a library document to attach as a retrieval source. */
+  const [docPickOpen, setDocPickOpen] = useState(false);
   const [pdfToRender, setPdfToRender] = useState<{ uri: string; name: string } | null>(null);
   const pdfPagesRef = useRef<string[]>([]);
 
@@ -1378,6 +1396,13 @@ export function AiChatPage({
 
       // Snapshot attachments at send time
       const snapshotAttachments = currentAttachments ?? [];
+      // Library documents are retrieval sources (document_chat tool), not vision.
+      // Annotate the model-facing text with doc ids so the tool can select them.
+      const docHints = snapshotAttachments
+        .filter((a) => a.kind === "document" && a.libraryDocId)
+        .map((a) => `[document:${a.libraryDocId} name="${a.name}"]`)
+        .join(" ");
+      const modelText = docHints ? `${trimmed}\n\n${docHints}` : trimmed;
 
       // BLOCKER-2: module counter, no Date.now() collision
       const userMsgId = nextMsgId("u");
@@ -1426,7 +1451,7 @@ export function AiChatPage({
       try {
         if (onSendStream) {
           const streamResult = await onSendStream(
-            trimmed,
+            modelText,
             {
               onDelta: (_delta, full) => {
                 anyTextStreamed = true;
@@ -1922,8 +1947,40 @@ export function AiChatPage({
 
   // ── Attach chip color helper ────────────────────────────────────────────
   function chipColorForKind(kind: LocalAttachment["kind"]) {
-    return kind === "pdf" ? { dot: colors.compute, bg: colors.computeSoft } : { dot: colors.accent, bg: colors.accentSoft };
+    if (kind === "pdf") return { dot: colors.compute, bg: colors.computeSoft };
+    if (kind === "document") return { dot: colors.compute, bg: colors.computeSoft };
+    return { dot: colors.accent, bg: colors.accentSoft };
   }
+
+  /** Attach a library document as a retrieval source (document_chat tool). */
+  const addLibraryDocumentAttachment = useCallback(
+    (doc: { id: string; name: string }) => {
+      setAttachedItems((prev) => {
+        if (prev.some((a) => a.kind === "document" && a.libraryDocId === doc.id)) {
+          return prev;
+        }
+        if (prev.length >= MAX_IMAGE_ATTACHMENTS) {
+          showVoiceNote(
+            t("errors.attachmentLimitReachedGeneric", { max: MAX_IMAGE_ATTACHMENTS }),
+          );
+          return prev;
+        }
+        return [
+          ...prev,
+          {
+            id: nextMsgId("doc"),
+            kind: "document" as const,
+            name: doc.name,
+            uri: "",
+            libraryDocId: doc.id,
+          },
+        ];
+      });
+      setAttachSheetOpen(false);
+      setDocPickOpen(false);
+    },
+    [showVoiceNote, t],
+  );
 
   return (
     // Manual padding from the lib's animated keyboard height — the lib KAV's
@@ -2248,10 +2305,12 @@ export function AiChatPage({
                     paddingVertical: 4,
                   }}
                 >
-                  {item.kind === "pdf" ? (
-                    <FileText size={11} color={dot} />
-                  ) : (
+                  {item.kind === "image" ? (
                     <ImageIcon size={11} color={dot} />
+                  ) : item.kind === "document" ? (
+                    <BookOpen size={11} color={dot} />
+                  ) : (
+                    <FileText size={11} color={dot} />
                   )}
                   <Text numberOfLines={1} style={[typography.bodyXs, { color: colors.ink, maxWidth: 140 }]}>
                     {item.name}
@@ -2582,6 +2641,61 @@ export function AiChatPage({
                   onPress={() => void addPdfAttachment()}
                   colors={colors}
                 />
+                <AttachSheetRow
+                  icon={<BookOpen size={18} color={colors.ink} />}
+                  label={t("chat.libraryDocument")}
+                  onPress={() => {
+                    setAttachSheetOpen(false);
+                    const docs = documentLibrary?.docs ?? [];
+                    if (docs.length === 0) {
+                      onOpenDocuments?.();
+                      return;
+                    }
+                    setDocPickOpen(true);
+                  }}
+                  colors={colors}
+                />
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
+
+      {docPickOpen ? (
+        <Modal
+          visible
+          transparent
+          animationType="slide"
+          onRequestClose={() => setDocPickOpen(false)}
+        >
+          <Pressable
+            style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.42)", justifyContent: "flex-end" }}
+            onPress={() => setDocPickOpen(false)}
+          >
+            <Pressable style={{ padding: spacing.md, paddingBottom: 32 }} onPress={() => undefined}>
+              <View
+                style={{
+                  backgroundColor: colors.shell,
+                  borderRadius: radius.xl ?? 24,
+                  overflow: "hidden",
+                  maxHeight: 360,
+                }}
+              >
+                {(documentLibrary?.docs ?? []).map((doc) => (
+                  <AttachSheetRow
+                    key={doc.id}
+                    icon={<FileText size={18} color={colors.ink} />}
+                    label={doc.name}
+                    onPress={() => addLibraryDocumentAttachment(doc)}
+                    colors={colors}
+                  />
+                ))}
+                <AttachSheetRow
+                  icon={<X size={18} color={colors.muted} />}
+                  label={t("common.cancel")}
+                  onPress={() => setDocPickOpen(false)}
+                  colors={colors}
+                />
               </View>
             </Pressable>
           </Pressable>
@@ -2757,7 +2871,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             >
               {m.attachments.map((att) => {
                 const { dot, bg } =
-                  att.kind === "pdf"
+                  att.kind === "pdf" || att.kind === "document"
                     ? { dot: colors.compute, bg: colors.computeSoft }
                     : { dot: colors.accent, bg: colors.accentSoft };
                 return (
@@ -2773,10 +2887,12 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                       paddingVertical: 3,
                     }}
                   >
-                    {att.kind === "pdf" ? (
-                      <FileText size={11} color={dot} />
-                    ) : (
+                    {att.kind === "image" ? (
                       <ImageIcon size={11} color={dot} />
+                    ) : att.kind === "document" ? (
+                      <BookOpen size={11} color={dot} />
+                    ) : (
+                      <FileText size={11} color={dot} />
                     )}
                     <Text style={[typography.bodyXs, { color: colors.ink }]} numberOfLines={1}>
                       {att.name}
