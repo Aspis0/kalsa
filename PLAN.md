@@ -87,19 +87,14 @@
 2. **Integrazione prodotto in Kalsa** (llama.rn ↔ BigMoeOnEdge): non ricerca ma
    ingegneria; porta i numeri della scheda dentro l'app vera. Prerequisito per shippare
    qualunque cosa di questa campagna.
-3. **Kernel i-quant CPU — GIALLO da deep research (2026-08-09, `research-iq2-kernels.md`):
-   merita lo SPIKE fail-fast (1-3 giorni), NON un cantiere al buio.** I fatti:
-   il path NEON attuale è gather-bound sul codebook (strutturale, non pigrizia);
-   **ik_llama.cpp** (MIT) ha kernel+repack con TG **1.42×** su IQ2_XXS a 4 thread
-   (misurato su M2-Max, verificato alla fonte dal coordinatore — #164); il GEMV
-   esperti è **compute-bound** (~3 GB/s impliciti vs 67 di picco → c'è headroom);
-   il fill della cache è NOSTRO → repack al fill ammortizzato dall'hit 77-87%
-   (shape %4=0, compatibili). Aritmetica onesta: f≈0.4, g=1.42 → **+13% decode**
-   (~5.0 tok/s). Il 4.7× di PP è GEMM/prefill, NON decode — upside secondario.
-   Costo se GO: port selettivo iqk + repack-al-fill, 4-10 p-settimane.
-   **Spike: `mandates/spike-iq2-kernels.md`** — g misurato sul NOSTRO S23 decide:
-   ≥1.30 GO, 1.20-1.30 condizionato, <1.20 si chiude e il plateau ~4.4 è il
-   soffitto onesto del percorso flash+CPU per questo quant.
+3. ~~**Kernel i-quant CPU**~~ **CHIUSO PER MISURA (2026-08-09, spike S1)**: sul
+   nostro S23, ik_llama è **più lento** del nostro mainline sul decode — g_IQ2
+   **0.719**, g_IQ3 0.805 (regola g<1.20 → NO-GO). Il 1.42× pubblicato su M2-Max
+   si è invertito sull'8 Gen 2; il pp512 3.39× conferma che il setup era vivo
+   (ik vince sul GEMM/prefill, non dove serve). Con questo, il plateau decode
+   ~4.4-4.7 tok/s è il soffitto onesto del percorso flash+CPU su questo quant.
+   Riapertura solo con: numeri TG > mainline pubblicati SU 8 Gen 2 o silicio
+   affine, o un product-need prefill (lì ik vince 3.4×, scope port diverso).
 
 ## Regole operative imparate a caro prezzo
 
@@ -115,6 +110,10 @@
 - **Mediana pooled ≠ effetto reale**: il pooling di prompt diversi gonfia i Δ (speed
   drop-cold: +6.5% pooled, +2.4-3.9% per-prompt). Dichiarare l'aggregazione prima, ma
   leggere anche la vista per-prompt nel verbale.
+- **Il g di un altro silicio non è il tuo g**: ik 1.42× su M2-Max è diventato 0.72×
+  (INVERTITO) sull'8 Gen 2. I numeri prior-art motivano lo spike, mai il cantiere:
+  solo la misura on-device decide. (Gemello della regola "quale carico": qui è
+  "quale silicio".)
 - **I guardrail si cambiano per mandato, non a caldo in un retry** — anche quando la
   lettura tecnica è giusta. Firma RescueParty: MemFree ≪100 MiB **E** die 88-92 °C
   sostenuti per minuti (il telefono muore a ~90 sostenuti, non a 98).
@@ -1058,6 +1057,33 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-09 — ⚖️ SESSIONE STACCATO DOPPIA: 0.65 SOSTITUZIONE RACCOMANDATA
+  (+6.9% pooled, −42% byte, termico giù) E capitolo kernel CHIUSO per misura
+  (g=0.719: ik è PIÙ LENTO del nostro mainline sul decode, sul nostro silicio).**
+
+  Report: `moe-speed-dropcold-065.md` (commit `cb760d8`) + S1 in `moe-spike-iq2.md`
+  (commit `1e0febb`). Batteria 76→63%, floor mai toccato, zero guardrail, pin
+  intatto.
+
+  **Gate 0.65**: pooled +6.90%, per-prompt short +9.94% / f45 +0.93% — tutte sopra
+  il gate di non-regressione. Banda f45 identica al knee alla cifra (28.59/82.4/
+  6.1). KV intatto. Sostenuto: die mediano 68.9 °C, max 76.6 — sotto il 79.8 del
+  giro finale a 0.50: l'ipotesi "−42% I/O scalda meno" è compatibile (n=1).
+  Il combinato ABORT_MEM ha taciuto su 54/117 tick con memfree<100 MiB e lmkd 0:
+  comportamento voluto. Falso positivo `STOP_INCOHERENT_BANDA` dello script:
+  buco di specifica del MANDATO (banda knee dichiarata senza "solo twin f45") —
+  verdetto umano corretto, colpa del coordinatore, a verbale.
+
+  **Spike S1**: g_IQ2 = 5.855/8.14 = **0.719**, g_IQ3 = 0.805 — regola g<1.20 →
+  **NO-GO, capitolo kernel chiuso**. Il 1.42× di ik su M2-Max si è INVERTITO
+  sull'8 Gen 2. pp512 3.39× (ik vince sul GEMM/prefill) = sanity: il setup era
+  vivo, il divario è reale ma non dove serve. Port plan non scritto, giustamente.
+
+  Con questo, TUTTE le leve di ricerca sul collo del calcolo sono chiuse per
+  misura o per fonte: GPU (K2/K5), kernel i-quant (g<1), k (PPL), requant
+  (pareggio), speculazione (letteratura+misura). Restano: la decisione 0.65
+  (gualt) e l'integrazione prodotto.
 
 - **2026-08-09 — ✅ SPIKE KERNEL S0 COMPLETO (S1 in attesa di staccato). ik_llama
   builda su Termux (3° tentativo: FA on + ALL_QUANTS off), riferimento buildato
