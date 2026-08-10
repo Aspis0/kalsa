@@ -270,12 +270,48 @@ function gradeHonestyProbe(turn) {
   };
 }
 
+/**
+ * Any turn whose reply is graded as fact recall (early / late / legacy).
+ * Used for multi-turn naming and tool-assisted notes.
+ */
 function isFactProbeTurn(turn) {
-  return turn.id === "probe_facts" || turn.id === "probe";
+  const id = turn?.id;
+  return (
+    id === "probe_facts_early" ||
+    id === "probe_facts_late" ||
+    id === "probe_facts" ||
+    id === "probe"
+  );
+}
+
+/**
+ * Map turn id → fact family.
+ *   probe_facts_early → fact_recall_early (control: plants still in window)
+ *   probe_facts_late  → fact_recall_late  (discriminating: plants sliced out)
+ *   probe_facts / probe → fact_recall     (older runs / fase0)
+ */
+function factFamilyForTurn(turn) {
+  const id = turn?.id;
+  if (id === "probe_facts_early") return "fact_recall_early";
+  if (id === "probe_facts_late") return "fact_recall_late";
+  if (id === "probe_facts" || id === "probe") return "fact_recall";
+  return null;
+}
+
+/**
+ * True when the assistant reply is empty or whitespace-only.
+ * WHY: run 31379031892 baseline seed 5 turn 11 persisted a blank bubble;
+ * scoring that as 0/8 facts made a whole arm's recall look like total
+ * amnesia. An empty reply is a harness/app failure, not a model miss.
+ */
+function isEmptyReplyText(reply) {
+  return String(reply ?? "").trim().length === 0;
 }
 
 /**
  * Grade all probes for a turn list.
+ * Empty/whitespace replies get found: null (excluded from family counts,
+ * recall, and permutation input) — not found: false.
  * @returns {{ probes: object[], notes: string[] }}
  */
 function gradeAllProbes(turns, facts) {
@@ -285,30 +321,49 @@ function gradeAllProbes(turns, facts) {
 
   for (const turn of turns) {
     const id = turn.id;
-    if (isFactProbeTurn(turn)) {
-      const stripped = stripThink(turn.reply);
+    const empty = isEmptyReplyText(turn.reply);
+    const factFamily = factFamilyForTurn(turn);
+    if (factFamily) {
+      const stripped = empty ? "" : stripThink(turn.reply);
       for (const fact of facts) {
         const name = multiFactTurn
           ? `fact_${fact}_t${turn.index}`
           : `fact_${fact}`;
         probes.push({
           name,
-          family: "fact_recall",
+          family: factFamily,
           turnIndex: turn.index,
           expected: String(fact),
-          found: matchesFact(stripped, fact),
+          // null = excluded (empty reply), not a scored miss
+          found: empty ? null : matchesFact(stripped, fact),
         });
       }
     } else if (id === "probe_tool") {
-      probes.push(gradeToolProbe(turn));
+      const p = gradeToolProbe(turn);
+      if (empty) p.found = null;
+      probes.push(p);
     } else if (id === "probe_miniapp") {
-      probes.push(gradeMiniappProbe(turn));
+      const p = gradeMiniappProbe(turn);
+      if (empty) p.found = null;
+      probes.push(p);
     } else if (id === "probe_language") {
-      const { probe, note } = gradeLanguageProbe(turn);
-      probes.push(probe);
-      if (note) notes.push(note);
+      if (empty) {
+        probes.push({
+          name: "language",
+          family: "language",
+          turnIndex: turn.index,
+          expected: "italian",
+          found: null,
+        });
+      } else {
+        const { probe, note } = gradeLanguageProbe(turn);
+        probes.push(probe);
+        if (note) notes.push(note);
+      }
     } else if (id === "probe_honesty") {
-      probes.push(gradeHonestyProbe(turn));
+      const p = gradeHonestyProbe(turn);
+      if (empty) p.found = null;
+      probes.push(p);
     }
   }
   return { probes, notes };
@@ -319,5 +374,6 @@ export {
   looksLikeReasoningLeak,
   matchesFact,
   isFactProbeTurn,
+  isEmptyReplyText,
   gradeAllProbes,
 };

@@ -37,7 +37,12 @@ const PERM_ITERATIONS = Number(process.env.BENCH_PERM_ITERATIONS || 10_000);
 const PERM_SEED = Number(process.env.BENCH_PERM_SEED || 42);
 const ALPHA = 0.05;
 const FASE4_ARMS = ["baseline", "v42"];
-const PRIMARY_FAMILY = "fact_recall";
+// Primary endpoint = mean(fact_recall_early, fact_recall_late) per conversation
+// when the early/late layout is present; plain fact_recall for older artifacts.
+// WHY mean: see conversationPrimaryRate. Early/late still reported separately
+// in the family table (decay curve is the point of the layout).
+const PRIMARY_ENDPOINT_MEAN = "mean(fact_recall_early, fact_recall_late)";
+const PRIMARY_FAMILY_LEGACY = "fact_recall";
 
 // ── File discovery ──────────────────────────────────────────────────────
 
@@ -164,6 +169,87 @@ function probeFamily(probe) {
   return "unknown";
 }
 
+/**
+ * PRIMARY endpoint label for the campaign.
+ * early/late layout → mean of the two rates per conversation;
+ * else plain fact_recall (older artifacts / fase0 re-grades).
+ */
+function resolvePrimaryEndpoint(fase4) {
+  for (const r of fase4) {
+    if (
+      r.byFamily &&
+      (r.byFamily.fact_recall_early || r.byFamily.fact_recall_late)
+    ) {
+      return PRIMARY_ENDPOINT_MEAN;
+    }
+    for (const p of r.probes ?? []) {
+      const f = probeFamily(p);
+      if (f === "fact_recall_early" || f === "fact_recall_late") {
+        return PRIMARY_ENDPOINT_MEAN;
+      }
+    }
+  }
+  return PRIMARY_FAMILY_LEGACY;
+}
+
+/** True when found is a scored boolean; null/undefined = excluded (empty reply). */
+function isScoredProbe(probe) {
+  return probe != null && probe.found !== null && probe.found !== undefined;
+}
+
+/**
+ * Rate of a fact family for one conversation, skipping null outcomes.
+ * Prefers byFamily when total > 0; else derives from scored probes.
+ */
+function familyRateForResult(r, fam) {
+  const bf = r.byFamily?.[fam];
+  if (
+    bf &&
+    typeof bf.total === "number" &&
+    bf.total > 0 &&
+    typeof bf.rate === "number" &&
+    Number.isFinite(bf.rate)
+  ) {
+    return bf.rate;
+  }
+  const facts = (r.probes ?? []).filter(
+    (p) => probeFamily(p) === fam && isScoredProbe(p),
+  );
+  if (facts.length === 0) return null;
+  return facts.filter((p) => p.found === true).length / facts.length;
+}
+
+/**
+ * Per-conversation primary value in [0,1].
+ * WHY mean(early, late): the product's promise is that facts survive a long
+ * conversation; the two probes measure that at two distances (turn 11 vs 16).
+ * Reporting only late answers half the question; pooling raw probes instead
+ * of averaging per conversation would count correlated observations twice.
+ * Fall back to plain fact_recall when neither early nor late is present.
+ * Recomputes from byFamily/probes so re-aggregating campaigns graded under
+ * the old late-only primary still get the mean endpoint.
+ */
+function conversationPrimaryRate(r) {
+  const earlyR = familyRateForResult(r, "fact_recall_early");
+  const lateR = familyRateForResult(r, "fact_recall_late");
+  const hasEarlyLateLayout =
+    r.byFamily?.fact_recall_early != null ||
+    r.byFamily?.fact_recall_late != null ||
+    (r.probes ?? []).some((p) => {
+      const f = probeFamily(p);
+      return f === "fact_recall_early" || f === "fact_recall_late";
+    });
+  if (hasEarlyLateLayout) {
+    const rates = [earlyR, lateR].filter((x) => x != null);
+    if (rates.length === 0) return null;
+    return rates.reduce((a, b) => a + b, 0) / rates.length;
+  }
+  const plain = familyRateForResult(r, PRIMARY_FAMILY_LEGACY);
+  if (plain != null) return plain;
+  if (r.recall != null && Number.isFinite(r.recall)) return r.recall;
+  return null;
+}
+
 function meanOf(nums) {
   if (nums.length === 0) return null;
   return nums.reduce((a, b) => a + b, 0) / nums.length;
@@ -240,6 +326,8 @@ function aggregateFase0(results) {
     const g = groups.get(key);
     g.files += 1;
     for (const probe of r.probes ?? []) {
+      // Skip null outcomes (empty-reply exclusions) — not scored misses.
+      if (!isScoredProbe(probe)) continue;
       g.probesTotal += 1;
       if (probe.found === true) g.probesFound += 1;
     }
@@ -377,7 +465,7 @@ function findZeroProbeFiles(fase4) {
 }
 
 function familyStatsPerArm(fase4) {
-  // arm -> family -> { found, total, seeds: Set }
+  // arm -> family -> { found, total, excluded, seeds: Set }
   const byArm = new Map();
   const allFamilies = new Set();
 
@@ -390,17 +478,33 @@ function familyStatsPerArm(fase4) {
       const fam = probeFamily(probe);
       allFamilies.add(fam);
       if (!famMap.has(fam)) {
-        famMap.set(fam, { found: 0, total: 0, seeds: new Set() });
+        famMap.set(fam, { found: 0, total: 0, excluded: 0, seeds: new Set() });
       }
       const g = famMap.get(fam);
+      // null found = empty-reply exclusion: not in total, not a miss.
+      if (!isScoredProbe(probe)) {
+        g.excluded += 1;
+        g.seeds.add(String(r.seed));
+        continue;
+      }
       g.total += 1;
       if (probe.found === true) g.found += 1;
       g.seeds.add(String(r.seed));
     }
   }
 
-  // Prefer a stable family order; unknown last.
-  const preferred = ["fact_recall", "tool_call", "miniapp", "language", "honesty"];
+  // Prefer a stable family order; early then late (decay curve) then legacy
+  // plain fact_recall; unknown last. Neither early nor late is the primary
+  // alone — the primary endpoint is their per-conversation mean.
+  const preferred = [
+    "fact_recall_early",
+    "fact_recall_late",
+    "fact_recall",
+    "tool_call",
+    "miniapp",
+    "language",
+    "honesty",
+  ];
   const families = [
     ...preferred.filter((f) => allFamilies.has(f)),
     ...[...allFamilies].filter((f) => !preferred.includes(f)).sort(),
@@ -415,9 +519,10 @@ function familyStatsPerArm(fase4) {
       rows.push({
         arm,
         family,
-        rate: g.total > 0 ? g.found / g.total : 0,
+        rate: g.total > 0 ? g.found / g.total : null,
         found: g.found,
         total: g.total,
+        excluded: g.excluded,
         seeds: g.seeds.size,
       });
     }
@@ -427,13 +532,14 @@ function familyStatsPerArm(fase4) {
 
 /** Flat 0/1 outcomes per family per arm for the probe-level (pseudo-replicated) test. */
 function familyOutcomes(fase4) {
-  // arm -> family -> number[]
+  // arm -> family -> number[]  (null outcomes excluded — empty-reply turns)
   const out = new Map();
   for (const r of fase4) {
     const arm = String(r.arm);
     if (!out.has(arm)) out.set(arm, new Map());
     const famMap = out.get(arm);
     for (const probe of r.probes ?? []) {
+      if (!isScoredProbe(probe)) continue;
       const fam = probeFamily(probe);
       if (!famMap.has(fam)) famMap.set(fam, []);
       famMap.get(fam).push(probe.found === true ? 1 : 0);
@@ -443,22 +549,16 @@ function familyOutcomes(fase4) {
 }
 
 /**
- * Conversation-level fact_recall rates (unit = one result.json).
- * Skip conversations whose recall is null (no fact probes).
+ * Conversation-level primary rates (unit = one result.json).
+ * Uses conversationPrimaryRate (mean early+late, else plain fact_recall).
+ * Skip conversations with no usable fact family (null rate).
  */
 function conversationRecallRates(fase4) {
   const byArm = new Map();
   for (const r of fase4) {
     const arm = String(r.arm);
-    let rate = r.recall;
-    if (rate == null || !Number.isFinite(rate)) {
-      // Derive from probes if recall missing (schema-1 or old grader).
-      const facts = (r.probes ?? []).filter(
-        (p) => probeFamily(p) === PRIMARY_FAMILY,
-      );
-      if (facts.length === 0) continue;
-      rate = facts.filter((p) => p.found === true).length / facts.length;
-    }
+    const rate = conversationPrimaryRate(r);
+    if (rate == null || !Number.isFinite(rate)) continue;
     if (!byArm.has(arm)) byArm.set(arm, []);
     byArm.get(arm).push(rate);
   }
@@ -495,9 +595,11 @@ function runFamilyPermutations(fase4, families) {
 }
 
 /**
- * PRIMARY test: unit = conversation, value = fact_recall rate in [0,1].
+ * PRIMARY test: unit = conversation, value = mean(early, late) or plain
+ * fact_recall rate in [0,1]. See conversationPrimaryRate for WHY mean.
  */
 function runConversationPrimary(fase4) {
+  const primaryEndpoint = resolvePrimaryEndpoint(fase4);
   const byArm = conversationRecallRates(fase4);
   const a = byArm.get("baseline") ?? [];
   const b = byArm.get("v42") ?? [];
@@ -509,7 +611,7 @@ function runConversationPrimary(fase4) {
       : null;
   const floor = permutationFloor(a.length, b.length, PERM_ITERATIONS);
   return {
-    family: PRIMARY_FAMILY,
+    family: primaryEndpoint,
     unit: "conversation",
     baselineRate: mean(a),
     v42Rate: mean(b),
@@ -691,11 +793,29 @@ function collectPositiveControl(fase4) {
 function collectNotes(fase4) {
   // Dedupe by note text; keep every (arm, seed) that produced it.
   const map = new Map(); // note -> [{arm, seed}]
+  const add = (text, arm, seed) => {
+    if (!map.has(text)) map.set(text, []);
+    map.get(text).push({ arm: String(arm), seed });
+  };
   for (const r of fase4) {
     for (const note of r.notes ?? []) {
-      const text = String(note);
-      if (!map.has(text)) map.set(text, []);
-      map.get(text).push({ arm: String(r.arm), seed: r.seed });
+      add(String(note), r.arm, r.seed);
+    }
+    // Product signals the grader surfaces as arrays; always caveat them even
+    // if notes were stripped or from an older partial result shape.
+    if (Array.isArray(r.contextFullTurns) && r.contextFullTurns.length > 0) {
+      add(
+        `contextFullTurns [${r.contextFullTurns.join(", ")}] — arm hit the context wall`,
+        r.arm,
+        r.seed,
+      );
+    }
+    if (Array.isArray(r.errorTurns) && r.errorTurns.length > 0) {
+      add(
+        `errorTurns [${r.errorTurns.join(", ")}] — probe results on those turns are not trustworthy`,
+        r.arm,
+        r.seed,
+      );
     }
   }
   return [...map.entries()].map(([note, sources]) => ({ note, sources }));
@@ -801,24 +921,52 @@ function renderFase4(agg) {
   }
 
   // ── Per-family rates ────────────────────────────────────────────────
+  // Primary endpoint is mean(early, late) when that layout is present —
+  // no single family row carries PRIMARY except legacy plain fact_recall.
+  const primaryFam =
+    agg.conversationPrimary?.family ?? PRIMARY_FAMILY_LEGACY;
   lines.push("", "### Per-family recall", "");
-  lines.push("| arm | family | rate | found/total | seeds |", "|---|---|---|---|---|");
+  // early vs late = decay curve (the point of the layout); primary is their
+  // per-conversation mean, not either family alone.
+  if (
+    agg.families.includes("fact_recall_early") ||
+    agg.families.includes("fact_recall_late")
+  ) {
+    lines.push(
+      "_fact_recall_early and fact_recall_late are the two distances on the decay curve; the primary endpoint is their per-conversation mean (not either family alone)._",
+      "",
+    );
+  }
+  lines.push(
+    "| arm | family | rate | found/total | excluded | seeds |",
+    "|---|---|---|---|---|---|",
+  );
   if (agg.familyRows.length === 0) {
-    lines.push("| — | — | n/a | 0/0 | 0 |");
+    lines.push("| — | — | n/a | 0/0 | 0 | 0 |");
   } else {
     for (const r of agg.familyRows) {
-      const mark = r.family === PRIMARY_FAMILY ? " **(PRIMARY)**" : "";
+      const mark =
+        r.family === primaryFam && primaryFam === PRIMARY_FAMILY_LEGACY
+          ? " **(PRIMARY)**"
+          : "";
+      const rateStr = r.rate == null ? "n/a" : fmt(r.rate);
       lines.push(
-        `| ${r.arm} | ${r.family}${mark} | ${fmt(r.rate)} | ${r.found}/${r.total} | ${r.seeds} |`,
+        `| ${r.arm} | ${r.family}${mark} | ${rateStr} | ${r.found}/${r.total} | ${r.excluded ?? 0} | ${r.seeds} |`,
       );
     }
   }
 
   // ── Primary: conversation-level fact recall ─────────────────────────
+  // Header shape kept as "fact recall, unit = conversation" for stable
+  // harness matching; endpoint name is in the body.
   const cp = agg.conversationPrimary;
   lines.push(
     "",
     `### Primary endpoint: fact recall, unit = conversation (n=${cp?.nA ?? 0} vs ${cp?.nB ?? 0})`,
+    "",
+    primaryFam === PRIMARY_ENDPOINT_MEAN
+      ? `_Primary endpoint: \`${primaryFam}\` — one number per conversation = mean of that conversation's early and late fact-recall rates._`
+      : `_Primary endpoint: \`${primaryFam}\` (legacy plain family; early/late layout absent)._`,
     "",
   );
   if (cp?.permutation) {
@@ -870,10 +1018,16 @@ function renderFase4(agg) {
     "|---|---|---|---|---|",
   );
   for (const row of agg.permutations) {
-    const label =
-      row.family === PRIMARY_FAMILY
-        ? `fact_recall (probe-level, pseudo-replicated — NOT the gate)`
-        : `${row.family} (secondary, not multiplicity-corrected)`;
+    // Fact families that feed the composite primary get the "pseudo-replicated"
+    // caveat; everything else is secondary.
+    const feedsPrimary =
+      primaryFam === PRIMARY_ENDPOINT_MEAN
+        ? row.family === "fact_recall_early" ||
+          row.family === "fact_recall_late"
+        : row.family === primaryFam;
+    const label = feedsPrimary
+      ? `${row.family} (probe-level, pseudo-replicated — NOT the gate)`
+      : `${row.family} (secondary, not multiplicity-corrected)`;
     if (!row.permutation) {
       lines.push(
         `| ${label} | ${row.baselineRate == null ? "n/a" : fmt(row.baselineRate)} | ${row.v42Rate == null ? "n/a" : fmt(row.v42Rate)} | n/a | n/a (missing arm) |`,
@@ -882,12 +1036,13 @@ function renderFase4(agg) {
     }
     const { observed, p } = row.permutation;
     const delta = `${observed >= 0 ? "+" : ""}${fmt(observed)}`;
-    const pNote =
-      row.family === PRIMARY_FAMILY
-        ? `${fmt(p, 4)} — optimistic; probes in one conversation are correlated`
-        : `${fmt(p, 4)} — not multiplicity-corrected; a single secondary p < 0.05 among four is not evidence on its own`;
+    const pNote = feedsPrimary
+      ? `${fmt(p, 4)} — optimistic; probes in one conversation are correlated`
+      : `${fmt(p, 4)} — not multiplicity-corrected; a single secondary p < 0.05 among four is not evidence on its own`;
+    const baseStr = row.baselineRate == null ? "n/a" : fmt(row.baselineRate);
+    const v42Str = row.v42Rate == null ? "n/a" : fmt(row.v42Rate);
     lines.push(
-      `| ${label} | ${fmt(row.baselineRate)} | ${fmt(row.v42Rate)} | ${delta} | ${pNote} |`,
+      `| ${label} | ${baseStr} | ${v42Str} | ${delta} | ${pNote} |`,
     );
   }
 
@@ -942,6 +1097,47 @@ function renderFase4(agg) {
     }
   }
 
+  // ── Compactor state trajectory (per arm) ────────────────────────────
+  // WHY: only direct evidence of whether boundaryIndex advanced and how much
+  // digest text the arm was given; token sizes alone are ambiguous.
+  lines.push(
+    "",
+    "### Compactor state trajectory (per arm)",
+    "",
+    "_Per-turn `boundaryIndex` / `digestChars` from `positiveControl` (grader reads `turn<N>/compactor_state.json`). Baseline rows are expected all null/0 — `reset_chat` deletes the key at arm start._",
+    "",
+  );
+  const trajByArm = collectCompactorTrajectory(agg.fase4);
+  for (const arm of FASE4_ARMS) {
+    const rows = trajByArm.get(arm) ?? [];
+    lines.push(`#### arm \`${arm}\``, "");
+    if (rows.length === 0) {
+      lines.push("_No positiveControl / turns for this arm._", "");
+      continue;
+    }
+    const allNullOrZero = rows.every(
+      (r) =>
+        (r.boundaryIndex == null || r.boundaryIndex === 0) &&
+        (r.digestChars == null || r.digestChars === 0),
+    );
+    if (arm === "baseline" && allNullOrZero) {
+      lines.push(
+        "_Baseline: all rows null/0 as expected (compactor key absent)._",
+        "",
+      );
+    }
+    lines.push(
+      "| seed | turn | boundaryIndex | digestChars | prompt tokens |",
+      "|---|---|---|---|---|",
+    );
+    for (const r of rows) {
+      lines.push(
+        `| ${r.seed} | ${r.turn} | ${r.boundaryIndex == null ? "null" : r.boundaryIndex} | ${r.digestChars == null ? "0" : r.digestChars} | ${r.promptTokens == null ? "n/a" : r.promptTokens} |`,
+      );
+    }
+    lines.push("");
+  }
+
   // ── Caveats ─────────────────────────────────────────────────────────
   if (agg.notes.length > 0) {
     lines.push("", "### Caveats", "");
@@ -954,6 +1150,66 @@ function renderFase4(agg) {
   }
 
   return { body: lines.join("\n"), failParts: renderGateFailures(agg) };
+}
+
+/**
+ * Flatten per-arm trajectories: seed × turn → boundary, digest, prompt tokens.
+ * Always emit rows when any of the three maps has a turn key (or fall back to
+ * result.turns indices) so baseline null/0 rows stay visible.
+ */
+function collectCompactorTrajectory(fase4) {
+  const byArm = new Map();
+  for (const r of fase4) {
+    const arm = String(r.arm);
+    if (!byArm.has(arm)) byArm.set(arm, []);
+    const pc = r.positiveControl ?? {};
+    const boundary = pc.boundaryByTurn ?? {};
+    const digest = pc.digestCharsByTurn ?? {};
+    const tokens = pc.promptTokensByTurn ?? {};
+    const turnKeys = new Set([
+      ...Object.keys(boundary),
+      ...Object.keys(digest),
+      ...Object.keys(tokens),
+    ]);
+    // Older artifacts lack boundaryByTurn — still show prompt tokens so the
+    // table is not empty when only embd.size was captured.
+    if (turnKeys.size === 0 && Array.isArray(r.turns)) {
+      for (const t of r.turns) {
+        if (t?.index != null) turnKeys.add(String(t.index));
+      }
+    }
+    const seed = r.seed;
+    const sorted = [...turnKeys].sort((a, b) => Number(a) - Number(b));
+    for (const t of sorted) {
+      const b = Object.prototype.hasOwnProperty.call(boundary, t)
+        ? boundary[t]
+        : null;
+      const d = Object.prototype.hasOwnProperty.call(digest, t)
+        ? digest[t]
+        : Object.keys(digest).length === 0
+          ? null
+          : 0;
+      const pt = Object.prototype.hasOwnProperty.call(tokens, t)
+        ? tokens[t]
+        : null;
+      byArm.get(arm).push({
+        seed,
+        turn: t,
+        boundaryIndex: b,
+        digestChars: d,
+        promptTokens: pt,
+      });
+    }
+  }
+  // Stable order: seed then turn
+  for (const [arm, rows] of byArm) {
+    rows.sort(
+      (a, b) =>
+        Number(a.seed) - Number(b.seed) || Number(a.turn) - Number(b.turn),
+    );
+    byArm.set(arm, rows);
+  }
+  return byArm;
 }
 
 function renderGateFailures(agg) {

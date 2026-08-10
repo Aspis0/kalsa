@@ -506,6 +506,17 @@ capture_turn_evidence() {
       || true
   } > "$tdir/prompt_meta.txt" 2>/dev/null || : > "$tdir/prompt_meta.txt"
 
+  # WHY per-turn (not end-of-arm only): the only direct evidence of whether
+  # boundaryIndex ever advanced and how much retrieved text (frozenDigest)
+  # the arm was given. Assembled-prompt token sizes alone cannot settle the
+  # contradiction between code (window shrinks with compaction ON) and
+  # measured tokens (run 31379031892 turn 15: v42 larger than baseline).
+  # Empty file when the key is absent — baseline reset_chat deletes it at
+  # arm start, so anything here came from this run. Never fail a turn over it.
+  adb shell "sqlite3 -noheader $DB \"SELECT value FROM catalystLocalStorage WHERE key='kalsa.chat.compactor.default';\"" 2>/dev/null \
+    | tr -d '\r' > "$tdir/compactor_state.json" 2>/dev/null \
+    || : > "$tdir/compactor_state.json"
+
   # Clear so the next turn's capture is scoped (and the logcat ring cannot
   # retain prior-turn Input processed / telemetry lines).
   adb logcat -c 2>/dev/null || true
@@ -796,7 +807,21 @@ elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
     for i in "${!FILLERS[@]}"; do
       plan_add filler "filler_$((i+1))" "${FILLERS[$i]}"
     done
-    plan_add probe probe_facts \
+    # Fact-probe layout vs LEGACY_MAX_HISTORY = 20 (src/context/compactor.ts:128;
+    # baseline arm uses messages.slice(-LEGACY_MAX_HISTORY) at :436-443 when
+    # compactionEnabled is false). Evidence: run 31379031892 — a single mid-
+    # conversation probe sat inside the baseline window (fact_recall noise:
+    # 1,1,0.5,1,0,0.75), so the A/B could not show whether compaction recovers
+    # facts. Arithmetic for a 16-turn conversation (2 plants + 8 fillers + 6
+    # probes; each turn = user + assistant → 2 messages):
+    #   turn 11 → 21 messages in history. slice(-20) keeps indices 1..20:
+    #     plants (0,2) and their assistant echoes (1,3) are still inside the
+    #     baseline window → CONTROL (both arms should pass; if not, the probe
+    #     itself is broken).
+    #   turn 16 → 31 messages. slice(-20) keeps indices 11..30: plants AND
+    #     echoes are outside the baseline window → only retrieval can supply
+    #     the facts. DISCRIMINATING probe (primary endpoint).
+    plan_add probe probe_facts_early \
       "Ripeti tutti i dati che ti ho dato nei primi due messaggi"
     plan_add probe probe_tool \
       "Cerca sul web le previsioni del meteo di domani a Milano"
@@ -806,6 +831,8 @@ elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
       "In quale continente si trova il Brasile e perche"
     plan_add probe probe_honesty \
       "Chi ha vinto il premio Zorblax nel 2019"
+    plan_add probe probe_facts_late \
+      "Ripeti tutti i dati che ti ho dato nei primi due messaggi"
   else
     # smoke: plant_a + plant_b + filler_1 + filler_2 + probe_facts (5 turns).
     # WHY 5: smoke exists to reach the first turn where a settle bug shows up.

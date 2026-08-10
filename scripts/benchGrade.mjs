@@ -12,7 +12,8 @@
  * Text primitives and family graders live in benchGraders.mjs.
  *
  * Sidecar evidence (same dir as raw.json): turn<N>/telemetry.jsonl,
- * turn<N>/loadprompt.txt, turn<N>/prompt_meta.txt. Missing → nulls, never throw.
+ * turn<N>/loadprompt.txt, turn<N>/prompt_meta.txt,
+ * turn<N>/compactor_state.json. Missing → nulls/empty, never throw.
  *
  * Usage:
  *   node scripts/benchGrade.mjs bench-out/raw.json > bench-out/result.json
@@ -25,6 +26,7 @@ import {
   looksLikeReasoningLeak,
   matchesFact,
   isFactProbeTurn,
+  isEmptyReplyText,
   gradeAllProbes,
 } from "./benchGraders.mjs";
 
@@ -144,6 +146,10 @@ function readTelemetryMetrics(turnDir, targetEmbSize) {
   const turnComputeMs = sumPositive(
     rounds.flatMap((r) => [r.promptMs, r.predictedMs]),
   );
+  // contextFull: turnTelemetry.ts carries it per round; nothing else read it.
+  // Direct evidence the arm hit the context wall (the phenomenon under test).
+  // Surface only — do not change any probe outcome.
+  const contextFull = rounds.some((r) => r.contextFull === true);
   return {
     metrics: {
       promptMs: sumPositive(rounds.map((r) => r.promptMs)),
@@ -157,6 +163,7 @@ function readTelemetryMetrics(turnDir, targetEmbSize) {
           : null,
       rounds: rounds.length,
       extraCompletions,
+      contextFull,
     },
     attributionNote,
   };
@@ -253,6 +260,7 @@ function metricsForTurn(baseDir, turnIndex) {
     predictedPerSecond: null,
     rounds: null,
     extraCompletions: null,
+    contextFull: false,
     reusedTokens: null,
     promptTokens: null,
     reuseFrac: null,
@@ -291,6 +299,8 @@ function metricsForTurn(baseDir, turnIndex) {
     predictedPerSecond: tel?.predictedPerSecond ?? null,
     rounds: tel?.rounds ?? null,
     extraCompletions: tel?.extraCompletions ?? null,
+    // false when no telemetry; true only if an attributed round had it.
+    contextFull: tel?.contextFull === true,
     reusedTokens,
     promptTokens,
     reuseFrac,
@@ -305,15 +315,101 @@ function metricsForTurn(baseDir, turnIndex) {
 function familyStats(probes) {
   const by = {};
   for (const p of probes) {
-    if (!by[p.family]) by[p.family] = { found: 0, total: 0, rate: 0 };
+    if (!by[p.family]) by[p.family] = { found: 0, total: 0, excluded: 0, rate: null };
+    // found === null: empty-reply exclusion (run 31379031892 blank bubble).
+    // Must not enter total — a rate over fewer observations than it appears
+    // is a silent lie; `excluded` makes the shrinkage visible.
+    if (p.found === null || p.found === undefined) {
+      by[p.family].excluded += 1;
+      continue;
+    }
     by[p.family].total += 1;
-    if (p.found) by[p.family].found += 1;
+    if (p.found === true) by[p.family].found += 1;
   }
   for (const k of Object.keys(by)) {
     const g = by[k];
-    g.rate = g.total === 0 ? 0 : g.found / g.total;
+    g.rate = g.total === 0 ? null : g.found / g.total;
   }
   return by;
+}
+
+/**
+ * Primary recall for one conversation.
+ * WHY mean(early, late): the product's promise is that facts survive a long
+ * conversation, and the two probes measure that promise at two distances —
+ * turn 11 (OFF arm still holds plants in last-20; ON arm has moved boundary
+ * past them) and turn 16 (neither arm holds them). Reporting only late would
+ * answer half the question; pooling raw probes instead of averaging per
+ * conversation would count correlated observations twice.
+ * Fall back to plain fact_recall when neither early nor late is present
+ * (older artifacts / fase0).
+ */
+function primaryRecall(byFamily) {
+  const usable = (fam) => {
+    const g = byFamily[fam];
+    if (!g || g.total === 0 || g.rate == null || !Number.isFinite(g.rate)) {
+      return null;
+    }
+    return g.rate;
+  };
+  const earlyR = usable("fact_recall_early");
+  const lateR = usable("fact_recall_late");
+  const hasEarlyLateLayout =
+    byFamily.fact_recall_early != null || byFamily.fact_recall_late != null;
+  if (hasEarlyLateLayout) {
+    const rates = [earlyR, lateR].filter((r) => r != null);
+    if (rates.length === 0) return null;
+    return rates.reduce((a, b) => a + b, 0) / rates.length;
+  }
+  return usable("fact_recall");
+}
+
+/**
+ * Parse turn<N>/compactor_state.json (AsyncStorage dump of CompactorState).
+ * WHY worth a read per turn: only direct evidence of whether boundaryIndex
+ * ever advanced and how much retrieved text (frozenDigest — field name kept
+ * for wire compat, holds last query-time digest) the arm was given;
+ * everything else is inference from prompt sizes.
+ * Empty / absent / unparseable → nulls and 0 chars, never throw.
+ */
+function readCompactorState(baseDir, turnIndex) {
+  const empty = {
+    boundaryIndex: null,
+    builtAtUserTurn: null,
+    digestChars: 0,
+    summaryChars: 0,
+  };
+  const p = path.join(baseDir, `turn${turnIndex}`, "compactor_state.json");
+  if (!existsSync(p)) return empty;
+  let text;
+  try {
+    text = readFileSync(p, "utf8").trim();
+  } catch {
+    return empty;
+  }
+  if (!text) return empty;
+  let obj;
+  try {
+    obj = JSON.parse(text);
+  } catch {
+    return empty;
+  }
+  if (!obj || typeof obj !== "object") return empty;
+  return {
+    boundaryIndex:
+      typeof obj.boundaryIndex === "number" && Number.isFinite(obj.boundaryIndex)
+        ? obj.boundaryIndex
+        : null,
+    builtAtUserTurn:
+      typeof obj.builtAtUserTurn === "number" &&
+      Number.isFinite(obj.builtAtUserTurn)
+        ? obj.builtAtUserTurn
+        : null,
+    digestChars:
+      typeof obj.frozenDigest === "string" ? obj.frozenDigest.length : 0,
+    summaryChars:
+      typeof obj.rollingSummary === "string" ? obj.rollingSummary.length : 0,
+  };
 }
 
 function mean(nums) {
@@ -434,6 +530,17 @@ function gradeRaw(raw, baseDir) {
 
   const turnMetrics = turns.map((t) => metricsForTurn(baseDir, t.index));
 
+  // contextFullTurns / errorTurns: product signals the harness used to ignore.
+  // Listed + noted only — never change a probe's found flag because of them.
+  const contextFullTurns = [];
+  const errorTurns = [];
+  const emptyReplyTurns = [];
+
+  // Per-turn boundary/digest — only direct evidence of whether the boundary
+  // advanced and how much digest text the arm was given (see readCompactorState).
+  const boundaryByTurn = {};
+  const digestCharsByTurn = {};
+
   const outTurns = turns.map((turn, i) => {
     const m = turnMetrics[i];
     const reply = turn.reply ?? "";
@@ -451,6 +558,28 @@ function gradeRaw(raw, baseDir) {
       typeof turn.settled_s === "number" && Number.isFinite(turn.settled_s)
         ? turn.settled_s
         : null;
+    // AppShell.tsx:1163 renders engine errors as "⚠️ <message>"; :183-195
+    // SKIPS those assistant messages when rebuilding history. So an error
+    // turn is invisible to the engine but would still be graded as the
+    // turn's reply if we did not flag it. Surface only — do not re-score.
+    const isErrorReply = String(reply).startsWith("⚠️");
+    // Blank bubble (run 31379031892 baseline seed 5 turn 11): not a model miss.
+    const isEmptyReply = isEmptyReplyText(reply);
+    if (metrics.contextFull === true && turn.index != null) {
+      contextFullTurns.push(turn.index);
+    }
+    if (isErrorReply && turn.index != null) {
+      errorTurns.push(turn.index);
+    }
+    if (isEmptyReply && turn.index != null) {
+      emptyReplyTurns.push(turn.index);
+    }
+    const csTurn = readCompactorState(baseDir, turn.index);
+    if (turn.index != null) {
+      const idx = String(turn.index);
+      boundaryByTurn[idx] = csTurn.boundaryIndex;
+      digestCharsByTurn[idx] = csTurn.digestChars;
+    }
     return {
       // Default every copied field: JSON.stringify drops undefined keys, so a
       // malformed raw would omit fields instead of nulling them (B7).
@@ -465,6 +594,12 @@ function gradeRaw(raw, baseDir) {
       replyExcerpt: String(reply).slice(0, REPLY_EXCERPT_LEN),
       sources: turn.sources ?? null,
       hasMiniapp: turn.hasMiniapp ?? null,
+      isErrorReply,
+      isEmptyReply,
+      boundaryIndex: csTurn.boundaryIndex,
+      builtAtUserTurn: csTurn.builtAtUserTurn,
+      digestChars: csTurn.digestChars,
+      summaryChars: csTurn.summaryChars,
       ...metrics,
     };
   });
@@ -474,9 +609,11 @@ function gradeRaw(raw, baseDir) {
 
   // Untagged reasoning leaked as the reply (run 31367691176). Do NOT change
   // found/not-found — note only, so the probe stays honest as unmeasurable.
+  // Skip empty replies: already excluded; "looks like reasoning" is N/A.
   const reasoningLeakTurns = [];
   for (const turn of turns) {
     if (turn.kind !== "probe") continue;
+    if (isEmptyReplyText(turn.reply)) continue;
     if (!looksLikeReasoningLeak(turn.reply ?? "")) continue;
     const n = turn.index;
     const id = turn.id ?? "?";
@@ -486,10 +623,27 @@ function gradeRaw(raw, baseDir) {
     );
   }
 
-  // recall = fact_recall rate ONLY. null when no fact probes — 0 would be
-  // indistinguishable from "everything missed" (B6). Aggregator skips null.
-  const fr = byFamily.fact_recall;
-  let recall;
+  if (contextFullTurns.length > 0) {
+    probeNotes.push(
+      `contextFull on turn(s) ${contextFullTurns.join(", ")} — arm hit the context wall (product signal; probe outcomes unchanged)`,
+    );
+  }
+  if (errorTurns.length > 0) {
+    probeNotes.push(
+      `errorTurns ${errorTurns.join(", ")} (reply starts with ⚠️) — those probe results are not trustworthy (engine skipped the message; outcomes unchanged)`,
+    );
+  }
+  if (emptyReplyTurns.length > 0) {
+    // Evidence: run 31379031892 baseline seed 5 turn 11 (probe_facts, replyLen 0).
+    probeNotes.push(
+      `emptyReplyTurns ${emptyReplyTurns.join(", ")} — blank assistant bubble; probes on those turns are excluded (found=null), not scored as misses`,
+    );
+  }
+
+  // Top-level recall = mean(fact_recall_early, fact_recall_late) per conversation
+  // (see primaryRecall). Fallback plain fact_recall for older artifacts. null
+  // when no usable fact family remains after exclusions.
+  const recall = primaryRecall(byFamily);
   const notes = collectNotes(
     raw,
     turns,
@@ -497,11 +651,13 @@ function gradeRaw(raw, baseDir) {
     compactionActive,
     probeNotes,
   );
-  if (!fr) {
-    recall = null;
+  if (
+    recall == null &&
+    !byFamily.fact_recall_early &&
+    !byFamily.fact_recall_late &&
+    !byFamily.fact_recall
+  ) {
     notes.push("no fact_recall probes in this arm");
-  } else {
-    recall = fr.rate;
   }
 
   // Positive control: real, non-truncated signals (smoke run 31358530713
@@ -554,11 +710,19 @@ function gradeRaw(raw, baseDir) {
       promptTokensByTurn,
       reusedTokensByTurn,
       completionsByTurn,
+      // WHY per-turn boundary/digest: only direct evidence of whether the
+      // boundary advanced and how much retrieved text the arm was given —
+      // everything else is inference from assembled prompt sizes.
+      boundaryByTurn,
+      digestCharsByTurn,
       compactorChars,
       summaryChars,
     },
     notes,
     reasoningLeakTurns,
+    contextFullTurns,
+    errorTurns,
+    emptyReplyTurns,
   };
 }
 

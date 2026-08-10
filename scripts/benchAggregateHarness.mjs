@@ -225,7 +225,7 @@ async function main() {
       check("complete 2×3 exits 0", exitCode === 0, `exitCode=${exitCode}`);
       check(
         "complete renders per-family table header",
-        markdown.includes("| arm | family | rate | found/total | seeds |"),
+        markdown.includes("| arm | family | rate | found/total | excluded | seeds |"),
       );
       check(
         "complete renders conversation-level primary",
@@ -1095,6 +1095,287 @@ async function main() {
         rNothing.exitCode !== 0 &&
           rNothing.markdown.includes("MEASURING NOTHING"),
         `exit=${rNothing.exitCode}`,
+      );
+    }
+
+    // ── early/late fact families: primary = mean; fall back to plain ──
+    {
+      // New layout: both arms have fact_recall_early + fact_recall_late.
+      // Primary = mean(early, late) per conversation.
+      // early rates equal (both pass); late: baseline 0, v42 1
+      // → baseline mean 0.5, v42 mean 1.0.
+      const d = path.join(tmp, "early-late");
+      mkdirSync(d, { recursive: true });
+      for (const seed of [1, 2, 3]) {
+        writeResult(
+          d,
+          "baseline",
+          seed,
+          baseResult({
+            arm: "baseline",
+            seed,
+            probes: [
+              probe("fact_A_early", "fact_recall_early", true),
+              probe("fact_B_early", "fact_recall_early", true),
+              probe("fact_A_late", "fact_recall_late", false),
+              probe("fact_B_late", "fact_recall_late", false),
+            ],
+            // mean(1.0, 0.0) = 0.5
+            recall: 0.5,
+            byFamily: {
+              fact_recall_early: { found: 2, total: 2, rate: 1, excluded: 0 },
+              fact_recall_late: { found: 0, total: 2, rate: 0, excluded: 0 },
+            },
+            positiveControl: {
+              promptTokensByTurn: { "1": 800, "2": 900 },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              boundaryByTurn: { "1": null, "2": null },
+              digestCharsByTurn: { "1": 0, "2": 0 },
+              compactorChars: 0,
+              summaryChars: 0,
+            },
+          }),
+        );
+        writeResult(
+          d,
+          "v42",
+          seed,
+          baseResult({
+            arm: "v42",
+            seed,
+            compaction: "on",
+            compactionActive: true,
+            probes: [
+              probe("fact_A_early", "fact_recall_early", true),
+              probe("fact_B_early", "fact_recall_early", true),
+              probe("fact_A_late", "fact_recall_late", true),
+              probe("fact_B_late", "fact_recall_late", true),
+            ],
+            // mean(1.0, 1.0) = 1.0
+            recall: 1,
+            byFamily: {
+              fact_recall_early: { found: 2, total: 2, rate: 1, excluded: 0 },
+              fact_recall_late: { found: 2, total: 2, rate: 1, excluded: 0 },
+            },
+            positiveControl: {
+              promptTokensByTurn: { "1": 800, "2": 950 + seed },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              boundaryByTurn: { "1": 0, "2": 12 },
+              digestCharsByTurn: { "1": 0, "2": 40 + seed },
+              compactorChars: 100,
+              summaryChars: 10,
+            },
+          }),
+        );
+      }
+      const r = withEnv(
+        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([d]),
+      );
+      check(
+        "early/late: both families appear in per-family table",
+        r.markdown.includes("fact_recall_early") &&
+          r.markdown.includes("fact_recall_late"),
+      );
+      check(
+        "early/late: decay-curve one-liner (mean is primary)",
+        /decay curve/i.test(r.markdown) &&
+          /per-conversation mean/i.test(r.markdown),
+      );
+      check(
+        "early/late: no single-family PRIMARY mark on early or late",
+        !/fact_recall_late \*\*\(PRIMARY\)\*\*/.test(r.markdown) &&
+          !/fact_recall_early \*\*\(PRIMARY\)\*\*/.test(r.markdown),
+      );
+      check(
+        "early/late: primary endpoint names mean(early, late)",
+        /Primary endpoint: `mean\(fact_recall_early, fact_recall_late\)`/.test(
+          r.markdown,
+        ),
+      );
+      check(
+        "early/late: trajectory table present with boundaryIndex",
+        r.markdown.includes("Compactor state trajectory") &&
+          r.markdown.includes("boundaryIndex") &&
+          r.markdown.includes("digestChars"),
+      );
+      // Baseline mean 0.5, v42 mean 1.0 → gate can meet if p ok
+      check(
+        "early/late: primary uses mean (v42 1.0 > baseline 0.5)",
+        /v42 \(1(?:\.0+)?\)/.test(r.markdown) &&
+          /baseline \(0\.5/.test(r.markdown),
+        `snippet: ${r.markdown.match(/baseline mean[\s\S]{0,200}/)?.[0] ?? r.markdown.slice(0, 400)}`,
+      );
+
+      // Older artifacts: only plain fact_recall → primary falls back.
+      const legacy = path.join(tmp, "legacy-fact");
+      mkdirSync(legacy, { recursive: true });
+      writeCompleteCampaign(legacy);
+      const rLeg = withEnv(
+        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([legacy]),
+      );
+      check(
+        "legacy fact_recall still PRIMARY when early/late absent",
+        /fact_recall \*\*\(PRIMARY\)\*\*/.test(rLeg.markdown) &&
+          !rLeg.markdown.includes("fact_recall_late"),
+      );
+    }
+
+    // ── null probe outcomes excluded from family rates + permutations ─
+    {
+      const d = path.join(tmp, "null-exclude");
+      mkdirSync(d, { recursive: true });
+      // baseline seed 1: 2 scored facts (1 found) + 2 null (empty reply)
+      writeResult(
+        d,
+        "baseline",
+        1,
+        baseResult({
+          arm: "baseline",
+          seed: 1,
+          probes: [
+            probe("fact_A", "fact_recall", true),
+            probe("fact_B", "fact_recall", false),
+            probe("fact_C", "fact_recall", null),
+            probe("fact_D", "fact_recall", null),
+          ],
+          recall: 0.5,
+          byFamily: {
+            fact_recall: { found: 1, total: 2, rate: 0.5, excluded: 2 },
+          },
+          emptyReplyTurns: [11],
+          positiveControl: {
+            promptTokensByTurn: { "1": 100, "2": 200 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            boundaryByTurn: { "1": null, "2": null },
+            digestCharsByTurn: { "1": 0, "2": 0 },
+            compactorChars: 0,
+            summaryChars: 0,
+          },
+        }),
+      );
+      // Need a full campaign for the gate; fill remaining pairs with complete.
+      for (const seed of [2, 3]) {
+        writeResult(
+          d,
+          "baseline",
+          seed,
+          baseResult({
+            arm: "baseline",
+            seed,
+            positiveControl: {
+              promptTokensByTurn: { "1": 100, "2": 200 },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              boundaryByTurn: { "1": null, "2": null },
+              digestCharsByTurn: { "1": 0, "2": 0 },
+              compactorChars: 0,
+              summaryChars: 0,
+            },
+          }),
+        );
+      }
+      for (const seed of [1, 2, 3]) {
+        writeResult(
+          d,
+          "v42",
+          seed,
+          baseResult({
+            arm: "v42",
+            seed,
+            compaction: "on",
+            compactionActive: true,
+            probes: [
+              probe("fact_A", "fact_recall", true),
+              probe("fact_B", "fact_recall", true),
+            ],
+            recall: 1,
+            byFamily: {
+              fact_recall: { found: 2, total: 2, rate: 1, excluded: 0 },
+            },
+            positiveControl: {
+              promptTokensByTurn: { "1": 100, "2": 250 + seed },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              boundaryByTurn: { "1": 0, "2": 8 },
+              digestCharsByTurn: { "1": 0, "2": 30 },
+              compactorChars: 50,
+              summaryChars: 5,
+            },
+          }),
+        );
+      }
+      const r = withEnv(
+        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([d]),
+      );
+      // baseline seed1: 1/2 scored + 2 excluded; seeds 2,3 default 1/2 → found 1+1+1=3, total 2+2+2=6, excluded 2
+      check(
+        "null outcomes: excluded count shown in family table",
+        /fact_recall[^|]*\|[^|]*\|[^|]*\|[^|]*\| 2 \|/.test(r.markdown) ||
+          r.markdown.includes("| 2 |"), // excluded column
+        `markdown family section: ${r.markdown.match(/Per-family[\s\S]{0,600}/)?.[0] ?? "?"}`,
+      );
+    }
+
+    // ── contextFullTurns / errorTurns caveats ─────────────────────────
+    {
+      const d = path.join(tmp, "product-signals");
+      mkdirSync(d, { recursive: true });
+      writeResult(
+        d,
+        "baseline",
+        1,
+        baseResult({
+          arm: "baseline",
+          seed: 1,
+          contextFullTurns: [9, 12],
+          errorTurns: [13],
+          notes: [],
+          positiveControl: {
+            promptTokensByTurn: { "1": 100, "2": 200 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 0,
+            summaryChars: 0,
+          },
+        }),
+      );
+      writeResult(
+        d,
+        "v42",
+        1,
+        baseResult({
+          arm: "v42",
+          seed: 1,
+          compaction: "on",
+          compactionActive: true,
+          positiveControl: {
+            promptTokensByTurn: { "1": 100, "2": 250 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 50,
+            summaryChars: 0,
+          },
+        }),
+      );
+      const { markdown } = withEnv(
+        { BENCH_EXPECT_SEEDS: "0", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([d]),
+      );
+      check(
+        "caveat line for contextFullTurns",
+        /contextFullTurns \[9, 12\]/.test(markdown) ||
+          /contextFullTurns/.test(markdown),
+        `snippet:\n${markdown.split("\n").filter((l) => /context|Caveat|error/i.test(l)).join("\n")}`,
+      );
+      check(
+        "caveat line for errorTurns",
+        /errorTurns \[13\]/.test(markdown) || /errorTurns/.test(markdown),
       );
     }
   } finally {

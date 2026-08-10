@@ -785,7 +785,7 @@ async function main() {
       );
     }
 
-    // ── 10. recall = fact_recall only ─────────────────────────────────
+    // ── 10. recall = fact_recall only (legacy probe_facts id) ────────
     {
       // 1/2 facts found; tool fails; language fails → recall must be 0.5, not pooled
       const raw = baseRaw({
@@ -798,20 +798,298 @@ async function main() {
       });
       const result = gradeRaw(raw, tmp);
       const fr = result.byFamily?.fact_recall;
-      check("byFamily fact_recall found=1 total=2", fr?.found === 1 && fr?.total === 2,
-        `got ${JSON.stringify(fr)}`);
+      check(
+        "byFamily fact_recall found=1 total=2 excluded=0",
+        fr?.found === 1 && fr?.total === 2 && (fr?.excluded ?? 0) === 0,
+        `got ${JSON.stringify(fr)}`,
+      );
       check(
         "recall reflects fact_recall only (0.5), not pooled families",
         result.recall === 0.5,
         `got ${result.recall}; probes=${JSON.stringify(result.probes?.map((p) => [p.name, p.found]))}`,
       );
       // pooled would be 1 found / 4 probes = 0.25
+      const scored = result.probes.filter((p) => p.found !== null && p.found !== undefined);
       const pooled =
-        result.probes.filter((p) => p.found).length / result.probes.length;
+        scored.filter((p) => p.found).length / scored.length;
       check(
         "recall !== pooled family rate",
         result.recall !== pooled,
         `recall=${result.recall} pooled=${pooled}`,
+      );
+    }
+
+    // ── 10b. early/late fact families; recall = mean(early, late) ─────
+    // Layout: probe_facts_early → fact_recall_early;
+    //         probe_facts_late  → fact_recall_late.
+    // Primary = mean of the two rates (WHY: two distances on the decay curve).
+    // Older probe_facts / probe still grade into plain fact_recall.
+    {
+      const raw = baseRaw({
+        facts: ["Leopoldo", "4500"],
+        turns: [
+          // early: both facts → family rate 1.0
+          turn(11, "probe_facts_early", "Leopoldo e 4500 euro"),
+          // late: only Leopoldo → family rate 0.5
+          turn(16, "probe_facts_late", "Ricordo solo Leopoldo"),
+        ],
+      });
+      const result = gradeRaw(raw, tmp);
+      const early = result.byFamily?.fact_recall_early;
+      const late = result.byFamily?.fact_recall_late;
+      check(
+        "probe_facts_early → fact_recall_early (found=2 total=2)",
+        early?.found === 2 && early?.total === 2 && early?.rate === 1,
+        `got ${JSON.stringify(early)}`,
+      );
+      check(
+        "probe_facts_late → fact_recall_late (found=1 total=2)",
+        late?.found === 1 && late?.total === 2 && late?.rate === 0.5,
+        `got ${JSON.stringify(late)}`,
+      );
+      check(
+        "top-level recall = mean(early=1.0, late=0.5) = 0.75",
+        result.recall === 0.75,
+        `got ${result.recall}`,
+      );
+      check(
+        "plain fact_recall family absent when only early/late present",
+        result.byFamily?.fact_recall == null,
+        `got ${JSON.stringify(result.byFamily?.fact_recall)}`,
+      );
+
+      // Legacy ids still grade into fact_recall (older campaign re-grade).
+      const legacyFacts = gradeRaw(
+        baseRaw({
+          facts: ["Leopoldo"],
+          turns: [turn(1, "probe_facts", "Leopoldo")],
+        }),
+        tmp,
+      );
+      check(
+        "legacy probe_facts → fact_recall family",
+        legacyFacts.byFamily?.fact_recall?.found === 1 &&
+          legacyFacts.recall === 1,
+        `byFamily=${JSON.stringify(legacyFacts.byFamily)} recall=${legacyFacts.recall}`,
+      );
+      const fase0Probe = gradeRaw(
+        baseRaw({
+          phase: "fase0",
+          facts: ["Leopoldo"],
+          turns: [turn(1, "probe", "Leopoldo")],
+        }),
+        tmp,
+      );
+      check(
+        "fase0 probe id → fact_recall family",
+        fase0Probe.byFamily?.fact_recall?.found === 1 &&
+          fase0Probe.recall === 1,
+        `byFamily=${JSON.stringify(fase0Probe.byFamily)}`,
+      );
+    }
+
+    // ── 10b2. empty reply is not a miss (run 31379031892 blank bubble) ─
+    {
+      const raw = baseRaw({
+        facts: ["Leopoldo", "4500", "Torino", "blu"],
+        turns: [
+          turn(11, "probe_facts", ""), // blank bubble
+          turn(12, "probe_tool", "cerca il meteo", { sources: 1 }),
+        ],
+      });
+      const result = gradeRaw(raw, tmp);
+      const factProbes = (result.probes ?? []).filter((p) =>
+        String(p.family).startsWith("fact_recall"),
+      );
+      check(
+        "empty reply: all fact probes have found=null",
+        factProbes.length === 4 && factProbes.every((p) => p.found === null),
+        `probes=${JSON.stringify(factProbes.map((p) => [p.name, p.found]))}`,
+      );
+      const fr = result.byFamily?.fact_recall;
+      check(
+        "empty reply: byFamily excludes from total, records excluded",
+        fr?.found === 0 && fr?.total === 0 && fr?.excluded === 4 && fr?.rate == null,
+        `got ${JSON.stringify(fr)}`,
+      );
+      check(
+        "empty reply: recall is null (no scored fact probes)",
+        result.recall == null,
+        `got ${result.recall}`,
+      );
+      check(
+        "empty reply: emptyReplyTurns lists the turn",
+        Array.isArray(result.emptyReplyTurns) &&
+          result.emptyReplyTurns.includes(11),
+        `got ${JSON.stringify(result.emptyReplyTurns)}`,
+      );
+      check(
+        "empty reply: turn isEmptyReply true",
+        result.turns?.find((t) => t.index === 11)?.isEmptyReply === true,
+      );
+      check(
+        "empty reply: note names the turns",
+        (result.notes ?? []).some((n) =>
+          /emptyReplyTurns 11/.test(n),
+        ),
+        `notes=${JSON.stringify(result.notes)}`,
+      );
+      // Whitespace-only also empty.
+      const ws = gradeRaw(
+        baseRaw({
+          facts: ["Leopoldo"],
+          turns: [turn(5, "probe_facts", "   \n\t  ")],
+        }),
+        tmp,
+      );
+      check(
+        "whitespace-only reply → isEmptyReply + found null",
+        ws.turns?.[0]?.isEmptyReply === true &&
+          ws.probes?.[0]?.found === null &&
+          ws.emptyReplyTurns?.includes(5),
+        `got isEmpty=${ws.turns?.[0]?.isEmptyReply} found=${ws.probes?.[0]?.found}`,
+      );
+    }
+
+    // ── 10b3. per-turn compactor_state.json attached to turn + PC ─────
+    {
+      const d = path.join(tmp, "cs-turn");
+      mkdirSync(d, { recursive: true });
+      const tdir = path.join(d, "turn3");
+      mkdirSync(tdir, { recursive: true });
+      writeFileSync(
+        path.join(tdir, "compactor_state.json"),
+        JSON.stringify({
+          frozenDigest: "abcde", // 5 chars — last query-time digest
+          rollingSummary: "sum!",
+          builtAtUserTurn: 2,
+          boundaryIndex: 14,
+          chatId: "default",
+        }),
+      );
+      writeFileSync(path.join(tdir, "prompt_meta.txt"), "reused=0 total=900\n");
+      // turn 4: empty file (baseline / key absent)
+      const t4 = path.join(d, "turn4");
+      mkdirSync(t4, { recursive: true });
+      writeFileSync(path.join(t4, "compactor_state.json"), "");
+      const result = gradeRaw(
+        baseRaw({
+          turns: [
+            turn(3, "filler_1", "ok"),
+            turn(4, "filler_2", "ok2"),
+          ],
+        }),
+        d,
+      );
+      const t3 = result.turns.find((t) => t.index === 3);
+      const t4t = result.turns.find((t) => t.index === 4);
+      check(
+        "compactor_state: boundaryIndex/builtAt/digestChars/summaryChars on turn",
+        t3?.boundaryIndex === 14 &&
+          t3?.builtAtUserTurn === 2 &&
+          t3?.digestChars === 5 &&
+          t3?.summaryChars === 4,
+        `got ${JSON.stringify({
+          b: t3?.boundaryIndex,
+          built: t3?.builtAtUserTurn,
+          d: t3?.digestChars,
+          s: t3?.summaryChars,
+        })}`,
+      );
+      check(
+        "compactor_state: empty file → null boundary, 0 chars",
+        t4t?.boundaryIndex === null &&
+          t4t?.builtAtUserTurn === null &&
+          t4t?.digestChars === 0 &&
+          t4t?.summaryChars === 0,
+        `got ${JSON.stringify(t4t)}`,
+      );
+      check(
+        "positiveControl.boundaryByTurn / digestCharsByTurn",
+        result.positiveControl?.boundaryByTurn?.["3"] === 14 &&
+          result.positiveControl?.digestCharsByTurn?.["3"] === 5 &&
+          result.positiveControl?.boundaryByTurn?.["4"] === null &&
+          result.positiveControl?.digestCharsByTurn?.["4"] === 0,
+        `pc=${JSON.stringify(result.positiveControl)}`,
+      );
+    }
+
+    // ── 10c. contextFull surface + error-turn ⚠️ flag ─────────────────
+    {
+      const d = path.join(tmp, "ctx-err");
+      mkdirSync(d, { recursive: true });
+      const raw = baseRaw({
+        facts: ["Leopoldo"],
+        turns: [
+          turn(5, "filler_1", "ok filler"),
+          // Error-shaped reply (AppShell ⚠️) that still contains the fact —
+          // found must stay true; flag + note only.
+          turn(11, "probe_facts", "⚠️ context full\nLeopoldo was remembered"),
+        ],
+      });
+      writeSidecar(d, 5, {
+        telemetry: [
+          {
+            turnId: 1,
+            round: 1,
+            tokensEvaluated: 50,
+            tokensPredicted: 10,
+            promptMs: 100,
+            predictedMs: 50,
+            predictedPerSecond: 5,
+            contextFull: true,
+          },
+        ],
+        loadprompt: "Input processed: n_past=0, embd.size=50\n",
+      });
+      const result = gradeRaw(raw, d);
+      const t5 = result.turns.find((t) => t.index === 5);
+      const t11 = result.turns.find((t) => t.index === 11);
+      check(
+        "contextFull true on turn when any attributed round has it",
+        t5?.contextFull === true,
+        `got ${t5?.contextFull}`,
+      );
+      check(
+        "contextFullTurns lists the turn index",
+        Array.isArray(result.contextFullTurns) &&
+          result.contextFullTurns.includes(5),
+        `got ${JSON.stringify(result.contextFullTurns)}`,
+      );
+      check(
+        "contextFull note names the turns",
+        (result.notes ?? []).some((n) =>
+          /contextFull on turn\(s\) 5/.test(n),
+        ),
+        `notes=${JSON.stringify(result.notes)}`,
+      );
+      check(
+        "isErrorReply true for ⚠️-prefixed reply",
+        t11?.isErrorReply === true,
+        `got ${t11?.isErrorReply}`,
+      );
+      check(
+        "errorTurns lists the ⚠️ turn",
+        Array.isArray(result.errorTurns) && result.errorTurns.includes(11),
+        `got ${JSON.stringify(result.errorTurns)}`,
+      );
+      check(
+        "errorTurns note marks probe untrustworthy",
+        (result.notes ?? []).some((n) =>
+          /errorTurns 11/.test(n) && /not trustworthy/.test(n),
+        ),
+        `notes=${JSON.stringify(result.notes)}`,
+      );
+      // Probe outcome MUST NOT change because of the ⚠️ prefix.
+      check(
+        "⚠️ error reply does NOT change fact found (still true)",
+        findProbe(result, "fact_Leopoldo")?.found === true,
+        `got ${findProbe(result, "fact_Leopoldo")?.found}`,
+      );
+      check(
+        "non-error turn isErrorReply false",
+        t5?.isErrorReply === false,
+        `got ${t5?.isErrorReply}`,
       );
     }
 
