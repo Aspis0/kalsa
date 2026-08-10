@@ -270,13 +270,27 @@ jobs:
             URL="https://huggingface.co/unsloth/Qwen3.5-4B-MTP-GGUF/resolve/86835bf9949e4d14d6860f7910b1340ad4f271a9/Qwen3.5-4B-Q4_K_M.gguf?download=true"
             echo "MODEL_FILE=Qwen3.5-4B-Q4_K_M.gguf" >> $GITHUB_ENV
             echo "MODEL_DIR=qwen3.5-4b" >> $GITHUB_ENV
+            # WHY: ModelRegistry qwen3.5-4b requires mmproj; ModelDownloader
+            # isFileComplete is size-exact. Sideloading only the main GGUF made
+            # every turn reply "Modello non ancora scaricato" while both arms
+            # stayed green (CI run 31420693167). mmproj is a different HF
+            # repo+revision from the weights (unsloth/Qwen3.5-4B-GGUF @ e87f176).
+            echo "MMPROJ_FILE=mmproj-F16.gguf" >> $GITHUB_ENV
+            # ModelRegistry mmproj.sizeBytes for qwen3.5-4b (exact-byte gate).
+            echo "MMPROJ_BYTES=672423616" >> $GITHUB_ENV
+            curl -sL -o model.gguf "$URL"
+            curl -sL -o mmproj.gguf \
+              "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/mmproj-F16.gguf?download=true"
+            # Both files: a truncated download is visible here, not only after push.
+            ls -la model.gguf mmproj.gguf
           else
+            # 2B has no mmproj entry — leave alone (why 2B always worked).
             URL="https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf?download=true"
             echo "MODEL_FILE=Qwen3.5-2B-Q4_K_M.gguf" >> $GITHUB_ENV
             echo "MODEL_DIR=qwen3.5-2b" >> $GITHUB_ENV
+            curl -sL -o model.gguf "$URL"
+            ls -la model.gguf
           fi
-          curl -sL -o model.gguf "$URL"
-          ls -la model.gguf
 
       - name: Run bench arm on emulator
         if: matrix.phase == inputs.phase
@@ -307,6 +321,8 @@ jobs:
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
           MODEL_DIR: ${{ env.MODEL_DIR }}
           MODEL_FILE: ${{ env.MODEL_FILE }}
+          MMPROJ_FILE: ${{ env.MMPROJ_FILE }}
+          MMPROJ_BYTES: ${{ env.MMPROJ_BYTES }}
 
       - name: Upload arm result + evidence
         if: always() && matrix.phase == inputs.phase

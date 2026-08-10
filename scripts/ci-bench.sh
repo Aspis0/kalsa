@@ -108,6 +108,30 @@ log "arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING co
 
 install_and_sideload "$APK_PATH" "model.gguf" "$MODEL_DIR" "$MODEL_FILE"
 
+# WHY: ModelRegistry qwen3.5-4b requires mmproj alongside weights;
+# ModelDownloader isFileComplete is size-exact (ModelDownloader.ts:67-68).
+# Sideloading only the main GGUF made every turn reply "Modello non ancora
+# scaricato" while both smoke arms stayed green (CI run 31420693167).
+# Skip silently when MMPROJ_FILE unset (2B has no mmproj — leave alone).
+# Push after install_and_sideload (same idioms) rather than changing ci-lib.sh.
+if [ -n "${MMPROJ_FILE:-}" ] && [ -f mmproj.gguf ]; then
+  log "sideload mmproj $MMPROJ_FILE"
+  adb push mmproj.gguf /data/local/tmp/mmproj.gguf 2>&1 | tail -1
+  adb shell "cp /data/local/tmp/mmproj.gguf /data/data/$PKG/files/models/$MODEL_DIR/$MMPROJ_FILE"
+  adb shell "rm -f /data/local/tmp/mmproj.gguf"
+  _mmproj_uid=$(adb shell "stat -c %U /data/data/$PKG" | tr -d '\r')
+  adb shell "chown -R $_mmproj_uid:$_mmproj_uid /data/data/$PKG/files/models"
+  # Presence check is size-exact — a truncated push fails the same silent way
+  # as 31420693167. Expected size from workflow (MMPROJ_BYTES), not hardcoded.
+  [ -n "${MMPROJ_BYTES:-}" ] \
+    || die "MMPROJ_FILE set but MMPROJ_BYTES missing (workflow must export expected size)"
+  _mmproj_dev_sz=$(adb shell "stat -c %s /data/data/$PKG/files/models/$MODEL_DIR/$MMPROJ_FILE" 2>/dev/null | tr -d '\r')
+  [ "$_mmproj_dev_sz" = "$MMPROJ_BYTES" ] \
+    || die "mmproj size on device $_mmproj_dev_sz != expected MMPROJ_BYTES $MMPROJ_BYTES (truncated/corrupt push)"
+  log "mmproj OK ($_mmproj_dev_sz bytes)"
+  adb shell "ls -la /data/data/$PKG/files/models/$MODEL_DIR/" | tr -d '\r'
+fi
+
 set_prefs() {
   local compaction_val; compaction_val=$([ "$COMPACTION" = "on" ] && echo 1 || echo 0)
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR');"
@@ -1111,6 +1135,37 @@ with open(out_path, "w", encoding="utf-8") as out:
 if ! node scripts/benchGrade.mjs "$OUT/raw.json" > "$OUT/result.json"; then
   die "benchGrade.mjs failed — raw.json cannot be graded (see raw.json + grader stderr)"
 fi
+
+# WHY: a green arm that measured nothing is worse than a failed one — the
+# aggregate would treat it as data (run 31420693167 would have reported
+# "recall 0 on both arms of the 4B" while every turn was ⚠️ model-missing).
+# Grader already flags errorTurns/emptyReplyTurns; act on them here. Do not
+# change the grader. Threshold: more than half of plan turns error or empty.
+_bad_arm_msg=$(python3 -c '
+import json, sys
+r = json.load(open(sys.argv[1], encoding="utf-8"))
+raw = json.load(open(sys.argv[2], encoding="utf-8"))
+err = set(r.get("errorTurns") or [])
+empty = set(r.get("emptyReplyTurns") or [])
+bad = err | empty
+turns = r.get("turns") or raw.get("turns") or []
+n = len(turns)
+if n <= 0 or len(bad) <= n / 2.0:
+    sys.exit(0)
+# Prefer first errorTurn for the named reply; else first empty.
+first_idx = min(err) if err else min(empty)
+reply = ""
+for t in (raw.get("turns") or []):
+    if t.get("index") == first_idx:
+        reply = t.get("reply") or ""
+        break
+print(
+    "arm measured nothing: %d/%d turns error-or-empty (threshold > half); "
+    "first bad turn %s reply: %s"
+    % (len(bad), n, first_idx, reply[:300])
+)
+sys.exit(1)
+' "$OUT/result.json" "$OUT/raw.json" 2>/dev/null) || die "${_bad_arm_msg:-arm measured nothing (error/empty turns > half)}"
 
 # RESULT.txt: arm/seed/compaction + probes=found/total read back from result.json.
 python3 -c '
