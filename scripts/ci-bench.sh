@@ -92,12 +92,23 @@ set_prefs() {
   # Opt-in memory subsystem must stay off: otherwise its extract/recall path
   # confounds the compaction A/B (same facts could leak via memory, not context).
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.memory.enabled','0');"
+  # Locale MUST be "it" on every phase/arm. Bench prompts and probes are Italian.
+  # DEFAULT_LOCALE in src/i18n/index.ts is "en"; without this seed both arms run
+  # English. The operative block's language rule (en.ts operativeBlock.language)
+  # is injected only on the compaction arm (LlamaService format none→user-prefix
+  # upgrade when digest exists), so an unseeded locale puts a *different
+  # instruction* in one arm — a confounder, not a treatment effect. Evidence:
+  # CI run 31379031892 scored language 6/6 baseline vs 2/5 v42 because v42 was
+  # told in English to answer in English while probes asked in Italian.
+  # LOCALE_KEY is exactly "kalsa.locale"; "it" is a valid Locale (src/i18n/index.ts).
+  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.locale','it');"
   sql "SELECT key,substr(value,1,40) FROM catalystLocalStorage;" | tee "$OUT/prefs.txt"
 }
 set_prefs
 
 # On-device proof of what the app will actually read (not what we intended to write).
 COMPACTION_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.context.compaction';" | head -1 | tr -d '[:space:]')
+LOCALE_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.locale';" | head -1 | tr -d '[:space:]')
 
 adb logcat -c
 
@@ -846,7 +857,7 @@ import json, sys
 
 phase, arm, seed, block_format, thinking, compaction, compaction_pref_raw = sys.argv[1:8]
 model_dir, model_file, facts_json, filler_rotation, history_chars = sys.argv[8:13]
-turns_path, out_path, compactor_chars, summary_chars = sys.argv[13:17]
+turns_path, out_path, compactor_chars, summary_chars, locale_pref_raw = sys.argv[13:18]
 
 turns = []
 try:
@@ -867,6 +878,9 @@ raw = {
     "thinking": thinking,
     "compaction": compaction,
     "compactionPrefRaw": compaction_pref_raw,
+    # On-device locale the app actually read (see set_prefs kalsa.locale seed).
+    # Empty string when the key was absent — grader notes when not "it".
+    "localePrefRaw": locale_pref_raw,
     "model": {"dir": model_dir, "file": model_file},
     "facts": json.loads(facts_json),
     "fillerRotation": int(filler_rotation),
@@ -884,7 +898,7 @@ with open(out_path, "w", encoding="utf-8") as out:
 ' \
   "$PHASE" "$ARM" "$SEED" "$BLOCK_FORMAT" "$THINKING" "$COMPACTION" "$COMPACTION_PREF_RAW" \
   "$MODEL_DIR" "$MODEL_FILE" "$FACTS_JSON" "$FILLER_ROTATION" "$HISTORY_CHARS" \
-  "$OUT/.turns.jsonl" "$OUT/raw.json" "$COMPACTOR_CHARS" "$SUMMARY_CHARS" \
+  "$OUT/.turns.jsonl" "$OUT/raw.json" "$COMPACTOR_CHARS" "$SUMMARY_CHARS" "$LOCALE_PREF_RAW" \
   || die "failed to write raw.json — refusing to grade stale or missing data"
 
 # Grading is out-of-band: a raw.json that cannot be graded is a failed arm.

@@ -45,6 +45,9 @@ function baseRaw(overrides = {}) {
     thinking: "budget256",
     compaction: "on",
     compactionPrefRaw: "1",
+    // Seeded Italian: matches ci-bench set_prefs (kalsa.locale=it). Override
+    // to ""/"en"/absent only when testing the locale-confounder note.
+    localePrefRaw: "it",
     model: { dir: "qwen3.5-2b", file: "Qwen3.5-2B-Q4_K_M.gguf" },
     facts: ["Leopoldo", "4500"],
     fillerRotation: 0,
@@ -708,6 +711,78 @@ async function main() {
       check("no mismatch note when pref 1 and arm on", !(ok.notes ?? []).some((n) =>
         n.includes("which the app reads as DISABLED"),
       ));
+    }
+
+    // ── 9b. localePrefRaw pass-through + confounder note ──────────────
+    // Evidence: run 31379031892 language 6/6 baseline vs 2/5 v42 was the
+    // harness locale confounder (en operative block vs Italian probes), not
+    // compaction. Note only — language grader logic must stay unchanged.
+    {
+      const localeNoteRe =
+        /locale on device was '.*' — bench probes are Italian/;
+      const probeTurns = [
+        turn(1, "probe_facts", "Leopoldo"),
+      ];
+
+      for (const bad of ["", "en", "fr"]) {
+        const r = gradeRaw(
+          baseRaw({
+            localePrefRaw: bad,
+            turns: probeTurns,
+            facts: ["Leopoldo"],
+          }),
+          tmp,
+        );
+        check(
+          `locale note fires for localePrefRaw=${JSON.stringify(bad)}`,
+          (r.notes ?? []).some((n) => localeNoteRe.test(n)),
+          `notes=${JSON.stringify(r.notes)}`,
+        );
+        check(
+          `localePrefRaw pass-through for ${JSON.stringify(bad)}`,
+          r.localePrefRaw === bad,
+          `got ${JSON.stringify(r.localePrefRaw)}`,
+        );
+      }
+
+      // Absent field (pre-seed campaign raw.json): still note, no crash.
+      const absentRaw = baseRaw({
+        turns: probeTurns,
+        facts: ["Leopoldo"],
+      });
+      delete absentRaw.localePrefRaw;
+      const absent = gradeRaw(absentRaw, tmp);
+      check(
+        "locale note fires when localePrefRaw absent",
+        (absent.notes ?? []).some((n) =>
+          n.includes("locale on device was ''"),
+        ),
+        `notes=${JSON.stringify(absent.notes)}`,
+      );
+      check(
+        "localePrefRaw null when absent on raw",
+        absent.localePrefRaw === null,
+        `got ${JSON.stringify(absent.localePrefRaw)}`,
+      );
+
+      const okLocale = gradeRaw(
+        baseRaw({
+          localePrefRaw: "it",
+          turns: probeTurns,
+          facts: ["Leopoldo"],
+        }),
+        tmp,
+      );
+      check(
+        "locale note does NOT fire for localePrefRaw=it",
+        !(okLocale.notes ?? []).some((n) => localeNoteRe.test(n)),
+        `notes=${JSON.stringify(okLocale.notes)}`,
+      );
+      check(
+        "localePrefRaw pass-through for it",
+        okLocale.localePrefRaw === "it",
+        `got ${JSON.stringify(okLocale.localePrefRaw)}`,
+      );
     }
 
     // ── 10. recall = fact_recall only ─────────────────────────────────

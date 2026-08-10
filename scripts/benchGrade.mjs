@@ -385,6 +385,19 @@ function collectNotes(raw, turns, turnMetrics, compactionActive, extraNotes) {
     );
   }
 
+  // Locale confounder (CI run 31379031892): DEFAULT_LOCALE is "en"; unseeded
+  // kalsa.locale leaves English operative-block language rule on the
+  // compaction arm only, while bench probes are Italian. Absent field (pre-
+  // seed raw.json) also counts as untrustworthy — same signal as "".
+  // Do NOT change the language grader; the note is the signal.
+  const localePrefStr =
+    raw.localePrefRaw == null ? "" : String(raw.localePrefRaw);
+  if (localePrefStr !== "it") {
+    notes.push(
+      `locale on device was '${localePrefStr}' — bench probes are Italian, so the operative block's language rule contradicts them (this arm's language probe is not trustworthy)`,
+    );
+  }
+
   const missingTel = turnMetrics.filter((m) => !m._hadTelemetry).length;
   if (missingTel > 0) {
     notes.push(`no telemetry sidecar found for ${missingTel} turn(s)`);
@@ -525,6 +538,9 @@ function gradeRaw(raw, baseDir) {
     thinking: raw.thinking ?? null,
     compaction: raw.compaction ?? null,
     compactionPrefRaw: raw.compactionPrefRaw ?? null,
+    // Pass-through of on-device locale (ci-bench set_prefs seeds "it").
+    // null when absent so old campaign raw.json still grades without crash.
+    localePrefRaw: raw.localePrefRaw ?? null,
     compactionActive,
     model: raw.model ?? null,
     fillerRotation: raw.fillerRotation ?? null,
