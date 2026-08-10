@@ -174,16 +174,40 @@ function escapeRegExp(s) {
  * Two boundary rules (\b breaks XR9-style tokens):
  *   - all-digits fact (4500): (?<!\p{N})…(?![\p{N}\p{L}]) so Budget4500 matches
  *     (model recalled the number) but 145000, 4500th and A4500Z do not.
+ *     Also accepts thousands-grouped form (4.500 / 4,500 / 4 500 / 4 NBSP 500)
+ *     — same boundaries so 14.500 does not match 4500.
+ *     WHY (run 31402155067): model wrote Italian thousands sep and scored miss:
+ *       baseline s3 t11/t16 **Budget:** 4.500 €
+ *       v42 s5 t16 / s6 t11 **Budget**: 4.500 euro
+ *     Keep this inside the digit branch only — do not normalise non-digit facts.
  *   - otherwise (Leopoldo, XR9, PK42): (?<![\p{L}\p{N}])…(?![\p{L}\p{N}]) so
  *     XR9 does not match XR90 and Leopoldo does not match Leopoldone.
  */
+function digitFactBody(digits) {
+  const plain = escapeRegExp(digits);
+  if (digits.length <= 3) return plain;
+  // Group digits in threes from the right; sep = . , space, or NBSP.
+  const groups = [];
+  let s = digits;
+  while (s.length > 3) {
+    groups.unshift(s.slice(-3));
+    s = s.slice(0, -3);
+  }
+  groups.unshift(s);
+  const sep = "[.,\\u00A0 ]";
+  const grouped = groups.map((g) => escapeRegExp(g)).join(sep);
+  return `(?:${plain}|${grouped})`;
+}
+
 function matchesFact(text, fact) {
   const f = String(fact ?? "");
   if (!f) return false;
-  const body = escapeRegExp(f);
   const re = /^\d+$/.test(f)
-    ? new RegExp(`(?<!\\p{N})${body}(?![\\p{N}\\p{L}])`, "iu")
-    : new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, "iu");
+    ? new RegExp(`(?<!\\p{N})${digitFactBody(f)}(?![\\p{N}\\p{L}])`, "iu")
+    : new RegExp(
+        `(?<![\\p{L}\\p{N}])${escapeRegExp(f)}(?![\\p{L}\\p{N}])`,
+        "iu",
+      );
   return re.test(String(text ?? ""));
 }
 

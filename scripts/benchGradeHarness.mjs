@@ -155,6 +155,37 @@ async function main() {
       check("4500 does NOT match 4500th", matchesFact("4500th", "4500") === false);
       check("case-insensitive leopoldo", matchesFact("leopoldo", "Leopoldo") === true);
       check("Leopoldo does NOT match Leopoldone", matchesFact("Leopoldone", "Leopoldo") === false);
+
+      // Thousands-grouped digit facts (CI 31402155067: "4.500" scored miss).
+      // Real replies across four arms — all must pass.
+      check(
+        "CI baseline s3 t11: **Budget:** 4.500 € matches 4500",
+        matchesFact("**Budget:** 4.500 €", "4500") === true,
+      );
+      check(
+        "CI baseline s3 t16: **Budget:** 4.500 € matches 4500",
+        matchesFact("**Budget:** 4.500 €", "4500") === true,
+      );
+      check(
+        "CI v42 s5 t16: **Budget**: 4.500 euro matches 4500",
+        matchesFact("**Budget**: 4.500 euro", "4500") === true,
+      );
+      check(
+        "CI v42 s6 t11: **Budget**: 4.500 euro matches 4500",
+        matchesFact("**Budget**: 4.500 euro", "4500") === true,
+      );
+      // Separator variants: . , space, NBSP.
+      check("4500 plain matches", matchesFact("4500", "4500") === true);
+      check("4500 matches 4.500", matchesFact("4.500", "4500") === true);
+      check("4500 matches 4,500", matchesFact("4,500", "4500") === true);
+      check("4500 matches 4 500", matchesFact("4 500", "4500") === true);
+      check("4500 matches 4 NBSP 500", matchesFact("4\u00A0500", "4500") === true);
+      // Boundaries on grouped form too.
+      check("4500 does NOT match 14.500", matchesFact("14.500", "4500") === false);
+      // Five-digit: 12.345 ok, 112.345 not (leading digit before group).
+      check("12345 matches 12.345", matchesFact("12.345", "12345") === true);
+      check("12345 does NOT match 112.345", matchesFact("112.345", "12345") === false);
+      // Non-digit branch untouched: negatives above (XR90, PK420, Leopoldone) still pin it.
     }
 
     // ── 3. Think-stripping ────────────────────────────────────────────
