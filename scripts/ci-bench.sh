@@ -396,7 +396,29 @@ send_and_wait() {
     return 1
   fi
 
-  tap_node "Send" || { log "Send button not found for: $msg"; return 1; }
+  # Bounded Send retry (run 31379031892: fase4/v42/seed4 died at turn 10 after
+  # ~50m — text had landed, composer focused, but one stale/failed dump missed
+  # the Send node). Between attempts refresh the dump + dismiss overlays; do
+  # NOT re-type: the message is already in the composer and retyping would
+  # risk duplicating it.
+  local send_ok=false send_attempt
+  for send_attempt in $(seq 1 "$max_attempts"); do
+    log "Send attempt ${send_attempt}/${max_attempts}: $msg"
+    if tap_node "Send"; then
+      send_ok=true
+      break
+    fi
+    if [ "$send_attempt" -lt "$max_attempts" ]; then
+      dump_ui_retry >/dev/null || true
+      dismiss_anr
+      dismiss_foreign_dialog
+      sleep 2
+    fi
+  done
+  if [ "$send_ok" = false ]; then
+    log "Send button not found for: $msg"
+    return 1
+  fi
   # SAW_SENT_AT is global so settle_turn_reply can derive settled_s
   # (Send → last history change). Do NOT repurpose SAW_ELAPSED: it remains
   # UI time-to-first-token for campaign comparability (run 31358530713).
