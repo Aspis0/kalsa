@@ -11,6 +11,19 @@ toccano; guardrail+flight; floor batteria 30%; bpb/PPL in carica OK, velocità
 solo staccato; screen ripristinato; non toccare fork/`../ai-chat`; STOP ai gate;
 mai `complete_goal`.
 
+## PIANO DEVICE (il Samsung è occupato — si lavora senza)
+
+| fase | dove | note |
+|---|---|---|
+| FASE 0 + T2a/b/c (qualità bpb) | **PC, build host del fork** | deterministico, più veloce di qualunque telefono; stessi numeri |
+| T0/T1 (smoke) + T3 (velocità) | **Jelly Star** (Helio G99, 8 GB, lab già collaudato) | binario da BUILDARE su Jelly (sha a verbale, pin separato dal CAMPAIGN S23); **`-t 2`** (regola cpu_capacity misurata sul G99: 2×A76 forti); numeri assoluti NON citabili come prodotto — vale solo la CLASSIFICA relativa ABBA sullo stesso device |
+| conferma assoluta | **S23, ~1h, solo per il vincitore, quando si libera** | prima di qualunque dossier di adozione |
+
+**Bias dichiarato (conservativo per Marco):** la flash del Jelly è più lenta →
+la tassa streaming pesa di più → Marco (streama ~10.5 GB) è svantaggiato vs
+Qwen3.5-4B (~2.5 GB, in RAM). Se Marco vince sul Jelly, su S23 vince di più.
+Riportare comunque MiB/tok e hit per stimare la correzione.
+
 ## FASE 0 — corpus multilingua (PC, subito, UNA VOLTA per tutta la campagna)
 
 Costruire `corpus/multi5/` con slice **byte-identiche e versionate**:
