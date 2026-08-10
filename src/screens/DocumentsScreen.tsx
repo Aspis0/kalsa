@@ -2,9 +2,12 @@
  * Documents library screen — import PDF/TXT, list, delete.
  * Pattern mirrors HelpScreen / SettingsScreen (Header + ScrollView rows).
  * Extraction reuses requestPdfText (PDF) and FileSystem read (TXT).
+ *
+ * Delete ownership + in-flight latch live in AppShell (survives this screen's
+ * unmount). Pure storage helpers live in documentStorage.ts.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -22,10 +25,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   addDoc,
   estimateTokensForDoc,
-  removeDoc,
   type LibraryDoc,
   type LibraryState,
 } from "../documents/DocumentLibrary";
+import {
+  MAX_DOCUMENT_BYTES,
+  MAX_TEXT_BYTES,
+  copyToOwnedStorage,
+  deleteOwnedFile,
+  resolveAssetSizeBytes,
+  sizeWithinLimits,
+} from "../documents/documentStorage";
 import { isDocumentOpInFlight } from "../documents/documentChatTool";
 import {
   isPdfTextExtractionBusy,
@@ -39,176 +49,30 @@ import { spacing } from "../theme/tokens";
 import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 
-/**
- * Hard size caps before extraction / full-text read.
- * PDF 50 MiB: upper bound for on-device page extract without OOMing mid-tier phones.
- * TXT 10 MiB: whole-file JS string; larger inputs belong in retrieve-from-PDF path.
- */
-export const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
-export const MAX_TEXT_BYTES = 10 * 1024 * 1024;
-
-/**
- * Normalize a file URI/path for ownership checks:
- * - backslashes → "/"
- * - collapse "." segments
- * - resolve ".." via a stack (clamp at root; never emit escaping "..")
- * Exported for harness coverage.
- */
-export function normalizeUriPath(uri: string): string {
-  if (!uri || typeof uri !== "string") return "";
-  const s = uri.replace(/\\/g, "/");
-  // Preserve scheme + hierarchical part (file://, content://, etc.).
-  const schemeMatch = s.match(/^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/)(.*)$/);
-  const scheme = schemeMatch ? schemeMatch[1] : "";
-  const pathPart = schemeMatch ? schemeMatch[2] : s;
-  const leadingSlash = pathPart.startsWith("/");
-  const stack: string[] = [];
-  for (const seg of pathPart.split("/")) {
-    if (seg === "" || seg === ".") continue;
-    if (seg === "..") {
-      // Clamp: never allow ".." to escape above root of this path.
-      if (stack.length > 0) stack.pop();
-      continue;
-    }
-    stack.push(seg);
-  }
-  const body = stack.join("/");
-  if (scheme) {
-    // file:// + / + body → file:///body (absolute under hierarchical scheme)
-    return `${scheme}/${body}`;
-  }
-  return (leadingSlash ? "/" : "") + body;
-}
-
-/**
- * Pure ownership predicate: after path normalization, fileUri must START WITH
- * the canonical library prefix (normalized baseDir + "kalsa-documents/").
- * baseDir is the durable root (documentDirectory), NOT the library subfolder.
- * Traversal / backslash spoofing is rejected via normalizeUriPath.
- * Exported for harness coverage.
- */
-export function isOwnedDocumentUri(
-  fileUri: string,
-  baseDir: string,
-): boolean {
-  if (!fileUri || typeof fileUri !== "string") return false;
-  if (!baseDir || typeof baseDir !== "string") return false;
-  const normUri = normalizeUriPath(fileUri);
-  const normBase = normalizeUriPath(baseDir);
-  if (!normUri || !normBase) return false;
-  const basePrefix = normBase.endsWith("/") ? normBase : `${normBase}/`;
-  const canonicalPrefix = `${basePrefix}kalsa-documents/`;
-  // Exact library dir or a file/dir under it.
-  return (
-    normUri === canonicalPrefix.slice(0, -1) ||
-    normUri.startsWith(canonicalPrefix)
-  );
-}
-
-/**
- * Pure size-limit check against resolved byte length.
- * null/undefined/non-finite → rejected (fail closed on unknown size).
- * zero bytes → rejected as empty.
- * Exported for harness coverage.
- */
-export function sizeWithinLimits(
-  sizeBytes: number | null | undefined,
-  kind: "pdf" | "txt",
-): {
-  ok: true;
-  sizeBytes: number;
-} | { ok: false; reason: "unknown" | "too_large" | "empty" } {
-  if (
-    sizeBytes == null ||
-    typeof sizeBytes !== "number" ||
-    !Number.isFinite(sizeBytes) ||
-    sizeBytes < 0
-  ) {
-    return { ok: false, reason: "unknown" };
-  }
-  const max = kind === "pdf" ? MAX_DOCUMENT_BYTES : MAX_TEXT_BYTES;
-  const n = Math.floor(sizeBytes);
-  if (n === 0) return { ok: false, reason: "empty" };
-  if (n > max) return { ok: false, reason: "too_large" };
-  return { ok: true, sizeBytes: n };
-}
-
-/**
- * Durable library storage under documentDirectory only.
- * NEVER falls back to cacheDirectory (cache is evictable).
- * Throws when documentDirectory is unavailable so import aborts cleanly.
- */
-function documentsDir(): string {
-  const base = FileSystem.documentDirectory;
-  if (!base) {
-    throw new Error("NO_DOCUMENT_DIRECTORY");
-  }
-  return `${base}kalsa-documents/`;
-}
-
-async function ensureDocumentsDir(): Promise<string> {
-  const dir = documentsDir();
-  try {
-    await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-  } catch {
-    /* exists */
-  }
-  return dir;
-}
-
-async function copyToOwnedStorage(
-  sourceUri: string,
-  id: string,
-  kind: "pdf" | "txt",
-): Promise<string> {
-  const dir = await ensureDocumentsDir();
-  const ext = kind === "pdf" ? "pdf" : "txt";
-  const dest = `${dir}${id}.${ext}`;
-  await FileSystem.copyAsync({ from: sourceUri, to: dest });
-  return dest;
-}
-
-/**
- * Resolve actual size via getInfoAsync. Fail closed when size cannot be established.
- * Returns null when exists is false or size is missing/non-finite.
- */
-async function resolveAssetSizeBytes(uri: string): Promise<number | null> {
-  try {
-    const info = await FileSystem.getInfoAsync(uri);
-    if (!info.exists || info.isDirectory) return null;
-    const size = (info as { size?: number }).size;
-    if (typeof size !== "number" || !Number.isFinite(size) || size < 0) {
-      return null;
-    }
-    return Math.floor(size);
-  } catch {
-    return null;
-  }
-}
-
-async function deleteOwnedFile(fileUri: string | undefined): Promise<void> {
-  if (!fileUri || typeof fileUri !== "string") return;
-  // Canonical ownership: only delete under documentDirectory/kalsa-documents/.
-  // baseDir is documentDirectory (root); isOwnedDocumentUri appends kalsa-documents/.
-  // Legacy / non-owned URIs (cache, content://, traversal spoofs) are NEVER deleted.
-  const root = FileSystem.documentDirectory;
-  if (!root) {
-    // No durable dir available — refuse filesystem delete (metadata-only).
-    return;
-  }
-  if (!isOwnedDocumentUri(fileUri, root)) return;
-  try {
-    await FileSystem.deleteAsync(fileUri, { idempotent: true });
-  } catch {
-    /* best-effort */
-  }
-}
+// Re-export pure helpers so existing harness imports / external callers keep working.
+export {
+  MAX_DOCUMENT_BYTES,
+  MAX_TEXT_BYTES,
+  normalizeUriPath,
+  isOwnedDocumentUri,
+  sizeWithinLimits,
+} from "../documents/documentStorage";
 
 type Props = {
   /** Current library snapshot from AppShell. */
   library: LibraryState;
-  /** Apply a pure state update (AppShell persists). */
+  /** Apply a pure state update (AppShell persists). Used for import/add only. */
   onLibraryChange: (next: LibraryState) => void;
+  /**
+   * AppShell-owned delete. Survives screen unmount; applies against current
+   * library state (functional updater). Returns false when refused (busy latch).
+   */
+  onDeleteDocument: (id: string) => Promise<boolean>;
+  /**
+   * AppShell-owned delete latch (survives unmount). Import/extract must refuse
+   * while a delete is in flight.
+   */
+  isDocumentDeleteInFlight: () => boolean;
   /** Back closes the overlay (returns to chat / previous). */
   onBack: () => void;
 };
@@ -217,15 +81,19 @@ function nextDocId(): string {
   return `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
+export function DocumentsScreen({
+  library,
+  onLibraryChange,
+  onDeleteDocument,
+  isDocumentDeleteInFlight,
+  onBack,
+}: Props) {
   const { colors } = useLabTheme<any>();
   const typography = useTypography();
   const insets = useSafeAreaInsets();
   const { t } = useLocale();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  /** Serialize delete vs import/extraction — both directions mutually exclusive. */
-  const documentDeleteInFlightRef = useRef(false);
 
   const handleBack = useCallback(() => {
     if (busy) return;
@@ -243,7 +111,7 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
 
   const addPdf = useCallback(async () => {
     if (busy) return;
-    if (documentDeleteInFlightRef.current) {
+    if (isDocumentDeleteInFlight()) {
       Alert.alert(t("documents.title"), t("documents.busy"));
       return;
     }
@@ -273,7 +141,7 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
       const sizeBytes = sizeCheck.sizeBytes;
 
       // Re-check delete latch after async size resolve (delete may have started).
-      if (documentDeleteInFlightRef.current) {
+      if (isDocumentDeleteInFlight()) {
         Alert.alert(t("documents.title"), t("documents.busy"));
         return;
       }
@@ -333,6 +201,14 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
         docCount = 0;
       }
 
+      // Final latch check before committing the import (delete may have finished
+      // mid-extract; refuse to race a still-in-flight delete).
+      if (isDocumentDeleteInFlight()) {
+        await deleteOwnedFile(ownedUri);
+        Alert.alert(t("documents.title"), t("documents.busy"));
+        return;
+      }
+
       const entry: LibraryDoc = {
         id,
         name,
@@ -353,11 +229,11 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
       setBusy(false);
       setStatus(null);
     }
-  }, [busy, library, onLibraryChange, t]);
+  }, [busy, library, onLibraryChange, isDocumentDeleteInFlight, t]);
 
   const addTxt = useCallback(async () => {
     if (busy) return;
-    if (documentDeleteInFlightRef.current) {
+    if (isDocumentDeleteInFlight()) {
       Alert.alert(t("documents.title"), t("documents.busy"));
       return;
     }
@@ -387,7 +263,7 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
       const sizeBytes = sizeCheck.sizeBytes;
 
       // Re-check delete latch after async size resolve (delete may have started).
-      if (documentDeleteInFlightRef.current) {
+      if (isDocumentDeleteInFlight()) {
         Alert.alert(t("documents.title"), t("documents.busy"));
         return;
       }
@@ -420,6 +296,13 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
       const looksHtml = /<\/?[a-z][\s\S]*>/i.test(text.slice(0, 2000));
       const plain = looksHtml ? htmlToText(text).text : text;
       const trimmed = (plain ?? "").trim();
+
+      if (isDocumentDeleteInFlight()) {
+        await deleteOwnedFile(ownedUri);
+        Alert.alert(t("documents.title"), t("documents.busy"));
+        return;
+      }
+
       const entry: LibraryDoc = {
         id,
         name,
@@ -438,12 +321,12 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
       setBusy(false);
       setStatus(null);
     }
-  }, [busy, library, onLibraryChange, t]);
+  }, [busy, library, onLibraryChange, isDocumentDeleteInFlight, t]);
 
   const confirmDelete = useCallback(
     (doc: LibraryDoc) => {
       if (busy) return;
-      if (documentDeleteInFlightRef.current) {
+      if (isDocumentDeleteInFlight()) {
         Alert.alert(t("documents.title"), t("documents.busy"));
         return;
       }
@@ -463,7 +346,7 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
             style: "destructive",
             onPress: () => {
               // Re-check at confirm time (user may have waited on the dialog).
-              if (documentDeleteInFlightRef.current) {
+              if (isDocumentDeleteInFlight()) {
                 Alert.alert(t("documents.title"), t("documents.busy"));
                 return;
               }
@@ -471,23 +354,19 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
                 Alert.alert(t("documents.title"), t("documents.busy"));
                 return;
               }
-              // Latch synchronously before deleteAsync so import/extract cannot
-              // start while the filesystem delete is still pending.
-              documentDeleteInFlightRef.current = true;
-              void (async () => {
-                try {
-                  await deleteOwnedFile(doc.fileUri);
-                  onLibraryChange(removeDoc(library, doc.id));
-                } finally {
-                  documentDeleteInFlightRef.current = false;
+              // AppShell owns the latch + FS delete + functional state update.
+              // Unmount of this screen no longer clears the in-flight guard.
+              void onDeleteDocument(doc.id).then((accepted) => {
+                if (!accepted) {
+                  Alert.alert(t("documents.title"), t("documents.busy"));
                 }
-              })();
+              });
             },
           },
         ],
       );
     },
-    [busy, library, onLibraryChange, t],
+    [busy, isDocumentDeleteInFlight, onDeleteDocument, t],
   );
 
   const docs = library.docs ?? [];
