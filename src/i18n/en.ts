@@ -133,6 +133,9 @@ export const en = {
     readFailed: "Could not read that file.",
     noTextLayer: "No text layer",
     tooLarge: "This file is too large (max {max}). Choose a smaller PDF or TXT.",
+    cannotRead: "Could not determine the file size. Choose another file.",
+    storageUnavailable: "Document storage is unavailable on this device.",
+    busy: "A document is being processed. Try again in a moment.",
   },
 
   /**

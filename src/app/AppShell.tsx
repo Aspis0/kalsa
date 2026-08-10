@@ -452,7 +452,6 @@ export function AppShell() {
    * a late AsyncStorage load applies only when no mutation has happened yet.
    */
   const libraryMutationRef = useRef(0);
-  const libraryLoadedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -462,14 +461,12 @@ export function AppShell() {
         if (!mounted) return;
         // Drop stale load if the user already added/deleted a doc.
         if (libraryMutationRef.current !== loadGen) {
-          libraryLoadedRef.current = true;
           return;
         }
         setDocumentLibrary(state);
-        libraryLoadedRef.current = true;
       })
       .catch(() => {
-        if (mounted) libraryLoadedRef.current = true;
+        /* keep empty library on load failure */
       });
     return () => {
       mounted = false;
@@ -541,6 +538,8 @@ export function AppShell() {
             signal: opts?.signal,
           }),
         readTxt: async (doc: LibraryDoc, opts) => {
+          // Uncancellable host read: check abort BEFORE starting and AFTER settle
+          // so wrapper abort rejects the caller while strategy still holds the latch.
           if (opts?.signal?.aborted) {
             throw new Error("document_chat aborted");
           }

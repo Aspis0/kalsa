@@ -48,6 +48,13 @@ export const DOCUMENT_CHAT_PROVENANCE =
 /** Hard backstop above typical PDF extract windows; never hang the tool loop. */
 export const DOCUMENT_CHAT_TIMEOUT_MS = 165_000;
 
+/**
+ * Last-resort latch clear if a host strategy truly never settles (e.g. native
+ * read that ignores abort). Must sit ABOVE DOCUMENT_CHAT_TIMEOUT_MS so normal
+ * timeout/abort paths leave the latch held until the strategy settles.
+ */
+export const DOC_OP_STALE_CAP_MS = 200_000;
+
 /** Char budget for retrieved passages (mirrors web_fetch RETRIEVAL_BUDGET_CHARS). */
 export const DOCUMENT_CHAT_RETRIEVAL_BUDGET_CHARS = 1800;
 
@@ -116,15 +123,48 @@ export const DOCUMENT_CHAT_TOOL: DocumentChatToolDef = {
 // ── single-flight state (module-level, mirrors pdfTextService) ─────────────
 
 let inflight = false;
+/** Generation token so a stale strategy.finally cannot clear a newer call's latch. */
+let inflightGen = 0;
+/** Last-resort timer if strategy never settles; cleared when strategy finally ends. */
+let staleCapTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** True when a document_chat call is currently running. */
+function clearInflightLatch(gen?: number): void {
+  // Only the owning generation (or an explicit force-clear) may release the latch.
+  if (gen != null && gen !== inflightGen) return;
+  inflight = false;
+  if (staleCapTimer != null) {
+    clearTimeout(staleCapTimer);
+    staleCapTimer = null;
+  }
+}
+
+function armStaleCap(gen: number): void {
+  if (staleCapTimer != null) clearTimeout(staleCapTimer);
+  // Last-resort: force-clear only if THIS generation's strategy truly never settles.
+  staleCapTimer = setTimeout(() => {
+    // Host op hung past DOC_OP_STALE_CAP_MS — release latch so the tool loop
+    // is not permanently wedged. Prefer strategy.finally; this is the escape hatch.
+    if (gen === inflightGen) {
+      inflight = false;
+      staleCapTimer = null;
+    }
+  }, DOC_OP_STALE_CAP_MS);
+}
+
+/** True when a document_chat call is currently running (strategy not settled). */
 export function isDocumentChatBusy(): boolean {
   return inflight;
 }
 
-/** Test-only: force-clear the single-flight latch. */
+/** Alias for delete/import guards (same latch as isDocumentChatBusy). */
+export function isDocumentOpInFlight(): boolean {
+  return inflight;
+}
+
+/** Test-only: force-clear the single-flight latch (and stale-cap timer). */
 export function __resetDocumentChatBusyForTests(): void {
-  inflight = false;
+  inflightGen += 1; // invalidate any in-flight strategy.finally
+  clearInflightLatch();
 }
 
 /**
@@ -172,14 +212,21 @@ export function createDocumentChatExecutor(
       );
     }
 
-    // Latch BEFORE starting work; clear only after the inner strategy settles
-    // (including abort/timeout of the host ops) so a second call cannot start
-    // extraction while the first is still active.
+    // Latch is tied to the STRATEGY promise lifecycle, not the wrapper.
+    // Wrapper abort/timeout rejects the caller but must NOT clear inflight while
+    // an uncancellable host op (e.g. FileSystem.readAsStringAsync) may still run.
+    if (signal?.aborted) {
+      return errorResult(catalog(locale).aborted);
+    }
+
+    const myGen = ++inflightGen;
     inflight = true;
+    armStaleCap(myGen);
+
     let timer: ReturnType<typeof setTimeout> | null = null;
     let timedOut = false;
     let abortHandler: (() => void) | null = null;
-    // Linked controller so timeout/abort actually cancel host file ops.
+    // Linked controller so timeout/abort signal host ops that honor AbortSignal.
     const linked = new AbortController();
     const forwardAbort = () => {
       try {
@@ -189,12 +236,19 @@ export function createDocumentChatExecutor(
       }
     };
 
-    try {
-      if (signal?.aborted) {
-        forwardAbort();
-        return errorResult(catalog(locale).aborted);
-      }
+    // Strategy owns latch clear in its finally (after host op settles).
+    // Generation-guarded so a late-settling aborted call cannot clear a newer latch.
+    const strategyPromise = runStrategy(
+      host,
+      selected,
+      query,
+      locale,
+      linked.signal,
+    ).finally(() => {
+      clearInflightLatch(myGen);
+    });
 
+    try {
       const result = await new Promise<DocumentChatToolResult>((resolve, reject) => {
         timer = setTimeout(() => {
           timedOut = true;
@@ -210,9 +264,9 @@ export function createDocumentChatExecutor(
           signal.addEventListener("abort", abortHandler, { once: true });
         }
 
-        void runStrategy(host, selected, query, locale, linked.signal)
-          .then(resolve)
-          .catch(reject);
+        // Race wrapper vs strategy: wrapper may reject on abort/timeout while
+        // strategyPromise keeps running and holds the latch until it settles.
+        void strategyPromise.then(resolve, reject);
       });
       return result;
     } catch (err) {
@@ -225,6 +279,7 @@ export function createDocumentChatExecutor(
       }
       return errorResult(message || catalog(locale).failed);
     } finally {
+      // Clear wrapper timers/listeners only — do NOT clear inflight here.
       if (timer) clearTimeout(timer);
       if (signal && abortHandler) {
         try {
@@ -233,9 +288,6 @@ export function createDocumentChatExecutor(
           /* ignore */
         }
       }
-      // Inflight stays true until this finally — after strategy promise settled
-      // (resolve or reject). Host ops that ignore signal still finish first.
-      inflight = false;
     }
   };
 }

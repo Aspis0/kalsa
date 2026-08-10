@@ -224,6 +224,26 @@ async function main() {
     assert(preset != null && preset.id === "helio-g99", `preset ${preset?.id}`);
   });
 
+  await test("1f. Jelly Max + unihertz without caps → NOT helio-g99", () => {
+    const profile = makeProfile({
+      brand: "unihertz",
+      modelName: "Jelly Max",
+      cpuCoreCount: 8,
+    });
+    const preset = matchMeasuredPreset(profile, null);
+    assert(preset === null, `Jelly Max must not match identity: ${preset?.id}`);
+  });
+
+  await test("1g. Jelly Star + brand google → NOT helio-g99 (brand required)", () => {
+    const profile = makeProfile({
+      brand: "google",
+      modelName: "Jelly Star",
+      cpuCoreCount: 8,
+    });
+    const preset = matchMeasuredPreset(profile, null);
+    assert(preset === null, `brand google must not match: ${preset?.id}`);
+  });
+
   // Design §9 case 2: SD 8 Gen 2 → 5 threads.
   await test("2. sd-8-gen2 signature → 5 threads, soc-preset", () => {
     const profile = makeProfile({ brand: "samsung", cpuCoreCount: 8 });

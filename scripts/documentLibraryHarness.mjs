@@ -120,7 +120,33 @@ async function main() {
     DOCUMENT_CHAT_VISION_MARKER,
     __resetDocumentChatBusyForTests,
     isDocumentChatBusy,
+    isDocumentOpInFlight,
+    DOC_OP_STALE_CAP_MS,
   } = tool;
+
+  // Pure mirrors of DocumentsScreen exports (keep in sync with screen helpers).
+  const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
+  const MAX_TEXT_BYTES = 10 * 1024 * 1024;
+  function isOwnedDocumentUri(fileUri, baseDir) {
+    if (!fileUri || typeof fileUri !== "string") return false;
+    if (!baseDir || typeof baseDir !== "string") return false;
+    const prefix = baseDir.endsWith("/") ? baseDir : `${baseDir}/`;
+    return fileUri.startsWith(prefix);
+  }
+  function sizeWithinLimits(sizeBytes, kind) {
+    if (
+      sizeBytes == null ||
+      typeof sizeBytes !== "number" ||
+      !Number.isFinite(sizeBytes) ||
+      sizeBytes < 0
+    ) {
+      return { ok: false, reason: "unknown" };
+    }
+    const max = kind === "pdf" ? MAX_DOCUMENT_BYTES : MAX_TEXT_BYTES;
+    const n = Math.floor(sizeBytes);
+    if (n > max) return { ok: false, reason: "too_large" };
+    return { ok: true, sizeBytes: n };
+  }
 
   // ── 1 pure add ──────────────────────────────────────────────────────────
   {
@@ -453,6 +479,9 @@ async function main() {
       `sawSignal=${sawSignal} strategy=${out.strategy} err=${out.error ?? out.text}`,
     );
     release();
+    // Wait for strategy.finally to settle before the next case (generation-guarded,
+    // but avoid cross-test races on shared host gates).
+    await new Promise((r) => setTimeout(r, 30));
     __resetDocumentChatBusyForTests();
   }
 
@@ -556,6 +585,147 @@ async function main() {
         out.passages.length > 0 &&
         out.passages[0].docId === "A#p1",
       `strategy=${out.strategy} top=${out.passages?.[0]?.docId ?? "none"}`,
+    );
+  }
+
+  // ── 19 single-flight latch outlives wrapper abort (late host settle) ──
+  __resetDocumentChatBusyForTests();
+  {
+    let release;
+    const gate = new Promise((r) => {
+      release = r;
+    });
+    let hostCalls = 0;
+    const host = {
+      getLibraryDocs: () => [
+        sampleDoc({ id: "late", kind: "txt", docCount: 1, estimatedTokens: 10 }),
+      ],
+      requestPdfText: async () => ({ docs: [], skippedPages: [] }),
+      // Host ignores abort and settles LATE (mirrors uncancellable FS read).
+      readTxt: async (_doc, _opts) => {
+        hostCalls += 1;
+        await gate;
+        return "late body after abort window";
+      },
+      getCtxTokens: () => 4096,
+      getIndexFor: () => null,
+    };
+    const exec = createDocumentChatExecutor(host, { timeoutMs: 10_000 });
+    const ac = new AbortController();
+    const firstP = exec("document_chat", { query: "q", docId: "late" }, ac.signal);
+    await new Promise((r) => setTimeout(r, 20));
+    check("late-settle busy flag after start", isDocumentChatBusy() === true);
+    check("late-settle isDocumentOpInFlight", isDocumentOpInFlight() === true);
+    ac.abort();
+    const first = await firstP;
+    check(
+      "late-settle first rejects abort",
+      first.strategy === "error" && /abort/i.test(first.error ?? first.text),
+      `strategy=${first.strategy} err=${first.error ?? first.text}`,
+    );
+    // Latch must still be held while host strategy has not settled.
+    check(
+      "late-settle latch held after wrapper abort",
+      isDocumentChatBusy() === true,
+      `busy=${isDocumentChatBusy()}`,
+    );
+    const second = await exec("document_chat", { query: "q2", docId: "late" });
+    check(
+      "late-settle second still busy while host unsettled",
+      second.strategy === "error" && /busy/i.test(second.error ?? second.text),
+      `strategy=${second.strategy} err=${second.error ?? second.text}`,
+    );
+    check(
+      "late-settle host not invoked twice while latch held",
+      hostCalls === 1,
+      `hostCalls=${hostCalls}`,
+    );
+    release();
+    // Allow strategy finally to clear latch.
+    await new Promise((r) => setTimeout(r, 30));
+    check(
+      "late-settle latch cleared after host settle",
+      isDocumentChatBusy() === false,
+      `busy=${isDocumentChatBusy()}`,
+    );
+    const third = await exec("document_chat", { query: "q3", docId: "late" });
+    check(
+      "late-settle third succeeds after settle",
+      third.strategy === "full_context" || third.strategy === "retrieve",
+      `got ${third.strategy}`,
+    );
+    check(
+      "DOC_OP_STALE_CAP_MS above timeout",
+      typeof DOC_OP_STALE_CAP_MS === "number" && DOC_OP_STALE_CAP_MS > 165_000,
+      `cap=${DOC_OP_STALE_CAP_MS}`,
+    );
+    __resetDocumentChatBusyForTests();
+  }
+
+  // ── 20 ownership prefix predicate ─────────────────────────────────────
+  {
+    const base = "file:///data/user/0/app/files/kalsa-documents/";
+    check(
+      "owned uri under canonical prefix",
+      isOwnedDocumentUri(base + "doc-1.pdf", base) === true,
+    );
+    check(
+      "sibling dir with kalsa-documents/ in the middle is NOT owned",
+      isOwnedDocumentUri(
+        "file:///data/user/0/app/cache/evil-kalsa-documents/x.pdf",
+        base,
+      ) === false,
+    );
+    check(
+      "cacheDirectory-style path is NOT owned",
+      isOwnedDocumentUri(
+        "file:///data/user/0/app/cache/kalsa-documents/doc-1.pdf",
+        base,
+      ) === false,
+    );
+    check(
+      "substring-only kalsa-documents elsewhere is NOT owned",
+      isOwnedDocumentUri(
+        "file:///tmp/other/kalsa-documents/nested/x.pdf",
+        base,
+      ) === false,
+    );
+  }
+
+  // ── 21 sizeWithinLimits fail-closed ───────────────────────────────────
+  {
+    check(
+      "size null rejected",
+      sizeWithinLimits(null, "pdf").ok === false &&
+        sizeWithinLimits(null, "pdf").reason === "unknown",
+    );
+    check(
+      "size undefined rejected",
+      sizeWithinLimits(undefined, "txt").ok === false &&
+        sizeWithinLimits(undefined, "txt").reason === "unknown",
+    );
+    check(
+      "size NaN rejected",
+      sizeWithinLimits(Number.NaN, "pdf").ok === false,
+    );
+    check(
+      "size over pdf max rejected",
+      sizeWithinLimits(MAX_DOCUMENT_BYTES + 1, "pdf").ok === false &&
+        sizeWithinLimits(MAX_DOCUMENT_BYTES + 1, "pdf").reason === "too_large",
+    );
+    check(
+      "size over txt max rejected",
+      sizeWithinLimits(MAX_TEXT_BYTES + 1, "txt").ok === false &&
+        sizeWithinLimits(MAX_TEXT_BYTES + 1, "txt").reason === "too_large",
+    );
+    check(
+      "size at pdf max ok",
+      sizeWithinLimits(MAX_DOCUMENT_BYTES, "pdf").ok === true,
+    );
+    check(
+      "size under txt max ok",
+      sizeWithinLimits(100, "txt").ok === true &&
+        sizeWithinLimits(100, "txt").sizeBytes === 100,
     );
   }
 

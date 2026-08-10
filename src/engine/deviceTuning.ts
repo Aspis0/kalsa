@@ -293,10 +293,15 @@ export function matchMeasuredPreset(
   }
 
   // 2. Exact model identity for helio-g99 (Jelly Star only — never brand alone).
-  // Capacities unavailable + non-Star Unihertz must fall through to family rules.
-  if (modelName.includes("jelly star") || modelId.includes("jelly star")) {
-    for (const preset of MEASURED_PRESETS) {
-      if (preset.id === "helio-g99") return preset;
+  // Requires brand unihertz AND exact identity after normalize (trim/lower/strip spaces+dashes).
+  // "Jelly Max" and other Unihertz devices must NOT match; capacity multiset remains primary.
+  if (brand === "unihertz") {
+    const nameKey = modelName.replace(/[\s-]+/g, "");
+    const idKey = modelId.replace(/[\s-]+/g, "");
+    if (nameKey === "jellystar" || idKey === "jellystar") {
+      for (const preset of MEASURED_PRESETS) {
+        if (preset.id === "helio-g99") return preset;
+      }
     }
   }
 

@@ -134,6 +134,9 @@ export const it: typeof en = {
     readFailed: "Impossibile leggere il file.",
     noTextLayer: "Nessuno strato di testo",
     tooLarge: "Questo file è troppo grande (max {max}). Scegli un PDF o TXT più piccolo.",
+    cannotRead: "Impossibile determinare la dimensione del file. Scegline un altro.",
+    storageUnavailable: "Archiviazione documenti non disponibile su questo dispositivo.",
+    busy: "Un documento è in elaborazione. Riprova tra poco.",
   },
 
   models: {

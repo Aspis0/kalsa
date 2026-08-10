@@ -26,7 +26,11 @@ import {
   type LibraryDoc,
   type LibraryState,
 } from "../documents/DocumentLibrary";
-import { requestPdfText } from "../pdf/pdfTextService";
+import { isDocumentOpInFlight } from "../documents/documentChatTool";
+import {
+  isPdfTextExtractionBusy,
+  requestPdfText,
+} from "../pdf/pdfTextService";
 import { htmlToText } from "../util/htmlToText";
 import { formatBytes } from "../engine/ModelRegistry";
 import { useLocale } from "../i18n";
@@ -43,15 +47,60 @@ import { useLabTheme } from "../ui/labTheme";
 export const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
 export const MAX_TEXT_BYTES = 10 * 1024 * 1024;
 
-/** Durable library storage under documentDirectory (survives cache eviction). */
+/**
+ * Pure ownership predicate: fileUri must START WITH the canonical library prefix
+ * (documentDirectory + "kalsa-documents/"). Substring matches elsewhere are rejected.
+ * Exported for harness coverage.
+ */
+export function isOwnedDocumentUri(
+  fileUri: string,
+  baseDir: string,
+): boolean {
+  if (!fileUri || typeof fileUri !== "string") return false;
+  if (!baseDir || typeof baseDir !== "string") return false;
+  // Normalize so both sides end with a single trailing slash for startsWith.
+  const prefix = baseDir.endsWith("/") ? baseDir : `${baseDir}/`;
+  return fileUri.startsWith(prefix);
+}
+
+/**
+ * Pure size-limit check against resolved byte length.
+ * null/undefined/non-finite → rejected (fail closed on unknown size).
+ * Exported for harness coverage.
+ */
+export function sizeWithinLimits(
+  sizeBytes: number | null | undefined,
+  kind: "pdf" | "txt",
+): { ok: true; sizeBytes: number } | { ok: false; reason: "unknown" | "too_large" } {
+  if (
+    sizeBytes == null ||
+    typeof sizeBytes !== "number" ||
+    !Number.isFinite(sizeBytes) ||
+    sizeBytes < 0
+  ) {
+    return { ok: false, reason: "unknown" };
+  }
+  const max = kind === "pdf" ? MAX_DOCUMENT_BYTES : MAX_TEXT_BYTES;
+  const n = Math.floor(sizeBytes);
+  if (n > max) return { ok: false, reason: "too_large" };
+  return { ok: true, sizeBytes: n };
+}
+
+/**
+ * Durable library storage under documentDirectory only.
+ * NEVER falls back to cacheDirectory (cache is evictable).
+ * Throws when documentDirectory is unavailable so import aborts cleanly.
+ */
 function documentsDir(): string {
-  const base = FileSystem.documentDirectory ?? FileSystem.cacheDirectory ?? "";
+  const base = FileSystem.documentDirectory;
+  if (!base) {
+    throw new Error("NO_DOCUMENT_DIRECTORY");
+  }
   return `${base}kalsa-documents/`;
 }
 
 async function ensureDocumentsDir(): Promise<string> {
   const dir = documentsDir();
-  if (!dir) throw new Error("no document directory");
   try {
     await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
   } catch {
@@ -72,10 +121,37 @@ async function copyToOwnedStorage(
   return dest;
 }
 
+/**
+ * Resolve actual size via getInfoAsync. Fail closed when size cannot be established.
+ * Returns null when exists is false or size is missing/non-finite.
+ */
+async function resolveAssetSizeBytes(uri: string): Promise<number | null> {
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (!info.exists || info.isDirectory) return null;
+    const size = (info as { size?: number }).size;
+    if (typeof size !== "number" || !Number.isFinite(size) || size < 0) {
+      return null;
+    }
+    return Math.floor(size);
+  } catch {
+    return null;
+  }
+}
+
 async function deleteOwnedFile(fileUri: string | undefined): Promise<void> {
   if (!fileUri || typeof fileUri !== "string") return;
-  // Only delete files we own under kalsa-documents/.
-  if (!fileUri.includes("kalsa-documents/")) return;
+  // Canonical ownership: only delete under documentDirectory/kalsa-documents/.
+  // Legacy / non-owned URIs (cache, content://, paths with "kalsa-documents/"
+  // only as a substring elsewhere) are NEVER deleted — metadata-only removal.
+  let base: string;
+  try {
+    base = documentsDir();
+  } catch {
+    // No durable dir available — refuse filesystem delete (metadata-only).
+    return;
+  }
+  if (!isOwnedDocumentUri(fileUri, base)) return;
   try {
     await FileSystem.deleteAsync(fileUri, { idempotent: true });
   } catch {
@@ -130,18 +206,20 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
       const asset = picked.assets[0];
       const uri = asset.uri;
       const name = asset.name ?? "document.pdf";
-      const sizeBytes =
-        typeof asset.size === "number" && Number.isFinite(asset.size)
-          ? Math.max(0, Math.floor(asset.size))
-          : 0;
 
-      if (sizeBytes > MAX_DOCUMENT_BYTES) {
+      // Fail closed: resolve actual size via FS; never trust optional asset.size alone.
+      const resolvedSize = await resolveAssetSizeBytes(uri);
+      const sizeCheck = sizeWithinLimits(resolvedSize, "pdf");
+      if (!sizeCheck.ok) {
         Alert.alert(
           t("documents.title"),
-          t("documents.tooLarge", { max: formatBytes(MAX_DOCUMENT_BYTES) }),
+          sizeCheck.reason === "too_large"
+            ? t("documents.tooLarge", { max: formatBytes(MAX_DOCUMENT_BYTES) })
+            : t("documents.cannotRead"),
         );
         return;
       }
+      const sizeBytes = sizeCheck.sizeBytes;
 
       setBusy(true);
       setStatus(t("documents.extracting"));
@@ -151,8 +229,14 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
       let ownedUri: string;
       try {
         ownedUri = await copyToOwnedStorage(uri, id, "pdf");
-      } catch {
-        Alert.alert(t("documents.title"), t("documents.readFailed"));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        Alert.alert(
+          t("documents.title"),
+          msg === "NO_DOCUMENT_DIRECTORY"
+            ? t("documents.storageUnavailable")
+            : t("documents.readFailed"),
+        );
         return;
       }
       let docCount = 0;
@@ -226,18 +310,20 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
       const asset = picked.assets[0];
       const uri = asset.uri;
       const name = asset.name ?? "document.txt";
-      const sizeBytes =
-        typeof asset.size === "number" && Number.isFinite(asset.size)
-          ? Math.max(0, Math.floor(asset.size))
-          : 0;
 
-      if (sizeBytes > MAX_TEXT_BYTES) {
+      // Fail closed: resolve actual size via FS; never trust optional asset.size alone.
+      const resolvedSize = await resolveAssetSizeBytes(uri);
+      const sizeCheck = sizeWithinLimits(resolvedSize, "txt");
+      if (!sizeCheck.ok) {
         Alert.alert(
           t("documents.title"),
-          t("documents.tooLarge", { max: formatBytes(MAX_TEXT_BYTES) }),
+          sizeCheck.reason === "too_large"
+            ? t("documents.tooLarge", { max: formatBytes(MAX_TEXT_BYTES) })
+            : t("documents.cannotRead"),
         );
         return;
       }
+      const sizeBytes = sizeCheck.sizeBytes;
 
       setBusy(true);
       setStatus(t("documents.extracting"));
@@ -245,8 +331,14 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
       let ownedUri: string;
       try {
         ownedUri = await copyToOwnedStorage(uri, id, "txt");
-      } catch {
-        Alert.alert(t("documents.title"), t("documents.readFailed"));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        Alert.alert(
+          t("documents.title"),
+          msg === "NO_DOCUMENT_DIRECTORY"
+            ? t("documents.storageUnavailable")
+            : t("documents.readFailed"),
+        );
         return;
       }
       let text = "";
@@ -284,6 +376,12 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
   const confirmDelete = useCallback(
     (doc: LibraryDoc) => {
       if (busy) return;
+      // Refuse delete while PDF extract or document_chat host read is in flight
+      // so we never race deleteAsync against an open read of the same file.
+      if (isPdfTextExtractionBusy() || isDocumentOpInFlight()) {
+        Alert.alert(t("documents.title"), t("documents.busy"));
+        return;
+      }
       Alert.alert(
         t("documents.delete"),
         t("documents.deleteConfirm", { name: doc.name }),
@@ -293,6 +391,11 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
             text: t("documents.delete"),
             style: "destructive",
             onPress: () => {
+              // Re-check at confirm time (user may have waited on the dialog).
+              if (isPdfTextExtractionBusy() || isDocumentOpInFlight()) {
+                Alert.alert(t("documents.title"), t("documents.busy"));
+                return;
+              }
               void deleteOwnedFile(doc.fileUri);
               onLibraryChange(removeDoc(library, doc.id));
             },
