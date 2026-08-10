@@ -1,0 +1,5 @@
+PREDIZIONI A VERBALE (scritte PRIMA delle misure) — 2026-08-10
+1a formato: g_formato = med(Q2_K)/med(IQ2_XXS) >= 1.4  (soglia GO=1.30; meccanismo dequant aritmetico vs gather, ISA-generico, atteso simile a #164 1.60x su M2-Max ma attenuato su 8Gen2)
+1b (se GO): decode Q2_K_XL >= +8% vs IQ2_M a parita drop; PPL entro +0.02
+2 thread: -t 5/6 entro ±0 vs -t 4 (ereditato, scheduler gia usa big+mid; little core a ceiling termico forse +poco)
+3 termica: +15-25% tok/s col cooling attivo (freq da 41% picco verso regime piu alto)

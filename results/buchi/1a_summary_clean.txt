@@ -1,0 +1,8 @@
+A1=11.19
+B1=8.53
+B2=8.47
+A2=10.86
+med_Q2_K=11.0250
+med_IQ2_XXS=8.5000
+g_formato=1.2971
+verdict=GO_CONDIZIONATO

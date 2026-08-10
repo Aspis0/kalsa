@@ -1,0 +1,20 @@
+2026-08-10T00:17:32-04:00 precheck battery=58 plugged=UNPLUGGED die=89.5C nproc=8
+2026-08-10T00:17:32-04:00 nproc=8 (expect >=6; if lower host must re-promote)
+2026-08-10T00:17:32-04:00 === 1a ABBA Q2_K vs IQ2_XXS tg128 -t4 r=2 cold ===
+2026-08-10T00:17:32-04:00 PRED_A_VERBALE g_formato >= 1.4 (threshold GO >=1.30)
+2026-08-10T00:17:34-04:00 die hot 89.1 — waiting cool
+2026-08-10T00:17:42-04:00 DONE A2 rc=0 ts=11.14 raw=11.14 ± 0.56 die_e=73.3 batt=58
+2026-08-10T00:17:43-04:00 1a complete — see /data/data/com.termux/files/home/experiments/results/buchi/1a_results.csv and /data/data/com.termux/files/home/experiments/results/buchi/1a_summary.txt
+2026-08-10T00:17:48-04:00 cold /data/data/com.termux/files/home/models/spike_iq2/Llama-3.2-3B-Instruct-Q2_K.gguf
+2026-08-10T00:17:52-04:00 RUN A1 quant=Q2_K order=A die_s=59.1 batt=58
+2026-08-10T00:18:17-04:00 DONE A1 rc=0 ts=11.19 raw=11.19 ± 0.46 die_e=78.6 batt=57
+2026-08-10T00:18:19-04:00 cold /data/data/com.termux/files/home/models/spike_iq2/Llama-3.2-3B-Instruct-UD-IQ2_XXS.gguf
+2026-08-10T00:18:23-04:00 RUN B1 quant=IQ2_XXS order=B die_s=62.0 batt=57
+2026-08-10T00:18:56-04:00 DONE B1 rc=0 ts=8.53 raw=8.53 ± 0.23 die_e=72.1 batt=57
+2026-08-10T00:18:58-04:00 cold /data/data/com.termux/files/home/models/spike_iq2/Llama-3.2-3B-Instruct-UD-IQ2_XXS.gguf
+2026-08-10T00:19:02-04:00 RUN B2 quant=IQ2_XXS order=B die_s=66.4 batt=57
+2026-08-10T00:19:35-04:00 DONE B2 rc=0 ts=8.47 raw=8.47 ± 0.21 die_e=70.1 batt=57
+2026-08-10T00:19:37-04:00 cold /data/data/com.termux/files/home/models/spike_iq2/Llama-3.2-3B-Instruct-Q2_K.gguf
+2026-08-10T00:19:42-04:00 RUN A2 quant=Q2_K order=A die_s=58.3 batt=57
+2026-08-10T00:20:09-04:00 DONE A2 rc=0 ts=10.86 raw=10.86 ± 0.44 die_e=72.5 batt=56
+2026-08-10T00:20:10-04:00 1a complete — see /data/data/com.termux/files/home/experiments/results/buchi/1a_results.csv and /data/data/com.termux/files/home/experiments/results/buchi/1a_summary.txt
