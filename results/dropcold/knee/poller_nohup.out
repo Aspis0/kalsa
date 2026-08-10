@@ -1,0 +1,209 @@
+[2026-08-09T17:43:19] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[68 UNPLUGGED 34.9] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T17:44:50] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[66 UNPLUGGED 36.9] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T17:46:21] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[66 UNPLUGGED 36.9] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T17:47:53] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[65 UNPLUGGED 38.2] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T17:49:24] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[64 UNPLUGGED 39.4] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T17:50:55] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[63 UNPLUGGED 38.6] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T17:52:27] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[62 UNPLUGGED 38.9] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T17:53:58] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[62 UNPLUGGED 38.9] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T17:55:29] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[61 UNPLUGGED 39.1] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T17:57:01] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[60 UNPLUGGED 39.3] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T17:58:32] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[59 UNPLUGGED 39.7] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:00:03] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[58 UNPLUGGED 39.9] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:01:34] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[58 UNPLUGGED 39.9] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:03:06] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[57 UNPLUGGED 40.0] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:04:37] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[56 UNPLUGGED 40.2] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:06:08] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[55 UNPLUGGED 40.5] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:07:39] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[55 UNPLUGGED 40.5] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:09:11] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[54 UNPLUGGED 40.9] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:10:42] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[53 UNPLUGGED 40.8] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:12:13] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[52 UNPLUGGED 41.0] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:13:45] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[52 UNPLUGGED 41.0] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:15:16] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[51 UNPLUGGED 41.2] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:16:47] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[50 UNPLUGGED 41.3] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:18:18] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[49 UNPLUGGED 41.3] nproc=8 rows=0 csv=1 meta=0 tail=[[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248 [2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 === [2026-08-09T17:41:50-0400] prestart OK die=41700 n=6 ]
+[2026-08-09T18:19:50] alive=yes status=[RUNNING F=0.65 2026-08-09T17:41:49-0400 ] bmoe=1 batt=[49 UNPLUGGED 41.3] nproc=8 rows=0 csv=1 meta=0 tail=[/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stderr:ppl done (decode): n_scored=10098 ppl=2.1999 sum_logprob=-7961.4755 (2226.4 s) [2026-08-09T18:19:07-0400] twin generate F=0.65 [2026-08-09T18:19:09-0400] prestart OK die=56100 n=7 ]
+[2026-08-09T18:21:21] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[48 UNPLUGGED 41.3] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:22:53] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[47 UNPLUGGED 41.6] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:24:24] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[46 UNPLUGGED 42.0] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:25:55] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[45 UNPLUGGED 41.9] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:27:27] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[44 UNPLUGGED 42.0] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:28:58] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[44 UNPLUGGED 42.0] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:30:29] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[43 UNPLUGGED 42.0] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:32:01] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[42 UNPLUGGED 42.0] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:33:32] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[41 UNPLUGGED 41.9] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:35:03] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[40 UNPLUGGED 42.1] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:36:35] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[40 UNPLUGGED 42.1] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:38:06] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[39 UNPLUGGED 42.1] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:39:37] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[38 UNPLUGGED 42.2] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:41:09] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[37 UNPLUGGED 42.2] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:42:40] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[37 UNPLUGGED 42.2] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:44:12] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[36 UNPLUGGED 42.0] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:45:43] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[35 UNPLUGGED 42.1] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:47:14] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[34 UNPLUGGED 42.0] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:48:46] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[34 UNPLUGGED 42.0] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:50:17] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[33 UNPLUGGED 42.1] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:51:48] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[32 UNPLUGGED 42.2] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:53:20] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[31 UNPLUGGED 42.2] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:54:51] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[31 UNPLUGGED 42.2] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:56:22] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[30 UNPLUGGED 42.2] nproc=8 rows=1 csv=2 meta=1 tail=[[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100 [2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 === [2026-08-09T18:20:23-0400] prestart OK die=51700 n=6 ]
+[2026-08-09T18:57:54] alive=yes status=[RUNNING F=0.80 2026-08-09T18:20:22-0400 ] bmoe=1 batt=[29 UNPLUGGED 42.2] nproc=8 rows=1 csv=2 meta=1 tail=[/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stderr:ppl done (decode): n_scored=10098 ppl=2.2696 sum_logprob=-8276.5332 (2197.3 s) [2026-08-09T18:57:13-0400] twin generate F=0.80 [2026-08-09T18:57:15-0400] prestart OK die=56500 n=6 ]
+[2026-08-09T18:59:25] alive=no status=[DONE 2026-08-09T18:58:27-0400 ] bmoe=0
+0 batt=[29 UNPLUGGED 40.6] nproc=7 rows=2 csv=2 meta=2 tail=[F	thr	ppl	delta_ppl	bytes_mib_tok	bytes_delta_pct	hit_pct	drop_pct	n_scored	rc_ppl	rc_twin	verdict 0.65	0.08125	2.19992	0.10447016976609991	28.59	-41.71253822629969	82.4	6.1	10098	0	0	CANDIDATO_SOSTITUZIONE 0.8	0.1	2.26964	0.1741901697660997	18.54	-62.201834862385326	85.0	11.6	10098	0	0	ARCHIVED_PPL ]
+DONE_DETECTED
+POLLER_EXIT 2026-08-09T18:59:26-04:00
+===TABLE===
+F	thr	ppl	delta_ppl	bytes_mib_tok	bytes_delta_pct	hit_pct	drop_pct	n_scored	rc_ppl	rc_twin	verdict
+0.65	0.08125	2.19992	0.10447016976609991	28.59	-41.71253822629969	82.4	6.1	10098	0	0	CANDIDATO_SOSTITUZIONE
+0.8	0.1	2.26964	0.1741901697660997	18.54	-62.201834862385326	85.0	11.6	10098	0	0	ARCHIVED_PPL
+===STATUS===
+DONE 2026-08-09T18:58:27-0400
+===MASTER_TAIL===
+[2026-08-09T17:41:47-0400] KNEE start DECLARED_VALUES=0.65 0.80 BASE_PPL=2.0954498302339 HIST_BASE_MIB=49.05
+[2026-08-09T17:41:47-0400] bin=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+[2026-08-09T17:41:47-0400] corpus=/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt
+46efe834a89206aadf10bd66b0ab7a58a61ca2696aeb260070c649b3dc943153  /data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt
+[2026-08-09T17:41:47-0400] prompt_twin=/data/data/com.termux/files/home/experiments/prompts/f45_1_esplicativo.txt
+bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf  /data/data/com.termux/files/home/experiments/prompts/f45_1_esplicativo.txt
+[2026-08-09T17:41:48-0400] batt=? nproc=7 die=45400 mf=1811248
+[2026-08-09T17:41:49-0400] === cell drop0.65 F=0.65 thr=0.08125 batt=? die=47000 nproc=6 ===
+[2026-08-09T17:41:50-0400] prestart OK die=41700 n=6
+[2026-08-09T18:19:07-0400] ppl rc=0
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stdout:BMOE_PPL {"n_tokens":10101,"n_scored":10098,"sum_logprob":-7961.47551504,"ppl":2.199920,"seconds":2226.351,"cancelled":false,"mode":"decode","file":"/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt"}
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stderr:ppl-decode: n_tokens=10101 n_ctx=4096 batch=1 moe=1 drop_cold=0.650 k=8
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stderr:ppl-decode: scored 4095 / 10100 tokens (sum_logprob=-2769.1151)
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stderr:ppl-decode: scored 8190 / 10100 tokens (sum_logprob=-6234.5431)
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stderr:ppl-decode: scored 10098 / 10100 tokens (sum_logprob=-7961.4755)
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.65/ppl.stderr:ppl done (decode): n_scored=10098 ppl=2.1999 sum_logprob=-7961.4755 (2226.4 s)
+[2026-08-09T18:19:07-0400] twin generate F=0.65
+[2026-08-09T18:19:09-0400] prestart OK die=56100 n=7
+[2026-08-09T18:20:20-0400] cell drop0.65 done batt=? die=58100
+[2026-08-09T18:20:22-0400] === cell drop0.80 F=0.80 thr=0.1 batt=? die=53300 nproc=6 ===
+[2026-08-09T18:20:23-0400] prestart OK die=51700 n=6
+[2026-08-09T18:57:13-0400] ppl rc=0
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stdout:BMOE_PPL {"n_tokens":10101,"n_scored":10098,"sum_logprob":-8276.53318643,"ppl":2.269640,"seconds":2197.293,"cancelled":false,"mode":"decode","file":"/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt"}
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stderr:ppl-decode: n_tokens=10101 n_ctx=4096 batch=1 moe=1 drop_cold=0.800 k=8
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stderr:ppl-decode: scored 4095 / 10100 tokens (sum_logprob=-2895.8006)
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stderr:ppl-decode: scored 8190 / 10100 tokens (sum_logprob=-6492.9747)
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stderr:ppl-decode: scored 10098 / 10100 tokens (sum_logprob=-8276.5332)
+/data/data/com.termux/files/home/experiments/results/dropcold/knee/drop0.80/ppl.stderr:ppl done (decode): n_scored=10098 ppl=2.2696 sum_logprob=-8276.5332 (2197.3 s)
+[2026-08-09T18:57:13-0400] twin generate F=0.80
+[2026-08-09T18:57:15-0400] prestart OK die=56500 n=6
+[2026-08-09T18:58:27-0400] cell drop0.80 done batt=? die=56900
+[2026-08-09T18:58:27-0400] KNEE complete
+F	thr	ppl	delta_ppl	bytes_mib_tok	bytes_delta_pct	hit_pct	drop_pct	n_scored	rc_ppl	rc_twin	verdict
+0.65	0.08125	2.19992	0.10447016976609991	28.59	-41.71253822629969	82.4	6.1	10098	0	0	CANDIDATO_SOSTITUZIONE
+0.8	0.1	2.26964	0.1741901697660997	18.54	-62.201834862385326	85.0	11.6	10098	0	0	ARCHIVED_PPL
+=== drop0.65 summary ===
+{
+  "F": 0.65,
+  "thr": 0.08125,
+  "ppl": 2.19992,
+  "delta_ppl": 0.10447016976609991,
+  "mib_per_token": 28.59,
+  "bytes_delta_pct": -41.71253822629969,
+  "cache_hit_pct": 82.4,
+  "drop_pct": 6.1,
+  "n_scored": 10098,
+  "rc_ppl": 0,
+  "rc_twin": 0,
+  "verdict": "CANDIDATO_SOSTITUZIONE",
+  "base_mib_ref": 49.05,
+  "base_ppl_ref": 2.0954498302339
+}--- ppl_meta ---
+{
+  "F": 0.65,
+  "thr": 0.08125,
+  "rc": 0,
+  "n_scored": 10098,
+  "sum_logprob": -7961.47551504,
+  "ppl": 2.19992,
+  "baseline_ppl": 2.0954498302339,
+  "delta_ppl": 0.10447016976609991,
+  "bmoe": {
+    "n_tokens": 10101,
+    "n_scored": 10098,
+    "sum_logprob": -7961.47551504,
+    "ppl": 2.19992,
+    "seconds": 2226.351,
+    "cancelled": false,
+    "mode": "decode",
+    "file": "/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt"
+  }
+}--- twin_meta ---
+{
+  "F": 0.65,
+  "rc": 0,
+  "read_mib": 5717.9,
+  "mib_per_token": 28.59,
+  "cache_hit_pct": 82.4,
+  "n_generated": 200,
+  "experts_dropped": 3929,
+  "experts_routed": 64000,
+  "drop_pct": 6.1,
+  "tok_s": 4.771
+}=== drop0.80 summary ===
+{
+  "F": 0.8,
+  "thr": 0.1,
+  "ppl": 2.26964,
+  "delta_ppl": 0.1741901697660997,
+  "mib_per_token": 18.54,
+  "bytes_delta_pct": -62.201834862385326,
+  "cache_hit_pct": 85.0,
+  "drop_pct": 11.6,
+  "n_scored": 10098,
+  "rc_ppl": 0,
+  "rc_twin": 0,
+  "verdict": "ARCHIVED_PPL",
+  "base_mib_ref": 49.05,
+  "base_ppl_ref": 2.0954498302339
+}--- ppl_meta ---
+{
+  "F": 0.8,
+  "thr": 0.1,
+  "rc": 0,
+  "n_scored": 10098,
+  "sum_logprob": -8276.53318643,
+  "ppl": 2.26964,
+  "baseline_ppl": 2.0954498302339,
+  "delta_ppl": 0.1741901697660997,
+  "bmoe": {
+    "n_tokens": 10101,
+    "n_scored": 10098,
+    "sum_logprob": -8276.53318643,
+    "ppl": 2.26964,
+    "seconds": 2197.293,
+    "cancelled": false,
+    "mode": "decode",
+    "file": "/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt"
+  }
+}--- twin_meta ---
+{
+  "F": 0.8,
+  "rc": 0,
+  "read_mib": 3708.6,
+  "mib_per_token": 18.54,
+  "cache_hit_pct": 85.0,
+  "n_generated": 200,
+  "experts_dropped": 7419,
+  "experts_routed": 64000,
+  "drop_pct": 11.6,
+  "tok_s": 4.801
+}{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 40.6,
+  "voltage": 3740,
+  "current": -544000,
+  "current_average": -190,
+  "percentage": 29,
+  "level": 29,
+  "scale": 100,
+  "charge_counter": 1091250,
+  "cycle": 0
+}

@@ -1059,6 +1059,29 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-09 — 🎯 GINOCCHIO TROVATO: F=0.65 è CANDIDATO SOSTITUZIONE del default
+  0.50 — ΔPPL +0.104 (≤0.15) per −41.7% di byte/token. Il ginocchio qualità della
+  curva sta tra 0.65 e 0.80 (0.80 sfora di 0.024). E il guardrail ABORT_MEM è ora
+  combinato (mem<100MiB E die>85°C), testato a secco su 4 casi.**
+
+  Report: `moe-knee-dropcold.md` (commit `fbc6938`; guardrail `74bbb4d`). Regole
+  applicate come dichiarate: 0.65 passa la soglia dura −25%, 0.80 archiviato per
+  PPL. Curva completa 0→1.00 a verbale, 6 punti misurati.
+
+  **Arbitrato — le due cose da pesare PRIMA della sostituzione:**
+  1. **Il budget**: adottare 0.65 spende 0.104 dei 0.15 cumulativi — restano 0.046
+     per TUTTE le leve lossy future. 0.50 ne lasciava 0.10. La sostituzione compra
+     −31% di traffico incrementale al prezzo di quasi tutto il budget residuo.
+     (I kernel i-quant, se arrivano, sono esatti: non toccano il budget.)
+  2. **Il metro della decisione**: la campagna si chiama "banda per token" — il
+     −42% di byte È il premio (energia, termica, headroom), la velocità è il
+     co-beneficio. Quindi il gate velocità per la sostituzione è la
+     NON-REGRESSIONE (B ≥ A−2%), non il +5% richiesto per l'adozione di 0.50.
+     Mandato: `speed-dropcold-065.md`.
+
+  Nota batteria: floor 30% toccato a 29% sul twin finale — run completati prima
+  dello stop del poller, nessun danno; a verbale come graffio, non violazione.
+
 - **2026-08-09 — 🟡 KERNEL I-QUANT: la seconda deep research della giornata dà GIALLO
   — niente cantiere al buio, ma lo spike da 1-3 giorni è giustificato dai numeri.**
 
