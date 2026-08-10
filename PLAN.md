@@ -1058,6 +1058,31 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-10 — 🪳 BUCHI 1-2 MISURATI: il meccanismo formato è VERO (+30% su
+  silicio nostro) ma il file pronto non esiste; i thread danneggiano; il big core
+  throttla a 864 MHz. E si apre la CARICA SULLA PORTA: speculazione eterogenea.**
+
+  Report: `moe-buchi-calcolo.md`. Arbitrato:
+
+  1. **1a**: g_formato = **1.297** (Q2_K 11.03 vs IQ2_XXS 8.50 tg128, 3B denso,
+     ABBA pulito) — GO_CONDIZIONATO per regola. Il gather i-quant costa ~30% sul
+     nostro 8 Gen 2 (vs 60% su M2-Max: attenuato ma reale).
+  2. **1b CHIUSO ALLA RADICE**: il dump per-tensor del `UD-Q2_K_XL` scaricato
+     (12.3 GB, sha ok) rivela esperti **tutti i-quant** (IQ2_XS/IQ3_XXS) — il
+     "Q2_K" del nome è branding, k-quant solo sul denso. Il candidato non esiste.
+     **Lezione**: il dump per-tensor va fatto PRIMA del download (HF espone i
+     metadata GGUF da remoto). **Porta 1c possibile** (non mandata): requantizzare
+     NOI gli esperti a Q2_K/Q3_K da Q8_0 con `--tensor-type` — il meccanismo vale
+     +5-10% e2e, si giudica col metro PPL; COMPONE con la verifica speculativa.
+  3. **Buco 2 falsificato al contrario**: t5 **−23%**, t6 **−33%** sul burst —
+     più thread danneggiano il decode (coerente con llama.rn). RESTA_4. Dato
+     d'oro dal sysfs: sotto carico il big (X3) sta spesso a **864 MHz** — il
+     ceiling termico ha un numero, ed è brutale.
+  4. Buco 3 (cooling): pronto, serve gualt fisicamente.
+
+  Nota harness: un A2 orfano da doppio harness concorrente è stato scartato con
+  quartetto clean dichiarato — corretto.
+
 - **2026-08-10 — 🪳 LA CACCIA AI BUCHI: gualt rifiuta il consolidamento ("trova il
   buco, come un cockroach"). Tre attacchi non convenzionali al muro del calcolo,
   mandato `buchi-calcolo.md`.**
