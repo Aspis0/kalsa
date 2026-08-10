@@ -84,6 +84,10 @@ jobs:
           df -h /
 
       - name: Prebuild (CNG)
+        # llama.rn ships PREBUILT jniLibs: without this env the patched cpp/ is
+        # never compiled and patches/llama.rn+*.patch is a silent no-op.
+        env:
+          KALSA_LLAMA_FROM_SOURCE: "1"
         run: npx expo prebuild --platform android --no-install
 
       - name: Build APK (x86_64 only — emulator ABI, keeps CI fast)
@@ -91,6 +95,11 @@ jobs:
           cd android
           ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --console=plain
           ls -la app/build/outputs/apk/release/
+
+      # A benchmark that measures an unpatched binary measures the wrong binary.
+      # assert-native-patch.sh exits 1 on a missing marker — fail the job, not warn.
+      - name: Assert the native patch is in the binary
+        run: bash scripts/assert-native-patch.sh
 
       - name: Upload APK (built ONCE, shared by every bench arm below)
         uses: actions/upload-artifact@v4
