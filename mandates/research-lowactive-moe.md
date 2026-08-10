@@ -25,9 +25,11 @@ riempire; privilegiare 2026. Ogni candidato una riga per criterio.
    n_experts/k, dimensioni esperto (rilevanti per streaming e cache slot).
 3. **Footprint**: GGUF disponibili? A che quant? Size a ~2-4 bpw → sta sopra gli
    8 GB (streaming necessario) o ci entra (campagna diversa)?
-4. **Italiano**: multilingua dichiarato/benchmark; tokenizer (vocab, fertilità
-   sull'italiano se documentata). Mellum=code-first e VAETKI=KR-first: verificare
-   se l'IT è di prima o terza classe.
+4. **MULTILINGUA** (precisazione gualt: il prodotto punta a **EN, ES, FR, IT, ZH**
+   e poche altre — non IT-first): copertura dichiarata/benchmark per QUELLE lingue;
+   tokenizer (vocab, fertilità sulle lingue target). Mellum=code-first e
+   VAETKI=KR-first: verificare se le lingue target sono di prima o terza classe.
+   Nota ZH: era un punto di forza di Qwen — chi lo pareggia?
 5. **Multimodalità**: visione nativa o mmproj; stato del supporto llama.cpp.
 6. **Velocità attesa su ARM**: numeri pubblicati su smartphone/ARM per la famiglia;
    in assenza, stima dal conto attivo×bpw (dichiarata [S]).
