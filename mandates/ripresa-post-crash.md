@@ -32,6 +32,23 @@ coordinatore sul disco (commit repo intatto a `6b90743`, nulla di Grok era commi
    fine report (decisione sua): `models/Qwen3.6-35B-A3B-UD-Q2_K_XL.gguf` (12.3 GB,
    1b chiuso: inutile) e `models/LFM2-8B-A1B-Q4_K_M.gguf.BADSIZE` (5.4 GB).
 
+## Causa del crash — CHIUSA (indagine coordinatore, event log)
+
+**Bugcheck `0x19C` = WIN32K_POWER_WATCHDOG_TIMEOUT** (win32k non ha riacceso il
+monitor in tempo): crash di power-management/driver display, non di carico.
+La quantize è ASSOLTA dalla timeline: uscita pulita loggata 11:23:11, file scritti
+fino alle 11:32:46 (macchina viva 9+ min dopo), ultimo evento = ingresso in Modern
+Standby 11:33:11, crash nella finestra di standby (l'"11:23:15" del 6008 è il
+checkpoint stantio del dirty-shutdown, notorio). Zero record WHEA (no hardware).
+L'event log mostra churn ripetuto di Modern Standby (ScreenOffTimeout→wake ogni
+pochi minuti) prima del botto.
+
+**Mitigazione obbligatoria per la ripresa**: il PC non deve entrare in standby
+durante i lavori lunghi non presidiati — `powercfg /change standby-timeout-ac 0`
+(e annotare il valore originale per ripristinarlo a fine campagna), o equivalente
+keep-awake. È la versione PC dello screen_off_timeout del telefono: stessa
+lezione, stesso protocollo (alzare, lavorare, RIPRISTINARE).
+
 ## Deliverable
 
 Gli stessi dei mandati originali, più una riga nel report su cosa si è perso nel
