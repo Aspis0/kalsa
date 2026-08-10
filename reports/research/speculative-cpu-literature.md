@@ -95,3 +95,15 @@ assente); la scala in corso ri-misura le tre condizioni nella variante mai prova
 draft su GPU ferma (inverte la (1): non la verifica ma il draft cambia silicio),
 acceptance misurata offline (2), scattering misurato da C(k) e MiB/tok del batch (3).
 La porta si riapre o si richiude coi numeri N1-N3, non con questo addendum.
+
+**Aggiornamento dall'articolo Meta AI Research** (research.meta.ai, letto 2026-08-10):
+speedup DFlash MISURATI da Meta: **3.1× su RTX 5090, 1.8× su M5 Max, 1.5× su M4
+Max**. I numeri M-Max sono i primi vendor-measured di block-speculation su silicio
+LOCALE a memoria unificata — il regime più vicino al nostro mai documentato (non
+datacenter). Non trasferiscono all'8 Gen 2 (regola "quale silicio") ma spostano il
+prior a favore della scala. Nota di contorno: Meta per l'edge distribuisce quant
+**K-Quant-Dynamic** (k-quant, non i-quant) — coerente con la tesi del buco 1c.
+Envelope target Muse Glimmer: 24-32 GB (laptop-class, non phone) — confermato non
+rivale su S23. E la macchina spec completa (draft-mtp incluso, con conversion
+`_Qwen35MtpMixin` per Qwen3.5/3.6) è GIÀ nel nostro submodule: vedi
+`mandates/scala-speculazione-addendum.md`.
