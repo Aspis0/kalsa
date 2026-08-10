@@ -9,7 +9,7 @@ export PATH="$PREFIX/bin:$PATH"
 export HOME="${HOME:-/data/data/com.termux/files/home}"
 
 BIN="$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN"
-MODEL="$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf"
+MODEL="${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 COLD="$HOME/bin/cold_model.sh"
 OUT="$HOME/experiments/results/adopt_dropcold"
 EXP="$HOME/experiments"

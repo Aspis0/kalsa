@@ -47,7 +47,7 @@ fi
 export BIN_SHA256="${BIN_SHA256:-}"
 # --- end pin ---
 
-MODEL="${MODEL:-$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf}"
+MODEL="${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 export LD_LIBRARY_PATH="$(dirname "$BIN")"
 mkdir -p "$OUTDIR" "$SPLITDIR"
 MASTER="$OUTDIR/ppl_baseline.master.log"

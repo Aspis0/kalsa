@@ -6,7 +6,7 @@ export PATH="$PREFIX/bin:$PATH"
 export LC_ALL=C
 OUT="$HOME/experiments/results/dropcold/smoke_kv"
 BIN="$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN"
-MODEL="$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf"
+MODEL="${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 IN="$HOME/experiments/results/adopt_dense2/smoke/gk1_in.jsonl"
 export LD_LIBRARY_PATH="$(dirname "$BIN")"
 mkdir -p "$OUT"

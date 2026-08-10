@@ -19,7 +19,7 @@ STATUS="$OUTDIR/STATUS.txt"
 SUMMARY="$OUTDIR/SUMMARY.txt"
 
 BIN="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.KVFIX}"
-MODEL="${MODEL:-$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf}"
+MODEL="${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 EXPECTED_SIZE="11522702304"
 COLD_MODEL_SH="${COLD_MODEL_SH:-$HOME/bin/cold_model.sh}"
 PROMPTS_DIR="${PROMPTS_DIR:-$HOME/experiments/prompts}"

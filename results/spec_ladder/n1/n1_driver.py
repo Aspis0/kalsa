@@ -7,7 +7,7 @@ from pathlib import Path
 HOME = Path(os.environ.get('HOME', '/data/data/com.termux/files/home'))
 OUTDIR = Path(os.environ.get('OUTDIR', str(HOME / 'experiments/results/spec_ladder/n1')))
 BIN = Path(os.environ.get('BINARY', str(HOME / 'src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN')))
-MODEL = Path(os.environ.get('MODEL', str(HOME / 'models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf')))
+MODEL = Path(os.environ.get('MODEL', str(HOME / 'experiments/models/Qwen3.6-35B-A3B-KEXP.gguf')))
 COLD = Path(os.environ.get('COLD_MODEL_SH', str(HOME / 'bin/cold_model.sh')))
 PROMPTS = Path(os.environ.get('PROMPTS_DIR', str(HOME / 'experiments/prompts')))
 PROMPT_CTRL = PROMPTS / 'f45_1_esplicativo.txt'

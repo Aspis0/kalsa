@@ -43,7 +43,7 @@ fi
 export BIN_SHA256="${BIN_SHA256:-}"
 # --- end pin ---
 
-MODEL=$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+MODEL=${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}
 CORPUS=$ROOT/corpus/mixed_it.part1.txt
 export LD_LIBRARY_PATH=$(dirname $BIN)
 BASE="--moe-stream --cache-mb 0 --dense-weights anon --overlap --io-threads 4 --ubatch 512"

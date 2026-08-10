@@ -59,7 +59,7 @@ export BIN_SHA256="${BIN_SHA256:-}"
 # --- end pin ---
 
 export LD_LIBRARY_PATH="$(dirname "$BIN"):${LD_LIBRARY_PATH:-}"
-MODEL35="$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf"
+MODEL35="${MODEL35:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 EXPECTED_SIZE35=11522702304
 MODEL_Q40="$HOME/models/LFM2-8B-A1B-Q4_0.gguf"
 MODEL_Q4KM="$HOME/models/LFM2-8B-A1B-Q4_K_M.gguf"

@@ -13,7 +13,7 @@ export LC_ALL=C
 
 OUTROOT="$HOME/experiments/results/dropcold/knee"
 BIN="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN}"
-MODEL="${MODEL:-$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf}"
+MODEL="${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 CORPUS="$HOME/experiments/results/dropcold/corpus_subset_10k.txt"
 PROMPT="$HOME/experiments/prompts/f45_1_esplicativo.txt"
 BASELINE_JSON="$HOME/experiments/results/dropcold/g2/g2_compare.json"

@@ -27,7 +27,7 @@ TAG_PHASE="NOTTE9-CACHE-DOWN"
 BASELINE_MED=4.608
 
 BIN="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN}"
-MODEL="${MODEL:-$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf}"
+MODEL="${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 COLD_MODEL_SH="${COLD_MODEL_SH:-$HOME/bin/cold_model.sh}"
 PROMPTS_DIR="${PROMPTS_DIR:-$HOME/experiments/prompts}"
 RUNTIME_COMMIT="${RUNTIME_COMMIT:-cab20432}"

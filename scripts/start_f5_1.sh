@@ -59,7 +59,7 @@ fi
 export BIN_SHA256="${BIN_SHA256:-}"
 # --- end pin ---
 
-MODEL="${MODEL:-$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf}"
+MODEL="${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 EXPECTED_SIZE="11522702304"
 COLD_MODEL_SH="${COLD_MODEL_SH:-$HOME/bin/cold_model.sh}"
 RUNTIME_COMMIT="${RUNTIME_COMMIT:-b0c4e5b}"

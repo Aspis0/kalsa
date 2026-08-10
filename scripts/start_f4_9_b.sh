@@ -47,7 +47,7 @@ fi
 export BIN_SHA256="${BIN_SHA256:-}"
 # --- end pin ---
 
-MODEL="${MODEL:-$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf}"
+MODEL="${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 EXPECTED_SIZE="11522702304"
 RUN_BENCH="${RUN_BENCH:-$HOME/experiments/scripts/run_bench.sh}"
 CSV="${RUNS_CSV:-$HOME/experiments/results/runs.csv}"

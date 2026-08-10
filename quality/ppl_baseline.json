@@ -103,5 +103,14 @@
     "Deterministic gate: --temp 0 for regression; PPL is teacher-forced",
     "18 unscored tokens = first position of each n_ctx window (9+9 windows)",
     "PPL absolute high-ish for IQ2_M; use for relative \u0394PPL only"
-  ]
+  ],
+  "historical_iq2m_note": "Superseded as campaign model by KEXP 2026-08-10; file kept on disk.",
+  "campaign_model": {
+    "name": "Qwen3.6-35B-A3B-KEXP.gguf",
+    "path": "/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf",
+    "sha256": "ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a",
+    "ppl_F0": 1.5249,
+    "ppl_drop065_k8": 1.5647,
+    "floor_ppl": 2.0955
+  }
 }

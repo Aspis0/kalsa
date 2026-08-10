@@ -34,7 +34,7 @@ NO_SENTINEL=0
 COLD_METHOD="${COLD_METHOD:-fadv}"
 COLD_MODEL_SH="${COLD_MODEL_SH:-$HOME/bin/cold_model.sh}"
 BINARY="$HOME/src/llama.cpp/build-safe/bin/llama-cli"
-MODEL="$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf"
+MODEL="${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 GRID="$HOME/experiments/scripts/run_f3.sh"
 EXPECTED_SIZE="11522702304"
 

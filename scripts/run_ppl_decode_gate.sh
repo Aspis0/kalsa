@@ -27,7 +27,7 @@ OUTDIR="${OUTDIR:-$HOME/experiments/results/notte9/ppl_decode_gate}"
 # Prefer a short ~2–5k-token slice for the first gate pass (faster, still decisive).
 CORPUS_SUBSET="${CORPUS_SUBSET:-$HOME/experiments/quality/corpus_it/mixed_it.txt}"
 BIN="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN}"
-MODEL="${MODEL:-$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf}"
+MODEL="${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 
 TARGET_PPL="${TARGET_PPL:-2.779}"
 TOL="${TOL:-0.05}"   # absolute |ppl - target|; tighten once device noise is known

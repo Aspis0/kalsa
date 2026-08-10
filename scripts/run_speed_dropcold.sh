@@ -31,7 +31,7 @@ EXPECTED_HIT_B="79"
 NCOMMON_EXPECTED=71
 
 BIN="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN}"
-MODEL="${MODEL:-$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf}"
+MODEL="${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 COLD_MODEL_SH="${COLD_MODEL_SH:-$HOME/bin/cold_model.sh}"
 PROMPTS_DIR="${PROMPTS_DIR:-$HOME/experiments/prompts}"
 SMOKE_IN="${SMOKE_IN:-$HOME/experiments/results/adopt_dense2/smoke/gk1_in.jsonl}"

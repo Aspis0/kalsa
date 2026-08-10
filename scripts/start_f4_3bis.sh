@@ -10,7 +10,7 @@ export LC_ALL=C
 mkdir -p "$TMPDIR" "$HOME/experiments/results/logs" "$HOME/experiments/results/f4_state"
 
 BINARY="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN}"
-MODEL="$HOME/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf"
+MODEL="${MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
 EXPECTED_SIZE="11522702304"
 GRID="$HOME/experiments/scripts/run_f4.sh"
 RUNTIME_COMMIT="${RUNTIME_COMMIT:-b0c4e5b}"
