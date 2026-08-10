@@ -60,8 +60,6 @@ function baseResult(overrides = {}) {
         promptMs: 100,
         reuseFrac: 0.1,
         promptTokens: 800,
-        promptSha256: "aaa",
-        promptTokenCount: 800,
       },
       {
         index: 2,
@@ -72,8 +70,6 @@ function baseResult(overrides = {}) {
         promptMs: 200,
         reuseFrac: 0.2,
         promptTokens: 900,
-        promptSha256: "bbb",
-        promptTokenCount: 900,
       },
     ],
     probes: [
@@ -93,9 +89,13 @@ function baseResult(overrides = {}) {
       meanPromptTokens: 850,
       turnsWithTelemetry: 2,
     },
+    // post-31358530713 shape: no promptSha*; embd.size + on-device chars
     positiveControl: {
-      promptShaByTurn: { "1": "sha-base-1", "2": "sha-base-2" },
       promptTokensByTurn: { "1": 800, "2": 900 },
+      reusedTokensByTurn: { "1": 0, "2": 100 },
+      completionsByTurn: { "1": 1, "2": 1 },
+      compactorChars: 0,
+      summaryChars: 0,
     },
     notes: [],
     ...overrides,
@@ -109,7 +109,12 @@ function writeResult(root, arm, seed, result) {
   return dir;
 }
 
-/** Full 2 arms × 3 seeds campaign with differing prompt hashes. */
+/**
+ * Full 2 arms × 3 seeds campaign.
+ * identicalPrompts: same promptTokensByTurn on turns ≥ 2 AND zero compactorChars
+ * on both arms → MEASURING NOTHING.
+ * Default: differing turn-2 token counts → ARMS DIFFER.
+ */
 function writeCompleteCampaign(root, { v42Active = true, identicalPrompts = false } = {}) {
   for (const seed of [1, 2, 3]) {
     writeResult(
@@ -122,11 +127,14 @@ function writeCompleteCampaign(root, { v42Active = true, identicalPrompts = fals
         compaction: "off",
         compactionActive: false,
         positiveControl: {
-          promptShaByTurn: {
-            "1": identicalPrompts ? `shared-${seed}-1` : `base-${seed}-1`,
-            "2": identicalPrompts ? `shared-${seed}-2` : `base-${seed}-2`,
+          promptTokensByTurn: {
+            "1": 800,
+            "2": identicalPrompts ? 900 : 900,
           },
-          promptTokensByTurn: { "1": 800, "2": 900 },
+          reusedTokensByTurn: { "1": 0, "2": 100 },
+          completionsByTurn: { "1": 1, "2": 1 },
+          compactorChars: 0,
+          summaryChars: 0,
         },
         notes: seed === 1 ? ["baseline note seed1"] : [],
       }),
@@ -158,11 +166,17 @@ function writeCompleteCampaign(root, { v42Active = true, identicalPrompts = fals
           honesty: { found: 1, total: 1, rate: 1 },
         },
         positiveControl: {
-          promptShaByTurn: {
-            "1": identicalPrompts ? `shared-${seed}-1` : `v42-${seed}-1`,
-            "2": identicalPrompts ? `shared-${seed}-2` : `v42-${seed}-2`,
+          promptTokensByTurn: {
+            "1": 800,
+            // identical → same as baseline turn 2; else differ
+            "2": identicalPrompts ? 900 : 950 + seed,
           },
-          promptTokensByTurn: { "1": 850, "2": 950 },
+          reusedTokensByTurn: { "1": 0, "2": 120 },
+          completionsByTurn: { "1": 1, "2": 1 },
+          // Only non-zero when arms actually differ via tokens; for identical
+          // campaign leave 0 so MEASURING NOTHING fires.
+          compactorChars: identicalPrompts ? 0 : 400 + seed,
+          summaryChars: identicalPrompts ? 0 : 50,
         },
         notes: seed === 1 ? ["v42 note seed1"] : [],
       }),
@@ -299,7 +313,7 @@ async function main() {
       );
     }
 
-    // ── 4. Positive control: identical vs differing hashes ────────────
+    // ── 4. Positive control: identical token counts vs differing ──────
     {
       const same = path.join(tmp, "same-prompt");
       mkdirSync(same, { recursive: true });
@@ -309,7 +323,7 @@ async function main() {
         () => runAggregate([same]),
       );
       check(
-        "identical prompts → MEASURING NOTHING",
+        "identical token counts + zero compactor → MEASURING NOTHING",
         rSame.markdown.includes("MEASURING NOTHING"),
       );
       check("identical prompts exits non-zero", rSame.exitCode !== 0);
@@ -321,8 +335,15 @@ async function main() {
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
         () => runAggregate([diff]),
       );
-      check("differing hashes → ARMS DIFFER", rDiff.markdown.includes("ARMS DIFFER"));
-      check("differing hashes exits 0", rDiff.exitCode === 0, `exit=${rDiff.exitCode}`);
+      check(
+        "differing turn-2 token counts → ARMS DIFFER",
+        rDiff.markdown.includes("ARMS DIFFER"),
+      );
+      check(
+        "differing token counts exits 0",
+        rDiff.exitCode === 0,
+        `exit=${rDiff.exitCode}`,
+      );
     }
 
     // ── 5. Permutation test determinism + perfect separation ──────────
@@ -362,8 +383,6 @@ async function main() {
               promptMs: 100,
               reuseFrac: 0.5,
               promptTokens: 10,
-              promptSha256: "a1",
-              promptTokenCount: 10,
             },
             {
               index: 2,
@@ -374,13 +393,14 @@ async function main() {
               promptMs: null,
               reuseFrac: null,
               promptTokens: null,
-              promptSha256: "a2",
-              promptTokenCount: null,
             },
           ],
           positiveControl: {
-            promptShaByTurn: { "1": "b1", "2": "b2" },
-            promptTokensByTurn: { "1": 10 },
+            promptTokensByTurn: { "1": 10, "2": 20 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 0,
+            summaryChars: 0,
           },
         }),
       );
@@ -401,13 +421,14 @@ async function main() {
               promptMs: 300,
               reuseFrac: 0.1,
               promptTokens: 30,
-              promptSha256: "c1",
-              promptTokenCount: 30,
             },
           ],
           positiveControl: {
-            promptShaByTurn: { "1": "c1" },
             promptTokensByTurn: { "1": 30 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 0,
+            summaryChars: 0,
           },
         }),
       );
@@ -435,8 +456,11 @@ async function main() {
             },
           ],
           positiveControl: {
-            promptShaByTurn: { "1": "v1" },
             promptTokensByTurn: {},
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 0,
+            summaryChars: 0,
           },
         }),
       );
@@ -514,7 +538,13 @@ async function main() {
           arm: "baseline",
           seed: 1,
           turns: [{ index: 1, kind: "plant", id: "p", elapsed_s: 1, reply_len: 1 }],
-          positiveControl: { promptShaByTurn: {}, promptTokensByTurn: {} },
+          positiveControl: {
+            promptTokensByTurn: {},
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 0,
+            summaryChars: 0,
+          },
         }),
       );
       const { markdown } = withEnv(
@@ -576,8 +606,11 @@ async function main() {
             seed,
             recall: 0.5,
             positiveControl: {
-              promptShaByTurn: { "1": `b1-${seed}`, "2": `b2-${seed}` },
               promptTokensByTurn: { "1": 800, "2": 900 },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              compactorChars: 0,
+              summaryChars: 0,
             },
           }),
         );
@@ -596,8 +629,11 @@ async function main() {
               probe("fact_B", "fact_recall", true),
             ],
             positiveControl: {
-              promptShaByTurn: { "1": `v1-${seed}`, "2": `v2-${seed}` },
-              promptTokensByTurn: { "1": 850, "2": 950 },
+              promptTokensByTurn: { "1": 800, "2": 950 + seed },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              compactorChars: 100,
+              summaryChars: 10,
             },
           }),
         );
@@ -671,13 +707,15 @@ async function main() {
           compactionActive: true,
           probes: [probe("fact_A", "fact_recall", true)],
           positiveControl: {
-            promptShaByTurn: { "1": "x", "2": "y" },
-            promptTokensByTurn: {},
+            promptTokensByTurn: { "1": 100, "2": 200 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 50,
+            summaryChars: 0,
           },
         }),
       );
-      // Pair hashes so pos control can pass if seeds only 1 expected... use expect 1
-      // and matching positive control with turn 2 differ.
+      // Differing turn-2 token counts so pos control can pass; expect 1 seed.
       writeResult(
         zp2,
         "baseline",
@@ -687,8 +725,11 @@ async function main() {
           seed: 1,
           probes: [],
           positiveControl: {
-            promptShaByTurn: { "1": "same1", "2": "base2" },
-            promptTokensByTurn: {},
+            promptTokensByTurn: { "1": 100, "2": 200 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 0,
+            summaryChars: 0,
           },
         }),
       );
@@ -703,8 +744,11 @@ async function main() {
           compactionActive: true,
           probes: [probe("fact_A", "fact_recall", true)],
           positiveControl: {
-            promptShaByTurn: { "1": "same1", "2": "v422" },
-            promptTokensByTurn: {},
+            promptTokensByTurn: { "1": 100, "2": 250 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 50,
+            summaryChars: 0,
           },
         }),
       );
@@ -730,8 +774,11 @@ async function main() {
             arm: "baseline",
             seed,
             positiveControl: {
-              promptShaByTurn: { "1": `b1-${seed}`, "2": `b2-${seed}` },
-              promptTokensByTurn: {},
+              promptTokensByTurn: { "1": 100, "2": 200 },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              compactorChars: 0,
+              summaryChars: 0,
             },
           }),
         );
@@ -741,8 +788,11 @@ async function main() {
           compaction: "on",
           compactionActive: true,
           positiveControl: {
-            promptShaByTurn: { "1": `v1-${seed}`, "2": `v2-${seed}` },
-            promptTokensByTurn: {},
+            promptTokensByTurn: { "1": 100, "2": 250 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 50,
+            summaryChars: 0,
           },
         });
         delete v.compactionActive;
@@ -821,7 +871,7 @@ async function main() {
         /positive control absent/i.test(rAbs.markdown),
       );
 
-      // Turn-1-only overlap → insufficient
+      // Turn-1-only overlap + zero compactor → insufficient
       const t1only = path.join(tmp, "t1only");
       mkdirSync(t1only, { recursive: true });
       for (const seed of [1, 2, 3]) {
@@ -833,8 +883,11 @@ async function main() {
             arm: "baseline",
             seed,
             positiveControl: {
-              promptShaByTurn: { "1": `shared-${seed}` },
               promptTokensByTurn: { "1": 100 },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              compactorChars: 0,
+              summaryChars: 0,
             },
           }),
         );
@@ -848,8 +901,11 @@ async function main() {
             compaction: "on",
             compactionActive: true,
             positiveControl: {
-              promptShaByTurn: { "1": `shared-${seed}` },
               promptTokensByTurn: { "1": 100 },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              compactorChars: 0,
+              summaryChars: 0,
             },
           }),
         );
@@ -876,8 +932,11 @@ async function main() {
             arm: "baseline",
             seed,
             positiveControl: {
-              promptShaByTurn: { "1": `same-${seed}`, "2": `base2-${seed}` },
               promptTokensByTurn: { "1": 100, "2": 200 },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              compactorChars: 0,
+              summaryChars: 0,
             },
           }),
         );
@@ -891,8 +950,11 @@ async function main() {
             compaction: "on",
             compactionActive: true,
             positiveControl: {
-              promptShaByTurn: { "1": `same-${seed}`, "2": `v422-${seed}` },
               promptTokensByTurn: { "1": 100, "2": 250 },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              compactorChars: 0,
+              summaryChars: 0,
             },
           }),
         );
@@ -905,6 +967,105 @@ async function main() {
         "C3: differing turn 2 passes (ARMS DIFFER, exit 0)",
         rT2.exitCode === 0 && rT2.markdown.includes("ARMS DIFFER"),
         `exit=${rT2.exitCode}`,
+      );
+
+      // Equal token counts on turns ≥ 2, but compactorChars > 0 only on v42 → pass
+      const viaComp = path.join(tmp, "via-compactor");
+      mkdirSync(viaComp, { recursive: true });
+      for (const seed of [1, 2, 3]) {
+        writeResult(
+          viaComp,
+          "baseline",
+          seed,
+          baseResult({
+            arm: "baseline",
+            seed,
+            positiveControl: {
+              promptTokensByTurn: { "1": 100, "2": 200 },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              compactorChars: 0,
+              summaryChars: 0,
+            },
+          }),
+        );
+        writeResult(
+          viaComp,
+          "v42",
+          seed,
+          baseResult({
+            arm: "v42",
+            seed,
+            compaction: "on",
+            compactionActive: true,
+            positiveControl: {
+              promptTokensByTurn: { "1": 100, "2": 200 },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              compactorChars: 777,
+              summaryChars: 12,
+            },
+          }),
+        );
+      }
+      const rComp = withEnv(
+        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([viaComp]),
+      );
+      check(
+        "C3: equal tokens but v42 compactorChars>0 passes (ARMS DIFFER)",
+        rComp.exitCode === 0 && rComp.markdown.includes("ARMS DIFFER"),
+        `exit=${rComp.exitCode}\n${rComp.markdown.split("\n").filter((l) => /ARMS|MEASURING|compactor/i.test(l)).join("\n")}`,
+      );
+
+      // Equal tokens + zero compactor on both → MEASURING NOTHING
+      const nothing = path.join(tmp, "measuring-nothing");
+      mkdirSync(nothing, { recursive: true });
+      for (const seed of [1, 2, 3]) {
+        writeResult(
+          nothing,
+          "baseline",
+          seed,
+          baseResult({
+            arm: "baseline",
+            seed,
+            positiveControl: {
+              promptTokensByTurn: { "1": 100, "2": 200 },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              compactorChars: 0,
+              summaryChars: 0,
+            },
+          }),
+        );
+        writeResult(
+          nothing,
+          "v42",
+          seed,
+          baseResult({
+            arm: "v42",
+            seed,
+            compaction: "on",
+            compactionActive: true,
+            positiveControl: {
+              promptTokensByTurn: { "1": 100, "2": 200 },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              compactorChars: 0,
+              summaryChars: 0,
+            },
+          }),
+        );
+      }
+      const rNothing = withEnv(
+        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([nothing]),
+      );
+      check(
+        "C3: equal tokens + zero compactor → MEASURING NOTHING",
+        rNothing.exitCode !== 0 &&
+          rNothing.markdown.includes("MEASURING NOTHING"),
+        `exit=${rNothing.exitCode}`,
       );
     }
   } finally {

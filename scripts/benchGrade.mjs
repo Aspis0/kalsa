@@ -56,13 +56,23 @@ function sumPositive(values) {
 }
 
 /**
- * Group telemetry lines by turnId; report the FIRST group (lowest turnId =
- * the chat turn) as this turn's metrics, plus extraCompletions = other groups.
- * WHY: with settle+capture after idle, background summarize logs into the SAME
- * turn directory. Its prefill is a different completion and must not be summed
- * into the chat turn's measurement.
+ * Group telemetry lines by turnId and pick the group that belongs to the chat
+ * turn. Matching rule (same idea as capture_kv_reuse in ci-lib.sh): summed
+ * tokensEvaluated of a group equals embd.size of the FIRST "Input processed"
+ * line in this turn's loadprompt.txt. Fallback: first group (lowest turnId)
+ * plus a note — caller merges attributionNote.
+ *
+ * WHY not "first group wins": settle_turn_reply no longer waits for the
+ * background summarize job (smoke run 31358530713: wait_ui_idle hung on the
+ * collapsed "Thinking" header). Summarize telemetry can therefore land in
+ * THIS turn's file or the NEXT turn's file; file order is no longer a safe
+ * attribution key.
+ *
+ * @param {string} turnDir
+ * @param {number|null} targetEmbSize - embd.size of first Input processed, or null
+ * @returns {{ metrics: object, attributionNote: string|null } | null}
  */
-function readTelemetryMetrics(turnDir) {
+function readTelemetryMetrics(turnDir, targetEmbSize) {
   const file = path.join(turnDir, "telemetry.jsonl");
   if (!existsSync(file)) return null;
   let raw;
@@ -90,7 +100,7 @@ function readTelemetryMetrics(turnDir) {
   }
   if (byTurnId.size === 0) return null;
 
-  // Lowest turnId group first (numeric compare when both look like numbers).
+  // Lowest turnId first (numeric compare when both look like numbers).
   const keys = [...byTurnId.keys()].sort((a, b) => {
     if (a === "__none__") return 1;
     if (b === "__none__") return -1;
@@ -99,69 +109,126 @@ function readTelemetryMetrics(turnDir) {
     if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
     return a < b ? -1 : a > b ? 1 : 0;
   });
-  const chatKey = keys[0];
+
+  let chatKey = keys[0];
+  let attributionNote = null;
+  if (typeof targetEmbSize === "number" && Number.isFinite(targetEmbSize)) {
+    let matched = null;
+    for (const k of keys) {
+      const sum = sumPositive(
+        (byTurnId.get(k) ?? []).map((r) => r.tokensEvaluated),
+      );
+      if (sum === targetEmbSize) {
+        matched = k;
+        break;
+      }
+    }
+    if (matched != null) {
+      chatKey = matched;
+    } else {
+      attributionNote = "telemetry attribution fell back to first group";
+    }
+  }
+
   const rounds = byTurnId.get(chatKey);
   const extraCompletions = keys.length - 1;
 
   const last = rounds[rounds.length - 1];
   const pps = last?.predictedPerSecond;
   return {
-    promptMs: sumPositive(rounds.map((r) => r.promptMs)),
-    predictedMs: sumPositive(rounds.map((r) => r.predictedMs)),
-    tokensEvaluated: sumPositive(rounds.map((r) => r.tokensEvaluated)),
-    tokensPredicted: sumPositive(rounds.map((r) => r.tokensPredicted)),
-    predictedPerSecond:
-      typeof pps === "number" && Number.isFinite(pps) && pps >= 0 ? pps : null,
-    rounds: rounds.length,
-    extraCompletions,
+    metrics: {
+      promptMs: sumPositive(rounds.map((r) => r.promptMs)),
+      predictedMs: sumPositive(rounds.map((r) => r.predictedMs)),
+      tokensEvaluated: sumPositive(rounds.map((r) => r.tokensEvaluated)),
+      tokensPredicted: sumPositive(rounds.map((r) => r.tokensPredicted)),
+      predictedPerSecond:
+        typeof pps === "number" && Number.isFinite(pps) && pps >= 0
+          ? pps
+          : null,
+      rounds: rounds.length,
+      extraCompletions,
+    },
+    attributionNote,
   };
 }
 
 function readLoadpromptMetrics(turnDir) {
   const file = path.join(turnDir, "loadprompt.txt");
   if (!existsSync(file)) {
-    return { reusedTokens: null, promptTokens: null, reuseFrac: null };
+    return {
+      reusedTokens: null,
+      promptTokens: null,
+      reuseFrac: null,
+      completions: null,
+    };
   }
   let raw;
   try {
     raw = readFileSync(file, "utf8");
   } catch {
-    return { reusedTokens: null, promptTokens: null, reuseFrac: null };
+    return {
+      reusedTokens: null,
+      promptTokens: null,
+      reuseFrac: null,
+      completions: null,
+    };
   }
-  // First "Input processed" line only. loadprompt has no turnId — A1's
-  // ordering (capture after idle, logcat -c between turns) is what makes the
-  // first line the chat turn's, not a later summarize.
-  const m = raw.match(/Input processed:\s*n_past=(\d+),\s*embd\.size=(\d+)/);
-  if (!m) {
-    return { reusedTokens: null, promptTokens: null, reuseFrac: null };
+  // All "Input processed" lines: first = chat turn (logcat -c between turns);
+  // later lines are background jobs (summarize). completions counts them.
+  const re = /Input processed:\s*n_past=(\d+),\s*embd\.size=(\d+)/g;
+  const matches = [...raw.matchAll(re)];
+  if (matches.length === 0) {
+    return {
+      reusedTokens: null,
+      promptTokens: null,
+      reuseFrac: null,
+      completions: null,
+    };
   }
-  const reusedTokens = Number(m[1]);
-  const promptTokens = Number(m[2]);
+  const reusedTokens = Number(matches[0][1]);
+  const promptTokens = Number(matches[0][2]);
   const reuseFrac =
     Number.isFinite(promptTokens) && promptTokens > 0
       ? reusedTokens / promptTokens
       : null;
-  return { reusedTokens, promptTokens, reuseFrac };
+  return {
+    reusedTokens,
+    promptTokens,
+    reuseFrac,
+    completions: matches.length,
+  };
 }
 
+/**
+ * prompt_meta.txt format after smoke run 31358530713 fix:
+ *   reused=<n_past> total=<embd.size>
+ * one line per Input processed. Older tokens=/sha256= lines are ignored
+ * (that hash was constant by construction — see ci-bench.sh).
+ */
 function readPromptMeta(turnDir) {
+  const empty = {
+    reusedTokens: null,
+    promptTokens: null,
+    completions: null,
+  };
   const file = path.join(turnDir, "prompt_meta.txt");
-  if (!existsSync(file)) {
-    return { promptSha256: null, promptTokenCount: null };
-  }
+  if (!existsSync(file)) return empty;
   let raw;
   try {
     raw = readFileSync(file, "utf8");
   } catch {
-    return { promptSha256: null, promptTokenCount: null };
+    return empty;
   }
-  const first = raw.split("\n").find((l) => l.trim());
-  if (!first) return { promptSha256: null, promptTokenCount: null };
-  const tm = first.match(/tokens=(\d+)/);
-  const sm = first.match(/sha256=([0-9a-fA-F]+)/);
+  const lines = [];
+  for (const line of raw.split("\n")) {
+    const m = line.trim().match(/^reused=(\d+)\s+total=(\d+)\s*$/);
+    if (m) lines.push({ reused: Number(m[1]), total: Number(m[2]) });
+  }
+  if (lines.length === 0) return empty;
   return {
-    promptTokenCount: tm ? Number(tm[1]) : null,
-    promptSha256: sm ? sm[1] : null,
+    reusedTokens: lines[0].reused,
+    promptTokens: lines[0].total,
+    completions: lines.length,
   };
 }
 
@@ -178,15 +245,30 @@ function metricsForTurn(baseDir, turnIndex) {
     reusedTokens: null,
     promptTokens: null,
     reuseFrac: null,
-    promptSha256: null,
-    promptTokenCount: null,
+    completions: null,
     _hadTelemetry: false,
+    _attributionNote: null,
   };
   if (!existsSync(turnDir)) return empty;
 
-  const tel = readTelemetryMetrics(turnDir);
   const load = readLoadpromptMetrics(turnDir);
   const meta = readPromptMeta(turnDir);
+  // Prefer loadprompt for the chat-turn embd.size (same first-line rule);
+  // fall back to prompt_meta if loadprompt is missing.
+  const promptTokens = load.promptTokens ?? meta.promptTokens;
+  const reusedTokens = load.reusedTokens ?? meta.reusedTokens;
+  const completions = load.completions ?? meta.completions;
+  const reuseFrac =
+    load.reuseFrac != null
+      ? load.reuseFrac
+      : Number.isFinite(promptTokens) &&
+          promptTokens > 0 &&
+          Number.isFinite(reusedTokens)
+        ? reusedTokens / promptTokens
+        : null;
+
+  const telResult = readTelemetryMetrics(turnDir, promptTokens);
+  const tel = telResult?.metrics ?? null;
   return {
     promptMs: tel?.promptMs ?? null,
     predictedMs: tel?.predictedMs ?? null,
@@ -195,12 +277,12 @@ function metricsForTurn(baseDir, turnIndex) {
     predictedPerSecond: tel?.predictedPerSecond ?? null,
     rounds: tel?.rounds ?? null,
     extraCompletions: tel?.extraCompletions ?? null,
-    reusedTokens: load.reusedTokens,
-    promptTokens: load.promptTokens,
-    reuseFrac: load.reuseFrac,
-    promptSha256: meta.promptSha256,
-    promptTokenCount: meta.promptTokenCount,
+    reusedTokens,
+    promptTokens,
+    reuseFrac,
+    completions,
     _hadTelemetry: tel !== null,
+    _attributionNote: telResult?.attributionNote ?? null,
   };
 }
 
@@ -281,6 +363,13 @@ function collectNotes(raw, turns, turnMetrics, compactionActive, extraNotes) {
     notes.push(`no telemetry sidecar found for ${missingTel} turn(s)`);
   }
 
+  for (let i = 0; i < turns.length; i++) {
+    const note = turnMetrics[i]?._attributionNote;
+    if (note) {
+      notes.push(`turn ${turns[i].index}: ${note}`);
+    }
+  }
+
   return notes;
 }
 
@@ -310,7 +399,7 @@ function gradeRaw(raw, baseDir) {
     const reply = turn.reply ?? "";
     const replyLen =
       typeof turn.replyLen === "number" ? turn.replyLen : String(reply).length;
-    const { _hadTelemetry, ...metrics } = m;
+    const { _hadTelemetry, _attributionNote, ...metrics } = m;
     return {
       // Default every copied field: JSON.stringify drops undefined keys, so a
       // malformed raw would omit fields instead of nulling them (B7).
@@ -348,14 +437,30 @@ function gradeRaw(raw, baseDir) {
     recall = fr.rate;
   }
 
-  const promptShaByTurn = {};
+  // Positive control: real, non-truncated signals (smoke run 31358530713
+  // proved the old promptSha was constant by construction). No promptSha*.
   const promptTokensByTurn = {};
+  const reusedTokensByTurn = {};
+  const completionsByTurn = {};
   for (let i = 0; i < turns.length; i++) {
     const idx = String(turns[i].index);
     const m = turnMetrics[i];
-    if (m.promptSha256 != null) promptShaByTurn[idx] = m.promptSha256;
-    if (m.promptTokenCount != null) promptTokensByTurn[idx] = m.promptTokenCount;
+    if (m.promptTokens != null) promptTokensByTurn[idx] = m.promptTokens;
+    if (m.reusedTokens != null) reusedTokensByTurn[idx] = m.reusedTokens;
+    if (m.completions != null) completionsByTurn[idx] = m.completions;
   }
+  const cs =
+    raw.compactorState && typeof raw.compactorState === "object"
+      ? raw.compactorState
+      : {};
+  const compactorChars =
+    typeof cs.compactorChars === "number" && Number.isFinite(cs.compactorChars)
+      ? cs.compactorChars
+      : 0;
+  const summaryChars =
+    typeof cs.summaryChars === "number" && Number.isFinite(cs.summaryChars)
+      ? cs.summaryChars
+      : 0;
 
   return {
     schema: 2,
@@ -376,8 +481,11 @@ function gradeRaw(raw, baseDir) {
     byFamily,
     prefill: buildPrefill(turnMetrics),
     positiveControl: {
-      promptShaByTurn,
       promptTokensByTurn,
+      reusedTokensByTurn,
+      completionsByTurn,
+      compactorChars,
+      summaryChars,
     },
     notes,
   };

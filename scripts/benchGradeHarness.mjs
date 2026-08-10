@@ -394,7 +394,10 @@ async function main() {
       });
       writeRaw(sideDir, raw);
 
-      // turn1: two telemetry rounds same turnId; promptMs -1 on first, positive on second
+      // turn1: two telemetry rounds same turnId; promptMs -1 on first, positive
+      // on second. tokensEvaluated sum (100+50=150) is intentionally ≠ embd.size
+      // so this case exercises the fallback path when loadprompt has no match
+      // group — wait, better: make sum match embd.size=150 so attribution is clean.
       writeSidecar(sideDir, 1, {
         telemetry: [
           {
@@ -426,10 +429,13 @@ async function main() {
             interrupted: false,
           },
         ],
+        // Two Input processed lines → completions=2 (chat + background job).
+        // First embd.size=150 matches tokensEvaluated sum above.
         loadprompt:
-          "foo Input processed: n_past=40, embd.size=200, bar\n" +
-          "restored state checkpoint: reusing 40/200 prompt tokens\n",
-        promptMeta: "tokens=180 sha256=abc123def\n",
+          "foo Input processed: n_past=40, embd.size=150, bar\n" +
+          "Input processed: n_past=40, embd.size=999\n" +
+          "restored state checkpoint: reusing 40/150 prompt tokens\n",
+        promptMeta: "reused=40 total=150\nreused=40 total=999\n",
       });
       // turn2: no sidecar dir at all
 
@@ -459,14 +465,44 @@ async function main() {
       );
       check("sidecar: rounds === 2", t1?.rounds === 2, `got ${t1?.rounds}`);
       check("sidecar: reusedTokens === 40", t1?.reusedTokens === 40);
-      check("sidecar: promptTokens === 200", t1?.promptTokens === 200);
+      check("sidecar: promptTokens === 150", t1?.promptTokens === 150);
       check(
-        "sidecar: reuseFrac === 0.2",
-        t1?.reuseFrac === 0.2,
+        "sidecar: reuseFrac === 40/150",
+        t1?.reuseFrac === 40 / 150,
         `got ${t1?.reuseFrac}`,
       );
-      check("sidecar: promptSha256 from first meta line", t1?.promptSha256 === "abc123def");
-      check("sidecar: promptTokenCount === 180", t1?.promptTokenCount === 180);
+      check(
+        "sidecar: completions === 2 (two Input processed lines)",
+        t1?.completions === 2,
+        `got ${t1?.completions}`,
+      );
+      // No promptSha* — smoke run 31358530713 proved hashes were meaningless.
+      check(
+        "sidecar: no promptSha256 on turn metrics",
+        t1?.promptSha256 === undefined &&
+          !Object.prototype.hasOwnProperty.call(t1 ?? {}, "promptSha256"),
+      );
+      check(
+        "positiveControl: no promptSha* keys",
+        result.positiveControl != null &&
+          !Object.prototype.hasOwnProperty.call(
+            result.positiveControl,
+            "promptShaByTurn",
+          ) &&
+          !Object.keys(result.positiveControl).some((k) =>
+            k.toLowerCase().includes("sha"),
+          ),
+        `keys=${Object.keys(result.positiveControl ?? {}).join(",")}`,
+      );
+      check(
+        "positiveControl: promptTokensByTurn + completionsByTurn + reused + chars",
+        result.positiveControl?.promptTokensByTurn?.["1"] === 150 &&
+          result.positiveControl?.reusedTokensByTurn?.["1"] === 40 &&
+          result.positiveControl?.completionsByTurn?.["1"] === 2 &&
+          result.positiveControl?.compactorChars === 0 &&
+          result.positiveControl?.summaryChars === 0,
+        `pc=${JSON.stringify(result.positiveControl)}`,
+      );
       // Positive control: real telemetry yields a real number (grader that always
       // returns null cannot pass both this and the null-missing-dir cases).
       check(
@@ -493,12 +529,13 @@ async function main() {
       );
     }
 
-    // ── 8b. turnId grouping (chat turn + background summarize) ────────
+    // ── 8b. telemetry attribution by embd.size match (not first group) ─
     {
       const d = path.join(tmp, "tid");
       mkdirSync(d, { recursive: true });
       const raw = baseRaw({ turns: [turn(1, "plant_a", "ok")] });
-      // Lowest turnId = chat (promptMs 100); higher = summarize (promptMs 9999)
+      // First group (lowest turnId=5) has tokensEvaluated=10; chat is turnId=99
+      // with tokensEvaluated=999 matching embd.size. Attribution must pick 99.
       writeSidecar(d, 1, {
         telemetry: [
           {
@@ -520,18 +557,92 @@ async function main() {
             predictedPerSecond: 1,
           },
         ],
+        loadprompt: "Input processed: n_past=0, embd.size=999\n",
+        promptMeta: "reused=0 total=999\n",
       });
       const result = gradeRaw(raw, d);
       const t1 = result.turns[0];
       check(
-        "turnId group: chat turn metrics (lowest turnId), not summarize",
-        t1.promptMs === 100,
+        "telemetry attr: picks group matching embd.size, not lowest turnId",
+        t1.promptMs === 9999,
         `got ${t1.promptMs}`,
       );
       check(
-        "turnId group: extraCompletions === 1",
+        "telemetry attr: extraCompletions === 1",
         t1.extraCompletions === 1,
         `got ${t1.extraCompletions}`,
+      );
+      check(
+        "telemetry attr: no fallback note when match found",
+        !(result.notes ?? []).some((n) => /attribution fell back/i.test(n)),
+        `notes=${JSON.stringify(result.notes)}`,
+      );
+    }
+
+    // ── 8c. telemetry attribution fallback when nothing matches ───────
+    {
+      const d = path.join(tmp, "tid-fb");
+      mkdirSync(d, { recursive: true });
+      const raw = baseRaw({ turns: [turn(3, "filler_1", "ok")] });
+      writeSidecar(d, 3, {
+        telemetry: [
+          {
+            turnId: 1,
+            round: 1,
+            tokensEvaluated: 10,
+            tokensPredicted: 5,
+            promptMs: 111,
+            predictedMs: 50,
+            predictedPerSecond: 8,
+          },
+          {
+            turnId: 2,
+            round: 1,
+            tokensEvaluated: 20,
+            tokensPredicted: 5,
+            promptMs: 222,
+            predictedMs: 50,
+            predictedPerSecond: 8,
+          },
+        ],
+        loadprompt: "Input processed: n_past=0, embd.size=777\n",
+        promptMeta: "reused=0 total=777\n",
+      });
+      const result = gradeRaw(raw, d);
+      const t1 = result.turns[0];
+      check(
+        "telemetry fallback: first group (promptMs 111)",
+        t1.promptMs === 111,
+        `got ${t1.promptMs}`,
+      );
+      check(
+        "telemetry fallback: note names turn index",
+        (result.notes ?? []).some(
+          (n) =>
+            /turn 3: telemetry attribution fell back to first group/i.test(n),
+        ),
+        `notes=${JSON.stringify(result.notes)}`,
+      );
+    }
+
+    // ── 8d. positiveControl pulls compactorState from raw.json ────────
+    {
+      const d = path.join(tmp, "pc-state");
+      mkdirSync(d, { recursive: true });
+      const raw = baseRaw({
+        turns: [turn(1, "plant_a", "ok")],
+        compactorState: { compactorChars: 420, summaryChars: 88 },
+      });
+      writeSidecar(d, 1, {
+        loadprompt: "Input processed: n_past=0, embd.size=100\n",
+        promptMeta: "reused=0 total=100\n",
+      });
+      const result = gradeRaw(raw, d);
+      check(
+        "positiveControl: compactorChars/summaryChars from raw.compactorState",
+        result.positiveControl?.compactorChars === 420 &&
+          result.positiveControl?.summaryChars === 88,
+        `pc=${JSON.stringify(result.positiveControl)}`,
       );
     }
 

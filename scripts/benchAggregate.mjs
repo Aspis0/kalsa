@@ -571,6 +571,8 @@ function collectPrefill(fase4) {
 
 function collectPositiveControl(fase4) {
   // seed -> arm -> positiveControl
+  // After smoke run 31358530713: compare promptTokensByTurn (embd.size) and
+  // compactorChars — never promptSha* (logcat 4 KB truncation made hashes constant).
   const bySeed = new Map();
   for (const r of fase4) {
     const seed = String(r.seed);
@@ -589,13 +591,19 @@ function collectPositiveControl(fase4) {
     const pair = bySeed.get(seed);
     if (!pair.baseline || !pair.v42) continue;
     seedsWithBothArms += 1;
-    const shaA = pair.baseline.promptShaByTurn ?? {};
-    const shaB = pair.v42.promptShaByTurn ?? {};
     const tokensA = pair.baseline.promptTokensByTurn ?? {};
     const tokensB = pair.v42.promptTokensByTurn ?? {};
+    const compA =
+      typeof pair.baseline.compactorChars === "number"
+        ? pair.baseline.compactorChars
+        : 0;
+    const compB =
+      typeof pair.v42.compactorChars === "number"
+        ? pair.v42.compactorChars
+        : 0;
 
-    const allCommon = Object.keys(shaA)
-      .filter((t) => Object.prototype.hasOwnProperty.call(shaB, t))
+    const allCommon = Object.keys(tokensA)
+      .filter((t) => Object.prototype.hasOwnProperty.call(tokensB, t))
       .sort((a, b) => Number(a) - Number(b));
 
     // Turn 1 is assembled before any compaction has happened and is EXPECTED
@@ -605,41 +613,45 @@ function collectPositiveControl(fase4) {
 
     let different = 0;
     for (const t of commonTurns) {
-      if (shaA[t] !== shaB[t]) different += 1;
+      if (tokensA[t] !== tokensB[t]) different += 1;
     }
 
+    // Compactor state: expect > 0 on v42, 0 on baseline (reset_chat clears it).
+    const compactorDiffersExpected = compB > 0 && compA === 0;
+
     let verdict;
-    if (allCommon.length === 0) {
-      // Empty promptShaByTurn or no overlapping turn keys → fail closed.
-      verdict = "NO OVERLAPPING HASHES";
+    if (allCommon.length === 0 && !(compA > 0 || compB > 0)) {
+      // No overlapping prompt-token turns and no compactor signal → fail closed.
+      verdict = "NO OVERLAPPING PROMPT TOKENS";
       anyFail = true;
-    } else if (commonTurns.length === 0) {
+    } else if (commonTurns.length === 0 && !compactorDiffersExpected) {
       verdict = "INSUFFICIENT — turn 1 only (excluded; pre-compaction)";
       anyFail = true;
-    } else if (different === 0) {
-      // Identical hashes on every compared post-turn-1 turn → broken A/B.
-      verdict = "IDENTICAL PROMPTS — MEASURING NOTHING";
+    } else if (different > 0 || compactorDiffersExpected) {
+      // PASS: at least one common turn ≥ 2 differs in prompt token count,
+      // OR compactorChars differs in the expected direction (v42 > 0, baseline 0).
+      verdict = "ARMS DIFFER";
+      anyPass = true;
+    } else if (different === 0 && compA === 0 && compB === 0) {
+      // Every common turn ≥ 2 matches AND compactor never ran on either arm.
+      verdict = "MEASURING NOTHING";
       anyIdentical = true;
       anyFail = true;
     } else {
-      // ARMS DIFFER (pass) when at least one common turn with index >= 2 differs.
-      verdict = "ARMS DIFFER";
-      anyPass = true;
+      // Token counts match and compactorChars not in expected direction
+      // (e.g. both non-zero, or only baseline non-zero) — still not a valid A/B.
+      verdict = "MEASURING NOTHING";
+      anyIdentical = true;
+      anyFail = true;
     }
 
-    const first = commonTurns[0] ?? allCommon[0];
-    const last = commonTurns[commonTurns.length - 1] ?? allCommon[allCommon.length - 1];
     rows.push({
       seed,
       compared: commonTurns.length,
       different,
       verdict,
-      firstTurn: first ?? null,
-      lastTurn: last ?? null,
-      tokensBaselineFirst: first != null ? tokensA[first] : null,
-      tokensV42First: first != null ? tokensB[first] : null,
-      tokensBaselineLast: last != null ? tokensA[last] : null,
-      tokensV42Last: last != null ? tokensB[last] : null,
+      v42CompactorChars: compB,
+      baselineCompactorChars: compA,
     });
   }
 
@@ -877,9 +889,11 @@ function renderFase4(agg) {
   }
 
   // ── Positive control ────────────────────────────────────────────────
+  // Compare embd.size (promptTokensByTurn) + on-device compactorState — not
+  // prompt hashes (smoke run 31358530713: logcat 4 KB truncation).
   lines.push(
     "",
-    "### Positive control (prompt hash A/B)",
+    "### Positive control (prompt tokens + compactor state)",
     "",
     "_Turn 1 is excluded from the verdict: it is assembled before compaction and is expected to match across arms._",
     "",
@@ -890,17 +904,12 @@ function renderFase4(agg) {
     );
   } else {
     lines.push(
-      "| seed | turns compared (≥2) | turns with different prompt hash | verdict |",
-      "|---|---|---|---|",
+      "| seed | turns compared | turns differing | v42 compactorChars | baseline compactorChars | verdict |",
+      "|---|---|---|---|---|---|",
     );
     for (const r of agg.positiveControl.rows) {
-      lines.push(`| ${r.seed} | ${r.compared} | ${r.different} | ${r.verdict} |`);
-    }
-    for (const r of agg.positiveControl.rows) {
-      if (r.firstTurn == null) continue;
       lines.push(
-        "",
-        `Seed ${r.seed} — turn ${r.firstTurn} promptTokenCount: baseline=${r.tokensBaselineFirst ?? "n/a"}, v42=${r.tokensV42First ?? "n/a"}; turn ${r.lastTurn} promptTokenCount: baseline=${r.tokensBaselineLast ?? "n/a"}, v42=${r.tokensV42Last ?? "n/a"}.`,
+        `| ${r.seed} | ${r.compared} | ${r.different} | ${r.v42CompactorChars} | ${r.baselineCompactorChars} | ${r.verdict} |`,
       );
     }
   }
@@ -1014,12 +1023,12 @@ function renderGateFailures(agg) {
       );
     } else if (agg.positiveControl.anyIdentical) {
       lines.push(
-        "**Positive control failed:** at least one seed has identical `promptShaByTurn` across baseline and v42 on turns ≥ 2. Both arms assembled the same prompt — the A/B is measuring nothing. This is a broken experiment, not a null result.",
+        "**Positive control failed:** at least one seed has matching `promptTokensByTurn` on every turn ≥ 2 and `compactorChars` is 0 on both arms (or not in the expected v42>0 / baseline=0 direction). The A/B is measuring nothing. This is a broken experiment, not a null result.",
         "",
       );
     } else {
       lines.push(
-        "**Positive control failed:** empty/no-overlap hashes, turn-1-only overlap (insufficient), or no seed with ARMS DIFFER on turns ≥ 2.",
+        "**Positive control failed:** empty/no-overlap prompt token maps, turn-1-only overlap (insufficient), or no seed with ARMS DIFFER on turns ≥ 2 or via compactorChars.",
         "",
       );
     }

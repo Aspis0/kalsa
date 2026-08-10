@@ -324,8 +324,8 @@ send_and_wait() {
     esac
     if [ "$count" -gt "$prev_count" ]; then
       # First persistence only — sources/miniapp may still be incomplete; settle
-      # re-reads after wait_ui_idle (see run_turn_plan). SAW_ELAPSED is latency
-      # from Send to first persistence, which is what we want to report.
+      # re-reads after wait_history_stable (see run_turn_plan). SAW_ELAPSED is
+      # latency from Send to first persistence, which is what we want to report.
       snapshot_and_apply_last_reply "$OUT/.hist_now.json"
       SAW_ELAPSED=$(( $(date +%s) - sent_at ))
       log "reply after ${SAW_ELAPSED}s (len=${#SAW_REPLY} sources=$SAW_SOURCES miniapp=$SAW_MINIAPP): ${SAW_REPLY:0:200}"
@@ -338,12 +338,10 @@ send_and_wait() {
 }
 
 # Per-turn telemetry capture. Never fails a turn (always return 0).
-# ORDERING IS LOAD-BEARING: callers must run this AFTER wait_ui_idle so the
-# background summarize job has finished and its telemetry lands in THIS turn
-# directory, not the next one (misattribution was a real audit finding).
-# Rationale for prompt_meta: positive control — two arms that really differ
-# must produce different prompt hashes and different token counts at the same
-# turn index; identical hashes would mean the experiment measured nothing.
+# Call after settle_turn_reply. Settle no longer waits out the background
+# summarize job (see wait_history_stable), so a summarize's telemetry can land
+# in the NEXT turn's telemetry.jsonl — benchGrade.mjs attributes by matching
+# tokensEvaluated to embd.size, not by file order.
 capture_turn_evidence() {
   local turn_index="$1"
   local tdir="$OUT/turn${turn_index}"
@@ -361,35 +359,21 @@ capture_turn_evidence() {
     grep -F "restored state checkpoint: reusing" "$buf" 2>/dev/null || true
   } > "$tdir/loadprompt.txt" 2>/dev/null || : > "$tdir/loadprompt.txt"
 
-  # Positive control: loadPrompt token stream → count + sha256 per line.
-  python3 -c '
-import hashlib, sys
-buf_path, out_path = sys.argv[1], sys.argv[2]
-marker = "loadPrompt: prompt_tokens = "
-lines_out = []
-try:
-    with open(buf_path, encoding="utf-8", errors="replace") as f:
-        for line in f:
-            idx = line.find(marker)
-            if idx < 0:
-                continue
-            token_str = line[idx + len(marker):].strip()
-            count = len(token_str.split())
-            h = hashlib.sha256(token_str.encode("utf-8")).hexdigest()
-            lines_out.append(f"tokens={count} sha256={h}")
-except Exception:
-    pass
-try:
-    with open(out_path, "w", encoding="utf-8") as out:
-        out.write("\n".join(lines_out))
-        if lines_out:
-            out.write("\n")
-except Exception:
-    pass
-' "$buf" "$tdir/prompt_meta.txt" 2>/dev/null || : > "$tdir/prompt_meta.txt"
+  # prompt_meta.txt: one line per "Input processed" — reused=n_past total=embd.size.
+  # WHY no sha256 of loadPrompt token ids: logcat truncates a line at ~4 KB
+  # (smoke run 31358530713), so `loadPrompt: prompt_tokens = …` only ever
+  # carried the first ~218 token ids (the fixed system prompt). The hash was
+  # constant on every turn of both arms by construction; restoring it would
+  # make the aggregator's positive control fail a valid campaign with
+  # IDENTICAL PROMPTS — MEASURING NOTHING. embd.size / n_past are not truncated.
+  {
+    grep -oE "Input processed: n_past=[0-9]+, embd\.size=[0-9]+" "$tdir/loadprompt.txt" 2>/dev/null \
+      | sed -E 's/.*n_past=([0-9]+), embd\.size=([0-9]+)/reused=\1 total=\2/' \
+      || true
+  } > "$tdir/prompt_meta.txt" 2>/dev/null || : > "$tdir/prompt_meta.txt"
 
-  # Clear so the next turn's capture is scoped and the ring buffer cannot roll
-  # over (prompt_tokens lines are huge).
+  # Clear so the next turn's capture is scoped (and the logcat ring cannot
+  # retain prior-turn Input processed / telemetry lines).
   adb logcat -c 2>/dev/null || true
   return 0
 }
@@ -420,15 +404,52 @@ print(json.dumps(rec, ensure_ascii=False))
     || die "record_turn python failed for turn $index ($id) — refusing to drop a turn silently"
 }
 
-# After send_and_wait: wait out streaming/tools/summarize, then re-read the
-# settled assistant message so sources/miniapp match what the grader needs.
-# Ordering after this is load-bearing for capture_turn_evidence (see its comment).
+# Wait until the last assistant row in kalsa.messages.v1 stops changing.
+# WHY not wait_ui_idle (ci-lib.sh): under THINKING=budget256 the finished
+# bubble still contains a whole text node "Thinking" (collapsed reasoning
+# header). wait_ui_idle treats that as a live status label, so it burned its
+# full 240s cap on every turn of smoke run 31358530713 (turnend_timeout_ui.txt
+# written while the composer was already "Ask a question…" and the answer
+# fully rendered). Cost ≈ +52 min/arm for nothing. We wait on the stored
+# message instead — that is what the bench grades, and it does not depend on
+# any UI string. Cap 120s; background summarize may still finish after we
+# return (telemetry attribution handles that in benchGrade.mjs).
+wait_history_stable() {
+  local cap_s=120
+  local poll_s=10
+  local elapsed=0
+  local polls=0
+  local prev=""
+  local cur
+  log "wait_history_stable: waiting for stored message to stop changing (cap ${cap_s}s)"
+  while [ "$elapsed" -lt "$cap_s" ]; do
+    snapshot_history "$OUT/.hist_stable.json"
+    cur=$(history_last "$OUT/.hist_stable.json")
+    polls=$((polls + 1))
+    # Empty read: keep previous good snapshot for the next comparison (do not
+    # treat empty as a new value — same non-destructive rule as settle).
+    if [ -n "$cur" ]; then
+      if [ -n "$prev" ] && [ "$cur" = "$prev" ]; then
+        log "wait_history_stable: stable after ${polls} poll(s) (${elapsed}s)"
+        return 0
+      fi
+      prev="$cur"
+    fi
+    sleep "$poll_s"
+    elapsed=$((elapsed + poll_s))
+  done
+  log "WARN: wait_history_stable timed out after ${cap_s}s (${polls} polls) — continuing"
+  return 0
+}
+
+# After send_and_wait: wait until the stored assistant message stops changing,
+# then re-read so sources/miniapp match what the grader needs.
 # Non-destructive on empty re-read: _apply_last_reply resets SAW_* and truncates
 # .reply_tmp when history_last returns "" (adb/sqlite hiccup, swallowed python
 # except). Wiping a good detection-time reply would record empty reply +
 # sources:0 — silent false-negative on every probe for that turn.
 settle_turn_reply() {
-  wait_ui_idle
+  wait_history_stable
 
   local pre_sources=$SAW_SOURCES pre_miniapp=$SAW_MINIAPP
   local pre_len=${#SAW_REPLY}
@@ -594,6 +615,23 @@ fi
 snapshot_history "$OUT/history_final.json"
 HISTORY_CHARS=$(wc -c < "$OUT/history_final.json" | tr -d ' ')
 
+# Strongest available positive control: the compactor's own persisted state
+# (not an inference from timings). reset_chat deletes both keys at arm start,
+# so a non-zero length can only come from this run. Smoke run 31358530713
+# showed prompt-token hashes were constant; this is the on-device proof that
+# the subsystem actually ran on the v42 arm.
+_len_or_0() {
+  local v
+  v=$(sql "$1" | head -1 | tr -d '[:space:]')
+  case "$v" in
+    ''|*[!0-9]*) echo 0 ;;
+    *) echo "$v" ;;
+  esac
+}
+COMPACTOR_CHARS=$(_len_or_0 "SELECT length(value) FROM catalystLocalStorage WHERE key='kalsa.chat.compactor.default';")
+SUMMARY_CHARS=$(_len_or_0 "SELECT length(value) FROM catalystLocalStorage WHERE key='kalsa.chat.summary.default';")
+log "compactorState: compactorChars=$COMPACTOR_CHARS summaryChars=$SUMMARY_CHARS"
+
 # raw.json via python3 (escaping correct by construction — no hand-concat JSON).
 # Wipe any previous raw.json first so a failed write cannot leave stale data
 # for the grader (A6).
@@ -602,7 +640,8 @@ python3 -c '
 import json, sys
 
 phase, arm, seed, block_format, thinking, compaction, compaction_pref_raw = sys.argv[1:8]
-model_dir, model_file, facts_json, filler_rotation, history_chars, turns_path, out_path = sys.argv[8:15]
+model_dir, model_file, facts_json, filler_rotation, history_chars = sys.argv[8:13]
+turns_path, out_path, compactor_chars, summary_chars = sys.argv[13:17]
 
 turns = []
 try:
@@ -628,6 +667,11 @@ raw = {
     "fillerRotation": int(filler_rotation),
     "turns": turns,
     "historyChars": int(history_chars),
+    # On-device proof the compactor subsystem ran (see comment above the SQL).
+    "compactorState": {
+        "compactorChars": int(compactor_chars),
+        "summaryChars": int(summary_chars),
+    },
 }
 with open(out_path, "w", encoding="utf-8") as out:
     json.dump(raw, out, ensure_ascii=False, indent=2)
@@ -635,7 +679,7 @@ with open(out_path, "w", encoding="utf-8") as out:
 ' \
   "$PHASE" "$ARM" "$SEED" "$BLOCK_FORMAT" "$THINKING" "$COMPACTION" "$COMPACTION_PREF_RAW" \
   "$MODEL_DIR" "$MODEL_FILE" "$FACTS_JSON" "$FILLER_ROTATION" "$HISTORY_CHARS" \
-  "$OUT/.turns.jsonl" "$OUT/raw.json" \
+  "$OUT/.turns.jsonl" "$OUT/raw.json" "$COMPACTOR_CHARS" "$SUMMARY_CHARS" \
   || die "failed to write raw.json — refusing to grade stale or missing data"
 
 # Grading is out-of-band: a raw.json that cannot be graded is a failed arm.
