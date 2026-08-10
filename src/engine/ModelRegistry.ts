@@ -84,6 +84,16 @@ export type ModelInfo = {
    * other models (Gemma, Whisper) are not part of that tier scheme.
    */
   minRamTier?: RamTier;
+  /**
+   * Measured (or honestly derived) KV cache cost in bytes per token at the
+   * catalog `kvCache` quant. Used by `memoryEstimate.ts`. Prefer phone
+   * measurements over naive n_layer×n_embd formulae — hybrid models filter
+   * layers out of KV and the naive product overestimates.
+   *
+   * Absent → estimator callers must pass 0 / treat KV as unknown rather than
+   * fabricating a value.
+   */
+  kvBytesPerToken?: number;
   default?: boolean;
 };
 
@@ -110,6 +120,11 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     kvCache: { k: "q8_0", v: "q4_0" },
     hybrid: true,
     kvUnified: true,
+    // kvBytesPerToken intentionally omitted: no on-device measurement for the 4B
+    // at q8_0/q4_0, and the registry lacks attention-layer count / n_embd_k_gqa
+    // fields needed to derive it honestly from the hybrid layout (header comment
+    // "~32KB/token q8_0" is a pre-measurement sketch, not a fit). Estimator
+    // callers pass 0 → KV term degrades to zero rather than a fabricated value.
     mtp: { nMax: 3 },
     thinking: { short: 256, extended: 512 },
     descriptionKey: "models.qwen4b.description",
@@ -175,6 +190,9 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     kvCache: { k: "q8_0", v: "q4_0" },
     hybrid: true,
     kvUnified: true,
+    // Measured on-device at q8_0/q4_0: 4.88 KiB/token (hybrid layers filter
+    // most of the stack out of KV — naive n_layer×n_embd overestimates).
+    kvBytesPerToken: Math.round(4.88 * 1024),
     // nPredict 2560 = extended 1536 + the 1024 answer floor (miniapp JSON blew
     // past 512; n_predict counts think + answer, so 2048 would leave only 512).
     thinking: { short: 512, extended: 1536, nPredict: 2560 },
