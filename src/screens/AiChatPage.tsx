@@ -407,14 +407,42 @@ function buildPersistableMessages(
     });
 }
 
-/** Immediate history write (AppState / unmount / throttle) — fire-and-forget. */
+/**
+ * Immediate history write (AppState / unmount / throttle) — fire-and-forget.
+ *
+ * Invariant: every write is epoch-stamped; clear bumps the epoch; stale writes
+ * are no-ops. Callers capture `epoch` at SCHEDULE time and pass getEpoch so a
+ * clearChat (or hard reset) that lands before setItem drops the write.
+ */
 function persistMessagesNow(
   messagesSnapshot: Message[],
-  opts?: { allowStreamingPartial?: boolean },
+  opts?: {
+    allowStreamingPartial?: boolean;
+    /** Epoch stamped when the write was scheduled. */
+    epoch?: number;
+    /** Reads the live epoch; stale when !== opts.epoch. */
+    getEpoch?: () => number;
+  },
 ): void {
   if (!messagesSnapshot.length) return;
+  // Drop if clear/reset already advanced the epoch before we build the payload.
+  if (
+    opts?.epoch != null &&
+    typeof opts.getEpoch === "function" &&
+    opts.getEpoch() !== opts.epoch
+  ) {
+    return;
+  }
   const clean = buildPersistableMessages(messagesSnapshot, opts);
   if (!clean.length) return;
+  // Re-check immediately before the write so a clear that raced the build drops.
+  if (
+    opts?.epoch != null &&
+    typeof opts.getEpoch === "function" &&
+    opts.getEpoch() !== opts.epoch
+  ) {
+    return;
+  }
   AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(clean)).catch(() => undefined);
 }
 
@@ -702,6 +730,15 @@ export function AiChatPage({
   messagesRef.current = messages;
   /** Throttle for mid-stream safety-net persists (at most once / 10s). */
   const lastPartialPersistAtRef = useRef(0);
+  /**
+   * Persistence epoch: every delayed/async write stamps the epoch at SCHEDULE
+   * time and re-checks immediately before AsyncStorage.setItem. clearChat (and
+   * any HISTORY_KEY remove) bumps the epoch first so a pending debounce /
+   * safety-net / AppState write that still holds the old messages is a no-op.
+   * Invariant: every write is epoch-stamped; clear bumps the epoch; stale writes
+   * are no-ops.
+   */
+  const persistEpochRef = useRef(0);
 
   useEffect(() => {
     let mounted = true;
@@ -735,9 +772,15 @@ export function AiChatPage({
   useEffect(() => {
     if (!historyLoaded || !messages.length) return;
     if (messages.some((m) => m.streaming)) return;
+    // Stamp epoch at SCHEDULE time so a clearChat during the 400ms window drops.
+    const epoch = persistEpochRef.current;
     const timer = setTimeout(() => {
+      if (persistEpochRef.current !== epoch) return;
       // X4: attachments[].uri/pages stripped inside buildPersistableMessages.
-      persistMessagesNow(messages);
+      persistMessagesNow(messages, {
+        epoch,
+        getEpoch: () => persistEpochRef.current,
+      });
     }, 400);
     return () => clearTimeout(timer);
   }, [historyLoaded, messages]);
@@ -760,7 +803,12 @@ export function AiChatPage({
       return;
     }
     lastPartialPersistAtRef.current = now;
-    persistMessagesNow(messages, { allowStreamingPartial: true });
+    const epoch = persistEpochRef.current;
+    persistMessagesNow(messages, {
+      allowStreamingPartial: true,
+      epoch,
+      getEpoch: () => persistEpochRef.current,
+    });
   }, [historyLoaded, messages]);
 
   // Feature 4: attach state (immagini/foto/PDF → vision; library docs → document_chat)
@@ -908,12 +956,18 @@ export function AiChatPage({
     const onAppState = (next: AppStateStatus) => {
       if (next === "background" || next === "inactive") {
         const snap = messagesRef.current;
+        // Capture epoch at flush time; drop if clearChat lands before write.
+        const epoch = persistEpochRef.current;
         if (
           snap.some(
             (m) => m.streaming && typeof m.text === "string" && m.text.trim().length > 0,
           )
         ) {
-          persistMessagesNow(snap, { allowStreamingPartial: true });
+          persistMessagesNow(snap, {
+            allowStreamingPartial: true,
+            epoch,
+            getEpoch: () => persistEpochRef.current,
+          });
         }
         // KV save + clean history overwrite only on true background + idle.
         // While sending, keep the allowStreamingPartial payload above (pre-diff
@@ -925,11 +979,14 @@ export function AiChatPage({
             if (!clean.length) {
               // Empty chat: drop stale session so next load stays cold-clean.
               void invalidateEngineSession(modelId);
-            } else {
+            } else if (persistEpochRef.current === epoch) {
               // Same JSON as HISTORY_KEY write so ensureEngine load hash matches.
+              // Epoch check: drop if clearChat raced before this write lands.
               const payload = JSON.stringify(clean);
-              AsyncStorage.setItem(HISTORY_KEY, payload).catch(() => undefined);
-              void saveEngineSession(modelId, historyHash(payload));
+              if (persistEpochRef.current === epoch) {
+                AsyncStorage.setItem(HISTORY_KEY, payload).catch(() => undefined);
+                void saveEngineSession(modelId, historyHash(payload));
+              }
             }
           }
         }
@@ -1228,7 +1285,13 @@ export function AiChatPage({
     return () => {
       // Flush partial from ref BEFORE abort: updateMessage no-ops once unmounted,
       // and finally may never rewrite state — ref still holds latest streamed text.
-      persistMessagesNow(messagesRef.current, { allowStreamingPartial: true });
+      // Epoch-stamped so a clearChat that already ran drops this unmount write.
+      const epoch = persistEpochRef.current;
+      persistMessagesNow(messagesRef.current, {
+        allowStreamingPartial: true,
+        epoch,
+        getEpoch: () => persistEpochRef.current,
+      });
       mountedRef.current = false;
       abortRef.current?.abort();
       translateAbortRef.current?.abort();
@@ -1623,7 +1686,12 @@ export function AiChatPage({
                 // when setMessages is called. Deferred path (pending final
                 // onDelta lanes): runs at render after React applies the
                 // queued delta first — still the correct composed result.
-                persistMessagesNow(finalized);
+                // Epoch-stamped: clearChat bumps epoch before removeItem.
+                const epoch = persistEpochRef.current;
+                persistMessagesNow(finalized, {
+                  epoch,
+                  getEpoch: () => persistEpochRef.current,
+                });
                 // Turn-end order (FIFO): saveEngineSession FIRST, then memory
                 // extract. extractMemory clearCache's the chat KV and flips
                 // kvHoldsChatSession=false — if extract is queued first the
@@ -1658,7 +1726,11 @@ export function AiChatPage({
               const applied = applyFinalize(messagesRef.current);
               const next = applied.messages;
               messagesRef.current = next;
-              persistMessagesNow(next);
+              const epoch = persistEpochRef.current;
+              persistMessagesNow(next, {
+                epoch,
+                getEpoch: () => persistEpochRef.current,
+              });
               if (applied.miniappStripped) {
                 markKvNonReproducible("miniapp_stripped");
               }
@@ -1737,7 +1809,11 @@ export function AiChatPage({
             };
           });
         messagesRef.current = next;
-        persistMessagesNow(next);
+        const epoch = persistEpochRef.current;
+        persistMessagesNow(next, {
+          epoch,
+          getEpoch: () => persistEpochRef.current,
+        });
         return next;
       });
       // 3) Unlock composer only if we still own the generation token.
@@ -1769,6 +1845,10 @@ export function AiChatPage({
     // U1: invalidate any in-flight send turn so its later finally/bench/gate
     // reset cannot clobber the synchronous reset below.
     sendRunIdRef.current += 1;
+    // Persistence epoch FIRST: every delayed write is epoch-stamped; bumping
+    // here makes pending debounce / safety-net / AppState / unmount setItems
+    // no-ops even if they already hold a pre-clear messages closure.
+    persistEpochRef.current += 1;
     // Drop stop watchdog so it cannot fire after a wiped history.
     if (stopWatchdogRef.current != null) {
       clearTimeout(stopWatchdogRef.current);
@@ -1815,6 +1895,7 @@ export function AiChatPage({
     setTranslatingId(null);
     setTranslationResult(null);
     setCopiedFlash(false);
+    // Epoch already bumped above — removeItem after so a racing setItem is dropped.
     AsyncStorage.removeItem(HISTORY_KEY).catch(() => undefined);
     // Drop native KV so a restored empty chat cannot reuse stale prefill.
     const activeId = getActiveModelId();

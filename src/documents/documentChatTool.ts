@@ -26,6 +26,13 @@ import {
   formatPassageCitation,
   type LibraryDoc,
 } from "./DocumentLibrary";
+import {
+  tryAcquireRead,
+  releaseRead,
+  isReadActive,
+  isAnyActive,
+  __resetDocOpGateForTests,
+} from "./docOpGate";
 
 /** Structural match for EngineTool (avoid importing LlamaService in the harness). */
 export type DocumentChatToolDef = {
@@ -54,9 +61,10 @@ export const DOCUMENT_CHAT_TIMEOUT_MS = 165_000;
  * timeout/abort paths leave the latch held until the strategy settles.
  *
  * On fire: best-effort abort of the strategy AbortController only.
- * Invariant: the latch is only ever cleared by the strategy finally
- * (generation-guarded). Stale-cap must NOT clear inflight — otherwise a new
- * call can start while the old host op is still running (single-flight break).
+ * Invariant: the shared docOpGate READ slot is only ever released by the
+ * strategy finally (generation-guarded). Stale-cap must NOT release the gate
+ * early — otherwise a new call (or delete) can start while the old host op is
+ * still running (single-flight break).
  */
 export const DOC_OP_STALE_CAP_MS = 200_000;
 
@@ -125,21 +133,21 @@ export const DOCUMENT_CHAT_TOOL: DocumentChatToolDef = {
   },
 };
 
-// ── single-flight state (module-level, mirrors pdfTextService) ─────────────
+// ── single-flight state via shared docOpGate (READ slot) ─────────
+// Authority lives in docOpGate.ts so delete cannot race an independent latch.
 
-let inflight = false;
-/** Generation token so a stale strategy.finally cannot clear a newer call's latch. */
+/** Generation token so a stale strategy.finally cannot release a newer call's gate. */
 let inflightGen = 0;
 /** Last-resort timer if strategy never settles; cleared when strategy finally ends. */
 let staleCapTimer: ReturnType<typeof setTimeout> | null = null;
 /** Strategy AbortController for the current inflight gen (stale-cap aborts this). */
 let inflightLinkedAbort: AbortController | null = null;
 
-function clearInflightLatch(gen?: number): void {
-  // Only the owning generation (or an explicit force-clear) may release the latch.
-  // Invariant: this is the only path that clears inflight (not stale-cap).
+function releaseReadLatch(gen?: number): void {
+  // Only the owning generation (or an explicit force-clear) may release the gate.
+  // Invariant: this is the only path that releases READ (not stale-cap).
   if (gen != null && gen !== inflightGen) return;
-  inflight = false;
+  releaseRead();
   inflightLinkedAbort = null;
   if (staleCapTimer != null) {
     clearTimeout(staleCapTimer);
@@ -151,8 +159,8 @@ function armStaleCap(gen: number, controller: AbortController): void {
   if (staleCapTimer != null) clearTimeout(staleCapTimer);
   inflightLinkedAbort = controller;
   // Last-resort: abort THIS generation's strategy if it never settles.
-  // Do NOT clear inflight — latch is only ever cleared by strategy.finally.
-  // If the host ignores abort (uncancellable read), inflight stays set until settle.
+  // Do NOT release the gate — release is only ever done by strategy.finally.
+  // If the host ignores abort (uncancellable read), READ stays held until settle.
   staleCapTimer = setTimeout(() => {
     if (gen === inflightGen) {
       try {
@@ -161,25 +169,26 @@ function armStaleCap(gen: number, controller: AbortController): void {
         /* ignore */
       }
       staleCapTimer = null;
-      // intentionally leave inflight=true until strategy.finally
+      // intentionally leave gate READ held until strategy.finally
     }
   }, DOC_OP_STALE_CAP_MS);
 }
 
-/** True when a document_chat call is currently running (strategy not settled). */
+/** True when a document_chat READ is currently held (strategy not settled). */
 export function isDocumentChatBusy(): boolean {
-  return inflight;
+  return isReadActive();
 }
 
-/** Alias for delete/import guards (same latch as isDocumentChatBusy). */
+/** True when any document op (read OR delete) is active — shared gate. */
 export function isDocumentOpInFlight(): boolean {
-  return inflight;
+  return isAnyActive();
 }
 
-/** Test-only: force-clear the single-flight latch (and stale-cap timer). */
+/** Test-only: force-clear the single-flight latch (and stale-cap timer + gate). */
 export function __resetDocumentChatBusyForTests(): void {
   inflightGen += 1; // invalidate any in-flight strategy.finally
-  clearInflightLatch();
+  releaseReadLatch();
+  __resetDocOpGateForTests();
 }
 
 /**
@@ -205,7 +214,8 @@ export function createDocumentChatExecutor(
       return errorResult(`Unknown tool: ${name}`);
     }
 
-    if (inflight) {
+    // Shared gate: refuse while another read OR a delete is active.
+    if (!tryAcquireRead()) {
       return errorResult("document_chat is busy (single-flight)");
     }
 
@@ -214,12 +224,14 @@ export function createDocumentChatExecutor(
     const rawDocId = String((rawArgs as { docId?: unknown }).docId ?? "").trim();
 
     if (!query) {
+      releaseRead();
       return errorResult(catalog(locale).emptyQuery);
     }
 
     const docs = safeLibraryDocs(host);
     const selected = selectDoc(docs, rawDocId || undefined);
     if (!selected) {
+      releaseRead();
       return errorResult(
         rawDocId
           ? catalog(locale).docNotFound.replace("{id}", rawDocId)
@@ -227,10 +239,11 @@ export function createDocumentChatExecutor(
       );
     }
 
-    // Latch is tied to the STRATEGY promise lifecycle, not the wrapper.
-    // Wrapper abort/timeout rejects the caller but must NOT clear inflight while
+    // Gate READ is tied to the STRATEGY promise lifecycle, not the wrapper.
+    // Wrapper abort/timeout rejects the caller but must NOT release the gate while
     // an uncancellable host op (e.g. FileSystem.readAsStringAsync) may still run.
     if (signal?.aborted) {
+      releaseRead();
       return errorResult(catalog(locale).aborted);
     }
 
@@ -238,7 +251,6 @@ export function createDocumentChatExecutor(
     // Created before armStaleCap so the stale-cap timer can abort the same controller.
     const linked = new AbortController();
     const myGen = ++inflightGen;
-    inflight = true;
     armStaleCap(myGen, linked);
 
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -252,8 +264,9 @@ export function createDocumentChatExecutor(
       }
     };
 
-    // Strategy owns latch clear in its finally (after host op settles).
-    // Generation-guarded so a late-settling aborted call cannot clear a newer latch.
+    // Strategy owns gate release in its finally (after host op settles).
+    // Generation-guarded so a late-settling aborted call cannot release a newer read.
+    // Stale-cap may abort but MUST NOT release early — release stays here.
     const strategyPromise = runStrategy(
       host,
       selected,
@@ -261,7 +274,7 @@ export function createDocumentChatExecutor(
       locale,
       linked.signal,
     ).finally(() => {
-      clearInflightLatch(myGen);
+      releaseReadLatch(myGen);
     });
 
     try {
@@ -281,7 +294,7 @@ export function createDocumentChatExecutor(
         }
 
         // Race wrapper vs strategy: wrapper may reject on abort/timeout while
-        // strategyPromise keeps running and holds the latch until it settles.
+        // strategyPromise keeps running and holds the gate until it settles.
         void strategyPromise.then(resolve, reject);
       });
       return result;
@@ -295,7 +308,7 @@ export function createDocumentChatExecutor(
       }
       return errorResult(message || catalog(locale).failed);
     } finally {
-      // Clear wrapper timers/listeners only — do NOT clear inflight here.
+      // Clear wrapper timers/listeners only — do NOT release the gate here.
       if (timer) clearTimeout(timer);
       if (signal && abortHandler) {
         try {

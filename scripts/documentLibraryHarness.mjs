@@ -20,6 +20,7 @@ function compile() {
     [
       "tsc",
       "src/documents/DocumentLibrary.ts",
+      "src/documents/docOpGate.ts",
       "src/documents/documentChatTool.ts",
       "src/context/retriever.ts",
       "src/context/retrievalLoop.ts",
@@ -815,6 +816,89 @@ async function main() {
     typeof DOCUMENT_CHAT_PROVENANCE === "string" &&
       DOCUMENT_CHAT_PROVENANCE.includes("not instructions"),
   );
+
+  // ── 22 shared docOpGate pure exclusion tests ──────────────────────────
+  {
+    const gatePath = pathToFileURL(resolveBuilt("docOpGate.js")).href;
+    const gate = await import(gatePath);
+    const {
+      tryAcquireRead,
+      releaseRead,
+      tryAcquireDelete,
+      releaseDelete,
+      isReadActive,
+      isDeleteActive,
+      isAnyActive,
+      __resetDocOpGateForTests,
+    } = gate;
+
+    __resetDocOpGateForTests();
+    check("gate starts idle", isAnyActive() === false);
+
+    // read/read exclusion
+    check("first read acquires", tryAcquireRead() === true);
+    check("second read excluded", tryAcquireRead() === false);
+    check("read active while held", isReadActive() === true && isAnyActive() === true);
+    releaseRead();
+    check("release restores idle", isAnyActive() === false);
+    check("read re-acquires after release", tryAcquireRead() === true);
+    releaseRead();
+
+    // delete/delete exclusion
+    check("first delete acquires", tryAcquireDelete() === true);
+    check("second delete excluded", tryAcquireDelete() === false);
+    check("delete active while held", isDeleteActive() === true && isAnyActive() === true);
+    releaseDelete();
+    check("delete release restores idle", isAnyActive() === false);
+
+    // read/delete exclusion
+    check("read then delete excluded", (() => {
+      __resetDocOpGateForTests();
+      tryAcquireRead();
+      const denied = tryAcquireDelete() === false;
+      releaseRead();
+      return denied;
+    })());
+
+    // delete/read exclusion
+    check("delete then read excluded", (() => {
+      __resetDocOpGateForTests();
+      tryAcquireDelete();
+      const denied = tryAcquireRead() === false;
+      releaseDelete();
+      return denied;
+    })());
+
+    // release restores both ways
+    check("after delete release, read ok", (() => {
+      __resetDocOpGateForTests();
+      tryAcquireDelete();
+      releaseDelete();
+      return tryAcquireRead() === true;
+    })());
+    releaseRead();
+    check("after read release, delete ok", (() => {
+      __resetDocOpGateForTests();
+      tryAcquireRead();
+      releaseRead();
+      return tryAcquireDelete() === true;
+    })());
+    releaseDelete();
+
+    // Stale-cap must NOT release early: simulate holding READ across an
+    // "abort" without calling releaseRead — second acquire still fails.
+    check("stale-cap does not release early", (() => {
+      __resetDocOpGateForTests();
+      tryAcquireRead();
+      // pretend stale-cap fired abort only (no release)
+      const stillHeld = tryAcquireRead() === false && tryAcquireDelete() === false;
+      // only finally releases
+      releaseRead();
+      return stillHeld && tryAcquireRead() === true;
+    })());
+    releaseRead();
+    __resetDocOpGateForTests();
+  }
 
   console.log(`\n${pass} passed, ${fail} failed`);
   if (fail > 0) process.exit(1);

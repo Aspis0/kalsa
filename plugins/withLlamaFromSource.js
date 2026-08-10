@@ -26,7 +26,19 @@ const PROPERTY = "rnllamaBuildFromSource";
 const withLlamaFromSource = (config) => {
   // Opt-out only: explicit "0" keeps prebuilt jniLibs. All other values
   // (unset, "1", empty) compile from source so patches/ take effect.
-  if (process.env.KALSA_LLAMA_FROM_SOURCE === "0") return config;
+  // IMPORTANT: still run withGradleProperties so an existing
+  // rnllamaBuildFromSource=true from a prior prebuild is REMOVED. Returning
+  // config untouched leaves the property in an already-generated Android
+  // project (incremental prebuilds stay source-build). Clean regeneration
+  // (rm -rf android) also works; this path covers incremental prebuilds.
+  if (process.env.KALSA_LLAMA_FROM_SOURCE === "0") {
+    return withGradleProperties(config, (cfg) => {
+      cfg.modResults = cfg.modResults.filter(
+        (item) => !(item.type === "property" && item.key === PROPERTY),
+      );
+      return cfg;
+    });
+  }
 
   return withGradleProperties(config, (cfg) => {
     const existing = cfg.modResults.find(

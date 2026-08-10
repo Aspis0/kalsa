@@ -21,6 +21,11 @@ import {
   DOCUMENT_CHAT_TOOL,
   createDocumentChatExecutor,
 } from "../documents/documentChatTool";
+import {
+  tryAcquireDelete,
+  releaseDelete,
+  isDeleteActive,
+} from "../documents/docOpGate";
 import { DocRetrieverIndex } from "../context/retrievalLoop";
 import { htmlToText } from "../util/htmlToText";
 import { AskAssistantMiniappRenderer } from "../ui/AskAssistantMiniappRenderer";
@@ -466,11 +471,10 @@ export function AppShell() {
   documentLibraryRef.current = documentLibrary;
   const docIndexByIdRef = useRef<Map<string, DocRetrieverIndex>>(new Map());
   /**
-   * Delete-in-flight latch lives on AppShell (app lifetime), NOT on DocumentsScreen.
-   * Screen unmount must not clear it — otherwise reopen can start import during an
-   * old deleteAsync, and a stale library snapshot can overwrite a newer import.
+   * Delete authority is the shared docOpGate (module-level), not a React ref.
+   * Screen unmount cannot clear it — reopen cannot start import during an old
+   * deleteAsync, and document_chat cannot read while delete holds the gate.
    */
-  const documentDeleteInFlightRef = useRef(false);
   /**
    * Effective n_ctx for document tool + long-chat budgeting.
    * Catalog resolve is the pre-init estimate; after initEngine it is overwritten
@@ -507,7 +511,7 @@ export function AppShell() {
   const handleLibraryChange = useCallback((next: LibraryState) => {
     // Refuse library mutations (import/add) while a delete is in flight so a
     // fresh import cannot race the old deleteAsync / functional drop.
-    if (documentDeleteInFlightRef.current) {
+    if (isDeleteActive()) {
       return;
     }
     libraryMutationRef.current += 1;
@@ -521,16 +525,15 @@ export function AppShell() {
   }, []);
 
   /**
-   * AppShell-owned document delete. Latch + FS delete + index drop + functional
-   * state update all live here so DocumentsScreen unmount cannot clear the guard
-   * or capture a stale `library` snapshot.
-   * @returns false when refused (another delete already in flight).
+   * AppShell-owned document delete. Shared docOpGate DELETE + FS delete + index
+   * drop + functional state update all live here so DocumentsScreen unmount
+   * cannot clear the guard or capture a stale `library` snapshot.
+   * @returns false when refused (any document op already in flight).
    */
   const deleteDocument = useCallback(async (id: string): Promise<boolean> => {
     if (!id || typeof id !== "string") return false;
-    if (documentDeleteInFlightRef.current) return false;
-    // Latch synchronously before any await.
-    documentDeleteInFlightRef.current = true;
+    // Shared gate: refuse while a read (document_chat) OR another delete is active.
+    if (!tryAcquireDelete()) return false;
     try {
       // Resolve CURRENT library snapshot — never a captured prop.
       const current = documentLibraryRef.current;
@@ -542,7 +545,7 @@ export function AppShell() {
       // is the source of truth for the list).
       docIndexByIdRef.current.delete(id);
       libraryMutationRef.current += 1;
-      // Latch blocks handleLibraryChange, so ref is current. Functional updater
+      // Gate blocks handleLibraryChange, so ref is current. Functional updater
       // still guards against any non-import concurrent React state write.
       const next: LibraryState = {
         docs: (documentLibraryRef.current.docs ?? []).filter((d) => d.id !== id),
@@ -556,7 +559,7 @@ export function AppShell() {
       );
       return true;
     } finally {
-      documentDeleteInFlightRef.current = false;
+      releaseDelete();
     }
   }, []);
 
@@ -566,13 +569,13 @@ export function AppShell() {
    * applied against current ref state with a functional updater; screens never
    * merge snapshots. A screen-captured `library` prop must not re-add a doc
    * that was deleted while import was in flight.
-   * @returns false when refused (delete latch held — screen surfaces busy).
+   * @returns false when refused (delete gate held — screen surfaces busy).
    */
   const addDocument = useCallback((entry: LibraryDoc): boolean => {
     if (!entry || typeof entry.id !== "string" || entry.id.length === 0) {
       return false;
     }
-    if (documentDeleteInFlightRef.current) return false;
+    if (isDeleteActive()) return false;
     libraryMutationRef.current += 1;
     // Atomic commit against CURRENT state — never a screen-captured snapshot.
     const next: LibraryState = {
@@ -589,10 +592,7 @@ export function AppShell() {
     return true;
   }, []);
 
-  const isDocumentDeleteInFlight = useCallback(
-    () => documentDeleteInFlightRef.current,
-    [],
-  );
+  const isDocumentDeleteInFlight = useCallback(() => isDeleteActive(), []);
 
   // ── Web tools (search + fetch): SEMPRE ATTIVI — il modello decide se usarli
   // (info attuali, notizie, o richiesta esplicita). Le query / fetch partono solo
