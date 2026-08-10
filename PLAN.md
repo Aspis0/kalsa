@@ -1058,6 +1058,32 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-10 — 🔭 RICERCA SUCCESSORI: la lista di gualt non regge il criterio
+  multilingua (EN/ES/FR/IT/ZH), ma la ricerca ha scovato il dark horse:
+  Marco-Mini-Instruct 17.3B-A0.86B (Alibaba AIDC) — 5/5 lingue, Apache 2.0,
+  arch `qwen3moe` GIÀ nel submodule, attivo 0.86B = l'unica ipotesi onesta
+  verso i 15-20 tok/s.**
+
+  Report: `research-lowactive-moe.md` (rev. multilingua). Verdetti chiave,
+  fatto portante ri-verificato dal coordinatore alla fonte (card ATH-MaaS):
+  - **Mellum2 (la scommessa di gualt): ROSSO multilingua** — tag HF `en` only,
+    code-first per dichiarazione JetBrains, zero eval ES/FR/IT/ZH. Ottimo
+    modello, prodotto sbagliato;
+  - SenseNova/VAETKI/moondream: veti arch o lingue;
+  - LFM2-24B: secondo (4/5 lingue ma IT di 3ª classe, licenza gated $10M,
+    A2.3B non basta per 15-20);
+  - **Marco-Mini: 17.3B/0.86B (5%), 256 exp/top-8/h=1024, 29 lingue incl. le
+    5 prodotto, Apache 2.0, MMLU 83.4 / GSM8K 93.1 / GlobalMMLU 73.3 (batte
+    LFM2-24B e Qwen3-4B, verificato)**. Caveat a verbale: ZH presente ma
+    profondità sotto Qwen (paper ammette lag CMMLU/C-Eval); zero vision
+    (→ costo graft LLaVA-style ~$1k se adottato, visione de-vetata da gualt);
+    qualità assoluta vs 35B da misurare.
+  - Regola metodologica fissata: **cross-modello si confronta in bits-per-byte
+    per lingua, MAI PPL grezze cross-tokenizer**.
+
+  Trial design nel report (T0-T3, gate: macro-bpb ≤ KEXP+0.05, nessuna lingua
+  oltre +0.15, decode ≥1.3× KEXP). Mandato: `trial-marco.md`.
+
 - **2026-08-10 — 🚪 PORTA CONDIZIONALE REGISTRATA: neuron pruning degli esperti +
   healing LoRA su RunPod.** Correzione a un mio errore: "non abbiamo infrastruttura
   di training" era FALSO — RunPod è autorizzato e per un healing LoRA di un 35B-A3B
