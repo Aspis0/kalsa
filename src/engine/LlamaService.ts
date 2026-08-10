@@ -452,6 +452,15 @@ export function getActiveModelId(): string | null {
 }
 
 /**
+ * Effective n_ctx of the loaded engine (post memory-clamp).
+ * 0 when no engine is loaded. Single source of truth for document routing
+ * and long-chat budgeting (AppShell reads this after init).
+ */
+export function getActiveEngineNCtx(): number {
+  return activeEngineCtx;
+}
+
+/**
  * Bench engine override JSON active on the running engine (set at init).
  * undefined when production defaults or no engine. Used by formatBenchStatus.
  */
@@ -527,15 +536,26 @@ export type EngineInitOptions = {
   locale: Locale;
 };
 
+/** Result of a successful (or idempotent-skip) engine init. */
+export type EngineInitResult = {
+  /** n_ctx actually passed to initLlama (post memory-clamp). */
+  effectiveNCtx: number;
+};
+
 /**
  * Carica il modello (idempotente per la stessa coppia model+mmproj+nCtx+KV).
  * `mmprojPath` presente → initMultimodal obbligatorio: se restituisce false
  * o il supporto vision non risulta attivo, l'engine NON si considera pronto.
  *
  * Context sizing / KV: resolve once at the call site (AppShell + contextProfile);
- * this function does not re-run RAM detection.
+ * this function does not re-run RAM detection. Returns the effective n_ctx
+ * actually used (may be lower than options.nCtx after memory clamp).
  */
-export function initEngine(modelPath: string, modelId: string, options: EngineInitOptions): Promise<void> {
+export function initEngine(
+  modelPath: string,
+  modelId: string,
+  options: EngineInitOptions,
+): Promise<EngineInitResult> {
   return withLifecycleLock(async () => {
     const strings = getStrings(options.locale);
     const engineCtx =
@@ -557,11 +577,14 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     // (Q3 q4/q4 must not be overwritten by the layer's q8/q4 default).
     // Resolve BEFORE idempotence so effectiveNCtx is the single key for init,
     // activeEngineCtx, KV-session meta, restore validation, and skip-reload.
+    // deviceProfile.cpuCapacities is forwarded so the G99 measured prefill
+    // preset (8) is reachable in production (not only in harness fixtures).
     const modelInfo = getModelById(modelId);
     const deviceProfile = await getCachedDeviceProfile();
     const tuning = await resolveEngineTuning({
       model: modelInfo,
       profile: deviceProfile,
+      cpuCapacities: deviceProfile.cpuCapacities,
       request: { contextBudget: engineCtx },
       platformHint: Platform.OS,
     });
@@ -581,10 +604,22 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       activeSpeculativeOverrideKey === speculativeOverrideKey &&
       activeEngineOverrideKey === engineOverrideKey
     )
-      return;
+      return { effectiveNCtx };
     await disposeEngineLocked();
 
     const isMultimodal = Boolean(options.mmprojPath);
+
+    // Prefill threads — measured dual on G99 (decode 2 / prefill 8).
+    // JSI reads snake_case "n_threads_batch" into cpuparams_batch.n_threads
+    // (Kalsa patch on JSIParams.cpp). Upstream ContextParams types lag, so we
+    // cast only this field. When equal to decode, omit and let llama.cpp
+    // default batch threads to n_threads (same pattern as optional kv_unified).
+    const nThreadsPrefill = tuning.nThreadsPrefill;
+    const prefillDiffers =
+      typeof nThreadsPrefill === "number" &&
+      Number.isFinite(nThreadsPrefill) &&
+      nThreadsPrefill > 0 &&
+      nThreadsPrefill !== tuning.n_threads;
 
     const params: ContextParams = {
       model: modelPath,
@@ -597,6 +632,13 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
       // Measured SoC preset / capacity rule / fallback 4 (tuning.nThreadsSource).
       // Set BEFORE engineOverride so bench:engine threads=N still wins below.
       n_threads: tuning.n_threads,
+      // Prefill / batch threads — snake_case only (JSI key). Cast: published
+      // ContextParams has no n_threads_batch yet; native binding does.
+      ...(prefillDiffers
+        ? ({
+            n_threads_batch: nThreadsPrefill,
+          } as Partial<ContextParams> & { n_threads_batch?: number })
+        : {}),
       // Backend policy: metal→99 on iOS; cpu-only→0 on Android (HTP0 fatal).
       n_gpu_layers: nGpuLayersForBackend(tuning.backend),
       flash_attn_type: "auto",
@@ -746,6 +788,9 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
         throw new Error(withNativeTail(strings.errors.visionNotSupported));
       }
     }
+    // Report effective n_ctx so AppShell can single-source document routing
+    // and long-chat budgeting against the loaded engine (not pre-clamp catalog).
+    return { effectiveNCtx };
   });
 }
 

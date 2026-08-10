@@ -17,7 +17,7 @@ import {
   type RamTier,
 } from "./contextProfile";
 import { estimateMemory, getAvailableMemoryBytes } from "./memoryEstimate";
-import { parseCpuPresent } from "./threadProfile";
+import { parseCpuPresent, readCpuCapacities } from "./threadProfile";
 
 export type DeviceFamily = "xiaomi" | "samsung" | "pixel" | "generic";
 
@@ -37,6 +37,12 @@ export type DeviceProfile = {
   osVersion: string | null;
   /** CPU present count via threadProfile.parseCpuPresent; null when unreadable. */
   cpuCoreCount: number | null;
+  /**
+   * Per-core `/sys/.../cpuN/cpu_capacity` values (ordered by present indices).
+   * Null when unreadable / non-Android / partial table. Used by deviceTuning
+   * to match measured SoC presets (e.g. G99 decode=2 / prefill=8).
+   */
+  cpuCapacities: number[] | null;
   /** contextProfile.getRamTier(totalMemoryBytes). */
   ramTier: RamTier;
   family: DeviceFamily;
@@ -346,9 +352,10 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
     }
   }
 
-  const [availableMemoryBytes, cpuCoreCount] = await Promise.all([
+  const [availableMemoryBytes, cpuCoreCount, cpuCapacities] = await Promise.all([
     getAvailableMemoryBytes(),
     readCpuCoreCount(),
+    readCpuCapacities(),
   ]);
 
   return {
@@ -361,6 +368,7 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
     osName,
     osVersion,
     cpuCoreCount,
+    cpuCapacities,
     ramTier: getRamTier(totalMemoryBytes),
     family,
     isMiuiFamily,
@@ -385,6 +393,7 @@ export function getCachedDeviceProfile(): Promise<DeviceProfile> {
       osName: null,
       osVersion: null,
       cpuCoreCount: null,
+      cpuCapacities: null,
       ramTier: getRamTier(null),
       family: "generic",
       isMiuiFamily: false,

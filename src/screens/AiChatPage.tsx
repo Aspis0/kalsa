@@ -208,8 +208,9 @@ type Props = {
   /** Settings → Voice TTS toggle (default true). */
   ttsEnabled?: boolean;
   /**
-   * Resolved n_ctx for the loaded (or selected) model — from AppShell's
-   * resolveContextProfile. Used by the long-chat nudge as its token ceiling.
+   * Effective n_ctx of the loaded engine (post memory-clamp), from AppShell.
+   * Same value as chatEngineCtxRef / getActiveEngineNCtx — not the pre-clamp
+   * catalog resolve. Used by the long-chat nudge as its token ceiling.
    * Omitted → longChatEstimate.LONG_CHAT_DEFAULT_N_CTX.
    */
   engineCtx?: number;

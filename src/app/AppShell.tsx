@@ -47,6 +47,7 @@ import {
 import {
   disposeEngine,
   extractMemory,
+  getActiveEngineNCtx,
   getActiveModelId,
   initEngine,
   invalidateEngineSession,
@@ -452,7 +453,12 @@ export function AppShell() {
    * old deleteAsync, and a stale library snapshot can overwrite a newer import.
    */
   const documentDeleteInFlightRef = useRef(false);
-  /** Mirrors chatEngineCtx for the document tool (set below after resolve). */
+  /**
+   * Effective n_ctx for document tool + long-chat budgeting.
+   * Catalog resolve is the pre-init estimate; after initEngine it is overwritten
+   * with the reported effectiveNCtx (post memory-clamp). Single source for:
+   * engine init, document strategy (getCtxTokens), and UI long-chat thresholds.
+   */
   const chatEngineCtxRef = useRef<number>(4096);
   /**
    * Mutation counter for the library load race: every local edit increments it;
@@ -878,10 +884,12 @@ export function AppShell() {
   /** Discriminates download vs engine-init failures when modelState === "error". */
   const [modelErrorKind, setModelErrorKind] = useState<"download" | "engine" | null>(null);
   const currentModel = MODEL_REGISTRY[modelIndex];
-  // Same resolve path as initEngine — catalog n_ctx (+ optional high-RAM hybrid
-  // upgrade). Passed to AiChatPage for the long-chat nudge ceiling so the
-  // warning tracks whatever model is selected, not a fixed magic number.
-  const chatEngineCtx = useMemo(
+  // Pre-init estimate: catalog n_ctx (+ optional high-RAM hybrid upgrade).
+  // After initEngine succeeds we overwrite both state and ref with the
+  // reported effectiveNCtx (memory clamp may shrink). Document tool
+  // (getCtxTokens → chatEngineCtxRef) and AiChatPage longChat (engineCtx prop)
+  // share that same resolved value — see comment on chatEngineCtxRef.
+  const catalogEngineCtx = useMemo(
     () =>
       resolveContextProfile({
         hybrid: currentModel.hybrid,
@@ -890,7 +898,21 @@ export function AppShell() {
       }).nCtx,
     [currentModel],
   );
-  chatEngineCtxRef.current = chatEngineCtx;
+  const [chatEngineCtx, setChatEngineCtx] = useState<number>(catalogEngineCtx);
+  // Keep state in sync when the selected model changes (pre-init estimate).
+  // Do not clobber a live effective value while the same model stays ready.
+  useEffect(() => {
+    if (isEngineReady() && getActiveModelId() === currentModel.id) {
+      const live = getActiveEngineNCtx();
+      if (live > 0) {
+        setChatEngineCtx(live);
+        chatEngineCtxRef.current = live;
+        return;
+      }
+    }
+    setChatEngineCtx(catalogEngineCtx);
+    chatEngineCtxRef.current = catalogEngineCtx;
+  }, [catalogEngineCtx, currentModel.id]);
   // Ref speculare per il race tra check iniziale e load della preferenza.
   const modelIndexRef = useRef(modelIndex);
   modelIndexRef.current = modelIndex;
@@ -1078,7 +1100,7 @@ export function AppShell() {
         // empty facts → match disabled / cold
       }
       if (!stillCurrent()) return false;
-      await initEngine(modelLocalPath(model, model.file), model.id, {
+      const initResult = await initEngine(modelLocalPath(model, model.file), model.id, {
         mmprojPath,
         nCtx: profile.nCtx,
         cacheTypeK: profile.cacheTypeK,
@@ -1095,6 +1117,13 @@ export function AppShell() {
         locale,
       });
       if (!stillCurrent()) return false;
+      // Propagate effective n_ctx (post memory-clamp) so document strategy and
+      // long-chat UI budget match the loaded engine — not the pre-clamp catalog.
+      // Single source: engine init → chatEngineCtxRef / chatEngineCtx state →
+      // getCtxTokens + AiChatPage engineCtx prop.
+      const effective = initResult.effectiveNCtx;
+      chatEngineCtxRef.current = effective;
+      setChatEngineCtx(effective);
       setModelState("ready");
       // End-based clear too: two concurrent ensures (double-tap in the probe
       // window) where the first fails and the second succeeds must not leave
@@ -1342,7 +1371,7 @@ export function AppShell() {
         // empty facts → match disabled / cold
       }
       if (!stillCurrent()) return;
-      await initEngine(outcome.model.uri, model.id, {
+      const initResult = await initEngine(outcome.model.uri, model.id, {
         mmprojPath,
         nCtx: profile.nCtx,
         cacheTypeK: profile.cacheTypeK,
@@ -1359,6 +1388,11 @@ export function AppShell() {
         locale,
       });
       if (!stillCurrent()) return;
+      // Propagate effective n_ctx (post memory-clamp) — same single source as
+      // ensureEngineForModel (engine init / document strategy / UI budgeting).
+      const effective = initResult.effectiveNCtx;
+      chatEngineCtxRef.current = effective;
+      setChatEngineCtx(effective);
       setModelState("ready");
       // Same end-based clear as ensureEngineForModel: no stale banner on ready.
       setModelError(null);

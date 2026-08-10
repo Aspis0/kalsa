@@ -565,6 +565,94 @@ async function main() {
     assert(r.n_threads === 4, `async threads ${r.n_threads}`);
   });
 
+  // Production-path: DeviceProfile.cpuCapacities (G99) → measured preset 2/8.
+  // Mirrors LlamaService: profile carries capacities; resolveEngineTuning
+  // forwards them so prefill 8 is reachable (not equal-to-decode fallback).
+  await test("prod-path: profile.cpuCapacities G99 → preset 2/8 + nThreadsPrefill", () => {
+    const caps = [348, 348, 348, 348, 348, 348, 1024, 1024];
+    const profile = makeProfile({
+      brand: "unihertz",
+      modelName: "Jelly Star",
+      cpuCoreCount: 8,
+      cpuCapacities: caps,
+    });
+    // No explicit cpuCapacities on TuningInput — only profile field (prod shape).
+    const r = resolveEngineTuningSync({
+      model: makeModel(),
+      profile,
+      request: {},
+      platformHint: "android",
+    });
+    assert(r.n_threads === 2, `decode ${r.n_threads}`);
+    assert(r.n_threads_prefill === 8, `prefill snake ${r.n_threads_prefill}`);
+    assert(r.nThreadsPrefill === 8, `prefill camel ${r.nThreadsPrefill}`);
+    assert(
+      r.nThreadsSource === "soc-preset:helio-g99",
+      `source ${r.nThreadsSource}`,
+    );
+  });
+
+  // Production-path WITHOUT capacities → no phantom prefill claim.
+  await test("prod-path: profile WITHOUT cpuCapacities → nThreadsPrefill == n_threads", () => {
+    const profile = makeProfile({
+      brand: "unihertz",
+      modelName: "Jelly Star",
+      cpuCoreCount: 8,
+      cpuCapacities: null,
+    });
+    // Identity match still hits helio-g99 (Jelly Star brand+name) even without
+    // capacities — that is intentional (exact model identity). Use a generic
+    // brand so we exercise the true no-preset fallback path.
+    const generic = makeProfile({
+      brand: "generic-oem",
+      cpuCoreCount: 8,
+      cpuCapacities: null,
+    });
+    const r = resolveEngineTuningSync({
+      model: makeModel(),
+      profile: generic,
+      request: {},
+      platformHint: "android",
+      resolvedThreads: 4,
+      resolvedThreadsSource: "fallback:capacity-missing",
+    });
+    assert(r.n_threads === 4, `decode ${r.n_threads}`);
+    assert(
+      r.nThreadsPrefill === r.n_threads,
+      `prefill ${r.nThreadsPrefill} != decode ${r.n_threads}`,
+    );
+    assert(
+      r.n_threads_prefill === r.n_threads,
+      `snake prefill ${r.n_threads_prefill} != decode`,
+    );
+    assert(
+      !String(r.nThreadsSource).startsWith("soc-preset"),
+      `must not claim preset: ${r.nThreadsSource}`,
+    );
+    // Also: brand-only unihertz without capacities and without exact identity
+    // must not invent prefill=8 via family path when only resolvedThreads is set.
+    const brandOnly = makeProfile({
+      brand: "unihertz",
+      cpuCoreCount: 8,
+      cpuCapacities: null,
+    });
+    const r2 = resolveEngineTuningSync({
+      model: makeModel(),
+      profile: brandOnly,
+      request: {},
+      platformHint: "android",
+      resolvedThreads: 2,
+      resolvedThreadsSource: "capacity",
+    });
+    // capacity source with t<=2 maps to family:android-small, but without caps
+    // the resolvedThreads path sets prefill == decode (no phantom 8).
+    assert(r2.n_threads === 2, `r2 decode ${r2.n_threads}`);
+    assert(
+      r2.nThreadsPrefill === r2.n_threads,
+      `r2 phantom prefill: ${r2.nThreadsPrefill} vs ${r2.n_threads}`,
+    );
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
   console.log("All tuningLayer harness cases passed.");

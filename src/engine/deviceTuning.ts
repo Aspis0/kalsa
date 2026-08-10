@@ -38,6 +38,8 @@ export type TuningDeviceProfile = {
   modelId?: string | null;
   osName?: string | null;
   cpuCoreCount: number | null;
+  /** Per-core cpu_capacity values; enables measured SoC preset match. */
+  cpuCapacities?: number[] | null;
   availableMemoryBytes: number | null;
   totalMemoryBytes?: number | null;
 };
@@ -121,10 +123,16 @@ export type TuningInput = {
 };
 
 export type TuningResult = {
+  /** Decode thread count (llama.rn n_threads). */
   n_threads: number;
   nThreadsSource: string;
   /** Prefill thread count (measured dual on G99; equals decode elsewhere). */
   n_threads_prefill: number;
+  /**
+   * Prefill threads for llama.rn batch/prompt path (alias of n_threads_prefill).
+   * Wired to ContextParams.n_threads_batch when decode !== prefill.
+   */
+  nThreadsPrefill: number;
   n_ubatch: number;
   ubatchSource: string;
   kv: { type_k: string; type_v: string };
@@ -368,10 +376,8 @@ type ThreadResolution = {
  */
 function resolveThreadsSync(input: TuningInput): ThreadResolution {
   const { profile, request, platformHint } = input;
-  const caps =
-    Array.isArray(input.cpuCapacities) && input.cpuCapacities.length > 0
-      ? input.cpuCapacities
-      : null;
+  // Explicit input.cpuCapacities wins; else profile.cpuCapacities (DeviceProfile).
+  const caps = resolveInputCapacities(input);
 
   // User / bench override wins over everything (design §8 override:*).
   if (
@@ -648,6 +654,7 @@ export function resolveEngineTuningSync(input: TuningInput): TuningResult {
     n_threads: threads.n_threads,
     nThreadsSource: threads.nThreadsSource,
     n_threads_prefill: threads.n_threads_prefill,
+    nThreadsPrefill: threads.n_threads_prefill,
     n_ubatch,
     ubatchSource,
     kv: { type_k, type_v },
@@ -660,38 +667,59 @@ export function resolveEngineTuningSync(input: TuningInput): TuningResult {
 }
 
 /**
+ * Resolve cpu capacities from explicit TuningInput or profile.cpuCapacities
+ * (DeviceProfile production path). Explicit input wins when both are present.
+ */
+function resolveInputCapacities(input: TuningInput): number[] | null {
+  if (Array.isArray(input.cpuCapacities) && input.cpuCapacities.length > 0) {
+    return input.cpuCapacities;
+  }
+  const fromProfile = input.profile.cpuCapacities;
+  if (Array.isArray(fromProfile) && fromProfile.length > 0) {
+    return fromProfile;
+  }
+  return null;
+}
+
+/**
  * Async wrapper: probes detectThreadCount when threads are not overridden and
  * no SoC preset matches from supplied capacities. Production entry point for
  * LlamaService.
+ *
+ * Production: DeviceProfile.cpuCapacities (from readCpuCapacities) is forwarded
+ * so measured presets (G99 prefill=8) are reachable without a separate probe.
  */
 export async function resolveEngineTuning(
   input: TuningInput,
 ): Promise<TuningResult> {
+  // Forward profile.cpuCapacities when the caller only passed DeviceProfile.
+  const caps = resolveInputCapacities(input);
+  const inputWithCaps: TuningInput =
+    caps != null && input.cpuCapacities !== caps
+      ? { ...input, cpuCapacities: caps }
+      : input;
+
   // Fast path: override or preset or capacities already decide threads.
   const hasOverride =
-    typeof input.request.threadsOverride === "number" &&
-    Number.isFinite(input.request.threadsOverride) &&
-    input.request.threadsOverride > 0;
-  const caps =
-    Array.isArray(input.cpuCapacities) && input.cpuCapacities.length > 0
-      ? input.cpuCapacities
-      : null;
-  const preset = matchMeasuredPreset(input.profile, caps);
+    typeof inputWithCaps.request.threadsOverride === "number" &&
+    Number.isFinite(inputWithCaps.request.threadsOverride) &&
+    inputWithCaps.request.threadsOverride > 0;
+  const preset = matchMeasuredPreset(inputWithCaps.profile, caps);
 
   if (
     hasOverride ||
     preset != null ||
     caps != null ||
-    typeof input.resolvedThreads === "number"
+    typeof inputWithCaps.resolvedThreads === "number"
   ) {
-    return resolveEngineTuningSync(input);
+    return resolveEngineTuningSync(inputWithCaps);
   }
 
   // Probe device (Android capacity rule / iOS fallback 4).
   const resolvedThreads = await detectThreadCount();
   const resolvedThreadsSource = getThreadCountSource();
   return resolveEngineTuningSync({
-    ...input,
+    ...inputWithCaps,
     resolvedThreads,
     resolvedThreadsSource,
   });
