@@ -1,0 +1,760 @@
+**********************************************************************
+** Visual Studio 2022 Developer Command Prompt v17.14.33
+** Copyright (c) 2025 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'x64'
+-- The C compiler identification is MSVC 19.44.35227.0
+-- The CXX compiler identification is MSVC 19.44.35227.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+CMAKE_BUILD_TYPE=Release
+-- Found Git: C:/Program Files/Git/mingw64/bin/git.exe (found version "2.54.0.windows.1")
+-- The ASM compiler identification is MSVC
+-- Found assembler: C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+-- Warning: ccache not found - consider installing it for faster compilation or disable this warning with GGML_CCACHE=OFF
+-- CMAKE_SYSTEM_PROCESSOR: AMD64
+-- CMAKE_GENERATOR_PLATFORM: 
+-- GGML_SYSTEM_ARCH: x86
+-- Found OpenMP_C: -openmp (found version "2.0")
+-- Found OpenMP_CXX: -openmp (found version "2.0")
+-- Found OpenMP: TRUE (found version "2.0")
+-- Including CPU backend
+-- x86 detected
+-- Performing Test HAS_AVX_1
+-- Performing Test HAS_AVX_1 - Success
+-- Performing Test HAS_AVX2_1
+-- Performing Test HAS_AVX2_1 - Success
+-- Performing Test HAS_FMA_1
+-- Performing Test HAS_FMA_1 - Success
+-- Performing Test HAS_AVX512_1
+-- Performing Test HAS_AVX512_1 - Failed
+-- Performing Test HAS_AVX512_2
+-- Performing Test HAS_AVX512_2 - Failed
+-- Adding CPU backend variant ggml-cpu: /arch:AVX2 GGML_AVX2;GGML_FMA;GGML_F16C
+-- ggml version: 0.16.0
+-- ggml commit:  e5605f3bd
+-- Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR (missing: OPENSSL_CRYPTO_LIBRARY OPENSSL_INCLUDE_DIR) 
+CMake Warning at vendor/cpp-httplib/CMakeLists.txt:152 (message):
+  OpenSSL not found, HTTPS support disabled
+
+
+-- Generating embedded license file for target: llama-app
+-- Configuring done (20.8s)
+-- Generating done (1.5s)
+-- Build files have been written to: C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-llama-pc
+[1/300] Building C object ggml\src\CMakeFiles\ggml-base.dir\ggml-alloc.c.obj
+[2/300] Building CXX object ggml\src\CMakeFiles\ggml-base.dir\ggml.cpp.obj
+[3/300] Building CXX object ggml\src\CMakeFiles\ggml-base.dir\ggml-threading.cpp.obj
+[4/300] Building C object ggml\src\CMakeFiles\ggml-base.dir\ggml.c.obj
+[5/300] Building C object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\ggml-cpu.c.obj
+[6/300] Building CXX object ggml\src\CMakeFiles\ggml-base.dir\ggml-backend.cpp.obj
+[7/300] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\hbm.cpp.obj
+[8/300] Building CXX object ggml\src\CMakeFiles\ggml-base.dir\ggml-opt.cpp.obj
+[9/300] Building C object ggml\src\CMakeFiles\ggml-base.dir\ggml-quants.c.obj
+[10/300] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\ggml-cpu.cpp.obj
+[11/300] Building C object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\quants.c.obj
+[12/300] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\traits.cpp.obj
+[13/300] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\amx\amx.cpp.obj
+[14/300] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\amx\mmq.cpp.obj
+[15/300] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\repack.cpp.obj
+[16/300] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\vec.cpp.obj
+[17/300] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\binary-ops.cpp.obj
+[18/300] Building CXX object ggml\src\CMakeFiles\ggml-base.dir\ggml-backend-meta.cpp.obj
+[19/300] Building CXX object ggml\src\CMakeFiles\ggml-base.dir\gguf.cpp.obj
+[20/300] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\unary-ops.cpp.obj
+[21/300] Building C object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\arch\x86\quants.c.obj
+[22/300] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\llamafile\sgemm.cpp.obj
+[23/300] Linking CXX shared library bin\ggml-base.dll
+[24/300] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\ops.cpp.obj
+[25/300] Building CXX object ggml\src\CMakeFiles\ggml-cpu.dir\ggml-cpu\arch\x86\repack.cpp.obj
+[26/300] Building CXX object src\CMakeFiles\llama.dir\llama.cpp.obj
+[27/300] Building CXX object ggml\src\CMakeFiles\ggml.dir\ggml-backend-dl.cpp.obj
+[28/300] Linking CXX shared library bin\ggml-cpu.dll
+[29/300] Building CXX object ggml\src\CMakeFiles\ggml.dir\ggml-backend-reg.cpp.obj
+[30/300] Linking CXX shared library bin\ggml.dll
+[31/300] Building CXX object src\CMakeFiles\llama.dir\llama-cparams.cpp.obj
+[32/300] Building CXX object tools\ui\CMakeFiles\llama-ui-embed.dir\embed.cpp.obj
+[33/300] Building CXX object src\CMakeFiles\llama.dir\llama-arch.cpp.obj
+[34/300] Building CXX object src\CMakeFiles\llama.dir\llama-hparams.cpp.obj
+[35/300] Building CXX object src\CMakeFiles\llama.dir\llama-adapter.cpp.obj
+[36/300] Building CXX object src\CMakeFiles\llama.dir\llama-batch.cpp.obj
+[37/300] Building CXX object src\CMakeFiles\llama.dir\llama-io.cpp.obj
+[38/300] Building CXX object src\CMakeFiles\llama.dir\llama-impl.cpp.obj
+[39/300] Building CXX object src\CMakeFiles\llama.dir\llama-chat.cpp.obj
+[40/300] Building CXX object src\CMakeFiles\llama.dir\llama-context.cpp.obj
+[41/300] Building CXX object src\CMakeFiles\llama.dir\llama-kv-cache-iswa.cpp.obj
+[42/300] Building CXX object src\CMakeFiles\llama.dir\llama-grammar.cpp.obj
+[43/300] Building CXX object src\CMakeFiles\llama.dir\llama-kv-cache-dsa.cpp.obj
+[44/300] Building CXX object src\CMakeFiles\llama.dir\llama-graph.cpp.obj
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\memory(3630): warning C4244: 'argument': conversion from 'const int64_t' to 'uint32_t', possible loss of data
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\memory(3630): note: the template instantiation context (the oldest one first) is
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\src\llama-graph.cpp(2277): note: see reference to function template instantiation 'std::unique_ptr<llm_graph_input_out_ids,std::default_delete<llm_graph_input_out_ids>> std::make_unique<llm_graph_input_out_ids,const llama_hparams&,const llama_cparams&,const int64_t&,0>(const llama_hparams &,const llama_cparams &,const int64_t &)' being compiled
+[45/300] Building CXX object src\CMakeFiles\llama.dir\llama-memory.cpp.obj
+[46/300] Building CXX object src\CMakeFiles\llama.dir\llama-memory-hybrid.cpp.obj
+[47/300] Building CXX object src\CMakeFiles\llama.dir\llama-mmap.cpp.obj
+[48/300] Building CXX object src\CMakeFiles\llama.dir\llama-memory-hybrid-iswa.cpp.obj
+[49/300] Building CXX object src\CMakeFiles\llama.dir\llama-model-saver.cpp.obj
+[50/300] Building CXX object src\CMakeFiles\llama.dir\llama-kv-cache.cpp.obj
+[51/300] Building CXX object src\CMakeFiles\llama.dir\llama-kv-cache-dsv4.cpp.obj
+[52/300] Building CXX object src\CMakeFiles\llama.dir\llama-memory-recurrent.cpp.obj
+[53/300] Building CXX object src\CMakeFiles\llama.dir\models\afmoe.cpp.obj
+[54/300] Building CXX object src\CMakeFiles\llama.dir\llama-model-loader.cpp.obj
+[55/300] Building CXX object src\CMakeFiles\llama.dir\llama-sampler.cpp.obj
+[56/300] Building CXX object src\CMakeFiles\llama.dir\models\apertus.cpp.obj
+[57/300] Building CXX object src\CMakeFiles\llama.dir\llama-quant.cpp.obj
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\type_traits(1680): warning C4244: 'argument': conversion from 'unsigned __int64' to 'int', possible loss of data
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\type_traits(1680): note: the template instantiation context (the oldest one first) is
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\src\llama-quant.cpp(276): note: see reference to function template instantiation 'std::thread &std::vector<std::thread,std::allocator<std::thread>>::emplace_back<llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>&,ggml_type&,uint8_t*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728> &,ggml_type &,uint8_t *&&,float *&&,size_t &)' being compiled
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\src\llama-quant.cpp(276): note: see the first reference to 'std::vector<std::thread,std::allocator<std::thread>>::emplace_back' in 'llama_tensor_dequantize_impl'
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\vector(924): note: see reference to function template instantiation '_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_one_at_back<llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>&,ggml_type&,unsigned char*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728> &,ggml_type &,unsigned char *&&,float *&&,size_t &)' being compiled
+        with
+        [
+            _Ty=std::thread
+        ]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\vector(845): note: see reference to function template instantiation '_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_back_with_unused_capacity<llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>&,ggml_type&,unsigned char*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728> &,ggml_type &,unsigned char *&&,float *&&,size_t &)' being compiled
+        with
+        [
+            _Ty=std::thread
+        ]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\vector(863): note: see reference to function template instantiation 'void std::_Default_allocator_traits<_Alloc>::construct<_Ty,llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>&,ggml_type&,unsigned char*,float*,size_t&>(_Alloc &,_Objty *const ,llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728> &,ggml_type &,unsigned char *&&,float *&&,size_t &)' being compiled
+        with
+        [
+            _Alloc=std::allocator<std::thread>,
+            _Ty=std::thread,
+            _Objty=std::thread
+        ]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xmemory(732): note: see reference to function template instantiation 'std::thread::thread<llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>&,ggml_type&,_T,float*,size_t&,0>(_Fn,ggml_type &,_T &&,float *&&,size_t &)' being compiled
+        with
+        [
+            _T=uint8_t *,
+            _Fn=llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728> &
+        ]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\thread(93): note: see reference to function template instantiation 'void std::thread::_Start<llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>&,ggml_type&,_Ty,float*,size_t&>(_Fn,ggml_type &,_Ty &&,float *&&,size_t &)' being compiled
+        with
+        [
+            _Ty=uint8_t *,
+            _Fn=llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728> &
+        ]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\thread(76): note: see reference to function template instantiation 'unsigned int (__cdecl *std::thread::_Get_invoke<std::thread::_Start::_Tuple,0,1,2,3,4>(std::integer_sequence<size_t,0,1,2,3,4>) noexcept)(void *) noexcept' being compiled
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\thread(67): note: see reference to function template instantiation 'unsigned int std::thread::_Invoke<_Tuple,0,1,2,3,4>(void *) noexcept' being compiled
+        with
+        [
+            _Tuple=std::thread::_Start::_Tuple
+        ]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\thread(60): note: see reference to function template instantiation 'void std::invoke<llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>,ggml_type,uint8_t*,_Ty*,unsigned __int64>(_Callable &&,_Ty1 &&,uint8_t *&&,_Ty *&&,unsigned __int64 &&) noexcept(false)' being compiled
+        with
+        [
+            _Ty=float,
+            _Callable=llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>,
+            _Ty1=ggml_type
+        ]
+[58/300] Building CXX object src\CMakeFiles\llama.dir\unicode.cpp.obj
+[59/300] Building CXX object src\CMakeFiles\llama.dir\models\arcee.cpp.obj
+[60/300] Building CXX object src\CMakeFiles\llama.dir\models\arctic.cpp.obj
+[61/300] Building CXX object src\CMakeFiles\llama.dir\models\arwkv7.cpp.obj
+[62/300] Building CXX object src\CMakeFiles\llama.dir\llama-model.cpp.obj
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274): warning C4244: 'initializing': conversion from '_Ty' to '_Ty2', possible loss of data
+        with
+        [
+            _Ty=int64_t
+        ]
+        and
+        [
+            _Ty2=uint32_t
+        ]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274): note: the template instantiation context (the oldest one first) is
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\src\llama-model.cpp(525): note: see reference to function template instantiation 'std::pair<int64_t,uint32_t>::pair<const int64_t&,int64_t,0>(_Other1,_Other2 &&) noexcept' being compiled
+        with
+        [
+            _Other1=const int64_t &,
+            _Other2=int64_t
+        ]
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\src\llama-model.cpp(525): note: see the first reference to 'std::pair<int64_t,uint32_t>::pair' in 'llama_meta_device_get_split_state::<lambda_0f7c9975d895c8054d41298fe2887150>::operator ()'
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274): warning C4244: 'initializing': conversion from 'const int64_t' to '_Ty2', possible loss of data
+        with
+        [
+            _Ty2=uint32_t
+        ]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274): note: the template instantiation context (the oldest one first) is
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\src\llama-model.cpp(528): note: see reference to function template instantiation 'std::pair<int64_t,uint32_t>::pair<const int64_t&,const int64_t&,0>(_Other1,_Other2) noexcept' being compiled
+        with
+        [
+            _Other1=const int64_t &,
+            _Other2=const int64_t &
+        ]
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\src\llama-model.cpp(528): note: see the first reference to 'std::pair<int64_t,uint32_t>::pair' in 'llama_meta_device_get_split_state::<lambda_0f7c9975d895c8054d41298fe2887150>::operator ()'
+[63/300] Building CXX object src\CMakeFiles\llama.dir\models\bailingmoe.cpp.obj
+[64/300] Building CXX object src\CMakeFiles\llama.dir\models\baichuan.cpp.obj
+[65/300] Building CXX object src\CMakeFiles\llama.dir\models\bailingmoe2.cpp.obj
+[66/300] Building CXX object src\CMakeFiles\llama.dir\models\bitnet.cpp.obj
+[67/300] Building CXX object src\CMakeFiles\llama.dir\models\bert.cpp.obj
+[68/300] Building CXX object src\CMakeFiles\llama.dir\llama-vocab.cpp.obj
+[69/300] Building CXX object src\CMakeFiles\llama.dir\models\bloom.cpp.obj
+[70/300] Building CXX object src\CMakeFiles\llama.dir\models\chameleon.cpp.obj
+[71/300] Building CXX object src\CMakeFiles\llama.dir\models\chatglm.cpp.obj
+[72/300] Building CXX object src\CMakeFiles\llama.dir\models\codeshell.cpp.obj
+[73/300] Building CXX object src\CMakeFiles\llama.dir\models\cogvlm.cpp.obj
+[74/300] Building CXX object src\CMakeFiles\llama.dir\models\cohere2.cpp.obj
+[75/300] Building CXX object src\CMakeFiles\llama.dir\models\cohere2moe.cpp.obj
+[76/300] Building CXX object src\CMakeFiles\llama.dir\models\command-r.cpp.obj
+[77/300] Building CXX object src\CMakeFiles\llama.dir\models\dbrx.cpp.obj
+[78/300] Building CXX object src\CMakeFiles\llama.dir\models\deci.cpp.obj
+[79/300] Building CXX object src\CMakeFiles\llama.dir\models\deepseek.cpp.obj
+[80/300] Building CXX object src\CMakeFiles\llama.dir\models\deepseek2ocr.cpp.obj
+[81/300] Building CXX object src\CMakeFiles\llama.dir\models\deepseek2.cpp.obj
+[82/300] Building CXX object src\CMakeFiles\llama.dir\models\deepseek32.cpp.obj
+[83/300] Building CXX object src\CMakeFiles\llama.dir\models\dots1.cpp.obj
+[84/300] Building CXX object src\CMakeFiles\llama.dir\models\deepseek4.cpp.obj
+[85/300] Building CXX object src\CMakeFiles\llama.dir\models\delta-net-base.cpp.obj
+[86/300] Building CXX object src\CMakeFiles\llama.dir\models\dream.cpp.obj
+[87/300] Building CXX object src\CMakeFiles\llama.dir\models\eagle3.cpp.obj
+[88/300] Building CXX object src\CMakeFiles\llama.dir\models\dflash.cpp.obj
+[89/300] Building CXX object src\CMakeFiles\llama.dir\models\ernie4-5-moe.cpp.obj
+[90/300] Building CXX object src\CMakeFiles\llama.dir\models\ernie4-5.cpp.obj
+[91/300] Building CXX object src\CMakeFiles\llama.dir\models\eurobert.cpp.obj
+[92/300] Building CXX object src\CMakeFiles\llama.dir\models\exaone-moe.cpp.obj
+[93/300] Building CXX object src\CMakeFiles\llama.dir\models\exaone.cpp.obj
+[94/300] Building CXX object src\CMakeFiles\llama.dir\models\exaone4.cpp.obj
+[95/300] Building CXX object src\CMakeFiles\llama.dir\models\falcon-h1.cpp.obj
+[96/300] Building CXX object src\CMakeFiles\llama.dir\models\falcon.cpp.obj
+[97/300] Building CXX object src\CMakeFiles\llama.dir\models\gemma2.cpp.obj
+[98/300] Building CXX object src\CMakeFiles\llama.dir\models\gemma-embedding.cpp.obj
+[99/300] Building CXX object src\CMakeFiles\llama.dir\models\gemma.cpp.obj
+[100/300] Building CXX object src\CMakeFiles\llama.dir\models\gemma3.cpp.obj
+[101/300] Building CXX object src\CMakeFiles\llama.dir\models\gemma4-assistant.cpp.obj
+[102/300] Building CXX object src\CMakeFiles\llama.dir\models\gemma3n.cpp.obj
+[103/300] Building CXX object src\CMakeFiles\llama.dir\models\gemma4.cpp.obj
+[104/300] Building CXX object src\CMakeFiles\llama.dir\models\glm-dsa.cpp.obj
+[105/300] Building CXX object src\CMakeFiles\llama.dir\models\gpt2.cpp.obj
+[106/300] Building CXX object src\CMakeFiles\llama.dir\models\glm4-moe.cpp.obj
+[107/300] Building CXX object src\CMakeFiles\llama.dir\models\glm4.cpp.obj
+[108/300] Building CXX object src\CMakeFiles\llama.dir\models\granite-hybrid.cpp.obj
+[109/300] Building CXX object src\CMakeFiles\llama.dir\models\gptneox.cpp.obj
+[110/300] Building CXX object src\CMakeFiles\llama.dir\models\granite-moe.cpp.obj
+[111/300] Building CXX object src\CMakeFiles\llama.dir\models\grovemoe.cpp.obj
+[112/300] Building CXX object src\CMakeFiles\llama.dir\models\hunyuan-dense.cpp.obj
+[113/300] Building CXX object src\CMakeFiles\llama.dir\models\grok.cpp.obj
+[114/300] Building CXX object src\CMakeFiles\llama.dir\models\hunyuan-moe.cpp.obj
+[115/300] Building CXX object src\CMakeFiles\llama.dir\models\hunyuan-vl.cpp.obj
+[116/300] Building CXX object src\CMakeFiles\llama.dir\models\granite.cpp.obj
+[117/300] Building CXX object src\CMakeFiles\llama.dir\models\jais2.cpp.obj
+[118/300] Building CXX object src\CMakeFiles\llama.dir\models\jais.cpp.obj
+[119/300] Building CXX object src\CMakeFiles\llama.dir\models\internlm2.cpp.obj
+[120/300] Building CXX object src\CMakeFiles\llama.dir\models\jamba.cpp.obj
+[121/300] Building CXX object src\CMakeFiles\llama.dir\models\jina-bert-v2.cpp.obj
+[122/300] Building CXX object src\CMakeFiles\llama.dir\models\jina-bert-v3.cpp.obj
+[123/300] Building CXX object src\CMakeFiles\llama.dir\models\kimi-linear.cpp.obj
+[124/300] Building CXX object src\CMakeFiles\llama.dir\models\llada.cpp.obj
+[125/300] Building CXX object src\CMakeFiles\llama.dir\models\llama-embed.cpp.obj
+[126/300] Building CXX object src\CMakeFiles\llama.dir\models\llada-moe.cpp.obj
+[127/300] Building CXX object src\CMakeFiles\llama.dir\models\llama.cpp.obj
+[128/300] Building CXX object src\CMakeFiles\llama.dir\models\lfm2moe.cpp.obj
+[129/300] Building CXX object src\CMakeFiles\llama.dir\models\lfm2.cpp.obj
+[130/300] Building CXX object src\CMakeFiles\llama.dir\models\llama4.cpp.obj
+[131/300] Building CXX object src\CMakeFiles\llama.dir\models\maincoder.cpp.obj
+[132/300] Building CXX object src\CMakeFiles\llama.dir\models\mamba.cpp.obj
+[133/300] Building CXX object src\CMakeFiles\llama.dir\models\mamba-base.cpp.obj
+[134/300] Building CXX object src\CMakeFiles\llama.dir\models\mamba2.cpp.obj
+[135/300] Building CXX object src\CMakeFiles\llama.dir\models\mellum.cpp.obj
+[136/300] Building CXX object src\CMakeFiles\llama.dir\models\mimo2.cpp.obj
+[137/300] Building CXX object src\CMakeFiles\llama.dir\models\minicpm.cpp.obj
+[138/300] Building CXX object src\CMakeFiles\llama.dir\models\minicpm3.cpp.obj
+[139/300] Building CXX object src\CMakeFiles\llama.dir\models\mistral4.cpp.obj
+[140/300] Building CXX object src\CMakeFiles\llama.dir\models\minimax-m2.cpp.obj
+[141/300] Building CXX object src\CMakeFiles\llama.dir\models\mistral3.cpp.obj
+[142/300] Building CXX object src\CMakeFiles\llama.dir\models\modern-bert.cpp.obj
+[143/300] Building CXX object src\CMakeFiles\llama.dir\models\nemotron-h-moe.cpp.obj
+[144/300] Building CXX object src\CMakeFiles\llama.dir\models\mpt.cpp.obj
+[145/300] Building CXX object src\CMakeFiles\llama.dir\models\nemotron.cpp.obj
+[146/300] Building CXX object src\CMakeFiles\llama.dir\models\neo-bert.cpp.obj
+[147/300] Building CXX object src\CMakeFiles\llama.dir\models\nemotron-h.cpp.obj
+[148/300] Building CXX object src\CMakeFiles\llama.dir\models\olmo.cpp.obj
+[149/300] Building CXX object src\CMakeFiles\llama.dir\models\nomic-bert-moe.cpp.obj
+[150/300] Building CXX object src\CMakeFiles\llama.dir\models\nomic-bert.cpp.obj
+[151/300] Building CXX object src\CMakeFiles\llama.dir\models\olmo2.cpp.obj
+[152/300] Building CXX object src\CMakeFiles\llama.dir\models\olmoe.cpp.obj
+[153/300] Building CXX object src\CMakeFiles\llama.dir\models\openai-moe.cpp.obj
+[154/300] Building CXX object src\CMakeFiles\llama.dir\models\openelm.cpp.obj
+[155/300] Building CXX object src\CMakeFiles\llama.dir\models\orion.cpp.obj
+[156/300] Building CXX object src\CMakeFiles\llama.dir\models\paddleocr.cpp.obj
+[157/300] Building CXX object src\CMakeFiles\llama.dir\models\phi2.cpp.obj
+[158/300] Building CXX object src\CMakeFiles\llama.dir\models\pangu-embed.cpp.obj
+[159/300] Building CXX object src\CMakeFiles\llama.dir\models\phimoe.cpp.obj
+[160/300] Building CXX object src\CMakeFiles\llama.dir\models\phi3.cpp.obj
+[161/300] Building CXX object src\CMakeFiles\llama.dir\models\plamo.cpp.obj
+[162/300] Building CXX object src\CMakeFiles\llama.dir\models\qwen.cpp.obj
+[163/300] Building CXX object src\CMakeFiles\llama.dir\models\plm.cpp.obj
+[164/300] Building CXX object src\CMakeFiles\llama.dir\models\plamo3.cpp.obj
+[165/300] Building CXX object src\CMakeFiles\llama.dir\models\plamo2.cpp.obj
+[166/300] Building CXX object src\CMakeFiles\llama.dir\unicode-data.cpp.obj
+[167/300] Building CXX object src\CMakeFiles\llama.dir\models\qwen2vl.cpp.obj
+[168/300] Building CXX object src\CMakeFiles\llama.dir\models\qwen2.cpp.obj
+[169/300] Building CXX object src\CMakeFiles\llama.dir\models\qwen2moe.cpp.obj
+[170/300] Building CXX object src\CMakeFiles\llama.dir\models\qwen3.cpp.obj
+[171/300] Building CXX object src\CMakeFiles\llama.dir\models\qwen3moe.cpp.obj
+[172/300] Building CXX object src\CMakeFiles\llama.dir\models\qwen35.cpp.obj
+[173/300] Building CXX object src\CMakeFiles\llama.dir\models\qwen35moe.cpp.obj
+[174/300] Building CXX object src\CMakeFiles\llama.dir\models\qwen3next.cpp.obj
+[175/300] Building CXX object src\CMakeFiles\llama.dir\models\qwen3vl.cpp.obj
+[176/300] Building CXX object src\CMakeFiles\llama.dir\models\qwen3vlmoe.cpp.obj
+[177/300] Building CXX object src\CMakeFiles\llama.dir\models\refact.cpp.obj
+[178/300] Building CXX object src\CMakeFiles\llama.dir\models\rnd1.cpp.obj
+[179/300] Building CXX object src\CMakeFiles\llama.dir\models\rwkv6-base.cpp.obj
+[180/300] Building CXX object src\CMakeFiles\llama.dir\models\rwkv6.cpp.obj
+[181/300] Building CXX object src\CMakeFiles\llama.dir\models\rwkv6qwen2.cpp.obj
+[182/300] Building CXX object src\CMakeFiles\llama.dir\models\rwkv7-base.cpp.obj
+[183/300] Building CXX object src\CMakeFiles\llama.dir\models\seed-oss.cpp.obj
+[184/300] Building CXX object src\CMakeFiles\llama.dir\models\rwkv7.cpp.obj
+[185/300] Building CXX object src\CMakeFiles\llama.dir\models\starcoder.cpp.obj
+[186/300] Building CXX object src\CMakeFiles\llama.dir\models\smollm3.cpp.obj
+[187/300] Building CXX object src\CMakeFiles\llama.dir\models\smallthinker.cpp.obj
+[188/300] Building CXX object src\CMakeFiles\llama.dir\models\starcoder2.cpp.obj
+[189/300] Building CXX object src\CMakeFiles\llama.dir\models\stablelm.cpp.obj
+[190/300] Building CXX object src\CMakeFiles\llama.dir\models\step35.cpp.obj
+[191/300] Building CXX object common\CMakeFiles\llama-common-base.dir\build-info.cpp.obj
+[192/300] Linking CXX executable tools\ui\llama-ui-embed.exe
+[193/300] Linking CXX static library common\llama-common-base.lib
+[194/300] Building CXX object src\CMakeFiles\llama.dir\models\t5encoder.cpp.obj
+[195/300] Building CXX object src\CMakeFiles\llama.dir\models\talkie.cpp.obj
+[196/300] Building CXX object src\CMakeFiles\llama.dir\models\xverse.cpp.obj
+[197/300] Building CXX object src\CMakeFiles\llama.dir\models\t5.cpp.obj
+[198/300] Building CXX object src\CMakeFiles\llama.dir\models\wavtokenizer-dec.cpp.obj
+[199/300] Linking CXX shared library bin\llama.dll
+[200/300] Building CXX object common\CMakeFiles\llama-common.dir\common.cpp.obj
+[201/300] Building CXX object common\CMakeFiles\llama-common.dir\chat-auto-parser-helpers.cpp.obj
+[202/300] Building CXX object common\CMakeFiles\llama-common.dir\chat-auto-parser-generator.cpp.obj
+[203/300] Building CXX object common\CMakeFiles\llama-common.dir\console.cpp.obj
+[204/300] Building CXX object common\CMakeFiles\llama-common.dir\chat-peg-parser.cpp.obj
+[205/300] Building CXX object common\CMakeFiles\llama-common.dir\debug.cpp.obj
+[206/300] Building CXX object vendor\cpp-httplib\CMakeFiles\cpp-httplib.dir\httplib.cpp.obj
+[207/300] Building CXX object common\CMakeFiles\llama-common.dir\imatrix-loader.cpp.obj
+[208/300] Building CXX object common\CMakeFiles\llama-common.dir\fit.cpp.obj
+[209/300] Building CXX object common\CMakeFiles\llama-common.dir\llguidance.cpp.obj
+[210/300] Building CXX object common\CMakeFiles\llama-common.dir\chat-diff-analyzer.cpp.obj
+[211/300] Building CXX object common\CMakeFiles\llama-common.dir\log.cpp.obj
+[212/300] Building CXX object common\CMakeFiles\llama-common.dir\ngram-map.cpp.obj
+[213/300] Building CXX object common\CMakeFiles\llama-common.dir\ngram-cache.cpp.obj
+[214/300] Building CXX object common\CMakeFiles\llama-common.dir\ngram-mod.cpp.obj
+[215/300] Building CXX object common\CMakeFiles\llama-common.dir\hf-cache.cpp.obj
+[216/300] Building CXX object common\CMakeFiles\llama-common.dir\reasoning-budget.cpp.obj
+[217/300] Building CXX object common\CMakeFiles\llama-common.dir\chat.cpp.obj
+[218/300] Building CXX object common\CMakeFiles\llama-common.dir\download.cpp.obj
+[219/300] Building CXX object common\CMakeFiles\llama-common.dir\unicode.cpp.obj
+[220/300] Building CXX object common\CMakeFiles\llama-common.dir\preset.cpp.obj
+[221/300] Building CXX object common\CMakeFiles\llama-common.dir\json-schema-to-grammar.cpp.obj
+[222/300] Building CXX object common\CMakeFiles\llama-common.dir\sampling.cpp.obj
+[223/300] Building CXX object common\CMakeFiles\llama-common.dir\jinja\lexer.cpp.obj
+[224/300] Building CXX object common\CMakeFiles\llama-common.dir\speculative.cpp.obj
+[225/300] Linking CXX static library vendor\cpp-httplib\cpp-httplib.lib
+[226/300] Building CXX object common\CMakeFiles\llama-common.dir\jinja\string.cpp.obj
+[227/300] Building CXX object common\CMakeFiles\llama-common.dir\jinja\runtime.cpp.obj
+[228/300] Building CXX object common\CMakeFiles\llama-common.dir\jinja\parser.cpp.obj
+[229/300] Building CXX object common\CMakeFiles\llama-common.dir\jinja\value.cpp.obj
+[230/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\mtmd.cpp.obj
+[231/300] Building CXX object common\CMakeFiles\llama-common.dir\peg-parser.cpp.obj
+[232/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\mtmd-image.cpp.obj
+[233/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\mtmd-audio.cpp.obj
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data
+        with
+        [
+            _Ty=double
+        ]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310): note: the template instantiation context (the oldest one first) is
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\tools\mtmd\mtmd-audio.cpp(321): note: see reference to function template instantiation 'void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,double>(const _FwdIt,const _FwdIt,const double &)' being compiled
+        with
+        [
+            _Ty=float,
+            _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+        ]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data
+        with
+        [
+            _Ty=int
+        ]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310): note: the template instantiation context (the oldest one first) is
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\tools\mtmd\mtmd-audio.cpp(405): note: see reference to function template instantiation 'void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,int>(const _FwdIt,const _FwdIt,const int &)' being compiled
+        with
+        [
+            _Ty=float,
+            _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+        ]
+[234/300] Building CXX object common\CMakeFiles\llama-common.dir\jinja\caps.cpp.obj
+[235/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\cogvlm.cpp.obj
+[236/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\dotsocr.cpp.obj
+[237/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\conformer.cpp.obj
+[238/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\exaone4_5.cpp.obj
+[239/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\gemma4a.cpp.obj
+[240/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\gemma4v.cpp.obj
+[241/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\mtmd-helper.cpp.obj
+[242/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\gemma4ua.cpp.obj
+[243/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\gemma4uv.cpp.obj
+[244/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\clip.cpp.obj
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data
+        with
+        [
+            _Ty=double
+        ]
+C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310): note: the template instantiation context (the oldest one first) is
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\tools\mtmd\clip.cpp(3937): note: see reference to function template instantiation 'void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,double>(const _FwdIt,const _FwdIt,const double &)' being compiled
+        with
+        [
+            _Ty=float,
+            _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+        ]
+[245/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\glm4v.cpp.obj
+[246/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\granite-speech.cpp.obj
+[247/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\hunyuanvl.cpp.obj
+[248/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\granite4-vision.cpp.obj
+[249/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\internvl.cpp.obj
+[250/300] Building CXX object common\CMakeFiles\llama-common.dir\arg.cpp.obj
+[251/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\kimivl.cpp.obj
+[252/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\kimik25.cpp.obj
+[253/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\nemotron-v2-vl.cpp.obj
+[254/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\llama4.cpp.obj
+[255/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\llava.cpp.obj
+[256/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\minicpmv.cpp.obj
+[257/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\paddleocr.cpp.obj
+[258/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\pixtral.cpp.obj
+[259/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\qwen2vl.cpp.obj
+[260/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\qwen3vl.cpp.obj
+[261/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\mimovl.cpp.obj
+[262/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\qwen3a.cpp.obj
+[263/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\step3vl.cpp.obj
+[264/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\siglip.cpp.obj
+[265/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\whisper-enc.cpp.obj
+[266/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\deepseekocr.cpp.obj
+[267/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\deepseekocr2.cpp.obj
+[268/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\mobilenetv5.cpp.obj
+[269/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\youtuvl.cpp.obj
+[270/300] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\models\yasa2.cpp.obj
+[271/300] Linking CXX shared library bin\llama-common.dll
+[272/300] Building CXX object tools\server\CMakeFiles\server-context.dir\server-queue.cpp.obj
+[273/300] Building CXX object tools\server\CMakeFiles\server-context.dir\server-chat.cpp.obj
+[274/300] Building CXX object tools\server\CMakeFiles\server-context.dir\server-stream.cpp.obj
+[275/300] Linking CXX shared library bin\mtmd.dll
+[276/300] Building CXX object tools\llama-bench\CMakeFiles\llama-bench.dir\main.cpp.obj
+[277/300] Building CXX object tools\server\CMakeFiles\server-context.dir\server-common.cpp.obj
+[278/300] Building CXX object tools\server\CMakeFiles\server-context.dir\server-tools.cpp.obj
+[279/300] Building CXX object tools\server\CMakeFiles\server-context.dir\server-task.cpp.obj
+[280/300] Building CXX object tools\server\CMakeFiles\server-context.dir\server-context.cpp.obj
+[281/300] Building CXX object tools\server\CMakeFiles\server-context.dir\server-schema.cpp.obj
+[282/300] Linking CXX static library tools\server\server-context.lib
+[283/300] Building CXX object tools\llama-bench\CMakeFiles\llama-bench-impl.dir\llama-bench.cpp.obj
+[284/300] Linking CXX shared library bin\llama-bench-impl.dll
+[285/300] Linking CXX executable bin\llama-bench.exe
+[286/300] Provisioning UI assets
+-- UI: running npm install
+
+added 1035 packages, and audited 1036 packages in 2m
+
+347 packages are looking for funding
+  run `npm fund` for details
+
+24 vulnerabilities (2 low, 6 moderate, 11 high, 5 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+-- UI: running npm run build, output -> C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-llama-pc/tools/ui/dist
+
+> llama-ui@1.0.0 build
+> npm run build-pwa-assets && vite build
+
+
+> llama-ui@1.0.0 build-pwa-assets
+> npx @vite-pwa/assets-generator --root . --config pwa-assets.config.ts && npx @vite-pwa/assets-generator --root . --config pwa-assets-dark.config.ts && node scripts/make-icons-circular.js
+
+Zero Config PWA Assets Generator v1.0.2
+ΓùÉ Preparing to generate PWA assets...
+ΓùÉ Resolving instructions...
+Γ£ö PWA assets ready to be generated, instructions resolved
+ΓùÉ Generating PWA assets from static/favicon.svg image
+ΓùÉ Generating assets for static/favicon.svg...
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\pwa-64x64.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\pwa-192x192.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\pwa-512x512.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\maskable-icon-512x512.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-touch-icon-180x180.png
+Γ£ö Generated ICO file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\favicon.ico
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-2532x1170.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-1170x2532.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-2778x1284.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-1284x2778.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-1179x2556.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-2556x1179.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-2796x1290.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-1290x2796.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-640x1136.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-1206x2622.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-1136x640.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-1320x2868.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-2622x1206.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-2868x1320.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-750x1334.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-1334x750.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-1640x2360.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-2360x1640.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-1668x2388.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-2048x2732.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-1488x2266.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-2388x1668.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-dark-1170x2532.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-2732x2048.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-2266x1488.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-dark-1284x2778.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-dark-2532x1170.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-dark-2778x1284.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-dark-1179x2556.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-dark-2556x1179.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-dark-1290x2796.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-dark-2796x1290.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-dark-640x1136.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-dark-1206x2622.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-dark-1136x640.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-dark-2622x1206.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-dark-1334x750.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-dark-750x1334.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-dark-1320x2868.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-dark-2868x1320.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-dark-1640x2360.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-dark-2360x1640.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-dark-2048x2732.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-dark-1488x2266.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-portrait-dark-1668x2388.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-dark-2732x2048.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-dark-2388x1668.png
+Γ£ö Generated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\apple-splash-landscape-dark-2266x1488.png
+Γ£ö Assets generated for static/favicon.svg
+ΓùÉ Generating Html Head Links...
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" sizes="any" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-1170x2532.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-2532x1170.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-dark-1170x2532.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-dark-2532x1170.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-1284x2778.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-2778x1284.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-dark-1284x2778.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-dark-2778x1284.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-1179x2556.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-2556x1179.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-dark-1179x2556.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-dark-2556x1179.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-1290x2796.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-2796x1290.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-dark-1290x2796.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-dark-2796x1290.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-1206x2622.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-2622x1206.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-dark-1206x2622.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-dark-2622x1206.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-1320x2868.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-2868x1320.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-dark-1320x2868.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-dark-2868x1320.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-640x1136.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-1136x640.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-dark-640x1136.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-dark-1136x640.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-750x1334.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-1334x750.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-dark-750x1334.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-dark-1334x750.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-1640x2360.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-2360x1640.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-dark-1640x2360.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-dark-2360x1640.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-2048x2732.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-2732x2048.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-dark-2048x2732.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-dark-2732x2048.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-1668x2388.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-2388x1668.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-dark-1668x2388.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-dark-2388x1668.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-1488x2266.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-2266x1488.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-dark-1488x2266.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-dark-2266x1488.png">
+Γ£ö Html Head Links generated
+ΓùÉ Generating PWA web manifest icons entry...
+{
+  "icons": [
+    {
+      "src": "pwa-64x64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "maskable-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
+Γ£ö PWA web manifest icons entry generated
+Γ£ö PWA assets generated
+Zero Config PWA Assets Generator v1.0.2
+ΓùÉ Preparing to generate PWA assets...
+ΓùÉ Resolving instructions...
+Γ£ö PWA assets ready to be generated, instructions resolved
+ΓùÉ Generating PWA assets from static/favicon-dark.svg image
+ΓùÉ Generating assets for static/favicon-dark.svg...
+Γ£ö Generated ICO file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\ui-src\static\favicon-dark.ico
+Γ£ö Assets generated for static/favicon-dark.svg
+ΓùÉ Generating Html Head Links...
+<link rel="icon" href="/favicon-dark.ico" sizes="48x48">
+<link rel="icon" href="/favicon-dark.svg" sizes="any" type="image/svg+xml">
+Γ£ö Html Head Links generated
+ΓùÉ Generating PWA web manifest icons entry...
+{
+  "icons": []
+}
+Γ£ö PWA web manifest icons entry generated
+Γ£ö PWA assets generated
+Circular mask: 0% padding, 85% scale, source=maskable-icon-512x512.png
+
+Γ£ô pwa-64x64.png ΓåÆ circle from maskable-icon-512x512.png, 0% padding (size=64, r=32, scale=85%, circleDiameter=64)
+Γ£ô pwa-192x192.png ΓåÆ circle from maskable-icon-512x512.png, 0% padding (size=192, r=96, scale=85%, circleDiameter=192)
+Γ£ô pwa-512x512.png ΓåÆ circle from maskable-icon-512x512.png, 0% padding (size=512, r=256, scale=85%, circleDiameter=512)
+
+Unchanged:
+  maskable-icon-512x512.png (1894 bytes)
+  apple-touch-icon-180x180.png (806 bytes)
+vite v7.3.5 building ssr environment for production...
+transforming...
+Γ£ô 4866 modules transformed.
+rendering chunks...
+vite v7.3.5 building client environment for production...
+transforming...
+Γ£ô 7932 modules transformed.
+rendering chunks...
+computing gzip size...
+.svelte-kit/output/client/_app/version.json                              0.03 kB Γöé gzip:     0.05 kB
+.svelte-kit/output/client/.vite/manifest.json                            0.30 kB Γöé gzip:     0.18 kB
+.svelte-kit/output/client/manifest.webmanifest                           0.52 kB
+.svelte-kit/output/client/_app/immutable/assets/bundle.D23rWssn.css    512.69 kB Γöé gzip:   289.38 kB
+.svelte-kit/output/client/_app/immutable/bundle.CuVtHBeA.js          8,221.24 kB Γöé gzip: 2,388.85 kB
+Γ£ô built in 1m 10s
+Relativized base refs in index.html and sw.js
+.svelte-kit/output/server/.vite/manifest.json                                                         14.96 kB
+.svelte-kit/output/server/_app/immutable/assets/_page.CV-KWLNP.css                                     0.29 kB
+.svelte-kit/output/server/_app/immutable/assets/DialogConfirmation.bHHIbcsu.css                        0.35 kB
+.svelte-kit/output/server/_app/immutable/assets/_layout.Pq64rWaC.css                                 126.78 kB
+.svelte-kit/output/server/_app/immutable/assets/SidebarNavigationConversationItem.BNj3E6bH.css       384.79 kB
+.svelte-kit/output/server/chunks/app.js                                                                0.07 kB
+.svelte-kit/output/server/chunks/environment.js                                                        0.07 kB
+.svelte-kit/output/server/chunks/api-key-validation.js                                                 0.19 kB
+.svelte-kit/output/server/chunks/server.js                                                             0.20 kB
+.svelte-kit/output/server/chunks/device.svelte.js                                                      0.22 kB
+.svelte-kit/output/server/entries/pages/(chat)/_page.ts.js                                             0.29 kB
+.svelte-kit/output/server/entries/pages/(chat)/chat/_id_/_page.ts.js                                   0.31 kB
+.svelte-kit/output/server/chunks/arrow-right.js                                                        0.31 kB
+.svelte-kit/output/server/internal.js                                                                  0.37 kB
+.svelte-kit/output/server/chunks/dialog-title.js                                                       0.57 kB
+.svelte-kit/output/server/chunks/utils2.js                                                             0.60 kB
+.svelte-kit/output/server/entries/pages/settings/_layout.svelte.js                                     0.88 kB
+.svelte-kit/output/server/chunks/alert-dialog-action.js                                                0.93 kB
+.svelte-kit/output/server/entries/pages/(chat)/_page.svelte.js                                         1.13 kB
+.svelte-kit/output/server/entries/pages/(chat)/chat/_id_/_page.svelte.js                               1.22 kB
+.svelte-kit/output/server/chunks/ActionIcon.js                                                         1.44 kB
+.svelte-kit/output/server/chunks/exports.js                                                            1.46 kB
+.svelte-kit/output/server/chunks/url.js                                                                1.60 kB
+.svelte-kit/output/server/chunks/input.js                                                              1.66 kB
+.svelte-kit/output/server/chunks/render-context.js                                                     1.81 kB
+.svelte-kit/output/server/entries/pages/search/_page.svelte.js                                         2.02 kB
+.svelte-kit/output/server/chunks/label.js                                                              2.24 kB
+.svelte-kit/output/server/chunks/McpServerIdentity.js                                                  2.53 kB
+.svelte-kit/output/server/chunks/TruncatedText.js                                                      2.71 kB
+.svelte-kit/output/server/chunks/DialogModelNotAvailable.js                                            2.78 kB
+.svelte-kit/output/server/chunks/internal.js                                                           2.88 kB
+.svelte-kit/output/server/chunks/SidebarNavigationSearchResults.js                                     4.42 kB
+.svelte-kit/output/server/chunks/index.js                                                              4.51 kB
+.svelte-kit/output/server/entries/pages/mcp-servers/_page.svelte.js                                    5.03 kB
+.svelte-kit/output/server/chunks/dialog-footer.js                                                      5.69 kB
+.svelte-kit/output/server/chunks/index3.js                                                             5.72 kB
+.svelte-kit/output/server/chunks/workbox-window.prod.es5.js                                            5.75 kB
+.svelte-kit/output/server/chunks/KeyValuePairs.js                                                      6.54 kB
+.svelte-kit/output/server/entries/pages/_error.svelte.js                                               8.52 kB
+.svelte-kit/output/server/remote-entry.js                                                             14.02 kB
+.svelte-kit/output/server/chunks/utils.js                                                             15.12 kB
+.svelte-kit/output/server/chunks/popper-layer-force-mount.js                                          15.45 kB
+.svelte-kit/output/server/chunks/index2.js                                                            21.71 kB
+.svelte-kit/output/server/chunks/models.svelte.js                                                     35.69 kB
+.svelte-kit/output/server/chunks/root.js                                                              40.18 kB
+.svelte-kit/output/server/chunks/DialogConfirmation.js                                                41.81 kB
+.svelte-kit/output/server/entries/pages/_layout.svelte.js                                             42.18 kB
+.svelte-kit/output/server/chunks/url2.js                                                              52.94 kB
+.svelte-kit/output/server/index.js                                                                    57.10 kB
+.svelte-kit/output/server/entries/pages/settings/__section__/_page.svelte.js                          67.89 kB
+.svelte-kit/output/server/chunks/chat.svelte.js                                                       69.99 kB
+.svelte-kit/output/server/chunks/SidebarNavigationConversationItem.svelte_svelte_type_style_lang.js  141.09 kB
+.svelte-kit/output/server/entries/pages/(chat)/_layout.svelte.js                                     288.32 kB
+Γ£ô built in 2m 6s
+
+PWA v1.3.0
+mode      generateSW
+precache  62 entries (8744.52 KiB)
+files generated
+  .svelte-kit/output/server/sw.js
+  .svelte-kit/output/server/workbox-b3c04f83.js
+
+Run npm run preview to preview your production build locally.
+
+> Using @sveltejs/adapter-static
+Overwriting C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\tools\ui\dist\index.html with fallback page. Consider using a different name for the fallback.
+  Wrote site to "C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-llama-pc/tools/ui/dist"
+  Γ£ö done
+Generated 48 apple-splash link tags
+Updated index.html
+Created build.json (version: 9967)
+Relativized base refs in index.html and sw.js
+-- UI: npm build succeeded
+-- UI: gzip compression applied (C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-llama-pc/tools/ui/dist/_gzip)
+embed: write output file C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-llama-pc/tools/ui/ui.h
+embed: write output file C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-llama-pc/tools/ui/ui.cpp
+[287/300] Building CXX object tools\cli\CMakeFiles\llama-cli.dir\main.cpp.obj
+[288/300] Building CXX object tools\server\CMakeFiles\llama-server.dir\main.cpp.obj
+[289/300] Building CXX object tools\cli\CMakeFiles\llama-cli-impl.dir\cli-client.cpp.obj
+[290/300] Building CXX object tools\cli\CMakeFiles\llama-cli-impl.dir\cli.cpp.obj
+[291/300] Building CXX object tools\ui\CMakeFiles\llama-ui.dir\ui.cpp.obj
+[292/300] Linking CXX static library tools\ui\llama-ui.lib
+[293/300] Building CXX object tools\cli\CMakeFiles\llama-cli-impl.dir\cli-context.cpp.obj
+[294/300] Building CXX object tools\server\CMakeFiles\llama-server-impl.dir\server-http.cpp.obj
+[295/300] Building CXX object tools\server\CMakeFiles\llama-server-impl.dir\server.cpp.obj
+[296/300] Building CXX object tools\server\CMakeFiles\llama-server-impl.dir\server-models.cpp.obj
+[297/300] Linking CXX shared library bin\llama-server-impl.dll
+[298/300] Linking CXX executable bin\llama-server.exe
+[299/300] Linking CXX shared library bin\llama-cli-impl.dll
+[300/300] Linking CXX executable bin\llama-cli.exe

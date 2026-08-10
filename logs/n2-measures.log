@@ -1,0 +1,48 @@
+N2 ngram-mod floor...
+N2 draft-mtp...
+N2 draft-dflash...
+N2 draft-simple draft_4b...
+N2 draft-simple draft_2b...
+N2 draft-simple draft_0.8b...
+[
+  {
+    "tag": "ngram-mod",
+    "acceptance_rate": null,
+    "accepted": null,
+    "drafted": null,
+    "elapsed_s": 8.15653657913208,
+    "error": null,
+    "ready": true
+  },
+  {
+    "tag": "draft-mtp",
+    "acceptance_rate": null,
+    "accepted": null,
+    "drafted": null,
+    "elapsed_s": 8.511208534240723,
+    "error": null,
+    "ready": true
+  },
+  {
+    "tag": "draft-dflash",
+    "acceptance_rate": null,
+    "accepted": null,
+    "drafted": null,
+    "elapsed_s": null,
+    "error": "server not ready",
+    "ready": false
+  },
+  {
+    "tag": "draft_4b",
+    "error": "[WinError 10054] An existing connection was forcibly closed by the remote host"
+  },
+  {
+    "tag": "draft_2b",
+    "error": "[WinError 10054] An existing connection was forcibly closed by the remote host"
+  },
+  {
+    "tag": "draft_0.8b",
+    "error": "[WinError 10054] An existing connection was forcibly closed by the remote host"
+  }
+]
+DONE N2

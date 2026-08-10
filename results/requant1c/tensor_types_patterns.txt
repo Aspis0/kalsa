@@ -1,0 +1,15 @@
+ffn_gate_exps=q2_k
+ffn_up_exps=q2_k
+ffn_down_exps=q3_k
+attn_gate.weight=q5_k
+attn_k.weight=q5_k
+attn_output.weight=q5_k
+attn_q.weight=q5_k
+attn_qkv.weight=q5_k
+attn_v.weight=q5_k
+ffn_down_shexp.weight=q6_k
+ffn_gate_shexp.weight=q5_k
+ffn_up_shexp.weight=q5_k
+output.weight=q4_k
+ssm_out.weight=q6_k
+token_embd.weight=q5_k

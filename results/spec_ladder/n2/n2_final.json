@@ -1,0 +1,36 @@
+{
+  "draft_mtp_live": {
+    "alpha": 0.6,
+    "accepted": 33,
+    "drafted": 55,
+    "mean_accept_len": 3.36,
+    "verdict": "VERDE",
+    "target": "IQ1_M",
+    "caveat": "poor quant conservative"
+  },
+  "draft_simple_offline": {
+    "0.8b": {
+      "alpha": 0.4444444444444444,
+      "verdict": "ROSSO",
+      "e_accept_k4": 1.7130434782608697,
+      "mean_run_length": 1.9942028985507247,
+      "total_pos": 1548
+    },
+    "2b": {
+      "alpha": 0.49483204134366926,
+      "verdict": "GIALLO",
+      "e_accept_k4": 1.8523676880222841,
+      "mean_run_length": 2.1337047353760448,
+      "total_pos": 1548
+    },
+    "4b": {
+      "alpha": 0.5445736434108527,
+      "verdict": "GIALLO",
+      "e_accept_k4": 1.956772334293948,
+      "mean_run_length": 2.4293948126801155,
+      "total_pos": 1548
+    }
+  },
+  "dflash": "FAIL missing target_layers",
+  "draft_simple_live": "FAIL GGML_ASSERT n_outputs_max"
+}

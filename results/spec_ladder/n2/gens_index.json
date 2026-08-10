@@ -1,0 +1,42 @@
+[
+  {
+    "name": "d1_long-k8.gen",
+    "text": "L\u2019orologio digitale sul muro della carrozza 7 segna con precisione chirurgica le 23:17, un\u2019ora che non appartiene a nessuno e a tutti allo stesso tempo, sospesa tra la fine della giornata e l\u2019inizio di un sogno che non si vuole fare. Il finestrino lato corridoio \u00e8 appannato da una nebbia fredda che si forma ogni volta che il treno attraversa una galleria, e attraverso quel vetro opaco si intravede solo un frammento del paesaggio milanese che si dissolve nella notte, sostituito da luci al neon che sfociano via come stelle cadute. La valigia blu, con la cerniera arrugginita e l\u2019etichetta del viaggio ancora appiccicata sul lato, poggia sul pavimento accanto al mio piede, un peso silenzioso che contiene anni di silenzi e di assenze, pronta a essere riportata a casa dopo una lontananza durata troppo a lungo. Il biglietto, con il posto 14B stampato in caratteri neri e definiti, \u00e8 il mio unico ancoraggio a questa realt\u00e0 mobile, un pezzo di carta che mi dice dove devo stare, dove devo essere, mentre",
+    "n_chars": 1006
+  },
+  {
+    "name": "f45_1_esplicativo-k8.gen",
+    "text": "Un modello Mixture-of-Experts (MoE) \u00e8 un\u2019architettura neurale che divide i parametri in \"esperti\" specializzati. A differenza dei modelli densi, dove ogni token attiva tutti i parametri, un MoE attiva solo un sottoinsieme selezionato tramite un meccanismo di routing (instradamento).\n\nSu uno smartphone con 8 GB di RAM, un MoE da 35B parametri ma con soli 3B attivi per token \u00e8 pi\u00f9 pratico di un denso da 7B per due motivi chiave. Innanzitutto, la memoria: caricare un denso da 7B (FP16) richiede circa 14 GB, superando la RAM disponibile. Il MoE, invece, mantiene i 35B parametri sul disco (o nella memoria non volatile), caricando in RAM solo gli esperti attivi (circa 6 GB), permettendo l\u2019esecuzione senza crash.\n\nSecondo, lo streaming da flash: grazie al",
+    "n_chars": 758
+  },
+  {
+    "name": "f45_2_scrittura-k8.gen",
+    "text": "Ciao,\n\nper il test dell\u2019app di chat on-device su Samsung S23, stiamo utilizzando un modello MoE quantizzato a circa 2.4 bit per peso. L\u2019obiettivo \u00e8 verificare le prestazioni in scenari reali.\n\nLa velocit\u00e0 attesa \u00e8 di circa 5 token al secondo. Per garantire che il processo resti in foreground e non venga sospeso dal sistema, \u00e8 fondamentale mantenere lo schermo acceso durante l\u2019intera sessione.\n\nPer favore, annota con precisione:\n- La temperatura del dispositivo durante il test.\n- Il consumo di batteria.\n- I token generati al secondo (tok/s) effettivi.\n\nGrazie per la collaborazione.",
+    "n_chars": 587
+  },
+  {
+    "name": "f45_3_istruzioni-k8.gen",
+    "text": "Misurare le prestazioni a batteria scarica rivela i limiti termici e la degradazione della tensione, mentre il test a batteria piena non sempre evidenzia questi colli di bottiglia critici.\nLa stabilit\u00e0 della frequenza di clock tende a crollare sotto carico quando l'alimentazione \u00e8 ridotta, un fenomeno che rimane nascuro con una carica ottimale.\nQuesto approccio differenziato permette di identificare le reali capacit\u00e0 di gestione dell'energia del dispositivo in condizioni estreme.\nQuali sono i valori di temperatura massima raggiunti durante il test a batteria scarica?\nQuale \u00e8 il calo percentuale delle prestazioni rispetto al test a batteria piena?",
+    "n_chars": 654
+  },
+  {
+    "name": "f45_4_codice-k8.gen",
+    "text": "```python\ndef median_eval_tok_s(rows):\n    \"\"\"Return the median of eval_tok_s for rows where nproc is not None and nproc >= 6.\n    \n    Ignores rows with missing eval_tok_s. Returns None if fewer than 1 valid value remains.\n    \"\"\"\n    valid_values = []\n    for row in rows:\n        eval_tok_s = row.get(\"eval_tok_s\")\n        nproc = row.get(\"nproc\")\n        if eval_tok_s is None:\n            continue\n        if nproc is None or nproc < 6:\n            continue\n        valid_values.append(eval_tok_s)\n    \n    if len(valid_values) < 1:\n        return None\n    \n    valid_values.sort()\n    n = len(valid_values)\n    if n % 2 == 1:\n        return valid_values[n // 2]\n    else:\n        mid = n // 2",
+    "n_chars": 698
+  },
+  {
+    "name": "f45_5_ragionamento-k8.gen",
+    "text": "La spiegazione pi\u00f9 plausibile \u00e8 la **(B) il processo \u00e8 finito in un cpuset con solo 3 core little**.\n\nI benchmark MoE moderni sono altamente parallelizzati e richiedono multi-threading; passare da 8 core a 3 core \"little\" (generalmente lenti) ridurrebbe drasticamente la velocit\u00e0 da 5.0 a circa 1.2 tok/s, mentre un throttle termico (A) causerebbe un calo graduale, non un salto netto tra run separati. La quantizzazione (C) influisce sulla velocit\u00e0 ma non giusterebbe un divario cos\u00ec ampio senza altri cambiamenti hardware.\n\nPer verificare, controlla il file `/proc/<pid>/status` cercando la riga `Cpus_allowed_list` per confermare i core assegnati.",
+    "n_chars": 650
+  },
+  {
+    "name": "long_conversational_it-k8.gen",
+    "text": "Il treno scivolava nell\u2019oscurit\u00e0 come una bestia silenziosa e pesante, il suo respiro meccanico un battito costante che rimbombava nel petto di Luca, seduto da ore nella sua cabina numero quattro del letto con la porta socchiusa a spiracchi di luce. Fuori, la pianura padana si era dissolta in una nebbia densa e grigia, trasformata in un velo di cenere che il vento spingeva contro i vetri con insistenza, mentre le luci dei paesi addormentati si accendevano e si spegnevano in sequenze irregolari, come pulsazioni di un cuore gigante e invisibile. Luca aveva gli occhi fissi su quel vuoto liquido, ma la sua mente non era l\u00ec; era tornata indietro, attraversando decenni di silenzi e distanze, fino a quel pomeriggio di vent\u2019anni prima quando aveva lasciato Milano con una valigia stracolma di sogni malinconici e la certezza di non tornare mai, o almeno, non per molto. Ora, il biglietto in tasca gli pesava come una condanna o forse come una redenzione, a seconda di come guardava la data stampata sulla carta: Napoli,",
+    "n_chars": 1021
+  },
+  {
+    "name": "short-k8.gen",
+    "text": "A 4B model fits entirely within the 8GB RAM, allowing the system to keep all weights in fast memory for immediate access, whereas the 35B MoE model exceeds available RAM and must constantly swap inactive experts between the slower flash storage and RAM. This frequent data movement creates significant page faults and I/O bottlenecks, as the system struggles to fetch the correct expert subsets quickly enough to maintain smooth inference speeds.\n\n*   **Memory Footprint and Page Faults:** The 4B model\u2019s compact size avoids the need for constant swapping, while the larger MoE model triggers excessive page faults because its total parameter count far exceeds the 8GB limit, forcing the OS to repeatedly move data between RAM and UFS 3.1 storage.\n*   **Thermal Limits:** The intense I/O operations required to stream experts from flash storage generate substantial heat, pushing the smartphone\u2019s thermal limits and potentially triggering throttling that degrades performance, whereas the self-contained",
+    "n_chars": 1003
+  }
+]

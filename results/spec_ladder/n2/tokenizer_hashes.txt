@@ -1,0 +1,8 @@
+Qwen3.6-35B-A3B-UD-IQ1_M.gguf	qwen35moe	tok=49930cc8a75188cf	merges=2d0d7c583fcdbbcc	n=248320
+Qwen3.5-4B-Q4_K_M.gguf	qwen35	tok=49930cc8a75188cf	merges=2d0d7c583fcdbbcc	n=248320
+Qwen3.5-2B-Q4_K_M.gguf	qwen35	tok=49930cc8a75188cf	merges=2d0d7c583fcdbbcc	n=248320
+Qwen3.5-0.8B-Q4_K_M.gguf	qwen35	tok=49930cc8a75188cf	merges=2d0d7c583fcdbbcc	n=248320
+Qwen3-1.7B-Q4_K_M.gguf	qwen3	tok=b6d97582280f5647	merges=7dd03eeaab5131cb	n=151936
+Qwen3-0.6B-Q4_K_M.gguf	qwen3	tok=b6d97582280f5647	merges=7dd03eeaab5131cb	n=151936
+Qwen3.6-35B-A3B-DFlash-Q4_K_M.gguf	dflash	tok=49930cc8a75188cf	merges=2d0d7c583fcdbbcc	n=248320
+mtp-Qwen3.6-35B-A3B-Q4_0.gguf	qwen35moe	tok=49930cc8a75188cf	merges=2d0d7c583fcdbbcc	n=248320

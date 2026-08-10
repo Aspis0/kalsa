@@ -1,0 +1,1312 @@
+
+[notice] A new release of pip is available: 26.1.1 -> 26.2.1
+[notice] To update, run: python.exe -m pip install --upgrade pip
+-cpp-python
+  Using cached llama_cpp_python-0.3.34.tar.gz (71.6 MB)
+  Installing build dependencies: started
+  Running command installing build dependencies for llama-cpp-python
+  Using pip 26.1.1 from C:\Users\gualt\AppData\Local\Programs\Python\Python312\Lib\site-packages\pip (python 3.12)
+  Collecting scikit-build-core>=0.9.2 (from scikit-build-core[pyproject]>=0.9.2)
+    Obtaining dependency information for scikit-build-core>=0.9.2 from https://files.pythonhosted.org/packages/b7/b0/7ad8fa9aebb0835b2e20afebf1483cbe175d1612fe01e85042ce9ced8755/scikit_build_core-1.0.3-py3-none-any.whl.metadata
+    Using cached scikit_build_core-1.0.3-py3-none-any.whl.metadata (19 kB)
+  Collecting packaging>=23.2 (from scikit-build-core>=0.9.2->scikit-build-core[pyproject]>=0.9.2)
+    Obtaining dependency information for packaging>=23.2 from https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl.metadata
+    Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+  Collecting pathspec>=0.12.0 (from scikit-build-core>=0.9.2->scikit-build-core[pyproject]>=0.9.2)
+    Obtaining dependency information for pathspec>=0.12.0 from https://files.pythonhosted.org/packages/f1/d9/7fb5aa316bc299258e68c73ba3bddbc499654a07f151cba08f6153988714/pathspec-1.1.1-py3-none-any.whl.metadata
+    Using cached pathspec-1.1.1-py3-none-any.whl.metadata (14 kB)
+  WARNING: scikit-build-core 1.0.3 does not provide the extra 'pyproject'
+  Using cached scikit_build_core-1.0.3-py3-none-any.whl (278 kB)
+  Using cached packaging-26.3-py3-none-any.whl (129 kB)
+  Using cached pathspec-1.1.1-py3-none-any.whl (57 kB)
+  Installing collected packages: pathspec, packaging, scikit-build-core
+    Creating C:\Users\gualt\AppData\Local\Temp\pip-build-env-x9qt8ruq\overlay\Scripts
+
+  Successfully installed packaging-26.3 pathspec-1.1.1 scikit-build-core-1.0.3
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Running command Getting requirements to build wheel
+  Getting requirements to build wheel: finished with status 'done'
+  Installing backend dependencies: started
+  Running command installing backend dependencies for llama-cpp-python
+  Using pip 26.1.1 from C:\Users\gualt\AppData\Local\Programs\Python\Python312\Lib\site-packages\pip (python 3.12)
+  Collecting cmake>=3.21
+    Obtaining dependency information for cmake>=3.21 from https://files.pythonhosted.org/packages/06/9e/3e572a9a8966eec43b6d75b8b8d9543ca2182ec4006a538fb239e004a3cf/cmake-4.4.2-py3-none-win_amd64.whl.metadata
+    Using cached cmake-4.4.2-py3-none-win_amd64.whl.metadata (7.0 kB)
+  Using cached cmake-4.4.2-py3-none-win_amd64.whl (42.3 MB)
+  Installing collected packages: cmake
+    Creating C:\Users\gualt\AppData\Local\Temp\pip-build-env-x9qt8ruq\normal\Scripts
+  Successfully installed cmake-4.4.2
+  Installing backend dependencies: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Running command Preparing metadata (pyproject.toml)
+  *** scikit-build-core 1.0.3 using CMake 4.4.2 (metadata_wheel)
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: typing-extensions>=4.5.0 in C:\Users\gualt\AppData\Local\Programs\Python\Python312\Lib\site-packages (from llama-cpp-python) (4.15.0)
+Requirement already satisfied: numpy>=1.20.0 in C:\Users\gualt\AppData\Local\Programs\Python\Python312\Lib\site-packages (from llama-cpp-python) (2.4.4)
+Collecting diskcache>=5.6.1 (from llama-cpp-python)
+  Obtaining dependency information for diskcache>=5.6.1 from https://files.pythonhosted.org/packages/3f/27/4570e78fc0bf5ea0ca45eb1de3818a23787af9b390c0b0a0033a1b8236f9/diskcache-5.6.3-py3-none-any.whl.metadata
+  Using cached diskcache-5.6.3-py3-none-any.whl.metadata (20 kB)
+Requirement already satisfied: jinja2>=2.11.3 in C:\Users\gualt\AppData\Local\Programs\Python\Python312\Lib\site-packages (from llama-cpp-python) (3.1.6)
+Requirement already satisfied: MarkupSafe>=2.0 in C:\Users\gualt\AppData\Local\Programs\Python\Python312\Lib\site-packages (from jinja2>=2.11.3->llama-cpp-python) (3.0.3)
+Using cached diskcache-5.6.3-py3-none-any.whl (45 kB)
+Building wheels for collected packages: llama-cpp-python
+  Building wheel for llama-cpp-python (pyproject.toml): started
+  Running command Building wheel for llama-cpp-python (pyproject.toml)
+  *** scikit-build-core 1.0.3 using CMake 4.4.2 (wheel)
+  *** Configuring CMake...
+  loading initial cache file C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\CMakeInit.txt
+  -- Building for: Visual Studio 17 2022
+  -- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+  -- The C compiler identification is MSVC 19.44.35227.0
+  -- The CXX compiler identification is MSVC 19.44.35227.0
+  -- Detecting C compiler ABI info
+  -- Detecting C compiler ABI info - done
+  -- Check for working C compiler: C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+  -- Detecting C compile features
+  -- Detecting C compile features - done
+  -- Detecting CXX compiler ABI info
+  -- Detecting CXX compiler ABI info - done
+  -- Check for working CXX compiler: C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+  -- Detecting CXX compile features
+  -- Detecting CXX compile features - done
+  CMAKE_BUILD_TYPE=
+  -- Found Git: C:/Program Files/Git/mingw64/bin/git.exe (found version "2.54.0.windows.1")
+  -- The ASM compiler identification is MSVC
+  CMake Warning (policy) at C:/Users/gualt/AppData/Local/Temp/pip-build-env-x9qt8ruq/normal/Lib/site-packages/cmake/data/share/cmake-4.4/Modules/CMakeDetermineASMCompiler.cmake:237 (cmake_policy):
+    Policy CMP0194 is not set: MSVC is not an assembler for language ASM.  Run
+    "cmake --help-policy CMP0194" for policy details.  Use the cmake_policy
+    command to set the policy and suppress this warning.
+  Call Stack (most recent call first):
+    vendor/llama.cpp/ggml/CMakeLists.txt:3 (project)
+  This warning is for project developers.  Use -Wno-author or -Wno-policy to
+  suppress it.
+
+  -- Found assembler: C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe
+  -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+  -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+  -- Looking for pthread_create in pthreads
+  -- Looking for pthread_create in pthreads - not found
+  -- Looking for pthread_create in pthread
+  -- Looking for pthread_create in pthread - not found
+  -- Found Threads: TRUE
+  -- Warning: ccache not found - consider installing it for faster compilation or disable this warning with GGML_CCACHE=OFF
+  -- CMAKE_SYSTEM_PROCESSOR: AMD64
+  -- CMAKE_GENERATOR_PLATFORM: x64
+  -- GGML_SYSTEM_ARCH: x86
+  -- Found OpenMP_C: -openmp (found version "2.0")
+  -- Found OpenMP_CXX: -openmp (found version "2.0")
+  -- Found OpenMP: TRUE (found version "2.0")
+  -- Including CPU backend
+  -- x86 detected
+  -- Performing Test HAS_AVX_1
+  -- Performing Test HAS_AVX_1 - Success
+  -- Performing Test HAS_AVX2_1
+  -- Performing Test HAS_AVX2_1 - Success
+  -- Performing Test HAS_FMA_1
+  -- Performing Test HAS_FMA_1 - Success
+  -- Performing Test HAS_AVX512_1
+  -- Performing Test HAS_AVX512_1 - Failed
+  -- Performing Test HAS_AVX512_2
+  -- Performing Test HAS_AVX512_2 - Failed
+  -- Adding CPU backend variant ggml-cpu: /arch:AVX2 GGML_AVX2;GGML_FMA;GGML_F16C
+  -- ggml version: 0.16.0
+  -- ggml commit:  e3546c7-dirty
+  -- Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR (missing: OPENSSL_CRYPTO_LIBRARY OPENSSL_INCLUDE_DIR)
+  CMake Warning at vendor/llama.cpp/vendor/cpp-httplib/CMakeLists.txt:152 (message):
+    OpenSSL not found, HTTPS support disabled
+
+
+  CMake Warning (author) at CMakeLists.txt:20 (install):
+    Target llama has PUBLIC_HEADER files but no PUBLIC_HEADER DESTINATION.
+  Call Stack (most recent call first):
+    CMakeLists.txt:142 (llama_cpp_python_install_target)
+  This warning is for project developers.  Use -Wno-author to suppress it.
+
+  CMake Warning (author) at CMakeLists.txt:29 (install):
+    Target llama has PUBLIC_HEADER files but no PUBLIC_HEADER DESTINATION.
+  Call Stack (most recent call first):
+    CMakeLists.txt:142 (llama_cpp_python_install_target)
+  This warning is for project developers.  Use -Wno-author to suppress it.
+
+  CMake Warning (author) at CMakeLists.txt:20 (install):
+    Target ggml has PUBLIC_HEADER files but no PUBLIC_HEADER DESTINATION.
+  Call Stack (most recent call first):
+    CMakeLists.txt:143 (llama_cpp_python_install_target)
+  This warning is for project developers.  Use -Wno-author to suppress it.
+
+  CMake Warning (author) at CMakeLists.txt:29 (install):
+    Target ggml has PUBLIC_HEADER files but no PUBLIC_HEADER DESTINATION.
+  Call Stack (most recent call first):
+    CMakeLists.txt:143 (llama_cpp_python_install_target)
+  This warning is for project developers.  Use -Wno-author to suppress it.
+
+  CMake Warning (author) at CMakeLists.txt:20 (install):
+    Target mtmd has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION.
+  Call Stack (most recent call first):
+    CMakeLists.txt:225 (llama_cpp_python_install_target)
+  This warning is for project developers.  Use -Wno-author to suppress it.
+
+  CMake Warning (author) at CMakeLists.txt:20 (install):
+    Target mtmd has PUBLIC_HEADER files but no PUBLIC_HEADER DESTINATION.
+  Call Stack (most recent call first):
+    CMakeLists.txt:225 (llama_cpp_python_install_target)
+  This warning is for project developers.  Use -Wno-author to suppress it.
+
+  CMake Warning (author) at CMakeLists.txt:29 (install):
+    Target mtmd has PRIVATE_HEADER files but no PRIVATE_HEADER DESTINATION.
+  Call Stack (most recent call first):
+    CMakeLists.txt:225 (llama_cpp_python_install_target)
+  This warning is for project developers.  Use -Wno-author to suppress it.
+
+  CMake Warning (author) at CMakeLists.txt:29 (install):
+    Target mtmd has PUBLIC_HEADER files but no PUBLIC_HEADER DESTINATION.
+  Call Stack (most recent call first):
+    CMakeLists.txt:225 (llama_cpp_python_install_target)
+  This warning is for project developers.  Use -Wno-author to suppress it.
+
+  -- Configuring done (27.3s)
+  -- Generating done (1.4s)
+  -- Build files have been written to: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build
+  *** Building project with Visual Studio 17 2022...
+  Change Dir: 'C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build'
+
+  Run Build Command(s): "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin/amd64/MSBuild.exe" ALL_BUILD.vcxproj /p:Configuration=Release /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+  MSBuild version 17.14.40+3e7442088 for .NET Framework
+  Build started 8/10/2026 10:36:22 AM.
+
+  Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" on node 1 (default targets).
+  Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (1) is building "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ZERO_CHECK.vcxproj" (2) on node 1 (default targets).
+  PrepareForBuild:
+    Creating directory "x64\Release\ZERO_CHECK\".
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ZERO_CHECK.vcxproj]
+    Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+    Creating directory "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\".
+  InitializeBuildStatus:
+    Creating "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+    Touching "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild".
+  CustomBuild:
+    1>Checking Build System
+  FinalizeBuildStatus:
+    Deleting file "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild".
+    Touching "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\ZERO_CHECK.lastbuildstate".
+  Done Building Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ZERO_CHECK.vcxproj" (default targets).
+  Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (1) is building "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\vendor\cpp-httplib\cpp-httplib.vcxproj" (3) on node 1 (default targets).
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\vendor\cpp-httplib\cpp-httplib.vcxproj]
+    Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+    Creating directory "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\vendor\cpp-httplib\Release\".
+    Creating directory "cpp-httplib.dir\Release\cpp-httplib.tlog\".
+  InitializeBuildStatus:
+    Creating "cpp-httplib.dir\Release\cpp-httplib.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+    Touching "cpp-httplib.dir\Release\cpp-httplib.tlog\unsuccessfulbuild".
+  CustomBuild:
+    Building Custom Rule C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/vendor/cpp-httplib/CMakeLists.txt
+  ClCompile:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D CPPHTTPLIB_FORM_URL_ENCODED_PAYLOAD_MAX_LENGTH=1048576 /D CPPHTTPLIB_LISTEN_BACKLOG=512 /D CPPHTTPLIB_REQUEST_URI_MAX_LENGTH=32768 /D CPPHTTPLIB_TCP_NODELAY=1 /D _CRT_SECURE_NO_WARNINGS /D "CMAKE_INTDIR=\"Release\"" /EHsc /MD /std:c++17 /Fo"cpp-httplib.dir\Release\\" /Fd"C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\vendor\cpp-httplib\Release\cpp-httplib.pdb" /external:W1 /TP /errorReport:queue  /utf-8 /bigobj /w "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\vendor\cpp-httplib\httplib.cpp"
+  cl : command line  warning D9025: overriding '/W1' with '/w' [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\vendor\cpp-httplib\cpp-httplib.vcxproj]
+    httplib.cpp
+  Lib:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\Lib.exe /OUT:"C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\vendor\cpp-httplib\Release\cpp-httplib.lib" /NOLOGO /MACHINE:X64  /machine:x64 "cpp-httplib.dir\Release\httplib.obj"
+    cpp-httplib.vcxproj -> C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\vendor\cpp-httplib\Release\cpp-httplib.lib
+  FinalizeBuildStatus:
+    Deleting file "cpp-httplib.dir\Release\cpp-httplib.tlog\unsuccessfulbuild".
+    Touching "cpp-httplib.dir\Release\cpp-httplib.tlog\cpp-httplib.lastbuildstate".
+  Done Building Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\vendor\cpp-httplib\cpp-httplib.vcxproj" (default targets).
+  Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (1) is building "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml.vcxproj" (4) on node 1 (default targets).
+  Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml.vcxproj" (4) is building "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml-base.vcxproj" (5) on node 1 (default targets).
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml-base.vcxproj]
+    Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+    Creating directory "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\bin\Release\".
+    Creating directory "ggml-base.dir\Release\ggml-base.tlog\".
+  InitializeBuildStatus:
+    Creating "ggml-base.dir\Release\ggml-base.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+    Touching "ggml-base.dir\Release\ggml-base.tlog\unsuccessfulbuild".
+  CustomBuild:
+    Building Custom Rule C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/ggml/src/CMakeLists.txt
+  ClCompile:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D GGML_USE_OPENMP /D GGML_BUILD /D GGML_SHARED /D "GGML_VERSION=\"0.16.0\"" /D "GGML_COMMIT=\"e3546c7-dirty\"" /D _CRT_SECURE_NO_WARNINGS /D GGML_SCHED_MAX_COPIES=4 /D _XOPEN_SOURCE=600 /D "CMAKE_INTDIR=\"Release\"" /D ggml_base_EXPORTS /EHsc /MD /openmp /std:c11 /Fo"ggml-base.dir\Release\ggml.c.obj" /Fd"ggml-base.dir\Release\vc143.pdb" /external:W1 /TC /wd4005 /wd4244 /wd4267 /wd4305 /wd4566 /wd4996 /wd4702 /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml.c"
+    ggml.c
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D GGML_USE_OPENMP /D GGML_BUILD /D GGML_SHARED /D "GGML_VERSION=\"0.16.0\"" /D "GGML_COMMIT=\"e3546c7-dirty\"" /D _CRT_SECURE_NO_WARNINGS /D GGML_SCHED_MAX_COPIES=4 /D _XOPEN_SOURCE=600 /D "CMAKE_INTDIR=\"Release\"" /D ggml_base_EXPORTS /EHsc /MD /openmp /std:c++17 /Fo"ggml-base.dir\Release\ggml.cpp.obj" /Fd"ggml-base.dir\Release\vc143.pdb" /external:W1 /TP /wd4005 /wd4244 /wd4267 /wd4305 /wd4566 /wd4996 /wd4702 /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml.cpp"
+    ggml.cpp
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D GGML_USE_OPENMP /D GGML_BUILD /D GGML_SHARED /D "GGML_VERSION=\"0.16.0\"" /D "GGML_COMMIT=\"e3546c7-dirty\"" /D _CRT_SECURE_NO_WARNINGS /D GGML_SCHED_MAX_COPIES=4 /D _XOPEN_SOURCE=600 /D "CMAKE_INTDIR=\"Release\"" /D ggml_base_EXPORTS /EHsc /MD /openmp /std:c11 /Fo"ggml-base.dir\Release\\" /Fd"ggml-base.dir\Release\vc143.pdb" /external:W1 /TC /wd4005 /wd4244 /wd4267 /wd4305 /wd4566 /wd4996 /wd4702 /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-alloc.c" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-quants.c"
+    ggml-alloc.c
+    ggml-quants.c
+    Generating Code...
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D GGML_USE_OPENMP /D GGML_BUILD /D GGML_SHARED /D "GGML_VERSION=\"0.16.0\"" /D "GGML_COMMIT=\"e3546c7-dirty\"" /D _CRT_SECURE_NO_WARNINGS /D GGML_SCHED_MAX_COPIES=4 /D _XOPEN_SOURCE=600 /D "CMAKE_INTDIR=\"Release\"" /D ggml_base_EXPORTS /EHsc /MD /openmp /std:c++17 /Fo"ggml-base.dir\Release\\" /Fd"ggml-base.dir\Release\vc143.pdb" /external:W1 /TP /wd4005 /wd4244 /wd4267 /wd4305 /wd4566 /wd4996 /wd4702 /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-backend.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-backend-meta.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-opt.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-threading.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\gguf.cpp"
+    ggml-backend.cpp
+    ggml-backend-meta.cpp
+    ggml-opt.cpp
+    ggml-threading.cpp
+    gguf.cpp
+    Generating Code...
+  MakeDirsForLink:
+    Creating directory "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\Release\".
+  Link:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\link.exe /OUT:"C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\bin\Release\ggml-base.dll" /VERSION:"0.16" /INCREMENTAL:NO /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/bin/Release/ggml-base.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/ggml/src/Release/ggml-base.lib" /MACHINE:X64  /machine:x64 /DLL "ggml-base.dir\Release\ggml-alloc.obj"
+    "ggml-base.dir\Release\ggml-backend.obj"
+    "ggml-base.dir\Release\ggml-backend-meta.obj"
+    "ggml-base.dir\Release\ggml-opt.obj"
+    "ggml-base.dir\Release\ggml-threading.obj"
+    "ggml-base.dir\Release\ggml-quants.obj"
+    "ggml-base.dir\Release\gguf.obj"
+    "ggml-base.dir\Release\ggml.c.obj"
+    "ggml-base.dir\Release\ggml.cpp.obj"
+       Creating library C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/ggml/src/Release/ggml-base.lib and object C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/ggml/src/Release/ggml-base.exp
+    ggml-base.vcxproj -> C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\bin\Release\ggml-base.dll
+  FinalizeBuildStatus:
+    Deleting file "ggml-base.dir\Release\ggml-base.tlog\unsuccessfulbuild".
+    Touching "ggml-base.dir\Release\ggml-base.tlog\ggml-base.lastbuildstate".
+  Done Building Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml-base.vcxproj" (default targets).
+  Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml.vcxproj" (4) is building "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml-cpu.vcxproj" (6) on node 1 (default targets).
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml-cpu.vcxproj]
+    Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+    Creating directory "ggml-cpu.dir\Release\ggml-cpu.tlog\".
+  InitializeBuildStatus:
+    Creating "ggml-cpu.dir\Release\ggml-cpu.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+    Touching "ggml-cpu.dir\Release\ggml-cpu.tlog\unsuccessfulbuild".
+  CustomBuild:
+    Building Custom Rule C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/ggml/src/CMakeLists.txt
+  MakeDirsForCl:
+    Creating directory "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml-cpu.dir\Release\ggml-cpu".
+    Creating directory "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml-cpu.dir\Release\ggml-cpu\arch\x86".
+  ClCompile:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\.." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D GGML_BACKEND_BUILD /D GGML_BACKEND_SHARED /D GGML_USE_OPENMP /D GGML_USE_LLAMAFILE /D GGML_USE_CPU_REPACK /D GGML_AVX2 /D GGML_FMA /D GGML_F16C /D _CRT_SECURE_NO_WARNINGS /D GGML_SCHED_MAX_COPIES=4 /D _XOPEN_SOURCE=600 /D GGML_SHARED /D "CMAKE_INTDIR=\"Release\"" /D ggml_cpu_EXPORTS /EHsc /MD /arch:AVX2 /openmp /std:c11 /Fo"ggml-cpu.dir\Release\ggml-cpu/ggml-cpu.c.obj" /Fd"ggml-cpu.dir\Release\vc143.pdb" /external:W1 /TC /wd4005 /wd4244 /wd4267 /wd4305 /wd4566 /wd4996 /wd4702 /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\ggml-cpu.c"
+    ggml-cpu.c
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\.." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D GGML_BACKEND_BUILD /D GGML_BACKEND_SHARED /D GGML_USE_OPENMP /D GGML_USE_LLAMAFILE /D GGML_USE_CPU_REPACK /D GGML_AVX2 /D GGML_FMA /D GGML_F16C /D _CRT_SECURE_NO_WARNINGS /D GGML_SCHED_MAX_COPIES=4 /D _XOPEN_SOURCE=600 /D GGML_SHARED /D "CMAKE_INTDIR=\"Release\"" /D ggml_cpu_EXPORTS /EHsc /MD /arch:AVX2 /openmp /std:c++17 /Fo"ggml-cpu.dir\Release\ggml-cpu/ggml-cpu.cpp.obj" /Fd"ggml-cpu.dir\Release\vc143.pdb" /external:W1 /TP /wd4005 /wd4244 /wd4267 /wd4305 /wd4566 /wd4996 /wd4702 /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\ggml-cpu.cpp"
+    ggml-cpu.cpp
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\.." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D GGML_BACKEND_BUILD /D GGML_BACKEND_SHARED /D GGML_USE_OPENMP /D GGML_USE_LLAMAFILE /D GGML_USE_CPU_REPACK /D GGML_AVX2 /D GGML_FMA /D GGML_F16C /D _CRT_SECURE_NO_WARNINGS /D GGML_SCHED_MAX_COPIES=4 /D _XOPEN_SOURCE=600 /D GGML_SHARED /D "CMAKE_INTDIR=\"Release\"" /D ggml_cpu_EXPORTS /EHsc /MD /arch:AVX2 /openmp /std:c++17 /Fo"ggml-cpu.dir\Release\ggml-cpu/repack.cpp.obj" /Fd"ggml-cpu.dir\Release\vc143.pdb" /external:W1 /TP /wd4005 /wd4244 /wd4267 /wd4305 /wd4566 /wd4996 /wd4702 /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\repack.cpp"
+    repack.cpp
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\.." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D GGML_BACKEND_BUILD /D GGML_BACKEND_SHARED /D GGML_USE_OPENMP /D GGML_USE_LLAMAFILE /D GGML_USE_CPU_REPACK /D GGML_AVX2 /D GGML_FMA /D GGML_F16C /D _CRT_SECURE_NO_WARNINGS /D GGML_SCHED_MAX_COPIES=4 /D _XOPEN_SOURCE=600 /D GGML_SHARED /D "CMAKE_INTDIR=\"Release\"" /D ggml_cpu_EXPORTS /EHsc /MD /arch:AVX2 /openmp /std:c++17 /Fo"ggml-cpu.dir\Release\\" /Fd"ggml-cpu.dir\Release\vc143.pdb" /external:W1 /TP /wd4005 /wd4244 /wd4267 /wd4305 /wd4566 /wd4996 /wd4702 /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\hbm.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\traits.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\amx\amx.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\amx\mmq.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\binary-ops.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\unary-ops.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\vec.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\ops.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\llamafile\sgemm.cpp"
+    hbm.cpp
+    traits.cpp
+    amx.cpp
+    mmq.cpp
+    binary-ops.cpp
+    unary-ops.cpp
+    vec.cpp
+    ops.cpp
+    sgemm.cpp
+    Generating Code...
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\.." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D GGML_BACKEND_BUILD /D GGML_BACKEND_SHARED /D GGML_USE_OPENMP /D GGML_USE_LLAMAFILE /D GGML_USE_CPU_REPACK /D GGML_AVX2 /D GGML_FMA /D GGML_F16C /D _CRT_SECURE_NO_WARNINGS /D GGML_SCHED_MAX_COPIES=4 /D _XOPEN_SOURCE=600 /D GGML_SHARED /D "CMAKE_INTDIR=\"Release\"" /D ggml_cpu_EXPORTS /EHsc /MD /arch:AVX2 /openmp /std:c11 /Fo"ggml-cpu.dir\Release\ggml-cpu/quants.c.obj" /Fd"ggml-cpu.dir\Release\vc143.pdb" /external:W1 /TC /wd4005 /wd4244 /wd4267 /wd4305 /wd4566 /wd4996 /wd4702 /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\quants.c"
+    quants.c
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\.." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D GGML_BACKEND_BUILD /D GGML_BACKEND_SHARED /D GGML_USE_OPENMP /D GGML_USE_LLAMAFILE /D GGML_USE_CPU_REPACK /D GGML_AVX2 /D GGML_FMA /D GGML_F16C /D _CRT_SECURE_NO_WARNINGS /D GGML_SCHED_MAX_COPIES=4 /D _XOPEN_SOURCE=600 /D GGML_SHARED /D "CMAKE_INTDIR=\"Release\"" /D ggml_cpu_EXPORTS /EHsc /MD /arch:AVX2 /openmp /std:c11 /Fo"ggml-cpu.dir\Release\ggml-cpu/arch/x86/quants.c.obj" /Fd"ggml-cpu.dir\Release\vc143.pdb" /external:W1 /TC /wd4005 /wd4244 /wd4267 /wd4305 /wd4566 /wd4996 /wd4702 /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\arch\x86\quants.c"
+    quants.c
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\.." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D GGML_BACKEND_BUILD /D GGML_BACKEND_SHARED /D GGML_USE_OPENMP /D GGML_USE_LLAMAFILE /D GGML_USE_CPU_REPACK /D GGML_AVX2 /D GGML_FMA /D GGML_F16C /D _CRT_SECURE_NO_WARNINGS /D GGML_SCHED_MAX_COPIES=4 /D _XOPEN_SOURCE=600 /D GGML_SHARED /D "CMAKE_INTDIR=\"Release\"" /D ggml_cpu_EXPORTS /EHsc /MD /arch:AVX2 /openmp /std:c++17 /Fo"ggml-cpu.dir\Release\ggml-cpu/arch/x86/repack.cpp.obj" /Fd"ggml-cpu.dir\Release\vc143.pdb" /external:W1 /TP /wd4005 /wd4244 /wd4267 /wd4305 /wd4566 /wd4996 /wd4702 /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-cpu\arch\x86\repack.cpp"
+    repack.cpp
+  Link:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\link.exe /OUT:"C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\bin\Release\ggml-cpu.dll" /VERSION:"0.16" /INCREMENTAL:NO /NOLOGO "Release\ggml-base.lib" kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/bin/Release/ggml-cpu.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/ggml/src/Release/ggml-cpu.lib" /MACHINE:X64  /machine:x64 /DLL "ggml-cpu.dir\Release\hbm.obj"
+    "ggml-cpu.dir\Release\traits.obj"
+    "ggml-cpu.dir\Release\amx.obj"
+    "ggml-cpu.dir\Release\mmq.obj"
+    "ggml-cpu.dir\Release\binary-ops.obj"
+    "ggml-cpu.dir\Release\unary-ops.obj"
+    "ggml-cpu.dir\Release\vec.obj"
+    "ggml-cpu.dir\Release\ops.obj"
+    "ggml-cpu.dir\Release\sgemm.obj"
+    "ggml-cpu.dir\Release\ggml-cpu/ggml-cpu.c.obj"
+    "ggml-cpu.dir\Release\ggml-cpu/ggml-cpu.cpp.obj"
+    "ggml-cpu.dir\Release\ggml-cpu/repack.cpp.obj"
+    "ggml-cpu.dir\Release\ggml-cpu/quants.c.obj"
+    "ggml-cpu.dir\Release\ggml-cpu/arch/x86/quants.c.obj"
+    "ggml-cpu.dir\Release\ggml-cpu/arch/x86/repack.cpp.obj"
+       Creating library C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/ggml/src/Release/ggml-cpu.lib and object C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/ggml/src/Release/ggml-cpu.exp
+    ggml-cpu.vcxproj -> C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\bin\Release\ggml-cpu.dll
+  FinalizeBuildStatus:
+    Deleting file "ggml-cpu.dir\Release\ggml-cpu.tlog\unsuccessfulbuild".
+    Touching "ggml-cpu.dir\Release\ggml-cpu.tlog\ggml-cpu.lastbuildstate".
+  Done Building Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml-cpu.vcxproj" (default targets).
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml.vcxproj]
+    Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+    Creating directory "ggml.dir\Release\ggml.tlog\".
+  InitializeBuildStatus:
+    Creating "ggml.dir\Release\ggml.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+    Touching "ggml.dir\Release\ggml.tlog\unsuccessfulbuild".
+  CustomBuild:
+    Building Custom Rule C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/ggml/src/CMakeLists.txt
+  ClCompile:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D GGML_USE_CPU /D GGML_BUILD /D GGML_SHARED /D _CRT_SECURE_NO_WARNINGS /D GGML_SCHED_MAX_COPIES=4 /D _XOPEN_SOURCE=600 /D GGML_BACKEND_SHARED /D "CMAKE_INTDIR=\"Release\"" /D ggml_EXPORTS /EHsc /MD /std:c++17 /Fo"ggml.dir\Release\\" /Fd"ggml.dir\Release\vc143.pdb" /external:W1 /TP /wd4005 /wd4244 /wd4267 /wd4305 /wd4566 /wd4996 /wd4702 /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-backend-dl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\ggml-backend-reg.cpp"
+    ggml-backend-dl.cpp
+    ggml-backend-reg.cpp
+    Generating Code...
+  Link:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\link.exe /OUT:"C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\bin\Release\ggml.dll" /VERSION:"0.16" /INCREMENTAL:NO /NOLOGO "Release\ggml-cpu.lib" "Release\ggml-base.lib" kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/bin/Release/ggml.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/ggml/src/Release/ggml.lib" /MACHINE:X64  /machine:x64 /DLL "ggml.dir\Release\ggml-backend-dl.obj"
+    "ggml.dir\Release\ggml-backend-reg.obj"
+       Creating library C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/ggml/src/Release/ggml.lib and object C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/ggml/src/Release/ggml.exp
+    ggml.vcxproj -> C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\bin\Release\ggml.dll
+  FinalizeBuildStatus:
+    Deleting file "ggml.dir\Release\ggml.tlog\unsuccessfulbuild".
+    Touching "ggml.dir\Release\ggml.tlog\ggml.lastbuildstate".
+  Done Building Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml.vcxproj" (default targets).
+  Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (1) is building "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj" (7) on node 1 (default targets).
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+    Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+    Creating directory "llama.dir\Release\llama.tlog\".
+  InitializeBuildStatus:
+    Creating "llama.dir\Release\llama.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+    Touching "llama.dir\Release\llama.tlog\unsuccessfulbuild".
+  CustomBuild:
+    Building Custom Rule C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/src/CMakeLists.txt
+  MakeDirsForCl:
+    Creating directory "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.dir\Release\models".
+  ClCompile:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\..\include" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D LLAMA_BUILD /D LLAMA_SHARED /D _CRT_SECURE_NO_WARNINGS /D GGML_USE_CPU /D GGML_SHARED /D GGML_BACKEND_SHARED /D "CMAKE_INTDIR=\"Release\"" /D llama_EXPORTS /EHsc /MD /std:c++17 /Fo"llama.dir\Release\llama.cpp.obj" /Fd"llama.dir\Release\vc143.pdb" /external:W1 /TP /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama.cpp"
+    llama.cpp
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\..\include" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D LLAMA_BUILD /D LLAMA_SHARED /D _CRT_SECURE_NO_WARNINGS /D GGML_USE_CPU /D GGML_SHARED /D GGML_BACKEND_SHARED /D "CMAKE_INTDIR=\"Release\"" /D llama_EXPORTS /EHsc /MD /std:c++17 /Fo"llama.dir\Release\\" /Fd"llama.dir\Release\vc143.pdb" /external:W1 /TP /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-adapter.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-arch.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-batch.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-chat.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-context.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-cparams.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-grammar.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-graph.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-hparams.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-impl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-io.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-kv-cache.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-kv-cache-iswa.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-kv-cache-dsa.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-kv-cache-dsv4.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-memory.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-memory-hybrid.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-memory-hybrid-iswa.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-memory-recurrent.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-mmap.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-model-loader.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-model-saver.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-model.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-quant.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-sampler.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-vocab.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\unicode-data.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\unicode.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\afmoe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\apertus.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\arcee.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\arctic.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\arwkv7.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\baichuan.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\bailingmoe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\bailingmoe2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\bert.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\bitnet.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\bloom.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\chameleon.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\chatglm.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\codeshell.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\cogvlm.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\cohere2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\cohere2moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\command-r.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\dbrx.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\deci.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\deepseek.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\deepseek2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\deepseek2ocr.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\deepseek32.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\deepseek4.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\delta-net-base.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\dflash.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\dots1.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\dream.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\eagle3.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\ernie4-5-moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\ernie4-5.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\eurobert.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\exaone-moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\exaone.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\exaone4.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\falcon-h1.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\falcon.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\gemma-embedding.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\gemma.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\gemma2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\gemma3.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\gemma3n.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\gemma4-assistant.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\gemma4.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\glm-dsa.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\glm4-moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\glm4.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\gpt2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\gptneox.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\granite-hybrid.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\granite-moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\granite.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\grok.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\grovemoe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\hunyuan-dense.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\hunyuan-moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\hunyuan-vl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\internlm2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\jais.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\jais2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\jamba.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\jina-bert-v2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\jina-bert-v3.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\kimi-linear.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\lfm2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\lfm2moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\llada-moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\llada.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\llama-embed.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\llama4.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\maincoder.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\mamba-base.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\mamba.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\mamba2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\mellum.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\mimo2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\minicpm.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\minicpm3.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\minimax-m2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\mistral3.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\mistral4.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\modern-bert.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\mpt.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\nemotron-h-moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\nemotron-h.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\nemotron.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\neo-bert.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\nomic-bert-moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\nomic-bert.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\olmo.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\olmo2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\olmoe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\openai-moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\openelm.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\orion.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\paddleocr.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\pangu-embed.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\phi2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\phi3.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\phimoe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\plamo.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\plamo2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\plamo3.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\plm.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\qwen.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\qwen2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\qwen2moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\qwen2vl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\qwen3.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\qwen35.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\qwen35moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\qwen3moe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\qwen3next.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\qwen3vl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\qwen3vlmoe.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\refact.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\rnd1.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\rwkv6-base.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\rwkv6.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\rwkv6qwen2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\rwkv7-base.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\rwkv7.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\seed-oss.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\smallthinker.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\smollm3.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\stablelm.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\starcoder.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\starcoder2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\step35.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\t5.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\t5encoder.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\talkie.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\wavtokenizer-dec.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\xverse.cpp"
+    llama-adapter.cpp
+    llama-arch.cpp
+    llama-batch.cpp
+    llama-chat.cpp
+    llama-context.cpp
+    llama-cparams.cpp
+    llama-grammar.cpp
+    llama-graph.cpp
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\memory(3630,56): warning C4244: 'argument': conversion from 'const int64_t' to 'uint32_t', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+    (compiling source file '../../../../../pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/src/llama-graph.cpp')
+        C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\memory(3630,56):
+        the template instantiation context (the oldest one first) is
+            C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-graph.cpp(2277,21):
+            see reference to function template instantiation 'std::unique_ptr<llm_graph_input_out_ids,std::default_delete<llm_graph_input_out_ids>> std::make_unique<llm_graph_input_out_ids,const llama_hparams&,const llama_cparams&,const int64_t&,0>(const llama_hparams &,const llama_cparams &,const int64_t &)' being compiled
+
+    llama-hparams.cpp
+    llama-impl.cpp
+    llama-io.cpp
+    llama-kv-cache.cpp
+    llama-kv-cache-iswa.cpp
+    llama-kv-cache-dsa.cpp
+    llama-kv-cache-dsv4.cpp
+    llama-memory.cpp
+    llama-memory-hybrid.cpp
+    llama-memory-hybrid-iswa.cpp
+    llama-memory-recurrent.cpp
+    llama-mmap.cpp
+    Generating Code...
+    Compiling...
+    llama-model-loader.cpp
+    llama-model-saver.cpp
+    llama-model.cpp
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244: 'initializing': conversion from '_Ty' to '_Ty2', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         with [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         [ [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:             _Ty=int64_t [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         ] [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         and [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         [ [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:             _Ty2=uint32_t [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         ] [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+    (compiling source file '../../../../../pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/src/llama-model.cpp')
+        C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54):
+        the template instantiation context (the oldest one first) is
+            C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-model.cpp(524,29):
+            see reference to function template instantiation 'std::pair<int64_t,uint32_t>::pair<const int64_t&,int64_t,0>(_Other1,_Other2 &&) noexcept' being compiled
+            with
+            [
+                _Other1=const int64_t &,
+                _Other2=int64_t
+            ]
+                C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-model.cpp(524,21):
+                see the first reference to 'std::pair<int64_t,uint32_t>::pair' in 'llama_meta_device_get_split_state::<lambda_3d9eb40cac721866b42c06c587c057ef>::operator ()'
+
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244: 'initializing': conversion from 'const int64_t' to '_Ty2', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         with [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         [ [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:             _Ty2=uint32_t [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         ] [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+    (compiling source file '../../../../../pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/src/llama-model.cpp')
+        C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54):
+        the template instantiation context (the oldest one first) is
+            C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-model.cpp(527,29):
+            see reference to function template instantiation 'std::pair<int64_t,uint32_t>::pair<const int64_t&,const int64_t&,0>(_Other1,_Other2) noexcept' being compiled
+            with
+            [
+                _Other1=const int64_t &,
+                _Other2=const int64_t &
+            ]
+                C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-model.cpp(527,21):
+                see the first reference to 'std::pair<int64_t,uint32_t>::pair' in 'llama_meta_device_get_split_state::<lambda_3d9eb40cac721866b42c06c587c057ef>::operator ()'
+
+    llama-quant.cpp
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\type_traits(1680,98): warning C4244: 'argument': conversion from 'unsigned __int64' to 'int', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+    (compiling source file '../../../../../pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/src/llama-quant.cpp')
+        C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\type_traits(1680,98):
+        the template instantiation context (the oldest one first) is
+            C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-quant.cpp(276,17):
+            see reference to function template instantiation 'std::thread &std::vector<std::thread,std::allocator<std::thread>>::emplace_back<llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>&,ggml_type&,uint8_t*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728> &,ggml_type &,uint8_t *&&,float *&&,size_t &)' being compiled
+                C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\llama-quant.cpp(276,29):
+                see the first reference to 'std::vector<std::thread,std::allocator<std::thread>>::emplace_back' in 'llama_tensor_dequantize_impl'
+            C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\vector(924,24):
+            see reference to function template instantiation '_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_one_at_back<llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>&,ggml_type&,unsigned char*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728> &,ggml_type &,unsigned char *&&,float *&&,size_t &)' being compiled
+            with
+            [
+                _Ty=std::thread
+            ]
+            C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\vector(845,20):
+            see reference to function template instantiation '_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_back_with_unused_capacity<llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>&,ggml_type&,unsigned char*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728> &,ggml_type &,unsigned char *&&,float *&&,size_t &)' being compiled
+            with
+            [
+                _Ty=std::thread
+            ]
+            C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\vector(863,27):
+            see reference to function template instantiation 'void std::_Default_allocator_traits<_Alloc>::construct<_Ty,llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>&,ggml_type&,unsigned char*,float*,size_t&>(_Alloc &,_Objty *const ,llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728> &,ggml_type &,unsigned char *&&,float *&&,size_t &)' being compiled
+            with
+            [
+                _Alloc=std::allocator<std::thread>,
+                _Ty=std::thread,
+                _Objty=std::thread
+            ]
+            C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xmemory(732,82):
+            see reference to function template instantiation 'std::thread::thread<llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>&,ggml_type&,_T,float*,size_t&,0>(_Fn,ggml_type &,_T &&,float *&&,size_t &)' being compiled
+            with
+            [
+                _T=uint8_t *,
+                _Fn=llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728> &
+            ]
+            C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\thread(93,9):
+            see reference to function template instantiation 'void std::thread::_Start<llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>&,ggml_type&,_Ty,float*,size_t&>(_Fn,ggml_type &,_Ty &&,float *&&,size_t &)' being compiled
+            with
+            [
+                _Ty=uint8_t *,
+                _Fn=llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728> &
+            ]
+            C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\thread(76,40):
+            see reference to function template instantiation 'unsigned int (__cdecl *std::thread::_Get_invoke<std::thread::_Start::_Tuple,0,1,2,3,4>(std::integer_sequence<size_t,0,1,2,3,4>) noexcept)(void *) noexcept' being compiled
+            C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\thread(67,17):
+            see reference to function template instantiation 'unsigned int std::thread::_Invoke<_Tuple,0,1,2,3,4>(void *) noexcept' being compiled
+            with
+            [
+                _Tuple=std::thread::_Start::_Tuple
+            ]
+            C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\thread(60,14):
+            see reference to function template instantiation 'void std::invoke<llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>,ggml_type,uint8_t*,_Ty*,unsigned __int64>(_Callable &&,_Ty1 &&,uint8_t *&&,_Ty *&&,unsigned __int64 &&) noexcept(false)' being compiled
+            with
+            [
+                _Ty=float,
+                _Callable=llama_tensor_dequantize_impl::<lambda_99809f70a3686e6322ff64c5ea2ca728>,
+                _Ty1=ggml_type
+            ]
+
+    llama-sampler.cpp
+    llama-vocab.cpp
+    unicode-data.cpp
+    unicode.cpp
+    afmoe.cpp
+    apertus.cpp
+    arcee.cpp
+    arctic.cpp
+    arwkv7.cpp
+    baichuan.cpp
+    bailingmoe.cpp
+    bailingmoe2.cpp
+    bert.cpp
+    bitnet.cpp
+    bloom.cpp
+    chameleon.cpp
+    Generating Code...
+    Compiling...
+    chatglm.cpp
+    codeshell.cpp
+    cogvlm.cpp
+    cohere2.cpp
+    cohere2moe.cpp
+    command-r.cpp
+    dbrx.cpp
+    deci.cpp
+    deepseek.cpp
+    deepseek2.cpp
+    deepseek2ocr.cpp
+    deepseek32.cpp
+    deepseek4.cpp
+    delta-net-base.cpp
+    dflash.cpp
+    dots1.cpp
+    dream.cpp
+    eagle3.cpp
+    ernie4-5-moe.cpp
+    ernie4-5.cpp
+    Generating Code...
+    Compiling...
+    eurobert.cpp
+    exaone-moe.cpp
+    exaone.cpp
+    exaone4.cpp
+    falcon-h1.cpp
+    falcon.cpp
+    gemma-embedding.cpp
+    gemma.cpp
+    gemma2.cpp
+    gemma3.cpp
+    gemma3n.cpp
+    gemma4-assistant.cpp
+    gemma4.cpp
+    glm-dsa.cpp
+    glm4-moe.cpp
+    glm4.cpp
+    gpt2.cpp
+    gptneox.cpp
+    granite-hybrid.cpp
+    granite-moe.cpp
+    Generating Code...
+    Compiling...
+    granite.cpp
+    grok.cpp
+    grovemoe.cpp
+    hunyuan-dense.cpp
+    hunyuan-moe.cpp
+    hunyuan-vl.cpp
+    internlm2.cpp
+    jais.cpp
+    jais2.cpp
+    jamba.cpp
+    jina-bert-v2.cpp
+    jina-bert-v3.cpp
+    kimi-linear.cpp
+    lfm2.cpp
+    lfm2moe.cpp
+    llada-moe.cpp
+    llada.cpp
+    llama-embed.cpp
+    llama4.cpp
+    maincoder.cpp
+    Generating Code...
+    Compiling...
+    mamba-base.cpp
+    mamba.cpp
+    mamba2.cpp
+    mellum.cpp
+    mimo2.cpp
+    minicpm.cpp
+    minicpm3.cpp
+    minimax-m2.cpp
+    mistral3.cpp
+    mistral4.cpp
+    modern-bert.cpp
+    mpt.cpp
+    nemotron-h-moe.cpp
+    nemotron-h.cpp
+    nemotron.cpp
+    neo-bert.cpp
+    nomic-bert-moe.cpp
+    nomic-bert.cpp
+    olmo.cpp
+    olmo2.cpp
+    Generating Code...
+    Compiling...
+    olmoe.cpp
+    openai-moe.cpp
+    openelm.cpp
+    orion.cpp
+    paddleocr.cpp
+    pangu-embed.cpp
+    phi2.cpp
+    phi3.cpp
+    phimoe.cpp
+    plamo.cpp
+    plamo2.cpp
+    plamo3.cpp
+    plm.cpp
+    qwen.cpp
+    qwen2.cpp
+    qwen2moe.cpp
+    qwen2vl.cpp
+    qwen3.cpp
+    qwen35.cpp
+    qwen35moe.cpp
+    Generating Code...
+    Compiling...
+    qwen3moe.cpp
+    qwen3next.cpp
+    qwen3vl.cpp
+    qwen3vlmoe.cpp
+    refact.cpp
+    rnd1.cpp
+    rwkv6-base.cpp
+    rwkv6.cpp
+    rwkv6qwen2.cpp
+    rwkv7-base.cpp
+    rwkv7.cpp
+    seed-oss.cpp
+    smallthinker.cpp
+    smollm3.cpp
+    stablelm.cpp
+    starcoder.cpp
+    starcoder2.cpp
+    step35.cpp
+    t5.cpp
+    t5encoder.cpp
+    Generating Code...
+    Compiling...
+    talkie.cpp
+    wavtokenizer-dec.cpp
+    xverse.cpp
+    Generating Code...
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\..\include" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D LLAMA_BUILD /D LLAMA_SHARED /D _CRT_SECURE_NO_WARNINGS /D GGML_USE_CPU /D GGML_SHARED /D GGML_BACKEND_SHARED /D "CMAKE_INTDIR=\"Release\"" /D llama_EXPORTS /EHsc /MD /std:c++17 /Fo"llama.dir\Release\models/llama.cpp.obj" /Fd"llama.dir\Release\vc143.pdb" /external:W1 /TP /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\models\llama.cpp"
+    llama.cpp
+  MakeDirsForLink:
+    Creating directory "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\Release\".
+  PreLinkEvent:
+    Auto build dll exports
+    setlocal
+    cd C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src
+    if %errorlevel% neq 0 goto :cmEnd
+    C:
+    if %errorlevel% neq 0 goto :cmEnd
+    C:\Users\gualt\AppData\Local\Temp\pip-build-env-x9qt8ruq\normal\Lib\site-packages\cmake\data\bin\cmake.exe -E __create_def C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/src/llama.dir/Release/exports.def C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/src/llama.dir/Release//objects.txt
+    if %errorlevel% neq 0 goto :cmEnd
+    :cmEnd
+    endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+    :cmErrorLevel
+    exit /b %1
+    :cmDone
+    if %errorlevel% neq 0 goto :VCEnd
+    :VCEnd
+  Link:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\link.exe /OUT:"C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\bin\Release\llama.dll" /INCREMENTAL:NO /NOLOGO ..\ggml\src\Release\ggml.lib "..\ggml\src\Release\ggml-cpu.lib" "..\ggml\src\Release\ggml-base.lib" kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /DEF:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/src/llama.dir/Release/exports.def" /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/bin/Release/llama.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/src/Release/llama.lib" /MACHINE:X64  /machine:x64 /DLL "llama.dir\Release\llama-adapter.obj"
+    "llama.dir\Release\llama-arch.obj"
+    "llama.dir\Release\llama-batch.obj"
+    "llama.dir\Release\llama-chat.obj"
+    "llama.dir\Release\llama-context.obj"
+    "llama.dir\Release\llama-cparams.obj"
+    "llama.dir\Release\llama-grammar.obj"
+    "llama.dir\Release\llama-graph.obj"
+    "llama.dir\Release\llama-hparams.obj"
+    "llama.dir\Release\llama-impl.obj"
+    "llama.dir\Release\llama-io.obj"
+    "llama.dir\Release\llama-kv-cache.obj"
+    "llama.dir\Release\llama-kv-cache-iswa.obj"
+    "llama.dir\Release\llama-kv-cache-dsa.obj"
+    "llama.dir\Release\llama-kv-cache-dsv4.obj"
+    "llama.dir\Release\llama-memory.obj"
+    "llama.dir\Release\llama-memory-hybrid.obj"
+    "llama.dir\Release\llama-memory-hybrid-iswa.obj"
+    "llama.dir\Release\llama-memory-recurrent.obj"
+    "llama.dir\Release\llama-mmap.obj"
+    "llama.dir\Release\llama-model-loader.obj"
+    "llama.dir\Release\llama-model-saver.obj"
+    "llama.dir\Release\llama-model.obj"
+    "llama.dir\Release\llama-quant.obj"
+    "llama.dir\Release\llama-sampler.obj"
+    "llama.dir\Release\llama-vocab.obj"
+    "llama.dir\Release\unicode-data.obj"
+    llama.dir\Release\unicode.obj
+    llama.dir\Release\afmoe.obj
+    llama.dir\Release\apertus.obj
+    llama.dir\Release\arcee.obj
+    llama.dir\Release\arctic.obj
+    llama.dir\Release\arwkv7.obj
+    llama.dir\Release\baichuan.obj
+    llama.dir\Release\bailingmoe.obj
+    llama.dir\Release\bailingmoe2.obj
+    llama.dir\Release\bert.obj
+    llama.dir\Release\bitnet.obj
+    llama.dir\Release\bloom.obj
+    llama.dir\Release\chameleon.obj
+    llama.dir\Release\chatglm.obj
+    llama.dir\Release\codeshell.obj
+    llama.dir\Release\cogvlm.obj
+    llama.dir\Release\cohere2.obj
+    llama.dir\Release\cohere2moe.obj
+    "llama.dir\Release\command-r.obj"
+    llama.dir\Release\dbrx.obj
+    llama.dir\Release\deci.obj
+    llama.dir\Release\deepseek.obj
+    llama.dir\Release\deepseek2.obj
+    llama.dir\Release\deepseek2ocr.obj
+    llama.dir\Release\deepseek32.obj
+    llama.dir\Release\deepseek4.obj
+    "llama.dir\Release\delta-net-base.obj"
+    llama.dir\Release\dflash.obj
+    llama.dir\Release\dots1.obj
+    llama.dir\Release\dream.obj
+    llama.dir\Release\eagle3.obj
+    "llama.dir\Release\ernie4-5-moe.obj"
+    "llama.dir\Release\ernie4-5.obj"
+    llama.dir\Release\eurobert.obj
+    "llama.dir\Release\exaone-moe.obj"
+    llama.dir\Release\exaone.obj
+    llama.dir\Release\exaone4.obj
+    "llama.dir\Release\falcon-h1.obj"
+    llama.dir\Release\falcon.obj
+    "llama.dir\Release\gemma-embedding.obj"
+    llama.dir\Release\gemma.obj
+    llama.dir\Release\gemma2.obj
+    llama.dir\Release\gemma3.obj
+    llama.dir\Release\gemma3n.obj
+    "llama.dir\Release\gemma4-assistant.obj"
+    llama.dir\Release\gemma4.obj
+    "llama.dir\Release\glm-dsa.obj"
+    "llama.dir\Release\glm4-moe.obj"
+    llama.dir\Release\glm4.obj
+    llama.dir\Release\gpt2.obj
+    llama.dir\Release\gptneox.obj
+    "llama.dir\Release\granite-hybrid.obj"
+    "llama.dir\Release\granite-moe.obj"
+    llama.dir\Release\granite.obj
+    llama.dir\Release\grok.obj
+    llama.dir\Release\grovemoe.obj
+    "llama.dir\Release\hunyuan-dense.obj"
+    "llama.dir\Release\hunyuan-moe.obj"
+    "llama.dir\Release\hunyuan-vl.obj"
+    llama.dir\Release\internlm2.obj
+    llama.dir\Release\jais.obj
+    llama.dir\Release\jais2.obj
+    llama.dir\Release\jamba.obj
+    "llama.dir\Release\jina-bert-v2.obj"
+    "llama.dir\Release\jina-bert-v3.obj"
+    "llama.dir\Release\kimi-linear.obj"
+    llama.dir\Release\lfm2.obj
+    llama.dir\Release\lfm2moe.obj
+    "llama.dir\Release\llada-moe.obj"
+    llama.dir\Release\llada.obj
+    "llama.dir\Release\llama-embed.obj"
+    llama.dir\Release\llama4.obj
+    llama.dir\Release\maincoder.obj
+    "llama.dir\Release\mamba-base.obj"
+    llama.dir\Release\mamba.obj
+    llama.dir\Release\mamba2.obj
+    llama.dir\Release\mellum.obj
+    llama.dir\Release\mimo2.obj
+    llama.dir\Release\minicpm.obj
+    llama.dir\Release\minicpm3.obj
+    "llama.dir\Release\minimax-m2.obj"
+    llama.dir\Release\mistral3.obj
+    llama.dir\Release\mistral4.obj
+    "llama.dir\Release\modern-bert.obj"
+    llama.dir\Release\mpt.obj
+    "llama.dir\Release\nemotron-h-moe.obj"
+    "llama.dir\Release\nemotron-h.obj"
+    llama.dir\Release\nemotron.obj
+    "llama.dir\Release\neo-bert.obj"
+    "llama.dir\Release\nomic-bert-moe.obj"
+    "llama.dir\Release\nomic-bert.obj"
+    llama.dir\Release\olmo.obj
+    llama.dir\Release\olmo2.obj
+    llama.dir\Release\olmoe.obj
+    "llama.dir\Release\openai-moe.obj"
+    llama.dir\Release\openelm.obj
+    llama.dir\Release\orion.obj
+    llama.dir\Release\paddleocr.obj
+    "llama.dir\Release\pangu-embed.obj"
+    llama.dir\Release\phi2.obj
+    llama.dir\Release\phi3.obj
+    llama.dir\Release\phimoe.obj
+    llama.dir\Release\plamo.obj
+    llama.dir\Release\plamo2.obj
+    llama.dir\Release\plamo3.obj
+    llama.dir\Release\plm.obj
+    llama.dir\Release\qwen.obj
+    llama.dir\Release\qwen2.obj
+    llama.dir\Release\qwen2moe.obj
+    llama.dir\Release\qwen2vl.obj
+    llama.dir\Release\qwen3.obj
+    llama.dir\Release\qwen35.obj
+    llama.dir\Release\qwen35moe.obj
+    llama.dir\Release\qwen3moe.obj
+    llama.dir\Release\qwen3next.obj
+    llama.dir\Release\qwen3vl.obj
+    llama.dir\Release\qwen3vlmoe.obj
+    llama.dir\Release\refact.obj
+    llama.dir\Release\rnd1.obj
+    "llama.dir\Release\rwkv6-base.obj"
+    llama.dir\Release\rwkv6.obj
+    llama.dir\Release\rwkv6qwen2.obj
+    "llama.dir\Release\rwkv7-base.obj"
+    llama.dir\Release\rwkv7.obj
+    "llama.dir\Release\seed-oss.obj"
+    llama.dir\Release\smallthinker.obj
+    llama.dir\Release\smollm3.obj
+    llama.dir\Release\stablelm.obj
+    llama.dir\Release\starcoder.obj
+    llama.dir\Release\starcoder2.obj
+    llama.dir\Release\step35.obj
+    llama.dir\Release\t5.obj
+    llama.dir\Release\t5encoder.obj
+    llama.dir\Release\talkie.obj
+    "llama.dir\Release\wavtokenizer-dec.obj"
+    llama.dir\Release\xverse.obj
+    llama.dir\Release\llama.cpp.obj
+    llama.dir\Release\models/llama.cpp.obj
+       Creating library C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/src/Release/llama.lib and object C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/src/Release/llama.exp
+    llama.vcxproj -> C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\bin\Release\llama.dll
+  FinalizeBuildStatus:
+    Deleting file "llama.dir\Release\llama.tlog\unsuccessfulbuild".
+    Touching "llama.dir\Release\llama.tlog\llama.lastbuildstate".
+  Done Building Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj" (default targets).
+  Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (1) is building "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\llama-common.vcxproj" (8) on node 1 (default targets).
+  Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\llama-common.vcxproj" (8) is building "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\llama-common-base.vcxproj" (9) on node 1 (default targets).
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\llama-common-base.vcxproj]
+    Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+    Creating directory "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\Release\".
+    Creating directory "llama-common-base.dir\Release\llama-co.23E00C93.tlog\".
+  InitializeBuildStatus:
+    Creating "llama-common-base.dir\Release\llama-co.23E00C93.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+    Touching "llama-common-base.dir\Release\llama-co.23E00C93.tlog\unsuccessfulbuild".
+  CustomBuild:
+    Building Custom Rule C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/common/CMakeLists.txt
+  ClCompile:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\." /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D _CRT_SECURE_NO_WARNINGS /D "CMAKE_INTDIR=\"Release\"" /EHsc /MD /Fo"llama-common-base.dir\Release\\" /Fd"C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\Release\llama-common-base.pdb" /external:W1 /TP /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\build-info.cpp"
+    build-info.cpp
+  Lib:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\Lib.exe /OUT:"C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\Release\llama-common-base.lib" /NOLOGO /MACHINE:X64  /machine:x64 "llama-common-base.dir\Release\build-info.obj"
+    llama-common-base.vcxproj -> C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\Release\llama-common-base.lib
+  FinalizeBuildStatus:
+    Deleting file "llama-common-base.dir\Release\llama-co.23E00C93.tlog\unsuccessfulbuild".
+    Touching "llama-common-base.dir\Release\llama-co.23E00C93.tlog\llama-common-base.lastbuildstate".
+  Done Building Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\llama-common-base.vcxproj" (default targets).
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\llama-common.vcxproj]
+    Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+    Creating directory "llama-common.dir\Release\llama-common.tlog\".
+  InitializeBuildStatus:
+    Creating "llama-common.dir\Release\llama-common.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+    Touching "llama-common.dir\Release\llama-common.tlog\unsuccessfulbuild".
+  CustomBuild:
+    Building Custom Rule C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/common/CMakeLists.txt
+  ClCompile:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\..\vendor" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\..\include" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D _CRT_SECURE_NO_WARNINGS /D LLAMA_SHARED /D GGML_USE_CPU /D GGML_SHARED /D GGML_BACKEND_SHARED /D "CMAKE_INTDIR=\"Release\"" /D llama_common_EXPORTS /EHsc /MD /std:c++17 /Fo"llama-common.dir\Release\\" /Fd"llama-common.dir\Release\vc143.pdb" /external:W1 /TP /errorReport:queue  /utf-8 /bigobj "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\arg.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\chat-auto-parser-generator.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\chat-auto-parser-helpers.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\chat-diff-analyzer.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\chat-peg-parser.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\chat.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\common.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\console.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\debug.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\download.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\fit.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\hf-cache.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\imatrix-loader.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\json-schema-to-grammar.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\llguidance.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\log.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\ngram-cache.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\ngram-map.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\ngram-mod.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\peg-parser.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\preset.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\reasoning-budget.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\sampling.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\speculative.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\unicode.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\jinja\lexer.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\jinja\parser.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\jinja\runtime.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\jinja\value.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\jinja\string.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\common\jinja\caps.cpp"
+    arg.cpp
+    chat-auto-parser-generator.cpp
+    chat-auto-parser-helpers.cpp
+    chat-diff-analyzer.cpp
+    chat-peg-parser.cpp
+    chat.cpp
+    common.cpp
+    console.cpp
+    debug.cpp
+    download.cpp
+    fit.cpp
+    hf-cache.cpp
+    imatrix-loader.cpp
+    json-schema-to-grammar.cpp
+    llguidance.cpp
+    log.cpp
+    ngram-cache.cpp
+    ngram-map.cpp
+    ngram-mod.cpp
+    peg-parser.cpp
+    Generating Code...
+    Compiling...
+    preset.cpp
+    reasoning-budget.cpp
+    sampling.cpp
+    speculative.cpp
+    unicode.cpp
+    lexer.cpp
+    parser.cpp
+    runtime.cpp
+    value.cpp
+    string.cpp
+    caps.cpp
+    Generating Code...
+  PreLinkEvent:
+    Auto build dll exports
+    setlocal
+    cd C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common
+    if %errorlevel% neq 0 goto :cmEnd
+    C:
+    if %errorlevel% neq 0 goto :cmEnd
+    C:\Users\gualt\AppData\Local\Temp\pip-build-env-x9qt8ruq\normal\Lib\site-packages\cmake\data\bin\cmake.exe -E __create_def C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/common/llama-common.dir/Release/exports.def C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/common/llama-common.dir/Release//objects.txt
+    if %errorlevel% neq 0 goto :cmEnd
+    :cmEnd
+    endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+    :cmErrorLevel
+    exit /b %1
+    :cmDone
+    if %errorlevel% neq 0 goto :VCEnd
+    :VCEnd
+  Link:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\link.exe /OUT:"C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\bin\Release\llama-common.dll" /INCREMENTAL:NO /NOLOGO "Release\llama-common-base.lib" "..\vendor\cpp-httplib\Release\cpp-httplib.lib" ..\src\Release\llama.lib ..\ggml\src\Release\ggml.lib "..\ggml\src\Release\ggml-cpu.lib" "..\ggml\src\Release\ggml-base.lib" kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /DEF:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/common/llama-common.dir/Release/exports.def" /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/bin/Release/llama-common.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/common/Release/llama-common.lib" /MACHINE:X64  /machine:x64 /DLL "llama-common.dir\Release\arg.obj"
+    "llama-common.dir\Release\chat-auto-parser-generator.obj"
+    "llama-common.dir\Release\chat-auto-parser-helpers.obj"
+    "llama-common.dir\Release\chat-diff-analyzer.obj"
+    "llama-common.dir\Release\chat-peg-parser.obj"
+    "llama-common.dir\Release\chat.obj"
+    "llama-common.dir\Release\common.obj"
+    "llama-common.dir\Release\console.obj"
+    "llama-common.dir\Release\debug.obj"
+    "llama-common.dir\Release\download.obj"
+    "llama-common.dir\Release\fit.obj"
+    "llama-common.dir\Release\hf-cache.obj"
+    "llama-common.dir\Release\imatrix-loader.obj"
+    "llama-common.dir\Release\json-schema-to-grammar.obj"
+    "llama-common.dir\Release\llguidance.obj"
+    "llama-common.dir\Release\log.obj"
+    "llama-common.dir\Release\ngram-cache.obj"
+    "llama-common.dir\Release\ngram-map.obj"
+    "llama-common.dir\Release\ngram-mod.obj"
+    "llama-common.dir\Release\peg-parser.obj"
+    "llama-common.dir\Release\preset.obj"
+    "llama-common.dir\Release\reasoning-budget.obj"
+    "llama-common.dir\Release\sampling.obj"
+    "llama-common.dir\Release\speculative.obj"
+    "llama-common.dir\Release\unicode.obj"
+    "llama-common.dir\Release\lexer.obj"
+    "llama-common.dir\Release\parser.obj"
+    "llama-common.dir\Release\runtime.obj"
+    "llama-common.dir\Release\value.obj"
+    "llama-common.dir\Release\string.obj"
+    "llama-common.dir\Release\caps.obj"
+       Creating library C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/common/Release/llama-common.lib and object C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/common/Release/llama-common.exp
+    llama-common.vcxproj -> C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\bin\Release\llama-common.dll
+  FinalizeBuildStatus:
+    Deleting file "llama-common.dir\Release\llama-common.tlog\unsuccessfulbuild".
+    Touching "llama-common.dir\Release\llama-common.tlog\llama-common.lastbuildstate".
+  Done Building Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\llama-common.vcxproj" (default targets).
+  Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (1) is building "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj" (10) on node 1 (default targets).
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+    Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+    Creating directory "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\Release\".
+    Creating directory "mtmd.dir\Release\mtmd.tlog\".
+  InitializeBuildStatus:
+    Creating "mtmd.dir\Release\mtmd.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+    Touching "mtmd.dir\Release\mtmd.tlog\unsuccessfulbuild".
+  CustomBuild:
+    Building Custom Rule C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/tools/mtmd/CMakeLists.txt
+  ClCompile:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\..\.." /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\..\..\vendor" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\include" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\include" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\ggml\src\..\include" /I"C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\src\..\include" /nologo /W1 /WX- /diagnostics:column /O2 /Ob2 /D _WINDLL /D _MBCS /D WIN32 /D _WINDOWS /D NDEBUG /D MTMD_VIDEO /D LLAMA_BUILD /D LLAMA_SHARED /D GGML_USE_CPU /D GGML_SHARED /D GGML_BACKEND_SHARED /D "CMAKE_INTDIR=\"Release\"" /D mtmd_EXPORTS /EHsc /MD /std:c++17 /Fo"mtmd.dir\Release\\" /Fd"mtmd.dir\Release\vc143.pdb" /external:W1 /TP /errorReport:queue "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\mtmd.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\mtmd-audio.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\mtmd-image.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\mtmd-helper.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\clip.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\cogvlm.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\conformer.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\dotsocr.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\exaone4_5.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\gemma4a.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\gemma4v.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\gemma4ua.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\gemma4uv.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\glm4v.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\granite-speech.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\granite4-vision.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\hunyuanvl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\internvl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\kimivl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\kimik25.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\nemotron-v2-vl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\llama4.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\llava.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\minicpmv.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\paddleocr.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\pixtral.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\qwen2vl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\qwen3vl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\mimovl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\qwen3a.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\step3vl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\siglip.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\whisper-enc.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\deepseekocr.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\deepseekocr2.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\mobilenetv5.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\youtuvl.cpp" "C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\models\yasa2.cpp"
+    mtmd.cpp
+    mtmd-audio.cpp
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         with [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         [ [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:             _Ty=double [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         ] [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+    (compiling source file '../../../../../../pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/tools/mtmd/mtmd-audio.cpp')
+        C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24):
+        the template instantiation context (the oldest one first) is
+            C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\mtmd-audio.cpp(321,18):
+            see reference to function template instantiation 'void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,double>(const _FwdIt,const _FwdIt,const double &)' being compiled
+            with
+            [
+                _Ty=float,
+                _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+            ]
+
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         with [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         [ [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:             _Ty=int [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         ] [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+    (compiling source file '../../../../../../pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/tools/mtmd/mtmd-audio.cpp')
+        C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24):
+        the template instantiation context (the oldest one first) is
+            C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\mtmd-audio.cpp(405,14):
+            see reference to function template instantiation 'void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,int>(const _FwdIt,const _FwdIt,const int &)' being compiled
+            with
+            [
+                _Ty=float,
+                _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+            ]
+
+    mtmd-image.cpp
+    mtmd-helper.cpp
+    clip.cpp
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         with [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         [ [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:             _Ty=double [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         ] [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+    (compiling source file '../../../../../../pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/vendor/llama.cpp/tools/mtmd/clip.cpp')
+        C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24):
+        the template instantiation context (the oldest one first) is
+            C:\Users\gualt\AppData\Local\Temp\pip-install-2m5b63qr\llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f\vendor\llama.cpp\tools\mtmd\clip.cpp(3937,38):
+            see reference to function template instantiation 'void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,double>(const _FwdIt,const _FwdIt,const double &)' being compiled
+            with
+            [
+                _Ty=float,
+                _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+            ]
+
+    cogvlm.cpp
+    conformer.cpp
+    dotsocr.cpp
+    exaone4_5.cpp
+    gemma4a.cpp
+    gemma4v.cpp
+    gemma4ua.cpp
+    gemma4uv.cpp
+    glm4v.cpp
+    granite-speech.cpp
+    granite4-vision.cpp
+    hunyuanvl.cpp
+    internvl.cpp
+    kimivl.cpp
+    kimik25.cpp
+    Generating Code...
+    Compiling...
+    nemotron-v2-vl.cpp
+    llama4.cpp
+    llava.cpp
+    minicpmv.cpp
+    paddleocr.cpp
+    pixtral.cpp
+    qwen2vl.cpp
+    qwen3vl.cpp
+    mimovl.cpp
+    qwen3a.cpp
+    step3vl.cpp
+    siglip.cpp
+    whisper-enc.cpp
+    deepseekocr.cpp
+    deepseekocr2.cpp
+    mobilenetv5.cpp
+    youtuvl.cpp
+    yasa2.cpp
+    Generating Code...
+  Link:
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\link.exe /OUT:"C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\Release\mtmd.dll" /INCREMENTAL:NO /NOLOGO ..\..\src\Release\llama.lib ..\..\ggml\src\Release\ggml.lib "..\..\ggml\src\Release\ggml-cpu.lib" "..\..\ggml\src\Release\ggml-base.lib" kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/tools/mtmd/Release/mtmd.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /IMPLIB:"C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/tools/mtmd/Release/mtmd.lib" /MACHINE:X64  /machine:x64 /DLL mtmd.dir\Release\mtmd.obj
+    "mtmd.dir\Release\mtmd-audio.obj"
+    "mtmd.dir\Release\mtmd-image.obj"
+    "mtmd.dir\Release\mtmd-helper.obj"
+    mtmd.dir\Release\clip.obj
+    mtmd.dir\Release\cogvlm.obj
+    mtmd.dir\Release\conformer.obj
+    mtmd.dir\Release\dotsocr.obj
+    mtmd.dir\Release\exaone4_5.obj
+    mtmd.dir\Release\gemma4a.obj
+    mtmd.dir\Release\gemma4v.obj
+    mtmd.dir\Release\gemma4ua.obj
+    mtmd.dir\Release\gemma4uv.obj
+    mtmd.dir\Release\glm4v.obj
+    "mtmd.dir\Release\granite-speech.obj"
+    "mtmd.dir\Release\granite4-vision.obj"
+    mtmd.dir\Release\hunyuanvl.obj
+    mtmd.dir\Release\internvl.obj
+    mtmd.dir\Release\kimivl.obj
+    mtmd.dir\Release\kimik25.obj
+    "mtmd.dir\Release\nemotron-v2-vl.obj"
+    mtmd.dir\Release\llama4.obj
+    mtmd.dir\Release\llava.obj
+    mtmd.dir\Release\minicpmv.obj
+    mtmd.dir\Release\paddleocr.obj
+    mtmd.dir\Release\pixtral.obj
+    mtmd.dir\Release\qwen2vl.obj
+    mtmd.dir\Release\qwen3vl.obj
+    mtmd.dir\Release\mimovl.obj
+    mtmd.dir\Release\qwen3a.obj
+    mtmd.dir\Release\step3vl.obj
+    mtmd.dir\Release\siglip.obj
+    "mtmd.dir\Release\whisper-enc.obj"
+    mtmd.dir\Release\deepseekocr.obj
+    mtmd.dir\Release\deepseekocr2.obj
+    mtmd.dir\Release\mobilenetv5.obj
+    mtmd.dir\Release\youtuvl.obj
+    mtmd.dir\Release\yasa2.obj
+       Creating library C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/tools/mtmd/Release/mtmd.lib and object C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/build/vendor/llama.cpp/tools/mtmd/Release/mtmd.exp
+    mtmd.vcxproj -> C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\Release\mtmd.dll
+  FinalizeBuildStatus:
+    Deleting file "mtmd.dir\Release\mtmd.tlog\unsuccessfulbuild".
+    Touching "mtmd.dir\Release\mtmd.tlog\mtmd.lastbuildstate".
+  Done Building Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj" (default targets).
+  PrepareForBuild:
+    Creating directory "x64\Release\ALL_BUILD\".
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj]
+    Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+    Creating directory "x64\Release\ALL_BUILD\ALL_BUILD.tlog\".
+  InitializeBuildStatus:
+    Creating "x64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+    Touching "x64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild".
+  CustomBuild:
+    Building Custom Rule C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/CMakeLists.txt
+  FinalizeBuildStatus:
+    Deleting file "x64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild".
+    Touching "x64\Release\ALL_BUILD\ALL_BUILD.tlog\ALL_BUILD.lastbuildstate".
+  Done Building Project "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default targets).
+
+  Build succeeded.
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ZERO_CHECK.vcxproj" (default target) (2) ->
+  (PrepareForBuild target) ->
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ZERO_CHECK.vcxproj]
+
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\vendor\cpp-httplib\cpp-httplib.vcxproj" (default target) (3) ->
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\vendor\cpp-httplib\cpp-httplib.vcxproj]
+
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\vendor\cpp-httplib\cpp-httplib.vcxproj" (default target) (3) ->
+  (ClCompile target) ->
+    cl : command line  warning D9025: overriding '/W1' with '/w' [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\vendor\cpp-httplib\cpp-httplib.vcxproj]
+
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml.vcxproj" (default target) (4) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml-base.vcxproj" (default target) (5) ->
+  (PrepareForBuild target) ->
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml-base.vcxproj]
+
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml.vcxproj" (default target) (4) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml-cpu.vcxproj" (default target) (6) ->
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml-cpu.vcxproj]
+
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml.vcxproj" (default target) (4) ->
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\ggml\src\ggml.vcxproj]
+
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj" (default target) (7) ->
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj" (default target) (7) ->
+  (ClCompile target) ->
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\memory(3630,56): warning C4244: 'argument': conversion from 'const int64_t' to 'uint32_t', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244: 'initializing': conversion from '_Ty' to '_Ty2', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         with [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         [ [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:             _Ty=int64_t [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         ] [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         and [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         [ [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:             _Ty2=uint32_t [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         ] [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244: 'initializing': conversion from 'const int64_t' to '_Ty2', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         with [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         [ [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:             _Ty2=uint32_t [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\utility(274,54): warning C4244:         ] [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\type_traits(1680,98): warning C4244: 'argument': conversion from 'unsigned __int64' to 'int', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\src\llama.vcxproj]
+
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\llama-common.vcxproj" (default target) (8) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\llama-common-base.vcxproj" (default target) (9) ->
+  (PrepareForBuild target) ->
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\llama-common-base.vcxproj]
+
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\llama-common.vcxproj" (default target) (8) ->
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\common\llama-common.vcxproj]
+
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj" (default target) (10) ->
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj" (default target) (10) ->
+  (ClCompile target) ->
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         with [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         [ [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:             _Ty=double [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         ] [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         with [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         [ [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:             _Ty=int [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         ] [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244: '=': conversion from 'const _Ty' to 'float', possible loss of data [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         with [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         [ [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:             _Ty=double [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+  C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\include\xutility(5310,24): warning C4244:         ] [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\vendor\llama.cpp\tools\mtmd\mtmd.vcxproj]
+
+
+  "C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj" (default target) (1) ->
+  (PrepareForBuild target) ->
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(548,5): warning MSB8029: The Intermediate directory or Output directory cannot reside under the Temporary directory as it could lead to issues with incremental build. [C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\build\ALL_BUILD.vcxproj]
+
+      18 Warning(s)
+      0 Error(s)
+
+  Time Elapsed 00:10:33.59
+
+  *** Installing project into wheel...
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/lib/ggml-cpu.lib
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/bin/ggml-cpu.dll
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/lib/ggml.lib
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/bin/ggml.dll
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-cpu.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-alloc.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-backend.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-blas.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-cann.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-cpp.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-cuda.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-opt.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-metal.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-rpc.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-virtgpu.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-sycl.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-vulkan.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-webgpu.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-zendnn.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/ggml-openvino.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/gguf.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/lib/ggml-base.lib
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/bin/ggml-base.dll
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/lib/cmake/ggml/ggml-config.cmake
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/lib/cmake/ggml/ggml-version.cmake
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/lib/llama.lib
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/bin/llama.dll
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/llama.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/llama-cpp.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/lib/llama-common.lib
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/bin/llama-common.dll
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/lib/cmake/llama/llama-config.cmake
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/lib/cmake/llama/llama-version.cmake
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/lib/pkgconfig/llama.pc
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/llama.lib
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/llama.dll
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/llama.lib
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/llama.dll
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml.lib
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml.dll
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml.lib
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml.dll
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml-base.lib
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml-base.dll
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml-base.lib
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml-base.dll
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml-cpu.lib
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml-cpu.dll
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml-cpu.lib
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml-cpu.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml-cpu.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml-base.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml-cpu.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml-base.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml-cpu.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml-base.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml-cpu.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml-base.dll
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/lib/mtmd.lib
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/bin/mtmd.dll
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/mtmd-debug.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/mtmd.h
+  -- Installing: C:\Users\gualt\AppData\Local\Temp\tmpwrj3lif5\wheel\platlib/include/mtmd-helper.h
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/mtmd.lib
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/mtmd.dll
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/mtmd.lib
+  -- Installing: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/mtmd.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/llama.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml-cpu.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/pip-install-2m5b63qr/llama-cpp-python_d34111efa8a44cde9bb2fe2a2662121f/llama_cpp/lib/ggml-base.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/llama.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml-cpu.dll
+  -- Up-to-date: C:/Users/gualt/AppData/Local/Temp/tmpwrj3lif5/wheel/platlib/llama_cpp/lib/ggml-base.dll
+  *** Making wheel...
+  *** Created llama_cpp_python-0.3.34-py3-none-win_amd64.whl
+  Building wheel for llama-cpp-python (pyproject.toml): finished with status 'done'
+  Created wheel for llama-cpp-python: filename=llama_cpp_python-0.3.34-py3-none-win_amd64.whl size=12140350 sha256=91e506f488b4904a2c3ba7534a9dfc7da079e1619b8fb1171b8c20b2051711bf
+  Stored in directory: c:\users\gualt\appdata\local\pip\cache\wheels\4a\10\e7\0eb9b120f1640844f33562a3964c5b18b67de1d66d3f9530e8
+Successfully built llama-cpp-python
+Installing collected packages: diskcache, llama-cpp-python
+
+Successfully installed diskcache-5.6.3 llama-cpp-python-0.3.34
+
+[notice] A new release of pip is available: 26.1.1 -> 26.2.1
+[notice] To update, run: python.exe -m pip install --upgrade pip

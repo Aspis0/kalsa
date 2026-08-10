@@ -1,0 +1,32 @@
+N1 COMPLETE 2026-08-10 (Galaxy S23 wireless SM-S911U, UNPLUGGED)
+bin=1ca51420… CAMPAIGN pin OK | model=IQ2_M | drop=0.65 | nproc=7-8
+
+PREDICTION: C(4) ~ 1.8-2.5
+CONTROL: generation line 6.513 tok/s (0.154 s/tok), 128 tok; prefill 121 tok in 9.961s
+  (wall recompute with load: ~4.26 tok/s if subtract load+prefill wrongfully; binary gen line is consistent with wall)
+
+CALIBRATION LIMITATION (critical):
+  chatml/session overhead: k=2,4,8 all measured t2 n_prompt=15 (prompt "x")
+  k=16 measured n_prompt=16 (prompt "uno due")
+  => labels C(2)/C(4)/C(8) are NOT true C(k); they are C(~15)
+
+DRIVER C(k)=prefill_s/t_decode1 with t_decode1=0.1535s:
+  k=2  C_med=12.19  n_prompt=15
+  k=4  C_med=14.00  n_prompt=15  => VERDICT ROSSO (soglia C4<=2.2 VERDE / <=3 GIALLO / >3 ROSSO)
+  k=8  C_med=14.41  n_prompt=15
+  k=16 C_med=14.25  n_prompt=16
+
+RECOMPUTE with t1 session decode med (4.746 tok/s, t_decode1=0.211s) — still ROSSO:
+  C(15)_as_k4_med ≈ 10.20
+  C(16)_med ≈ 10.38
+
+PHYSICAL: prefill ~15-16 new tokens costs ~1.6-2.5s; one decode is ~0.15-0.21s
+  => batch-verify short is 10-14× a single token. No amortization on this path.
+
+MiB/tok (t2): ~3.39 for n_prompt=15, hit~48.5%
+
+VERDICT N1: ROSSO (even after correcting denom and acknowledging n_prompt≠k)
+PORTA batch-verify corta: chiusa per misura sul path campagna (GEMV/streaming).
+MTP α=0.60 (N2) alone does NOT open the porta without N1 green.
+
+artefacts: results/spec_ladder/n1/from_phone/

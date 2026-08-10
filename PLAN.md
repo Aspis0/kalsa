@@ -1058,6 +1058,41 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-10 — ⚖️ SCALA SPECULAZIONE COMPLETA: N2 VERDE (draft-mtp α=0.60 live,
+  lower bound conservativo), ma N1 ROSSO devastante — C(4)≈10-14 contro gate ≤2.2.
+  PORTA CHIUSA PER REGOLA. Con un'anomalia a verbale che merita 30 minuti prima
+  dell'epitaffio definitivo. E FASE A del 1c: il file KEXP esiste ed è verificato.**
+
+  Report: `moe-scala-spec.md`, `moe-requant-1c.md`. I tre numeri della scala:
+  - **N2 α=0.60** (draft-mtp live, llama-server, target IQ1_M → conservativo),
+    mean accept 3.36; draft separati tutti sotto soglia (44-54%) → il self-draft
+    MTP era il meccanismo giusto;
+  - **N1 C(4)≈10-14 ROSSO** (gate ≤2.2): un prefill corto costa ~2 s contro
+    0.154 s/token di decode. La formula e2e dà ~1.5 tok/s contro 4.75 baseline:
+    3× PIÙ LENTO. Lo scattering MoE + il costo del prefill corto sul path
+    streaming fanno esattamente ciò che la letteratura F6 prediceva;
+  - N3 non servito (col MTP vincente il draft non era più su GPU).
+
+  **Verdetto per regola dichiarata: PORTA CHIUSA PER MISURA.**
+
+  **Anomalia d'arbitrato (a verbale, decisione di gualt se indagarla):** il costo
+  del batch è quasi INDIPENDENTE da k — C passa da 12.2 (k=2) a 14.3 (k=16):
+  +14 token costano solo +2.1 unità → **costo marginale ~0.15 t1/token (6× più
+  economico del decode!), ma costo FISSO ~1.9 s per invocazione**. Se quel fisso
+  è macchineria di sessione (template/tokenize/commit — rimovibile da
+  un'integrazione vera), il gate ha misurato l'overhead del protocollo, non la
+  fisica del batch-verify. Se è I/O dell'unione esperti o warmup del path, è
+  fisica e l'epitaffio sta. **Una cella di decomposizione da ~30 min** (prefill
+  k∈{15,64,256} stesso protocollo → fit fisso+marginale) distingue i due mondi.
+  Nota onestà: anche nel caso migliore il cantiere diventerebbe "verify loop
+  integrato nella session del fork" — la fascia alta del costo.
+
+  **FASE A 1c — VERDE**: `KEXP.gguf` 12.49 GB, esperti 120/120 Q2_K/Q3_K, dense
+  613/613 replicati, sha registrato. Il gate duro post-crash ha già pagato: primo
+  resume Q8 corrotto, beccato dallo sha, riscaricato. Recipe fix a verbale
+  (ancora `^output\.weight$`). Fasi B (PPL) e C (velocità) aspettano il telefono.
+  **Il 1c è ora la porta viva.**
+
 - **2026-08-10 — 🪳 BUCHI 1-2 MISURATI: il meccanismo formato è VERO (+30% su
   silicio nostro) ma il file pronto non esiste; i thread danneggiano; il big core
   throttla a 864 MHz. E si apre la CARICA SULLA PORTA: speculazione eterogenea.**

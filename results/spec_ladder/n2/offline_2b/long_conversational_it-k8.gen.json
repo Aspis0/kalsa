@@ -1,0 +1,31 @@
+{
+  "file": "long_conversational_it-k8.gen.txt",
+  "n_pos": 255,
+  "n_match": 109,
+  "alpha": 0.42745098039215684,
+  "mean_run_length": 1.7580645161290323,
+  "n_runs": 62,
+  "max_run": 4,
+  "runs_head": [
+    2,
+    1,
+    2,
+    1,
+    1,
+    1,
+    1,
+    3,
+    1,
+    1,
+    1,
+    3,
+    1,
+    2,
+    1,
+    2,
+    2,
+    2,
+    1,
+    3
+  ]
+}

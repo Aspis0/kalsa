@@ -1,0 +1,14 @@
+warning: no usable GPU found, --gpu-layers option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+0.00.007.512 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.013.873 I srv    load_model: loading model 'C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\mtp\Qwen3.6-35B-A3B-UD-IQ1_M.gguf'
+0.00.568.926 E llama_model_load: error loading model: error loading model hyperparameters: DFlash model requires 'target_layers' in GGUF metadata
+0.00.568.945 E llama_model_load_from_file_impl: failed to load model
+0.00.574.197 W srv    load_model: [spec] failed to measure draft model memory: failed to load model
+0.10.268.780 E llama_model_load: error loading model: error loading model hyperparameters: DFlash model requires 'target_layers' in GGUF metadata
+0.10.268.797 E llama_model_load_from_file_impl: failed to load model
+0.10.268.812 E common_speculative_init_result: failed to load draft model, 'C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\draft\Qwen3.6-35B-A3B-DFlash-Q4_K_M.gguf'
+0.10.268.819 E srv    load_model: failed to load draft model, 'C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\draft\Qwen3.6-35B-A3B-DFlash-Q4_K_M.gguf'
+0.10.268.836 I srv   operator (): operator (): cleaning up before exit...
+0.10.315.410 E srv  llama_server: exiting due to model loading error

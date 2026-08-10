@@ -1,0 +1,18 @@
+draft tokenizer {'general.architecture': 'qwen35', 'general.name': 'Qwen3.5-4B', 'tokenizer.ggml.model': 'gpt2', 'tokenizer.ggml.pre': 'qwen35', 'tokenizer.ggml.tokens': 'n=248320', 'tokenizer.ggml.tokens.sha16': '49930cc8a75188cf', 'tokenizer.ggml.merges': 'n=247587', 'tokenizer.ggml.merges.sha16': '2d0d7c583fcdbbcc'}
+TOKENIZER_MATCH True
+d1_long-k8.gen.txt: alpha=0.5255 n=255 mean_run=2.233 max_run=6
+f45_1_esplicativo-k8.gen.txt: alpha=0.5750 n=200 mean_run=2.674 max_run=11
+f45_2_scrittura-k8.gen.txt: alpha=0.4173 n=139 mean_run=1.758 max_run=6
+f45_3_istruzioni-k8.gen.txt: alpha=0.5111 n=135 mean_run=2.091 max_run=10
+f45_4_codice-k8.gen.txt: alpha=0.7950 n=200 mean_run=7.227 max_run=53
+f45_5_ragionamento-k8.gen.txt: alpha=0.4909 n=165 mean_run=2.189 max_run=11
+long_conversational_it-k8.gen.txt: alpha=0.4824 n=255 mean_run=1.892 max_run=5
+short-k8.gen.txt: alpha=0.5226 n=199 mean_run=1.926 max_run=8
+{
+  "alpha": 0.5445736434108527,
+  "mean_run_length": 2.4293948126801155,
+  "e_accept_k4": 1.956772334293948,
+  "verdict": "GIALLO",
+  "tokenizer_match_target_qwen35": true,
+  "total_pos": 1548
+}

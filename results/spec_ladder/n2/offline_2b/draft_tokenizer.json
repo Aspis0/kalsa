@@ -1,0 +1,10 @@
+{
+  "general.architecture": "qwen35",
+  "general.name": "Qwen3.5-2B",
+  "tokenizer.ggml.model": "gpt2",
+  "tokenizer.ggml.pre": "qwen35",
+  "tokenizer.ggml.tokens": "n=248320",
+  "tokenizer.ggml.tokens.sha16": "49930cc8a75188cf",
+  "tokenizer.ggml.merges": "n=247587",
+  "tokenizer.ggml.merges.sha16": "2d0d7c583fcdbbcc"
+}

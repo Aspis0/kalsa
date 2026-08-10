@@ -1,0 +1,12 @@
+IQ2_M: models\Qwen3.6-35B-A3B-UD-IQ2_M.gguf exists=True
+KEXP:  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf exists=True size=13416430592
+n_tensors iq=733 kx=733
+missing_in_kexp 0 []
+extra_in_kexp 0 []
+experts ok/bad 120 0 types {'Q3_K': 40, 'Q2_K': 80}
+dense ok/bad 613 0
+KEXP size 13416430592
+blk.0.ffn_gate_exps.weight nbytes 88080384 per_expert 344064
+blk.0.ffn_up_exps.weight nbytes 88080384 per_expert 344064
+blk.0.ffn_down_exps.weight nbytes 115343360 per_expert 450560
+VERIFY_OK

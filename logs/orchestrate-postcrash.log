@@ -1,0 +1,55 @@
+2026-08-10T11:54:33.0515266-04:00 orchestrator wait for Q8_GATE=PASS
+2026-08-10T11:59:02.1362134-04:00 orchestrator wait for Q8_GATE=PASS (cwd fixed)
+2026-08-10T12:16:35.0215280-04:00 orchestrator start (hardened) pid=14064
+2026-08-10T12:16:35.1048609-04:00 power pre-check video_ac_s=0 standby_ac_s=0
+2026-08-10T12:16:35.1315945-04:00 wait for Q8_GATE=PASS
+2026-08-10T12:20:45.0180240-04:00 orchestrator start (hardened) pid=23336
+2026-08-10T12:20:45.0979762-04:00 power pre-check video_ac_s=0 standby_ac_s=0
+2026-08-10T12:20:45.1128253-04:00 wait for Q8_GATE=PASS
+2026-08-10T12:26:25.2498320-04:00 gate FAIL: Q8_GATE=FAIL_SHA got= expected=ba84af0f062c9f452e7d3bf8e3da4469cd4a9e3d26cdc56661e8b7aa04fcbbc5
+
+2026-08-10T12:34:10.2450874-04:00 orchestrator start (hardened) pid=18764
+2026-08-10T12:34:10.3350353-04:00 power pre-check video_ac_s=0 standby_ac_s=0
+2026-08-10T12:34:10.3616295-04:00 wait for Q8_GATE=PASS
+2026-08-10T13:10:31.2764701-04:00 gate FAIL: Q8_GATE=FAIL_HASH_TOOL error=Method invocation failed because [System.Char] does not contain a method named 'ToLowerInvariant'.
+
+2026-08-10T13:14:34.0073711-04:00 orchestrator start (hardened) pid=22820
+2026-08-10T13:14:34.1015959-04:00 power pre-check video_ac_s=0 standby_ac_s=0
+2026-08-10T13:14:34.1269577-04:00 wait for Q8_GATE=PASS
+2026-08-10T13:14:34.1294760-04:00 gate PASS seen
+2026-08-10T13:14:34.1407825-04:00 re-hash Q8 before quantize...
+2026-08-10T13:14:34.2769424-04:00 ABORT re-sha  != d1a395809f65a43a13ad119eb4e7acdef1ac6d68120f39902c8ab96e72794a59
+2026-08-10T13:15:23.7149930-04:00 orchestrator start pid=13380 (certutil)
+2026-08-10T13:15:23.7999168-04:00 power video_ac=0 standby_ac=0
+2026-08-10T13:15:23.8275307-04:00 wait PASS
+2026-08-10T13:15:23.8390418-04:00 gate PASS
+2026-08-10T13:15:23.8451292-04:00 re-hash with certutil...
+2026-08-10T13:16:57.5476545-04:00 re-sha OK d1a395809f65a43a13ad119eb4e7acdef1ac6d68120f39902c8ab96e72794a59
+2026-08-10T13:16:58.3831017-04:00 free=215427731456
+2026-08-10T13:16:58.4012675-04:00 START quantize
+2026-08-10T13:31:33.9687693-04:00 quantize exit=0
+2026-08-10T13:31:34.0020791-04:00 KEXP size=13405944832
+2026-08-10T13:32:08.3409170-04:00 verify exit=1
+2026-08-10T13:32:08.3916005-04:00 IQ2_M: models\Qwen3.6-35B-A3B-UD-IQ2_M.gguf exists=True
+2026-08-10T13:32:08.3926313-04:00 KEXP:  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf exists=True size=13405944832
+2026-08-10T13:32:08.3971789-04:00 n_tensors iq=733 kx=733
+2026-08-10T13:32:08.3988296-04:00 missing_in_kexp 0 []
+2026-08-10T13:32:08.3998688-04:00 extra_in_kexp 0 []
+2026-08-10T13:32:08.4032844-04:00 experts ok/bad 120 0 types {'Q3_K': 40, 'Q2_K': 80}
+2026-08-10T13:32:08.4042959-04:00 dense ok/bad 603 10
+2026-08-10T13:32:08.4068113-04:00 dense mismatches sample:
+2026-08-10T13:32:08.4068113-04:00   ('blk.11.attn_output.weight', 'Q5_K', 'Q4_K')
+2026-08-10T13:32:08.4088422-04:00   ('blk.15.attn_output.weight', 'Q5_K', 'Q4_K')
+2026-08-10T13:32:08.4108784-04:00   ('blk.19.attn_output.weight', 'Q5_K', 'Q4_K')
+2026-08-10T13:32:08.4487248-04:00   ('blk.23.attn_output.weight', 'Q5_K', 'Q4_K')
+2026-08-10T13:32:08.4517543-04:00   ('blk.27.attn_output.weight', 'Q5_K', 'Q4_K')
+2026-08-10T13:32:08.4537617-04:00   ('blk.3.attn_output.weight', 'Q5_K', 'Q4_K')
+2026-08-10T13:32:08.4557488-04:00   ('blk.31.attn_output.weight', 'Q5_K', 'Q4_K')
+2026-08-10T13:32:08.4577471-04:00   ('blk.35.attn_output.weight', 'Q5_K', 'Q4_K')
+2026-08-10T13:32:08.4592660-04:00   ('blk.39.attn_output.weight', 'Q5_K', 'Q4_K')
+2026-08-10T13:32:08.4612832-04:00   ('blk.7.attn_output.weight', 'Q5_K', 'Q4_K')
+2026-08-10T13:32:08.4634535-04:00 KEXP size 13405944832
+2026-08-10T13:32:08.4644544-04:00 blk.0.ffn_gate_exps.weight nbytes 88080384 per_expert 344064
+2026-08-10T13:32:08.4654551-04:00 blk.0.ffn_up_exps.weight nbytes 88080384 per_expert 344064
+2026-08-10T13:32:08.4684994-04:00 blk.0.ffn_down_exps.weight nbytes 115343360 per_expert 450560
+2026-08-10T13:32:08.4695034-04:00 VERIFY_FAIL dens_bad 10

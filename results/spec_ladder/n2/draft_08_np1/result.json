@@ -1,0 +1,7 @@
+{
+  "pid": 18496,
+  "crash": "GGML_ASSERT",
+  "tag": "draft_08_np1",
+  "error": "Unable to read data from the transport connection: An existing connection was forcibly closed by the remote host..",
+  "ready": true
+}

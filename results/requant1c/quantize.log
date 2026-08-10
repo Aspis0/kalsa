@@ -1,0 +1,9 @@
+=== quantize 1c SAFE start Mon 08/10/2026 13:35:16.02 === 
+Q8_GATE=PASS
+size=36903140320
+sha256=d1a395809f65a43a13ad119eb4e7acdef1ac6d68120f39902c8ab96e72794a59
+checked=2026-08-10T13:14:22.5640524-04:00
+fresh_sha=d1a395809f65a43a13ad119eb4e7acdef1ac6d68120f39902c8ab96e72794a59 size=36903140320 free=215419453440 
+cmd: llama-quantize --allow-requantize --imatrix models\imatrix_unsloth.gguf_file --tensor-type-file results\requant1c\tensor_types.txt models\Qwen3.6-35B-A3B-Q8_0.gguf models\Qwen3.6-35B-A3B-KEXP.gguf Q5_K 
+EXIT=0 
+=== quantize 1c end Mon 08/10/2026 13:48:10.84 exit=0 === 

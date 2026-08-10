@@ -1,0 +1,506 @@
+[2026-08-10T10:30:54-0400] pin OK sha=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-10T10:30:55-0400] SESSION START batt_start=92 plugged=UNPLUGGED die_start=47.8 nproc=8 drop_f=0.65 bin=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f 2026-08-10T10:30:55-0400
+[2026-08-10T10:30:55-0400] PREDICTION_A_VERBALE: C(4) ~ 1.8-2.5; soglie <=2.2 VERDE / 2.2-3.0 GIALLO / >3.0 ROSSO
+[2026-08-10T10:30:55-0400] ==== CONTROL DECODE n=128 ====
+[2026-08-10T10:30:55-0400] PREFLIGHT ctrl_decode nproc=8 die=51.0C batt=92% plugged=UNPLUGGED btemp=29.7 freq=cpu0=1555200;cpu4=2803200;cpu7=3360000
+[2026-08-10T10:30:56-0400] PREFLIGHT ctrl_decode OK die=49.8C batt=92 nproc=7
+[2026-08-10T10:31:04-0400] cold_model rc=0
+[2026-08-10T10:31:45-0400] CONTROL eval_tok_s=0.0 t_decode1=None wall=40.2s rc=0 die 47.0->71.3
+[2026-08-10T10:35:51-0400] pin OK sha=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-10T10:35:51-0400] SESSION START batt_start=91 plugged=UNPLUGGED die_start=45.4 nproc=8 drop_f=0.65 bin=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f 2026-08-10T10:35:51-0400
+[2026-08-10T10:35:51-0400] PREDICTION_A_VERBALE: C(4) ~ 1.8-2.5; soglie <=2.2 VERDE / 2.2-3.0 GIALLO / >3.0 ROSSO
+[2026-08-10T10:35:51-0400] ==== CONTROL DECODE n=128 ====
+[2026-08-10T10:35:52-0400] PREFLIGHT ctrl_decode nproc=8 die=47.4C batt=91% plugged=UNPLUGGED btemp=30.7 freq=cpu0=1555200;cpu4=2803200;cpu7=3360000
+[2026-08-10T10:35:52-0400] PREFLIGHT ctrl_decode OK die=43.7C batt=91 nproc=7
+[2026-08-10T10:35:57-0400] cold_model rc=0
+[2026-08-10T10:36:38-0400] CONTROL eval_tok_s=6.529 t_decode1=0.1531628120692296 wall=39.7s rc=0 die 44.1->70.9
+[2026-08-10T10:36:38-0400] ==== CALIBRATION t2 n_prompt ====
+[2026-08-10T10:36:38-0400] PREFLIGHT calib nproc=7 die=66.0C batt=91% plugged=UNPLUGGED btemp=32.2 freq=cpu0=1900800;cpu4=2054400;cpu7=2092800
+[2026-08-10T10:36:39-0400] PREFLIGHT calib OK die=64.4C batt=91 nproc=7
+[2026-08-10T10:36:41-0400] calib[1] cand='x'
+[2026-08-10T10:36:41-0400] ---- session calib_1 ----
+[2026-08-10T10:37:06-0400] t1 n_prompt=114 prefill_s=10.127 tok_s=4.614
+[2026-08-10T10:37:06-0400] t2 n_prompt=15 prefill_s=1.68 n_common=122 hit=21.3
+[2026-08-10T10:37:06-0400] session calib_1 DONE rc=0 wall=23.7s batt 91->90 die 51.8->69.7
+[2026-08-10T10:37:06-0400] calib[2] cand='x x'
+[2026-08-10T10:37:06-0400] ---- session calib_2 ----
+[2026-08-10T10:37:32-0400] t1 n_prompt=114 prefill_s=10.26 tok_s=4.409
+[2026-08-10T10:37:32-0400] t2 n_prompt=16 prefill_s=1.761 n_common=122 hit=20.6
+[2026-08-10T10:37:32-0400] session calib_2 DONE rc=0 wall=24.1s batt 90->90 die 65.6->67.6
+[2026-08-10T10:37:32-0400] calib[3] cand='x x x'
+[2026-08-10T10:37:32-0400] ---- session calib_3 ----
+[2026-08-10T10:37:58-0400] t1 n_prompt=114 prefill_s=10.392 tok_s=4.621
+[2026-08-10T10:37:58-0400] t2 n_prompt=17 prefill_s=1.902 n_common=122 hit=20.4
+[2026-08-10T10:37:58-0400] session calib_3 DONE rc=0 wall=24.1s batt 90->89 die 60.4->70.1
+[2026-08-10T10:37:58-0400] calib[4] cand='x x x x'
+[2026-08-10T10:37:58-0400] ---- session calib_4 ----
+[2026-08-10T10:38:23-0400] t1 n_prompt=114 prefill_s=10.338 tok_s=4.445
+[2026-08-10T10:38:23-0400] t2 n_prompt=18 prefill_s=1.874 n_common=122 hit=20.5
+[2026-08-10T10:38:23-0400] session calib_4 DONE rc=0 wall=24.5s batt 89->89 die 64.8->68.5
+[2026-08-10T10:38:23-0400] calib[5] cand='x x x x x'
+[2026-08-10T10:38:23-0400] ---- session calib_5 ----
+[2026-08-10T10:38:52-0400] t1 n_prompt=114 prefill_s=10.8 tok_s=4.374
+[2026-08-10T10:38:52-0400] t2 n_prompt=19 prefill_s=2.265 n_common=122 hit=20.1
+[2026-08-10T10:38:52-0400] session calib_5 DONE rc=0 wall=25.8s batt 89->89 die 62.8->61.2
+[2026-08-10T10:38:52-0400] calib[6] cand='x x x x x x'
+[2026-08-10T10:38:52-0400] ---- session calib_6 ----
+[2026-08-10T10:39:21-0400] t1 n_prompt=114 prefill_s=12.4 tok_s=4.05
+[2026-08-10T10:39:21-0400] t2 n_prompt=20 prefill_s=2.66 n_common=122 hit=19.9
+[2026-08-10T10:39:21-0400] session calib_6 DONE rc=0 wall=28.5s batt 89->89 die 54.1->59.3
+[2026-08-10T10:39:22-0400] calib[7] cand='x x x x x x x'
+[2026-08-10T10:39:22-0400] ---- session calib_7 ----
+[2026-08-10T10:39:51-0400] t1 n_prompt=114 prefill_s=12.3 tok_s=4.108
+[2026-08-10T10:39:51-0400] t2 n_prompt=21 prefill_s=2.762 n_common=122 hit=19.7
+[2026-08-10T10:39:51-0400] session calib_7 DONE rc=0 wall=28.7s batt 89->89 die 57.5->60.1
+[2026-08-10T10:39:51-0400] calib[8] cand='x x x x x x x x'
+[2026-08-10T10:39:51-0400] ---- session calib_8 ----
+[2026-08-10T10:40:22-0400] t1 n_prompt=114 prefill_s=11.444 tok_s=3.852
+[2026-08-10T10:40:22-0400] t2 n_prompt=22 prefill_s=2.552 n_common=122 hit=19.9
+[2026-08-10T10:40:22-0400] session calib_8 DONE rc=0 wall=28.2s batt 89->88 die 56.7->58.7
+[2026-08-10T10:40:22-0400] calib[9] cand='x x x x x x x x x'
+[2026-08-10T10:40:22-0400] ---- session calib_9 ----
+[2026-08-10T10:40:52-0400] t1 n_prompt=114 prefill_s=12.28 tok_s=4.083
+[2026-08-10T10:40:52-0400] t2 n_prompt=23 prefill_s=2.827 n_common=122 hit=19.7
+[2026-08-10T10:40:52-0400] session calib_9 DONE rc=0 wall=28.2s batt 88->88 die 53.7->58.1
+[2026-08-10T10:40:52-0400] calib[10] cand='x x x x x x x x x x'
+[2026-08-10T10:40:52-0400] ---- session calib_10 ----
+[2026-08-10T10:41:23-0400] t1 n_prompt=114 prefill_s=12.412 tok_s=4.143
+[2026-08-10T10:41:23-0400] t2 n_prompt=24 prefill_s=2.828 n_common=122 hit=19.5
+[2026-08-10T10:41:23-0400] session calib_10 DONE rc=0 wall=28.8s batt 88->88 die 53.5->58.9
+[2026-08-10T10:41:24-0400] calib[11] cand='x x x x x x x x x x x x'
+[2026-08-10T10:41:24-0400] ---- session calib_11 ----
+[2026-08-10T10:41:55-0400] t1 n_prompt=114 prefill_s=12.454 tok_s=4.098
+[2026-08-10T10:41:55-0400] t2 n_prompt=26 prefill_s=3.289 n_common=122 hit=19.8
+[2026-08-10T10:41:55-0400] session calib_11 DONE rc=0 wall=29.6s batt 88->87 die 54.5->59.9
+[2026-08-10T10:41:55-0400] calib[12] cand='x x x x x x x x x x x x x x'
+[2026-08-10T10:41:55-0400] ---- session calib_12 ----
+[2026-08-10T10:42:24-0400] t1 n_prompt=114 prefill_s=12.049 tok_s=4.275
+[2026-08-10T10:42:24-0400] t2 n_prompt=28 prefill_s=3.347 n_common=122 hit=19.8
+[2026-08-10T10:42:24-0400] session calib_12 DONE rc=0 wall=28.5s batt 87->87 die 56.5->59.7
+[2026-08-10T10:42:25-0400] calib[13] cand='x x x x x x x x x x x x x x x x'
+[2026-08-10T10:42:25-0400] ---- session calib_13 ----
+[2026-08-10T10:42:57-0400] t1 n_prompt=114 prefill_s=12.243 tok_s=4.03
+[2026-08-10T10:42:57-0400] t2 n_prompt=30 prefill_s=3.739 n_common=122 hit=19.4
+[2026-08-10T10:42:57-0400] session calib_13 DONE rc=0 wall=29.7s batt 87->87 die 56.9->58.7
+[2026-08-10T10:42:57-0400] calib[14] cand='x x x x x x x x x x x x x x x x x x'
+[2026-08-10T10:42:57-0400] ---- session calib_14 ----
+[2026-08-10T10:43:29-0400] t1 n_prompt=114 prefill_s=12.017 tok_s=4.127
+[2026-08-10T10:43:29-0400] t2 n_prompt=32 prefill_s=3.647 n_common=122 hit=19.3
+[2026-08-10T10:43:29-0400] session calib_14 DONE rc=0 wall=29.2s batt 87->87 die 52.9->58.9
+[2026-08-10T10:43:30-0400] calib[15] cand='x x x x x x x x x x x x x x x x x x x x'
+[2026-08-10T10:43:30-0400] ---- session calib_15 ----
+[2026-08-10T10:44:02-0400] t1 n_prompt=114 prefill_s=12.557 tok_s=3.767
+[2026-08-10T10:44:02-0400] t2 n_prompt=34 prefill_s=4.058 n_common=122 hit=18.7
+[2026-08-10T10:44:02-0400] session calib_15 DONE rc=0 wall=30.3s batt 87->86 die 53.3->58.5
+[2026-08-10T10:44:02-0400] calib[16] cand='x x x x x x x x x x x x x x x x x x x x '
+[2026-08-10T10:44:02-0400] ---- session calib_16 ----
+[2026-08-10T10:44:33-0400] t1 n_prompt=114 prefill_s=12.663 tok_s=4.013
+[2026-08-10T10:44:33-0400] t2 n_prompt=36 prefill_s=4.245 n_common=122 hit=18.8
+[2026-08-10T10:44:33-0400] session calib_16 DONE rc=0 wall=30.7s batt 86->86 die 55.5->59.1
+[2026-08-10T10:44:34-0400] calib[17] cand='x x x x x x x x x x x x x x x x x x x x '
+[2026-08-10T10:44:34-0400] ---- session calib_17 ----
+[2026-08-10T10:45:07-0400] t1 n_prompt=114 prefill_s=13.662 tok_s=3.857
+[2026-08-10T10:45:07-0400] t2 n_prompt=38 prefill_s=5.057 n_common=122 hit=18.9
+[2026-08-10T10:45:07-0400] session calib_17 DONE rc=0 wall=32.8s batt 86->86 die 56.3->57.7
+[2026-08-10T10:45:07-0400] calib[18] cand='x x x x x x x x x x x x x x x x x x x x '
+[2026-08-10T10:45:07-0400] ---- session calib_18 ----
+[2026-08-10T10:45:44-0400] t1 n_prompt=114 prefill_s=13.988 tok_s=3.84
+[2026-08-10T10:45:44-0400] t2 n_prompt=42 prefill_s=5.454 n_common=122 hit=18.5
+[2026-08-10T10:45:44-0400] session calib_18 DONE rc=0 wall=33.8s batt 86->86 die 56.1->57.1
+[2026-08-10T10:45:44-0400] calib[19] cand='x x x x x x x x x x x x x x x x x x x x '
+[2026-08-10T10:45:44-0400] ---- session calib_19 ----
+[2026-08-10T10:46:19-0400] t1 n_prompt=114 prefill_s=13.525 tok_s=3.732
+[2026-08-10T10:46:19-0400] t2 n_prompt=46 prefill_s=6.169 n_common=122 hit=17.9
+[2026-08-10T10:46:19-0400] session calib_19 DONE rc=0 wall=34.2s batt 86->86 die 53.3->56.5
+[2026-08-10T10:46:19-0400] calib[20] cand='ok'
+[2026-08-10T10:46:19-0400] ---- session calib_20 ----
+[2026-08-10T10:46:54-0400] t1 n_prompt=114 prefill_s=15.075 tok_s=3.686
+[2026-08-10T10:46:54-0400] t2 n_prompt=15 prefill_s=2.404 n_common=122 hit=20.8
+[2026-08-10T10:46:54-0400] session calib_20 DONE rc=0 wall=32.4s batt 86->85 die 54.9->56.1
+[2026-08-10T10:46:54-0400] calib[21] cand='si'
+[2026-08-10T10:46:54-0400] ---- session calib_21 ----
+[2026-08-10T10:47:26-0400] t1 n_prompt=114 prefill_s=14.024 tok_s=3.703
+[2026-08-10T10:47:26-0400] t2 n_prompt=15 prefill_s=2.275 n_common=122 hit=20.1
+[2026-08-10T10:47:26-0400] session calib_21 DONE rc=0 wall=30.9s batt 85->85 die 53.7->57.3
+[2026-08-10T10:47:26-0400] calib[22] cand='ok si'
+[2026-08-10T10:47:26-0400] ---- session calib_22 ----
+[2026-08-10T10:47:57-0400] t1 n_prompt=114 prefill_s=13.89 tok_s=3.891
+[2026-08-10T10:47:57-0400] t2 n_prompt=16 prefill_s=2.362 n_common=122 hit=20.2
+[2026-08-10T10:47:57-0400] session calib_22 DONE rc=0 wall=30.6s batt 85->85 die 56.1->58.1
+[2026-08-10T10:47:57-0400] calib[23] cand='va bene'
+[2026-08-10T10:47:57-0400] ---- session calib_23 ----
+[2026-08-10T10:48:31-0400] t1 n_prompt=114 prefill_s=14.163 tok_s=3.706
+[2026-08-10T10:48:31-0400] t2 n_prompt=16 prefill_s=2.381 n_common=122 hit=20.6
+[2026-08-10T10:48:31-0400] session calib_23 DONE rc=0 wall=31.0s batt 85->84 die 55.5->58.1
+[2026-08-10T10:48:31-0400] calib[24] cand='dimmi'
+[2026-08-10T10:48:31-0400] ---- session calib_24 ----
+[2026-08-10T10:49:05-0400] t1 n_prompt=114 prefill_s=14.66 tok_s=3.744
+[2026-08-10T10:49:05-0400] t2 n_prompt=16 prefill_s=2.437 n_common=122 hit=20.5
+[2026-08-10T10:49:05-0400] session calib_24 DONE rc=0 wall=31.8s batt 84->84 die 53.7->56.9
+[2026-08-10T10:49:06-0400] calib[25] cand='a b'
+[2026-08-10T10:49:06-0400] ---- session calib_25 ----
+[2026-08-10T10:49:39-0400] t1 n_prompt=114 prefill_s=15.042 tok_s=3.66
+[2026-08-10T10:49:39-0400] t2 n_prompt=16 prefill_s=2.422 n_common=122 hit=21.0
+[2026-08-10T10:49:39-0400] session calib_25 DONE rc=0 wall=32.2s batt 84->84 die 52.1->56.9
+[2026-08-10T10:49:39-0400] calib[26] cand='a b c'
+[2026-08-10T10:49:39-0400] ---- session calib_26 ----
+[2026-08-10T10:50:11-0400] t1 n_prompt=114 prefill_s=14.327 tok_s=3.908
+[2026-08-10T10:50:11-0400] t2 n_prompt=17 prefill_s=2.6 n_common=122 hit=21.0
+[2026-08-10T10:50:11-0400] session calib_26 DONE rc=0 wall=31.1s batt 84->84 die 54.5->58.7
+[2026-08-10T10:50:11-0400] calib[27] cand='a b c d'
+[2026-08-10T10:50:11-0400] ---- session calib_27 ----
+[2026-08-10T10:50:45-0400] t1 n_prompt=114 prefill_s=13.829 tok_s=3.884
+[2026-08-10T10:50:45-0400] t2 n_prompt=18 prefill_s=2.708 n_common=122 hit=20.9
+[2026-08-10T10:50:45-0400] session calib_27 DONE rc=0 wall=31.2s batt 84->84 die 56.1->57.3
+[2026-08-10T10:50:45-0400] calib[28] cand='a b c d e f'
+[2026-08-10T10:50:45-0400] ---- session calib_28 ----
+[2026-08-10T10:51:18-0400] t1 n_prompt=114 prefill_s=14.344 tok_s=3.737
+[2026-08-10T10:51:18-0400] t2 n_prompt=20 prefill_s=2.745 n_common=122 hit=20.8
+[2026-08-10T10:51:18-0400] session calib_28 DONE rc=0 wall=31.8s batt 84->83 die 52.9->58.1
+[2026-08-10T10:51:18-0400] calib[29] cand='ciao ok'
+[2026-08-10T10:51:18-0400] ---- session calib_29 ----
+[2026-08-10T10:51:52-0400] t1 n_prompt=114 prefill_s=14.177 tok_s=3.642
+[2026-08-10T10:51:52-0400] t2 n_prompt=17 prefill_s=2.55 n_common=122 hit=20.7
+[2026-08-10T10:51:52-0400] session calib_29 DONE rc=0 wall=31.1s batt 83->83 die 55.3->56.9
+[2026-08-10T10:51:52-0400] calib[30] cand='prova k'
+[2026-08-10T10:51:52-0400] ---- session calib_30 ----
+[2026-08-10T10:52:24-0400] t1 n_prompt=114 prefill_s=13.952 tok_s=3.932
+[2026-08-10T10:52:24-0400] t2 n_prompt=17 prefill_s=2.645 n_common=122 hit=20.5
+[2026-08-10T10:52:24-0400] session calib_30 DONE rc=0 wall=31.2s batt 83->83 die 52.6->60.9
+[2026-08-10T10:52:24-0400] calib[31] cand='uno due'
+[2026-08-10T10:52:24-0400] ---- session calib_31 ----
+[2026-08-10T10:52:57-0400] t1 n_prompt=114 prefill_s=14.02 tok_s=3.54
+[2026-08-10T10:52:57-0400] t2 n_prompt=16 prefill_s=2.455 n_common=122 hit=20.7
+[2026-08-10T10:52:57-0400] session calib_31 DONE rc=0 wall=31.0s batt 83->83 die 55.7->57.3
+[2026-08-10T10:52:57-0400] calib[32] cand='uno due tre'
+[2026-08-10T10:52:57-0400] ---- session calib_32 ----
+[2026-08-10T10:53:31-0400] t1 n_prompt=114 prefill_s=14.498 tok_s=3.909
+[2026-08-10T10:53:31-0400] t2 n_prompt=17 prefill_s=2.605 n_common=122 hit=20.8
+[2026-08-10T10:53:31-0400] session calib_32 DONE rc=0 wall=31.6s batt 83->82 die 54.5->57.1
+[2026-08-10T10:53:31-0400] calib[33] cand='uno due tre quattro'
+[2026-08-10T10:53:31-0400] ---- session calib_33 ----
+[2026-08-10T10:54:05-0400] t1 n_prompt=114 prefill_s=14.05 tok_s=3.643
+[2026-08-10T10:54:05-0400] t2 n_prompt=18 prefill_s=2.809 n_common=122 hit=20.7
+[2026-08-10T10:54:05-0400] session calib_33 DONE rc=0 wall=31.3s batt 82->82 die 54.1->57.7
+[2026-08-10T10:54:05-0400] CHOSEN k=2 n_prompt=15 prompt='x'
+[2026-08-10T10:54:05-0400] CHOSEN k=4 n_prompt=15 prompt='x'
+[2026-08-10T10:54:05-0400] CHOSEN k=8 n_prompt=15 prompt='x'
+[2026-08-10T10:54:05-0400] CHOSEN k=16 n_prompt=16 prompt='uno due'
+[2026-08-10T10:54:05-0400] ==== K SERIES C(k) ====
+[2026-08-10T10:54:05-0400] PREFLIGHT k_series nproc=7 die=54.1C batt=82% plugged=UNPLUGGED btemp=40.9 freq=cpu0=1555200;cpu4=940800;cpu7=864000
+[2026-08-10T10:54:06-0400] PREFLIGHT k_series OK die=52.5C batt=82 nproc=7
+[2026-08-10T10:54:15-0400] cold_model rc=0
+[2026-08-10T10:54:16-0400] PREFLIGHT k2_r1 nproc=7 die=47.7C batt=82% plugged=UNPLUGGED btemp=40.9 freq=cpu0=556800;cpu4=1401600;cpu7=864000
+[2026-08-10T10:54:16-0400] PREFLIGHT k2_r1 OK die=48.5C batt=82 nproc=7
+[2026-08-10T10:54:16-0400] ---- session k2_r1 ----
+[2026-08-10T10:54:51-0400] t1 n_prompt=114 prefill_s=12.556 tok_s=4.874
+[2026-08-10T10:54:51-0400] t2 n_prompt=15 prefill_s=2.293 n_common=146 hit=48.5
+[2026-08-10T10:54:51-0400] session k2_r1 DONE rc=0 wall=33.2s batt 82->82 die 48.2->58.9
+[2026-08-10T10:54:51-0400] C(2)=14.970997 n_prompt=15 prefill_s=2.293
+[2026-08-10T10:54:51-0400] PREFLIGHT k2_r2 nproc=7 die=54.5C batt=82% plugged=UNPLUGGED btemp=40.9 freq=cpu0=1670400;cpu4=1536000;cpu7=1843200
+[2026-08-10T10:54:52-0400] PREFLIGHT k2_r2 OK die=53.7C batt=82 nproc=7
+[2026-08-10T10:54:52-0400] ---- session k2_r2 ----
+[2026-08-10T10:55:29-0400] t1 n_prompt=114 prefill_s=14.06 tok_s=4.159
+[2026-08-10T10:55:29-0400] t2 n_prompt=15 prefill_s=2.291 n_common=146 hit=48.5
+[2026-08-10T10:55:29-0400] session k2_r2 DONE rc=0 wall=36.7s batt 82->82 die 54.1->57.7
+[2026-08-10T10:55:29-0400] C(2)=14.957938999999998 n_prompt=15 prefill_s=2.291
+[2026-08-10T10:55:30-0400] PREFLIGHT k4_r1 nproc=7 die=55.3C batt=82% plugged=UNPLUGGED btemp=40.9 freq=cpu0=1670400;cpu4=1401600;cpu7=1708800
+[2026-08-10T10:55:30-0400] PREFLIGHT k4_r1 OK die=54.5C batt=82 nproc=7
+[2026-08-10T10:55:30-0400] ---- session k4_r1 ----
+[2026-08-10T10:56:10-0400] t1 n_prompt=114 prefill_s=14.736 tok_s=3.922
+[2026-08-10T10:56:10-0400] t2 n_prompt=15 prefill_s=2.15 n_common=146 hit=48.5
+[2026-08-10T10:56:10-0400] session k4_r1 DONE rc=0 wall=37.5s batt 82->81 die 54.1->56.1
+[2026-08-10T10:56:10-0400] C(4)=14.037349999999998 n_prompt=15 prefill_s=2.15
+[2026-08-10T10:56:10-0400] PREFLIGHT k4_r2 nproc=7 die=52.5C batt=81% plugged=UNPLUGGED btemp=40.8 freq=cpu0=556800;cpu4=1401600;cpu7=864000
+[2026-08-10T10:56:11-0400] PREFLIGHT k4_r2 OK die=52.1C batt=81 nproc=7
+[2026-08-10T10:56:11-0400] ---- session k4_r2 ----
+[2026-08-10T10:56:50-0400] t1 n_prompt=114 prefill_s=14.234 tok_s=4.177
+[2026-08-10T10:56:50-0400] t2 n_prompt=15 prefill_s=2.388 n_common=146 hit=48.5
+[2026-08-10T10:56:50-0400] session k4_r2 DONE rc=0 wall=37.0s batt 81->81 die 51.7->57.3
+[2026-08-10T10:56:50-0400] C(4)=15.591251999999997 n_prompt=15 prefill_s=2.388
+[2026-08-10T10:56:51-0400] PREFLIGHT k8_r1 nproc=7 die=52.9C batt=81% plugged=UNPLUGGED btemp=40.8 freq=cpu0=556800;cpu4=1401600;cpu7=864000
+[2026-08-10T10:56:51-0400] PREFLIGHT k8_r1 OK die=52.1C batt=81 nproc=7
+[2026-08-10T10:56:51-0400] ---- session k8_r1 ----
+[2026-08-10T10:57:29-0400] t1 n_prompt=114 prefill_s=13.874 tok_s=4.218
+[2026-08-10T10:57:29-0400] t2 n_prompt=15 prefill_s=2.303 n_common=146 hit=48.5
+[2026-08-10T10:57:29-0400] session k8_r1 DONE rc=0 wall=36.3s batt 81->81 die 52.6->57.3
+[2026-08-10T10:57:29-0400] C(8)=15.036286999999998 n_prompt=15 prefill_s=2.303
+[2026-08-10T10:57:30-0400] PREFLIGHT k8_r2 nproc=7 die=53.9C batt=81% plugged=UNPLUGGED btemp=40.8 freq=cpu0=556800;cpu4=1401600;cpu7=864000
+[2026-08-10T10:57:30-0400] PREFLIGHT k8_r2 OK die=52.6C batt=81 nproc=7
+[2026-08-10T10:57:30-0400] ---- session k8_r2 ----
+[2026-08-10T10:58:09-0400] t1 n_prompt=114 prefill_s=14.148 tok_s=4.244
+[2026-08-10T10:58:09-0400] t2 n_prompt=15 prefill_s=2.319 n_common=146 hit=48.5
+[2026-08-10T10:58:09-0400] session k8_r2 DONE rc=0 wall=36.1s batt 81->80 die 52.5->56.9
+[2026-08-10T10:58:09-0400] C(8)=15.140750999999998 n_prompt=15 prefill_s=2.319
+[2026-08-10T10:58:09-0400] PREFLIGHT k16_r1 nproc=7 die=54.1C batt=80% plugged=UNPLUGGED btemp=40.8 freq=cpu0=1670400;cpu4=1401600;cpu7=1708800
+[2026-08-10T10:58:10-0400] PREFLIGHT k16_r1 OK die=53.1C batt=80 nproc=7
+[2026-08-10T10:58:10-0400] ---- session k16_r1 ----
+[2026-08-10T10:58:49-0400] t1 n_prompt=114 prefill_s=14.133 tok_s=4.312
+[2026-08-10T10:58:49-0400] t2 n_prompt=16 prefill_s=2.505 n_common=146 hit=47.9
+[2026-08-10T10:58:49-0400] session k16_r1 DONE rc=0 wall=36.4s batt 80->80 die 52.9->57.3
+[2026-08-10T10:58:49-0400] C(16)=16.355144999999997 n_prompt=16 prefill_s=2.505
+[2026-08-10T10:58:49-0400] PREFLIGHT k16_r2 nproc=7 die=52.6C batt=80% plugged=UNPLUGGED btemp=40.8 freq=cpu0=556800;cpu4=1056000;cpu7=864000
+[2026-08-10T10:58:50-0400] PREFLIGHT k16_r2 OK die=52.1C batt=80 nproc=7
+[2026-08-10T10:58:50-0400] ---- session k16_r2 ----
+[2026-08-10T10:59:29-0400] t1 n_prompt=114 prefill_s=14.246 tok_s=4.204
+[2026-08-10T10:59:29-0400] t2 n_prompt=16 prefill_s=2.521 n_common=146 hit=47.9
+[2026-08-10T10:59:29-0400] session k16_r2 DONE rc=0 wall=36.9s batt 80->80 die 52.5->57.3
+[2026-08-10T10:59:29-0400] C(16)=16.459608999999997 n_prompt=16 prefill_s=2.521
+[2026-08-10T10:59:29-0400] SUMMARY
+t_decode1=0.1531628120692296 s  eval_tok_s=6.529
+k,C_r1,C_r2,C_med,n_prompt_med,verdict
+2,14.971,14.958,14.964,15.0,(info)
+4,14.037,15.591,14.814,15.0,ROSSO
+8,15.036,15.141,15.089,15.0,(info)
+16,16.355,16.460,16.407,16.0,(info)
+[2026-08-10T10:59:29-0400] VERDICT ROSSO C4_med=14.8143
+[2026-08-10T10:59:29-0400] N1 DONE OK
+[2026-08-10T14:13:52-0400] pin OK sha=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-10T14:13:53-0400] SESSION START batt_start=69 plugged=UNPLUGGED die_start=40.5 nproc=8 drop_f=0.65 bin=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f 2026-08-10T14:13:53-0400
+[2026-08-10T14:13:53-0400] PREDICTION_A_VERBALE: C(4) ~ 1.8-2.5; soglie <=2.2 VERDE / 2.2-3.0 GIALLO / >3.0 ROSSO
+[2026-08-10T14:13:53-0400] ==== CONTROL DECODE n=128 ====
+[2026-08-10T14:13:53-0400] PREFLIGHT ctrl_decode nproc=8 die=46.6C batt=69% plugged=UNPLUGGED btemp=26.8 freq=cpu0=2016000;cpu4=2803200;cpu7=3360000
+[2026-08-10T14:13:54-0400] PREFLIGHT ctrl_decode OK die=38.9C batt=69 nproc=7
+[2026-08-10T14:13:59-0400] cold_model rc=0
+[2026-08-10T14:14:40-0400] CONTROL eval_tok_s=6.513 t_decode1=0.15353907569476433 wall=40.0s rc=0 die 41.7->68.9
+[2026-08-10T14:14:40-0400] ==== CALIBRATION t2 n_prompt ====
+[2026-08-10T14:14:40-0400] PREFLIGHT calib nproc=7 die=62.4C batt=69% plugged=UNPLUGGED btemp=27.4 freq=cpu0=2016000;cpu4=2054400;cpu7=2092800
+[2026-08-10T14:14:40-0400] PREFLIGHT calib OK die=62.4C batt=69 nproc=7
+[2026-08-10T14:14:42-0400] calib[1] cand='x'
+[2026-08-10T14:14:42-0400] ---- session calib_1 ----
+[2026-08-10T14:15:07-0400] t1 n_prompt=114 prefill_s=9.866 tok_s=4.721
+[2026-08-10T14:15:07-0400] t2 n_prompt=15 prefill_s=1.677 n_common=122 hit=21.3
+[2026-08-10T14:15:07-0400] session calib_1 DONE rc=0 wall=22.9s batt 68->68 die 55.5->67.2
+[2026-08-10T14:15:07-0400] calib[2] cand='x x'
+[2026-08-10T14:15:07-0400] ---- session calib_2 ----
+[2026-08-10T14:15:31-0400] t1 n_prompt=114 prefill_s=10.141 tok_s=4.429
+[2026-08-10T14:15:31-0400] t2 n_prompt=16 prefill_s=1.749 n_common=122 hit=20.6
+[2026-08-10T14:15:31-0400] session calib_2 DONE rc=0 wall=23.6s batt 68->68 die 68.1->74.9
+[2026-08-10T14:15:31-0400] calib[3] cand='x x x'
+[2026-08-10T14:15:31-0400] ---- session calib_3 ----
+[2026-08-10T14:15:56-0400] t1 n_prompt=114 prefill_s=10.285 tok_s=4.684
+[2026-08-10T14:15:56-0400] t2 n_prompt=17 prefill_s=1.85 n_common=122 hit=20.4
+[2026-08-10T14:15:56-0400] session calib_3 DONE rc=0 wall=23.8s batt 68->68 die 73.7->70.5
+[2026-08-10T14:15:56-0400] calib[4] cand='x x x x'
+[2026-08-10T14:15:56-0400] ---- session calib_4 ----
+[2026-08-10T14:16:21-0400] t1 n_prompt=114 prefill_s=10.404 tok_s=4.574
+[2026-08-10T14:16:21-0400] t2 n_prompt=18 prefill_s=1.948 n_common=122 hit=20.5
+[2026-08-10T14:16:21-0400] session calib_4 DONE rc=0 wall=23.9s batt 68->67 die 65.2->70.9
+[2026-08-10T14:16:21-0400] calib[5] cand='x x x x x'
+[2026-08-10T14:16:21-0400] ---- session calib_5 ----
+[2026-08-10T14:16:47-0400] t1 n_prompt=114 prefill_s=10.201 tok_s=4.553
+[2026-08-10T14:16:47-0400] t2 n_prompt=19 prefill_s=2.074 n_common=122 hit=20.1
+[2026-08-10T14:16:47-0400] session calib_5 DONE rc=0 wall=24.0s batt 67->67 die 71.3->70.9
+[2026-08-10T14:16:47-0400] calib[6] cand='x x x x x x'
+[2026-08-10T14:16:47-0400] ---- session calib_6 ----
+[2026-08-10T14:17:12-0400] t1 n_prompt=114 prefill_s=10.323 tok_s=4.46
+[2026-08-10T14:17:12-0400] t2 n_prompt=20 prefill_s=2.128 n_common=122 hit=19.9
+[2026-08-10T14:17:12-0400] session calib_6 DONE rc=0 wall=24.5s batt 67->66 die 62.4->72.1
+[2026-08-10T14:17:13-0400] calib[7] cand='x x x x x x x'
+[2026-08-10T14:17:13-0400] ---- session calib_7 ----
+[2026-08-10T14:17:40-0400] t1 n_prompt=114 prefill_s=10.233 tok_s=4.311
+[2026-08-10T14:17:40-0400] t2 n_prompt=21 prefill_s=2.38 n_common=122 hit=19.7
+[2026-08-10T14:17:40-0400] session calib_7 DONE rc=0 wall=24.9s batt 66->66 die 62.0->62.9
+[2026-08-10T14:17:40-0400] calib[8] cand='x x x x x x x x'
+[2026-08-10T14:17:40-0400] ---- session calib_8 ----
+[2026-08-10T14:18:09-0400] t1 n_prompt=114 prefill_s=10.96 tok_s=4.344
+[2026-08-10T14:18:09-0400] t2 n_prompt=22 prefill_s=2.788 n_common=122 hit=19.9
+[2026-08-10T14:18:09-0400] session calib_8 DONE rc=0 wall=26.8s batt 66->66 die 56.7->58.5
+[2026-08-10T14:18:09-0400] calib[9] cand='x x x x x x x x x'
+[2026-08-10T14:18:09-0400] ---- session calib_9 ----
+[2026-08-10T14:18:37-0400] t1 n_prompt=114 prefill_s=11.059 tok_s=4.113
+[2026-08-10T14:18:37-0400] t2 n_prompt=23 prefill_s=2.923 n_common=122 hit=19.7
+[2026-08-10T14:18:37-0400] session calib_9 DONE rc=0 wall=27.2s batt 66->66 die 52.9->59.5
+[2026-08-10T14:18:37-0400] calib[10] cand='x x x x x x x x x x'
+[2026-08-10T14:18:37-0400] ---- session calib_10 ----
+[2026-08-10T14:19:08-0400] t1 n_prompt=114 prefill_s=11.168 tok_s=4.114
+[2026-08-10T14:19:08-0400] t2 n_prompt=24 prefill_s=2.983 n_common=122 hit=19.5
+[2026-08-10T14:19:08-0400] session calib_10 DONE rc=0 wall=27.7s batt 66->65 die 57.5->58.1
+[2026-08-10T14:19:08-0400] calib[11] cand='x x x x x x x x x x x x'
+[2026-08-10T14:19:08-0400] ---- session calib_11 ----
+[2026-08-10T14:19:38-0400] t1 n_prompt=114 prefill_s=11.433 tok_s=4.185
+[2026-08-10T14:19:38-0400] t2 n_prompt=26 prefill_s=3.169 n_common=122 hit=19.8
+[2026-08-10T14:19:38-0400] session calib_11 DONE rc=0 wall=28.3s batt 65->65 die 52.5->57.3
+[2026-08-10T14:19:38-0400] calib[12] cand='x x x x x x x x x x x x x x'
+[2026-08-10T14:19:38-0400] ---- session calib_12 ----
+[2026-08-10T14:20:07-0400] t1 n_prompt=114 prefill_s=11.232 tok_s=4.091
+[2026-08-10T14:20:07-0400] t2 n_prompt=28 prefill_s=3.395 n_common=122 hit=19.8
+[2026-08-10T14:20:07-0400] session calib_12 DONE rc=0 wall=28.0s batt 65->65 die 53.5->60.8
+[2026-08-10T14:20:07-0400] calib[13] cand='x x x x x x x x x x x x x x x x'
+[2026-08-10T14:20:07-0400] ---- session calib_13 ----
+[2026-08-10T14:20:38-0400] t1 n_prompt=114 prefill_s=11.626 tok_s=4.209
+[2026-08-10T14:20:38-0400] t2 n_prompt=30 prefill_s=3.606 n_common=122 hit=19.4
+[2026-08-10T14:20:38-0400] session calib_13 DONE rc=0 wall=28.9s batt 65->65 die 57.3->59.1
+[2026-08-10T14:20:39-0400] calib[14] cand='x x x x x x x x x x x x x x x x x x'
+[2026-08-10T14:20:39-0400] ---- session calib_14 ----
+[2026-08-10T14:21:08-0400] t1 n_prompt=114 prefill_s=11.537 tok_s=4.48
+[2026-08-10T14:21:08-0400] t2 n_prompt=32 prefill_s=3.637 n_common=122 hit=19.3
+[2026-08-10T14:21:08-0400] session calib_14 DONE rc=0 wall=28.4s batt 65->64 die 54.1->60.4
+[2026-08-10T14:21:08-0400] calib[15] cand='x x x x x x x x x x x x x x x x x x x x'
+[2026-08-10T14:21:08-0400] ---- session calib_15 ----
+[2026-08-10T14:21:43-0400] t1 n_prompt=114 prefill_s=11.595 tok_s=4.377
+[2026-08-10T14:21:43-0400] t2 n_prompt=34 prefill_s=3.878 n_common=122 hit=18.7
+[2026-08-10T14:21:43-0400] session calib_15 DONE rc=0 wall=29.3s batt 64->-1 die 56.1->59.5
+[2026-08-10T14:21:43-0400] calib[16] cand='x x x x x x x x x x x x x x x x x x x x '
+[2026-08-10T14:21:43-0400] ---- session calib_16 ----
+[2026-08-10T14:22:14-0400] t1 n_prompt=114 prefill_s=11.311 tok_s=4.114
+[2026-08-10T14:22:14-0400] t2 n_prompt=36 prefill_s=4.276 n_common=122 hit=18.8
+[2026-08-10T14:22:14-0400] session calib_16 DONE rc=0 wall=28.8s batt 64->63 die 49.0->58.7
+[2026-08-10T14:22:14-0400] calib[17] cand='x x x x x x x x x x x x x x x x x x x x '
+[2026-08-10T14:22:14-0400] ---- session calib_17 ----
+[2026-08-10T14:22:44-0400] t1 n_prompt=114 prefill_s=11.254 tok_s=3.917
+[2026-08-10T14:22:44-0400] t2 n_prompt=38 prefill_s=4.388 n_common=122 hit=18.9
+[2026-08-10T14:22:44-0400] session calib_17 DONE rc=0 wall=29.3s batt 63->63 die 54.9->60.1
+[2026-08-10T14:22:44-0400] calib[18] cand='x x x x x x x x x x x x x x x x x x x x '
+[2026-08-10T14:22:44-0400] ---- session calib_18 ----
+[2026-08-10T14:23:14-0400] t1 n_prompt=114 prefill_s=11.17 tok_s=4.11
+[2026-08-10T14:23:14-0400] t2 n_prompt=42 prefill_s=4.646 n_common=122 hit=18.5
+[2026-08-10T14:23:14-0400] session calib_18 DONE rc=0 wall=29.3s batt 63->63 die 56.3->63.6
+[2026-08-10T14:23:15-0400] calib[19] cand='x x x x x x x x x x x x x x x x x x x x '
+[2026-08-10T14:23:15-0400] ---- session calib_19 ----
+[2026-08-10T14:23:47-0400] t1 n_prompt=114 prefill_s=11.278 tok_s=4.105
+[2026-08-10T14:23:47-0400] t2 n_prompt=46 prefill_s=5.258 n_common=122 hit=17.9
+[2026-08-10T14:23:47-0400] session calib_19 DONE rc=0 wall=30.5s batt 63->63 die 59.1->58.1
+[2026-08-10T14:23:48-0400] calib[20] cand='ok'
+[2026-08-10T14:23:48-0400] ---- session calib_20 ----
+[2026-08-10T14:24:16-0400] t1 n_prompt=114 prefill_s=11.497 tok_s=4.241
+[2026-08-10T14:24:16-0400] t2 n_prompt=15 prefill_s=2.083 n_common=122 hit=20.8
+[2026-08-10T14:24:16-0400] session calib_20 DONE rc=0 wall=27.5s batt 63->62 die 52.6->58.9
+[2026-08-10T14:24:17-0400] calib[21] cand='si'
+[2026-08-10T14:24:17-0400] ---- session calib_21 ----
+[2026-08-10T14:24:47-0400] t1 n_prompt=114 prefill_s=11.536 tok_s=3.982
+[2026-08-10T14:24:47-0400] t2 n_prompt=15 prefill_s=2.251 n_common=122 hit=20.1
+[2026-08-10T14:24:47-0400] session calib_21 DONE rc=0 wall=27.7s batt 62->62 die 55.9->58.1
+[2026-08-10T14:24:47-0400] calib[22] cand='ok si'
+[2026-08-10T14:24:47-0400] ---- session calib_22 ----
+[2026-08-10T14:25:18-0400] t1 n_prompt=114 prefill_s=11.924 tok_s=4.131
+[2026-08-10T14:25:18-0400] t2 n_prompt=16 prefill_s=2.207 n_common=122 hit=20.2
+[2026-08-10T14:25:18-0400] session calib_22 DONE rc=0 wall=28.5s batt 62->62 die 53.7->57.7
+[2026-08-10T14:25:18-0400] calib[23] cand='va bene'
+[2026-08-10T14:25:18-0400] ---- session calib_23 ----
+[2026-08-10T14:25:47-0400] t1 n_prompt=114 prefill_s=11.923 tok_s=4.11
+[2026-08-10T14:25:47-0400] t2 n_prompt=16 prefill_s=2.417 n_common=122 hit=20.6
+[2026-08-10T14:25:47-0400] session calib_23 DONE rc=0 wall=28.4s batt 62->61 die 53.3->58.9
+[2026-08-10T14:25:47-0400] calib[24] cand='dimmi'
+[2026-08-10T14:25:47-0400] ---- session calib_24 ----
+[2026-08-10T14:26:18-0400] t1 n_prompt=114 prefill_s=11.504 tok_s=3.873
+[2026-08-10T14:26:18-0400] t2 n_prompt=16 prefill_s=2.362 n_common=122 hit=20.5
+[2026-08-10T14:26:18-0400] session calib_24 DONE rc=0 wall=28.0s batt 61->61 die 56.9->58.1
+[2026-08-10T14:26:18-0400] calib[25] cand='a b'
+[2026-08-10T14:26:18-0400] ---- session calib_25 ----
+[2026-08-10T14:26:48-0400] t1 n_prompt=114 prefill_s=11.918 tok_s=4.055
+[2026-08-10T14:26:48-0400] t2 n_prompt=16 prefill_s=2.451 n_common=122 hit=21.0
+[2026-08-10T14:26:48-0400] session calib_25 DONE rc=0 wall=28.6s batt 61->61 die 53.7->58.5
+[2026-08-10T14:26:49-0400] calib[26] cand='a b c'
+[2026-08-10T14:26:49-0400] ---- session calib_26 ----
+[2026-08-10T14:27:19-0400] t1 n_prompt=114 prefill_s=12.263 tok_s=3.872
+[2026-08-10T14:27:19-0400] t2 n_prompt=17 prefill_s=2.545 n_common=122 hit=21.0
+[2026-08-10T14:27:19-0400] session calib_26 DONE rc=0 wall=29.3s batt 61->61 die 54.1->58.7
+[2026-08-10T14:27:19-0400] calib[27] cand='a b c d'
+[2026-08-10T14:27:19-0400] ---- session calib_27 ----
+[2026-08-10T14:27:50-0400] t1 n_prompt=114 prefill_s=11.937 tok_s=3.806
+[2026-08-10T14:27:50-0400] t2 n_prompt=18 prefill_s=2.579 n_common=122 hit=20.9
+[2026-08-10T14:27:50-0400] session calib_27 DONE rc=0 wall=29.3s batt 61->60 die 56.5->58.1
+[2026-08-10T14:27:51-0400] calib[28] cand='a b c d e f'
+[2026-08-10T14:27:51-0400] ---- session calib_28 ----
+[2026-08-10T14:28:22-0400] t1 n_prompt=114 prefill_s=11.925 tok_s=4.062
+[2026-08-10T14:28:22-0400] t2 n_prompt=20 prefill_s=2.724 n_common=122 hit=20.8
+[2026-08-10T14:28:22-0400] session calib_28 DONE rc=0 wall=28.6s batt 60->60 die 54.5->59.3
+[2026-08-10T14:28:22-0400] calib[29] cand='ciao ok'
+[2026-08-10T14:28:22-0400] ---- session calib_29 ----
+[2026-08-10T14:28:52-0400] t1 n_prompt=114 prefill_s=12.133 tok_s=3.916
+[2026-08-10T14:28:52-0400] t2 n_prompt=17 prefill_s=2.562 n_common=122 hit=20.7
+[2026-08-10T14:28:52-0400] session calib_29 DONE rc=0 wall=29.0s batt 60->60 die 54.7->59.9
+[2026-08-10T14:28:52-0400] calib[30] cand='prova k'
+[2026-08-10T14:28:52-0400] ---- session calib_30 ----
+[2026-08-10T14:29:24-0400] t1 n_prompt=114 prefill_s=11.706 tok_s=3.671
+[2026-08-10T14:29:24-0400] t2 n_prompt=17 prefill_s=2.768 n_common=122 hit=20.5
+[2026-08-10T14:29:24-0400] session calib_30 DONE rc=0 wall=29.2s batt 60->60 die 56.5->57.7
+[2026-08-10T14:29:24-0400] calib[31] cand='uno due'
+[2026-08-10T14:29:24-0400] ---- session calib_31 ----
+[2026-08-10T14:29:55-0400] t1 n_prompt=114 prefill_s=12.083 tok_s=3.889
+[2026-08-10T14:29:55-0400] t2 n_prompt=16 prefill_s=2.379 n_common=122 hit=20.7
+[2026-08-10T14:29:55-0400] session calib_31 DONE rc=0 wall=29.1s batt 60->59 die 54.1->58.9
+[2026-08-10T14:29:56-0400] calib[32] cand='uno due tre'
+[2026-08-10T14:29:56-0400] ---- session calib_32 ----
+[2026-08-10T14:30:26-0400] t1 n_prompt=114 prefill_s=12.405 tok_s=3.926
+[2026-08-10T14:30:26-0400] t2 n_prompt=17 prefill_s=2.615 n_common=122 hit=20.8
+[2026-08-10T14:30:26-0400] session calib_32 DONE rc=0 wall=29.8s batt 59->59 die 55.3->59.3
+[2026-08-10T14:30:26-0400] calib[33] cand='uno due tre quattro'
+[2026-08-10T14:30:26-0400] ---- session calib_33 ----
+[2026-08-10T14:30:58-0400] t1 n_prompt=114 prefill_s=12.402 tok_s=3.602
+[2026-08-10T14:30:58-0400] t2 n_prompt=18 prefill_s=3.147 n_common=122 hit=20.7
+[2026-08-10T14:30:58-0400] session calib_33 DONE rc=0 wall=30.0s batt 59->59 die 57.3->58.5
+[2026-08-10T14:30:58-0400] CHOSEN k=2 n_prompt=15 prompt='x'
+[2026-08-10T14:30:58-0400] CHOSEN k=4 n_prompt=15 prompt='x'
+[2026-08-10T14:30:58-0400] CHOSEN k=8 n_prompt=15 prompt='x'
+[2026-08-10T14:30:58-0400] CHOSEN k=16 n_prompt=16 prompt='uno due'
+[2026-08-10T14:30:58-0400] ==== K SERIES C(k) ====
+[2026-08-10T14:30:59-0400] PREFLIGHT k_series nproc=7 die=56.9C batt=59% plugged=UNPLUGGED btemp=40.6 freq=cpu0=1670400;cpu4=1401600;cpu7=1708800
+[2026-08-10T14:30:59-0400] PREFLIGHT k_series OK die=54.9C batt=59 nproc=7
+[2026-08-10T14:31:07-0400] cold_model rc=0
+[2026-08-10T14:31:08-0400] PREFLIGHT k2_r1 nproc=7 die=50.1C batt=59% plugged=UNPLUGGED btemp=40.6 freq=cpu0=1017600;cpu4=1536000;cpu7=864000
+[2026-08-10T14:31:08-0400] PREFLIGHT k2_r1 OK die=50.1C batt=59 nproc=7
+[2026-08-10T14:31:08-0400] ---- session k2_r1 ----
+[2026-08-10T14:31:43-0400] t1 n_prompt=114 prefill_s=13.34 tok_s=4.562
+[2026-08-10T14:31:43-0400] t2 n_prompt=15 prefill_s=2.126 n_common=146 hit=48.5
+[2026-08-10T14:31:43-0400] session k2_r1 DONE rc=0 wall=33.5s batt 59->59 die 50.5->58.5
+[2026-08-10T14:31:43-0400] C(2)=13.846637999999999 n_prompt=15 prefill_s=2.126
+[2026-08-10T14:31:44-0400] PREFLIGHT k2_r2 nproc=7 die=54.3C batt=59% plugged=UNPLUGGED btemp=40.6 freq=cpu0=1670400;cpu4=1401600;cpu7=1708800
+[2026-08-10T14:31:44-0400] PREFLIGHT k2_r2 OK die=54.1C batt=59 nproc=7
+[2026-08-10T14:31:44-0400] ---- session k2_r2 ----
+[2026-08-10T14:32:19-0400] t1 n_prompt=114 prefill_s=13.702 tok_s=4.838
+[2026-08-10T14:32:19-0400] t2 n_prompt=15 prefill_s=1.618 n_common=146 hit=48.5
+[2026-08-10T14:32:19-0400] session k2_r2 DONE rc=0 wall=33.9s batt 59->58 die 55.9->71.7
+[2026-08-10T14:32:19-0400] C(2)=10.538034 n_prompt=15 prefill_s=1.618
+[2026-08-10T14:32:20-0400] PREFLIGHT k4_r1 nproc=7 die=72.1C batt=58% plugged=UNPLUGGED btemp=41.1 freq=cpu0=2016000;cpu4=2054400;cpu7=2092800
+[2026-08-10T14:32:20-0400] PREFLIGHT k4_r1 OK die=67.6C batt=58 nproc=7
+[2026-08-10T14:32:20-0400] ---- session k4_r1 ----
+[2026-08-10T14:32:55-0400] t1 n_prompt=114 prefill_s=14.176 tok_s=5.661
+[2026-08-10T14:32:55-0400] t2 n_prompt=15 prefill_s=2.216 n_common=146 hit=48.5
+[2026-08-10T14:32:55-0400] session k4_r1 DONE rc=0 wall=34.2s batt 58->58 die 68.9->62.4
+[2026-08-10T14:32:55-0400] C(4)=14.432808 n_prompt=15 prefill_s=2.216
+[2026-08-10T14:32:55-0400] PREFLIGHT k4_r2 nproc=7 die=59.3C batt=58% plugged=UNPLUGGED btemp=41.1 freq=cpu0=1670400;cpu4=1401600;cpu7=1708800
+[2026-08-10T14:32:56-0400] PREFLIGHT k4_r2 OK die=58.9C batt=58 nproc=7
+[2026-08-10T14:32:56-0400] ---- session k4_r2 ----
+[2026-08-10T14:33:37-0400] t1 n_prompt=114 prefill_s=18.863 tok_s=4.902
+[2026-08-10T14:33:37-0400] t2 n_prompt=15 prefill_s=2.084 n_common=146 hit=48.5
+[2026-08-10T14:33:37-0400] session k4_r2 DONE rc=0 wall=40.8s batt 58->58 die 58.1->60.9
+[2026-08-10T14:33:37-0400] C(4)=13.573091999999999 n_prompt=15 prefill_s=2.084
+[2026-08-10T14:33:38-0400] PREFLIGHT k8_r1 nproc=7 die=57.7C batt=58% plugged=UNPLUGGED btemp=41.1 freq=cpu0=1670400;cpu4=1401600;cpu7=1708800
+[2026-08-10T14:33:38-0400] PREFLIGHT k8_r1 OK die=57.3C batt=58 nproc=7
+[2026-08-10T14:33:38-0400] ---- session k8_r1 ----
+[2026-08-10T14:34:14-0400] t1 n_prompt=114 prefill_s=13.646 tok_s=4.654
+[2026-08-10T14:34:14-0400] t2 n_prompt=15 prefill_s=2.231 n_common=146 hit=48.5
+[2026-08-10T14:34:14-0400] session k8_r1 DONE rc=0 wall=34.8s batt 58->57 die 56.5->60.5
+[2026-08-10T14:34:14-0400] C(8)=14.530502999999998 n_prompt=15 prefill_s=2.231
+[2026-08-10T14:34:14-0400] PREFLIGHT k8_r2 nproc=7 die=58.1C batt=57% plugged=UNPLUGGED btemp=41.9 freq=cpu0=1670400;cpu4=1401600;cpu7=1708800
+[2026-08-10T14:34:15-0400] PREFLIGHT k8_r2 OK die=57.1C batt=57 nproc=7
+[2026-08-10T14:34:15-0400] ---- session k8_r2 ----
+[2026-08-10T14:34:50-0400] t1 n_prompt=114 prefill_s=13.77 tok_s=4.548
+[2026-08-10T14:34:50-0400] t2 n_prompt=15 prefill_s=2.193 n_common=146 hit=48.5
+[2026-08-10T14:34:50-0400] session k8_r2 DONE rc=0 wall=34.2s batt 57->57 die 56.9->64.8
+[2026-08-10T14:34:50-0400] C(8)=14.283009 n_prompt=15 prefill_s=2.193
+[2026-08-10T14:34:51-0400] PREFLIGHT k16_r1 nproc=8 die=66.4C batt=57% plugged=UNPLUGGED btemp=41.9 freq=cpu0=2016000;cpu4=2054400;cpu7=2092800
+[2026-08-10T14:34:51-0400] PREFLIGHT k16_r1 OK die=66.0C batt=57 nproc=8
+[2026-08-10T14:34:51-0400] ---- session k16_r1 ----
+[2026-08-10T14:35:27-0400] t1 n_prompt=114 prefill_s=13.978 tok_s=5.226
+[2026-08-10T14:35:27-0400] t2 n_prompt=16 prefill_s=1.916 n_common=146 hit=47.9
+[2026-08-10T14:35:27-0400] session k16_r1 DONE rc=0 wall=34.2s batt 57->57 die 66.4->68.4
+[2026-08-10T14:35:27-0400] C(16)=12.478907999999999 n_prompt=16 prefill_s=1.916
+[2026-08-10T14:35:27-0400] PREFLIGHT k16_r2 nproc=7 die=58.5C batt=57% plugged=UNPLUGGED btemp=41.9 freq=cpu0=1670400;cpu4=1401600;cpu7=1708800
+[2026-08-10T14:35:28-0400] PREFLIGHT k16_r2 OK die=58.5C batt=57 nproc=7
+[2026-08-10T14:35:28-0400] ---- session k16_r2 ----
+[2026-08-10T14:36:04-0400] t1 n_prompt=114 prefill_s=13.129 tok_s=4.479
+[2026-08-10T14:36:04-0400] t2 n_prompt=16 prefill_s=2.46 n_common=146 hit=47.9
+[2026-08-10T14:36:04-0400] session k16_r2 DONE rc=0 wall=35.3s batt 57->56 die 57.1->60.1
+[2026-08-10T14:36:04-0400] C(16)=16.02198 n_prompt=16 prefill_s=2.46
+[2026-08-10T14:36:04-0400] SUMMARY
+t_decode1=0.15353907569476433 s  eval_tok_s=6.513
+k,C_r1,C_r2,C_med,n_prompt_med,verdict
+2,13.847,10.538,12.192,15.0,(info)
+4,14.433,13.573,14.003,15.0,ROSSO
+8,14.530,14.283,14.407,15.0,(info)
+16,12.479,16.022,14.250,16.0,(info)
+[2026-08-10T14:36:04-0400] VERDICT ROSSO C4_med=14.0030
+[2026-08-10T14:36:05-0400] N1 DONE OK

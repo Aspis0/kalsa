@@ -1,0 +1,6 @@
+N2 predictions a verbale (BEFORE numbers):
+N2-mtp: alpha unknown a priori; literature MTP ~60-80% on EN; IT prose may be lower
+N2-draft-simple: alpha ~55-70% with 1.7B same family; we measure 0.8B/2B/4B Qwen3.5 (tokenizer MATCH)
+N2-dflash: exists for Qwen3.6-35B-A3B (abhinand Q4_K_M 0.29GB)
+N2-eagle3: HF has Dogacel/specdrift-qwen3.6-35b-a3b-eagle3 (safetensors) - convert needed
+Soglie alpha: >=60 VERDE; 45-60 GIALLO; <45 ROSSO

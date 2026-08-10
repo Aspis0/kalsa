@@ -1,0 +1,42 @@
+[
+  {
+    "tag": "ngram",
+    "ready": true,
+    "error": null,
+    "elapsed_s": 8.15653657913208,
+    "tokens_predicted": 48,
+    "note": "no draft_n in timings; may need ngram-specific log parse"
+  },
+  {
+    "tag": "mtp",
+    "ready": true,
+    "error": null,
+    "elapsed_s": 8.511208534240723,
+    "tokens_predicted": 48,
+    "drafted": 55,
+    "accepted": 33,
+    "acceptance_rate": 0.6,
+    "tok_s": 6.7106212357609,
+    "mean_accept_len": 3.36
+  },
+  {
+    "tag": "dflash",
+    "ready": false,
+    "error": "server not ready",
+    "elapsed_s": null,
+    "tokens_predicted": null,
+    "error_detail": "DFlash GGUF missing target_layers"
+  },
+  {
+    "tag": "draft_4b",
+    "crash": "GGML_ASSERT n_outputs_max"
+  },
+  {
+    "tag": "draft_2b",
+    "crash": "GGML_ASSERT n_outputs_max"
+  },
+  {
+    "tag": "draft_0.8b",
+    "crash": "GGML_ASSERT n_outputs_max"
+  }
+]

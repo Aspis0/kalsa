@@ -1,0 +1,17 @@
+warning: no usable GPU found, --gpu-layers option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+0.00.008.181 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.015.329 I srv    load_model: loading model 'C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\mtp\Qwen3.6-35B-A3B-UD-IQ1_M.gguf'
+0.10.877.216 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 2048, kv_unified = 'true'
+0.11.002.940 I srv          init: chat template supports preserving reasoning, consider enabling it via --reasoning-preserve
+0.11.003.010 I srv  llama_server: model loaded
+0.11.003.016 I srv  llama_server: listening on http://127.0.0.1:18080
+0.12.554.572 I slot get_availabl: id  3 | task -1 | selected slot by LRU, t_last = -1
+0.12.554.629 I slot launch_slot_: id  3 | task 0 | processing task, is_child = 0
+0.21.059.530 I slot print_timing: id  3 | task 0 | prompt eval time =    1351.95 ms /    10 tokens (  135.19 ms per token,     7.40 tokens per second)
+0.21.059.544 I slot print_timing: id  3 | task 0 |        eval time =    7152.84 ms /    48 tokens (  149.02 ms per token,     6.71 tokens per second)
+0.21.059.546 I slot print_timing: id  3 | task 0 |       total time =    8504.79 ms /    58 tokens
+0.21.059.547 I slot print_timing: id  3 | task 0 |    graphs reused =         13
+0.21.059.557 I slot print_timing: id  3 | task 0 | draft acceptance = 0.60000 (   33 accepted /    55 generated), mean len =  3.36
+0.21.059.705 I slot      release: id  3 | task 0 | stop processing: n_tokens = 57, truncated = 0

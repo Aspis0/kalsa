@@ -1,0 +1,6 @@
+incident=2026-08-10T12:33:57.2151709-04:00
+gate_bug=Get-FileHash returned empty in 264ms under watch (false FAIL_SHA got=)
+file_after_resume size_ok=True live_sha=a02e0f4489198882d8c5705f437d505da8a7d67e6c665f802bdcdbe60d118d64 lfs_expected=d1a395809f65a43a13ad119eb4e7acdef1ac6d68120f39902c8ab96e72794a59 MATCH=False
+cause=likely corrupt 38pct base from pre-crash multi-curl then -C resume glued good tail
+action=quarantine BADHASH; full redownload from zero; gate uses certutil + LFS oid
+gguf_header_looked_ok=magic GGUF tensors 733 (header ok does not prove full integrity)

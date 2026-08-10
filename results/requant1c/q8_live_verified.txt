@@ -1,0 +1,5 @@
+live_sha256=a02e0f4489198882d8c5705f437d505da8a7d67e6c665f802bdcdbe60d118d64
+size=36903140320
+size_ok=True
+stale_expected_ba84af0f=DISCARDED (origin unknown/wrong; gate bug also emptied got= on first Get-FileHash)
+gguf_magic=GGUF tensors=733

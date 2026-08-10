@@ -1,0 +1,4 @@
+N2 tokenizer gate (post-crash light check):
+- Target IQ1_M / MTP / DFlash / Qwen3.5-*: tok.sha16=49930cc8a75188cf n=248320 MATCH
+- Qwen3-0.6B and Qwen3-1.7B: DIFFERENT tokenizer (n=151936) — NON usabili come draft-simple per questo target
+- Draft-simple candidates: Qwen3.5-0.8B / 2B / 4B only

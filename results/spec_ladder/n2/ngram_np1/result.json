@@ -1,0 +1,18 @@
+{
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 10,
+    "prompt_ms": 1666.574,
+    "prompt_per_token_ms": 166.6574,
+    "prompt_per_second": 6.000333618549191,
+    "predicted_n": 48,
+    "predicted_ms": 11547.772,
+    "predicted_per_token_ms": 240.57858333333334,
+    "predicted_per_second": 4.15664597465208
+  },
+  "pid": 26716,
+  "content_preview": "\n\n<think>\n\n</think>\n\n**MoE** è l'acronimo di **Mixture of Experts** (in italiano: *Miscela di Esperti* o *Modello a Miscela di Esperti*).\n\nÈ un'",
+  "tag": "ngram_np1",
+  "ready": true,
+  "elapsed_s": 13.2855208
+}

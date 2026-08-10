@@ -1,0 +1,18 @@
+{
+  "label": "ctrl_decode",
+  "eval_tok_s": 6.513,
+  "t_decode1_s": 0.15353907569476433,
+  "prefill_s": 9.961,
+  "n_prompt": 121,
+  "hit": 78.2,
+  "tokens": 128,
+  "elapsed_s": 40.010111570358276,
+  "rc": 0,
+  "batt_s": 69,
+  "batt_e": 69,
+  "die_s": 41.7,
+  "die_e": 68.9,
+  "bin_sha256": "1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f",
+  "n_gen": 128,
+  "drop_f": 0.65
+}

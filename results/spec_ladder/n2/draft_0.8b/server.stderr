@@ -1,0 +1,12 @@
+warning: no usable GPU found, --gpu-layers option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+0.00.006.625 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.018.936 I srv    load_model: loading model 'C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\mtp\Qwen3.6-35B-A3B-UD-IQ1_M.gguf'
+0.08.585.657 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 2048, kv_unified = 'true'
+0.08.863.035 I srv          init: chat template supports preserving reasoning, consider enabling it via --reasoning-preserve
+0.08.863.102 I srv  llama_server: model loaded
+0.08.863.107 I srv  llama_server: listening on http://127.0.0.1:18080
+0.10.542.447 I slot get_availabl: id  3 | task -1 | selected slot by LRU, t_last = -1
+0.10.542.520 I slot launch_slot_: id  3 | task 0 | processing task, is_child = 0
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\src\llama-context.cpp:2186: GGML_ASSERT(n_outputs_max <= cparams.n_outputs_max) failed

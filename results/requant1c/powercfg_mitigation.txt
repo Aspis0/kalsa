@@ -1,0 +1,44 @@
+recorded_at=2026-08-10T12:09:26.9196501-04:00
+# ORIGINAL (before mitigation) - restore after campaign
+=== STANDBYIDLE (sleep after) ===
+Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)
+  GUID Alias: SCHEME_BALANCED
+  Subgroup GUID: 238c9fa8-0aad-41ed-83f4-97be242c8f20  (Sleep)
+    GUID Alias: SUB_SLEEP
+    Power Setting GUID: 29f6c1db-86da-48c5-9fdb-f2b67b1f44da  (Sleep after)
+      GUID Alias: STANDBYIDLE
+      Minimum Possible Setting: 0x00000000
+      Maximum Possible Setting: 0xffffffff
+      Possible Settings increment: 0x00000001
+      Possible Settings units: Seconds
+    Current AC Power Setting Index: 0x00000000
+    Current DC Power Setting Index: 0x00003840
+
+
+=== VIDEOIDLE (display off) ===
+Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)
+  GUID Alias: SCHEME_BALANCED
+  Subgroup GUID: 7516b95f-f776-4464-8c53-06167f40cc99  (Display)
+    GUID Alias: SUB_VIDEO
+    Power Setting GUID: 3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e  (Turn off display after)
+      GUID Alias: VIDEOIDLE
+      Minimum Possible Setting: 0x00000000
+      Maximum Possible Setting: 0xffffffff
+      Possible Settings increment: 0x00000001
+      Possible Settings units: Seconds
+    Current AC Power Setting Index: 0x00000708
+    Current DC Power Setting Index: 0x000000b4
+
+
+standby_ac_seconds=0 standby_dc_seconds=14400 video_ac_seconds=1800 video_dc_seconds=180
+MITIGATION_APPLIED standby-timeout-ac=0 hibernate-timeout-ac=0 monitor-timeout-ac=0
+AFTER standby_ac=0 video_ac=0
+
+RESTORE_AFTER_CAMPAIGN (run on AC):
+  powercfg /change standby-timeout-ac 0
+  powercfg /change standby-timeout-dc 240
+  powercfg /change monitor-timeout-ac 30
+  powercfg /change monitor-timeout-dc 3
+  # hibernate-timeout-ac: set back if you had a non-zero value (we forced 0; not separately recorded pre-change)
+NOTE: AC standby was ALREADY 0 before mitigation. Real fix for 0x19C thrash: monitor-timeout-ac 0
+       (was 30 min). Crash was WIN32K_POWER_WATCHDOG_TIMEOUT / Modern Standby, NOT quantize.

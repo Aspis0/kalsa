@@ -1,0 +1,1 @@
+screen_off_timeout still 7200000 (restore later with: adb shell settings put system screen_off_timeout 30000)

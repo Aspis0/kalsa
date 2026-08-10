@@ -1,0 +1,3 @@
+{"cmd": "generate", "prompt": "You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.\n\nUser: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.\nAssistant:\n", "id": 1, "n_predict": 8, "clear_kv": true, "think": false}
+{"cmd": "generate", "prompt": "x x x x x x", "id": 2, "n_predict": 1, "clear_kv": false, "think": false}
+{"cmd": "close"}

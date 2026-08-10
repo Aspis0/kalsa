@@ -1,0 +1,23 @@
+{
+  "cmd": [
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\build-llama-pc\\bin\\llama-server.exe",
+    "-m",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\mtp\\Qwen3.6-35B-A3B-UD-IQ1_M.gguf",
+    "--port",
+    "18080",
+    "-c",
+    "2048",
+    "-t",
+    "8",
+    "-ngl",
+    "0",
+    "--spec-type",
+    "draft-simple",
+    "--spec-draft-n-max",
+    "4",
+    "--jinja",
+    "--spec-draft-model",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\draft\\Qwen3.5-4B-Q4_K_M.gguf"
+  ],
+  "start": 1786384260.635956
+}
