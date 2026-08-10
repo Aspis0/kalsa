@@ -1058,6 +1058,17 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-10 — 🚪 PORTA CONDIZIONALE REGISTRATA: neuron pruning degli esperti +
+  healing LoRA su RunPod.** Correzione a un mio errore: "non abbiamo infrastruttura
+  di training" era FALSO — RunPod è autorizzato e per un healing LoRA di un 35B-A3B
+  basta (8×H100, ~$300-600/run, ~$1-3k con iterazioni, 1-2 settimane pipeline
+  completa prune→heal→convert→quantize nostra→gate device). **Trigger dichiarato**:
+  la porta si apre SOLO se k=6 muore anche su KEXP nella griglia (= il router
+  esige 8 esperti → il taglio va fatto DENTRO gli esperti); se k=6 vive, il −25%
+  di GEMV è gratis e la porta si chiude per superfluità. k=6 e neuron pruning
+  attaccano lo stesso termine (−25% GEMV esperti E −25% I/O): si paga solo se
+  la versione gratis fallisce.
+
 - **2026-08-10 — 🏆 1c COMPLETO — IL FILE FABBRICATO IN CASA UMILIA L'ORIGINALE
   SULLA QUALITÀ: PPL 2.0955 → 1.5249 (−27%), e col drop 0.65 acceso (1.5647)
   batte l'IQ2_M liscio di un quarto. Velocità: −3.1% pooled. Dossier a gualt.**
