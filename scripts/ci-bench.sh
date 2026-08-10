@@ -131,6 +131,26 @@ readonly FOREIGN_DIALOG_LABELS=(
   "Got it" "OK" "Dismiss" "No thanks" "Not now" "Close" "Continue" "Allow"
 )
 
+# WHY driver-local (not ci-lib dump_ui): uiautomator dump fails on a large or
+# never-idle hierarchy; dump_ui swallows the error and cats a stale/absent
+# file. Run 31367691176 logged "no EditText on screen" / "node 'Ask a
+# question…' NOT FOUND" on a screen that had both. Retry up to 3×, 2 s apart;
+# no <hierarchy → FAILED DUMP, not an empty screen. Leave ci-lib.sh alone.
+dump_ui_retry() {
+  local attempt out
+  for attempt in 1 2 3; do
+    out=$(dump_ui 2>/dev/null || true)
+    if printf '%s' "$out" | grep -q '<hierarchy'; then
+      printf '%s\n' "$out"
+      return 0
+    fi
+    [ "$attempt" -lt 3 ] && sleep 2
+  done
+  # stderr: callers capture stdout as the dump body (ui=$(dump_ui_retry)).
+  log "dump failed, not an empty screen" >&2
+  return 1
+}
+
 # Recover focus when a foreign app's dialog steals the screen mid-arm.
 # 1) Re-foreground our activity (displaces another app without guessing labels).
 # 2) If the composer is still missing, tap the first matching nuisance label.
@@ -140,8 +160,12 @@ dismiss_foreign_dialog() {
   adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1 || true
   sleep 2
   # Composer EditText back → re-foreground alone was enough; skip label hunt.
-  if dump_ui 2>/dev/null | grep -q 'class="android.widget.EditText"'; then
-    return 0
+  # dump_ui_retry: do not treat a failed dump as "no EditText" (run 31367691176).
+  local ui
+  if ui=$(dump_ui_retry); then
+    if printf '%s' "$ui" | grep -q 'class="android.widget.EditText"'; then
+      return 0
+    fi
   fi
   local label
   for label in "${FOREIGN_DIALOG_LABELS[@]}"; do
@@ -295,7 +319,12 @@ send_and_wait() {
       dismiss_anr
       dismiss_foreign_dialog
       if ! tap_node "$COMPOSER_PLACEHOLDER" && ! tap_editable; then
-        log "composer not found for: $msg (attempt ${attempt}/${max_attempts})"
+        # Diagnose dump failure vs genuinely empty (run 31367691176 misread).
+        if dump_ui_retry >/dev/null; then
+          log "composer not found for: $msg (attempt ${attempt}/${max_attempts})"
+        else
+          log "composer not found for: $msg (attempt ${attempt}/${max_attempts}) — dump failed, not an empty screen"
+        fi
         continue
       fi
     fi
@@ -327,9 +356,12 @@ send_and_wait() {
 
     # `input text` injects character by character and a long string can take
     # several seconds to appear: poll instead of assuming a fixed delay.
-    local typed=false t=0
+    # dump_ui_retry: a failed dump is not "text not visible" (run 31367691176).
+    local typed=false t=0 ui
     while [ "$t" -lt 30 ]; do
-      if dump_ui | grep -qF "$msg"; then typed=true; break; fi
+      if ui=$(dump_ui_retry) && printf '%s' "$ui" | grep -qF "$msg"; then
+        typed=true; break
+      fi
       sleep 3; t=$((t + 3))
     done
     if [ "$typed" = false ]; then
@@ -343,7 +375,9 @@ send_and_wait() {
       type_text "$msg"
       t=0
       while [ "$t" -lt 30 ]; do
-        if dump_ui | grep -qF "$msg"; then typed=true; break; fi
+        if ui=$(dump_ui_retry) && printf '%s' "$ui" | grep -qF "$msg"; then
+          typed=true; break
+        fi
         sleep 3; t=$((t + 3))
       done
     fi
@@ -618,6 +652,8 @@ settle_turn_reply() {
 
 # Run a turn plan: parallel arrays PLAN_KIND / PLAN_ID / PLAN_PROMPT (1-indexed turns).
 # Shared by fase4 and smoke so the conversation length is the only difference.
+# Per-turn ceiling 2400s (not 1500): run 31367691176 saw TTFT of 624 s at turn 13
+# with thinking on, so 1500 s had no margin. fase0 still uses 1500 below.
 run_turn_plan() {
   local i n msg
   n=${#PLAN_PROMPT[@]}
@@ -626,7 +662,7 @@ run_turn_plan() {
     msg="${PLAN_PROMPT[$i]}"
     log "=== turn $turn/${n} kind=${PLAN_KIND[$i]} id=${PLAN_ID[$i]} ==="
     # 1) first persistence (latency) 2) idle 3) re-read settled 4) evidence 5) record
-    send_and_wait "$msg" 1500 || die "timeout/failure on turn $turn (${PLAN_ID[$i]})"
+    send_and_wait "$msg" 2400 || die "timeout/failure on turn $turn (${PLAN_ID[$i]})"
     settle_turn_reply
     capture_turn_evidence "$turn"
     record_turn "$turn" "${PLAN_KIND[$i]}" "${PLAN_ID[$i]}" "$msg" \
@@ -635,6 +671,9 @@ run_turn_plan() {
 }
 
 # Base filler list (alphanumeric only — adb input text mangles punctuation).
+# 8 fillers as RESEARCH_CONTEXT_LOSS Fase 4 specifies. With thinking off,
+# replies are much shorter, so the extra turns keep context pressure on the
+# baseline — the point of the experiment is whether the baseline loses the facts.
 FILLER_BASE=(
   MotoreElettrico
   RicettaVeloce
@@ -642,12 +681,14 @@ FILLER_BASE=(
   CuriositaSpazio
   ViaggioInTreno
   ClimaOMeteo
+  StoriaAntica
+  MusicaClassica
 )
 
-# Rotate filler list left by (SEED-1) mod 6. Both arms of a paired A/B use the
+# Rotate filler list left by (SEED-1) mod 8. Both arms of a paired A/B use the
 # SAME SEED → same rotation, so the only intentional difference is the factor
 # under test (e.g. compaction on|off), not filler order.
-FILLER_ROTATION=$(( (SEED - 1) % 6 ))
+FILLER_ROTATION=$(( (SEED - 1) % 8 ))
 FILLERS=()
 _fb_n=${#FILLER_BASE[@]}
 for _i in $(seq 0 $((_fb_n - 1))); do

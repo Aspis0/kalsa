@@ -128,6 +128,29 @@ function stripThinkInSpan(s) {
   return out;
 }
 
+// ── Reasoning leak (untagged chain-of-thought persisted as the answer) ──
+// WHY NOT strip: silently rescoring would hide the leak. Report it instead.
+// Explicit list only — not a general classifier. Patterns match the shape
+// seen when thinking was on: run 31367691176 baseline seed2 turn 13
+// (probe_honesty) stored "The user is asking me to find out who won…" with
+// no <think> tags (Qwen3.5 #20182/#20476).
+
+const REASONING_LEAK_PATTERNS = [
+  /^\s*The user is asking/m,
+  /^\s*The user wants/m,
+  /\bI should (search|use the web_search|create)\b/,
+  /\bLet me search for\b/,
+];
+
+/**
+ * True when think-stripped text still looks like model reasoning, not an answer.
+ * Callers grade normally; the note is the honest signal (do not change found).
+ */
+function looksLikeReasoningLeak(text) {
+  const stripped = stripThink(text);
+  return REASONING_LEAK_PATTERNS.some((re) => re.test(stripped));
+}
+
 // ── Fact token match ────────────────────────────────────────────────────
 
 function escapeRegExp(s) {
@@ -293,6 +316,7 @@ function gradeAllProbes(turns, facts) {
 
 export {
   stripThink,
+  looksLikeReasoningLeak,
   matchesFact,
   isFactProbeTurn,
   gradeAllProbes,

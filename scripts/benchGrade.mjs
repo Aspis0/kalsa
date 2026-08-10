@@ -22,6 +22,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   stripThink,
+  looksLikeReasoningLeak,
   matchesFact,
   isFactProbeTurn,
   gradeAllProbes,
@@ -458,6 +459,20 @@ function gradeRaw(raw, baseDir) {
   const { probes, notes: probeNotes } = gradeAllProbes(turns, facts);
   const byFamily = familyStats(probes);
 
+  // Untagged reasoning leaked as the reply (run 31367691176). Do NOT change
+  // found/not-found — note only, so the probe stays honest as unmeasurable.
+  const reasoningLeakTurns = [];
+  for (const turn of turns) {
+    if (turn.kind !== "probe") continue;
+    if (!looksLikeReasoningLeak(turn.reply ?? "")) continue;
+    const n = turn.index;
+    const id = turn.id ?? "?";
+    reasoningLeakTurns.push(n);
+    probeNotes.push(
+      `turn ${n} (${id}): reply looks like reasoning, not an answer — probe result is not trustworthy`,
+    );
+  }
+
   // recall = fact_recall rate ONLY. null when no fact probes — 0 would be
   // indistinguishable from "everything missed" (B6). Aggregator skips null.
   const fr = byFamily.fact_recall;
@@ -527,6 +542,7 @@ function gradeRaw(raw, baseDir) {
       summaryChars,
     },
     notes,
+    reasoningLeakTurns,
   };
 }
 
