@@ -48,6 +48,18 @@ questa baseline il trial non è interpretabile: farla PRIMA di scaricare Marco.
 | veto per-lingua | nessuna L con Δbpb > **+0.15** |
 | flag ZH | se ZH è l'unica a sforare → a verbale "ZH sotto Qwen", NON nascondere nella media |
 
+**T2c — GATE DI PRODOTTO (aggiunto da gualt): Marco DEVE stravincere su
+Qwen3.5-4B.** Terzo comparatore sulle STESSE 5 slice: Qwen3.5-4B (GGUF Q4 già in
+casa dall'A/B F6 — verificare presenza/sha, altrimenti scaricare l'ufficiale).
+Logica: Qwen3.5-4B-class è il tier GRATUITO di Kalsa — se il premium non lo
+domina, non ha senso commerciale.
+
+| gate T2c | soglia |
+|---|---|
+| macro-bpb Marco | < macro-bpb Qwen3.5-4B − **0.03** (vittoria netta, non pareggio) |
+| per-lingua | Marco batte o pareggia Qwen3.5-4B su ≥4/5 lingue; nessuna persa oltre +0.10 |
+| esito FAIL | Marco NON merita il dossier premium a prescindere da T3 (la velocità non compra la qualità qui) |
+
 ## FASE 3 — velocità (STACCATO, batteria ≥ 45%)
 
 **T3**: ABBA A=KEXP vs B=Marco, 2 prompt × 2 rep, n=200, cold per run, config
