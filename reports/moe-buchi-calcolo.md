@@ -221,3 +221,19 @@ CAMPAIGN sha: 1ca51420… match
 | `results/buchi/runs/*.txt` | raw llama-bench |
 | `results/buchi/run_1a_formato.sh` | harness |
 | `results/buchi/1a_console.log` | flight console (include A2 orfano pre-clean) |
+
+---
+
+## 1b — dump per-tensor del Q2_K_XL: BUCO CHIUSO ALLA RADICE
+
+**File**: `models/Qwen3.6-35B-A3B-UD-Q2_K_XL.gguf` (12 290 628 576 B, sha `96b9c0af5c77a4ecaabe3983175112…` = LFS oid ✓, download completo 2026-08-10).
+
+**Dump per-tensor (reader gguf, PC):**
+- Esperti (`blk.N.ffn_{gate,up,down}_exps.weight`, 120 tensor = 40 layer × 3): **gate 39× IQ2_XS + 1× IQ3_XXS; up 39× IQ2_XS + 1× IQ3_XXS; down 36× IQ3_XXS + 4× IQ4_XS** — **TUTTI i-quant, ZERO k-quant**.
+- Dense (non-expert): Q5_K 157, Q6_K 93, Q4_K 1 (output), Q8_0 1, F32 361.
+- Geometria: qwen35moe, 40 layer, 256 esperti, expert_ffn=512, expert_shared_ffn=512, ssm presente (Qwen3.6 ibrida).
+
+**Verdetto (regola del mandato 1b: "se gli esperti risultassero ancora i-quant → STOP, buco chiuso, riportare"):**
+Il "Q2_K_XL" di Unsloth è un **mix i-quant per gli esperti** (IQ2_XS/IQ3_XXS) + k-quant solo per il denso. Il collo di bottiglia che il buco 1 voleva aggredire (gather sul codebook i-quant degli esperti in decode) **NON cambia**: resta gather i-quant. Il kernel speedup k-quant NON si compra con questo file. **1b CHIUSO** — nessuna PPL/velocità da misurare (il candidato non esiste). IQ2_M resta il modello di campagna.
+
+**Nota**: il nome "Q2_K_XL" è branding Unsloth, non descrizione dei tipi esperti. Lezione per la caccia ai file: il dump per-tensor va fatto PRIMA di scaricare 12 GB.
