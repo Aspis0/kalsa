@@ -654,6 +654,7 @@ export function AiChatPage({
    */
   const voiceRunIdRef = useRef(0);
   const voiceNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copiedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** Keep voiceUiRef and React state in lockstep for every phase change. */
   const setVoicePhase = useCallback((phase: VoiceUiState) => {
@@ -661,6 +662,9 @@ export function AiChatPage({
     setVoiceUi(phase);
   }, []);
   const scrollViewRef = useRef<ScrollView>(null);
+  /** True while the user is at/near the bottom — the only state that may
+   *  auto-scroll. Kept in a ref (no setState) so onScroll stays cheap. */
+  const nearBottomRef = useRef(true);
   const inputRef = useRef<TextInput>(null);
   const greeting = useMemo(() => greetingForHour(new Date().getHours(), t), [t]);
   const suggestions = useMemo(() => buildSuggestions(t), [t]);
@@ -765,9 +769,12 @@ export function AiChatPage({
   // V4.2 §Fase 3.5: long-conversation nudge (one-shot per conversation).
   // Token estimate includes attachment vision cost; threshold is a fraction of
   // the resolved model n_ctx (see longChatEstimate.ts).
+  // Recompute the nudge only when the history length changes or the last
+  // message (de)finalizes — NOT on every streaming flush (message identity
+  // changes per token, which used to rescan the whole history).
   const longChat = useMemo(
     () => shouldShowLongChatNudge(messages, engineCtx),
-    [messages, engineCtx],
+    [messages.length, engineCtx, messages[messages.length - 1]?.streaming],
   );
 
   useEffect(() => {
@@ -1202,6 +1209,10 @@ export function AiChatPage({
         clearTimeout(stopWatchdogRef.current);
         stopWatchdogRef.current = null;
       }
+      if (copiedFlashTimer.current) {
+        clearTimeout(copiedFlashTimer.current);
+        copiedFlashTimer.current = null;
+      }
     };
   }, []);
 
@@ -1218,13 +1229,16 @@ export function AiChatPage({
     if (prefillText) setDraft(prefillText);
   }, [prefillText]);
 
-  // HIGH-2: only scroll when a new message is added, not on every streaming delta
+  // HIGH-2: single scroll path. Follow new messages and stream growth only
+  // while the user is at the bottom (nearBottomRef). The old unconditional
+  // onContentSizeChange scroll (yanked the view even when scrolled up) is gone.
   const messageCount = messages.length;
+  const lastMessageText = messages[messages.length - 1]?.text;
   useEffect(() => {
-    if (messageCount > 0) {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
+    if (messageCount > 0 && nearBottomRef.current) {
+      scrollViewRef.current?.scrollToEnd({ animated: false });
     }
-  }, [messageCount]);
+  }, [messageCount, lastMessageText]);
 
   // HIGH-1: targeted update — supports both patch object and function-form updater
   const updateMessage = useCallback(
@@ -1474,7 +1488,7 @@ export function AiChatPage({
             },
             controller.signal,
             snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
-            messages,
+            messagesRef.current,
           );
           if (streamResult && typeof streamResult === "object") {
             afterSessionSave = streamResult.afterSessionSave;
@@ -1658,7 +1672,7 @@ export function AiChatPage({
         }
       }
     },
-    [historyLoaded, messages, onSendStream, pdfToRender, t, updateMessage],
+    [historyLoaded, onSendStream, pdfToRender, t, updateMessage],
   );
 
   const handleStop = useCallback(() => {
@@ -1810,7 +1824,8 @@ export function AiChatPage({
     try {
       await Clipboard.setStringAsync(value);
       setCopiedFlash(true);
-      setTimeout(() => setCopiedFlash(false), 1500);
+      if (copiedFlashTimer.current) clearTimeout(copiedFlashTimer.current);
+      copiedFlashTimer.current = setTimeout(() => setCopiedFlash(false), 1500);
       return true;
     } catch {
       // fallback: share sheet if clipboard write fails
@@ -2061,10 +2076,12 @@ export function AiChatPage({
         contentContainerStyle={{ padding: spacing.md, paddingBottom: 160 }}
         keyboardShouldPersistTaps="handled"
         style={{ flex: 1 }}
-        // HIGH-2: scroll to bottom as content grows during streaming (animated:false avoids queue thrash)
-        onContentSizeChange={() => {
-          if (sending) scrollViewRef.current?.scrollToEnd({ animated: false });
+        onScroll={(e) => {
+          const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+          nearBottomRef.current =
+            contentOffset.y + layoutMeasurement.height >= contentSize.height - 80;
         }}
+        scrollEventThrottle={32}
       >
         {messages.length === 0 ? (
           <View style={{ paddingHorizontal: spacing.xs, paddingTop: spacing.xl }}>
@@ -2924,6 +2941,23 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                   </View>
                 );
               }
+              // Streaming perf: parseMarkdownBlocks on the full growing text
+              // every coalescer flush is O(n²) total. While streaming the
+              // contract is already a single plain-text segment (fences and
+              // blocks are not complete), so render raw text directly and let
+              // the markdown pass run once at finalize. Identical visuals.
+              if (m.streaming) {
+                return (
+                  <Text
+                    key={segIdx}
+                    style={[typography.chatBody, { color: colors.ink }]}
+                    onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, true)}
+                  >
+                    {seg.content}
+                    {segIdx === segments.length - 1 && showCursor ? "▋" : ""}
+                  </Text>
+                );
+              }
               return (
                 <MarkdownText
                   key={segIdx}
@@ -3250,11 +3284,21 @@ function TranslationBlock({
   // Badge from result.lang (captured at translate start), not the live locale.
   const langBadge = result.lang === "it" ? "IT" : "EN";
   const [copiedLocal, setCopiedLocal] = useState(false);
+  const copiedLocalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear the flash timer on unmount (no setState on a dead component).
+  useEffect(
+    () => () => {
+      if (copiedLocalTimer.current) clearTimeout(copiedLocalTimer.current);
+    },
+    [],
+  );
 
   const handleCopy = () => {
     onCopy();
     setCopiedLocal(true);
-    setTimeout(() => setCopiedLocal(false), 1500);
+    if (copiedLocalTimer.current) clearTimeout(copiedLocalTimer.current);
+    copiedLocalTimer.current = setTimeout(() => setCopiedLocal(false), 1500);
   };
 
   return (
