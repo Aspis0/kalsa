@@ -536,6 +536,35 @@ export function AppShell() {
     }
   }, []);
 
+  /**
+   * AppShell-owned document add (import commit).
+   * Invariant: every library mutation (add + delete) is owned by AppShell,
+   * applied against current ref state with a functional updater; screens never
+   * merge snapshots. A screen-captured `library` prop must not re-add a doc
+   * that was deleted while import was in flight.
+   * @returns false when refused (delete latch held — screen surfaces busy).
+   */
+  const addDocument = useCallback((entry: LibraryDoc): boolean => {
+    if (!entry || typeof entry.id !== "string" || entry.id.length === 0) {
+      return false;
+    }
+    if (documentDeleteInFlightRef.current) return false;
+    libraryMutationRef.current += 1;
+    // Atomic commit against CURRENT state — never a screen-captured snapshot.
+    const next: LibraryState = {
+      docs: [...(documentLibraryRef.current.docs ?? []), entry],
+    };
+    documentLibraryRef.current = next;
+    // Functional updater is the authoritative React commit.
+    setDocumentLibrary((prev) => ({
+      docs: [...(prev.docs ?? []), entry],
+    }));
+    void saveLibraryState(getDefaultLibraryStorage(), next).catch(
+      () => undefined,
+    );
+    return true;
+  }, []);
+
   const isDocumentDeleteInFlight = useCallback(
     () => documentDeleteInFlightRef.current,
     [],
@@ -2319,7 +2348,7 @@ export function AppShell() {
       {activeOverlay?.kind === "documents" ? (
         <DocumentsScreen
           library={documentLibrary}
-          onLibraryChange={handleLibraryChange}
+          onAddDocument={addDocument}
           onDeleteDocument={deleteDocument}
           isDocumentDeleteInFlight={isDocumentDeleteInFlight}
           onBack={() => setActiveOverlay(null)}

@@ -23,7 +23,6 @@ import { FileText, Plus, Trash2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
-  addDoc,
   estimateTokensForDoc,
   type LibraryDoc,
   type LibraryState,
@@ -59,10 +58,14 @@ export {
 } from "../documents/documentStorage";
 
 type Props = {
-  /** Current library snapshot from AppShell. */
+  /** Current library snapshot from AppShell (display only — never merge). */
   library: LibraryState;
-  /** Apply a pure state update (AppShell persists). Used for import/add only. */
-  onLibraryChange: (next: LibraryState) => void;
+  /**
+   * AppShell-owned add/import commit. Applies against current library state
+   * (ref + functional updater). Returns false when refused (delete latch).
+   * Screens must not call DocumentLibrary.addDoc with a captured snapshot.
+   */
+  onAddDocument: (entry: LibraryDoc) => boolean;
   /**
    * AppShell-owned delete. Survives screen unmount; applies against current
    * library state (functional updater). Returns false when refused (busy latch).
@@ -83,7 +86,7 @@ function nextDocId(): string {
 
 export function DocumentsScreen({
   library,
-  onLibraryChange,
+  onAddDocument,
   onDeleteDocument,
   isDocumentDeleteInFlight,
   onBack,
@@ -221,7 +224,12 @@ export function DocumentsScreen({
         ...(pageCount != null ? { pageCount } : {}),
         ...(estimatedTokens != null ? { estimatedTokens } : {}),
       };
-      onLibraryChange(addDoc(library, entry));
+      // Commit via AppShell against current state — never merge a captured snapshot.
+      if (!onAddDocument(entry)) {
+        await deleteOwnedFile(ownedUri);
+        Alert.alert(t("documents.title"), t("documents.busy"));
+        return;
+      }
       setStatus(null);
     } catch {
       // picker cancelled
@@ -229,7 +237,7 @@ export function DocumentsScreen({
       setBusy(false);
       setStatus(null);
     }
-  }, [busy, library, onLibraryChange, isDocumentDeleteInFlight, t]);
+  }, [busy, onAddDocument, isDocumentDeleteInFlight, t]);
 
   const addTxt = useCallback(async () => {
     if (busy) return;
@@ -314,14 +322,19 @@ export function DocumentsScreen({
         fileUri: ownedUri,
         estimatedTokens: estimateTokensForDoc(trimmed),
       };
-      onLibraryChange(addDoc(library, entry));
+      // Commit via AppShell against current state — never merge a captured snapshot.
+      if (!onAddDocument(entry)) {
+        await deleteOwnedFile(ownedUri);
+        Alert.alert(t("documents.title"), t("documents.busy"));
+        return;
+      }
     } catch {
       // picker cancelled
     } finally {
       setBusy(false);
       setStatus(null);
     }
-  }, [busy, library, onLibraryChange, isDocumentDeleteInFlight, t]);
+  }, [busy, onAddDocument, isDocumentDeleteInFlight, t]);
 
   const confirmDelete = useCallback(
     (doc: LibraryDoc) => {
