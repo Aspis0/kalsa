@@ -5,6 +5,7 @@ import {
   AppState,
   type AppStateStatus,
   Dimensions,
+  FlatList,
   Image,
   Linking,
   Modal,
@@ -661,13 +662,18 @@ export function AiChatPage({
     voiceUiRef.current = phase;
     setVoiceUi(phase);
   }, []);
-  const scrollViewRef = useRef<ScrollView>(null);
-  /** True while the user is at/near the bottom — the only state that may
-   *  auto-scroll. Kept in a ref (no setState) so onScroll stays cheap. */
-  const nearBottomRef = useRef(true);
+  const scrollViewRef = useRef<FlatList<Message>>(null);
+  /** Inverted list: offset 0 = visual bottom (newest). True while the user is
+   *  at the bottom — the only state that may auto-follow the stream. Ref, no
+   *  setState, so onScroll stays cheap. */
+  const atBottomRef = useRef(true);
   const inputRef = useRef<TextInput>(null);
   const greeting = useMemo(() => greetingForHour(new Date().getHours(), t), [t]);
   const suggestions = useMemo(() => buildSuggestions(t), [t]);
+  /** Newest-first view of the history. FlatList keys on m.id so only the
+   *  changed row re-renders; the array is reallocated per flush (same item
+   *  refs), which is what signals a streaming update. */
+  const reversedMessages = useMemo(() => messages.slice().reverse(), [messages]);
 
   // ── Persistenza conversazione (Fase 1) ──────────────────────────────────
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -1228,17 +1234,6 @@ export function AiChatPage({
   useEffect(() => {
     if (prefillText) setDraft(prefillText);
   }, [prefillText]);
-
-  // HIGH-2: single scroll path. Follow new messages and stream growth only
-  // while the user is at the bottom (nearBottomRef). The old unconditional
-  // onContentSizeChange scroll (yanked the view even when scrolled up) is gone.
-  const messageCount = messages.length;
-  const lastMessageText = messages[messages.length - 1]?.text;
-  useEffect(() => {
-    if (messageCount > 0 && nearBottomRef.current) {
-      scrollViewRef.current?.scrollToEnd({ animated: false });
-    }
-  }, [messageCount, lastMessageText]);
 
   // HIGH-1: targeted update — supports both patch object and function-form updater
   const updateMessage = useCallback(
@@ -2071,85 +2066,103 @@ export function AiChatPage({
       ) : null}
 
       {/* ── Messages / welcome ── */}
-      <ScrollView
-        ref={scrollViewRef}
-        contentContainerStyle={{ padding: spacing.md, paddingBottom: 160 }}
-        keyboardShouldPersistTaps="handled"
-        style={{ flex: 1 }}
-        onScroll={(e) => {
-          const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-          nearBottomRef.current =
-            contentOffset.y + layoutMeasurement.height >= contentSize.height - 80;
-        }}
-        scrollEventThrottle={32}
-      >
-        {messages.length === 0 ? (
-          <View style={{ paddingHorizontal: spacing.xs, paddingTop: spacing.xl }}>
-            {/* Greeting */}
-            <Text style={[typography.displayMd, { color: colors.ink, marginBottom: spacing.xs }]}>
-              {greeting}
-              {userName ? (
-                <Text style={{ color: colors.accent }}>{`, ${userName}`}</Text>
-              ) : null}
-              {"."}
-            </Text>
-            <Text style={[typography.bodyMd, { color: colors.muted, marginBottom: spacing.xl }]}>
-              {t("chat.welcomePrompt")}
-            </Text>
+      {messages.length === 0 ? (
+        <View style={{ paddingHorizontal: spacing.xs, paddingTop: spacing.xl }}>
+          {/* Greeting */}
+          <Text style={[typography.displayMd, { color: colors.ink, marginBottom: spacing.xs }]}>
+            {greeting}
+            {userName ? (
+              <Text style={{ color: colors.accent }}>{`, ${userName}`}</Text>
+            ) : null}
+            {"."}
+          </Text>
+          <Text style={[typography.bodyMd, { color: colors.muted, marginBottom: spacing.xl }]}>
+            {t("chat.welcomePrompt")}
+          </Text>
 
-            {/* Suggestion cards */}
-            {suggestions.map((s) => {
-              const iconColor =
-                s.colorKey === "compute" ? colors.compute : colors.accent;
-              const iconBg =
-                s.colorKey === "compute" ? colors.computeSoft : colors.accentSoft;
-              return (
-                <Pressable
-                  key={s.text}
-                  onPress={() => handleSend(s.text, attachedItems)}
-                  style={({ pressed }) => ({
-                    flexDirection: "row",
+          {/* Suggestion cards */}
+          {suggestions.map((s) => {
+            const iconColor =
+              s.colorKey === "compute" ? colors.compute : colors.accent;
+            const iconBg =
+              s.colorKey === "compute" ? colors.computeSoft : colors.accentSoft;
+            return (
+              <Pressable
+                key={s.text}
+                onPress={() => handleSend(s.text, attachedItems)}
+                style={({ pressed }) => ({
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: spacing.sm,
+                  paddingVertical: spacing.sm + 2,
+                  paddingHorizontal: spacing.md,
+                  borderRadius: radius.lg,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                  backgroundColor: pressed ? colors.panelBright : colors.panel,
+                  marginBottom: spacing.xs,
+                })}
+              >
+                <View
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 10,
+                    backgroundColor: iconBg,
                     alignItems: "center",
-                    gap: spacing.sm,
-                    paddingVertical: spacing.sm + 2,
-                    paddingHorizontal: spacing.md,
-                    borderRadius: radius.lg,
-                    borderWidth: 1,
-                    borderColor: colors.line,
-                    backgroundColor: pressed ? colors.panelBright : colors.panel,
-                    marginBottom: spacing.xs,
-                  })}
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
                 >
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 10,
-                      backgroundColor: iconBg,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <s.Icon size={16} color={iconColor} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[typography.bodySm, { color: colors.ink }]}>{s.text}</Text>
-                    <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 1 }]}>
-                      {s.sub}
-                    </Text>
-                  </View>
-                  <ChevronRight color={colors.muted} size={14} />
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : (
-          messages.map((m, idx) => {
-            const prev = idx > 0 ? messages[idx - 1] : null;
-            const isTurnStart = !prev || prev.role !== m.role;
-            const topGap = idx === 0 ? 0 : isTurnStart ? spacing.lg : spacing.md;
-            const showDayDivider = !prev || !isSameDay(prev.createdAt, m.createdAt);
+                  <s.Icon size={16} color={iconColor} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.bodySm, { color: colors.ink }]}>{s.text}</Text>
+                  <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 1 }]}>
+                    {s.sub}
+                  </Text>
+                </View>
+                <ChevronRight color={colors.muted} size={14} />
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : (
+        <FlatList
+          ref={scrollViewRef}
+          data={reversedMessages}
+          keyExtractor={(m) => m.id}
+          inverted
+          // Visual bottom padding (below the newest message): with `inverted`
+          // the content container is flipped, so paddingTop lands at the
+          // visual bottom.
+          contentContainerStyle={{ paddingTop: 160, paddingBottom: spacing.md, paddingHorizontal: spacing.md }}
+          keyboardShouldPersistTaps="handled"
+          style={{ flex: 1 }}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          onScroll={(e) => {
+            // Inverted list: offset 0 is the visual bottom (newest message).
+            const { contentOffset } = e.nativeEvent;
+            atBottomRef.current = contentOffset.y <= 48;
+          }}
+          scrollEventThrottle={32}
+          onContentSizeChange={() => {
+            // Follow the stream only when the user is at the bottom; never
+            // yank when scrolled up.
+            if (atBottomRef.current) {
+              scrollViewRef.current?.scrollToOffset({ offset: 0, animated: false });
+            }
+          }}
+          renderItem={({ item: m, index: i }) => {
+            // Inverted list: the message visually ABOVE row i is data[i+1]
+            // (the next-newer one). Gap/divider logic mirrors the old
+            // pre-inversion code with that neighbor.
+            const above = reversedMessages[i + 1];
+            const isTurnStart = !above || above.role !== m.role;
+            const topGap = i === 0 ? 0 : isTurnStart ? spacing.lg : spacing.md;
+            const showDayDivider = !above || !isSameDay(above.createdAt, m.createdAt);
             const dayLabel = showDayDivider ? formatDayLabel(m.createdAt, t, locale) : null;
             return (
               <ChatMessageRow
@@ -2157,7 +2170,7 @@ export function AiChatPage({
                 message={m}
                 topGap={topGap}
                 dayLabel={dayLabel}
-                isFirst={idx === 0}
+                isFirst={i === reversedMessages.length - 1}
                 isTranslating={translatingId === m.id}
                 translationResult={translationResult?.id === m.id ? translationResult : null}
                 translationExpanded={translationExpanded}
@@ -2172,9 +2185,9 @@ export function AiChatPage({
                 onCtaPress={onCtaPress}
               />
             );
-          })
-        )}
-      </ScrollView>
+          }}
+        />
+      )}
 
       {/* ── Composer ── */}
       <View
