@@ -65,3 +65,33 @@ F6 si riapre solo se almeno una delle tre condizioni cambia regime:
 2. drafter con acceptance dimostrata ≥60% sul nostro carico italiano;
 3. routing con overlap fra token consecutivi ≫ 0 (altro modello o altro router) — da
    rimisurare col trace, non da assumere.
+
+---
+
+## Addendum 2026-08-10 — Muse Glimmer, e lo stato delle condizioni
+
+**Meta Muse Glimmer** (huggingface.co/blog/muse-glimmer): 30B **DENSO** multimodale
+(2B vision + 28B text), Apache 2.0, GGUF ufficiali, **day-0 llama.cpp**, e — il punto
+— **spedisce un drafter DFlash opzionale integrato**.
+
+**Per il modello di campagna: irrilevante.** Un 30B denso è l'antitesi di Beyond
+Memory: senza sparsità di esperti non c'è niente da streamare selettivamente — ogni
+byte del modello passa a ogni token. Non è un candidato per l'S23.
+
+**Per la porta speculazione: due segnali concreti.**
+1. Se llama.cpp ha supporto day-0 per un modello che spedisce un drafter DFlash,
+   mainline sta ricevendo **infrastruttura generica di draft/verify** (da verificare
+   quali PR). Se la nostra scala (`mandates/scala-speculazione.md`) passa i tre gate,
+   il cantiere di integrazione potrebbe montare su quella macchina invece che
+   costruirla da zero.
+2. L'industria sta normalizzando il pattern "modello + drafter di famiglia" — la
+   condizione (2) diventa più facile da soddisfare nel tempo, per qualunque modello.
+
+**Nota di onestà su questa stessa nota**: la premessa (1) — "su CPU verificare K token
+costa ~K×" — è in tensione coi NOSTRI numeri di prodotto (prefill 10-11.6 tok/s vs
+decode 4.4 = il batch processa 2.3-2.6× più in fretta, stesso binario). L'epitaffio
+resta valido per il regime in cui fu scritto (F6: draft CPU concorrente, ngram, MTP
+assente); la scala in corso ri-misura le tre condizioni nella variante mai provata:
+draft su GPU ferma (inverte la (1): non la verifica ma il draft cambia silicio),
+acceptance misurata offline (2), scattering misurato da C(k) e MiB/tok del batch (3).
+La porta si riapre o si richiude coi numeri N1-N3, non con questo addendum.
