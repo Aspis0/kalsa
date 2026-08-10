@@ -34,8 +34,12 @@ import {
 } from "../agent/toolSourceLedger";
 import { getStrings, type Locale } from "../i18n";
 import { DEFAULT_N_CTX } from "./contextProfile";
+import { getCachedDeviceProfile } from "./deviceProfile";
+import {
+  nGpuLayersForBackend,
+  resolveEngineTuning,
+} from "./deviceTuning";
 import { applyEngineOverride } from "./engineParams";
-import { detectThreadCount } from "./threadProfile";
 import {
   createToolCallDeltaStripper,
   parseFallbackToolCall,
@@ -544,27 +548,42 @@ export function initEngine(modelPath: string, modelId: string, options: EngineIn
     await disposeEngineLocked();
 
     const isMultimodal = Boolean(options.mmprojPath);
+
+    // Device Tuning Layer (docs/DEVICE_TUNING_LAYER.md): measured-first knobs
+    // with provenance. Replaces ad-hoc n_threads / n_ubatch / n_gpu_layers.
+    // n_ctx: caller still owns resolveContextProfile (AppShell); we pass that
+    // value as contextBudget. Memory budget may only SHRINK when available RAM
+    // is known and non-evictable would OOM — never invents an upgrade (preserves
+    // high-RAM hybrid 16k path). cache_type_k/v stay catalog/caller-owned
+    // (Q3 q4/q4 must not be overwritten by the layer's q8/q4 default).
+    const modelInfo = getModelById(modelId);
+    const deviceProfile = await getCachedDeviceProfile();
+    const tuning = await resolveEngineTuning({
+      model: modelInfo,
+      profile: deviceProfile,
+      request: { contextBudget: engineCtx },
+      platformHint: Platform.OS,
+    });
+
     const params: ContextParams = {
       model: modelPath,
       use_mlock: true,
-      n_ctx: engineCtx, // context per modello (multi-chat); caller may pass 16k
+      // Prefer caller engineCtx when budget did not shrink (identical path on
+      // measured devices / unknown MemAvailable). Use tuning only when the
+      // memory budget actually reduced n_ctx (safety clamp, floor 2048).
+      n_ctx:
+        tuning.context.n_ctx < engineCtx
+          ? tuning.context.n_ctx
+          : engineCtx,
       n_batch: 512,
-      // HARD GUARD (moe-experiments F5.1): llama.cpp's ubatch defaults to n_ctx
-      // wide — at 4096 that is a ~4 GB compute buffer and an lmkd kill; every
-      // "RAM ceiling" of that campaign traced back to it. Keep ≤512 even if
-      // n_ctx grows to 16k (256 ≈ 250 MB buffer).
-      n_ubatch: 256,
-      // High-capacity cores only: ggml barriers stall if threads exceed the
-      // fast-core count (kernel places work on efficiency cores). Derived from
-      // /sys/.../cpu_capacity (>=50% of max); fallback 4 when unavailable.
+      // HARD GUARD (moe-experiments F5.1): ubatch ≤512; default 256 ≈ 250 MB.
+      // Source: tuning.ubatchSource ("measured:ubatch-256" or override).
+      n_ubatch: tuning.n_ubatch,
+      // Measured SoC preset / capacity rule / fallback 4 (tuning.nThreadsSource).
       // Set BEFORE engineOverride so bench:engine threads=N still wins below.
-      n_threads: await detectThreadCount(),
-      // iOS: Metal. Android: MUST be 0 — with 99, llama.rn's Hexagon backend
-      // offloads layers to the Snapdragon NPU (HTP0) while Flash Attention
-      // stays on CPU, and llama_init_from_model fails to initialize the
-      // context (field-debugged on a Xiaomi 14 / SD 8 Gen 3; the emulator has
-      // no NPU, so CI never saw it). The app is CPU-only on Android by design.
-      n_gpu_layers: Platform.OS === "ios" ? 99 : 0,
+      n_threads: tuning.n_threads,
+      // Backend policy: metal→99 on iOS; cpu-only→0 on Android (HTP0 fatal).
+      n_gpu_layers: nGpuLayersForBackend(tuning.backend),
       flash_attn_type: "auto",
       cache_type_k: cacheTypeK, // KV quantizzata: q8_0 ≈98% qualità FP16
       cache_type_v: cacheTypeV, // from catalog (hybrid q8 or Q3 q4; dense V often q4)
