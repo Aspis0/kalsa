@@ -222,7 +222,7 @@ jobs:
             compaction: "on"
             block_format: none
             thinking: budget256
-          # ── Smoke — ~3-turn harness self-test on both arms (~20 min), not a
+          # ── Smoke — ~5-turn harness self-test on both arms (~20 min), not a
           # measurement campaign. Use phase=smoke dispatch instead of burning
           # the full 2-hour fase0/fase4 matrix when only the harness needs a
           # live emulator check.

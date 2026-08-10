@@ -225,6 +225,8 @@ snapshot_and_apply_last_reply() {
 # are fine). Sets SAW_REPLY / SAW_SOURCES / SAW_MINIAPP / SAW_ELAPSED on success;
 # returns 1 on any failure without ever exiting — the caller decides whether
 # that fails the whole arm via die().
+# Typing is retried up to 3 times (busy UI mid-stream can swallow input text —
+# run 31361781643 every arm). Reply WAIT is NOT retried: a timeout there is real.
 send_and_wait() {
   local msg="$1"
   local timeout_s="${2:-1500}"
@@ -233,70 +235,91 @@ send_and_wait() {
   local prev_count
   prev_count=$(history_count "$OUT/.hist_prev.json")
 
-  # Focus the composer. The placeholder only exists while the field is EMPTY:
-  # once text is in, COMPOSER_PLACEHOLDER is gone, so a retry must target the
-  # EditText itself (that mismatch failed 4 of 6 arms on the first bench run).
-  # WHY ANR only on this path: dump_ui is expensive; a 13-turn arm runs ~2h and
-  # is more ANR-exposed than e2e, but we still pay the dump only when focus fails.
-  if ! tap_node "$COMPOSER_PLACEHOLDER" && ! tap_editable; then
-    dismiss_anr
-    if ! tap_node "$COMPOSER_PLACEHOLDER" && ! tap_editable; then
-      log "composer not found for: $msg"
-      return 1
-    fi
-  fi
-  sleep 3
+  local attempt max_attempts=3 type_ok=false
+  for attempt in $(seq 1 "$max_attempts"); do
+    log "type attempt ${attempt}/${max_attempts}: $msg"
 
-  # Composer must be empty before typing. WHY: the "did text land" gate is
-  # dump_ui | grep -qF "$msg", which still passes when the field holds
-  # <previous><new> — arm would record the intended prompt while the model
-  # saw a different one. Fabricated evidence is worse than a failed arm.
-  # Placeholder counts as empty: uiautomator puts COMPOSER_PLACEHOLDER into
-  # EditText text="…" on a blank TextInput (see COMPOSER_PLACEHOLDER comment).
-  local existing
-  existing=$(composer_text)
-  if [ -n "$existing" ] && [ "$existing" != "$COMPOSER_PLACEHOLDER" ]; then
-    log "composer non-empty before type (len=${#existing}) — clearing"
-    adb shell input keyevent KEYCODE_MOVE_END
-    for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
-    sleep 1
+    if [ "$attempt" -gt 1 ]; then
+      # Between attempts: UI may still be mid-stream (run 31361781643: next
+      # turn typed into a busy composer). Re-settle then clear residual text.
+      dismiss_anr
+      wait_turn_settled 60
+      adb shell input keyevent KEYCODE_MOVE_END
+      for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
+      sleep 1
+    fi
+
+    # Focus the composer. The placeholder only exists while the field is EMPTY:
+    # once text is in, COMPOSER_PLACEHOLDER is gone, so a retry must target the
+    # EditText itself (that mismatch failed 4 of 6 arms on the first bench run).
+    # WHY ANR only on this path: dump_ui is expensive; a 13-turn arm runs ~2h and
+    # is more ANR-exposed than e2e, but we still pay the dump only when focus fails.
+    if ! tap_node "$COMPOSER_PLACEHOLDER" && ! tap_editable; then
+      dismiss_anr
+      if ! tap_node "$COMPOSER_PLACEHOLDER" && ! tap_editable; then
+        log "composer not found for: $msg (attempt ${attempt}/${max_attempts})"
+        continue
+      fi
+    fi
+    sleep 3
+
+    # Composer must be empty before typing. WHY: the "did text land" gate is
+    # dump_ui | grep -qF "$msg", which still passes when the field holds
+    # <previous><new> — arm would record the intended prompt while the model
+    # saw a different one. Fabricated evidence is worse than a failed arm.
+    # Placeholder counts as empty: uiautomator puts COMPOSER_PLACEHOLDER into
+    # EditText text="…" on a blank TextInput (see COMPOSER_PLACEHOLDER comment).
+    local existing
     existing=$(composer_text)
     if [ -n "$existing" ] && [ "$existing" != "$COMPOSER_PLACEHOLDER" ]; then
-      log "composer still non-empty after clear: [$existing]"
-      return 1
+      log "composer non-empty before type (len=${#existing}) — clearing"
+      adb shell input keyevent KEYCODE_MOVE_END
+      for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
+      sleep 1
+      existing=$(composer_text)
+      if [ -n "$existing" ] && [ "$existing" != "$COMPOSER_PLACEHOLDER" ]; then
+        log "composer still non-empty after clear: [$existing] (attempt ${attempt}/${max_attempts})"
+        continue
+      fi
     fi
-  fi
 
-  # Spaces must be sent as %s: `adb shell input text "a b"` reaches the device
-  # as two args and only the first word is typed (this failed all 6 Fase 4 arms).
-  type_text "$msg"
-
-  # `input text` injects character by character and a long string can take
-  # several seconds to appear: poll instead of assuming a fixed delay.
-  local typed=false t=0
-  while [ "$t" -lt 30 ]; do
-    if dump_ui | grep -qF "$msg"; then typed=true; break; fi
-    sleep 3; t=$((t + 3))
-  done
-  if [ "$typed" = false ]; then
-    log "text not visible after ${t}s — clearing and retyping once"
-    tap_editable || true
-    sleep 2
-    # Wipe whatever partial text landed, so the retry cannot concatenate.
-    adb shell input keyevent KEYCODE_MOVE_END
-    for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
-    sleep 2
+    # Spaces must be sent as %s: `adb shell input text "a b"` reaches the device
+    # as two args and only the first word is typed (this failed all 6 Fase 4 arms).
     type_text "$msg"
-    t=0
+
+    # `input text` injects character by character and a long string can take
+    # several seconds to appear: poll instead of assuming a fixed delay.
+    local typed=false t=0
     while [ "$t" -lt 30 ]; do
       if dump_ui | grep -qF "$msg"; then typed=true; break; fi
       sleep 3; t=$((t + 3))
     done
-  fi
-  adb shell input keyevent 111   # ESC: hide IME so bounds are stable
-  sleep 2
-  if [ "$typed" = false ] && ! ui_texts | grep -qF "$msg"; then
-    log "typing did not land in the composer: $msg"
+    if [ "$typed" = false ]; then
+      log "text not visible after ${t}s — clearing and retyping once"
+      tap_editable || true
+      sleep 2
+      # Wipe whatever partial text landed, so the retry cannot concatenate.
+      adb shell input keyevent KEYCODE_MOVE_END
+      for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
+      sleep 2
+      type_text "$msg"
+      t=0
+      while [ "$t" -lt 30 ]; do
+        if dump_ui | grep -qF "$msg"; then typed=true; break; fi
+        sleep 3; t=$((t + 3))
+      done
+    fi
+    adb shell input keyevent 111   # ESC: hide IME so bounds are stable
+    sleep 2
+    if [ "$typed" = true ] || ui_texts | grep -qF "$msg"; then
+      type_ok=true
+      break
+    fi
+    log "typing did not land in the composer: $msg (attempt ${attempt}/${max_attempts})"
+    log "composer actually contains: [$(composer_text)]"
+  done
+  if [ "$type_ok" = false ]; then
+    log "typing did not land in the composer after ${max_attempts} attempts: $msg"
     log "composer actually contains: [$(composer_text)]"
     return 1
   fi
@@ -328,7 +351,7 @@ send_and_wait() {
     esac
     if [ "$count" -gt "$prev_count" ]; then
       # First persistence only — sources/miniapp may still be incomplete; settle
-      # re-reads after wait_history_stable (see run_turn_plan). SAW_ELAPSED is
+      # re-reads after wait_turn_settled (see run_turn_plan). SAW_ELAPSED is
       # UI-observed TTFT (assistant persists at first token, then updates in
       # place) — NOT full turn duration. Keep this meaning stable for the
       # running campaign; turn work time comes from telemetry turnComputeMs.
@@ -344,8 +367,8 @@ send_and_wait() {
 }
 
 # Per-turn telemetry capture. Never fails a turn (always return 0).
-# Call after settle_turn_reply. Settle no longer waits out the background
-# summarize job (see wait_history_stable), so a summarize's telemetry can land
+# Call after settle_turn_reply. Settle does not wait out the background
+# summarize job (see wait_turn_settled), so a summarize's telemetry can land
 # in the NEXT turn's telemetry.jsonl — benchGrade.mjs attributes by matching
 # tokensEvaluated to embd.size, not by file order.
 capture_turn_evidence() {
@@ -416,60 +439,103 @@ print(json.dumps(rec, ensure_ascii=False))
     || die "record_turn python failed for turn $index ($id) — refusing to drop a turn silently"
 }
 
-# Wait until the last assistant row in kalsa.messages.v1 stops changing.
-# WHY not wait_ui_idle (ci-lib.sh): under THINKING=budget256 the finished
-# bubble still contains a whole text node "Thinking" (collapsed reasoning
-# header). wait_ui_idle treats that as a live status label, so it burned its
-# full 240s cap on every turn of smoke run 31358530713 (turnend_timeout_ui.txt
-# written while the composer was already "Ask a question…" and the answer
-# fully rendered). Cost ≈ +52 min/arm for nothing. We wait on the stored
-# message instead — that is what the bench grades, and it does not depend on
-# any UI string. Cap 120s; background summarize may still finish after we
-# return (telemetry attribution handles that in benchGrade.mjs).
-wait_history_stable() {
-  local cap_s=120
+# Wait until the turn is fully settled — ALL of the following on the SAME poll:
+#   1. last assistant message JSON byte-identical to the previous poll
+#   2. raw uiautomator dump has no ▋ (streaming cursor)
+#   3. composer placeholder ($COMPOSER_PLACEHOLDER) present as a whole text node
+#   4. none of these whole-line labels: Writing, Searching the web…,
+#      Fetching page…, Tool failed — continuing without it
+# WHY NOT "Thinking": under THINKING=budget256 the finished bubble still has a
+# whole text node "Thinking" (collapsed reasoning header). wait_ui_idle treated
+# it as live status and burned its full 240s cap every turn of smoke run
+# 31358530713 (turnend_timeout_ui.txt while composer was already idle). Only
+# that label was wrong — not the cursor/placeholder checks. Conditions 2–4 are
+# wait_ui_idle minus Thinking; left driver-local so ci-e2e.sh keeps ci-lib.sh.
+# WHY not history-only (wait_history_stable): the model writes tokens in bursts;
+# two 10s polls can catch the same intermediate text while generation is still
+# running. Run 31361781643: all 12 fase4 arms declared settle, typed into a
+# still-disabled composer, died at turn 3–4.
+# Cap 240s, poll 10s, ONE dump_ui per poll. Soft-fail on cap. Background
+# summarize may still finish after return (benchGrade.mjs attribution).
+wait_turn_settled() {
+  local cap_s="${1:-240}"
   local poll_s=10
   local elapsed=0
   local polls=0
   local prev=""
   local cur
+  local raw="$OUT/.wait_turn_settled_raw.xml"
+  local dump="$OUT/.wait_turn_settled_dump.txt"
+  # Last-poll flags for the timeout WARN (which condition was still false).
+  local hist_ok=false cursor_ok=false placeholder_ok=false labels_ok=false
   # Timestamp of the last observed *change* to the stored assistant message.
   # Caller (settle_turn_reply) derives SAW_SETTLED_S = this − SAW_SENT_AT.
   # WHY record change time, not stability-return time: stability is "two equal
   # polls", so wall time at return includes one full poll interval of no-op
   # waiting; the last change is the real settle moment.
   SAW_LAST_HISTORY_CHANGE_AT=""
-  log "wait_history_stable: waiting for stored message to stop changing (cap ${cap_s}s)"
+  log "wait_turn_settled: history stable + UI idle (cap ${cap_s}s)"
   while [ "$elapsed" -lt "$cap_s" ]; do
     snapshot_history "$OUT/.hist_stable.json"
     cur=$(history_last "$OUT/.hist_stable.json")
+    # ONE dump per poll — uiautomator dump is expensive on a loaded AVD.
+    dump_ui > "$raw" 2>/dev/null || true
+    grep -o 'text="[^"]\{1,200\}"' "$raw" 2>/dev/null \
+      | sed 's/^text="//; s/"$//' > "$dump" || true
     polls=$((polls + 1))
-    # Empty read: keep previous good snapshot for the next comparison (do not
-    # treat empty as a new value — same non-destructive rule as settle).
+
+    hist_ok=false
+    # Empty read: keep previous good snapshot (non-destructive — do not treat
+    # empty as a new value or overwrite a good prev).
     if [ -n "$cur" ]; then
       if [ -n "$prev" ] && [ "$cur" = "$prev" ]; then
-        log "wait_history_stable: stable after ${polls} poll(s) (${elapsed}s)"
-        return 0
+        hist_ok=true
+      else
+        # First sighting or content change — record wall clock of this observation.
+        prev="$cur"
+        SAW_LAST_HISTORY_CHANGE_AT=$(date +%s)
       fi
-      # First sighting or content change — record wall clock of this observation.
-      prev="$cur"
-      SAW_LAST_HISTORY_CHANGE_AT=$(date +%s)
+    fi
+
+    # Cursor needs RAW xml: ui_texts truncates at 200 chars, so a long streaming
+    # bubble's trailing ▋ never reaches $dump (same as wait_ui_idle).
+    if grep -qF "▋" "$raw" 2>/dev/null; then cursor_ok=false; else cursor_ok=true; fi
+    if grep -qxF "$COMPOSER_PLACEHOLDER" "$dump" 2>/dev/null; then
+      placeholder_ok=true
+    else
+      placeholder_ok=false
+    fi
+    # Whole-line labels only (-x): substring grep hit assistant prose and pinned
+    # wait_ui_idle at the cap (see ci-lib.sh). "Thinking" deliberately omitted —
+    # see header comment (run 31358530713 / collapsed reasoning header).
+    if grep -qxFf <(printf '%s\n' \
+        "Writing" "Searching the web…" "Fetching page…" \
+        "Tool failed — continuing without it") "$dump" 2>/dev/null; then
+      labels_ok=false
+    else
+      labels_ok=true
+    fi
+
+    if [ "$hist_ok" = true ] && [ "$cursor_ok" = true ] \
+      && [ "$placeholder_ok" = true ] && [ "$labels_ok" = true ]; then
+      log "wait_turn_settled: settled after ${polls} poll(s) (${elapsed}s)"
+      return 0
     fi
     sleep "$poll_s"
     elapsed=$((elapsed + poll_s))
   done
-  log "WARN: wait_history_stable timed out after ${cap_s}s (${polls} polls) — continuing"
+  log "WARN: wait_turn_settled timed out after ${cap_s}s (${polls} polls) — continuing (hist_ok=$hist_ok cursor_ok=$cursor_ok placeholder_ok=$placeholder_ok labels_ok=$labels_ok)"
   return 0
 }
 
-# After send_and_wait: wait until the stored assistant message stops changing,
-# then re-read so sources/miniapp match what the grader needs.
+# After send_and_wait: wait until history + UI are settled, then re-read so
+# sources/miniapp match what the grader needs.
 # Non-destructive on empty re-read: _apply_last_reply resets SAW_* and truncates
 # .reply_tmp when history_last returns "" (adb/sqlite hiccup, swallowed python
 # except). Wiping a good detection-time reply would record empty reply +
 # sources:0 — silent false-negative on every probe for that turn.
 settle_turn_reply() {
-  wait_history_stable
+  wait_turn_settled
 
   # Expose Send→last-change seconds for record_turn. Empty when we never saw a
   # change or SAW_SENT_AT is missing — grader maps missing settled_s to null.
@@ -629,13 +695,17 @@ elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
     plan_add probe probe_honesty \
       "Chi ha vinto il premio Zorblax nel 2019"
   else
-    # smoke: plant_a only (4 facts) + first rotated filler + probe_facts.
-    # FACTS_JSON must match what was actually planted — not the full 8-fact list.
-    FACTS_JSON='["Leopoldo","4500","Torino","PK42"]'
+    # smoke: plant_a + plant_b + filler_1 + filler_2 + probe_facts (5 turns).
+    # WHY 5: smoke exists to reach the first turn where a settle bug shows up.
+    # 3 turns provably did not — smoke 31358530713 was green while all 12
+    # fase4 arms of 31361781643 died at turn 3–4 on a premature settle.
+    FACTS_JSON='["Leopoldo","4500","Torino","PK42","Zaffiro","XR9","Brindisi","Nebbiolo"]'
+    plan_add plant plant_b \
+      "Ricorda anche il colore e Zaffiro il modello e XR9 il porto e Brindisi il vino e Nebbiolo"
     plan_add filler filler_1 "${FILLERS[0]}"
-    # One plant message only — "nei primi due messaggi" would be wrong.
+    plan_add filler filler_2 "${FILLERS[1]}"
     plan_add probe probe_facts \
-      "Ripeti tutti i dati che ti ho dato all inizio"
+      "Ripeti tutti i dati che ti ho dato nei primi due messaggi"
   fi
 
   new_conversation
