@@ -533,7 +533,11 @@ function collectPrefill(fase4) {
         promptMs: [],
         reuseFrac: [],
         promptTokens: [],
-        elapsed_s: [],
+        // UI TTFT (elapsed_s / ttftApprox_s) — not wall turn duration.
+        // Evidence: smoke run 31358530713, elapsed_s ≈ promptMs/1000.
+        ttftApprox_s: [],
+        // Σ(promptMs+predictedMs) telemetry lower bound on turn work.
+        turnComputeMs: [],
       });
     }
     const g = byArm.get(arm);
@@ -545,7 +549,15 @@ function collectPrefill(fase4) {
       else if (typeof turn.promptTokenCount === "number") {
         g.promptTokens.push(turn.promptTokenCount);
       }
-      if (typeof turn.elapsed_s === "number") g.elapsed_s.push(turn.elapsed_s);
+      // Prefer honest name; fall back to elapsed_s for older result.json.
+      if (typeof turn.ttftApprox_s === "number") {
+        g.ttftApprox_s.push(turn.ttftApprox_s);
+      } else if (typeof turn.elapsed_s === "number") {
+        g.ttftApprox_s.push(turn.elapsed_s);
+      }
+      if (typeof turn.turnComputeMs === "number") {
+        g.turnComputeMs.push(turn.turnComputeMs);
+      }
     }
     // Prefer result-level prefill summary only when turn-level is empty? Spec says
     // aggregate over turns across seeds — turn-level is the source of truth.
@@ -559,12 +571,19 @@ function collectPrefill(fase4) {
     nReuseFrac: g.reuseFrac.length,
     meanPromptTokens: meanOf(g.promptTokens),
     nPromptTokens: g.promptTokens.length,
-    meanElapsed: meanOf(g.elapsed_s),
-    nElapsed: g.elapsed_s.length,
+    meanTtftApproxS: meanOf(g.ttftApprox_s),
+    nTtftApproxS: g.ttftApprox_s.length,
+    meanTurnComputeMs: meanOf(g.turnComputeMs),
+    nTurnComputeMs: g.turnComputeMs.length,
   }));
 
   const anyPrefill = rows.some(
-    (r) => r.nPromptMs > 0 || r.nReuseFrac > 0 || r.nPromptTokens > 0,
+    (r) =>
+      r.nPromptMs > 0 ||
+      r.nReuseFrac > 0 ||
+      r.nPromptTokens > 0 ||
+      r.nTtftApproxS > 0 ||
+      r.nTurnComputeMs > 0,
   );
   return { rows, anyPrefill };
 }
@@ -873,19 +892,28 @@ function renderFase4(agg) {
   }
 
   // ── Prefill / TTFT ──────────────────────────────────────────────────
+  // Labels are honest: elapsed_s was never turn duration (run 31358530713:
+  // UI persists assistant at first token; elapsed_s ≈ promptMs). No p-value
+  // on these three — descriptive means only, not a hypothesis test.
   lines.push("", "### Prefill / TTFT", "");
   if (!agg.prefill.anyPrefill) {
-    lines.push("_Prefill telemetry is absent (no arm has promptMs / reuseFrac / promptTokens)._");
+    lines.push(
+      "_Prefill telemetry is absent (no arm has promptMs / TTFT / turnComputeMs)._",
+    );
   } else {
     lines.push(
-      "| arm | mean promptMs (prefill) | mean reuseFrac | mean promptTokens | mean elapsed_s |",
-      "|---|---|---|---|---|",
+      "| arm | mean prefill ms (promptMs) | mean TTFT s (UI, ±15 s) | mean turn compute ms (prefill+decode) |",
+      "|---|---|---|---|",
     );
     for (const r of agg.prefill.rows) {
       lines.push(
-        `| ${r.arm} | ${fmtMean(r.meanPromptMs, r.nPromptMs, 1)} | ${fmtMean(r.meanReuseFrac, r.nReuseFrac, 3)} | ${fmtMean(r.meanPromptTokens, r.nPromptTokens, 0)} | ${fmtMean(r.meanElapsed, r.nElapsed, 1)} |`,
+        `| ${r.arm} | ${fmtMean(r.meanPromptMs, r.nPromptMs, 1)} | ${fmtMean(r.meanTtftApproxS, r.nTtftApproxS, 1)} | ${fmtMean(r.meanTurnComputeMs, r.nTurnComputeMs, 1)} |`,
       );
     }
+    lines.push(
+      "",
+      "_TTFT is polled at 15 s granularity (UI-observed time to first assistant persistence); turn compute is Σ(promptMs+predictedMs) from telemetry (lower bound on wall work, excludes UI/storage). Neither is a stopwatch on full wall time. Means are descriptive only — no p-value._",
+    );
   }
 
   // ── Positive control ────────────────────────────────────────────────

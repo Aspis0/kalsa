@@ -453,6 +453,30 @@ async function main() {
         t1?.predictedMs === 150,
         `got ${t1?.predictedMs}`,
       );
+      // turnComputeMs = Σ(promptMs+predictedMs) skipping neg: 200+50+100 = 350
+      // (promptMs -1 on round1 skipped). Evidence: run 31358530713 labelling.
+      check(
+        "turnComputeMs sums prefill+decode across rounds → 350",
+        t1?.turnComputeMs === 350,
+        `got ${t1?.turnComputeMs}`,
+      );
+      check(
+        "turnComputeMs null with no telemetry (turn2)",
+        t2?.turnComputeMs === null,
+        `got ${t2?.turnComputeMs}`,
+      );
+      // ttftApprox_s mirrors elapsed_s (UI TTFT, not turn duration).
+      check(
+        "ttftApprox_s mirrors elapsed_s",
+        t1?.ttftApprox_s === t1?.elapsed_s && t1?.elapsed_s === 10,
+        `ttft=${t1?.ttftApprox_s} elapsed=${t1?.elapsed_s}`,
+      );
+      // settled_s null when raw.json lacks it (running campaign shape).
+      check(
+        "settled_s null when raw.json lacks it",
+        t1?.settled_s === null && t2?.settled_s === null,
+        `t1=${t1?.settled_s} t2=${t2?.settled_s}`,
+      );
       check(
         "sidecar: tokensEvaluated sums → 150",
         t1?.tokensEvaluated === 150,
@@ -777,6 +801,37 @@ async function main() {
       check("all-negative promptMs → null not 0", t1.promptMs === null, `got ${t1.promptMs}`);
       check("all-negative predictedMs → null", t1.predictedMs === null);
       check("negative predictedPerSecond → null", t1.predictedPerSecond === null);
+      // All-negative rounds → no valid compute samples → turnComputeMs null.
+      check(
+        "all-negative turnComputeMs → null",
+        t1.turnComputeMs === null,
+        `got ${t1.turnComputeMs}`,
+      );
+    }
+
+    // ── settled_s pass-through when present (future runs) ─────────────
+    {
+      const raw = baseRaw({
+        turns: [turn(1, "plant_a", "ok", { elapsed_s: 21, settled_s: 312 })],
+      });
+      const result = gradeRaw(raw, tmp);
+      const t1 = result.turns[0];
+      check(
+        "settled_s passes through when present",
+        t1.settled_s === 312,
+        `got ${t1.settled_s}`,
+      );
+      check(
+        "ttftApprox_s mirrors elapsed_s when both set",
+        t1.ttftApprox_s === 21 && t1.elapsed_s === 21,
+        `ttft=${t1.ttftApprox_s} elapsed=${t1.elapsed_s}`,
+      );
+      check(
+        "prefill meanTtftApproxS / nTtftApproxS populated",
+        result.prefill?.meanTtftApproxS === 21 &&
+          result.prefill?.nTtftApproxS === 1,
+        `prefill=${JSON.stringify(result.prefill)}`,
+      );
     }
 
     // ── recall null when no fact probes ───────────────────────────────

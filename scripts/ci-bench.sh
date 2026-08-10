@@ -302,10 +302,14 @@ send_and_wait() {
   fi
 
   tap_node "Send" || { log "Send button not found for: $msg"; return 1; }
-  local sent_at; sent_at=$(date +%s)
+  # SAW_SENT_AT is global so settle_turn_reply can derive settled_s
+  # (Send → last history change). Do NOT repurpose SAW_ELAPSED: it remains
+  # UI time-to-first-token for campaign comparability (run 31358530713).
+  SAW_SENT_AT=$(date +%s)
   sleep 5
 
   SAW_REPLY=""; SAW_SOURCES=0; SAW_MINIAPP=false; SAW_ELAPSED=0
+  SAW_SETTLED_S=""
   : > "$OUT/.reply_tmp"
   local waited=0 poll_interval=15
   while [ "$waited" -lt "$timeout_s" ]; do
@@ -325,9 +329,11 @@ send_and_wait() {
     if [ "$count" -gt "$prev_count" ]; then
       # First persistence only — sources/miniapp may still be incomplete; settle
       # re-reads after wait_history_stable (see run_turn_plan). SAW_ELAPSED is
-      # latency from Send to first persistence, which is what we want to report.
+      # UI-observed TTFT (assistant persists at first token, then updates in
+      # place) — NOT full turn duration. Keep this meaning stable for the
+      # running campaign; turn work time comes from telemetry turnComputeMs.
       snapshot_and_apply_last_reply "$OUT/.hist_now.json"
-      SAW_ELAPSED=$(( $(date +%s) - sent_at ))
+      SAW_ELAPSED=$(( $(date +%s) - SAW_SENT_AT ))
       log "reply after ${SAW_ELAPSED}s (len=${#SAW_REPLY} sources=$SAW_SOURCES miniapp=$SAW_MINIAPP): ${SAW_REPLY:0:200}"
       return 0
     fi
@@ -381,25 +387,31 @@ capture_turn_evidence() {
 # Append one turn record to the turns JSONL.
 # Args: index kind id prompt elapsed_s sources hasMiniapp; reply bytes already
 # in $OUT/.reply_tmp (written by _apply_last_reply — do not rebuild from SAW_REPLY).
+# settled_s (optional 8th arg, or SAW_SETTLED_S): Send → last history change;
+# omitted/empty → JSON null so older callers and mid-campaign rows still work.
 record_turn() {
   local index="$1" kind="$2" id="$3" prompt="$4" elapsed_s="$5" sources="$6" has_miniapp="$7"
+  local settled_s="${8:-${SAW_SETTLED_S:-}}"
   python3 -c '
 import json, sys
-index, kind, tid, prompt, elapsed_s, sources, has_miniapp, reply_path = sys.argv[1:9]
+index, kind, tid, prompt, elapsed_s, sources, has_miniapp, reply_path, settled_s = sys.argv[1:10]
 reply = open(reply_path, encoding="utf-8").read()
+# settled_s null when absent (running campaign raw.json has no field yet).
+settled = int(settled_s) if settled_s not in ("", "None", "null") else None
 rec = {
     "index": int(index),
     "kind": kind,
     "id": tid,
     "prompt": prompt,
     "elapsed_s": int(elapsed_s),
+    "settled_s": settled,
     "reply": reply,
     "replyLen": len(reply),
     "sources": int(sources),
     "hasMiniapp": has_miniapp == "true",
 }
 print(json.dumps(rec, ensure_ascii=False))
-' "$index" "$kind" "$id" "$prompt" "$elapsed_s" "$sources" "$has_miniapp" "$OUT/.reply_tmp" \
+' "$index" "$kind" "$id" "$prompt" "$elapsed_s" "$sources" "$has_miniapp" "$OUT/.reply_tmp" "$settled_s" \
     >> "$OUT/.turns.jsonl" \
     || die "record_turn python failed for turn $index ($id) — refusing to drop a turn silently"
 }
@@ -421,6 +433,12 @@ wait_history_stable() {
   local polls=0
   local prev=""
   local cur
+  # Timestamp of the last observed *change* to the stored assistant message.
+  # Caller (settle_turn_reply) derives SAW_SETTLED_S = this − SAW_SENT_AT.
+  # WHY record change time, not stability-return time: stability is "two equal
+  # polls", so wall time at return includes one full poll interval of no-op
+  # waiting; the last change is the real settle moment.
+  SAW_LAST_HISTORY_CHANGE_AT=""
   log "wait_history_stable: waiting for stored message to stop changing (cap ${cap_s}s)"
   while [ "$elapsed" -lt "$cap_s" ]; do
     snapshot_history "$OUT/.hist_stable.json"
@@ -433,7 +451,9 @@ wait_history_stable() {
         log "wait_history_stable: stable after ${polls} poll(s) (${elapsed}s)"
         return 0
       fi
+      # First sighting or content change — record wall clock of this observation.
       prev="$cur"
+      SAW_LAST_HISTORY_CHANGE_AT=$(date +%s)
     fi
     sleep "$poll_s"
     elapsed=$((elapsed + poll_s))
@@ -450,6 +470,17 @@ wait_history_stable() {
 # sources:0 — silent false-negative on every probe for that turn.
 settle_turn_reply() {
   wait_history_stable
+
+  # Expose Send→last-change seconds for record_turn. Empty when we never saw a
+  # change or SAW_SENT_AT is missing — grader maps missing settled_s to null.
+  SAW_SETTLED_S=""
+  if [ -n "${SAW_LAST_HISTORY_CHANGE_AT:-}" ] && [ -n "${SAW_SENT_AT:-}" ]; then
+    SAW_SETTLED_S=$(( SAW_LAST_HISTORY_CHANGE_AT - SAW_SENT_AT ))
+    # Guard clock skew / ordering glitches.
+    if [ "$SAW_SETTLED_S" -lt 0 ] 2>/dev/null; then
+      SAW_SETTLED_S=""
+    fi
+  fi
 
   local pre_sources=$SAW_SOURCES pre_miniapp=$SAW_MINIAPP
   local pre_len=${#SAW_REPLY}
@@ -475,6 +506,9 @@ settle_turn_reply() {
     log "settle changed reply (len ${pre_len}->${#SAW_REPLY} sources ${pre_sources}->${SAW_SOURCES} miniapp ${pre_miniapp}->${SAW_MINIAPP})"
   else
     log "settled reply (len=${#SAW_REPLY} sources=$SAW_SOURCES miniapp=$SAW_MINIAPP)"
+  fi
+  if [ -n "$SAW_SETTLED_S" ]; then
+    log "settled_s=${SAW_SETTLED_S}s (Send→last history change; TTFT elapsed_s=${SAW_ELAPSED}s)"
   fi
 }
 

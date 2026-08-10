@@ -135,10 +135,19 @@ function readTelemetryMetrics(turnDir, targetEmbSize) {
 
   const last = rounds[rounds.length - 1];
   const pps = last?.predictedPerSecond;
+  // Turn work time = Σ(promptMs + predictedMs) over attributed rounds.
+  // WHY not elapsed_s: ci-bench SAW_ELAPSED is UI time-to-first-token
+  // (assistant message persists at first token, smoke run 31358530713:
+  // elapsed_s tracks promptMs not decode). Excludes UI/storage overhead
+  // → lower bound on wall time.
+  const turnComputeMs = sumPositive(
+    rounds.flatMap((r) => [r.promptMs, r.predictedMs]),
+  );
   return {
     metrics: {
       promptMs: sumPositive(rounds.map((r) => r.promptMs)),
       predictedMs: sumPositive(rounds.map((r) => r.predictedMs)),
+      turnComputeMs,
       tokensEvaluated: sumPositive(rounds.map((r) => r.tokensEvaluated)),
       tokensPredicted: sumPositive(rounds.map((r) => r.tokensPredicted)),
       predictedPerSecond:
@@ -237,6 +246,7 @@ function metricsForTurn(baseDir, turnIndex) {
   const empty = {
     promptMs: null,
     predictedMs: null,
+    turnComputeMs: null,
     tokensEvaluated: null,
     tokensPredicted: null,
     predictedPerSecond: null,
@@ -272,6 +282,9 @@ function metricsForTurn(baseDir, turnIndex) {
   return {
     promptMs: tel?.promptMs ?? null,
     predictedMs: tel?.predictedMs ?? null,
+    // null with no telemetry; actual work time (not UI TTFT). See comment
+    // on turnComputeMs in readTelemetryMetrics — smoke run 31358530713.
+    turnComputeMs: tel?.turnComputeMs ?? null,
     tokensEvaluated: tel?.tokensEvaluated ?? null,
     tokensPredicted: tel?.tokensPredicted ?? null,
     predictedPerSecond: tel?.predictedPerSecond ?? null,
@@ -314,7 +327,7 @@ function median(nums) {
   return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
 }
 
-function buildPrefill(turnMetrics) {
+function buildPrefill(turnMetrics, outTurns) {
   const promptMs = turnMetrics
     .map((m) => m.promptMs)
     .filter((v) => typeof v === "number");
@@ -324,12 +337,25 @@ function buildPrefill(turnMetrics) {
   const promptTokens = turnMetrics
     .map((m) => m.promptTokens)
     .filter((v) => typeof v === "number");
+  // turnComputeMs / ttftApprox_s: sample counts are independent (nulls skipped).
+  const turnCompute = turnMetrics
+    .map((m) => m.turnComputeMs)
+    .filter((v) => typeof v === "number");
+  const ttft = (outTurns ?? [])
+    .map((t) => t.ttftApprox_s)
+    .filter((v) => typeof v === "number");
   const turnsWithTelemetry = turnMetrics.filter((m) => m._hadTelemetry).length;
   return {
     meanPromptMs: mean(promptMs),
     medianPromptMs: median(promptMs),
     meanReuseFrac: mean(reuseFrac),
     meanPromptTokens: mean(promptTokens),
+    // Lower-bound wall work from telemetry; not elapsed_s (see turnComputeMs).
+    meanTurnComputeMs: mean(turnCompute),
+    nTurnComputeMs: turnCompute.length,
+    // UI-observed TTFT (same samples as elapsed_s); poll granularity 15 s.
+    meanTtftApproxS: mean(ttft),
+    nTtftApproxS: ttft.length,
     turnsWithTelemetry,
   };
 }
@@ -400,6 +426,17 @@ function gradeRaw(raw, baseDir) {
     const replyLen =
       typeof turn.replyLen === "number" ? turn.replyLen : String(reply).length;
     const { _hadTelemetry, _attributionNote, ...metrics } = m;
+    // elapsed_s kept raw for compatibility. It is UI-observed TTFT
+    // (15 s poll), not turn duration — corroborated by promptMs on every
+    // turn of run 31358530713. Mirror as ttftApprox_s so the honest name
+    // is available without renaming the raw field mid-campaign.
+    const elapsed = turn.elapsed_s ?? null;
+    // settled_s: Send → last history change (ci-bench wait_history_stable).
+    // null when absent so the running campaign's raw.json still grades.
+    const settled =
+      typeof turn.settled_s === "number" && Number.isFinite(turn.settled_s)
+        ? turn.settled_s
+        : null;
     return {
       // Default every copied field: JSON.stringify drops undefined keys, so a
       // malformed raw would omit fields instead of nulling them (B7).
@@ -407,7 +444,9 @@ function gradeRaw(raw, baseDir) {
       kind: turn.kind ?? null,
       id: turn.id ?? null,
       prompt: turn.prompt ?? null,
-      elapsed_s: turn.elapsed_s ?? null,
+      elapsed_s: elapsed,
+      ttftApprox_s: elapsed,
+      settled_s: settled,
       reply_len: replyLen,
       replyExcerpt: String(reply).slice(0, REPLY_EXCERPT_LEN),
       sources: turn.sources ?? null,
@@ -479,7 +518,7 @@ function gradeRaw(raw, baseDir) {
     probes,
     recall,
     byFamily,
-    prefill: buildPrefill(turnMetrics),
+    prefill: buildPrefill(turnMetrics, outTurns),
     positiveControl: {
       promptTokensByTurn,
       reusedTokensByTurn,

@@ -237,7 +237,23 @@ async function main() {
       );
       check(
         "complete renders prefill table",
-        markdown.includes("mean promptMs") || markdown.includes("Prefill"),
+        markdown.includes("mean prefill ms (promptMs)") ||
+          markdown.includes("Prefill"),
+      );
+      // Honest labels: TTFT not "mean s/turn"; turn compute separate; no p.
+      check(
+        "complete renders mean TTFT s (UI, ±15 s) header",
+        markdown.includes("mean TTFT s (UI, ±15 s)"),
+      );
+      check(
+        "complete renders mean turn compute ms header",
+        markdown.includes("mean turn compute ms (prefill+decode)"),
+      );
+      check(
+        "prefill/TTFT table omits p-value (descriptive only)",
+        !/mean TTFT[\s\S]{0,400}\|[^|\n]*p\s*\(/i.test(markdown) &&
+          markdown.includes("no p-value"),
+        "expected footnote saying no p-value near the timing table",
       );
       check(
         "complete renders ARMS DIFFER",
@@ -379,6 +395,8 @@ async function main() {
               kind: "plant",
               id: "p",
               elapsed_s: 10,
+              ttftApprox_s: 10,
+              turnComputeMs: 1000,
               reply_len: 1,
               promptMs: 100,
               reuseFrac: 0.5,
@@ -389,6 +407,8 @@ async function main() {
               kind: "probe",
               id: "q",
               elapsed_s: 20,
+              ttftApprox_s: 20,
+              turnComputeMs: null,
               reply_len: 1,
               promptMs: null,
               reuseFrac: null,
@@ -417,6 +437,8 @@ async function main() {
               kind: "plant",
               id: "p",
               elapsed_s: 30,
+              ttftApprox_s: 30,
+              turnComputeMs: 3000,
               reply_len: 1,
               promptMs: 300,
               reuseFrac: 0.1,
@@ -473,7 +495,13 @@ async function main() {
         "prefill mean promptMs skips nulls (n=2)",
         /baseline.*200\.0 \(n=2\)/.test(markdown.replace(/\n/g, " ")) ||
           markdown.includes("200.0 (n=2)"),
-        `snippet around baseline:\n${markdown.split("\n").filter((l) => l.includes("baseline") || l.includes("promptMs")).join("\n")}`,
+        `snippet around baseline:\n${markdown.split("\n").filter((l) => l.includes("baseline") || l.includes("promptMs") || l.includes("prefill")).join("\n")}`,
+      );
+      // turnComputeMs: 1000, null, 3000 → mean 2000, n=2
+      check(
+        "prefill mean turn compute ms skips nulls (n=2)",
+        markdown.includes("2000.0 (n=2)"),
+        `snippet:\n${markdown.split("\n").filter((l) => l.includes("baseline")).join("\n")}`,
       );
       check(
         "prefill does not invent 0.0 when only nulls (v42)",
@@ -537,7 +565,8 @@ async function main() {
         baseResult({
           arm: "baseline",
           seed: 1,
-          turns: [{ index: 1, kind: "plant", id: "p", elapsed_s: 1, reply_len: 1 }],
+          // No promptMs / TTFT / turnComputeMs — table must stay absent, not 0.0.
+          turns: [{ index: 1, kind: "plant", id: "p", reply_len: 1 }],
           positiveControl: {
             promptTokensByTurn: {},
             reusedTokensByTurn: {},
