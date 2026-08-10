@@ -122,6 +122,39 @@ new_conversation() {
   launch_app
 }
 
+# Emulator-image nuisance dismiss labels — NOT app UI. CI run 31367691176
+# (arm fase4, v42, seed 5) died at turn 9/13 (~63 min): Google Calendar
+# onboarding ("Got it" / Schedule View…) sat on top of the app and held focus;
+# dismiss_anr only matches system ANR ("isn't responding"), so nothing recovered.
+# These are common system/preinstall dialog buttons on the CI AVD image.
+readonly FOREIGN_DIALOG_LABELS=(
+  "Got it" "OK" "Dismiss" "No thanks" "Not now" "Close" "Continue" "Allow"
+)
+
+# Recover focus when a foreign app's dialog steals the screen mid-arm.
+# 1) Re-foreground our activity (displaces another app without guessing labels).
+# 2) If the composer is still missing, tap the first matching nuisance label.
+# Never fails a turn (always return 0). Called only from send_and_wait retry
+# paths — dump_ui is expensive; the happy path already works without this.
+dismiss_foreign_dialog() {
+  adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1 || true
+  sleep 2
+  # Composer EditText back → re-foreground alone was enough; skip label hunt.
+  if dump_ui 2>/dev/null | grep -q 'class="android.widget.EditText"'; then
+    return 0
+  fi
+  local label
+  for label in "${FOREIGN_DIALOG_LABELS[@]}"; do
+    if tap_node "$label" 2>/dev/null; then
+      # Log WHICH label so a real campaign hit names the interferer (run 31367691176).
+      log "dismiss_foreign_dialog: tapped '$label' (emulator-image nuisance)"
+      sleep 1
+      return 0
+    fi
+  done
+  return 0
+}
+
 # ---------------------------------------------------------------------------
 # History helpers — full value dump + python3 parse.
 # Do NOT use substr(value,-N) or sed-on-JSON: both failed in run 30863711482
@@ -242,7 +275,10 @@ send_and_wait() {
     if [ "$attempt" -gt 1 ]; then
       # Between attempts: UI may still be mid-stream (run 31361781643: next
       # turn typed into a busy composer). Re-settle then clear residual text.
+      # Also clear foreign dialogs that stole focus (run 31367691176: Calendar
+      # onboarding killed a 63-min arm at turn 9 — dismiss_anr alone was blind).
       dismiss_anr
+      dismiss_foreign_dialog
       wait_turn_settled 60
       adb shell input keyevent KEYCODE_MOVE_END
       for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
@@ -252,10 +288,12 @@ send_and_wait() {
     # Focus the composer. The placeholder only exists while the field is EMPTY:
     # once text is in, COMPOSER_PLACEHOLDER is gone, so a retry must target the
     # EditText itself (that mismatch failed 4 of 6 arms on the first bench run).
-    # WHY ANR only on this path: dump_ui is expensive; a 13-turn arm runs ~2h and
-    # is more ANR-exposed than e2e, but we still pay the dump only when focus fails.
+    # WHY ANR/foreign only on this path: dump_ui is expensive; a 13-turn arm runs
+    # ~2h and is more ANR/dialog-exposed than e2e, but we still pay the dump only
+    # when focus fails (happy path unchanged for campaign comparability).
     if ! tap_node "$COMPOSER_PLACEHOLDER" && ! tap_editable; then
       dismiss_anr
+      dismiss_foreign_dialog
       if ! tap_node "$COMPOSER_PLACEHOLDER" && ! tap_editable; then
         log "composer not found for: $msg (attempt ${attempt}/${max_attempts})"
         continue
