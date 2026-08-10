@@ -112,6 +112,8 @@ export const it: typeof en = {
     help: "Aiuto",
     helpSubtitle: "Come funziona Kalsa",
     openHelp: "Apri l'aiuto",
+    /** Riga dispositivo sotto la RAM in Modelli: brand + modello. */
+    deviceLine: "Dispositivo: {brand} {model}",
   },
 
   models: {
@@ -140,6 +142,9 @@ export const it: typeof en = {
     deviceRam: "Il tuo dispositivo: {gb} GB di RAM",
     recommended: "Consigliato per il tuo dispositivo",
     mayNotFit: "Potrebbe non entrare nella memoria di questo telefono.",
+    blockedTier: "Non compatibile con la RAM di questo dispositivo",
+    blockedRam: "Memoria libera insufficiente per eseguirlo",
+    blockedDisk: "Spazio di archiviazione insufficiente per scaricarlo",
   },
 
   voice: {

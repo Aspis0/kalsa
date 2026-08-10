@@ -37,6 +37,14 @@ import {
   ramTierMeets,
   recommendedModelId,
 } from "../engine/contextProfile";
+import {
+  estimateModelNonEvictableMiB,
+  getCachedDeviceProfile,
+  getFreeDiskBytes,
+  modelGateVerdict,
+  type DeviceProfile,
+  type ModelGateVerdict,
+} from "../engine/deviceProfile";
 import * as MemoryStore from "../memory/MemoryStore";
 import type { MemoryFact } from "../memory/MemoryStore";
 import { COMPACTION_ENABLED_KEY } from "../context/compactor";
@@ -565,6 +573,67 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
   // would be misleading).
   const deviceRamTier = deviceTotalMemoryBytes !== null ? getRamTier(deviceTotalMemoryBytes) : null;
   const recommendedModel = deviceRamTier !== null ? recommendedModelId(deviceRamTier) : null;
+
+  // Hard gate inputs: DeviceProfile (process-cached) + free disk (best-effort).
+  const [deviceProfile, setDeviceProfile] = useState<DeviceProfile | null>(null);
+  const [freeDiskBytes, setFreeDiskBytes] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [profile, free] = await Promise.all([
+          getCachedDeviceProfile(),
+          getFreeDiskBytes(),
+        ]);
+        if (cancelled) return;
+        setDeviceProfile(profile);
+        setFreeDiskBytes(free);
+      } catch {
+        // Leave null — soft UI only; AppShell re-checks before download/load.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Localized hard-gate reason; null when allowed / unknown / no profile yet. */
+  const gateReasonLabel = useCallback(
+    (gate: ModelGateVerdict | null): string | null => {
+      if (!gate || gate.allowed) return null;
+      switch (gate.reason) {
+        case "blocked_tier":
+          return t("models.blockedTier");
+        case "blocked_ram":
+          return t("models.blockedRam");
+        case "blocked_disk":
+          return t("models.blockedDisk");
+        default:
+          return null;
+      }
+    },
+    [t],
+  );
+
+  /** Compact device line: brand model · N GB RAM · M cores (null parts omitted). */
+  const deviceLineLabel = useMemo(() => {
+    if (!deviceProfile) return null;
+    const brand = deviceProfile.brand ?? "";
+    const model = deviceProfile.modelName ?? "";
+    const parts: string[] = [];
+    if (brand || model) {
+      parts.push(t("settings.deviceLine", { brand, model }).trim());
+    }
+    const gb =
+      deviceProfile.totalMemoryBytes != null
+        ? Math.round(deviceProfile.totalMemoryBytes / 1_000_000_000)
+        : deviceRamGb;
+    if (gb != null) parts.push(`${gb} GB RAM`);
+    if (deviceProfile.cpuCoreCount != null) {
+      parts.push(`${deviceProfile.cpuCoreCount} cores`);
+    }
+    return parts.length > 0 ? parts.join(" · ") : null;
+  }, [deviceProfile, deviceRamGb, t]);
 
   const voiceStatusLabel = useMemo(() => {
     switch (voice.state) {
@@ -1245,6 +1314,11 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
               {t("models.deviceRam", { gb: deviceRamGb })}
             </Text>
           ) : null}
+          {deviceLineLabel ? (
+            <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
+              {deviceLineLabel}
+            </Text>
+          ) : null}
 
           <View style={{ gap: spacing.sm }}>
             {MODEL_REGISTRY.map((entry) => {
@@ -1257,6 +1331,25 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                 deviceRamTier !== null &&
                 entry.minRamTier !== undefined &&
                 !ramTierMeets(deviceRamTier, entry.minRamTier);
+              // Hard gate: block download/select for models that cannot fit.
+              // Active model stays usable (never force-evict).
+              const gate: ModelGateVerdict | null = deviceProfile
+                ? modelGateVerdict({
+                    totalMemoryBytes: deviceProfile.totalMemoryBytes,
+                    availableMemoryBytes: deviceProfile.availableMemoryBytes,
+                    freeDiskBytes,
+                    ramTier: deviceProfile.ramTier,
+                    modelMinRamTier: entry.minRamTier,
+                    modelNonEvictableMiB: estimateModelNonEvictableMiB({
+                      sizeBytes: entry.sizeBytes,
+                      engineCtx: entry.engineCtx,
+                      kvBytesPerToken: entry.kvBytesPerToken,
+                    }),
+                    modelSizeBytes: modelBundleSize(entry),
+                  })
+                : null;
+              const hardBlocked = gate?.allowed === false && !active;
+              const hardBlockLabel = hardBlocked ? gateReasonLabel(gate) : null;
               return (
                 <View
                   key={entry.id}
@@ -1312,7 +1405,17 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                           {t("models.recommended")}
                         </Text>
                       ) : null}
-                      {exceedsDeviceTier ? (
+                      {hardBlockLabel ? (
+                        <Text
+                          style={[
+                            typography.bodyXs,
+                            { color: colors.bad ?? colors.muted, marginTop: 2 },
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {hardBlockLabel}
+                        </Text>
+                      ) : exceedsDeviceTier ? (
                         <Text
                           style={[
                             typography.bodyXs,
@@ -1362,20 +1465,23 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                     ) : (
                       <Pressable
                         onPress={() => model.onSelectModel(entry.id)}
-                        disabled={modelBusy}
+                        disabled={modelBusy || hardBlocked}
                         style={{
                           paddingHorizontal: 12,
                           paddingVertical: 6,
                           borderRadius: radius.md,
                           borderWidth: 1,
                           borderColor: colors.line,
-                          opacity: modelBusy ? 0.5 : 1,
+                          opacity: modelBusy || hardBlocked ? 0.5 : 1,
                         }}
                       >
                         <Text
                           style={[
                             typography.bodyXs,
-                            { color: colors.ink, fontFamily: fontFamilies.bodySemi },
+                            {
+                              color: hardBlocked ? colors.muted : colors.ink,
+                              fontFamily: fontFamilies.bodySemi,
+                            },
                           ]}
                         >
                           {t("settings.modelSelect")}
@@ -1449,14 +1555,14 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                             if (engineRetry) model.onRetryLoad();
                             else model.onDownloadModel(entry.id);
                           }}
-                          disabled={modelBusy}
+                          disabled={modelBusy || hardBlocked}
                           style={{
                             marginTop: 2,
                             paddingVertical: spacing.sm,
                             borderRadius: radius.md,
                             backgroundColor: colors.accent,
                             alignItems: "center",
-                            opacity: modelBusy ? 0.6 : 1,
+                            opacity: modelBusy || hardBlocked ? 0.6 : 1,
                           }}
                         >
                           <Text

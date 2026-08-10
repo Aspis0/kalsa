@@ -21,6 +21,14 @@ import { MODEL_REGISTRY, WHISPER_MODEL, getDefaultModel, formatBytes, type Model
 import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
 import { resolveContextProfile } from "../engine/contextProfile";
 import {
+  DOWNLOAD_DISK_MARGIN,
+  estimateModelNonEvictableMiB,
+  getCachedDeviceProfile,
+  getFreeDiskBytes,
+  modelGateVerdict,
+  type ModelGateVerdict,
+} from "../engine/deviceProfile";
+import {
   disposeEngine,
   extractMemory,
   getActiveModelId,
@@ -45,7 +53,7 @@ import { PdfTextExtractorHost } from "../pdf/PdfTextExtractorHost";
 import { makePdfCacheFs } from "../pdf/pdfCacheFs";
 import { isPdfTextExtractionBusy, requestPdfText } from "../pdf/pdfTextService";
 import * as FileSystem from "expo-file-system/legacy";
-import { getStrings, useLocale } from "../i18n";
+import { getStrings, useLocale, type TranslationKey } from "../i18n";
 import * as MemoryStore from "../memory/MemoryStore";
 import { isWhisperModelDownloaded, releaseWhisper } from "../voice/WhisperService";
 import { isTtsEnabled, setTtsEnabled } from "../voice/TtsService";
@@ -133,6 +141,52 @@ function rawErrorDetail(error: unknown): string | null {
   const rawTrimmed = rawSource.trim();
   if (!rawTrimmed || rawTrimmed === "Error:" || rawTrimmed === "Error: ") return null;
   return Array.from(rawTrimmed).slice(0, 400).join("");
+}
+
+/** Bundle size for disk-gate checks (main GGUF + optional mmproj). */
+function modelBundleSizeBytes(model: ModelInfo): number {
+  return model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
+}
+
+/**
+ * Build a ModelGateVerdict for a registry entry from a cached DeviceProfile +
+ * free-disk probe. Pure after inputs are resolved.
+ */
+function gateForModel(
+  model: ModelInfo,
+  profile: Awaited<ReturnType<typeof getCachedDeviceProfile>>,
+  freeDiskBytes: number | null,
+): ModelGateVerdict {
+  return modelGateVerdict({
+    totalMemoryBytes: profile.totalMemoryBytes,
+    availableMemoryBytes: profile.availableMemoryBytes,
+    freeDiskBytes,
+    ramTier: profile.ramTier,
+    modelMinRamTier: model.minRamTier,
+    modelNonEvictableMiB: estimateModelNonEvictableMiB({
+      sizeBytes: model.sizeBytes,
+      engineCtx: model.engineCtx,
+      kvBytesPerToken: model.kvBytesPerToken,
+    }),
+    modelSizeBytes: modelBundleSizeBytes(model),
+  });
+}
+
+/** Localized hard-gate reason for Alert / error banner. */
+function gateReasonMessage(
+  reason: ModelGateVerdict["reason"],
+  t: (key: TranslationKey) => string,
+): string {
+  switch (reason) {
+    case "blocked_tier":
+      return t("models.blockedTier");
+    case "blocked_ram":
+      return t("models.blockedRam");
+    case "blocked_disk":
+      return t("models.blockedDisk");
+    default:
+      return t("models.mayNotFit");
+  }
 }
 
 // ── ConversationCompactor (per-chat, module-level — survives remounts) ─────
@@ -730,6 +784,31 @@ export function AppShell() {
       if (!(await isModelBundleDownloaded(model))) return false;
       if (!stillCurrent()) return false;
 
+      // Hard RAM gate before initEngine. Never force-evict the currently active
+      // model (if this model is already active and ready we returned above).
+      try {
+        const [profile, free] = await Promise.all([
+          getCachedDeviceProfile(),
+          getFreeDiskBytes(),
+        ]);
+        if (!stillCurrent()) return false;
+        const gate = gateForModel(model, profile, free);
+        if (!gate.allowed && gate.reason === "blocked_ram") {
+          // Refuse load only for blocked_ram; tier/disk are download-time gates.
+          // Active-model exception: if getActiveModelId matches, never refuse
+          // (already handled by the early ready return; keep explicit for safety).
+          if (getActiveModelId() !== model.id) {
+            setModelState("error");
+            setModelErrorKind("engine");
+            setModelError(gateReasonMessage(gate.reason, t));
+            setModelErrorDetail(null);
+            return false;
+          }
+        }
+      } catch {
+        // Probe failure → fall through to existing load path (no hard block).
+      }
+
       // Clear previous error banner before retry so "Ready" never coexists with
       // a stale "Could not load the model" under the header / in Settings.
       setModelState("loading");
@@ -798,7 +877,7 @@ export function AppShell() {
       setModelErrorDetail(rawErrorDetail(error));
       return false;
     }
-  }, [locale]);
+  }, [locale, t]);
 
   const selectModel = useCallback(
     (nextIndex: number) => {
@@ -891,6 +970,20 @@ export function AppShell() {
     const model = MODEL_REGISTRY.find((m) => m.id === modelId);
     if (!model) return;
 
+    // Re-check free disk before downloadModelBundle (margin ≥1.1 for FS overhead).
+    // Documented: DOWNLOAD_DISK_MARGIN requires free ≥ size × 1.1 so partial
+    // writes / filesystem overhead do not trip mid-download.
+    try {
+      const free = await getFreeDiskBytes();
+      const need = modelBundleSizeBytes(model) * DOWNLOAD_DISK_MARGIN;
+      if (typeof free === "number" && free < need) {
+        Alert.alert(t("download.title"), t("models.blockedDisk"));
+        return;
+      }
+    } catch {
+      // Probe failure → proceed (existing path had no disk pre-check).
+    }
+
     downloadInFlight.current = true;
     // Capture generation at start; also re-check selected model after awaits.
     const generation = engineGenerationRef.current;
@@ -951,6 +1044,33 @@ export function AppShell() {
       errorPhase = "engine";
       setModelState("loading");
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
+
+      // Hard RAM gate before initEngine after download. Never force-evict the
+      // currently active model (if this download is for a non-active model that
+      // cannot fit, refuse load but keep the file on disk).
+      try {
+        const [deviceProfile, free] = await Promise.all([
+          getCachedDeviceProfile(),
+          getFreeDiskBytes(),
+        ]);
+        if (!stillCurrent()) return;
+        const gate = gateForModel(model, deviceProfile, free);
+        if (
+          !gate.allowed &&
+          gate.reason === "blocked_ram" &&
+          getActiveModelId() !== model.id
+        ) {
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(gateReasonMessage(gate.reason, t));
+          setModelErrorDetail(null);
+          setDownloadedById((prev) => ({ ...prev, [model.id]: true }));
+          return;
+        }
+      } catch {
+        // Probe failure → proceed with load.
+      }
+
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx + optional high-RAM upgrade.
       const profile = resolveContextProfile({
         hybrid: model.hybrid,
@@ -1041,15 +1161,31 @@ export function AppShell() {
     (modelId: string) => {
       const model = MODEL_REGISTRY.find((m) => m.id === modelId);
       if (!model) return;
-      const total = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
-      Alert.alert(
-        t("download.title"),
-        t("download.confirmBody", { name: model.name, size: formatBytes(total) }),
-        [
-          { text: t("common.cancel"), style: "cancel" },
-          { text: t("common.download"), onPress: () => void startDownload(modelId) },
-        ],
-      );
+      // Hard gate before the size Alert: refuse download of models that cannot fit.
+      void (async () => {
+        try {
+          const [deviceProfile, free] = await Promise.all([
+            getCachedDeviceProfile(),
+            getFreeDiskBytes(),
+          ]);
+          const gate = gateForModel(model, deviceProfile, free);
+          if (!gate.allowed) {
+            Alert.alert(t("download.title"), gateReasonMessage(gate.reason, t));
+            return;
+          }
+        } catch {
+          // Probe failure → fall through to the normal confirm dialog.
+        }
+        const total = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
+        Alert.alert(
+          t("download.title"),
+          t("download.confirmBody", { name: model.name, size: formatBytes(total) }),
+          [
+            { text: t("common.cancel"), style: "cancel" },
+            { text: t("common.download"), onPress: () => void startDownload(modelId) },
+          ],
+        );
+      })();
     },
     [startDownload, t],
   );

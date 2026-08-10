@@ -111,6 +111,8 @@ export const en = {
     help: "Help",
     helpSubtitle: "How Kalsa works",
     openHelp: "Open Help",
+    /** Compact device line under Models RAM: brand + model name. */
+    deviceLine: "Device: {brand} {model}",
   },
 
   /**
@@ -144,6 +146,9 @@ export const en = {
     deviceRam: "Your device: {gb} GB RAM",
     recommended: "Recommended for your device",
     mayNotFit: "May not fit in this device's memory.",
+    blockedTier: "Not compatible with this device's RAM",
+    blockedRam: "Not enough free memory to run",
+    blockedDisk: "Not enough free storage to download",
   },
 
   voice: {
