@@ -1058,6 +1058,26 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-10 — 🪳 LA CACCIA AI BUCHI: gualt rifiuta il consolidamento ("trova il
+  buco, come un cockroach"). Tre attacchi non convenzionali al muro del calcolo,
+  mandato `buchi-calcolo.md`.**
+
+  1. **Il formato, non il kernel**: la ricerca ha stabilito che il GEMV i-quant è
+     gather-bound sul codebook; #164 mostra Q2_K_S **1.60×** vs IQ2_XXS su kernel
+     MAINLINE (i nostri). Su HF esiste `UD-Q2_K_XL` a 12.29 GB (+7% del nostro).
+     Se i suoi esperti sono k-quant, lo speedup si compra cambiando FILE, non
+     codice — zero rebuild, stesso binario pinnato. Micro-bench 3B fail-fast
+     prima del download grosso. Predizione a verbale: g_formato ≥ 1.4.
+  2. **I thread mai sweeppati**: `-t 4` è ereditato dal giorno 1, mai misurato sul
+     fork; 3×A510 fermi = perf/watt gratis al ceiling termico, forse.
+  3. **Quantificare il ceiling termico**: sostenuto con/senza raffreddamento
+     attivo — quanto vale un grado? Se il cooling non cambia nulla, il ceiling
+     non è termico ed è una scoperta ancora più grossa.
+
+  Nota di metodo: lo spike kernel "fallito" non è stato inutile — ha prodotto il
+  fatto (gather-bound) e l'infrastruttura (harness S1, modelli 3B) che rendono il
+  buco 1 un esperimento da 30 minuti.
+
 - **2026-08-09 — ⚖️ SESSIONE STACCATO DOPPIA: 0.65 SOSTITUZIONE RACCOMANDATA
   (+6.9% pooled, −42% byte, termico giù) E capitolo kernel CHIUSO per misura
   (g=0.719: ik è PIÙ LENTO del nostro mainline sul decode, sul nostro silicio).**
