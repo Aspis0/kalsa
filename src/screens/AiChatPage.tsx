@@ -383,6 +383,9 @@ function buildPersistableMessages(
         name: a.name,
         uri: "",
         ...(typeof a.pageCount === "number" && a.pageCount > 0 ? { pageCount: a.pageCount } : {}),
+        ...(typeof a.libraryDocId === "string" && a.libraryDocId.length > 0
+          ? { libraryDocId: a.libraryDocId.slice(0, 120) }
+          : {}),
       }));
       if (message.streaming && allowStreamingPartial) {
         return {

@@ -35,6 +35,54 @@ import { spacing } from "../theme/tokens";
 import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 
+/**
+ * Hard size caps before extraction / full-text read.
+ * PDF 50 MiB: upper bound for on-device page extract without OOMing mid-tier phones.
+ * TXT 10 MiB: whole-file JS string; larger inputs belong in retrieve-from-PDF path.
+ */
+export const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
+export const MAX_TEXT_BYTES = 10 * 1024 * 1024;
+
+/** Durable library storage under documentDirectory (survives cache eviction). */
+function documentsDir(): string {
+  const base = FileSystem.documentDirectory ?? FileSystem.cacheDirectory ?? "";
+  return `${base}kalsa-documents/`;
+}
+
+async function ensureDocumentsDir(): Promise<string> {
+  const dir = documentsDir();
+  if (!dir) throw new Error("no document directory");
+  try {
+    await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+  } catch {
+    /* exists */
+  }
+  return dir;
+}
+
+async function copyToOwnedStorage(
+  sourceUri: string,
+  id: string,
+  kind: "pdf" | "txt",
+): Promise<string> {
+  const dir = await ensureDocumentsDir();
+  const ext = kind === "pdf" ? "pdf" : "txt";
+  const dest = `${dir}${id}.${ext}`;
+  await FileSystem.copyAsync({ from: sourceUri, to: dest });
+  return dest;
+}
+
+async function deleteOwnedFile(fileUri: string | undefined): Promise<void> {
+  if (!fileUri || typeof fileUri !== "string") return;
+  // Only delete files we own under kalsa-documents/.
+  if (!fileUri.includes("kalsa-documents/")) return;
+  try {
+    await FileSystem.deleteAsync(fileUri, { idempotent: true });
+  } catch {
+    /* best-effort */
+  }
+}
+
 type Props = {
   /** Current library snapshot from AppShell. */
   library: LibraryState;
@@ -87,16 +135,32 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
           ? Math.max(0, Math.floor(asset.size))
           : 0;
 
+      if (sizeBytes > MAX_DOCUMENT_BYTES) {
+        Alert.alert(
+          t("documents.title"),
+          t("documents.tooLarge", { max: formatBytes(MAX_DOCUMENT_BYTES) }),
+        );
+        return;
+      }
+
       setBusy(true);
       setStatus(t("documents.extracting"));
       const id = nextDocId();
       const sourceId = id;
+      // Own a durable copy before extract so library entries survive cache eviction.
+      let ownedUri: string;
+      try {
+        ownedUri = await copyToOwnedStorage(uri, id, "pdf");
+      } catch {
+        Alert.alert(t("documents.title"), t("documents.readFailed"));
+        return;
+      }
       let docCount = 0;
       let pageCount: number | undefined;
       let estimatedTokens: number | undefined;
 
       try {
-        const extracted = await requestPdfText(uri, {
+        const extracted = await requestPdfText(ownedUri, {
           sourceId,
           title: name,
         });
@@ -120,6 +184,7 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
             ? String((err as { code?: unknown }).code ?? "")
             : "";
         if (code === "busy") {
+          await deleteOwnedFile(ownedUri);
           Alert.alert(t("documents.title"), t("documents.extractBusy"));
           return;
         }
@@ -135,7 +200,7 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
         addedAt: Date.now(),
         sizeBytes,
         docCount,
-        fileUri: uri,
+        fileUri: ownedUri,
         ...(pageCount != null ? { pageCount } : {}),
         ...(estimatedTokens != null ? { estimatedTokens } : {}),
       };
@@ -166,12 +231,29 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
           ? Math.max(0, Math.floor(asset.size))
           : 0;
 
+      if (sizeBytes > MAX_TEXT_BYTES) {
+        Alert.alert(
+          t("documents.title"),
+          t("documents.tooLarge", { max: formatBytes(MAX_TEXT_BYTES) }),
+        );
+        return;
+      }
+
       setBusy(true);
       setStatus(t("documents.extracting"));
+      const id = nextDocId();
+      let ownedUri: string;
+      try {
+        ownedUri = await copyToOwnedStorage(uri, id, "txt");
+      } catch {
+        Alert.alert(t("documents.title"), t("documents.readFailed"));
+        return;
+      }
       let text = "";
       try {
-        text = await FileSystem.readAsStringAsync(uri);
+        text = await FileSystem.readAsStringAsync(ownedUri);
       } catch {
+        await deleteOwnedFile(ownedUri);
         Alert.alert(t("documents.title"), t("documents.readFailed"));
         return;
       }
@@ -179,7 +261,6 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
       const looksHtml = /<\/?[a-z][\s\S]*>/i.test(text.slice(0, 2000));
       const plain = looksHtml ? htmlToText(text).text : text;
       const trimmed = (plain ?? "").trim();
-      const id = nextDocId();
       const entry: LibraryDoc = {
         id,
         name,
@@ -188,7 +269,7 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
         addedAt: Date.now(),
         sizeBytes,
         docCount: trimmed.length > 0 ? 1 : 0,
-        fileUri: uri,
+        fileUri: ownedUri,
         estimatedTokens: estimateTokensForDoc(trimmed),
       };
       onLibraryChange(addDoc(library, entry));
@@ -211,7 +292,10 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
           {
             text: t("documents.delete"),
             style: "destructive",
-            onPress: () => onLibraryChange(removeDoc(library, doc.id)),
+            onPress: () => {
+              void deleteOwnedFile(doc.fileUri);
+              onLibraryChange(removeDoc(library, doc.id));
+            },
           },
         ],
       );

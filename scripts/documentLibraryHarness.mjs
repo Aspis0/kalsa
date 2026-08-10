@@ -249,7 +249,10 @@ async function main() {
       out.strategy === "full_context" &&
         typeof out.text === "string" &&
         out.text.includes(longEnough.trim().slice(0, 10)) &&
-        out.provenance.includes("not instructions"),
+        out.provenance.includes("not instructions") &&
+        out.kind === "document_chat" &&
+        // Provenance must NOT be embedded in the body (engine appends after trunc).
+        !out.text.includes("not instructions"),
     );
   }
 
@@ -301,13 +304,23 @@ async function main() {
       "tool retrieve provenance not instructions",
       typeof out.provenance === "string" &&
         out.provenance.includes("not instructions") &&
-        out.text.includes("not instructions"),
+        // Body must NOT embed provenance (engine appends after trunc).
+        !out.text.includes("not instructions") &&
+        out.kind === "document_chat",
     );
     check(
       "tool retrieve has passages or matched body",
       (Array.isArray(out.passages) && out.passages.length > 0) ||
         /ATP|electron|mitochondrial/i.test(out.text),
       `passages=${out.passages?.length ?? 0}`,
+    );
+    // FIX 10: top-ranked passage must be the query-matching page, not just any hit.
+    check(
+      "tool retrieve top passage is query-matching doc",
+      Array.isArray(out.passages) &&
+        out.passages.length > 0 &&
+        out.passages[0].docId === "paper#p1",
+      `top=${out.passages?.[0]?.docId ?? "none"}`,
     );
   }
 
@@ -392,6 +405,158 @@ async function main() {
       `got ${first.strategy}`,
     );
     __resetDocumentChatBusyForTests();
+  }
+
+  // ── 16 abort during full_context read forwards signal to host ─────────
+  __resetDocumentChatBusyForTests();
+  {
+    let sawSignal = false;
+    let release;
+    const gate = new Promise((r) => {
+      release = r;
+    });
+    const host = {
+      getLibraryDocs: () => [
+        sampleDoc({ id: "abort-me", kind: "txt", docCount: 1, estimatedTokens: 10 }),
+      ],
+      requestPdfText: async () => ({ docs: [], skippedPages: [] }),
+      readTxt: async (_doc, opts) => {
+        sawSignal = Boolean(opts?.signal);
+        await new Promise((resolve, reject) => {
+          const onAbort = () => reject(new Error("aborted"));
+          if (opts?.signal?.aborted) {
+            onAbort();
+            return;
+          }
+          opts?.signal?.addEventListener("abort", onAbort, { once: true });
+          void gate.then(() => {
+            opts?.signal?.removeEventListener?.("abort", onAbort);
+            resolve(undefined);
+          });
+        });
+        return "should not reach";
+      },
+      getCtxTokens: () => 4096,
+      getIndexFor: () => null,
+    };
+    const exec = createDocumentChatExecutor(host, { timeoutMs: 10_000 });
+    const ac = new AbortController();
+    const p = exec("document_chat", { query: "q", docId: "abort-me" }, ac.signal);
+    await new Promise((r) => setTimeout(r, 20));
+    ac.abort();
+    const out = await p;
+    check(
+      "abort during full_context forwards signal",
+      sawSignal === true &&
+        out.strategy === "error" &&
+        /abort/i.test(out.error ?? out.text),
+      `sawSignal=${sawSignal} strategy=${out.strategy} err=${out.error ?? out.text}`,
+    );
+    release();
+    __resetDocumentChatBusyForTests();
+  }
+
+  // ── 17 single-flight: second call does NOT invoke host twice ──────────
+  __resetDocumentChatBusyForTests();
+  {
+    let hostCalls = 0;
+    let release;
+    const gate = new Promise((r) => {
+      release = r;
+    });
+    const host = {
+      getLibraryDocs: () => [
+        sampleDoc({ id: "sf", kind: "txt", docCount: 1, estimatedTokens: 10 }),
+      ],
+      requestPdfText: async () => ({ docs: [], skippedPages: [] }),
+      readTxt: async () => {
+        hostCalls += 1;
+        await gate;
+        return "first call body";
+      },
+      getCtxTokens: () => 4096,
+      getIndexFor: () => null,
+    };
+    const exec = createDocumentChatExecutor(host, { timeoutMs: 10_000 });
+    const firstP = exec("document_chat", { query: "q", docId: "sf" });
+    await new Promise((r) => setTimeout(r, 20));
+    const second = await exec("document_chat", { query: "q2", docId: "sf" });
+    check(
+      "single-flight second is busy error",
+      second.strategy === "error" && /busy/i.test(second.error ?? second.text),
+    );
+    check(
+      "single-flight host invoked once while first in flight",
+      hostCalls === 1,
+      `hostCalls=${hostCalls}`,
+    );
+    release();
+    await firstP;
+    // After settle, a new call works.
+    const third = await exec("document_chat", { query: "q3", docId: "sf" });
+    check(
+      "single-flight after settle works",
+      third.strategy === "full_context" || third.strategy === "retrieve",
+      `got ${third.strategy}`,
+    );
+    check(
+      "single-flight host invoked again after settle",
+      hostCalls === 2,
+      `hostCalls=${hostCalls}`,
+    );
+    __resetDocumentChatBusyForTests();
+  }
+
+  // ── 18 top-ranked retrieval across two docs ───────────────────────────
+  __resetDocumentChatBusyForTests();
+  {
+    // Deterministic fixture: query terms only in doc A page.
+    const host = {
+      getLibraryDocs: () => [
+        sampleDoc({
+          id: "docA",
+          name: "A.pdf",
+          sourceId: "A",
+          docCount: 1,
+          estimatedTokens: 50_000,
+          kind: "pdf",
+        }),
+      ],
+      requestPdfText: async () => ({
+        docs: [
+          {
+            docId: "A#p1",
+            title: "alpha",
+            text:
+              "UniqueTokenAlpha appears only here with enough surrounding words for BM25 sentence scoring to rank this passage first among candidates.",
+          },
+          {
+            docId: "A#p2",
+            title: "beta",
+            text: "Completely unrelated gardening notes about tomatoes basil soil moisture and compost bins without the unique token.",
+          },
+        ],
+        skippedPages: [],
+        documentPageCount: 2,
+      }),
+      readTxt: async () => "",
+      getCtxTokens: () => 4096,
+      getIndexFor: () => null,
+    };
+    const exec = createDocumentChatExecutor(host, { timeoutMs: 5_000 });
+    const out = await exec(
+      "document_chat",
+      { query: "UniqueTokenAlpha", docId: "docA" },
+      undefined,
+    );
+    check(
+      "top passage is doc section with query terms",
+      out.strategy === "retrieve" &&
+        Array.isArray(out.passages) &&
+        out.passages.length > 0 &&
+        out.passages[0].docId === "A#p1",
+      `strategy=${out.strategy} top=${out.passages?.[0]?.docId ?? "none"}`,
+    );
   }
 
   // ── provenance constant ─────────────────────────────────────────────────

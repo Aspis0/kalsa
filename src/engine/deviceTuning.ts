@@ -259,9 +259,10 @@ function isEmulator(
 /**
  * Exact SoC preset match (design §7.1).
  *
- * Match on capacity signature when provided; else brand+coreCount for known
- * brand-tagged presets (helio-g99 / apple). Returns null for unknown devices
- * — never invents a preset.
+ * Match only on exact capacity signature (multiset) or exact model identity.
+ * NEVER brand + core count alone (Jelly Max / Dimensity 7300 is also
+ * unihertz + 8 cores but is NOT G99). Apple is brand-only (no capacity
+ * signature in the registry). Returns null for unknown devices — never invents.
  */
 export function matchMeasuredPreset(
   profile: TuningDeviceProfile,
@@ -271,8 +272,10 @@ export function matchMeasuredPreset(
   const brand = brandOf(profile);
   const caps =
     Array.isArray(capacities) && capacities.length > 0 ? capacities : null;
+  const modelName = (profile.modelName ?? "").trim().toLowerCase();
+  const modelId = (profile.modelId ?? "").trim().toLowerCase();
 
-  // 1. Capacity signature exact match (strongest).
+  // 1. Capacity signature exact match (strongest; order-insensitive multiset).
   if (caps) {
     for (const preset of MEASURED_PRESETS) {
       if (preset.capacitySignature.length === 0) continue;
@@ -289,26 +292,21 @@ export function matchMeasuredPreset(
     }
   }
 
-  // 2. Brand-tagged presets (G99 Jelly Star / Apple) without capacities.
+  // 2. Exact model identity for helio-g99 (Jelly Star only — never brand alone).
+  // Capacities unavailable + non-Star Unihertz must fall through to family rules.
+  if (modelName.includes("jelly star") || modelId.includes("jelly star")) {
+    for (const preset of MEASURED_PRESETS) {
+      if (preset.id === "helio-g99") return preset;
+    }
+  }
+
+  // 3. Apple brand-only (no capacity signature in the registry).
   for (const preset of MEASURED_PRESETS) {
-    if (preset.brands.length === 0) continue;
+    if (preset.id !== "apple") continue;
     const brandHit = preset.brands.some(
       (b) => brand === b || brand.includes(b),
     );
-    if (!brandHit) continue;
-    if (
-      preset.cpuCoreCount != null &&
-      cores != null &&
-      preset.cpuCoreCount !== cores
-    ) {
-      continue;
-    }
-    // Apple has no core-count requirement.
-    if (preset.id === "apple") return preset;
-    // G99: brand + 8 cores (or cores unknown but brand is unihertz/jelly).
-    if (preset.id === "helio-g99") {
-      if (cores == null || cores === 8) return preset;
-    }
+    if (brandHit) return preset;
   }
 
   return null;

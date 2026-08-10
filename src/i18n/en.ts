@@ -132,6 +132,7 @@ export const en = {
     extractBusy: "Another PDF is being processed. Try again in a moment.",
     readFailed: "Could not read that file.",
     noTextLayer: "No text layer",
+    tooLarge: "This file is too large (max {max}). Choose a smaller PDF or TXT.",
   },
 
   /**
@@ -619,7 +620,7 @@ export const en = {
     documentChatAborted: "document_chat was aborted.",
     documentChatFailed: "document_chat failed.",
     documentChatVisionFallback:
-      "Document “{name}” has no searchable text layer ({pages} pages). Use the vision attachment path (render pages as images).",
+      "Document “{name}” has no searchable text layer ({pages} pages). It appears scanned — re-attach it as page images for vision.",
     documentChatFullContextHeader:
       "Full text of local document “{name}” ({pages} pages):",
     documentChatRetrieveHeader: "Passages from local document “{name}”:",

@@ -133,6 +133,7 @@ export const it: typeof en = {
     extractBusy: "Un altro PDF è in elaborazione. Riprova tra poco.",
     readFailed: "Impossibile leggere il file.",
     noTextLayer: "Nessuno strato di testo",
+    tooLarge: "Questo file è troppo grande (max {max}). Scegli un PDF o TXT più piccolo.",
   },
 
   models: {
@@ -594,7 +595,7 @@ export const it: typeof en = {
     documentChatAborted: "document_chat interrotto.",
     documentChatFailed: "document_chat non riuscito.",
     documentChatVisionFallback:
-      "Il documento “{name}” non ha uno strato di testo ricercabile ({pages} pagine). Usa il percorso vision (renderizza le pagine come immagini).",
+      "Il documento “{name}” non ha uno strato di testo ricercabile ({pages} pagine). Sembra scansionato — riallegalo come immagini delle pagine per la vision.",
     documentChatFullContextHeader:
       "Testo completo del documento locale “{name}” ({pages} pagine):",
     documentChatRetrieveHeader: "Passaggi dal documento locale “{name}”:",

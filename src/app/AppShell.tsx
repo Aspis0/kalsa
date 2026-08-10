@@ -447,20 +447,37 @@ export function AppShell() {
   const docIndexByIdRef = useRef<Map<string, DocRetrieverIndex>>(new Map());
   /** Mirrors chatEngineCtx for the document tool (set below after resolve). */
   const chatEngineCtxRef = useRef<number>(4096);
+  /**
+   * Mutation counter for the library load race: every local edit increments it;
+   * a late AsyncStorage load applies only when no mutation has happened yet.
+   */
+  const libraryMutationRef = useRef(0);
+  const libraryLoadedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
+    const loadGen = libraryMutationRef.current;
     void loadLibraryState(getDefaultLibraryStorage())
       .then((state) => {
-        if (mounted) setDocumentLibrary(state);
+        if (!mounted) return;
+        // Drop stale load if the user already added/deleted a doc.
+        if (libraryMutationRef.current !== loadGen) {
+          libraryLoadedRef.current = true;
+          return;
+        }
+        setDocumentLibrary(state);
+        libraryLoadedRef.current = true;
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (mounted) libraryLoadedRef.current = true;
+      });
     return () => {
       mounted = false;
     };
   }, []);
 
   const handleLibraryChange = useCallback((next: LibraryState) => {
+    libraryMutationRef.current += 1;
     // Drop indexes for removed docs so delete frees retrieval memory.
     const nextIds = new Set((next.docs ?? []).map((d) => d.id));
     for (const id of docIndexByIdRef.current.keys()) {
@@ -517,13 +534,21 @@ export function AppShell() {
     const documentExec = createDocumentChatExecutor(
       {
         getLibraryDocs: () => documentLibraryRef.current.docs ?? [],
-        requestPdfText: (doc: LibraryDoc) =>
+        requestPdfText: (doc: LibraryDoc, opts) =>
           requestPdfText(doc.fileUri, {
             sourceId: doc.sourceId,
             title: doc.name,
+            signal: opts?.signal,
           }),
-        readTxt: async (doc: LibraryDoc) => {
+        readTxt: async (doc: LibraryDoc, opts) => {
+          if (opts?.signal?.aborted) {
+            throw new Error("document_chat aborted");
+          }
+          // expo-file-system read has no AbortSignal; honor abort before/after.
           const raw = await FileSystem.readAsStringAsync(doc.fileUri);
+          if (opts?.signal?.aborted) {
+            throw new Error("document_chat aborted");
+          }
           const looksHtml = /<\/?[a-z][\s\S]*>/i.test(raw.slice(0, 2000));
           if (looksHtml) return htmlToText(raw).text;
           return raw;
@@ -561,7 +586,36 @@ export function AppShell() {
         }
 
         if (name === "document_chat") {
-          return documentExec(name, args, signal);
+          const outcome = await documentExec(name, args, signal);
+          // Vision fallback: do NOT hand the model an instruction to use an
+          // unwired path. Return a user-facing scanned-document message only.
+          if (outcome.strategy === "vision_fallback") {
+            const strings = getStrings(locale);
+            const msg =
+              strings.errors.documentChatVisionFallback
+                ?.replace("{name}", "")
+                ?.replace("{pages}", "") ||
+              outcome.text.replace(/\[\[DOCUMENT_VISION_FALLBACK\]\]\s*/g, "");
+            // Prefer the tool's already-localized text (has name/pages filled).
+            const cleaned = outcome.text
+              .replace(/\[\[DOCUMENT_VISION_FALLBACK\]\]\s*/g, "")
+              .trim();
+            return {
+              text:
+                cleaned ||
+                msg ||
+                "This document has no searchable text layer. Re-attach it as page images for vision.",
+              kind: "document_chat" as const,
+            };
+          }
+          return {
+            text: outcome.text,
+            passages: outcome.passages,
+            provenance: outcome.provenance,
+            strategy: outcome.strategy,
+            error: outcome.error,
+            kind: "document_chat" as const,
+          };
         }
 
         return {

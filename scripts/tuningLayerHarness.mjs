@@ -164,18 +164,64 @@ async function main() {
     );
   });
 
-  await test("1b. helio-g99 brand-only (jelly) → soc-preset without caps", () => {
-    const profile = makeProfile({ brand: "jelly", cpuCoreCount: 8 });
-    const preset = matchMeasuredPreset(profile, null);
+  await test("1b. helio-g99 exact capacity signature (unordered) → soc-preset", () => {
+    const profile = makeProfile({
+      brand: "unihertz",
+      modelName: "Jelly Star",
+      cpuCoreCount: 8,
+    });
+    // Unordered multiset of the G99 signature must still match.
+    const caps = [1024, 348, 348, 1024, 348, 348, 348, 348];
+    const preset = matchMeasuredPreset(profile, caps);
     assert(preset != null && preset.id === "helio-g99", `preset ${preset?.id}`);
     const r = resolveEngineTuningSync({
       model: makeModel(),
       profile,
+      cpuCapacities: caps,
       request: {},
       platformHint: "android",
     });
     assert(r.n_threads === 2, `threads ${r.n_threads}`);
     assert(r.nThreadsSource === "soc-preset:helio-g99", r.nThreadsSource);
+  });
+
+  await test("1c. Jelly Max / Dimensity-like signature + unihertz → NOT soc-preset", () => {
+    // Dimensity-7300-like: 6 mid @448 + 2 big @1024 (differs from G99 6×348+2×1024).
+    const profile = makeProfile({
+      brand: "unihertz",
+      modelName: "Jelly Max",
+      cpuCoreCount: 8,
+    });
+    const caps = [448, 448, 448, 448, 448, 448, 1024, 1024];
+    const preset = matchMeasuredPreset(profile, caps);
+    assert(preset === null, `unexpected preset ${preset?.id}`);
+    const r = resolveEngineTuningSync({
+      model: makeModel(),
+      profile,
+      cpuCapacities: caps,
+      request: {},
+      platformHint: "android",
+    });
+    assert(
+      !String(r.nThreadsSource).startsWith("soc-preset"),
+      `source must not be soc-preset: ${r.nThreadsSource}`,
+    );
+  });
+
+  await test("1d. brand-only unihertz 8-core WITHOUT caps → NOT soc-preset", () => {
+    const profile = makeProfile({ brand: "unihertz", cpuCoreCount: 8 });
+    const preset = matchMeasuredPreset(profile, null);
+    assert(preset === null, `brand-only must not match: ${preset?.id}`);
+  });
+
+  await test("1e. exact model identity jelly star without caps → helio-g99", () => {
+    const profile = makeProfile({
+      brand: "unihertz",
+      modelName: "Jelly Star",
+      cpuCoreCount: 8,
+    });
+    const preset = matchMeasuredPreset(profile, null);
+    assert(preset != null && preset.id === "helio-g99", `preset ${preset?.id}`);
   });
 
   // Design §9 case 2: SD 8 Gen 2 → 5 threads.
