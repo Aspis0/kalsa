@@ -2161,7 +2161,14 @@ export function AiChatPage({
             // pre-inversion code with that neighbor.
             const above = reversedMessages[i + 1];
             const isTurnStart = !above || above.role !== m.role;
-            const topGap = i === 0 ? 0 : isTurnStart ? spacing.lg : spacing.md;
+            // Visually topmost row = oldest message = last index of reversed data.
+            // (Pre-inversion: idx===0 was oldest at top with topGap 0.)
+            const topGap =
+              i === reversedMessages.length - 1
+                ? 0
+                : isTurnStart
+                  ? spacing.lg
+                  : spacing.md;
             const showDayDivider = !above || !isSameDay(above.createdAt, m.createdAt);
             const dayLabel = showDayDivider ? formatDayLabel(m.createdAt, t, locale) : null;
             return (
@@ -2958,7 +2965,9 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
               // every coalescer flush is O(n²) total. While streaming the
               // contract is already a single plain-text segment (fences and
               // blocks are not complete), so render raw text directly and let
-              // the markdown pass run once at finalize. Identical visuals.
+              // the markdown pass run once at finalize. Mid-stream this shows
+              // raw text (fences/headings are incomplete anyway); the final
+              // markdown pass lands at finalize.
               if (m.streaming) {
                 return (
                   <Text

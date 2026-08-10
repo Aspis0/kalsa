@@ -307,6 +307,11 @@ export async function getFreeDiskBytes(): Promise<number | null> {
  */
 export const DOWNLOAD_DISK_MARGIN = 1.1;
 
+/** Disk a download must have free: bundle size × margin (covers FS overhead). */
+export function diskRequirementBytes(sizeBytes: number): number {
+  return sizeBytes * DOWNLOAD_DISK_MARGIN;
+}
+
 let cachedProfilePromise: Promise<DeviceProfile> | undefined;
 
 async function buildDeviceProfile(): Promise<DeviceProfile> {

@@ -21,7 +21,7 @@ import { MODEL_REGISTRY, WHISPER_MODEL, getDefaultModel, formatBytes, type Model
 import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
 import { resolveContextProfile } from "../engine/contextProfile";
 import {
-  DOWNLOAD_DISK_MARGIN,
+  diskRequirementBytes,
   estimateModelNonEvictableMiB,
   getCachedDeviceProfile,
   getFreeDiskBytes,
@@ -168,7 +168,8 @@ function gateForModel(
       engineCtx: model.engineCtx,
       kvBytesPerToken: model.kvBytesPerToken,
     }),
-    modelSizeBytes: modelBundleSizeBytes(model),
+    // Always margined so confirm/start/Settings share one disk requirement.
+    modelSizeBytes: diskRequirementBytes(modelBundleSizeBytes(model)),
   });
 }
 
@@ -688,6 +689,8 @@ export function AppShell() {
 
   // Guard sincrone per download/switch/stream (non soggette al batching di React).
   const downloadInFlight = useRef(false);
+  /** Blocks double-tap confirmDownload while profile/disk probes await the Alert. */
+  const confirmDownloadLockRef = useRef(false);
   const downloadAbortRef = useRef<AbortController | null>(null);
   const engineGenerationRef = useRef(0);
   const streamInFlightRef = useRef(false);
@@ -793,17 +796,19 @@ export function AppShell() {
         ]);
         if (!stillCurrent()) return false;
         const gate = gateForModel(model, profile, free);
-        if (!gate.allowed && gate.reason === "blocked_ram") {
-          // Refuse load only for blocked_ram; tier/disk are download-time gates.
-          // Active-model exception: if getActiveModelId matches, never refuse
-          // (already handled by the early ready return; keep explicit for safety).
-          if (getActiveModelId() !== model.id) {
-            setModelState("error");
-            setModelErrorKind("engine");
-            setModelError(gateReasonMessage(gate.reason, t));
-            setModelErrorDetail(null);
-            return false;
-          }
+        // Refuse load for blocked_ram / blocked_tier (disk is a download-time gate).
+        // Active-model exception: if getActiveModelId matches, never refuse
+        // (already handled by the early ready return; keep explicit for safety).
+        if (
+          !gate.allowed &&
+          (gate.reason === "blocked_ram" || gate.reason === "blocked_tier") &&
+          getActiveModelId() !== model.id
+        ) {
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(gateReasonMessage(gate.reason, t));
+          setModelErrorDetail(null);
+          return false;
         }
       } catch {
         // Probe failure → fall through to existing load path (no hard block).
@@ -966,31 +971,43 @@ export function AppShell() {
   );
 
   const startDownload = useCallback(async (modelId: string) => {
-    if (downloadInFlight.current || modelState === "downloading") return;
     const model = MODEL_REGISTRY.find((m) => m.id === modelId);
     if (!model) return;
 
-    // Re-check free disk before downloadModelBundle (margin ≥1.1 for FS overhead).
-    // Documented: DOWNLOAD_DISK_MARGIN requires free ≥ size × 1.1 so partial
-    // writes / filesystem overhead do not trip mid-download.
+    // Synchronous generation capture + download lock BEFORE any await so a
+    // model switch during the free-disk probe cannot start a multi-GB transfer
+    // for a deselected model (stillCurrent only suppresses UI after transfer).
+    const generation = engineGenerationRef.current;
+    if (downloadInFlight.current || modelState === "downloading") return;
+    downloadInFlight.current = true;
+
+    const expectedModelId = model.id;
+    const stillCurrent = () =>
+      generation === engineGenerationRef.current &&
+      MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
+
+    // Re-check free disk before downloadModelBundle (same margined requirement
+    // as gateForModel / Settings — diskRequirementBytes = size × 1.1).
     try {
       const free = await getFreeDiskBytes();
-      const need = modelBundleSizeBytes(model) * DOWNLOAD_DISK_MARGIN;
+      if (generation !== engineGenerationRef.current) {
+        downloadInFlight.current = false;
+        return;
+      }
+      const need = diskRequirementBytes(modelBundleSizeBytes(model));
       if (typeof free === "number" && free < need) {
         Alert.alert(t("download.title"), t("models.blockedDisk"));
+        downloadInFlight.current = false;
         return;
       }
     } catch {
       // Probe failure → proceed (existing path had no disk pre-check).
     }
 
-    downloadInFlight.current = true;
-    // Capture generation at start; also re-check selected model after awaits.
-    const generation = engineGenerationRef.current;
-    const expectedModelId = model.id;
-    const stillCurrent = () =>
-      generation === engineGenerationRef.current &&
-      MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
+    if (generation !== engineGenerationRef.current) {
+      downloadInFlight.current = false;
+      return;
+    }
 
     const controller = new AbortController();
     downloadAbortRef.current = controller;
@@ -1045,9 +1062,9 @@ export function AppShell() {
       setModelState("loading");
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
 
-      // Hard RAM gate before initEngine after download. Never force-evict the
-      // currently active model (if this download is for a non-active model that
-      // cannot fit, refuse load but keep the file on disk).
+      // Hard RAM/tier gate before initEngine after download. Never force-evict
+      // the currently active model (if this download is for a non-active model
+      // that cannot fit, refuse load but keep the file on disk).
       try {
         const [deviceProfile, free] = await Promise.all([
           getCachedDeviceProfile(),
@@ -1057,7 +1074,7 @@ export function AppShell() {
         const gate = gateForModel(model, deviceProfile, free);
         if (
           !gate.allowed &&
-          gate.reason === "blocked_ram" &&
+          (gate.reason === "blocked_ram" || gate.reason === "blocked_tier") &&
           getActiveModelId() !== model.id
         ) {
           setModelState("error");
@@ -1161,6 +1178,9 @@ export function AppShell() {
     (modelId: string) => {
       const model = MODEL_REGISTRY.find((m) => m.id === modelId);
       if (!model) return;
+      // Synchronous double-tap guard before any await (probes + Alert).
+      if (downloadInFlight.current || confirmDownloadLockRef.current) return;
+      confirmDownloadLockRef.current = true;
       // Hard gate before the size Alert: refuse download of models that cannot fit.
       void (async () => {
         try {
@@ -1170,6 +1190,7 @@ export function AppShell() {
           ]);
           const gate = gateForModel(model, deviceProfile, free);
           if (!gate.allowed) {
+            confirmDownloadLockRef.current = false;
             Alert.alert(t("download.title"), gateReasonMessage(gate.reason, t));
             return;
           }
@@ -1181,8 +1202,20 @@ export function AppShell() {
           t("download.title"),
           t("download.confirmBody", { name: model.name, size: formatBytes(total) }),
           [
-            { text: t("common.cancel"), style: "cancel" },
-            { text: t("common.download"), onPress: () => void startDownload(modelId) },
+            {
+              text: t("common.cancel"),
+              style: "cancel",
+              onPress: () => {
+                confirmDownloadLockRef.current = false;
+              },
+            },
+            {
+              text: t("common.download"),
+              onPress: () => {
+                confirmDownloadLockRef.current = false;
+                void startDownload(modelId);
+              },
+            },
           ],
         );
       })();

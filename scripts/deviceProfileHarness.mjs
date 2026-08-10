@@ -81,6 +81,7 @@ async function main() {
     modelGateVerdict,
     estimateModelNonEvictableMiB,
     DOWNLOAD_DISK_MARGIN,
+    diskRequirementBytes,
     __resetDeviceProfileCacheForTests,
   } = mod;
 
@@ -230,6 +231,16 @@ async function main() {
       typeof DOWNLOAD_DISK_MARGIN === "number" && DOWNLOAD_DISK_MARGIN >= 1.1,
       `margin=${DOWNLOAD_DISK_MARGIN}`,
     );
+  });
+
+  await test("diskRequirementBytes 1 GiB → 1.1 GiB", () => {
+    const gib = 1024 * 1024 * 1024;
+    const need = diskRequirementBytes(gib);
+    assert(need === gib * 1.1, `need=${need}`);
+  });
+
+  await test("diskRequirementBytes 0 → 0", () => {
+    assert(diskRequirementBytes(0) === 0, `got ${diskRequirementBytes(0)}`);
   });
 
   await test("__resetDeviceProfileCacheForTests is a function", () => {

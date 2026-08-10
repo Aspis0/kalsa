@@ -38,6 +38,7 @@ import {
   recommendedModelId,
 } from "../engine/contextProfile";
 import {
+  diskRequirementBytes,
   estimateModelNonEvictableMiB,
   getCachedDeviceProfile,
   getFreeDiskBytes,
@@ -1331,8 +1332,12 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                 deviceRamTier !== null &&
                 entry.minRamTier !== undefined &&
                 !ramTierMeets(deviceRamTier, entry.minRamTier);
+              // Until profile + free-disk resolve, disable Select/Download so a
+              // fast tap cannot race past a gate that would later block.
+              const profilePending = deviceProfile === null || freeDiskBytes === null;
               // Hard gate: block download/select for models that cannot fit.
               // Active model stays usable (never force-evict).
+              // modelSizeBytes is margined (same helper as AppShell confirm/start).
               const gate: ModelGateVerdict | null = deviceProfile
                 ? modelGateVerdict({
                     totalMemoryBytes: deviceProfile.totalMemoryBytes,
@@ -1345,11 +1350,14 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                       engineCtx: entry.engineCtx,
                       kvBytesPerToken: entry.kvBytesPerToken,
                     }),
-                    modelSizeBytes: modelBundleSize(entry),
+                    modelSizeBytes: diskRequirementBytes(
+                      entry.sizeBytes + (entry.mmproj?.sizeBytes ?? 0),
+                    ),
                   })
                 : null;
               const hardBlocked = gate?.allowed === false && !active;
               const hardBlockLabel = hardBlocked ? gateReasonLabel(gate) : null;
+              const selectDisabled = modelBusy || hardBlocked || profilePending;
               return (
                 <View
                   key={entry.id}
@@ -1465,21 +1473,24 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                     ) : (
                       <Pressable
                         onPress={() => model.onSelectModel(entry.id)}
-                        disabled={modelBusy || hardBlocked}
+                        disabled={selectDisabled}
                         style={{
                           paddingHorizontal: 12,
                           paddingVertical: 6,
                           borderRadius: radius.md,
                           borderWidth: 1,
                           borderColor: colors.line,
-                          opacity: modelBusy || hardBlocked ? 0.5 : 1,
+                          opacity: selectDisabled ? 0.5 : 1,
                         }}
                       >
                         <Text
                           style={[
                             typography.bodyXs,
                             {
-                              color: hardBlocked ? colors.muted : colors.ink,
+                              color:
+                                hardBlocked || profilePending
+                                  ? colors.muted
+                                  : colors.ink,
                               fontFamily: fontFamilies.bodySemi,
                             },
                           ]}
@@ -1555,14 +1566,14 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                             if (engineRetry) model.onRetryLoad();
                             else model.onDownloadModel(entry.id);
                           }}
-                          disabled={modelBusy || hardBlocked}
+                          disabled={selectDisabled}
                           style={{
                             marginTop: 2,
                             paddingVertical: spacing.sm,
                             borderRadius: radius.md,
                             backgroundColor: colors.accent,
                             alignItems: "center",
-                            opacity: modelBusy || hardBlocked ? 0.6 : 1,
+                            opacity: selectDisabled ? 0.6 : 1,
                           }}
                         >
                           <Text
