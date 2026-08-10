@@ -1059,6 +1059,21 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-09 — ✅ SPIKE KERNEL S0 COMPLETO (S1 in attesa di staccato). ik_llama
+  builda su Termux (3° tentativo: FA on + ALL_QUANTS off), riferimento buildato
+  dal NOSTRO submodule out-of-tree, modelli bench IQ2_XXS+IQ3_XXS scaricati e
+  sha-verificati. Il numero g che decide il cantiere arriverà da S1.**
+
+  Report: `moe-spike-iq2.md` (commit `46e639d`). Disciplina rispettata: telefono
+  in carica a fine S0 → STOP prima dei timing, harness `run_s1_bench.sh` pronto
+  (ABBA, cold, guardrail, floor). ik commit `a7c81af`; ref = pin `5236140e5`.
+  Fork, binari pinnati e `../ai-chat` non toccati.
+
+  **In coda per la prossima sessione DA STACCATO (ordine deciso):**
+  1. `speed-dropcold-065.md` — gate di sostituzione (~45 min, batteria ≥45%);
+  2. spike S1 (`run_s1_bench.sh`) — il g dei kernel (~25 min, floor 30%).
+  Consiglio operativo: caricare ≥75%, staccare, eseguire in sequenza.
+
 - **2026-08-09 — 🎯 GINOCCHIO TROVATO: F=0.65 è CANDIDATO SOSTITUZIONE del default
   0.50 — ΔPPL +0.104 (≤0.15) per −41.7% di byte/token. Il ginocchio qualità della
   curva sta tra 0.65 e 0.80 (0.80 sfora di 0.024). E il guardrail ABORT_MEM è ora
