@@ -53,6 +53,14 @@ readonly COMPOSER_PLACEHOLDERS=(
   "Ask a question…"
   "Fai una domanda…"
 )
+# Send button label (chat.send / chat.a11ySend in src/i18n/{en,it}.ts). Both
+# languages for the same reason as COMPOSER_PLACEHOLDERS. CI run 31399547762:
+# all 12 arms dead at turn 1 — placeholder check passed (IT) but Send stayed
+# EN-only while kalsa.locale=it showed "Invia".
+readonly SEND_LABELS=(
+  "Send"
+  "Invia"
+)
 # Busy-status whole-line labels the settle check must wait out. Both languages
 # for the same reason as COMPOSER_PLACEHOLDERS. Deliberately EXCLUDES reasoning
 # headers in both languages ("Thinking" / "Sto pensando" / "Ragionamento") —
@@ -198,26 +206,87 @@ tap_composer_placeholder() {
   return 1
 }
 
-# Fail-fast before any turn: a UI-string mismatch must cost minutes, not a matrix.
-# CI run 31396845208: all 12 arms dead at turn 1 because harness matched EN only
-# while kalsa.locale=it showed "Fai una domanda…".
-assert_composer_placeholder_recognised() {
-  local ui dump p found=false
-  ui=$(dump_ui_retry) || die "startup: UI dump failed before any turn"
-  dump=$(printf '%s' "$ui" | grep -o 'text="[^"]\{1,200\}"' \
-    | sed 's/^text="//; s/"$//' | sort -u)
-  for p in "${COMPOSER_PLACEHOLDERS[@]}"; do
-    if printf '%s\n' "$dump" | grep -qxF "$p"; then
+# Tap Send via any accepted language variant; returns 1 only if none matched.
+tap_send() {
+  local p
+  for p in "${SEND_LABELS[@]}"; do
+    tap_node "$p" && return 0
+  done
+  return 1
+}
+
+# Dump distinct text nodes for startup diagnostics (shared by assert steps).
+_startup_ui_dump() {
+  local ui
+  ui=$(dump_ui_retry 2>/dev/null) || ui=""
+  printf '%s' "$ui" | grep -o 'text="[^"]\{1,200\}"' \
+    | sed 's/^text="//; s/"$//' | sort -u
+}
+
+# Fail-fast before any turn: exercise the whole composer→type→Send path once.
+# Costs ~20 s once and turns a UI-string mismatch into a two-minute failure with
+# a name instead of a dead 12-arm matrix. Runs 31396845208 (placeholder EN-only)
+# and 31399547762 (Send EN-only) both died at turn 1 for exactly this class of
+# defect, on two different strings. Does NOT send the probe — conversation starts
+# clean.
+assert_input_path_ready() {
+  local ui dump p found existing t
+  local probe="BenchOk"
+
+  # 1) focus the composer (any placeholder variant)
+  if ! tap_composer_placeholder; then
+    _startup_ui_dump > "$OUT/startup_ui.txt"
+    die "startup: focus composer failed — no COMPOSER_PLACEHOLDERS match (distinct text nodes in $OUT/startup_ui.txt)"
+  fi
+  sleep 2
+
+  # 2) type a short probe (alphanumeric only — adb input text mangles punctuation)
+  type_text "$probe"
+
+  # 3) require probe text to appear in the UI dump
+  found=false
+  t=0
+  while [ "$t" -lt 15 ]; do
+    if ui=$(dump_ui_retry) && printf '%s' "$ui" | grep -qF "$probe"; then
+      found=true
+      break
+    fi
+    sleep 1; t=$((t + 1))
+  done
+  if [ "$found" = false ]; then
+    _startup_ui_dump > "$OUT/startup_ui.txt"
+    die "startup: probe '$probe' not visible after type (distinct text nodes in $OUT/startup_ui.txt)"
+  fi
+
+  # 4) require a Send node findable (any SEND_LABELS) — do NOT tap it
+  found=false
+  ui=$(dump_ui_retry) || {
+    _startup_ui_dump > "$OUT/startup_ui.txt"
+    die "startup: UI dump failed while looking for Send (distinct text nodes in $OUT/startup_ui.txt)"
+  }
+  for p in "${SEND_LABELS[@]}"; do
+    if printf '%s' "$ui" | grep -qE "content-desc=\"$p\"|text=\"$p\""; then
       found=true
       break
     fi
   done
-  if [ "$found" = true ]; then
-    log "startup: composer placeholder recognised"
-    return 0
+  if [ "$found" = false ]; then
+    printf '%s' "$ui" | grep -o 'text="[^"]\{1,200\}"' \
+      | sed 's/^text="//; s/"$//' | sort -u > "$OUT/startup_ui.txt"
+    die "startup: Send node not found (any of SEND_LABELS; distinct text nodes in $OUT/startup_ui.txt)"
   fi
-  printf '%s\n' "$dump" > "$OUT/startup_ui.txt"
-  die "composer placeholder not recognised: the app's UI language probably changed, update the accepted-placeholder list (distinct text nodes in $OUT/startup_ui.txt)"
+
+  # 5) clear composer (MOVE_END + 60× DEL) and require empty again
+  adb shell input keyevent KEYCODE_MOVE_END
+  for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
+  sleep 1
+  existing=$(composer_text)
+  if ! composer_looks_empty "$existing"; then
+    _startup_ui_dump > "$OUT/startup_ui.txt"
+    die "startup: composer not empty after clear (got [$existing]; distinct text nodes in $OUT/startup_ui.txt)"
+  fi
+
+  log "startup: input path ready (focus, type, Send visible, clear — probe not sent)"
 }
 
 # Recover focus when a foreign app's dialog steals the screen mid-arm.
@@ -471,10 +540,12 @@ send_and_wait() {
   # the Send node). Between attempts refresh the dump + dismiss overlays; do
   # NOT re-type: the message is already in the composer and retyping would
   # risk duplicating it.
+  # One attempt tries every SEND_LABELS variant before counting as a miss
+  # (same both-languages rationale as the composer placeholder).
   local send_ok=false send_attempt
   for send_attempt in $(seq 1 "$max_attempts"); do
     log "Send attempt ${send_attempt}/${max_attempts}: $msg"
-    if tap_node "Send"; then
+    if tap_send; then
       send_ok=true
       break
     fi
@@ -486,7 +557,7 @@ send_and_wait() {
     fi
   done
   if [ "$send_ok" = false ]; then
-    log "Send button not found for: $msg"
+    log "Send button not found (any of SEND_LABELS) for: $msg"
     return 1
   fi
   # SAW_SENT_AT is global so settle_turn_reply can derive settled_s
@@ -825,7 +896,7 @@ if [ "$PHASE" = "fase0" ]; then
     adb logcat -c 2>/dev/null || true
     # Once per arm (first run only): fail fast on UI-language mismatch.
     if [ "$run" -eq 1 ]; then
-      assert_composer_placeholder_recognised
+      assert_input_path_ready
     fi
 
     global_turn=$((global_turn + 1))
@@ -912,7 +983,7 @@ elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
   new_conversation
   adb logcat -c 2>/dev/null || true
   # Fail-fast before any turn: UI-string mismatch must not burn a 12-arm matrix.
-  assert_composer_placeholder_recognised
+  assert_input_path_ready
   run_turn_plan
 fi
 
