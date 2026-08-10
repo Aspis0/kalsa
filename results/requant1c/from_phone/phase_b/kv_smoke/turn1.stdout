@@ -1,0 +1,15 @@
+Say hello in one short sentence.
+
+<think>
+
+</think>
+
+Hello!
+
+generation: 7 tokens, 0.263 s/token (3.807 tok/s)
+compute: 82.8% CPU occupancy (0.8704 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 7 tokens, 2.177 s (3.2 tok/s) | model load 13.748 s | TTFT 15.925 s
+moe-stream: read 446.7 MiB (63.81 MiB/token), decode 0.263 s/token (compute 0.197 + cache mgmt 0.008 + flash I/O 0.245 s/token, 261 MiB/s)
+moe-cache: 48.6% hit, resident 1840.7 MiB
+moe-overlap: stall 0.058 s/token (flash reads overlapped with FFN compute)
+moe-drop: 231/2240 routed experts dropped (10.3%), threshold 0.65 x uniform

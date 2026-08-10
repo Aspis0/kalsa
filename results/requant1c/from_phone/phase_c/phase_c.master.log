@@ -1,0 +1,24 @@
+[2026-08-10T16:54:02-0400] phase C ABBA start bin=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f drop=0.65
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+2be7ef1ed7e1af8b10d3829102cf9a6c2bd5ddb64d675b4ece23a60799403d43  /data/data/com.termux/files/home/models/Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a  /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+[2026-08-10T16:55:21-0400] preflight plugged=UNPLUGGED batt=76
+[2026-08-10T16:55:22-0400] CELL p1_A1 arm=A ngen=200 batt=76
+[2026-08-10T16:56:21-0400] DONE p1_A1 eval= prefill= hit= mib= drop=6.5 die= wall=56 rc=0
+[2026-08-10T16:56:22-0400] CELL p1_B1 arm=B ngen=200 batt=76
+[2026-08-10T16:57:28-0400] DONE p1_B1 eval= prefill= hit= mib= drop=7.2 die= wall=61 rc=0
+[2026-08-10T16:57:28-0400] CELL p1_B2 arm=B ngen=200 batt=75
+[2026-08-10T16:58:36-0400] DONE p1_B2 eval= prefill= hit= mib= drop=7.2 die= wall=63 rc=0
+[2026-08-10T16:58:36-0400] CELL p1_A2 arm=A ngen=200 batt=74
+[2026-08-10T16:59:42-0400] DONE p1_A2 eval= prefill= hit= mib= drop=6.5 die= wall=62 rc=0
+[2026-08-10T16:59:43-0400] CELL p2_A1 arm=A ngen=200 batt=74
+[2026-08-10T17:00:53-0400] DONE p2_A1 eval= prefill= hit= mib= drop=6.1 die= wall=65 rc=0
+[2026-08-10T17:00:53-0400] CELL p2_B1 arm=B ngen=200 batt=73
+[2026-08-10T17:02:07-0400] DONE p2_B1 eval= prefill= hit= mib= drop=7.3 die= wall=67 rc=0
+[2026-08-10T17:02:07-0400] CELL p2_B2 arm=B ngen=200 batt=72
+[2026-08-10T17:03:22-0400] DONE p2_B2 eval= prefill= hit= mib= drop=7.3 die= wall=70 rc=0
+[2026-08-10T17:03:23-0400] CELL p2_A2 arm=A ngen=200 batt=72
+[2026-08-10T17:04:40-0400] DONE p2_A2 eval= prefill= hit= mib= drop=6.1 die= wall=72 rc=0
+[2026-08-10T17:04:40-0400] CELL sos_B_n512 arm=B ngen=512 batt=71
+[2026-08-10T17:06:05-0400] DONE sos_B_n512 eval= prefill= hit= mib= drop=7.1 die= wall=80 rc=0
+[2026-08-10T17:06:05-0400] phase C done

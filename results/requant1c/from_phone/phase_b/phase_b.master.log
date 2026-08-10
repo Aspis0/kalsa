@@ -1,0 +1,13 @@
+[2026-08-10T15:08:52-0400] phase B start model=/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf corpus=/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt bin_sha=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f drop=0.65
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a  /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+46efe834a89206aadf10bd66b0ab7a58a61ca2696aeb260070c649b3dc943153  /data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt
+[2026-08-10T15:09:36-0400] RUN ppl_F0 
+[2026-08-10T15:46:59-0400] DONE ppl_F0 rc=0
+label=ppl_F0 ppl=1.5249 rc=0
+[2026-08-10T15:46:59-0400] RUN ppl_drop065 --drop-cold-experts 0.65
+[2026-08-10T16:28:07-0400] DONE ppl_drop065 rc=0
+label=ppl_drop065 ppl=1.5647 rc=0
+[2026-08-10T16:28:07-0400] KV smoke start
+[2026-08-10T16:28:44-0400] KV smoke rc1=0 rc2=0
+[2026-08-10T16:28:45-0400] phase B done

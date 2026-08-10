@@ -1,0 +1,10 @@
+label,arm,prompt,rep,eval_tok_s,prefill_tok_s,hit,mib_tok,drop_pct,die_max,batt,wall_s,rc
+p1_A1,A,short.txt,1,,,,,6.5,,76,56,0
+p1_B1,B,short.txt,1,,,,,7.2,,76,61,0
+p1_B2,B,short.txt,2,,,,,7.2,,75,63,0
+p1_A2,A,short.txt,2,,,,,6.5,,74,62,0
+p2_A1,A,f45_1.txt,1,,,,,6.1,,74,65,0
+p2_B1,B,f45_1.txt,1,,,,,7.3,,73,67,0
+p2_B2,B,f45_1.txt,2,,,,,7.3,,72,70,0
+p2_A2,A,f45_1.txt,2,,,,,6.1,,72,72,0
+sos_B_n512,B,short.txt,1,,,,,7.1,,71,80,0

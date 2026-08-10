@@ -101,7 +101,10 @@ run_cell() {
   local t0 t1 wall rc
   t0=$(date +%s)
   set +e
-  "$BIN" -m "$model" "${BASE[@]}" -n "$ngen" -f "$prompt" \
+  # CAMPAIGN binary has -p (prompt string), not -f (file)
+  local ptext
+  ptext=$(cat "$prompt")
+  "$BIN" -m "$model" "${BASE[@]}" --temp 0 --chatml --no-think -n "$ngen" -p "$ptext" \
     >"$out/stdout.txt" 2>"$out/stderr.txt"
   rc=$?
   set -e
@@ -131,3 +134,4 @@ fi
 termux-battery-status 2>/dev/null | tee "$OUTDIR/battery_end.json" || true
 log "phase C done"
 echo "DONE" > "$OUTDIR/STATUS.txt"
+

@@ -1,0 +1,16 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:A 4B model fits entirely within the 8GB RAM, allowing the system to keep all weights in fast memory for immediate access, whereas the 35B MoE model exceeds available RAM and must constantly swap inactive experts between slow flash storage and RAM. This frequent data movement triggers costly page faults and I/O bottlenecks, as the system struggles to keep up with the rapid, random access patterns required for expert selection.
+
+*   **Memory Footprint and Page Faults:** The 4B model’s compact size avoids the need for virtual memory swapping, eliminating page faults that severely degrade performance when the larger MoE model forces inactive experts out of RAM and back into UFS 3.1 storage.
+*   **Thermal Limits:** Continuous reading and writing of large model weights from flash storage generates significant heat, pushing the smartphone’s thermal limits and triggering throttling that slows down inference, whereas the smaller model’s static memory usage remains cooler and more stable.
+
+generation: 197 tokens, 0.195 s/token (5.124 tok/s)
+compute: 82.1% CPU occupancy (0.6408 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 114 tokens, 12.006 s (9.5 tok/s) | model load 11.005 s | TTFT 23.011 s
+moe-stream: read 7719.6 MiB (39.19 MiB/token), decode 0.195 s/token (compute 0.148 + cache mgmt 0.009 + flash I/O 0.173 s/token, 227 MiB/s)
+moe-cache: 78.4% hit, resident 1999.5 MiB
+moe-cache: 11750 evictions, 7489 re-reads (38.0/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.038 s/token (flash reads overlapped with FFN compute)
+moe-drop: 4097/63040 routed experts dropped (6.5%), threshold 0.65 x uniform

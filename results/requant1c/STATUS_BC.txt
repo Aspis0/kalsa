@@ -1,0 +1,2 @@
+phase_B: DONE PPL_F0=1.5249 PPL_d065=1.5647 KV_session=PASS n_common=71
+phase_C: DONE speed_gain_pooled=-3.1% (FAIL +5% gate) quality drives adoption tradeoff

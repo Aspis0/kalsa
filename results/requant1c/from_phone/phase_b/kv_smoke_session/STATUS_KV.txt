@@ -1,0 +1,2 @@
+DONE PASS t2_n_common=71 t1_n_past=71 t2_n_prompt=41
+rc=0

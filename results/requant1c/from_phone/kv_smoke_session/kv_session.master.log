@@ -1,0 +1,9 @@
+[2026-08-10T16:49:44-0400] KV session smoke start model=/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a  /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+669bfcab1077922004a36d88eadd77ef0592bc1f9e141fc3d736270ca135cf2c  /data/data/com.termux/files/home/experiments/results/requant1c/phase_b/kv_smoke_session/gk1_in.jsonl
+/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=678097 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-10T16:50:33-04:00
+[2026-08-10T16:51:04-0400] rc=0
+[2026-08-10T16:51:04-0400] KV session smoke done DONE PASS t2_n_common=71 t1_n_past=71 t2_n_prompt=41
+rc=0

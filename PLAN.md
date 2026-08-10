@@ -1058,6 +1058,36 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-10 — 🏆 1c COMPLETO — IL FILE FABBRICATO IN CASA UMILIA L'ORIGINALE
+  SULLA QUALITÀ: PPL 2.0955 → 1.5249 (−27%), e col drop 0.65 acceso (1.5647)
+  batte l'IQ2_M liscio di un quarto. Velocità: −3.1% pooled. Dossier a gualt.**
+
+  Report: `moe-requant-1c.md`. Fase B verificata dal coordinatore fino al CSV
+  grezzo (somma logprob ricalcolata: −4260.6 vs −7479.9 baseline; stesso corpus
+  sha, token_id identici posizione per posizione, stesso binario pinnato).
+  Smoke KV rifatto CON --session dopo il mio flag (il primo era invalido):
+  PASS. Fase C (A/B ABBA, entrambi a drop 0.65): pooled A 5.116 vs B 4.958
+  (−3.1%; per-prompt −0.8% short, −3.9% f45), hit B −3pp (esperti più grossi,
+  meno slot: come previsto), sostenuto B 4.275.
+
+  **Predizione mia FALSIFICATA, a verbale**: avevo scritto +5-10% e2e dal
+  g_formato=1.297. Il guadagno GEMV è stato mangiato da +I/O e −hit: **il g del
+  microbench non è il g del sistema** (lezione gemella di "quale silicio").
+  Il premio vero del 1c è arrivato dove non lo cercavo: la qualità — a 2 bpw la
+  curva qualità/bit è così ripida che +0.5 bpw sugli esperti + imatrix valgono
+  −27% di PPL per +0.9 GB di file.
+
+  **Il gate velocità (+5%) è FAIL per lettera; la riga "qualità gratis → dossier
+  a gualt" si applica.** Lettura del coordinatore: −27% PPL per −3% tok/s è un
+  affare raro; e sul nuovo file il budget lossy si riazzera (drop 0.65 costa
+  +0.040, non +0.104) → la curva drop su KEXP (0.80? 0.90?) può probabilmente
+  ricomprare il −3% restando SOTTO la qualità dell'IQ2_M liscio. Raccomandazione:
+  adottare KEXP + rifare la curva drop sul nuovo file. Decisione di gualt.
+
+  Nota provenienza (non blocker): possibile revisione pesi più nuova nella
+  sorgente Q8 (history HF non verificabile dal fetch); irrilevante per la
+  decisione — metro nostro, file pinnato per sha (`kexp.sha256`).
+
 - **2026-08-10 — ⚖️ SCALA SPECULAZIONE COMPLETA: N2 VERDE (draft-mtp α=0.60 live,
   lower bound conservativo), ma N1 ROSSO devastante — C(4)≈10-14 contro gate ≤2.2.
   PORTA CHIUSA PER REGOLA. Con un'anomalia a verbale che merita 30 minuti prima

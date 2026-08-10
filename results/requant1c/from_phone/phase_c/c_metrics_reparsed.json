@@ -1,0 +1,115 @@
+{
+  "rows": [
+    {
+      "label": "p1_A1",
+      "arm": "A",
+      "tok_s": 5.578,
+      "prefill_tps": 11.2,
+      "hit": 78.4,
+      "drop": 6.5,
+      "n_gen": 197,
+      "has_done": false,
+      "err_snip": "",
+      "wall_s": 56
+    },
+    {
+      "label": "p1_A2",
+      "arm": "A",
+      "tok_s": 5.124,
+      "prefill_tps": 9.5,
+      "hit": 78.4,
+      "drop": 6.5,
+      "n_gen": 197,
+      "has_done": false,
+      "err_snip": "",
+      "wall_s": 62
+    },
+    {
+      "label": "p1_B1",
+      "arm": "B",
+      "tok_s": 5.223,
+      "prefill_tps": 10.6,
+      "hit": 75.7,
+      "drop": 7.2,
+      "n_gen": 200,
+      "has_done": false,
+      "err_snip": "",
+      "wall_s": 61
+    },
+    {
+      "label": "p1_B2",
+      "arm": "B",
+      "tok_s": 5.389,
+      "prefill_tps": 8.7,
+      "hit": 75.7,
+      "drop": 7.2,
+      "n_gen": 200,
+      "has_done": false,
+      "err_snip": "",
+      "wall_s": 63
+    },
+    {
+      "label": "p2_A1",
+      "arm": "A",
+      "tok_s": 5.107,
+      "prefill_tps": 9.3,
+      "hit": 82.4,
+      "drop": 6.1,
+      "n_gen": 200,
+      "has_done": false,
+      "err_snip": "",
+      "wall_s": 65
+    },
+    {
+      "label": "p2_A2",
+      "arm": "A",
+      "tok_s": 4.617,
+      "prefill_tps": 7.5,
+      "hit": 82.4,
+      "drop": 6.1,
+      "n_gen": 200,
+      "has_done": false,
+      "err_snip": "",
+      "wall_s": 72
+    },
+    {
+      "label": "p2_B1",
+      "arm": "B",
+      "tok_s": 4.692,
+      "prefill_tps": 9.5,
+      "hit": 79.0,
+      "drop": 7.3,
+      "n_gen": 200,
+      "has_done": false,
+      "err_snip": "",
+      "wall_s": 67
+    },
+    {
+      "label": "p2_B2",
+      "arm": "B",
+      "tok_s": 4.652,
+      "prefill_tps": 9.2,
+      "hit": 79.0,
+      "drop": 7.3,
+      "n_gen": 200,
+      "has_done": false,
+      "err_snip": "",
+      "wall_s": 70
+    },
+    {
+      "label": "sos_B_n512",
+      "arm": "B",
+      "tok_s": 4.275,
+      "prefill_tps": 9.6,
+      "hit": 76.8,
+      "drop": 7.1,
+      "n_gen": 228,
+      "has_done": false,
+      "err_snip": "",
+      "wall_s": 80
+    }
+  ],
+  "medA": 5.1155,
+  "medB": 4.9575,
+  "gain_pct": -3.0886521356661145
+}

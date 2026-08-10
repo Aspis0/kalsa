@@ -1,0 +1,1 @@
+BMOE_PPL {"n_tokens":10101,"n_scored":10098,"sum_logprob":-4260.61250881,"ppl":1.524896,"seconds":2232.357,"cancelled":false,"mode":"decode","file":"/data/data/com.termux/files/home/experiments/results/dropcold/corpus_subset_10k.txt"}

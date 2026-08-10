@@ -1,0 +1,16 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:Running a dense 4B model fits comfortably within the 8GB RAM limit, allowing the entire model to reside in fast memory and avoid the latency of reading from slower UFS 3.1 storage, whereas the 35B MoE model requires careful expert streaming because its total parameter size far exceeds available RAM, forcing the system to constantly swap inactive experts between flash and memory. This frequent data movement triggers significant page faults that stall processing, while the intense I/O operations and computational bursts generate substantial heat that quickly hits the smartphone’s thermal limits, throttling performance to prevent hardware damage.
+
+*   **Memory Footprint and Page Faults:** The dense model’s small footprint eliminates the need for paging, while the MoE model’s large total size necessitates continuous swapping of experts, causing frequent page faults that degrade speed despite the low number of active parameters.
+*   **Thermal Limits:** The heavy read/write cycles required for streaming experts from UFS 3.1 storage, combined with the computational load of routing, produce heat that exceeds the device’s cooling capacity, leading to thermal throttling that slows down inference.
+
+generation: 228 tokens, 0.234 s/token (4.275 tok/s)
+compute: 83.6% CPU occupancy (0.7823 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 114 tokens, 11.829 s (9.6 tok/s) | model load 13.301 s | TTFT 25.130 s
+moe-stream: read 12580.3 MiB (55.18 MiB/token), decode 0.234 s/token (compute 0.174 + cache mgmt 0.014 + flash I/O 0.208 s/token, 265 MiB/s)
+moe-cache: 76.8% hit, resident 1999.2 MiB
+moe-cache: 15146 evictions, 10451 re-reads (45.8/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.046 s/token (flash reads overlapped with FFN compute)
+moe-drop: 5189/72960 routed experts dropped (7.1%), threshold 0.65 x uniform
