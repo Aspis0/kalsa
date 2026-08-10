@@ -127,11 +127,38 @@ async function main() {
   // Pure mirrors of DocumentsScreen exports (keep in sync with screen helpers).
   const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
   const MAX_TEXT_BYTES = 10 * 1024 * 1024;
+  function normalizeUriPath(uri) {
+    if (!uri || typeof uri !== "string") return "";
+    const s = uri.replace(/\\/g, "/");
+    const schemeMatch = s.match(/^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/)(.*)$/);
+    const scheme = schemeMatch ? schemeMatch[1] : "";
+    const pathPart = schemeMatch ? schemeMatch[2] : s;
+    const leadingSlash = pathPart.startsWith("/");
+    const stack = [];
+    for (const seg of pathPart.split("/")) {
+      if (seg === "" || seg === ".") continue;
+      if (seg === "..") {
+        if (stack.length > 0) stack.pop();
+        continue;
+      }
+      stack.push(seg);
+    }
+    const body = stack.join("/");
+    if (scheme) return `${scheme}/${body}`;
+    return (leadingSlash ? "/" : "") + body;
+  }
   function isOwnedDocumentUri(fileUri, baseDir) {
     if (!fileUri || typeof fileUri !== "string") return false;
     if (!baseDir || typeof baseDir !== "string") return false;
-    const prefix = baseDir.endsWith("/") ? baseDir : `${baseDir}/`;
-    return fileUri.startsWith(prefix);
+    const normUri = normalizeUriPath(fileUri);
+    const normBase = normalizeUriPath(baseDir);
+    if (!normUri || !normBase) return false;
+    const basePrefix = normBase.endsWith("/") ? normBase : `${normBase}/`;
+    const canonicalPrefix = `${basePrefix}kalsa-documents/`;
+    return (
+      normUri === canonicalPrefix.slice(0, -1) ||
+      normUri.startsWith(canonicalPrefix)
+    );
   }
   function sizeWithinLimits(sizeBytes, kind) {
     if (
@@ -144,6 +171,7 @@ async function main() {
     }
     const max = kind === "pdf" ? MAX_DOCUMENT_BYTES : MAX_TEXT_BYTES;
     const n = Math.floor(sizeBytes);
+    if (n === 0) return { ok: false, reason: "empty" };
     if (n > max) return { ok: false, reason: "too_large" };
     return { ok: true, sizeBytes: n };
   }
@@ -662,33 +690,55 @@ async function main() {
     __resetDocumentChatBusyForTests();
   }
 
-  // ── 20 ownership prefix predicate ─────────────────────────────────────
+  // ── 20 ownership prefix predicate (normalized; base = document root) ──
   {
-    const base = "file:///data/user/0/app/files/kalsa-documents/";
+    const root = "file:///data/user/0/app/files/";
+    const owned = "file:///data/user/0/app/files/kalsa-documents/doc-1.pdf";
     check(
       "owned uri under canonical prefix",
-      isOwnedDocumentUri(base + "doc-1.pdf", base) === true,
+      isOwnedDocumentUri(owned, root) === true,
     );
     check(
       "sibling dir with kalsa-documents/ in the middle is NOT owned",
       isOwnedDocumentUri(
         "file:///data/user/0/app/cache/evil-kalsa-documents/x.pdf",
-        base,
+        root,
       ) === false,
     );
     check(
       "cacheDirectory-style path is NOT owned",
       isOwnedDocumentUri(
         "file:///data/user/0/app/cache/kalsa-documents/doc-1.pdf",
-        base,
+        root,
       ) === false,
     );
     check(
       "substring-only kalsa-documents elsewhere is NOT owned",
       isOwnedDocumentUri(
         "file:///tmp/other/kalsa-documents/nested/x.pdf",
-        base,
+        root,
       ) === false,
+    );
+    // FIX 4: traversal / backslash normalization
+    check(
+      "owned: base/kalsa-documents/evil",
+      isOwnedDocumentUri("base/kalsa-documents/evil", "base") === true,
+    );
+    check(
+      "NOT owned: base/kalsa-documents-evil/x (prefix boundary)",
+      isOwnedDocumentUri("base/kalsa-documents-evil/x", "base") === false,
+    );
+    check(
+      "owned after backslash normalize",
+      isOwnedDocumentUri("base\\kalsa-documents\\evil", "base") === true,
+    );
+    check(
+      "NOT owned: base/../outside/kalsa-documents/evil escapes base",
+      isOwnedDocumentUri("base/../outside/kalsa-documents/evil", "base") === false,
+    );
+    check(
+      "NOT owned: base/kalsa-documents/../x resolves outside library",
+      isOwnedDocumentUri("base/kalsa-documents/../x", "base") === false,
     );
   }
 
@@ -726,6 +776,36 @@ async function main() {
       "size under txt max ok",
       sizeWithinLimits(100, "txt").ok === true &&
         sizeWithinLimits(100, "txt").sizeBytes === 100,
+    );
+    // FIX 2: zero-byte rejection
+    check(
+      "size 0 pdf rejected empty",
+      sizeWithinLimits(0, "pdf").ok === false &&
+        sizeWithinLimits(0, "pdf").reason === "empty",
+    );
+    check(
+      "size 0 txt rejected empty",
+      sizeWithinLimits(0, "txt").ok === false &&
+        sizeWithinLimits(0, "txt").reason === "empty",
+    );
+    check(
+      "size 1 txt ok",
+      sizeWithinLimits(1, "txt").ok === true &&
+        sizeWithinLimits(1, "txt").sizeBytes === 1,
+    );
+    check(
+      "size max pdf ok",
+      sizeWithinLimits(MAX_DOCUMENT_BYTES, "pdf").ok === true,
+    );
+    check(
+      "size max+1 pdf rejected",
+      sizeWithinLimits(MAX_DOCUMENT_BYTES + 1, "pdf").ok === false &&
+        sizeWithinLimits(MAX_DOCUMENT_BYTES + 1, "pdf").reason === "too_large",
+    );
+    check(
+      "size null pdf rejected",
+      sizeWithinLimits(null, "pdf").ok === false &&
+        sizeWithinLimits(null, "pdf").reason === "unknown",
     );
   }
 

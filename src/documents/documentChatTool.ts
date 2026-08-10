@@ -49,9 +49,14 @@ export const DOCUMENT_CHAT_PROVENANCE =
 export const DOCUMENT_CHAT_TIMEOUT_MS = 165_000;
 
 /**
- * Last-resort latch clear if a host strategy truly never settles (e.g. native
+ * Last-resort deadline if a host strategy truly never settles (e.g. native
  * read that ignores abort). Must sit ABOVE DOCUMENT_CHAT_TIMEOUT_MS so normal
  * timeout/abort paths leave the latch held until the strategy settles.
+ *
+ * On fire: best-effort abort of the strategy AbortController only.
+ * Invariant: the latch is only ever cleared by the strategy finally
+ * (generation-guarded). Stale-cap must NOT clear inflight — otherwise a new
+ * call can start while the old host op is still running (single-flight break).
  */
 export const DOC_OP_STALE_CAP_MS = 200_000;
 
@@ -127,26 +132,36 @@ let inflight = false;
 let inflightGen = 0;
 /** Last-resort timer if strategy never settles; cleared when strategy finally ends. */
 let staleCapTimer: ReturnType<typeof setTimeout> | null = null;
+/** Strategy AbortController for the current inflight gen (stale-cap aborts this). */
+let inflightLinkedAbort: AbortController | null = null;
 
 function clearInflightLatch(gen?: number): void {
   // Only the owning generation (or an explicit force-clear) may release the latch.
+  // Invariant: this is the only path that clears inflight (not stale-cap).
   if (gen != null && gen !== inflightGen) return;
   inflight = false;
+  inflightLinkedAbort = null;
   if (staleCapTimer != null) {
     clearTimeout(staleCapTimer);
     staleCapTimer = null;
   }
 }
 
-function armStaleCap(gen: number): void {
+function armStaleCap(gen: number, controller: AbortController): void {
   if (staleCapTimer != null) clearTimeout(staleCapTimer);
-  // Last-resort: force-clear only if THIS generation's strategy truly never settles.
+  inflightLinkedAbort = controller;
+  // Last-resort: abort THIS generation's strategy if it never settles.
+  // Do NOT clear inflight — latch is only ever cleared by strategy.finally.
+  // If the host ignores abort (uncancellable read), inflight stays set until settle.
   staleCapTimer = setTimeout(() => {
-    // Host op hung past DOC_OP_STALE_CAP_MS — release latch so the tool loop
-    // is not permanently wedged. Prefer strategy.finally; this is the escape hatch.
     if (gen === inflightGen) {
-      inflight = false;
+      try {
+        inflightLinkedAbort?.abort();
+      } catch {
+        /* ignore */
+      }
       staleCapTimer = null;
+      // intentionally leave inflight=true until strategy.finally
     }
   }, DOC_OP_STALE_CAP_MS);
 }
@@ -219,15 +234,16 @@ export function createDocumentChatExecutor(
       return errorResult(catalog(locale).aborted);
     }
 
+    // Linked controller so timeout/abort/stale-cap signal host ops that honor AbortSignal.
+    // Created before armStaleCap so the stale-cap timer can abort the same controller.
+    const linked = new AbortController();
     const myGen = ++inflightGen;
     inflight = true;
-    armStaleCap(myGen);
+    armStaleCap(myGen, linked);
 
     let timer: ReturnType<typeof setTimeout> | null = null;
     let timedOut = false;
     let abortHandler: (() => void) | null = null;
-    // Linked controller so timeout/abort signal host ops that honor AbortSignal.
-    const linked = new AbortController();
     const forwardAbort = () => {
       try {
         linked.abort();

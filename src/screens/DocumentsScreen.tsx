@@ -4,7 +4,7 @@
  * Extraction reuses requestPdfText (PDF) and FileSystem read (TXT).
  */
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -48,8 +48,43 @@ export const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
 export const MAX_TEXT_BYTES = 10 * 1024 * 1024;
 
 /**
- * Pure ownership predicate: fileUri must START WITH the canonical library prefix
- * (documentDirectory + "kalsa-documents/"). Substring matches elsewhere are rejected.
+ * Normalize a file URI/path for ownership checks:
+ * - backslashes → "/"
+ * - collapse "." segments
+ * - resolve ".." via a stack (clamp at root; never emit escaping "..")
+ * Exported for harness coverage.
+ */
+export function normalizeUriPath(uri: string): string {
+  if (!uri || typeof uri !== "string") return "";
+  const s = uri.replace(/\\/g, "/");
+  // Preserve scheme + hierarchical part (file://, content://, etc.).
+  const schemeMatch = s.match(/^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/)(.*)$/);
+  const scheme = schemeMatch ? schemeMatch[1] : "";
+  const pathPart = schemeMatch ? schemeMatch[2] : s;
+  const leadingSlash = pathPart.startsWith("/");
+  const stack: string[] = [];
+  for (const seg of pathPart.split("/")) {
+    if (seg === "" || seg === ".") continue;
+    if (seg === "..") {
+      // Clamp: never allow ".." to escape above root of this path.
+      if (stack.length > 0) stack.pop();
+      continue;
+    }
+    stack.push(seg);
+  }
+  const body = stack.join("/");
+  if (scheme) {
+    // file:// + / + body → file:///body (absolute under hierarchical scheme)
+    return `${scheme}/${body}`;
+  }
+  return (leadingSlash ? "/" : "") + body;
+}
+
+/**
+ * Pure ownership predicate: after path normalization, fileUri must START WITH
+ * the canonical library prefix (normalized baseDir + "kalsa-documents/").
+ * baseDir is the durable root (documentDirectory), NOT the library subfolder.
+ * Traversal / backslash spoofing is rejected via normalizeUriPath.
  * Exported for harness coverage.
  */
 export function isOwnedDocumentUri(
@@ -58,20 +93,31 @@ export function isOwnedDocumentUri(
 ): boolean {
   if (!fileUri || typeof fileUri !== "string") return false;
   if (!baseDir || typeof baseDir !== "string") return false;
-  // Normalize so both sides end with a single trailing slash for startsWith.
-  const prefix = baseDir.endsWith("/") ? baseDir : `${baseDir}/`;
-  return fileUri.startsWith(prefix);
+  const normUri = normalizeUriPath(fileUri);
+  const normBase = normalizeUriPath(baseDir);
+  if (!normUri || !normBase) return false;
+  const basePrefix = normBase.endsWith("/") ? normBase : `${normBase}/`;
+  const canonicalPrefix = `${basePrefix}kalsa-documents/`;
+  // Exact library dir or a file/dir under it.
+  return (
+    normUri === canonicalPrefix.slice(0, -1) ||
+    normUri.startsWith(canonicalPrefix)
+  );
 }
 
 /**
  * Pure size-limit check against resolved byte length.
  * null/undefined/non-finite → rejected (fail closed on unknown size).
+ * zero bytes → rejected as empty.
  * Exported for harness coverage.
  */
 export function sizeWithinLimits(
   sizeBytes: number | null | undefined,
   kind: "pdf" | "txt",
-): { ok: true; sizeBytes: number } | { ok: false; reason: "unknown" | "too_large" } {
+): {
+  ok: true;
+  sizeBytes: number;
+} | { ok: false; reason: "unknown" | "too_large" | "empty" } {
   if (
     sizeBytes == null ||
     typeof sizeBytes !== "number" ||
@@ -82,6 +128,7 @@ export function sizeWithinLimits(
   }
   const max = kind === "pdf" ? MAX_DOCUMENT_BYTES : MAX_TEXT_BYTES;
   const n = Math.floor(sizeBytes);
+  if (n === 0) return { ok: false, reason: "empty" };
   if (n > max) return { ok: false, reason: "too_large" };
   return { ok: true, sizeBytes: n };
 }
@@ -142,16 +189,14 @@ async function resolveAssetSizeBytes(uri: string): Promise<number | null> {
 async function deleteOwnedFile(fileUri: string | undefined): Promise<void> {
   if (!fileUri || typeof fileUri !== "string") return;
   // Canonical ownership: only delete under documentDirectory/kalsa-documents/.
-  // Legacy / non-owned URIs (cache, content://, paths with "kalsa-documents/"
-  // only as a substring elsewhere) are NEVER deleted — metadata-only removal.
-  let base: string;
-  try {
-    base = documentsDir();
-  } catch {
+  // baseDir is documentDirectory (root); isOwnedDocumentUri appends kalsa-documents/.
+  // Legacy / non-owned URIs (cache, content://, traversal spoofs) are NEVER deleted.
+  const root = FileSystem.documentDirectory;
+  if (!root) {
     // No durable dir available — refuse filesystem delete (metadata-only).
     return;
   }
-  if (!isOwnedDocumentUri(fileUri, base)) return;
+  if (!isOwnedDocumentUri(fileUri, root)) return;
   try {
     await FileSystem.deleteAsync(fileUri, { idempotent: true });
   } catch {
@@ -179,6 +224,8 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
   const { t } = useLocale();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  /** Serialize delete vs import/extraction — both directions mutually exclusive. */
+  const documentDeleteInFlightRef = useRef(false);
 
   const handleBack = useCallback(() => {
     if (busy) return;
@@ -196,6 +243,10 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
 
   const addPdf = useCallback(async () => {
     if (busy) return;
+    if (documentDeleteInFlightRef.current) {
+      Alert.alert(t("documents.title"), t("documents.busy"));
+      return;
+    }
     try {
       const picked = await DocumentPicker.getDocumentAsync({
         type: "application/pdf",
@@ -220,6 +271,12 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
         return;
       }
       const sizeBytes = sizeCheck.sizeBytes;
+
+      // Re-check delete latch after async size resolve (delete may have started).
+      if (documentDeleteInFlightRef.current) {
+        Alert.alert(t("documents.title"), t("documents.busy"));
+        return;
+      }
 
       setBusy(true);
       setStatus(t("documents.extracting"));
@@ -300,6 +357,10 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
 
   const addTxt = useCallback(async () => {
     if (busy) return;
+    if (documentDeleteInFlightRef.current) {
+      Alert.alert(t("documents.title"), t("documents.busy"));
+      return;
+    }
     try {
       const picked = await DocumentPicker.getDocumentAsync({
         type: ["text/plain", "text/html", "text/*"],
@@ -324,6 +385,12 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
         return;
       }
       const sizeBytes = sizeCheck.sizeBytes;
+
+      // Re-check delete latch after async size resolve (delete may have started).
+      if (documentDeleteInFlightRef.current) {
+        Alert.alert(t("documents.title"), t("documents.busy"));
+        return;
+      }
 
       setBusy(true);
       setStatus(t("documents.extracting"));
@@ -376,6 +443,10 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
   const confirmDelete = useCallback(
     (doc: LibraryDoc) => {
       if (busy) return;
+      if (documentDeleteInFlightRef.current) {
+        Alert.alert(t("documents.title"), t("documents.busy"));
+        return;
+      }
       // Refuse delete while PDF extract or document_chat host read is in flight
       // so we never race deleteAsync against an open read of the same file.
       if (isPdfTextExtractionBusy() || isDocumentOpInFlight()) {
@@ -392,12 +463,25 @@ export function DocumentsScreen({ library, onLibraryChange, onBack }: Props) {
             style: "destructive",
             onPress: () => {
               // Re-check at confirm time (user may have waited on the dialog).
+              if (documentDeleteInFlightRef.current) {
+                Alert.alert(t("documents.title"), t("documents.busy"));
+                return;
+              }
               if (isPdfTextExtractionBusy() || isDocumentOpInFlight()) {
                 Alert.alert(t("documents.title"), t("documents.busy"));
                 return;
               }
-              void deleteOwnedFile(doc.fileUri);
-              onLibraryChange(removeDoc(library, doc.id));
+              // Latch synchronously before deleteAsync so import/extract cannot
+              // start while the filesystem delete is still pending.
+              documentDeleteInFlightRef.current = true;
+              void (async () => {
+                try {
+                  await deleteOwnedFile(doc.fileUri);
+                  onLibraryChange(removeDoc(library, doc.id));
+                } finally {
+                  documentDeleteInFlightRef.current = false;
+                }
+              })();
             },
           },
         ],
