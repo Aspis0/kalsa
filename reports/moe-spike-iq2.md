@@ -1,20 +1,21 @@
 # Spike — ik_llama i-quant kernel vs mainline on S23 (g_kernel)
 
 **Date:** 2026-08-09  
-**Mandate:** `mandates/spike-iq2-kernels.md`  
+**Mandate:** `mandates/spike-iq2-kernels.md` + `mandates/sessione-staccato-065-s1.md`  
 **Device:** Galaxy S23 (Termux), Snapdragon 8 Gen 2, SSH `u0_a344@192.168.1.152:8022`  
 **Research base:** `reports/research-iq2-kernels.md`  
-**Status:** **S0 COMPLETE · S1 PENDING** (phone still on AC when S0 finished)
+**Status:** **S0 COMPLETE · S1 COMPLETE · VERDICT NO-GO**
 
 ---
 
 ## Executive summary
 
-S0 (clone, builds, dense IQ2/IQ3 model download) completed successfully on the campaign S23 while charging. Both `llama-bench` binaries are built and help-smoke OK. Models verified by size + SHA-256 = HF LFS oid.
+S0 (clone, builds, dense IQ2/IQ3 model download) completed while charging. S1 timing ran **UNPLUGGED** (batt 68%→63%, die start ~44°C) after the speed-065 gate of the same session.
 
-**S1 timing (M1–M4, ABBA, fadvise cold) was NOT run:** at S0 completion the phone was `PLUGGED_AC` (battery 49%). Campaign rule: no timing benchmarks while charging. Harness is ready at `~/experiments/results/spike_iq2/run_s1_bench.sh` for an unplugged session with battery ≥ 40%.
+**g_kernel (IQ2_XXS, tg128 @ -t 4) = 0.719** (mediana ik 5.855 / mediana ref 8.14).  
+Rule: g < 1.20 → **NO-GO: capitolo kernel CHIUSO**. Port plan not written.
 
-**Verdict:** **not available yet** — `g` requires S1. Build is **GREEN** (not GIALLO). No port GO/NO-GO until S1 medians exist.
+M3 pp512 shows ik **3.39×** faster on prefill (29.21 vs 8.61) — setup is alive; the gap is real on GEMM/prefill but **not** on TG decode, which is the decision metric. IQ3_XXS TG g = 0.805 (also < 1.20).
 
 ---
 
@@ -101,65 +102,76 @@ bash ~/experiments/results/spike_iq2/run_s1_bench.sh
 
 ---
 
-## S1 — measures (PENDING)
+## S1 — measures (COMPLETE, UNPLUGGED)
 
-Config declared (unchanged from mandate): `-t 4`, same files, **ABBA**, fadvise cold each run, die + battery annotated, 2 reps TG.
+Config: `-t 4`, same files, **ABBA**, fadvise cold each run, die + battery annotated, 2 reps TG via `-r 2`.  
+Harness: `~/experiments/results/spike_iq2/run_s1_bench.sh`.  
+Session: start batt **68%** UNPLUGGED die 44.5°C → end batt **63%** UNPLUGGED 40.9°C. Floor 30% non toccato. Screen timeout restored to 1800000.
 
 ### M1 — mainline `llama-bench -p 0 -n 128 -t 4` (tg128 t/s) — IQ2_XXS
 
 | run | order | tg128 t/s | die °C start→end | batt % | plugged |
 |-----|-------|-----------|------------------|--------|---------|
-| M1a | A | — | — | — | S1 PENDING |
-| M1b | A (close) | — | — | — | S1 PENDING |
+| M1a | A | **8.70** ±0.38 | 49.4→72.1 | 68 | UNPLUGGED |
+| M1b | A (close) | **7.58** ±… | 50.5→62.4 | 66 | UNPLUGGED |
 
-**mediana(M1):** —
+**mediana(M1): 8.14**
 
 ### M2 — ik `llama-bench -p 0 -n 128 -t 4 -rtr 1` (tg128 t/s) — IQ2_XXS
 
 | run | order | tg128 t/s | die °C start→end | batt % | plugged |
 |-----|-------|-----------|------------------|--------|---------|
-| M2a | B | — | — | — | S1 PENDING |
-| M2b | B | — | — | — | S1 PENDING |
+| M2a | B | **6.05** ±0.68 | 59.1→60.1 | 68 | UNPLUGGED |
+| M2b | B | **5.66** ±… | 50.6→59.5 | 67 | UNPLUGGED |
 
-**mediana(M2):** —
+**mediana(M2): 5.855**
 
-### g (IQ2_XXS)
+Thermal note: M1a ended hotter (72.1°C) than M2a start (59.1); M2 still slower after cool-down (M2b at 50.6→59.5). Drift does **not** explain the gap — ik is slower on TG across both ABBA arms.
+
+### g (IQ2_XXS) — decision metric
 
 \[
-g = \mathrm{median}(M2) / \mathrm{median}(M1) = \mathbf{—}
+g = \mathrm{median}(M2) / \mathrm{median}(M1) = 5.855 / 8.14 = \mathbf{0.719}
 \]
+
+**g = 0.719 < 1.20 → NO-GO.**
 
 ### M3 — pp512 control (`-p 512 -n 0`, 1 rep) — sanity / prefill upside only
 
-| engine | pp512 t/s | die °C | batt % |
-|--------|-----------|--------|--------|
-| ref | — | — | S1 PENDING |
-| ik `-rtr 1` | — | — | S1 PENDING |
+| engine | pp512 t/s | die °C start→end | batt % |
+|--------|-----------|------------------|--------|
+| ref | **8.61** | 52.5→56.3 | 66 |
+| ik `-rtr 1` | **29.21** | 50.9→61.6 | 65 |
 
-M3 **does not** enter GO/NO-GO (mandate). Expected literature gap on M2-Max was ~4.7× pp for IQ2_XXS; if M3 shows no gap, re-check setup.
+pp g ≈ **3.39×** (literature M2-Max ~4.7×; direction matches, magnitude lower on 8 Gen 2 thermals). Setup is **not** broken: ik wins hard on prefill GEMM, loses on TG decode. M3 does **not** enter GO/NO-GO (mandate).
 
-### M4 — IQ3_XXS TG (models downloaded) — S1 PENDING
+### M4 — IQ3_XXS TG (ABBA, 2 rep)
 
-| run | engine | tg128 t/s | die °C | batt % |
-|-----|--------|-----------|--------|--------|
-| M4_1a/b | ref | — | — | S1 PENDING |
-| M4_2a/b | ik `-rtr 1` | — | — | S1 PENDING |
+| run | engine | tg128 t/s | die °C start→end | batt % |
+|-----|--------|-----------|------------------|--------|
+| M4_1a | ref | **5.73** | 50.5→59.7 | 65 |
+| M4_2a | ik `-rtr 1` | **4.39** | 51.3→58.5 | 64 |
+| M4_2b | ik `-rtr 1` | **4.31** | 50.5→59.1 | 64 |
+| M4_1b | ref | **5.08** | 51.0→58.9 | 63 |
 
-**g_IQ3 = mediana(M4_ik) / mediana(M4_ref):** —
+**mediana(M4_ref)=5.405 · mediana(M4_ik)=4.35 · g_IQ3 = 0.805** (< 1.20, consistent with IQ2 NO-GO).
 
 ---
 
-## Decision rules (recalled — not applied without g)
+## Decision rules (applied)
 
 | esito g su IQ2_XXS (@ -t 4) | decisione |
 |---|---|
-| **g ≥ 1.30** | **GO**: selective port plan (iqk mul_mat/mul_mat_id for IQ2_XXS/IQ3_XXS + repack-at-fill) |
-| **1.20 ≤ g < 1.30** | GO **conditional**: only if repack-at-fill ≤1 p-week and e2e expected ≥ +8% |
-| **g < 1.20** | **NO-GO**: kernel chapter CLOSED |
-| ik build fails after 2 serious attempts | GIALLO — **not this case** (attempt 3 succeeded) |
+| **g ≥ 1.30** | GO: selective port plan |
+| **1.20 ≤ g < 1.30** | GO conditional |
+| **g < 1.20** | **NO-GO: kernel chapter CLOSED** ← **this case (g=0.719)** |
+| ik build fails after 2 serious attempts | GIALLO — not this case (S0 attempt 3 green) |
 
-**Current verdict:** **S1 PENDING: waiting for unplugged phone.**  
-No GO / NO-GO / conditional. Port file list and cost estimate deferred until g exists.
+**Verdict: NO-GO.** Capitolo kernel i-quant **chiuso** sul nostro silicio (8 Gen 2, frequenze termiche vere, UNPLUGGED). Plateau decode on-device non si compra con il port ik_llama dei vec_dot IQ2/IQ3: ik è **più lento** del mainline del fork su TG, pur restando più veloce su PP.
+
+Port file list / cost estimate: **non applicabile** (NO-GO).
+
+Caveat a verbale (non ribalta il gate): ik reporta size/params leggermente diversi sullo stesso file HF (`1.22 GiB / 3.61 B` vs ref `990.6 MiB / 3.21 B`) — differenza di metadata/repack path, non di GGUF. Il confronto resta sullo stesso path file e stesso `-t 4`.
 
 ---
 
@@ -167,16 +179,14 @@ No GO / NO-GO / conditional. Port file list and cost estimate deferred until g e
 
 | Location | Contents |
 |----------|----------|
-| Phone `~/experiments/results/spike_iq2/` | commits, model meta+sha, cmake/build logs, `run_s1_bench.sh`, `s0_complete.txt` |
-| Phone `~/models/spike_iq2/` | GGUF files (not mirrored) |
+| Phone `~/experiments/results/spike_iq2/` | S0 logs + `s1_results.csv`, `s1_console.log`, `runs/*.txt`, `status.txt=S1_DONE` |
+| Phone `~/models/spike_iq2/` | GGUF (not mirrored) |
 | Phone `~/build/ik_llama-bench/`, `~/build/llamacpp-ref-bench/` | binaries |
-| PC `results/spike_iq2/` | light mirror (no GGUF) |
+| PC `results/spike_iq2/` | light mirror + S1 CSV/runs (no GGUF) |
 | PC `reports/moe-spike-iq2.md` | this report |
 
 ---
 
 ## STOP
 
-Report ends here per mandate. **S1 and final g/verdict are for a later unplugged session; port cantiere decision remains with gualt after S1.**
-
-**S1 PENDING: waiting for unplugged phone.**
+Report ends here per mandate. **NO-GO is the measured gate; opening a kernel cantiere remains a gualt override only.**
