@@ -6,7 +6,7 @@
 **Binario CAMPAIGN:** `1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f` (= `CAMPAIGN.sha256`) — **INVARIATO, nessun rebuild**  
 **PREFAULT:** intatto · Guardrail `74bbb4d` · floor 30%  
 **Artefatti:** `results/buchi/` (PC) + `~/experiments/results/buchi/` (telefono)  
-**Stato mandato:** **1a COMPLETE (GO_CONDIZIONATO) · 1b PREP in corso · 2/3 non eseguiti** — STOP ai gate
+**Stato mandato:** **1a COMPLETE (GO_CONDIZIONATO) · 1b CHIUSO (esperti i-quant) · 2 COMPLETE (RESTA_4) · 3 non eseguito** — STOP ai gate
 
 ---
 
@@ -149,17 +149,88 @@ Baseline PPL IQ2_M da dossier: **2.0955 @ F=0 · 2.1466 @ 0.50 · 2.19992 @ 0.65
 
 ---
 
-## BUCO 2 — thread sweep (NON ESEGUITO)
+## BUCO 2 — thread sweep (COMPLETE, UNPLUGGED)
 
-**SKIPPED in questa sessione** (priorità 1a + prep 1b; batteria 56% e XL ancora in download).  
-Predizione a verbale resta: `-t 5/6` entro ±0 vs `-t 4`.
+**Data run:** 2026-08-10 09:50–10:02 (EDT)  
+**Condizioni:** **piene** — UNPLUGGED **100%→94%**, die start ~47–55°C, nproc 6–8 (top-app). Timing **pienamente citabili** (non i 39% marginali inizialmente previsti; gualt ha poi caricato al 100% prima del go).  
+**Predizione a verbale (pre-misura):** `-t 5/6` entro ±0 vs `-t 4`.  
+**Drop F dichiarato:** `--drop-cold-experts 0.65` (valore campagna post speed-065).  
+**Binario:** CAMPAIGN `1ca51420…` match. Prompt `f45_1_esplicativo` sha `bc5c1e58…` match.  
+**Harness:** `results/buchi/run_2_thread_sweep.sh` → telefono `~/experiments/results/buchi/thread/`  
+**Artefatti PC:** `results/buchi/thread/`
 
-Protocollo pronto (da mandato, invariato):
+### Disegno
 
-- Celle staccato ABBA-ish, cold, f45_1 n=200, 2 rep: `-t 4` (baseline), `-t 5`, `-t 6`; se `-t 6` ≥ `-t 4` → `-t 7`.
-- Vincitore × sostenuto n=512.
-- Metriche: eval tok/s, die curva, freq se leggibile.
-- Regole: ≥ +5% **anche** sul sostenuto → candidato adozione config (gualt); solo burst → resta 4; tutto ±3% → chiuso.
+| | |
+|---|---|
+| Prompt | f45_1_esplicativo, n=200 burst / n=512 sostenuto |
+| Config fissa | `-c 4096 --temp 0 --chatml --no-think --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 8 --drop-cold-experts 0.65` |
+| Variabile | `-t ∈ {4,5,6}` (e 7 se med t6 ≥ med t4) |
+| Ordine burst | ABBA-ish termico: t4r1 → t5r1 → t6r1 → t6r2 → t5r2 → t4r2 |
+| Cold | fadv DONTNEED prima di ogni cella |
+| Preflight | UNPLUGGED, nproc≥6, die ≤80°C start, floor 30% |
+| Freq | sysfs leggibile: `/sys/devices/system/cpu/cpu{0,4,7}/cpufreq/scaling_cur_freq` (little/mid/big) |
+
+### Tabella burst n=200 (eval tok/s)
+
+| cell | -t | eval tok/s | prefill | hit% | die max °C | wall s | batt s→e | freq start (kHz cpu0/4/7) |
+|---|---:|---:|---:|---:|---:|---:|---|---|
+| t4r1 | 4 | **5.611** | 10.9 | 82.4 | 92.0 | 59 | 100→100 | 1017/2803/864 |
+| t5r1 | 5 | **4.360** | 11.0 | 82.1 | 90.8 | 67 | 100→99 | 1017/2803/864 |
+| t6r1 | 6 | **3.367** | 10.8 | 82.2 | 90.8 | 81 | 99→98 | 1017/1401/864 |
+| t6r2 | 6 | **3.522** | 10.7 | 82.2 | 89.9 | 80 | 98→97 | 1017/1286/2342 |
+| t5r2 | 5 | **3.599** | 9.8 | 82.1 | 89.9 | 80 | 97→97 | 1017/1920/864 |
+| t4r2 | 4 | **4.751** | 9.8 | 82.4 | 84.3 | 65 | 96→96 | 1017/1920/864 |
+
+### Mediane burst vs baseline -t 4
+
+| -t | vals | mediana | Δ vs t4 | die max |
+|---:|---|---:|---:|---:|
+| **4** | 5.611, 4.751 | **5.181** | 0% | 92.0 |
+| **5** | 4.360, 3.599 | **3.980** | **−23.2%** | 90.8 |
+| **6** | 3.367, 3.522 | **3.445** | **−33.5%** | 90.8 |
+
+**t7:** NO (med t6 3.445 ≪ med t4 5.181).  
+**Vincitore burst:** `-t 4`.
+
+### Sostenuto n=512 (solo vincitore = t4)
+
+| cell | -t | eval tok/s | hit% | die max °C | wall s | batt s→e |
+|---|---:|---:|---:|---:|---:|---|
+| sost_t4_r1 | 4 | **4.341** | 84.8 | 81.0 | 87 | 96→95 |
+| sost_t4_r2 | 4 | **4.364** | 84.8 | 90.3 | 86 | 95→94 |
+| **med t4 sostenuto** | 4 | **4.353** | 84.8 | 90.3 | — | — |
+
+Nessun altro `-t` sul sostenuto: nessuno ha battuto t4 sul burst (≥+5%); la regola «vincitore × sostenuto» fissa t4. Il verdetto non richiede confronto sostenuto multi-t: la regressione burst è già −23%/−33%.
+
+### Freq (sysfs)
+
+Leggibile. Pattern tipico sotto carico: little ~1.0–2.0 GHz, mid ~1.2–2.8 GHz, big spesso throttle a **864 kHz** (ceiling termico già noto). Non c'è evidenza che `-t 5/6` reclutino gli A510 in modo utile: il decode peggiora in modo monotono col thread count (allineato a llama.rn prefill −32% a 6 thread).
+
+### Verdetto (regole mandato)
+
+| regola | esito |
+|---|---|
+| un -t batte 4 di ≥+5% **anche** sul sostenuto | **NO** — nessuno batte 4 sul burst |
+| vince solo sul burst ma perde sul sostenuto | n/a |
+| tutto entro ±3% | **NO** — t5/t6 sono −23%/−33% (fuori banda in peggio) |
+
+**Verdetto: RESTA_4 (e anzi 4 è strettamente migliore).**  
+Non «chiuso ±3%»: la predizione «±0» è **falsificata in direzione opposta** — più thread **danneggiano** il decode, non sono neutri. Adozione config: **nessuna** (resta `-t 4`). Gate a gualt: nessuna proposta di cambio.
+
+### Batteria / device
+
+```text
+plugged: UNPLUGGED (tutto il run)
+batt: 100% → 94%
+die max observed: 92.0 C (t4r1; sotto HARD 98; guardrail ABORT_MEM combinato non scattato)
+nproc: 6–8
+screen_off_timeout: 7200000 durante → ripristino 1800000
+CAMPAIGN sha: 1ca51420… match
+wall totale: ~13 min
+```
+
+**Nota condizioni:** report usa **«condizioni piene: UNPLUGGED 100%»** (misura `termux-battery-status` a preflight). La nota «timing marginali a 39%» del briefing iniziale è **superata** dal rifornimento pre-go di gualt.
 
 ---
 
@@ -203,11 +274,10 @@ CAMPAIGN sha: 1ca51420… match
 
 ## Ripresa (prossima sessione)
 
-1. Attendere fine download Q2_K_XL + `sha256sum` vs `96b9c0af…`.
-2. Dump per-tensor → se esperti i-quant, STOP buco 1.
-3. 1b PPL (in carica ok) poi velocità staccato.
-4. Se batteria/tempo: buco 2 thread.
-5. Buco 3 solo con gualt presente.
+1. ~~1a~~ DONE (g=1.297 GO_CONDIZIONATO).
+2. ~~1b~~ CHIUSO (Q2_K_XL esperti 100% i-quant).
+3. ~~2 thread~~ DONE — **RESTA_4** (t5 −23%, t6 −34% burst).
+4. **Buco 3 solo con gualt presente** (cooling fisico).
 
 ---
 
@@ -219,8 +289,13 @@ CAMPAIGN sha: 1ca51420… match
 | `results/buchi/1a_results_clean.csv` | tabella clean ABBA |
 | `results/buchi/1a_summary_clean.txt` | g=1.2971 GO_CONDIZIONATO |
 | `results/buchi/runs/*.txt` | raw llama-bench |
-| `results/buchi/run_1a_formato.sh` | harness |
+| `results/buchi/run_1a_formato.sh` | harness 1a |
 | `results/buchi/1a_console.log` | flight console (include A2 orfano pre-clean) |
+| `results/buchi/run_2_thread_sweep.sh` | harness buco 2 |
+| `results/buchi/thread/runs.csv` | celle burst+sostenuto |
+| `results/buchi/thread/summary.txt` | verdetto RESTA_4 |
+| `results/buchi/thread/flight.log` | flight recorder |
+| `results/buchi/thread/runs/*.summary.txt` | per-cella |
 
 ---
 

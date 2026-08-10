@@ -1,0 +1,11 @@
+=== BURST n=200 ===
+t=4 vals=[5.611, 4.751] med=5.181 die_max=92.0 delta_vs_t4=0.0
+t=5 vals=[4.36, 3.599] med=3.9795000000000003 die_max=90.8 delta_vs_t4=-23.190503763752165
+t=6 vals=[3.367, 3.522] med=3.4444999999999997 die_max=90.8 delta_vs_t4=-33.516695618606455
+=== SOSTENUTO n=512 ===
+t=4 vals=[4.341, 4.364] med=4.3525 die_max=90.3 delta_vs_t4=0.0
+=== VERDICT ===
+deltas_burst={4: 0.0, 5: -23.190503763752165, 6: -33.516695618606455}
+deltas_sost={4: 0.0}
+verdict=RESTA_4 (nessun +5% sostenuto; best burst t=4 0.00%)
+prediction_a_verbale=t5/t6 ±0 vs t4

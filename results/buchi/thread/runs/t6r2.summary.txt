@@ -1,0 +1,22 @@
+label=t6r2
+threads=6
+n_gen=200
+run_type=burst
+rc=0
+wall_s=80
+prompt_tok_s=10.7
+eval_tok_s=3.522
+n_prompt=121
+expert_hit_rate=82.2
+mib_per_token=29.16
+drop_pct=6.1
+memfree_min_mb=36
+vmhwm_mb=3912
+die_max_c=89.9
+batt_s=98 batt_e=97
+die_s=49.4 die_e=61.6
+freq_s=cpu0=1017600;cpu4=1286400;cpu7=2342400
+freq_e=cpu0=556800;cpu4=1171200;cpu7=864000
+nproc=7
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+drop_f=0.65

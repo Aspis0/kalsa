@@ -1,0 +1,22 @@
+label=sost_t4_r2
+threads=4
+n_gen=512
+run_type=sostenuto
+rc=0
+wall_s=86
+prompt_tok_s=11.0
+eval_tok_s=4.364
+n_prompt=121
+expert_hit_rate=84.8
+mib_per_token=27.21
+drop_pct=5.7
+memfree_min_mb=58
+vmhwm_mb=3878
+die_max_c=90.3
+batt_s=95 batt_e=94
+die_s=49.0 die_e=58.5
+freq_s=cpu0=1017600;cpu4=1785600;cpu7=864000
+freq_e=cpu0=1670400;cpu4=1401600;cpu7=1708800
+nproc=6
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+drop_f=0.65

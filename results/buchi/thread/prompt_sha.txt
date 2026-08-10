@@ -1,0 +1,4 @@
+prompt_sha256=bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf
+drop_f=0.65
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+prediction=t5/t6 within ±0 of t4

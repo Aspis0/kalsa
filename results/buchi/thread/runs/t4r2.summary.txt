@@ -1,0 +1,22 @@
+label=t4r2
+threads=4
+n_gen=200
+run_type=burst
+rc=0
+wall_s=65
+prompt_tok_s=9.8
+eval_tok_s=4.751
+n_prompt=121
+expert_hit_rate=82.4
+mib_per_token=28.59
+drop_pct=6.1
+memfree_min_mb=14
+vmhwm_mb=3877
+die_max_c=84.3
+batt_s=96 batt_e=96
+die_s=49.0 die_e=62.4
+freq_s=cpu0=1017600;cpu4=1920000;cpu7=864000
+freq_e=cpu0=556800;cpu4=1286400;cpu7=864000
+nproc=6
+bin_sha256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+drop_f=0.65

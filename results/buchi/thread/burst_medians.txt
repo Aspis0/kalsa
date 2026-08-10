@@ -1,0 +1,12 @@
+med_t4=5.181
+med_t5=3.9795000000000003
+med_t6=3.4444999999999997
+vals_t4=[5.611, 4.751]
+vals_t5=[4.36, 3.599]
+vals_t6=[3.367, 3.522]
+t7=NO
+winner_burst_t=4
+winner_burst_med=5.181
+delta_t4_vs_t4_pct=0.00
+delta_t5_vs_t4_pct=-23.19
+delta_t6_vs_t4_pct=-33.52
