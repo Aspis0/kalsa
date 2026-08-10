@@ -1,26 +1,32 @@
 /**
- * Build llama.rn's native layer FROM SOURCE when KALSA_LLAMA_FROM_SOURCE=1.
+ * Build llama.rn's native layer FROM SOURCE by default.
  *
  * WHY THIS EXISTS: llama.rn ships PREBUILT jniLibs (downloaded by its npm
  * postinstall as llama-rn-android-jni-libs.tar.gz) and its android/build.gradle
  * reads `rnllamaBuildFromSource` (default "false") to decide whether to compile
- * cpp/ instead. With the default, every patch under patches/llama.rn+*.patch is
+ * cpp/ instead. With prebuilt, every patch under patches/llama.rn+*.patch is
  * applied to source files that are NEVER COMPILED — the app keeps running the
- * upstream binary. That silently invalidated three native patches and two
- * diagnostics (2026-08-09): the DFlash loader gate, the restored-session
- * checkpoint, and the KVDIAG lines all had zero observable effect for the same
- * reason.
+ * upstream binary. That silently invalidated native patches and diagnostics
+ * (2026-08-09): DFlash loader gate, restored-session checkpoint, KVDIAG,
+ * set_best_cores, and n_threads_batch all had zero effect for the same reason.
  *
- * Building from source costs a full llama.cpp compile per ABI, so it stays
- * opt-in: set KALSA_LLAMA_FROM_SOURCE=1 for runs that must exercise the
- * patches, and assert the marker afterwards (scripts/assert-native-patch.sh).
+ * POLICY (source-build default): compile cpp/ into every build so ALL Kalsa
+ * native patches take effect. Explicit opt-out with KALSA_LLAMA_FROM_SOURCE=0
+ * restores the prebuilt-JNI path for faster local iteration. The marker assert
+ * (scripts/assert-native-patch.sh, runtime check in AppShell) catches regressions
+ * where the binary lacks "kalsa-native-patches".
+ *
+ *   undefined / "1" / anything else → rnllamaBuildFromSource=true (source)
+ *   "0"                            → leave gradle default (prebuilt)
  */
 const { withGradleProperties } = require("expo/config-plugins");
 
 const PROPERTY = "rnllamaBuildFromSource";
 
 const withLlamaFromSource = (config) => {
-  if (process.env.KALSA_LLAMA_FROM_SOURCE !== "1") return config;
+  // Opt-out only: explicit "0" keeps prebuilt jniLibs. All other values
+  // (unset, "1", empty) compile from source so patches/ take effect.
+  if (process.env.KALSA_LLAMA_FROM_SOURCE === "0") return config;
 
   return withGradleProperties(config, (cfg) => {
     const existing = cfg.modResults.find(

@@ -144,6 +144,24 @@ const DOWNLOAD_NOTIFY_THROTTLE_MS = 2_000;
  * Untranslated on-device diagnostic string from a thrown value.
  * Suppresses empty / bare "Error:" noise; truncates surrogate-safe to 400 chars.
  */
+/**
+ * Non-blocking native-patch marker check. When systemInfo is present and
+ * lacks "kalsa-native-patches", the build used prebuilt jniLibs and every
+ * Kalsa cpp/ patch is inactive. Never throws; skip silently when unknown
+ * (idempotent skip-reload path leaves systemInfo undefined).
+ */
+function warnIfNativePatchesInactive(systemInfo: string | undefined): void {
+  try {
+    if (typeof systemInfo !== "string" || systemInfo.length === 0) return;
+    if (systemInfo.includes("kalsa-native-patches")) return;
+    console.warn(
+      "[kalsa-native] llama.rn not built from patched source — native patches inactive",
+    );
+  } catch {
+    // never throw from a diagnostic assert
+  }
+}
+
 function rawErrorDetail(error: unknown): string | null {
   let rawSource: string;
   if (error instanceof Error) {
@@ -1124,6 +1142,7 @@ export function AppShell() {
       const effective = initResult.effectiveNCtx;
       chatEngineCtxRef.current = effective;
       setChatEngineCtx(effective);
+      warnIfNativePatchesInactive(initResult.systemInfo);
       setModelState("ready");
       // End-based clear too: two concurrent ensures (double-tap in the probe
       // window) where the first fails and the second succeeds must not leave
@@ -1393,6 +1412,7 @@ export function AppShell() {
       const effective = initResult.effectiveNCtx;
       chatEngineCtxRef.current = effective;
       setChatEngineCtx(effective);
+      warnIfNativePatchesInactive(initResult.systemInfo);
       setModelState("ready");
       // Same end-based clear as ensureEngineForModel: no stale banner on ready.
       setModelError(null);

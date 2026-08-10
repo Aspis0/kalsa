@@ -540,6 +540,12 @@ export type EngineInitOptions = {
 export type EngineInitResult = {
   /** n_ctx actually passed to initLlama (post memory-clamp). */
   effectiveNCtx: number;
+  /**
+   * llama.rn systemInfo string when a fresh init ran (contains
+   * "kalsa-native-patches" when cpp/ was built from patched source).
+   * Absent on idempotent skip — callers must treat missing as "unknown".
+   */
+  systemInfo?: string;
 };
 
 /**
@@ -612,14 +618,9 @@ export function initEngine(
     // Prefill threads — measured dual on G99 (decode 2 / prefill 8).
     // JSI reads snake_case "n_threads_batch" into cpuparams_batch.n_threads
     // (Kalsa patch on JSIParams.cpp). Upstream ContextParams types lag, so we
-    // cast only this field. When equal to decode, omit and let llama.cpp
-    // default batch threads to n_threads (same pattern as optional kv_unified).
+    // cast only this field. Decision is deferred until AFTER applyEngineOverride
+    // so a bench nThreads that matches prefill does not still send the field.
     const nThreadsPrefill = tuning.nThreadsPrefill;
-    const prefillDiffers =
-      typeof nThreadsPrefill === "number" &&
-      Number.isFinite(nThreadsPrefill) &&
-      nThreadsPrefill > 0 &&
-      nThreadsPrefill !== tuning.n_threads;
 
     const params: ContextParams = {
       model: modelPath,
@@ -632,13 +633,6 @@ export function initEngine(
       // Measured SoC preset / capacity rule / fallback 4 (tuning.nThreadsSource).
       // Set BEFORE engineOverride so bench:engine threads=N still wins below.
       n_threads: tuning.n_threads,
-      // Prefill / batch threads — snake_case only (JSI key). Cast: published
-      // ContextParams has no n_threads_batch yet; native binding does.
-      ...(prefillDiffers
-        ? ({
-            n_threads_batch: nThreadsPrefill,
-          } as Partial<ContextParams> & { n_threads_batch?: number })
-        : {}),
       // Backend policy: metal→99 on iOS; cpu-only→0 on Android (HTP0 fatal).
       n_gpu_layers: nGpuLayersForBackend(tuning.backend),
       flash_attn_type: "auto",
@@ -652,6 +646,22 @@ export function initEngine(
     // Bench-only engineOverride: apply after production defaults; absent fields keep production.
     // Android GPU gate lives in applyEngineOverride (never override the n_gpu_layers guard above).
     applyEngineOverride(params, options.engineOverride, Platform.OS);
+
+    // Invariant: n_threads_batch present ONLY when final decode != prefill.
+    // Compare post-override params.n_threads (not pre-override tuning.n_threads)
+    // so G99 (decode 2 / prefill 8) + bench nThreads=8 omits the field rather
+    // than sending n_threads_batch: 8 with both sides already equal.
+    const prefillDiffers =
+      typeof nThreadsPrefill === "number" &&
+      Number.isFinite(nThreadsPrefill) &&
+      nThreadsPrefill > 0 &&
+      nThreadsPrefill !== params.n_threads;
+    if (prefillDiffers) {
+      // Prefill / batch threads — snake_case only (JSI key). Cast: published
+      // ContextParams has no n_threads_batch yet; native binding does.
+      (params as ContextParams & { n_threads_batch?: number }).n_threads_batch =
+        nThreadsPrefill;
+    }
 
     // MTP (NextN): speculative decoding embedded — ~1.5-2x più veloce.
     // La cache del DRAFT viene quantizzata come la target (non F16 di default).
@@ -790,7 +800,13 @@ export function initEngine(
     }
     // Report effective n_ctx so AppShell can single-source document routing
     // and long-chat budgeting against the loaded engine (not pre-clamp catalog).
-    return { effectiveNCtx };
+    // systemInfo carries the "kalsa-native-patches" marker when cpp/ was built
+    // from patched source (RNLlamaJSI appends it); absent on skip-reload path.
+    return {
+      effectiveNCtx,
+      systemInfo:
+        typeof context?.systemInfo === "string" ? context.systemInfo : undefined,
+    };
   });
 }
 

@@ -180,3 +180,17 @@ index 9debb77..4e62827 100644
  }
  
  void llama_rn_slot::reset_speculative() {
+diff --git a/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp b/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
+index 37f5f4d..a1b2c3d 100644
+--- a/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
++++ b/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
+@@ -638,6 +638,9 @@
+ 
+                          addContext(contextId, (long)ctx);
+ 
+                          std::string system_info = common_params_get_system_info(ctx->params);
++                         // Kalsa: runtime/CI marker that patched cpp/ was compiled into the binary.
++                         // scripts/assert-native-patch.sh greps librnllama.so; AppShell reads systemInfo.
++                         system_info += " | kalsa-native-patches";
+ 
+                          return [gpuEnabled, reasonNoGPU, system_info, usedDevices, contextId](jsi::Runtime& rt) {
