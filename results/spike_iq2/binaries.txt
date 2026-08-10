@@ -1,0 +1,6 @@
+ik_bin=/data/data/com.termux/files/home/build/ik_llama-bench/bin/llama-bench
+ik_commit=ik commit: a7c81affa48c6800d63111bdb33469a01d062daa
+-rwx------. 1 u0_a344 u0_a344 4221944 Aug  9 20:58 /data/data/com.termux/files/home/build/ik_llama-bench/bin/llama-bench
+ref_bin=/data/data/com.termux/files/home/build/llamacpp-ref-bench/bin/llama-bench
+ref_commit=ref commit: 5236140e514d5ceef2b801815b3ba9330f19732e
+-rwx------. 1 u0_a344 u0_a344 5960 Aug  9 21:01 /data/data/com.termux/files/home/build/llamacpp-ref-bench/bin/llama-bench

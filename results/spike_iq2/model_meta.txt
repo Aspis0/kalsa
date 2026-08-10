@@ -1,0 +1,10 @@
+repo: unsloth/Llama-3.2-3B-Instruct-GGUF
+file_iq2: Llama-3.2-3B-Instruct-UD-IQ2_XXS.gguf
+size_iq2: 1046579648
+lfs_sha256_iq2: 71aae376aa27117203ae4311aba8733408a7caf437a7367da8067017f1e8a25d
+git_oid_iq2: 8b977aaa710a8cba10d65109ce48dcbf1809f82b
+file_iq3: Llama-3.2-3B-Instruct-UD-IQ3_XXS.gguf
+size_iq3: 1370147264
+lfs_sha256_iq3: 33d2b042a1bc0ab57b046328a89f27616a973c98fea7ed9163b295bd7afc2073
+git_oid_iq3: fb68804cd2379badf42885deebcf99cb04092423
+dense: yes (Llama-3.2-3B-Instruct, not MoE)

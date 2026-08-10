@@ -1,0 +1,175 @@
+[1/145] Building C object ggml/src/CMakeFiles/ggml.dir/ggml-alloc.c.o
+[2/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/ggml-moe-prefetch.cpp.o
+[3/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/ggml-backend.cpp.o
+[4/145] Building C object ggml/src/CMakeFiles/ggml.dir/ggml-quants.c.o
+[5/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/iqk_flash_attn.cpp.o
+[6/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/iqk_mul_mat.cpp.o
+[7/145] Building C object ggml/src/CMakeFiles/ggml.dir/ggml.c.o
+/data/data/com.termux/files/home/src/ik_llama.cpp/ggml/src/ggml.c:23666:15: warning: 'break' will never be executed [-Wunreachable-code-break]
+ 23666 |             } break;
+       |               ^~~~~
+1 warning generated.
+[8/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/fa/iqk_fa_576_512.cpp.o
+[9/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/fa/iqk_fa_320_256.cpp.o
+[10/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/fa/iqk_fa_512_512.cpp.o
+[11/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/fa/iqk_fa_256_256.cpp.o
+[12/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/fa/iqk_fa_192_128.cpp.o
+[13/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/fa/iqk_fa_192_192.cpp.o
+[14/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/iqk_gemm_floats.cpp.o
+[15/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/iqk_gemm_kquants.cpp.o
+[16/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/iqk_gemm_ktquants.cpp.o
+[17/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/iqk_gemm_iquants.cpp.o
+[18/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/iqk_gemm_iqk_quants.cpp.o
+[19/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/fa/iqk_fa_128_128.cpp.o
+[20/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/iqk_gemm_1bit.cpp.o
+[21/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/fa/iqk_fa_64_64.cpp.o
+[22/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/iqk_cpu_ops.cpp.o
+[23/145] Building C object ggml/src/CMakeFiles/ggml.dir/ggml-aarch64.c.o
+[24/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/fa/iqk_fa_96_96.cpp.o
+[25/145] Building CXX object src/CMakeFiles/llama.dir/llama-spec-features.cpp.o
+[26/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/iqk_gemm_legacy_quants.cpp.o
+[27/145] Building CXX object src/CMakeFiles/llama.dir/llama-spec-features-dflash.cpp.o
+[28/145] Building CXX object src/CMakeFiles/llama.dir/llama-dflash.cpp.o
+[29/145] Building CXX object src/CMakeFiles/llama.dir/llama-dsv4.cpp.o
+[30/145] Building CXX object ggml/src/CMakeFiles/ggml.dir/iqk/iqk_quantize.cpp.o
+[31/145] Linking CXX shared library ggml/src/libggml.so
+[32/145] Building CXX object src/CMakeFiles/llama.dir/llama-vocab.cpp.o
+[33/145] Building CXX object src/CMakeFiles/llama.dir/llama.cpp.o
+[34/145] Building CXX object src/CMakeFiles/llama.dir/llama-mmap.cpp.o
+[35/145] Building CXX object src/CMakeFiles/llama.dir/llama-sampling.cpp.o
+[36/145] Building CXX object src/CMakeFiles/llama.dir/llama-grammar.cpp.o
+[37/145] Building CXX object src/CMakeFiles/llama.dir/llama-model-loader.cpp.o
+[38/145] Building CXX object src/CMakeFiles/llama.dir/llama-build-context.cpp.o
+[39/145] Building CXX object src/CMakeFiles/llama.dir/llama-reload.cpp.o
+[40/145] Building CXX object src/CMakeFiles/llama.dir/llama-arch.cpp.o
+[41/145] Building CXX object src/CMakeFiles/llama.dir/llama-quantize.cpp.o
+[42/145] Building CXX object src/CMakeFiles/llama.dir/llama-model.cpp.o
+[43/145] Building CXX object src/CMakeFiles/llama.dir/llama-hparams.cpp.o
+[44/145] Building CXX object src/CMakeFiles/llama.dir/llama-delta-net.cpp.o
+[45/145] Building CXX object src/CMakeFiles/llama.dir/llama-load-tensors.cpp.o
+[46/145] Building CXX object src/CMakeFiles/llama.dir/unicode-script-data.cpp.o
+[47/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_llama.cpp.o
+[48/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_mistral3.cpp.o
+[49/145] Building CXX object src/CMakeFiles/llama.dir/unicode.cpp.o
+[50/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_deci.cpp.o
+[51/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_baichuan.cpp.o
+[52/145] Building CXX object src/CMakeFiles/llama.dir/unicode-data.cpp.o
+[53/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_xverse.cpp.o
+[54/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_falcon.cpp.o
+[55/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_grok.cpp.o
+[56/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_starcoder.cpp.o
+[57/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_dbrx.cpp.o
+[58/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_starcoder2.cpp.o
+[59/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_bert.cpp.o
+[60/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_refact.cpp.o
+[61/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_bloom.cpp.o
+[62/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_mpt.cpp.o
+[63/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_stablelm.cpp.o
+[64/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_seedoss.cpp.o
+[65/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_laguna.cpp.o
+[66/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_step35.cpp.o
+[67/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_qwen.cpp.o
+[68/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_qwen2.cpp.o
+[69/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_qwen3.cpp.o
+[70/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_qwen3next.cpp.o
+[71/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_mellum.cpp.o
+[72/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_qwen35.cpp.o
+[73/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_phi2.cpp.o
+[74/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_plamo.cpp.o
+[75/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_gpt2.cpp.o
+[76/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_phi3.cpp.o
+[77/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_orion.cpp.o
+[78/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_codeshell.cpp.o
+[79/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_internlm2.cpp.o
+[80/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_minicpm.cpp.o
+[81/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_gemma.cpp.o
+[82/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_gemma3.cpp.o
+[83/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_gemma2.cpp.o
+[84/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_dflash.cpp.o
+[85/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_mamba.cpp.o
+[86/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_gemma4.cpp.o
+[87/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_command_r.cpp.o
+[88/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_olmo.cpp.o
+[89/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_gptneox.cpp.o
+[90/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_openelm.cpp.o
+[91/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_arctic.cpp.o
+[92/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_deepseek2.cpp.o
+[93/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_openpangu.cpp.o
+[94/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_deepseek4.cpp.o
+[95/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_glm4.cpp.o
+[96/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_bitnet.cpp.o
+[97/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_cohere2.cpp.o
+[98/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_cohere2_moe.cpp.o
+[99/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_t5.cpp.o
+[100/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_jais.cpp.o
+[101/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_chatglm.cpp.o
+[102/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_dots1.cpp.o
+[103/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_ernie45.cpp.o
+[104/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_hunyuan.cpp.o
+[105/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_openai.cpp.o
+[106/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_mimo2.cpp.o
+[107/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_bailingmoe2.cpp.o
+[108/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_minimaxm2.cpp.o
+[109/145] Generating build details from Git
+-- Found Git: /data/data/com.termux/files/usr/bin/git (found version "2.55.0")
+[110/145] Building CXX object common/CMakeFiles/build_info.dir/build-info.cpp.o
+[111/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_minimaxm3.cpp.o
+[112/145] Building CXX object src/CMakeFiles/llama.dir/graphs/build_smollm3.cpp.o
+[113/145] Linking CXX shared library src/libllama.so
+[114/145] Building CXX object common/CMakeFiles/common.dir/chat-auto-parser-helpers.cpp.o
+[115/145] Building CXX object common/CMakeFiles/common.dir/chat-auto-parser-generator.cpp.o
+[116/145] Building CXX object common/CMakeFiles/common.dir/chat-peg-parser.cpp.o
+[117/145] Building CXX object common/CMakeFiles/common.dir/chat-diff-analyzer.cpp.o
+[118/145] Building CXX object common/CMakeFiles/common.dir/console.cpp.o
+[119/145] Building CXX object common/CMakeFiles/common.dir/sampling.cpp.o
+[120/145] Building CXX object common/CMakeFiles/common.dir/llguidance.cpp.o
+[121/145] Building CXX object common/CMakeFiles/common.dir/train.cpp.o
+[122/145] Building CXX object common/CMakeFiles/common.dir/json-partial.cpp.o
+[123/145] Building CXX object common/CMakeFiles/common.dir/log.cpp.o
+[124/145] Building CXX object common/CMakeFiles/common.dir/json-schema-to-grammar.cpp.o
+[125/145] Building CXX object common/CMakeFiles/common.dir/ngram-cache.cpp.o
+[126/145] Building CXX object common/CMakeFiles/common.dir/ngram-map.cpp.o
+[127/145] Building CXX object common/CMakeFiles/common.dir/common.cpp.o
+In file included from /data/data/com.termux/files/home/src/ik_llama.cpp/common/common.cpp:12:
+In file included from /data/data/com.termux/files/home/src/ik_llama.cpp/common/common.h:14:
+In file included from /data/data/com.termux/files/home/src/ik_llama.cpp/common/sampling.h:4:
+In file included from /data/data/com.termux/files/home/src/ik_llama.cpp/src/./llama-grammar.h:3:
+In file included from /data/data/com.termux/files/home/src/ik_llama.cpp/src/./llama-impl.h:15:
+In file included from /data/data/com.termux/files/usr/bin/../../usr/include/c++/v1/vector:363:
+/data/data/com.termux/files/usr/bin/../../usr/include/c++/v1/locale:3213:1: warning: 'wstring_convert<std::codecvt_utf8<char32_t>, char32_t>' is deprecated [-Wdeprecated-declarations]
+ 3213 | wstring_convert<_Codecvt, _Elem, _WideAlloc, _ByteAlloc>::to_bytes(const _Elem* __frm, const _Elem* __frm_end) {
+      | ^
+/data/data/com.termux/files/usr/bin/../../usr/include/c++/v1/locale:3117:12: note: in instantiation of member function 'std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>::to_bytes' requested here
+ 3117 |     return to_bytes(__wstr.data(), __wstr.data() + __wstr.size());
+      |            ^
+/data/data/com.termux/files/home/src/ik_llama.cpp/common/common.cpp:3853:52: note: in instantiation of member function 'std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t>::to_bytes' requested here
+ 3853 |         std::string filename_reencoded = converter.to_bytes(filename_utf32);
+      |                                                    ^
+/data/data/com.termux/files/usr/bin/../../usr/include/c++/v1/locale:3070:28: note: 'wstring_convert<std::codecvt_utf8<char32_t>, char32_t>' has been explicitly marked deprecated here
+ 3070 | class _LIBCPP_TEMPLATE_VIS _LIBCPP_DEPRECATED_IN_CXX17 wstring_convert {
+      |                            ^
+/data/data/com.termux/files/usr/bin/../../usr/include/c++/v1/__config:725:41: note: expanded from macro '_LIBCPP_DEPRECATED_IN_CXX17'
+  725 | #    define _LIBCPP_DEPRECATED_IN_CXX17 _LIBCPP_DEPRECATED
+      |                                         ^
+/data/data/com.termux/files/usr/bin/../../usr/include/c++/v1/__config:698:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+  698 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+      |                                                 ^
+1 warning generated.
+[128/145] Building CXX object common/CMakeFiles/common.dir/unicode.cpp.o
+[129/145] Building CXX object common/CMakeFiles/common.dir/ngram-mod.cpp.o
+[130/145] Building CXX object common/CMakeFiles/common.dir/spec-tuner.cpp.o
+[131/145] Building CXX object common/CMakeFiles/common.dir/speculative.cpp.o
+[132/145] Building CXX object common/CMakeFiles/common.dir/regex-partial.cpp.o
+[133/145] Building CXX object common/CMakeFiles/common.dir/peg-parser.cpp.o
+[134/145] Building CXX object common/CMakeFiles/common.dir/reasoning-budget.cpp.o
+[135/145] Building CXX object common/CMakeFiles/common.dir/suffix-tree.cpp.o
+[136/145] Building CXX object common/CMakeFiles/common.dir/jinja/lexer.cpp.o
+[137/145] Building CXX object common/CMakeFiles/common.dir/jinja/runtime.cpp.o
+[138/145] Building CXX object common/CMakeFiles/common.dir/jinja/parser.cpp.o
+[139/145] Building CXX object common/CMakeFiles/common.dir/jinja/string.cpp.o
+[140/145] Building CXX object common/CMakeFiles/common.dir/jinja/caps.cpp.o
+[141/145] Building CXX object common/CMakeFiles/common.dir/jinja/value.cpp.o
+[142/145] Building CXX object examples/llama-bench/CMakeFiles/llama-bench.dir/llama-bench.cpp.o
+[143/145] Building CXX object common/CMakeFiles/common.dir/chat.cpp.o
+[144/145] Linking CXX static library common/libcommon.a
+[145/145] Linking CXX executable bin/llama-bench

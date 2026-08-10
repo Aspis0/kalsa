@@ -1,0 +1,18 @@
+S0_COMPLETE 2026-08-09T21:03:14-04:00
+S1_STATUS=PENDING waiting for unplugged phone battery>=40
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 37.1,
+  "voltage": 3916,
+  "current": -362000,
+  "current_average": 719,
+  "percentage": 49,
+  "level": 49,
+  "scale": 100,
+  "charge_counter": 1845000,
+  "cycle": 0
+}
