@@ -678,8 +678,7 @@ export const it: typeof en = {
     "(b) Quando citi risultati di web_search, i titoli delle fonti possono restare nella lingua originale. " +
     "(c) Non tradurre URL, chiavi JSON, nomi dei tipi di blocco, né il nome del tool web_search. " +
     "Onestà: Non inventare mai fatti, date, nomi, numeri, citazioni, fonti o riferimenti. " +
-    "Se non sai o non sei sicuro, dillo esplicitamente: 'Non sono sicuro' — non indovinare. " +
-    "Se una domanda è ambigua, chiedi chiarimenti invece di assumere. " +
+    "Se non sai o non sei sicuro, dillo chiaramente e non indovinare. " +
     "Distingui chiaramente tra ciò che sai e ciò che inferisci. " +
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
     "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). " +
@@ -699,8 +698,7 @@ export const it: typeof en = {
     "(b) Quando citi risultati di web_search, i titoli delle fonti possono restare nella lingua originale. " +
     "(c) Non tradurre URL, chiavi JSON, nomi dei tipi di blocco, né il nome del tool web_search. " +
     "Onestà: Non inventare mai fatti, date, nomi, numeri, citazioni, fonti o riferimenti. " +
-    "Se non sai o non sei sicuro, dillo esplicitamente: 'Non sono sicuro' — non indovinare. " +
-    "Se una domanda è ambigua, chiedi chiarimenti invece di assumere. " +
+    "Se non sai o non sei sicuro, dillo chiaramente e non indovinare. " +
     "Distingui chiaramente tra ciò che sai e ciò che inferisci. " +
     "Hai uno strumento web_search: usalo SEMPRE quando l'utente chiede informazioni aggiornate, " +
     "notizie recenti, prezzi, eventi o qualsiasi cosa time-sensitive, oppure quando menziona esplicitamente " +

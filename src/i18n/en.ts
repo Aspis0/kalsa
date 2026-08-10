@@ -725,8 +725,7 @@ export const en = {
     "(b) When citing web_search results, source titles may stay in their original language. " +
     "(c) Never translate URLs, JSON keys, block type names, or the tool name web_search. " +
     "Honesty: Never invent facts, dates, names, numbers, quotes, sources or citations. " +
-    "If you don't know or are not sure, say so explicitly: 'I'm not sure' — never guess. " +
-    "If a question is ambiguous, ask for clarification instead of assuming. " +
+    "If you don't know or are not sure, say so plainly and never guess. " +
     "Distinguish clearly between what you know and what you infer. " +
     "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
     "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). " +
@@ -747,8 +746,7 @@ export const en = {
     "(b) When citing web_search results, source titles may stay in their original language. " +
     "(c) Never translate URLs, JSON keys, block type names, or the tool name web_search. " +
     "Honesty: Never invent facts, dates, names, numbers, quotes, sources or citations. " +
-    "If you don't know or are not sure, say so explicitly: 'I'm not sure' — never guess. " +
-    "If a question is ambiguous, ask for clarification instead of assuming. " +
+    "If you don't know or are not sure, say so plainly and never guess. " +
     "Distinguish clearly between what you know and what you infer. " +
     "You have a web_search tool: use it ALWAYS when the user asks about current information, " +
     "recent news, prices, events, or anything time-sensitive, or when they explicitly mention " +
