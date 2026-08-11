@@ -168,8 +168,19 @@ export const it: typeof en = {
     blockedTier: "Non compatibile con la RAM di questo dispositivo",
     blockedRam: "Memoria libera insufficiente per eseguirlo",
     blockedDisk: "Spazio di archiviazione insufficiente per scaricarlo",
+    tooLarge: "Memoria insufficiente per questo modello",
+    cannotEvaluate: "Impossibile determinare la memoria, libera spazio e riprova",
+    tightNow: "Memoria ridotta — la rigenerazione non è supportata, libera",
+    memoryUnknown: "Memoria non determinata — policy usata unknown",
   },
 
+
+  model: {
+    tooLarge: "Memoria insufficiente per questo modello",
+    cannotEvaluate: "Impossibile determinare la memoria, libera spazio e riprova",
+    tightNow: "Memoria ridotta — la rigenerazione non è supportata, libera",
+    memoryUnknown: "Memoria non determinata — policy usata unknown",
+  },
   voice: {
     title: "Voce",
     hint: "Riconoscimento vocale e lettura ad alta voce sul dispositivo. L'audio non esce mai dal telefono.",
@@ -391,6 +402,15 @@ export const it: typeof en = {
     a11yAttach: "Aggiungi allegato",
     a11yStop: "Interrompi generazione",
     a11ySend: "Invia",
+    regenerate: "Rigenera",
+    edit: "Modifica",
+    cancelRegenerate: "Annulla rigenera",
+    regenCostHint: "Ricarica la risposta — può richiedere diversi secondi",
+    regenBusy: "Rigenera già in corso",
+    unloaded: "Scaricato per pressione di memoria",
+    lazyReload: "Tocca per ricaricare",
+    thermalHot: "Telefono caldo",
+    regenFailed: "Rigenera fallita",
   },
 
   notify: {

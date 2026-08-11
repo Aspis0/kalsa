@@ -67,6 +67,10 @@ import {
   saveEngineSession,
   translateText,
 } from "../engine/LlamaService";
+import {
+  regenHandleSendPassRef,
+  regenInFlightRef,
+} from "../engine/regenState";
 import { miniappStripMakesKvNonReproducible } from "../engine/kvReproducibility";
 import { historyHash } from "../engine/sessionPersistence";
 import { createStreamCoalescer } from "../engine/streamCoalescer";
@@ -149,6 +153,8 @@ type Message = {
   streaming?: boolean;
   /** Terminal marker: generation was interrupted mid-stream (partial text kept). */
   interrupted?: boolean;
+  /** True when the user edited this message text (edit-then-regen flow). */
+  edited?: boolean;
   // Feature 1: status history
   statusLabel?: string;
   statusHistory?: string[];
@@ -478,6 +484,9 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
     // Transient `streaming` is never restored (no eternal spinners).
     if (record.interrupted === true && message.text.trim().length > 0) {
       message.interrupted = true;
+    }
+    if (record.edited === true) {
+      message.edited = true;
     }
     // Gli stati transitori non vengono mai ripristinati: niente spinner eterni.
     if (typeof record.statusLabel === "string") message.statusLabel = record.statusLabel.slice(0, 200);
@@ -825,6 +834,11 @@ export function AiChatPage({
     id: string;
     text: string;
     role: Message["role"];
+  } | null>(null);
+  /** Inline edit of a user message (id + draft text). */
+  const [editingMessage, setEditingMessage] = useState<{
+    id: string;
+    draft: string;
   } | null>(null);
   const [translatingId, setTranslatingId] = useState<string | null>(null);
   const [translationResult, setTranslationResult] = useState<{
@@ -1348,15 +1362,21 @@ export function AiChatPage({
       // is in flight — the composer-side guards (onSubmitEditing, send
       // button) already block this, but handleSend can also be invoked
       // directly (suggestion cards) so it needs its own check too.
+      // regenInFlight blocks concurrent user sends; regenHandleSendPassRef is a
+      // one-shot allow so regenerate/edit can call handleSend without deadlock.
       if (
         !trimmed ||
         sendingRef.current ||
         translationInFlightRef.current ||
         voiceBusyRef.current ||
+        (regenInFlightRef.current && !regenHandleSendPassRef.current) ||
         !!pdfToRender ||
         !historyLoaded
       ) {
         return;
+      }
+      if (regenHandleSendPassRef.current) {
+        regenHandleSendPassRef.current = false;
       }
 
       // U1: this turn's generation token. clearChat() may abort + reset
@@ -1902,7 +1922,143 @@ export function AiChatPage({
     if (activeId) void invalidateEngineSession(activeId);
   }, [setVoicePhase]);
 
-  /** Open message action sheet (Copy + Translate + Read aloud). No-op while streaming / engine busy. */
+  /**
+   * Find the original user text that produced a target message in a slice.
+   * Walks backwards for the nearest user message at or before the end of the slice.
+   */
+  const findOriginalUserText = useCallback((slice: Message[]): string | null => {
+    for (let i = slice.length - 1; i >= 0; i -= 1) {
+      const m = slice[i];
+      if (m && m.role === "user" && typeof m.text === "string" && m.text.trim()) {
+        return m.text;
+      }
+    }
+    return null;
+  }, []);
+
+  /**
+   * Regenerate an assistant reply: truncate to target, re-send original user text.
+   * Reuses handleSend (abort / fit / save / persist). Single-flight via regenInFlightRef.
+   */
+  const regenerate = useCallback(
+    async (targetMsgId: string): Promise<{ ok: true } | { ok: false; reasonKey: string }> => {
+      if (regenInFlightRef.current || sendingRef.current) {
+        return { ok: false, reasonKey: "chat.regenBusy" };
+      }
+      regenInFlightRef.current = true;
+      const snapshot = messagesRef.current.slice();
+      try {
+        const targetIndex = messagesRef.current.findIndex((m) => m.id === targetMsgId);
+        if (targetIndex < 0) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        const slice = messagesRef.current.slice(0, targetIndex + 1);
+        const originalUserText = findOriginalUserText(slice);
+        if (!originalUserText) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        // Truncate to target (keep target and everything before).
+        // For assistant targets we drop the assistant bubble so handleSend can
+        // append a fresh user+assistant pair from the original user text —
+        // but history already has the user message. So truncate BEFORE the
+        // assistant target (keep up to targetIndex - 1 when target is assistant).
+        const target = messagesRef.current[targetIndex];
+        const cutExclusive =
+          target?.role === "assistant" ? targetIndex : targetIndex + 1;
+        const truncated = messagesRef.current.slice(0, cutExclusive);
+        // Drop trailing user message that we will re-send (handleSend appends it).
+        let base = truncated;
+        if (base.length > 0 && base[base.length - 1]?.role === "user") {
+          base = base.slice(0, -1);
+        }
+        setMessages(base);
+        messagesRef.current = base;
+        // One-shot pass so handleSend accepts while regenInFlightRef is true.
+        regenHandleSendPassRef.current = true;
+        await handleSend(originalUserText);
+        return { ok: true };
+      } catch {
+        setMessages(snapshot);
+        messagesRef.current = snapshot;
+        setSending(false);
+        sendingRef.current = false;
+        return { ok: false, reasonKey: "chat.regenFailed" };
+      } finally {
+        regenInFlightRef.current = false;
+        regenHandleSendPassRef.current = false;
+      }
+    },
+    [findOriginalUserText, handleSend],
+  );
+
+  /**
+   * Edit a user message then regenerate from that point.
+   * Atomic splice (edited flag) + truncate + handleSend(newText).
+   */
+  const editMessage = useCallback(
+    async (
+      targetMsgId: string,
+      newText: string,
+    ): Promise<{ ok: true } | { ok: false; reasonKey: string }> => {
+      const trimmed = newText.trim();
+      if (!trimmed) return { ok: false, reasonKey: "chat.regenFailed" };
+      if (regenInFlightRef.current || sendingRef.current) {
+        return { ok: false, reasonKey: "chat.regenBusy" };
+      }
+      regenInFlightRef.current = true;
+      const snapshot = messagesRef.current.slice();
+      try {
+        // Abort any in-flight stream first (uses handleSend's abortRef).
+        if (sendingRef.current) {
+          abortRef.current?.abort();
+          await new Promise((r) => setTimeout(r, 0));
+        }
+        const idx = messagesRef.current.findIndex((m) => m.id === targetMsgId);
+        if (idx < 0) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        const target = messagesRef.current[idx];
+        if (!target || target.role !== "user") {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        // Keep messages before the edited user; drop the user and everything after.
+        // handleSend will re-append the (edited) user text + new assistant.
+        const base = messagesRef.current.slice(0, idx).map((m) => m);
+        setMessages(base);
+        messagesRef.current = base;
+        regenHandleSendPassRef.current = true;
+        // handleSend appends a fresh user message; mark edited after it lands
+        // by patching the last user message once send starts. We pass edited
+        // text as the send body; then stamp edited on the new user bubble.
+        await handleSend(trimmed);
+        // Stamp edited on the user message that handleSend just appended.
+        setMessages((prev) => {
+          const next = prev.slice();
+          for (let i = next.length - 1; i >= 0; i -= 1) {
+            if (next[i]?.role === "user") {
+              next[i] = { ...next[i], text: trimmed, edited: true };
+              break;
+            }
+          }
+          messagesRef.current = next;
+          return next;
+        });
+        return { ok: true };
+      } catch {
+        setMessages(snapshot);
+        messagesRef.current = snapshot;
+        setSending(false);
+        sendingRef.current = false;
+        return { ok: false, reasonKey: "chat.regenFailed" };
+      } finally {
+        regenInFlightRef.current = false;
+        regenHandleSendPassRef.current = false;
+      }
+    },
+    [handleSend],
+  );
+
+  /** Open message action sheet (Copy + Translate + Read aloud + Regen/Edit). No-op while streaming / engine busy. */
   const openMessageMenu = useCallback(
     (id: string, text: string, role: Message["role"], streaming?: boolean) => {
       // Skip while this message streams, a chat turn is in flight, or a translate is running.
@@ -1916,6 +2072,7 @@ export function AiChatPage({
         streaming ||
         sendingRef.current ||
         translationInFlightRef.current ||
+        regenInFlightRef.current ||
         !text.trim()
       ) {
         return;
@@ -2677,12 +2834,117 @@ export function AiChatPage({
                     colors={colors}
                   />
                 ) : null}
+                {messageMenu.role === "assistant" && !sending ? (
+                  <AttachSheetRow
+                    icon={<Sparkles size={18} color={colors.ink} />}
+                    label={t("chat.regenerate")}
+                    onPress={() => {
+                      const id = messageMenu.id;
+                      setMessageMenu(null);
+                      void regenerate(id).then((res) => {
+                        if (!res.ok && res.reasonKey === "chat.regenBusy") {
+                          // silent refuse — already busy
+                        }
+                      });
+                    }}
+                    colors={colors}
+                  />
+                ) : null}
+                {messageMenu.role === "user" && !sending ? (
+                  <AttachSheetRow
+                    icon={<SquarePen size={18} color={colors.ink} />}
+                    label={t("chat.edit")}
+                    onPress={() => {
+                      setEditingMessage({ id: messageMenu.id, draft: messageMenu.text });
+                      setMessageMenu(null);
+                    }}
+                    colors={colors}
+                  />
+                ) : null}
                 <AttachSheetRow
                   icon={<X size={18} color={colors.muted} />}
                   label={t("common.cancel")}
                   onPress={() => setMessageMenu(null)}
                   colors={colors}
                 />
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
+
+      {editingMessage ? (
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={() => setEditingMessage(null)}
+        >
+          <Pressable
+            style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.42)", justifyContent: "center", padding: spacing.md }}
+            onPress={() => setEditingMessage(null)}
+          >
+            <Pressable
+              style={{
+                backgroundColor: colors.shell,
+                borderRadius: radius.xl ?? 24,
+                padding: spacing.md,
+                gap: spacing.sm,
+              }}
+              onPress={() => undefined}
+            >
+              <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+                {t("chat.edit")}
+              </Text>
+              <TextInput
+                value={editingMessage.draft}
+                onChangeText={(v) =>
+                  setEditingMessage((prev) => (prev ? { ...prev, draft: v } : prev))
+                }
+                multiline
+                autoFocus
+                accessibilityLabel={t("chat.edit")}
+                style={{
+                  minHeight: 96,
+                  maxHeight: 200,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                  borderRadius: radius.md ?? 12,
+                  padding: spacing.sm,
+                  color: colors.ink,
+                  textAlignVertical: "top",
+                }}
+              />
+              <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: spacing.sm }}>
+                <Pressable
+                  onPress={() => setEditingMessage(null)}
+                  accessibilityLabel={t("common.cancel")}
+                  style={({ pressed }) => ({
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.sm,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Text style={[typography.bodySm, { color: colors.muted }]}>{t("common.cancel")}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    const id = editingMessage.id;
+                    const draft = editingMessage.draft;
+                    setEditingMessage(null);
+                    void editMessage(id, draft);
+                  }}
+                  accessibilityLabel={t("common.save")}
+                  style={({ pressed }) => ({
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.sm,
+                    backgroundColor: colors.accent,
+                    borderRadius: radius.md ?? 12,
+                    opacity: pressed ? 0.85 : 1,
+                  })}
+                >
+                  <Text style={[typography.bodySm, { color: colors.primaryText }]}>{t("common.save")}</Text>
+                </Pressable>
               </View>
             </Pressable>
           </Pressable>
@@ -3197,6 +3459,11 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
         {m.interrupted ? (
           <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
             {t("chat.interrupted")}
+          </Text>
+        ) : null}
+        {m.edited ? (
+          <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
+            {t("chat.edit")}
           </Text>
         ) : null}
 

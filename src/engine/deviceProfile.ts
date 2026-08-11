@@ -16,7 +16,11 @@ import {
   ramTierMeets,
   type RamTier,
 } from "./contextProfile";
-import { estimateMemory, getAvailableMemoryBytes } from "./memoryEstimate";
+import {
+  estimateMemory,
+  fitMemoryEstimate,
+  getAvailableMemoryBytes,
+} from "./memoryEstimate";
 import { parseCpuPresent, readCpuCapacities } from "./threadProfile";
 
 export type DeviceFamily = "xiaomi" | "samsung" | "pixel" | "generic";
@@ -216,6 +220,81 @@ export function estimateModelNonEvictableMiB(input: {
     return est.nonEvictableMiB;
   } catch {
     return null;
+  }
+}
+
+export type ModelFitReasonKey =
+  | "model.tightNow"
+  | "model.tooLarge"
+  | "model.cannotEvaluate"
+  | "model.memoryUnknown";
+
+export type ModelFitEvaluation = {
+  verdict: "fits" | "tight" | "does_not_fit" | "unknown";
+  reasonKey: ModelFitReasonKey;
+};
+
+/**
+ * Fit a registry model (main GGUF + optional mmproj) against live MemAvailable.
+ * Bundle size = sizeBytes + (mmproj?.sizeBytes ?? 0). Uses fitMemoryEstimate
+ * (repack + compute + KV). reasonKey maps for i18n banners.
+ */
+export function evaluateModelFit(
+  model: {
+    sizeBytes: number;
+    engineCtx: number;
+    kvBytesPerToken?: number | null;
+    mmproj?: { sizeBytes: number } | null;
+  },
+  availableBytes: number | null,
+): ModelFitEvaluation {
+  const main =
+    typeof model.sizeBytes === "number" && Number.isFinite(model.sizeBytes)
+      ? Math.max(0, model.sizeBytes)
+      : 0;
+  const mm =
+    model.mmproj &&
+    typeof model.mmproj.sizeBytes === "number" &&
+    Number.isFinite(model.mmproj.sizeBytes)
+      ? Math.max(0, model.mmproj.sizeBytes)
+      : 0;
+  const fileBytes = main + mm;
+  if (fileBytes <= 0) {
+    return { verdict: "unknown", reasonKey: "model.cannotEvaluate" };
+  }
+  const contextTokens =
+    typeof model.engineCtx === "number" && Number.isFinite(model.engineCtx)
+      ? model.engineCtx
+      : 0;
+  const kvBytesPerToken =
+    typeof model.kvBytesPerToken === "number" &&
+    Number.isFinite(model.kvBytesPerToken)
+      ? model.kvBytesPerToken
+      : 0;
+  const estimate = estimateMemory({
+    fileBytes,
+    contextTokens,
+    kvBytesPerToken,
+    ubatch: 256,
+    repack: true,
+  });
+  const availableMiB =
+    typeof availableBytes === "number" &&
+    Number.isFinite(availableBytes) &&
+    availableBytes > 0
+      ? availableBytes / (1024 * 1024)
+      : null;
+  const fit = fitMemoryEstimate(estimate, availableMiB);
+  switch (fit.status) {
+    case "fits":
+      return { verdict: "fits", reasonKey: "model.cannotEvaluate" };
+    case "tight":
+      return { verdict: "tight", reasonKey: "model.tightNow" };
+    case "does_not_fit":
+      return { verdict: "does_not_fit", reasonKey: "model.tooLarge" };
+    case "unknown":
+    default:
+      return { verdict: "unknown", reasonKey: "model.memoryUnknown" };
   }
 }
 

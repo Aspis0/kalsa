@@ -85,6 +85,7 @@ import { resolveContextProfile } from "../engine/contextProfile";
 import {
   diskRequirementBytes,
   estimateModelNonEvictableMiB,
+  evaluateModelFit,
   getCachedDeviceProfile,
   getFreeDiskBytes,
   modelGateVerdict,
@@ -98,12 +99,16 @@ import {
   initEngine,
   invalidateEngineSession,
   isEngineReady,
+  saveEngineSession,
   streamAssistantTurn,
   summarizeConversation,
   type EngineMessage,
   type EngineTurnOptions,
 } from "../engine/LlamaService";
-import { computePromptEnvHash, getBootHistoryHash } from "../engine/sessionPersistence";
+import { startMemoryMonitor, getAvailableMemoryBytesUncached } from "../engine/monitor";
+import { regenInFlightRef } from "../engine/regenState";
+import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
+import { computePromptEnvHash, getBootHistoryHash, historyHash } from "../engine/sessionPersistence";
 import { getEngineOverride, getSpeculativeOverride } from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import {
@@ -247,6 +252,8 @@ function gateForModel(
   profile: Awaited<ReturnType<typeof getCachedDeviceProfile>>,
   freeDiskBytes: number | null,
 ): ModelGateVerdict {
+  // RAM estimate includes optional mmproj (vision bundle); disk already bundles.
+  const bundleBytes = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
   return modelGateVerdict({
     totalMemoryBytes: profile.totalMemoryBytes,
     availableMemoryBytes: profile.availableMemoryBytes,
@@ -254,7 +261,7 @@ function gateForModel(
     ramTier: profile.ramTier,
     modelMinRamTier: model.minRamTier,
     modelNonEvictableMiB: estimateModelNonEvictableMiB({
-      sizeBytes: model.sizeBytes,
+      sizeBytes: bundleBytes,
       engineCtx: model.engineCtx,
       kvBytesPerToken: model.kvBytesPerToken,
     }),
@@ -516,11 +523,12 @@ function validateHistoryMessages(history: unknown[] | undefined): HistoryRoleMes
       const text = (m as { text: string }).text;
       const interrupted =
         (m as { interrupted?: unknown }).interrupted === true ? true : undefined;
-      out.push(
-        interrupted !== undefined
-          ? { role, text, interrupted }
-          : { role, text },
-      );
+      const edited =
+        (m as { edited?: unknown }).edited === true ? true : undefined;
+      const rec: HistoryRoleMessage & { edited?: boolean } = { role, text };
+      if (interrupted !== undefined) rec.interrupted = interrupted;
+      if (edited !== undefined) rec.edited = edited;
+      out.push(rec);
     }
   }
   return out;
@@ -1544,6 +1552,119 @@ export function AppShell() {
   const modelSwitchInFlightRef = useRef(false);
   /** UI mirror of streamInFlightRef — disables model Select in Settings. */
   const [streaming, setStreaming] = useState(false);
+  /** Banner when fit returns unknown / unload reason for Settings. */
+  const [memoryBannerKey, setMemoryBannerKey] = useState<string | null>(null);
+
+  // Anti-OOM: uncached MemAvailable polling + AppState background/foreground.
+  // Background -> abort stream if busy, save session if kv-reproducible, dispose.
+  // Foreground -> evaluateModelFit; only allow lazy restore when fits|tight. Never auto-load.
+  useEffect(() => {
+    let disposed = false;
+    const handle = startMemoryMonitor({
+      intervalMs: 15_000,
+      onPressure: (bytes) => {
+        if (disposed) return;
+        try {
+          console.info(
+            "pressure.transition",
+            JSON.stringify({
+              availableMb:
+                typeof bytes === "number" ? Math.round(bytes / (1024 * 1024)) : null,
+            }),
+          );
+        } catch {
+          // telemetry never throws
+        }
+      },
+      onAppState: (state) => {
+        if (disposed) return;
+        if (state === "background" || state === "inactive") {
+          void (async () => {
+            try {
+              const busy =
+                streamInFlightRef.current || regenInFlightRef.current;
+              if (busy) {
+                // Wait briefly for streamInFlight to clear (abort owned by AiChatPage).
+                const t0 = Date.now();
+                while (streamInFlightRef.current && Date.now() - t0 < 3000) {
+                  await new Promise((r) => setTimeout(r, 50));
+                }
+              }
+              const modelId = getActiveModelId();
+              if (modelId && isEngineReady()) {
+                // saveEngineSession itself gates on kvReproducible.
+                try {
+                  await saveEngineSession(modelId, historyHash(""));
+                } catch {
+                  // ignore
+                }
+              }
+              if (isEngineReady()) {
+                try {
+                  await runNativeOp(() => disposeEngine());
+                  setProcessUnloadedReason("chat.unloaded");
+                  setMemoryBannerKey("chat.unloaded");
+                  console.info(
+                    "model.unload",
+                    JSON.stringify({ reason: "background" }),
+                  );
+                } catch {
+                  // ignore
+                }
+              }
+            } catch {
+              // never throw from AppState listener
+            }
+          })();
+          return;
+        }
+        if (state === "active") {
+          void (async () => {
+            try {
+              const model = MODEL_REGISTRY[modelIndexRef.current];
+              if (!model) return;
+              if (isEngineReady() && getActiveModelId() === model.id) return;
+              const available = await getAvailableMemoryBytesUncached();
+              const fit = evaluateModelFit(
+                {
+                  sizeBytes: model.sizeBytes,
+                  engineCtx: model.engineCtx,
+                  kvBytesPerToken: model.kvBytesPerToken,
+                  mmproj: model.mmproj
+                    ? { sizeBytes: model.mmproj.sizeBytes }
+                    : null,
+                },
+                available,
+              );
+              console.info(
+                "model.fit",
+                JSON.stringify({
+                  verdict: fit.verdict,
+                  availableMb:
+                    typeof available === "number"
+                      ? Math.round(available / (1024 * 1024))
+                      : null,
+                }),
+              );
+              if (fit.verdict === "does_not_fit" || fit.verdict === "unknown") {
+                setMemoryBannerKey(fit.reasonKey);
+                setProcessUnloadedReason(fit.reasonKey);
+                return;
+              }
+              // fits | tight -> allow lazy restore on next send. Never auto-load.
+              setMemoryBannerKey(null);
+            } catch {
+              // ignore
+            }
+          })();
+        }
+      },
+    });
+    return () => {
+      disposed = true;
+      handle.stop();
+    };
+  }, []);
   /** Per-model download presence for Settings badges (scanned when Settings opens). */
   const [downloadedById, setDownloadedById] = useState<Record<string, boolean>>({});
 
@@ -2059,6 +2180,11 @@ export function AppShell() {
     (modelId: string) => {
       const nextIndex = MODEL_REGISTRY.findIndex((m) => m.id === modelId);
       if (nextIndex < 0) return;
+      // Refuse model switch while edit/regenerate owns the turn.
+      if (regenInFlightRef.current) {
+        Alert.alert(t("chat.regenBusy"), t("chat.regenBusy"));
+        return;
+      }
       if (streamInFlightRef.current) {
         Alert.alert(
           t("settings.switchWhileStreamingTitle"),

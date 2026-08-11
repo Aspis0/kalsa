@@ -172,8 +172,19 @@ export const en = {
     blockedTier: "Not compatible with this device's RAM",
     blockedRam: "Not enough free memory to run",
     blockedDisk: "Not enough free storage to download",
+    tooLarge: "Not enough memory for this model",
+    cannotEvaluate: "Cannot determine memory, free space and try",
+    tightNow: "Memory low — regenerate not supported, free",
+    memoryUnknown: "Memory could not be determined — policy used unknown",
   },
 
+
+  model: {
+    tooLarge: "Not enough memory for this model",
+    cannotEvaluate: "Cannot determine memory, free space and try",
+    tightNow: "Memory low — regenerate not supported, free",
+    memoryUnknown: "Memory could not be determined — policy used unknown",
+  },
   voice: {
     title: "Voice",
     hint: "On-device speech recognition and read-aloud. Audio never leaves this device.",
@@ -392,6 +403,15 @@ export const en = {
     a11yAttach: "Add attachment",
     a11yStop: "Stop generation",
     a11ySend: "Send",
+    regenerate: "Regenerate",
+    edit: "Edit",
+    cancelRegenerate: "Cancel regenerate",
+    regenCostHint: "Reload — may take several seconds",
+    regenBusy: "Already regenerating",
+    unloaded: "Unloaded due to memory pressure",
+    lazyReload: "Tap to reload",
+    thermalHot: "Device warm",
+    regenFailed: "Regenerate failed",
   },
 
   notify: {
