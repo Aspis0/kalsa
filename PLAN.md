@@ -1059,6 +1059,41 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-11 — ⚖️ TRIPLO ARBITRATO NOTTURNO (REAP F0 / spike GPU Xiaomi /
+  scheda CalaQwen) + interim Jelly. Il filo rosso emerso: TUTTE le strade del
+  binario Marco convergono su un solo passo — rifargli il quant con la NOSTRA
+  recipe ("MarcoKEXP").**
+
+  1. **REAP F0: VERDE a costo zero** (`moe-reap-multilingua.md`): il GGUF
+     community REAP20 (205 esperti) carica, streama e si misura col nostro
+     stack — convert+runtime+metro validati senza pod. FASE A pronta e pinnata;
+     il pod aspetta il GO di gualt ($40-120).
+  2. **Spike GPU Xiaomi: STOP corretto al gate B1** (`moe-spike-gpu-xiaomi.md`)
+     — il gate installato dall'audit ha preso ESATTAMENTE la trappola prevista:
+     i dense di Marco i1-IQ2_M sono IQ2_S/IQ3_S → l'OpenCL li avrebbe
+     silenziosamente lasciati su CPU e S2 avrebbe misurato il nulla. Vulkan:
+     build rotta (shaderc coopmat2 cap 5447 — fix: pin shaderc più vecchio).
+     S1 pende da uno smoke di 15 s in Termux VERO (SELinux blocca OpenCL sotto
+     run-as): servono le mani di gualt. Setup Xiaomi completo e reversibile
+     (build OpenCL ok, 4 modelli sha-verificati, -t 6 da cpu_capacity).
+  3. **Scheda CalaQwen** (`moe-calaqwen-scheda.md`): decode short ~5.2 / f45
+     4.06 confermati da staccato; **cache 2000 confermata** con disegno
+     interleaved pulito (C2300 non ha abortito: predizione audit falsificata
+     in quella finestra — a verbale); **energia ~0.455 J/token** (≈ 110k token
+     per carica, ERA 1.0-1.4 — caveat segno idle da validare). MA: il driver
+     nuovo non ha emesso BMOE_DONE in `--session` → conv5 TTFT e TUTTO il
+     N1 v2 = NON MISURABILE (0 celle valide). Correttamente NON concluso:
+     né riapertura MTP né epitaffio. Fix harness session + re-run B2 in coda.
+  4. **Jelly interim** (già a verbale): T3 0.72× ma con hit 34% vs 77% e
+     ranking non trasferibile tra profili I/O diversi → sentenza solo su S23.
+
+  **Il filo rosso — "MarcoKEXP"**: il requant di Marco con la recipe di
+  campagna (dense→Q4/Q5_K, esperti k-quant, imatrix) risolve TRE blocchi con
+  un file solo: qualità (su CalaQwen la recipe valse −27%), velocità CPU
+  (g_formato 1.297) e il gate GPU B1 (dense caricabili da OpenCL). Si scrive
+  quando il trial PC consegna T2c (Marco vs Qwen3.5-4B, in corso): se Marco
+  perde lì, muore tutto il binario e la recipe non serve.
+
 - **2026-08-10 — 📐 DESIGN INTEGRAZIONE KALSA CONSEGNATO (FASE 0, app non
   toccata). Raccomandazione: modulo nativo separato `react-native-bmoe` con shim
   C sopra bmoe_core; le lezioni RescueParty diventano policy di prodotto; nome
