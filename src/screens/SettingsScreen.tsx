@@ -670,6 +670,9 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
 
   const embeddingStatusLabel = useMemo(() => {
     // Round 7 hung visibility: process-wide hung flag wins over pipeline state.
+    // Round 8 FIX 3: include isEmbedderHung() in deps so a hang declared while
+    // Settings is mounted re-evaluates the label (module flag is not reactive;
+    // any dep change re-reads it — acceptable minimal approach).
     if (isEmbedderHung()) {
       return t("embedding.hung");
     }
@@ -687,7 +690,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
       case "error":
         return t("settings.modelError");
     }
-  }, [embedding.downloadPercent, embedding.state, t]);
+  }, [embedding.downloadPercent, embedding.state, t, isEmbedderHung()]);
 
   return (
     <View

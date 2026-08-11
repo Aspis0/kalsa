@@ -218,6 +218,8 @@ export const en = {
     sizeLabel: "Size: {size}",
     /** Round 7 BLOCK: embed release timed out — chat init refused; restart. */
     busy: "Embedding busy — restart to recover",
+    /** Round 8 FIX 2: model-bar retry label when isEmbedderHung — do not retry. */
+    restartHint: "Restart the app to recover",
     /** Round 7: Settings row when isEmbedderHung() — native op hung. */
     hung: "Embedding unavailable (hung) — restart the app",
     /** Hybrid dense arm refused: memory cap (restore or mid-embed). */

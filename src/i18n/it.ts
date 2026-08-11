@@ -214,6 +214,8 @@ export const it: typeof en = {
     sizeLabel: "Dimensione: {size}",
     /** Round 7 BLOCK: embed release timed out — chat init refused; restart. */
     busy: "Embedding occupato — riavvia per ripristinare",
+    /** Round 8 FIX 2: model-bar retry label when isEmbedderHung — do not retry. */
+    restartHint: "Riavvia l'app per ripristinare",
     /** Round 7: Settings row when isEmbedderHung() — native op hung. */
     hung: "Embedding non disponibile (bloccato) — riavvia l'app",
     /** Hybrid dense arm refused: memory cap (restore or mid-embed). */

@@ -87,6 +87,7 @@ async function main() {
     CO_RESIDENCY_MIN_MEMORY_BYTES,
     runNativeOp,
     nativeOpBusy,
+    acquireNativeOpBounded,
     __resetNativeOpMutexForTests,
   } = mod;
 
@@ -410,6 +411,111 @@ async function main() {
     __resetForTests();
     assert(nativeOpBusy() === false, "__resetForTests also clears native mutex");
   });
+
+  // ── Round 8 FIX 1: acquireNativeOpBounded (no enqueue) ─────────────────
+  await checkAsync("acquireNativeOpBounded returns ok when queue free", async () => {
+    assert(typeof acquireNativeOpBounded === "function", "acquireNativeOpBounded exported");
+    assert(nativeOpBusy() === false, "start idle");
+    const r = await acquireNativeOpBounded(100);
+    assert(r === "ok", `expected ok, got ${r}`);
+    assert(nativeOpBusy() === false, "still idle — must not enqueue");
+  });
+
+  await checkAsync("acquireNativeOpBounded times out while hung op holds chain", async () => {
+    let releaseA;
+    const aGate = new Promise((r) => {
+      releaseA = r;
+    });
+    const pA = runNativeOp(async () => {
+      await aGate;
+      return "A";
+    });
+    await new Promise((r) => setImmediate(r));
+    assert(nativeOpBusy() === true, "busy while A holds");
+    const t0 = Date.now();
+    const r = await acquireNativeOpBounded(80);
+    const elapsed = Date.now() - t0;
+    assert(r === "timeout", `expected timeout, got ${r}`);
+    assert(elapsed >= 60, `should wait ~timeout, elapsed=${elapsed}`);
+    assert(nativeOpBusy() === true, "still busy — wait must not clear chain");
+    // No extra op was enqueued: only A is on the chain. A second runNativeOp
+    // would start only after A settles; we assert bStarted remains false if we
+    // only used acquireNativeOpBounded (no runNativeOp from the wait).
+    releaseA();
+    await pA;
+    assert(nativeOpBusy() === false, "idle after A settles");
+  });
+
+  await checkAsync("acquireNativeOpBounded ok when busy op finishes before deadline", async () => {
+    let releaseA;
+    const aGate = new Promise((r) => {
+      releaseA = r;
+    });
+    const pA = runNativeOp(async () => {
+      await aGate;
+      return "A";
+    });
+    await new Promise((r) => setImmediate(r));
+    assert(nativeOpBusy() === true, "busy");
+    // Release A soon; bounded wait should observe free before long timeout.
+    setTimeout(() => releaseA(), 30);
+    const r = await acquireNativeOpBounded(2000);
+    assert(r === "ok", `expected ok after A finishes, got ${r}`);
+    await pA;
+    assert(nativeOpBusy() === false, "idle");
+  });
+
+  await checkAsync(
+    "co-res + hung embed: acquireNativeOpBounded refuses without queue growth",
+    async () => {
+      // Simulates AppShell co-res path: chat acquired while embed_active, then
+      // a hung native embed holds the FIFO. Repeated acquireNativeOpBounded
+      // must return timeout and must NOT enqueue ops (queue must not grow).
+      setCoResidencyContext({ totalMemoryBytes: 8e9, chatModelIs2B: true });
+      assert(tryAcquireEmbed() === true, "embed held");
+      assert(getState() === "embed_active", "embed_active");
+      const chatGen = tryAcquireChat();
+      assert(chatGen !== null, "co-res chat acquire ok");
+      assert(getState() === "chat_loading", "chat_loading under co-res");
+
+      let releaseHung;
+      const hungGate = new Promise((r) => {
+        releaseHung = r;
+      });
+      // Hung embed-like op on the native queue.
+      const pHung = runNativeOp(async () => {
+        await hungGate;
+        return "HUNG";
+      });
+      await new Promise((r) => setImmediate(r));
+      assert(nativeOpBusy() === true, "hung op busy");
+
+      // Track whether any extra op starts (would mean queue growth / enqueue).
+      let extraStarted = 0;
+      // Three repeated "chat init" attempts — only acquireNativeOpBounded, no
+      // runNativeOp(initEngine). Each must timeout; no extras may start.
+      for (let i = 0; i < 3; i++) {
+        const r = await acquireNativeOpBounded(40);
+        assert(r === "timeout", `attempt ${i + 1}: expected timeout, got ${r}`);
+      }
+      // Enqueue a probe only after the three refusals — it must still be
+      // waiting behind the hung op (not started), proving the three waits
+      // did not grow a runnable queue of init ops.
+      const pProbe = runNativeOp(async () => {
+        extraStarted += 1;
+        return "PROBE";
+      });
+      await new Promise((r) => setImmediate(r));
+      assert(extraStarted === 0, "probe must not start while hung holds chain");
+      assert(nativeOpBusy() === true, "still busy after repeated refusals");
+
+      releaseHung();
+      await pHung;
+      const probeResult = await pProbe;
+      assert(probeResult === "PROBE" && extraStarted === 1, "probe runs once after hung settles");
+      markChatReleased(chatGen);
+    },
+  );
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);

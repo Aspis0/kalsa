@@ -274,6 +274,41 @@ export function nativeOpBusy(): boolean {
 }
 
 /**
+ * Bounded wait for the native-op queue to become free, WITHOUT enqueueing
+ * a new op (round 8 FIX 1).
+ *
+ * Use before submitting chat initEngine: if a hung embed (or any hung native
+ * op) holds the FIFO, this returns "timeout" after `timeoutMs` so the caller
+ * can refuse chat init with an explicit busy state — never enqueue initEngine
+ * behind a hung op (repeated retries must not grow the queue).
+ *
+ * Returns:
+ *   - "ok" when the queue is (or becomes) free within the deadline
+ *   - "timeout" when nativeOpBusy stays true past the deadline
+ *
+ * Polls nativeOpBusy; does NOT call runNativeOp / does not enqueue.
+ */
+export async function acquireNativeOpBounded(
+  timeoutMs: number,
+): Promise<"ok" | "timeout"> {
+  if (!nativeOpBusyFlag) return "ok";
+  const ms =
+    typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? timeoutMs
+      : 0;
+  const deadline = Date.now() + ms;
+  // Poll until free or deadline. Do NOT enqueue — a hung op would otherwise
+  // accumulate queued initEngine attempts on every retry.
+  while (nativeOpBusyFlag) {
+    if (Date.now() >= deadline) return "timeout";
+    const remaining = deadline - Date.now();
+    const slice = remaining < 50 ? Math.max(1, remaining) : 50;
+    await new Promise<void>((resolve) => setTimeout(resolve, slice));
+  }
+  return "ok";
+}
+
+/**
  * Test-only: force-reset the native-op mutex. Production code MUST NOT clear
  * the chain while an op is in flight — a hung op holds the barrier so new
  * native work cannot overlap it (round 7 never-overlap invariant).

@@ -382,6 +382,8 @@ async function main() {
 
   // 16. Round 7 BLOCK: AppShell wraps initEngine + disposeEngine in runNativeOp;
   // timeout marks hung and REFUSES chat (no abandon / no force handoff).
+  // Round 8: isEmbedderHung top-guard + acquireNativeOpBounded before every
+  // initEngine (incl. co-res path) so hung ops never grow the FIFO.
   check("AppShell: runNativeOp(initEngine/dispose) + block-on-timeout (no abandon)", () => {
     const src = readFileSync(
       path.join(projectRoot, "src/app/AppShell.tsx"),
@@ -389,6 +391,7 @@ async function main() {
     );
     assert(/runNativeOp/.test(src), "imports/uses runNativeOp");
     assert(/markEmbedderHung/.test(src), "imports markEmbedderHung");
+    assert(/acquireNativeOpBounded/.test(src), "imports/uses acquireNativeOpBounded");
     // Round 7: abandon + force handoff removed (block-not-proceed).
     assert(!/abandonNativeOpChain/.test(src), "must NOT import/use abandonNativeOpChain");
     assert(!/forceChatAcquireAfterEmbedTimeout/.test(src), "must NOT use force handoff");
@@ -409,6 +412,20 @@ async function main() {
     assert(!/abandonNativeOpChain\(\)/.test(body), "timeout must NOT abandon chain");
     // Busy UI string on timeout paths.
     assert(/embedding\.busy/.test(src), "timeout surfaces embedding.busy");
+    // Round 8 FIX 1: ≥2 acquireNativeOpBounded calls before initEngine submissions.
+    const acq = src.match(/acquireNativeOpBounded\(\s*EMBEDDER_RELEASE_TIMEOUT_MS\s*\)/g);
+    assert(
+      acq && acq.length >= 2,
+      `expected ≥2 acquireNativeOpBounded(EMBEDDER_RELEASE_TIMEOUT_MS), got ${acq ? acq.length : 0}`,
+    );
+    // Round 8 FIX 2: isEmbedderHung() top-guard on both init paths (refuse before acquire).
+    const hungGuards = src.match(/if\s*\(\s*isEmbedderHung\(\)\s*\)/g);
+    assert(
+      hungGuards && hungGuards.length >= 2,
+      `expected ≥2 isEmbedderHung() guards, got ${hungGuards ? hungGuards.length : 0}`,
+    );
+    // Round 8 FIX 2: restart guidance on model bar when hung.
+    assert(/embedding\.restartHint/.test(src), "model bar uses embedding.restartHint when hung");
     // Zero-vector capped sidecar records reason before early return.
     assert(
       /chunkCount\s*<=\s*0[\s\S]{0,200}isCapped[\s\S]{0,120}capped/.test(src),
@@ -450,6 +467,12 @@ async function main() {
     );
     assert(/isEmbedderHung/.test(settingsSrc), "Settings imports/uses isEmbedderHung");
     assert(/embedding\.hung/.test(settingsSrc), "Settings shows embedding.hung");
+    // Round 8 FIX 3: memo deps include isEmbedderHung() so hang re-evaluates label.
+    assert(
+      /isEmbedderHung\(\)\s*\]/.test(settingsSrc) ||
+        /\[.*isEmbedderHung\(\).*\]/.test(settingsSrc),
+      "embeddingStatusLabel memo deps must include isEmbedderHung()",
+    );
   });
 
   // 17. Round 6: documentChatTool surfaces 'hung' via degradedNoEmbedder text.

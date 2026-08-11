@@ -79,6 +79,7 @@ import {
   CO_RESIDENCY_MIN_MEMORY_BYTES,
   runNativeOp,
   nativeOpBusy,
+  acquireNativeOpBounded,
 } from "../engine/llamaContextGate";
 import { resolveContextProfile } from "../engine/contextProfile";
 import {
@@ -1688,6 +1689,18 @@ export function AppShell() {
       MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
 
     if (isEngineReady() && getActiveModelId() === model.id) return true;
+    // Round 8 FIX 2: if embedder is hung, refuse immediately — never reach
+    // acquire/submit. markEmbedderHung clears the lifecycle gate to idle so a
+    // retry could otherwise re-acquire chat, skip release (hung short-circuit),
+    // and enqueue initEngine forever behind the hung native op. Recovery =
+    // process restart; repeated retries are no-ops (no FIFO growth).
+    if (isEmbedderHung()) {
+      setModelState("error");
+      setModelErrorKind("engine");
+      setModelError(t("embedding.busy"));
+      setModelErrorDetail(null);
+      return false;
+    }
     // Ownership token acquired by THIS ensure call (null until tryAcquireChat).
     // Catch must only release this gen — never a previous owner's (FIX 1).
     let acquiredChatGen: number | null = null;
@@ -1876,10 +1889,43 @@ export function AppShell() {
         if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
         return false;
       }
+      // Round 8 FIX 1: bounded wait before EVERY initEngine submission — including
+      // the co-residency path (mustReleaseEmbed=false) where a hung embed can hold
+      // the FIFO forever with no prior busy check. Never enqueue initEngine while
+      // the native queue is held by a hung op (no FIFO growth on retries).
+      const nativeSlot = await acquireNativeOpBounded(EMBEDDER_RELEASE_TIMEOUT_MS);
+      if (nativeSlot === "timeout") {
+        markEmbedderHung();
+        markChatReleased(chatGen);
+        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
+        setModelState("error");
+        setModelErrorKind("engine");
+        setModelError(t("embedding.busy"));
+        setModelErrorDetail(null);
+        console.warn(
+          `[kalsa] acquireNativeOpBounded timed out after ${EMBEDDER_RELEASE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); chat init blocked — restart to recover`,
+        );
+        return false;
+      }
+      // Re-check hung after the wait (another path may have declared it).
+      if (isEmbedderHung()) {
+        markChatReleased(chatGen);
+        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
+        setModelState("error");
+        setModelErrorKind("engine");
+        setModelError(t("embedding.busy"));
+        setModelErrorDetail(null);
+        return false;
+      }
+      if (!stillCurrent()) {
+        markChatReleased(chatGen);
+        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
+        return false;
+      }
       // Shared native-op barrier: serialize chat initEngine with any embed
-      // initLlama/embedding/release/dispose. Round 7 BLOCK: we only reach here
-      // after a successful embed release (or co-residency skip); a hung embed
-      // would have refused above, so this op cannot overlap a live embed op.
+      // initLlama/embedding/release/dispose. Round 8: only reached after
+      // acquireNativeOpBounded confirmed the queue is free (or co-res path
+      // waited); a hung embed refuses above and never enqueues initEngine.
       const initResult = await runNativeOp(() =>
         initEngine(modelLocalPath(model, model.file), model.id, {
           mmprojPath,
@@ -2126,6 +2172,16 @@ export function AppShell() {
       }
       if (!stillCurrent()) return;
       errorPhase = "engine";
+      // Round 8 FIX 2: hung guard at TOP of download→init path — same as
+      // ensureEngineForModel. Never acquire/submit when embedder is hung
+      // (retry after timeout must not bypass the block policy / grow FIFO).
+      if (isEmbedderHung()) {
+        setModelState("error");
+        setModelErrorKind("engine");
+        setModelError(t("embedding.busy"));
+        setModelErrorDetail(null);
+        return;
+      }
       // FIX B / FIX 3: cancel background embed; shared gate + §5 co-residency
       // (same policy as ensureEngineForModel). FIX 1 ownership token + FIX 2 bound.
       bumpEmbedJobGeneration();
@@ -2274,9 +2330,40 @@ export function AppShell() {
         if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
         return;
       }
+      // Round 8 FIX 1: bounded wait before EVERY initEngine submission — including
+      // the co-residency path (mustReleaseEmbed=false). Never enqueue initEngine
+      // while the native queue is held by a hung op.
+      const nativeSlotDl = await acquireNativeOpBounded(EMBEDDER_RELEASE_TIMEOUT_MS);
+      if (nativeSlotDl === "timeout") {
+        markEmbedderHung();
+        markChatReleased(chatGenDl);
+        if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
+        setModelState("error");
+        setModelErrorKind("engine");
+        setModelError(t("embedding.busy"));
+        setModelErrorDetail(null);
+        console.warn(
+          `[kalsa] acquireNativeOpBounded timed out after ${EMBEDDER_RELEASE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); chat init blocked — restart to recover`,
+        );
+        return;
+      }
+      if (isEmbedderHung()) {
+        markChatReleased(chatGenDl);
+        if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
+        setModelState("error");
+        setModelErrorKind("engine");
+        setModelError(t("embedding.busy"));
+        setModelErrorDetail(null);
+        return;
+      }
+      if (!stillCurrent()) {
+        markChatReleased(chatGenDl);
+        if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
+        return;
+      }
       // Shared native-op barrier (same policy as ensureEngineForModel):
-      // serialize chat initEngine with embed ops. Round 7 BLOCK: we only reach
-      // here after a successful embed release (or co-residency skip).
+      // serialize chat initEngine with embed ops. Round 8: only reached after
+      // acquireNativeOpBounded confirmed the queue is free.
       // Hoist uri so the runNativeOp closure does not re-widen DownloadOutcome
       // (status === "aborted" already returned above → model is {status:"done"}).
       const modelUri = (outcome.model as { status: "done"; uri: string }).uri;
@@ -3154,7 +3241,14 @@ export function AppShell() {
         return { label: t("download.loading"), color: colors.muted };
       case "error":
         return {
-          label: modelErrorKind === "engine" ? t("download.loadFailedRetry") : t("download.failedRetry"),
+          // Round 8 FIX 2: when embedder is hung, retry is a no-op — surface
+          // restart guidance instead of "tap to retry" (busy message already
+          // set on the banner; bar label matches recovery action).
+          label: isEmbedderHung()
+            ? t("embedding.restartHint")
+            : modelErrorKind === "engine"
+              ? t("download.loadFailedRetry")
+              : t("download.failedRetry"),
           color: colors.bad,
         };
       case "ready":
