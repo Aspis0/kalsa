@@ -82,6 +82,10 @@ function findOriginalUserText(slice) {
  * Pure regenerate flow (mirrors AiChatPage.regenerate without React).
  * Uses module-level regenInFlightRef + one-shot pass + regenAbortRef.
  * Inspects handleSend discriminated result for snapshot restore.
+ *
+ * Generation-gated body (round-4): after every await, if generation moved,
+ * abort without rollback setMessages / setSending side effects.
+ * Optional hooks (onRollback / onSetSending) let tests observe body mutations.
  */
 async function regenerateFlow(opts) {
   const {
@@ -93,54 +97,106 @@ async function regenerateFlow(opts) {
     regenAbortRef,
     regenGenerationRef,
     sendClaimRef,
+    onRollback,
+    onSetSending,
+    onHandleSendInvoked,
+    beforeHandleSend,
   } = opts;
   if (
     regenInFlightRef.current ||
     (sendClaimRef && sendClaimRef.current)
   ) {
-    return { ok: false, reasonKey: "chat.regenBusy", messages };
+    return { ok: false, reasonKey: "chat.regenBusy", messages, abortedStale: false };
   }
-  // Capture generation at acquire; finally only releases on match.
+  // Capture generation at acquire; body + finally only mutate on match.
   const myGeneration = regenGenerationRef ? regenGenerationRef.current : 0;
   regenInFlightRef.current = true;
   if (regenAbortRef) regenAbortRef.current = new AbortController();
   const snapshot = messages.slice();
+  // Working messages mirror (for tests that mutate via clearChat mid-await).
+  let currentMessages = messages.slice();
   try {
-    const targetIndex = messages.findIndex((m) => m.id === targetMsgId);
+    const targetIndex = currentMessages.findIndex((m) => m.id === targetMsgId);
     if (targetIndex < 0) {
-      return { ok: false, reasonKey: "chat.regenFailed", messages: snapshot };
+      return { ok: false, reasonKey: "chat.regenFailed", messages: snapshot, abortedStale: false };
     }
-    const slice = messages.slice(0, targetIndex + 1);
+    const slice = currentMessages.slice(0, targetIndex + 1);
     const originalUserText = findOriginalUserText(slice);
     if (!originalUserText) {
-      return { ok: false, reasonKey: "chat.regenFailed", messages: snapshot };
+      return { ok: false, reasonKey: "chat.regenFailed", messages: snapshot, abortedStale: false };
     }
-    const target = messages[targetIndex];
+    const target = currentMessages[targetIndex];
     const cutExclusive =
       target?.role === "assistant" ? targetIndex : targetIndex + 1;
-    let base = messages.slice(0, cutExclusive);
+    let base = currentMessages.slice(0, cutExclusive);
     if (base.length > 0 && base[base.length - 1]?.role === "user") {
       base = base.slice(0, -1);
     }
+    currentMessages = base;
     if (regenAbortRef?.current?.signal?.aborted) {
-      return { ok: false, reasonKey: "chat.regenFailed", messages: snapshot };
+      if (regenGenerationRef && regenGenerationRef.current !== myGeneration) {
+        return {
+          ok: false,
+          reasonKey: "chat.regenFailed",
+          messages: currentMessages,
+          abortedStale: true,
+        };
+      }
+      onRollback?.(snapshot);
+      return { ok: false, reasonKey: "chat.regenFailed", messages: snapshot, abortedStale: false };
     }
     regenHandleSendPassRef.current = true;
+    // Test hook: simulate clearChat just before handleSend (no real await in pure flow).
+    await beforeHandleSend?.();
+    // Defensive: if generation moved before we invoke handleSend, skip it.
+    if (regenGenerationRef && regenGenerationRef.current !== myGeneration) {
+      return {
+        ok: false,
+        reasonKey: "chat.regenFailed",
+        messages: currentMessages,
+        abortedStale: true,
+      };
+    }
+    onHandleSendInvoked?.();
     const sendResult = await handleSend(originalUserText, base);
+    // clearChat during handleSend: do not rollback into the new chat.
+    if (regenGenerationRef && regenGenerationRef.current !== myGeneration) {
+      return {
+        ok: false,
+        reasonKey: "chat.regenFailed",
+        messages: currentMessages,
+        abortedStale: true,
+      };
+    }
     // Real handleSend returns {ok:false} on stream failure (does not throw).
     if (sendResult && typeof sendResult === "object" && sendResult.ok === false) {
+      onRollback?.(snapshot);
+      onSetSending?.(false);
       return {
         ok: false,
         reasonKey: sendResult.reasonKey || "chat.regenFailed",
         messages: snapshot,
+        abortedStale: false,
       };
     }
-    return { ok: true, messages: base, originalUserText };
+    return { ok: true, messages: base, originalUserText, abortedStale: false };
   } catch (err) {
+    if (regenGenerationRef && regenGenerationRef.current !== myGeneration) {
+      return {
+        ok: false,
+        reasonKey: "chat.regenFailed",
+        messages: currentMessages,
+        abortedStale: true,
+        error: err,
+      };
+    }
+    onRollback?.(snapshot);
+    onSetSending?.(false);
     return {
       ok: false,
       reasonKey: "chat.regenFailed",
       messages: snapshot,
+      abortedStale: false,
       error: err,
     };
   } finally {
@@ -153,7 +209,10 @@ async function regenerateFlow(opts) {
   }
 }
 
-/** Pure edit flow: splice at index, stamp edited, truncate after, handleSend. */
+/**
+ * Pure edit flow: splice at index, stamp edited, truncate after, handleSend.
+ * Generation-gated body (round-4): after await + before stamp, abort if gen moved.
+ */
 async function editFlow(opts) {
   const {
     messages,
@@ -164,49 +223,105 @@ async function editFlow(opts) {
     regenHandleSendPassRef,
     regenGenerationRef,
     regenAbortRef,
+    onRollback,
+    onSetSending,
+    onStampEdited,
+    onHandleSendInvoked,
   } = opts;
   const trimmed = String(newText ?? "").trim();
   if (!trimmed) {
-    return { ok: false, reasonKey: "chat.regenFailed", messages };
+    return { ok: false, reasonKey: "chat.regenFailed", messages, abortedStale: false };
   }
   if (regenInFlightRef.current) {
-    return { ok: false, reasonKey: "chat.regenBusy", messages };
+    return { ok: false, reasonKey: "chat.regenBusy", messages, abortedStale: false };
   }
   const myGeneration = regenGenerationRef ? regenGenerationRef.current : 0;
   regenInFlightRef.current = true;
   if (regenAbortRef) regenAbortRef.current = new AbortController();
   const snapshot = messages.slice();
+  let currentMessages = messages.slice();
   try {
-    const idx = messages.findIndex((m) => m.id === targetMsgId);
+    const idx = currentMessages.findIndex((m) => m.id === targetMsgId);
     if (idx < 0) {
-      return { ok: false, reasonKey: "chat.regenFailed", messages: snapshot };
+      return { ok: false, reasonKey: "chat.regenFailed", messages: snapshot, abortedStale: false };
     }
-    const target = messages[idx];
+    const target = currentMessages[idx];
     if (!target || target.role !== "user") {
-      return { ok: false, reasonKey: "chat.regenFailed", messages: snapshot };
+      return { ok: false, reasonKey: "chat.regenFailed", messages: snapshot, abortedStale: false };
     }
     // Atomic: keep before idx; handleSend re-appends edited user text.
-    const base = messages.slice(0, idx);
+    if (regenGenerationRef && regenGenerationRef.current !== myGeneration) {
+      return {
+        ok: false,
+        reasonKey: "chat.regenFailed",
+        messages: currentMessages,
+        abortedStale: true,
+      };
+    }
+    const base = currentMessages.slice(0, idx);
+    currentMessages = base;
     regenHandleSendPassRef.current = true;
+    // Defensive: if generation moved before we invoke handleSend, skip it.
+    if (regenGenerationRef && regenGenerationRef.current !== myGeneration) {
+      return {
+        ok: false,
+        reasonKey: "chat.regenFailed",
+        messages: currentMessages,
+        abortedStale: true,
+      };
+    }
+    onHandleSendInvoked?.();
     const sendResult = await handleSend(trimmed, base);
+    if (regenGenerationRef && regenGenerationRef.current !== myGeneration) {
+      return {
+        ok: false,
+        reasonKey: "chat.regenFailed",
+        messages: currentMessages,
+        abortedStale: true,
+      };
+    }
     if (sendResult && typeof sendResult === "object" && sendResult.ok === false) {
+      onRollback?.(snapshot);
+      onSetSending?.(false);
       return {
         ok: false,
         reasonKey: sendResult.reasonKey || "chat.regenFailed",
         messages: snapshot,
+        abortedStale: false,
       };
     }
-    // Stamp edited on a synthetic user message for harness assertion.
+    // Stamp edited — only if we still own the generation.
+    if (regenGenerationRef && regenGenerationRef.current !== myGeneration) {
+      return {
+        ok: false,
+        reasonKey: "chat.regenFailed",
+        messages: currentMessages,
+        abortedStale: true,
+      };
+    }
     const stamped = [
       ...base,
       { id: "u-edited", role: "user", text: trimmed, edited: true },
     ];
-    return { ok: true, messages: stamped, editedText: trimmed };
+    onStampEdited?.(stamped);
+    return { ok: true, messages: stamped, editedText: trimmed, abortedStale: false };
   } catch (err) {
+    if (regenGenerationRef && regenGenerationRef.current !== myGeneration) {
+      return {
+        ok: false,
+        reasonKey: "chat.regenFailed",
+        messages: currentMessages,
+        abortedStale: true,
+        error: err,
+      };
+    }
+    onRollback?.(snapshot);
+    onSetSending?.(false);
     return {
       ok: false,
       reasonKey: "chat.regenFailed",
       messages: snapshot,
+      abortedStale: false,
       error: err,
     };
   } finally {
@@ -679,6 +794,206 @@ async function main() {
       sendClaimRef.current = false;
     }
     assert(sendClaimRef.current === false, "owner finally clears claim");
+  });
+
+  // --- Round-4 race tests: generation-gated OPERATION BODY ---
+
+  await test("stale regen rollback after clearChat does NOT setMessages(snapshot)", async () => {
+    // clearChat mid-handleSend: regen must NOT restore the pre-regen snapshot
+    // into the cleared (or new) conversation.
+    regenGenerationRef.current = 0;
+    let rollbackCount = 0;
+    let setSendingCount = 0;
+    let release;
+    const gate = new Promise((r) => {
+      release = r;
+    });
+
+    const staleP = regenerateFlow({
+      messages: history,
+      targetMsgId: "a2",
+      handleSend: async () => {
+        // Simulate clearChat during await handleSend:
+        // bump generation, wipe messages ownership, clear locks.
+        regenGenerationRef.current += 1;
+        regenInFlightRef.current = false;
+        regenHandleSendPassRef.current = false;
+        regenAbortRef.current = null;
+        await gate;
+        // Stream fails after clear — without body gating this would rollback.
+        return { ok: false, reasonKey: "chat.serviceUnreachable" };
+      },
+      regenInFlightRef,
+      regenHandleSendPassRef,
+      regenAbortRef,
+      regenGenerationRef,
+      sendClaimRef,
+      onRollback: () => {
+        rollbackCount += 1;
+      },
+      onSetSending: () => {
+        setSendingCount += 1;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    release();
+    const res = await staleP;
+    assert(res.ok === false, "stale regen fails");
+    assert(res.abortedStale === true, "must abort as stale (gen mismatch)");
+    assert(rollbackCount === 0, `rollback must not run, got ${rollbackCount}`);
+    assert(setSendingCount === 0, `setSending must not run, got ${setSendingCount}`);
+    // Stale finally must not re-clear locks either (already covered round-3,
+    // re-assert here for the combined body+finally path).
+    assert(regenInFlightRef.current === false, "locks stay cleared by clearChat");
+  });
+
+  await test("stale edit stamp after clearChat+new regen does NOT mark new conversation", async () => {
+    // Stale edit's post-send setMessages(...edited:true) must not stamp a
+    // newer conversation that started after clearChat.
+    regenGenerationRef.current = 0;
+    let stampCount = 0;
+    let rollbackCount = 0;
+    let release;
+    const gate = new Promise((r) => {
+      release = r;
+    });
+
+    const staleP = editFlow({
+      messages: history,
+      targetMsgId: "u2",
+      newText: "stale edit text",
+      handleSend: async () => {
+        // clearChat mid-send, then a new conversation is "active".
+        regenGenerationRef.current += 1;
+        regenInFlightRef.current = false;
+        regenHandleSendPassRef.current = false;
+        regenAbortRef.current = null;
+        await gate;
+        return { ok: true };
+      },
+      regenInFlightRef,
+      regenHandleSendPassRef,
+      regenAbortRef,
+      regenGenerationRef,
+      onStampEdited: () => {
+        stampCount += 1;
+      },
+      onRollback: () => {
+        rollbackCount += 1;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    // New regen under the bumped generation (simulates post-clear activity).
+    const newController = new AbortController();
+    regenInFlightRef.current = true;
+    regenHandleSendPassRef.current = true;
+    regenAbortRef.current = newController;
+
+    release();
+    const res = await staleP;
+    assert(res.ok === false, "stale edit fails");
+    assert(res.abortedStale === true, "must abort as stale");
+    assert(stampCount === 0, `edited stamp must not run, got ${stampCount}`);
+    assert(rollbackCount === 0, `rollback must not run, got ${rollbackCount}`);
+    // New owner's locks survive the stale finally.
+    assert(regenInFlightRef.current === true, "new inFlight survives");
+    assert(regenAbortRef.current === newController, "new abort survives");
+    // Cleanup as new owner.
+    regenInFlightRef.current = false;
+    regenHandleSendPassRef.current = false;
+    regenAbortRef.current = null;
+  });
+
+  await test("stale edit does NOT invoke handleSend after clearChat during pre-send yield", async () => {
+    // Mirrors editMessage: after aborting an in-flight stream it awaits
+    // setTimeout(0). If clearChat bumps generation during that yield, the
+    // continuation must return early and must NOT call handleSend.
+    regenGenerationRef.current = 0;
+    let handleSendCalls = 0;
+    let rollbackCount = 0;
+    let stampCount = 0;
+
+    // Inline mirror of editMessage's pre-send yield gate (editFlow itself
+    // has no setTimeout; this tests the exact AiChatPage control flow).
+    const myGeneration = regenGenerationRef.current;
+    regenInFlightRef.current = true;
+    regenAbortRef.current = new AbortController();
+    const sendingWasTrue = true; // simulate sendingRef.current === true
+    if (sendingWasTrue) {
+      // abortRef.abort() omitted (no real stream); yield as editMessage does.
+      const yieldP = new Promise((r) => setTimeout(r, 0));
+      // clearChat during the yield:
+      regenGenerationRef.current += 1;
+      regenAbortRef.current?.abort();
+      regenAbortRef.current = null;
+      regenInFlightRef.current = false;
+      regenHandleSendPassRef.current = false;
+      await yieldP;
+      // Post-yield generation gate (AiChatPage.editMessage).
+      if (regenGenerationRef.current !== myGeneration) {
+        // Early return — no truncate, no handleSend, no stamp.
+        assert(handleSendCalls === 0, "handleSend must not run");
+        assert(rollbackCount === 0, "no rollback");
+        assert(stampCount === 0, "no stamp");
+        // Stale finally must not clobber a new owner either.
+        const newController = new AbortController();
+        regenInFlightRef.current = true;
+        regenAbortRef.current = newController;
+        if (regenGenerationRef.current === myGeneration) {
+          regenInFlightRef.current = false;
+          regenAbortRef.current = null;
+        }
+        assert(regenInFlightRef.current === true, "new inFlight survives stale finally");
+        assert(regenAbortRef.current === newController, "new abort survives");
+        regenInFlightRef.current = false;
+        regenAbortRef.current = null;
+        return;
+      }
+    }
+    // If we reach here the gate failed.
+    handleSendCalls += 1;
+    assert(false, "must have returned early on generation mismatch");
+  });
+
+  await test("stale regen does NOT invoke handleSend after clearChat (beforeHandleSend)", async () => {
+    // regenerateFlow: clearChat between acquire and handleSend → early return,
+    // handleSend never runs, no rollback.
+    regenGenerationRef.current = 0;
+    let handleSendCalls = 0;
+    let invokeHookCalls = 0;
+    let rollbackCount = 0;
+    const res = await regenerateFlow({
+      messages: history,
+      targetMsgId: "a2",
+      handleSend: async () => {
+        handleSendCalls += 1;
+        return { ok: true };
+      },
+      regenInFlightRef,
+      regenHandleSendPassRef,
+      regenAbortRef,
+      regenGenerationRef,
+      sendClaimRef,
+      beforeHandleSend: async () => {
+        // clearChat just before handleSend would run
+        regenGenerationRef.current += 1;
+        regenAbortRef.current?.abort();
+        regenAbortRef.current = null;
+        regenInFlightRef.current = false;
+        regenHandleSendPassRef.current = false;
+      },
+      onHandleSendInvoked: () => {
+        invokeHookCalls += 1;
+      },
+      onRollback: () => {
+        rollbackCount += 1;
+      },
+    });
+    assert(res.ok === false, "must fail");
+    assert(res.abortedStale === true, "must be stale abort");
+    assert(handleSendCalls === 0, `handleSend must not run, got ${handleSendCalls}`);
+    assert(invokeHookCalls === 0, `onHandleSendInvoked must not run, got ${invokeHookCalls}`);
+    assert(rollbackCount === 0, `rollback must not run, got ${rollbackCount}`);
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

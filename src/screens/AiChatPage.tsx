@@ -2247,6 +2247,10 @@ export function AiChatPage({
   /**
    * Regenerate an assistant reply: truncate to target, re-send original user text.
    * Reuses handleSend (abort / fit / save / persist). Single-flight via regenInFlightRef.
+   *
+   * Generation-gated body (round-4): after every await, if clearChat bumped
+   * regenGenerationRef, abort immediately — no rollback setMessages, no
+   * setSending, no lock release in finally for the new owner.
    */
   const regenerate = useCallback(
     async (targetMsgId: string): Promise<{ ok: true } | { ok: false; reasonKey: string }> => {
@@ -2257,8 +2261,8 @@ export function AiChatPage({
       ) {
         return { ok: false, reasonKey: "chat.regenBusy" };
       }
-      // Capture generation at acquire. finally only releases locks when we
-      // still own them (clearChat bumps regenGenerationRef then clears).
+      // Capture generation at acquire (before any await). Body + finally only
+      // mutate when we still own this generation.
       const myGeneration = regenGenerationRef.current;
       regenInFlightRef.current = true;
       regenAbortRef.current = new AbortController();
@@ -2293,11 +2297,18 @@ export function AiChatPage({
         regenHandleSendPassRef.current = true;
         // If background disposal aborted regen before send starts, refuse cleanly.
         if (regenAbortRef.current?.signal.aborted) {
+          if (regenGenerationRef.current !== myGeneration) {
+            return { ok: false, reasonKey: "chat.regenFailed" };
+          }
           setMessages(snapshot);
           messagesRef.current = snapshot;
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
         const sendResult = await handleSendTracked(originalUserText);
+        // clearChat during handleSend: do not rollback into the new chat.
+        if (regenGenerationRef.current !== myGeneration) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
         if (!sendResult.ok) {
           setMessages(snapshot);
           messagesRef.current = snapshot;
@@ -2308,6 +2319,10 @@ export function AiChatPage({
         }
         return { ok: true };
       } catch {
+        // Stale after clearChat: skip snapshot restore and sending reset.
+        if (regenGenerationRef.current !== myGeneration) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
         setMessages(snapshot);
         messagesRef.current = snapshot;
         setSending(false);
@@ -2329,6 +2344,9 @@ export function AiChatPage({
   /**
    * Edit a user message then regenerate from that point.
    * Atomic splice (edited flag) + truncate + handleSend(newText).
+   *
+   * Generation-gated body (round-4): after every await and before each
+   * setMessages (truncate / stamp / rollback), abort if generation moved.
    */
   const editMessage = useCallback(
     async (
@@ -2344,8 +2362,7 @@ export function AiChatPage({
       ) {
         return { ok: false, reasonKey: "chat.regenBusy" };
       }
-      // Capture generation at acquire. finally only releases locks when we
-      // still own them (clearChat bumps regenGenerationRef then clears).
+      // Capture generation at acquire (before any await).
       const myGeneration = regenGenerationRef.current;
       regenInFlightRef.current = true;
       regenAbortRef.current = new AbortController();
@@ -2355,6 +2372,10 @@ export function AiChatPage({
         if (sendingRef.current) {
           abortRef.current?.abort();
           await new Promise((r) => setTimeout(r, 0));
+          // clearChat may have run during the yield — do not truncate/stamp.
+          if (regenGenerationRef.current !== myGeneration) {
+            return { ok: false, reasonKey: "chat.regenFailed" };
+          }
         }
         const idx = messagesRef.current.findIndex((m) => m.id === targetMsgId);
         if (idx < 0) {
@@ -2366,11 +2387,18 @@ export function AiChatPage({
         }
         // Keep messages before the edited user; drop the user and everything after.
         // handleSend will re-append the (edited) user text + new assistant.
+        // Re-check generation before mutating messages (defensive vs re-entry).
+        if (regenGenerationRef.current !== myGeneration) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
         const base = messagesRef.current.slice(0, idx).map((m) => m);
         setMessages(base);
         messagesRef.current = base;
         regenHandleSendPassRef.current = true;
         if (regenAbortRef.current?.signal.aborted) {
+          if (regenGenerationRef.current !== myGeneration) {
+            return { ok: false, reasonKey: "chat.regenFailed" };
+          }
           setMessages(snapshot);
           messagesRef.current = snapshot;
           return { ok: false, reasonKey: "chat.regenFailed" };
@@ -2379,6 +2407,10 @@ export function AiChatPage({
         // by patching the last user message once send starts. We pass edited
         // text as the send body; then stamp edited on the new user bubble.
         const sendResult = await handleSendTracked(trimmed);
+        // clearChat during handleSend: do not rollback or stamp the new chat.
+        if (regenGenerationRef.current !== myGeneration) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
         if (!sendResult.ok) {
           setMessages(snapshot);
           messagesRef.current = snapshot;
@@ -2388,7 +2420,17 @@ export function AiChatPage({
           return { ok: false, reasonKey: sendResult.reasonKey || "chat.regenFailed" };
         }
         // Stamp edited on the user message that handleSend just appended.
+        // Gate again: generation may have moved between the check above and
+        // this updater if another clear raced in (defensive; updater may also
+        // run async relative to this call stack on some RN schedulers).
+        if (regenGenerationRef.current !== myGeneration) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
         setMessages((prev) => {
+          // Stale stamp must not mark a newer conversation's user bubble.
+          if (regenGenerationRef.current !== myGeneration) {
+            return prev;
+          }
           const next = prev.slice();
           for (let i = next.length - 1; i >= 0; i -= 1) {
             if (next[i]?.role === "user") {
@@ -2401,6 +2443,9 @@ export function AiChatPage({
         });
         return { ok: true };
       } catch {
+        if (regenGenerationRef.current !== myGeneration) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
         setMessages(snapshot);
         messagesRef.current = snapshot;
         setSending(false);
