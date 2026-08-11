@@ -69,17 +69,23 @@ Regola tie: k6d080 ed k6d065 entro **2%** (Δ med ~0.15%) → preferisci PPL →
 
 Sostenuto non ha raggiunto n=512 (stop naturale ~199 token su `short.txt`). Decode rate comunque allineata alle celle n=200 della stessa cfg.
 
-### Proposta default (decisione gualt)
+### Default adottato (gualt 2026-08-10) — **OPZIONE A**
 
-| opzione | k | drop | PPL | med tok/s | tradeoff |
-|---------|---|------|-----|-----------|----------|
-| **A — proposta script** | **6** | **0.65** | **1.852** | **5.86** | −25% top-k GEMV vs k=8, PPL +0.29 vs floor-ref 1.565, speed +13.6% vs ctrl |
-| B — max speed | 6 | 0.80 | 1.965 | 5.87 | ~pari speed ad A, PPL peggiore (+0.11 vs A) |
-| C — status quo | 8 | 0.65 | 1.565 | 5.16 | qualità max, speed peggiore |
+| opzione | k | drop | PPL | med tok/s | stato |
+|---------|---|------|-----|-----------|--------|
+| **A** | **6** | **0.65** | **1.852** | **5.86** | **ADOTTATO** |
+| B | 6 | 0.80 | 1.965 | 5.87 | scartata (speed pari, PPL peggiore) |
+| C | 8 | 0.65 | 1.565 | 5.16 | scartata (status quo più lento) |
 
-**Raccomandazione operativa:** adottare **A (k=6 drop=0.65)** come default campagna su KEXP, salvo gualt che preferisca qualità (C) o pruning massimo (B).
+**Propagazione harness (2026-08-10):**
+- `scripts/f55a_ppl_baseline.sh`
+- `scripts/run_staccato.sh`, `run_staccato2.sh`
+- `scripts/start_f4_5_quality.sh`, `start_f4_7_batt_curve.sh` (+ `--n-expert-used 6 --ubatch 512`)
+- `scripts/fix_smoke_and_sostenuto.sh`, `retry_adopt_aborted.sh`
+- rewrite list: `results/kexp_baseline/campaign_k6d065_rewrite_list.txt`
+- `PLAN.md` scheda prodotto aggiornata
 
-Default finale = **gualt**. Non applicato automaticamente.
+**Non toccati (di proposito):** A/B storici (`run_speed_dropcold*`, `run_f4` celle k, `start_f5_2` sweep, `f56_*`); orchestrator trial Marco (run in corsa con KEXP a k=8 — non contaminare il trial mid-flight).
 
 ## Deliverable paths
 - `results/kexp_baseline/`

@@ -55,7 +55,7 @@ JSON="$OUTDIR/ppl_baseline.json"
 STATUS="$OUTDIR/STATUS_PPL.txt"
 
 THREADS=4; CACHE_MB=2000; IO_THREADS=4; N_CTX=4096; UBATCH=512
-BASE="--moe-stream --cache-mb ${CACHE_MB} --dense-weights anon --overlap --io-threads ${IO_THREADS} --ubatch ${UBATCH} --drop-cold-experts 0.50"
+BASE="--moe-stream --cache-mb ${CACHE_MB} --dense-weights anon --overlap --io-threads ${IO_THREADS} --ubatch ${UBATCH} --n-expert-used 6 --drop-cold-experts 0.65"
 DIE_STOP_MC=95000; DIE_START_MC=80000
 
 ts(){ date '+%Y-%m-%dT%H:%M:%S%z'; }
@@ -104,11 +104,11 @@ if [ -x "$HOME/bin/cold_model.sh" ]; then
   "$HOME/bin/cold_model.sh" "$MODEL" >>"$MASTER" 2>&1 || true
 fi
 
-# RAW text: no chatml, no think. n_ctx 4096, ubatch 512, k=8 gate config.
+# RAW text: no chatml, no think. n_ctx 4096, ubatch 512, k=6 drop=0.65 campaign gate.
 # --ppl-file path is the only new flag; rest matches campaign gate.
 set +e
 "$BIN" -m "$MODEL" -t $THREADS -c $N_CTX \
-  $BASE --n-expert-used 8 \
+  $BASE \
   --ppl-file "$CORPUS" --ppl-csv "$CSV" \
   >"$STDOUT" 2>"$STDERR"
 rc=$?
@@ -140,7 +140,7 @@ obj={"status":"COMPLETE" if rc=="0" and line else "FAILED",
      "binary":{"path":binary, "sha256":sha(binary), "runtime_commit_base":"b0c4e5b",
                "feature":"--ppl-file teacher-forced logprob"},
      "corpus":{"path":corpus, "sha256":sha(corpus), "bytes":os.path.getsize(corpus)},
-     "gate_config":"--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 8 --drop-cold-experts 0.50 -c 4096 -t 4",
+     "gate_config":"--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65 -c 4096 -t 4",
      "ppl_csv": csvp if os.path.exists(csvp) else None,
      "raw_line": line}
 if line:
@@ -153,7 +153,7 @@ if line:
 obj["command"]=(
     f'{binary} -m {model} -t 4 -c 4096 '
     f'--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 '
-    f'--n-expert-used 8 --drop-cold-experts 0.50 --ppl-file {corpus} --ppl-csv {csvp}'
+    f'--n-expert-used 6 --drop-cold-experts 0.65 --ppl-file {corpus} --ppl-csv {csvp}'
 )
 json.dump(obj, open(outj,"w",encoding="utf-8"), indent=2)
 print(json.dumps(obj, indent=2))

@@ -12,26 +12,27 @@
 
 ---
 
-# ⭐ STATO CORRENTE — aggiornato 2026-08-09
+# ⭐ STATO CORRENTE — aggiornato 2026-08-10
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
 > checkpoint` (§dopo la 12) è il log cronologico completo, 58 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
-## Scheda prodotto (giro finale 2026-08-09, `moe-adopt-dropcold.md`)
+## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
 
 | | valore | note |
 |---|---|---|
-| **config di campagna** | `-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 8 --drop-cold-experts 0.50` | tutte voci **misurate**, nessun default ereditato |
+| **modello** | **KEXP** `Qwen3.6-35B-A3B-KEXP.gguf` (sha `ac44e20c…`) | IQ2_M resta riferimento storico, non cancellato |
+| **config di campagna** | `-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65` | **ADOTTATO A** (speed grid + gualt 2026-08-10) |
 | **binario** | CAMPAIGN `1ca51420…` = prefault tri-stato + dense2 + fix KV + scorer + drop runtime | pin sha-verificato, `bin_sha256` in `runs.csv` |
-| **load cold** | **9.96 s** (9.37 GiB letti; inizio campagna: 21.05 GiB) | −55% byte, capitolo E1 chiuso |
+| **load cold** | **~10 s** (KEXP ~12.5 GiB; storico IQ2_M 9.37 GiB) | E1 chiuso su IQ2_M; KEXP size-bound |
 | **prefill per turno** | **~8-11 s COSTANTI** su 5 turni (T5: 9.34 s, n_common 1387) | prima del fix KV: 165 s al T5. Il TTFT non degrada più |
-| **decode** | **~4.4-4.5 tok/s** (short/f45), sostenuto n=512 **4.35** a die 79.8 °C | plateau reale, non burst |
-| traffico | **41-54 MiB/tok** col drop (f45: 41.23, −16% vs 49.05) | naive: 305 |
-| hit esperti (decode) | 75-79% multi-turno / 85% sostenuto | cache 2000 = ottimo misurato |
-| energia | 1.0-1.4 J/token, ~40k token per carica | F4.7 (pre-drop, da rinfrescare se serve) |
-| **qualità** | baseline decode-path **PPL 2.0955** (subset 10k); budget lossy **cumulativo 0.15**, spesi **0.051** (drop 0.50) | restano ~0.10 per TUTTE le leve future |
+| **decode** | **med 5.86 tok/s** (k6d065 n=200 staccato); ctrl k8d065 5.16; legacy IQ2 drop0.50 ~4.4 | griglia `moe-adopt-kexp.md` parte 3 |
+| traffico | hit ~76-80% @ drop 0.65 (speed grid) | cache 2000 = ottimo misurato |
+| hit esperti (decode) | 75-83% sulle celle speed | cache 2000 |
+| energia | 1.0-1.4 J/token, ~40k token per carica | F4.7 (pre-KEXP, da rinfrescare se serve) |
+| **qualità** | PPL decode **1.852** (k6d065); floor prodotto storico IQ2_M **2.0955** | ancora margine sotto floor |
 | **collo di bottiglia** | **il CALCOLO** (I/O esposto = 20% del decode; freq a regime 41% del picco) | F4.9, F5.2, F5.3-A3 |
 
 ## I 3 capitoli che contavano: TUTTI CHIUSI
@@ -1086,10 +1087,13 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   Default di campagna e prodotto: **KEXP + k=6 + drop 0.65 → 5.86 tok/s,
   PPL 1.852.** Config di campagna aggiornata: `-t 4 -c 4096 --moe-stream
   --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512
-  --n-expert-used 6 --drop-cold-experts 0.65` su modello KEXP. Da propagare
-  negli harness (k 8→6) con micro-mandato a trial Marco concluso (evitare
-  conflitti su file condivisi). Flag aperto: sostenuto lungo del nuovo default
-  da rifare nel refresh scheda prodotto.
+  --n-expert-used 6 --drop-cold-experts 0.65` su modello KEXP.
+  **Propagato 2026-08-10** negli harness campagna (`f55a_ppl_baseline`,
+  `run_staccato`/`2`, `start_f4_5`/`f4_7`, `fix_smoke_and_sostenuto`,
+  `retry_adopt_aborted`). Lasciati intatti A/B storici e orchestrator trial
+  Marco (in corsa: KEXP multi5 già misurato a k=8 — T3 da riallineare a k6d065
+  se il gate usa il comparatore prodotto). Flag aperto: sostenuto lungo del
+  nuovo default da rifare nel refresh scheda prodotto.
 
 - **2026-08-10 — 🔭 RICERCA SUCCESSORI: la lista di gualt non regge il criterio
   multilingua (EN/ES/FR/IT/ZH), ma la ricerca ha scovato il dark horse:

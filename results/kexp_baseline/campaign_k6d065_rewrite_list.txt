@@ -1,0 +1,7 @@
+scripts/f55a_ppl_baseline.sh
+scripts/run_staccato.sh
+scripts/run_staccato2.sh
+scripts/start_f4_5_quality.sh
+scripts/start_f4_7_batt_curve.sh
+scripts/fix_smoke_and_sostenuto.sh
+scripts/retry_adopt_aborted.sh

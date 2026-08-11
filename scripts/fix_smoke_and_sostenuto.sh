@@ -134,7 +134,7 @@ else
   echo "ts_epoch_ms,die_c,vmrss_kb,vmhwm_kb,memfree_kb" > "${opfx}.sampler.csv"
   "$BIN" -m "$MODEL" -p "$ptext" -t 4 -c 4096 -n 512 --temp 0 --chatml --no-think \
     --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 \
-    --ubatch 512 --n-expert-used 8 --drop-cold-experts 0.50 \
+    --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65 \
     > "${opfx}.stdout.log" 2> "${opfx}.stderr.log" &
   BPID=$!
   echo $BPID > "${opfx}.pid"

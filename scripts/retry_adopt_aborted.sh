@@ -77,7 +77,7 @@ run_dec(){
   log "start $label batt=$pct nproc=$(nproc) die=$(mc_to_c "$(max_die_mc)")"
   "$BIN" -m "$MODEL" -p "$ptext" -t 4 -c 4096 -n 200 --temp 0 --chatml --no-think \
     --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 \
-    --ubatch 512 --n-expert-used 8 --drop-cold-experts 0.50 \
+    --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65 \
     > "${opfx}.stdout" 2> "${opfx}.stderr" &
   local BPID=$!
   (
@@ -140,7 +140,7 @@ run_sost(){
   log "start sost batt=$pct"
   "$BIN" -m "$MODEL" -p "$ptext" -t 4 -c 4096 -n 512 --temp 0 --chatml --no-think \
     --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 \
-    --ubatch 512 --n-expert-used 8 --drop-cold-experts 0.50 --progress \
+    --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65 --progress \
     > "${opfx}.stdout" 2> "${opfx}.stderr" &
   local BPID=$!
   (
