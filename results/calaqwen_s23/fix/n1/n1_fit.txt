@@ -1,0 +1,16 @@
+N1_OK_ROWS 0
+t_decode1_s 0.7304601899196493 tok_s 1.369
+FIT: INSUFFICIENT_DATA
+k	n_prompt	prefill_s	mib_tok	status
+0	14	None	None	OK
+0	14	None	None	OK
+128	142	None	None	OK
+128	142	None	None	OK
+256	270	None	None	OK
+256	270	None	None	OK
+32	46	None	None	OK
+32	46	None	None	OK
+64	78	None	None	OK
+64	78	None	None	OK
+8	22	None	None	OK
+8	22	None	None	OK

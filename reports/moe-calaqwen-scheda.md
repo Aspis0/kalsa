@@ -51,16 +51,16 @@ Load+decode corto ~**26 s** wall (non isola pure load_s dal BMOE_DONE in questa 
 
 ### Energia (metodologia D — flight 1 s, current µA / voltage mV)
 
-| cella | E (J) | n_gen | J/token |
-|-------|-------|-------|---------|
-| sos_short_r1 | 90.5 | 199 | **0.455** |
-| sos_short_r2 | 92.7 | 199 | **0.466** |
-| sos_long_thermal | 42.8 | 102 | **0.420** |
-| **mediana** | | | **0.455** (range 0.420–0.466) |
+**Aggiornato da `moe-calaqwen-fix-session.md` (PASSO 4):** la mediana **0.455 J/tok** sotto era **sovrastimata** (convenzione idle errata).
 
-- `I_idle` mediano (idle pre/post) = **−430000 µA** (segno: device in scarica anche “idle” con schermo ON).
-- Sanity mandato ~0.75–0.95 J/tok: valore misurato **più basso** — possibile bias idle/segno/finestre; **citabile come stima flight**, non come verità assoluta.
-- **Non** da Δbatt% (1% troppo grossolano).
+| | J/token |
+|--|---------|
+| Prima (scheda v1) | 0.455 (range 0.42–0.47) |
+| **Ricalcolo draw vs idle** | **~0.075** (range 0.02–0.15) |
+| Δ | **−83%** → riga v1 **non citare** |
+
+- Idle UNPLUGGED: `current` **negativo** (scarica) confermato.
+- **Prodotto:** dichiarare al più *ordine 0.05–0.15 J/tok (flight, caveat)* oppure omettere J/tok fino a calibrazione migliore.
 
 ---
 

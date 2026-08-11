@@ -1,0 +1,47 @@
+[
+  {
+    "turn": 1,
+    "n_prompt": 96,
+    "n_past": 352,
+    "tokens": 256,
+    "tok_s": 1.479,
+    "prefill_s": null,
+    "prefill_tps": null
+  },
+  {
+    "turn": 2,
+    "n_prompt": 87,
+    "n_past": 695,
+    "tokens": 256,
+    "tok_s": 1.41,
+    "prefill_s": null,
+    "prefill_tps": null
+  },
+  {
+    "turn": 3,
+    "n_prompt": 782,
+    "n_past": 854,
+    "tokens": 72,
+    "tok_s": 1.317,
+    "prefill_s": null,
+    "prefill_tps": null
+  },
+  {
+    "turn": 4,
+    "n_prompt": 92,
+    "n_past": 1189,
+    "tokens": 243,
+    "tok_s": 1.362,
+    "prefill_s": null,
+    "prefill_tps": null
+  },
+  {
+    "turn": 5,
+    "n_prompt": 70,
+    "n_past": 1350,
+    "tokens": 91,
+    "tok_s": 1.378,
+    "prefill_s": null,
+    "prefill_tps": null
+  }
+]

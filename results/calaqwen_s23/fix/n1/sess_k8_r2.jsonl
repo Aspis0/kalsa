@@ -1,0 +1,3 @@
+{"cmd": "generate", "prompt": "Hi.", "id": 1, "n_predict": 8, "clear_kv": true, "think": false}
+{"cmd": "generate", "prompt": "x x x x x x x x", "id": 2, "n_predict": 8, "clear_kv": false, "think": false}
+{"cmd": "close"}

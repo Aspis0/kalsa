@@ -1,0 +1,3 @@
+{"cmd": "generate", "prompt": "Spiega in tre frasi cos e la memoria KV in un transformer. Rispondi in italiano, max 80 parole.", "id": 1, "n_predict": 32, "clear_kv": true, "think": false}
+{"cmd": "generate", "prompt": "Spiega in tre frasi cos e la memoria KV in un transformer. Rispondi in italiano, max 80 parole.", "id": 2, "n_predict": 32, "clear_kv": false, "think": false}
+{"cmd": "close"}

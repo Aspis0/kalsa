@@ -1,0 +1,7 @@
+CONV5_TURNS 5
+turn	n_prompt	n_past	prefill_s	tok_s	tokens
+1	96	352	None	1.479	256
+2	87	695	None	1.41	256
+3	782	854	None	1.317	72
+4	92	1189	None	1.362	243
+5	70	1350	None	1.378	91

@@ -1,0 +1,10 @@
+{
+  "bug": "JSONL missing cmd/generate/id/think/close; parser heredoc ate stdin so fixed looked like 0 dones",
+  "broken_dones": 0,
+  "fixed_dones": 2,
+  "t1_n_past": 71,
+  "t2_n_past": 144,
+  "t2_n_prompt": 41,
+  "t2_n_common": 71,
+  "verdict": "PASS"
+}

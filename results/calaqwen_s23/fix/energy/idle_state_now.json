@@ -1,0 +1,272 @@
+[
+  {
+    "i": 0,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -167000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 1,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -154000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 2,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -150000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 3,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -137000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 4,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -200000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 5,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -180000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 6,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -162000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 7,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -142000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 8,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -190000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 9,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -215000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 10,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -203000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 11,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -213000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 12,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -167000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 13,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -170000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 14,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -152000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 15,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -170000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 16,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -274000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 17,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -187000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 18,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -132000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 19,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -177000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 20,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -203000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 21,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -187000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 22,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -111000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 23,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -164000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 24,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -190000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 25,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -139000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 26,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -205000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 27,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -127000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 28,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -178000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  },
+  {
+    "i": 29,
+    "plugged": "UNPLUGGED",
+    "pct": 57,
+    "current": -190000,
+    "voltage": 3857,
+    "temp": 33.6,
+    "tag": "state_now"
+  }
+]

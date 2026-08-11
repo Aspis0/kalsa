@@ -1,0 +1,37 @@
+BMOE_READY {"load_s":16.849,"arch":"qwen35moe","n_ctx":4096,"think_ctl":"template","n_expert_used":6}
+BMOE_BEGIN {"id":1}
+BMOE_LOAD {"mb":50.47,"ms":246.4}
+BMOE_PROGRESS {"step":1,"steps":8,"wall_ms":606.2,"io_ms":246.4,"compute_ms":536.8,"mgmt_ms":14.6,"stall_ms":54.8,"read_mb":50.47,"cache_hit_pct":12.0,"majflt":0,"cpu_ms":1661.9,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":"Hello"}
+BMOE_LOAD {"mb":21.94,"ms":175.6}
+BMOE_PROGRESS {"step":2,"steps":8,"wall_ms":630.1,"io_ms":175.6,"compute_ms":570.0,"mgmt_ms":9.0,"stall_ms":51.2,"read_mb":21.94,"cache_hit_pct":21.9,"majflt":0,"cpu_ms":1739.5,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":"!"}
+BMOE_LOAD {"mb":55.96,"ms":693.2}
+BMOE_PROGRESS {"step":3,"steps":8,"wall_ms":765.1,"io_ms":693.2,"compute_ms":551.2,"mgmt_ms":10.9,"stall_ms":202.9,"read_mb":55.96,"cache_hit_pct":27.8,"majflt":0,"cpu_ms":1766.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" How"}
+BMOE_LOAD {"mb":70.21,"ms":891.2}
+BMOE_PROGRESS {"step":4,"steps":8,"wall_ms":808.6,"io_ms":891.2,"compute_ms":539.5,"mgmt_ms":12.9,"stall_ms":256.2,"read_mb":70.21,"cache_hit_pct":32.0,"majflt":0,"cpu_ms":1768.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" can"}
+BMOE_LOAD {"mb":57.05,"ms":728.6}
+BMOE_PROGRESS {"step":5,"steps":8,"wall_ms":799.4,"io_ms":728.6,"compute_ms":579.5,"mgmt_ms":10.4,"stall_ms":209.4,"read_mb":57.05,"cache_hit_pct":36.0,"majflt":0,"cpu_ms":1839.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" I"}
+BMOE_LOAD {"mb":59.23,"ms":750.4}
+BMOE_PROGRESS {"step":6,"steps":8,"wall_ms":764.0,"io_ms":750.4,"compute_ms":532.1,"mgmt_ms":12.7,"stall_ms":219.2,"read_mb":59.23,"cache_hit_pct":39.1,"majflt":0,"cpu_ms":1712.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" help"}
+BMOE_LOAD {"mb":39.49,"ms":518.5}
+BMOE_PROGRESS {"step":7,"steps":8,"wall_ms":694.1,"io_ms":518.5,"compute_ms":530.5,"mgmt_ms":12.8,"stall_ms":150.8,"read_mb":39.49,"cache_hit_pct":42.5,"majflt":0,"cpu_ms":1655.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" you"}
+BMOE_LOAD {"mb":60.36,"ms":771.4}
+BMOE_PROGRESS {"step":8,"steps":8,"wall_ms":790.9,"io_ms":771.4,"compute_ms":563.4,"mgmt_ms":10.8,"stall_ms":216.7,"read_mb":60.36,"cache_hit_pct":44.9,"majflt":0,"cpu_ms":1769.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" today"}
+BMOE_DONE {"id":1,"cancelled":false,"tokens":8,"tok_s":1.366,"prefill_s":5.996,"prefill_tps":2.33,"load_s":16.849,"cache_hit_pct":44.9,"n_prompt":14,"n_past":22,"compute_s_tok":0.5504,"io_s_tok":0.5969,"cache_resident_mib":1900,"cache_budget_mib":2000,"read_mib":414.7,"stall_s_tok":0.1701,"mgmt_s_tok":0.0118,"majflt_tok":0.00,"cpu_s_tok":1.7392,"token_demand_mib":244.3,"mtp_drafted":0,"mtp_accepted":0,"mtp_decodes":8,"mtp_draft_s_tok":0.0000,"drafted_steps":0,"loop_overhead_s_tok":0.0026,"reasoning":"","text":"Hello! How can I help you today"}
+BMOE_BEGIN {"id":2}
+BMOE_LOAD {"mb":7.68,"ms":97.3}
+BMOE_PROGRESS {"step":1,"steps":8,"wall_ms":664.8,"io_ms":97.3,"compute_ms":625.6,"mgmt_ms":9.9,"stall_ms":29.3,"read_mb":7.68,"cache_hit_pct":53.8,"majflt":0,"cpu_ms":1887.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"Hello"}
+BMOE_LOAD {"mb":7.67,"ms":107.5}
+BMOE_PROGRESS {"step":2,"steps":8,"wall_ms":654.9,"io_ms":107.5,"compute_ms":613.8,"mgmt_ms":7.8,"stall_ms":33.2,"read_mb":7.67,"cache_hit_pct":55.9,"majflt":0,"cpu_ms":1842.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"!"}
+BMOE_LOAD {"mb":10.98,"ms":154.9}
+BMOE_PROGRESS {"step":3,"steps":8,"wall_ms":652.3,"io_ms":154.9,"compute_ms":598.5,"mgmt_ms":12.0,"stall_ms":41.9,"read_mb":10.98,"cache_hit_pct":57.7,"majflt":0,"cpu_ms":1813.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" How"}
+BMOE_LOAD {"mb":13.16,"ms":199.6}
+BMOE_PROGRESS {"step":4,"steps":8,"wall_ms":582.4,"io_ms":199.6,"compute_ms":512.0,"mgmt_ms":14.2,"stall_ms":56.2,"read_mb":13.16,"cache_hit_pct":59.4,"majflt":0,"cpu_ms":1568.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" can"}
+BMOE_LOAD {"mb":6.59,"ms":97.2}
+BMOE_PROGRESS {"step":5,"steps":8,"wall_ms":570.7,"io_ms":97.2,"compute_ms":534.6,"mgmt_ms":8.0,"stall_ms":28.1,"read_mb":6.59,"cache_hit_pct":61.0,"majflt":0,"cpu_ms":1606.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" I"}
+BMOE_LOAD {"mb":10.98,"ms":161.5}
+BMOE_PROGRESS {"step":6,"steps":8,"wall_ms":526.7,"io_ms":161.5,"compute_ms":468.0,"mgmt_ms":13.6,"stall_ms":45.1,"read_mb":10.98,"cache_hit_pct":62.4,"majflt":0,"cpu_ms":1426.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" help"}
+BMOE_LOAD {"mb":12.06,"ms":184.0}
+BMOE_PROGRESS {"step":7,"steps":8,"wall_ms":602.3,"io_ms":184.0,"compute_ms":535.8,"mgmt_ms":11.3,"stall_ms":55.2,"read_mb":12.06,"cache_hit_pct":63.7,"majflt":0,"cpu_ms":1612.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" you"}
+BMOE_LOAD {"mb":10.96,"ms":152.8}
+BMOE_PROGRESS {"step":8,"steps":8,"wall_ms":611.0,"io_ms":152.8,"compute_ms":553.0,"mgmt_ms":11.8,"stall_ms":46.2,"read_mb":10.96,"cache_hit_pct":64.9,"majflt":0,"cpu_ms":1674.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" today"}
+BMOE_DONE {"id":2,"cancelled":false,"tokens":8,"tok_s":1.644,"prefill_s":5.032,"prefill_tps":2.78,"load_s":16.849,"cache_hit_pct":64.9,"n_prompt":14,"n_past":44,"compute_s_tok":0.5552,"io_s_tok":0.1443,"cache_resident_mib":1999,"cache_budget_mib":2000,"read_mib":80.1,"stall_s_tok":0.0419,"mgmt_s_tok":0.0111,"majflt_tok":0.00,"cpu_s_tok":1.6790,"token_demand_mib":243.2,"mtp_drafted":0,"mtp_accepted":0,"mtp_decodes":8,"mtp_draft_s_tok":0.0000,"drafted_steps":0,"loop_overhead_s_tok":0.0022,"reasoning":"","text":"Hello! How can I help you today"}

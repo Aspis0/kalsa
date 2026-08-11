@@ -1,0 +1,65 @@
+[2026-08-11T08:34:01-0400] === PASSO 2 conv5 ===
+[2026-08-11T08:34:04-0400] preflight i=1 plugged=UNPLUGGED batt=65 die=32.6 nproc=3
+98fbf1b813fd4031d6164c2cf1818ab3ead295c719eea592679d63939f2e060c  /data/data/com.termux/files/home/experiments/results/calaqwen_s23/fix/conv5/conv5_in.jsonl
+CONV5_TURNS 5
+turn	n_prompt	n_past	prefill_s	tok_s	tokens
+1	96	352	None	1.479	256
+2	87	695	None	1.41	256
+3	782	854	None	1.317	72
+4	92	1189	None	1.362	243
+5	70	1350	None	1.378	91
+[2026-08-11T08:51:07-0400] conv5 rc=0 turns ok
+[2026-08-11T08:51:07-0400] === PASSO 3 N1 v2 ===
+[2026-08-11T08:51:10-0400] preflight i=1 plugged=UNPLUGGED batt=61 die=41.0 nproc=3
+[2026-08-11T08:53:07-0400] preflight i=1 plugged=UNPLUGGED batt=61 die=42.2 nproc=3
+[2026-08-11T08:53:56-0400] N1 k=0 rep=1 done
+[2026-08-11T08:54:01-0400] preflight i=1 plugged=UNPLUGGED batt=60 die=41.4 nproc=3
+[2026-08-11T08:54:52-0400] N1 k=0 rep=2 done
+[2026-08-11T08:54:55-0400] preflight i=1 plugged=UNPLUGGED batt=60 die=41.8 nproc=3
+[2026-08-11T08:55:50-0400] N1 k=8 rep=1 done
+[2026-08-11T08:55:53-0400] preflight i=1 plugged=UNPLUGGED batt=60 die=43.0 nproc=3
+[2026-08-11T08:56:46-0400] N1 k=8 rep=2 done
+[2026-08-11T08:56:50-0400] preflight i=1 plugged=UNPLUGGED batt=60 die=43.8 nproc=3
+[2026-08-11T08:57:50-0400] N1 k=32 rep=1 done
+[2026-08-11T08:57:54-0400] preflight i=1 plugged=UNPLUGGED batt=60 die=45.7 nproc=3
+[2026-08-11T08:58:53-0400] N1 k=32 rep=2 done
+[2026-08-11T08:58:57-0400] preflight i=1 plugged=UNPLUGGED batt=59 die=43.8 nproc=3
+[2026-08-11T09:00:07-0400] N1 k=64 rep=1 done
+[2026-08-11T09:00:10-0400] preflight i=1 plugged=UNPLUGGED batt=59 die=43.4 nproc=3
+[2026-08-11T09:01:19-0400] N1 k=64 rep=2 done
+[2026-08-11T09:01:23-0400] preflight i=1 plugged=UNPLUGGED batt=59 die=44.2 nproc=3
+[2026-08-11T09:02:51-0400] N1 k=128 rep=1 done
+[2026-08-11T09:02:54-0400] preflight i=1 plugged=UNPLUGGED batt=58 die=42.6 nproc=3
+[2026-08-11T09:04:22-0400] N1 k=128 rep=2 done
+[2026-08-11T09:04:25-0400] preflight i=1 plugged=UNPLUGGED batt=58 die=43.4 nproc=3
+[2026-08-11T09:06:27-0400] N1 k=256 rep=1 done
+[2026-08-11T09:06:31-0400] preflight i=1 plugged=UNPLUGGED batt=58 die=43.4 nproc=3
+[2026-08-11T09:08:32-0400] N1 k=256 rep=2 done
+N1_OK_ROWS 0
+t_decode1_s 0.7304601899196493 tok_s 1.369
+FIT: INSUFFICIENT_DATA
+k	n_prompt	prefill_s	mib_tok	status
+0	14	None	None	OK
+0	14	None	None	OK
+128	142	None	None	OK
+128	142	None	None	OK
+256	270	None	None	OK
+256	270	None	None	OK
+32	46	None	None	OK
+32	46	None	None	OK
+64	78	None	None	OK
+64	78	None	None	OK
+8	22	None	None	OK
+8	22	None	None	OK
+[2026-08-11T09:11:02-0400] === PASSO 4 energy sign ===
+STATE_NOW plugged=UNPLUGGED current_median_uA=-173500.0 n=30
+sign_now=NEG_discharge
+NOTE: only UNPLUGGED idle captured this run; charge sample optional
+RECALC I_idle_uA=-430000.0
+b1/sos_short_r1: E_J=4.606 n_gen=199 J_per_tok=0.0231
+b1/sos_short_r2: E_J=15.002 n_gen=199 J_per_tok=0.0754
+b1/sos_long_thermal: E_J=15.015 n_gen=102 J_per_tok=0.1472
+J_per_tok_recalc median=0.0754 range=0.0231-0.1472
+vs_scheda_old=0.4547 delta_pct=83.4 CORRECT_SHEET
+[2026-08-11T09:11:56-0400] === ALL FIX STEPS DONE ===
+DONE PASS broken_dones=0 fixed_dones=2 t1_n_past=71 t2_n_common=71

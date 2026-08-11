@@ -1,0 +1,9 @@
+STATE_NOW plugged=UNPLUGGED current_median_uA=-173500.0 n=30
+sign_now=NEG_discharge
+NOTE: only UNPLUGGED idle captured this run; charge sample optional
+RECALC I_idle_uA=-430000.0
+b1/sos_short_r1: E_J=4.606 n_gen=199 J_per_tok=0.0231
+b1/sos_short_r2: E_J=15.002 n_gen=199 J_per_tok=0.0754
+b1/sos_long_thermal: E_J=15.015 n_gen=102 J_per_tok=0.1472
+J_per_tok_recalc median=0.0754 range=0.0231-0.1472
+vs_scheda_old=0.4547 delta_pct=83.4 CORRECT_SHEET
