@@ -43,6 +43,20 @@ export const CO_RESIDENCY_MIN_MEMORY_BYTES = 6e9;
 let state: LlamaContextState = "idle";
 /** True while EmbeddingService holds (or is acquiring) a native embed context. */
 let embedHeld = false;
+/**
+ * True only while the embedder INIT (initLlama) or RELEASE is in flight.
+ * tryAcquireEmbed refuses NEW init while this is set. Chat completion must
+ * NOT set this — document_chat runs inside a chat completion and must be able
+ * to lazy-init the embedder for hybrid retrieval (round-8 FIX 1).
+ */
+let embedInitializing = false;
+/**
+ * True while any embed operation (embed / init / release) is in flight.
+ * Init/release refuse while this is set (race surface). Embed USE of an
+ * already-ready context is serialized by runNativeOp and does not need to
+ * block on chat completion.
+ */
+let embedInFlight = false;
 let totalMemoryBytes = 0;
 let chatModelIs2B = false;
 /**
@@ -147,13 +161,20 @@ export function markChatReleased(gen: number): void {
 
 /**
  * Acquire the embedder slot. Synchronous.
+ * - false while embedInitializing (another init/release owns the race surface)
  * - false while chat_loading
  * - false while chat_ready UNLESS co-residency is allowed (§5)
  * - true from idle → sets embed_active
  * - true when already embed_active (re-entrant under EmbeddingService mutex)
  * - true under chat_ready + co-residency (state stays chat_ready; embedHeld=true)
+ *
+ * Chat completion does NOT block this (round-8 FIX 1): document_chat runs
+ * inside the tool loop of a completion and must lazy-init / use the embedder.
+ * Native serialization of init vs chat init/dispose stays on runNativeOp.
  */
 export function tryAcquireEmbed(): boolean {
+  // Refuse NEW embed init/slot claim while init or release is mid-flight.
+  if (embedInitializing) return false;
   if (state === "chat_loading") return false;
   if (state === "chat_ready") {
     if (!allowsCoResidency()) return false;
@@ -181,6 +202,77 @@ export function releaseEmbed(): void {
   }
 }
 
+/**
+ * Mark embedder initLlama / release as in flight. EmbeddingService sets this
+ * around the actual native init/release critical sections. tryAcquireEmbed
+ * refuses while set so a second init cannot race the first.
+ */
+export function markEmbedInitializing(): void {
+  embedInitializing = true;
+  embedInFlight = true;
+}
+
+/** Clear embedInitializing after init/release settles (keeps embedInFlight if use is open). */
+export function markEmbedInitializingDone(): void {
+  embedInitializing = false;
+}
+
+/**
+ * Mark any embed op (use / init / release) as in flight.
+ * Init/release callers should prefer markEmbedInitializing (sets both).
+ */
+export function markEmbedInFlight(): void {
+  embedInFlight = true;
+}
+
+/** Clear embedInFlight after the embed op settles. Also clears embedInitializing. */
+export function markEmbedInFlightDone(): void {
+  embedInFlight = false;
+  embedInitializing = false;
+}
+
+/** True while embed init/release owns the race surface. */
+export function isEmbedInitializing(): boolean {
+  return embedInitializing;
+}
+
+/** True while any embed op (embed/init/release) is in flight. */
+export function isEmbedInFlight(): boolean {
+  return embedInFlight;
+}
+
+/**
+ * True when init/release should refuse because another embed op holds the
+ * race surface (embedInFlight). Embed USE of a ready context may still proceed
+ * under runNativeOp serialization.
+ */
+export function shouldRefuseEmbedInitOrRelease(): boolean {
+  return embedInFlight === true;
+}
+
+/**
+ * Legacy no-op retained for LlamaService.withEngineJob / runEngineJob.
+ * Round-8 FIX 1: chat completion must NOT block embed init or use — hybrid
+ * document_chat runs inside the tool loop of a completion. Native races are
+ * handled by runNativeOp + embedInitializing, not by this flag.
+ */
+export function markChatCompleting(): void {
+  /* intentionally empty — see isChatCompleting */
+}
+
+/** Legacy no-op paired with markChatCompleting (LlamaService finally). */
+export function markChatCompletingDone(): void {
+  /* intentionally empty */
+}
+
+/**
+ * Always false after round-8 FIX 1. Kept so existing imports compile; harnesses
+ * assert the new embedInitializing model instead.
+ */
+export function isChatCompleting(): boolean {
+  return false;
+}
+
 export function getState(): LlamaContextState {
   return state;
 }
@@ -199,6 +291,8 @@ export function isEmbedHeld(): boolean {
 export function __resetForTests(): void {
   state = "idle";
   embedHeld = false;
+  embedInitializing = false;
+  embedInFlight = false;
   totalMemoryBytes = 0;
   chatModelIs2B = false;
   currentChatGeneration = 0;

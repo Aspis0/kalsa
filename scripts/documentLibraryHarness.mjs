@@ -108,6 +108,7 @@ async function main() {
     decideDocStrategy,
     estimateTokensForDoc,
     formatPassageCitation,
+    shouldUseVisionFallback,
     emptyLibraryState,
     parseLibraryState,
     serializeLibraryState,
@@ -898,6 +899,100 @@ async function main() {
     })());
     releaseRead();
     __resetDocOpGateForTests();
+  }
+
+  // ── FIX 5: extractionStatus timeout must NOT vision-fallback ───────────
+  __resetDocumentChatBusyForTests();
+  {
+    check(
+      "shouldUseVisionFallback timeout → false",
+      shouldUseVisionFallback({ docCount: 0, extractionStatus: "timeout" }) === false,
+    );
+    check(
+      "shouldUseVisionFallback no_text_layer → true",
+      shouldUseVisionFallback({ docCount: 0, extractionStatus: "no_text_layer" }) === true,
+    );
+    check(
+      "shouldUseVisionFallback ok empty → true",
+      shouldUseVisionFallback({ docCount: 0, extractionStatus: "ok" }) === true,
+    );
+    check(
+      "shouldUseVisionFallback renderer_error → false",
+      shouldUseVisionFallback({ docCount: 0, extractionStatus: "renderer_error" }) === false,
+    );
+    check(
+      "shouldUseVisionFallback legacy absent → true",
+      shouldUseVisionFallback({ docCount: 0 }) === true,
+    );
+    check(
+      "shouldUseVisionFallback with text → false",
+      shouldUseVisionFallback({ docCount: 2, extractionStatus: "timeout" }) === false,
+    );
+
+    // Persist round-trip
+    const timedOut = sampleDoc({
+      id: "to1",
+      docCount: 0,
+      pageCount: 5,
+      estimatedTokens: 0,
+      extractionStatus: "timeout",
+    });
+    const serialized = serializeLibraryState(addDoc(emptyLibraryState(), timedOut));
+    const parsed = parseLibraryState(serialized);
+    check(
+      "extractionStatus timeout persists through serialize/parse",
+      parsed.docs[0]?.extractionStatus === "timeout" && parsed.docs[0]?.docCount === 0,
+    );
+
+    const host = {
+      getLibraryDocs: () => [
+        sampleDoc({
+          id: "timeout-doc",
+          docCount: 0,
+          pageCount: 5,
+          estimatedTokens: 0,
+          extractionStatus: "timeout",
+        }),
+      ],
+      requestPdfText: async () => {
+        throw Object.assign(new Error("timed out"), { code: "timeout" });
+      },
+      readTxt: async () => "",
+      getCtxTokens: () => 4096,
+      getIndexFor: () => null,
+    };
+    const exec = createDocumentChatExecutor(host);
+    const out = await exec("document_chat", { query: "summary", docId: "timeout-doc" });
+    check(
+      "tool extraction timeout → error NOT vision_fallback",
+      out.strategy === "error" &&
+        !out.text.includes(DOCUMENT_CHAT_VISION_MARKER) &&
+        typeof out.error === "string" &&
+        out.error.length > 0,
+    );
+
+    const hostScan = {
+      getLibraryDocs: () => [
+        sampleDoc({
+          id: "scan2",
+          docCount: 0,
+          pageCount: 4,
+          estimatedTokens: 0,
+          extractionStatus: "no_text_layer",
+        }),
+      ],
+      requestPdfText: async () => ({ docs: [], skippedPages: [1, 2, 3, 4] }),
+      readTxt: async () => "",
+      getCtxTokens: () => 4096,
+      getIndexFor: () => null,
+    };
+    const execScan = createDocumentChatExecutor(hostScan);
+    const outScan = await execScan("document_chat", { query: "summary", docId: "scan2" });
+    check(
+      "tool no_text_layer still vision_fallback",
+      outScan.strategy === "vision_fallback" &&
+        outScan.text.includes(DOCUMENT_CHAT_VISION_MARKER),
+    );
   }
 
   console.log(`\n${pass} passed, ${fail} failed`);

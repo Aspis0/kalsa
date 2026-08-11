@@ -74,6 +74,10 @@ import {
 } from "./kvReproducibility";
 import { resolveThinkingParams } from "./thinkingBudgets";
 import { getModelById } from "./ModelRegistry";
+import {
+  markChatCompleting,
+  markChatCompletingDone,
+} from "./llamaContextGate";
 import * as FileSystem from "expo-file-system/legacy";
 
 /**
@@ -136,6 +140,13 @@ let lastPromptEnvHash: string | undefined;
  * stays correct even after disposeEngineLocked's `finally` resets this flag.
  */
 let disposing = false;
+
+/**
+ * True after disposeEngineLocked's 60s safety timeout fired while native work
+ * was still active. We refuse to release() in that window (UAF risk) and refuse
+ * subsequent initEngine calls — recovery is process restart.
+ */
+let contextHung = false;
 
 /** Monotonic turn id for KALSA_TELEMETRY lines. No Date.now — stable, parseable. */
 let turnSeq = 0;
@@ -209,8 +220,9 @@ const SUMMARIZE_N_PREDICT = 400;
  * Must stay well above the longest internal job timeout (translate: 30s) — the
  * `disposing` flag is what actually cuts jobs short; this only guards against a
  * job stuck outside any completion (e.g. a tool network fetch with no timeout).
- * If it trips we log and force release() rather than hang forever, but this is
- * flagged loudly (never silent).
+ * If it trips while native work is still active we mark the context hung and
+ * refuse release() (UAF risk) + refuse future initEngine — recovery is process
+ * restart. Only force-release when the queue is empty but the wait still timed out.
  */
 const DISPOSE_SAFETY_TIMEOUT_MS = 60_000;
 
@@ -405,11 +417,43 @@ const activeCompletionSet = new Set<Promise<unknown>>();
  * streamAssistantTurn holds it for the full tool-loop turn (callbacks fire inside).
  */
 let engineJobChain: Promise<unknown> = Promise.resolve();
+/**
+ * Jobs enqueued via withEngineJob that have not yet settled (executing or
+ * waiting). Used by disposeEngineLocked's 60s path to decide hung vs force-release.
+ */
+let engineJobPendingCount = 0;
 
 function withEngineJob<T>(fn: () => Promise<T>): Promise<T> {
-  const run = engineJobChain.then(fn, fn);
+  // Increment pending SYNCHRONOUSLY so dispose's timeout path observes it.
+  engineJobPendingCount += 1;
+  const run = engineJobChain.then(
+    () => runEngineJob(fn),
+    () => runEngineJob(fn),
+  );
   engineJobChain = run.catch(() => undefined);
+  void run.then(
+    () => {
+      engineJobPendingCount = Math.max(0, engineJobPendingCount - 1);
+    },
+    () => {
+      engineJobPendingCount = Math.max(0, engineJobPendingCount - 1);
+    },
+  );
   return run;
+}
+
+/**
+ * Run one engine job with the chatCompleting barrier held so embed init
+ * (tryAcquireEmbed) cannot race a live completion (FIX 2 dual-mutex).
+ * withEngineJob is a FIFO so only one job body runs at a time.
+ */
+async function runEngineJob<T>(fn: () => Promise<T>): Promise<T> {
+  markChatCompleting();
+  try {
+    return await fn();
+  } finally {
+    markChatCompletingDone();
+  }
 }
 
 function trackCompletion<T>(promise: Promise<T>): Promise<T> {
@@ -444,7 +488,14 @@ function withLifecycleLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 export function isEngineReady(): boolean {
-  return context !== null;
+  // Hung contexts keep the native handle leaked; JS module context is null
+  // after dispose's invalidate. Ready means a usable context.
+  return context !== null && !contextHung;
+}
+
+/** True after a dispose safety-timeout with active native work (process restart). */
+export function isEngineHung(): boolean {
+  return contextHung;
 }
 
 export function getActiveModelId(): string | null {
@@ -563,6 +614,11 @@ export function initEngine(
   options: EngineInitOptions,
 ): Promise<EngineInitResult> {
   return withLifecycleLock(async () => {
+    if (contextHung) {
+      throw new Error(
+        "Engine context hung after dispose timeout with active native work; restart the app",
+      );
+    }
     const strings = getStrings(options.locale);
     const engineCtx =
       typeof options.nCtx === "number" && Number.isFinite(options.nCtx)
@@ -854,7 +910,25 @@ async function disposeEngineLocked(): Promise<void> {
         ]).then(() => true),
         new Promise<boolean>((resolve) => setTimeout(() => resolve(false), DISPOSE_SAFETY_TIMEOUT_MS)),
       ]);
+      // FIX 3: if the safety timeout fires while native work is still active,
+      // do NOT release — a late completion/stopCompletion on a freed context is
+      // a UAF. Mark hung and require process restart for recovery.
       if (!settled) {
+        const hasActive =
+          activeCompletionSet.size > 0 || engineJobPendingCount > 0;
+        if (hasActive) {
+          contextHung = true;
+          console.warn(
+            "[disposeEngineLocked] safety timeout with active native work — marking context hung, NOT releasing (restart required)",
+            JSON.stringify({
+              activeCompletions: activeCompletionSet.size,
+              engineJobs: engineJobPendingCount,
+            }),
+          );
+          // Leave the native context leaked. Module-level context is already
+          // null; initEngine refuses while contextHung.
+          return;
+        }
         console.warn(
           "[disposeEngineLocked] safety timeout: job chain non si è liberata in tempo, forzo release()",
         );
@@ -876,6 +950,19 @@ async function disposeEngineLocked(): Promise<void> {
         new Promise<boolean>((resolve) => setTimeout(() => resolve(false), DISPOSE_SAFETY_TIMEOUT_MS)),
       ]);
       if (!settled) {
+        const hasActive =
+          activeCompletionSet.size > 0 || engineJobPendingCount > 0;
+        if (hasActive) {
+          contextHung = true;
+          console.warn(
+            "[disposeEngineLocked] safety timeout with active native work (no context) — marking hung, NOT continuing (restart required)",
+            JSON.stringify({
+              activeCompletions: activeCompletionSet.size,
+              engineJobs: engineJobPendingCount,
+            }),
+          );
+          return;
+        }
         console.warn(
           "[disposeEngineLocked] safety timeout: job chain non si è liberata in tempo (no context attivo)",
         );
@@ -923,7 +1010,12 @@ export async function saveEngineSession(
   modelId: string,
   historyHashValue: string,
 ): Promise<boolean> {
-  return withEngineJob(async () => {
+  // FIX 4: lifecycle lock for the full save (disk I/O + native saveSession) so
+  // a concurrent dispose/model-switch cannot null active* fields or release the
+  // context mid-save. Outer lifecycle, inner engine-job (never reverse — that
+  // deadlocks with disposeEngineLocked waiting on engineJobChain).
+  return withLifecycleLock(() =>
+  withEngineJob(async () => {
     const t0 = Date.now();
     const estimatedBytes = estimateSessionBytes(activeEngineCtx);
     const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
@@ -1051,7 +1143,8 @@ export async function saveEngineSession(
       log(false, { reason: sessionErrorReason(error) });
       return false;
     }
-  });
+  }),
+  );
 }
 
 /**

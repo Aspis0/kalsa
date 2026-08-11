@@ -85,6 +85,7 @@ import { resolveContextProfile } from "../engine/contextProfile";
 import {
   diskRequirementBytes,
   estimateModelNonEvictableMiB,
+  evaluateModelFit,
   getCachedDeviceProfile,
   getFreeDiskBytes,
   modelGateVerdict,
@@ -98,12 +99,26 @@ import {
   initEngine,
   invalidateEngineSession,
   isEngineReady,
+  saveEngineSession,
   streamAssistantTurn,
   summarizeConversation,
   type EngineMessage,
   type EngineTurnOptions,
 } from "../engine/LlamaService";
-import { computePromptEnvHash, getBootHistoryHash } from "../engine/sessionPersistence";
+import { startMemoryMonitor, getAvailableMemoryBytesUncached } from "../engine/monitor";
+import {
+  backgroundDiscardLifecycleRef,
+  deferModelSwitchIfSendClaimed,
+  discardGenerationRef,
+  discardInFlightRef,
+  drainPendingModelSwitch,
+  regenAbortRef,
+  regenInFlightRef,
+  sendClaimRef,
+  sendingInFlightRef,
+} from "../engine/regenState";
+import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
+import { computePromptEnvHash, getBootHistoryHash, historyHash } from "../engine/sessionPersistence";
 import { getEngineOverride, getSpeculativeOverride } from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import {
@@ -247,6 +262,8 @@ function gateForModel(
   profile: Awaited<ReturnType<typeof getCachedDeviceProfile>>,
   freeDiskBytes: number | null,
 ): ModelGateVerdict {
+  // RAM estimate includes optional mmproj (vision bundle); disk already bundles.
+  const bundleBytes = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
   return modelGateVerdict({
     totalMemoryBytes: profile.totalMemoryBytes,
     availableMemoryBytes: profile.availableMemoryBytes,
@@ -254,7 +271,7 @@ function gateForModel(
     ramTier: profile.ramTier,
     modelMinRamTier: model.minRamTier,
     modelNonEvictableMiB: estimateModelNonEvictableMiB({
-      sizeBytes: model.sizeBytes,
+      sizeBytes: bundleBytes,
       engineCtx: model.engineCtx,
       kvBytesPerToken: model.kvBytesPerToken,
     }),
@@ -516,11 +533,12 @@ function validateHistoryMessages(history: unknown[] | undefined): HistoryRoleMes
       const text = (m as { text: string }).text;
       const interrupted =
         (m as { interrupted?: unknown }).interrupted === true ? true : undefined;
-      out.push(
-        interrupted !== undefined
-          ? { role, text, interrupted }
-          : { role, text },
-      );
+      const edited =
+        (m as { edited?: unknown }).edited === true ? true : undefined;
+      const rec: HistoryRoleMessage & { edited?: boolean } = { role, text };
+      if (interrupted !== undefined) rec.interrupted = interrupted;
+      if (edited !== undefined) rec.edited = edited;
+      out.push(rec);
     }
   }
   return out;
@@ -1542,8 +1560,186 @@ export function AppShell() {
   const chatGateGenRef = useRef<number | null>(null);
   const streamInFlightRef = useRef(false);
   const modelSwitchInFlightRef = useRef(false);
+  /** Single-flight waiter that drains pendingModelSwitchQueue after sendClaim. */
+  const modelSwitchDrainInFlightRef = useRef(false);
   /** UI mirror of streamInFlightRef — disables model Select in Settings. */
   const [streaming, setStreaming] = useState(false);
+  /** Banner when fit returns unknown / unload reason for Settings. */
+  const [memoryBannerKey, setMemoryBannerKey] = useState<string | null>(null);
+
+  // Anti-OOM: uncached MemAvailable polling + AppState background/foreground.
+  // Background -> abort stream if busy, save session if kv-reproducible, dispose.
+  // Foreground -> evaluateModelFit; only allow lazy restore when fits|tight. Never auto-load.
+  useEffect(() => {
+    let disposed = false;
+    const handle = startMemoryMonitor({
+      intervalMs: 15_000,
+      onPressure: (bytes) => {
+        if (disposed) return;
+        try {
+          console.info(
+            "pressure.transition",
+            JSON.stringify({
+              availableMb:
+                typeof bytes === "number" ? Math.round(bytes / (1024 * 1024)) : null,
+            }),
+          );
+        } catch {
+          // telemetry never throws
+        }
+      },
+      onAppState: (state) => {
+        if (disposed) return;
+        if (state === "background" || state === "inactive") {
+          // RN can emit both inactive and background; only one discard at a time.
+          if (discardInFlightRef.current) return;
+          discardInFlightRef.current = true;
+          void (async () => {
+            // Round-8 FIX 3: capture THIS load's gen SYNCHRONOUSLY at entry,
+            // BEFORE the first await (lifecycle / hard-wait / save). Same pattern
+            // as regen/edit myGen capture. A concurrent ensure may bump the ref
+            // during awaits; release is a no-op if gen is no longer current.
+            const releasedGenBg = chatGateGenRef.current;
+            try {
+              // Abort regen first so edit/regen cannot race dispose.
+              regenAbortRef.current?.abort();
+
+              // Abort-and-await lifecycle owned by AiChatPage: aborts send,
+              // awaits stream finalization + turn-end save, returns real hash.
+              let historyHashValue = historyHash("");
+              const lifecycle = backgroundDiscardLifecycleRef.current;
+              if (lifecycle) {
+                try {
+                  const result = await lifecycle();
+                  if (
+                    result &&
+                    typeof result.historyHashValue === "string"
+                  ) {
+                    historyHashValue = result.historyHashValue;
+                  }
+                } catch {
+                  // fall through with empty-history hash only if genuinely empty
+                }
+              }
+
+              // Hard wait: never dispose while stream/send/regen/claim still in flight.
+              const t0 = Date.now();
+              while (
+                (streamInFlightRef.current ||
+                  sendingInFlightRef.current ||
+                  regenInFlightRef.current ||
+                  sendClaimRef.current) &&
+                Date.now() - t0 < 5000
+              ) {
+                await new Promise((r) => setTimeout(r, 50));
+              }
+              // If still busy after wait (e.g. a new send re-claimed during the
+              // lifecycle await), bail before disposing so the engine stays up.
+              // Monitor re-fires on the next background transition / pressure tick.
+              if (
+                streamInFlightRef.current ||
+                sendingInFlightRef.current ||
+                regenInFlightRef.current ||
+                sendClaimRef.current
+              ) {
+                return;
+              }
+
+              const modelId = getActiveModelId();
+              if (modelId && isEngineReady()) {
+                // saveEngineSession itself gates on kvReproducible.
+                // Use the real historyHash from lifecycle (empty only if empty).
+                try {
+                  await saveEngineSession(modelId, historyHashValue);
+                } catch {
+                  // ignore
+                }
+              }
+              // Only clear the ref if we still own this gen (no concurrent ensure
+              // claimed a newer generation during the awaits above).
+              if (
+                releasedGenBg !== null &&
+                chatGateGenRef.current === releasedGenBg
+              ) {
+                chatGateGenRef.current = null;
+              }
+              if (isEngineReady() || releasedGenBg !== null) {
+                try {
+                  if (isEngineReady()) {
+                    await runNativeOp(() => disposeEngine());
+                    setProcessUnloadedReason("chat.unloaded");
+                    setMemoryBannerKey("chat.unloaded");
+                    console.info(
+                      "model.unload",
+                      JSON.stringify({ reason: "background" }),
+                    );
+                  }
+                } catch {
+                  // ignore
+                } finally {
+                  // Release only the gen captured at entry (markChatReleased is
+                  // already gen-guarded against a newer owner).
+                  if (releasedGenBg !== null) markChatReleased(releasedGenBg);
+                }
+              }
+            } catch {
+              // never throw from AppState listener
+            } finally {
+              discardInFlightRef.current = false;
+              // Bump so a concurrent/next send can detect this discard cycle
+              // finished; ensureEngineForModel re-acquires if the engine is gone.
+              discardGenerationRef.current += 1;
+            }
+          })();
+          return;
+        }
+        if (state === "active") {
+          void (async () => {
+            try {
+              const model = MODEL_REGISTRY[modelIndexRef.current];
+              if (!model) return;
+              if (isEngineReady() && getActiveModelId() === model.id) return;
+              const available = await getAvailableMemoryBytesUncached();
+              const fit = evaluateModelFit(
+                {
+                  sizeBytes: model.sizeBytes,
+                  engineCtx: model.engineCtx,
+                  kvBytesPerToken: model.kvBytesPerToken,
+                  mmproj: model.mmproj
+                    ? { sizeBytes: model.mmproj.sizeBytes }
+                    : null,
+                },
+                available,
+              );
+              console.info(
+                "model.fit",
+                JSON.stringify({
+                  verdict: fit.verdict,
+                  availableMb:
+                    typeof available === "number"
+                      ? Math.round(available / (1024 * 1024))
+                      : null,
+                }),
+              );
+              if (fit.verdict === "does_not_fit" || fit.verdict === "unknown") {
+                setMemoryBannerKey(fit.reasonKey);
+                setProcessUnloadedReason(fit.reasonKey);
+                return;
+              }
+              // fits | tight -> allow lazy restore on next send. Never auto-load.
+              setMemoryBannerKey(null);
+            } catch {
+              // ignore
+            }
+          })();
+        }
+      },
+    });
+    return () => {
+      disposed = true;
+      handle.stop();
+    };
+  }, []);
   /** Per-model download presence for Settings badges (scanned when Settings opens). */
   const [downloadedById, setDownloadedById] = useState<Record<string, boolean>>({});
 
@@ -2057,8 +2253,42 @@ export function AppShell() {
   /** Settings: select by model id (same storage key + engine dispose path). */
   const selectModelById = useCallback(
     (modelId: string) => {
+      // While a send holds the pre-await claim (fit-gate), queue the switch
+      // (last-wins) and apply it only after the claim releases. Avoids dispose
+      // racing ensureEngineForModel mid-send.
+      if (deferModelSwitchIfSendClaimed(modelId)) {
+        if (!modelSwitchDrainInFlightRef.current) {
+          modelSwitchDrainInFlightRef.current = true;
+          void (async () => {
+            try {
+              const t0 = Date.now();
+              while (sendClaimRef.current && Date.now() - t0 < 5000) {
+                await new Promise((r) => setTimeout(r, 50));
+              }
+              // Timed out still claimed: drop queue so a late dispose cannot
+              // land mid-stream without a fresh user action.
+              if (sendClaimRef.current) {
+                drainPendingModelSwitch();
+                return;
+              }
+              const pendingId = drainPendingModelSwitch();
+              if (!pendingId) return;
+              // Claim free — re-enter (defer will no-op).
+              selectModelById(pendingId);
+            } finally {
+              modelSwitchDrainInFlightRef.current = false;
+            }
+          })();
+        }
+        return;
+      }
       const nextIndex = MODEL_REGISTRY.findIndex((m) => m.id === modelId);
       if (nextIndex < 0) return;
+      // Refuse model switch while edit/regenerate owns the turn.
+      if (regenInFlightRef.current) {
+        Alert.alert(t("chat.regenBusy"), t("chat.regenBusy"));
+        return;
+      }
       if (streamInFlightRef.current) {
         Alert.alert(
           t("settings.switchWhileStreamingTitle"),
@@ -2719,8 +2949,13 @@ export function AppShell() {
           setStreaming(false);
           resolve(afterSessionSave ? { afterSessionSave } : {});
         };
-        const fail = (message: string) => {
+        const fail = (message: string, reasonKey?: string) => {
           callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
+          try {
+            callbacks.onFailed?.(reasonKey || "chat.serviceUnreachable");
+          } catch {
+            // ignore
+          }
           finish();
         };
 
@@ -2855,9 +3090,15 @@ export function AppShell() {
               // modelErrorKind, so re-check disk rather than relying on modelErrorKind alone.
               const downloaded = await isModelBundleDownloaded(currentModel).catch(() => false);
               if (downloaded) {
-                fail(t("chat.modelLoadFailed", { name: currentModel.name }));
+                fail(
+                  t("chat.modelLoadFailed", { name: currentModel.name }),
+                  "chat.modelLoadFailed",
+                );
               } else {
-                fail(t("chat.modelNotDownloaded", { name: currentModel.name }));
+                fail(
+                  t("chat.modelNotDownloaded", { name: currentModel.name }),
+                  "chat.modelNotDownloaded",
+                );
               }
               return;
             }
@@ -3165,6 +3406,11 @@ export function AppShell() {
                     forceRebuildByChat.set(chatId, true);
                   }
                   callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
+                  try {
+                    callbacks.onFailed?.("chat.serviceUnreachable");
+                  } catch {
+                    // ignore
+                  }
                   finish();
                 },
               },
@@ -3407,6 +3653,7 @@ export function AppShell() {
             ttsEnabled={ttsEnabled}
             engineCtx={chatEngineCtx}
             documentLibrary={documentLibrary}
+            onMemoryBanner={(key) => setMemoryBannerKey(key)}
             onOpenDocuments={() => setActiveOverlay({ kind: "documents" })}
             onOpenMiniapp={(miniapp) => {
               // Policy: ignore miniapp open while Settings/Help/Documents is active

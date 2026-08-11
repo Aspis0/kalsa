@@ -24,6 +24,7 @@ import {
   decideDocStrategy,
   estimateTokensForDoc,
   formatPassageCitation,
+  shouldUseVisionFallback,
   type LibraryDoc,
 } from "./DocumentLibrary";
 import {
@@ -92,6 +93,10 @@ export type DenseUnavailableReason =
   | "no_embedder"
   /** Embedder native op abandoned after chat-init release timeout (round 6). */
   | "hung"
+  /** PDF/TXT extraction failed (round-8 FIX 2 — maps to documents.extraction.*). */
+  | "timeout"
+  | "renderer_error"
+  | "fs_error"
   | null;
 
 export type DocumentChatToolResult = {
@@ -448,6 +453,27 @@ async function runStrategy(
       ? doc.estimatedTokens
       : null;
 
+  // FIX 5: extraction failures (timeout/renderer/fs) must NOT vision-fallback.
+  // Surface a localized error so the model can tell the user to retry import.
+  // Round-8 FIX 2: also set denseUnavailableReason to extraction status keys
+  // (documents.extraction.timeout|renderer|fsError) for UI / tool body.
+  if (!shouldUseVisionFallback(doc) && (doc.docCount ?? 0) <= 0) {
+    const status = doc.extractionStatus;
+    const msg =
+      status === "timeout"
+        ? catalog(locale).extractTimeout.replace("{name}", doc.name)
+        : status === "renderer_error"
+          ? catalog(locale).extractRenderer.replace("{name}", doc.name)
+          : status === "fs_error"
+            ? catalog(locale).extractFs.replace("{name}", doc.name)
+            : catalog(locale).extractFailed.replace("{name}", doc.name);
+    const reason =
+      status === "timeout" || status === "renderer_error" || status === "fs_error"
+        ? status
+        : null;
+    return errorResult(msg, reason);
+  }
+
   let strategy = decideDocStrategy({
     docCount: doc.docCount,
     estimatedTokens,
@@ -455,6 +481,7 @@ async function runStrategy(
   });
 
   if (strategy === "vision_fallback") {
+    // Only reached when shouldUseVisionFallback is true (no_text_layer / ok empty / legacy).
     return {
       text:
         `${DOCUMENT_CHAT_VISION_MARKER}\n` +
@@ -479,6 +506,24 @@ async function runStrategy(
   }
 
   if (loaded.docCount === 0) {
+    // Runtime re-extract found no text. Honour stored extractionStatus: failures
+    // stay errors; genuine empty/scanned docs may vision.
+    if (!shouldUseVisionFallback(doc)) {
+      const status = doc.extractionStatus;
+      const msg =
+        status === "timeout"
+          ? catalog(locale).extractTimeout.replace("{name}", doc.name)
+          : status === "renderer_error"
+            ? catalog(locale).extractRenderer.replace("{name}", doc.name)
+            : status === "fs_error"
+              ? catalog(locale).extractFs.replace("{name}", doc.name)
+              : catalog(locale).extractFailed.replace("{name}", doc.name);
+      const reason =
+        status === "timeout" || status === "renderer_error" || status === "fs_error"
+          ? status
+          : null;
+      return errorResult(msg, reason);
+    }
     return {
       text:
         `${DOCUMENT_CHAT_VISION_MARKER}\n` +
@@ -751,11 +796,18 @@ function denseDegradeLine(
   reason: DenseUnavailableReason,
 ): string | null {
   if (!reason) return null;
-  const emb = (locale === "it" ? it : en).embedding as {
+  const pack = locale === "it" ? it : en;
+  const emb = pack.embedding as {
     degradedCap?: string;
     degradedCorrupt?: string;
     degradedNoEmbedder?: string;
   };
+  const extraction = (pack as { documents?: { extraction?: {
+    timeout?: string;
+    renderer?: string;
+    fsError?: string;
+    retryHint?: string;
+  } } }).documents?.extraction;
   if (reason === "cap" || reason === "capped") {
     return emb.degradedCap ?? null;
   }
@@ -766,6 +818,16 @@ function denseDegradeLine(
   // abandoned after chat-init release timeout; recovery = process restart.
   if (reason === "no_embedder" || reason === "hung") {
     return emb.degradedNoEmbedder ?? null;
+  }
+  // Round-8 FIX 2: extraction failure reasons → documents.extraction.*
+  if (reason === "timeout") {
+    return extraction?.timeout ?? null;
+  }
+  if (reason === "renderer_error") {
+    return extraction?.renderer ?? null;
+  }
+  if (reason === "fs_error") {
+    return extraction?.fsError ?? null;
   }
   return null;
 }
@@ -1028,7 +1090,10 @@ function safeLibraryDocs(host: DocumentChatHost): LibraryDoc[] {
   }
 }
 
-function errorResult(message: string): DocumentChatToolResult {
+function errorResult(
+  message: string,
+  denseUnavailableReason: DenseUnavailableReason = null,
+): DocumentChatToolResult {
   return {
     text: message,
     passages: [],
@@ -1036,6 +1101,7 @@ function errorResult(message: string): DocumentChatToolResult {
     strategy: "error",
     error: message,
     kind: "document_chat",
+    ...(denseUnavailableReason ? { denseUnavailableReason } : {}),
   };
 }
 
@@ -1050,6 +1116,10 @@ function catalog(locale: Locale): {
   fullContextHeader: string;
   retrieveHeader: string;
   nothingMatched: string;
+  extractTimeout: string;
+  extractRenderer: string;
+  extractFs: string;
+  extractFailed: string;
 } {
   // Prefer i18n keys when present; fall back to English literals so the
   // harness stays independent of incomplete locale trees during development.
@@ -1082,5 +1152,17 @@ function catalog(locale: Locale): {
     nothingMatched:
       errors.documentChatNothingMatched ??
       "No passages in “{name}” matched the query.",
+    extractTimeout:
+      errors.documentChatExtractTimeout ??
+      "Text extraction for “{name}” timed out. Ask the user to re-import the document from Documents (retry); do not treat it as a scanned PDF.",
+    extractRenderer:
+      errors.documentChatExtractRenderer ??
+      "Text extraction for “{name}” failed (renderer error). Ask the user to re-import from Documents; do not use vision fallback.",
+    extractFs:
+      errors.documentChatExtractFs ??
+      "Text extraction for “{name}” failed (file read error). Ask the user to re-import from Documents.",
+    extractFailed:
+      errors.documentChatExtractFailed ??
+      "Text extraction for “{name}” failed. Ask the user to re-import from Documents (retry).",
   };
 }

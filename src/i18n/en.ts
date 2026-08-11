@@ -136,6 +136,12 @@ export const en = {
     cannotRead: "Could not determine the file size. Choose another file.",
     storageUnavailable: "Document storage is unavailable on this device.",
     busy: "A document is being processed. Try again in a moment.",
+    extraction: {
+      timeout: "Text extraction timed out. Try again or use a smaller PDF.",
+      renderer: "PDF renderer error. The file may be corrupted or protected.",
+      fsError: "Could not read the file. Check storage permissions and free space.",
+      retryHint: "Tap to retry",
+    },
   },
 
   /**
@@ -172,8 +178,20 @@ export const en = {
     blockedTier: "Not compatible with this device's RAM",
     blockedRam: "Not enough free memory to run",
     blockedDisk: "Not enough free storage to download",
+    tooLarge: "Not enough memory for this model",
+    cannotEvaluate: "Cannot determine memory, free space and try",
+    tightNow: "Memory low — regenerate not supported, free",
+    memoryUnknown: "Memory could not be determined — policy used unknown",
   },
 
+
+  model: {
+    tooLarge: "Not enough memory for this model",
+    cannotEvaluate: "Cannot determine memory, free space and try",
+    tightNow: "Memory low — regenerate not supported, free",
+    memoryUnknown: "Memory could not be determined — policy used unknown",
+    fitsOK: "Model fits in available memory",
+  },
   voice: {
     title: "Voice",
     hint: "On-device speech recognition and read-aloud. Audio never leaves this device.",
@@ -392,6 +410,15 @@ export const en = {
     a11yAttach: "Add attachment",
     a11yStop: "Stop generation",
     a11ySend: "Send",
+    regenerate: "Regenerate",
+    edit: "Edit",
+    cancelRegenerate: "Cancel regenerate",
+    regenCostHint: "Reload — may take several seconds",
+    regenBusy: "Already regenerating",
+    unloaded: "Unloaded due to memory pressure",
+    lazyReload: "Tap to reload",
+    thermalHot: "Device warm",
+    regenFailed: "Regenerate failed",
   },
 
   notify: {
@@ -654,6 +681,14 @@ export const en = {
       "Full text of local document “{name}” ({pages} pages):",
     documentChatRetrieveHeader: "Passages from local document “{name}”:",
     documentChatNothingMatched: "No passages in “{name}” matched the query.",
+    documentChatExtractTimeout:
+      "Text extraction for “{name}” timed out. Ask the user to re-import the document from Documents (retry); do not treat it as a scanned PDF.",
+    documentChatExtractRenderer:
+      "Text extraction for “{name}” failed (renderer error). Ask the user to re-import from Documents; do not use vision fallback.",
+    documentChatExtractFs:
+      "Text extraction for “{name}” failed (file read error). Ask the user to re-import from Documents.",
+    documentChatExtractFailed:
+      "Text extraction for “{name}” failed. Ask the user to re-import from Documents (retry).",
   },
 
   /** PdfToImages component (WebView bridge that renders PDF pages to JPEG). */

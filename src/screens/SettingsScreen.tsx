@@ -45,12 +45,16 @@ import {
 import {
   diskRequirementBytes,
   estimateModelNonEvictableMiB,
+  evaluateModelFit,
   getCachedDeviceProfile,
   getFreeDiskBytes,
   modelGateVerdict,
   type DeviceProfile,
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
+import { getAvailableMemoryBytesUncached } from "../engine/monitor";
+import { useProcessHealth } from "../hooks/useProcessHealth";
+import { useThermalMonitor } from "../hooks/useThermalMonitor";
 import * as MemoryStore from "../memory/MemoryStore";
 import type { MemoryFact } from "../memory/MemoryStore";
 import { COMPACTION_ENABLED_KEY } from "../context/compactor";
@@ -595,6 +599,11 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   // Hard gate inputs: DeviceProfile (process-cached) + free disk (best-effort).
   const [deviceProfile, setDeviceProfile] = useState<DeviceProfile | null>(null);
   const [freeDiskBytes, setFreeDiskBytes] = useState<number | null>(null);
+  const [memoryUnknownBanner, setMemoryUnknownBanner] = useState(false);
+  const processHealth = useProcessHealth({
+    totalMemoryBytes: deviceProfile?.totalMemoryBytes ?? null,
+  });
+  const thermal = useThermalMonitor();
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -606,6 +615,29 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         if (cancelled) return;
         setDeviceProfile(profile);
         setFreeDiskBytes(free);
+        // Live uncached sample for memoryUnknown banner on active model.
+        try {
+          const available = await getAvailableMemoryBytesUncached();
+          const active = MODEL_REGISTRY.find((m) => m.id === model.currentModelId);
+          if (active) {
+            const fit = evaluateModelFit(
+              {
+                sizeBytes: active.sizeBytes,
+                engineCtx: active.engineCtx,
+                kvBytesPerToken: active.kvBytesPerToken,
+                mmproj: active.mmproj
+                  ? { sizeBytes: active.mmproj.sizeBytes }
+                  : null,
+              },
+              available,
+            );
+            if (!cancelled) {
+              setMemoryUnknownBanner(fit.verdict === "unknown");
+            }
+          }
+        } catch {
+          // ignore
+        }
       } catch {
         // Leave null — soft UI only; AppShell re-checks before download/load.
       }
@@ -613,7 +645,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [model.currentModelId]);
 
   /** Localized hard-gate reason; null when allowed / unknown / no profile yet. */
   const gateReasonLabel = useCallback(
@@ -1448,6 +1480,53 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               {deviceLineLabel}
             </Text>
           ) : null}
+          {memoryUnknownBanner ? (
+            <Text
+              style={[
+                typography.bodyXs,
+                { color: colors.bad ?? colors.muted, marginBottom: spacing.xs },
+              ]}
+            >
+              {t("model.memoryUnknown")}
+            </Text>
+          ) : null}
+          {processHealth.unloadedReason ? (
+            <Text
+              style={[
+                typography.bodyXs,
+                { color: colors.muted, marginBottom: spacing.xs },
+              ]}
+            >
+              {t("chat.unloaded")}
+              {processHealth.availableMemoryBytes != null
+                ? ` · ${Math.round(processHealth.availableMemoryBytes / (1024 * 1024))} MiB free`
+                : ""}
+              {processHealth.fitTier ? ` · tier ${processHealth.fitTier}` : ""}
+            </Text>
+          ) : processHealth.availableMemoryBytes != null ? (
+            <Text
+              style={[
+                typography.bodyXs,
+                { color: colors.muted, marginBottom: spacing.xs },
+              ]}
+            >
+              {`${Math.round(processHealth.availableMemoryBytes / (1024 * 1024))} MiB free`}
+              {processHealth.fitTier ? ` · tier ${processHealth.fitTier}` : ""}
+            </Text>
+          ) : null}
+          {thermal.status === "warm" || thermal.status === "hot" ? (
+            <Text
+              style={[
+                typography.bodyXs,
+                { color: colors.bad ?? colors.muted, marginBottom: spacing.xs },
+              ]}
+            >
+              {t("chat.thermalHot")}
+              {thermal.currentTempC != null
+                ? ` · ${Math.round(thermal.currentTempC)}°C`
+                : ""}
+            </Text>
+          ) : null}
 
           <View style={{ gap: spacing.sm }}>
             {MODEL_REGISTRY.map((entry) => {
@@ -1474,7 +1553,8 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                     ramTier: deviceProfile.ramTier,
                     modelMinRamTier: entry.minRamTier,
                     modelNonEvictableMiB: estimateModelNonEvictableMiB({
-                      sizeBytes: entry.sizeBytes,
+                      sizeBytes:
+                        entry.sizeBytes + (entry.mmproj?.sizeBytes ?? 0),
                       engineCtx: entry.engineCtx,
                       kvBytesPerToken: entry.kvBytesPerToken,
                     }),
