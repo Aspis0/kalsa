@@ -207,6 +207,17 @@ export const en = {
     a11yMicStop: "Stop recording",
   },
 
+  embedding: {
+    title: "Embedding model (multilingual)",
+    hint:
+      "Optional ~126 MB model that enables semantic (hybrid) document search. Not required for chat. Download once; runs fully on-device.",
+    statusNotDownloaded: "Not downloaded",
+    statusDownloaded: "Ready · local",
+    downloading: "Downloading… {percent}%",
+    download: "Download embedding model",
+    sizeLabel: "Size: {size}",
+  },
+
   help: {
     title: "Help",
     intro:

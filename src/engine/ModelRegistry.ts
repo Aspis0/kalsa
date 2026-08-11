@@ -228,6 +228,49 @@ export const WHISPER_MODEL: ModelInfo = {
   descriptionKey: "models.whisperTiny.description",
 };
 
+/**
+ * On-device multilingual embedder (intfloat e5-small, Q8_0).
+ * NOT listed in MODEL_REGISTRY (chat LLM list) — Settings optional download
+ * through the same ModelDownloader pipeline. Enables hybrid document search
+ * (BM25 ∥ dense → RRF); absent → BM25-only (today's path).
+ *
+ * sizeBytes verified 2026-08-10 via Hugging Face API:
+ *   multilingual-e5-small-Q8_0.gguf → 131_953_504
+ *   repo sha: e1da94460f223e3204e75dfe51350e5491c879d4
+ * LLM fields (contextLength/engineCtx/kvCache) are unused placeholders
+ * so downloadModelBundle can reuse ModelInfo.
+ */
+export type EmbeddingModelInfo = ModelInfo & {
+  isEmbedding: true;
+  dims: number;
+  langs: string;
+  pooling: "mean" | "cls";
+  prefixes: { query: string; doc: string };
+  /** Embedder n_ctx (e5-small = 512). */
+  n_ctx: number;
+};
+
+export const EMBEDDING_MODEL: EmbeddingModelInfo = {
+  id: "multilingual-e5-small",
+  name: "multilingual-e5-small",
+  vendor: "intfloat / keisuke-miyako",
+  quant: "Q8_0",
+  hfRepo: "keisuke-miyako/multilingual-e5-small-gguf-q8_0",
+  revision: "e1da94460f223e3204e75dfe51350e5491c879d4",
+  file: "multilingual-e5-small-Q8_0.gguf",
+  sizeBytes: 131_953_504,
+  contextLength: 512,
+  engineCtx: 512,
+  kvCache: { k: "f16", v: "f16" },
+  descriptionKey: "models.whisperTiny.description", // unused; Settings uses embedding.* keys
+  isEmbedding: true,
+  dims: 384,
+  langs: "100+ (incl. IT)",
+  pooling: "mean",
+  prefixes: { query: "query: ", doc: "passage: " },
+  n_ctx: 512,
+};
+
 export function getDefaultModel(): ModelInfo {
   return MODEL_REGISTRY.find((model) => model.default) ?? MODEL_REGISTRY[0];
 }

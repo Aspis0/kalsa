@@ -15,7 +15,11 @@ import Constants from "expo-constants";
 import { ChevronRight, CircleQuestionMark, Trash2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import type { ModelPipelineState, VoicePipelineState } from "../app/AppShell";
+import type {
+  EmbeddingPipelineState,
+  ModelPipelineState,
+  VoicePipelineState,
+} from "../app/AppShell";
 import { useLocale, type Locale, type TranslationKey } from "../i18n";
 import {
   getActiveProviderId,
@@ -87,12 +91,24 @@ export type SettingsVoiceProps = {
   onToggleTts: (enabled: boolean) => void;
 };
 
+/** Optional embedding model (hybrid document search) — download only. */
+export type SettingsEmbeddingProps = {
+  state: EmbeddingPipelineState;
+  /** 0–100 while downloading; null otherwise. */
+  downloadPercent: number | null;
+  error: string | null;
+  modelName: string;
+  modelSizeLabel: string;
+  onDownload: () => void;
+};
+
 type Props = {
   onBack: () => void;
   /** Open Help overlay (AppShell sets activeOverlay to { kind: "help" }). */
   onOpenHelp: () => void;
   model: SettingsModelProps;
   voice: SettingsVoiceProps;
+  embedding: SettingsEmbeddingProps;
 };
 
 /** App version from Expo config; fallback keeps About usable in bare tests. */
@@ -113,7 +129,7 @@ function modelBundleSize(model: ModelInfo): number {
  * Settings — full-screen View overlay opened from the drawer.
  * Not a Modal: Android hardware back is handled here (dirty confirm for websearch).
  */
-export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
+export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: Props) {
   const { colors, fontScaleId, setFontScaleId } = useLabTheme<any>();
   const typography = useTypography();
   const insets = useSafeAreaInsets();
@@ -650,6 +666,23 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         return t("settings.modelError");
     }
   }, [voice.downloadPercent, voice.state, t]);
+
+  const embeddingStatusLabel = useMemo(() => {
+    switch (embedding.state) {
+      case "checking":
+        return t("settings.modelChecking");
+      case "missing":
+        return t("embedding.statusNotDownloaded");
+      case "downloading":
+        return t("embedding.downloading", {
+          percent: embedding.downloadPercent ?? 0,
+        });
+      case "ready":
+        return t("embedding.statusDownloaded");
+      case "error":
+        return t("settings.modelError");
+    }
+  }, [embedding.downloadPercent, embedding.state, t]);
 
   return (
     <View
@@ -1299,6 +1332,93 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
               thumbColor={voice.ttsEnabled ? colors.accent : colors.muted}
               accessibilityLabel={t("voice.tts")}
             />
+          </View>
+        </GlassPanel2>
+
+        {/* ── Embedding model (optional hybrid document search) ─────────── */}
+        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+            {t("embedding.title")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
+            {t("embedding.hint")}
+          </Text>
+
+          <View
+            style={{
+              marginTop: spacing.xs,
+              paddingVertical: spacing.sm,
+              paddingHorizontal: spacing.md,
+              borderRadius: radius.md,
+              borderWidth: 1,
+              borderColor: colors.line,
+              gap: spacing.xs,
+            }}
+          >
+            <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+              {embedding.modelName}
+            </Text>
+            <Text style={[typography.bodyXs, { color: colors.muted }]}>
+              {t("embedding.sizeLabel", { size: embedding.modelSizeLabel })}
+            </Text>
+            <Text
+              style={[
+                typography.bodyXs,
+                {
+                  color:
+                    embedding.state === "error"
+                      ? colors.bad
+                      : embedding.state === "ready"
+                        ? colors.good
+                        : colors.muted,
+                },
+              ]}
+            >
+              {embeddingStatusLabel}
+            </Text>
+
+            {embedding.state === "downloading" && embedding.downloadPercent != null ? (
+              <View
+                style={{
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: colors.line,
+                  overflow: "hidden",
+                }}
+              >
+                <View
+                  style={{
+                    height: 4,
+                    width: `${embedding.downloadPercent}%`,
+                    backgroundColor: colors.accent,
+                  }}
+                />
+              </View>
+            ) : null}
+
+            {embedding.error ? (
+              <Text style={[typography.bodyXs, { color: colors.bad }]} numberOfLines={2}>
+                {embedding.error}
+              </Text>
+            ) : null}
+
+            {embedding.state === "missing" || embedding.state === "error" ? (
+              <Pressable
+                onPress={embedding.onDownload}
+                style={{
+                  marginTop: 2,
+                  paddingVertical: spacing.sm,
+                  borderRadius: radius.md,
+                  backgroundColor: colors.accent,
+                  alignItems: "center",
+                }}
+                accessibilityLabel={t("embedding.download")}
+              >
+                <Text style={[typography.bodySm, { color: colors.primaryText, fontFamily: fontFamilies.displayBold }]}>
+                  {t("embedding.download")}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         </GlassPanel2>
 

@@ -33,6 +33,10 @@ import {
   isAnyActive,
   __resetDocOpGateForTests,
 } from "./docOpGate";
+import {
+  rrfFuse,
+  type SemanticVectorIndex,
+} from "./semanticIndex";
 
 /** Structural match for EngineTool (avoid importing LlamaService in the harness). */
 export type DocumentChatToolDef = {
@@ -84,7 +88,19 @@ export type DocumentChatToolResult = {
   text: string;
   passages: RetrievedPassage[];
   provenance: string;
-  strategy: "full_context" | "retrieve" | "vision_fallback" | "error";
+  /**
+   * Strategy label. "retrieve" keeps the historical BM25-only name so existing
+   * harnesses / callers keep working; "hybrid" is set when dense + RRF ran;
+   * "bm25_only" is an alias of "retrieve" used when the hybrid path explicitly
+   * degraded (embedder missing / no vectors).
+   */
+  strategy:
+    | "full_context"
+    | "retrieve"
+    | "hybrid"
+    | "bm25_only"
+    | "vision_fallback"
+    | "error";
   error?: string;
   /** Engine tag so LlamaService can append provenance after truncation. */
   kind?: "document_chat";
@@ -98,11 +114,70 @@ export type DocumentChatHost = {
   ): Promise<PdfRetrievalDocsResult>;
   readTxt(doc: LibraryDoc, opts?: { signal?: AbortSignal }): Promise<string>;
   getCtxTokens(): number;
-  /** Cached index for a library doc id; null when not built yet. */
+  /** Cached BM25 index for a library doc id; null when not built yet. */
   getIndexFor(docId: string): DocRetrieverIndex | null;
-  /** Optional: store a freshly built index so later queries reuse it. */
+  /** Optional: store a freshly built BM25 index so later queries reuse it. */
   setIndexFor?(docId: string, index: DocRetrieverIndex): void;
+  /**
+   * Optional dense index for hybrid retrieval. Null / missing → BM25-only.
+   * AppShell holds a per-doc SemanticVectorIndex Map (session-lifetime for v1).
+   */
+  getSemanticIndexFor?(docId: string): SemanticVectorIndex | null;
+  /**
+   * Optional embedder status. When false / missing, hybrid degrades to BM25.
+   * AppShell probes getEmbeddingModelStatus once per tool bind / turn.
+   */
+  isEmbedderDownloaded?(): boolean;
+  /**
+   * Optional dense query embed. Returns null on miss/error → BM25-only.
+   * Never throw; EmbeddingService.embedQuery already swallows errors.
+   */
+  embedQuery?(text: string): Promise<Float32Array | null>;
 };
+
+/** Prefetch size for the dense arm (design §4: ≥ final k so RRF has candidates). */
+export const HYBRID_DENSE_TOP_N = 25;
+/** Final top-k after RRF fuse (design §4). */
+export const HYBRID_FINAL_TOP_K = 8;
+/** RRF k constant (Cormack et al. 2009; matches retrievalLoop RRF_K). */
+export const HYBRID_RRF_K = 60;
+
+/**
+ * Optional pointwise chat-model rerank (design §4). OFF by default for v1 —
+ * 2B latency on G99 makes a second chat pass expensive. When enabled, the
+ * host would call the chat model with the stub prompt below for each of the
+ * top 8 fused passages; plumbing only, no engine calls yet.
+ */
+export const HYBRID_RERANK_ENABLED = false;
+
+/**
+ * Pointwise rerank prompt design (stub — no engine call in v1).
+ * One short yes/no per passage; cap ≤12; chat model only (no cross-encoder).
+ * Gate when enabled: fused top-1 BM25 vs dense disagree, OR query is long/semantic.
+ */
+export function buildRerankPrompt(query: string, passage: string): string {
+  return (
+    `Does the passage answer the query? Answer only yes or no.\n` +
+    `Query: ${query}\n` +
+    `Passage: ${passage}`
+  );
+}
+
+/**
+ * Stub pointwise rerank. Returns passages unchanged while HYBRID_RERANK_ENABLED
+ * is false. When enabled later, score each passage via the chat model and sort.
+ */
+export async function maybeRerankPassages(
+  query: string,
+  passages: RetrievedPassage[],
+  _opts?: { enabled?: boolean },
+): Promise<RetrievedPassage[]> {
+  void query;
+  const enabled = _opts?.enabled ?? HYBRID_RERANK_ENABLED;
+  if (!enabled || passages.length === 0) return passages;
+  // v1: no engine calls — pass-through. Future: pointwise yes/no via chat model.
+  return passages;
+}
 
 export const DOCUMENT_CHAT_TOOL: DocumentChatToolDef = {
   type: "function",
@@ -397,7 +472,7 @@ async function runStrategy(
     return formatFullContext(doc, loaded, locale);
   }
 
-  return runRetrieve(host, doc, loaded, query, locale);
+  return await runRetrieve(host, doc, loaded, query, locale);
 }
 
 async function loadDocText(
@@ -511,7 +586,7 @@ function formatFullContext(
   };
 }
 
-function runRetrieve(
+async function runRetrieve(
   host: DocumentChatHost,
   doc: LibraryDoc,
   loaded: {
@@ -520,7 +595,7 @@ function runRetrieve(
   },
   query: string,
   locale: Locale,
-): DocumentChatToolResult {
+): Promise<DocumentChatToolResult> {
   let index =
     typeof host.getIndexFor === "function" ? host.getIndexFor(doc.id) : null;
   if (!index) {
@@ -537,21 +612,38 @@ function runRetrieve(
     }
   }
 
-  const { passages } = runRetrievalLoop(index, query, {
+  const { passages: bm25Passages } = runRetrievalLoop(index, query, {
     budgetChars: DOCUMENT_CHAT_RETRIEVAL_BUDGET_CHARS,
   });
+
+  // Hybrid path: BM25 ∥ dense → RRF → optional rerank → budget pack.
+  // Degrades silently to BM25-only when embedder / vectors are missing.
+  let passages = bm25Passages;
+  let strategy: DocumentChatToolResult["strategy"] = "retrieve";
+
+  const hybrid = await tryHybridRetrieve(host, doc, query, bm25Passages);
+  if (hybrid) {
+    passages = hybrid.passages;
+    strategy = hybrid.strategy;
+  }
 
   if (!passages.length) {
     return {
       text: catalog(locale).nothingMatched.replace("{name}", doc.name),
       passages: [],
       provenance: DOCUMENT_CHAT_PROVENANCE,
-      strategy: "retrieve",
+      strategy: strategy === "hybrid" ? "hybrid" : "retrieve",
       kind: "document_chat",
     };
   }
 
-  const body = passages
+  // Optional pointwise rerank (OFF by default — design §4 / HYBRID_RERANK_ENABLED).
+  passages = await maybeRerankPassages(query, passages);
+
+  // Budget pack with citations (same formatting as BM25-only path).
+  const packed = packPassagesToBudget(passages, DOCUMENT_CHAT_RETRIEVAL_BUDGET_CHARS);
+
+  const body = packed
     .map((p, i) => {
       const cite = formatPassageCitation(p.docId);
       const label = cite ? ` (${cite})` : "";
@@ -565,11 +657,105 @@ function runRetrieve(
 
   return {
     text,
-    passages,
+    passages: packed,
     provenance: DOCUMENT_CHAT_PROVENANCE,
-    strategy: "retrieve",
+    strategy,
     kind: "document_chat",
   };
+}
+
+/**
+ * Dense arm + RRF fuse. Returns null when the hybrid path cannot run
+ * (no embedder, no vectors, embed failed) — caller keeps BM25-only.
+ */
+async function tryHybridRetrieve(
+  host: DocumentChatHost,
+  doc: LibraryDoc,
+  query: string,
+  bm25Passages: RetrievedPassage[],
+): Promise<{ passages: RetrievedPassage[]; strategy: "hybrid" } | null> {
+  try {
+    const embedderDownloaded =
+      typeof host.isEmbedderDownloaded === "function"
+        ? host.isEmbedderDownloaded()
+        : false;
+    const semantic =
+      typeof host.getSemanticIndexFor === "function"
+        ? host.getSemanticIndexFor(doc.id)
+        : null;
+    const vectorChunkCount = semantic?.chunkCount ?? 0;
+
+    // Inline degrade check (keep documentChatTool free of llama.rn / EmbeddingService).
+    if (!embedderDownloaded || vectorChunkCount <= 0 || !semantic) {
+      return null;
+    }
+    if (typeof host.embedQuery !== "function") return null;
+
+    const queryVec = await host.embedQuery(query);
+    if (!queryVec) return null;
+
+    const denseHits = semantic.query(queryVec, HYBRID_DENSE_TOP_N);
+    if (!denseHits.length) return null;
+
+    // Sparse ranks: 0-based position in the BM25 multi-round result order.
+    // BM25 already ran RRF across rounds; we re-fuse that list with dense ranks.
+    const sparseRanks = bm25Passages.map((p, i) => ({
+      chunkId: p.chunkId,
+      rank: i,
+    }));
+    const denseRanks = denseHits.map((h, i) => ({
+      chunkId: h.chunkId,
+      rank: i,
+    }));
+
+    const fused = rrfFuse(sparseRanks, denseRanks, { k: HYBRID_RRF_K });
+    if (!fused.length) return null;
+
+    // Map fused chunkIds back to passage text. Prefer BM25 passages when present
+    // (they already have score/rank/granularity); fall back to dense-only stubs
+    // only when the chunk is not in the BM25 list (text unknown → skip).
+    const byId = new Map<string, RetrievedPassage>();
+    for (const p of bm25Passages) byId.set(p.chunkId, p);
+
+    const fusedPassages: RetrievedPassage[] = [];
+    for (const row of fused) {
+      if (fusedPassages.length >= HYBRID_FINAL_TOP_K) break;
+      const existing = byId.get(row.chunkId);
+      if (existing) {
+        fusedPassages.push(existing);
+        continue;
+      }
+      // Dense-only hit without BM25 text: we cannot format a passage without
+      // text. Skip (v1). Future: AppShell can store chunk text alongside vectors.
+    }
+
+    if (!fusedPassages.length) return null;
+    return { passages: fusedPassages, strategy: "hybrid" };
+  } catch {
+    // Any hybrid failure → silent BM25-only.
+    return null;
+  }
+}
+
+/** Truncate the passage list so total text stays under budgetChars. */
+function packPassagesToBudget(
+  passages: RetrievedPassage[],
+  budgetChars: number,
+): RetrievedPassage[] {
+  if (!Array.isArray(passages) || passages.length === 0) return [];
+  const budget =
+    typeof budgetChars === "number" && Number.isFinite(budgetChars) && budgetChars > 0
+      ? budgetChars
+      : DOCUMENT_CHAT_RETRIEVAL_BUDGET_CHARS;
+  const out: RetrievedPassage[] = [];
+  let used = 0;
+  for (const p of passages) {
+    const len = typeof p.text === "string" ? p.text.length : 0;
+    if (out.length > 0 && used + len > budget) break;
+    out.push(p);
+    used += len;
+  }
+  return out.length > 0 ? out : passages.slice(0, 1);
 }
 
 // ── helpers ────────────────────────────────────────────────────────────────

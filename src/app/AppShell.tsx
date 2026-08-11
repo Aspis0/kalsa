@@ -38,8 +38,17 @@ import { handleAskAssistantMiniappAction } from "./miniappActions";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
-import { MODEL_REGISTRY, WHISPER_MODEL, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
+import { MODEL_REGISTRY, WHISPER_MODEL, EMBEDDING_MODEL, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
 import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
+import {
+  embedDocumentChunk,
+  embedQuery as embedQueryVec,
+  getEmbeddingModelStatus,
+  listDocumentChunksForEmbed,
+  planChunksToEmbed,
+  releaseEmbedder,
+} from "../engine/EmbeddingService";
+import { SemanticVectorIndex } from "../documents/semanticIndex";
 import { resolveContextProfile } from "../engine/contextProfile";
 import {
   diskRequirementBytes,
@@ -115,6 +124,14 @@ export type ModelPipelineState =
 
 /** Voice ASR asset state (download only — no LLM load). */
 export type VoicePipelineState =
+  | "checking"
+  | "missing"
+  | "downloading"
+  | "ready"
+  | "error";
+
+/** Optional embedding-model asset state (download only — no chat load). */
+export type EmbeddingPipelineState =
   | "checking"
   | "missing"
   | "downloading"
@@ -471,6 +488,18 @@ export function AppShell() {
   documentLibraryRef.current = documentLibrary;
   const docIndexByIdRef = useRef<Map<string, DocRetrieverIndex>>(new Map());
   /**
+   * Per-doc dense vector index (session-lifetime for v1 — rebuilt on re-import
+   * when the embedder is present; not persisted to disk yet).
+   * Dropped on delete / library prune alongside the BM25 index.
+   */
+  const docSemanticByIdRef = useRef<Map<string, SemanticVectorIndex>>(new Map());
+  /** contentHash set per doc for incremental embed planning. */
+  const docEmbedHashesByIdRef = useRef<Map<string, Set<string>>>(new Map());
+  /** Single-flight token for background embedding jobs (never blocks chat). */
+  const embedJobInFlightRef = useRef(false);
+  /** Cached embedder-downloaded flag (refreshed on download / Settings open). */
+  const embedderDownloadedRef = useRef(false);
+  /**
    * Delete authority is the shared docOpGate (module-level), not a React ref.
    * Screen unmount cannot clear it — reopen cannot start import during an old
    * deleteAsync, and document_chat cannot read while delete holds the gate.
@@ -520,6 +549,12 @@ export function AppShell() {
     for (const id of docIndexByIdRef.current.keys()) {
       if (!nextIds.has(id)) docIndexByIdRef.current.delete(id);
     }
+    for (const id of docSemanticByIdRef.current.keys()) {
+      if (!nextIds.has(id)) {
+        docSemanticByIdRef.current.delete(id);
+        docEmbedHashesByIdRef.current.delete(id);
+      }
+    }
     setDocumentLibrary(next);
     void saveLibraryState(getDefaultLibraryStorage(), next).catch(() => undefined);
   }, []);
@@ -541,9 +576,11 @@ export function AppShell() {
       if (doc?.fileUri) {
         await deleteOwnedFile(doc.fileUri);
       }
-      // Drop retrieval index for this id (best-effort; functional filter below
-      // is the source of truth for the list).
+      // Drop retrieval + semantic indexes for this id (best-effort; functional
+      // filter below is the source of truth for the list).
       docIndexByIdRef.current.delete(id);
+      docSemanticByIdRef.current.delete(id);
+      docEmbedHashesByIdRef.current.delete(id);
       libraryMutationRef.current += 1;
       // Gate blocks handleLibraryChange, so ref is current. Functional updater
       // still guards against any non-import concurrent React state write.
@@ -589,10 +626,101 @@ export function AppShell() {
     void saveLibraryState(getDefaultLibraryStorage(), next).catch(
       () => undefined,
     );
+    // Background incremental embed (post-import, never blocks chat).
+    // Single-flight; silent skip when embedder missing / load fails.
+    void scheduleBackgroundEmbed(entry);
     return true;
   }, []);
 
   const isDocumentDeleteInFlight = useCallback(() => isDeleteActive(), []);
+
+  /**
+   * Background embed job for a freshly imported document.
+   * v1: session-lifetime SemanticVectorIndex (in-memory); rebuild on re-import.
+   * Never throws; never holds the chat path.
+   */
+  const scheduleBackgroundEmbed = useCallback(async (entry: LibraryDoc) => {
+    if (!entry?.id || !entry.fileUri) return;
+    if (embedJobInFlightRef.current) return;
+    if (!embedderDownloadedRef.current) {
+      // Cheap re-probe once; if still missing, skip silently (BM25-only).
+      try {
+        const status = await getEmbeddingModelStatus();
+        embedderDownloadedRef.current = status === "downloaded";
+      } catch {
+        return;
+      }
+      if (!embedderDownloadedRef.current) return;
+    }
+    embedJobInFlightRef.current = true;
+    try {
+      // Load text the same way document_chat does (txt / pdf pages).
+      let pages: Array<{ docId: string; text: string }> = [];
+      if (entry.kind === "txt") {
+        try {
+          const raw = await FileSystem.readAsStringAsync(entry.fileUri);
+          const looksHtml = /<\/?[a-z][\s\S]*>/i.test(raw.slice(0, 2000));
+          const text = looksHtml ? htmlToText(raw).text : raw;
+          const trimmed = (text ?? "").trim();
+          if (trimmed) {
+            pages = [{ docId: entry.sourceId || entry.id, text: trimmed }];
+          }
+        } catch {
+          return;
+        }
+      } else {
+        try {
+          const extracted = await requestPdfText(entry.fileUri, {
+            sourceId: entry.sourceId || entry.id,
+            title: entry.name,
+          });
+          const docs = Array.isArray(extracted?.docs) ? extracted.docs : [];
+          pages = docs
+            .filter((d) => d && typeof d.text === "string" && d.text.trim().length > 0)
+            .map((d) => ({
+              docId: typeof d.docId === "string" ? d.docId : entry.sourceId || entry.id,
+              text: d.text,
+            }));
+        } catch {
+          return;
+        }
+      }
+      if (pages.length === 0) return;
+
+      const chunks = listDocumentChunksForEmbed(pages);
+      if (chunks.length === 0) return;
+
+      const existing =
+        docEmbedHashesByIdRef.current.get(entry.id) ?? new Set<string>();
+      const toEmbed = planChunksToEmbed(existing, chunks);
+      if (toEmbed.length === 0) return;
+
+      let index =
+        docSemanticByIdRef.current.get(entry.id) ??
+        new SemanticVectorIndex({ dims: EMBEDDING_MODEL.dims });
+
+      // Embed one-by-one (G99 ~1–3 s/chunk). Abort if doc was deleted mid-job.
+      for (const chunk of toEmbed) {
+        if (!documentLibraryRef.current.docs?.some((d) => d.id === entry.id)) {
+          return;
+        }
+        const vec = await embedDocumentChunk(chunk.text);
+        if (!vec) {
+          // Embedder failed / unloaded — stop; strategy stays bm25_only.
+          break;
+        }
+        index.addVectors([{ chunkId: chunk.chunkId, vector: vec }]);
+        existing.add(chunk.contentHash);
+      }
+
+      docSemanticByIdRef.current.set(entry.id, index);
+      docEmbedHashesByIdRef.current.set(entry.id, existing);
+    } catch {
+      // ignore — hybrid degrades to BM25
+    } finally {
+      embedJobInFlightRef.current = false;
+    }
+  }, []);
 
   // ── Web tools (search + fetch): SEMPRE ATTIVI — il modello decide se usarli
   // (info attuali, notizie, o richiesta esplicita). Le query / fetch partono solo
@@ -668,6 +796,10 @@ export function AppShell() {
         setIndexFor: (docId: string, index: DocRetrieverIndex) => {
           docIndexByIdRef.current.set(docId, index);
         },
+        getSemanticIndexFor: (docId: string) =>
+          docSemanticByIdRef.current.get(docId) ?? null,
+        isEmbedderDownloaded: () => embedderDownloadedRef.current,
+        embedQuery: (text: string) => embedQueryVec(text),
       },
       { locale },
     );
@@ -977,6 +1109,16 @@ export function AppShell() {
   const voiceDownloadInFlight = useRef(false);
   const voiceDownloadAbortRef = useRef<AbortController | null>(null);
 
+  // ── Embedding model (optional hybrid retrieval) ──────────────────────────
+  const [embeddingState, setEmbeddingState] =
+    useState<EmbeddingPipelineState>("checking");
+  const [embeddingDownloadPercent, setEmbeddingDownloadPercent] = useState<
+    number | null
+  >(null);
+  const [embeddingError, setEmbeddingError] = useState<string | null>(null);
+  const embeddingDownloadInFlight = useRef(false);
+  const embeddingDownloadAbortRef = useRef<AbortController | null>(null);
+
   const showNotice = useCallback((value: string) => {
     setNotice(value);
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
@@ -991,11 +1133,14 @@ export function AppShell() {
       downloadAbortRef.current = null;
       voiceDownloadAbortRef.current?.abort();
       voiceDownloadAbortRef.current = null;
+      embeddingDownloadAbortRef.current?.abort();
+      embeddingDownloadAbortRef.current = null;
       // Preempt background summary before dispose so FIFO does not hold a
       // half-finished summarize across unmount.
       abortBackgroundSummary();
       void disposeEngine();
       void releaseWhisper();
+      void releaseEmbedder();
     };
   }, []);
 
@@ -1013,6 +1158,28 @@ export function AppShell() {
         setTtsEnabledState(tts);
       } catch {
         if (mounted) setVoiceState("missing");
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Initial embedding-model presence scan (optional hybrid retrieval).
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const status = await getEmbeddingModelStatus();
+        if (!mounted) return;
+        const ready = status === "downloaded";
+        embedderDownloadedRef.current = ready;
+        setEmbeddingState(ready ? "ready" : "missing");
+      } catch {
+        if (mounted) {
+          embedderDownloadedRef.current = false;
+          setEmbeddingState("missing");
+        }
       }
     })();
     return () => {
@@ -1089,6 +1256,22 @@ export function AppShell() {
       setModelError(null);
       setModelErrorDetail(null);
       setModelErrorKind(null);
+
+      // Design §5: release embedder BEFORE loading chat on ≤6 GB RAM so the two
+      // LlamaContexts never co-reside under memory pressure. On 8 GB+ we keep
+      // the embedder warm for hybrid queries during chat.
+      try {
+        const profileForEmbed = await getCachedDeviceProfile();
+        const total = profileForEmbed.totalMemoryBytes ?? 0;
+        if (total > 0 && total <= 6 * 1024 * 1024 * 1024) {
+          await releaseEmbedder();
+        }
+      } catch {
+        // Probe failure → release conservatively.
+        await releaseEmbedder().catch(() => undefined);
+      }
+      if (!stillCurrent()) return false;
+
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx (no silent downgrade)
       // + optional high-RAM upgrade for hybrids + catalog-authoritative KV.
@@ -1337,6 +1520,19 @@ export function AppShell() {
       if (!stillCurrent()) return;
       errorPhase = "engine";
       setModelState("loading");
+
+      // Design §5: release embedder before chat load on ≤6 GB (same as ensureEngineForModel).
+      try {
+        const profileForEmbed = await getCachedDeviceProfile();
+        const total = profileForEmbed.totalMemoryBytes ?? 0;
+        if (total > 0 && total <= 6 * 1024 * 1024 * 1024) {
+          await releaseEmbedder();
+        }
+      } catch {
+        await releaseEmbedder().catch(() => undefined);
+      }
+      if (!stillCurrent()) return;
+
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
 
       // Hard RAM/tier gate before initEngine after download. Never force-evict
@@ -1573,6 +1769,93 @@ export function AppShell() {
       ],
     );
   }, [startVoiceDownload, t]);
+
+  const startEmbeddingDownload = useCallback(async () => {
+    if (embeddingDownloadInFlight.current || embeddingState === "downloading") {
+      return;
+    }
+    embeddingDownloadInFlight.current = true;
+    const controller = new AbortController();
+    embeddingDownloadAbortRef.current = controller;
+    setEmbeddingState("downloading");
+    setEmbeddingError(null);
+    setEmbeddingDownloadPercent(0);
+    try {
+      // Free-disk check via existing download flow (not subject to chat RAM gate).
+      try {
+        const free = await getFreeDiskBytes();
+        const need = diskRequirementBytes(EMBEDDING_MODEL.sizeBytes);
+        if (typeof free === "number" && free >= 0 && free < need) {
+          setEmbeddingState("error");
+          setEmbeddingError(t("models.blockedDisk"));
+          setEmbeddingDownloadPercent(null);
+          return;
+        }
+      } catch {
+        // Probe failure → proceed with download.
+      }
+      const outcome = await downloadModelBundle(EMBEDDING_MODEL, {
+        onBundleProgress: (progress) => {
+          setEmbeddingDownloadPercent(Math.round(progress.overall * 100));
+        },
+        signal: controller.signal,
+        locale,
+      });
+      if (outcome.model.status === "aborted") {
+        setEmbeddingState("missing");
+        setEmbeddingDownloadPercent(null);
+        return;
+      }
+      if (!(await isModelBundleDownloaded(EMBEDDING_MODEL))) {
+        setEmbeddingState("error");
+        setEmbeddingError(t("download.incomplete"));
+        setEmbeddingDownloadPercent(null);
+        return;
+      }
+      embedderDownloadedRef.current = true;
+      setEmbeddingState("ready");
+      setEmbeddingDownloadPercent(null);
+      showNotice(t("download.readyNotice", { name: EMBEDDING_MODEL.name }));
+      void notifyDownload(
+        t("notify.channelName"),
+        t("download.notifyReady", { name: EMBEDDING_MODEL.name }),
+      );
+    } catch (error) {
+      if (controller.signal.aborted) {
+        setEmbeddingState("missing");
+        setEmbeddingDownloadPercent(null);
+        return;
+      }
+      setEmbeddingState("error");
+      const friendly = friendlyNetworkError(error, locale, "download").message;
+      setEmbeddingError(friendly);
+      setEmbeddingDownloadPercent(null);
+      void notifyDownload(
+        t("notify.channelName"),
+        t("download.notifyFailed", { error: friendly }),
+      );
+    } finally {
+      embeddingDownloadInFlight.current = false;
+      embeddingDownloadAbortRef.current = null;
+    }
+  }, [embeddingState, locale, notifyDownload, showNotice, t]);
+
+  const confirmEmbeddingDownload = useCallback(() => {
+    Alert.alert(
+      t("download.title"),
+      t("download.confirmBody", {
+        name: EMBEDDING_MODEL.name,
+        size: formatBytes(EMBEDDING_MODEL.sizeBytes),
+      }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.download"),
+          onPress: () => void startEmbeddingDownload(),
+        },
+      ],
+    );
+  }, [startEmbeddingDownload, t]);
 
   const handleToggleTts = useCallback((next: boolean) => {
     setTtsEnabledState(next);
@@ -2395,6 +2678,15 @@ export function AppShell() {
             modelSizeLabel: formatBytes(WHISPER_MODEL.sizeBytes),
             onDownload: confirmVoiceDownload,
             onToggleTts: handleToggleTts,
+          }}
+          embedding={{
+            state: embeddingState,
+            downloadPercent:
+              embeddingState === "downloading" ? embeddingDownloadPercent : null,
+            error: embeddingError,
+            modelName: EMBEDDING_MODEL.name,
+            modelSizeLabel: formatBytes(EMBEDDING_MODEL.sizeBytes),
+            onDownload: confirmEmbeddingDownload,
           }}
         />
       ) : null}

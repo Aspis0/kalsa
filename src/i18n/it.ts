@@ -203,6 +203,17 @@ export const it: typeof en = {
     a11yMicStop: "Interrompi registrazione",
   },
 
+  embedding: {
+    title: "Modello embedding (multilingua)",
+    hint:
+      "Modello opzionale di ~126 MB che abilita la ricerca semantica (ibrida) nei documenti. Non serve per la chat. Scaricalo una volta; gira tutto sul dispositivo.",
+    statusNotDownloaded: "Non scaricato",
+    statusDownloaded: "Pronto · locale",
+    downloading: "Scaricamento… {percent}%",
+    download: "Scarica modello embedding",
+    sizeLabel: "Dimensione: {size}",
+  },
+
   help: {
     title: "Aiuto",
     intro:
