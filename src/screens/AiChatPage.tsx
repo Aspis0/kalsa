@@ -1535,6 +1535,10 @@ export function AiChatPage({
       }
 
       // Reserve the claim BEFORE any await so a second send cannot enter.
+      // Capture generation at acquire: finally only releases if we still own it
+      // (clearChat bumps regenGenerationRef; a stale finally must not clear a
+      // newer send's claim).
+      const mySendGen = regenGenerationRef.current;
       sendClaimRef.current = true;
       // Install abort controller early so background lifecycle can abort this
       // turn during the fit-gate await (before sendingRef is claimed).
@@ -1915,11 +1919,19 @@ export function AiChatPage({
                 turnSaveHold.reject = reject;
               });
               turnEndSavePromiseRef.current = turnSaveP;
-              void turnSaveP.finally(() => {
-                if (turnEndSavePromiseRef.current === turnSaveP) {
-                  turnEndSavePromiseRef.current = null;
-                }
-              });
+              // Attach rejection handler: turnSaveP can reject via saveEngineSession
+              // failure (turnSaveHold.reject). finally alone re-propagates the
+              // rejection → unhandledrejection. Fire-and-forget; lifecycle awaits
+              // the same promise with its own try/catch.
+              void turnSaveP
+                .finally(() => {
+                  if (turnEndSavePromiseRef.current === turnSaveP) {
+                    turnEndSavePromiseRef.current = null;
+                  }
+                })
+                .catch(() => {
+                  // no-op — turn-end save is fire-and-forget for UI path
+                });
               let saveWorkScheduled = false;
               setMessages((prev) => {
                 // clearChat bumped sendRunId: skip persist + ref write and keep
@@ -2016,11 +2028,15 @@ export function AiChatPage({
                   }
                 })();
                 turnEndSavePromiseRef.current = saveP;
-                void saveP.finally(() => {
-                  if (turnEndSavePromiseRef.current === saveP) {
-                    turnEndSavePromiseRef.current = null;
-                  }
-                });
+                void saveP
+                  .finally(() => {
+                    if (turnEndSavePromiseRef.current === saveP) {
+                      turnEndSavePromiseRef.current = null;
+                    }
+                  })
+                  .catch(() => {
+                    // no-op — unmounted turn-end save is fire-and-forget
+                  });
               } else {
                 runAfterSave?.();
               }
@@ -2046,8 +2062,12 @@ export function AiChatPage({
         ? { ok: false as const, reasonKey: failReasonKey }
         : { ok: true as const };
       } finally {
-        // Release the pre-await claim so the next send can enter the fit gate.
-        sendClaimRef.current = false;
+        // Release only if we still own the claim (generation match).
+        // clearChat bumps regenGenerationRef then clears claim for the new
+        // owner; a stale finally must not clear that newer claim.
+        if (regenGenerationRef.current === mySendGen) {
+          sendClaimRef.current = false;
+        }
       }
     },
     [awaitPreSendFitGate, historyLoaded, onSendStream, pdfToRender, t, updateMessage],
@@ -2159,9 +2179,11 @@ export function AiChatPage({
     // BLOCKER-1 (audit): reset sending state synchronously so composer unlocks immediately
     sendingRef.current = false;
     sendingInFlightRef.current = false;
-    sendClaimRef.current = false;
-    // Bump generation so a stale regen/edit finally cannot null a newer controller.
+    // Owner transfer FIRST: bump generation so any concurrent stale finally
+    // (sendClaim / regenInFlight / pass / abort) sees a mismatch and skips.
+    // Then clear all locks for the idle post-clear state.
     regenGenerationRef.current += 1;
+    sendClaimRef.current = false;
     regenAbortRef.current?.abort();
     regenAbortRef.current = null;
     regenInFlightRef.current = false;
@@ -2235,8 +2257,10 @@ export function AiChatPage({
       ) {
         return { ok: false, reasonKey: "chat.regenBusy" };
       }
-      regenInFlightRef.current = true;
+      // Capture generation at acquire. finally only releases locks when we
+      // still own them (clearChat bumps regenGenerationRef then clears).
       const myGeneration = regenGenerationRef.current;
+      regenInFlightRef.current = true;
       regenAbortRef.current = new AbortController();
       const snapshot = messagesRef.current.slice();
       try {
@@ -2291,10 +2315,10 @@ export function AiChatPage({
         sendingInFlightRef.current = false;
         return { ok: false, reasonKey: "chat.regenFailed" };
       } finally {
-        regenInFlightRef.current = false;
-        regenHandleSendPassRef.current = false;
-        // Only clear the abort controller if clearChat has not started a newer generation.
+        // Generation-gated release: only the current owner clears all locks.
         if (regenGenerationRef.current === myGeneration) {
+          regenInFlightRef.current = false;
+          regenHandleSendPassRef.current = false;
           regenAbortRef.current = null;
         }
       }
@@ -2320,8 +2344,10 @@ export function AiChatPage({
       ) {
         return { ok: false, reasonKey: "chat.regenBusy" };
       }
-      regenInFlightRef.current = true;
+      // Capture generation at acquire. finally only releases locks when we
+      // still own them (clearChat bumps regenGenerationRef then clears).
       const myGeneration = regenGenerationRef.current;
+      regenInFlightRef.current = true;
       regenAbortRef.current = new AbortController();
       const snapshot = messagesRef.current.slice();
       try {
@@ -2382,10 +2408,10 @@ export function AiChatPage({
         sendingInFlightRef.current = false;
         return { ok: false, reasonKey: "chat.regenFailed" };
       } finally {
-        regenInFlightRef.current = false;
-        regenHandleSendPassRef.current = false;
-        // Only clear the abort controller if clearChat has not started a newer generation.
+        // Generation-gated release: only the current owner clears all locks.
         if (regenGenerationRef.current === myGeneration) {
+          regenInFlightRef.current = false;
+          regenHandleSendPassRef.current = false;
           regenAbortRef.current = null;
         }
       }

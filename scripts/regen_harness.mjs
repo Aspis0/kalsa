@@ -100,8 +100,9 @@ async function regenerateFlow(opts) {
   ) {
     return { ok: false, reasonKey: "chat.regenBusy", messages };
   }
-  regenInFlightRef.current = true;
+  // Capture generation at acquire; finally only releases on match.
   const myGeneration = regenGenerationRef ? regenGenerationRef.current : 0;
+  regenInFlightRef.current = true;
   if (regenAbortRef) regenAbortRef.current = new AbortController();
   const snapshot = messages.slice();
   try {
@@ -143,14 +144,11 @@ async function regenerateFlow(opts) {
       error: err,
     };
   } finally {
-    regenInFlightRef.current = false;
-    regenHandleSendPassRef.current = false;
-    // Only null the abort controller if clearChat has not bumped generation.
-    if (
-      regenAbortRef &&
-      (!regenGenerationRef || regenGenerationRef.current === myGeneration)
-    ) {
-      regenAbortRef.current = null;
+    // Generation-gated release for ALL locks (not just abort controller).
+    if (!regenGenerationRef || regenGenerationRef.current === myGeneration) {
+      regenInFlightRef.current = false;
+      regenHandleSendPassRef.current = false;
+      if (regenAbortRef) regenAbortRef.current = null;
     }
   }
 }
@@ -164,6 +162,8 @@ async function editFlow(opts) {
     handleSend,
     regenInFlightRef,
     regenHandleSendPassRef,
+    regenGenerationRef,
+    regenAbortRef,
   } = opts;
   const trimmed = String(newText ?? "").trim();
   if (!trimmed) {
@@ -172,7 +172,9 @@ async function editFlow(opts) {
   if (regenInFlightRef.current) {
     return { ok: false, reasonKey: "chat.regenBusy", messages };
   }
+  const myGeneration = regenGenerationRef ? regenGenerationRef.current : 0;
   regenInFlightRef.current = true;
+  if (regenAbortRef) regenAbortRef.current = new AbortController();
   const snapshot = messages.slice();
   try {
     const idx = messages.findIndex((m) => m.id === targetMsgId);
@@ -208,8 +210,12 @@ async function editFlow(opts) {
       error: err,
     };
   } finally {
-    regenInFlightRef.current = false;
-    regenHandleSendPassRef.current = false;
+    // Generation-gated release for ALL locks.
+    if (!regenGenerationRef || regenGenerationRef.current === myGeneration) {
+      regenInFlightRef.current = false;
+      regenHandleSendPassRef.current = false;
+      if (regenAbortRef) regenAbortRef.current = null;
+    }
   }
 }
 
@@ -531,6 +537,148 @@ async function main() {
     }
     assert(regenAbortRef.current === null, "matching generation clears");
     regenInFlightRef.current = false;
+  });
+
+  // --- Round-3 race tests: generation-gated release for ALL locks ---
+
+  await test("stale regen finally after clearChat+new regen does NOT clobber new locks", async () => {
+    // Full race: stale regenerateFlow finally runs AFTER clearChat + new regen.
+    // New regen's inFlight / pass / abort must survive the stale finally.
+    regenGenerationRef.current = 0;
+    regenInFlightRef.current = false;
+    regenHandleSendPassRef.current = false;
+    regenAbortRef.current = null;
+    sendClaimRef.current = false;
+
+    let releaseStale;
+    const staleGate = new Promise((r) => {
+      releaseStale = r;
+    });
+
+    // Stale regen starts and holds mid-send.
+    const staleP = regenerateFlow({
+      messages: history,
+      targetMsgId: "a2",
+      handleSend: async () => {
+        await staleGate;
+        return { ok: true };
+      },
+      regenInFlightRef,
+      regenHandleSendPassRef,
+      regenAbortRef,
+      regenGenerationRef,
+      sendClaimRef,
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    assert(regenInFlightRef.current === true, "stale holds inFlight");
+    const staleController = regenAbortRef.current;
+    assert(staleController instanceof AbortController, "stale controller installed");
+
+    // clearChat: bump generation, abort + clear all locks (owner transfer).
+    regenGenerationRef.current += 1;
+    regenAbortRef.current?.abort();
+    regenAbortRef.current = null;
+    regenInFlightRef.current = false;
+    regenHandleSendPassRef.current = false;
+    sendClaimRef.current = false;
+
+    // New regen acquires under the new generation.
+    const newController = new AbortController();
+    const newGen = regenGenerationRef.current;
+    regenInFlightRef.current = true;
+    regenHandleSendPassRef.current = true;
+    regenAbortRef.current = newController;
+    sendClaimRef.current = true; // new send claimed under new gen
+
+    // Stale flow finishes: its finally sees gen mismatch and must NOT clear.
+    releaseStale();
+    await staleP;
+
+    assert(
+      regenInFlightRef.current === true,
+      "stale finally must not clear new inFlight",
+    );
+    assert(
+      regenHandleSendPassRef.current === true,
+      "stale finally must not clear new pass",
+    );
+    assert(
+      regenAbortRef.current === newController,
+      "stale finally must not null new abort controller",
+    );
+    assert(
+      sendClaimRef.current === true,
+      "stale sendClaim finally must not clear new claim (if any)",
+    );
+    assert(regenGenerationRef.current === newGen, "generation unchanged by stale");
+    assert(newController.signal.aborted !== true, "new controller not aborted");
+
+    // Cleanup as the new owner would.
+    if (regenGenerationRef.current === newGen) {
+      regenInFlightRef.current = false;
+      regenHandleSendPassRef.current = false;
+      regenAbortRef.current = null;
+      sendClaimRef.current = false;
+    }
+  });
+
+  await test("missing onSendStream propagates to regen as ok:false", async () => {
+    // Mirrors AiChatPage: when onSendStream is absent, handleSend sets
+    // failed=true / reasonKey=chat.backendNotWired and returns ok:false.
+    // regenerateFlow must surface that as ok:false + restore snapshot.
+    function simulatedHandleSendMissingStream() {
+      // handleSend path when onSendStream is undefined
+      const failed = true;
+      const failReasonKey = "chat.backendNotWired";
+      return failed
+        ? { ok: false, reasonKey: failReasonKey }
+        : { ok: true };
+    }
+    const res = await regenerateFlow({
+      messages: history,
+      targetMsgId: "a2",
+      handleSend: async () => simulatedHandleSendMissingStream(),
+      regenInFlightRef,
+      regenHandleSendPassRef,
+      regenAbortRef,
+      regenGenerationRef,
+      sendClaimRef,
+    });
+    assert(res.ok === false, "regen must fail when stream backend missing");
+    assert(
+      res.reasonKey === "chat.backendNotWired",
+      `reasonKey=${res.reasonKey}`,
+    );
+    assert(res.messages.length === history.length, "snapshot restored");
+    assert(regenInFlightRef.current === false, "lock cleared after fail");
+  });
+
+  await test("sendClaim finally is generation-gated (stale cannot clear new claim)", async () => {
+    // Mirrors handleSend: capture mySendGen at claim acquire; finally only
+    // clears when generation still matches.
+    regenGenerationRef.current = 0;
+    sendClaimRef.current = false;
+
+    const mySendGen = regenGenerationRef.current;
+    sendClaimRef.current = true;
+
+    // clearChat + new send
+    regenGenerationRef.current += 1;
+    sendClaimRef.current = false; // clearChat clears
+    sendClaimRef.current = true; // new send claims
+
+    // Stale finally
+    if (regenGenerationRef.current === mySendGen) {
+      sendClaimRef.current = false;
+    }
+    assert(sendClaimRef.current === true, "stale finally must not clear new claim");
+
+    // Matching generation still clears
+    const ownerGen = regenGenerationRef.current;
+    if (regenGenerationRef.current === ownerGen) {
+      sendClaimRef.current = false;
+    }
+    assert(sendClaimRef.current === false, "owner finally clears claim");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

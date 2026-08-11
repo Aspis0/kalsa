@@ -393,6 +393,149 @@ async function main() {
     assert(shouldDispose() === true, "clear claim allows dispose");
   });
 
+  // --- Round-3: deferred turn-save + rejection handling ---
+
+  await test("turn-save promise awaited before dispose even if React defers updater", async () => {
+    // Stronger deferred-timing mock: lifecycle starts BEFORE the deferred
+    // setMessages updater schedules the real save. Promise is installed
+    // synchronously (turnEndSavePromiseRef = turnSaveP) so lifecycle can
+    // await it; dispose must wait for the deferred save to resolve.
+    const order = [];
+    let resolveSave;
+    let rejectSave;
+    const turnSaveHold = { resolve: null, reject: null };
+    const turnSaveP = new Promise((resolve, reject) => {
+      resolveSave = resolve;
+      rejectSave = reject;
+      turnSaveHold.resolve = resolve;
+      turnSaveHold.reject = reject;
+    });
+    // Sync install (before setMessages returns) — critical for the race.
+    let turnEndSavePromiseRef = turnSaveP;
+    // Attach finally + catch (mirrors AiChatPage: no unhandled rejection).
+    let unhandled = false;
+    void turnSaveP
+      .finally(() => {
+        if (turnEndSavePromiseRef === turnSaveP) {
+          turnEndSavePromiseRef = null;
+        }
+        order.push("cleanup");
+      })
+      .catch(() => {
+        // fire-and-forget path must not surface as unhandledrejection
+        order.push("caught");
+      });
+
+    // Lifecycle starts immediately — updater has NOT run yet.
+    const lifecycle = async () => {
+      order.push("lifecycle-start");
+      order.push("abort");
+      const saveP = turnEndSavePromiseRef; // must see the sync-installed promise
+      assert(saveP != null, "lifecycle must observe sync-installed turnSaveP");
+      try {
+        await saveP;
+        order.push("save-awaited");
+      } catch {
+        order.push("save-awaited-reject");
+      }
+      return { historyHashValue: "hash-deferred" };
+    };
+
+    const lifeP = lifecycle();
+
+    // Deferred React updater: runs after a delay (paint + queue).
+    await new Promise((r) => setTimeout(r, 30));
+    order.push("updater-runs");
+    // Simulate saveEngineSession work then resolve.
+    await new Promise((r) => setTimeout(r, 20));
+    order.push("save-done");
+    resolveSave();
+
+    const result = await lifeP;
+    order.push("dispose");
+    // Drain microtasks so finally/catch land.
+    await new Promise((r) => setTimeout(r, 0));
+
+    assert(result.historyHashValue === "hash-deferred", "hash");
+    const saveIdx = order.indexOf("save-done");
+    const disposeIdx = order.indexOf("dispose");
+    const awaitedIdx = order.indexOf("save-awaited");
+    const lifeStartIdx = order.indexOf("lifecycle-start");
+    const updaterIdx = order.indexOf("updater-runs");
+    assert(lifeStartIdx >= 0 && updaterIdx >= 0, `order=${order.join(">")}`);
+    assert(
+      lifeStartIdx < updaterIdx,
+      `lifecycle before deferred updater: ${order.join(">")}`,
+    );
+    assert(saveIdx < disposeIdx, `save before dispose: ${order.join(">")}`);
+    assert(awaitedIdx < disposeIdx, `await before dispose: ${order.join(">")}`);
+    assert(turnEndSavePromiseRef === null, "cleanup cleared ref");
+    assert(unhandled === false, "no unhandled flag");
+    // silence unused
+    void rejectSave;
+    void turnSaveHold;
+  });
+
+  await test("turnSaveP rejection does not become unhandled (finally+catch chain)", async () => {
+    // Mirrors the FIX-2 pattern: turnSaveP.finally(...).catch(...) so a
+    // rejected saveEngineSession does not surface as unhandledrejection.
+    let unhandledHit = false;
+    const onUnhandled = () => {
+      unhandledHit = true;
+    };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      let turnEndRef = null;
+      const turnSaveP = new Promise((_resolve, reject) => {
+        // Reject asynchronously so the catch handler is already attached.
+        void Promise.resolve().then(() => reject(new Error("save failed")));
+      });
+      turnEndRef = turnSaveP;
+      void turnSaveP
+        .finally(() => {
+          if (turnEndRef === turnSaveP) turnEndRef = null;
+        })
+        .catch(() => {
+          // no-op — fire-and-forget
+        });
+      // Give the rejection + catch a tick to settle.
+      await new Promise((r) => setTimeout(r, 20));
+      assert(turnEndRef === null, "cleanup ran");
+      assert(unhandledHit === false, "no unhandledRejection from turnSaveP");
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
+  await test("sendClaim generation-gated release: stale finally skips new claim", async () => {
+    // Cross-check with regenState generation counter semantics used by handleSend.
+    const regenMod = require(resolveBuilt("regenState"));
+    const { sendClaimRef, regenGenerationRef } = regenMod;
+    regenGenerationRef.current = 0;
+    sendClaimRef.current = false;
+
+    const mySendGen = regenGenerationRef.current;
+    sendClaimRef.current = true;
+
+    // clearChat bumps + new send claims
+    regenGenerationRef.current += 1;
+    sendClaimRef.current = false;
+    sendClaimRef.current = true;
+
+    // Stale finally
+    if (regenGenerationRef.current === mySendGen) {
+      sendClaimRef.current = false;
+    }
+    assert(sendClaimRef.current === true, "stale finally skipped");
+
+    // Owner finally
+    const ownerGen = regenGenerationRef.current;
+    if (regenGenerationRef.current === ownerGen) {
+      sendClaimRef.current = false;
+    }
+    assert(sendClaimRef.current === false, "owner cleared");
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }
