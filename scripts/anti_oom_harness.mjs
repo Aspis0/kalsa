@@ -602,6 +602,68 @@ async function main() {
     assert(sendClaimRef.current === false, "claim released/cleared");
   });
 
+  // --- Round-6: late updateMessage after generation move ---
+
+  await test("late updateMessage callback after generation move does NOT apply", async () => {
+    // Mirrors AiChatPage.updateMessage ownerGen/ownerRunId guard: a coalescer
+    // flush or stream callback scheduled under gen N must no-op when React
+    // applies it after clearChat bumped regenGenerationRef.
+    const regenMod = require(resolveBuilt("regenState"));
+    const { regenGenerationRef } = regenMod;
+    regenGenerationRef.current = 0;
+    const sendRunIdRef = { current: 0 };
+
+    let messages = [
+      { id: "a1", role: "assistant", text: "partial", streaming: true },
+    ];
+    let applied = 0;
+    let skipped = 0;
+
+    function updateMessage(id, patchOrFn, ownerGen, ownerRunId) {
+      // Return a deferred applicator (simulates React setState queue).
+      return () => {
+        if (
+          ownerGen !== undefined &&
+          (ownerGen !== regenGenerationRef.current ||
+            (ownerRunId !== undefined && ownerRunId !== sendRunIdRef.current))
+        ) {
+          skipped += 1;
+          return;
+        }
+        const idx = messages.findIndex((m) => m.id === id);
+        if (idx === -1) {
+          skipped += 1;
+          return;
+        }
+        const patch =
+          typeof patchOrFn === "function" ? patchOrFn(messages[idx]) : patchOrFn;
+        messages = messages.slice();
+        messages[idx] = { ...messages[idx], ...patch };
+        applied += 1;
+      };
+    }
+
+    const myGen = regenGenerationRef.current;
+    const runId = ++sendRunIdRef.current;
+    // Stream/coalescer schedules update under current gen
+    const lateFlush = updateMessage(
+      "a1",
+      { text: "late full text", statusLabel: undefined },
+      myGen,
+      runId,
+    );
+    // clearChat: bump generation + wipe messages
+    sendRunIdRef.current += 1;
+    regenGenerationRef.current += 1;
+    messages = [];
+    // Late callback fires
+    lateFlush();
+    assert(applied === 0, `applied=${applied}`);
+    assert(skipped === 1, `skipped=${skipped}`);
+    assert(messages.length === 0, "must stay empty after clearChat");
+  });
+
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }

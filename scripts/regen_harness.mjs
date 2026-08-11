@@ -1126,6 +1126,112 @@ async function main() {
     if (regenGenerationRef.current === newGen) sendClaimRef.current = false;
   });
 
+  // --- Round-6 race tests: deferred setMessages / updateMessage inner guards ---
+
+  await test("deferred setMessages after clearChat-after-fit-return does NOT apply", async () => {
+    // Mirrors AiChatPage.handleSend: outer gate can pass, schedule a functional
+    // setMessages, then clearChat bumps generation before React applies the
+    // updater. The INNER check at the top of the updater must return prev.
+    const regenGenerationRef = { current: 0 };
+    const sendRunIdRef = { current: 0 };
+    let messages = [{ id: "u0", role: "user", text: "hi" }];
+    let applied = 0;
+    let skipped = 0;
+
+    const stillThisRun = (my) => regenGenerationRef.current === my;
+
+    async function simulatedHandleSend() {
+      const myGen = regenGenerationRef.current;
+      sendClaim: {
+        /* claim */
+      }
+      const runId = ++sendRunIdRef.current;
+      // Fit gate ok
+      await new Promise((r) => setTimeout(r, 5));
+      if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+        return { ok: false, reasonKey: "chat.regenFailed" };
+      }
+      // Outer gate passed — schedule deferred setMessages (simulates React).
+      const deferred = () => {
+        // INNER guard (AiChatPage setMessages updaters)
+        if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+          skipped += 1;
+          return; // return prev unchanged
+        }
+        applied += 1;
+        messages = [
+          ...messages,
+          { id: "u1", role: "user", text: "stale" },
+          { id: "a1", role: "assistant", text: "stale reply" },
+        ];
+      };
+      // clearChat BEFORE the deferred updater runs
+      sendRunIdRef.current += 1;
+      regenGenerationRef.current += 1;
+      messages = []; // clearChat wiped history
+      // Deferred updater fires later
+      deferred();
+      return { ok: false, reasonKey: "chat.regenFailed" };
+    }
+
+    const res = await simulatedHandleSend();
+    assert(res.ok === false, "stale path fails");
+    assert(applied === 0, `applied=${applied}`);
+    assert(skipped === 1, `skipped=${skipped}`);
+    assert(messages.length === 0, `messages resurrected: ${messages.length}`);
+  });
+
+  await test("deferred updateMessage after generation move does NOT apply", async () => {
+    // Mirrors updateMessage(ownerGen, ownerRunId) inner functional setter.
+    const regenGenerationRef = { current: 0 };
+    const sendRunIdRef = { current: 0 };
+    let messages = [
+      { id: "a1", role: "assistant", text: "", streaming: true },
+    ];
+    let applied = 0;
+    let skipped = 0;
+
+    function updateMessage(id, patchOrFn, ownerGen, ownerRunId) {
+      // Simulate React deferred application of the functional updater.
+      const apply = () => {
+        if (
+          ownerGen !== undefined &&
+          (ownerGen !== regenGenerationRef.current ||
+            (ownerRunId !== undefined && ownerRunId !== sendRunIdRef.current))
+        ) {
+          skipped += 1;
+          return;
+        }
+        const idx = messages.findIndex((m) => m.id === id);
+        if (idx === -1) return;
+        const patch =
+          typeof patchOrFn === "function" ? patchOrFn(messages[idx]) : patchOrFn;
+        messages = messages.slice();
+        messages[idx] = { ...messages[idx], ...patch };
+        applied += 1;
+      };
+      return apply; // caller schedules
+    }
+
+    const myGen = regenGenerationRef.current;
+    const runId = ++sendRunIdRef.current;
+    const deferred = updateMessage(
+      "a1",
+      { text: "stale token", statusLabel: undefined },
+      myGen,
+      runId,
+    );
+    // clearChat / newer send moves generation + runId
+    sendRunIdRef.current += 1;
+    regenGenerationRef.current += 1;
+    messages = []; // wiped
+    deferred();
+    assert(applied === 0, `applied=${applied}`);
+    assert(skipped === 1, `skipped=${skipped}`);
+    assert(messages.length === 0, "must not resurrect assistant");
+  });
+
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }

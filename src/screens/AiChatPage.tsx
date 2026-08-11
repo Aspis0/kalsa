@@ -1368,11 +1368,26 @@ export function AiChatPage({
     if (prefillText) setDraft(prefillText);
   }, [prefillText]);
 
-  // HIGH-1: targeted update — supports both patch object and function-form updater
+  // HIGH-1: targeted update — supports both patch object and function-form updater.
+  // ownerGen / ownerRunId: capture at the call site; the functional setMessages
+  // updater may run after clearChat / a newer send, so re-check ownership inside
+  // the deferred callback and no-op if the generation or runId has moved.
   const updateMessage = useCallback(
-    (id: string, patchOrFn: Partial<Message> | ((prev: Message) => Partial<Message>)) => {
+    (
+      id: string,
+      patchOrFn: Partial<Message> | ((prev: Message) => Partial<Message>),
+      ownerGen?: number,
+      ownerRunId?: number,
+    ) => {
       if (!mountedRef.current) return;
       setMessages(prev => {
+        if (
+          ownerGen !== undefined &&
+          (ownerGen !== regenGenerationRef.current ||
+            (ownerRunId !== undefined && ownerRunId !== sendRunIdRef.current))
+        ) {
+          return prev;
+        }
         const idx = prev.findIndex(m => m.id === id);
         if (idx === -1) return prev;
         const patch =
@@ -1616,22 +1631,28 @@ export function AiChatPage({
         // gate the push on the same generation token used for the sending
         // reset, otherwise the stale bench Q&A reappears in the cleared chat.
         if (mountedRef.current && sendRunIdRef.current === runId && stillThisRun(myGen)) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: userMsgId,
-              role: "user",
-              text: trimmed,
-              createdAt: now,
-            },
-            {
-              id: assistantId,
-              role: "assistant",
-              text: reply,
-              streaming: false,
-              createdAt: now + 1,
-            },
-          ]);
+          setMessages((prev) => {
+            // Deferred updater: clearChat may have bumped gen/runId after schedule.
+            if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+              return prev;
+            }
+            return [
+              ...prev,
+              {
+                id: userMsgId,
+                role: "user",
+                text: trimmed,
+                createdAt: now,
+              },
+              {
+                id: assistantId,
+                role: "assistant",
+                text: reply,
+                streaming: false,
+                createdAt: now + 1,
+              },
+            ];
+          });
         }
         if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
           sendingRef.current = false;
@@ -1661,23 +1682,29 @@ export function AiChatPage({
         // currently synchronous (no await before this point) so inert today,
         // but future-proofs against this branch growing an await.
         if (mountedRef.current && sendRunIdRef.current === runId && stillThisRun(myGen)) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: userMsgId,
-              role: "user",
-              text: trimmed,
-              createdAt: now,
-              attachments: gateAttachments.length > 0 ? gateAttachments : undefined,
-            },
-            {
-              id: assistantId,
-              role: "assistant",
-              text: contentFilterMessage(classification.reason, t),
-              streaming: false,
-              createdAt: now + 1,
-            },
-          ]);
+          setMessages((prev) => {
+            // Deferred updater: clearChat may have bumped gen/runId after schedule.
+            if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+              return prev;
+            }
+            return [
+              ...prev,
+              {
+                id: userMsgId,
+                role: "user",
+                text: trimmed,
+                createdAt: now,
+                attachments: gateAttachments.length > 0 ? gateAttachments : undefined,
+              },
+              {
+                id: assistantId,
+                role: "assistant",
+                text: contentFilterMessage(classification.reason, t),
+                streaming: false,
+                createdAt: now + 1,
+              },
+            ];
+          });
         }
         setAttachedItems([]);
         if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
@@ -1719,25 +1746,31 @@ export function AiChatPage({
         return { ok: false, reasonKey: "chat.regenFailed" };
       }
       if (mountedRef.current) {
-        setMessages(prev => [
-          ...prev,
-          {
-            id: userMsgId,
-            role: "user",
-            text: trimmed,
-            createdAt: now,
-            attachments: snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
-          },
-          {
-            id: assistantId,
-            role: "assistant",
-            text: "",
-            streaming: true,
-            statusLabel: t("chat.writingStatus"),
-            statusHistory: [],
-            createdAt: now,
-          },
-        ]);
+        setMessages(prev => {
+          // Deferred updater: clearChat / newer send may have invalidated ownership.
+          if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+            return prev;
+          }
+          return [
+            ...prev,
+            {
+              id: userMsgId,
+              role: "user",
+              text: trimmed,
+              createdAt: now,
+              attachments: snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
+            },
+            {
+              id: assistantId,
+              role: "assistant",
+              text: "",
+              streaming: true,
+              statusLabel: t("chat.writingStatus"),
+              statusHistory: [],
+              createdAt: now,
+            },
+          ];
+        });
       }
       setDraft("");
       // Clear attached items after send
@@ -1753,8 +1786,18 @@ export function AiChatPage({
       let anyTextStreamed = false;
       // ~30 fps UI flush: llama.rn is 5–15 tok/s; setState every token is wasteful.
       // Coalescer overwrites with the latest full text and flushes on a 33 ms cadence.
+      // Capture myGen/runId into the flush: a deferred trailing timer must not
+      // paint into a chat that clearChat / a newer send already owns.
       const streamCoalescer = createStreamCoalescer((fullText) => {
-        updateMessage(assistantId, { text: fullText, statusLabel: undefined });
+        if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+          return;
+        }
+        updateMessage(
+          assistantId,
+          { text: fullText, statusLabel: undefined },
+          myGen,
+          runId,
+        );
       });
 
       /** Memory extract deferred until after turn-end KV save (see AppShell). */
@@ -1765,20 +1808,46 @@ export function AiChatPage({
             modelText,
             {
               onDelta: (_delta, full) => {
+                // Mark text presence even if a later flush is dropped as stale —
+                // abort-with-partial decisions depend on whether tokens arrived.
                 anyTextStreamed = true;
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
                 streamCoalescer.push(full);
               },
               // Feature 1: append to history AND set current label
-              onStatus: (status) =>
-                updateMessage(assistantId, prev => ({
-                  statusLabel: status.label,
-                  statusHistory: [...(prev.statusHistory ?? []), status.label],
-                })),
+              onStatus: (status) => {
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
+                updateMessage(
+                  assistantId,
+                  prev => ({
+                    statusLabel: status.label,
+                    statusHistory: [...(prev.statusHistory ?? []), status.label],
+                  }),
+                  myGen,
+                  runId,
+                );
+              },
               // BLOCKER-4: sources non chiudono lo streaming (il round tool
               // può continuare): aggiorna solo sources e statusLabel.
-              onSources: (sources) =>
-                updateMessage(assistantId, { sources, statusLabel: undefined }),
+              onSources: (sources) => {
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
+                updateMessage(
+                  assistantId,
+                  { sources, statusLabel: undefined },
+                  myGen,
+                  runId,
+                );
+              },
               onActions: (payload: any) => {
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
                 const proposed = Array.isArray(payload?.proposed_actions) ? payload.proposed_actions : [];
                 const ctas = proposed
                   .filter((action: any) => action?.executable === true && action?.output_id)
@@ -1795,27 +1864,55 @@ export function AiChatPage({
                     target: "outputs",
                   }));
                 if (ctas.length) {
-                  updateMessage(assistantId, prev => ({ ctas: [...(prev.ctas ?? []), ...ctas] }));
+                  updateMessage(
+                    assistantId,
+                    prev => ({ ctas: [...(prev.ctas ?? []), ...ctas] }),
+                    myGen,
+                    runId,
+                  );
                 }
               },
               onCta: (payload: ChatCta) => {
                 if (!payload?.kind || !payload?.label) return;
-                updateMessage(assistantId, prev => ({ ctas: [...(prev.ctas ?? []), payload] }));
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
+                updateMessage(
+                  assistantId,
+                  prev => ({ ctas: [...(prev.ctas ?? []), payload] }),
+                  myGen,
+                  runId,
+                );
               },
               // Miniapp callback: store only (do NOT end streaming).
               // streaming:false + final text extraction stay in the finally block
               // after await onSendStream. LlamaService currently never emits this;
               // cloud/unified clients may. Invalid payloads are ignored.
               onMiniapp: (miniapp) => {
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
                 const normalized = normalizeMiniapp(miniapp);
                 if (!normalized) return;
-                updateMessage(assistantId, {
-                  miniapp: normalized as Message["miniapp"],
-                });
+                updateMessage(
+                  assistantId,
+                  { miniapp: normalized as Message["miniapp"] },
+                  myGen,
+                  runId,
+                );
               },
               // RNA-seq job context: store result images/downloads on this message.
-              onImages: (imgs, dls) =>
-                updateMessage(assistantId, { images: imgs, downloads: dls }),
+              onImages: (imgs, dls) => {
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
+                updateMessage(
+                  assistantId,
+                  { images: imgs, downloads: dls },
+                  myGen,
+                  runId,
+                );
+              },
               // Backend resolves (not rejects) on stream/engine failures; flip
               // failed so handleSend returns ok:false for regen/edit rollback.
               onFailed: (reasonKey: string) => {
@@ -1841,11 +1938,16 @@ export function AiChatPage({
           failed = true;
           failReasonKey = "chat.backendNotWired";
           if (stillThisRun(myGen) && sendRunIdRef.current === runId) {
-            updateMessage(assistantId, {
-              streaming: false,
-              statusLabel: undefined,
-              text: t("chat.backendNotWired"),
-            });
+            updateMessage(
+              assistantId,
+              {
+                streaming: false,
+                statusLabel: undefined,
+                text: t("chat.backendNotWired"),
+              },
+              myGen,
+              runId,
+            );
           }
         }
       } catch (err: any) {
@@ -1856,7 +1958,12 @@ export function AiChatPage({
         } else if (controller.signal.aborted) {
           // BLOCKER-2 (audit): aborted with no streamed content → remove empty placeholder
           if (!anyTextStreamed && mountedRef.current) {
-            setMessages(prev => prev.filter(m => m.id !== assistantId));
+            setMessages(prev => {
+              if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                return prev;
+              }
+              return prev.filter(m => m.id !== assistantId);
+            });
           }
           // If partial text was streamed, the finally block finalizes it cleanly — no action needed
         } else if (mountedRef.current) {
@@ -1870,7 +1977,12 @@ export function AiChatPage({
             failReasonKey = "chat.serviceUnreachable";
           }
           const msg = t(failReasonKey as any);
-          updateMessage(assistantId, { streaming: false, statusLabel: undefined, text: msg });
+          updateMessage(
+            assistantId,
+            { streaming: false, statusLabel: undefined, text: msg },
+            myGen,
+            runId,
+          );
         } else {
           failed = true;
         }
@@ -1887,7 +1999,12 @@ export function AiChatPage({
         if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
           // Stale turn — leave UI alone; clearChat already owns state.
         } else if (controller.signal.aborted && !anyTextStreamed) {
-          setMessages(prev => prev.filter(m => m.id !== assistantId));
+          setMessages(prev => {
+            if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+              return prev;
+            }
+            return prev.filter(m => m.id !== assistantId);
+          });
         } else if (!controller.signal.aborted || anyTextStreamed) {
           // Extract miniapp JSON from the final assistant text (local models emit
           // schema miniapp_v1 in the prose / fenced block; cloud path may also
@@ -2332,8 +2449,16 @@ export function AiChatPage({
         if (base.length > 0 && base[base.length - 1]?.role === "user") {
           base = base.slice(0, -1);
         }
-        setMessages(base);
-        messagesRef.current = base;
+        setMessages((prev) => {
+          if (regenGenerationRef.current !== myGeneration) {
+            return prev;
+          }
+          return base;
+        });
+        // Keep ref in lockstep only while we still own the generation.
+        if (regenGenerationRef.current === myGeneration) {
+          messagesRef.current = base;
+        }
         // One-shot pass so handleSend accepts while regenInFlightRef is true.
         regenHandleSendPassRef.current = true;
         // If background disposal aborted regen before send starts, refuse cleanly.
@@ -2341,8 +2466,15 @@ export function AiChatPage({
           if (regenGenerationRef.current !== myGeneration) {
             return { ok: false, reasonKey: "chat.regenFailed" };
           }
-          setMessages(snapshot);
-          messagesRef.current = snapshot;
+          setMessages((prev) => {
+            if (regenGenerationRef.current !== myGeneration) {
+              return prev;
+            }
+            return snapshot;
+          });
+          if (regenGenerationRef.current === myGeneration) {
+            messagesRef.current = snapshot;
+          }
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
         const sendResult = await handleSendTracked(originalUserText);
@@ -2351,11 +2483,18 @@ export function AiChatPage({
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
         if (!sendResult.ok) {
-          setMessages(snapshot);
-          messagesRef.current = snapshot;
-          setSending(false);
-          sendingRef.current = false;
-          sendingInFlightRef.current = false;
+          setMessages((prev) => {
+            if (regenGenerationRef.current !== myGeneration) {
+              return prev;
+            }
+            return snapshot;
+          });
+          if (regenGenerationRef.current === myGeneration) {
+            messagesRef.current = snapshot;
+            setSending(false);
+            sendingRef.current = false;
+            sendingInFlightRef.current = false;
+          }
           return { ok: false, reasonKey: sendResult.reasonKey || "chat.regenFailed" };
         }
         return { ok: true };
@@ -2364,11 +2503,18 @@ export function AiChatPage({
         if (regenGenerationRef.current !== myGeneration) {
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
-        setMessages(snapshot);
-        messagesRef.current = snapshot;
-        setSending(false);
-        sendingRef.current = false;
-        sendingInFlightRef.current = false;
+        setMessages((prev) => {
+          if (regenGenerationRef.current !== myGeneration) {
+            return prev;
+          }
+          return snapshot;
+        });
+        if (regenGenerationRef.current === myGeneration) {
+          messagesRef.current = snapshot;
+          setSending(false);
+          sendingRef.current = false;
+          sendingInFlightRef.current = false;
+        }
         return { ok: false, reasonKey: "chat.regenFailed" };
       } finally {
         // Generation-gated release: only the current owner clears all locks.
@@ -2433,15 +2579,29 @@ export function AiChatPage({
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
         const base = messagesRef.current.slice(0, idx).map((m) => m);
-        setMessages(base);
-        messagesRef.current = base;
+        setMessages((prev) => {
+          if (regenGenerationRef.current !== myGeneration) {
+            return prev;
+          }
+          return base;
+        });
+        if (regenGenerationRef.current === myGeneration) {
+          messagesRef.current = base;
+        }
         regenHandleSendPassRef.current = true;
         if (regenAbortRef.current?.signal.aborted) {
           if (regenGenerationRef.current !== myGeneration) {
             return { ok: false, reasonKey: "chat.regenFailed" };
           }
-          setMessages(snapshot);
-          messagesRef.current = snapshot;
+          setMessages((prev) => {
+            if (regenGenerationRef.current !== myGeneration) {
+              return prev;
+            }
+            return snapshot;
+          });
+          if (regenGenerationRef.current === myGeneration) {
+            messagesRef.current = snapshot;
+          }
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
         // handleSend appends a fresh user message; mark edited after it lands
@@ -2453,11 +2613,18 @@ export function AiChatPage({
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
         if (!sendResult.ok) {
-          setMessages(snapshot);
-          messagesRef.current = snapshot;
-          setSending(false);
-          sendingRef.current = false;
-          sendingInFlightRef.current = false;
+          setMessages((prev) => {
+            if (regenGenerationRef.current !== myGeneration) {
+              return prev;
+            }
+            return snapshot;
+          });
+          if (regenGenerationRef.current === myGeneration) {
+            messagesRef.current = snapshot;
+            setSending(false);
+            sendingRef.current = false;
+            sendingInFlightRef.current = false;
+          }
           return { ok: false, reasonKey: sendResult.reasonKey || "chat.regenFailed" };
         }
         // Stamp edited on the user message that handleSend just appended.
@@ -2487,11 +2654,18 @@ export function AiChatPage({
         if (regenGenerationRef.current !== myGeneration) {
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
-        setMessages(snapshot);
-        messagesRef.current = snapshot;
-        setSending(false);
-        sendingRef.current = false;
-        sendingInFlightRef.current = false;
+        setMessages((prev) => {
+          if (regenGenerationRef.current !== myGeneration) {
+            return prev;
+          }
+          return snapshot;
+        });
+        if (regenGenerationRef.current === myGeneration) {
+          messagesRef.current = snapshot;
+          setSending(false);
+          sendingRef.current = false;
+          sendingInFlightRef.current = false;
+        }
         return { ok: false, reasonKey: "chat.regenFailed" };
       } finally {
         // Generation-gated release: only the current owner clears all locks.
