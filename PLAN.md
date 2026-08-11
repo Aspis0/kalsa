@@ -12,7 +12,7 @@
 
 ---
 
-# ⭐ STATO CORRENTE — aggiornato 2026-08-10
+# ⭐ STATO CORRENTE — aggiornato 2026-08-11 (sera, post shortlist k5)
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
@@ -24,7 +24,7 @@
 | | valore | note |
 |---|---|---|
 | **modello** | **KEXP** `Qwen3.6-35B-A3B-KEXP.gguf` (sha `ac44e20c…`) | IQ2_M resta riferimento storico, non cancellato |
-| **config di campagna** | `-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65` | **ADOTTATO A** (speed grid + gualt 2026-08-10) |
+| **config di campagna** | `-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65` | **ADOTTATO A** (speed grid + gualt 2026-08-10). Shortlist k=5 **morta** → default **invariato** |
 | **binario** | CAMPAIGN `1ca51420…` = prefault tri-stato + dense2 + fix KV + scorer + drop runtime | pin sha-verificato, `bin_sha256` in `runs.csv` |
 | **load cold** | **~10 s** (KEXP ~12.5 GiB; storico IQ2_M 9.37 GiB) | E1 chiuso su IQ2_M; KEXP size-bound |
 | **prefill per turno** | **~8-11 s COSTANTI** su 5 turni (T5: 9.34 s, n_common 1387) | prima del fix KV: 165 s al T5. Il TTFT non degrada più |
@@ -32,8 +32,8 @@
 | traffico | hit ~76-80% @ drop 0.65 (speed grid) | cache 2000 = ottimo misurato |
 | hit esperti (decode) | 75-83% sulle celle speed | cache 2000 |
 | energia | 1.0-1.4 J/token, ~40k token per carica | F4.7 (pre-KEXP, da rinfrescare se serve) |
-| **qualità** | PPL decode **1.852** (k6d065); floor prodotto storico IQ2_M **2.0955** | ancora margine sotto floor |
-| **collo di bottiglia** | **il CALCOLO** (I/O esposto = 20% del decode; freq a regime 41% del picco) | F4.9, F5.2, F5.3-A3 |
+| **qualità** | PPL decode **1.852** (k6d065); floor prodotto storico IQ2_M **2.0955** | ⚠ metro campagna ancora su corpus Dante (`corpus_subset_10k`); confronti interni OK. Corpus v2 + re-ancoraggio floor = decision gualt |
+| **collo di bottiglia** | **il CALCOLO** (I/O esposto = 20% del decode; freq a regime 41% del picco) | F4.9, F5.2, F5.3-A3. Drop = solo I/O (saturo); k&lt;6 morto su KEXP |
 
 ## I 3 capitoli che contavano: TUTTI CHIUSI
 
@@ -44,10 +44,18 @@
    Residuo chiuso per esperimento (mincore: il reclaim avviene DURANTE il warm-up).
    Report: `moe-dense2.md`, `moe-adopt-dense2.md`.
 3. ✅ **Metro PPL sul decode-path** (`--ppl-decode`, fork `d408e03`, Δ=0 esatto vs prefill
-   a ubatch=1) **+ prima leva lossy ADOTTATA**: `--drop-cold-experts 0.50` — ΔPPL +0.051
-   per +3-4% decode (prudente; pooled +6.5%) e −16% MiB/tok. Il taglio per COSTO batte il
-   taglio per RANGO (k6/k5/k4 morte con ΔPPL 0.94/2.56/7.29).
-   Report: `moe-dropcold.md`, `moe-speed-dropcold.md`, `moe-adopt-dropcold.md`.
+   a ubatch=1) **+ prima leva lossy ADOTTATA**: `--drop-cold-experts 0.50` — poi k6d065
+   come default prodotto. Report: `moe-dropcold.md`, `moe-adopt-kexp.md`.
+
+## Chiuso di fresco (2026-08-11)
+
+| ramo | verdetto | report |
+|---|---|---|
+| **shortlist velocità C (k=5)** | **DONE_NO_VIVE** — k5d065 PPL 2.456, k5d000 2.307, entrambe > floor 2.0955; speed skip | `moe-shortlist-velocita.md` |
+| shortlist A (drop-by-weight) / B (top-p) | **archiviate per meccanismo** (drop non salta matmul; B senza route rows utili) | mandate `shortlist-velocita.md` |
+| **italiano Marco prosa moderna** | **MISURATO** (Wikipedia Caffè v2): Marco bpb 0.750 &lt; Qwen 0.769; T2c **PASS** 5/5 | `moe-trial-marco-it-v2.md`, `quality_gates.json` |
+| knee drop-cold IQ2 k=8 | **eseguito** (0.65 candidato, 0.80 archived PPL) — pre-KEXP; non riaprire come leva k6 senza fatto nuovo | `moe-knee-dropcold.md` |
+| GPU OpenCL Adreno / ik kernels | **chiusi** (ricerca + spike) | `research-adreno-opencl.md`, spike S1 |
 
 ## Deciso e CHIUSO (non riaprire senza un fatto nuovo)
 
@@ -57,19 +65,23 @@
 | **taglia cache** | **2000, ottimo misurato** | incorniciata: 1500 −15%, 3000/3500 −62/−68% (thrash → RescueParty) |
 | **ubatch** | **512** | 2048: prefill −15.5% E buffer 4× |
 | prefetch cross-layer | **morto** | Recall@8 19.2%, extra-fetch 274%; predittore 87-91% varrebbe +3.1% |
-| MTP / speculazione | **morto, con letteratura** | 0.00% ammortizzo byte; 3 meccanismi indipendenti (roofline CPU, DFlash GPU-native, expert scattering). Riapertura solo con: NPU/GPU verify, acceptance ≥60%, overlap misurato ≫0. `research/speculative-cpu-literature.md` |
-| k ridotto (lossy) | **morto** | k6 ΔPPL +0.94 ≫ 0.15; k5/k4 peggio |
-| drop-cold estremi | **morti** | 0.25 inerte (−4% byte); 1.00 rompe il metro (+0.26) |
-| ri-quantizzazione | **pareggia** | guadagno calcolo ≈ penale byte; `repack` irraggiungibile dallo streaming |
-| kernel IQ2 a mano | **rinviato** | GEMM esperti = 50% del calcolo, ma via economica pareggia, via cara costa settimane |
+| MTP / speculazione | **morto, con letteratura** | 0.00% ammortizzo byte; 3 meccanismi indipendenti. Riapertura solo NPU/GPU verify + acceptance ≥60% |
+| **k ridotto (lossy) su KEXP** | **morto (confermato)** | k5d000 +0.45 vs k6d065, sotto floor; k5d065 peggio. Decode CPU: k=6 è il pavimento qualità |
+| drop-cold estremi | **morti come leva compute** | drop = solo I/O (remap top expert); I/O già saturo d065→d080 +0.15% speed |
+| ri-quantizzazione 1c esperti | **pareggia** | guadagno calcolo ≈ penale byte |
+| kernel IQ2 a mano | **rinviato / NO-GO su 8 Gen 2** | ik g_IQ2 0.719 &lt; 1.20 |
 
 ## Aperto, e cosa serve per chiuderlo
 
-| domanda | stato |
-|---|---|
-| ginocchio drop-cold F ∈ {0.65, 0.80} — c'è un punto che paga ≥−25% byte a budget tenuto? | **mandato scritto** (`knee-dropcold.md`, deterministica, in carica OK); include ricalibrazione ABORT_MEM combinato (mem<100 MiB E die>85 sostenuti) |
-| **L'ESPERIMENTO SERIO — attaccare il collo del CALCOLO** (unica leva grossa rimasta) | da decidere con gualt, candidati sotto |
-| energia col drop attivo (J/token da rinfrescare) | opzionale, una cella F4.7-style |
+| domanda | stato | chi sblocca |
+|---|---|---|
+| **MarcoKEXP** — download Q8 (~18 GB) + quantize con recipe pronta | **T2c PASS** (IT v2). Prep: source ID + `tensor_types*.txt` + cmd NOT RUN. **Manca solo GO gualt** | gualt GO |
+| corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
+| **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
+| energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
+| LiteRT fail-fast su S23 (Adreno path) | prep APK+Gemma E2B su PC **pronta**; F0/F1 non eseguiti | gualt + S23 libero |
+| REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
+| **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065; niente leva fork-legale k/drop rimasta | gualt: solo product path o nuovo silicio/backend |
 
 ### Candidati "esperimento serio" (il collo è il calcolo a 1.39 GHz)
 
@@ -133,6 +145,12 @@
   storica "caricati/calcolati" di moe-dropcold.md e alla narrativa del
   coordinatore che per tre giorni ha attribuito al drop risparmi di GEMV.
 - **Route-trace INSIEME alla misura** se andrà confrontata con una simulazione.
+- **Sapere COSA C'È nel corpus prima di fidarsi del metro** (T2c 2026-08-11): il
+  corpus PPL di campagna e la slice multi5 IT erano la Divina Commedia
+  (Gutenberg 1012) — testo che il 35B ha MEMORIZZATO (bpb 0.27 vs 0.83 su ZH).
+  Spiega i PPL 1.5-2.1 "assurdi". Confronti interni same-model: validi in
+  direzione. Confronti cross-model su quella slice: NULLI. Le slice valide
+  sono prosa moderna simmetrica (Wikipedia "Caffè" ×4 lingue).
 - Un gate che legge da un **comando esterno fallisce aperto**, uno su **sysfs fallisce
   chiuso**.
 
@@ -1070,6 +1088,51 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-11 — 🏆 T2c CHIUSO: Marco batte Qwen3.5-4B in 4 lingue su 4 VALIDE
+  (EN −0.069, ZH −0.045, ES −0.023, FR −0.024 bpb) — e la quinta riga svela il
+  fatto metodologico più grosso della campagna: IL CORPUS PPL DI CAMPAGNA È LA
+  DIVINA COMMEDIA. Gate MarcoKEXP: SBLOCCATO (promozione in ENTRAMBI i mercati
+  core).**
+
+  Numeri (bpb multi5, `results/trial_marco/ppl_*/`, run PC 8t ctx4096):
+
+  | lingua | Marco | Qwen4B | Δ | verdetto mercato |
+  |---|---|---|---|---|
+  | EN | 0.6051 | 0.6740 | **−0.069** | Marco stravince |
+  | ES | 0.6766 | 0.6994 | −0.023 | Marco vince |
+  | FR | 0.7234 | 0.7469 | −0.024 | Marco vince |
+  | ZH | 0.8834 | 0.9279 | **−0.045** | Marco stravince |
+  | IT | 1.6377 | 1.3686 | +0.269 | **RIGA ANNULLATA — slice invalida** |
+
+  1. **Scoperta (verificata dal coordinatore sui file)**: `multi5/it.txt` è la
+     Divina Commedia — e `corpus_subset_10k.txt` (il metro PPL di TUTTA la
+     campagna, floor 2.0955 compreso) viene dallo STESSO ebook Gutenberg 1012.
+     Le altre 4 slice sono la voce Wikipedia "Caffè" (prosa moderna, simmetrica
+     tra modelli → valide). Prova regina: KEXP fa bpb 0.27-0.38 su IT contro
+     0.83-0.85 su ZH — Qwen3.6-35B ha Dante MEMORIZZATO. Ecco spiegati i PPL
+     di campagna "assurdamente bassi" (1.5-2.1).
+  2. **Cosa resta valido**: tutti i confronti INTERNI (IQ2_M vs KEXP, k, drop)
+     — stesso modello, stesso testo fisso: la direzione dei verdetti tiene.
+     Magnitudini non calibrate su testo difficile (testo memorizzato = regime
+     facile). Il floor 2.0955 resta la regola vigente finché gualt non decide
+     un corpus v2 (ri-ancorare = ~3 run PPL su PC, niente device).
+  3. **Cosa NON è misurato**: l'italiano. Marco-vs-Qwen4B su Dante misura la
+     memorizzazione della Commedia (correlata alla scala), non l'italiano
+     moderno. Fix pronto e cheap: it.txt v2 = voce Wikipedia "Caffè" IT
+     (simmetria perfetta con le altre 4) + re-run IT-only dei 3 modelli su PC.
+  4. **Verdetti di gate (regole dichiarate PRIMA dei numeri)**: pivot
+     per-mercato (≥1 core tra EN/ZH) → **PASS su entrambi**. E anche il gate
+     ORIGINALE severo (macro −0.03 + ≥4/5 lingue) passa sulle 4 slice valide:
+     macro-4 Marco 0.722 vs Qwen 0.762 = **−0.040**, 4/4 lingue. In PPL:
+     −20% EN, −27% ES, −24% FR, −34% ZH. "Stravincere": sì, fuori dall'IT.
+  5. Contesto premium: KEXP k6d065 macro-4 (EN/ES/FR/ZH) 0.678 < Marco 0.722 —
+     la gerarchia a due tier (CalaQwen top, Marco veloce-sotto-top) è
+     CONFERMATA dai numeri, come da struttura prodotto.
+
+  **Conseguenza**: il download del sorgente Marco per MarcoKEXP è SBLOCCATO
+  (era gated su T2c). Jelly: baseline free-tier RINVIATA (reboot, debug
+  wireless perso — stesso fix Termux:Boot del S23 quando gualt ha 10 min).
 
 - **2026-08-11 — ⚰️ FIX-SESSION COMPLETA: bug session diagnosticato in una riga,
   conv5 recuperata, e N1 v2 emette l'EPITAFFIO DEFINITIVO della speculazione:

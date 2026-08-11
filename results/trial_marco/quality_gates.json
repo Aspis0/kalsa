@@ -1,12 +1,23 @@
 {
+  "updated": "2026-08-11",
+  "note": "IT replaced by Wikipedia Caffe v2 (modern prose). Literary Dante IT invalidated for cross-model.",
+  "it_v2_corpus_sha256": "498a5f3b554fac4bb6f7eda4f7bdcea60f3ad6be30699f306a3255d8ba85545a",
+  "it_v1_literary_kept_for_ref": {
+    "KEXP_k6d065": 0.3841608944941807,
+    "Marco": 1.637715957134909,
+    "Qwen35_4B": 1.3686046702152328
+  },
   "kexp_gate_config": "k=6 drop=0.65 (k6d065)",
   "kexp_gate_path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\trial_marco\\ppl_kexp_k6d065\\KEXP_k6d065_multi5.json",
-  "kexp_historical_k8_nodrop_path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\trial_marco\\ppl_kexp\\KEXP_multi5.json",
-  "kexp_historical_k8_nodrop_macro": 0.5830659511013604,
-  "macro": {
-    "KEXP_k6d065": 0.6195354717177591,
-    "Marco": 0.9052345782023032,
-    "Qwen35_4B": 0.8833556724441161
+  "macro5_modern_IT": {
+    "KEXP_k6d065": 0.6840319700083651,
+    "Marco": 0.7277166036111499,
+    "Qwen35_4B": 0.7633485867656143
+  },
+  "macro4_no_IT": {
+    "KEXP_k6d065": 0.6783791160236537,
+    "Marco": 0.7221142334691517,
+    "Qwen35_4B": 0.762043423001337
   },
   "per_lang": [
     {
@@ -15,7 +26,8 @@
       "Marco": 0.6051011731162046,
       "Qwen35_4B": 0.6739788556083921,
       "d_Marco_KEXP": 0.03833047107782439,
-      "d_Marco_Qwen": -0.06887768249218751
+      "d_Marco_Qwen": -0.06887768249218751,
+      "it_source": "multi5_original"
     },
     {
       "lang": "es",
@@ -23,7 +35,8 @@
       "Marco": 0.6766127803280786,
       "Qwen35_4B": 0.6993778081661722,
       "d_Marco_KEXP": 0.03957065468625476,
-      "d_Marco_Qwen": -0.022765027838093643
+      "d_Marco_Qwen": -0.022765027838093643,
+      "it_source": "multi5_original"
     },
     {
       "lang": "fr",
@@ -31,15 +44,17 @@
       "Marco": 0.723385772761425,
       "Qwen35_4B": 0.7469438106362359,
       "d_Marco_KEXP": 0.060269809246005335,
-      "d_Marco_Qwen": -0.023558037874810922
+      "d_Marco_Qwen": -0.023558037874810922,
+      "it_source": "multi5_original"
     },
     {
       "lang": "it",
-      "KEXP_k6d065": 0.3841608944941807,
-      "Marco": 1.637715957134909,
-      "Qwen35_4B": 1.3686046702152328,
-      "d_Marco_KEXP": 1.2535550626407281,
-      "d_Marco_Qwen": 0.2691112869196761
+      "KEXP_k6d065": 0.7066433859472109,
+      "Marco": 0.7501260841791423,
+      "Qwen35_4B": 0.768569241822724,
+      "d_Marco_KEXP": 0.043482698231931405,
+      "d_Marco_Qwen": -0.01844315764358173,
+      "it_source": "wikipedia_caffe_v2"
     },
     {
       "lang": "zh",
@@ -47,16 +62,22 @@
       "Marco": 0.8833572076708988,
       "Qwen35_4B": 0.9278732175945476,
       "d_Marco_KEXP": 0.036769534771907475,
-      "d_Marco_Qwen": -0.04451600992364879
+      "d_Marco_Qwen": -0.04451600992364879,
+      "it_source": "multi5_original"
     }
   ],
   "gates": {
-    "T2a_failfast_en_zh_it": false,
-    "T2b_macro_le_kexp_plus_0.05": false,
-    "T2b_no_lang_gt_plus_0.15": false,
-    "T2c_macro_marco_lt_qwen_minus_0.03": false,
+    "T2a_failfast_en_zh_it": true,
+    "T2b_macro_le_kexp_plus_0.05": true,
+    "T2b_no_lang_gt_plus_0.15": true,
+    "T2c_macro_marco_lt_qwen_minus_0.03": true,
     "T2c_win_or_tie_ge_4_of_5": true,
-    "T2c_no_loss_gt_0.10": false,
-    "T2c_pass": false
-  }
+    "T2c_no_loss_gt_0.10": true,
+    "T2c_pass": true,
+    "T2c_wins_vs_qwen": 5,
+    "T2c_ties_vs_qwen": 0,
+    "T2c_max_loss_vs_qwen": 0.0,
+    "T2c_delta_macro_marco_qwen": -0.035631983154464475
+  },
+  "verdict": "T2c PASS with modern IT \u2014 Marco beats Qwen35-4B 5/5 langs; macro \u0394\u2248\u22120.036. MarcoKEXP download SBLOCCATO (needs gualt GO for 18GB Q8 + quantize)."
 }
