@@ -169,6 +169,12 @@ let cachedThreadCount: number | undefined;
 let cachedThreadCountSource: ThreadCountSource = "unset";
 
 /**
+ * Cached per-core cpu_capacity values from the last successful Android probe.
+ * `undefined` = not yet read; `null` = unreadable / non-Android / partial.
+ */
+let cachedCpuCapacities: number[] | null | undefined;
+
+/**
  * Which path last resolved `detectThreadCount`. Sync, no I/O — for /bench
  * status. Returns `"unset"` until the first probe completes.
  */
@@ -192,6 +198,25 @@ async function readSysfsText(
 }
 
 /**
+ * Read per-core `/sys/.../cpuN/cpu_capacity` for every CPU in `present`.
+ *
+ * Same all-or-nothing rule as `detectThreadCount`: any missing / unreadable /
+ * malformed capacity → `null` (never a partial table). Non-Android → `null`.
+ * Never throws. Cached for the process lifetime (shared with detectThreadCount).
+ *
+ * Used by deviceProfile so production resolveEngineTuning can match measured
+ * SoC presets (e.g. G99 prefill=8) instead of falling back to equal decode/prefill.
+ */
+export async function readCpuCapacities(): Promise<number[] | null> {
+  if (cachedCpuCapacities !== undefined) {
+    return cachedCpuCapacities;
+  }
+  // Drive the shared probe (populates both capacity table and thread count).
+  await detectThreadCount();
+  return cachedCpuCapacities ?? null;
+}
+
+/**
  * Production n_threads for the current device.
  *
  * 1. Android: read `/sys/.../cpuN/cpu_capacity` for every CPU in `present`,
@@ -203,8 +228,9 @@ async function readSysfsText(
  * 3. present unreadable / unparseable → 4, `"fallback:present-unreadable"`.
  * 4. non-Android → 4, `"fallback:non-android"`.
  *
- * Never throws. Cached for the process lifetime (count + source). No static
- * RN import at module scope. No log noise — inspect via getThreadCountSource().
+ * Never throws. Cached for the process lifetime (count + source + capacities).
+ * No static RN import at module scope. No log noise — inspect via
+ * getThreadCountSource() / readCpuCapacities().
  */
 export async function detectThreadCount(): Promise<number> {
   if (cachedThreadCount !== undefined) {
@@ -217,6 +243,7 @@ export async function detectThreadCount(): Promise<number> {
     if (Platform.OS !== "android") {
       cachedThreadCount = FALLBACK_THREAD_COUNT;
       cachedThreadCountSource = "fallback:non-android";
+      cachedCpuCapacities = null;
       return cachedThreadCount;
     }
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -231,12 +258,14 @@ export async function detectThreadCount(): Promise<number> {
     if (presentText === null) {
       cachedThreadCount = FALLBACK_THREAD_COUNT;
       cachedThreadCountSource = "fallback:present-unreadable";
+      cachedCpuCapacities = null;
       return cachedThreadCount;
     }
     const indices = listCpuPresent(presentText);
     if (indices === null || indices.length === 0) {
       cachedThreadCount = FALLBACK_THREAD_COUNT;
       cachedThreadCountSource = "fallback:present-unreadable";
+      cachedCpuCapacities = null;
       return cachedThreadCount;
     }
 
@@ -250,12 +279,14 @@ export async function detectThreadCount(): Promise<number> {
       if (capText === null) {
         cachedThreadCount = FALLBACK_THREAD_COUNT;
         cachedThreadCountSource = "fallback:capacity-missing";
+        cachedCpuCapacities = null;
         return cachedThreadCount;
       }
       const cap = Number(capText.trim());
       if (!Number.isFinite(cap)) {
         cachedThreadCount = FALLBACK_THREAD_COUNT;
         cachedThreadCountSource = "fallback:capacity-missing";
+        cachedCpuCapacities = null;
         return cachedThreadCount;
       }
       capacities.push(cap);
@@ -265,14 +296,17 @@ export async function detectThreadCount(): Promise<number> {
     if (chosen === null) {
       cachedThreadCount = FALLBACK_THREAD_COUNT;
       cachedThreadCountSource = "fallback:capacity-missing";
+      cachedCpuCapacities = null;
       return cachedThreadCount;
     }
     cachedThreadCount = chosen;
     cachedThreadCountSource = "capacity";
+    cachedCpuCapacities = capacities;
     return cachedThreadCount;
   } catch {
     cachedThreadCount = FALLBACK_THREAD_COUNT;
     cachedThreadCountSource = "fallback:present-unreadable";
+    cachedCpuCapacities = null;
     return cachedThreadCount;
   }
 }

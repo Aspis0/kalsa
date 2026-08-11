@@ -1,35 +1,70 @@
-diff --git a/node_modules/llama.rn/cpp/rn-llama.cpp b/node_modules/llama.rn/cpp/rn-llama.cpp
-index 1126dec..22c9ef0 100644
---- a/node_modules/llama.rn/cpp/rn-llama.cpp
-+++ b/node_modules/llama.rn/cpp/rn-llama.cpp
-@@ -488,8 +488,12 @@ bool llama_rn_context::loadModel(common_params &params_)
-         return false;
+diff --git a/node_modules/llama.rn/cpp/jsi/JSIParams.cpp b/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
+index 650349e..0594914 100644
+--- a/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
++++ b/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
+@@ -300,9 +300,11 @@ namespace rnllama_jsi {
+
+         applySpeculativeTypeNames(cparams.speculative, typeNames);
+
+-        if (hasSpeculativeType(cparams.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_MTP) &&
++        // Kalsa patch: DFLASH shares the draft machinery — same n_max requirement.
++        if ((hasSpeculativeType(cparams.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_MTP) ||
++             hasSpeculativeType(cparams.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH)) &&
+             cparams.speculative.draft.n_max <= 0) {
+-            throw std::invalid_argument("MTP requires spec_draft_n_max > 0");
++            throw std::invalid_argument("MTP/DFlash requires spec_draft_n_max > 0");
+         }
      }
- 
-+    // Kalsa patch: DFlash needs the standalone draft model too — upstream gated
-+    // the loader on MTP only, so a pure ["draft-dflash"] config silently ran
-+    // without a draft (common_speculative_init requires ctx_dft for DFLASH).
-     if (params.speculative.has_dft() &&
--        has_speculative_type(params.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_MTP)) {
-+        (has_speculative_type(params.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_MTP) ||
-+         has_speculative_type(params.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH))) {
-         const auto & draft_params = params.speculative.draft;
-         common_params params_dft = params;
-         params_dft.devices = draft_params.devices;
-@@ -559,7 +563,12 @@ llama_context * llama_rn_context::createMTPDraftContext(const common_params &par
+
+@@ -329,6 +331,9 @@ namespace rnllama_jsi {
+         cparams.n_ubatch = getPropertyAsInt(runtime, params, "n_ubatch", cparams.n_ubatch);
+         cparams.n_parallel = getPropertyAsInt(runtime, params, "n_parallel", cparams.n_parallel);
+         cparams.cpuparams.n_threads = getPropertyAsInt(runtime, params, "n_threads", cparams.cpuparams.n_threads);
++        // Kalsa: prefill/batch threads (llama.cpp cpuparams_batch). Decode affinity
++        // (set_best_cores below) stays on cpuparams only — batch is used verbatim.
++        cparams.cpuparams_batch.n_threads = getPropertyAsInt(runtime, params, "n_threads_batch", cparams.cpuparams_batch.n_threads);
+
+         std::string cpuMask = getPropertyAsString(runtime, params, "cpu_mask");
+ #if defined(__ANDROID__)
+@@ -666,5 +671,9 @@ namespace rnllama_jsi {
+             ctx->params.cpuparams.n_threads = nThreads > 0 ? nThreads : defaultNThreads;
+         }
+ #endif
++        // Kalsa: completion-path re-read of prefill/batch threads (verbatim).
++        if (params.hasProperty(runtime, "n_threads_batch")) {
++            ctx->params.cpuparams_batch.n_threads = getPropertyAsInt(runtime, params, "n_threads_batch", ctx->params.cpuparams_batch.n_threads);
++        }
      }
- 
-     auto cparams = common_context_params_to_llama(params_for_context);
--    cparams.ctx_type = LLAMA_CONTEXT_TYPE_MTP;
-+    // Kalsa patch: a MTP-type context on a model without nextn layers returns
-+    // nullptr (llama-context.cpp init guard). Standalone drafts (DFlash) may
-+    // lack them — fall back to a default context for those.
-+    cparams.ctx_type = llama_model_n_layer_nextn(model_dft) > 0
-+        ? LLAMA_CONTEXT_TYPE_MTP
-+        : LLAMA_CONTEXT_TYPE_DEFAULT;
-     cparams.n_rs_seq = 0;
-     cparams.type_k = params_for_context.speculative.draft.cache_type_k;
-     cparams.type_v = params_for_context.speculative.draft.cache_type_v;
+ }
+diff --git a/node_modules/llama.rn/cpp/jsi/JSISession.h b/node_modules/llama.rn/cpp/jsi/JSISession.h
+index fa4cbad..50c16ca 100644
+--- a/node_modules/llama.rn/cpp/jsi/JSISession.h
++++ b/node_modules/llama.rn/cpp/jsi/JSISession.h
+@@ -99,6 +99,24 @@ namespace rnllama_jsi {
+             embd.clear();
+         }
+
++        // Kalsa patch #2: adopt the restored memory as a state checkpoint.
++        // On recurrent/hybrid models (Qwen3.5) loadPrompt's llama_memory_seq_rm
++        // fails, so it falls back to recoverStateCheckpoint — and in a FRESH
++        // process state_checkpoints is empty, so the just-restored memory is
++        // discarded and the whole prompt is re-prefilled ("no usable state
++        // checkpoint (recurrent/hybrid/SWA), doing full cache clear"; measured
++        // n_past=0 on a Xiaomi 14 and in CI run 31293842336 despite ok:true).
++        // Registering it at embd.size() lets findStateCheckpoint adopt it:
++        // n_common equals this length when the next prompt extends this exact
++        // history, and search_max = min(n_common, total-1) then admits it.
++        // Divergent re-renders simply fail the prefix compare and fall back to
++        // the pre-patch behaviour. Media placeholders likewise: they never match
++        // the text-only token list, so those sessions stay conservative.
++        if (!embd.empty()) {
++            ctx->completion->probeStateCache();
++            ctx->completion->captureStateCheckpoint(embd, embd.size());
++        }
++
+         // Media identity for placeholder positions; absent for text-only or
+         // legacy files (media is then conservatively reprocessed)
+         ctx->setMediaHashes(embd.empty() ? std::vector<std::string>{}
 diff --git a/node_modules/llama.rn/cpp/rn-completion.cpp b/node_modules/llama.rn/cpp/rn-completion.cpp
 index a60bd15..74930d6 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.cpp
@@ -55,7 +90,7 @@ index a60bd15..74930d6 100644
 +        }
 +
          n_past = (llama_pos) n_common;
- 
+
          embd = text_tokens;
 @@ -459,6 +475,21 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
                  LOG_INFO("restored state checkpoint: reusing %d/%zu prompt tokens",
@@ -81,7 +116,7 @@ index a60bd15..74930d6 100644
                  clearStateCheckpoints();
 @@ -626,9 +657,14 @@ void llama_rn_context_completion::updateGenerationTiming() {
  }
- 
+
  bool llama_rn_context_completion::shouldUseMTP() const {
 +    // Kalsa patch: DFLASH rides the same draft-speculative init/decode path as
 +    // MTP (common_speculative dispatches per-type); without this the whole
@@ -94,8 +129,40 @@ index a60bd15..74930d6 100644
 +        std::find(types.begin(), types.end(), COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH) != types.end();
 +    return has_draft_type && parent_ctx->params.speculative.draft.n_max > 0;
  }
- 
+
  void llama_rn_context_completion::resetSpeculative() {
+diff --git a/node_modules/llama.rn/cpp/rn-llama.cpp b/node_modules/llama.rn/cpp/rn-llama.cpp
+index 1126dec..22c9ef0 100644
+--- a/node_modules/llama.rn/cpp/rn-llama.cpp
++++ b/node_modules/llama.rn/cpp/rn-llama.cpp
+@@ -488,8 +488,12 @@ bool llama_rn_context::loadModel(common_params &params_)
+         return false;
+     }
+
++    // Kalsa patch: DFlash needs the standalone draft model too — upstream gated
++    // the loader on MTP only, so a pure ["draft-dflash"] config silently ran
++    // without a draft (common_speculative_init requires ctx_dft for DFLASH).
+     if (params.speculative.has_dft() &&
+-        has_speculative_type(params.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_MTP)) {
++        (has_speculative_type(params.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_MTP) ||
++         has_speculative_type(params.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH))) {
+         const auto & draft_params = params.speculative.draft;
+         common_params params_dft = params;
+         params_dft.devices = draft_params.devices;
+@@ -559,7 +563,12 @@ llama_context * llama_rn_context::createMTPDraftContext(const common_params &par
+     }
+
+     auto cparams = common_context_params_to_llama(params_for_context);
+-    cparams.ctx_type = LLAMA_CONTEXT_TYPE_MTP;
++    // Kalsa patch: a MTP-type context on a model without nextn layers returns
++    // nullptr (llama-context.cpp init guard). Standalone drafts (DFlash) may
++    // lack them — fall back to a default context for those.
++    cparams.ctx_type = llama_model_n_layer_nextn(model_dft) > 0
++        ? LLAMA_CONTEXT_TYPE_MTP
++        : LLAMA_CONTEXT_TYPE_DEFAULT;
+     cparams.n_rs_seq = 0;
+     cparams.type_k = params_for_context.speculative.draft.cache_type_k;
+     cparams.type_v = params_for_context.speculative.draft.cache_type_v;
 diff --git a/node_modules/llama.rn/cpp/rn-slot.cpp b/node_modules/llama.rn/cpp/rn-slot.cpp
 index 9debb77..4e62827 100644
 --- a/node_modules/llama.rn/cpp/rn-slot.cpp
@@ -103,7 +170,7 @@ index 9debb77..4e62827 100644
 @@ -335,8 +335,11 @@ bool llama_rn_slot::should_use_mtp() const {
          return false;
      }
- 
+
 +    // Kalsa patch: keep the slot path consistent with shouldUseMTP — DFLASH
 +    // uses the same draft-speculative machinery as MTP.
      const auto & types = params->speculative.types;
@@ -111,52 +178,19 @@ index 9debb77..4e62827 100644
 +    return std::find(types.begin(), types.end(), COMMON_SPECULATIVE_TYPE_DRAFT_MTP) != types.end() ||
 +           std::find(types.begin(), types.end(), COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH) != types.end();
  }
- 
+
  void llama_rn_slot::reset_speculative() {
-diff --git a/node_modules/llama.rn/cpp/jsi/JSIParams.cpp b/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
-index 650349e..c11f9d9 100644
---- a/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
-+++ b/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
-@@ -300,9 +300,11 @@ namespace rnllama_jsi {
- 
-         applySpeculativeTypeNames(cparams.speculative, typeNames);
- 
--        if (hasSpeculativeType(cparams.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_MTP) &&
-+        // Kalsa patch: DFLASH shares the draft machinery — same n_max requirement.
-+        if ((hasSpeculativeType(cparams.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_MTP) ||
-+             hasSpeculativeType(cparams.speculative, COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH)) &&
-             cparams.speculative.draft.n_max <= 0) {
--            throw std::invalid_argument("MTP requires spec_draft_n_max > 0");
-+            throw std::invalid_argument("MTP/DFlash requires spec_draft_n_max > 0");
-         }
-     }
- 
-diff --git a/node_modules/llama.rn/cpp/jsi/JSISession.h b/node_modules/llama.rn/cpp/jsi/JSISession.h
-index fa4cbad..50c16ca 100644
---- a/node_modules/llama.rn/cpp/jsi/JSISession.h
-+++ b/node_modules/llama.rn/cpp/jsi/JSISession.h
-@@ -99,6 +99,24 @@ namespace rnllama_jsi {
-             embd.clear();
-         }
- 
-+        // Kalsa patch #2: adopt the restored memory as a state checkpoint.
-+        // On recurrent/hybrid models (Qwen3.5) loadPrompt's llama_memory_seq_rm
-+        // fails, so it falls back to recoverStateCheckpoint — and in a FRESH
-+        // process state_checkpoints is empty, so the just-restored memory is
-+        // discarded and the whole prompt is re-prefilled ("no usable state
-+        // checkpoint (recurrent/hybrid/SWA), doing full cache clear"; measured
-+        // n_past=0 on a Xiaomi 14 and in CI run 31293842336 despite ok:true).
-+        // Registering it at embd.size() lets findStateCheckpoint adopt it:
-+        // n_common equals this length when the next prompt extends this exact
-+        // history, and search_max = min(n_common, total-1) then admits it.
-+        // Divergent re-renders simply fail the prefix compare and fall back to
-+        // the pre-patch behaviour. Media placeholders likewise: they never match
-+        // the text-only token list, so those sessions stay conservative.
-+        if (!embd.empty()) {
-+            ctx->completion->probeStateCache();
-+            ctx->completion->captureStateCheckpoint(embd, embd.size());
-+        }
-+
-         // Media identity for placeholder positions; absent for text-only or
-         // legacy files (media is then conservatively reprocessed)
-         ctx->setMediaHashes(embd.empty() ? std::vector<std::string>{}
+diff --git a/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp b/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
+index 37f5f4d..a1b2c3d 100644
+--- a/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
++++ b/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
+@@ -638,6 +638,9 @@
+
+                          addContext(contextId, (long)ctx);
+
+                          std::string system_info = common_params_get_system_info(ctx->params);
++                         // Kalsa: runtime/CI marker that patched cpp/ was compiled into the binary.
++                         // scripts/assert-native-patch.sh greps librnllama.so; AppShell reads systemInfo.
++                         system_info += " | kalsa-native-patches";
+
+                          return [gpuEnabled, reasonNoGPU, system_info, usedDevices, contextId](jsi::Runtime& rt) {
