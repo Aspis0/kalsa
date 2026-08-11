@@ -27,6 +27,7 @@ function compile() {
       "src/engine/threadProfile.ts",
       "src/engine/monitor.ts",
       "src/engine/regenState.ts",
+      "src/engine/llamaContextGate.ts",
       "--outDir",
       "scripts/.build",
       "--module",
@@ -663,6 +664,87 @@ async function main() {
     assert(messages.length === 0, "must stay empty after clearChat");
   });
 
+
+  // --- Round-8 FIX 1 / FIX 4: hybrid retrieval during chat completion ---
+  // document_chat runs inside the tool loop of a chat completion. Lazy embed
+  // init and embed USE must NOT be blocked by markChatCompleting (now a no-op).
+  // Only embedInitializing (actual init/release) refuses new tryAcquireEmbed.
+
+  await test("hybrid: chat completion does NOT block embed lazy-init", async () => {
+    let gatePath;
+    try {
+      gatePath = resolveBuilt("llamaContextGate");
+    } catch {
+      const candidates = [
+        path.join(projectRoot, "scripts/.build/llamaContextGate.js"),
+        path.join(projectRoot, "scripts/.build/engine/llamaContextGate.js"),
+        path.join(projectRoot, "scripts/.build/src/engine/llamaContextGate.js"),
+      ];
+      gatePath = candidates.find((c) => existsSync(c));
+    }
+    assert(gatePath, "llamaContextGate compiled");
+    const gate = require(gatePath);
+    gate.__resetForTests();
+
+    // Simulate chat ready + co-residency (8GB + 2B) — the hybrid path on mid/high RAM.
+    gate.setCoResidencyContext({ totalMemoryBytes: 8e9, chatModelIs2B: true });
+    const gen = gate.tryAcquireChat();
+    assert(gen !== null, "chat acquired");
+    gate.markChatReady(gen);
+    assert(gate.getState() === "chat_ready", "chat_ready");
+
+    // LlamaService.withEngineJob still calls these (legacy no-ops).
+    gate.markChatCompleting();
+    assert(gate.isChatCompleting() === false, "chatCompleting is no-op / always false");
+
+    // document_chat tool loop: lazy-init embedder during completion.
+    assert(
+      gate.tryAcquireEmbed() === true,
+      "lazy-init ALLOWED during chat completion (hybrid must not degrade to BM25)",
+    );
+    assert(gate.isEmbedHeld() === true, "embed held under co-residency");
+    // USE path re-entrant while still "completing".
+    assert(gate.tryAcquireEmbed() === true, "embed USE re-entrant during completion");
+    gate.releaseEmbed();
+    gate.markChatCompletingDone();
+
+    // embedInitializing still refuses concurrent NEW init (race surface).
+    gate.markEmbedInitializing();
+    assert(gate.isEmbedInitializing() === true, "init flag set");
+    assert(gate.tryAcquireEmbed() === false, "init race surface still refuses");
+    gate.markEmbedInFlightDone();
+    assert(gate.tryAcquireEmbed() === true, "ok after init race cleared");
+    gate.releaseEmbed();
+    gate.__resetForTests();
+  });
+
+  await test("hybrid: embedInitializing serializes init vs release only", async () => {
+    let gatePath;
+    try {
+      gatePath = resolveBuilt("llamaContextGate");
+    } catch {
+      const candidates = [
+        path.join(projectRoot, "scripts/.build/llamaContextGate.js"),
+        path.join(projectRoot, "scripts/.build/engine/llamaContextGate.js"),
+        path.join(projectRoot, "scripts/.build/src/engine/llamaContextGate.js"),
+      ];
+      gatePath = candidates.find((c) => existsSync(c));
+    }
+    assert(gatePath, "llamaContextGate compiled");
+    const gate = require(gatePath);
+    gate.__resetForTests();
+    assert(gate.tryAcquireEmbed() === true, "first acquire");
+    gate.releaseEmbed();
+    gate.markEmbedInitializing();
+    assert(gate.shouldRefuseEmbedInitOrRelease() === true, "refuse while in flight");
+    assert(gate.tryAcquireEmbed() === false, "second init refused");
+    gate.markEmbedInitializingDone();
+    // initializing cleared; inFlight may remain until markEmbedInFlightDone
+    gate.markEmbedInFlightDone();
+    assert(gate.tryAcquireEmbed() === true, "after full clear");
+    gate.releaseEmbed();
+    gate.__resetForTests();
+  });
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

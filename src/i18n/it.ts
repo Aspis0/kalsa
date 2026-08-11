@@ -137,6 +137,12 @@ export const it: typeof en = {
     cannotRead: "Impossibile determinare la dimensione del file. Scegline un altro.",
     storageUnavailable: "Archiviazione documenti non disponibile su questo dispositivo.",
     busy: "Un documento è in elaborazione. Riprova tra poco.",
+    extraction: {
+      timeout: "Estrazione del testo scaduta per timeout. Riprova o usa un PDF più piccolo.",
+      renderer: "Errore del renderer PDF. Il file potrebbe essere danneggiato o protetto.",
+      fsError: "Impossibile leggere il file. Controlla i permessi di archiviazione e lo spazio libero.",
+      retryHint: "Tocca per riprovare",
+    },
   },
 
   models: {
@@ -650,6 +656,14 @@ export const it: typeof en = {
       "Testo completo del documento locale “{name}” ({pages} pagine):",
     documentChatRetrieveHeader: "Passaggi dal documento locale “{name}”:",
     documentChatNothingMatched: "Nessun passaggio in “{name}” corrisponde alla query.",
+    documentChatExtractTimeout:
+      "Estrazione testo di “{name}” scaduta per timeout. Chiedi all’utente di reimportare il documento da Documenti (riprova); non trattarlo come PDF scansionato.",
+    documentChatExtractRenderer:
+      "Estrazione testo di “{name}” non riuscita (errore renderer). Chiedi all’utente di reimportare da Documenti; non usare il fallback vision.",
+    documentChatExtractFs:
+      "Estrazione testo di “{name}” non riuscita (errore di lettura file). Chiedi all’utente di reimportare da Documenti.",
+    documentChatExtractFailed:
+      "Estrazione testo di “{name}” non riuscita. Chiedi all’utente di reimportare da Documenti (riprova).",
   },
 
   pdf: {

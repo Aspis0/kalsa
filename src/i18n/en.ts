@@ -136,6 +136,12 @@ export const en = {
     cannotRead: "Could not determine the file size. Choose another file.",
     storageUnavailable: "Document storage is unavailable on this device.",
     busy: "A document is being processed. Try again in a moment.",
+    extraction: {
+      timeout: "Text extraction timed out. Try again or use a smaller PDF.",
+      renderer: "PDF renderer error. The file may be corrupted or protected.",
+      fsError: "Could not read the file. Check storage permissions and free space.",
+      retryHint: "Tap to retry",
+    },
   },
 
   /**
@@ -675,6 +681,14 @@ export const en = {
       "Full text of local document “{name}” ({pages} pages):",
     documentChatRetrieveHeader: "Passages from local document “{name}”:",
     documentChatNothingMatched: "No passages in “{name}” matched the query.",
+    documentChatExtractTimeout:
+      "Text extraction for “{name}” timed out. Ask the user to re-import the document from Documents (retry); do not treat it as a scanned PDF.",
+    documentChatExtractRenderer:
+      "Text extraction for “{name}” failed (renderer error). Ask the user to re-import from Documents; do not use vision fallback.",
+    documentChatExtractFs:
+      "Text extraction for “{name}” failed (file read error). Ask the user to re-import from Documents.",
+    documentChatExtractFailed:
+      "Text extraction for “{name}” failed. Ask the user to re-import from Documents (retry).",
   },
 
   /** PdfToImages component (WebView bridge that renders PDF pages to JPEG). */

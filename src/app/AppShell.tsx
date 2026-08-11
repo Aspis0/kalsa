@@ -1595,6 +1595,11 @@ export function AppShell() {
           if (discardInFlightRef.current) return;
           discardInFlightRef.current = true;
           void (async () => {
+            // Round-8 FIX 3: capture THIS load's gen SYNCHRONOUSLY at entry,
+            // BEFORE the first await (lifecycle / hard-wait / save). Same pattern
+            // as regen/edit myGen capture. A concurrent ensure may bump the ref
+            // during awaits; release is a no-op if gen is no longer current.
+            const releasedGenBg = chatGateGenRef.current;
             try {
               // Abort regen first so edit/regen cannot race dispose.
               regenAbortRef.current?.abort();
@@ -1650,13 +1655,14 @@ export function AppShell() {
                   // ignore
                 }
               }
-              // FIX 1: capture THIS load's gen SYNCHRONOUSLY before dispose.
-              // Never read chatGateGenRef.current after await — a concurrent
-              // ensure may have acquired a higher gen by then.
-              // Without markChatReleased the gate stays chat_ready while
-              // context is null → next tryAcquireChat returns null forever.
-              const releasedGenBg = chatGateGenRef.current;
-              chatGateGenRef.current = null;
+              // Only clear the ref if we still own this gen (no concurrent ensure
+              // claimed a newer generation during the awaits above).
+              if (
+                releasedGenBg !== null &&
+                chatGateGenRef.current === releasedGenBg
+              ) {
+                chatGateGenRef.current = null;
+              }
               if (isEngineReady() || releasedGenBg !== null) {
                 try {
                   if (isEngineReady()) {
@@ -1671,6 +1677,8 @@ export function AppShell() {
                 } catch {
                   // ignore
                 } finally {
+                  // Release only the gen captured at entry (markChatReleased is
+                  // already gen-guarded against a newer owner).
                   if (releasedGenBg !== null) markChatReleased(releasedGenBg);
                 }
               }

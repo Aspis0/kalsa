@@ -38,6 +38,10 @@ import {
   releaseEmbed,
   getState as getLlamaContextState,
   runNativeOp,
+  markEmbedInitializing,
+  markEmbedInitializingDone,
+  markEmbedInFlightDone,
+  isEmbedInitializing,
 } from "./llamaContextGate";
 import {
   applyEmbedPrefix,
@@ -222,118 +226,131 @@ async function ensureEmbedder(
     if (isAborted(signal)) return false;
     if (phase === "closing") return false;
     if (context && activePath === path && phase === "ready") {
-      // Already ready — still claim the gate so releaseEmbed pairs correctly.
+      // Already ready — USE path only. Claim the gate; do NOT set
+      // embedInitializing (chat completion may be holding the tool loop and
+      // hybrid retrieval must still use a ready embedder — round-8 FIX 1).
+      // runNativeOp serializes USE; no embedInFlight sticky flag.
       if (!tryAcquireEmbed()) return false;
       return true;
     }
 
+    // INIT path: refuse concurrent init/release via embedInitializing.
+    if (isEmbedInitializing()) return false;
     // Shared lifecycle gate: refuse while chat_loading, or chat_ready without
     // co-residency. Synchronous — no race with tryAcquireChat.
     if (!tryAcquireEmbed()) return false;
-    if (isAborted(signal)) {
-      releaseEmbed();
-      return false;
-    }
+    markEmbedInitializing();
+    try {
+      if (isAborted(signal)) {
+        releaseEmbed();
+        return false;
+      }
 
-    if (context) {
-      try {
-        // Native release — already inside runNativeOp.
-        await context.release();
-      } catch {
-        // ignore release errors on re-init
+      if (context) {
+        try {
+          // Native release — already inside runNativeOp.
+          await context.release();
+        } catch {
+          // ignore release errors on re-init
+        }
+        if (isAborted(signal)) {
+          context = null;
+          activePath = null;
+          phase = "idle";
+          releaseEmbed();
+          return false;
+        }
+        context = null;
+        activePath = null;
+        phase = "idle";
+      }
+
+      if (isAborted(signal)) {
+        releaseEmbed();
+        return false;
+      }
+      // Re-check gate after the await above (chat may have taken the slot).
+      // If we already hold embed, tryAcquireEmbed is re-entrant; if chat took
+      // chat_loading without co-res, it will fail.
+      if (!tryAcquireEmbed()) {
+        releaseEmbed();
+        return false;
+      }
+
+      const initLlama = await loadInitLlama(signal);
+      if (!initLlama || isAborted(signal)) {
+        releaseEmbed();
+        return false;
+      }
+      // Final gate + abort check immediately before initLlama.
+      if (!tryAcquireEmbed()) {
+        releaseEmbed();
+        return false;
       }
       if (isAborted(signal)) {
-        context = null;
-        activePath = null;
-        phase = "idle";
         releaseEmbed();
         return false;
       }
-      context = null;
-      activePath = null;
-      phase = "idle";
-    }
+      if (embedderHung) {
+        releaseEmbed();
+        return false;
+      }
 
-    if (isAborted(signal)) {
-      releaseEmbed();
-      return false;
-    }
-    // Re-check gate after the await above (chat may have taken the slot).
-    // If we already hold embed, tryAcquireEmbed is re-entrant; if chat took
-    // chat_loading without co-res, it will fail.
-    if (!tryAcquireEmbed()) {
-      releaseEmbed();
-      return false;
-    }
-
-    const initLlama = await loadInitLlama(signal);
-    if (!initLlama || isAborted(signal)) {
-      releaseEmbed();
-      return false;
-    }
-    // Final gate + abort check immediately before initLlama.
-    if (!tryAcquireEmbed()) {
-      releaseEmbed();
-      return false;
-    }
-    if (isAborted(signal)) {
-      releaseEmbed();
-      return false;
-    }
-    if (embedderHung) {
-      releaseEmbed();
-      return false;
-    }
-
-    try {
-      // Native initLlama — already inside runNativeOp.
-      const next = await initLlama({
-        model: path,
-        embedding: true,
-        n_ctx: EMBEDDING_MODEL.n_ctx,
-        n_gpu_layers: 0,
-        n_threads: 2,
-      });
-      if (embedderHung || isAborted(signal)) {
-        // Job cancelled mid-init / hung: release the just-created context so it
-        // cannot outlive the abort (chat may be about to load).
-        try {
-          await next.release();
-        } catch {
-          /* ignore */
+      try {
+        // Native initLlama — already inside runNativeOp.
+        const next = await initLlama({
+          model: path,
+          embedding: true,
+          n_ctx: EMBEDDING_MODEL.n_ctx,
+          n_gpu_layers: 0,
+          n_threads: 2,
+        });
+        if (embedderHung || isAborted(signal)) {
+          // Job cancelled mid-init / hung: release the just-created context so it
+          // cannot outlive the abort (chat may be about to load).
+          try {
+            await next.release();
+          } catch {
+            /* ignore */
+          }
+          context = null;
+          activePath = null;
+          phase = "idle";
+          releaseEmbed();
+          return false;
         }
-        context = null;
-        activePath = null;
-        phase = "idle";
-        releaseEmbed();
-        return false;
-      }
-      // Chat may have become loading during initLlama — release if gate refuses.
-      if (!tryAcquireEmbed()) {
-        try {
-          await next.release();
-        } catch {
-          /* ignore */
+        // Chat may have become loading during initLlama — release if gate refuses.
+        if (!tryAcquireEmbed()) {
+          try {
+            await next.release();
+          } catch {
+            /* ignore */
+          }
+          context = null;
+          activePath = null;
+          phase = "idle";
+          releaseEmbed();
+          return false;
         }
+        context = next;
+        activePath = path;
+        phase = "ready";
+        return true;
+      } catch {
         context = null;
         activePath = null;
         phase = "idle";
         releaseEmbed();
         return false;
       }
-      context = next;
-      activePath = path;
-      phase = "ready";
-      return true;
-    } catch {
-      context = null;
-      activePath = null;
-      phase = "idle";
-      releaseEmbed();
-      return false;
+    } finally {
+      // Init critical section over; ready context may still be held (embedHeld).
+      markEmbedInitializingDone();
+      markEmbedInFlightDone();
     }
   });
 }
+
 
 /**
  * Release the embedder context. Safe to call when idle. Never throws.
@@ -352,38 +369,48 @@ export async function releaseEmbedder(): Promise<void> {
   if (embedderHung) {
     // Already hung — JS state is idle; gate may still need clearing.
     releaseEmbed();
+    markEmbedInFlightDone();
     return;
   }
   try {
     await runNativeOp(async () => {
-      if (embedderHung) {
-        releaseEmbed();
-        return;
-      }
-      if (!context) {
-        phase = "idle";
-        activePath = null;
-        releaseEmbed();
-        return;
-      }
-      phase = "closing";
+      // RELEASE owns the init/release race surface (embedInitializing).
+      markEmbedInitializing();
       try {
-        // Native release — already inside runNativeOp.
-        await context.release();
-      } catch {
-        // ignore — never throw to callers
+        if (embedderHung) {
+          releaseEmbed();
+          return;
+        }
+        if (!context) {
+          phase = "idle";
+          activePath = null;
+          releaseEmbed();
+          return;
+        }
+        phase = "closing";
+        try {
+          // Native release — already inside runNativeOp.
+          await context.release();
+        } catch {
+          // ignore — never throw to callers
+        } finally {
+          context = null;
+          activePath = null;
+          phase = "idle";
+          releaseEmbed();
+        }
       } finally {
-        context = null;
-        activePath = null;
-        phase = "idle";
-        releaseEmbed();
+        markEmbedInitializingDone();
+        markEmbedInFlightDone();
       }
     });
   } catch {
     // Absorb native_op_abandoned (or any barrier error). Never rethrow —
     // fire-and-forget AppShell callers must not see unhandled rejections.
+    markEmbedInFlightDone();
   }
 }
+
 
 /**
  * Run `fn` while the embedder is held. Acquires the shared native-op lock for
@@ -411,66 +438,75 @@ export async function withEmbedder<T>(
       if (isAborted(signal)) return null;
       if (phase === "closing") return null;
       if (!(context && activePath === path && phase === "ready")) {
+        // INIT path under withEmbedder — set embedInitializing for the race surface.
+        if (isEmbedInitializing()) return null;
         if (!tryAcquireEmbed()) return null;
-        if (context) {
-          try {
-            await context.release();
-          } catch {
-            /* ignore */
-          }
-          context = null;
-          activePath = null;
-          phase = "idle";
-        }
-        if (isAborted(signal) || embedderHung) {
-          releaseEmbed();
-          return null;
-        }
-        if (!tryAcquireEmbed()) {
-          releaseEmbed();
-          return null;
-        }
-        const initLlama = await loadInitLlama(signal);
-        if (!initLlama || isAborted(signal) || embedderHung) {
-          releaseEmbed();
-          return null;
-        }
-        if (!tryAcquireEmbed()) {
-          releaseEmbed();
-          return null;
-        }
+        markEmbedInitializing();
         try {
-          const next = await initLlama({
-            model: path,
-            embedding: true,
-            n_ctx: EMBEDDING_MODEL.n_ctx,
-            n_gpu_layers: 0,
-            n_threads: 2,
-          });
-          if (isAborted(signal) || embedderHung || !tryAcquireEmbed()) {
+          if (context) {
             try {
-              await next.release();
+              await context.release();
             } catch {
               /* ignore */
             }
             context = null;
             activePath = null;
             phase = "idle";
+          }
+          if (isAborted(signal) || embedderHung) {
             releaseEmbed();
             return null;
           }
-          context = next;
-          activePath = path;
-          phase = "ready";
-        } catch {
-          context = null;
-          activePath = null;
-          phase = "idle";
-          releaseEmbed();
-          return null;
+          if (!tryAcquireEmbed()) {
+            releaseEmbed();
+            return null;
+          }
+          const initLlama = await loadInitLlama(signal);
+          if (!initLlama || isAborted(signal) || embedderHung) {
+            releaseEmbed();
+            return null;
+          }
+          if (!tryAcquireEmbed()) {
+            releaseEmbed();
+            return null;
+          }
+          try {
+            const next = await initLlama({
+              model: path,
+              embedding: true,
+              n_ctx: EMBEDDING_MODEL.n_ctx,
+              n_gpu_layers: 0,
+              n_threads: 2,
+            });
+            if (isAborted(signal) || embedderHung || !tryAcquireEmbed()) {
+              try {
+                await next.release();
+              } catch {
+                /* ignore */
+              }
+              context = null;
+              activePath = null;
+              phase = "idle";
+              releaseEmbed();
+              return null;
+            }
+            context = next;
+            activePath = path;
+            phase = "ready";
+          } catch {
+            context = null;
+            activePath = null;
+            phase = "idle";
+            releaseEmbed();
+            return null;
+          }
+        } finally {
+          markEmbedInitializingDone();
+          markEmbedInFlightDone();
         }
       } else {
-        // Already ready — claim gate for the batch.
+        // Already ready — USE path; claim gate, no embedInitializing.
+        // runNativeOp serializes USE; no embedInFlight sticky flag.
         if (!tryAcquireEmbed()) return null;
       }
       if (!context || phase !== "ready" || embedderHung) {

@@ -79,6 +79,13 @@ async function main() {
     markChatCompleting,
     markChatCompletingDone,
     isChatCompleting,
+    markEmbedInitializing,
+    markEmbedInitializingDone,
+    markEmbedInFlight,
+    markEmbedInFlightDone,
+    isEmbedInitializing,
+    isEmbedInFlight,
+    shouldRefuseEmbedInitOrRelease,
     getState,
     getChatGeneration,
     setCoResidencyContext,
@@ -314,11 +321,12 @@ async function main() {
     }
   }
 
-  // FIX 2: chatCompleting blocks embed init (even under co-residency)
-  check("chatCompleting blocks tryAcquireEmbed", () => {
+  // Round-8 FIX 1: chatCompleting is a no-op; embedInitializing blocks NEW init.
+  // document_chat runs inside a chat completion and must lazy-init the embedder.
+  check("chatCompleting is no-op — does NOT block tryAcquireEmbed", () => {
     assert(typeof markChatCompleting === "function", "markChatCompleting exported");
     assert(typeof markChatCompletingDone === "function", "markChatCompletingDone exported");
-    assert(isChatCompleting() === false, "starts false");
+    assert(isChatCompleting() === false, "always false (legacy no-op)");
     // Co-residency would otherwise allow embed under chat_ready.
     setCoResidencyContext({ totalMemoryBytes: 8e9, chatModelIs2B: true });
     const gen = tryAcquireChat();
@@ -327,18 +335,56 @@ async function main() {
     assert(tryAcquireEmbed() === true, "embed ok before completing");
     releaseEmbed();
     markChatCompleting();
-    assert(isChatCompleting() === true, "flag set");
-    assert(tryAcquireEmbed() === false, "embed refused while chatCompleting");
+    assert(isChatCompleting() === false, "still false after mark (no-op)");
+    assert(tryAcquireEmbed() === true, "embed ALLOWED while chatCompleting (FIX 1)");
+    releaseEmbed();
     markChatCompletingDone();
-    assert(isChatCompleting() === false, "flag cleared");
     assert(tryAcquireEmbed() === true, "embed ok after done");
   });
 
-  check("chatCompleting blocks embed from idle too", () => {
+  check("chatCompleting does not block embed from idle", () => {
     markChatCompleting();
-    assert(tryAcquireEmbed() === false, "idle+completing refuses embed");
+    assert(tryAcquireEmbed() === true, "idle+completing ALLOWS embed (FIX 1)");
+    releaseEmbed();
     markChatCompletingDone();
     assert(tryAcquireEmbed() === true, "idle after done allows embed");
+  });
+
+  check("embedInitializing blocks tryAcquireEmbed (init race surface)", () => {
+    assert(typeof markEmbedInitializing === "function", "markEmbedInitializing exported");
+    assert(typeof isEmbedInitializing === "function", "isEmbedInitializing exported");
+    assert(isEmbedInitializing() === false, "starts false");
+    assert(isEmbedInFlight() === false, "inFlight starts false");
+    assert(tryAcquireEmbed() === true, "embed ok before init flag");
+    releaseEmbed();
+    markEmbedInitializing();
+    assert(isEmbedInitializing() === true, "init flag set");
+    assert(isEmbedInFlight() === true, "inFlight set with init");
+    assert(tryAcquireEmbed() === false, "embed refused while embedInitializing");
+    assert(shouldRefuseEmbedInitOrRelease() === true, "refuse init/release");
+    markEmbedInitializingDone();
+    // after Done, initializing cleared but inFlight may still be true depending
+    // on API — markEmbedInitializingDone only clears initializing.
+    assert(isEmbedInitializing() === false, "init cleared");
+    // Clear inFlight fully.
+    markEmbedInFlightDone();
+    assert(isEmbedInFlight() === false, "inFlight cleared");
+    assert(tryAcquireEmbed() === true, "embed ok after init done");
+  });
+
+  check("embed USE path is not blocked by chat completion under co-residency", () => {
+    // Simulates hybrid retrieval during document_chat tool loop:
+    // chat is ready + completing, embed must still acquire.
+    setCoResidencyContext({ totalMemoryBytes: 8e9, chatModelIs2B: true });
+    const gen = tryAcquireChat();
+    assert(gen !== null, "chat");
+    markChatReady(gen);
+    markChatCompleting(); // no-op, but still called by LlamaService
+    assert(tryAcquireEmbed() === true, "lazy-init ALLOWED during chat completion");
+    // USE: already held, re-entrant
+    assert(tryAcquireEmbed() === true, "re-entrant use ok");
+    releaseEmbed();
+    markChatCompletingDone();
   });
 
   await checkAsync("runNativeOp serializes two ops strictly sequential", async () => {
