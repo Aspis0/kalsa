@@ -933,10 +933,15 @@ function collectPrefill(fase4) {
 
 /**
  * Compare one control/treatment pair on a single seed's positiveControl blobs.
- * Real mechanism evidence is prompt-token divergence on turns ≥ 2, or a
- * non-empty BM25 digest (`digestCharsByTurn[t] > 0` for some t ≥ 2) on the
- * treatment arm. `compactorChars` alone is hollow (serialized state length
- * written even when the digest is empty) and must not yield ARMS DIFFER.
+ *
+ * Prompt-token divergence (`different`) is rendered only: different reply
+ * lengths at turn 1 make later histories diverge even when no compaction
+ * mechanism ran (generation noise). Real mechanism evidence is mode-dependent:
+ *   - ciswire: only digestCharsByTurn[t] > 0 for some t ≥ 2
+ *     (boundary still advances in state but is not used for history assembly)
+ *   - v42: digestCharsByTurn[t] > 0 OR boundaryByTurn[t] > 0 for some t ≥ 2
+ *     (advanced boundary is exactly the truncation that defines this arm)
+ * `compactorChars` alone is hollow and must not yield ARMS DIFFER.
  */
 function scorePositivePair(pcA, pcB, { treatmentArm }) {
   const tokensA = pcA.promptTokensByTurn ?? {};
@@ -954,6 +959,7 @@ function scorePositivePair(pcA, pcB, { treatmentArm }) {
   // to match across arms — exclude it from the identical/differ verdict.
   const commonTurns = allCommon.filter((t) => Number(t) !== 1);
 
+  // Rendered column only — not mechanism evidence (generation noise).
   let different = 0;
   for (const t of commonTurns) {
     if (tokensA[t] !== tokensB[t]) different += 1;
@@ -968,7 +974,23 @@ function scorePositivePair(pcA, pcB, { treatmentArm }) {
       break;
     }
   }
-  const realMechanism = different > 0 || hasTreatmentDigest;
+
+  // Truncation signal (v42 only): boundary advanced on some turn ≥ 2.
+  const boundaryB = pcB.boundaryByTurn ?? {};
+  let hasTreatmentBoundary = false;
+  for (const t of Object.keys(boundaryB)) {
+    if (Number(t) >= 2 && typeof boundaryB[t] === "number" && boundaryB[t] > 0) {
+      hasTreatmentBoundary = true;
+      break;
+    }
+  }
+
+  // Mode-dependent: token divergence never contributes to the verdict.
+  const mode = ARM_TO_MODE[treatmentArm] ?? String(treatmentArm);
+  const realMechanism =
+    mode === "ciswire"
+      ? hasTreatmentDigest
+      : hasTreatmentDigest || hasTreatmentBoundary;
 
   let verdict;
   if (allCommon.length === 0 && !realMechanism && !(compA > 0 || compB > 0)) {

@@ -114,11 +114,12 @@ function writeResult(root, arm, seed, result) {
 
 /**
  * Full 3 modes × seeds campaign (baseline/off, v42, ciswire).
- * identicalPrompts: same promptTokensByTurn on turns ≥ 2 AND zero compactorChars
- * on treatment arms → MEASURING NOTHING for both pairs.
+ * identicalPrompts: same promptTokensByTurn on turns ≥ 2 AND zero mechanism
+ * (digest/boundary) on treatment arms → MEASURING NOTHING for both pairs.
  * identicalCiswire: ciswire matches baseline while v42 still differs → primary
  * pair fails even if secondary passes.
- * Default: differing turn-2 token counts → ARMS DIFFER on both pairs.
+ * Default: treatment digest/boundary present → ARMS DIFFER on both pairs.
+ * (Token divergence alone is generation noise and does not pass the gate.)
  */
 function writeCompleteCampaign(
   root,
@@ -188,6 +189,13 @@ function writeCompleteCampaign(
           },
           reusedTokensByTurn: { "1": 0, "2": 120 },
           completionsByTurn: { "1": 1, "2": 1 },
+          // Mechanism evidence (token divergence alone is generation noise).
+          digestCharsByTurn: identicalPrompts
+            ? { "1": 0, "2": 0 }
+            : { "1": 0, "2": 40 + seed },
+          boundaryByTurn: identicalPrompts
+            ? { "1": 0, "2": 0 }
+            : { "1": 0, "2": 8 },
           compactorChars: identicalPrompts ? 0 : 400 + seed,
           summaryChars: identicalPrompts ? 0 : 50,
         },
@@ -229,6 +237,13 @@ function writeCompleteCampaign(
           },
           reusedTokensByTurn: { "1": 0, "2": 130 },
           completionsByTurn: { "1": 1, "2": 1 },
+          // ciswire: only digest is valid mechanism evidence.
+          digestCharsByTurn: cisSame
+            ? { "1": 0, "2": 0 }
+            : { "1": 0, "2": 50 + seed },
+          boundaryByTurn: cisSame
+            ? { "1": 0, "2": 0 }
+            : { "1": 0, "2": 10 },
           compactorChars: cisSame ? 0 : 500 + seed,
           summaryChars: cisSame ? 0 : 40,
         },
@@ -988,7 +1003,8 @@ async function main() {
         /INSUFFICIENT/i.test(rT1.markdown) || /turn 1 only/i.test(rT1.markdown),
       );
 
-      // Differing turn 2 (turn 1 same) on both treatment arms → pass
+      // Real mechanism on both treatments (digest) → pass. Token divergence
+      // alone is generation noise and is covered by the fail scenarios below.
       const t2diff = path.join(tmp, "t2diff");
       mkdirSync(t2diff, { recursive: true });
       for (const seed of [1, 2, 3]) {
@@ -997,6 +1013,8 @@ async function main() {
             promptTokensByTurn: { "1": 100, "2": 200 },
             reusedTokensByTurn: {},
             completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 0 },
+            boundaryByTurn: { "1": null, "2": null },
             compactorChars: 0,
             summaryChars: 0,
           },
@@ -1004,6 +1022,8 @@ async function main() {
             promptTokensByTurn: { "1": 100, "2": 250 },
             reusedTokensByTurn: {},
             completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 40 },
+            boundaryByTurn: { "1": 0, "2": 8 },
             compactorChars: 0,
             summaryChars: 0,
           },
@@ -1011,6 +1031,8 @@ async function main() {
             promptTokensByTurn: { "1": 100, "2": 260 },
             reusedTokensByTurn: {},
             completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 55 },
+            boundaryByTurn: { "1": 0, "2": 0 },
             compactorChars: 0,
             summaryChars: 0,
           },
@@ -1021,7 +1043,7 @@ async function main() {
         () => runAggregate([t2diff]),
       );
       check(
-        "C3: differing turn 2 passes (ARMS DIFFER, exit 0)",
+        "C3: real mechanism (digest) passes (ARMS DIFFER, exit 0)",
         rT2.exitCode === 0 && rT2.markdown.includes("ARMS DIFFER"),
         `exit=${rT2.exitCode}`,
       );
@@ -1114,6 +1136,146 @@ async function main() {
         rHollow.exitCode !== 0 &&
           rHollow.markdown.includes("MEASURING NOTHING"),
         `exit=${rHollow.exitCode}\n${rHollow.markdown.split("\n").filter((l) => /ARMS|MEASURING|positive control/i.test(l)).join("\n")}`,
+      );
+
+      // Scenario 1: ciswire boundary advanced, digest all 0, tokens DIFFER
+      // (generation noise). Boundary is NOT valid ciswire evidence → fail.
+      // Pre-fix this passed green via different > 0.
+      const cisBoundOnly = path.join(tmp, "ciswire-boundary-no-digest");
+      mkdirSync(cisBoundOnly, { recursive: true });
+      for (const seed of [1, 2, 3]) {
+        writeTriplet(cisBoundOnly, seed, {
+          basePc: {
+            promptTokensByTurn: { "1": 100, "2": 200, "3": 300 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 0, "3": 0 },
+            boundaryByTurn: { "1": null, "2": null, "3": null },
+            compactorChars: 0,
+            summaryChars: 0,
+          },
+          // v42 has real digest so its pair can pass; ciswire is the defect case.
+          v42Pc: {
+            promptTokensByTurn: { "1": 100, "2": 250, "3": 350 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 40, "3": 40 },
+            boundaryByTurn: { "1": 0, "2": 8, "3": 10 },
+            compactorChars: 96,
+            summaryChars: 0,
+          },
+          cisPc: {
+            promptTokensByTurn: { "1": 100, "2": 260, "3": 360 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 0, "3": 0 },
+            boundaryByTurn: { "1": 0, "2": 8, "3": 12 },
+            compactorChars: 96,
+            summaryChars: 0,
+          },
+        });
+      }
+      const rCisBound = withEnv(
+        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([cisBoundOnly]),
+      );
+      check(
+        "C3: ciswire boundary-only (no digest) fails despite token noise",
+        rCisBound.exitCode !== 0 &&
+          rCisBound.markdown.includes("MEASURING NOTHING"),
+        `exit=${rCisBound.exitCode}\n${rCisBound.markdown.split("\n").filter((l) => /ARMS|MEASURING|positive control|baseline↔ciswire/i.test(l)).join("\n")}`,
+      );
+
+      // Scenario 2: v42 with neither digest nor boundary advance; tokens differ
+      // → fail (generation noise is not mechanism).
+      const v42NoMech = path.join(tmp, "v42-no-mechanism");
+      mkdirSync(v42NoMech, { recursive: true });
+      for (const seed of [1, 2, 3]) {
+        writeTriplet(v42NoMech, seed, {
+          basePc: {
+            promptTokensByTurn: { "1": 100, "2": 200, "3": 300 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 0, "3": 0 },
+            boundaryByTurn: { "1": null, "2": null, "3": null },
+            compactorChars: 0,
+            summaryChars: 0,
+          },
+          v42Pc: {
+            promptTokensByTurn: { "1": 100, "2": 250, "3": 350 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 0, "3": 0 },
+            boundaryByTurn: { "1": 0, "2": 0, "3": 0 },
+            compactorChars: 96,
+            summaryChars: 0,
+          },
+          // ciswire has digest so primary can pass; v42 pair is the defect.
+          cisPc: {
+            promptTokensByTurn: { "1": 100, "2": 260, "3": 360 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 55, "3": 55 },
+            boundaryByTurn: { "1": 0, "2": 0, "3": 0 },
+            compactorChars: 96,
+            summaryChars: 0,
+          },
+        });
+      }
+      const rV42No = withEnv(
+        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([v42NoMech]),
+      );
+      check(
+        "C3: v42 neither digest nor boundary fails despite token noise",
+        rV42No.exitCode !== 0 &&
+          rV42No.markdown.includes("MEASURING NOTHING"),
+        `exit=${rV42No.exitCode}\n${rV42No.markdown.split("\n").filter((l) => /ARMS|MEASURING|positive control|baseline↔v42/i.test(l)).join("\n")}`,
+      );
+
+      // Scenario 3: v42 advanced boundary, no digest — legitimate truncation.
+      const v42Bound = path.join(tmp, "v42-boundary-no-digest");
+      mkdirSync(v42Bound, { recursive: true });
+      for (const seed of [1, 2, 3]) {
+        writeTriplet(v42Bound, seed, {
+          basePc: {
+            promptTokensByTurn: { "1": 100, "2": 200, "3": 300 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 0, "3": 0 },
+            boundaryByTurn: { "1": null, "2": null, "3": null },
+            compactorChars: 0,
+            summaryChars: 0,
+          },
+          v42Pc: {
+            promptTokensByTurn: { "1": 100, "2": 250, "3": 350 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 0, "3": 0 },
+            boundaryByTurn: { "1": 0, "2": 8, "3": 12 },
+            compactorChars: 96,
+            summaryChars: 0,
+          },
+          cisPc: {
+            promptTokensByTurn: { "1": 100, "2": 260, "3": 360 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 55, "3": 55 },
+            boundaryByTurn: { "1": 0, "2": 0, "3": 0 },
+            compactorChars: 96,
+            summaryChars: 0,
+          },
+        });
+      }
+      const rV42Bound = withEnv(
+        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([v42Bound]),
+      );
+      check(
+        "C3: v42 boundary advance (no digest) is legitimate ARMS DIFFER",
+        rV42Bound.exitCode === 0 &&
+          rV42Bound.markdown.includes("ARMS DIFFER"),
+        `exit=${rV42Bound.exitCode}`,
       );
 
       // Equal tokens + zero compactor on all arms → MEASURING NOTHING
