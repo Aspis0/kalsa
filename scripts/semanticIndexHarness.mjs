@@ -85,6 +85,8 @@ async function main() {
     embedDocPrefix,
     rrfFuse,
     planIncrementalEmbed,
+    DEFAULT_SEMANTIC_FLOAT_CAP,
+    DEFAULT_VECTOR_MEMORY_FLOAT_CAP,
   } = mod;
 
   let passed = 0;
@@ -567,6 +569,55 @@ async function main() {
     assert(semanticIndexCountExceeds([idx], 13) === false, "under higher cap");
     assert(wouldBeFloatDelta(idx, [mk("a")]) === 0, "replace delta 0");
     assert(wouldBeFloatDelta(idx, [mk("new")]) === 4, "new delta dims");
+  });
+
+  // ── FIX 4: invalid floatCap fails closed to DEFAULT_SEMANTIC_FLOAT_CAP ──
+  check("25. invalid floatCap (neg/0/NaN) uses DEFAULT_SEMANTIC_FLOAT_CAP", () => {
+    assert(
+      DEFAULT_SEMANTIC_FLOAT_CAP === 200_000,
+      `DEFAULT_SEMANTIC_FLOAT_CAP ${DEFAULT_SEMANTIC_FLOAT_CAP}`,
+    );
+    assert(
+      DEFAULT_VECTOR_MEMORY_FLOAT_CAP === DEFAULT_SEMANTIC_FLOAT_CAP,
+      "alias matches",
+    );
+    // dims=4; default cap 200_000 → room for 50_000 vectors. A fixture that
+    // already sits at the default cap must refuse a NEW vector.
+    // Build a small index and pass floatCap: -1 / 0 / NaN with otherResidentFloats
+    // equal to the default so the next add is refused by the default cap.
+    const mk = (id) => ({
+      chunkId: id,
+      vector: vec(1, 0, 0, 0),
+    });
+
+    for (const bad of [-1, 0, Number.NaN, undefined]) {
+      const idx = new SemanticVectorIndex({ dims: 4 });
+      // Seed one vector so store is non-empty.
+      idx.addVectors([mk("seed")], {
+        floatCap: DEFAULT_SEMANTIC_FLOAT_CAP,
+        otherResidentFloats: 0,
+      });
+      // otherResidentFloats already at default → next NEW vector refused if
+      // invalid floatCap correctly falls back to default (not null/disabled).
+      const r = idx.addVectors([mk(`bad-${String(bad)}`)], {
+        floatCap: bad,
+        otherResidentFloats: DEFAULT_SEMANTIC_FLOAT_CAP,
+      });
+      assert(
+        r.added === 0 && r.skippedByCap === 1,
+        `bad floatCap=${String(bad)}: added=${r.added} skipped=${r.skippedByCap}`,
+      );
+      assert(idx.isCapped === true, `isCapped for floatCap=${String(bad)}`);
+      assert(idx.chunkCount === 1, "seed only");
+    }
+
+    // Omitted capOpts remains unbounded (caller enforces).
+    const open = new SemanticVectorIndex({ dims: 4 });
+    const many = [];
+    for (let i = 0; i < 10; i++) many.push(mk(`u${i}`));
+    const rOpen = open.addVectors(many); // no capOpts
+    assert(rOpen.added === 10 && rOpen.skippedByCap === 0, "unbounded without capOpts");
+    assert(open.isCapped === false, "not capped without capOpts");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

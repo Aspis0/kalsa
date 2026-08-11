@@ -106,8 +106,25 @@ let activePath: string | null = null;
 let phase: EmbedPhase = "idle";
 
 /**
+ * Bounded wait for releaseEmbedder during chat init (AppShell).
+ *
+ * Policy (FIX 2 / hostile review round 4):
+ *   - Chat init races releaseEmbedder() against this timeout.
+ *   - On timeout, chat PROCEEDS (must not deadlock) and the embedder is left
+ *     in a best-effort "stale" state: the FIFO still serializes native ops,
+ *     a late-settling embedding()/release() is dropped via generation/abort
+ *     checks already present on embed paths, and the next embed attempt
+ *     re-inits. Disposal is deferred to the next releaseEmbedder/embed cycle.
+ *   - Native embedding() is not cancellable; document timeouts only abort the
+ *     AbortSignal, so this bound is the chat-side escape hatch.
+ */
+export const EMBEDDER_RELEASE_TIMEOUT_MS = 15_000;
+
+/**
  * FIFO mutex — same pattern as WhisperService / LlamaService job chains.
  * Serializes ensureEmbedder / release / embed so they never interleave.
+ * A late-settling native call after a timed-out chat-init release is still
+ * serialized here; its result is discarded by abort/generation checks.
  */
 let embedJobChain: Promise<unknown> = Promise.resolve();
 
@@ -278,10 +295,14 @@ async function ensureEmbedder(
 }
 
 /**
- * Release the embedder context. Safe to call when idle.
+ * Release the embedder context. Safe to call when idle. Never throws.
  * AppShell calls this BEFORE loading the chat model when co-residency is NOT
  * allowed (§5: ≤6 GB or 4B chat). On 8 GB+ with 2B chat, co-residency is
  * permitted and release may be skipped by AppShell.
+ *
+ * Chat-init callers MUST race this against EMBEDDER_RELEASE_TIMEOUT_MS so a
+ * stuck native release cannot deadlock chat load. On timeout the chat proceeds;
+ * this job may still settle later on the FIFO (best-effort disposal).
  */
 export async function releaseEmbedder(): Promise<void> {
   return withEmbedJob(async () => {
@@ -295,7 +316,7 @@ export async function releaseEmbedder(): Promise<void> {
     try {
       await context.release();
     } catch {
-      // ignore
+      // ignore — never throw to callers
     } finally {
       context = null;
       activePath = null;

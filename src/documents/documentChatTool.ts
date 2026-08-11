@@ -116,8 +116,11 @@ export type DocumentChatToolResult = {
   /** Engine tag so LlamaService can append provenance after truncation. */
   kind?: "document_chat";
   /**
-   * When strategy is bm25_only after a hybrid attempt, why dense was unavailable.
-   * Null when hybrid succeeded or hybrid was never considered.
+   * Why the dense arm is degraded:
+   * - bm25_only: cap / capped / corrupt / no_embedder
+   * - hybrid + "capped": partial index (isCapped + vectors) — reduced recall
+   *   is surfaced via embedding.degradedCap (FIX 3); strategy stays hybrid
+   * - null when full hybrid or hybrid was never considered
    */
   denseUnavailableReason?: DenseUnavailableReason;
 };
@@ -673,7 +676,10 @@ async function runRetrieve(
   if (hybrid && hybrid.strategy === "hybrid") {
     passages = hybrid.passages;
     strategy = "hybrid";
-    denseUnavailableReason = null;
+    // Partial-capped hybrid still reports strategy=hybrid but surfaces the
+    // capped degradation line so recall beyond the cap is not silent (FIX 3).
+    denseUnavailableReason =
+      hybrid.denseUnavailableReason === "capped" ? "capped" : null;
   } else if (hybridHostWired) {
     strategy = "bm25_only";
     denseUnavailableReason =
@@ -698,8 +704,8 @@ async function runRetrieve(
             ? "bm25_only"
             : "retrieve",
       kind: "document_chat",
-      denseUnavailableReason:
-        strategy === "hybrid" ? null : denseUnavailableReason,
+      // Keep capped reason even on hybrid so UI/tool body can show it.
+      denseUnavailableReason,
     };
   }
 
@@ -719,7 +725,8 @@ async function runRetrieve(
 
   const header = catalog(locale).retrieveHeader.replace("{name}", doc.name);
   // Provenance is NOT in the body — LlamaService appends it after truncation.
-  // FIX 4: surface localized degradation so the model/user know recall may be reduced.
+  // FIX 4 / FIX 3: surface localized degradation (incl. partial-capped hybrid)
+  // so the model/user know recall may be reduced.
   const degradeLine = denseDegradeLine(locale, denseUnavailableReason);
   const text = degradeLine
     ? `${header}\n\n${degradeLine}\n\n${body}`
@@ -731,8 +738,8 @@ async function runRetrieve(
     provenance: DOCUMENT_CHAT_PROVENANCE,
     strategy,
     kind: "document_chat",
-    denseUnavailableReason:
-      strategy === "hybrid" ? null : denseUnavailableReason,
+    // Emit capped even when strategy is hybrid (partial index / reduced recall).
+    denseUnavailableReason,
   };
 }
 
@@ -760,7 +767,16 @@ function denseDegradeLine(
 }
 
 type HybridAttempt =
-  | { strategy: "hybrid"; passages: RetrievedPassage[]; denseUnavailableReason: null }
+  | {
+      strategy: "hybrid";
+      passages: RetrievedPassage[];
+      /**
+       * null on full hybrid; "capped" when the dense index is partial
+       * (isCapped + vectors present) so the caller can surface reduced recall
+       * without dropping to bm25_only (FIX 3 / hostile review round 4).
+       */
+      denseUnavailableReason: null | "capped";
+    }
   | {
       strategy: "bm25_only";
       passages: null;
@@ -837,8 +853,8 @@ async function tryHybridRetrieve(
               : "no_embedder",
       };
     }
-    // Index present but marked capped mid-embed: still usable for hybrid, but
-    // if the host says it was refused entirely, degrade.
+    // Fully refused (cap/corrupt with no usable vectors already handled above).
+    // hostReason "cap" / "corrupt" with vectors present is unexpected; degrade.
     if (hostReason === "cap" || hostReason === "corrupt") {
       return {
         strategy: "bm25_only",
@@ -846,6 +862,10 @@ async function tryHybridRetrieve(
         denseUnavailableReason: hostReason,
       };
     }
+    // Partial-capped index (isCapped + vectors): still run hybrid, but flag
+    // reduced recall so the tool body emits embedding.degradedCap (FIX 3).
+    const partialCapped = hostReason === "capped" || semantic.isCapped === true;
+
     if (typeof host.embedQuery !== "function") {
       return {
         strategy: "bm25_only",
@@ -942,10 +962,12 @@ async function tryHybridRetrieve(
         denseUnavailableReason: "no_embedder",
       };
     }
+    // FIX 3: partial-capped hybrid is still hybrid, but surfaces "capped" so
+    // denseDegradeLine emits embedding.degradedCap (reduced recall beyond cap).
     return {
       passages: fusedPassages,
       strategy: "hybrid",
-      denseUnavailableReason: null,
+      denseUnavailableReason: partialCapped ? "capped" : null,
     };
   } catch {
     // Any hybrid failure → BM25-only with no_embedder reason.

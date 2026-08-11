@@ -10,6 +10,12 @@
  *     │
  *     └──tryAcquireEmbed──► embed_active ──releaseEmbed──► idle
  *
+ * Ownership tokens (chatGeneration):
+ *   tryAcquireChat returns a monotonically increasing generation on success.
+ *   markChatReady(gen) / markChatReleased(gen) are no-ops unless gen matches
+ *   the current generation — a stale load's release cannot idle the gate while
+ *   a newer load owns it.
+ *
  * Co-residency policy (docs/HYBRID_RETRIEVAL.md §5):
  *   - On totalMemoryBytes > 6e9 AND a 2B-class chat model, tryAcquireEmbed
  *     is allowed while state is chat_ready (embed may co-reside with chat).
@@ -17,7 +23,9 @@
  *     releaseEmbedder and isEngineReady()).
  *   - tryAcquireChat while embed_active succeeds only when co-residency is
  *     allowed (chat takes loading priority; native embed context may remain);
- *     otherwise false — caller must releaseEmbedder first.
+ *     otherwise null — caller must releaseEmbedder first.
+ *   - tryAcquireChat while already chat_loading / chat_ready returns null
+ *     (double-load backstop; caller must not re-enter).
  *
  * AppShell owns chat transitions; EmbeddingService owns embed transitions.
  * Leaf module: no imports from LlamaService / EmbeddingService (no cycles).
@@ -37,6 +45,12 @@ let state: LlamaContextState = "idle";
 let embedHeld = false;
 let totalMemoryBytes = 0;
 let chatModelIs2B = false;
+/**
+ * Monotonic ownership token for the chat slot. Incremented on every successful
+ * tryAcquireChat. Stale markChatReady / markChatReleased calls with a older
+ * gen are ignored so a cancelled load cannot corrupt a newer load.
+ */
+let currentChatGeneration = 0;
 
 /**
  * Update co-residency inputs. AppShell calls this when the device profile
@@ -78,23 +92,40 @@ export function isChatModel4BClass(modelId: string | null | undefined): boolean 
 
 /**
  * Acquire the chat-loading slot. Synchronous.
- * - false only while embed_active AND co-residency is NOT allowed
- * - on success sets chat_loading (from idle / chat_ready / embed_active+co-res)
+ * Returns a monotonic chatGeneration token on success, or null when refused.
+ *
+ * Allowed only from:
+ *   - idle → chat_loading
+ *   - embed_active + co-residency → chat_loading (embedHeld stays true)
+ *
+ * Refused (null) when:
+ *   - already chat_loading or chat_ready (double-load backstop)
+ *   - embed_active without co-residency (caller must releaseEmbedder first)
  */
-export function tryAcquireChat(): boolean {
+export function tryAcquireChat(): number | null {
+  if (state === "chat_loading" || state === "chat_ready") {
+    return null;
+  }
   if (state === "embed_active") {
-    if (!allowsCoResidency()) return false;
+    if (!allowsCoResidency()) return null;
     // Co-residency: chat takes loading priority; embedHeld stays true so
     // markChatReleased can return to embed_active if chat never becomes ready.
     state = "chat_loading";
-    return true;
+    currentChatGeneration += 1;
+    return currentChatGeneration;
   }
+  // idle
   state = "chat_loading";
-  return true;
+  currentChatGeneration += 1;
+  return currentChatGeneration;
 }
 
-/** After initEngine resolves successfully — chat context is resident. */
-export function markChatReady(): void {
+/**
+ * After initEngine resolves successfully — chat context is resident.
+ * No-op when `gen` is not the current ownership token (stale load).
+ */
+export function markChatReady(gen: number): void {
+  if (gen !== currentChatGeneration) return;
   if (state === "chat_loading" || state === "chat_ready") {
     state = "chat_ready";
   }
@@ -104,8 +135,11 @@ export function markChatReady(): void {
  * After dispose, or after initEngine failure / cancelled load.
  * Returns to embed_active when an embed context is still held under
  * co-residency; otherwise idle.
+ * No-op when `gen` is not the current ownership token (stale load cannot
+ * idle a newer owner's gate).
  */
-export function markChatReleased(): void {
+export function markChatReleased(gen: number): void {
+  if (gen !== currentChatGeneration) return;
   if (state === "chat_loading" || state === "chat_ready") {
     state = embedHeld ? "embed_active" : "idle";
   }
@@ -151,6 +185,11 @@ export function getState(): LlamaContextState {
   return state;
 }
 
+/** Current chat ownership generation (0 = never acquired). Test / diagnostics. */
+export function getChatGeneration(): number {
+  return currentChatGeneration;
+}
+
 /** True when EmbeddingService has claimed the embed slot (incl. co-residency). */
 export function isEmbedHeld(): boolean {
   return embedHeld;
@@ -162,4 +201,5 @@ export function __resetForTests(): void {
   embedHeld = false;
   totalMemoryBytes = 0;
   chatModelIs2B = false;
+  currentChatGeneration = 0;
 }

@@ -3,7 +3,8 @@
  * Compile-from-disk. Exit 1 on fail.
  *
  * Cases: chat blocks embed, chat_loading blocks embed, embed releases → chat
- * acquirable, co-residency on 8GB+ 2B, co-residency refused on 4B / ≤6GB, reset.
+ * acquirable, co-residency on 8GB+ 2B, co-residency refused on 4B / ≤6GB,
+ * ownership tokens (stale release, double-acquire), reset.
  */
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
@@ -76,6 +77,7 @@ async function main() {
     tryAcquireEmbed,
     releaseEmbed,
     getState,
+    getChatGeneration,
     setCoResidencyContext,
     allowsCoResidency,
     isChatModel2BClass,
@@ -98,22 +100,26 @@ async function main() {
     }
   }
 
-  check("idle → tryAcquireChat → chat_loading", () => {
+  check("idle → tryAcquireChat → chat_loading (returns gen)", () => {
     assert(getState() === "idle", `start idle, got ${getState()}`);
-    assert(tryAcquireChat() === true, "chat acquire");
+    const gen = tryAcquireChat();
+    assert(typeof gen === "number" && gen > 0, `gen number, got ${gen}`);
     assert(getState() === "chat_loading", `got ${getState()}`);
+    assert(getChatGeneration() === gen, "getChatGeneration matches");
   });
 
   check("chat_loading blocks embed", () => {
-    assert(tryAcquireChat() === true, "chat");
+    const gen = tryAcquireChat();
+    assert(gen !== null, "chat");
     assert(tryAcquireEmbed() === false, "embed must refuse during chat_loading");
     assert(getState() === "chat_loading", `state ${getState()}`);
   });
 
   check("chat_ready blocks embed without co-residency", () => {
     setCoResidencyContext({ totalMemoryBytes: 4e9, chatModelIs2B: true });
-    assert(tryAcquireChat() === true, "chat");
-    markChatReady();
+    const gen = tryAcquireChat();
+    assert(gen !== null, "chat");
+    markChatReady(gen);
     assert(getState() === "chat_ready", `got ${getState()}`);
     assert(tryAcquireEmbed() === false, "embed must refuse on ≤6GB chat_ready");
   });
@@ -122,36 +128,40 @@ async function main() {
     setCoResidencyContext({ totalMemoryBytes: 4e9, chatModelIs2B: false });
     assert(tryAcquireEmbed() === true, "embed");
     assert(getState() === "embed_active", `got ${getState()}`);
-    assert(tryAcquireChat() === false, "chat must refuse while embed_active");
+    assert(tryAcquireChat() === null, "chat must refuse while embed_active");
   });
 
   check("releaseEmbed → chat acquirable", () => {
     assert(tryAcquireEmbed() === true, "embed");
     releaseEmbed();
     assert(getState() === "idle", `got ${getState()}`);
-    assert(tryAcquireChat() === true, "chat after release");
+    const gen = tryAcquireChat();
+    assert(gen !== null, "chat after release");
     assert(getState() === "chat_loading", `got ${getState()}`);
   });
 
   check("markChatReleased returns to idle", () => {
-    assert(tryAcquireChat() === true, "chat");
-    markChatReady();
-    markChatReleased();
+    const gen = tryAcquireChat();
+    assert(gen !== null, "chat");
+    markChatReady(gen);
+    markChatReleased(gen);
     assert(getState() === "idle", `got ${getState()}`);
   });
 
   check("markChatReleased after failed load (chat_loading → idle)", () => {
-    assert(tryAcquireChat() === true, "chat");
+    const gen = tryAcquireChat();
+    assert(gen !== null, "chat");
     assert(getState() === "chat_loading", "loading");
-    markChatReleased();
+    markChatReleased(gen);
     assert(getState() === "idle", `got ${getState()}`);
   });
 
   check("§5 co-residency: 8GB+ 2B allows embed while chat_ready", () => {
     setCoResidencyContext({ totalMemoryBytes: 8e9, chatModelIs2B: true });
     assert(allowsCoResidency() === true, "allowsCoResidency");
-    assert(tryAcquireChat() === true, "chat");
-    markChatReady();
+    const gen = tryAcquireChat();
+    assert(gen !== null, "chat");
+    markChatReady(gen);
     assert(tryAcquireEmbed() === true, "embed co-reside");
     // state stays chat_ready under co-residency
     assert(getState() === "chat_ready", `got ${getState()}`);
@@ -162,8 +172,9 @@ async function main() {
   check("§5 co-residency refused for 4B even on 8GB+", () => {
     setCoResidencyContext({ totalMemoryBytes: 8e9, chatModelIs2B: false });
     assert(allowsCoResidency() === false, "no co-res for 4B");
-    assert(tryAcquireChat() === true, "chat");
-    markChatReady();
+    const gen = tryAcquireChat();
+    assert(gen !== null, "chat");
+    markChatReady(gen);
     assert(tryAcquireEmbed() === false, "embed refused for 4B");
   });
 
@@ -183,12 +194,80 @@ async function main() {
 
   check("__resetForTests clears everything", () => {
     setCoResidencyContext({ totalMemoryBytes: 8e9, chatModelIs2B: true });
-    tryAcquireChat();
-    markChatReady();
+    const gen = tryAcquireChat();
+    markChatReady(gen);
     tryAcquireEmbed();
     __resetForTests();
     assert(getState() === "idle", `got ${getState()}`);
     assert(allowsCoResidency() === false, "co-res cleared");
+    assert(getChatGeneration() === 0, "gen cleared");
+  });
+
+  // ── FIX 1: ownership tokens ─────────────────────────────────────────────
+  check("double-acquire rejected while chat_loading", () => {
+    const gen1 = tryAcquireChat();
+    assert(gen1 !== null && gen1 > 0, "first acquire");
+    assert(getState() === "chat_loading", "loading");
+    const gen2 = tryAcquireChat();
+    assert(gen2 === null, "second acquire must return null");
+    assert(getState() === "chat_loading", "still loading");
+    assert(getChatGeneration() === gen1, "gen unchanged");
+  });
+
+  check("double-acquire rejected while chat_ready", () => {
+    const gen1 = tryAcquireChat();
+    markChatReady(gen1);
+    assert(getState() === "chat_ready", "ready");
+    const gen2 = tryAcquireChat();
+    assert(gen2 === null, "second acquire must return null");
+    assert(getState() === "chat_ready", "still ready");
+  });
+
+  check("stale release after new gen acquired cannot idle newer load", () => {
+    const oldGen = tryAcquireChat();
+    assert(oldGen !== null, "old gen");
+    // Simulate: old load cancelled conceptually, but we acquire a NEW gen only
+    // after releasing the old one properly. Force the race: release old, acquire new,
+    // then a late stale release of old must not affect new.
+    markChatReleased(oldGen);
+    assert(getState() === "idle", "idle after proper release");
+    const newGen = tryAcquireChat();
+    assert(newGen !== null && newGen > oldGen, `new gen ${newGen} > old ${oldGen}`);
+    assert(getState() === "chat_loading", "new load loading");
+    // Stale release of old gen — must be a no-op.
+    markChatReleased(oldGen);
+    assert(getState() === "chat_loading", "still chat_loading after stale release");
+    markChatReady(newGen);
+    assert(getState() === "chat_ready", "new gen ready");
+    // Stale ready of old gen — no-op.
+    markChatReady(oldGen);
+    assert(getState() === "chat_ready", "still ready");
+    // Stale release of old while ready — no-op.
+    markChatReleased(oldGen);
+    assert(getState() === "chat_ready", "stale release cannot idle ready");
+    // Proper release of new gen.
+    markChatReleased(newGen);
+    assert(getState() === "idle", "idle after new gen release");
+  });
+
+  check("stale markChatReady cannot promote a different gen", () => {
+    const gen1 = tryAcquireChat();
+    markChatReleased(gen1);
+    const gen2 = tryAcquireChat();
+    // Stale ready for gen1 while gen2 is loading.
+    markChatReady(gen1);
+    assert(getState() === "chat_loading", "stale ready must not promote");
+    markChatReady(gen2);
+    assert(getState() === "chat_ready", "current gen ready");
+  });
+
+  check("gens are monotonic", () => {
+    const a = tryAcquireChat();
+    markChatReleased(a);
+    const b = tryAcquireChat();
+    markChatReleased(b);
+    const c = tryAcquireChat();
+    assert(a < b && b < c, `monotonic ${a}<${b}<${c}`);
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

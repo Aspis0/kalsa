@@ -55,6 +55,7 @@ import {
   listDocumentChunksForEmbed,
   planChunksToEmbed,
   releaseEmbedder,
+  EMBEDDER_RELEASE_TIMEOUT_MS,
 } from "../engine/EmbeddingService";
 // isEmbedderActive available for residency telemetry; chat/embedder mutual
 // exclusion is enforced by releaseEmbedder-before-chat + ensureEmbedder gate.
@@ -67,6 +68,7 @@ import {
   tryAcquireChat,
   markChatReady,
   markChatReleased,
+  getState as getLlamaContextGateState,
   setCoResidencyContext,
   isChatModel2BClass,
   isChatModel4BClass,
@@ -256,6 +258,39 @@ function gateForModel(
 }
 
 /** Localized hard-gate reason for Alert / error banner. */
+/**
+ * Bounded releaseEmbedder for chat-init (FIX 2).
+ * Races release against EMBEDDER_RELEASE_TIMEOUT_MS. On timeout, chat proceeds
+ * (must not deadlock); embedder disposal is best-effort and deferred to the
+ * next releaseEmbedder/embed cycle. Never throws.
+ */
+async function releaseEmbedderBounded(): Promise<"released" | "timeout"> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    const result = await Promise.race([
+      releaseEmbedder()
+        .then(() => "released" as const)
+        .catch(() => "released" as const),
+      new Promise<"timeout">((resolve) => {
+        timer = setTimeout(
+          () => resolve("timeout"),
+          EMBEDDER_RELEASE_TIMEOUT_MS,
+        );
+      }),
+    ]);
+    if (result === "timeout") {
+      console.warn(
+        `[kalsa] releaseEmbedder timed out after ${EMBEDDER_RELEASE_TIMEOUT_MS}ms; proceeding with chat init (embedder disposal best-effort)`,
+      );
+    }
+    return result;
+  } catch {
+    return "released";
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 function gateReasonMessage(
   reason: ModelGateVerdict["reason"],
   t: (key: TranslationKey) => string,
@@ -1465,6 +1500,12 @@ export function AppShell() {
   const confirmDownloadLockRef = useRef(false);
   const downloadAbortRef = useRef<AbortController | null>(null);
   const engineGenerationRef = useRef(0);
+  /**
+   * Ownership token from tryAcquireChat (null when chat slot not held).
+   * markChatReady / markChatReleased must pass this gen so a stale load
+   * cannot idle a newer owner's gate (FIX 1).
+   */
+  const chatGateGenRef = useRef<number | null>(null);
   const streamInFlightRef = useRef(false);
   const modelSwitchInFlightRef = useRef(false);
   /** UI mirror of streamInFlightRef — disables model Select in Settings. */
@@ -1512,8 +1553,10 @@ export function AppShell() {
       // half-finished summarize across unmount.
       abortBackgroundSummary();
       void disposeEngine().finally(() => {
-        // FIX B: unmount dispose frees the chat slot.
-        markChatReleased();
+        // FIX B / FIX 1: unmount dispose frees the chat slot for THIS gen only.
+        const gen = chatGateGenRef.current;
+        chatGateGenRef.current = null;
+        if (gen !== null) markChatReleased(gen);
       });
       void releaseWhisper();
       void releaseEmbedder();
@@ -1593,6 +1636,9 @@ export function AppShell() {
       MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
 
     if (isEngineReady() && getActiveModelId() === model.id) return true;
+    // Ownership token acquired by THIS ensure call (null until tryAcquireChat).
+    // Catch must only release this gen — never a previous owner's (FIX 1).
+    let acquiredChatGen: number | null = null;
     // Disk probe can throw on rare FS errors — keep it inside try so bar/Settings
     // void-retry sites never produce an unhandled rejection.
     try {
@@ -1641,6 +1687,8 @@ export function AppShell() {
       // FIX B: bump + abort so in-flight embed cannot initLlama after we start
       // chat load. Shared llamaContextGate: tryAcquireChat SYNCHRONOUSLY before
       // the first await of the init flow (closes the loading window).
+      // FIX 1: ownership token (chatGen) — stale markChatReleased cannot idle a newer load.
+      // FIX 2: bounded releaseEmbedder wait (EMBEDDER_RELEASE_TIMEOUT_MS).
       // FIX 3 / §5: releaseEmbedder only when co-residency is NOT allowed
       // (≤6 GB OR 4B chat model). On 8 GB+ with 2B chat, embed may co-reside.
       bumpEmbedJobGeneration();
@@ -1651,15 +1699,24 @@ export function AppShell() {
 
       // Synchronous chat-loading claim — MUST precede any further await so the
       // embedder cannot initLlama concurrently during the loading window.
-      if (!tryAcquireChat()) {
-        // Embedder holds the native slot and co-residency is off — force-release
-        // then re-claim. releaseEmbedder is async; re-tryAcquire after it.
-        await releaseEmbedder().catch(() => undefined);
-        if (!stillCurrent()) {
-          markChatReleased();
+      // Returns a generation token; null when refused (embed_active without
+      // co-res, or already chat_loading/chat_ready — double-load backstop).
+      let chatGen = tryAcquireChat();
+      if (chatGen === null) {
+        // Already loading/ready: refuse double-load rather than steal ownership
+        // (gate is the backstop; AppShell guards concurrent loads via modelState).
+        const gateState = getLlamaContextGateState();
+        if (gateState === "chat_loading" || gateState === "chat_ready") {
           return false;
         }
-        if (!tryAcquireChat()) {
+        // Embedder holds the native slot and co-residency is off — force-release
+        // (bounded) then re-claim.
+        await releaseEmbedderBounded();
+        if (!stillCurrent()) {
+          return false;
+        }
+        chatGen = tryAcquireChat();
+        if (chatGen === null) {
           // Still blocked — refuse chat load rather than race the embedder.
           setModelState("error");
           setModelErrorKind("engine");
@@ -1668,6 +1725,8 @@ export function AppShell() {
           return false;
         }
       }
+      acquiredChatGen = chatGen;
+      chatGateGenRef.current = chatGen;
 
       setModelState("loading");
       modelStateRef.current = "loading";
@@ -1685,7 +1744,8 @@ export function AppShell() {
           totalMem = 0;
         }
         if (!stillCurrent()) {
-          markChatReleased();
+          markChatReleased(chatGen);
+          if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
           return false;
         }
       }
@@ -1696,16 +1756,19 @@ export function AppShell() {
 
       // §5 co-residency: release embedder before chat init ONLY when
       // (totalMemoryBytes ≤ 6e9) OR (chat model is 4B-class).
+      // FIX 2: bounded wait — on timeout, chat proceeds (must not deadlock);
+      // embedder disposal is best-effort / deferred to the next cycle.
       const mustReleaseEmbed =
         totalMem <= 0 ||
         totalMem <= CO_RESIDENCY_MIN_MEMORY_BYTES ||
         isChatModel4BClass(model.id) ||
         !allowsCoResidency();
       if (mustReleaseEmbed) {
-        await releaseEmbedder().catch(() => undefined);
+        await releaseEmbedderBounded();
       }
       if (!stillCurrent()) {
-        markChatReleased();
+        markChatReleased(chatGen);
+        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
         return false;
       }
 
@@ -1738,7 +1801,8 @@ export function AppShell() {
         // empty facts → match disabled / cold
       }
       if (!stillCurrent()) {
-        markChatReleased();
+        markChatReleased(chatGen);
+        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
         return false;
       }
       const initResult = await initEngine(modelLocalPath(model, model.file), model.id, {
@@ -1758,9 +1822,10 @@ export function AppShell() {
         locale,
       });
       if (!stillCurrent()) {
-        // Stale generation after success: dispose path will markChatReleased;
-        // still release the loading claim so embed is not permanently blocked.
-        markChatReleased();
+        // Stale app generation after success: release THIS chatGen only so a
+        // newer load's gate is not idled (FIX 1 ownership token).
+        markChatReleased(chatGen);
+        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
         return false;
       }
       // Propagate effective n_ctx (post memory-clamp) so document strategy and
@@ -1773,8 +1838,8 @@ export function AppShell() {
       warnIfNativePatchesInactive(initResult.systemInfo);
       setModelState("ready");
       modelStateRef.current = "ready";
-      // FIX B: chat context resident — embedder refuses unless §5 co-residency.
-      markChatReady();
+      // FIX B / FIX 1: chat context resident — only if we still own this gen.
+      markChatReady(chatGen);
       // End-based clear too: two concurrent ensures (double-tap in the probe
       // window) where the first fails and the second succeeds must not leave
       // "Ready" coexisting with a stale red banner.
@@ -1783,8 +1848,11 @@ export function AppShell() {
       setModelErrorKind(null);
       return true;
     } catch (error) {
-      // FIX B: init failure → release chat claim so embed can proceed.
-      markChatReleased();
+      // FIX B / FIX 1: init failure → release only the gen THIS call acquired.
+      if (acquiredChatGen !== null) {
+        markChatReleased(acquiredChatGen);
+        if (chatGateGenRef.current === acquiredChatGen) chatGateGenRef.current = null;
+      }
       if (!stillCurrent()) return false;
       setModelState("error");
       modelStateRef.current = "error";
@@ -1849,8 +1917,10 @@ export function AppShell() {
         } catch {
           // ignore
         } finally {
-          // FIX B: dispose → chat slot free for embedder.
-          markChatReleased();
+          // FIX B / FIX 1: dispose → free THIS gen only (stale gens no-op).
+          const gen = chatGateGenRef.current;
+          chatGateGenRef.current = null;
+          if (gen !== null) markChatReleased(gen);
           modelSwitchInFlightRef.current = false;
         }
       })();
@@ -1940,6 +2010,8 @@ export function AppShell() {
 
     // Tracks which phase failed so the catch can distinguish download vs engine init.
     let errorPhase: "download" | "engine" = "download";
+    // Ownership token acquired by THIS download→init path (null until tryAcquireChat).
+    let acquiredChatGenDl: number | null = null;
     try {
       const outcome = await downloadModelBundle(model, {
         onBundleProgress: (progress) => {
@@ -1973,7 +2045,7 @@ export function AppShell() {
       if (!stillCurrent()) return;
       errorPhase = "engine";
       // FIX B / FIX 3: cancel background embed; shared gate + §5 co-residency
-      // (same policy as ensureEngineForModel).
+      // (same policy as ensureEngineForModel). FIX 1 ownership token + FIX 2 bound.
       bumpEmbedJobGeneration();
 
       // Synchronous seed + tryAcquireChat BEFORE any await of the init flow.
@@ -1981,19 +2053,27 @@ export function AppShell() {
       const modelIs2BDl = isChatModel2BClass(model.id);
       setCoResidencyContext({ chatModelIs2B: modelIs2BDl });
 
-      if (!tryAcquireChat()) {
-        await releaseEmbedder().catch(() => undefined);
-        if (!stillCurrent()) {
-          markChatReleased();
+      let chatGenDl = tryAcquireChat();
+      if (chatGenDl === null) {
+        const gateStateDl = getLlamaContextGateState();
+        if (gateStateDl === "chat_loading" || gateStateDl === "chat_ready") {
+          // Double-load backstop — do not clobber an in-flight / ready chat.
           return;
         }
-        if (!tryAcquireChat()) {
+        await releaseEmbedderBounded();
+        if (!stillCurrent()) {
+          return;
+        }
+        chatGenDl = tryAcquireChat();
+        if (chatGenDl === null) {
           setModelState("error");
           setModelErrorKind("engine");
           setModelError(t("errors.engineInitFailed"));
           return;
         }
       }
+      acquiredChatGenDl = chatGenDl;
+      chatGateGenRef.current = chatGenDl;
 
       setModelState("loading");
       modelStateRef.current = "loading";
@@ -2007,7 +2087,8 @@ export function AppShell() {
         totalMem = 0;
       }
       if (!stillCurrent()) {
-        markChatReleased();
+        markChatReleased(chatGenDl);
+        if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
         return;
       }
       setCoResidencyContext({
@@ -2015,16 +2096,18 @@ export function AppShell() {
         chatModelIs2B: modelIs2BDl,
       });
 
+      // FIX 2: bounded release — chat proceeds on timeout (no deadlock).
       const mustReleaseEmbed =
         totalMem <= 0 ||
         totalMem <= CO_RESIDENCY_MIN_MEMORY_BYTES ||
         isChatModel4BClass(model.id) ||
         !allowsCoResidency();
       if (mustReleaseEmbed) {
-        await releaseEmbedder().catch(() => undefined);
+        await releaseEmbedderBounded();
       }
       if (!stillCurrent()) {
-        markChatReleased();
+        markChatReleased(chatGenDl);
+        if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
         return;
       }
 
@@ -2039,7 +2122,8 @@ export function AppShell() {
           getFreeDiskBytes(),
         ]);
         if (!stillCurrent()) {
-          markChatReleased();
+          markChatReleased(chatGenDl);
+          if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
           return;
         }
         const gate = gateForModel(model, deviceProfile, free);
@@ -2048,7 +2132,8 @@ export function AppShell() {
           (gate.reason === "blocked_ram" || gate.reason === "blocked_tier") &&
           getActiveModelId() !== model.id
         ) {
-          markChatReleased();
+          markChatReleased(chatGenDl);
+          if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
           setModelState("error");
           setModelErrorKind("engine");
           setModelError(gateReasonMessage(gate.reason, t));
@@ -2085,7 +2170,8 @@ export function AppShell() {
         // empty facts → match disabled / cold
       }
       if (!stillCurrent()) {
-        markChatReleased();
+        markChatReleased(chatGenDl);
+        if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
         return;
       }
       const initResult = await initEngine(outcome.model.uri, model.id, {
@@ -2105,7 +2191,8 @@ export function AppShell() {
         locale,
       });
       if (!stillCurrent()) {
-        markChatReleased();
+        markChatReleased(chatGenDl);
+        if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
         return;
       }
       // Propagate effective n_ctx (post memory-clamp) — same single source as
@@ -2116,8 +2203,8 @@ export function AppShell() {
       warnIfNativePatchesInactive(initResult.systemInfo);
       setModelState("ready");
       modelStateRef.current = "ready";
-      // FIX B: chat context resident.
-      markChatReady();
+      // FIX B / FIX 1: chat context resident (token-guarded).
+      markChatReady(chatGenDl);
       // Same end-based clear as ensureEngineForModel: no stale banner on ready.
       setModelError(null);
       setModelErrorDetail(null);
@@ -2129,8 +2216,11 @@ export function AppShell() {
         t("download.notifyReady", { name: model.name }),
       );
     } catch (error) {
-      // FIX B: init/download failure after tryAcquireChat → free the slot.
-      markChatReleased();
+      // FIX B / FIX 1: free only the gen THIS download path acquired.
+      if (acquiredChatGenDl !== null) {
+        markChatReleased(acquiredChatGenDl);
+        if (chatGateGenRef.current === acquiredChatGenDl) chatGateGenRef.current = null;
+      }
       if (!stillCurrent()) return;
       if (controller.signal.aborted) {
         setModelState("missing");

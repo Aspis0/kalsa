@@ -72,8 +72,15 @@ function isZeroOrNonFinite(v: Float32Array): boolean {
   return allZero;
 }
 
-/** Default resident float cap (200k floats ≈ 800 KB fp32). */
-export const DEFAULT_VECTOR_MEMORY_FLOAT_CAP = 200_000;
+/**
+ * Default resident float cap (200k floats ≈ 800 KB fp32).
+ * Used when callers omit a cap OR pass an invalid floatCap
+ * (non-number / negative / NaN / 0) — invalid input fails closed to the
+ * default rather than disabling capping (FIX 4 / hostile review round 4).
+ */
+export const DEFAULT_SEMANTIC_FLOAT_CAP = 200_000;
+/** Alias kept for existing AppShell / harness imports. */
+export const DEFAULT_VECTOR_MEMORY_FLOAT_CAP = DEFAULT_SEMANTIC_FLOAT_CAP;
 
 /**
  * Total resident floats across a collection of indexes
@@ -97,12 +104,12 @@ export function totalResidentFloats(
 /** True when total resident floats already exceed (or equal) the cap. */
 export function semanticIndexCountExceeds(
   indexes: Iterable<{ chunkCount: number; dims: number }>,
-  cap: number = DEFAULT_VECTOR_MEMORY_FLOAT_CAP,
+  cap: number = DEFAULT_SEMANTIC_FLOAT_CAP,
 ): boolean {
   const limit =
     typeof cap === "number" && Number.isFinite(cap) && cap > 0
       ? cap
-      : DEFAULT_VECTOR_MEMORY_FLOAT_CAP;
+      : DEFAULT_SEMANTIC_FLOAT_CAP;
   return totalResidentFloats(indexes) >= limit;
 }
 
@@ -178,10 +185,15 @@ export class SemanticVectorIndex {
    * entries are skipped (they must not perturb dense RRF ranks).
    * Optional text / contentHash are stored when provided (string, non-empty).
    *
-   * Cap (FIX D): when `floatCap` + `otherResidentFloats` are provided, each
-   * NEW (non-replacement) vector is refused once the would-be total exceeds
-   * the cap; `isCapped` is set. Replacements of existing chunkIds always pass
-   * (0 net floats). Without cap opts the add is unbounded (caller enforces).
+   * Cap (FIX D / FIX 4): when `capOpts` is provided, each NEW (non-replacement)
+   * vector is refused once the would-be total exceeds the cap; `isCapped` is
+   * set. Replacements of existing chunkIds always pass (0 net floats).
+   *
+   * floatCap policy:
+   *   - valid positive finite number → use it
+   *   - invalid (non-number, negative, NaN, 0) → DEFAULT_SEMANTIC_FLOAT_CAP
+   *     (fail closed; never disable capping on bad input)
+   *   - capOpts omitted entirely → unbounded (caller enforces)
    */
   addVectors(
     items: SemanticVectorAddItem[],
@@ -190,13 +202,21 @@ export class SemanticVectorIndex {
     if (!Array.isArray(items) || items.length === 0) {
       return { added: 0, skippedByCap: 0 };
     }
-    const cap =
-      capOpts &&
-      typeof capOpts.floatCap === "number" &&
-      Number.isFinite(capOpts.floatCap) &&
-      capOpts.floatCap > 0
-        ? capOpts.floatCap
-        : null;
+    // capOpts present → always cap. Invalid floatCap fails closed to default.
+    let cap: number | null = null;
+    if (capOpts) {
+      const raw = capOpts.floatCap;
+      if (
+        typeof raw === "number" &&
+        Number.isFinite(raw) &&
+        raw > 0
+      ) {
+        cap = raw;
+      } else {
+        // non-number / negative / NaN / 0 / undefined → default cap
+        cap = DEFAULT_SEMANTIC_FLOAT_CAP;
+      }
+    }
     const other =
       capOpts &&
       typeof capOpts.otherResidentFloats === "number" &&

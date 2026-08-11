@@ -7,7 +7,7 @@
  */
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -327,6 +327,28 @@ async function main() {
         `text mismatch @${i}`,
       );
     }
+  });
+
+  // 14. FIX 2: EmbeddingService exports EMBEDDER_RELEASE_TIMEOUT_MS + release never throws
+  // (source-level: EmbeddingService cannot compile here without llama.rn).
+  check("EMBEDDER_RELEASE_TIMEOUT_MS exported (=15000) + releaseEmbedder never throws", () => {
+    const src = readFileSync(
+      path.join(projectRoot, "src/engine/EmbeddingService.ts"),
+      "utf8",
+    );
+    const m = src.match(/export const EMBEDDER_RELEASE_TIMEOUT_MS\s*=\s*([\d_]+)/);
+    assert(m, "EMBEDDER_RELEASE_TIMEOUT_MS export missing");
+    const ms = Number(m[1].replace(/_/g, ""));
+    assert(ms === 15_000, `timeout ${ms} !== 15000`);
+    // releaseEmbedder body catches errors and never rethrows.
+    assert(/export async function releaseEmbedder\(\)/.test(src), "releaseEmbedder missing");
+    const releaseBody = src.slice(src.indexOf("export async function releaseEmbedder"));
+    const bodyEnd = releaseBody.indexOf("\nexport ");
+    const body = bodyEnd > 0 ? releaseBody.slice(0, bodyEnd) : releaseBody.slice(0, 800);
+    assert(/catch\s*\{/.test(body), "releaseEmbedder must catch errors");
+    // Reject real throw statements; allow comments that mention "throw".
+    const codeOnly = body.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    assert(!/\bthrow\b/.test(codeOnly), "releaseEmbedder must not throw");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);
