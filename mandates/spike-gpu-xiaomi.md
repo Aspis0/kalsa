@@ -57,6 +57,21 @@ OpenCL, `-ncmoe` in llama-bench e la riga subgroup — NIENTE "master recente").
 Solo llama-bench, invocazioni fisse: tg `-p 0 -n 128 -t 6 -r 2`, pp `-p 512
 -n 0 -t 6`. **Ogni run = una riga in `results/gpu_xiaomi/runs.csv`.**
 
+### S0.3-bis — FIX build Vulkan (post-primo-giro: shaderc coopmat2 cap 5447)
+
+Il fallimento è build-time (shaderc Termux non conosce coopmat2 — che l'Adreno
+NON supporta comunque: disabilitarla è a costo zero). NIENTE root. Due strade
+in ordine:
+1. **One-line**: ri-cmake con `-DGGML_VULKAN_COOPMAT2_GLSLC_SUPPORT=OFF` (e se
+   serve anche `-DGGML_VULKAN_COOPMAT_GLSLC_SUPPORT=OFF`) — gli shader coopmat
+   non vengono compilati. Verificare i nomi esatti delle option nel CMake del
+   pin (`ggml/src/ggml-vulkan/CMakeLists.txt`) prima di usarli.
+2. **Piano B**: cross-build NDK dal PC — gli shader si compilano sulla macchina
+   di build col glslc desktop (Vulkan SDK recente), Termux non c'entra; push
+   del binario.
+Validazione: presenza del binario (NON fidarsi di BUILD_EXIT=0, bug noto del
+wrapper) + smoke `-ngl 1` con la correttezza del protocollo S3.
+
 ## S1 — gate device-side (staccato): il 750 batte la CPU sul denso?
 
 3B Q4_K_M, tg128 + pp512, CPU vs OpenCL `-ngl 99`, ABBA, 2 rep, cold, Δdie
