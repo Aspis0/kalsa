@@ -3811,6 +3811,10 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
   **fino al 50% degli esperti** mantenendo ~**97%** della qualità su modelli fino a 1T; già
   **esteso all'architettura Qwen3.5**, cioè la nostra classe (`qwen3_5_moe`), comprese le
   attenzioni ibride.
+  *[CORREZIONE 2026-08-10, audit ostile pre-pod: FALSO per l'upstream — il repo
+  Cerebras ufficiale NON ha `Qwen3_5Moe` in MODEL_ATTRS; le estensioni all'ibrido
+  sono SOLO fork/pipeline community (RangerX, 0xSero). Il mandato REAP v2 impone
+  il pin della toolchain community con commit URL.]*
 
   **Perché il piano l'aveva declassato, e perché era un errore.** §F9.1b diceva: *«nello
   streaming il pruning NON riduce il traffico di decode (8 attivi restano 8) e muove poco
