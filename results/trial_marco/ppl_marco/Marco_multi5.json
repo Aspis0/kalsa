@@ -1,0 +1,66 @@
+{
+  "tag": "Marco",
+  "binary": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\build-pc\\cli\\bmoe-cli.exe",
+  "binary_sha256": "42cd907c38fb223d1b04c7070a0c9a6e3b200e186afc19439189651dcac74f69",
+  "model": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\Marco-Mini-Instruct.i1-Q4_K_M.gguf",
+  "model_sha256": "a001d324b6edc6a797009fbe6eb94a52a9f32453ee8d06465409875f3e3a6dbc",
+  "model_bytes": 10505424704,
+  "ppl_mode": "decode",
+  "threads": 8,
+  "ctx": 4096,
+  "config": {
+    "cmd_tail": [
+      "-m",
+      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\Marco-Mini-Instruct.i1-Q4_K_M.gguf",
+      "-t",
+      "8",
+      "-c",
+      "4096",
+      "--ubatch",
+      "512",
+      "--ppl-decode",
+      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\en.txt",
+      "--ppl-csv",
+      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\trial_marco\\ppl_marco\\en\\per_token.csv",
+      "--moe-stream",
+      "--cache-mb",
+      "2000",
+      "--dense-weights",
+      "anon",
+      "--io-threads",
+      "4",
+      "--overlap",
+      "--n-expert-used",
+      "8"
+    ],
+    "moe_stream": true,
+    "cache_mb": 2000
+  },
+  "langs": {
+    "en": {
+      "lang": "en",
+      "corpus": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\en.txt",
+      "corpus_sha256": "6a9f9bda802cd3d293faf0394d39675dd59419da8f75bfa5fe08612921b65bfb",
+      "n_bytes": 50943,
+      "rc": 0,
+      "seconds": 4329.351,
+      "n_tokens": 11117,
+      "n_scored": 11114,
+      "sum_logprob": -21366.72559924,
+      "ppl": 6.838069,
+      "bpb": 0.6051011731162046,
+      "bytes_per_token": 4.5824413061077625,
+      "raw": {
+        "n_tokens": 11117,
+        "n_scored": 11114,
+        "sum_logprob": -21366.72559924,
+        "ppl": 6.838069,
+        "seconds": 4325.989,
+        "cancelled": false,
+        "mode": "decode",
+        "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\en.txt"
+      }
+    }
+  },
+  "started": "2026-08-10T22:31:07-0400"
+}

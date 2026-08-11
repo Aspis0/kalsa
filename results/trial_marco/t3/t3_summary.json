@@ -1,0 +1,29 @@
+{
+  "by_tag_n200": {
+    "A": {
+      "n": 4,
+      "median_tok_s": 1.6305,
+      "mean_tok_s": 1.65975,
+      "vals": [
+        1.593,
+        1.487,
+        1.891,
+        1.668
+      ]
+    },
+    "B": {
+      "n": 4,
+      "median_tok_s": 1.172,
+      "mean_tok_s": 1.169,
+      "vals": [
+        1.153,
+        1.17,
+        1.179,
+        1.174
+      ]
+    }
+  },
+  "ratio_marco_over_kexp_median": 0.7187979147500766,
+  "gate_1_3x": false,
+  "all_rows": 9
+}

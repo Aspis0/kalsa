@@ -1,0 +1,6 @@
+llama_model_loader: - kv   0:                       general.architecture str              = qwen3moe
+bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=2 cache=2000 MiB shards=1
+generation: 46 tokens, 0.758 s/token (1.318 tok/s)
+moe-stream: read 8260.3 MiB (179.57 MiB/token), decode 0.758 s/token (compute 0.235 + cache mgmt 0.075 + flash I/O 0.758 s/token, 237 MiB/s)
+moe-cache: 35.3% hit, resident 1998.9 MiB
+moe-cache: 6414 evictions, 3095 re-reads (67.3/token) — bytes the cache had already paid for once

@@ -1,0 +1,75 @@
+[2026-08-10T22:50:06-0400] T3 start Jelly trial-marco (KEXP = k6d0.65 campaign default)
+[2026-08-10T22:50:06-0400] bin=/data/data/com.termux/files/home/bin/run-bmoe
+36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-jelly/cli/bmoe-cli
+[2026-08-10T22:50:06-0400] model_a bytes=13416430592 name=Qwen3.6-35B-A3B-KEXP.gguf
+[2026-08-10T22:50:06-0400] model_b bytes=10505424704 name=Marco-Mini-Instruct.i1-Q4_K_M.gguf
+[2026-08-10T22:50:18-0400] battery plugged=UNPLUGGED pct=-1 temp=-1.0
+[2026-08-10T22:50:18-0400] ABBA plan: 2 prompts x (A B B A), n=200, threads=2
+[2026-08-10T22:50:18-0400] A=KEXP k=6 drop=0.65 (k6d065) | B=Marco drop=OFF k=default
+[2026-08-10T22:50:31-0400] battery plugged=UNPLUGGED pct=-1 temp=-1.0
+[2026-08-10T22:50:35-0400] RUN A_p1a1_r1_n200 model=Qwen3.6-35B-A3B-KEXP.gguf drop=0.65 k=6 n=200
+[2026-08-10T22:53:50-0400] RUN A_p1a1_r1_n200 rc=0
+[2026-08-10T22:53:54-0400] METRICS A_p1a1_r1_n200 tok/s=1.593 MiB/tok=53.11 hit%=71.7 k=6 batt=-1
+[2026-08-10T22:54:12-0400] battery plugged=UNPLUGGED pct=-1 temp=-1.0
+[2026-08-10T22:54:16-0400] RUN B_p1b1_r1_n200 model=Marco-Mini-Instruct.i1-Q4_K_M.gguf drop=OFF k=0 n=200
+[2026-08-10T22:57:58-0400] RUN B_p1b1_r1_n200 rc=0
+[2026-08-10T22:58:02-0400] METRICS B_p1b1_r1_n200 tok/s=1.153 MiB/tok=189.56 hit%=33.7 k=0 batt=-1
+[2026-08-10T22:58:20-0400] battery plugged=UNPLUGGED pct=-1 temp=-1.0
+[2026-08-10T22:58:24-0400] RUN B_p1b2_r2_n200 model=Marco-Mini-Instruct.i1-Q4_K_M.gguf drop=OFF k=0 n=200
+[2026-08-10T23:02:02-0400] RUN B_p1b2_r2_n200 rc=0
+[2026-08-10T23:02:07-0400] METRICS B_p1b2_r2_n200 tok/s=1.17 MiB/tok=189.56 hit%=33.7 k=0 batt=-1
+[2026-08-10T23:02:24-0400] battery plugged=UNPLUGGED pct=-1 temp=-1.0
+[2026-08-10T23:02:28-0400] RUN A_p1a2_r2_n200 model=Qwen3.6-35B-A3B-KEXP.gguf drop=0.65 k=6 n=200
+[2026-08-10T23:05:51-0400] RUN A_p1a2_r2_n200 rc=0
+[2026-08-10T23:05:56-0400] METRICS A_p1a2_r2_n200 tok/s=1.487 MiB/tok=53.11 hit%=71.7 k=6 batt=-1
+[2026-08-10T23:06:13-0400] battery plugged=UNPLUGGED pct=-1 temp=-1.0
+[2026-08-10T23:06:17-0400] RUN A_p2a1_r1_n200 model=Qwen3.6-35B-A3B-KEXP.gguf drop=0.65 k=6 n=200
+[2026-08-10T23:09:06-0400] RUN A_p2a1_r1_n200 rc=0
+[2026-08-10T23:09:10-0400] METRICS A_p2a1_r1_n200 tok/s=1.891 MiB/tok=30.86 hit%=81.6 k=6 batt=-1
+[2026-08-10T23:09:28-0400] battery plugged=UNPLUGGED pct=-1 temp=-1.0
+[2026-08-10T23:09:32-0400] RUN B_p2b1_r1_n200 model=Marco-Mini-Instruct.i1-Q4_K_M.gguf drop=OFF k=0 n=200
+[2026-08-10T23:13:25-0400] RUN B_p2b1_r1_n200 rc=0
+[2026-08-10T23:13:29-0400] METRICS B_p2b1_r1_n200 tok/s=1.179 MiB/tok=186.53 hit%=35.3 k=0 batt=-1
+[2026-08-10T23:13:47-0400] battery plugged=UNPLUGGED pct=-1 temp=-1.0
+[2026-08-10T23:13:51-0400] RUN B_p2b2_r2_n200 model=Marco-Mini-Instruct.i1-Q4_K_M.gguf drop=OFF k=0 n=200
+[2026-08-10T23:17:45-0400] RUN B_p2b2_r2_n200 rc=0
+[2026-08-10T23:17:50-0400] METRICS B_p2b2_r2_n200 tok/s=1.174 MiB/tok=186.53 hit%=35.3 k=0 batt=-1
+[2026-08-10T23:18:07-0400] battery plugged=UNPLUGGED pct=-1 temp=-1.0
+[2026-08-10T23:18:11-0400] RUN A_p2a2_r2_n200 model=Qwen3.6-35B-A3B-KEXP.gguf drop=0.65 k=6 n=200
+[2026-08-10T23:21:15-0400] RUN A_p2a2_r2_n200 rc=0
+[2026-08-10T23:21:19-0400] METRICS A_p2a2_r2_n200 tok/s=1.668 MiB/tok=30.86 hit%=81.6 k=6 batt=-1
+[2026-08-10T23:21:25-0400] SUSTAINED Marco n=512
+[2026-08-10T23:21:37-0400] battery plugged=UNPLUGGED pct=-1 temp=-1.0
+[2026-08-10T23:21:41-0400] RUN B_sust_r1_n512 model=Marco-Mini-Instruct.i1-Q4_K_M.gguf drop=OFF k=0 n=512
+[2026-08-10T23:25:18-0400] RUN B_sust_r1_n512 rc=0
+[2026-08-10T23:25:23-0400] METRICS B_sust_r1_n512 tok/s=1.183 MiB/tok=189.56 hit%=33.7 k=0 batt=-1
+{
+  "by_tag_n200": {
+    "A": {
+      "n": 4,
+      "median_tok_s": 1.6305,
+      "mean_tok_s": 1.65975,
+      "vals": [
+        1.593,
+        1.487,
+        1.891,
+        1.668
+      ]
+    },
+    "B": {
+      "n": 4,
+      "median_tok_s": 1.172,
+      "mean_tok_s": 1.169,
+      "vals": [
+        1.153,
+        1.17,
+        1.179,
+        1.174
+      ]
+    }
+  },
+  "ratio_marco_over_kexp_median": 0.7187979147500766,
+  "gate_1_3x": false,
+  "all_rows": 9
+}
+[2026-08-10T23:25:28-0400] T3 DONE summary=/data/data/com.termux/files/home/experiments/results/trial_marco/t3/t3_summary.json
