@@ -121,6 +121,34 @@ export function tryAcquireChat(): number | null {
 }
 
 /**
+ * Forced chat acquire after an embed-release timeout (FIX 2).
+ *
+ * Invariant: when `embed_active` has not released within the caller's
+ * timeout, transition to `chat_loading` with a NEW generation. The embed
+ * operation's native result is dropped via the FIFO + abort/generation
+ * checks already in EmbeddingService; the embed context becomes stale and
+ * is disposed on the next `releaseEmbedder` cycle; embed re-init is refused
+ * while `chat_loading` (`tryAcquireEmbed` returns false).
+ *
+ * `embedHeld` is left as-is so a late `releaseEmbed` only clears the flag
+ * (it does not flip state out of `chat_loading` — that transition only
+ * applies when state is still `embed_active`).
+ *
+ * Returns the new generation, or null when the gate is already owned by
+ * chat (`chat_loading` / `chat_ready` — double-load backstop).
+ */
+export function forceChatAcquireAfterEmbedTimeout(): number | null {
+  if (state === "chat_loading" || state === "chat_ready") {
+    return null;
+  }
+  // Force from embed_active (or idle if a partial release already flipped
+  // state without clearing the caller's timeout path).
+  state = "chat_loading";
+  currentChatGeneration += 1;
+  return currentChatGeneration;
+}
+
+/**
  * After initEngine resolves successfully — chat context is resident.
  * No-op when `gen` is not the current ownership token (stale load).
  */

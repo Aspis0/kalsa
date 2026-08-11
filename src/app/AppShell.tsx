@@ -66,6 +66,7 @@ import {
 } from "../documents/semanticIndex";
 import {
   tryAcquireChat,
+  forceChatAcquireAfterEmbedTimeout,
   markChatReady,
   markChatReleased,
   getState as getLlamaContextGateState,
@@ -808,7 +809,13 @@ export function AppShell() {
 
         docSemanticByIdRef.current.set(docId, idx);
         docEmbedHashesByIdRef.current.set(docId, idx.contentHashKeys());
-        docDenseReasonByIdRef.current.delete(docId);
+        // FIX 3: retain "capped" when the restored index is partial; only clear
+        // the reason when the index is genuinely uncapped (full hybrid).
+        if (idx.isCapped) {
+          docDenseReasonByIdRef.current.set(docId, "capped");
+        } else {
+          docDenseReasonByIdRef.current.delete(docId);
+        }
         return idx;
       } catch {
         docDenseReasonByIdRef.current.set(docId, "corrupt");
@@ -1541,6 +1548,12 @@ export function AppShell() {
     return () => {
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
       engineGenerationRef.current += 1; // invalida ogni async in corso
+      // FIX 1: capture THIS load's gen SYNCHRONOUSLY at invalidation time.
+      // Never read chatGateGenRef.current inside the dispose callback — a newer
+      // load may have acquired a higher gen by then, and releasing it would
+      // idle the wrong owner.
+      const releasedGen = chatGateGenRef.current;
+      chatGateGenRef.current = null;
       // FIX 5: cancel background embed so it cannot lazy-initLlama after unmount.
       bumpEmbedJobGeneration();
       downloadAbortRef.current?.abort();
@@ -1553,10 +1566,8 @@ export function AppShell() {
       // half-finished summarize across unmount.
       abortBackgroundSummary();
       void disposeEngine().finally(() => {
-        // FIX B / FIX 1: unmount dispose frees the chat slot for THIS gen only.
-        const gen = chatGateGenRef.current;
-        chatGateGenRef.current = null;
-        if (gen !== null) markChatReleased(gen);
+        // FIX B / FIX 1: unmount dispose frees only the gen captured above.
+        if (releasedGen !== null) markChatReleased(releasedGen);
       });
       void releaseWhisper();
       void releaseEmbedder();
@@ -1710,12 +1721,17 @@ export function AppShell() {
           return false;
         }
         // Embedder holds the native slot and co-residency is off — force-release
-        // (bounded) then re-claim.
-        await releaseEmbedderBounded();
+        // (bounded) then re-claim. FIX 2: if the release times out, use the
+        // explicit force handoff so the first acquire path does not fail chat.
+        const releaseOutcome = await releaseEmbedderBounded();
         if (!stillCurrent()) {
           return false;
         }
-        chatGen = tryAcquireChat();
+        if (releaseOutcome === "timeout") {
+          chatGen = forceChatAcquireAfterEmbedTimeout();
+        } else {
+          chatGen = tryAcquireChat();
+        }
         if (chatGen === null) {
           // Still blocked — refuse chat load rather than race the embedder.
           setModelState("error");
@@ -1885,6 +1901,11 @@ export function AppShell() {
       // Sync transition: bump generation + show checking before dispose awaits.
       modelSwitchInFlightRef.current = true;
       engineGenerationRef.current += 1;
+      // FIX 1: capture THIS load's gen SYNCHRONOUSLY at switch/invalidation time.
+      // The dispose callback must never read chatGateGenRef.current — a newer
+      // ensureEngineForModel may have acquired a higher gen by then.
+      const releasedGen = chatGateGenRef.current;
+      chatGateGenRef.current = null;
       modelIndexRef.current = nextIndex; // keep stillCurrent() correct before re-render
       setModelIndex(nextIndex);
       setModelState("checking");
@@ -1917,10 +1938,8 @@ export function AppShell() {
         } catch {
           // ignore
         } finally {
-          // FIX B / FIX 1: dispose → free THIS gen only (stale gens no-op).
-          const gen = chatGateGenRef.current;
-          chatGateGenRef.current = null;
-          if (gen !== null) markChatReleased(gen);
+          // FIX B / FIX 1: dispose → free only the gen captured at switch time.
+          if (releasedGen !== null) markChatReleased(releasedGen);
           modelSwitchInFlightRef.current = false;
         }
       })();
@@ -2060,11 +2079,17 @@ export function AppShell() {
           // Double-load backstop — do not clobber an in-flight / ready chat.
           return;
         }
-        await releaseEmbedderBounded();
+        // FIX 2: on embed-held first acquire, force handoff after timeout so
+        // chat does not report engine error while native release is still pending.
+        const releaseOutcomeDl = await releaseEmbedderBounded();
         if (!stillCurrent()) {
           return;
         }
-        chatGenDl = tryAcquireChat();
+        if (releaseOutcomeDl === "timeout") {
+          chatGenDl = forceChatAcquireAfterEmbedTimeout();
+        } else {
+          chatGenDl = tryAcquireChat();
+        }
         if (chatGenDl === null) {
           setModelState("error");
           setModelErrorKind("engine");

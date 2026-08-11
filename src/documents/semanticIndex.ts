@@ -50,6 +50,11 @@ export type SemanticVectorJSON = {
     text?: string;
     contentHash?: string;
   }[];
+  /**
+   * True when the index was partial due to a memory cap (FIX 3).
+   * Serialized only when true so older sidecars without the field stay uncapped.
+   */
+  capped?: boolean;
 };
 
 function assertPositiveIntegerDims(d: unknown, where: string): number {
@@ -365,7 +370,10 @@ export class SemanticVectorIndex {
       }
       vectors.push(entry);
     }
-    return { dims: this.dims, vectors };
+    // FIX 3: persist the capped bit so a partial index restores as partial.
+    const out: SemanticVectorJSON = { dims: this.dims, vectors };
+    if (this._capped) out.capped = true;
+    return out;
   }
 
   static fromJSON(data: SemanticVectorJSON | null | undefined): SemanticVectorIndex {
@@ -395,6 +403,11 @@ export class SemanticVectorIndex {
       packed.push(item);
     }
     idx.addVectors(packed);
+    // FIX 3: restore capped flag directly (not via addVectors cap options).
+    // markCapped keeps _capped mutable for hosts that set it later.
+    if (data && data.capped === true) {
+      idx.markCapped();
+    }
     return idx;
   }
 }

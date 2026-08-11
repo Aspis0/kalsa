@@ -72,6 +72,7 @@ async function main() {
   const mod = require(modPath);
   const {
     tryAcquireChat,
+    forceChatAcquireAfterEmbedTimeout,
     markChatReady,
     markChatReleased,
     tryAcquireEmbed,
@@ -82,6 +83,7 @@ async function main() {
     allowsCoResidency,
     isChatModel2BClass,
     isChatModel4BClass,
+    isEmbedHeld,
     __resetForTests,
     CO_RESIDENCY_MIN_MEMORY_BYTES,
   } = mod;
@@ -268,6 +270,51 @@ async function main() {
     markChatReleased(b);
     const c = tryAcquireChat();
     assert(a < b && b < c, `monotonic ${a}<${b}<${c}`);
+  });
+
+  // ── FIX 2: forceChatAcquireAfterEmbedTimeout ────────────────────────────
+  check("embed-held force handoff → chat_loading with new gen", () => {
+    setCoResidencyContext({ totalMemoryBytes: 4e9, chatModelIs2B: false });
+    assert(tryAcquireEmbed() === true, "embed held");
+    assert(getState() === "embed_active", `got ${getState()}`);
+    assert(tryAcquireChat() === null, "normal acquire refused without co-res");
+    const genBefore = getChatGeneration();
+    const forced = forceChatAcquireAfterEmbedTimeout();
+    assert(typeof forced === "number" && forced > 0, `forced gen, got ${forced}`);
+    assert(forced > genBefore, `new gen ${forced} > ${genBefore}`);
+    assert(getState() === "chat_loading", `got ${getState()}`);
+    assert(getChatGeneration() === forced, "getChatGeneration matches forced");
+    // Embed re-init refused while chat_loading.
+    assert(tryAcquireEmbed() === false, "embed refused during forced chat_loading");
+  });
+
+  check("stale embed release after force handoff is no-op on state", () => {
+    setCoResidencyContext({ totalMemoryBytes: 4e9, chatModelIs2B: false });
+    assert(tryAcquireEmbed() === true, "embed");
+    const forced = forceChatAcquireAfterEmbedTimeout();
+    assert(forced !== null, "forced");
+    assert(getState() === "chat_loading", "loading");
+    // Late releaseEmbed from the timed-out embed path: clears embedHeld but
+    // must NOT flip state out of chat_loading (releaseEmbed only idles from
+    // embed_active).
+    releaseEmbed();
+    assert(getState() === "chat_loading", `still chat_loading after late releaseEmbed, got ${getState()}`);
+    if (typeof isEmbedHeld === "function") {
+      assert(isEmbedHeld() === false, "embedHeld cleared");
+    }
+    markChatReady(forced);
+    assert(getState() === "chat_ready", "ready after forced gen");
+    markChatReleased(forced);
+    assert(getState() === "idle", "idle after proper release");
+  });
+
+  check("force handoff refused while already chat_loading/ready", () => {
+    const gen = tryAcquireChat();
+    assert(gen !== null, "chat");
+    assert(forceChatAcquireAfterEmbedTimeout() === null, "refuse while loading");
+    markChatReady(gen);
+    assert(forceChatAcquireAfterEmbedTimeout() === null, "refuse while ready");
+    assert(getState() === "chat_ready", "still ready");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

@@ -620,6 +620,39 @@ async function main() {
     assert(open.isCapped === false, "not capped without capOpts");
   });
 
+  // ── FIX 3: persist/restore capped bit ────────────────────────────────────
+  check("26. toJSON/fromJSON capped round-trip (markCapped → isCapped true)", () => {
+    const idx = new SemanticVectorIndex({ dims: 4 });
+    idx.addVectors([
+      { chunkId: "a", vector: vec(1, 0, 0, 0) },
+      { chunkId: "b", vector: vec(0, 1, 0, 0) },
+    ]);
+    assert(idx.isCapped === false, "uncapped before mark");
+    idx.markCapped();
+    assert(idx.isCapped === true, "marked capped");
+    const json = idx.toJSON();
+    assert(json.capped === true, `toJSON capped field, got ${json.capped}`);
+    const restored = SemanticVectorIndex.fromJSON(json);
+    assert(restored.isCapped === true, "fromJSON restores isCapped true");
+    assert(restored.chunkCount === 2, "vectors restored");
+  });
+
+  check("27. toJSON/fromJSON uncapped round-trip stays false", () => {
+    const idx = new SemanticVectorIndex({ dims: 4 });
+    idx.addVectors([{ chunkId: "a", vector: vec(1, 0, 0, 0) }]);
+    assert(idx.isCapped === false, "uncapped");
+    const json = idx.toJSON();
+    assert(json.capped === undefined || json.capped === false, "no capped field when false");
+    const restored = SemanticVectorIndex.fromJSON(json);
+    assert(restored.isCapped === false, "fromJSON stays uncapped");
+    // Older sidecars without the field also restore as uncapped.
+    const legacy = SemanticVectorIndex.fromJSON({
+      dims: 4,
+      vectors: [{ chunkId: "x", vector: [1, 0, 0, 0] }],
+    });
+    assert(legacy.isCapped === false, "legacy without capped field is uncapped");
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
 }
