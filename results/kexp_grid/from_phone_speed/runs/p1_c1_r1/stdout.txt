@@ -1,0 +1,16 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: On a modern smartphone with 8GB of RAM and UFS 3.1 flash storage, why can a dense 4B language model run smoothly while a 35B mixture-of-experts model with only about 3B active parameters still needs careful expert streaming from flash? Mention memory footprint, page faults, and thermal limits in your answer.
+Assistant:Running a dense 4B model fits entirely within the 8GB RAM, allowing for fast, direct access without the need for swapping data to slower storage, whereas the 35B MoE model exceeds available RAM, forcing the system to constantly stream inactive experts from the UFS 3.1 flash storage. This frequent data movement triggers page faults as the operating system manages memory pages and generates significant heat due to the high I/O throughput required, quickly hitting thermal limits that throttle performance.
+
+*   **Memory Footprint and Page Faults:** The 4B model’s weights (approx. 8GB for FP16) barely fit in RAM, enabling smooth inference, while the 35B MoE model’s total size far exceeds 8GB, causing the OS to swap inactive expert weights between RAM and flash storage, leading to latency spikes from page faults.
+*   **Thermal Limits:** The continuous, high-volume read operations needed to stream experts from UFS
+
+generation: 200 tokens, 0.133 s/token (7.531 tok/s)
+compute: 79.2% CPU occupancy (0.4207 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 114 tokens, 9.115 s (12.5 tok/s) | model load 10.159 s | TTFT 19.274 s
+moe-stream: read 5832.6 MiB (29.16 MiB/token), decode 0.133 s/token (compute 0.098 + cache mgmt 0.006 + flash I/O 0.100 s/token, 292 MiB/s)
+moe-cache: 78.8% hit, resident 1999.2 MiB
+moe-cache: 8195 evictions, 4582 re-reads (22.9/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.028 s/token (flash reads overlapped with FFN compute)
+moe-drop: 5279/48000 routed experts dropped (11.0%), threshold 0.80 x uniform

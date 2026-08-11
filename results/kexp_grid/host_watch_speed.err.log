@@ -1,0 +1,144 @@
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.log' because it is being used by 
+another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kexp_grid\host_watch_speed.ps1:7 char:43
++ ...  $line = "[$(Stamp)] $m"; Add-Content -Path $log -Value $line; Write- ...
++                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...watch_speed.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 

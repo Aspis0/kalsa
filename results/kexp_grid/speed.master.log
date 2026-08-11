@@ -1,0 +1,52 @@
+[2026-08-10T21:03:31-0400] speed grid start model=/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf bin=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a  /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+[2026-08-10T21:04:15-0400] preflight plugged=UNPLUGGED batt=98
+[2026-08-10T21:04:15-0400] CELL p1_c1_r1 cfg=k6d080 k=6 drop=0.80 ngen=200 batt=98
+[2026-08-10T21:05:06-0400] DONE p1_c1_r1 tok_s=7.531 prefill=12.5 hit=78.8 drop=11.0 wall=46 n_gen=200 rc=0
+[2026-08-10T21:05:06-0400] CELL p1_c2_r1 cfg=k6d065 k=6 drop=0.65 ngen=200 batt=97
+[2026-08-10T21:06:01-0400] DONE p1_c2_r1 tok_s=6.426 prefill=12.7 hit=75.9 drop=5.1 wall=51 n_gen=199 rc=0
+[2026-08-10T21:06:02-0400] CELL p1_ctrl_r1 cfg=k8d065 k=8 drop=0.65 ngen=200 batt=97
+[2026-08-10T21:07:08-0400] DONE p1_ctrl_r1 tok_s=5.323 prefill=10.3 hit=75.7 drop=7.2 wall=61 n_gen=200 rc=0
+[2026-08-10T21:07:10-0400] CELL p1_ctrl_r2 cfg=k8d065 k=8 drop=0.65 ngen=200 batt=96
+[2026-08-10T21:08:19-0400] DONE p1_ctrl_r2 tok_s=5.207 prefill=10.0 hit=75.7 drop=7.2 wall=63 n_gen=200 rc=0
+[2026-08-10T21:08:20-0400] CELL p1_c2_r2 cfg=k6d065 k=6 drop=0.65 ngen=200 batt=95
+[2026-08-10T21:09:22-0400] DONE p1_c2_r2 tok_s=5.922 prefill=11.0 hit=75.9 drop=5.1 wall=56 n_gen=199 rc=0
+[2026-08-10T21:09:23-0400] CELL p1_c1_r2 cfg=k6d080 k=6 drop=0.80 ngen=200 batt=95
+[2026-08-10T21:10:24-0400] DONE p1_c1_r2 tok_s=6.127 prefill=10.6 hit=78.8 drop=11.0 wall=56 n_gen=200 rc=0
+[2026-08-10T21:10:26-0400] CELL p2_c1_r1 cfg=k6d080 k=6 drop=0.80 ngen=200 batt=95
+[2026-08-10T21:11:32-0400] DONE p2_c1_r1 tok_s=5.612 prefill=10.9 hit=82.7 drop=9.9 wall=59 n_gen=200 rc=0
+[2026-08-10T21:11:34-0400] CELL p2_c2_r1 cfg=k6d065 k=6 drop=0.65 ngen=200 batt=94
+[2026-08-10T21:12:42-0400] DONE p2_c2_r1 tok_s=5.413 prefill=10.3 hit=79.7 drop=4.6 wall=61 n_gen=200 rc=0
+[2026-08-10T21:12:43-0400] CELL p2_ctrl_r1 cfg=k8d065 k=8 drop=0.65 ngen=200 batt=94
+[2026-08-10T21:13:58-0400] DONE p2_ctrl_r1 tok_s=4.847 prefill=8.8 hit=79.0 drop=7.3 wall=68 n_gen=200 rc=0
+[2026-08-10T21:13:59-0400] CELL p2_ctrl_r2 cfg=k8d065 k=8 drop=0.65 ngen=200 batt=93
+[2026-08-10T21:15:11-0400] DONE p2_ctrl_r2 tok_s=5.111 prefill=9.0 hit=79.0 drop=7.3 wall=66 n_gen=200 rc=0
+[2026-08-10T21:15:12-0400] CELL p2_c2_r2 cfg=k6d065 k=6 drop=0.65 ngen=200 batt=93
+[2026-08-10T21:16:18-0400] DONE p2_c2_r2 tok_s=5.799 prefill=10.0 hit=79.7 drop=4.6 wall=60 n_gen=200 rc=0
+[2026-08-10T21:16:20-0400] CELL p2_c1_r2 cfg=k6d080 k=6 drop=0.80 ngen=200 batt=92
+[2026-08-10T21:17:28-0400] DONE p2_c1_r2 tok_s=5.435 prefill=10.1 hit=82.7 drop=9.9 wall=61 n_gen=200 rc=0
+MEDIANS {'k6d080': 5.8695, 'k6d065': 5.8605, 'k8d065': 5.159}
+TIE within 2% -> prefer better PPL: ['k6d080', 'k6d065'] -> k6d065
+WINNER k6d065 med 5.8605
+[2026-08-10T21:17:29-0400] sostenuto winner cfg=k6d065 k=6 drop=0.65 n=512
+[2026-08-10T21:17:30-0400] CELL sos_k6d065_n512 cfg=k6d065 k=6 drop=0.65 ngen=512 batt=92
+[2026-08-10T21:18:37-0400] DONE sos_k6d065_n512 tok_s=5.471 prefill=10.0 hit=75.9 drop=5.1 wall=60 n_gen=199 rc=0
+[2026-08-10T21:18:38-0400] speed grid done
+label,cfg,k,drop,prompt,rep,tok_s,prefill_tps,hit,drop_pct,wall_s,n_gen,rc,batt
+p1_c1_r1,k6d080,6,0.80,short.txt,1,7.531,12.5,78.8,11.0,46,200,0,98
+p1_c2_r1,k6d065,6,0.65,short.txt,1,6.426,12.7,75.9,5.1,51,199,0,97
+p1_ctrl_r1,k8d065,8,0.65,short.txt,1,5.323,10.3,75.7,7.2,61,200,0,97
+p1_ctrl_r2,k8d065,8,0.65,short.txt,2,5.207,10.0,75.7,7.2,63,200,0,96
+p1_c2_r2,k6d065,6,0.65,short.txt,2,5.922,11.0,75.9,5.1,56,199,0,95
+p1_c1_r2,k6d080,6,0.80,short.txt,2,6.127,10.6,78.8,11.0,56,200,0,95
+p2_c1_r1,k6d080,6,0.80,f45_1.txt,1,5.612,10.9,82.7,9.9,59,200,0,95
+p2_c2_r1,k6d065,6,0.65,f45_1.txt,1,5.413,10.3,79.7,4.6,61,200,0,94
+p2_ctrl_r1,k8d065,8,0.65,f45_1.txt,1,4.847,8.8,79.0,7.3,68,200,0,94
+p2_ctrl_r2,k8d065,8,0.65,f45_1.txt,2,5.111,9.0,79.0,7.3,66,200,0,93
+p2_c2_r2,k6d065,6,0.65,f45_1.txt,2,5.799,10.0,79.7,4.6,60,200,0,93
+p2_c1_r2,k6d080,6,0.80,f45_1.txt,2,5.435,10.1,82.7,9.9,61,200,0,92
+sos_k6d065_n512,k6d065,6,0.65,short.txt,1,5.471,10.0,75.9,5.1,60,199,0,92
+k6d065
+med_tok_s=5.8605
+all={'k6d080': 5.8695, 'k6d065': 5.8605, 'k8d065': 5.159}

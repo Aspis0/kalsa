@@ -1058,6 +1058,30 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-10 — 🎯 GRIGLIA KEXP COMPLETA: k=6 VIVE (PPL 1.852 ≤ floor) a
+  +13.6% di velocità — il "pruning" è arrivato GRATIS e la porta RunPod
+  neuron+healing si CHIUDE per superfluità (trigger dichiarato rispettato).
+  Proposta default: k=6 drop=0.65 → 5.86 tok/s a qualità MIGLIORE del vecchio
+  prodotto.**
+
+  Report: `moe-adopt-kexp.md` (adozione formale KEXP committata `5f03add`,
+  41 script migrati). Griglia PPL (floor 2.0955): 4 celle vive su 5 misurate —
+  k8d080 1.597, k8d100 1.682, k6d065 1.852, k6d080 1.965; morta solo k6d100
+  (2.136). Ordinamenti monotoni e coerenti con la fisica. Velocità staccato:
+  k6d065 e k6d080 appaiati (~5.87, Δ0.15%) → regola tie applicata come
+  dichiarata → **winner k6d065** (PPL migliore).
+
+  **Il bilancio della conversione qualità→velocità** (vs prodotto IQ2_M di due
+  giorni fa): decode 4.4 → **5.86 tok/s (+33%)**, PPL 2.0955 → **1.852
+  (MIGLIORE)**, load e prefill invariati. Il tesoretto del KEXP ha pagato due
+  volte: metà speso in velocità, e ne avanza (1.852 ≪ 2.0955).
+
+  Flag residuo: il sostenuto n=512 del winner è monco (EOS a 199 su short) —
+  rifarlo con prompt lungo nel refresh della scheda prodotto. Nota: il gate
+  T3 del trial Marco si alza da solo (comparatore = KEXP al NUOVO default).
+
+  Decisione default (A=k6d065 raccomandata / B=k6d080 / C=status quo): gualt.
+
 - **2026-08-10 — 🔭 RICERCA SUCCESSORI: la lista di gualt non regge il criterio
   multilingua (EN/ES/FR/IT/ZH), ma la ricerca ha scovato il dark horse:
   Marco-Mini-Instruct 17.3B-A0.86B (Alibaba AIDC) — 5/5 lingue, Apache 2.0,
