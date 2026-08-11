@@ -1,0 +1,1 @@
+BMOE_PPL {"n_tokens":3578,"n_scored":3577,"sum_logprob":-16981.50211399,"ppl":115.285842,"seconds":881.012,"cancelled":false,"mode":"decode","file":"/data/data/com.termux/files/home/experiments/corpus/multi5/it_slice.txt"}

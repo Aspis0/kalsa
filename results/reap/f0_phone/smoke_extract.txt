@@ -1,0 +1,9 @@
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:llama_model_loader: - kv  17:                     qwen35moe.expert_count u32              = 205
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:llama_model_loader: - kv  18:                qwen35moe.expert_used_count u32              = 8
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:validate_override: Using metadata override (  int) 'qwen35moe.expert_used_count' = 8
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:print_info: n_expert              = 205
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:print_info: n_expert_used         = 8
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:print_info: n_expert_groups       = 0
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:bmoe: expert streaming ON  n_expert=205 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stdout:generation: 32 tokens, 0.188 s/token (5.328 tok/s)
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stdout:moe-stream: read 2693.6 MiB (84.18 MiB/token), decode 0.188 s/token (compute 0.112 + cache mgmt 0.011 + flash I/O 0.267 s/token, 316 MiB/s)

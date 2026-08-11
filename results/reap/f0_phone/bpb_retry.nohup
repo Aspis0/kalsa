@@ -1,0 +1,15 @@
+[2026-08-11T00:33:14-0400] BPB_RETRY en
+[2026-08-11T00:43:26-0400] bpb en rc=0
+bmoe: expert streaming ON  n_expert=205 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+ppl-decode: n_tokens=2689 n_ctx=4096 batch=1 moe=1 drop_cold=0.000 k=8
+ppl-decode: scored 2688 / 2688 tokens (sum_logprob=-6873.9999)
+ppl done (decode): n_scored=2688 ppl=12.9008 sum_logprob=-6873.9999 (602.9 s)
+~llama_context:        CPU compute buffer size is 501.0196 MiB, matches expectation of 501.0196 MiB
+[2026-08-11T00:43:26-0400] BPB_RETRY it
+[2026-08-11T00:58:19-0400] bpb it rc=0
+bmoe: expert streaming ON  n_expert=205 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+ppl-decode: n_tokens=3578 n_ctx=4096 batch=1 moe=1 drop_cold=0.000 k=8
+ppl-decode: scored 3577 / 3577 tokens (sum_logprob=-16981.5021)
+ppl done (decode): n_scored=3577 ppl=115.2858 sum_logprob=-16981.5021 (881.0 s)
+~llama_context:        CPU compute buffer size is 501.0196 MiB, matches expectation of 501.0196 MiB
+[2026-08-11T00:58:19-0400] F0 PASS (pipeline phone)

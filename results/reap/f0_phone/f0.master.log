@@ -1,0 +1,37 @@
+[2026-08-11T00:30:49-0400] F0 start model=/data/data/com.termux/files/home/experiments/models/Qwen3.6-28B-REAP20-A3B-Q2_K.gguf
+-rw-------. 1 u0_a344 u0_a344 10599958400 Aug 11 00:30 /data/data/com.termux/files/home/experiments/models/Qwen3.6-28B-REAP20-A3B-Q2_K.gguf
+2b0a435935e9ec7e6f6b455e008db024f07c2f7ec6a979def045c27df0ee717a  /data/data/com.termux/files/home/experiments/models/Qwen3.6-28B-REAP20-A3B-Q2_K.gguf
+[2026-08-11T00:31:22-0400] SMOKE gen n=32
+[2026-08-11T00:31:46-0400] smoke rc=0
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:llama_model_loader: - kv  17:                     qwen35moe.expert_count u32              = 205
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:llama_model_loader: - kv  18:                qwen35moe.expert_used_count u32              = 8
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:validate_override: Using metadata override (  int) 'qwen35moe.expert_used_count' = 8
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:print_info: n_expert              = 205
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:print_info: n_expert_used         = 8
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:print_info: n_expert_groups       = 0
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stderr:bmoe: expert streaming ON  n_expert=205 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stdout:generation: 32 tokens, 0.188 s/token (5.328 tok/s)
+/data/data/com.termux/files/home/experiments/results/reap/f0/smoke.stdout:moe-stream: read 2693.6 MiB (84.18 MiB/token), decode 0.188 s/token (compute 0.112 + cache mgmt 0.011 + flash I/O 0.267 s/token, 316 MiB/s)
+[2026-08-11T00:31:46-0400] parsed n_expert=205 n_expert_used=8
+[2026-08-11T00:31:46-0400] BPB en corpus=/data/data/com.termux/files/home/experiments/corpus/multi5/en_slice.txt bytes=12000
+[2026-08-11T00:31:47-0400] bpb en rc=1
+unknown arg: /data/data/com.termux/files/home/experiments/corpus/multi5/en_slice.txt
+[2026-08-11T00:31:47-0400] BPB it corpus=/data/data/com.termux/files/home/experiments/corpus/multi5/it_slice.txt bytes=12000
+[2026-08-11T00:31:47-0400] bpb it rc=1
+unknown arg: /data/data/com.termux/files/home/experiments/corpus/multi5/it_slice.txt
+[2026-08-11T00:31:47-0400] F0 PARTIAL/FAIL smoke=0 en=1 it=1
+[2026-08-11T00:33:14-0400] BPB_RETRY en
+[2026-08-11T00:43:26-0400] bpb en rc=0
+bmoe: expert streaming ON  n_expert=205 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+ppl-decode: n_tokens=2689 n_ctx=4096 batch=1 moe=1 drop_cold=0.000 k=8
+ppl-decode: scored 2688 / 2688 tokens (sum_logprob=-6873.9999)
+ppl done (decode): n_scored=2688 ppl=12.9008 sum_logprob=-6873.9999 (602.9 s)
+~llama_context:        CPU compute buffer size is 501.0196 MiB, matches expectation of 501.0196 MiB
+[2026-08-11T00:43:26-0400] BPB_RETRY it
+[2026-08-11T00:58:19-0400] bpb it rc=0
+bmoe: expert streaming ON  n_expert=205 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+ppl-decode: n_tokens=3578 n_ctx=4096 batch=1 moe=1 drop_cold=0.000 k=8
+ppl-decode: scored 3577 / 3577 tokens (sum_logprob=-16981.5021)
+ppl done (decode): n_scored=3577 ppl=115.2858 sum_logprob=-16981.5021 (881.0 s)
+~llama_context:        CPU compute buffer size is 501.0196 MiB, matches expectation of 501.0196 MiB
+[2026-08-11T00:58:19-0400] F0 PASS (pipeline phone)
