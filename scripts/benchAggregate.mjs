@@ -933,8 +933,10 @@ function collectPrefill(fase4) {
 
 /**
  * Compare one control/treatment pair on a single seed's positiveControl blobs.
- * Treatment arms (v42, ciswire) are expected to have compactorChars > 0 while
- * baseline stays 0 (reset_chat clears the key).
+ * Real mechanism evidence is prompt-token divergence on turns ≥ 2, or a
+ * non-empty BM25 digest (`digestCharsByTurn[t] > 0` for some t ≥ 2) on the
+ * treatment arm. `compactorChars` alone is hollow (serialized state length
+ * written even when the digest is empty) and must not yield ARMS DIFFER.
  */
 function scorePositivePair(pcA, pcB, { treatmentArm }) {
   const tokensA = pcA.promptTokensByTurn ?? {};
@@ -957,18 +959,24 @@ function scorePositivePair(pcA, pcB, { treatmentArm }) {
     if (tokensA[t] !== tokensB[t]) different += 1;
   }
 
-  // Compactor / BM25 digest: treatment > 0, baseline 0 (covers v42 AND ciswire).
-  const compactorDiffersExpected = compB > 0 && compA === 0;
+  // Real retrieval signal: frozenDigest length on some turn ≥ 2 (treatment).
+  const digestB = pcB.digestCharsByTurn ?? {};
+  let hasTreatmentDigest = false;
+  for (const t of Object.keys(digestB)) {
+    if (Number(t) >= 2 && typeof digestB[t] === "number" && digestB[t] > 0) {
+      hasTreatmentDigest = true;
+      break;
+    }
+  }
+  const realMechanism = different > 0 || hasTreatmentDigest;
 
   let verdict;
-  if (allCommon.length === 0 && !(compA > 0 || compB > 0)) {
+  if (allCommon.length === 0 && !realMechanism && !(compA > 0 || compB > 0)) {
     verdict = "NO OVERLAPPING PROMPT TOKENS";
-  } else if (commonTurns.length === 0 && !compactorDiffersExpected) {
+  } else if (commonTurns.length === 0 && !realMechanism) {
     verdict = "INSUFFICIENT — turn 1 only (excluded; pre-compaction)";
-  } else if (different > 0 || compactorDiffersExpected) {
+  } else if (realMechanism) {
     verdict = "ARMS DIFFER";
-  } else if (different === 0 && compA === 0 && compB === 0) {
-    verdict = "MEASURING NOTHING";
   } else {
     verdict = "MEASURING NOTHING";
   }
@@ -1647,6 +1655,12 @@ function renderGateFailures(agg) {
   const hasPrimaryUsableZero = agg.primaryUsableZero === true;
   const hasSummaryCaptureEmpty = agg.summaryCaptureEmpty === true;
   const posCtrlFailed = agg.positiveControl.gateFailed === true;
+  // Mirror arm-level benchGrade: a failed logcat dump is lost evidence, not a green arm.
+  const captureFailed = (agg.fase4 ?? []).filter(
+    (r) =>
+      Array.isArray(r.captureFailedTurns) && r.captureFailedTurns.length > 0,
+  );
+  const hasCaptureFailed = captureFailed.length > 0;
   const seedsInfo = agg.seedsInfo;
 
   if (
@@ -1657,7 +1671,8 @@ function renderGateFailures(agg) {
     !hasInsufficientUsable &&
     !hasPrimaryUsableZero &&
     !hasSummaryCaptureEmpty &&
-    !posCtrlFailed
+    !posCtrlFailed &&
+    !hasCaptureFailed
   ) {
     return { markdown: "", exitCode: 0 };
   }
@@ -1770,10 +1785,25 @@ function renderGateFailures(agg) {
       );
     } else {
       lines.push(
-        "**Positive control failed:** empty/no-overlap prompt token maps, turn-1-only overlap (insufficient), or no seed with ARMS DIFFER on turns ≥ 2 or via compactorChars.",
+        "**Positive control failed:** empty/no-overlap prompt token maps, turn-1-only overlap (insufficient), or no seed with ARMS DIFFER on turns ≥ 2 or via real digest / token divergence.",
         "",
       );
     }
+  }
+
+  if (hasCaptureFailed) {
+    lines.push(
+      "**captureFailedTurns non-empty** — logcat dump failed on at least one turn; telemetry for those turns is unrecoverable (failed capture, not empty). Numbers from these arms must not reach a green report.",
+      "",
+      "| arm | seed | turns |",
+      "|---|---|---|",
+    );
+    for (const r of captureFailed) {
+      lines.push(
+        `| ${r.arm} | ${r.seed} | ${r.captureFailedTurns.join(", ")} |`,
+      );
+    }
+    lines.push("");
   }
 
   return { markdown: lines.join("\n"), exitCode: 1 };

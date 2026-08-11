@@ -1026,15 +1026,17 @@ async function main() {
         `exit=${rT2.exitCode}`,
       );
 
-      // Equal token counts on turns ≥ 2, but treatment compactorChars > 0 → pass
-      const viaComp = path.join(tmp, "via-compactor");
-      mkdirSync(viaComp, { recursive: true });
+      // Equal token counts on turns ≥ 2, but treatment digestCharsByTurn > 0 → pass
+      // (real BM25 signal; hollow compactorChars alone must NOT pass — see hollow-compactor)
+      const viaDigest = path.join(tmp, "via-digest");
+      mkdirSync(viaDigest, { recursive: true });
       for (const seed of [1, 2, 3]) {
-        writeTriplet(viaComp, seed, {
+        writeTriplet(viaDigest, seed, {
           basePc: {
             promptTokensByTurn: { "1": 100, "2": 200 },
             reusedTokensByTurn: {},
             completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 0 },
             compactorChars: 0,
             summaryChars: 0,
           },
@@ -1042,6 +1044,7 @@ async function main() {
             promptTokensByTurn: { "1": 100, "2": 200 },
             reusedTokensByTurn: {},
             completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 40 },
             compactorChars: 777,
             summaryChars: 12,
           },
@@ -1049,19 +1052,68 @@ async function main() {
             promptTokensByTurn: { "1": 100, "2": 200 },
             reusedTokensByTurn: {},
             completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 55 },
             compactorChars: 888,
             summaryChars: 12,
           },
         });
       }
-      const rComp = withEnv(
+      const rDigest = withEnv(
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
-        () => runAggregate([viaComp]),
+        () => runAggregate([viaDigest]),
       );
       check(
-        "C3: equal tokens but treatment compactorChars>0 passes (ARMS DIFFER)",
-        rComp.exitCode === 0 && rComp.markdown.includes("ARMS DIFFER"),
-        `exit=${rComp.exitCode}\n${rComp.markdown.split("\n").filter((l) => /ARMS|MEASURING|compactor/i.test(l)).join("\n")}`,
+        "C3: equal tokens but treatment digestCharsByTurn>0 passes (ARMS DIFFER)",
+        rDigest.exitCode === 0 && rDigest.markdown.includes("ARMS DIFFER"),
+        `exit=${rDigest.exitCode}\n${rDigest.markdown.split("\n").filter((l) => /ARMS|MEASURING|compactor|digest/i.test(l)).join("\n")}`,
+      );
+
+      // Hollow evidence: identical prompt tokens, compactorChars>0 (serialized
+      // state present), digestCharsByTurn all zero → MEASURING NOTHING / exit 1.
+      // Pre-fix, scorePositivePair treated compactorChars alone as ARMS DIFFER.
+      // 3 modes × 6 seeds = 18 gated files.
+      const hollow = path.join(tmp, "hollow-compactor");
+      mkdirSync(hollow, { recursive: true });
+      for (const seed of [1, 2, 3, 4, 5, 6]) {
+        writeTriplet(hollow, seed, {
+          basePc: {
+            promptTokensByTurn: { "1": 100, "2": 200 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 0 },
+            boundaryByTurn: { "1": null, "2": null },
+            compactorChars: 0,
+            summaryChars: 0,
+          },
+          v42Pc: {
+            promptTokensByTurn: { "1": 100, "2": 200 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 0 },
+            boundaryByTurn: { "1": 0, "2": 0 },
+            compactorChars: 100,
+            summaryChars: 0,
+          },
+          cisPc: {
+            promptTokensByTurn: { "1": 100, "2": 200 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            digestCharsByTurn: { "1": 0, "2": 0 },
+            boundaryByTurn: { "1": 0, "2": 0 },
+            compactorChars: 120,
+            summaryChars: 0,
+          },
+        });
+      }
+      const rHollow = withEnv(
+        { BENCH_EXPECT_SEEDS: "6", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([hollow]),
+      );
+      check(
+        "C3: hollow compactorChars (digest all 0, tokens identical) fails gate",
+        rHollow.exitCode !== 0 &&
+          rHollow.markdown.includes("MEASURING NOTHING"),
+        `exit=${rHollow.exitCode}\n${rHollow.markdown.split("\n").filter((l) => /ARMS|MEASURING|positive control/i.test(l)).join("\n")}`,
       );
 
       // Equal tokens + zero compactor on all arms → MEASURING NOTHING

@@ -1702,6 +1702,23 @@ export function AppShell() {
                     } catch {
                       // best-effort
                     }
+                    // clearChat may land between the pre-write epoch check and
+                    // the completed setItem — re-check and scrub the stale key.
+                    if (
+                      (summaryEpochByChat.get(capturedChatId) ?? 0) !==
+                      capturedEpoch
+                    ) {
+                      pendingSummaryByChat.delete(capturedChatId);
+                      try {
+                        await AsyncStorage.removeItem(
+                          summaryStorageKey(capturedChatId),
+                        );
+                      } catch {
+                        // best-effort
+                      }
+                      console.log(formatSummaryLine("llm-aborted", { turn }));
+                      return;
+                    }
                   } catch {
                     console.log(formatSummaryLine("llm-error", { turn }));
                     // keep previous rollingSummary
