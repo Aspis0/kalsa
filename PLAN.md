@@ -1059,6 +1059,42 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-11 — 🚪 DOSSIER PORTA-740 IN COMPOSIZIONE (tesi gualt: kernel custom
+  su Adreno vecchi). Due fonti già acquisite, terza (recon Grok) in volo:**
+  1. **adreno-llms** (github.com/a8nova/adreno-llms, Apache 2.0, trovato da
+     gualt): kernel OpenCL a mano su Adreno **620** — GEMV cooperativo WG=64 +
+     riduzione in **local memory** (= niente subgroup broadcast, il killer del
+     path llama.cpp sul 740). SmolLM2-135M a 24.4 tok/s decode, ~79% del
+     ceiling banda. Regime provato: modelli 135-450M interamente residenti —
+     100× sotto il nostro; trasferisce la RICETTA kernel, non il motore.
+     È anche un **competitor**: app "Edgi" su Play (NNOpt), multimodale
+     on-device fascia media (schedato in memoria prodotto).
+  2. **HAQA** (arXiv:2601.03484, testato su OnePlus 11 = 740): **INT8 batte
+     INT4 sul 740** (niente INT4 nativo → tassa di unpack) — la lezione
+     "formato senza gather" riconfermata su GPU. Regola per eventuali kernel
+     740: path a 8 bit.
+  3. **Recon arrivata e arbitrata** (`research-adreno740-custom.md`). Verdetto
+     tesi: **PARZIALE, con proxy fortissimo** — **ML Drift (Google) misura
+     26.8 tok/s di DECODE su Llama-3.2-3B sull'Adreno 740 del S23 Ultra**
+     (e 10.7 su un 8B!) con kernel texture-based senza subgroup: ~2.7× il
+     nostro CPU baseline, MA fonti/quant diverse (no A/B same-bench). Contro:
+     MNN su 750 mostra GPU<CPU anche con engine buono (regime memory-bound);
+     driver 0676.73 = capolinea senza root; Vulkan-740 non provato corretto.
+     **Raccomandazione della ricerca, condivisa dal coordinatore: NON riaprire
+     il fork-kernel; prima il fail-fast F0-F1 da UN GIORNO e ZERO fork —
+     installare LiteRT-LM/demo sul S23 e misurare il decode sustained contro
+     il nostro llama-bench CPU sullo stesso telefono.** Solo un F1 ≥1.15×
+     con margine giustificherebbe lo spike kernel (F3: GEMM local-memory
+     no-subgroup nel fork llama, giorni + manutenzione permanente).
+
+  **STATO CAMPI (per ripresa sessione):** S23 → fix-session in volo (recupero
+  conv5 TTFT + N1 v2 + energia); PC → trial Marco T2b/T2c in corso (baseline
+  k6d065 partita 05:26, Marco multi5 in scrittura) + eventuale build Vulkan
+  NDK; Xiaomi → stasera (smoke 15s di gualt + S1; v2 mandato con S0.3-bis);
+  in coda su S23: `shortlist-velocita.md` (k=5 → drop-by-weight → top-p,
+  pareto). Decisioni aperte di gualt: verdetto Marco a valle di T2c (→
+  eventuale MarcoKEXP), GO Fase 1 integrazione Kalsa, nome CalaQwen, ventola.
+
 - **2026-08-11 — 🔬 RICERCA SPEED-PRUNING: nessun free lunch in letteratura —
   "k ridotto + drop-by-weight" (già in faretra) è la scommessa giusta, ceiling
   onesto +7-15%. REAP pod RINVIATO (decisione gualt: +2-4% non paga $50-120).**
