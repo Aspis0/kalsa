@@ -284,6 +284,115 @@ async function main() {
     assert(order.join(">") === "skip>dispose", order.join(">"));
   });
 
+  // --- Round-2 lifecycle race tests ---
+
+  await test("lifecycle awaits turn-end save BEFORE dispose (deferred state)", async () => {
+    // Mirrors AiChatPage: turnEndSavePromiseRef is installed SYNCHRONOUSLY
+    // before a deferred setMessages updater runs the actual save. Lifecycle
+    // must await that promise before dispose, even if messagesRef is still
+    // pre-finalization when lifecycle starts.
+    const order = [];
+    let resolveSave;
+    const turnEndSavePromise = new Promise((r) => {
+      resolveSave = r;
+    });
+    // Lifecycle observes the promise immediately (sync install).
+    const lifecycle = async () => {
+      order.push("lifecycle-start");
+      // Abort phase
+      order.push("abort");
+      // Await turn-end save (installed before setMessages returns)
+      await turnEndSavePromise;
+      order.push("save-awaited");
+      return { historyHashValue: "hash-final" };
+    };
+    // Deferred "setMessages updater" schedules the real save after a tick
+    // (simulates React applying the updater after paint).
+    void Promise.resolve().then(async () => {
+      order.push("updater-runs");
+      await new Promise((r) => setTimeout(r, 20));
+      order.push("save-done");
+      resolveSave();
+    });
+    const result = await lifecycle();
+    order.push("dispose");
+    assert(result.historyHashValue === "hash-final", "hash");
+    // save-done must precede dispose; updater may interleave before or after
+    // lifecycle-start but save must complete before dispose.
+    const saveIdx = order.indexOf("save-done");
+    const disposeIdx = order.indexOf("dispose");
+    const awaitedIdx = order.indexOf("save-awaited");
+    assert(saveIdx >= 0 && disposeIdx >= 0, `order=${order.join(">")}`);
+    assert(saveIdx < disposeIdx, `save before dispose: ${order.join(">")}`);
+    assert(awaitedIdx < disposeIdx, `await before dispose: ${order.join(">")}`);
+  });
+
+  await test("abort during fit-gate cancels impending handleSend (claim+signal)", async () => {
+    // Mirrors handleSend: sendClaimRef reserved, preSendController installed,
+    // then await fit gate. Lifecycle aborts during the await → handleSend
+    // must refuse before claiming sendingRef / starting generation.
+    const sendClaim = { current: false };
+    const abortRef = { current: null };
+    const regenAbort = { current: null };
+    let generationStarted = false;
+
+    async function simulatedHandleSend(fitGateMs) {
+      if (sendClaim.current) return { ok: false, reasonKey: "chat.sendBusy" };
+      sendClaim.current = true;
+      const preSendController = new AbortController();
+      abortRef.current = preSendController;
+      try {
+        // Fit-gate await (uncached memory probe)
+        await new Promise((r) => setTimeout(r, fitGateMs));
+        if (
+          preSendController.signal.aborted ||
+          regenAbort.current?.signal?.aborted
+        ) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        generationStarted = true;
+        return { ok: true };
+      } finally {
+        sendClaim.current = false;
+      }
+    }
+
+    async function simulatedLifecycle() {
+      regenAbort.current?.abort();
+      abortRef.current?.abort();
+      // Spin while claim held
+      const t0 = Date.now();
+      while (sendClaim.current && Date.now() - t0 < 2000) {
+        abortRef.current?.abort();
+        await new Promise((r) => setTimeout(r, 10));
+      }
+    }
+
+    const sendP = simulatedHandleSend(40);
+    // Fire lifecycle mid fit-gate
+    await new Promise((r) => setTimeout(r, 10));
+    await simulatedLifecycle();
+    const res = await sendP;
+    assert(res.ok === false, "must refuse after abort during fit gate");
+    assert(res.reasonKey === "chat.regenFailed", res.reasonKey);
+    assert(generationStarted === false, "generation must not start");
+    assert(sendClaim.current === false, "claim released");
+  });
+
+  await test("sendClaim + busy flags block dispose until clear", async () => {
+    const flags = {
+      stream: false,
+      sending: false,
+      regen: false,
+      claim: true,
+    };
+    const shouldDispose = () =>
+      !(flags.stream || flags.sending || flags.regen || flags.claim);
+    assert(shouldDispose() === false, "claim blocks dispose");
+    flags.claim = false;
+    assert(shouldDispose() === true, "clear claim allows dispose");
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }

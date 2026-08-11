@@ -110,6 +110,7 @@ import {
   backgroundDiscardLifecycleRef,
   regenAbortRef,
   regenInFlightRef,
+  sendClaimRef,
   sendingInFlightRef,
 } from "../engine/regenState";
 import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
@@ -1607,12 +1608,13 @@ export function AppShell() {
                 }
               }
 
-              // Hard wait: never dispose while stream/send/regen still in flight.
+              // Hard wait: never dispose while stream/send/regen/claim still in flight.
               const t0 = Date.now();
               while (
                 (streamInFlightRef.current ||
                   sendingInFlightRef.current ||
-                  regenInFlightRef.current) &&
+                  regenInFlightRef.current ||
+                  sendClaimRef.current) &&
                 Date.now() - t0 < 5000
               ) {
                 await new Promise((r) => setTimeout(r, 50));
@@ -1622,7 +1624,8 @@ export function AppShell() {
               if (
                 streamInFlightRef.current ||
                 sendingInFlightRef.current ||
-                regenInFlightRef.current
+                regenInFlightRef.current ||
+                sendClaimRef.current
               ) {
                 return;
               }

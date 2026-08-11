@@ -91,11 +91,17 @@ async function regenerateFlow(opts) {
     regenInFlightRef,
     regenHandleSendPassRef,
     regenAbortRef,
+    regenGenerationRef,
+    sendClaimRef,
   } = opts;
-  if (regenInFlightRef.current) {
+  if (
+    regenInFlightRef.current ||
+    (sendClaimRef && sendClaimRef.current)
+  ) {
     return { ok: false, reasonKey: "chat.regenBusy", messages };
   }
   regenInFlightRef.current = true;
+  const myGeneration = regenGenerationRef ? regenGenerationRef.current : 0;
   if (regenAbortRef) regenAbortRef.current = new AbortController();
   const snapshot = messages.slice();
   try {
@@ -139,7 +145,13 @@ async function regenerateFlow(opts) {
   } finally {
     regenInFlightRef.current = false;
     regenHandleSendPassRef.current = false;
-    if (regenAbortRef) regenAbortRef.current = null;
+    // Only null the abort controller if clearChat has not bumped generation.
+    if (
+      regenAbortRef &&
+      (!regenGenerationRef || regenGenerationRef.current === myGeneration)
+    ) {
+      regenAbortRef.current = null;
+    }
   }
 }
 
@@ -206,12 +218,20 @@ async function main() {
   compile();
   const modPath = resolveBuilt("regenState");
   console.log("Loading", modPath);
-  const { regenInFlightRef, regenHandleSendPassRef, regenAbortRef } = require(modPath);
+  const {
+    regenInFlightRef,
+    regenHandleSendPassRef,
+    regenAbortRef,
+    sendClaimRef,
+    regenGenerationRef,
+  } = require(modPath);
 
   // Reset module state
   regenInFlightRef.current = false;
   regenHandleSendPassRef.current = false;
   regenAbortRef.current = null;
+  if (sendClaimRef) sendClaimRef.current = false;
+  if (regenGenerationRef) regenGenerationRef.current = 0;
 
   let passed = 0;
   let failed = 0;
@@ -227,6 +247,8 @@ async function main() {
       regenInFlightRef.current = false;
       regenHandleSendPassRef.current = false;
       regenAbortRef.current = null;
+      if (sendClaimRef) sendClaimRef.current = false;
+      if (regenGenerationRef) regenGenerationRef.current = 0;
     }
   }
 
@@ -408,6 +430,107 @@ async function main() {
     // Documented design: regenerate/edit do NOT roll back .kvs on error —
     // only the React message snapshot is restored. This test is a marker.
     assert(true, "documented: no .kvs rollback on regen error");
+  });
+
+  // --- Round-2 race tests ---
+
+  await test("externally-set regenInFlightRef blocks simulated handleSend entry", () => {
+    // Mirrors AiChatPage handleSend busy gates: when regenInFlightRef is true
+    // and pass is unset, a concurrent ordinary send must refuse.
+    function simulatedHandleSendEntry() {
+      if (sendClaimRef?.current) {
+        return { ok: false, reasonKey: "chat.sendBusy" };
+      }
+      if (regenInFlightRef.current && !regenHandleSendPassRef.current) {
+        return { ok: false, reasonKey: "chat.regenBusy" };
+      }
+      return { ok: true };
+    }
+    assert(simulatedHandleSendEntry().ok === true, "idle allows");
+    regenInFlightRef.current = true;
+    const blocked = simulatedHandleSendEntry();
+    assert(blocked.ok === false, "regen blocks");
+    assert(blocked.reasonKey === "chat.regenBusy", blocked.reasonKey);
+    // sendClaim also blocks even without regen
+    regenInFlightRef.current = false;
+    sendClaimRef.current = true;
+    const claimBlocked = simulatedHandleSendEntry();
+    assert(claimBlocked.ok === false, "claim blocks");
+    assert(claimBlocked.reasonKey === "chat.sendBusy", claimBlocked.reasonKey);
+    sendClaimRef.current = false;
+  });
+
+  await test("regenAbortRef.abort() propagates to lifecycle-style wait", async () => {
+    // Simulate lifecycle: abort regen, then observe that an in-flight regen
+    // flow refuses on the aborted signal before handleSend runs.
+    let handleSendCalled = false;
+    const p = regenerateFlow({
+      messages: history,
+      targetMsgId: "a2",
+      handleSend: async () => {
+        handleSendCalled = true;
+        return { ok: true };
+      },
+      regenInFlightRef,
+      regenHandleSendPassRef,
+      regenAbortRef,
+      regenGenerationRef,
+      sendClaimRef,
+    });
+    // Give the flow a tick to install the controller, then abort (as lifecycle does).
+    await new Promise((r) => setTimeout(r, 0));
+    // If still in flight, abort; if already finished, the abort is a no-op.
+    regenAbortRef.current?.abort();
+    const res = await p;
+    // Either refused on abort (handleSend not called) or completed before abort
+    // landed — both are valid races. What must hold: lock is cleared after.
+    assert(regenInFlightRef.current === false, "lock cleared after abort race");
+    if (!handleSendCalled) {
+      assert(res.ok === false, "aborted before send → refuse");
+    }
+    // Lifecycle re-assert: aborting a set controller marks its signal.
+    const ac = new AbortController();
+    regenAbortRef.current = ac;
+    regenAbortRef.current?.abort();
+    assert(ac.signal.aborted === true, "abort propagates to signal");
+    regenAbortRef.current = null;
+  });
+
+  await test("clearChat bumps regenGenerationRef; old finally does not null new controller", async () => {
+    // Simulate: regen starts, captures generation; clearChat bumps generation
+    // and installs a new controller; old finally must not clear the new one.
+    assert(typeof regenGenerationRef.current === "number", "generation ref exists");
+    regenGenerationRef.current = 0;
+    const myGeneration = regenGenerationRef.current;
+    regenInFlightRef.current = true;
+    const oldController = new AbortController();
+    regenAbortRef.current = oldController;
+
+    // clearChat: bump generation + abort + null + install would happen on next regen
+    regenGenerationRef.current += 1;
+    regenAbortRef.current?.abort();
+    regenAbortRef.current = null;
+    // New regen starts with a fresh controller under the new generation
+    const newController = new AbortController();
+    regenAbortRef.current = newController;
+
+    // Old regen finally: only null if generation still matches
+    if (regenGenerationRef.current === myGeneration) {
+      regenAbortRef.current = null;
+    }
+    assert(
+      regenAbortRef.current === newController,
+      "old finally must not clear new controller",
+    );
+    assert(regenAbortRef.current?.signal.aborted !== true, "new controller not aborted by old");
+
+    // Matching generation still clears
+    const gen2 = regenGenerationRef.current;
+    if (regenGenerationRef.current === gen2) {
+      regenAbortRef.current = null;
+    }
+    assert(regenAbortRef.current === null, "matching generation clears");
+    regenInFlightRef.current = false;
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

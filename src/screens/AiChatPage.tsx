@@ -70,8 +70,10 @@ import {
 import {
   backgroundDiscardLifecycleRef,
   regenAbortRef,
+  regenGenerationRef,
   regenHandleSendPassRef,
   regenInFlightRef,
+  sendClaimRef,
   sendingInFlightRef,
 } from "../engine/regenState";
 import { decidePreSendFit } from "../engine/deviceProfile";
@@ -1341,6 +1343,7 @@ export function AiChatPage({
       translateAbortRef.current?.abort();
       translationInFlightRef.current = false;
       sendingInFlightRef.current = false;
+      sendClaimRef.current = false;
       if (stopWatchdogRef.current != null) {
         clearTimeout(stopWatchdogRef.current);
         stopWatchdogRef.current = null;
@@ -1419,22 +1422,45 @@ export function AiChatPage({
 
   /**
    * Abort-and-await lifecycle for AppShell background disposal.
-   * 1) abort send + regen
+   * 1) abort regen + send (incl. any pre-send fit-gate claim)
    * 2) await handleSend finalization
-   * 3) await turn-end save
+   * 3) await turn-end save (promise installed synchronously before setMessages)
    * 4) return real historyHash of current messages
    */
   const awaitLifecycleForBackgroundDiscard = useCallback(async () => {
-    abortRef.current?.abort();
+    // Abort regen first so edit/regen refuse before handleSend starts.
     regenAbortRef.current?.abort();
-    const sendP = sendInFlightPromiseRef.current;
-    if (sendP) {
-      try {
-        await sendP;
-      } catch {
-        // ignore — failure already recorded on the result
+    // Abort the active stream / pre-send controller (installed before fit gate).
+    abortRef.current?.abort();
+    // Spin until send claim / stream / regen settle so a fit-gate await cannot
+    // race past background and start generation after we dispose.
+    const tSpin = Date.now();
+    while (
+      (sendClaimRef.current ||
+        sendingRef.current ||
+        regenInFlightRef.current ||
+        sendingInFlightRef.current ||
+        sendInFlightPromiseRef.current) &&
+      Date.now() - tSpin < 5000
+    ) {
+      const sendP = sendInFlightPromiseRef.current;
+      if (sendP) {
+        try {
+          await sendP;
+        } catch {
+          // ignore — failure already recorded on the result
+        }
+      } else {
+        await new Promise((r) => setTimeout(r, 50));
       }
+      // Re-assert abort each tick: a late handleSend may install a new controller
+      // while sendClaimRef is still held during the fit-gate await.
+      abortRef.current?.abort();
+      regenAbortRef.current?.abort();
     }
+    // Await turn-end save AFTER send settles so the real historyHash is on disk.
+    // The promise is installed synchronously (before setMessages returns), so a
+    // deferred React updater cannot hide it from this lifecycle.
     const saveP = turnEndSavePromiseRef.current;
     if (saveP) {
       try {
@@ -1443,11 +1469,14 @@ export function AiChatPage({
         // ignore
       }
     }
-    // Spin until local sending/regen flags clear (stream flag is AppShell-owned).
+    // Final flag drain (stream flag is AppShell-owned).
     const t0 = Date.now();
     while (
-      (sendingRef.current || regenInFlightRef.current || sendingInFlightRef.current) &&
-      Date.now() - t0 < 5000
+      (sendingRef.current ||
+        regenInFlightRef.current ||
+        sendingInFlightRef.current ||
+        sendClaimRef.current) &&
+      Date.now() - t0 < 2000
     ) {
       await new Promise((r) => setTimeout(r, 50));
     }
@@ -1482,8 +1511,11 @@ export function AiChatPage({
       // directly (suggestion cards) so it needs its own check too.
       // regenInFlight blocks concurrent user sends; regenHandleSendPassRef is a
       // one-shot allow so regenerate/edit can call handleSend without deadlock.
+      // sendClaimRef is the pre-await lock: two rapid ordinary sends must not
+      // both pass the busy check and both enter the uncached fit-gate await.
       if (
         !trimmed ||
+        sendClaimRef.current ||
         sendingRef.current ||
         translationInFlightRef.current ||
         voiceBusyRef.current ||
@@ -1491,17 +1523,43 @@ export function AiChatPage({
         !!pdfToRender ||
         !historyLoaded
       ) {
-        return { ok: false, reasonKey: "chat.regenBusy" };
+        return {
+          ok: false,
+          reasonKey: sendClaimRef.current || sendingRef.current
+            ? "chat.sendBusy"
+            : "chat.regenBusy",
+        };
       }
       if (regenHandleSendPassRef.current) {
         regenHandleSendPassRef.current = false;
       }
 
-      // Uncached pre-send fit gate (also covers engine-already-ready path).
-      const fitGate = await awaitPreSendFitGate();
-      if (!fitGate.ok) {
-        return fitGate;
-      }
+      // Reserve the claim BEFORE any await so a second send cannot enter.
+      sendClaimRef.current = true;
+      // Install abort controller early so background lifecycle can abort this
+      // turn during the fit-gate await (before sendingRef is claimed).
+      const preSendController = new AbortController();
+      abortRef.current = preSendController;
+      try {
+        // Uncached pre-send fit gate (also covers engine-already-ready path).
+        const fitGate = await awaitPreSendFitGate();
+        if (!fitGate.ok) {
+          if (abortRef.current === preSendController) {
+            abortRef.current = null;
+          }
+          return fitGate;
+        }
+        // Background / clearChat / regen abort during the fit-gate await:
+        // refuse before claiming sendingRef or starting generation.
+        if (
+          preSendController.signal.aborted ||
+          regenAbortRef.current?.signal.aborted
+        ) {
+          if (abortRef.current === preSendController) {
+            abortRef.current = null;
+          }
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
 
       // U1: this turn's generation token. clearChat() may abort + reset
       // sending state while this async turn (bench / filter / stream) is
@@ -1557,7 +1615,7 @@ export function AiChatPage({
           sendingInFlightRef.current = false;
           if (mountedRef.current) setSending(false);
         }
-        return { ok: true };
+        return { ok: true } as HandleSendResult;
       }
 
       // X2: pre-send content gate (src/domain/contentFilter.js). Blocking
@@ -1654,7 +1712,9 @@ export function AiChatPage({
       // Clear attached items after send
       setAttachedItems([]);
 
-      const controller = new AbortController();
+      // Reuse the pre-send controller so a background abort during the fit gate
+      // also cancels the stream that is about to start.
+      const controller = preSendController;
       abortRef.current = controller;
 
       // Track whether any text has streamed — used to decide whether to remove empty placeholder on abort.
@@ -1742,6 +1802,9 @@ export function AiChatPage({
             afterSessionSave = streamResult.afterSessionSave;
           }
         } else {
+          // onSendStream missing → mark failed so regen/edit roll back.
+          failed = true;
+          failReasonKey = "chat.backendNotWired";
           updateMessage(assistantId, {
             streaming: false,
             statusLabel: undefined,
@@ -1837,10 +1900,32 @@ export function AiChatPage({
               // scheduled into React state (includes any queued final delta —
               // the updater receives the queue-applied prev).
               let finalized: Message[] | null = null;
+              // CRITICAL: install the turn-end save promise SYNCHRONOUSLY before
+              // setMessages. React may defer the updater until after paint; the
+              // background lifecycle must be able to await the same promise even
+              // when it observes messagesRef before the updater runs.
+              // Holder object avoids TS control-flow narrowing of bare lets
+              // assigned inside the Promise executor.
+              const turnSaveHold: {
+                resolve: (() => void) | null;
+                reject: ((err: unknown) => void) | null;
+              } = { resolve: null, reject: null };
+              const turnSaveP = new Promise<void>((resolve, reject) => {
+                turnSaveHold.resolve = resolve;
+                turnSaveHold.reject = reject;
+              });
+              turnEndSavePromiseRef.current = turnSaveP;
+              void turnSaveP.finally(() => {
+                if (turnEndSavePromiseRef.current === turnSaveP) {
+                  turnEndSavePromiseRef.current = null;
+                }
+              });
+              let saveWorkScheduled = false;
               setMessages((prev) => {
                 // clearChat bumped sendRunId: skip persist + ref write and keep
                 // the cleared (or newer) prev — do not resurrect wiped history.
                 if (sendRunIdRef.current !== runId) {
+                  turnSaveHold.resolve?.();
                   return prev;
                 }
                 const applied = applyFinalize(prev);
@@ -1872,28 +1957,38 @@ export function AiChatPage({
                   const mid = getActiveModelId();
                   const runAfterSave = afterSessionSave;
                   if (mid) {
-                    const payload = JSON.stringify(buildPersistableMessages(finalized));
-                    const saveP = (async () => {
+                    const payload = JSON.stringify(
+                      buildPersistableMessages(finalized),
+                    );
+                    saveWorkScheduled = true;
+                    void (async () => {
                       try {
                         await saveEngineSession(mid, historyHash(payload));
+                        turnSaveHold.resolve?.();
+                      } catch (err) {
+                        turnSaveHold.reject?.(err);
                       } finally {
                         if (sendRunIdRef.current === runId) {
                           runAfterSave?.();
                         }
                       }
                     })();
-                    turnEndSavePromiseRef.current = saveP;
-                    void saveP.finally(() => {
-                      if (turnEndSavePromiseRef.current === saveP) {
-                        turnEndSavePromiseRef.current = null;
-                      }
-                    });
                   } else if (sendRunIdRef.current === runId) {
                     runAfterSave?.();
+                    turnSaveHold.resolve?.();
+                    saveWorkScheduled = true;
                   }
+                }
+                if (!saveWorkScheduled) {
+                  turnSaveHold.resolve?.();
                 }
                 return finalized;
               });
+              // If React never applied the updater (unmounted mid-flight),
+              // still settle the promise so the lifecycle cannot hang.
+              if (!mountedRef.current && !saveWorkScheduled) {
+                turnSaveHold.resolve?.();
+              }
             } else if (sendRunIdRef.current === runId) {
               const applied = applyFinalize(messagesRef.current);
               const next = applied.messages;
@@ -1910,6 +2005,7 @@ export function AiChatPage({
               const runAfterSave = afterSessionSave;
               if (mid) {
                 const payload = JSON.stringify(buildPersistableMessages(next));
+                // Synchronous install even on the unmounted path.
                 const saveP = (async () => {
                   try {
                     await saveEngineSession(mid, historyHash(payload));
@@ -1949,6 +2045,10 @@ export function AiChatPage({
       return failed
         ? { ok: false as const, reasonKey: failReasonKey }
         : { ok: true as const };
+      } finally {
+        // Release the pre-await claim so the next send can enter the fit gate.
+        sendClaimRef.current = false;
+      }
     },
     [awaitPreSendFitGate, historyLoaded, onSendStream, pdfToRender, t, updateMessage],
   );
@@ -2059,6 +2159,9 @@ export function AiChatPage({
     // BLOCKER-1 (audit): reset sending state synchronously so composer unlocks immediately
     sendingRef.current = false;
     sendingInFlightRef.current = false;
+    sendClaimRef.current = false;
+    // Bump generation so a stale regen/edit finally cannot null a newer controller.
+    regenGenerationRef.current += 1;
     regenAbortRef.current?.abort();
     regenAbortRef.current = null;
     regenInFlightRef.current = false;
@@ -2125,10 +2228,15 @@ export function AiChatPage({
    */
   const regenerate = useCallback(
     async (targetMsgId: string): Promise<{ ok: true } | { ok: false; reasonKey: string }> => {
-      if (regenInFlightRef.current || sendingRef.current) {
+      if (
+        regenInFlightRef.current ||
+        sendingRef.current ||
+        sendClaimRef.current
+      ) {
         return { ok: false, reasonKey: "chat.regenBusy" };
       }
       regenInFlightRef.current = true;
+      const myGeneration = regenGenerationRef.current;
       regenAbortRef.current = new AbortController();
       const snapshot = messagesRef.current.slice();
       try {
@@ -2185,7 +2293,10 @@ export function AiChatPage({
       } finally {
         regenInFlightRef.current = false;
         regenHandleSendPassRef.current = false;
-        regenAbortRef.current = null;
+        // Only clear the abort controller if clearChat has not started a newer generation.
+        if (regenGenerationRef.current === myGeneration) {
+          regenAbortRef.current = null;
+        }
       }
     },
     [findOriginalUserText, handleSendTracked],
@@ -2202,10 +2313,15 @@ export function AiChatPage({
     ): Promise<{ ok: true } | { ok: false; reasonKey: string }> => {
       const trimmed = newText.trim();
       if (!trimmed) return { ok: false, reasonKey: "chat.regenFailed" };
-      if (regenInFlightRef.current || sendingRef.current) {
+      if (
+        regenInFlightRef.current ||
+        sendingRef.current ||
+        sendClaimRef.current
+      ) {
         return { ok: false, reasonKey: "chat.regenBusy" };
       }
       regenInFlightRef.current = true;
+      const myGeneration = regenGenerationRef.current;
       regenAbortRef.current = new AbortController();
       const snapshot = messagesRef.current.slice();
       try {
@@ -2268,7 +2384,10 @@ export function AiChatPage({
       } finally {
         regenInFlightRef.current = false;
         regenHandleSendPassRef.current = false;
-        regenAbortRef.current = null;
+        // Only clear the abort controller if clearChat has not started a newer generation.
+        if (regenGenerationRef.current === myGeneration) {
+          regenAbortRef.current = null;
+        }
       }
     },
     [handleSendTracked],

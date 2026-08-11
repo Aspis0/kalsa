@@ -15,6 +15,13 @@
  *
  * sendingInFlightRef: mirror of AiChatPage.sendingRef so AppShell can wait
  * without reaching into React state.
+ *
+ * sendClaimRef: synchronous pre-await claim so two rapid handleSend entries
+ * cannot both pass the busy check and both enter the uncached fit gate.
+ *
+ * regenGenerationRef: bumped by clearChat; regen/edit capture the value at
+ * entry and only null regenAbortRef in finally when generation still matches
+ * (prevents a stale finally from clearing a newer controller).
  */
 export const regenInFlightRef: { current: boolean } = { current: false };
 export const regenHandleSendPassRef: { current: boolean } = { current: false };
@@ -22,6 +29,8 @@ export const regenAbortRef: { current: AbortController | null } = {
   current: null,
 };
 export const sendingInFlightRef: { current: boolean } = { current: false };
+export const sendClaimRef: { current: boolean } = { current: false };
+export const regenGenerationRef: { current: number } = { current: 0 };
 
 export type BackgroundDiscardResult = {
   /** Real historyHash of the messages that were (or will be) saved. */
