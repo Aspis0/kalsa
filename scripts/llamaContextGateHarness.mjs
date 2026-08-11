@@ -86,8 +86,9 @@ async function main() {
     __resetForTests,
     CO_RESIDENCY_MIN_MEMORY_BYTES,
     runNativeOp,
+    runNativeOpBounded,
     nativeOpBusy,
-    acquireNativeOpBounded,
+    isNativeOpChainEmpty,
     __resetNativeOpMutexForTests,
   } = mod;
 
@@ -412,65 +413,95 @@ async function main() {
     assert(nativeOpBusy() === false, "__resetForTests also clears native mutex");
   });
 
-  // ── Round 8 FIX 1: acquireNativeOpBounded (no enqueue) ─────────────────
-  await checkAsync("acquireNativeOpBounded returns ok when queue free", async () => {
-    assert(typeof acquireNativeOpBounded === "function", "acquireNativeOpBounded exported");
+  // ── Round 9: runNativeOpBounded (atomic check-and-submit) ──────────────
+  await checkAsync("runNativeOpBounded empty chain → runs immediately (ok, value)", async () => {
+    assert(typeof runNativeOpBounded === "function", "runNativeOpBounded exported");
+    assert(typeof isNativeOpChainEmpty === "function", "isNativeOpChainEmpty exported");
+    assert(isNativeOpChainEmpty() === true, "start empty");
     assert(nativeOpBusy() === false, "start idle");
-    const r = await acquireNativeOpBounded(100);
-    assert(r === "ok", `expected ok, got ${r}`);
-    assert(nativeOpBusy() === false, "still idle — must not enqueue");
-  });
-
-  await checkAsync("acquireNativeOpBounded times out while hung op holds chain", async () => {
-    let releaseA;
-    const aGate = new Promise((r) => {
-      releaseA = r;
-    });
-    const pA = runNativeOp(async () => {
-      await aGate;
-      return "A";
-    });
-    await new Promise((r) => setImmediate(r));
-    assert(nativeOpBusy() === true, "busy while A holds");
-    const t0 = Date.now();
-    const r = await acquireNativeOpBounded(80);
-    const elapsed = Date.now() - t0;
-    assert(r === "timeout", `expected timeout, got ${r}`);
-    assert(elapsed >= 60, `should wait ~timeout, elapsed=${elapsed}`);
-    assert(nativeOpBusy() === true, "still busy — wait must not clear chain");
-    // No extra op was enqueued: only A is on the chain. A second runNativeOp
-    // would start only after A settles; we assert bStarted remains false if we
-    // only used acquireNativeOpBounded (no runNativeOp from the wait).
-    releaseA();
-    await pA;
-    assert(nativeOpBusy() === false, "idle after A settles");
-  });
-
-  await checkAsync("acquireNativeOpBounded ok when busy op finishes before deadline", async () => {
-    let releaseA;
-    const aGate = new Promise((r) => {
-      releaseA = r;
-    });
-    const pA = runNativeOp(async () => {
-      await aGate;
-      return "A";
-    });
-    await new Promise((r) => setImmediate(r));
-    assert(nativeOpBusy() === true, "busy");
-    // Release A soon; bounded wait should observe free before long timeout.
-    setTimeout(() => releaseA(), 30);
-    const r = await acquireNativeOpBounded(2000);
-    assert(r === "ok", `expected ok after A finishes, got ${r}`);
-    await pA;
-    assert(nativeOpBusy() === false, "idle");
+    const r = await runNativeOpBounded(async () => 42, 100);
+    assert(r.ok === true, `expected ok, got ${JSON.stringify(r)}`);
+    assert(r.ok && r.value === 42, `value 42, got ${r.ok ? r.value : "?"}`);
+    assert(isNativeOpChainEmpty() === true, "empty after settle");
+    assert(nativeOpBusy() === false, "idle after settle");
   });
 
   await checkAsync(
-    "co-res + hung embed: acquireNativeOpBounded refuses without queue growth",
+    "runNativeOpBounded hung predecessor → timeout WITHOUT growing chain",
+    async () => {
+      let releaseA;
+      const aGate = new Promise((r) => {
+        releaseA = r;
+      });
+      const pA = runNativeOp(async () => {
+        await aGate;
+        return "A";
+      });
+      await new Promise((r) => setImmediate(r));
+      assert(nativeOpBusy() === true, "busy while A holds");
+      assert(isNativeOpChainEmpty() === false, "chain non-empty while A holds");
+
+      let boundedStarted = false;
+      const t0 = Date.now();
+      const r = await runNativeOpBounded(async () => {
+        boundedStarted = true;
+        return "BOUNDED";
+      }, 80);
+      const elapsed = Date.now() - t0;
+      assert(r.ok === false && r.refused === "timeout", `expected timeout, got ${JSON.stringify(r)}`);
+      assert(elapsed >= 60, `should wait ~timeout, elapsed=${elapsed}`);
+      assert(boundedStarted === false, "bounded fn must NOT run on timeout");
+      assert(nativeOpBusy() === true, "still busy — refuse must not clear chain");
+      assert(isNativeOpChainEmpty() === false, "chain still non-empty (predecessor only)");
+
+      // After refusal the chain must still be just the hung predecessor: a
+      // probe enqueued now waits behind A and does not start until A settles.
+      let probeStarted = false;
+      const pProbe = runNativeOp(async () => {
+        probeStarted = true;
+        return "PROBE";
+      });
+      await new Promise((r) => setImmediate(r));
+      assert(probeStarted === false, "probe waits behind hung A");
+
+      releaseA();
+      await pA;
+      const probeResult = await pProbe;
+      assert(probeResult === "PROBE" && probeStarted === true, "probe runs after A");
+      assert(nativeOpBusy() === false, "idle after A+probe settle");
+      assert(isNativeOpChainEmpty() === true, "empty after settle");
+    },
+  );
+
+  await checkAsync(
+    "runNativeOpBounded short predecessor → waits then runs (ok)",
+    async () => {
+      let releaseA;
+      const aGate = new Promise((r) => {
+        releaseA = r;
+      });
+      const pA = runNativeOp(async () => {
+        await aGate;
+        return "A";
+      });
+      await new Promise((r) => setImmediate(r));
+      assert(nativeOpBusy() === true, "busy");
+      // Release A soon; bounded should observe empty and submit before deadline.
+      setTimeout(() => releaseA(), 30);
+      const r = await runNativeOpBounded(async () => "BOUNDED", 2000);
+      assert(r.ok === true && r.value === "BOUNDED", `expected ok/BOUNDED, got ${JSON.stringify(r)}`);
+      await pA;
+      assert(nativeOpBusy() === false, "idle");
+      assert(isNativeOpChainEmpty() === true, "empty");
+    },
+  );
+
+  await checkAsync(
+    "repeated runNativeOpBounded refusals do not accumulate queued ops",
     async () => {
       // Simulates AppShell co-res path: chat acquired while embed_active, then
-      // a hung native embed holds the FIFO. Repeated acquireNativeOpBounded
-      // must return timeout and must NOT enqueue ops (queue must not grow).
+      // a hung native embed holds the FIFO. Repeated runNativeOpBounded must
+      // return timeout and must NOT enqueue ops (queue must not grow).
       setCoResidencyContext({ totalMemoryBytes: 8e9, chatModelIs2B: true });
       assert(tryAcquireEmbed() === true, "embed held");
       assert(getState() === "embed_active", "embed_active");
@@ -482,32 +513,37 @@ async function main() {
       const hungGate = new Promise((r) => {
         releaseHung = r;
       });
-      // Hung embed-like op on the native queue.
       const pHung = runNativeOp(async () => {
         await hungGate;
         return "HUNG";
       });
       await new Promise((r) => setImmediate(r));
       assert(nativeOpBusy() === true, "hung op busy");
+      assert(isNativeOpChainEmpty() === false, "non-empty");
 
-      // Track whether any extra op starts (would mean queue growth / enqueue).
       let extraStarted = 0;
-      // Three repeated "chat init" attempts — only acquireNativeOpBounded, no
-      // runNativeOp(initEngine). Each must timeout; no extras may start.
       for (let i = 0; i < 3; i++) {
-        const r = await acquireNativeOpBounded(40);
-        assert(r === "timeout", `attempt ${i + 1}: expected timeout, got ${r}`);
+        const r = await runNativeOpBounded(async () => {
+          extraStarted += 1;
+          return "INIT";
+        }, 40);
+        assert(
+          r.ok === false && r.refused === "timeout",
+          `attempt ${i + 1}: expected timeout, got ${JSON.stringify(r)}`,
+        );
       }
-      // Enqueue a probe only after the three refusals — it must still be
-      // waiting behind the hung op (not started), proving the three waits
-      // did not grow a runnable queue of init ops.
+      assert(extraStarted === 0, "no init fn ran across 3 refusals");
+      assert(nativeOpBusy() === true, "still busy after repeated refusals");
+      assert(isNativeOpChainEmpty() === false, "chain still only hung predecessor");
+
+      // Probe: only one extra op if we enqueue now — proves refusals did not
+      // leave orphaned init ops on the chain.
       const pProbe = runNativeOp(async () => {
         extraStarted += 1;
         return "PROBE";
       });
       await new Promise((r) => setImmediate(r));
       assert(extraStarted === 0, "probe must not start while hung holds chain");
-      assert(nativeOpBusy() === true, "still busy after repeated refusals");
 
       releaseHung();
       await pHung;
@@ -516,6 +552,53 @@ async function main() {
       markChatReleased(chatGen);
     },
   );
+
+  await checkAsync(
+    "strict deadline: predecessor frees after deadline → still refused",
+    async () => {
+      // Craft: hung predecessor holds the chain past the deadline. Bounded
+      // loop wakes after deadline with chain still non-empty → refuse. Then
+      // release predecessor; a fresh empty-chain bounded call succeeds.
+      // Deterministic: never free the predecessor until AFTER the timeout
+      // result is observed (so late wake cannot accidentally see empty).
+      let releaseA;
+      const aGate = new Promise((r) => {
+        releaseA = r;
+      });
+      const pA = runNativeOp(async () => {
+        await aGate;
+        return "A";
+      });
+      await new Promise((r) => setImmediate(r));
+      assert(isNativeOpChainEmpty() === false, "non-empty");
+
+      let boundedRan = false;
+      const r = await runNativeOpBounded(async () => {
+        boundedRan = true;
+        return "LATE";
+      }, 50);
+      assert(r.ok === false && r.refused === "timeout", `expected timeout, got ${JSON.stringify(r)}`);
+      assert(boundedRan === false, "must not run after deadline while chain held");
+      assert(isNativeOpChainEmpty() === false, "chain still held by A");
+
+      // Now free A; a subsequent empty-chain bounded call must succeed.
+      releaseA();
+      await pA;
+      // Drain microtasks so pending count decrements.
+      await new Promise((r) => setImmediate(r));
+      assert(isNativeOpChainEmpty() === true, "empty after A settles");
+      const r2 = await runNativeOpBounded(async () => "NOW", 100);
+      assert(r2.ok === true && r2.value === "NOW", `expected ok/NOW, got ${JSON.stringify(r2)}`);
+    },
+  );
+
+  // acquireNativeOpBounded must be gone (replaced by atomic runNativeOpBounded).
+  check("acquireNativeOpBounded removed (no export)", () => {
+    assert(
+      typeof mod.acquireNativeOpBounded !== "function",
+      "acquireNativeOpBounded must not be exported",
+    );
+  });
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);

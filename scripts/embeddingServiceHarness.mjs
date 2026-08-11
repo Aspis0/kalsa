@@ -380,24 +380,29 @@ async function main() {
     assert(/if \(embedderHung\) return false/.test(src), "ensureEmbedder short-circuit on hung");
   });
 
-  // 16. Round 7 BLOCK: AppShell wraps initEngine + disposeEngine in runNativeOp;
+  // 16. Round 7 BLOCK: AppShell wraps disposeEngine in runNativeOp;
   // timeout marks hung and REFUSES chat (no abandon / no force handoff).
-  // Round 8: isEmbedderHung top-guard + acquireNativeOpBounded before every
-  // initEngine (incl. co-res path) so hung ops never grow the FIFO.
-  check("AppShell: runNativeOp(initEngine/dispose) + block-on-timeout (no abandon)", () => {
+  // Round 9: atomic runNativeOpBounded at both initEngine sites (replaces
+  // observe-then-submit acquireNativeOpBounded + runNativeOp race).
+  check("AppShell: runNativeOpBounded(initEngine) + block-on-timeout (no abandon)", () => {
     const src = readFileSync(
       path.join(projectRoot, "src/app/AppShell.tsx"),
       "utf8",
     );
     assert(/runNativeOp/.test(src), "imports/uses runNativeOp");
+    assert(/runNativeOpBounded/.test(src), "imports/uses runNativeOpBounded");
     assert(/markEmbedderHung/.test(src), "imports markEmbedderHung");
-    assert(/acquireNativeOpBounded/.test(src), "imports/uses acquireNativeOpBounded");
+    // Round 9: acquireNativeOpBounded removed (atomic check-and-submit).
+    assert(!/acquireNativeOpBounded/.test(src), "must NOT import/use acquireNativeOpBounded");
     // Round 7: abandon + force handoff removed (block-not-proceed).
     assert(!/abandonNativeOpChain/.test(src), "must NOT import/use abandonNativeOpChain");
     assert(!/forceChatAcquireAfterEmbedTimeout/.test(src), "must NOT use force handoff");
-    // Both chat-init call sites wrap initEngine.
-    const wraps = src.match(/runNativeOp\(\s*\(\)\s*=>\s*[\s\S]*?initEngine\(/g);
-    assert(wraps && wraps.length >= 2, `expected ≥2 runNativeOp(initEngine) sites, got ${wraps ? wraps.length : 0}`);
+    // Both chat-init call sites use atomic runNativeOpBounded(initEngine).
+    const wraps = src.match(/runNativeOpBounded\(\s*\(\)\s*=>\s*[\s\S]*?initEngine\(/g);
+    assert(
+      wraps && wraps.length >= 2,
+      `expected ≥2 runNativeOpBounded(initEngine) sites, got ${wraps ? wraps.length : 0}`,
+    );
     // Both dispose call sites wrap disposeEngine in runNativeOp.
     const disposeWraps = src.match(/runNativeOp\(\s*\(\)\s*=>\s*disposeEngine\(\)\s*\)/g);
     assert(
@@ -412,13 +417,14 @@ async function main() {
     assert(!/abandonNativeOpChain\(\)/.test(body), "timeout must NOT abandon chain");
     // Busy UI string on timeout paths.
     assert(/embedding\.busy/.test(src), "timeout surfaces embedding.busy");
-    // Round 8 FIX 1: ≥2 acquireNativeOpBounded calls before initEngine submissions.
-    const acq = src.match(/acquireNativeOpBounded\(\s*EMBEDDER_RELEASE_TIMEOUT_MS\s*\)/g);
+    // Round 9: ≥2 runNativeOpBounded(..., EMBEDDER_RELEASE_TIMEOUT_MS) submissions.
+    // Calls are multi-line: runNativeOpBounded(\n () => initEngine(...),\n TIMEOUT,\n).
+    const acq = src.match(/runNativeOpBounded\([\s\S]*?EMBEDDER_RELEASE_TIMEOUT_MS\s*,?\s*\)/g);
     assert(
       acq && acq.length >= 2,
-      `expected ≥2 acquireNativeOpBounded(EMBEDDER_RELEASE_TIMEOUT_MS), got ${acq ? acq.length : 0}`,
+      `expected ≥2 runNativeOpBounded(..., EMBEDDER_RELEASE_TIMEOUT_MS), got ${acq ? acq.length : 0}`,
     );
-    // Round 8 FIX 2: isEmbedderHung() top-guard on both init paths (refuse before acquire).
+    // Round 8 FIX 2: isEmbedderHung() top-guard on both init paths (refuse before submit).
     const hungGuards = src.match(/if\s*\(\s*isEmbedderHung\(\)\s*\)/g);
     assert(
       hungGuards && hungGuards.length >= 2,
@@ -426,6 +432,12 @@ async function main() {
     );
     // Round 8 FIX 2: restart guidance on model bar when hung.
     assert(/embedding\.restartHint/.test(src), "model bar uses embedding.restartHint when hung");
+    // Round 9 nit: hung bar disabled (pointerEvents none or disabled when hung).
+    assert(
+      /pointerEvents=\{isEmbedderHung\(\)\s*\?\s*["']none["']/.test(src) ||
+        /disabled=\{[\s\S]*?isEmbedderHung\(\)/.test(src),
+      "hung model bar must be disabled / pointerEvents none",
+    );
     // Zero-vector capped sidecar records reason before early return.
     assert(
       /chunkCount\s*<=\s*0[\s\S]{0,200}isCapped[\s\S]{0,120}capped/.test(src),

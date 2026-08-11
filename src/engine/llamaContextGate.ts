@@ -220,6 +220,12 @@ export function __resetForTests(): void {
 
 let nativeOpChain: Promise<unknown> = Promise.resolve();
 let nativeOpBusyFlag = false;
+/**
+ * Ops enqueued via runNativeOp that have not yet settled (executing or
+ * waiting behind the head). Synchronous head/tail depth of the FIFO.
+ * Zero ⇔ chain empty (safe to submit without queuing behind a foreign op).
+ */
+let nativeOpPendingCount = 0;
 /** Bumped only by test reset so discarded test chains never run. */
 let nativeOpGeneration = 0;
 
@@ -231,11 +237,15 @@ let nativeOpGeneration = 0;
  * A failed `fn` does not break the queue (chain never rejects); the error is
  * rethrown only to the caller of this invocation.
  *
- * A hung op holds the chain forever (busy stays true). Callers must not clear
- * the chain to "make progress" — that would allow overlapping native work.
+ * A hung op holds the chain forever (busy stays true, pending stays >0).
+ * Callers must not clear the chain to "make progress" — that would allow
+ * overlapping native work.
  */
 export function runNativeOp<T>(fn: () => Promise<T>): Promise<T> {
   const gen = nativeOpGeneration;
+  // Increment pending SYNCHRONOUSLY so isNativeOpChainEmpty() observes the
+  // enqueue in the same turn (atomic check-and-submit with runNativeOpBounded).
+  nativeOpPendingCount += 1;
   const run = nativeOpChain.then(
     () => executeNativeOp(gen, fn),
     () => executeNativeOp(gen, fn),
@@ -244,6 +254,18 @@ export function runNativeOp<T>(fn: () => Promise<T>): Promise<T> {
   nativeOpChain = run.then(
     () => undefined,
     () => undefined,
+  );
+  void run.then(
+    () => {
+      if (gen === nativeOpGeneration) {
+        nativeOpPendingCount = Math.max(0, nativeOpPendingCount - 1);
+      }
+    },
+    () => {
+      if (gen === nativeOpGeneration) {
+        nativeOpPendingCount = Math.max(0, nativeOpPendingCount - 1);
+      }
+    },
   );
   return run;
 }
@@ -274,38 +296,80 @@ export function nativeOpBusy(): boolean {
 }
 
 /**
- * Bounded wait for the native-op queue to become free, WITHOUT enqueueing
- * a new op (round 8 FIX 1).
- *
- * Use before submitting chat initEngine: if a hung embed (or any hung native
- * op) holds the FIFO, this returns "timeout" after `timeoutMs` so the caller
- * can refuse chat init with an explicit busy state — never enqueue initEngine
- * behind a hung op (repeated retries must not grow the queue).
- *
- * Returns:
- *   - "ok" when the queue is (or becomes) free within the deadline
- *   - "timeout" when nativeOpBusy stays true past the deadline
- *
- * Polls nativeOpBusy; does NOT call runNativeOp / does not enqueue.
+ * Synchronous head/tail emptiness of the native-op FIFO.
+ * True iff no op is executing or queued (pending count === 0).
+ * Safe to call from a check-and-submit block: under the JS event loop no
+ * other async work can interleave between this read and a subsequent
+ * runNativeOp() in the same synchronous turn.
  */
-export async function acquireNativeOpBounded(
+export function isNativeOpChainEmpty(): boolean {
+  return nativeOpPendingCount === 0;
+}
+
+export type NativeOpBoundedResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; refused: "timeout" };
+
+/**
+ * Atomic check-and-submit for a native op with a hard wait deadline
+ * (round 9 FIX: closes the observe-then-submit race of acquireNativeOpBounded).
+ *
+ * Invariant: the emptiness check and the enqueue run in ONE synchronous block
+ * under the JS event loop — no other async op can interleave between them.
+ * Loop:
+ *   (a) if isNativeOpChainEmpty() at THIS instant → runNativeOp(fn) and await
+ *       it (we become the head; if anything hangs now it is OUR op).
+ *       Emptiness is accepted even past the deadline (no foreign op ahead →
+ *       immediate execution is correct).
+ *   (b) else if Date.now() >= deadline → return { ok:false, refused:"timeout" }
+ *       WITHOUT enqueueing (never queue behind a possibly-hung op; chain
+ *       length is unchanged).
+ *   (c) else sleep pollIntervalMs and loop.
+ *
+ * Strict deadline (P2): never return ok after waiting past the deadline while
+ * the chain is non-empty. No timer leaks: one pending sleep per iteration,
+ * cleared in finally.
+ */
+export async function runNativeOpBounded<T>(
+  fn: () => Promise<T>,
   timeoutMs: number,
-): Promise<"ok" | "timeout"> {
-  if (!nativeOpBusyFlag) return "ok";
+  pollIntervalMs: number = 50,
+): Promise<NativeOpBoundedResult<T>> {
   const ms =
     typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
       ? timeoutMs
       : 0;
+  const poll =
+    typeof pollIntervalMs === "number" &&
+    Number.isFinite(pollIntervalMs) &&
+    pollIntervalMs > 0
+      ? pollIntervalMs
+      : 50;
   const deadline = Date.now() + ms;
-  // Poll until free or deadline. Do NOT enqueue — a hung op would otherwise
-  // accumulate queued initEngine attempts on every retry.
-  while (nativeOpBusyFlag) {
-    if (Date.now() >= deadline) return "timeout";
+
+  while (true) {
+    // (a)/(b) in one synchronous block — atomic under the JS event loop.
+    if (isNativeOpChainEmpty()) {
+      // Empty now (even past deadline): submit immediately; we are the head.
+      const run = runNativeOp(fn);
+      return { ok: true, value: await run };
+    }
+    if (Date.now() >= deadline) {
+      // Non-empty past deadline: refuse WITHOUT enqueueing.
+      return { ok: false, refused: "timeout" };
+    }
+    // (c) sleep then re-check atomically. One timer; cleared on settle.
     const remaining = deadline - Date.now();
-    const slice = remaining < 50 ? Math.max(1, remaining) : 50;
-    await new Promise<void>((resolve) => setTimeout(resolve, slice));
+    const slice = remaining < poll ? Math.max(1, remaining) : poll;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, slice);
+      });
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
   }
-  return "ok";
 }
 
 /**
@@ -316,5 +380,6 @@ export async function acquireNativeOpBounded(
 export function __resetNativeOpMutexForTests(): void {
   nativeOpGeneration += 1;
   nativeOpBusyFlag = false;
+  nativeOpPendingCount = 0;
   nativeOpChain = Promise.resolve();
 }

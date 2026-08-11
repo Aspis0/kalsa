@@ -78,8 +78,8 @@ import {
   allowsCoResidency,
   CO_RESIDENCY_MIN_MEMORY_BYTES,
   runNativeOp,
+  runNativeOpBounded,
   nativeOpBusy,
-  acquireNativeOpBounded,
 } from "../engine/llamaContextGate";
 import { resolveContextProfile } from "../engine/contextProfile";
 import {
@@ -1889,25 +1889,11 @@ export function AppShell() {
         if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
         return false;
       }
-      // Round 8 FIX 1: bounded wait before EVERY initEngine submission — including
-      // the co-residency path (mustReleaseEmbed=false) where a hung embed can hold
-      // the FIFO forever with no prior busy check. Never enqueue initEngine while
-      // the native queue is held by a hung op (no FIFO growth on retries).
-      const nativeSlot = await acquireNativeOpBounded(EMBEDDER_RELEASE_TIMEOUT_MS);
-      if (nativeSlot === "timeout") {
-        markEmbedderHung();
-        markChatReleased(chatGen);
-        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
-        setModelState("error");
-        setModelErrorKind("engine");
-        setModelError(t("embedding.busy"));
-        setModelErrorDetail(null);
-        console.warn(
-          `[kalsa] acquireNativeOpBounded timed out after ${EMBEDDER_RELEASE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); chat init blocked — restart to recover`,
-        );
-        return false;
-      }
-      // Re-check hung after the wait (another path may have declared it).
+      // Round 9: atomic check-and-submit (runNativeOpBounded). Emptiness check
+      // and enqueue run in one synchronous block under the JS event loop — never
+      // observe free then separately submit (race that could append behind a
+      // newly-hung foreign op). Timeout refuses WITHOUT enqueueing.
+      // Re-check hung + stillCurrent first (cheap; no enqueue risk).
       if (isEmbedderHung()) {
         markChatReleased(chatGen);
         if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
@@ -1922,28 +1908,40 @@ export function AppShell() {
         if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
         return false;
       }
-      // Shared native-op barrier: serialize chat initEngine with any embed
-      // initLlama/embedding/release/dispose. Round 8: only reached after
-      // acquireNativeOpBounded confirmed the queue is free (or co-res path
-      // waited); a hung embed refuses above and never enqueues initEngine.
-      const initResult = await runNativeOp(() =>
-        initEngine(modelLocalPath(model, model.file), model.id, {
-          mmprojPath,
-          nCtx: profile.nCtx,
-          cacheTypeK: profile.cacheTypeK,
-          cacheTypeV: profile.cacheTypeV,
-          kvUnified: model.kvUnified,
-          mtpNMax: model.mtp?.nMax,
-          mtpDefaultOn: model.mtp?.defaultEnabled === true,
-          speculativeOverride,
-          engineOverride,
-          sessionRestore: {
-            historyHash: sessionHistoryHash,
-            promptEnvHash: sessionPromptEnvHash,
-          },
-          locale,
-        }),
+      const boundedInit = await runNativeOpBounded(
+        () =>
+          initEngine(modelLocalPath(model, model.file), model.id, {
+            mmprojPath,
+            nCtx: profile.nCtx,
+            cacheTypeK: profile.cacheTypeK,
+            cacheTypeV: profile.cacheTypeV,
+            kvUnified: model.kvUnified,
+            mtpNMax: model.mtp?.nMax,
+            mtpDefaultOn: model.mtp?.defaultEnabled === true,
+            speculativeOverride,
+            engineOverride,
+            sessionRestore: {
+              historyHash: sessionHistoryHash,
+              promptEnvHash: sessionPromptEnvHash,
+            },
+            locale,
+          }),
+        EMBEDDER_RELEASE_TIMEOUT_MS,
       );
+      if (!boundedInit.ok) {
+        markEmbedderHung();
+        markChatReleased(chatGen);
+        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
+        setModelState("error");
+        setModelErrorKind("engine");
+        setModelError(t("embedding.busy"));
+        setModelErrorDetail(null);
+        console.warn(
+          `[kalsa] runNativeOpBounded timed out after ${EMBEDDER_RELEASE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); chat init blocked — restart to recover`,
+        );
+        return false;
+      }
+      const initResult = boundedInit.value;
       if (!stillCurrent()) {
         // Stale app generation after success: release THIS chatGen only so a
         // newer load's gate is not idled (FIX 1 ownership token).
@@ -2330,23 +2328,8 @@ export function AppShell() {
         if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
         return;
       }
-      // Round 8 FIX 1: bounded wait before EVERY initEngine submission — including
-      // the co-residency path (mustReleaseEmbed=false). Never enqueue initEngine
-      // while the native queue is held by a hung op.
-      const nativeSlotDl = await acquireNativeOpBounded(EMBEDDER_RELEASE_TIMEOUT_MS);
-      if (nativeSlotDl === "timeout") {
-        markEmbedderHung();
-        markChatReleased(chatGenDl);
-        if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
-        setModelState("error");
-        setModelErrorKind("engine");
-        setModelError(t("embedding.busy"));
-        setModelErrorDetail(null);
-        console.warn(
-          `[kalsa] acquireNativeOpBounded timed out after ${EMBEDDER_RELEASE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); chat init blocked — restart to recover`,
-        );
-        return;
-      }
+      // Round 9: atomic check-and-submit (runNativeOpBounded) — same policy as
+      // ensureEngineForModel. Never observe free then separately submit.
       if (isEmbedderHung()) {
         markChatReleased(chatGenDl);
         if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
@@ -2361,30 +2344,43 @@ export function AppShell() {
         if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
         return;
       }
-      // Shared native-op barrier (same policy as ensureEngineForModel):
-      // serialize chat initEngine with embed ops. Round 8: only reached after
-      // acquireNativeOpBounded confirmed the queue is free.
-      // Hoist uri so the runNativeOp closure does not re-widen DownloadOutcome
-      // (status === "aborted" already returned above → model is {status:"done"}).
+      // Hoist uri so the runNativeOpBounded closure does not re-widen
+      // DownloadOutcome (status === "aborted" already returned above).
       const modelUri = (outcome.model as { status: "done"; uri: string }).uri;
-      const initResult = await runNativeOp(() =>
-        initEngine(modelUri, model.id, {
-          mmprojPath,
-          nCtx: profile.nCtx,
-          cacheTypeK: profile.cacheTypeK,
-          cacheTypeV: profile.cacheTypeV,
-          kvUnified: model.kvUnified,
-          mtpNMax: model.mtp?.nMax,
-          mtpDefaultOn: model.mtp?.defaultEnabled === true,
-          speculativeOverride,
-          engineOverride,
-          sessionRestore: {
-            historyHash: sessionHistoryHash,
-            promptEnvHash: sessionPromptEnvHash,
-          },
-          locale,
-        }),
+      const boundedInitDl = await runNativeOpBounded(
+        () =>
+          initEngine(modelUri, model.id, {
+            mmprojPath,
+            nCtx: profile.nCtx,
+            cacheTypeK: profile.cacheTypeK,
+            cacheTypeV: profile.cacheTypeV,
+            kvUnified: model.kvUnified,
+            mtpNMax: model.mtp?.nMax,
+            mtpDefaultOn: model.mtp?.defaultEnabled === true,
+            speculativeOverride,
+            engineOverride,
+            sessionRestore: {
+              historyHash: sessionHistoryHash,
+              promptEnvHash: sessionPromptEnvHash,
+            },
+            locale,
+          }),
+        EMBEDDER_RELEASE_TIMEOUT_MS,
       );
+      if (!boundedInitDl.ok) {
+        markEmbedderHung();
+        markChatReleased(chatGenDl);
+        if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
+        setModelState("error");
+        setModelErrorKind("engine");
+        setModelError(t("embedding.busy"));
+        setModelErrorDetail(null);
+        console.warn(
+          `[kalsa] runNativeOpBounded timed out after ${EMBEDDER_RELEASE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); chat init blocked — restart to recover`,
+        );
+        return;
+      }
+      const initResult = boundedInitDl.value;
       if (!stillCurrent()) {
         markChatReleased(chatGenDl);
         if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
@@ -3314,6 +3310,9 @@ export function AppShell() {
                 if (modelState === "missing") {
                   confirmDownload(currentModel.id);
                 } else if (modelState === "error") {
+                  // Hung embedder: retry is a no-op (recovery = process restart).
+                  // Bar is disabled below when hung so this path is unreachable.
+                  if (isEmbedderHung()) return;
                   if (modelErrorKind === "engine") {
                     void ensureEngineForModel(currentModel);
                   } else {
@@ -3321,7 +3320,12 @@ export function AppShell() {
                   }
                 }
               }}
-              disabled={modelState !== "missing" && modelState !== "error"}
+              disabled={
+                (modelState !== "missing" && modelState !== "error") ||
+                isEmbedderHung()
+              }
+              // Nit (round 9): hung bar stays non-interactive (restart-only label).
+              pointerEvents={isEmbedderHung() ? "none" : "auto"}
               hitSlop={6}
             >
               {/* Allow wrap at large font scales so the status segment
