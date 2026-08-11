@@ -76,6 +76,9 @@ async function main() {
     markChatReleased,
     tryAcquireEmbed,
     releaseEmbed,
+    markChatCompleting,
+    markChatCompletingDone,
+    isChatCompleting,
     getState,
     getChatGeneration,
     setCoResidencyContext,
@@ -310,6 +313,33 @@ async function main() {
       failed++;
     }
   }
+
+  // FIX 2: chatCompleting blocks embed init (even under co-residency)
+  check("chatCompleting blocks tryAcquireEmbed", () => {
+    assert(typeof markChatCompleting === "function", "markChatCompleting exported");
+    assert(typeof markChatCompletingDone === "function", "markChatCompletingDone exported");
+    assert(isChatCompleting() === false, "starts false");
+    // Co-residency would otherwise allow embed under chat_ready.
+    setCoResidencyContext({ totalMemoryBytes: 8e9, chatModelIs2B: true });
+    const gen = tryAcquireChat();
+    assert(gen !== null, "chat");
+    markChatReady(gen);
+    assert(tryAcquireEmbed() === true, "embed ok before completing");
+    releaseEmbed();
+    markChatCompleting();
+    assert(isChatCompleting() === true, "flag set");
+    assert(tryAcquireEmbed() === false, "embed refused while chatCompleting");
+    markChatCompletingDone();
+    assert(isChatCompleting() === false, "flag cleared");
+    assert(tryAcquireEmbed() === true, "embed ok after done");
+  });
+
+  check("chatCompleting blocks embed from idle too", () => {
+    markChatCompleting();
+    assert(tryAcquireEmbed() === false, "idle+completing refuses embed");
+    markChatCompletingDone();
+    assert(tryAcquireEmbed() === true, "idle after done allows embed");
+  });
 
   await checkAsync("runNativeOp serializes two ops strictly sequential", async () => {
     assert(typeof runNativeOp === "function", "runNativeOp exported");

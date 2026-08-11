@@ -43,6 +43,14 @@ export const CO_RESIDENCY_MIN_MEMORY_BYTES = 6e9;
 let state: LlamaContextState = "idle";
 /** True while EmbeddingService holds (or is acquiring) a native embed context. */
 let embedHeld = false;
+/**
+ * True while a chat engine job (stream / extract / translate / save) is running.
+ * Embed INIT must refuse while this is set so co-residency cannot race a live
+ * completion (FIX 2 dual-mutex). EmbeddingService.tryAcquireEmbed checks it.
+ * Does NOT block runNativeOp itself — tool-time embed work still queues on the
+ * native barrier after the chat job releases this flag.
+ */
+let chatCompleting = false;
 let totalMemoryBytes = 0;
 let chatModelIs2B = false;
 /**
@@ -154,6 +162,9 @@ export function markChatReleased(gen: number): void {
  * - true under chat_ready + co-residency (state stays chat_ready; embedHeld=true)
  */
 export function tryAcquireEmbed(): boolean {
+  // FIX 2: refuse embed INIT while a chat completion/job holds the engine.
+  // Prevents co-resident initLlama racing a live completion (UAF risk).
+  if (chatCompleting) return false;
   if (state === "chat_loading") return false;
   if (state === "chat_ready") {
     if (!allowsCoResidency()) return false;
@@ -181,6 +192,24 @@ export function releaseEmbed(): void {
   }
 }
 
+/**
+ * Mark a chat engine job as in-flight (stream / extract / translate / save).
+ * Called by LlamaService.withEngineJob. Embed init refuses while set.
+ */
+export function markChatCompleting(): void {
+  chatCompleting = true;
+}
+
+/** Clear the chat-completing flag after the engine job settles. */
+export function markChatCompletingDone(): void {
+  chatCompleting = false;
+}
+
+/** Diagnostics / tests: true while a chat engine job holds the barrier. */
+export function isChatCompleting(): boolean {
+  return chatCompleting;
+}
+
 export function getState(): LlamaContextState {
   return state;
 }
@@ -199,6 +228,7 @@ export function isEmbedHeld(): boolean {
 export function __resetForTests(): void {
   state = "idle";
   embedHeld = false;
+  chatCompleting = false;
   totalMemoryBytes = 0;
   chatModelIs2B = false;
   currentChatGeneration = 0;

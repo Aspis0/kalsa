@@ -24,6 +24,7 @@ import {
   decideDocStrategy,
   estimateTokensForDoc,
   formatPassageCitation,
+  shouldUseVisionFallback,
   type LibraryDoc,
 } from "./DocumentLibrary";
 import {
@@ -448,6 +449,21 @@ async function runStrategy(
       ? doc.estimatedTokens
       : null;
 
+  // FIX 5: extraction failures (timeout/renderer/fs) must NOT vision-fallback.
+  // Surface a localized error so the model can tell the user to retry import.
+  if (!shouldUseVisionFallback(doc) && (doc.docCount ?? 0) <= 0) {
+    const status = doc.extractionStatus;
+    const msg =
+      status === "timeout"
+        ? catalog(locale).extractTimeout.replace("{name}", doc.name)
+        : status === "renderer_error"
+          ? catalog(locale).extractRenderer.replace("{name}", doc.name)
+          : status === "fs_error"
+            ? catalog(locale).extractFs.replace("{name}", doc.name)
+            : catalog(locale).extractFailed.replace("{name}", doc.name);
+    return errorResult(msg);
+  }
+
   let strategy = decideDocStrategy({
     docCount: doc.docCount,
     estimatedTokens,
@@ -455,6 +471,7 @@ async function runStrategy(
   });
 
   if (strategy === "vision_fallback") {
+    // Only reached when shouldUseVisionFallback is true (no_text_layer / ok empty / legacy).
     return {
       text:
         `${DOCUMENT_CHAT_VISION_MARKER}\n` +
@@ -479,6 +496,20 @@ async function runStrategy(
   }
 
   if (loaded.docCount === 0) {
+    // Runtime re-extract found no text. Honour stored extractionStatus: failures
+    // stay errors; genuine empty/scanned docs may vision.
+    if (!shouldUseVisionFallback(doc)) {
+      const status = doc.extractionStatus;
+      const msg =
+        status === "timeout"
+          ? catalog(locale).extractTimeout.replace("{name}", doc.name)
+          : status === "renderer_error"
+            ? catalog(locale).extractRenderer.replace("{name}", doc.name)
+            : status === "fs_error"
+              ? catalog(locale).extractFs.replace("{name}", doc.name)
+              : catalog(locale).extractFailed.replace("{name}", doc.name);
+      return errorResult(msg);
+    }
     return {
       text:
         `${DOCUMENT_CHAT_VISION_MARKER}\n` +
@@ -1050,6 +1081,10 @@ function catalog(locale: Locale): {
   fullContextHeader: string;
   retrieveHeader: string;
   nothingMatched: string;
+  extractTimeout: string;
+  extractRenderer: string;
+  extractFs: string;
+  extractFailed: string;
 } {
   // Prefer i18n keys when present; fall back to English literals so the
   // harness stays independent of incomplete locale trees during development.
@@ -1082,5 +1117,17 @@ function catalog(locale: Locale): {
     nothingMatched:
       errors.documentChatNothingMatched ??
       "No passages in “{name}” matched the query.",
+    extractTimeout:
+      errors.documentChatExtractTimeout ??
+      "Text extraction for “{name}” timed out. Ask the user to re-import the document from Documents (retry); do not treat it as a scanned PDF.",
+    extractRenderer:
+      errors.documentChatExtractRenderer ??
+      "Text extraction for “{name}” failed (renderer error). Ask the user to re-import from Documents; do not use vision fallback.",
+    extractFs:
+      errors.documentChatExtractFs ??
+      "Text extraction for “{name}” failed (file read error). Ask the user to re-import from Documents.",
+    extractFailed:
+      errors.documentChatExtractFailed ??
+      "Text extraction for “{name}” failed. Ask the user to re-import from Documents (retry).",
   };
 }

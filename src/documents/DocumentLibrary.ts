@@ -9,6 +9,21 @@
 
 export type LibraryDocKind = "pdf" | "txt";
 
+/**
+ * Outcome of the import-time text extraction for a library entry.
+ * - "ok": extraction succeeded (docCount may still be 0 if the file is empty).
+ * - "no_text_layer": extraction ran but no searchable text (scanned PDF) → vision_fallback.
+ * - "timeout" | "renderer_error" | "fs_error": extraction failed → surface error, NOT vision.
+ * Absent on legacy entries: treat like "ok" when docCount > 0, else "no_text_layer"
+ * (preserves prior vision_fallback behaviour for unscanned imports).
+ */
+export type ExtractionStatus =
+  | "ok"
+  | "no_text_layer"
+  | "timeout"
+  | "renderer_error"
+  | "fs_error";
+
 export type LibraryDoc = {
   id: string;
   name: string;
@@ -22,7 +37,8 @@ export type LibraryDoc = {
   sizeBytes: number;
   /**
    * Number of text-layer retrieval docs available after extraction.
-   * 0 → no searchable text (scanned PDF / empty file) → vision_fallback.
+   * 0 + extractionStatus "no_text_layer"|"ok" → vision_fallback.
+   * 0 + extractionStatus timeout/error → surface error, not vision.
    */
   docCount: number;
   /**
@@ -35,6 +51,11 @@ export type LibraryDoc = {
    * re-estimates from extracted text on demand.
    */
   estimatedTokens?: number;
+  /**
+   * Import-time extraction outcome. Distinguishes scanned PDFs (vision ok)
+   * from timeout/renderer/fs failures (must NOT route to vision_fallback).
+   */
+  extractionStatus?: ExtractionStatus;
 };
 
 export type LibraryState = {
@@ -102,6 +123,28 @@ export function docKey(state: LibraryState, id: string): string | null {
 }
 
 /**
+ * True when a library entry with no text layer should route to vision fallback.
+ * FIX 5: only "no_text_layer" / "ok"+empty (or legacy absent status) may vision;
+ * timeout / renderer_error / fs_error must surface an error + retry instead.
+ */
+export function shouldUseVisionFallback(doc: {
+  docCount?: number;
+  extractionStatus?: ExtractionStatus;
+}): boolean {
+  const count =
+    typeof doc?.docCount === "number" && Number.isFinite(doc.docCount)
+      ? Math.max(0, Math.floor(doc.docCount))
+      : 0;
+  if (count > 0) return false;
+  const status = doc?.extractionStatus;
+  if (status === "timeout" || status === "renderer_error" || status === "fs_error") {
+    return false;
+  }
+  // "ok" with empty text, explicit "no_text_layer", or legacy missing status.
+  return true;
+}
+
+/**
  * Hybrid routing for a single document query:
  * - no text layer (docCount 0) → vision_fallback
  * - small docs (estimatedTokens < 0.5 × ctxTokens) → full_context
@@ -109,6 +152,9 @@ export function docKey(state: LibraryState, id: string): string | null {
  *
  * When estimatedTokens is null, treat as large (retrieve) if text exists —
  * never invent a full-context path without a size signal.
+ *
+ * Callers that know extractionStatus must gate vision via shouldUseVisionFallback
+ * BEFORE calling this (or pass a positive docCount for non-vision error paths).
  */
 export function decideDocStrategy(input: DecideDocStrategyInput): DocStrategy {
   const docCount =
@@ -256,6 +302,15 @@ function sanitizeDoc(doc: LibraryDoc): LibraryDoc {
   ) {
     out.estimatedTokens = Math.floor(doc.estimatedTokens);
   }
+  if (
+    doc.extractionStatus === "ok" ||
+    doc.extractionStatus === "no_text_layer" ||
+    doc.extractionStatus === "timeout" ||
+    doc.extractionStatus === "renderer_error" ||
+    doc.extractionStatus === "fs_error"
+  ) {
+    out.extractionStatus = doc.extractionStatus;
+  }
   return out;
 }
 
@@ -264,6 +319,15 @@ function tryParseDoc(item: unknown): LibraryDoc | null {
   const o = item as Record<string, unknown>;
   if (typeof o.id !== "string" || o.id.length === 0) return null;
   if (o.kind !== "pdf" && o.kind !== "txt") return null;
+  const statusRaw = o.extractionStatus;
+  const extractionStatus =
+    statusRaw === "ok" ||
+    statusRaw === "no_text_layer" ||
+    statusRaw === "timeout" ||
+    statusRaw === "renderer_error" ||
+    statusRaw === "fs_error"
+      ? statusRaw
+      : undefined;
   return sanitizeDoc({
     id: o.id,
     name: typeof o.name === "string" ? o.name : "document",
@@ -276,5 +340,6 @@ function tryParseDoc(item: unknown): LibraryDoc | null {
     fileUri: typeof o.fileUri === "string" ? o.fileUri : "",
     estimatedTokens:
       typeof o.estimatedTokens === "number" ? o.estimatedTokens : undefined,
+    ...(extractionStatus ? { extractionStatus } : {}),
   });
 }

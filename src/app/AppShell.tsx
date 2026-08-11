@@ -1650,17 +1650,28 @@ export function AppShell() {
                   // ignore
                 }
               }
-              if (isEngineReady()) {
+              // FIX 1: capture THIS load's gen SYNCHRONOUSLY before dispose.
+              // Never read chatGateGenRef.current after await — a concurrent
+              // ensure may have acquired a higher gen by then.
+              // Without markChatReleased the gate stays chat_ready while
+              // context is null → next tryAcquireChat returns null forever.
+              const releasedGenBg = chatGateGenRef.current;
+              chatGateGenRef.current = null;
+              if (isEngineReady() || releasedGenBg !== null) {
                 try {
-                  await runNativeOp(() => disposeEngine());
-                  setProcessUnloadedReason("chat.unloaded");
-                  setMemoryBannerKey("chat.unloaded");
-                  console.info(
-                    "model.unload",
-                    JSON.stringify({ reason: "background" }),
-                  );
+                  if (isEngineReady()) {
+                    await runNativeOp(() => disposeEngine());
+                    setProcessUnloadedReason("chat.unloaded");
+                    setMemoryBannerKey("chat.unloaded");
+                    console.info(
+                      "model.unload",
+                      JSON.stringify({ reason: "background" }),
+                    );
+                  }
                 } catch {
                   // ignore
+                } finally {
+                  if (releasedGenBg !== null) markChatReleased(releasedGenBg);
                 }
               }
             } catch {

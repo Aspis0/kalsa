@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   estimateTokensForDoc,
+  type ExtractionStatus,
   type LibraryDoc,
   type LibraryState,
 } from "../documents/DocumentLibrary";
@@ -170,6 +171,8 @@ export function DocumentsScreen({
       let docCount = 0;
       let pageCount: number | undefined;
       let estimatedTokens: number | undefined;
+      // FIX 5: explicit status — never conflate timeout/error with "no text layer".
+      let extractionStatus: ExtractionStatus = "ok";
 
       try {
         const extracted = await requestPdfText(ownedUri, {
@@ -190,6 +193,8 @@ export function DocumentsScreen({
         }
         const fullText = docs.map((d) => d.text ?? "").join("\n\n");
         estimatedTokens = estimateTokensForDoc(fullText);
+        // Successful extract with zero text → scanned / empty text layer.
+        extractionStatus = docCount === 0 ? "no_text_layer" : "ok";
       } catch (err) {
         const code =
           err && typeof err === "object" && "code" in err
@@ -200,8 +205,19 @@ export function DocumentsScreen({
           Alert.alert(t("documents.title"), t("documents.extractBusy"));
           return;
         }
-        // Still add the entry with docCount 0 so vision fallback can apply later.
+        // Still add the entry so the user can see it, but mark the failure so
+        // document_chat does NOT route to vision_fallback (FIX 5).
         docCount = 0;
+        if (code === "timeout" || code === "page_timeout") {
+          extractionStatus = "timeout";
+        } else if (code === "renderer_gone") {
+          extractionStatus = "renderer_error";
+        } else if (code === "no_host" || code === "unmounted" || code === "failed") {
+          extractionStatus = "renderer_error";
+        } else {
+          // FS / unknown — treat as filesystem-class failure.
+          extractionStatus = "fs_error";
+        }
       }
 
       // Final latch check before committing the import (delete may have finished
@@ -221,6 +237,7 @@ export function DocumentsScreen({
         sizeBytes,
         docCount,
         fileUri: ownedUri,
+        extractionStatus,
         ...(pageCount != null ? { pageCount } : {}),
         ...(estimatedTokens != null ? { estimatedTokens } : {}),
       };
@@ -321,6 +338,7 @@ export function DocumentsScreen({
         docCount: trimmed.length > 0 ? 1 : 0,
         fileUri: ownedUri,
         estimatedTokens: estimateTokensForDoc(trimmed),
+        extractionStatus: trimmed.length > 0 ? "ok" : "no_text_layer",
       };
       // Commit via AppShell against current state — never merge a captured snapshot.
       if (!onAddDocument(entry)) {
@@ -521,7 +539,13 @@ export function DocumentsScreen({
                     doc.pageCount != null
                       ? t("documents.pageCount", { count: doc.pageCount })
                       : null,
-                    doc.docCount === 0 ? t("documents.noTextLayer") : null,
+                    doc.docCount === 0
+                      ? doc.extractionStatus === "timeout" ||
+                        doc.extractionStatus === "renderer_error" ||
+                        doc.extractionStatus === "fs_error"
+                        ? t("documents.readFailed")
+                        : t("documents.noTextLayer")
+                      : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}
