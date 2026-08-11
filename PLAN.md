@@ -1059,6 +1059,22 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-11 — 🔬 RICERCA SPEED-PRUNING: nessun free lunch in letteratura —
+  "k ridotto + drop-by-weight" (già in faretra) è la scommessa giusta, ceiling
+  onesto +7-15%. REAP pod RINVIATO (decisione gualt: +2-4% non paga $50-120).**
+
+  Report: `research-speed-pruning.md` (7 famiglie, Amdahl sui nostri numeri).
+  I grandi numeri pubblicati (AdapMoE 1.35×, TEAL 1.8×, ZEDA 1.2×) vivono su
+  GPU/offload o richiedono distill/kernel che non abbiamo; trasposti con f=0.4
+  il ceiling è +7-15%. ROSSI: merging MC-SMoE, Wanda/sparse senza kernel ARM,
+  MoD/LayerSkip (serve training), activation sparsity su IQ2. VERDI: k=5 da
+  rimisurare su KEXP (su IQ2_M era morto — fatto nuovo = tesoretto qualità),
+  drop-by-weight (drop anche sugli HIT: 3-5× più skip di compute del miss-only
+  a hit ~78%), top-p dinamico (con simulazione GRATIS su route-trace prima di
+  patchare). Piano B futuro: ZEDA-style distill su RunPod (multi-GPU, giorni).
+  Mandato operativo: `shortlist-velocita.md` (C→A→B, regola di PARETO, fork
+  patch con G1+re-pin per A/B). In coda dopo fix-session.
+
 - **2026-08-11 — ⚖️ TRIPLO ARBITRATO NOTTURNO (REAP F0 / spike GPU Xiaomi /
   scheda CalaQwen) + interim Jelly. Il filo rosso emerso: TUTTE le strade del
   binario Marco convergono su un solo passo — rifargli il quant con la NOSTRA
