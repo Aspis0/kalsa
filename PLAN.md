@@ -1071,6 +1071,27 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-11 — ⚰️ FIX-SESSION COMPLETA: bug session diagnosticato in una riga,
+  conv5 recuperata, e N1 v2 emette l'EPITAFFIO DEFINITIVO della speculazione:
+  m = 0.279 s/token marginale (R²=0.9994), m/t1 = 0.38 > 0.3 — il prefill
+  scala col prompt, non era (solo) overhead di sessione.**
+
+  Report: `moe-calaqwen-fix-session.md`. (1) Bug: JSONL senza cmd/id/think/close
+  + parse sullo stream sbagliato — fixato, smoke n_common=71 PASS. (2) Conv5:
+  prefill/turno stabile col contesto che cresce (riuso KV sano); T3 anomala
+  (n_prompt 782, ri-serializzazione?) esclusa dalla riga canonica. (3) **N1 v2:
+  fit perfetto t=2.02+0.279·n — il costo fisso c'è (~2 s) ma il MARGINALE non
+  ammortizza** (regola dichiarata m≤0.3·t1: FAIL). Porta MTP-spec: CHIUSA per
+  misura. Nuance a verbale: m/t1=0.38 non è lontano da 0.3 e F domina il ciclo
+  — ma eliminarli entrambi = il cantiere verify-integrato che i numeri non
+  giustificano. (4) **Energia: correzione −83%** — 0.455 era mal convenzionato;
+  stima onesta ~0.05-0.15 J/tok, MA da NON citare come singolo numero fino a
+  calibrazione (shunt/carica). Scheda da declassare alla banda.
+  ⚠️ Flag aperto: l'INTERA sessione girava 3-4× lenta (prefill ~3 tok/s vs
+  10-12, decode 1.4 vs 5.2) — ratio e fit restano validi (stesso regime), ma
+  la causa (termica post-conv5? stato device?) non è spiegata: da tenere
+  d'occhio alla prossima sessione S23.
+
 - **2026-08-11 — 🧨 L'AUDIT PIÙ IMPORTANTE DELLA CAMPAGNA (shortlist-velocità,
   DeepSeek): il drop NON salta mai il matmul. A (drop-by-weight) e B (top-p)
   archiviate PRIMA di costruirle — non avevano meccanismo. Resta solo C (k=5).**
