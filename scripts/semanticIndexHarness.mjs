@@ -414,6 +414,100 @@ async function main() {
     assert(idx.query(vec(1, 0), -1).length === 0, "topN-1");
   });
 
+  // ── FIX 6: zero / non-finite vectors skipped; zero query → [] ───────────
+  check("19. zero-vector add skipped", () => {
+    const idx = new SemanticVectorIndex({ dims: 3 });
+    idx.addVectors([
+      { chunkId: "good", vector: vec(1, 0, 0) },
+      { chunkId: "zero", vector: vec(0, 0, 0) },
+      { chunkId: "nan", vector: vec(NaN, 1, 0) },
+      { chunkId: "inf", vector: vec(Infinity, 0, 0) },
+    ]);
+    assert(idx.chunkCount === 1, `chunkCount=${idx.chunkCount} (zero/nan/inf must be skipped)`);
+    const hits = idx.query(vec(1, 0, 0), 5);
+    assert(hits.length === 1 && hits[0].chunkId === "good", "only good remains");
+  });
+
+  check("20. zero query returns []", () => {
+    const idx = new SemanticVectorIndex({ dims: 2 });
+    idx.addVectors([
+      { chunkId: "a", vector: vec(1, 0) },
+      { chunkId: "b", vector: vec(0, 1) },
+    ]);
+    const hits = idx.query(vec(0, 0), 5);
+    assert(Array.isArray(hits) && hits.length === 0, `zero query must be [], got ${JSON.stringify(hits)}`);
+  });
+
+  check("21. non-positive-integer dims throw", () => {
+    const bad = [0, -1, 0.5, NaN, Infinity, null, undefined, "3"];
+    for (const d of bad) {
+      let threw = false;
+      try {
+        // eslint-disable-next-line no-new
+        new SemanticVectorIndex({ dims: d });
+      } catch {
+        threw = true;
+      }
+      assert(threw, `constructor should throw for dims=${String(d)}`);
+    }
+    // fromJSON too
+    let threwFrom = false;
+    try {
+      SemanticVectorIndex.fromJSON({ dims: 0.5, vectors: [] });
+    } catch {
+      threwFrom = true;
+    }
+    assert(threwFrom, "fromJSON fractional dims must throw");
+    let threwZero = false;
+    try {
+      SemanticVectorIndex.fromJSON({ dims: 0, vectors: [] });
+    } catch {
+      threwZero = true;
+    }
+    assert(threwZero, "fromJSON zero dims must throw");
+  });
+
+  // ── FIX 3: optional text store + dense-only hit recovery ────────────────
+  check("22. setChunkText / getChunkText + toJSON includes text", () => {
+    const idx = new SemanticVectorIndex({ dims: 2 });
+    idx.addVectors([
+      { chunkId: "c1", vector: vec(1, 0), text: "hello passage", contentHash: "aabbccdd11223344" },
+      { chunkId: "c2", vector: vec(0, 1) },
+    ]);
+    assert(idx.getChunkText("c1") === "hello passage", `text=${idx.getChunkText("c1")}`);
+    assert(idx.getChunkText("c2") === null, "c2 has no text");
+    idx.setChunkText("c2", "second passage");
+    assert(idx.getChunkText("c2") === "second passage", "setChunkText");
+    const json = idx.toJSON();
+    const row1 = json.vectors.find((v) => v.chunkId === "c1");
+    assert(row1 && row1.text === "hello passage", "toJSON text");
+    assert(row1 && row1.contentHash === "aabbccdd11223344", "toJSON hash");
+    const restored = SemanticVectorIndex.fromJSON(json);
+    assert(restored.getChunkText("c1") === "hello passage", "fromJSON text");
+    assert(restored.getContentHash("c1") === "aabbccdd11223344", "fromJSON hash");
+  });
+
+  check("23. dense-only hit recovery via getChunkText", () => {
+    // Simulates a fused winner present only in the dense arm: text comes from
+    // the vector index, not from BM25 passages.
+    const idx = new SemanticVectorIndex({ dims: 2 });
+    idx.addVectors([
+      {
+        chunkId: "doc1#paragraph#0",
+        vector: vec(0.9, 0.1),
+        text: "Only dense arm knows this paragraph about mortgages.",
+        contentHash: "deadbeefcafebabe",
+      },
+    ]);
+    const hits = idx.query(vec(1, 0), 3);
+    assert(hits.length === 1 && hits[0].chunkId === "doc1#paragraph#0", "dense hit");
+    const text = idx.getChunkText(hits[0].chunkId);
+    assert(
+      typeof text === "string" && text.includes("mortgages"),
+      `dense-only text missing: ${text}`,
+    );
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
 }

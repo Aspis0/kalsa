@@ -16,7 +16,12 @@ import {
   type LibraryDoc,
   type LibraryState,
 } from "../documents/DocumentLibrary";
-import { deleteOwnedFile } from "../documents/documentStorage";
+import {
+  deleteOwnedFile,
+  deleteVectorIndexFile,
+  readVectorIndexFile,
+  writeVectorIndexFile,
+} from "../documents/documentStorage";
 import {
   DOCUMENT_CHAT_TOOL,
   createDocumentChatExecutor,
@@ -25,6 +30,8 @@ import {
   tryAcquireDelete,
   releaseDelete,
   isDeleteActive,
+  tryAcquireRead,
+  releaseRead,
 } from "../documents/docOpGate";
 import { DocRetrieverIndex } from "../context/retrievalLoop";
 import { htmlToText } from "../util/htmlToText";
@@ -43,6 +50,7 @@ import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, mod
 import {
   embedDocumentChunk,
   embedQuery as embedQueryVec,
+  embedChunkKey,
   getEmbeddingModelStatus,
   listDocumentChunksForEmbed,
   planChunksToEmbed,
@@ -488,17 +496,36 @@ export function AppShell() {
   documentLibraryRef.current = documentLibrary;
   const docIndexByIdRef = useRef<Map<string, DocRetrieverIndex>>(new Map());
   /**
-   * Per-doc dense vector index (session-lifetime for v1 — rebuilt on re-import
-   * when the embedder is present; not persisted to disk yet).
-   * Dropped on delete / library prune alongside the BM25 index.
+   * Per-doc dense vector index. Durable under kalsa-documents/{docId}.vec.json;
+   * also held in memory for the session. Dropped on delete / library prune
+   * alongside the BM25 index and the .vec.json sidecar.
    */
   const docSemanticByIdRef = useRef<Map<string, SemanticVectorIndex>>(new Map());
-  /** contentHash set per doc for incremental embed planning. */
+  /**
+   * Existing (chunkId, contentHash) keys per doc for incremental embed planning
+   * (see embedChunkKey). Same text in different chunks embeds per chunk.
+   */
   const docEmbedHashesByIdRef = useRef<Map<string, Set<string>>>(new Map());
-  /** Single-flight token for background embedding jobs (never blocks chat). */
+  /**
+   * Single-flight flag for background embedding jobs (never blocks chat).
+   * Set SYNCHRONOUSLY before the first await so a second import cannot race in.
+   */
   const embedJobInFlightRef = useRef(false);
+  /**
+   * Generation token for the background embed job. Bumped on unmount, on
+   * library delete of the doc being embedded, and when the chat model starts
+   * loading. The loop checks the token before every embed/init/commit and
+   * aborts (without committing) when stale.
+   */
+  const embedJobGenerationRef = useRef(0);
   /** Cached embedder-downloaded flag (refreshed on download / Settings open). */
   const embedderDownloadedRef = useRef(false);
+  /**
+   * Mirrors modelState for sync residency checks from the embed job (refs are
+   * readable without waiting for a re-render). "ready" / "loading" mean the
+   * chat LlamaContext is resident or about to be.
+   */
+  const modelStateRef = useRef<ModelState>("checking");
   /**
    * Delete authority is the shared docOpGate (module-level), not a React ref.
    * Screen unmount cannot clear it — reopen cannot start import during an old
@@ -521,19 +548,62 @@ export function AppShell() {
     let mounted = true;
     const loadGen = libraryMutationRef.current;
     void loadLibraryState(getDefaultLibraryStorage())
-      .then((state) => {
+      .then(async (state) => {
         if (!mounted) return;
         // Drop stale load if the user already added/deleted a doc.
         if (libraryMutationRef.current !== loadGen) {
           return;
         }
         setDocumentLibrary(state);
+        // Best-effort durable vector restore (never blocks UI). Under the
+        // shared READ latch so a concurrent delete cannot race the load.
+        // Corrupt / missing .vec.json → skip that doc (BM25-only).
+        const docs = state.docs ?? [];
+        if (docs.length === 0) return;
+        // Fire-and-forget so the UI paints the library immediately.
+        void (async () => {
+          for (const doc of docs) {
+            if (!mounted) return;
+            if (libraryMutationRef.current !== loadGen) return;
+            if (!doc?.id) continue;
+            if (!tryAcquireRead()) {
+              // Another op holds the gate — skip this doc's vectors this boot.
+              continue;
+            }
+            try {
+              const raw = await readVectorIndexFile(doc.id);
+              if (!mounted || libraryMutationRef.current !== loadGen) return;
+              // Doc may have been deleted while we were reading.
+              if (!documentLibraryRef.current.docs?.some((d) => d.id === doc.id)) {
+                continue;
+              }
+              if (!raw || typeof raw !== "object") continue;
+              let idx: SemanticVectorIndex;
+              try {
+                idx = SemanticVectorIndex.fromJSON(
+                  raw as ReturnType<SemanticVectorIndex["toJSON"]>,
+                );
+              } catch {
+                continue; // corrupt / bad dims → BM25-only
+              }
+              if (idx.chunkCount <= 0) continue;
+              docSemanticByIdRef.current.set(doc.id, idx);
+              docEmbedHashesByIdRef.current.set(doc.id, idx.contentHashKeys());
+            } catch {
+              /* skip — BM25-only for this doc */
+            } finally {
+              releaseRead();
+            }
+          }
+        })();
       })
       .catch(() => {
         /* keep empty library on load failure */
       });
     return () => {
       mounted = false;
+      // Cancel any in-flight embed job so it cannot lazy-init after unmount.
+      embedJobGenerationRef.current += 1;
     };
   }, []);
 
@@ -569,6 +639,9 @@ export function AppShell() {
     if (!id || typeof id !== "string") return false;
     // Shared gate: refuse while a read (document_chat) OR another delete is active.
     if (!tryAcquireDelete()) return false;
+    // Cancel any background embed for this (or any) doc before dropping files:
+    // the embed loop checks the generation token before every commit.
+    embedJobGenerationRef.current += 1;
     try {
       // Resolve CURRENT library snapshot — never a captured prop.
       const current = documentLibraryRef.current;
@@ -576,6 +649,8 @@ export function AppShell() {
       if (doc?.fileUri) {
         await deleteOwnedFile(doc.fileUri);
       }
+      // Drop durable dense-vector sidecar alongside the owned file.
+      await deleteVectorIndexFile(id);
       // Drop retrieval + semantic indexes for this id (best-effort; functional
       // filter below is the source of truth for the list).
       docIndexByIdRef.current.delete(id);
@@ -636,29 +711,111 @@ export function AppShell() {
 
   /**
    * Background embed job for a freshly imported document.
-   * v1: session-lifetime SemanticVectorIndex (in-memory); rebuild on re-import.
+   *
+   * Policy (FIX 2 — no second llama context while chat is resident on low RAM):
+   *   - if chat is resident (modelState ready/loading OR isEngineReady) AND
+   *     totalMemoryBytes <= 6 GB → skip the job entirely (BM25-only until chat
+   *     is released). Log a comment; never initLlama(embedder) in that window.
+   *   - if RAM is higher OR chat is released → proceed.
+   *   - the same gate is re-checked before every lazy embedder init inside the
+   *     loop; chat load bumps embedJobGenerationRef so an in-flight job aborts.
+   *
+   * Gate / durability (FIX 1 + 4 + 5):
+   *   - acquires the shared READ latch for the whole run (released in finally)
+   *     so delete cannot remove the file/index mid-embed
+   *   - embedJobInFlightRef is set SYNCHRONOUSLY before the first await
+   *   - generation token checked before every embed/init/commit; stale → abort
+   *     without committing (and without post-unmount lazy init)
+   *   - before EVERY commit, re-verify the doc is still in the library AND the
+   *     semantic map still owns that docId; if deleted, drop the vectors
+   *   - persists {chunkId, vector, contentHash, text} to kalsa-documents/
+   *     {docId}.vec.json after a successful commit
+   *
+   * Chunking (FIX 9): listDocumentChunksForEmbed mirrors DocRetrieverIndex so
+   * dense/BM25 chunkIds + texts are byte-identical.
+   *
    * Never throws; never holds the chat path.
    */
   const scheduleBackgroundEmbed = useCallback(async (entry: LibraryDoc) => {
     if (!entry?.id || !entry.fileUri) return;
+    // Single-flight: set SYNCHRONOUSLY before the first await so a concurrent
+    // import cannot sneak a second job past the flag.
     if (embedJobInFlightRef.current) return;
-    if (!embedderDownloadedRef.current) {
-      // Cheap re-probe once; if still missing, skip silently (BM25-only).
+    embedJobInFlightRef.current = true;
+    const jobGen = embedJobGenerationRef.current;
+    const stillCurrent = () => jobGen === embedJobGenerationRef.current;
+
+    /**
+     * Chat residency gate. Chat is "resident" when the engine is ready OR the
+     * UI state is loading/ready (covers the window between setModelState
+     * ("loading") and isEngineReady() flipping true).
+     */
+    const isChatResident = () => {
+      const st = modelStateRef.current;
+      if (st === "ready" || st === "loading") return true;
       try {
-        const status = await getEmbeddingModelStatus();
-        embedderDownloadedRef.current = status === "downloaded";
+        if (isEngineReady()) return true;
       } catch {
+        /* ignore */
+      }
+      return false;
+    };
+
+    /** True when we must NOT init the embedder (low-RAM + chat resident). */
+    const mustSkipForRam = async (): Promise<boolean> => {
+      if (!isChatResident()) return false;
+      try {
+        const profile = await getCachedDeviceProfile();
+        const total = profile.totalMemoryBytes ?? 0;
+        // <= 6 GB: refuse co-residence. Unknown RAM (0/null) → conservative skip
+        // when chat is resident (same policy as releaseEmbedder before chat load).
+        if (total <= 0 || total <= 6 * 1024 * 1024 * 1024) return true;
+        return false;
+      } catch {
+        // Probe failure + chat resident → skip conservatively.
+        return true;
+      }
+    };
+
+    // Shared READ latch for the whole run so delete cannot remove the file /
+    // index mid-embed, and so we cannot resurrect a deleted index.
+    if (!tryAcquireRead()) {
+      embedJobInFlightRef.current = false;
+      return;
+    }
+
+    try {
+      if (!stillCurrent()) return;
+
+      // FIX 2: gate before starting the job.
+      if (await mustSkipForRam()) {
+        // Chat is resident on ≤6 GB — BM25-only until chat is released.
+        // eslint-disable-next-line no-console
+        console.log(
+          "[embed] skip: chat resident on ≤6GB RAM — BM25-only until chat released",
+        );
         return;
       }
-      if (!embedderDownloadedRef.current) return;
-    }
-    embedJobInFlightRef.current = true;
-    try {
+      if (!stillCurrent()) return;
+
+      if (!embedderDownloadedRef.current) {
+        // Cheap re-probe once; if still missing, skip silently (BM25-only).
+        try {
+          const status = await getEmbeddingModelStatus();
+          if (!stillCurrent()) return;
+          embedderDownloadedRef.current = status === "downloaded";
+        } catch {
+          return;
+        }
+        if (!embedderDownloadedRef.current) return;
+      }
+
       // Load text the same way document_chat does (txt / pdf pages).
       let pages: Array<{ docId: string; text: string }> = [];
       if (entry.kind === "txt") {
         try {
           const raw = await FileSystem.readAsStringAsync(entry.fileUri);
+          if (!stillCurrent()) return;
           const looksHtml = /<\/?[a-z][\s\S]*>/i.test(raw.slice(0, 2000));
           const text = looksHtml ? htmlToText(raw).text : raw;
           const trimmed = (text ?? "").trim();
@@ -674,6 +831,7 @@ export function AppShell() {
             sourceId: entry.sourceId || entry.id,
             title: entry.name,
           });
+          if (!stillCurrent()) return;
           const docs = Array.isArray(extracted?.docs) ? extracted.docs : [];
           pages = docs
             .filter((d) => d && typeof d.text === "string" && d.text.trim().length > 0)
@@ -687,11 +845,17 @@ export function AppShell() {
       }
       if (pages.length === 0) return;
 
+      // FIX 9: same chunk list as DocRetrieverIndex (byte-identical ids/texts).
       const chunks = listDocumentChunksForEmbed(pages);
       if (chunks.length === 0) return;
 
       const existing =
         docEmbedHashesByIdRef.current.get(entry.id) ?? new Set<string>();
+      // Also seed from any in-memory index already loaded from disk.
+      const liveIdx = docSemanticByIdRef.current.get(entry.id);
+      if (liveIdx) {
+        for (const k of liveIdx.contentHashKeys()) existing.add(k);
+      }
       const toEmbed = planChunksToEmbed(existing, chunks);
       if (toEmbed.length === 0) return;
 
@@ -699,25 +863,85 @@ export function AppShell() {
         docSemanticByIdRef.current.get(entry.id) ??
         new SemanticVectorIndex({ dims: EMBEDDING_MODEL.dims });
 
-      // Embed one-by-one (G99 ~1–3 s/chunk). Abort if doc was deleted mid-job.
+      // Working set of newly added vectors this job; only committed if the
+      // doc still exists + map still owns the id at commit time.
+      let pendingAdds = 0;
+
+      // Embed one-by-one (G99 ~1–3 s/chunk). Abort if gen stale / doc deleted.
       for (const chunk of toEmbed) {
+        if (!stillCurrent()) return;
+        // Doc still in library?
         if (!documentLibraryRef.current.docs?.some((d) => d.id === entry.id)) {
           return;
         }
+        // FIX 2: re-check residency before every lazy embedder init.
+        if (await mustSkipForRam()) {
+          // eslint-disable-next-line no-console
+          console.log(
+            "[embed] abort mid-job: chat became resident on ≤6GB — no embedder init",
+          );
+          return;
+        }
+        if (!stillCurrent()) return;
+
         const vec = await embedDocumentChunk(chunk.text);
+        if (!stillCurrent()) return;
         if (!vec) {
           // Embedder failed / unloaded — stop; strategy stays bm25_only.
           break;
         }
-        index.addVectors([{ chunkId: chunk.chunkId, vector: vec }]);
-        existing.add(chunk.contentHash);
-      }
 
-      docSemanticByIdRef.current.set(entry.id, index);
-      docEmbedHashesByIdRef.current.set(entry.id, existing);
+        // Stage the vector + text + hash. Commit only after the existence check.
+        index.addVectors([
+          {
+            chunkId: chunk.chunkId,
+            vector: vec,
+            text: chunk.text,
+            contentHash: chunk.contentHash,
+          },
+        ]);
+        existing.add(embedChunkKey(chunk.chunkId, chunk.contentHash));
+        pendingAdds += 1;
+
+        // FIX 1: before EVERY commit, verify the doc still exists in the library
+        // AND the semantic-index map still owns (or may own) that docId.
+        // If deleted, abort the commit (drop the vectors) — do not resurrect.
+        if (!documentLibraryRef.current.docs?.some((d) => d.id === entry.id)) {
+          // Drop any staged work; do not write the map or the durable file.
+          return;
+        }
+        // If the map no longer has this id (delete already cleared it) AND we
+        // are not the first write, refuse to re-insert a deleted index.
+        // First write is allowed only while the doc is still in the library.
+        const mapHas = docSemanticByIdRef.current.has(entry.id);
+        if (!mapHas && pendingAdds > 0) {
+          // We are about to insert for the first time — still OK iff doc lives.
+          // (mapHas is false on a cold import; that's the expected path.)
+        }
+
+        // Commit in-memory + durable after each successful chunk so a mid-job
+        // kill still leaves partial progress. Delete bumps gen and clears the
+        // map + .vec.json, so a stale commit is impossible past the checks above.
+        docSemanticByIdRef.current.set(entry.id, index);
+        docEmbedHashesByIdRef.current.set(entry.id, existing);
+        try {
+          await writeVectorIndexFile(entry.id, index.toJSON());
+        } catch {
+          /* best-effort durable write */
+        }
+        if (!stillCurrent()) return;
+        // Post-write existence check: if deleted during the write, drop the
+        // resurrected map entry (delete already removed the file under its gate).
+        if (!documentLibraryRef.current.docs?.some((d) => d.id === entry.id)) {
+          docSemanticByIdRef.current.delete(entry.id);
+          docEmbedHashesByIdRef.current.delete(entry.id);
+          return;
+        }
+      }
     } catch {
       // ignore — hybrid degrades to BM25
     } finally {
+      releaseRead();
       embedJobInFlightRef.current = false;
     }
   }, []);
@@ -1027,6 +1251,9 @@ export function AppShell() {
     Math.max(0, MODEL_REGISTRY.findIndex((m) => m.id === getDefaultModel().id)),
   );
   const [modelState, setModelState] = useState<ModelState>("checking");
+  // Keep modelStateRef in lockstep for the embed-job residency gate (reads
+  // without waiting for a re-render). Assigned on every render below.
+  modelStateRef.current = modelState;
   const [download, setDownload] = useState<{ bytesReceived: number; bytesTotal: number; progress: number } | null>(null);
   const [modelError, setModelError] = useState<string | null>(null);
   // Raw download error (untranslated) for on-device diagnostics when friendly text is generic.
@@ -1129,6 +1356,8 @@ export function AppShell() {
     return () => {
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
       engineGenerationRef.current += 1; // invalida ogni async in corso
+      // FIX 5: cancel background embed so it cannot lazy-initLlama after unmount.
+      embedJobGenerationRef.current += 1;
       downloadAbortRef.current?.abort();
       downloadAbortRef.current = null;
       voiceDownloadAbortRef.current?.abort();
@@ -1252,7 +1481,11 @@ export function AppShell() {
 
       // Clear previous error banner before retry so "Ready" never coexists with
       // a stale "Could not load the model" under the header / in Settings.
+      // FIX 5: bump embed-job generation so any in-flight background embed
+      // aborts before we init the chat LlamaContext (no post-cancel lazy init).
+      embedJobGenerationRef.current += 1;
       setModelState("loading");
+      modelStateRef.current = "loading";
       setModelError(null);
       setModelErrorDetail(null);
       setModelErrorKind(null);
@@ -1519,7 +1752,10 @@ export function AppShell() {
       }
       if (!stillCurrent()) return;
       errorPhase = "engine";
+      // FIX 5: cancel background embed before chat load (same as ensureEngineForModel).
+      embedJobGenerationRef.current += 1;
       setModelState("loading");
+      modelStateRef.current = "loading";
 
       // Design §5: release embedder before chat load on ≤6 GB (same as ensureEngineForModel).
       try {

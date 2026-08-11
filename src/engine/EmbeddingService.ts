@@ -19,6 +19,7 @@ import { EMBEDDING_MODEL } from "./ModelRegistry";
 import {
   applyEmbedPrefix,
   type EmbeddableChunk,
+  embedChunkKey,
   hashChunkContent,
   listDocumentChunksForEmbed,
   planChunksToEmbed,
@@ -28,6 +29,7 @@ import {
 // Re-export pure surface so app callers can import from EmbeddingService alone.
 export {
   applyEmbedPrefix,
+  embedChunkKey,
   hashChunkContent,
   listDocumentChunksForEmbed,
   planChunksToEmbed,

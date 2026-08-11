@@ -92,11 +92,12 @@ async function main() {
     }
   }
 
-  // 1. hash stability
+  // 1. hash stability (64-bit / 16-char hex)
   check("hashChunkContent stable for same text", () => {
     const a = hashChunkContent("hello world");
     const b = hashChunkContent("hello world");
-    assert(typeof a === "string" && a.length === 8, `bad hash shape: ${a}`);
+    assert(typeof a === "string" && a.length === 16, `bad hash shape: ${a}`);
+    assert(/^[0-9a-f]{16}$/.test(a), `not hex: ${a}`);
     assert(a === b, `unstable: ${a} vs ${b}`);
   });
 
@@ -157,27 +158,47 @@ async function main() {
     );
   });
 
-  // 8. planChunksToEmbed — new + unchanged
-  check("planChunksToEmbed returns only missing hashes", () => {
+  // 8. planChunksToEmbed — new + unchanged (dedupe by chunkId+hash)
+  check("planChunksToEmbed returns only missing (chunkId,hash)", () => {
+    const { embedChunkKey } = mod;
     const chunks = [
       { chunkId: "d#sentence#0", text: "aaa", contentHash: hashChunkContent("aaa") },
       { chunkId: "d#sentence#1", text: "bbb", contentHash: hashChunkContent("bbb") },
       { chunkId: "d#sentence#2", text: "ccc", contentHash: hashChunkContent("ccc") },
     ];
-    const existing = new Set([chunks[0].contentHash, chunks[2].contentHash]);
+    const existing = new Set([
+      embedChunkKey(chunks[0].chunkId, chunks[0].contentHash),
+      embedChunkKey(chunks[2].chunkId, chunks[2].contentHash),
+    ]);
     const need = planChunksToEmbed(existing, chunks);
     assert(need.length === 1, `expected 1, got ${need.length}`);
     assert(need[0].chunkId === "d#sentence#1", `got ${need[0]?.chunkId}`);
   });
 
   // 9. planChunksToEmbed empty when all present
-  check("planChunksToEmbed empty when all hashes exist", () => {
+  check("planChunksToEmbed empty when all (chunkId,hash) exist", () => {
+    const { embedChunkKey } = mod;
     const chunks = [
       { chunkId: "d#0", text: "x", contentHash: hashChunkContent("x") },
     ];
-    const existing = new Set([chunks[0].contentHash]);
+    const existing = new Set([embedChunkKey(chunks[0].chunkId, chunks[0].contentHash)]);
     const need = planChunksToEmbed(existing, chunks);
     assert(need.length === 0, `expected 0, got ${need.length}`);
+  });
+
+  // 9b. same text in different chunks embeds per chunk (provenance kept)
+  check("planChunksToEmbed keeps same text across different chunkIds", () => {
+    const { embedChunkKey } = mod;
+    const h = hashChunkContent("same text");
+    const chunks = [
+      { chunkId: "d#sentence#0", text: "same text", contentHash: h },
+      { chunkId: "d#paragraph#0", text: "same text", contentHash: h },
+    ];
+    // Only sentence is already embedded — paragraph with same hash still needed.
+    const existing = new Set([embedChunkKey("d#sentence#0", h)]);
+    const need = planChunksToEmbed(existing, chunks);
+    assert(need.length === 1, `expected 1, got ${need.length}`);
+    assert(need[0].chunkId === "d#paragraph#0", `got ${need[0]?.chunkId}`);
   });
 
   // 10. listDocumentChunksForEmbed produces both granularities
@@ -202,7 +223,10 @@ async function main() {
       `no paragraph ids: ${ids.join(",")}`,
     );
     for (const c of chunks) {
-      assert(typeof c.contentHash === "string" && c.contentHash.length === 8, "bad hash");
+      assert(
+        typeof c.contentHash === "string" && c.contentHash.length === 16,
+        `bad hash: ${c.contentHash}`,
+      );
       assert(typeof c.text === "string" && c.text.length > 0, "empty text");
     }
   });

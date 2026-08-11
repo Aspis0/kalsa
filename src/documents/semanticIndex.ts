@@ -9,8 +9,9 @@
  * Conventions (locked for EmbeddingService consumers):
  *
  * 1. L2 normalization is DEFENSIVE on both addVectors and query.
- *    Callers may pass raw or already-normalized vectors; we re-normalize
- *    (zero / non-finite vectors become the zero vector and score 0).
+ *    Callers may pass raw or already-normalized vectors; we re-normalize.
+ *    Zero / non-finite vectors are REJECTED on add (skipped) so they cannot
+ *    perturb RRF. A zero-norm query returns [] (no dense hits).
  *    Cosine on unit vectors = dot product.
  *
  * 2. rrfFuse ranks are 0-BASED from callers (array index / top-N position).
@@ -19,21 +20,65 @@
  *               = Σ_arm  w_arm / (k + rank_0based(d) + 1)
  *    Absent arm contributes 0. Default k=60, weights=1. Sorted desc.
  *    Matches existing retrievalLoop (rankInRound 1-based → 1/(RRF_K+rank)).
+ *
+ * 3. Optional per-chunk text + contentHash for durable persistence and
+ *    dense-only RRF hit recovery (no silent drop of dense winners).
  */
 
 export type SemanticVectorIndexOpts = { dims: number };
 
+export type SemanticVectorAddItem = {
+  chunkId: string;
+  vector: Float32Array;
+  /** Optional passage text (dense-only hit recovery + durable persist). */
+  text?: string;
+  /** Optional content hash for incremental re-embed planning. */
+  contentHash?: string;
+};
+
+type StoredVector = {
+  vector: Float32Array;
+  text?: string;
+  contentHash?: string;
+};
+
+export type SemanticVectorJSON = {
+  dims: number;
+  vectors: {
+    chunkId: string;
+    vector: number[];
+    text?: string;
+    contentHash?: string;
+  }[];
+};
+
+function assertPositiveIntegerDims(d: unknown, where: string): number {
+  if (typeof d !== "number" || !Number.isInteger(d) || d <= 0) {
+    throw new Error(
+      `SemanticVectorIndex${where}: dims must be a positive integer, got ${String(d)}`,
+    );
+  }
+  return d;
+}
+
+/** True when the vector is empty of usable signal (any non-finite, or all zeros). */
+function isZeroOrNonFinite(v: Float32Array): boolean {
+  let allZero = true;
+  for (let i = 0; i < v.length; i++) {
+    const x = v[i];
+    if (typeof x !== "number" || !Number.isFinite(x)) return true;
+    if (x !== 0) allZero = false;
+  }
+  return allZero;
+}
+
 export class SemanticVectorIndex {
   readonly dims: number;
-  /** chunkId → L2-normalized vector (length = dims). */
-  private readonly store = new Map<string, Float32Array>();
+  /** chunkId → L2-normalized vector (+ optional text/hash). */
+  private readonly store = new Map<string, StoredVector>();
 
   constructor(opts: SemanticVectorIndexOpts) {
-    const d = opts?.dims;
-    if (typeof d !== "number" || !Number.isFinite(d) || d <= 0) {
-      throw new Error(`SemanticVectorIndex: dims must be a positive finite number, got ${d}`);
-    }
-    this.dims = Math.floor(d);
+    this.dims = assertPositiveIntegerDims(opts?.dims, "");
   }
 
   get chunkCount(): number {
@@ -42,16 +87,80 @@ export class SemanticVectorIndex {
 
   /**
    * Insert or replace vectors. Dedupe by chunkId (last write wins).
-   * Vectors are L2-normalized on add; wrong-length / non-finite entries are skipped.
+   * Vectors are L2-normalized on add; wrong-length / zero / non-finite
+   * entries are skipped (they must not perturb dense RRF ranks).
+   * Optional text / contentHash are stored when provided (string, non-empty).
    */
-  addVectors(items: { chunkId: string; vector: Float32Array }[]): void {
+  addVectors(items: SemanticVectorAddItem[]): void {
     if (!Array.isArray(items) || items.length === 0) return;
     for (const item of items) {
-      if (!item || typeof item.chunkId !== "string" || item.chunkId.length === 0) continue;
+      if (!item || typeof item.chunkId !== "string" || item.chunkId.length === 0) {
+        continue;
+      }
       const v = item.vector;
       if (!(v instanceof Float32Array) || v.length !== this.dims) continue;
-      this.store.set(item.chunkId, l2Normalize(v, this.dims));
+      if (isZeroOrNonFinite(v)) continue;
+      const normalized = l2Normalize(v, this.dims);
+      // Defensive: if normalize collapsed to zero, still reject.
+      if (isZeroOrNonFinite(normalized)) continue;
+
+      const prev = this.store.get(item.chunkId);
+      const text =
+        typeof item.text === "string" && item.text.length > 0
+          ? item.text
+          : prev?.text;
+      const contentHash =
+        typeof item.contentHash === "string" && item.contentHash.length > 0
+          ? item.contentHash
+          : prev?.contentHash;
+      const row: StoredVector = { vector: normalized };
+      if (text !== undefined) row.text = text;
+      if (contentHash !== undefined) row.contentHash = contentHash;
+      this.store.set(item.chunkId, row);
     }
+  }
+
+  /** Store / replace passage text for a chunk (dense-only hit recovery). */
+  setChunkText(chunkId: string, text: string): void {
+    if (typeof chunkId !== "string" || chunkId.length === 0) return;
+    if (typeof text !== "string") return;
+    const prev = this.store.get(chunkId);
+    if (!prev) {
+      // Text without a vector is not queryable; ignore until a vector lands.
+      return;
+    }
+    if (text.length === 0) {
+      delete prev.text;
+    } else {
+      prev.text = text;
+    }
+  }
+
+  /** Retrieve stored passage text, or null when absent. */
+  getChunkText(chunkId: string): string | null {
+    if (typeof chunkId !== "string" || chunkId.length === 0) return null;
+    const row = this.store.get(chunkId);
+    const t = row?.text;
+    return typeof t === "string" && t.length > 0 ? t : null;
+  }
+
+  /** Retrieve stored contentHash, or null when absent. */
+  getContentHash(chunkId: string): string | null {
+    if (typeof chunkId !== "string" || chunkId.length === 0) return null;
+    const row = this.store.get(chunkId);
+    const h = row?.contentHash;
+    return typeof h === "string" && h.length > 0 ? h : null;
+  }
+
+  /** All known (chunkId, contentHash) composite keys for incremental planning. */
+  contentHashKeys(): Set<string> {
+    const out = new Set<string>();
+    for (const [chunkId, row] of this.store) {
+      if (typeof row.contentHash === "string" && row.contentHash.length > 0) {
+        out.add(`${chunkId}\0${row.contentHash}`);
+      }
+    }
+    return out;
   }
 
   removeChunk(chunkId: string): void {
@@ -61,57 +170,84 @@ export class SemanticVectorIndex {
 
   /**
    * Brute-force cosine (dot product of L2-normalized vectors).
-   * Query vector is defensively re-normalized. Returns topN results sorted by
-   * score descending; ties keep insertion order of the store iteration.
+   * Query vector is defensively re-normalized. Zero-norm query → [] (no dense
+   * hits; a zero query must not flood RRF with score-0 rows).
    * Empty index / topN<=0 / bad query → [].
    */
   query(queryVector: Float32Array, topN: number): { chunkId: string; score: number }[] {
     if (this.store.size === 0) return [];
-    if (!(queryVector instanceof Float32Array) || queryVector.length !== this.dims) return [];
+    if (!(queryVector instanceof Float32Array) || queryVector.length !== this.dims) {
+      return [];
+    }
     const n = Math.floor(Number(topN));
     if (!Number.isFinite(n) || n <= 0) return [];
+    if (isZeroOrNonFinite(queryVector)) return [];
 
     const q = l2Normalize(queryVector, this.dims);
-    // Zero query → all scores 0; still return something stable if requested.
+    if (isZeroOrNonFinite(q)) return [];
+
     const scored: { chunkId: string; score: number }[] = [];
-    for (const [chunkId, vec] of this.store) {
-      scored.push({ chunkId, score: dot(q, vec) });
+    for (const [chunkId, row] of this.store) {
+      scored.push({ chunkId, score: dot(q, row.vector) });
     }
-    scored.sort((a, b) => b.score - a.score || (a.chunkId < b.chunkId ? -1 : a.chunkId > b.chunkId ? 1 : 0));
+    scored.sort(
+      (a, b) =>
+        b.score - a.score ||
+        (a.chunkId < b.chunkId ? -1 : a.chunkId > b.chunkId ? 1 : 0),
+    );
     return scored.slice(0, n);
   }
 
   /**
    * Round-trip persistence: plain serializable shape (fp32 as number[]).
-   * Order is deterministic (sorted by chunkId) so snapshots are stable.
+   * Includes text / contentHash when present. Order is deterministic
+   * (sorted by chunkId) so snapshots are stable.
    */
-  toJSON(): { dims: number; vectors: { chunkId: string; vector: number[] }[] } {
-    const vectors: { chunkId: string; vector: number[] }[] = [];
+  toJSON(): SemanticVectorJSON {
+    const vectors: SemanticVectorJSON["vectors"] = [];
     const ids = Array.from(this.store.keys()).sort();
     for (const chunkId of ids) {
-      const v = this.store.get(chunkId)!;
-      vectors.push({ chunkId, vector: Array.from(v) });
+      const row = this.store.get(chunkId)!;
+      const entry: SemanticVectorJSON["vectors"][number] = {
+        chunkId,
+        vector: Array.from(row.vector),
+      };
+      if (typeof row.text === "string" && row.text.length > 0) {
+        entry.text = row.text;
+      }
+      if (typeof row.contentHash === "string" && row.contentHash.length > 0) {
+        entry.contentHash = row.contentHash;
+      }
+      vectors.push(entry);
     }
     return { dims: this.dims, vectors };
   }
 
-  static fromJSON(data: ReturnType<SemanticVectorIndex["toJSON"]>): SemanticVectorIndex {
-    const dims = data?.dims;
-    if (typeof dims !== "number" || !Number.isFinite(dims) || dims <= 0) {
-      throw new Error(`SemanticVectorIndex.fromJSON: invalid dims ${dims}`);
-    }
-    const idx = new SemanticVectorIndex({ dims: Math.floor(dims) });
-    const items = Array.isArray(data?.vectors) ? data.vectors : [];
-    const packed: { chunkId: string; vector: Float32Array }[] = [];
+  static fromJSON(data: SemanticVectorJSON | null | undefined): SemanticVectorIndex {
+    const dims = assertPositiveIntegerDims(data?.dims, ".fromJSON");
+    const idx = new SemanticVectorIndex({ dims });
+    const items = Array.isArray(data?.vectors) ? data!.vectors : [];
+    const packed: SemanticVectorAddItem[] = [];
     for (const row of items) {
       if (!row || typeof row.chunkId !== "string") continue;
       if (!Array.isArray(row.vector) || row.vector.length !== idx.dims) continue;
       const f = new Float32Array(idx.dims);
+      let bad = false;
       for (let i = 0; i < idx.dims; i++) {
         const x = row.vector[i];
-        f[i] = typeof x === "number" && Number.isFinite(x) ? x : 0;
+        if (typeof x !== "number" || !Number.isFinite(x)) {
+          bad = true;
+          break;
+        }
+        f[i] = x;
       }
-      packed.push({ chunkId: row.chunkId, vector: f });
+      if (bad || isZeroOrNonFinite(f)) continue;
+      const item: SemanticVectorAddItem = { chunkId: row.chunkId, vector: f };
+      if (typeof row.text === "string" && row.text.length > 0) item.text = row.text;
+      if (typeof row.contentHash === "string" && row.contentHash.length > 0) {
+        item.contentHash = row.contentHash;
+      }
+      packed.push(item);
     }
     idx.addVectors(packed);
     return idx;
@@ -203,10 +339,8 @@ export function rrfFuse(
     typeof kRaw === "number" && Number.isFinite(kRaw) && kRaw >= 0 ? kRaw : 60;
   const wsRaw = opts?.sparseWeight;
   const wdRaw = opts?.denseWeight;
-  const ws =
-    typeof wsRaw === "number" && Number.isFinite(wsRaw) ? wsRaw : 1;
-  const wd =
-    typeof wdRaw === "number" && Number.isFinite(wdRaw) ? wdRaw : 1;
+  const ws = typeof wsRaw === "number" && Number.isFinite(wsRaw) ? wsRaw : 1;
+  const wd = typeof wdRaw === "number" && Number.isFinite(wdRaw) ? wdRaw : 1;
 
   const scores = new Map<string, number>();
 
@@ -216,7 +350,9 @@ export function rrfFuse(
   ) => {
     if (!Array.isArray(list) || list.length === 0 || weight === 0) return;
     for (const row of list) {
-      if (!row || typeof row.chunkId !== "string" || row.chunkId.length === 0) continue;
+      if (!row || typeof row.chunkId !== "string" || row.chunkId.length === 0) {
+        continue;
+      }
       const r = row.rank;
       if (typeof r !== "number" || !Number.isFinite(r) || r < 0) continue;
       // 0-based → 1-based in the denominator: k + rank + 1
@@ -246,6 +382,9 @@ export function rrfFuse(
  * Return contentHashes of chunks that need embedding (not already in `existing`),
  * in input order, deduped (first occurrence wins). Empty / bad input → [].
  * Caller maps hashes back to chunks.
+ *
+ * Note: planChunksToEmbed (embeddingPure) is the production planner and dedupes
+ * by (chunkId, contentHash). This helper stays hash-only for pure unit tests.
  */
 export function planIncrementalEmbed(
   existing: Set<string>,
@@ -256,7 +395,9 @@ export function planIncrementalEmbed(
   const out: string[] = [];
   const seen = new Set<string>();
   for (const c of chunks) {
-    if (!c || typeof c.contentHash !== "string" || c.contentHash.length === 0) continue;
+    if (!c || typeof c.contentHash !== "string" || c.contentHash.length === 0) {
+      continue;
+    }
     if (have.has(c.contentHash)) continue;
     if (seen.has(c.contentHash)) continue;
     seen.add(c.contentHash);

@@ -89,10 +89,13 @@ export type DocumentChatToolResult = {
   passages: RetrievedPassage[];
   provenance: string;
   /**
-   * Strategy label. "retrieve" keeps the historical BM25-only name so existing
-   * harnesses / callers keep working; "hybrid" is set when dense + RRF ran;
-   * "bm25_only" is an alias of "retrieve" used when the hybrid path explicitly
-   * degraded (embedder missing / no vectors).
+   * Strategy label.
+   * - "full_context" / "vision_fallback" / "error" as before
+   * - "hybrid" when dense + RRF ran
+   * - "bm25_only" when the hybrid path cannot run (no embedder / no vectors /
+   *   embed error) OR when the classical BM25 retrieve path is used without
+   *   a dense arm. Historical alias "retrieve" is retained for harnesses that
+   *   still assert it, but the hybrid-degrade path always emits "bm25_only".
    */
   strategy:
     | "full_context"
@@ -617,9 +620,20 @@ async function runRetrieve(
   });
 
   // Hybrid path: BM25 ∥ dense → RRF → optional rerank → budget pack.
-  // Degrades silently to BM25-only when embedder / vectors are missing.
+  // FIX 7 — honest degradation:
+  //   - pure BM25 (no hybrid host hooks wired) → historical "retrieve"
+  //   - hybrid considered but cannot run (no embedder / no vectors / embed
+  //     error) → explicit "bm25_only" (not the "retrieve" alias)
+  //   - hybrid succeeded → "hybrid"
+  // Passages/citations stay identical to the BM25-only path on degrade.
   let passages = bm25Passages;
-  let strategy: DocumentChatToolResult["strategy"] = "retrieve";
+  const hybridHostWired =
+    typeof host.getSemanticIndexFor === "function" ||
+    typeof host.isEmbedderDownloaded === "function" ||
+    typeof host.embedQuery === "function";
+  let strategy: DocumentChatToolResult["strategy"] = hybridHostWired
+    ? "bm25_only"
+    : "retrieve";
 
   const hybrid = await tryHybridRetrieve(host, doc, query, bm25Passages);
   if (hybrid) {
@@ -632,7 +646,12 @@ async function runRetrieve(
       text: catalog(locale).nothingMatched.replace("{name}", doc.name),
       passages: [],
       provenance: DOCUMENT_CHAT_PROVENANCE,
-      strategy: strategy === "hybrid" ? "hybrid" : "retrieve",
+      strategy:
+        strategy === "hybrid"
+          ? "hybrid"
+          : hybridHostWired
+            ? "bm25_only"
+            : "retrieve",
       kind: "document_chat",
     };
   }
@@ -712,8 +731,9 @@ async function tryHybridRetrieve(
     if (!fused.length) return null;
 
     // Map fused chunkIds back to passage text. Prefer BM25 passages when present
-    // (they already have score/rank/granularity); fall back to dense-only stubs
-    // only when the chunk is not in the BM25 list (text unknown → skip).
+    // (they already have score/rank/granularity). Dense-only winners recover
+    // text from the semantic index (stored at embed time) so RRF hits are not
+    // silently dropped.
     const byId = new Map<string, RetrievedPassage>();
     for (const p of bm25Passages) byId.set(p.chunkId, p);
 
@@ -725,14 +745,37 @@ async function tryHybridRetrieve(
         fusedPassages.push(existing);
         continue;
       }
-      // Dense-only hit without BM25 text: we cannot format a passage without
-      // text. Skip (v1). Future: AppShell can store chunk text alongside vectors.
+      // Dense-only hit: recover text from the dense index text store.
+      const denseText =
+        typeof semantic.getChunkText === "function"
+          ? semantic.getChunkText(row.chunkId)
+          : null;
+      if (!denseText) continue;
+      const hashIdx = row.chunkId.lastIndexOf("#");
+      // chunkId shape: `${docId}#${granularity}#${ordinal}` — recover docId + gran.
+      const parts = row.chunkId.split("#");
+      const granRaw = parts.length >= 3 ? parts[parts.length - 2] : "sentence";
+      const granularity =
+        granRaw === "paragraph" ? ("paragraph" as const) : ("sentence" as const);
+      const denseDocId =
+        hashIdx > 0 && parts.length >= 3
+          ? parts.slice(0, parts.length - 2).join("#")
+          : doc.id;
+      fusedPassages.push({
+        docId: denseDocId || doc.id,
+        chunkId: row.chunkId,
+        granularity,
+        text: denseText,
+        score: row.score,
+        round: 0,
+        rankInRound: fusedPassages.length + 1,
+      });
     }
 
     if (!fusedPassages.length) return null;
     return { passages: fusedPassages, strategy: "hybrid" };
   } catch {
-    // Any hybrid failure → silent BM25-only.
+    // Any hybrid failure → silent BM25-only (caller labels strategy bm25_only).
     return null;
   }
 }

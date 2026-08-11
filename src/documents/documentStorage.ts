@@ -176,3 +176,69 @@ export async function deleteOwnedFile(fileUri: string | undefined): Promise<void
     /* best-effort */
   }
 }
+
+// ── Durable semantic-vector sidecars ({docId}.vec.json) ─────────────────────
+//
+// Flat JSON next to the owned document under kalsa-documents/. Shape is
+// SemanticVectorIndex.toJSON() (dims + vectors[{chunkId, vector, text?, contentHash?}]).
+// Corrupt / missing files are best-effort skipped by callers (BM25-only).
+
+/** Absolute durable path for a per-doc vector sidecar. Throws if no documentDirectory. */
+export function vectorIndexPath(docId: string): string {
+  if (!docId || typeof docId !== "string") {
+    throw new Error("vectorIndexPath: docId required");
+  }
+  // Sanitize path segments — only keep [A-Za-z0-9._-] so a malicious id cannot
+  // escape kalsa-documents/.
+  const safe = docId.replace(/[^A-Za-z0-9._-]/g, "_");
+  if (!safe) throw new Error("vectorIndexPath: empty safe id");
+  return `${documentsDir()}${safe}.vec.json`;
+}
+
+/** Best-effort write of a SemanticVectorIndex JSON payload. Never throws. */
+export async function writeVectorIndexFile(
+  docId: string,
+  json: unknown,
+): Promise<void> {
+  try {
+    if (!docId || typeof docId !== "string") return;
+    await ensureDocumentsDir();
+    const path = vectorIndexPath(docId);
+    const body = JSON.stringify(json);
+    await FileSystem.writeAsStringAsync(path, body, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+  } catch {
+    /* best-effort */
+  }
+}
+
+/** Best-effort load. Returns null on missing/corrupt/unreadable. */
+export async function readVectorIndexFile(
+  docId: string,
+): Promise<unknown | null> {
+  try {
+    if (!docId || typeof docId !== "string") return null;
+    const path = vectorIndexPath(docId);
+    const info = await FileSystem.getInfoAsync(path);
+    if (!info.exists || info.isDirectory) return null;
+    const raw = await FileSystem.readAsStringAsync(path, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    if (!raw || typeof raw !== "string") return null;
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort delete of the vector sidecar for a library doc. */
+export async function deleteVectorIndexFile(docId: string): Promise<void> {
+  try {
+    if (!docId || typeof docId !== "string") return;
+    const path = vectorIndexPath(docId);
+    await deleteOwnedFile(path);
+  } catch {
+    /* best-effort */
+  }
+}
