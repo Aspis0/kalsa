@@ -58,7 +58,21 @@ import {
 } from "../engine/EmbeddingService";
 // isEmbedderActive available for residency telemetry; chat/embedder mutual
 // exclusion is enforced by releaseEmbedder-before-chat + ensureEmbedder gate.
-import { SemanticVectorIndex } from "../documents/semanticIndex";
+import {
+  SemanticVectorIndex,
+  DEFAULT_VECTOR_MEMORY_FLOAT_CAP,
+  totalResidentFloats,
+} from "../documents/semanticIndex";
+import {
+  tryAcquireChat,
+  markChatReady,
+  markChatReleased,
+  setCoResidencyContext,
+  isChatModel2BClass,
+  isChatModel4BClass,
+  allowsCoResidency,
+  CO_RESIDENCY_MIN_MEMORY_BYTES,
+} from "../engine/llamaContextGate";
 import { resolveContextProfile } from "../engine/contextProfile";
 import {
   diskRequirementBytes,
@@ -504,6 +518,13 @@ export function AppShell() {
    */
   const docSemanticByIdRef = useRef<Map<string, SemanticVectorIndex>>(new Map());
   /**
+   * Per-doc dense-unavailable reason when the index was refused (cap / corrupt)
+   * or partially capped mid-embed. Cleared when a usable index is installed.
+   */
+  const docDenseReasonByIdRef = useRef<
+    Map<string, "cap" | "capped" | "corrupt" | "no_embedder">
+  >(new Map());
+  /**
    * Existing (chunkId, contentHash) keys per doc for incremental embed planning
    * (see embedChunkKey). Same text in different chunks embeds per chunk.
    */
@@ -605,7 +626,11 @@ export function AppShell() {
       if (!nextIds.has(id)) {
         docSemanticByIdRef.current.delete(id);
         docEmbedHashesByIdRef.current.delete(id);
+        docDenseReasonByIdRef.current.delete(id);
       }
+    }
+    for (const id of docDenseReasonByIdRef.current.keys()) {
+      if (!nextIds.has(id)) docDenseReasonByIdRef.current.delete(id);
     }
     setDocumentLibrary(next);
     void saveLibraryState(getDefaultLibraryStorage(), next).catch(() => undefined);
@@ -638,6 +663,7 @@ export function AppShell() {
       docIndexByIdRef.current.delete(id);
       docSemanticByIdRef.current.delete(id);
       docEmbedHashesByIdRef.current.delete(id);
+      docDenseReasonByIdRef.current.delete(id);
       libraryMutationRef.current += 1;
       // Gate blocks handleLibraryChange, so ref is current. Functional updater
       // still guards against any non-import concurrent React state write.
@@ -695,16 +721,19 @@ export function AppShell() {
    * FIX D — lazy per-doc vector restore (no startup cost).
    *
    * Memory policy: total loaded floats across all docs must stay under
-   * VECTOR_MEMORY_FLOAT_CAP (200_000 ≈ 800 KB fp32). If loading this doc would
-   * exceed the cap, leave it BM25-only (return null). Corrupt / missing
-   * sidecars and leftover `.tmp` files are ignored by readVectorIndexFile.
+   * DEFAULT_VECTOR_MEMORY_FLOAT_CAP (200_000 ≈ 800 KB fp32). If loading this
+   * doc would exceed the cap, leave it BM25-only (return null) and record
+   * reason "cap". Corrupt / missing sidecars → reason "corrupt".
    */
-  const VECTOR_MEMORY_FLOAT_CAP = 200_000;
+  const VECTOR_MEMORY_FLOAT_CAP = DEFAULT_VECTOR_MEMORY_FLOAT_CAP;
   const ensureSemanticIndexLoaded = useCallback(
     async (docId: string): Promise<SemanticVectorIndex | null> => {
       if (!docId || typeof docId !== "string") return null;
       const live = docSemanticByIdRef.current.get(docId);
-      if (live && live.chunkCount > 0) return live;
+      if (live && live.chunkCount > 0) {
+        // Live index may still be marked capped (partial embed) — keep reason.
+        return live;
+      }
 
       // Doc must still be in the library.
       if (!documentLibraryRef.current.docs?.some((d) => d.id === docId)) {
@@ -718,32 +747,36 @@ export function AppShell() {
         if (!documentLibraryRef.current.docs?.some((d) => d.id === docId)) {
           return null;
         }
-        if (!raw || typeof raw !== "object") return null;
+        if (!raw || typeof raw !== "object") {
+          // Missing sidecar is not "corrupt" — just cold (no reason).
+          return null;
+        }
         let idx: SemanticVectorIndex;
         try {
           idx = SemanticVectorIndex.fromJSON(
             raw as ReturnType<SemanticVectorIndex["toJSON"]>,
           );
         } catch {
+          docDenseReasonByIdRef.current.set(docId, "corrupt");
           return null; // corrupt / bad dims → BM25-only
         }
         if (idx.chunkCount <= 0) return null;
 
         // Memory policy: refuse load if total floats would exceed the cap.
-        let loadedFloats = 0;
-        for (const other of docSemanticByIdRef.current.values()) {
-          loadedFloats += other.chunkCount * other.dims;
-        }
+        const loadedFloats = totalResidentFloats(docSemanticByIdRef.current.values());
         const incoming = idx.chunkCount * idx.dims;
         if (loadedFloats + incoming > VECTOR_MEMORY_FLOAT_CAP) {
-          // Beyond cap → BM25-only for this doc (commented policy).
+          // Beyond cap → BM25-only for this doc; surface reason to hybrid path.
+          docDenseReasonByIdRef.current.set(docId, "cap");
           return null;
         }
 
         docSemanticByIdRef.current.set(docId, idx);
         docEmbedHashesByIdRef.current.set(docId, idx.contentHashKeys());
+        docDenseReasonByIdRef.current.delete(docId);
         return idx;
       } catch {
+        docDenseReasonByIdRef.current.set(docId, "corrupt");
         return null;
       } finally {
         releaseRead();
@@ -811,9 +844,16 @@ export function AppShell() {
       try {
         const profile = await getCachedDeviceProfile();
         const total = profile.totalMemoryBytes ?? 0;
+        // Keep gate co-residency inputs fresh for tryAcquireEmbed (§5).
+        setCoResidencyContext({
+          totalMemoryBytes: total,
+          chatModelIs2B: isChatModel2BClass(getActiveModelId()),
+        });
         // <= 6 GB: refuse co-residence. Unknown RAM (0/null) → conservative skip.
-        // Hard gate is still ensureEmbedder (refuses whenever chat is ready).
-        if (total <= 0 || total <= 6 * 1024 * 1024 * 1024) return true;
+        // Hard gate is still llamaContextGate.tryAcquireEmbed.
+        if (total <= 0 || total <= CO_RESIDENCY_MIN_MEMORY_BYTES) return true;
+        // 4B chat: no co-residency even on 8GB+.
+        if (isChatModel4BClass(getActiveModelId())) return true;
         return false;
       } catch {
         return true;
@@ -927,15 +967,51 @@ export function AppShell() {
           break;
         }
 
-        // Stage the vector + text + hash. Commit only after ownership checks.
-        index.addVectors([
+        // FIX D — cap at add time (not only on restore). Account for other
+        // docs' resident floats + this index; replacements of same chunkId
+        // cost 0 net floats. Skip + mark capped when the would-be total
+        // exceeds VECTOR_MEMORY_FLOAT_CAP.
+        let otherFloats = 0;
+        for (const [id, other] of docSemanticByIdRef.current) {
+          if (id === entry.id) continue;
+          otherFloats += other.chunkCount * other.dims;
+        }
+        const addResult = index.addVectors(
+          [
+            {
+              chunkId: chunk.chunkId,
+              vector: vec,
+              text: chunk.text,
+              contentHash: chunk.contentHash,
+            },
+          ],
           {
-            chunkId: chunk.chunkId,
-            vector: vec,
-            text: chunk.text,
-            contentHash: chunk.contentHash,
+            floatCap: VECTOR_MEMORY_FLOAT_CAP,
+            otherResidentFloats: otherFloats,
           },
-        ]);
+        );
+        if (addResult.skippedByCap > 0 || index.isCapped) {
+          docDenseReasonByIdRef.current.set(entry.id, "capped");
+          // Keep whatever we already have; stop embedding further chunks.
+          if (index.chunkCount > 0) {
+            docSemanticByIdRef.current.set(entry.id, index);
+            docEmbedHashesByIdRef.current.set(entry.id, existing);
+            try {
+              await writeVectorIndexFile(entry.id, index.toJSON());
+            } catch {
+              /* best-effort */
+            }
+          }
+          // eslint-disable-next-line no-console
+          console.log(
+            "[embed] cap reached — remaining chunks skipped; hybrid degrades when index empty",
+          );
+          return;
+        }
+        if (addResult.added === 0) {
+          // Vector rejected for non-cap reasons (zero/bad dims) — stop.
+          break;
+        }
         existing.add(embedChunkKey(chunk.chunkId, chunk.contentHash));
 
         // ── FIX A: semantic-map ownership at commit ─────────────────────────
@@ -977,6 +1053,13 @@ export function AppShell() {
         // Create / commit path: set map + durable sidecar.
         docSemanticByIdRef.current.set(entry.id, index);
         docEmbedHashesByIdRef.current.set(entry.id, existing);
+        // Clear cap/corrupt reason when we successfully install vectors
+        // (unless the index itself is marked capped mid-job).
+        if (index.isCapped) {
+          docDenseReasonByIdRef.current.set(entry.id, "capped");
+        } else {
+          docDenseReasonByIdRef.current.delete(entry.id);
+        }
         try {
           await writeVectorIndexFile(entry.id, index.toJSON());
         } catch {
@@ -1078,8 +1161,12 @@ export function AppShell() {
           docSemanticByIdRef.current.get(docId) ?? null,
         // FIX D: lazy restore from durable sidecar on first hybrid query.
         loadSemanticIndexFor: (docId: string) => ensureSemanticIndexLoaded(docId),
+        getDenseUnavailableReason: (docId: string) =>
+          docDenseReasonByIdRef.current.get(docId) ?? null,
         isEmbedderDownloaded: () => embedderDownloadedRef.current,
-        embedQuery: (text: string) => embedQueryVec(text),
+        // FIX 6: thread AbortSignal into embedQuery (native abort gate).
+        embedQuery: (text: string, signal?: AbortSignal) =>
+          embedQueryVec(text, signal ? { signal } : undefined),
       },
       { locale },
     );
@@ -1424,7 +1511,10 @@ export function AppShell() {
       // Preempt background summary before dispose so FIFO does not hold a
       // half-finished summarize across unmount.
       abortBackgroundSummary();
-      void disposeEngine();
+      void disposeEngine().finally(() => {
+        // FIX B: unmount dispose frees the chat slot.
+        markChatReleased();
+      });
       void releaseWhisper();
       void releaseEmbedder();
     };
@@ -1511,12 +1601,20 @@ export function AppShell() {
 
       // Hard RAM gate before initEngine. Never force-evict the currently active
       // model (if this model is already active and ready we returned above).
+      // Also seed llamaContextGate co-residency inputs while we have the profile
+      // (sync tryAcquireChat below must not await for RAM).
+      let totalMemKnown = 0;
       try {
         const [profile, free] = await Promise.all([
           getCachedDeviceProfile(),
           getFreeDiskBytes(),
         ]);
         if (!stillCurrent()) return false;
+        totalMemKnown = profile.totalMemoryBytes ?? 0;
+        setCoResidencyContext({
+          totalMemoryBytes: totalMemKnown,
+          chatModelIs2B: isChatModel2BClass(model.id),
+        });
         const gate = gateForModel(model, profile, free);
         // Refuse load for blocked_ram / blocked_tier (disk is a download-time gate).
         // Active-model exception: if getActiveModelId matches, never refuse
@@ -1534,24 +1632,82 @@ export function AppShell() {
         }
       } catch {
         // Probe failure → fall through to existing load path (no hard block).
+        // Still seed model class so 4B cannot co-reside even if RAM unknown.
+        setCoResidencyContext({ chatModelIs2B: isChatModel2BClass(model.id) });
       }
 
       // Clear previous error banner before retry so "Ready" never coexists with
       // a stale "Could not load the model" under the header / in Settings.
-      // FIX 5 / FIX B: bump + abort so in-flight embed cannot initLlama after
-      // we start chat load; then ALWAYS releaseEmbedder before chat init
-      // (serialization: chat init and embedder init are mutually exclusive).
+      // FIX B: bump + abort so in-flight embed cannot initLlama after we start
+      // chat load. Shared llamaContextGate: tryAcquireChat SYNCHRONOUSLY before
+      // the first await of the init flow (closes the loading window).
+      // FIX 3 / §5: releaseEmbedder only when co-residency is NOT allowed
+      // (≤6 GB OR 4B chat model). On 8 GB+ with 2B chat, embed may co-reside.
       bumpEmbedJobGeneration();
+
+      // Synchronous co-residency seed: model id + any RAM already known above.
+      const modelIs2B = isChatModel2BClass(model.id);
+      setCoResidencyContext({ chatModelIs2B: modelIs2B });
+
+      // Synchronous chat-loading claim — MUST precede any further await so the
+      // embedder cannot initLlama concurrently during the loading window.
+      if (!tryAcquireChat()) {
+        // Embedder holds the native slot and co-residency is off — force-release
+        // then re-claim. releaseEmbedder is async; re-tryAcquire after it.
+        await releaseEmbedder().catch(() => undefined);
+        if (!stillCurrent()) {
+          markChatReleased();
+          return false;
+        }
+        if (!tryAcquireChat()) {
+          // Still blocked — refuse chat load rather than race the embedder.
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("errors.engineInitFailed"));
+          setModelErrorDetail(null);
+          return false;
+        }
+      }
+
       setModelState("loading");
       modelStateRef.current = "loading";
       setModelError(null);
       setModelErrorDetail(null);
       setModelErrorKind(null);
 
-      // Residency gate (both ends): always release embedder before chat initLlama.
-      // ensureEmbedder also refuses while isEngineReady(); this is the chat end.
-      await releaseEmbedder().catch(() => undefined);
-      if (!stillCurrent()) return false;
+      // Prefer RAM already known from the hard-gate probe; re-fetch only if missing.
+      let totalMem = totalMemKnown;
+      if (totalMem <= 0) {
+        try {
+          const profile = await getCachedDeviceProfile();
+          totalMem = profile.totalMemoryBytes ?? 0;
+        } catch {
+          totalMem = 0;
+        }
+        if (!stillCurrent()) {
+          markChatReleased();
+          return false;
+        }
+      }
+      setCoResidencyContext({
+        totalMemoryBytes: totalMem,
+        chatModelIs2B: modelIs2B,
+      });
+
+      // §5 co-residency: release embedder before chat init ONLY when
+      // (totalMemoryBytes ≤ 6e9) OR (chat model is 4B-class).
+      const mustReleaseEmbed =
+        totalMem <= 0 ||
+        totalMem <= CO_RESIDENCY_MIN_MEMORY_BYTES ||
+        isChatModel4BClass(model.id) ||
+        !allowsCoResidency();
+      if (mustReleaseEmbed) {
+        await releaseEmbedder().catch(() => undefined);
+      }
+      if (!stillCurrent()) {
+        markChatReleased();
+        return false;
+      }
 
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx (no silent downgrade)
@@ -1581,7 +1737,10 @@ export function AppShell() {
       } catch {
         // empty facts → match disabled / cold
       }
-      if (!stillCurrent()) return false;
+      if (!stillCurrent()) {
+        markChatReleased();
+        return false;
+      }
       const initResult = await initEngine(modelLocalPath(model, model.file), model.id, {
         mmprojPath,
         nCtx: profile.nCtx,
@@ -1598,7 +1757,12 @@ export function AppShell() {
         },
         locale,
       });
-      if (!stillCurrent()) return false;
+      if (!stillCurrent()) {
+        // Stale generation after success: dispose path will markChatReleased;
+        // still release the loading claim so embed is not permanently blocked.
+        markChatReleased();
+        return false;
+      }
       // Propagate effective n_ctx (post memory-clamp) so document strategy and
       // long-chat UI budget match the loaded engine — not the pre-clamp catalog.
       // Single source: engine init → chatEngineCtxRef / chatEngineCtx state →
@@ -1608,6 +1772,9 @@ export function AppShell() {
       setChatEngineCtx(effective);
       warnIfNativePatchesInactive(initResult.systemInfo);
       setModelState("ready");
+      modelStateRef.current = "ready";
+      // FIX B: chat context resident — embedder refuses unless §5 co-residency.
+      markChatReady();
       // End-based clear too: two concurrent ensures (double-tap in the probe
       // window) where the first fails and the second succeeds must not leave
       // "Ready" coexisting with a stale red banner.
@@ -1616,8 +1783,11 @@ export function AppShell() {
       setModelErrorKind(null);
       return true;
     } catch (error) {
+      // FIX B: init failure → release chat claim so embed can proceed.
+      markChatReleased();
       if (!stillCurrent()) return false;
       setModelState("error");
+      modelStateRef.current = "error";
       setModelErrorKind("engine");
       setModelError(friendlyNetworkError(error, locale, "engine").message);
       setModelErrorDetail(rawErrorDetail(error));
@@ -1679,6 +1849,8 @@ export function AppShell() {
         } catch {
           // ignore
         } finally {
+          // FIX B: dispose → chat slot free for embedder.
+          markChatReleased();
           modelSwitchInFlightRef.current = false;
         }
       })();
@@ -1800,14 +1972,61 @@ export function AppShell() {
       }
       if (!stillCurrent()) return;
       errorPhase = "engine";
-      // FIX 5 / FIX B: cancel background embed + always release before chat load
-      // (same serialization rule as ensureEngineForModel).
+      // FIX B / FIX 3: cancel background embed; shared gate + §5 co-residency
+      // (same policy as ensureEngineForModel).
       bumpEmbedJobGeneration();
+
+      // Synchronous seed + tryAcquireChat BEFORE any await of the init flow.
+      // Keep any previously known totalMemoryBytes (do not wipe to 0).
+      const modelIs2BDl = isChatModel2BClass(model.id);
+      setCoResidencyContext({ chatModelIs2B: modelIs2BDl });
+
+      if (!tryAcquireChat()) {
+        await releaseEmbedder().catch(() => undefined);
+        if (!stillCurrent()) {
+          markChatReleased();
+          return;
+        }
+        if (!tryAcquireChat()) {
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("errors.engineInitFailed"));
+          return;
+        }
+      }
+
       setModelState("loading");
       modelStateRef.current = "loading";
 
-      await releaseEmbedder().catch(() => undefined);
-      if (!stillCurrent()) return;
+      // Refine RAM after chat_loading is held.
+      let totalMem = 0;
+      try {
+        const profile = await getCachedDeviceProfile();
+        totalMem = profile.totalMemoryBytes ?? 0;
+      } catch {
+        totalMem = 0;
+      }
+      if (!stillCurrent()) {
+        markChatReleased();
+        return;
+      }
+      setCoResidencyContext({
+        totalMemoryBytes: totalMem,
+        chatModelIs2B: modelIs2BDl,
+      });
+
+      const mustReleaseEmbed =
+        totalMem <= 0 ||
+        totalMem <= CO_RESIDENCY_MIN_MEMORY_BYTES ||
+        isChatModel4BClass(model.id) ||
+        !allowsCoResidency();
+      if (mustReleaseEmbed) {
+        await releaseEmbedder().catch(() => undefined);
+      }
+      if (!stillCurrent()) {
+        markChatReleased();
+        return;
+      }
 
       const mmprojPath = model.mmproj ? modelLocalPath(model, model.mmproj.file) : null;
 
@@ -1819,13 +2038,17 @@ export function AppShell() {
           getCachedDeviceProfile(),
           getFreeDiskBytes(),
         ]);
-        if (!stillCurrent()) return;
+        if (!stillCurrent()) {
+          markChatReleased();
+          return;
+        }
         const gate = gateForModel(model, deviceProfile, free);
         if (
           !gate.allowed &&
           (gate.reason === "blocked_ram" || gate.reason === "blocked_tier") &&
           getActiveModelId() !== model.id
         ) {
+          markChatReleased();
           setModelState("error");
           setModelErrorKind("engine");
           setModelError(gateReasonMessage(gate.reason, t));
@@ -1861,7 +2084,10 @@ export function AppShell() {
       } catch {
         // empty facts → match disabled / cold
       }
-      if (!stillCurrent()) return;
+      if (!stillCurrent()) {
+        markChatReleased();
+        return;
+      }
       const initResult = await initEngine(outcome.model.uri, model.id, {
         mmprojPath,
         nCtx: profile.nCtx,
@@ -1878,7 +2104,10 @@ export function AppShell() {
         },
         locale,
       });
-      if (!stillCurrent()) return;
+      if (!stillCurrent()) {
+        markChatReleased();
+        return;
+      }
       // Propagate effective n_ctx (post memory-clamp) — same single source as
       // ensureEngineForModel (engine init / document strategy / UI budgeting).
       const effective = initResult.effectiveNCtx;
@@ -1886,6 +2115,9 @@ export function AppShell() {
       setChatEngineCtx(effective);
       warnIfNativePatchesInactive(initResult.systemInfo);
       setModelState("ready");
+      modelStateRef.current = "ready";
+      // FIX B: chat context resident.
+      markChatReady();
       // Same end-based clear as ensureEngineForModel: no stale banner on ready.
       setModelError(null);
       setModelErrorDetail(null);
@@ -1897,12 +2129,15 @@ export function AppShell() {
         t("download.notifyReady", { name: model.name }),
       );
     } catch (error) {
+      // FIX B: init/download failure after tryAcquireChat → free the slot.
+      markChatReleased();
       if (!stillCurrent()) return;
       if (controller.signal.aborted) {
         setModelState("missing");
         return;
       }
       setModelState("error");
+      modelStateRef.current = "error";
       setModelErrorKind(errorPhase);
       setModelErrorDetail(rawErrorDetail(error));
       const friendly = friendlyNetworkError(error, locale, errorPhase).message;

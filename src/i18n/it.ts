@@ -212,6 +212,15 @@ export const it: typeof en = {
     downloading: "Scaricamento… {percent}%",
     download: "Scarica modello embedding",
     sizeLabel: "Dimensione: {size}",
+    /** Hybrid dense arm refused: memory cap (restore or mid-embed). */
+    degradedCap:
+      "Ricerca semantica (dense) non disponibile — solo parole chiave (limite memoria).",
+    /** Hybrid dense arm refused: corrupt/unreadable vector sidecar. */
+    degradedCorrupt:
+      "Ricerca semantica (dense) non disponibile — solo parole chiave (indice illeggibile).",
+    /** Hybrid dense arm refused: embedder not downloaded / not loadable. */
+    degradedNoEmbedder:
+      "Ricerca semantica (dense) non disponibile — solo parole chiave.",
   },
 
   help: {

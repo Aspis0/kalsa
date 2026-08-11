@@ -112,6 +112,31 @@ async function main() {
     assert(a === "af63dc4c8601ec8c", `FNV(\"a\") expected af63dc4c8601ec8c, got ${a}`);
   });
 
+  // 1c. Unicode FNV — non-ASCII via charCodeAt (UTF-16 code units, not UTF-8).
+  // Reference (charCodeAt of "è" = 0x00E8):
+  //   h = 0xcbf29ce484222325 ^ 0xE8; h = (h * 0x100000001b3) & 0xffffffffffffffff
+  //   → 0xaf64654c8602d557
+  check("hashChunkContent Unicode è deterministic", () => {
+    const once = hashChunkContent("è");
+    const twice = hashChunkContent("è");
+    assert(once === twice, `unstable unicode: ${once} vs ${twice}`);
+    assert(/^[0-9a-f]{16}$/.test(once), `not hex: ${once}`);
+    // Reference implementation in harness (mirrors embeddingPure BigInt path).
+    const FNV_OFFSET = 0xcbf29ce484222325n;
+    const FNV_PRIME = 0x100000001b3n;
+    const MASK64 = 0xffffffffffffffffn;
+    let h = FNV_OFFSET;
+    const s = "è";
+    for (let i = 0; i < s.length; i++) {
+      h ^= BigInt(s.charCodeAt(i));
+      h = (h * FNV_PRIME) & MASK64;
+    }
+    const expected = h.toString(16).padStart(16, "0");
+    assert(once === expected, `FNV("è") expected ${expected}, got ${once}`);
+    // Documented constant for regression (charCodeAt 0xE8 path).
+    assert(once === "af64654c8602d557", `documented FNV("è") constant, got ${once}`);
+  });
+
   // 2. hash sensitivity
   check("hashChunkContent differs for different text", () => {
     const a = hashChunkContent("hello world");

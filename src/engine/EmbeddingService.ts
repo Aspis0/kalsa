@@ -6,12 +6,10 @@
  *   once the EMBEDDING_MODEL bundle is on disk.
  * - Own FIFO mutex (same pattern as WhisperService) — NEVER shares the
  *   LlamaService lifecycle lock (that lock is private and chat-owned).
- * - Serialization rule (residency gate, both ends):
- *     chat init and embedder init are mutually exclusive.
- *     - Chat path: AppShell always calls releaseEmbedder() BEFORE initLlama
- *       of the chat model (not only on ≤6 GB).
- *     - Embedder path: ensureEmbedder refuses to init while the chat engine
- *       is ready (isEngineReady() === true) → returns without initing.
+ * - Serialization rule (shared llamaContextGate):
+ *     chat_loading / chat_ready block embed init, EXCEPT §5 co-residency:
+ *     totalMemoryBytes > 6e9 AND 2B-class chat model → tryAcquireEmbed ok
+ *     while chat_ready. Gate is a leaf module (no LlamaService import).
  * - AppShell must also bump embedJobGenerationRef / abort the job signal
  *   before chat load so in-flight embeds cannot race a later ensureEmbedder.
  * - Failures never throw to callers: embed* returns null → hybrid path
@@ -22,10 +20,15 @@
  *   native embedding() call; on abort, return null (never throw).
  *
  * Pure helpers live in embeddingPure.ts (re-exported here) so the harness
- * can compile without llama.rn / RN. Native lifecycle uses dynamic import.
+ * can compile without llama.rn / RN.
  */
 
 import { EMBEDDING_MODEL } from "./ModelRegistry";
+import {
+  tryAcquireEmbed,
+  releaseEmbed,
+  getState as getLlamaContextState,
+} from "./llamaContextGate";
 import {
   applyEmbedPrefix,
   type EmbeddableChunk,
@@ -150,43 +153,11 @@ export function isEmbedderActive(): boolean {
 }
 
 /**
- * Cached chat-engine-ready predicate (LlamaService.isEngineReady).
- * Loaded via dynamic import so EmbeddingService has no static cycle with
- * LlamaService; once resolved, subsequent checks are sync.
- *
- * Serialization rule: chat init and embedder init are mutually exclusive.
- * AppShell always releaseEmbedder() before chat init; ensureEmbedder refuses
- * to init while this predicate is true.
- */
-let cachedIsEngineReady: (() => boolean) | null = null;
-
-async function resolveChatReadyCheck(): Promise<() => boolean> {
-  if (cachedIsEngineReady) return cachedIsEngineReady;
-  try {
-    const mod = await import("./LlamaService");
-    const fn = () => {
-      try {
-        return typeof mod.isEngineReady === "function" && mod.isEngineReady();
-      } catch {
-        return false;
-      }
-    };
-    cachedIsEngineReady = fn;
-    return fn;
-  } catch {
-    const fn = () => false;
-    cachedIsEngineReady = fn;
-    return fn;
-  }
-}
-
-/**
  * Load the embedder context once for the given path.
  * Concurrent callers are serialized.
  *
- * Residency gate: if the chat engine is ready, refuse to init (return without
- * creating a second context). Chat init always releaseEmbedder()'s first, so
- * the two paths are mutually exclusive at both ends.
+ * Residency gate (llamaContextGate): tryAcquireEmbed refuses while chat is
+ * loading, and while chat is ready unless §5 co-residency applies.
  *
  * Cancellation: checks signal before every await and before initLlama; on
  * abort, leaves state idle and returns (never throws).
@@ -198,16 +169,19 @@ async function ensureEmbedder(
   return withEmbedJob(async () => {
     if (isAborted(signal)) return false;
     if (phase === "closing") return false;
-    if (context && activePath === path && phase === "ready") return true;
+    if (context && activePath === path && phase === "ready") {
+      // Already ready — still claim the gate so releaseEmbed pairs correctly.
+      if (!tryAcquireEmbed()) return false;
+      return true;
+    }
 
-    // Resolve (and cache) the chat-ready predicate before any init.
-    if (isAborted(signal)) return false;
-    const chatReady = await resolveChatReadyCheck();
-    if (isAborted(signal)) return false;
-
-    // Residency gate: chat engine resident → do not init a second context.
-    if (chatReady()) return false;
-    if (isAborted(signal)) return false;
+    // Shared lifecycle gate: refuse while chat_loading, or chat_ready without
+    // co-residency. Synchronous — no race with tryAcquireChat.
+    if (!tryAcquireEmbed()) return false;
+    if (isAborted(signal)) {
+      releaseEmbed();
+      return false;
+    }
 
     if (context) {
       try {
@@ -219,6 +193,7 @@ async function ensureEmbedder(
         context = null;
         activePath = null;
         phase = "idle";
+        releaseEmbed();
         return false;
       }
       context = null;
@@ -226,15 +201,32 @@ async function ensureEmbedder(
       phase = "idle";
     }
 
-    if (isAborted(signal)) return false;
-    // Re-check chat residency after the await above (chat may have loaded).
-    if (chatReady()) return false;
+    if (isAborted(signal)) {
+      releaseEmbed();
+      return false;
+    }
+    // Re-check gate after the await above (chat may have taken the slot).
+    // If we already hold embed, tryAcquireEmbed is re-entrant; if chat took
+    // chat_loading without co-res, it will fail.
+    if (!tryAcquireEmbed()) {
+      releaseEmbed();
+      return false;
+    }
 
     const initLlama = await loadInitLlama(signal);
-    if (!initLlama || isAborted(signal)) return false;
-    // Final residency + abort gate immediately before initLlama.
-    if (chatReady()) return false;
-    if (isAborted(signal)) return false;
+    if (!initLlama || isAborted(signal)) {
+      releaseEmbed();
+      return false;
+    }
+    // Final gate + abort check immediately before initLlama.
+    if (!tryAcquireEmbed()) {
+      releaseEmbed();
+      return false;
+    }
+    if (isAborted(signal)) {
+      releaseEmbed();
+      return false;
+    }
 
     try {
       const next = await initLlama({
@@ -255,10 +247,11 @@ async function ensureEmbedder(
         context = null;
         activePath = null;
         phase = "idle";
+        releaseEmbed();
         return false;
       }
-      // Chat may have become ready during initLlama — release if so.
-      if (chatReady()) {
+      // Chat may have become loading during initLlama — release if gate refuses.
+      if (!tryAcquireEmbed()) {
         try {
           await next.release();
         } catch {
@@ -267,6 +260,7 @@ async function ensureEmbedder(
         context = null;
         activePath = null;
         phase = "idle";
+        releaseEmbed();
         return false;
       }
       context = next;
@@ -277,6 +271,7 @@ async function ensureEmbedder(
       context = null;
       activePath = null;
       phase = "idle";
+      releaseEmbed();
       return false;
     }
   });
@@ -284,16 +279,16 @@ async function ensureEmbedder(
 
 /**
  * Release the embedder context. Safe to call when idle.
- * AppShell ALWAYS calls this BEFORE loading the chat model (serialization
- * rule: chat init and embedder init are mutually exclusive). On 8 GB+ the
- * embedder may be re-warmed after chat is released; co-residence is still
- * refused by ensureEmbedder while chat is ready.
+ * AppShell calls this BEFORE loading the chat model when co-residency is NOT
+ * allowed (§5: ≤6 GB or 4B chat). On 8 GB+ with 2B chat, co-residency is
+ * permitted and release may be skipped by AppShell.
  */
 export async function releaseEmbedder(): Promise<void> {
   return withEmbedJob(async () => {
     if (!context) {
       phase = "idle";
       activePath = null;
+      releaseEmbed();
       return;
     }
     phase = "closing";
@@ -305,6 +300,7 @@ export async function releaseEmbedder(): Promise<void> {
       context = null;
       activePath = null;
       phase = "idle";
+      releaseEmbed();
     }
   });
 }
@@ -312,7 +308,7 @@ export async function releaseEmbedder(): Promise<void> {
 /**
  * Run `fn` while the embedder is held. Acquires the embed job lock for the
  * whole batch so release cannot interleave mid-batch.
- * Returns null when the embedder is not downloaded, chat is resident, aborted,
+ * Returns null when the embedder is not downloaded, chat blocks embed, aborted,
  * or fails to load.
  */
 export async function withEmbedder<T>(
@@ -332,10 +328,8 @@ export async function withEmbedder<T>(
     return await withEmbedJob(async () => {
       if (isAborted(signal)) return null;
       if (phase === "closing") return null;
-      const chatReady = await resolveChatReadyCheck();
-      if (isAborted(signal)) return null;
       if (!(context && activePath === path && phase === "ready")) {
-        if (chatReady()) return null;
+        if (!tryAcquireEmbed()) return null;
         if (context) {
           try {
             await context.release();
@@ -346,11 +340,23 @@ export async function withEmbedder<T>(
           activePath = null;
           phase = "idle";
         }
-        if (isAborted(signal)) return null;
-        if (chatReady()) return null;
+        if (isAborted(signal)) {
+          releaseEmbed();
+          return null;
+        }
+        if (!tryAcquireEmbed()) {
+          releaseEmbed();
+          return null;
+        }
         const initLlama = await loadInitLlama(signal);
-        if (!initLlama || isAborted(signal)) return null;
-        if (chatReady()) return null;
+        if (!initLlama || isAborted(signal)) {
+          releaseEmbed();
+          return null;
+        }
+        if (!tryAcquireEmbed()) {
+          releaseEmbed();
+          return null;
+        }
         try {
           const next = await initLlama({
             model: path,
@@ -359,7 +365,7 @@ export async function withEmbedder<T>(
             n_gpu_layers: 0,
             n_threads: 2,
           });
-          if (isAborted(signal) || chatReady()) {
+          if (isAborted(signal) || !tryAcquireEmbed()) {
             try {
               await next.release();
             } catch {
@@ -368,6 +374,7 @@ export async function withEmbedder<T>(
             context = null;
             activePath = null;
             phase = "idle";
+            releaseEmbed();
             return null;
           }
           context = next;
@@ -377,11 +384,21 @@ export async function withEmbedder<T>(
           context = null;
           activePath = null;
           phase = "idle";
+          releaseEmbed();
           return null;
         }
+      } else {
+        // Already ready — claim gate for the batch.
+        if (!tryAcquireEmbed()) return null;
       }
-      if (!context || phase !== "ready") return null;
-      if (isAborted(signal)) return null;
+      if (!context || phase !== "ready") {
+        releaseEmbed();
+        return null;
+      }
+      if (isAborted(signal)) {
+        releaseEmbed();
+        return null;
+      }
       const held = context;
       const embed = async (
         text: string,
@@ -390,7 +407,16 @@ export async function withEmbedder<T>(
         if (isAborted(signal)) return null;
         return embedWithContext(held, text, role, signal);
       };
-      return fn(embed);
+      try {
+        return await fn(embed);
+      } finally {
+        // Keep embed held while context is still ready (session-scoped).
+        // releaseEmbedder is the only path that drops the gate permanently.
+        // If phase is not ready, drop the gate claim.
+        if (phase !== "ready" || !context) {
+          releaseEmbed();
+        }
+      }
     });
   } catch {
     return null;
@@ -405,7 +431,7 @@ async function embedWithContext(
 ): Promise<Float32Array | null> {
   if (isAborted(signal)) return null;
   const prefixed = applyEmbedPrefix(text, role);
-  // Abort gate immediately before the native embedding() call.
+  // Abort gate immediately before the native embedding() call (longest-pole await).
   if (isAborted(signal)) return null;
   // embd_normalize: 2 = L2 normalize (matches SemanticVectorIndex defensive L2).
   try {
@@ -468,6 +494,7 @@ export async function embedDocumentChunk(
 /**
  * Embed a query with the e5 query prefix.
  * Lazy-loads the embedder. Returns null on miss/error/abort.
+ * Accepts AbortSignal so a cancelled doc query can bail before the native call.
  */
 export async function embedQuery(
   text: string,
@@ -500,5 +527,7 @@ export function __resetEmbedderForTests(): void {
   activePath = null;
   phase = "idle";
   embedJobChain = Promise.resolve();
-  cachedIsEngineReady = null;
+  releaseEmbed();
+  // Expose gate state for harness diagnostics.
+  void getLlamaContextState;
 }

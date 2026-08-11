@@ -72,10 +72,76 @@ function isZeroOrNonFinite(v: Float32Array): boolean {
   return allZero;
 }
 
+/** Default resident float cap (200k floats ≈ 800 KB fp32). */
+export const DEFAULT_VECTOR_MEMORY_FLOAT_CAP = 200_000;
+
+/**
+ * Total resident floats across a collection of indexes
+ * (sum of chunkCount × dims for each).
+ */
+export function totalResidentFloats(
+  indexes: Iterable<{ chunkCount: number; dims: number }>,
+): number {
+  let n = 0;
+  for (const idx of indexes) {
+    if (!idx) continue;
+    const c = idx.chunkCount;
+    const d = idx.dims;
+    if (typeof c === "number" && typeof d === "number" && Number.isFinite(c) && Number.isFinite(d)) {
+      n += c * d;
+    }
+  }
+  return n;
+}
+
+/** True when total resident floats already exceed (or equal) the cap. */
+export function semanticIndexCountExceeds(
+  indexes: Iterable<{ chunkCount: number; dims: number }>,
+  cap: number = DEFAULT_VECTOR_MEMORY_FLOAT_CAP,
+): boolean {
+  const limit =
+    typeof cap === "number" && Number.isFinite(cap) && cap > 0
+      ? cap
+      : DEFAULT_VECTOR_MEMORY_FLOAT_CAP;
+  return totalResidentFloats(indexes) >= limit;
+}
+
+/**
+ * Net float delta if `newItems` were added to `index`, accounting for
+ * replacement of existing chunkIds (same id → 0 net new floats for that row).
+ * Only items that would actually be accepted (valid dims / non-zero) count.
+ */
+export function wouldBeFloatDelta(
+  index: SemanticVectorIndex,
+  newItems: SemanticVectorAddItem[],
+): number {
+  if (!index || !Array.isArray(newItems) || newItems.length === 0) return 0;
+  const dims = index.dims;
+  let delta = 0;
+  // Track chunkIds we already counted in this batch (last write wins).
+  const seen = new Set<string>();
+  // Walk reverse so last write per chunkId wins (matches addVectors).
+  for (let i = newItems.length - 1; i >= 0; i--) {
+    const item = newItems[i];
+    if (!item || typeof item.chunkId !== "string" || item.chunkId.length === 0) continue;
+    if (seen.has(item.chunkId)) continue;
+    const v = item.vector;
+    if (!(v instanceof Float32Array) || v.length !== dims) continue;
+    if (isZeroOrNonFinite(v)) continue;
+    seen.add(item.chunkId);
+    // Replacement of an existing chunkId → 0 net floats.
+    if (index.hasChunk(item.chunkId)) continue;
+    delta += dims;
+  }
+  return delta;
+}
+
 export class SemanticVectorIndex {
   readonly dims: number;
   /** chunkId → L2-normalized vector (+ optional text/hash). */
   private readonly store = new Map<string, StoredVector>();
+  /** True when an add was skipped because a float cap would be exceeded. */
+  private _capped = false;
 
   constructor(opts: SemanticVectorIndexOpts) {
     this.dims = assertPositiveIntegerDims(opts?.dims, "");
@@ -85,14 +151,61 @@ export class SemanticVectorIndex {
     return this.store.size;
   }
 
+  /** Resident float count for this index (chunkCount × dims). */
+  get floatCount(): number {
+    return this.store.size * this.dims;
+  }
+
+  /** True when a prior add was skipped due to a memory cap. */
+  get isCapped(): boolean {
+    return this._capped;
+  }
+
+  /** Mark this index as capped (host may also set this when restore is refused). */
+  markCapped(): void {
+    this._capped = true;
+  }
+
+  /** True when chunkId already has a vector. */
+  hasChunk(chunkId: string): boolean {
+    if (typeof chunkId !== "string" || chunkId.length === 0) return false;
+    return this.store.has(chunkId);
+  }
+
   /**
    * Insert or replace vectors. Dedupe by chunkId (last write wins).
    * Vectors are L2-normalized on add; wrong-length / zero / non-finite
    * entries are skipped (they must not perturb dense RRF ranks).
    * Optional text / contentHash are stored when provided (string, non-empty).
+   *
+   * Cap (FIX D): when `floatCap` + `otherResidentFloats` are provided, each
+   * NEW (non-replacement) vector is refused once the would-be total exceeds
+   * the cap; `isCapped` is set. Replacements of existing chunkIds always pass
+   * (0 net floats). Without cap opts the add is unbounded (caller enforces).
    */
-  addVectors(items: SemanticVectorAddItem[]): void {
-    if (!Array.isArray(items) || items.length === 0) return;
+  addVectors(
+    items: SemanticVectorAddItem[],
+    capOpts?: { floatCap?: number; otherResidentFloats?: number },
+  ): { added: number; skippedByCap: number } {
+    if (!Array.isArray(items) || items.length === 0) {
+      return { added: 0, skippedByCap: 0 };
+    }
+    const cap =
+      capOpts &&
+      typeof capOpts.floatCap === "number" &&
+      Number.isFinite(capOpts.floatCap) &&
+      capOpts.floatCap > 0
+        ? capOpts.floatCap
+        : null;
+    const other =
+      capOpts &&
+      typeof capOpts.otherResidentFloats === "number" &&
+      Number.isFinite(capOpts.otherResidentFloats) &&
+      capOpts.otherResidentFloats > 0
+        ? capOpts.otherResidentFloats
+        : 0;
+    let added = 0;
+    let skippedByCap = 0;
     for (const item of items) {
       if (!item || typeof item.chunkId !== "string" || item.chunkId.length === 0) {
         continue;
@@ -103,6 +216,16 @@ export class SemanticVectorIndex {
       const normalized = l2Normalize(v, this.dims);
       // Defensive: if normalize collapsed to zero, still reject.
       if (isZeroOrNonFinite(normalized)) continue;
+
+      const isReplacement = this.store.has(item.chunkId);
+      if (cap !== null && !isReplacement) {
+        const wouldBe = other + this.floatCount + this.dims;
+        if (wouldBe > cap) {
+          this._capped = true;
+          skippedByCap += 1;
+          continue;
+        }
+      }
 
       const prev = this.store.get(item.chunkId);
       const text =
@@ -117,7 +240,9 @@ export class SemanticVectorIndex {
       if (text !== undefined) row.text = text;
       if (contentHash !== undefined) row.contentHash = contentHash;
       this.store.set(item.chunkId, row);
+      added += 1;
     }
+    return { added, skippedByCap };
   }
 
   /** Store / replace passage text for a chunk (dense-only hit recovery). */

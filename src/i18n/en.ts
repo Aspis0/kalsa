@@ -216,6 +216,15 @@ export const en = {
     downloading: "Downloading… {percent}%",
     download: "Download embedding model",
     sizeLabel: "Size: {size}",
+    /** Hybrid dense arm refused: memory cap (restore or mid-embed). */
+    degradedCap:
+      "Semantic (dense) search unavailable — keyword-only results (memory cap).",
+    /** Hybrid dense arm refused: corrupt/unreadable vector sidecar. */
+    degradedCorrupt:
+      "Semantic (dense) search unavailable — keyword-only results (index unreadable).",
+    /** Hybrid dense arm refused: embedder not downloaded / not loadable. */
+    degradedNoEmbedder:
+      "Semantic (dense) search unavailable — keyword-only results.",
   },
 
   help: {

@@ -84,6 +84,14 @@ export const DOCUMENT_CHAT_FULL_CONTEXT_MAX_CHARS = 48_000;
  */
 export const DOCUMENT_CHAT_VISION_MARKER = "[[DOCUMENT_VISION_FALLBACK]]";
 
+/** Why the dense arm was unavailable (honest hybrid degrade). */
+export type DenseUnavailableReason =
+  | "cap"
+  | "capped"
+  | "corrupt"
+  | "no_embedder"
+  | null;
+
 export type DocumentChatToolResult = {
   text: string;
   passages: RetrievedPassage[];
@@ -107,6 +115,11 @@ export type DocumentChatToolResult = {
   error?: string;
   /** Engine tag so LlamaService can append provenance after truncation. */
   kind?: "document_chat";
+  /**
+   * When strategy is bm25_only after a hybrid attempt, why dense was unavailable.
+   * Null when hybrid succeeded or hybrid was never considered.
+   */
+  denseUnavailableReason?: DenseUnavailableReason;
 };
 
 export type DocumentChatHost = {
@@ -130,8 +143,14 @@ export type DocumentChatHost = {
    * Optional lazy restore from durable sidecar (FIX D — no startup restore).
    * Called when getSemanticIndexFor returns null so the first hybrid query
    * can load vectors for that doc only (memory-capped in AppShell).
+   * May return null with a side-channel reason via getDenseUnavailableReason.
    */
   loadSemanticIndexFor?(docId: string): Promise<SemanticVectorIndex | null>;
+  /**
+   * Optional: why the last loadSemanticIndexFor / getSemanticIndexFor could not
+   * supply a usable dense index ("cap" | "capped" | "corrupt" | null).
+   */
+  getDenseUnavailableReason?(docId: string): DenseUnavailableReason;
   /**
    * Optional embedder status. When false / missing, hybrid degrades to BM25.
    * AppShell probes getEmbeddingModelStatus once per tool bind / turn.
@@ -140,8 +159,9 @@ export type DocumentChatHost = {
   /**
    * Optional dense query embed. Returns null on miss/error → BM25-only.
    * Never throw; EmbeddingService.embedQuery already swallows errors.
+   * Accepts AbortSignal so a cancelled doc query can bail before the native call.
    */
-  embedQuery?(text: string): Promise<Float32Array | null>;
+  embedQuery?(text: string, signal?: AbortSignal): Promise<Float32Array | null>;
 };
 
 /** Prefetch size for the dense arm (design §4: ≥ final k so RRF has candidates). */
@@ -481,7 +501,7 @@ async function runStrategy(
     return formatFullContext(doc, loaded, locale);
   }
 
-  return await runRetrieve(host, doc, loaded, query, locale);
+  return await runRetrieve(host, doc, loaded, query, locale, signal);
 }
 
 async function loadDocText(
@@ -604,6 +624,7 @@ async function runRetrieve(
   },
   query: string,
   locale: Locale,
+  signal?: AbortSignal,
 ): Promise<DocumentChatToolResult> {
   let index =
     typeof host.getIndexFor === "function" ? host.getIndexFor(doc.id) : null;
@@ -626,10 +647,10 @@ async function runRetrieve(
   });
 
   // Hybrid path: BM25 ∥ dense → RRF → optional rerank → budget pack.
-  // FIX 7 — honest degradation:
+  // FIX 7 / FIX 4 — honest degradation:
   //   - pure BM25 (no hybrid host hooks wired) → historical "retrieve"
   //   - hybrid considered but cannot run (no embedder / no vectors / embed
-  //     error) → explicit "bm25_only" (not the "retrieve" alias)
+  //     error / cap) → explicit "bm25_only" + denseUnavailableReason
   //   - hybrid succeeded → "hybrid"
   // Passages/citations stay identical to the BM25-only path on degrade.
   let passages = bm25Passages;
@@ -640,16 +661,34 @@ async function runRetrieve(
   let strategy: DocumentChatToolResult["strategy"] = hybridHostWired
     ? "bm25_only"
     : "retrieve";
+  let denseUnavailableReason: DenseUnavailableReason = null;
 
-  const hybrid = await tryHybridRetrieve(host, doc, query, bm25Passages);
-  if (hybrid) {
+  const hybrid = await tryHybridRetrieve(
+    host,
+    doc,
+    query,
+    bm25Passages,
+    signal,
+  );
+  if (hybrid && hybrid.strategy === "hybrid") {
     passages = hybrid.passages;
-    strategy = hybrid.strategy;
+    strategy = "hybrid";
+    denseUnavailableReason = null;
+  } else if (hybridHostWired) {
+    strategy = "bm25_only";
+    denseUnavailableReason =
+      hybrid?.denseUnavailableReason ??
+      (typeof host.getDenseUnavailableReason === "function"
+        ? host.getDenseUnavailableReason(doc.id)
+        : null) ??
+      "no_embedder";
   }
 
   if (!passages.length) {
+    const degradeLine = denseDegradeLine(locale, denseUnavailableReason);
+    const base = catalog(locale).nothingMatched.replace("{name}", doc.name);
     return {
-      text: catalog(locale).nothingMatched.replace("{name}", doc.name),
+      text: degradeLine ? `${base}\n\n${degradeLine}` : base,
       passages: [],
       provenance: DOCUMENT_CHAT_PROVENANCE,
       strategy:
@@ -659,6 +698,8 @@ async function runRetrieve(
             ? "bm25_only"
             : "retrieve",
       kind: "document_chat",
+      denseUnavailableReason:
+        strategy === "hybrid" ? null : denseUnavailableReason,
     };
   }
 
@@ -678,7 +719,11 @@ async function runRetrieve(
 
   const header = catalog(locale).retrieveHeader.replace("{name}", doc.name);
   // Provenance is NOT in the body — LlamaService appends it after truncation.
-  const text = `${header}\n\n${body}`;
+  // FIX 4: surface localized degradation so the model/user know recall may be reduced.
+  const degradeLine = denseDegradeLine(locale, denseUnavailableReason);
+  const text = degradeLine
+    ? `${header}\n\n${degradeLine}\n\n${body}`
+    : `${header}\n\n${body}`;
 
   return {
     text,
@@ -686,24 +731,72 @@ async function runRetrieve(
     provenance: DOCUMENT_CHAT_PROVENANCE,
     strategy,
     kind: "document_chat",
+    denseUnavailableReason:
+      strategy === "hybrid" ? null : denseUnavailableReason,
   };
 }
 
+/** Localized dense-degrade line for the tool body (FIX 4). */
+function denseDegradeLine(
+  locale: Locale,
+  reason: DenseUnavailableReason,
+): string | null {
+  if (!reason) return null;
+  const emb = (locale === "it" ? it : en).embedding as {
+    degradedCap?: string;
+    degradedCorrupt?: string;
+    degradedNoEmbedder?: string;
+  };
+  if (reason === "cap" || reason === "capped") {
+    return emb.degradedCap ?? null;
+  }
+  if (reason === "corrupt") {
+    return emb.degradedCorrupt ?? null;
+  }
+  if (reason === "no_embedder") {
+    return emb.degradedNoEmbedder ?? null;
+  }
+  return null;
+}
+
+type HybridAttempt =
+  | { strategy: "hybrid"; passages: RetrievedPassage[]; denseUnavailableReason: null }
+  | {
+      strategy: "bm25_only";
+      passages: null;
+      denseUnavailableReason: Exclude<DenseUnavailableReason, null>;
+    };
+
 /**
- * Dense arm + RRF fuse. Returns null when the hybrid path cannot run
- * (no embedder, no vectors, embed failed) — caller keeps BM25-only.
+ * Dense arm + RRF fuse. Returns hybrid success, or a bm25_only attempt with a
+ * reason (cap / corrupt / no_embedder) so the caller can surface it (FIX 4).
  */
 async function tryHybridRetrieve(
   host: DocumentChatHost,
   doc: LibraryDoc,
   query: string,
   bm25Passages: RetrievedPassage[],
-): Promise<{ passages: RetrievedPassage[]; strategy: "hybrid" } | null> {
+  signal?: AbortSignal,
+): Promise<HybridAttempt | null> {
   try {
+    if (signal?.aborted) {
+      return {
+        strategy: "bm25_only",
+        passages: null,
+        denseUnavailableReason: "no_embedder",
+      };
+    }
     const embedderDownloaded =
       typeof host.isEmbedderDownloaded === "function"
         ? host.isEmbedderDownloaded()
         : false;
+    if (!embedderDownloaded) {
+      return {
+        strategy: "bm25_only",
+        passages: null,
+        denseUnavailableReason: "no_embedder",
+      };
+    }
     // Prefer in-memory index; else lazy-load from durable sidecar (FIX D).
     let semantic =
       typeof host.getSemanticIndexFor === "function"
@@ -715,19 +808,70 @@ async function tryHybridRetrieve(
     ) {
       semantic = await host.loadSemanticIndexFor(doc.id);
     }
-    const vectorChunkCount = semantic?.chunkCount ?? 0;
-
-    // Inline degrade check (keep documentChatTool free of llama.rn / EmbeddingService).
-    if (!embedderDownloaded || vectorChunkCount <= 0 || !semantic) {
-      return null;
+    if (signal?.aborted) {
+      return {
+        strategy: "bm25_only",
+        passages: null,
+        denseUnavailableReason: "no_embedder",
+      };
     }
-    if (typeof host.embedQuery !== "function") return null;
 
-    const queryVec = await host.embedQuery(query);
-    if (!queryVec) return null;
+    // Host-side reason (cap / corrupt / capped) wins when the index is missing.
+    const hostReason =
+      typeof host.getDenseUnavailableReason === "function"
+        ? host.getDenseUnavailableReason(doc.id)
+        : null;
+
+    const vectorChunkCount = semantic?.chunkCount ?? 0;
+    if (!semantic || vectorChunkCount <= 0) {
+      return {
+        strategy: "bm25_only",
+        passages: null,
+        denseUnavailableReason:
+          hostReason === "cap" ||
+          hostReason === "capped" ||
+          hostReason === "corrupt"
+            ? hostReason
+            : hostReason === "no_embedder"
+              ? "no_embedder"
+              : "no_embedder",
+      };
+    }
+    // Index present but marked capped mid-embed: still usable for hybrid, but
+    // if the host says it was refused entirely, degrade.
+    if (hostReason === "cap" || hostReason === "corrupt") {
+      return {
+        strategy: "bm25_only",
+        passages: null,
+        denseUnavailableReason: hostReason,
+      };
+    }
+    if (typeof host.embedQuery !== "function") {
+      return {
+        strategy: "bm25_only",
+        passages: null,
+        denseUnavailableReason: "no_embedder",
+      };
+    }
+
+    // FIX 6: thread AbortSignal into embedQuery so cancel reaches the native call.
+    const queryVec = await host.embedQuery(query, signal);
+    if (!queryVec) {
+      return {
+        strategy: "bm25_only",
+        passages: null,
+        denseUnavailableReason: "no_embedder",
+      };
+    }
 
     const denseHits = semantic.query(queryVec, HYBRID_DENSE_TOP_N);
-    if (!denseHits.length) return null;
+    if (!denseHits.length) {
+      return {
+        strategy: "bm25_only",
+        passages: null,
+        denseUnavailableReason: "no_embedder",
+      };
+    }
 
     // Sparse ranks: 0-based position in the BM25 multi-round result order.
     // BM25 already ran RRF across rounds; we re-fuse that list with dense ranks.
@@ -741,7 +885,13 @@ async function tryHybridRetrieve(
     }));
 
     const fused = rrfFuse(sparseRanks, denseRanks, { k: HYBRID_RRF_K });
-    if (!fused.length) return null;
+    if (!fused.length) {
+      return {
+        strategy: "bm25_only",
+        passages: null,
+        denseUnavailableReason: "no_embedder",
+      };
+    }
 
     // Map fused chunkIds back to passage text. Prefer BM25 passages when present
     // (they already have score/rank/granularity). Dense-only winners recover
@@ -785,11 +935,25 @@ async function tryHybridRetrieve(
       });
     }
 
-    if (!fusedPassages.length) return null;
-    return { passages: fusedPassages, strategy: "hybrid" };
+    if (!fusedPassages.length) {
+      return {
+        strategy: "bm25_only",
+        passages: null,
+        denseUnavailableReason: "no_embedder",
+      };
+    }
+    return {
+      passages: fusedPassages,
+      strategy: "hybrid",
+      denseUnavailableReason: null,
+    };
   } catch {
-    // Any hybrid failure → silent BM25-only (caller labels strategy bm25_only).
-    return null;
+    // Any hybrid failure → BM25-only with no_embedder reason.
+    return {
+      strategy: "bm25_only",
+      passages: null,
+      denseUnavailableReason: "no_embedder",
+    };
   }
 }
 

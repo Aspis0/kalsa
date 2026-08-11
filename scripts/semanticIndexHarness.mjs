@@ -508,6 +508,67 @@ async function main() {
     );
   });
 
+  // ── FIX D: cap at add time (replacement accounting) ──────────────────────
+  check("24. addVectors cap skips beyond floatCap; sets isCapped", () => {
+    const {
+      DEFAULT_VECTOR_MEMORY_FLOAT_CAP,
+      totalResidentFloats,
+      semanticIndexCountExceeds,
+      wouldBeFloatDelta,
+    } = mod;
+    assert(
+      DEFAULT_VECTOR_MEMORY_FLOAT_CAP === 200_000,
+      `cap constant ${DEFAULT_VECTOR_MEMORY_FLOAT_CAP}`,
+    );
+    // dims=4, cap=12 floats → max 3 new vectors.
+    const idx = new SemanticVectorIndex({ dims: 4 });
+    const mk = (id) => ({
+      chunkId: id,
+      vector: vec(1, 0, 0, 0),
+    });
+    const r1 = idx.addVectors([mk("a"), mk("b"), mk("c")], {
+      floatCap: 12,
+      otherResidentFloats: 0,
+    });
+    assert(r1.added === 3, `added ${r1.added}`);
+    assert(r1.skippedByCap === 0, `skipped ${r1.skippedByCap}`);
+    assert(idx.chunkCount === 3, `count ${idx.chunkCount}`);
+    assert(idx.floatCount === 12, `floats ${idx.floatCount}`);
+    assert(idx.isCapped === false, "not capped yet");
+
+    // 4th new vector must be skipped by cap.
+    const r2 = idx.addVectors([mk("d")], { floatCap: 12, otherResidentFloats: 0 });
+    assert(r2.added === 0, `4th added ${r2.added}`);
+    assert(r2.skippedByCap === 1, `4th skipped ${r2.skippedByCap}`);
+    assert(idx.isCapped === true, "isCapped set");
+    assert(idx.chunkCount === 3, "still 3");
+
+    // Replacement of existing chunkId costs 0 net floats — always allowed.
+    const r3 = idx.addVectors(
+      [{ chunkId: "a", vector: vec(0, 1, 0, 0) }],
+      { floatCap: 12, otherResidentFloats: 0 },
+    );
+    assert(r3.added === 1, `replacement added ${r3.added}`);
+    assert(r3.skippedByCap === 0, "replacement not skipped");
+    assert(idx.chunkCount === 3, "still 3 after replace");
+
+    // otherResidentFloats reduces remaining budget.
+    const idx2 = new SemanticVectorIndex({ dims: 4 });
+    const r4 = idx2.addVectors([mk("x")], {
+      floatCap: 12,
+      otherResidentFloats: 12, // already full elsewhere
+    });
+    assert(r4.added === 0 && r4.skippedByCap === 1, "other floats block add");
+    assert(idx2.isCapped === true, "capped via other");
+
+    // Helpers.
+    assert(totalResidentFloats([idx]) === 12, "totalResidentFloats");
+    assert(semanticIndexCountExceeds([idx], 12) === true, "exceeds at equal");
+    assert(semanticIndexCountExceeds([idx], 13) === false, "under higher cap");
+    assert(wouldBeFloatDelta(idx, [mk("a")]) === 0, "replace delta 0");
+    assert(wouldBeFloatDelta(idx, [mk("new")]) === 4, "new delta dims");
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
 }
