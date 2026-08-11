@@ -1,0 +1,116 @@
+[2026-08-11T00:59:50-0400] bin=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f model_sha_cached=ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a model_size=13416430592
+[2026-08-11T00:59:50-0400] guardrails_sha=18a44e1c0b85ba13ed0690881272b06696385f59f0d455557bdef0221413f979
+197480d977685dc8bacec8c3eeaf81ab395ee33ccaf5737a4913149920c2f619  /data/data/com.termux/files/home/experiments/prompts/short.txt
+bc5c1e584031aa57f53d47ecabe8139537fbd54c32421ce4ca9ef2204f55cbcf  /data/data/com.termux/files/home/experiments/prompts/f45_1.txt
+[2026-08-11T00:59:51-0400] === CALAQWEN START ===
+OK UNPLUGGED 87 -1071 4169
+[2026-08-11T00:59:52-0400] preflight i=1 plugged=UNPLUGGED batt=87 die=53.9 nproc=6
+[2026-08-11T00:59:52-0400] idle baseline 30s
+[2026-08-11T01:00:54-0400] === BLOCCO 1 scheda ===
+[2026-08-11T01:00:55-0400] preflight i=1 plugged=UNPLUGGED batt=87 die=57.5 nproc=6
+[2026-08-11T01:00:56-0400] CELL b1/sos_short_r1 batt=87
+[2026-08-11T01:01:58-0400] DONE b1/sos_short_r1 tok_s=5.487 n_gen=199 wall=57 rc=0 die_max=91.6 note=
+[2026-08-11T01:02:00-0400] preflight i=1 plugged=UNPLUGGED batt=87 die=58.1 nproc=6
+[2026-08-11T01:02:00-0400] CELL b1/sos_short_r2 batt=87
+[2026-08-11T01:03:13-0400] DONE b1/sos_short_r2 tok_s=4.846 n_gen=199 wall=65 rc=0 die_max=74.5 note=
+[2026-08-11T01:03:15-0400] preflight i=1 plugged=UNPLUGGED batt=86 die=56.5 nproc=6
+[2026-08-11T01:03:16-0400] CELL b1/sos_long_thermal batt=86
+[2026-08-11T01:04:00-0400] DONE b1/sos_long_thermal tok_s=5.349 n_gen=102 wall=37 rc=0 die_max=74.5 note=
+[2026-08-11T01:04:00-0400] === B1 conv5 KV ===
+[2026-08-11T01:04:02-0400] preflight i=1 plugged=UNPLUGGED batt=86 die=58.5 nproc=6
+[2026-08-11T01:04:20-0400] conv5 rc=0
+CONV5_DONES 0
+[2026-08-11T01:04:22-0400] preflight i=1 plugged=UNPLUGGED batt=86 die=54.9 nproc=6
+[2026-08-11T01:04:29-0400] CELL b1/load_r1 batt=86
+[2026-08-11T01:05:00-0400] DONE b1/load_r1 tok_s=4.629 n_gen=16 wall=26 rc=0 die_max=85.9 note=
+[2026-08-11T01:05:01-0400] preflight i=1 plugged=UNPLUGGED batt=85 die=60.4 nproc=6
+[2026-08-11T01:05:07-0400] CELL b1/load_r2 batt=85
+[2026-08-11T01:05:38-0400] DONE b1/load_r2 tok_s=4.438 n_gen=16 wall=26 rc=0 die_max=83.5 note=
+[2026-08-11T01:05:38-0400] idle post 30s
+I_idle_uA=-430000.0
+sos_short_r1: E_J=90.481 n_gen=199 J_per_tok=0.4547
+sos_short_r2: E_J=92.716 n_gen=199 J_per_tok=0.4659
+sos_long_thermal: E_J=42.790 n_gen=102 J_per_tok=0.4195
+J_per_tok median=0.4547 range=0.4195-0.4659
+[2026-08-11T01:06:48-0400] post-B1 batt=85
+[2026-08-11T01:06:48-0400] === BLOCCO 2 N1 v2 reps=2 ===
+[2026-08-11T01:06:49-0400] preflight i=1 plugged=UNPLUGGED batt=85 die=55.5 nproc=6
+[2026-08-11T01:06:50-0400] CELL b2/ctrl_decode1 batt=85
+[2026-08-11T01:07:25-0400] DONE b2/ctrl_decode1 tok_s=5.513 n_gen=64 wall=32 rc=0 die_max=91.6 note=
+[2026-08-11T01:07:26-0400] preflight i=1 plugged=UNPLUGGED batt=85 die=71.3 nproc=6
+[2026-08-11T01:07:41-0400] N1 k=0 rep=1 done
+[2026-08-11T01:07:43-0400] preflight i=1 plugged=UNPLUGGED batt=84 die=59.5 nproc=6
+[2026-08-11T01:07:58-0400] N1 k=0 rep=2 done
+[2026-08-11T01:08:01-0400] preflight i=1 plugged=UNPLUGGED batt=84 die=57.9 nproc=6
+[2026-08-11T01:08:15-0400] N1 k=8 rep=1 done
+[2026-08-11T01:08:18-0400] preflight i=1 plugged=UNPLUGGED batt=84 die=57.5 nproc=6
+[2026-08-11T01:08:32-0400] N1 k=8 rep=2 done
+[2026-08-11T01:08:34-0400] preflight i=1 plugged=UNPLUGGED batt=84 die=64.0 nproc=7
+[2026-08-11T01:08:48-0400] N1 k=32 rep=1 done
+[2026-08-11T01:08:51-0400] preflight i=1 plugged=UNPLUGGED batt=84 die=58.7 nproc=6
+[2026-08-11T01:09:05-0400] N1 k=32 rep=2 done
+[2026-08-11T01:09:07-0400] preflight i=1 plugged=UNPLUGGED batt=84 die=62.8 nproc=6
+[2026-08-11T01:09:21-0400] N1 k=64 rep=1 done
+[2026-08-11T01:09:24-0400] preflight i=1 plugged=UNPLUGGED batt=84 die=58.3 nproc=6
+[2026-08-11T01:09:38-0400] N1 k=64 rep=2 done
+[2026-08-11T01:09:40-0400] preflight i=1 plugged=UNPLUGGED batt=83 die=62.4 nproc=6
+[2026-08-11T01:09:55-0400] N1 k=128 rep=1 done
+[2026-08-11T01:09:57-0400] preflight i=1 plugged=UNPLUGGED batt=83 die=57.3 nproc=6
+[2026-08-11T01:10:11-0400] N1 k=128 rep=2 done
+[2026-08-11T01:10:14-0400] preflight i=1 plugged=UNPLUGGED batt=83 die=58.3 nproc=6
+[2026-08-11T01:10:28-0400] N1 k=256 rep=1 done
+[2026-08-11T01:10:31-0400] preflight i=1 plugged=UNPLUGGED batt=83 die=58.3 nproc=6
+[2026-08-11T01:10:46-0400] N1 k=256 rep=2 done
+[2026-08-11T01:10:48-0400] preflight i=1 plugged=UNPLUGGED batt=83 die=59.9 nproc=6
+[2026-08-11T01:10:48-0400] CELL b2/oneshot_p128 batt=83
+[2026-08-11T01:11:34-0400] DONE b2/oneshot_p128 tok_s=4.625 n_gen=32 wall=41 rc=0 die_max=90.8 note=
+N1_OK_ROWS 0 []
+FIT: INSUFFICIENT_DATA
+[2026-08-11T01:11:34-0400] === BLOCCO 3 cache bracket ===
+[2026-08-11T01:11:36-0400] preflight i=1 plugged=UNPLUGGED batt=82 die=61.7 nproc=6
+[2026-08-11T01:11:37-0400] CELL b3/C2000_r1 batt=82
+[2026-08-11T01:12:59-0400] DONE b3/C2000_r1 tok_s=4.051 n_gen=200 wall=75 rc=0 die_max=72.5 note=
+[2026-08-11T01:13:02-0400] preflight i=1 plugged=UNPLUGGED batt=82 die=54.1 nproc=6
+[2026-08-11T01:13:02-0400] CELL b3/C1500_r1 batt=82
+[2026-08-11T01:14:28-0400] DONE b3/C1500_r1 tok_s=4.116 n_gen=200 wall=78 rc=0 die_max=66.0 note=
+[2026-08-11T01:14:31-0400] preflight i=1 plugged=UNPLUGGED batt=81 die=55.7 nproc=6
+[2026-08-11T01:14:32-0400] CELL b3/C2000_r2 batt=81
+[2026-08-11T01:15:58-0400] DONE b3/C2000_r2 tok_s=4.050 n_gen=200 wall=78 rc=0 die_max=66.8 note=
+[2026-08-11T01:16:00-0400] preflight i=1 plugged=UNPLUGGED batt=81 die=55.3 nproc=6
+[2026-08-11T01:16:01-0400] CELL b3/C1750_r1 batt=81
+[2026-08-11T01:17:29-0400] DONE b3/C1750_r1 tok_s=3.974 n_gen=200 wall=80 rc=0 die_max=65.2 note=
+[2026-08-11T01:17:32-0400] preflight i=1 plugged=UNPLUGGED batt=80 die=54.9 nproc=6
+[2026-08-11T01:17:32-0400] CELL b3/C2000_r3 batt=80
+[2026-08-11T01:18:59-0400] DONE b3/C2000_r3 tok_s=4.076 n_gen=200 wall=79 rc=0 die_max=66.4 note=
+[2026-08-11T01:19:01-0400] preflight i=1 plugged=UNPLUGGED batt=80 die=54.5 nproc=6
+[2026-08-11T01:19:02-0400] CELL b3/C2300_r1 batt=80
+[2026-08-11T01:20:31-0400] DONE b3/C2300_r1 tok_s=3.883 n_gen=200 wall=81 rc=0 die_max=66.4 note=
+[2026-08-11T01:20:31-0400] === CALAQWEN ALL BLOCKS DONE ===
+block,label,rc,wall_s,tok_s,prefill_tps,n_gen,n_prompt,n_past,hit,drop_pct,mib_tok,die_med,die_p90,die_max,batt_s,batt_e,note
+b1,b1/sos_short_r1,0,57,5.487,11.7,199,114,,75.9,5.1,40.36,85.9,89.5,91.6,87,87,
+b1,b1/sos_short_r2,0,65,4.846,9.9,199,114,,75.9,5.1,40.36,70.9,73.7,74.5,87,86,
+b1,b1/sos_long_thermal,0,37,5.349,6.8,102,32,,79.9,3.4,28.51,69.3,73.3,74.5,86,86,
+b1,b1/load_r1,0,26,4.629,11.3,16,114,,32.2,6.6,62.22,75.3,84.7,85.9,86,85,
+b1,b1/load_r2,0,26,4.438,11.3,16,114,,32.2,6.6,62.22,74.1,82.6,83.5,85,85,
+b2,b2/ctrl_decode1,0,32,5.513,11.9,64,114,,62.2,5.3,43.98,88.7,90.3,91.6,85,85,
+b2,sess_k0_r1,0,,,,,None,,,,,,,,,,SCARTATA exp=14
+b2,sess_k0_r2,0,,,,,None,,,,,,,,,,SCARTATA exp=14
+b2,sess_k8_r1,0,,,,,None,,,,,,,,,,SCARTATA exp=22
+b2,sess_k8_r2,0,,,,,None,,,,,,,,,,SCARTATA exp=22
+b2,sess_k32_r1,0,,,,,None,,,,,,,,,,SCARTATA exp=46
+b2,sess_k32_r2,0,,,,,None,,,,,,,,,,SCARTATA exp=46
+b2,sess_k64_r1,0,,,,,None,,,,,,,,,,SCARTATA exp=78
+b2,sess_k64_r2,0,,,,,None,,,,,,,,,,SCARTATA exp=78
+b2,sess_k128_r1,0,,,,,None,,,,,,,,,,SCARTATA exp=142
+b2,sess_k128_r2,0,,,,,None,,,,,,,,,,SCARTATA exp=142
+b2,sess_k256_r1,0,,,,,None,,,,,,,,,,SCARTATA exp=270
+b2,sess_k256_r2,0,,,,,None,,,,,,,,,,SCARTATA exp=270
+b2,b2/oneshot_p128,0,41,4.625,13.8,32,315,,41.0,6.0,61.59,86.7,89.9,90.8,83,82,
+b3,b3/C2000_r1,0,75,4.051,9.8,200,121,,79.7,4.6,31.68,64.4,69.3,72.5,82,82,
+b3,b3/C1500_r1,0,78,4.116,8.2,200,121,,74.2,6.0,45.93,64.8,65.6,66.0,82,81,
+b3,b3/C2000_r2,0,78,4.050,8.5,200,121,,79.7,4.6,31.68,63.2,65.6,66.8,81,81,
+b3,b3/C1750_r1,0,80,3.974,7.7,200,121,,76.4,5.5,40.28,62.9,64.8,65.2,81,80,
+b3,b3/C2000_r3,0,79,4.076,8.2,200,121,,79.7,4.6,31.68,64.0,65.6,66.4,80,80,
+b3,b3/C2300_r1,0,81,3.883,8.4,200,121,,81.7,4.4,26.23,63.2,65.2,66.4,80,79,
+[2026-08-11T01:20:31-0400] screen restored
+[2026-08-11T01:20:32-0400] trap cleanup

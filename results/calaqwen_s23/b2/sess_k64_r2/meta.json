@@ -1,0 +1,11 @@
+{
+  "k": 64,
+  "rep": 2,
+  "n_prompt": null,
+  "expected": 78,
+  "status": "SCARTATA",
+  "prefill_s": null,
+  "mib_tok": null,
+  "rc": 0,
+  "n_dones": 0
+}

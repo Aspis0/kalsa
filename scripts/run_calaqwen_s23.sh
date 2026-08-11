@@ -43,9 +43,22 @@ else
 fi
 # shellcheck disable=SC1090
 source "$HOME/experiments/scripts/lib_guardrails.sh"
-log "bin=$BIN_SHA256 model=$(sha256sum "$MODEL" | awk '{print $1}')"
+# Do NOT sha256 the full KEXP (13GB) at start — blocks for minutes on device.
+# Prefer cached kexp.sha256 / size gate; prompts are small.
+MODEL_SHA="unknown"
+if [ -f "$HOME/experiments/results/kexp_baseline/kexp.sha256" ]; then
+  MODEL_SHA=$(awk 'NF{print $1; exit}' "$HOME/experiments/results/kexp_baseline/kexp.sha256")
+elif [ -f "$HOME/experiments/models/kexp.sha256" ]; then
+  MODEL_SHA=$(awk 'NF{print $1; exit}' "$HOME/experiments/models/kexp.sha256")
+fi
+MODEL_SIZE=$(stat -c%s "$MODEL" 2>/dev/null || echo 0)
+log "bin=$BIN_SHA256 model_sha_cached=$MODEL_SHA model_size=$MODEL_SIZE"
 log "guardrails_sha=$(sha256sum "$HOME/experiments/scripts/lib_guardrails.sh" | awk '{print $1}')"
 sha256sum "$P_SHORT" "$P_F45" 2>/dev/null | tee -a "$MASTER" || true
+# hard gate size KEXP expected ~13416430592
+if [ "$MODEL_SIZE" != "13416430592" ] && [ "$MODEL_SIZE" != "0" ]; then
+  log "WARN model size unexpected: $MODEL_SIZE"
+fi
 
 # screen long for overnight
 SCREEN_PREV=$(settings get system screen_off_timeout 2>/dev/null || echo "")

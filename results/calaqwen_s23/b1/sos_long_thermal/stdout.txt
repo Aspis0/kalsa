@@ -1,0 +1,30 @@
+Continue this numbered list forever without stopping. 1. alpha 2. beta 3. gamma4. delta
+5. epsilon
+6. zeta
+7. eta
+8. theta
+9. iota
+10. kappa
+11. lambda
+12. mu
+13. nu
+14. xi
+15. omicron
+16. pi
+17. rho
+18. sigma
+19. tau
+20. upsilon
+21. phi
+22. chi
+23. psi
+24. omega
+
+generation: 102 tokens, 0.187 s/token (5.349 tok/s)
+compute: 81.7% CPU occupancy (0.6114 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 32 tokens, 4.684 s (6.8 tok/s) | model load 11.948 s | TTFT 16.632 s
+moe-stream: read 2908.3 MiB (28.51 MiB/token), decode 0.187 s/token (compute 0.142 + cache mgmt 0.008 + flash I/O 0.131 s/token, 218 MiB/s)
+moe-cache: 79.9% hit, resident 1999.2 MiB
+moe-cache: 3455 evictions, 1199 re-reads (11.8/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.036 s/token (flash reads overlapped with FFN compute)
+moe-drop: 842/24480 routed experts dropped (3.4%), threshold 0.65 x uniform
