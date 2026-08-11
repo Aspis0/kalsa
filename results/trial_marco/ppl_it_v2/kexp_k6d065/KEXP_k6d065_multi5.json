@@ -1,0 +1,70 @@
+{
+  "tag": "KEXP_k6d065",
+  "binary": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\build-pc\\cli\\bmoe-cli.exe",
+  "binary_sha256": "42cd907c38fb223d1b04c7070a0c9a6e3b200e186afc19439189651dcac74f69",
+  "model": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\Qwen3.6-35B-A3B-KEXP.gguf",
+  "model_sha256": "ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a",
+  "model_bytes": 13416430592,
+  "ppl_mode": "decode",
+  "threads": 8,
+  "ctx": 4096,
+  "config": {
+    "cmd_tail": [
+      "-m",
+      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\Qwen3.6-35B-A3B-KEXP.gguf",
+      "-t",
+      "8",
+      "-c",
+      "4096",
+      "--ubatch",
+      "512",
+      "--ppl-decode",
+      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\it.txt",
+      "--ppl-csv",
+      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\trial_marco\\ppl_it_v2\\kexp_k6d065\\it\\per_token.csv",
+      "--moe-stream",
+      "--cache-mb",
+      "2000",
+      "--dense-weights",
+      "anon",
+      "--io-threads",
+      "4",
+      "--overlap",
+      "--n-expert-used",
+      "6",
+      "--drop-cold-experts",
+      "0.65"
+    ],
+    "moe_stream": true,
+    "cache_mb": 2000
+  },
+  "langs": {
+    "it": {
+      "lang": "it",
+      "corpus": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\it.txt",
+      "corpus_sha256": "498a5f3b554fac4bb6f7eda4f7bdcea60f3ad6be30699f306a3255d8ba85545a",
+      "n_bytes": 45747,
+      "rc": 0,
+      "seconds": 1781.296,
+      "n_tokens": 11079,
+      "n_scored": 11076,
+      "sum_logprob": -22407.24065774,
+      "ppl": 7.56131,
+      "bpb": 0.7066433859472109,
+      "bytes_per_token": 4.129163281884646,
+      "raw": {
+        "n_tokens": 11079,
+        "n_scored": 11076,
+        "sum_logprob": -22407.24065774,
+        "ppl": 7.56131,
+        "seconds": 1774.512,
+        "cancelled": false,
+        "mode": "decode",
+        "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\it.txt"
+      }
+    }
+  },
+  "started": "2026-08-11T10:58:55-0400",
+  "macro_bpb": 0.7066433859472109,
+  "finished": "2026-08-11T11:28:37-0400"
+}

@@ -19,9 +19,9 @@
       "--ubatch",
       "512",
       "--ppl-decode",
-      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\en.txt",
+      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\zh.txt",
       "--ppl-csv",
-      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\trial_marco\\ppl_marco\\en\\per_token.csv",
+      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\trial_marco\\ppl_marco\\zh\\per_token.csv",
       "--moe-stream",
       "--cache-mb",
       "2000",
@@ -60,7 +60,105 @@
         "mode": "decode",
         "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\en.txt"
       }
+    },
+    "es": {
+      "lang": "es",
+      "corpus": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\es.txt",
+      "corpus_sha256": "2dd7027b88e9a49017adceca9f61ea0c6e076a81188b029816098119818a6e3a",
+      "n_bytes": 52648,
+      "rc": 0,
+      "seconds": 5508.27,
+      "n_tokens": 13890,
+      "n_scored": 13886,
+      "sum_logprob": -24691.50350497,
+      "ppl": 5.918944,
+      "bpb": 0.6766127803280786,
+      "bytes_per_token": 3.7903527717782577,
+      "raw": {
+        "n_tokens": 13890,
+        "n_scored": 13886,
+        "sum_logprob": -24691.50350497,
+        "ppl": 5.918944,
+        "seconds": 5504.515,
+        "cancelled": false,
+        "mode": "decode",
+        "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\es.txt"
+      }
+    },
+    "fr": {
+      "lang": "fr",
+      "corpus": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\fr.txt",
+      "corpus_sha256": "b32e09c5fe2024e537ae36ba6cad2dbac208baeff5f3a846a572de1f2ba65061",
+      "n_bytes": 50848,
+      "rc": 0,
+      "seconds": 4814.087,
+      "n_tokens": 14033,
+      "n_scored": 14029,
+      "sum_logprob": -25495.83850424,
+      "ppl": 6.155628,
+      "bpb": 0.723385772761425,
+      "bytes_per_token": 3.623458989524692,
+      "raw": {
+        "n_tokens": 14033,
+        "n_scored": 14029,
+        "sum_logprob": -25495.83850424,
+        "ppl": 6.155628,
+        "seconds": 4810.655,
+        "cancelled": false,
+        "mode": "decode",
+        "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\fr.txt"
+      }
+    },
+    "it": {
+      "lang": "it",
+      "corpus": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\it.txt",
+      "corpus_sha256": "0aeaa45c1a0a0e58a6e4b26fb3c695996f90c5ad73038217a2d998c9d8e70dec",
+      "n_bytes": 50054,
+      "rc": 0,
+      "seconds": 5708.97,
+      "n_tokens": 16341,
+      "n_scored": 16337,
+      "sum_logprob": -56820.20953501,
+      "ppl": 32.395112,
+      "bpb": 1.637715957134909,
+      "bytes_per_token": 3.063092833975889,
+      "raw": {
+        "n_tokens": 16341,
+        "n_scored": 16337,
+        "sum_logprob": -56820.20953501,
+        "ppl": 32.395112,
+        "seconds": 5706.883,
+        "cancelled": false,
+        "mode": "decode",
+        "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\it.txt"
+      }
+    },
+    "zh": {
+      "lang": "zh",
+      "corpus": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\zh.txt",
+      "corpus_sha256": "be40bbe1676b245f697f8e8ff22963e56553ac29fd170d87906b555fbf19251b",
+      "n_bytes": 50284,
+      "rc": 0,
+      "seconds": 4510.103,
+      "n_tokens": 13517,
+      "n_scored": 13513,
+      "sum_logprob": -30788.72011867,
+      "ppl": 9.761557,
+      "bpb": 0.8833572076708988,
+      "bytes_per_token": 3.7200562254938228,
+      "raw": {
+        "n_tokens": 13517,
+        "n_scored": 13513,
+        "sum_logprob": -30788.72011867,
+        "ppl": 9.761557,
+        "seconds": 4508.012,
+        "cancelled": false,
+        "mode": "decode",
+        "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\zh.txt"
+      }
     }
   },
-  "started": "2026-08-10T22:31:07-0400"
+  "started": "2026-08-10T22:31:07-0400",
+  "macro_bpb": 0.9052345782023032,
+  "finished": "2026-08-11T05:25:38-0400"
 }

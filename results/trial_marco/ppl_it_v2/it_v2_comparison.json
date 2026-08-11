@@ -1,0 +1,39 @@
+{
+  "corpus": "corpus/multi5/it.txt v2 Wikipedia Caffe (modern IT)",
+  "corpus_bytes": 45747,
+  "corpus_sha256": "498a5f3b554fac4bb6f7eda4f7bdcea60f3ad6be30699f306a3255d8ba85545a",
+  "models": {
+    "KEXP_k6d065": {
+      "bpb": 0.7066433859472109,
+      "ppl": 7.56131,
+      "n_tokens": 11079,
+      "n_bytes": 45747,
+      "seconds": 1781.296,
+      "bytes_per_token": 4.129163281884646
+    },
+    "Marco": {
+      "bpb": 0.7501260841791423,
+      "ppl": 5.681541,
+      "n_tokens": 13696,
+      "n_bytes": 45747,
+      "seconds": 7867.484,
+      "bytes_per_token": 3.3401723130841123
+    },
+    "Qwen35_4B": {
+      "bpb": 0.768569241822724,
+      "ppl": 9.028007,
+      "n_tokens": 11079,
+      "n_bytes": 45747,
+      "seconds": 1217.149,
+      "bytes_per_token": 4.129163281884646
+    }
+  },
+  "delta_Marco_KEXP": 0.043482698231931405,
+  "delta_Marco_Qwen": -0.01844315764358173,
+  "delta_Qwen_KEXP": 0.061925855875513136,
+  "v1_literary_ref": {
+    "KEXP_k6d065_bpb": 0.3842,
+    "Marco_bpb": 1.6377,
+    "note": "it_v1_literary.txt Dante/prose - NOT modern IT"
+  }
+}
