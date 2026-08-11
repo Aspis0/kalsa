@@ -1,0 +1,12 @@
+# MarcoKEXP recipe patterns (from marco_gguf_dump i1-Q4_K_M structure)
+# Source quantize target: Q8_0 static GGUF (not yet downloaded — wait T2c promote)
+# OpenCL-compatible dense: q4_k / q5_k (NOT IQ*)
+# Experts: TWO OPTIONS
+#   conservative: q3_k on ffn_{gate,up,down}_exps
+#   aggressive:   q2_k on ffn_{gate,up,down}_exps
+# F32: all *norm*, ffn_gate_inp (router)
+# Anchor: ^output.weight$=q5_k (1c lesson; may be absent if tied emb)
+# Files:
+#   tensor_types.txt                      -> conservative (default)
+#   tensor_types_conservative_q3k.txt
+#   tensor_types_aggressive_q2k.txt
