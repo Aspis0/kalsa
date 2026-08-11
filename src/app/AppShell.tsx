@@ -106,7 +106,12 @@ import {
   type EngineTurnOptions,
 } from "../engine/LlamaService";
 import { startMemoryMonitor, getAvailableMemoryBytesUncached } from "../engine/monitor";
-import { regenInFlightRef } from "../engine/regenState";
+import {
+  backgroundDiscardLifecycleRef,
+  regenAbortRef,
+  regenInFlightRef,
+  sendingInFlightRef,
+} from "../engine/regenState";
 import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
 import { computePromptEnvHash, getBootHistoryHash, historyHash } from "../engine/sessionPersistence";
 import { getEngineOverride, getSpeculativeOverride } from "../bench/benchConfig";
@@ -1581,20 +1586,53 @@ export function AppShell() {
         if (state === "background" || state === "inactive") {
           void (async () => {
             try {
-              const busy =
-                streamInFlightRef.current || regenInFlightRef.current;
-              if (busy) {
-                // Wait briefly for streamInFlight to clear (abort owned by AiChatPage).
-                const t0 = Date.now();
-                while (streamInFlightRef.current && Date.now() - t0 < 3000) {
-                  await new Promise((r) => setTimeout(r, 50));
+              // Abort regen first so edit/regen cannot race dispose.
+              regenAbortRef.current?.abort();
+
+              // Abort-and-await lifecycle owned by AiChatPage: aborts send,
+              // awaits stream finalization + turn-end save, returns real hash.
+              let historyHashValue = historyHash("");
+              const lifecycle = backgroundDiscardLifecycleRef.current;
+              if (lifecycle) {
+                try {
+                  const result = await lifecycle();
+                  if (
+                    result &&
+                    typeof result.historyHashValue === "string"
+                  ) {
+                    historyHashValue = result.historyHashValue;
+                  }
+                } catch {
+                  // fall through with empty-history hash only if genuinely empty
                 }
               }
+
+              // Hard wait: never dispose while stream/send/regen still in flight.
+              const t0 = Date.now();
+              while (
+                (streamInFlightRef.current ||
+                  sendingInFlightRef.current ||
+                  regenInFlightRef.current) &&
+                Date.now() - t0 < 5000
+              ) {
+                await new Promise((r) => setTimeout(r, 50));
+              }
+              // If still busy after wait, skip dispose this cycle (monitor will
+              // re-fire on next background transition / pressure tick).
+              if (
+                streamInFlightRef.current ||
+                sendingInFlightRef.current ||
+                regenInFlightRef.current
+              ) {
+                return;
+              }
+
               const modelId = getActiveModelId();
               if (modelId && isEngineReady()) {
                 // saveEngineSession itself gates on kvReproducible.
+                // Use the real historyHash from lifecycle (empty only if empty).
                 try {
-                  await saveEngineSession(modelId, historyHash(""));
+                  await saveEngineSession(modelId, historyHashValue);
                 } catch {
                   // ignore
                 }
@@ -2845,8 +2883,13 @@ export function AppShell() {
           setStreaming(false);
           resolve(afterSessionSave ? { afterSessionSave } : {});
         };
-        const fail = (message: string) => {
+        const fail = (message: string, reasonKey?: string) => {
           callbacks.onDelta?.(`⚠️ ${message}`, `⚠️ ${message}`);
+          try {
+            callbacks.onFailed?.(reasonKey || "chat.serviceUnreachable");
+          } catch {
+            // ignore
+          }
           finish();
         };
 
@@ -2981,9 +3024,15 @@ export function AppShell() {
               // modelErrorKind, so re-check disk rather than relying on modelErrorKind alone.
               const downloaded = await isModelBundleDownloaded(currentModel).catch(() => false);
               if (downloaded) {
-                fail(t("chat.modelLoadFailed", { name: currentModel.name }));
+                fail(
+                  t("chat.modelLoadFailed", { name: currentModel.name }),
+                  "chat.modelLoadFailed",
+                );
               } else {
-                fail(t("chat.modelNotDownloaded", { name: currentModel.name }));
+                fail(
+                  t("chat.modelNotDownloaded", { name: currentModel.name }),
+                  "chat.modelNotDownloaded",
+                );
               }
               return;
             }
@@ -3291,6 +3340,11 @@ export function AppShell() {
                     forceRebuildByChat.set(chatId, true);
                   }
                   callbacks.onDelta?.(`⚠️ ${error.message}`, `⚠️ ${error.message}`);
+                  try {
+                    callbacks.onFailed?.("chat.serviceUnreachable");
+                  } catch {
+                    // ignore
+                  }
                   finish();
                 },
               },
@@ -3533,6 +3587,7 @@ export function AppShell() {
             ttsEnabled={ttsEnabled}
             engineCtx={chatEngineCtx}
             documentLibrary={documentLibrary}
+            onMemoryBanner={(key) => setMemoryBannerKey(key)}
             onOpenDocuments={() => setActiveOverlay({ kind: "documents" })}
             onOpenMiniapp={(miniapp) => {
               // Policy: ignore miniapp open while Settings/Help/Documents is active

@@ -180,6 +180,7 @@ export const it: typeof en = {
     cannotEvaluate: "Impossibile determinare la memoria, libera spazio e riprova",
     tightNow: "Memoria ridotta — la rigenerazione non è supportata, libera",
     memoryUnknown: "Memoria non determinata — policy usata unknown",
+    fitsOK: "Il modello entra nella memoria disponibile",
   },
   voice: {
     title: "Voce",

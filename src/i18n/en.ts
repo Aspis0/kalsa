@@ -184,6 +184,7 @@ export const en = {
     cannotEvaluate: "Cannot determine memory, free space and try",
     tightNow: "Memory low — regenerate not supported, free",
     memoryUnknown: "Memory could not be determined — policy used unknown",
+    fitsOK: "Model fits in available memory",
   },
   voice: {
     title: "Voice",

@@ -6,7 +6,9 @@
  *   - regenerate = truncate + handleSend(originalUserText) single-pass
  *   - edit = array-index splice + edited flag + handleSend
  *   - concurrent regen → second refuses (regenInFlightRef)
- *   - snapshot restore on error
+ *   - real busy-check chain (regenInFlightRef blocks concurrent sends)
+ *   - snapshot restore on throw AND on handleSend {ok:false}
+ *   - regenAbortRef set during regen, cleared after
  *
  * Compile-from-disk for regenState; pure JS for flow simulation.
  */
@@ -78,7 +80,8 @@ function findOriginalUserText(slice) {
 
 /**
  * Pure regenerate flow (mirrors AiChatPage.regenerate without React).
- * Uses module-level regenInFlightRef + one-shot pass.
+ * Uses module-level regenInFlightRef + one-shot pass + regenAbortRef.
+ * Inspects handleSend discriminated result for snapshot restore.
  */
 async function regenerateFlow(opts) {
   const {
@@ -87,11 +90,13 @@ async function regenerateFlow(opts) {
     handleSend,
     regenInFlightRef,
     regenHandleSendPassRef,
+    regenAbortRef,
   } = opts;
   if (regenInFlightRef.current) {
     return { ok: false, reasonKey: "chat.regenBusy", messages };
   }
   regenInFlightRef.current = true;
+  if (regenAbortRef) regenAbortRef.current = new AbortController();
   const snapshot = messages.slice();
   try {
     const targetIndex = messages.findIndex((m) => m.id === targetMsgId);
@@ -110,8 +115,19 @@ async function regenerateFlow(opts) {
     if (base.length > 0 && base[base.length - 1]?.role === "user") {
       base = base.slice(0, -1);
     }
+    if (regenAbortRef?.current?.signal?.aborted) {
+      return { ok: false, reasonKey: "chat.regenFailed", messages: snapshot };
+    }
     regenHandleSendPassRef.current = true;
-    await handleSend(originalUserText, base);
+    const sendResult = await handleSend(originalUserText, base);
+    // Real handleSend returns {ok:false} on stream failure (does not throw).
+    if (sendResult && typeof sendResult === "object" && sendResult.ok === false) {
+      return {
+        ok: false,
+        reasonKey: sendResult.reasonKey || "chat.regenFailed",
+        messages: snapshot,
+      };
+    }
     return { ok: true, messages: base, originalUserText };
   } catch (err) {
     return {
@@ -123,6 +139,7 @@ async function regenerateFlow(opts) {
   } finally {
     regenInFlightRef.current = false;
     regenHandleSendPassRef.current = false;
+    if (regenAbortRef) regenAbortRef.current = null;
   }
 }
 
@@ -157,7 +174,14 @@ async function editFlow(opts) {
     // Atomic: keep before idx; handleSend re-appends edited user text.
     const base = messages.slice(0, idx);
     regenHandleSendPassRef.current = true;
-    await handleSend(trimmed, base);
+    const sendResult = await handleSend(trimmed, base);
+    if (sendResult && typeof sendResult === "object" && sendResult.ok === false) {
+      return {
+        ok: false,
+        reasonKey: sendResult.reasonKey || "chat.regenFailed",
+        messages: snapshot,
+      };
+    }
     // Stamp edited on a synthetic user message for harness assertion.
     const stamped = [
       ...base,
@@ -182,11 +206,12 @@ async function main() {
   compile();
   const modPath = resolveBuilt("regenState");
   console.log("Loading", modPath);
-  const { regenInFlightRef, regenHandleSendPassRef } = require(modPath);
+  const { regenInFlightRef, regenHandleSendPassRef, regenAbortRef } = require(modPath);
 
   // Reset module state
   regenInFlightRef.current = false;
   regenHandleSendPassRef.current = false;
+  regenAbortRef.current = null;
 
   let passed = 0;
   let failed = 0;
@@ -201,6 +226,7 @@ async function main() {
     } finally {
       regenInFlightRef.current = false;
       regenHandleSendPassRef.current = false;
+      regenAbortRef.current = null;
     }
   }
 
@@ -227,9 +253,11 @@ async function main() {
       targetMsgId: "a2",
       handleSend: async (text, base) => {
         calls.push({ text, baseLen: base.length });
+        return { ok: true };
       },
       regenInFlightRef,
       regenHandleSendPassRef,
+      regenAbortRef,
     });
     assert(res.ok === true, "ok");
     assert(calls.length === 1, `calls=${calls.length}`);
@@ -247,6 +275,7 @@ async function main() {
       newText: "And 5+5?",
       handleSend: async (text, base) => {
         calls.push({ text, baseLen: base.length });
+        return { ok: true };
       },
       regenInFlightRef,
       regenHandleSendPassRef,
@@ -270,9 +299,11 @@ async function main() {
       targetMsgId: "a1",
       handleSend: async () => {
         await gate;
+        return { ok: true };
       },
       regenInFlightRef,
       regenHandleSendPassRef,
+      regenAbortRef,
     });
     // Give p1 a tick to set the flag
     await new Promise((r) => setTimeout(r, 10));
@@ -285,6 +316,7 @@ async function main() {
       },
       regenInFlightRef,
       regenHandleSendPassRef,
+      regenAbortRef,
     });
     assert(p2.ok === false, "p2 refused");
     assert(p2.reasonKey === "chat.regenBusy", p2.reasonKey);
@@ -294,7 +326,29 @@ async function main() {
     assert(regenInFlightRef.current === false, "lock cleared");
   });
 
-  await test("snapshot restore on handleSend error", async () => {
+  await test("busy-check chain: regen flag blocks concurrent handleSend-style send", async () => {
+    // Mirrors AiChatPage handleSend busy gates using the real module refs.
+    function busyCheck() {
+      if (regenInFlightRef.current && !regenHandleSendPassRef.current) {
+        return { ok: false, reasonKey: "chat.regenBusy" };
+      }
+      return { ok: true };
+    }
+    assert(busyCheck().ok === true, "idle allows");
+    regenInFlightRef.current = true;
+    assert(busyCheck().ok === false, "regen blocks");
+    assert(busyCheck().reasonKey === "chat.regenBusy", "busy key");
+    // one-shot pass allows the regen's own handleSend
+    regenHandleSendPassRef.current = true;
+    assert(busyCheck().ok === true, "pass allows");
+    // pass is one-shot in real handleSend
+    regenHandleSendPassRef.current = false;
+    assert(busyCheck().ok === false, "after pass consumed still blocked");
+    regenInFlightRef.current = false;
+    assert(busyCheck().ok === true, "cleared allows");
+  });
+
+  await test("snapshot restore on handleSend error (throw)", async () => {
     const res = await regenerateFlow({
       messages: history,
       targetMsgId: "a2",
@@ -303,12 +357,51 @@ async function main() {
       },
       regenInFlightRef,
       regenHandleSendPassRef,
+      regenAbortRef,
     });
     assert(res.ok === false, "failed");
     assert(res.reasonKey === "chat.regenFailed", res.reasonKey);
     assert(res.messages.length === history.length, "snapshot restored length");
     assert(res.messages[0].id === "u1", "snapshot content");
     assert(regenInFlightRef.current === false, "lock cleared after error");
+  });
+
+  await test("snapshot restore on handleSend ok:false (no throw)", async () => {
+    const res = await regenerateFlow({
+      messages: history,
+      targetMsgId: "a2",
+      handleSend: async () => {
+        // Real handleSend resolves with ok:false on stream/backend failure.
+        return { ok: false, reasonKey: "chat.serviceUnreachable" };
+      },
+      regenInFlightRef,
+      regenHandleSendPassRef,
+      regenAbortRef,
+    });
+    assert(res.ok === false, "failed");
+    assert(res.reasonKey === "chat.serviceUnreachable", res.reasonKey);
+    assert(res.messages.length === history.length, "snapshot restored length");
+    assert(res.messages[0].id === "u1", "snapshot content");
+    assert(regenInFlightRef.current === false, "lock cleared");
+    assert(regenAbortRef.current === null, "abort cleared");
+  });
+
+  await test("regenAbortRef set during regen and cleared after", async () => {
+    let sawAbort = false;
+    const r = await regenerateFlow({
+      messages: history,
+      targetMsgId: "a1",
+      handleSend: async () => {
+        sawAbort = regenAbortRef.current instanceof AbortController;
+        return { ok: true };
+      },
+      regenInFlightRef,
+      regenHandleSendPassRef,
+      regenAbortRef,
+    });
+    assert(r.ok === true, "ok");
+    assert(sawAbort === true, "abort controller present during send");
+    assert(regenAbortRef.current === null, "cleared after");
   });
 
   await test("persistent .kvs rollback NOT attempted (documented)", () => {

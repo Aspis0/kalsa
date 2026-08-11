@@ -68,9 +68,15 @@ import {
   translateText,
 } from "../engine/LlamaService";
 import {
+  backgroundDiscardLifecycleRef,
+  regenAbortRef,
   regenHandleSendPassRef,
   regenInFlightRef,
+  sendingInFlightRef,
 } from "../engine/regenState";
+import { decidePreSendFit } from "../engine/deviceProfile";
+import { getAvailableMemoryBytesUncached } from "../engine/monitor";
+import { getModelById } from "../engine/ModelRegistry";
 import { miniappStripMakesKvNonReproducible } from "../engine/kvReproducibility";
 import { historyHash } from "../engine/sessionPersistence";
 import { createStreamCoalescer } from "../engine/streamCoalescer";
@@ -181,7 +187,14 @@ type StreamCallbacks = {
   onMiniapp?: (miniapp: any) => void;
   // RNA-seq job context: emitted once per stream before the LLM starts.
   onImages?: (images: ResultImage[], downloads: ResultDownload[]) => void;
+  /** Optional failure signal from stream backends that resolve instead of reject. */
+  onFailed?: (reasonKey: string) => void;
 };
+
+/** Discriminated result for handleSend — regen/edit inspect this for snapshot restore. */
+export type HandleSendResult =
+  | { ok: true }
+  | { ok: false; reasonKey: string };
 
 /** UI phase for tap-to-talk (mirrors pure VoiceUiPhase). */
 type VoiceUiState = VoiceUiPhase;
@@ -224,6 +237,11 @@ type Props = {
   documentLibrary?: { docs: Array<{ id: string; name: string; kind: string; pageCount?: number }> };
   /** Open the Documents overlay (empty library / manage). */
   onOpenDocuments?: () => void;
+  /**
+   * Optional UI banner sink for non-blocking fit signals (e.g. model.memoryUnknown).
+   * AppShell wires this to setMemoryBannerKey.
+   */
+  onMemoryBanner?: (reasonKey: string | null) => void;
 };
 
 type SuggestionItem = {
@@ -615,6 +633,7 @@ export function AiChatPage({
   engineCtx,
   documentLibrary,
   onOpenDocuments,
+  onMemoryBanner,
 }: Props) {
   const { colors } = useLabTheme<any>();
   // Shadows the module-level `typography` import for this component only
@@ -1284,6 +1303,16 @@ export function AiChatPage({
   const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   /**
+   * Promise of the active handleSend turn (resolves when the stream + finally
+   * settle). Background discard awaits this so dispose never races generation.
+   */
+  const sendInFlightPromiseRef = useRef<Promise<HandleSendResult> | null>(null);
+  /**
+   * Promise of the turn-end saveEngineSession (if any). Lifecycle awaits it
+   * after send settles so the real historyHash is on disk before dispose.
+   */
+  const turnEndSavePromiseRef = useRef<Promise<void> | null>(null);
+  /**
    * U1: generation token for a send turn (same idiom as voiceRunIdRef /
    * translateRunRef). clearChat() aborts + synchronously resets
    * sendingRef/setSending; without this token the aborted handleSend's own
@@ -1308,8 +1337,10 @@ export function AiChatPage({
       });
       mountedRef.current = false;
       abortRef.current?.abort();
+      regenAbortRef.current?.abort();
       translateAbortRef.current?.abort();
       translationInFlightRef.current = false;
+      sendingInFlightRef.current = false;
       if (stopWatchdogRef.current != null) {
         clearTimeout(stopWatchdogRef.current);
         stopWatchdogRef.current = null;
@@ -1351,9 +1382,96 @@ export function AiChatPage({
     [],
   );
 
+  /**
+   * Uncached pre-send fit gate. Refuses does_not_fit / tight-under-1.5x.
+   * unknown → allow + non-blocking banner via onMemoryBanner.
+   */
+  const awaitPreSendFitGate = useCallback(async (): Promise<HandleSendResult> => {
+    const mid = getActiveModelId();
+    // No active model yet → allow; ensureEngineForModel will surface load errors.
+    if (!mid) return { ok: true };
+    const model = getModelById(mid);
+    let available: number | null = null;
+    try {
+      available = await getAvailableMemoryBytesUncached();
+    } catch {
+      available = null;
+    }
+    const decision = decidePreSendFit(
+      {
+        sizeBytes: model.sizeBytes,
+        engineCtx: model.engineCtx,
+        kvBytesPerToken: model.kvBytesPerToken,
+        mmproj: model.mmproj ? { sizeBytes: model.mmproj.sizeBytes } : null,
+      },
+      available,
+    );
+    if (!decision.allow) {
+      showVoiceNote(t(decision.reasonKey as any));
+      onMemoryBanner?.(decision.reasonKey);
+      return { ok: false, reasonKey: decision.reasonKey };
+    }
+    if (decision.bannerKey) {
+      onMemoryBanner?.(decision.bannerKey);
+    }
+    return { ok: true };
+  }, [onMemoryBanner, showVoiceNote, t]);
+
+  /**
+   * Abort-and-await lifecycle for AppShell background disposal.
+   * 1) abort send + regen
+   * 2) await handleSend finalization
+   * 3) await turn-end save
+   * 4) return real historyHash of current messages
+   */
+  const awaitLifecycleForBackgroundDiscard = useCallback(async () => {
+    abortRef.current?.abort();
+    regenAbortRef.current?.abort();
+    const sendP = sendInFlightPromiseRef.current;
+    if (sendP) {
+      try {
+        await sendP;
+      } catch {
+        // ignore — failure already recorded on the result
+      }
+    }
+    const saveP = turnEndSavePromiseRef.current;
+    if (saveP) {
+      try {
+        await saveP;
+      } catch {
+        // ignore
+      }
+    }
+    // Spin until local sending/regen flags clear (stream flag is AppShell-owned).
+    const t0 = Date.now();
+    while (
+      (sendingRef.current || regenInFlightRef.current || sendingInFlightRef.current) &&
+      Date.now() - t0 < 5000
+    ) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    const clean = buildPersistableMessages(messagesRef.current);
+    const payload = clean.length > 0 ? JSON.stringify(clean) : "";
+    return { historyHashValue: historyHash(payload) };
+  }, []);
+
+  // Register lifecycle for AppShell background handler; clear on unmount.
+  useEffect(() => {
+    backgroundDiscardLifecycleRef.current = awaitLifecycleForBackgroundDiscard;
+    return () => {
+      if (backgroundDiscardLifecycleRef.current === awaitLifecycleForBackgroundDiscard) {
+        backgroundDiscardLifecycleRef.current = null;
+      }
+    };
+  }, [awaitLifecycleForBackgroundDiscard]);
+
   // HIGH-3: useCallback so onPress closures in suggestion cards don't hold stale `sending`
   const handleSend = useCallback(
-    async (text: string, currentAttachments?: LocalAttachment[]) => {
+    async (
+      text: string,
+      currentAttachments?: LocalAttachment[],
+    ): Promise<HandleSendResult> => {
       const trimmed = text.trim();
       // BLOCKER-3: synchronous ref check — not subject to React batching.
       // Also ignore send while a translation holds the engine (silent),
@@ -1373,10 +1491,16 @@ export function AiChatPage({
         !!pdfToRender ||
         !historyLoaded
       ) {
-        return;
+        return { ok: false, reasonKey: "chat.regenBusy" };
       }
       if (regenHandleSendPassRef.current) {
         regenHandleSendPassRef.current = false;
+      }
+
+      // Uncached pre-send fit gate (also covers engine-already-ready path).
+      const fitGate = await awaitPreSendFitGate();
+      if (!fitGate.ok) {
+        return fitGate;
       }
 
       // U1: this turn's generation token. clearChat() may abort + reset
@@ -1384,6 +1508,10 @@ export function AiChatPage({
       // still in flight — every reset below must check this id first so a
       // stale turn can never clobber a newer one's sending state.
       const runId = ++sendRunIdRef.current;
+      // Failure flag flipped by onFailed / catch so we resolve ok:false even
+      // when the stream backend resolves instead of rejecting.
+      let failed = false;
+      let failReasonKey = "chat.serviceUnreachable";
 
       // Debug bench knobs via chat (adb input text; no root / no extra perms).
       // Does not call the model. History may keep the exchange for harness logs.
@@ -1391,6 +1519,7 @@ export function AiChatPage({
       if (isBenchCommand(trimmed)) {
         voiceRunIdRef.current += 1;
         sendingRef.current = true;
+        sendingInFlightRef.current = true;
         setSending(true);
         setDraft("");
         const userMsgId = nextMsgId("u");
@@ -1425,9 +1554,10 @@ export function AiChatPage({
         }
         if (sendRunIdRef.current === runId) {
           sendingRef.current = false;
+          sendingInFlightRef.current = false;
           if (mountedRef.current) setSending(false);
         }
-        return;
+        return { ok: true };
       }
 
       // X2: pre-send content gate (src/domain/contentFilter.js). Blocking
@@ -1439,6 +1569,7 @@ export function AiChatPage({
       if (!classification.shouldCallProvider) {
         voiceRunIdRef.current += 1;
         sendingRef.current = true;
+        sendingInFlightRef.current = true;
         setSending(true);
         setDraft("");
         const gateAttachments = currentAttachments ?? [];
@@ -1470,15 +1601,17 @@ export function AiChatPage({
         setAttachedItems([]);
         if (sendRunIdRef.current === runId) {
           sendingRef.current = false;
+          sendingInFlightRef.current = false;
           if (mountedRef.current) setSending(false);
         }
-        return;
+        return { ok: true };
       }
 
       // Invalidate any in-flight transcription so a late result cannot rewrite draft
       // after this send clears it.
       voiceRunIdRef.current += 1;
       sendingRef.current = true;
+      sendingInFlightRef.current = true;
       setSending(true);
 
       // Snapshot attachments at send time
@@ -1592,6 +1725,14 @@ export function AiChatPage({
               // RNA-seq job context: store result images/downloads on this message.
               onImages: (imgs, dls) =>
                 updateMessage(assistantId, { images: imgs, downloads: dls }),
+              // Backend resolves (not rejects) on stream/engine failures; flip
+              // failed so handleSend returns ok:false for regen/edit rollback.
+              onFailed: (reasonKey: string) => {
+                failed = true;
+                if (typeof reasonKey === "string" && reasonKey.trim()) {
+                  failReasonKey = reasonKey;
+                }
+              },
             },
             controller.signal,
             snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
@@ -1618,11 +1759,16 @@ export function AiChatPage({
           // BLOCKER-5: surface error as chat text instead of leaving zombie spinner
           // Flush any pending stream text first, then overwrite with the error message.
           streamCoalescer.finalize();
-          const msg =
-            err?.message?.includes("quota") || err?.message?.includes("limit")
-              ? t("chat.queryLimit")
-              : t("chat.serviceUnreachable");
+          failed = true;
+          if (err?.message?.includes("quota") || err?.message?.includes("limit")) {
+            failReasonKey = "chat.queryLimit";
+          } else {
+            failReasonKey = "chat.serviceUnreachable";
+          }
+          const msg = t(failReasonKey as any);
           updateMessage(assistantId, { streaming: false, statusLabel: undefined, text: msg });
+        } else {
+          failed = true;
         }
       } finally {
         // Drain or drop the coalescer BEFORE finalize logic so the last token
@@ -1727,7 +1873,7 @@ export function AiChatPage({
                   const runAfterSave = afterSessionSave;
                   if (mid) {
                     const payload = JSON.stringify(buildPersistableMessages(finalized));
-                    void (async () => {
+                    const saveP = (async () => {
                       try {
                         await saveEngineSession(mid, historyHash(payload));
                       } finally {
@@ -1736,6 +1882,12 @@ export function AiChatPage({
                         }
                       }
                     })();
+                    turnEndSavePromiseRef.current = saveP;
+                    void saveP.finally(() => {
+                      if (turnEndSavePromiseRef.current === saveP) {
+                        turnEndSavePromiseRef.current = null;
+                      }
+                    });
                   } else if (sendRunIdRef.current === runId) {
                     runAfterSave?.();
                   }
@@ -1758,7 +1910,7 @@ export function AiChatPage({
               const runAfterSave = afterSessionSave;
               if (mid) {
                 const payload = JSON.stringify(buildPersistableMessages(next));
-                void (async () => {
+                const saveP = (async () => {
                   try {
                     await saveEngineSession(mid, historyHash(payload));
                   } finally {
@@ -1767,6 +1919,12 @@ export function AiChatPage({
                     }
                   }
                 })();
+                turnEndSavePromiseRef.current = saveP;
+                void saveP.finally(() => {
+                  if (turnEndSavePromiseRef.current === saveP) {
+                    turnEndSavePromiseRef.current = null;
+                  }
+                });
               } else {
                 runAfterSave?.();
               }
@@ -1780,6 +1938,7 @@ export function AiChatPage({
         // not cancel a newer turn's watchdog (e.g. after force-unlock + re-send).
         if (sendRunIdRef.current === runId) {
           sendingRef.current = false;
+          sendingInFlightRef.current = false;
           if (mountedRef.current) setSending(false);
           if (stopWatchdogRef.current != null) {
             clearTimeout(stopWatchdogRef.current);
@@ -1787,8 +1946,26 @@ export function AiChatPage({
           }
         }
       }
+      return failed
+        ? { ok: false as const, reasonKey: failReasonKey }
+        : { ok: true as const };
     },
-    [historyLoaded, onSendStream, pdfToRender, t, updateMessage],
+    [awaitPreSendFitGate, historyLoaded, onSendStream, pdfToRender, t, updateMessage],
+  );
+
+  // Publish the active handleSend promise so background discard can await it.
+  const handleSendTracked = useCallback(
+    (text: string, currentAttachments?: LocalAttachment[]) => {
+      const p = handleSend(text, currentAttachments);
+      sendInFlightPromiseRef.current = p;
+      void p.finally(() => {
+        if (sendInFlightPromiseRef.current === p) {
+          sendInFlightPromiseRef.current = null;
+        }
+      });
+      return p;
+    },
+    [handleSend],
   );
 
   const handleStop = useCallback(() => {
@@ -1842,6 +2019,7 @@ export function AiChatPage({
       // until dispose/model-switch releases the hung job.
       if (sendRunIdRef.current === ownedRunId) {
         sendingRef.current = false;
+        sendingInFlightRef.current = false;
         setSending(false);
       }
     }, 3000);
@@ -1880,6 +2058,11 @@ export function AiChatPage({
     translationInFlightRef.current = false;
     // BLOCKER-1 (audit): reset sending state synchronously so composer unlocks immediately
     sendingRef.current = false;
+    sendingInFlightRef.current = false;
+    regenAbortRef.current?.abort();
+    regenAbortRef.current = null;
+    regenInFlightRef.current = false;
+    regenHandleSendPassRef.current = false;
     setSending(false);
     setMessages([]);
     // Sync ref immediately so AppState/unmount/throttle flushes cannot
@@ -1946,6 +2129,7 @@ export function AiChatPage({
         return { ok: false, reasonKey: "chat.regenBusy" };
       }
       regenInFlightRef.current = true;
+      regenAbortRef.current = new AbortController();
       const snapshot = messagesRef.current.slice();
       try {
         const targetIndex = messagesRef.current.findIndex((m) => m.id === targetMsgId);
@@ -1975,20 +2159,36 @@ export function AiChatPage({
         messagesRef.current = base;
         // One-shot pass so handleSend accepts while regenInFlightRef is true.
         regenHandleSendPassRef.current = true;
-        await handleSend(originalUserText);
+        // If background disposal aborted regen before send starts, refuse cleanly.
+        if (regenAbortRef.current?.signal.aborted) {
+          setMessages(snapshot);
+          messagesRef.current = snapshot;
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        const sendResult = await handleSendTracked(originalUserText);
+        if (!sendResult.ok) {
+          setMessages(snapshot);
+          messagesRef.current = snapshot;
+          setSending(false);
+          sendingRef.current = false;
+          sendingInFlightRef.current = false;
+          return { ok: false, reasonKey: sendResult.reasonKey || "chat.regenFailed" };
+        }
         return { ok: true };
       } catch {
         setMessages(snapshot);
         messagesRef.current = snapshot;
         setSending(false);
         sendingRef.current = false;
+        sendingInFlightRef.current = false;
         return { ok: false, reasonKey: "chat.regenFailed" };
       } finally {
         regenInFlightRef.current = false;
         regenHandleSendPassRef.current = false;
+        regenAbortRef.current = null;
       }
     },
-    [findOriginalUserText, handleSend],
+    [findOriginalUserText, handleSendTracked],
   );
 
   /**
@@ -2006,6 +2206,7 @@ export function AiChatPage({
         return { ok: false, reasonKey: "chat.regenBusy" };
       }
       regenInFlightRef.current = true;
+      regenAbortRef.current = new AbortController();
       const snapshot = messagesRef.current.slice();
       try {
         // Abort any in-flight stream first (uses handleSend's abortRef).
@@ -2027,10 +2228,23 @@ export function AiChatPage({
         setMessages(base);
         messagesRef.current = base;
         regenHandleSendPassRef.current = true;
+        if (regenAbortRef.current?.signal.aborted) {
+          setMessages(snapshot);
+          messagesRef.current = snapshot;
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
         // handleSend appends a fresh user message; mark edited after it lands
         // by patching the last user message once send starts. We pass edited
         // text as the send body; then stamp edited on the new user bubble.
-        await handleSend(trimmed);
+        const sendResult = await handleSendTracked(trimmed);
+        if (!sendResult.ok) {
+          setMessages(snapshot);
+          messagesRef.current = snapshot;
+          setSending(false);
+          sendingRef.current = false;
+          sendingInFlightRef.current = false;
+          return { ok: false, reasonKey: sendResult.reasonKey || "chat.regenFailed" };
+        }
         // Stamp edited on the user message that handleSend just appended.
         setMessages((prev) => {
           const next = prev.slice();
@@ -2049,13 +2263,15 @@ export function AiChatPage({
         messagesRef.current = snapshot;
         setSending(false);
         sendingRef.current = false;
+        sendingInFlightRef.current = false;
         return { ok: false, reasonKey: "chat.regenFailed" };
       } finally {
         regenInFlightRef.current = false;
         regenHandleSendPassRef.current = false;
+        regenAbortRef.current = null;
       }
     },
-    [handleSend],
+    [handleSendTracked],
   );
 
   /** Open message action sheet (Copy + Translate + Read aloud + Regen/Edit). No-op while streaming / engine busy. */
@@ -2388,7 +2604,7 @@ export function AiChatPage({
             return (
               <Pressable
                 key={s.text}
-                onPress={() => handleSend(s.text, attachedItems)}
+                onPress={() => handleSendTracked(s.text, attachedItems)}
                 style={({ pressed }) => ({
                   flexDirection: "row",
                   alignItems: "center",
@@ -2614,7 +2830,7 @@ export function AiChatPage({
                 // Audit follow-up: typing stays enabled during a PDF
                 // conversion, but submission must not start mid-conversion.
                 if (pdfToRender) return;
-                handleSend(draft, attachedItems);
+                handleSendTracked(draft, attachedItems);
               }}
               returnKeyType="send"
               multiline
@@ -2740,7 +2956,7 @@ export function AiChatPage({
                 <Pressable
                   onPress={() => {
                     if (pdfToRender) return;
-                    handleSend(draft, attachedItems);
+                    handleSendTracked(draft, attachedItems);
                   }}
                   disabled={!canSend}
                   accessibilityLabel={t("chat.a11ySend")}

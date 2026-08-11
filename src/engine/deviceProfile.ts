@@ -227,12 +227,21 @@ export type ModelFitReasonKey =
   | "model.tightNow"
   | "model.tooLarge"
   | "model.cannotEvaluate"
-  | "model.memoryUnknown";
+  | "model.memoryUnknown"
+  | "model.fitsOK";
 
 export type ModelFitEvaluation = {
   verdict: "fits" | "tight" | "does_not_fit" | "unknown";
   reasonKey: ModelFitReasonKey;
 };
+
+/**
+ * Pre-send gate decision (uncached MemAvailable). Callers refuse send/regen/edit
+ * on allow:false; on allow:true + bannerKey they may surface a non-blocking banner.
+ */
+export type PreSendFitDecision =
+  | { allow: true; bannerKey: "model.memoryUnknown" | null }
+  | { allow: false; reasonKey: "model.tooLarge" | "model.tightNow" };
 
 /**
  * Fit a registry model (main GGUF + optional mmproj) against live MemAvailable.
@@ -287,7 +296,7 @@ export function evaluateModelFit(
   const fit = fitMemoryEstimate(estimate, availableMiB);
   switch (fit.status) {
     case "fits":
-      return { verdict: "fits", reasonKey: "model.cannotEvaluate" };
+      return { verdict: "fits", reasonKey: "model.fitsOK" };
     case "tight":
       return { verdict: "tight", reasonKey: "model.tightNow" };
     case "does_not_fit":
@@ -296,6 +305,78 @@ export function evaluateModelFit(
     default:
       return { verdict: "unknown", reasonKey: "model.memoryUnknown" };
   }
+}
+
+/**
+ * Uncached pre-send fit gate. does_not_fit → refuse model.tooLarge.
+ * tight + availableBytes < 1.5 × requiredBytes → refuse model.tightNow.
+ * unknown → allow + model.memoryUnknown banner. fits → allow.
+ * requiredBytes uses non-evictable estimate (repack+compute+KV) in bytes.
+ */
+export function decidePreSendFit(
+  model: {
+    sizeBytes: number;
+    engineCtx: number;
+    kvBytesPerToken?: number | null;
+    mmproj?: { sizeBytes: number } | null;
+  },
+  availableBytes: number | null,
+): PreSendFitDecision {
+  const main =
+    typeof model.sizeBytes === "number" && Number.isFinite(model.sizeBytes)
+      ? Math.max(0, model.sizeBytes)
+      : 0;
+  const mm =
+    model.mmproj &&
+    typeof model.mmproj.sizeBytes === "number" &&
+    Number.isFinite(model.mmproj.sizeBytes)
+      ? Math.max(0, model.mmproj.sizeBytes)
+      : 0;
+  const fileBytes = main + mm;
+  const contextTokens =
+    typeof model.engineCtx === "number" && Number.isFinite(model.engineCtx)
+      ? model.engineCtx
+      : 0;
+  const kvBytesPerToken =
+    typeof model.kvBytesPerToken === "number" &&
+    Number.isFinite(model.kvBytesPerToken)
+      ? model.kvBytesPerToken
+      : 0;
+  const estimate =
+    fileBytes > 0
+      ? estimateMemory({
+          fileBytes,
+          contextTokens,
+          kvBytesPerToken,
+          ubatch: 256,
+          repack: true,
+        })
+      : null;
+  const requiredBytes =
+    estimate && Number.isFinite(estimate.nonEvictableMiB)
+      ? estimate.nonEvictableMiB * 1024 * 1024
+      : null;
+
+  const fit = evaluateModelFit(model, availableBytes);
+  if (fit.verdict === "does_not_fit") {
+    return { allow: false, reasonKey: "model.tooLarge" };
+  }
+  if (fit.verdict === "unknown") {
+    return { allow: true, bannerKey: "model.memoryUnknown" };
+  }
+  if (fit.verdict === "tight") {
+    if (
+      typeof availableBytes === "number" &&
+      Number.isFinite(availableBytes) &&
+      typeof requiredBytes === "number" &&
+      Number.isFinite(requiredBytes) &&
+      availableBytes < 1.5 * requiredBytes
+    ) {
+      return { allow: false, reasonKey: "model.tightNow" };
+    }
+    return { allow: true, bannerKey: null };
+  }
+  return { allow: true, bannerKey: null };
 }
 
 // ── Async device readers (dynamic require; cached) ──────────────────────────

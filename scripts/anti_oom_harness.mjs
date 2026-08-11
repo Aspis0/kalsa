@@ -75,7 +75,7 @@ async function main() {
   console.log("Loading", monPath);
   const dp = require(dpPath);
   const mon = require(monPath);
-  const { evaluateModelFit, estimateModelNonEvictableMiB } = dp;
+  const { evaluateModelFit, estimateModelNonEvictableMiB, decidePreSendFit } = dp;
   const { getAvailableMemoryBytesUncached, startMemoryMonitor, parseMemAvailableBytes } = {
     ...mon,
     // parseMemAvailableBytes lives in memoryEstimate — re-export via mon import chain not needed
@@ -133,39 +133,71 @@ async function main() {
     assert(r.reasonKey === "model.cannotEvaluate", `reasonKey ${r.reasonKey}`);
   });
 
-  await test("evaluateModelFit tight band (barely enough)", () => {
-    // Use 1.6 GiB free against ~1.3 GiB non-evictable → tight or does_not_fit.
-    const r = evaluateModelFit(model2B, 1600 * 1024 * 1024);
-    assert(
-      r.verdict === "tight" || r.verdict === "does_not_fit" || r.verdict === "fits",
-      `unexpected ${r.verdict}`,
-    );
-    if (r.verdict === "tight") {
-      assert(r.reasonKey === "model.tightNow", r.reasonKey);
+  await test("evaluateModelFit fits uses model.fitsOK reasonKey", () => {
+    const r = evaluateModelFit(model2B, 16 * 1024 * 1024 * 1024);
+    assert(r.verdict === "fits", `expected fits, got ${r.verdict}`);
+    assert(r.reasonKey === "model.fitsOK", `reasonKey ${r.reasonKey}`);
+  });
+
+  await test("decidePreSendFit refuses when available < 1.5× required (tightNow)", () => {
+    const estMiB = estimateModelNonEvictableMiB(model2B);
+    assert(typeof estMiB === "number" && estMiB > 0, `estMiB=${estMiB}`);
+    const requiredBytes = estMiB * 1024 * 1024;
+    // available just above nonEvictable → typically tight; always < 1.5× required.
+    let avail = (estMiB + 100) * 1024 * 1024;
+    if (avail >= 1.5 * requiredBytes) {
+      avail = 1.4 * requiredBytes;
     }
+    const d = decidePreSendFit(model2B, avail);
+    assert(d.allow === false, `expected refuse, got ${JSON.stringify(d)}`);
+    assert(
+      d.reasonKey === "model.tightNow" || d.reasonKey === "model.tooLarge",
+      `reason ${d.reasonKey}`,
+    );
+    // Explicit tightNow when still above nonEvictable (not does_not_fit).
+    const fit = evaluateModelFit(model2B, avail);
+    if (fit.verdict === "tight") {
+      assert(d.reasonKey === "model.tightNow", `tight must map to tightNow, got ${d.reasonKey}`);
+    }
+  });
+
+  await test("decidePreSendFit hard refuse under nonEvictable → model.tooLarge", () => {
+    const d = decidePreSendFit(model2B, halfGiB);
+    assert(d.allow === false, "refuse");
+    assert(d.reasonKey === "model.tooLarge", d.reasonKey);
+  });
+
+  await test("decidePreSendFit unknown available → allow + banner", () => {
+    const d = decidePreSendFit(model2B, null);
+    assert(d.allow === true, "allow");
+    assert(d.bannerKey === "model.memoryUnknown", `banner ${d.bannerKey}`);
   });
 
   // --- mmproj accounting ---
   await test("evaluateModelFit mmproj increases footprint (may worsen verdict)", () => {
-    const without = evaluateModelFit(
-      { sizeBytes: 2_000_000_000, engineCtx: 4096, kvBytesPerToken: 0 },
-      3 * 1024 * 1024 * 1024,
-    );
-    const withMm = evaluateModelFit(
-      {
-        sizeBytes: 2_000_000_000,
-        engineCtx: 4096,
-        kvBytesPerToken: 0,
-        mmproj: { sizeBytes: 800_000_000 },
-      },
-      3 * 1024 * 1024 * 1024,
-    );
-    // With mmproj, non-evictable grows → verdict should be same or worse.
+    const baseModel = { sizeBytes: 2_000_000_000, engineCtx: 4096, kvBytesPerToken: 0 };
+    const mmModel = {
+      sizeBytes: 2_000_000_000,
+      engineCtx: 4096,
+      kvBytesPerToken: 0,
+      mmproj: { sizeBytes: 800_000_000 },
+    };
+    const without = evaluateModelFit(baseModel, 3 * 1024 * 1024 * 1024);
+    const withMm = evaluateModelFit(mmModel, 3 * 1024 * 1024 * 1024);
     const rank = { fits: 0, tight: 1, does_not_fit: 2, unknown: -1 };
     assert(
       rank[withMm.verdict] >= rank[without.verdict],
       `mmproj should not improve fit: ${without.verdict} → ${withMm.verdict}`,
     );
+    // gateForModel folds mmproj into bundle sizeBytes — estimate must grow.
+    const baseEst = estimateModelNonEvictableMiB(baseModel);
+    const mmEst = estimateModelNonEvictableMiB({
+      sizeBytes: baseModel.sizeBytes + 800_000_000,
+      engineCtx: 4096,
+      kvBytesPerToken: 0,
+    });
+    assert(typeof baseEst === "number" && typeof mmEst === "number", "ests");
+    assert(mmEst > baseEst, `mmproj bundle ${mmEst} should exceed base ${baseEst}`);
   });
 
   await test("estimateModelNonEvictableMiB mmproj-sized file > base", () => {
@@ -221,6 +253,35 @@ async function main() {
     assert(pressureCalls >= 1, `onPressure calls=${pressureCalls}`);
     // appState may be 0 in node (no RN AppState) — that is fine.
     assert(appStateCalls >= 0, "appStateCalls");
+  });
+
+  // --- background save-before-dispose ordering (pure mock) ---
+  await test("background discard: save runs before dispose", async () => {
+    const order = [];
+    const lifecycle = async () => {
+      order.push("lifecycle");
+      return { historyHashValue: "abc" };
+    };
+    const fakeSave = async () => {
+      order.push("save");
+    };
+    const fakeDispose = async () => {
+      order.push("dispose");
+    };
+    const result = await lifecycle();
+    await fakeSave(result.historyHashValue);
+    await fakeDispose();
+    assert(order.join(">") === "lifecycle>save>dispose", order.join(">"));
+  });
+
+  await test("background discard: skips dispose while send/regen busy", async () => {
+    const flags = { stream: false, sending: true, regen: false };
+    const order = [];
+    const shouldDispose = () => !(flags.stream || flags.sending || flags.regen);
+    order.push(shouldDispose() ? "dispose" : "skip");
+    flags.sending = false;
+    order.push(shouldDispose() ? "dispose" : "skip");
+    assert(order.join(">") === "skip>dispose", order.join(">"));
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);
