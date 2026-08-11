@@ -536,6 +536,72 @@ async function main() {
     assert(sendClaimRef.current === false, "owner cleared");
   });
 
+
+  // --- Round-5: fit-gate race aborts handleSend when generation moves ---
+
+  await test("fit-gate race aborts handleSend when generation moves", async () => {
+    // Mirrors AiChatPage.handleSend body gate after awaitPreSendFitGate:
+    // capture myGen at claim; if clearChat bumps regenGenerationRef during
+    // the uncached memory probe, the continuation must return ok:false and
+    // must NOT claim sendingRef / start generation / setMessages.
+    const regenMod = require(resolveBuilt("regenState"));
+    const { sendClaimRef, regenGenerationRef } = regenMod;
+    regenGenerationRef.current = 0;
+    sendClaimRef.current = false;
+
+    let generationStarted = false;
+    let setMessagesCalls = 0;
+    let sendingClaimed = false;
+    const abortRef = { current: null };
+
+    const stillThisRun = (my) => regenGenerationRef.current === my;
+
+    async function simulatedHandleSend(fitGateMs) {
+      if (sendClaimRef.current) return { ok: false, reasonKey: "chat.sendBusy" };
+      const myGen = regenGenerationRef.current;
+      sendClaimRef.current = true;
+      const preSendController = new AbortController();
+      abortRef.current = preSendController;
+      try {
+        // Uncached fit-gate await
+        await new Promise((r) => setTimeout(r, fitGateMs));
+        if (!stillThisRun(myGen)) {
+          if (abortRef.current === preSendController) abortRef.current = null;
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        if (preSendController.signal.aborted) {
+          if (abortRef.current === preSendController) abortRef.current = null;
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        // Would claim sendingRef + paint bubbles
+        sendingClaimed = true;
+        generationStarted = true;
+        setMessagesCalls += 1;
+        return { ok: true };
+      } finally {
+        if (regenGenerationRef.current === myGen) {
+          sendClaimRef.current = false;
+        }
+      }
+    }
+
+    const sendP = simulatedHandleSend(40);
+    // clearChat mid fit-gate: bump generation + clear claim + abort
+    await new Promise((r) => setTimeout(r, 10));
+    regenGenerationRef.current += 1;
+    sendClaimRef.current = false;
+    abortRef.current?.abort();
+    abortRef.current = null;
+
+    const res = await sendP;
+    assert(res.ok === false, "must refuse when generation moved");
+    assert(res.reasonKey === "chat.regenFailed", res.reasonKey);
+    assert(generationStarted === false, "generation must not start");
+    assert(sendingClaimed === false, "sendingRef must not be claimed");
+    assert(setMessagesCalls === 0, `setMessages must not run, got ${setMessagesCalls}`);
+    assert(sendClaimRef.current === false, "claim released/cleared");
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }

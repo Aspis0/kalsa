@@ -996,6 +996,136 @@ async function main() {
     assert(rollbackCount === 0, `rollback must not run, got ${rollbackCount}`);
   });
 
+
+  // --- Round-5 race tests: handleSend body generation-gated ---
+
+  await test("handleSend post-await race after clearChat does NOT setMessages", async () => {
+    // Mirrors AiChatPage.handleSend: capture myGen at claim, await work, then
+    // gate every mutation with stillThisRun(myGen). clearChat mid-await must
+    // make the continuation bail without calling setMessages / saveEngineSession.
+    const regenGenerationRef = { current: 0 };
+    const sendRunIdRef = { current: 0 };
+    const sendClaimRef = { current: false };
+    const abortRef = { current: null };
+    let setMessagesCalls = 0;
+    let saveEngineSessionCalls = 0;
+    let sendingMutations = 0;
+
+    const stillThisRun = (my) => regenGenerationRef.current === my;
+
+    async function simulatedHandleSend() {
+      const mySendGen = regenGenerationRef.current;
+      const myGen = mySendGen;
+      sendClaimRef.current = true;
+      const preSendController = new AbortController();
+      abortRef.current = preSendController;
+      try {
+        // Fit-gate await (would call getAvailableMemoryBytesUncached)
+        await new Promise((r) => setTimeout(r, 30));
+        if (!stillThisRun(myGen)) {
+          if (abortRef.current === preSendController) abortRef.current = null;
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        const runId = ++sendRunIdRef.current;
+        // Stream await
+        await new Promise((r) => setTimeout(r, 20));
+        // Post-stream finalization gates
+        if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        setMessagesCalls += 1; // finalize setMessages
+        await new Promise((r) => setTimeout(r, 5));
+        if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
+          saveEngineSessionCalls += 1;
+        }
+        if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
+          sendingMutations += 1;
+        }
+        return { ok: true };
+      } finally {
+        if (regenGenerationRef.current === mySendGen) {
+          sendClaimRef.current = false;
+        }
+      }
+    }
+
+    const sendP = simulatedHandleSend();
+    // clearChat during fit-gate await
+    await new Promise((r) => setTimeout(r, 10));
+    sendRunIdRef.current += 1;
+    regenGenerationRef.current += 1;
+    sendClaimRef.current = false;
+    abortRef.current?.abort();
+    abortRef.current = null;
+
+    const res = await sendP;
+    assert(res.ok === false, "must fail after clearChat");
+    assert(res.reasonKey === "chat.regenFailed", res.reasonKey);
+    assert(setMessagesCalls === 0, `setMessages must not run, got ${setMessagesCalls}`);
+    assert(saveEngineSessionCalls === 0, `saveEngineSession must not run, got ${saveEngineSessionCalls}`);
+    assert(sendingMutations === 0, `sending reset must not run, got ${sendingMutations}`);
+    // Stale finally must not have re-cleared a newer claim if one existed —
+    // here clearChat already cleared; assert stays false.
+    assert(sendClaimRef.current === false, "claim stays false");
+  });
+
+  await test("handleSend stream-finalize race after clearChat skips setMessages", async () => {
+    // Same gate, but clearChat lands AFTER fit-gate (during stream await).
+    const regenGenerationRef = { current: 0 };
+    const sendRunIdRef = { current: 0 };
+    const sendClaimRef = { current: false };
+    let setMessagesCalls = 0;
+    let saveEngineSessionCalls = 0;
+
+    const stillThisRun = (my) => regenGenerationRef.current === my;
+
+    async function simulatedHandleSend() {
+      const myGen = regenGenerationRef.current;
+      sendClaimRef.current = true;
+      try {
+        await new Promise((r) => setTimeout(r, 5)); // fit gate ok
+        if (!stillThisRun(myGen)) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        const runId = ++sendRunIdRef.current;
+        // Stream await — clearChat will fire here
+        await new Promise((r) => setTimeout(r, 40));
+        if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        setMessagesCalls += 1;
+        if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
+          saveEngineSessionCalls += 1;
+        }
+        return { ok: true };
+      } finally {
+        if (regenGenerationRef.current === myGen) {
+          sendClaimRef.current = false;
+        }
+      }
+    }
+
+    const sendP = simulatedHandleSend();
+    await new Promise((r) => setTimeout(r, 15)); // past fit-gate, into stream
+    // clearChat
+    sendRunIdRef.current += 1;
+    regenGenerationRef.current += 1;
+    sendClaimRef.current = false;
+
+    // New send claims under new generation
+    const newGen = regenGenerationRef.current;
+    sendClaimRef.current = true;
+
+    const res = await sendP;
+    assert(res.ok === false, "stale must fail");
+    assert(setMessagesCalls === 0, `setMessages=${setMessagesCalls}`);
+    assert(saveEngineSessionCalls === 0, `save=${saveEngineSessionCalls}`);
+    // Stale finally must not clear the new claim
+    assert(sendClaimRef.current === true, "new claim survives stale finally");
+    // Owner release
+    if (regenGenerationRef.current === newGen) sendClaimRef.current = false;
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }

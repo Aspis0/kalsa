@@ -1535,10 +1535,13 @@ export function AiChatPage({
       }
 
       // Reserve the claim BEFORE any await so a second send cannot enter.
-      // Capture generation at acquire: finally only releases if we still own it
-      // (clearChat bumps regenGenerationRef; a stale finally must not clear a
-      // newer send's claim).
+      // Capture generation at acquire: body + finally only act if we still own it
+      // (clearChat bumps regenGenerationRef; a stale continuation must not mutate
+      // a newer chat, and a stale finally must not clear a newer send's claim).
       const mySendGen = regenGenerationRef.current;
+      // Alias used by post-await body gates (same capture as claim ownership).
+      const myGen = mySendGen;
+      const stillThisRun = (my: number) => regenGenerationRef.current === my;
       sendClaimRef.current = true;
       // Install abort controller early so background lifecycle can abort this
       // turn during the fit-gate await (before sendingRef is claimed).
@@ -1547,6 +1550,13 @@ export function AiChatPage({
       try {
         // Uncached pre-send fit gate (also covers engine-already-ready path).
         const fitGate = await awaitPreSendFitGate();
+        // clearChat / new regen during fit-gate: bail before any mutation.
+        if (!stillThisRun(myGen)) {
+          if (abortRef.current === preSendController) {
+            abortRef.current = null;
+          }
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
         if (!fitGate.ok) {
           if (abortRef.current === preSendController) {
             abortRef.current = null;
@@ -1569,6 +1579,8 @@ export function AiChatPage({
       // sending state while this async turn (bench / filter / stream) is
       // still in flight — every reset below must check this id first so a
       // stale turn can never clobber a newer one's sending state.
+      // runId is complementary to myGen: clearChat bumps BOTH; body gates
+      // check both so either invalidation path stops mutations.
       const runId = ++sendRunIdRef.current;
       // Failure flag flipped by onFailed / catch so we resolve ok:false even
       // when the stream backend resolves instead of rejecting.
@@ -1593,10 +1605,17 @@ export function AiChatPage({
         } catch {
           reply = "bench: failed";
         }
+        // clearChat / new regen during bench await: do not push into the newer chat.
+        if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+          if (abortRef.current === preSendController) {
+            abortRef.current = null;
+          }
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
         // Audit follow-up: clearChat() may fire during the await above —
         // gate the push on the same generation token used for the sending
         // reset, otherwise the stale bench Q&A reappears in the cleared chat.
-        if (mountedRef.current && sendRunIdRef.current === runId) {
+        if (mountedRef.current && sendRunIdRef.current === runId && stillThisRun(myGen)) {
           setMessages((prev) => [
             ...prev,
             {
@@ -1614,7 +1633,7 @@ export function AiChatPage({
             },
           ]);
         }
-        if (sendRunIdRef.current === runId) {
+        if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
           sendingRef.current = false;
           sendingInFlightRef.current = false;
           if (mountedRef.current) setSending(false);
@@ -1641,7 +1660,7 @@ export function AiChatPage({
         // Audit follow-up: gate for symmetry with the bench branch above —
         // currently synchronous (no await before this point) so inert today,
         // but future-proofs against this branch growing an await.
-        if (mountedRef.current && sendRunIdRef.current === runId) {
+        if (mountedRef.current && sendRunIdRef.current === runId && stillThisRun(myGen)) {
           setMessages((prev) => [
             ...prev,
             {
@@ -1661,7 +1680,7 @@ export function AiChatPage({
           ]);
         }
         setAttachedItems([]);
-        if (sendRunIdRef.current === runId) {
+        if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
           sendingRef.current = false;
           sendingInFlightRef.current = false;
           if (mountedRef.current) setSending(false);
@@ -1691,6 +1710,14 @@ export function AiChatPage({
       const assistantId = nextMsgId("a");
 
       const now = Date.now();
+      // Generation may have moved between fit-gate and here if clearChat raced
+      // a microtask; refuse before painting user/assistant bubbles.
+      if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+        if (abortRef.current === preSendController) {
+          abortRef.current = null;
+        }
+        return { ok: false, reasonKey: "chat.regenFailed" };
+      }
       if (mountedRef.current) {
         setMessages(prev => [
           ...prev,
@@ -1802,21 +1829,31 @@ export function AiChatPage({
             snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
             messagesRef.current,
           );
-          if (streamResult && typeof streamResult === "object") {
+          // clearChat mid-stream: do not adopt stream result into a new chat.
+          if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+            failed = true;
+            failReasonKey = "chat.regenFailed";
+          } else if (streamResult && typeof streamResult === "object") {
             afterSessionSave = streamResult.afterSessionSave;
           }
         } else {
           // onSendStream missing → mark failed so regen/edit roll back.
           failed = true;
           failReasonKey = "chat.backendNotWired";
-          updateMessage(assistantId, {
-            streaming: false,
-            statusLabel: undefined,
-            text: t("chat.backendNotWired"),
-          });
+          if (stillThisRun(myGen) && sendRunIdRef.current === runId) {
+            updateMessage(assistantId, {
+              streaming: false,
+              statusLabel: undefined,
+              text: t("chat.backendNotWired"),
+            });
+          }
         }
       } catch (err: any) {
-        if (controller.signal.aborted) {
+        // Stale generation: skip all catch mutations (clearChat owns the UI).
+        if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+          failed = true;
+          failReasonKey = "chat.regenFailed";
+        } else if (controller.signal.aborted) {
           // BLOCKER-2 (audit): aborted with no streamed content → remove empty placeholder
           if (!anyTextStreamed && mountedRef.current) {
             setMessages(prev => prev.filter(m => m.id !== assistantId));
@@ -1846,16 +1883,19 @@ export function AiChatPage({
           streamCoalescer.finalize();
         }
         // Abort senza testo: rimuovi il placeholder vuoto (niente bubble fantasma).
-        if (controller.signal.aborted && !anyTextStreamed) {
+        // Generation + runId: clearChat bumps both; stale finally must not paint.
+        if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+          // Stale turn — leave UI alone; clearChat already owns state.
+        } else if (controller.signal.aborted && !anyTextStreamed) {
           setMessages(prev => prev.filter(m => m.id !== assistantId));
         } else if (!controller.signal.aborted || anyTextStreamed) {
           // Extract miniapp JSON from the final assistant text (local models emit
           // schema miniapp_v1 in the prose / fenced block; cloud path may also
           // call onMiniapp directly).
           // Abort-with-partial → interrupted marker; successful completion clears it.
-          // Gate on sendRunId so a clearChat mid-turn cannot resurrect wiped history
-          // via messagesRef + persistMessagesNow (clearChat bumps sendRunId first).
-          if (sendRunIdRef.current === runId) {
+          // Gate on sendRunId + generation so a clearChat mid-turn cannot resurrect
+          // wiped history via messagesRef + persistMessagesNow.
+          if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
             const wasInterrupted = controller.signal.aborted && anyTextStreamed;
             // Finalize via functional updater so we compose over any queued final
             // onDelta (⚠️ error text, thinkStream final, miniapp payload) that has
@@ -1934,9 +1974,9 @@ export function AiChatPage({
                 });
               let saveWorkScheduled = false;
               setMessages((prev) => {
-                // clearChat bumped sendRunId: skip persist + ref write and keep
-                // the cleared (or newer) prev — do not resurrect wiped history.
-                if (sendRunIdRef.current !== runId) {
+                // clearChat bumped sendRunId and/or generation: skip persist +
+                // ref write and keep the cleared (or newer) prev.
+                if (sendRunIdRef.current !== runId || !stillThisRun(myGen)) {
                   turnSaveHold.resolve?.();
                   return prev;
                 }
@@ -1980,12 +2020,13 @@ export function AiChatPage({
                       } catch (err) {
                         turnSaveHold.reject?.(err);
                       } finally {
-                        if (sendRunIdRef.current === runId) {
+                        // Post-await: generation may have moved during save.
+                        if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
                           runAfterSave?.();
                         }
                       }
                     })();
-                  } else if (sendRunIdRef.current === runId) {
+                  } else if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
                     runAfterSave?.();
                     turnSaveHold.resolve?.();
                     saveWorkScheduled = true;
@@ -2001,7 +2042,7 @@ export function AiChatPage({
               if (!mountedRef.current && !saveWorkScheduled) {
                 turnSaveHold.resolve?.();
               }
-            } else if (sendRunIdRef.current === runId) {
+            } else if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
               const applied = applyFinalize(messagesRef.current);
               const next = applied.messages;
               messagesRef.current = next;
@@ -2022,7 +2063,7 @@ export function AiChatPage({
                   try {
                     await saveEngineSession(mid, historyHash(payload));
                   } finally {
-                    if (sendRunIdRef.current === runId) {
+                    if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
                       runAfterSave?.();
                     }
                   }
@@ -2048,7 +2089,7 @@ export function AiChatPage({
         // newer turn, and this stale finally must not clobber it.
         // Also clear the stop watchdog only for THIS run: a stale finally must
         // not cancel a newer turn's watchdog (e.g. after force-unlock + re-send).
-        if (sendRunIdRef.current === runId) {
+        if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
           sendingRef.current = false;
           sendingInFlightRef.current = false;
           if (mountedRef.current) setSending(false);
