@@ -55,10 +55,13 @@ import {
   listDocumentChunksForEmbed,
   planChunksToEmbed,
   releaseEmbedder,
+  markEmbedderHung,
+  isEmbedderHung,
   EMBEDDER_RELEASE_TIMEOUT_MS,
 } from "../engine/EmbeddingService";
 // isEmbedderActive available for residency telemetry; chat/embedder mutual
-// exclusion is enforced by releaseEmbedder-before-chat + ensureEmbedder gate.
+// exclusion is enforced by releaseEmbedder-before-chat + ensureEmbedder gate
+// + the shared runNativeOp barrier (all llama.rn ops serialize through it).
 import {
   SemanticVectorIndex,
   DEFAULT_VECTOR_MEMORY_FLOAT_CAP,
@@ -75,6 +78,8 @@ import {
   isChatModel4BClass,
   allowsCoResidency,
   CO_RESIDENCY_MIN_MEMORY_BYTES,
+  runNativeOp,
+  abandonNativeOpChain,
 } from "../engine/llamaContextGate";
 import { resolveContextProfile } from "../engine/contextProfile";
 import {
@@ -260,10 +265,17 @@ function gateForModel(
 
 /** Localized hard-gate reason for Alert / error banner. */
 /**
- * Bounded releaseEmbedder for chat-init (FIX 2).
- * Races release against EMBEDDER_RELEASE_TIMEOUT_MS. On timeout, chat proceeds
- * (must not deadlock); embedder disposal is best-effort and deferred to the
- * next releaseEmbedder/embed cycle. Never throws.
+ * Bounded releaseEmbedder for chat-init (FIX 2 / round-6 native barrier).
+ * Races release against EMBEDDER_RELEASE_TIMEOUT_MS. On timeout:
+ *   - forceChatAcquireAfterEmbedTimeout is UI-gate only (chat_loading);
+ *   - if the shared runNativeOp mutex is still held, the embed op is
+ *     ABANDONED: markEmbedderHung (drop JS ref; native leak isolated, never
+ *     reused) + abandonNativeOpChain so chat init can run alone;
+ *   - chat proceeds (must not deadlock). Recovery for a hung native context
+ *     = process restart. Never throws.
+ *
+ * Invariant: never two overlapping llama.rn ops; a hung op is abandoned,
+ * isolated, and never reused.
  */
 async function releaseEmbedderBounded(): Promise<"released" | "timeout"> {
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -280,8 +292,15 @@ async function releaseEmbedderBounded(): Promise<"released" | "timeout"> {
       }),
     ]);
     if (result === "timeout") {
+      // ABANDON policy (round 6): release timed out — native embedding/release
+      // is not cancellable. Drop the JS context ref (markEmbedderHung), reset
+      // the shared mutex chain so chat init can run alone. The hung native
+      // context is leaked, isolated, never reused; recovery = process restart.
+      // Invariant: never two overlapping llama.rn ops after this point.
+      markEmbedderHung();
+      abandonNativeOpChain();
       console.warn(
-        `[kalsa] releaseEmbedder timed out after ${EMBEDDER_RELEASE_TIMEOUT_MS}ms; proceeding with chat init (embedder disposal best-effort)`,
+        `[kalsa] releaseEmbedder timed out after ${EMBEDDER_RELEASE_TIMEOUT_MS}ms; embedder marked hung, native-op chain abandoned; proceeding with chat init`,
       );
     }
     return result;
@@ -558,7 +577,7 @@ export function AppShell() {
    * or partially capped mid-embed. Cleared when a usable index is installed.
    */
   const docDenseReasonByIdRef = useRef<
-    Map<string, "cap" | "capped" | "corrupt" | "no_embedder">
+    Map<string, "cap" | "capped" | "corrupt" | "no_embedder" | "hung">
   >(new Map());
   /**
    * Existing (chunkId, contentHash) keys per doc for incremental embed planning
@@ -796,7 +815,15 @@ export function AppShell() {
           docDenseReasonByIdRef.current.set(docId, "corrupt");
           return null; // corrupt / bad dims → BM25-only
         }
-        if (idx.chunkCount <= 0) return null;
+        // Zero-vector edge (round 6): a capped sidecar with zero valid vectors
+        // must still record "capped" so hybrid surfaces degraded-cap consistently
+        // (do not early-return before recording the reason).
+        if (idx.chunkCount <= 0) {
+          if (idx.isCapped) {
+            docDenseReasonByIdRef.current.set(docId, "capped");
+          }
+          return null;
+        }
 
         // Memory policy: refuse load if total floats would exceed the cap.
         const loadedFloats = totalResidentFloats(docSemanticByIdRef.current.values());
@@ -1203,8 +1230,12 @@ export function AppShell() {
           docSemanticByIdRef.current.get(docId) ?? null,
         // FIX D: lazy restore from durable sidecar on first hybrid query.
         loadSemanticIndexFor: (docId: string) => ensureSemanticIndexLoaded(docId),
-        getDenseUnavailableReason: (docId: string) =>
-          docDenseReasonByIdRef.current.get(docId) ?? null,
+        getDenseUnavailableReason: (docId: string) => {
+          // Process-wide hung embedder wins over per-doc reasons so hybrid
+          // surfaces degradedNoEmbedder after an abandoned native op.
+          if (isEmbedderHung()) return "hung";
+          return docDenseReasonByIdRef.current.get(docId) ?? null;
+        },
         isEmbedderDownloaded: () => embedderDownloadedRef.current,
         // FIX 6: thread AbortSignal into embedQuery (native abort gate).
         embedQuery: (text: string, signal?: AbortSignal) =>
@@ -1728,6 +1759,9 @@ export function AppShell() {
           return false;
         }
         if (releaseOutcome === "timeout") {
+          // UI-gate only: transition to chat_loading so UI proceeds. Native
+          // serialization is runNativeOp; abandon already ran in
+          // releaseEmbedderBounded (markEmbedderHung + abandonNativeOpChain).
           chatGen = forceChatAcquireAfterEmbedTimeout();
         } else {
           chatGen = tryAcquireChat();
@@ -1821,22 +1855,29 @@ export function AppShell() {
         if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
         return false;
       }
-      const initResult = await initEngine(modelLocalPath(model, model.file), model.id, {
-        mmprojPath,
-        nCtx: profile.nCtx,
-        cacheTypeK: profile.cacheTypeK,
-        cacheTypeV: profile.cacheTypeV,
-        kvUnified: model.kvUnified,
-        mtpNMax: model.mtp?.nMax,
-        mtpDefaultOn: model.mtp?.defaultEnabled === true,
-        speculativeOverride,
-        engineOverride,
-        sessionRestore: {
-          historyHash: sessionHistoryHash,
-          promptEnvHash: sessionPromptEnvHash,
-        },
-        locale,
-      });
+      // Shared native-op barrier: serialize chat initEngine with any embed
+      // initLlama/embedding/release. forceChatAcquireAfterEmbedTimeout is
+      // UI-gate only (chat_loading); native serialization is runNativeOp.
+      // On prior release timeout the embedder was marked hung and the chain
+      // abandoned, so this op runs alone (no concurrent llama.rn work).
+      const initResult = await runNativeOp(() =>
+        initEngine(modelLocalPath(model, model.file), model.id, {
+          mmprojPath,
+          nCtx: profile.nCtx,
+          cacheTypeK: profile.cacheTypeK,
+          cacheTypeV: profile.cacheTypeV,
+          kvUnified: model.kvUnified,
+          mtpNMax: model.mtp?.nMax,
+          mtpDefaultOn: model.mtp?.defaultEnabled === true,
+          speculativeOverride,
+          engineOverride,
+          sessionRestore: {
+            historyHash: sessionHistoryHash,
+            promptEnvHash: sessionPromptEnvHash,
+          },
+          locale,
+        }),
+      );
       if (!stillCurrent()) {
         // Stale app generation after success: release THIS chatGen only so a
         // newer load's gate is not idled (FIX 1 ownership token).
@@ -2086,6 +2127,8 @@ export function AppShell() {
           return;
         }
         if (releaseOutcomeDl === "timeout") {
+          // UI-gate only (see ensureEngineForModel path). Native barrier =
+          // runNativeOp; hung embed already abandoned in releaseEmbedderBounded.
           chatGenDl = forceChatAcquireAfterEmbedTimeout();
         } else {
           chatGenDl = tryAcquireChat();
@@ -2199,22 +2242,31 @@ export function AppShell() {
         if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
         return;
       }
-      const initResult = await initEngine(outcome.model.uri, model.id, {
-        mmprojPath,
-        nCtx: profile.nCtx,
-        cacheTypeK: profile.cacheTypeK,
-        cacheTypeV: profile.cacheTypeV,
-        kvUnified: model.kvUnified,
-        mtpNMax: model.mtp?.nMax,
-        mtpDefaultOn: model.mtp?.defaultEnabled === true,
-        speculativeOverride,
-        engineOverride,
-        sessionRestore: {
-          historyHash: sessionHistoryHash,
-          promptEnvHash: sessionPromptEnvHash,
-        },
-        locale,
-      });
+      // Shared native-op barrier (same policy as ensureEngineForModel):
+      // serialize chat initEngine with embed ops. Gate force handoff is
+      // UI-only; native serialization is runNativeOp. Hung embed ops were
+      // abandoned above so this runs alone.
+      // Hoist uri so the runNativeOp closure does not re-widen DownloadOutcome
+      // (status === "aborted" already returned above → model is {status:"done"}).
+      const modelUri = (outcome.model as { status: "done"; uri: string }).uri;
+      const initResult = await runNativeOp(() =>
+        initEngine(modelUri, model.id, {
+          mmprojPath,
+          nCtx: profile.nCtx,
+          cacheTypeK: profile.cacheTypeK,
+          cacheTypeV: profile.cacheTypeV,
+          kvUnified: model.kvUnified,
+          mtpNMax: model.mtp?.nMax,
+          mtpDefaultOn: model.mtp?.defaultEnabled === true,
+          speculativeOverride,
+          engineOverride,
+          sessionRestore: {
+            historyHash: sessionHistoryHash,
+            promptEnvHash: sessionPromptEnvHash,
+          },
+          locale,
+        }),
+      );
       if (!stillCurrent()) {
         markChatReleased(chatGenDl);
         if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;

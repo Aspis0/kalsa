@@ -4,8 +4,9 @@
  * Lifecycle (design §5 / HYBRID_RETRIEVAL.md):
  * - Lazy load: no embedder at app start; first embed* call initLlama's
  *   once the EMBEDDING_MODEL bundle is on disk.
- * - Own FIFO mutex (same pattern as WhisperService) — NEVER shares the
- *   LlamaService lifecycle lock (that lock is private and chat-owned).
+ * - Shared native-op barrier (runNativeOp in llamaContextGate): serializes
+ *   EVERY llama.rn native call (initLlama / embedding() / release) with chat
+ *   initEngine. Concurrent context init is not guaranteed safe by llama.rn.
  * - Serialization rule (shared llamaContextGate):
  *     chat_loading / chat_ready block embed init, EXCEPT §5 co-residency:
  *     totalMemoryBytes > 6e9 AND 2B-class chat model → tryAcquireEmbed ok
@@ -14,6 +15,11 @@
  *   before chat load so in-flight embeds cannot race a later ensureEmbedder.
  * - Failures never throw to callers: embed* returns null → hybrid path
  *   degrades to bm25_only.
+ * - Hung policy (hostile review round 6): if release times out at chat init
+ *   while a native op still holds the shared mutex, markEmbedderHung() drops
+ *   the JS context reference (native leak — only release() destroys it; the
+ *   leaked context is isolated and never reused). Future embed* return null
+ *   with isEmbedderHung() === true ("hung" reason). Recovery = process restart.
  * - Cancellation: embedText / embedDocumentChunk / embedQuery accept
  *   `opts.signal?: AbortSignal`. signal.aborted is checked immediately
  *   before EVERY await boundary and immediately before initLlama + the
@@ -28,6 +34,7 @@ import {
   tryAcquireEmbed,
   releaseEmbed,
   getState as getLlamaContextState,
+  runNativeOp,
 } from "./llamaContextGate";
 import {
   applyEmbedPrefix,
@@ -106,32 +113,49 @@ let activePath: string | null = null;
 let phase: EmbedPhase = "idle";
 
 /**
+ * When true, a prior native embed op was abandoned after the chat-init
+ * release timeout. The JS context reference has been dropped; the native
+ * context (if still alive) is leaked and never reused. All embed* paths
+ * return null immediately. Recovery = process restart.
+ *
+ * Invariant (shared with runNativeOp): never two overlapping llama.rn ops;
+ * a hung op is abandoned, isolated, and never reused.
+ */
+let embedderHung = false;
+
+/**
  * Bounded wait for releaseEmbedder during chat init (AppShell).
  *
- * Policy (FIX 2 / hostile review round 4):
+ * Policy (FIX 2 / hostile review round 4 + round 6 native barrier):
  *   - Chat init races releaseEmbedder() against this timeout.
- *   - On timeout, chat PROCEEDS (must not deadlock) and the embedder is left
- *     in a best-effort "stale" state: the FIFO still serializes native ops,
- *     a late-settling embedding()/release() is dropped via generation/abort
- *     checks already present on embed paths, and the next embed attempt
- *     re-inits. Disposal is deferred to the next releaseEmbedder/embed cycle.
- *   - Native embedding() is not cancellable; document timeouts only abort the
- *     AbortSignal, so this bound is the chat-side escape hatch.
+ *   - On timeout: if the shared native-op mutex is still held, the embedder
+ *     is marked hung (markEmbedderHung), the mutex chain is abandoned, and
+ *     chat init proceeds alone. Native embedding()/release() is not
+ *     cancellable; a hung release leaves a leaked native context.
+ *   - Gate force handoff (forceChatAcquireAfterEmbedTimeout) is UI-only;
+ *     native serialization is runNativeOp.
  */
 export const EMBEDDER_RELEASE_TIMEOUT_MS = 15_000;
 
-/**
- * FIFO mutex — same pattern as WhisperService / LlamaService job chains.
- * Serializes ensureEmbedder / release / embed so they never interleave.
- * A late-settling native call after a timed-out chat-init release is still
- * serialized here; its result is discarded by abort/generation checks.
- */
-let embedJobChain: Promise<unknown> = Promise.resolve();
+/** True after markEmbedderHung — embed paths return null immediately. */
+export function isEmbedderHung(): boolean {
+  return embedderHung === true;
+}
 
-function withEmbedJob<T>(fn: () => Promise<T>): Promise<T> {
-  const run = embedJobChain.then(fn, fn);
-  embedJobChain = run.catch(() => undefined);
-  return run;
+/**
+ * Declare the embedder hung after a timed-out release during chat init.
+ * Drops the JS context reference (best-effort; native context is only
+ * destroyed by release() — a hung release leaves a leaked native context,
+ * isolated and never reused). Future embed* return null. Pair with
+ * abandonNativeOpChain() so chat init can run on a fresh mutex chain.
+ */
+export function markEmbedderHung(): void {
+  embedderHung = true;
+  // Drop JS reference; do NOT call native release (it is the hung op).
+  context = null;
+  activePath = null;
+  phase = "idle";
+  releaseEmbed();
 }
 
 async function loadInitLlama(
@@ -166,12 +190,12 @@ async function loadInitLlama(
  * Used by AppShell residency checks / telemetry.
  */
 export function isEmbedderActive(): boolean {
-  return context !== null && phase === "ready";
+  return context !== null && phase === "ready" && !embedderHung;
 }
 
 /**
  * Load the embedder context once for the given path.
- * Concurrent callers are serialized.
+ * Concurrent callers are serialized via the shared runNativeOp barrier.
  *
  * Residency gate (llamaContextGate): tryAcquireEmbed refuses while chat is
  * loading, and while chat is ready unless §5 co-residency applies.
@@ -183,7 +207,9 @@ async function ensureEmbedder(
   path: string,
   signal?: AbortSignal,
 ): Promise<boolean> {
-  return withEmbedJob(async () => {
+  if (embedderHung) return false;
+  return runNativeOp(async () => {
+    if (embedderHung) return false;
     if (isAborted(signal)) return false;
     if (phase === "closing") return false;
     if (context && activePath === path && phase === "ready") {
@@ -202,6 +228,7 @@ async function ensureEmbedder(
 
     if (context) {
       try {
+        // Native release — already inside runNativeOp.
         await context.release();
       } catch {
         // ignore release errors on re-init
@@ -244,8 +271,13 @@ async function ensureEmbedder(
       releaseEmbed();
       return false;
     }
+    if (embedderHung) {
+      releaseEmbed();
+      return false;
+    }
 
     try {
+      // Native initLlama — already inside runNativeOp.
       const next = await initLlama({
         model: path,
         embedding: true,
@@ -253,8 +285,8 @@ async function ensureEmbedder(
         n_gpu_layers: 0,
         n_threads: 2,
       });
-      if (isAborted(signal)) {
-        // Job cancelled mid-init: release the just-created context so it
+      if (embedderHung || isAborted(signal)) {
+        // Job cancelled mid-init / hung: release the just-created context so it
         // cannot outlive the abort (chat may be about to load).
         try {
           await next.release();
@@ -301,11 +333,20 @@ async function ensureEmbedder(
  * permitted and release may be skipped by AppShell.
  *
  * Chat-init callers MUST race this against EMBEDDER_RELEASE_TIMEOUT_MS so a
- * stuck native release cannot deadlock chat load. On timeout the chat proceeds;
- * this job may still settle later on the FIFO (best-effort disposal).
+ * stuck native release cannot deadlock chat load. On timeout + still-busy
+ * mutex, AppShell calls markEmbedderHung + abandonNativeOpChain.
  */
 export async function releaseEmbedder(): Promise<void> {
-  return withEmbedJob(async () => {
+  if (embedderHung) {
+    // Already abandoned — JS state is idle; gate may still need clearing.
+    releaseEmbed();
+    return;
+  }
+  return runNativeOp(async () => {
+    if (embedderHung) {
+      releaseEmbed();
+      return;
+    }
     if (!context) {
       phase = "idle";
       activePath = null;
@@ -314,6 +355,7 @@ export async function releaseEmbedder(): Promise<void> {
     }
     phase = "closing";
     try {
+      // Native release — already inside runNativeOp.
       await context.release();
     } catch {
       // ignore — never throw to callers
@@ -327,9 +369,9 @@ export async function releaseEmbedder(): Promise<void> {
 }
 
 /**
- * Run `fn` while the embedder is held. Acquires the embed job lock for the
- * whole batch so release cannot interleave mid-batch.
- * Returns null when the embedder is not downloaded, chat blocks embed, aborted,
+ * Run `fn` while the embedder is held. Acquires the shared native-op lock for
+ * the whole batch so release cannot interleave mid-batch.
+ * Returns null when hung, not downloaded, chat blocks embed, aborted,
  * or fails to load.
  */
 export async function withEmbedder<T>(
@@ -340,13 +382,15 @@ export async function withEmbedder<T>(
 ): Promise<T | null> {
   const signal = opts?.signal;
   try {
+    if (embedderHung) return null;
     if (isAborted(signal)) return null;
     if ((await getEmbeddingModelStatus(opts)) !== "downloaded") return null;
     if (isAborted(signal)) return null;
     const path = await embeddingModelPath(opts);
     if (!path || isAborted(signal)) return null;
-    // ensure + work under a single job so release cannot sneak in between.
-    return await withEmbedJob(async () => {
+    // ensure + work under a single native-op so release cannot sneak in between.
+    return await runNativeOp(async () => {
+      if (embedderHung) return null;
       if (isAborted(signal)) return null;
       if (phase === "closing") return null;
       if (!(context && activePath === path && phase === "ready")) {
@@ -361,7 +405,7 @@ export async function withEmbedder<T>(
           activePath = null;
           phase = "idle";
         }
-        if (isAborted(signal)) {
+        if (isAborted(signal) || embedderHung) {
           releaseEmbed();
           return null;
         }
@@ -370,7 +414,7 @@ export async function withEmbedder<T>(
           return null;
         }
         const initLlama = await loadInitLlama(signal);
-        if (!initLlama || isAborted(signal)) {
+        if (!initLlama || isAborted(signal) || embedderHung) {
           releaseEmbed();
           return null;
         }
@@ -386,7 +430,7 @@ export async function withEmbedder<T>(
             n_gpu_layers: 0,
             n_threads: 2,
           });
-          if (isAborted(signal) || !tryAcquireEmbed()) {
+          if (isAborted(signal) || embedderHung || !tryAcquireEmbed()) {
             try {
               await next.release();
             } catch {
@@ -412,7 +456,7 @@ export async function withEmbedder<T>(
         // Already ready — claim gate for the batch.
         if (!tryAcquireEmbed()) return null;
       }
-      if (!context || phase !== "ready") {
+      if (!context || phase !== "ready" || embedderHung) {
         releaseEmbed();
         return null;
       }
@@ -425,7 +469,7 @@ export async function withEmbedder<T>(
         text: string,
         role: "query" | "doc",
       ): Promise<Float32Array | null> => {
-        if (isAborted(signal)) return null;
+        if (embedderHung || isAborted(signal)) return null;
         return embedWithContext(held, text, role, signal);
       };
       try {
@@ -434,7 +478,7 @@ export async function withEmbedder<T>(
         // Keep embed held while context is still ready (session-scoped).
         // releaseEmbedder is the only path that drops the gate permanently.
         // If phase is not ready, drop the gate claim.
-        if (phase !== "ready" || !context) {
+        if (phase !== "ready" || !context || embedderHung) {
           releaseEmbed();
         }
       }
@@ -450,14 +494,16 @@ async function embedWithContext(
   role: "query" | "doc",
   signal?: AbortSignal,
 ): Promise<Float32Array | null> {
-  if (isAborted(signal)) return null;
+  if (embedderHung || isAborted(signal)) return null;
   const prefixed = applyEmbedPrefix(text, role);
   // Abort gate immediately before the native embedding() call (longest-pole await).
-  if (isAborted(signal)) return null;
+  if (embedderHung || isAborted(signal)) return null;
   // embd_normalize: 2 = L2 normalize (matches SemanticVectorIndex defensive L2).
   try {
+    // Native embedding() — caller must already be inside runNativeOp
+    // (ensureEmbedder / withEmbedder / embedDocumentChunk / embedQuery job).
     const result = await ctx.embedding(prefixed, { embd_normalize: 2 });
-    if (isAborted(signal)) return null;
+    if (embedderHung || isAborted(signal)) return null;
     const arr = result?.embedding;
     if (!Array.isArray(arr) || arr.length === 0) return null;
     const out = new Float32Array(arr.length);
@@ -473,7 +519,7 @@ async function embedWithContext(
 
 /**
  * Embed free text with the document (passage) prefix.
- * Returns null when not downloaded, aborted, or on any error (never throws).
+ * Returns null when hung, not downloaded, aborted, or on any error (never throws).
  */
 export async function embedText(
   text: string,
@@ -484,7 +530,7 @@ export async function embedText(
 
 /**
  * Embed a document chunk with the e5 passage prefix.
- * Lazy-loads the embedder. Returns null on miss/error/abort.
+ * Lazy-loads the embedder. Returns null on miss/error/abort/hung.
  * Checks signal before every await boundary and before initLlama / embedding().
  */
 export async function embedDocumentChunk(
@@ -493,6 +539,7 @@ export async function embedDocumentChunk(
 ): Promise<Float32Array | null> {
   const signal = opts?.signal;
   try {
+    if (embedderHung) return null;
     if (isAborted(signal)) return null;
     if (typeof text !== "string" || text.length === 0) return null;
     if (isAborted(signal)) return null;
@@ -501,9 +548,9 @@ export async function embedDocumentChunk(
     const path = await embeddingModelPath(opts);
     if (!path || isAborted(signal)) return null;
     const ok = await ensureEmbedder(path, signal);
-    if (!ok || isAborted(signal)) return null;
-    return await withEmbedJob(async () => {
-      if (isAborted(signal)) return null;
+    if (!ok || isAborted(signal) || embedderHung) return null;
+    return await runNativeOp(async () => {
+      if (embedderHung || isAborted(signal)) return null;
       if (!context || phase !== "ready") return null;
       return embedWithContext(context, text, "doc", signal);
     });
@@ -514,7 +561,7 @@ export async function embedDocumentChunk(
 
 /**
  * Embed a query with the e5 query prefix.
- * Lazy-loads the embedder. Returns null on miss/error/abort.
+ * Lazy-loads the embedder. Returns null on miss/error/abort/hung.
  * Accepts AbortSignal so a cancelled doc query can bail before the native call.
  */
 export async function embedQuery(
@@ -523,6 +570,7 @@ export async function embedQuery(
 ): Promise<Float32Array | null> {
   const signal = opts?.signal;
   try {
+    if (embedderHung) return null;
     if (isAborted(signal)) return null;
     if (typeof text !== "string" || text.length === 0) return null;
     if (isAborted(signal)) return null;
@@ -531,9 +579,9 @@ export async function embedQuery(
     const path = await embeddingModelPath(opts);
     if (!path || isAborted(signal)) return null;
     const ok = await ensureEmbedder(path, signal);
-    if (!ok || isAborted(signal)) return null;
-    return await withEmbedJob(async () => {
-      if (isAborted(signal)) return null;
+    if (!ok || isAborted(signal) || embedderHung) return null;
+    return await runNativeOp(async () => {
+      if (embedderHung || isAborted(signal)) return null;
       if (!context || phase !== "ready") return null;
       return embedWithContext(context, text, "query", signal);
     });
@@ -547,7 +595,7 @@ export function __resetEmbedderForTests(): void {
   context = null;
   activePath = null;
   phase = "idle";
-  embedJobChain = Promise.resolve();
+  embedderHung = false;
   releaseEmbed();
   // Expose gate state for harness diagnostics.
   void getLlamaContextState;

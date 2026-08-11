@@ -351,6 +351,73 @@ async function main() {
     assert(!/\bthrow\b/.test(codeOnly), "releaseEmbedder must not throw");
   });
 
+  // 15. Round 6: hung flag + shared runNativeOp barrier (source-level).
+  check("markEmbedderHung / isEmbedderHung + runNativeOp wrap every native call", () => {
+    const src = readFileSync(
+      path.join(projectRoot, "src/engine/EmbeddingService.ts"),
+      "utf8",
+    );
+    assert(/export function markEmbedderHung\(\)/.test(src), "markEmbedderHung export");
+    assert(/export function isEmbedderHung\(\)/.test(src), "isEmbedderHung export");
+    assert(/let embedderHung\s*=\s*false/.test(src), "embedderHung module flag");
+    // markEmbedderHung drops JS refs without calling native release.
+    const hungBody = src.slice(src.indexOf("export function markEmbedderHung"));
+    const hungEnd = hungBody.indexOf("\nexport ") > 0
+      ? hungBody.indexOf("\nexport ")
+      : hungBody.indexOf("\nasync function");
+    const hung = hungEnd > 0 ? hungBody.slice(0, hungEnd) : hungBody.slice(0, 600);
+    assert(/embedderHung\s*=\s*true/.test(hung), "sets embedderHung");
+    assert(/context\s*=\s*null/.test(hung), "drops context ref");
+    assert(!/\.release\(/.test(hung), "must NOT call native release on hung");
+    // Shared barrier: no private withEmbedJob / embedJobChain; use runNativeOp.
+    assert(!/function withEmbedJob/.test(src), "private FIFO must be replaced by runNativeOp");
+    assert(!/embedJobChain/.test(src), "embedJobChain removed");
+    assert(/runNativeOp/.test(src), "runNativeOp imported/used");
+    // Native sites wrapped: initLlama, context.release, embedding().
+    assert(/return runNativeOp\(async/.test(src), "ensure/release/embed use runNativeOp");
+    // Early null on hung for public embed paths.
+    assert(/if \(embedderHung\) return null/.test(src), "embed paths short-circuit on hung");
+    assert(/if \(embedderHung\) return false/.test(src), "ensureEmbedder short-circuit on hung");
+  });
+
+  // 16. Round 6: AppShell wraps initEngine in runNativeOp + abandon on timeout.
+  check("AppShell: runNativeOp(initEngine) + markEmbedderHung on release timeout", () => {
+    const src = readFileSync(
+      path.join(projectRoot, "src/app/AppShell.tsx"),
+      "utf8",
+    );
+    assert(/runNativeOp/.test(src), "imports/uses runNativeOp");
+    assert(/abandonNativeOpChain/.test(src), "imports abandonNativeOpChain");
+    assert(/markEmbedderHung/.test(src), "imports markEmbedderHung");
+    // Both chat-init call sites wrap initEngine.
+    const wraps = src.match(/runNativeOp\(\s*\(\)\s*=>\s*[\s\S]*?initEngine\(/g);
+    assert(wraps && wraps.length >= 2, `expected ≥2 runNativeOp(initEngine) sites, got ${wraps ? wraps.length : 0}`);
+    // releaseEmbedderBounded abandon policy.
+    const bounded = src.slice(src.indexOf("async function releaseEmbedderBounded"));
+    const boundedEnd = bounded.indexOf("\nfunction ");
+    const body = boundedEnd > 0 ? bounded.slice(0, boundedEnd) : bounded.slice(0, 2000);
+    assert(/markEmbedderHung\(\)/.test(body), "timeout → markEmbedderHung");
+    assert(/abandonNativeOpChain\(\)/.test(body), "timeout → abandonNativeOpChain");
+    // Zero-vector capped sidecar records reason before early return.
+    assert(
+      /chunkCount\s*<=\s*0[\s\S]{0,200}isCapped[\s\S]{0,120}capped/.test(src),
+      "zero-vector capped sidecar must record 'capped' before early return",
+    );
+  });
+
+  // 17. Round 6: documentChatTool surfaces 'hung' via degradedNoEmbedder text.
+  check("documentChatTool DenseUnavailableReason includes hung → degradedNoEmbedder", () => {
+    const src = readFileSync(
+      path.join(projectRoot, "src/documents/documentChatTool.ts"),
+      "utf8",
+    );
+    assert(/\|\s*"hung"/.test(src), "DenseUnavailableReason includes hung");
+    assert(
+      /reason === "no_embedder"\s*\|\|\s*reason === "hung"/.test(src),
+      "denseDegradeLine maps hung → degradedNoEmbedder",
+    );
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
 }

@@ -90,6 +90,8 @@ export type DenseUnavailableReason =
   | "capped"
   | "corrupt"
   | "no_embedder"
+  /** Embedder native op abandoned after chat-init release timeout (round 6). */
+  | "hung"
   | null;
 
 export type DocumentChatToolResult = {
@@ -760,7 +762,9 @@ function denseDegradeLine(
   if (reason === "corrupt") {
     return emb.degradedCorrupt ?? null;
   }
-  if (reason === "no_embedder") {
+  // "hung" reuses degradedNoEmbedder text (no new i18n) — native embed op was
+  // abandoned after chat-init release timeout; recovery = process restart.
+  if (reason === "no_embedder" || reason === "hung") {
     return emb.degradedNoEmbedder ?? null;
   }
   return null;
@@ -846,16 +850,16 @@ async function tryHybridRetrieve(
         denseUnavailableReason:
           hostReason === "cap" ||
           hostReason === "capped" ||
-          hostReason === "corrupt"
+          hostReason === "corrupt" ||
+          hostReason === "hung" ||
+          hostReason === "no_embedder"
             ? hostReason
-            : hostReason === "no_embedder"
-              ? "no_embedder"
-              : "no_embedder",
+            : "no_embedder",
       };
     }
-    // Fully refused (cap/corrupt with no usable vectors already handled above).
-    // hostReason "cap" / "corrupt" with vectors present is unexpected; degrade.
-    if (hostReason === "cap" || hostReason === "corrupt") {
+    // Fully refused (cap/corrupt/hung with no usable vectors already handled above).
+    // hostReason "cap" / "corrupt" / "hung" with vectors present is unexpected; degrade.
+    if (hostReason === "cap" || hostReason === "corrupt" || hostReason === "hung") {
       return {
         strategy: "bm25_only",
         passages: null,

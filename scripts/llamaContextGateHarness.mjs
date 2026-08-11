@@ -86,6 +86,10 @@ async function main() {
     isEmbedHeld,
     __resetForTests,
     CO_RESIDENCY_MIN_MEMORY_BYTES,
+    runNativeOp,
+    nativeOpBusy,
+    abandonNativeOpChain,
+    __resetNativeOpMutexForTests,
   } = mod;
 
   let passed = 0;
@@ -315,6 +319,121 @@ async function main() {
     markChatReady(gen);
     assert(forceChatAcquireAfterEmbedTimeout() === null, "refuse while ready");
     assert(getState() === "chat_ready", "still ready");
+  });
+
+  // ── Shared native-op barrier (round 6) ──────────────────────────────────
+  async function checkAsync(name, fn) {
+    try {
+      __resetForTests();
+      await fn();
+      console.log(`PASS ${name}`);
+      passed++;
+    } catch (e) {
+      console.log(`FAIL ${name} — ${e && e.message ? e.message : e}`);
+      failed++;
+    }
+  }
+
+  await checkAsync("runNativeOp serializes two ops strictly sequential", async () => {
+    assert(typeof runNativeOp === "function", "runNativeOp exported");
+    assert(typeof nativeOpBusy === "function", "nativeOpBusy exported");
+    const order = [];
+    let releaseA;
+    const aGate = new Promise((r) => {
+      releaseA = r;
+    });
+    const pA = runNativeOp(async () => {
+      order.push("a-start");
+      assert(nativeOpBusy() === true, "busy during A");
+      await aGate;
+      order.push("a-end");
+      return "A";
+    });
+    // Let A start.
+    await new Promise((r) => setImmediate(r));
+    assert(nativeOpBusy() === true, "busy after A start");
+    const pB = runNativeOp(async () => {
+      order.push("b-start");
+      order.push("b-end");
+      return "B";
+    });
+    // B must not have started while A holds the mutex.
+    await new Promise((r) => setImmediate(r));
+    assert(order.includes("a-start"), "A started");
+    assert(!order.includes("b-start"), "B must wait for A");
+    releaseA();
+    const [ra, rb] = await Promise.all([pA, pB]);
+    assert(ra === "A" && rb === "B", `results ${ra}/${rb}`);
+    assert(
+      order.join(",") === "a-start,a-end,b-start,b-end",
+      `order ${order.join(",")}`,
+    );
+    assert(nativeOpBusy() === false, "idle after both settle");
+  });
+
+  await checkAsync("runNativeOp failure does not break the queue", async () => {
+    let secondRan = false;
+    const p1 = runNativeOp(async () => {
+      throw new Error("boom");
+    });
+    const p2 = runNativeOp(async () => {
+      secondRan = true;
+      return 42;
+    });
+    let caught = false;
+    try {
+      await p1;
+    } catch (e) {
+      caught = e && e.message === "boom";
+    }
+    assert(caught, "first rejects to caller");
+    const r2 = await p2;
+    assert(r2 === 42 && secondRan === true, "second still runs after failure");
+    assert(nativeOpBusy() === false, "idle after failure chain");
+  });
+
+  await checkAsync("abandonNativeOpChain resets busy + drops queued ops", async () => {
+    assert(typeof abandonNativeOpChain === "function", "abandon exported");
+    let releaseA;
+    const aGate = new Promise((r) => {
+      releaseA = r;
+    });
+    const pA = runNativeOp(async () => {
+      await aGate;
+      return "A";
+    });
+    await new Promise((r) => setImmediate(r));
+    assert(nativeOpBusy() === true, "busy while A in flight");
+    const pB = runNativeOp(async () => "B");
+    abandonNativeOpChain();
+    assert(nativeOpBusy() === false, "busy cleared by abandon");
+    // New op on the fresh chain must run.
+    const pC = runNativeOp(async () => "C");
+    const rc = await pC;
+    assert(rc === "C", `fresh chain ran, got ${rc}`);
+    // Settling the abandoned A must not re-busy the new chain forever.
+    releaseA();
+    try {
+      await pA;
+    } catch {
+      /* abandoned may throw native_op_abandoned or resolve from old gen */
+    }
+    try {
+      await pB;
+    } catch {
+      /* abandoned queued op */
+    }
+    assert(nativeOpBusy() === false, "idle after abandon settle");
+  });
+
+  check("__resetNativeOpMutexForTests clears busy", () => {
+    assert(typeof __resetNativeOpMutexForTests === "function", "reset export");
+    // Fire-and-forget an op that would stay busy if not reset properly is
+    // hard without await; just ensure reset is idempotent + busy false.
+    __resetNativeOpMutexForTests();
+    assert(nativeOpBusy() === false, "busy false after reset");
+    __resetForTests();
+    assert(nativeOpBusy() === false, "__resetForTests also clears native mutex");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);
