@@ -1,502 +1,365 @@
-# Research — pruning/sparsità MoE orientata alla VELOCITÀ (compute attivo)
+# Research: pruning/sparsità MoE orientata alla VELOCITÀ (decode CPU edge)
 
 **Data ricerca:** 2026-08-11  
 **Mandato:** `mandates/research-speed-pruning.md`  
-**Scope:** SOLO ricerca web (zero build, zero device).  
-**Campagna:** "Beyond Memory" — decode compute-bound su Galaxy S23.  
-**Modelli di riferimento:** CalaQwen / KEXP (`qwen35moe`, 256 exp / k=6 / drop 0.65) ~5.2–5.86 tok/s; Marco (`qwen3moe`, 256/top-8) in valutazione.
+**Scope:** solo ricerca web + contesto locale read-only. Niente build, niente device.  
+**Domanda:** cosa riduce i **FLOP attivi per token** o accelera il decode MoE su CPU/ARM edge, senza pretraining pesante (LoRA-light RunPod ok).
 
-Legenda claim: **[V]** = fonte primaria (arXiv / GitHub / HF) con URL+data; **[S]** = stima/aritmetica da fonti [V] + numeri campagna; **NON TROVATO** se assente.
+**Metodo citazioni:** `[V]` = fonte primaria (arXiv / GitHub / HF) con URL e data di pubblicazione/versione consultata.  
+**NON TROVATO** dove manca evidenza primaria applicabile.
 
 ---
 
-## 0. Numeri campagna usati per Amdahl (fonte locale, non web)
+## 0. Contesto numerico nostro (Amdahl — numeri da usare)
 
-Da `PLAN.md` STATO CORRENTE e `reports/moe-adopt-kexp.md` (2026-08-10):
+Fonte locale (non web): `PLAN.md` STATO CORRENTE, `reports/moe-adopt-kexp.md`.
 
-| Grandezza | Valore | Nota |
-|-----------|--------|------|
-| Decode mediano (k6d065) | **5.86 tok/s** | staccato unplugged, n=200 |
-| PPL decode k6d065 | **1.852** | floor prodotto storico 2.0955 |
-| PPL k8d065 (ctrl) | 1.565 | −25% GEMV top-k vs k=8 |
-| Hit cache @ drop 0.65 | ~76–80% | cache 2000 MiB |
-| Collo | **CALCOLO** | I/O esposto ≈ 20% del decode |
-| GEMV esperti (frazione wall) | **~40%** | mandato + F4.9/F5.x |
-| Budget qualità lossy | ΔPPL ≤ 0.15 **cumulativo** vs baseline | regola operativa |
-| k statico ridotto | già morto (k6 ΔPPL +0.94 su IQ2 storico; k5/k4 peggio) | ma su KEXP k6 è vivo |
-| drop-cold | miss-only (cost-aware) | **non** scarta hit-in-cache |
-| REAP pool-pruning | +0–5% velocità, non paga | chiuso |
-| OpenCL / ik kernels | morti su nostro silicio | non riaprire |
+| grandezza | valore | note |
+|---|---|---|
+| modello campagna | KEXP qwen35moe, 256 exp, k=6, drop-cold 0.65 | opzione A 2026-08-10 |
+| decode med | **5.86 tok/s** (k6d065, n=200 staccato) | ctrl k8d065: 5.16 |
+| PPL decode | **1.852** (k6d065); floor storico 2.0955 | budget ΔPPL cumulativo ≤0.15 vs baseline **originale** (non vs k6) |
+| collo | **compute-bound** | I/O esposto ≈ **20%** del decode wall |
+| frazione GEMV/GEMM esperti | ≈ **40% wall** | GEMM esperti 50.5% del compute × ~80% compute/decode ≈ 40% |
+| drop-cold attuale | miss-only: drop se MISS ∧ weight < thr ∧ non-top | residenti **sempre** calcolati |
+| chiusi | REAP pool (+0–5%), ik (g<1), OpenCL S23, prefetch cross-layer, k statico ≤5 storico (ΔPPL grosso su IQ2) | non riaprire senza fatto nuovo |
 
-### Formula Amdahl (esplicita)
+### Formula Amdahl esplicita
 
-Sia \(f = 0.40\) la frazione wall del GEMV esperti, \(r\) la frazione di compute esperti **rimanente** dopo la leva:
+Sia \(f\) la frazione di wall time del pezzo che acceleriamo, \(g\) il speedup su quel pezzo:
 
 \[
-S_{\mathrm{e2e}} = \frac{1}{(1-f) + f\cdot r} = \frac{1}{0.60 + 0.40\cdot r}
+S_{\text{e2e}} = \frac{1}{1 - f + f/g}, \qquad
+\Delta\% = (S_{\text{e2e}} - 1)\times 100
 \]
 
-\[
-\Delta\%_{\mathrm{tok/s}} \approx (S_{\mathrm{e2e}} - 1)\times 100
-\]
+**Default:** \(f_{\text{exp}} = 0.40\) (GEMV esperti sul wall).  
+Altri pezzi: I/O 0.20, non-esperto (att + shared + router + overhead) ≈ 0.40.
 
-| Leva (r) | \(S_{\mathrm{e2e}}\) | Δ tok/s atteso [S] | Note |
-|----------|----------------------|---------------------|------|
-| k: 6→5 (r=5/6≈0.833) | 1.072 | **+7.2%** | solo se qualità regge |
-| −25% expert-act (r=0.75) | 1.111 | **+11.1%** | AdapMoE-class |
-| −33% expert-act (r=0.67) | 1.149 | **+14.9%** | k≈4 media |
-| up/down 50% sparse, gate dense (r≈0.67) | 1.149 | **+14.9%** teorico | overhead sparse kernel CPU |
-| up/down 85% sparse (r≈0.43) | 1.293 | **+29%** teorico | paper GPU 1.2× e2e; CPU TBD |
-| layer skip 20% layer (se f_layer≈0.7 del wall non-I/O) | — | **NON TROVATO** su MoE edge | richiede training di solito |
+Esempi di riferimento:
 
-**Caveat duro:** su ARM/CPU, sparse GEMV (gather neuron / mask) spesso **non** realizza lo speedup teorico (irregular access, no Tensor-core-like path). Le stime [S] sopra sono upper bound Amdahl sul **compute** esperti; il realised g su 8 Gen 2 va misurato.
+| leva su esperti | \(g\) | \(S_{\text{e2e}}\) | tok/s atteso da 5.86 |
+|---|---|---|---|
+| k 6→5 (−16.7% FLOP esperti) | 6/5 = 1.20 | 1.071 | **6.28** (+7.1%) |
+| k_eff 6→4.5 (−25%) | 1.333 | 1.111 | **6.51** (+11.1%) |
+| k_eff 6→4 (−33%) | 1.50 | 1.143 | **6.70** (+14.3%) |
+| −20% FLOP solo su esperti (compress/sparse) | 1.25 | 1.087 | **6.37** (+8.7%) |
+| −50% FLOP esperti (sparse kernel ideale) | 2.0 | 1.250 | **7.33** (+25%) |
+| solo I/O −50% (f=0.20) | 2.0 | 1.111 | **6.51** (+11%) — **non** è il collo |
 
----
-
-## 1. k dinamico / expert-skipping adattivo
-
-### 1.1 Meccanismo
-
-Invece di top-k fisso per ogni token/layer, si attiva un numero variabile di esperti in base a:
-- distribuzione dei router scores (confidence / gap top1–top2 / entropy);
-- sensitivity di layer (Hessian/Fisher approssimato);
-- k statico ma **per-layer** diverso (non per-token).
-
-### 1.2 Prior art primaria
-
-| Metodo | Anno | Training? | Cosa fa | FLOP attivi? | Tooling |
-|--------|------|-----------|---------|--------------|---------|
-| **NAEE** dynamic skip | ACL 2024 | No (calibrazione) | Se \(w_{e1}/w_{e0} < \beta\) (mediana calib), skip del 2° expert (top-2) | Sì | [V] arXiv:2402.14800 · GitHub `lucky-lance/expert_sparsity` |
-| **AdapMoE** sensitivity gating | ICCAD 2024 | Offline calib + opzionale pred gate 1ª layer | Taylor/Fisher: se \((1-\alpha)^2 \sum\mathrm{diag}(F) \le T\) → 1 solo expert; −25% expert-act, 1.35× su offloading Mixtral | Sì (edge offload) | [V] arXiv:2408.10284 · GitHub `PKU-SEC-Lab/AdapMoE` |
-| **LExI** | Sep 2025 | No (data-free, solo pesi) | k **statico ma diverso per layer** | Sì (meno expert GEMV) | [V] arXiv:2509.02753 |
-| **DynMoE** Top-Any | ICLR 2025 | Sì (training-time) | gate che sceglie quanti esperti per token | Sì | [V] arXiv via OpenReview; GitHub `LINs-lab/DynMoE` |
-| **Ada-K** | 2025 | Fine-tune leggero (~3M param, 1.58h su Qwen1.5-MoE) | proiezione → distribuzione su k; a inferenza argmax k; 1.22× speedup riportato | Sì | [V] overview HF blog Spico 2026-02-26 citando Yue et al. 2025; OpenReview "Ada-K Routing" |
-| **AdaMoE** null experts | EMNLP Findings 2024 | Fine-tune | top-k fisso ma slot possono essere null (0 FLOP) | Sì (attivi reali variabili) | [V] arXiv:2406.13233 |
-| **Harder Task Needs More Experts** (Top-P-like) | ACL 2024 | Training | k da confidence | Sì | [V] arXiv:2403.07652 |
-
-### 1.3 Senza retraining: cosa regge?
-
-**Sì, senza retraining (solo calibrazione / data-free):**
-
-1. **NAEE dynamic skipping** [V] arXiv:2402.14800 (v2 HTML 2024-05-30): policy inference-time su Mixtral top-2; \(\beta\) = mediana \(w_{e1}/w_{e0}\) su calib set → skip ~50% dei secondi expert. Limitazione esplicita in LExI: *“highly tailored to the dataset and cannot work beyond top-k=2”* [V] arXiv:2509.02753.
-2. **AdapMoE sensitivity gating** [V] arXiv:2408.10284: offline Fisher su sample set; soglia T unica; −25% activated experts a accuracy MMLU/ARC tenuta su Mixtral-8x7B/22B 4-bit. **Non** richiede fine-tune del modello (pred gate 1ª layer opzionale, hidden×N_exp).
-3. **LExI** [V] arXiv:2509.02753 (2025-09-02): data-free, solo pesi → k per layer. Claim: su GPU/vLLM il pruning di pool migliora memoria ma **poco** il throughput; variare k per layer dà efficiency reale. Esempio: Qwen1.5-MoE stesso throughput H100 con +10% accuracy vs expert pruning tradizionale.
-
-**Con training / fine-tune:**
-
-- DynMoE, Ada-K, AdaMoE null experts: servono training o almeno FT del router / moduli extra.
-
-### 1.4 Δ qualità riportati
-
-| Metodo | Δ qualità | Fonte |
-|--------|-----------|-------|
-| AdapMoE @ ~24% single-expert ratio | “without accuracy degradation” su MMLU/ARC (figure 7 paper) | [V] 2408.10284 |
-| NAEE skip | plug-and-play; degrada se \(\beta\) aggressivo | [V] 2402.14800 |
-| LExI | “negligible accuracy loss”; better accuracy@iso-throughput vs prune | [V] 2509.02753 |
-| Ada-K su Qwen1.5-MoE | 1.22× speedup (FT 2.95M param) | [V] HF blog citazione Yue 2025 |
-| DynMoE | supera baseline a iso-o-meno compute (training) | [V] ICLR 2025 |
-
-**ΔPPL numerici esatti su Qwen3.5/3.6-35B-A3B:** **NON TROVATO** (nessun paper misura il nostro GGUF/path).
-
-### 1.5 Applicabilità a qwen35moe / qwen3moe + stima e2e
-
-- Architettura: 256 experts, k∈{6,8}, shared expert, SwiGLU — **compatibile** con score-threshold e sensitivity gating (generalizzano oltre top-2 se si ordina per peso e si taglia una coda).
-- NAEE top-2-only: **parziale** (noi siamo top-6/8): serve generalizzare a “skip i bottom-m del top-k se peso sotto soglia”.
-- LExI: applicabile (assegna k_ℓ per layer, es. early layers k alto / late k basso) — allinea a osservazione AdapMoE che early layers sono più sensibili.
-- Stima e2e se media expert-act −25% (r=0.75): **+11% tok/s** [S] Amdahl; realised su CPU streaming probabilmente **+5–10%** se il path GEMV è davvero 40%.
-- Costo: calibrazione offline su PC (minuti–ore, un pass forward su corpus 1–10k token) — **non** RunPod training. Implementazione: fork CPU, ~flag `--dynamic-k` o soglia su router logits già presenti.
-
-### 1.6 Verdetto area 1
-
-**GIALLO → VERDE se generalizziamo drop-by-weight (area 2) + LExI-static per-layer.**  
-DynMoE/Ada-K: GIALLO (serve FT leggero RunPod).  
-AdaMoE null experts: ROSSO senza retrain (modifica architettura router).
+**Regola d’oro:** su questo silicio, leve che tagliano solo I/O o solo il pool offline valgono poco se non riducono i matmul attivi. Leve che richiedono kernel sparse custom su IQ2/ARM hanno \(g_{\text{reale}}\) spesso ≪ \(g_{\text{ideale}}\).
 
 ---
 
-## 2. Drop-by-weight runtime (variante candidata nostra)
+## 1. Aree di ricerca (7)
 
-### 2.1 Definizione nostra
+### 1.1 k dinamico / expert-skipping adattivo
 
-Oggi: `--drop-cold-experts` scarta solo expert **miss** costosi (I/O).  
-Candidata: scartare esperti **marginali per router weight** anche se **già in cache** → riduce **GEMV**, non solo miss.
+**Meccanismo.** Invece di top-\(k\) fisso, il numero di esperti attivi \(k_t\) dipende dal token (e a volte dal layer): soglia su probabilità router, top-p cumulativo, sensitivity, o un propositor di \(k\).
 
-### 2.2 Prior art (è quasi 1:1 con adaptive gating)
+| variante | training? | FLOP attivi? | tooling | fonte |
+|---|---|---|---|---|
+| **Top-p / cumulative threshold** (MoE-Dynamic) | training-from-scratch + reg entropy nel paper; **a inferenza** la regola top-p è applicabile one-shot su modello top-k pretrain | sì, \(k\) medio ↓ | nessuna lib edge; patch router | [V] Huang et al. ACL 2024, arXiv:2403.07652 (2024-03-12) https://arxiv.org/abs/2403.07652 |
+| **AdapMoE sensitivity gating** | **no finetune** del modello: offline Fisher/sensitivity su calib + soglia \(T\); −25% esperti attivi, 1.35× e2e **su GPU offload Mixtral** | sì | [V] GitHub PKU-SEC-Lab/AdapMoE | [V] Zhong et al. ICCAD’24, arXiv:2408.10284 (2024-08-19) https://arxiv.org/abs/2408.10284 |
+| **Ada-K** | **sì, light**: solo proiezione \(W_p\) (~M params) + PPO; 1.22× su Qwen1.5-MoE-A2.7B (report secondario HF blog 2026-02-26 citando ICLR’25) | sì | paper ICLR’25 Ada-k routing | [V] Yue et al. ICLR 2025 “Ada-k routing” (cit. survey HF; paper conference) — arXiv search: Ada-k routing Boosting efficiency MoE |
+| **DynMoE top-any** | **sì** (training completo con soglie θ) | sì, +11% thr put | [V] github.com/LINs-lab/DynMoE | [V] Guo et al. ICLR 2025 https://github.com/LINs-lab/DynMoE |
+| **Null / zero-computation experts** (AdaMoE, MoE++, ZEDA) | **sì** (pretrain o post-train distill) | sì (null slot non calcola) | ZEDA: [V] github.com/TsinghuaC3I/ZEDA | [V] Zeng et al. EMNLP’24 AdaMoE; [V] Jin et al. ICLR’25 MoE++; [V] Lv et al. arXiv:2605.18643 (2026) ZEDA https://arxiv.org/abs/2605.18643 |
+| **Score-only threshold (no Fisher)** | **no** training; soglia euristica su \(w_i\) | sì | patch 10–50 LOC sul top-k | prior art discusso in AdapMoE §2 come “Adap-gating” con **degradazione accuracy** se naive |
 
-| Prior art | Equivalenza | Soglia tipica | Qualità |
-|-----------|-------------|---------------|---------|
-| NAEE dynamic skip | gap ratio top2/top1 | mediana calib per layer | plug-and-play |
-| Adap-gating (Li 2023, citato in AdapMoE) | solo score α | euristico | accuracy peggiore di sensitivity |
-| AdapMoE sensitivity | \((1-\alpha)^2 \times\) layer Fisher | T su val set | migliore di score-only |
-| Intra-expert paper §3.2 | router-weight neuron budget | r0:r1:r2 | +0–2 pt accuracy se budget→top experts | [V] arXiv:2605.08575 |
+**Cosa funziona SENZA retraining (applicabile a noi)?**
 
-**Nessun paper usa il nome “drop-by-weight”**, ma il meccanismo è standard “token-aware expert skipping” / “adaptive gating”.
+1. **Soglia su peso router / top-p cumulativo** sui logits già prodotti dal router — zero training.  
+   - AdapMoE dimostra che la soglia **score-only** degrada più della soglia **sensitivity** (layer-aware via Fisher offline).  
+   - Fisher offline: forward+grad su set di calibrazione (GPU RunPod poche ore), **non** è LoRA del modello intero.  
+2. **NON** Ada-K / DynMoE / null-experts **senza** adattamento: richiedono training o architettura diversa.
 
-### 2.3 Curve qualità (letteratura)
+**ΔPPL / qualità riportati (letteratura, non nostri metri):**
 
-- Score-only aggressivo: AdapMoE mostra collasso accuracy prima del sensitivity-based (fig. 7) [V] 2408.10284.
-- Sensitivity: fino a ~25% riduzione expert-act a iso-accuracy MMLU/ARC su Mixtral [V].
-- Su top-k>2: **NON TROVATO** paper con curve PPL complete per k=6/8 Qwen-style; si deve misurare.
+- AdapMoE: “without accuracy degradation” su MMLU/ARC a ~24% single-expert activation su Mixtral top-2 quant 4-bit [V] arXiv:2408.10284.  
+- MoE-Dynamic (top-p, trained): ~+1.7% task score e ~+5% thr put vs fixed-k [V] arXiv:2403.07652.  
+- ZEDA: −50% expert FLOP, ~1.20× e2e, perdita marginale su 11 bench, Qwen3-30B-A3B [V] arXiv:2605.18643.  
+- **ΔPPL numerico su qwen35moe / KEXP: NON TROVATO** in letteratura.
 
-### 2.4 Stima e2e sui nostri numeri
+**Applicabilità qwen35moe/qwen3moe:** alta per threshold/top-p (stesso API top-k). Shared expert resta sempre-on (architettura Qwen).  
+**Stima e2e nostra:** se \(k_{\text{eff}}\) medio scende 6→4.5 (−25% come AdapMoE): **+11%** wall → ~6.5 tok/s.  
+**Attenzione:** il 1.35× di AdapMoE è su sistema **I/O-bound offload GPU** — il loro guadagno mescola meno load + meno compute. Da noi solo la parte compute conta → ceiling ~+11% non +35%.
 
-Ipotesi fail-fast: su ogni token, tra i k=6 selezionati, drop gli ultimi m se \(w_i / w_0 < \tau\) (o se massa cumulativa top-j ≥ ρ).
+**Costo:** patch fork + sweep soglia su PPL-decode device; opzionale calib Fisher su RunPod A100 ~ore, non settimane.
 
-| Scenario [S] | m medio droppato | r | Δ tok/s Amdahl |
-|--------------|------------------|---|----------------|
-| τ blando (drop 0.5 expert medio) | 0.5/6 | 0.917 | **+3.4%** |
-| τ medio (1.0/6) | 1/6 | 0.833 | **+7.2%** |
-| τ aggressivo (1.5/6) | 1.5/6 | 0.75 | **+11.1%** |
-
-Interazione con drop-cold miss-only: **ortogonale e componibile** (uno taglia I/O miss, l’altro taglia compute hit).  
-Rischio qualità: budget ΔPPL cumulativo 0.15 — su KEXP k6d065 siamo già a PPL 1.852 (+0.33 vs 1.52 k8); margine fino a floor 2.0955 c’è, ma la regola campagna è stretta sul baseline originale.
-
-### 2.5 Costo / tooling
-
-- **Zero training.** Calibrazione τ (o ρ) su `corpus_subset_10k` + metro `--ppl-decode`.
-- Implementazione: nel path post-router del fork, prima del GEMV, mask out expert con peso basso; **anche se residenti in cache**.
-- Effort: piccolo (ore–1–2 giorni fork), zero RunPod.
-
-### 2.6 Verdetto area 2
-
-**VERDE** — massima priorità fail-fast. È la freccia già in faretra; la letteratura la valida come AdapMoE/NAEE-class senza retrain.
+**Verdetto fattibilità nostra:** **VERDE** (threshold/top-p/sensitivity offline).
 
 ---
 
-## 3. Expert merging (MC-SMoE e famiglia)
+### 1.2 Drop-by-weight runtime (anche su HIT di cache)
 
-### 3.1 Meccanismo
+**Meccanismo (nostra variante candidata).** Oggi `--drop-cold-experts` droppa solo se **MISS** ∧ weight basso ∧ non-top.  
+**Drop-by-weight** = stessa soglia (o più aggressiva) **anche se l’esperto è residente**: si salta il GEMV, si ricalcola la somma pesata (renorm).
 
-Cluster di esperti “simili” (router logits / activation centroid / output similarity) → media pesata (o subspace merge) → **pool più piccolo**.  
-Effetto primario: **memoria / storage / cache footprint**.  
-Effetto secondario su FLOP: solo se si riduce anche k o se il merge collassa esperti che sarebbero co-attivati (raro: co-attivazione ≠ similarità routing).
+**Prior art:**
 
-### 3.2 Prior art
+| pezzo | cosa dice | fonte |
+|---|---|---|
+| AdapMoE adaptive gating | riduce \(k\) per token/layer in base a sensitivity e score; indipendente da cache | [V] arXiv:2408.10284 |
+| MoE-Dynamic top-p | attiva finché Σp ≥ p_thr | [V] arXiv:2403.07652 |
+| Expert offloading systems (es. mixed-precision offload) | soglia \(T_2\) per **skip** esperti a bassa importanza su miss | [V] arXiv:2411.01433 (mixed precision expert offloading) — skip lato load, non pure compute-bound |
+| BigMoeOnEdge drop-cold | miss-only (nostro stato) | locale |
 
-| Metodo | Training? | One-shot? | Note | Fonte |
-|--------|-----------|-----------|------|-------|
-| **M-SMoE / MC-SMoE** | spesso + recovery FT | merge sì; quality recovery spesso no | cluster su router policy + weight matching + freq-weighted avg | [V] arXiv:2310.01334 · GitHub `UNITES-Lab/MC-SMoE` |
-| **HC-SMoE** | task-agnostic, no FT dichiarato | hierarchical clustering su activation vectors | batte frequency/output prune su MC-QA | [V] citato in REAP html 2510.13999v2; Chen et al. 2024/2025 |
-| **Sub-MoE** | no FT (opz +FT) | SVD subspace merge | riduce parameter conflict; AAAI-era 2025 | [V] arXiv:2506.23266 |
-| **EEP** | evolutionary fusion | — | — | citato secondario |
-| **REAP** (confronto) | one-shot prune | — | **pruning batte merging** su generative @50% | [V] arXiv:2510.13999 |
+**Curve qualità tipiche (letteratura):**
 
-### 3.3 Riduce i FLOP attivi?
+- Score-only aggressivo → crollo accuracy (AdapMoE confronta esplicitamente).  
+- Sensitivity-calibrated ~−25% activation a parity accuracy (Mixtral).  
+- **Curve PPL vs thr su qwen35moe: NON TROVATO** fuori dai nostri esperimenti drop-cold miss-only.
 
-**Parzialmente / spesso no in modo diretto.**  
-- Pool 256→128: se k resta 6, i FLOP per token **restano ~uguali** (6 expert GEMV).  
-- Beneficio reale nostro: hit rate cache ↑, miss I/O ↓ — ma siamo **compute-bound** (I/O solo 20%) → ceiling ~+5% e2e se si azzerasse l’I/O, allineato a “REAP +0–5% non paga”.  
-- Se merge + si abbassa k perché il router ha meno scelte distinte: possibile ma **NON TROVATO** claim pulito “merge ⇒ k↓ automatico”.
+**Riduce FLOP attivi?** **Sì** — è esattamente l’obiettivo (a differenza del drop-cold che su hit-rate 76–80% droppa poco compute: solo miss leggeri).
 
-### 3.4 Applicabilità + costo
+**Calcolo rough nostro:** a hit 78%, drop-cold 0.65 droppa ~5% delle selezioni (griglia speed).  
+Drop-by-weight può droppare anche i ~78% hit se weight basso → potenziale 3–5× più skip di matmul rispetto a miss-only, a parità di thr.
 
-- One-shot merge su GGUF streaming: **tooling parziale** (HF/PyTorch MC-SMoE/Sub-MoE); pipeline verso GGUF IQ2 + fork stream **non standard**.
-- RunPod: merge one-shot su Q8/BF16 35B = ore su 1×A100-class per calib+merge; recovery LoRA se serve = decine di GPU-h.
-- Per velocità decode CPU: **scarso ROI** dato compute-bound + k fisso.
+**Stima e2e:**  
+- se skip medio 1/6 esperti: \(g=1.2\) → **+7%** (~6.3 t/s)  
+- se skip medio 1.5/6: \(g=1.33\) → **+11%** (~6.5 t/s)  
+Gate qualità: ΔPPL decode ≤ budget cumulativo (leggere `PLAN`: ≤0.15 vs baseline **originale**, k6d065 ha già speso parte del budget — verificare headroom vs floor 2.0955: 1.852→max ~2.09 lascia ~0.24 di slack **vs floor prodotto**, ma il budget di campagna cumulativo va riletto prima di stackare leve).
 
-### 3.5 Verdetto area 3
-
-**ROSSO per speed-first** (ripete lezione REAP).  
-**GIALLO** solo se obiettivo diventa footprint flash/cache, non tok/s.
+**Training:** no.  
+**Tooling:** estensione 1 flag del fork esistente.  
+**Verdetto:** **VERDE** — massima densità valore/effort.
 
 ---
 
-## 4. Pruning strutturato DENTRO gli esperti (Wanda/SparseGPT-style one-shot)
+### 1.3 Expert merging (MC-SMoE e famiglia)
 
-### 4.1 Meccanismo
+**Meccanismo.** Allinea permutazioni neuronali, raggruppa esperti simili via routing logits, media pesata per frequenza di attivazione (M-SMoE); poi low-rank + sparse sui merged (MC-SMoE).
 
-Sparsità sui **pesi** FFN di ogni expert (non sul pool): Wanda = |W|⊙||X||; SparseGPT = Hessian update; MoE-Pruner aggiunge router weights al criterio.
+| | M-SMoE | MC-SMoE |
+|---|---|---|
+| pool | ↓ fino ~60% memoria | ↓ fino ~80% |
+| FLOP attivi a \(k\) fisso | **invariati** (stesso \(k\), esperti più “densi”) | **−~20% FLOP** dopo compress | 
+| training | post-merge **finetune + KD** per qualità piena; zero-shot possibile ma peggiore | idem + decomposizione |
+| riduce \(k\)? | **no** di per sé | no |
 
-### 4.2 Prior art MoE
+[V] Li et al. “Merge, Then Compress…”, arXiv:2310.01334 (2023-10), https://arxiv.org/abs/2310.01334 · code https://github.com/UNITES-Lab/MC-SMoE  
+Risultati tipici: switch-base-32, memory −60–80%, TFLOPs 4.65→3.83 (−18%), task score entro ~1 pt dopo KD.
 
-| Metodo | One-shot? | Healing? | Risultati chiave | Fonte |
-|--------|-----------|----------|------------------|-------|
-| **MoE-Pruner** | Sì (no weight update in prune step) | opz. expert-wise KD | batte SparseGPT/Wanda su Mixtral-8x7B/22B; recovery con KD multi-GPU | [V] arXiv:2410.12013 (2024-10-15) |
-| **MoE-I²** | inter-expert prune + intra low-rank | search genetico layer-wise | compressione size + un po’ compute | [V] arXiv:2411.01016 |
-| Wanda / SparseGPT generici | Sì | spesso FT | su dense LLM; su MoE inferiori a MoE-Pruner | [V] citati in 2410.12013 |
+**Applicabilità:** teorica su 256 esperti Qwen, ma:
 
-### 4.3 A 2–3 bpw regge?
+1. Merge offline su GGUF IQ2/KEXP: tooling **NON TROVATO** per GGUF MoE streaming.  
+2. Senza sparse/low-rank post-merge, **nessun guadagno decode** sul nostro Amdahl (stesso \(k\)).  
+3. Con compress −20% FLOP esperti: \(f=0.40\times0.20=0.08\) → \(S\approx1.04\) (**+4%**) se il kernel usa la forma compressa — **kernel IQ2+lowrank su ARM: NON TROVATO**.
 
-I nostri esperti sono già ~**2.4 bpw** effettivi (IQ2_XXS/IQ3_XXS) [V locale F0.6].  
-Letteratura MoE-Pruner lavora tipicamente su **BF16/FP16 o quant post-hoc moderata**, non su i-quant 2-bit già aggressivi.
-
-**A 50% weight-sparsity sopra IQ2:** **NON TROVATO** risultato pubblico su Qwen3.5-35B-A3B / Mixtral IQ2.  
-Aspettativa onesta [S]: a 2–3 bpw la qualità è già sul ginocchio; ulteriore 50% unstructured sparsity **senza healing** rischia collasso PPL; con healing (KD) serve multi-GPU pesante (paper: 2×8 H100, 3 epoch).
-
-### 4.4 FLOP attivi a inferenza?
-
-Unstructured sparsity **non accelera** GEMV CPU/llama.cpp senza kernel sparse dedicati (e i-quant sparse è un incubo).  
-Structured (N:M, canale, low-rank MoE-I²): può ridurre matmul se il runtime supporta — **mainline/fork nostro: NON TROVATO supporto sparse-expert structured decode**.
-
-### 4.5 Verdetto area 4
-
-**ROSSO** per campagna edge one-shot no-heal a 2 bpw.  
-**GIALLO** solo se: (a) si riparte da Q4/Q5 expert, (b) structured sparsity + kernel, (c) budget RunPod KD — fuori scope “LoRA-light”.
+**Costo RunPod:** calib routing + merge + KD/LoRA su 35B MoE = **giorni–settimane** multi-GPU, non “LoRA-light weekend”.  
+**Verdetto:** **ROSSO** per velocità e2e ora; **GIALLO** solo se obiettivo futuro è footprint flash/pool (già coperto da REAP con +0–5% speed).
 
 ---
 
-## 5. Sparsità di attivazione runtime DENTRO gli esperti attivi
+### 1.4 Pruning strutturato DENTRO gli esperti (Wanda/SparseGPT-style, one-shot)
 
-### 5.1 Distinzione critica
+**Meccanismo.** Pruna pesi FFN di ogni esperto con metrica \(|W|\cdot\|x\|\) (Wanda) o Hessian (SparseGPT); MoE-Pruner moltiplica anche i **router weights**.
 
-- **Chiuso in campagna:** predittore **cross-layer** prefetch (Recall@8 19%).  
-- **Questa area:** neuron-level **dentro** l’expert già selezionato (gate→mask→skip up/down), stile Deja Vu / PowerInfer / CATS / TEAL, ma su SwiGLU MoE.
+[V] MoE-Pruner, arXiv:2410.12013 (2024-10-15) https://arxiv.org/abs/2410.12013  
+- One-shot, no weight update.  
+- Mixtral-8×7B WikiText PPL @50% sparse: dense 3.84 → MoE-Pruner **4.68** / Wanda 4.97 / SparseGPT 4.99.  
+- “99% performance” **dopo** expert-wise KD — one-shot nudo **non** è free.  
+- 2:4 semi-structured: peggioramento PPL più grosso ma accelerabile su GPU Ampere+.
 
-### 5.2 SwiGLU: esiste qualcosa di praticabile?
+**A 2–3 bpw (nostro regime IQ2 ~2.4 bpw esperti):**  
+**NON TROVATO** paper che dimostri Wanda/SparseGPT *sopra* quantizzazione i-quant già aggressiva su MoE edge.  
+Rischio: doppia sparsità (peso zero + quant low-bit) → collasso o guadagno nullo perché il kernel IQ2 non salta gli zeri non strutturati.
 
-**Sì — evidenza forte 2025–2026, incluso sul nostro stesso modello famiglia.**
+**Riduce FLOP attivi?** Solo con **kernel sparse**. Su CPU ARM + GGUF i-quant: sparse unstructured ≈ **nessun speedup** (spesso slowdown). 2:4 su Adreno/CPU: **NON TROVATO** path maturo in llama.cpp per esperti MoE.
 
-| Metodo | Training? | SwiGLU? | Risultato | Fonte |
-|--------|-----------|---------|-----------|-------|
-| **CATS** | opz. light | Sì (gate thresh → sparse up/down) | sparsifica Gate-MLP | [V] arXiv:2404.08763 · GitHub `ScalingIntelligence/CATS` |
-| **TEAL** | No | Sì (magnitude su hidden) | 40–50% model-wide act-sparsity; 1.53–1.8× single-batch decode (GPU kernels) | [V] arXiv:2408.14690 · GitHub `FasterDecoding/TEAL` |
-| **Intra-expert MoE sparsity (Park et al.)** | No | Sì | **fino a 90%** sparsity intra-expert a 95% score retention; **Qwen3.5-35B-A3B cutoff ~84.5%**; MoE layer 1.5–2.5×, e2e **1.2×** su vLLM GPU | [V] arXiv:2605.08575 (2026-05-09) |
-| Deja Vu / PowerInfer | predittori / ReLU-oriented | storico ReLU; PowerInfer-2 smartphone ma **codice Android pubblico limitato** | — | [V] Deja Vu ICML 2023; PowerInfer arXiv:2312.12456 |
+**Stima e2e onesta:** \(g_{\text{reale}}\approx 1.0\)–1.05 senza kernel → **+0–2%**. Con kernel ideale 50%: +25% teorico — **non realistico** sul nostro stack in settimane.
 
-### 5.3 Dettaglio oro: arXiv:2605.08575 su Qwen3.5-35B-A3B
-
-- Stesso stack architetturale del nostro target (256E, top-8, shared, FFN dim 512) [V].
-- Sparsity **senza modificare pesi né activation function**: rank neuron per |activation| post-SwiGLU, zero bottom-p.
-- Shared expert: **non toccare** (alto impatto accuracy); routed: sparsi.
-- Istogramma expert0/layer0: ~55% attivazioni già ~0; coda lunga.
-- Implementazione vLLM: gate dense + mask O(n) threshold + fused sparse up-down; batch size decode piccolo = sweet spot.
-- e2e GPU: **1.1–1.2×** (Amdahl: MoE ~45% wall nel loro setup → coerente).
-
-### 5.4 Stima e2e sui NOSTRI numeri
-
-Ammesso 70% sparse su up+down (conservativo vs 84% paper), gate dense:
-
-\[
-r_{\mathrm{expert}} \approx \tfrac13 + \tfrac23\cdot 0.30 = 0.533
-\]
-\[
-S = 1/(0.60 + 0.40\cdot 0.533) = 1.235 \;\Rightarrow\; +23.5\%\ \mathrm{[S]\ teorico}
-\]
-
-**Realised su Snapdragon 8 Gen 2 / llama.cpp IQ2:** **NON TROVATO**.  
-Rischi: (1) kernel sparse su i-quant non esistono; (2) dequant+gather può costare più del dense IQ2 GEMV; (3) expert FFN dim=512 è piccolo → overhead mask alto.  
-**Ipotesi onesta [S]:** g realistico **0.9–1.15×** finché non c’è un kernel sparse i-quant; a FP16/Q4 su GPU mobile sarebbe un altro discorso (e OpenCL è morto per noi).
-
-### 5.5 Costo
-
-- Calibrazione threshold: un pass, no training [V] 2605.08575.  
-- Porting: **alto** (kernel CPU o quant path nel fork).  
-- RunPod: non necessario per la misura accuracy offline (PyTorch); sì se si vuole prototipare kernel CUDA di riferimento.
-
-### 5.6 Verdetto area 5
-
-**GIALLO** (scientificamente VERDE su GPU/vLLM e sul nostro modello; **ingegneristicamente rischioso** su CPU IQ2 edge).  
-Fail-fast: prima misurare **PPL vs sparsity** in offline PyTorch/HF sul Qwen3.5-35B (o proxy), **senza** kernel; se il ginocchio è ≥50% a ΔPPL budget, solo allora investire kernel.
+**Costo:** calib GPU + export GGUF custom + eventuale KD.  
+**Verdetto:** **ROSSO** (one-shot senza kernel non paga velocità; con healing diventa progetto grande).
 
 ---
 
-## 6. Layer-level: mixture-of-depths, layer skip, early exit
+### 1.5 Sparsità di attivazione runtime DENTRO gli esperti attivi (≠ predittore cross-layer)
 
-### 6.1 Prior art
+**Meccanismo.** Dopo (o prima) del matmul, azzera attivazioni a bassa magnitudine e salta canali di peso (Deja Vu su ReLU; CATS/TEAL su SwiGLU training-free).
 
-| Metodo | Training? | MoE-specific? | Inference-only regge? | Fonte |
-|--------|-----------|---------------|----------------------|-------|
-| **LayerSkip** | Sì (layer dropout + early-exit loss) | No (dense Llama) | No senza recipe di training | [V] arXiv:2404.16710 · Meta |
-| **Mixture-of-Depths** (Raposo et al.) | Training | No | No | classico 2024 |
-| **PoLar** program-of-layers | predictor leggero (~2M) FT | testato anche Qwen1.5-MoE | predictor train, base frozen | [V] arXiv:2606.06574 (2026-06) |
-| Early exit classico | di solito head per layer o shared head + train | — | senza train: collasso | survey |
+| metodo | ReLU-free? | training? | speedup reportato | fonte |
+|---|---|---|---|---|
+| Deja Vu | no (ReLU OPT) | predittore aux | ~2× OPT-175B GPU | [V] Liu et al. 2023 |
+| CATS | sì (gate SiLU thr) | free o finetune | ~25% model-wide sparse | Lee et al. 2024 (cit. TEAL) |
+| **TEAL** | sì, magnitude su **tutte** le matrici | **training-free** calib soglie | 40–50% sparse, **1.53–1.8×** decode GPU | [V] arXiv:2408.14690 (2024-08), https://arxiv.org/abs/2408.14690 · https://github.com/FasterDecoding/TEAL |
+| ReLUfication / ProSparse | forza ReLU | **pretrain continuo** 10¹¹ token | alta sparse | Mirzadeh/Song et al. |
 
-### 6.2 Senza training su MoE: ha mai reggiuto?
+**Su SwiGLU:** sì, TEAL/CATS funzionano training-free su LLaMA/Mistral.  
+**Su MoE esperti:** **NON TROVATO** paper TEAL-inside-MoE-experts su 256-exp edge; in teoria applicabile a gate/up/down di ogni esperto attivo.
 
-**Essenzialmente no per speedup utile.**  
-- LayerSkip richiede continual pretrain / recipe dedicata [V] 2404.16710.  
-- PoLar: training-free *existence* di programmi skip/loop, ma per usarli serve un predictor addestrato [V] 2606.06574.  
-- Skip grezzo di layer N su modello pretrain **senza** early-exit training: **NON TROVATO** paper MoE che mostri ΔPPL accettabile a ≥20% layer skip.
+**Perché da noi è debole:**
 
-### 6.3 Stima e2e
+1. Intermediate expert dim **512** (gguf-dump) — sparse GEMV su 512 con overhead mask su CPU spesso non ripaga sotto ~50–60% sparse.  
+2. Pesi già IQ2: kernel sparse+quant **assente** nel fork.  
+3. TEAL speedup è **memory-bound GPU decode**; noi siamo **compute-bound CPU** con I/O 20% — il modello di guadagno non si trasferisce 1:1.  
+4. Prefetch cross-layer neuron-level già **morto** (Recall@8 19%); questa è *intra*-expert, diversa, ma condivide il problema kernel.
 
-Se magicamente si skippasse 20% dei layer MoE (r_layer_compute≈0.8 sul 80% non-I/O):
-
-\[
-S \approx 1/(0.20 + 0.80\cdot 0.8) = 1.19 \;\Rightarrow\; +19\%\ \mathrm{[S]}
-\]
-
-Ma qualità: attesa catastrofica senza training → **non spendibile**.
-
-### 6.4 Verdetto area 6
-
-**ROSSO** per vincolo no-pretraining / solo LoRA-light.  
-PoLar-predictor: **GIALLO costoso** (FT predictor su RunPod, integrazione fork non banale, hybrid GDN layers complicano lo skip).
+**Stima e2e:** senza kernel, **~0%**. Con kernel magico 40% sparse solo su half del GEMV esperti: \(f\approx0.16\), \(g=1.4\) → \(S\approx1.05\) (**+5%**).  
+**Verdetto:** **ROSSO** ora; riaprire solo se esiste sparse-IQ GEMV ARM misurato g>1.15.
 
 ---
 
-## 7. Router tricks e edge MoE 2025–2026
+### 1.6 Layer-level: Mixture-of-Depths, layer skip, early exit
 
-### 7.1 Fast-path shared-expert-only per token “facili”
+| metodo | training? | note | fonte |
+|---|---|---|---|
+| Mixture-of-Depths | **sì** (router per layer, train) | token salta FFN | Raposo et al. 2024 arXiv:2404.02258 |
+| LayerSkip | **sì** (layer dropout + early exit loss; cont. pretrain) | early exit + self-speculative | [V] arXiv:2404.16710 (2024-04) |
+| Early exit naive su checkpoint stock | **no** | qualità tipicamente crolla | letteratura consensa: senza training non regge |
 
-Idea: se router confidente o entropia bassa, esegui **solo shared expert** (skip tutti i routed).
+**Senza training è mai regato?**  
+Evidenza primaria di early-exit/MoD **training-free** su MoE LLM a qualità produttiva: **NON TROVATO**.  
+LayerSkip e MoD richiedono ricette di training esplicite.
 
-Evidenza correlata:
-- Shared expert ha impatto per-neuron **molto più alto** dei routed [V] 2605.08575 §3.2.  
-- AdapMoE/NAEE riducono routed count ma **non** documentano path “shared-only” esplicito su Qwen3.5.  
-- AdaMoE/MoE++/LongCat: **null / zero-computation experts** nel pool di routing (serve train) [V] 2406.13233, MoE++ ICLR 2025 arXiv:2410.07348.
+**Stima e2e se 25% layer FFN skippati (post-train ideale):** frazione esperti skippata ~0.25×0.40 = 0.10 → \(S\approx1.05\) (**+5%**) se residual path corretto; su ibrido GDN+attention Qwen3.6 i layer non sono omogenei → rischio alto.
 
-**Shared-only fast-path one-shot su Qwen35:** **NON TROVATO** come tecnica pubblicata con numeri.  
-Plausibile come estremo del drop-by-weight (k_eff=0 routed) ma qualità da misurare; shared alone su token difficili degrada.
-
-### 7.2 Altri router / edge acceleration 2025–2026
-
-| Idea | Training | Speed? | Note |
-|------|----------|--------|------|
-| LExI layer-adaptive k | No | Sì compute | [V] 2509.02753 |
-| AdapMoE full system | calib | 1.35× (offload-bound!) | noi non siamo offload-GPU-bound allo stesso modo |
-| Intra-expert act sparsity | No | 1.2× e2e GPU | [V] 2605.08575 |
-| BEAM binary expert masks | train | dynamic | [V] arXiv:2605.14438 |
-| ProbMoE | train | — | [V] 2606.01509 |
-| Survey inference opt MoE | — | panoramica | ACM 2026 survey (MC-SMoE, HC-SMoE citati) |
-
-### 7.3 Verdetto area 7
-
-**GIALLO:** LExI e drop-by-weight sono le uniche router-side **subito** actionable.  
-Shared-only: esperimento gratis da accorpare al drop-by-weight (τ estremo) ma non come feature separata prioritaria.
+**Costo:** cont. pretrain / distill multi-GPU = fuori scope “LoRA-light”.  
+**Verdetto:** **ROSSO**.
 
 ---
 
-## 8. Tabella sintesi × criteri
+### 1.7 Router tricks & survey edge 2025–2026
 
-Criteri: **FLOP attivi↓**, **training**, **tooling pubblico**, **qwen35/3moe**, **e2e [S] su nostri numeri**, **costo**, **verdetto fattibilità nostra** (fork CPU + metro PPL + RunPod LoRA-light ok).
+**Shared-expert-only fast path.**  
+Qwen35moe ha **1 shared + k routed**. Idea: token “facili” → solo shared (o shared + top-1).  
 
-| # | Tecnica | FLOP↓ | Training | Tooling | Applic. Qwen* | e2e Δ tok/s [S] | Costo | Verdetto |
-|---|---------|-------|----------|---------|---------------|-----------------|-------|----------|
-| 1a | Drop-by-weight / NAEE-like skip | Sì | No (calib) | paper+idea; da implementare | Alta (k=6/8) | +3–11% | basso (giorni fork) | **VERDE** |
-| 1b | AdapMoE sensitivity gate | Sì | Offline Fisher | GitHub AdapMoE (CUDA/edge) | Media (port) | +8–12% | medio | **GIALLO** |
-| 1c | LExI k per layer | Sì | No data-free | paper 2025 | Alta | +5–12% (se avg k↓) | basso–medio | **VERDE** |
-| 1d | Ada-K / DynMoE | Sì | FT / train | parziale | Media | +10–20% lit. | RunPod FT | **GIALLO** |
-| 1e | AdaMoE null experts | Sì | FT arch | paper | Bassa w/o retrain | — | alto | **ROSSO** |
-| 2 | Drop-by-weight (nostra def.) | Sì | No | nostro fork | Nativa | +3–11% | basso | **VERDE** |
-| 3 | Expert merging MC/HC/Sub-MoE | Debole se k fisso | one-shot ±FT | GitHub MC-SMoE, Sub-MoE | Media (GGUF hard) | ~0–5% (I/O) | medio–alto | **ROSSO** speed |
-| 4 | Wanda/SparseGPT/MoE-Pruner weight | Teorico | one-shot; heal costoso | paper | Bassa @2bpw | ~0 senza kernel | alto heal | **ROSSO** |
-| 5a | Intra-expert act sparsity (2605.08575) | Sì | No | vLLM patch paper; no llama.cpp | **Alta** (stesso modello) | teor +15–25%; real CPU **?** | alto kernel | **GIALLO** |
-| 5b | TEAL/CATS dense-style | Sì | No / light | GitHub TEAL/CATS | Media | GPU 1.5–1.8× lit. | alto port | **GIALLO** |
-| 6 | Layer skip / MoD / LayerSkip | Sì | **Sì** | LayerSkip Meta | Bassa w/o train | — | pretrain | **ROSSO** |
-| 6b | PoLar predictor | Sì | FT 2M | paper 2026 | Media | TBD | medio RunPod | **GIALLO** |
-| 7 | Shared-only easy tokens | Sì estremo | No | — | Da misurare | +α se frazione easy alta | basso trial | **GIALLO** |
-| — | k statico=5 | Sì | No | già nel fork | Nativa | +7% Amdahl | zero | **GIALLO*** |
-| — | k6 + drop-cold (status quo) | parziale | No | vivo | Nativa | baseline 5.86 | — | **LIVE** |
+- Architetturalmente sensata (DeepSeek/Qwen shared path).  
+- **ZEDA** (2026): inietta zero-experts + self-distill post-train → −50% expert FLOP, ~1.20× su Qwen3-30B-A3B [V] arXiv:2605.18643.  
+- Heuristica training-free “se entropy router alta → k=0 routed”: **NON TROVATO** paper con ΔPPL accettabile su modelli stock.
 
-\*k=5 statico: storicamente **morto** su IQ2 (ΔPPL); su KEXP non ricalibrato in griglia adopt — va rimisurato ma non è “gratis qualità”.
+**Stima e2e se 20% token solo-shared (k_routed=0):** risparmio \(0.20\times0.40=0.08\) → **+8.7%** se qualità tiene.
+
+**Altri edge MoE 2025–26 (cenni, non leve compute pure):**
+
+- **Fate** offload edge [V] arXiv:2502.12224 — I/O/offload, non il nostro collo.  
+- **AdapMoE** — già §1.1.  
+- Survey dinamici: HF blog Spico 2026-02-26 (secondario) cataloga threshold / proposer / null-experts.
+
+**Verdetto shared-only training-free:** **GIALLO** (spike euristico barato; aspettativa qualità bassa).  
+**Verdetto ZEDA-style:** **GIALLO** (paga FLOP, ma serve distill RunPod su 30B-class — ordine giorni multi-GPU, non free).
 
 ---
 
-## 9. Shortlist 1–3 + disegni fail-fast
+## 2. Tabella tecniche × criteri
 
-### Shortlist
+Legenda verdetto: **VERDE** = fail-fast ≤1–2 sett, fit fork CPU + metro PPL; **GIALLO** = possibile ma dipendenze/kernel/training; **ROSSO** = non batte costo o non riduce compute attivo sul nostro silicio.
 
-1. **Drop-by-weight runtime** (estensione drop-cold → anche cache-hit) ± soglia per-layer  
-2. **LExI-style k statico per layer** (profilo k_ℓ data-free o da calib PPL)  
-3. **Intra-expert activation sparsity — solo misura qualità offline** (gate go/no-go kernel)
-
-*(Merging, weight-prune 2bpw, layer-skip train-free: esclusi dalla shortlist.)*
-
----
-
-### FF-1 — Drop-by-weight (priorità 1)
-
-| Campo | Valore |
-|-------|--------|
-| **Ipotesi** | Tra i top-k router, i expert con peso relativo basso contribuiscono poco: skipparli riduce GEMV a ΔPPL ≤ budget |
-| **Implementazione min** | Post-`top-k`, mask se \(w_i < \tau \cdot w_{(1)}\) **oppure** se massa cumulativa top-j ≥ ρ; applicare **anche se expert in cache**; log `n_dropped_weight` |
-| **Dove gira** | S23, bin CAMPAIGN, KEXP, cfg base k6d065 |
-| **Metro** | `--ppl-decode` corpus_subset_10k; speed n=200 staccato unplugged (stesso protocollo kexp grid) |
-| **Griglia τ/ρ** | 3–5 punti (blando→aggressivo) + cella control |
-| **Gate GO** | ΔPPL ≤ 0.08 vs k6d065 **e** Δ tok/s ≥ +4% mediano per-prompt (non solo pooled) |
-| **Gate NO-GO** | ΔPPL > 0.10 **oppure** speed < +2% (rumore) |
-| **Costo** | 0 RunPod; ~0.5–1 giorno fork + 1 sessione telefono (~2–3 h wall PPL+speed) |
-| **Abort** | se a τ che dà +4% speed già PPL > floor 2.0955 |
+| # | tecnica | ↓ FLOP attivi? | training | tooling pubblico | qwen35/3moe | stima e2e (Amdahl \(f{=}0.4\)) | costo nostro | verdetto |
+|---|---|---|---|---|---|---|---|---|
+| 1a | top-p / thr router training-free | sì | no (+calib opz.) | patch | sì | +7–11% se \(k_{\text{eff}}\) 5–4.5 | ore–giorni device | **VERDE** |
+| 1b | AdapMoE sensitivity | sì | offline Fisher only | GitHub GPU-centric | sì in principio | +11% (non 1.35×) | 1–3 g RunPod + port | **GIALLO** |
+| 1c | Ada-K / DynMoE / null-exp train | sì | sì light–full | paper code | sì | +10–20% lit. | giorni–sett. | **GIALLO** |
+| 2 | **drop-by-weight (hit+miss)** | **sì** | **no** | **fork flag** | **sì** | **+7–14%** | **1–3 g** | **VERDE** |
+| 3 | MC-SMoE merge | no (solo pool) | FT+KD | UNITES-Lab | difficile GGUF | ~0% speed | alto | **ROSSO** |
+| 3b | MC-SMoE + compress | sì ~20% exp | FT+KD | idem | kernel? | ~+4% se kernel | molto alto | **ROSSO** |
+| 4 | Wanda/MoE-Pruner 50% | solo con sparse ker | one-shot; KD per recovery | paper | sì teorico | ~0% senza ker | medio | **ROSSO** |
+| 5 | TEAL/CATS act-sparse in expert | sì teorico | calib free | TEAL GPU Triton | SwiGLU ok | ~0–5% CPU IQ2 | alto (kernel) | **ROSSO** |
+| 6 | MoD / LayerSkip / early exit | sì se train | **sì** | limitato | ibrido rischioso | +5% ideale | alto | **ROSSO** |
+| 7a | shared-only euristico | sì | no | patch | sì (ha shared) | +5–9% se 15–20% token | basso | **GIALLO** |
+| 7b | ZEDA post-train dynamic | sì −50% exp FLOP | self-distill | TsinghuaC3I/ZEDA | Qwen3-30B affine | ~+15–20% teor. su f=0.4→0.2 | multi-GPU | **GIALLO** |
+| — | k statico 5 (già in faretra) | sì | no | flag | sì | **+7%** | ore | **VERDE** ma qualità da ri-misurare su KEXP |
+| — | drop-cold miss-only (posseduto) | poco (hit alti) | no | flag | sì | già in baseline | — | **adottato** |
+| — | REAP pool prune | no/poco | one-shot | nostro | sì | +0–5% | fatto | **chiuso** |
 
 ---
 
-### FF-2 — LExI-like k per layer (priorità 2)
+## 3. Shortlist 1–3 + disegni fail-fast
 
-| Campo | Valore |
-|-------|--------|
-| **Ipotesi** | Layer non equi-sensibili: assegnare k alto agli early / basso ai late riduce avg experts/token a iso-PPL meglio di k globale |
-| **Implementazione min** | Tabella `k[layer]` (40 entry) da: (a) euristica monotona, o (b) greedy calib offline su proxy loss; flag `--n-expert-used-per-layer` |
-| **Vincolo** | media_k ≈ 5.0–5.5 per confrontare con k=5 flat |
-| **Metro** | stesso PPL decode + speed |
-| **Gate GO** | PPL ≤ PPL(k=5 flat) − 0.05 **e** speed ≥ speed(k=5) − 1% |
-| **Gate NO-GO** | non batte k=5 flat su Pareto PPL–speed |
-| **Costo** | 1–2 giorni fork + calib PC; 1 sessione phone |
-| **Nota** | se FF-1 già dà +8% a budget, FF-2 può essere **composito** (k_ℓ max + drop-by-weight) |
+### Shortlist A — Drop-by-weight (estende drop-cold agli HIT)  ★ priorità 1
 
----
+**Perché.** Unica leva che (1) attacca direttamente \(f_{\text{exp}}=0.40\), (2) riusa scorer/thr già in binario, (3) non dipende da kernel nuovi, (4) è strettamente più forte del miss-only a hit 76–80%.
 
-### FF-3 — Intra-expert act sparsity qualità-only (priorità 3, no kernel finché gate)
+**Disegno fail-fast**
 
-| Campo | Valore |
-|-------|--------|
-| **Ipotesi** | Come [V] 2605.08575, Qwen3.5-35B regge ~70–85% sparsity routed-neuron a ~95% score; sul **nostro** path quant+decode serve curva PPL |
-| **Implementazione min** | Script HF/PyTorch (PC o RunPod 1×GPU): forward con mask bottom-p \|act\| su expert routed; **non** serve S23 |
-| **Punti p** | 0, 30, 50, 70, 85% |
-| **Metro** | PPL o bpb su stesso corpus; opz. subset task |
-| **Gate GO kernel** | a p≥50%, ΔPPL ≤ 0.10 vs dense-act **sullo stesso checkpoint quant** |
-| **Gate NO-GO** | già a p=30% ΔPPL > 0.15 → abbandonare path kernel CPU |
-| **Costo** | 0–1 giorno script; RunPod opz. ~\$ pochi se non entra in VRAM locale |
-| **Se GO** | spike kernel CPU separato (settimane) — **non** automatico |
+| | |
+|---|---|
+| **dove** | S23, bin CAMPAIGN, KEXP, cfg base **k=6 drop-cold off o 0** (isolare la leva), poi stack su d065 |
+| **cosa** | nuovo flag es. `--drop-by-weight F` o estendere drop-cold con `drop_resident=true`: drop se weight < thr ∧ non-top, **indipendente da residency** |
+| **celle** | thr ∈ {0.5, 0.65, 0.80} × (1/k) come drop-cold; n_token PPL-decode corpus_subset; speed n=200 staccato 2 prompt × 2 rep |
+| **gate GO** | (1) med tok/s ≥ **+5%** vs k6d065 (≈6.15); (2) PPL ≤ **min(floor 2.0955, budget cumulativo campagna)**; (3) nessuna regressione output smoke |
+| **gate NO-GO** | Δspeed < 3% **oppure** PPL > floor **oppure** thr che droppa >40% slot senza +speed (overhead renorm) |
+| **costo** | 1–2 g implement + 0.5 g misura device |
+| **Amdahl target** | \(k_{\text{eff}}\approx 5\) → +7% |
 
----
+### Shortlist B — k dinamico training-free (top-p / max-k + thr)  ★ priorità 2
 
-## 10. Onestà finale
+**Perché.** Complementare ad A: invece di thr assoluto, top-p cumulativo (Huang) o “primo esperto se \((1-\alpha)^2 S_{\ell} \le T\)” (AdapMoE semplificato). Meglio del k=5 statico se la massa di probabilità è speso nei top-1/2 su molti token.
 
-### Cosa batte davvero “k=5 + drop-by-weight”?
+**Disegno fail-fast**
 
-**Quasi nulla di pronto e one-shot** batte la coppia:
+| | |
+|---|---|
+| **dove** | stesso device; **solo host-side simulazione prima** se c’è `--route-trace`: replay thr/top-p su trace esistenti → stima \(k_{\text{eff}}\) e proxy qualità **senza** rebuild (se il metro PPL richiede forward vero, skip a on-device) |
+| **cosa** | `k_max=6`, attiva esperti ordinati finché Σw ≥ p con p∈{0.85,0.90,0.95} **oppure** skip slot se w < τ·w₁ |
+| **gate GO** | \(k_{\text{eff}} \le 5.2\) **e** PPL entro budget **e** speed ≥ k6d065 +4% |
+| **gate NO-GO** | \(k_{\text{eff}}\) non scende (<3% skip) **o** PPL rompe prima che speed paghi |
+| **costo** | 1 g patch + 1 g misura; opz. Fisher calib RunPod se score-only fallisce (AdapMoE) |
+| **Amdahl** | come tabella §0 |
 
-1. **Drop-by-weight** (calcolo) — validato in letteratura come NAEE/AdapMoE adaptive gating, zero retrain, effort basso, Amdahl +3–11%.  
-2. **k ridotto** (statico o LExI per-layer) — Amdahl +7% da 6→5; LExI può dare lo stesso compute medio con **migliore** PPL di un k=5 piatto.
+### Shortlist C — k=5 statico (già in faretra)  ★ priorità 0.5 / controllo
 
-**Intra-expert activation sparsity** è l’unica leva 2026 con claim **forte e sul nostro modello** (+1.2× e2e GPU, fino a 84% sparsity) [V] 2605.08575 — ma sul **nostro** stack (CPU, IQ2, llama.cpp stream) il realised speedup è **non dimostrato** e il costo kernel è un ordine di grandezza sopra drop-by-weight. Va trattata come **opzione di ricerca secondaria** dopo il fail-fast qualità.
+**Perché.** Costo quasi zero (`--n-expert-used 5`). Storicamente **morto** su IQ2 (ΔPPL +2.56); su **KEXP** non è stato ri-grigliato come cella speed ufficiale (griglia aveva k6/k7/k8). Serve come **baseline onesta** contro A/B: se k=5 statico ha già +7% a PPL viva, A/B devono batterlo in **pareto** (stessa speed, PPL migliore — o stessa PPL, speed migliore).
 
-**Non spendere** (ripetizione lezioni campagna):
-- expert merging / REAP-style pool prune per la velocità;
-- Wanda dentro expert a 2 bpw senza heal;
-- layer skip train-free;
-- null-expert / DynMoE full train;
-- OpenCL / ik (già chiusi).
+**Disegno fail-fast**
 
-### Raccomandazione operativa
+| | |
+|---|---|
+| **dove** | S23 KEXP k=5 drop 0.65 e drop 0 |
+| **gate GO qualità** | PPL ≤ floor 2.0955 (e budget campagna) |
+| **gate GO speed** | med ≥ 6.15 (+5%) |
+| **NO-GO** | PPL morta come storico → non adottare; resta solo controllo per A/B |
+| **costo** | <0.5 g (solo misura) |
 
-```
-Ordine:  FF-1 drop-by-weight  →  (se margine qualità) FF-2 LExI k_ℓ
-         →  FF-3 curva act-sparsity offline
-         →  solo se FF-3 GO: design kernel (mandato separato)
-```
+### Non in shortlist (esplicitamente)
 
-Se FF-1 a budget qualità non supera **+4% tok/s**, la campagna compute ha un soffitto strutturale vicino al plateau attuale (~5.9 tok/s): le leve residue o sono **training-heavy** o **kernel-heavy**, non “un flag e una soglia”.
+- MC-SMoE, Wanda/TEAL senza kernel ARM, MoD/LayerSkip, REAP (già chiuso), OpenCL, ik.
+
+### Se serve un “piano B” post shortlist (non shortlist ora)
+
+**ZEDA / Ada-K LoRA-light** su RunPod se A+B+C non battono il pareto. Aspettativa letteratura: −30–50% expert FLOP a qualità tenuta **dopo** distill — costo multi-giorno, non fail-fast device.
 
 ---
 
-## 11. Fonti primarie (URL + data accesso concettuale 2026-08-11)
+## 4. Onestà finale
 
-| ID | Risorsa | URL | Data paper/ver |
-|----|---------|-----|----------------|
-| V1 | AdapMoE | https://arxiv.org/abs/2408.10284 | 2024-08-19; ICCAD’24 |
-| V2 | AdapMoE code | https://github.com/PKU-SEC-Lab/AdapMoE | crawl 2026 |
-| V3 | NAEE | https://arxiv.org/abs/2402.14800 | 2024-02; ACL 2024 |
-| V4 | NAEE code | https://github.com/lucky-lance/expert_sparsity | — |
-| V5 | LExI | https://arxiv.org/abs/2509.02753 | 2025-09-02 |
-| V6 | DynMoE | https://github.com/LINs-lab/DynMoE · ICLR 2025 | 2025 |
-| V7 | AdaMoE null | https://arxiv.org/abs/2406.13233 | 2024-06-19 |
-| V8 | MC-SMoE | https://arxiv.org/abs/2310.01334 · https://github.com/UNITES-Lab/MC-SMoE | 2023/ICLR’24 |
-| V9 | Sub-MoE | https://arxiv.org/html/2506.23266v1 | 2025-06-29 |
-| V10 | MoE-Pruner | https://arxiv.org/abs/2410.12013 | 2024-10-15 |
-| V11 | MoE-I² | https://arxiv.org/abs/2411.01016 | 2024-11-01 |
-| V12 | REAP | https://arxiv.org/html/2510.13999v2 | 2025/2026 |
-| V13 | Intra-expert MoE sparsity | https://arxiv.org/abs/2605.08575 | 2026-05-09 |
-| V14 | CATS | https://arxiv.org/abs/2404.08763 · https://github.com/ScalingIntelligence/CATS | 2024-04 |
-| V15 | TEAL | https://arxiv.org/abs/2408.14690 · https://github.com/FasterDecoding/TEAL | 2024-08 |
-| V16 | LayerSkip | https://arxiv.org/abs/2404.16710 | 2024-04 |
-| V17 | PoLar | https://arxiv.org/html/2606.06574v1 | 2026-06-04 |
-| V18 | MoE++ | https://arxiv.org/abs/2410.07348 · https://github.com/SkyworkAI/MoE-plus-plus | ICLR 2025 |
-| V19 | Harder Tasks Need More Experts | https://arxiv.org/abs/2403.07652 | 2024-03 |
-| V20 | Ada-K overview | https://huggingface.co/blog/Spico/dynamic-routing | 2026-02-26 |
+**Nulla nella letteratura 2024–2026 dimostra un free lunch che batta chiaramente la coppia “k ridotto (statico o dinamico) + drop-by-weight” sul nostro vincolo (CPU ARM, GGUF i-quant, compute-bound, no pretrain, metro PPL).**
 
-**Locale (Amdahl inputs, non web):** `PLAN.md` STATO CORRENTE; `reports/moe-adopt-kexp.md`; mandato numeri GEMV~40% / I/O~20%.
+- I grandi numeri pubblicati (AdapMoE 1.35×, TEAL 1.5–1.8×, ZEDA 1.20×) vivono su **GPU**, spesso **I/O-bound offload**, o richiedono **distill/kernel** che qui non abbiamo.  
+- Trasposti con Amdahl \(f=0.40\), il ceiling onesto di leve “meno esperti attivi” è **+7–15%** decode, non +30–50%.  
+- Merge/pool-prune e sparsità peso **non** riducono i FLOP attivi senza compress+kernel.  
+- Activation sparsity SwiGLU **esiste** training-free (TEAL) ma **non** è pratica sul nostro path IQ2/CPU a expert_ffn=512.
+
+**Conclusione operativa:**
+
+1. **Eseguire C (k=5) + A (drop-by-weight) + B (top-p/thr)** in quest’ordine di costo.  
+2. Adottare la frontiera di pareto su (tok/s, PPL); se A o B dominano k=5 statico, bene — è il valore del dinamico.  
+3. Se **nessuna** passa i gate, **non** aprire cantieri MC-SMoE/Wanda/TEAL/MoD: il soffitto decode resta ~5.9–6.3 tok/s onesto finché non cambia silicio, quant+kernel, o si investe in ZEDA-scale distill.  
+4. **Sì: a oggi la coppia già in faretra “k=5 + drop-by-weight” è la scommessa corretta**; il resto è o già falsificato (REAP, ik, OpenCL) o troppo costoso per il Δ atteso.
+
+---
+
+## 5. Riferimenti primari (checklist)
+
+| id | titolo / artefatto | URL | data |
+|---|---|---|---|
+| [V] | AdapMoE | https://arxiv.org/abs/2408.10284 | 2024-08-19 |
+| [V] | AdapMoE code | https://github.com/PKU-SEC-Lab/AdapMoE | consultato 2026-08-11 |
+| [V] | Harder Tasks Need More Experts (top-p) | https://arxiv.org/abs/2403.07652 | 2024-03-12 |
+| [V] | DynMoE | https://github.com/LINs-lab/DynMoE | ICLR 2025 |
+| [V] | MC-SMoE | https://arxiv.org/abs/2310.01334 | 2023-10 |
+| [V] | MC-SMoE code | https://github.com/UNITES-Lab/MC-SMoE | consultato 2026-08-11 |
+| [V] | MoE-Pruner | https://arxiv.org/abs/2410.12013 | 2024-10-15 |
+| [V] | TEAL | https://arxiv.org/abs/2408.14690 | 2024-08 |
+| [V] | TEAL code | https://github.com/FasterDecoding/TEAL | consultato 2026-08-11 |
+| [V] | LayerSkip | https://arxiv.org/abs/2404.16710 | 2024-04 |
+| [V] | ZEDA | https://arxiv.org/abs/2605.18643 | 2026 |
+| [V] | ZEDA code | https://github.com/TsinghuaC3I/ZEDA | consultato 2026-08-11 |
+| [V] | Fate (edge offload) | https://arxiv.org/abs/2502.12224 | 2025-02 |
+| locale | KEXP adopt / speed | `reports/moe-adopt-kexp.md` | 2026-08-10 |
+| locale | STATO CORRENTE | `PLAN.md` | 2026-08-10 |
+
+**Secondari (non [V] per claim quantitativi):** HF blog Spico dynamic routing 2026-02-26 (survey didattico).
 
 ---
 
