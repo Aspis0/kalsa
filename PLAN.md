@@ -118,8 +118,20 @@
 - **I guardrail si cambiano per mandato, non a caldo in un retry** — anche quando la
   lettura tecnica è giusta. Firma RescueParty: MemFree ≪100 MiB **E** die 88-92 °C
   sostenuti per minuti (il telefono muore a ~90 sostenuti, non a 98).
-- **Budget qualità lossy CUMULATIVO**: ΔPPL ≤0.15 vs baseline originale, mai incrementale
-  per leva.
+- ~~**Budget qualità lossy CUMULATIVO**: ΔPPL ≤0.15 vs baseline originale~~
+  **OBSOLETA dal 2026-08-11** (audit shortlist, MAJOR-4): superata dall'adozione
+  di k6d065 (Δ+0.327 vs KEXP F=0). La regola operativa vigente è il **floor
+  prodotto: PPL ≤ 2.0955** (mai peggio dell'IQ2_M shippato) — regola di gualt,
+  `results/kexp_baseline/README.md`. Nei report: ΔPPL riportata sia vs F=0 sia
+  vs default corrente.
+- **IL DROP NON SALTA MAI IL MATMUL** (fatto di meccanismo, audit 2026-08-11,
+  verificato al sorgente `router_hook.cpp:206-216`): lo slot droppato è
+  ripuntato sul top expert e ricalcolato (dot duplicato by design). Drop-cold =
+  leva **SOLO I/O** (i miss non letti), MAI compute — e il lato I/O è saturo
+  (d065→d080: +0.15%). L'unica leva compute fork-legale è **k** (cambia gli
+  slot davvero calcolati: k8→k6 = +13.6% misurato). Correzione alla dicitura
+  storica "caricati/calcolati" di moe-dropcold.md e alla narrativa del
+  coordinatore che per tre giorni ha attribuito al drop risparmi di GEMV.
 - **Route-trace INSIEME alla misura** se andrà confrontata con una simulazione.
 - Un gate che legge da un **comando esterno fallisce aperto**, uno su **sysfs fallisce
   chiuso**.
@@ -1058,6 +1070,26 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-11 — 🧨 L'AUDIT PIÙ IMPORTANTE DELLA CAMPAGNA (shortlist-velocità,
+  DeepSeek): il drop NON salta mai il matmul. A (drop-by-weight) e B (top-p)
+  archiviate PRIMA di costruirle — non avevano meccanismo. Resta solo C (k=5).**
+
+  Report audit in scratchpad; mandato riscritto v2. I due BLOCKER:
+  1. **Meccanismo** (verificato al sorgente dal coordinatore,
+     `router_hook.cpp:206-216` + commento esplicito nel codice): lo slot
+     droppato viene ripuntato sul top expert e `mul_mat_id` lo calcola comunque
+     — il lavoro esperti per token è INVARIANTE al drop. Il drop risparmia solo
+     i load dei miss; quel lato è saturo (prova già in casa: d065→d080 = drop%
+     ×2, velocità +0.15%). Il +13.6% di k8→k6 era reale perché k cambia `nu`
+     (gli slot calcolati) — l'UNICA leva compute fork-legale.
+  2. Le "route-trace esistenti" per la simulazione di B sono di IQ2_M k=8 —
+     modello sbagliato; la trace KEXP si cattura gratis durante la PPL di C.
+  Più: gate assoluti → ratio paired vs control della stessa sessione; pareto
+  operativizzata; regola budget Δ0.15 marcata OBSOLETA (vige il floor 2.0955);
+  pin completati. **Mea culpa a verbale**: il coordinatore ha ripetuto per tre
+  giorni "il drop taglia GEMV" — falso, e il contro-esperimento era nei nostri
+  dati dal 10/8. Protocollo audit-prima-di-spendere: 4/4 blocker veri.
 
 - **2026-08-11 — 🚪 DOSSIER PORTA-740 IN COMPOSIZIONE (tesi gualt: kernel custom
   su Adreno vecchi). Due fonti già acquisite, terza (recon Grok) in volo:**
