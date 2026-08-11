@@ -195,21 +195,82 @@ export function vectorIndexPath(docId: string): string {
   return `${documentsDir()}${safe}.vec.json`;
 }
 
-/** Best-effort write of a SemanticVectorIndex JSON payload. Never throws. */
+/**
+ * Best-effort atomic write of a SemanticVectorIndex JSON payload. Never throws.
+ *
+ * Atomicity: write to `<path>.tmp`, then replace the final path. expo-file-system
+ * `moveAsync` fails when the destination exists, so we use the same
+ * dest→.bak / tmp→dest / drop-.bak pattern as LlamaService session saves
+ * (no delete-then-move loss window). On any failure only the .tmp is cleaned;
+ * the previous good `.vec.json` (if any) stays intact. Readers ignore missing
+ * / corrupt files and leftover `.tmp` (never read the tmp path).
+ */
 export async function writeVectorIndexFile(
   docId: string,
   json: unknown,
 ): Promise<void> {
+  let tmpPath: string | null = null;
   try {
     if (!docId || typeof docId !== "string") return;
     await ensureDocumentsDir();
     const path = vectorIndexPath(docId);
+    tmpPath = `${path}.tmp`;
+    const bakPath = `${path}.bak`;
     const body = JSON.stringify(json);
-    await FileSystem.writeAsStringAsync(path, body, {
+
+    // Drop any stale tmp from a previous interrupted write.
+    try {
+      await FileSystem.deleteAsync(tmpPath, { idempotent: true });
+    } catch {
+      /* ignore */
+    }
+
+    await FileSystem.writeAsStringAsync(tmpPath, body, {
       encoding: FileSystem.EncodingType.UTF8,
     });
+
+    // moveAsync does not overwrite an existing dest — backup-rename first.
+    try {
+      await FileSystem.deleteAsync(bakPath, { idempotent: true });
+    } catch {
+      /* ignore */
+    }
+    let hadPrevious = false;
+    try {
+      const prev = await FileSystem.getInfoAsync(path);
+      hadPrevious = !!prev.exists;
+      if (hadPrevious) await FileSystem.moveAsync({ from: path, to: bakPath });
+    } catch {
+      hadPrevious = false;
+    }
+    try {
+      await FileSystem.moveAsync({ from: tmpPath, to: path });
+      tmpPath = null; // moved; no longer needs cleanup
+    } catch (moveError) {
+      // Restore previous good file if we had one.
+      if (hadPrevious) {
+        try {
+          await FileSystem.moveAsync({ from: bakPath, to: path });
+        } catch {
+          /* ignore — worst case BM25-only until next embed */
+        }
+      }
+      throw moveError;
+    }
+    try {
+      await FileSystem.deleteAsync(bakPath, { idempotent: true });
+    } catch {
+      /* ignore leftover bak */
+    }
   } catch {
-    /* best-effort */
+    /* best-effort: clean tmp if still present */
+    if (tmpPath) {
+      try {
+        await FileSystem.deleteAsync(tmpPath, { idempotent: true });
+      } catch {
+        /* ignore */
+      }
+    }
   }
 }
 

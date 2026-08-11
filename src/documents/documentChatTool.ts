@@ -127,6 +127,12 @@ export type DocumentChatHost = {
    */
   getSemanticIndexFor?(docId: string): SemanticVectorIndex | null;
   /**
+   * Optional lazy restore from durable sidecar (FIX D — no startup restore).
+   * Called when getSemanticIndexFor returns null so the first hybrid query
+   * can load vectors for that doc only (memory-capped in AppShell).
+   */
+  loadSemanticIndexFor?(docId: string): Promise<SemanticVectorIndex | null>;
+  /**
    * Optional embedder status. When false / missing, hybrid degrades to BM25.
    * AppShell probes getEmbeddingModelStatus once per tool bind / turn.
    */
@@ -698,10 +704,17 @@ async function tryHybridRetrieve(
       typeof host.isEmbedderDownloaded === "function"
         ? host.isEmbedderDownloaded()
         : false;
-    const semantic =
+    // Prefer in-memory index; else lazy-load from durable sidecar (FIX D).
+    let semantic =
       typeof host.getSemanticIndexFor === "function"
         ? host.getSemanticIndexFor(doc.id)
         : null;
+    if (
+      (!semantic || semantic.chunkCount <= 0) &&
+      typeof host.loadSemanticIndexFor === "function"
+    ) {
+      semantic = await host.loadSemanticIndexFor(doc.id);
+    }
     const vectorChunkCount = semantic?.chunkCount ?? 0;
 
     // Inline degrade check (keep documentChatTool free of llama.rn / EmbeddingService).

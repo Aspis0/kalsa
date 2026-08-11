@@ -7,12 +7,7 @@ import {
   embedDocPrefix,
   embedQueryPrefix,
 } from "../documents/semanticIndex";
-import {
-  segmentSentences,
-  normalize,
-  ngramCounts,
-  tokenCount,
-} from "../context/retriever";
+import { listDocChunks } from "../context/retrievalLoop";
 
 /**
  * Composite key for (chunkId, contentHash) incremental planning.
@@ -24,33 +19,28 @@ export function embedChunkKey(chunkId: string, contentHash: string): string {
 }
 
 /**
- * Stable 64-bit content hash as 16-char hex.
+ * Canonical FNV-1a 64-bit content hash as 16-char lowercase hex.
  *
- * Two independent FNV-1a 32-bit rounds (different seeds + position mix on h2)
- * concatenated. Avoids BigInt so Hermes / older JSC paths stay happy, while
- * giving a wider key than the previous 32-bit FNV-1a (collision-resistant
- * enough for per-doc chunk inventories).
+ * Offset basis 0xcbf29ce484222325, prime 0x100000001b3, 64-bit arithmetic.
+ * Implemented with BigInt: Hermes in RN 0.86 (Hermes ≥0.12 era) supports
+ * BigInt natively, so we do not need a two-lane 32-bit carry emulation.
+ *
+ * Known constants:
+ *   FNV("")  = 0xcbf29ce484222325
+ *   FNV("a") = 0xaf63dc4c8601ec8c
  */
 export function hashChunkContent(text: string): string {
   const s = typeof text === "string" ? text : "";
-  // FNV-1a 32-bit, seed A
-  let h1 = 0x811c9dc5;
-  // FNV-1a 32-bit, seed B (offset from golden-ratio mix)
-  let h2 = 0x811c9dc5 ^ 0x9e3779b9;
+  // Canonical FNV-1a 64-bit constants (Fowler–Noll–Vo).
+  const FNV_OFFSET = 0xcbf29ce484222325n;
+  const FNV_PRIME = 0x100000001b3n;
+  const MASK64 = 0xffffffffffffffffn;
+  let h = FNV_OFFSET;
   for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i);
-    h1 ^= c;
-    h1 = Math.imul(h1, 0x01000193);
-    h2 ^= c;
-    h2 = Math.imul(h2, 0x01000193);
-    // Position mix keeps h2 independent of h1 on short strings.
-    h2 ^= i + 1;
-    h2 = Math.imul(h2, 0x01000193);
+    h ^= BigInt(s.charCodeAt(i));
+    h = (h * FNV_PRIME) & MASK64;
   }
-  return (
-    (h1 >>> 0).toString(16).padStart(8, "0") +
-    (h2 >>> 0).toString(16).padStart(8, "0")
-  );
+  return h.toString(16).padStart(16, "0");
 }
 
 /**
@@ -87,83 +77,16 @@ export type EmbeddableChunk = {
   contentHash: string;
 };
 
-// ── Chunking (byte-identical to DocRetrieverIndex / retrievalLoop) ──────────
+// ── Chunking (single source: retrievalLoop.listDocChunks) ───────────────────
 //
-// Single source of truth for embed chunk listing. Constants and algorithms
-// mirror src/context/retrievalLoop.ts (segmentSentences + segmentParagraphs)
-// so dense chunkIds / texts align with the BM25 index. Do not drift.
-
-const MIN_PARAGRAPH_LEN = 20;
-const MAX_PARAGRAPH_WINDOW = 600;
-const MIN_BULLET_PARA_LEN = 6;
+// Dense embed path no longer mirrors segmentation. listDocChunks in
+// retrievalLoop.ts is the sole segmentation function; DocRetrieverIndex.append
+// and this helper both call it so chunkIds/texts stay byte-identical.
 
 /**
- * Sentence split for paragraph windowing only — matches retrievalLoop.
- * Unlike segmentSentences (chat path, 300-char cap), a single sentence here may
- * be up to MAX_PARAGRAPH_WINDOW (600); longer is truncated at 600.
- */
-function splitSentencesForParagraphs(text: string): string[] {
-  if (!text) return [];
-  const parts = text.split(/[.!?\n]+/);
-  const out: string[] = [];
-  for (const raw of parts) {
-    const s = raw.trim();
-    if (s.length === 0) continue;
-    if (s.length > MAX_PARAGRAPH_WINDOW) {
-      out.push(s.slice(0, MAX_PARAGRAPH_WINDOW));
-    } else {
-      out.push(s);
-    }
-  }
-  return out;
-}
-
-/**
- * Paragraph windows matching retrievalLoop.segmentParagraphs exactly so embed
- * chunkIds are byte-identical to DocRetrieverIndex.
- */
-function segmentParagraphsForEmbed(text: string): string[] {
-  if (!text) return [];
-  const rawParas = text.split(/\n\s*\n/);
-  const out: string[] = [];
-
-  for (const raw of rawParas) {
-    const p = raw.trim();
-    if (p.length < MIN_PARAGRAPH_LEN) {
-      if (!(p.startsWith("- ") && p.length >= MIN_BULLET_PARA_LEN)) continue;
-    }
-
-    if (p.length <= MAX_PARAGRAPH_WINDOW) {
-      out.push(p);
-      continue;
-    }
-
-    // Long paragraph → sentence windows ≤ 600 (never mid-sentence)
-    const sents = splitSentencesForParagraphs(p);
-    let window = "";
-    for (const piece of sents) {
-      if (!piece) continue;
-      if (!window) {
-        window = piece;
-        continue;
-      }
-      if (window.length + 1 + piece.length <= MAX_PARAGRAPH_WINDOW) {
-        window = `${window} ${piece}`;
-      } else {
-        if (window.length >= MIN_PARAGRAPH_LEN) out.push(window);
-        window = piece;
-      }
-    }
-    if (window.length >= MIN_PARAGRAPH_LEN) out.push(window);
-  }
-  return out;
-}
-
-/**
- * Build embeddable chunks for a multi-page doc using the same chunkId scheme
- * as DocRetrieverIndex (`${docId}#sentence#N` / `${docId}#paragraph#N`).
- * Pure — no I/O, no llama.rn. Chunking mirrors retrievalLoop so dense/BM25
- * alignment is byte-identical (FIX 9 single-chunking source).
+ * Build embeddable chunks for a multi-page doc via listDocChunks (shared with
+ * DocRetrieverIndex). Adds contentHash for incremental embed planning.
+ * Pure — no I/O, no llama.rn.
  */
 export function listDocumentChunksForEmbed(
   pages: Array<{ docId: string; text: string }>,
@@ -181,38 +104,11 @@ export function listDocumentChunksForEmbed(
     if (seenDocIds.has(docId)) continue;
     seenDocIds.add(docId);
 
-    // Ordinals advance only for chunks that DocRetrieverIndex would keep
-    // (normalized non-empty AND tokenCount(ngramCounts) > 0) so dense chunkIds
-    // stay byte-aligned with the BM25 index (FIX 9).
-    let sentOrd = 0;
-    for (const original of segmentSentences(page.text)) {
-      if (!original) continue;
-      const normalized = normalize(original);
-      if (!normalized) continue;
-      const dl = tokenCount(ngramCounts(normalized));
-      if (dl === 0) continue;
-      const chunkId = `${docId}#sentence#${sentOrd}`;
-      sentOrd += 1;
+    for (const entry of listDocChunks(page.text, docId)) {
       out.push({
-        chunkId,
-        text: original,
-        contentHash: hashChunkContent(original),
-      });
-    }
-
-    let paraOrd = 0;
-    for (const original of segmentParagraphsForEmbed(page.text)) {
-      if (!original) continue;
-      const normalized = normalize(original);
-      if (!normalized) continue;
-      const dl = tokenCount(ngramCounts(normalized));
-      if (dl === 0) continue;
-      const chunkId = `${docId}#paragraph#${paraOrd}`;
-      paraOrd += 1;
-      out.push({
-        chunkId,
-        text: original,
-        contentHash: hashChunkContent(original),
+        chunkId: entry.chunkId,
+        text: entry.text,
+        contentHash: hashChunkContent(entry.text),
       });
     }
   }

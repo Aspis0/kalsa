@@ -176,6 +176,71 @@ function resolveMinFloor(raw: number | undefined): number {
 }
 
 /**
+ * One document chunk as produced by DocRetrieverIndex (sentence / paragraph).
+ * Additive export — shared single source of truth for BM25 + dense embed paths.
+ */
+export type DocChunkListEntry = {
+  chunkId: string;
+  text: string;
+  granularity: ChunkGranularity;
+  ordinal: number;
+};
+
+/**
+ * List the chunk texts/ids that DocRetrieverIndex would build for a single
+ * document text. Byte-identical to `append([{ docId, text }])` chunking:
+ * same segmentSentences / segmentParagraphs, same normalize + tokenCount gate,
+ * same `${docId}#${granularity}#${ordinal}` ids.
+ *
+ * Used by the background embed job (AppShell) so dense chunkIds never drift
+ * from the BM25 index. Pure — no I/O.
+ */
+export function listDocChunks(
+  text: string,
+  docId?: string,
+): DocChunkListEntry[] {
+  const id =
+    typeof docId === "string" && docId.length > 0 ? docId : "doc-anon";
+  const body = typeof text === "string" ? text : "";
+  if (!body) return [];
+  const out: DocChunkListEntry[] = [];
+
+  let sentOrd = 0;
+  for (const original of segmentSentences(body)) {
+    if (!original) continue;
+    const normalized = normalize(original);
+    if (!normalized) continue;
+    const dl = tokenCount(ngramCounts(normalized));
+    if (dl === 0) continue;
+    out.push({
+      chunkId: `${id}#sentence#${sentOrd}`,
+      text: original,
+      granularity: "sentence",
+      ordinal: sentOrd,
+    });
+    sentOrd += 1;
+  }
+
+  let paraOrd = 0;
+  for (const original of segmentParagraphs(body)) {
+    if (!original) continue;
+    const normalized = normalize(original);
+    if (!normalized) continue;
+    const dl = tokenCount(ngramCounts(normalized));
+    if (dl === 0) continue;
+    out.push({
+      chunkId: `${id}#paragraph#${paraOrd}`,
+      text: original,
+      granularity: "paragraph",
+      ordinal: paraOrd,
+    });
+    paraOrd += 1;
+  }
+
+  return out;
+}
+
+/**
  * Sentence split for paragraph windowing only.
  * Unlike segmentSentences (chat path, 300-char cap), a single sentence here may
  * be up to MAX_PARAGRAPH_WINDOW (600); longer is truncated at 600.
@@ -493,47 +558,46 @@ export class DocRetrieverIndex {
       if (this.seenDocIds.has(docId)) continue;
       this.seenDocIds.add(docId);
 
-      this.indexGranularity(docId, "sentence", segmentSentences(doc.text));
-      this.indexGranularity(docId, "paragraph", segmentParagraphs(doc.text));
+      // Single source of truth: listDocChunks (shared with the dense embed job).
+      const listed = listDocChunks(doc.text, docId);
+      for (const entry of listed) {
+        this.indexChunk(docId, entry);
+      }
     }
   }
 
-  private indexGranularity(
-    docId: string,
-    granularity: ChunkGranularity,
-    pieces: string[],
-  ): void {
-    const idx = granularity === "sentence" ? this.sentence : this.paragraph;
-    let ordinal = idx.nextOrdinal.get(docId) ?? 0;
+  /**
+   * Index one pre-segmented chunk from listDocChunks. Recomputes normalize/tf/dl
+   * (same gates as listDocChunks, so empty pieces never arrive).
+   */
+  private indexChunk(docId: string, entry: DocChunkListEntry): void {
+    const idx = entry.granularity === "sentence" ? this.sentence : this.paragraph;
+    const original = entry.text;
+    if (!original) return;
+    const normalized = normalize(original);
+    if (!normalized) return;
+    const tf = ngramCounts(normalized);
+    const dl = tokenCount(tf);
+    if (dl === 0) return;
 
-    for (let i = 0; i < pieces.length; i++) {
-      const original = pieces[i];
-      if (!original) continue;
-      const normalized = normalize(original);
-      if (!normalized) continue;
-      const tf = ngramCounts(normalized);
-      const dl = tokenCount(tf);
-      if (dl === 0) continue;
-
-      const chunkId = `${docId}#${granularity}#${ordinal}`;
-      const chunk: ChunkDoc = {
-        chunkId,
-        docId,
-        granularity,
-        ordinal,
-        original,
-        normalized,
-        tf,
-        dl,
-      };
-      ordinal++;
-      idx.chunks.push(chunk);
-      idx.totalDl += dl;
-      for (const t of tf.keys()) {
-        idx.dfMap.set(t, (idx.dfMap.get(t) ?? 0) + 1);
-      }
+    const chunk: ChunkDoc = {
+      chunkId: entry.chunkId,
+      docId,
+      granularity: entry.granularity,
+      ordinal: entry.ordinal,
+      original,
+      normalized,
+      tf,
+      dl,
+    };
+    idx.chunks.push(chunk);
+    idx.totalDl += dl;
+    for (const t of tf.keys()) {
+      idx.dfMap.set(t, (idx.dfMap.get(t) ?? 0) + 1);
     }
-    idx.nextOrdinal.set(docId, ordinal);
+    // Keep nextOrdinal in sync for any future callers that inspect it.
+    const next = Math.max(idx.nextOrdinal.get(docId) ?? 0, entry.ordinal + 1);
+    idx.nextOrdinal.set(docId, next);
   }
 
   get chunkCount(): number {

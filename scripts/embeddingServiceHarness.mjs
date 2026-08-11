@@ -26,6 +26,7 @@ function compile() {
       "src/engine/embeddingPure.ts",
       "src/documents/semanticIndex.ts",
       "src/context/retriever.ts",
+      "src/context/retrievalLoop.ts",
       "--outDir",
       outDir,
       "--module",
@@ -99,6 +100,16 @@ async function main() {
     assert(typeof a === "string" && a.length === 16, `bad hash shape: ${a}`);
     assert(/^[0-9a-f]{16}$/.test(a), `not hex: ${a}`);
     assert(a === b, `unstable: ${a} vs ${b}`);
+  });
+
+  // 1b. canonical FNV-1a 64-bit constants (offset basis / "a")
+  check("hashChunkContent canonical FNV-1a 64 constants", () => {
+    // FNV("")  = 0xcbf29ce484222325
+    // FNV("a") = 0xaf63dc4c8601ec8c
+    const empty = hashChunkContent("");
+    const a = hashChunkContent("a");
+    assert(empty === "cbf29ce484222325", `FNV(\"\") expected cbf29ce484222325, got ${empty}`);
+    assert(a === "af63dc4c8601ec8c", `FNV(\"a\") expected af63dc4c8601ec8c, got ${a}`);
   });
 
   // 2. hash sensitivity
@@ -254,6 +265,43 @@ async function main() {
       }) === true,
       "cold index must degrade",
     );
+  });
+
+  // 13. shared chunking: listDocumentChunksForEmbed ≡ listDocChunks (byte-identical ids)
+  check("listDocumentChunksForEmbed matches listDocChunks (shared source)", () => {
+    // Compile retrievalLoop for listDocChunks and compare ids/texts.
+    const rlOut = path.join(projectRoot, "scripts/.build/embeddingServiceHarness");
+    // Already compiled as dependency of embeddingPure (import of retrievalLoop).
+    const rlCandidates = [
+      path.join(rlOut, "context/retrievalLoop.js"),
+      path.join(rlOut, "src/context/retrievalLoop.js"),
+      path.join(rlOut, "retrievalLoop.js"),
+    ];
+    let rlPath = null;
+    for (const c of rlCandidates) {
+      if (existsSync(c)) {
+        rlPath = c;
+        break;
+      }
+    }
+    assert(rlPath, `retrievalLoop.js not found among ${rlCandidates.join(", ")}`);
+    const { listDocChunks } = require(rlPath);
+    const text =
+      "First sentence about a house purchase. Second sentence continues the story.\n\n" +
+      "A longer paragraph that should be indexed as a paragraph window for hybrid retrieval later.";
+    const fromShared = listDocChunks(text, "doc1");
+    const fromEmbed = listDocumentChunksForEmbed([{ docId: "doc1", text }]);
+    assert(fromShared.length === fromEmbed.length, `len ${fromShared.length} vs ${fromEmbed.length}`);
+    for (let i = 0; i < fromShared.length; i++) {
+      assert(
+        fromShared[i].chunkId === fromEmbed[i].chunkId,
+        `id mismatch @${i}: ${fromShared[i].chunkId} vs ${fromEmbed[i].chunkId}`,
+      );
+      assert(
+        fromShared[i].text === fromEmbed[i].text,
+        `text mismatch @${i}`,
+      );
+    }
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);
