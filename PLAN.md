@@ -1059,6 +1059,32 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
 ## Registro checkpoint
 
+- **2026-08-10 — 📐 DESIGN INTEGRAZIONE KALSA CONSEGNATO (FASE 0, app non
+  toccata). Raccomandazione: modulo nativo separato `react-native-bmoe` con shim
+  C sopra bmoe_core; le lezioni RescueParty diventano policy di prodotto; nome
+  proposto per il modello premium: "Cala" (il porto antico di Palermo — Kalsa è
+  il quartiere).**
+
+  Report: `kalsa-integration-design.md` (commit `a05fb24`). Arbitrato: il design
+  è ancorato ai fatti VERI dell'app (barriera runNativeOp, ModelDownloader con
+  resume, memoryEstimate, gate co-residenza) — non è un design da brochure.
+  Punti chiave: (b) modulo separato > patch llama.rn (il tier gratuito resta
+  pulito); distribuzione HF gated con sha256 nel catalogo; config di campagna
+  hard-coded dove misurata, cache scalata sulla RAM; premium e free MAI
+  co-residenti; ThermalMonitor con Android Thermal API (warn 75/pausa 85/stop
+  88); UX onesta su edit/regenerate (ri-prefill dichiarato, niente finto
+  rollback). Piano a 4 fasi, 8-14 settimane, lab-first; la Fase 2 (prima
+  scrittura nell'app) richiede autorizzazione esplicita.
+  Nota di portabilità: il design è model-agnostico — se il trial Marco vince,
+  cambia il file e il blocco config, non l'architettura.
+
+  Decisioni di gualt sul tavolo: GO Fase 1 (shim+modulo, ~2-4 sett), nome
+  (Cala / Marea / Corrente), e a suo tempo l'autorizzazione a scrivere nell'app.
+
+  Nota di coordinamento: Grok ha anche propagato il default A negli harness
+  (`8232132`, 41+ script) con aggiornamento della scheda PLAN — anticipato
+  rispetto alla coda ma autorizzato da gualt e verificato corretto.
+
 - **2026-08-10 — 🎯 GRIGLIA KEXP COMPLETA: k=6 VIVE (PPL 1.852 ≤ floor) a
   +13.6% di velocità — il "pruning" è arrivato GRATIS e la porta RunPod
   neuron+healing si CHIUDE per superfluità (trigger dichiarato rispettato).
