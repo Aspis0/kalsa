@@ -58,9 +58,19 @@ compattare ed è identico nei due bracci per costruzione (1153 token, misurato).
 
 | campagna | baseline | v42 | Δ | p (baseline > v42) |
 |---|---|---|---|---|
-| 2B, build patchata (6v6) | 0.740 | 0.531 | +0.208 | 0.1028 *(esatto, 924 perm.)* |
+| 2B, build patchata (6v6) | 0.740 | 0.531 | +0.208 | 0.1028 *(MC 10k)* |
 | 2B, tre campagne (17v16) | **0.772** | **0.562** | **+0.210** | **0.0090** *(MC 300k)* |
-| 4B, build patchata (5v5) | 0.700 | 0.650 | +0.050 | 0.3929 *(esatto, 252 perm.)* |
+| 4B, build patchata (5v5) | 0.700 | 0.650 | +0.050 | 0.3929 *(MC 10k)* |
+
+> **Correzione (2026-08-11, seconda revisione).** Le prime due righe di questa tabella
+> riportavano «esatto, 924 perm.» e «esatto, 252 perm.». Era **falso**:
+> `permutationTestOneSided` in `scripts/benchAggregate.mjs` campionava sempre
+> `PERM_ITERATIONS` (default 10 000) estrazioni Monte Carlo e non conteneva alcun ramo di
+> enumerazione esatta — la parola *exhaustive* compariva solo nel calcolo del *floor*.
+> I valori restano validi come stime (a 10k estrazioni l'errore standard su p≈0.10 è ≈0.003,
+> e nessuna conclusione di questo documento si sposta), ma il metodo dichiarato non era
+> quello eseguito. L'enumerazione esatta ora esiste davvero per C(nA+nB,nB) ≤ 10 000 e
+> l'aggregatore stampa per ogni riga quale metodo ha girato.
 
 L'effetto sul 2B è **stabile in magnitudine** su tre campagne indipendenti (+0.209, +0.208,
 +0.210) mentre la significatività di ciascuna oscilla (p = 0.012 / 0.229 / 0.103). Questo dice
@@ -132,6 +142,28 @@ risposta si è assestata. Non è distinguibile, con i dati raccolti, se il job n
 schedulato o venga sempre abortito. **Serve una riga di log dedicata prima di poterlo dire.**
 Se il sospetto regge, è anche un dato di prodotto: su un telefono con un utente che scrive
 veloce quel riassunto non si materializza comunque.
+
+**Aggiornamento (seconda revisione).** Il log dedicato ora esiste (`KALSA_SUMMARY`, un evento
+per ogni punto di uscita del ciclo di vita), ma prima ancora di raccoglierlo l'aritmetica
+chiude la questione per l'ambiente CI:
+
+| costante | valore | fonte |
+|---|---|---|
+| `SUMMARY_IDLE_DEBOUNCE_MS` | 8 s | `AppShell.tsx` |
+| `SUMMARIZE_TIMEOUT_MS` | 30 s | `LlamaService.ts:198` |
+| `SUMMARIZE_N_PREDICT` | 400 token | `LlamaService.ts:202` |
+| decode misurato, 2B su emulatore | 2.45 tok/s | § 3.3 |
+
+400 token a 2.45 tok/s sono **~163 s** contro un timeout di 30 s: sull'emulatore CI il rolling
+summary **non può completare**, qualunque sia l'intervallo fra i turni. Non è un problema di
+debounce e non si corregge allungando l'attesa. Di conseguenza:
+
+- l'harness fissa `INTER_TURN_DELAY_S = 40` (8 s di debounce + 30 s di timeout + margine) non
+  per farlo riuscire ma per rendere il fallimento **osservabile**: `llm-start` seguito da un
+  timeout registrato, invece di un abort ambiguo;
+- il rolling summary resta **fuori portata su CI** e va misurato su device reale, dove il
+  decode è di un altro ordine di grandezza;
+- il braccio `ciswire` non ne dipende: misura il digest additivo, cioè il retrieval.
 
 ## 6. Cosa attivare e cosa no
 

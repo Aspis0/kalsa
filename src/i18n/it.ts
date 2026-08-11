@@ -133,6 +133,10 @@ export const it: typeof en = {
       description:
         "Modello alternativo con visione e tool calling nativo. Non fa parte della catena di fallback RAM di Qwen — scegli questo se preferisci Gemma.",
     },
+    lfm25: {
+      description:
+        "Modello ibrido Liquid AI. Ragionamento sempre attivo, solo testo (niente immagini). Download ~1,7 GB.",
+    },
     whisperTiny: {
       description:
         "Riconoscimento vocale sul dispositivo (multilingua, tiny). ~75 MB. Usato solo per la dettatura vocale.",

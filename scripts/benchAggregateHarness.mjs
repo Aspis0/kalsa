@@ -49,7 +49,8 @@ function baseResult(overrides = {}) {
     thinking: "budget256",
     compaction: "off",
     compactionPrefRaw: "0",
-    compactionActive: false,
+    // Mode string contract: "off" | "v42" | "ciswire" (not boolean).
+    compactionActive: "off",
     turns: [
       {
         index: 1,
@@ -97,6 +98,8 @@ function baseResult(overrides = {}) {
       compactorChars: 0,
       summaryChars: 0,
     },
+    // At least one summary event so the capture gate can pass on green runs.
+    summaryEvents: { "idle-check": 1 },
     notes: [],
     ...overrides,
   };
@@ -110,13 +113,24 @@ function writeResult(root, arm, seed, result) {
 }
 
 /**
- * Full 2 arms × 3 seeds campaign.
+ * Full 3 modes × seeds campaign (baseline/off, v42, ciswire).
  * identicalPrompts: same promptTokensByTurn on turns ≥ 2 AND zero compactorChars
- * on both arms → MEASURING NOTHING.
- * Default: differing turn-2 token counts → ARMS DIFFER.
+ * on treatment arms → MEASURING NOTHING for both pairs.
+ * identicalCiswire: ciswire matches baseline while v42 still differs → primary
+ * pair fails even if secondary passes.
+ * Default: differing turn-2 token counts → ARMS DIFFER on both pairs.
  */
-function writeCompleteCampaign(root, { v42Active = true, identicalPrompts = false } = {}) {
-  for (const seed of [1, 2, 3]) {
+function writeCompleteCampaign(
+  root,
+  {
+    v42Active = true,
+    ciswireActive = true,
+    identicalPrompts = false,
+    identicalCiswire = false,
+    seeds = [1, 2, 3],
+  } = {},
+) {
+  for (const seed of seeds) {
     writeResult(
       root,
       "baseline",
@@ -125,11 +139,12 @@ function writeCompleteCampaign(root, { v42Active = true, identicalPrompts = fals
         arm: "baseline",
         seed,
         compaction: "off",
-        compactionActive: false,
+        compactionPrefRaw: "0",
+        compactionActive: "off",
         positiveControl: {
           promptTokensByTurn: {
             "1": 800,
-            "2": identicalPrompts ? 900 : 900,
+            "2": 900,
           },
           reusedTokensByTurn: { "1": 0, "2": 100 },
           completionsByTurn: { "1": 1, "2": 1 },
@@ -148,7 +163,8 @@ function writeCompleteCampaign(root, { v42Active = true, identicalPrompts = fals
         seed,
         compaction: "on",
         compactionPrefRaw: v42Active ? "1" : "0",
-        compactionActive: v42Active,
+        // Wrong mode string when v42Active=false → invalidCompaction gate.
+        compactionActive: v42Active ? "v42" : "off",
         probes: [
           probe("fact_A", "fact_recall", true),
           probe("fact_B", "fact_recall", true),
@@ -168,17 +184,55 @@ function writeCompleteCampaign(root, { v42Active = true, identicalPrompts = fals
         positiveControl: {
           promptTokensByTurn: {
             "1": 800,
-            // identical → same as baseline turn 2; else differ
             "2": identicalPrompts ? 900 : 950 + seed,
           },
           reusedTokensByTurn: { "1": 0, "2": 120 },
           completionsByTurn: { "1": 1, "2": 1 },
-          // Only non-zero when arms actually differ via tokens; for identical
-          // campaign leave 0 so MEASURING NOTHING fires.
           compactorChars: identicalPrompts ? 0 : 400 + seed,
           summaryChars: identicalPrompts ? 0 : 50,
         },
         notes: seed === 1 ? ["v42 note seed1"] : [],
+      }),
+    );
+    const cisSame = identicalPrompts || identicalCiswire;
+    writeResult(
+      root,
+      "ciswire",
+      seed,
+      baseResult({
+        arm: "ciswire",
+        seed,
+        compaction: "ciswire",
+        compactionPrefRaw: ciswireActive ? "ciswire" : "0",
+        compactionActive: ciswireActive ? "ciswire" : "off",
+        probes: [
+          probe("fact_A", "fact_recall", true),
+          probe("fact_B", "fact_recall", true),
+          probe("tool_call", "tool_call", true),
+          probe("miniapp", "miniapp", true),
+          probe("language", "language", true),
+          probe("honesty", "honesty", true),
+        ],
+        recall: 1,
+        byFamily: {
+          fact_recall: { found: 2, total: 2, rate: 1 },
+          tool_call: { found: 1, total: 1, rate: 1 },
+          miniapp: { found: 1, total: 1, rate: 1 },
+          language: { found: 1, total: 1, rate: 1 },
+          honesty: { found: 1, total: 1, rate: 1 },
+        },
+        positiveControl: {
+          promptTokensByTurn: {
+            "1": 800,
+            // Differ from baseline unless the identical-ciswire control is on.
+            "2": cisSame ? 900 : 970 + seed,
+          },
+          reusedTokensByTurn: { "1": 0, "2": 130 },
+          completionsByTurn: { "1": 1, "2": 1 },
+          compactorChars: cisSame ? 0 : 500 + seed,
+          summaryChars: cisSame ? 0 : 40,
+        },
+        notes: seed === 1 ? ["ciswire note seed1"] : [],
       }),
     );
   }
@@ -213,7 +267,7 @@ async function main() {
   console.log("temp dir:", tmp);
 
   try {
-    // ── 1. Complete 2×3 fase4 campaign → tables, exit 0 ───────────────
+    // ── 1. Complete 3 modes × 3 seeds fase4 campaign → tables, exit 0 ─
     {
       const d = path.join(tmp, "complete");
       mkdirSync(d, { recursive: true });
@@ -222,18 +276,23 @@ async function main() {
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
         () => runAggregate([d]),
       );
-      check("complete 2×3 exits 0", exitCode === 0, `exitCode=${exitCode}`);
+      check("complete 3×3 exits 0", exitCode === 0, `exitCode=${exitCode}`);
       check(
         "complete renders per-family table header",
         markdown.includes("| arm | family | rate | found/total | excluded | seeds |"),
       );
       check(
         "complete renders conversation-level primary",
-        /Primary endpoint: fact recall, unit = conversation/i.test(markdown),
+        /fact recall, unit = conversation/i.test(markdown) ||
+          /Pairwise tests: fact recall/i.test(markdown),
       );
       check(
         "complete renders probe-level NOT the gate",
         markdown.includes("probe-level, pseudo-replicated — NOT the gate"),
+      );
+      check(
+        "complete family tables include ciswire primary pair",
+        /ciswire vs off/i.test(markdown),
       );
       check(
         "complete renders prefill table",
@@ -286,7 +345,8 @@ async function main() {
           arm: "v42",
           seed: 1,
           compaction: "on",
-          compactionActive: true,
+          compactionActive: "v42",
+          compactionPrefRaw: "1",
         }),
       );
       const { markdown, exitCode } = withEnv(
@@ -295,13 +355,14 @@ async function main() {
       );
       check("one-arm exits non-zero", exitCode !== 0, `exitCode=${exitCode}`);
       check("one-arm has ## INCOMPLETE", markdown.includes("## INCOMPLETE"));
-      // 5 missing: baseline 1,2,3 + v42 2,3
-      const missingBaseline = (markdown.match(/\| baseline \|/g) || []).length;
-      const missingV42 = (markdown.match(/\| v42 \| [23] \|/g) || []).length;
+      // Missing modes: off 1..3, v42 2..3, ciswire 1..3 (table uses mode names).
+      const missingOff = (markdown.match(/\| off \|/g) || []).length;
+      const missingV42 = (markdown.match(/\| v42 \|/g) || []).length;
+      const missingCis = (markdown.match(/\| ciswire \|/g) || []).length;
       check(
-        "one-arm lists 5 missing pairs (3 baseline + v42 seeds 2,3)",
-        missingBaseline >= 3 && missingV42 >= 2,
-        `baseline rows≈${missingBaseline} v42-2/3≈${missingV42}`,
+        "one-arm lists missing pairs across 3 modes",
+        missingOff >= 3 && missingV42 >= 2 && missingCis >= 3,
+        `off≈${missingOff} v42≈${missingV42} ciswire≈${missingCis}`,
       );
       check(
         "one-arm still renders partial data above gate",
@@ -464,7 +525,7 @@ async function main() {
           arm: "v42",
           seed: 1,
           compaction: "on",
-          compactionActive: true,
+          compactionActive: "v42",
           turns: [
             {
               index: 1,
@@ -598,16 +659,22 @@ async function main() {
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
         () => runAggregate([d]),
       );
-      const primaryMatch = markdown.match(
-        /Primary endpoint \(fact recall, unit = conversation\):[^]*?p = ([0-9.]+)/,
-      );
+      // Pairwise table: p (raw) is the 6th pipe cell on the primary row.
+      const primaryRow = markdown
+        .split("\n")
+        .find((l) => l.includes("ciswire vs off") && l.includes("| yes |"));
+      const primaryMatch = primaryRow
+        ? primaryRow.match(
+            /\|[^|]*\|[^|]*\|[^|]*\|[^|]*\|[^|]*\| ([0-9.]+) \|/,
+          )
+        : null;
       const probeMatch = markdown.match(
         /fact_recall \(probe-level[^|]*\|[^|]*\|[^|]*\|[^|]*\| ([0-9.]+)/,
       );
       check(
         "C1: primary conversation p is present",
         primaryMatch != null,
-        `primaryMatch=${primaryMatch}`,
+        `primaryMatch=${primaryMatch} row=${primaryRow ?? "?"}`,
       );
       check(
         "C1: probe-level p is present",
@@ -622,51 +689,10 @@ async function main() {
         );
       }
 
-      // 6 vs 6: write seeds 1..6, expect no UNDERPOWERED
+      // 6 vs 6 × 3 modes: write seeds 1..6, expect no UNDERPOWERED
       const d6 = path.join(tmp, "six");
       mkdirSync(d6, { recursive: true });
-      for (const seed of [1, 2, 3, 4, 5, 6]) {
-        writeResult(
-          d6,
-          "baseline",
-          seed,
-          baseResult({
-            arm: "baseline",
-            seed,
-            recall: 0.5,
-            positiveControl: {
-              promptTokensByTurn: { "1": 800, "2": 900 },
-              reusedTokensByTurn: {},
-              completionsByTurn: {},
-              compactorChars: 0,
-              summaryChars: 0,
-            },
-          }),
-        );
-        writeResult(
-          d6,
-          "v42",
-          seed,
-          baseResult({
-            arm: "v42",
-            seed,
-            compaction: "on",
-            compactionActive: true,
-            recall: 1,
-            probes: [
-              probe("fact_A", "fact_recall", true),
-              probe("fact_B", "fact_recall", true),
-            ],
-            positiveControl: {
-              promptTokensByTurn: { "1": 800, "2": 950 + seed },
-              reusedTokensByTurn: {},
-              completionsByTurn: {},
-              compactorChars: 100,
-              summaryChars: 10,
-            },
-          }),
-        );
-      }
+      writeCompleteCampaign(d6, { seeds: [1, 2, 3, 4, 5, 6] });
       const r6 = withEnv(
         { BENCH_EXPECT_SEEDS: "6", BENCH_EXPECT_PHASE: "fase4" },
         () => runAggregate([d6]),
@@ -676,6 +702,11 @@ async function main() {
         !/UNDERPOWERED/i.test(r6.markdown),
       );
       check("C1: 6vs6 complete exits 0", r6.exitCode === 0, `exit=${r6.exitCode}`);
+      check(
+        "C1: 6vs6 method label is exact enumeration",
+        /exact \(\d+ assignments\)/.test(r6.markdown),
+        `snippet: ${(r6.markdown.match(/ciswire vs off[^\n]*/)?.[0] ?? "").slice(0, 200)}`,
+      );
     }
 
     // ── C2: completeness hardening ────────────────────────────────────
@@ -690,7 +721,7 @@ async function main() {
       writeFileSync(
         path.join(extra, "result.json"),
         JSON.stringify(
-          baseResult({ arm: "baseline", seed: 1, compactionActive: false }),
+          baseResult({ arm: "baseline", seed: 1, compactionActive: "off" }),
           null,
           2,
         ),
@@ -733,7 +764,7 @@ async function main() {
           arm: "v42",
           seed: 1,
           compaction: "on",
-          compactionActive: true,
+          compactionActive: "v42",
           probes: [probe("fact_A", "fact_recall", true)],
           positiveControl: {
             promptTokensByTurn: { "1": 100, "2": 200 },
@@ -770,7 +801,7 @@ async function main() {
           arm: "v42",
           seed: 1,
           compaction: "on",
-          compactionActive: true,
+          compactionActive: "v42",
           probes: [probe("fact_A", "fact_recall", true)],
           positiveControl: {
             promptTokensByTurn: { "1": 100, "2": 250 },
@@ -815,7 +846,7 @@ async function main() {
           arm: "v42",
           seed,
           compaction: "on",
-          compactionActive: true,
+          compactionActive: "v42",
           positiveControl: {
             promptTokensByTurn: { "1": 100, "2": 250 },
             reusedTokensByTurn: {},
@@ -843,7 +874,7 @@ async function main() {
         emptySeeds,
         "v42",
         1,
-        baseResult({ arm: "v42", seed: 1, compaction: "on", compactionActive: true }),
+        baseResult({ arm: "v42", seed: 1, compaction: "on", compactionActive: "v42" }),
       );
       const rEmpty = withEnv(
         { BENCH_EXPECT_SEEDS: "", BENCH_EXPECT_PHASE: "fase4" },
@@ -861,34 +892,68 @@ async function main() {
       check("C2: garbage BENCH_EXPECT_SEEDS still gates", rGarbage.exitCode !== 0);
     }
 
-    // ── C3: positive control fail closed ──────────────────────────────
+    // ── C3: positive control fail closed (3 modes) ───────────────────
     {
-      // Absent positive control in both arms
-      const abs = path.join(tmp, "pos-absent");
-      mkdirSync(abs, { recursive: true });
-      for (const seed of [1, 2, 3]) {
+      const writeTriplet = (root, seed, { basePc, v42Pc, cisPc, extra = {} }) => {
         writeResult(
-          abs,
+          root,
           "baseline",
           seed,
           baseResult({
             arm: "baseline",
             seed,
-            positiveControl: null,
+            compactionActive: "off",
+            positiveControl: basePc,
+            ...extra.baseline,
           }),
         );
         writeResult(
-          abs,
+          root,
           "v42",
           seed,
           baseResult({
             arm: "v42",
             seed,
             compaction: "on",
-            compactionActive: true,
-            positiveControl: null,
+            compactionPrefRaw: "1",
+            compactionActive: "v42",
+            positiveControl: v42Pc,
+            ...extra.v42,
           }),
         );
+        writeResult(
+          root,
+          "ciswire",
+          seed,
+          baseResult({
+            arm: "ciswire",
+            seed,
+            compaction: "ciswire",
+            compactionPrefRaw: "ciswire",
+            compactionActive: "ciswire",
+            positiveControl: cisPc,
+            probes: [
+              probe("fact_A", "fact_recall", true),
+              probe("fact_B", "fact_recall", true),
+            ],
+            recall: 1,
+            byFamily: {
+              fact_recall: { found: 2, total: 2, rate: 1 },
+            },
+            ...extra.ciswire,
+          }),
+        );
+      };
+
+      // Absent positive control on all arms
+      const abs = path.join(tmp, "pos-absent");
+      mkdirSync(abs, { recursive: true });
+      for (const seed of [1, 2, 3]) {
+        writeTriplet(abs, seed, {
+          basePc: null,
+          v42Pc: null,
+          cisPc: null,
+        });
       }
       const rAbs = withEnv(
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
@@ -904,40 +969,14 @@ async function main() {
       const t1only = path.join(tmp, "t1only");
       mkdirSync(t1only, { recursive: true });
       for (const seed of [1, 2, 3]) {
-        writeResult(
-          t1only,
-          "baseline",
-          seed,
-          baseResult({
-            arm: "baseline",
-            seed,
-            positiveControl: {
-              promptTokensByTurn: { "1": 100 },
-              reusedTokensByTurn: {},
-              completionsByTurn: {},
-              compactorChars: 0,
-              summaryChars: 0,
-            },
-          }),
-        );
-        writeResult(
-          t1only,
-          "v42",
-          seed,
-          baseResult({
-            arm: "v42",
-            seed,
-            compaction: "on",
-            compactionActive: true,
-            positiveControl: {
-              promptTokensByTurn: { "1": 100 },
-              reusedTokensByTurn: {},
-              completionsByTurn: {},
-              compactorChars: 0,
-              summaryChars: 0,
-            },
-          }),
-        );
+        const pc = {
+          promptTokensByTurn: { "1": 100 },
+          reusedTokensByTurn: {},
+          completionsByTurn: {},
+          compactorChars: 0,
+          summaryChars: 0,
+        };
+        writeTriplet(t1only, seed, { basePc: pc, v42Pc: pc, cisPc: pc });
       }
       const rT1 = withEnv(
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
@@ -949,44 +988,33 @@ async function main() {
         /INSUFFICIENT/i.test(rT1.markdown) || /turn 1 only/i.test(rT1.markdown),
       );
 
-      // Differing turn 2 (turn 1 same) → pass
+      // Differing turn 2 (turn 1 same) on both treatment arms → pass
       const t2diff = path.join(tmp, "t2diff");
       mkdirSync(t2diff, { recursive: true });
       for (const seed of [1, 2, 3]) {
-        writeResult(
-          t2diff,
-          "baseline",
-          seed,
-          baseResult({
-            arm: "baseline",
-            seed,
-            positiveControl: {
-              promptTokensByTurn: { "1": 100, "2": 200 },
-              reusedTokensByTurn: {},
-              completionsByTurn: {},
-              compactorChars: 0,
-              summaryChars: 0,
-            },
-          }),
-        );
-        writeResult(
-          t2diff,
-          "v42",
-          seed,
-          baseResult({
-            arm: "v42",
-            seed,
-            compaction: "on",
-            compactionActive: true,
-            positiveControl: {
-              promptTokensByTurn: { "1": 100, "2": 250 },
-              reusedTokensByTurn: {},
-              completionsByTurn: {},
-              compactorChars: 0,
-              summaryChars: 0,
-            },
-          }),
-        );
+        writeTriplet(t2diff, seed, {
+          basePc: {
+            promptTokensByTurn: { "1": 100, "2": 200 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 0,
+            summaryChars: 0,
+          },
+          v42Pc: {
+            promptTokensByTurn: { "1": 100, "2": 250 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 0,
+            summaryChars: 0,
+          },
+          cisPc: {
+            promptTokensByTurn: { "1": 100, "2": 260 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 0,
+            summaryChars: 0,
+          },
+        });
       }
       const rT2 = withEnv(
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
@@ -998,93 +1026,56 @@ async function main() {
         `exit=${rT2.exitCode}`,
       );
 
-      // Equal token counts on turns ≥ 2, but compactorChars > 0 only on v42 → pass
+      // Equal token counts on turns ≥ 2, but treatment compactorChars > 0 → pass
       const viaComp = path.join(tmp, "via-compactor");
       mkdirSync(viaComp, { recursive: true });
       for (const seed of [1, 2, 3]) {
-        writeResult(
-          viaComp,
-          "baseline",
-          seed,
-          baseResult({
-            arm: "baseline",
-            seed,
-            positiveControl: {
-              promptTokensByTurn: { "1": 100, "2": 200 },
-              reusedTokensByTurn: {},
-              completionsByTurn: {},
-              compactorChars: 0,
-              summaryChars: 0,
-            },
-          }),
-        );
-        writeResult(
-          viaComp,
-          "v42",
-          seed,
-          baseResult({
-            arm: "v42",
-            seed,
-            compaction: "on",
-            compactionActive: true,
-            positiveControl: {
-              promptTokensByTurn: { "1": 100, "2": 200 },
-              reusedTokensByTurn: {},
-              completionsByTurn: {},
-              compactorChars: 777,
-              summaryChars: 12,
-            },
-          }),
-        );
+        writeTriplet(viaComp, seed, {
+          basePc: {
+            promptTokensByTurn: { "1": 100, "2": 200 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 0,
+            summaryChars: 0,
+          },
+          v42Pc: {
+            promptTokensByTurn: { "1": 100, "2": 200 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 777,
+            summaryChars: 12,
+          },
+          cisPc: {
+            promptTokensByTurn: { "1": 100, "2": 200 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 888,
+            summaryChars: 12,
+          },
+        });
       }
       const rComp = withEnv(
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
         () => runAggregate([viaComp]),
       );
       check(
-        "C3: equal tokens but v42 compactorChars>0 passes (ARMS DIFFER)",
+        "C3: equal tokens but treatment compactorChars>0 passes (ARMS DIFFER)",
         rComp.exitCode === 0 && rComp.markdown.includes("ARMS DIFFER"),
         `exit=${rComp.exitCode}\n${rComp.markdown.split("\n").filter((l) => /ARMS|MEASURING|compactor/i.test(l)).join("\n")}`,
       );
 
-      // Equal tokens + zero compactor on both → MEASURING NOTHING
+      // Equal tokens + zero compactor on all arms → MEASURING NOTHING
       const nothing = path.join(tmp, "measuring-nothing");
       mkdirSync(nothing, { recursive: true });
       for (const seed of [1, 2, 3]) {
-        writeResult(
-          nothing,
-          "baseline",
-          seed,
-          baseResult({
-            arm: "baseline",
-            seed,
-            positiveControl: {
-              promptTokensByTurn: { "1": 100, "2": 200 },
-              reusedTokensByTurn: {},
-              completionsByTurn: {},
-              compactorChars: 0,
-              summaryChars: 0,
-            },
-          }),
-        );
-        writeResult(
-          nothing,
-          "v42",
-          seed,
-          baseResult({
-            arm: "v42",
-            seed,
-            compaction: "on",
-            compactionActive: true,
-            positiveControl: {
-              promptTokensByTurn: { "1": 100, "2": 200 },
-              reusedTokensByTurn: {},
-              completionsByTurn: {},
-              compactorChars: 0,
-              summaryChars: 0,
-            },
-          }),
-        );
+        const pc = {
+          promptTokensByTurn: { "1": 100, "2": 200 },
+          reusedTokensByTurn: {},
+          completionsByTurn: {},
+          compactorChars: 0,
+          summaryChars: 0,
+        };
+        writeTriplet(nothing, seed, { basePc: pc, v42Pc: pc, cisPc: pc });
       }
       const rNothing = withEnv(
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
@@ -1096,14 +1087,105 @@ async function main() {
           rNothing.markdown.includes("MEASURING NOTHING"),
         `exit=${rNothing.exitCode}`,
       );
+
+      // Primary pair identical (ciswire==baseline) while v42 still differs → fail
+      const cisSame = path.join(tmp, "ciswire-identical");
+      mkdirSync(cisSame, { recursive: true });
+      writeCompleteCampaign(cisSame, { identicalCiswire: true });
+      const rCisSame = withEnv(
+        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([cisSame]),
+      );
+      check(
+        "C3: identical ciswire vs baseline fails gate",
+        rCisSame.exitCode !== 0 &&
+          (/MEASURING NOTHING/i.test(rCisSame.markdown) ||
+            /primary pair/i.test(rCisSame.markdown)),
+        `exit=${rCisSame.exitCode}`,
+      );
+    }
+
+    // ── C4: usable-conversation gate + empty summary capture ─────────
+    {
+      // Full files present but one mode has null primary rates → fail
+      const thin = path.join(tmp, "thin-usable");
+      mkdirSync(thin, { recursive: true });
+      writeCompleteCampaign(thin);
+      // Overwrite ciswire seed 1 with all fact probes excluded (null rate)
+      writeResult(
+        thin,
+        "ciswire",
+        1,
+        baseResult({
+          arm: "ciswire",
+          seed: 1,
+          compaction: "ciswire",
+          compactionPrefRaw: "ciswire",
+          compactionActive: "ciswire",
+          probes: [
+            probe("fact_A", "fact_recall", null),
+            probe("fact_B", "fact_recall", null),
+          ],
+          recall: null,
+          byFamily: {
+            fact_recall: { found: 0, total: 0, rate: null, excluded: 2 },
+          },
+          positiveControl: {
+            promptTokensByTurn: { "1": 800, "2": 971 },
+            reusedTokensByTurn: {},
+            completionsByTurn: {},
+            compactorChars: 501,
+            summaryChars: 40,
+          },
+        }),
+      );
+      const rThin = withEnv(
+        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([thin]),
+      );
+      check(
+        "C4: mode with fewer usable conversations fails",
+        rThin.exitCode !== 0 &&
+          /Insufficient usable conversations/i.test(rThin.markdown),
+        `exit=${rThin.exitCode}`,
+      );
+
+      // All summaryEvents empty/missing → fail (broken capture)
+      const noSum = path.join(tmp, "no-summary");
+      mkdirSync(noSum, { recursive: true });
+      writeCompleteCampaign(noSum);
+      // Strip summaryEvents from every result.json under noSum
+      const { readdirSync, readFileSync } = await import("node:fs");
+      const walk = (dir) => {
+        for (const ent of readdirSync(dir, { withFileTypes: true })) {
+          const p = path.join(dir, ent.name);
+          if (ent.isDirectory()) walk(p);
+          else if (ent.name === "result.json") {
+            const j = JSON.parse(readFileSync(p, "utf8"));
+            j.summaryEvents = {};
+            writeFileSync(p, JSON.stringify(j, null, 2));
+          }
+        }
+      };
+      walk(noSum);
+      const rNoSum = withEnv(
+        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([noSum]),
+      );
+      check(
+        "C4: empty summary capture across campaign fails",
+        rNoSum.exitCode !== 0 &&
+          /Summary capture empty/i.test(rNoSum.markdown),
+        `exit=${rNoSum.exitCode}`,
+      );
     }
 
     // ── early/late fact families: primary = mean; fall back to plain ──
     {
-      // New layout: both arms have fact_recall_early + fact_recall_late.
+      // New layout: all modes have fact_recall_early + fact_recall_late.
       // Primary = mean(early, late) per conversation.
-      // early rates equal (both pass); late: baseline 0, v42 1
-      // → baseline mean 0.5, v42 mean 1.0.
+      // early rates equal (both pass); late: off 0, ciswire 1
+      // → off mean 0.5, ciswire mean 1.0 (primary pair).
       const d = path.join(tmp, "early-late");
       mkdirSync(d, { recursive: true });
       for (const seed of [1, 2, 3]) {
@@ -1114,6 +1196,7 @@ async function main() {
           baseResult({
             arm: "baseline",
             seed,
+            compactionActive: "off",
             probes: [
               probe("fact_A_early", "fact_recall_early", true),
               probe("fact_B_early", "fact_recall_early", true),
@@ -1145,7 +1228,8 @@ async function main() {
             arm: "v42",
             seed,
             compaction: "on",
-            compactionActive: true,
+            compactionPrefRaw: "1",
+            compactionActive: "v42",
             probes: [
               probe("fact_A_early", "fact_recall_early", true),
               probe("fact_B_early", "fact_recall_early", true),
@@ -1165,6 +1249,38 @@ async function main() {
               boundaryByTurn: { "1": 0, "2": 12 },
               digestCharsByTurn: { "1": 0, "2": 40 + seed },
               compactorChars: 100,
+              summaryChars: 10,
+            },
+          }),
+        );
+        writeResult(
+          d,
+          "ciswire",
+          seed,
+          baseResult({
+            arm: "ciswire",
+            seed,
+            compaction: "ciswire",
+            compactionPrefRaw: "ciswire",
+            compactionActive: "ciswire",
+            probes: [
+              probe("fact_A_early", "fact_recall_early", true),
+              probe("fact_B_early", "fact_recall_early", true),
+              probe("fact_A_late", "fact_recall_late", true),
+              probe("fact_B_late", "fact_recall_late", true),
+            ],
+            recall: 1,
+            byFamily: {
+              fact_recall_early: { found: 2, total: 2, rate: 1, excluded: 0 },
+              fact_recall_late: { found: 2, total: 2, rate: 1, excluded: 0 },
+            },
+            positiveControl: {
+              promptTokensByTurn: { "1": 800, "2": 970 + seed },
+              reusedTokensByTurn: {},
+              completionsByTurn: {},
+              boundaryByTurn: { "1": 0, "2": 10 },
+              digestCharsByTurn: { "1": 0, "2": 50 + seed },
+              compactorChars: 120,
               summaryChars: 10,
             },
           }),
@@ -1201,12 +1317,12 @@ async function main() {
           r.markdown.includes("boundaryIndex") &&
           r.markdown.includes("digestChars"),
       );
-      // Baseline mean 0.5, v42 mean 1.0 → gate can meet if p ok
+      // Primary pair: ciswire mean 1.0 > off mean 0.5
       check(
-        "early/late: primary uses mean (v42 1.0 > baseline 0.5)",
-        /v42 \(1(?:\.0+)?\)/.test(r.markdown) &&
-          /baseline \(0\.5/.test(r.markdown),
-        `snippet: ${r.markdown.match(/baseline mean[\s\S]{0,200}/)?.[0] ?? r.markdown.slice(0, 400)}`,
+        "early/late: primary uses mean (ciswire 1.0 > off 0.5)",
+        /ciswire \(1(?:\.0+)?\)/.test(r.markdown) &&
+          /off \(0\.5/.test(r.markdown),
+        `snippet: ${r.markdown.match(/Primary gate[\s\S]{0,250}/)?.[0] ?? r.markdown.slice(0, 400)}`,
       );
 
       // Older artifacts: only plain fact_recall → primary falls back.
@@ -1288,7 +1404,7 @@ async function main() {
             arm: "v42",
             seed,
             compaction: "on",
-            compactionActive: true,
+            compactionActive: "v42",
             probes: [
               probe("fact_A", "fact_recall", true),
               probe("fact_B", "fact_recall", true),
@@ -1353,7 +1469,7 @@ async function main() {
           arm: "v42",
           seed: 1,
           compaction: "on",
-          compactionActive: true,
+          compactionActive: "v42",
           positiveControl: {
             promptTokensByTurn: { "1": 100, "2": 250 },
             reusedTokensByTurn: {},

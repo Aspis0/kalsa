@@ -12,10 +12,16 @@
  * probes without `family`) still aggregate: probes fall back to family
  * `unknown`.
  *
- * Completeness gate (Fase 4 only): every expected (arm, seed) pair must be
- * present, compactionActive must match the arm under test, and identical
- * prompt hashes across arms fail the run — an A/B that assembles the same
- * prompt is a broken experiment, not a null result. Smoke is never gated.
+ * Completeness gate (Fase 4 only): every expected (mode, seed) pair must be
+ * present (modes: off / v42 / ciswire), compactionActive must match the mode
+ * the matrix asked for, and identical prompt hashes across arms fail the run
+ * — an A/B that assembles the same prompt is a broken experiment, not a null
+ * result. Smoke is never gated.
+ *
+ * Primary comparison is ciswire vs off (retrieval additive). Also reports
+ * v42 vs off and ciswire vs v42. Three pairwise p-values are NOT corrected
+ * for multiplicity in the raw column; Holm-adjusted p-values are printed
+ * alongside.
  *
  * Zero npm dependencies (Node builtins only): fs/path for the file walk, a
  * hand-rolled deterministic PRNG (mulberry32) for the permutation test —
@@ -36,7 +42,25 @@ import { fileURLToPath } from "node:url";
 const PERM_ITERATIONS = Number(process.env.BENCH_PERM_ITERATIONS || 10_000);
 const PERM_SEED = Number(process.env.BENCH_PERM_SEED || 42);
 const ALPHA = 0.05;
-const FASE4_ARMS = ["baseline", "v42"];
+/** Workflow arm labels (artifact names / result.arm). */
+const FASE4_ARMS = ["baseline", "v42", "ciswire"];
+/** Context modes under test (result.compactionActive). */
+const FASE4_MODES = ["off", "v42", "ciswire"];
+/** arm label → expected compactionActive mode. */
+const ARM_TO_MODE = {
+  baseline: "off",
+  v42: "v42",
+  ciswire: "ciswire",
+};
+/**
+ * Pairwise comparisons (conversation-level). Order: primary first.
+ * modeA is control, modeB is treatment; one-sided test is mean(B) > mean(A).
+ */
+const PAIRWISE_SPECS = [
+  { id: "ciswire_vs_off", label: "ciswire vs off", modeA: "off", modeB: "ciswire", primary: true },
+  { id: "v42_vs_off", label: "v42 vs off", modeA: "off", modeB: "v42", primary: false },
+  { id: "ciswire_vs_v42", label: "ciswire vs v42", modeA: "v42", modeB: "ciswire", primary: false },
+];
 // Primary endpoint = mean(fact_recall_early, fact_recall_late) per conversation
 // when the early/late layout is present; plain fact_recall for older artifacts.
 // WHY mean: see conversationPrimaryRate. Early/late still reported separately
@@ -97,16 +121,72 @@ function mulberry32(seed) {
   };
 }
 
+/**
+ * Exact one-sided enumeration over every assignment of nB labels out of n.
+ * Same add-one smoothing as the Monte-Carlo path: p = (countGE+1)/(N+1).
+ */
+function permutationExactOneSided(pooled, nB, observed, meanFn) {
+  const n = pooled.length;
+  let countGE = 0;
+  let assignments = 0;
+  const chosen = [];
+  function visit(start) {
+    if (chosen.length === nB) {
+      assignments += 1;
+      const inB = new Array(n).fill(false);
+      for (const i of chosen) inB[i] = true;
+      const permB = [];
+      const permA = [];
+      for (let i = 0; i < n; i++) {
+        if (inB[i]) permB.push(pooled[i]);
+        else permA.push(pooled[i]);
+      }
+      const diff = meanFn(permB) - meanFn(permA);
+      if (diff >= observed - 1e-9) countGE += 1;
+      return;
+    }
+    const need = nB - chosen.length;
+    for (let i = start; i <= n - need; i++) {
+      chosen.push(i);
+      visit(i + 1);
+      chosen.pop();
+    }
+  }
+  visit(0);
+  const p = (countGE + 1) / (assignments + 1);
+  return { countGE, assignments, p };
+}
+
 /** One-sided permutation test: is mean(groupB) > mean(groupA)? */
 function permutationTestOneSided(groupA, groupB, iterations, seed) {
   const mean = (arr) => (arr.length === 0 ? 0 : arr.reduce((a, b) => a + b, 0) / arr.length);
   const observed = mean(groupB) - mean(groupA);
   if (groupA.length === 0 || groupB.length === 0) {
-    return { observed, p: 1, iterations: 0 };
+    return {
+      observed,
+      p: 1,
+      iterations: 0,
+      method: "none",
+      methodLabel: "n/a",
+    };
   }
-  const rand = mulberry32(seed);
   const pooled = groupA.concat(groupB);
   const nB = groupB.length;
+  const comb = binomial(pooled.length, nB);
+
+  // Exact enumeration when the design fits in the iteration budget.
+  if (comb <= BigInt(iterations) && comb > 0n) {
+    const exact = permutationExactOneSided(pooled, nB, observed, mean);
+    return {
+      observed,
+      p: exact.p,
+      iterations: exact.assignments,
+      method: "exact",
+      methodLabel: `exact (${exact.assignments} assignments)`,
+    };
+  }
+
+  const rand = mulberry32(seed);
   let countGE = 0;
   for (let it = 0; it < iterations; it++) {
     const arr = pooled.slice();
@@ -128,7 +208,13 @@ function permutationTestOneSided(groupA, groupB, iterations, seed) {
   // holds for exhaustive enumeration; for sampling the formula is still the
   // usual Phipson–Smyth-style estimator.)
   const p = (countGE + 1) / (iterations + 1);
-  return { observed, p, iterations };
+  return {
+    observed,
+    p,
+    iterations,
+    method: "montecarlo",
+    methodLabel: `Monte Carlo (${iterations} draws)`,
+  };
 }
 
 /** Exact binomial coefficient C(n, k) via BigInt. */
@@ -368,11 +454,63 @@ function listFase4(results) {
   return results.filter((r) => r.phase === "fase4");
 }
 
-/** Present (arm, seed) pairs from loaded fase4 results. */
-function presentPairs(fase4) {
+/**
+ * Observed context mode for a result. Prefers compactionActive mode string;
+ * accepts legacy boolean (true→v42, false→off).
+ * Gated fase4 (schema >= 2): no arm-label fallback — absent compactionActive
+ * returns null so a stale schema-1-shaped artifact cannot enter a mode cell.
+ * Non-gated phases keep the arm-label fallback for partial / smoke trees.
+ * @returns {"off"|"v42"|"ciswire"|null}
+ */
+function modeOf(r) {
+  const ca = r?.compactionActive;
+  if (ca === "off" || ca === "v42" || ca === "ciswire") return ca;
+  if (ca === true) return "v42";
+  if (ca === false) return "off";
+  // Gated fase4 schema>=2: missing/unknown compactionActive is invalid, not
+  // "whatever the arm label says".
+  if (shouldGateFase4()) return null;
+  const arm = String(r?.arm ?? "");
+  if (Object.prototype.hasOwnProperty.call(ARM_TO_MODE, arm)) {
+    return ARM_TO_MODE[arm];
+  }
+  return null;
+}
+
+/** Expected mode from arm label (matrix intent). */
+function expectedModeForArm(arm) {
+  const a = String(arm ?? "");
+  if (Object.prototype.hasOwnProperty.call(ARM_TO_MODE, a)) return ARM_TO_MODE[a];
+  return null;
+}
+
+/**
+ * Holm–Bonferroni step-down adjustment.
+ * @param {number[]} pValues raw p-values
+ * @returns {number[]} adjusted p-values in the same order as input
+ */
+function holmAdjust(pValues) {
+  const m = pValues.length;
+  if (m === 0) return [];
+  const indexed = pValues.map((p, i) => ({ p, i }));
+  indexed.sort((a, b) => a.p - b.p);
+  const adj = new Array(m);
+  let running = 0;
+  for (let rank = 0; rank < m; rank++) {
+    const { p, i } = indexed[rank];
+    const h = Math.min(1, Math.max(running, (m - rank) * p));
+    running = h;
+    adj[i] = h;
+  }
+  return adj;
+}
+
+/** Present (mode, seed) pairs from loaded fase4 results. */
+function presentModePairs(fase4) {
   const set = new Set();
   for (const r of fase4) {
-    set.add(`${String(r.arm)}|${String(r.seed)}`);
+    const mode = modeOf(r);
+    if (mode) set.add(`${mode}|${String(r.seed)}`);
   }
   return set;
 }
@@ -380,22 +518,22 @@ function presentPairs(fase4) {
 function findMissingPairs(fase4) {
   const n = expectSeeds();
   if (n <= 0) return [];
-  const present = presentPairs(fase4);
+  const present = presentModePairs(fase4);
   const missing = [];
-  for (const arm of FASE4_ARMS) {
+  for (const mode of FASE4_MODES) {
     for (let s = 1; s <= n; s++) {
-      const key = `${arm}|${s}`;
-      if (!present.has(key)) missing.push({ arm, seed: s });
+      const key = `${mode}|${s}`;
+      if (!present.has(key)) missing.push({ mode, arm: mode, seed: s });
     }
   }
   return missing;
 }
 
 /**
- * An arm that did not actually run the mechanism under test is not a valid
- * observation: v42 must have compactionActive, baseline must not.
+ * An observation whose compactionActive disagrees with the mode the matrix
+ * asked for (via arm label) is not valid for the mechanism under test.
  * Schema-1 files omit the field — skip them. Schema >= 2: missing
- * compactionActive is a failure (not only an explicit false mismatch).
+ * compactionActive is a failure (not only an explicit mismatch).
  */
 function findInvalidCompaction(fase4) {
   const bad = [];
@@ -403,46 +541,64 @@ function findInvalidCompaction(fase4) {
     const arm = String(r.arm);
     const seed = r.seed;
     const schema = r.schema ?? 1;
-    if (typeof r.compactionActive !== "boolean") {
-      if (schema >= 2) {
-        bad.push({
-          arm,
-          seed,
-          reason: "compactionActive missing (required for schema >= 2)",
-        });
+    if (schema < 2) {
+      // Gated fase4 accepts no schema-1 artifact: it carries no compactionActive,
+      // so its mode would be taken from the arm label — a stale file labelled
+      // "ciswire" that actually ran as baseline would enter the primary cell.
+      if (shouldGateFase4()) {
+        bad.push({ arm, seed, reason: `schema ${schema} (gated fase4 requires >= 2)` });
       }
       continue;
     }
-    if (arm === "v42" && r.compactionActive !== true) {
+
+    const ca = r.compactionActive;
+    if (ca === undefined || ca === null) {
       bad.push({
         arm,
         seed,
-        reason: `compactionActive=${r.compactionActive} (expected true for v42)`,
+        reason: "compactionActive missing (required for schema >= 2)",
       });
-    } else if (arm === "baseline" && r.compactionActive !== false) {
+      continue;
+    }
+
+    const isModeStr = ca === "off" || ca === "v42" || ca === "ciswire";
+    const isLegacyBool = typeof ca === "boolean";
+    if (!isModeStr && !isLegacyBool) {
       bad.push({
         arm,
         seed,
-        reason: `compactionActive=${r.compactionActive} (expected false for baseline)`,
+        reason: `compactionActive=${JSON.stringify(ca)} (expected "off"|"v42"|"ciswire")`,
+      });
+      continue;
+    }
+
+    const observed = modeOf(r);
+    const expected = expectedModeForArm(arm);
+    if (expected != null && observed !== expected) {
+      bad.push({
+        arm,
+        seed,
+        reason: `compactionActive=${JSON.stringify(ca)} (expected ${expected} for arm ${arm})`,
       });
     }
   }
   return bad;
 }
 
-/** Same (arm, seed) more than once → list duplicate files. */
+/** Same (mode, seed) more than once → list duplicate files. */
 function findDuplicatePairs(fase4) {
   const map = new Map(); // key -> files[]
   for (const r of fase4) {
-    const key = `${String(r.arm)}|${String(r.seed)}`;
+    const mode = modeOf(r) ?? String(r.arm);
+    const key = `${mode}|${String(r.seed)}`;
     if (!map.has(key)) map.set(key, []);
     map.get(key).push(r.__file ?? "(unknown)");
   }
   const dups = [];
   for (const [key, files] of map) {
     if (files.length > 1) {
-      const [arm, seed] = key.split("|");
-      dups.push({ arm, seed, files });
+      const [mode, seed] = key.split("|");
+      dups.push({ arm: mode, mode, seed, files });
     }
   }
   return dups;
@@ -549,79 +705,164 @@ function familyOutcomes(fase4) {
 }
 
 /**
- * Conversation-level primary rates (unit = one result.json).
+ * Conversation-level primary rates (unit = one result.json), grouped by mode.
  * Uses conversationPrimaryRate (mean early+late, else plain fact_recall).
  * Skip conversations with no usable fact family (null rate).
  */
-function conversationRecallRates(fase4) {
-  const byArm = new Map();
+function conversationRecallRatesByMode(fase4) {
+  const byMode = new Map();
   for (const r of fase4) {
-    const arm = String(r.arm);
+    const mode = modeOf(r);
+    if (!mode) continue;
     const rate = conversationPrimaryRate(r);
     if (rate == null || !Number.isFinite(rate)) continue;
-    if (!byArm.has(arm)) byArm.set(arm, []);
-    byArm.get(arm).push(rate);
+    if (!byMode.has(mode)) byMode.set(mode, []);
+    byMode.get(mode).push(rate);
   }
-  return byArm;
+  return byMode;
 }
 
+/**
+ * Probe-level (pseudo-replicated) permutations for every pairwise comparison
+ * that the conversation gate also reports — including the primary ciswire arm.
+ * Emits one row set per pair so the primary comparison is never missing.
+ */
 function runFamilyPermutations(fase4, families) {
   const outcomes = familyOutcomes(fase4);
-  const baseline = outcomes.get("baseline") ?? new Map();
-  const v42 = outcomes.get("v42") ?? new Map();
-  const rows = [];
-  for (const family of families) {
-    const a = baseline.get(family) ?? [];
-    const b = v42.get(family) ?? [];
+  // mode → arm label used in result.arm for that mode's matrix cell
+  const modeToArm = { off: "baseline", v42: "v42", ciswire: "ciswire" };
+  const mean = (arr) =>
+    arr.length === 0 ? null : arr.reduce((s, x) => s + x, 0) / arr.length;
+  const tables = [];
+  for (const spec of PAIRWISE_SPECS) {
+    const armA = modeToArm[spec.modeA];
+    const armB = modeToArm[spec.modeB];
+    const mapA = outcomes.get(armA) ?? new Map();
+    const mapB = outcomes.get(armB) ?? new Map();
+    const rows = [];
+    for (const family of families) {
+      const a = mapA.get(family) ?? [];
+      const b = mapB.get(family) ?? [];
+      const perm =
+        a.length > 0 && b.length > 0
+          ? permutationTestOneSided(a, b, PERM_ITERATIONS, PERM_SEED)
+          : null;
+      rows.push({
+        family,
+        comparison: spec.label,
+        comparisonId: spec.id,
+        modeA: spec.modeA,
+        modeB: spec.modeB,
+        primaryComparison: spec.primary === true,
+        // Legacy field names (baseline/v42) kept for older harness matchers
+        // on the v42_vs_off table only.
+        baselineRate: mean(a),
+        v42Rate: mean(b),
+        rateA: mean(a),
+        rateB: mean(b),
+        nA: a.length,
+        nB: b.length,
+        permutation: perm,
+        primary: false,
+        probeLevel: true,
+      });
+    }
+    tables.push({
+      id: spec.id,
+      label: spec.label,
+      primary: spec.primary === true,
+      modeA: spec.modeA,
+      modeB: spec.modeB,
+      rows,
+    });
+  }
+  // Flat rows: primary pair first, then others — used by render + harness.
+  const flat = tables.flatMap((t) => t.rows);
+  return { tables, rows: flat };
+}
+
+/**
+ * Three pairwise conversation-level tests (same permutation method each).
+ * Primary = ciswire vs off. Holm-adjusted p printed alongside raw (no silent
+ * multiplicity correction of the raw column).
+ */
+function runPairwiseConversation(fase4) {
+  const primaryEndpoint = resolvePrimaryEndpoint(fase4);
+  const byMode = conversationRecallRatesByMode(fase4);
+  const mean = (arr) =>
+    arr.length === 0 ? null : arr.reduce((s, x) => s + x, 0) / arr.length;
+
+  const pairwise = PAIRWISE_SPECS.map((spec) => {
+    const a = byMode.get(spec.modeA) ?? [];
+    const b = byMode.get(spec.modeB) ?? [];
     const perm =
       a.length > 0 && b.length > 0
         ? permutationTestOneSided(a, b, PERM_ITERATIONS, PERM_SEED)
         : null;
-    const mean = (arr) =>
-      arr.length === 0 ? null : arr.reduce((s, x) => s + x, 0) / arr.length;
-    rows.push({
-      family,
-      baselineRate: mean(a),
-      v42Rate: mean(b),
+    const floor = permutationFloor(a.length, b.length, PERM_ITERATIONS);
+    const rateA = mean(a);
+    const rateB = mean(b);
+    return {
+      id: spec.id,
+      label: spec.label,
+      modeA: spec.modeA,
+      modeB: spec.modeB,
+      primary: spec.primary,
+      family: primaryEndpoint,
+      unit: "conversation",
+      rateA,
+      rateB,
+      // Legacy field names for the primary pair (modeA=off, modeB=ciswire).
+      baselineRate: rateA,
+      v42Rate: rateB,
       nA: a.length,
       nB: b.length,
       permutation: perm,
-      // Probe-level is never the primary gate (see conversationPrimary).
-      primary: false,
-      probeLevel: true,
-    });
-  }
-  return rows;
+      floor,
+      underpowered: ALPHA <= floor,
+      pRaw: perm != null ? perm.p : null,
+      pHolm: null,
+    };
+  });
+
+  const withP = pairwise
+    .map((row, i) => ({ i, p: row.pRaw }))
+    .filter((x) => x.p != null && Number.isFinite(x.p));
+  const adjusted = holmAdjust(withP.map((x) => x.p));
+  withP.forEach((x, j) => {
+    pairwise[x.i].pHolm = adjusted[j];
+  });
+
+  const primary = pairwise.find((r) => r.primary) ?? pairwise[0];
+  return { pairwise, primary };
+}
+
+/** @deprecated Prefer runPairwiseConversation; kept for primary-only shape. */
+function runConversationPrimary(fase4) {
+  return runPairwiseConversation(fase4).primary;
 }
 
 /**
- * PRIMARY test: unit = conversation, value = mean(early, late) or plain
- * fact_recall rate in [0,1]. See conversationPrimaryRate for WHY mean.
+ * Aggregate summaryEvents counts per mode (diagnostic for rolling-summary path).
  */
-function runConversationPrimary(fase4) {
-  const primaryEndpoint = resolvePrimaryEndpoint(fase4);
-  const byArm = conversationRecallRates(fase4);
-  const a = byArm.get("baseline") ?? [];
-  const b = byArm.get("v42") ?? [];
-  const mean = (arr) =>
-    arr.length === 0 ? null : arr.reduce((s, x) => s + x, 0) / arr.length;
-  const perm =
-    a.length > 0 && b.length > 0
-      ? permutationTestOneSided(a, b, PERM_ITERATIONS, PERM_SEED)
-      : null;
-  const floor = permutationFloor(a.length, b.length, PERM_ITERATIONS);
-  return {
-    family: primaryEndpoint,
-    unit: "conversation",
-    baselineRate: mean(a),
-    v42Rate: mean(b),
-    nA: a.length,
-    nB: b.length,
-    permutation: perm,
-    floor,
-    underpowered: ALPHA <= floor,
-    primary: true,
-  };
+function collectSummaryByMode(fase4) {
+  /** @type {Map<string, Record<string, number>>} */
+  const byMode = new Map();
+  for (const mode of FASE4_MODES) byMode.set(mode, {});
+  for (const r of fase4) {
+    const mode = modeOf(r);
+    if (!mode) continue;
+    if (!byMode.has(mode)) byMode.set(mode, {});
+    const agg = byMode.get(mode);
+    const events = r.summaryEvents;
+    if (!events || typeof events !== "object") continue;
+    for (const [ev, n] of Object.entries(events)) {
+      if (typeof n === "number" && Number.isFinite(n) && n > 0) {
+        agg[ev] = (agg[ev] ?? 0) + n;
+      }
+    }
+  }
+  return byMode;
 }
 
 function collectPrefill(fase4) {
@@ -690,10 +931,66 @@ function collectPrefill(fase4) {
   return { rows, anyPrefill };
 }
 
+/**
+ * Compare one control/treatment pair on a single seed's positiveControl blobs.
+ * Treatment arms (v42, ciswire) are expected to have compactorChars > 0 while
+ * baseline stays 0 (reset_chat clears the key).
+ */
+function scorePositivePair(pcA, pcB, { treatmentArm }) {
+  const tokensA = pcA.promptTokensByTurn ?? {};
+  const tokensB = pcB.promptTokensByTurn ?? {};
+  const compA =
+    typeof pcA.compactorChars === "number" ? pcA.compactorChars : 0;
+  const compB =
+    typeof pcB.compactorChars === "number" ? pcB.compactorChars : 0;
+
+  const allCommon = Object.keys(tokensA)
+    .filter((t) => Object.prototype.hasOwnProperty.call(tokensB, t))
+    .sort((a, b) => Number(a) - Number(b));
+
+  // Turn 1 is assembled before any compaction has happened and is EXPECTED
+  // to match across arms — exclude it from the identical/differ verdict.
+  const commonTurns = allCommon.filter((t) => Number(t) !== 1);
+
+  let different = 0;
+  for (const t of commonTurns) {
+    if (tokensA[t] !== tokensB[t]) different += 1;
+  }
+
+  // Compactor / BM25 digest: treatment > 0, baseline 0 (covers v42 AND ciswire).
+  const compactorDiffersExpected = compB > 0 && compA === 0;
+
+  let verdict;
+  if (allCommon.length === 0 && !(compA > 0 || compB > 0)) {
+    verdict = "NO OVERLAPPING PROMPT TOKENS";
+  } else if (commonTurns.length === 0 && !compactorDiffersExpected) {
+    verdict = "INSUFFICIENT — turn 1 only (excluded; pre-compaction)";
+  } else if (different > 0 || compactorDiffersExpected) {
+    verdict = "ARMS DIFFER";
+  } else if (different === 0 && compA === 0 && compB === 0) {
+    verdict = "MEASURING NOTHING";
+  } else {
+    verdict = "MEASURING NOTHING";
+  }
+
+  return {
+    compared: commonTurns.length,
+    different,
+    verdict,
+    treatmentArm,
+    treatmentCompactorChars: compB,
+    baselineCompactorChars: compA,
+    // Legacy column name used by the markdown table for the v42 pair.
+    v42CompactorChars: treatmentArm === "v42" ? compB : compB,
+  };
+}
+
 function collectPositiveControl(fase4) {
   // seed -> arm -> positiveControl
   // After smoke run 31358530713: compare promptTokensByTurn (embd.size) and
   // compactorChars — never promptSha* (logcat 4 KB truncation made hashes constant).
+  // Primary pair is baseline↔ciswire (the declared comparison); also check
+  // baseline↔v42 so a silent ciswire no-op cannot hide behind a green v42 control.
   const bySeed = new Map();
   for (const r of fase4) {
     const seed = String(r.seed);
@@ -702,91 +999,81 @@ function collectPositiveControl(fase4) {
     bySeed.get(seed)[arm] = r.positiveControl ?? null;
   }
 
+  /** @type {{ armA: string, armB: string, primary: boolean }[]} */
+  const pairs = [
+    { armA: "baseline", armB: "ciswire", primary: true },
+    { armA: "baseline", armB: "v42", primary: false },
+  ];
+
   const rows = [];
   let anyIdentical = false;
   let anyPass = false;
   let anyFail = false;
-  let seedsWithBothArms = 0;
+  let seedsWithPrimaryPair = 0;
+  let seedsWithAnyPair = 0;
+  let primaryIdentical = false;
 
   for (const seed of [...bySeed.keys()].sort()) {
-    const pair = bySeed.get(seed);
-    if (!pair.baseline || !pair.v42) continue;
-    seedsWithBothArms += 1;
-    const tokensA = pair.baseline.promptTokensByTurn ?? {};
-    const tokensB = pair.v42.promptTokensByTurn ?? {};
-    const compA =
-      typeof pair.baseline.compactorChars === "number"
-        ? pair.baseline.compactorChars
-        : 0;
-    const compB =
-      typeof pair.v42.compactorChars === "number"
-        ? pair.v42.compactorChars
-        : 0;
-
-    const allCommon = Object.keys(tokensA)
-      .filter((t) => Object.prototype.hasOwnProperty.call(tokensB, t))
-      .sort((a, b) => Number(a) - Number(b));
-
-    // Turn 1 is assembled before any compaction has happened and is EXPECTED
-    // to match across arms — exclude it from the identical/differ verdict.
-    // If turn 1 is the only common turn, that is INSUFFICIENT and fails.
-    const commonTurns = allCommon.filter((t) => Number(t) !== 1);
-
-    let different = 0;
-    for (const t of commonTurns) {
-      if (tokensA[t] !== tokensB[t]) different += 1;
+    const arms = bySeed.get(seed);
+    let seedHadPair = false;
+    for (const { armA, armB, primary } of pairs) {
+      if (!arms[armA] || !arms[armB]) continue;
+      seedHadPair = true;
+      if (primary) seedsWithPrimaryPair += 1;
+      const scored = scorePositivePair(arms[armA], arms[armB], {
+        treatmentArm: armB,
+      });
+      const pass = scored.verdict === "ARMS DIFFER";
+      const fail = !pass;
+      if (pass) anyPass = true;
+      if (fail) {
+        anyFail = true;
+        if (
+          scored.verdict === "MEASURING NOTHING" ||
+          scored.verdict === "NO OVERLAPPING PROMPT TOKENS" ||
+          scored.verdict.startsWith("INSUFFICIENT")
+        ) {
+          anyIdentical = true;
+        }
+        // Primary pair identical prompts = the single worst outcome.
+        if (primary && scored.verdict === "MEASURING NOTHING") {
+          primaryIdentical = true;
+        }
+      }
+      rows.push({
+        seed,
+        pair: `${armA}↔${armB}`,
+        primary,
+        compared: scored.compared,
+        different: scored.different,
+        verdict: scored.verdict,
+        v42CompactorChars: scored.v42CompactorChars,
+        baselineCompactorChars: scored.baselineCompactorChars,
+        treatmentArm: armB,
+        treatmentCompactorChars: scored.treatmentCompactorChars,
+      });
     }
-
-    // Compactor state: expect > 0 on v42, 0 on baseline (reset_chat clears it).
-    const compactorDiffersExpected = compB > 0 && compA === 0;
-
-    let verdict;
-    if (allCommon.length === 0 && !(compA > 0 || compB > 0)) {
-      // No overlapping prompt-token turns and no compactor signal → fail closed.
-      verdict = "NO OVERLAPPING PROMPT TOKENS";
-      anyFail = true;
-    } else if (commonTurns.length === 0 && !compactorDiffersExpected) {
-      verdict = "INSUFFICIENT — turn 1 only (excluded; pre-compaction)";
-      anyFail = true;
-    } else if (different > 0 || compactorDiffersExpected) {
-      // PASS: at least one common turn ≥ 2 differs in prompt token count,
-      // OR compactorChars differs in the expected direction (v42 > 0, baseline 0).
-      verdict = "ARMS DIFFER";
-      anyPass = true;
-    } else if (different === 0 && compA === 0 && compB === 0) {
-      // Every common turn ≥ 2 matches AND compactor never ran on either arm.
-      verdict = "MEASURING NOTHING";
-      anyIdentical = true;
-      anyFail = true;
-    } else {
-      // Token counts match and compactorChars not in expected direction
-      // (e.g. both non-zero, or only baseline non-zero) — still not a valid A/B.
-      verdict = "MEASURING NOTHING";
-      anyIdentical = true;
-      anyFail = true;
-    }
-
-    rows.push({
-      seed,
-      compared: commonTurns.length,
-      different,
-      verdict,
-      v42CompactorChars: compB,
-      baselineCompactorChars: compA,
-    });
+    if (seedHadPair) seedsWithAnyPair += 1;
   }
 
-  // Fail closed when no seed has positiveControl in both arms.
-  const absentBothArms = seedsWithBothArms === 0;
+  // Fail closed when the primary pair never appears (ciswire arm missing).
+  const absentBothArms = seedsWithPrimaryPair === 0 && seedsWithAnyPair === 0;
+  const absentPrimary = seedsWithPrimaryPair === 0;
 
   return {
     rows,
     anyIdentical,
     anyFail,
     anyPass,
-    absentBothArms,
-    // Gate fails if absent, any fail, or no seed passed ARMS DIFFER.
-    gateFailed: absentBothArms || anyFail || !anyPass,
+    absentBothArms: absentBothArms || absentPrimary,
+    primaryIdentical,
+    // Gate fails if primary absent, any fail, primary identical, or no pass.
+    gateFailed:
+      absentBothArms ||
+      absentPrimary ||
+      anyFail ||
+      primaryIdentical ||
+      !anyPass,
   };
 }
 
@@ -821,14 +1108,57 @@ function collectNotes(fase4) {
   return [...map.entries()].map(([note, sources]) => ({ note, sources }));
 }
 
+/**
+ * Usable-conversation completeness: per mode, require BENCH_EXPECT_SEEDS
+ * conversations with a non-null primary rate. File presence alone is not
+ * enough — null rates (all fact probes excluded) silently shrink n and can
+ * leave the primary pair with zero usable conversations while the run exits 0.
+ */
+function findInsufficientUsable(fase4) {
+  const n = expectSeeds();
+  if (n <= 0) return { perMode: [], primaryZero: false };
+  const byMode = conversationRecallRatesByMode(fase4);
+  const perMode = [];
+  for (const mode of FASE4_MODES) {
+    const usable = (byMode.get(mode) ?? []).length;
+    if (usable < n) {
+      perMode.push({ mode, usable, expected: n });
+    }
+  }
+  const nOff = (byMode.get("off") ?? []).length;
+  const nCis = (byMode.get("ciswire") ?? []).length;
+  const primaryZero = nOff === 0 || nCis === 0;
+  return { perMode, primaryZero, nOff, nCis };
+}
+
+/**
+ * True when at least one result in the campaign recorded a KALSA_SUMMARY event.
+ * All-zero summaryEvents across every arm means the capture path is broken,
+ * not that "the rolling summary contributed nothing".
+ */
+function campaignHasSummaryEvent(fase4) {
+  for (const r of fase4) {
+    const events = r.summaryEvents;
+    if (!events || typeof events !== "object") continue;
+    for (const v of Object.values(events)) {
+      if (typeof v === "number" && v > 0) return true;
+    }
+  }
+  return false;
+}
+
 function aggregateFase4(results) {
   const fase4 = listFase4(results);
   const { rows: familyRows, families } = familyStatsPerArm(fase4);
-  const permutations = runFamilyPermutations(fase4, families);
-  const conversationPrimary = runConversationPrimary(fase4);
+  const familyPerm = runFamilyPermutations(fase4, families);
+  const permutations = familyPerm.rows;
+  const familyPermTables = familyPerm.tables;
+  const { pairwise, primary: conversationPrimary } =
+    runPairwiseConversation(fase4);
   const prefill = collectPrefill(fase4);
   const positiveControl = collectPositiveControl(fase4);
   const notes = collectNotes(fase4);
+  const summaryByMode = collectSummaryByMode(fase4);
 
   const gated = shouldGateFase4();
   const seedsInfo = expectSeedsInfo();
@@ -836,19 +1166,27 @@ function aggregateFase4(results) {
   const invalidCompaction = gated ? findInvalidCompaction(fase4) : [];
   const duplicates = gated ? findDuplicatePairs(fase4) : [];
   const zeroProbes = gated ? findZeroProbeFiles(fase4) : [];
+  const usableInfo = gated
+    ? findInsufficientUsable(fase4)
+    : { perMode: [], primaryZero: false };
+  const insufficientUsable = usableInfo.perMode;
+  const primaryUsableZero = usableInfo.primaryZero === true;
+  // Empty capture gate: only when the campaign has fase4 results at all.
+  const summaryCaptureEmpty =
+    gated && fase4.length > 0 && !campaignHasSummaryEvent(fase4);
 
-  // V4.2 gate uses conversation-level p ONLY (not probe-level).
+  // Primary gate: ciswire vs off conversation-level p ONLY (not probe-level).
   const primary = conversationPrimary;
   let gateMet = false;
   if (
     primary &&
     primary.permutation &&
-    primary.baselineRate != null &&
-    primary.v42Rate != null &&
+    primary.rateA != null &&
+    primary.rateB != null &&
     !primary.underpowered
   ) {
     gateMet =
-      primary.v42Rate > primary.baselineRate && primary.permutation.p < ALPHA;
+      primary.rateB > primary.rateA && primary.permutation.p < ALPHA;
   }
 
   return {
@@ -856,7 +1194,10 @@ function aggregateFase4(results) {
     familyRows,
     families,
     permutations,
+    familyPermTables,
     conversationPrimary,
+    pairwise,
+    summaryByMode,
     prefill,
     positiveControl,
     notes,
@@ -864,6 +1205,9 @@ function aggregateFase4(results) {
     invalidCompaction,
     duplicates,
     zeroProbes,
+    insufficientUsable,
+    primaryUsableZero,
+    summaryCaptureEmpty,
     seedsInfo,
     primary,
     gateMet,
@@ -913,7 +1257,9 @@ function renderFase0(agg) {
 
 function renderFase4(agg) {
   const lines = [];
-  lines.push("## Fase 4 — compaction-survival (baseline vs v42)");
+  lines.push(
+    "## Fase 4 — compaction-survival (off / v42 / ciswire)",
+  );
   if (agg.fase4.length === 0) {
     lines.push("", "_No fase4 result.json files found._", "");
     // Still show incompleteness below when gated with zero files.
@@ -956,56 +1302,120 @@ function renderFase4(agg) {
     }
   }
 
-  // ── Primary: conversation-level fact recall ─────────────────────────
-  // Header shape kept as "fact recall, unit = conversation" for stable
-  // harness matching; endpoint name is in the body.
+  // ── Pairwise conversation-level tests (3 pairs, Holm alongside raw) ─
+  const pairwise = agg.pairwise ?? [];
   const cp = agg.conversationPrimary;
   lines.push(
     "",
-    `### Primary endpoint: fact recall, unit = conversation (n=${cp?.nA ?? 0} vs ${cp?.nB ?? 0})`,
+    "### Pairwise tests: fact recall, unit = conversation",
     "",
     primaryFam === PRIMARY_ENDPOINT_MEAN
       ? `_Primary endpoint: \`${primaryFam}\` — one number per conversation = mean of that conversation's early and late fact-recall rates._`
       : `_Primary endpoint: \`${primaryFam}\` (legacy plain family; early/late layout absent)._`,
     "",
+    "**Three pairwise one-sided permutation tests are run. Raw p-values are NOT corrected for multiplicity.** Holm-adjusted p-values are shown alongside; do not silently pick the best raw p.",
+    "",
+    "| comparison | primary? | mean A | mean B | Δ | p (raw) | p (Holm) | nA | nB | design floor | method |",
+    "|---|---|---|---|---|---|---|---|---|---|---|",
   );
-  if (cp?.permutation) {
-    const { observed, p, iterations } = cp.permutation;
-    const floor = cp.floor;
+
+  let anyPerm = false;
+  for (const row of pairwise) {
+    const perm = row.permutation;
+    if (perm) anyPerm = true;
+    const observed = perm ? perm.observed : null;
+    const deltaStr =
+      observed == null
+        ? "n/a"
+        : `${observed >= 0 ? "+" : ""}${fmt(observed)}`;
+    const pRaw =
+      row.pRaw != null ? fmt(row.pRaw, 4) : "n/a";
+    const pHolm =
+      row.pHolm != null ? fmt(row.pHolm, 4) : "n/a";
+    const methodLabel = perm?.methodLabel ?? "n/a";
     lines.push(
-      `| baseline mean | v42 mean | Δ | p (one-sided) | design floor |`,
-      `|---|---|---|---|---|`,
-      `| ${fmt(cp.baselineRate)} | ${fmt(cp.v42Rate)} | ${observed >= 0 ? "+" : ""}${fmt(observed)} | ${fmt(p, 4)} | ${fmt(floor, 4)} |`,
-      "",
-      `**Primary endpoint (fact recall, unit = conversation):** observed Δ = ${observed >= 0 ? "+" : ""}${fmt(observed)}, p = ${fmt(p, 4)} (${iterations} permutations, seed=${PERM_SEED}, deterministic mulberry32 PRNG). Design floor = ${fmt(floor, 4)} = max( exhaustive (1+1)/(C(nA+nB,nB)+1), Monte-Carlo 1/(iterations+1) ).`,
-    );
-    if (cp.underpowered) {
-      lines.push(
-        "",
-        `> **⚠ DESIGN UNDERPOWERED FOR α=${ALPHA}:** achievable floor = ${fmt(floor, 4)} ≥ α. The gate cannot be met regardless of effect size. Increase seeds (e.g. 6 vs 6 → exhaustive floor 2/C(12,6)+1 ≈ 0.0022, then MC floor dominates).`,
-      );
-    }
-    lines.push("");
-    if (agg.gateMet) {
-      lines.push(
-        `**V4.2 gate (conversation-level fact_recall only):** v42 (${fmt(cp.v42Rate)}) > baseline (${fmt(cp.baselineRate)}) AND p=${fmt(p, 4)} < ${ALPHA} → **MET** — compaction can be enabled by default.`,
-      );
-    } else {
-      lines.push(
-        `**V4.2 gate (conversation-level fact_recall only):** ${
-          cp.v42Rate != null && cp.baselineRate != null
-            ? `v42 (${fmt(cp.v42Rate)}) vs baseline (${fmt(cp.baselineRate)}), p=${fmt(p, 4)}`
-            : "insufficient data"
-        } → gate NOT met — keep default OFF.`,
-      );
-    }
-  } else {
-    lines.push(
-      "_Permutation test skipped for primary endpoint: need both a `baseline` and a `v42` arm with at least one conversation that has a non-null fact_recall rate._",
+      `| ${row.label} | ${row.primary ? "yes" : "no"} | ${fmt(row.rateA)} | ${fmt(row.rateB)} | ${deltaStr} | ${pRaw} | ${pHolm} | ${row.nA} | ${row.nB} | ${fmt(row.floor, 4)} | ${methodLabel} |`,
     );
   }
 
+  if (anyPerm) {
+    lines.push(
+      "",
+      `Permutation methods (per row): exact enumeration when C(nA+nB, nB) ≤ ${PERM_ITERATIONS}, else Monte Carlo with deterministic mulberry32 PRNG (seed=${PERM_SEED}). Add-one smoothing on both paths. Design floor = max( exhaustive (1+1)/(C(nA+nB,nB)+1), Monte-Carlo 1/(iterations+1) ).`,
+    );
+    const under = pairwise.filter((r) => r.underpowered && r.permutation);
+    if (under.length > 0) {
+      lines.push(
+        "",
+        `> **⚠ DESIGN UNDERPOWERED FOR α=${ALPHA}** on: ${under.map((r) => r.label).join(", ")}. Achievable floor ≥ α — gate cannot be met for those pairs regardless of effect size.`,
+      );
+    }
+    lines.push("");
+    if (cp?.permutation) {
+      const { observed, p } = cp.permutation;
+      if (agg.gateMet) {
+        lines.push(
+          `**Primary gate (ciswire vs off, conversation-level fact_recall only):** ciswire (${fmt(cp.rateB)}) > off (${fmt(cp.rateA)}) AND p_raw=${fmt(p, 4)} < ${ALPHA} → **MET**.`,
+        );
+      } else {
+        lines.push(
+          `**Primary gate (ciswire vs off, conversation-level fact_recall only):** ${
+            cp.rateB != null && cp.rateA != null
+              ? `ciswire (${fmt(cp.rateB)}) vs off (${fmt(cp.rateA)}), p_raw=${fmt(p, 4)}`
+              : "insufficient data"
+          } → gate NOT met.`,
+        );
+      }
+    }
+  } else {
+    lines.push(
+      "",
+      "_Permutation tests skipped: need both modes in each pair with at least one conversation that has a non-null fact_recall rate._",
+    );
+  }
+
+  // ── Summary lifecycle events (per mode) ─────────────────────────────
+  lines.push(
+    "",
+    "### Summary lifecycle events (per mode)",
+    "",
+    "_Aggregated `summaryEvents` from each arm's result.json (KALSA_SUMMARY capture). Diagnostic for why the rolling summary never runs._",
+    "",
+  );
+  const summaryByMode = agg.summaryByMode;
+  if (!summaryByMode || summaryByMode.size === 0) {
+    lines.push("_No summaryEvents in any result._", "");
+  } else {
+    const allEvents = new Set();
+    for (const counts of summaryByMode.values()) {
+      for (const ev of Object.keys(counts)) allEvents.add(ev);
+    }
+    const eventList = [...allEvents].sort();
+    if (eventList.length === 0) {
+      lines.push(
+        "| mode | (no events observed) |",
+        "|---|---|",
+      );
+      for (const mode of FASE4_MODES) {
+        lines.push(`| ${mode} | — |`);
+      }
+      lines.push("");
+    } else {
+      lines.push(
+        `| mode | ${eventList.join(" | ")} |`,
+        `|---|${eventList.map(() => "---").join("|")}|`,
+      );
+      for (const mode of FASE4_MODES) {
+        const counts = summaryByMode.get(mode) ?? {};
+        const cells = eventList.map((ev) => String(counts[ev] ?? 0));
+        lines.push(`| ${mode} | ${cells.join(" | ")} |`);
+      }
+      lines.push("");
+    }
+  }
+
   // ── Probe-level (pseudo-replicated — NOT the gate) ──────────────────
+  // One table per pairwise comparison so the primary ciswire arm is present.
   lines.push(
     "",
     "### Probe-level rates (pseudo-replicated — NOT the gate)",
@@ -1013,37 +1423,45 @@ function renderFase4(agg) {
     "Probes inside one conversation share model, context and seed, so they are correlated; this p is optimistic and must not be used as the V4.2 gate.",
     "",
   );
-  lines.push(
-    "| family | baseline | v42 | Δ | p (one-sided) |",
-    "|---|---|---|---|---|",
-  );
-  for (const row of agg.permutations) {
-    // Fact families that feed the composite primary get the "pseudo-replicated"
-    // caveat; everything else is secondary.
-    const feedsPrimary =
-      primaryFam === PRIMARY_ENDPOINT_MEAN
-        ? row.family === "fact_recall_early" ||
-          row.family === "fact_recall_late"
-        : row.family === primaryFam;
-    const label = feedsPrimary
-      ? `${row.family} (probe-level, pseudo-replicated — NOT the gate)`
-      : `${row.family} (secondary, not multiplicity-corrected)`;
-    if (!row.permutation) {
-      lines.push(
-        `| ${label} | ${row.baselineRate == null ? "n/a" : fmt(row.baselineRate)} | ${row.v42Rate == null ? "n/a" : fmt(row.v42Rate)} | n/a | n/a (missing arm) |`,
-      );
-      continue;
-    }
-    const { observed, p } = row.permutation;
-    const delta = `${observed >= 0 ? "+" : ""}${fmt(observed)}`;
-    const pNote = feedsPrimary
-      ? `${fmt(p, 4)} — optimistic; probes in one conversation are correlated`
-      : `${fmt(p, 4)} — not multiplicity-corrected; a single secondary p < 0.05 among four is not evidence on its own`;
-    const baseStr = row.baselineRate == null ? "n/a" : fmt(row.baselineRate);
-    const v42Str = row.v42Rate == null ? "n/a" : fmt(row.v42Rate);
+  const famTables =
+    agg.familyPermTables ??
+    [{ label: "baseline vs v42", primary: false, rows: agg.permutations ?? [] }];
+  for (const table of famTables) {
+    const head = table.primary
+      ? `#### ${table.label} (primary comparison)`
+      : `#### ${table.label}`;
+    lines.push(head, "");
     lines.push(
-      `| ${label} | ${baseStr} | ${v42Str} | ${delta} | ${pNote} |`,
+      `| family | ${table.modeA ?? "A"} | ${table.modeB ?? "B"} | Δ | p (one-sided) | method |`,
+      "|---|---|---|---|---|---|",
     );
+    for (const row of table.rows ?? []) {
+      const feedsPrimary =
+        primaryFam === PRIMARY_ENDPOINT_MEAN
+          ? row.family === "fact_recall_early" ||
+            row.family === "fact_recall_late"
+          : row.family === primaryFam;
+      const label = feedsPrimary
+        ? `${row.family} (probe-level, pseudo-replicated — NOT the gate)`
+        : `${row.family} (secondary, not multiplicity-corrected)`;
+      const rateA = row.rateA ?? row.baselineRate;
+      const rateB = row.rateB ?? row.v42Rate;
+      if (!row.permutation) {
+        lines.push(
+          `| ${label} | ${rateA == null ? "n/a" : fmt(rateA)} | ${rateB == null ? "n/a" : fmt(rateB)} | n/a | n/a (missing arm) | n/a |`,
+        );
+        continue;
+      }
+      const { observed, p, methodLabel } = row.permutation;
+      const delta = `${observed >= 0 ? "+" : ""}${fmt(observed)}`;
+      const pNote = feedsPrimary
+        ? `${fmt(p, 4)} — optimistic; probes in one conversation are correlated`
+        : `${fmt(p, 4)} — not multiplicity-corrected; a single secondary p < 0.05 among four is not evidence on its own`;
+      lines.push(
+        `| ${label} | ${rateA == null ? "n/a" : fmt(rateA)} | ${rateB == null ? "n/a" : fmt(rateB)} | ${delta} | ${pNote} | ${methodLabel ?? "n/a"} |`,
+      );
+    }
+    lines.push("");
   }
 
   // ── Prefill / TTFT ──────────────────────────────────────────────────
@@ -1083,16 +1501,18 @@ function renderFase4(agg) {
   );
   if (agg.positiveControl.absentBothArms || agg.positiveControl.rows.length === 0) {
     lines.push(
-      "**positive control absent — cannot prove the arms differed** (no seed with `positiveControl` in both baseline and v42).",
+      "**positive control absent — cannot prove the arms differed** (no seed with `positiveControl` in both baseline and ciswire, the primary pair).",
     );
   } else {
     lines.push(
-      "| seed | turns compared | turns differing | v42 compactorChars | baseline compactorChars | verdict |",
-      "|---|---|---|---|---|---|",
+      "| seed | pair | primary? | turns compared | turns differing | treatment compactorChars | baseline compactorChars | verdict |",
+      "|---|---|---|---|---|---|---|---|",
     );
     for (const r of agg.positiveControl.rows) {
+      const treatChars =
+        r.treatmentCompactorChars ?? r.v42CompactorChars ?? 0;
       lines.push(
-        `| ${r.seed} | ${r.compared} | ${r.different} | ${r.v42CompactorChars} | ${r.baselineCompactorChars} | ${r.verdict} |`,
+        `| ${r.seed} | ${r.pair ?? "baseline↔v42"} | ${r.primary ? "yes" : "no"} | ${r.compared} | ${r.different} | ${treatChars} | ${r.baselineCompactorChars} | ${r.verdict} |`,
       );
     }
   }
@@ -1223,6 +1643,9 @@ function renderGateFailures(agg) {
   const hasBadCompaction = agg.invalidCompaction.length > 0;
   const hasDuplicates = (agg.duplicates ?? []).length > 0;
   const hasZeroProbes = (agg.zeroProbes ?? []).length > 0;
+  const hasInsufficientUsable = (agg.insufficientUsable ?? []).length > 0;
+  const hasPrimaryUsableZero = agg.primaryUsableZero === true;
+  const hasSummaryCaptureEmpty = agg.summaryCaptureEmpty === true;
   const posCtrlFailed = agg.positiveControl.gateFailed === true;
   const seedsInfo = agg.seedsInfo;
 
@@ -1231,6 +1654,9 @@ function renderGateFailures(agg) {
     !hasBadCompaction &&
     !hasDuplicates &&
     !hasZeroProbes &&
+    !hasInsufficientUsable &&
+    !hasPrimaryUsableZero &&
+    !hasSummaryCaptureEmpty &&
     !posCtrlFailed
   ) {
     return { markdown: "", exitCode: 0 };
@@ -1249,26 +1675,26 @@ function renderGateFailures(agg) {
 
   if (hasMissing) {
     lines.push(
-      "**Missing expected (arm, seed) result.json files.** A campaign that reports success with only a subset of arms is invalid (see run 30863711482).",
+      "**Missing expected (mode, seed) result.json files.** A campaign that reports success with only a subset of modes is invalid (see run 30863711482).",
       "",
-      "| arm | seed |",
+      "| mode | seed |",
       "|---|---|",
     );
     for (const m of agg.missing) {
-      lines.push(`| ${m.arm} | ${m.seed} |`);
+      lines.push(`| ${m.mode ?? m.arm} | ${m.seed} |`);
     }
     lines.push("");
   }
 
   if (hasDuplicates) {
     lines.push(
-      "**Duplicate (arm, seed) pairs** — the same observation appears more than once:",
+      "**Duplicate (mode, seed) pairs** — the same observation appears more than once:",
       "",
-      "| arm | seed | files |",
+      "| mode | seed | files |",
       "|---|---|---|",
     );
     for (const d of agg.duplicates) {
-      lines.push(`| ${d.arm} | ${d.seed} | ${d.files.join("; ")} |`);
+      lines.push(`| ${d.mode ?? d.arm} | ${d.seed} | ${d.files.join("; ")} |`);
     }
     lines.push("");
   }
@@ -1286,9 +1712,36 @@ function renderGateFailures(agg) {
     lines.push("");
   }
 
+  if (hasInsufficientUsable || hasPrimaryUsableZero) {
+    lines.push(
+      "**Insufficient usable conversations** — a mode has fewer non-null primary-rate conversations than BENCH_EXPECT_SEEDS (null rates from empty-reply exclusions do not count). Insufficient data is never a green run.",
+      "",
+    );
+    if (hasInsufficientUsable) {
+      lines.push("| mode | usable | expected |", "|---|---|---|");
+      for (const u of agg.insufficientUsable) {
+        lines.push(`| ${u.mode} | ${u.usable} | ${u.expected} |`);
+      }
+      lines.push("");
+    }
+    if (hasPrimaryUsableZero) {
+      lines.push(
+        "**Primary pair (ciswire vs off) has zero usable conversations on at least one side** — permutation would be skipped; fail closed.",
+        "",
+      );
+    }
+  }
+
+  if (hasSummaryCaptureEmpty) {
+    lines.push(
+      "**Summary capture empty across every arm** — no `summaryEvents` count > 0 in the whole campaign. That is a broken KALSA_SUMMARY capture, not a finding that the rolling summary contributed nothing.",
+      "",
+    );
+  }
+
   if (hasBadCompaction) {
     lines.push(
-      "**compactionActive missing or disagrees with arm label** — observation is not valid for the mechanism under test:",
+      "**compactionActive missing or disagrees with mode the matrix asked for** — observation is not valid for the mechanism under test:",
       "",
       "| arm | seed | detail |",
       "|---|---|---|",
@@ -1302,12 +1755,17 @@ function renderGateFailures(agg) {
   if (posCtrlFailed) {
     if (agg.positiveControl.absentBothArms) {
       lines.push(
-        "**Positive control absent — cannot prove the arms differed** (no seed with positiveControl in both baseline and v42).",
+        "**Positive control absent — cannot prove the arms differed** (no seed with positiveControl in both baseline and ciswire, the primary pair).",
+        "",
+      );
+    } else if (agg.positiveControl.primaryIdentical) {
+      lines.push(
+        "**Positive control failed on the primary pair (baseline↔ciswire):** at least one seed has identical prompts / zero compactorChars on both arms. ciswire may be assembling the same legacy window as off — the A/B is measuring nothing.",
         "",
       );
     } else if (agg.positiveControl.anyIdentical) {
       lines.push(
-        "**Positive control failed:** at least one seed has matching `promptTokensByTurn` on every turn ≥ 2 and `compactorChars` is 0 on both arms (or not in the expected v42>0 / baseline=0 direction). The A/B is measuring nothing. This is a broken experiment, not a null result.",
+        "**Positive control failed:** at least one seed has matching `promptTokensByTurn` on every turn ≥ 2 and `compactorChars` is 0 on both arms of a compared pair (or not in the expected treatment>0 / baseline=0 direction). The A/B is measuring nothing. This is a broken experiment, not a null result.",
         "",
       );
     } else {

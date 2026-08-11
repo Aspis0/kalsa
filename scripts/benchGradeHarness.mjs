@@ -113,6 +113,7 @@ async function main() {
     stripThink,
     matchesFact,
     isCompactionActive,
+    parseContextModeFromPref,
     gradeRaw,
     gradeFile,
   } = await import(pathToFileURL(modPath).href);
@@ -824,13 +825,26 @@ async function main() {
       );
     }
 
-    // ── 9. compactionActive ───────────────────────────────────────────
+    // ── 9. compactionActive is a mode string ("off"|"v42"|"ciswire") ──
     {
-      check('compactionActive "0" → false', isCompactionActive("0") === false);
-      check('compactionActive "on" → false', isCompactionActive("on") === false);
-      check('compactionActive "" → false', isCompactionActive("") === false);
-      check('compactionActive "1" → true', isCompactionActive("1") === true);
-      check('compactionActive "true" → true', isCompactionActive("true") === true);
+      const parse = parseContextModeFromPref ?? isCompactionActive;
+      check('parseContextModeFromPref null → "off"', parse(null) === "off");
+      check('parseContextModeFromPref "0" → "off"', parse("0") === "off");
+      check('parseContextModeFromPref "1" → "v42"', parse("1") === "v42");
+      check('parseContextModeFromPref "true" → "v42"', parse("true") === "v42");
+      check(
+        'parseContextModeFromPref "ciswire" → "ciswire"',
+        parse("ciswire") === "ciswire",
+      );
+      check(
+        'parseContextModeFromPref garbage → "off"',
+        parse("on") === "off" && parse("") === "off" && parse("nope") === "off",
+      );
+      // Deprecated alias returns the same mode string (not a boolean).
+      check(
+        'isCompactionActive alias returns mode string',
+        isCompactionActive("1") === "v42" && isCompactionActive("0") === "off",
+      );
 
       const mismatch = gradeRaw(
         baseRaw({
@@ -841,11 +855,16 @@ async function main() {
         }),
         tmp,
       );
-      check("compactionActive field false for pref 0", mismatch.compactionActive === false);
       check(
-        "mismatch note fires when arm on but pref disabled",
-        (mismatch.notes ?? []).some((n) =>
-          n.includes("which the app reads as DISABLED"),
+        'graded result compactionActive is string "off" for pref 0',
+        mismatch.compactionActive === "off",
+        `got=${JSON.stringify(mismatch.compactionActive)}`,
+      );
+      check(
+        "mismatch note fires when arm on but pref parses as off",
+        (mismatch.notes ?? []).some(
+          (n) =>
+            n.includes("mode off") && n.includes("arm expected v42"),
         ),
         `notes=${JSON.stringify(mismatch.notes)}`,
       );
@@ -859,9 +878,31 @@ async function main() {
         }),
         tmp,
       );
-      check("no mismatch note when pref 1 and arm on", !(ok.notes ?? []).some((n) =>
-        n.includes("which the app reads as DISABLED"),
-      ));
+      check(
+        'graded result compactionActive is string "v42" for pref 1',
+        ok.compactionActive === "v42",
+        `got=${JSON.stringify(ok.compactionActive)}`,
+      );
+      check(
+        "no mismatch note when pref 1 and arm on",
+        !(ok.notes ?? []).some((n) => n.includes("arm expected")),
+      );
+
+      const cis = gradeRaw(
+        baseRaw({
+          compaction: "ciswire",
+          compactionPrefRaw: "ciswire",
+          arm: "ciswire",
+          turns: [turn(1, "probe_facts", "Leopoldo")],
+          facts: ["Leopoldo"],
+        }),
+        tmp,
+      );
+      check(
+        'graded result compactionActive is string "ciswire"',
+        cis.compactionActive === "ciswire",
+        `got=${JSON.stringify(cis.compactionActive)}`,
+      );
     }
 
     // ── 9b. localePrefRaw pass-through + confounder note ──────────────

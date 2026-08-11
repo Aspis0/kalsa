@@ -112,6 +112,37 @@ export const DEFAULT_COMPACTOR_CONFIG: CompactorConfig = {
 /** AsyncStorage key: compaction feature toggle (default OFF). */
 export const COMPACTION_ENABLED_KEY = "kalsa.context.compaction";
 
+/**
+ * Three-valued context regime from COMPACTION_ENABLED_KEY.
+ * - off: legacy sliding window, no digest/summary
+ * - v42: boundary→end window + digest/summary
+ * - ciswire: legacy sliding window + digest/summary (retrieval additive)
+ */
+export type ContextMode = "off" | "v42" | "ciswire";
+
+/** Parse raw AsyncStorage value; unknown / null → "off". */
+export function parseContextMode(raw: string | null): ContextMode {
+  if (raw === "1" || raw === "true") return "v42";
+  if (raw === "ciswire") return "ciswire";
+  return "off";
+}
+
+/**
+ * Start index of the legacy sliding window used by assembleEngineHistory when
+ * compaction is off. Messages before this index fall outside the engine window
+ * (ciswire uses this as the BM25/summary corpus boundary).
+ */
+export function legacyWindowStartIndex(
+  historyLength: number,
+  hasImages: boolean,
+): number {
+  const len = Number.isFinite(historyLength)
+    ? Math.max(0, Math.floor(historyLength))
+    : 0;
+  const maxHistory = hasImages ? LEGACY_MAX_HISTORY_IMAGES : LEGACY_MAX_HISTORY;
+  return Math.max(0, len - maxHistory);
+}
+
 /** Per-chat compactor state (last digest + boundary + summary meta). */
 export function compactorStorageKey(chatId: string): string {
   return `kalsa.chat.compactor.${chatId || "default"}`;
@@ -434,9 +465,9 @@ export function assembleEngineHistory(
   const maxChars = hasImages ? LEGACY_MAX_CHARS_IMAGES : LEGACY_MAX_CHARS;
 
   if (!options.compactionEnabled) {
-    const maxHistory = hasImages ? LEGACY_MAX_HISTORY_IMAGES : LEGACY_MAX_HISTORY;
+    const start = legacyWindowStartIndex((messages ?? []).length, hasImages);
     return (messages ?? [])
-      .slice(-maxHistory)
+      .slice(start)
       .map((m) => ({
         role: m.role,
         content: m.text.slice(0, maxChars),

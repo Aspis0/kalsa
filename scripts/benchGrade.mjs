@@ -12,7 +12,7 @@
  * Text primitives and family graders live in benchGraders.mjs.
  *
  * Sidecar evidence (same dir as raw.json): turn<N>/telemetry.jsonl,
- * turn<N>/loadprompt.txt, turn<N>/prompt_meta.txt,
+ * turn<N>/summary.jsonl, turn<N>/loadprompt.txt, turn<N>/prompt_meta.txt,
  * turn<N>/compactor_state.json. Missing → nulls/empty, never throw.
  *
  * Usage:
@@ -32,16 +32,25 @@ import {
 
 const REPLY_EXCERPT_LEN = 300;
 
-// ── Compaction active gate ──────────────────────────────────────────────
+// ── Context mode from on-device pref ────────────────────────────────────
 
 /**
- * Mirror of src/app/AppShell.tsx:1359 — the whole compaction subsystem gates
- * on raw === "1" || raw === "true". Anything else (numeric 1, string "on",
- * empty) reads as DISABLED. This field is the arm's proof of what the app
- * actually saw, not what the arm name claims.
+ * Mirror of parseContextMode in src/context/compactor.ts — the arm's proof of
+ * what the app actually saw, not what the arm name claims.
+ * raw "1"|"true" → "v42"; "ciswire" → "ciswire"; anything else → "off".
+ * @returns {"off"|"v42"|"ciswire"}
  */
+function parseContextModeFromPref(compactionPrefRaw) {
+  const raw =
+    compactionPrefRaw == null ? "" : String(compactionPrefRaw);
+  if (raw === "1" || raw === "true") return "v42";
+  if (raw === "ciswire") return "ciswire";
+  return "off";
+}
+
+/** @deprecated Use parseContextModeFromPref; kept as alias for harness import. */
 function isCompactionActive(compactionPrefRaw) {
-  return compactionPrefRaw === "1" || compactionPrefRaw === "true";
+  return parseContextModeFromPref(compactionPrefRaw);
 }
 
 // ── Sidecar readers (never throw) ───────────────────────────────────────
@@ -412,6 +421,106 @@ function readCompactorState(baseDir, turnIndex) {
   };
 }
 
+/**
+ * Aggregate turn<N>/summary.jsonl (KALSA_SUMMARY lifecycle events).
+ * Bucket by the payload's own `turn` field — capture_turn_evidence ends with
+ * logcat -c, so turn N's events land in turn N+1's summary.jsonl. Directory
+ * index is only a fallback when the payload lacks `turn`. Missing file →
+ * empty counts (never throw).
+ * @returns {{
+ *   summaryEvents: Record<string, number>,
+ *   summaryEventsByTurn: Record<string, number>[],
+ *   summaryReachedLlm: boolean,
+ *   summaryPromotedChars: number,
+ * }}
+ */
+function readSummaryEvents(baseDir, turns) {
+  /** @type {Record<string, number>} */
+  const summaryEvents = {};
+  /** @type {Map<number, Record<string, number>>} */
+  const byTurnNum = new Map();
+  let summaryReachedLlm = false;
+  let summaryPromotedChars = 0;
+
+  const bump = (turnNum, event) => {
+    if (!byTurnNum.has(turnNum)) byTurnNum.set(turnNum, {});
+    const tc = byTurnNum.get(turnNum);
+    tc[event] = (tc[event] ?? 0) + 1;
+    summaryEvents[event] = (summaryEvents[event] ?? 0) + 1;
+  };
+
+  for (const turn of turns) {
+    const dirIdx = turn.index;
+    if (dirIdx == null) continue;
+    const file = path.join(baseDir, `turn${dirIdx}`, "summary.jsonl");
+    if (!existsSync(file)) continue;
+    let raw;
+    try {
+      raw = readFileSync(file, "utf8");
+    } catch {
+      continue;
+    }
+    for (const line of raw.split("\n")) {
+      const t = line.trim();
+      if (!t) continue;
+      let obj;
+      try {
+        obj = JSON.parse(t);
+      } catch {
+        continue;
+      }
+      if (!obj || typeof obj !== "object") continue;
+      const event = obj.event;
+      if (typeof event !== "string" || event.length === 0) continue;
+      // Prefer payload turn; fall back to the directory that held the line.
+      const payloadTurn =
+        typeof obj.turn === "number" && Number.isFinite(obj.turn)
+          ? obj.turn
+          : null;
+      const bucket = payloadTurn != null ? payloadTurn : Number(dirIdx);
+      bump(bucket, event);
+      if (event === "llm-start") summaryReachedLlm = true;
+      if (
+        event === "promoted" &&
+        typeof obj.chars === "number" &&
+        Number.isFinite(obj.chars)
+      ) {
+        if (obj.chars > summaryPromotedChars) {
+          summaryPromotedChars = obj.chars;
+        }
+      }
+    }
+  }
+
+  // Align array with turns order (empty object when that turn had no events).
+  const summaryEventsByTurn = turns.map((turn) => {
+    if (turn.index == null) return {};
+    return byTurnNum.get(Number(turn.index)) ?? {};
+  });
+
+  return {
+    summaryEvents,
+    summaryEventsByTurn,
+    summaryReachedLlm,
+    summaryPromotedChars,
+  };
+}
+
+/**
+ * Turns whose capture_turn_evidence wrote turn<N>/capture_failed (logcat dump
+ * failed). Distinct from an empty capture — evidence was lost, not absent.
+ * @returns {number[]}
+ */
+function findCaptureFailedTurns(baseDir, turns) {
+  const failed = [];
+  for (const turn of turns) {
+    if (turn.index == null) continue;
+    const marker = path.join(baseDir, `turn${turn.index}`, "capture_failed");
+    if (existsSync(marker)) failed.push(turn.index);
+  }
+  return failed;
+}
+
 function mean(nums) {
   if (nums.length === 0) return null;
   return nums.reduce((a, b) => a + b, 0) / nums.length;
@@ -457,6 +566,17 @@ function buildPrefill(turnMetrics, outTurns) {
   };
 }
 
+/**
+ * Expected context mode from the arm's COMPACTION env (on|off|ciswire).
+ * @returns {"off"|"v42"|"ciswire"|null} null when compaction field is absent
+ */
+function expectedModeFromCompaction(compaction) {
+  if (compaction === "on") return "v42";
+  if (compaction === "off") return "off";
+  if (compaction === "ciswire") return "ciswire";
+  return null;
+}
+
 function collectNotes(raw, turns, turnMetrics, compactionActive, extraNotes) {
   const notes = [...(extraNotes ?? [])];
 
@@ -469,15 +589,12 @@ function collectNotes(raw, turns, turnMetrics, compactionActive, extraNotes) {
     }
   }
 
-  // Arm claims compaction "on" but AppShell gate saw it as off (or reverse).
+  // Arm claims one mode but on-device pref parsed as another.
   const prefStr = String(raw.compactionPrefRaw ?? "");
-  if (raw.compaction === "on" && !compactionActive) {
+  const expected = expectedModeFromCompaction(raw.compaction);
+  if (expected != null && compactionActive !== expected) {
     notes.push(
-      `compaction pref on device was ${prefStr}, which the app reads as DISABLED`,
-    );
-  } else if (raw.compaction !== "on" && compactionActive) {
-    notes.push(
-      `compaction pref on device was ${prefStr}, which the app reads as DISABLED`,
+      `compaction pref on device was ${prefStr} (mode ${compactionActive}), arm expected ${expected}`,
     );
   }
 
@@ -526,7 +643,14 @@ function gradeRaw(raw, baseDir) {
   }
   const facts = Array.isArray(raw.facts) ? raw.facts : [];
 
-  const compactionActive = isCompactionActive(raw.compactionPrefRaw);
+  const compactionActive = parseContextModeFromPref(raw.compactionPrefRaw);
+  const {
+    summaryEvents,
+    summaryEventsByTurn,
+    summaryReachedLlm,
+    summaryPromotedChars,
+  } = readSummaryEvents(baseDir, turns);
+  const captureFailedTurns = findCaptureFailedTurns(baseDir, turns);
 
   const turnMetrics = turns.map((t) => metricsForTurn(baseDir, t.index));
 
@@ -639,6 +763,12 @@ function gradeRaw(raw, baseDir) {
       `emptyReplyTurns ${emptyReplyTurns.join(", ")} — blank assistant bubble; probes on those turns are excluded (found=null), not scored as misses`,
     );
   }
+  if (captureFailedTurns.length > 0) {
+    // Failed logcat dump — not an empty capture. Silent evidence loss lies.
+    probeNotes.push(
+      `captureFailedTurns ${captureFailedTurns.join(", ")} — logcat dump failed; telemetry for those turns is unrecoverable (failed capture, not empty)`,
+    );
+  }
 
   // Top-level recall = mean(fact_recall_early, fact_recall_late) per conversation
   // (see primaryRecall). Fallback plain fact_recall for older artifacts. null
@@ -697,7 +827,12 @@ function gradeRaw(raw, baseDir) {
     // Pass-through of on-device locale (ci-bench set_prefs seeds "it").
     // null when absent so old campaign raw.json still grades without crash.
     localePrefRaw: raw.localePrefRaw ?? null,
+    // Observed context mode from pref read-back: "off" | "v42" | "ciswire".
     compactionActive,
+    summaryEvents,
+    summaryEventsByTurn,
+    summaryReachedLlm,
+    summaryPromotedChars,
     model: raw.model ?? null,
     fillerRotation: raw.fillerRotation ?? null,
     historyChars: raw.historyChars ?? null,
@@ -723,6 +858,7 @@ function gradeRaw(raw, baseDir) {
     contextFullTurns,
     errorTurns,
     emptyReplyTurns,
+    captureFailedTurns,
   };
 }
 
@@ -754,6 +890,17 @@ function main() {
   try {
     const result = gradeFile(rawPath);
     process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+    // Fase4: a failed capture is not a green arm — evidence was lost.
+    if (
+      result.phase === "fase4" &&
+      Array.isArray(result.captureFailedTurns) &&
+      result.captureFailedTurns.length > 0
+    ) {
+      console.error(
+        `[benchGrade] capture failed on turn(s) ${result.captureFailedTurns.join(", ")} — failing fase4 arm`,
+      );
+      process.exit(1);
+    }
   } catch (err) {
     console.error(`[benchGrade] ${err.message}`);
     process.exit(1);
@@ -771,6 +918,7 @@ if (isMain) {
 export {
   stripThink,
   matchesFact,
+  parseContextModeFromPref,
   isCompactionActive,
   gradeRaw,
   gradeFile,

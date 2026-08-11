@@ -146,19 +146,21 @@ jobs:
             arm: user-note_budget256
             block_format: user-note
             thinking: budget256
-          # ── Fase 4 — 2 arms (baseline / v42) × 6 seeds (12 jobs) ──
+          # ── Fase 4 — 3 arms (baseline / v42 / ciswire) × 6 seeds (18 jobs) ──
           # WHY 6 not 3: with 3 vs 3 conversations the exhaustive one-sided
           # permutation floor is 2/C(6,3)+1 = 2/21 ≈ 0.095, so p < 0.05 is
-          # unreachable by construction. 6 vs 6 → C(12,6)=924, floor 2/925 ≈
-          # 0.0022 (then Monte-Carlo floor dominates). Seeds 1..6 map onto
-          # filler rotations 0..7 ((SEED-1)%8), so the rotation is balanced
-          # and paired across arms.
-          # Quoted "off"/"on": GitHub already passed bare off/on as strings
-          # (verified run 30863711482), but quoting removes the doubt permanently.
-          # Fase 4 isolates ONE variable, compaction on/off, at the production
-          # thinking default ("off"). budget256 was tried in run 31367691176 and
-          # made honesty/language unmeasurable: the model's untagged reasoning
-          # was persisted as the assistant answer (Qwen3.5 bugs #20182/#20476).
+          # unreachable by construction. 6 vs 6 → C(12,6)=924, exhaustive
+          # floor 2/925 ≈ 0.0022. With PERM_ITERATIONS=10000 the Monte-Carlo
+          # floor is 1/10001 ≈ 0.0001; the exhaustive floor dominates (is the
+          # weaker bound) for this design. Seeds 1..6 map onto filler
+          # rotations 0..7 ((SEED-1)%8), so the rotation is balanced and
+          # paired across arms.
+          # Quoted "off"/"on"/"ciswire": GitHub already passed bare off/on as
+          # strings (verified run 30863711482), but quoting removes the doubt.
+          # Three modes: off (legacy window), v42 (boundary+BM25), ciswire
+          # (legacy window + BM25 additive). Primary comparison: ciswire vs off.
+          # thinking stays "off" (budget256 made honesty/language unmeasurable
+          # in run 31367691176 — Qwen3.5 bugs #20182/#20476).
           # block_format stays none; it still auto-upgrades to user-prefix once
           # compaction produces real digest/summary content
           # (see applyOperativeBlockFormat).
@@ -234,10 +236,46 @@ jobs:
             compaction: "on"
             block_format: none
             thinking: "off"
-          # ── Smoke — ~5-turn harness self-test on both arms (~20 min), not a
-          # measurement campaign. Use phase=smoke dispatch instead of burning
-          # the full 2-hour fase0/fase4 matrix when only the harness needs a
-          # live emulator check.
+          - phase: fase4
+            arm: ciswire
+            seed: 1
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+          - phase: fase4
+            arm: ciswire
+            seed: 2
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+          - phase: fase4
+            arm: ciswire
+            seed: 3
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+          - phase: fase4
+            arm: ciswire
+            seed: 4
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+          - phase: fase4
+            arm: ciswire
+            seed: 5
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+          - phase: fase4
+            arm: ciswire
+            seed: 6
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+          # ── Smoke — ~5-turn harness self-test on all three arms (~20 min),
+          # not a measurement campaign. Use phase=smoke dispatch instead of
+          # burning the full 2-hour fase0/fase4 matrix when only the harness
+          # needs a live emulator check.
           # WHY thinking "off" (not budget256): smoke must mirror the fase4
           # configuration it de-risks. A smoke that exercises a different
           # config de-risks nothing — evidence run 31434524869 (qwen3.5-4b,
@@ -253,6 +291,12 @@ jobs:
             arm: v42
             seed: 1
             compaction: "on"
+            block_format: none
+            thinking: "off"
+          - phase: smoke
+            arm: ciswire
+            seed: 1
+            compaction: "ciswire"
             block_format: none
             thinking: "off"
     # `matrix` is not available in a job-level `if`, so the phase filter lives
@@ -333,6 +377,15 @@ jobs:
           THINKING: ${{ matrix.thinking }}
           COMPACTION: ${{ matrix.compaction }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
+          # 40s = SUMMARY_IDLE_DEBOUNCE_MS (8s) + SUMMARIZE_TIMEOUT_MS (30s) +
+          # margin. On CI emulator the 2B decodes at ~2.45 tok/s, so
+          # SUMMARIZE_N_PREDICT=400 would need ~163s — the summary hits its own
+          # 30s timeout on this hardware no matter what. The delay makes that
+          # timeout observable (logged) rather than an ambiguous abort at 12s;
+          # it does NOT exist to make the summary succeed. fase0 stays at 0.
+          # Job timeout-minutes: 300 still covers 16 turns × ~8.6 min work +
+          # 15 × 40s idle (~148 min worst case, ~152 min headroom).
+          INTER_TURN_DELAY_S: ${{ (matrix.phase == 'fase4' || matrix.phase == 'smoke') && '40' || '0' }}
           MODEL_DIR: ${{ env.MODEL_DIR }}
           MODEL_FILE: ${{ env.MODEL_FILE }}
           MMPROJ_FILE: ${{ env.MMPROJ_FILE }}
@@ -363,7 +416,7 @@ jobs:
 
       - name: Aggregate + permutation test
         env:
-          # Gate only the dispatched phase; fase4 expects 2 arms × 6 seeds.
+          # Gate only the dispatched phase; fase4 expects 3 modes × 6 seeds.
           BENCH_EXPECT_PHASE: ${{ inputs.phase }}
           BENCH_EXPECT_SEEDS: ${{ inputs.phase == 'fase4' && '6' || '0' }}
         run: |

@@ -182,6 +182,24 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     ramBadgeKey: "models.qwen2b.ramBadge",
     minRamTier: "low",
   },
+  {
+    id: "lfm2.5-2.6b",
+    name: "LFM2.5 2.6B",
+    vendor: "Liquid AI",
+    quant: "Q4_K_M",
+    hfRepo: "LiquidAI/LFM2.5-2.6B-GGUF",
+    revision: "b421ad1d549afeda6a0fb2ad3a697cb5a7879adc",
+    file: "LFM2.5-2.6B-Q4_K_M.gguf",
+    sizeBytes: 1_674_454_848,
+    // text-only: no mmproj in the HF repo
+    contextLength: 131072,
+    engineCtx: 8192,
+    kvCache: { k: "q8_0", v: "q4_0" },
+    hybrid: true,
+    // Budget caps the think block but cannot disable it (template has no off switch).
+    thinking: { short: 256, extended: 512 },
+    descriptionKey: "models.lfm25.description",
+  },
 ];
 
 /**

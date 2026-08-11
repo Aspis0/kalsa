@@ -38,7 +38,7 @@ import { applyEngineOverride } from "./engineParams";
 import { detectThreadCount } from "./threadProfile";
 import {
   createToolCallDeltaStripper,
-  parseFallbackToolCall,
+  parseFallbackToolCalls,
   stripToolCallTagsFinal,
 } from "./toolCallParser";
 import { createThinkStreamCleaner } from "./thinkStream";
@@ -1498,14 +1498,12 @@ export async function streamAssistantTurn(
         // execution path below (round cap, skipped-call bookkeeping, tool-result
         // rule all still apply) instead of showing the markup / an empty reply.
         if (!toolCalls.length && options?.executeTool) {
-          const fallback = parseFallbackToolCall(extractRawResultText(result));
-          if (fallback) {
-            toolCalls = [
-              {
-                type: "function" as const,
-                function: { name: fallback.name, arguments: JSON.stringify(fallback.arguments) },
-              },
-            ];
+          const fallbacks = parseFallbackToolCalls(extractRawResultText(result));
+          if (fallbacks.length) {
+            toolCalls = fallbacks.map((fallback) => ({
+              type: "function" as const,
+              function: { name: fallback.name, arguments: JSON.stringify(fallback.arguments) },
+            }));
           }
         }
         if (!toolCalls.length || !options?.executeTool) {

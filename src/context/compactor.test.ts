@@ -1,0 +1,131 @@
+/**
+ * Unit tests for context mode parsing and ciswire assembly contract.
+ * Pure Node — no React Native.
+ */
+
+import {
+  assembleEngineHistory,
+  LEGACY_MAX_HISTORY,
+  LEGACY_MAX_HISTORY_IMAGES,
+  legacyWindowStartIndex,
+  parseContextMode,
+  splitAtBoundary,
+  type HistoryRoleMessage,
+} from "./compactor";
+
+function makeHistory(n: number): HistoryRoleMessage[] {
+  const out: HistoryRoleMessage[] = [];
+  for (let i = 0; i < n; i++) {
+    out.push({
+      role: i % 2 === 0 ? "user" : "assistant",
+      text: `msg-${i}`,
+    });
+  }
+  return out;
+}
+
+describe("compactor parseContextMode", () => {
+  test("null → off", () => {
+    expect(parseContextMode(null)).toBe("off");
+  });
+
+  test('"0" → off', () => {
+    expect(parseContextMode("0")).toBe("off");
+  });
+
+  test("unrecognised → off", () => {
+    expect(parseContextMode("yes")).toBe("off");
+    expect(parseContextMode("")).toBe("off");
+    expect(parseContextMode("v42")).toBe("off");
+  });
+
+  test('"1" → v42', () => {
+    expect(parseContextMode("1")).toBe("v42");
+  });
+
+  test('"true" → v42', () => {
+    expect(parseContextMode("true")).toBe("v42");
+  });
+
+  test('"ciswire" → ciswire', () => {
+    expect(parseContextMode("ciswire")).toBe("ciswire");
+  });
+});
+
+describe("compactor legacy window / ciswire partition", () => {
+  test("legacyWindowStartIndex for lengths below, equal, above window", () => {
+    // Below window → start at 0
+    expect(legacyWindowStartIndex(5, false)).toBe(0);
+    expect(legacyWindowStartIndex(LEGACY_MAX_HISTORY, false)).toBe(0);
+    // Above window → start = len - LEGACY_MAX_HISTORY
+    expect(legacyWindowStartIndex(30, false)).toBe(10);
+    // hasImages uses the shorter window
+    expect(legacyWindowStartIndex(5, true)).toBe(0);
+    expect(legacyWindowStartIndex(LEGACY_MAX_HISTORY_IMAGES, true)).toBe(0);
+    expect(legacyWindowStartIndex(20, true)).toBe(
+      20 - LEGACY_MAX_HISTORY_IMAGES,
+    );
+  });
+
+  test("legacyWindowStartIndex is exactly assembleEngineHistory off start", () => {
+    for (const len of [5, LEGACY_MAX_HISTORY, 30]) {
+      const history = makeHistory(len);
+      const start = legacyWindowStartIndex(len, false);
+      const assembled = assembleEngineHistory(history, {
+        compactionEnabled: false,
+        hasImages: false,
+      });
+      expect(assembled.map((m) => m.content)).toEqual(
+        history.slice(start).map((m) => m.text),
+      );
+    }
+    const histImg = makeHistory(20);
+    const startImg = legacyWindowStartIndex(20, true);
+    const assembledImg = assembleEngineHistory(histImg, {
+      compactionEnabled: false,
+      hasImages: true,
+    });
+    expect(assembledImg.map((m) => m.content)).toEqual(
+      histImg.slice(startImg).map((m) => m.text),
+    );
+  });
+
+  test("30-message: older ∩ recent = ∅ and older ∪ recent = history", () => {
+    const history = makeHistory(30);
+    const start = legacyWindowStartIndex(30, false);
+    const { older, recent } = splitAtBoundary(history, start);
+    const assembled = assembleEngineHistory(history, {
+      compactionEnabled: false,
+      hasImages: false,
+    });
+
+    // Disjoint: no message text appears in both older and the assembled window
+    const olderTexts = new Set(older.map((m) => m.text));
+    const assembledTexts = new Set(assembled.map((m) => m.content));
+    for (const t of assembledTexts) {
+      expect(olderTexts.has(t)).toBe(false);
+    }
+    // Cover: older ∪ assembled texts == full history texts
+    const union = new Set([...olderTexts, ...assembledTexts]);
+    expect(union.size).toBe(history.length);
+    for (const m of history) {
+      expect(union.has(m.text)).toBe(true);
+    }
+    // recent from split matches assembled content (same boundary)
+    expect(recent.map((m) => m.text)).toEqual(assembled.map((m) => m.content));
+
+    // Window length + first/last (value-bearing assertions kept)
+    expect(assembled).toHaveLength(LEGACY_MAX_HISTORY);
+    expect(assembled[0].content).toBe("msg-10");
+    expect(assembled[assembled.length - 1].content).toBe("msg-29");
+
+    // v42 with a tight boundary must differ (proves the flag still matters).
+    const v42 = assembleEngineHistory(history, {
+      compactionEnabled: true,
+      hasImages: false,
+      boundaryIndex: 24,
+    });
+    expect(v42).not.toEqual(assembled);
+    expect(v42).toHaveLength(6);
+  });
+});

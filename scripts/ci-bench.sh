@@ -18,9 +18,17 @@
 #                  "system-end" exists in code but PIANO V4.2 marks it DEAD,
 #                  it is not part of the Fase 0 matrix)
 #   THINKING       kalsa.bench.thinking value (both phases)
-#   COMPACTION     on|off → kalsa.context.compaction (fase4/smoke only;
-#                  fase0 always forces "on", see NOTE(fase0-compaction))
+#   COMPACTION     on|off|ciswire → kalsa.context.compaction raw 1|0|ciswire
+#                  (fase4/smoke only; fase0 always forces "on" → raw 1 / v42,
+#                  see NOTE(fase0-compaction))
 #   RUNS_PER_ARM   fase0 in-job repeat count (default 3, per PIANO "3 run/formato")
+#   INTER_TURN_DELAY_S  seconds of pure idle between turns (default 0).
+#                  After capture_turn_evidence, before the next prompt is typed.
+#                  Lets the app's SUMMARY_IDLE_DEBOUNCE_MS (8s) fire; without a
+#                  gap the next send keeps streamInFlight and the debounce
+#                  never schedules the rolling summary. Applied identically on
+#                  every arm (shared timing, not a treatment). Skipped after
+#                  the final turn of the run.
 #   MODEL_DIR/MODEL_FILE   as ci-e2e.sh
 #   APK_PATH       path to the pre-built release APK (default matches the
 #                  standard gradle output path; the workflow downloads the
@@ -34,6 +42,7 @@ SEED="${SEED:-1}"
 BLOCK_FORMAT="${BLOCK_FORMAT:-none}"
 THINKING="${THINKING:-off}"
 RUNS_PER_ARM="${RUNS_PER_ARM:-3}"
+INTER_TURN_DELAY_S="${INTER_TURN_DELAY_S:-0}"
 MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
 MODEL_DIR="${MODEL_DIR:-qwen3.5-2b}"
 APK_PATH="${APK_PATH:-android/app/build/outputs/apk/release/app-release.apk}"
@@ -93,14 +102,18 @@ case "$PHASE" in
     COMPACTION="on"
     ;;
   fase4|smoke)
-    COMPACTION="${COMPACTION:?COMPACTION is required for $PHASE (on|off)}"
+    COMPACTION="${COMPACTION:?COMPACTION is required for $PHASE (on|off|ciswire)}"
+    case "$COMPACTION" in
+      on|off|ciswire) ;;
+      *) die "COMPACTION must be on|off|ciswire (got '$COMPACTION')" ;;
+    esac
     ;;
   *)
     die "unknown PHASE '$PHASE' (expected fase0|fase4|smoke)"
     ;;
 esac
 
-log "arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION runsPerArm=$RUNS_PER_ARM"
+log "arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
 
 # Fail fast on setup errors — do not burn emulator boot time on a broken input.
 [ -f "$APK_PATH" ] || die "APK not found at $APK_PATH (build job artifact missing?)"
@@ -132,8 +145,21 @@ if [ -n "${MMPROJ_FILE:-}" ] && [ -f mmproj.gguf ]; then
   adb shell "ls -la /data/data/$PKG/files/models/$MODEL_DIR/" | tr -d '\r'
 fi
 
+# Map COMPACTION env (on|off|ciswire) → raw AsyncStorage value (1|0|ciswire).
+# Unknown values die — never silently fall back to 0 (that turns a broken arm
+# into a fake baseline and we would never notice).
+compaction_pref_raw_for() {
+  case "$1" in
+    on) echo 1 ;;
+    off) echo 0 ;;
+    ciswire) echo ciswire ;;
+    *) die "COMPACTION must be on|off|ciswire (got '$1')" ;;
+  esac
+}
+
 set_prefs() {
-  local compaction_val; compaction_val=$([ "$COMPACTION" = "on" ] && echo 1 || echo 0)
+  local compaction_val
+  compaction_val=$(compaction_pref_raw_for "$COMPACTION")
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR');"
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.context.compaction','$compaction_val');"
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.thinking','$THINKING');"
@@ -158,6 +184,10 @@ set_prefs
 # On-device proof of what the app will actually read (not what we intended to write).
 COMPACTION_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.context.compaction';" | head -1 | tr -d '[:space:]')
 LOCALE_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.locale';" | head -1 | tr -d '[:space:]')
+# Exact raw match for all three modes — silent mismatch would poison the A/B.
+_EXPECTED_COMPACTION_RAW=$(compaction_pref_raw_for "$COMPACTION")
+[ "$COMPACTION_PREF_RAW" = "$_EXPECTED_COMPACTION_RAW" ] \
+  || die "compaction pref on device is '$COMPACTION_PREF_RAW', expected '$_EXPECTED_COMPACTION_RAW' (COMPACTION=$COMPACTION)"
 
 adb logcat -c
 
@@ -680,11 +710,23 @@ capture_turn_evidence() {
   mkdir -p "$tdir" 2>/dev/null || true
   local buf="$OUT/.logcat_turn_buf.txt"
 
-  adb logcat -d > "$buf" 2>/dev/null || : > "$buf"
+  local dump_ok=1
+  if ! adb logcat -d > "$buf" 2>/dev/null; then
+    dump_ok=0
+    : > "$buf"
+    # Marker for the grader: failed capture ≠ empty capture. Do NOT clear the
+    # ring buffer so the next turn's capture can still salvage this telemetry.
+    : > "$tdir/capture_failed"
+  fi
 
   # telemetry.jsonl — strip the "KALSA_TELEMETRY " prefix so each line is bare JSON.
   grep -F "KALSA_TELEMETRY " "$buf" 2>/dev/null \
     | sed 's/.*KALSA_TELEMETRY //' > "$tdir/telemetry.jsonl" 2>/dev/null || : > "$tdir/telemetry.jsonl"
+
+  # summary.jsonl — rolling-summary lifecycle (KALSA_SUMMARY). Always write the
+  # file (empty when none) so absent-file vs empty-capture stay distinguishable.
+  grep -F "KALSA_SUMMARY " "$buf" 2>/dev/null \
+    | sed 's/.*KALSA_SUMMARY //' > "$tdir/summary.jsonl" 2>/dev/null || : > "$tdir/summary.jsonl"
 
   {
     grep -F "Input processed: n_past=" "$buf" 2>/dev/null || true
@@ -715,9 +757,11 @@ capture_turn_evidence() {
     | tr -d '\r' > "$tdir/compactor_state.json" 2>/dev/null \
     || : > "$tdir/compactor_state.json"
 
-  # Clear so the next turn's capture is scoped (and the logcat ring cannot
-  # retain prior-turn Input processed / telemetry lines).
-  adb logcat -c 2>/dev/null || true
+  # Clear only after a successful dump. A failed dump must leave the ring
+  # intact so the next capture can salvage; clearing would destroy evidence.
+  if [ "$dump_ok" -eq 1 ]; then
+    adb logcat -c 2>/dev/null || true
+  fi
   return 0
 }
 
@@ -908,6 +952,12 @@ run_turn_plan() {
     capture_turn_evidence "$turn"
     record_turn "$turn" "${PLAN_KIND[$i]}" "${PLAN_ID[$i]}" "$msg" \
       "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP"
+    # Pure idle between turns (no adb/UI) so SUMMARY_IDLE_DEBOUNCE can fire.
+    # Skipped after the final turn — wall-clock only, no more prompts to type.
+    if [ "$turn" -lt "$n" ] && [ "$INTER_TURN_DELAY_S" -gt 0 ]; then
+      log "inter-turn idle ${INTER_TURN_DELAY_S}s (after turn $turn/${n})"
+      sleep "$INTER_TURN_DELAY_S"
+    fi
   done
 }
 
@@ -973,6 +1023,11 @@ if [ "$PHASE" = "fase0" ]; then
     capture_turn_evidence "$global_turn"
     record_turn "$global_turn" "plant" "plant" "$PLANT" \
       "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP"
+    # More turns remain (fillers + probe) — pure idle for summary debounce.
+    if [ "$INTER_TURN_DELAY_S" -gt 0 ]; then
+      log "inter-turn idle ${INTER_TURN_DELAY_S}s"
+      sleep "$INTER_TURN_DELAY_S"
+    fi
 
     for i in "${!F0_FILLERS[@]}"; do
       f="${F0_FILLERS[$i]}"
@@ -982,6 +1037,11 @@ if [ "$PHASE" = "fase0" ]; then
       capture_turn_evidence "$global_turn"
       record_turn "$global_turn" "filler" "filler_$((i+1))" "$f" \
         "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP"
+      # Probe still remains after every filler — idle before next prompt.
+      if [ "$INTER_TURN_DELAY_S" -gt 0 ]; then
+        log "inter-turn idle ${INTER_TURN_DELAY_S}s"
+        sleep "$INTER_TURN_DELAY_S"
+      fi
     done
 
     global_turn=$((global_turn + 1))
@@ -990,6 +1050,7 @@ if [ "$PHASE" = "fase0" ]; then
     capture_turn_evidence "$global_turn"
     record_turn "$global_turn" "probe" "probe" "$PROBE" \
       "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP"
+    # No inter-turn delay after final turn of the run.
   done
 
 elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then

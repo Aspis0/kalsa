@@ -33,6 +33,7 @@ import {
   type EngineTurnOptions,
 } from "../engine/LlamaService";
 import { computePromptEnvHash, getBootHistoryHash } from "../engine/sessionPersistence";
+import { formatSummaryLine } from "../engine/summaryTelemetry";
 import { getEngineOverride, getSpeculativeOverride } from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import {
@@ -60,7 +61,9 @@ import {
   DEFAULT_CHAT_ID,
   DEFAULT_COMPACTOR_CONFIG,
   emptyCompactorState,
+  legacyWindowStartIndex,
   parseCompactorState,
+  parseContextMode,
   refreshQueryDigest,
   resolveBoundaryIndex,
   serializeCompactorState,
@@ -71,6 +74,7 @@ import {
   toRetrievalUnits,
   truncateBudget,
   type CompactorState,
+  type ContextMode,
   type HistoryRoleMessage,
 } from "../context/compactor";
 
@@ -176,6 +180,11 @@ let fetchAllowlistTurnSeq = 0;
 /** Debounce timer: schedule summary only after idle (8s post-turn). */
 let summaryDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const SUMMARY_IDLE_DEBOUNCE_MS = 8_000;
+/**
+ * Per-chat epoch bumped by resetCompactorChat. In-flight summary completions
+ * capture the epoch at arm time and refuse to store if it changed (e.g. clearChat).
+ */
+const summaryEpochByChat = new Map<string, number>();
 
 /**
  * Exclude error bubbles, kill-recovered partials, and abort-orphaned user turns
@@ -207,17 +216,25 @@ function filterCorpusHygiene(
 }
 
 function abortBackgroundSummary(): void {
-  if (summaryDebounceTimer) {
-    clearTimeout(summaryDebounceTimer);
+  const hadTimer = summaryDebounceTimer != null;
+  const hadController = summaryAbortController != null;
+  if (hadTimer) {
+    clearTimeout(summaryDebounceTimer!);
     summaryDebounceTimer = null;
   }
-  if (summaryAbortController) {
+  if (hadController) {
     try {
-      summaryAbortController.abort();
+      summaryAbortController!.abort();
     } catch {
       // ignore
     }
     summaryAbortController = null;
+  }
+  // Only emit when something was actually cancelled — silent no-op otherwise.
+  if (hadTimer || hadController) {
+    console.log(
+      formatSummaryLine("debounce-cancelled", { hadTimer, hadController }),
+    );
   }
 }
 
@@ -231,8 +248,8 @@ function resetDigestIndex(chatId: string): void {
 /**
  * Keep the warm RetrieverIndex in sync with the older corpus under `boundary`.
  * - Same boundary as last sync → reuse index (query-time path).
- * - Boundary advanced and under cap → append newly older messages.
- * - Boundary shrunk / over cap / missing → full rebuild from last N older.
+ * - Boundary advanced (under or over cap) → append delta; dropOldestUnits when over cap.
+ * - Boundary shrunk / missing / corpus-identity drift at same boundary → full rebuild.
  */
 function syncDigestIndex(
   chatId: string,
@@ -252,13 +269,16 @@ function syncDigestIndex(
   const covered = digestIndexCoveredByChat.get(id) ?? -1;
   const corpusLen = digestIndexCorpusLenByChat.get(id) ?? 0;
 
+  // Full rebuild only for genuine non-forward cases. A monotonically advancing
+  // boundary past the cap is handled by append + dropOldestUnits below.
   const needsFullRebuild =
     !idx ||
     covered < 0 ||
     b < covered ||
-    // Cap sliding window dropped older units — ordinals/DF would be wrong if we only append.
-    (olderClean.length > MAX_DIGEST_CORPUS_MESSAGES &&
-      (b !== covered || corpus.length !== corpusLen));
+    // Same boundary but corpus length drifted (hygiene identity change).
+    (b === covered &&
+      olderClean.length > MAX_DIGEST_CORPUS_MESSAGES &&
+      corpus.length !== corpusLen);
 
   if (needsFullRebuild) {
     idx = new RetrieverIndex();
@@ -276,20 +296,14 @@ function syncDigestIndex(
   if (b > covered) {
     const delta = filterCorpusHygiene(history.slice(covered, b));
     if (delta.length > 0) {
-      if (corpusLen + delta.length > MAX_DIGEST_CORPUS_MESSAGES) {
-        // Append would exceed cap → rebuild from last N of full older corpus.
-        idx = new RetrieverIndex();
-        if (corpus.length > 0) {
-          const startIdx = Math.max(0, b - corpus.length);
-          idx.append(toRetrievalUnits(corpus, startIdx));
-        }
-        digestIndexByChat.set(id, idx);
-        digestIndexCoveredByChat.set(id, b);
-        digestIndexCorpusLenByChat.set(id, corpus.length);
-        return idx;
-      }
       idx!.append(toRetrievalUnits(delta, covered));
-      digestIndexCorpusLenByChat.set(id, corpusLen + delta.length);
+      let newLen = corpusLen + delta.length;
+      if (newLen > MAX_DIGEST_CORPUS_MESSAGES) {
+        // Sliding window: drop oldest units so the index stays at the cap.
+        idx!.dropOldestUnits(newLen - MAX_DIGEST_CORPUS_MESSAGES);
+        newLen = MAX_DIGEST_CORPUS_MESSAGES;
+      }
+      digestIndexCorpusLenByChat.set(id, newLen);
     }
     digestIndexCoveredByChat.set(id, b);
   }
@@ -299,6 +313,9 @@ function syncDigestIndex(
 
 async function resetCompactorChat(chatId: string): Promise<void> {
   const id = chatId || DEFAULT_CHAT_ID;
+  // Invalidate any in-flight background summary for this chat (clearChat path).
+  summaryEpochByChat.set(id, (summaryEpochByChat.get(id) ?? 0) + 1);
+  abortBackgroundSummary();
   compactorStateByChat.delete(id);
   pendingSummaryByChat.delete(id);
   lastHistoryLenByChat.delete(id);
@@ -559,7 +576,7 @@ export function AppShell() {
   const [memoryFacts, setMemoryFacts] = useState<string[]>([]);
   memoryFactsRef.current = memoryFacts;
   /** Mirror of kalsa.context.compaction — default OFF (legacy sliding window). */
-  const compactionEnabledRef = useRef(false);
+  const contextModeRef = useRef<ContextMode>("off");
   /** Serialize extractMemory so it never overlaps a chat completion on the same engine. */
   const memoryExtractRef = useRef<Promise<void> | null>(null);
 
@@ -1356,17 +1373,19 @@ export function AppShell() {
             }
             try {
               const raw = await AsyncStorage.getItem(COMPACTION_ENABLED_KEY);
-              compactionEnabledRef.current = raw === "1" || raw === "true";
+              contextModeRef.current = parseContextMode(raw);
             } catch {
-              compactionEnabledRef.current = false;
+              contextModeRef.current = "off";
             }
 
-            const compactionOn = compactionEnabledRef.current;
+            const contextMode = contextModeRef.current;
+            // Retrieval (digest + summary) for v42 and ciswire; window shrink only for v42.
+            const retrievalOn = contextMode !== "off";
             let operativeContext: { digest?: string; summary?: string } | null = null;
             let olderForSummary: HistoryRoleMessage[] = [];
             let boundaryForAssemble = 0;
 
-            if (compactionOn) {
+            if (retrievalOn) {
               const userTurnCount = countUserTurns(validatedHistory, true);
 
               // Load per-chat compactor state (memory → AsyncStorage).
@@ -1439,6 +1458,14 @@ export function AppShell() {
                       ? pending
                       : state.rollingSummary,
                 });
+                if (typeof pending === "string") {
+                  console.log(
+                    formatSummaryLine("promoted", {
+                      turn: userTurnCount,
+                      chars: pending.length,
+                    }),
+                  );
+                }
                 if (pending !== undefined) pendingSummaryByChat.delete(chatId);
               }
 
@@ -1447,9 +1474,17 @@ export function AppShell() {
                 validatedHistory.length,
               );
 
+              // Corpus eligible for BM25 + rolling summary:
+              // - v42: same as assembly boundary (unchanged)
+              // - ciswire: everything outside the legacy sliding window
+              const corpusBoundary =
+                contextMode === "ciswire"
+                  ? legacyWindowStartIndex(validatedHistory.length, hasImages)
+                  : boundaryForAssemble;
+
               // Older corpus for summary scheduling + warm-index sync.
               const olderClean = filterCorpusHygiene(
-                splitAtBoundary(validatedHistory, boundaryForAssemble).older,
+                splitAtBoundary(validatedHistory, corpusBoundary).older,
               );
               olderForSummary =
                 olderClean.length > MAX_SUMMARY_CORPUS_MESSAGES
@@ -1460,7 +1495,7 @@ export function AppShell() {
               const digestIndex = syncDigestIndex(
                 chatId,
                 validatedHistory,
-                boundaryForAssemble,
+                corpusBoundary,
               );
               const olderForDigest =
                 olderClean.length > MAX_DIGEST_CORPUS_MESSAGES
@@ -1502,10 +1537,10 @@ export function AppShell() {
               }
             }
 
-            // History assembly: legacy sliding window (OFF) or boundary→end (ON,
-            // append-only growth between rebuilds — preserves KV prefix).
+            // History assembly: legacy sliding window (off/ciswire) or boundary→end
+            // (v42 only — append-only growth between rebuilds, preserves KV prefix).
             const assembled = assembleEngineHistory(validatedHistory, {
-              compactionEnabled: compactionOn,
+              compactionEnabled: contextMode === "v42",
               hasImages,
               boundaryIndex: boundaryForAssemble,
             });
@@ -1546,10 +1581,29 @@ export function AppShell() {
              * turn). Pending-summary promotion at rebuild time is unchanged.
              */
             const scheduleCompactionFollowup = () => {
-              if (compactionFollowupScheduled) return;
+              const turn = countUserTurns(validatedHistory, true);
+              // Safety-net re-entry (post-await after onDone already ran): silent.
+              // Keep the early return; do not emit skip-already-scheduled noise.
+              if (compactionFollowupScheduled) {
+                return;
+              }
               compactionFollowupScheduled = true;
-              if (!compactionOn || turnFailed || signal.aborted) return;
-              if (olderForSummary.length === 0) return;
+              if (!retrievalOn) {
+                console.log(formatSummaryLine("skip-compaction-off", { turn }));
+                return;
+              }
+              if (turnFailed) {
+                console.log(formatSummaryLine("skip-turn-failed", { turn }));
+                return;
+              }
+              if (signal.aborted) {
+                console.log(formatSummaryLine("skip-aborted", { turn }));
+                return;
+              }
+              if (olderForSummary.length === 0) {
+                console.log(formatSummaryLine("skip-no-corpus", { turn }));
+                return;
+              }
 
               // turnsSinceRebuild after this turn's state (post-rebuild → 0).
               const st = compactorStateByChat.get(chatId);
@@ -1558,35 +1612,88 @@ export function AppShell() {
                 st && typeof st.builtAtUserTurn === "number" && st.builtAtUserTurn >= 0
                   ? countUserTurns(validatedHistory, true) - st.builtAtUserTurn
                   : 0;
-              if (turnsSinceRebuild !== K - 1) return;
+              if (turnsSinceRebuild !== K - 1) {
+                console.log(
+                  formatSummaryLine("skip-cadence", {
+                    turn,
+                    turnsSinceRebuild,
+                    k: K,
+                  }),
+                );
+                return;
+              }
 
               const transcript = buildSummaryTranscript(olderForSummary);
-              if (!transcript.trim()) return;
+              if (!transcript.trim()) {
+                console.log(
+                  formatSummaryLine("skip-empty-transcript", { turn }),
+                );
+                return;
+              }
 
               if (summaryDebounceTimer) clearTimeout(summaryDebounceTimer);
+              const transcriptChars = transcript.length;
+              console.log(
+                formatSummaryLine("debounce-armed", {
+                  turn,
+                  debounceMs: SUMMARY_IDLE_DEBOUNCE_MS,
+                  transcriptChars,
+                }),
+              );
               summaryDebounceTimer = setTimeout(() => {
                 summaryDebounceTimer = null;
                 // Still idle? streamInFlight means user already sent again.
-                if (streamInFlightRef.current) return;
+                if (streamInFlightRef.current) {
+                  console.log(formatSummaryLine("debounce-busy", { turn }));
+                  return;
+                }
 
                 const ac = new AbortController();
                 summaryAbortController = ac;
                 const capturedLocale = locale;
                 const capturedChatId = chatId;
+                const capturedEpoch = summaryEpochByChat.get(chatId) ?? 0;
                 void (async () => {
                   try {
+                    console.log(
+                      formatSummaryLine("llm-start", {
+                        turn,
+                        transcriptChars,
+                      }),
+                    );
                     const summary = await summarizeConversation(
                       transcript,
                       capturedLocale,
                       ac.signal,
                     );
-                    if (ac.signal.aborted || !summary.trim()) return;
+                    if (ac.signal.aborted) {
+                      console.log(formatSummaryLine("llm-aborted", { turn }));
+                      return;
+                    }
+                    // Conversation was reset (clearChat) while we were in flight.
+                    if (
+                      (summaryEpochByChat.get(capturedChatId) ?? 0) !==
+                      capturedEpoch
+                    ) {
+                      console.log(formatSummaryLine("llm-aborted", { turn }));
+                      return;
+                    }
+                    if (!summary.trim()) {
+                      console.log(formatSummaryLine("llm-empty", { turn }));
+                      return;
+                    }
                     const trimmed = truncateBudget(
                       summary.trim(),
                       SUMMARY_BUDGET_CHARS,
                     );
                     // Store as pending — promoted into rollingSummary on next boundary rebuild.
                     pendingSummaryByChat.set(capturedChatId, trimmed);
+                    console.log(
+                      formatSummaryLine("stored-pending", {
+                        turn,
+                        chars: trimmed.length,
+                      }),
+                    );
                     try {
                       await AsyncStorage.setItem(
                         summaryStorageKey(capturedChatId),
@@ -1596,6 +1703,7 @@ export function AppShell() {
                       // best-effort
                     }
                   } catch {
+                    console.log(formatSummaryLine("llm-error", { turn }));
                     // keep previous rollingSummary
                   } finally {
                     if (summaryAbortController === ac) {
@@ -1627,9 +1735,10 @@ export function AppShell() {
                 },
                 onError: (error) => {
                   turnFailed = true;
-                  // context_full + compaction ON → force rebuild next send.
+                  // context_full + v42 window → force boundary rebuild next send.
+                  // ciswire keeps the legacy window; rebuild would not shrink it.
                   if (
-                    compactionOn &&
+                    contextMode === "v42" &&
                     error &&
                     typeof error === "object" &&
                     (error as { code?: string }).code === "context_full"

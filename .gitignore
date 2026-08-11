@@ -88,3 +88,6 @@ scripts/.build/
 # CI capture output (screenshots, ui dumps, seeds)
 e2e-out/
 scripts/.build*/
+
+# Local benchmark output (grader/aggregator scratch)
+bench-out/

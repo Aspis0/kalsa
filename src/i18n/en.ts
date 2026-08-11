@@ -137,6 +137,10 @@ export const en = {
       description:
         "Alternative vision-capable model with native tool calling. Not part of the Qwen RAM-tier fallback chain — pick it if you prefer Gemma.",
     },
+    lfm25: {
+      description:
+        "Liquid AI hybrid model. Always-on reasoning, text only (no images). ~1.7 GB download.",
+    },
     whisperTiny: {
       description:
         "On-device speech recognition (multilingual tiny). ~75 MB. Used for voice dictation only.",

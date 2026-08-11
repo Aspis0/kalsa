@@ -494,6 +494,35 @@ export class RetrieverIndex {
     }
   }
 
+  /**
+   * Drop the oldest `count` conversation units (FIFO sliding window).
+   * Updates DF / totalDl so BM25 stays correct after eviction.
+   * No-op when count ≤ 0. Clamps to unit count.
+   */
+  dropOldestUnits(count: number): void {
+    if (!Number.isFinite(count) || count <= 0) return;
+    const n = Math.min(Math.floor(count), this.unitSentences.length);
+    if (n <= 0) return;
+
+    const kept: SentenceDoc[] = [];
+    for (let i = 0; i < this.docs.length; i++) {
+      const d = this.docs[i];
+      if (d.unitSlot < n) {
+        this.totalDl -= d.dl;
+        for (const t of d.tf.keys()) {
+          const df = (this.dfMap.get(t) ?? 1) - 1;
+          if (df <= 0) this.dfMap.delete(t);
+          else this.dfMap.set(t, df);
+        }
+      } else {
+        d.unitSlot -= n;
+        kept.push(d);
+      }
+    }
+    this.docs = kept;
+    this.unitSentences = this.unitSentences.slice(n);
+  }
+
   get documentCount(): number {
     return this.docs.length;
   }
