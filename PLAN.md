@@ -1082,6 +1082,15 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 
   Decisione default (A=k6d065 raccomandata / B=k6d080 / C=status quo): gualt.
 
+  **→ DECISO da gualt (2026-08-10, concordato col coordinatore): OPZIONE A.**
+  Default di campagna e prodotto: **KEXP + k=6 + drop 0.65 → 5.86 tok/s,
+  PPL 1.852.** Config di campagna aggiornata: `-t 4 -c 4096 --moe-stream
+  --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512
+  --n-expert-used 6 --drop-cold-experts 0.65` su modello KEXP. Da propagare
+  negli harness (k 8→6) con micro-mandato a trial Marco concluso (evitare
+  conflitti su file condivisi). Flag aperto: sostenuto lungo del nuovo default
+  da rifare nel refresh scheda prodotto.
+
 - **2026-08-10 — 🔭 RICERCA SUCCESSORI: la lista di gualt non regge il criterio
   multilingua (EN/ES/FR/IT/ZH), ma la ricerca ha scovato il dark horse:
   Marco-Mini-Instruct 17.3B-A0.86B (Alibaba AIDC) — 5/5 lingue, Apache 2.0,
