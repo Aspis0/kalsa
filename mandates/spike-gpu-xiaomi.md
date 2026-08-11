@@ -1,67 +1,105 @@
-# MANDATO — SPIKE GPU su Xiaomi 14 (Adreno 750 VERIFIED): la porta GPU sul silicio giusto
+# MANDATO — SPIKE GPU su Xiaomi 14 (v2 POST-AUDIT)
 
-**Device**: Xiaomi 14 (SM8650 / 8 Gen 3, **Adreno 750 — nella lista "verified
-devices" ufficiale di OPENCL.md**, driver V@0762.36.1 del 12/2025, ~11.4 GB RAM,
-Android 16/HyperOS 3, ICD presente in /vendor/lib64). adb wireless:
-`adb-625689a2-9xEOfw` @ 192.168.1.193:34295 (pairing già fatto dal coordinatore).
+> v2 dopo audit ostile DeepSeek (2 BLOCKER + 6 MAJOR recepiti): modelli da
+> scaricare e pinnare (l'IQ2_M di Marco NON esiste ancora), dump per-tensor
+> obbligatorio (OpenCL ha ZERO kernel IQ2: offload silenziosamente nullo se i
+> dense sono IQ2), aritmetica RAM dichiarata (cella C = OOM atteso), disciplina
+> di misura S23-grade, build path specificato con fallback NDK.
 
-**La tesi**: la porta GPU fu chiusa sul S23 per il driver del 740 (niente subgroup
-broadcast) e per le ops ibride mancanti. Il 750 verified elimina il veto
-device-side; **Marco (`qwen3moe`, attention standard) non ha il veto arch-side**.
-Se lo split "esperti CPU / resto GPU" paga qui, il tier veloce guadagna un boost
-condizionale per device 750+ — e la strada verso i 20 tok/s si accorcia.
+**Device**: Xiaomi 14 (SM8650, Adreno 750 verified, ~11.4 GB RAM di cui ~7
+liberi con HyperOS, Android 16). adb wireless `adb-625689a2-9xEOfw` @
+192.168.1.193:34295 (pairing fatto; la porta RUOTA al reboot).
+**Pin build: commit `5236140e5`** (il riferimento di campagna: ha backend
+OpenCL, `-ncmoe` in llama-bench e la riga subgroup — NIENTE "master recente").
 
-**Regole:** timing solo STACCATO; batteria floor 30%; niente harness di campagna
-su questo device (è fresco): disciplina minima = die annotato, run corti, ABBA;
-nulla del S23/Jelly si tocca; STOP ai gate; mai `complete_goal`.
+## S0 — setup e sopravvivenza (in carica OK)
 
-## S0 — setup (in carica OK)
+1. **Inventario con checklist**: Termux presente? sshd? porta? spazio ≥15 GB?
+   Termux:Boot? permessi storage? (nessun report della "sessione #1" esiste:
+   verificare tutto, assumere niente).
+2. **Sopravvivenza HyperOS (M2)**: whitelist batteria "senza restrizioni" per
+   Termux, `termux-wake-lock`, Termux:Boot con sshd PER PRIMO; **ssh = canale
+   unico di esecuzione** (adb solo pairing/push); `screen_off_timeout 1800000`
+   a inizio sessione e RIPRISTINATO a fine.
+3. **Build (M3)**: Termux on-device: `pkg install opencl-headers ocl-icd clinfo
+   vulkan-headers vulkan-loader shaderc` (glslc è OBBLIGATORIO a build-time per
+   Vulkan), `LD_LIBRARY_PATH=/vendor/lib64:$PREFIX/lib`; CMake:
+   `GGML_OPENCL=ON` (build 1) / `GGML_VULKAN=ON` (build 2), `GGML_NATIVE=OFF`,
+   `GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16`, `LLAMA_CURL=OFF`.
+   **Fallback dichiarato**: cross-build NDK dal PC (`scripts/build_bmoe_ndk.sh`
+   esteso con i flag GPU) + push. Smoke `-ngl 1` su GGUF piccolo PRIMA di
+   qualunque misura (valida il link runtime con libOpenCL vendor).
+4. **Probe (m1)**: dal run smoke con `-ngl 1`, grep e trascrizione ESATTA di:
+   `ggml_opencl: OpenCL driver:`, `ggml_opencl: vector subgroup broadcast
+   support:`, `ggml_opencl: cl_qcom_subgroup_shuffle support:` (il flag è
+   derivato dalla versione compiler E031≥47/DX≥17, non misurato).
+   Probe zone termiche: lista `thermal_zone*/type`+temp, leggibilità da uid
+   Termux; se SELinux blocca → proxy = temperatura batteria, dichiarato.
+   Leggere `cpu_capacity` di tutti i core → regola campagna (≥50% del max) →
+   **-t atteso 6**, fisso e identico su TUTTI gli arm.
+5. **Modelli (B1/M4/m5) — scaricare/trasferire con sha256 a verbale:**
+   - Llama-3.2-3B **Q4_K_M** (~2 GB): NON esiste su nessun device — download;
+   - Llama-3.2-3B UD-IQ2_XXS: dal S23 (sha nota `71aae376…`);
+   - **Marco `i1-IQ2_M` (~5.7 GB): DOWNLOAD (non è mai stato scaricato)**;
+   - Qwen3.5-2B Q4: già su PC (`models/draft/`) — push.
+   Trasferimenti ~8.7 GB via scp su Wi-Fi, sha verificato a destinazione.
+6. **Dump per-tensor di Marco i1-IQ2_M (B1 — GATE)**: i tensori NON-expert
+   devono essere in {Q4_K, Q5_K, Q6_K, F32, Q8_0} ⊆ supporto OpenCL. **Se i
+   dense sono IQ2_*: S2 NON è interpretabile (zero kernel IQ2 nel backend,
+   fallback CPU silenzioso) → STOP e riportare** (eventuale ripiego: nostra
+   requant KEXP-style del dense — dossier, non improvvisazione).
 
-1. Termux + sshd sul Xiaomi se assenti (coordinarsi con gualt per
-   l'installazione/autorizzazioni — il device era già stato usato come lab in
-   sessione #1: verificare cosa c'è).
-2. Build **vanilla** llama.cpp recente: una con `GGML_OPENCL=ON`, una con
-   `GGML_VULKAN=ON` (due binari llama-bench/llama-cli separati). Annotare commit.
-3. **Probe driver**: dal log OpenCL all'avvio, cercare la riga sul **subgroup
-   broadcast support** (lo smoking gun del S23 era `false`): trascriverla.
-   `clinfo` se disponibile: estensioni cl_qcom_* a verbale.
-4. Modelli: Llama-3.2-3B Q4_K_M + IQ2_XXS (già sul S23: trasferire via PC) e
-   **Marco IQ2_M 5.7 GB** (già su PC dal trial — sta in RAM qui). Thread: leggere
-   `cpu_capacity` e applicare la regola di campagna (core forti ≥50% del max).
+**Disciplina di misura per S1-S3 (M1)**: UNPLUGGED verificato
+(termux-battery-status), batteria ≥40% start / floor 30% con abort, die start
+≤45 °C, PAUSA se die>85 sostenuto 60 s, ABORT >90; flight minimale 5 s
+(die/MemFree/batt/plugged); **fadvise cold prima di OGNI run di timing**
+(cold_model.sh + fadv portati dal S23); checkpoint batteria ≥45% prima di S2.
+Solo llama-bench, invocazioni fisse: tg `-p 0 -n 128 -t 6 -r 2`, pp `-p 512
+-n 0 -t 6`. **Ogni run = una riga in `results/gpu_xiaomi/runs.csv`.**
 
 ## S1 — gate device-side (staccato): il 750 batte la CPU sul denso?
 
-llama-bench, 3B Q4_K_M: tg128 e pp512, CPU vs OpenCL `-ngl 99`, 2 rep ABBA, cold.
-| esito tg | lettura |
+3B Q4_K_M, tg128 + pp512, CPU vs OpenCL `-ngl 99`, ABBA, 2 rep, cold, Δdie
+start tra rep ≤5 °C. **Gate sulla mediana; tie-break: terza rep se il ratio
+cade in 1.08-1.22×.** pp512 = informativo, NON entra nel gate.
+| tg GPU/CPU | lettura |
 |---|---|
-| GPU ≥ 1.15× CPU | **verde device-side** — il 740 era il problema, non "la GPU su Android" |
-| 0.9-1.15× | giallo: annotare e procedere comunque a S2 (lo split usa la GPU per la parte dense, il regime è diverso) |
-| < 0.9× (replica del S23) | ROSSO anche su 750: porta GPU chiusa anche qui, STOP dopo S2a di conferma |
+| ≥ 1.15× | verde device-side → S2 (+1 cella sustained n=512 GPU per il regime termico) |
+| 0.9-1.15× | giallo: S2 comunque (regime diverso) |
+| < 0.9× | rosso anche su 750 → S2a di conferma e stop |
 
-## S2 — il test che conta (staccato): Marco con split esperti-CPU / resto-GPU
+## S2 — Marco con split routed-CPU / resto-GPU (staccato)
 
-Marco IQ2_M **in RAM** (niente streaming: test pulito), llama-bench o llama-cli:
-- **A**: CPU-only (baseline, -t da regola);
-- **B**: `-ngl 99 --n-cpu-moe 999` (tutti gli esperti MoE su CPU, dense+attention
-  su GPU) — OpenCL;
-- **C** (se VRAM/UMA regge): `-ngl 99` pieno — OpenCL;
-- (rep 2, ABBA, tg128 + pp512, die annotato).
+**Aritmetica RAM dichiarata PRIMA (B2)**: doppia residenza host+device (upload
+via clEnqueueWriteBuffer, nessun reclaim del mmap — PR #24156 non mergiata):
+- **A** CPU-only: ~6.2-6.7 GB → sta;
+- **B** `-ngl 99 --n-cpu-moe 999`: 5.7 host + ~1.2-2 device ≈ 7.2-7.7 GB vs ~7
+  disponibili → **borderline**: pre-check MemAvailable ≥7.5 GB, monitor
+  majflt/RSS, run abortito = cella FAIL (mai stima);
+- **C** `-ngl 99` pieno: ~11.4 GB richiesti → **OOM ATTESO a priori** — si
+  tenta 1 volta, l'abort è l'esito previsto, informativa se sopravvive.
 
-| esito | conclusione |
+A/B ABBA 2 rep (C dopo), tg128 + pp512. **Catturare il log `offloaded %d/%d
+layers to GPU` + verbose per-tensor**: la prova di COSA sta sulla GPU è parte
+del deliverable (nota m4: lo shared expert VA su GPU — la regex di ncmoe non
+matcha `ffn_shexp` — dichiararlo nel report).
+| tg B/A | conclusione |
 |---|---|
-| B o C ≥ **1.2×** A su tg | **PORTA GPU APERTA per Marco su 750+**: dossier "GPU boost condizionale per device" per il tier veloce |
-| 1.05-1.2× | GIALLO: utile solo su prefill? riportare pp e decidere |
-| ≤ 1.05× | chiusa anche sul silicio verified: a verbale, fine (e la regola "quale silicio" incassa un'altra conferma) |
+| ≥ 1.2× | PORTA GPU APERTA per Marco su 750+ (dossier "GPU boost condizionale") |
+| 1.05-1.2× | giallo: riportare pp (prefill-only value?) |
+| ≤ 1.05× | chiusa anche su silicio verified — a verbale |
 
-## S3 — esplorativo (solo se S1 non è ROSSO): le ops ibride su Vulkan
+## S3 — ops ibride su Vulkan (esplorativo, solo se S1 non rosso)
 
-Un HYBRID piccolo (Qwen3.5-2B GDN, Q4 — scaricare) su build **Vulkan**:
-correttezza PRIMA di tutto (output greedy vs CPU: se gibberish → Vulkan/Adreno
-non maturo, annotare e stop S3), poi tg CPU vs Vulkan `-ngl 99`. Informa il
-futuro GPU di **CalaQwen** (GDN ✅ solo su Vulkan), non decide nulla oggi.
+Qwen3.5-2B (GDN) Q4, build Vulkan. **Protocollo correttezza (M6)**: stesso
+prompt, seed fisso, temp 0, n=128, CPU vs Vulkan `-ngl 99`, `-fa` identico,
+ABBA 2 rep. Metriche: posizione prima divergenza, **top-1 agreement ≥90% sui
+primi 64 token**, assenza di loop degenerati, sanity PPL su slice fissa.
+(La byte-identità cross-backend NON è attesa: ordine FP diverso.) Poi tg
+CPU vs Vulkan. Informa il futuro GPU di CalaQwen, non decide nulla oggi.
 
 ## Deliverable
 
-`reports/moe-spike-gpu-xiaomi.md`: probe driver (riga subgroup!), tabelle S1/S2/S3
-con die e batteria, verdetti per gate. Artefatti `results/gpu_xiaomi/`.
-**STOP — qualunque dossier prodotto è di gualt.**
+`reports/moe-spike-gpu-xiaomi.md`: probe (righe driver esatte), dump Marco,
+runs.csv, tabelle S1/S2/S3 con die/batteria/majflt, log offload, verdetti per
+gate. **STOP — i dossier prodotto sono di gualt.**
