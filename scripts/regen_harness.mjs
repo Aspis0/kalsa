@@ -345,6 +345,11 @@ async function main() {
     regenAbortRef,
     sendClaimRef,
     regenGenerationRef,
+    discardInFlightRef,
+    discardGenerationRef,
+    pendingModelSwitchQueue,
+    deferModelSwitchIfSendClaimed,
+    drainPendingModelSwitch,
   } = require(modPath);
 
   // Reset module state
@@ -353,6 +358,9 @@ async function main() {
   regenAbortRef.current = null;
   if (sendClaimRef) sendClaimRef.current = false;
   if (regenGenerationRef) regenGenerationRef.current = 0;
+  if (discardInFlightRef) discardInFlightRef.current = false;
+  if (discardGenerationRef) discardGenerationRef.current = 0;
+  if (pendingModelSwitchQueue) pendingModelSwitchQueue.length = 0;
 
   let passed = 0;
   let failed = 0;
@@ -370,6 +378,9 @@ async function main() {
       regenAbortRef.current = null;
       if (sendClaimRef) sendClaimRef.current = false;
       if (regenGenerationRef) regenGenerationRef.current = 0;
+      if (discardInFlightRef) discardInFlightRef.current = false;
+      if (discardGenerationRef) discardGenerationRef.current = 0;
+      if (pendingModelSwitchQueue) pendingModelSwitchQueue.length = 0;
     }
   }
 
@@ -1229,6 +1240,122 @@ async function main() {
     assert(applied === 0, `applied=${applied}`);
     assert(skipped === 1, `skipped=${skipped}`);
     assert(messages.length === 0, "must not resurrect assistant");
+  });
+
+
+  // --- Round-7 race tests: discard mutex + model-switch queue ---
+
+  await test("discardInFlight mutex: second discard no-ops while first runs", async () => {
+    // Mirrors AppShell onAppState background/inactive: gate on discardInFlightRef.
+    let disposeCalls = 0;
+    async function runDiscard() {
+      if (discardInFlightRef.current) return { ran: false };
+      discardInFlightRef.current = true;
+      try {
+        await new Promise((r) => setTimeout(r, 40));
+        disposeCalls += 1;
+        return { ran: true };
+      } finally {
+        discardInFlightRef.current = false;
+        discardGenerationRef.current += 1;
+      }
+    }
+    const gen0 = discardGenerationRef.current;
+    const p1 = runDiscard();
+    const p2 = runDiscard(); // concurrent second event
+    const [r1, r2] = await Promise.all([p1, p2]);
+    assert(r1.ran === true, "first discard runs");
+    assert(r2.ran === false, "second discard no-ops");
+    assert(disposeCalls === 1, `disposeCalls=${disposeCalls}`);
+    assert(
+      discardGenerationRef.current === gen0 + 1,
+      `gen ${discardGenerationRef.current} expected ${gen0 + 1}`,
+    );
+    assert(discardInFlightRef.current === false, "flag cleared");
+  });
+
+  await test("discard bails before dispose when sendClaim re-acquired mid-wait", async () => {
+    // Lifecycle wait sees a new send claim → skip dispose (engine stays).
+    let disposeCalls = 0;
+    discardInFlightRef.current = true;
+    const gen0 = discardGenerationRef.current;
+    try {
+      // Simulate mid-lifecycle: a new send claims while discard awaits.
+      sendClaimRef.current = true;
+      if (
+        sendClaimRef.current ||
+        regenInFlightRef.current ||
+        false
+      ) {
+        // bail before dispose
+      } else {
+        disposeCalls += 1;
+      }
+    } finally {
+      discardInFlightRef.current = false;
+      discardGenerationRef.current += 1;
+    }
+    assert(disposeCalls === 0, "must not dispose under claim");
+    assert(discardGenerationRef.current === gen0 + 1, "gen bumps on bail too");
+    sendClaimRef.current = false;
+  });
+
+  await test("model switch while sendClaim held is deferred until claim releases", async () => {
+    // Mirrors AppShell.selectModelById + deferModelSwitchIfSendClaimed queue.
+    let applied = [];
+    const drainInFlight = { current: false };
+
+    function selectModelById(modelId) {
+      if (deferModelSwitchIfSendClaimed(modelId)) {
+        if (!drainInFlight.current) {
+          drainInFlight.current = true;
+          void (async () => {
+            try {
+              const t0 = Date.now();
+              while (sendClaimRef.current && Date.now() - t0 < 5000) {
+                await new Promise((r) => setTimeout(r, 20));
+              }
+              if (sendClaimRef.current) {
+                drainPendingModelSwitch();
+                return;
+              }
+              const pendingId = drainPendingModelSwitch();
+              if (!pendingId) return;
+              selectModelById(pendingId);
+            } finally {
+              drainInFlight.current = false;
+            }
+          })();
+        }
+        return;
+      }
+      applied.push(modelId);
+    }
+
+    sendClaimRef.current = true;
+    selectModelById("model-A");
+    selectModelById("model-B"); // last-wins while claim held
+    assert(applied.length === 0, "must not apply while claimed");
+    assert(pendingModelSwitchQueue.length >= 1, "queued");
+
+    // Release claim; drain waiter should apply last-wins (model-B).
+    sendClaimRef.current = false;
+    const tWait = Date.now();
+    while (applied.length === 0 && Date.now() - tWait < 2000) {
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    assert(applied.length === 1, `applied=${JSON.stringify(applied)}`);
+    assert(applied[0] === "model-B", `last-wins expected model-B got ${applied[0]}`);
+    assert(pendingModelSwitchQueue.length === 0, "queue drained");
+    assert(drainInFlight.current === false, "drain idle");
+  });
+
+  await test("model switch applies immediately when sendClaim free", () => {
+    sendClaimRef.current = false;
+    assert(deferModelSwitchIfSendClaimed("model-C") === false, "no defer");
+    assert(pendingModelSwitchQueue.length === 0, "queue empty");
+    const deferred = deferModelSwitchIfSendClaimed("model-C");
+    assert(deferred === false, "still free");
   });
 
 

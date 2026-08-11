@@ -108,6 +108,10 @@ import {
 import { startMemoryMonitor, getAvailableMemoryBytesUncached } from "../engine/monitor";
 import {
   backgroundDiscardLifecycleRef,
+  deferModelSwitchIfSendClaimed,
+  discardGenerationRef,
+  discardInFlightRef,
+  drainPendingModelSwitch,
   regenAbortRef,
   regenInFlightRef,
   sendClaimRef,
@@ -1556,6 +1560,8 @@ export function AppShell() {
   const chatGateGenRef = useRef<number | null>(null);
   const streamInFlightRef = useRef(false);
   const modelSwitchInFlightRef = useRef(false);
+  /** Single-flight waiter that drains pendingModelSwitchQueue after sendClaim. */
+  const modelSwitchDrainInFlightRef = useRef(false);
   /** UI mirror of streamInFlightRef — disables model Select in Settings. */
   const [streaming, setStreaming] = useState(false);
   /** Banner when fit returns unknown / unload reason for Settings. */
@@ -1585,6 +1591,9 @@ export function AppShell() {
       onAppState: (state) => {
         if (disposed) return;
         if (state === "background" || state === "inactive") {
+          // RN can emit both inactive and background; only one discard at a time.
+          if (discardInFlightRef.current) return;
+          discardInFlightRef.current = true;
           void (async () => {
             try {
               // Abort regen first so edit/regen cannot race dispose.
@@ -1619,8 +1628,9 @@ export function AppShell() {
               ) {
                 await new Promise((r) => setTimeout(r, 50));
               }
-              // If still busy after wait, skip dispose this cycle (monitor will
-              // re-fire on next background transition / pressure tick).
+              // If still busy after wait (e.g. a new send re-claimed during the
+              // lifecycle await), bail before disposing so the engine stays up.
+              // Monitor re-fires on the next background transition / pressure tick.
               if (
                 streamInFlightRef.current ||
                 sendingInFlightRef.current ||
@@ -1655,6 +1665,11 @@ export function AppShell() {
               }
             } catch {
               // never throw from AppState listener
+            } finally {
+              discardInFlightRef.current = false;
+              // Bump so a concurrent/next send can detect this discard cycle
+              // finished; ensureEngineForModel re-acquires if the engine is gone.
+              discardGenerationRef.current += 1;
             }
           })();
           return;
@@ -2219,6 +2234,35 @@ export function AppShell() {
   /** Settings: select by model id (same storage key + engine dispose path). */
   const selectModelById = useCallback(
     (modelId: string) => {
+      // While a send holds the pre-await claim (fit-gate), queue the switch
+      // (last-wins) and apply it only after the claim releases. Avoids dispose
+      // racing ensureEngineForModel mid-send.
+      if (deferModelSwitchIfSendClaimed(modelId)) {
+        if (!modelSwitchDrainInFlightRef.current) {
+          modelSwitchDrainInFlightRef.current = true;
+          void (async () => {
+            try {
+              const t0 = Date.now();
+              while (sendClaimRef.current && Date.now() - t0 < 5000) {
+                await new Promise((r) => setTimeout(r, 50));
+              }
+              // Timed out still claimed: drop queue so a late dispose cannot
+              // land mid-stream without a fresh user action.
+              if (sendClaimRef.current) {
+                drainPendingModelSwitch();
+                return;
+              }
+              const pendingId = drainPendingModelSwitch();
+              if (!pendingId) return;
+              // Claim free — re-enter (defer will no-op).
+              selectModelById(pendingId);
+            } finally {
+              modelSwitchDrainInFlightRef.current = false;
+            }
+          })();
+        }
+        return;
+      }
       const nextIndex = MODEL_REGISTRY.findIndex((m) => m.id === modelId);
       if (nextIndex < 0) return;
       // Refuse model switch while edit/regenerate owns the turn.
