@@ -212,6 +212,10 @@ export const it: typeof en = {
     downloading: "Scaricamento… {percent}%",
     download: "Scarica modello embedding",
     sizeLabel: "Dimensione: {size}",
+    /** Round 7 BLOCK: embed release timed out — chat init refused; restart. */
+    busy: "Embedding occupato — riavvia per ripristinare",
+    /** Round 7: Settings row when isEmbedderHung() — native op hung. */
+    hung: "Embedding non disponibile (bloccato) — riavvia l'app",
     /** Hybrid dense arm refused: memory cap (restore or mid-embed). */
     degradedCap:
       "Ricerca semantica (dense) non disponibile — solo parole chiave (limite memoria).",

@@ -380,29 +380,76 @@ async function main() {
     assert(/if \(embedderHung\) return false/.test(src), "ensureEmbedder short-circuit on hung");
   });
 
-  // 16. Round 6: AppShell wraps initEngine in runNativeOp + abandon on timeout.
-  check("AppShell: runNativeOp(initEngine) + markEmbedderHung on release timeout", () => {
+  // 16. Round 7 BLOCK: AppShell wraps initEngine + disposeEngine in runNativeOp;
+  // timeout marks hung and REFUSES chat (no abandon / no force handoff).
+  check("AppShell: runNativeOp(initEngine/dispose) + block-on-timeout (no abandon)", () => {
     const src = readFileSync(
       path.join(projectRoot, "src/app/AppShell.tsx"),
       "utf8",
     );
     assert(/runNativeOp/.test(src), "imports/uses runNativeOp");
-    assert(/abandonNativeOpChain/.test(src), "imports abandonNativeOpChain");
     assert(/markEmbedderHung/.test(src), "imports markEmbedderHung");
+    // Round 7: abandon + force handoff removed (block-not-proceed).
+    assert(!/abandonNativeOpChain/.test(src), "must NOT import/use abandonNativeOpChain");
+    assert(!/forceChatAcquireAfterEmbedTimeout/.test(src), "must NOT use force handoff");
     // Both chat-init call sites wrap initEngine.
     const wraps = src.match(/runNativeOp\(\s*\(\)\s*=>\s*[\s\S]*?initEngine\(/g);
     assert(wraps && wraps.length >= 2, `expected ≥2 runNativeOp(initEngine) sites, got ${wraps ? wraps.length : 0}`);
-    // releaseEmbedderBounded abandon policy.
+    // Both dispose call sites wrap disposeEngine in runNativeOp.
+    const disposeWraps = src.match(/runNativeOp\(\s*\(\)\s*=>\s*disposeEngine\(\)\s*\)/g);
+    assert(
+      disposeWraps && disposeWraps.length >= 2,
+      `expected ≥2 runNativeOp(() => disposeEngine()) sites, got ${disposeWraps ? disposeWraps.length : 0}`,
+    );
+    // releaseEmbedderBounded BLOCK policy: mark hung, no chain clear, no proceed.
     const bounded = src.slice(src.indexOf("async function releaseEmbedderBounded"));
     const boundedEnd = bounded.indexOf("\nfunction ");
     const body = boundedEnd > 0 ? bounded.slice(0, boundedEnd) : bounded.slice(0, 2000);
     assert(/markEmbedderHung\(\)/.test(body), "timeout → markEmbedderHung");
-    assert(/abandonNativeOpChain\(\)/.test(body), "timeout → abandonNativeOpChain");
+    assert(!/abandonNativeOpChain\(\)/.test(body), "timeout must NOT abandon chain");
+    // Busy UI string on timeout paths.
+    assert(/embedding\.busy/.test(src), "timeout surfaces embedding.busy");
     // Zero-vector capped sidecar records reason before early return.
     assert(
       /chunkCount\s*<=\s*0[\s\S]{0,200}isCapped[\s\S]{0,120}capped/.test(src),
       "zero-vector capped sidecar must record 'capped' before early return",
     );
+  });
+
+  // 16b. Round 7: releaseEmbedder absorbs native_op_abandoned (no throw).
+  check("releaseEmbedder absorbs barrier errors (never throws / fire-and-forget safe)", () => {
+    const src = readFileSync(
+      path.join(projectRoot, "src/engine/EmbeddingService.ts"),
+      "utf8",
+    );
+    const releaseBody = src.slice(src.indexOf("export async function releaseEmbedder"));
+    const bodyEnd = releaseBody.indexOf("\nexport ");
+    const body = bodyEnd > 0 ? releaseBody.slice(0, bodyEnd) : releaseBody.slice(0, 1200);
+    // Outer try/catch around runNativeOp so abandoned rejections are absorbed.
+    assert(/try\s*\{[\s\S]*runNativeOp[\s\S]*\}\s*catch/.test(body), "outer try/catch around runNativeOp");
+    const codeOnly = body.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    assert(!/\bthrow\b/.test(codeOnly), "releaseEmbedder must not throw");
+  });
+
+  // 16c. Round 7: markEmbedderHung logs + Settings shows hung.
+  check("markEmbedderHung logs + SettingsScreen shows hung state", () => {
+    const embSrc = readFileSync(
+      path.join(projectRoot, "src/engine/EmbeddingService.ts"),
+      "utf8",
+    );
+    const hungBody = embSrc.slice(embSrc.indexOf("export function markEmbedderHung"));
+    const hungEnd = hungBody.indexOf("\nexport ") > 0
+      ? hungBody.indexOf("\nexport ")
+      : hungBody.indexOf("\nasync function");
+    const hung = hungEnd > 0 ? hungBody.slice(0, hungEnd) : hungBody.slice(0, 800);
+    assert(/console\.warn/.test(hung), "markEmbedderHung must console.warn on entry");
+
+    const settingsSrc = readFileSync(
+      path.join(projectRoot, "src/screens/SettingsScreen.tsx"),
+      "utf8",
+    );
+    assert(/isEmbedderHung/.test(settingsSrc), "Settings imports/uses isEmbedderHung");
+    assert(/embedding\.hung/.test(settingsSrc), "Settings shows embedding.hung");
   });
 
   // 17. Round 6: documentChatTool surfaces 'hung' via degradedNoEmbedder text.

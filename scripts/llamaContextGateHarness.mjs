@@ -72,7 +72,6 @@ async function main() {
   const mod = require(modPath);
   const {
     tryAcquireChat,
-    forceChatAcquireAfterEmbedTimeout,
     markChatReady,
     markChatReleased,
     tryAcquireEmbed,
@@ -88,7 +87,6 @@ async function main() {
     CO_RESIDENCY_MIN_MEMORY_BYTES,
     runNativeOp,
     nativeOpBusy,
-    abandonNativeOpChain,
     __resetNativeOpMutexForTests,
   } = mod;
 
@@ -276,49 +274,26 @@ async function main() {
     assert(a < b && b < c, `monotonic ${a}<${b}<${c}`);
   });
 
-  // ── FIX 2: forceChatAcquireAfterEmbedTimeout ────────────────────────────
-  check("embed-held force handoff → chat_loading with new gen", () => {
+  // ── FIX 2 / round 7: force handoff REMOVED (block-not-proceed) ──────────
+  check("forceChatAcquireAfterEmbedTimeout is not exported (block policy)", () => {
+    assert(
+      typeof mod.forceChatAcquireAfterEmbedTimeout !== "function",
+      "force handoff must be removed — chat must not proceed after embed hang",
+    );
+    assert(
+      typeof mod.abandonNativeOpChain !== "function",
+      "abandonNativeOpChain must not be exported — hung op holds the chain",
+    );
+  });
+
+  check("embed-held without co-res refuses chat acquire (no force path)", () => {
     setCoResidencyContext({ totalMemoryBytes: 4e9, chatModelIs2B: false });
     assert(tryAcquireEmbed() === true, "embed held");
     assert(getState() === "embed_active", `got ${getState()}`);
     assert(tryAcquireChat() === null, "normal acquire refused without co-res");
-    const genBefore = getChatGeneration();
-    const forced = forceChatAcquireAfterEmbedTimeout();
-    assert(typeof forced === "number" && forced > 0, `forced gen, got ${forced}`);
-    assert(forced > genBefore, `new gen ${forced} > ${genBefore}`);
-    assert(getState() === "chat_loading", `got ${getState()}`);
-    assert(getChatGeneration() === forced, "getChatGeneration matches forced");
-    // Embed re-init refused while chat_loading.
-    assert(tryAcquireEmbed() === false, "embed refused during forced chat_loading");
-  });
-
-  check("stale embed release after force handoff is no-op on state", () => {
-    setCoResidencyContext({ totalMemoryBytes: 4e9, chatModelIs2B: false });
-    assert(tryAcquireEmbed() === true, "embed");
-    const forced = forceChatAcquireAfterEmbedTimeout();
-    assert(forced !== null, "forced");
-    assert(getState() === "chat_loading", "loading");
-    // Late releaseEmbed from the timed-out embed path: clears embedHeld but
-    // must NOT flip state out of chat_loading (releaseEmbed only idles from
-    // embed_active).
-    releaseEmbed();
-    assert(getState() === "chat_loading", `still chat_loading after late releaseEmbed, got ${getState()}`);
-    if (typeof isEmbedHeld === "function") {
-      assert(isEmbedHeld() === false, "embedHeld cleared");
-    }
-    markChatReady(forced);
-    assert(getState() === "chat_ready", "ready after forced gen");
-    markChatReleased(forced);
-    assert(getState() === "idle", "idle after proper release");
-  });
-
-  check("force handoff refused while already chat_loading/ready", () => {
-    const gen = tryAcquireChat();
-    assert(gen !== null, "chat");
-    assert(forceChatAcquireAfterEmbedTimeout() === null, "refuse while loading");
-    markChatReady(gen);
-    assert(forceChatAcquireAfterEmbedTimeout() === null, "refuse while ready");
-    assert(getState() === "chat_ready", "still ready");
+    // Gate stays embed_active — caller must releaseEmbedder then re-claim;
+    // on release timeout AppShell marks hung and refuses chat (no force).
+    assert(getState() === "embed_active", "still embed_active after refused chat");
   });
 
   // ── Shared native-op barrier (round 6) ──────────────────────────────────
@@ -392,8 +367,9 @@ async function main() {
     assert(nativeOpBusy() === false, "idle after failure chain");
   });
 
-  await checkAsync("abandonNativeOpChain resets busy + drops queued ops", async () => {
-    assert(typeof abandonNativeOpChain === "function", "abandon exported");
+  await checkAsync("hung op holds the chain — new op queues, busy stays true", async () => {
+    // Round 7: never clear the chain while an op is in flight. A hung op
+    // keeps busy=true and queued ops wait behind it (no overlap).
     let releaseA;
     const aGate = new Promise((r) => {
       releaseA = r;
@@ -404,26 +380,25 @@ async function main() {
     });
     await new Promise((r) => setImmediate(r));
     assert(nativeOpBusy() === true, "busy while A in flight");
-    const pB = runNativeOp(async () => "B");
-    abandonNativeOpChain();
-    assert(nativeOpBusy() === false, "busy cleared by abandon");
-    // New op on the fresh chain must run.
-    const pC = runNativeOp(async () => "C");
-    const rc = await pC;
-    assert(rc === "C", `fresh chain ran, got ${rc}`);
-    // Settling the abandoned A must not re-busy the new chain forever.
+    let bStarted = false;
+    const pB = runNativeOp(async () => {
+      bStarted = true;
+      return "B";
+    });
+    // B must not start while A holds the mutex (queued behind hung/in-flight).
+    await new Promise((r) => setImmediate(r));
+    assert(nativeOpBusy() === true, "busy stays true while A holds chain");
+    assert(bStarted === false, "B must not start while A is hung/in-flight");
+    // No abandon API in production — only test reset can clear (below).
+    assert(
+      typeof mod.abandonNativeOpChain !== "function",
+      "no production chain-clear on hung",
+    );
     releaseA();
-    try {
-      await pA;
-    } catch {
-      /* abandoned may throw native_op_abandoned or resolve from old gen */
-    }
-    try {
-      await pB;
-    } catch {
-      /* abandoned queued op */
-    }
-    assert(nativeOpBusy() === false, "idle after abandon settle");
+    const [ra, rb] = await Promise.all([pA, pB]);
+    assert(ra === "A" && rb === "B", `results ${ra}/${rb}`);
+    assert(bStarted === true, "B ran after A settled");
+    assert(nativeOpBusy() === false, "idle after both settle");
   });
 
   check("__resetNativeOpMutexForTests clears busy", () => {

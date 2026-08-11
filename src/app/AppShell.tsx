@@ -69,7 +69,6 @@ import {
 } from "../documents/semanticIndex";
 import {
   tryAcquireChat,
-  forceChatAcquireAfterEmbedTimeout,
   markChatReady,
   markChatReleased,
   getState as getLlamaContextGateState,
@@ -79,7 +78,7 @@ import {
   allowsCoResidency,
   CO_RESIDENCY_MIN_MEMORY_BYTES,
   runNativeOp,
-  abandonNativeOpChain,
+  nativeOpBusy,
 } from "../engine/llamaContextGate";
 import { resolveContextProfile } from "../engine/contextProfile";
 import {
@@ -265,17 +264,15 @@ function gateForModel(
 
 /** Localized hard-gate reason for Alert / error banner. */
 /**
- * Bounded releaseEmbedder for chat-init (FIX 2 / round-6 native barrier).
+ * Bounded releaseEmbedder for chat-init (FIX 2 / round-7 BLOCK policy).
  * Races release against EMBEDDER_RELEASE_TIMEOUT_MS. On timeout:
- *   - forceChatAcquireAfterEmbedTimeout is UI-gate only (chat_loading);
- *   - if the shared runNativeOp mutex is still held, the embed op is
- *     ABANDONED: markEmbedderHung (drop JS ref; native leak isolated, never
- *     reused) + abandonNativeOpChain so chat init can run alone;
- *   - chat proceeds (must not deadlock). Recovery for a hung native context
- *     = process restart. Never throws.
+ *   - markEmbedderHung (drop JS ref; native leak isolated, never reused);
+ *   - do NOT clear the native-op chain (hung op holds the barrier — never-overlap);
+ *   - do NOT proceed with chat init — caller surfaces an explicit busy UI state.
+ * Recovery for a hung native context = process restart. Never throws.
  *
- * Invariant: never two overlapping llama.rn ops; a hung op is abandoned,
- * isolated, and never reused.
+ * Invariant: never two overlapping llama.rn ops; a hung op holds the chain
+ * and blocks new native work until restart.
  */
 async function releaseEmbedderBounded(): Promise<"released" | "timeout"> {
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -292,15 +289,13 @@ async function releaseEmbedderBounded(): Promise<"released" | "timeout"> {
       }),
     ]);
     if (result === "timeout") {
-      // ABANDON policy (round 6): release timed out — native embedding/release
-      // is not cancellable. Drop the JS context ref (markEmbedderHung), reset
-      // the shared mutex chain so chat init can run alone. The hung native
-      // context is leaked, isolated, never reused; recovery = process restart.
-      // Invariant: never two overlapping llama.rn ops after this point.
+      // BLOCK policy (round 7): release timed out — native embedding/release
+      // is not cancellable. Drop the JS context ref (markEmbedderHung). Do NOT
+      // clear the native-op chain (hung op holds the barrier). Do NOT proceed
+      // with chat init. Recovery = process restart.
       markEmbedderHung();
-      abandonNativeOpChain();
       console.warn(
-        `[kalsa] releaseEmbedder timed out after ${EMBEDDER_RELEASE_TIMEOUT_MS}ms; embedder marked hung, native-op chain abandoned; proceeding with chat init`,
+        `[kalsa] releaseEmbedder timed out after ${EMBEDDER_RELEASE_TIMEOUT_MS}ms; embedder marked hung (nativeOpBusy=${nativeOpBusy()}); chat init blocked — restart to recover`,
       );
     }
     return result;
@@ -1596,12 +1591,27 @@ export function AppShell() {
       // Preempt background summary before dispose so FIFO does not hold a
       // half-finished summarize across unmount.
       abortBackgroundSummary();
-      void disposeEngine().finally(() => {
-        // FIX B / FIX 1: unmount dispose frees only the gen captured above.
-        if (releasedGen !== null) markChatReleased(releasedGen);
-      });
+      // FIX 1 / round 7: full chat disposal lifecycle through the native-op
+      // barrier so a chat release cannot overlap an in-flight embed op.
+      // Sequential: disposeEngine (wrapped) THEN releaseEmbedder (which itself
+      // enters runNativeOp — do NOT nest, that would deadlock the FIFO).
+      void (async () => {
+        try {
+          await runNativeOp(() => disposeEngine());
+        } catch {
+          // ignore — unmount best-effort
+        } finally {
+          // FIX B / FIX 1: unmount dispose frees only the gen captured above.
+          if (releasedGen !== null) markChatReleased(releasedGen);
+        }
+        // Sequential after dispose settles — releaseEmbedder owns its own barrier entry.
+        try {
+          await releaseEmbedder();
+        } catch {
+          // releaseEmbedder already absorbs; defense for fire-and-forget.
+        }
+      })();
       void releaseWhisper();
-      void releaseEmbedder();
     };
   }, [bumpEmbedJobGeneration]);
 
@@ -1751,21 +1761,24 @@ export function AppShell() {
         if (gateState === "chat_loading" || gateState === "chat_ready") {
           return false;
         }
-        // Embedder holds the native slot and co-residency is off — force-release
-        // (bounded) then re-claim. FIX 2: if the release times out, use the
-        // explicit force handoff so the first acquire path does not fail chat.
+        // Embedder holds the native slot and co-residency is off — bounded
+        // release then re-claim. FIX 2 / round 7 BLOCK: on timeout, mark hung
+        // and refuse chat init (never clear the native-op chain / never force
+        // handoff — hung op holds the barrier until process restart).
         const releaseOutcome = await releaseEmbedderBounded();
         if (!stillCurrent()) {
           return false;
         }
         if (releaseOutcome === "timeout") {
-          // UI-gate only: transition to chat_loading so UI proceeds. Native
-          // serialization is runNativeOp; abandon already ran in
-          // releaseEmbedderBounded (markEmbedderHung + abandonNativeOpChain).
-          chatGen = forceChatAcquireAfterEmbedTimeout();
-        } else {
-          chatGen = tryAcquireChat();
+          // BLOCK: embedder hung, native op still sole owner of the barrier.
+          // Surface explicit busy state; recovery = process restart.
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("embedding.busy"));
+          setModelErrorDetail(null);
+          return false;
         }
+        chatGen = tryAcquireChat();
         if (chatGen === null) {
           // Still blocked — refuse chat load rather than race the embedder.
           setModelState("error");
@@ -1806,15 +1819,23 @@ export function AppShell() {
 
       // §5 co-residency: release embedder before chat init ONLY when
       // (totalMemoryBytes ≤ 6e9) OR (chat model is 4B-class).
-      // FIX 2: bounded wait — on timeout, chat proceeds (must not deadlock);
-      // embedder disposal is best-effort / deferred to the next cycle.
+      // FIX 2 / round 7 BLOCK: on timeout, refuse chat init (hung holds barrier).
       const mustReleaseEmbed =
         totalMem <= 0 ||
         totalMem <= CO_RESIDENCY_MIN_MEMORY_BYTES ||
         isChatModel4BClass(model.id) ||
         !allowsCoResidency();
       if (mustReleaseEmbed) {
-        await releaseEmbedderBounded();
+        const midRelease = await releaseEmbedderBounded();
+        if (midRelease === "timeout") {
+          markChatReleased(chatGen);
+          if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("embedding.busy"));
+          setModelErrorDetail(null);
+          return false;
+        }
       }
       if (!stillCurrent()) {
         markChatReleased(chatGen);
@@ -1856,10 +1877,9 @@ export function AppShell() {
         return false;
       }
       // Shared native-op barrier: serialize chat initEngine with any embed
-      // initLlama/embedding/release. forceChatAcquireAfterEmbedTimeout is
-      // UI-gate only (chat_loading); native serialization is runNativeOp.
-      // On prior release timeout the embedder was marked hung and the chain
-      // abandoned, so this op runs alone (no concurrent llama.rn work).
+      // initLlama/embedding/release/dispose. Round 7 BLOCK: we only reach here
+      // after a successful embed release (or co-residency skip); a hung embed
+      // would have refused above, so this op cannot overlap a live embed op.
       const initResult = await runNativeOp(() =>
         initEngine(modelLocalPath(model, model.file), model.id, {
           mmprojPath,
@@ -1975,7 +1995,9 @@ export function AppShell() {
           memoryExtractRef.current = null;
         }
         try {
-          await disposeEngine();
+          // FIX 1 / round 7: dispose inside runNativeOp so chat release cannot
+          // overlap an in-flight embed op (never-overlap invariant).
+          await runNativeOp(() => disposeEngine());
         } catch {
           // ignore
         } finally {
@@ -2120,19 +2142,21 @@ export function AppShell() {
           // Double-load backstop — do not clobber an in-flight / ready chat.
           return;
         }
-        // FIX 2: on embed-held first acquire, force handoff after timeout so
-        // chat does not report engine error while native release is still pending.
+        // FIX 2 / round 7 BLOCK: bounded release then re-claim. On timeout,
+        // mark hung and refuse chat init (never force-handoff / never clear
+        // the native-op chain — hung op holds the barrier until restart).
         const releaseOutcomeDl = await releaseEmbedderBounded();
         if (!stillCurrent()) {
           return;
         }
         if (releaseOutcomeDl === "timeout") {
-          // UI-gate only (see ensureEngineForModel path). Native barrier =
-          // runNativeOp; hung embed already abandoned in releaseEmbedderBounded.
-          chatGenDl = forceChatAcquireAfterEmbedTimeout();
-        } else {
-          chatGenDl = tryAcquireChat();
+          // BLOCK: embedder hung, native op still sole owner of the barrier.
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("embedding.busy"));
+          return;
         }
+        chatGenDl = tryAcquireChat();
         if (chatGenDl === null) {
           setModelState("error");
           setModelErrorKind("engine");
@@ -2164,14 +2188,22 @@ export function AppShell() {
         chatModelIs2B: modelIs2BDl,
       });
 
-      // FIX 2: bounded release — chat proceeds on timeout (no deadlock).
+      // FIX 2 / round 7 BLOCK: bounded release — on timeout refuse chat init.
       const mustReleaseEmbed =
         totalMem <= 0 ||
         totalMem <= CO_RESIDENCY_MIN_MEMORY_BYTES ||
         isChatModel4BClass(model.id) ||
         !allowsCoResidency();
       if (mustReleaseEmbed) {
-        await releaseEmbedderBounded();
+        const midReleaseDl = await releaseEmbedderBounded();
+        if (midReleaseDl === "timeout") {
+          markChatReleased(chatGenDl);
+          if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("embedding.busy"));
+          return;
+        }
       }
       if (!stillCurrent()) {
         markChatReleased(chatGenDl);
@@ -2243,9 +2275,8 @@ export function AppShell() {
         return;
       }
       // Shared native-op barrier (same policy as ensureEngineForModel):
-      // serialize chat initEngine with embed ops. Gate force handoff is
-      // UI-only; native serialization is runNativeOp. Hung embed ops were
-      // abandoned above so this runs alone.
+      // serialize chat initEngine with embed ops. Round 7 BLOCK: we only reach
+      // here after a successful embed release (or co-residency skip).
       // Hoist uri so the runNativeOp closure does not re-widen DownloadOutcome
       // (status === "aborted" already returned above → model is {status:"done"}).
       const modelUri = (outcome.model as { status: "done"; uri: string }).uri;

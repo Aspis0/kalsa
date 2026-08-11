@@ -35,6 +35,7 @@ import {
   formatBytes,
   type ModelInfo,
 } from "../engine/ModelRegistry";
+import { isEmbedderHung } from "../engine/EmbeddingService";
 import {
   getDeviceTotalMemoryBytes,
   getRamTier,
@@ -668,6 +669,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   }, [voice.downloadPercent, voice.state, t]);
 
   const embeddingStatusLabel = useMemo(() => {
+    // Round 7 hung visibility: process-wide hung flag wins over pipeline state.
+    if (isEmbedderHung()) {
+      return t("embedding.hung");
+    }
     switch (embedding.state) {
       case "checking":
         return t("settings.modelChecking");
@@ -1366,7 +1371,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                 typography.bodyXs,
                 {
                   color:
-                    embedding.state === "error"
+                    isEmbedderHung() || embedding.state === "error"
                       ? colors.bad
                       : embedding.state === "ready"
                         ? colors.good

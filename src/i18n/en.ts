@@ -216,6 +216,10 @@ export const en = {
     downloading: "Downloading… {percent}%",
     download: "Download embedding model",
     sizeLabel: "Size: {size}",
+    /** Round 7 BLOCK: embed release timed out — chat init refused; restart. */
+    busy: "Embedding busy — restart to recover",
+    /** Round 7: Settings row when isEmbedderHung() — native op hung. */
+    hung: "Embedding unavailable (hung) — restart the app",
     /** Hybrid dense arm refused: memory cap (restore or mid-embed). */
     degradedCap:
       "Semantic (dense) search unavailable — keyword-only results (memory cap).",

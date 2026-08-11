@@ -121,33 +121,6 @@ export function tryAcquireChat(): number | null {
 }
 
 /**
- * Forced chat acquire after an embed-release timeout (FIX 2 / round 6).
- *
- * UI-GATE ONLY: transitions JS state to `chat_loading` with a NEW generation
- * so the UI proceeds. Native serialization is `runNativeOp` — the caller must
- * also `markEmbedderHung()` + `abandonNativeOpChain()` when the shared mutex
- * is still held after EMBEDDER_RELEASE_TIMEOUT_MS, then wrap `initEngine` in
- * `runNativeOp` so chat init cannot overlap a live embed native op.
- *
- * Embed re-init is refused while `chat_loading` (`tryAcquireEmbed` returns
- * false). `embedHeld` is left as-is so a late `releaseEmbed` only clears the
- * flag (it does not flip state out of `chat_loading`).
- *
- * Returns the new generation, or null when the gate is already owned by
- * chat (`chat_loading` / `chat_ready` — double-load backstop).
- */
-export function forceChatAcquireAfterEmbedTimeout(): number | null {
-  if (state === "chat_loading" || state === "chat_ready") {
-    return null;
-  }
-  // Force from embed_active (or idle if a partial release already flipped
-  // state without clearing the caller's timeout path).
-  state = "chat_loading";
-  currentChatGeneration += 1;
-  return currentChatGeneration;
-}
-
-/**
  * After initEngine resolves successfully — chat context is resident.
  * No-op when `gen` is not the current ownership token (stale load).
  */
@@ -236,29 +209,30 @@ export function __resetForTests(): void {
 //
 // Concurrent context init/release is not guaranteed safe by llama.rn/llama.cpp.
 // ALL native llama.rn work in the app (embed init/embedding/release AND chat
-// initEngine) serializes through this single async FIFO mutex.
+// initEngine / disposeEngine) serializes through this single async FIFO mutex.
 //
-// Invariant: never two overlapping llama.rn ops. A hung op is abandoned,
-// isolated, and never reused; recovery = process restart (native contexts are
-// only destroyed by release(); a hung release leaves a leaked native context).
-//
-// forceChatAcquireAfterEmbedTimeout is UI-gate only (chat_loading); native
-// serialization is this mutex. On EMBEDDER_RELEASE_TIMEOUT_MS while the mutex
-// is still held, the embedder is marked hung, the chain is abandoned/reset,
-// and chat init proceeds on the fresh chain.
+// Invariant (round 7 BLOCK policy): never two overlapping llama.rn ops.
+// A hung op HOLDS the chain — busy stays true and new ops queue behind it
+// (no chain-clear / no proceed-after-abandon). Chat init on embed-hang is
+// REFUSED with an explicit busy UI state; recovery = process restart.
+// Native contexts are only destroyed by release(); a hung release leaves a
+// leaked native context that is isolated and never reused.
 
 let nativeOpChain: Promise<unknown> = Promise.resolve();
 let nativeOpBusyFlag = false;
-/** Bumped on abandon/reset so queued ops on a discarded chain never run. */
+/** Bumped only by test reset so discarded test chains never run. */
 let nativeOpGeneration = 0;
 
 /**
  * Async FIFO mutex serializing ALL llama.rn native operations (embed +
- * chat init/release). Concurrent context init is not guaranteed safe by
- * llama.rn/llama.cpp, so every native call in the app goes through this.
+ * chat init/release/dispose). Concurrent context init is not guaranteed safe
+ * by llama.rn/llama.cpp, so every native call in the app goes through this.
  *
  * A failed `fn` does not break the queue (chain never rejects); the error is
  * rethrown only to the caller of this invocation.
+ *
+ * A hung op holds the chain forever (busy stays true). Callers must not clear
+ * the chain to "make progress" — that would allow overlapping native work.
  */
 export function runNativeOp<T>(fn: () => Promise<T>): Promise<T> {
   const gen = nativeOpGeneration;
@@ -279,39 +253,33 @@ async function executeNativeOp<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   if (gen !== nativeOpGeneration) {
+    // Only reachable after test reset discards a prior chain.
     throw new Error("native_op_abandoned");
   }
   nativeOpBusyFlag = true;
   try {
     return await fn();
   } finally {
-    // Only clear busy if this generation still owns the chain. An abandon
-    // mid-flight already reset busy on a new generation.
+    // Only clear busy if this generation still owns the chain (test reset
+    // may have advanced generation mid-flight).
     if (gen === nativeOpGeneration) {
       nativeOpBusyFlag = false;
     }
   }
 }
 
-/** True while a runNativeOp critical section is executing. */
+/** True while a runNativeOp critical section is executing (or hung). */
 export function nativeOpBusy(): boolean {
   return nativeOpBusyFlag;
 }
 
 /**
- * Abandon any in-flight/queued native ops and reset the mutex chain so the
- * next runNativeOp can start immediately. Used when an embed op is declared
- * hung after EMBEDDER_RELEASE_TIMEOUT_MS — the hung native context is leaked
- * (JS reference already dropped by EmbeddingService.markEmbedderHung); it is
- * never reused. Recovery = process restart.
+ * Test-only: force-reset the native-op mutex. Production code MUST NOT clear
+ * the chain while an op is in flight — a hung op holds the barrier so new
+ * native work cannot overlap it (round 7 never-overlap invariant).
  */
-export function abandonNativeOpChain(): void {
+export function __resetNativeOpMutexForTests(): void {
   nativeOpGeneration += 1;
   nativeOpBusyFlag = false;
   nativeOpChain = Promise.resolve();
-}
-
-/** Test-only: reset the native-op mutex. */
-export function __resetNativeOpMutexForTests(): void {
-  abandonNativeOpChain();
 }

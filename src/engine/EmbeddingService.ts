@@ -15,11 +15,14 @@
  *   before chat load so in-flight embeds cannot race a later ensureEmbedder.
  * - Failures never throw to callers: embed* returns null → hybrid path
  *   degrades to bm25_only.
- * - Hung policy (hostile review round 6): if release times out at chat init
- *   while a native op still holds the shared mutex, markEmbedderHung() drops
- *   the JS context reference (native leak — only release() destroys it; the
- *   leaked context is isolated and never reused). Future embed* return null
- *   with isEmbedderHung() === true ("hung" reason). Recovery = process restart.
+ * - Hung policy (hostile review round 7 BLOCK): if release times out at chat
+ *   init while a native op still holds the shared mutex, markEmbedderHung()
+ *   drops the JS context reference (native leak — only release() destroys it;
+ *   the leaked context is isolated and never reused). The native-op chain is
+ *   NOT cleared — the hung op holds the barrier so no new llama.rn work can
+ *   overlap it. Chat init is REFUSED with an explicit busy UI state. Future
+ *   embed* return null with isEmbedderHung() === true ("hung" reason).
+ *   Recovery = process restart.
  * - Cancellation: embedText / embedDocumentChunk / embedQuery accept
  *   `opts.signal?: AbortSignal`. signal.aborted is checked immediately
  *   before EVERY await boundary and immediately before initLlama + the
@@ -113,27 +116,26 @@ let activePath: string | null = null;
 let phase: EmbedPhase = "idle";
 
 /**
- * When true, a prior native embed op was abandoned after the chat-init
- * release timeout. The JS context reference has been dropped; the native
- * context (if still alive) is leaked and never reused. All embed* paths
- * return null immediately. Recovery = process restart.
+ * When true, a prior native embed op hung after the chat-init release
+ * timeout. The JS context reference has been dropped; the native context
+ * (if still alive) is leaked and never reused. All embed* paths return null
+ * immediately. The native-op chain remains held by the hung op (never-overlap
+ * invariant). Recovery = process restart.
  *
  * Invariant (shared with runNativeOp): never two overlapping llama.rn ops;
- * a hung op is abandoned, isolated, and never reused.
+ * a hung op holds the barrier, is isolated, and is never reused.
  */
 let embedderHung = false;
 
 /**
  * Bounded wait for releaseEmbedder during chat init (AppShell).
  *
- * Policy (FIX 2 / hostile review round 4 + round 6 native barrier):
+ * Policy (FIX 2 / hostile review round 7 BLOCK — never-overlap):
  *   - Chat init races releaseEmbedder() against this timeout.
- *   - On timeout: if the shared native-op mutex is still held, the embedder
- *     is marked hung (markEmbedderHung), the mutex chain is abandoned, and
- *     chat init proceeds alone. Native embedding()/release() is not
- *     cancellable; a hung release leaves a leaked native context.
- *   - Gate force handoff (forceChatAcquireAfterEmbedTimeout) is UI-only;
- *     native serialization is runNativeOp.
+ *   - On timeout: markEmbedderHung (drop JS ref; native leak isolated),
+ *     do NOT clear the native-op chain (hung op holds the barrier),
+ *     do NOT proceed with chat init — surface an explicit busy UI state.
+ *   - Native embedding()/release() is not cancellable; recovery = process restart.
  */
 export const EMBEDDER_RELEASE_TIMEOUT_MS = 15_000;
 
@@ -146,10 +148,17 @@ export function isEmbedderHung(): boolean {
  * Declare the embedder hung after a timed-out release during chat init.
  * Drops the JS context reference (best-effort; native context is only
  * destroyed by release() — a hung release leaves a leaked native context,
- * isolated and never reused). Future embed* return null. Pair with
- * abandonNativeOpChain() so chat init can run on a fresh mutex chain.
+ * isolated and never reused). Future embed* return null. Does NOT clear the
+ * native-op chain — the hung op continues to hold the barrier so new native
+ * work cannot overlap it. Recovery = process restart.
  */
 export function markEmbedderHung(): void {
+  if (!embedderHung) {
+    // Telemetry: hung state entered (log-only; no process-wide ledger for this).
+    console.warn(
+      "[kalsa] embedder marked hung — native op holds the barrier; restart the app to recover",
+    );
+  }
   embedderHung = true;
   // Drop JS reference; do NOT call native release (it is the hung op).
   context = null;
@@ -328,44 +337,52 @@ async function ensureEmbedder(
 
 /**
  * Release the embedder context. Safe to call when idle. Never throws.
+ * Absorbs native_op_abandoned (defense-in-depth if a test reset discards the
+ * chain mid-flight) so fire-and-forget callers never see an unhandled rejection.
  * AppShell calls this BEFORE loading the chat model when co-residency is NOT
  * allowed (§5: ≤6 GB or 4B chat). On 8 GB+ with 2B chat, co-residency is
  * permitted and release may be skipped by AppShell.
  *
  * Chat-init callers MUST race this against EMBEDDER_RELEASE_TIMEOUT_MS so a
- * stuck native release cannot deadlock chat load. On timeout + still-busy
- * mutex, AppShell calls markEmbedderHung + abandonNativeOpChain.
+ * stuck native release cannot hang the chat-load UI forever. On timeout,
+ * AppShell calls markEmbedderHung and REFUSES chat init (block policy — the
+ * hung op keeps the native-op chain; recovery = process restart).
  */
 export async function releaseEmbedder(): Promise<void> {
   if (embedderHung) {
-    // Already abandoned — JS state is idle; gate may still need clearing.
+    // Already hung — JS state is idle; gate may still need clearing.
     releaseEmbed();
     return;
   }
-  return runNativeOp(async () => {
-    if (embedderHung) {
-      releaseEmbed();
-      return;
-    }
-    if (!context) {
-      phase = "idle";
-      activePath = null;
-      releaseEmbed();
-      return;
-    }
-    phase = "closing";
-    try {
-      // Native release — already inside runNativeOp.
-      await context.release();
-    } catch {
-      // ignore — never throw to callers
-    } finally {
-      context = null;
-      activePath = null;
-      phase = "idle";
-      releaseEmbed();
-    }
-  });
+  try {
+    await runNativeOp(async () => {
+      if (embedderHung) {
+        releaseEmbed();
+        return;
+      }
+      if (!context) {
+        phase = "idle";
+        activePath = null;
+        releaseEmbed();
+        return;
+      }
+      phase = "closing";
+      try {
+        // Native release — already inside runNativeOp.
+        await context.release();
+      } catch {
+        // ignore — never throw to callers
+      } finally {
+        context = null;
+        activePath = null;
+        phase = "idle";
+        releaseEmbed();
+      }
+    });
+  } catch {
+    // Absorb native_op_abandoned (or any barrier error). Never rethrow —
+    // fire-and-forget AppShell callers must not see unhandled rejections.
+  }
 }
 
 /**
