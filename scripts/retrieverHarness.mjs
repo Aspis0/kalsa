@@ -372,6 +372,180 @@ async function main() {
   const edgeOk = edges.every((e) => Array.isArray(e) && e.length === 0);
   record("edge cases → []", edgeOk);
 
+  // --- userQuota selection rule ---
+  // Corpus mirrors the measured failure mode: 2 user fact plants + many assistant
+  // hedges that all match the probe query terms (lexically distinct → Jaccard fails).
+  const quotaCorpus = [
+    {
+      turnIndex: 0,
+      role: "user",
+      text: "Ricorda questi dati: il gatto si chiama Leopoldo e il budget e 4500 euro.",
+    },
+    {
+      turnIndex: 1,
+      role: "assistant",
+      text: "Non sono sicuro se questi dettagli gatto Leopoldo budget 4500 euro siano completi o specifici per il tuo contesto attuale.",
+    },
+    {
+      turnIndex: 2,
+      role: "assistant",
+      text: "Non sono sicuro se queste informazioni gatto Leopoldo budget 4500 euro siano complete o aggiornate per il tuo contesto specifico.",
+    },
+    {
+      turnIndex: 3,
+      role: "assistant",
+      text: "Forse i dettagli su gatto Leopoldo e budget 4500 euro necessitano di conferma prima di usarli come fatti consolidati.",
+    },
+    {
+      turnIndex: 4,
+      role: "user",
+      text: "Ricorda anche: la citta e Torino e il codice e PK42.",
+    },
+    {
+      turnIndex: 5,
+      role: "assistant",
+      text: "Non posso garantire che citta Torino codice PK42 gatto Leopoldo budget 4500 siano ancora validi nel tuo setup.",
+    },
+    {
+      turnIndex: 6,
+      role: "assistant",
+      text: "Verifica pure gatto Leopoldo budget 4500 euro citta Torino codice PK42 prima di dipenderne per decisioni.",
+    },
+    {
+      turnIndex: 7,
+      role: "assistant",
+      text: "I riferimenti a Leopoldo 4500 Torino PK42 potrebbero essere incompleti rispetto al contesto del progetto.",
+    },
+  ];
+  const quotaQuery =
+    "ricorda i dati del gatto Leopoldo budget 4500 euro citta Torino codice PK42";
+
+  // 1) Off → assistant-dominated; on → both user plants in top-4
+  const offQuota = retrieveRelevant(quotaCorpus, quotaQuery, { topN: 4 });
+  const onQuota = retrieveRelevant(quotaCorpus, quotaQuery, {
+    topN: 4,
+    userQuota: true,
+  });
+  const offUserCount = offQuota.filter((s) => s.role === "user").length;
+  const onUserTexts = onQuota.filter((s) => s.role === "user").map((s) => s.text);
+  const bothUsersOn =
+    onUserTexts.some((t) => /Leopoldo/i.test(t) && /4500/.test(t)) &&
+    onUserTexts.some((t) => /Torino/i.test(t) && /PK42/i.test(t));
+  const t1OffOk = offUserCount <= 1; // assistant-dominated without quota
+  const t1OnOk = bothUsersOn && onQuota.length === 4;
+  record(
+    "userQuota: hedges vs 2 user plants",
+    t1OffOk && t1OnOk,
+    `off users=${offUserCount}/4 roles=[${offQuota.map((s) => s.role[0]).join("")}] · on users=${onUserTexts.length}/4 bothPlants=${bothUsersOn}`,
+  );
+
+  // 2) Fewer user candidates than reserve → count unchanged, no crash, assistants fill
+  const fewUsers = [
+    {
+      turnIndex: 0,
+      role: "user",
+      text: "Il gatto si chiama Leopoldo e vive a casa con noi sempre.",
+    },
+    {
+      turnIndex: 1,
+      role: "assistant",
+      text: "Non sono sicuro che gatto Leopoldo sia un dettaglio completo per il contesto.",
+    },
+    {
+      turnIndex: 2,
+      role: "assistant",
+      text: "Forse gatto Leopoldo richiede conferma prima di considerarlo un fatto consolidato.",
+    },
+    {
+      turnIndex: 3,
+      role: "assistant",
+      text: "I riferimenti a gatto Leopoldo potrebbero essere incompleti nel tuo setup attuale.",
+    },
+    {
+      turnIndex: 4,
+      role: "assistant",
+      text: "Verifica pure gatto Leopoldo prima di dipenderne per decisioni importanti.",
+    },
+  ];
+  const fewQ = "come si chiama il gatto Leopoldo?";
+  const fewOff = retrieveRelevant(fewUsers, fewQ, { topN: 4 });
+  const fewOn = retrieveRelevant(fewUsers, fewQ, { topN: 4, userQuota: true });
+  const t2Ok =
+    fewOn.length === fewOff.length &&
+    fewOn.length === 4 &&
+    fewOn.some((s) => s.role === "user") &&
+    fewOn.some((s) => s.role === "assistant");
+  record(
+    "userQuota: fewer users than reserve",
+    t2Ok,
+    `off=${fewOff.length} on=${fewOn.length} roles=[${fewOn.map((s) => s.role[0]).join("")}]`,
+  );
+
+  // 3) No user candidates → identical output to userQuota off
+  const noUsers = [
+    {
+      turnIndex: 0,
+      role: "assistant",
+      text: "Il gatto si chiama Leopoldo secondo le note precedenti del progetto.",
+    },
+    {
+      turnIndex: 1,
+      role: "assistant",
+      text: "Non sono sicuro che gatto Leopoldo sia completo per il tuo contesto specifico.",
+    },
+    {
+      turnIndex: 2,
+      role: "assistant",
+      text: "Forse i dettagli su gatto Leopoldo necessitano di una conferma esplicita.",
+    },
+    {
+      turnIndex: 3,
+      role: "assistant",
+      text: "I riferimenti a gatto Leopoldo potrebbero essere datati nel tuo setup.",
+    },
+  ];
+  const noUserQ = "come si chiama il gatto Leopoldo?";
+  const noOff = retrieveRelevant(noUsers, noUserQ, { topN: 4 });
+  const noOn = retrieveRelevant(noUsers, noUserQ, {
+    topN: 4,
+    userQuota: true,
+  });
+  const t3Ok = JSON.stringify(noOff) === JSON.stringify(noOn);
+  record(
+    "userQuota: no users → identical to off",
+    t3Ok,
+    `off=${noOff.length} on=${noOn.length}`,
+  );
+
+  // 4) Ranking within each group unchanged (same relative order as without quota)
+  const rankOff = retrieveRelevant(quotaCorpus, quotaQuery, { topN: 8 });
+  const rankOn = retrieveRelevant(quotaCorpus, quotaQuery, {
+    topN: 4,
+    userQuota: true,
+  });
+  const offUserOrder = rankOff
+    .filter((s) => s.role === "user")
+    .map((s) => s.turnIndex);
+  const onUserOrder = rankOn
+    .filter((s) => s.role === "user")
+    .map((s) => s.turnIndex);
+  const offAsstOrder = rankOff
+    .filter((s) => s.role === "assistant")
+    .map((s) => s.turnIndex);
+  const onAsstOrder = rankOn
+    .filter((s) => s.role === "assistant")
+    .map((s) => s.turnIndex);
+  // on-group order must be a prefix of the off-group order (same relative ranking)
+  const isPrefix = (full, part) =>
+    part.every((id, i) => full[i] === id);
+  const t4Ok =
+    isPrefix(offUserOrder, onUserOrder) && isPrefix(offAsstOrder, onAsstOrder);
+  record(
+    "userQuota: ranking within groups preserved",
+    t4Ok,
+    `users off→on ${JSON.stringify(offUserOrder)}→${JSON.stringify(onUserOrder)} asst ${JSON.stringify(offAsstOrder.slice(0, 4))}→${JSON.stringify(onAsstOrder)}`,
+  );
+
   const allPass = results.every((r) => r.pass);
   console.log("\n=== Summary ===");
   for (const r of results) {

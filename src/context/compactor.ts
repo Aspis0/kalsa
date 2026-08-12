@@ -332,6 +332,8 @@ export function buildDigest(
   const opts: RetrieveOptions = {
     topN: DEFAULT_DIGEST_TOP_N,
     maxCharsPerSnippet: DEFAULT_DIGEST_SNIPPET_CHARS,
+    // Spend digest slots on user-planted facts, not assistant hedging boilerplate.
+    userQuota: true,
   };
 
   let snippets: RetrievedSnippet[] = [];

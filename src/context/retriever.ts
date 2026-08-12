@@ -22,6 +22,12 @@ export interface RetrievedSnippet {
 export type RetrieveOptions = {
   topN?: number;
   maxCharsPerSnippet?: number;
+  /**
+   * When true, reserve Math.ceil(topN / 2) slots for user-role units
+   * (highest-ranked first), then fill remaining slots with any role.
+   * Default false — existing call sites keep prior selection behaviour.
+   */
+  userQuota?: boolean;
 };
 
 export const K1 = 1.2;
@@ -598,19 +604,43 @@ export class RetrieverIndex {
     });
 
     const selected: number[] = []; // indices into candidates[]
-    for (const c of order) {
-      let dup = false;
+    const isDup = (c: number): boolean => {
       for (const s of selected) {
         if (
           jaccardWords(candDocs[c].normalized, candDocs[s].normalized) >=
           JACCARD_DEDUP
         ) {
-          dup = true;
-          break;
+          return true;
         }
       }
-      if (!dup) selected.push(c);
-      if (selected.length >= topN) break;
+      return false;
+    };
+
+    if (options?.userQuota) {
+      // Reserve half the slots (ceil) for user-authored units; leftover → any role.
+      const userReserve = Math.ceil(topN / 2);
+      for (const c of order) {
+        if (selected.length >= userReserve) break;
+        if (candDocs[c].role !== "user") continue;
+        if (!isDup(c)) selected.push(c);
+      }
+      for (const c of order) {
+        if (selected.length >= topN) break;
+        let already = false;
+        for (const s of selected) {
+          if (s === c) {
+            already = true;
+            break;
+          }
+        }
+        if (already) continue;
+        if (!isDup(c)) selected.push(c);
+      }
+    } else {
+      for (const c of order) {
+        if (!isDup(c)) selected.push(c);
+        if (selected.length >= topN) break;
+      }
     }
 
     const results: RetrievedSnippet[] = [];
