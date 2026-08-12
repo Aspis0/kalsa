@@ -16,7 +16,7 @@
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 59 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 60 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -52,6 +52,7 @@
 | ramo | verdetto | report |
 |---|---|---|
 | **LiteRT fail-fast S23 (porta-740)** | **F0/F1 PASS su Gemma E2B** (GPU ~26.8 vs CPU size-matched 9.7, ~2.76×, unplugged) **ma FAIL su Qwen 1.5B** (GPU ~18.7 vs CPU 25.8, 0.73×): il win GPU è **size/stack-dependent**, non universale. Kernel-spike nel fork: solo se ROI prodotto; NON riaprire OpenCL llama vanilla (K2/K5 restano validi) | `moe-litert-f0-f1.md`, `moe-litert-qwen.md` |
+| **LiteRT twin classi prodotto 2B/4B (S23, unplugged)** | **GPU non misurabile via Gallery**: 2B BLOCKED (nessun bundle ufficiale ~2B, famiglia Qwen litert = 0.5/0.6/1.5/4B; import non ufficiale rigettato), 4B **NO GPU OPTION** (`qwen3_4b_mixed_int4.litertlm` offre solo CPU; Gallery CPU 5.3-5.7 vs llama-bench 8.38 — llama.cpp CPU vince pure). **Twin CPU misurati**: Qwen3.5-2B Q4 tg256 **18.10**, 4B **8.38**. Curva CPU: 1.5B 25.8 → 2B 18.1 → 3B 9.7 → 4B 8.38 | `moe-litert-product-classes.md` |
 | **shortlist velocità C (k=5)** | **DONE_NO_VIVE** — k5d065 PPL 2.456, k5d000 2.307, entrambe > floor 2.0955; speed skip | `moe-shortlist-velocita.md` |
 | shortlist A (drop-by-weight) / B (top-p) | **archiviate per meccanismo** (drop non salta matmul; B senza route rows utili) | mandate `shortlist-velocita.md` |
 | **italiano Marco prosa moderna** | **MISURATO** (Wikipedia Caffè v2): Marco bpb 0.750 &lt; Qwen 0.769; T2c **PASS** 5/5 | `moe-trial-marco-it-v2.md`, `quality_gates.json` |
@@ -81,7 +82,7 @@
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
 | energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
-| **LiteRT twin classi prodotto (2B/4B)** — decide GO/NO-GO spike kernel F3 | **IN CORSO** (Grok, 2026-08-12 mattina, GO gualt): 4B-GPU `qwen3_4b_mixed_int4.litertlm` (già su device) + twin CPU Qwen3.5-4B Q4; 2B-GPU solo se esiste bundle ufficiale + twin CPU Qwen3.5-2B Q4. Gate pre-dichiarato ≥1.15×, unplugged. Out: `results/litert_product/`, `reports/moe-litert-product-classes.md`. CalaQwen/Marco su GPU: rinviato per decisione gualt | in volo su S23 |
+| **Spike F3 kernel dense 740 (classe 2-4B)** — decisione strategica | La via zero-fork è ESAURITA (twin 2026-08-12): il numero GPU same-stack sulla classe 4B non è ottenibile da Gallery. Evidenza pro: Gemma E2B 2.76×, ML Drift 26.8 su 3B, curva CPU che crolla (2B 18.1 → 4B 8.38 = il modello prodotto Kalsa). Costo: giorni di spike nel fork (GEMV local-memory INT8 no-subgroup) + manutenzione. Compete per lo stesso tempo ingegneria con la pista MoE-GPU 750+ | gualt: scegliere F3-740-dense vs MoE-GPU-750 (o sequenza) |
 | Jelly free-tier baseline (Qwen3.5-4B dense, llama-bench ABBA `-t 2`) | **BLOCKED** — Jelly irraggiungibile (ping OK, adb/sshd chiusi: wireless debug perso post-reboot). Modello+sha già staged in `results/jelly/` — `reports/moe-jelly-freetier.md` | gualt fisico (riattivare wireless debug/sshd) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
 | **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065 su S23/CPU. **NUOVO (mandato gualt 2026-08-12): pista MoE-GPU scoped Adreno 750+** — sequenza gated (a)-(e) in candidati #1: F-0 Amdahl → riverifica upstream → MarcoKEXP come veicolo → S2 split su Xiaomi 14 → solo dopo il kernel serio (GDN/SSM per CalaQwen) | F-0 = carta; S2 dopo MarcoKEXP |
@@ -1118,6 +1119,34 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-12 — 🧱 TWIN CLASSI PRODOTTO (Grok su S23, unplugged, batt 57→53):
+  la via zero-fork per il numero GPU 2B/4B è ESAURITA — Gallery non può
+  darlo. Twin CPU misurati e curva completata.**
+
+  1. **2B-GPU BLOCKED**: non esiste bundle `.litertlm` ufficiale ~2B Qwen
+     (litert-community ha 0.5/0.6/1.5/4B); l'import non ufficiale resta
+     rigettato (LTLM magic). Niente rabbit-hole conversioni, da mandato.
+  2. **4B-GPU NO GPU OPTION**: `qwen3_4b_mixed_int4.litertlm` (2.7 GB,
+     importato) espone SOLO CPU come accelerator in Gallery 1.0.18 — il
+     chip GPU proprio non appare. Wall Gallery CPU 5.3-5.7 tok/s; nota a
+     margine: llama-bench CPU fa 8.38 → **llama.cpp CPU batte LiteRT CPU
+     sul 4B**.
+  3. **Twin CPU (llama-bench `-t 4`, tg256, sha verificati)**: Qwen3.5-2B
+     Q4_K_M **18.10** (pp128 44.13); Qwen3.5-4B Q4_K_M **8.38** (pp128
+     16.91). Curva CPU per taglia: 1.5B 25.8 → 2B 18.1 → 3B-class 9.7 →
+     4B 8.38. Conferma dove il CPU crolla: esattamente sulla classe del
+     modello prodotto Kalsa.
+  4. **Lettura di gate**: il criterio pre-dichiarato (GPU ≥1.15× same-class)
+     non è verificabile né falsificabile via Gallery sul 4B. L'evidenza pro
+     resta per proxy (Gemma E2B 2.76×; ML Drift 26.8 su Llama-3B vs nostro
+     CPU 8.38 sul 4B ≈ 2-3× potenziale). Il numero same-stack ora ha un solo
+     modo di esistere: lo **spike F3 nel fork** (GEMV local-memory INT8
+     no-subgroup, giorni). Decisione strategica gualt: F3-740-dense vs
+     pista MoE-GPU-750 (v. candidati #1 rev. 2026-08-12) — o in sequenza.
+  Artefatti: `results/litert_product/` (bench JSON, dump a11y, battery
+  notes), report `moe-litert-product-classes.md`. Disciplina rispettata:
+  sempre staccato, mai <30% batt, mai ≥45°C.
 
 - **2026-08-11/12 — 🌙 NOTTATA TRIPLA: LiteRT porta-740 chiusa con numeri (PASS
   Gemma ~2.8×, FAIL Qwen 1.5B 0.73× → win GPU size/stack-dependent), Marco

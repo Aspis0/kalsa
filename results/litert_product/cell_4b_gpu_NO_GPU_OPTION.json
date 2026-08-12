@@ -1,0 +1,26 @@
+{
+  "cell": "4B-GPU",
+  "status": "NO_GPU_OPTION",
+  "model": "qwen3_4b_mixed_int4.litertlm",
+  "size_gb": 2.7,
+  "listed_under": "Imported models",
+  "downloaded": true,
+  "settings_accelerators": ["CPU"],
+  "settings_missing": ["GPU"],
+  "chat_ui_label_after_gen": "Model on CPU",
+  "settings_xml": "results/litert_product/q4b_cfg.xml",
+  "rep1_xml": "results/litert_product/q4b_r1_p1.xml",
+  "rep2_xml": "results/litert_product/q4b_r2_sc1.xml",
+  "gallery_wall_cpu_only_reference": {
+    "rep1_est_tok_s": 5.70,
+    "rep2_est_tok_s": 5.27,
+    "note": "Not a valid GPU gate measurement — Accelerator UI only offered CPU"
+  },
+  "hf_official": {
+    "repo": "litert-community/Qwen3-4B",
+    "claims_android_gpu_opencl": true,
+    "example_device": "Samsung SM-S937U1 GPU OpenCL decode ~19.14 tok/s",
+    "note": "Official LiteRT-LM CLI/OpenCL path exists; Gallery 1.0.18 import UI on SM-S911U does not expose GPU for this LTLM"
+  },
+  "gate_vs_cpu": "BLOCKED — cannot measure GPU est tok/s when Gallery refuses GPU accelerator option"
+}

@@ -1,0 +1,31 @@
+{
+  "rep": 1,
+  "unplugged": true,
+  "model": "qwen3_4b_mixed_int4.litertlm",
+  "model_note": "Qwen3-4B size-class (not Qwen3.5); Gallery import",
+  "accelerator_requested": "GPU",
+  "accelerator_available_in_settings": ["CPU"],
+  "accelerator_ui_label": "Model on CPU",
+  "accelerator": "CPU",
+  "gpu_cell_status": "NO_GPU_OPTION",
+  "prompt": "Explain coffee in five sentences.",
+  "ui_seconds": 14.6,
+  "words": 64,
+  "est_tokens": 83.2,
+  "est_tok_s": 5.70,
+  "response": "Coffee is a popular beverage made from the roasted beans of the Coffea plant. It is widely consumed around the world for its stimulating effects and rich flavor. Coffee contains caffeine, a natural stimulant that helps improve alertness and concentration. It comes in various forms, including brewed, instant, and espresso. Coffee has a long history and is often associated with cultural and social rituals.",
+  "all": [
+    "You",
+    "Explain coffee in five sentences.",
+    "Model on CPU",
+    "Coffee is a popular beverage made from the roasted beans of the Coffea plant. It is widely consumed around the world for its stimulating effects and rich flavor. Coffee contains caffeine, a natural stimulant that helps improve alertness and concentration. It comes in various forms, including brewed, instant, and espresso. Coffee has a long history and is often associated with cultural and social rituals.",
+    "14.6 s",
+    "Type prompt…",
+    "AI Chat"
+  ],
+  "power": "AC/USB/Wireless=false",
+  "battery_level_before": 56,
+  "temperature_before_tenths_C": 281,
+  "artifact_xml": "results/litert_product/q4b_r1_p1.xml",
+  "settings_xml": "results/litert_product/q4b_cfg.xml"
+}

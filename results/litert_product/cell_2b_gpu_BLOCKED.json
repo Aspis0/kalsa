@@ -1,0 +1,28 @@
+{
+  "cell": "2B-GPU",
+  "status": "BLOCKED",
+  "reason": "No official litert-community .litertlm bundle for Qwen ~2B class compatible with AI Edge Gallery 1.0.18",
+  "search": {
+    "litert_community_qwen_family": [
+      "Qwen2.5-1.5B-Instruct",
+      "Qwen3-0.6B",
+      "Qwen2.5-0.5B-Instruct",
+      "Qwen3-4B"
+    ],
+    "missing": "litert-community/Qwen3.5-2B-LiteRT (404)",
+    "unofficial": {
+      "repo": "paulsp94/Qwen3.5-2B-LiteRT-LM",
+      "file": "qwen35_2b_q4.litertlm / qwen35_2b.litertlm",
+      "size_on_device": "1.9 GB",
+      "prior_verdict": "Gallery REJECTED — wrong LTLM magic (reports/moe-litert-qwen.md)",
+      "still_listed_under_imported": true,
+      "not_retested": "Task forbids rabbit-hole; prior rejection stands"
+    }
+  },
+  "prior_1_5b_gpu_on_file": {
+    "model": "Qwen2.5-1.5B-Instruct",
+    "est_tok_s": 18.7,
+    "source": "reports/moe-litert-qwen.md"
+  },
+  "evidence_xml": "results/litert_product/ml_2.xml"
+}
