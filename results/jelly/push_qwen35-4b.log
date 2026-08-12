@@ -1,0 +1,15 @@
+timestamp=20260811_094202
+target=192.168.1.82:5555 product_expected=Jelly_Star
+ping=OK (rtt~90ms TTL=64)
+adb_connect_5555=REFUSED (10061)
+tcp_scan_common_ports=NO_OPEN (22/8022/5555/5556/5037/55555 and sample of wireless-debug range)
+mdns_adb_services=only houji(Xiaomi14) and previously S23; NO Jelly
+adb_devices_now:
+List of devices attached
+192.168.1.193:34295    offline product:houji_global model:23127PN0CG device:houji transport_id:3
+
+model_pc=moe-experiments/models/draft/Qwen3.5-4B-Q4_K_M.gguf
+model_size_bytes=2740937888
+model_sha256_pc=00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4
+on_device_sha256=NOT_COMPUTED (device unreachable)
+push_status=NOT_STARTED

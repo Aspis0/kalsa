@@ -1,0 +1,31 @@
+{
+  "cell": "A0",
+  "model": "Marco-Mini-Instruct.i1-Q4_K_M.gguf",
+  "model_sha256": "a001d324b6edc6a797009fbe6eb94a52a9f32453ee8d06465409875f3e3a6dbc",
+  "model_bytes": 10505424704,
+  "k": 8,
+  "drop_cold": null,
+  "config": "--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -c 4096 -t 8 --n-expert-used 8",
+  "corpus_pins": {
+    "en_sha256": "6a9f9bda802cd3d293faf0394d39675dd59419da8f75bfa5fe08612921b65bfb",
+    "it_sha256": "498a5f3b554fac4bb6f7eda4f7bdcea60f3ad6be30699f306a3255d8ba85545a",
+    "it_note": "v2 Wikipedia Caffe ONLY — literary v1 NOT used for A0 IT"
+  },
+  "bpb": {
+    "en": 0.6051011731162046,
+    "es": 0.6766127803280786,
+    "fr": 0.723385772761425,
+    "it": 0.7501260841791423,
+    "zh": 0.8833572076708988
+  },
+  "sources": {
+    "en_es_fr_zh": "results/trial_marco/ppl_marco (k=8 no drop)",
+    "it": "results/trial_marco/ppl_it_v2/marco"
+  },
+  "macro5_it_v2": 0.72771660361115,
+  "macro4_no_it": 0.72211423346915,
+  "invalid_do_not_use": {
+    "it_literary_bpb": 1.637715957134909,
+    "why": "Dante/prose memorization artifact"
+  }
+}

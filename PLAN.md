@@ -12,11 +12,11 @@
 
 ---
 
-# ⭐ STATO CORRENTE — aggiornato 2026-08-11 (sera, post shortlist k5)
+# ⭐ STATO CORRENTE — aggiornato 2026-08-12 (mattina, Marco Fase 1 resume IN CORSO)
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 58 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 59 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -47,10 +47,11 @@
    a ubatch=1) **+ prima leva lossy ADOTTATA**: `--drop-cold-experts 0.50` — poi k6d065
    come default prodotto. Report: `moe-dropcold.md`, `moe-adopt-kexp.md`.
 
-## Chiuso di fresco (2026-08-11)
+## Chiuso di fresco (2026-08-11/12)
 
 | ramo | verdetto | report |
 |---|---|---|
+| **LiteRT fail-fast S23 (porta-740)** | **F0/F1 PASS su Gemma E2B** (GPU ~26.8 vs CPU size-matched 9.7, ~2.76×, unplugged) **ma FAIL su Qwen 1.5B** (GPU ~18.7 vs CPU 25.8, 0.73×): il win GPU è **size/stack-dependent**, non universale. Kernel-spike nel fork: solo se ROI prodotto; NON riaprire OpenCL llama vanilla (K2/K5 restano validi) | `moe-litert-f0-f1.md`, `moe-litert-qwen.md` |
 | **shortlist velocità C (k=5)** | **DONE_NO_VIVE** — k5d065 PPL 2.456, k5d000 2.307, entrambe > floor 2.0955; speed skip | `moe-shortlist-velocita.md` |
 | shortlist A (drop-by-weight) / B (top-p) | **archiviate per meccanismo** (drop non salta matmul; B senza route rows utili) | mandate `shortlist-velocita.md` |
 | **italiano Marco prosa moderna** | **MISURATO** (Wikipedia Caffè v2): Marco bpb 0.750 &lt; Qwen 0.769; T2c **PASS** 5/5 | `moe-trial-marco-it-v2.md`, `quality_gates.json` |
@@ -75,11 +76,12 @@
 
 | domanda | stato | chi sblocca |
 |---|---|---|
-| **MarcoKEXP** — download Q8 (~18 GB) + quantize con recipe pronta | **T2c PASS** (IT v2). Prep: source ID + `tensor_types*.txt` + cmd NOT RUN. **Manca solo GO gualt** | gualt GO |
+| **Marco Fase 1 runtime** (k/drop KEXP su Marco i1-Q4_K_M, NO requant — `results/marco_phase1/PROTOCOL.md`) | **fail-fast IT v2+EN: 3/3 PASS** (A1 k8d065 Δit +0.004/Δen +0.003; A2 k6d065 +0.019/+0.010; A3 k6d050 +0.009/+0.005 — tutte ≤ +0.05). Full multi5 interrotto da shutdown PC 02:29; **RESUME IN CORSO da 08:24** (`scripts/resume_marco_phase1_quality.ps1`, pid in `logs/marco_phase1_resume.pid.txt`): completa A1 fr/it/zh + A2 + A3 full, scrive `VERDICT.md` da solo. ETA ~sera (≈1h/lingua) | PC (in corso); poi speed gate device |
+| **MarcoKEXP** — download Q8 (~18 GB) + quantize con recipe pronta | **T2c PASS** (IT v2). Prep: source ID + `tensor_types*.txt` + cmd NOT RUN. **Manca solo GO gualt** — ma la decisione sensata arriva DOPO il verdetto Fase 1 (se runtime k/drop basta, la Fase 2 requant si ridimensiona) | gualt GO (post Fase 1) |
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
 | energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
-| LiteRT fail-fast su S23 (Adreno path) | **F0/F1 PASS** Gemma E2B GPU ~26.8 vs CPU 9.7 (~2.76×). **Qwen 1.5B class: GPU ~18.7 FAIL vs CPU 25.8 (0.73×)** — `reports/moe-litert-f0-f1.md`, `reports/moe-litert-qwen.md` | chiuso (opz. 4B) |
+| Jelly free-tier baseline (Qwen3.5-4B dense, llama-bench ABBA `-t 2`) | **BLOCKED** — Jelly irraggiungibile (ping OK, adb/sshd chiusi: wireless debug perso post-reboot). Modello+sha già staged in `results/jelly/` — `reports/moe-jelly-freetier.md` | gualt fisico (riattivare wireless debug/sshd) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
 | **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065; niente leva fork-legale k/drop rimasta | gualt: solo product path o nuovo silicio/backend |
 
@@ -1088,6 +1090,40 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-11/12 — 🌙 NOTTATA TRIPLA: LiteRT porta-740 chiusa con numeri (PASS
+  Gemma ~2.8×, FAIL Qwen 1.5B 0.73× → win GPU size/stack-dependent), Marco
+  Fase 1 runtime partita (fail-fast 3/3 PASS), full multi5 ucciso dallo
+  shutdown PC alle 02:29 e ripartito in resume alle 08:24.**
+
+  1. **LiteRT F0/F1 su S23 (unplugged)** — `moe-litert-f0-f1.md`: il blocco
+     storico era il file `*-gpu.litertlm` (non è il bundle completo per
+     Gallery 1.0.18); col bundle ufficiale `gemma-4-E2B-it.litertlm` (2.59 GB)
+     GPU **~26.8 tok/s** vs llama-bench CPU size-matched (Llama-3.2-3B Q4_K_M)
+     **9.70** → **~2.76×, gate ≥1.15× PASS** (caveat onesti: modelli diversi,
+     wall UI incl. prefill, token stimati ×1.3). Poi `moe-litert-qwen.md`:
+     **Qwen2.5-1.5B GPU ~18.7 vs CPU twin 25.80 → 0.73× FAIL** (DeepSeek-R1
+     distill ~19.6 coerente). Lettura: su 1.5B Q4 il CPU è già a ~26 tok/s,
+     headroom GPU nullo; il win LiteRT esiste nella classe E2B/2-3B. Kernel
+     no-subgroup nel fork: evidenza empirica positiva ma condizionale a ROI
+     prodotto; OpenCL llama vanilla resta NO (K2/K5 intatti).
+  2. **Marco Fase 1 runtime** (`results/marco_phase1/PROTOCOL.md` — isola se
+     k+drop di campagna trasferiscono su Marco `qwen3moe` SENZA requant;
+     gate pre-dichiarati, IT solo v2 moderno). **Fail-fast IT+EN: A1 k8d065
+     Δbpb +0.0045/+0.0028, A2 k6d065 +0.0188/+0.0102, A3 k6d050 +0.0089/
+     +0.0051 — 3/3 PASS** (soglia +0.05), tutte in coda per full multi5.
+     Alle 02:29:46 shutdown/logoff PC: A1 full ucciso a metà fr (en 0.6079,
+     es 0.6788 già validi), A2 full morto sul nascere (0xC000026B window
+     station shutting down), A3 mai partito. **Resume 08:24 in corso**
+     (`resume_marco_phase1_quality.ps1`): completa i mancanti, merge JSON,
+     gate full (per-lingua ≤+0.10, macro ≤+0.04), scrive `VERDICT.md` e
+     `QUALITY_STATUS.txt` in autonomia. Nota metro: fail-fast en byte-identico
+     tra failfast e full (0.607889 = 0.607889) — determinismo confermato.
+  3. **Jelly free-tier baseline: BLOCKED** — `moe-jelly-freetier.md`: ping OK
+     ma adb/sshd chiusi (wireless debug perso post-reboot, stessa classe di
+     incidente del S23 pre-Termux:Boot). Nessuna misura; Qwen3.5-4B Q4_K_M
+     (sha `00fe7986…`) staged su PC, checklist resume nel report. Serve mano
+     fisica di gualt.
 
 - **2026-08-11 — 🏆 T2c CHIUSO: Marco batte Qwen3.5-4B in 4 lingue su 4 VALIDE
   (EN −0.069, ZH −0.045, ES −0.023, FR −0.024 bpb) — e la quinta riga svela il
