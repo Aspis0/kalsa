@@ -1,0 +1,6 @@
+5092a319dd43a4e62095cc49ce15b329be96d0188734e7380d8935fe56b01ea3  llama-bench
+4986ff30447cb866656bce6762e6d30266669a2ebc4055a9c2ada00b9e4fdd80  llama-cli
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so
+# unstripped intermediates (not on device):
+# e9c25631134b697c5ccb32e73514ed46ce7f6c14173126d2cbd9eca39d392c56  llama-bench.unstripped  125370360
+# c90e34cadf713ae0d5dc60164084af5e903bbeab16782b2d7177e6f54537e3fc  llama-cli.unstripped    187289328

@@ -1,0 +1,102 @@
+=== battery before_all 2026-08-12T16:02:49-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 28.4,
+  "voltage": 4023,
+  "current": -1300,
+  "current_average": -627,
+  "percentage": 71,
+  "level": 71,
+  "scale": 100,
+  "charge_counter": 2722500,
+  "cycle": 0
+}
+=== battery after_all 2026-08-12T16:04:46-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 35.4,
+  "voltage": 3837,
+  "current": -1267,
+  "current_average": -1756,
+  "percentage": 70,
+  "level": 70,
+  "scale": 100,
+  "charge_counter": 2647500,
+  "cycle": 0
+}
+=== battery before_bench_cpu 2026-08-12T16:09:17-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 32.1,
+  "voltage": 4008,
+  "current": -576000,
+  "current_average": -94,
+  "percentage": 69,
+  "level": 69,
+  "scale": 100,
+  "charge_counter": 2606250,
+  "cycle": 0
+}
+=== battery after_bench_cpu 2026-08-12T16:09:56-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 33.9,
+  "voltage": 3848,
+  "current": -375000,
+  "current_average": -1942,
+  "percentage": 69,
+  "level": 69,
+  "scale": 100,
+  "charge_counter": 2602500,
+  "cycle": 0
+}
+=== battery before_bench_gpu 2026-08-12T16:10:19-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 34.6,
+  "voltage": 3986,
+  "current": -162000,
+  "current_average": -325,
+  "percentage": 68,
+  "level": 68,
+  "scale": 100,
+  "charge_counter": 2587500,
+  "cycle": 0
+}
+=== battery after_bench_gpu 2026-08-12T16:11:29-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 34.4,
+  "voltage": 3898,
+  "current": -1134,
+  "current_average": -1146,
+  "percentage": 68,
+  "level": 68,
+  "scale": 100,
+  "charge_counter": 2572500,
+  "cycle": 0
+}
