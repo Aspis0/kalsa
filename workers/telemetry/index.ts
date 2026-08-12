@@ -7,6 +7,25 @@
  * Never auto-creates issues from /report. No payload logging.
  */
 
+import {
+  BODY_LIMIT,
+  GLOBAL_QUOTA,
+  GLOBAL_WINDOW_MS,
+  LEASE_MS,
+  applyLeaseTransition,
+  classifyGithubSearchResponse,
+  decideCreateIssue,
+  emptyBufferState,
+  tryAcquireLease,
+  validateReport,
+  validFlushAuth,
+  type BufferEntry,
+  type BufferState,
+  type GithubSearchOutcome,
+} from "./schema";
+
+export { validateReport, decideCreateIssue, classifyGithubSearchResponse } from "./schema";
+
 export interface Env {
   TELEMETRY_BUFFER: DurableObjectNamespace;
   DEDUPE_KV: KVNamespace;
@@ -16,103 +35,9 @@ export interface Env {
   AUTO_OPEN_ISSUES?: string;
 }
 
-const BODY_LIMIT = 4 * 1024;
 const IP_RATE_LIMIT = 10;
 const IP_WINDOW_MS = 60 * 60 * 1000;
-const GLOBAL_QUOTA = 50;
-const GLOBAL_WINDOW_MS = 60 * 60 * 1000;
 const DEDUPE_TTL_SEC = 180 * 24 * 60 * 60; // 180 days
-const LEASE_MS = 5 * 60 * 1000;
-const SIGNAL_MAX = 80;
-const SIGNAL_CHARSET = /^[A-Za-z0-9_ .*\-]+$/;
-
-const REASON_CODES = new Set([
-  "engine.init",
-  "chat.generation",
-  "embed.native",
-  "web.fetch",
-  "web.search",
-  "unknown",
-]);
-
-const WEB_DETAILS = new Set([
-  "http_403",
-  "http_404",
-  "http_5xx",
-  "dns",
-  "tls",
-  "timeout",
-  "oom",
-  "payload_too_large",
-  "unknown",
-]);
-const ENGINE_INIT_DETAILS = new Set([
-  "oom",
-  "disk_full",
-  "model_corrupt",
-  "model_missing",
-  "init_timeout",
-  "native_crash",
-  "unknown",
-]);
-const CHAT_DETAILS = new Set([
-  "oom",
-  "native_crash",
-  "ctx_overflow",
-  "stop_aborted",
-  "unknown",
-]);
-const EMBED_DETAILS = new Set([
-  "oom",
-  "model_corrupt",
-  "native_crash",
-  "gate_aborted",
-  "unknown",
-]);
-
-const DEVICE_BUCKETS = new Set(["low", "mid", "high"]);
-const MEMORY_CLASSES = new Set(["lt-4gb", "4-6gb", "ge-6gb", "unknown"]);
-const MODEL_CATEGORIES = new Set(["dense.2b", "dense.4b", "moe", "unknown"]);
-const PHASES = new Set(["download", "load", "turn", "embed", "flush"]);
-
-const SIGNAL_FIXED = new Set([
-  "ENOSPC",
-  "EACCES",
-  "ENOENT",
-  "ENOMEM",
-  "EIO",
-  "EPERM",
-  "segmentation fault",
-  "out of memory",
-  "file not found",
-  "Unable to map",
-  "ggml_*",
-  "CUDA error",
-  "init failed",
-  "ctx overflow",
-]);
-
-const TOP_KEYS = new Set([
-  "v",
-  "app",
-  "appVersion",
-  "platform",
-  "deviceBucket",
-  "osMajor",
-  "error",
-  "context",
-  "dateBucket",
-  "manual",
-]);
-const ERROR_KEYS = new Set(["code", "detail", "signal"]);
-const CONTEXT_KEYS = new Set([
-  "modelCategory",
-  "memoryClass",
-  "hadWebTools",
-  "phase",
-  "attempt",
-  "chunks",
-]);
 
 // Best-effort in-memory IP rate (single isolate; not global).
 const ipHits = new Map<string, number[]>();
@@ -122,127 +47,6 @@ function json(status: number, body: unknown): Response {
     status,
     headers: { "content-type": "application/json" },
   });
-}
-
-function detailsForCode(code: string): Set<string> {
-  if (code === "web.fetch" || code === "web.search") return WEB_DETAILS;
-  if (code === "engine.init") return ENGINE_INIT_DETAILS;
-  if (code === "chat.generation") return CHAT_DETAILS;
-  if (code === "embed.native") return EMBED_DETAILS;
-  return ENGINE_INIT_DETAILS;
-}
-
-function isValidDateBucket(s: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const [y, m, d] = s.split("-").map(Number);
-  const dt = new Date(Date.UTC(y!, m! - 1, d!));
-  return (
-    dt.getUTCFullYear() === y &&
-    dt.getUTCMonth() === m! - 1 &&
-    dt.getUTCDate() === d
-  );
-}
-
-function acceptSignal(value: unknown): boolean {
-  if (typeof value !== "string") return false;
-  if (value.length === 0 || value.length > SIGNAL_MAX) return false;
-  if (!SIGNAL_CHARSET.test(value)) return false;
-  if (SIGNAL_FIXED.has(value)) return true;
-  if (value === "ggml_*" || /^ggml_[A-Za-z0-9_]+$/.test(value)) return true;
-  return false;
-}
-
-/** Strict schema validation. Returns error string or null if ok. */
-export function validateReport(body: unknown): string | null {
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return "body must be object";
-  }
-  const o = body as Record<string, unknown>;
-  for (const k of Object.keys(o)) {
-    if (!TOP_KEYS.has(k)) return `unknown key: ${k}`;
-  }
-  if (o.v !== 1) return "v must be 1";
-  if (o.app !== "kalsa") return "app must be kalsa";
-  if (o.platform !== "android") return "platform must be android";
-  if (typeof o.appVersion !== "string" || o.appVersion.length === 0 || o.appVersion.length > 32) {
-    return "appVersion invalid";
-  }
-  if (typeof o.deviceBucket !== "string" || !DEVICE_BUCKETS.has(o.deviceBucket)) {
-    return "deviceBucket invalid";
-  }
-  if (typeof o.osMajor !== "string" || !/^\d+$/.test(o.osMajor) || o.osMajor.length > 8) {
-    return "osMajor invalid";
-  }
-  if (typeof o.dateBucket !== "string" || !isValidDateBucket(o.dateBucket)) {
-    return "dateBucket invalid";
-  }
-  if (typeof o.manual !== "boolean") return "manual must be boolean";
-
-  if (!o.error || typeof o.error !== "object" || Array.isArray(o.error)) {
-    return "error must be object";
-  }
-  const err = o.error as Record<string, unknown>;
-  for (const k of Object.keys(err)) {
-    if (!ERROR_KEYS.has(k)) return `unknown error key: ${k}`;
-  }
-  if (typeof err.code !== "string" || !REASON_CODES.has(err.code)) {
-    return "error.code invalid";
-  }
-  if (err.detail !== undefined) {
-    if (typeof err.detail !== "string" || !detailsForCode(err.code).has(err.detail)) {
-      return "error.detail invalid";
-    }
-  }
-  if (err.signal !== undefined) {
-    if (!acceptSignal(err.signal)) return "error.signal invalid";
-  }
-
-  if (!o.context || typeof o.context !== "object" || Array.isArray(o.context)) {
-    return "context must be object";
-  }
-  const ctx = o.context as Record<string, unknown>;
-  for (const k of Object.keys(ctx)) {
-    if (!CONTEXT_KEYS.has(k)) return `unknown context key: ${k}`;
-  }
-  if (ctx.modelCategory !== undefined) {
-    if (typeof ctx.modelCategory !== "string" || !MODEL_CATEGORIES.has(ctx.modelCategory)) {
-      return "context.modelCategory invalid";
-    }
-  }
-  if (ctx.memoryClass !== undefined) {
-    if (typeof ctx.memoryClass !== "string" || !MEMORY_CLASSES.has(ctx.memoryClass)) {
-      return "context.memoryClass invalid";
-    }
-  }
-  if (ctx.hadWebTools !== undefined && typeof ctx.hadWebTools !== "boolean") {
-    return "context.hadWebTools invalid";
-  }
-  if (ctx.phase !== undefined) {
-    if (typeof ctx.phase !== "string" || !PHASES.has(ctx.phase)) {
-      return "context.phase invalid";
-    }
-  }
-  if (ctx.attempt !== undefined) {
-    if (
-      typeof ctx.attempt !== "number" ||
-      !Number.isInteger(ctx.attempt) ||
-      ctx.attempt < 1 ||
-      ctx.attempt > 5
-    ) {
-      return "context.attempt invalid";
-    }
-  }
-  if (ctx.chunks !== undefined) {
-    if (
-      typeof ctx.chunks !== "number" ||
-      !Number.isInteger(ctx.chunks) ||
-      ctx.chunks < 0 ||
-      ctx.chunks > 100_000
-    ) {
-      return "context.chunks invalid";
-    }
-  }
-  return null;
 }
 
 function stableStringify(value: unknown): string {
@@ -376,14 +180,11 @@ async function handleReport(request: Request, env: Env): Promise<Response> {
 }
 
 async function handleFlush(request: Request, env: Env): Promise<Response> {
-  const token = env.FLUSH_TOKEN;
-  if (!token) {
-    return json(503, { error: "flush_token_unset" });
-  }
-  const auth = request.headers.get("authorization") ?? "";
-  const expected = `Bearer ${token}`;
-  if (auth !== expected) {
-    return json(401, { error: "unauthorized" });
+  const auth = validFlushAuth(env.FLUSH_TOKEN, request.headers.get("authorization"));
+  if (!auth.ok) {
+    return json(auth.status, {
+      error: auth.status === 503 ? "flush_token_unset" : "unauthorized",
+    });
   }
 
   const autoOpen = (env.AUTO_OPEN_ISSUES ?? "false").toLowerCase() === "true";
@@ -403,24 +204,6 @@ async function handleFlush(request: Request, env: Env): Promise<Response> {
 }
 
 // ── Durable Object: TelemetryBuffer ─────────────────────────────────────────
-
-type BufferEntry = {
-  reportId: string;
-  sig: string;
-  report: unknown;
-  state: "pending" | "creating" | "created";
-  reviewAck: boolean;
-  leaseUntil: number;
-  leaseToken: number;
-  createdAt: number;
-};
-
-type BufferState = {
-  entries: BufferEntry[];
-  hourBucket: number;
-  hourCount: number;
-  nextLeaseToken: number;
-};
 
 export class TelemetryBuffer {
   state: DurableObjectState;
@@ -502,10 +285,8 @@ export class TelemetryBuffer {
         createdAt: now,
       });
       st.hourCount += 1;
-      // Cap buffer growth (keep newest 5000)
-      if (st.entries.length > 5000) {
-        st.entries = st.entries.slice(st.entries.length - 5000);
-      }
+      // No silent eviction: accepted reports stay until maintainer flush.
+      // Retention is explicit (flush / manual deletion), never a hidden cap.
       await txn.put("state", st);
       return { accepted: true as const, reportId };
     });
@@ -547,59 +328,47 @@ export class TelemetryBuffer {
       return json(200, { reviewed });
     }
 
-    // autoOpen: lease → search GitHub (2 attempts 2s apart) → create → created
-    const st = await this.load();
+    // autoOpen: transactional lease → search (2×, error ≠ not_found) → create
     let created = 0;
     let skipped = 0;
     let duplicates = 0;
+    let released = 0;
 
-    for (const entry of st.entries) {
-      if (entry.state === "created") {
-        skipped += 1;
-        continue;
-      }
-      // Clear reviewAck so previously reviewed items become eligible
-      if (entry.state !== "pending" && entry.state !== "creating") {
-        skipped += 1;
-        continue;
-      }
-      // Expired creating lease → treat as pending
-      if (entry.state === "creating" && entry.leaseUntil > opts.now) {
-        skipped += 1;
-        continue;
-      }
+    const snapshot = await this.load();
+    const candidates = snapshot.entries
+      .filter((e) => e.state === "pending" || e.state === "creating")
+      .map((e) => e.reportId);
 
-      // Mark creating with fencing token
-      const leaseToken = st.nextLeaseToken++;
-      entry.state = "creating";
-      entry.leaseUntil = opts.now + LEASE_MS;
-      entry.leaseToken = leaseToken;
-      entry.reviewAck = false;
-      await this.state.storage.put("state", st);
+    for (const reportId of candidates) {
+      const leased = await this.casAcquireLease(reportId, opts.now);
+      if (!leased) {
+        skipped += 1;
+        continue;
+      }
+      const { token, entry } = leased;
 
       if (!opts.githubToken || !opts.githubRepo) {
-        // Release lease
-        if (entry.leaseToken === leaseToken) {
-          entry.state = "pending";
-          entry.leaseUntil = 0;
-          await this.state.storage.put("state", st);
-        }
+        await this.casTransition(reportId, token, "pending");
+        released += 1;
         continue;
       }
 
       const marker = `Telemetry signature: ${entry.sig}`;
-      let found = await githubSearchIssue(opts.githubRepo, opts.githubToken, marker);
-      if (!found) {
+      const first = await githubSearchIssue(opts.githubRepo, opts.githubToken, marker);
+      let second: GithubSearchOutcome | null = null;
+      if (first === "not_found") {
         await sleep(2000);
-        found = await githubSearchIssue(opts.githubRepo, opts.githubToken, marker);
+        second = await githubSearchIssue(opts.githubRepo, opts.githubToken, marker);
       }
-      if (found) {
-        if (entry.leaseToken === leaseToken) {
-          entry.state = "created";
-          entry.leaseUntil = 0;
-          await this.state.storage.put("state", st);
-          duplicates += 1;
-        }
+      const decision = decideCreateIssue(first, second);
+      if (decision === "release") {
+        await this.casTransition(reportId, token, "pending");
+        released += 1;
+        continue;
+      }
+      if (decision === "mark_created") {
+        const ok = await this.casTransition(reportId, token, "created");
+        if (ok) duplicates += 1;
         continue;
       }
 
@@ -609,19 +378,47 @@ export class TelemetryBuffer {
         entry,
         marker,
       );
-      if (ok && entry.leaseToken === leaseToken) {
-        entry.state = "created";
-        entry.leaseUntil = 0;
-        await this.state.storage.put("state", st);
-        created += 1;
-      } else if (entry.leaseToken === leaseToken) {
-        entry.state = "pending";
-        entry.leaseUntil = 0;
-        await this.state.storage.put("state", st);
+      if (ok) {
+        const wrote = await this.casTransition(reportId, token, "created");
+        if (wrote) created += 1;
+      } else {
+        await this.casTransition(reportId, token, "pending");
+        released += 1;
       }
     }
 
-    return json(200, { created, skipped, duplicates });
+    return json(200, { created, skipped, duplicates, released });
+  }
+
+  /** Lease acquisition inside storage.transaction() with fencing token CAS. */
+  private async casAcquireLease(
+    reportId: string,
+    now: number,
+  ): Promise<{ token: number; entry: BufferEntry } | null> {
+    return this.state.storage.transaction(async (txn) => {
+      const st = (await txn.get<BufferState>("state")) ?? emptyBufferState();
+      const acquired = tryAcquireLease(st, reportId, now, LEASE_MS);
+      if (!acquired.ok) return null;
+      await txn.put("state", acquired.state);
+      const entry = acquired.state.entries.find((e) => e.reportId === reportId);
+      if (!entry) return null;
+      return { token: acquired.token, entry };
+    });
+  }
+
+  /** Final state transition inside storage.transaction() — stale token refused. */
+  private async casTransition(
+    reportId: string,
+    expectedToken: number,
+    nextState: "created" | "pending",
+  ): Promise<boolean> {
+    return this.state.storage.transaction(async (txn) => {
+      const st = (await txn.get<BufferState>("state")) ?? emptyBufferState();
+      const applied = applyLeaseTransition(st, reportId, expectedToken, nextState);
+      if (!applied.ok) return false;
+      await txn.put("state", applied.state);
+      return true;
+    });
   }
 }
 
@@ -633,7 +430,7 @@ async function githubSearchIssue(
   repo: string,
   token: string,
   marker: string,
-): Promise<boolean> {
+): Promise<GithubSearchOutcome> {
   try {
     const q = encodeURIComponent(`repo:${repo} "${marker}" in:body`);
     const res = await fetch(
@@ -646,11 +443,17 @@ async function githubSearchIssue(
         },
       },
     );
-    if (!res.ok) return false;
+    if (!res.ok) {
+      return classifyGithubSearchResponse({ ok: false, status: res.status });
+    }
     const data = (await res.json()) as { total_count?: number };
-    return (data.total_count ?? 0) > 0;
+    return classifyGithubSearchResponse({
+      ok: true,
+      status: res.status,
+      totalCount: data.total_count ?? 0,
+    });
   } catch {
-    return false;
+    return classifyGithubSearchResponse({ ok: false, threw: true });
   }
 }
 

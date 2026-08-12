@@ -11,6 +11,10 @@ import {
   GITHUB_ISSUE_CHOOSE_URL,
   LOCAL_FINGERPRINT_CACHE,
   OPTED_OUT_KEY,
+  OPTED_OUT_KEY_A,
+  OPTED_OUT_KEY_B,
+  OPTED_OUT_POINTER_KEY,
+  PENDING_OFF_KEY,
   SENDING_LEASE_MS,
   STATE_KEY_A,
   STATE_KEY_B,
@@ -47,6 +51,7 @@ import {
   recoverExpiredLeases,
   sanitizeReport,
   selectJournalSlot,
+  selectTombstoneSlot,
   verifyTombstone,
   withIntegrity,
   type QueueItem,
@@ -212,23 +217,71 @@ function defaultDeps(): TelemetryDeps {
 
 // ── Journal I/O ─────────────────────────────────────────────────────────────
 
+let tombstoneActiveSlot: "A" | "B" | null = null;
+let tombstoneSeq = 0;
+
+function parseTombstoneRaw(raw: string | null | undefined): Tombstone | null {
+  if (typeof raw !== "string" || !raw) return null;
+  try {
+    return verifyTombstone(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
 async function readTombstone(storage: StorageLike): Promise<
   | { kind: "valid"; tombstone: Tombstone }
   | { kind: "absent" }
   | { kind: "torn" }
 > {
   try {
-    const raw = await storage.getItem(OPTED_OUT_KEY);
-    if (raw == null || raw === "") return { kind: "absent" };
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return { kind: "torn" };
+    let rawA: string | null = null;
+    let rawB: string | null = null;
+    let pointer: string | null = null;
+    let rawLegacy: string | null = null;
+    if (storage.multiGet) {
+      const rows = await storage.multiGet([
+        OPTED_OUT_KEY_A,
+        OPTED_OUT_KEY_B,
+        OPTED_OUT_POINTER_KEY,
+        OPTED_OUT_KEY,
+      ]);
+      const map = new Map(rows);
+      rawA = map.get(OPTED_OUT_KEY_A) ?? null;
+      rawB = map.get(OPTED_OUT_KEY_B) ?? null;
+      pointer = map.get(OPTED_OUT_POINTER_KEY) ?? null;
+      rawLegacy = map.get(OPTED_OUT_KEY) ?? null;
+    } else {
+      rawA = await storage.getItem(OPTED_OUT_KEY_A);
+      rawB = await storage.getItem(OPTED_OUT_KEY_B);
+      pointer = await storage.getItem(OPTED_OUT_POINTER_KEY);
+      rawLegacy = await storage.getItem(OPTED_OUT_KEY);
     }
-    const t = verifyTombstone(parsed);
-    if (!t) return { kind: "torn" };
-    return { kind: "valid", tombstone: t };
+
+    const slotA = parseTombstoneRaw(rawA);
+    const slotB = parseTombstoneRaw(rawB);
+    const hint =
+      pointer === "A" || pointer === "B" ? (pointer as "A" | "B") : null;
+    const selected = selectTombstoneSlot(slotA, slotB, hint);
+    if (selected) {
+      tombstoneActiveSlot = selected.slot;
+      tombstoneSeq = selected.tombstone.seq;
+      return { kind: "valid", tombstone: selected.tombstone };
+    }
+
+    // Any unreadable non-empty slot is torn/ambiguous → fail-closed.
+    const hadRaw = Boolean(rawA || rawB);
+    if (hadRaw) return { kind: "torn" };
+
+    // Migrate legacy single-key tombstone if present.
+    const legacy = parseTombstoneRaw(rawLegacy);
+    if (legacy) {
+      tombstoneActiveSlot = null;
+      tombstoneSeq = legacy.seq;
+      return { kind: "valid", tombstone: legacy };
+    }
+    if (rawLegacy != null && rawLegacy !== "") return { kind: "torn" };
+    return { kind: "absent" };
   } catch {
     return { kind: "torn" };
   }
@@ -236,11 +289,19 @@ async function readTombstone(storage: StorageLike): Promise<
 
 async function writeTombstone(storage: StorageLike, nowMs: number): Promise<boolean> {
   try {
-    const t = makeTombstone(nowMs);
-    await storage.setItem(OPTED_OUT_KEY, JSON.stringify(t));
-    // Verify round-trip
+    const nextSeq = tombstoneSeq + 1;
+    const t = makeTombstone(nowMs, nextSeq);
+    const writeSlot: "A" | "B" = tombstoneActiveSlot === "A" ? "B" : "A";
+    const key = writeSlot === "A" ? OPTED_OUT_KEY_A : OPTED_OUT_KEY_B;
+    await storage.setItem(key, JSON.stringify(t));
+    await storage.setItem(OPTED_OUT_POINTER_KEY, writeSlot);
+    // Verify by re-selecting highest-valid-seq (not pointer).
     const check = await readTombstone(storage);
-    return check.kind === "valid";
+    if (check.kind !== "valid") return false;
+    if (check.tombstone.seq < nextSeq) return false;
+    tombstoneActiveSlot = writeSlot;
+    tombstoneSeq = check.tombstone.seq;
+    return true;
   } catch {
     return false;
   }
@@ -248,11 +309,53 @@ async function writeTombstone(storage: StorageLike, nowMs: number): Promise<bool
 
 async function clearTombstone(storage: StorageLike): Promise<boolean> {
   try {
-    await storage.removeItem(OPTED_OUT_KEY);
+    if (storage.multiRemove) {
+      await storage.multiRemove([
+        OPTED_OUT_KEY_A,
+        OPTED_OUT_KEY_B,
+        OPTED_OUT_POINTER_KEY,
+        OPTED_OUT_KEY,
+      ]);
+    } else {
+      await storage.removeItem(OPTED_OUT_KEY_A);
+      await storage.removeItem(OPTED_OUT_KEY_B);
+      await storage.removeItem(OPTED_OUT_POINTER_KEY);
+      await storage.removeItem(OPTED_OUT_KEY);
+    }
+    tombstoneActiveSlot = null;
+    tombstoneSeq = 0;
     const check = await readTombstone(storage);
     return check.kind === "absent";
   } catch {
     return false;
+  }
+}
+
+async function writePendingOff(storage: StorageLike, nowMs: number): Promise<boolean> {
+  try {
+    await storage.setItem(PENDING_OFF_KEY, String(nowMs));
+    const check = await storage.getItem(PENDING_OFF_KEY);
+    return typeof check === "string" && check.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function clearPendingOff(storage: StorageLike): Promise<void> {
+  try {
+    await storage.removeItem(PENDING_OFF_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+async function hasPendingOff(storage: StorageLike): Promise<boolean> {
+  try {
+    const raw = await storage.getItem(PENDING_OFF_KEY);
+    return typeof raw === "string" && raw.length > 0;
+  } catch {
+    // Unreadable recovery marker → treat as present (fail-closed OFF).
+    return true;
   }
 }
 
@@ -350,15 +453,29 @@ export async function initTelemetry(overrides?: Partial<TelemetryDeps>): Promise
 
     await withMutex(async () => {
       const storage = deps!.storage;
+      const pendingOff = await hasPendingOff(storage);
       const tomb = await readTombstone(storage);
-      if (tomb.kind === "torn") {
-        // Fail-closed: treat as opted out
+      if (tomb.kind === "torn" || pendingOff) {
+        // Fail-closed: torn tombstone OR unfinished OFF transition.
         optedOut = true;
         tombstoneGate = false;
         envelope = emptyEnvelope({ enabled: false, generation: 1 });
-        activeSlot = await writeJournal(storage, envelope, null);
+        try {
+          await writeTombstone(storage, deps!.now());
+        } catch {
+          /* best-effort repair */
+        }
+        try {
+          activeSlot = await writeJournal(storage, envelope, null);
+        } catch {
+          /* in-memory OFF still holds */
+        }
         loaded = true;
-        log("telemetry: tombstone torn → fail-closed OFF");
+        log(
+          pendingOff
+            ? "telemetry: pendingOff → fail-closed OFF"
+            : "telemetry: tombstone torn → fail-closed OFF",
+        );
         return;
       }
       if (tomb.kind === "valid") {
@@ -366,7 +483,11 @@ export async function initTelemetry(overrides?: Partial<TelemetryDeps>): Promise
         tombstoneGate = false;
         // Discard any residual envelope
         envelope = emptyEnvelope({ enabled: false, generation: 1 });
-        activeSlot = await writeJournal(storage, envelope, null);
+        try {
+          activeSlot = await writeJournal(storage, envelope, null);
+        } catch {
+          /* in-memory OFF still holds */
+        }
         loaded = true;
         log("telemetry: tombstone present → OFF");
         return;
@@ -439,6 +560,8 @@ export function __resetTelemetryForTests(): void {
   recentFingerprints.length = 0;
   idSeq = 0;
   activeSlot = null;
+  tombstoneActiveSlot = null;
+  tombstoneSeq = 0;
   deps = null;
   if (unsubAppState) {
     try {
@@ -508,16 +631,18 @@ export async function setTelemetryEnabled(enabled: boolean): Promise<boolean> {
       const now = deps!.now();
 
       if (!enabled) {
-        // OFF: (1) write tombstone FIRST, (2) barrier epoch, (3) abort, (4) purge
+        // OFF: in-memory fail-closed immediately. Durable order:
+        // pendingOff → verified tombstone → OFF journal → abort.
+        // If tombstone is not verified, do not claim success; keep pendingOff
+        // so a leftover enabled:true envelope cannot transmit after restart.
         tombstoneGate = true;
+        optedOut = true;
+        const pendingOk = await writePendingOff(storage, now);
         const tombOk = await writeTombstone(storage, now);
         if (!tombOk) {
-          // Uncertain tombstone → still fail-closed OFF
-          log("telemetry: tombstone write uncertain → fail-closed OFF");
+          log("telemetry: tombstone write unverified → fail-closed OFF");
         }
-        optedOut = true;
 
-        // transitionEpoch barrier BEFORE aborting fetches
         const nextEpoch = envelope.transitionEpoch + 1;
         const purged = withIntegrity({
           v: 1,
@@ -528,10 +653,33 @@ export async function setTelemetryEnabled(enabled: boolean): Promise<boolean> {
           dead: [],
           seq: envelope.seq,
         });
-        activeSlot = await writeJournal(storage, purged, activeSlot);
-        envelope = purged;
+        let journalOk = false;
+        try {
+          activeSlot = await writeJournal(storage, purged, activeSlot);
+          journalOk = true;
+        } catch {
+          // Disk may still hold a prior enabled envelope. Best-effort delete
+          // so restart cannot transmit queued data without a tombstone.
+          envelope = purged;
+          try {
+            if (storage.multiRemove) {
+              await storage.multiRemove([
+                STATE_KEY_A,
+                STATE_KEY_B,
+                STATE_POINTER_KEY,
+              ]);
+            } else {
+              await storage.removeItem(STATE_KEY_A);
+              await storage.removeItem(STATE_KEY_B);
+              await storage.removeItem(STATE_POINTER_KEY);
+            }
+            activeSlot = null;
+          } catch {
+            /* residual: leftover enabled envelope + pendingOff still OFF on load */
+          }
+          log("telemetry: OFF journal write failed");
+        }
 
-        // Abort in-flight after barrier commit
         for (const c of abortRegistry) {
           try {
             c.abort();
@@ -540,8 +688,18 @@ export async function setTelemetryEnabled(enabled: boolean): Promise<boolean> {
           }
         }
         tombstoneGate = false;
-        log("telemetry: disabled + purged");
-        return true;
+
+        if (tombOk) {
+          await clearPendingOff(storage);
+          log("telemetry: disabled + purged");
+          return true;
+        }
+        // Unverified tombstone: keep pendingOff (or in-memory OFF if even that
+        // failed). Restart must not transmit queued data.
+        log(
+          `telemetry: OFF incomplete tomb=${tombOk} journal=${journalOk} pending=${pendingOk}`,
+        );
+        return false;
       }
 
       // ON: (1) write enabled envelope with gate held, (2) clear tombstone
@@ -617,16 +775,14 @@ async function onBackgroundTransition(): Promise<void> {
   try {
     if (!deps || !envelope.enabled) return;
     await withMutex(async () => {
-      // Barrier commit BEFORE abort
+      // Barrier commit BEFORE abort. Stale-epoch items are terminally
+      // dropped — never rewritten onto the new epoch (audit MEDIUM 10).
       const nextEpoch = envelope.transitionEpoch + 1;
-      // Mark sending items dropped (terminal) under new epoch
-      const queue = envelope.queue
-        .filter((it) => {
-          if (it.state === "sending") return false; // terminal drop
-          if (it.transitionEpoch !== envelope.transitionEpoch) return false;
-          return true;
-        })
-        .map((it) => ({ ...it, transitionEpoch: nextEpoch }));
+      const queue = envelope.queue.filter((it) => {
+        if (it.state === "sending") return false; // in-flight → terminal drop
+        if (it.transitionEpoch !== nextEpoch) return false; // stale → drop
+        return true;
+      });
       const next = withIntegrity({
         ...envelope,
         transitionEpoch: nextEpoch,

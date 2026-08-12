@@ -108,6 +108,31 @@ export function modelCategoryFromId(
   return "unknown";
 }
 
+/**
+ * Calendar-valid UTC dateBucket (same invariant as the Worker).
+ * Rejects 2026-02-29 / 2026-13-01 / non-YYYY-MM-DD.
+ */
+export function isValidDateBucket(s: string): boolean {
+  if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const [y, m, d] = s.split("-").map(Number);
+  if (
+    y === undefined ||
+    m === undefined ||
+    d === undefined ||
+    !Number.isInteger(y) ||
+    !Number.isInteger(m) ||
+    !Number.isInteger(d)
+  ) {
+    return false;
+  }
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return (
+    dt.getUTCFullYear() === y &&
+    dt.getUTCMonth() === m - 1 &&
+    dt.getUTCDate() === d
+  );
+}
+
 export function dateBucketUtc(nowMs: number = Date.now()): string {
   const d = new Date(nowMs);
   const y = d.getUTCFullYear();
@@ -357,8 +382,7 @@ export function sanitizeReport(input: SanitizeInput): TelemetryReport | null {
     }
 
     const dateBucket =
-      typeof input.dateBucket === "string" &&
-      /^\d{4}-\d{2}-\d{2}$/.test(input.dateBucket)
+      typeof input.dateBucket === "string" && isValidDateBucket(input.dateBucket)
         ? input.dateBucket
         : dateBucketUtc();
 
@@ -437,6 +461,8 @@ export type TelemetryEnvelope = {
 export type Tombstone = {
   v: 1;
   optedOutAt: string;
+  /** Monotonic journal seq (A/B slots). Legacy single-key tombs omit this. */
+  seq: number;
   integrity: string;
 };
 
@@ -503,16 +529,24 @@ export function emptyEnvelope(
   });
 }
 
-export function computeTombstoneIntegrity(optedOutAt: string): string {
-  return fnv1a64Hex(stableStringify({ v: 1, optedOutAt }));
+export function computeTombstoneIntegrity(
+  optedOutAt: string,
+  seq: number = 0,
+): string {
+  return fnv1a64Hex(stableStringify({ v: 1, optedOutAt, seq }));
 }
 
-export function makeTombstone(nowMs: number = Date.now()): Tombstone {
+export function makeTombstone(
+  nowMs: number = Date.now(),
+  seq: number = 1,
+): Tombstone {
   const optedOutAt = new Date(nowMs).toISOString();
+  const safeSeq = Number.isInteger(seq) && seq > 0 ? seq : 1;
   return {
     v: 1,
     optedOutAt,
-    integrity: computeTombstoneIntegrity(optedOutAt),
+    seq: safeSeq,
+    integrity: computeTombstoneIntegrity(optedOutAt, safeSeq),
   };
 }
 
@@ -522,8 +556,40 @@ export function verifyTombstone(raw: unknown): Tombstone | null {
   if (t.v !== 1) return null;
   if (typeof t.optedOutAt !== "string" || !t.optedOutAt) return null;
   if (typeof t.integrity !== "string") return null;
-  if (computeTombstoneIntegrity(t.optedOutAt) !== t.integrity) return null;
-  return t;
+  // Journal tombs carry seq. Legacy single-key tombs omit seq (hash as 0).
+  const seq =
+    typeof t.seq === "number" && Number.isInteger(t.seq) && t.seq >= 0
+      ? t.seq
+      : 0;
+  if (computeTombstoneIntegrity(t.optedOutAt, seq) === t.integrity) {
+    return { v: 1, optedOutAt: t.optedOutAt, seq, integrity: t.integrity };
+  }
+  // Pre-journal tombs hashed without seq field.
+  if (seq === 0) {
+    const legacy = fnv1a64Hex(stableStringify({ v: 1, optedOutAt: t.optedOutAt }));
+    if (legacy === t.integrity) {
+      return { v: 1, optedOutAt: t.optedOutAt, seq: 0, integrity: t.integrity };
+    }
+  }
+  return null;
+}
+
+/**
+ * Select tombstone slot: ALWAYS highest valid-seq among hash-valid slots.
+ * Pointer is a hint only. Both torn/absent → null (caller fail-closed OFF).
+ */
+export function selectTombstoneSlot(
+  slotA: Tombstone | null,
+  slotB: Tombstone | null,
+  _pointerHint: "A" | "B" | null,
+): { slot: "A" | "B"; tombstone: Tombstone } | null {
+  const aOk = slotA && verifyTombstone(slotA) ? slotA : null;
+  const bOk = slotB && verifyTombstone(slotB) ? slotB : null;
+  if (!aOk && !bOk) return null;
+  if (aOk && !bOk) return { slot: "A", tombstone: aOk };
+  if (!aOk && bOk) return { slot: "B", tombstone: bOk };
+  if (aOk!.seq >= bOk!.seq) return { slot: "A", tombstone: aOk! };
+  return { slot: "B", tombstone: bOk! };
 }
 
 /**

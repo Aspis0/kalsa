@@ -365,6 +365,27 @@ async function main() {
     assert(pure.verifyTombstone({ ...t, integrity: "x" }) === null, "torn");
     assert(pure.verifyTombstone({ v: 1, optedOutAt: "x", integrity: "y" }) === null);
   });
+  test("tombstone A/B highest valid seq", () => {
+    const a = pure.makeTombstone(1_700_000_000_000, 1);
+    const b = pure.makeTombstone(1_700_000_000_100, 4);
+    const sel = pure.selectTombstoneSlot(a, b, "A");
+    assert(sel && sel.slot === "B" && sel.tombstone.seq === 4, "highest seq");
+    assert(pure.selectTombstoneSlot(null, null, "A") === null, "both absent");
+  });
+  test("calendar-valid dateBucket", () => {
+    assert(pure.isValidDateBucket("2026-08-12") === true, "valid");
+    assert(pure.isValidDateBucket("2026-02-29") === false, "non-leap");
+    assert(pure.isValidDateBucket("2026-13-01") === false, "month");
+    assert(pure.isValidDateBucket("2026-00-10") === false, "zero month");
+    const r = pure.sanitizeReport({
+      code: "web.fetch",
+      detail: "timeout",
+      dateBucket: "2026-02-29",
+      appVersion: "0.1.0",
+    });
+    assert(r && r.dateBucket !== "2026-02-29", "invalid date rewritten");
+    assert(pure.isValidDateBucket(r.dateBucket), "fallback calendar-valid");
+  });
 
   // ── Queue / response classification ──────────────────────────────────────
   console.log("\n[queue/classify]");
@@ -802,6 +823,294 @@ async function main() {
       pure.classifyChatFailure(new Error("n_ctx overflow")) === "ctx_overflow",
     );
     assert(pure.classifyEmbedFailure("gate refused") === "gate_aborted");
+  });
+
+  await serviceTest("OFF tombstone-write failure → no enabled envelope without tombstone", async () => {
+    const base = makeMemoryStorage();
+    await base.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage: base,
+      fetchImpl: async () => new Response(JSON.stringify({ accepted: true }), { status: 200 }),
+      now: () => 9_000_000,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
+    await new Promise((r) => setTimeout(r, 30));
+
+    // Fail every optedOut / state journal write after enable.
+    const flaky = makeFlakyStorage(
+      makeFlakyStorage(base, "optedOut", false),
+      "telemetry.state",
+      false,
+    );
+    tel.__resetTelemetryForTests();
+    await tel.initTelemetry({
+      storage: flaky,
+      fetchImpl: async () => new Response("{}", { status: 200 }),
+      now: () => 9_000_100,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    // Re-enable first so we have an ON envelope, then OFF with failing writes.
+    // The previous reset discarded in-memory state; re-init from flaky store.
+    const okOff = await tel.setTelemetryEnabled(false);
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(snap.enabled === false, "in-memory OFF");
+    assert(snap.optedOut === true, "optedOut");
+    assert(tel.isTelemetryEnabled() === false, "not enabled");
+    // Restart: leftover enabled envelope must not transmit.
+    tel.__resetTelemetryForTests();
+    let fetches = 0;
+    await tel.initTelemetry({
+      storage: flaky,
+      fetchImpl: async () => {
+        fetches += 1;
+        return new Response("{}", { status: 200 });
+      },
+      now: () => 9_000_200,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    const snap2 = tel.__getTelemetrySnapshotForTests();
+    assert(snap2.enabled === false, `restart enabled=${snap2.enabled}`);
+    assert(snap2.optedOut === true, "restart optedOut");
+    tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
+    await new Promise((r) => setTimeout(r, 40));
+    assert(fetches === 0, `no transmit after failed-OFF restart fetches=${fetches}`);
+    void okOff;
+  });
+
+  await serviceTest("clear-tombstone failure → re-enable not committed", async () => {
+    const base = makeMemoryStorage();
+    await base.setItem("kalsa.telemetry.url", "https://example.test");
+    const storage = {
+      ...base,
+      async removeItem(k) {
+        if (typeof k === "string" && k.includes("optedOut")) {
+          throw new Error("injected clear failure");
+        }
+        return base.removeItem(k);
+      },
+      async multiRemove(keys) {
+        if (keys.some((k) => String(k).includes("optedOut"))) {
+          throw new Error("injected clear failure");
+        }
+        return base.multiRemove(keys);
+      },
+    };
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async () => new Response("{}", { status: 200 }),
+      now: () => 10_000_000,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    await tel.setTelemetryEnabled(false);
+    const ok = await tel.setTelemetryEnabled(true);
+    assert(ok === false, "enable must fail");
+    assert(tel.isTelemetryEnabled() === false, "still OFF");
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(snap.enabled === false, "envelope OFF");
+    assert(snap.optedOut === true, "tombstone remains");
+  });
+
+  await serviceTest("stale-epoch items terminal-drop on background", async () => {
+    let appState = "active";
+    let appCb = null;
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async () =>
+        new Promise(() => {
+          /* hang so item stays sending */
+        }),
+      now: () => 11_000_000,
+      getAppState: () => appState,
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+      subscribeAppState: (cb) => {
+        appCb = cb;
+        return () => {
+          appCb = null;
+        };
+      },
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
+    tel.reportTelemetry({ code: "web.search", detail: "dns" });
+    await new Promise((r) => setTimeout(r, 40));
+    const before = tel.__getTelemetrySnapshotForTests();
+    assert(before.queueLen >= 1, `queued before bg queue=${before.queueLen}`);
+    const epochBefore = before.transitionEpoch;
+    appState = "background";
+    if (appCb) appCb("background");
+    await new Promise((r) => setTimeout(r, 60));
+    const after = tel.__getTelemetrySnapshotForTests();
+    assert(after.transitionEpoch === epochBefore + 1, "epoch advanced");
+    assert(
+      after.queueLen === 0,
+      `stale-epoch dropped queue=${after.queueLen} dead=${after.deadLen}`,
+    );
+  });
+
+  await serviceTest("timeout requeue", async () => {
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async () => {
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        throw err;
+      },
+      now: () => 12_000_000,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
+    for (let i = 0; i < 20; i++) {
+      tel.requestTelemetryDrain();
+      await new Promise((r) => setTimeout(r, 15));
+    }
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(snap.queueLen === 1, `requeued queue=${snap.queueLen}`);
+    assert(snap.deadLen === 0, "not dead");
+    const item = snap.envelope.queue[0];
+    assert(item.retryCount >= 1, `retryCount=${item.retryCount}`);
+    assert(item.state === "queued", item.state);
+  });
+
+  await serviceTest("429 backoff then dead-letter at ceiling", async () => {
+    let now = 13_000_000;
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async () => new Response("slow", { status: 429 }),
+      now: () => now,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "engine.init", detail: "oom" });
+    for (let attempt = 0; attempt < 6; attempt++) {
+      now += 2 * 60 * 60 * 1000; // skip backoff
+      for (let i = 0; i < 8; i++) {
+        tel.requestTelemetryDrain();
+        await new Promise((r) => setTimeout(r, 12));
+      }
+    }
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(snap.queueLen === 0, `queue ${snap.queueLen}`);
+    assert(snap.deadLen === 1, `dead ${snap.deadLen}`);
+    assert(snap.envelope.dead[0].retryCount >= 5, "ceiling");
+  });
+
+  await serviceTest("crash-after-dequeue requeues with persisted retryCount", async () => {
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async () =>
+        new Promise(() => {
+          /* never resolves — leave sending */
+        }),
+      now: () => 14_000_000,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "web.fetch", detail: "dns" });
+    for (let i = 0; i < 15; i++) {
+      tel.requestTelemetryDrain();
+      await new Promise((r) => setTimeout(r, 12));
+      const mid = tel.__getTelemetrySnapshotForTests();
+      if (mid.envelope.queue.some((q) => q.state === "sending")) break;
+    }
+    const mid = tel.__getTelemetrySnapshotForTests();
+    const sending = mid.envelope.queue.find((q) => q.state === "sending");
+    assert(sending, "item marked sending");
+    assert(sending.retryCount >= 1, `retry persisted ${sending.retryCount}`);
+
+    tel.__resetTelemetryForTests();
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async () => new Response(JSON.stringify({ accepted: true }), { status: 200 }),
+      now: () => 14_000_000 + 120_000, // lease expired
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    const snap = tel.__getTelemetrySnapshotForTests();
+    const recovered = snap.envelope.queue[0];
+    assert(recovered, "requeued after crash");
+    assert(recovered.state === "queued" || recovered.state === "sending", recovered.state);
+    assert(recovered.retryCount >= 1, `retryCount kept ${recovered.retryCount}`);
   });
 
   // ── i18n deep key parity (inline, mirrors extended harness) ──────────────

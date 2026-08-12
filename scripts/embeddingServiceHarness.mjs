@@ -377,7 +377,11 @@ async function main() {
     assert(/return runNativeOp\(async/.test(src), "ensure/release/embed use runNativeOp");
     // Early null on hung for public embed paths.
     assert(/if \(embedderHung\) return null/.test(src), "embed paths short-circuit on hung");
-    assert(/if \(embedderHung\) return false/.test(src), "ensureEmbedder short-circuit on hung");
+    // ensureEmbedder notes a typed hung failure then returns false (audit HIGH 7).
+    assert(
+      /if \(embedderHung\) \{\s*noteEmbedFailure\("hung"\);\s*return false;/.test(src),
+      "ensureEmbedder short-circuit on hung with typed failure",
+    );
   });
 
   // 16. Round 7 BLOCK: AppShell wraps disposeEngine in runNativeOp;

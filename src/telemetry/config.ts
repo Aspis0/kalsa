@@ -3,7 +3,15 @@
  * No secrets. No GitHub token. Worker URL only.
  */
 
-/** Production Worker base URL. Unset / empty → telemetry silently disabled. */
+/**
+ * Production Worker base URL.
+ *
+ * RELEASE BUILD REQUIREMENT: a store/release APK MUST set this to the
+ * deployed Worker origin (see workers/telemetry/README.md and the README
+ * "Telemetry" note). Empty string is correct for local/dev/staging until
+ * deploy; it silently disables network send (no unknown-endpoint fallback).
+ * Device tests may override via AsyncStorage `kalsa.telemetry.url`.
+ */
 export const TELEMETRY_WORKER_URL: string =
   // Maintainer sets this after deploy (workers/telemetry/README.md).
   // Empty string keeps client fail-closed until a real URL or AsyncStorage override.
@@ -17,8 +25,21 @@ export const STATE_KEY_A = "kalsa.telemetry.state.A";
 export const STATE_KEY_B = "kalsa.telemetry.state.B";
 export const STATE_POINTER_KEY = "kalsa.telemetry.state.pointer";
 
-/** Durable opt-out tombstone (integrity-checked). Written BEFORE purge on OFF. */
+/**
+ * Durable opt-out tombstone — journal A/B + pointer (same protocol as the
+ * state envelope). Highest valid-seq wins; torn/ambiguous → fail-closed OFF.
+ * `OPTED_OUT_KEY` is the legacy single key, still read for migration.
+ */
+export const OPTED_OUT_KEY_A = "kalsa.telemetry.optedOut.A";
+export const OPTED_OUT_KEY_B = "kalsa.telemetry.optedOut.B";
+export const OPTED_OUT_POINTER_KEY = "kalsa.telemetry.optedOut.pointer";
+/** @deprecated legacy single-key tombstone; read for migration only. */
 export const OPTED_OUT_KEY = "kalsa.telemetry.optedOut";
+/**
+ * Crash-recovery intent written FIRST on OFF. If tombstone + journal both
+ * fail, this marker still forces fail-closed OFF on the next load.
+ */
+export const PENDING_OFF_KEY = "kalsa.telemetry.pendingOff";
 
 /** Schema version for the client envelope and report payload. */
 export const TELEMETRY_SCHEMA_V = 1 as const;

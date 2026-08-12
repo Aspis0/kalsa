@@ -73,6 +73,65 @@ export type EmbeddingModelStatus = "not_downloaded" | "downloaded";
 
 export type EmbedAbortOpts = { signal?: AbortSignal };
 
+/**
+ * Why the last embed* call returned null. AppShell reports telemetry only for
+ * genuine native/model failures (oom / model_corrupt / native_crash).
+ * RAM-gate, abort, hung, not-downloaded, and cap are not reportable.
+ */
+export type EmbedFailureKind =
+  | "abort"
+  | "gate"
+  | "hung"
+  | "not_downloaded"
+  | "oom"
+  | "model_corrupt"
+  | "native_crash"
+  | "unknown";
+
+let lastEmbedFailure: EmbedFailureKind | null = null;
+
+/** Consume (and clear) the last typed embed failure. */
+export function consumeLastEmbedFailure(): EmbedFailureKind | null {
+  const r = lastEmbedFailure;
+  lastEmbedFailure = null;
+  return r;
+}
+
+function noteEmbedFailure(kind: EmbedFailureKind): void {
+  lastEmbedFailure = kind;
+}
+
+function classifyNativeEmbedErr(err: unknown): EmbedFailureKind {
+  const msg =
+    err instanceof Error
+      ? err.message
+      : typeof err === "string"
+        ? err
+        : String(err ?? "");
+  const m = msg.toLowerCase();
+  if (m.includes("oom") || m.includes("out of memory") || m.includes("enomem")) {
+    return "oom";
+  }
+  if (
+    m.includes("corrupt") ||
+    m.includes("gguf") ||
+    m.includes("bad magic") ||
+    m.includes("unable to map") ||
+    m.includes("ggml")
+  ) {
+    return "model_corrupt";
+  }
+  if (
+    m.includes("segmentation") ||
+    m.includes("native") ||
+    m.includes("crash") ||
+    m.includes("signal ")
+  ) {
+    return "native_crash";
+  }
+  return "unknown";
+}
+
 function isAborted(signal?: AbortSignal): boolean {
   return !!signal && signal.aborted === true;
 }
@@ -259,11 +318,23 @@ async function ensureEmbedder(
   path: string,
   signal?: AbortSignal,
 ): Promise<boolean> {
-  if (embedderHung) return false;
+  if (embedderHung) {
+    noteEmbedFailure("hung");
+    return false;
+  }
   return runNativeOp(async () => {
-    if (embedderHung) return false;
-    if (isAborted(signal)) return false;
-    if (phase === "closing") return false;
+    if (embedderHung) {
+      noteEmbedFailure("hung");
+      return false;
+    }
+    if (isAborted(signal)) {
+      noteEmbedFailure("abort");
+      return false;
+    }
+    if (phase === "closing") {
+      noteEmbedFailure("abort");
+      return false;
+    }
     if (context && activePath === path && phase === "ready") {
       // Already ready — USE path only. Claim the gate; do NOT set
       // embedInitializing (chat completion may be holding the tool loop and
@@ -271,6 +342,7 @@ async function ensureEmbedder(
       // runNativeOp serializes USE; no embedInFlight sticky flag.
       if (!tryAcquireEmbed()) {
         logEmbedRefuse("gate_use");
+        noteEmbedFailure("gate");
         return false;
       }
       return true;
@@ -279,18 +351,21 @@ async function ensureEmbedder(
     // INIT path: refuse concurrent init/release via embedInitializing.
     if (isEmbedInitializing()) {
       logEmbedRefuse("embed_initializing");
+      noteEmbedFailure("gate");
       return false;
     }
     // Shared lifecycle gate: refuse while chat_loading, or chat_ready without
     // co-residency. Synchronous — no race with tryAcquireChat.
     if (!tryAcquireEmbed()) {
       logEmbedRefuse("gate_init");
+      noteEmbedFailure("gate");
       return false;
     }
     markEmbedInitializing();
     try {
       if (isAborted(signal)) {
         logEmbedRefuse("aborted_after_acquire");
+        noteEmbedFailure("abort");
         releaseEmbed();
         return false;
       }
@@ -306,6 +381,7 @@ async function ensureEmbedder(
           context = null;
           activePath = null;
           phase = "idle";
+          noteEmbedFailure("abort");
           releaseEmbed();
           return false;
         }
@@ -315,6 +391,7 @@ async function ensureEmbedder(
       }
 
       if (isAborted(signal)) {
+        noteEmbedFailure("abort");
         releaseEmbed();
         return false;
       }
@@ -323,6 +400,7 @@ async function ensureEmbedder(
       // always refuse (false "re-entrant" assumption; see canContinueEmbedInit).
       if (!canContinueEmbedInit()) {
         logEmbedRefuse("gate_recheck");
+        noteEmbedFailure("gate");
         releaseEmbed();
         return false;
       }
@@ -330,20 +408,24 @@ async function ensureEmbedder(
       const initFn = loadInitLlama(signal);
       if (!initFn || isAborted(signal)) {
         logEmbedRefuse(!initFn ? "initLlama_unavailable" : "aborted_before_init");
+        noteEmbedFailure(isAborted(signal) ? "abort" : "unknown");
         releaseEmbed();
         return false;
       }
       // Final gate + abort check immediately before initLlama.
       if (!canContinueEmbedInit()) {
         logEmbedRefuse("gate_pre_native");
+        noteEmbedFailure("gate");
         releaseEmbed();
         return false;
       }
       if (isAborted(signal)) {
+        noteEmbedFailure("abort");
         releaseEmbed();
         return false;
       }
       if (embedderHung) {
+        noteEmbedFailure("hung");
         releaseEmbed();
         return false;
       }
@@ -372,6 +454,7 @@ async function ensureEmbedder(
           context = null;
           activePath = null;
           phase = "idle";
+          noteEmbedFailure(embedderHung ? "hung" : "abort");
           releaseEmbed();
           return false;
         }
@@ -386,6 +469,7 @@ async function ensureEmbedder(
           context = null;
           activePath = null;
           phase = "idle";
+          noteEmbedFailure("gate");
           releaseEmbed();
           return false;
         }
@@ -405,6 +489,7 @@ async function ensureEmbedder(
         logEmbedRefuse("native_init_failed", {
           error: err instanceof Error ? err.message : String(err),
         });
+        noteEmbedFailure(classifyNativeEmbedErr(err));
         context = null;
         activePath = null;
         phase = "idle";
@@ -622,25 +707,38 @@ async function embedWithContext(
   role: "query" | "doc",
   signal?: AbortSignal,
 ): Promise<Float32Array | null> {
-  if (embedderHung || isAborted(signal)) return null;
+  if (embedderHung || isAborted(signal)) {
+    noteEmbedFailure(embedderHung ? "hung" : "abort");
+    return null;
+  }
   const prefixed = applyEmbedPrefix(text, role);
   // Abort gate immediately before the native embedding() call (longest-pole await).
-  if (embedderHung || isAborted(signal)) return null;
+  if (embedderHung || isAborted(signal)) {
+    noteEmbedFailure(embedderHung ? "hung" : "abort");
+    return null;
+  }
   // embd_normalize: 2 = L2 normalize (matches SemanticVectorIndex defensive L2).
   try {
     // Native embedding() — caller must already be inside runNativeOp
     // (ensureEmbedder / withEmbedder / embedDocumentChunk / embedQuery job).
     const result = await ctx.embedding(prefixed, { embd_normalize: 2 });
-    if (embedderHung || isAborted(signal)) return null;
+    if (embedderHung || isAborted(signal)) {
+      noteEmbedFailure(embedderHung ? "hung" : "abort");
+      return null;
+    }
     const arr = result?.embedding;
-    if (!Array.isArray(arr) || arr.length === 0) return null;
+    if (!Array.isArray(arr) || arr.length === 0) {
+      noteEmbedFailure("unknown");
+      return null;
+    }
     const out = new Float32Array(arr.length);
     for (let i = 0; i < arr.length; i++) {
       const x = arr[i];
       out[i] = typeof x === "number" && Number.isFinite(x) ? x : 0;
     }
     return out;
-  } catch {
+  } catch (err) {
+    noteEmbedFailure(classifyNativeEmbedErr(err));
     return null;
   }
 }
@@ -666,23 +764,56 @@ export async function embedDocumentChunk(
   opts?: EmbedAbortOpts,
 ): Promise<Float32Array | null> {
   const signal = opts?.signal;
+  lastEmbedFailure = null;
   try {
-    if (embedderHung) return null;
-    if (isAborted(signal)) return null;
+    if (embedderHung) {
+      noteEmbedFailure("hung");
+      return null;
+    }
+    if (isAborted(signal)) {
+      noteEmbedFailure("abort");
+      return null;
+    }
     if (typeof text !== "string" || text.length === 0) return null;
-    if (isAborted(signal)) return null;
-    if ((await getEmbeddingModelStatus(opts)) !== "downloaded") return null;
-    if (isAborted(signal)) return null;
+    if (isAborted(signal)) {
+      noteEmbedFailure("abort");
+      return null;
+    }
+    if ((await getEmbeddingModelStatus(opts)) !== "downloaded") {
+      noteEmbedFailure("not_downloaded");
+      return null;
+    }
+    if (isAborted(signal)) {
+      noteEmbedFailure("abort");
+      return null;
+    }
     const path = await embeddingModelPath(opts);
-    if (!path || isAborted(signal)) return null;
+    if (!path || isAborted(signal)) {
+      noteEmbedFailure(isAborted(signal) ? "abort" : "not_downloaded");
+      return null;
+    }
     const ok = await ensureEmbedder(path, signal);
-    if (!ok || isAborted(signal) || embedderHung) return null;
+    if (!ok || isAborted(signal) || embedderHung) {
+      if (!lastEmbedFailure) {
+        noteEmbedFailure(
+          embedderHung ? "hung" : isAborted(signal) ? "abort" : "unknown",
+        );
+      }
+      return null;
+    }
     return await runNativeOp(async () => {
-      if (embedderHung || isAborted(signal)) return null;
-      if (!context || phase !== "ready") return null;
+      if (embedderHung || isAborted(signal)) {
+        noteEmbedFailure(embedderHung ? "hung" : "abort");
+        return null;
+      }
+      if (!context || phase !== "ready") {
+        noteEmbedFailure("unknown");
+        return null;
+      }
       return embedWithContext(context, text, "doc", signal);
     });
-  } catch {
+  } catch (err) {
+    noteEmbedFailure(classifyNativeEmbedErr(err));
     return null;
   }
 }
@@ -724,6 +855,7 @@ export function __resetEmbedderForTests(): void {
   activePath = null;
   phase = "idle";
   embedderHung = false;
+  lastEmbedFailure = null;
   releaseEmbed();
   // Expose gate state for harness diagnostics.
   void getLlamaContextState;

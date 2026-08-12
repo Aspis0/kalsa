@@ -53,6 +53,7 @@ import {
   embedDocumentChunk,
   embedQuery as embedQueryVec,
   embedChunkKey,
+  consumeLastEmbedFailure,
   getEmbeddingModelStatus,
   listDocumentChunksForEmbed,
   planChunksToEmbed,
@@ -1325,20 +1326,27 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         console.log(
           `[embed] done {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount},"indexChunks":${index.chunkCount},"reason":${JSON.stringify(reason)}}`,
         );
-        // Opt-in telemetry: native failures only (not partial/aborted/cap). No docId.
+        // Opt-in telemetry: genuine native/model failures only.
+        // RAM-gate / abort / hung / not-downloaded / cap / partial are excluded.
         if (reason === "failed") {
           try {
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            const tel = require("../telemetry/telemetry") as {
-              reportTelemetry: (i: Record<string, unknown>) => void;
-              classifyEmbedFailure: (r: string) => string;
-            };
-            tel.reportTelemetry({
-              code: "embed.native",
-              detail: tel.classifyEmbedFailure("failed"),
-              phase: "embed",
-              chunks: embeddedCount,
-            });
+            const kind = consumeLastEmbedFailure();
+            if (
+              kind === "oom" ||
+              kind === "model_corrupt" ||
+              kind === "native_crash"
+            ) {
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const tel = require("../telemetry/telemetry") as {
+                reportTelemetry: (i: Record<string, unknown>) => void;
+              };
+              tel.reportTelemetry({
+                code: "embed.native",
+                detail: kind,
+                phase: "embed",
+                chunks: embeddedCount,
+              });
+            }
           } catch {
             /* telemetry never throws */
           }
@@ -1366,9 +1374,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           console.log(
             "[embed] abort mid-job: chat became resident on ≤6GB — no embedder init",
           );
-          // Partial if we already embedded some chunks this job; else failed
-          // (never got a vector in).
-          logEmbedDone(embeddedCount > 0 ? "partial" : "failed");
+          // RAM-gate is not a native embed failure (design §5).
+          logEmbedDone(embeddedCount > 0 ? "partial" : "aborted");
           return;
         }
         if (!stillCurrent() || signal.aborted) {

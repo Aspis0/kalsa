@@ -10,8 +10,14 @@ Design contract: `docs/TELEMETRY_OPTIN.md` (v14 FINAL + diag-addendum).
   KV is **read-cache only** for dedupe (TTL 180d). **Never** opens GitHub issues.
 - `GET /flush` — `Authorization: Bearer FLUSH_TOKEN` only. Fail-closed `503` if
   token unset. With `AUTO_OPEN_ISSUES=false` (default): sets `reviewAck` only.
-  With `true`: lease → GitHub search by `Telemetry signature: <sig>` (2 attempts,
-  2s apart) → create issue with label `telemetry`.
+  With `true`: transactional lease (CAS fencing token) → GitHub search by
+  `Telemetry signature: <sig>` (2 attempts, 2s apart). Search HTTP errors /
+  timeouts release the lease and do **not** create. Issue created only after
+  two consecutive `not_found`.
+
+Accepted reports are never silently evicted. The buffer keeps every accepted
+entry until a maintainer flush (or explicit deletion). There is no 5000-entry
+cap.
 
 ## Deploy (maintainer)
 
@@ -30,8 +36,10 @@ npx wrangler deploy
 
 Point the app at the Worker:
 
-1. Production: set `TELEMETRY_WORKER_URL` in `src/telemetry/config.ts` to the
-   custom domain (keep `workers_dev = false`).
+1. Production / release APK: **must** set `TELEMETRY_WORKER_URL` in
+   `src/telemetry/config.ts` to the custom domain (keep `workers_dev = false`).
+   An empty URL silently disables all network send — correct for local/dev,
+   **not** for a store build.
 2. Device tests: AsyncStorage override  
    `kalsa.telemetry.url = http://<lan-host>:8787` (or staging URL).
 

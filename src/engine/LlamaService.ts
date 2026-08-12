@@ -1028,6 +1028,41 @@ async function disposeEngineLocked(): Promise<void> {
   }
 }
 
+/** Report a chat.generation failure (allowlist only — never user-facing text). */
+function reportChatGenerationTelemetry(error: unknown): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const tel = require("../telemetry/telemetry") as {
+      reportTelemetry: (i: {
+        code: "chat.generation";
+        detail?: string;
+        rawMessage?: string;
+        phase?: "turn";
+      }) => void;
+      classifyChatFailure: (e: unknown) => string;
+    };
+    const errObj = error instanceof Error ? error : new Error(String(error ?? ""));
+    tel.reportTelemetry({
+      code: "chat.generation",
+      detail: tel.classifyChatFailure(errObj),
+      rawMessage: errObj.message,
+      phase: "turn",
+    });
+  } catch {
+    /* telemetry never throws into engine path */
+  }
+}
+
+function emitEngineError(
+  callbacks: EngineCallbacks,
+  finishOnce: (fn: () => void) => void,
+  error: unknown,
+): void {
+  reportChatGenerationTelemetry(error);
+  const errObj = error instanceof Error ? error : new Error(String(error ?? ""));
+  finishOnce(() => callbacks.onError(errObj));
+}
+
 /** Telemetry-safe error tag (name/enum only — never message/path/user data). */
 function sessionErrorReason(error: unknown): string {
   const raw =
@@ -1464,6 +1499,7 @@ export async function streamAssistantTurn(
     const locale: Locale = options.locale;
     const strings = getStrings(locale);
     if (!engine) {
+      reportChatGenerationTelemetry(new Error(strings.errors.modelNotLoaded));
       callbacks.onError(new Error(strings.errors.modelNotLoaded));
       return;
     }
@@ -1624,7 +1660,11 @@ export async function streamAssistantTurn(
         // look like a clean finish even though assistantFull may hold
         // truncated text.
         aborted = true;
-        finishOnce(() => callbacks.onError(new Error(strings.errors.turnInterrupted)));
+        emitEngineError(
+          callbacks,
+          finishOnce,
+          new Error(strings.errors.turnInterrupted),
+        );
         return true;
       }
       return false;
@@ -1844,14 +1884,12 @@ export async function streamAssistantTurn(
         if (bailIfStopped()) return;
 
         if (result.context_full) {
-          finishOnce(() => {
-            const err = new Error(strings.errors.contextFull) as Error & {
-              code?: string;
-            };
-            // Machine-readable marker for AppShell force-rebuild (compaction ON).
-            err.code = "context_full";
-            callbacks.onError(err);
-          });
+          const err = new Error(strings.errors.contextFull) as Error & {
+            code?: string;
+          };
+          // Machine-readable marker for AppShell force-rebuild (compaction ON).
+          err.code = "context_full";
+          emitEngineError(callbacks, finishOnce, err);
           return;
         }
 
@@ -2059,28 +2097,7 @@ export async function streamAssistantTurn(
         return;
       }
       {
-        const errObj = error instanceof Error ? error : new Error(String(error));
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const tel = require("../telemetry/telemetry") as {
-            reportTelemetry: (i: {
-              code: "chat.generation";
-              detail?: string;
-              rawMessage?: string;
-              phase?: "turn";
-            }) => void;
-            classifyChatFailure: (e: unknown) => string;
-          };
-          tel.reportTelemetry({
-            code: "chat.generation",
-            detail: tel.classifyChatFailure(errObj),
-            rawMessage: errObj.message,
-            phase: "turn",
-          });
-        } catch {
-          /* telemetry never throws */
-        }
-        finishOnce(() => callbacks.onError(errObj));
+        emitEngineError(callbacks, finishOnce, error);
       }
     } finally {
       signal?.removeEventListener("abort", abort);
