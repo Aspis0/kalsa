@@ -13,9 +13,7 @@
  * Device tests may override via AsyncStorage `kalsa.telemetry.url`.
  */
 export const TELEMETRY_WORKER_URL: string =
-  // Maintainer sets this after deploy (workers/telemetry/README.md).
-  // Empty string keeps client fail-closed until a real URL or AsyncStorage override.
-  "";
+  "https://kalsa-telemetry.aspislauncher.workers.dev";
 
 /** AsyncStorage key for local mock / staging URL override (device tests). */
 export const TELEMETRY_URL_OVERRIDE_KEY = "kalsa.telemetry.url";
