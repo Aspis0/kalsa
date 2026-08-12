@@ -104,6 +104,11 @@ async function main() {
   const {
     addDoc,
     removeDoc,
+    reorderDocs,
+    makePreviewSnippet,
+    formatBytesLocalized,
+    formatAddedBucket,
+    formatAddedDate,
     docKey,
     decideDocStrategy,
     estimateTokensForDoc,
@@ -156,11 +161,20 @@ async function main() {
     const normBase = normalizeUriPath(baseDir);
     if (!normUri || !normBase) return false;
     const basePrefix = normBase.endsWith("/") ? normBase : `${normBase}/`;
-    const canonicalPrefix = `${basePrefix}kalsa-documents/`;
-    return (
-      normUri === canonicalPrefix.slice(0, -1) ||
-      normUri.startsWith(canonicalPrefix)
-    );
+    // Mirrors documentStorage: library files + cover JPEGs are owned.
+    const ownedPrefixes = [
+      `${basePrefix}kalsa-documents/`,
+      `${basePrefix}kalsa-covers/`,
+    ];
+    for (const canonicalPrefix of ownedPrefixes) {
+      if (
+        normUri === canonicalPrefix.slice(0, -1) ||
+        normUri.startsWith(canonicalPrefix)
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
   function sizeWithinLimits(sizeBytes, kind) {
     if (
@@ -178,13 +192,19 @@ async function main() {
     return { ok: true, sizeBytes: n };
   }
 
-  // ── 1 pure add ──────────────────────────────────────────────────────────
+  // ── 1 pure add (prepends — new-on-top) ──────────────────────────────────
   {
     const s0 = emptyLibraryState();
     const d = sampleDoc();
     const s1 = addDoc(s0, d);
-    check("addDoc appends", s1.docs.length === 1 && s1.docs[0].id === "d1");
+    check("addDoc inserts", s1.docs.length === 1 && s1.docs[0].id === "d1");
     check("addDoc pure (no mutate)", s0.docs.length === 0);
+    const s2 = addDoc(s1, sampleDoc({ id: "d2", name: "Second.pdf" }));
+    check(
+      "addDoc prepends (new first)",
+      s2.docs.length === 2 && s2.docs[0].id === "d2" && s2.docs[1].id === "d1",
+      `order=${s2.docs.map((x) => x.id).join(",")}`,
+    );
   }
 
   // ── 2 pure remove ───────────────────────────────────────────────────────
@@ -742,6 +762,14 @@ async function main() {
       "NOT owned: base/kalsa-documents/../x resolves outside library",
       isOwnedDocumentUri("base/kalsa-documents/../x", "base") === false,
     );
+    check(
+      "owned: base/kalsa-covers/doc.jpg",
+      isOwnedDocumentUri("base/kalsa-covers/doc.jpg", "base") === true,
+    );
+    check(
+      "NOT owned: base/kalsa-covers-evil/x (prefix boundary)",
+      isOwnedDocumentUri("base/kalsa-covers-evil/x", "base") === false,
+    );
   }
 
   // ── 21 sizeWithinLimits fail-closed ───────────────────────────────────
@@ -899,6 +927,175 @@ async function main() {
     })());
     releaseRead();
     __resetDocOpGateForTests();
+  }
+
+  // ── reorderDocs strict permutation ─────────────────────────────────────
+  {
+    const a = sampleDoc({ id: "a", name: "A.pdf" });
+    const b = sampleDoc({ id: "b", name: "B.pdf" });
+    const c = sampleDoc({ id: "c", name: "C.pdf" });
+    let s = emptyLibraryState();
+    // Build [a, b, c] in that order via direct state (addDoc prepends).
+    s = { docs: [a, b, c] };
+    const ids = () => s.docs.map((d) => d.id).join(",");
+
+    const identity = reorderDocs(s, ["a", "b", "c"]);
+    check(
+      "reorderDocs identity",
+      identity.docs.map((d) => d.id).join(",") === "a,b,c",
+      identity.docs.map((d) => d.id).join(","),
+    );
+
+    const mid = reorderDocs(s, ["a", "c", "b"]);
+    check(
+      "reorderDocs mid swap",
+      mid.docs.map((d) => d.id).join(",") === "a,c,b",
+      mid.docs.map((d) => d.id).join(","),
+    );
+    // Original unchanged.
+    check("reorderDocs pure (no mutate)", ids() === "a,b,c");
+
+    const rev = reorderDocs(s, ["c", "b", "a"]);
+    check(
+      "reorderDocs full reverse",
+      rev.docs.map((d) => d.id).join(",") === "c,b,a",
+      rev.docs.map((d) => d.id).join(","),
+    );
+
+    const missing = reorderDocs(s, ["a", "b", "zzz"]);
+    check(
+      "reorderDocs missing-id → unchanged",
+      missing.docs.map((d) => d.id).join(",") === "a,b,c",
+    );
+
+    const dup = reorderDocs(s, ["a", "a", "b"]);
+    check(
+      "reorderDocs duplicate-id → unchanged",
+      dup.docs.map((d) => d.id).join(",") === "a,b,c",
+    );
+
+    const empty = reorderDocs(s, []);
+    check(
+      "reorderDocs empty input → unchanged",
+      empty.docs.map((d) => d.id).join(",") === "a,b,c",
+    );
+
+    const short = reorderDocs(s, ["a", "b"]);
+    check(
+      "reorderDocs length-mismatch → unchanged",
+      short.docs.map((d) => d.id).join(",") === "a,b,c",
+    );
+
+    // addedAt never rewritten
+    const reordered = reorderDocs(s, ["c", "a", "b"]);
+    check(
+      "reorderDocs preserves addedAt",
+      reordered.docs[0].addedAt === c.addedAt &&
+        reordered.docs[1].addedAt === a.addedAt,
+    );
+  }
+
+  // ── makePreviewSnippet ─────────────────────────────────────────────────
+  {
+    check(
+      "makePreviewSnippet empty → undefined",
+      makePreviewSnippet("") === undefined &&
+        makePreviewSnippet("   \n\t  ") === undefined,
+    );
+    check(
+      "makePreviewSnippet short passthrough",
+      makePreviewSnippet("hello world") === "hello world",
+    );
+    const long = "a".repeat(250);
+    const snip = makePreviewSnippet(long);
+    check(
+      "makePreviewSnippet caps at 200 code points",
+      typeof snip === "string" && Array.from(snip).length === 200,
+      `len=${snip ? Array.from(snip).length : "undef"}`,
+    );
+    // Unicode-safe: emoji is one code point each; cut must not split surrogates.
+    const emoji = "😀".repeat(210);
+    const eSnip = makePreviewSnippet(emoji);
+    check(
+      "makePreviewSnippet Unicode-safe cut",
+      typeof eSnip === "string" &&
+        Array.from(eSnip).length === 200 &&
+        eSnip === "😀".repeat(200),
+      `len=${eSnip ? Array.from(eSnip).length : "undef"}`,
+    );
+    check(
+      "makePreviewSnippet strips NUL",
+      makePreviewSnippet("ab\u0000cd") === "abcd",
+    );
+    check(
+      "makePreviewSnippet no NUL leakage",
+      !String(makePreviewSnippet("x\u0000y\u0000z") ?? "").includes("\u0000"),
+    );
+  }
+
+  // ── sanitizeDoc / parse round-trip previewUri ──────────────────────────
+  {
+    // Legacy: missing previewUri is fine.
+    const legacy = sampleDoc({ id: "legacy-1" });
+    delete legacy.previewUri;
+    const sLegacy = addDoc(emptyLibraryState(), legacy);
+    check(
+      "sanitizeDoc accepts missing previewUri",
+      sLegacy.docs[0]?.previewUri === undefined && sLegacy.docs[0]?.id === "legacy-1",
+    );
+
+    const withCover = sampleDoc({
+      id: "cover-1",
+      previewUri: "file:///data/kalsa-covers/cover-1.jpg",
+    });
+    const raw = serializeLibraryState(addDoc(emptyLibraryState(), withCover));
+    const back = parseLibraryState(raw);
+    check(
+      "parseLibraryState round-trips previewUri",
+      back.docs[0]?.previewUri === "file:///data/kalsa-covers/cover-1.jpg",
+      `got=${back.docs[0]?.previewUri}`,
+    );
+  }
+
+  // ── formatBytesLocalized + formatAddedBucket ───────────────────────────
+  {
+    check(
+      "formatBytesLocalized en MB",
+      /1\.4\s*MB/.test(formatBytesLocalized(1_400_000, "en")),
+      formatBytesLocalized(1_400_000, "en"),
+    );
+    check(
+      "formatBytesLocalized it MB",
+      /1,4\s*MB/.test(formatBytesLocalized(1_400_000, "it")),
+      formatBytesLocalized(1_400_000, "it"),
+    );
+
+    // Midnight-boundary: added at 23:30 local yesterday, now at 00:30 today → yesterday.
+    const now = new Date();
+    now.setHours(0, 30, 0, 0);
+    const yest = new Date(now.getTime());
+    yest.setDate(yest.getDate() - 1);
+    yest.setHours(23, 30, 0, 0);
+    check(
+      "formatAddedBucket yesterday across midnight",
+      formatAddedBucket(yest.getTime(), now.getTime()) === "yesterday",
+    );
+    const todayMorning = new Date(now.getTime());
+    todayMorning.setHours(1, 0, 0, 0);
+    check(
+      "formatAddedBucket today",
+      formatAddedBucket(todayMorning.getTime(), now.getTime()) === "today",
+    );
+    const weekAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+    check(
+      "formatAddedBucket older",
+      formatAddedBucket(weekAgo, now.getTime()) === "older",
+    );
+    check(
+      "formatAddedDate returns non-empty",
+      typeof formatAddedDate(weekAgo, "en") === "string" &&
+        formatAddedDate(weekAgo, "en").length > 0,
+    );
   }
 
   // ── FIX 5: extractionStatus timeout must NOT vision-fallback ───────────

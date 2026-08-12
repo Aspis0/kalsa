@@ -1,29 +1,32 @@
 /**
- * Documents library screen — import PDF/TXT, list, delete.
- * Pattern mirrors HelpScreen / SettingsScreen (Header + ScrollView rows).
- * Extraction reuses requestPdfText (PDF) and FileSystem read (TXT).
+ * Documents library screen — friendly list, detail, single picker, cover gen.
+ * Pattern mirrors HelpScreen / SettingsScreen (Header + list). Extraction
+ * reuses requestPdfText (PDF) and FileSystem read (TXT).
  *
  * Delete ownership + in-flight latch live in AppShell (survives this screen's
  * unmount). Pure storage helpers live in documentStorage.ts.
  */
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   BackHandler,
   Pressable,
-  ScrollView,
   Text,
   View,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
-import { FileText, Plus, Trash2 } from "lucide-react-native";
+import { Plus, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import DraggableFlatList, {
+  type RenderItemParams,
+  ScaleDecorator,
+} from "react-native-draggable-flatlist";
 
 import {
   estimateTokensForDoc,
+  formatBytesLocalized,
   type ExtractionStatus,
   type LibraryDoc,
   type LibraryState,
@@ -36,18 +39,23 @@ import {
   resolveAssetSizeBytes,
   sizeWithinLimits,
 } from "../documents/documentStorage";
+import { generateCoverForDoc } from "../documents/documentCover";
 import { isDocumentOpInFlight } from "../documents/documentChatTool";
 import {
   isPdfTextExtractionBusy,
   requestPdfText,
 } from "../pdf/pdfTextService";
 import { htmlToText } from "../util/htmlToText";
-import { formatBytes } from "../engine/ModelRegistry";
 import { useLocale } from "../i18n";
-import { GlassPanel2, Header } from "../theme/components";
+import { Header } from "../theme/components";
 import { spacing } from "../theme/tokens";
 import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
+
+import { DocumentListItem } from "./documents/DocumentListItem";
+import { DocumentDetailView } from "./documents/DocumentDetailView";
+import { DocumentsEmptyState } from "./documents/DocumentsEmptyState";
+import { DocumentImportOverlay } from "./documents/DocumentImportOverlay";
 
 // Re-export pure helpers so existing harness imports / external callers keep working.
 export {
@@ -72,6 +80,10 @@ type Props = {
    * library state (functional updater). Returns false when refused (busy latch).
    */
   onDeleteDocument: (id: string) => Promise<boolean>;
+  /** AppShell-owned reorder (strict permutation via reorderDocs). */
+  onReorderDocuments: (orderedIds: string[]) => void;
+  /** AppShell-owned cover commit; refuses if doc is gone. */
+  onUpdateDocumentPreview: (id: string, previewUri: string) => void;
   /**
    * AppShell-owned delete latch (survives unmount). Import/extract must refuse
    * while a delete is in flight.
@@ -81,150 +93,323 @@ type Props = {
   onBack: () => void;
 };
 
+type ScreenMode = "list" | { detailId: string };
+
 function nextDocId(): string {
   return `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** Reject binary mislabel: NUL in first 8 KB of a supposed text file. */
+async function hasNulInPrefix(uri: string): Promise<boolean> {
+  try {
+    const raw = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    if (typeof raw !== "string") return true;
+    const prefix = raw.slice(0, 8192);
+    return prefix.includes("\u0000");
+  } catch {
+    return false;
+  }
+}
+
+function pickKind(
+  mimeType: string | undefined,
+  name: string,
+): "pdf" | "txt" | null {
+  const lower = (name ?? "").toLowerCase();
+  const mime = (mimeType ?? "").toLowerCase();
+  if (mime === "application/pdf" || lower.endsWith(".pdf")) return "pdf";
+  if (
+    mime === "text/markdown" ||
+    mime === "text/x-markdown" ||
+    lower.endsWith(".md") ||
+    lower.endsWith(".markdown")
+  ) {
+    return "txt";
+  }
+  if (mime === "text/plain" || lower.endsWith(".txt")) return "txt";
+  return null;
 }
 
 export function DocumentsScreen({
   library,
   onAddDocument,
   onDeleteDocument,
+  onReorderDocuments,
+  onUpdateDocumentPreview,
   isDocumentDeleteInFlight,
   onBack,
 }: Props) {
   const { colors } = useLabTheme<any>();
   const typography = useTypography();
   const insets = useSafeAreaInsets();
-  const { t } = useLocale();
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
+  const { t, locale } = useLocale();
+
+  const [screenMode, setScreenMode] = useState<ScreenMode>("list");
+  const [importing, setImporting] = useState(false);
+  const [importName, setImportName] = useState<string | null>(null);
+  const [reorderHintVisible, setReorderHintVisible] = useState(true);
+  const coverInFlightRef = useRef(false);
+  const libraryRef = useRef(library);
+  libraryRef.current = library;
+
+  const docs = library.docs ?? [];
+  const detailDoc =
+    typeof screenMode === "object"
+      ? docs.find((d) => d.id === screenMode.detailId) ?? null
+      : null;
+
+  // If the open detail was deleted elsewhere, pop back to list.
+  useEffect(() => {
+    if (typeof screenMode === "object" && !detailDoc) {
+      setScreenMode("list");
+    }
+  }, [screenMode, detailDoc]);
 
   const handleBack = useCallback(() => {
-    if (busy) return;
+    if (importing) return true;
+    if (typeof screenMode === "object") {
+      setScreenMode("list");
+      return true;
+    }
     onBack();
-  }, [busy, onBack]);
+    return true;
+  }, [importing, screenMode, onBack]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (busy) return true;
-      handleBack();
-      return true;
+      return handleBack();
     });
     return () => sub.remove();
-  }, [busy, handleBack]);
+  }, [handleBack]);
 
-  const addPdf = useCallback(async () => {
-    if (busy) return;
-    if (isDocumentDeleteInFlight()) {
-      Alert.alert(t("documents.title"), t("documents.busy"));
+  const busyGuards = useCallback((): boolean => {
+    if (importing) return true;
+    if (isDocumentDeleteInFlight()) return true;
+    if (isPdfTextExtractionBusy() || isDocumentOpInFlight()) return true;
+    return false;
+  }, [importing, isDocumentDeleteInFlight]);
+
+  const confirmDelete = useCallback(
+    (doc: LibraryDoc) => {
+      if (busyGuards()) {
+        Alert.alert(t("documents.title"), t("documents.errorBusy"));
+        return;
+      }
+      Alert.alert(
+        t("documents.delete"),
+        t("documents.deleteConfirm", { name: doc.name }),
+        [
+          { text: t("documents.deleteCancel"), style: "cancel" },
+          {
+            text: t("documents.delete"),
+            style: "destructive",
+            onPress: () => {
+              if (busyGuards()) {
+                Alert.alert(t("documents.title"), t("documents.errorBusy"));
+                return;
+              }
+              void onDeleteDocument(doc.id).then((accepted) => {
+                if (!accepted) {
+                  Alert.alert(t("documents.title"), t("documents.errorBusy"));
+                  return;
+                }
+                setScreenMode("list");
+              });
+            },
+          },
+        ],
+      );
+    },
+    [busyGuards, onDeleteDocument, t],
+  );
+
+  const runCoverThenCommit = useCallback(
+    async (entry: LibraryDoc): Promise<void> => {
+      if (entry.kind !== "pdf") return;
+      if (coverInFlightRef.current) return;
+      coverInFlightRef.current = true;
+      try {
+        const uri = await generateCoverForDoc(entry, {
+          // Membership is library-only. Do NOT short-circuit on entry.id —
+          // a mid-cover delete must make libraryHas return false so the durable
+          // write is abandoned (CRIT-2). AppShell updateDocumentPreview also
+          // refuses missing docs as a final ownership backstop.
+          libraryHas: (id) =>
+            (libraryRef.current.docs ?? []).some((d) => d.id === id),
+        });
+        if (uri) {
+          onUpdateDocumentPreview(entry.id, uri);
+        }
+      } catch {
+        /* silent degrade to placeholder */
+      } finally {
+        coverInFlightRef.current = false;
+      }
+    },
+    [onUpdateDocumentPreview],
+  );
+
+  const importDocument = useCallback(async () => {
+    if (busyGuards()) {
+      Alert.alert(t("documents.title"), t("documents.errorBusy"));
       return;
     }
     try {
       const picked = await DocumentPicker.getDocumentAsync({
-        type: "application/pdf",
+        type: ["application/pdf", "text/plain", "text/markdown"],
         copyToCacheDirectory: true,
         multiple: false,
       });
       if (picked.canceled || !picked.assets?.length) return;
       const asset = picked.assets[0];
       const uri = asset.uri;
-      const name = asset.name ?? "document.pdf";
+      const name = asset.name ?? "document";
+      const kind = pickKind(asset.mimeType, name);
+      if (!kind) {
+        Alert.alert(t("documents.title"), t("documents.errorBinary"));
+        return;
+      }
 
-      // Fail closed: resolve actual size via FS; never trust optional asset.size alone.
       const resolvedSize = await resolveAssetSizeBytes(uri);
-      const sizeCheck = sizeWithinLimits(resolvedSize, "pdf");
+      const sizeCheck = sizeWithinLimits(resolvedSize, kind);
       if (!sizeCheck.ok) {
-        Alert.alert(
-          t("documents.title"),
-          sizeCheck.reason === "too_large"
-            ? t("documents.tooLarge", { max: formatBytes(MAX_DOCUMENT_BYTES) })
-            : t("documents.cannotRead"),
-        );
+        if (sizeCheck.reason === "empty") {
+          Alert.alert(t("documents.title"), t("documents.errorEmpty"));
+        } else if (sizeCheck.reason === "too_large") {
+          const max =
+            kind === "pdf"
+              ? formatBytesLocalized(MAX_DOCUMENT_BYTES, locale)
+              : formatBytesLocalized(MAX_TEXT_BYTES, locale);
+          Alert.alert(
+            t("documents.title"),
+            t("documents.errorTooLarge", { max }),
+          );
+        } else {
+          Alert.alert(t("documents.title"), t("documents.errorTxt"));
+        }
         return;
       }
       const sizeBytes = sizeCheck.sizeBytes;
 
-      // Re-check delete latch after async size resolve (delete may have started).
       if (isDocumentDeleteInFlight()) {
-        Alert.alert(t("documents.title"), t("documents.busy"));
+        Alert.alert(t("documents.title"), t("documents.errorBusy"));
         return;
       }
 
-      setBusy(true);
-      setStatus(t("documents.extracting"));
+      // Content validation for text: NUL bytes → binary mislabel.
+      if (kind === "txt") {
+        const hasNul = await hasNulInPrefix(uri);
+        if (hasNul) {
+          Alert.alert(t("documents.title"), t("documents.errorBinary"));
+          return;
+        }
+      }
+
+      setImporting(true);
+      setImportName(name);
       const id = nextDocId();
       const sourceId = id;
-      // Own a durable copy before extract so library entries survive cache eviction.
+
       let ownedUri: string;
       try {
-        ownedUri = await copyToOwnedStorage(uri, id, "pdf");
+        ownedUri = await copyToOwnedStorage(uri, id, kind);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         Alert.alert(
           t("documents.title"),
           msg === "NO_DOCUMENT_DIRECTORY"
-            ? t("documents.storageUnavailable")
-            : t("documents.readFailed"),
+            ? t("documents.errorStorage")
+            : t("documents.errorTxt"),
         );
         return;
       }
+
       let docCount = 0;
       let pageCount: number | undefined;
       let estimatedTokens: number | undefined;
-      // FIX 5: explicit status — never conflate timeout/error with "no text layer".
       let extractionStatus: ExtractionStatus = "ok";
 
-      try {
-        const extracted = await requestPdfText(ownedUri, {
-          sourceId,
-          title: name,
-        });
-        const docs = Array.isArray(extracted?.docs) ? extracted.docs : [];
-        docCount = docs.filter(
-          (d) => d && typeof d.text === "string" && d.text.trim().length > 0,
-        ).length;
-        if (
-          typeof extracted?.documentPageCount === "number" &&
-          extracted.documentPageCount > 0
-        ) {
-          pageCount = extracted.documentPageCount;
-        } else if (docs.length > 0) {
-          pageCount = docs.length + (extracted?.skippedPages?.length ?? 0);
+      if (kind === "pdf") {
+        try {
+          const extracted = await requestPdfText(ownedUri, {
+            sourceId,
+            title: name,
+          });
+          const extractedDocs = Array.isArray(extracted?.docs)
+            ? extracted.docs
+            : [];
+          docCount = extractedDocs.filter(
+            (d) => d && typeof d.text === "string" && d.text.trim().length > 0,
+          ).length;
+          if (
+            typeof extracted?.documentPageCount === "number" &&
+            extracted.documentPageCount > 0
+          ) {
+            pageCount = extracted.documentPageCount;
+          } else if (extractedDocs.length > 0) {
+            pageCount =
+              extractedDocs.length + (extracted?.skippedPages?.length ?? 0);
+          }
+          const fullText = extractedDocs.map((d) => d.text ?? "").join("\n\n");
+          estimatedTokens = estimateTokensForDoc(fullText);
+          extractionStatus = docCount === 0 ? "no_text_layer" : "ok";
+        } catch (err) {
+          const code =
+            err && typeof err === "object" && "code" in err
+              ? String((err as { code?: unknown }).code ?? "")
+              : "";
+          if (code === "busy") {
+            await deleteOwnedFile(ownedUri);
+            Alert.alert(t("documents.title"), t("documents.errorBusy"));
+            return;
+          }
+          docCount = 0;
+          if (code === "timeout" || code === "page_timeout") {
+            extractionStatus = "timeout";
+          } else if (
+            code === "renderer_gone" ||
+            code === "no_host" ||
+            code === "unmounted" ||
+            code === "failed"
+          ) {
+            extractionStatus = "renderer_error";
+          } else {
+            extractionStatus = "fs_error";
+          }
         }
-        const fullText = docs.map((d) => d.text ?? "").join("\n\n");
-        estimatedTokens = estimateTokensForDoc(fullText);
-        // Successful extract with zero text → scanned / empty text layer.
-        extractionStatus = docCount === 0 ? "no_text_layer" : "ok";
-      } catch (err) {
-        const code =
-          err && typeof err === "object" && "code" in err
-            ? String((err as { code?: unknown }).code ?? "")
-            : "";
-        if (code === "busy") {
+      } else {
+        // TXT / Markdown
+        let text = "";
+        try {
+          text = await FileSystem.readAsStringAsync(ownedUri);
+        } catch {
           await deleteOwnedFile(ownedUri);
-          Alert.alert(t("documents.title"), t("documents.extractBusy"));
+          Alert.alert(t("documents.title"), t("documents.errorTxt"));
           return;
         }
-        // Still add the entry so the user can see it, but mark the failure so
-        // document_chat does NOT route to vision_fallback (FIX 5).
-        docCount = 0;
-        if (code === "timeout" || code === "page_timeout") {
-          extractionStatus = "timeout";
-        } else if (code === "renderer_gone") {
-          extractionStatus = "renderer_error";
-        } else if (code === "no_host" || code === "unmounted" || code === "failed") {
-          extractionStatus = "renderer_error";
-        } else {
-          // FS / unknown — treat as filesystem-class failure.
-          extractionStatus = "fs_error";
+        if (text.includes("\u0000")) {
+          await deleteOwnedFile(ownedUri);
+          Alert.alert(t("documents.title"), t("documents.errorBinary"));
+          return;
         }
+        const looksHtml = /<\/?[a-z][\s\S]*>/i.test(text.slice(0, 2000));
+        const plain = looksHtml ? htmlToText(text).text : text;
+        const trimmed = (plain ?? "").trim();
+        if (!trimmed) {
+          await deleteOwnedFile(ownedUri);
+          Alert.alert(t("documents.title"), t("documents.errorEmpty"));
+          return;
+        }
+        docCount = 1;
+        estimatedTokens = estimateTokensForDoc(trimmed);
+        extractionStatus = "ok";
       }
 
-      // Final latch check before committing the import (delete may have finished
-      // mid-extract; refuse to race a still-in-flight delete).
       if (isDocumentDeleteInFlight()) {
         await deleteOwnedFile(ownedUri);
-        Alert.alert(t("documents.title"), t("documents.busy"));
+        Alert.alert(t("documents.title"), t("documents.errorBusy"));
         return;
       }
 
@@ -232,7 +417,7 @@ export function DocumentsScreen({
         id,
         name,
         sourceId,
-        kind: "pdf",
+        kind,
         addedAt: Date.now(),
         sizeBytes,
         docCount,
@@ -241,166 +426,95 @@ export function DocumentsScreen({
         ...(pageCount != null ? { pageCount } : {}),
         ...(estimatedTokens != null ? { estimatedTokens } : {}),
       };
-      // Commit via AppShell against current state — never merge a captured snapshot.
+
       if (!onAddDocument(entry)) {
         await deleteOwnedFile(ownedUri);
-        Alert.alert(t("documents.title"), t("documents.busy"));
-        return;
-      }
-      setStatus(null);
-    } catch {
-      // picker cancelled
-    } finally {
-      setBusy(false);
-      setStatus(null);
-    }
-  }, [busy, onAddDocument, isDocumentDeleteInFlight, t]);
-
-  const addTxt = useCallback(async () => {
-    if (busy) return;
-    if (isDocumentDeleteInFlight()) {
-      Alert.alert(t("documents.title"), t("documents.busy"));
-      return;
-    }
-    try {
-      const picked = await DocumentPicker.getDocumentAsync({
-        type: ["text/plain", "text/html", "text/*"],
-        copyToCacheDirectory: true,
-        multiple: false,
-      });
-      if (picked.canceled || !picked.assets?.length) return;
-      const asset = picked.assets[0];
-      const uri = asset.uri;
-      const name = asset.name ?? "document.txt";
-
-      // Fail closed: resolve actual size via FS; never trust optional asset.size alone.
-      const resolvedSize = await resolveAssetSizeBytes(uri);
-      const sizeCheck = sizeWithinLimits(resolvedSize, "txt");
-      if (!sizeCheck.ok) {
-        Alert.alert(
-          t("documents.title"),
-          sizeCheck.reason === "too_large"
-            ? t("documents.tooLarge", { max: formatBytes(MAX_TEXT_BYTES) })
-            : t("documents.cannotRead"),
-        );
-        return;
-      }
-      const sizeBytes = sizeCheck.sizeBytes;
-
-      // Re-check delete latch after async size resolve (delete may have started).
-      if (isDocumentDeleteInFlight()) {
-        Alert.alert(t("documents.title"), t("documents.busy"));
+        Alert.alert(t("documents.title"), t("documents.errorBusy"));
         return;
       }
 
-      setBusy(true);
-      setStatus(t("documents.extracting"));
-      const id = nextDocId();
-      let ownedUri: string;
-      try {
-        ownedUri = await copyToOwnedStorage(uri, id, "txt");
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        Alert.alert(
-          t("documents.title"),
-          msg === "NO_DOCUMENT_DIRECTORY"
-            ? t("documents.storageUnavailable")
-            : t("documents.readFailed"),
-        );
-        return;
-      }
-      let text = "";
-      try {
-        text = await FileSystem.readAsStringAsync(ownedUri);
-      } catch {
-        await deleteOwnedFile(ownedUri);
-        Alert.alert(t("documents.title"), t("documents.readFailed"));
-        return;
-      }
-      // HTML-ish → strip tags; plain text passes through.
-      const looksHtml = /<\/?[a-z][\s\S]*>/i.test(text.slice(0, 2000));
-      const plain = looksHtml ? htmlToText(text).text : text;
-      const trimmed = (plain ?? "").trim();
-
-      if (isDocumentDeleteInFlight()) {
-        await deleteOwnedFile(ownedUri);
-        Alert.alert(t("documents.title"), t("documents.busy"));
-        return;
+      // Soft-fail PDFs still listed — surface friendly alert once.
+      if (
+        kind === "pdf" &&
+        (extractionStatus === "timeout" ||
+          extractionStatus === "renderer_error" ||
+          extractionStatus === "fs_error")
+      ) {
+        Alert.alert(t("documents.title"), t("documents.errorPdf"));
       }
 
-      const entry: LibraryDoc = {
-        id,
-        name,
-        sourceId: id,
-        kind: "txt",
-        addedAt: Date.now(),
-        sizeBytes,
-        docCount: trimmed.length > 0 ? 1 : 0,
-        fileUri: ownedUri,
-        estimatedTokens: estimateTokensForDoc(trimmed),
-        extractionStatus: trimmed.length > 0 ? "ok" : "no_text_layer",
-      };
-      // Commit via AppShell against current state — never merge a captured snapshot.
-      if (!onAddDocument(entry)) {
-        await deleteOwnedFile(ownedUri);
-        Alert.alert(t("documents.title"), t("documents.busy"));
-        return;
+      // Sequential cover generation while import overlay is still up (Q2).
+      if (kind === "pdf") {
+        await runCoverThenCommit(entry);
       }
     } catch {
-      // picker cancelled
+      // picker cancelled / unexpected
     } finally {
-      setBusy(false);
-      setStatus(null);
+      setImporting(false);
+      setImportName(null);
     }
-  }, [busy, onAddDocument, isDocumentDeleteInFlight, t]);
+  }, [
+    busyGuards,
+    isDocumentDeleteInFlight,
+    locale,
+    onAddDocument,
+    runCoverThenCommit,
+    t,
+  ]);
 
-  const confirmDelete = useCallback(
-    (doc: LibraryDoc) => {
-      if (busy) return;
-      if (isDocumentDeleteInFlight()) {
-        Alert.alert(t("documents.title"), t("documents.busy"));
-        return;
-      }
-      // Refuse delete while PDF extract or document_chat host read is in flight
-      // so we never race deleteAsync against an open read of the same file.
-      if (isPdfTextExtractionBusy() || isDocumentOpInFlight()) {
-        Alert.alert(t("documents.title"), t("documents.busy"));
-        return;
-      }
-      Alert.alert(
-        t("documents.delete"),
-        t("documents.deleteConfirm", { name: doc.name }),
-        [
-          { text: t("common.cancel"), style: "cancel" },
-          {
-            text: t("documents.delete"),
-            style: "destructive",
-            onPress: () => {
-              // Re-check at confirm time (user may have waited on the dialog).
-              if (isDocumentDeleteInFlight()) {
-                Alert.alert(t("documents.title"), t("documents.busy"));
-                return;
-              }
-              if (isPdfTextExtractionBusy() || isDocumentOpInFlight()) {
-                Alert.alert(t("documents.title"), t("documents.busy"));
-                return;
-              }
-              // AppShell owns the latch + FS delete + functional state update.
-              // Unmount of this screen no longer clears the in-flight guard.
-              void onDeleteDocument(doc.id).then((accepted) => {
-                if (!accepted) {
-                  Alert.alert(t("documents.title"), t("documents.busy"));
-                }
-              });
-            },
-          },
-        ],
-      );
+  const onDragEnd = useCallback(
+    ({ data }: { data: LibraryDoc[] }) => {
+      const orderedIds = data.map((d) => d.id);
+      onReorderDocuments(orderedIds);
     },
-    [busy, isDocumentDeleteInFlight, onDeleteDocument, t],
+    [onReorderDocuments],
   );
 
-  const docs = library.docs ?? [];
+  const renderItem = useCallback(
+    ({ item, drag, isActive }: RenderItemParams<LibraryDoc>) => (
+      <ScaleDecorator>
+        <DocumentListItem
+          doc={item}
+          drag={drag}
+          isActive={isActive}
+          onOpen={(d) => {
+            if (importing) return;
+            setScreenMode({ detailId: d.id });
+          }}
+        />
+      </ScaleDecorator>
+    ),
+    [importing],
+  );
+
+  const keyExtractor = useCallback((item: LibraryDoc) => item.id, []);
+
+  const listData = useMemo(() => docs.slice(), [docs]);
+
+  // Detail mode — in-screen push (not AppShell overlay).
+  if (detailDoc) {
+    return (
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          backgroundColor: colors.shell,
+          zIndex: 50,
+        }}
+      >
+        <DocumentDetailView
+          doc={detailDoc}
+          onBack={() => setScreenMode("list")}
+          onDelete={confirmDelete}
+          busy={importing || isDocumentDeleteInFlight()}
+        />
+        {importing ? <DocumentImportOverlay fileName={importName} /> : null}
+      </View>
+    );
+  }
 
   return (
     <View
@@ -416,155 +530,79 @@ export function DocumentsScreen({
     >
       <Header
         title={t("documents.title")}
-        onBack={handleBack}
-        backAccessibilityLabel={t("common.back")}
-      />
-      <ScrollView
-        contentContainerStyle={{
-          padding: spacing.lg,
-          paddingBottom: insets.bottom + spacing.lg,
-          gap: spacing.md,
+        onBack={() => {
+          if (!importing) onBack();
         }}
-      >
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
-          <Text style={[typography.bodyXs, { color: colors.muted }]}>
-            {t("documents.intro")}
-          </Text>
-          <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs }}>
+        backAccessibilityLabel={t("common.back")}
+        trailing={
+          docs.length > 0 ? (
             <Pressable
-              onPress={() => void addPdf()}
-              disabled={busy}
+              onPress={() => void importDocument()}
+              disabled={importing}
+              hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel={t("documents.addPdf")}
-              style={{
-                flex: 1,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                paddingVertical: spacing.sm,
-                borderRadius: 12,
-                backgroundColor: colors.accentSoft ?? colors.panelSolid,
-                opacity: busy ? 0.5 : 1,
-              }}
+              accessibilityLabel={t("documents.add")}
+              style={{ padding: 6, opacity: importing ? 0.4 : 1 }}
             >
-              <Plus size={16} color={colors.accent} />
-              <Text
-                style={[
-                  typography.bodySm,
-                  { color: colors.ink, fontFamily: fontFamilies.bodySemi },
-                ]}
-              >
-                {t("documents.addPdf")}
-              </Text>
+              <Plus size={22} color={colors.accent} />
             </Pressable>
-            <Pressable
-              onPress={() => void addTxt()}
-              disabled={busy}
-              accessibilityRole="button"
-              accessibilityLabel={t("documents.addTxt")}
-              style={{
-                flex: 1,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                paddingVertical: spacing.sm,
-                borderRadius: 12,
-                backgroundColor: colors.computeSoft ?? colors.panelSolid,
-                opacity: busy ? 0.5 : 1,
-              }}
-            >
-              <Plus size={16} color={colors.compute ?? colors.accent} />
-              <Text
-                style={[
-                  typography.bodySm,
-                  { color: colors.ink, fontFamily: fontFamilies.bodySemi },
-                ]}
-              >
-                {t("documents.addTxt")}
-              </Text>
-            </Pressable>
-          </View>
-          {busy || status ? (
+          ) : null
+        }
+      />
+
+      {docs.length === 0 ? (
+        <DocumentsEmptyState
+          onAdd={() => void importDocument()}
+          disabled={importing}
+        />
+      ) : (
+        <View style={{ flex: 1 }}>
+          <DraggableFlatList
+            data={listData}
+            keyExtractor={keyExtractor}
+            onDragEnd={onDragEnd}
+            renderItem={renderItem}
+            containerStyle={{ flex: 1 }}
+            contentContainerStyle={{
+              paddingVertical: spacing.sm,
+              paddingBottom: insets.bottom + spacing.lg,
+            }}
+            activationDistance={12}
+          />
+          {reorderHintVisible ? (
             <View
               style={{
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.sm,
-                marginTop: spacing.xs,
+                paddingHorizontal: spacing.lg,
+                paddingVertical: spacing.sm,
+                paddingBottom: insets.bottom + spacing.sm,
               }}
             >
-              <ActivityIndicator size="small" color={colors.accent} />
-              <Text style={[typography.bodyXs, { color: colors.muted }]}>
-                {status ?? t("documents.extracting")}
+              <Text
+                style={[
+                  typography.bodyXs,
+                  { color: colors.muted, flex: 1 },
+                ]}
+              >
+                {t("documents.reorderHint")}
               </Text>
-            </View>
-          ) : null}
-        </GlassPanel2>
-
-        {docs.length === 0 ? (
-          <GlassPanel2 rounded="lg" style={{ padding: spacing.lg }}>
-            <Text style={[typography.bodySm, { color: colors.muted }]}>
-              {t("documents.empty")}
-            </Text>
-          </GlassPanel2>
-        ) : (
-          docs.map((doc) => (
-            <GlassPanel2
-              key={doc.id}
-              rounded="lg"
-              style={{
-                padding: spacing.lg,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: spacing.sm,
-              }}
-            >
-              <FileText size={18} color={colors.accent} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text
-                  style={[
-                    typography.bodySm,
-                    { color: colors.ink, fontFamily: fontFamilies.bodySemi },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {doc.name}
-                </Text>
-                <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
-                  {[
-                    doc.kind.toUpperCase(),
-                    formatBytes(doc.sizeBytes),
-                    doc.pageCount != null
-                      ? t("documents.pageCount", { count: doc.pageCount })
-                      : null,
-                    doc.docCount === 0
-                      ? doc.extractionStatus === "timeout" ||
-                        doc.extractionStatus === "renderer_error" ||
-                        doc.extractionStatus === "fs_error"
-                        ? t("documents.readFailed")
-                        : t("documents.noTextLayer")
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </Text>
-              </View>
               <Pressable
-                onPress={() => confirmDelete(doc)}
-                disabled={busy}
+                onPress={() => setReorderHintVisible(false)}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={t("documents.delete")}
-                style={{ opacity: busy ? 0.4 : 1, padding: 4 }}
+                accessibilityLabel={t("documents.reorderHintDismiss")}
+                style={{ padding: 4 }}
               >
-                <Trash2 size={18} color={colors.muted} />
+                <X size={16} color={colors.muted} />
               </Pressable>
-            </GlassPanel2>
-          ))
-        )}
-      </ScrollView>
+            </View>
+          ) : null}
+        </View>
+      )}
+
+      {importing ? <DocumentImportOverlay fileName={importName} /> : null}
     </View>
   );
 }

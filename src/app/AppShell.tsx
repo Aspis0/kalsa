@@ -13,6 +13,7 @@ import {
   loadLibraryState,
   saveLibraryState,
   getDefaultLibraryStorage,
+  reorderDocs,
   type LibraryDoc,
   type LibraryState,
 } from "../documents/DocumentLibrary";
@@ -22,6 +23,7 @@ import {
   readVectorIndexFile,
   writeVectorIndexFile,
 } from "../documents/documentStorage";
+import { DocumentCoverHost } from "../documents/documentCover";
 import {
   DOCUMENT_CHAT_TOOL,
   createDocumentChatExecutor,
@@ -544,6 +546,15 @@ function validateHistoryMessages(history: unknown[] | undefined): HistoryRoleMes
   return out;
 }
 
+export type AppShellProps = {
+  /**
+   * Called after the library persistence queue exhausts 3 retries for a save.
+   * Optional so existing mounts (`<AppShell />`) keep working; default path
+   * logs + shows a friendly Alert (HIGH-3).
+   */
+  onPersistenceFailure?: (err: unknown) => void;
+};
+
 /**
  * AppShell — la schermata unica di AI Chat (Fase 1).
  *
@@ -551,7 +562,7 @@ function validateHistoryMessages(history: unknown[] | undefined): HistoryRoleMes
  * chat + barra modello + Ask AI + viewer miniapp. L'engine locale gira su
  * llama.rn; la barra modello gestisce download/switch dei GGUF.
  */
-export function AppShell() {
+export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const { colors, styles, fontScaleId } = useLabTheme<any>();
   const typography = useTypography();
   const insets = useSafeAreaInsets();
@@ -651,6 +662,57 @@ export function AppShell() {
    * a late AsyncStorage load applies only when no mutation has happened yet.
    */
   const libraryMutationRef = useRef(0);
+  /**
+   * FIFO serialized persistence queue (HIGH-5). add → reorder → preview-update
+   * → delete writes land at AsyncStorage in order so a slow save cannot
+   * overwrite a newer state. Failures retry up to 3 times, then surface via
+   * onPersistenceFailure (or console.warn + Alert) — queue keeps draining
+   * subsequent saves so one failure never deadlocks the chain (HIGH-3).
+   */
+  const pendingSavePromiseRef = useRef<Promise<void>>(Promise.resolve());
+  const onPersistenceFailureRef = useRef(onPersistenceFailure);
+  onPersistenceFailureRef.current = onPersistenceFailure;
+
+  const enqueueLibrarySave = useCallback(
+    (state: LibraryState) => {
+      const run = async () => {
+        let attempt = 0;
+        let lastErr: unknown;
+        while (attempt < 3) {
+          try {
+            await saveLibraryState(getDefaultLibraryStorage(), state);
+            return;
+          } catch (err) {
+            lastErr = err;
+            attempt += 1;
+          }
+        }
+        // 3 retries exhausted — notify without throwing (queue must continue).
+        const handler = onPersistenceFailureRef.current;
+        if (handler) {
+          try {
+            handler(lastErr);
+          } catch {
+            /* host handler must not break the save chain */
+          }
+        } else {
+          console.warn(
+            "[AppShell] library persistence failed after 3 retries",
+            lastErr,
+          );
+          try {
+            Alert.alert(t("documents.title"), t("documents.errorSave"));
+          } catch {
+            /* Alert unavailable (tests / headless) — warn already logged */
+          }
+        }
+      };
+      pendingSavePromiseRef.current = pendingSavePromiseRef.current
+        .then(run, run)
+        .catch(() => undefined);
+    },
+    [t],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -702,8 +764,8 @@ export function AppShell() {
       if (!nextIds.has(id)) docDenseReasonByIdRef.current.delete(id);
     }
     setDocumentLibrary(next);
-    void saveLibraryState(getDefaultLibraryStorage(), next).catch(() => undefined);
-  }, []);
+    enqueueLibrarySave(next);
+  }, [enqueueLibrarySave]);
 
   /**
    * AppShell-owned document delete. Shared docOpGate DELETE + FS delete + index
@@ -725,6 +787,10 @@ export function AppShell() {
       if (doc?.fileUri) {
         await deleteOwnedFile(doc.fileUri);
       }
+      // Drop durable page-1 cover JPEG (owned under kalsa-covers/).
+      if (doc?.previewUri) {
+        await deleteOwnedFile(doc.previewUri);
+      }
       // Drop durable dense-vector sidecar alongside the owned file.
       await deleteVectorIndexFile(id);
       // Drop retrieval + semantic indexes for this id (best-effort; functional
@@ -743,17 +809,15 @@ export function AppShell() {
       setDocumentLibrary((prev) => ({
         docs: (prev.docs ?? []).filter((d) => d.id !== id),
       }));
-      void saveLibraryState(getDefaultLibraryStorage(), next).catch(
-        () => undefined,
-      );
+      enqueueLibrarySave(next);
       return true;
     } finally {
       releaseDelete();
     }
-  }, [bumpEmbedJobGeneration]);
+  }, [bumpEmbedJobGeneration, enqueueLibrarySave]);
 
   /**
-   * AppShell-owned document add (import commit).
+   * AppShell-owned document add (import commit). Prepends (new-on-top).
    * Invariant: every library mutation (add + delete) is owned by AppShell,
    * applied against current ref state with a functional updater; screens never
    * merge snapshots. A screen-captured `library` prop must not re-add a doc
@@ -767,22 +831,71 @@ export function AppShell() {
     if (isDeleteActive()) return false;
     libraryMutationRef.current += 1;
     // Atomic commit against CURRENT state — never a screen-captured snapshot.
+    // Prepend: newest import sits at the top of the list (CRIT-3).
     const next: LibraryState = {
-      docs: [...(documentLibraryRef.current.docs ?? []), entry],
+      docs: [entry, ...(documentLibraryRef.current.docs ?? [])],
     };
     documentLibraryRef.current = next;
     // Functional updater is the authoritative React commit.
     setDocumentLibrary((prev) => ({
-      docs: [...(prev.docs ?? []), entry],
+      docs: [entry, ...(prev.docs ?? [])],
     }));
-    void saveLibraryState(getDefaultLibraryStorage(), next).catch(
-      () => undefined,
-    );
+    enqueueLibrarySave(next);
     // Background incremental embed (post-import, never blocks chat).
     // Single-flight; silent skip when embedder missing / load fails.
     void scheduleBackgroundEmbed(entry);
     return true;
-  }, []);
+  }, [enqueueLibrarySave]);
+
+  /**
+   * Reorder library docs by id permutation. Malformed orderedIds are a no-op
+   * (reorderDocs pure contract). Persistence goes through the FIFO queue.
+   */
+  const reorderDocuments = useCallback(
+    (orderedIds: string[]): void => {
+      if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
+      if (isDeleteActive()) return;
+      const prev = documentLibraryRef.current;
+      const next = reorderDocs(prev, orderedIds);
+      // No-op when pure helper refused OR order already matches (same ids).
+      const prevIds = (prev.docs ?? []).map((d) => d.id).join("\0");
+      const nextIds = (next.docs ?? []).map((d) => d.id).join("\0");
+      if (prevIds === nextIds) return;
+      libraryMutationRef.current += 1;
+      documentLibraryRef.current = next;
+      setDocumentLibrary(next);
+      enqueueLibrarySave(next);
+    },
+    [enqueueLibrarySave],
+  );
+
+  /**
+   * Commit a durable cover URI onto an existing library entry. Refuses when
+   * the doc is gone (generation / delete race). Functional updater + queue.
+   */
+  const updateDocumentPreview = useCallback(
+    (id: string, previewUri: string): void => {
+      if (!id || typeof id !== "string" || id.length === 0) return;
+      if (!previewUri || typeof previewUri !== "string") return;
+      if (isDeleteActive()) return;
+      const current = documentLibraryRef.current;
+      if (!(current.docs ?? []).some((d) => d.id === id)) return;
+      libraryMutationRef.current += 1;
+      const next: LibraryState = {
+        docs: (current.docs ?? []).map((d) =>
+          d.id === id ? { ...d, previewUri } : d,
+        ),
+      };
+      documentLibraryRef.current = next;
+      setDocumentLibrary((prev) => ({
+        docs: (prev.docs ?? []).map((d) =>
+          d.id === id ? { ...d, previewUri } : d,
+        ),
+      }));
+      enqueueLibrarySave(next);
+    },
+    [enqueueLibrarySave],
+  );
 
   const isDocumentDeleteInFlight = useCallback(() => isDeleteActive(), []);
 
@@ -3751,6 +3864,8 @@ export function AppShell() {
           library={documentLibrary}
           onAddDocument={addDocument}
           onDeleteDocument={deleteDocument}
+          onReorderDocuments={reorderDocuments}
+          onUpdateDocumentPreview={updateDocumentPreview}
           isDocumentDeleteInFlight={isDocumentDeleteInFlight}
           onBack={() => setActiveOverlay(null)}
         />
@@ -3807,6 +3922,7 @@ export function AppShell() {
     </View>
       {/* Sibling of the fontScale-keyed tree — never remounts on text-size change. */}
       <PdfTextExtractorHost />
+      <DocumentCoverHost />
     </View>
   );
 }

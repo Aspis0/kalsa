@@ -9,6 +9,8 @@
 
 import * as FileSystem from "expo-file-system/legacy";
 
+import { makePreviewSnippet } from "./DocumentLibrary";
+
 /**
  * Hard size caps before extraction / full-text read.
  * PDF 50 MiB: upper bound for on-device page extract without OOMing mid-tier phones.
@@ -52,7 +54,9 @@ export function normalizeUriPath(uri: string): string {
 
 /**
  * Pure ownership predicate: after path normalization, fileUri must START WITH
- * the canonical library prefix (normalized baseDir + "kalsa-documents/").
+ * a canonical owned prefix under documentDirectory:
+ *   - kalsa-documents/  (library files + vector sidecars)
+ *   - kalsa-covers/     (page-1 cover JPEGs)
  * baseDir is the durable root (documentDirectory), NOT the library subfolder.
  * Traversal / backslash spoofing is rejected via normalizeUriPath.
  * Exported for harness coverage.
@@ -67,12 +71,19 @@ export function isOwnedDocumentUri(
   const normBase = normalizeUriPath(baseDir);
   if (!normUri || !normBase) return false;
   const basePrefix = normBase.endsWith("/") ? normBase : `${normBase}/`;
-  const canonicalPrefix = `${basePrefix}kalsa-documents/`;
-  // Exact library dir or a file/dir under it.
-  return (
-    normUri === canonicalPrefix.slice(0, -1) ||
-    normUri.startsWith(canonicalPrefix)
-  );
+  const ownedPrefixes = [
+    `${basePrefix}kalsa-documents/`,
+    `${basePrefix}kalsa-covers/`,
+  ];
+  for (const canonicalPrefix of ownedPrefixes) {
+    if (
+      normUri === canonicalPrefix.slice(0, -1) ||
+      normUri.startsWith(canonicalPrefix)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -116,6 +127,15 @@ export function documentsDir(): string {
   return `${base}kalsa-documents/`;
 }
 
+/** Durable cover JPEG directory under documentDirectory/kalsa-covers/. */
+export function coversDir(): string {
+  const base = FileSystem.documentDirectory;
+  if (!base) {
+    throw new Error("NO_DOCUMENT_DIRECTORY");
+  }
+  return `${base}kalsa-covers/`;
+}
+
 export async function ensureDocumentsDir(): Promise<string> {
   const dir = documentsDir();
   try {
@@ -124,6 +144,26 @@ export async function ensureDocumentsDir(): Promise<string> {
     /* exists */
   }
   return dir;
+}
+
+export async function ensureCoversDir(): Promise<string> {
+  const dir = coversDir();
+  try {
+    await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+  } catch {
+    /* exists */
+  }
+  return dir;
+}
+
+/** Absolute durable path for a page-1 cover JPEG. Throws if no documentDirectory. */
+export function coverPath(docId: string): string {
+  if (!docId || typeof docId !== "string") {
+    throw new Error("coverPath: docId required");
+  }
+  const safe = docId.replace(/[^A-Za-z0-9._-]/g, "_");
+  if (!safe) throw new Error("coverPath: empty safe id");
+  return `${coversDir()}${safe}.jpg`;
 }
 
 export async function copyToOwnedStorage(
@@ -301,5 +341,47 @@ export async function deleteVectorIndexFile(docId: string): Promise<void> {
     await deleteOwnedFile(path);
   } catch {
     /* best-effort */
+  }
+}
+
+/**
+ * Lazy-read a TXT library entry prefix and return a 200-code-point preview
+ * snippet (or null). Used by detail view on open — never stored in library
+ * JSON (Q5 final). Reads the full file then slices the first 4 KB of text;
+ * partial UTF-8 reads are not supported by expo-file-system EncodingType.UTF8.
+ */
+export async function readPreviewSnippet(doc: {
+  kind?: string;
+  fileUri?: string;
+}): Promise<string | null> {
+  try {
+    if (!doc || doc.kind !== "txt") return null;
+    const uri = doc.fileUri;
+    if (!uri || typeof uri !== "string") return null;
+    let raw = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    if (typeof raw !== "string" || raw.length === 0) return null;
+    // Reject binary-looking content (NUL in prefix).
+    if (raw.includes("\u0000")) return null;
+    if (raw.length > 4096) raw = raw.slice(0, 4096);
+    // HTML-ish → strip tags lightly (same heuristic as import path).
+    const looksHtml = /<\/?[a-z][\s\S]*>/i.test(raw.slice(0, 512));
+    let plain = raw;
+    if (looksHtml) {
+      plain = raw
+        .replace(/<script[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style[\s\S]*?<\/style>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/\s+/g, " ");
+    }
+    const snip = makePreviewSnippet(plain);
+    return snip ?? null;
+  } catch {
+    return null;
   }
 }

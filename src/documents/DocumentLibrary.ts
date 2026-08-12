@@ -56,6 +56,11 @@ export type LibraryDoc = {
    * from timeout/renderer/fs failures (must NOT route to vision_fallback).
    */
   extractionStatus?: ExtractionStatus;
+  /**
+   * Durable page-1 cover JPEG under documentDirectory/kalsa-covers/.
+   * Optional; missing on legacy entries and TXT/MD. Never points at cacheDirectory.
+   */
+  previewUri?: string;
 };
 
 export type LibraryState = {
@@ -86,8 +91,8 @@ export function emptyLibraryState(): LibraryState {
 }
 
 /**
- * Pure add — replaces an existing entry with the same id, otherwise appends.
- * Does not mutate `state`.
+ * Pure add — replaces an existing entry with the same id, otherwise prepends
+ * (new-on-top). Does not mutate `state`.
  */
 export function addDoc(state: LibraryState, doc: LibraryDoc): LibraryState {
   const docs = Array.isArray(state?.docs) ? state.docs : [];
@@ -95,8 +100,143 @@ export function addDoc(state: LibraryState, doc: LibraryDoc): LibraryState {
     return { docs: docs.slice() };
   }
   const next = docs.filter((d) => d.id !== doc.id);
-  next.push(sanitizeDoc(doc));
+  next.unshift(sanitizeDoc(doc));
   return { docs: next };
+}
+
+/**
+ * Pure reorder. `orderedIds` must be an exact permutation of current doc ids
+ * (same length, same elements, no duplicates). Malformed input returns the
+ * unchanged state — never drops or duplicates a document. Does not mutate
+ * `state` and never rewrites `addedAt`.
+ */
+export function reorderDocs(
+  state: LibraryState,
+  orderedIds: string[],
+): LibraryState {
+  const docs = Array.isArray(state?.docs) ? state.docs : [];
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    return { docs: docs.slice() };
+  }
+  if (orderedIds.length !== docs.length) {
+    return { docs: docs.slice() };
+  }
+  const seen = new Set<string>();
+  for (const id of orderedIds) {
+    if (typeof id !== "string" || id.length === 0) {
+      return { docs: docs.slice() };
+    }
+    if (seen.has(id)) {
+      return { docs: docs.slice() };
+    }
+    seen.add(id);
+  }
+  const byId = new Map<string, LibraryDoc>();
+  for (const d of docs) {
+    byId.set(d.id, d);
+  }
+  if (byId.size !== docs.length) {
+    // Defensive: duplicate ids already in state — refuse reorder.
+    return { docs: docs.slice() };
+  }
+  const next: LibraryDoc[] = [];
+  for (const id of orderedIds) {
+    const d = byId.get(id);
+    if (!d) {
+      return { docs: docs.slice() };
+    }
+    next.push(d);
+  }
+  return { docs: next };
+}
+
+/**
+ * Cap plain text at 200 Unicode code points for list/detail previews.
+ * Trims, strips NULs, cuts on a code-point boundary. Empty / whitespace-only
+ * → undefined (caller shows placeholder).
+ */
+export function makePreviewSnippet(plainText: string): string | undefined {
+  if (typeof plainText !== "string") return undefined;
+  // Strip NULs so binary leakage never reaches UI copy.
+  const cleaned = plainText.replace(/\u0000/g, "");
+  const trimmed = cleaned.trim();
+  if (!trimmed) return undefined;
+  const chars = Array.from(trimmed);
+  if (chars.length <= 200) return chars.join("");
+  return chars.slice(0, 200).join("");
+}
+
+/**
+ * Locale-aware byte size for list/detail meta (Italian "1,4 MB", English "1.4 MB").
+ * Uses decimal (1000) units to match user-facing storage labels.
+ */
+export function formatBytesLocalized(
+  bytes: number,
+  locale: string = "en",
+): string {
+  const n =
+    typeof bytes === "number" && Number.isFinite(bytes) && bytes >= 0
+      ? bytes
+      : 0;
+  const loc = locale && locale.toLowerCase().startsWith("it") ? "it-IT" : "en-US";
+  const fmt = (value: number, fractionDigits: number) =>
+    new Intl.NumberFormat(loc, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: fractionDigits,
+    }).format(value);
+  if (n < 1000) return `${fmt(Math.floor(n), 0)} B`;
+  if (n < 1_000_000) {
+    const kb = n / 1000;
+    return `${fmt(kb, kb < 10 ? 1 : 0)} KB`;
+  }
+  if (n < 1_000_000_000) {
+    const mb = n / 1_000_000;
+    return `${fmt(mb, mb < 10 ? 1 : 0)} MB`;
+  }
+  const gb = n / 1_000_000_000;
+  return `${fmt(gb, gb < 10 ? 1 : 0)} GB`;
+}
+
+/**
+ * Calendar-date bucket for "Added today / yesterday / {date}" labels.
+ * Uses local timezone midnight boundaries (not elapsed 24h).
+ */
+export function formatAddedBucket(
+  addedAt: number,
+  nowMs: number = Date.now(),
+): "today" | "yesterday" | "older" {
+  const added =
+    typeof addedAt === "number" && Number.isFinite(addedAt) ? addedAt : nowMs;
+  const now = typeof nowMs === "number" && Number.isFinite(nowMs) ? nowMs : Date.now();
+  const startOfLocalDay = (ms: number): number => {
+    const d = new Date(ms);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  };
+  const today0 = startOfLocalDay(now);
+  const added0 = startOfLocalDay(added);
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (added0 === today0) return "today";
+  if (added0 === today0 - dayMs) return "yesterday";
+  return "older";
+}
+
+/** Format an absolute short date for the "Added {date}" fallback. */
+export function formatAddedDate(
+  addedAt: number,
+  locale: string = "en",
+): string {
+  const ms =
+    typeof addedAt === "number" && Number.isFinite(addedAt) ? addedAt : Date.now();
+  const loc = locale && locale.toLowerCase().startsWith("it") ? "it-IT" : "en-US";
+  try {
+    return new Intl.DateTimeFormat(loc, {
+      day: "numeric",
+      month: "short",
+    }).format(new Date(ms));
+  } catch {
+    return new Date(ms).toLocaleDateString();
+  }
 }
 
 /**
@@ -311,6 +451,9 @@ function sanitizeDoc(doc: LibraryDoc): LibraryDoc {
   ) {
     out.extractionStatus = doc.extractionStatus;
   }
+  if (typeof doc.previewUri === "string" && doc.previewUri.length > 0) {
+    out.previewUri = doc.previewUri;
+  }
   return out;
 }
 
@@ -341,5 +484,8 @@ function tryParseDoc(item: unknown): LibraryDoc | null {
     estimatedTokens:
       typeof o.estimatedTokens === "number" ? o.estimatedTokens : undefined,
     ...(extractionStatus ? { extractionStatus } : {}),
+    ...(typeof o.previewUri === "string" && o.previewUri.length > 0
+      ? { previewUri: o.previewUri }
+      : {}),
   });
 }
