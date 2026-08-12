@@ -728,6 +728,11 @@ capture_turn_evidence() {
   grep -F "KALSA_SUMMARY " "$buf" 2>/dev/null \
     | sed 's/.*KALSA_SUMMARY //' > "$tdir/summary.jsonl" 2>/dev/null || : > "$tdir/summary.jsonl"
 
+  # toolcall.jsonl — per-round tool-call counters (KALSA_TOOLCALL). Always write
+  # the file (empty when none) so absent-file vs empty-capture stay distinguishable.
+  grep -F "KALSA_TOOLCALL " "$buf" 2>/dev/null \
+    | sed 's/.*KALSA_TOOLCALL //' > "$tdir/toolcall.jsonl" 2>/dev/null || : > "$tdir/toolcall.jsonl"
+
   {
     grep -F "Input processed: n_past=" "$buf" 2>/dev/null || true
     grep -F "restored state checkpoint: reusing" "$buf" 2>/dev/null || true

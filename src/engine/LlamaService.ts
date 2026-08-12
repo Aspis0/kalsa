@@ -38,10 +38,16 @@ import { applyEngineOverride } from "./engineParams";
 import { detectThreadCount } from "./threadProfile";
 import {
   createToolCallDeltaStripper,
+  LFM_TOOL_CALL_START,
   parseFallbackToolCalls,
   stripToolCallTagsFinal,
+  TOOL_CALL_OPEN,
 } from "./toolCallParser";
 import { createThinkStreamCleaner } from "./thinkStream";
+import {
+  formatToolCallLine,
+  type ToolRoundTelemetry,
+} from "./toolCallTelemetry";
 import {
   formatTelemetryLine,
   roundTelemetryFromResult,
@@ -412,6 +418,15 @@ function emitTurnTelemetry(
   try {
     const r = roundTelemetryFromResult(result, round);
     console.log(formatTelemetryLine(turnId, r));
+  } catch {
+    // Telemetry must never break a turn.
+  }
+}
+
+/** Emit one KALSA_TOOLCALL line. Must never throw out of a turn. */
+function emitToolCallTelemetry(turnId: string, r: ToolRoundTelemetry): void {
+  try {
+    console.log(formatToolCallLine(turnId, r));
   } catch {
     // Telemetry must never break a turn.
   }
@@ -1084,6 +1099,23 @@ function parseToolArguments(raw: string | undefined): {
   }
 }
 
+/** namesValid / argsParsed over every emitted call (vacuous true if none). */
+function emittedCallShape(
+  calls: Array<{ function?: { name?: string; arguments?: string } }>,
+  tools: EngineTool[] | undefined,
+): { namesValid: boolean; argsParsed: boolean } {
+  const known = new Set((tools ?? []).map((t) => t.function.name));
+  let namesValid = true;
+  let argsParsed = true;
+  for (const call of calls) {
+    if (!known.has(call.function?.name ?? "")) namesValid = false;
+    const raw =
+      typeof call.function?.arguments === "string" ? call.function.arguments : undefined;
+    if (parseToolArguments(raw).parseFailed) argsParsed = false;
+  }
+  return { namesValid, argsParsed };
+}
+
 /** Trasforma il messaggio user corrente in parts, con le immagini come image_url. */
 function buildUserMessage(message: EngineMessage): RNLlamaOAICompatibleMessage {
   const images = (message.images ?? []).slice(0, MAX_IMAGES_PER_TURN);
@@ -1491,22 +1523,51 @@ export async function streamAssistantTurn(
           return;
         }
 
+        const structuredCalls = result.tool_calls?.length ?? 0;
+        const toolChoice = hasTools ? (textOnlyRound ? "none" : "auto") : "none";
         let toolCalls = result.tool_calls ?? [];
+        let fallbackCalls = 0;
+        let fallbackDialect: ToolRoundTelemetry["fallbackDialect"] = "none";
         // Fallback dialect: the binding found no structured tool_calls, but the
         // raw text may still contain a literal <tool_call>...</tool_call> block
         // (see toolCallParser.ts). Parse it and feed it through the SAME
         // execution path below (round cap, skipped-call bookkeeping, tool-result
         // rule all still apply) instead of showing the markup / an empty reply.
         if (!toolCalls.length && options?.executeTool) {
-          const fallbacks = parseFallbackToolCalls(extractRawResultText(result));
+          const rawText = extractRawResultText(result);
+          const fallbacks = parseFallbackToolCalls(rawText);
+          fallbackCalls = fallbacks.length;
           if (fallbacks.length) {
+            // Same precedence as parseFallbackToolCalls: LFM marker wins.
+            fallbackDialect = rawText.includes(LFM_TOOL_CALL_START)
+              ? "lfm"
+              : rawText.includes(TOOL_CALL_OPEN)
+                ? "qwen"
+                : "openai";
             toolCalls = fallbacks.map((fallback) => ({
               type: "function" as const,
               function: { name: fallback.name, arguments: JSON.stringify(fallback.arguments) },
             }));
           }
         }
+        const shape = emittedCallShape(toolCalls, options?.tools);
+        const toolTel: ToolRoundTelemetry = {
+          round,
+          toolChoice,
+          structuredCalls,
+          fallbackCalls,
+          fallbackDialect,
+          executed: 0,
+          skippedCap: 0,
+          skippedDup: 0,
+          skippedFailedRepeat: 0,
+          failed: 0,
+          blockedPrivacy: 0,
+          namesValid: shape.namesValid,
+          argsParsed: shape.argsParsed,
+        };
         if (!toolCalls.length || !options?.executeTool) {
+          emitToolCallTelemetry(turnId, toolTel);
           emitFinalText(result);
           return;
         }
@@ -1533,6 +1594,7 @@ export async function streamAssistantTurn(
         }));
         const executableCalls = normalizedCalls.slice(0, 2);
         const skippedCalls = normalizedCalls.slice(2);
+        toolTel.skippedCap = skippedCalls.length;
         const executed: Array<{
           call: (typeof normalizedCalls)[number];
           content: string;
@@ -1569,12 +1631,14 @@ export async function streamAssistantTurn(
             continue;
           }
           if (decision.action === "skip_dup") {
+            toolTel.skippedDup += 1;
             toolContent = formatToolResultContent(TOOL_CALL_DUP_MESSAGE);
             executed.push({ call, content: toolContent });
             continue;
           }
           if (decision.action === "skip_failed_repeat") {
             // Two failures of this key already — do not re-execute; force synthesis.
+            toolTel.skippedFailedRepeat += 1;
             toolContent = formatToolResultContent(TOOL_CALL_FAILED_REPEAT_MESSAGE);
             forceTextOnly = true;
             executed.push({ call, content: toolContent });
@@ -1588,6 +1652,12 @@ export async function streamAssistantTurn(
 
           try {
             const outcome = await options.executeTool(name, args, signal, lastUserMessageText);
+            toolTel.executed += 1;
+            // Error identity from webSearchTool (strings.errors.webSearchPrivacyBlocked),
+            // not a match on user-visible copy.
+            if (outcome.text === strings.errors.webSearchPrivacyBlocked) {
+              toolTel.blockedPrivacy += 1;
+            }
             // Only successful runs land in the de-dupe set (failures remain retryable once).
             recordToolSuccess(toolExecState, decision.key);
             if (name === "web_search") {
@@ -1617,6 +1687,8 @@ export async function streamAssistantTurn(
               webProvenance: name === "web_search" || name === "web_fetch",
             });
           } catch (error) {
+            toolTel.executed += 1;
+            toolTel.failed += 1;
             // Failures still consume the per-turn budget; key failCount incremented.
             recordToolFailure(toolExecState, decision.key);
             callbacks.onStatus?.({ label: strings.chat.toolFailed });
@@ -1628,7 +1700,10 @@ export async function streamAssistantTurn(
               ),
             );
           }
-          if (bailIfStopped()) return;
+          if (bailIfStopped()) {
+            emitToolCallTelemetry(turnId, toolTel);
+            return;
+          }
 
           executed.push({ call, content: toolContent });
         }
@@ -1636,6 +1711,7 @@ export async function streamAssistantTurn(
           call,
           content: strings.errors.toolError.replace("{message}", TOOL_CALL_SKIPPED_MESSAGE),
         }));
+        emitToolCallTelemetry(turnId, toolTel);
 
         // Executed tool-role results already include use-rule (+ trunc marker) within budget.
         // Skipped messages stay as-is (already a skip reason).

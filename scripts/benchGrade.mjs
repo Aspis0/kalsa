@@ -12,8 +12,9 @@
  * Text primitives and family graders live in benchGraders.mjs.
  *
  * Sidecar evidence (same dir as raw.json): turn<N>/telemetry.jsonl,
- * turn<N>/summary.jsonl, turn<N>/loadprompt.txt, turn<N>/prompt_meta.txt,
- * turn<N>/compactor_state.json. Missing → nulls/empty, never throw.
+ * turn<N>/summary.jsonl, turn<N>/toolcall.jsonl, turn<N>/loadprompt.txt,
+ * turn<N>/prompt_meta.txt, turn<N>/compactor_state.json.
+ * Missing → nulls/empty, never throw.
  *
  * Usage:
  *   node scripts/benchGrade.mjs bench-out/raw.json > bench-out/result.json
@@ -521,6 +522,81 @@ function findCaptureFailedTurns(baseDir, turns) {
   return failed;
 }
 
+/**
+ * Parse turn<N>/toolcall.jsonl (KALSA_TOOLCALL counters). Missing / unreadable
+ * / empty → []. Never throw. Each line is one tool-round object.
+ */
+function readToolRounds(turnDir) {
+  const file = path.join(turnDir, "toolcall.jsonl");
+  if (!existsSync(file)) return [];
+  let raw;
+  try {
+    raw = readFileSync(file, "utf8");
+  } catch {
+    return [];
+  }
+  const rounds = [];
+  for (const line of raw.split("\n")) {
+    const t = line.trim();
+    if (!t) continue;
+    try {
+      const obj = JSON.parse(t);
+      if (obj && typeof obj === "object") rounds.push(obj);
+    } catch {
+      // skip unparseable lines
+    }
+  }
+  return rounds;
+}
+
+function emptyToolAggregates() {
+  return {
+    emittedAnyToolCall: false,
+    firstTryValid: false,
+    recoveredByFallback: 0,
+    toolCallsSkipped: 0,
+    toolCallsFailed: 0,
+    privacyBlocks: 0,
+  };
+}
+
+/**
+ * Per-arm aggregates from per-turn toolRounds.
+ * firstTryValid: a turn whose first recorded round had ≥1 structured call,
+ * namesValid && argsParsed, and no fallback.
+ */
+function aggregateToolRounds(roundsByTurn) {
+  const out = emptyToolAggregates();
+  for (const rounds of roundsByTurn) {
+    if (!Array.isArray(rounds) || rounds.length === 0) continue;
+    const sorted = [...rounds].sort(
+      (a, b) => (Number(a.round) || 0) - (Number(b.round) || 0),
+    );
+    for (const r of rounds) {
+      const emitted = (r.structuredCalls ?? 0) + (r.fallbackCalls ?? 0);
+      if (emitted >= 1) out.emittedAnyToolCall = true;
+      out.recoveredByFallback += Number(r.fallbackCalls) || 0;
+      out.toolCallsSkipped +=
+        (Number(r.skippedCap) || 0) +
+        (Number(r.skippedDup) || 0) +
+        (Number(r.skippedFailedRepeat) || 0);
+      out.toolCallsFailed += Number(r.failed) || 0;
+      out.privacyBlocks += Number(r.blockedPrivacy) || 0;
+    }
+    const first = sorted[0];
+    if (
+      first &&
+      (first.structuredCalls ?? 0) >= 1 &&
+      first.namesValid === true &&
+      first.argsParsed === true &&
+      (first.fallbackCalls ?? 0) === 0
+    ) {
+      out.firstTryValid = true;
+    }
+  }
+  return out;
+}
+
 function mean(nums) {
   if (nums.length === 0) return null;
   return nums.reduce((a, b) => a + b, 0) / nums.length;
@@ -652,6 +728,20 @@ function gradeRaw(raw, baseDir) {
   } = readSummaryEvents(baseDir, turns);
   const captureFailedTurns = findCaptureFailedTurns(baseDir, turns);
 
+  const toolRoundsPerTurn = turns.map((t) =>
+    t.index == null
+      ? []
+      : readToolRounds(path.join(baseDir, `turn${t.index}`)),
+  );
+  const {
+    emittedAnyToolCall,
+    firstTryValid,
+    recoveredByFallback,
+    toolCallsSkipped,
+    toolCallsFailed,
+    privacyBlocks,
+  } = aggregateToolRounds(toolRoundsPerTurn);
+
   const turnMetrics = turns.map((t) => metricsForTurn(baseDir, t.index));
 
   // contextFullTurns / errorTurns: product signals the harness used to ignore.
@@ -724,11 +814,15 @@ function gradeRaw(raw, baseDir) {
       builtAtUserTurn: csTurn.builtAtUserTurn,
       digestChars: csTurn.digestChars,
       summaryChars: csTurn.summaryChars,
+      toolRounds: toolRoundsPerTurn[i],
       ...metrics,
     };
   });
 
-  const { probes, notes: probeNotes } = gradeAllProbes(turns, facts);
+  const { probes, notes: probeNotes } = gradeAllProbes(
+    turns.map((t, i) => ({ ...t, toolRounds: toolRoundsPerTurn[i] })),
+    facts,
+  );
   const byFamily = familyStats(probes);
 
   // Untagged reasoning leaked as the reply (run 31367691176). Do NOT change
@@ -833,6 +927,12 @@ function gradeRaw(raw, baseDir) {
     summaryEventsByTurn,
     summaryReachedLlm,
     summaryPromotedChars,
+    emittedAnyToolCall,
+    firstTryValid,
+    recoveredByFallback,
+    toolCallsSkipped,
+    toolCallsFailed,
+    privacyBlocks,
     model: raw.model ?? null,
     fillerRotation: raw.fillerRotation ?? null,
     historyChars: raw.historyChars ?? null,

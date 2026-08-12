@@ -72,7 +72,7 @@ function turn(index, id, reply, extra = {}) {
   };
 }
 
-function writeSidecar(dir, turnIndex, { telemetry, loadprompt, promptMeta } = {}) {
+function writeSidecar(dir, turnIndex, { telemetry, loadprompt, promptMeta, toolcall } = {}) {
   const tdir = path.join(dir, `turn${turnIndex}`);
   mkdirSync(tdir, { recursive: true });
   if (telemetry !== undefined) {
@@ -87,6 +87,43 @@ function writeSidecar(dir, turnIndex, { telemetry, loadprompt, promptMeta } = {}
   if (promptMeta !== undefined) {
     writeFileSync(path.join(tdir, "prompt_meta.txt"), promptMeta);
   }
+  if (toolcall !== undefined) {
+    const lines = Array.isArray(toolcall)
+      ? toolcall.map((o) => JSON.stringify(o)).join("\n") + "\n"
+      : String(toolcall);
+    writeFileSync(path.join(tdir, "toolcall.jsonl"), lines);
+  }
+}
+
+function toolRound(overrides = {}) {
+  return {
+    turnId: "1",
+    round: 0,
+    toolChoice: "auto",
+    structuredCalls: 0,
+    fallbackCalls: 0,
+    fallbackDialect: "none",
+    executed: 0,
+    skippedCap: 0,
+    skippedDup: 0,
+    skippedFailedRepeat: 0,
+    failed: 0,
+    blockedPrivacy: 0,
+    namesValid: true,
+    argsParsed: true,
+    ...overrides,
+  };
+}
+
+function zerosToolAgg(r) {
+  return (
+    r.emittedAnyToolCall === false &&
+    r.firstTryValid === false &&
+    r.recoveredByFallback === 0 &&
+    r.toolCallsSkipped === 0 &&
+    r.toolCallsFailed === 0 &&
+    r.privacyBlocks === 0
+  );
 }
 
 function writeRaw(dir, raw) {
@@ -1536,6 +1573,128 @@ async function main() {
         "reasoning leak: honesty found logic unchanged (still false)",
         findProbe(rLeak, "honesty")?.found === false,
         `got ${findProbe(rLeak, "honesty")?.found}`,
+      );
+    }
+
+    // ── toolcall.jsonl sidecar + tool_call_emitted family ──────────────
+    {
+      const gradeToolcase = (label, toolcall, extra = {}) => {
+        const d = path.join(tmp, `tc-${label}`);
+        mkdirSync(d, { recursive: true });
+        const raw = baseRaw({
+          turns: [turn(1, "probe_tool", extra.reply ?? "ok", { sources: extra.sources ?? 0 })],
+        });
+        writeSidecar(d, 1, { toolcall });
+        return gradeRaw(raw, d);
+      };
+
+      const none = gradeToolcase("none", [toolRound()]);
+      check(
+        "toolcall: no calls at all",
+        zerosToolAgg(none) &&
+          findProbe(none, "tool_call")?.found === false &&
+          findProbe(none, "tool_call_emitted")?.found === false,
+        `agg=${JSON.stringify({
+          e: none.emittedAnyToolCall,
+          f: none.firstTryValid,
+          r: none.recoveredByFallback,
+          s: none.toolCallsSkipped,
+          fail: none.toolCallsFailed,
+          p: none.privacyBlocks,
+        })} emitted=${findProbe(none, "tool_call_emitted")?.found}`,
+      );
+
+      const clean = gradeToolcase("clean", [
+        toolRound({ structuredCalls: 1, executed: 1 }),
+      ]);
+      check(
+        "toolcall: one clean structured call",
+        clean.emittedAnyToolCall === true &&
+          clean.firstTryValid === true &&
+          clean.recoveredByFallback === 0 &&
+          clean.toolCallsSkipped === 0 &&
+          clean.toolCallsFailed === 0 &&
+          clean.privacyBlocks === 0 &&
+          findProbe(clean, "tool_call")?.found === false &&
+          findProbe(clean, "tool_call_emitted")?.found === true,
+        `agg firstTry=${clean.firstTryValid} emitted=${findProbe(clean, "tool_call_emitted")?.found}`,
+      );
+
+      const fb = gradeToolcase("fallback", [
+        toolRound({
+          structuredCalls: 0,
+          fallbackCalls: 1,
+          fallbackDialect: "qwen",
+          executed: 1,
+        }),
+      ]);
+      check(
+        "toolcall: malformed call recovered by fallback",
+        fb.emittedAnyToolCall === true &&
+          fb.firstTryValid === false &&
+          fb.recoveredByFallback === 1 &&
+          fb.toolCallsSkipped === 0 &&
+          fb.toolCallsFailed === 0 &&
+          fb.privacyBlocks === 0 &&
+          findProbe(fb, "tool_call_emitted")?.found === true,
+        `agg rec=${fb.recoveredByFallback} firstTry=${fb.firstTryValid}`,
+      );
+
+      const cap = gradeToolcase("cap", [
+        toolRound({ structuredCalls: 3, executed: 2, skippedCap: 1 }),
+      ]);
+      check(
+        "toolcall: call skipped by the cap",
+        cap.emittedAnyToolCall === true &&
+          cap.firstTryValid === true &&
+          cap.recoveredByFallback === 0 &&
+          cap.toolCallsSkipped === 1 &&
+          cap.toolCallsFailed === 0 &&
+          cap.privacyBlocks === 0,
+        `skipped=${cap.toolCallsSkipped}`,
+      );
+
+      const dup = gradeToolcase("dup", [
+        toolRound({ structuredCalls: 1, executed: 0, skippedDup: 1 }),
+      ]);
+      check(
+        "toolcall: dup skip",
+        dup.emittedAnyToolCall === true &&
+          dup.firstTryValid === true &&
+          dup.recoveredByFallback === 0 &&
+          dup.toolCallsSkipped === 1 &&
+          dup.toolCallsFailed === 0 &&
+          dup.privacyBlocks === 0,
+        `skipped=${dup.toolCallsSkipped}`,
+      );
+
+      const priv = gradeToolcase("privacy", [
+        toolRound({ structuredCalls: 1, executed: 1, blockedPrivacy: 1 }),
+      ]);
+      check(
+        "toolcall: privacy block",
+        priv.emittedAnyToolCall === true &&
+          priv.firstTryValid === true &&
+          priv.recoveredByFallback === 0 &&
+          priv.toolCallsSkipped === 0 &&
+          priv.toolCallsFailed === 0 &&
+          priv.privacyBlocks === 1,
+        `privacy=${priv.privacyBlocks}`,
+      );
+
+      const missDir = path.join(tmp, "tc-missing");
+      mkdirSync(missDir, { recursive: true });
+      const miss = gradeRaw(
+        baseRaw({ turns: [turn(1, "probe_tool", "ok", { sources: 0 })] }),
+        missDir,
+      );
+      check(
+        "toolcall: missing toolcall.jsonl yields zeros",
+        zerosToolAgg(miss) &&
+          Array.isArray(miss.turns?.[0]?.toolRounds) &&
+          miss.turns[0].toolRounds.length === 0 &&
+          findProbe(miss, "tool_call_emitted")?.found === false,
+        `agg e=${miss.emittedAnyToolCall} rounds=${JSON.stringify(miss.turns?.[0]?.toolRounds)}`,
       );
     }
   } finally {

@@ -298,6 +298,28 @@ function gradeToolProbe(turn) {
   };
 }
 
+/**
+ * Model-side complement of gradeToolProbe: did the model emit at least one
+ * well-formed call on this turn? Reads KALSA_TOOLCALL sidecar (turn.toolRounds).
+ * Can disagree with tool_call — that disagreement is the diagnosis.
+ */
+function gradeToolEmittedProbe(turn) {
+  const rounds = Array.isArray(turn.toolRounds) ? turn.toolRounds : [];
+  const found = rounds.some(
+    (r) =>
+      (r.structuredCalls ?? 0) + (r.fallbackCalls ?? 0) >= 1 &&
+      r.namesValid === true &&
+      r.argsParsed === true,
+  );
+  return {
+    name: "tool_call_emitted",
+    family: "tool_call_emitted",
+    turnIndex: turn.index,
+    expected: "well-formed tool call emitted",
+    found,
+  };
+}
+
 function gradeMiniappProbe(turn) {
   const parsed = parseMiniappFromText(turn.reply ?? "").miniapp;
   let found = false;
@@ -426,6 +448,7 @@ function gradeAllProbes(turns, facts) {
       const p = gradeToolProbe(turn);
       if (empty) p.found = null;
       probes.push(p);
+      probes.push(gradeToolEmittedProbe(turn));
     } else if (id === "probe_miniapp") {
       const p = gradeMiniappProbe(turn);
       if (empty) p.found = null;
