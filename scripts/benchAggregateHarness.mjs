@@ -253,6 +253,51 @@ function writeCompleteCampaign(
   }
 }
 
+/** Exploratory gate-off arm (compaction off, same cell as baseline). */
+function writeNogateArms(root, seeds, extra = {}) {
+  for (const seed of seeds) {
+    writeResult(
+      root,
+      "nogate",
+      seed,
+      baseResult({
+        arm: "nogate",
+        seed,
+        compaction: "off",
+        compactionPrefRaw: "0",
+        compactionActive: "off",
+        toolgate: "0",
+        toolPrecision: extra.toolPrecision ?? 0.25,
+        toolRecall: extra.toolRecall ?? 1,
+        spuriousCalls: extra.spuriousCalls ?? 3,
+        missedCalls: extra.missedCalls ?? 0,
+        privacyBlocks: extra.privacyBlocks ?? 1,
+        positiveControl: {
+          promptTokensByTurn: { "1": 800, "2": 900 },
+          reusedTokensByTurn: { "1": 0, "2": 100 },
+          completionsByTurn: { "1": 1, "2": 1 },
+          compactorChars: 0,
+          summaryChars: 0,
+        },
+      }),
+    );
+  }
+}
+
+/** nA/nB from the primary pairwise row (ciswire vs off | yes |). */
+function primaryPairNs(markdown) {
+  const row = markdown
+    .split("\n")
+    .find((l) => l.includes("ciswire vs off") && l.includes("| yes |"));
+  if (!row) return null;
+  const cells = row
+    .split("|")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  // label, yes, meanA, meanB, Δ, p, pHolm, nA, nB, floor, method
+  return { nA: cells[7], nB: cells[8] };
+}
+
 function withEnv(envPatch, fn) {
   const saved = {};
   for (const [k, v] of Object.entries(envPatch)) {
@@ -1831,6 +1876,82 @@ async function main() {
           /### Exploratory: tool-call timing/.test(markdown) &&
           /\| v42 \| n\/a \| n\/a \|/.test(markdown),
         `exit=${exitCode}\n${markdown.split("\n").filter((l) => /Exploratory|precision|^\| (off|v42|ciswire) \|/.test(l)).join("\n")}`,
+      );
+    }
+
+    // ── nogate is exploratory: no (mode, seed) collision with baseline ─
+    {
+      const seeds6 = [1, 2, 3, 4, 5, 6];
+      const without = path.join(tmp, "six-no-nogate");
+      mkdirSync(without, { recursive: true });
+      writeCompleteCampaign(without, { seeds: seeds6 });
+      const rWithout = withEnv(
+        { BENCH_EXPECT_SEEDS: "6", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([without]),
+      );
+
+      const withNg = path.join(tmp, "six-plus-nogate");
+      mkdirSync(withNg, { recursive: true });
+      writeCompleteCampaign(withNg, { seeds: seeds6 });
+      writeNogateArms(withNg, seeds6);
+      const rWith = withEnv(
+        { BENCH_EXPECT_SEEDS: "6", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([withNg]),
+      );
+      check(
+        "nogate + 3 modes × 6 seeds exits 0 (no duplicate cell)",
+        rWith.exitCode === 0,
+        `exit=${rWith.exitCode}\n${rWith.markdown.split("\n").filter((l) => /INCOMPLETE|Duplicate|Missing/i.test(l)).join("\n")}`,
+      );
+      const nsWith = primaryPairNs(rWith.markdown);
+      const nsWithout = primaryPairNs(rWithout.markdown);
+      check(
+        "primary n unchanged by adding nogate arms",
+        nsWith != null &&
+          nsWithout != null &&
+          nsWith.nA === nsWithout.nA &&
+          nsWith.nB === nsWithout.nB,
+        `with=${JSON.stringify(nsWith)} without=${JSON.stringify(nsWithout)}`,
+      );
+      check(
+        "exploratory section renders baseline vs nogate",
+        /baseline vs nogate/i.test(rWith.markdown) &&
+          /\| nogate \|/.test(rWith.markdown),
+        `snippet:\n${rWith.markdown.split("\n").filter((l) => /nogate|Gate A\/B|baseline \|/.test(l)).join("\n")}`,
+      );
+
+      check(
+        "missing nogate does not fail the run",
+        rWithout.exitCode === 0 &&
+          !/## INCOMPLETE/.test(rWithout.markdown),
+        `exit=${rWithout.exitCode}`,
+      );
+
+      const dupBase = path.join(tmp, "dup-baseline-with-nogate");
+      mkdirSync(dupBase, { recursive: true });
+      writeCompleteCampaign(dupBase, { seeds: seeds6 });
+      writeNogateArms(dupBase, seeds6);
+      const extra = path.join(
+        dupBase,
+        "bench-result-fase4-baseline-seed1-copy",
+      );
+      mkdirSync(extra, { recursive: true });
+      writeFileSync(
+        path.join(extra, "result.json"),
+        JSON.stringify(
+          baseResult({ arm: "baseline", seed: 1, compactionActive: "off" }),
+          null,
+          2,
+        ),
+      );
+      const rDup = withEnv(
+        { BENCH_EXPECT_SEEDS: "6", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([dupBase]),
+      );
+      check(
+        "genuine duplicate baseline still fails",
+        rDup.exitCode !== 0 && /Duplicate/i.test(rDup.markdown),
+        `exit=${rDup.exitCode}`,
       );
     }
   } finally {

@@ -16,7 +16,10 @@
  * present (modes: off / v42 / ciswire), compactionActive must match the mode
  * the matrix asked for, and identical prompt hashes across arms fail the run
  * — an A/B that assembles the same prompt is a broken experiment, not a null
- * result. Smoke is never gated.
+ * result. Exploratory arms whose `arm` is not a compaction mode (e.g. nogate)
+ * are excluded from this gate and from the primary comparison — they share
+ * compaction `off` with baseline and would otherwise duplicate a (mode, seed)
+ * cell. Smoke is never gated.
  *
  * Primary comparison is ciswire vs off (retrieval additive). Also reports
  * v42 vs off and ciswire vs v42. Three pairwise p-values are NOT corrected
@@ -463,6 +466,7 @@ function listFase4(results) {
  * @returns {"off"|"v42"|"ciswire"|null}
  */
 function modeOf(r) {
+  if (!isCompactionModeResult(r)) return null;
   const ca = r?.compactionActive;
   if (ca === "off" || ca === "v42" || ca === "ciswire") return ca;
   if (ca === true) return "v42";
@@ -482,6 +486,16 @@ function expectedModeForArm(arm) {
   const a = String(arm ?? "");
   if (Object.prototype.hasOwnProperty.call(ARM_TO_MODE, a)) return ARM_TO_MODE[a];
   return null;
+}
+
+/**
+ * Compaction-campaign observation? Field: `result.arm` (ci-bench writes
+ * raw.arm from the matrix `arm` key; benchGrade passes it through).
+ * Only ARM_TO_MODE labels occupy a (mode, seed) cell. Exploratory arms
+ * (nogate, future tool-axis) stay out — not a deny-list of names.
+ */
+function isCompactionModeResult(r) {
+  return expectedModeForArm(r.arm) != null;
 }
 
 /**
@@ -589,6 +603,7 @@ function findInvalidCompaction(fase4) {
 function findDuplicatePairs(fase4) {
   const map = new Map(); // key -> files[]
   for (const r of fase4) {
+    if (!isCompactionModeResult(r)) continue;
     const mode = modeOf(r) ?? String(r.arm);
     const key = `${mode}|${String(r.seed)}`;
     if (!map.has(key)) map.set(key, []);
@@ -910,6 +925,55 @@ function collectToolTimingByMode(fase4) {
   });
 }
 
+/**
+ * Exploratory gate A/B: baseline (gate on) vs nogate (toolgate 0).
+ * Not gated. Missing nogate → n/a row, never a completeness failure.
+ */
+function accumulateToolTiming(results) {
+  const acc = { prec: [], rec: [], spurious: 0, missed: 0, blocked: 0, n: 0 };
+  for (const r of results) {
+    const has =
+      Object.prototype.hasOwnProperty.call(r, "toolPrecision") ||
+      Object.prototype.hasOwnProperty.call(r, "toolRecall") ||
+      Object.prototype.hasOwnProperty.call(r, "spuriousCalls") ||
+      Object.prototype.hasOwnProperty.call(r, "missedCalls") ||
+      Object.prototype.hasOwnProperty.call(r, "privacyBlocks");
+    if (!has) continue;
+    acc.n += 1;
+    if (typeof r.toolPrecision === "number" && Number.isFinite(r.toolPrecision)) {
+      acc.prec.push(r.toolPrecision);
+    }
+    if (typeof r.toolRecall === "number" && Number.isFinite(r.toolRecall)) {
+      acc.rec.push(r.toolRecall);
+    }
+    if (typeof r.spuriousCalls === "number" && Number.isFinite(r.spuriousCalls)) {
+      acc.spurious += r.spuriousCalls;
+    }
+    if (typeof r.missedCalls === "number" && Number.isFinite(r.missedCalls)) {
+      acc.missed += r.missedCalls;
+    }
+    if (typeof r.privacyBlocks === "number" && Number.isFinite(r.privacyBlocks)) {
+      acc.blocked += r.privacyBlocks;
+    }
+  }
+  return {
+    toolPrecision: acc.prec.length === 0 ? null : meanOf(acc.prec),
+    toolRecall: acc.rec.length === 0 ? null : meanOf(acc.rec),
+    spuriousCalls: acc.n > 0 ? acc.spurious : null,
+    missedCalls: acc.n > 0 ? acc.missed : null,
+    blockedCalls: acc.n > 0 ? acc.blocked : null,
+  };
+}
+
+function collectToolTimingGateAB(fase4) {
+  const ofArm = (arm) =>
+    accumulateToolTiming(fase4.filter((r) => String(r.arm) === arm));
+  return {
+    baseline: { arm: "baseline", ...ofArm("baseline") },
+    nogate: { arm: "nogate", ...ofArm("nogate") },
+  };
+}
+
 function collectPrefill(fase4) {
   // arm -> arrays of numeric samples (nulls never pushed)
   const byArm = new Map();
@@ -1224,32 +1288,36 @@ function campaignHasSummaryEvent(fase4) {
 
 function aggregateFase4(results) {
   const fase4 = listFase4(results);
-  const { rows: familyRows, families } = familyStatsPerArm(fase4);
-  const familyPerm = runFamilyPermutations(fase4, families);
+  // Compaction completeness + primary stay on the three modes only.
+  // Exploratory arms (arm not in ARM_TO_MODE) share a mode with baseline.
+  const compaction = fase4.filter(isCompactionModeResult);
+  const { rows: familyRows, families } = familyStatsPerArm(compaction);
+  const familyPerm = runFamilyPermutations(compaction, families);
   const permutations = familyPerm.rows;
   const familyPermTables = familyPerm.tables;
   const { pairwise, primary: conversationPrimary } =
-    runPairwiseConversation(fase4);
-  const prefill = collectPrefill(fase4);
-  const positiveControl = collectPositiveControl(fase4);
+    runPairwiseConversation(compaction);
+  const prefill = collectPrefill(compaction);
+  const positiveControl = collectPositiveControl(compaction);
   const notes = collectNotes(fase4);
-  const summaryByMode = collectSummaryByMode(fase4);
-  const toolTimingByMode = collectToolTimingByMode(fase4);
+  const summaryByMode = collectSummaryByMode(compaction);
+  const toolTimingByMode = collectToolTimingByMode(compaction);
+  const toolTimingGateAB = collectToolTimingGateAB(fase4);
 
   const gated = shouldGateFase4();
   const seedsInfo = expectSeedsInfo();
-  const missing = gated ? findMissingPairs(fase4) : [];
-  const invalidCompaction = gated ? findInvalidCompaction(fase4) : [];
-  const duplicates = gated ? findDuplicatePairs(fase4) : [];
-  const zeroProbes = gated ? findZeroProbeFiles(fase4) : [];
+  const missing = gated ? findMissingPairs(compaction) : [];
+  const invalidCompaction = gated ? findInvalidCompaction(compaction) : [];
+  const duplicates = gated ? findDuplicatePairs(compaction) : [];
+  const zeroProbes = gated ? findZeroProbeFiles(compaction) : [];
   const usableInfo = gated
-    ? findInsufficientUsable(fase4)
+    ? findInsufficientUsable(compaction)
     : { perMode: [], primaryZero: false };
   const insufficientUsable = usableInfo.perMode;
   const primaryUsableZero = usableInfo.primaryZero === true;
-  // Empty capture gate: only when the campaign has fase4 results at all.
+  // Empty capture gate: only when the campaign has compaction results at all.
   const summaryCaptureEmpty =
-    gated && fase4.length > 0 && !campaignHasSummaryEvent(fase4);
+    gated && compaction.length > 0 && !campaignHasSummaryEvent(compaction);
 
   // Primary gate: ciswire vs off conversation-level p ONLY (not probe-level).
   const primary = conversationPrimary;
@@ -1275,6 +1343,7 @@ function aggregateFase4(results) {
     pairwise,
     summaryByMode,
     toolTimingByMode,
+    toolTimingGateAB,
     prefill,
     positiveControl,
     notes,
@@ -1533,6 +1602,29 @@ function renderFase4(agg) {
     );
   }
 
+  // Gate A/B: baseline vs nogate only — exploratory, never a completeness cell.
+  const gateAB = agg.toolTimingGateAB;
+  lines.push(
+    "",
+    "#### Gate A/B (exploratory): baseline vs nogate",
+    "",
+    "_Same compaction (`off`) and `tool_choice` (auto); gate is the only variable. Not gated. Missing nogate is n/a, not INCOMPLETE._",
+    "",
+    "| arm | precision | recall | spurious | missed | blocked |",
+    "|---|---|---|---|---|---|",
+  );
+  const gateRow = (row, label) => {
+    if (!row) {
+      return `| ${label} | n/a | n/a | n/a | n/a | n/a |`;
+    }
+    const sp = row.spuriousCalls == null ? "n/a" : String(row.spuriousCalls);
+    const miss = row.missedCalls == null ? "n/a" : String(row.missedCalls);
+    const blk = row.blockedCalls == null ? "n/a" : String(row.blockedCalls);
+    return `| ${label} | ${fmt(row.toolPrecision)} | ${fmt(row.toolRecall)} | ${sp} | ${miss} | ${blk} |`;
+  };
+  lines.push(gateRow(gateAB?.baseline, "baseline"));
+  lines.push(gateRow(gateAB?.nogate, "nogate"));
+
   // ── Probe-level (pseudo-replicated — NOT the gate) ──────────────────
   // One table per pairwise comparison so the primary ciswire arm is present.
   lines.push(
@@ -1769,7 +1861,9 @@ function renderGateFailures(agg) {
   // Mirror arm-level benchGrade: a failed logcat dump is lost evidence, not a green arm.
   const captureFailed = (agg.fase4 ?? []).filter(
     (r) =>
-      Array.isArray(r.captureFailedTurns) && r.captureFailedTurns.length > 0,
+      isCompactionModeResult(r) &&
+      Array.isArray(r.captureFailedTurns) &&
+      r.captureFailedTurns.length > 0,
   );
   const hasCaptureFailed = captureFailed.length > 0;
   const seedsInfo = agg.seedsInfo;

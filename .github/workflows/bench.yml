@@ -155,14 +155,19 @@ jobs:
             arm: user-note_budget256
             block_format: user-note
             thinking: budget256
-          # ── Fase 4 — 5 arms (baseline / v42 / ciswire / toolchoice-required /
-          # toolchoice-required-nogate) × 6 seeds (30 jobs) ──
-          # toolchoice-required* sit on compaction: off (same base as baseline)
-          # so the tool axis is one variable. On the v42 ("on") base the only
-          # clean comparison is against v42, the losing compaction mode
-          # (fase4 run 31595209203: v42 recall 0.802 vs baseline 0.792 with a
-          # collapsed early probe), and any tool × compaction interaction is
-          # baked in and unreadable.
+          # ── Fase 4 — 4 arms (baseline / v42 / ciswire / nogate) × 6 seeds
+          # (24 jobs) ──
+          # nogate sits on compaction: off (same base as baseline), toolchoice
+          # unset (driver default auto), toolgate "0" — the gate A/B is one
+          # variable, unconfounded by forcing. Forcing left the campaign after
+          # smoke 31640101893 (recall already 1 on every arm; required cut
+          # precision 0.167 vs baseline 0.500). The gate still helps
+          # (required+gate vs required-nogate: spurious 5→3) and stays as
+          # baseline vs nogate. On the v42 ("on") base the only clean
+          # comparison is against v42, the losing compaction mode (fase4 run
+          # 31595209203: v42 recall 0.802 vs baseline 0.792 with a collapsed
+          # early probe), and any tool × compaction interaction is baked in
+          # and unreadable.
           # WHY 6 not 3: with 3 vs 3 conversations the exhaustive one-sided
           # permutation floor is 2/C(6,3)+1 = 2/21 ≈ 0.095, so p < 0.05 is
           # unreachable by construction. 6 vs 6 → C(12,6)=924, exhaustive
@@ -288,107 +293,50 @@ jobs:
             compaction: "ciswire"
             block_format: none
             thinking: "off"
-          # required + rules gate on: force a call, then veto echo-of-context.
-          # Compaction stays off — same base as baseline, so the tool axis
-          # is one variable (see the fase4 block comment above).
+          # Gate A/B: same off/auto base as baseline, toolgate the only knob.
           - phase: fase4
-            arm: toolchoice-required
+            arm: nogate
             seed: 1
             compaction: "off"
             block_format: none
             thinking: "off"
-            toolchoice: required
-            toolgate: "1"
+            toolgate: "0"
           - phase: fase4
-            arm: toolchoice-required
+            arm: nogate
             seed: 2
             compaction: "off"
             block_format: none
             thinking: "off"
-            toolchoice: required
-            toolgate: "1"
+            toolgate: "0"
           - phase: fase4
-            arm: toolchoice-required
+            arm: nogate
             seed: 3
             compaction: "off"
             block_format: none
             thinking: "off"
-            toolchoice: required
-            toolgate: "1"
+            toolgate: "0"
           - phase: fase4
-            arm: toolchoice-required
+            arm: nogate
             seed: 4
             compaction: "off"
             block_format: none
             thinking: "off"
-            toolchoice: required
-            toolgate: "1"
+            toolgate: "0"
           - phase: fase4
-            arm: toolchoice-required
+            arm: nogate
             seed: 5
             compaction: "off"
             block_format: none
             thinking: "off"
-            toolchoice: required
-            toolgate: "1"
+            toolgate: "0"
           - phase: fase4
-            arm: toolchoice-required
+            arm: nogate
             seed: 6
             compaction: "off"
             block_format: none
             thinking: "off"
-            toolchoice: required
-            toolgate: "1"
-          # Same as above with the rules gate off, so the gate is separable.
-          - phase: fase4
-            arm: toolchoice-required-nogate
-            seed: 1
-            compaction: "off"
-            block_format: none
-            thinking: "off"
-            toolchoice: required
             toolgate: "0"
-          - phase: fase4
-            arm: toolchoice-required-nogate
-            seed: 2
-            compaction: "off"
-            block_format: none
-            thinking: "off"
-            toolchoice: required
-            toolgate: "0"
-          - phase: fase4
-            arm: toolchoice-required-nogate
-            seed: 3
-            compaction: "off"
-            block_format: none
-            thinking: "off"
-            toolchoice: required
-            toolgate: "0"
-          - phase: fase4
-            arm: toolchoice-required-nogate
-            seed: 4
-            compaction: "off"
-            block_format: none
-            thinking: "off"
-            toolchoice: required
-            toolgate: "0"
-          - phase: fase4
-            arm: toolchoice-required-nogate
-            seed: 5
-            compaction: "off"
-            block_format: none
-            thinking: "off"
-            toolchoice: required
-            toolgate: "0"
-          - phase: fase4
-            arm: toolchoice-required-nogate
-            seed: 6
-            compaction: "off"
-            block_format: none
-            thinking: "off"
-            toolchoice: required
-            toolgate: "0"
-          # ── Smoke — ~5-turn harness self-test on all five arms (~20 min),
+          # ── Smoke — ~5-turn harness self-test on all four arms (~20 min),
           # not a measurement campaign. Use phase=smoke dispatch instead of
           # burning the full 2-hour fase0/fase4 matrix when only the harness
           # needs a live emulator check.
@@ -416,20 +364,11 @@ jobs:
             block_format: none
             thinking: "off"
           - phase: smoke
-            arm: toolchoice-required
+            arm: nogate
             seed: 1
             compaction: "off"
             block_format: none
             thinking: "off"
-            toolchoice: required
-            toolgate: "1"
-          - phase: smoke
-            arm: toolchoice-required-nogate
-            seed: 1
-            compaction: "off"
-            block_format: none
-            thinking: "off"
-            toolchoice: required
             toolgate: "0"
     # `matrix` is not available in a job-level `if`, so the phase filter lives
     # inside the matrix itself: entries carry their phase and the emulator step
@@ -530,6 +469,7 @@ jobs:
           BLOCK_FORMAT: ${{ matrix.block_format }}
           THINKING: ${{ matrix.thinking }}
           COMPACTION: ${{ matrix.compaction }}
+          # Forcing (required) measured worse than auto on smoke 31640101893 — knob stays so the axis can be re-run; do not re-enable thinking it is untried.
           TOOLCHOICE: ${{ matrix.toolchoice || 'auto' }}
           TOOLGATE: ${{ matrix.toolgate || '1' }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
