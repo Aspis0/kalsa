@@ -81,6 +81,7 @@
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
 | energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
+| **LiteRT twin classi prodotto (2B/4B)** — decide GO/NO-GO spike kernel F3 | **IN CORSO** (Grok, 2026-08-12 mattina, GO gualt): 4B-GPU `qwen3_4b_mixed_int4.litertlm` (già su device) + twin CPU Qwen3.5-4B Q4; 2B-GPU solo se esiste bundle ufficiale + twin CPU Qwen3.5-2B Q4. Gate pre-dichiarato ≥1.15×, unplugged. Out: `results/litert_product/`, `reports/moe-litert-product-classes.md`. CalaQwen/Marco su GPU: rinviato per decisione gualt | in volo su S23 |
 | Jelly free-tier baseline (Qwen3.5-4B dense, llama-bench ABBA `-t 2`) | **BLOCKED** — Jelly irraggiungibile (ping OK, adb/sshd chiusi: wireless debug perso post-reboot). Modello+sha già staged in `results/jelly/` — `reports/moe-jelly-freetier.md` | gualt fisico (riattivare wireless debug/sshd) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
 | **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065; niente leva fork-legale k/drop rimasta | gualt: solo product path o nuovo silicio/backend |
