@@ -16,7 +16,7 @@
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 61 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 62 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -82,7 +82,7 @@
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
 | energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
-| **GPU per il free tier dense (2B/4B) — PRIORITÀ PRODOTTO** (mandato gualt 2026-08-12: "i free devono essere veloci, sennò i pro non si vendono") | **RECON FATTA** (`research-litert-porting.md`): scoperta chiave — **Qwen3.5-2B/4B sono IBRIDI GatedDeltaNet** (stessa famiglia del 35B): `export_hf` non li supporta, l'unico ibrido first-party (0.8B) è **CPU-only** (GPU full-delegation fail = il K2 di LiteRT). Invece **Qwen3-4B (non ibrido) ha bundle ufficiali GPU-capable con numeri pubblicati** — incluso **Mali G615 10.9 tok/s** (LiteRT copre MediaTek!). Il nostro import 4B CPU-only era rotto/mismatch: l'ufficiale ha OpenCL. **Bivio prodotto**: (1) free tier su **Qwen3-4B litert** = GPU SUBITO, spike 1 giorno zero conversioni (re-download ufficiale sha-verified + Gallery/CLI su S23); costo: cambio pesi + quality gate vs 3.5. (2) restare su Qwen3.5 = niente GPU LiteRT finché nessuno scrive i kernel GDN (vale in TUTTI gli stack). RN integration: 1-3 settimane (LiteRT-LM Kotlin, MediaPipe è legacy) | gualt: bivio pesi (Qwen3 GPU now vs 3.5 CPU) + GO spike 1g |
+| **🔨 CANTIERE GDN-GPU — kernel nostri per gli ibridi (DECISIONE gualt 2026-08-12)** | Bivio risolto: **niente downgrade a Qwen3 ** ("generazioni indietro, e arrivano i 3.8") → **scriviamo noi i kernel GDN/SSM OpenCL nel fork**. Ruoli: **Claude = design, Grok = codice**. Sblocca free 3.5 dense (2B/4B) E CalaQwen (pista 750). Fasi gated: **K0** inventario op dal sorgente fork (graph qwen3_5/qwen35moe vs coverage backend OpenCL, shapes decode, stato ricorrente, sched) — **IN VOLO** (DeepSeek); **K1** design doc (Claude): decomposizione kernel, no-subgroup baseline 740 + variante subgroup 750+, INT8/fp16, sync CPU-GPU; **K2** implementazione op + unit test vs CPU backend (Grok); **K3** E2E Qwen3.5-2B su S23: GPU-offload vs CPU, gate ≥1.15× staccato; **K4** 4B + 750 + layer attention CalaQwen. Recon a monte: `research-litert-porting.md` (il muro GDN è cross-stack; Qwen3-4B litert GPU esiste ma è scartato per generazione pesi) | K0 in volo → K1 Claude |
 | Jelly free-tier baseline (Qwen3.5-4B dense, llama-bench ABBA `-t 2`) | **BLOCKED** — Jelly irraggiungibile (ping OK, adb/sshd chiusi: wireless debug perso post-reboot). Modello+sha già staged in `results/jelly/` — `reports/moe-jelly-freetier.md` | gualt fisico (riattivare wireless debug/sshd) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
 | **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065 su S23/CPU. **NUOVO (mandato gualt 2026-08-12): pista MoE-GPU scoped Adreno 750+** — sequenza gated (a)-(e) in candidati #1: F-0 Amdahl → riverifica upstream → MarcoKEXP come veicolo → S2 split su Xiaomi 14 → solo dopo il kernel serio (GDN/SSM per CalaQwen) | F-0 = carta; S2 dopo MarcoKEXP |
@@ -1119,6 +1119,22 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-12 — 🔨 DECISIONE: CANTIERE GDN-GPU APERTO (mandato gualt).
+  Niente downgrade a Qwen3 per il free tier ("generazioni indietro, e i 3.8
+  sono in arrivo"): i kernel GDN/SSM OpenCL li scriviamo NOI nel fork.
+  Ruoli dichiarati: Claude design, Grok codice.**
+
+  Razionale: il muro GDN-su-GPU è cross-stack (recon #61) — quindi
+  scriverli nel NOSTRO stack (llama.cpp fork) è l'unica via che tiene i
+  pesi Qwen3.5 (e domani 3.8) su GPU, conserva i K-quants e un solo
+  engine llama.rn, e sblocca free E CalaQwen insieme. La velocità dei
+  free è dichiarata priorità di prodotto (funnel dei pro). Fasi K0-K4
+  gated (v. riga Aperto): K0 inventario op dal sorgente (in volo),
+  K1 design, K2 kernel+unit test, K3 E2E 2B su S23 gate ≥1.15×,
+  K4 4B/750/CalaQwen. Regole ereditate: no-subgroup baseline per il 740
+  (recipe adreno-llms, riduzioni in local memory), INT8 non INT4 (HAQA),
+  la misura on-device decide ogni promozione di fase.
 
 - **2026-08-12 — 🔎 RECON PORTING LITERT (Grok web, `research-litert-porting.md`):
   il blocco GPU del free tier ha un NOME, ed è lo stesso del 35B — Gated
