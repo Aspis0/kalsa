@@ -77,14 +77,14 @@
 | domanda | stato | chi sblocca |
 |---|---|---|
 | **Marco Fase 1 runtime** (k/drop KEXP su Marco i1-Q4_K_M, NO requant — `results/marco_phase1/PROTOCOL.md`) | **fail-fast IT v2+EN: 3/3 PASS** (A1 k8d065 Δit +0.004/Δen +0.003; A2 k6d065 +0.019/+0.010; A3 k6d050 +0.009/+0.005 — tutte ≤ +0.05). Full multi5 interrotto da shutdown PC 02:29; **RESUME IN CORSO da 08:24** (`scripts/resume_marco_phase1_quality.ps1`, pid in `logs/marco_phase1_resume.pid.txt`): completa A1 fr/it/zh + A2 + A3 full, scrive `VERDICT.md` da solo. ETA ~sera (≈1h/lingua) | PC (in corso); poi speed gate device |
-| **MarcoKEXP** — download Q8 (~18 GB) + quantize con recipe pronta | **T2c PASS** (IT v2). Prep: source ID + `tensor_types*.txt` + cmd NOT RUN. **Manca solo GO gualt** — ma la decisione sensata arriva DOPO il verdetto Fase 1 (se runtime k/drop basta, la Fase 2 requant si ridimensiona) | gualt GO (post Fase 1) |
+| **MarcoKEXP** — download Q8 (~18 GB) + quantize con recipe pronta | **T2c PASS** (IT v2). Prep: source ID + `tensor_types*.txt` + cmd NOT RUN. **Manca solo GO gualt** — decisione sensata DOPO il verdetto Fase 1. **Motivazione RADDOPPIATA (2026-08-12)**: dense Q4-Q8 sblocca anche il B1-STOP dello spike Xiaomi → MarcoKEXP è il veicolo del fail-fast MoE-GPU su Adreno 750 (Marco non-ibrido, K2 non si applica) | gualt GO (post Fase 1) |
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
 | energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
 | **LiteRT twin classi prodotto (2B/4B)** — decide GO/NO-GO spike kernel F3 | **IN CORSO** (Grok, 2026-08-12 mattina, GO gualt): 4B-GPU `qwen3_4b_mixed_int4.litertlm` (già su device) + twin CPU Qwen3.5-4B Q4; 2B-GPU solo se esiste bundle ufficiale + twin CPU Qwen3.5-2B Q4. Gate pre-dichiarato ≥1.15×, unplugged. Out: `results/litert_product/`, `reports/moe-litert-product-classes.md`. CalaQwen/Marco su GPU: rinviato per decisione gualt | in volo su S23 |
 | Jelly free-tier baseline (Qwen3.5-4B dense, llama-bench ABBA `-t 2`) | **BLOCKED** — Jelly irraggiungibile (ping OK, adb/sshd chiusi: wireless debug perso post-reboot). Modello+sha già staged in `results/jelly/` — `reports/moe-jelly-freetier.md` | gualt fisico (riattivare wireless debug/sshd) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
-| **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065; niente leva fork-legale k/drop rimasta | gualt: solo product path o nuovo silicio/backend |
+| **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065 su S23/CPU. **NUOVO (mandato gualt 2026-08-12): pista MoE-GPU scoped Adreno 750+** — sequenza gated (a)-(e) in candidati #1: F-0 Amdahl → riverifica upstream → MarcoKEXP come veicolo → S2 split su Xiaomi 14 → solo dopo il kernel serio (GDN/SSM per CalaQwen) | F-0 = carta; S2 dopo MarcoKEXP |
 
 ### Candidati "esperimento serio" (il collo è il calcolo a 1.39 GHz)
 
@@ -100,6 +100,33 @@
    i-quants: se mai si riaprisse, il requant non serve. **Criteri di riapertura:**
    GDN+SSM_SCAN upstream su OpenCL **E** driver S23 con subgroup broadcast **E** un
    tg OpenCL>CPU pubblicato su 740. NPU HTP: non candidato (0.67 MiB di pesi caricati).
+
+   **[REVISIONE 2026-08-12 — mandato gualt: MoE-GPU riaperto, scoped Adreno 750+.]**
+   Il ritiro sopra resta valido PER IL 740/S23 (il claim di ricerca "35B su 8GB"
+   resta CPU-only). La pista nuova è il **tier premium su flagship** (Adreno 750+,
+   dove il backend OpenCL è verificato e K5 non si applica), col fatto nuovo LiteRT
+   (740 GPU 2.76× con kernel giusti → K5 condanna i kernel llama.cpp, non la GPU).
+   Incastro chiave scoperto rileggendo lo spike S0 Xiaomi: **il B1-STOP non era
+   "GPU perde", era formato quant** (Marco i1 ha dense attention IQ2_S/IQ3_S che
+   l'OpenCL backend non carica). E **Marco è `qwen3moe` NON ibrido → K2
+   (GDN/SSM_SCAN) NON si applica a Marco**: con un requant dense Q4-Q8 — cioè
+   esattamente **MarcoKEXP** — lo split dense-GPU/esperti-CPU su Xiaomi 14
+   (Adreno 750, già in lab) si misura col backend OpenCL VANILLA, zero kernel
+   custom. Sequenza gated dichiarata:
+   (a) **F-0 Amdahl** (carta, 1 giorno): quota densa vs esperti del tempo decode
+       per token → ceiling onesto dello split; STOP se <~1.3×;
+   (b) riverifica upstream dei claim OpenCL del 2026-08-03 ("tensori MoE restano
+       su CPU", ops mancanti) — hanno 5+ mesi;
+   (c) **MarcoKEXP requant** (già prepped, gated su GO gualt) → doppio uso:
+       Fase 2 qualità/CPU E veicolo fail-fast GPU-750;
+   (d) **S2 su Xiaomi 14**: Marco(KEXP) split resto-GPU/routed-CPU, llama.cpp
+       OpenCL al pin, sostenuto staccato + J/token;
+   (e) SOLO se (d) vince: il "kernel serio" 750+ — GDN+SSM_SCAN (per portare
+       anche KEXP/CalaQwen ibrido su GPU) ed eventuale mul_mat_id esperti —
+       sinergico con lo spike F3 dense (stesse fondamenta GEMV).
+   Razionale prodotto: chi paga il tier premium ha flagship (RAM 12-16, UFS4,
+   750+); il bonus termico è reale (CPU oggi a 1.39 GHz = 41% del picco per
+   budget termico; spostare FLOP su motore più efficiente libera anche il CPU).
 2. **Integrazione prodotto in Kalsa** (llama.rn ↔ BigMoeOnEdge): non ricerca ma
    ingegneria; porta i numeri della scheda dentro l'app vera. Prerequisito per shippare
    qualunque cosa di questa campagna.
