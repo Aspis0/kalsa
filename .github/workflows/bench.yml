@@ -148,6 +148,12 @@ jobs:
             thinking: budget256
           # ── Fase 4 — 5 arms (baseline / v42 / ciswire / toolchoice-required /
           # toolchoice-required-nogate) × 6 seeds (30 jobs) ──
+          # toolchoice-required* sit on compaction: off (same base as baseline)
+          # so the tool axis is one variable. On the v42 ("on") base the only
+          # clean comparison is against v42, the losing compaction mode
+          # (fase4 run 31595209203: v42 recall 0.802 vs baseline 0.792 with a
+          # collapsed early probe), and any tool × compaction interaction is
+          # baked in and unreadable.
           # WHY 6 not 3: with 3 vs 3 conversations the exhaustive one-sided
           # permutation floor is 2/C(6,3)+1 = 2/21 ≈ 0.095, so p < 0.05 is
           # unreachable by construction. 6 vs 6 → C(12,6)=924, exhaustive
@@ -274,11 +280,12 @@ jobs:
             block_format: none
             thinking: "off"
           # required + rules gate on: force a call, then veto echo-of-context.
-          # Compaction stays v42 ("on") — that is the arm whose recall was 0.
+          # Compaction stays off — same base as baseline, so the tool axis
+          # is one variable (see the fase4 block comment above).
           - phase: fase4
             arm: toolchoice-required
             seed: 1
-            compaction: "on"
+            compaction: "off"
             block_format: none
             thinking: "off"
             toolchoice: required
@@ -286,7 +293,7 @@ jobs:
           - phase: fase4
             arm: toolchoice-required
             seed: 2
-            compaction: "on"
+            compaction: "off"
             block_format: none
             thinking: "off"
             toolchoice: required
@@ -294,7 +301,7 @@ jobs:
           - phase: fase4
             arm: toolchoice-required
             seed: 3
-            compaction: "on"
+            compaction: "off"
             block_format: none
             thinking: "off"
             toolchoice: required
@@ -302,7 +309,7 @@ jobs:
           - phase: fase4
             arm: toolchoice-required
             seed: 4
-            compaction: "on"
+            compaction: "off"
             block_format: none
             thinking: "off"
             toolchoice: required
@@ -310,7 +317,7 @@ jobs:
           - phase: fase4
             arm: toolchoice-required
             seed: 5
-            compaction: "on"
+            compaction: "off"
             block_format: none
             thinking: "off"
             toolchoice: required
@@ -318,7 +325,7 @@ jobs:
           - phase: fase4
             arm: toolchoice-required
             seed: 6
-            compaction: "on"
+            compaction: "off"
             block_format: none
             thinking: "off"
             toolchoice: required
@@ -327,7 +334,7 @@ jobs:
           - phase: fase4
             arm: toolchoice-required-nogate
             seed: 1
-            compaction: "on"
+            compaction: "off"
             block_format: none
             thinking: "off"
             toolchoice: required
@@ -335,7 +342,7 @@ jobs:
           - phase: fase4
             arm: toolchoice-required-nogate
             seed: 2
-            compaction: "on"
+            compaction: "off"
             block_format: none
             thinking: "off"
             toolchoice: required
@@ -343,7 +350,7 @@ jobs:
           - phase: fase4
             arm: toolchoice-required-nogate
             seed: 3
-            compaction: "on"
+            compaction: "off"
             block_format: none
             thinking: "off"
             toolchoice: required
@@ -351,7 +358,7 @@ jobs:
           - phase: fase4
             arm: toolchoice-required-nogate
             seed: 4
-            compaction: "on"
+            compaction: "off"
             block_format: none
             thinking: "off"
             toolchoice: required
@@ -359,7 +366,7 @@ jobs:
           - phase: fase4
             arm: toolchoice-required-nogate
             seed: 5
-            compaction: "on"
+            compaction: "off"
             block_format: none
             thinking: "off"
             toolchoice: required
@@ -367,12 +374,12 @@ jobs:
           - phase: fase4
             arm: toolchoice-required-nogate
             seed: 6
-            compaction: "on"
+            compaction: "off"
             block_format: none
             thinking: "off"
             toolchoice: required
             toolgate: "0"
-          # ── Smoke — ~5-turn harness self-test on all three arms (~20 min),
+          # ── Smoke — ~5-turn harness self-test on all five arms (~20 min),
           # not a measurement campaign. Use phase=smoke dispatch instead of
           # burning the full 2-hour fase0/fase4 matrix when only the harness
           # needs a live emulator check.
@@ -399,6 +406,22 @@ jobs:
             compaction: "ciswire"
             block_format: none
             thinking: "off"
+          - phase: smoke
+            arm: toolchoice-required
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "1"
+          - phase: smoke
+            arm: toolchoice-required-nogate
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "0"
     # `matrix` is not available in a job-level `if`, so the phase filter lives
     # inside the matrix itself: entries carry their phase and the emulator step
     # is skipped for the non-selected ones (see the step-level `if`).
