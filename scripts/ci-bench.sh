@@ -114,6 +114,11 @@ case "$PHASE" in
 esac
 
 log "arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
+# LFM2.5 is always-on reasoning: the chat template has preserve_thinking only,
+# no off switch. Record THINKING as today; do not try to force it off.
+if [ "$MODEL_DIR" = "lfm2.5-2.6b" ]; then
+  log "thinking axis is not applicable for lfm2.5-2.6b (always-on reasoning; template has no off) — THINKING=$THINKING is recorded but not enforced"
+fi
 
 # Fail fast on setup errors — do not burn emulator boot time on a broken input.
 [ -f "$APK_PATH" ] || die "APK not found at $APK_PATH (build job artifact missing?)"
