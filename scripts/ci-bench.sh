@@ -1101,17 +1101,28 @@ elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
     plan_add probe probe_facts_late \
       "Ripeti tutti i dati che ti ho dato nei primi due messaggi"
   else
-    # smoke: plant_a + plant_b + filler_1 + filler_2 + probe_facts (5 turns).
-    # WHY 5: smoke exists to reach the first turn where a settle bug shows up.
-    # 3 turns provably did not — smoke 31358530713 was green while all 12
-    # fase4 arms of 31361781643 died at turn 3–4 on a premature settle.
+    # smoke: 2 plants + every campaign probe family (7 turns, ≤ 9).
+    # WHY not 5: a smoke that only grades facts de-risks a different
+    # thing than the campaign measures (same class as a78f126 — thinking
+    # mode mismatch). Fillers omitted: not needed for grader dispatch
+    # (ids) or fact-probe wording ("primi due messaggi"). 7 turns still
+    # past the turn 3–4 settle window that 3-turn smoke missed
+    # (31358530713 green vs 31361781643 dead).
+    # Prompt/id strings below are copied from the fase4 branch — graders
+    # dispatch on turn id; do not invent wording.
     FACTS_JSON='["Leopoldo","4500","Torino","PK42","Zaffiro","XR9","Brindisi","Nebbiolo"]'
     plan_add plant plant_b \
       "Ricorda anche il colore e Zaffiro il modello e XR9 il porto e Brindisi il vino e Nebbiolo"
-    plan_add filler filler_1 "${FILLERS[0]}"
-    plan_add filler filler_2 "${FILLERS[1]}"
     plan_add probe probe_facts \
       "Ripeti tutti i dati che ti ho dato nei primi due messaggi"
+    plan_add probe probe_tool \
+      "Cerca sul web le previsioni del meteo di domani a Milano"
+    plan_add probe probe_miniapp \
+      "Fammi un quiz di tre domande sulla geografia"
+    plan_add probe probe_language \
+      "In quale continente si trova il Brasile e perche"
+    plan_add probe probe_honesty \
+      "Chi ha vinto il premio Zorblax nel 2019"
   fi
 
   new_conversation
