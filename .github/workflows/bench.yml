@@ -45,6 +45,15 @@ jobs:
           java-version: 17
 
       - name: Install JS deps
+        # llama.rn's postinstall pulls prebuilt native artifacts from GitHub
+        # releases — including the iOS xcframework, on a Linux Android runner.
+        # This job builds llama.cpp FROM SOURCE (KALSA_LLAMA_FROM_SOURCE=1,
+        # asserted in the .so by assert-native-patch.sh), so those artifacts are
+        # fetched and then never used — an external service turned into a single
+        # point of failure for the whole matrix. Run 31639595328 died there
+        # twice: 503, then socket hang up.
+        env:
+          RNLLAMA_SKIP_POSTINSTALL: "1"
         run: npm ci
 
       - name: Typecheck + logic harnesses
