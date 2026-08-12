@@ -105,7 +105,30 @@ export const it: typeof en = {
       "Cambiare modello interromperà la generazione. Continuare?",
     privacy: "Privacy",
     privacyBody:
-      "Kalsa gira interamente su questo dispositivo. Le chat restano locali. Le uniche chiamate di rete sono il download dei modelli da Hugging Face e la ricerca web tramite il provider che scegli. Le chiavi API sono salvate nell'archivio sicuro del dispositivo. Nessun account e nessuna sincronizzazione cloud.",
+      "Kalsa gira interamente su questo dispositivo. Le chat restano locali. Le uniche chiamate di rete sono il download dei modelli da Hugging Face e la ricerca web tramite il provider che scegli. Le chiavi API sono salvate nell'archivio sicuro del dispositivo. Nessun account e nessuna sincronizzazione cloud. La telemetria è disattivata di default e solo opt-in.",
+    telemetry: "Telemetria",
+    telemetryBodyOff:
+      "Disattivata di default. Nessuna telemetria lascia questo dispositivo.",
+    telemetryBodyOn:
+      "Vengono inviati report di errore pseudonimi per aiutare a correggere i bug. Chat, documenti e chiavi non lasciano mai questo dispositivo.",
+    telemetryOptInTitle: "Condividere i report di errore?",
+    telemetryOptInBody:
+      `Se attiva, Kalsa può inviare report diagnostici pseudonimi su crash e fallimenti di funzioni (categoria di errore, fascia grezza di RAM del dispositivo, major version del SO, versione app — mai testo delle chat, documenti, chiavi API, modello esatto del device o stack trace).
+
+Un report già in transito può comunque arrivare dopo la disattivazione.
+
+I log del provider di rete (Cloudflare) possono registrare brevemente metadati di connessione; non memorizziamo il tuo IP nel report.
+
+La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non incollare contenuti sensibili — quel testo va su un form GitHub pubblico se lo invii.`,
+    telemetryOptInConfirm: "Attiva",
+    telemetryOptInCancel: "Lascia disattivata",
+    reportProblem: "Segnala un problema",
+    reportProblemBody:
+      "Anteprima di un report diagnostico sanificato: copialo e apri GitHub per incollarlo tu. Non incollare chat, documenti o chiavi API — le issue GitHub sono pubbliche.",
+    reportProblemPreview: "Anteprima report",
+    reportCopied: "Report copiato. Incollalo nel form GitHub.",
+    reportOpenGitHub: "Apri GitHub",
+    reportCopy: "Copia",
     about: "Informazioni",
     aboutAppName: "Kalsa AI Chat",
     aboutVersion: "Versione {version}",

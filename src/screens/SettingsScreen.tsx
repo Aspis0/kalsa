@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   BackHandler,
+  Linking,
   Pressable,
   ScrollView,
   Switch,
@@ -12,6 +13,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import * as Clipboard from "expo-clipboard";
 import { ChevronRight, CircleQuestionMark, Trash2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -175,6 +177,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   // ── Context compaction (ConversationCompactor — default OFF) ─────────────
   const [compactionEnabled, setCompactionEnabled] = useState(false);
 
+  // ── Telemetry opt-in (default OFF) ───────────────────────────────────────
+  const [telemetryEnabled, setTelemetryEnabled] = useState(false);
+  const [telemetryBusy, setTelemetryBusy] = useState(false);
+
   // ── Thinking mode (bench/benchConfig — same storage key as /bench thinking) ──
   const [thinkingMode, setThinkingModeState] = useState<ThinkingMode>("default");
 
@@ -211,6 +217,126 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   useEffect(() => {
     void reloadMemory();
   }, [reloadMemory]);
+
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const tel = require("../telemetry/telemetry") as {
+          getTelemetryEnabled: () => Promise<boolean>;
+        };
+        const on = await tel.getTelemetryEnabled();
+        if (mounted) setTelemetryEnabled(on);
+      } catch {
+        if (mounted) setTelemetryEnabled(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleToggleTelemetry = useCallback(
+    (next: boolean) => {
+      if (telemetryBusy) return;
+      if (!next) {
+        setTelemetryBusy(true);
+        void (async () => {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const tel = require("../telemetry/telemetry") as {
+              setTelemetryEnabled: (v: boolean) => Promise<boolean>;
+            };
+            await tel.setTelemetryEnabled(false);
+            if (mountedRef.current) setTelemetryEnabled(false);
+          } catch {
+            if (mountedRef.current) setTelemetryEnabled(false);
+          } finally {
+            if (mountedRef.current) setTelemetryBusy(false);
+          }
+        })();
+        return;
+      }
+      // Opt-in Alert with honest copy
+      Alert.alert(
+        t("settings.telemetryOptInTitle"),
+        t("settings.telemetryOptInBody"),
+        [
+          {
+            text: t("settings.telemetryOptInCancel"),
+            style: "cancel",
+            onPress: () => {
+              setTelemetryEnabled(false);
+            },
+          },
+          {
+            text: t("settings.telemetryOptInConfirm"),
+            onPress: () => {
+              setTelemetryBusy(true);
+              void (async () => {
+                try {
+                  // eslint-disable-next-line @typescript-eslint/no-require-imports
+                  const tel = require("../telemetry/telemetry") as {
+                    setTelemetryEnabled: (v: boolean) => Promise<boolean>;
+                  };
+                  const ok = await tel.setTelemetryEnabled(true);
+                  if (mountedRef.current) setTelemetryEnabled(ok);
+                } catch {
+                  if (mountedRef.current) setTelemetryEnabled(false);
+                } finally {
+                  if (mountedRef.current) setTelemetryBusy(false);
+                }
+              })();
+            },
+          },
+        ],
+      );
+    },
+    [t, telemetryBusy],
+  );
+
+  const handleReportProblem = useCallback(() => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const tel = require("../telemetry/telemetry") as {
+        buildManualReportPreview: () => unknown;
+        formatManualReportPreview: (r: unknown) => string;
+        GITHUB_ISSUE_CHOOSE_URL: string;
+      };
+      const report = tel.buildManualReportPreview();
+      const preview = report
+        ? tel.formatManualReportPreview(report as never)
+        : "(no report)";
+      Alert.alert(
+        t("settings.reportProblem"),
+        t("settings.reportProblemBody") + "\n\n" + preview.slice(0, 900),
+        [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("settings.reportCopy"),
+            onPress: () => {
+              void Clipboard.setStringAsync(preview)
+                .then(() => {
+                  Alert.alert(t("settings.reportCopied"));
+                })
+                .catch(() => undefined);
+            },
+          },
+          {
+            text: t("settings.reportOpenGitHub"),
+            onPress: () => {
+              void Linking.openURL(tel.GITHUB_ISSUE_CHOOSE_URL).catch(
+                () => undefined,
+              );
+            },
+          },
+        ],
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [t]);
 
   useEffect(() => {
     let mounted = true;
@@ -1814,6 +1940,56 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
             {t("settings.privacyBody")}
           </Text>
+
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+              marginTop: spacing.sm,
+            }}
+          >
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[typography.bodySm, { color: colors.ink }]}>
+                {t("settings.telemetry")}
+              </Text>
+              <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
+                {telemetryEnabled
+                  ? t("settings.telemetryBodyOn")
+                  : t("settings.telemetryBodyOff")}
+              </Text>
+            </View>
+            <Switch
+              value={telemetryEnabled}
+              onValueChange={handleToggleTelemetry}
+              disabled={telemetryBusy}
+              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+              thumbColor={telemetryEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("settings.telemetry")}
+            />
+          </View>
+
+          <Pressable
+            onPress={handleReportProblem}
+            accessibilityRole="button"
+            accessibilityLabel={t("settings.reportProblem")}
+            style={{
+              marginTop: spacing.sm,
+              paddingVertical: spacing.sm,
+              paddingHorizontal: spacing.md,
+              borderRadius: radius.md,
+              borderWidth: 1,
+              borderColor: colors.line,
+            }}
+          >
+            <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+              {t("settings.reportProblem")}
+            </Text>
+            <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
+              {t("settings.reportProblemBody")}
+            </Text>
+          </Pressable>
         </GlassPanel2>
 
         {/* ── Help (before About) ──────────────────────────────────────── */}

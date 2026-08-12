@@ -662,6 +662,22 @@ export function makeWebFetchExecutor(
             text: abortMessage(urlPathLooksLikePdf(url)),
           };
         }
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const tel = require("../telemetry/telemetry") as {
+            reportTelemetry: (i: Record<string, unknown>) => void;
+            classifyNetworkFailure: (e: unknown) => string;
+          };
+          tel.reportTelemetry({
+            code: "web.fetch",
+            detail: tel.classifyNetworkFailure(error),
+            rawMessage:
+              error instanceof Error ? error.message : String(error ?? ""),
+            phase: "turn",
+          });
+        } catch {
+          /* telemetry never throws */
+        }
         return {
           text: errors.webFetchFailed.replace(
             "{message}",
@@ -716,6 +732,20 @@ export function makeWebFetchExecutor(
       }
 
       if (response.status < 200 || response.status >= 300) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const tel = require("../telemetry/telemetry") as {
+            reportTelemetry: (i: Record<string, unknown>) => void;
+            classifyHttpDetail: (s: number) => string;
+          };
+          tel.reportTelemetry({
+            code: "web.fetch",
+            detail: tel.classifyHttpDetail(response.status),
+            phase: "turn",
+          });
+        } catch {
+          /* telemetry never throws */
+        }
         return {
           text: errors.webFetchHttpError.replace("{status}", String(response.status)),
         };

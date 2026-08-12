@@ -605,6 +605,53 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     });
   }, []);
 
+  // Opt-in error telemetry (default OFF). Passive — never blocks anti-OOM.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const tel = require("../telemetry/telemetry") as {
+          initTelemetry: (o?: Record<string, unknown>) => Promise<void>;
+        };
+        if (cancelled) return;
+        await tel.initTelemetry({
+          getDeviceContext: () => {
+            // Best-effort sync snapshot; full profile is async elsewhere.
+            return {
+              ramTier: "low" as const,
+              totalMemoryBytes: null as number | null,
+              osVersion: null as string | null,
+              modelId: null as string | null,
+              hadWebTools: webToolsEnabledRef.current,
+            };
+          },
+        });
+        // Enrich with real device profile once available.
+        try {
+          const profile = await getCachedDeviceProfile();
+          if (cancelled) return;
+          await tel.initTelemetry({
+            getDeviceContext: () => ({
+              ramTier: profile.ramTier,
+              totalMemoryBytes: profile.totalMemoryBytes,
+              osVersion: profile.osVersion,
+              modelId: null,
+              hadWebTools: webToolsEnabledRef.current,
+            }),
+          });
+        } catch {
+          /* keep defaults */
+        }
+      } catch {
+        /* telemetry never throws */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // ── User memory refs (declared early so agentOptions can read via getter) ──
   // State/sync for memoryFacts lives below; only injected facts count when enabled.
   const memoryFactsRef = useRef<string[]>([]);
@@ -1278,6 +1325,24 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         console.log(
           `[embed] done {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount},"indexChunks":${index.chunkCount},"reason":${JSON.stringify(reason)}}`,
         );
+        // Opt-in telemetry: native failures only (not partial/aborted/cap). No docId.
+        if (reason === "failed") {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const tel = require("../telemetry/telemetry") as {
+              reportTelemetry: (i: Record<string, unknown>) => void;
+              classifyEmbedFailure: (r: string) => string;
+            };
+            tel.reportTelemetry({
+              code: "embed.native",
+              detail: tel.classifyEmbedFailure("failed"),
+              phase: "embed",
+              chunks: embeddedCount,
+            });
+          } catch {
+            /* telemetry never throws */
+          }
+        }
       };
       for (const chunk of toEmbed) {
         if (!stillCurrent() || signal.aborted) {

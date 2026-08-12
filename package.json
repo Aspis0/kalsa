@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit",
     "harness:markdown": "node scripts/markdownHarness.mjs",
     "doctor": "expo-doctor",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "telemetry:flush": "node workers/telemetry/flush.mjs",
+    "harness:telemetry": "node scripts/telemetryHarness.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/jetbrains-mono": "^0.4.1",

@@ -191,6 +191,46 @@ async function main() {
     dropHits.join("; "),
   );
 
+  // Deep recursive key-set parity en↔it across the whole catalog (not only subgroups).
+  function collectKeys(obj, prefix = "", out = new Set()) {
+    if (!obj || typeof obj !== "object") return out;
+    for (const [k, v] of Object.entries(obj)) {
+      const pathKey = prefix ? `${prefix}.${k}` : k;
+      if (typeof v === "string") out.add(pathKey);
+      else if (v && typeof v === "object") collectKeys(v, pathKey, out);
+    }
+    return out;
+  }
+  const enKeys = collectKeys(enMod.en);
+  const itKeys = collectKeys(itMod.it);
+  const missingInIt = [...enKeys].filter((k) => !itKeys.has(k));
+  const missingInEn = [...itKeys].filter((k) => !enKeys.has(k));
+  check(
+    "deep en→it key-set parity (whole catalog)",
+    missingInIt.length === 0,
+    missingInIt.slice(0, 30).join(", "),
+  );
+  check(
+    "deep it→en key-set parity (whole catalog)",
+    missingInEn.length === 0,
+    missingInEn.slice(0, 30).join(", "),
+  );
+  // typeof parity for shared keys
+  let typeMismatches = 0;
+  function typeWalk(a, b, prefix = "") {
+    if (typeof a !== typeof b) {
+      typeMismatches += 1;
+      return;
+    }
+    if (a && typeof a === "object" && !Array.isArray(a)) {
+      for (const k of new Set([...Object.keys(a), ...Object.keys(b || {})])) {
+        typeWalk(a[k], b?.[k], prefix ? `${prefix}.${k}` : k);
+      }
+    }
+  }
+  typeWalk(enMod.en, itMod.it);
+  check("deep en↔it typeof parity", typeMismatches === 0, `mismatches=${typeMismatches}`);
+
   console.log(`\n${pass} passed, ${fail} failed`);
   if (fail > 0) process.exit(1);
 }

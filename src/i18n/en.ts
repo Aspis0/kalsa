@@ -106,7 +106,30 @@ export const en = {
       "Changing model will stop generation. Continue?",
     privacy: "Privacy",
     privacyBody:
-      "Kalsa runs fully on this device. Your chats stay local. The only network calls are model downloads from Hugging Face and web search through the provider you choose. API keys are stored in this device's secure storage. There is no account and no cloud sync.",
+      "Kalsa runs fully on this device. Your chats stay local. The only network calls are model downloads from Hugging Face and web search through the provider you choose. API keys are stored in this device's secure storage. There is no account and no cloud sync. Telemetry is off by default and opt-in.",
+    telemetry: "Telemetry",
+    telemetryBodyOff:
+      "Off by default. No telemetry leaves this device.",
+    telemetryBodyOn:
+      "Pseudonymous error reports are sent to help fix bugs. Chats, documents and keys never leave this device.",
+    telemetryOptInTitle: "Share error reports?",
+    telemetryOptInBody:
+      `When enabled, Kalsa may send pseudonymous diagnostic reports about crashes and function failures (error category, coarse device RAM bucket, OS major version, app version — never chat text, documents, API keys, exact device model, or stack traces).
+
+A report already in transit may still arrive after you turn this off.
+
+Network provider logs (Cloudflare) may briefly record connection metadata; we don't store your IP in the report.
+
+Manual "Report a problem" is under your control: do not paste sensitive content — that text goes to a public GitHub form if you submit it.`,
+    telemetryOptInConfirm: "Enable",
+    telemetryOptInCancel: "Keep off",
+    reportProblem: "Report a problem",
+    reportProblemBody:
+      "Preview a sanitized diagnostic report, copy it, then open GitHub to paste it yourself. Do not paste chat contents, documents, or API keys — GitHub issues are public.",
+    reportProblemPreview: "Report preview",
+    reportCopied: "Report copied. Paste it into the GitHub form.",
+    reportOpenGitHub: "Open GitHub",
+    reportCopy: "Copy",
     about: "About",
     aboutAppName: "Kalsa AI Chat",
     aboutVersion: "Version {version}",

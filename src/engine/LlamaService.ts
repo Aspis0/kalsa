@@ -816,6 +816,32 @@ export function initEngine(
     try {
       context = await initLlama(params);
     } catch (error) {
+      try {
+        // Opt-in telemetry: categories + allowlisted signal only (no stack/path).
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const tel = require("../telemetry/telemetry") as {
+          reportTelemetry: (i: {
+            code: "engine.init";
+            detail?: string;
+            rawMessage?: string;
+            phase?: "load";
+            modelId?: string | null;
+          }) => void;
+          classifyEngineInitFailure: (e: unknown) => string;
+        };
+        const detail = tel.classifyEngineInitFailure(error);
+        const rawMessage =
+          error instanceof Error ? error.message : String(error ?? "");
+        tel.reportTelemetry({
+          code: "engine.init",
+          detail,
+          rawMessage,
+          phase: "load",
+          modelId: modelId ?? null,
+        });
+      } catch {
+        /* telemetry never throws into engine path */
+      }
       rethrowWithNativeTail(error);
     }
     activeModelId = modelId;
@@ -2032,7 +2058,30 @@ export async function streamAssistantTurn(
         finishOnce(() => callbacks.onDone());
         return;
       }
-      finishOnce(() => callbacks.onError(error instanceof Error ? error : new Error(String(error))));
+      {
+        const errObj = error instanceof Error ? error : new Error(String(error));
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const tel = require("../telemetry/telemetry") as {
+            reportTelemetry: (i: {
+              code: "chat.generation";
+              detail?: string;
+              rawMessage?: string;
+              phase?: "turn";
+            }) => void;
+            classifyChatFailure: (e: unknown) => string;
+          };
+          tel.reportTelemetry({
+            code: "chat.generation",
+            detail: tel.classifyChatFailure(errObj),
+            rawMessage: errObj.message,
+            phase: "turn",
+          });
+        } catch {
+          /* telemetry never throws */
+        }
+        finishOnce(() => callbacks.onError(errObj));
+      }
     } finally {
       signal?.removeEventListener("abort", abort);
       // Chat completions leave conversation tokens in the native KV — eligible
