@@ -750,7 +750,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         keyboardShouldPersistTaps="handled"
       >
         {/* ── Language ─────────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.language")}
           </Text>
@@ -797,7 +797,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         </GlassPanel2>
 
         {/* ── Appearance / text size ───────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.fontSize")}
           </Text>
@@ -860,7 +860,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         </GlassPanel2>
 
         {/* ── Context (ConversationCompactor) ──────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.context")}
           </Text>
@@ -890,7 +890,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         </GlassPanel2>
 
         {/* ── Thinking ─────────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.thinking")}
           </Text>
@@ -937,7 +937,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         </GlassPanel2>
 
         {/* ── Memory ───────────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("memory.title")}
           </Text>
@@ -1101,7 +1101,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         </GlassPanel2>
 
         {/* ── Web search ───────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.webSearch")}
           </Text>
@@ -1260,7 +1260,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         </GlassPanel2>
 
         {/* ── Voice (ASR + TTS) ────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("voice.title")}
           </Text>
@@ -1376,7 +1376,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         </GlassPanel2>
 
         {/* ── Embedding model (optional hybrid document search) ─────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("embedding.title")}
           </Text>
@@ -1463,7 +1463,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         </GlassPanel2>
 
         {/* ── Models ───────────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.models")}
           </Text>
@@ -1807,7 +1807,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         </GlassPanel2>
 
         {/* ── Privacy ──────────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.privacy")}
           </Text>
@@ -1817,7 +1817,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         </GlassPanel2>
 
         {/* ── Help (before About) ──────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Pressable
             onPress={handleOpenHelp}
             disabled={busy}
@@ -1844,7 +1844,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         </GlassPanel2>
 
         {/* ── About ────────────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.about")}
           </Text>

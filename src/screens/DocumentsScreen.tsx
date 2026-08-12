@@ -7,7 +7,7 @@
  * unmount). Pure storage helpers live in documentStorage.ts.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   BackHandler,
@@ -137,10 +137,13 @@ export function DocumentsScreen({
   onAddDocument,
   onDeleteDocument,
   onReorderDocuments,
-  onUpdateDocumentPreview,
+  onUpdateDocumentPreview: _onUpdateDocumentPreview,
   isDocumentDeleteInFlight,
   onBack,
 }: Props) {
+  // Cover is committed pre-add (importDocument); AppShell still accepts late
+  // onUpdateDocumentPreview for future paths — keep the prop in the public API.
+  void _onUpdateDocumentPreview;
   const { colors } = useLabTheme<any>();
   const typography = useTypography();
   const insets = useSafeAreaInsets();
@@ -150,9 +153,6 @@ export function DocumentsScreen({
   const [importing, setImporting] = useState(false);
   const [importName, setImportName] = useState<string | null>(null);
   const [reorderHintVisible, setReorderHintVisible] = useState(true);
-  const coverInFlightRef = useRef(false);
-  const libraryRef = useRef(library);
-  libraryRef.current = library;
 
   const docs = library.docs ?? [];
   const detailDoc =
@@ -223,32 +223,6 @@ export function DocumentsScreen({
       );
     },
     [busyGuards, onDeleteDocument, t],
-  );
-
-  const runCoverThenCommit = useCallback(
-    async (entry: LibraryDoc): Promise<void> => {
-      if (entry.kind !== "pdf") return;
-      if (coverInFlightRef.current) return;
-      coverInFlightRef.current = true;
-      try {
-        const uri = await generateCoverForDoc(entry, {
-          // Membership is library-only. Do NOT short-circuit on entry.id —
-          // a mid-cover delete must make libraryHas return false so the durable
-          // write is abandoned (CRIT-2). AppShell updateDocumentPreview also
-          // refuses missing docs as a final ownership backstop.
-          libraryHas: (id) =>
-            (libraryRef.current.docs ?? []).some((d) => d.id === id),
-        });
-        if (uri) {
-          onUpdateDocumentPreview(entry.id, uri);
-        }
-      } catch {
-        /* silent degrade to placeholder */
-      } finally {
-        coverInFlightRef.current = false;
-      }
-    },
-    [onUpdateDocumentPreview],
   );
 
   const importDocument = useCallback(async () => {
@@ -427,8 +401,30 @@ export function DocumentsScreen({
         ...(estimatedTokens != null ? { estimatedTokens } : {}),
       };
 
-      if (!onAddDocument(entry)) {
+      // MED-3 (Jelly): generate the page-1 cover BEFORE addDocument so the
+      // background embed job cannot hold docOpGate READ and make cover return
+      // null (import used to call cover after add → race with scheduleBackgroundEmbed).
+      let entryWithCover = entry;
+      if (kind === "pdf") {
+        try {
+          const uri = await generateCoverForDoc(entry, {
+            // Not yet in the library — membership is the new id itself until
+            // commit; delete cannot race because we have not published yet.
+            libraryHas: (id) => id === entry.id,
+          });
+          if (uri) {
+            entryWithCover = { ...entry, previewUri: uri };
+          }
+        } catch {
+          /* silent degrade to placeholder */
+        }
+      }
+
+      if (!onAddDocument(entryWithCover)) {
         await deleteOwnedFile(ownedUri);
+        if (entryWithCover.previewUri) {
+          await deleteOwnedFile(entryWithCover.previewUri).catch(() => undefined);
+        }
         Alert.alert(t("documents.title"), t("documents.errorBusy"));
         return;
       }
@@ -443,10 +439,8 @@ export function DocumentsScreen({
         Alert.alert(t("documents.title"), t("documents.errorPdf"));
       }
 
-      // Sequential cover generation while import overlay is still up (Q2).
-      if (kind === "pdf") {
-        await runCoverThenCommit(entry);
-      }
+      // Cover already attempted above. If it failed (null), leave placeholder;
+      // a later open of the detail view will still show the FileText tile.
     } catch {
       // picker cancelled / unexpected
     } finally {
@@ -458,7 +452,6 @@ export function DocumentsScreen({
     isDocumentDeleteInFlight,
     locale,
     onAddDocument,
-    runCoverThenCommit,
     t,
   ]);
 
@@ -567,7 +560,9 @@ export function DocumentsScreen({
               paddingVertical: spacing.sm,
               paddingBottom: insets.bottom + spacing.lg,
             }}
-            activationDistance={12}
+            // MED-2: lower activation so a single hold-swipe on 480px works
+            // (was 12 + delayLongPress 180 — adb single-swipe often no-op).
+            activationDistance={6}
           />
           {reorderHintVisible ? (
             <View

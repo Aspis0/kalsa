@@ -427,6 +427,9 @@ function buildPersistableMessages(
       return {
         ...message,
         streaming: undefined,
+        // Never persist live tool status — restored "Writing / Reading document…"
+        // after kill/reload left an orphan strip on finished turns (Jelly MED-5).
+        statusLabel: undefined,
         statusHistory: undefined,
         attachments,
       };
@@ -508,13 +511,9 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
     if (record.edited === true) {
       message.edited = true;
     }
-    // Gli stati transitori non vengono mai ripristinati: niente spinner eterni.
-    if (typeof record.statusLabel === "string") message.statusLabel = record.statusLabel.slice(0, 200);
-    if (Array.isArray(record.statusHistory) && record.statusHistory.length <= MAX_ITEMS) {
-      message.statusHistory = record.statusHistory
-        .filter((s): s is string => typeof s === "string")
-        .slice(0, MAX_ITEMS);
-    }
+    // Transient UI only — never restore live status strips after kill/reload
+    // (orphan "Writing / Reading document…" after a finished turn — Jelly MED-5).
+    // statusLabel / statusHistory are intentionally dropped on restore.
     if (Array.isArray(record.sources) && record.sources.length <= MAX_ITEMS) {
       message.sources = record.sources
         .filter((s): s is Record<string, unknown> => !!s && typeof s === "object" && !Array.isArray(s))
@@ -2987,7 +2986,20 @@ export function AiChatPage({
 
       {/* ── Messages / welcome ── */}
       {messages.length === 0 ? (
-        <View style={{ paddingHorizontal: spacing.xs, paddingTop: spacing.xl }}>
+        // HIGH-1 (Jelly 480×854): welcome chips must NOT cover the composer.
+        // flex:1 + ScrollView keeps the EditText always in the tree and tappable;
+        // on tall screens the list simply does not scroll.
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: spacing.xs,
+            paddingTop: spacing.xl,
+            paddingBottom: spacing.md,
+            flexGrow: 1,
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {/* Greeting */}
           <Text style={[typography.displayMd, { color: colors.ink, marginBottom: spacing.xs }]}>
             {greeting}
@@ -3046,7 +3058,7 @@ export function AiChatPage({
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
       ) : (
         <FlatList
           ref={scrollViewRef}
@@ -3872,6 +3884,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
           ) : null}
           <Pressable
             onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+            delayLongPress={350}
             accessibilityLabel={t("chat.a11yLongPress")}
             style={{
               backgroundColor: colors.accentSoft,
@@ -3982,6 +3995,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
         ) : m.text.trim() || showCursor ? (
           <Pressable
             onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+            delayLongPress={350}
             accessibilityLabel={t("chat.a11yLongPress")}
           >
             {segments.map((seg, segIdx) => {

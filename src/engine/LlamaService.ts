@@ -1632,6 +1632,120 @@ export async function streamAssistantTurn(
       // Structured error results and thrown failures do not overwrite a prior success.
       const toolAttribution = new ToolAttributionTracker();
 
+      // HIGH-3 (Jelly): 2B models often ignore system "prefer document_chat" and
+      // answer from parametrics when a library doc is attached. Auto-inject ONE
+      // synthetic document_chat call before round 0 when the user text carries
+      // a [document:ID …] marker (written by AiChatPage for library attaches).
+      // Strategy then lands on the subsequent synthesis KALSA_TELEMETRY line.
+      // Skip when document_chat is not in the tool list (should not happen).
+      let autoDocInjected = false;
+      const attachedDocMatch = lastUserMessageText.match(
+        /\[document:([^\]\s]+)(?:\s+name="([^"]*)")?\]/,
+      );
+      const hasDocumentChatTool = Boolean(
+        options?.tools?.some((t) => t?.function?.name === "document_chat"),
+      );
+      if (
+        hasTools &&
+        hasDocumentChatTool &&
+        options?.executeTool &&
+        attachedDocMatch &&
+        !autoDocInjected
+      ) {
+        autoDocInjected = true;
+        const autoDocId = attachedDocMatch[1];
+        // Strip the marker so the query is the user's actual question.
+        const autoQuery = lastUserMessageText
+          .replace(/\[document:[^\]]*\]/g, "")
+          .trim()
+          .slice(0, 500) || "Summarize the attached document.";
+        const autoCall = {
+          type: "function" as const,
+          id: "call-auto-doc-0",
+          function: {
+            name: "document_chat",
+            arguments: JSON.stringify({
+              query: autoQuery,
+              docId: autoDocId,
+            }),
+          },
+        };
+        callbacks.onTool?.({
+          name: "document_chat",
+          arguments: { query: autoQuery, docId: autoDocId },
+        });
+        callbacks.onStatus?.({ label: strings.chat.readingDocument });
+        let autoToolContent: string;
+        try {
+          const outcome = await options.executeTool(
+            "document_chat",
+            { query: autoQuery, docId: autoDocId },
+            signal,
+            lastUserMessageText,
+          );
+          recordToolSuccess(
+            toolExecState,
+            // same key shape as decideToolExecution for de-dupe
+            `document_chat|${JSON.stringify({ query: autoQuery, docId: autoDocId })}`,
+          );
+          if (isSuccessfulToolOutcome(outcome)) {
+            toolAttribution.onToolSuccess("document_chat", outcome.strategy);
+          } else {
+            toolAttribution.onToolFailure();
+          }
+          const { assigned } = accumulateToolSources(
+            accumulatedSources,
+            outcome.sources,
+          );
+          if (assigned.length) {
+            callbacks.onSources?.(accumulatedSources);
+          }
+          const citeKind = citeKindForTool("document_chat");
+          const pdfPages = pdfPagesFromSources(outcome.sources);
+          const bodyWithCite =
+            ((outcome.text ?? "") || strings.errors.noResults) +
+            buildCiteInstructionSuffix(
+              assigned,
+              strings,
+              citeKind,
+              pdfPages.length > 0 ? { pdfPages } : undefined,
+            );
+          autoToolContent = formatToolResultContent(bodyWithCite, {
+            documentProvenance: true,
+          });
+        } catch (error) {
+          toolAttribution.onToolFailure();
+          callbacks.onStatus?.({ label: strings.chat.toolFailed });
+          autoToolContent = formatToolResultContent(
+            strings.errors.toolError.replace(
+              "{message}",
+              error instanceof Error ? error.message : String(error),
+            ),
+          );
+        }
+        if (bailIfStopped()) return;
+        // Seed the transcript so the first completion is already a synthesis
+        // round over the retrieved passages (and KALSA_TELEMETRY gets strategy).
+        currentMessages = [
+          ...currentMessages,
+          {
+            role: "assistant",
+            content: "",
+            tool_calls: [autoCall],
+          },
+          {
+            role: "tool",
+            tool_call_id: autoCall.id,
+            content: autoToolContent,
+          },
+        ];
+        kvReproState = nextKvReproState(kvReproState, "tool_calls_detected");
+        // Prefer text-only synthesis after the auto retrieval (2B is weak at
+        // chaining further tools once passages are in context).
+        forceTextOnly = true;
+        callbacks.onStatus?.({ label: statusLabel });
+      }
+
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
         // Snapshot prior-round cleaned prose before this round's stream starts.

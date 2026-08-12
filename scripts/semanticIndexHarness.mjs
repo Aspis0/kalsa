@@ -519,7 +519,7 @@ async function main() {
       wouldBeFloatDelta,
     } = mod;
     assert(
-      DEFAULT_VECTOR_MEMORY_FLOAT_CAP === 200_000,
+      DEFAULT_VECTOR_MEMORY_FLOAT_CAP === 400_000,
       `cap constant ${DEFAULT_VECTOR_MEMORY_FLOAT_CAP}`,
     );
     // dims=4, cap=12 floats → max 3 new vectors.
@@ -574,14 +574,14 @@ async function main() {
   // ── FIX 4: invalid floatCap fails closed to DEFAULT_SEMANTIC_FLOAT_CAP ──
   check("25. invalid floatCap (neg/0/NaN) uses DEFAULT_SEMANTIC_FLOAT_CAP", () => {
     assert(
-      DEFAULT_SEMANTIC_FLOAT_CAP === 200_000,
+      DEFAULT_SEMANTIC_FLOAT_CAP === 400_000,
       `DEFAULT_SEMANTIC_FLOAT_CAP ${DEFAULT_SEMANTIC_FLOAT_CAP}`,
     );
     assert(
       DEFAULT_VECTOR_MEMORY_FLOAT_CAP === DEFAULT_SEMANTIC_FLOAT_CAP,
       "alias matches",
     );
-    // dims=4; default cap 200_000 → room for 50_000 vectors. A fixture that
+    // dims=4; default cap 400_000 → room for 100_000 vectors. A fixture that
     // already sits at the default cap must refuse a NEW vector.
     // Build a small index and pass floatCap: -1 / 0 / NaN with otherResidentFloats
     // equal to the default so the next add is refused by the default cap.

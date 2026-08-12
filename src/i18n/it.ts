@@ -25,6 +25,8 @@ export const it: typeof en = {
     stop: "Stop",
     tools: "Strumenti",
     web: "Web",
+    webOnHint: "Ricerca web attiva. Tocca due volte per disattivarla.",
+    webOffHint: "Ricerca web disattivata. Tocca due volte per attivarla.",
     source: "Fonte",
     image: "Immagine",
     attachment: "Allegato",

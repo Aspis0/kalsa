@@ -199,6 +199,8 @@ type ActiveOverlay =
   | null;
 
 const MODEL_STORAGE_KEY = "kalsa.model.id";
+/** Per-user web tool gate (search + fetch). Default ON; AsyncStorage-backed. */
+const WEB_TOOLS_ENABLED_KEY = "kalsa.web.enabled";
 
 // ── Model download: keep-awake + progress notification (MIUI/Xiaomi fix) ──
 // Aggressive Android power managers (MIUI in particular) freeze the app the
@@ -571,6 +573,38 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // HIGH-5: per-user web tools toggle (default ON). Gates web_search/web_fetch
+  // exposure to the model; document_chat is independent.
+  const [webToolsEnabled, setWebToolsEnabled] = useState(true);
+  const webToolsEnabledRef = useRef(true);
+  webToolsEnabledRef.current = webToolsEnabled;
+  useEffect(() => {
+    let cancelled = false;
+    void AsyncStorage.getItem(WEB_TOOLS_ENABLED_KEY)
+      .then((raw) => {
+        if (cancelled) return;
+        // Missing key → default ON (current historical behavior).
+        if (raw === "0" || raw === "false") {
+          setWebToolsEnabled(false);
+          webToolsEnabledRef.current = false;
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const toggleWebTools = useCallback(() => {
+    setWebToolsEnabled((prev) => {
+      const next = !prev;
+      webToolsEnabledRef.current = next;
+      void AsyncStorage.setItem(WEB_TOOLS_ENABLED_KEY, next ? "1" : "0").catch(
+        () => undefined,
+      );
+      return next;
+    });
+  }, []);
+
   // ── User memory refs (declared early so agentOptions can read via getter) ──
   // State/sync for memoryFacts lives below; only injected facts count when enabled.
   const memoryFactsRef = useRef<string[]>([]);
@@ -904,7 +938,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    * FIX D — lazy per-doc vector restore (no startup cost).
    *
    * Memory policy: total loaded floats across all docs must stay under
-   * DEFAULT_VECTOR_MEMORY_FLOAT_CAP (200_000 ≈ 800 KB fp32). If loading this
+   * DEFAULT_VECTOR_MEMORY_FLOAT_CAP (400_000 ≈ 1.6 MB fp32; raised from 200k
+   * after Jelly HIGH-4: 516-chunk partial on 273 KB docs). If loading this
    * doc would exceed the cap, leave it BM25-only (return null) and record
    * reason "cap". Corrupt / missing sidecars → reason "corrupt".
    */
@@ -1466,13 +1501,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     }
   }, []); // refs only — bumpEmbedJobGeneration is stable via useCallback([])
 
-  // ── Web tools (search + fetch): SEMPRE ATTIVI — il modello decide se usarli
-  // (info attuali, notizie, o richiesta esplicita). Le query / fetch partono solo
-  // quando il tool viene chiamato (privacy by design).
+  // ── Web tools (search + fetch): default ON, per-user toggleable (HIGH-5).
+  // Queries / fetches only run when the tool is called (privacy by design).
   // Per-turn allowlist: URLs from the user message + every web_search result;
   // web_fetch may only open those (closes crafted-URL exfiltration). Redirects
   // may land on another path/port of the SAME host, or an already-allowlisted URL.
   // document_chat sits alongside web tools and reuses requestPdfText (no new host).
+  // agentOptions is rebuilt when webToolsEnabled flips so the tool list matches.
   const agentOptions = useMemo<EngineTurnOptions>(() => {
     const searchExec = makeWebSearchExecutor(locale, {
       getMemoryFacts: () => injectedFactsRef.current,
@@ -1559,10 +1594,30 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     );
     // ensureSemanticIndexLoaded is stable (useCallback []); captured above.
 
+    // HIGH-5: omit web tools when the user toggled Web off. document_chat always
+    // stays available so library attachments keep working offline.
+    const tools = webToolsEnabled
+      ? [WEB_SEARCH_TOOL, WEB_FETCH_TOOL, DOCUMENT_CHAT_TOOL]
+      : [DOCUMENT_CHAT_TOOL];
+
     return {
-      tools: [WEB_SEARCH_TOOL, WEB_FETCH_TOOL, DOCUMENT_CHAT_TOOL],
+      tools,
       executeTool: async (name, args, signal, lastUserMessage) => {
         ensureAllowlistForTurn(lastUserMessage);
+
+        // Defense in depth: even if a stale completion still holds the tool
+        // schema, refuse web tools when the toggle is off.
+        if (
+          !webToolsEnabledRef.current &&
+          (name === "web_search" || name === "web_fetch")
+        ) {
+          return {
+            text: getStrings(locale).errors.unknownTool.replace(
+              "{name}",
+              name,
+            ),
+          };
+        }
 
         if (name === "web_search") {
           const outcome = await searchExec(name, args, signal, lastUserMessage);
@@ -1620,7 +1675,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         };
       },
     };
-  }, [locale]);
+  }, [locale, webToolsEnabled]);
 
   // ── Drawer + exclusive overlay (settings | documents | miniapp | null) ──
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -3804,9 +3859,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           color: colors.bad,
         };
       case "ready":
+        // HIGH-2: downloaded-but-unloaded is tappable ("Tap to reload"), never auto-load.
         return {
-          label: engineLoaded ? t("download.readyLocal") : t("download.downloaded"),
-          color: engineLoaded ? colors.good : colors.muted,
+          label: engineLoaded
+            ? t("download.readyLocal")
+            : t("chat.lazyReload"),
+          color: engineLoaded ? colors.good : colors.accent,
         };
     }
   })();
@@ -3860,7 +3918,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             >
               Kalsa
             </Text>
-            {/* Indicatore modello (selezione in Settings). Tap = download se manca/errore. */}
+            {/* Model chip: download if missing; retry if error; load if downloaded-unloaded.
+                Never auto-load on foreground (ANTI_OOM). HIGH-2: chip stays enabled. */}
             <Pressable
               onPress={() => {
                 if (modelState === "missing") {
@@ -3874,11 +3933,22 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   } else {
                     confirmDownload(currentModel.id);
                   }
+                } else if (modelState === "ready") {
+                  const engineLoaded =
+                    isEngineReady() && getActiveModelId() === currentModel.id;
+                  if (!engineLoaded && !isEmbedderHung()) {
+                    void ensureEngineForModel(currentModel);
+                  }
                 }
               }}
               disabled={
-                (modelState !== "missing" && modelState !== "error") ||
-                isEmbedderHung()
+                isEmbedderHung() ||
+                modelState === "downloading" ||
+                modelState === "loading" ||
+                modelState === "checking" ||
+                (modelState === "ready" &&
+                  isEngineReady() &&
+                  getActiveModelId() === currentModel.id)
               }
               // Nit (round 9): hung bar stays non-interactive (restart-only label).
               pointerEvents={isEmbedderHung() ? "none" : "auto"}
@@ -3892,8 +3962,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             </Pressable>
           </View>
 
-          {/* Badge statico: la web search è sempre disponibile */}
-          <View
+          {/* HIGH-5: real Web toggle (persisted). Default ON. */}
+          <Pressable
+            onPress={toggleWebTools}
+            hitSlop={8}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: webToolsEnabled }}
+            accessibilityLabel={t("common.web")}
+            accessibilityHint={
+              webToolsEnabled
+                ? t("common.webOnHint")
+                : t("common.webOffHint")
+            }
             style={{
               flexDirection: "row",
               alignItems: "center",
@@ -3901,16 +3981,32 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               paddingHorizontal: 8,
               paddingVertical: 3,
               borderRadius: 999,
-              backgroundColor: `${colors.accent}22`,
+              backgroundColor: webToolsEnabled
+                ? `${colors.accent}22`
+                : `${colors.muted}18`,
               borderWidth: 1,
-              borderColor: `${colors.accent}55`,
+              borderColor: webToolsEnabled
+                ? `${colors.accent}55`
+                : `${colors.muted}44`,
+              opacity: webToolsEnabled ? 1 : 0.7,
             }}
           >
-            <LucideGlobe size={11} color={colors.accent} />
-            <Text style={[typography.monoXs, { color: colors.accent }]}>
+            <LucideGlobe
+              size={11}
+              color={webToolsEnabled ? colors.accent : colors.muted}
+            />
+            <Text
+              style={[
+                typography.monoXs,
+                {
+                  color: webToolsEnabled ? colors.accent : colors.muted,
+                  textDecorationLine: webToolsEnabled ? "none" : "line-through",
+                },
+              ]}
+            >
               {t("common.web")}
             </Text>
-          </View>
+          </Pressable>
         </View>
 
         {/* Progress bar sottile, solo durante il download */}

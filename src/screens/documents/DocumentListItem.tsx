@@ -132,8 +132,9 @@ export function DocumentListItem({ doc, drag, isActive, onOpen }: Props) {
       {drag ? (
         <Pressable
           onLongPress={drag}
-          delayLongPress={180}
-          hitSlop={10}
+          // MED-2: shorter long-press so adb/hold-swipe activates drag on 480px.
+          delayLongPress={120}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={t("documents.detailA11yDrag")}
           accessibilityHint={t("documents.dragHint")}

@@ -78,12 +78,13 @@ function isZeroOrNonFinite(v: Float32Array): boolean {
 }
 
 /**
- * Default resident float cap (200k floats ≈ 800 KB fp32).
- * Used when callers omit a cap OR pass an invalid floatCap
- * (non-number / negative / NaN / 0) — invalid input fails closed to the
- * default rather than disabling capping (FIX 4 / hostile review round 4).
+ * Default resident float cap (400k floats ≈ 1.6 MB fp32).
+ * Was 200k (≈516 chunks @ 384-d) which truncated 273 KB docs mid-body on Jelly
+ * (HIGH-4). 400k ≈ 1041 chunks — still a small RAM guard vs 8 GB devices with
+ * ~3.1 GB chat RSS; margin remains multi-GB. Invalid floatCap still fails closed
+ * to this default (FIX 4 / hostile review round 4).
  */
-export const DEFAULT_SEMANTIC_FLOAT_CAP = 200_000;
+export const DEFAULT_SEMANTIC_FLOAT_CAP = 400_000;
 /** Alias kept for existing AppShell / harness imports. */
 export const DEFAULT_VECTOR_MEMORY_FLOAT_CAP = DEFAULT_SEMANTIC_FLOAT_CAP;
 

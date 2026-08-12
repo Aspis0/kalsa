@@ -24,6 +24,10 @@ export const en = {
     stop: "Stop",
     tools: "Tools",
     web: "Web",
+    /** a11y hint when Web tools are currently ON */
+    webOnHint: "Web search on. Double-tap to turn off.",
+    /** a11y hint when Web tools are currently OFF */
+    webOffHint: "Web search off. Double-tap to turn on.",
     source: "Source",
     image: "Image",
     attachment: "Attachment",
