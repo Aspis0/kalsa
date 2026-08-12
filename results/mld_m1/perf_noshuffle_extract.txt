@@ -1,0 +1,10 @@
+# From ~/gdn_k2/mld_m1/logs/measure.out  PERF env OFF
+# cmd: test-backend-ops perf -b GPUOpenCL -o MUL_MAT -p '<m,n,k>'
+# UNPLUGGED, S23 Adreno 740
+
+MUL_MAT m=2048  n=1 k=2048   8192 runs  191.48 us/run   43.81 GFLOPS
+MUL_MAT m=6144  n=1 k=2048   7948 runs  207.82 us/run  121.09 GFLOPS
+MUL_MAT m=2048  n=1 k=6144   3974 runs  290.21 us/run   86.72 GFLOPS
+MUL_MAT m=4096  n=1 k=4096   5962 runs  245.52 us/run  136.67 GFLOPS
+MUL_MAT m=12288 n=1 k=4096   1988 runs  685.94 us/run  146.75 GFLOPS
+MUL_MAT m=4096  n=1 k=12288  1988 runs  732.76 us/run  137.38 GFLOPS

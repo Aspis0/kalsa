@@ -1,0 +1,22 @@
+=== sha256 ===
+3ab96d2c70d5d86dc8ae61a7f708ccda1c0d3848c3a1825892b9222106cca840  /data/data/com.termux/files/home/gdn_k2/bin_mld/llama-cli
+99ebf904db9b0e0808e66c9809ced313135539b86b56a1af6eded59ae65be3a3  /data/data/com.termux/files/home/gdn_k2/bin_mld/llama-bench
+adeee1aeebd194c303db211f32fb05a80d86db53c07ba52299df7a72e1b139c9  /data/data/com.termux/files/home/gdn_k2/bin_mld/test-backend-ops
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  /data/data/com.termux/files/home/gdn_k2/bin_mld/libc++_shared.so
+=== battery start 2026-08-12T17:22:11-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 26.4,
+  "voltage": 4006,
+  "current": -188000,
+  "current_average": -107,
+  "percentage": 66,
+  "level": 66,
+  "scale": 100,
+  "charge_counter": 2501250,
+  "cycle": 0
+}

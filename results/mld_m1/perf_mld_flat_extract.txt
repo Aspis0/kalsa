@@ -1,0 +1,8 @@
+# From ~/gdn_k2/mld_m1/logs/perf_mld_flat.txt
+# cmd: GGML_OPENCL_MLD_GEMV=1 test-backend-ops perf -b GPUOpenCL -o MUL_MAT -p '<m,n,k>'
+# UNPLUGGED, S23 Adreno 740
+# Path: generic SOA convert + kernel_mul_mv_q4_K_f32_flat
+
+MUL_MAT m=2048 n=1 k=2048  8192 runs  4028.83 us/run    2.08 GFLOPS
+MUL_MAT m=6144 n=1 k=2048  3974 runs 13264.44 us/run    1.90 GFLOPS
+MUL_MAT m=2048 n=1 k=6144  3974 runs 11130.36 us/run    2.26 GFLOPS
