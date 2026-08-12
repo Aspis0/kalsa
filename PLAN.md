@@ -16,7 +16,7 @@
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 65 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 66 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -1119,6 +1119,36 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-12 (pomeriggio) — 🔧 IL POMERIGGIO DEL FIX: K2.1 → K2.2 →
+  review ostile → K2.2b → probe build CPU. Primo E2E ibrido GDN CORRETTO
+  su GPU mobile (che si sappia); il 740 perde comunque il decode; e il
+  probe CPU trova un tradeoff che tocca l'app Kalsa.**
+
+  1. **K2.1** (`moe-gdn-k21-parity.md`): il garbage GPU non era GDN — era
+     il kernel flat Q6_K (NMSE ~12 sul 740) che si rubava l'lm_head tied
+     via redirect large-M. Bisezione ngl + isolamento `-ot`: chirurgico.
+  2. **K2.2** (`moe-gdn-k22-fix.md`, branch `kalsa/opencl-q6k-dispatch-fix`):
+     redirect spento quando noshuffle è legale → greedy GPU token-identico
+     al CPU. **Primo numero onesto 740: tg GPU 0.41× → poi 0.56× col build
+     CPU giusto. Lane decode-740 chiusa per misura.** Prefill GPU 1.29×.
+  3. **Review ostile DeepSeek** (`results/gdn_gpu_k22/review_hostile.md`):
+     fix corretto, zero blocker; 3 chiusure → **K2.2b @ 04c5d362a**: path
+     n≥32 validato (case n=64 + greedy 62-token identico), commento falso
+     corretto, twin Q4_K sistemato. Diagnostica: flat Q4_K NON rotto sul
+     740 (solo Q6_K). GDN family sempre zero FAIL.
+  4. **Probe build CPU** (`moe-cpu-build-gap.md`): il −46% del nostro build
+     era **GGML_CPU_REPACK=ON** (pp ×2 MA tg −33% su questo device) +
+     binario non-strippato (-g, 125 MB → tg −16%). Fix: REPACK=OFF + strip
+     → tg 18.19 ≈ build-safe. ⚠ **ACTION ITEM prodotto: verificare i flag
+     di build di llama.rn nell'app — se ha repack ON, il prodotto perde
+     ~33% di decode.** Il GPU è raddoppiato pure lui col build giusto
+     (5.06→10.25).
+  5. Nota storica: con K2.2 siamo (a quanto risulta) i primi con un ibrido
+     Gated DeltaNet end-to-end corretto su GPU mobile — LiteRT è CPU-only
+     sugli ibridi, upstream aveva i kernel ma l'E2E era rotto. Sul 740 è
+     corretto-ma-lento; il verdetto velocità vero è del 750 (Xiaomi,
+     attesa gualt). In volo: recon riusabilità kernel Google (ML Drift).
 
 - **2026-08-12 — ⚗️ K2 E2E: il kernel GDN è CORRETTO perfino sul 740 —
   a rompersi è tutto il resto. S23 = FAIL_CORRECTNESS (flash-attn non
