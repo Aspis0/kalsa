@@ -7,6 +7,8 @@
  *  - exact key set (no user text / surprise keys)
  *  - -1 timing defaults serialize as -1
  *  - roundTelemetryFromResult missing-field defaults
+ *  - ToolAttributionTracker pure state machine (success / failure / reset)
+ *  - isSuccessfulToolOutcome structured-error gate
  *
  * Compile-from-disk pattern (same as streamCoalescerHarness). Exit 1 on fail.
  */
@@ -80,9 +82,13 @@ async function main() {
   compile();
   const modPath = resolveBuilt();
   console.log("Loading", modPath);
-  const { formatTelemetryLine, roundTelemetryFromResult } = await import(
-    pathToFileURL(modPath).href
-  );
+  const {
+    formatTelemetryLine,
+    roundTelemetryFromResult,
+    ToolAttributionTracker,
+    isSuccessfulToolOutcome,
+    normalizeToolStrategy,
+  } = await import(pathToFileURL(modPath).href);
 
   let passed = 0;
   let failed = 0;
@@ -235,6 +241,89 @@ async function main() {
     const r = roundTelemetryFromResult({ timings: null, tokens_cached: 5 }, 1);
     assert(r.tokensCached === 5, `tokensCached expected 5, got ${r.tokensCached}`);
     assert(r.promptMs === -1, `promptMs expected -1 with null timings, got ${r.promptMs}`);
+  });
+
+  // ── 6. ToolAttributionTracker state machine ────────────────────────────
+  test("tracker: no-tool turn → null snapshot", () => {
+    assert(typeof ToolAttributionTracker === "function", "ToolAttributionTracker not exported");
+    const t = new ToolAttributionTracker();
+    const s = t.snapshot();
+    assert(s.tool === null, `tool expected null, got ${s.tool}`);
+    assert(s.strategy === null, `strategy expected null, got ${s.strategy}`);
+  });
+
+  test("tracker: doc tool success → synthesis snapshot", () => {
+    const t = new ToolAttributionTracker();
+    t.onToolSuccess("document_chat", "hybrid");
+    const s = t.snapshot();
+    assert(s.tool === "document_chat", `tool expected document_chat, got ${s.tool}`);
+    assert(s.strategy === "hybrid", `strategy expected hybrid, got ${s.strategy}`);
+  });
+
+  test("tracker: multiple tools — last success wins; non-doc clears strategy", () => {
+    const t = new ToolAttributionTracker();
+    t.onToolSuccess("document_chat", "bm25_only");
+    t.onToolSuccess("web_search"); // no strategy
+    const s = t.snapshot();
+    assert(s.tool === "web_search", `tool expected web_search, got ${s.tool}`);
+    assert(s.strategy === null, `strategy expected null after non-doc tool, got ${s.strategy}`);
+  });
+
+  test("tracker: failed tool after success must NOT overwrite last successful", () => {
+    const t = new ToolAttributionTracker();
+    t.onToolSuccess("document_chat", "full_context");
+    t.onToolFailure(); // structured or thrown failure later in the turn
+    const s = t.snapshot();
+    assert(s.tool === "document_chat", `tool must stay document_chat, got ${s.tool}`);
+    assert(s.strategy === "full_context", `strategy must stay full_context, got ${s.strategy}`);
+  });
+
+  test("tracker: thrown failure alone must not record", () => {
+    const t = new ToolAttributionTracker();
+    t.onToolFailure();
+    const s = t.snapshot();
+    assert(s.tool === null, `tool expected null after only failure, got ${s.tool}`);
+    assert(s.strategy === null, `strategy expected null after only failure, got ${s.strategy}`);
+  });
+
+  test("tracker: reset for fresh next turn", () => {
+    const t = new ToolAttributionTracker();
+    t.onToolSuccess("document_chat", "hybrid");
+    t.reset();
+    const s = t.snapshot();
+    assert(s.tool === null, `tool expected null after reset, got ${s.tool}`);
+    assert(s.strategy === null, `strategy expected null after reset, got ${s.strategy}`);
+  });
+
+  test("tracker: unknown strategy string → null (union gate)", () => {
+    const t = new ToolAttributionTracker();
+    t.onToolSuccess("document_chat", "not_a_real_strategy");
+    const s = t.snapshot();
+    assert(s.tool === "document_chat", `tool expected document_chat, got ${s.tool}`);
+    assert(s.strategy === null, `unknown strategy must normalize to null, got ${s.strategy}`);
+  });
+
+  test("isSuccessfulToolOutcome: strategy error / error field are failures", () => {
+    assert(typeof isSuccessfulToolOutcome === "function", "isSuccessfulToolOutcome not exported");
+    assert(isSuccessfulToolOutcome({ strategy: "hybrid" }) === true, "hybrid should succeed");
+    assert(isSuccessfulToolOutcome({ strategy: "error" }) === false, "strategy:error should fail");
+    assert(
+      isSuccessfulToolOutcome({ strategy: "hybrid", error: "boom" }) === false,
+      "error field should fail",
+    );
+    assert(isSuccessfulToolOutcome({ text: "ok" }) === true, "plain result should succeed");
+    assert(isSuccessfulToolOutcome({ error: "" }) === true, "empty error string is not a failure");
+  });
+
+  test("normalizeToolStrategy: known values + rejects garbage", () => {
+    assert(typeof normalizeToolStrategy === "function", "normalizeToolStrategy not exported");
+    for (const v of ["hybrid", "bm25_only", "full_context", "vision_fallback", "retrieve", "error"]) {
+      assert(normalizeToolStrategy(v) === v, `expected ${v}`);
+    }
+    assert(normalizeToolStrategy(null) === null, "null → null");
+    assert(normalizeToolStrategy("") === null, "empty → null");
+    assert(normalizeToolStrategy("bogus") === null, "bogus → null");
+    assert(normalizeToolStrategy(42) === null, "number → null");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

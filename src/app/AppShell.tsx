@@ -1226,13 +1226,25 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         new SemanticVectorIndex({ dims: EMBEDDING_MODEL.dims });
 
       // Embed one-by-one (G99 ~1–3 s/chunk). Abort if gen stale / signal / deleted.
+      // Terminal reason tracks why the job ended so `[embed] done` is never
+      // misleading on partial/failed exits (vec null, reject, cap, delete).
       let embeddedCount = 0;
+      /** "completed" | "partial" | "failed" | "aborted" — set before every exit. */
+      let terminalReason: "completed" | "partial" | "failed" | "aborted" =
+        "completed";
+      const logEmbedDone = (reason: typeof terminalReason) => {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[embed] done {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount},"indexChunks":${index.chunkCount},"reason":${JSON.stringify(reason)}}`,
+        );
+      };
       for (const chunk of toEmbed) {
         if (!stillCurrent() || signal.aborted) {
           // eslint-disable-next-line no-console
           console.log(
             `[embed] abort mid-job: signal/gen {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount}}`,
           );
+          logEmbedDone("aborted");
           return;
         }
         if (!documentLibraryRef.current.docs?.some((d) => d.id === entry.id)) {
@@ -1240,6 +1252,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           console.log(
             `[embed] abort mid-job: doc deleted {"docId":${JSON.stringify(entry.id)}}`,
           );
+          logEmbedDone("aborted");
           return;
         }
         if (await mustSkipForRam()) {
@@ -1247,6 +1260,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           console.log(
             "[embed] abort mid-job: chat became resident on ≤6GB — no embedder init",
           );
+          // Partial if we already embedded some chunks this job; else failed
+          // (never got a vector in).
+          logEmbedDone(embeddedCount > 0 ? "partial" : "failed");
           return;
         }
         if (!stillCurrent() || signal.aborted) {
@@ -1254,6 +1270,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           console.log(
             `[embed] abort mid-job: signal after RAM gate {"docId":${JSON.stringify(entry.id)}}`,
           );
+          logEmbedDone("aborted");
           return;
         }
 
@@ -1264,6 +1281,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           console.log(
             `[embed] abort mid-job: signal after chunk embed {"docId":${JSON.stringify(entry.id)},"chunkId":${JSON.stringify(chunk.chunkId)}}`,
           );
+          logEmbedDone("aborted");
           return;
         }
         if (!vec) {
@@ -1272,6 +1290,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           console.log(
             `[embed] skip: embedder init refused or chunk failed {"docId":${JSON.stringify(entry.id)},"chunkId":${JSON.stringify(chunk.chunkId)}}`,
           );
+          // Partial if some chunks already landed; failed if none did.
+          terminalReason = embeddedCount > 0 ? "partial" : "failed";
           break;
         }
         // eslint-disable-next-line no-console
@@ -1322,6 +1342,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           console.log(
             `[embed] cap reached {"docId":${JSON.stringify(entry.id)},"chunks":${index.chunkCount}} — remaining skipped; hybrid degrades when index empty`,
           );
+          // Cap stop: partial (some/all of planned remaining skipped).
+          logEmbedDone("partial");
           return;
         }
         if (addResult.added === 0) {
@@ -1330,6 +1352,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           console.log(
             `[embed] skip: vector rejected {"docId":${JSON.stringify(entry.id)},"chunkId":${JSON.stringify(chunk.chunkId)}}`,
           );
+          terminalReason = embeddedCount > 0 ? "partial" : "failed";
           break;
         }
         existing.add(embedChunkKey(chunk.chunkId, chunk.contentHash));
@@ -1351,6 +1374,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             docSemanticByIdRef.current.delete(entry.id);
             docEmbedHashesByIdRef.current.delete(entry.id);
           }
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] abort mid-job: doc deleted at commit {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount}}`,
+          );
+          logEmbedDone("aborted");
           return;
         }
 
@@ -1367,6 +1395,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           if (owned && owned !== index) {
             // Map was replaced under us (should not happen under single-flight
             // + READ latch) — abort rather than clobber a foreign owner.
+            // eslint-disable-next-line no-console
+            console.log(
+              `[embed] abort mid-job: map ownership lost {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount}}`,
+            );
+            logEmbedDone("aborted");
             return;
           }
         }
@@ -1390,19 +1423,30 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         } catch {
           /* best-effort durable write */
         }
-        if (!stillCurrent() || signal.aborted) return;
+        if (!stillCurrent() || signal.aborted) {
+          logEmbedDone("aborted");
+          return;
+        }
         // Post-write existence check: if deleted during the write, drop the
         // resurrected map entry (delete already removed the file under its gate).
         if (!documentLibraryRef.current.docs?.some((d) => d.id === entry.id)) {
           docSemanticByIdRef.current.delete(entry.id);
           docEmbedHashesByIdRef.current.delete(entry.id);
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] abort mid-job: doc deleted post-write {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount}}`,
+          );
+          logEmbedDone("aborted");
           return;
         }
       }
-      // eslint-disable-next-line no-console
-      console.log(
-        `[embed] done {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount},"indexChunks":${index.chunkCount}}`,
-      );
+      // Loop finished or broke: completed only when every planned chunk embedded.
+      if (terminalReason === "completed" && embeddedCount < toEmbed.length) {
+        // Defensive: break sites set terminalReason; if any path forgot, treat
+        // as partial rather than silently claiming completed.
+        terminalReason = embeddedCount > 0 ? "partial" : "failed";
+      }
+      logEmbedDone(terminalReason);
     } catch {
       // ignore — hybrid degrades to BM25
       // eslint-disable-next-line no-console
