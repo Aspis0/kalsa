@@ -925,10 +925,6 @@ function collectToolTimingByMode(fase4) {
   });
 }
 
-/**
- * Exploratory gate A/B: baseline (gate on) vs nogate (toolgate 0).
- * Not gated. Missing nogate → n/a row, never a completeness failure.
- */
 function accumulateToolTiming(results) {
   const acc = { prec: [], rec: [], spurious: 0, missed: 0, blocked: 0, n: 0 };
   for (const r of results) {
@@ -965,10 +961,58 @@ function accumulateToolTiming(results) {
   };
 }
 
+/**
+ * Observed toolGateActive on one arm. A missing field is not "false" —
+ * old artifacts omit it and must not be assumed from the arm label.
+ * @returns {{kind: "missing_arm"|"absent"|"mixed"|"value", value?: boolean}}
+ */
+function uniqueObservedToolGate(fase4, arm) {
+  const rows = fase4.filter((r) => String(r.arm) === arm);
+  if (rows.length === 0) return { kind: "missing_arm" };
+  const values = [];
+  for (const r of rows) {
+    if (!Object.prototype.hasOwnProperty.call(r, "toolGateActive")) {
+      return { kind: "absent" };
+    }
+    const v = r.toolGateActive;
+    if (v === null || v === undefined) return { kind: "absent" };
+    values.push(v);
+  }
+  const first = values[0];
+  for (let i = 1; i < values.length; i++) {
+    if (!Object.is(values[i], first)) return { kind: "mixed" };
+  }
+  return { kind: "value", value: first };
+}
+
+/**
+ * Exploratory gate A/B: baseline (gate on) vs nogate (toolgate 0).
+ * Not gated. Missing nogate → n/a row, never a completeness failure.
+ * Pair only when observed toolGateActive values actually differ.
+ */
 function collectToolTimingGateAB(fase4) {
   const ofArm = (arm) =>
     accumulateToolTiming(fase4.filter((r) => String(r.arm) === arm));
+  const baseGate = uniqueObservedToolGate(fase4, "baseline");
+  const nogateGate = uniqueObservedToolGate(fase4, "nogate");
+  let status = "incomplete";
+  if (baseGate.kind === "missing_arm" || nogateGate.kind === "missing_arm") {
+    status = "incomplete";
+  } else if (baseGate.kind === "absent" || nogateGate.kind === "absent") {
+    status = "absent";
+  } else if (
+    baseGate.kind === "value" &&
+    nogateGate.kind === "value" &&
+    !Object.is(baseGate.value, nogateGate.value)
+  ) {
+    status = "ok";
+  } else {
+    status = "same";
+  }
   return {
+    status,
+    baseGate,
+    nogateGate,
     baseline: { arm: "baseline", ...ofArm("baseline") },
     nogate: { arm: "nogate", ...ofArm("nogate") },
   };
@@ -1609,9 +1653,6 @@ function renderFase4(agg) {
     "#### Gate A/B (exploratory): baseline vs nogate",
     "",
     "_Same compaction (`off`) and `tool_choice` (auto); gate is the only variable. Not gated. Missing nogate is n/a, not INCOMPLETE._",
-    "",
-    "| arm | precision | recall | spurious | missed | blocked |",
-    "|---|---|---|---|---|---|",
   );
   const gateRow = (row, label) => {
     if (!row) {
@@ -1622,8 +1663,32 @@ function renderFase4(agg) {
     const blk = row.blockedCalls == null ? "n/a" : String(row.blockedCalls);
     return `| ${label} | ${fmt(row.toolPrecision)} | ${fmt(row.toolRecall)} | ${sp} | ${miss} | ${blk} |`;
   };
-  lines.push(gateRow(gateAB?.baseline, "baseline"));
-  lines.push(gateRow(gateAB?.nogate, "nogate"));
+  const pushGateTable = () => {
+    lines.push(
+      "",
+      "| arm | precision | recall | spurious | missed | blocked |",
+      "|---|---|---|---|---|---|",
+    );
+    lines.push(gateRow(gateAB?.baseline, "baseline"));
+    lines.push(gateRow(gateAB?.nogate, "nogate"));
+  };
+  // Pair only on observed toolGateActive, never on the arm label.
+  if (gateAB?.status === "ok") {
+    pushGateTable();
+  } else if (gateAB?.status === "absent") {
+    lines.push(
+      "",
+      "_Gate A/B skipped: toolGateActive absent on at least one arm (old artifact; not assumed from the arm label)._",
+    );
+  } else if (gateAB?.status === "same") {
+    lines.push(
+      "",
+      "_Gate A/B not interpretable: observed toolGateActive is identical on baseline and nogate (a label is not evidence)._",
+    );
+  } else {
+    // One arm missing — n/a table, not a result that pretends the gate differed.
+    pushGateTable();
+  }
 
   // ── Probe-level (pseudo-replicated — NOT the gate) ──────────────────
   // One table per pairwise comparison so the primary ciswire arm is present.

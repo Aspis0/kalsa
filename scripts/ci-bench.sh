@@ -1214,7 +1214,7 @@ import json, sys
 
 phase, arm, seed, block_format, thinking, compaction, compaction_pref_raw = sys.argv[1:8]
 model_dir, model_file, facts_json, filler_rotation, history_chars = sys.argv[8:13]
-turns_path, out_path, compactor_chars, summary_chars, locale_pref_raw = sys.argv[13:18]
+turns_path, out_path, compactor_chars, summary_chars, locale_pref_raw, toolgate_pref_raw = sys.argv[13:19]
 
 turns = []
 try:
@@ -1238,6 +1238,9 @@ raw = {
     # On-device locale the app actually read (see set_prefs kalsa.locale seed).
     # Empty string when the key was absent — grader notes when not "it".
     "localePrefRaw": locale_pref_raw,
+    # On-device toolgate read-back (TOOLGATE_PREF_RAW), not the requested env.
+    # Grader lifts this to result.toolGateActive; the label is not evidence.
+    "toolgatePrefRaw": toolgate_pref_raw,
     "model": {"dir": model_dir, "file": model_file},
     "facts": json.loads(facts_json),
     "fillerRotation": int(filler_rotation),
@@ -1256,6 +1259,7 @@ with open(out_path, "w", encoding="utf-8") as out:
   "$PHASE" "$ARM" "$SEED" "$BLOCK_FORMAT" "$THINKING" "$COMPACTION" "$COMPACTION_PREF_RAW" \
   "$MODEL_DIR" "$MODEL_FILE" "$FACTS_JSON" "$FILLER_ROTATION" "$HISTORY_CHARS" \
   "$OUT/.turns.jsonl" "$OUT/raw.json" "$COMPACTOR_CHARS" "$SUMMARY_CHARS" "$LOCALE_PREF_RAW" \
+  "$TOOLGATE_PREF_RAW" \
   || die "failed to write raw.json — refusing to grade stale or missing data"
 
 # Grading is out-of-band: a raw.json that cannot be graded is a failed arm.

@@ -49,6 +49,19 @@ function parseContextModeFromPref(compactionPrefRaw) {
   return "off";
 }
 
+/**
+ * Observed tool-gate state from the on-device read-back (raw.toolgatePrefRaw /
+ * ci-bench TOOLGATE_PREF_RAW). Not derived from the arm label.
+ * "1" → true, "0" → false, absent/unknown → null (never assumed).
+ */
+function parseToolGateActive(toolgatePrefRaw) {
+  if (toolgatePrefRaw == null) return null;
+  const raw = String(toolgatePrefRaw).trim();
+  if (raw === "1") return true;
+  if (raw === "0") return false;
+  return null;
+}
+
 /** @deprecated Use parseContextModeFromPref; kept as alias for harness import. */
 function isCompactionActive(compactionPrefRaw) {
   return parseContextModeFromPref(compactionPrefRaw);
@@ -772,6 +785,7 @@ function gradeRaw(raw, baseDir) {
   const facts = Array.isArray(raw.facts) ? raw.facts : [];
 
   const compactionActive = parseContextModeFromPref(raw.compactionPrefRaw);
+  const toolGateActive = parseToolGateActive(raw.toolgatePrefRaw);
   const {
     summaryEvents,
     summaryEventsByTurn,
@@ -980,6 +994,9 @@ function gradeRaw(raw, baseDir) {
     localePrefRaw: raw.localePrefRaw ?? null,
     // Observed context mode from pref read-back: "off" | "v42" | "ciswire".
     compactionActive,
+    // Observed tool-gate from pref read-back. null when the field is absent
+    // on an old raw.json — aggregator must not assume from the arm label.
+    toolGateActive,
     summaryEvents,
     summaryEventsByTurn,
     summaryReachedLlm,

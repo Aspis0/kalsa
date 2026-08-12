@@ -1087,6 +1087,64 @@ async function main() {
       );
     }
 
+    // ── 9c. toolGateActive from on-device toolgatePrefRaw (not the label)
+    {
+      const probeTurns = [turn(1, "probe_facts", "Leopoldo")];
+      const on = gradeRaw(
+        baseRaw({
+          toolgatePrefRaw: "1",
+          turns: probeTurns,
+          facts: ["Leopoldo"],
+        }),
+        tmp,
+      );
+      check(
+        "toolGateActive true for pref 1",
+        on.toolGateActive === true,
+        `got=${JSON.stringify(on.toolGateActive)}`,
+      );
+
+      const off = gradeRaw(
+        baseRaw({
+          toolgatePrefRaw: "0",
+          turns: probeTurns,
+          facts: ["Leopoldo"],
+        }),
+        tmp,
+      );
+      check(
+        "toolGateActive false for pref 0",
+        off.toolGateActive === false,
+        `got=${JSON.stringify(off.toolGateActive)}`,
+      );
+
+      const absentRaw = baseRaw({
+        turns: probeTurns,
+        facts: ["Leopoldo"],
+      });
+      delete absentRaw.toolgatePrefRaw;
+      const absent = gradeRaw(absentRaw, tmp);
+      check(
+        "toolGateActive null when toolgatePrefRaw absent",
+        absent.toolGateActive === null,
+        `got=${JSON.stringify(absent.toolGateActive)}`,
+      );
+
+      const garbage = gradeRaw(
+        baseRaw({
+          toolgatePrefRaw: "yes",
+          turns: probeTurns,
+          facts: ["Leopoldo"],
+        }),
+        tmp,
+      );
+      check(
+        "toolGateActive null for unknown pref (not assumed)",
+        garbage.toolGateActive === null,
+        `got=${JSON.stringify(garbage.toolGateActive)}`,
+      );
+    }
+
     // ── 10. recall = fact_recall only (legacy probe_facts id) ────────
     {
       // 1/2 facts found; tool fails; language fails → recall must be 0.5, not pooled

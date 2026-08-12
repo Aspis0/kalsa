@@ -41,8 +41,7 @@ function compile() {
       "nodenext",
       "--skipLibCheck",
       "--ignoreConfig",
-      // webFetchTool.ts uses require(); --ignoreConfig drops tsconfig, so @types/node
-      // must be requested explicitly or tsc reports TS2591.
+      // --types node matches the 17 other harnesses; required because the compiled graph reaches src/telemetry/telemetry.ts (node-style loaders).
       "--types",
       "node",
     ],
@@ -1188,8 +1187,7 @@ async function main() {
         "nodenext",
         "--skipLibCheck",
         "--ignoreConfig",
-        // webFetchTool.ts uses require(); --ignoreConfig drops tsconfig, so @types/node
-        // must be requested explicitly or tsc reports TS2591.
+        // --types node matches the 17 other harnesses; required because the compiled graph reaches src/telemetry/telemetry.ts (node-style loaders).
         "--types",
         "node",
       ],
@@ -2243,8 +2241,7 @@ async function main() {
         "nodenext",
         "--skipLibCheck",
         "--ignoreConfig",
-        // webFetchTool.ts uses require(); --ignoreConfig drops tsconfig, so @types/node
-        // must be requested explicitly or tsc reports TS2591.
+        // --types node matches the 17 other harnesses; required because the compiled graph reaches src/telemetry/telemetry.ts (node-style loaders).
         "--types",
         "node",
       ],

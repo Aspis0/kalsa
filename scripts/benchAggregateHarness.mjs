@@ -129,6 +129,8 @@ function writeCompleteCampaign(
     identicalPrompts = false,
     identicalCiswire = false,
     seeds = [1, 2, 3],
+    // Observed gate on baseline. "omit" → old artifact (no toolGateActive).
+    baselineToolGate = true,
   } = {},
 ) {
   for (const seed of seeds) {
@@ -142,6 +144,7 @@ function writeCompleteCampaign(
         compaction: "off",
         compactionPrefRaw: "0",
         compactionActive: "off",
+        ...(baselineToolGate === "omit" ? {} : { toolGateActive: baselineToolGate }),
         positiveControl: {
           promptTokensByTurn: {
             "1": 800,
@@ -255,6 +258,7 @@ function writeCompleteCampaign(
 
 /** Exploratory gate-off arm (compaction off, same cell as baseline). */
 function writeNogateArms(root, seeds, extra = {}) {
+  const { omitToolGate, toolGateActive, ...timing } = extra;
   for (const seed of seeds) {
     writeResult(
       root,
@@ -267,11 +271,14 @@ function writeNogateArms(root, seeds, extra = {}) {
         compactionPrefRaw: "0",
         compactionActive: "off",
         toolgate: "0",
-        toolPrecision: extra.toolPrecision ?? 0.25,
-        toolRecall: extra.toolRecall ?? 1,
-        spuriousCalls: extra.spuriousCalls ?? 3,
-        missedCalls: extra.missedCalls ?? 0,
-        privacyBlocks: extra.privacyBlocks ?? 1,
+        ...(omitToolGate
+          ? {}
+          : { toolGateActive: toolGateActive ?? false }),
+        toolPrecision: timing.toolPrecision ?? 0.25,
+        toolRecall: timing.toolRecall ?? 1,
+        spuriousCalls: timing.spuriousCalls ?? 3,
+        missedCalls: timing.missedCalls ?? 0,
+        privacyBlocks: timing.privacyBlocks ?? 1,
         positiveControl: {
           promptTokensByTurn: { "1": 800, "2": 900 },
           reusedTokensByTurn: { "1": 0, "2": 100 },
@@ -1925,6 +1932,50 @@ async function main() {
         rWithout.exitCode === 0 &&
           !/## INCOMPLETE/.test(rWithout.markdown),
         `exit=${rWithout.exitCode}`,
+      );
+
+      check(
+        "toolGateActive present and differing → the exploratory pair renders",
+        /baseline vs nogate/i.test(rWith.markdown) &&
+          /\| nogate \|/.test(rWith.markdown) &&
+          !/not interpretable/.test(rWith.markdown),
+        `snippet:\n${rWith.markdown.split("\n").filter((l) => /nogate|Gate A\/B|not interpretable|skipped/.test(l)).join("\n")}`,
+      );
+
+      const sameGate = path.join(tmp, "same-toolgate");
+      mkdirSync(sameGate, { recursive: true });
+      writeCompleteCampaign(sameGate, { seeds: seeds6, baselineToolGate: true });
+      writeNogateArms(sameGate, seeds6, { toolGateActive: true });
+      const rSame = withEnv(
+        { BENCH_EXPECT_SEEDS: "6", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([sameGate]),
+      );
+      check(
+        "toolGateActive present and identical → not interpretable, no table",
+        rSame.exitCode === 0 &&
+          /not interpretable/.test(rSame.markdown) &&
+          !/\| nogate \|/.test(rSame.markdown),
+        `exit=${rSame.exitCode}\n${rSame.markdown.split("\n").filter((l) => /Gate A\/B|nogate|not interpretable|skipped|\| arm \|/.test(l)).join("\n")}`,
+      );
+
+      const absentGate = path.join(tmp, "absent-toolgate");
+      mkdirSync(absentGate, { recursive: true });
+      writeCompleteCampaign(absentGate, {
+        seeds: seeds6,
+        baselineToolGate: "omit",
+      });
+      writeNogateArms(absentGate, seeds6, { omitToolGate: true });
+      const rAbsent = withEnv(
+        { BENCH_EXPECT_SEEDS: "6", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([absentGate]),
+      );
+      check(
+        "toolGateActive absent → skipped with a note, run does not fail",
+        rAbsent.exitCode === 0 &&
+          /toolGateActive absent/.test(rAbsent.markdown) &&
+          !/\| nogate \|/.test(rAbsent.markdown) &&
+          !/## INCOMPLETE/.test(rAbsent.markdown),
+        `exit=${rAbsent.exitCode}\n${rAbsent.markdown.split("\n").filter((l) => /Gate A\/B|nogate|skipped|not interpretable/.test(l)).join("\n")}`,
       );
 
       const dupBase = path.join(tmp, "dup-baseline-with-nogate");
