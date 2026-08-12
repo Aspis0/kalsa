@@ -135,7 +135,7 @@ async function main() {
     );
   });
 
-  // ── 3. No extra fields ─────────────────────────────────────────────────
+  // ── 3. No extra fields (base sample has no optional tool/strategy) ─────
   test("payload keys are exactly the expected set", () => {
     const line = formatTelemetryLine("2", sample);
     const parsed = JSON.parse(line.slice("KALSA_TELEMETRY ".length));
@@ -144,6 +144,23 @@ async function main() {
       JSON.stringify(keys) === JSON.stringify(EXPECTED_KEYS),
       `unexpected keys: ${JSON.stringify(keys)}`,
     );
+  });
+
+  // ── 3b. Optional tool/strategy fields (document_chat telemetry) ────────
+  test("optional tool + strategy fields serialize when present", () => {
+    const withTool = {
+      ...sample,
+      tool: "document_chat",
+      strategy: "hybrid",
+    };
+    const line = formatTelemetryLine("tool-1", withTool);
+    const parsed = JSON.parse(line.slice("KALSA_TELEMETRY ".length));
+    assert(parsed.tool === "document_chat", `tool expected document_chat, got ${parsed.tool}`);
+    assert(parsed.strategy === "hybrid", `strategy expected hybrid, got ${parsed.strategy}`);
+    // Base keys still present.
+    for (const k of EXPECTED_KEYS) {
+      assert(k in parsed, `missing base key ${k}`);
+    }
   });
 
   // ── 4. -1 timing defaults serialize as -1 ──────────────────────────────

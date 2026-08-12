@@ -23,6 +23,18 @@ export type RoundTelemetry = {
   predictedPerSecond: number; // timings.predicted_per_second ?? -1
   contextFull: boolean;
   interrupted: boolean;
+  /**
+   * Optional: tool name actually invoked earlier in this turn
+   * (e.g. "document_chat" / "web_search" / "web_fetch").
+   * Omitted when no tool ran yet (backward-compatible JSON).
+   */
+  tool?: string;
+  /**
+   * Optional: retrieval strategy from document_chat
+   * (hybrid / bm25_only / full_context / vision_fallback / error).
+   * Omitted when not a document_chat turn.
+   */
+  strategy?: string;
 };
 
 /** Loose completion-like shape (llama.rn NativeCompletionResult field names). */
@@ -70,5 +82,6 @@ export function roundTelemetryFromResult(
  * Prefix is stable; payload is counters+timings only — NEVER user text.
  */
 export function formatTelemetryLine(turnId: string, r: RoundTelemetry): string {
+  // Spread keeps optional tool/strategy only when set (undefined keys drop out of JSON).
   return `KALSA_TELEMETRY ${JSON.stringify({ turnId, ...r })}`;
 }

@@ -382,6 +382,7 @@ export const it: typeof en = {
     interrupted: "Generazione interrotta.",
     searching: "Cerco sul web…",
     fetching: "Recupero pagina…",
+    readingDocument: "Leggendo il documento…",
     toolFailed: "Strumento fallito — continuo senza",
     today: "Oggi · {time}",
     yesterday: "Ieri",
@@ -824,7 +825,7 @@ export const it: typeof en = {
     "(a) Scrivi tutto il testo naturale della risposta E tutti i valori testuali delle mini-app " +
     "(titoli, etichette, testo celle, riepiloghi, corpo) in italiano. " +
     "(b) Quando citi risultati di web_search, i titoli delle fonti possono restare nella lingua originale. " +
-    "(c) Non tradurre URL, chiavi JSON, nomi dei tipi di blocco, né il nome del tool web_search. " +
+    "(c) Non tradurre URL, chiavi JSON, nomi dei tipi di blocco, né i nomi dei tool web_search / web_fetch / document_chat. " +
     "Onestà: Non inventare mai fatti, date, nomi, numeri, citazioni, fonti o riferimenti. " +
     "Se non sai o non sei sicuro, dillo chiaramente e non indovinare. " +
     "Distingui chiaramente tra ciò che sai e ciò che inferisci. " +
@@ -838,6 +839,11 @@ export const it: typeof en = {
     "Hai anche web_fetch: usalo per aprire un risultato di ricerca promettente o un link fornito dall'utente, sempre con una query specifica. " +
     "Se un risultato di ricerca non ha testo di anteprima, chiama web_fetch sull'URL più promettente per leggere la pagina. " +
     "Cita le fonti usate facendo riferimento ai titoli. " +
+    "Hai anche document_chat: usalo quando l'utente chiede di un documento locale nella libreria, " +
+    "oppure quando un documento della libreria è allegato al messaggio. Passa una domanda specifica come query; " +
+    "opzionalmente passa docId se c'è più di un documento. " +
+    "document_chat restituisce passaggi rilevanti con citazioni di pagina, o il testo intero per documenti piccoli. " +
+    "Preferisci document_chat a web_search per domande sui file dell'utente. " +
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
     "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). " +
     "Per i blocchi quiz non rivelare mai answerIndex nel testo — l'app valuta la risposta in privato. " +

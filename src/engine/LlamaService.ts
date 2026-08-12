@@ -380,6 +380,11 @@ export type EngineToolResult = {
   sources?: unknown[];
   /** Optional tool-kind tag (e.g. "document_chat") for post-truncation provenance. */
   kind?: string;
+  /**
+   * Retrieval strategy from document_chat (hybrid / bm25_only / full_context /
+   * vision_fallback / error / retrieve). Other tools leave this undefined.
+   */
+  strategy?: string;
 };
 
 export type EngineTurnOptions = {
@@ -469,9 +474,15 @@ function emitTurnTelemetry(
   turnId: string,
   round: number,
   result: CompletionLikeResult,
+  extras?: { tool?: string | null; strategy?: string | null },
 ): void {
   try {
     const r = roundTelemetryFromResult(result, round);
+    // Optional tool/strategy fields are turn-scoped (last successful tool this
+    // turn). Omitted when null so the JSON stays backward-compatible for
+    // rounds that never ran a tool.
+    if (extras?.tool != null) r.tool = extras.tool;
+    if (extras?.strategy != null) r.strategy = extras.strategy;
     console.log(formatTelemetryLine(turnId, r));
   } catch {
     // Telemetry must never break a turn.
@@ -1599,6 +1610,10 @@ export async function streamAssistantTurn(
       // Force tool_choice "none" after repeated failures or 2 successful web_search.
       let forceTextOnly = false;
       let successfulWebSearchCount = 0;
+      // Last successful tool this turn (for KALSA_TELEMETRY tool/strategy fields).
+      // Updated after each executeTool success; synthesis rounds then report it.
+      let lastToolName: string | null = null;
+      let lastToolStrategy: string | null = null;
 
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
@@ -1664,7 +1679,12 @@ export async function streamAssistantTurn(
         );
 
         // Per-round counters+timings only — never user text / completion content.
-        emitTurnTelemetry(turnId, round, result);
+        // tool/strategy reflect the last successful tool earlier in this turn
+        // (empty on the first tool-call round; set on the synthesis round).
+        emitTurnTelemetry(turnId, round, result, {
+          tool: lastToolName,
+          strategy: lastToolStrategy,
+        });
 
         if (bailIfStopped()) return;
 
@@ -1774,13 +1794,25 @@ export async function streamAssistantTurn(
 
           callbacks.onStatus?.({
             label:
-              name === "web_fetch" ? strings.chat.fetching : strings.chat.searching,
+              name === "document_chat"
+                ? strings.chat.readingDocument
+                : name === "web_fetch"
+                  ? strings.chat.fetching
+                  : strings.chat.searching,
           });
 
           try {
             const outcome = await options.executeTool(name, args, signal, lastUserMessageText);
             // Only successful runs land in the de-dupe set (failures remain retryable once).
             recordToolSuccess(toolExecState, decision.key);
+            // Track last executed tool (+ strategy for document_chat) for the
+            // next KALSA_TELEMETRY line of this turn (synthesis round). Updated
+            // on success; strategy is cleared when a non-document tool runs last.
+            lastToolName = name;
+            lastToolStrategy =
+              typeof outcome.strategy === "string" && outcome.strategy
+                ? outcome.strategy
+                : null;
             if (name === "web_search") {
               successfulWebSearchCount += 1;
               if (successfulWebSearchCount >= 2) {

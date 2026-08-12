@@ -1008,7 +1008,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     if (!entry?.id || !entry.fileUri) return;
     // Single-flight: set SYNCHRONOUSLY before the first await so a concurrent
     // import cannot sneak a second job past the flag.
-    if (embedJobInFlightRef.current) return;
+    if (embedJobInFlightRef.current) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[embed] skip: already in flight {"docId":${JSON.stringify(entry.id)}}`,
+      );
+      return;
+    }
     embedJobInFlightRef.current = true;
     const jobGen = embedJobGenerationRef.current;
     const stillCurrent = () => jobGen === embedJobGenerationRef.current;
@@ -1017,6 +1023,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     const ac = new AbortController();
     embedJobAbortRef.current = ac;
     const signal = ac.signal;
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[embed] start {"docId":${JSON.stringify(entry.id)},"kind":${JSON.stringify(entry.kind)}}`,
+    );
 
     /**
      * Chat residency gate. Chat is "resident" when the engine is ready OR the
@@ -1059,13 +1070,23 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     // Shared READ latch for the whole run so delete cannot remove the file /
     // index mid-embed, and so we cannot resurrect a deleted index.
     if (!tryAcquireRead()) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[embed] skip: read gate busy {"docId":${JSON.stringify(entry.id)}}`,
+      );
       embedJobInFlightRef.current = false;
       if (embedJobAbortRef.current === ac) embedJobAbortRef.current = null;
       return;
     }
 
     try {
-      if (!stillCurrent() || signal.aborted) return;
+      if (!stillCurrent() || signal.aborted) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[embed] skip: aborted before work {"docId":${JSON.stringify(entry.id)}}`,
+        );
+        return;
+      }
 
       if (await mustSkipForRam()) {
         // eslint-disable-next-line no-console
@@ -1074,17 +1095,39 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         );
         return;
       }
-      if (!stillCurrent() || signal.aborted) return;
+      if (!stillCurrent() || signal.aborted) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[embed] skip: aborted after RAM gate {"docId":${JSON.stringify(entry.id)}}`,
+        );
+        return;
+      }
 
       if (!embedderDownloadedRef.current) {
         try {
           const status = await getEmbeddingModelStatus({ signal });
-          if (!stillCurrent() || signal.aborted) return;
+          if (!stillCurrent() || signal.aborted) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[embed] skip: aborted during embedder status {"docId":${JSON.stringify(entry.id)}}`,
+            );
+            return;
+          }
           embedderDownloadedRef.current = status === "downloaded";
         } catch {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] skip: embedder status failed {"docId":${JSON.stringify(entry.id)}}`,
+          );
           return;
         }
-        if (!embedderDownloadedRef.current) return;
+        if (!embedderDownloadedRef.current) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] skip: embedder missing {"docId":${JSON.stringify(entry.id)}}`,
+          );
+          return;
+        }
       }
 
       // Load text the same way document_chat does (txt / pdf pages).
@@ -1092,7 +1135,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       if (entry.kind === "txt") {
         try {
           const raw = await FileSystem.readAsStringAsync(entry.fileUri);
-          if (!stillCurrent() || signal.aborted) return;
+          if (!stillCurrent() || signal.aborted) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[embed] skip: aborted during txt read {"docId":${JSON.stringify(entry.id)}}`,
+            );
+            return;
+          }
           const looksHtml = /<\/?[a-z][\s\S]*>/i.test(raw.slice(0, 2000));
           const text = looksHtml ? htmlToText(raw).text : raw;
           const trimmed = (text ?? "").trim();
@@ -1100,6 +1149,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             pages = [{ docId: entry.sourceId || entry.id, text: trimmed }];
           }
         } catch {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] skip: txt read failed {"docId":${JSON.stringify(entry.id)}}`,
+          );
           return;
         }
       } else {
@@ -1108,7 +1161,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             sourceId: entry.sourceId || entry.id,
             title: entry.name,
           });
-          if (!stillCurrent() || signal.aborted) return;
+          if (!stillCurrent() || signal.aborted) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[embed] skip: aborted during pdf extract {"docId":${JSON.stringify(entry.id)}}`,
+            );
+            return;
+          }
           const docs = Array.isArray(extracted?.docs) ? extracted.docs : [];
           pages = docs
             .filter((d) => d && typeof d.text === "string" && d.text.trim().length > 0)
@@ -1117,14 +1176,30 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               text: d.text,
             }));
         } catch {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] skip: pdf extract failed {"docId":${JSON.stringify(entry.id)}}`,
+          );
           return;
         }
       }
-      if (pages.length === 0) return;
+      if (pages.length === 0) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[embed] skip: pages empty {"docId":${JSON.stringify(entry.id)}}`,
+        );
+        return;
+      }
 
       // FIX F: single source of truth via listDocChunks (retrievalLoop).
       const chunks = listDocumentChunksForEmbed(pages);
-      if (chunks.length === 0) return;
+      if (chunks.length === 0) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[embed] skip: chunks empty {"docId":${JSON.stringify(entry.id)},"pages":${pages.length}}`,
+        );
+        return;
+      }
 
       const existing =
         docEmbedHashesByIdRef.current.get(entry.id) ?? new Set<string>();
@@ -1133,7 +1208,17 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         for (const k of liveIdx.contentHashKeys()) existing.add(k);
       }
       const toEmbed = planChunksToEmbed(existing, chunks);
-      if (toEmbed.length === 0) return;
+      if (toEmbed.length === 0) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[embed] skip: already embedded {"docId":${JSON.stringify(entry.id)},"chunks":${chunks.length}}`,
+        );
+        return;
+      }
+      // eslint-disable-next-line no-console
+      console.log(
+        `[embed] plan {"docId":${JSON.stringify(entry.id)},"toEmbed":${toEmbed.length},"totalChunks":${chunks.length}}`,
+      );
 
       // Working index: either the map-owned one or a fresh cold-import index.
       let index =
@@ -1141,9 +1226,20 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         new SemanticVectorIndex({ dims: EMBEDDING_MODEL.dims });
 
       // Embed one-by-one (G99 ~1–3 s/chunk). Abort if gen stale / signal / deleted.
+      let embeddedCount = 0;
       for (const chunk of toEmbed) {
-        if (!stillCurrent() || signal.aborted) return;
+        if (!stillCurrent() || signal.aborted) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] abort mid-job: signal/gen {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount}}`,
+          );
+          return;
+        }
         if (!documentLibraryRef.current.docs?.some((d) => d.id === entry.id)) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] abort mid-job: doc deleted {"docId":${JSON.stringify(entry.id)}}`,
+          );
           return;
         }
         if (await mustSkipForRam()) {
@@ -1153,15 +1249,35 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           );
           return;
         }
-        if (!stillCurrent() || signal.aborted) return;
+        if (!stillCurrent() || signal.aborted) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] abort mid-job: signal after RAM gate {"docId":${JSON.stringify(entry.id)}}`,
+          );
+          return;
+        }
 
         // FIX B: pass job signal so EmbeddingService aborts at every await.
         const vec = await embedDocumentChunk(chunk.text, { signal });
-        if (!stillCurrent() || signal.aborted) return;
+        if (!stillCurrent() || signal.aborted) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] abort mid-job: signal after chunk embed {"docId":${JSON.stringify(entry.id)},"chunkId":${JSON.stringify(chunk.chunkId)}}`,
+          );
+          return;
+        }
         if (!vec) {
           // Embedder failed / refused (chat resident) / aborted — stop.
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] skip: embedder init refused or chunk failed {"docId":${JSON.stringify(entry.id)},"chunkId":${JSON.stringify(chunk.chunkId)}}`,
+          );
           break;
         }
+        // eslint-disable-next-line no-console
+        console.log(
+          `[embed] chunk ok {"docId":${JSON.stringify(entry.id)},"chunkId":${JSON.stringify(chunk.chunkId)},"dims":${vec.length}}`,
+        );
 
         // FIX D — cap at add time (not only on restore). Account for other
         // docs' resident floats + this index; replacements of same chunkId
@@ -1194,21 +1310,30 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             docEmbedHashesByIdRef.current.set(entry.id, existing);
             try {
               await writeVectorIndexFile(entry.id, index.toJSON());
+              // eslint-disable-next-line no-console
+              console.log(
+                `[embed] write (cap) {"docId":${JSON.stringify(entry.id)},"chunks":${index.chunkCount}}`,
+              );
             } catch {
               /* best-effort */
             }
           }
           // eslint-disable-next-line no-console
           console.log(
-            "[embed] cap reached — remaining chunks skipped; hybrid degrades when index empty",
+            `[embed] cap reached {"docId":${JSON.stringify(entry.id)},"chunks":${index.chunkCount}} — remaining skipped; hybrid degrades when index empty`,
           );
           return;
         }
         if (addResult.added === 0) {
           // Vector rejected for non-cap reasons (zero/bad dims) — stop.
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] skip: vector rejected {"docId":${JSON.stringify(entry.id)},"chunkId":${JSON.stringify(chunk.chunkId)}}`,
+          );
           break;
         }
         existing.add(embedChunkKey(chunk.chunkId, chunk.contentHash));
+        embeddedCount += 1;
 
         // ── FIX A: semantic-map ownership at commit ─────────────────────────
         // Invariant: the READ latch blocks concurrent delete, but ownership
@@ -1258,6 +1383,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
         try {
           await writeVectorIndexFile(entry.id, index.toJSON());
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] write {"docId":${JSON.stringify(entry.id)},"chunks":${index.chunkCount}}`,
+          );
         } catch {
           /* best-effort durable write */
         }
@@ -1270,8 +1399,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           return;
         }
       }
+      // eslint-disable-next-line no-console
+      console.log(
+        `[embed] done {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount},"indexChunks":${index.chunkCount}}`,
+      );
     } catch {
       // ignore — hybrid degrades to BM25
+      // eslint-disable-next-line no-console
+      console.log(
+        `[embed] skip: job exception {"docId":${JSON.stringify(entry.id)}}`,
+      );
     } finally {
       releaseRead();
       embedJobInFlightRef.current = false;
@@ -1415,6 +1552,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 msg ||
                 "This document has no searchable text layer. Re-attach it as page images for vision.",
               kind: "document_chat" as const,
+              strategy: "vision_fallback" as const,
             };
           }
           return {
