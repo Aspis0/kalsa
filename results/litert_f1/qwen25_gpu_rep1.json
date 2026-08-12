@@ -1,0 +1,22 @@
+{
+  "rep": 1,
+  "unplugged": true,
+  "model": "Qwen2.5-1.5B-Instruct",
+  "accelerator": "GPU",
+  "prompt": "Explain cofee in five sentences.",
+  "ui_seconds": 7.7,
+  "words": 111,
+  "est_tokens": 144.3,
+  "est_tok_s": 18.74,
+  "response": "Coffe is a beverage made from roasted coffee beans, typically prepared by brewing or steeping the roasted beans in hot water. It's a popular drink worldwide, often consumed as a morning pick-me-up or a relaxing beverage. Coffee contains caffeine, which is a stimulant that can increase alertness and energy levels. Different types of coffee, such as espresso, latte, and cappuccino, are made using various brewing methods and consistencies. The taste and aroma of coffee can vary depending on the beans used, the roasting process, and the brewing method. Coffee shops and cafes are popular places where people can enjoy coffee, often in the form of drinks, pastries, and other food items.",
+  "cpu_twin": {
+    "tg256_avg_ts": 25.798815,
+    "model": "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
+    "pp128_avg_ts": 57.568513,
+    "n_threads": 4
+  },
+  "ratio_gpu_vs_cpu_tg": 0.73,
+  "gate_f1_1_15x": "FAIL",
+  "power": "AC/USB/Wireless=false",
+  "battery_level": 83
+}

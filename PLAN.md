@@ -79,7 +79,7 @@
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
 | energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
-| LiteRT fail-fast su S23 (Adreno path) | prep APK+Gemma E2B su PC **pronta**; F0/F1 non eseguiti | gualt + S23 libero |
+| LiteRT fail-fast su S23 (Adreno path) | **F0/F1 PASS** Gemma E2B GPU ~26.8 vs CPU 9.7 (~2.76×). **Qwen 1.5B class: GPU ~18.7 FAIL vs CPU 25.8 (0.73×)** — `reports/moe-litert-f0-f1.md`, `reports/moe-litert-qwen.md` | chiuso (opz. 4B) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
 | **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065; niente leva fork-legale k/drop rimasta | gualt: solo product path o nuovo silicio/backend |
 

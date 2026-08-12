@@ -1,0 +1,20 @@
+{
+  "rep": 1,
+  "unplugged": true,
+  "model": "DeepSeek-R1-Distill-Qwen-1.5B",
+  "model_file": "DeepSeek-R1-Distill-Qwen-1.5B_multi-prefill-seq_q8_ekv4096.litertlm",
+  "size_bytes": 1833451520,
+  "accelerator": "GPU",
+  "prompt": "Explain cofee in five sentences.",
+  "ui_seconds": 37.8,
+  "words_total": 571,
+  "words_thinking": 427,
+  "words_answer": 144,
+  "est_tokens": 742.3,
+  "est_tok_s": 19.64,
+  "note": "R1-distill has long chain-of-thought; UI wall includes thinking+answer. Token est words*1.3 same as Gemma F1. Time label from Gallery UI after scroll to end.",
+  "response_answer": "Cofee is a plant-based supplement derived from plant extracts, often found in roasted or grounded coffee beans, and is known for its high antioxidant content. Composed of polyphenols, cofee supports immune function, cardiovascular health, and overall well-being. Studies suggest it may be beneficial for managing chronic diseases such as heart disease and diabetes by enhancing blood flow and reducing inflammation. According to the cofee hypothesis, consuming excessive coffee can be protective against certain health issues, including chronic diseases, due to its antioxidant properties. This hypothesis provides a potential angle for preventing or slowing disease progression, emphasizing the importance of diet in personal health. Cofee is generally considered safe when taken appropriately, though individual benefits may vary. Its antioxidant-rich properties may help maintain healthy blood vessels and reduce the risk of cardiovascular disorders. It is often recommended alongside other nutrient-rich diets to support overall well-being.",
+  "response_thinking_head": "Okay, so I'm trying to understand what cofee is. From what I remember, cofee is related to coffee but is a natural and beneficial supplement. I think it's made from plant extracts, maybe coffee trees or other trees. I've heard it's often recommended for people with conditions that require a lot of water, like diabetes or high blood pressure.",
+  "battery_level_end": 85,
+  "power": "AC/USB/Wireless=false"
+}
