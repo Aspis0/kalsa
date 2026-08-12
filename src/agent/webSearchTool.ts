@@ -7,6 +7,8 @@ import {
   type SearchProviderId,
 } from "../search";
 import type { EngineTool, EngineToolResult } from "../engine/LlamaService";
+import { evaluateTurn } from "../rules/evaluate";
+import { TOOL_GATE_TABLE } from "../rules/toolGate";
 import { isSafeHttpUrl } from "../util/url";
 
 export { buildWebSearchSnippet, NO_PREVIEW_SNIPPET } from "../search";
@@ -39,77 +41,6 @@ export const WEB_SEARCH_TOOL: EngineTool = {
     },
   },
 };
-
-/**
- * Minimal, deterministic leading-interrogative word list (it/en) — NOT an
- * exhaustive grammar, just enough to tell a genuine question apart from a
- * flat statement of facts for the privacy guard below.
- */
-const INTERROGATIVE_LEAD_WORDS = new Set([
-  // EN wh- / yes-no starters
-  "who", "what", "when", "where", "why", "how", "which", "whose", "whom",
-  "is", "are", "am", "was", "were", "do", "does", "did",
-  "can", "could", "would", "will", "should", "shall", "may", "might",
-  // IT wh- / yes-no starters
-  "chi", "cosa", "che", "come", "quando", "dove", "perché", "perche",
-  "quale", "quali", "quanto", "quanti", "quante",
-  "puoi", "potresti", "posso", "possiamo", "devo", "dobbiamo",
-  "è", "sono", "hai", "ha",
-]);
-
-function normalizeForMatch(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, " ").trim();
-}
-
-/** True if `message` reads as a question (explicit '?' or a leading interrogative word). */
-function isQuestion(message: string): boolean {
-  const trimmed = message.trim();
-  if (!trimmed) return false;
-  if (trimmed.includes("?")) return true;
-  const firstWord = normalizeForMatch(trimmed).split(" ")[0] ?? "";
-  const stripped = firstWord.replace(/[^\p{L}]+/gu, "");
-  return INTERROGATIVE_LEAD_WORDS.has(stripped);
-}
-
-/** True if `a` and `b` (normalized) share a contiguous run of ≥ minLen chars. */
-function hasSharedSubstring(a: string, b: string, minLen: number): boolean {
-  const na = normalizeForMatch(a);
-  const nb = normalizeForMatch(b);
-  if (na.length < minLen || nb.length < minLen) return false;
-  for (let i = 0; i + minLen <= na.length; i += 1) {
-    if (nb.includes(na.slice(i, i + minLen))) return true;
-  }
-  return false;
-}
-
-/**
- * Privacy guard (BUG2, V4.2 bench): block a web_search call whose query looks
- * like it is echoing facts the user just stated about themselves rather than
- * asking a question. Minimal deterministic heuristic — no LLM classifier:
- * blocks when the query shares a ≥12-char substring with the last user
- * message AND that last user message does not itself read as a question.
- * Never logs query / message content.
- */
-export function looksLikeEchoOfUserFacts(query: string, lastUserMessage: string): boolean {
-  const q = query.trim();
-  const u = (lastUserMessage ?? "").trim();
-  if (!q || !u) return false;
-  if (isQuestion(u)) return false;
-  return hasSharedSubstring(q, u, 12);
-}
-
-/**
- * Same ≥12-char echo check for an injected MEMORY FACT, WITHOUT the isQuestion
- * gate: a stored fact is third-person data ("User's home city is Milan"), never
- * a question the user is asking, so a question-shaped fact must not slip the
- * guard (Residual A). Never logs the fact.
- */
-export function queryEchoesMemoryFact(query: string, fact: string): boolean {
-  const q = query.trim();
-  const f = (fact ?? "").trim();
-  if (!q || !f) return false;
-  return hasSharedSubstring(q, f, 12);
-}
 
 function labelForPrimaryFailure(
   primaryError: string | undefined,
@@ -145,19 +76,22 @@ export function makeWebSearchExecutor(
     const query = String(args.query ?? "").trim();
     if (!query) return { text: strings.errors.emptySearchQuery };
 
-    // Privacy guard (BUG2, V4.2 bench): never let the model ship the user's
-    // own stated facts to a search provider. Deterministic heuristic, no
-    // network call made, no content logged either way.
-    if (looksLikeEchoOfUserFacts(query, lastUserMessage ?? "")) {
-      return { text: strings.errors.webSearchPrivacyBlocked };
-    }
-    // Same echo guard against injected memory facts (max 10), without the
-    // isQuestion gate (a fact is data, never the user's question).
+    // Privacy gate: block queries that echo the last user message or an
+    // injected memory fact. No network call, no content logged either way.
     const facts = options?.getMemoryFacts?.() ?? [];
-    for (const fact of facts.slice(0, 10)) {
-      if (queryEchoesMemoryFact(query, fact)) {
-        return { text: strings.errors.webSearchPrivacyBlocked };
-      }
+    const gate = evaluateTurn(
+      {
+        toolName: "web_search",
+        input: {
+          query,
+          lastUserMessage: lastUserMessage ?? "",
+          memoryFacts: facts.slice(0, 10),
+        },
+      },
+      TOOL_GATE_TABLE,
+    );
+    if (gate.blocked) {
+      return { text: strings.errors.webSearchPrivacyBlocked };
     }
 
     // searchWeb also clamps; tool-level default is 4.
