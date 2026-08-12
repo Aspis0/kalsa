@@ -16,7 +16,7 @@
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 66 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 67 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -1119,6 +1119,39 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-12 (sera) — 🧭 RECON 750: la speranza "sul 750 i subgroup ci
+  sono" era FALSA — il 750 è A7X come il 740, broadcast=false anche lì.
+  Il primo telefono con la feature è l'Adreno 830 (8 Elite). E LiteRT
+  dimostra che si può vincere sul 750 SENZA subgroups: la via è il port
+  delle tecniche ML Drift.** (`research-adreno750.md`, fonti primarie)
+
+  1. **Il fatto che ribalta lo scoping**: driver telefonici Adreno 750
+     (compiler E031.45.02.16) riportano `vector subgroup broadcast: false`
+     — stessa lacuna del 740; flash-attn è declinata su TUTTA la A7X
+     (SIGSEGV clBuildProgram, PR #26430); le ottimizzazioni K-quant 2026
+     escludono esplicitamente A7X (regredisce, PR #26477). Primo driver
+     col broadcast: 830/E031.47 (8 Elite, S25-class — device che NON
+     abbiamo in lab).
+  2. **Predizione per il nostro gate 750 (Q4_K_M, fork): LIKELY_FAIL** —
+     740 misurato 0.56-0.74×; 750 = stessa arch + CPU più veloce; scaling
+     generoso → 0.93-1.04×. Il test Xiaomi resta utile come conferma da
+     10 min, ma non è più la speranza: è il controllo della predizione.
+  3. **Il dato che tiene viva la GPU su A7X**: LiteRT (kernel
+     subgroup-FREE) fa **1.43× a 3.8B PROPRIO sul 750** (Phi-4-mini S24U:
+     GPU 10.39 vs CPU 7.28) e pareggia a 1.5B. Tradotto: sul silicio A7X
+     si vince a 4B-class, ma solo con kernel stile ML Drift — che nel
+     fork non esistono. **Il port delle tecniche (paper CC-BY + reference
+     Apache) diventa L'UNICA via GPU per l'installed base 740+750**, non
+     un'opzione tra due.
+  4. **Primato confermato dalla ricerca**: nessun numero pubblicato di
+     ibrido GDN corretto su GPU di telefono — il nostro E2E sul 740
+     resta, a oggi, il primo conosciuto. (Vicini: Qualcomm su laptop
+     X2-90; LiteRT 0.8B CPU-only; MLC su S24U senza numeri e throttled.)
+  5. Nota 830: coi subgroups veri e LiteRT Qwen3-4B a 19 t/s su S25+,
+     l'8 Elite è il primo TOSS_UP onesto per il path llama.cpp — ma
+     richiede hardware che non possediamo (opzione da valutare: device
+     830 fisico o remote lab).
 
 - **2026-08-12 (pomeriggio) — 🔧 IL POMERIGGIO DEL FIX: K2.1 → K2.2 →
   review ostile → K2.2b → probe build CPU. Primo E2E ibrido GDN CORRETTO
