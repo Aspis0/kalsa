@@ -1,0 +1,68 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: true
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 3536 MB
+ggml_opencl: max mem alloc size: 884 MB
+ggml_opencl: device max image buffer size (pixels): 134217728
+ggml_opencl: device max image2d size: 16384 x 16384
+ggml_opencl: device max workgroup size: 1024
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: true
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: true
+ggml_opencl: cl_qcom_subgroup_shuffle support: true
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: QUALCOMM Adreno(TM)
+  Device memory: 3536 MB (2512 MB free)
+
+  GATED_DELTA_NET(type=f32,head_count=32,head_size=128,n_seq_tokens=1,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=32,head_size=16,n_seq_tokens=1,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=32,head_size=16,n_seq_tokens=1,n_seqs=1,v_repeat=1,permuted=1,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=32,head_size=16,n_seq_tokens=1,n_seqs=1,v_repeat=1,permuted=0,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=16,head_size=64,n_seq_tokens=1,n_seqs=2,v_repeat=1,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=4,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=4,n_seqs=2,v_repeat=1,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=8,head_size=32,n_seq_tokens=4,n_seqs=2,v_repeat=2,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=4,n_seqs=2,v_repeat=1,permuted=1,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=4,n_seqs=1,v_repeat=1,permuted=1,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=1,n_seqs=1,v_repeat=1,permuted=0,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=1,n_seqs=2,v_repeat=1,permuted=0,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=16,n_seq_tokens=1,n_seqs=2,v_repeat=1,permuted=0,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=32,n_seq_tokens=4,n_seqs=1,v_repeat=1,permuted=0,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=4,n_seqs=2,v_repeat=1,permuted=0,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=8,head_size=32,n_seq_tokens=4,n_seqs=2,v_repeat=2,permuted=0,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=4,n_seqs=2,v_repeat=1,permuted=1,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=16,n_seq_tokens=4,n_seqs=2,v_repeat=1,permuted=1,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=64,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=127,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=256,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=65,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=100,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=200,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=127,n_seqs=2,v_repeat=1,permuted=0,kda=0,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=64,n_seqs=1,v_repeat=1,permuted=0,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=33,n_seqs=1,v_repeat=1,permuted=0,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=100,n_seqs=1,v_repeat=1,permuted=0,kda=1,K=1): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=16,n_seq_tokens=2,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=2): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=32,n_seq_tokens=4,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=4): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=4,n_seqs=2,v_repeat=1,permuted=0,kda=0,K=4): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=8,head_size=128,n_seq_tokens=4,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=4): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=4,n_seqs=2,v_repeat=1,permuted=0,kda=1,K=4): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=8,head_size=32,n_seq_tokens=4,n_seqs=2,v_repeat=2,permuted=0,kda=1,K=4): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=32,n_seq_tokens=8,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=3): [1;32mSUPPORTED[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=16,n_seqs=2,v_repeat=1,permuted=0,kda=0,K=4): [1;32mSUPPORTED[0m
+  Backend OpenCL: [1;32mOK[0m
+Backend 2/2: CPU
+  Skipping CPU backend
+2/2 backends passed
+[1;32mOK[0m

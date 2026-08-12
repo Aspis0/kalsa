@@ -1,0 +1,18 @@
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: QUALCOMM Adreno(TM)
+  Device memory: 3536 MB (2512 MB free)
+
+  MUL_MAT(type_a=q4_K,type_b=f32,m=4096,n=1,k=14336,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                 1704 runs -   852.02 us/run - 117.44 MFLOP/run - [1;34m137.84 GFLOPS[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=4096,n=2,k=14336,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                  426 runs -  5733.05 us/run - 234.88 MFLOP/run - [1;34m 40.97 GFLOPS[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=4096,n=3,k=14336,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                  284 runs -  5748.77 us/run - 352.32 MFLOP/run - [1;34m 61.29 GFLOPS[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=4096,n=4,k=14336,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                  213 runs -  5738.46 us/run - 469.76 MFLOP/run - [1;34m 81.86 GFLOPS[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=4096,n=5,k=14336,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                  342 runs -  5768.01 us/run - 587.20 MFLOP/run - [1;34m101.80 GFLOPS[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=4096,n=8,k=14336,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                  214 runs -  5776.72 us/run - 939.52 MFLOP/run - [1;34m162.64 GFLOPS[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=4096,n=512,k=14336,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                  8 runs - 163910.25 us/run -  60.13 GFLOP/run - [1;34m366.84 GFLOPS[0m
+  Backend OpenCL: [1;32mOK[0m
+Backend 2/2: CPU
+  Skipping
+2/2 backends passed
+[1;32mOK[0m

@@ -1,0 +1,59 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: true
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 3536 MB
+ggml_opencl: max mem alloc size: 884 MB
+ggml_opencl: device max image buffer size (pixels): 134217728
+ggml_opencl: device max image2d size: 16384 x 16384
+ggml_opencl: device max workgroup size: 1024
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: true
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: true
+ggml_opencl: cl_qcom_subgroup_shuffle support: true
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: loading OpenCL kernels..................................................................................................................................................
+ggml_opencl: lazy-compiling flash_attn prepass for DK=256 DV=256
+ggml_opencl: compiling fa prepass f16
+ggml_opencl: compiling fa f32_f16
+ggml_opencl: kernel compile error (err=-11) building fa f32_f16:
+
+BC-src-code:2010:22: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+                s += sub_group_shuffle_xor(s, step);
+                     ^
+BC-src-code:2056:19: error: call to builtin 'max' is ambiguous due to multiple possible argument type matches
+            m_c = max(m_c, sub_group_shuffle_xor(m_c, step));
+                  ^~~
+BC-src-code:496:58: note: candidate function
+                const ACC_TYPE m_new      = max(m_i, max(max(s0, s1), max(s2, s3)));
+                                                         ^
+BC-src-code:496:58: note: candidate function
+BC-src-code:496:58: note: candidate function
+BC-src-code:496:58: note: candidate function
+2 diagnostic(s) generated.
+
+ggml_opencl: compiling fa f32_f16 split
+ggml_opencl: kernel compile error (err=-11) building fa f32_f16 split:
+
+BC-src-code:299:33: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+                    partial0 += sub_group_shuffle_xor(partial0, step);
+                                ^
+BC-src-code:2056:19: error: call to builtin 'max' is ambiguous due to multiple possible argument type matches
+            m_c = max(m_c, sub_group_shuffle_xor(m_c, step));
+                  ^~~
+BC-src-code:333:49: note: candidate function
+                const ACC_TYPE m_new = max(m_i, max(score0, score1));
+                                                ^
+BC-src-code:333:49: note: candidate function
+BC-src-code:333:49: note: candidate function
+BC-src-code:333:49: note: candidate function
+2 diagnostic(s) generated.
+
+libc++abi: terminating due to uncaught exception of type std::out_of_range: map::at:  key not found

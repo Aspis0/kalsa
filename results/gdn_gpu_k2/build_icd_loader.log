@@ -1,0 +1,39 @@
+=== ICD CMAKE CONFIG 2026-08-12T12:30:30.3141433-04:00 ===
+-- The C compiler identification is Clang 18.0.2
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Check if compiler accepts -pthread
+-- Check if compiler accepts -pthread - yes
+-- Found Threads: TRUE  
+-- Looking for secure_getenv
+-- Looking for secure_getenv - not found
+-- Looking for __secure_getenv
+-- Looking for __secure_getenv - not found
+-- Defining OpenCL::Headers through OPENCL_ICD_LOADER_HEADERS_DIR
+-- Configuring done
+-- Generating done
+-- Build files have been written to: C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/icd-build-android
+=== ICD BUILD 2026-08-12T12:30:43.4506343-04:00 ===
+[1/8] Building C object CMakeFiles/OpenCL.dir/loader/icd_trace.c.o
+[2/8] Building C object CMakeFiles/OpenCL.dir/loader/linux/icd_linux.c.o
+[3/8] Building C object CMakeFiles/OpenCL.dir/loader/icd_dispatch.c.o
+[4/8] Building C object CMakeFiles/OpenCL.dir/loader/icd.c.o
+[5/8] Building C object CMakeFiles/OpenCL.dir/loader/linux/icd_linux_library.c.o
+[6/8] Building C object CMakeFiles/OpenCL.dir/loader/linux/icd_linux_envvars.c.o
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/OpenCL-ICD-Loader/loader/linux/icd_linux_envvars.c:65:9: warning: Warning:  Falling back to non-secure getenv for environmental lookups!  Consider updating to a different libc. [-W#pragma-messages]
+   65 | #pragma message(                                                                       \
+      |         ^
+1 warning generated.
+[7/8] Building C object CMakeFiles/OpenCL.dir/loader/icd_dispatch_generated.c.o
+[8/8] Linking C shared library libOpenCL.so

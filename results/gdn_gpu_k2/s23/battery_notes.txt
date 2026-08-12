@@ -1,0 +1,12 @@
+S23 battery/thermal notes (local timestamps -04:00 / device EDT)
+2026-08-12T12:44:52 start SSH: 90% UNPLUGGED 26.9C
+2026-08-12T12:58:26 before microperf: 89% UNPLUGGED 27.2C
+2026-08-12T13:10:43 after microperf: 85% UNPLUGGED 35.2C
+2026-08-12T13:11:06 before CPU greedy: 85% UNPLUGGED 35.2C
+2026-08-12T13:24:24 before CPU bench: 83% UNPLUGGED 35.9C
+2026-08-12T13:27:18 after CPU bench: 82% UNPLUGGED 34.4C
+2026-08-12T13:27:31 before official GPU bench: 82% UNPLUGGED 34.4C (bench ABORT)
+2026-08-12T13:29:33 after official GPU bench abort: 82% UNPLUGGED 33.2C
+2026-08-12T13:29:48 before fa-off GPU: 82% UNPLUGGED 33.2C
+2026-08-12T13:45:49 after fa-off GPU bench: 80% UNPLUGGED 30.9C
+Never plugged. Never below 30%. Temp guard 45C never hit.

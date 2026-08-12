@@ -16,7 +16,7 @@
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 64 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 65 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -82,7 +82,7 @@
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
 | energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
-| **🔨 CANTIERE GDN-GPU (DECISIONE gualt 2026-08-12; ruoli: Claude design, Grok codice)** | **K0 DONE, RIBALTONE** (`moe-gdn-k0-op-inventory.md`): **i kernel GDN esistono GIÀ nel nostro pin** — upstream ha aggiunto `GATED_DELTA_NET` + `SSM_CONV` OpenCL (8ad8aef44) E i kernel MoE Adreno `MUL_MAT_ID` Q4_K/Q5_K/Q6_K. Il claim K2 del 3/8 ("ops mancanti") è STALE. Verificato dai GGUF (2026-08-12): **S_v=128 su 2B/4B/35B → dentro il gate GPU {16,32,64,128}**; dk=256 → flash-attn OK. Gap residui VERI: G4 GET_ROWS embedding quantizzato → CPU (piccolo); **Q7-LANDMINE: l'expert-ready hook dello streaming è SOLO nel loop CPU di mul_mat_id** → per il 35B gli esperti DEVONO restare su CPU (o engine da rifare); per i dense 2B/4B nessun MoE → grafo interamente GPU-abile OGGI. **K2 IN VOLO (Grok, GO gualt 2026-08-12 ~12:30)**: build Android OpenCL del fork (llama-cli/llama-bench/test-backend-ops, no modifiche sorgente, -j4 per non pestare la PPL) → correttezza per-op `test-backend-ops` (GDN/SSM_CONV/MUL_MAT/flash) → E2E dense 2B GPU-vs-CPU su **S23 (740, re-test K5)** e **Xiaomi 14 (750, target)**, gate correttezza + tg ≥1.15×, staccato. Out: `results/gdn_gpu_k2/`, `reports/moe-gdn-k2-e2e.md`. K1 design completo (split 35B: GDN/attn/dense GPU + esperti CPU per l'hook) lo scrivo sui numeri K2; K3 = 4B; K4 = split 35B | K2 in volo (Grok) |
+| **🔨 CANTIERE GDN-GPU (DECISIONE gualt 2026-08-12; ruoli: Claude design, Grok codice)** | **K0 DONE, RIBALTONE** (`moe-gdn-k0-op-inventory.md`): **i kernel GDN esistono GIÀ nel nostro pin** — upstream ha aggiunto `GATED_DELTA_NET` + `SSM_CONV` OpenCL (8ad8aef44) E i kernel MoE Adreno `MUL_MAT_ID` Q4_K/Q5_K/Q6_K. Il claim K2 del 3/8 ("ops mancanti") è STALE. Verificato dai GGUF (2026-08-12): **S_v=128 su 2B/4B/35B → dentro il gate GPU {16,32,64,128}**; dk=256 → flash-attn OK. Gap residui VERI: G4 GET_ROWS embedding quantizzato → CPU (piccolo); **Q7-LANDMINE: l'expert-ready hook dello streaming è SOLO nel loop CPU di mul_mat_id** → per il 35B gli esperti DEVONO restare su CPU (o engine da rifare); per i dense 2B/4B nessun MoE → grafo interamente GPU-abile OGGI. **K2 FATTO (S23) / BLOCKED (Xiaomi)** — `moe-gdn-k2-e2e.md`: build Android OpenCL OK (NDK r27b, no modifiche sorgente). **S23/740 = FAIL_CORRECTNESS**: GDN fused **36/36 CORRETTO anche sul 740** (+ SSM/L2N/SOLVE/CUMSUM 104/104, MUL_MAT Q4_K 33/33) MA flash-attn **non compila** (`sub_group_shuffle_xor`, il buco driver K5) → `-ngl 99` abortisce; diagnostica `-fa off`: gira ma output degenerato e tg **0.27×** CPU. **`MUL_MAT_ID` Q4_K: 73 FAIL numerici** → kernel MoE Adreno del pin ROTTO → esperti 35B su CPU CONFERMATO (doppia ragione: hook + correttezza). **Xiaomi 14 non in LAN** (mdns: solo S23+Jelly) → il test decisivo 750 aspetta gualt fisico. 740 free-tier via fork: morto salvo scrivere flash-attn no-subgroup + fix parità E2E | gualt: accendere Xiaomi in LAN → K2-bis su 750 |
 | Jelly free-tier baseline (Qwen3.5-4B dense, llama-bench ABBA `-t 2`) | **BLOCKED** — Jelly irraggiungibile (ping OK, adb/sshd chiusi: wireless debug perso post-reboot). Modello+sha già staged in `results/jelly/` — `reports/moe-jelly-freetier.md` | gualt fisico (riattivare wireless debug/sshd) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
 | **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065 su S23/CPU. **NUOVO (mandato gualt 2026-08-12): pista MoE-GPU scoped Adreno 750+** — sequenza gated (a)-(e) in candidati #1: F-0 Amdahl → riverifica upstream → MarcoKEXP come veicolo → S2 split su Xiaomi 14 → solo dopo il kernel serio (GDN/SSM per CalaQwen) | F-0 = carta; S2 dopo MarcoKEXP |
@@ -1119,6 +1119,25 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-12 — ⚗️ K2 E2E: il kernel GDN è CORRETTO perfino sul 740 —
+  a rompersi è tutto il resto. S23 = FAIL_CORRECTNESS (flash-attn non
+  compila sul driver senza subgroup; -fa off degenerato e 0.27×);
+  MUL_MAT_ID Q4_K con 73 FAIL numerici = kernel MoE Adreno del pin
+  ROTTO. Xiaomi 750 non in LAN: il verdetto sulla famiglia target è
+  rinviato a un'accensione fisica.**
+
+  Report `moe-gdn-k2-e2e.md`, artefatti `results/gdn_gpu_k2/` (build
+  manifest con sha, log test per op, bench JSON, battery notes; binari
+  Android fuori da git). Fatti chiave: (1) build fork Android OpenCL
+  riproducibile (NDK r27b, -j4, zero modifiche sorgente); (2)
+  `GATED_DELTA_NET` 36/36 PASS su 740 incl. head 128 — il cuore ibrido
+  su GPU È GIUSTO anche dove il driver è peggiore; (3) il muro 740 è
+  flash-attn (`sub_group_shuffle_xor` assente) + una parità E2E rotta
+  nel path -fa off; (4) `MUL_MAT_ID` Q4_K numericamente sbagliato →
+  la regola "esperti 35B su CPU" ora ha DUE ragioni (hook streaming +
+  correttezza kernel); (5) Xiaomi assente dal mdns → K2-bis su 750
+  quando gualt lo accende. Disciplina: unplugged 90→80%, mai >36°C.
 
 - **2026-08-12 — 🏁 SPEED GATE MARCO FASE 1: PASS SU ENTRAMBE LE LEVE
   (S23, staccato, cold fadvise, ABBA 2 prompt, 16 run; batt 100→92,

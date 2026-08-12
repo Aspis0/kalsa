@@ -1,0 +1,48 @@
+
+
+Loading model... |-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/ 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : models/Qwen3.5-2B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> The capital of France is
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:** The user is asking a simple factual question: "The capital of France is".
+
+2.  **Retrieve Knowledge:** Access knowledge about geography and France.
+    *   Country: France.
+    *   Capital City: Paris.
+
+3.  **Formulate Answer:** The direct answer is "Paris".
+
+4.  **Refine Answer:** Since the prompt ends with "is", a complete sentence or a direct completion is appropriate. "Paris" is the most direct completion. "The capital of France is Paris." is also good.
+
+5.
+
+[ Prompt: 33.2 t/s | Generation: 9.9 t/s ]
+
+
+Exiting...

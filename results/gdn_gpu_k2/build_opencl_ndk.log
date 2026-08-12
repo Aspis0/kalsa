@@ -1,0 +1,1155 @@
+=== CMAKE CONFIG 2026-08-12T12:31:06.1308565-04:00 ===
+SRC=C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp
+BUILD=C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2
+NDK=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006
+CMAKE=C:/Users/gualt/AppData/Local/Android/Sdk/cmake/3.22.1/bin/cmake.exe
+CMD=-S C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp -B C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2 -G Ninja -DCMAKE_TOOLCHAIN_FILE=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 -DANDROID_STL=c++_shared -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=C:/Users/gualt/AppData/Local/Android/Sdk/cmake/3.22.1/bin/ninja.exe -DBUILD_SHARED_LIBS=OFF -DLLAMA_CURL=OFF -DGGML_OPENMP=OFF -DGGML_NATIVE=OFF -DGGML_OPENCL=ON -DGGML_VULKAN=OFF -DGGML_OPENCL_USE_ADRENO_KERNELS=ON -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16 -DOpenCL_INCLUDE_DIR=C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/OpenCL-Headers -DOpenCL_LIBRARY=C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/icd-build-android/libOpenCL.so -DLLAMA_BUILD_TESTS=ON -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=ON -DLLAMA_BUILD_TOOLS=ON -DLLAMA_BUILD_COMMON=ON -DGGML_CCACHE=OFF
+-- The C compiler identification is Clang 18.0.2
+-- The CXX compiler identification is Clang 18.0.2
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang++.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+CMAKE_BUILD_TYPE=Release
+-- Found Git: C:/Program Files/Git/mingw64/bin/git.exe (found version "2.54.0.windows.1") 
+-- The ASM compiler identification is Clang with GNU-like command-line
+-- Found assembler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe
+-- Setting GGML_NATIVE_DEFAULT to OFF
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Check if compiler accepts -pthread
+-- Check if compiler accepts -pthread - yes
+-- Found Threads: TRUE  
+-- CMAKE_SYSTEM_PROCESSOR: aarch64
+-- GGML_SYSTEM_ARCH: ARM
+-- Including CPU backend
+-- ARM detected
+-- Performing Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E
+-- Performing Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E - Failed
+-- Checking for ARM features using flags:
+--   -march=armv8.2-a+dotprod+i8mm+fp16
+-- Performing Test HAVE_DOTPROD
+-- Performing Test HAVE_DOTPROD - Success
+-- Performing Test HAVE_SVE
+-- Performing Test HAVE_SVE - Failed
+-- Performing Test HAVE_MATMUL_INT8
+-- Performing Test HAVE_MATMUL_INT8 - Success
+-- Performing Test HAVE_FMA
+-- Performing Test HAVE_FMA - Success
+-- Performing Test HAVE_FP16_VECTOR_ARITHMETIC
+-- Performing Test HAVE_FP16_VECTOR_ARITHMETIC - Success
+-- Performing Test HAVE_SME
+-- Performing Test HAVE_SME - Failed
+-- Adding CPU backend variant ggml-cpu: -march=armv8.2-a+dotprod+i8mm+fp16 
+-- Looking for CL_VERSION_2_2
+-- Looking for CL_VERSION_2_2 - found
+-- Found OpenCL: C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/icd-build-android/libOpenCL.so (found version "2.2") 
+-- Found Python3: C:/Users/gualt/AppData/Local/Programs/Python/Python312/python.exe (found version "3.12.10") found components: Interpreter 
+-- OpenCL will use matmul kernels optimized for Adreno
+-- opencl: embedding kernel add
+-- opencl: embedding kernel add_id
+-- opencl: embedding kernel argsort
+-- opencl: embedding kernel tri
+-- opencl: embedding kernel fill
+-- opencl: embedding kernel clamp
+-- opencl: embedding kernel cpy
+-- opencl: embedding kernel cvt
+-- opencl: embedding kernel diag_mask_inf
+-- opencl: embedding kernel diag
+-- opencl: embedding kernel div
+-- opencl: embedding kernel gelu
+-- opencl: embedding kernel get_rows
+-- opencl: embedding kernel glu
+-- opencl: embedding kernel group_norm
+-- opencl: embedding kernel solve_tri
+-- opencl: embedding kernel im2col_f32
+-- opencl: embedding kernel im2col_f16
+-- opencl: embedding kernel mean
+-- opencl: embedding kernel mul_mv_f16_f16
+-- opencl: embedding kernel mul_mv_f16_f32_1row
+-- opencl: embedding kernel mul_mv_f16_f32_l4
+-- opencl: embedding kernel mul_mv_f16_f32
+-- opencl: embedding kernel mul_mv_f32_f32
+-- opencl: embedding kernel mul_mv_q1_0_f32
+-- opencl: embedding kernel mul_mv_q1_0_f32_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32
+-- opencl: embedding kernel mul_mv_q4_0_f32_v
+-- opencl: embedding kernel mul_mv_q4_0_f32_8x_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32_1d_8x_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32_1d_16x_flat
+-- opencl: embedding kernel mul_mv_q4_1_f32
+-- opencl: embedding kernel mul_mv_q4_1_f32_flat
+-- opencl: embedding kernel mul_mv_q4_k_f32
+-- opencl: embedding kernel mul_mv_q4_k_f32_flat
+-- opencl: embedding kernel mul_mv_q5_0_f32
+-- opencl: embedding kernel mul_mv_q5_0_f32_flat
+-- opencl: embedding kernel mul_mv_q5_1_f32
+-- opencl: embedding kernel mul_mv_q5_1_f32_flat
+-- opencl: embedding kernel mul_mv_q5_k_f32
+-- opencl: embedding kernel mul_mv_q5_k_f32_flat
+-- opencl: embedding kernel mul_mv_q6_k_f32
+-- opencl: embedding kernel mul_mv_q6_k_f32_flat
+-- opencl: embedding kernel mul_mv_q8_0_f32
+-- opencl: embedding kernel mul_mv_q8_0_f32_flat
+-- opencl: embedding kernel mul_mv_iq4_nl_f32
+-- opencl: embedding kernel mul_mv_iq4_nl_f32_flat
+-- opencl: embedding kernel mul_mv_mxfp4_f32
+-- opencl: embedding kernel mul_mv_mxfp4_f32_flat
+-- opencl: embedding kernel mul_mv_id_q4_0_f32_8x_flat
+-- opencl: embedding kernel mul_mv_id_q8_0_f32
+-- opencl: embedding kernel mul_mv_id_q8_0_f32_flat
+-- opencl: embedding kernel mul_mv_id_mxfp4_f32
+-- opencl: embedding kernel mul_mv_id_mxfp4_f32_flat
+-- opencl: embedding kernel gemm_moe_q4_0_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_0_f32_ns
+-- opencl: embedding kernel gemm_moe_q4_1_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_1_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_0_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_0_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_1_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_1_f32_ns
+-- opencl: embedding kernel gemm_moe_q4_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_k_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_k_f32_ns
+-- opencl: embedding kernel gemm_moe_q6_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q6_k_f32_ns
+-- opencl: embedding kernel gemm_moe_mxfp4_f32
+-- opencl: embedding kernel gemv_moe_mxfp4_f32
+-- opencl: embedding kernel gemm_moe_mxfp4_f32_ns
+-- opencl: embedding kernel gemv_moe_mxfp4_f32_ns
+-- opencl: embedding kernel moe_reorder_b
+-- opencl: embedding kernel moe_sort_by_expert
+-- opencl: embedding kernel mul_mm_f32_f32_l4_lm
+-- opencl: embedding kernel mul_mm_f16_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q1_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_1_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_1_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q8_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_iq4_nl_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_k_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_k_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q6_k_f32_l4_lm
+-- opencl: embedding kernel gemv_noshuffle_q1_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q1_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_0_f32_spec
+-- opencl: embedding kernel gemm_noshuffle_q4_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_1_f32
+-- opencl: embedding kernel gemm_noshuffle_q4_1_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_1_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_1_f32
+-- opencl: embedding kernel gemv_noshuffle_iq4_nl_f32
+-- opencl: embedding kernel gemm_noshuffle_iq4_nl_f32
+-- opencl: embedding kernel gemv_noshuffle_q8_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q8_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q4_k_f32
+-- opencl: embedding kernel gemv_noshuffle_q6_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q6_k_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_k_f32
+-- opencl: embedding kernel mul
+-- opencl: embedding kernel neg
+-- opencl: embedding kernel norm
+-- opencl: embedding kernel relu
+-- opencl: embedding kernel l2_norm
+-- opencl: embedding kernel rms_norm
+-- opencl: embedding kernel rope
+-- opencl: embedding kernel scale
+-- opencl: embedding kernel set_rows
+-- opencl: embedding kernel sigmoid
+-- opencl: embedding kernel silu
+-- opencl: embedding kernel softmax_4_f32
+-- opencl: embedding kernel softmax_4_f16
+-- opencl: embedding kernel softmax_f32
+-- opencl: embedding kernel softmax_f16
+-- opencl: embedding kernel sqr
+-- opencl: embedding kernel sqrt
+-- opencl: embedding kernel ssm_conv
+-- opencl: embedding kernel gated_delta_net
+-- opencl: embedding kernel sub
+-- opencl: embedding kernel sum_rows
+-- opencl: embedding kernel cumsum
+-- opencl: embedding kernel transpose
+-- opencl: embedding kernel concat
+-- opencl: embedding kernel tsembd
+-- opencl: embedding kernel upscale
+-- opencl: embedding kernel tanh
+-- opencl: embedding kernel exp
+-- opencl: embedding kernel expm1
+-- opencl: embedding kernel softplus
+-- opencl: embedding kernel pad
+-- opencl: embedding kernel repeat
+-- opencl: embedding kernel mul_mat_f16_f32
+-- opencl: embedding kernel mul_mm_f16_f32_kq_kqv
+-- opencl: embedding kernel conv2d
+-- opencl: embedding kernel conv2d_f16_f32
+-- opencl: embedding kernel flash_attn_pre_f16
+-- opencl: embedding kernel flash_attn_f32_f16
+-- opencl: embedding kernel flash_attn_f32_q8_0
+-- opencl: embedding kernel flash_attn_f32_q4_0
+-- opencl: embedding kernel flash_attn_f16
+-- opencl: embedding kernel flash_attn_f32
+-- opencl: embedding kernel gemm_xmem_f16_f32_os8
+-- Including OpenCL backend
+-- ggml version: 0.16.0
+-- ggml commit:  e5605f3bd
+-- Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR (missing: OPENSSL_CRYPTO_LIBRARY OPENSSL_INCLUDE_DIR) 
+CMake Warning at vendor/cpp-httplib/CMakeLists.txt:152 (message):
+  OpenSSL not found, HTTPS support disabled
+
+
+-- UI: building llama-ui-embed with host compiler C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang++.exe
+-- Generating embedded license file for target: llama-app
+-- Configuring done
+-- Generating done
+-- Build files have been written to: C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2
+CMAKE_CONFIG_EXIT=0
+=== CMAKE BUILD -j4 2026-08-12T12:31:30.5195452-04:00 ===
+[1/452] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[2/452] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/hbm.cpp.o
+[3/452] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[4/452] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+[5/452] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/quants.c.o
+[6/452] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+[7/452] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/repack.cpp.o
+[8/452] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/llamafile/sgemm.cpp.o
+[9/452] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/quants.c.o
+[10/452] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+[11/452] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[12/452] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+[13/452] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+[14/452] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+[15/452] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+[16/452] Building llama-ui-embed (host)
+[31mFAILED: [0mtools/ui/llama-ui-embed-host.exe C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/tools/ui/llama-ui-embed-host.exe 
+cmd.exe /C "cd /D C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui && C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe -O2 -std=c++17 -o C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/tools/ui/llama-ui-embed-host.exe C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/tools/ui/embed.cpp"
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/tools/ui/embed.cpp:10:
+C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/lib/clang/18/include/inttypes.h:21:15: fatal error: 'inttypes.h' file not found
+   21 | #include_next <inttypes.h>
+      |               ^~~~~~~~~~~~
+1 error generated.
+[17/452] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/vec.cpp.o
+[18/452] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+[19/452] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ops.cpp.o
+ninja: build stopped: subcommand failed.
+CMAKE_BUILD_EXIT=1
+=== BUILD END 2026-08-12T12:32:10.9050266-04:00 ===
+=== RECONFIG HOST_CXX 2026-08-12T12:33:54.8597131-04:00 ===
+CMAKE_BUILD_TYPE=Release
+-- Setting GGML_NATIVE_DEFAULT to OFF
+-- CMAKE_SYSTEM_PROCESSOR: aarch64
+-- GGML_SYSTEM_ARCH: ARM
+-- Including CPU backend
+-- ARM detected
+-- Checking for ARM features using flags:
+--   -march=armv8.2-a+dotprod+i8mm+fp16
+-- Adding CPU backend variant ggml-cpu: -march=armv8.2-a+dotprod+i8mm+fp16 
+-- OpenCL will use matmul kernels optimized for Adreno
+-- opencl: embedding kernel add
+-- opencl: embedding kernel add_id
+-- opencl: embedding kernel argsort
+-- opencl: embedding kernel tri
+-- opencl: embedding kernel fill
+-- opencl: embedding kernel clamp
+-- opencl: embedding kernel cpy
+-- opencl: embedding kernel cvt
+-- opencl: embedding kernel diag_mask_inf
+-- opencl: embedding kernel diag
+-- opencl: embedding kernel div
+-- opencl: embedding kernel gelu
+-- opencl: embedding kernel get_rows
+-- opencl: embedding kernel glu
+-- opencl: embedding kernel group_norm
+-- opencl: embedding kernel solve_tri
+-- opencl: embedding kernel im2col_f32
+-- opencl: embedding kernel im2col_f16
+-- opencl: embedding kernel mean
+-- opencl: embedding kernel mul_mv_f16_f16
+-- opencl: embedding kernel mul_mv_f16_f32_1row
+-- opencl: embedding kernel mul_mv_f16_f32_l4
+-- opencl: embedding kernel mul_mv_f16_f32
+-- opencl: embedding kernel mul_mv_f32_f32
+-- opencl: embedding kernel mul_mv_q1_0_f32
+-- opencl: embedding kernel mul_mv_q1_0_f32_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32
+-- opencl: embedding kernel mul_mv_q4_0_f32_v
+-- opencl: embedding kernel mul_mv_q4_0_f32_8x_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32_1d_8x_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32_1d_16x_flat
+-- opencl: embedding kernel mul_mv_q4_1_f32
+-- opencl: embedding kernel mul_mv_q4_1_f32_flat
+-- opencl: embedding kernel mul_mv_q4_k_f32
+-- opencl: embedding kernel mul_mv_q4_k_f32_flat
+-- opencl: embedding kernel mul_mv_q5_0_f32
+-- opencl: embedding kernel mul_mv_q5_0_f32_flat
+-- opencl: embedding kernel mul_mv_q5_1_f32
+-- opencl: embedding kernel mul_mv_q5_1_f32_flat
+-- opencl: embedding kernel mul_mv_q5_k_f32
+-- opencl: embedding kernel mul_mv_q5_k_f32_flat
+-- opencl: embedding kernel mul_mv_q6_k_f32
+-- opencl: embedding kernel mul_mv_q6_k_f32_flat
+-- opencl: embedding kernel mul_mv_q8_0_f32
+-- opencl: embedding kernel mul_mv_q8_0_f32_flat
+-- opencl: embedding kernel mul_mv_iq4_nl_f32
+-- opencl: embedding kernel mul_mv_iq4_nl_f32_flat
+-- opencl: embedding kernel mul_mv_mxfp4_f32
+-- opencl: embedding kernel mul_mv_mxfp4_f32_flat
+-- opencl: embedding kernel mul_mv_id_q4_0_f32_8x_flat
+-- opencl: embedding kernel mul_mv_id_q8_0_f32
+-- opencl: embedding kernel mul_mv_id_q8_0_f32_flat
+-- opencl: embedding kernel mul_mv_id_mxfp4_f32
+-- opencl: embedding kernel mul_mv_id_mxfp4_f32_flat
+-- opencl: embedding kernel gemm_moe_q4_0_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_0_f32_ns
+-- opencl: embedding kernel gemm_moe_q4_1_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_1_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_0_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_0_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_1_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_1_f32_ns
+-- opencl: embedding kernel gemm_moe_q4_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_k_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_k_f32_ns
+-- opencl: embedding kernel gemm_moe_q6_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q6_k_f32_ns
+-- opencl: embedding kernel gemm_moe_mxfp4_f32
+-- opencl: embedding kernel gemv_moe_mxfp4_f32
+-- opencl: embedding kernel gemm_moe_mxfp4_f32_ns
+-- opencl: embedding kernel gemv_moe_mxfp4_f32_ns
+-- opencl: embedding kernel moe_reorder_b
+-- opencl: embedding kernel moe_sort_by_expert
+-- opencl: embedding kernel mul_mm_f32_f32_l4_lm
+-- opencl: embedding kernel mul_mm_f16_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q1_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_1_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_1_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q8_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_iq4_nl_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_k_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_k_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q6_k_f32_l4_lm
+-- opencl: embedding kernel gemv_noshuffle_q1_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q1_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_0_f32_spec
+-- opencl: embedding kernel gemm_noshuffle_q4_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_1_f32
+-- opencl: embedding kernel gemm_noshuffle_q4_1_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_1_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_1_f32
+-- opencl: embedding kernel gemv_noshuffle_iq4_nl_f32
+-- opencl: embedding kernel gemm_noshuffle_iq4_nl_f32
+-- opencl: embedding kernel gemv_noshuffle_q8_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q8_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q4_k_f32
+-- opencl: embedding kernel gemv_noshuffle_q6_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q6_k_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_k_f32
+-- opencl: embedding kernel mul
+-- opencl: embedding kernel neg
+-- opencl: embedding kernel norm
+-- opencl: embedding kernel relu
+-- opencl: embedding kernel l2_norm
+-- opencl: embedding kernel rms_norm
+-- opencl: embedding kernel rope
+-- opencl: embedding kernel scale
+-- opencl: embedding kernel set_rows
+-- opencl: embedding kernel sigmoid
+-- opencl: embedding kernel silu
+-- opencl: embedding kernel softmax_4_f32
+-- opencl: embedding kernel softmax_4_f16
+-- opencl: embedding kernel softmax_f32
+-- opencl: embedding kernel softmax_f16
+-- opencl: embedding kernel sqr
+-- opencl: embedding kernel sqrt
+-- opencl: embedding kernel ssm_conv
+-- opencl: embedding kernel gated_delta_net
+-- opencl: embedding kernel sub
+-- opencl: embedding kernel sum_rows
+-- opencl: embedding kernel cumsum
+-- opencl: embedding kernel transpose
+-- opencl: embedding kernel concat
+-- opencl: embedding kernel tsembd
+-- opencl: embedding kernel upscale
+-- opencl: embedding kernel tanh
+-- opencl: embedding kernel exp
+-- opencl: embedding kernel expm1
+-- opencl: embedding kernel softplus
+-- opencl: embedding kernel pad
+-- opencl: embedding kernel repeat
+-- opencl: embedding kernel mul_mat_f16_f32
+-- opencl: embedding kernel mul_mm_f16_f32_kq_kqv
+-- opencl: embedding kernel conv2d
+-- opencl: embedding kernel conv2d_f16_f32
+-- opencl: embedding kernel flash_attn_pre_f16
+-- opencl: embedding kernel flash_attn_f32_f16
+-- opencl: embedding kernel flash_attn_f32_q8_0
+-- opencl: embedding kernel flash_attn_f32_q4_0
+-- opencl: embedding kernel flash_attn_f16
+-- opencl: embedding kernel flash_attn_f32
+-- opencl: embedding kernel gemm_xmem_f16_f32_os8
+-- Including OpenCL backend
+-- ggml version: 0.16.0
+-- ggml commit:  e5605f3bd
+-- Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR (missing: OPENSSL_CRYPTO_LIBRARY OPENSSL_INCLUDE_DIR) 
+CMake Warning at vendor/cpp-httplib/CMakeLists.txt:152 (message):
+  OpenSSL not found, HTTPS support disabled
+
+
+-- UI: building llama-ui-embed with host compiler $wrap
+-- Generating embedded license file for target: llama-app
+-- Configuring done
+-- Generating done
+-- Build files have been written to: C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2
+=== RECONFIG HOST_CXX ABS 2026-08-12T12:34:07.4009487-04:00 ===
+=== CMAKE BUILD2 -j4 2026-08-12T12:34:16.4521210-04:00 ===
+[1/434] Building llama-ui-embed (host)
+[2/434] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[3/434] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[4/434] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[5/434] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[6/434] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[7/434] Building CXX object common/CMakeFiles/llama-common-base.dir/build-info.cpp.o
+[8/434] Linking CXX static library common\libllama-common-base.a
+[9/434] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[10/434] Linking CXX static library ggml\src\libggml-base.a
+[11/434] Linking CXX static library ggml\src\libggml-cpu.a
+[12/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/argsort.cl.h
+[13/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/tri.cl.h
+[14/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/add.cl.h
+[15/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/add_id.cl.h
+[16/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/cvt.cl.h
+[17/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/get_rows.cl.h
+[18/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/fill.cl.h
+[19/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gelu.cl.h
+[20/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/cpy.cl.h
+[21/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/diag_mask_inf.cl.h
+[22/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/clamp.cl.h
+[23/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/diag.cl.h
+[24/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/div.cl.h
+[25/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mean.cl.h
+[26/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32_1row.cl.h
+[27/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32_l4.cl.h
+[28/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/im2col_f16.cl.h
+[29/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f16.cl.h
+[30/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/solve_tri.cl.h
+[31/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/glu.cl.h
+[32/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/im2col_f32.cl.h
+[33/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/group_norm.cl.h
+[34/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_f32_f32.cl.h
+[35/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32.cl.h
+[36/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q1_0_f32.cl.h
+[37/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_1d_8x_flat.cl.h
+[38/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_v.cl.h
+[39/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_8x_flat.cl.h
+[40/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q1_0_f32_flat.cl.h
+[41/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32.cl.h
+[42/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_1d_16x_flat.cl.h
+[43/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_1_f32_flat.cl.h
+[44/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_1_f32.cl.h
+[45/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_k_f32.cl.h
+[46/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_k_f32_flat.cl.h
+[47/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_1_f32_flat.cl.h
+[48/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q6_k_f32_flat.cl.h
+[49/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_0_f32.cl.h
+[50/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_0_f32_flat.cl.h
+[51/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_k_f32.cl.h
+[52/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q6_k_f32.cl.h
+[53/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_k_f32_flat.cl.h
+[54/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_1_f32.cl.h
+[55/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q8_0_f32.cl.h
+[56/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_q8_0_f32_flat.cl.h
+[57/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/moe_sort_by_expert.cl.h
+[58/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_moe_mxfp4_f32_ns.cl.h
+[59/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/moe_reorder_b.cl.h
+[60/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_moe_mxfp4_f32.cl.h
+[61/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_f16_f32_l4_lm.cl.h
+[62/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_q1_0_f32_l4_lm.cl.h
+[63/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_moe_mxfp4_f32.cl.h
+[64/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_f32_f32_l4_lm.cl.h
+[65/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_moe_mxfp4_f32_ns.cl.h
+[66/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_q6_k_f32_l4_lm.cl.h
+[67/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q1_0_f32.cl.h
+[68/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_0_f32_l4_lm.cl.h
+[69/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_q8_0_f32_l4_lm.cl.h
+[70/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_iq4_nl_f32_l4_lm.cl.h
+[71/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_k_f32_l4_lm.cl.h
+[72/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_q5_0_f32_l4_lm.cl.h
+[73/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_q5_k_f32_l4_lm.cl.h
+[74/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_q5_1_f32_l4_lm.cl.h
+[75/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_1_f32_l4_lm.cl.h
+[76/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_id_mxfp4_f32_flat.cl.h
+[77/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_mxfp4_f32_flat.cl.h
+[78/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_id_q8_0_f32.cl.h
+[79/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_id_mxfp4_f32.cl.h
+[80/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_iq4_nl_f32_flat.cl.h
+[81/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_iq4_nl_f32.cl.h
+[82/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_mxfp4_f32.cl.h
+[83/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_id_q4_0_f32_8x_flat.cl.h
+[84/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mv_id_q8_0_f32_flat.cl.h
+[85/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_moe_q4_0_f32_ns.cl.h
+[86/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_moe_q5_1_f32_ns.cl.h
+[87/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_moe_q5_1_f32_ns.cl.h
+[88/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_0_f32_ns.cl.h
+[89/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_moe_q5_0_f32_ns.cl.h
+[90/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_moe_q5_0_f32_ns.cl.h
+[91/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_moe_q4_1_f32_ns.cl.h
+[92/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_1_f32_ns.cl.h
+[93/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_k_f32_ns.cl.h
+[94/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_moe_q6_k_f32_ns.cl.h
+[95/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_moe_q5_k_f32_ns.cl.h
+[96/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_moe_q5_k_f32_ns.cl.h
+[97/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_moe_q4_k_f32_ns.cl.h
+[98/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_moe_q6_k_f32_ns.cl.h
+[99/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q4_0_f32.cl.h
+[100/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q4_1_f32.cl.h
+[101/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q5_0_f32.cl.h
+[102/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q5_1_f32.cl.h
+[103/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q4_0_f32.cl.h
+[104/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q1_0_f32.cl.h
+[105/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q4_1_f32.cl.h
+[106/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q4_0_f32_spec.cl.h
+[107/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q5_0_f32.cl.h
+[108/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q6_k_f32.cl.h
+[109/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_iq4_nl_f32.cl.h
+[110/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q5_1_f32.cl.h
+[111/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q8_0_f32.cl.h
+[112/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_iq4_nl_f32.cl.h
+[113/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q8_0_f32.cl.h
+[114/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q4_k_f32.cl.h
+[115/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q4_k_f32.cl.h
+[116/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q6_k_f32.cl.h
+[117/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/rope.cl.h
+[118/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q5_k_f32.cl.h
+[119/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/neg.cl.h
+[120/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul.cl.h
+[121/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/relu.cl.h
+[122/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/norm.cl.h
+[123/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q5_k_f32.cl.h
+[124/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/l2_norm.cl.h
+[125/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/rms_norm.cl.h
+[126/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/sigmoid.cl.h
+[127/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/set_rows.cl.h
+[128/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/softmax_f16.cl.h
+[129/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/silu.cl.h
+[130/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/softmax_4_f16.cl.h
+[131/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/scale.cl.h
+[132/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/sqr.cl.h
+[133/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/softmax_4_f32.cl.h
+[134/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/softmax_f32.cl.h
+[135/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/sum_rows.cl.h
+[136/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/sub.cl.h
+[137/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/ssm_conv.cl.h
+[138/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gated_delta_net.cl.h
+[139/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/sqrt.cl.h
+[140/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/flash_attn_pre_f16.cl.h
+[141/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/conv2d_f16_f32.cl.h
+[142/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/flash_attn_f32_q8_0.cl.h
+[143/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/gemm_xmem_f16_f32_os8.cl.h
+[144/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/flash_attn_f32_q4_0.cl.h
+[145/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/flash_attn_f32_f16.cl.h
+[146/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/flash_attn_f16.cl.h
+[147/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/flash_attn_f32.cl.h
+[148/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/tanh.cl.h
+[149/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/cumsum.cl.h
+[150/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/upscale.cl.h
+[151/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/concat.cl.h
+[152/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/transpose.cl.h
+[153/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/tsembd.cl.h
+[154/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/expm1.cl.h
+[155/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/exp.cl.h
+[156/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/softplus.cl.h
+[157/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/pad.cl.h
+[158/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/conv2d.cl.h
+[159/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mat_f16_f32.cl.h
+[160/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/repeat.cl.h
+[161/434] Generate C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/ggml/src/ggml-opencl/autogenerated/mul_mm_f16_f32_kq_kqv.cl.h
+[162/434] Building CXX object ggml/src/CMakeFiles/ggml.dir/ggml-backend-dl.cpp.o
+[163/434] Building CXX object ggml/src/CMakeFiles/ggml.dir/ggml-backend-reg.cpp.o
+[164/434] Building CXX object src/CMakeFiles/llama.dir/llama.cpp.o
+[165/434] Building CXX object src/CMakeFiles/llama.dir/llama-adapter.cpp.o
+[166/434] Building CXX object src/CMakeFiles/llama.dir/llama-cparams.cpp.o
+[167/434] Building CXX object src/CMakeFiles/llama.dir/llama-chat.cpp.o
+[168/434] Building CXX object src/CMakeFiles/llama.dir/llama-context.cpp.o
+[169/434] Building CXX object vendor/cpp-httplib/CMakeFiles/cpp-httplib.dir/httplib.cpp.o
+[170/434] Building CXX object src/CMakeFiles/llama.dir/llama-batch.cpp.o
+[171/434] Building CXX object ggml/src/ggml-opencl/CMakeFiles/ggml-opencl.dir/ggml-opencl.cpp.o
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/ggml/src/ggml-opencl/ggml-opencl.cpp:1183:66: warning: unused parameter 'backend_ctx' [-Wunused-parameter]
+ 1183 | static bool use_adreno_bin_kernels(ggml_backend_opencl_context * backend_ctx) {
+      |                                                                  ^
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/ggml/src/ggml-opencl/ggml-opencl.cpp:6511:9: warning: TODO: implement BF16, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, IQ4_NL support (https://github.com/ggml-org/llama.cpp/pull/14661) [-W#pragma-messages]
+ 6511 | #pragma message("TODO: implement BF16, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, IQ4_NL support (https://github.com/ggml-org/llama.cpp/pull/14661)")
+      |         ^
+2 warnings generated.
+[172/434] Linking CXX static library ggml\src\ggml-opencl\libggml-opencl.a
+[173/434] Linking CXX static library ggml\src\libggml.a
+[174/434] Building CXX object src/CMakeFiles/llama.dir/llama-hparams.cpp.o
+[175/434] Building CXX object src/CMakeFiles/llama.dir/llama-arch.cpp.o
+[176/434] Building CXX object src/CMakeFiles/llama.dir/llama-io.cpp.o
+[177/434] Building CXX object src/CMakeFiles/llama.dir/llama-graph.cpp.o
+[178/434] Building CXX object src/CMakeFiles/llama.dir/llama-grammar.cpp.o
+[179/434] Building CXX object src/CMakeFiles/llama.dir/llama-impl.cpp.o
+[180/434] Building CXX object src/CMakeFiles/llama.dir/models/bailingmoe2.cpp.o
+[181/434] Building CXX object src/CMakeFiles/llama.dir/models/bloom.cpp.o
+[182/434] Building CXX object src/CMakeFiles/llama.dir/models/chameleon.cpp.o
+[183/434] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache.cpp.o
+[184/434] Building CXX object src/CMakeFiles/llama.dir/models/bert.cpp.o
+[185/434] Building CXX object src/CMakeFiles/llama.dir/models/bitnet.cpp.o
+[186/434] Building CXX object src/CMakeFiles/llama.dir/models/chatglm.cpp.o
+[187/434] Building CXX object src/CMakeFiles/llama.dir/llama-memory-recurrent.cpp.o
+[188/434] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-dsa.cpp.o
+[189/434] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-iswa.cpp.o
+[190/434] Building CXX object src/CMakeFiles/llama.dir/llama-memory-hybrid-iswa.cpp.o
+[191/434] Building CXX object src/CMakeFiles/llama.dir/llama-memory-hybrid.cpp.o
+[192/434] Building CXX object src/CMakeFiles/llama.dir/llama-memory.cpp.o
+[193/434] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-dsv4.cpp.o
+[194/434] Building CXX object src/CMakeFiles/llama.dir/llama-mmap.cpp.o
+[195/434] Building CXX object src/CMakeFiles/llama.dir/llama-quant.cpp.o
+[196/434] Building CXX object src/CMakeFiles/llama.dir/llama-sampler.cpp.o
+[197/434] Building CXX object src/CMakeFiles/llama.dir/llama-model-saver.cpp.o
+[198/434] Building CXX object src/CMakeFiles/llama.dir/llama-model-loader.cpp.o
+[199/434] Building CXX object src/CMakeFiles/llama.dir/models/apertus.cpp.o
+[200/434] Building CXX object src/CMakeFiles/llama.dir/llama-vocab.cpp.o
+[201/434] Building CXX object src/CMakeFiles/llama.dir/models/afmoe.cpp.o
+[202/434] Building CXX object src/CMakeFiles/llama.dir/llama-model.cpp.o
+[203/434] Building CXX object src/CMakeFiles/llama.dir/unicode-data.cpp.o
+[204/434] Building CXX object src/CMakeFiles/llama.dir/models/arcee.cpp.o
+[205/434] Building CXX object src/CMakeFiles/llama.dir/models/arctic.cpp.o
+[206/434] Building CXX object src/CMakeFiles/llama.dir/models/bailingmoe.cpp.o
+[207/434] Building CXX object src/CMakeFiles/llama.dir/models/arwkv7.cpp.o
+[208/434] Building CXX object src/CMakeFiles/llama.dir/models/baichuan.cpp.o
+[209/434] Building CXX object src/CMakeFiles/llama.dir/unicode.cpp.o
+[210/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/conformer.cpp.o
+[211/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4v.cpp.o
+[212/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4a.cpp.o
+[213/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/dotsocr.cpp.o
+[214/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/exaone4_5.cpp.o
+[215/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/cogvlm.cpp.o
+[216/434] Building CXX object tools/server/CMakeFiles/server-context.dir/server-queue.cpp.o
+[217/434] Building CXX object tools/server/CMakeFiles/server-context.dir/server-chat.cpp.o
+[218/434] Building CXX object tools/server/CMakeFiles/server-context.dir/server-stream.cpp.o
+[219/434] Building CXX object tools/server/CMakeFiles/server-context.dir/server-common.cpp.o
+[220/434] Building CXX object tools/server/CMakeFiles/server-context.dir/server-context.cpp.o
+[221/434] Building CXX object tools/server/CMakeFiles/server-context.dir/server-schema.cpp.o
+[222/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd.cpp.o
+[223/434] Building CXX object tools/server/CMakeFiles/server-context.dir/server-task.cpp.o
+[224/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd-audio.cpp.o
+[225/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd-image.cpp.o
+[226/434] Building CXX object tools/server/CMakeFiles/server-context.dir/server-tools.cpp.o
+[227/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/hunyuanvl.cpp.o
+[228/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/glm4v.cpp.o
+[229/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/granite4-vision.cpp.o
+[230/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4ua.cpp.o
+[231/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/internvl.cpp.o
+[232/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/clip.cpp.o
+[233/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4uv.cpp.o
+[234/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/granite-speech.cpp.o
+[235/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/llava.cpp.o
+[236/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd-helper.cpp.o
+[237/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/minicpmv.cpp.o
+[238/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/kimivl.cpp.o
+[239/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/nemotron-v2-vl.cpp.o
+[240/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/llama4.cpp.o
+[241/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/kimik25.cpp.o
+[242/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/mimovl.cpp.o
+[243/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/step3vl.cpp.o
+[244/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/paddleocr.cpp.o
+[245/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/pixtral.cpp.o
+[246/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/qwen2vl.cpp.o
+[247/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/qwen3vl.cpp.o
+[248/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/qwen3a.cpp.o
+[249/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/youtuvl.cpp.o
+[250/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/deepseekocr2.cpp.o
+[251/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/siglip.cpp.o
+[252/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/deepseekocr.cpp.o
+[253/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/mobilenetv5.cpp.o
+[254/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/whisper-enc.cpp.o
+[255/434] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/yasa2.cpp.o
+[256/434] Building CXX object src/CMakeFiles/llama.dir/models/internlm2.cpp.o
+[257/434] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-moe.cpp.o
+[258/434] Building CXX object src/CMakeFiles/llama.dir/models/grovemoe.cpp.o
+[259/434] Building CXX object src/CMakeFiles/llama.dir/models/grok.cpp.o
+[260/434] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-dense.cpp.o
+[261/434] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-vl.cpp.o
+[262/434] Building CXX object src/CMakeFiles/llama.dir/models/granite.cpp.o
+[263/434] Building CXX object src/CMakeFiles/llama.dir/models/jina-bert-v2.cpp.o
+[264/434] Building CXX object src/CMakeFiles/llama.dir/models/jais2.cpp.o
+[265/434] Building CXX object src/CMakeFiles/llama.dir/models/jina-bert-v3.cpp.o
+[266/434] Building CXX object src/CMakeFiles/llama.dir/models/jais.cpp.o
+[267/434] Building CXX object src/CMakeFiles/llama.dir/models/jamba.cpp.o
+[268/434] Building CXX object src/CMakeFiles/llama.dir/models/llama4.cpp.o
+[269/434] Building CXX object src/CMakeFiles/llama.dir/models/kimi-linear.cpp.o
+[270/434] Building CXX object src/CMakeFiles/llama.dir/models/llada-moe.cpp.o
+[271/434] Building CXX object src/CMakeFiles/llama.dir/models/lfm2moe.cpp.o
+[272/434] Building CXX object src/CMakeFiles/llama.dir/models/lfm2.cpp.o
+[273/434] Building CXX object src/CMakeFiles/llama.dir/models/llama-embed.cpp.o
+[274/434] Building CXX object src/CMakeFiles/llama.dir/models/llada.cpp.o
+[275/434] Building CXX object src/CMakeFiles/llama.dir/models/llama.cpp.o
+[276/434] Building CXX object src/CMakeFiles/llama.dir/models/command-r.cpp.o
+[277/434] Building CXX object src/CMakeFiles/llama.dir/models/cogvlm.cpp.o
+[278/434] Building CXX object src/CMakeFiles/llama.dir/models/deci.cpp.o
+[279/434] Building CXX object src/CMakeFiles/llama.dir/models/cohere2.cpp.o
+[280/434] Building CXX object src/CMakeFiles/llama.dir/models/cohere2moe.cpp.o
+[281/434] Building CXX object src/CMakeFiles/llama.dir/models/dbrx.cpp.o
+[282/434] Building CXX object src/CMakeFiles/llama.dir/models/codeshell.cpp.o
+[283/434] Building CXX object src/CMakeFiles/llama.dir/models/delta-net-base.cpp.o
+[284/434] Building CXX object src/CMakeFiles/llama.dir/models/deepseek2.cpp.o
+[285/434] Building CXX object src/CMakeFiles/llama.dir/models/deepseek.cpp.o
+[286/434] Building CXX object src/CMakeFiles/llama.dir/models/deepseek2ocr.cpp.o
+[287/434] Building CXX object src/CMakeFiles/llama.dir/models/deepseek4.cpp.o
+[288/434] Building CXX object src/CMakeFiles/llama.dir/models/deepseek32.cpp.o
+[289/434] Building CXX object src/CMakeFiles/llama.dir/models/ernie4-5.cpp.o
+[290/434] Building CXX object src/CMakeFiles/llama.dir/models/dots1.cpp.o
+[291/434] Building CXX object src/CMakeFiles/llama.dir/models/eurobert.cpp.o
+[292/434] Building CXX object src/CMakeFiles/llama.dir/models/dflash.cpp.o
+[293/434] Building CXX object src/CMakeFiles/llama.dir/models/eagle3.cpp.o
+[294/434] Building CXX object src/CMakeFiles/llama.dir/models/ernie4-5-moe.cpp.o
+[295/434] Building CXX object src/CMakeFiles/llama.dir/models/dream.cpp.o
+[296/434] Building CXX object src/CMakeFiles/llama.dir/models/gemma-embedding.cpp.o
+[297/434] Building CXX object src/CMakeFiles/llama.dir/models/exaone.cpp.o
+[298/434] Building CXX object src/CMakeFiles/llama.dir/models/exaone-moe.cpp.o
+[299/434] Building CXX object src/CMakeFiles/llama.dir/models/exaone4.cpp.o
+[300/434] Building CXX object src/CMakeFiles/llama.dir/models/falcon.cpp.o
+[301/434] Building CXX object src/CMakeFiles/llama.dir/models/falcon-h1.cpp.o
+[302/434] Building CXX object src/CMakeFiles/llama.dir/models/gemma.cpp.o
+[303/434] Building CXX object src/CMakeFiles/llama.dir/models/gemma3.cpp.o
+[304/434] Building CXX object src/CMakeFiles/llama.dir/models/gemma4-assistant.cpp.o
+[305/434] Building CXX object src/CMakeFiles/llama.dir/models/gemma2.cpp.o
+[306/434] Building CXX object src/CMakeFiles/llama.dir/models/gemma3n.cpp.o
+[307/434] Building CXX object src/CMakeFiles/llama.dir/models/glm4-moe.cpp.o
+[308/434] Building CXX object src/CMakeFiles/llama.dir/models/gemma4.cpp.o
+[309/434] Building CXX object src/CMakeFiles/llama.dir/models/glm4.cpp.o
+[310/434] Building CXX object src/CMakeFiles/llama.dir/models/gptneox.cpp.o
+[311/434] Building CXX object src/CMakeFiles/llama.dir/models/granite-hybrid.cpp.o
+[312/434] Building CXX object src/CMakeFiles/llama.dir/models/glm-dsa.cpp.o
+[313/434] Building CXX object src/CMakeFiles/llama.dir/models/gpt2.cpp.o
+[314/434] Building CXX object src/CMakeFiles/llama.dir/models/granite-moe.cpp.o
+[315/434] Building CXX object src/CMakeFiles/llama.dir/models/stablelm.cpp.o
+[316/434] Building CXX object src/CMakeFiles/llama.dir/models/starcoder2.cpp.o
+[317/434] Building CXX object src/CMakeFiles/llama.dir/models/smallthinker.cpp.o
+[318/434] Building CXX object src/CMakeFiles/llama.dir/models/seed-oss.cpp.o
+[319/434] Building CXX object src/CMakeFiles/llama.dir/models/smollm3.cpp.o
+[320/434] Building CXX object src/CMakeFiles/llama.dir/models/starcoder.cpp.o
+[321/434] Building CXX object src/CMakeFiles/llama.dir/models/maincoder.cpp.o
+[322/434] Building CXX object src/CMakeFiles/llama.dir/models/mamba.cpp.o
+[323/434] Building CXX object src/CMakeFiles/llama.dir/models/mimo2.cpp.o
+[324/434] Building CXX object src/CMakeFiles/llama.dir/models/mamba2.cpp.o
+[325/434] Building CXX object src/CMakeFiles/llama.dir/models/mellum.cpp.o
+[326/434] Building CXX object src/CMakeFiles/llama.dir/models/mamba-base.cpp.o
+[327/434] Building CXX object src/CMakeFiles/llama.dir/models/modern-bert.cpp.o
+[328/434] Building CXX object src/CMakeFiles/llama.dir/models/minicpm3.cpp.o
+[329/434] Building CXX object src/CMakeFiles/llama.dir/models/mistral3.cpp.o
+[330/434] Building CXX object src/CMakeFiles/llama.dir/models/minicpm.cpp.o
+[331/434] Building CXX object src/CMakeFiles/llama.dir/models/minimax-m2.cpp.o
+[332/434] Building CXX object src/CMakeFiles/llama.dir/models/mistral4.cpp.o
+[333/434] Building CXX object src/CMakeFiles/llama.dir/models/nemotron-h.cpp.o
+[334/434] Building CXX object src/CMakeFiles/llama.dir/models/neo-bert.cpp.o
+[335/434] Building CXX object src/CMakeFiles/llama.dir/models/nomic-bert.cpp.o
+[336/434] Building CXX object src/CMakeFiles/llama.dir/models/mpt.cpp.o
+[337/434] Building CXX object src/CMakeFiles/llama.dir/models/nemotron-h-moe.cpp.o
+[338/434] Building CXX object src/CMakeFiles/llama.dir/models/nemotron.cpp.o
+[339/434] Building CXX object src/CMakeFiles/llama.dir/models/nomic-bert-moe.cpp.o
+[340/434] Building CXX object src/CMakeFiles/llama.dir/models/orion.cpp.o
+[341/434] Building CXX object src/CMakeFiles/llama.dir/models/olmoe.cpp.o
+[342/434] Building CXX object src/CMakeFiles/llama.dir/models/olmo.cpp.o
+[343/434] Provisioning UI assets
+-- UI: running npm install
+
+added 1035 packages, and audited 1036 packages in 56s
+
+347 packages are looking for funding
+  run `npm fund` for details
+
+24 vulnerabilities (2 low, 6 moderate, 11 high, 5 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+-- UI: running npm run build, output -> C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/tools/ui/dist
+
+> llama-ui@1.0.0 build
+> npm run build-pwa-assets && vite build
+
+
+> llama-ui@1.0.0 build-pwa-assets
+> npx @vite-pwa/assets-generator --root . --config pwa-assets.config.ts && npx @vite-pwa/assets-generator --root . --config pwa-assets-dark.config.ts && node scripts/make-icons-circular.js
+
+[log] [32mZero Config PWA Assets Generator v1.0.2[39m
+[start] Preparing to generate PWA assets...
+[start] Resolving instructions...
+[ready] PWA assets ready to be generated, instructions resolved
+[start] Generating PWA assets from static/favicon.svg image
+[start] Generating assets for static/favicon.svg...
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\pwa-64x64.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\pwa-192x192.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\pwa-512x512.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\maskable-icon-512x512.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-touch-icon-180x180.png[39m
+[ready] [32mGenerated ICO file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\favicon.ico[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-1170x2532.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-2532x1170.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-2778x1284.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-1284x2778.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-1179x2556.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-2556x1179.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-1290x2796.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-2796x1290.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-640x1136.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-1206x2622.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-2622x1206.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-1136x640.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-750x1334.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-1334x750.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-1320x2868.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-2868x1320.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-1640x2360.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-2360x1640.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-2048x2732.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-2732x2048.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-1488x2266.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-1668x2388.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-2266x1488.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-2388x1668.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-dark-2532x1170.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-dark-1170x2532.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-dark-2556x1179.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-dark-1179x2556.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-dark-1284x2778.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-dark-2778x1284.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-dark-1206x2622.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-dark-2622x1206.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-dark-1290x2796.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-dark-2796x1290.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-dark-640x1136.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-dark-750x1334.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-dark-1136x640.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-dark-1334x750.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-dark-1320x2868.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-dark-2868x1320.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-dark-1640x2360.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-dark-2360x1640.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-dark-1668x2388.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-dark-1488x2266.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-portrait-dark-2048x2732.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-dark-2732x2048.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-dark-2266x1488.png[39m
+[ready] [32mGenerated PNG file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\apple-splash-landscape-dark-2388x1668.png[39m
+[ready] Assets generated for static/favicon.svg
+[start] Generating Html Head Links...
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" sizes="any" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-1170x2532.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-2532x1170.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-dark-1170x2532.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-dark-2532x1170.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-1284x2778.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-2778x1284.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-dark-1284x2778.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-dark-2778x1284.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-1179x2556.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-2556x1179.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-dark-1179x2556.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-dark-2556x1179.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-1290x2796.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-2796x1290.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-dark-1290x2796.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-dark-2796x1290.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-1206x2622.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-2622x1206.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-dark-1206x2622.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-dark-2622x1206.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-1320x2868.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-2868x1320.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./apple-splash-portrait-dark-1320x2868.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./apple-splash-landscape-dark-2868x1320.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-640x1136.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-1136x640.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-dark-640x1136.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-dark-1136x640.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-750x1334.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-1334x750.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-dark-750x1334.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-dark-1334x750.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-1640x2360.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-2360x1640.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-dark-1640x2360.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-dark-2360x1640.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-2048x2732.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-2732x2048.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-dark-2048x2732.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-dark-2732x2048.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-1668x2388.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-2388x1668.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-dark-1668x2388.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-dark-2388x1668.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-1488x2266.png">
+<link rel="apple-touch-startup-image" media="screen and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-2266x1488.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./apple-splash-portrait-dark-1488x2266.png">
+<link rel="apple-touch-startup-image" media="screen and (prefers-color-scheme: dark) and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./apple-splash-landscape-dark-2266x1488.png">
+[ready] Html Head Links generated
+[start] Generating PWA web manifest icons entry...
+{
+  "icons": [
+    {
+      "src": "pwa-64x64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "maskable-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
+[ready] PWA web manifest icons entry generated
+[ready] PWA assets generated
+[log] [32mZero Config PWA Assets Generator v1.0.2[39m
+[start] Preparing to generate PWA assets...
+[start] Resolving instructions...
+[ready] PWA assets ready to be generated, instructions resolved
+[start] Generating PWA assets from static/favicon-dark.svg image
+[start] Generating assets for static/favicon-dark.svg...
+[ready] [32mGenerated ICO file: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\ui-src\static\favicon-dark.ico[39m
+[ready] Assets generated for static/favicon-dark.svg
+[start] Generating Html Head Links...
+<link rel="icon" href="/favicon-dark.ico" sizes="48x48">
+<link rel="icon" href="/favicon-dark.svg" sizes="any" type="image/svg+xml">
+[ready] Html Head Links generated
+[start] Generating PWA web manifest icons entry...
+{
+  "icons": []
+}
+[ready] PWA web manifest icons entry generated
+[ready] PWA assets generated
+Circular mask: 0% padding, 85% scale, source=maskable-icon-512x512.png
+
+╬ô┬ú├┤ pwa-64x64.png ╬ô├Ñ├å circle from maskable-icon-512x512.png, 0% padding (size=64, r=32, scale=85%, circleDiameter=64)
+╬ô┬ú├┤ pwa-192x192.png ╬ô├Ñ├å circle from maskable-icon-512x512.png, 0% padding (size=192, r=96, scale=85%, circleDiameter=192)
+╬ô┬ú├┤ pwa-512x512.png ╬ô├Ñ├å circle from maskable-icon-512x512.png, 0% padding (size=512, r=256, scale=85%, circleDiameter=512)
+
+Unchanged:
+  maskable-icon-512x512.png (1894 bytes)
+  apple-touch-icon-180x180.png (806 bytes)
+[36mvite v7.3.5 [32mbuilding ssr environment for production...[36m[39m
+transforming...
+[32m╬ô┬ú├┤[39m 4866 modules transformed.
+rendering chunks...
+[36mvite v7.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m╬ô┬ú├┤[39m 7932 modules transformed.
+rendering chunks...
+computing gzip size...
+[2m.svelte-kit/output/client/[22m[32m_app/version.json                          [39m[1m[2m    0.03 kB[22m[1m[22m[2m ╬ô├╢├⌐ gzip:     0.05 kB[22m
+[2m.svelte-kit/output/client/[22m[32m.vite/manifest.json                        [39m[1m[2m    0.30 kB[22m[1m[22m[2m ╬ô├╢├⌐ gzip:     0.18 kB[22m
+[2m.svelte-kit/output/client/[22m[32mmanifest.webmanifest                       [39m[1m[2m    0.52 kB[22m[1m[22m
+[2m.svelte-kit/output/client/[22m[35m_app/immutable/assets/bundle.D23rWssn.css  [39m[1m[2m  512.69 kB[22m[1m[22m[2m ╬ô├╢├⌐ gzip:   289.38 kB[22m
+[2m.svelte-kit/output/client/[22m[36m_app/immutable/bundle.CkmacPTt.js          [39m[1m[33m8,221.24 kB[39m[22m[2m ╬ô├╢├⌐ gzip: 2,388.86 kB[22m
+[32m╬ô┬ú├┤ built in 1m 33s[39m
+Relativized base refs in index.html and sw.js
+[2m.svelte-kit/output/server/[22m[32m.vite/manifest.json                                                        [39m[1m[2m 14.96 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[35m_app/immutable/assets/_page.CV-KWLNP.css                                   [39m[1m[2m  0.29 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[35m_app/immutable/assets/DialogConfirmation.bHHIbcsu.css                      [39m[1m[2m  0.35 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[35m_app/immutable/assets/_layout.Pq64rWaC.css                                 [39m[1m[2m126.78 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[35m_app/immutable/assets/SidebarNavigationConversationItem.BNj3E6bH.css       [39m[1m[2m384.79 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/app.js                                                              [39m[1m[2m  0.07 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/environment.js                                                      [39m[1m[2m  0.07 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/api-key-validation.js                                               [39m[1m[2m  0.19 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/server.js                                                           [39m[1m[2m  0.20 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/device.svelte.js                                                    [39m[1m[2m  0.22 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/(chat)/_page.ts.js                                           [39m[1m[2m  0.29 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/(chat)/chat/_id_/_page.ts.js                                 [39m[1m[2m  0.31 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/arrow-right.js                                                      [39m[1m[2m  0.31 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36minternal.js                                                                [39m[1m[2m  0.37 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/dialog-title.js                                                     [39m[1m[2m  0.57 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/utils2.js                                                           [39m[1m[2m  0.60 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/settings/_layout.svelte.js                                   [39m[1m[2m  0.88 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/alert-dialog-action.js                                              [39m[1m[2m  0.93 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/(chat)/_page.svelte.js                                       [39m[1m[2m  1.13 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/(chat)/chat/_id_/_page.svelte.js                             [39m[1m[2m  1.22 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/ActionIcon.js                                                       [39m[1m[2m  1.44 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/exports.js                                                          [39m[1m[2m  1.46 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/url.js                                                              [39m[1m[2m  1.60 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/input.js                                                            [39m[1m[2m  1.66 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/render-context.js                                                   [39m[1m[2m  1.81 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/search/_page.svelte.js                                       [39m[1m[2m  2.02 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/label.js                                                            [39m[1m[2m  2.24 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/McpServerIdentity.js                                                [39m[1m[2m  2.53 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/TruncatedText.js                                                    [39m[1m[2m  2.71 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/DialogModelNotAvailable.js                                          [39m[1m[2m  2.78 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/internal.js                                                         [39m[1m[2m  2.88 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/SidebarNavigationSearchResults.js                                   [39m[1m[2m  4.42 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/index.js                                                            [39m[1m[2m  4.51 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/mcp-servers/_page.svelte.js                                  [39m[1m[2m  5.03 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/dialog-footer.js                                                    [39m[1m[2m  5.69 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/index3.js                                                           [39m[1m[2m  5.72 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/workbox-window.prod.es5.js                                          [39m[1m[2m  5.75 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/KeyValuePairs.js                                                    [39m[1m[2m  6.54 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/_error.svelte.js                                             [39m[1m[2m  8.52 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mremote-entry.js                                                            [39m[1m[2m 14.02 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/utils.js                                                            [39m[1m[2m 15.12 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/popper-layer-force-mount.js                                         [39m[1m[2m 15.45 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/index2.js                                                           [39m[1m[2m 21.71 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/models.svelte.js                                                    [39m[1m[2m 35.69 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/root.js                                                             [39m[1m[2m 40.18 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/DialogConfirmation.js                                               [39m[1m[2m 41.81 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/_layout.svelte.js                                            [39m[1m[2m 42.18 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/url2.js                                                             [39m[1m[2m 52.94 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mindex.js                                                                   [39m[1m[2m 57.10 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/settings/__section__/_page.svelte.js                         [39m[1m[2m 67.89 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/chat.svelte.js                                                      [39m[1m[2m 69.99 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mchunks/SidebarNavigationConversationItem.svelte_svelte_type_style_lang.js  [39m[1m[2m141.09 kB[22m[1m[22m
+[2m.svelte-kit/output/server/[22m[36mentries/pages/(chat)/_layout.svelte.js                                     [39m[1m[2m288.32 kB[22m[1m[22m
+[32m╬ô┬ú├┤ built in 2m 34s[39m
+
+[36mPWA v1.3.0[39m
+mode      [35mgenerateSW[39m
+precache  [32m62 entries[39m [2m(8744.52 KiB)[22m
+files generated
+  [2m.svelte-kit/output/server/sw.js[22m
+  [2m.svelte-kit/output/server/workbox-b3c04f83.js[22m
+
+Run [1m[36mnpm run preview[22m[39m to preview your production build locally.
+[1m[36m
+> Using @sveltejs/adapter-static[22m[39m
+[1m[33mOverwriting C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-k2\tools\ui\dist\index.html with fallback page. Consider using a different name for the fallback.[22m[39m
+  Wrote site to "C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/tools/ui/dist"
+  [32m╬ô┬ú├╢ done[39m
+Generated 48 apple-splash link tags
+Updated index.html
+Created build.json (version: 9967)
+Relativized base refs in index.html and sw.js
+-- UI: npm build succeeded
+-- UI: gzip compression applied (C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/tools/ui/dist/_gzip)
+embed: write output file C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/tools/ui/ui.h
+embed: write output file C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/tools/ui/ui.cpp
+[344/434] Building CXX object src/CMakeFiles/llama.dir/models/openelm.cpp.o
+[345/434] Building CXX object tools/cli/CMakeFiles/llama-cli.dir/main.cpp.o
+[346/434] Building CXX object src/CMakeFiles/llama.dir/models/openai-moe.cpp.o
+[347/434] Building CXX object src/CMakeFiles/llama.dir/models/olmo2.cpp.o
+[348/434] Building CXX object tools/cli/CMakeFiles/llama-cli-impl.dir/cli.cpp.o
+[349/434] Building CXX object tools/cli/CMakeFiles/llama-cli-impl.dir/cli-client.cpp.o
+[350/434] Building CXX object tools/ui/CMakeFiles/llama-ui.dir/ui.cpp.o
+[351/434] Linking CXX static library tools\ui\libllama-ui.a
+[352/434] Building CXX object tools/cli/CMakeFiles/llama-cli-impl.dir/cli-context.cpp.o
+[353/434] Building CXX object src/CMakeFiles/llama.dir/models/phimoe.cpp.o
+[354/434] Building CXX object src/CMakeFiles/llama.dir/models/plamo2.cpp.o
+[355/434] Building CXX object src/CMakeFiles/llama.dir/models/pangu-embed.cpp.o
+[356/434] Building CXX object tools/server/CMakeFiles/llama-server-impl.dir/server-http.cpp.o
+[357/434] Building CXX object tools/server/CMakeFiles/llama-server-impl.dir/server.cpp.o
+[358/434] Building CXX object src/CMakeFiles/llama.dir/models/phi2.cpp.o
+[359/434] Building CXX object src/CMakeFiles/llama.dir/models/plamo.cpp.o
+[360/434] Building CXX object src/CMakeFiles/llama.dir/models/phi3.cpp.o
+[361/434] Building CXX object src/CMakeFiles/llama.dir/models/paddleocr.cpp.o
+[362/434] Building CXX object src/CMakeFiles/llama.dir/models/qwen2vl.cpp.o
+[363/434] Building CXX object src/CMakeFiles/llama.dir/models/qwen.cpp.o
+[364/434] Building CXX object src/CMakeFiles/llama.dir/models/plm.cpp.o
+[365/434] Building CXX object src/CMakeFiles/llama.dir/models/qwen2moe.cpp.o
+[366/434] Building CXX object src/CMakeFiles/llama.dir/models/qwen2.cpp.o
+[367/434] Building CXX object src/CMakeFiles/llama.dir/models/plamo3.cpp.o
+[368/434] Building CXX object src/CMakeFiles/llama.dir/models/qwen3vl.cpp.o
+[369/434] Building CXX object src/CMakeFiles/llama.dir/models/qwen3moe.cpp.o
+[370/434] Building CXX object src/CMakeFiles/llama.dir/models/qwen3next.cpp.o
+[371/434] Building CXX object src/CMakeFiles/llama.dir/models/qwen3.cpp.o
+[372/434] Building CXX object src/CMakeFiles/llama.dir/models/qwen35.cpp.o
+[373/434] Building CXX object src/CMakeFiles/llama.dir/models/qwen35moe.cpp.o
+[374/434] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6-base.cpp.o
+[375/434] Building CXX object src/CMakeFiles/llama.dir/models/refact.cpp.o
+[376/434] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6qwen2.cpp.o
+[377/434] Building CXX object src/CMakeFiles/llama.dir/models/rwkv7-base.cpp.o
+[378/434] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6.cpp.o
+[379/434] Building CXX object tools/server/CMakeFiles/llama-server-impl.dir/server-models.cpp.o
+[380/434] Linking CXX static library vendor\cpp-httplib\libcpp-httplib.a
+[381/434] Building CXX object src/CMakeFiles/llama.dir/models/rnd1.cpp.o
+[382/434] Building CXX object src/CMakeFiles/llama.dir/models/qwen3vlmoe.cpp.o
+[383/434] Building CXX object src/CMakeFiles/llama.dir/models/rwkv7.cpp.o
+[384/434] Building CXX object src/CMakeFiles/llama.dir/models/wavtokenizer-dec.cpp.o
+[385/434] Building CXX object src/CMakeFiles/llama.dir/models/xverse.cpp.o
+[386/434] Building CXX object src/CMakeFiles/llama.dir/models/step35.cpp.o
+[387/434] Building CXX object src/CMakeFiles/llama.dir/models/t5.cpp.o
+[388/434] Building CXX object src/CMakeFiles/llama.dir/models/talkie.cpp.o
+[389/434] Building CXX object src/CMakeFiles/llama.dir/models/t5encoder.cpp.o
+[390/434] Linking CXX static library src\libllama.a
+[391/434] Linking CXX static library tools\mtmd\libmtmd.a
+[392/434] Building CXX object common/CMakeFiles/llama-common.dir/chat-auto-parser-helpers.cpp.o
+[393/434] Building CXX object common/CMakeFiles/llama-common.dir/chat-auto-parser-generator.cpp.o
+[394/434] Building CXX object common/CMakeFiles/llama-common.dir/download.cpp.o
+[395/434] Building CXX object common/CMakeFiles/llama-common.dir/chat-diff-analyzer.cpp.o
+[396/434] Building CXX object common/CMakeFiles/llama-common.dir/arg.cpp.o
+[397/434] Building CXX object common/CMakeFiles/llama-common.dir/common.cpp.o
+[398/434] Building CXX object common/CMakeFiles/llama-common.dir/console.cpp.o
+[399/434] Building CXX object common/CMakeFiles/llama-common.dir/chat-peg-parser.cpp.o
+[400/434] Building CXX object common/CMakeFiles/llama-common.dir/fit.cpp.o
+[401/434] Building CXX object common/CMakeFiles/llama-common.dir/debug.cpp.o
+[402/434] Building CXX object common/CMakeFiles/llama-common.dir/llguidance.cpp.o
+[403/434] Building CXX object common/CMakeFiles/llama-common.dir/log.cpp.o
+[404/434] Building CXX object common/CMakeFiles/llama-common.dir/chat.cpp.o
+[405/434] Building CXX object common/CMakeFiles/llama-common.dir/imatrix-loader.cpp.o
+[406/434] Building CXX object common/CMakeFiles/llama-common.dir/hf-cache.cpp.o
+[407/434] Building CXX object common/CMakeFiles/llama-common.dir/ngram-map.cpp.o
+[408/434] Building CXX object common/CMakeFiles/llama-common.dir/sampling.cpp.o
+[409/434] Building CXX object common/CMakeFiles/llama-common.dir/ngram-cache.cpp.o
+[410/434] Building CXX object common/CMakeFiles/llama-common.dir/reasoning-budget.cpp.o
+[411/434] Building CXX object common/CMakeFiles/llama-common.dir/ngram-mod.cpp.o
+[412/434] Building CXX object common/CMakeFiles/llama-common.dir/unicode.cpp.o
+[413/434] Building CXX object common/CMakeFiles/llama-common.dir/json-schema-to-grammar.cpp.o
+[414/434] Building CXX object common/CMakeFiles/llama-common.dir/preset.cpp.o
+[415/434] Building CXX object common/CMakeFiles/llama-common.dir/jinja/lexer.cpp.o
+[416/434] Building CXX object common/CMakeFiles/llama-common.dir/speculative.cpp.o
+[417/434] Building CXX object common/CMakeFiles/llama-common.dir/jinja/parser.cpp.o
+[418/434] Building CXX object common/CMakeFiles/llama-common.dir/jinja/runtime.cpp.o
+[419/434] Building CXX object common/CMakeFiles/llama-common.dir/peg-parser.cpp.o
+[420/434] Building CXX object tools/llama-bench/CMakeFiles/llama-bench.dir/main.cpp.o
+[421/434] Building CXX object common/CMakeFiles/llama-common.dir/jinja/value.cpp.o
+[422/434] Building CXX object common/CMakeFiles/llama-common.dir/jinja/string.cpp.o
+[423/434] Building CXX object tests/CMakeFiles/test-backend-ops.dir/get-model.cpp.o
+[424/434] Building CXX object common/CMakeFiles/llama-common.dir/jinja/caps.cpp.o
+[425/434] Linking CXX static library common\libllama-common.a
+[426/434] Linking CXX static library tools\server\libserver-context.a
+[427/434] Linking CXX static library tools\server\libllama-server-impl.a
+[428/434] Linking CXX static library tools\cli\libllama-cli-impl.a
+[429/434] Linking CXX executable bin\llama-cli
+[430/434] Building CXX object tools/llama-bench/CMakeFiles/llama-bench-impl.dir/llama-bench.cpp.o
+[431/434] Linking CXX static library tools\llama-bench\libllama-bench-impl.a
+[432/434] Linking CXX executable bin\llama-bench
+[433/434] Building CXX object tests/CMakeFiles/test-backend-ops.dir/test-backend-ops.cpp.o
+[434/434] Linking CXX executable bin\test-backend-ops
+CMAKE_BUILD_EXIT=0
+=== BUILD END 2026-08-12T12:43:36.4166296-04:00 ===

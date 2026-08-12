@@ -1,0 +1,23 @@
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: QUALCOMM Adreno(TM)
+  Device memory: 3536 MB (2512 MB free)
+
+  GATED_DELTA_NET(type=f32,head_count=32,head_size=128,n_seq_tokens=1,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1):                8066 runs -   186.08 us/run -     4160 kB/run - [1;34m  21.32 GB/s[0m
+  GATED_DELTA_NET(type=f32,head_count=16,head_size=64,n_seq_tokens=1,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1):                 8190 runs -   180.45 us/run -      528 kB/run - [1;34m   2.79 GB/s[0m
+  GATED_DELTA_NET(type=f32,head_count=32,head_size=128,n_seq_tokens=1,n_seqs=1,v_repeat=1,permuted=0,kda=1,K=1):                8035 runs -   255.13 us/run -     4176 kB/run - [1;34m  15.61 GB/s[0m
+  GATED_DELTA_NET(type=f32,head_count=32,head_size=128,n_seq_tokens=64,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1):               4089 runs - 16430.92 us/run -     8208 kB/run - [1;34m   0.48 GB/s[0m
+  GATED_DELTA_NET(type=f32,head_count=32,head_size=128,n_seq_tokens=256,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1):              1634 runs - 62899.10 us/run -    20544 kB/run - [1;34m   0.31 GB/s[0m
+  GATED_DELTA_NET(type=f32,head_count=32,head_size=128,n_seq_tokens=512,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1):               908 runs - 124925.77 us/run -    36992 kB/run - [1;34m   0.28 GB/s[0m
+  GATED_DELTA_NET(type=f32,head_count=32,head_size=128,n_seq_tokens=1024,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1):                      481 runs - 249092.97 us/run -    69888 kB/run - [1;34m   0.27 GB/s[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=128,n_seq_tokens=64,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1):                8190 runs -  1009.30 us/run -     1026 kB/run - [1;34m   0.97 GB/s[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=128,n_seq_tokens=256,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1):               8190 runs -  3704.63 us/run -     2568 kB/run - [1;34m   0.66 GB/s[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=128,n_seq_tokens=512,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1):               7257 runs -  7213.47 us/run -     4624 kB/run - [1;34m   0.61 GB/s[0m
+  GATED_DELTA_NET(type=f32,head_count=4,head_size=128,n_seq_tokens=1024,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1):              3841 runs - 15092.45 us/run -     8736 kB/run - [1;34m   0.55 GB/s[0m
+  GATED_DELTA_NET(type=f32,head_count=32,head_size=128,n_seq_tokens=64,n_seqs=1,v_repeat=1,permuted=0,kda=1,K=1):               3638 runs - 16509.68 us/run -     9224 kB/run - [1;34m   0.53 GB/s[0m
+  Backend OpenCL: [1;32mOK[0m
+Backend 2/2: CPU
+  Skipping
+2/2 backends passed
+[1;32mOK[0m

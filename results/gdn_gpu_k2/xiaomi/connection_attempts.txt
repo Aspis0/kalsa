@@ -1,0 +1,37 @@
+=== Xiaomi 14 connection attempts 2026-08-12T13:49:24.5488228-04:00 ===
+Expected mdns: adb-625689a2-9xEOfw._adb-tls-connect._tcp (S0 spike)
+
+--- adb version ---
+Android Debug Bridge version 1.0.41
+Version 37.0.0-14910828
+Installed as C:\Users\gualt\AppData\Local\Android\Sdk\platform-tools\adb.exe
+Running on Windows 10.0.26200
+
+--- adb devices -l ---
+List of devices attached
+192.168.1.82:44395     device product:Jelly_Star model:Jelly_Star device:Jelly_Star transport_id:2
+adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp device product:dm1qsqw model:SM_S911U device:dm1q transport_id:1
+
+
+--- adb mdns services ---
+List of discovered mdns services
+adb-R3CW406P8CV-zyLM4b	_adb-tls-connect._tcp	192.168.1.152:44831
+adb-JELLYS0000053795-UFuN1D	_adb-tls-connect._tcp	192.168.1.82:44395
+
+
+--- adb mdns check ---
+mdns daemon version [adb discovery 0.0.0]
+
+--- adb connect adb-625689a2-9xEOfw._adb-tls-connect._tcp ---
+cannot resolve host 'adb-625689a2-9xEOfw._adb-tls-connect._tcp' and port 5555: No such host is known. (11001)
+
+--- adb connect adb-625689a2-9xEOfw ---
+cannot resolve host 'adb-625689a2-9xEOfw' and port 5555: No such host is known. (11001)
+
+--- known devices on LAN via adb ---
+SM_S911U (S23) present at 192.168.1.152 / mdns adb-R3CW406P8CV
+Jelly_Star present at 192.168.1.82 (not Xiaomi 14)
+Xiaomi 14 mdns name NOT in discovery list.
+No Xiaomi IP recorded in results/gpu_xiaomi/* or reports/moe-spike-gpu-xiaomi.md beyond the mdns name.
+Termux sshd was noted in S0 as NOT running.
+VERDICT: Xiaomi 14 BLOCKED — device not on Wi-Fi / wireless debugging off.
