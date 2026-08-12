@@ -74,6 +74,7 @@ import {
   markChatReady,
   markChatReleased,
   getState as getLlamaContextGateState,
+  getChatGeneration,
   setCoResidencyContext,
   isChatModel2BClass,
   isChatModel4BClass,
@@ -988,7 +989,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    *   - chat init and embedder init are mutually exclusive (both ends).
    *   - job owns an AbortController; bumpEmbedJobGeneration aborts it so
    *     EmbeddingService sees signal.aborted before every await / initLlama.
-   *   - ensureEmbedder refuses while isEngineReady(); AppShell also skips
+   *   - ensureEmbedder refuses while chat_ready without co-res; AppShell also skips
    *     the job when chat is resident on ≤6 GB (soft pre-gate + log).
    *
    * Ownership on commit (FIX A):
@@ -1030,13 +1031,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     );
 
     /**
-     * Chat residency gate. Chat is "resident" when the engine is ready OR the
-     * UI state is loading/ready (covers the window between setModelState
-     * ("loading") and isEngineReady() flipping true).
+     * Chat residency gate for the soft RAM pre-check.
+     * "Resident" means the ENGINE is loaded (or loading), NOT that the GGUF is
+     * merely on disk. modelState "ready" after the download probe means
+     * downloaded-on-disk only — treating it as resident blocked embeds on cold
+     * start (header "Ready · local") even when isEngineReady() was false.
+     * Use loading UI state + isEngineReady only.
      */
     const isChatResident = () => {
       const st = modelStateRef.current;
-      if (st === "ready" || st === "loading") return true;
+      // "loading" covers the window between setModelState("loading") and
+      // isEngineReady() flipping true (engine init in flight).
+      if (st === "loading") return true;
       try {
         if (isEngineReady()) return true;
       } catch {
@@ -1973,8 +1979,17 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   // ignore
                 } finally {
                   // Release only the gen captured at entry (markChatReleased is
-                  // already gen-guarded against a newer owner).
-                  if (releasedGenBg !== null) markChatReleased(releasedGenBg);
+                  // already gen-guarded against a newer owner). If gen was null
+                  // but the gate is still chat_* after dispose (stale owner),
+                  // release the current generation so embed is not stuck.
+                  if (releasedGenBg !== null) {
+                    markChatReleased(releasedGenBg);
+                  } else {
+                    const gate = getLlamaContextGateState();
+                    if (gate === "chat_loading" || gate === "chat_ready") {
+                      markChatReleased(getChatGeneration());
+                    }
+                  }
                 }
               }
             } catch {

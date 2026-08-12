@@ -32,6 +32,8 @@
  * can compile without llama.rn / RN.
  */
 
+import { initLlama } from "llama.rn";
+
 import { EMBEDDING_MODEL } from "./ModelRegistry";
 import {
   tryAcquireEmbed,
@@ -42,6 +44,7 @@ import {
   markEmbedInitializingDone,
   markEmbedInFlightDone,
   isEmbedInitializing,
+  allowsCoResidency,
 } from "./llamaContextGate";
 import {
   applyEmbedPrefix,
@@ -102,11 +105,15 @@ export async function embeddingModelPath(
   }
 }
 
-// ── Context lifecycle (dynamic llama.rn) ────────────────────────────────────
+// ── Context lifecycle (static llama.rn — same pattern as LlamaService) ──────
+// Dynamic import("llama.rn") under Metro can put exports under .default so
+// mod.initLlama is undefined and ensureEmbedder fails before native (device
+// proof: plan→skip ~10ms, zero RNLlama logs). Use the static named import
+// that the chat path already uses successfully.
 
 type EmbedPhase = "idle" | "ready" | "closing";
 
-// LlamaContext is loaded dynamically; keep a structural handle only.
+// Structural handle only (subset of LlamaContext used for embeddings).
 type EmbedContext = {
   embedding: (
     text: string,
@@ -171,31 +178,63 @@ export function markEmbedderHung(): void {
   releaseEmbed();
 }
 
-async function loadInitLlama(
-  signal?: AbortSignal,
-): Promise<
-  | ((params: {
-      model: string;
-      embedding?: boolean;
-      n_ctx?: number;
-      n_gpu_layers?: number;
-      n_threads?: number;
-    }) => Promise<EmbedContext>)
-  | null
-> {
+type InitLlamaFn = (params: {
+  model: string;
+  embedding?: boolean;
+  n_ctx?: number;
+  n_gpu_layers?: number;
+  n_threads?: number;
+}) => Promise<EmbedContext>;
+
+/**
+ * Resolve initLlama from the static llama.rn import.
+ * Kept as a function so abort checks stay at the call site and tests can
+ * reason about the pre-init gate without invoking native.
+ */
+function loadInitLlama(signal?: AbortSignal): InitLlamaFn | null {
   if (isAborted(signal)) return null;
-  const mod = await import("llama.rn");
-  if (isAborted(signal)) return null;
+  if (typeof initLlama !== "function") {
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[embed] initLlama unavailable from llama.rn static import",
+    );
+    return null;
+  }
   // Cast via unknown: EmbedContext is a structural subset of LlamaContext.
-  return mod.initLlama as unknown as (
-    params: {
-      model: string;
-      embedding?: boolean;
-      n_ctx?: number;
-      n_gpu_layers?: number;
-      n_threads?: number;
-    },
-  ) => Promise<EmbedContext>;
+  return initLlama as unknown as InitLlamaFn;
+}
+
+/** Log why ensureEmbedder refused (gate vs hung vs abort vs native). */
+function logEmbedRefuse(reason: string, extra?: Record<string, unknown>): void {
+  // eslint-disable-next-line no-console
+  console.log(
+    `[embed] ensure refused: ${reason}`,
+    JSON.stringify({
+      gate: getLlamaContextState(),
+      coRes: allowsCoResidency(),
+      hung: embedderHung,
+      phase,
+      ...extra,
+    }),
+  );
+}
+
+/**
+ * Post-acquire recheck for the INIT path (after markEmbedInitializing).
+ *
+ * tryAcquireEmbed refuses while embedInitializing is set, so re-calling it from
+ * the same init path always fails (device proof: gate_recheck with
+ * gate:"embed_active" / phase:"idle" in ~10 ms, never reaches native). After we
+ * own the slot, only chat exclusivity can still block us:
+ *   - chat_loading always blocks (loading window)
+ *   - chat_ready without §5 co-residency blocks
+ * idle / embed_active / chat_ready+co-res → continue.
+ */
+function canContinueEmbedInit(): boolean {
+  const gate = getLlamaContextState();
+  if (gate === "chat_loading") return false;
+  if (gate === "chat_ready" && !allowsCoResidency()) return false;
+  return true;
 }
 
 /**
@@ -230,18 +269,28 @@ async function ensureEmbedder(
       // embedInitializing (chat completion may be holding the tool loop and
       // hybrid retrieval must still use a ready embedder — round-8 FIX 1).
       // runNativeOp serializes USE; no embedInFlight sticky flag.
-      if (!tryAcquireEmbed()) return false;
+      if (!tryAcquireEmbed()) {
+        logEmbedRefuse("gate_use");
+        return false;
+      }
       return true;
     }
 
     // INIT path: refuse concurrent init/release via embedInitializing.
-    if (isEmbedInitializing()) return false;
+    if (isEmbedInitializing()) {
+      logEmbedRefuse("embed_initializing");
+      return false;
+    }
     // Shared lifecycle gate: refuse while chat_loading, or chat_ready without
     // co-residency. Synchronous — no race with tryAcquireChat.
-    if (!tryAcquireEmbed()) return false;
+    if (!tryAcquireEmbed()) {
+      logEmbedRefuse("gate_init");
+      return false;
+    }
     markEmbedInitializing();
     try {
       if (isAborted(signal)) {
+        logEmbedRefuse("aborted_after_acquire");
         releaseEmbed();
         return false;
       }
@@ -269,21 +318,24 @@ async function ensureEmbedder(
         releaseEmbed();
         return false;
       }
-      // Re-check gate after the await above (chat may have taken the slot).
-      // If we already hold embed, tryAcquireEmbed is re-entrant; if chat took
-      // chat_loading without co-res, it will fail.
-      if (!tryAcquireEmbed()) {
+      // Re-check after possible release await: chat may have entered loading.
+      // Do NOT call tryAcquireEmbed here — embedInitializing is set and would
+      // always refuse (false "re-entrant" assumption; see canContinueEmbedInit).
+      if (!canContinueEmbedInit()) {
+        logEmbedRefuse("gate_recheck");
         releaseEmbed();
         return false;
       }
 
-      const initLlama = await loadInitLlama(signal);
-      if (!initLlama || isAborted(signal)) {
+      const initFn = loadInitLlama(signal);
+      if (!initFn || isAborted(signal)) {
+        logEmbedRefuse(!initFn ? "initLlama_unavailable" : "aborted_before_init");
         releaseEmbed();
         return false;
       }
       // Final gate + abort check immediately before initLlama.
-      if (!tryAcquireEmbed()) {
+      if (!canContinueEmbedInit()) {
+        logEmbedRefuse("gate_pre_native");
         releaseEmbed();
         return false;
       }
@@ -298,7 +350,11 @@ async function ensureEmbedder(
 
       try {
         // Native initLlama — already inside runNativeOp.
-        const next = await initLlama({
+        // eslint-disable-next-line no-console
+        console.log(
+          `[embed] initLlama start {"path":${JSON.stringify(path)},"n_ctx":${EMBEDDING_MODEL.n_ctx},"n_threads":2}`,
+        );
+        const next = await initFn({
           model: path,
           embedding: true,
           n_ctx: EMBEDDING_MODEL.n_ctx,
@@ -319,8 +375,9 @@ async function ensureEmbedder(
           releaseEmbed();
           return false;
         }
-        // Chat may have become loading during initLlama — release if gate refuses.
-        if (!tryAcquireEmbed()) {
+        // Chat may have become loading during initLlama — release if exclusive.
+        if (!canContinueEmbedInit()) {
+          logEmbedRefuse("gate_post_native");
           try {
             await next.release();
           } catch {
@@ -335,8 +392,19 @@ async function ensureEmbedder(
         context = next;
         activePath = path;
         phase = "ready";
+        // eslint-disable-next-line no-console
+        console.log(
+          `[embed] initLlama ok {"path":${JSON.stringify(path)}}`,
+        );
+        // eslint-disable-next-line no-console
+        console.log(
+          `[embed] initLlama ok {"path":${JSON.stringify(path)}}`,
+        );
         return true;
-      } catch {
+      } catch (err) {
+        logEmbedRefuse("native_init_failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
         context = null;
         activePath = null;
         phase = "idle";
@@ -457,28 +525,35 @@ export async function withEmbedder<T>(
             releaseEmbed();
             return null;
           }
-          if (!tryAcquireEmbed()) {
+          if (!canContinueEmbedInit()) {
+            logEmbedRefuse("gate_recheck_with");
             releaseEmbed();
             return null;
           }
-          const initLlama = await loadInitLlama(signal);
-          if (!initLlama || isAborted(signal) || embedderHung) {
+          const initFn = loadInitLlama(signal);
+          if (!initFn || isAborted(signal) || embedderHung) {
+            logEmbedRefuse(!initFn ? "initLlama_unavailable" : "aborted_before_init");
             releaseEmbed();
             return null;
           }
-          if (!tryAcquireEmbed()) {
+          if (!canContinueEmbedInit()) {
+            logEmbedRefuse("gate_pre_native_with");
             releaseEmbed();
             return null;
           }
           try {
-            const next = await initLlama({
+            // eslint-disable-next-line no-console
+            console.log(
+              `[embed] initLlama start {"path":${JSON.stringify(path)},"via":"withEmbedder"}`,
+            );
+            const next = await initFn({
               model: path,
               embedding: true,
               n_ctx: EMBEDDING_MODEL.n_ctx,
               n_gpu_layers: 0,
               n_threads: 2,
             });
-            if (isAborted(signal) || embedderHung || !tryAcquireEmbed()) {
+            if (isAborted(signal) || embedderHung || !canContinueEmbedInit()) {
               try {
                 await next.release();
               } catch {
