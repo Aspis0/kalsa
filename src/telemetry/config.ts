@@ -197,14 +197,17 @@ export const PHASES: readonly Phase[] = [
   "flush",
 ] as const;
 
+/** `unknown` has its own allowlist — never inherits engine-init details. */
+export const UNKNOWN_DETAILS: readonly string[] = ["unknown"] as const;
+
 /** Per-code detail allowlist (client + Worker share this contract). */
 export function detailsForCode(code: ReasonCode): readonly string[] {
   if (code === "web.fetch" || code === "web.search") return WEB_DETAILS;
   if (code === "engine.init") return ENGINE_INIT_DETAILS;
   if (code === "chat.generation") return CHAT_DETAILS;
   if (code === "embed.native") return EMBED_DETAILS;
-  // unknown: accept engine-init style details only
-  return ENGINE_INIT_DETAILS;
+  if (code === "unknown") return UNKNOWN_DETAILS;
+  return UNKNOWN_DETAILS;
 }
 
 /**
@@ -235,5 +238,11 @@ export const SIGNAL_PATTERNS: readonly {
   { re: /permission\s+denied/i, token: "EACCES" },
 ];
 
-/** Charset allowed in a final signal token. */
-export const SIGNAL_CHARSET_RE = /^[A-Za-z0-9_ .*\-]+$/;
+/**
+ * Charset allowed in a final signal token.
+ * Design §4: `[A-Za-z0-9_ .-]`. `*` is not in the charset (`ggml_*` is a fixed token).
+ */
+export const SIGNAL_CHARSET_RE = /^[A-Za-z0-9_ .-]+$/;
+
+/** Safe release-version format (same contract as the Worker). */
+export const APP_VERSION_RE = /^\d+(\.\d+){1,3}[a-z0-9.-]*$/;

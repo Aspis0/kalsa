@@ -3,28 +3,48 @@
  *
  * POST /report  — strict schema validation → IP rate limit → DO TelemetryBuffer
  * GET  /flush   — Authorization: Bearer FLUSH_TOKEN → maintainer flush
+ * POST /admin/flush-and-purge — Authorization: Bearer ADMIN_TOKEN → wipe DO buffer
  *
  * Never auto-creates issues from /report. No payload logging.
+ * GITHUB_TOKEN stays in the Worker (never serialized into the DO).
  */
 
 import {
   BODY_LIMIT,
   GLOBAL_QUOTA,
   GLOBAL_WINDOW_MS,
+  GITHUB_SEARCH_TIMEOUT_MS,
+  IP_MAP_MAX,
   LEASE_MS,
   applyLeaseTransition,
+  buildIssueBody,
   classifyGithubSearchResponse,
+  contentLengthExceeds,
   decideCreateIssue,
+  decodeUtf8Strict,
   emptyBufferState,
+  issueTitleFromProjection,
+  projectIssueFields,
+  pruneIpMap,
+  reportRejectStatus,
+  signatureFields,
   tryAcquireLease,
-  validateReport,
+  validAdminAuth,
   validFlushAuth,
+  validateReport,
   type BufferEntry,
   type BufferState,
   type GithubSearchOutcome,
 } from "./schema";
 
-export { validateReport, decideCreateIssue, classifyGithubSearchResponse } from "./schema";
+export {
+  validateReport,
+  decideCreateIssue,
+  classifyGithubSearchResponse,
+  signatureFields,
+  buildIssueBody,
+  projectIssueFields,
+} from "./schema";
 
 export interface Env {
   TELEMETRY_BUFFER: DurableObjectNamespace;
@@ -32,6 +52,7 @@ export interface Env {
   GITHUB_TOKEN?: string;
   GITHUB_REPO?: string;
   FLUSH_TOKEN?: string;
+  ADMIN_TOKEN?: string;
   AUTO_OPEN_ISSUES?: string;
 }
 
@@ -49,45 +70,19 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) {
-    return `[${value.map((v) => stableStringify(v)).join(",")}]`;
-  }
-  const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj).sort();
-  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(",")}}`;
-}
-
 async function sha256Hex(text: string): Promise<string> {
   const data = new TextEncoder().encode(text);
   const hash = await crypto.subtle.digest("SHA-256", data);
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function signatureFields(report: Record<string, unknown>): string {
-  const err = (report.error ?? {}) as Record<string, unknown>;
-  const ctx = (report.context ?? {}) as Record<string, unknown>;
-  return stableStringify({
-    code: err.code ?? "",
-    detail: err.detail ?? "",
-    signal: err.signal ?? "",
-    appVersion: report.appVersion ?? "",
-    deviceBucket: report.deviceBucket ?? "",
-    modelCategory: ctx.modelCategory ?? "",
-    dateBucket: report.dateBucket ?? "",
-  });
-}
-
+/** Only trust Cloudflare's connecting IP. Do not fall back to x-forwarded-for. */
 function clientIp(req: Request): string {
-  return (
-    req.headers.get("cf-connecting-ip") ||
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    "unknown"
-  );
+  return req.headers.get("cf-connecting-ip") || "unknown";
 }
 
 function checkIpRate(ip: string, now: number): boolean {
+  pruneIpMap(ipHits, now, IP_WINDOW_MS, IP_MAP_MAX);
   const hits = (ipHits.get(ip) ?? []).filter((t) => now - t < IP_WINDOW_MS);
   if (hits.length >= IP_RATE_LIMIT) {
     ipHits.set(ip, hits);
@@ -114,6 +109,9 @@ export default {
       if (request.method === "GET" && url.pathname === "/flush") {
         return await handleFlush(request, env);
       }
+      if (request.method === "POST" && url.pathname === "/admin/flush-and-purge") {
+        return await handleAdminPurge(request, env);
+      }
       return json(404, { error: "not_found" });
     } catch {
       return json(500, { error: "internal" });
@@ -121,14 +119,57 @@ export default {
   },
 };
 
-async function handleReport(request: Request, env: Env): Promise<Response> {
-  const raw = await request.arrayBuffer();
-  if (raw.byteLength > BODY_LIMIT) {
-    return json(413, { error: "body_too_large" });
+async function readBoundedBody(request: Request): Promise<
+  | { ok: true; bytes: Uint8Array }
+  | { ok: false; status: number; error: string }
+> {
+  if (contentLengthExceeds(request.headers.get("content-length"), BODY_LIMIT)) {
+    return { ok: false, status: 413, error: "body_too_large" };
   }
+  const reader = request.body?.getReader();
+  if (!reader) {
+    return { ok: true, bytes: new Uint8Array(0) };
+  }
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > BODY_LIMIT) {
+        try {
+          await reader.cancel();
+        } catch {
+          /* ignore */
+        }
+        return { ok: false, status: 413, error: "body_too_large" };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return { ok: false, status: 400, error: "invalid_body" };
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    bytes.set(c, offset);
+    offset += c.byteLength;
+  }
+  return { ok: true, bytes };
+}
+
+async function handleReport(request: Request, env: Env): Promise<Response> {
+  const raw = await readBoundedBody(request);
+  if (!raw.ok) return json(raw.status, { error: raw.error });
+
+  const text = decodeUtf8Strict(raw.bytes);
+  if (text === null) return json(400, { error: "invalid_utf8" });
+
   let parsed: unknown;
   try {
-    parsed = JSON.parse(new TextDecoder().decode(raw));
+    parsed = JSON.parse(text);
   } catch {
     return json(400, { error: "invalid_json" });
   }
@@ -173,10 +214,11 @@ async function handleReport(request: Request, env: Env): Promise<Response> {
     } catch {
       /* best-effort cache */
     }
+    return json(200, body);
   }
 
-  // Never log payload — only signature prefix + count
-  return json(res.status === 200 ? 200 : res.status, body);
+  const status = reportRejectStatus(body.reason);
+  return json(status, body);
 }
 
 async function handleFlush(request: Request, env: Env): Promise<Response> {
@@ -189,16 +231,111 @@ async function handleFlush(request: Request, env: Env): Promise<Response> {
 
   const autoOpen = (env.AUTO_OPEN_ISSUES ?? "false").toLowerCase() === "true";
   const stub = bufferStub(env);
-  const res = await stub.fetch("https://do/flush", {
+
+  if (!autoOpen) {
+    const res = await stub.fetch("https://do/flush-review", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ now: Date.now() }),
+    });
+    const body = await res.json();
+    return json(res.status, body);
+  }
+
+  // autoOpen: Worker owns GitHub I/O. DO only leases / transitions.
+  // GITHUB_TOKEN is never serialized into the DO.
+  const candRes = await stub.fetch("https://do/candidates", { method: "POST" });
+  const candBody = (await candRes.json()) as { reportIds?: string[] };
+  const candidates = Array.isArray(candBody.reportIds) ? candBody.reportIds : [];
+
+  let created = 0;
+  let skipped = 0;
+  let duplicates = 0;
+  let released = 0;
+  const now = Date.now();
+  const repo = env.GITHUB_REPO ?? "";
+  const token = env.GITHUB_TOKEN ?? "";
+
+  for (const reportId of candidates) {
+    const leaseRes = await stub.fetch("https://do/lease", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ reportId, now }),
+    });
+    const leased = (await leaseRes.json()) as {
+      ok?: boolean;
+      token?: number;
+      entry?: BufferEntry;
+    };
+    if (!leased.ok || leased.token == null || !leased.entry) {
+      skipped += 1;
+      continue;
+    }
+    const { token: fence, entry } = leased;
+
+    if (!token || !repo) {
+      await transition(stub, reportId, fence, "pending", now);
+      released += 1;
+      continue;
+    }
+
+    const marker = `Telemetry signature: ${entry.sig}`;
+    const first = await githubSearchIssue(repo, token, marker);
+    let second: GithubSearchOutcome | null = null;
+    if (first === "not_found") {
+      await sleep(2000);
+      second = await githubSearchIssue(repo, token, marker);
+    }
+    const decision = decideCreateIssue(first, second);
+    if (decision === "release") {
+      await transition(stub, reportId, fence, "pending", now);
+      released += 1;
+      continue;
+    }
+    if (decision === "mark_created") {
+      const ok = await transition(stub, reportId, fence, "created", now);
+      if (ok) duplicates += 1;
+      continue;
+    }
+
+    const ok = await githubCreateIssue(repo, token, entry);
+    if (ok) {
+      const wrote = await transition(stub, reportId, fence, "created", now);
+      if (wrote) created += 1;
+    } else {
+      await transition(stub, reportId, fence, "pending", now);
+      released += 1;
+    }
+  }
+
+  return json(200, { created, skipped, duplicates, released });
+}
+
+async function transition(
+  stub: DurableObjectStub,
+  reportId: string,
+  token: number,
+  nextState: "created" | "pending",
+  now: number,
+): Promise<boolean> {
+  const res = await stub.fetch("https://do/transition", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      autoOpen,
-      githubToken: env.GITHUB_TOKEN ?? "",
-      githubRepo: env.GITHUB_REPO ?? "",
-      now: Date.now(),
-    }),
+    body: JSON.stringify({ reportId, token, nextState, now }),
   });
+  const body = (await res.json()) as { ok?: boolean };
+  return body.ok === true;
+}
+
+async function handleAdminPurge(request: Request, env: Env): Promise<Response> {
+  const auth = validAdminAuth(env.ADMIN_TOKEN, request.headers.get("authorization"));
+  if (!auth.ok) {
+    return json(auth.status, {
+      error: auth.status === 503 ? "admin_token_unset" : "unauthorized",
+    });
+  }
+  const stub = bufferStub(env);
+  const res = await stub.fetch("https://do/purge", { method: "POST" });
   const body = await res.json();
   return json(res.status, body);
 }
@@ -221,28 +358,29 @@ export class TelemetryBuffer {
       };
       return this.append(body.sig, body.report, body.now);
     }
-    if (request.method === "POST" && url.pathname === "/flush") {
+    if (request.method === "POST" && url.pathname === "/flush-review") {
+      return this.flushReview();
+    }
+    if (request.method === "POST" && url.pathname === "/candidates") {
+      return this.candidates();
+    }
+    if (request.method === "POST" && url.pathname === "/lease") {
+      const body = (await request.json()) as { reportId: string; now: number };
+      return this.lease(body.reportId, body.now);
+    }
+    if (request.method === "POST" && url.pathname === "/transition") {
       const body = (await request.json()) as {
-        autoOpen: boolean;
-        githubToken: string;
-        githubRepo: string;
+        reportId: string;
+        token: number;
+        nextState: "created" | "pending";
         now: number;
       };
-      return this.flush(body);
+      return this.transition(body.reportId, body.token, body.nextState, body.now);
+    }
+    if (request.method === "POST" && url.pathname === "/purge") {
+      return this.purge();
     }
     return json(404, { error: "not_found" });
-  }
-
-  private async load(): Promise<BufferState> {
-    const s = await this.state.storage.get<BufferState>("state");
-    return (
-      s ?? {
-        entries: [],
-        hourBucket: 0,
-        hourCount: 0,
-        nextLeaseToken: 1,
-      }
-    );
   }
 
   private async append(
@@ -285,14 +423,13 @@ export class TelemetryBuffer {
         createdAt: now,
       });
       st.hourCount += 1;
-      // No silent eviction: accepted reports stay until maintainer flush.
-      // Retention is explicit (flush / manual deletion), never a hidden cap.
+      // No silent eviction: accepted reports stay until maintainer flush/purge.
       await txn.put("state", st);
       return { accepted: true as const, reportId };
     });
 
     if (!result.accepted) {
-      return json(200, {
+      return json(reportRejectStatus(result.reason), {
         accepted: false,
         reason: result.reason,
       });
@@ -300,125 +437,74 @@ export class TelemetryBuffer {
     return json(200, { accepted: true });
   }
 
-  private async flush(opts: {
-    autoOpen: boolean;
-    githubToken: string;
-    githubRepo: string;
-    now: number;
-  }): Promise<Response> {
-    if (!opts.autoOpen) {
-      // Mark reviewAck only; preserve pending eligibility
-      let reviewed = 0;
-      await this.state.storage.transaction(async (txn) => {
-        const st =
-          (await txn.get<BufferState>("state")) ?? {
-            entries: [],
-            hourBucket: 0,
-            hourCount: 0,
-            nextLeaseToken: 1,
-          };
-        for (const e of st.entries) {
-          if (e.state === "pending" && !e.reviewAck) {
-            e.reviewAck = true;
-            reviewed += 1;
-          }
+  private async flushReview(): Promise<Response> {
+    let reviewed = 0;
+    await this.state.storage.transaction(async (txn) => {
+      const st =
+        (await txn.get<BufferState>("state")) ?? {
+          entries: [],
+          hourBucket: 0,
+          hourCount: 0,
+          nextLeaseToken: 1,
+        };
+      for (const e of st.entries) {
+        if (e.state === "pending" && !e.reviewAck) {
+          e.reviewAck = true;
+          reviewed += 1;
         }
-        await txn.put("state", st);
-      });
-      return json(200, { reviewed });
-    }
+      }
+      await txn.put("state", st);
+    });
+    return json(200, { reviewed });
+  }
 
-    // autoOpen: transactional lease → search (2×, error ≠ not_found) → create
-    let created = 0;
-    let skipped = 0;
-    let duplicates = 0;
-    let released = 0;
-
-    const snapshot = await this.load();
-    const candidates = snapshot.entries
+  private async candidates(): Promise<Response> {
+    const st =
+      (await this.state.storage.get<BufferState>("state")) ?? emptyBufferState();
+    const reportIds = st.entries
       .filter((e) => e.state === "pending" || e.state === "creating")
       .map((e) => e.reportId);
-
-    for (const reportId of candidates) {
-      const leased = await this.casAcquireLease(reportId, opts.now);
-      if (!leased) {
-        skipped += 1;
-        continue;
-      }
-      const { token, entry } = leased;
-
-      if (!opts.githubToken || !opts.githubRepo) {
-        await this.casTransition(reportId, token, "pending");
-        released += 1;
-        continue;
-      }
-
-      const marker = `Telemetry signature: ${entry.sig}`;
-      const first = await githubSearchIssue(opts.githubRepo, opts.githubToken, marker);
-      let second: GithubSearchOutcome | null = null;
-      if (first === "not_found") {
-        await sleep(2000);
-        second = await githubSearchIssue(opts.githubRepo, opts.githubToken, marker);
-      }
-      const decision = decideCreateIssue(first, second);
-      if (decision === "release") {
-        await this.casTransition(reportId, token, "pending");
-        released += 1;
-        continue;
-      }
-      if (decision === "mark_created") {
-        const ok = await this.casTransition(reportId, token, "created");
-        if (ok) duplicates += 1;
-        continue;
-      }
-
-      const ok = await githubCreateIssue(
-        opts.githubRepo,
-        opts.githubToken,
-        entry,
-        marker,
-      );
-      if (ok) {
-        const wrote = await this.casTransition(reportId, token, "created");
-        if (wrote) created += 1;
-      } else {
-        await this.casTransition(reportId, token, "pending");
-        released += 1;
-      }
-    }
-
-    return json(200, { created, skipped, duplicates, released });
+    return json(200, { reportIds });
   }
 
-  /** Lease acquisition inside storage.transaction() with fencing token CAS. */
-  private async casAcquireLease(
-    reportId: string,
-    now: number,
-  ): Promise<{ token: number; entry: BufferEntry } | null> {
-    return this.state.storage.transaction(async (txn) => {
+  private async lease(reportId: string, now: number): Promise<Response> {
+    const acquired = await this.state.storage.transaction(async (txn) => {
       const st = (await txn.get<BufferState>("state")) ?? emptyBufferState();
-      const acquired = tryAcquireLease(st, reportId, now, LEASE_MS);
-      if (!acquired.ok) return null;
-      await txn.put("state", acquired.state);
-      const entry = acquired.state.entries.find((e) => e.reportId === reportId);
+      const result = tryAcquireLease(st, reportId, now, LEASE_MS);
+      if (!result.ok) return null;
+      await txn.put("state", result.state);
+      const entry = result.state.entries.find((e) => e.reportId === reportId);
       if (!entry) return null;
-      return { token: acquired.token, entry };
+      return { token: result.token, entry };
     });
+    if (!acquired) return json(200, { ok: false });
+    return json(200, { ok: true, token: acquired.token, entry: acquired.entry });
   }
 
-  /** Final state transition inside storage.transaction() — stale token refused. */
-  private async casTransition(
+  private async transition(
     reportId: string,
     expectedToken: number,
     nextState: "created" | "pending",
-  ): Promise<boolean> {
-    return this.state.storage.transaction(async (txn) => {
+    now: number,
+  ): Promise<Response> {
+    const ok = await this.state.storage.transaction(async (txn) => {
       const st = (await txn.get<BufferState>("state")) ?? emptyBufferState();
-      const applied = applyLeaseTransition(st, reportId, expectedToken, nextState);
+      const applied = applyLeaseTransition(st, reportId, expectedToken, nextState, now);
       if (!applied.ok) return false;
       await txn.put("state", applied.state);
       return true;
     });
+    return json(200, { ok });
+  }
+
+  private async purge(): Promise<Response> {
+    let purged = 0;
+    await this.state.storage.transaction(async (txn) => {
+      const st = (await txn.get<BufferState>("state")) ?? emptyBufferState();
+      purged = st.entries.length;
+      await txn.put("state", emptyBufferState());
+    });
+    return json(200, { purged });
   }
 }
 
@@ -431,6 +517,8 @@ async function githubSearchIssue(
   token: string,
   marker: string,
 ): Promise<GithubSearchOutcome> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), GITHUB_SEARCH_TIMEOUT_MS);
   try {
     const q = encodeURIComponent(`repo:${repo} "${marker}" in:body`);
     const res = await fetch(
@@ -441,19 +529,24 @@ async function githubSearchIssue(
           accept: "application/vnd.github+json",
           "user-agent": "kalsa-telemetry-worker",
         },
+        signal: ac.signal,
       },
     );
     if (!res.ok) {
       return classifyGithubSearchResponse({ ok: false, status: res.status });
     }
-    const data = (await res.json()) as { total_count?: number };
+    const data = (await res.json()) as { total_count?: unknown };
+    const totalCount =
+      typeof data.total_count === "number" ? data.total_count : undefined;
     return classifyGithubSearchResponse({
       ok: true,
       status: res.status,
-      totalCount: data.total_count ?? 0,
+      totalCount,
     });
   } catch {
     return classifyGithubSearchResponse({ ok: false, threw: true });
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -461,21 +554,11 @@ async function githubCreateIssue(
   repo: string,
   token: string,
   entry: BufferEntry,
-  marker: string,
 ): Promise<boolean> {
   try {
-    const report = entry.report as Record<string, unknown>;
-    const err = (report.error ?? {}) as Record<string, unknown>;
-    const title = `[telemetry] ${err.code ?? "unknown"}${err.detail ? ` / ${err.detail}` : ""}`;
-    const body = [
-      marker,
-      "",
-      "```json",
-      JSON.stringify(report, null, 2),
-      "```",
-      "",
-      `_reportId: ${entry.reportId}_`,
-    ].join("\n");
+    const projection = projectIssueFields(entry.report);
+    const title = issueTitleFromProjection(projection);
+    const body = buildIssueBody(entry.sig, entry.report);
     const res = await fetch(`https://api.github.com/repos/${repo}/issues`, {
       method: "POST",
       headers: {
@@ -485,7 +568,7 @@ async function githubCreateIssue(
         "user-agent": "kalsa-telemetry-worker",
       },
       body: JSON.stringify({
-        title: title.slice(0, 200),
+        title,
         body,
         labels: ["telemetry"],
       }),

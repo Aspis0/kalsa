@@ -6,6 +6,16 @@ workers_dev = false
 # Production URL is set via custom domain / routes in the CF dashboard.
 # Client constant: TELEMETRY_WORKER_URL in src/telemetry/config.ts
 # Dev override: AsyncStorage key kalsa.telemetry.url
+#
+# === KV namespace IDs (required before deploy) ===
+# Do NOT invent IDs. Leave id/preview_id commented until real values exist.
+# Run these once, then paste the printed ids into id / preview_id:
+#   cd workers/telemetry
+#   npx wrangler kv namespace create TELEMETRY_DEDUPE
+#   npx wrangler kv namespace create TELEMETRY_DEDUPE --preview
+# Copy the template from wrangler.example.toml if you start from scratch.
+# Deploy will fail (invalid namespace) until real 32-hex IDs are pasted.
+# Staging MUST use a different pair of IDs than production.
 
 [[durable_objects.bindings]]
 name = "TELEMETRY_BUFFER"
@@ -17,14 +27,17 @@ new_classes = ["TelemetryBuffer"]
 
 [[kv_namespaces]]
 binding = "DEDUPE_KV"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
-preview_id = "REPLACE_WITH_KV_PREVIEW_ID"
+# Uncomment and paste real 32-hex ids from `wrangler kv namespace create`.
+# Deploy MUST fail until these are set — do not invent values.
+# id = ""
+# preview_id = ""
 
-# Secrets (wrangler secret put …):
-#   GITHUB_TOKEN   — fine-grained, issues:write on Aspis0/kalsa
+# Secrets (wrangler secret put …) — never commit values:
+#   GITHUB_TOKEN   — fine-grained, issues:write on the target repo
 #   FLUSH_TOKEN    — random long token for GET /flush
+#   ADMIN_TOKEN    — separate random token for POST /admin/flush-and-purge
 # Vars:
-#   GITHUB_REPO=Aspis0/kalsa
+#   GITHUB_REPO=Aspis0/kalsa          (staging: use a test repo)
 #   AUTO_OPEN_ISSUES=false
 
 [vars]

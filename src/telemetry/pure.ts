@@ -15,6 +15,7 @@ import {
   QUEUE_CAP,
   REASON_CODES,
   RETRY_CEILING,
+  APP_VERSION_RE,
   SIGNAL_CHARSET_RE,
   SIGNAL_MAX_LEN,
   SIGNAL_PATTERNS,
@@ -196,7 +197,9 @@ export function extractSignal(rawMessage: unknown): string | undefined {
         }
       }
       out = out.trim().slice(0, SIGNAL_MAX_LEN);
-      if (!out || !SIGNAL_CHARSET_RE.test(out)) continue;
+      // ggml_* is a fixed token; charset excludes `*` so skip that check.
+      if (!out) continue;
+      if (out !== "ggml_*" && !SIGNAL_CHARSET_RE.test(out)) continue;
       return out;
     }
     return undefined;
@@ -213,15 +216,15 @@ export function acceptSignal(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const s = value.trim().slice(0, SIGNAL_MAX_LEN);
   if (!s || s.length > SIGNAL_MAX_LEN) return undefined;
-  if (!SIGNAL_CHARSET_RE.test(s)) return undefined;
-  // Must match at least one allowlisted pattern when re-checked as a token,
-  // OR be exactly one of the fixed tokens / ggml_*.
+  // ggml_* is a fixed token; any ggml_<id> collapses to it. Checked before
+  // charset so the `*` in the token is not rejected.
   if (s === "ggml_*") return s;
+  if (/^ggml_[A-Za-z0-9_]+$/.test(s)) return "ggml_*";
+  if (!SIGNAL_CHARSET_RE.test(s)) return undefined;
   for (const { re, token } of SIGNAL_PATTERNS) {
     if (token != null && token === s) return s;
     if (token == null && re.test(s)) return s;
   }
-  // Also accept if the string itself is a known fixed token list member
   const FIXED = new Set(
     SIGNAL_PATTERNS.map((p) => p.token).filter((t): t is string => t != null),
   );
@@ -336,10 +339,9 @@ export function sanitizeReport(input: SanitizeInput): TelemetryReport | null {
       signal = extractSignal(input.rawMessage);
     }
 
-    const appVersion =
-      typeof input.appVersion === "string" && input.appVersion.length > 0
-        ? input.appVersion.slice(0, 32)
-        : "0.0.0";
+    const rawVersion =
+      typeof input.appVersion === "string" ? input.appVersion.slice(0, 32) : "";
+    const appVersion = APP_VERSION_RE.test(rawVersion) ? rawVersion : "0.0.0";
 
     const deviceBucket: DeviceBucket = isDeviceBucket(input.deviceBucket)
       ? input.deviceBucket

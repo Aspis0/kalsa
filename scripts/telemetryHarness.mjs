@@ -311,6 +311,91 @@ async function main() {
     });
     assert(r && r.error.signal === undefined);
   });
+  test("ggml suffix claimed as signal normalizes to ggml_*", () => {
+    const r = pure.sanitizeReport({
+      code: "engine.init",
+      signal: "ggml_opencl",
+    });
+    assert(r && r.error.signal === "ggml_*", `got ${r?.error?.signal}`);
+  });
+  test("charset * rejected as signal", () => {
+    const r = pure.sanitizeReport({
+      code: "engine.init",
+      signal: "bad*star",
+    });
+    assert(r && r.error.signal === undefined, `got ${r?.error?.signal}`);
+  });
+  test("unknown code does not accept engine-init details", () => {
+    const r = pure.sanitizeReport({
+      code: "unknown",
+      detail: "disk_full",
+      appVersion: "0.1.0",
+    });
+    assert(r && r.error.code === "unknown", "code");
+    assert(r.error.detail === undefined, `detail leaked: ${r.error.detail}`);
+    const ok = pure.sanitizeReport({
+      code: "unknown",
+      detail: "unknown",
+      appVersion: "0.1.0",
+    });
+    assert(ok && ok.error.detail === "unknown", "unknown/unknown");
+  });
+  test("unsafe appVersion rewritten to 0.0.0", () => {
+    const r = pure.sanitizeReport({
+      code: "web.fetch",
+      detail: "timeout",
+      appVersion: "1.0.0](https://evil)",
+    });
+    assert(r && r.appVersion === "0.0.0", `got ${r?.appVersion}`);
+  });
+  test("sanitizer output stays inside Worker schema accepted set", () => {
+    const codes = [
+      "engine.init",
+      "chat.generation",
+      "embed.native",
+      "web.fetch",
+      "web.search",
+      "unknown",
+    ];
+    const engineInit = [
+      "oom",
+      "disk_full",
+      "model_corrupt",
+      "model_missing",
+      "init_timeout",
+      "native_crash",
+      "unknown",
+    ];
+    for (const code of codes) {
+      for (const detail of engineInit) {
+        const r = pure.sanitizeReport({ code, detail, appVersion: "0.1.0" });
+        assert(r, `${code}/${detail} must sanitize`);
+        if (code === "unknown") {
+          assert(
+            r.error.detail === undefined || r.error.detail === "unknown",
+            `${code}/${detail} → ${r.error.detail}`,
+          );
+        } else if (code === "engine.init") {
+          assert(r.error.detail === detail, `${code}/${detail}`);
+        } else {
+          assert(
+            r.error.detail === undefined || r.error.detail === detail,
+            `${code}/${detail} → ${r.error.detail}`,
+          );
+        }
+      }
+    }
+    const sigs = ["ENOSPC", "ggml_*", "ggml_opencl", "bad*star", "https://x"];
+    const expected = ["ENOSPC", "ggml_*", "ggml_*", undefined, undefined];
+    sigs.forEach((s, i) => {
+      const r = pure.sanitizeReport({
+        code: "engine.init",
+        signal: s,
+        appVersion: "0.1.0",
+      });
+      assert(r && r.error.signal === expected[i], `${s} → ${r?.error?.signal}`);
+    });
+  });
 
   // ── Buckets ──────────────────────────────────────────────────────────────
   console.log("\n[buckets]");
