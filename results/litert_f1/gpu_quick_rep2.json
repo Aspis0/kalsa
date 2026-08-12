@@ -1,0 +1,27 @@
+{
+  "rep": 2,
+  "unplugged": true,
+  "accelerator": "GPU",
+  "note": "UI completed without time label; words from visible list only",
+  "words": 97,
+  "est_tokens": 126.1,
+  "response": "List ten facts about cofee. One sentence each. Here are ten facts about coffee, one sentence each: 1. Coffee is the beverage of over 2 billion people around the world. 2. It is a stimulant that increases alertness and can improve cognitive function. 3. Coffee beans are the seeds of the coffee cherry, which grows on coffee plants in tropical regions. 4. The Arabica bean is the most prized and popular type, often favored for its smooth, aromatic flavor. 5. Coffee is a complex mixture of hundreds of different aromatic chemicals, which contribute to its unique taste.",
+  "all": [
+    "You",
+    "List ten facts about cofee. One sentence each.",
+    "Model on GPU",
+    "Here are ten facts about coffee, one sentence each:",
+    "1.",
+    "Coffee is the beverage of over 2 billion people around the world.",
+    "2.",
+    "It is a stimulant that increases alertness and can improve cognitive function.",
+    "3.",
+    "Coffee beans are the seeds of the coffee cherry, which grows on coffee plants in tropical regions.",
+    "4.",
+    "The Arabica bean is the most prized and popular type, often favored for its smooth, aromatic flavor.",
+    "5.",
+    "Coffee is a complex mixture of hundreds of different aromatic chemicals, which contribute to its unique taste.",
+    "Type prompt…",
+    "AI Chat"
+  ]
+}

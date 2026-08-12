@@ -1,0 +1,20 @@
+{
+  "rep": 1,
+  "unplugged": true,
+  "accelerator": "GPU",
+  "ui_seconds": 3.4,
+  "words": 70,
+  "est_tokens": 91.0,
+  "est_tok_s": 26.76,
+  "wall_s": 15.24,
+  "response": "Coffee is a brewed beverage made from roasted coffee beans. It is the world's second most consumed beverage, widely enjoyed in over 150 countries. Coffee beans are a popular commodity traded globally for their caffeine-rich water. It is consumed as a stimulant, often providing a boost in alertness and energy. Beyond its stimulating effects, coffee is also a source of antioxidants and contributes to a rich culture and industry worldwide.",
+  "all": [
+    "You",
+    "Explain cofee in five sentences.",
+    "Model on GPU",
+    "Coffee is a brewed beverage made from roasted coffee beans. It is the world's second most consumed beverage, widely enjoyed in over 150 countries. Coffee beans are a popular commodity traded globally for their caffeine-rich water. It is consumed as a stimulant, often providing a boost in alertness and energy. Beyond its stimulating effects, coffee is also a source of antioxidants and contributes to a rich culture and industry worldwide.",
+    "3.4 s",
+    "Type prompt…",
+    "AI Chat"
+  ]
+}
