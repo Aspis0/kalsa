@@ -16,7 +16,7 @@
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 60 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 61 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -82,7 +82,7 @@
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
 | energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
-| **GPU per il free tier dense (2B/4B) — PRIORITÀ PRODOTTO** (mandato gualt 2026-08-12: "i free devono essere veloci, sennò i pro non si vendono") | Via bundle-catalogo chiusa (twin: nessun bundle 2B, 4B senza GPU option). **Due piste aperte**: (1) **porting in proprio su LiteRT** — convertire Qwen3.5-2B/4B con ai-edge-torch + bundling litert-lm GPU-enabled, misurare su S23, e se vince integrare MediaPipe/LiteRT-LM come secondo engine in Kalsa per il free dense (kernel mantenuti da Google, copre anche Mali); recon feasibility IN VOLO (Grok web). (2) **F3 kernel nostro nel fork** (GEMV local-memory INT8 no-subgroup, solo Adreno, giorni + manutenzione). Evidenza pro-GPU: Gemma E2B 2.76×, ML Drift 26.8 su 3B; curva CPU crolla 2B 18.1 → 4B 8.38 | recon → poi gualt sceglie (1), (2) o sequenza |
+| **GPU per il free tier dense (2B/4B) — PRIORITÀ PRODOTTO** (mandato gualt 2026-08-12: "i free devono essere veloci, sennò i pro non si vendono") | **RECON FATTA** (`research-litert-porting.md`): scoperta chiave — **Qwen3.5-2B/4B sono IBRIDI GatedDeltaNet** (stessa famiglia del 35B): `export_hf` non li supporta, l'unico ibrido first-party (0.8B) è **CPU-only** (GPU full-delegation fail = il K2 di LiteRT). Invece **Qwen3-4B (non ibrido) ha bundle ufficiali GPU-capable con numeri pubblicati** — incluso **Mali G615 10.9 tok/s** (LiteRT copre MediaTek!). Il nostro import 4B CPU-only era rotto/mismatch: l'ufficiale ha OpenCL. **Bivio prodotto**: (1) free tier su **Qwen3-4B litert** = GPU SUBITO, spike 1 giorno zero conversioni (re-download ufficiale sha-verified + Gallery/CLI su S23); costo: cambio pesi + quality gate vs 3.5. (2) restare su Qwen3.5 = niente GPU LiteRT finché nessuno scrive i kernel GDN (vale in TUTTI gli stack). RN integration: 1-3 settimane (LiteRT-LM Kotlin, MediaPipe è legacy) | gualt: bivio pesi (Qwen3 GPU now vs 3.5 CPU) + GO spike 1g |
 | Jelly free-tier baseline (Qwen3.5-4B dense, llama-bench ABBA `-t 2`) | **BLOCKED** — Jelly irraggiungibile (ping OK, adb/sshd chiusi: wireless debug perso post-reboot). Modello+sha già staged in `results/jelly/` — `reports/moe-jelly-freetier.md` | gualt fisico (riattivare wireless debug/sshd) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
 | **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065 su S23/CPU. **NUOVO (mandato gualt 2026-08-12): pista MoE-GPU scoped Adreno 750+** — sequenza gated (a)-(e) in candidati #1: F-0 Amdahl → riverifica upstream → MarcoKEXP come veicolo → S2 split su Xiaomi 14 → solo dopo il kernel serio (GDN/SSM per CalaQwen) | F-0 = carta; S2 dopo MarcoKEXP |
@@ -1119,6 +1119,36 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-12 — 🔎 RECON PORTING LITERT (Grok web, `research-litert-porting.md`):
+  il blocco GPU del free tier ha un NOME, ed è lo stesso del 35B — Gated
+  DeltaNet. E il "CPU-only" del nostro import 4B era un artefatto rotto,
+  non un limite dello stack.**
+
+  1. **Scoperta architetturale**: Qwen3.5-2B/4B NON sono "Qwen3 più addestrato"
+     — sono **ibridi GDN + full-attention** (`Qwen3_5ForCausalLM`), stessa
+     famiglia del nostro 35B. `export_hf` non li supporta; l'unico ibrido
+     first-party (litert-community Qwen3.5-0.8B, litert-lm ≥0.15) è
+     **CPU-only: la GPU fallisce la full delegation sugli op GDN**. È il K2
+     di LiteRT: il muro GDN-su-GPU è TRASVERSALE agli stack (llama.cpp
+     OpenCL E LiteRT). Corollario strategico: chi scrive i kernel GDN una
+     volta sblocca free 3.5 dense E CalaQwen ibrido, ovunque.
+  2. **Qwen3-4B (non ibrido) è GPU-capable OGGI**: bundle ufficiale
+     `mixed_int4` con numeri OpenCL pubblicati (S25-class decode 19.1;
+     **Mali G615 10.9** — LiteRT copre anche MediaTek, cosa che il kernel
+     nostro Adreno-only non farà mai). Il nostro import "CPU-only" del twin
+     era quindi un file rotto/mismatch di runtime (cause tabulari nel
+     report; issue #1136: DIY export 16% delegato vs 100% ufficiale).
+  3. **Bivio prodotto dichiarato** (decisione gualt): (1) free tier su
+     **Qwen3-4B litert** → GPU subito, spike 1 giorno zero-conversioni
+     (re-download ufficiale sha-verified, Gallery + litert-lm CLI su S23,
+     misura vs CPU 8.38) + quality gate vs 3.5; (2) restare Qwen3.5 →
+     llama.rn CPU finché non esistono kernel GDN. RN: LiteRT-LM Kotlin
+     stable, wrapper community, MediaPipe legacy; 1-3 settimane + hardening.
+  4. Logistica conversioni (se mai servisse la via B): Linux ≥64 GB RAM,
+     litert-lm-builder per bundle completi (spiega il nostro storico
+     `TF_LITE_PREFILL_DECODE not found` = pack incompleto); qualità: nessun
+     bake-off pubblico int4/int8 litert vs K-quants → serve gate nostro.
 
 - **2026-08-12 — 🧱 TWIN CLASSI PRODOTTO (Grok su S23, unplugged, batt 57→53):
   la via zero-fork per il numero GPU 2B/4B è ESAURITA — Gallery non può
