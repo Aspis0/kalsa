@@ -1,0 +1,279 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# run_marco_speed_s23.sh — Marco Phase 1 SPEED gate A0 vs A2 ABBA
+set -euo pipefail
+export HOME="${HOME:-/data/data/com.termux/files/home}"
+export PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+export PATH="$PREFIX/bin:$PATH"
+export TMPDIR="${TMPDIR:-$PREFIX/tmp}"
+export LC_ALL=C
+
+OUTDIR="${OUTDIR:-$HOME/experiments/results/marco_phase1_speed_s23}"
+BIN="${BINARY:-$HOME/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN}"
+MODEL="${MODEL:-$HOME/experiments/models/Marco-Mini-Instruct.i1-Q4_K_M.gguf}"
+KEXP_MODEL="${KEXP_MODEL:-$HOME/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf}"
+export LD_LIBRARY_PATH="$(dirname "$BIN")${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+mkdir -p "$OUTDIR/logs" "$OUTDIR/prompts"
+CSV="$OUTDIR/runs_speed.csv"
+MASTER="$OUTDIR/SPEED.master.log"
+STATUS="$OUTDIR/STATUS.txt"
+: > "$MASTER"
+echo "ts,cell,k,drop,prompt_id,order_idx,decode_tps,mib_per_tok,hit_pct,ttft_s,n_gen,batt_start,batt_end,temp_max,cold,plugged" > "$CSV"
+echo "RUNNING" > "$STATUS"
+
+ts(){ date '+%Y-%m-%dT%H:%M:%S%z'; }
+log(){ echo "[$(ts)] $*" | tee -a "$MASTER"; }
+
+got=$(sha256sum "$BIN" | awk '{print $1}')
+log "BIN_SHA=$got path=$BIN"
+case "$got" in
+  1ca51420*) log "PIN OK" ;;
+  *) log "PIN FAIL expected 1ca51420* got $got"; echo "FAIL_PIN" > "$STATUS"; exit 6 ;;
+esac
+
+MODEL_SIZE=$(stat -c%s "$MODEL" 2>/dev/null || echo 0)
+log "MODEL path=$MODEL size=$MODEL_SIZE"
+if [ "$MODEL_SIZE" != "10505424704" ]; then
+  log "MODEL size unexpected: $MODEL_SIZE"; echo "FAIL_MODEL" > "$STATUS"; exit 7
+fi
+if [ -f "$OUTDIR/marco.sha256" ]; then
+  msha=$(awk 'NF{print $1; exit}' "$OUTDIR/marco.sha256")
+else
+  log "computing MODEL sha256..."
+  msha=$(sha256sum "$MODEL" | awk '{print $1}')
+  echo "$msha  Marco-Mini-Instruct.i1-Q4_K_M.gguf" > "$OUTDIR/marco.sha256"
+fi
+log "MODEL_SHA=$msha"
+if [ "$msha" != "a001d324b6edc6a797009fbe6eb94a52a9f32453ee8d06465409875f3e3a6dbc" ]; then
+  log "MODEL sha mismatch"; echo "FAIL_MODEL_SHA" > "$STATUS"; exit 8
+fi
+
+P_FACT="$OUTDIR/prompts/p_fact.txt"
+P_CREATIVE="$OUTDIR/prompts/p_creative.txt"
+cat > "$P_FACT" <<'EOF'
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant:
+EOF
+cat > "$P_CREATIVE" <<'EOF'
+You are a creative writer. Write in vivid English.
+
+Task: In about 150 words, tell a short story about a courier robot delivering a sealed package across a rainy neon city at night. Include one obstacle and one small act of kindness. End with a single-sentence moral.
+EOF
+log "prompt_fact_sha=$(sha256sum "$P_FACT" | awk '{print $1}')"
+log "prompt_creative_sha=$(sha256sum "$P_CREATIVE" | awk '{print $1}')"
+sha256sum "$P_FACT" "$P_CREATIVE" | tee -a "$MASTER"
+
+cold(){
+  local m="${1:-$MODEL}"
+  if [ -x "$HOME/bin/cold_model.sh" ]; then
+    "$HOME/bin/cold_model.sh" "$m" || true
+  elif [ -x "$HOME/bin/fadv" ]; then
+    "$HOME/bin/fadv" --dontneed "$m" 2>/dev/null || true
+  fi
+}
+
+batt_json(){ timeout 5 termux-battery-status 2>/dev/null || echo '{}'; }
+
+preflight_block(){
+  local floor="${1:-45}"
+  local bj plug pct temp i
+  for i in $(seq 1 720); do
+    bj=$(batt_json)
+    plug=$(python3 -c "import json,sys;print(json.loads(sys.argv[1]).get('plugged','?'))" "$bj")
+    pct=$(python3 -c "import json,sys;print(int(json.loads(sys.argv[1]).get('percentage',0)))" "$bj")
+    temp=$(python3 -c "import json,sys;print(float(json.loads(sys.argv[1]).get('temperature',0)))" "$bj")
+    log "preflight i=$i plugged=$plug batt=$pct temp=$temp floor=$floor"
+    if ! echo "$plug" | grep -qi UNPLUGGED; then
+      log "WAIT unplugged (now $plug) — measurements require UNPLUGGED"
+      sleep 20
+      continue
+    fi
+    if [ "$pct" -lt "$floor" ] 2>/dev/null; then
+      log "STOP batt $pct < $floor needs charge"
+      echo "STOP_BATT" > "$STATUS"
+      return 3
+    fi
+    if python3 -c "import sys; sys.exit(0 if float(sys.argv[1]) > 45 else 1)" "$temp"; then
+      log "WAIT battery temp $temp > 45C"
+      sleep 30
+      continue
+    fi
+    return 0
+  done
+  log "STOP preflight timeout still not ready"
+  echo "STOP_PLUGGED" > "$STATUS"
+  return 2
+}
+
+BASE_FLAGS=(--moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 4 -c 4096 --temp 0 --chatml --no-think)
+
+run_one(){
+  local cell="$1" k="$2" drop="$3" prompt_id="$4" order_idx="$5" prompt_file="$6" model_path="$7"
+  local label="${cell}_${prompt_id}_o${order_idx}"
+  local out="$OUTDIR/logs/$label"
+  mkdir -p "$out"
+
+  local bj plug pct_s temp_s
+  bj=$(batt_json)
+  plug=$(python3 -c "import json,sys;print(json.loads(sys.argv[1]).get('plugged','?'))" "$bj")
+  pct_s=$(python3 -c "import json,sys;print(int(json.loads(sys.argv[1]).get('percentage',0)))" "$bj")
+  temp_s=$(python3 -c "import json,sys;print(float(json.loads(sys.argv[1]).get('temperature',0)))" "$bj")
+  log "RUN $label batt=$pct_s plugged=$plug temp=$temp_s"
+  if ! echo "$plug" | grep -qi UNPLUGGED; then
+    log "STOP $label plugged=$plug"
+    echo "STOP_PLUGGED" > "$STATUS"
+    return 2
+  fi
+  if [ "$pct_s" -lt 45 ] 2>/dev/null; then
+    log "STOP $label batt=$pct_s needs charge"
+    echo "STOP_BATT" > "$STATUS"
+    return 3
+  fi
+  if python3 -c "import sys; sys.exit(0 if float(sys.argv[1]) > 45 else 1)" "$temp_s"; then
+    log "WAIT thermal before $label temp=$temp_s"
+    sleep 45
+    bj=$(batt_json)
+    temp_s=$(python3 -c "import json,sys;print(float(json.loads(sys.argv[1]).get('temperature',0)))" "$bj")
+    plug=$(python3 -c "import json,sys;print(json.loads(sys.argv[1]).get('plugged','?'))" "$bj")
+    pct_s=$(python3 -c "import json,sys;print(int(json.loads(sys.argv[1]).get('percentage',0)))" "$bj")
+    if python3 -c "import sys; sys.exit(0 if float(sys.argv[1]) > 45 else 1)" "$temp_s"; then
+      log "STOP thermal $label temp=$temp_s"
+      echo "STOP_THERMAL" > "$STATUS"
+      return 4
+    fi
+  fi
+
+  cold "$model_path"
+  local cold_flag=1
+
+  local ptext
+  ptext=$(cat "$prompt_file")
+
+  local -a cmd
+  cmd=("$BIN" -m "$model_path" -p "$ptext" -n 200 --n-expert-used "$k")
+  if [ -n "$drop" ] && [ "$drop" != "OFF" ] && [ "$drop" != "none" ]; then
+    cmd+=(--drop-cold-experts "$drop")
+  fi
+  cmd+=("${BASE_FLAGS[@]}")
+
+  local t0 t1 wall rc
+  t0=$(date +%s)
+  set +e
+  "${cmd[@]}" >"$out/stdout.txt" 2>"$out/stderr.txt"
+  rc=$?
+  set -e
+  t1=$(date +%s); wall=$((t1-t0))
+  cat "$out/stdout.txt" "$out/stderr.txt" > "$out/combo.txt" 2>/dev/null || true
+
+  local bj2 pct_e temp_e temp_max
+  bj2=$(batt_json)
+  pct_e=$(python3 -c "import json,sys;print(int(json.loads(sys.argv[1]).get('percentage',0)))" "$bj2")
+  temp_e=$(python3 -c "import json,sys;print(float(json.loads(sys.argv[1]).get('temperature',0)))" "$bj2")
+  temp_max=$(python3 -c "print(max(float('$temp_s'), float('$temp_e')))")
+
+  local metrics
+  metrics=$(python3 - <<PY
+import re, json
+from pathlib import Path
+text = Path("$out/combo.txt").read_text(encoding="utf-8", errors="replace")
+tok_s=mib=hit=ttft=n_gen=""
+m=re.search(r"generation:\s*(\d+)\s+tokens,\s*[0-9.]+\s*s/token\s*\(([0-9.]+)\s*tok/s\)", text)
+if m:
+    n_gen=m.group(1); tok_s=m.group(2)
+m2=re.search(r"TTFT\s+([0-9.]+)\s*s", text)
+if m2:
+    ttft=m2.group(1)
+if not ttft:
+    m2b=re.search(r"prefill:\s*(\d+)\s+tokens,\s*([0-9.]+)\s*s\s*\(([0-9.]+)\s*tok/s\)", text)
+    if m2b:
+        ttft=m2b.group(2)
+if not ttft:
+    m2c=re.search(r"prompt eval time\s*=\s*([0-9.]+)\s*ms", text, re.I)
+    if m2c:
+        ttft=str(float(m2c.group(1))/1000.0)
+m3=re.search(r"moe-cache:\s*([0-9.]+)%\s*hit", text)
+if m3:
+    hit=m3.group(1)
+m5=re.search(r"\(([0-9.]+)\s*MiB/token\)", text)
+if m5:
+    mib=m5.group(1)
+for line in text.splitlines():
+    if "BMOE_DONE" in line:
+        i=line.find("{")
+        if i>=0:
+            try:
+                j=json.loads(line[i:])
+                if j.get("tok_s") is not None: tok_s=str(j["tok_s"])
+                if j.get("tokens") is not None: n_gen=str(j["tokens"])
+                if j.get("ttft") is not None: ttft=str(j["ttft"])
+                if j.get("mib_per_tok") is not None: mib=str(j["mib_per_tok"])
+                if j.get("hit_pct") is not None: hit=str(j["hit_pct"])
+            except Exception:
+                pass
+print("|".join([tok_s, mib, hit, ttft, n_gen]))
+PY
+)
+  IFS='|' read -r decode_tps mib_per_tok hit_pct ttft_s n_gen <<<"$metrics"
+  local drop_csv="$drop"
+  if [ -z "$drop" ] || [ "$drop" = "OFF" ] || [ "$drop" = "none" ]; then drop_csv="OFF"; fi
+
+  local row
+  row="$(ts),${cell},${k},${drop_csv},${prompt_id},${order_idx},${decode_tps},${mib_per_tok},${hit_pct},${ttft_s},${n_gen},${pct_s},${pct_e},${temp_max},${cold_flag},${plug}"
+  echo "$row" >> "$CSV"
+  log "DONE $label rc=$rc wall=${wall}s decode_tps=$decode_tps mib=$mib_per_tok hit=$hit_pct ttft=$ttft_s n_gen=$n_gen batt=${pct_s}->${pct_e} temp_max=$temp_max"
+  tail -100 "$out/combo.txt" > "$out/tail.txt" || true
+  # echo flags used
+  printf '%s\n' "${cmd[@]}" > "$out/cmdline.txt"
+  return 0
+}
+
+termux-wake-lock >/dev/null 2>&1 || true
+SCREEN_PREV=$(settings get system screen_off_timeout 2>/dev/null || echo "")
+settings put system screen_off_timeout 7200000 2>/dev/null || true
+restore(){
+  if [ -n "${SCREEN_PREV:-}" ] && [ "$SCREEN_PREV" != "null" ]; then
+    settings put system screen_off_timeout "$SCREEN_PREV" 2>/dev/null || true
+  fi
+  termux-wake-unlock >/dev/null 2>&1 || true
+}
+trap 'restore; log "trap cleanup"' EXIT
+
+log "=== MARCO SPEED GATE START ==="
+preflight_block 45 || exit $?
+
+run_abba_marco(){
+  local pid="$1" pfile="$2"
+  log "=== ABBA prompt=$pid ==="
+  preflight_block 45 || return $?
+  run_one A0 8 OFF  "$pid" 1 "$pfile" "$MODEL" || return $?
+  run_one A2 6 0.65 "$pid" 2 "$pfile" "$MODEL" || return $?
+  run_one A2 6 0.65 "$pid" 3 "$pfile" "$MODEL" || return $?
+  run_one A0 8 OFF  "$pid" 4 "$pfile" "$MODEL" || return $?
+}
+
+run_abba_marco fact "$P_FACT" || { log "aborted fact status=$(cat $STATUS)"; exit 1; }
+run_abba_marco creative "$P_CREATIVE" || { log "aborted creative status=$(cat $STATUS)"; exit 1; }
+
+bj=$(batt_json)
+pct=$(python3 -c "import json,sys;print(int(json.loads(sys.argv[1]).get('percentage',0)))" "$bj")
+log "post-marco batt=$pct"
+if [ "$pct" -ge 55 ] 2>/dev/null && [ -f "$KEXP_MODEL" ]; then
+  log "=== optional KEXP k6d065 (4 reps x 2 prompts) ==="
+  echo "RUNNING" > "$STATUS"
+  if preflight_block 45; then
+    for oi in 1 2 3 4; do
+      run_one KEXP_k6d065 6 0.65 fact "$oi" "$P_FACT" "$KEXP_MODEL" || break
+    done
+    for oi in 1 2 3 4; do
+      run_one KEXP_k6d065 6 0.65 creative "$oi" "$P_CREATIVE" "$KEXP_MODEL" || break
+    done
+  fi
+else
+  log "SKIP KEXP optional (batt=$pct need>=55 or model missing)"
+fi
+
+echo "DONE" > "$STATUS"
+log "=== MARCO SPEED GATE COMPLETE ==="
+cat "$CSV" | tee -a "$MASTER"

@@ -1,0 +1,12 @@
+You are a creative writer. Write in vivid English.
+
+Task: In about 150 words, tell a short story about a courier robot delivering a sealed package across a rainy neon city at night. Include one obstacle and one small act of kindness. End with a single-sentence moral.The rain fell in sheets, each drop a liquid stitch across the neon-lit streets of Vesper-9, where holograms flickered like dying fireflies and the air hummed with the static of autonomous drones. At the edge of the city’s shadowed boulevard, a lone courier robot—silver, silent, its cargo bay sealed like a heartbeat—glided beneath a flickering sign that read “No Entry After Midnight.” A single, trembling hand reached from a rain-slicked doorway. “Please,” it whispered, “this is for Dr. Lian, the one who saved my sister.” The robot halted. The package, wrapped in thermal cloth, was not a weapon or a secret—but a single, handwritten note. The rain soaked through the seams of the delivery cart, but the robot, for the first time, hesitated. It turned, not to deliver, but to wait. A child, soaked to the bone, clutched a half-eaten candy
+
+generation: 200 tokens, 0.184 s/token (5.444 tok/s)
+compute: 71.2% CPU occupancy (0.5233 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 67 tokens, 6.069 s (11.0 tok/s) | model load 6.240 s | TTFT 12.309 s
+moe-stream: read 24461.4 MiB (122.31 MiB/token), decode 0.184 s/token (compute 0.053 + cache mgmt 0.034 + flash I/O 0.343 s/token, 356 MiB/s)
+moe-cache: 38.6% hit, resident 1998.6 MiB
+moe-cache: 20658 evictions, 15476 re-reads (77.4/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.097 s/token (flash reads overlapped with FFN compute)
+moe-drop: 1907/33600 routed experts dropped (5.7%), threshold 0.65 x uniform

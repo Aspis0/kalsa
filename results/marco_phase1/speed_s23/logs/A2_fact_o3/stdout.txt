@@ -1,0 +1,16 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant:A Mixture-of-Experts (MoE) language model uses a router to select only a few of its many “experts” (specialized sub-networks) to process each token, which dramatically reduces computation compared to dense models. Even though only a few experts are activated per token, the model still needs to store all the expert weights on disk because the full set of experts is required to handle any input — this results in a large on-disk weight file. The router routes each token to the most relevant experts, and flash streaming allows the model to fetch and activate only the necessary experts in real time, minimizing memory usage and enabling efficient inference on devices like phones.
+
+- The router dynamically selects a small subset of experts per token, reducing FLOPs and memory usage during inference.  
+- Flash streaming enables efficient, incremental processing by loading and activating only the required expert weights on-demand, allowing large MoE models to run on mobile devices.
+
+generation: 191 tokens, 0.189 s/token (5.300 tok/s)
+compute: 71.9% CPU occupancy (0.5428 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 80 tokens, 6.780 s (11.8 tok/s) | model load 6.442 s | TTFT 13.222 s
+moe-stream: read 24848.5 MiB (130.10 MiB/token), decode 0.189 s/token (compute 0.053 + cache mgmt 0.036 + flash I/O 0.360 s/token, 361 MiB/s)
+moe-cache: 34.7% hit, resident 1999.7 MiB
+moe-cache: 21463 evictions, 16415 re-reads (85.9/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.100 s/token (flash reads overlapped with FFN compute)
+moe-drop: 1847/32088 routed experts dropped (5.8%), threshold 0.65 x uniform

@@ -1,0 +1,68 @@
+[2026-08-12T11:23:59-0400] BIN_SHA=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f path=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+[2026-08-12T11:23:59-0400] PIN OK
+[2026-08-12T11:23:59-0400] MODEL path=/data/data/com.termux/files/home/experiments/models/Marco-Mini-Instruct.i1-Q4_K_M.gguf size=10505424704
+[2026-08-12T11:23:59-0400] MODEL_SHA=a001d324b6edc6a797009fbe6eb94a52a9f32453ee8d06465409875f3e3a6dbc
+[2026-08-12T11:23:59-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-12T11:23:59-0400] prompt_creative_sha=761db0d07cbc312acb35fb8c64894be83f38a3a7f0ba14e2100ef6a44a29c871
+b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd  /data/data/com.termux/files/home/experiments/results/marco_phase1_speed_s23/prompts/p_fact.txt
+761db0d07cbc312acb35fb8c64894be83f38a3a7f0ba14e2100ef6a44a29c871  /data/data/com.termux/files/home/experiments/results/marco_phase1_speed_s23/prompts/p_creative.txt
+[2026-08-12T11:24:00-0400] === MARCO SPEED GATE START ===
+[2026-08-12T11:24:00-0400] preflight i=1 plugged=UNPLUGGED batt=100 temp=28.1 floor=45
+[2026-08-12T11:24:00-0400] === ABBA prompt=fact ===
+[2026-08-12T11:24:01-0400] preflight i=1 plugged=UNPLUGGED batt=100 temp=28.1 floor=45
+[2026-08-12T11:24:01-0400] RUN A0_fact_o1 batt=100 plugged=UNPLUGGED temp=28.1
+[2026-08-12T11:25:32-0400] DONE A0_fact_o1 rc=0 wall=63s decode_tps=4.056 mib=194.76 hit=32.6 ttft=13.977 n_gen=195 batt=100->100 temp_max=30.3
+[2026-08-12T11:25:32-0400] RUN A2_fact_o2 batt=100 plugged=UNPLUGGED temp=30.3
+[2026-08-12T11:26:49-0400] DONE A2_fact_o2 rc=0 wall=51s decode_tps=5.197 mib=130.10 hit=34.7 ttft=12.897 n_gen=191 batt=100->99 temp_max=31.8
+[2026-08-12T11:26:50-0400] RUN A2_fact_o3 batt=99 plugged=UNPLUGGED temp=31.8
+[2026-08-12T11:28:07-0400] DONE A2_fact_o3 rc=0 wall=50s decode_tps=5.300 mib=130.10 hit=34.7 ttft=13.222 n_gen=191 batt=99->99 temp_max=31.8
+[2026-08-12T11:28:08-0400] RUN A0_fact_o4 batt=99 plugged=UNPLUGGED temp=31.8
+[2026-08-12T11:29:37-0400] DONE A0_fact_o4 rc=0 wall=62s decode_tps=4.113 mib=194.76 hit=32.6 ttft=13.742 n_gen=195 batt=99->99 temp_max=33.1
+[2026-08-12T11:29:37-0400] === ABBA prompt=creative ===
+[2026-08-12T11:29:37-0400] preflight i=1 plugged=UNPLUGGED batt=99 temp=33.1 floor=45
+[2026-08-12T11:29:38-0400] RUN A0_creative_o1 batt=99 plugged=UNPLUGGED temp=33.1
+[2026-08-12T11:31:07-0400] DONE A0_creative_o1 rc=0 wall=62s decode_tps=4.156 mib=190.24 hit=34.4 ttft=13.439 n_gen=200 batt=99->98 temp_max=34.2
+[2026-08-12T11:31:07-0400] RUN A2_creative_o2 batt=98 plugged=UNPLUGGED temp=34.2
+[2026-08-12T11:32:26-0400] DONE A2_creative_o2 rc=0 wall=50s decode_tps=5.444 mib=122.31 hit=38.6 ttft=12.309 n_gen=200 batt=98->97 temp_max=35.1
+[2026-08-12T11:32:27-0400] RUN A2_creative_o3 batt=97 plugged=UNPLUGGED temp=35.1
+[2026-08-12T11:33:46-0400] DONE A2_creative_o3 rc=0 wall=50s decode_tps=5.442 mib=122.31 hit=38.6 ttft=12.381 n_gen=200 batt=97->97 temp_max=35.1
+[2026-08-12T11:33:47-0400] RUN A0_creative_o4 batt=97 plugged=UNPLUGGED temp=35.1
+[2026-08-12T11:35:17-0400] DONE A0_creative_o4 rc=0 wall=62s decode_tps=4.131 mib=190.24 hit=34.4 ttft=13.262 n_gen=200 batt=97->96 temp_max=36.6
+[2026-08-12T11:35:17-0400] post-marco batt=96
+[2026-08-12T11:35:17-0400] === optional KEXP k6d065 (4 reps x 2 prompts) ===
+[2026-08-12T11:35:17-0400] preflight i=1 plugged=UNPLUGGED batt=96 temp=36.6 floor=45
+[2026-08-12T11:35:18-0400] RUN KEXP_k6d065_fact_o1 batt=96 plugged=UNPLUGGED temp=36.6
+[2026-08-12T11:36:39-0400] DONE KEXP_k6d065_fact_o1 rc=0 wall=52s decode_tps=6.157 mib=33.57 hit=79.1 ttft=18.732 n_gen=200 batt=96->96 temp_max=36.6
+[2026-08-12T11:36:39-0400] RUN KEXP_k6d065_fact_o2 batt=96 plugged=UNPLUGGED temp=36.6
+[2026-08-12T11:38:01-0400] DONE KEXP_k6d065_fact_o2 rc=0 wall=53s decode_tps=6.012 mib=33.57 hit=79.1 ttft=18.608 n_gen=200 batt=96->95 temp_max=37.9
+[2026-08-12T11:38:01-0400] RUN KEXP_k6d065_fact_o3 batt=95 plugged=UNPLUGGED temp=37.9
+[2026-08-12T11:39:25-0400] DONE KEXP_k6d065_fact_o3 rc=0 wall=55s decode_tps=5.878 mib=33.57 hit=79.1 ttft=19.461 n_gen=200 batt=95->94 temp_max=38.3
+[2026-08-12T11:39:26-0400] RUN KEXP_k6d065_fact_o4 batt=94 plugged=UNPLUGGED temp=38.3
+[2026-08-12T11:40:53-0400] DONE KEXP_k6d065_fact_o4 rc=0 wall=56s decode_tps=5.746 mib=33.57 hit=79.1 ttft=19.870 n_gen=200 batt=94->94 temp_max=38.3
+[2026-08-12T11:40:53-0400] RUN KEXP_k6d065_creative_o1 batt=94 plugged=UNPLUGGED temp=38.1
+[2026-08-12T11:42:21-0400] DONE KEXP_k6d065_creative_o1 rc=0 wall=57s decode_tps=5.361 mib=27.77 hit=82.2 ttft=19.157 n_gen=200 batt=94->93 temp_max=38.6
+[2026-08-12T11:42:22-0400] RUN KEXP_k6d065_creative_o2 batt=93 plugged=UNPLUGGED temp=38.6
+[2026-08-12T11:43:50-0400] DONE KEXP_k6d065_creative_o2 rc=0 wall=56s decode_tps=5.646 mib=27.77 hit=82.2 ttft=19.554 n_gen=200 batt=93->93 temp_max=38.6
+[2026-08-12T11:43:51-0400] RUN KEXP_k6d065_creative_o3 batt=93 plugged=UNPLUGGED temp=38.6
+[2026-08-12T11:45:20-0400] DONE KEXP_k6d065_creative_o3 rc=0 wall=58s decode_tps=5.254 mib=27.77 hit=82.2 ttft=18.805 n_gen=200 batt=93->92 temp_max=39.1
+[2026-08-12T11:45:21-0400] RUN KEXP_k6d065_creative_o4 batt=92 plugged=UNPLUGGED temp=39.1
+[2026-08-12T11:46:48-0400] DONE KEXP_k6d065_creative_o4 rc=0 wall=55s decode_tps=5.581 mib=27.77 hit=82.2 ttft=18.521 n_gen=200 batt=92->92 temp_max=39.1
+[2026-08-12T11:46:48-0400] === MARCO SPEED GATE COMPLETE ===
+ts,cell,k,drop,prompt_id,order_idx,decode_tps,mib_per_tok,hit_pct,ttft_s,n_gen,batt_start,batt_end,temp_max,cold,plugged
+2026-08-12T11:25:31-0400,A0,8,OFF,fact,1,4.056,194.76,32.6,13.977,195,100,100,30.3,1,UNPLUGGED
+2026-08-12T11:26:49-0400,A2,6,0.65,fact,2,5.197,130.10,34.7,12.897,191,100,99,31.8,1,UNPLUGGED
+2026-08-12T11:28:07-0400,A2,6,0.65,fact,3,5.300,130.10,34.7,13.222,191,99,99,31.8,1,UNPLUGGED
+2026-08-12T11:29:37-0400,A0,8,OFF,fact,4,4.113,194.76,32.6,13.742,195,99,99,33.1,1,UNPLUGGED
+2026-08-12T11:31:07-0400,A0,8,OFF,creative,1,4.156,190.24,34.4,13.439,200,99,98,34.2,1,UNPLUGGED
+2026-08-12T11:32:26-0400,A2,6,0.65,creative,2,5.444,122.31,38.6,12.309,200,98,97,35.1,1,UNPLUGGED
+2026-08-12T11:33:46-0400,A2,6,0.65,creative,3,5.442,122.31,38.6,12.381,200,97,97,35.1,1,UNPLUGGED
+2026-08-12T11:35:17-0400,A0,8,OFF,creative,4,4.131,190.24,34.4,13.262,200,97,96,36.6,1,UNPLUGGED
+2026-08-12T11:36:39-0400,KEXP_k6d065,6,0.65,fact,1,6.157,33.57,79.1,18.732,200,96,96,36.6,1,UNPLUGGED
+2026-08-12T11:38:01-0400,KEXP_k6d065,6,0.65,fact,2,6.012,33.57,79.1,18.608,200,96,95,37.9,1,UNPLUGGED
+2026-08-12T11:39:25-0400,KEXP_k6d065,6,0.65,fact,3,5.878,33.57,79.1,19.461,200,95,94,38.3,1,UNPLUGGED
+2026-08-12T11:40:53-0400,KEXP_k6d065,6,0.65,fact,4,5.746,33.57,79.1,19.870,200,94,94,38.3,1,UNPLUGGED
+2026-08-12T11:42:21-0400,KEXP_k6d065,6,0.65,creative,1,5.361,27.77,82.2,19.157,200,94,93,38.6,1,UNPLUGGED
+2026-08-12T11:43:50-0400,KEXP_k6d065,6,0.65,creative,2,5.646,27.77,82.2,19.554,200,93,93,38.6,1,UNPLUGGED
+2026-08-12T11:45:20-0400,KEXP_k6d065,6,0.65,creative,3,5.254,27.77,82.2,18.805,200,93,92,39.1,1,UNPLUGGED
+2026-08-12T11:46:48-0400,KEXP_k6d065,6,0.65,creative,4,5.581,27.77,82.2,18.521,200,92,92,39.1,1,UNPLUGGED
+[2026-08-12T11:46:48-0400] trap cleanup

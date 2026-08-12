@@ -16,7 +16,7 @@
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 63 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 64 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -77,7 +77,7 @@
 
 | domanda | stato | chi sblocca |
 |---|---|---|
-| **Marco Fase 1 runtime** (k/drop KEXP su Marco i1-Q4_K_M, NO requant — `results/marco_phase1/PROTOCOL.md`) | **fail-fast IT v2+EN: 3/3 PASS** (A1 k8d065 Δit +0.004/Δen +0.003; A2 k6d065 +0.019/+0.010; A3 k6d050 +0.009/+0.005 — tutte ≤ +0.05). Full multi5 interrotto da shutdown PC 02:29; **RESUME IN CORSO da 08:24** (`scripts/resume_marco_phase1_quality.ps1`, pid in `logs/marco_phase1_resume.pid.txt`): completa A1 fr/it/zh + A2 + A3 full, scrive `VERDICT.md` da solo. ETA ~sera (≈1h/lingua). **Speed gate device: IN VOLO su S23** (Grok, 2026-08-12 ~10:00, S23 libero da gualt): A0 vs A2 ABBA 2 prompt n=200, cold fadvise, staccato batt ≥45%, gate ≥1.15× o MiB/tok ≤−20%; opz. KEXP k6d065 stesso device; out `results/marco_phase1/speed_s23/` | PC + S23 (entrambi in corso) |
+| **Marco Fase 1 runtime** (k/drop KEXP su Marco i1-Q4_K_M, NO requant — `results/marco_phase1/PROTOCOL.md`) | **fail-fast IT v2+EN: 3/3 PASS** (A1 k8d065 Δit +0.004/Δen +0.003; A2 k6d065 +0.019/+0.010; A3 k6d050 +0.009/+0.005 — tutte ≤ +0.05). Full multi5 interrotto da shutdown PC 02:29; **RESUME IN CORSO da 08:24**: completa A1 fr/it/zh + A2 + A3 full, scrive `VERDICT.md` da solo. ETA ~sera. **SPEED GATE S23: ✅ PASS SU ENTRAMBE LE LEVE** (2026-08-12, ABBA 2 prompt n≈200, cold fadvise, staccato, batt 100→92, no SESSION_SLOW): decode A2 **5.371** vs A0 4.122 = **1.303×** (≥1.15 PASS); MiB/tok **126.2 vs 192.5 = −34.4%** (≤−20% PASS); hit solo +3.2 pt. Confronto stesso-device: KEXP k6d065 5.696 tok/s ma **30.7 MiB/tok e hit 80.7%** → Marco runtime NON è KEXP-class su I/O (esperti Q4_K troppo grossi per cache 2000) = argomento quantificato PRO Fase 2 MarcoKEXP. `results/marco_phase1/speed_s23/` | PC in corso (qualità); poi verdetto Fase 1 completo |
 | **MarcoKEXP** — download Q8 (~18 GB) + quantize con recipe pronta | **T2c PASS** (IT v2). Prep: source ID + `tensor_types*.txt` + cmd NOT RUN. **Manca solo GO gualt** — decisione sensata DOPO il verdetto Fase 1. **Motivazione RADDOPPIATA (2026-08-12)**: dense Q4-Q8 sblocca anche il B1-STOP dello spike Xiaomi → MarcoKEXP è il veicolo del fail-fast MoE-GPU su Adreno 750 (Marco non-ibrido, K2 non si applica) | gualt GO (post Fase 1) |
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
@@ -1119,6 +1119,27 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-12 — 🏁 SPEED GATE MARCO FASE 1: PASS SU ENTRAMBE LE LEVE
+  (S23, staccato, cold fadvise, ABBA 2 prompt, 16 run; batt 100→92,
+  temp max 39.1°C; niente SESSION_SLOW — l'anomalia 3-4× della
+  fix-session NON si è ripresentata).**
+
+  | cella | decode med | MiB/tok | hit% | TTFT |
+  |---|---|---|---|---|
+  | A0 (k8, no drop) | 4.122 | 192.5 | 33.5 | 13.6 |
+  | **A2 (k6d065)** | **5.371** | **126.2** | 36.7 | 12.6 |
+  | KEXP k6d065 (stessa sessione) | 5.696 | **30.7** | **80.7** | 19.0 |
+
+  Gate pre-dichiarati: decode **1.303×** (≥1.15 PASS) e MiB/tok **−34.4%**
+  (≤−20% PASS). Hit solo +3.2 pt: la config di campagna trasferisce su
+  Marco come velocità, NON come regime di cache — gli esperti Q4_K di
+  Marco (~3× i byte dei Q2/Q3 KEXP) non ci stanno in cache 2000. Il
+  confronto stesso-device quantifica il premio della Fase 2 MarcoKEXP:
+  4× MiB/tok e +44 pt hit di distanza. Bonus: KEXP 5.70 ≈ scheda 5.86 →
+  sessione sana. Con la qualità full multi5 in arrivo dal PC, Fase 1 è
+  a un passo dalla chiusura completa. Artefatti:
+  `results/marco_phase1/speed_s23/` (CSV 16 righe, note, log per run).
 
 - **2026-08-12 — 🎁 K0 CONSEGNA UN RIBALTONE: i kernel GDN che volevamo
   scrivere ESISTONO GIÀ nel nostro pin. Il cantiere passa da "scrivere

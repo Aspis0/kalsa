@@ -1,0 +1,15 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant:A Mixture-of-Experts (MoE) language model uses a gating network to route each token to only a few of its many specialized “expert” sub-networks, allowing it to scale up capacity without proportional compute cost. By activating only a handful of experts per token, the model dramatically reduces inference latency and memory usage, even though the total number of parameters (and thus the on-disk weight file) remains large—because all experts are stored, but only a subset is used per token. This is enabled by efficient routing (e.g., top-k or sparsely activated gates) and flash streaming, where the model can load only the relevant expert weights from storage on-demand, avoiding the need to load the entire model into RAM.
+
+- Only a few experts are activated per token, reducing compute by skipping unused sub-networks.  
+- The full weight file is stored on disk, but only the relevant expert weights are streamed into memory for each inference step.
+
+generation: 195 tokens, 0.247 s/token (4.056 tok/s)
+compute: 72.4% CPU occupancy (0.7136 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 80 tokens, 7.202 s (11.1 tok/s) | model load 6.774 s | TTFT 13.977 s
+moe-stream: read 37978.7 MiB (194.76 MiB/token), decode 0.247 s/token (compute 0.060 + cache mgmt 0.050 + flash I/O 0.510 s/token, 382 MiB/s)
+moe-cache: 32.6% hit, resident 1999.5 MiB
+moe-cache: 31692 evictions, 26255 re-reads (134.6/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.137 s/token (flash reads overlapped with FFN compute)

@@ -1,0 +1,31 @@
+/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+-m
+/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+-p
+You are a creative writer. Write in vivid English.
+
+Task: In about 150 words, tell a short story about a courier robot delivering a sealed package across a rainy neon city at night. Include one obstacle and one small act of kindness. End with a single-sentence moral.
+-n
+200
+--n-expert-used
+6
+--drop-cold-experts
+0.65
+--moe-stream
+--cache-mb
+2000
+--dense-weights
+anon
+--overlap
+--io-threads
+4
+--ubatch
+512
+-t
+4
+-c
+4096
+--temp
+0
+--chatml
+--no-think
