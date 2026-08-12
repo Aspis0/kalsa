@@ -597,6 +597,52 @@ function aggregateToolRounds(roundsByTurn) {
   return out;
 }
 
+function executedCallCount(rounds) {
+  let n = 0;
+  for (const r of rounds ?? []) {
+    n += Number(r.executed) || 0;
+  }
+  return n;
+}
+
+/**
+ * Tool-call timing vs the plan's per-turn expectation (must | must_not | either).
+ * A call on `must` is correct; a call on `must_not` is not. `either` and
+ * missing/unknown expectation are excluded from both metrics.
+ * Empty denominator → null, never 0 or 1.
+ */
+function scoreToolTiming(turns, roundsByTurn) {
+  let correctCalls = 0;
+  let allCalls = 0;
+  let mustTurns = 0;
+  let mustHits = 0;
+  let spuriousCalls = 0;
+  let missedCalls = 0;
+
+  for (let i = 0; i < turns.length; i++) {
+    const exp = turns[i]?.expectation;
+    if (exp !== "must" && exp !== "must_not") continue;
+    const n = executedCallCount(roundsByTurn[i]);
+    if (exp === "must") {
+      mustTurns += 1;
+      if (n >= 1) mustHits += 1;
+      else missedCalls += 1;
+      correctCalls += n;
+      allCalls += n;
+    } else {
+      spuriousCalls += n;
+      allCalls += n;
+    }
+  }
+
+  return {
+    toolPrecision: allCalls === 0 ? null : correctCalls / allCalls,
+    toolRecall: mustTurns === 0 ? null : mustHits / mustTurns,
+    spuriousCalls,
+    missedCalls,
+  };
+}
+
 function mean(nums) {
   if (nums.length === 0) return null;
   return nums.reduce((a, b) => a + b, 0) / nums.length;
@@ -741,6 +787,8 @@ function gradeRaw(raw, baseDir) {
     toolCallsFailed,
     privacyBlocks,
   } = aggregateToolRounds(toolRoundsPerTurn);
+  const { toolPrecision, toolRecall, spuriousCalls, missedCalls } =
+    scoreToolTiming(turns, toolRoundsPerTurn);
 
   const turnMetrics = turns.map((t) => metricsForTurn(baseDir, t.index));
 
@@ -800,6 +848,7 @@ function gradeRaw(raw, baseDir) {
       index: turn.index ?? null,
       kind: turn.kind ?? null,
       id: turn.id ?? null,
+      expectation: turn.expectation ?? null,
       prompt: turn.prompt ?? null,
       elapsed_s: elapsed,
       ttftApprox_s: elapsed,
@@ -933,6 +982,10 @@ function gradeRaw(raw, baseDir) {
     toolCallsSkipped,
     toolCallsFailed,
     privacyBlocks,
+    toolPrecision,
+    toolRecall,
+    spuriousCalls,
+    missedCalls,
     model: raw.model ?? null,
     fillerRotation: raw.fillerRotation ?? null,
     historyChars: raw.historyChars ?? null,

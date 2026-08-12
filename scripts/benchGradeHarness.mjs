@@ -1697,6 +1697,145 @@ async function main() {
         `agg e=${miss.emittedAnyToolCall} rounds=${JSON.stringify(miss.turns?.[0]?.toolRounds)}`,
       );
     }
+
+    // ── tool-call timing vs per-turn expectation ──────────────────────
+    {
+      const gradeTiming = (label, turnspec) => {
+        const d = path.join(tmp, `tt-${label}`);
+        mkdirSync(d, { recursive: true });
+        const turns = turnspec.map((s, i) =>
+          turn(i + 1, s.id, s.reply ?? "ok", {
+            sources: s.sources ?? 0,
+            expectation: s.expectation,
+          }),
+        );
+        for (let i = 0; i < turnspec.length; i++) {
+          writeSidecar(d, i + 1, {
+            toolcall: turnspec[i].toolcall ?? [toolRound()],
+          });
+        }
+        return gradeRaw(baseRaw({ turns }), d);
+      };
+
+      const mustHit = gradeTiming("must-hit", [
+        {
+          id: "probe_tool",
+          expectation: "must",
+          toolcall: [toolRound({ structuredCalls: 1, executed: 1 })],
+        },
+      ]);
+      check(
+        "timing: call on must → precision numerator, recall hit",
+        mustHit.toolPrecision === 1 &&
+          mustHit.toolRecall === 1 &&
+          mustHit.spuriousCalls === 0 &&
+          mustHit.missedCalls === 0,
+        `p=${mustHit.toolPrecision} r=${mustHit.toolRecall} sp=${mustHit.spuriousCalls} miss=${mustHit.missedCalls}`,
+      );
+
+      const spurious = gradeTiming("must-not-call", [
+        {
+          id: "plant_a",
+          expectation: "must_not",
+          toolcall: [toolRound({ structuredCalls: 1, executed: 1 })],
+        },
+      ]);
+      check(
+        "timing: call on must_not → spurious, precision denominator only",
+        spurious.toolPrecision === 0 &&
+          spurious.toolRecall === null &&
+          spurious.spuriousCalls === 1 &&
+          spurious.missedCalls === 0,
+        `p=${spurious.toolPrecision} r=${spurious.toolRecall} sp=${spurious.spuriousCalls}`,
+      );
+
+      const missed = gradeTiming("must-miss", [
+        {
+          id: "probe_tool",
+          expectation: "must",
+          toolcall: [toolRound()],
+        },
+      ]);
+      check(
+        "timing: must turn with no call → missed, recall miss",
+        missed.toolPrecision === null &&
+          missed.toolRecall === 0 &&
+          missed.spuriousCalls === 0 &&
+          missed.missedCalls === 1,
+        `p=${missed.toolPrecision} r=${missed.toolRecall} miss=${missed.missedCalls}`,
+      );
+
+      const eitherMix = gradeTiming("either-excluded", [
+        {
+          id: "probe_tool",
+          expectation: "must",
+          toolcall: [toolRound({ structuredCalls: 1, executed: 1 })],
+        },
+        {
+          id: "probe_honesty",
+          expectation: "either",
+          toolcall: [toolRound({ structuredCalls: 2, executed: 2 })],
+        },
+        {
+          id: "filler_1",
+          expectation: "either",
+          toolcall: [toolRound()],
+        },
+      ]);
+      check(
+        "timing: either turn with and without a call → excluded from both metrics",
+        eitherMix.toolPrecision === 1 &&
+          eitherMix.toolRecall === 1 &&
+          eitherMix.spuriousCalls === 0 &&
+          eitherMix.missedCalls === 0,
+        `p=${eitherMix.toolPrecision} r=${eitherMix.toolRecall} (either calls must not enter denom)`,
+      );
+
+      const allEither = gradeTiming("all-either", [
+        {
+          id: "probe_honesty",
+          expectation: "either",
+          toolcall: [toolRound({ structuredCalls: 1, executed: 1 })],
+        },
+        {
+          id: "filler_1",
+          expectation: "either",
+          toolcall: [toolRound()],
+        },
+      ]);
+      check(
+        "timing: all either turns → both metrics null, not 0",
+        allEither.toolPrecision === null &&
+          allEither.toolRecall === null &&
+          allEither.toolPrecision !== 0 &&
+          allEither.toolRecall !== 0,
+        `p=${allEither.toolPrecision} r=${allEither.toolRecall}`,
+      );
+
+      const twoCalls = gradeTiming("two-on-must", [
+        {
+          id: "probe_tool",
+          expectation: "must",
+          toolcall: [
+            toolRound({ structuredCalls: 1, executed: 1, round: 0 }),
+            toolRound({ structuredCalls: 1, executed: 1, round: 1 }),
+          ],
+        },
+        {
+          id: "plant_a",
+          expectation: "must_not",
+          toolcall: [toolRound({ structuredCalls: 1, executed: 1 })],
+        },
+      ]);
+      check(
+        "timing: two calls on one must turn → recall once, precision both",
+        twoCalls.toolPrecision === 2 / 3 &&
+          twoCalls.toolRecall === 1 &&
+          twoCalls.spuriousCalls === 1 &&
+          twoCalls.missedCalls === 0,
+        `p=${twoCalls.toolPrecision} r=${twoCalls.toolRecall} (want 2/3 and 1/1 turns)`,
+      );
+    }
   } finally {
     try {
       rmSync(tmp, { recursive: true, force: true });

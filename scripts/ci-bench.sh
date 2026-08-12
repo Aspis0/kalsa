@@ -783,12 +783,15 @@ capture_turn_evidence() {
 record_turn() {
   local index="$1" kind="$2" id="$3" prompt="$4" elapsed_s="$5" sources="$6" has_miniapp="$7"
   local settled_s="${8:-${SAW_SETTLED_S:-}}"
+  local expectation="${9:-}"
   python3 -c '
 import json, sys
 index, kind, tid, prompt, elapsed_s, sources, has_miniapp, reply_path, settled_s = sys.argv[1:10]
+expectation = sys.argv[10] if len(sys.argv) > 10 else ""
 reply = open(reply_path, encoding="utf-8").read()
 # settled_s null when absent (running campaign raw.json has no field yet).
 settled = int(settled_s) if settled_s not in ("", "None", "null") else None
+expect = expectation if expectation in ("must", "must_not", "either") else None
 rec = {
     "index": int(index),
     "kind": kind,
@@ -800,9 +803,10 @@ rec = {
     "replyLen": len(reply),
     "sources": int(sources),
     "hasMiniapp": has_miniapp == "true",
+    "expectation": expect,
 }
 print(json.dumps(rec, ensure_ascii=False))
-' "$index" "$kind" "$id" "$prompt" "$elapsed_s" "$sources" "$has_miniapp" "$OUT/.reply_tmp" "$settled_s" \
+' "$index" "$kind" "$id" "$prompt" "$elapsed_s" "$sources" "$has_miniapp" "$OUT/.reply_tmp" "$settled_s" "$expectation" \
     >> "$OUT/.turns.jsonl" \
     || die "record_turn python failed for turn $index ($id) — refusing to drop a turn silently"
 }
@@ -945,7 +949,9 @@ settle_turn_reply() {
   fi
 }
 
-# Run a turn plan: parallel arrays PLAN_KIND / PLAN_ID / PLAN_PROMPT (1-indexed turns).
+# Run a turn plan: parallel arrays PLAN_KIND / PLAN_ID / PLAN_PROMPT / PLAN_EXPECT
+# (1-indexed turns). PLAN_EXPECT is the tool-call expectation (must|must_not|either)
+# and is recorded on the turn so graders never infer it from prompt text.
 # Shared by fase4 and smoke so the conversation length is the only difference.
 # Per-turn ceiling 2400s (not 1500): run 31367691176 saw TTFT of 624 s at turn 13
 # with thinking on, so 1500 s had no margin. fase0 still uses 1500 below.
@@ -955,13 +961,14 @@ run_turn_plan() {
   for i in $(seq 0 $((n - 1))); do
     local turn=$((i + 1))
     msg="${PLAN_PROMPT[$i]}"
-    log "=== turn $turn/${n} kind=${PLAN_KIND[$i]} id=${PLAN_ID[$i]} ==="
+    log "=== turn $turn/${n} kind=${PLAN_KIND[$i]} id=${PLAN_ID[$i]} expect=${PLAN_EXPECT[$i]} ==="
     # 1) first persistence (latency) 2) idle 3) re-read settled 4) evidence 5) record
     send_and_wait "$msg" 2400 || die "timeout/failure on turn $turn (${PLAN_ID[$i]})"
     settle_turn_reply
     capture_turn_evidence "$turn"
     record_turn "$turn" "${PLAN_KIND[$i]}" "${PLAN_ID[$i]}" "$msg" \
-      "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP"
+      "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP" \
+      "${SAW_SETTLED_S:-}" "${PLAN_EXPECT[$i]}"
     # Pure idle between turns (no adb/UI) so SUMMARY_IDLE_DEBOUNCE can fire.
     # Skipped after the final turn — wall-clock only, no more prompts to type.
     if [ "$turn" -lt "$n" ] && [ "$INTER_TURN_DELAY_S" -gt 0 ]; then
@@ -1068,16 +1075,20 @@ elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
   PLAN_KIND=()
   PLAN_ID=()
   PLAN_PROMPT=()
-  plan_add() { PLAN_KIND+=("$1"); PLAN_ID+=("$2"); PLAN_PROMPT+=("$3"); }
+  PLAN_EXPECT=()
+  # $4 = must | must_not | either — travels in raw.json; do not infer from prompt.
+  plan_add() { PLAN_KIND+=("$1"); PLAN_ID+=("$2"); PLAN_PROMPT+=("$3"); PLAN_EXPECT+=("$4"); }
 
   # Plants — alphanumeric + spaces only (adb shell input text mangles punctuation).
   plan_add plant plant_a \
-    "Ricorda questi dati il gatto si chiama Leopoldo il budget e 4500 euro la citta e Torino il codice e PK42"
+    "Ricorda questi dati il gatto si chiama Leopoldo il budget e 4500 euro la citta e Torino il codice e PK42" \
+    must_not
   if [ "$PHASE" = "fase4" ]; then
     plan_add plant plant_b \
-      "Ricorda anche il colore e Zaffiro il modello e XR9 il porto e Brindisi il vino e Nebbiolo"
+      "Ricorda anche il colore e Zaffiro il modello e XR9 il porto e Brindisi il vino e Nebbiolo" \
+      must_not
     for i in "${!FILLERS[@]}"; do
-      plan_add filler "filler_$((i+1))" "${FILLERS[$i]}"
+      plan_add filler "filler_$((i+1))" "${FILLERS[$i]}" either
     done
     # Fact-probe layout vs LEGACY_MAX_HISTORY = 20 (src/context/compactor.ts:128;
     # baseline arm uses messages.slice(-LEGACY_MAX_HISTORY) at :436-443 when
@@ -1094,17 +1105,23 @@ elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
     #     echoes are outside the baseline window → only retrieval can supply
     #     the facts. DISCRIMINATING probe (primary endpoint).
     plan_add probe probe_facts_early \
-      "Ripeti tutti i dati che ti ho dato nei primi due messaggi"
+      "Ripeti tutti i dati che ti ho dato nei primi due messaggi" \
+      must_not
     plan_add probe probe_tool \
-      "Cerca sul web le previsioni del meteo di domani a Milano"
+      "Cerca sul web le previsioni del meteo di domani a Milano" \
+      must
     plan_add probe probe_miniapp \
-      "Fammi un quiz di tre domande sulla geografia"
+      "Fammi un quiz di tre domande sulla geografia" \
+      must_not
     plan_add probe probe_language \
-      "In quale continente si trova il Brasile e perche"
+      "In quale continente si trova il Brasile e perche" \
+      must_not
     plan_add probe probe_honesty \
-      "Chi ha vinto il premio Zorblax nel 2019"
+      "Chi ha vinto il premio Zorblax nel 2019" \
+      either
     plan_add probe probe_facts_late \
-      "Ripeti tutti i dati che ti ho dato nei primi due messaggi"
+      "Ripeti tutti i dati che ti ho dato nei primi due messaggi" \
+      must_not
   else
     # smoke: 2 plants + every campaign probe family (7 turns, ≤ 9).
     # WHY not 5: a smoke that only grades facts de-risks a different
@@ -1117,17 +1134,23 @@ elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
     # dispatch on turn id; do not invent wording.
     FACTS_JSON='["Leopoldo","4500","Torino","PK42","Zaffiro","XR9","Brindisi","Nebbiolo"]'
     plan_add plant plant_b \
-      "Ricorda anche il colore e Zaffiro il modello e XR9 il porto e Brindisi il vino e Nebbiolo"
+      "Ricorda anche il colore e Zaffiro il modello e XR9 il porto e Brindisi il vino e Nebbiolo" \
+      must_not
     plan_add probe probe_facts \
-      "Ripeti tutti i dati che ti ho dato nei primi due messaggi"
+      "Ripeti tutti i dati che ti ho dato nei primi due messaggi" \
+      must_not
     plan_add probe probe_tool \
-      "Cerca sul web le previsioni del meteo di domani a Milano"
+      "Cerca sul web le previsioni del meteo di domani a Milano" \
+      must
     plan_add probe probe_miniapp \
-      "Fammi un quiz di tre domande sulla geografia"
+      "Fammi un quiz di tre domande sulla geografia" \
+      must_not
     plan_add probe probe_language \
-      "In quale continente si trova il Brasile e perche"
+      "In quale continente si trova il Brasile e perche" \
+      must_not
     plan_add probe probe_honesty \
-      "Chi ha vinto il premio Zorblax nel 2019"
+      "Chi ha vinto il premio Zorblax nel 2019" \
+      either
   fi
 
   new_conversation

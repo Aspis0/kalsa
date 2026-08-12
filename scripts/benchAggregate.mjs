@@ -865,6 +865,51 @@ function collectSummaryByMode(fase4) {
   return byMode;
 }
 
+/**
+ * Exploratory per-mode tool-call timing. Null rates are excluded from the
+ * mean, never coerced to 0. Counts sum only over results that carry the fields.
+ */
+function collectToolTimingByMode(fase4) {
+  const acc = new Map();
+  for (const mode of FASE4_MODES) {
+    acc.set(mode, { prec: [], rec: [], spurious: 0, missed: 0, nWithFields: 0 });
+  }
+  for (const r of fase4) {
+    const mode = modeOf(r);
+    if (!mode || !acc.has(mode)) continue;
+    const row = acc.get(mode);
+    const has =
+      Object.prototype.hasOwnProperty.call(r, "toolPrecision") ||
+      Object.prototype.hasOwnProperty.call(r, "toolRecall") ||
+      Object.prototype.hasOwnProperty.call(r, "spuriousCalls") ||
+      Object.prototype.hasOwnProperty.call(r, "missedCalls");
+    if (!has) continue;
+    row.nWithFields += 1;
+    if (typeof r.toolPrecision === "number" && Number.isFinite(r.toolPrecision)) {
+      row.prec.push(r.toolPrecision);
+    }
+    if (typeof r.toolRecall === "number" && Number.isFinite(r.toolRecall)) {
+      row.rec.push(r.toolRecall);
+    }
+    if (typeof r.spuriousCalls === "number" && Number.isFinite(r.spuriousCalls)) {
+      row.spurious += r.spuriousCalls;
+    }
+    if (typeof r.missedCalls === "number" && Number.isFinite(r.missedCalls)) {
+      row.missed += r.missedCalls;
+    }
+  }
+  return FASE4_MODES.map((mode) => {
+    const row = acc.get(mode);
+    return {
+      mode,
+      toolPrecision: row.prec.length === 0 ? null : meanOf(row.prec),
+      toolRecall: row.rec.length === 0 ? null : meanOf(row.rec),
+      spuriousCalls: row.nWithFields > 0 ? row.spurious : null,
+      missedCalls: row.nWithFields > 0 ? row.missed : null,
+    };
+  });
+}
+
 function collectPrefill(fase4) {
   // arm -> arrays of numeric samples (nulls never pushed)
   const byArm = new Map();
@@ -1189,6 +1234,7 @@ function aggregateFase4(results) {
   const positiveControl = collectPositiveControl(fase4);
   const notes = collectNotes(fase4);
   const summaryByMode = collectSummaryByMode(fase4);
+  const toolTimingByMode = collectToolTimingByMode(fase4);
 
   const gated = shouldGateFase4();
   const seedsInfo = expectSeedsInfo();
@@ -1228,6 +1274,7 @@ function aggregateFase4(results) {
     conversationPrimary,
     pairwise,
     summaryByMode,
+    toolTimingByMode,
     prefill,
     positiveControl,
     notes,
@@ -1442,6 +1489,48 @@ function renderFase4(agg) {
       }
       lines.push("");
     }
+  }
+
+  // ── Exploratory: tool-call timing (reported only, not gated) ────────
+  lines.push(
+    "",
+    "### Exploratory: tool-call timing",
+    "",
+    "_Exploratory — not gated, not the primary endpoint. Precision = correct executed calls / all executed calls on `must`/`must_not` turns; recall = `must` turns with ≥1 executed call. `either` turns excluded. Empty denominator → n/a, never 0._",
+    "",
+    "| mode | precision | recall | spurious | missed |",
+    "|---|---|---|---|---|",
+  );
+  const toolTiming = agg.toolTimingByMode ?? [];
+  const timingByMode = new Map(toolTiming.map((r) => [r.mode, r]));
+  if (toolTiming.length === 0) {
+    lines.push("| — | n/a | n/a | n/a | n/a |");
+  } else {
+    for (const row of toolTiming) {
+      const sp = row.spuriousCalls == null ? "n/a" : String(row.spuriousCalls);
+      const miss = row.missedCalls == null ? "n/a" : String(row.missedCalls);
+      lines.push(
+        `| ${row.mode} | ${fmt(row.toolPrecision)} | ${fmt(row.toolRecall)} | ${sp} | ${miss} |`,
+      );
+    }
+  }
+  lines.push(
+    "",
+    "| comparison | precision A | precision B | recall A | recall B | spurious A | spurious B | missed A | missed B |",
+    "|---|---|---|---|---|---|---|---|---|",
+  );
+  for (const spec of PAIRWISE_SPECS) {
+    const a = timingByMode.get(spec.modeA);
+    const b = timingByMode.get(spec.modeB);
+    const cell = (row, key) => {
+      if (!row) return "n/a";
+      const v = row[key];
+      if (v == null) return "n/a";
+      return key === "spuriousCalls" || key === "missedCalls" ? String(v) : fmt(v);
+    };
+    lines.push(
+      `| ${spec.label} | ${cell(a, "toolPrecision")} | ${cell(b, "toolPrecision")} | ${cell(a, "toolRecall")} | ${cell(b, "toolRecall")} | ${cell(a, "spuriousCalls")} | ${cell(b, "spuriousCalls")} | ${cell(a, "missedCalls")} | ${cell(b, "missedCalls")} |`,
+    );
   }
 
   // ── Probe-level (pseudo-replicated — NOT the gate) ──────────────────

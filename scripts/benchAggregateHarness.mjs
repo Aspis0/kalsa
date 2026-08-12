@@ -1708,6 +1708,131 @@ async function main() {
         /errorTurns \[13\]/.test(markdown) || /errorTurns/.test(markdown),
       );
     }
+
+    // ── Exploratory tool-call timing: null mode must still render ─────
+    {
+      const d = path.join(tmp, "tool-timing-null");
+      mkdirSync(d, { recursive: true });
+      writeCompleteCampaign(d);
+      for (const seed of [1, 2, 3]) {
+        writeResult(
+          d,
+          "baseline",
+          seed,
+          baseResult({
+            arm: "baseline",
+            seed,
+            compaction: "off",
+            compactionPrefRaw: "0",
+            compactionActive: "off",
+            toolPrecision: 0.5,
+            toolRecall: 1,
+            spuriousCalls: 2,
+            missedCalls: 0,
+            positiveControl: {
+              promptTokensByTurn: { "1": 800, "2": 900 },
+              reusedTokensByTurn: { "1": 0, "2": 100 },
+              completionsByTurn: { "1": 1, "2": 1 },
+              compactorChars: 0,
+              summaryChars: 0,
+            },
+          }),
+        );
+        writeResult(
+          d,
+          "v42",
+          seed,
+          baseResult({
+            arm: "v42",
+            seed,
+            compaction: "on",
+            compactionPrefRaw: "1",
+            compactionActive: "v42",
+            probes: [
+              probe("fact_A", "fact_recall", true),
+              probe("fact_B", "fact_recall", true),
+              probe("tool_call", "tool_call", false),
+              probe("miniapp", "miniapp", true),
+              probe("language", "language", true),
+              probe("honesty", "honesty", true),
+            ],
+            recall: 1,
+            byFamily: {
+              fact_recall: { found: 2, total: 2, rate: 1 },
+              tool_call: { found: 0, total: 1, rate: 0 },
+              miniapp: { found: 1, total: 1, rate: 1 },
+              language: { found: 1, total: 1, rate: 1 },
+              honesty: { found: 1, total: 1, rate: 1 },
+            },
+            toolPrecision: null,
+            toolRecall: null,
+            spuriousCalls: 0,
+            missedCalls: 0,
+            positiveControl: {
+              promptTokensByTurn: { "1": 800, "2": 950 + seed },
+              reusedTokensByTurn: { "1": 0, "2": 120 },
+              completionsByTurn: { "1": 1, "2": 1 },
+              digestCharsByTurn: { "1": 0, "2": 40 + seed },
+              boundaryByTurn: { "1": 0, "2": 8 },
+              compactorChars: 400 + seed,
+              summaryChars: 50,
+            },
+          }),
+        );
+        writeResult(
+          d,
+          "ciswire",
+          seed,
+          baseResult({
+            arm: "ciswire",
+            seed,
+            compaction: "ciswire",
+            compactionPrefRaw: "ciswire",
+            compactionActive: "ciswire",
+            probes: [
+              probe("fact_A", "fact_recall", true),
+              probe("fact_B", "fact_recall", true),
+              probe("tool_call", "tool_call", true),
+              probe("miniapp", "miniapp", true),
+              probe("language", "language", true),
+              probe("honesty", "honesty", true),
+            ],
+            recall: 1,
+            byFamily: {
+              fact_recall: { found: 2, total: 2, rate: 1 },
+              tool_call: { found: 1, total: 1, rate: 1 },
+              miniapp: { found: 1, total: 1, rate: 1 },
+              language: { found: 1, total: 1, rate: 1 },
+              honesty: { found: 1, total: 1, rate: 1 },
+            },
+            toolPrecision: 1,
+            toolRecall: 1,
+            spuriousCalls: 0,
+            missedCalls: 0,
+            positiveControl: {
+              promptTokensByTurn: { "1": 800, "2": 970 + seed },
+              reusedTokensByTurn: { "1": 0, "2": 130 },
+              completionsByTurn: { "1": 1, "2": 1 },
+              digestCharsByTurn: { "1": 0, "2": 50 + seed },
+              boundaryByTurn: { "1": 0, "2": 10 },
+              compactorChars: 500 + seed,
+              summaryChars: 40,
+            },
+          }),
+        );
+      }
+      const { markdown, exitCode } = withEnv(
+        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
+        () => runAggregate([d]),
+      );
+      check(
+        "exploratory tool-timing: null mode still renders, gate intact",
+        exitCode === 0 &&
+          /### Exploratory: tool-call timing/.test(markdown) &&
+          /\| v42 \| n\/a \| n\/a \|/.test(markdown),
+        `exit=${exitCode}\n${markdown.split("\n").filter((l) => /Exploratory|precision|^\| (off|v42|ciswire) \|/.test(l)).join("\n")}`,
+      );
+    }
   } finally {
     try {
       rmSync(tmp, { recursive: true, force: true });
