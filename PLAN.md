@@ -82,7 +82,7 @@
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
 | energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
-| **Spike F3 kernel dense 740 (classe 2-4B)** — decisione strategica | La via zero-fork è ESAURITA (twin 2026-08-12): il numero GPU same-stack sulla classe 4B non è ottenibile da Gallery. Evidenza pro: Gemma E2B 2.76×, ML Drift 26.8 su 3B, curva CPU che crolla (2B 18.1 → 4B 8.38 = il modello prodotto Kalsa). Costo: giorni di spike nel fork (GEMV local-memory INT8 no-subgroup) + manutenzione. Compete per lo stesso tempo ingegneria con la pista MoE-GPU 750+ | gualt: scegliere F3-740-dense vs MoE-GPU-750 (o sequenza) |
+| **GPU per il free tier dense (2B/4B) — PRIORITÀ PRODOTTO** (mandato gualt 2026-08-12: "i free devono essere veloci, sennò i pro non si vendono") | Via bundle-catalogo chiusa (twin: nessun bundle 2B, 4B senza GPU option). **Due piste aperte**: (1) **porting in proprio su LiteRT** — convertire Qwen3.5-2B/4B con ai-edge-torch + bundling litert-lm GPU-enabled, misurare su S23, e se vince integrare MediaPipe/LiteRT-LM come secondo engine in Kalsa per il free dense (kernel mantenuti da Google, copre anche Mali); recon feasibility IN VOLO (Grok web). (2) **F3 kernel nostro nel fork** (GEMV local-memory INT8 no-subgroup, solo Adreno, giorni + manutenzione). Evidenza pro-GPU: Gemma E2B 2.76×, ML Drift 26.8 su 3B; curva CPU crolla 2B 18.1 → 4B 8.38 | recon → poi gualt sceglie (1), (2) o sequenza |
 | Jelly free-tier baseline (Qwen3.5-4B dense, llama-bench ABBA `-t 2`) | **BLOCKED** — Jelly irraggiungibile (ping OK, adb/sshd chiusi: wireless debug perso post-reboot). Modello+sha già staged in `results/jelly/` — `reports/moe-jelly-freetier.md` | gualt fisico (riattivare wireless debug/sshd) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
 | **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065 su S23/CPU. **NUOVO (mandato gualt 2026-08-12): pista MoE-GPU scoped Adreno 750+** — sequenza gated (a)-(e) in candidati #1: F-0 Amdahl → riverifica upstream → MarcoKEXP come veicolo → S2 split su Xiaomi 14 → solo dopo il kernel serio (GDN/SSM per CalaQwen) | F-0 = carta; S2 dopo MarcoKEXP |
@@ -1138,12 +1138,16 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
      4B 8.38. Conferma dove il CPU crolla: esattamente sulla classe del
      modello prodotto Kalsa.
   4. **Lettura di gate**: il criterio pre-dichiarato (GPU ≥1.15× same-class)
-     non è verificabile né falsificabile via Gallery sul 4B. L'evidenza pro
-     resta per proxy (Gemma E2B 2.76×; ML Drift 26.8 su Llama-3B vs nostro
-     CPU 8.38 sul 4B ≈ 2-3× potenziale). Il numero same-stack ora ha un solo
-     modo di esistere: lo **spike F3 nel fork** (GEMV local-memory INT8
-     no-subgroup, giorni). Decisione strategica gualt: F3-740-dense vs
-     pista MoE-GPU-750 (v. candidati #1 rev. 2026-08-12) — o in sequenza.
+     non è verificabile né falsificabile coi bundle DI CATALOGO. L'evidenza
+     pro resta per proxy (Gemma E2B 2.76×; ML Drift 26.8 su Llama-3B vs
+     nostro CPU 8.38 sul 4B ≈ 2-3× potenziale). **[CORREZIONE stessa
+     giornata, stop di gualt]**: la prima stesura diceva "via zero-fork
+     esaurita" — FALSO: resta il **porting in proprio** (conversione
+     ai-edge-torch di Qwen3.5-2B/4B + bundling litert-lm GPU-enabled), che
+     dà il numero mancante senza scrivere kernel. Direttiva prodotto
+     dichiarata: i free (2B/4B) DEVONO essere veloci — sono il funnel dei
+     pro. Recon feasibility affidata a Grok (web); F3-fork resta la pista
+     alternativa se il porting non è percorribile.
   Artefatti: `results/litert_product/` (bench JSON, dump a11y, battery
   notes), report `moe-litert-product-classes.md`. Disciplina rispettata:
   sempre staccato, mai <30% batt, mai ≥45°C.
