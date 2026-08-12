@@ -23,3 +23,6 @@ Thumbs.db
 
 # Stato interno pi (goal state)
 .pi/
+results/**/bin/llama-*
+results/**/bin/*.so
+results/**/bin/test-backend-ops
