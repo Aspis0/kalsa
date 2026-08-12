@@ -74,6 +74,11 @@ Inference, chat history, memory facts and model files stay on the device. Androi
 disabled so multi-GB models and conversations are not copied off the phone. The only outbound
 traffic is a web search you explicitly trigger, and the model download from Hugging Face.
 
+**Telemetry** is off by default and opt-in. A release/store build **must** set
+`TELEMETRY_WORKER_URL` in `src/telemetry/config.ts` to the deployed Worker
+origin (see `workers/telemetry/README.md`). Leaving it empty silently disables
+network send — correct for local/dev, not for production.
+
 ## License
 
 [Apache License 2.0](LICENSE) — see the file for terms. Model weights are distributed by their

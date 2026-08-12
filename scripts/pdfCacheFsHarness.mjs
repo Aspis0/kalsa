@@ -38,6 +38,10 @@ function compile() {
       "nodenext",
       "--skipLibCheck",
       "--ignoreConfig",
+      // webFetchTool.ts uses require(); --ignoreConfig drops tsconfig, so @types/node
+      // must be requested explicitly or tsc reports TS2591.
+      "--types",
+      "node",
     ],
     { cwd: projectRoot, encoding: "utf8", shell: true },
   );

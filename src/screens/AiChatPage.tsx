@@ -5,6 +5,7 @@ import {
   AppState,
   type AppStateStatus,
   Dimensions,
+  FlatList,
   Image,
   Linking,
   Modal,
@@ -66,6 +67,18 @@ import {
   saveEngineSession,
   translateText,
 } from "../engine/LlamaService";
+import {
+  backgroundDiscardLifecycleRef,
+  regenAbortRef,
+  regenGenerationRef,
+  regenHandleSendPassRef,
+  regenInFlightRef,
+  sendClaimRef,
+  sendingInFlightRef,
+} from "../engine/regenState";
+import { decidePreSendFit } from "../engine/deviceProfile";
+import { getAvailableMemoryBytesUncached } from "../engine/monitor";
+import { getModelById } from "../engine/ModelRegistry";
 import { miniappStripMakesKvNonReproducible } from "../engine/kvReproducibility";
 import { historyHash } from "../engine/sessionPersistence";
 import { createStreamCoalescer } from "../engine/streamCoalescer";
@@ -128,13 +141,17 @@ export type ChatCta = {
 // ── Feature 4: attachment locale (vision) ─────────────────────────────────
 // `uri`/`pages` sono file di cache temporanei (NON persistiti); `pageCount` è
 // l'unico metadata persistito (sanitizer).
+// kind "document" = library PDF/TXT (retrieval source via document_chat tool);
+// carries libraryDocId so the tool can select the right entry.
 export type LocalAttachment = {
   id: string;
-  kind: "image" | "pdf";
+  kind: "image" | "pdf" | "document";
   name: string;
   uri: string;
   pages?: string[];
   pageCount?: number;
+  /** Library document id when kind === "document". */
+  libraryDocId?: string;
 };
 
 type Message = {
@@ -144,6 +161,8 @@ type Message = {
   streaming?: boolean;
   /** Terminal marker: generation was interrupted mid-stream (partial text kept). */
   interrupted?: boolean;
+  /** True when the user edited this message text (edit-then-regen flow). */
+  edited?: boolean;
   // Feature 1: status history
   statusLabel?: string;
   statusHistory?: string[];
@@ -170,7 +189,14 @@ type StreamCallbacks = {
   onMiniapp?: (miniapp: any) => void;
   // RNA-seq job context: emitted once per stream before the LLM starts.
   onImages?: (images: ResultImage[], downloads: ResultDownload[]) => void;
+  /** Optional failure signal from stream backends that resolve instead of reject. */
+  onFailed?: (reasonKey: string) => void;
 };
+
+/** Discriminated result for handleSend — regen/edit inspect this for snapshot restore. */
+export type HandleSendResult =
+  | { ok: true }
+  | { ok: false; reasonKey: string };
 
 /** UI phase for tap-to-talk (mirrors pure VoiceUiPhase). */
 type VoiceUiState = VoiceUiPhase;
@@ -203,11 +229,21 @@ type Props = {
   /** Settings → Voice TTS toggle (default true). */
   ttsEnabled?: boolean;
   /**
-   * Resolved n_ctx for the loaded (or selected) model — from AppShell's
-   * resolveContextProfile. Used by the long-chat nudge as its token ceiling.
+   * Effective n_ctx of the loaded engine (post memory-clamp), from AppShell.
+   * Same value as chatEngineCtxRef / getActiveEngineNCtx — not the pre-clamp
+   * catalog resolve. Used by the long-chat nudge as its token ceiling.
    * Omitted → longChatEstimate.LONG_CHAT_DEFAULT_N_CTX.
    */
   engineCtx?: number;
+  /** Snapshot of the local document library (for attach-from-library). */
+  documentLibrary?: { docs: Array<{ id: string; name: string; kind: string; pageCount?: number }> };
+  /** Open the Documents overlay (empty library / manage). */
+  onOpenDocuments?: () => void;
+  /**
+   * Optional UI banner sink for non-blocking fit signals (e.g. model.memoryUnknown).
+   * AppShell wires this to setMemoryBannerKey.
+   */
+  onMemoryBanner?: (reasonKey: string | null) => void;
 };
 
 type SuggestionItem = {
@@ -374,6 +410,9 @@ function buildPersistableMessages(
         name: a.name,
         uri: "",
         ...(typeof a.pageCount === "number" && a.pageCount > 0 ? { pageCount: a.pageCount } : {}),
+        ...(typeof a.libraryDocId === "string" && a.libraryDocId.length > 0
+          ? { libraryDocId: a.libraryDocId.slice(0, 120) }
+          : {}),
       }));
       if (message.streaming && allowStreamingPartial) {
         return {
@@ -388,20 +427,51 @@ function buildPersistableMessages(
       return {
         ...message,
         streaming: undefined,
+        // Never persist live tool status — restored "Writing / Reading document…"
+        // after kill/reload left an orphan strip on finished turns (Jelly MED-5).
+        statusLabel: undefined,
         statusHistory: undefined,
         attachments,
       };
     });
 }
 
-/** Immediate history write (AppState / unmount / throttle) — fire-and-forget. */
+/**
+ * Immediate history write (AppState / unmount / throttle) — fire-and-forget.
+ *
+ * Invariant: every write is epoch-stamped; clear bumps the epoch; stale writes
+ * are no-ops. Callers capture `epoch` at SCHEDULE time and pass getEpoch so a
+ * clearChat (or hard reset) that lands before setItem drops the write.
+ */
 function persistMessagesNow(
   messagesSnapshot: Message[],
-  opts?: { allowStreamingPartial?: boolean },
+  opts?: {
+    allowStreamingPartial?: boolean;
+    /** Epoch stamped when the write was scheduled. */
+    epoch?: number;
+    /** Reads the live epoch; stale when !== opts.epoch. */
+    getEpoch?: () => number;
+  },
 ): void {
   if (!messagesSnapshot.length) return;
+  // Drop if clear/reset already advanced the epoch before we build the payload.
+  if (
+    opts?.epoch != null &&
+    typeof opts.getEpoch === "function" &&
+    opts.getEpoch() !== opts.epoch
+  ) {
+    return;
+  }
   const clean = buildPersistableMessages(messagesSnapshot, opts);
   if (!clean.length) return;
+  // Re-check immediately before the write so a clear that raced the build drops.
+  if (
+    opts?.epoch != null &&
+    typeof opts.getEpoch === "function" &&
+    opts.getEpoch() !== opts.epoch
+  ) {
+    return;
+  }
   AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(clean)).catch(() => undefined);
 }
 
@@ -438,13 +508,12 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
     if (record.interrupted === true && message.text.trim().length > 0) {
       message.interrupted = true;
     }
-    // Gli stati transitori non vengono mai ripristinati: niente spinner eterni.
-    if (typeof record.statusLabel === "string") message.statusLabel = record.statusLabel.slice(0, 200);
-    if (Array.isArray(record.statusHistory) && record.statusHistory.length <= MAX_ITEMS) {
-      message.statusHistory = record.statusHistory
-        .filter((s): s is string => typeof s === "string")
-        .slice(0, MAX_ITEMS);
+    if (record.edited === true) {
+      message.edited = true;
     }
+    // Transient UI only — never restore live status strips after kill/reload
+    // (orphan "Writing / Reading document…" after a finished turn — Jelly MED-5).
+    // statusLabel / statusHistory are intentionally dropped on restore.
     if (Array.isArray(record.sources) && record.sources.length <= MAX_ITEMS) {
       message.sources = record.sources
         .filter((s): s is Record<string, unknown> => !!s && typeof s === "object" && !Array.isArray(s))
@@ -488,12 +557,18 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
         .slice(0, MAX_ITEMS)
         .map((a) => ({
           id: typeof a.id === "string" ? a.id : `att-${Date.now()}`,
-          kind: a.kind === "pdf" || a.kind === "image" ? a.kind : "image",
+          kind:
+            a.kind === "pdf" || a.kind === "image" || a.kind === "document"
+              ? (a.kind as LocalAttachment["kind"])
+              : "image",
           name: typeof a.name === "string" ? a.name.slice(0, 300) : strings.common.attachment,
           // Le URI sono cache temporanea: non persistite (non disponibili al reload).
           uri: "",
           ...(typeof a.pageCount === "number" && a.pageCount > 0
             ? { pageCount: Math.min(a.pageCount, 10) }
+            : {}),
+          ...(typeof a.libraryDocId === "string" && a.libraryDocId.length > 0
+            ? { libraryDocId: a.libraryDocId.slice(0, 120) }
             : {}),
         }));
     }
@@ -557,6 +632,9 @@ export function AiChatPage({
   voiceReady = false,
   ttsEnabled = true,
   engineCtx,
+  documentLibrary,
+  onOpenDocuments,
+  onMemoryBanner,
 }: Props) {
   const { colors } = useLabTheme<any>();
   // Shadows the module-level `typography` import for this component only
@@ -654,16 +732,25 @@ export function AiChatPage({
    */
   const voiceRunIdRef = useRef(0);
   const voiceNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copiedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** Keep voiceUiRef and React state in lockstep for every phase change. */
   const setVoicePhase = useCallback((phase: VoiceUiState) => {
     voiceUiRef.current = phase;
     setVoiceUi(phase);
   }, []);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<FlatList<Message>>(null);
+  /** Inverted list: offset 0 = visual bottom (newest). True while the user is
+   *  at the bottom — the only state that may auto-follow the stream. Ref, no
+   *  setState, so onScroll stays cheap. */
+  const atBottomRef = useRef(true);
   const inputRef = useRef<TextInput>(null);
   const greeting = useMemo(() => greetingForHour(new Date().getHours(), t), [t]);
   const suggestions = useMemo(() => buildSuggestions(t), [t]);
+  /** Newest-first view of the history. FlatList keys on m.id so only the
+   *  changed row re-renders; the array is reallocated per flush (same item
+   *  refs), which is what signals a streaming update. */
+  const reversedMessages = useMemo(() => messages.slice().reverse(), [messages]);
 
   // ── Persistenza conversazione (Fase 1) ──────────────────────────────────
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -672,6 +759,15 @@ export function AiChatPage({
   messagesRef.current = messages;
   /** Throttle for mid-stream safety-net persists (at most once / 10s). */
   const lastPartialPersistAtRef = useRef(0);
+  /**
+   * Persistence epoch: every delayed/async write stamps the epoch at SCHEDULE
+   * time and re-checks immediately before AsyncStorage.setItem. clearChat (and
+   * any HISTORY_KEY remove) bumps the epoch first so a pending debounce /
+   * safety-net / AppState write that still holds the old messages is a no-op.
+   * Invariant: every write is epoch-stamped; clear bumps the epoch; stale writes
+   * are no-ops.
+   */
+  const persistEpochRef = useRef(0);
 
   useEffect(() => {
     let mounted = true;
@@ -705,9 +801,15 @@ export function AiChatPage({
   useEffect(() => {
     if (!historyLoaded || !messages.length) return;
     if (messages.some((m) => m.streaming)) return;
+    // Stamp epoch at SCHEDULE time so a clearChat during the 400ms window drops.
+    const epoch = persistEpochRef.current;
     const timer = setTimeout(() => {
+      if (persistEpochRef.current !== epoch) return;
       // X4: attachments[].uri/pages stripped inside buildPersistableMessages.
-      persistMessagesNow(messages);
+      persistMessagesNow(messages, {
+        epoch,
+        getEpoch: () => persistEpochRef.current,
+      });
     }, 400);
     return () => clearTimeout(timer);
   }, [historyLoaded, messages]);
@@ -730,12 +832,19 @@ export function AiChatPage({
       return;
     }
     lastPartialPersistAtRef.current = now;
-    persistMessagesNow(messages, { allowStreamingPartial: true });
+    const epoch = persistEpochRef.current;
+    persistMessagesNow(messages, {
+      allowStreamingPartial: true,
+      epoch,
+      getEpoch: () => persistEpochRef.current,
+    });
   }, [historyLoaded, messages]);
 
-  // Feature 4: attach state (immagini/foto/PDF → vision)
+  // Feature 4: attach state (immagini/foto/PDF → vision; library docs → document_chat)
   const [attachedItems, setAttachedItems] = useState<LocalAttachment[]>([]);
   const [attachSheetOpen, setAttachSheetOpen] = useState(false);
+  /** Nested picker: choose a library document to attach as a retrieval source. */
+  const [docPickOpen, setDocPickOpen] = useState(false);
   const [pdfToRender, setPdfToRender] = useState<{ uri: string; name: string } | null>(null);
   const pdfPagesRef = useRef<string[]>([]);
 
@@ -745,6 +854,11 @@ export function AiChatPage({
     id: string;
     text: string;
     role: Message["role"];
+  } | null>(null);
+  /** Inline edit of a user message (id + draft text). */
+  const [editingMessage, setEditingMessage] = useState<{
+    id: string;
+    draft: string;
   } | null>(null);
   const [translatingId, setTranslatingId] = useState<string | null>(null);
   const [translationResult, setTranslationResult] = useState<{
@@ -765,9 +879,12 @@ export function AiChatPage({
   // V4.2 §Fase 3.5: long-conversation nudge (one-shot per conversation).
   // Token estimate includes attachment vision cost; threshold is a fraction of
   // the resolved model n_ctx (see longChatEstimate.ts).
+  // Recompute the nudge only when the history length changes or the last
+  // message (de)finalizes — NOT on every streaming flush (message identity
+  // changes per token, which used to rescan the whole history).
   const longChat = useMemo(
     () => shouldShowLongChatNudge(messages, engineCtx),
-    [messages, engineCtx],
+    [messages.length, engineCtx, messages[messages.length - 1]?.streaming],
   );
 
   useEffect(() => {
@@ -873,12 +990,18 @@ export function AiChatPage({
     const onAppState = (next: AppStateStatus) => {
       if (next === "background" || next === "inactive") {
         const snap = messagesRef.current;
+        // Capture epoch at flush time; drop if clearChat lands before write.
+        const epoch = persistEpochRef.current;
         if (
           snap.some(
             (m) => m.streaming && typeof m.text === "string" && m.text.trim().length > 0,
           )
         ) {
-          persistMessagesNow(snap, { allowStreamingPartial: true });
+          persistMessagesNow(snap, {
+            allowStreamingPartial: true,
+            epoch,
+            getEpoch: () => persistEpochRef.current,
+          });
         }
         // KV save + clean history overwrite only on true background + idle.
         // While sending, keep the allowStreamingPartial payload above (pre-diff
@@ -890,11 +1013,14 @@ export function AiChatPage({
             if (!clean.length) {
               // Empty chat: drop stale session so next load stays cold-clean.
               void invalidateEngineSession(modelId);
-            } else {
+            } else if (persistEpochRef.current === epoch) {
               // Same JSON as HISTORY_KEY write so ensureEngine load hash matches.
+              // Epoch check: drop if clearChat raced before this write lands.
               const payload = JSON.stringify(clean);
-              AsyncStorage.setItem(HISTORY_KEY, payload).catch(() => undefined);
-              void saveEngineSession(modelId, historyHash(payload));
+              if (persistEpochRef.current === epoch) {
+                AsyncStorage.setItem(HISTORY_KEY, payload).catch(() => undefined);
+                void saveEngineSession(modelId, historyHash(payload));
+              }
             }
           }
         }
@@ -1178,6 +1304,16 @@ export function AiChatPage({
   const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   /**
+   * Promise of the active handleSend turn (resolves when the stream + finally
+   * settle). Background discard awaits this so dispose never races generation.
+   */
+  const sendInFlightPromiseRef = useRef<Promise<HandleSendResult> | null>(null);
+  /**
+   * Promise of the turn-end saveEngineSession (if any). Lifecycle awaits it
+   * after send settles so the real historyHash is on disk before dispose.
+   */
+  const turnEndSavePromiseRef = useRef<Promise<void> | null>(null);
+  /**
    * U1: generation token for a send turn (same idiom as voiceRunIdRef /
    * translateRunRef). clearChat() aborts + synchronously resets
    * sendingRef/setSending; without this token the aborted handleSend's own
@@ -1193,14 +1329,27 @@ export function AiChatPage({
     return () => {
       // Flush partial from ref BEFORE abort: updateMessage no-ops once unmounted,
       // and finally may never rewrite state — ref still holds latest streamed text.
-      persistMessagesNow(messagesRef.current, { allowStreamingPartial: true });
+      // Epoch-stamped so a clearChat that already ran drops this unmount write.
+      const epoch = persistEpochRef.current;
+      persistMessagesNow(messagesRef.current, {
+        allowStreamingPartial: true,
+        epoch,
+        getEpoch: () => persistEpochRef.current,
+      });
       mountedRef.current = false;
       abortRef.current?.abort();
+      regenAbortRef.current?.abort();
       translateAbortRef.current?.abort();
       translationInFlightRef.current = false;
+      sendingInFlightRef.current = false;
+      sendClaimRef.current = false;
       if (stopWatchdogRef.current != null) {
         clearTimeout(stopWatchdogRef.current);
         stopWatchdogRef.current = null;
+      }
+      if (copiedFlashTimer.current) {
+        clearTimeout(copiedFlashTimer.current);
+        copiedFlashTimer.current = null;
       }
     };
   }, []);
@@ -1218,19 +1367,26 @@ export function AiChatPage({
     if (prefillText) setDraft(prefillText);
   }, [prefillText]);
 
-  // HIGH-2: only scroll when a new message is added, not on every streaming delta
-  const messageCount = messages.length;
-  useEffect(() => {
-    if (messageCount > 0) {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }
-  }, [messageCount]);
-
-  // HIGH-1: targeted update — supports both patch object and function-form updater
+  // HIGH-1: targeted update — supports both patch object and function-form updater.
+  // ownerGen / ownerRunId: capture at the call site; the functional setMessages
+  // updater may run after clearChat / a newer send, so re-check ownership inside
+  // the deferred callback and no-op if the generation or runId has moved.
   const updateMessage = useCallback(
-    (id: string, patchOrFn: Partial<Message> | ((prev: Message) => Partial<Message>)) => {
+    (
+      id: string,
+      patchOrFn: Partial<Message> | ((prev: Message) => Partial<Message>),
+      ownerGen?: number,
+      ownerRunId?: number,
+    ) => {
       if (!mountedRef.current) return;
       setMessages(prev => {
+        if (
+          ownerGen !== undefined &&
+          (ownerGen !== regenGenerationRef.current ||
+            (ownerRunId !== undefined && ownerRunId !== sendRunIdRef.current))
+        ) {
+          return prev;
+        }
         const idx = prev.findIndex(m => m.id === id);
         if (idx === -1) return prev;
         const patch =
@@ -1243,9 +1399,122 @@ export function AiChatPage({
     [],
   );
 
+  /**
+   * Uncached pre-send fit gate. Refuses does_not_fit / tight-under-1.5x.
+   * unknown → allow + non-blocking banner via onMemoryBanner.
+   */
+  const awaitPreSendFitGate = useCallback(async (): Promise<HandleSendResult> => {
+    const mid = getActiveModelId();
+    // No active model yet → allow; ensureEngineForModel will surface load errors.
+    if (!mid) return { ok: true };
+    const model = getModelById(mid);
+    let available: number | null = null;
+    try {
+      available = await getAvailableMemoryBytesUncached();
+    } catch {
+      available = null;
+    }
+    const decision = decidePreSendFit(
+      {
+        sizeBytes: model.sizeBytes,
+        engineCtx: model.engineCtx,
+        kvBytesPerToken: model.kvBytesPerToken,
+        mmproj: model.mmproj ? { sizeBytes: model.mmproj.sizeBytes } : null,
+      },
+      available,
+    );
+    if (!decision.allow) {
+      showVoiceNote(t(decision.reasonKey as any));
+      onMemoryBanner?.(decision.reasonKey);
+      return { ok: false, reasonKey: decision.reasonKey };
+    }
+    if (decision.bannerKey) {
+      onMemoryBanner?.(decision.bannerKey);
+    }
+    return { ok: true };
+  }, [onMemoryBanner, showVoiceNote, t]);
+
+  /**
+   * Abort-and-await lifecycle for AppShell background disposal.
+   * 1) abort regen + send (incl. any pre-send fit-gate claim)
+   * 2) await handleSend finalization
+   * 3) await turn-end save (promise installed synchronously before setMessages)
+   * 4) return real historyHash of current messages
+   */
+  const awaitLifecycleForBackgroundDiscard = useCallback(async () => {
+    // Abort regen first so edit/regen refuse before handleSend starts.
+    regenAbortRef.current?.abort();
+    // Abort the active stream / pre-send controller (installed before fit gate).
+    abortRef.current?.abort();
+    // Spin until send claim / stream / regen settle so a fit-gate await cannot
+    // race past background and start generation after we dispose.
+    const tSpin = Date.now();
+    while (
+      (sendClaimRef.current ||
+        sendingRef.current ||
+        regenInFlightRef.current ||
+        sendingInFlightRef.current ||
+        sendInFlightPromiseRef.current) &&
+      Date.now() - tSpin < 5000
+    ) {
+      const sendP = sendInFlightPromiseRef.current;
+      if (sendP) {
+        try {
+          await sendP;
+        } catch {
+          // ignore — failure already recorded on the result
+        }
+      } else {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      // Re-assert abort each tick: a late handleSend may install a new controller
+      // while sendClaimRef is still held during the fit-gate await.
+      abortRef.current?.abort();
+      regenAbortRef.current?.abort();
+    }
+    // Await turn-end save AFTER send settles so the real historyHash is on disk.
+    // The promise is installed synchronously (before setMessages returns), so a
+    // deferred React updater cannot hide it from this lifecycle.
+    const saveP = turnEndSavePromiseRef.current;
+    if (saveP) {
+      try {
+        await saveP;
+      } catch {
+        // ignore
+      }
+    }
+    // Final flag drain (stream flag is AppShell-owned).
+    const t0 = Date.now();
+    while (
+      (sendingRef.current ||
+        regenInFlightRef.current ||
+        sendingInFlightRef.current ||
+        sendClaimRef.current) &&
+      Date.now() - t0 < 2000
+    ) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    const clean = buildPersistableMessages(messagesRef.current);
+    const payload = clean.length > 0 ? JSON.stringify(clean) : "";
+    return { historyHashValue: historyHash(payload) };
+  }, []);
+
+  // Register lifecycle for AppShell background handler; clear on unmount.
+  useEffect(() => {
+    backgroundDiscardLifecycleRef.current = awaitLifecycleForBackgroundDiscard;
+    return () => {
+      if (backgroundDiscardLifecycleRef.current === awaitLifecycleForBackgroundDiscard) {
+        backgroundDiscardLifecycleRef.current = null;
+      }
+    };
+  }, [awaitLifecycleForBackgroundDiscard]);
+
   // HIGH-3: useCallback so onPress closures in suggestion cards don't hold stale `sending`
   const handleSend = useCallback(
-    async (text: string, currentAttachments?: LocalAttachment[]) => {
+    async (
+      text: string,
+      currentAttachments?: LocalAttachment[],
+    ): Promise<HandleSendResult> => {
       const trimmed = text.trim();
       // BLOCKER-3: synchronous ref check — not subject to React batching.
       // Also ignore send while a translation holds the engine (silent),
@@ -1254,22 +1523,83 @@ export function AiChatPage({
       // is in flight — the composer-side guards (onSubmitEditing, send
       // button) already block this, but handleSend can also be invoked
       // directly (suggestion cards) so it needs its own check too.
+      // regenInFlight blocks concurrent user sends; regenHandleSendPassRef is a
+      // one-shot allow so regenerate/edit can call handleSend without deadlock.
+      // sendClaimRef is the pre-await lock: two rapid ordinary sends must not
+      // both pass the busy check and both enter the uncached fit-gate await.
       if (
         !trimmed ||
+        sendClaimRef.current ||
         sendingRef.current ||
         translationInFlightRef.current ||
         voiceBusyRef.current ||
+        (regenInFlightRef.current && !regenHandleSendPassRef.current) ||
         !!pdfToRender ||
         !historyLoaded
       ) {
-        return;
+        return {
+          ok: false,
+          reasonKey: sendClaimRef.current || sendingRef.current
+            ? "chat.sendBusy"
+            : "chat.regenBusy",
+        };
       }
+      if (regenHandleSendPassRef.current) {
+        regenHandleSendPassRef.current = false;
+      }
+
+      // Reserve the claim BEFORE any await so a second send cannot enter.
+      // Capture generation at acquire: body + finally only act if we still own it
+      // (clearChat bumps regenGenerationRef; a stale continuation must not mutate
+      // a newer chat, and a stale finally must not clear a newer send's claim).
+      const mySendGen = regenGenerationRef.current;
+      // Alias used by post-await body gates (same capture as claim ownership).
+      const myGen = mySendGen;
+      const stillThisRun = (my: number) => regenGenerationRef.current === my;
+      sendClaimRef.current = true;
+      // Install abort controller early so background lifecycle can abort this
+      // turn during the fit-gate await (before sendingRef is claimed).
+      const preSendController = new AbortController();
+      abortRef.current = preSendController;
+      try {
+        // Uncached pre-send fit gate (also covers engine-already-ready path).
+        const fitGate = await awaitPreSendFitGate();
+        // clearChat / new regen during fit-gate: bail before any mutation.
+        if (!stillThisRun(myGen)) {
+          if (abortRef.current === preSendController) {
+            abortRef.current = null;
+          }
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        if (!fitGate.ok) {
+          if (abortRef.current === preSendController) {
+            abortRef.current = null;
+          }
+          return fitGate;
+        }
+        // Background / clearChat / regen abort during the fit-gate await:
+        // refuse before claiming sendingRef or starting generation.
+        if (
+          preSendController.signal.aborted ||
+          regenAbortRef.current?.signal.aborted
+        ) {
+          if (abortRef.current === preSendController) {
+            abortRef.current = null;
+          }
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
 
       // U1: this turn's generation token. clearChat() may abort + reset
       // sending state while this async turn (bench / filter / stream) is
       // still in flight — every reset below must check this id first so a
       // stale turn can never clobber a newer one's sending state.
+      // runId is complementary to myGen: clearChat bumps BOTH; body gates
+      // check both so either invalidation path stops mutations.
       const runId = ++sendRunIdRef.current;
+      // Failure flag flipped by onFailed / catch so we resolve ok:false even
+      // when the stream backend resolves instead of rejecting.
+      let failed = false;
+      let failReasonKey = "chat.serviceUnreachable";
 
       // Debug bench knobs via chat (adb input text; no root / no extra perms).
       // Does not call the model. History may keep the exchange for harness logs.
@@ -1277,6 +1607,7 @@ export function AiChatPage({
       if (isBenchCommand(trimmed)) {
         voiceRunIdRef.current += 1;
         sendingRef.current = true;
+        sendingInFlightRef.current = true;
         setSending(true);
         setDraft("");
         const userMsgId = nextMsgId("u");
@@ -1288,32 +1619,46 @@ export function AiChatPage({
         } catch {
           reply = "bench: failed";
         }
+        // clearChat / new regen during bench await: do not push into the newer chat.
+        if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+          if (abortRef.current === preSendController) {
+            abortRef.current = null;
+          }
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
         // Audit follow-up: clearChat() may fire during the await above —
         // gate the push on the same generation token used for the sending
         // reset, otherwise the stale bench Q&A reappears in the cleared chat.
-        if (mountedRef.current && sendRunIdRef.current === runId) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: userMsgId,
-              role: "user",
-              text: trimmed,
-              createdAt: now,
-            },
-            {
-              id: assistantId,
-              role: "assistant",
-              text: reply,
-              streaming: false,
-              createdAt: now + 1,
-            },
-          ]);
+        if (mountedRef.current && sendRunIdRef.current === runId && stillThisRun(myGen)) {
+          setMessages((prev) => {
+            // Deferred updater: clearChat may have bumped gen/runId after schedule.
+            if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+              return prev;
+            }
+            return [
+              ...prev,
+              {
+                id: userMsgId,
+                role: "user",
+                text: trimmed,
+                createdAt: now,
+              },
+              {
+                id: assistantId,
+                role: "assistant",
+                text: reply,
+                streaming: false,
+                createdAt: now + 1,
+              },
+            ];
+          });
         }
-        if (sendRunIdRef.current === runId) {
+        if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
           sendingRef.current = false;
+          sendingInFlightRef.current = false;
           if (mountedRef.current) setSending(false);
         }
-        return;
+        return { ok: true } as HandleSendResult;
       }
 
       // X2: pre-send content gate (src/domain/contentFilter.js). Blocking
@@ -1325,6 +1670,7 @@ export function AiChatPage({
       if (!classification.shouldCallProvider) {
         voiceRunIdRef.current += 1;
         sendingRef.current = true;
+        sendingInFlightRef.current = true;
         setSending(true);
         setDraft("");
         const gateAttachments = currentAttachments ?? [];
@@ -1334,73 +1680,104 @@ export function AiChatPage({
         // Audit follow-up: gate for symmetry with the bench branch above —
         // currently synchronous (no await before this point) so inert today,
         // but future-proofs against this branch growing an await.
-        if (mountedRef.current && sendRunIdRef.current === runId) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: userMsgId,
-              role: "user",
-              text: trimmed,
-              createdAt: now,
-              attachments: gateAttachments.length > 0 ? gateAttachments : undefined,
-            },
-            {
-              id: assistantId,
-              role: "assistant",
-              text: contentFilterMessage(classification.reason, t),
-              streaming: false,
-              createdAt: now + 1,
-            },
-          ]);
+        if (mountedRef.current && sendRunIdRef.current === runId && stillThisRun(myGen)) {
+          setMessages((prev) => {
+            // Deferred updater: clearChat may have bumped gen/runId after schedule.
+            if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+              return prev;
+            }
+            return [
+              ...prev,
+              {
+                id: userMsgId,
+                role: "user",
+                text: trimmed,
+                createdAt: now,
+                attachments: gateAttachments.length > 0 ? gateAttachments : undefined,
+              },
+              {
+                id: assistantId,
+                role: "assistant",
+                text: contentFilterMessage(classification.reason, t),
+                streaming: false,
+                createdAt: now + 1,
+              },
+            ];
+          });
         }
         setAttachedItems([]);
-        if (sendRunIdRef.current === runId) {
+        if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
           sendingRef.current = false;
+          sendingInFlightRef.current = false;
           if (mountedRef.current) setSending(false);
         }
-        return;
+        return { ok: true };
       }
 
       // Invalidate any in-flight transcription so a late result cannot rewrite draft
       // after this send clears it.
       voiceRunIdRef.current += 1;
       sendingRef.current = true;
+      sendingInFlightRef.current = true;
       setSending(true);
 
       // Snapshot attachments at send time
       const snapshotAttachments = currentAttachments ?? [];
+      // Library documents are retrieval sources (document_chat tool), not vision.
+      // Annotate the model-facing text with doc ids so the tool can select them.
+      const docHints = snapshotAttachments
+        .filter((a) => a.kind === "document" && a.libraryDocId)
+        .map((a) => `[document:${a.libraryDocId} name="${a.name}"]`)
+        .join(" ");
+      const modelText = docHints ? `${trimmed}\n\n${docHints}` : trimmed;
 
       // BLOCKER-2: module counter, no Date.now() collision
       const userMsgId = nextMsgId("u");
       const assistantId = nextMsgId("a");
 
       const now = Date.now();
+      // Generation may have moved between fit-gate and here if clearChat raced
+      // a microtask; refuse before painting user/assistant bubbles.
+      if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+        if (abortRef.current === preSendController) {
+          abortRef.current = null;
+        }
+        return { ok: false, reasonKey: "chat.regenFailed" };
+      }
       if (mountedRef.current) {
-        setMessages(prev => [
-          ...prev,
-          {
-            id: userMsgId,
-            role: "user",
-            text: trimmed,
-            createdAt: now,
-            attachments: snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
-          },
-          {
-            id: assistantId,
-            role: "assistant",
-            text: "",
-            streaming: true,
-            statusLabel: t("chat.writingStatus"),
-            statusHistory: [],
-            createdAt: now,
-          },
-        ]);
+        setMessages(prev => {
+          // Deferred updater: clearChat / newer send may have invalidated ownership.
+          if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+            return prev;
+          }
+          return [
+            ...prev,
+            {
+              id: userMsgId,
+              role: "user",
+              text: trimmed,
+              createdAt: now,
+              attachments: snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
+            },
+            {
+              id: assistantId,
+              role: "assistant",
+              text: "",
+              streaming: true,
+              statusLabel: t("chat.writingStatus"),
+              statusHistory: [],
+              createdAt: now,
+            },
+          ];
+        });
       }
       setDraft("");
       // Clear attached items after send
       setAttachedItems([]);
 
-      const controller = new AbortController();
+      // Reuse the pre-send controller so a background abort during the fit gate
+      // also cancels the stream that is about to start.
+      const controller = preSendController;
       abortRef.current = controller;
 
       // Track whether any text has streamed — used to decide whether to remove empty placeholder on abort.
@@ -1408,8 +1785,18 @@ export function AiChatPage({
       let anyTextStreamed = false;
       // ~30 fps UI flush: llama.rn is 5–15 tok/s; setState every token is wasteful.
       // Coalescer overwrites with the latest full text and flushes on a 33 ms cadence.
+      // Capture myGen/runId into the flush: a deferred trailing timer must not
+      // paint into a chat that clearChat / a newer send already owns.
       const streamCoalescer = createStreamCoalescer((fullText) => {
-        updateMessage(assistantId, { text: fullText, statusLabel: undefined });
+        if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+          return;
+        }
+        updateMessage(
+          assistantId,
+          { text: fullText, statusLabel: undefined },
+          myGen,
+          runId,
+        );
       });
 
       /** Memory extract deferred until after turn-end KV save (see AppShell). */
@@ -1417,23 +1804,49 @@ export function AiChatPage({
       try {
         if (onSendStream) {
           const streamResult = await onSendStream(
-            trimmed,
+            modelText,
             {
               onDelta: (_delta, full) => {
+                // Mark text presence even if a later flush is dropped as stale —
+                // abort-with-partial decisions depend on whether tokens arrived.
                 anyTextStreamed = true;
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
                 streamCoalescer.push(full);
               },
               // Feature 1: append to history AND set current label
-              onStatus: (status) =>
-                updateMessage(assistantId, prev => ({
-                  statusLabel: status.label,
-                  statusHistory: [...(prev.statusHistory ?? []), status.label],
-                })),
+              onStatus: (status) => {
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
+                updateMessage(
+                  assistantId,
+                  prev => ({
+                    statusLabel: status.label,
+                    statusHistory: [...(prev.statusHistory ?? []), status.label],
+                  }),
+                  myGen,
+                  runId,
+                );
+              },
               // BLOCKER-4: sources non chiudono lo streaming (il round tool
               // può continuare): aggiorna solo sources e statusLabel.
-              onSources: (sources) =>
-                updateMessage(assistantId, { sources, statusLabel: undefined }),
+              onSources: (sources) => {
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
+                updateMessage(
+                  assistantId,
+                  { sources, statusLabel: undefined },
+                  myGen,
+                  runId,
+                );
+              },
               onActions: (payload: any) => {
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
                 const proposed = Array.isArray(payload?.proposed_actions) ? payload.proposed_actions : [];
                 const ctas = proposed
                   .filter((action: any) => action?.executable === true && action?.output_id)
@@ -1450,58 +1863,127 @@ export function AiChatPage({
                     target: "outputs",
                   }));
                 if (ctas.length) {
-                  updateMessage(assistantId, prev => ({ ctas: [...(prev.ctas ?? []), ...ctas] }));
+                  updateMessage(
+                    assistantId,
+                    prev => ({ ctas: [...(prev.ctas ?? []), ...ctas] }),
+                    myGen,
+                    runId,
+                  );
                 }
               },
               onCta: (payload: ChatCta) => {
                 if (!payload?.kind || !payload?.label) return;
-                updateMessage(assistantId, prev => ({ ctas: [...(prev.ctas ?? []), payload] }));
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
+                updateMessage(
+                  assistantId,
+                  prev => ({ ctas: [...(prev.ctas ?? []), payload] }),
+                  myGen,
+                  runId,
+                );
               },
               // Miniapp callback: store only (do NOT end streaming).
               // streaming:false + final text extraction stay in the finally block
               // after await onSendStream. LlamaService currently never emits this;
               // cloud/unified clients may. Invalid payloads are ignored.
               onMiniapp: (miniapp) => {
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
                 const normalized = normalizeMiniapp(miniapp);
                 if (!normalized) return;
-                updateMessage(assistantId, {
-                  miniapp: normalized as Message["miniapp"],
-                });
+                updateMessage(
+                  assistantId,
+                  { miniapp: normalized as Message["miniapp"] },
+                  myGen,
+                  runId,
+                );
               },
               // RNA-seq job context: store result images/downloads on this message.
-              onImages: (imgs, dls) =>
-                updateMessage(assistantId, { images: imgs, downloads: dls }),
+              onImages: (imgs, dls) => {
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
+                updateMessage(
+                  assistantId,
+                  { images: imgs, downloads: dls },
+                  myGen,
+                  runId,
+                );
+              },
+              // Backend resolves (not rejects) on stream/engine failures; flip
+              // failed so handleSend returns ok:false for regen/edit rollback.
+              onFailed: (reasonKey: string) => {
+                failed = true;
+                if (typeof reasonKey === "string" && reasonKey.trim()) {
+                  failReasonKey = reasonKey;
+                }
+              },
             },
             controller.signal,
             snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
-            messages,
+            messagesRef.current,
           );
-          if (streamResult && typeof streamResult === "object") {
+          // clearChat mid-stream: do not adopt stream result into a new chat.
+          if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+            failed = true;
+            failReasonKey = "chat.regenFailed";
+          } else if (streamResult && typeof streamResult === "object") {
             afterSessionSave = streamResult.afterSessionSave;
           }
         } else {
-          updateMessage(assistantId, {
-            streaming: false,
-            statusLabel: undefined,
-            text: t("chat.backendNotWired"),
-          });
+          // onSendStream missing → mark failed so regen/edit roll back.
+          failed = true;
+          failReasonKey = "chat.backendNotWired";
+          if (stillThisRun(myGen) && sendRunIdRef.current === runId) {
+            updateMessage(
+              assistantId,
+              {
+                streaming: false,
+                statusLabel: undefined,
+                text: t("chat.backendNotWired"),
+              },
+              myGen,
+              runId,
+            );
+          }
         }
       } catch (err: any) {
-        if (controller.signal.aborted) {
+        // Stale generation: skip all catch mutations (clearChat owns the UI).
+        if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+          failed = true;
+          failReasonKey = "chat.regenFailed";
+        } else if (controller.signal.aborted) {
           // BLOCKER-2 (audit): aborted with no streamed content → remove empty placeholder
           if (!anyTextStreamed && mountedRef.current) {
-            setMessages(prev => prev.filter(m => m.id !== assistantId));
+            setMessages(prev => {
+              if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                return prev;
+              }
+              return prev.filter(m => m.id !== assistantId);
+            });
           }
           // If partial text was streamed, the finally block finalizes it cleanly — no action needed
         } else if (mountedRef.current) {
           // BLOCKER-5: surface error as chat text instead of leaving zombie spinner
           // Flush any pending stream text first, then overwrite with the error message.
           streamCoalescer.finalize();
-          const msg =
-            err?.message?.includes("quota") || err?.message?.includes("limit")
-              ? t("chat.queryLimit")
-              : t("chat.serviceUnreachable");
-          updateMessage(assistantId, { streaming: false, statusLabel: undefined, text: msg });
+          failed = true;
+          if (err?.message?.includes("quota") || err?.message?.includes("limit")) {
+            failReasonKey = "chat.queryLimit";
+          } else {
+            failReasonKey = "chat.serviceUnreachable";
+          }
+          const msg = t(failReasonKey as any);
+          updateMessage(
+            assistantId,
+            { streaming: false, statusLabel: undefined, text: msg },
+            myGen,
+            runId,
+          );
+        } else {
+          failed = true;
         }
       } finally {
         // Drain or drop the coalescer BEFORE finalize logic so the last token
@@ -1512,16 +1994,24 @@ export function AiChatPage({
           streamCoalescer.finalize();
         }
         // Abort senza testo: rimuovi il placeholder vuoto (niente bubble fantasma).
-        if (controller.signal.aborted && !anyTextStreamed) {
-          setMessages(prev => prev.filter(m => m.id !== assistantId));
+        // Generation + runId: clearChat bumps both; stale finally must not paint.
+        if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
+          // Stale turn — leave UI alone; clearChat already owns state.
+        } else if (controller.signal.aborted && !anyTextStreamed) {
+          setMessages(prev => {
+            if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+              return prev;
+            }
+            return prev.filter(m => m.id !== assistantId);
+          });
         } else if (!controller.signal.aborted || anyTextStreamed) {
           // Extract miniapp JSON from the final assistant text (local models emit
           // schema miniapp_v1 in the prose / fenced block; cloud path may also
           // call onMiniapp directly).
           // Abort-with-partial → interrupted marker; successful completion clears it.
-          // Gate on sendRunId so a clearChat mid-turn cannot resurrect wiped history
-          // via messagesRef + persistMessagesNow (clearChat bumps sendRunId first).
-          if (sendRunIdRef.current === runId) {
+          // Gate on sendRunId + generation so a clearChat mid-turn cannot resurrect
+          // wiped history via messagesRef + persistMessagesNow.
+          if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
             const wasInterrupted = controller.signal.aborted && anyTextStreamed;
             // Finalize via functional updater so we compose over any queued final
             // onDelta (⚠️ error text, thinkStream final, miniapp payload) that has
@@ -1570,10 +2060,40 @@ export function AiChatPage({
               // scheduled into React state (includes any queued final delta —
               // the updater receives the queue-applied prev).
               let finalized: Message[] | null = null;
+              // CRITICAL: install the turn-end save promise SYNCHRONOUSLY before
+              // setMessages. React may defer the updater until after paint; the
+              // background lifecycle must be able to await the same promise even
+              // when it observes messagesRef before the updater runs.
+              // Holder object avoids TS control-flow narrowing of bare lets
+              // assigned inside the Promise executor.
+              const turnSaveHold: {
+                resolve: (() => void) | null;
+                reject: ((err: unknown) => void) | null;
+              } = { resolve: null, reject: null };
+              const turnSaveP = new Promise<void>((resolve, reject) => {
+                turnSaveHold.resolve = resolve;
+                turnSaveHold.reject = reject;
+              });
+              turnEndSavePromiseRef.current = turnSaveP;
+              // Attach rejection handler: turnSaveP can reject via saveEngineSession
+              // failure (turnSaveHold.reject). finally alone re-propagates the
+              // rejection → unhandledrejection. Fire-and-forget; lifecycle awaits
+              // the same promise with its own try/catch.
+              void turnSaveP
+                .finally(() => {
+                  if (turnEndSavePromiseRef.current === turnSaveP) {
+                    turnEndSavePromiseRef.current = null;
+                  }
+                })
+                .catch(() => {
+                  // no-op — turn-end save is fire-and-forget for UI path
+                });
+              let saveWorkScheduled = false;
               setMessages((prev) => {
-                // clearChat bumped sendRunId: skip persist + ref write and keep
-                // the cleared (or newer) prev — do not resurrect wiped history.
-                if (sendRunIdRef.current !== runId) {
+                // clearChat bumped sendRunId and/or generation: skip persist +
+                // ref write and keep the cleared (or newer) prev.
+                if (sendRunIdRef.current !== runId || !stillThisRun(myGen)) {
+                  turnSaveHold.resolve?.();
                   return prev;
                 }
                 const applied = applyFinalize(prev);
@@ -1585,7 +2105,12 @@ export function AiChatPage({
                 // when setMessages is called. Deferred path (pending final
                 // onDelta lanes): runs at render after React applies the
                 // queued delta first — still the correct composed result.
-                persistMessagesNow(finalized);
+                // Epoch-stamped: clearChat bumps epoch before removeItem.
+                const epoch = persistEpochRef.current;
+                persistMessagesNow(finalized, {
+                  epoch,
+                  getEpoch: () => persistEpochRef.current,
+                });
                 // Turn-end order (FIFO): saveEngineSession FIRST, then memory
                 // extract. extractMemory clearCache's the chat KV and flips
                 // kvHoldsChatSession=false — if extract is queued first the
@@ -1600,27 +2125,48 @@ export function AiChatPage({
                   const mid = getActiveModelId();
                   const runAfterSave = afterSessionSave;
                   if (mid) {
-                    const payload = JSON.stringify(buildPersistableMessages(finalized));
+                    const payload = JSON.stringify(
+                      buildPersistableMessages(finalized),
+                    );
+                    saveWorkScheduled = true;
                     void (async () => {
                       try {
                         await saveEngineSession(mid, historyHash(payload));
+                        turnSaveHold.resolve?.();
+                      } catch (err) {
+                        turnSaveHold.reject?.(err);
                       } finally {
-                        if (sendRunIdRef.current === runId) {
+                        // Post-await: generation may have moved during save.
+                        if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
                           runAfterSave?.();
                         }
                       }
                     })();
-                  } else if (sendRunIdRef.current === runId) {
+                  } else if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
                     runAfterSave?.();
+                    turnSaveHold.resolve?.();
+                    saveWorkScheduled = true;
                   }
+                }
+                if (!saveWorkScheduled) {
+                  turnSaveHold.resolve?.();
                 }
                 return finalized;
               });
-            } else if (sendRunIdRef.current === runId) {
+              // If React never applied the updater (unmounted mid-flight),
+              // still settle the promise so the lifecycle cannot hang.
+              if (!mountedRef.current && !saveWorkScheduled) {
+                turnSaveHold.resolve?.();
+              }
+            } else if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
               const applied = applyFinalize(messagesRef.current);
               const next = applied.messages;
               messagesRef.current = next;
-              persistMessagesNow(next);
+              const epoch = persistEpochRef.current;
+              persistMessagesNow(next, {
+                epoch,
+                getEpoch: () => persistEpochRef.current,
+              });
               if (applied.miniappStripped) {
                 markKvNonReproducible("miniapp_stripped");
               }
@@ -1628,15 +2174,26 @@ export function AiChatPage({
               const runAfterSave = afterSessionSave;
               if (mid) {
                 const payload = JSON.stringify(buildPersistableMessages(next));
-                void (async () => {
+                // Synchronous install even on the unmounted path.
+                const saveP = (async () => {
                   try {
                     await saveEngineSession(mid, historyHash(payload));
                   } finally {
-                    if (sendRunIdRef.current === runId) {
+                    if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
                       runAfterSave?.();
                     }
                   }
                 })();
+                turnEndSavePromiseRef.current = saveP;
+                void saveP
+                  .finally(() => {
+                    if (turnEndSavePromiseRef.current === saveP) {
+                      turnEndSavePromiseRef.current = null;
+                    }
+                  })
+                  .catch(() => {
+                    // no-op — unmounted turn-end save is fire-and-forget
+                  });
               } else {
                 runAfterSave?.();
               }
@@ -1648,8 +2205,9 @@ export function AiChatPage({
         // newer turn, and this stale finally must not clobber it.
         // Also clear the stop watchdog only for THIS run: a stale finally must
         // not cancel a newer turn's watchdog (e.g. after force-unlock + re-send).
-        if (sendRunIdRef.current === runId) {
+        if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
           sendingRef.current = false;
+          sendingInFlightRef.current = false;
           if (mountedRef.current) setSending(false);
           if (stopWatchdogRef.current != null) {
             clearTimeout(stopWatchdogRef.current);
@@ -1657,8 +2215,34 @@ export function AiChatPage({
           }
         }
       }
+      return failed
+        ? { ok: false as const, reasonKey: failReasonKey }
+        : { ok: true as const };
+      } finally {
+        // Release only if we still own the claim (generation match).
+        // clearChat bumps regenGenerationRef then clears claim for the new
+        // owner; a stale finally must not clear that newer claim.
+        if (regenGenerationRef.current === mySendGen) {
+          sendClaimRef.current = false;
+        }
+      }
     },
-    [historyLoaded, messages, onSendStream, pdfToRender, t, updateMessage],
+    [awaitPreSendFitGate, historyLoaded, onSendStream, pdfToRender, t, updateMessage],
+  );
+
+  // Publish the active handleSend promise so background discard can await it.
+  const handleSendTracked = useCallback(
+    (text: string, currentAttachments?: LocalAttachment[]) => {
+      const p = handleSend(text, currentAttachments);
+      sendInFlightPromiseRef.current = p;
+      void p.finally(() => {
+        if (sendInFlightPromiseRef.current === p) {
+          sendInFlightPromiseRef.current = null;
+        }
+      });
+      return p;
+    },
+    [handleSend],
   );
 
   const handleStop = useCallback(() => {
@@ -1699,7 +2283,11 @@ export function AiChatPage({
             };
           });
         messagesRef.current = next;
-        persistMessagesNow(next);
+        const epoch = persistEpochRef.current;
+        persistMessagesNow(next, {
+          epoch,
+          getEpoch: () => persistEpochRef.current,
+        });
         return next;
       });
       // 3) Unlock composer only if we still own the generation token.
@@ -1708,6 +2296,7 @@ export function AiChatPage({
       // until dispose/model-switch releases the hung job.
       if (sendRunIdRef.current === ownedRunId) {
         sendingRef.current = false;
+        sendingInFlightRef.current = false;
         setSending(false);
       }
     }, 3000);
@@ -1731,6 +2320,10 @@ export function AiChatPage({
     // U1: invalidate any in-flight send turn so its later finally/bench/gate
     // reset cannot clobber the synchronous reset below.
     sendRunIdRef.current += 1;
+    // Persistence epoch FIRST: every delayed write is epoch-stamped; bumping
+    // here makes pending debounce / safety-net / AppState / unmount setItems
+    // no-ops even if they already hold a pre-clear messages closure.
+    persistEpochRef.current += 1;
     // Drop stop watchdog so it cannot fire after a wiped history.
     if (stopWatchdogRef.current != null) {
       clearTimeout(stopWatchdogRef.current);
@@ -1742,6 +2335,16 @@ export function AiChatPage({
     translationInFlightRef.current = false;
     // BLOCKER-1 (audit): reset sending state synchronously so composer unlocks immediately
     sendingRef.current = false;
+    sendingInFlightRef.current = false;
+    // Owner transfer FIRST: bump generation so any concurrent stale finally
+    // (sendClaim / regenInFlight / pass / abort) sees a mismatch and skips.
+    // Then clear all locks for the idle post-clear state.
+    regenGenerationRef.current += 1;
+    sendClaimRef.current = false;
+    regenAbortRef.current?.abort();
+    regenAbortRef.current = null;
+    regenInFlightRef.current = false;
+    regenHandleSendPassRef.current = false;
     setSending(false);
     setMessages([]);
     // Sync ref immediately so AppState/unmount/throttle flushes cannot
@@ -1777,13 +2380,305 @@ export function AiChatPage({
     setTranslatingId(null);
     setTranslationResult(null);
     setCopiedFlash(false);
+    // Epoch already bumped above — removeItem after so a racing setItem is dropped.
     AsyncStorage.removeItem(HISTORY_KEY).catch(() => undefined);
     // Drop native KV so a restored empty chat cannot reuse stale prefill.
     const activeId = getActiveModelId();
     if (activeId) void invalidateEngineSession(activeId);
   }, [setVoicePhase]);
 
-  /** Open message action sheet (Copy + Translate + Read aloud). No-op while streaming / engine busy. */
+  /**
+   * Find the original user text that produced a target message in a slice.
+   * Walks backwards for the nearest user message at or before the end of the slice.
+   */
+  const findOriginalUserText = useCallback((slice: Message[]): string | null => {
+    for (let i = slice.length - 1; i >= 0; i -= 1) {
+      const m = slice[i];
+      if (m && m.role === "user" && typeof m.text === "string" && m.text.trim()) {
+        return m.text;
+      }
+    }
+    return null;
+  }, []);
+
+  /**
+   * Regenerate an assistant reply: truncate to target, re-send original user text.
+   * Reuses handleSend (abort / fit / save / persist). Single-flight via regenInFlightRef.
+   *
+   * Generation-gated body (round-4): after every await, if clearChat bumped
+   * regenGenerationRef, abort immediately — no rollback setMessages, no
+   * setSending, no lock release in finally for the new owner.
+   */
+  const regenerate = useCallback(
+    async (targetMsgId: string): Promise<{ ok: true } | { ok: false; reasonKey: string }> => {
+      if (
+        regenInFlightRef.current ||
+        sendingRef.current ||
+        sendClaimRef.current
+      ) {
+        return { ok: false, reasonKey: "chat.regenBusy" };
+      }
+      // Capture generation at acquire (before any await). Body + finally only
+      // mutate when we still own this generation.
+      const myGeneration = regenGenerationRef.current;
+      regenInFlightRef.current = true;
+      regenAbortRef.current = new AbortController();
+      const snapshot = messagesRef.current.slice();
+      try {
+        const targetIndex = messagesRef.current.findIndex((m) => m.id === targetMsgId);
+        if (targetIndex < 0) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        const slice = messagesRef.current.slice(0, targetIndex + 1);
+        const originalUserText = findOriginalUserText(slice);
+        if (!originalUserText) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        // Truncate to target (keep target and everything before).
+        // For assistant targets we drop the assistant bubble so handleSend can
+        // append a fresh user+assistant pair from the original user text —
+        // but history already has the user message. So truncate BEFORE the
+        // assistant target (keep up to targetIndex - 1 when target is assistant).
+        const target = messagesRef.current[targetIndex];
+        const cutExclusive =
+          target?.role === "assistant" ? targetIndex : targetIndex + 1;
+        const truncated = messagesRef.current.slice(0, cutExclusive);
+        // Drop trailing user message that we will re-send (handleSend appends it).
+        let base = truncated;
+        if (base.length > 0 && base[base.length - 1]?.role === "user") {
+          base = base.slice(0, -1);
+        }
+        setMessages((prev) => {
+          if (regenGenerationRef.current !== myGeneration) {
+            return prev;
+          }
+          return base;
+        });
+        // Keep ref in lockstep only while we still own the generation.
+        if (regenGenerationRef.current === myGeneration) {
+          messagesRef.current = base;
+        }
+        // One-shot pass so handleSend accepts while regenInFlightRef is true.
+        regenHandleSendPassRef.current = true;
+        // If background disposal aborted regen before send starts, refuse cleanly.
+        if (regenAbortRef.current?.signal.aborted) {
+          if (regenGenerationRef.current !== myGeneration) {
+            return { ok: false, reasonKey: "chat.regenFailed" };
+          }
+          setMessages((prev) => {
+            if (regenGenerationRef.current !== myGeneration) {
+              return prev;
+            }
+            return snapshot;
+          });
+          if (regenGenerationRef.current === myGeneration) {
+            messagesRef.current = snapshot;
+          }
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        const sendResult = await handleSendTracked(originalUserText);
+        // clearChat during handleSend: do not rollback into the new chat.
+        if (regenGenerationRef.current !== myGeneration) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        if (!sendResult.ok) {
+          setMessages((prev) => {
+            if (regenGenerationRef.current !== myGeneration) {
+              return prev;
+            }
+            return snapshot;
+          });
+          if (regenGenerationRef.current === myGeneration) {
+            messagesRef.current = snapshot;
+            setSending(false);
+            sendingRef.current = false;
+            sendingInFlightRef.current = false;
+          }
+          return { ok: false, reasonKey: sendResult.reasonKey || "chat.regenFailed" };
+        }
+        return { ok: true };
+      } catch {
+        // Stale after clearChat: skip snapshot restore and sending reset.
+        if (regenGenerationRef.current !== myGeneration) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        setMessages((prev) => {
+          if (regenGenerationRef.current !== myGeneration) {
+            return prev;
+          }
+          return snapshot;
+        });
+        if (regenGenerationRef.current === myGeneration) {
+          messagesRef.current = snapshot;
+          setSending(false);
+          sendingRef.current = false;
+          sendingInFlightRef.current = false;
+        }
+        return { ok: false, reasonKey: "chat.regenFailed" };
+      } finally {
+        // Generation-gated release: only the current owner clears all locks.
+        if (regenGenerationRef.current === myGeneration) {
+          regenInFlightRef.current = false;
+          regenHandleSendPassRef.current = false;
+          regenAbortRef.current = null;
+        }
+      }
+    },
+    [findOriginalUserText, handleSendTracked],
+  );
+
+  /**
+   * Edit a user message then regenerate from that point.
+   * Atomic splice (edited flag) + truncate + handleSend(newText).
+   *
+   * Generation-gated body (round-4): after every await and before each
+   * setMessages (truncate / stamp / rollback), abort if generation moved.
+   */
+  const editMessage = useCallback(
+    async (
+      targetMsgId: string,
+      newText: string,
+    ): Promise<{ ok: true } | { ok: false; reasonKey: string }> => {
+      const trimmed = newText.trim();
+      if (!trimmed) return { ok: false, reasonKey: "chat.regenFailed" };
+      if (
+        regenInFlightRef.current ||
+        sendingRef.current ||
+        sendClaimRef.current
+      ) {
+        return { ok: false, reasonKey: "chat.regenBusy" };
+      }
+      // Capture generation at acquire (before any await).
+      const myGeneration = regenGenerationRef.current;
+      regenInFlightRef.current = true;
+      regenAbortRef.current = new AbortController();
+      const snapshot = messagesRef.current.slice();
+      try {
+        // Abort any in-flight stream first (uses handleSend's abortRef).
+        if (sendingRef.current) {
+          abortRef.current?.abort();
+          await new Promise((r) => setTimeout(r, 0));
+          // clearChat may have run during the yield — do not truncate/stamp.
+          if (regenGenerationRef.current !== myGeneration) {
+            return { ok: false, reasonKey: "chat.regenFailed" };
+          }
+        }
+        const idx = messagesRef.current.findIndex((m) => m.id === targetMsgId);
+        if (idx < 0) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        const target = messagesRef.current[idx];
+        if (!target || target.role !== "user") {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        // Keep messages before the edited user; drop the user and everything after.
+        // handleSend will re-append the (edited) user text + new assistant.
+        // Re-check generation before mutating messages (defensive vs re-entry).
+        if (regenGenerationRef.current !== myGeneration) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        const base = messagesRef.current.slice(0, idx).map((m) => m);
+        setMessages((prev) => {
+          if (regenGenerationRef.current !== myGeneration) {
+            return prev;
+          }
+          return base;
+        });
+        if (regenGenerationRef.current === myGeneration) {
+          messagesRef.current = base;
+        }
+        regenHandleSendPassRef.current = true;
+        if (regenAbortRef.current?.signal.aborted) {
+          if (regenGenerationRef.current !== myGeneration) {
+            return { ok: false, reasonKey: "chat.regenFailed" };
+          }
+          setMessages((prev) => {
+            if (regenGenerationRef.current !== myGeneration) {
+              return prev;
+            }
+            return snapshot;
+          });
+          if (regenGenerationRef.current === myGeneration) {
+            messagesRef.current = snapshot;
+          }
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        // handleSend appends a fresh user message; mark edited after it lands
+        // by patching the last user message once send starts. We pass edited
+        // text as the send body; then stamp edited on the new user bubble.
+        const sendResult = await handleSendTracked(trimmed);
+        // clearChat during handleSend: do not rollback or stamp the new chat.
+        if (regenGenerationRef.current !== myGeneration) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        if (!sendResult.ok) {
+          setMessages((prev) => {
+            if (regenGenerationRef.current !== myGeneration) {
+              return prev;
+            }
+            return snapshot;
+          });
+          if (regenGenerationRef.current === myGeneration) {
+            messagesRef.current = snapshot;
+            setSending(false);
+            sendingRef.current = false;
+            sendingInFlightRef.current = false;
+          }
+          return { ok: false, reasonKey: sendResult.reasonKey || "chat.regenFailed" };
+        }
+        // Stamp edited on the user message that handleSend just appended.
+        // Gate again: generation may have moved between the check above and
+        // this updater if another clear raced in (defensive; updater may also
+        // run async relative to this call stack on some RN schedulers).
+        if (regenGenerationRef.current !== myGeneration) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        setMessages((prev) => {
+          // Stale stamp must not mark a newer conversation's user bubble.
+          if (regenGenerationRef.current !== myGeneration) {
+            return prev;
+          }
+          const next = prev.slice();
+          for (let i = next.length - 1; i >= 0; i -= 1) {
+            if (next[i]?.role === "user") {
+              next[i] = { ...next[i], text: trimmed, edited: true };
+              break;
+            }
+          }
+          messagesRef.current = next;
+          return next;
+        });
+        return { ok: true };
+      } catch {
+        if (regenGenerationRef.current !== myGeneration) {
+          return { ok: false, reasonKey: "chat.regenFailed" };
+        }
+        setMessages((prev) => {
+          if (regenGenerationRef.current !== myGeneration) {
+            return prev;
+          }
+          return snapshot;
+        });
+        if (regenGenerationRef.current === myGeneration) {
+          messagesRef.current = snapshot;
+          setSending(false);
+          sendingRef.current = false;
+          sendingInFlightRef.current = false;
+        }
+        return { ok: false, reasonKey: "chat.regenFailed" };
+      } finally {
+        // Generation-gated release: only the current owner clears all locks.
+        if (regenGenerationRef.current === myGeneration) {
+          regenInFlightRef.current = false;
+          regenHandleSendPassRef.current = false;
+          regenAbortRef.current = null;
+        }
+      }
+    },
+    [handleSendTracked],
+  );
+
+  /** Open message action sheet (Copy + Translate + Read aloud + Regen/Edit). No-op while streaming / engine busy. */
   const openMessageMenu = useCallback(
     (id: string, text: string, role: Message["role"], streaming?: boolean) => {
       // Skip while this message streams, a chat turn is in flight, or a translate is running.
@@ -1797,6 +2692,7 @@ export function AiChatPage({
         streaming ||
         sendingRef.current ||
         translationInFlightRef.current ||
+        regenInFlightRef.current ||
         !text.trim()
       ) {
         return;
@@ -1810,7 +2706,8 @@ export function AiChatPage({
     try {
       await Clipboard.setStringAsync(value);
       setCopiedFlash(true);
-      setTimeout(() => setCopiedFlash(false), 1500);
+      if (copiedFlashTimer.current) clearTimeout(copiedFlashTimer.current);
+      copiedFlashTimer.current = setTimeout(() => setCopiedFlash(false), 1500);
       return true;
     } catch {
       // fallback: share sheet if clipboard write fails
@@ -1912,8 +2809,40 @@ export function AiChatPage({
 
   // ── Attach chip color helper ────────────────────────────────────────────
   function chipColorForKind(kind: LocalAttachment["kind"]) {
-    return kind === "pdf" ? { dot: colors.compute, bg: colors.computeSoft } : { dot: colors.accent, bg: colors.accentSoft };
+    if (kind === "pdf") return { dot: colors.compute, bg: colors.computeSoft };
+    if (kind === "document") return { dot: colors.compute, bg: colors.computeSoft };
+    return { dot: colors.accent, bg: colors.accentSoft };
   }
+
+  /** Attach a library document as a retrieval source (document_chat tool). */
+  const addLibraryDocumentAttachment = useCallback(
+    (doc: { id: string; name: string }) => {
+      setAttachedItems((prev) => {
+        if (prev.some((a) => a.kind === "document" && a.libraryDocId === doc.id)) {
+          return prev;
+        }
+        if (prev.length >= MAX_IMAGE_ATTACHMENTS) {
+          showVoiceNote(
+            t("errors.attachmentLimitReachedGeneric", { max: MAX_IMAGE_ATTACHMENTS }),
+          );
+          return prev;
+        }
+        return [
+          ...prev,
+          {
+            id: nextMsgId("doc"),
+            kind: "document" as const,
+            name: doc.name,
+            uri: "",
+            libraryDocId: doc.id,
+          },
+        ];
+      });
+      setAttachSheetOpen(false);
+      setDocPickOpen(false);
+    },
+    [showVoiceNote, t],
+  );
 
   return (
     // Manual padding from the lib's animated keyboard height — the lib KAV's
@@ -2056,83 +2985,123 @@ export function AiChatPage({
       ) : null}
 
       {/* ── Messages / welcome ── */}
-      <ScrollView
-        ref={scrollViewRef}
-        contentContainerStyle={{ padding: spacing.md, paddingBottom: 160 }}
-        keyboardShouldPersistTaps="handled"
-        style={{ flex: 1 }}
-        // HIGH-2: scroll to bottom as content grows during streaming (animated:false avoids queue thrash)
-        onContentSizeChange={() => {
-          if (sending) scrollViewRef.current?.scrollToEnd({ animated: false });
-        }}
-      >
-        {messages.length === 0 ? (
-          <View style={{ paddingHorizontal: spacing.xs, paddingTop: spacing.xl }}>
-            {/* Greeting */}
-            <Text style={[typography.displayMd, { color: colors.ink, marginBottom: spacing.xs }]}>
-              {greeting}
-              {userName ? (
-                <Text style={{ color: colors.accent }}>{`, ${userName}`}</Text>
-              ) : null}
-              {"."}
-            </Text>
-            <Text style={[typography.bodyMd, { color: colors.muted, marginBottom: spacing.xl }]}>
-              {t("chat.welcomePrompt")}
-            </Text>
+      {messages.length === 0 ? (
+        // HIGH-1 (Jelly 480×854): welcome chips must NOT cover the composer.
+        // flex:1 + ScrollView keeps the EditText always in the tree and tappable;
+        // on tall screens the list simply does not scroll.
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: spacing.xs,
+            paddingTop: spacing.xl,
+            paddingBottom: spacing.md,
+            flexGrow: 1,
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Greeting */}
+          <Text style={[typography.displayMd, { color: colors.ink, marginBottom: spacing.xs }]}>
+            {greeting}
+            {userName ? (
+              <Text style={{ color: colors.accent }}>{`, ${userName}`}</Text>
+            ) : null}
+            {"."}
+          </Text>
+          <Text style={[typography.bodyMd, { color: colors.muted, marginBottom: spacing.xl }]}>
+            {t("chat.welcomePrompt")}
+          </Text>
 
-            {/* Suggestion cards */}
-            {suggestions.map((s) => {
-              const iconColor =
-                s.colorKey === "compute" ? colors.compute : colors.accent;
-              const iconBg =
-                s.colorKey === "compute" ? colors.computeSoft : colors.accentSoft;
-              return (
-                <Pressable
-                  key={s.text}
-                  onPress={() => handleSend(s.text, attachedItems)}
-                  style={({ pressed }) => ({
-                    flexDirection: "row",
+          {/* Suggestion cards */}
+          {suggestions.map((s) => {
+            const iconColor =
+              s.colorKey === "compute" ? colors.compute : colors.accent;
+            const iconBg =
+              s.colorKey === "compute" ? colors.computeSoft : colors.accentSoft;
+            return (
+              <Pressable
+                key={s.text}
+                onPress={() => handleSendTracked(s.text, attachedItems)}
+                style={({ pressed }) => ({
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: spacing.sm,
+                  paddingVertical: spacing.sm + 2,
+                  paddingHorizontal: spacing.md,
+                  borderRadius: radius.lg,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                  backgroundColor: pressed ? colors.panelBright : colors.panel,
+                  marginBottom: spacing.xs,
+                })}
+              >
+                <View
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 10,
+                    backgroundColor: iconBg,
                     alignItems: "center",
-                    gap: spacing.sm,
-                    paddingVertical: spacing.sm + 2,
-                    paddingHorizontal: spacing.md,
-                    borderRadius: radius.lg,
-                    borderWidth: 1,
-                    borderColor: colors.line,
-                    backgroundColor: pressed ? colors.panelBright : colors.panel,
-                    marginBottom: spacing.xs,
-                  })}
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
                 >
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 10,
-                      backgroundColor: iconBg,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <s.Icon size={16} color={iconColor} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[typography.bodySm, { color: colors.ink }]}>{s.text}</Text>
-                    <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 1 }]}>
-                      {s.sub}
-                    </Text>
-                  </View>
-                  <ChevronRight color={colors.muted} size={14} />
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : (
-          messages.map((m, idx) => {
-            const prev = idx > 0 ? messages[idx - 1] : null;
-            const isTurnStart = !prev || prev.role !== m.role;
-            const topGap = idx === 0 ? 0 : isTurnStart ? spacing.lg : spacing.md;
-            const showDayDivider = !prev || !isSameDay(prev.createdAt, m.createdAt);
+                  <s.Icon size={16} color={iconColor} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.bodySm, { color: colors.ink }]}>{s.text}</Text>
+                  <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 1 }]}>
+                    {s.sub}
+                  </Text>
+                </View>
+                <ChevronRight color={colors.muted} size={14} />
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : (
+        <FlatList
+          ref={scrollViewRef}
+          data={reversedMessages}
+          keyExtractor={(m) => m.id}
+          inverted
+          // Visual bottom padding (below the newest message): with `inverted`
+          // the content container is flipped, so paddingTop lands at the
+          // visual bottom.
+          contentContainerStyle={{ paddingTop: 160, paddingBottom: spacing.md, paddingHorizontal: spacing.md }}
+          keyboardShouldPersistTaps="handled"
+          style={{ flex: 1 }}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          onScroll={(e) => {
+            // Inverted list: offset 0 is the visual bottom (newest message).
+            const { contentOffset } = e.nativeEvent;
+            atBottomRef.current = contentOffset.y <= 48;
+          }}
+          scrollEventThrottle={32}
+          onContentSizeChange={() => {
+            // Follow the stream only when the user is at the bottom; never
+            // yank when scrolled up.
+            if (atBottomRef.current) {
+              scrollViewRef.current?.scrollToOffset({ offset: 0, animated: false });
+            }
+          }}
+          renderItem={({ item: m, index: i }) => {
+            // Inverted list: the message visually ABOVE row i is data[i+1]
+            // (the next-newer one). Gap/divider logic mirrors the old
+            // pre-inversion code with that neighbor.
+            const above = reversedMessages[i + 1];
+            const isTurnStart = !above || above.role !== m.role;
+            // Visually topmost row = oldest message = last index of reversed data.
+            // (Pre-inversion: idx===0 was oldest at top with topGap 0.)
+            const topGap =
+              i === reversedMessages.length - 1
+                ? 0
+                : isTurnStart
+                  ? spacing.lg
+                  : spacing.md;
+            const showDayDivider = !above || !isSameDay(above.createdAt, m.createdAt);
             const dayLabel = showDayDivider ? formatDayLabel(m.createdAt, t, locale) : null;
             return (
               <ChatMessageRow
@@ -2140,7 +3109,7 @@ export function AiChatPage({
                 message={m}
                 topGap={topGap}
                 dayLabel={dayLabel}
-                isFirst={idx === 0}
+                isFirst={i === reversedMessages.length - 1}
                 isTranslating={translatingId === m.id}
                 translationResult={translationResult?.id === m.id ? translationResult : null}
                 translationExpanded={translationExpanded}
@@ -2155,9 +3124,9 @@ export function AiChatPage({
                 onCtaPress={onCtaPress}
               />
             );
-          })
-        )}
-      </ScrollView>
+          }}
+        />
+      )}
 
       {/* ── Composer ── */}
       <View
@@ -2211,10 +3180,12 @@ export function AiChatPage({
                     paddingVertical: 4,
                   }}
                 >
-                  {item.kind === "pdf" ? (
-                    <FileText size={11} color={dot} />
-                  ) : (
+                  {item.kind === "image" ? (
                     <ImageIcon size={11} color={dot} />
+                  ) : item.kind === "document" ? (
+                    <BookOpen size={11} color={dot} />
+                  ) : (
+                    <FileText size={11} color={dot} />
                   )}
                   <Text numberOfLines={1} style={[typography.bodyXs, { color: colors.ink, maxWidth: 140 }]}>
                     {item.name}
@@ -2276,7 +3247,7 @@ export function AiChatPage({
                 // Audit follow-up: typing stays enabled during a PDF
                 // conversion, but submission must not start mid-conversion.
                 if (pdfToRender) return;
-                handleSend(draft, attachedItems);
+                handleSendTracked(draft, attachedItems);
               }}
               returnKeyType="send"
               multiline
@@ -2402,7 +3373,7 @@ export function AiChatPage({
                 <Pressable
                   onPress={() => {
                     if (pdfToRender) return;
-                    handleSend(draft, attachedItems);
+                    handleSendTracked(draft, attachedItems);
                   }}
                   disabled={!canSend}
                   accessibilityLabel={t("chat.a11ySend")}
@@ -2496,12 +3467,117 @@ export function AiChatPage({
                     colors={colors}
                   />
                 ) : null}
+                {messageMenu.role === "assistant" && !sending ? (
+                  <AttachSheetRow
+                    icon={<Sparkles size={18} color={colors.ink} />}
+                    label={t("chat.regenerate")}
+                    onPress={() => {
+                      const id = messageMenu.id;
+                      setMessageMenu(null);
+                      void regenerate(id).then((res) => {
+                        if (!res.ok && res.reasonKey === "chat.regenBusy") {
+                          // silent refuse — already busy
+                        }
+                      });
+                    }}
+                    colors={colors}
+                  />
+                ) : null}
+                {messageMenu.role === "user" && !sending ? (
+                  <AttachSheetRow
+                    icon={<SquarePen size={18} color={colors.ink} />}
+                    label={t("chat.edit")}
+                    onPress={() => {
+                      setEditingMessage({ id: messageMenu.id, draft: messageMenu.text });
+                      setMessageMenu(null);
+                    }}
+                    colors={colors}
+                  />
+                ) : null}
                 <AttachSheetRow
                   icon={<X size={18} color={colors.muted} />}
                   label={t("common.cancel")}
                   onPress={() => setMessageMenu(null)}
                   colors={colors}
                 />
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
+
+      {editingMessage ? (
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={() => setEditingMessage(null)}
+        >
+          <Pressable
+            style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.42)", justifyContent: "center", padding: spacing.md }}
+            onPress={() => setEditingMessage(null)}
+          >
+            <Pressable
+              style={{
+                backgroundColor: colors.shell,
+                borderRadius: radius.xl ?? 24,
+                padding: spacing.md,
+                gap: spacing.sm,
+              }}
+              onPress={() => undefined}
+            >
+              <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+                {t("chat.edit")}
+              </Text>
+              <TextInput
+                value={editingMessage.draft}
+                onChangeText={(v) =>
+                  setEditingMessage((prev) => (prev ? { ...prev, draft: v } : prev))
+                }
+                multiline
+                autoFocus
+                accessibilityLabel={t("chat.edit")}
+                style={{
+                  minHeight: 96,
+                  maxHeight: 200,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                  borderRadius: radius.md ?? 12,
+                  padding: spacing.sm,
+                  color: colors.ink,
+                  textAlignVertical: "top",
+                }}
+              />
+              <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: spacing.sm }}>
+                <Pressable
+                  onPress={() => setEditingMessage(null)}
+                  accessibilityLabel={t("common.cancel")}
+                  style={({ pressed }) => ({
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.sm,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Text style={[typography.bodySm, { color: colors.muted }]}>{t("common.cancel")}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    const id = editingMessage.id;
+                    const draft = editingMessage.draft;
+                    setEditingMessage(null);
+                    void editMessage(id, draft);
+                  }}
+                  accessibilityLabel={t("common.save")}
+                  style={({ pressed }) => ({
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.sm,
+                    backgroundColor: colors.accent,
+                    borderRadius: radius.md ?? 12,
+                    opacity: pressed ? 0.85 : 1,
+                  })}
+                >
+                  <Text style={[typography.bodySm, { color: colors.primaryText }]}>{t("common.save")}</Text>
+                </Pressable>
               </View>
             </Pressable>
           </Pressable>
@@ -2543,6 +3619,61 @@ export function AiChatPage({
                   icon={<FileText size={18} color={colors.ink} />}
                   label={t("chat.pdfDocument")}
                   onPress={() => void addPdfAttachment()}
+                  colors={colors}
+                />
+                <AttachSheetRow
+                  icon={<BookOpen size={18} color={colors.ink} />}
+                  label={t("chat.libraryDocument")}
+                  onPress={() => {
+                    setAttachSheetOpen(false);
+                    const docs = documentLibrary?.docs ?? [];
+                    if (docs.length === 0) {
+                      onOpenDocuments?.();
+                      return;
+                    }
+                    setDocPickOpen(true);
+                  }}
+                  colors={colors}
+                />
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
+
+      {docPickOpen ? (
+        <Modal
+          visible
+          transparent
+          animationType="slide"
+          onRequestClose={() => setDocPickOpen(false)}
+        >
+          <Pressable
+            style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.42)", justifyContent: "flex-end" }}
+            onPress={() => setDocPickOpen(false)}
+          >
+            <Pressable style={{ padding: spacing.md, paddingBottom: 32 }} onPress={() => undefined}>
+              <View
+                style={{
+                  backgroundColor: colors.shell,
+                  borderRadius: radius.xl ?? 24,
+                  overflow: "hidden",
+                  maxHeight: 360,
+                }}
+              >
+                {(documentLibrary?.docs ?? []).map((doc) => (
+                  <AttachSheetRow
+                    key={doc.id}
+                    icon={<FileText size={18} color={colors.ink} />}
+                    label={doc.name}
+                    onPress={() => addLibraryDocumentAttachment(doc)}
+                    colors={colors}
+                  />
+                ))}
+                <AttachSheetRow
+                  icon={<X size={18} color={colors.muted} />}
+                  label={t("common.cancel")}
+                  onPress={() => setDocPickOpen(false)}
                   colors={colors}
                 />
               </View>
@@ -2720,7 +3851,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             >
               {m.attachments.map((att) => {
                 const { dot, bg } =
-                  att.kind === "pdf"
+                  att.kind === "pdf" || att.kind === "document"
                     ? { dot: colors.compute, bg: colors.computeSoft }
                     : { dot: colors.accent, bg: colors.accentSoft };
                 return (
@@ -2736,10 +3867,12 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                       paddingVertical: 3,
                     }}
                   >
-                    {att.kind === "pdf" ? (
-                      <FileText size={11} color={dot} />
-                    ) : (
+                    {att.kind === "image" ? (
                       <ImageIcon size={11} color={dot} />
+                    ) : att.kind === "document" ? (
+                      <BookOpen size={11} color={dot} />
+                    ) : (
+                      <FileText size={11} color={dot} />
                     )}
                     <Text style={[typography.bodyXs, { color: colors.ink }]} numberOfLines={1}>
                       {att.name}
@@ -2751,6 +3884,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
           ) : null}
           <Pressable
             onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+            delayLongPress={350}
             accessibilityLabel={t("chat.a11yLongPress")}
             style={{
               backgroundColor: colors.accentSoft,
@@ -2861,6 +3995,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
         ) : m.text.trim() || showCursor ? (
           <Pressable
             onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+            delayLongPress={350}
             accessibilityLabel={t("chat.a11yLongPress")}
           >
             {segments.map((seg, segIdx) => {
@@ -2924,6 +4059,25 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                   </View>
                 );
               }
+              // Streaming perf: parseMarkdownBlocks on the full growing text
+              // every coalescer flush is O(n²) total. While streaming the
+              // contract is already a single plain-text segment (fences and
+              // blocks are not complete), so render raw text directly and let
+              // the markdown pass run once at finalize. Mid-stream this shows
+              // raw text (fences/headings are incomplete anyway); the final
+              // markdown pass lands at finalize.
+              if (m.streaming) {
+                return (
+                  <Text
+                    key={segIdx}
+                    style={[typography.chatBody, { color: colors.ink }]}
+                    onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, true)}
+                  >
+                    {seg.content}
+                    {segIdx === segments.length - 1 && showCursor ? "▋" : ""}
+                  </Text>
+                );
+              }
               return (
                 <MarkdownText
                   key={segIdx}
@@ -2940,6 +4094,11 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
         {m.interrupted ? (
           <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
             {t("chat.interrupted")}
+          </Text>
+        ) : null}
+        {m.edited ? (
+          <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
+            {t("chat.edit")}
           </Text>
         ) : null}
 
@@ -3250,11 +4409,21 @@ function TranslationBlock({
   // Badge from result.lang (captured at translate start), not the live locale.
   const langBadge = result.lang === "it" ? "IT" : "EN";
   const [copiedLocal, setCopiedLocal] = useState(false);
+  const copiedLocalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear the flash timer on unmount (no setState on a dead component).
+  useEffect(
+    () => () => {
+      if (copiedLocalTimer.current) clearTimeout(copiedLocalTimer.current);
+    },
+    [],
+  );
 
   const handleCopy = () => {
     onCopy();
     setCopiedLocal(true);
-    setTimeout(() => setCopiedLocal(false), 1500);
+    if (copiedLocalTimer.current) clearTimeout(copiedLocalTimer.current);
+    copiedLocalTimer.current = setTimeout(() => setCopiedLocal(false), 1500);
   };
 
   return (

@@ -14,4 +14,12 @@ const { getDefaultConfig } = require("expo/metro-config");
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
+// Vendored pdf.js (pdf.min.js.txt / pdf.worker.min.js.txt) is loaded via
+// Asset.fromModule(require(...)). Metro's default assetExts omit "txt", so the
+// release APK never packed those files and PdfToImages threw
+// "pdf.js asset not available". Keep them as real assets (not JS modules).
+config.resolver.assetExts = Array.from(
+  new Set([...(config.resolver.assetExts ?? []), "txt"]),
+);
+
 module.exports = config;

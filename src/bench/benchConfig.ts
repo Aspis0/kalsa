@@ -32,6 +32,7 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getThreadCountSource } from "../engine/threadProfile";
 
 export const BENCH_THINKING_KEY = "kalsa.bench.thinking";
 export const BENCH_FORMAT_KEY = "kalsa.bench.format";
@@ -423,7 +424,10 @@ export async function formatBenchStatus(): Promise<string> {
     activeLabel === engineLabel
       ? `engine=${engineLabel}`
       : `engine=${engineLabel} (ACTIVE: ${activeLabel} — force-stop + relaunch to apply)`;
-  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, ${enginePart}`;
+  // threads_src: how detectThreadCount resolved (capacity vs fallback:*).
+  // "unset" until the engine has probed; no log noise on the normal path.
+  const threadsSrc = getThreadCountSource();
+  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, ${enginePart}, threads_src=${threadsSrc}`;
 }
 
 const BENCH_USAGE =
@@ -514,8 +518,10 @@ export async function tryHandleBenchCommand(text: string): Promise<string | null
     if (!ok) return "bench: failed to write engine override";
     // Machine-readable status line FIRST (CI greps it); optional warning after.
     // threads>=7 is still accepted (measurement tool must reach the zone) but
-    // on 8-core SD8Gen3 llama.rn pins N fastest cores and efficiency cores
-    // destroy decode throughput (measured 0.06 tok/s at threads=8).
+    // measured fact: threads>=7 has produced catastrophic decode on one device
+    // (0.06 tok/s at threads=8 on an 8-core SD8Gen3). Affinity pinning is a
+    // no-op on Android (see docs/ANDROID_CPU_AFFINITY_IS_A_NOOP.md); do not
+    // attribute this to "pins N fastest / efficiency cores destroy throughput".
     const status = await formatBenchStatus();
     if (
       parsedEngine !== "clear" &&
@@ -524,8 +530,8 @@ export async function tryHandleBenchCommand(text: string): Promise<string | null
     ) {
       return (
         `${status}\n` +
-        "bench: WARNING threads>=7 includes efficiency cores — measured 0.06 tok/s " +
-        "decode on an 8-core SD8Gen3; use 6 or fewer for real numbers"
+        "bench: WARNING threads>=7 has produced catastrophic decode on one device " +
+        "(0.06 tok/s at threads=8 on an 8-core SD8Gen3); use 6 or fewer for real numbers"
       );
     }
     return status;

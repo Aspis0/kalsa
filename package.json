@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit",
     "harness:markdown": "node scripts/markdownHarness.mjs",
     "doctor": "expo-doctor",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "telemetry:flush": "node workers/telemetry/flush.mjs",
+    "harness:telemetry": "node scripts/telemetryHarness.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/jetbrains-mono": "^0.4.1",
@@ -40,6 +42,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.2",
+    "react-native-draggable-flatlist": "^4.0.3",
     "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-keyboard-controller": "1.21.9",
@@ -54,6 +57,7 @@
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
+    "@types/node": "^24.10.1",
     "@types/react": "^19.2.3",
     "expo-doctor": "^1.18.20",
     "jest": "^30.4.2",

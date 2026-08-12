@@ -67,6 +67,7 @@ jobs:
           node scripts/benchEngineHarness.mjs
           node scripts/engineParamsHarness.mjs
           node scripts/threadProfileHarness.mjs
+          node scripts/memoryEstimateHarness.mjs
           node scripts/sessionMetaHarness.mjs
           node scripts/sessionSaveGateHarness.mjs
           node scripts/voiceStateHarness.mjs

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   BackHandler,
+  Linking,
   Pressable,
   ScrollView,
   Switch,
@@ -12,10 +13,15 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import * as Clipboard from "expo-clipboard";
 import { ChevronRight, CircleQuestionMark, Trash2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import type { ModelPipelineState, VoicePipelineState } from "../app/AppShell";
+import type {
+  EmbeddingPipelineState,
+  ModelPipelineState,
+  VoicePipelineState,
+} from "../app/AppShell";
 import { useLocale, type Locale, type TranslationKey } from "../i18n";
 import {
   getActiveProviderId,
@@ -31,12 +37,26 @@ import {
   formatBytes,
   type ModelInfo,
 } from "../engine/ModelRegistry";
+import { isEmbedderHung } from "../engine/EmbeddingService";
 import {
   getDeviceTotalMemoryBytes,
   getRamTier,
   ramTierMeets,
   recommendedModelId,
 } from "../engine/contextProfile";
+import {
+  diskRequirementBytes,
+  estimateModelNonEvictableMiB,
+  evaluateModelFit,
+  getCachedDeviceProfile,
+  getFreeDiskBytes,
+  modelGateVerdict,
+  type DeviceProfile,
+  type ModelGateVerdict,
+} from "../engine/deviceProfile";
+import { getAvailableMemoryBytesUncached } from "../engine/monitor";
+import { useProcessHealth } from "../hooks/useProcessHealth";
+import { useThermalMonitor } from "../hooks/useThermalMonitor";
 import * as MemoryStore from "../memory/MemoryStore";
 import type { MemoryFact } from "../memory/MemoryStore";
 import { COMPACTION_ENABLED_KEY } from "../context/compactor";
@@ -78,12 +98,24 @@ export type SettingsVoiceProps = {
   onToggleTts: (enabled: boolean) => void;
 };
 
+/** Optional embedding model (hybrid document search) — download only. */
+export type SettingsEmbeddingProps = {
+  state: EmbeddingPipelineState;
+  /** 0–100 while downloading; null otherwise. */
+  downloadPercent: number | null;
+  error: string | null;
+  modelName: string;
+  modelSizeLabel: string;
+  onDownload: () => void;
+};
+
 type Props = {
   onBack: () => void;
   /** Open Help overlay (AppShell sets activeOverlay to { kind: "help" }). */
   onOpenHelp: () => void;
   model: SettingsModelProps;
   voice: SettingsVoiceProps;
+  embedding: SettingsEmbeddingProps;
 };
 
 /** App version from Expo config; fallback keeps About usable in bare tests. */
@@ -104,7 +136,7 @@ function modelBundleSize(model: ModelInfo): number {
  * Settings — full-screen View overlay opened from the drawer.
  * Not a Modal: Android hardware back is handled here (dirty confirm for websearch).
  */
-export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
+export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: Props) {
   const { colors, fontScaleId, setFontScaleId } = useLabTheme<any>();
   const typography = useTypography();
   const insets = useSafeAreaInsets();
@@ -145,6 +177,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
   // ── Context compaction (ConversationCompactor — default OFF) ─────────────
   const [compactionEnabled, setCompactionEnabled] = useState(false);
 
+  // ── Telemetry opt-in (default OFF) ───────────────────────────────────────
+  const [telemetryEnabled, setTelemetryEnabled] = useState(false);
+  const [telemetryBusy, setTelemetryBusy] = useState(false);
+
   // ── Thinking mode (bench/benchConfig — same storage key as /bench thinking) ──
   const [thinkingMode, setThinkingModeState] = useState<ThinkingMode>("default");
 
@@ -181,6 +217,126 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
   useEffect(() => {
     void reloadMemory();
   }, [reloadMemory]);
+
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const tel = require("../telemetry/telemetry") as {
+          getTelemetryEnabled: () => Promise<boolean>;
+        };
+        const on = await tel.getTelemetryEnabled();
+        if (mounted) setTelemetryEnabled(on);
+      } catch {
+        if (mounted) setTelemetryEnabled(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleToggleTelemetry = useCallback(
+    (next: boolean) => {
+      if (telemetryBusy) return;
+      if (!next) {
+        setTelemetryBusy(true);
+        void (async () => {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const tel = require("../telemetry/telemetry") as {
+              setTelemetryEnabled: (v: boolean) => Promise<boolean>;
+            };
+            await tel.setTelemetryEnabled(false);
+            if (mountedRef.current) setTelemetryEnabled(false);
+          } catch {
+            if (mountedRef.current) setTelemetryEnabled(false);
+          } finally {
+            if (mountedRef.current) setTelemetryBusy(false);
+          }
+        })();
+        return;
+      }
+      // Opt-in Alert with honest copy
+      Alert.alert(
+        t("settings.telemetryOptInTitle"),
+        t("settings.telemetryOptInBody"),
+        [
+          {
+            text: t("settings.telemetryOptInCancel"),
+            style: "cancel",
+            onPress: () => {
+              setTelemetryEnabled(false);
+            },
+          },
+          {
+            text: t("settings.telemetryOptInConfirm"),
+            onPress: () => {
+              setTelemetryBusy(true);
+              void (async () => {
+                try {
+                  // eslint-disable-next-line @typescript-eslint/no-require-imports
+                  const tel = require("../telemetry/telemetry") as {
+                    setTelemetryEnabled: (v: boolean) => Promise<boolean>;
+                  };
+                  const ok = await tel.setTelemetryEnabled(true);
+                  if (mountedRef.current) setTelemetryEnabled(ok);
+                } catch {
+                  if (mountedRef.current) setTelemetryEnabled(false);
+                } finally {
+                  if (mountedRef.current) setTelemetryBusy(false);
+                }
+              })();
+            },
+          },
+        ],
+      );
+    },
+    [t, telemetryBusy],
+  );
+
+  const handleReportProblem = useCallback(() => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const tel = require("../telemetry/telemetry") as {
+        buildManualReportPreview: () => unknown;
+        formatManualReportPreview: (r: unknown) => string;
+        GITHUB_ISSUE_CHOOSE_URL: string;
+      };
+      const report = tel.buildManualReportPreview();
+      const preview = report
+        ? tel.formatManualReportPreview(report as never)
+        : "(no report)";
+      Alert.alert(
+        t("settings.reportProblem"),
+        t("settings.reportProblemBody") + "\n\n" + preview.slice(0, 900),
+        [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("settings.reportCopy"),
+            onPress: () => {
+              void Clipboard.setStringAsync(preview)
+                .then(() => {
+                  Alert.alert(t("settings.reportCopied"));
+                })
+                .catch(() => undefined);
+            },
+          },
+          {
+            text: t("settings.reportOpenGitHub"),
+            onPress: () => {
+              void Linking.openURL(tel.GITHUB_ISSUE_CHOOSE_URL).catch(
+                () => undefined,
+              );
+            },
+          },
+        ],
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [t]);
 
   useEffect(() => {
     let mounted = true;
@@ -566,6 +722,95 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
   const deviceRamTier = deviceTotalMemoryBytes !== null ? getRamTier(deviceTotalMemoryBytes) : null;
   const recommendedModel = deviceRamTier !== null ? recommendedModelId(deviceRamTier) : null;
 
+  // Hard gate inputs: DeviceProfile (process-cached) + free disk (best-effort).
+  const [deviceProfile, setDeviceProfile] = useState<DeviceProfile | null>(null);
+  const [freeDiskBytes, setFreeDiskBytes] = useState<number | null>(null);
+  const [memoryUnknownBanner, setMemoryUnknownBanner] = useState(false);
+  const processHealth = useProcessHealth({
+    totalMemoryBytes: deviceProfile?.totalMemoryBytes ?? null,
+  });
+  const thermal = useThermalMonitor();
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [profile, free] = await Promise.all([
+          getCachedDeviceProfile(),
+          getFreeDiskBytes(),
+        ]);
+        if (cancelled) return;
+        setDeviceProfile(profile);
+        setFreeDiskBytes(free);
+        // Live uncached sample for memoryUnknown banner on active model.
+        try {
+          const available = await getAvailableMemoryBytesUncached();
+          const active = MODEL_REGISTRY.find((m) => m.id === model.currentModelId);
+          if (active) {
+            const fit = evaluateModelFit(
+              {
+                sizeBytes: active.sizeBytes,
+                engineCtx: active.engineCtx,
+                kvBytesPerToken: active.kvBytesPerToken,
+                mmproj: active.mmproj
+                  ? { sizeBytes: active.mmproj.sizeBytes }
+                  : null,
+              },
+              available,
+            );
+            if (!cancelled) {
+              setMemoryUnknownBanner(fit.verdict === "unknown");
+            }
+          }
+        } catch {
+          // ignore
+        }
+      } catch {
+        // Leave null — soft UI only; AppShell re-checks before download/load.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [model.currentModelId]);
+
+  /** Localized hard-gate reason; null when allowed / unknown / no profile yet. */
+  const gateReasonLabel = useCallback(
+    (gate: ModelGateVerdict | null): string | null => {
+      if (!gate || gate.allowed) return null;
+      switch (gate.reason) {
+        case "blocked_tier":
+          return t("models.blockedTier");
+        case "blocked_ram":
+          return t("models.blockedRam");
+        case "blocked_disk":
+          return t("models.blockedDisk");
+        default:
+          return null;
+      }
+    },
+    [t],
+  );
+
+  /** Compact device line: brand model · N GB RAM · M cores (null parts omitted). */
+  const deviceLineLabel = useMemo(() => {
+    if (!deviceProfile) return null;
+    const brand = deviceProfile.brand ?? "";
+    const model = deviceProfile.modelName ?? "";
+    const parts: string[] = [];
+    if (brand || model) {
+      parts.push(t("settings.deviceLine", { brand, model }).trim());
+    }
+    const gb =
+      deviceProfile.totalMemoryBytes != null
+        ? Math.round(deviceProfile.totalMemoryBytes / 1_000_000_000)
+        : deviceRamGb;
+    if (gb != null) parts.push(`${gb} GB RAM`);
+    if (deviceProfile.cpuCoreCount != null) {
+      parts.push(`${deviceProfile.cpuCoreCount} cores`);
+    }
+    return parts.length > 0 ? parts.join(" · ") : null;
+  }, [deviceProfile, deviceRamGb, t]);
+
   const voiceStatusLabel = useMemo(() => {
     switch (voice.state) {
       case "checking":
@@ -580,6 +825,30 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         return t("settings.modelError");
     }
   }, [voice.downloadPercent, voice.state, t]);
+
+  const embeddingStatusLabel = useMemo(() => {
+    // Round 7 hung visibility: process-wide hung flag wins over pipeline state.
+    // Round 8 FIX 3: include isEmbedderHung() in deps so a hang declared while
+    // Settings is mounted re-evaluates the label (module flag is not reactive;
+    // any dep change re-reads it — acceptable minimal approach).
+    if (isEmbedderHung()) {
+      return t("embedding.hung");
+    }
+    switch (embedding.state) {
+      case "checking":
+        return t("settings.modelChecking");
+      case "missing":
+        return t("embedding.statusNotDownloaded");
+      case "downloading":
+        return t("embedding.downloading", {
+          percent: embedding.downloadPercent ?? 0,
+        });
+      case "ready":
+        return t("embedding.statusDownloaded");
+      case "error":
+        return t("settings.modelError");
+    }
+  }, [embedding.downloadPercent, embedding.state, t, isEmbedderHung()]);
 
   return (
     <View
@@ -607,7 +876,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         keyboardShouldPersistTaps="handled"
       >
         {/* ── Language ─────────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.language")}
           </Text>
@@ -654,7 +923,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         </GlassPanel2>
 
         {/* ── Appearance / text size ───────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.fontSize")}
           </Text>
@@ -717,7 +986,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         </GlassPanel2>
 
         {/* ── Context (ConversationCompactor) ──────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.context")}
           </Text>
@@ -747,7 +1016,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         </GlassPanel2>
 
         {/* ── Thinking ─────────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.thinking")}
           </Text>
@@ -794,7 +1063,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         </GlassPanel2>
 
         {/* ── Memory ───────────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("memory.title")}
           </Text>
@@ -958,7 +1227,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         </GlassPanel2>
 
         {/* ── Web search ───────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.webSearch")}
           </Text>
@@ -1117,7 +1386,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         </GlassPanel2>
 
         {/* ── Voice (ASR + TTS) ────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("voice.title")}
           </Text>
@@ -1232,8 +1501,95 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
           </View>
         </GlassPanel2>
 
+        {/* ── Embedding model (optional hybrid document search) ─────────── */}
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+            {t("embedding.title")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
+            {t("embedding.hint")}
+          </Text>
+
+          <View
+            style={{
+              marginTop: spacing.xs,
+              paddingVertical: spacing.sm,
+              paddingHorizontal: spacing.md,
+              borderRadius: radius.md,
+              borderWidth: 1,
+              borderColor: colors.line,
+              gap: spacing.xs,
+            }}
+          >
+            <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+              {embedding.modelName}
+            </Text>
+            <Text style={[typography.bodyXs, { color: colors.muted }]}>
+              {t("embedding.sizeLabel", { size: embedding.modelSizeLabel })}
+            </Text>
+            <Text
+              style={[
+                typography.bodyXs,
+                {
+                  color:
+                    isEmbedderHung() || embedding.state === "error"
+                      ? colors.bad
+                      : embedding.state === "ready"
+                        ? colors.good
+                        : colors.muted,
+                },
+              ]}
+            >
+              {embeddingStatusLabel}
+            </Text>
+
+            {embedding.state === "downloading" && embedding.downloadPercent != null ? (
+              <View
+                style={{
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: colors.line,
+                  overflow: "hidden",
+                }}
+              >
+                <View
+                  style={{
+                    height: 4,
+                    width: `${embedding.downloadPercent}%`,
+                    backgroundColor: colors.accent,
+                  }}
+                />
+              </View>
+            ) : null}
+
+            {embedding.error ? (
+              <Text style={[typography.bodyXs, { color: colors.bad }]} numberOfLines={2}>
+                {embedding.error}
+              </Text>
+            ) : null}
+
+            {embedding.state === "missing" || embedding.state === "error" ? (
+              <Pressable
+                onPress={embedding.onDownload}
+                style={{
+                  marginTop: 2,
+                  paddingVertical: spacing.sm,
+                  borderRadius: radius.md,
+                  backgroundColor: colors.accent,
+                  alignItems: "center",
+                }}
+                accessibilityLabel={t("embedding.download")}
+              >
+                <Text style={[typography.bodySm, { color: colors.primaryText, fontFamily: fontFamilies.displayBold }]}>
+                  {t("embedding.download")}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </GlassPanel2>
+
         {/* ── Models ───────────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.models")}
           </Text>
@@ -1243,6 +1599,58 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
           {deviceRamGb !== null ? (
             <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
               {t("models.deviceRam", { gb: deviceRamGb })}
+            </Text>
+          ) : null}
+          {deviceLineLabel ? (
+            <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
+              {deviceLineLabel}
+            </Text>
+          ) : null}
+          {memoryUnknownBanner ? (
+            <Text
+              style={[
+                typography.bodyXs,
+                { color: colors.bad ?? colors.muted, marginBottom: spacing.xs },
+              ]}
+            >
+              {t("model.memoryUnknown")}
+            </Text>
+          ) : null}
+          {processHealth.unloadedReason ? (
+            <Text
+              style={[
+                typography.bodyXs,
+                { color: colors.muted, marginBottom: spacing.xs },
+              ]}
+            >
+              {t("chat.unloaded")}
+              {processHealth.availableMemoryBytes != null
+                ? ` · ${Math.round(processHealth.availableMemoryBytes / (1024 * 1024))} MiB free`
+                : ""}
+              {processHealth.fitTier ? ` · tier ${processHealth.fitTier}` : ""}
+            </Text>
+          ) : processHealth.availableMemoryBytes != null ? (
+            <Text
+              style={[
+                typography.bodyXs,
+                { color: colors.muted, marginBottom: spacing.xs },
+              ]}
+            >
+              {`${Math.round(processHealth.availableMemoryBytes / (1024 * 1024))} MiB free`}
+              {processHealth.fitTier ? ` · tier ${processHealth.fitTier}` : ""}
+            </Text>
+          ) : null}
+          {thermal.status === "warm" || thermal.status === "hot" ? (
+            <Text
+              style={[
+                typography.bodyXs,
+                { color: colors.bad ?? colors.muted, marginBottom: spacing.xs },
+              ]}
+            >
+              {t("chat.thermalHot")}
+              {thermal.currentTempC != null
+                ? ` · ${Math.round(thermal.currentTempC)}°C`
+                : ""}
             </Text>
           ) : null}
 
@@ -1257,6 +1665,33 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                 deviceRamTier !== null &&
                 entry.minRamTier !== undefined &&
                 !ramTierMeets(deviceRamTier, entry.minRamTier);
+              // Until profile + free-disk resolve, disable Select/Download so a
+              // fast tap cannot race past a gate that would later block.
+              const profilePending = deviceProfile === null || freeDiskBytes === null;
+              // Hard gate: block download/select for models that cannot fit.
+              // Active model stays usable (never force-evict).
+              // modelSizeBytes is margined (same helper as AppShell confirm/start).
+              const gate: ModelGateVerdict | null = deviceProfile
+                ? modelGateVerdict({
+                    totalMemoryBytes: deviceProfile.totalMemoryBytes,
+                    availableMemoryBytes: deviceProfile.availableMemoryBytes,
+                    freeDiskBytes,
+                    ramTier: deviceProfile.ramTier,
+                    modelMinRamTier: entry.minRamTier,
+                    modelNonEvictableMiB: estimateModelNonEvictableMiB({
+                      sizeBytes:
+                        entry.sizeBytes + (entry.mmproj?.sizeBytes ?? 0),
+                      engineCtx: entry.engineCtx,
+                      kvBytesPerToken: entry.kvBytesPerToken,
+                    }),
+                    modelSizeBytes: diskRequirementBytes(
+                      entry.sizeBytes + (entry.mmproj?.sizeBytes ?? 0),
+                    ),
+                  })
+                : null;
+              const hardBlocked = gate?.allowed === false && !active;
+              const hardBlockLabel = hardBlocked ? gateReasonLabel(gate) : null;
+              const selectDisabled = modelBusy || hardBlocked || profilePending;
               return (
                 <View
                   key={entry.id}
@@ -1312,7 +1747,17 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                           {t("models.recommended")}
                         </Text>
                       ) : null}
-                      {exceedsDeviceTier ? (
+                      {hardBlockLabel ? (
+                        <Text
+                          style={[
+                            typography.bodyXs,
+                            { color: colors.bad ?? colors.muted, marginTop: 2 },
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {hardBlockLabel}
+                        </Text>
+                      ) : exceedsDeviceTier ? (
                         <Text
                           style={[
                             typography.bodyXs,
@@ -1362,20 +1807,26 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                     ) : (
                       <Pressable
                         onPress={() => model.onSelectModel(entry.id)}
-                        disabled={modelBusy}
+                        disabled={selectDisabled}
                         style={{
                           paddingHorizontal: 12,
                           paddingVertical: 6,
                           borderRadius: radius.md,
                           borderWidth: 1,
                           borderColor: colors.line,
-                          opacity: modelBusy ? 0.5 : 1,
+                          opacity: selectDisabled ? 0.5 : 1,
                         }}
                       >
                         <Text
                           style={[
                             typography.bodyXs,
-                            { color: colors.ink, fontFamily: fontFamilies.bodySemi },
+                            {
+                              color:
+                                hardBlocked || profilePending
+                                  ? colors.muted
+                                  : colors.ink,
+                              fontFamily: fontFamilies.bodySemi,
+                            },
                           ]}
                         >
                           {t("settings.modelSelect")}
@@ -1449,14 +1900,14 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
                             if (engineRetry) model.onRetryLoad();
                             else model.onDownloadModel(entry.id);
                           }}
-                          disabled={modelBusy}
+                          disabled={selectDisabled}
                           style={{
                             marginTop: 2,
                             paddingVertical: spacing.sm,
                             borderRadius: radius.md,
                             backgroundColor: colors.accent,
                             alignItems: "center",
-                            opacity: modelBusy ? 0.6 : 1,
+                            opacity: selectDisabled ? 0.6 : 1,
                           }}
                         >
                           <Text
@@ -1482,17 +1933,67 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         </GlassPanel2>
 
         {/* ── Privacy ──────────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.privacy")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
             {t("settings.privacyBody")}
           </Text>
+
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+              marginTop: spacing.sm,
+            }}
+          >
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[typography.bodySm, { color: colors.ink }]}>
+                {t("settings.telemetry")}
+              </Text>
+              <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
+                {telemetryEnabled
+                  ? t("settings.telemetryBodyOn")
+                  : t("settings.telemetryBodyOff")}
+              </Text>
+            </View>
+            <Switch
+              value={telemetryEnabled}
+              onValueChange={handleToggleTelemetry}
+              disabled={telemetryBusy}
+              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+              thumbColor={telemetryEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("settings.telemetry")}
+            />
+          </View>
+
+          <Pressable
+            onPress={handleReportProblem}
+            accessibilityRole="button"
+            accessibilityLabel={t("settings.reportProblem")}
+            style={{
+              marginTop: spacing.sm,
+              paddingVertical: spacing.sm,
+              paddingHorizontal: spacing.md,
+              borderRadius: radius.md,
+              borderWidth: 1,
+              borderColor: colors.line,
+            }}
+          >
+            <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+              {t("settings.reportProblem")}
+            </Text>
+            <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
+              {t("settings.reportProblemBody")}
+            </Text>
+          </Pressable>
         </GlassPanel2>
 
         {/* ── Help (before About) ──────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Pressable
             onPress={handleOpenHelp}
             disabled={busy}
@@ -1519,7 +2020,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice }: Props) {
         </GlassPanel2>
 
         {/* ── About ────────────────────────────────────────────────────── */}
-        <GlassPanel2 rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.about")}
           </Text>

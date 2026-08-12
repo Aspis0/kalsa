@@ -657,10 +657,66 @@ export function makeWebFetchExecutor(
           redirect: "follow",
         });
       } catch (error) {
-        if (isAbortError(error) || combined.aborted || timeoutController.signal.aborted) {
+        const userAborted = !!signal?.aborted;
+        const timedOut =
+          timeoutController.signal.aborted && !userAborted;
+        if (userAborted) {
           return {
             text: abortMessage(urlPathLooksLikePdf(url)),
           };
+        }
+        if (timedOut || isAbortError(error) || combined.aborted) {
+          if (timedOut) {
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const tel = require("../telemetry/telemetry") as {
+                reportTelemetry: (i: Record<string, unknown>) => void;
+              };
+              tel.reportTelemetry({
+                code: "web.fetch",
+                detail: "timeout",
+                phase: "turn",
+              });
+            } catch {
+              /* telemetry never throws */
+            }
+          } else if (!isAbortError(error)) {
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const tel = require("../telemetry/telemetry") as {
+                reportTelemetry: (i: Record<string, unknown>) => void;
+                classifyNetworkFailure: (e: unknown) => string;
+              };
+              tel.reportTelemetry({
+                code: "web.fetch",
+                detail: tel.classifyNetworkFailure(error),
+                rawMessage:
+                  error instanceof Error ? error.message : String(error ?? ""),
+                phase: "turn",
+              });
+            } catch {
+              /* telemetry never throws */
+            }
+          }
+          return {
+            text: abortMessage(urlPathLooksLikePdf(url)),
+          };
+        }
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const tel = require("../telemetry/telemetry") as {
+            reportTelemetry: (i: Record<string, unknown>) => void;
+            classifyNetworkFailure: (e: unknown) => string;
+          };
+          tel.reportTelemetry({
+            code: "web.fetch",
+            detail: tel.classifyNetworkFailure(error),
+            rawMessage:
+              error instanceof Error ? error.message : String(error ?? ""),
+            phase: "turn",
+          });
+        } catch {
+          /* telemetry never throws */
         }
         return {
           text: errors.webFetchFailed.replace(
@@ -716,6 +772,20 @@ export function makeWebFetchExecutor(
       }
 
       if (response.status < 200 || response.status >= 300) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const tel = require("../telemetry/telemetry") as {
+            reportTelemetry: (i: Record<string, unknown>) => void;
+            classifyHttpDetail: (s: number) => string;
+          };
+          tel.reportTelemetry({
+            code: "web.fetch",
+            detail: tel.classifyHttpDetail(response.status),
+            phase: "turn",
+          });
+        } catch {
+          /* telemetry never throws */
+        }
         return {
           text: errors.webFetchHttpError.replace("{status}", String(response.status)),
         };
@@ -932,6 +1002,19 @@ async function handlePdfResponse(ctx: {
       // User stop wins over network timer when both are aborted.
       if (turnSignal?.aborted) {
         return { text: errors.webFetchPdfAborted };
+      }
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const tel = require("../telemetry/telemetry") as {
+          reportTelemetry: (i: Record<string, unknown>) => void;
+        };
+        tel.reportTelemetry({
+          code: "web.fetch",
+          detail: "timeout",
+          phase: "turn",
+        });
+      } catch {
+        /* telemetry never throws */
       }
       return { text: errors.webFetchPdfTimeout };
     }

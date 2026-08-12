@@ -96,7 +96,30 @@ export function makeWebSearchExecutor(
 
     // searchWeb also clamps; tool-level default is 4.
     const numResults = normalizeNumResults(args.numResults ?? 4);
-    const outcome = await searchWeb(query, { locale, numResults, signal });
+    let outcome: Awaited<ReturnType<typeof searchWeb>>;
+    try {
+      outcome = await searchWeb(query, { locale, numResults, signal });
+    } catch (error) {
+      if (!(signal?.aborted)) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const tel = require("../telemetry/telemetry") as {
+            reportTelemetry: (i: Record<string, unknown>) => void;
+            classifyNetworkFailure: (e: unknown) => string;
+          };
+          tel.reportTelemetry({
+            code: "web.search",
+            detail: tel.classifyNetworkFailure(error),
+            rawMessage:
+              error instanceof Error ? error.message : String(error ?? ""),
+            phase: "turn",
+          });
+        } catch {
+          /* telemetry never throws */
+        }
+      }
+      throw error;
+    }
 
     const sources = outcome.results.map((result) => ({
       title: result.title,
