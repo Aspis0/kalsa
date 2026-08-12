@@ -1,0 +1,80 @@
+0.00.268.865 I llama_model_loader: - kv  22:    qwen35.attention.layer_norm_rms_epsilon f32              = 0.000001
+0.02.521.109 I print_info: n_layer               = 24
+0.02.521.109 I print_info: n_layer_all           = 24
+0.02.521.252 D load_tensors: layer   0 assigned to device CPU, is_swa = 0
+0.02.521.253 D load_tensors: layer   1 assigned to device CPU, is_swa = 0
+0.02.521.253 D load_tensors: layer   2 assigned to device CPU, is_swa = 0
+0.02.521.253 D load_tensors: layer   3 assigned to device CPU, is_swa = 0
+0.02.521.254 D load_tensors: layer   4 assigned to device CPU, is_swa = 0
+0.02.521.254 D load_tensors: layer   5 assigned to device CPU, is_swa = 0
+0.02.521.254 D load_tensors: layer   6 assigned to device CPU, is_swa = 0
+0.02.521.255 D load_tensors: layer   7 assigned to device CPU, is_swa = 0
+0.02.521.255 D load_tensors: layer   8 assigned to device CPU, is_swa = 0
+0.02.521.255 D load_tensors: layer   9 assigned to device CPU, is_swa = 0
+0.02.521.256 D load_tensors: layer  10 assigned to device CPU, is_swa = 0
+0.02.521.256 D load_tensors: layer  11 assigned to device CPU, is_swa = 0
+0.02.521.256 D load_tensors: layer  12 assigned to device CPU, is_swa = 0
+0.02.521.256 D load_tensors: layer  13 assigned to device CPU, is_swa = 0
+0.02.521.257 D load_tensors: layer  14 assigned to device CPU, is_swa = 0
+0.02.521.257 D load_tensors: layer  15 assigned to device CPU, is_swa = 0
+0.02.521.257 D load_tensors: layer  16 assigned to device CPU, is_swa = 0
+0.02.521.258 D load_tensors: layer  17 assigned to device CPU, is_swa = 0
+0.02.521.258 D load_tensors: layer  18 assigned to device CPU, is_swa = 0
+0.02.521.258 D load_tensors: layer  19 assigned to device CPU, is_swa = 0
+0.02.521.259 D load_tensors: layer  20 assigned to device CPU, is_swa = 0
+0.02.521.259 D load_tensors: layer  21 assigned to device CPU, is_swa = 0
+0.02.521.259 D load_tensors: layer  22 assigned to device CPU, is_swa = 0
+0.02.521.260 D load_tensors: layer  23 assigned to device GPUOpenCL, is_swa = 0
+0.02.521.260 D load_tensors: layer  24 assigned to device GPUOpenCL, is_swa = 0
+0.03.881.163 I load_tensors: offloading output layer to GPU
+0.03.881.163 I load_tensors: offloading 1 repeating layers to GPU
+0.03.881.164 I load_tensors: offloaded 2/25 layers to GPU
+0.03.891.384 D llama_kv_cache: layer   0: filtered
+0.03.891.385 D llama_kv_cache: layer   1: filtered
+0.03.891.385 D llama_kv_cache: layer   2: filtered
+0.03.891.387 D llama_kv_cache: layer   3: dev = CPU
+0.03.891.398 D llama_kv_cache: layer   4: filtered
+0.03.891.398 D llama_kv_cache: layer   5: filtered
+0.03.891.399 D llama_kv_cache: layer   6: filtered
+0.03.891.400 D llama_kv_cache: layer   7: dev = CPU
+0.03.891.401 D llama_kv_cache: layer   8: filtered
+0.03.891.402 D llama_kv_cache: layer   9: filtered
+0.03.891.402 D llama_kv_cache: layer  10: filtered
+0.03.891.403 D llama_kv_cache: layer  11: dev = CPU
+0.03.891.405 D llama_kv_cache: layer  12: filtered
+0.03.891.406 D llama_kv_cache: layer  13: filtered
+0.03.891.406 D llama_kv_cache: layer  14: filtered
+0.03.891.407 D llama_kv_cache: layer  15: dev = CPU
+0.03.891.409 D llama_kv_cache: layer  16: filtered
+0.03.891.410 D llama_kv_cache: layer  17: filtered
+0.03.891.410 D llama_kv_cache: layer  18: filtered
+0.03.891.411 D llama_kv_cache: layer  19: dev = CPU
+0.03.891.413 D llama_kv_cache: layer  20: filtered
+0.03.891.413 D llama_kv_cache: layer  21: filtered
+0.03.891.414 D llama_kv_cache: layer  22: filtered
+0.03.891.415 D llama_kv_cache: layer  23: dev = GPUOpenCL
+0.03.891.423 I llama_kv_cache: size =    6.00 MiB (   512 cells,   6 layers,  1/1 seqs), K (f16):    3.00 MiB, V (f16):    3.00 MiB
+0.03.891.630 D llama_memory_recurrent, layer   0: dev = CPU
+0.03.891.634 D llama_memory_recurrent, layer   1: dev = CPU
+0.03.891.635 D llama_memory_recurrent, layer   2: dev = CPU
+0.03.891.636 D llama_memory_recurrent: layer   3: skipped
+0.03.891.637 D llama_memory_recurrent, layer   4: dev = CPU
+0.03.891.638 D llama_memory_recurrent, layer   5: dev = CPU
+0.03.891.639 D llama_memory_recurrent, layer   6: dev = CPU
+0.03.891.639 D llama_memory_recurrent: layer   7: skipped
+0.03.891.640 D llama_memory_recurrent, layer   8: dev = CPU
+0.03.891.641 D llama_memory_recurrent, layer   9: dev = CPU
+0.03.891.641 D llama_memory_recurrent, layer  10: dev = CPU
+0.03.891.643 D llama_memory_recurrent: layer  11: skipped
+0.03.891.644 D llama_memory_recurrent, layer  12: dev = CPU
+0.03.891.644 D llama_memory_recurrent, layer  13: dev = CPU
+0.03.891.645 D llama_memory_recurrent, layer  14: dev = CPU
+0.03.891.645 D llama_memory_recurrent: layer  15: skipped
+0.03.891.646 D llama_memory_recurrent, layer  16: dev = CPU
+0.03.891.646 D llama_memory_recurrent, layer  17: dev = CPU
+0.03.891.647 D llama_memory_recurrent, layer  18: dev = CPU
+0.03.891.649 D llama_memory_recurrent: layer  19: skipped
+0.03.891.649 D llama_memory_recurrent, layer  20: dev = CPU
+0.03.891.650 D llama_memory_recurrent, layer  21: dev = CPU
+0.03.891.650 D llama_memory_recurrent, layer  22: dev = CPU
+0.03.891.651 D llama_memory_recurrent: layer  23: skipped

@@ -1,0 +1,2 @@
+RESULT iso_norm_cpu_lmhead_gpu ok=NO exit=0 first=Here're her thoughts through her search engine search engine search engine search engine search engine search engine search engine search engine search engine search engine search engine search engine search engine
+RESULT iso_norm_gpu_lmhead_cpu ok=YES exit=0 first=Thinking Process:

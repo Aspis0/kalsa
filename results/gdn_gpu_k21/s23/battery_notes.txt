@@ -1,0 +1,8 @@
+K2.1 S23 battery (correctness, plugged allowed; phone stayed unplugged)
+
+start: 79% UNPLUGGED ~27.3 C
+after greedy+first bisection attempt: 78% UNPLUGGED 28.0 C
+after isolation + ngl99 CPU-lm_head: 76% UNPLUGGED 29.1 C
+never <20%, never plugged, never >=45 C
+
+First bisection used default n_ctx=262144 (3 GiB F16 KV), hit swap (6.9 GiB RAM, 2 GiB swap used). Killed. All scored runs use -c 512.

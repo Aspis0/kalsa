@@ -1,0 +1,3 @@
+/data/data/com.termux/files/home/gdn_k2/k21/logs/ot_probe.txt:Available buffer types:
+/data/data/com.termux/files/home/gdn_k2/k21/logs/ot_probe.txt-  CPU
+/data/data/com.termux/files/home/gdn_k2/k21/logs/ot_probe.txt-  OpenCL
