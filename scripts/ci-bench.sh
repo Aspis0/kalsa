@@ -21,6 +21,9 @@
 #   COMPACTION     on|off|ciswire → kalsa.context.compaction raw 1|0|ciswire
 #                  (fase4/smoke only; fase0 always forces "on" → raw 1 / v42,
 #                  see NOTE(fase0-compaction))
+#   TOOLCHOICE     auto|required|none → kalsa.bench.toolchoice (default auto)
+#   TOOLGATE       1|0 → kalsa.bench.toolgate (default 1; 0 disables the
+#                  echo-of-context rules gate)
 #   RUNS_PER_ARM   fase0 in-job repeat count (default 3, per PIANO "3 run/formato")
 #   INTER_TURN_DELAY_S  seconds of pure idle between turns (default 0).
 #                  After capture_turn_evidence, before the next prompt is typed.
@@ -41,6 +44,8 @@ ARM="${ARM:?ARM is required}"
 SEED="${SEED:-1}"
 BLOCK_FORMAT="${BLOCK_FORMAT:-none}"
 THINKING="${THINKING:-off}"
+TOOLCHOICE="${TOOLCHOICE:-auto}"
+TOOLGATE="${TOOLGATE:-1}"
 RUNS_PER_ARM="${RUNS_PER_ARM:-3}"
 INTER_TURN_DELAY_S="${INTER_TURN_DELAY_S:-0}"
 MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
@@ -113,7 +118,16 @@ case "$PHASE" in
     ;;
 esac
 
-log "arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
+case "$TOOLCHOICE" in
+  auto|required|none) ;;
+  *) die "TOOLCHOICE must be auto|required|none (got '$TOOLCHOICE')" ;;
+esac
+case "$TOOLGATE" in
+  0|1) ;;
+  *) die "TOOLGATE must be 0|1 (got '$TOOLGATE')" ;;
+esac
+
+log "arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
 # LFM2.5 is always-on reasoning: the chat template has preserve_thinking only,
 # no off switch. Record THINKING as today; do not try to force it off.
 if [ "$MODEL_DIR" = "lfm2.5-2.6b" ]; then
@@ -169,6 +183,8 @@ set_prefs() {
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.context.compaction','$compaction_val');"
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.thinking','$THINKING');"
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.format','$BLOCK_FORMAT');"
+  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.toolchoice','$TOOLCHOICE');"
+  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.toolgate','$TOOLGATE');"
   # Opt-in memory subsystem must stay off: otherwise its extract/recall path
   # confounds the compaction A/B (same facts could leak via memory, not context).
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.memory.enabled','0');"
@@ -193,6 +209,12 @@ LOCALE_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.l
 _EXPECTED_COMPACTION_RAW=$(compaction_pref_raw_for "$COMPACTION")
 [ "$COMPACTION_PREF_RAW" = "$_EXPECTED_COMPACTION_RAW" ] \
   || die "compaction pref on device is '$COMPACTION_PREF_RAW', expected '$_EXPECTED_COMPACTION_RAW' (COMPACTION=$COMPACTION)"
+TOOLCHOICE_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.toolchoice';" | head -1 | tr -d '[:space:]')
+[ "$TOOLCHOICE_PREF_RAW" = "$TOOLCHOICE" ] \
+  || die "toolchoice pref on device is '$TOOLCHOICE_PREF_RAW', expected '$TOOLCHOICE'"
+TOOLGATE_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.toolgate';" | head -1 | tr -d '[:space:]')
+[ "$TOOLGATE_PREF_RAW" = "$TOOLGATE" ] \
+  || die "toolgate pref on device is '$TOOLGATE_PREF_RAW', expected '$TOOLGATE'"
 
 adb logcat -c
 

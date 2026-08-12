@@ -557,6 +557,8 @@ function emptyToolAggregates() {
     toolCallsSkipped: 0,
     toolCallsFailed: 0,
     privacyBlocks: 0,
+    forcedCalls: 0,
+    forcedThenBlocked: 0,
   };
 }
 
@@ -582,6 +584,10 @@ function aggregateToolRounds(roundsByTurn) {
         (Number(r.skippedFailedRepeat) || 0);
       out.toolCallsFailed += Number(r.failed) || 0;
       out.privacyBlocks += Number(r.blockedPrivacy) || 0;
+      if (r.toolChoice === "required") {
+        out.forcedCalls += emitted;
+        out.forcedThenBlocked += Number(r.blockedPrivacy) || 0;
+      }
     }
     const first = sorted[0];
     if (
@@ -786,6 +792,8 @@ function gradeRaw(raw, baseDir) {
     toolCallsSkipped,
     toolCallsFailed,
     privacyBlocks,
+    forcedCalls,
+    forcedThenBlocked,
   } = aggregateToolRounds(toolRoundsPerTurn);
   const { toolPrecision, toolRecall, spuriousCalls, missedCalls } =
     scoreToolTiming(turns, toolRoundsPerTurn);
@@ -982,6 +990,8 @@ function gradeRaw(raw, baseDir) {
     toolCallsSkipped,
     toolCallsFailed,
     privacyBlocks,
+    forcedCalls,
+    forcedThenBlocked,
     toolPrecision,
     toolRecall,
     spuriousCalls,

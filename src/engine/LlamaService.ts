@@ -14,7 +14,10 @@ import {
 import {
   getBlockFormat,
   getThinkingMode,
+  getToolChoiceMode,
+  getToolGateEnabled,
   registerActiveEngineKnobGetter,
+  resolveCompletionToolChoice,
   type BlockFormat,
 } from "../bench/benchConfig";
 import {
@@ -1295,6 +1298,8 @@ export async function streamAssistantTurn(
     // Bench knobs (AsyncStorage) — read once per turn; defaults keep production path.
     const blockFormat = await getBlockFormat();
     const thinkingMode = await getThinkingMode();
+    const toolChoiceMode = await getToolChoiceMode();
+    const toolGateEnabled = await getToolGateEnabled();
     // activeModelId === null → null model (defaults); unknown id still falls back
     // via getModelById (acceptable) but null must not invent a model.
     const activeModel = activeModelId ? getModelById(activeModelId) : null;
@@ -1454,6 +1459,15 @@ export async function streamAssistantTurn(
         // gathered tool results instead of exiting the loop with no completion.
         const isFinalToolRound = round === MAX_TOOL_ROUNDS - 1;
         const textOnlyRound = isFinalToolRound || forceTextOnly;
+        // isFinalToolRound / forceTextOnly win over bench "required" so a
+        // turn can still emit a text answer (see resolveCompletionToolChoice).
+        const toolChoice = resolveCompletionToolChoice({
+          hasTools,
+          isFinalToolRound,
+          forceTextOnly,
+          round,
+          benchMode: toolChoiceMode,
+        });
         // Budget thinking burns tokens before synthesis; for text-only rounds
         // with a budget mode, turn thinking off for that completion only.
         const roundThinkingFields =
@@ -1467,7 +1481,7 @@ export async function streamAssistantTurn(
               ...(hasTools
                 ? {
                     tools: options!.tools as EngineTool[],
-                    tool_choice: textOnlyRound ? "none" : ("auto" as const),
+                    tool_choice: toolChoice,
                   }
                 : {}),
               // nPredict floor is 1024 (see resolveThinkingParams): table/list miniapps emit
@@ -1524,7 +1538,6 @@ export async function streamAssistantTurn(
         }
 
         const structuredCalls = result.tool_calls?.length ?? 0;
-        const toolChoice = hasTools ? (textOnlyRound ? "none" : "auto") : "none";
         let toolCalls = result.tool_calls ?? [];
         let fallbackCalls = 0;
         let fallbackDialect: ToolRoundTelemetry["fallbackDialect"] = "none";
@@ -1651,7 +1664,14 @@ export async function streamAssistantTurn(
           });
 
           try {
-            const outcome = await options.executeTool(name, args, signal, lastUserMessageText);
+            // kalsa.bench.toolgate=0 blanks lastUserMessage so the echo-of-context
+            // rule cannot fire (webSearchTool's only use of this argument).
+            const outcome = await options.executeTool(
+              name,
+              args,
+              signal,
+              toolGateEnabled ? lastUserMessageText : "",
+            );
             toolTel.executed += 1;
             // Error identity from webSearchTool (strings.errors.webSearchPrivacyBlocked),
             // not a match on user-visible copy.

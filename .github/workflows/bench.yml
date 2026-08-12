@@ -146,7 +146,8 @@ jobs:
             arm: user-note_budget256
             block_format: user-note
             thinking: budget256
-          # ── Fase 4 — 3 arms (baseline / v42 / ciswire) × 6 seeds (18 jobs) ──
+          # ── Fase 4 — 5 arms (baseline / v42 / ciswire / toolchoice-required /
+          # toolchoice-required-nogate) × 6 seeds (30 jobs) ──
           # WHY 6 not 3: with 3 vs 3 conversations the exhaustive one-sided
           # permutation floor is 2/C(6,3)+1 = 2/21 ≈ 0.095, so p < 0.05 is
           # unreachable by construction. 6 vs 6 → C(12,6)=924, exhaustive
@@ -272,6 +273,105 @@ jobs:
             compaction: "ciswire"
             block_format: none
             thinking: "off"
+          # required + rules gate on: force a call, then veto echo-of-context.
+          # Compaction stays v42 ("on") — that is the arm whose recall was 0.
+          - phase: fase4
+            arm: toolchoice-required
+            seed: 1
+            compaction: "on"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "1"
+          - phase: fase4
+            arm: toolchoice-required
+            seed: 2
+            compaction: "on"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "1"
+          - phase: fase4
+            arm: toolchoice-required
+            seed: 3
+            compaction: "on"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "1"
+          - phase: fase4
+            arm: toolchoice-required
+            seed: 4
+            compaction: "on"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "1"
+          - phase: fase4
+            arm: toolchoice-required
+            seed: 5
+            compaction: "on"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "1"
+          - phase: fase4
+            arm: toolchoice-required
+            seed: 6
+            compaction: "on"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "1"
+          # Same as above with the rules gate off, so the gate is separable.
+          - phase: fase4
+            arm: toolchoice-required-nogate
+            seed: 1
+            compaction: "on"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "0"
+          - phase: fase4
+            arm: toolchoice-required-nogate
+            seed: 2
+            compaction: "on"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "0"
+          - phase: fase4
+            arm: toolchoice-required-nogate
+            seed: 3
+            compaction: "on"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "0"
+          - phase: fase4
+            arm: toolchoice-required-nogate
+            seed: 4
+            compaction: "on"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "0"
+          - phase: fase4
+            arm: toolchoice-required-nogate
+            seed: 5
+            compaction: "on"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "0"
+          - phase: fase4
+            arm: toolchoice-required-nogate
+            seed: 6
+            compaction: "on"
+            block_format: none
+            thinking: "off"
+            toolchoice: required
+            toolgate: "0"
           # ── Smoke — ~5-turn harness self-test on all three arms (~20 min),
           # not a measurement campaign. Use phase=smoke dispatch instead of
           # burning the full 2-hour fase0/fase4 matrix when only the harness
@@ -398,6 +498,8 @@ jobs:
           BLOCK_FORMAT: ${{ matrix.block_format }}
           THINKING: ${{ matrix.thinking }}
           COMPACTION: ${{ matrix.compaction }}
+          TOOLCHOICE: ${{ matrix.toolchoice || 'auto' }}
+          TOOLGATE: ${{ matrix.toolgate || '1' }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
           # 40s = SUMMARY_IDLE_DEBOUNCE_MS (8s) + SUMMARIZE_TIMEOUT_MS (30s) +
           # margin. On CI emulator the 2B decodes at ~2.45 tok/s, so

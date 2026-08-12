@@ -25,6 +25,8 @@
  * - kalsa.bench.format:   "none" | "system-end" | "user-prefix" | "user-note"
  * - kalsa.bench.speculative: JSON { type, nMax?, draftModelPath? } (CI A/B only)
  * - kalsa.bench.engine: JSON { nGpuLayers?, nThreads?, nUbatch? } (CI A/B only)
+ * - kalsa.bench.toolchoice: "auto" | "required" | "none" (CI A/B only)
+ * - kalsa.bench.toolgate:   "1" (default) | "0" (CI A/B only)
  *
  * No in-memory cache: one fresh read per turn (best-effort).
  */
@@ -35,9 +37,19 @@ export const BENCH_THINKING_KEY = "kalsa.bench.thinking";
 export const BENCH_FORMAT_KEY = "kalsa.bench.format";
 export const BENCH_SPECULATIVE_KEY = "kalsa.bench.speculative";
 export const BENCH_ENGINE_KEY = "kalsa.bench.engine";
+export const BENCH_TOOLCHOICE_KEY = "kalsa.bench.toolchoice";
+export const BENCH_TOOLGATE_KEY = "kalsa.bench.toolgate";
 
 export type ThinkingMode = "default" | "off" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
+/**
+ * Bench-only measurement knob, not a product default.
+ * Forcing a call on every turn is known to be wrong for a real user
+ * (it would fire on memorisation turns); the value of the arm is that
+ * it bounds how much recall is available, and how much precision that costs.
+ */
+export type ToolChoiceMode = "auto" | "required" | "none";
+export type CompletionToolChoice = "auto" | "required" | "none";
 
 export type SpeculativeOverride = {
   /** "none" disables speculation entirely — the plain-decode baseline arm. */
@@ -123,6 +135,12 @@ const BLOCK_FORMATS: ReadonlySet<string> = new Set([
   "user-note",
 ]);
 
+const TOOLCHOICE_MODES: ReadonlySet<string> = new Set([
+  "auto",
+  "required",
+  "none",
+]);
+
 /** Read thinking mode for the next completion. Defaults to "default". */
 export async function getThinkingMode(): Promise<ThinkingMode> {
   try {
@@ -143,6 +161,58 @@ export async function getBlockFormat(): Promise<BlockFormat> {
     // best-effort
   }
   return "none";
+}
+
+/** Read bench tool_choice mode. Absent / invalid → "auto" (production). */
+export async function getToolChoiceMode(): Promise<ToolChoiceMode> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_TOOLCHOICE_KEY);
+    if (raw && TOOLCHOICE_MODES.has(raw)) return raw as ToolChoiceMode;
+  } catch {
+    // best-effort
+  }
+  return "auto";
+}
+
+/**
+ * Bench-only rules-gate switch. Absent / anything but "0" → on (production).
+ * "0" disables the echo-of-context veto so the required arm can be measured
+ * with and without the gate.
+ */
+export async function getToolGateEnabled(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_TOOLGATE_KEY);
+    if (raw === "0") return false;
+  } catch {
+    // best-effort
+  }
+  return true;
+}
+
+/**
+ * Value actually passed to llama.rn for one completion.
+ *
+ * Measurement knob, not a product default: forcing a call on every turn is
+ * known to be wrong for a real user (it would fire on memorisation turns);
+ * the value of the arm is that it bounds how much recall is available, and
+ * how much precision that costs.
+ *
+ * `isFinalToolRound` and `forceTextOnly` always win → "none" so a turn can
+ * still produce a text answer. `required` is first-round only.
+ */
+export function resolveCompletionToolChoice(args: {
+  hasTools: boolean;
+  isFinalToolRound: boolean;
+  forceTextOnly: boolean;
+  round: number;
+  benchMode: ToolChoiceMode;
+}): CompletionToolChoice {
+  if (!args.hasTools || args.isFinalToolRound || args.forceTextOnly) {
+    return "none";
+  }
+  if (args.benchMode === "none") return "none";
+  if (args.benchMode === "required" && args.round === 0) return "required";
+  return "auto";
 }
 
 /**

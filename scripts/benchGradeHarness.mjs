@@ -122,7 +122,9 @@ function zerosToolAgg(r) {
     r.recoveredByFallback === 0 &&
     r.toolCallsSkipped === 0 &&
     r.toolCallsFailed === 0 &&
-    r.privacyBlocks === 0
+    r.privacyBlocks === 0 &&
+    r.forcedCalls === 0 &&
+    r.forcedThenBlocked === 0
   );
 }
 
@@ -1678,8 +1680,53 @@ async function main() {
           priv.recoveredByFallback === 0 &&
           priv.toolCallsSkipped === 0 &&
           priv.toolCallsFailed === 0 &&
-          priv.privacyBlocks === 1,
-        `privacy=${priv.privacyBlocks}`,
+          priv.privacyBlocks === 1 &&
+          priv.forcedCalls === 0 &&
+          priv.forcedThenBlocked === 0,
+        `privacy=${priv.privacyBlocks} forced=${priv.forcedCalls}`,
+      );
+
+      const forcedOk = gradeToolcase("forced-ok", [
+        toolRound({
+          toolChoice: "required",
+          structuredCalls: 1,
+          executed: 1,
+        }),
+      ]);
+      check(
+        "forcedCalls: required without block",
+        forcedOk.forcedCalls === 1 && forcedOk.forcedThenBlocked === 0,
+        `forced=${forcedOk.forcedCalls} blocked=${forcedOk.forcedThenBlocked}`,
+      );
+
+      const forcedBlocked = gradeToolcase("forced-blocked", [
+        toolRound({
+          toolChoice: "required",
+          structuredCalls: 1,
+          executed: 1,
+          blockedPrivacy: 1,
+        }),
+      ]);
+      check(
+        "forcedThenBlocked counts required + gate block",
+        forcedBlocked.forcedCalls === 1 &&
+          forcedBlocked.forcedThenBlocked === 1 &&
+          forcedBlocked.privacyBlocks === 1,
+        `forced=${forcedBlocked.forcedCalls} blocked=${forcedBlocked.forcedThenBlocked}`,
+      );
+
+      const forcedTwo = gradeToolcase("forced-two", [
+        toolRound({
+          toolChoice: "required",
+          structuredCalls: 2,
+          executed: 2,
+          blockedPrivacy: 1,
+        }),
+      ]);
+      check(
+        "forcedThenBlocked: of those forced, how many the gate blocked",
+        forcedTwo.forcedCalls === 2 && forcedTwo.forcedThenBlocked === 1,
+        `forced=${forcedTwo.forcedCalls} blocked=${forcedTwo.forcedThenBlocked}`,
       );
 
       const missDir = path.join(tmp, "tc-missing");
