@@ -85,6 +85,33 @@ function makeMemoryStorage(initial = {}) {
   };
 }
 
+/** Fail setItem / removeItem / multiRemove for keys matching any substring. */
+function makeFailKeysStorage(base, setFailSubstrings = [], removeFailSubstrings = []) {
+  const hit = (k, list) =>
+    typeof k === "string" && list.some((s) => k.includes(s));
+  return {
+    ...base,
+    async setItem(k, v) {
+      if (hit(k, setFailSubstrings)) {
+        throw new Error(`injected setItem fail ${k}`);
+      }
+      return base.setItem(k, v);
+    },
+    async removeItem(k) {
+      if (hit(k, removeFailSubstrings)) {
+        throw new Error(`injected removeItem fail ${k}`);
+      }
+      return base.removeItem(k);
+    },
+    async multiRemove(keys) {
+      if (keys.some((k) => hit(k, removeFailSubstrings))) {
+        throw new Error("injected multiRemove fail");
+      }
+      return base.multiRemove(keys);
+    },
+  };
+}
+
 /** setItem that writes a truncated value then throws (torn write). */
 function makeFlakyStorage(base, failKeySubstring, failOnce = true) {
   let failed = false;
@@ -942,6 +969,174 @@ async function main() {
     const snap = tel.__getTelemetrySnapshotForTests();
     assert(snap.enabled === false, "envelope OFF");
     assert(snap.optedOut === true, "tombstone remains");
+  });
+
+  await serviceTest("OFF: marker+tombstone+journal all fail → restart OFF, no transmit", async () => {
+    const base = makeMemoryStorage();
+    await base.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage: base,
+      fetchImpl: async () => new Response(JSON.stringify({ accepted: true }), { status: 200 }),
+      now: () => 9_100_000,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    await tel.setTelemetryEnabled(true);
+    tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
+    await new Promise((r) => setTimeout(r, 30));
+    const queued = tel.__getTelemetrySnapshotForTests();
+    assert(queued.queueLen >= 1 || queued.enabled === true, "had ON state");
+
+    // Fail pendingOff + tombstone + journal. Quarantine still writes.
+    const failing = makeFailKeysStorage(
+      base,
+      ["pendingOff", "optedOut", "telemetry.state"],
+      ["telemetry.state"],
+    );
+    tel.__resetTelemetryForTests();
+    await tel.initTelemetry({
+      storage: failing,
+      fetchImpl: async () => new Response("{}", { status: 200 }),
+      now: () => 9_100_100,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    const okOff = await tel.setTelemetryEnabled(false);
+    assert(okOff === false, "OFF must not claim success");
+    assert(tel.isTelemetryEnabled() === false, "in-memory OFF");
+    assert(base._map.has("kalsa.telemetry.quarantine"), "quarantine durable");
+
+    tel.__resetTelemetryForTests();
+    let fetches = 0;
+    await tel.initTelemetry({
+      storage: failing,
+      fetchImpl: async () => {
+        fetches += 1;
+        return new Response("{}", { status: 200 });
+      },
+      now: () => 9_100_200,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(snap.enabled === false, `restart enabled=${snap.enabled}`);
+    assert(snap.optedOut === true, "restart optedOut");
+    tel.reportTelemetry({ code: "web.fetch", detail: "timeout" });
+    await new Promise((r) => setTimeout(r, 40));
+    assert(fetches === 0, `no transmit after total-fail OFF restart fetches=${fetches}`);
+  });
+
+  await serviceTest("ON clears leftover pendingOff; restart stays enabled", async () => {
+    const storage = makeMemoryStorage();
+    await storage.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async () => new Response("{}", { status: 200 }),
+      now: () => 9_200_000,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    await tel.setTelemetryEnabled(true);
+    // Simulate interrupted OFF that left the marker (tombstone already gone).
+    await storage.setItem("kalsa.telemetry.pendingOff", "9200001");
+    await storage.setItem("kalsa.telemetry.quarantine", "9200001");
+    const ok = await tel.setTelemetryEnabled(true);
+    assert(ok === true, "ON succeeds after leftover marker");
+    assert(tel.isTelemetryEnabled() === true, "enabled now");
+    const leftover =
+      storage._map.has("kalsa.telemetry.pendingOff") ||
+      storage._map.has("kalsa.telemetry.quarantine");
+    assert(!leftover, "markers cleared+verified");
+
+    tel.__resetTelemetryForTests();
+    await tel.initTelemetry({
+      storage,
+      fetchImpl: async () => new Response("{}", { status: 200 }),
+      now: () => 9_200_100,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    assert(tel.isTelemetryEnabled() === true, "restart still enabled");
+  });
+
+  await serviceTest("ON marker-clear failure → rollback OFF, tombstoneGate active", async () => {
+    const base = makeMemoryStorage();
+    await base.setItem("kalsa.telemetry.url", "https://example.test");
+    await tel.initTelemetry({
+      storage: base,
+      fetchImpl: async () => new Response("{}", { status: 200 }),
+      now: () => 9_300_000,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    await tel.setTelemetryEnabled(false);
+    await base.setItem("kalsa.telemetry.pendingOff", "9300001");
+    const failing = makeFailKeysStorage(base, [], ["pendingOff", "quarantine"]);
+    tel.__resetTelemetryForTests();
+    await tel.initTelemetry({
+      storage: failing,
+      fetchImpl: async () => new Response("{}", { status: 200 }),
+      now: () => 9_300_100,
+      getAppState: () => "active",
+      getAppVersion: () => "0.1.0",
+      getDeviceContext: () => ({
+        ramTier: "low",
+        totalMemoryBytes: null,
+        osVersion: "13",
+        modelId: null,
+        hadWebTools: false,
+      }),
+    });
+    // Load saw pendingOff → fail-closed OFF. Now try ON with marker-clear fail.
+    const ok = await tel.setTelemetryEnabled(true);
+    assert(ok === false, "ON must roll back");
+    assert(tel.isTelemetryEnabled() === false, "still OFF");
+    const snap = tel.__getTelemetrySnapshotForTests();
+    assert(snap.enabled === false, "envelope OFF");
+    assert(snap.optedOut === true, "optedOut");
+    assert(snap.tombstoneGate === true, "tombstoneGate held");
   });
 
   await serviceTest("stale-epoch items terminal-drop on background", async () => {

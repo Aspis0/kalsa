@@ -15,6 +15,7 @@ import {
   OPTED_OUT_KEY_B,
   OPTED_OUT_POINTER_KEY,
   PENDING_OFF_KEY,
+  QUARANTINE_KEY,
   SENDING_LEASE_MS,
   STATE_KEY_A,
   STATE_KEY_B,
@@ -341,11 +342,13 @@ async function writePendingOff(storage: StorageLike, nowMs: number): Promise<boo
   }
 }
 
-async function clearPendingOff(storage: StorageLike): Promise<void> {
+async function clearPendingOff(storage: StorageLike): Promise<boolean> {
   try {
     await storage.removeItem(PENDING_OFF_KEY);
+    const check = await storage.getItem(PENDING_OFF_KEY);
+    return check == null || check === "";
   } catch {
-    /* ignore */
+    return false;
   }
 }
 
@@ -355,6 +358,36 @@ async function hasPendingOff(storage: StorageLike): Promise<boolean> {
     return typeof raw === "string" && raw.length > 0;
   } catch {
     // Unreadable recovery marker → treat as present (fail-closed OFF).
+    return true;
+  }
+}
+
+async function writeQuarantine(storage: StorageLike, nowMs: number): Promise<boolean> {
+  try {
+    await storage.setItem(QUARANTINE_KEY, String(nowMs));
+    const check = await storage.getItem(QUARANTINE_KEY);
+    return typeof check === "string" && check.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function clearQuarantine(storage: StorageLike): Promise<boolean> {
+  try {
+    await storage.removeItem(QUARANTINE_KEY);
+    const check = await storage.getItem(QUARANTINE_KEY);
+    return check == null || check === "";
+  } catch {
+    return false;
+  }
+}
+
+async function hasQuarantine(storage: StorageLike): Promise<boolean> {
+  try {
+    const raw = await storage.getItem(QUARANTINE_KEY);
+    return typeof raw === "string" && raw.length > 0;
+  } catch {
+    // Unreadable quarantine → treat as present (fail-closed OFF).
     return true;
   }
 }
@@ -453,10 +486,11 @@ export async function initTelemetry(overrides?: Partial<TelemetryDeps>): Promise
 
     await withMutex(async () => {
       const storage = deps!.storage;
+      const quarantined = await hasQuarantine(storage);
       const pendingOff = await hasPendingOff(storage);
       const tomb = await readTombstone(storage);
-      if (tomb.kind === "torn" || pendingOff) {
-        // Fail-closed: torn tombstone OR unfinished OFF transition.
+      if (tomb.kind === "torn" || pendingOff || quarantined) {
+        // Fail-closed: torn tombstone, unfinished OFF, or durable quarantine.
         optedOut = true;
         tombstoneGate = false;
         envelope = emptyEnvelope({ enabled: false, generation: 1 });
@@ -472,9 +506,11 @@ export async function initTelemetry(overrides?: Partial<TelemetryDeps>): Promise
         }
         loaded = true;
         log(
-          pendingOff
-            ? "telemetry: pendingOff → fail-closed OFF"
-            : "telemetry: tombstone torn → fail-closed OFF",
+          quarantined
+            ? "telemetry: quarantine → fail-closed OFF"
+            : pendingOff
+              ? "telemetry: pendingOff → fail-closed OFF"
+              : "telemetry: tombstone torn → fail-closed OFF",
         );
         return;
       }
@@ -616,10 +652,13 @@ async function resolveWorkerUrl(): Promise<string | null> {
 }
 
 /**
- * Enable telemetry (opt-in). Ordering (v14):
- * (1) durable enabled envelope under mutex + tombstoneGate
- * (2) THEN clear tombstone
- * If (2) fails → roll envelope back to OFF (fail-closed).
+ * Enable / disable telemetry.
+ * OFF: quarantine (verified) → pendingOff → tombstone → OFF journal.
+ *      Quarantine stays until a successful ON so a leftover enabled envelope
+ *      cannot transmit after restart even if the other writes fail.
+ * ON:  enabled envelope → clear tombstone → clear+verify pendingOff and
+ *      quarantine → release tombstoneGate. Any marker-clear failure rolls
+ *      back to OFF and keeps the gate active.
  */
 export async function setTelemetryEnabled(enabled: boolean): Promise<boolean> {
   try {
@@ -632,11 +671,18 @@ export async function setTelemetryEnabled(enabled: boolean): Promise<boolean> {
 
       if (!enabled) {
         // OFF: in-memory fail-closed immediately. Durable order:
-        // pendingOff → verified tombstone → OFF journal → abort.
-        // If tombstone is not verified, do not claim success; keep pendingOff
-        // so a leftover enabled:true envelope cannot transmit after restart.
+        // quarantine (verified) → pendingOff → verified tombstone → OFF journal → abort.
+        // Quarantine is written FIRST so a leftover enabled:true envelope cannot
+        // transmit after restart even if pendingOff + tombstone + journal fail.
         tombstoneGate = true;
         optedOut = true;
+        const quarantineOk = await writeQuarantine(storage, now);
+        if (!quarantineOk) {
+          // No durable OFF marker at all. Keep in-memory fail-closed; do not
+          // claim success. Further writes are still attempted best-effort so a
+          // later restart has as many OFF signals as storage will accept.
+          log("telemetry: quarantine write unverified → fail-closed OFF");
+        }
         const pendingOk = await writePendingOff(storage, now);
         const tombOk = await writeTombstone(storage, now);
         if (!tombOk) {
@@ -690,19 +736,24 @@ export async function setTelemetryEnabled(enabled: boolean): Promise<boolean> {
         tombstoneGate = false;
 
         if (tombOk) {
+          // Tombstone is the durable OFF proof. pendingOff can go; quarantine
+          // stays until a successful ON so a leftover enabled envelope cannot
+          // transmit if the tombstone is later lost.
           await clearPendingOff(storage);
           log("telemetry: disabled + purged");
           return true;
         }
-        // Unverified tombstone: keep pendingOff (or in-memory OFF if even that
-        // failed). Restart must not transmit queued data.
+        // Unverified tombstone: keep quarantine + pendingOff. Restart must not
+        // transmit queued data.
         log(
-          `telemetry: OFF incomplete tomb=${tombOk} journal=${journalOk} pending=${pendingOk}`,
+          `telemetry: OFF incomplete tomb=${tombOk} journal=${journalOk} pending=${pendingOk} quarantine=${quarantineOk}`,
         );
         return false;
       }
 
-      // ON: (1) write enabled envelope with gate held, (2) clear tombstone
+      // ON: envelope enabled committed → tombstone removed → markers
+      // cleared+verified → tombstoneGate released. Marker-clear failure
+      // rolls back to OFF and keeps the gate active.
       tombstoneGate = true;
       optedOut = false;
       const nextGen = envelope.generation + 1;
@@ -736,6 +787,33 @@ export async function setTelemetryEnabled(enabled: boolean): Promise<boolean> {
         envelope = rolled;
         tombstoneGate = false;
         log("telemetry: clear tombstone failed → rolled OFF");
+        return false;
+      }
+
+      const pendingCleared = await clearPendingOff(storage);
+      const quarantineCleared = await clearQuarantine(storage);
+      if (!pendingCleared || !quarantineCleared) {
+        // Markers still present → a restart would fail-closed OFF. Roll back
+        // this process to match, and keep tombstoneGate until a later ON
+        // verifies the clear.
+        await writeTombstone(storage, now);
+        optedOut = true;
+        const rolled = withIntegrity({
+          v: 1,
+          enabled: false,
+          generation: nextGen + 1,
+          transitionEpoch: envelope.transitionEpoch,
+          queue: [],
+          dead: [],
+          seq: envelope.seq,
+        });
+        try {
+          activeSlot = await writeJournal(storage, rolled, activeSlot);
+          envelope = rolled;
+        } catch {
+          envelope = rolled;
+        }
+        log("telemetry: clear pendingOff/quarantine failed → rolled OFF");
         return false;
       }
 
