@@ -16,7 +16,7 @@
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 62 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 63 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -82,7 +82,7 @@
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
 | energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
-| **🔨 CANTIERE GDN-GPU — kernel nostri per gli ibridi (DECISIONE gualt 2026-08-12)** | Bivio risolto: **niente downgrade a Qwen3 ** ("generazioni indietro, e arrivano i 3.8") → **scriviamo noi i kernel GDN/SSM OpenCL nel fork**. Ruoli: **Claude = design, Grok = codice**. Sblocca free 3.5 dense (2B/4B) E CalaQwen (pista 750). Fasi gated: **K0** inventario op dal sorgente fork (graph qwen3_5/qwen35moe vs coverage backend OpenCL, shapes decode, stato ricorrente, sched) — **IN VOLO** (DeepSeek); **K1** design doc (Claude): decomposizione kernel, no-subgroup baseline 740 + variante subgroup 750+, INT8/fp16, sync CPU-GPU; **K2** implementazione op + unit test vs CPU backend (Grok); **K3** E2E Qwen3.5-2B su S23: GPU-offload vs CPU, gate ≥1.15× staccato; **K4** 4B + 750 + layer attention CalaQwen. Recon a monte: `research-litert-porting.md` (il muro GDN è cross-stack; Qwen3-4B litert GPU esiste ma è scartato per generazione pesi) | K0 in volo → K1 Claude |
+| **🔨 CANTIERE GDN-GPU (DECISIONE gualt 2026-08-12; ruoli: Claude design, Grok codice)** | **K0 DONE, RIBALTONE** (`moe-gdn-k0-op-inventory.md`): **i kernel GDN esistono GIÀ nel nostro pin** — upstream ha aggiunto `GATED_DELTA_NET` + `SSM_CONV` OpenCL (8ad8aef44) E i kernel MoE Adreno `MUL_MAT_ID` Q4_K/Q5_K/Q6_K. Il claim K2 del 3/8 ("ops mancanti") è STALE. Verificato dai GGUF (2026-08-12): **S_v=128 su 2B/4B/35B → dentro il gate GPU {16,32,64,128}**; dk=256 → flash-attn OK. Gap residui VERI: G4 GET_ROWS embedding quantizzato → CPU (piccolo); **Q7-LANDMINE: l'expert-ready hook dello streaming è SOLO nel loop CPU di mul_mat_id** → per il 35B gli esperti DEVONO restare su CPU (o engine da rifare); per i dense 2B/4B nessun MoE → grafo interamente GPU-abile OGGI. **K1 (Claude) ora = design d'integrazione**: build OpenCL Android del fork, split 35B (GDN/attn/dense GPU + esperti CPU, traffico boundary ~KB/token se GDN resta GPU), niente kernel nuovi salvo perf; **K2 (Grok) = build + E2E fail-fast dense 2B su S23 (740) e Xiaomi (750)**, gate ≥1.15× vs CPU staccato; K3 = 4B; K4 = split 35B | K1 design Claude → K2 Grok |
 | Jelly free-tier baseline (Qwen3.5-4B dense, llama-bench ABBA `-t 2`) | **BLOCKED** — Jelly irraggiungibile (ping OK, adb/sshd chiusi: wireless debug perso post-reboot). Modello+sha già staged in `results/jelly/` — `reports/moe-jelly-freetier.md` | gualt fisico (riattivare wireless debug/sshd) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
 | **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065 su S23/CPU. **NUOVO (mandato gualt 2026-08-12): pista MoE-GPU scoped Adreno 750+** — sequenza gated (a)-(e) in candidati #1: F-0 Amdahl → riverifica upstream → MarcoKEXP come veicolo → S2 split su Xiaomi 14 → solo dopo il kernel serio (GDN/SSM per CalaQwen) | F-0 = carta; S2 dopo MarcoKEXP |
@@ -1119,6 +1119,38 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-12 — 🎁 K0 CONSEGNA UN RIBALTONE: i kernel GDN che volevamo
+  scrivere ESISTONO GIÀ nel nostro pin. Il cantiere passa da "scrivere
+  kernel" a "verificare e integrare". E S_v=128 su tutti e tre i modelli:
+  il gate GPU è già aperto.**
+
+  Report: `moe-gdn-k0-op-inventory.md` (DeepSeek sul checkout
+  `BigMoeOnEdge/third_party/llama.cpp`, pin 5236140e5 + 3 commit fork;
+  ogni claim con file:line). Nota di processo: prima run impiccata a 5 min
+  (CLI hung, sessione preservata), recuperata con follow-up sulla stessa
+  sessione via opencode-go — zero lavoro perso.
+
+  1. **Upstream ci ha preceduto** (e il claim K2 del 3/8 era stale):
+     `GGML_OP_GATED_DELTA_NET` (kernel `gated_delta_net.cl`, S_v gate
+     {16,32,64,128}) e `SSM_CONV` sono NEL pin; e ci sono i kernel MoE
+     Adreno `gemm/gemv_moe_q4_k/q5_k/q6_k` per `MUL_MAT_ID`. La lezione
+     "verifica online prima di agire" colpisce ancora: 5 mesi di upstream
+     hanno chiuso il gap che stavamo per scavare a mano.
+  2. **Verifica GGUF (coordinatore, 2026-08-12)**: ssm.state_size=128,
+     conv_kernel=4, dk/dv=256 su Qwen3.5-2B, 4B e KEXP 35B → G1 e G5
+     VERDI. Gap veri residui: GET_ROWS su embedding quantizzato (CPU,
+     piccolo) e le euristiche Adreno MoE (nomi tensori, ne01%32).
+  3. **La LANDMINE Q7**: l'`expert-ready hook` dello streaming engine
+     (commit fork 5236140e5) vive SOLO nel loop CPU di `mul_mat_id` —
+     se il MoE andasse su GPU il prefetch/blocking dell'engine è bypassato.
+     Design obbligato per il 35B: **esperti su CPU (hook intatto),
+     GDN+attn+dense su GPU**; boundary per token = attivazioni FFN
+     (~KB-scala) se il GDN resta su GPU, tens-of-MB se cadesse su CPU.
+  4. **Dense 2B/4B: nessun MoE → grafo interamente GPU-abile OGGI** col
+     backend del fork. K2 diventa: build OpenCL Android + E2E fail-fast
+     su S23 (740, dove K5 va ri-testato coi kernel Adreno nuovi del pin)
+     e Xiaomi 14 (750). Il gate resta ≥1.15× vs CPU, staccato.
 
 - **2026-08-12 — 🔨 DECISIONE: CANTIERE GDN-GPU APERTO (mandato gualt).
   Niente downgrade a Qwen3 per il free tier ("generazioni indietro, e i 3.8
