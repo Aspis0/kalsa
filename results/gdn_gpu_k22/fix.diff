@@ -1,0 +1,61 @@
+diff --git a/ggml/src/ggml-opencl/ggml-opencl.cpp b/ggml/src/ggml-opencl/ggml-opencl.cpp
+index 5c96b9a9f..9ca2b6db2 100644
+--- a/ggml/src/ggml-opencl/ggml-opencl.cpp
++++ b/ggml/src/ggml-opencl/ggml-opencl.cpp
+@@ -6457,10 +6457,6 @@ static inline bool use_flat_gemv_for_large_m_q4_K(const ggml_tensor *tensor) {
+ }
+ 
+ static inline bool use_flat_gemv_for_large_m_q6_K(const ggml_tensor *tensor) {
+-    // gemv_noshuffle variant perf drops for large M, use flat variant for large M.
+-    // threshold is well above typical hidden/FFN dims, but below typical vocab sizes.
+-    // q6_K flat gemv is worse for smaller K; 2048 seems to be a reasonable threshold.
+-    // note that this forces large M weights to use LM GEMM.
+     // The noshuffle (transposed-weight) layout packs 2 rows per 32-bit texel and the
+     // gemv reads it with a ne01/2 texel stride and an exact-cover dispatch of
+     // ceil(ne01/2 / 64)*64 work-items with no store guard; the gemm uses 4-row tiles.
+@@ -6469,12 +6465,20 @@ static inline bool use_flat_gemv_for_large_m_q6_K(const ggml_tensor *tensor) {
+     // odd column of the transposed layout (gross garbage) and dropping the last row;
+     // other non-multiples over-dispatch and write past the end of dst. Route such
+     // tensors to the flat GEMV + regular convert; the matching GEMM (ne1>1) falls back
+-    // to CPU (see supports_op). All standard even-vocab/hidden dims are multiples of
+-    // 128 and keep the noshuffle path.
++    // to CPU (see supports_op).
++    //
++    // Do not also redirect large even-vocab M (the old ne1>=32768 && ne0>=2048 speed
++    // hack). That stole the Qwen3.5-2B tied Q6_K lm_head [2048, 248320] from the
++    // Adreno noshuffle GEMV -- which is numerically correct when ne1%128==0 and the
++    // Adreno thresholds hold -- and sent it to kernel_mul_mv_q6_K_f32_flat, which is
++    // broken on Adreno 740 driver 0676.73 (NMSE ~12). The Adreno path is already
++    // gated by use_adreno_kernels (ne0/ne1 thresholds + ne1%128==0 +
++    // GGML_OPENCL_USE_ADRENO_KERNELS). This helper must return true only for shapes
++    // noshuffle cannot legally take.
+     if ((tensor->ne[1] % 128 != 0) && tensor->ne[2] == 1 && tensor->ne[3] == 1) {
+         return true;
+     }
+-    return tensor->ne[1] >= 32768 && tensor->ne[0] >= 2048 && tensor->ne[2] == 1 && tensor->ne[3] == 1;
++    return false;
+ }
+ 
+ static bool ggml_opencl_supports_op(ggml_backend_dev_t dev, const struct ggml_tensor * op) {
+diff --git a/tests/test-backend-ops.cpp b/tests/test-backend-ops.cpp
+index 1fae3f517..21001690e 100644
+--- a/tests/test-backend-ops.cpp
++++ b/tests/test-backend-ops.cpp
+@@ -8673,6 +8673,17 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
+     test_cases.emplace_back(new test_mul_mat(GGML_TYPE_F32, GGML_TYPE_F32, 16, 32, 32, { 1,  1}, {1, 1}, {0, 1, 2, 3}, 64, 3));
+     test_cases.emplace_back(new test_mul_mat(GGML_TYPE_F32, GGML_TYPE_F32, 64, 77, 77, {12,1}, {1,1}));
+ 
++    // Qwen3.5-2B tied lm_head is Q6_K [k=2048, m=248320]. These shapes are
++    // legal for the Adreno noshuffle GEMV (ne1 % 128 == 0, above thresholds)
++    // and must stay on that path -- the large-M flat redirect is numerically
++    // broken on Adreno 740 (driver 0676.73).
++    test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q6_K, GGML_TYPE_F32, 248320,  1, 2048, {1,1}, {1,1}));
++    test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q6_K, GGML_TYPE_F32, 248320, 16, 2048, {1,1}, {1,1}));
++    test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q6_K, GGML_TYPE_F32,  32768,  1, 2048, {1,1}, {1,1}));
++    // TODO(K2.3): small flat-only Q6_K (e.g. m=16,n=1,k=256) still fails on
++    // Adreno 740 (kernel_mul_mv_q6_K_f32_flat). Do not add as a default case
++    // until the flat kernel is repaired.
++
+     test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q4_0, GGML_TYPE_F32, 576, 512, 576, {1,1}, {1,1}));
+     test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q4_0, GGML_TYPE_F32, 1, 2048, 8192, {1,  1}, {1, 1}));
+     for (ggml_type type_a : all_types) {

@@ -1,0 +1,202 @@
+[0/1] Re-running CMake...
+CMAKE_BUILD_TYPE=Release
+-- Setting GGML_NATIVE_DEFAULT to OFF
+-- CMAKE_SYSTEM_PROCESSOR: aarch64
+-- GGML_SYSTEM_ARCH: ARM
+-- Including CPU backend
+-- ARM detected
+-- Checking for ARM features using flags:
+--   -march=armv8.2-a+dotprod+i8mm+fp16
+-- Adding CPU backend variant ggml-cpu: -march=armv8.2-a+dotprod+i8mm+fp16 
+-- OpenCL will use matmul kernels optimized for Adreno
+-- opencl: embedding kernel add
+-- opencl: embedding kernel add_id
+-- opencl: embedding kernel argsort
+-- opencl: embedding kernel tri
+-- opencl: embedding kernel fill
+-- opencl: embedding kernel clamp
+-- opencl: embedding kernel cpy
+-- opencl: embedding kernel cvt
+-- opencl: embedding kernel diag_mask_inf
+-- opencl: embedding kernel diag
+-- opencl: embedding kernel div
+-- opencl: embedding kernel gelu
+-- opencl: embedding kernel get_rows
+-- opencl: embedding kernel glu
+-- opencl: embedding kernel group_norm
+-- opencl: embedding kernel solve_tri
+-- opencl: embedding kernel im2col_f32
+-- opencl: embedding kernel im2col_f16
+-- opencl: embedding kernel mean
+-- opencl: embedding kernel mul_mv_f16_f16
+-- opencl: embedding kernel mul_mv_f16_f32_1row
+-- opencl: embedding kernel mul_mv_f16_f32_l4
+-- opencl: embedding kernel mul_mv_f16_f32
+-- opencl: embedding kernel mul_mv_f32_f32
+-- opencl: embedding kernel mul_mv_q1_0_f32
+-- opencl: embedding kernel mul_mv_q1_0_f32_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32
+-- opencl: embedding kernel mul_mv_q4_0_f32_v
+-- opencl: embedding kernel mul_mv_q4_0_f32_8x_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32_1d_8x_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32_1d_16x_flat
+-- opencl: embedding kernel mul_mv_q4_1_f32
+-- opencl: embedding kernel mul_mv_q4_1_f32_flat
+-- opencl: embedding kernel mul_mv_q4_k_f32
+-- opencl: embedding kernel mul_mv_q4_k_f32_flat
+-- opencl: embedding kernel mul_mv_q5_0_f32
+-- opencl: embedding kernel mul_mv_q5_0_f32_flat
+-- opencl: embedding kernel mul_mv_q5_1_f32
+-- opencl: embedding kernel mul_mv_q5_1_f32_flat
+-- opencl: embedding kernel mul_mv_q5_k_f32
+-- opencl: embedding kernel mul_mv_q5_k_f32_flat
+-- opencl: embedding kernel mul_mv_q6_k_f32
+-- opencl: embedding kernel mul_mv_q6_k_f32_flat
+-- opencl: embedding kernel mul_mv_q8_0_f32
+-- opencl: embedding kernel mul_mv_q8_0_f32_flat
+-- opencl: embedding kernel mul_mv_iq4_nl_f32
+-- opencl: embedding kernel mul_mv_iq4_nl_f32_flat
+-- opencl: embedding kernel mul_mv_mxfp4_f32
+-- opencl: embedding kernel mul_mv_mxfp4_f32_flat
+-- opencl: embedding kernel mul_mv_id_q4_0_f32_8x_flat
+-- opencl: embedding kernel mul_mv_id_q8_0_f32
+-- opencl: embedding kernel mul_mv_id_q8_0_f32_flat
+-- opencl: embedding kernel mul_mv_id_mxfp4_f32
+-- opencl: embedding kernel mul_mv_id_mxfp4_f32_flat
+-- opencl: embedding kernel gemm_moe_q4_0_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_0_f32_ns
+-- opencl: embedding kernel gemm_moe_q4_1_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_1_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_0_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_0_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_1_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_1_f32_ns
+-- opencl: embedding kernel gemm_moe_q4_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_k_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_k_f32_ns
+-- opencl: embedding kernel gemm_moe_q6_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q6_k_f32_ns
+-- opencl: embedding kernel gemm_moe_mxfp4_f32
+-- opencl: embedding kernel gemv_moe_mxfp4_f32
+-- opencl: embedding kernel gemm_moe_mxfp4_f32_ns
+-- opencl: embedding kernel gemv_moe_mxfp4_f32_ns
+-- opencl: embedding kernel moe_reorder_b
+-- opencl: embedding kernel moe_sort_by_expert
+-- opencl: embedding kernel mul_mm_f32_f32_l4_lm
+-- opencl: embedding kernel mul_mm_f16_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q1_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_1_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_1_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q8_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_iq4_nl_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_k_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_k_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q6_k_f32_l4_lm
+-- opencl: embedding kernel gemv_noshuffle_q1_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q1_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_0_f32_spec
+-- opencl: embedding kernel gemm_noshuffle_q4_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_1_f32
+-- opencl: embedding kernel gemm_noshuffle_q4_1_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_1_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_1_f32
+-- opencl: embedding kernel gemv_noshuffle_iq4_nl_f32
+-- opencl: embedding kernel gemm_noshuffle_iq4_nl_f32
+-- opencl: embedding kernel gemv_noshuffle_q8_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q8_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q4_k_f32
+-- opencl: embedding kernel gemv_noshuffle_q6_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q6_k_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_k_f32
+-- opencl: embedding kernel mul
+-- opencl: embedding kernel neg
+-- opencl: embedding kernel norm
+-- opencl: embedding kernel relu
+-- opencl: embedding kernel l2_norm
+-- opencl: embedding kernel rms_norm
+-- opencl: embedding kernel rope
+-- opencl: embedding kernel scale
+-- opencl: embedding kernel set_rows
+-- opencl: embedding kernel sigmoid
+-- opencl: embedding kernel silu
+-- opencl: embedding kernel softmax_4_f32
+-- opencl: embedding kernel softmax_4_f16
+-- opencl: embedding kernel softmax_f32
+-- opencl: embedding kernel softmax_f16
+-- opencl: embedding kernel sqr
+-- opencl: embedding kernel sqrt
+-- opencl: embedding kernel ssm_conv
+-- opencl: embedding kernel gated_delta_net
+-- opencl: embedding kernel sub
+-- opencl: embedding kernel sum_rows
+-- opencl: embedding kernel cumsum
+-- opencl: embedding kernel transpose
+-- opencl: embedding kernel concat
+-- opencl: embedding kernel tsembd
+-- opencl: embedding kernel upscale
+-- opencl: embedding kernel tanh
+-- opencl: embedding kernel exp
+-- opencl: embedding kernel expm1
+-- opencl: embedding kernel softplus
+-- opencl: embedding kernel pad
+-- opencl: embedding kernel repeat
+-- opencl: embedding kernel mul_mat_f16_f32
+-- opencl: embedding kernel mul_mm_f16_f32_kq_kqv
+-- opencl: embedding kernel conv2d
+-- opencl: embedding kernel conv2d_f16_f32
+-- opencl: embedding kernel flash_attn_pre_f16
+-- opencl: embedding kernel flash_attn_f32_f16
+-- opencl: embedding kernel flash_attn_f32_q8_0
+-- opencl: embedding kernel flash_attn_f32_q4_0
+-- opencl: embedding kernel flash_attn_f16
+-- opencl: embedding kernel flash_attn_f32
+-- opencl: embedding kernel gemm_xmem_f16_f32_os8
+-- Including OpenCL backend
+-- ggml version: 0.16.0
+-- ggml commit:  a92a51627
+-- Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR (missing: OPENSSL_CRYPTO_LIBRARY OPENSSL_INCLUDE_DIR) 
+CMake Warning at vendor/cpp-httplib/CMakeLists.txt:152 (message):
+  OpenSSL not found, HTTPS support disabled
+
+
+-- UI: building llama-ui-embed with host compiler C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/host_cxx.cmd
+-- Generating embedded license file for target: llama-app
+-- Configuring done
+-- Generating done
+-- Build files have been written to: C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2
+[1/23] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[2/23] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[3/23] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[4/23] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[5/23] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[6/23] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[7/23] Building CXX object common/CMakeFiles/llama-common-base.dir/build-info.cpp.o
+[8/23] Linking CXX static library common\libllama-common-base.a
+[9/23] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[10/23] Provisioning UI assets
+-- UI: npm output up-to-date, skipping build
+-- UI: gzip compression applied (C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k2/tools/ui/dist/_gzip)
+[11/19] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[12/19] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[13/19] Linking CXX static library ggml\src\libggml-base.a
+[14/19] Building CXX object ggml/src/ggml-opencl/CMakeFiles/ggml-opencl.dir/ggml-opencl.cpp.o
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/ggml/src/ggml-opencl/ggml-opencl.cpp:1183:66: warning: unused parameter 'backend_ctx' [-Wunused-parameter]
+ 1183 | static bool use_adreno_bin_kernels(ggml_backend_opencl_context * backend_ctx) {
+      |                                                                  ^
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/ggml/src/ggml-opencl/ggml-opencl.cpp:6515:9: warning: TODO: implement BF16, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, IQ4_NL support (https://github.com/ggml-org/llama.cpp/pull/14661) [-W#pragma-messages]
+ 6515 | #pragma message("TODO: implement BF16, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, IQ4_NL support (https://github.com/ggml-org/llama.cpp/pull/14661)")
+      |         ^
+2 warnings generated.
+[15/19] Linking CXX static library ggml\src\ggml-opencl\libggml-opencl.a
+[16/19] Linking CXX executable bin\llama-bench
+[17/19] Linking CXX executable bin\llama-cli
+[18/19] Building CXX object tests/CMakeFiles/test-backend-ops.dir/test-backend-ops.cpp.o
+[19/19] Linking CXX executable bin\test-backend-ops

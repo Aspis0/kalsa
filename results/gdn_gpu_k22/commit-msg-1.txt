@@ -1,0 +1,13 @@
+opencl: do not steal Q6_K noshuffle GEMV for large even-vocab M
+
+use_flat_gemv_for_large_m_q6_K used to return true for ne1>=32768 &&
+ne0>=2048 as a perf redirect away from the Adreno noshuffle GEMV.
+That sent the Qwen3.5-2B tied Q6_K lm_head [2048, 248320] to
+kernel_mul_mv_q6_K_f32_flat, which is numerically broken on Adreno 740
+driver 0676.73 (NMSE ~12, greedy garbage). The noshuffle path
+(gemv_noshuffle_q6_k_f32) is correct whenever ne1%128==0 and the Adreno
+thresholds hold -- 248320%128==0, so the 2B lm_head is legal for it.
+
+Keep the flat redirect only as a correctness fallback for shapes
+noshuffle cannot take (ne1%128!=0). The Adreno path is already gated by
+use_adreno_kernels.

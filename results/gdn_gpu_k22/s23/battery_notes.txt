@@ -1,0 +1,18 @@
+S23 battery/thermal notes (device local -04:00). Speed cells UNPLUGGED only.
+Correctness was also unplugged (allowed to be plugged).
+
+2026-08-12T15:14:25 before ops-q6k:        75% UNPLUGGED 27.4C
+2026-08-12T15:16:23 after  ops-q6k:        75% UNPLUGGED 27.7C
+2026-08-12T15:17:02 before greedy-cpu:     75% UNPLUGGED 28.6C
+2026-08-12T15:17:39 after  greedy-cpu:     75% UNPLUGGED 28.1C
+2026-08-12T15:17:49 before greedy-gpu:     75% UNPLUGGED 28.1C
+2026-08-12T15:19:23 after  greedy-gpu:     75% UNPLUGGED 28.4C
+2026-08-12T15:19:41 before ops-gdn:        75% UNPLUGGED 28.4C
+2026-08-12T15:21:53 after  ops-gdn:        74% UNPLUGGED 28.4C
+2026-08-12T15:25:50 before bench-cpu:      74% UNPLUGGED 28.3C
+2026-08-12T15:28:28 after  bench-cpu:      73% UNPLUGGED 29.9C
+2026-08-12T15:28:35 before bench-gpu:      73% UNPLUGGED 29.9C
+2026-08-12T15:36:00 after  bench-gpu:      73% UNPLUGGED 29.3C
+
+Never plugged. Never below 45% for speed. Temp never >= 45C.
+Raw dumps: s23/logs/battery.txt
