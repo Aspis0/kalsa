@@ -1,8 +1,26 @@
 diff --git a/ggml/src/ggml-opencl/ggml-opencl.cpp b/ggml/src/ggml-opencl/ggml-opencl.cpp
-index 5c96b9a9f..9ca2b6db2 100644
+index 5c96b9a9f..e1bc933d2 100644
 --- a/ggml/src/ggml-opencl/ggml-opencl.cpp
 +++ b/ggml/src/ggml-opencl/ggml-opencl.cpp
-@@ -6457,10 +6457,6 @@ static inline bool use_flat_gemv_for_large_m_q4_K(const ggml_tensor *tensor) {
+@@ -6450,17 +6450,20 @@ inline bool enable_adreno_trans_weight(const ggml_backend_opencl_context *backen
+ }
+ 
+ static inline bool use_flat_gemv_for_large_m_q4_K(const ggml_tensor *tensor) {
+-    // gemv_noshuffle variant perf drops for large M, use flat variant for large M.
+-    // threshold is well above typical hidden/FFN dims, but below typical vocab sizes.
+-    // note that this forces large M weights to use LM GEMM.
+-    return tensor->ne[1] >= 32768 && tensor->ne[2] == 1 && tensor->ne[3] == 1;
++    // Same contract as the Q6_K twin: noshuffle GEMV dispatches
++    // CEIL_DIV(ne01/2, 64)*64 work-items with no store guard, so it is only
++    // exact-cover when ne01 % 128 == 0. Do not steal legal noshuffle for large
++    // even-M (the old ne1>=32768 redirect). That sent those shapes to
++    // kernel_mul_mv_q4_K_f32_flat (REQD_SUBGROUP_SIZE_64, same family as the
++    // Q6_K flat kernel that is numerically broken on Adreno 740). Redirect only
++    // when ne1 % 128 != 0 so noshuffle cannot legally take the tensor.
++    if ((tensor->ne[1] % 128 != 0) && tensor->ne[2] == 1 && tensor->ne[3] == 1) {
++        return true;
++    }
++    return false;
  }
  
  static inline bool use_flat_gemv_for_large_m_q6_K(const ggml_tensor *tensor) {
@@ -13,13 +31,19 @@ index 5c96b9a9f..9ca2b6db2 100644
      // The noshuffle (transposed-weight) layout packs 2 rows per 32-bit texel and the
      // gemv reads it with a ne01/2 texel stride and an exact-cover dispatch of
      // ceil(ne01/2 / 64)*64 work-items with no store guard; the gemm uses 4-row tiles.
-@@ -6469,12 +6465,20 @@ static inline bool use_flat_gemv_for_large_m_q6_K(const ggml_tensor *tensor) {
+@@ -6468,13 +6471,25 @@ static inline bool use_flat_gemv_for_large_m_q6_K(const ggml_tensor *tensor) {
+     // lm_head [1536, 49155] -- odd vocab) truncates the texel stride, misaligning every
      // odd column of the transposed layout (gross garbage) and dropping the last row;
      // other non-multiples over-dispatch and write past the end of dst. Route such
-     // tensors to the flat GEMV + regular convert; the matching GEMM (ne1>1) falls back
+-    // tensors to the flat GEMV + regular convert; the matching GEMM (ne1>1) falls back
 -    // to CPU (see supports_op). All standard even-vocab/hidden dims are multiples of
 -    // 128 and keep the noshuffle path.
-+    // to CPU (see supports_op).
++    // tensors to the flat GEMV + regular convert. GEMM (ne1>1) is not a CPU fallback:
++    // supports_op places no ne11 restriction on Q6_K MUL_MAT. On Adreno, when this
++    // helper is false the Adreno block intercepts every n and runs gemm_noshuffle.
++    // When the helper is true (or use_adreno_kernels is false), n>=32 runs
++    // kernel_mul_mm_q6_k_f32_l4_lm on GPU; n<32 breaks out of the LM GEMM block
++    // and uses the flat GEMV.
 +    //
 +    // Do not also redirect large even-vocab M (the old ne1>=32768 && ne0>=2048 speed
 +    // hack). That stole the Qwen3.5-2B tied Q6_K lm_head [2048, 248320] from the
@@ -37,24 +61,44 @@ index 5c96b9a9f..9ca2b6db2 100644
  }
  
  static bool ggml_opencl_supports_op(ggml_backend_dev_t dev, const struct ggml_tensor * op) {
+@@ -16726,6 +16741,12 @@ static void ggml_cl_mul_mat_q6_K_f32_adreno(ggml_backend_t backend, const ggml_t
+         CL_CHECK(clSetKernelArg(kernel, 11, sizeof(cl_ushort),&mask_f000));
+         CL_CHECK(clSetKernelArg(kernel, 12, sizeof(cl_uchar), &mask_c0));
+ 
++        // TODO(K2.3): this NDRange is per-spec illegal when CEIL_DIV(ne1,8)%2!=0
++        // (n in [2,8]) or CEIL_DIV(ne01,4)%128!=0 (ne1%512!=0): global
++        // {CEIL_DIV(ne1,8), CEIL_DIV(ne01,4), 1}, local {2, 128, 1}. Adreno 740
++        // driver 0676.73 tolerates it (n=16 / n=7 E2E pass); a spec-strict
++        // driver would abort. Pre-existing; the large-M redirect removal
++        // enlarges the class to even-vocab lm_heads.
+         size_t global_work_size[3] = {(size_t)CEIL_DIV(ne1, 8), (size_t)CEIL_DIV(ne01, 4), 1};
+         size_t local_work_size[3] = {2, 128, 1};
+         backend_ctx->enqueue_ndrange_kernel(kernel, 3, global_work_size, local_work_size, dst);
 diff --git a/tests/test-backend-ops.cpp b/tests/test-backend-ops.cpp
-index 1fae3f517..21001690e 100644
+index 1fae3f517..f99c2202e 100644
 --- a/tests/test-backend-ops.cpp
 +++ b/tests/test-backend-ops.cpp
-@@ -8673,6 +8673,17 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
+@@ -8673,6 +8673,24 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
      test_cases.emplace_back(new test_mul_mat(GGML_TYPE_F32, GGML_TYPE_F32, 16, 32, 32, { 1,  1}, {1, 1}, {0, 1, 2, 3}, 64, 3));
      test_cases.emplace_back(new test_mul_mat(GGML_TYPE_F32, GGML_TYPE_F32, 64, 77, 77, {12,1}, {1,1}));
  
 +    // Qwen3.5-2B tied lm_head is Q6_K [k=2048, m=248320]. These shapes are
-+    // legal for the Adreno noshuffle GEMV (ne1 % 128 == 0, above thresholds)
-+    // and must stay on that path -- the large-M flat redirect is numerically
-+    // broken on Adreno 740 (driver 0676.73).
++    // legal for the Adreno noshuffle path (ne1 % 128 == 0, above thresholds)
++    // and must not hit the broken flat kernel on Adreno 740 (driver 0676.73).
++    // n=64 is past the LM-GEMM boundary (ne11>=32) and exercises
++    // gemm_noshuffle_q6_K_f32 at a spec-legal dispatch (248320%512==0).
 +    test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q6_K, GGML_TYPE_F32, 248320,  1, 2048, {1,1}, {1,1}));
 +    test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q6_K, GGML_TYPE_F32, 248320, 16, 2048, {1,1}, {1,1}));
++    test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q6_K, GGML_TYPE_F32, 248320, 64, 2048, {1,1}, {1,1}));
 +    test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q6_K, GGML_TYPE_F32,  32768,  1, 2048, {1,1}, {1,1}));
 +    // TODO(K2.3): small flat-only Q6_K (e.g. m=16,n=1,k=256) still fails on
 +    // Adreno 740 (kernel_mul_mv_q6_K_f32_flat). Do not add as a default case
 +    // until the flat kernel is repaired.
++
++    // Synthetic large-M Q4_K (%512==0 so gemm dispatch is per-spec legal).
++    // Same treatment as Q6_K: must not hit kernel_mul_mv_q4_K_f32_flat on Adreno.
++    test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q4_K, GGML_TYPE_F32, 131072,  1, 2048, {1,1}, {1,1}));
++    test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q4_K, GGML_TYPE_F32, 131072, 64, 2048, {1,1}, {1,1}));
 +
      test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q4_0, GGML_TYPE_F32, 576, 512, 576, {1,1}, {1,1}));
      test_cases.emplace_back(new test_mul_mat(GGML_TYPE_Q4_0, GGML_TYPE_F32, 1, 2048, 8192, {1,  1}, {1, 1}));

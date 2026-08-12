@@ -1,0 +1,238 @@
+=== battery before_ops_q6k 2026-08-12T15:58:44-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 26.7,
+  "voltage": 4059,
+  "current": -991000,
+  "current_average": -113,
+  "percentage": 72,
+  "level": 72,
+  "scale": 100,
+  "charge_counter": 2722500,
+  "cycle": 0
+}
+=== battery after_ops_q6k 2026-08-12T16:02:10-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 28.1,
+  "voltage": 4039,
+  "current": -750000,
+  "current_average": -510,
+  "percentage": 72,
+  "level": 72,
+  "scale": 100,
+  "charge_counter": 2722500,
+  "cycle": 0
+}
+=== battery before_ops_q4k 2026-08-12T16:02:29-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 28.4,
+  "voltage": 4023,
+  "current": 2000,
+  "current_average": -214,
+  "percentage": 71,
+  "level": 71,
+  "scale": 100,
+  "charge_counter": 2722500,
+  "cycle": 0
+}
+=== battery after_ops_q4k 2026-08-12T16:03:36-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 30.5,
+  "voltage": 3821,
+  "current": -1144,
+  "current_average": -2153,
+  "percentage": 71,
+  "level": 71,
+  "scale": 100,
+  "charge_counter": 2696250,
+  "cycle": 0
+}
+=== battery before_ops_gdn 2026-08-12T16:03:54-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 33.2,
+  "voltage": 3898,
+  "current": -2293,
+  "current_average": -1132,
+  "percentage": 71,
+  "level": 71,
+  "scale": 100,
+  "charge_counter": 2681250,
+  "cycle": 0
+}
+=== battery after_ops_gdn 2026-08-12T16:04:17-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 33.9,
+  "voltage": 3832,
+  "current": -1273,
+  "current_average": -1785,
+  "percentage": 70,
+  "level": 70,
+  "scale": 100,
+  "charge_counter": 2662500,
+  "cycle": 0
+}
+=== battery before_greedy_short_cpu 2026-08-12T16:04:23-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 33.9,
+  "voltage": 3832,
+  "current": -1289,
+  "current_average": -1567,
+  "percentage": 70,
+  "level": 70,
+  "scale": 100,
+  "charge_counter": 2662500,
+  "cycle": 0
+}
+=== battery after_greedy_short_cpu 2026-08-12T16:04:32-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 33.9,
+  "voltage": 3832,
+  "current": -1871,
+  "current_average": -1963,
+  "percentage": 70,
+  "level": 70,
+  "scale": 100,
+  "charge_counter": 2662500,
+  "cycle": 0
+}
+=== battery before_greedy_short_gpu 2026-08-12T16:04:38-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 33.9,
+  "voltage": 3832,
+  "current": -1597,
+  "current_average": -1688,
+  "percentage": 70,
+  "level": 70,
+  "scale": 100,
+  "charge_counter": 2662500,
+  "cycle": 0
+}
+=== battery after_greedy_short_gpu 2026-08-12T16:05:05-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 35.4,
+  "voltage": 3837,
+  "current": -899000,
+  "current_average": -883,
+  "percentage": 70,
+  "level": 70,
+  "scale": 100,
+  "charge_counter": 2647500,
+  "cycle": 0
+}
+=== battery before_greedy_long_cpu 2026-08-12T16:05:09-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 35.4,
+  "voltage": 3837,
+  "current": -864000,
+  "current_average": -650,
+  "percentage": 70,
+  "level": 70,
+  "scale": 100,
+  "charge_counter": 2647500,
+  "cycle": 0
+}
+=== battery after_greedy_long_cpu 2026-08-12T16:05:14-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 35.4,
+  "voltage": 3837,
+  "current": -421000,
+  "current_average": -896,
+  "percentage": 70,
+  "level": 70,
+  "scale": 100,
+  "charge_counter": 2647500,
+  "cycle": 0
+}
+=== battery before_greedy_long_gpu 2026-08-12T16:05:17-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 34.8,
+  "voltage": 3981,
+  "current": -170000,
+  "current_average": -691,
+  "percentage": 70,
+  "level": 70,
+  "scale": 100,
+  "charge_counter": 2632500,
+  "cycle": 0
+}
+=== battery after_greedy_long_gpu 2026-08-12T16:05:37-04:00 ===
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 34.8,
+  "voltage": 3981,
+  "current": -827000,
+  "current_average": -797,
+  "percentage": 70,
+  "level": 70,
+  "scale": 100,
+  "charge_counter": 2632500,
+  "cycle": 0
+}

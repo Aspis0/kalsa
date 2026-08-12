@@ -1,0 +1,42 @@
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: QUALCOMM Adreno(TM)
+  Device memory: 3536 MB (2512 MB free)
+
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=0.000000,v=0,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=0.000000,v=1,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=0.000000,v=0,noncontig_rows=1): not supported [OpenCL] 
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=0.000000,v=0,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=0.000000,v=1,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=0.000000,v=0,noncontig_rows=1): not supported [OpenCL] 
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=0.000001,v=0,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=0.000001,v=1,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=0.000001,v=0,noncontig_rows=1): not supported [OpenCL] 
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=0.000001,v=0,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=0.000001,v=1,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=0.000001,v=0,noncontig_rows=1): not supported [OpenCL] 
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=0.000100,v=0,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=0.000100,v=1,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=0.000100,v=0,noncontig_rows=1): not supported [OpenCL] 
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=0.000100,v=0,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=0.000100,v=1,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=0.000100,v=0,noncontig_rows=1): not supported [OpenCL] 
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=0.100000,v=0,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=0.100000,v=1,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=0.100000,v=0,noncontig_rows=1): not supported [OpenCL] 
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=0.100000,v=0,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=0.100000,v=1,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=0.100000,v=0,noncontig_rows=1): not supported [OpenCL] 
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=10.000000,v=0,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=10.000000,v=1,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[64,5,4,3],eps=10.000000,v=0,noncontig_rows=1): not supported [OpenCL] 
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=10.000000,v=0,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=10.000000,v=1,noncontig_rows=0): [1;32mOK[0m
+  L2_NORM(type=f32,ne=[1025,5,4,3],eps=10.000000,v=0,noncontig_rows=1): not supported [OpenCL] 
+  20/20 tests passed
+  Backend OpenCL: [1;32mOK[0m
+Backend 2/2: CPU
+  Skipping
+2/2 backends passed
+[1;32mOK[0m

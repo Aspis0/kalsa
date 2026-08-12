@@ -234,4 +234,101 @@ reports/moe-gdn-k22-fix.md
 On device (kept): `~/gdn_k2/bin_fix/` + `~/gdn_k2/k22/`. K2 `~/gdn_k2/bin/`
 untouched.
 
+## 8. K2.2b — review closure
+
+Date: 2026-08-12
+Closes the three items from `results/gdn_gpu_k22/review_hostile.md`
+(no blockers; §3 comment, §4 n>=32 path, §5 Q4_K residual).
+Artifacts: `results/gdn_gpu_k22b/`
+Binaries: `~/gdn_k2/bin_fix2/` (K2.2 `bin_fix/` untouched)
+
+Two new commits on the same branch (`dcd0a7607`, `04c5d362a`).
+HEAD `04c5d362a`. Full branch diff vs `e5605f3bd`: `results/gdn_gpu_k22/fix.diff`.
+
+### 8.1 What changed
+
+1. **n>=32 path (review §4).** Default case
+   `Q6_K m=248320 n=64 k=2048` added. 248320%512==0 so
+   `gemm_noshuffle_q6_K_f32` dispatch is per-spec legal. On device: **OK**.
+   Long-prompt greedy A/B (fixed prompt, 62 tokens with chat wrapper,
+   `-c 512 -n 24 --temp 0 -s 42 -no-cnv -st`) is token-identical
+   CPU vs GPU. First sampled token therefore came from a >=32-token
+   prefill through the gemm path.
+
+2. **False comment (review §3).** The sentence "the matching GEMM (ne1>1)
+   falls back to CPU (see supports_op)" is gone. The helper now states
+   the real chain: `supports_op` has no ne11 restriction; when the helper
+   is true, n>=32 runs `kernel_mul_mm_q6_k_f32_l4_lm` on GPU and n<32
+   uses the flat GEMV. TODO(K2.3) on the gemm NDRange notes review §1a
+   (illegal for n in [2,8] or ne1%512!=0; this 740 driver tolerates it).
+
+3. **Q4_K twin (review §5).** `use_flat_gemv_for_large_m_q4_K` now
+   redirects only when `ne1 % 128 != 0` (same exact-cover constraint as
+   the Q4_K noshuffle GEMV: `CEIL_DIV(ne01/2, 64)*64`). Default cases
+   `Q4_K m=131072 n=1/64 k=2048` both **OK**.
+
+Test comments / commit messages say "must not hit the broken flat kernel
+on Adreno", not "must stay on noshuffle".
+
+### 8.2 Verification (S23, correctness, plugged OK)
+
+| gate | result |
+|---|---|
+| `Q6_K m=248320 n=64 k=2048` | **OK** |
+| previous `248320 n=1`, `248320 n=16`, `32768 n=1` | **OK** (suite 5/15; 10 small-flat FAIL pre-existing) |
+| `Q4_K m=131072 n=1 k=2048` | **OK** |
+| `Q4_K m=131072 n=64 k=2048` | **OK** (suite 35/35) |
+| GDN family | **36/36 + 45/45 + 20/20 + 24/24 + 15/15**, zero FAIL |
+| greedy short (K2.2 prompt, n=32) CPU vs GPU | **token-identical** (`Thinking Process:`) |
+| greedy long (62-token prompt, n=24) CPU vs GPU | **token-identical** |
+
+Long prompt (fixed):
+
+```
+Write a careful step by step explanation of how a transformer language
+model turns a long prompt into the next token, covering tokenization,
+embedding lookup, attention over the full context, the feed forward
+layers, and the final language model head that produces a probability
+distribution.
+```
+
+Verbose tokenize: `task.n_tokens = 62` (includes `<|im_start|>user` /
+`<|im_end|>` / `<|im_start|>assistant\n<think>\n`). Generated body
+(both CPU and GPU):
+
+```
+Here's a thinking process that leads to the explanation of how a transformer language model works:
+
+1.  **De
+```
+
+No speed gate. Battery 72%→70% UNPLUGGED, 26.7→34.8 C.
+
+### 8.3 Q4_K flat diagnostic (not a gate)
+
+`MUL_MAT -p q4_K` small-flat cases `m=16 n=1..9 k=256` are **all OK**.
+Suite 35/35, exit 0. Flat Q4_K is **not** broken on this 740 the way
+flat Q6_K is (those same shapes still FAIL ERR ~4–13). Same
+`REQD_SUBGROUP_SIZE_64` family, different numerical result. The Q4_K
+large-M redirect was still wrong to keep (it stole legal noshuffle) but
+it was not hiding a measured-wrong kernel on this device. Honest for
+K2.3 and for any upstream note: repair `kernel_mul_mv_q6_K_f32_flat`,
+do not assume the Q4_K twin is equally sick.
+
+### 8.4 File map
+
+```
+results/gdn_gpu_k22/fix.diff          (full branch vs e5605f3bd)
+results/gdn_gpu_k22b/
+  BUILD_MANIFEST.md
+  build_opencl_ndk.log
+  bin/                    (sha256s + copies)
+  run_k22b.sh
+  s23/battery_notes.txt
+  s23/logs/               (ops q6k/q4k/gdn, greedy short+long, battery)
+```
+
+On device: `~/gdn_k2/bin_fix2/` + `~/gdn_k2/k22b/`. Prior `bin_fix/` and
+K2 `bin/` untouched. Parent repos not committed.
+
 DONE

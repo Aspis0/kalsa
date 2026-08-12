@@ -1,0 +1,1 @@
+Write a careful step by step explanation of how a transformer language model turns a long prompt into the next token, covering tokenization, embedding lookup, attention over the full context, the feed forward layers, and the final language model head that produces a probability distribution.

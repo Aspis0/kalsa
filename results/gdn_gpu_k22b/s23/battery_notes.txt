@@ -1,0 +1,12 @@
+K2.2b S23 battery notes. Correctness only; no speed gate. Never plugged.
+
+Start (before ops-q6k): 72% UNPLUGGED 26.7 C DISCHARGING
+After ops-q6k:           72% 28.1 C
+After ops-q4k:           71% 30.5 C
+After ops-gdn:           70% 33.9 C
+After greedy-short-cpu:  70% 33.9 C
+After greedy-short-gpu:  70% 35.4 C
+After greedy-long-cpu:   70% 35.4 C
+After greedy-long-gpu:   70% 34.8 C
+
+Full dumps: s23/logs/battery.txt
