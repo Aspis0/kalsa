@@ -1,0 +1,33 @@
+[2026-08-13T14:19:19-0400] BIN_SHA=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f path=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+[2026-08-13T14:19:19-0400] PIN OK
+[2026-08-13T14:19:19-0400] MODEL path=/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 expect=13416430592
+[2026-08-13T14:19:19-0400] PROMPT=/data/data/com.termux/files/home/gdn_k2/s23_123/p_fact.txt sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd bytes=361
+[2026-08-13T14:19:20-0400] device_model=SM-S911U
+[2026-08-13T14:19:20-0400] boot_id=dd12b757-84cd-4730-9cd8-bd5604968664
+[2026-08-13T14:19:20-0400] floors MemAvail=400000kB MemFree_LMKD=50000kB (MemFree<300000 is NOT an abort)
+[2026-08-13T14:19:25-0400] snap preflight plugged=UNPLUGGED batt=79 temp=25.4 MemFree_kB=1589448 MemAvail_kB=4083632
+[2026-08-13T14:19:28-0400] snap pre_A plugged=UNPLUGGED batt=79 temp=25.4 MemFree_kB=1584836 MemAvail_kB=4080460
+[2026-08-13T14:21:18-0400] A cold=fadv (optional; not a hard fail)
+[2026-08-13T14:21:19-0400] RUN A timeout=1800s
+[2026-08-13T14:24:25-0400] CELL A rc=0 wall=184s n_gen=40 tok_s=2.410 n_prompt=74 n_past= drafted= accepted= steps= notes=route_k6
+[2026-08-13T14:24:30-0400] snap pre_B plugged=UNPLUGGED batt=79 temp=26.6 MemFree_kB=4109112 MemAvail_kB=4775576
+[2026-08-13T14:24:31-0400] RUN B timeout=1800s
+PREFIX_0 common_prefix_bytes 0 common_prefix_chars 0
+[2026-08-13T14:26:00-0400] CELL B rc=0 wall=88s n_gen=0 tok_s=0.000 n_prompt=74 n_past= drafted= accepted= steps= notes=PREFIX_0
+[2026-08-13T14:26:01-0400] snap pre_C plugged=UNPLUGGED batt=79 temp=26.9 MemFree_kB=3359984 MemAvail_kB=4756828
+[2026-08-13T14:26:02-0400] RUN C timeout=1800s
+[2026-08-13T14:28:52-0400] CELL C rc=0 wall=168s n_gen=32 tok_s=2.074 n_prompt=74 n_past= drafted=4 accepted=2 steps=1 notes=ngram_draft4
+[2026-08-13T14:28:53-0400] C ngram lines:
+[2026-08-13T14:28:57-0400] snap pre_D plugged=UNPLUGGED batt=78 temp=27.5 MemFree_kB=4349412 MemAvail_kB=4900568
+[2026-08-13T14:28:58-0400] RUN D timeout=900s
+[2026-08-13T14:29:01-0400] D failfast_no_nextn (no retry)
+[2026-08-13T14:29:03-0400] CELL D rc=1 wall=3s n_gen= tok_s= n_prompt= n_past= drafted= accepted= steps= notes=failfast_no_nextn
+[2026-08-13T14:29:05-0400] snap pre_E plugged=UNPLUGGED batt=78 temp=27.5 MemFree_kB=4331116 MemAvail_kB=4901828
+[2026-08-13T14:29:06-0400] RUN E timeout=1800s stdin=in.jsonl
+E BMOE_DONE 2 n_common_in_schema False grep []
+[2026-08-13T14:32:04-0400] CELL E rc=0 wall=177s n_gen=16 tok_s=2.13 n_prompt=100 n_past=116 drafted=0 accepted=0 steps=0 notes=session_two_turn
+[2026-08-13T14:32:04-0400] E grep binary --help for save/load/cache (no llama-cli)
+[2026-08-13T14:32:04-0400] E help_rc=0 save/load/cache hits=18
+[2026-08-13T14:32:05-0400] E help has no --save/--load session flag (cache-* is the expert LRU, not KV persist)
+[2026-08-13T14:32:09-0400] snap end plugged=UNPLUGGED batt=78 temp=28.3 MemFree_kB=4113244 MemAvail_kB=4973772
+[2026-08-13T14:32:10-0400] DONE A_rc=0 B_rc=0 C_rc=0 D_rc=1 DNOTE=failfast_no_nextn E_rc=0

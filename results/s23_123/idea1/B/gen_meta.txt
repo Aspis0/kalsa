@@ -1,0 +1,2 @@
+method=prompt_stripped
+bytes=0

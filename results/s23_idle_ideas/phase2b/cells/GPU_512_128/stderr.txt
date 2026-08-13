@@ -1,0 +1,15 @@
+0.01.140.568 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.01.142.937 I srv    load_model: loading model '/data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf'
+2.19.997.392 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 2048, kv_unified = 'false'
+2.20.055.357 I srv  llama_server: model loaded
+2.20.055.379 I srv  llama_server: listening on http://127.0.0.1:45655
+2.20.195.510 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+2.20.195.700 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+3.19.581.725 I slot print_timing: id  0 | task 0 | n_decoded =    100, tg =   5.37 t/s, tg_3s =   5.37 t/s
+3.24.287.485 I slot print_timing: id  0 | task 0 | n_decoded =    117, tg =   5.40 t/s, tg_3s =   5.59 t/s
+3.33.249.758 I slot print_timing: id  0 | task 0 | prompt eval time =    4830.56 ms /   490 tokens (    9.86 ms per token,   101.44 tokens per second)
+3.33.249.821 I slot print_timing: id  0 | task 0 |        eval time =   24353.32 ms /   128 tokens (  190.26 ms per token,     5.26 tokens per second)
+3.33.249.835 I slot print_timing: id  0 | task 0 |       total time =   29183.88 ms /   618 tokens
+3.33.249.844 I slot print_timing: id  0 | task 0 |    graphs reused =        125
+3.33.250.136 I slot      release: id  0 | task 0 | stop processing: n_tokens = 617, truncated = 0
+3.33.254.333 I srv    operator(): operator(): cleaning up before exit...

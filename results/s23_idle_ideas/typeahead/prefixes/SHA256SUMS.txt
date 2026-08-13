@@ -1,0 +1,7 @@
+33b0fecbfd8d5a73dde53d6f9d884ab4c196905b7b81417ed59cd3ead63973db  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step0_chunk0.txt
+25f5a60f804a2371f818835dd7d82473b86cf71ea80de72e2288e0ddaa7131a2  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step1_grow1.txt
+6b7bc58b5bd27562d9700571a688d4a3c732931980812d1884c3c9cbdbd8966c  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step2_grow2.txt
+1151e3c8384c6a89fb67805133f4a8b41cea188799436a237f6320b412f03a59  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step3_grow3.txt
+d5dc23376936526dabb94e6a60f3b907a60bd8fd2da141f8fdc6bb766c1a45ac  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step4_grow4.txt
+304c90aca75a3085c5d0ae5e29d3590bb90f377451f967224dd71bc8d3923dc7  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step5_grow5.txt
+304c90aca75a3085c5d0ae5e29d3590bb90f377451f967224dd71bc8d3923dc7  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step6_control.txt

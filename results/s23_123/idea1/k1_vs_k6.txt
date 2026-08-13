@@ -1,0 +1,33 @@
+k6 vs k1 generated text — first divergence
+source: idea1/A/gen.txt (cell A, --n-expert-used 6, --progress, === answer ===)
+        idea1/B/gen.txt (cell B, --n-expert-used 1, prompt stripped from stdout)
+        idea1/B/prefix_vs_A.txt
+        idea1/A/stdout.txt / idea1/B/stdout.txt parse of generation:
+
+A gen_meta: method=answer_block bytes=181
+B gen_meta: method=prompt_stripped bytes=0
+A generation line: generation: 40 tokens, 0.415 s/token (2.410 tok/s)
+B generation line: generation: 0 tokens, 0.000 s/token (0.000 tok/s)
+B rc=0, prefill 74 tokens, 8.934 s. Decode loop never emitted a token.
+session.cpp:1377-1378 breaks immediately if the first argmax after prefill is EOG.
+So k=1 free-run on this prompt produced EOS at step 0. Not an extract_gen miss.
+
+verdict=PREFIX_0
+common_prefix_bytes=0
+common_prefix_chars=0
+first_div_byte=0
+first_div_char=0
+
+k6 first 80 chars:
+<think>\n\n</think>\n\nA Mixture-of-Experts (MoE) model consists of multiple distinct
+
+k1 first 80 chars:
+(empty)
+
+They diverge at the first character. k=1 is not a prefix of k=6 and is not
+teacher-forced (no gold tokens). It is a free-run that collapsed to EOG.
+
+stderr B also printed:
+  bmoe: WARNING drop-cold-experts=0.65 with top-k 1 — the threshold is 65.0% of the routing here, against 12.5% at the top-k 8 this was measured on. Expect it to discard much more, and check output quality on your own task.
+Campaign flags keep drop-cold 0.65 on both cells. moe-drop on B was 0/0
+because no decode step ran.

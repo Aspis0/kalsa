@@ -1,0 +1,9 @@
+cell,ngl,prompt_tok,n_gen,pp_t_s,tg_t_s,ms_per,batt,temp,notes
+CPU_512_128,0,490,128,12.561820,15.748010,123.031,82,29.0,single-process CPU 512-pp + 128-tg
+GPU_512_128,99,490,128,4.830560,24.353320,190.260,81,28.3,single-process GPU 512-pp + 128-tg; -fa off
+HANDOFF_GPU_PP,99,490,1,4.741570,0.000000,0.000,81,28.0,handoff GPU prefill n=1; KV NOT shared with next cell
+HANDOFF_CPU_TG,0,490,128,12.109090,19.165560,149.731,81,28.8,handoff CPU 512-pp + 128-tg after GPU; KV NOT shared; re-prefill paid
+MODEL_CPU,0,490,128,12.561820,15.748010,221.171,82,29.0,user_turn_s ~= t_pp + t_tg; single-process 512-pp + 128-tg CPU-only; user_turn_s=28.309830
+MODEL_GPU,99,490,128,4.830560,24.353320,227.999,81,28.3,user_turn_s ~= t_pp + t_tg; single-process 512-pp + 128-tg GPU-only -fa off; user_turn_s=29.183880
+MODEL_GPU_PP_CPU_TG,99/0,490,128,4.830560,15.748010,160.770,81,28.3,user_turn_s ~= t_pp(GPU) + t_tg(CPU); composed ceiling; Handoff does NOT share KV; user_turn_s=20.578570
+HANDOFF_PAIR,99 then 0,490,128,4.741570,19.165560,,81,28.8,thermal handoff actual sequential walls; Handoff does NOT share KV; CPU leg re-prefills; wall_sum=245.170

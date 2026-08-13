@@ -1,0 +1,11 @@
+You are a careful coding assistant. Prefer small, correct Python 3 over cleverness. No classes except a namedtuple or dataclass if it clearly helps. No third-party imports.
+
+Task: write a single file that implements a tiny teacher-forced acceptance scorer for speculative decoding.
+
+Requirements:
+- Function `accept_curve(gold: list[int], draft: list[int], gamma: int) -> dict` where `gold` is the target token-id stream and `draft` is a same-length teacher-forced greedy draft (draft[t] is what the draft model produced given gold[:t]). `gamma` is the draft length.
+- For every start position t, pretend the drafter emits gold-conditioned tokens draft[t], draft[t+1], ... up to t+gamma-1, and the verifier accepts a prefix until the first mismatch with gold (standard speculative rule). Count how many draft tokens are accepted at that t, and whether the full gamma-window matched.
+- Return a dict with keys: n_pos, n_draft_tokens, n_accepted, accept_rate, full_window_rate, mean_accepted_prefix, hist (a list of length gamma+1: hist[k] = how many starts accepted exactly k draft tokens).
+- If gold and draft lengths differ, raise ValueError. If gamma < 1 or either list is empty, raise ValueError.
+- Also provide `expected_tokens_per_step(alpha: float, gamma: int) -> float` implementing (1 - alpha**(gamma+1)) / (1 - alpha) for 0 <= alpha < 1, and gamma+1 when alpha == 1. Reject alpha outside [0, 1].
+- Include `if __name__ == "__main__":` with a 12-token hand example (gold vs a draft that matches 8 positions and misses 4) printed as one JSON object on stdout. No markdown fences, no comments that narrate the assignment.

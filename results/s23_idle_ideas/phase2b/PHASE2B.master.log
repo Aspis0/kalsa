@@ -1,0 +1,33 @@
+[2026-08-13T13:06:37-0400] MODEL=/data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf size=1280835840
+aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223  /data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf
+pp_bytes=2352 repeats=6
+d0247246acf85699c253e89b98a742d865e55c3f9af3a524e244b3f732d3aa1c  /data/data/com.termux/files/home/gdn_k2/idle_ideas/phase2b/prompt_pp.txt
+[2026-08-13T13:07:14-0400] batt preflight plugged=UNPLUGGED batt=82 temp=27.4 MemFree_kB=1413968
+[2026-08-13T13:07:14-0400] watchdog pid=7415
+[2026-08-13T13:07:14-0400] === GPU probe: find a cli that runs -ngl 99 -fa off on 2B ===
+[2026-08-13T13:07:17-0400] PROBE llama /data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli
+[2026-08-13T13:08:44-0400] PROBE rc=0 bin=/data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli
+[2026-08-13T13:08:44-0400] PROBE WARN no OpenCL string in log; accepting exit 0 + no crash (do not invent GPU t/s if later cells look CPU-like)
+[2026-08-13T13:08:48-0400] PROBE_OK cli=/data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli kind=llama sha=0b6be132c2476f6d0848631ecff703ad6400337c612972c2ad43da2a5a8fd8da
+[2026-08-13T13:08:48-0400] using GPU-capable CLI=/data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli kind=llama
+[2026-08-13T13:08:48-0400] CLI=/data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli kind=llama sha=0b6be132c2476f6d0848631ecff703ad6400337c612972c2ad43da2a5a8fd8da GPU_OK=1 threads=6
+[2026-08-13T13:08:59-0400] batt pre_CPU_512_128 plugged=UNPLUGGED batt=82 temp=28.1 MemFree_kB=2066328
+[2026-08-13T13:09:00-0400] RUN CPU_512_128 ngl=0 n=128 prompt_bytes=2352
+[2026-08-13T13:10:57-0400] batt post_CPU_512_128 plugged=UNPLUGGED batt=82 temp=29.0 MemFree_kB=2011600
+[2026-08-13T13:10:57-0400] DONE CPU_512_128 rc=0 wall_s=110.215 pe_ms=12561.82 n=490 ev_ms=15748.01 n=128 ui_pp=39.0 ui_tg=8.1
+[2026-08-13T13:10:57-0400] cooldown 15s before GPU cell
+[2026-08-13T13:11:49-0400] batt pre_GPU_512_128 plugged=UNPLUGGED batt=82 temp=29.0 MemFree_kB=1996576
+[2026-08-13T13:11:50-0400] RUN GPU_512_128 ngl=99 n=128 prompt_bytes=2352
+[2026-08-13T13:15:31-0400] batt post_GPU_512_128 plugged=UNPLUGGED batt=81 temp=28.3 MemFree_kB=2318692
+[2026-08-13T13:15:31-0400] DONE GPU_512_128 rc=0 wall_s=216.159 pe_ms=4830.56 n=490 ev_ms=24353.32 n=128 ui_pp=101.4 ui_tg=5.3
+[2026-08-13T13:15:45-0400] batt pre_HANDOFF plugged=UNPLUGGED batt=81 temp=28.3 MemFree_kB=2320392
+[2026-08-13T13:15:45-0400] HANDOFF start: GPU_PP then CPU_TG immediately; KV is NOT shared
+[2026-08-13T13:15:45-0400] RUN HANDOFF_GPU_PP ngl=99 n=1 prompt_bytes=2352
+[2026-08-13T13:17:41-0400] batt post_HANDOFF_GPU_PP plugged=UNPLUGGED batt=81 temp=28.0 MemFree_kB=2317452
+[2026-08-13T13:17:41-0400] DONE HANDOFF_GPU_PP rc=0 wall_s=114.460 pe_ms=4741.57 n=490 ev_ms=0.00 n=1 ui_pp=103.3 ui_tg=1000000.0
+[2026-08-13T13:17:41-0400] RUN HANDOFF_CPU_TG ngl=0 n=128 prompt_bytes=2352
+[2026-08-13T13:19:57-0400] batt post_HANDOFF_CPU_TG plugged=UNPLUGGED batt=81 temp=28.8 MemFree_kB=2268648
+[2026-08-13T13:19:57-0400] DONE HANDOFF_CPU_TG rc=0 wall_s=130.710 pe_ms=12109.09 n=490 ev_ms=19165.56 n=128 ui_pp=40.5 ui_tg=6.7
+[2026-08-13T13:19:57-0400] batt post_HANDOFF plugged=UNPLUGGED batt=81 temp=28.8 MemFree_kB=2264128
+[2026-08-13T13:19:58-0400] batt final plugged=UNPLUGGED batt=81 temp=28.8 MemFree_kB=2264612
+[2026-08-13T13:19:59-0400] PHASE2B_DONE summary=/data/data/com.termux/files/home/gdn_k2/idle_ideas/phase2b/summary.csv

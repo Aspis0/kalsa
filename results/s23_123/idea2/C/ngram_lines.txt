@@ -1,0 +1,3 @@
+ngram: 2/4 drafts accepted (50.0%), 1.07 tokens per verify decode (30 decodes for 32 tokens)
+ngram: drafting costs 0.0000 s/token on top of decode → 2.07 tok/s effective (vs 2.07 reported)
+ngram: drafted on 1 of 30 steps (3.3%); the rest decoded plainly

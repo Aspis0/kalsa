@@ -1,0 +1,4 @@
+date=2026-08-13T14:26:02-0400
+BIN=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+MODEL=/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+cmd=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN -m /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 4096 --ubatch 512 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --drop-cold-experts 0.65 --temp 0 --no-think -p $'You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.\n\nUser: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.\nAssistant:' -n 32 --n-expert-used 6 --ngram --draft 4 --progress 

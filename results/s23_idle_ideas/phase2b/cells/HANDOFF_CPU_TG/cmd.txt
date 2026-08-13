@@ -1,0 +1,13 @@
+date=2026-08-13T13:17:41-0400
+cell=HANDOFF_CPU_TG
+LD_LIBRARY_PATH=/data/data/com.termux/files/home/gdn_k2/bin_fix2:/vendor/lib64
+MODEL=/data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf
+CLI=/data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli
+kind=llama
+cmd=/data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli -m /data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf -c 2048 --temp 0 -s 42 -n 128 -no-cnv -st -ngl 0 -t 6 --simple-io --no-warmup --ignore-eos --perf -lv 3 -f /data/data/com.termux/files/home/gdn_k2/idle_ideas/phase2b/prompt_pp.txt 
+prompt_file=/data/data/com.termux/files/home/gdn_k2/idle_ideas/phase2b/prompt_pp.txt
+notes=handoff CPU 512-pp + 128-tg after GPU; KV NOT shared; re-prefill paid
+exit=0 wall_s=130.710
+pe_ms=12109.09 pe_n=490 ev_ms=19165.56 ev_n=128
+ui_pp=40.5 ui_tg=6.7
+pp_t_s=12.109090 tg_t_s=19.165560 ms_per=149.731

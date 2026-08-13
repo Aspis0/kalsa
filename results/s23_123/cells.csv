@@ -1,0 +1,6 @@
+cell,rc,wall_s,n_gen,tok_s,n_prompt,n_past,drafted,accepted,drafted_steps,batt_pct,plugged,temp_c,memfree_kb,memavail_kb,notes
+A,0,184,40,2.410,74,,,,,79,UNPLUGGED,25.4,1584836,4080460,route_k6
+B,0,88,0,0.000,74,,,,,79,UNPLUGGED,26.6,4109112,4775576,PREFIX_0
+C,0,168,32,2.074,74,,4,2,1,79,UNPLUGGED,26.9,3359984,4756828,ngram_draft4
+D,1,3,,,,,,,,78,UNPLUGGED,27.5,4349412,4900568,failfast_no_nextn
+E,0,177,16,2.13,100,116,0,0,0,78,UNPLUGGED,27.5,4331116,4901828,session_two_turn

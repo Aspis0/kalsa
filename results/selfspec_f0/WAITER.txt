@@ -1,0 +1,6 @@
+SELFSPEC F0 waiter RE-ARMED 2026-08-13T11:46:15.
+Previous waiter 29680 was dead (owner likely killed it).
+pid: 38172 (also results/selfspec_f0/waiter.pid)
+Spawn: Win32_Process.Create (outside the agent Job Object).
+Runner: scripts/run_selfspec_f0.py --execute
+Poll: 600 s. Does not kill LFM. No phones.

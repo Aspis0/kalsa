@@ -1,0 +1,56 @@
+{
+  "experts_equivalent": {
+    "0.50": {
+      "mean": 5.86875,
+      "n_skip_extras": 42,
+      "rule": "1 if share>=thr else n_slots",
+      "threshold": 0.5
+    },
+    "0.70": {
+      "mean": 5.996875,
+      "n_skip_extras": 1,
+      "rule": "1 if share>=thr else n_slots",
+      "threshold": 0.7
+    },
+    "0.85": {
+      "mean": 5.996875,
+      "n_skip_extras": 1,
+      "rule": "1 if share>=thr else n_slots",
+      "threshold": 0.85
+    }
+  },
+  "hist": {
+    "p_share_ge_0.50": 0.02625,
+    "p_share_ge_0.70": 0.000625,
+    "p_share_ge_0.85": 0.000625
+  },
+  "n_decode_cells": 1600,
+  "n_slots_observed": [
+    6
+  ],
+  "phase": "decode",
+  "phase_code": 1,
+  "preamble_lines": 42,
+  "row_stats": {
+    "n_bad_rows": 0,
+    "n_cells_skipped_no_weight": 0,
+    "n_decode_rows": 9600,
+    "n_other_phase_rows": 0,
+    "n_prefill_rows": 17760,
+    "n_rows_total": 27360
+  },
+  "share": {
+    "max": 0.9270328145934372,
+    "mean": 0.30095031409594397,
+    "median": 0.2835211985014645,
+    "min": 0.178454,
+    "p10": 0.21904957886775156,
+    "p90": 0.4087482245379747
+  },
+  "source": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\s23_123\\idea1\\route_k6.csv",
+  "thresholds": [
+    0.5,
+    0.7,
+    0.85
+  ]
+}

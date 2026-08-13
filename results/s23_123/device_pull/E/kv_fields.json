@@ -1,0 +1,28 @@
+{
+  "bmoe_done_count": 2,
+  "turns": [
+    {
+      "id": 1,
+      "n_prompt": 75,
+      "n_past": 75,
+      "n_common": null,
+      "tokens": 0,
+      "tok_s": 0.0,
+      "prefill_s": 14.791,
+      "text": ""
+    },
+    {
+      "id": 2,
+      "n_prompt": 100,
+      "n_past": 116,
+      "n_common": null,
+      "tokens": 16,
+      "tok_s": 2.13,
+      "prefill_s": 18.834,
+      "text": "<think>\n\n</think>\n\nThe primary trade-off is balancing the high memory bandwidth required to"
+    }
+  ],
+  "n_common_in_schema": false,
+  "n_common_grep": [],
+  "note": "CAMPAIGN BMOE_DONE emits n_prompt and n_past; n_common is engine-internal and may be absent"
+}

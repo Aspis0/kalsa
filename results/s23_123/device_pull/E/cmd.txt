@@ -1,0 +1,4 @@
+date=2026-08-13T14:29:06-0400
+BIN=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+cmd=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN -m /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 4096 --ubatch 512 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --drop-cold-experts 0.65 --temp 0 --no-think --n-expert-used 6 --session --progress 
+stdin=/data/data/com.termux/files/home/gdn_k2/s23_123/E/in.jsonl

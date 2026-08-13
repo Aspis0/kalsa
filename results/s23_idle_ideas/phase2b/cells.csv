@@ -1,0 +1,5 @@
+cell,ngl,kind,n_predict,prompt_bytes,prompt_tok,n_gen,pp_ms,pp_t_s,tg_ms,tg_t_s,ms_per,wall_s,exit,batt_pct,plugged,temp_c,memfree_kb,cli,notes
+CPU_512_128,0,llama,128,2352,490,128,12561.82,12.561820,15748.01,15.748010,123.031,110.215,0,82,UNPLUGGED,29.0,2011600,/data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli,single-process CPU 512-pp + 128-tg
+GPU_512_128,99,llama,128,2352,490,128,4830.56,4.830560,24353.32,24.353320,190.260,216.159,0,81,UNPLUGGED,28.3,2318692,/data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli,single-process GPU 512-pp + 128-tg; -fa off
+HANDOFF_GPU_PP,99,llama,1,2352,490,1,4741.57,4.741570,0.00,0.000000,0.000,114.460,0,81,UNPLUGGED,28.0,2317452,/data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli,handoff GPU prefill n=1; KV NOT shared with next cell
+HANDOFF_CPU_TG,0,llama,128,2352,490,128,12109.09,12.109090,19165.56,19.165560,149.731,130.710,0,81,UNPLUGGED,28.8,2268648,/data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli,handoff CPU 512-pp + 128-tg after GPU; KV NOT shared; re-prefill paid

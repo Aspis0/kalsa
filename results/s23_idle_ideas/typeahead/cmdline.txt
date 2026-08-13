@@ -1,0 +1,6 @@
+date=2026-08-13T12:38:27-0400
+BIN=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+MODEL=/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+LD_LIBRARY_PATH=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli
+N_PREDICT=0
+cmd=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN -m /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 4096 --ubatch 512 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --drop-cold-experts 0.65 --session --no-think --temp 0 

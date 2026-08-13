@@ -1,0 +1,4 @@
+[2026-08-13T11:14:09] START wait for PC idle of LFM/Marco/quantize/bmoe-cli
+[2026-08-13T11:14:09] STATUS BLOCKED_PC
+[2026-08-13T11:14:10] still busy: 31872:pwsh.exe, 3888:python.exe, 35948:bmoe-cli.exe
+[2026-08-13T11:14:10] STATUS BLOCKED_PC

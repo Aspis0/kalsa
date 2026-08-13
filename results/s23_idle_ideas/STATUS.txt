@@ -1,0 +1,6 @@
+REPORT_DONE 2026-08-13
+typeahead=DEAD
+phase2b_ceiling=DEAD
+k4_35b_ngl99=CLOSED_DO_NOT_RERUN
+report=reports/moe-s23-idle-ideas.md
+sources=typeahead/steps.csv,typeahead/done_lines.jsonl,phase2b/cells.csv,phase2b/summary.csv,audit_numbers.md,audit_scripts.md

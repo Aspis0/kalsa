@@ -1,0 +1,1 @@
+error: --mtp needs a model with a trained MTP head, and this gguf has no nextn block (nextn_predict_layers is absent or zero). Qwen3.5/3.6 carry one in their ordinary quantisations; other architectures have none. --ngram speculates on any model, since it drafts from the text rather than from the weights. See docs/mtp.md and docs/ngram.md.

@@ -1,0 +1,58 @@
+[2026-08-13T11:13:23] START wait for PC idle of LFM/Marco/quantize/bmoe-cli
+[2026-08-13T11:13:23] STATUS BLOCKED_PC
+[2026-08-13T11:13:24] still busy: 31872:pwsh.exe, 3888:python.exe, 35948:bmoe-cli.exe, 31812:pwsh.exe
+[2026-08-13T11:13:24] STATUS BLOCKED_PC
+[2026-08-13T11:14:09] START wait for PC idle of LFM/Marco/quantize/bmoe-cli
+[2026-08-13T11:14:09] STATUS BLOCKED_PC
+[2026-08-13T11:14:10] still busy: 31872:pwsh.exe, 3888:python.exe, 35948:bmoe-cli.exe
+[2026-08-13T11:14:10] STATUS BLOCKED_PC
+[2026-08-13T11:15:13] START wait for PC idle of LFM/Marco/quantize/bmoe-cli
+[2026-08-13T11:15:13] STATUS BLOCKED_PC
+[2026-08-13T11:15:14] still busy: 31872:pwsh.exe, 3888:python.exe, 35948:bmoe-cli.exe
+[2026-08-13T11:15:14] STATUS BLOCKED_PC
+[2026-08-13T11:25:15] still busy: 31872:pwsh.exe, 3888:python.exe, 35948:bmoe-cli.exe
+[2026-08-13T11:25:15] STATUS BLOCKED_PC
+[2026-08-13T11:35:15] still busy: 31872:pwsh.exe, 3888:python.exe, 35948:bmoe-cli.exe
+[2026-08-13T11:35:15] STATUS BLOCKED_PC
+[2026-08-13T11:46:16] START wait for PC idle of LFM/Marco/quantize/bmoe-cli
+[2026-08-13T11:46:16] STATUS BLOCKED_PC
+[2026-08-13T11:46:17] still busy: 31872:pwsh.exe, 3888:python.exe, 17936:bmoe-cli.exe
+[2026-08-13T11:46:18] STATUS BLOCKED_PC
+[2026-08-13T11:56:18] still busy: 31872:pwsh.exe, 3888:python.exe, 17936:bmoe-cli.exe
+[2026-08-13T11:56:18] STATUS BLOCKED_PC
+[2026-08-13T12:06:19] still busy: 31872:pwsh.exe, 3888:python.exe, 17936:bmoe-cli.exe
+[2026-08-13T12:06:19] STATUS BLOCKED_PC
+[2026-08-13T12:16:20] still busy: 31872:pwsh.exe, 3888:python.exe, 38548:bmoe-cli.exe
+[2026-08-13T12:16:20] STATUS BLOCKED_PC
+[2026-08-13T12:26:20] still busy: 31872:pwsh.exe, 3888:python.exe, 38548:bmoe-cli.exe
+[2026-08-13T12:26:21] STATUS BLOCKED_PC
+[2026-08-13T12:36:21] still busy: 31872:pwsh.exe, 3888:python.exe, 38548:bmoe-cli.exe
+[2026-08-13T12:36:21] STATUS BLOCKED_PC
+[2026-08-13T12:46:22] still busy: 31872:pwsh.exe, 3888:python.exe, 36792:bmoe-cli.exe
+[2026-08-13T12:46:22] STATUS BLOCKED_PC
+[2026-08-13T12:56:22] still busy: 31872:pwsh.exe, 3888:python.exe, 36792:bmoe-cli.exe
+[2026-08-13T12:56:23] STATUS BLOCKED_PC
+[2026-08-13T13:06:23] still busy: 31872:pwsh.exe, 3888:python.exe, 36792:bmoe-cli.exe
+[2026-08-13T13:06:23] STATUS BLOCKED_PC
+[2026-08-13T13:16:24] still busy: 31872:pwsh.exe, 3656:python.exe, 32668:bmoe-cli.exe
+[2026-08-13T13:16:24] STATUS BLOCKED_PC
+[2026-08-13T13:26:25] still busy: 31872:pwsh.exe, 3656:python.exe, 32668:bmoe-cli.exe
+[2026-08-13T13:26:25] STATUS BLOCKED_PC
+[2026-08-13T13:36:26] still busy: 31872:pwsh.exe, 3656:python.exe, 49816:bmoe-cli.exe
+[2026-08-13T13:36:26] STATUS BLOCKED_PC
+[2026-08-13T13:46:26] still busy: 31872:pwsh.exe, 3656:python.exe, 49816:bmoe-cli.exe
+[2026-08-13T13:46:27] STATUS BLOCKED_PC
+[2026-08-13T13:56:27] still busy: 31872:pwsh.exe, 3656:python.exe, 70856:bmoe-cli.exe
+[2026-08-13T13:56:28] STATUS BLOCKED_PC
+[2026-08-13T14:06:28] still busy: 31872:pwsh.exe, 3656:python.exe, 70856:bmoe-cli.exe
+[2026-08-13T14:06:28] STATUS BLOCKED_PC
+[2026-08-13T14:16:29] still busy: 31872:pwsh.exe, 3656:python.exe, 58168:bmoe-cli.exe
+[2026-08-13T14:16:29] STATUS BLOCKED_PC
+[2026-08-13T14:26:29] still busy: 31872:pwsh.exe, 3656:python.exe, 58168:bmoe-cli.exe
+[2026-08-13T14:26:30] STATUS BLOCKED_PC
+[2026-08-13T14:36:30] still busy: 31872:pwsh.exe, 3656:python.exe, 37992:bmoe-cli.exe
+[2026-08-13T14:36:31] STATUS BLOCKED_PC
+[2026-08-13T14:46:31] still busy: 31872:pwsh.exe, 3656:python.exe, 37992:bmoe-cli.exe
+[2026-08-13T14:46:32] STATUS BLOCKED_PC
+[2026-08-13T14:56:32] still busy: 31872:pwsh.exe, 3656:python.exe, 37992:bmoe-cli.exe
+[2026-08-13T14:56:33] STATUS BLOCKED_PC

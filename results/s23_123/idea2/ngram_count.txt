@@ -1,0 +1,17 @@
+source: idea2/C/ngram_lines.txt  (also C/combo.txt, cells.csv row C)
+cell C: -n 32 --n-expert-used 6 --ngram --draft 4 --progress
+rc=0 wall=168s n_gen=32 tok_s=2.074
+
+ngram: 2/4 drafts accepted (50.0%), 1.07 tokens per verify decode (30 decodes for 32 tokens)
+ngram: drafting costs 0.0000 s/token on top of decode → 2.07 tok/s effective (vs 2.07 reported)
+ngram: drafted on 1 of 30 steps (3.3%); the rest decoded plainly
+
+drafted_steps=1
+No extra ngram cells. F5.2-C3 drafted 0/128 on IT prose; this English p_fact
+drafted on 1/30 steps. Confirm-short-then-stop.
+
+cell D: --mtp --draft 3 -n 8
+D/mtp_note.txt = failfast_no_nextn
+stderr: --mtp needs a model with a trained MTP head, and this gguf has no nextn block
+  (nextn_predict_layers is absent or zero).
+rc=1 wall=3s. No retry.

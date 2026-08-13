@@ -1,0 +1,49 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9971-04c5d362a
+model      : /data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> A transformer prefill reads the whole prompt, builds attention over every token, and produces the first output token. This repeated English paragraph is used to build a prompt of about five hundred twelve tokens for the CPU and GPU prefill cells on Qwen three point five two B. Flash attention stays off. Thread count is six. OpenCL should take the matrix multiplies when ngl is ninety nine. A transformer prefill reads the whole prompt, builds attention over every token, and produces the first outp ... (truncated)
+
+[Start thinking]
+
+Thinking
+
+[ Prompt: 103.3 t/s | Generation: 1000000.0 t/s ]
+
+
+Exiting...
+0.00.028.200 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.031.553 I srv    load_model: loading model '/data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf'
+1.47.360.213 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 2048, kv_unified = 'false'
+1.48.171.925 I srv  llama_server: model loaded
+1.48.171.938 I srv  llama_server: listening on http://127.0.0.1:43867
+1.49.033.613 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+1.49.033.714 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+1.53.775.473 I slot print_timing: id  0 | task 0 | prompt eval time =    4741.57 ms /   490 tokens (    9.68 ms per token,   103.34 tokens per second)
+1.53.775.525 I slot print_timing: id  0 | task 0 |        eval time =       0.00 ms /     1 tokens (    0.00 ms per token, 1000000.00 tokens per second)
+1.53.775.539 I slot print_timing: id  0 | task 0 |       total time =    4741.57 ms /   491 tokens
+1.53.775.547 I slot print_timing: id  0 | task 0 |    graphs reused =          0
+1.53.775.951 I slot      release: id  0 | task 0 | stop processing: n_tokens = 490, truncated = 0
+1.53.779.921 I srv    operator(): operator(): cleaning up before exit...

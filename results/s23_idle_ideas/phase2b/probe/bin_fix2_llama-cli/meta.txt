@@ -1,0 +1,7 @@
+date=2026-08-13T13:07:14-0400
+bin=/data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli
+kind=llama
+LD_LIBRARY_PATH=/data/data/com.termux/files/home/gdn_k2/bin_fix2:/vendor/lib64
+MODEL=/data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf
+0b6be132c2476f6d0848631ecff703ad6400337c612972c2ad43da2a5a8fd8da  /data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli
+-rwxr-xr-x. 1 u0_a344 u0_a344 188023256 Aug 12 15:58 /data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli

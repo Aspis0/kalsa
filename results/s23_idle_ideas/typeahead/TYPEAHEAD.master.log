@@ -1,0 +1,49 @@
+[2026-08-13T12:38:20-0400] grow GROW1 bytes=457
+[2026-08-13T12:38:21-0400] grow GROW2 bytes=477
+[2026-08-13T12:38:22-0400] grow GROW3 bytes=426
+[2026-08-13T12:38:22-0400] grow GROW4 bytes=426
+[2026-08-13T12:38:24-0400] grow GROW5 bytes=434
+33b0fecbfd8d5a73dde53d6f9d884ab4c196905b7b81417ed59cd3ead63973db  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step0_chunk0.txt
+25f5a60f804a2371f818835dd7d82473b86cf71ea80de72e2288e0ddaa7131a2  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step1_grow1.txt
+6b7bc58b5bd27562d9700571a688d4a3c732931980812d1884c3c9cbdbd8966c  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step2_grow2.txt
+1151e3c8384c6a89fb67805133f4a8b41cea188799436a237f6320b412f03a59  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step3_grow3.txt
+d5dc23376936526dabb94e6a60f3b907a60bd8fd2da141f8fdc6bb766c1a45ac  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step4_grow4.txt
+304c90aca75a3085c5d0ae5e29d3590bb90f377451f967224dd71bc8d3923dc7  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step5_grow5.txt
+304c90aca75a3085c5d0ae5e29d3590bb90f377451f967224dd71bc8d3923dc7  /data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/prefixes/step6_control.txt
+[2026-08-13T12:38:24-0400] BIN=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN sha=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-13T12:38:24-0400] MODEL=/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592
+[2026-08-13T12:38:24-0400] chunk0_bytes=360 full_bytes=2580 n_predict=0
+[2026-08-13T12:38:24-0400] mem floors MemAvail=300000kB MemFree_LMKD=50000kB
+[2026-08-13T12:38:26-0400] guard preflight plugged=UNPLUGGED batt=86 temp=25.6 MemFree_kB=2555428 MemAvail_kB=4148904
+[2026-08-13T12:38:29-0400] bmoe pid=29546 (fifo open next, timeout 30s)
+[2026-08-13T12:38:29-0400] fifo writer open
+[2026-08-13T12:39:23-0400] READY BMOE_READY {"load_s":20.635,"arch":"qwen35moe","n_ctx":4096,"think_ctl":"template","n_expert_used":6}
+[2026-08-13T12:39:26-0400] guard pre_step0_chunk0 plugged=UNPLUGGED batt=85 temp=26.2 MemFree_kB=114348 MemAvail_kB=2930948
+[2026-08-13T12:39:27-0400] STEP 0 id=1 label=chunk0 clear_kv=true prompt_bytes=360 n_predict=0
+[2026-08-13T12:40:28-0400] DONE step=0 label=chunk0 prefill_s=17.314 tokens=0 tok_s=0.0 n_prompt=74 n_past=74 prefill_tps=4.27 wall_s=59.626
+[2026-08-13T12:40:32-0400] post chunk0 plugged=UNPLUGGED batt=85 temp=26.2 MemFree_kB=150052 MemAvail_kB=822768
+[2026-08-13T12:40:34-0400] guard pre_step1_grow1 plugged=UNPLUGGED batt=85 temp=26.2 MemFree_kB=147104 MemAvail_kB=818816
+[2026-08-13T12:40:35-0400] STEP 1 id=2 label=grow1 clear_kv=false prompt_bytes=817 n_predict=0
+[2026-08-13T12:41:57-0400] DONE step=1 label=grow1 prefill_s=23.445 tokens=0 tok_s=0.0 n_prompt=171 n_past=171 prefill_tps=7.29 wall_s=79.705
+[2026-08-13T12:41:58-0400] post grow1 plugged=UNPLUGGED batt=85 temp=26.7 MemFree_kB=125020 MemAvail_kB=759684
+[2026-08-13T12:41:59-0400] guard pre_step2_grow2 plugged=UNPLUGGED batt=85 temp=26.7 MemFree_kB=122092 MemAvail_kB=755436
+[2026-08-13T12:41:59-0400] STEP 2 id=3 label=grow2 clear_kv=false prompt_bytes=1294 n_predict=0
+[2026-08-13T12:43:29-0400] DONE step=2 label=grow2 prefill_s=31.562 tokens=0 tok_s=0.0 n_prompt=270 n_past=270 prefill_tps=8.55 wall_s=88.814
+[2026-08-13T12:43:29-0400] post grow2 plugged=UNPLUGGED batt=85 temp=28.2 MemFree_kB=150540 MemAvail_kB=775064
+[2026-08-13T12:43:31-0400] guard pre_step3_grow3 plugged=UNPLUGGED batt=85 temp=28.2 MemFree_kB=96280 MemAvail_kB=715308
+[2026-08-13T12:43:31-0400] STEP 3 id=4 label=grow3 clear_kv=false prompt_bytes=1720 n_predict=0
+[2026-08-13T12:45:44-0400] DONE step=3 label=grow3 prefill_s=43.977 tokens=0 tok_s=0.0 n_prompt=353 n_past=353 prefill_tps=8.03 wall_s=131.073
+[2026-08-13T12:45:46-0400] post grow3 plugged=UNPLUGGED batt=84 temp=28.7 MemFree_kB=135444 MemAvail_kB=737284
+[2026-08-13T12:45:49-0400] guard pre_step4_grow4 plugged=UNPLUGGED batt=84 temp=28.7 MemFree_kB=128384 MemAvail_kB=719500
+[2026-08-13T12:45:49-0400] STEP 4 id=5 label=grow4 clear_kv=false prompt_bytes=2146 n_predict=0
+[2026-08-13T12:48:44-0400] DONE step=4 label=grow4 prefill_s=53.336 tokens=0 tok_s=0.0 n_prompt=437 n_past=437 prefill_tps=8.19 wall_s=174.565
+[2026-08-13T12:48:46-0400] post grow4 plugged=UNPLUGGED batt=84 temp=29.5 MemFree_kB=122460 MemAvail_kB=702152
+[2026-08-13T12:48:51-0400] guard pre_step5_grow5 plugged=UNPLUGGED batt=84 temp=29.5 MemFree_kB=139676 MemAvail_kB=719988
+[2026-08-13T12:48:52-0400] STEP 5 id=6 label=grow5 clear_kv=false prompt_bytes=2580 n_predict=0
+[2026-08-13T12:52:19-0400] DONE step=5 label=grow5 prefill_s=67.394 tokens=0 tok_s=0.0 n_prompt=527 n_past=527 prefill_tps=7.82 wall_s=205.506
+[2026-08-13T12:52:21-0400] post grow5 plugged=UNPLUGGED batt=83 temp=30.4 MemFree_kB=162872 MemAvail_kB=770448
+[2026-08-13T12:52:23-0400] guard pre_step6_control plugged=UNPLUGGED batt=83 temp=30.4 MemFree_kB=170004 MemAvail_kB=771612
+[2026-08-13T12:52:23-0400] STEP 6 id=7 label=control clear_kv=true prompt_bytes=2580 n_predict=0
+[2026-08-13T12:56:06-0400] DONE step=6 label=control prefill_s=63.648 tokens=0 tok_s=0.0 n_prompt=527 n_past=527 prefill_tps=8.28 wall_s=221.292
+[2026-08-13T12:56:08-0400] post control plugged=UNPLUGGED batt=83 temp=30.4 MemFree_kB=135356 MemAvail_kB=703476
+[2026-08-13T12:56:16-0400] TYPEAHEAD_DONE csv=/data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/steps.csv summary=/data/data/com.termux/files/home/gdn_k2/idle_ideas/typeahead/summary.csv

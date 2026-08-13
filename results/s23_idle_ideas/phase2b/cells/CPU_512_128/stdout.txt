@@ -1,0 +1,40 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9971-04c5d362a
+model      : /data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> A transformer prefill reads the whole prompt, builds attention over every token, and produces the first output token. This repeated English paragraph is used to build a prompt of about five hundred twelve tokens for the CPU and GPU prefill cells on Qwen three point five two B. Flash attention stays off. Thread count is six. OpenCL should take the matrix multiplies when ngl is ninety nine. A transformer prefill reads the whole prompt, builds attention over every token, and produces the first outp ... (truncated)
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   Input: A long, repetitive text block containing the exact same sentence ("A transformer prefill reads the whole prompt, builds attention over every token, and produces the first output token. This repeated English paragraph is used to build a prompt of about five hundred twelve tokens for the CPU and GPU prefill cells on Qwen three point five two B. Flash attention stays off. Thread count is six. OpenCL should take the matrix multiplies when ngl is ninety nine.") repeated multiple times (looks like 10 repetitions).
+    *   Task:
+
+[ Prompt: 39.0 t/s | Generation: 8.1 t/s ]
+
+
+Exiting...

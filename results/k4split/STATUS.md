@@ -1,8 +1,9 @@
 # k4split STATUS — 2026-08-13 (N1 PASS, N2 PASS with router pin)
 
 **Milestone: N0 DONE + N1 PASS + N2b ROUTER_SELECTION + N2 PASS with
-`--override-tensor ffn_gate_inp.weight=CPU`.** N3/N4 not run (need
-UNPLUGGED batt ≥45 %). Parent residency kernel is on `BigMoeOnEdge`
+`--override-tensor ffn_gate_inp.weight=CPU`.** N3/N4 **waiter ARMED**
+2026-08-13T06:46:19-04:00 (pid 21569). Starts only UNPLUGGED, batt ≥45 %,
+batt temp ≤35 °C. 6 h window then `ARMED_EXPIRED`. Parent residency kernel is on `BigMoeOnEdge`
 `main` @ `8958cdf`. Android OpenCL `bmoe-cli` staged + pushed
 (`b8b1c732…`). Full write-up: `results/k4split/N1N2_VERDICT.md` +
 `results/k4split/n2b/report.md`. Human card: `MORNING.md`.

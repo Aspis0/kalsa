@@ -1,0 +1,4 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant: Incremental typeahead reuses the KV cache for the already typed prefix and prefills only the newly appended characters. This paragraph is English filler with stable ASCII bytes so later reruns compare the same token counts. Mixture-of-experts routing still runs on every new token, and experts stream from flash when they are not resident in the two-gigabyte cache. Record prefill_s, n_prompt, tokens, and tok_s from BMOE_DONE after the single-token probe.

@@ -1,0 +1,18 @@
+10:                          RAM back to the expert cache at the cost of prefill speed;
+16:      --session           keep the model loaded and serve JSON prompt requests from stdin
+21:                          the normal decode path (batch=1, streaming experts, cache, drop-cold
+28:                          (which experts each layer routed, their weight, cache state).
+75:      --cache-mb N|auto   LRU expert cache budget in MiB (0=off, or >=1500); auto=size to device
+76:      --cache-floor-mb N  with --cache-mb auto: RAM to leave free (default 1536)
+77:      --cache-ceil-mb N   with --cache-mb auto: upper bound on the budget (0 = no cap)
+79:      --no-odirect        do not bypass the page cache for expert reads
+81:                          (warm = page-cache them at load, best when the model fits in RAM;
+89:      --load-all          debug: read ALL experts each token (A/B baseline)
+90:      --force-cache       allow a cache-mb in the pathological band
+93:                          rest, so the lanes start sooner (needs --overlap and the cache;
+95:      --prefetch K        temporally prefetch the next K layers' experts (needs the cache)
+99:      --drop-cold-experts F  skip a routed expert that is a cache MISS and carries less than
+101:                          uniform share and the useful maximum. LOSSY and cache-dependent:
+104:      --drop-in-prefill   drop during prefill too (off: the cold cache makes it expensive)
+119:                          (needs the cache; excludes --prefetch). Drop-aware: experts
+125:  Env overrides (flag wins): BMOE_CACHE_MB, BMOE_IO_THREADS, BMOE_PROGRESS, BMOE_OVERLAP, BMOE_PREFETCH, BMOE_N_EXPERT_USED, BMOE_PREDICT_LOG, BMOE_PREDICT_PREFETCH
