@@ -121,10 +121,8 @@ def campaign_flags(k: int, drop: float | None) -> list[str]:
         IO_THREADS,
         "--n-expert-used",
         str(k),
-        "--flash-attn",
-        "off",
-        "--ngl",
-        "0",
+        # --flash-attn / --ngl removed: the PC bmoe-cli 0.19.0 does not accept
+        # them (instant usage error, "timeout waiting for BMOE_READY")
         "--progress",
         "--session",
     ]
@@ -732,7 +730,7 @@ def execute() -> int:
         "flag_line": (
             f"-t {THREADS} -c {N_CTX} --ubatch {UBATCH} --temp 0 --moe-stream "
             f"--cache-mb {CACHE_MB} --dense-weights anon --overlap --io-threads {IO_THREADS} "
-            "--flash-attn off --ngl 0 --progress --session"
+            "--progress --session"
         ),
         "thread_note": (
             "METHOD_PLAN.md:103 used -t 4 while LFM PPL held -t 8. "

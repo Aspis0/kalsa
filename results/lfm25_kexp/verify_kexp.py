@@ -23,7 +23,14 @@ def recipe_map() -> dict[str, str]:
 
 
 def ggml_name(t) -> str:
-    return str(t.tensor_type).split(".")[-1].lower().replace("q3_k_m", "q3_k").replace("q4_k_m", "q4_k")
+    # gguf lib may expose tensor_type as the enum OR as a raw int, depending on version
+    tt = t.tensor_type
+    try:
+        from gguf.constants import GGMLQuantizationType
+        nm = GGMLQuantizationType(int(tt)).name
+    except (ValueError, TypeError, ImportError):
+        nm = str(tt).split(".")[-1]
+    return nm.lower().replace("q3_k_m", "q3_k").replace("q4_k_m", "q4_k")
 
 
 def main() -> int:
