@@ -1,0 +1,36 @@
+[2026-08-12T22:46:26-0400] G99 free-tier fail-fast
+[2026-08-12T22:46:26-0400] bin=/data/data/com.termux/files/home/bin/run-bmoe
+36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81  /data/data/com.termux/files/home/bin/bmoe-cli
+[2026-08-12T22:46:26-0400] qwen=/data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-12T22:46:26-0400] lfm=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-Q4_K_M.gguf
+[2026-08-12T22:46:26-0400] qwen_bytes=1280835840
+[2026-08-12T22:46:26-0400] lfm_bytes=5155564768
+[2026-08-12T22:46:34-0400] qwen_sha=aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
+[2026-08-12T22:47:03-0400] lfm_sha=4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0
+[2026-08-12T22:47:03-0400] ctx=1024 n=200 t=2
+[2026-08-12T22:47:03-0400] battery plugged=UNPLUGGED pct=87 temp=31.0
+[2026-08-12T22:47:04-0400] battery plugged=UNPLUGGED pct=87 temp=31.0
+[2026-08-12T22:47:04-0400] RUN cell=B1 run=1 batt=87 temp=31.0 extra=[]
+[2026-08-12T22:48:03-0400] RUN cell=B1 run=1 rc=0 tok/s=8.023
+[2026-08-12T22:48:12-0400] battery plugged=UNPLUGGED pct=86 temp=31.0
+[2026-08-12T22:48:12-0400] RUN cell=B1 run=2 batt=86 temp=31.0 extra=[]
+[2026-08-12T22:49:10-0400] RUN cell=B1 run=2 rc=0 tok/s=8.060
+[2026-08-12T22:49:18-0400] battery plugged=UNPLUGGED pct=86 temp=32.0
+[2026-08-12T22:49:19-0400] RUN cell=B2 run=1 batt=86 temp=32.0 extra=[]
+[2026-08-12T22:50:17-0400] RUN cell=B2 run=1 rc=0 tok/s=10.471
+[2026-08-12T22:50:25-0400] battery plugged=UNPLUGGED pct=85 temp=33.0
+[2026-08-12T22:50:26-0400] RUN cell=B2 run=2 batt=85 temp=33.0 extra=[]
+[2026-08-12T22:51:21-0400] RUN cell=B2 run=2 rc=0 tok/s=10.730
+[2026-08-12T22:51:30-0400] battery plugged=UNPLUGGED pct=85 temp=33.0
+[2026-08-12T22:51:30-0400] RUN cell=K3 run=1 batt=85 temp=33.0 extra=[--n-expert-used 3]
+[2026-08-12T22:52:22-0400] RUN cell=K3 run=1 rc=0 tok/s=12.271
+[2026-08-12T22:52:30-0400] battery plugged=UNPLUGGED pct=84 temp=34.0
+[2026-08-12T22:52:31-0400] RUN cell=K3 run=2 batt=84 temp=34.0 extra=[--n-expert-used 3]
+[2026-08-12T22:53:22-0400] RUN cell=K3 run=2 rc=0 tok/s=12.286
+[2026-08-12T22:53:31-0400] battery plugged=UNPLUGGED pct=84 temp=34.0
+[2026-08-12T22:53:31-0400] RUN cell=K2 run=1 batt=84 temp=34.0 extra=[--n-expert-used 2]
+[2026-08-12T22:54:19-0400] RUN cell=K2 run=1 rc=0 tok/s=14.354
+[2026-08-12T22:54:28-0400] battery plugged=UNPLUGGED pct=83 temp=34.0
+[2026-08-12T22:54:28-0400] RUN cell=K2 run=2 batt=83 temp=34.0 extra=[--n-expert-used 2]
+[2026-08-12T22:55:15-0400] RUN cell=K2 run=2 rc=0 tok/s=14.411
+[2026-08-12T22:55:23-0400] DONE

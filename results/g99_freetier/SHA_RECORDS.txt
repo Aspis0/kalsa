@@ -1,0 +1,42 @@
+# G99 free-tier SHA / source records
+# 2026-08-12
+
+## Official LFM2.5-8B-A1B Q4_K_M (NOT the deprecated LFM2-8B-A1B)
+
+repo:     https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF
+file:     LFM2.5-8B-A1B-Q4_K_M.gguf
+url:      https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/resolve/main/LFM2.5-8B-A1B-Q4_K_M.gguf
+size:     5155564768 bytes  (HF LFS size; ~5.16 GB advertised)
+sha256:   4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0
+          (HF LFS oid — verify after download with sha256sum)
+arch:     lfm2moe  (from GGUF header general.architecture)
+fork:     SUPPORTED (llama-arch.cpp + bmoe-cli --list-archs)
+pc_path:  models/LFM2.5-8B-A1B-Q4_K_M.gguf
+pc_sha:   4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0
+          MATCHES HF LFS oid (2026-08-12 Get-FileHash)
+device_path: ~/models/LFM2.5-8B-A1B-Q4_K_M.gguf
+device_sha: 4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0
+          MATCHES PC + HF (2026-08-12 sha256sum on Jelly)
+device_size: 5155564768
+
+## Qwen3.5-2B Q4_K_M (dense comparator)
+
+pc_path:     models_staging/Qwen3.5-2B-Q4_K_M.gguf
+pc_sha256:   aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
+             (from models_staging/SHA256SUMS.txt)
+device_path: /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+device_size: 1280835840
+device_sha256: aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
+status:      ALREADY ON DEVICE, SHA MATCH — no push needed
+
+## On-device binary
+
+path:     ~/bin/bmoe-cli
+sha256:   36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81
+wrapper:  ~/bin/run-bmoe  (sha 713f5e57f7c3567a06e7489013cbd06a9b0a622e9e3556e939da0765f895c5a4)
+list-archs: qwen3moe qwen2moe qwen35moe gemma4 gpt-oss lfm2moe deepseek4
+--n-expert-used: PRESENT in --help
+
+## Deprecated file on PC (DO NOT USE)
+
+models/LFM2-8B-A1B-Q4_K_M.gguf  — older LFM2-8B-A1B, NOT LFM2.5
