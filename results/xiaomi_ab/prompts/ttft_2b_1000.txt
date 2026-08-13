@@ -1,0 +1,74 @@
+## 0. Hardware map (do not mix these)
+
+| Marketing SoC | GPU | Generation in llama.cpp OpenCL | Typical phones |
+|---|---|---|---|
+| Snapdragon 8 Gen 2 | **Adreno 740** | A7X | S23 (SM-S911), our measured device |
+| Snapdragon 8 Gen 3 | **Adreno 750** | A7X | S24 US family SM-S921/S926/S928, Xiaomi 14, Lenovo Y700 2025 (sm8650p) |
+| Snapdragon 8 Elite (aka 8 Gen 4) | **Adreno 830** | A8X | S25 family SM-S931/S937/S938 |
+| Snapdragon 8 Elite Gen 5 | **Adreno 840** | A8X | S26-class / later flagships — **not** 750 or 830 |
+| Snapdragon X / X2 (laptops) | Adreno X1-85 / **X2-90** | laptop, not phone | WoS PCs — Qualcomm's favorite bench device |
+
+Official llama.cpp OpenCL verified list: Adreno 750, 810, 830, 840, X1-85, X2-90.
+Source: https://github.com/ggml-org/llama.cpp/blob/master/docs/backend/OPENCL.md
+
+---
+
+## 1. llama.cpp OpenCL on 8 Gen 3 / 8 Elite — published decode (tg) numbers
+
+### 1.1 Qualcomm's own blog: **no tok/s table**
+
+Hongqiang Wang et al., *Introducing the new OpenCL GPU backend in llama.cpp for Qualcomm Adreno GPUs* (originally Dec 2024, updated Feb 2025):
+
+- Claims the backend is “well tested and optimized for premium Adreno GPUs”.
+- Tested on **Android phones with 8 Gen 1, 2, 3, and 8 Elite**, plus Snapdragon X Elite/Plus laptops.
+- “Primarily based on the OpenCL 3.0 standard, with **optional features like subgroups** to achieve optimal performance.”
+- **Optimized path is Q4_0.** Quote: “currently the Adreno OpenCL backend has been optimized for the weights using the **Q4_0** quantization scheme. The optimization for weights using other schemes, such as FP16 and Q6, is in progress.”
+- Example launch line uses `ggml-model-qwen1.5-7b-chat-Q4_0.gguf -ngl 99`.
+- **No CPU numbers. No tg/pp table at all.**
+
+https://www.qualcomm.com/developer/blog/2024/11/introducing-new-opn-cl-gpu-backend-llama-cpp-for-qualcomm-adreno-gpu
+
+OPENCL.md later lists Q4_K / Q5_K / Q6_K as “Support”, but that is *functional* support, not “as fast as Q4_0”. Binary kernel library (inline-asm, not OSS) is **X2-only** (X2-90/85/45) and only for MUL_MAT_ID Q4_0/Q4_1/Q4_K/MXFP4 — irrelevant to phone 750/830 dense decode.
+
+https://github.com/ggml-org/llama.cpp/blob/master/docs/backend/OPENCL.md
+
+### 1.2 IWOCL 2025 Qualcomm slide deck — MLC/TVM, **not** llama.cpp
+
+Siva Rama Krishna Reddy B, *Opensource Deep learning Compiler Solution Updates for Qualcomm Adreno GPU*, IWOCL 2025. These are **MLC/TVM q4f16_0**, GPU-only, no CPU column:
+
+| Model (q4f16_0, MLC) | 8 Gen 3 decode t/s | 8 Elite decode t/s | 8 Gen 3 encode 256 (t/s) | 8 Elite encode 256 (t/s) |
+|---|---:|---:|---:|---:|
+| DeepSeek-R1-Distill-Qwen-1.5B | 22.2 | 50 | 232 | 413 |
+| gemma-2b-it | 14.77 | 33.25 | 244.7 | 293.5 |
+| phi-2 | 28.9 | 30 | 137.7 | 145.4 |
+| Phi-3-mini-4k-instruct | 22.6 | 24.88 | 145.5 | 156.4 |
+| DeepSeek-R1-Distill-Llama-8B | 11.1 | 12.5 | 64 | 95 |
+| Meta-Llama-3-8B-Instruct | 11.1 | 12.5 | 80.5 | 84.6 |
+| Qwen-7B-Chat | 12.3 | 11.9 | 72.3 | 72.5 |
+
+Notes:
+
+- **Not llama.cpp. Not Q4_0/Q4_K. No CPU.**
+- 8 Elite vs 8 Gen 3 decode is ~1.1× on 7–8B and ~2.25× on 1.5–2B (DeepSeek-1.5B 22.2 → 50; gemma-2b 14.77 → 33.25). Prefill/encode jumps more than decode on the small models.
+- Useful only as “Qualcomm-tuned OpenCL *can* produce those absolute GPU rates on these SoCs under MLC”.
+
+https://www.iwocl.org/wp-content/uploads/iwocl-2025-siva-rama-krishna-reddy-b-deep-learning.pdf
+
+### 1.3 Qualcomm PRs with real llama.cpp OpenCL tg tables
+
+Qualcomm (lhez / wanghqc) publishes llama-bench tables, but almost always on **X2-90 (laptop)** or **Adreno 840 (8 Elite Gen 5)** — not 750.
+
+**PR #24160 (merged, Jun 2026) — X2-90 laptop, Q4_K_M, OpenCL, `-fa 0`.** This is the closest published Qwen3.5 / Q4_K_M OpenCL decode table. After the get_rows/cpy/q6_K gemv fix (explicitly motivated by Qwen3.5):
+
+| Model | quant | device | pp512 | tg128 |
+|---|---|---|---:|---:|
+| Qwen3.5 4B | **Q4_K_M** | X2-90 OpenCL | 349 | **23.35** |
+| Qwen3.5 9B | Q4_K_M | X2-90 OpenCL | 200 | 14.44 |
+| Qwen3 4B | Q4_K_M | X2-90 OpenCL | 377 | 26.03 |
+| Qwen3 8B | Q4_K_M | X2-90 OpenCL | 217 | 15.99 |
+| Llama-3.2 3B | Q4_K_M | X2-90 OpenCL | 505 | 33.12 |
+
+No CPU column. X2-90 is a laptop GPU with far more bandwidth than phone 750/830.
+
+https://github.com/ggml-org/llama.cpp/pull/24160
+

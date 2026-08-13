@@ -1,0 +1,249 @@
+=== battery start 2026-08-12T23:37:03 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 99
+  temperature: 279
+max_therm_mC=54905
+2026-08-12T23:37:17 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=291611 resident_after=0 pages fadvise_rc=0
+2026-08-12T23:37:18 FADV rc=0
+=== battery before_cpu_pp512 2026-08-12T23:37:18 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 99
+  temperature: 279
+max_therm_mC=54838
+2026-08-12T23:37:28 START llama-bench cpu_pp512 -t 6 -ngl 0 -p 512 -n 0 -r 2
+2026-08-12T23:38:41 END llama-bench cpu_pp512 EXIT=0
+=== battery after_cpu_pp512 2026-08-12T23:38:41 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 99
+  temperature: 290
+max_therm_mC=58500
+2026-08-12T23:39:03 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+2026-08-12T23:39:03 FADV rc=0
+=== battery before_gpu_pp512 2026-08-12T23:39:04 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 99
+  temperature: 290
+max_therm_mC=51409
+2026-08-12T23:39:23 START llama-bench gpu_pp512 -t 6 -ngl 99 -p 512 -n 0 -r 2
+2026-08-12T23:40:30 END llama-bench gpu_pp512 EXIT=0
+=== battery after_gpu_pp512 2026-08-12T23:40:30 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 99
+  temperature: 290
+max_therm_mC=48148
+2026-08-12T23:40:47 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=309930 resident_after=0 pages fadvise_rc=0
+2026-08-12T23:40:48 FADV rc=0
+=== battery before_cpu_pp1024 2026-08-12T23:40:48 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 99
+  temperature: 290
+max_therm_mC=51947
+2026-08-12T23:41:05 START llama-bench cpu_pp1024 -t 6 -ngl 0 -p 1024 -n 0 -r 2
+2026-08-12T23:43:13 END llama-bench cpu_pp1024 EXIT=0
+=== battery after_cpu_pp1024 2026-08-12T23:43:14 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 98
+  temperature: 318
+max_therm_mC=47100
+2026-08-12T23:43:40 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+2026-08-12T23:43:41 FADV rc=0
+=== battery before_gpu_pp1024 2026-08-12T23:43:41 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 98
+  temperature: 322
+max_therm_mC=48350
+2026-08-12T23:43:50 START llama-bench gpu_pp1024 -t 6 -ngl 99 -p 1024 -n 0 -r 2
+2026-08-12T23:45:01 END llama-bench gpu_pp1024 EXIT=0
+=== battery after_gpu_pp1024 2026-08-12T23:45:01 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 98
+  temperature: 319
+max_therm_mC=45900
+2026-08-12T23:45:12 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+2026-08-12T23:45:12 FADV rc=0
+=== battery before_cpu_pp2048 2026-08-12T23:45:12 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 98
+  temperature: 319
+max_therm_mC=47812
+2026-08-12T23:45:14 START llama-bench cpu_pp2048 -t 6 -ngl 0 -p 2048 -n 0 -r 2
+2026-08-12T23:47:16 END llama-bench cpu_pp2048 EXIT=0
+=== battery after_cpu_pp2048 2026-08-12T23:47:16 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 97
+  temperature: 355
+max_therm_mC=67100
+2026-08-12T23:47:26 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+2026-08-12T23:47:27 FADV rc=0
+=== battery before_gpu_pp2048 2026-08-12T23:47:27 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 97
+  temperature: 355
+max_therm_mC=49157
+2026-08-12T23:47:29 START llama-bench gpu_pp2048 -t 6 -ngl 99 -p 2048 -n 0 -r 2
+2026-08-12T23:48:37 END llama-bench gpu_pp2048 EXIT=0
+=== battery after_gpu_pp2048 2026-08-12T23:48:37 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 96
+  temperature: 356
+max_therm_mC=50600
+2026-08-12T23:48:57 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+2026-08-12T23:48:58 FADV rc=0
+=== battery before_ttft_cpu_rep1 2026-08-12T23:48:58 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 96
+  temperature: 356
+max_therm_mC=45997
+2026-08-12T23:49:13 START llama-cli ttft_cpu_rep1 -t 6 cell=cpu -n 16 --temp 0 --no-warmup --perf
+2026-08-12T23:51:07 END llama-cli ttft_cpu_rep1 EXIT=0 wall_s=114
+=== battery after_ttft_cpu_rep1 2026-08-12T23:51:09 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 95
+  temperature: 349
+max_therm_mC=45022
+2026-08-12T23:51:22 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+2026-08-12T23:51:23 FADV rc=0
+=== battery before_ttft_gpu_rep2 2026-08-12T23:51:23 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 95
+  temperature: 349
+max_therm_mC=46501
+2026-08-12T23:51:26 START llama-cli ttft_gpu_rep2 -t 6 cell=gpu -n 16 --temp 0 --no-warmup --perf
+2026-08-12T23:52:19 END llama-cli ttft_gpu_rep2 EXIT=0 wall_s=53
+=== battery after_ttft_gpu_rep2 2026-08-12T23:52:19 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 95
+  temperature: 345
+max_therm_mC=44047
+2026-08-12T23:52:38 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+2026-08-12T23:52:40 FADV rc=0
+=== battery before_ttft_gpu_rep3 2026-08-12T23:52:40 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 95
+  temperature: 345
+max_therm_mC=47106
+2026-08-12T23:52:43 START llama-cli ttft_gpu_rep3 -t 6 cell=gpu -n 16 --temp 0 --no-warmup --perf
+2026-08-12T23:54:06 END llama-cli ttft_gpu_rep3 EXIT=0 wall_s=83
+=== battery after_ttft_gpu_rep3 2026-08-12T23:54:06 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 95
+  temperature: 338
+max_therm_mC=44700
+2026-08-12T23:54:18 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+2026-08-12T23:54:18 FADV rc=0
+=== battery before_ttft_cpu_rep4 2026-08-12T23:54:18 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 95
+  temperature: 338
+max_therm_mC=46804
+2026-08-12T23:54:21 START llama-cli ttft_cpu_rep4 -t 6 cell=cpu -n 16 --temp 0 --no-warmup --perf
+2026-08-12T23:55:15 END llama-cli ttft_cpu_rep4 EXIT=0 wall_s=54
+=== battery after_ttft_cpu_rep4 2026-08-12T23:55:15 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 95
+  temperature: 349
+max_therm_mC=45500
+=== battery end_2b 2026-08-12T23:55:45 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 94
+  temperature: 351
+max_therm_mC=46367
+2026-08-12T23:55:56 TASK_A_2B done plugged=0 level=94 tempC=35

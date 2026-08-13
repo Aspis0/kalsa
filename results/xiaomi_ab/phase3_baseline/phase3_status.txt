@@ -1,0 +1,7 @@
+2026-08-12T23:17:29 PHASE3 wait begin t=6 max_wait=2700s
+2026-08-12T23:17:43 READY unplugged level=100 tempC=28
+2026-08-12T23:17:53 START bench_cpu -t 6 -ngl 0 -p 128 -n 256 -r 2
+2026-08-12T23:19:12 END bench_cpu EXIT=0
+2026-08-12T23:20:02 START bench_gpu -t 6 -ngl 99 -fa off -p 128 -n 256 -r 2
+2026-08-12T23:22:51 END bench_gpu EXIT=0
+2026-08-12T23:22:54 PHASE3 done

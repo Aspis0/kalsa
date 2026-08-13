@@ -1,0 +1,10 @@
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=291611 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=309930 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0

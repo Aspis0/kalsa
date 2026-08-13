@@ -1,0 +1,42 @@
+2026-08-12T23:37:03 TASK_A_2B begin t=6
+2026-08-12T23:37:17 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+2026-08-12T23:37:18 FADV rc=0
+2026-08-12T23:37:28 START llama-bench cpu_pp512 -t 6 -ngl 0 -p 512 -n 0 -r 2
+2026-08-12T23:38:41 END llama-bench cpu_pp512 EXIT=0
+2026-08-12T23:39:03 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+2026-08-12T23:39:03 FADV rc=0
+2026-08-12T23:39:23 START llama-bench gpu_pp512 -t 6 -ngl 99 -p 512 -n 0 -r 2
+2026-08-12T23:40:30 END llama-bench gpu_pp512 EXIT=0
+2026-08-12T23:40:47 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+2026-08-12T23:40:48 FADV rc=0
+2026-08-12T23:41:05 START llama-bench cpu_pp1024 -t 6 -ngl 0 -p 1024 -n 0 -r 2
+2026-08-12T23:43:13 END llama-bench cpu_pp1024 EXIT=0
+2026-08-12T23:43:40 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+2026-08-12T23:43:41 FADV rc=0
+2026-08-12T23:43:50 START llama-bench gpu_pp1024 -t 6 -ngl 99 -p 1024 -n 0 -r 2
+2026-08-12T23:45:01 END llama-bench gpu_pp1024 EXIT=0
+2026-08-12T23:45:12 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+2026-08-12T23:45:12 FADV rc=0
+2026-08-12T23:45:14 START llama-bench cpu_pp2048 -t 6 -ngl 0 -p 2048 -n 0 -r 2
+2026-08-12T23:47:16 END llama-bench cpu_pp2048 EXIT=0
+2026-08-12T23:47:26 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+2026-08-12T23:47:27 FADV rc=0
+2026-08-12T23:47:29 START llama-bench gpu_pp2048 -t 6 -ngl 99 -p 2048 -n 0 -r 2
+2026-08-12T23:48:37 END llama-bench gpu_pp2048 EXIT=0
+2026-08-12T23:48:57 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+2026-08-12T23:48:58 FADV rc=0
+2026-08-12T23:49:13 START llama-cli ttft_cpu_rep1 -t 6 cell=cpu -n 16 --temp 0 --no-warmup --perf
+2026-08-12T23:51:07 END llama-cli ttft_cpu_rep1 EXIT=0 wall_s=114
+2026-08-12T23:51:22 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+2026-08-12T23:51:23 FADV rc=0
+2026-08-12T23:51:26 START llama-cli ttft_gpu_rep2 -t 6 cell=gpu -n 16 --temp 0 --no-warmup --perf
+2026-08-12T23:52:19 END llama-cli ttft_gpu_rep2 EXIT=0 wall_s=53
+2026-08-12T23:52:38 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+2026-08-12T23:52:40 FADV rc=0
+2026-08-12T23:52:43 START llama-cli ttft_gpu_rep3 -t 6 cell=gpu -n 16 --temp 0 --no-warmup --perf
+2026-08-12T23:54:06 END llama-cli ttft_gpu_rep3 EXIT=0 wall_s=83
+2026-08-12T23:54:18 FADV begin /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf
+2026-08-12T23:54:18 FADV rc=0
+2026-08-12T23:54:21 START llama-cli ttft_cpu_rep4 -t 6 cell=cpu -n 16 --temp 0 --no-warmup --perf
+2026-08-12T23:55:15 END llama-cli ttft_cpu_rep4 EXIT=0 wall_s=54
+2026-08-12T23:55:56 TASK_A_2B done plugged=0 level=94 tempC=35

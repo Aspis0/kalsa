@@ -1,0 +1,46 @@
+
+
+Loading model... |-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\| 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9969-a92a51627
+model      : /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> ## 0. Hardware map (do not mix these)
+
+| Marketing SoC | GPU | Generation in llama.cpp OpenCL | Typical phones |
+|---|---|---|---|
+| Snapdragon 8 Gen 2 | **Adreno 740** | A7X | S23 (SM-S911), our measured device |
+| Snapdragon 8 Gen 3 | **Adreno 750** | A7X | S24 US family SM-S921/S926/S928, Xiaomi 14, Lenovo Y700 2025 (sm8650p) |
+| Snapdragon 8 Elite (aka 8 Gen 4) | **Adreno 830** | A8X | S25 family SM-S931/S937/S938 |
+| Snapdragon 8 Elite Gen 5 | **Adreno 840** | A8X | S26-class / later flagsh ... (truncated)
+
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *
+
+[ Prompt: 83.8 t/s | Generation: 8.1 t/s ]
+
+
+Exiting...

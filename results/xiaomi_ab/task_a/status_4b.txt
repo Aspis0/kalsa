@@ -1,0 +1,14 @@
+2026-08-13T00:00:10 TASK_A_4B begin t=6
+2026-08-13T00:00:13 FADV 4b /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf
+2026-08-13T00:00:25 START llama-bench 4b_cpu_pp512 -t 6 -p 512 -n 0 -r 2
+2026-08-13T00:02:16 END llama-bench 4b_cpu_pp512 EXIT=0
+2026-08-13T00:02:27 FADV 4b /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf
+2026-08-13T00:02:30 START llama-bench 4b_gpu_pp512 -t 6 -p 512 -n 0 -r 2
+2026-08-13T00:03:18 END llama-bench 4b_gpu_pp512 EXIT=0
+2026-08-13T00:03:28 FADV 4b /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf
+2026-08-13T00:03:31 START llama-bench 4b_cpu_pp2048 -t 6 -p 2048 -n 0 -r 2
+2026-08-13T00:15:13 END llama-bench 4b_cpu_pp2048 EXIT=0
+2026-08-13T00:15:44 FADV 4b /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf
+2026-08-13T00:15:58 START llama-bench 4b_gpu_pp2048 -t 6 -p 2048 -n 0 -r 2
+2026-08-13T00:18:41 END llama-bench 4b_gpu_pp2048 EXIT=0
+2026-08-13T00:18:52 TASK_A_4B done plugged=0 level=87 tempC=36

@@ -1,0 +1,180 @@
+=== battery start_4b_clean 2026-08-13T05:32:25 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 73
+  temperature: 289
+max_therm_mC=54401
+=== battery before_4b_cpu_pp512 2026-08-13T05:32:38 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 73
+  temperature: 289
+max_therm_mC=54266
+=== battery after_4b_cpu_pp512 2026-08-13T05:35:24 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 72
+  temperature: 313
+max_therm_mC=63600
+=== battery before_4b_gpu_pp512 2026-08-13T05:35:42 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 72
+  temperature: 313
+max_therm_mC=47207
+=== battery after_4b_gpu_pp512 2026-08-13T05:37:05 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 71
+  temperature: 317
+max_therm_mC=47500
+=== battery before_4b_cpu_pp1024 2026-08-13T05:37:20 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 71
+  temperature: 317
+max_therm_mC=47812
+=== battery after_4b_cpu_pp1024 2026-08-13T05:44:16 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 69
+  temperature: 352
+max_therm_mC=56900
+=== battery before_4b_gpu_pp1024 2026-08-13T05:44:37 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 69
+  temperature: 354
+max_therm_mC=45930
+=== battery after_4b_gpu_pp1024 2026-08-13T05:46:33 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 68
+  temperature: 347
+max_therm_mC=49100
+=== battery before_4b_cpu_pp2048 2026-08-13T05:46:44 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 68
+  temperature: 351
+max_therm_mC=43879
+=== battery after_4b_cpu_pp2048 2026-08-13T06:00:53 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 63
+  temperature: 368
+max_therm_mC=46300
+=== battery before_4b_gpu_pp2048 2026-08-13T06:01:19 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 63
+  temperature: 368
+max_therm_mC=45224
+=== battery after_4b_gpu_pp2048 2026-08-13T06:04:09 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 63
+  temperature: 365
+max_therm_mC=52600
+=== battery before_ttft_4b_cpu_rep1 2026-08-13T06:04:19 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 63
+  temperature: 365
+max_therm_mC=54200
+=== battery after_ttft_4b_cpu_rep1 2026-08-13T06:07:59 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 61
+  temperature: 375
+max_therm_mC=45500
+=== battery before_ttft_4b_gpu_rep2 2026-08-13T06:08:27 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 61
+  temperature: 367
+max_therm_mC=45425
+=== battery after_ttft_4b_gpu_rep2 2026-08-13T06:10:58 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 61
+  temperature: 354
+max_therm_mC=47500
+=== battery before_ttft_4b_gpu_rep3 2026-08-13T06:11:19 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 61
+  temperature: 354
+max_therm_mC=46132
+=== battery after_ttft_4b_gpu_rep3 2026-08-13T06:13:06 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 60
+  temperature: 346
+max_therm_mC=48300
+=== battery before_ttft_4b_cpu_rep4 2026-08-13T06:13:18 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 60
+  temperature: 346
+max_therm_mC=44854
