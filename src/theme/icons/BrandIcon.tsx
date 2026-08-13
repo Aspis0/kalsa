@@ -19,7 +19,9 @@ export type BrandIconName =
   | "stop"
   | "attach"
   | "mic"
-  | "new-chat";
+  | "new-chat"
+  | "copy"
+  | "share";
 
 export type BrandIconTone = "accent" | "danger";
 
@@ -57,6 +59,9 @@ const LIGHT_RASTERS: Partial<Record<BrandIconName, number | undefined>> = {
   stop: tryRequire(() => require("../../../assets/brand/light/stop.jpg")),
   attach: tryRequire(() => require("../../../assets/brand/light/attach.jpg")),
   mic: tryRequire(() => require("../../../assets/brand/light/mic.jpg")),
+  "new-chat": tryRequire(() => require("../../../assets/brand/light/new-chat.jpg")),
+  copy: tryRequire(() => require("../../../assets/brand/light/copy.jpg")),
+  share: tryRequire(() => require("../../../assets/brand/light/share.jpg")),
 };
 
 const DARK_RASTERS: Partial<Record<BrandIconName, number | undefined>> = {
@@ -132,6 +137,55 @@ function MicMark({ color, size }: { color: string; size: number }) {
   );
 }
 
+function CopyMark({ color, size }: { color: string; size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect
+        x={8}
+        y={4}
+        width={10}
+        height={12}
+        rx={2}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+      />
+      <Rect
+        x={5}
+        y={8}
+        width={10}
+        height={12}
+        rx={2}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+      />
+    </Svg>
+  );
+}
+
+function ShareMark({ color, size }: { color: string; size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M14 7 L19 12 L14 17"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M19 12 H9.5 C7 12 5.5 13.6 5.5 16 V18"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 function VectorMark({
   name,
   color,
@@ -143,6 +197,8 @@ function VectorMark({
 }) {
   if (name === "stop") return <SquareMark color={color} size={size} />;
   if (name === "mic") return <MicMark color={color} size={size} />;
+  if (name === "copy") return <CopyMark color={color} size={size} />;
+  if (name === "share") return <ShareMark color={color} size={size} />;
   if (name === "attach" || name === "new-chat") {
     return <PlusMark color={color} size={size} />;
   }
