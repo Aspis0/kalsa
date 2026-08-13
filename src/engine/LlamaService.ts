@@ -87,10 +87,12 @@ import {
 import {
   applyBakedUserTails,
   applyMemoryFactsToLastUser,
+  bakeTextContent,
   buildMemoryFactsBlock,
   commitBakedLastUser,
   lastUserContent,
   parseBakedUserTails,
+  prefixMessageContent,
   type BakedUserTail,
 } from "./memoryFactsTail";
 import {
@@ -1423,33 +1425,15 @@ function buildUserMessage(message: EngineMessage): RNLlamaOAICompatibleMessage {
   return { role: "user", content: parts };
 }
 
-/**
- * Prefix the text content of a user message (string or multimodal parts).
- * Used by bench format "user-prefix" — does not mutate the original.
- */
+/** Prefix last-user text via the shared helper (bench format B / operative). */
 function prefixUserMessageContent(
   message: RNLlamaOAICompatibleMessage,
   prefix: string,
 ): RNLlamaOAICompatibleMessage {
-  const content = message.content;
-  if (typeof content === "string") {
-    return { role: "user", content: `${prefix}\n\n${content}` };
-  }
-  if (Array.isArray(content)) {
-    let prefixed = false;
-    const parts: RNLlamaMessagePart[] = content.map((part) => {
-      if (!prefixed && part.type === "text") {
-        prefixed = true;
-        return { type: "text" as const, text: `${prefix}\n\n${part.text}` };
-      }
-      return part;
-    });
-    if (!prefixed) {
-      parts.unshift({ type: "text", text: prefix });
-    }
-    return { role: "user", content: parts };
-  }
-  return { role: "user", content: `${prefix}\n\n` };
+  return {
+    role: "user",
+    content: prefixMessageContent(message.content, prefix) as RNLlamaOAICompatibleMessage["content"],
+  };
 }
 
 /**
@@ -1541,6 +1525,12 @@ export type StreamTurnOptions = EngineTurnOptions & {
    * tails must not reach executeTool, auto document_chat, or privacy guards.
    */
   lastUserMessage?: string;
+  /**
+   * Persist/assemble text for this user (already sliced like
+   * assembleEngineHistory). Bake rematch key — not modelText (docHints /
+   * attachment placeholder / unsliced).
+   */
+  lastUserBare?: string;
 };
 
 export async function streamAssistantTurn(
@@ -1661,8 +1651,8 @@ export async function streamAssistantTurn(
     // Last-user composition (format B): factsBlock + "\n\n" + [operative?] +
     // applyPersonaTail(userText, persona). Facts first, then the existing
     // persona frame (already on last user from AppShell), then bare user text.
-    // Bake the FULL prefixed last-user (facts+persona+text), not facts alone.
-    // lastBare is persist/assemble UI text so next-turn history can rematch.
+    // Bake the FULL prefixed last-user TEXT (facts+persona+text), not facts
+    // alone and never image_url. lastBare is persist/assemble text.
     if (MEMORY_FACTS_ON_USER_TAIL) {
       const factsTail = buildMemoryFactsBlock(locale, options.memoryFacts);
       if (factsTail) {
@@ -1670,13 +1660,17 @@ export async function streamAssistantTurn(
       }
     }
     if (BAKE_FORMAT_B_USER_PREFIX) {
-      const lastBare =
-        typeof options.lastUserMessage === "string"
-          ? options.lastUserMessage
-          : lastUserContent(historyMessages);
-      const lastPrefixed = lastUserContent(currentMessages);
-      if (lastBare !== undefined && lastPrefixed !== undefined) {
-        bakedUserTails = commitBakedLastUser(bakedMatched, lastBare, lastPrefixed);
+      const lastPrefixedRaw = lastUserContent(currentMessages);
+      if (lastPrefixedRaw !== undefined) {
+        const lastBare =
+          typeof options.lastUserBare === "string"
+            ? options.lastUserBare
+            : bakeTextContent(lastUserContent(historyMessages));
+        bakedUserTails = commitBakedLastUser(
+          bakedMatched,
+          lastBare,
+          bakeTextContent(lastPrefixedRaw),
+        );
       }
     }
 
@@ -2308,8 +2302,9 @@ async function restoreNativeSession(
  * EXTRACT_MEMORY_PRESERVE_CHAT_KV (default): do not call clearCache. The extract
  * completion overwrites native KV; we restore from the just-saved .kvs when it
  * matches in-memory chat, otherwise from a temp checkpoint taken first. If we
- * cannot snapshot, skip extract rather than nuke a warm prefix. Flag off restores
- * the old clearCache + kvHoldsChatSession=false path.
+ * cannot snapshot, skip extract rather than nuke a warm prefix. If the flag is
+ * on but kvHoldsChatSession is already false, skip (no naked extract). Flag off
+ * restores the old clearCache + kvHoldsChatSession=false path.
  *
  * json_schema / grammar: llama.rn supports response_format json_schema, but small
  * on-device models often fail grammar-constrained sampling; we rely on the balanced
@@ -2369,6 +2364,10 @@ export async function extractMemory(
       }
       kvHoldsChatSession = false;
       chatKvDiskCurrent = false;
+    } else {
+      // Flag on but nothing to restore (kvHoldsChatSession already false).
+      // Skip rather than run a naked extract over whatever is in context.
+      return { add: [], remove: [] };
     }
 
     let timedOut = false;

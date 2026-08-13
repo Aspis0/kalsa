@@ -73,6 +73,8 @@ async function main() {
     commitBakedLastUser,
     lastUserContent,
     parseBakedUserTails,
+    bakeTextContent,
+    keepStillValidBakedTails,
     MAX_BAKED_USER_TAILS,
   } = await import(pathToFileURL(modPath).href);
 
@@ -272,6 +274,128 @@ async function main() {
     assert(applied.matched.length === 0, "no match");
   });
 
+  test("bake: regen last turn (drop last user, resend) keeps earlier tails", () => {
+    const facts = "F";
+    let baked = [];
+    for (const u of ["u1", "u2", "u3"]) {
+      const msgs = [
+        ...baked.map((b) => ({ role: "user", content: b.bare })),
+        { role: "user", content: u },
+      ];
+      const applied = applyBakedUserTails(msgs, baked);
+      const prefixed = applyMemoryFactsToLastUser(applied.messages, facts);
+      baked = commitBakedLastUser(applied.matched, u, lastUserContent(prefixed));
+    }
+    // Regen last assistant: history previous users are u1,u2; last is u3 resend.
+    const regen = [
+      { role: "user", content: "u1" },
+      { role: "assistant", content: "a" },
+      { role: "user", content: "u2" },
+      { role: "assistant", content: "a" },
+      { role: "user", content: "u3" },
+    ];
+    const applied = applyBakedUserTails(regen, baked);
+    assert(String(applied.messages[0].content).startsWith("F"), "u1 prefixed");
+    assert(String(applied.messages[2].content).startsWith("F"), "u2 prefixed");
+    assert(applied.messages[4].content === "u3", "u3 bare resend");
+    assert(applied.matched.length === 2, `matched ${applied.matched.length}`);
+    const next = commitBakedLastUser(applied.matched, "u3", "F\n\nu3");
+    assert(next.length === 3, `commit ${next.length}`);
+    assert(next[0].bare === "u1" && next[1].bare === "u2" && next[2].bare === "u3", "no wipe");
+  });
+
+  test("bake: edit last user keeps earlier tails", () => {
+    const baked = [
+      { bare: "u1", prefixed: "P1\nu1" },
+      { bare: "u2", prefixed: "P2\nu2" },
+    ];
+    const applied = applyBakedUserTails(
+      [
+        { role: "user", content: "u1" },
+        { role: "assistant", content: "a" },
+        { role: "user", content: "u2-edited" },
+      ],
+      baked,
+    );
+    assert(applied.messages[0].content === "P1\nu1", "u1 kept");
+    assert(applied.messages[2].content === "u2-edited", "edited last stays bare");
+    assert(applied.matched.length === 1, `matched ${applied.matched.length}`);
+    const next = commitBakedLastUser(applied.matched, "u2-edited", "P3\nu2-edited");
+    assert(next.length === 2, `commit ${next.length}`);
+    assert(next[0].bare === "u1" && next[1].bare === "u2-edited", "u1 not wiped");
+  });
+
+  test("bake: commit does not wipe still-valid tails when aligned run is empty", () => {
+    const baked = [
+      { bare: "u1", prefixed: "P1\nu1" },
+      { bare: "u2", prefixed: "P2\nu2" },
+    ];
+    const keepers = keepStillValidBakedTails(baked, ["u1", "u2"]);
+    assert(keepers.length === 2, "both still valid");
+    const next = commitBakedLastUser(keepers, "u3", "P3\nu3");
+    assert(next.map((t) => t.bare).join(",") === "u1,u2,u3", "kept + last");
+    assert(keepStillValidBakedTails(baked, ["other"]).length === 0, "chat switch");
+  });
+
+  test("bake: lastBare is persist text, not modelText", () => {
+    const persist = "hello";
+    const modelText = 'hello\n\n[document:1 name="x"]';
+    const prefixed = `FACTS\n\n${modelText}`;
+    const baked = commitBakedLastUser([], persist, prefixed);
+    assert(baked[0].bare === persist, "bare is persist");
+    assert(baked[0].prefixed === prefixed, "prefixed keeps model text");
+    const applied = applyBakedUserTails(
+      [
+        { role: "user", content: persist },
+        { role: "assistant", content: "a" },
+        { role: "user", content: "next" },
+      ],
+      baked,
+    );
+    assert(applied.messages[0].content === prefixed, "rematch on persist");
+    const miss = applyBakedUserTails(
+      [
+        { role: "user", content: persist },
+        { role: "assistant", content: "a" },
+        { role: "user", content: "next" },
+      ],
+      [{ bare: modelText, prefixed }],
+    );
+    assert(miss.matched.length === 0, "modelText bare would miss persist history");
+  });
+
+  test("bake: multimodal last user persists text only (no image_url)", () => {
+    const turn1 = applyMemoryFactsToLastUser(
+      [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "look" },
+            { type: "image_url", image_url: { url: "x" } },
+          ],
+        },
+      ],
+      "FACTS",
+    );
+    const baked = commitBakedLastUser([], "look", lastUserContent(turn1));
+    assert(typeof baked[0].bare === "string", "bare string");
+    assert(typeof baked[0].prefixed === "string", "prefixed string");
+    assert(!JSON.stringify(baked).includes("image_url"), "no image in bake");
+    assert(baked[0].prefixed.includes("FACTS") && baked[0].prefixed.includes("look"), "text kept");
+    const applied = applyBakedUserTails(
+      [
+        { role: "user", content: "look" },
+        { role: "assistant", content: "a" },
+        { role: "user", content: "next" },
+      ],
+      baked,
+    );
+    assert(typeof applied.messages[0].content === "string", "applied string");
+    assert(!JSON.stringify(applied.messages[0]).includes("image_url"), "no image rematch");
+    assert(String(applied.messages[0].content).startsWith("FACTS"), "facts reapplied");
+    assert(bakeTextContent(lastUserContent(turn1)).includes("look"), "extract text");
+  });
+
   test("parseBakedUserTails fail-closed + cap", () => {
     assert(parseBakedUserTails(null).length === 0, "null");
     assert(parseBakedUserTails("x").length === 0, "string");
@@ -283,6 +407,16 @@ async function main() {
       prefixed: `P${i}`,
     }));
     assert(parseBakedUserTails(many).length === MAX_BAKED_USER_TAILS, "capped");
+    const stripped = parseBakedUserTails([
+      {
+        bare: "hi",
+        prefixed: [
+          { type: "text", text: "F\nhi" },
+          { type: "image_url", image_url: { url: "x" } },
+        ],
+      },
+    ]);
+    assert(stripped.length === 1 && stripped[0].prefixed === "F\nhi", "strip image_url");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

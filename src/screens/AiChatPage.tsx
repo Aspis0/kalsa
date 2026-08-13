@@ -263,6 +263,8 @@ type Props = {
     signal: AbortSignal,
     attachments?: LocalAttachment[],
     history?: unknown[],
+    /** Persist/assemble user text (trimmed, no docHints / placeholder). */
+    lastUserBare?: string,
   ) => Promise<SendStreamResult | void>;
   selectedRun?: AiChatSelectedRun | null;
   prefillText?: string | null;
@@ -2299,6 +2301,7 @@ export function AiChatPage({
             controller.signal,
             snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
             messagesRef.current,
+            trimmed,
           );
           // clearChat mid-stream: do not adopt stream result into a new chat.
           if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {

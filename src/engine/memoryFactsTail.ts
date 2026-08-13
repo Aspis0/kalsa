@@ -62,18 +62,47 @@ export type TailMessage = {
   content?: unknown;
 };
 
-/** One completed user turn's format-B content (bare UI text vs engine text). */
+/** One completed user turn's format-B text (persist/assemble bare vs engine text). */
 export type BakedUserTail = {
-  bare: unknown;
-  prefixed: unknown;
+  bare: string;
+  prefixed: string;
 };
 
 /** Safety cap on persisted / in-memory baked tails (engine window is smaller). */
 export const MAX_BAKED_USER_TAILS = 64;
 
+/**
+ * Text used for bake rematch / persist. Strings pass through. Arrays keep
+ * `type:"text"` parts only — never `image_url` (images stay on the current user).
+ */
+export function bakeTextContent(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  let text = "";
+  for (const part of content) {
+    if (
+      part &&
+      typeof part === "object" &&
+      (part as { type?: unknown }).type === "text" &&
+      typeof (part as { text?: unknown }).text === "string"
+    ) {
+      text += (part as { text: string }).text;
+    }
+  }
+  return text;
+}
+
+function coerceBakeText(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return bakeTextContent(value);
+  return undefined;
+}
+
 export function sameMessageContent(a: unknown, b: unknown): boolean {
   if (a === b) return true;
-  if (typeof a === "string" || typeof b === "string") return a === b;
+  if (typeof a === "string" || typeof b === "string") {
+    return bakeTextContent(a) === bakeTextContent(b);
+  }
   try {
     return JSON.stringify(a) === JSON.stringify(b);
   } catch {
@@ -91,15 +120,78 @@ export function lastUserContent<T extends TailMessage>(
 }
 
 /**
+ * Longest consecutive baked.bare run against previous-user text.
+ * Covers drop-prefix (compaction) and drop-suffix (regen / edit last).
+ * Tie-break: earlier prev index (KV dies at the first unmatched user), then
+ * later baked index (suffix — compaction of identical bares).
+ */
+function findLongestBareRun(
+  prevContents: readonly string[],
+  baked: readonly BakedUserTail[],
+): { bakedStart: number; prevStart: number; length: number } | null {
+  let best: { bakedStart: number; prevStart: number; length: number } | null =
+    null;
+  for (let bakedStart = 0; bakedStart < baked.length; bakedStart++) {
+    for (let prevStart = 0; prevStart < prevContents.length; prevStart++) {
+      let length = 0;
+      while (
+        bakedStart + length < baked.length &&
+        prevStart + length < prevContents.length &&
+        prevContents[prevStart + length] === baked[bakedStart + length]!.bare
+      ) {
+        length++;
+      }
+      if (length === 0) continue;
+      if (
+        !best ||
+        length > best.length ||
+        (length === best.length && prevStart < best.prevStart) ||
+        (length === best.length &&
+          prevStart === best.prevStart &&
+          bakedStart > best.bakedStart)
+      ) {
+        best = { bakedStart, prevStart, length };
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * Keep baked tails whose bare still appears among remaining previous users
+ * (multiset). Used when the consecutive run is empty so commit does not wipe
+ * still-valid earlier tails and replace them with only the new last turn.
+ */
+export function keepStillValidBakedTails(
+  baked: readonly BakedUserTail[],
+  prevContents: readonly unknown[],
+): BakedUserTail[] {
+  const remaining = prevContents.map((c) => bakeTextContent(c));
+  const keepers: BakedUserTail[] = [];
+  for (const tail of baked) {
+    const idx = remaining.indexOf(tail.bare);
+    if (idx >= 0) {
+      keepers.push({
+        bare: bakeTextContent(tail.bare),
+        prefixed: bakeTextContent(tail.prefixed),
+      });
+      remaining.splice(idx, 1);
+    }
+  }
+  return keepers;
+}
+
+/**
  * Re-apply previously baked format-B prefixes onto earlier user messages.
  *
  * llama.rn prefix-matches the tokenized prompt against KV. The last-user prefix
  * is ephemeral unless later turns send that same prefixed content as history —
  * otherwise match dies at the previous user every turn (stable facts worse than
- * facts-in-system). Aligns baked tails to the previous-user suffix so a
- * compaction window still matches. Stops at the first bare-content mismatch
- * (edit / chat switch). Does not mutate `messages`. Last user is left bare
- * for this turn's format-B apply.
+ * facts-in-system). Aligns the longest consecutive bare run so both a
+ * compaction window (drop-prefix) and regen/edit of the last turn (drop-suffix)
+ * still match. Stops applying at the first bare-content mismatch. Does not
+ * mutate `messages`. Last user is left bare for this turn's format-B apply.
+ * Applied content is always a string (never image_url).
  */
 export function applyBakedUserTails<T extends TailMessage>(
   messages: T[],
@@ -116,53 +208,63 @@ export function applyBakedUserTails<T extends TailMessage>(
     return { messages, matched: [] };
   }
   const prevIdxs = userIdxs.slice(0, -1);
-  const offset = baked.length - prevIdxs.length;
-  const bakedStart = offset >= 0 ? offset : 0;
-  const prevStart = offset >= 0 ? 0 : -offset;
-  const matched: BakedUserTail[] = [];
+  const prevContents = prevIdxs.map((idx) =>
+    bakeTextContent(messages[idx]?.content),
+  );
+  const run = findLongestBareRun(prevContents, baked);
   const replacements: { idx: number; tail: BakedUserTail }[] = [];
-  for (
-    let i = 0;
-    bakedStart + i < baked.length && prevStart + i < prevIdxs.length;
-    i++
-  ) {
-    const msg = messages[prevIdxs[prevStart + i]!];
-    const tail = baked[bakedStart + i]!;
-    if (!sameMessageContent(msg?.content, tail.bare)) break;
-    replacements.push({ idx: prevIdxs[prevStart + i]!, tail });
-    matched.push(tail);
+  const aligned: BakedUserTail[] = [];
+  if (run) {
+    for (let i = 0; i < run.length; i++) {
+      const tail = baked[run.bakedStart + i]!;
+      replacements.push({ idx: prevIdxs[run.prevStart + i]!, tail });
+      aligned.push({
+        bare: bakeTextContent(tail.bare),
+        prefixed: bakeTextContent(tail.prefixed),
+      });
+    }
   }
-  if (replacements.length === 0) return { messages, matched: [] };
+  const matched =
+    aligned.length > 0 ? aligned : keepStillValidBakedTails(baked, prevContents);
+  if (replacements.length === 0) return { messages, matched };
   const next = messages.slice();
   for (const { idx, tail } of replacements) {
-    next[idx] = { ...next[idx]!, content: tail.prefixed };
+    next[idx] = { ...next[idx]!, content: bakeTextContent(tail.prefixed) };
   }
   return { messages: next, matched };
 }
 
-/** Append this turn's last-user bake; keep at most MAX_BAKED_USER_TAILS. */
+/** Append this turn's last-user bake as text; keep at most MAX_BAKED_USER_TAILS. */
 export function commitBakedLastUser(
   matched: readonly BakedUserTail[],
   lastBare: unknown,
   lastPrefixed: unknown,
 ): BakedUserTail[] {
-  const next = matched.concat({ bare: lastBare, prefixed: lastPrefixed });
+  const next = matched
+    .map((tail) => ({
+      bare: bakeTextContent(tail.bare),
+      prefixed: bakeTextContent(tail.prefixed),
+    }))
+    .concat({
+      bare: bakeTextContent(lastBare),
+      prefixed: bakeTextContent(lastPrefixed),
+    });
   return next.length > MAX_BAKED_USER_TAILS
     ? next.slice(-MAX_BAKED_USER_TAILS)
     : next;
 }
 
-/** Fail-closed parse of session-meta baked tails. */
+/** Fail-closed parse of session-meta baked tails (text only). */
 export function parseBakedUserTails(raw: unknown): BakedUserTail[] {
   if (!Array.isArray(raw)) return [];
   const out: BakedUserTail[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object" || Array.isArray(item)) continue;
     if (!("bare" in item) || !("prefixed" in item)) continue;
-    out.push({
-      bare: (item as BakedUserTail).bare,
-      prefixed: (item as BakedUserTail).prefixed,
-    });
+    const bare = coerceBakeText((item as { bare: unknown }).bare);
+    const prefixed = coerceBakeText((item as { prefixed: unknown }).prefixed);
+    if (bare === undefined || prefixed === undefined) continue;
+    out.push({ bare, prefixed });
     if (out.length >= MAX_BAKED_USER_TAILS) break;
   }
   return out;
@@ -191,7 +293,8 @@ export function applyMemoryFactsToLastUser<T extends TailMessage>(
   return messages;
 }
 
-function prefixMessageContent(content: unknown, prefix: string): unknown {
+/** Prefix string or first text part. Image parts are unchanged (current user only). */
+export function prefixMessageContent(content: unknown, prefix: string): unknown {
   if (typeof content === "string") {
     return `${prefix}\n\n${content}`;
   }

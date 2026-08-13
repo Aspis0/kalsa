@@ -40,7 +40,7 @@ export type SessionMeta = {
    * Format-B last-user prefixes baked into later engine history.
    * Payload only — ignored by sessionMetaMatches (historyHash is the gate).
    */
-  bakedUserTails?: Array<{ bare: unknown; prefixed: unknown }>;
+  bakedUserTails?: Array<{ bare: string; prefixed: string }>;
 };
 
 /**

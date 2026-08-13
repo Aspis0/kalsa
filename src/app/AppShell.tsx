@@ -197,6 +197,7 @@ import {
   DEFAULT_CHAT_ID,
   DEFAULT_COMPACTOR_CONFIG,
   emptyCompactorState,
+  LEGACY_MAX_CHARS,
   parseCompactorState,
   refreshQueryDigest,
   resolveBoundaryIndex,
@@ -3905,6 +3906,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       signal: AbortSignal,
       attachments?: LocalAttachment[],
       history?: unknown[],
+      lastUserBare?: string,
     ) =>
       new Promise<{ afterSessionSave?: () => void }>((resolve) => {
         let settled = false;
@@ -4403,6 +4405,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 memoryFacts: promptFacts,
                 operativeContext,
                 lastUserMessage: text,
+                ...(typeof lastUserBare === "string"
+                  ? { lastUserBare: lastUserBare.slice(0, LEGACY_MAX_CHARS) }
+                  : {}),
               },
             );
             // Safety: if the stream returns without onDone/onError (e.g. abort path).
