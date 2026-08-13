@@ -16,7 +16,7 @@
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 68 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 69 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -1120,6 +1120,21 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-12 (notte fonda) — 🔒 750 CHIUSO: decode gate FAIL 0.44× (predizione
+  recon CONFERMATA) — ma prefill GPU 5.77×: il dividendo GPU su A7X è il TTFT,
+  ed è GRANDE.** (`moe-gdn-750.md` completo)
+
+  Xiaomi 14 staccato, 100%: CPU tg 16.15 / GPU 7.07 (0.44×, muro A7X identico
+  al 740); CPU pp 31.5 / **GPU pp 181.7 (5.77×!)** — sul 740 era 2.2×. Il 750
+  ha muscolo GEMM ma non banda/dispatch per il decode. Correttezza già tutta
+  PASS (incl. flat q6_K: il bug del 740 è del compiler E031.41). **Strategia
+  GPU su A7X definitiva: decode morto su entrambe le gen (per misura), prefill
+  vivo e grosso su entrambe → la leva prodotto è il TTFT (phase-scheduling /
+  K4-split trunk-prefill su GPU)**. Nella stessa notte: maratona 2B (CPU vince
+  sostenuto 10.2 vs 8.2, GPU piatta e fredda), maratona 4B in corso, pista G99
+  LFM2.5 viva (14.4 a k=2, proiezione KEXP 15-20), Fase 2 requant Marco in
+  corso (Grok#2), mandato K4-split notturno consegnato a gualt.
 
 - **2026-08-12 (notte) — 🏆 FASE 1 MARCO: CHIUSA CON PASS PIENO — qualità
   3/3 full multi5 + speed entrambe le leve. Il transfer runtime della
