@@ -393,3 +393,129 @@ Same house method as F1b: KEXP cuts **routed experts only** to 2.5–3.0 bpw (mi
 - The PPL gate lives on **PC**, Fase-1 protocol. **PC is busy today. The gate queues behind selfspec.** Until that gate runs, every cut-k cell in this section is a speed recon cell.
 
 Artifacts: `results/mellum2_f1_s23/f1c/` (CSV, master log, 8× logs + mem samples, `bin.sha256`, `best_k.txt`, `STATUS.txt=DONE`). Script: `results/mellum2_f1_s23/run_f1c_s23.sh`. F1 / F1b files left in place.
+
+---
+
+## F1e — drop live-zone + two-wave
+
+**Best cell: k=6 d1.0 = 4.638 t/s LIVE (+23% vs F1c k=6). drop 0.75 LIVE weak@k6 / LIVE@k8. two-wave NULL. Still no 10 t/s.**
+
+**Date:** 2026-08-13  
+**Waited for F1d:** yes (ceiling is `mul_mat_id`, campaign-flag binary already on device). Jelly/Xiaomi untouched. Campaign pin untouched. No PC compute.  
+**Binary:** `~/bin/bmoe-cli-mellum2` → `~/bin/mellum2/bmoe-cli` sha `0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c` (verified on device before and after).  
+**Campaign pin:** still `1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f`.  
+**Model:** `b04281c2…` size `8071293600`. Prompt `p_fact` sha `b5301c32…`.  
+**Flags:** F1b family (`-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --temp 0 --chatml --no-think`) + the single delta. Cold `fadvise` every rep. n=200. 2 reps.  
+**Regime:** UNPLUGGED entire window, floor 45%, temp abort 45 °C. Start **62% / 30.4 °C**, end **58% / 34.4 °C**. nproc=6, `Cpus_allowed=ff`, CLI `Cpus_allowed_list=0-7`, `cpu/online=0-7` every rep (top-app / wake-lock; `settings` is permission-denied from this uid). Never tripped batt/thermal/RAM. Cell 4 gate was batt≥50 after cell 3 (had 59%) — ran.
+
+SPEED RECON ONLY. Drop is I/O-only (never skips matmul). Quality at drop 0.75 / 1.0 is **UNGATED** — same rule as F1c k-cut.
+
+### Why these two levers
+
+F1c drop 0.65 at k=2 **lost** tok/s (5.679 → 5.353) with only 1.2% routings dropped. Qwen table (`docs/expert-dropping.md:47–56`) says F=0.65–0.50 can be the dead zone and **0.75 / 1.0 the live zone**. `--io-two-wave` was the only shipping overlap tweak never A/B'd (tuning matrix §3). Both are free flags.
+
+### Full table (controls included)
+
+Medians are the mean of the two cold reps (same house rule as F1b/F1c). Split times are s/token from `moe-stream`.
+
+| cell | decode tok/s | MiB/tok | hit% | drop % | TTFT s | load s | prefill s | RSS MiB | n | compute | flash I/O | flash MiB/s | stall | batt | temp °C |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|
+| **Q4 k=8 median** (F1b ctrl) | **2.944** | **185.0** | **76.0** | 0 | 11.66 | 5.90 | 5.76 | 2964 | 166 | 0.224 | 0.436 | 424 | — | 72→71 | peak 30.4 |
+| **Q4 k=8 median** (F1d B, same bin) | **2.914** | **183.1** | **76.8** | 0 | — | — | — | — | 200 | 0.228 | 0.434 | 422 | — | 66→65 | peak 33.3 |
+| **Q4 k=6 median** (F1c ctrl) | **3.758** | **112.1** | **79.4** | 0 | 11.20 | 5.57 | 5.63 | 2939 | 178 | 0.184 | 0.277 | 405 | — | 70→69 | peak 30.8 |
+| **k=6 d0.75 r1** | 3.895 | 84.40 | 81.0 | 4.5 | 11.741 | 6.125 | 5.616 | 2950.2 | 124 | 0.188 | 0.216 | 391 | 0.059 | 62→62 | 30.4→30.8 |
+| **k=6 d0.75 r2** | 3.798 | 84.40 | 81.0 | 4.5 | 11.739 | 6.295 | 5.443 | 2932.5 | 124 | 0.192 | 0.221 | 382 | 0.061 | 62→61 | 30.8→32.2 |
+| **k=6 d0.75 median** | **3.847** | **84.4** | **81.0** | **4.5** | 11.74 | 6.21 | 5.53 | 2941 | 124 | 0.190 | 0.219 | 387 | 0.060 | 62→61 | peak 32.2 |
+| **k=8 d0.75 r1** | 3.381 | 108.20 | 83.1 | 7.5 | 11.807 | 6.051 | 5.757 | 2949.2 | 167 | 0.216 | 0.272 | 398 | 0.068 | 61→61 | 32.2→32.2 |
+| **k=8 d0.75 r2** | 3.310 | 108.20 | 83.1 | 7.5 | 11.674 | 5.998 | 5.676 | 2973.5 | 167 | 0.222 | 0.274 | 394 | 0.068 | 61→60 | 32.2→32.8 |
+| **k=8 d0.75 median** | **3.346** | **108.2** | **83.1** | **7.5** | 11.74 | 6.02 | 5.72 | 2961 | 167 | 0.219 | 0.273 | 396 | 0.068 | 61→60 | peak 32.8 |
+| **k=6 two-wave r1** | 3.760 | 109.92 | 79.0 | 0 | 10.937 | 5.456 | 5.481 | 2932.5 | 148 | 0.183 | 0.272 | 404 | 0.071 | 60→60 | 32.8→33.9 |
+| **k=6 two-wave r2** | 3.770 | 109.92 | 79.0 | 0 | 11.365 | 5.891 | 5.474 | 2942.2 | 148 | 0.183 | 0.271 | 406 | 0.070 | 60→59 | 33.9→33.6 |
+| **k=6 two-wave median** | **3.765** | **109.9** | **79.0** | 0 | 11.15 | 5.67 | 5.48 | 2937 | 148 | 0.183 | 0.272 | 405 | 0.071 | 60→59 | peak 33.9 |
+| **k=6 d1.0 r1** | 4.638 | 39.20 | 87.6 | 12.1 | 11.311 | 5.647 | 5.663 | 2957.4 | 144 | 0.175 | 0.115 | 341 | 0.036 | 59→59 | 33.6→33.6 |
+| **k=6 d1.0 r2** | 4.637 | 39.20 | 87.6 | 12.1 | 10.844 | 5.395 | 5.449 | 2931.0 | 144 | 0.175 | 0.114 | 343 | 0.036 | 59→58 | 33.6→34.4 |
+| **k=6 d1.0 median** | **4.638** | **39.2** | **87.6** | **12.1** | 11.08 | 5.52 | 5.56 | 2944 | 144 | 0.175 | 0.115 | 342 | 0.036 | 59→58 | peak 34.4 |
+
+CSV: `results/mellum2_f1_s23/f1e/runs_regime.csv`. All eight F1e reps rc=0, cold=1, UNPLUGGED. Drop logs:
+
+- k=6 d0.75: `moe-drop: 930/20832 routed experts dropped (4.5%), threshold 0.75 x uniform`
+- k=8 d0.75: `moe-drop: 2814/37408 routed experts dropped (7.5%), threshold 0.75 x uniform`
+- k=6 d1.0: `moe-drop: 2935/24192 routed experts dropped (12.1%), threshold 1.00 x uniform`
+
+n_gen is EOS (124 / 167 / 148 / 144), not the 200 cap. tok/s is per-token; do not over-read length.
+
+### Verdict per lever
+
+| lever | vs control | Δ tok/s | Δ MiB/tok | drop % | verdict |
+|---|---|---:|---:|---:|---|
+| **k=6 + drop 0.75** | F1c k=6 = 3.758 | **+2.4%** (3.847) | 112.1 → 84.4 (**−25%**) | 4.5 | **LIVE (weak).** I/O did what the lever says. tok/s barely moved — still flash-bound (0.219 vs compute 0.190) and 4.5% dropped is a thin tail, not the Qwen 14% fire at F=0.75. |
+| **k=8 + drop 0.75** | F1b 2.944 / F1d B 2.914 | **+13.7% / +14.8%** (3.346) | 185 → 108 (**−42%**) | 7.5 | **LIVE.** Native-k has more tail to cut (threshold 0.75/8 = 0.094). Still flash-bound (0.273 vs 0.219). Not Qwen +55%. |
+| **k=6 + `--io-two-wave`** | F1c k=6 = 3.758 | **+0.2%** (3.765) | 112.1 → 109.9 (noise) | 0 | **NULL.** Stall 0.071, TTFT 11.15 vs 11.20. Close the flag for Mellum. |
+| **k=6 + drop 1.0** (optional) | F1c k=6 = 3.758 | **+23.4%** (4.638) | 112.1 → 39.2 (**−65%**) | 12.1 | **LIVE.** This is the Mellum live zone, not 0.75. Now **compute-bound** (flash 0.115 < compute 0.175). Ceiling 1/0.175 = **5.71 t/s**; measured 4.638 is 81% of that. Qwen analog was +84% / 28.4% dropped — we got +23% / 12.1%. |
+
+F=0.75 at k=6 is closer to the Qwen **0.50 dead-zone analog** (machinery fires, almost no tok/s) than to Qwen 0.75. F=1.0 is the first threshold that actually flips the bind from flash to compute on this SKU at k=6.
+
+### Where it goes compute-bound
+
+| cell | compute s/tok | flash s/tok | flash/compute | 1/compute ceiling | bound |
+|---|---:|---:|---:|---:|---|
+| k=8 F1b | 0.224 | 0.436 | 1.95× | 4.46 t/s | flash |
+| k=8 d0.75 | 0.219 | 0.273 | 1.25× | 4.57 t/s | flash |
+| k=6 F1c | 0.184 | 0.277 | 1.51× | 5.43 t/s | flash |
+| k=6 d0.75 | 0.190 | 0.219 | 1.15× | 5.26 t/s | flash (closing) |
+| k=6 two-wave | 0.183 | 0.272 | 1.49× | 5.46 t/s | flash |
+| **k=6 d1.0** | 0.175 | 0.115 | **0.66×** | **5.71 t/s** | **compute** |
+
+Drop 1.0 is the first Mellum cell on S23 that is compute-bound. Further I/O tricks (two-wave, prefetch, more cache) will not move it. KEXP at this k/drop mostly pays residual stall (0.036 s/tok).
+
+### KEXP band (refreshed, not rewritten)
+
+Same house method: KEXP cuts routed experts only to mid **2.75** bpw; dense stays ~4.5 / anon-resident; Q2/Q3 GEMM **not** assumed faster; flash ~340–400 MiB/s.
+
+| variant | MiB/tok | decode | note |
+|---|---:|---:|---|
+| **Q4 k=8 measured** | **185** | **2.94 t/s** | F1b |
+| **Q4 k=8 d0.75 measured** | **108** | **3.35 t/s** | this grid |
+| **Q4 k=6 measured** | **112** | **3.76 t/s** | F1c |
+| **Q4 k=6 d0.75 measured** | **84** | **3.85 t/s** | this grid; weak |
+| **Q4 k=6 d1.0 measured** | **39.2** | **4.64 t/s** | this grid; compute-bound |
+| **Q4 k=2 measured** | **55.5** | **5.68 t/s** | F1c; best raw speed; quality UNGATED |
+| KEXP k=8, 85% hit | ~72 | **~4.4 t/s** | F1d; hits k=8 `mul_mat_id` wall |
+| KEXP k=8 d0.75 | 108×(2.75/4.5) ≈ **66** | **~4.6 t/s** | flash 66/396 < compute 0.219 |
+| KEXP k=6 | ~68 | **~5.4 t/s** | F1c; hits k=6 wall |
+| **KEXP k=6 d1.0** | 39.2×(2.75/4.5) ≈ **24** | **~5.2–5.7 t/s** | already compute-bound; KEXP pays stall, not a new ceiling |
+| KEXP k=2 | ~34 | **~8.4 t/s** | F1c; hits k=2 wall |
+| KEXP file size | — | — | **4.1–4.8 GB** (unchanged) |
+
+**Band after F1e: 3.5 (k=8 conservative KEXP) to ~8.4 t/s (k=2 KEXP, compute-limited).** Drop 1.0 + KEXP at k=6 does **not** clear 6 t/s on this calibration. Nothing in the measured or projected set clears 10 tok/s.
+
+### Quality — UNGATED (read this twice)
+
+- **No PPL, no Fase-1 gate, no product claim.** Speed only. PC is running KEXP PPL; this cell did not touch it.
+- Informal decode on this one `p_fact` prompt: k=6 d0.75 / k=8 d0.75 / k=6 two-wave / k=6 d1.0 all still emitted a coherent MoE paragraph (d1.0 r1 is a clean two-sentence answer). That is an anecdote. It is **not** a PPL number and it does **not** license drop 1.0 as a product flag. Qwen survived F=1.0 on 15 GSM8K; Mellum has not been gated.
+
+---
+
+## FINAL — Mellum2 on S23 (honest)
+
+**Best achievable today (measured)**
+
+| what | tok/s | note |
+|---|---:|---|
+| Native k=8 Q4 | **2.94** | F1b; 185 MiB/tok, flash-bound |
+| k=8 + drop 0.75 | **3.35** | F1e LIVE +14% |
+| k=6 Q4 | **3.76** | F1c |
+| k=6 + drop 0.75 | **3.85** | F1e LIVE weak |
+| **k=6 + drop 1.0** | **4.64** | F1e LIVE; first compute-bound cell; quality UNGATED |
+| k=4 Q4 | **4.72** | F1c; quality UNGATED |
+| k=2 Q4 | **5.68** | F1c best raw speed; informal decode collapsed |
+
+`--io-two-wave` is **NULL**. Rebuild (F1d) did **not** move the ceiling. Pinning big cores (F1d C) made it worse.
+
+**Best projected with KEXP (calibrated, not hoped)**
+
+3.5–4.6 t/s at native k=8 (flash paid down onto the 4.4 t/s `mul_mat_id` wall). ~5.2–5.7 t/s at k=6 + drop 1.0 (already on that wall). ~8.4 t/s only if k=2 survives a PPL gate — it has not. File 4.1–4.8 GB. **None of these clear 10 tok/s.**
+
+**Product recommendation:** Mellum2 on S23-class is a stream-existence / demo SKU (measured 2.9–4.6 t/s at usable k, ceiling 4.4–5.7 with KEXP). Ship flagship / Mac first. Do not sell this as a 10 t/s phone model.
+
+Artifacts: `results/mellum2_f1_s23/f1e/` (CSV, master log, 8× logs + mem samples + preflight/cpus, `bin.sha256`, `STATUS.txt=DONE`). Script: `results/mellum2_f1_s23/run_f1e_s23.sh`. F1 / F1b / F1c / F1d files left in place.
