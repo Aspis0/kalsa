@@ -79,6 +79,12 @@ import { getAvailableMemoryBytesUncached } from "../engine/monitor";
 import { getModelById } from "../engine/ModelRegistry";
 import { miniappStripMakesKvNonReproducible } from "../engine/kvReproducibility";
 import { historyHash } from "../engine/sessionPersistence";
+import {
+  messagesKey,
+  titleFromFirstUserText,
+  previewFromMessages,
+  searchBlobFromMessages,
+} from "../conversations/ConversationsStore";
 import { createStreamCoalescer } from "../engine/streamCoalescer";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
@@ -130,8 +136,6 @@ import {
   sizeWithinLimits,
   writeOwnedText,
 } from "../documents/documentStorage";
-
-const HISTORY_KEY = "kalsa.messages.v1";
 
 /** Metro still sees the require(); a missing packager asset must not kill chat. */
 function tryRequireAsset(load: () => unknown): number | undefined {
@@ -300,6 +304,20 @@ type Props = {
    * AppShell wires this to setMemoryBannerKey.
    */
   onMemoryBanner?: (reasonKey: string | null) => void;
+  /** Active conversation id — messages load/persist under messagesKey(id). */
+  conversationId?: string;
+  /** Header / long-chat "new chat": parent inserts a fresh conversation. */
+  onNewConversation?: () => void;
+  onSwitchConversation?: (id: string) => void;
+  onDeleteConversation?: (id: string) => void;
+  /** After a successful persist, parent updates title/preview/searchBlob. */
+  onConversationTouched?: (meta: {
+    title: string;
+    preview: string;
+    searchBlob: string;
+  }) => void;
+  /** Parent calls this to flush the active conversation before a switch. */
+  persistFlushRef?: React.MutableRefObject<(() => void) | null>;
 };
 
 type SuggestionItem = {
@@ -500,6 +518,7 @@ function buildPersistableMessages(
  * Invariant: every write is epoch-stamped; clear bumps the epoch; stale writes
  * are no-ops. Callers capture `epoch` at SCHEDULE time and pass getEpoch so a
  * clearChat (or hard reset) that lands before setItem drops the write.
+ * Returns true when a write was scheduled.
  */
 function persistMessagesNow(
   messagesSnapshot: Message[],
@@ -509,28 +528,33 @@ function persistMessagesNow(
     epoch?: number;
     /** Reads the live epoch; stale when !== opts.epoch. */
     getEpoch?: () => number;
+    /** Per-conversation messages key. Missing → skip write. */
+    storageKey?: string;
   },
-): void {
-  if (!messagesSnapshot.length) return;
+): boolean {
+  if (!messagesSnapshot.length) return false;
+  const storageKey = opts?.storageKey;
+  if (!storageKey) return false;
   // Drop if clear/reset already advanced the epoch before we build the payload.
   if (
     opts?.epoch != null &&
     typeof opts.getEpoch === "function" &&
     opts.getEpoch() !== opts.epoch
   ) {
-    return;
+    return false;
   }
   const clean = buildPersistableMessages(messagesSnapshot, opts);
-  if (!clean.length) return;
+  if (!clean.length) return false;
   // Re-check immediately before the write so a clear that raced the build drops.
   if (
     opts?.epoch != null &&
     typeof opts.getEpoch === "function" &&
     opts.getEpoch() !== opts.epoch
   ) {
-    return;
+    return false;
   }
-  AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(clean)).catch(() => undefined);
+  AsyncStorage.setItem(storageKey, JSON.stringify(clean)).catch(() => undefined);
+  return true;
 }
 
 /** Sanitizza lo storico persistito: ogni campo (anche annidato) è validato, niente crash su payload corrotti. */
@@ -694,6 +718,10 @@ export function AiChatPage({
   onOpenDocuments,
   onAddDocument,
   onMemoryBanner,
+  conversationId,
+  onNewConversation,
+  onConversationTouched,
+  persistFlushRef,
 }: Props) {
   const { colors, mode } = useLabTheme<any>();
   // Reactive tokens: font-scale change re-renders this page via context.
@@ -828,37 +856,116 @@ export function AiChatPage({
   /**
    * Persistence epoch: every delayed/async write stamps the epoch at SCHEDULE
    * time and re-checks immediately before AsyncStorage.setItem. clearChat (and
-   * any HISTORY_KEY remove) bumps the epoch first so a pending debounce /
+   * conversation switch) bumps the epoch first so a pending debounce /
    * safety-net / AppState write that still holds the old messages is a no-op.
    * Invariant: every write is epoch-stamped; clear bumps the epoch; stale writes
    * are no-ops.
    */
   const persistEpochRef = useRef(0);
+  const persistKeyRef = useRef(
+    conversationId ? messagesKey(conversationId) : "",
+  );
+  const onConversationTouchedRef = useRef(onConversationTouched);
+  onConversationTouchedRef.current = onConversationTouched;
+
+  const notifyConversationTouched = useCallback((msgs: Message[]) => {
+    const cb = onConversationTouchedRef.current;
+    if (!cb) return;
+    const firstUser = msgs.find(
+      (m) => m.role === "user" && typeof m.text === "string" && m.text.trim(),
+    );
+    cb({
+      title: titleFromFirstUserText(firstUser?.text ?? ""),
+      preview: previewFromMessages(msgs),
+      searchBlob: searchBlobFromMessages(msgs),
+    });
+  }, []);
+
+  const persistActiveMessages = useCallback(
+    (
+      msgs: Message[],
+      opts?: {
+        allowStreamingPartial?: boolean;
+        epoch?: number;
+        getEpoch?: () => number;
+      },
+    ): boolean => {
+      const key = persistKeyRef.current;
+      if (!key) return false;
+      const wrote = persistMessagesNow(msgs, { ...opts, storageKey: key });
+      if (wrote) notifyConversationTouched(msgs);
+      return wrote;
+    },
+    [notifyConversationTouched],
+  );
 
   useEffect(() => {
+    persistEpochRef.current += 1;
+    const loadEpoch = persistEpochRef.current;
+    let key = "";
+    try {
+      key = conversationId ? messagesKey(conversationId) : "";
+    } catch {
+      key = "";
+    }
+    persistKeyRef.current = key;
+
+    setMessages([]);
+    messagesRef.current = [];
+    setLongChatNudgeShown(false);
+    setDraft("");
+    setHistoryLoaded(false);
+
+    if (!key) {
+      setHistoryLoaded(true);
+      return;
+    }
+
     let mounted = true;
-    AsyncStorage.getItem(HISTORY_KEY)
+    AsyncStorage.getItem(key)
       .then((raw) => {
-        if (!mounted || !raw) return;
+        if (!mounted || persistEpochRef.current !== loadEpoch || !raw) return;
         try {
           const parsed = JSON.parse(raw);
           // locale is already resolved (App gates on localeReady).
           const valid = sanitizeHistoryMessages(parsed, locale);
-          if (valid.length) setMessages(valid);
+          if (valid.length) {
+            setMessages(valid);
+            messagesRef.current = valid;
+          }
         } catch {
           // storico corrotto: ignora e riparti pulito
         }
       })
       .catch(() => undefined)
       .finally(() => {
-        if (mounted) setHistoryLoaded(true);
+        if (mounted && persistEpochRef.current === loadEpoch) {
+          setHistoryLoaded(true);
+        }
       });
     return () => {
       mounted = false;
     };
-    // Load once on mount; locale is stable after LocaleProvider ready gate.
+    // Reload when the active conversation changes. locale is stable after
+    // LocaleProvider ready gate.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (!persistFlushRef) return;
+    persistFlushRef.current = () => {
+      const snap = messagesRef.current;
+      const epoch = persistEpochRef.current;
+      persistActiveMessages(snap, {
+        allowStreamingPartial: true,
+        epoch,
+        getEpoch: () => persistEpochRef.current,
+      });
+    };
+    return () => {
+      persistFlushRef.current = null;
+    };
+  }, [persistFlushRef, persistActiveMessages]);
 
   // Debounced normal path: skip while any turn is streaming so the 400ms quiet
   // gap cannot clobber a throttled/AppState partial (drops streaming messages).
@@ -872,13 +979,13 @@ export function AiChatPage({
     const timer = setTimeout(() => {
       if (persistEpochRef.current !== epoch) return;
       // X4: attachments[].uri/pages stripped inside buildPersistableMessages.
-      persistMessagesNow(messages, {
+      persistActiveMessages(messages, {
         epoch,
         getEpoch: () => persistEpochRef.current,
       });
     }, 400);
     return () => clearTimeout(timer);
-  }, [historyLoaded, messages]);
+  }, [historyLoaded, messages, persistActiveMessages]);
 
   // Safety net while streaming: at most one partial persist every 10s.
   useEffect(() => {
@@ -899,12 +1006,12 @@ export function AiChatPage({
     }
     lastPartialPersistAtRef.current = now;
     const epoch = persistEpochRef.current;
-    persistMessagesNow(messages, {
+    persistActiveMessages(messages, {
       allowStreamingPartial: true,
       epoch,
       getEpoch: () => persistEpochRef.current,
     });
-  }, [historyLoaded, messages]);
+  }, [historyLoaded, messages, persistActiveMessages]);
 
   // Feature 4: attach state (immagini/foto/PDF → vision; library docs → document_chat)
   const [attachedItems, setAttachedItems] = useState<LocalAttachment[]>([]);
@@ -1074,7 +1181,7 @@ export function AiChatPage({
             (m) => m.streaming && typeof m.text === "string" && m.text.trim().length > 0,
           )
         ) {
-          persistMessagesNow(snap, {
+          persistActiveMessages(snap, {
             allowStreamingPartial: true,
             epoch,
             getEpoch: () => persistEpochRef.current,
@@ -1091,11 +1198,13 @@ export function AiChatPage({
               // Empty chat: drop stale session so next load stays cold-clean.
               void invalidateEngineSession(modelId);
             } else if (persistEpochRef.current === epoch) {
-              // Same JSON as HISTORY_KEY write so ensureEngine load hash matches.
-              // Epoch check: drop if clearChat raced before this write lands.
+              // Same JSON as the conversation messages write so ensureEngine
+              // load hash matches. Epoch check: drop if clearChat raced.
               const payload = JSON.stringify(clean);
-              if (persistEpochRef.current === epoch) {
-                AsyncStorage.setItem(HISTORY_KEY, payload).catch(() => undefined);
+              const storageKey = persistKeyRef.current;
+              if (persistEpochRef.current === epoch && storageKey) {
+                AsyncStorage.setItem(storageKey, payload).catch(() => undefined);
+                notifyConversationTouched(clean as Message[]);
                 void saveEngineSession(modelId, historyHash(payload));
               }
             }
@@ -1116,7 +1225,7 @@ export function AiChatPage({
     };
     const sub = AppState.addEventListener("change", onAppState);
     return () => sub.remove();
-  }, [invalidateVoice]);
+  }, [invalidateVoice, persistActiveMessages, notifyConversationTouched]);
 
   /**
    * Tap mic: start listening; tap again: stop + transcribe into draft.
@@ -1459,13 +1568,58 @@ export function AiChatPage({
   /** 3s recovery if abort never settles native completion (sending stuck true). */
   const stopWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Abort in-flight work when the active conversation changes. Message reload
+  // lives in the conversationId load effect (must bump persist epoch first).
+  const lastAbortConvRef = useRef<string | undefined>(conversationId);
+  useEffect(() => {
+    const prev = lastAbortConvRef.current;
+    lastAbortConvRef.current = conversationId;
+    if (prev === conversationId) return;
+    abortRef.current?.abort();
+    sendRunIdRef.current += 1;
+    regenGenerationRef.current += 1;
+    sendClaimRef.current = false;
+    regenAbortRef.current?.abort();
+    regenAbortRef.current = null;
+    regenInFlightRef.current = false;
+    regenHandleSendPassRef.current = false;
+    sendingRef.current = false;
+    sendingInFlightRef.current = false;
+    setSending(false);
+    if (stopWatchdogRef.current != null) {
+      clearTimeout(stopWatchdogRef.current);
+      stopWatchdogRef.current = null;
+    }
+    translateAbortRef.current?.abort();
+    translateAbortRef.current = null;
+    translationInFlightRef.current = false;
+    translateRunRef.current += 1;
+    setMessageMenu(null);
+    setTranslatingId(null);
+    setTranslationResult(null);
+    pdfToRenderRef.current = null;
+    setPdfToRender(null);
+    pdfPagesRef.current = [];
+    setAttachSheetOpen(false);
+    attachedItemsRef.current = [];
+    setAttachedItems([]);
+    voiceRunIdRef.current += 1;
+    voiceBusyRef.current = false;
+    voiceStopInFlightRef.current = false;
+    setVoicePhase(reduceVoicePhase(voiceUiRef.current, { type: "CANCEL" }));
+    setVoiceNote(null);
+    void cancelCapture();
+    void TtsService.stop();
+    setSpeakingId(null);
+  }, [conversationId, setVoicePhase]);
+
   useEffect(() => {
     return () => {
       // Flush partial from ref BEFORE abort: updateMessage no-ops once unmounted,
       // and finally may never rewrite state — ref still holds latest streamed text.
       // Epoch-stamped so a clearChat that already ran drops this unmount write.
       const epoch = persistEpochRef.current;
-      persistMessagesNow(messagesRef.current, {
+      persistActiveMessages(messagesRef.current, {
         allowStreamingPartial: true,
         epoch,
         getEpoch: () => persistEpochRef.current,
@@ -2285,7 +2439,7 @@ export function AiChatPage({
                 // queued delta first — still the correct composed result.
                 // Epoch-stamped: clearChat bumps epoch before removeItem.
                 const epoch = persistEpochRef.current;
-                persistMessagesNow(finalized, {
+                persistActiveMessages(finalized, {
                   epoch,
                   getEpoch: () => persistEpochRef.current,
                 });
@@ -2341,7 +2495,7 @@ export function AiChatPage({
               const next = applied.messages;
               messagesRef.current = next;
               const epoch = persistEpochRef.current;
-              persistMessagesNow(next, {
+              persistActiveMessages(next, {
                 epoch,
                 getEpoch: () => persistEpochRef.current,
               });
@@ -2469,7 +2623,7 @@ export function AiChatPage({
           });
         messagesRef.current = next;
         const epoch = persistEpochRef.current;
-        persistMessagesNow(next, {
+        persistActiveMessages(next, {
           epoch,
           getEpoch: () => persistEpochRef.current,
         });
@@ -2507,10 +2661,17 @@ export function AiChatPage({
 
   const clearChat = useCallback(() => {
     abortRef.current?.abort();
+    // Flush the current conversation BEFORE bumping the persist epoch so
+    // "new chat" cannot drop the last un-debounced write of the old thread.
+    persistActiveMessages(messagesRef.current, {
+      allowStreamingPartial: true,
+      epoch: persistEpochRef.current,
+      getEpoch: () => persistEpochRef.current,
+    });
     // U1: invalidate any in-flight send turn so its later finally/bench/gate
     // reset cannot clobber the synchronous reset below.
     sendRunIdRef.current += 1;
-    // Persistence epoch FIRST: every delayed write is epoch-stamped; bumping
+    // Persistence epoch: every delayed write is epoch-stamped; bumping
     // here makes pending debounce / safety-net / AppState / unmount setItems
     // no-ops even if they already hold a pre-clear messages closure.
     persistEpochRef.current += 1;
@@ -2572,12 +2733,15 @@ export function AiChatPage({
     setTranslatingId(null);
     setTranslationResult(null);
     setCopiedFlash(false);
-    // Epoch already bumped above — removeItem after so a racing setItem is dropped.
-    AsyncStorage.removeItem(HISTORY_KEY).catch(() => undefined);
-    // Drop native KV so a restored empty chat cannot reuse stale prefill.
-    const activeId = getActiveModelId();
-    if (activeId) void invalidateEngineSession(activeId);
-  }, [setVoicePhase]);
+    // Do not removeItem the previous conversation's messages — parent owns
+    // the index and inserts a new empty conversation.
+    if (onNewConversation) {
+      onNewConversation();
+    } else {
+      const activeId = getActiveModelId();
+      if (activeId) void invalidateEngineSession(activeId);
+    }
+  }, [onNewConversation, persistActiveMessages, setVoicePhase]);
 
   /**
    * Find the original user turn that produced a target message in a slice.

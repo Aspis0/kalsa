@@ -1,6 +1,16 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, Modal, Pressable, Text, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SquarePen } from "lucide-react-native";
 import { useLocale } from "../../i18n";
 import { useLabTheme } from "../../ui/labTheme";
 import { radius, spacing } from "../tokens";
@@ -18,17 +28,41 @@ export type DrawerItem = {
   onPress: () => void;
 };
 
+export type DrawerConversationItem = {
+  id: string;
+  title: string;
+  preview?: string;
+  active?: boolean;
+  onPress: () => void;
+  onLongPress?: () => void;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
   brand?: string;
   subtitle?: string;
   items: DrawerItem[];
+  /** Optional conversation list + search (Phase 1). Tools stay at the bottom. */
+  conversationItems?: DrawerConversationItem[];
+  searchValue?: string;
+  onSearchChange?: (query: string) => void;
+  onNewChat?: () => void;
 };
 
 // Side drawer that slides from the left. The Modal stays mounted while
 // animating closed so the slide-out is visible (open prop drives anim).
-export function Drawer({ open, onClose, brand = "Kalsa", subtitle, items }: Props) {
+export function Drawer({
+  open,
+  onClose,
+  brand = "Kalsa",
+  subtitle,
+  items,
+  conversationItems,
+  searchValue,
+  onSearchChange,
+  onNewChat,
+}: Props) {
   const { colors } = useLabTheme<any>();
   const { t } = useLocale();
   const insets = useSafeAreaInsets();
@@ -55,6 +89,8 @@ export function Drawer({ open, onClose, brand = "Kalsa", subtitle, items }: Prop
 
   if (!mounted) return null;
 
+  const showConversations = Array.isArray(conversationItems);
+
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <Animated.View style={{ flex: 1, opacity }}>
@@ -76,6 +112,121 @@ export function Drawer({ open, onClose, brand = "Kalsa", subtitle, items }: Prop
                 <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 4 }]}>{subtitle}</Text>
               ) : null}
             </View>
+            <View style={{ height: 1, backgroundColor: colors.line, marginHorizontal: spacing.md }} />
+
+            {showConversations ? (
+              <View style={{ flex: 1, minHeight: 0 }}>
+                <Text
+                  style={[
+                    typography.bodyXs,
+                    { color: colors.muted, paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xs },
+                  ]}
+                >
+                  {t("drawer.chats")}
+                </Text>
+                {onSearchChange ? (
+                  <View style={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.xs }}>
+                    <TextInput
+                      value={searchValue ?? ""}
+                      onChangeText={onSearchChange}
+                      placeholder={t("drawer.searchChats")}
+                      placeholderTextColor={colors.muted}
+                      autoCorrect={false}
+                      autoCapitalize="none"
+                      returnKeyType="search"
+                      accessibilityLabel={t("drawer.searchChats")}
+                      style={[
+                        typography.bodySm,
+                        {
+                          color: colors.ink,
+                          backgroundColor: colors.panel,
+                          borderRadius: radius.sm,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: 8,
+                        },
+                      ]}
+                    />
+                  </View>
+                ) : null}
+                {onNewChat ? (
+                  <Pressable
+                    onPress={() => {
+                      onNewChat();
+                      onClose();
+                    }}
+                    accessibilityLabel={t("drawer.newChat")}
+                    style={({ pressed }) => ({
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: spacing.sm,
+                      marginHorizontal: spacing.sm,
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 10,
+                      borderRadius: radius.sm,
+                      backgroundColor: pressed ? colors.panel : "transparent",
+                    })}
+                  >
+                    <SquarePen size={16} color={colors.accent} />
+                    <Text style={[typography.bodyMd, { color: colors.ink, fontFamily: typography.bodySm.fontFamily }]}>
+                      {t("drawer.newChat")}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                <ScrollView
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.sm }}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {conversationItems.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => {
+                        item.onPress();
+                        onClose();
+                      }}
+                      onLongPress={item.onLongPress}
+                      delayLongPress={380}
+                      accessibilityLabel={item.title}
+                      accessibilityState={{ selected: Boolean(item.active) }}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 10,
+                        borderRadius: radius.sm,
+                        backgroundColor: item.active
+                          ? colors.accentSoft
+                          : pressed
+                            ? colors.panel
+                            : "transparent",
+                      })}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          typography.bodyMd,
+                          {
+                            color: colors.ink,
+                            fontFamily: typography.bodySm.fontFamily,
+                          },
+                        ]}
+                      >
+                        {item.title}
+                      </Text>
+                      {item.preview ? (
+                        <Text
+                          numberOfLines={1}
+                          style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}
+                        >
+                          {item.preview}
+                        </Text>
+                      ) : null}
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+
             <View style={{ height: 1, backgroundColor: colors.line, marginHorizontal: spacing.md }} />
             <View style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.sm }}>
               <Text style={[typography.bodyXs, { color: colors.muted, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }]}>

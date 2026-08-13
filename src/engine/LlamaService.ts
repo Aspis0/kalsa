@@ -61,6 +61,7 @@ import {
   deleteSessionArtifacts,
   ensureSessionsDir,
   estimateSessionBytes,
+  getSessionConversationId,
   hasEnoughDiskForSession,
   readSessionMeta,
   sessionFileExists,
@@ -611,6 +612,8 @@ export type EngineInitOptions = {
     historyHash: string;
     /** djb2 of system-prompt env (locale/memoryFacts/hasTools). */
     promptEnvHash: string;
+    /** Active conversation; compared only when stored meta also has one. */
+    conversationId?: string;
   };
   /** Settings locale for user-facing init errors (required). */
   locale: Locale;
@@ -879,6 +882,7 @@ export function initEngine(
         mtpNMax: nextMtpNMax,
         specType: nextSpecType,
         engineKnob: activeEngineKnob,
+        conversationId: options.sessionRestore.conversationId,
       });
     }
 
@@ -1220,6 +1224,8 @@ export async function saveEngineSession(
       if (activeMtpNMax !== undefined) meta.mtpNMax = activeMtpNMax;
       if (activeSpecType !== undefined) meta.specType = activeSpecType;
       if (activeEngineKnob !== undefined) meta.engineKnob = activeEngineKnob;
+      const conversationId = getSessionConversationId();
+      if (conversationId) meta.conversationId = conversationId;
       // Meta after rename so a kill between file and meta keeps the previous
       // meta (hash mismatch → cold) or pairs old meta with complete new file
       // when history is unchanged (valid restore).
@@ -1261,6 +1267,7 @@ async function tryLoadEngineSession(
     mtpNMax?: number;
     specType?: string;
     engineKnob?: string;
+    conversationId?: string;
   },
 ): Promise<boolean> {
   const t0 = Date.now();
@@ -1301,6 +1308,7 @@ async function tryLoadEngineSession(
     if (expected.mtpNMax !== undefined) expectedMeta.mtpNMax = expected.mtpNMax;
     if (expected.specType !== undefined) expectedMeta.specType = expected.specType;
     if (expected.engineKnob !== undefined) expectedMeta.engineKnob = expected.engineKnob;
+    if (expected.conversationId) expectedMeta.conversationId = expected.conversationId;
     const mismatchField = sessionMetaMismatchField(stored, expectedMeta);
     if (mismatchField !== null) {
       await deleteSessionArtifacts(modelId);

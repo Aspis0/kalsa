@@ -35,6 +35,12 @@ export const it: typeof en = {
   drawer: {
     subtitle: "Locale · privato",
     toolsSection: "Strumenti",
+    chats: "Conversazioni",
+    newChat: "Nuova chat",
+    searchChats: "Cerca nelle chat",
+    untitled: "Senza titolo",
+    deleteChat: "Elimina chat",
+    deleteChatConfirm: "Eliminare questa conversazione?",
   },
 
   settings: {

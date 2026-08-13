@@ -39,7 +39,7 @@ import {
 import { DocRetrieverIndex } from "../context/retrievalLoop";
 import { htmlToText } from "../util/htmlToText";
 import { AskAssistantMiniappRenderer } from "../ui/AskAssistantMiniappRenderer";
-import { Drawer, PainterlyBg, type DrawerItem } from "../theme/components";
+import { Drawer, PainterlyBg, type DrawerConversationItem, type DrawerItem } from "../theme/components";
 import { spacing } from "../theme/tokens";
 import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
@@ -123,7 +123,26 @@ import {
   sendingInFlightRef,
 } from "../engine/regenState";
 import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
-import { computePromptEnvHash, getBootHistoryHash, historyHash, resetBootHistoryHash } from "../engine/sessionPersistence";
+import {
+  computePromptEnvHash,
+  getBootHistoryHash,
+  historyHash,
+  resetBootHistoryHash,
+  setBootMessagesKey,
+  setSessionConversationId,
+} from "../engine/sessionPersistence";
+import {
+  createEmptyConversationMeta,
+  filterConversations,
+  getDefaultConversationsStorage,
+  loadConversationsState,
+  messagesKey,
+  removeConversation,
+  saveConversationsState,
+  setActive,
+  upsertMeta,
+  type ConversationsState,
+} from "../conversations/ConversationsStore";
 import { getEngineOverride, getSpeculativeOverride } from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import {
@@ -373,10 +392,10 @@ const MAX_DIGEST_CORPUS_MESSAGES = 400;
 /** Soft message cap before buildSummaryTranscript's existing char budget. */
 const MAX_SUMMARY_CORPUS_MESSAGES = 200;
 /**
- * MULTI-CHAT LANDMINE: summaryAbortController / summaryDebounceTimer are GLOBAL
- * singletons while other compactor state is per-chat Maps. Fine today because
- * chatId is hardcoded "default". These MUST become per-chat Maps before
- * multi-chat ships, or a send/clear on chat A will abort chat B's summary.
+ * MULTI-CHAT: summaryAbortController / summaryDebounceTimer are still GLOBAL
+ * singletons (other compactor state is per-chat Maps keyed by conversation id).
+ * One active chat at a time — abortBackgroundSummary on switch / new / delete
+ * so a pending summary cannot write into the next conversation.
  */
 let summaryAbortController: AbortController | null = null;
 /**
@@ -674,6 +693,84 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   );
   const documentLibraryRef = useRef<LibraryState>(documentLibrary);
   documentLibraryRef.current = documentLibrary;
+
+  // ── Conversations index (swipe drawer) ────────────────────────────────
+  const [conversations, setConversations] = useState<ConversationsState>({
+    activeId: "",
+    items: [],
+  });
+  const conversationsRef = useRef<ConversationsState>(conversations);
+  conversationsRef.current = conversations;
+  const [conversationsReady, setConversationsReady] = useState(false);
+  const [chatSearch, setChatSearch] = useState("");
+  const persistFlushRef = useRef<(() => void) | null>(null);
+  const conversationsMutationRef = useRef(0);
+
+  const persistConversations = useCallback((state: ConversationsState) => {
+    void saveConversationsState(getDefaultConversationsStorage(), state).catch(
+      () => undefined,
+    );
+  }, []);
+
+  const applyConversations = useCallback(
+    (next: ConversationsState) => {
+      conversationsMutationRef.current += 1;
+      conversationsRef.current = next;
+      setConversations(next);
+      persistConversations(next);
+    },
+    [persistConversations],
+  );
+
+  const bindActiveConversation = useCallback((id: string) => {
+    if (!id) return;
+    try {
+      setBootMessagesKey(messagesKey(id));
+    } catch {
+      return;
+    }
+    setSessionConversationId(id);
+    resetBootHistoryHash();
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadGen = conversationsMutationRef.current;
+    void loadConversationsState(getDefaultConversationsStorage())
+      .then(async (loaded) => {
+        if (!mounted) return;
+        if (conversationsMutationRef.current !== loadGen) return;
+        let state = loaded;
+        if (state.items.length === 0) {
+          const meta = createEmptyConversationMeta();
+          state = { activeId: meta.id, items: [meta] };
+          try {
+            await saveConversationsState(getDefaultConversationsStorage(), state);
+          } catch {
+            // keep in-memory empty conversation even if persist fails
+          }
+        }
+        if (!mounted) return;
+        conversationsRef.current = state;
+        setConversations(state);
+        bindActiveConversation(state.activeId);
+        void getBootHistoryHash();
+        setConversationsReady(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        const meta = createEmptyConversationMeta();
+        const state: ConversationsState = { activeId: meta.id, items: [meta] };
+        conversationsRef.current = state;
+        setConversations(state);
+        bindActiveConversation(state.activeId);
+        void getBootHistoryHash();
+        setConversationsReady(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [bindActiveConversation]);
   const docIndexByIdRef = useRef<Map<string, DocRetrieverIndex>>(new Map());
   /**
    * Per-doc dense vector index. Durable under kalsa-documents/{docId}.vec.json;
@@ -1757,6 +1854,121 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // ── Drawer + exclusive overlay (settings | documents | miniapp | null) ──
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeOverlay, setActiveOverlay] = useState<ActiveOverlay>(null);
+
+  const handleSwitchConversation = useCallback(
+    (id: string) => {
+      if (!id) return;
+      if (id === conversationsRef.current.activeId) {
+        setDrawerOpen(false);
+        return;
+      }
+      persistFlushRef.current?.();
+      abortBackgroundSummary();
+      applyConversations(setActive(conversationsRef.current, id));
+      bindActiveConversation(id);
+      setDrawerOpen(false);
+    },
+    [applyConversations, bindActiveConversation],
+  );
+
+  const handleNewConversation = useCallback(() => {
+    const current = conversationsRef.current.items.find(
+      (item) => item.id === conversationsRef.current.activeId,
+    );
+    if (current && !current.title && !current.preview && !current.searchBlob) {
+      setDrawerOpen(false);
+      return;
+    }
+    persistFlushRef.current?.();
+    abortBackgroundSummary();
+    const meta = createEmptyConversationMeta();
+    applyConversations(setActive(upsertMeta(conversationsRef.current, meta), meta.id));
+    bindActiveConversation(meta.id);
+    const modelId = getActiveModelId();
+    if (modelId) void invalidateEngineSession(modelId);
+    setDrawerOpen(false);
+  }, [applyConversations, bindActiveConversation]);
+
+  const handleDeleteConversation = useCallback(
+    (id: string) => {
+      if (!id) return;
+      const prev = conversationsRef.current;
+      if (!prev.items.some((item) => item.id === id)) return;
+      const deletingActive = prev.activeId === id;
+      abortBackgroundSummary();
+      let next = removeConversation(prev, id);
+      if (next.items.length === 0) {
+        const meta = createEmptyConversationMeta();
+        next = { activeId: meta.id, items: [meta] };
+      }
+      applyConversations(next);
+      try {
+        void getDefaultConversationsStorage().removeItem?.(messagesKey(id));
+      } catch {
+        // ignore illegal id
+      }
+      bindActiveConversation(next.activeId);
+      if (deletingActive) {
+        const modelId = getActiveModelId();
+        if (modelId) void invalidateEngineSession(modelId);
+      }
+      setDrawerOpen(false);
+    },
+    [applyConversations, bindActiveConversation],
+  );
+
+  const confirmDeleteConversation = useCallback(
+    (id: string) => {
+      Alert.alert(t("drawer.deleteChat"), t("drawer.deleteChatConfirm"), [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("drawer.deleteChat"),
+          style: "destructive",
+          onPress: () => handleDeleteConversation(id),
+        },
+      ]);
+    },
+    [handleDeleteConversation, t],
+  );
+
+  const handleConversationTouched = useCallback(
+    (meta: { title: string; preview: string; searchBlob: string }) => {
+      const id = conversationsRef.current.activeId;
+      if (!id) return;
+      const existing = conversationsRef.current.items.find((item) => item.id === id);
+      applyConversations(
+        upsertMeta(conversationsRef.current, {
+          id,
+          title: meta.title || existing?.title || "",
+          updatedAt: Date.now(),
+          preview: meta.preview,
+          searchBlob: meta.searchBlob,
+        }),
+      );
+    },
+    [applyConversations],
+  );
+
+  const drawerConversationItems: DrawerConversationItem[] = useMemo(
+    () =>
+      filterConversations(conversations.items, chatSearch).map((item) => ({
+        id: item.id,
+        title: item.title.trim() ? item.title : t("drawer.untitled"),
+        preview: item.preview,
+        active: item.id === conversations.activeId,
+        onPress: () => handleSwitchConversation(item.id),
+        onLongPress: () => confirmDeleteConversation(item.id),
+      })),
+    [
+      chatSearch,
+      confirmDeleteConversation,
+      conversations.activeId,
+      conversations.items,
+      handleSwitchConversation,
+      t,
+    ],
+  );
+
   const edgeSwipe = Gesture.Pan()
     .activeOffsetX(24)
     .failOffsetY([-15, 15]) // scroll verticale NON deve aprire il drawer
@@ -1974,10 +2186,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     };
   }, []);
 
-  // Capture pre-send history for the KV gate (before any send mutates kalsa.messages.v1).
-  useEffect(() => {
-    void getBootHistoryHash();
-  }, []);
+  // Boot history hash is captured after the conversation index loads
+  // (bindActiveConversation + getBootHistoryHash in that effect).
 
   // Guard sincrone per download/switch/stream (non soggette al batching di React).
   const downloadInFlight = useRef(false);
@@ -2566,6 +2776,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             sessionRestore: {
               historyHash: sessionHistoryHash,
               promptEnvHash: sessionPromptEnvHash,
+              conversationId: conversationsRef.current.activeId || undefined,
             },
             locale,
           }),
@@ -3039,6 +3250,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             sessionRestore: {
               historyHash: sessionHistoryHash,
               promptEnvHash: sessionPromptEnvHash,
+              conversationId: conversationsRef.current.activeId || undefined,
             },
             locale,
           }),
@@ -3550,7 +3762,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               return;
             }
 
-            const chatId = DEFAULT_CHAT_ID;
+            const chatId = conversationsRef.current.activeId || DEFAULT_CHAT_ID;
             const hasImages = Boolean(attachments?.length);
             const validatedHistory = validateHistoryMessages(history);
 
@@ -4151,6 +4363,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             }}
             onCtaPress={(_cta: ChatCta) => undefined}
             onMenuPress={() => setDrawerOpen(true)}
+            conversationId={conversationsReady ? conversations.activeId : undefined}
+            onNewConversation={handleNewConversation}
+            onSwitchConversation={handleSwitchConversation}
+            onDeleteConversation={handleDeleteConversation}
+            onConversationTouched={handleConversationTouched}
+            persistFlushRef={persistFlushRef}
           />
         </View>
 
@@ -4179,10 +4397,17 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       <Drawer
         key={fontScaleId}
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => {
+          setDrawerOpen(false);
+          setChatSearch("");
+        }}
         brand="Kalsa"
         subtitle={t("drawer.subtitle")}
         items={drawerItems}
+        conversationItems={drawerConversationItems}
+        searchValue={chatSearch}
+        onSearchChange={setChatSearch}
+        onNewChat={handleNewConversation}
       />
 
       {activeOverlay?.kind === "settings" ? (

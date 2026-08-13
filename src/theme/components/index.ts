@@ -6,7 +6,7 @@ export { Pill } from "./Pill";
 export { Header } from "./Header";
 export { FAB } from "./FAB";
 export { QuickActionSheet, type QuickAction } from "./QuickActionSheet";
-export { Drawer, type DrawerItem } from "./Drawer";
+export { Drawer, type DrawerItem, type DrawerConversationItem } from "./Drawer";
 export { TabBar, type AgoraTabId } from "./TabBar";
 export { AskAIChip } from "./AskAIChip";
 export { PainterlyBg } from "./PainterlyBg";

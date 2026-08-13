@@ -36,6 +36,12 @@ export const en = {
   drawer: {
     subtitle: "Local · private",
     toolsSection: "Tools",
+    chats: "Chats",
+    newChat: "New chat",
+    searchChats: "Search chats",
+    untitled: "Untitled",
+    deleteChat: "Delete chat",
+    deleteChatConfirm: "Delete this conversation?",
   },
 
   settings: {
