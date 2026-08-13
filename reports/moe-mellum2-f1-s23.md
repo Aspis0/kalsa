@@ -182,3 +182,109 @@ Assumptions (house method, experts-only bpw cut):
 **KEXP k=8 does not clear 10 tok/s on this measurement.** It mostly pays down flash until the **4.5 t/s compute wall** at native k=8. A later k/drop grid (k=6 / drop-cold) is what would move the compute term; that is not this cell.
 
 Artifacts: `results/mellum2_f1_s23/f1b/` (CSV, master log, smoke/sanity/regime logs, mem samples, `build.txt`). F1 files left in place.
+
+---
+
+## F1c — runtime k/drop grid
+
+**SPEED RECON ONLY. Quality at cut k is UNGATED.** These cells are not product cells. The PPL gate (PC, Fase-1 protocol) is required before any of k=6 / k=4 / k=2 / k=2+d0.65 becomes a product cell. **PC is busy today; that gate queues behind selfspec.** Do not read coherent k=6/k=4 English on `p_fact` as a pass, and do not read k=2 garbage as a kill. Neither is a PPL number.
+
+**Date:** 2026-08-13  
+**Binary:** `~/bin/bmoe-cli-mellum` → `~/bin/mellum/bmoe-cli` sha `69a35f5ef85e286a1d05069872a3ae75b9a8c66d4098695936a5baf4b4d61b8a` (verified on device, same pin as F1b). Campaign pin not touched.  
+**Model:** `Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf` size `8071293600` sha `b04281c2…` (size + F1b sha file).  
+**Prompt:** `p_fact` sha `b5301c32…` (byte match F1b).  
+**Flags:** `-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --temp 0 --chatml --no-think` + `--n-expert-used {k}` (+ `--drop-cold-experts 0.65` on the last cell). Cold `fadvise` every rep. n=200.  
+**Regime:** UNPLUGGED entire window, floor 45%, temp abort 45 °C. Start **70% / 27.3 °C**, end **67% / 32.4 °C**. nproc=6. Never tripped batt/thermal/RAM. Jelly and Xiaomi not touched. No PC compute.
+
+Drop is an **I/O-only** lever (house rule: never skips matmul). Best-k by mean decode tok/s of cells 1–3 was **k=2**, so the drop cell is k=2 + 0.65.
+
+### Full table (k=8 F1b included)
+
+Medians are the mean of the two cold reps (same house rule as F1b). Split times are s/token from `moe-stream`.
+
+| cell | decode tok/s | MiB/tok | hit% | TTFT s | load s | prefill s | RSS MiB | n | compute | flash I/O | flash MiB/s | batt | temp °C |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|
+| **Q4 k=8 r1** (F1b) | 2.975 | 185.04 | 76.0 | 11.634 | 5.936 | 5.699 | 2952.9 | 166 | 0.224 | 0.436 | 424 | 72→71 | 27.7→28.3 |
+| **Q4 k=8 r2** (F1b) | 2.912 | 185.04 | 76.0 | 11.682 | 5.856 | 5.826 | 2974.9 | 166 | — | — | — | 71→71 | 28.3→30.4 |
+| **Q4 k=8 median** | **2.944** | **185.0** | **76.0** | 11.66 | 5.90 | 5.76 | 2964 | 166 | 0.224 | 0.436 | 424 | 72→71 | peak 30.4 |
+| **Q4 k=6 r1** | 3.794 | 112.07 | 79.4 | 11.124 | 5.571 | 5.553 | 2935.9 | 178 | 0.183 | 0.276 | 406 | 70→70 | 27.3→28.5 |
+| **Q4 k=6 r2** | 3.722 | 112.07 | 79.4 | 11.273 | 5.560 | 5.713 | 2943.0 | 178 | 0.185 | 0.278 | 404 | 70→69 | 28.5→30.8 |
+| **Q4 k=6 median** | **3.758** | **112.1** | **79.4** | 11.20 | 5.57 | 5.63 | 2939 | 178 | 0.184 | 0.277 | 405 | 70→69 | peak 30.8 |
+| **Q4 k=4 r1** | 4.692 | 71.94 | 79.0 | 10.375 | 5.076 | 5.299 | 2932.0 | 183 | 0.150 | 0.186 | 387 | 69→69 | 30.8→31.0 |
+| **Q4 k=4 r2** | 4.741 | 71.94 | 79.0 | 10.492 | 5.321 | 5.171 | 2951.3 | 183 | 0.148 | 0.185 | 389 | 69→69 | 31.0→30.7 |
+| **Q4 k=4 median** | **4.717** | **71.9** | **79.0** | 10.43 | 5.20 | 5.24 | 2942 | 183 | 0.149 | 0.186 | 388 | 69→69 | peak 31.0 |
+| **Q4 k=2 r1** | 5.750 | 55.51 | 68.5 | 9.226 | 4.413 | 4.813 | 2927.4 | 200 | 0.118 | 0.143 | 389 | 69→68 | 30.7→31.4 |
+| **Q4 k=2 r2** | 5.608 | 55.51 | 68.5 | 8.940 | 4.071 | 4.869 | 2959.4 | 200 | 0.119 | 0.152 | 366 | 68→68 | 31.4→31.4 |
+| **Q4 k=2 median** | **5.679** | **55.5** | **68.5** | 9.08 | 4.24 | 4.84 | 2943 | 200 | 0.119 | 0.148 | 378 | 69→68 | peak 31.4 |
+| **Q4 k=2 d0.65 r1** | 5.356 | 47.92 | 71.3 | 9.191 | 4.311 | 4.880 | 2958.7 | 200 | 0.133 | 0.134 | 357 | 68→68 | 31.4→31.4 |
+| **Q4 k=2 d0.65 r2** | 5.350 | 47.92 | 71.3 | 9.400 | 4.615 | 4.784 | 2959.1 | 200 | 0.133 | 0.135 | 355 | 68→67 | 31.4→32.4 |
+| **Q4 k=2 d0.65 median** | **5.353** | **47.9** | **71.3** | 9.30 | 4.46 | 4.83 | 2959 | 200 | 0.133 | 0.135 | 356 | 68→67 | peak 32.4 |
+
+CSV: `results/mellum2_f1_s23/f1c/runs_regime.csv`. All eight F1c reps rc=0, cold=1, UNPLUGGED. Drop log on r1: `moe-drop: 133/11200 routed experts dropped (1.2%), threshold 0.65 x uniform`.
+
+**Best speed cell: k=2, 5.679 t/s, 55.5 MiB/tok, 68.5% hit.** Drop on that k did **not** buy tok/s.
+
+### Honest curve
+
+| k | tok/s | vs k=8 | MiB/tok | vs k=8 | hit% | n_gen |
+|---:|---:|---:|---:|---:|---:|---:|
+| 8 | 2.944 | 1.00× | 185.0 | 1.00× | 76.0 | 166 (EOS) |
+| 6 | 3.758 | 1.28× | 112.1 | 0.61× | 79.4 | 178 (EOS) |
+| 4 | 4.717 | 1.60× | 71.9 | 0.39× | 79.0 | 183 (EOS) |
+| 2 | 5.679 | 1.93× | 55.5 | 0.30× | 68.5 | 200 (n limit) |
+| 2+d0.65 | 5.353 | 1.82× | 47.9 | 0.26× | 71.3 | 200 (n limit) |
+
+tok/s vs k is **monotonic and roughly 1/√k-ish, not 8/k**. Cutting k from 8→2 almost doubles decode (2.94 → 5.68) but does not quadruple it. MiB/tok falls faster than k at 8→6→4 (hit rises 76 → 79) then **slows** at k=2 because hit drops to 68.5% — the working-set win is eaten by worse reuse. Linear 2/8 × 185 would be 46 MiB/tok; we measured 55.5.
+
+Cross-check (same geometry as F1b: 28 × k × 3 × 2304 × 896 × 4.5/8 B full expert traffic, times miss):
+
+- k=6: 585 × (1−0.794) ≈ 121 vs measured **112**
+- k=4: 390 × (1−0.790) ≈ 82 vs measured **72**
+- k=2: 195 × (1−0.685) ≈ 61 vs measured **55.5**
+
+Directionally right; measured is ~10% below the back-of-envelope (same bias as F1b 187 vs 185). Not a new mystery.
+
+n_gen is not constant (166 / 178 / 183 / 200). tok/s is still per-token so the curve is comparable; do not over-read the extra tokens at k=2 as “more work” in the decode rate.
+
+### Where it goes compute-bound
+
+It **does not**, on this grid, except the drop cell which **ties**.
+
+| cell | compute s/tok | flash s/tok | flash/compute | 1/compute ceiling | bound |
+|---|---:|---:|---:|---:|---|
+| k=8 | 0.224 | 0.436 | 1.95× | **4.46 t/s** | flash |
+| k=6 | 0.184 | 0.277 | 1.51× | **5.43 t/s** | flash |
+| k=4 | 0.149 | 0.186 | 1.25× | **6.71 t/s** | flash (closing) |
+| k=2 | 0.119 | 0.148 | 1.24× | **8.44 t/s** | flash (closing) |
+| k=2 d0.65 | 0.133 | 0.135 | 1.02× | **7.52 t/s** | **tied** |
+
+k-cut moves the compute term almost linearly (0.224 → 0.184 → 0.149 → 0.119 ≈ ×k/8). Flash falls faster at first, then tracks compute. Overlap stall 0.094 → 0.050 s/tok. Flash bandwidth this session **356–406 MiB/s** (F1b k=8 was 424).
+
+`--drop-cold-experts 0.65` at k=2: I/O did what the lever says (55.5 → 47.9 MiB/tok, hit 68.5 → 71.3, flash 0.148 → 0.135) but **compute rose** 0.119 → 0.133. Wall got worse (5.68 → 5.35 t/s). Drop rate was only **1.2%** of routed experts (uniform at k=2 is 0.50; threshold 0.65×uniform = 0.325 — few experts are that cold). The I/O-only rule held in the log (`moe-drop` + flash bytes down); it did not pay tok/s because the cell was already near the compute wall and the drop-aware path added 0.014 s/tok of compute. Do not adopt drop on this SKU from this cell.
+
+### KEXP + k projection (updated)
+
+Same house method as F1b: KEXP cuts **routed experts only** to 2.5–3.0 bpw (mid **2.75**); dense stays ~4.5 bpw and is already anon-resident (not in MiB/tok); no shared expert; flash stays the measured ~360–400 MiB/s, not DRAM; **Q2/Q3 GEMM is not assumed faster than the Q4_K compute column**. Conservative case holds hit%. Optimistic case: miss scales with expert bytes and flash falls under compute.
+
+| variant | MiB/tok | decode | note |
+|---|---:|---:|---|
+| **Q4 k=8 measured** | **185** | **2.94 t/s** | F1b |
+| **Q4 k=6 measured** | **112** | **3.76 t/s** | this grid |
+| **Q4 k=4 measured** | **72** | **4.72 t/s** | this grid |
+| **Q4 k=2 measured** | **55.5** | **5.68 t/s** | this grid; best speed |
+| KEXP k=8, hit held 76% | 185×(2.75/4.5) ≈ **113** | **~3.5 t/s** | F1b; still flash-ish |
+| KEXP k=8, miss scales | ~70 | **~4.5 t/s** | F1b Q4 compute wall at k=8 |
+| KEXP k=6, hit held 79% | 112×(2.75/4.5) ≈ **68** | **~5.4 t/s** | flash 68/400 < compute 0.184; hits k=6 ceiling |
+| KEXP k=4, hit held 79% | 72×(2.75/4.5) ≈ **44** | **~6.7 t/s** | hits k=4 ceiling |
+| KEXP k=2, hit held 68.5% | 55.5×(2.75/4.5) ≈ **34** | **~8.4 t/s** | hits k=2 ceiling |
+| KEXP file size (geometry) | — | — | **4.1–4.8 GB** (unchanged) |
+
+**Band after F1c: KEXP+k ≈ 3.5 (k=8 conservative) to ~8.4 t/s (k=2, compute-limited).** Nothing in this measurement clears 10 tok/s. k-cut on vanilla Q4 already buys more than KEXP at native k=8 (5.68 vs 3.5–4.5). Combining them mostly pays the remaining flash at that k until the Q4 compute wall; if Q2/Q3 GEMM is *slower*, the wall is lower.
+
+### Quality — UNGATED (read this twice)
+
+- **No PPL, no Fase-1 gate, no product claim.** Speed only.
+- Informal decode text on this one `p_fact` prompt (not a metric): k=8 (F1b) and k=6 / k=4 still emitted a coherent MoE paragraph; k=2 and k=2+d0.65 collapsed to garbage and hit the 200-token cap. That is an anecdote. It is **not** a PPL number and it does **not** license k=4 as a product k.
+- The PPL gate lives on **PC**, Fase-1 protocol. **PC is busy today. The gate queues behind selfspec.** Until that gate runs, every cut-k cell in this section is a speed recon cell.
+
+Artifacts: `results/mellum2_f1_s23/f1c/` (CSV, master log, 8× logs + mem samples, `bin.sha256`, `best_k.txt`, `STATUS.txt=DONE`). Script: `results/mellum2_f1_s23/run_f1c_s23.sh`. F1 / F1b files left in place.
