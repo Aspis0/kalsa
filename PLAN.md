@@ -86,7 +86,7 @@
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
 | energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
 | **🔨 CANTIERE GDN-GPU (DECISIONE gualt 2026-08-12; ruoli: Claude design, Grok codice)** | **K0 DONE, RIBALTONE** (`moe-gdn-k0-op-inventory.md`): **i kernel GDN esistono GIÀ nel nostro pin** — upstream ha aggiunto `GATED_DELTA_NET` + `SSM_CONV` OpenCL (8ad8aef44) E i kernel MoE Adreno `MUL_MAT_ID` Q4_K/Q5_K/Q6_K. Il claim K2 del 3/8 ("ops mancanti") è STALE. Verificato dai GGUF (2026-08-12): **S_v=128 su 2B/4B/35B → dentro il gate GPU {16,32,64,128}**; dk=256 → flash-attn OK. Gap residui VERI: G4 GET_ROWS embedding quantizzato → CPU (piccolo); **Q7-LANDMINE: l'expert-ready hook dello streaming è SOLO nel loop CPU di mul_mat_id** → per il 35B gli esperti DEVONO restare su CPU (o engine da rifare); per i dense 2B/4B nessun MoE → grafo interamente GPU-abile OGGI. **K2.1 DIAGNOSI CONFIRMED → K2.2 FIX IN VOLO**. K2 (`moe-gdn-k2-e2e.md`): S23/740 FAIL_CORRECTNESS, GDN 36/36 OK, flash-attn non compila (buco driver K5), MUL_MAT_ID Q4_K rotto (73 FAIL) → esperti 35B su CPU (hook + correttezza). **K2.1 (`moe-gdn-k21-parity.md`): il garbage E2E NON era GDN/attention/stato — era SOLO l'lm_head**: tied `token_embd` Q6_K [2048×248320], il redirect large-M (`use_flat_gemv_for_large_m_q6_K`, ggml-opencl.cpp:6459) lo ruba al GEMV noshuffle Adreno (corretto sul 740) e lo dà al kernel flat (NMSE ~12). Workaround verificato: `-ot token_embd.weight=CPU` → output sano. **K2.2 FATTO** (`moe-gdn-k22-fix.md`, branch `kalsa/opencl-q6k-dispatch-fix` @ a92a51627): redirect large-M spento quando ne1%128==0 → lm_head sul noshuffle corretto; greedy GPU **token-identico** al CPU senza workaround; GDN 100%; regression tests aggiunti. **PRIMO NUMERO ONESTO 740: decode GPU 0.41× CPU (5.06 vs 12.37) = FAIL; prefill 1.29×** → sul 740 il decode GPU perde anche da corretto: lane 740-decode CHIUSA per misura (coerente con LiteRT 1.5B 0.73× e K5). Review ostile del diff IN VOLO (DeepSeek: buco soglie + path non-Adreno). K2.3 (kernel flat) deprioritizzato: con la fix nessun tensore reale dei nostri modelli lo usa più. Review PASSATA + K2.2b chiuso @ 04c5d362a. Recon Google: TECHNIQUES_ONLY (`research-google-gpu-kernels.md`). Recon 750 (`research-adreno750.md`): **750 è A7X, broadcast=false anche lì → gate Xiaomi LIKELY_FAIL; primo silicio col broadcast = 830/8 Elite (non in lab). MA LiteRT vince 1.43× a 3.8B SUL 750 con kernel subgroup-free → il port è L'UNICA via GPU per l'installed base A7X.** **🪦 M1 PORT: FAIL ONESTO, port GEMV ucciso a costo minimo** (`moe-mld-m1.md`): (a) i dequant subgroup-free MISCOMPILANO sul driver E031.41 (NMSE 0.67-0.9; stesso convert + kernel stock = PASS → è il driver, non il codice); (b) il colpo decisivo: **noshuffle è GIÀ al tetto DRAM (34-41 GB/s) sulle shape FFN dominanti** — la leva layout del paper è già spesa nei kernel esistenti; 1.4× richiederebbe 48 GB/s che non esistono. **Diagnosi in regalo**: il gap E2E (GPU 10.25 vs ~26.6 teorici al tetto) è ~60 ms/token di OVERHEAD DISPATCH/GLUE, non kernel → una continuazione seria = fused executor stile ML Drift (mesi), non kernel (settimane). Decisione gualt: parcheggiare GPU-decode su A7X (bancando: GDN-first, prefill GPU 1.3-1.7×, CPU 18.19, fix Q6_K) oppure M2-feasibility SOLO CARTA (conteggio dispatch/token da sched log + ceiling fusioni, 1 giorno) prima di chiudere | gualt: park vs M2-carta |
-| **📊 TTFT (LA priorità user-facing): F0 Jelly COMPLETO — i minuti sono il RE-PREFILL (13.8 tok/s), e il riuso KV di sessione è ROTTO** (`moe-ttft-f0-jelly.md` + `kalsa-ttft-audit.md` + mandato fix `mandates/kalsa-ttft-fixes.md`) | C1: alloc KV innocuo (~5 s perfino a `-c 262144`). C2: 0.0725 s/token → finestra app 10-16k = **12-19 min** di re-prefill su G99. **C3: riuso 0%** — prefisso byte-identico riprefillato intero; causa supportata: seq_rm rifiutato su ibrido attn+SSM → wipe; binario Jelly ≠ KVFIX `ede3ac7c`. C4: transcript mutato = 2.5-3 min onesti (6+ osservati col wipe). **P0 app (keepalive/eager/compaction) reggono SENZA C3**; vittoria KV-reuse non citabile finché C3 non è ri-corso col KVFIX | **C3 re-run con binario KVFIX** (cella ~20 min Jelly); gualt: track fix app in corso |
+| **📊 TTFT (LA priorità user-facing): F0 Jelly COMPLETO — i minuti sono il RE-PREFILL (13.8 tok/s), e il riuso KV di sessione è ROTTO** (`moe-ttft-f0-jelly.md` + `kalsa-ttft-audit.md` + mandato fix `mandates/kalsa-ttft-fixes.md`) | C1: alloc KV innocuo (~5 s perfino a `-c 262144`). C2: 0.0725 s/token → finestra app 10-16k = **12-19 min** di re-prefill su G99. **C3: riuso 0%** — prefisso byte-identico riprefillato intero; causa supportata: seq_rm rifiutato su ibrido attn+SSM → wipe; binario Jelly ≠ KVFIX `ede3ac7c`. C4: transcript mutato = 2.5-3 min onesti (6+ osservati col wipe). **P0 app (keepalive/eager/compaction) reggono SENZA C3**. **C3-rerun col KVFIX (A76 fresco): FAIL di nuovo — n_common=0, non era il binario**: commit assistant non byte-fedele (re-render perde esattamente gli 8 token generati) + seq_rm che non tronca su ibrido attn+SSM → wipe. KV-reuse su questo arco = **0% finché l'engine non fixa il commit assistant** (o checkpoint SSM) | engine-work: commit assistant byte-fedele + log n_common pre-fallback; gualt: track fix app in corso |
 | **🪦🪦 Typeahead CalaQwen + phase-split 2B (test gualt S23 2026-08-13): DUE DEAD, entrambi su buchi ENGINE non di fisica** | **Typeahead DEAD**: prefill incrementale ricalcola tutto (527 tok: 67 s vs 64 s da zero; a pezzi = 3.5× il prefill unico) — riuso KV solo con `--chatml` (`n_common=0` senza) e manca l'API "rimpiazza prompt + prefilla delta". **Split 2B**: soffitto 0.73× (20.6 s vs 28.3 CPU su turno 490+128) SOLO con handover KV in-process; con 2 processi = 1.27× (peggio); tutto-GPU 29.2 s (peggio). Dettagli nel registro checkpoint | riapertura solo su engine-work (API delta-prefill / KV handover) |
 | Jelly free-tier baseline (Qwen3.5-4B dense, llama-bench ABBA `-t 2`) | **BLOCKED** — Jelly irraggiungibile (ping OK, adb/sshd chiusi: wireless debug perso post-reboot). Modello+sha già staged in `results/jelly/` — `reports/moe-jelly-freetier.md` | gualt fisico (riattivare wireless debug/sshd) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
@@ -1124,6 +1124,36 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-13 (sera) — 🔴 C3-RERUN COL KVFIX: FAIL — non era il binario. Il
+  contratto di riuso sessione multi-turn è ROTTO sull'ibrido attn+SSM, con
+  meccanismo ora identificato a 8 token di precisione.** (addendum in
+  `moe-ttft-f0-jelly.md`, log `results/ttft_f0_jelly/C3_kvfix/`)
+
+  Rebuild fresco del commit KVFIX (2c675a5) per A76 (`armv8.2-a+dotprod+
+  fp16`, no i8mm, installato come `bmoe-cli-kvfix` senza toccare il pin):
+  T2 `n_common=0` su entrambe le rep (prefill 163.8 s, −13% vs C2). In più
+  l'agente ha verificato che il sorgente del binario di campagna aveva GIÀ
+  entrambe le hunk KVFIX → l'ipotesi "binario sbagliato" è refutata anche a
+  livello sorgente. G-K1 (PASS, S23, prompt corto) aveva copertura
+  insufficiente.
+
+  **La firma forense**: re-render T2 = 2033 token = T1(1980) + follow-up(53)
+  — mancano ESATTAMENTE gli 8 token della risposta assistant di T1 (attesi
+  1988+53=2041). Quindi due guasti impilati: (a) il commit della risposta
+  assistant nella history non è byte-fedele ai token generati → il re-render
+  diverge a ~1980; (b) su ibrido attn+SSM `seq_rm` non può troncare la coda
+  (stato ricorrente non riavvolgibile senza checkpoint) → invece di
+  n_common=1980 (~97% comunque salvo!) il motore fa WIPE totale → 0%.
+
+  **Vie di fix (engine, in ordine di costo)**: (1) commit assistant
+  byte-fedele nella history di sessione — rimuove il bisogno stesso del
+  troncamento, è LA fix del contratto; (2) checkpoint dello stato SSM
+  (classe patch llama.rn hybrid-restore) — pesante; (3) intanto loggare
+  n_common pre-fallback (oggi il wipe è una black box). Entra nella lista
+  engine-work insieme a delta-prefill API e KV handover. I P0 app NON
+  aspettano (leva minuti = compaction, già giustificata da C2). Citare
+  SEMPRE 0% finché una cella non misura diversamente.
 
 - **2026-08-13 (pomeriggio) — 💪 MELLUM2 F0: STRONG 15/20 — il gate coding-SKU
   è superato, e il "ROSSO multilingua" della recon è RIBALTATO dalla misura.**

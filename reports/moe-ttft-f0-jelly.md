@@ -268,3 +268,71 @@ The S23 pp×2 number must **not** be copied: that was the i8mm 8×8 kernel. Sign
 | Follow-up | **C3 re-run** once session reuse yields `n_common = n_past_T1` |
 
 DONE
+
+---
+
+## Addendum — C3 re-run with KVFIX binary (2026-08-13)
+
+**Verdict: FAIL.** T2 `n_common = 0` again. Session KV reuse did **not** engage on a fresh A76 rebuild of the exact KVFIX commit. The ~97% reuse win stays a projection. H5 is deeper than "the campaign binary is not KVFIX".
+
+### Binary
+
+| | |
+|--|--|
+| Installed as | `~/bin/bmoe-cli-kvfix` (campaign `~/bin/bmoe-cli` **not** overwritten) |
+| ELF sha256 | `581e9773aa6ef9728b6e71166e455b863078129144801731b7f6ba390330a716` |
+| Source commit | `2c675a52abecce529b6a595b617717bbf2fdb282` — `fix(session): keep empty-think prefix byte-identical for multi-turn KV reuse` |
+| llama.cpp submodule | `e5605f3bd3545867b2eb2581c96fd7042e243541` |
+| Arch | NDK r27.1 · API 29 · `GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16` · HAVE_DOTPROD=ON · **HAVE_MATMUL_INT8=OFF** (no i8mm, A76-safe) |
+| `ede3ac7c…` | S23 G-K1 binary, **not** reused (would SIGILL on A76) |
+| Campaign pin after run | `36b01966…` still at `~/bin/bmoe-cli` |
+| Model | `aaf42c8b…699223` MATCH |
+| Prompt | `c3_reuse.jsonl` sha `1bccdaae…` MATCH (byte-identical to original C3) |
+
+Main already contains KVFIX (`2c675a5` is an ancestor of `8958cdf`; `session.cpp` is identical between those two commits). A fresh A76 build of `2c675a5` is the cleanest KVFIX-equivalent.
+
+**Source-level note on H5(e):** the on-device tree that produced campaign `36b01966…` (session.cpp dated 2026-08-09, binary 2026-08-10, `build-jelly` `ARM_ARCH=armv8.2-a+dotprod+fp16`) **already had both KVFIX hunks** (`preserve_thinking=true` at line 910; empty-think history commit at 1549). So this re-run is not "KVFIX vs a pre-fix A76 binary". It is KVFIX-on-A76 vs the same contract, isolated from the S23 `ede3ac7c` hash.
+
+### C3 table (canonical from `logs/*/stdout.txt` `BMOE_DONE`)
+
+Same flags: `--session --chatml --no-think -t 2 -c 4096 --ubatch 512 --temp 0 -n 8`. One process, two generates, `clear_kv` true then false. Cold `posix_fadvise` before each process. UNPLUGGED.
+
+`n_common = n_past − n_prompt − n_gen`.
+
+| rep | phase | n_prompt | n_past | n_gen | n_common | load_s | prefill_s | prefill_tps | TTFT | batt% | temp |
+|----:|-------|---------:|-------:|------:|---------:|-------:|----------:|------------:|-----:|------:|-----:|
+| 1 | t1 | 1980 | 1988 | 8 | 0 (cold) | 2.377 | 159.313 | 12.43 | **161.690** | 39 | 27 |
+| 1 | t2 | **2033** | 2041 | 8 | **0** | 2.377 | **163.834** | 12.41 | **163.834** | 39 | 27 |
+| 2 | t1 | 1980 | 1988 | 8 | 0 (cold) | 2.379 | 159.324 | 12.43 | **161.703** | 37 | 31 |
+| 2 | t2 | **2033** | 2041 | 8 | **0** | 2.379 | **163.875** | 12.41 | **163.875** | 37 | 31 |
+
+T2 `prefill_s × prefill_tps` = 163.834 × 12.41 = 2033.2 and 163.875 × 12.41 = 2033.7 — T2 **actually evaluated 2033 tokens**. Wall 328 / 329 s, rc=0 both. Battery 39% @ 27.0 °C → 34% @ 34.0 °C. r2 **started** at 37% (above the 35% floor); ended at 34% after the last timed rep. Never plugged. Live `runs.csv` writer hit the same `NO_BMOE_DONE` heredoc bug as the original F0 run; numbers above are from stdout.
+
+stderr (full capture in `logs/C3_r{1,2}_c4096/stderr.txt`): **no** `seq_rm` / wipe / `n_common` messages. Only load metadata. Hybrid signature unchanged: `arch=qwen35`, `ssm.*`, `full_attention_interval=4`, `CPU RS buffer size = 19.27 MiB`. The engine still does not log the pre-fallback `n_common`.
+
+T2 decoded `Il dettaglio concreto più recente è l'` — same class as original C3: history assembly worked, KV reuse did not.
+
+### Gate
+
+| | required | measured |
+|--|--|--|
+| T2 `n_common` | ≈ 1988 (`n_past_T1`) | **0** |
+| T2 `n_prompt` | ≈ 53 | **2033** |
+| T2 `prefill_s` | ≈ 3–8 s | **163.8 s** |
+| | | **FAIL** |
+
+### Corrected "projected fix impact" line
+
+| | C2@2048 prefill (cold, 1980 tok) | C3 T2 original (`36b01966`) | C3 T2 KVFIX A76 (`581e9773`, this cell) | C3 T2 if reuse engaged |
+|--|--:|--:|--:|--:|
+| tokens prefilled | 1980 | 2033 | **2033** | ~53 |
+| prefill_s | 144.7 | 155 / 180 | **163.8 / 163.9** | ~4–5 s |
+| % saved vs C2@2048 | — | −7% / −25% | **−13%** | ~97% (still a projection) |
+
+**The ~97% reuse win is still not a measurement.** Putting the KVFIX source on A76 did not change the wipe. Cite **0% saved**, not 97%.
+
+H5 after this cell: the empty-think / `preserve_thinking` fix that passed G-K1 (short prompt, S23, `n_prompt` t1=39 / t2=41) is **not sufficient** for this 1980-token hybrid `qwen35` chat turn. The 8-token T1 assistant answer remains the likely mismatch boundary (T2 re-render 2033 vs `kv_tokens ‖ new_suffix` = 1988+53=2041). Mid-prefix `seq_rm` on attn+SSM still the supported mechanism; the missing-binary hypothesis is **refuted**.
+
+Artefacts: `results/ttft_f0_jelly/C3_kvfix/`.
+
+DONE
