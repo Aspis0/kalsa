@@ -1,0 +1,11 @@
+ggml_backend_set_n_threads(CPU, 8)
+Testing 1 devices
+
+Backend 1/1: CPU
+  Device description: CPU
+  Device memory: 7073 MB (7073 MB free)
+
+  MUL_MAT_ID(type_a=q4_K,type_b=f32,n_mats=64,n_used=8,b=0,m=896,n=1,k=2304):                   1701 runs -   597.94 us/run -  33.03 MFLOP/run - [1;34m 55.24 GFLOPS[0m
+  Backend CPU: [1;32mOK[0m
+1/1 backends passed
+[1;32mOK[0m

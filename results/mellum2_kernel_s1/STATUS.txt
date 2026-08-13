@@ -1,0 +1,7 @@
+S1_FAIL(4)
+fused_us_t8=231.59
+on_model_compute_s_tok=0.182
+campaign_pin=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+mellum2_pin=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c
+branch=kalsa/kernel-s1-expert-pack
+DONE

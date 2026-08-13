@@ -1,0 +1,14 @@
+ggml_backend_set_n_threads(CPU, 22)
+Testing 1 devices
+
+Backend 1/1: CPU
+  Device description: Intel(R) Core(TM) Ultra 9 185H
+  Device memory: 32373 MB (13006 MB free)
+
+  MUL_MAT_ID(type_a=q4_K,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=1,k=256): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q4_K,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=17,k=256): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q4_K,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=129,k=256): [1;32mOK[0m
+  3/3 tests passed
+  Backend CPU: [1;32mOK[0m
+1/1 backends passed
+[1;32mOK[0m

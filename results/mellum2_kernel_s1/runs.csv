@@ -1,0 +1,17 @@
+cell,threads,fused,us,gflops,compute_s_tok,decode_toks,hit,mib_tok,rc,notes
+g1_pc_mul_mat_id,22,on,,,,,8/8,0,NMSE<5e-4 Mellum+Qwen+edges
+g1_s23_mul_mat_id,8,on,,,,,8/8,0,NMSE<5e-4 same shapes
+g2_fused_on_t8,8,on,231.59,142.62,,,,,0,PASS vs 260us
+g2_fused_off_t8,8,off,597.94,55.24,,,,,0,stock trenchcoat
+g2_tall_mul_mat_t8,8,n/a,216.93,152.26,,,,,0,contiguous reference
+g2_single_gemv_t8,8,n/a,70.75,58.36,,,,,0,8x=566
+g2_fused_on_t2,2,on,420.67,78.52,,,,,0,already at packed floor
+g2_fused_off_t2,2,off,420.90,78.48,,,,,0,stock=fused at t=2
+g2_tall_mul_mat_t2,2,n/a,420.09,78.63,,,,,0,floor
+g3_new_n32,4,on,,,0.212,2.730,60.2,241.05,0,token match vs baseline
+g3_base_n32,4,off,,,0.239,2.647,60.2,241.05,0,mellum2 pin
+g4_r1_n64_k8,2,on,,,0.182,2.813,68.2,219.20,0,FAIL vs 0.17
+g4_r2_n64_k8,2,on,,,0.182,2.823,68.2,219.20,0,FAIL vs 0.17
+g4_k6_d1.0,2,on,,,0.159,4.489,78.5,53.36,0,drop 15.4%
+g5_marco_on_n16,2,on,,,0.106,4.938,20.4,89.43,0,qwen3moe 256e match
+g5_marco_off_n16,2,off,,,0.108,5.242,20.4,89.43,0,qwen3moe 256e match
