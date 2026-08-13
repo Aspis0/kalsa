@@ -39,6 +39,7 @@
     "expo-secure-store": "~57.0.1",
     "expo-sharing": "~57.0.8",
     "expo-speech": "~57.0.1",
+    "fflate": "^0.8.3",
     "llama.rn": "0.12.8",
     "lucide-react-native": "^1.14.0",
     "react": "19.2.3",

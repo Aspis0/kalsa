@@ -1,7 +1,7 @@
 /**
  * Documents library screen — friendly list, detail, single picker, cover gen.
  * Pattern mirrors HelpScreen / SettingsScreen (Header + list). Extraction
- * reuses requestPdfText (PDF) and FileSystem read (TXT).
+ * reuses requestPdfText (PDF), FileSystem read (TXT), and docxToText (.docx).
  *
  * Delete ownership + in-flight latch live in AppShell (survives this screen's
  * unmount). Pure storage helpers live in documentStorage.ts.
@@ -36,9 +36,21 @@ import {
   MAX_TEXT_BYTES,
   copyToOwnedStorage,
   deleteOwnedFile,
+  peekFileHead,
   resolveAssetSizeBytes,
   sizeWithinLimits,
+  writeOwnedText,
 } from "../documents/documentStorage";
+import {
+  DOCUMENTS_PICKER_TYPES,
+  pickKind,
+  shouldSniffPickedKind,
+  sniffDocxOrLegacy,
+} from "../documents/documentKinds";
+import {
+  DocxExtractError,
+  extractDocxTextFromFile,
+} from "../documents/docxToText";
 import { generateCoverForDoc } from "../documents/documentCover";
 import { isDocumentOpInFlight } from "../documents/documentChatTool";
 import {
@@ -112,25 +124,6 @@ async function hasNulInPrefix(uri: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function pickKind(
-  mimeType: string | undefined,
-  name: string,
-): "pdf" | "txt" | null {
-  const lower = (name ?? "").toLowerCase();
-  const mime = (mimeType ?? "").toLowerCase();
-  if (mime === "application/pdf" || lower.endsWith(".pdf")) return "pdf";
-  if (
-    mime === "text/markdown" ||
-    mime === "text/x-markdown" ||
-    lower.endsWith(".md") ||
-    lower.endsWith(".markdown")
-  ) {
-    return "txt";
-  }
-  if (mime === "text/plain" || lower.endsWith(".txt")) return "txt";
-  return null;
 }
 
 export function DocumentsScreen({
@@ -233,36 +226,51 @@ export function DocumentsScreen({
     }
     try {
       const picked = await DocumentPicker.getDocumentAsync({
-        type: ["application/pdf", "text/plain", "text/markdown"],
+        type: DOCUMENTS_PICKER_TYPES,
         copyToCacheDirectory: true,
         multiple: false,
       });
       if (picked.canceled || !picked.assets?.length) return;
       const asset = picked.assets[0];
       const uri = asset.uri;
-      const name = asset.name ?? "document";
-      const kind = pickKind(asset.mimeType, name);
+      const name = (asset.name ?? "document").trim();
+      let kind = pickKind(asset.mimeType, name);
+      if (shouldSniffPickedKind(kind, name)) {
+        const head = await peekFileHead(uri, 8);
+        if (head) {
+          const sniffed = sniffDocxOrLegacy(head);
+          if (sniffed) kind = sniffed;
+        }
+      }
+      if (kind === "doc_legacy") {
+        Alert.alert(t("documents.title"), t("documents.errorLegacyWord"));
+        return;
+      }
       if (!kind) {
         Alert.alert(t("documents.title"), t("documents.errorBinary"));
         return;
       }
 
       const resolvedSize = await resolveAssetSizeBytes(uri);
+      // Images inside the zip are skipped; the 50 MiB cap is the container, the 10 MiB cap is inflated text.
       const sizeCheck = sizeWithinLimits(resolvedSize, kind);
       if (!sizeCheck.ok) {
         if (sizeCheck.reason === "empty") {
           Alert.alert(t("documents.title"), t("documents.errorEmpty"));
         } else if (sizeCheck.reason === "too_large") {
           const max =
-            kind === "pdf"
-              ? formatBytesLocalized(MAX_DOCUMENT_BYTES, locale)
-              : formatBytesLocalized(MAX_TEXT_BYTES, locale);
+            kind === "txt"
+              ? formatBytesLocalized(MAX_TEXT_BYTES, locale)
+              : formatBytesLocalized(MAX_DOCUMENT_BYTES, locale);
           Alert.alert(
             t("documents.title"),
             t("documents.errorTooLarge", { max }),
           );
         } else {
-          Alert.alert(t("documents.title"), t("documents.errorTxt"));
+          Alert.alert(
+            t("documents.title"),
+            kind === "docx" ? t("documents.errorDocx") : t("documents.errorTxt"),
+          );
         }
         return;
       }
@@ -288,6 +296,67 @@ export function DocumentsScreen({
       const sourceId = id;
 
       let ownedUri: string;
+      let libraryKind: "pdf" | "txt" = kind === "pdf" ? "pdf" : "txt";
+      let storedSizeBytes = sizeBytes;
+      let docCount = 0;
+      let pageCount: number | undefined;
+      let estimatedTokens: number | undefined;
+      let extractionStatus: ExtractionStatus = "ok";
+
+      if (kind === "docx") {
+        let text = "";
+        try {
+          text = await extractDocxTextFromFile(uri);
+        } catch (error) {
+          if (error instanceof DocxExtractError) {
+            if (error.code === "DOCX_EMPTY") {
+              Alert.alert(t("documents.title"), t("documents.errorEmpty"));
+            } else if (error.code === "DOCX_TOO_LARGE") {
+              Alert.alert(
+                t("documents.title"),
+                t("documents.errorTooLarge", {
+                  max: formatBytesLocalized(MAX_TEXT_BYTES, locale),
+                }),
+              );
+            } else {
+              Alert.alert(t("documents.title"), t("documents.errorDocx"));
+            }
+          } else {
+            Alert.alert(t("documents.title"), t("documents.errorDocx"));
+          }
+          return;
+        }
+        if (new TextEncoder().encode(text).length > MAX_TEXT_BYTES) {
+          Alert.alert(
+            t("documents.title"),
+            t("documents.errorTooLarge", {
+              max: formatBytesLocalized(MAX_TEXT_BYTES, locale),
+            }),
+          );
+          return;
+        }
+        if (isDocumentDeleteInFlight()) {
+          Alert.alert(t("documents.title"), t("documents.errorBusy"));
+          return;
+        }
+        try {
+          ownedUri = await writeOwnedText(id, text);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          Alert.alert(
+            t("documents.title"),
+            msg === "NO_DOCUMENT_DIRECTORY"
+              ? t("documents.errorStorage")
+              : t("documents.errorDocx"),
+          );
+          return;
+        }
+        libraryKind = "txt";
+        storedSizeBytes = new TextEncoder().encode(text).length;
+        docCount = 1;
+        estimatedTokens = estimateTokensForDoc(text);
+        extractionStatus = "ok";
+      } else {
       try {
         ownedUri = await copyToOwnedStorage(uri, id, kind);
       } catch (err) {
@@ -300,11 +369,6 @@ export function DocumentsScreen({
         );
         return;
       }
-
-      let docCount = 0;
-      let pageCount: number | undefined;
-      let estimatedTokens: number | undefined;
-      let extractionStatus: ExtractionStatus = "ok";
 
       if (kind === "pdf") {
         try {
@@ -387,6 +451,7 @@ export function DocumentsScreen({
         estimatedTokens = estimateTokensForDoc(trimmed);
         extractionStatus = "ok";
       }
+      }
 
       if (isDocumentDeleteInFlight()) {
         await deleteOwnedFile(ownedUri);
@@ -398,9 +463,9 @@ export function DocumentsScreen({
         id,
         name,
         sourceId,
-        kind,
+        kind: libraryKind,
         addedAt: Date.now(),
-        sizeBytes,
+        sizeBytes: storedSizeBytes,
         docCount,
         fileUri: ownedUri,
         extractionStatus,

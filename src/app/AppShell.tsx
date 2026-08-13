@@ -4137,6 +4137,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             documentLibrary={documentLibrary}
             onMemoryBanner={(key) => setMemoryBannerKey(key)}
             onOpenDocuments={() => setActiveOverlay({ kind: "documents" })}
+            onAddDocument={addDocument}
             onOpenMiniapp={(miniapp) => {
               // Policy: ignore miniapp open while Settings/Help/Documents is active
               // (exclusive overlay; stays until user closes it).

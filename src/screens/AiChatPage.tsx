@@ -106,6 +106,30 @@ import {
   type VoiceUiPhase,
 } from "../voice/voiceUiState";
 import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
+import {
+  estimateTokensForDoc,
+  formatBytesLocalized,
+  type LibraryDoc,
+} from "../documents/DocumentLibrary";
+import {
+  CHAT_DOCUMENT_PICKER_TYPES,
+  pickKind,
+  shouldSniffPickedKind,
+  sniffDocxOrLegacy,
+} from "../documents/documentKinds";
+import {
+  DocxExtractError,
+  extractDocxTextFromFile,
+} from "../documents/docxToText";
+import {
+  MAX_DOCUMENT_BYTES,
+  MAX_TEXT_BYTES,
+  deleteOwnedFile,
+  peekFileHead,
+  resolveAssetSizeBytes,
+  sizeWithinLimits,
+  writeOwnedText,
+} from "../documents/documentStorage";
 
 const HISTORY_KEY = "kalsa.messages.v1";
 
@@ -267,6 +291,11 @@ type Props = {
   /** Open the Documents overlay (empty library / manage). */
   onOpenDocuments?: () => void;
   /**
+   * AppShell-owned library add. Chat Word import persists as owned TXT.
+   * Omitted in isolated tests — those paths must not leave orphan files.
+   */
+  onAddDocument?: (entry: LibraryDoc) => boolean;
+  /**
    * Optional UI banner sink for non-blocking fit signals (e.g. model.memoryUnknown).
    * AppShell wires this to setMemoryBannerKey.
    */
@@ -406,6 +435,10 @@ let _msgIdCounter = Math.floor((Date.now() % 1_000_000_000) / 7);
 function nextMsgId(prefix: string): string {
   _msgIdCounter += 1;
   return `${prefix}-${_msgIdCounter}`;
+}
+
+function nextLibraryDocId(): string {
+  return `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 // PDF attach rimosso (Fase 3): nessun endpoint remoto, tutto locale.
@@ -659,6 +692,7 @@ export function AiChatPage({
   engineCtx,
   documentLibrary,
   onOpenDocuments,
+  onAddDocument,
   onMemoryBanner,
 }: Props) {
   const { colors, mode } = useLabTheme<any>();
@@ -884,6 +918,9 @@ export function AiChatPage({
   pdfToRenderRef.current = pdfToRender;
   const pdfPagesRef = useRef<string[]>([]);
   const pickingPdfRef = useRef(false);
+  const importAndAttachDocxRef = useRef<
+    (uri: string, name: string) => Promise<void>
+  >(async () => undefined);
 
   // In-app translation (volatile — NOT persisted with history).
   // One translation at a time: a new run replaces the previous result.
@@ -1288,7 +1325,7 @@ export function AiChatPage({
     pickingPdfRef.current = true;
     try {
       const picked = await DocumentPicker.getDocumentAsync({
-        type: "application/pdf",
+        type: CHAT_DOCUMENT_PICKER_TYPES,
         copyToCacheDirectory: true,
         multiple: false,
       });
@@ -1296,14 +1333,30 @@ export function AiChatPage({
       if (!mountedRef.current) return;
       if (picked.canceled || !picked.assets?.length) return;
       const asset = picked.assets[0];
-      const mime = (asset.mimeType ?? "").toLowerCase();
       const name = (asset.name ?? "").trim();
-      const isPdf =
-        mime === "application/pdf" ||
-        mime === "application/x-pdf" ||
-        name.toLowerCase().endsWith(".pdf");
-      if (!isPdf) {
-        showVoiceNote(t("errors.pdfInvalidType"));
+      let kind = pickKind(asset.mimeType, name);
+      if (shouldSniffPickedKind(kind, name)) {
+        const head = await peekFileHead(asset.uri, 8);
+        if (head) {
+          const sniffed = sniffDocxOrLegacy(head);
+          if (sniffed) kind = sniffed;
+        }
+      }
+      if (kind === "doc_legacy") {
+        showVoiceNote(t("documents.errorLegacyWord"));
+        return;
+      }
+      if (kind === "docx") {
+        if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
+          showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+          return;
+        }
+        setAttachSheetOpen(false);
+        await importAndAttachDocxRef.current(asset.uri, name || "document.docx");
+        return;
+      }
+      if (kind !== "pdf") {
+        showVoiceNote(t("errors.attachmentInvalidType"));
         return;
       }
       if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
@@ -2998,6 +3051,113 @@ export function AiChatPage({
     [showVoiceNote, t],
   );
 
+  const importAndAttachDocx = useCallback(
+    async (uri: string, name: string) => {
+      if (!mountedRef.current) return;
+      if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
+        showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+        return;
+      }
+      showVoiceNote(t("documents.importingWord"));
+      const resolvedSize = await resolveAssetSizeBytes(uri);
+      if (!mountedRef.current) return;
+      // Images inside the zip are skipped; the 50 MiB cap is the container, the 10 MiB cap is inflated text.
+      const sizeCheck = sizeWithinLimits(resolvedSize, "docx");
+      if (!sizeCheck.ok) {
+        if (sizeCheck.reason === "empty") {
+          showVoiceNote(t("documents.errorEmpty"));
+        } else if (sizeCheck.reason === "too_large") {
+          showVoiceNote(
+            t("documents.errorTooLarge", {
+              max: formatBytesLocalized(MAX_DOCUMENT_BYTES, locale),
+            }),
+          );
+        } else {
+          showVoiceNote(t("documents.errorDocx"));
+        }
+        return;
+      }
+      let text = "";
+      try {
+        text = await extractDocxTextFromFile(uri);
+      } catch (error) {
+        if (!mountedRef.current) return;
+        if (error instanceof DocxExtractError) {
+          if (error.code === "DOCX_EMPTY") {
+            showVoiceNote(t("documents.errorEmpty"));
+          } else if (error.code === "DOCX_TOO_LARGE") {
+            showVoiceNote(
+              t("documents.errorTooLarge", {
+                max: formatBytesLocalized(MAX_TEXT_BYTES, locale),
+              }),
+            );
+          } else {
+            showVoiceNote(t("documents.errorDocx"));
+          }
+        } else {
+          showVoiceNote(t("documents.errorDocx"));
+        }
+        return;
+      }
+      if (!mountedRef.current) return;
+      if (new TextEncoder().encode(text).length > MAX_TEXT_BYTES) {
+        showVoiceNote(
+          t("documents.errorTooLarge", {
+            max: formatBytesLocalized(MAX_TEXT_BYTES, locale),
+          }),
+        );
+        return;
+      }
+      if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
+        showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+        return;
+      }
+      const id = nextLibraryDocId();
+      let ownedUri: string;
+      try {
+        ownedUri = await writeOwnedText(id, text);
+      } catch (err) {
+        if (!mountedRef.current) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        showVoiceNote(
+          msg === "NO_DOCUMENT_DIRECTORY"
+            ? t("documents.errorStorage")
+            : t("documents.errorDocx"),
+        );
+        return;
+      }
+      if (!mountedRef.current) {
+        await deleteOwnedFile(ownedUri);
+        return;
+      }
+      if (!onAddDocument) {
+        await deleteOwnedFile(ownedUri);
+        showVoiceNote(t("documents.errorSave"));
+        return;
+      }
+      const entry: LibraryDoc = {
+        id,
+        name,
+        sourceId: id,
+        kind: "txt",
+        addedAt: Date.now(),
+        sizeBytes: new TextEncoder().encode(text).length,
+        docCount: 1,
+        fileUri: ownedUri,
+        extractionStatus: "ok",
+        estimatedTokens: estimateTokensForDoc(text),
+      };
+      if (!onAddDocument(entry)) {
+        await deleteOwnedFile(ownedUri);
+        if (mountedRef.current) showVoiceNote(t("documents.errorBusy"));
+        return;
+      }
+      addLibraryDocumentAttachment({ id, name });
+    },
+    [addLibraryDocumentAttachment, locale, onAddDocument, showVoiceNote, t],
+  );
+  importAndAttachDocxRef.current = importAndAttachDocx;
+
   const keyExtractor = useCallback((m: Message) => m.id, []);
 
   const listContentContainerStyle = useMemo(
@@ -3922,7 +4082,7 @@ export function AiChatPage({
                 />
                 <AttachSheetRow
                   icon={<FileText size={18} color={colors.ink} />}
-                  label={t("chat.pdfDocument")}
+                  label={t("chat.pdfOrWord")}
                   onPress={() => void addPdfAttachment()}
                   colors={colors}
                 />

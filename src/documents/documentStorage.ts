@@ -94,7 +94,7 @@ export function isOwnedDocumentUri(
  */
 export function sizeWithinLimits(
   sizeBytes: number | null | undefined,
-  kind: "pdf" | "txt",
+  kind: "pdf" | "txt" | "docx",
 ): {
   ok: true;
   sizeBytes: number;
@@ -107,7 +107,7 @@ export function sizeWithinLimits(
   ) {
     return { ok: false, reason: "unknown" };
   }
-  const max = kind === "pdf" ? MAX_DOCUMENT_BYTES : MAX_TEXT_BYTES;
+  const max = kind === "txt" ? MAX_TEXT_BYTES : MAX_DOCUMENT_BYTES;
   const n = Math.floor(sizeBytes);
   if (n === 0) return { ok: false, reason: "empty" };
   if (n > max) return { ok: false, reason: "too_large" };
@@ -176,6 +176,42 @@ export async function copyToOwnedStorage(
   const dest = `${dir}${id}.${ext}`;
   await FileSystem.copyAsync({ from: sourceUri, to: dest });
   return dest;
+}
+
+/** Persist extracted UTF-8 text as `{id}.txt`. Do not copyAsync a .docx here. */
+export async function writeOwnedText(id: string, text: string): Promise<string> {
+  if (!id || typeof id !== "string") {
+    throw new Error("writeOwnedText: id required");
+  }
+  const safe = id.replace(/[^A-Za-z0-9._-]/g, "_");
+  if (!safe) throw new Error("writeOwnedText: empty safe id");
+  const dir = await ensureDocumentsDir();
+  const dest = `${dir}${safe}.txt`;
+  await FileSystem.writeAsStringAsync(dest, text, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+  return dest;
+}
+
+/** First `n` bytes via Base64 slice (length/position only apply with Base64). */
+export async function peekFileHead(
+  uri: string,
+  n = 8,
+): Promise<Uint8Array | null> {
+  if (!uri || typeof uri !== "string" || n <= 0) return null;
+  try {
+    const b64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+      position: 0,
+      length: n,
+    });
+    if (typeof b64 !== "string" || !b64) return null;
+    const { Buffer } = await import("buffer");
+    const bytes = new Uint8Array(Buffer.from(b64, "base64"));
+    return bytes.byteLength > 0 ? bytes : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
