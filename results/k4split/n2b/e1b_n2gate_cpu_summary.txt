@@ -1,0 +1,16 @@
+=== cell=e1b_n2gate_cpu rc=0 2026-08-13T06:09:45-04:00 ===
+bmoe: placement n_gpu_layers=0 flash_attn=off moe_cpu_experts=off pin_ffn_exps=0 extra_ot=0
+bmoe: dense-weights=anon — 1664 MiB in 613 anon buffers
+bmoe: dense-weights=anon — dropped 1662 MiB of now-unused mmap pages
+--- out after think ---
+
+A Mixture-of-Experts (MoE) model consists of multiple distinct neural network "experts" that are selectively activated for each
+
+generation: 32 tokens, 0.366 s/token (2.733 tok/s)
+compute: 71.2% CPU occupancy (1.0426 cpu-s/token over 4 threads), 0.03 major faults/token
+prefill: 74 tokens, 7.447 s (9.9 tok/s) | model load 10.970 s | TTFT 18.417 s
+moe-stream: read 2305.3 MiB (72.04 MiB/token), decode 0.366 s/token (compute 0.291 + cache mgmt 0.008 + flash I/O 0.320 s/token, 225 MiB/s)
+moe-cache: 44.0% hit, resident 999.1 MiB
+moe-cache: 4978 evictions, 1748 re-reads (54.6/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.067 s/token (flash reads overlapped with FFN compute)
+moe-drop: 946/7680 routed experts dropped (12.3%), threshold 0.65 x uniform

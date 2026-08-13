@@ -1,0 +1,16 @@
+# extracted continuation after </think>, before "generation:"
+# sha256 of the 131-byte CPU/pin slice:
+#   5490BA0D0F5D3A2421661B2B72E8B63E4B370CE46B49C0A594BD490807813E8D
+
+N2 CPU  / e1b CPU / e1 PIN  (identical):
+A Mixture-of-Experts (MoE) model consists of multiple distinct neural network "experts" that are selectively activated for each
+
+N2 B / A / AUTO (unpinned split):
+A Mixture-of-Experts (MoE) model consists of multiple smaller "expert" networks that are selectively activated for each input token
+
+First diverge: "distinct" vs "smaller"
+Equality: N2CPU == e1bCPU == e1PIN  True
+          e1PIN  == N2B             False
+
+e3_routes_cpu (--route-trace, NOT an identity observer):
+A Mixture-of-Experts (MoE) model consists of multiple distinct "expert" neural networks that are activated selectively for each token

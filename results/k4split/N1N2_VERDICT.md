@@ -1,9 +1,12 @@
 # k4split N1+N2 verdict — 2026-08-13 morning (S23, plugged)
 
 **N1: PASS** at `--cache-mb 1000 --force-cache` (2000 and 1500 ram-guard refuse).
-**N2: FAIL_CORRECTNESS.** Hook is alive. Split arms A/B/AUTO are byte-identical
-to each other. CPU (`-ngl 0`) diverges at the first contentful choice after
-`</think>` (`distinct` vs `smaller`). Mandate: no N3/N4 speed work.
+**N2: FAIL_CORRECTNESS as-run (unpinned).** Hook is alive. Split arms A/B/AUTO
+are byte-identical to each other. CPU (`-ngl 0`) diverges at the first
+contentful choice after `</think>` (`distinct` vs `smaller`).
+**N2b: ROUTER_SELECTION. N2 PASS with `--override-tensor ffn_gate_inp.weight=CPU`.**
+Unpinned split is not a valid product config. N3/N4 allowed only UNPLUGGED
+with the pin in the config of record.
 
 Device stayed up. Cable was in the whole time (PLUGGED_AC, charging 34% → 66%,
 batt temp 27–38 °C). Speed numbers below are **not** a gate; they are load/gen
@@ -164,19 +167,18 @@ Split arms min MemFree ~50–57 MiB, min MemAvailable ~953 MiB. No abort.
 
 ## What morning should do
 
-1. **Do not run N3/N4.** Fail-correctness kill-gate.
-2. Treat A=B=AUTO + live hook as evidence the **split placement and streamer
-   are working**. The fail is trunk-op numerics (`-ngl 99` OpenCL vs `-ngl 0`
-   CPU) on the first divergent token.
-3. Next debug (not this agent's job): token-level dump (`--progress` or
-   logits) at the `distinct`/`smaller` position; compare a single dense
-   `MUL_MAT` (Q5_K/Q6_K) CPU vs OpenCL on this prompt; do **not** "fix" by
-   loosening the token-identical rule.
-4. Any later speed cell must stay **UNPLUGGED, batt ≥45%**, cache **1000 +
-   `--force-cache`**, `LD_LIBRARY_PATH=.../bin:/vendor/lib64`, and a MemFree
-   sampler that waits ~60 s through the alloc spike.
+1. N2b cleared FAIL_CORRECTNESS. **N3/N4 are allowed** only UNPLUGGED,
+   batt ≥45 %, battery temp guard 45 °C, with the router pin on every
+   split arm. See `MORNING.md`.
+2. A=B=AUTO + live hook still means the **split placement and streamer
+   work**. The unpinned fail was GPU router selection, not Mechanism A vs B.
+3. Config of record: k6d065 + `--cache-mb 1000 --force-cache` +
+   `--override-tensor ffn_gate_inp.weight=CPU` on `-ngl 99` arms.
+4. Speed cells stay **UNPLUGGED, batt ≥45%**, `LD_LIBRARY_PATH=.../bin:/vendor/lib64`,
+   MemFree sampler that waits ~60 s through the alloc spike.
 5. Binary and prompts stay staged at `~/gdn_k2/k4split/`. Do not git push.
-   Do not touch PLAN.md.
+   Do not touch PLAN.md. Do not apply `n2b/pin_router_gate_inp.patch`
+   unless a human asks — the CLI `-ot` is enough for N3.
 
 ---
 
@@ -187,3 +189,49 @@ Split arms min MemFree ~50–57 MiB, min MemAvailable ~953 MiB. No abort.
 - N1 sched debug: `n1/n1_sched_B_c1000.err` (3.2 MiB)
 - N2 greedy: `n2/n2_{CPU,A,B,AUTO}_c1000.{out,err}` + matching `memfree_*.csv`
 - N2 `-f` false start (unknown arg): `n2/bad_dash_f/`
+
+---
+
+## N2b — divergence root cause (2026-08-13, S23, PLUGGED_AC 77→89 %)
+
+**Verdict: ROUTER_SELECTION.** N2 **PASS** with the pin.
+
+The fork is GPU `MUL_MAT(ffn_gate_inp)` → `SOFT_MAX` → `ARGSORT` flipping
+near-tie top-k (256 F32 logits). N1 sched already showed that whole chain
+on OpenCL, with `HostAlias` copying `ffn_moe_topk-0` to the CPU expert
+split. KEXP has no `exp_probs_b`. 2B/4B dense models have no router, which
+is why they were token-identical.
+
+One-variable cell `e1_router_cpu`:
+
+```
+--ngl 99 --flash-attn off --moe-cpu-experts on --dense-weights anon \
+  --override-tensor ffn_gate_inp.weight=CPU
+```
+
+plus the config of record (`--cache-mb 1000 --force-cache`, k6d065, greedy
+temp 0 seed 42 n=32). 40/40 `ffn_gate_inp.weight` pinned; 0 shexp pins;
+HostAlias **silent** (topk now host-backed). Generated continuation after
+`</think>` is **byte-identical** to CPU (`distinct neural network
+"experts"…`, sha `5490BA0D…`, 131 bytes). Unpinned N2 B stays `smaller
+"expert" networks…`.
+
+N2 re-gate CPU (`e1b_n2gate_cpu`) reproduced the original N2 CPU text
+**and** cache fingerprint (2305.3 MiB, 44.0 % hit, 4978/1748, 946/7680).
+Hook on the pin arm: 43.7 % / 72.76 MiB/tok vs 44.0 % / 72.04. Alive.
+
+ngl bisect not run (identity restored). `--route-trace` exists but
+**perturbs tokens** (`e3_routes_cpu` drifted inside the `distinct` family);
+do not use it as an identity observer.
+
+Residual: pin-arm drop-cold 952 vs CPU 946 — GPU trunk still feeds
+`attn_post_norm` into the CPU router, so weights can nibble drop-cold
+without flipping n=32 greedy tokens. Not the N2 fail.
+
+**Config of record now includes the pin.** Product patch (not applied, not
+committed): `results/k4split/n2b/pin_router_gate_inp.patch` (Mechanism
+B/Auto also pins `ffn_gate_inp\.weight`). Full write-up:
+`results/k4split/n2b/report.md`.
+
+N3/N4 are unblocked **only** UNPLUGGED, batt ≥45 %, same cache, pin on
+every split arm.

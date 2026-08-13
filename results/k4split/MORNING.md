@@ -1,18 +1,21 @@
 # k4split — morning test card (S23 only)
 
-**STOP — N3/N4 are forbidden.** N1 PASS, N2 **FAIL_CORRECTNESS**.
-Read `N1N2_VERDICT.md` then `STATUS.md`. Do not run any timed cell.
+**N1 PASS. N2 PASS with router pin.** N3/N4 are allowed **only UNPLUGGED,
+batt ≥45 %**. Read `N1N2_VERDICT.md` (N2b section) then `STATUS.md`.
+Do not measure plugged. Pin is **required** on every split arm.
 
-What already ran (2026-08-13, S23, **PLUGGED_AC**, charging 34→66%):
+What already ran (2026-08-13, S23, **PLUGGED_AC**):
 
 - Binary pushed: `~/gdn_k2/k4split/bin/bmoe-cli` sha `b8b1c732…`
   (`LD_LIBRARY_PATH` **must** include `/vendor/lib64`).
 - KEXP sha `ac44e20c…` size 13416430592.
 - Config of record: k6d065 with **`--cache-mb 1000 --force-cache`**
-  (2000 and 1500 ram-guard refuse).
+  (2000 and 1500 ram-guard refuse) **and**
+  **`--override-tensor ffn_gate_inp.weight=CPU`** on every `-ngl 99` arm.
 - N1 ARM_B c512 + c4096 + one `GGML_SCHED_DEBUG=2` (82 splits): PASS.
-- N2 greedy temp 0 seed 42 n=32: hook alive (44% vs 45% hit), but CPU
-  text ≠ split text. A == B == AUTO. First diverge: `distinct` vs `smaller`.
+- N2 unpinned: FAIL (`distinct` vs `smaller`). A == B == AUTO. Hook alive.
+- **N2b:** pin `ffn_gate_inp.weight=CPU` restores token-identity. N2 PASS.
+  Product patch (not applied): `n2b/pin_router_gate_inp.patch`.
 - `bmoe-cli` has **no `-f`**. Use `-p "$(cat prompts/p_fact.txt)"`.
 - MemFree dips to 14–90 MiB for ~20 s during OpenCL alloc then recovers.
   Do **not** kill on the first sample; 60 s sustained is the working rule.
@@ -189,6 +192,8 @@ Campaign **k6d065** (both arms unless RAM forces a documented cache cut):
 
 Always add `--flash-attn off` on A7X (default is already off; keep it
 explicit). Always `-ngl 99` on the split arms.
+**Always** `--override-tensor ffn_gate_inp.weight=CPU` on split arms
+(N2b: GPU router SOFT_MAX/ARGSORT flips near-tie top-k).
 
 ```bash
 K6D065="-t 4 --moe-stream --cache-mb 2000 --overlap --io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65"
@@ -276,7 +281,11 @@ retry cache cuts above. Do not proceed to N2 on a dying phone.
 
 ---
 
-## 7. N2 — correctness (PLUGGED OK)
+## 7. N2 — correctness (PLUGGED OK) — **already run; N2b passed with pin**
+
+Historical unpinned cells are in `n2/`. Re-runs of split arms **must**
+add `--override-tensor ffn_gate_inp.weight=CPU` (see N2b). Commands
+below are the original unpinned recipe.
 
 Greedy, temp 0, seed 42, n=32, `-c 4096`, **same prompt file**, **same
 binary**. Token-identical required (fp reorder: if not identical, stop at
@@ -369,11 +378,11 @@ done
 
 ---
 
-## 8. N3 — speed (DO NOT RUN — FAIL_CORRECTNESS)
+## 8. N3 — speed (UNPLUGGED only; N2b cleared correctness)
 
-N2 failed token-identity. Mandate: no speed work. Commands below are
-kept only so a later human does not have to reconstruct them **after**
-someone explains `distinct` vs `smaller`.
+N2b restored token-identity with the router pin. Speed work is allowed
+**only UNPLUGGED, batt ≥45 %**. Every split arm **must** carry
+`--override-tensor ffn_gate_inp.weight=CPU`.
 
 Do **not** measure plugged. If the cable is in or batt <45%, do not arm.
 Gate (pre-declared, only if N2 is later cleared): split decode median
@@ -401,11 +410,13 @@ the product pair; A/B optional):
 
 ```bash
 # fadvise the GGUF cold, then:
-"$BIN" -m "$MODEL" -f "$WS/prompts/p_fact.txt" -n 200 -c 4096 \
+"$BIN" -m "$MODEL" -p "$(cat "$WS/prompts/p_fact.txt")" -n 200 -c 4096 \
   --temp 0 --seed 42 \
   $K6D065 --dense-weights anon \
   --ngl 0 --flash-attn off --moe-cpu-experts off
-# then same with ARM_AUTO flags
+# then same with ARM_AUTO flags PLUS the router pin:
+#   --ngl 99 --flash-attn off --moe-cpu-experts auto --dense-weights anon-gpu \
+#   --override-tensor ffn_gate_inp.weight=CPU
 ```
 
 N4 (15 min marathon) only if N3 PASS or TTFT ≥1.5×.
@@ -429,15 +440,15 @@ alone.
 ## One-screen cheat sheet
 
 ```
-DONE     N0 binaries + N1 PASS + N2 FAIL_CORRECTNESS
-STOP     do not run N3/N4
+DONE     N0 binaries + N1 PASS + N2 FAIL unpinned + N2b PASS with pin
+NEXT     N3 speed UNPLUGGED batt>=45, then N4 if N3 PASS or TTFT>=1.5x
 PIN      KEXP sha ac44e20c… size 13416430592
          bmoe-cli sha b8b1c732…   LD_LIBRARY_PATH=$WS/bin:/vendor/lib64
+         SPLIT MUST: --override-tensor ffn_gate_inp.weight=CPU
 CACHE    1000 --force-cache   (2000/1500 ram-guard refuse)
 ABORT    MemFree < 300 MiB sustained 60s (15s is a false kill during alloc)
 N1       PASS  c512+c4096 ARM_B, 82 splits, hook alive
-N2       FAIL  A=B=AUTO; CPU diverges at "distinct" vs "smaller"
-         hook alive 44% vs 45% hit, 72 vs 69 MiB/tok
-NEXT     token/logit dump at first diverge — not speed
-SPEED    forbidden until N2 is cleared; then UNPLUGGED batt>=45 only
+N2       unpinned FAIL  A=B=AUTO; distinct vs smaller
+N2b      ROUTER_SELECTION; pin restores token-identity; hook 43.7 vs 44.0
+SPEED    UNPLUGGED batt>=45 only; pin on every split arm
 ```

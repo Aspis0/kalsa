@@ -1,0 +1,4 @@
+
+
+A Mixture-of-Experts (MoE) model consists of multiple distinct "expert" neural networks that are activated selectively for each token
+

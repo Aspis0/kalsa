@@ -1,11 +1,13 @@
-# k4split STATUS — 2026-08-13 morning (N1 PASS, N2 FAIL_CORRECTNESS)
+# k4split STATUS — 2026-08-13 (N1 PASS, N2 PASS with router pin)
 
-**Milestone: N0 DONE + N1 PASS + N2 FAIL_CORRECTNESS. N3/N4 not run (kill-gate).**
-Parent residency kernel is on `BigMoeOnEdge` `main` @ `8958cdf`. Android
-OpenCL `bmoe-cli` staged + pushed (`b8b1c732…`). S23 was free, charging
-(PLUGGED_AC), 4B marathon already dead. Full write-up:
-`results/k4split/N1N2_VERDICT.md`. Human card: `MORNING.md` (N3 forbidden).
-Do not update `PLAN.md`. Do not git push.
+**Milestone: N0 DONE + N1 PASS + N2b ROUTER_SELECTION + N2 PASS with
+`--override-tensor ffn_gate_inp.weight=CPU`.** N3/N4 not run (need
+UNPLUGGED batt ≥45 %). Parent residency kernel is on `BigMoeOnEdge`
+`main` @ `8958cdf`. Android OpenCL `bmoe-cli` staged + pushed
+(`b8b1c732…`). Full write-up: `results/k4split/N1N2_VERDICT.md` +
+`results/k4split/n2b/report.md`. Human card: `MORNING.md`.
+Do not update `PLAN.md`. Do not git push. Do not apply the parent
+patch unless a human asks — the CLI `-ot` is enough for N3.
 
 ---
 
@@ -23,18 +25,22 @@ to 3–4 GiB after anon-drop. MemAvailable stayed ≥1 GiB. A 15 s MemFree
 watchdog is a false BLOCKED_RAM; 60 s sustained is the working rule. Device
 alive.
 
-N2 **FAIL_CORRECTNESS**. Same binary, temp 0 seed 42 n=32 c=4096, `p_fact.txt`
-via `-p` (`bmoe-cli` has no `-f`). Hook **alive**: CPU 44.0% / 72.04 MiB/tok
-vs split 45.0% / 68.89 MiB/tok. A == B == AUTO (byte-identical). CPU
-diverges at the first contentful token after `</think>`:
+N2 unpinned **FAIL_CORRECTNESS**. Same binary, temp 0 seed 42 n=32 c=4096,
+`p_fact.txt` via `-p`. Hook **alive**: CPU 44.0% / 72.04 MiB/tok vs split
+45.0% / 68.89 MiB/tok. A == B == AUTO. CPU diverges after `</think>`:
 `distinct neural network "experts"` vs `smaller "expert" networks`.
-Systematic early divergence → no N3/N4.
 
-Config of record for any later cell: k6d065 with **`--cache-mb 1000
---force-cache`**, `LD_LIBRARY_PATH=$WS/bin:/vendor/lib64`. Speed still
-requires UNPLUGGED batt≥45.
+**N2b ROUTER_SELECTION → N2 PASS** with
+`--override-tensor ffn_gate_inp.weight=CPU`. Generated body byte-identical
+to CPU (sha `5490BA0D…`). HostAlias silent. Hook 43.7% vs 44.0%. See
+`n2b/report.md`.
 
-Logs: `results/k4split/n1/`, `n2/`, `s23_logs/`.
+Config of record: k6d065 + **`--cache-mb 1000 --force-cache`** +
+**`-ot ffn_gate_inp.weight=CPU`** on split arms.
+`LD_LIBRARY_PATH=$WS/bin:/vendor/lib64`. Speed still requires UNPLUGGED
+batt≥45.
+
+Logs: `results/k4split/n1/`, `n2/`, `n2b/`, `s23_logs/`.
 
 ---
 
@@ -154,14 +160,14 @@ Fallback `llama-cli` OpenCL @ `04c5d362a`
 
 ## What did not land
 
-- N3 speed (UNPLUGGED, batt ≥45%) — **forbidden** after FAIL_CORRECTNESS
+- N3 speed (UNPLUGGED, batt ≥45%) — **now allowed**; pin required
 - N4 sustained
 - `N0_DESIGN_NOTES.md` (recon notes + `IMPL_NOTES.md` stand in)
 - PLAN.md (forbidden)
 - git push (forbidden)
 - Any Xiaomi / Jelly SSH
 - Any ggml-opencl / FLASH_ATTN / GEMV edit
-- Token-identical CPU vs split (N2 measured fail; see above)
+- Token-identical CPU vs **unpinned** split (N2 fail; N2b pin restores it)
 
 ---
 
@@ -179,8 +185,8 @@ Still open (CONFIRMED operational, not a logic bug):
 
 | id | evidence |
 |---|---|
-| **N2 token mismatch (CPU vs GPU trunk)** | greedy n=32: CPU `distinct neural network "experts"` vs A=B=AUTO `smaller "expert" networks`. Hook alive. See `N1N2_VERDICT.md`. |
-| **N3/N4 unmeasured** | FAIL_CORRECTNESS kill-gate; do not run plugged; do not run until N2 is understood |
+| **N2 token mismatch (unpinned)** | CONFIRMED ROUTER_SELECTION. GPU `SOFT_MAX`/`ARGSORT` on `ffn_gate_inp`. Fixed by `-ot ffn_gate_inp.weight=CPU`. See `n2b/report.md`. |
+| **N3/N4 unmeasured** | N2b cleared correctness; still need UNPLUGGED batt≥45 + the pin |
 
 Residual risks now **measured** (N1/N2):
 
@@ -193,8 +199,8 @@ Residual risks now **measured** (N1/N2):
 - `--cache-mb 2000`/`1500` **ram-guard refuse**; 1000 needs `--force-cache`.
 - `predict` / `route-ahead` still off on k6d065.
 - PC `bmoe-cli` cannot run the split (OpenCL OFF by design).
-- **NEW CONFIRMED**: GPU trunk vs CPU trunk is not token-identical on
-  greedy n=32 (see N2).
+- **N2b CONFIRMED**: unpinned GPU *router* (not the trunk) is not
+  token-identical. Pin `ffn_gate_inp.weight=CPU` restores n=32 greedy.
 
 ---
 
@@ -220,17 +226,12 @@ N1 abort: **MemFree < 300 MiB sustained** (stricter than campaign
 
 ---
 
-## Morning order (no SSH from this agent)
+## Morning order
 
-1. Wait until `pgrep -f llama-cli` is empty on the S23. Do **not** kill it.
-2. Android ELF is staged (`results/k4split/bin/bmoe-cli` sha `b8b1c732…`).
-3. Push with `results/k4split/run_n1_n2.ps1 -Push` (or the scp block in
-   `MORNING.md`). Workspace: `~/gdn_k2/k4split/`.
-4. Verify KEXP path + sha `ac44e20c…` (full:
-   `ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a`,
-   size `13416430592`).
-5. N1 load smoke (PLUGGED OK) → N2 greedy A/B (PLUGGED OK) → N3 only
-   UNPLUGGED batt ≥45 °C-guard 45 °C battery.
+1. Binary + workspace already staged (`~/gdn_k2/k4split/`).
+2. N1/N2/N2b are done. Next is **N3 UNPLUGGED batt ≥45 %** with
+   `--override-tensor ffn_gate_inp.weight=CPU` on every split arm.
+3. Do not apply `n2b/pin_router_gate_inp.patch` unless a human asks.
 
 Campaign pin (CPU reference only; N2 A/B uses **our** binary both sides):
 `~/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN` sha

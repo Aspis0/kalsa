@@ -1,0 +1,26 @@
+--- a/core/src/engine/session.cpp
++++ b/core/src/engine/session.cpp
+@@ -221,8 +221,9 @@
+     return out;
+ }
+ 
+ // Routed expert weights: blk.N.ffn_{up,down,gate,gate_up}_{,ch}exps — not the shared expert
+-// (*_shexp) and not the router (ffn_gate_inp). Matches llama.cpp's LLM_FFN_EXPS_REGEX.
++// (*_shexp). Router weight (ffn_gate_inp.weight, not *_shexp) is pinned separately
++// so GPU SOFT_MAX/ARGSORT cannot flip near-tie top-k (N2b). Matches LLM_FFN_EXPS_REGEX.
+ bool is_routed_expert_name(const std::string & name) {
+     if (name.find("shexp") != std::string::npos) return false;
+     if (name.find(".ffn_") == std::string::npos) return false;
+@@ -568,7 +569,11 @@
+         im.buft_override_patterns.push_back(std::move(pattern));
+         im.buft_overrides.push_back({im.buft_override_patterns.back().c_str(), buft});
+     };
+     if (pin_ffn_exps) push_buft_override(LLM_FFN_EXPS_REGEX, ggml_backend_cpu_buffer_type());
++    // N2b: OpenCL MUL_MAT(gate_inp) → SOFT_MAX → ARGSORT on 256-way F32 logits
++    // flips near-tie expert selection vs CPU. Pin the router WEIGHT only
++    // (`ffn_gate_inp.weight`, not `ffn_gate_inp_shexp`) so the chain stays host.
++    // Measured: `--override-tensor ffn_gate_inp.weight=CPU` restores N2 identity.
++    if (pin_ffn_exps) push_buft_override("ffn_gate_inp\\.weight", ggml_backend_cpu_buffer_type());
+     for (const std::string & spec : cfg.override_tensor) {
+         std::string rest = spec;
+         while (!rest.empty()) {
