@@ -87,6 +87,20 @@ On `n_gpu_layers != 0`:
 
 Unknown `MemAvailable` (0) logs and proceeds.
 
+## Audit fix (2026-08-13, `audit_impl.md` was missing)
+
+Re-read e926a54 + the live tree. The listed residency holes:
+
+| item | verdict | fix |
+|---|---|---|
+| dangling `tensor_buft_overrides` | **CONFIRMED** | Pattern strings lived in a function-local `vector<string>`; `.c_str()` was handed to llama.cpp, which walks them with `std::regex` during load. Moved to `Session::Impl` as `std::list<std::string>` (same stable-pointer rule as llama.cpp `parse_tensor_buffer_overrides`). |
+| `n_gpu_layers` still hardcoded | already `= cfg.n_gpu_layers` | Comment only: llama default is `-1` (all layers); we must never leave it. |
+| default `ngl != 0` | already `0` on `RunConfig` / `SessionConfig` / CLI | no code change |
+| flash-attn on | already off (`DISABLED` unless `--flash-attn on`) | no code change |
+| anon-gpu freeing experts | **CONFIRMED** hole | Capture-miss / name-mismatch could put `ffn_*_exps` in the dense list. AnonGpu would then rebind them or `MADV_DONTNEED` their live mmap. Dense list now skips `is_routed_expert_name`; `DenseWeights` refuses to copy or drop those names; `drop_mmap_copies` also refuses a range whose `tensor->data` still points into it. Cache-auto does not deduct leaked expert bytes. |
+
+Compile after the fix (existing `moe-experiments/build-pc`, `-j4` after `vcvars64`): `session.cpp`, `dense_weights.cpp`, `expert_stream_source.cpp` rebuilt; `bmoe_config_test` all passed, including `placement defaults are ngl=0 / fa=off / experts=off`. BigMoeOnEdge commit `342df14`. No fork branch, no push, no device work.
+
 ## Compile check (PC, 2026-08-13)
 
 Existing `build-pc` (BigMoeOnEdge host, MSVC). `-j4` after `vcvars64`.
