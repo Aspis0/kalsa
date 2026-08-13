@@ -37,6 +37,9 @@ export const INDEX_KEY = "kalsa.conversations.v1";
 /** Pre-multi-chat history key. Left in place after migrate so a botched copy is recoverable. */
 export const LEGACY_MESSAGES_KEY = "kalsa.messages.v1";
 
+/** Written after the first successful migrate so legacy is never a source of truth again. */
+export const MIGRATED_KEY = "kalsa.conversations.migrated";
+
 /** Cap for index searchBlob so the conversation list stays small. */
 export const SEARCH_BLOB_CAP = 8_000;
 
@@ -130,9 +133,10 @@ function sortByRecency(items: ConversationMeta[]): ConversationMeta[] {
 }
 
 /**
- * Keyword AND filter. Tokens shorter than 3 chars are ignored.
- * Empty query (or only short tokens) → all items, recency-sorted.
- * A token matches when it appears in title or searchBlob.
+ * Keyword AND filter. Tokens shorter than 3 chars are ignored when any
+ * token is ≥3 chars. Empty query → all items, recency-sorted.
+ * Non-empty query whose tokens were all dropped → includes match on
+ * title + searchBlob (never "show all").
  */
 export function filterConversations(
   items: ConversationMeta[],
@@ -142,11 +146,12 @@ export function filterConversations(
   const q = typeof query === "string" ? query.trim().toLowerCase() : "";
   if (!q) return list;
   const tokens = q.split(/\s+/).filter((tok) => tok.length >= 3);
-  if (tokens.length === 0) return list;
+  const matchTokens = tokens.length > 0 ? tokens : q.split(/\s+/).filter(Boolean);
+  if (matchTokens.length === 0) return [];
   return list.filter((item) => {
     const title = typeof item.title === "string" ? item.title.toLowerCase() : "";
     const blob = typeof item.searchBlob === "string" ? item.searchBlob : "";
-    return tokens.every((tok) => title.includes(tok) || blob.includes(tok));
+    return matchTokens.every((tok) => title.includes(tok) || blob.includes(tok));
   });
 }
 
@@ -288,9 +293,35 @@ export function legacyMessagesAreValid(raw: string | null | undefined): boolean 
   }
 }
 
+/** True when the persisted messages value is a non-empty array. */
+export function persistedMessagesAreNonEmpty(raw: string | null | undefined): boolean {
+  if (!raw || typeof raw !== "string") return false;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) && parsed.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+export async function conversationHasPersistedMessages(
+  storage: KeyValueStorage,
+  id: string,
+): Promise<boolean> {
+  let raw: string | null = null;
+  try {
+    raw = await storage.getItem(messagesKey(id));
+  } catch {
+    return false;
+  }
+  return persistedMessagesAreNonEmpty(raw);
+}
+
 /**
- * If the index is missing/empty and `kalsa.messages.v1` has a valid array,
- * copy it into `kalsa.messages.<id>` and write a one-item index.
+ * One-shot copy of `kalsa.messages.v1` into `kalsa.messages.default` + index.
+ * Runs only when the index key is ABSENT (empty/corrupt index is not a migrate).
+ * Does not overwrite `kalsa.messages.default` if that key already exists.
+ * Writes `kalsa.conversations.migrated` so legacy is never a source of truth again.
  * Does not delete the legacy key (recoverable if this copy is botched).
  */
 export async function migrateLegacyIfNeeded(
@@ -302,8 +333,15 @@ export async function migrateLegacyIfNeeded(
   } catch {
     return null;
   }
-  const existing = parseConversationsState(indexRaw);
-  if (existing.items.length > 0) return null;
+  // Present — even empty or corrupt — means already migrated.
+  if (indexRaw !== null) return null;
+
+  try {
+    const tomb = await storage.getItem(MIGRATED_KEY);
+    if (tomb != null && String(tomb).length > 0) return null;
+  } catch {
+    return null;
+  }
 
   let legacyRaw: string | null = null;
   try {
@@ -313,21 +351,34 @@ export async function migrateLegacyIfNeeded(
   }
   if (!legacyMessagesAreValid(legacyRaw)) return null;
 
-  let messages: Array<{ role?: unknown; text?: unknown }> = [];
+  // Stable id so existing compactor keys under "default" keep working.
+  const id = "default";
+  const destKey = messagesKey(id);
+  let destRaw: string | null = null;
   try {
-    messages = JSON.parse(legacyRaw as string) as Array<{
-      role?: unknown;
-      text?: unknown;
-    }>;
+    destRaw = await storage.getItem(destKey);
   } catch {
     return null;
+  }
+
+  const sourceRaw = destRaw === null ? (legacyRaw as string) : destRaw;
+  if (destRaw === null) {
+    await storage.setItem(destKey, legacyRaw as string);
+  }
+
+  let messages: Array<{ role?: unknown; text?: unknown }> = [];
+  try {
+    const parsed = JSON.parse(sourceRaw) as unknown;
+    if (Array.isArray(parsed)) {
+      messages = parsed as Array<{ role?: unknown; text?: unknown }>;
+    }
+  } catch {
+    messages = [];
   }
 
   const firstUser = messages.find(
     (m) => m && m.role === "user" && typeof m.text === "string" && m.text.trim(),
   );
-  // Stable id so existing compactor keys under "default" keep working.
-  const id = "default";
   const meta: ConversationMeta = {
     id,
     title: titleFromFirstUserText(
@@ -338,8 +389,8 @@ export async function migrateLegacyIfNeeded(
     searchBlob: searchBlobFromMessages(messages),
   };
   const state: ConversationsState = { activeId: id, items: [meta] };
-  await storage.setItem(messagesKey(id), legacyRaw as string);
   await storage.setItem(INDEX_KEY, serializeConversationsState(state));
+  await storage.setItem(MIGRATED_KEY, "1");
   return state;
 }
 

@@ -105,7 +105,12 @@ export function Drawer({
             transform: [{ translateX }],
           }}
         >
-          <GlassPanel2 opaque rounded="lg" style={{ flex: 1, borderRadius: 0, paddingTop: insets.top, paddingBottom: insets.bottom }}>
+          <GlassPanel2
+            opaque
+            rounded="lg"
+            style={{ flex: 1, borderRadius: 0, paddingTop: insets.top, paddingBottom: insets.bottom }}
+            contentStyle={{ flex: 1, minHeight: 0 }}
+          >
             <View style={{ padding: spacing.lg, paddingBottom: spacing.md }}>
               <Text style={[typography.displayMd, { color: colors.ink }]}>{brand}</Text>
               {subtitle ? (

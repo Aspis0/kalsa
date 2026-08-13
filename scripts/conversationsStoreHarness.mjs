@@ -171,8 +171,10 @@ async function main() {
     serializeConversationsState,
     migrateLegacyIfNeeded,
     loadConversationsState,
+    conversationHasPersistedMessages,
     INDEX_KEY,
     LEGACY_MESSAGES_KEY,
+    MIGRATED_KEY,
     SEARCH_BLOB_CAP,
   } = store;
 
@@ -293,8 +295,13 @@ async function main() {
     filterConversations(mixed, "   ").map((x) => x.id).join(",") === "newest,new,old",
   );
   check(
-    "short tokens ignored → all",
-    filterConversations(mixed, "ab xy").length === 3,
+    "short tokens do not show all",
+    filterConversations(mixed, "ab xy").length === 0,
+  );
+  check(
+    "short query includes title",
+    filterConversations(mixed, "be").length === 1 &&
+      filterConversations(mixed, "be")[0].id === "new",
   );
 
   const andHits = filterConversations(mixed, "uniqueold sharedtok");
@@ -391,13 +398,25 @@ async function main() {
       Boolean(await storage.getItem(INDEX_KEY)),
     );
     check(
+      "migrate wrote tombstone",
+      (await storage.getItem(MIGRATED_KEY)) === "1",
+    );
+    check(
       "migrate title from first user",
       migrated?.items[0].title === "First question about photosynthesis",
     );
 
-    // Second call is a no-op (index already populated).
+    // Second call is a no-op (index key present).
     const again = await migrateLegacyIfNeeded(storage);
     check("migrate second call no-op", again === null);
+
+    await storage.removeItem(INDEX_KEY);
+    const afterIndexDelete = await migrateLegacyIfNeeded(storage);
+    check(
+      "migrate after index delete still no-op (tombstone)",
+      afterIndexDelete === null,
+    );
+    await storage.setItem(INDEX_KEY, serializeConversationsState(migrated));
 
     const loaded = await loadConversationsState(storage);
     check(
@@ -420,6 +439,87 @@ async function main() {
     check("migrate skips invalid messages", migrated === null);
   }
 
+  {
+    const storage = memStorage();
+    const legacy = [{ id: "m1", role: "user", text: "Should not migrate" }];
+    await storage.setItem(INDEX_KEY, JSON.stringify({ activeId: "", items: [] }));
+    await storage.setItem(LEGACY_MESSAGES_KEY, JSON.stringify(legacy));
+    const migrated = await migrateLegacyIfNeeded(storage);
+    check("migrate skips present empty index", migrated === null);
+    check(
+      "empty index did not copy default",
+      (await storage.getItem(messagesKey("default"))) === null,
+    );
+  }
+
+  {
+    const storage = memStorage();
+    const legacy = [{ id: "m1", role: "user", text: "Should not migrate" }];
+    await storage.setItem(INDEX_KEY, "{nope");
+    await storage.setItem(LEGACY_MESSAGES_KEY, JSON.stringify(legacy));
+    const migrated = await migrateLegacyIfNeeded(storage);
+    check("migrate skips present corrupt index", migrated === null);
+    check(
+      "corrupt index did not copy default",
+      (await storage.getItem(messagesKey("default"))) === null,
+    );
+  }
+
+  {
+    const storage = memStorage();
+    const keep = [{ id: "keep", role: "user", text: "keep me" }];
+    const legacy = [{ id: "m1", role: "user", text: "legacy must not overwrite" }];
+    await storage.setItem(messagesKey("default"), JSON.stringify(keep));
+    await storage.setItem(LEGACY_MESSAGES_KEY, JSON.stringify(legacy));
+    const migrated = await migrateLegacyIfNeeded(storage);
+    check("migrate with existing default still writes index", migrated !== null && migrated.items[0].id === "default");
+    check(
+      "migrate does not overwrite existing default",
+      (await storage.getItem(messagesKey("default"))) === JSON.stringify(keep),
+    );
+    check(
+      "migrate existing default uses dest title",
+      migrated?.items[0].title === "keep me",
+    );
+    check(
+      "migrate existing default writes tombstone",
+      (await storage.getItem(MIGRATED_KEY)) === "1",
+    );
+  }
+
+  {
+    const storage = memStorage();
+    await storage.setItem(MIGRATED_KEY, "1");
+    await storage.setItem(
+      LEGACY_MESSAGES_KEY,
+      JSON.stringify([{ id: "m1", role: "user", text: "legacy after tombstone" }]),
+    );
+    const migrated = await migrateLegacyIfNeeded(storage);
+    check("migrate skips when tombstone set", migrated === null);
+    check(
+      "tombstone did not copy default",
+      (await storage.getItem(messagesKey("default"))) === null,
+    );
+  }
+
+  {
+    const storage = memStorage();
+    check(
+      "conversationHasPersistedMessages missing",
+      (await conversationHasPersistedMessages(storage, "none")) === false,
+    );
+    await storage.setItem(messagesKey("c1"), "[]");
+    check(
+      "conversationHasPersistedMessages empty array",
+      (await conversationHasPersistedMessages(storage, "c1")) === false,
+    );
+    await storage.setItem(messagesKey("c1"), JSON.stringify([{ role: "user", text: "x" }]));
+    check(
+      "conversationHasPersistedMessages non-empty",
+      (await conversationHasPersistedMessages(storage, "c1")) === true,
+    );
+  }
+
   // ── sessionMeta conversationId ──────────────────────────────────────────
   const baseMeta = {
     formatVersion: 1,
@@ -433,9 +533,11 @@ async function main() {
     sessionMetaMatches(baseMeta, { ...baseMeta }),
   );
   check(
-    "sessionMeta conversationId ignore missing vs present",
-    sessionMetaMatches(baseMeta, { ...baseMeta, conversationId: "conv-1" }) &&
-      sessionMetaMatches({ ...baseMeta, conversationId: "conv-1" }, baseMeta),
+    "sessionMeta conversationId one-sided mismatch",
+    sessionMetaMatches(baseMeta, { ...baseMeta, conversationId: "conv-1" }) === false &&
+      sessionMetaMatches({ ...baseMeta, conversationId: "conv-1" }, baseMeta) === false &&
+      sessionMetaMismatchField(baseMeta, { ...baseMeta, conversationId: "conv-1" }) ===
+        "conversationId",
   );
   check(
     "sessionMeta conversationId equal match",
@@ -456,11 +558,15 @@ async function main() {
       ) === "conversationId",
   );
   check(
-    "sessionMeta conversationId empty string ignored",
+    "sessionMeta conversationId empty vs present mismatch",
     sessionMetaMatches(
       { ...baseMeta, conversationId: "" },
       { ...baseMeta, conversationId: "conv-1" },
-    ),
+    ) === false,
+  );
+  check(
+    "sessionMeta conversationId both empty match",
+    sessionMetaMatches({ ...baseMeta, conversationId: "" }, { ...baseMeta }),
   );
 
   // ── setBootMessagesKey + getBootHistoryHash ─────────────────────────────

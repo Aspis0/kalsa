@@ -29,7 +29,7 @@ export type SessionMeta = {
   promptEnvHash?: string;
   /**
    * Active conversation id when the session was saved. Optional for back-compat.
-   * sessionMetaMatches compares only when BOTH sides have a non-empty value.
+   * Both absent/empty match. One side non-empty and the other empty → mismatch.
    */
   conversationId?: string;
   /** Date.now() at save; ignored by sessionMetaMatches */
@@ -177,7 +177,7 @@ export function computePromptEnvHash(
  * True when stored meta is safe to load for the current engine + history.
  * Does NOT require savedAt equality. Optional mtpNMax/specType/engineKnob:
  * missing and undefined are treated as equal. promptEnvHash must match
- * (missing ≡ undefined).
+ * (missing ≡ undefined). conversationId: both empty match; one-sided is a mismatch.
  */
 export function sessionMetaMatches(a: SessionMeta, b: SessionMeta): boolean {
   return sessionMetaMismatchField(a, b) === null;
@@ -208,7 +208,7 @@ export function sessionMetaMismatchField(a: SessionMeta, b: SessionMeta): string
     typeof b.conversationId === "string" && b.conversationId.length > 0
       ? b.conversationId
       : "";
-  if (aConv && bConv && aConv !== bConv) return "conversationId";
+  if (aConv !== bConv) return "conversationId";
   return null;
 }
 

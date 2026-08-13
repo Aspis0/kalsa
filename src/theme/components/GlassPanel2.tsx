@@ -8,6 +8,8 @@ type Props = {
   intensity?: number;
   rounded?: keyof typeof radius;
   style?: StyleProp<ViewStyle>;
+  /** Inner children wrapper — pass flex:1 when this panel is a clip (drawer). */
+  contentStyle?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
   /**
    * When true, skip BlurView and use an opaque `colors.panelSolid` fill.
@@ -26,6 +28,7 @@ export function GlassPanel2({
   intensity = 28,
   rounded = "lg",
   style,
+  contentStyle,
   children,
   opaque = false,
 }: Props) {
@@ -79,7 +82,7 @@ export function GlassPanel2({
           },
         ]}
       />
-      <View>{children}</View>
+      <View style={contentStyle}>{children}</View>
     </View>
   );
 }

@@ -318,6 +318,10 @@ type Props = {
   }) => void;
   /** Parent calls this to flush the active conversation before a switch. */
   persistFlushRef?: React.MutableRefObject<(() => void) | null>;
+  /** True when the active chat has no in-memory/persisted messages (after load). */
+  isActiveChatEmptyRef?: React.MutableRefObject<(() => boolean) | null>;
+  /** Parent bumps the persist epoch before deleting this chat's messages key. */
+  bumpPersistEpochRef?: React.MutableRefObject<(() => void) | null>;
 };
 
 type SuggestionItem = {
@@ -722,6 +726,8 @@ export function AiChatPage({
   onNewConversation,
   onConversationTouched,
   persistFlushRef,
+  isActiveChatEmptyRef,
+  bumpPersistEpochRef,
 }: Props) {
   const { colors, mode } = useLabTheme<any>();
   // Reactive tokens: font-scale change re-renders this page via context.
@@ -848,6 +854,8 @@ export function AiChatPage({
 
   // ── Persistenza conversazione (Fase 1) ──────────────────────────────────
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const historyLoadedRef = useRef(historyLoaded);
+  historyLoadedRef.current = historyLoaded;
   /** Always mirrors latest messages for flush paths (AppState / unmount / throttle). */
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -952,20 +960,39 @@ export function AiChatPage({
   }, [conversationId]);
 
   useEffect(() => {
-    if (!persistFlushRef) return;
-    persistFlushRef.current = () => {
-      const snap = messagesRef.current;
-      const epoch = persistEpochRef.current;
-      persistActiveMessages(snap, {
-        allowStreamingPartial: true,
-        epoch,
-        getEpoch: () => persistEpochRef.current,
-      });
-    };
+    if (persistFlushRef) {
+      persistFlushRef.current = () => {
+        const snap = messagesRef.current;
+        const epoch = persistEpochRef.current;
+        persistActiveMessages(snap, {
+          allowStreamingPartial: true,
+          epoch,
+          getEpoch: () => persistEpochRef.current,
+        });
+      };
+    }
+    if (isActiveChatEmptyRef) {
+      isActiveChatEmptyRef.current = () => {
+        if (!historyLoadedRef.current) return false;
+        return messagesRef.current.length === 0;
+      };
+    }
+    if (bumpPersistEpochRef) {
+      bumpPersistEpochRef.current = () => {
+        persistEpochRef.current += 1;
+      };
+    }
     return () => {
-      persistFlushRef.current = null;
+      if (persistFlushRef) persistFlushRef.current = null;
+      if (isActiveChatEmptyRef) isActiveChatEmptyRef.current = null;
+      if (bumpPersistEpochRef) bumpPersistEpochRef.current = null;
     };
-  }, [persistFlushRef, persistActiveMessages]);
+  }, [
+    bumpPersistEpochRef,
+    isActiveChatEmptyRef,
+    persistFlushRef,
+    persistActiveMessages,
+  ]);
 
   // Debounced normal path: skip while any turn is streaming so the 400ms quiet
   // gap cannot clobber a throttled/AppState partial (drops streaming messages).
@@ -2660,6 +2687,9 @@ export function AiChatPage({
   }, [messages, t]);
 
   const clearChat = useCallback(() => {
+    if (onNewConversation && historyLoadedRef.current && messagesRef.current.length === 0) {
+      return;
+    }
     abortRef.current?.abort();
     // Flush the current conversation BEFORE bumping the persist epoch so
     // "new chat" cannot drop the last un-debounced write of the old thread.
@@ -3568,7 +3598,9 @@ export function AiChatPage({
       ) : null}
 
       {/* ── Messages / welcome ── */}
-      {messages.length === 0 ? (
+      {!historyLoaded ? (
+        <View style={{ flex: 1 }} />
+      ) : messages.length === 0 ? (
         // HIGH-1 (Jelly 480×854): welcome chips must NOT cover the composer.
         // flex:1 + ScrollView keeps the EditText always in the tree and tappable;
         // on tall screens the list simply does not scroll.

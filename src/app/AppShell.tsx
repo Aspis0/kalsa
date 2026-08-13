@@ -132,6 +132,7 @@ import {
   setSessionConversationId,
 } from "../engine/sessionPersistence";
 import {
+  conversationHasPersistedMessages,
   createEmptyConversationMeta,
   filterConversations,
   getDefaultConversationsStorage,
@@ -704,12 +705,23 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const [conversationsReady, setConversationsReady] = useState(false);
   const [chatSearch, setChatSearch] = useState("");
   const persistFlushRef = useRef<(() => void) | null>(null);
+  const isActiveChatEmptyRef = useRef<(() => boolean) | null>(null);
+  const bumpPersistEpochRef = useRef<(() => void) | null>(null);
   const conversationsMutationRef = useRef(0);
+  const pendingConversationSaveRef = useRef<Promise<void>>(Promise.resolve());
+  const newChatInFlightRef = useRef(false);
 
-  const persistConversations = useCallback((state: ConversationsState) => {
-    void saveConversationsState(getDefaultConversationsStorage(), state).catch(
-      () => undefined,
-    );
+  const enqueueConversationSave = useCallback((state: ConversationsState) => {
+    const run = async () => {
+      try {
+        await saveConversationsState(getDefaultConversationsStorage(), state);
+      } catch {
+        // best-effort; queue must keep draining
+      }
+    };
+    pendingConversationSaveRef.current = pendingConversationSaveRef.current
+      .then(run, run)
+      .catch(() => undefined);
   }, []);
 
   const applyConversations = useCallback(
@@ -717,9 +729,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       conversationsMutationRef.current += 1;
       conversationsRef.current = next;
       setConversations(next);
-      persistConversations(next);
+      enqueueConversationSave(next);
     },
-    [persistConversations],
+    [enqueueConversationSave],
   );
 
   const bindActiveConversation = useCallback((id: string) => {
@@ -744,11 +756,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (state.items.length === 0) {
           const meta = createEmptyConversationMeta();
           state = { activeId: meta.id, items: [meta] };
-          try {
-            await saveConversationsState(getDefaultConversationsStorage(), state);
-          } catch {
-            // keep in-memory empty conversation even if persist fails
-          }
+          enqueueConversationSave(state);
         }
         if (!mounted) return;
         conversationsRef.current = state;
@@ -763,6 +771,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         const state: ConversationsState = { activeId: meta.id, items: [meta] };
         conversationsRef.current = state;
         setConversations(state);
+        enqueueConversationSave(state);
         bindActiveConversation(state.activeId);
         void getBootHistoryHash();
         setConversationsReady(true);
@@ -770,7 +779,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     return () => {
       mounted = false;
     };
-  }, [bindActiveConversation]);
+  }, [bindActiveConversation, enqueueConversationSave]);
   const docIndexByIdRef = useRef<Map<string, DocRetrieverIndex>>(new Map());
   /**
    * Per-doc dense vector index. Durable under kalsa-documents/{docId}.vec.json;
@@ -1864,6 +1873,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
       persistFlushRef.current?.();
       abortBackgroundSummary();
+      const modelId = getActiveModelId();
+      if (modelId) void invalidateEngineSession(modelId);
       applyConversations(setActive(conversationsRef.current, id));
       bindActiveConversation(id);
       setDrawerOpen(false);
@@ -1872,22 +1883,49 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   );
 
   const handleNewConversation = useCallback(() => {
-    const current = conversationsRef.current.items.find(
-      (item) => item.id === conversationsRef.current.activeId,
-    );
-    if (current && !current.title && !current.preview && !current.searchBlob) {
+    if (isActiveChatEmptyRef.current?.()) {
+      setDrawerOpen(false);
+      return;
+    }
+    if (newChatInFlightRef.current) {
       setDrawerOpen(false);
       return;
     }
     persistFlushRef.current?.();
     abortBackgroundSummary();
-    const meta = createEmptyConversationMeta();
-    applyConversations(setActive(upsertMeta(conversationsRef.current, meta), meta.id));
-    bindActiveConversation(meta.id);
-    const modelId = getActiveModelId();
-    if (modelId) void invalidateEngineSession(modelId);
-    setDrawerOpen(false);
-  }, [applyConversations, bindActiveConversation]);
+    newChatInFlightRef.current = true;
+    void (async () => {
+      try {
+        const storage = getDefaultConversationsStorage();
+        const currentId = conversationsRef.current.activeId;
+        for (const item of conversationsRef.current.items) {
+          if (item.id === currentId) continue;
+          let hasMessages = false;
+          try {
+            hasMessages = await conversationHasPersistedMessages(storage, item.id);
+          } catch {
+            hasMessages = false;
+          }
+          if (!hasMessages) {
+            handleSwitchConversation(item.id);
+            return;
+          }
+        }
+        if (isActiveChatEmptyRef.current?.()) {
+          setDrawerOpen(false);
+          return;
+        }
+        const meta = createEmptyConversationMeta();
+        const modelId = getActiveModelId();
+        if (modelId) void invalidateEngineSession(modelId);
+        applyConversations(setActive(upsertMeta(conversationsRef.current, meta), meta.id));
+        bindActiveConversation(meta.id);
+        setDrawerOpen(false);
+      } finally {
+        newChatInFlightRef.current = false;
+      }
+    })();
+  }, [applyConversations, bindActiveConversation, handleSwitchConversation]);
 
   const handleDeleteConversation = useCallback(
     (id: string) => {
@@ -1896,6 +1934,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       if (!prev.items.some((item) => item.id === id)) return;
       const deletingActive = prev.activeId === id;
       abortBackgroundSummary();
+      bumpPersistEpochRef.current?.();
+      void resetCompactorChat(id);
       let next = removeConversation(prev, id);
       if (next.items.length === 0) {
         const meta = createEmptyConversationMeta();
@@ -1907,11 +1947,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       } catch {
         // ignore illegal id
       }
-      bindActiveConversation(next.activeId);
       if (deletingActive) {
         const modelId = getActiveModelId();
         if (modelId) void invalidateEngineSession(modelId);
       }
+      bindActiveConversation(next.activeId);
       setDrawerOpen(false);
     },
     [applyConversations, bindActiveConversation],
@@ -4369,6 +4409,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             onDeleteConversation={handleDeleteConversation}
             onConversationTouched={handleConversationTouched}
             persistFlushRef={persistFlushRef}
+            isActiveChatEmptyRef={isActiveChatEmptyRef}
+            bumpPersistEpochRef={bumpPersistEpochRef}
           />
         </View>
 
