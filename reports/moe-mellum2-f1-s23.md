@@ -185,6 +185,111 @@ Artifacts: `results/mellum2_f1_s23/f1b/` (CSV, master log, smoke/sanity/regime l
 
 ---
 
+## F1d — ceiling forensics
+
+**CEILING_REAL(mul_mat_id). Corrected compute 0.228 s/tok → ceiling 4.39 t/s. KEXP k=8 band 3.5–4.4 t/s (85% hit hits the wall).**
+
+**Date:** 2026-08-13  
+**Waited for F1c:** yes (STATUS=DONE, no bmoe left, then launched). Jelly/Xiaomi untouched. Campaign pin untouched.  
+**Binary:** `~/bin/bmoe-cli-mellum2` → `~/bin/mellum2/bmoe-cli` sha `0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c`  
+**Campaign pin:** still `1ca51420476d4a…`  
+**F1b pin:** still `69a35f5ef85e28…` (not reused)
+
+### Suspect 1 — build flags. Rebuilt. Did not move the ceiling.
+
+F1b was **not** campaign-identical.
+
+| | F1b `bmoe-cli-mellum` | Campaign script (`build-android.ps1` / `build_bmoe_ndk.sh`) | F1d rebuild |
+|---|---|---|---|
+| `GGML_CPU_ARM_ARCH` | `armv8.2-a+dotprod+i8mm+fp16` | `armv8.2-a+dotprod+fp16` | `armv8.2-a+dotprod+fp16` |
+| `HAVE_MATMUL_INT8` | **1** | (no i8mm → fail) | **Failed** |
+| `GGML_CPU_REPACK` | ON | ON (unset, cmake default) | ON |
+| `libggml-cpu.so` | 5 119 344 B | — | 5 006 968 B |
+
+The `+i8mm` bit is exactly the `moe-cpu-build-gap.md` thief (REPACK ON converts Q4_K → `q4_K_8x8_q8_K` only when `ggml_cpu_has_matmul_int8()` is 1). Rebuild used campaign-identical flags, mellum recipe row only extra, `-j 4`, new tree `build-android-mellum2`. No strip (campaign PS1 does not strip; `bmoe-cli` is a 6.3 MB dynamic binary, not the 125 MB llama-bench case). Installed as `~/bin/bmoe-cli-mellum2`. Campaign pin never written.
+
+### Suspect 2 — cores / cpuset. Documented, not the 2× hole.
+
+`cpu/online` was **0-7 the entire window**. `nproc=6` (F1b regime, F1c, F1d start) is `sched_getaffinity` of the **shell** (mask `0x5f` = cpus 0,1,2,3,4,6). `nproc --all` and `getconf _NPROCESSORS_ONLN` both return 8. `/proc/self/status Cpus_allowed_list=0-7`. Not two CPUs offline, not a Termux cpuset cgroup.
+
+Workaround used: `termux-wake-lock` + `screen_off_timeout=7200000` (same as F1c). It does **not** restore `nproc=8`. The CLI's own mask flaps (`3f`/`5f`/`ff`); `Cpus_allowed_list` of the CLI stays `0-7`.
+
+1 Hz placement (`results/mellum2_f1_s23/f1d/forensics/cpu_1hz.csv`, 290 samples):
+
+| cell | little 0-2 | X3 (cpu7) | CLI mask |
+|---|---:|---:|---|
+| A dense 2B | **2.9%** | **58.8%** | mostly `ff` |
+| B mellum k=8 unpinned | **73.9%** | **0.8%** | flaps `5f`/`3f`/`ff` |
+| C mellum pin 3-7 | **0%** | 10.0% | `f8` as requested |
+
+WALT parks the 64-tiny-expert `mul_mat_id` kernels on A510s. Dense GEMV sits on the X3. That is the geometry talking to the scheduler, not a background-restriction bug.
+
+### Suspect 3 — calibration cell. Build is healthy.
+
+Same binary, same session, UNPLUGGED, `-t 4`, n=200, no `--moe-stream` (dense `qwen35` has no recipe; that flag would fail-fast).
+
+| cell | decode tok/s | n_gen | RSS MiB | batt | temp °C |
+|---|---:|---:|---:|---|---|
+| **A dense 2B r1** | **15.938** | 189 | 1536 | 67→66 | 28.7→29.1 |
+| **A dense 2B r2** | **15.495** | 189 | 1536 | 66→66 | 29.1→29.9 |
+| **A median** | **15.72** | 189 | 1536 | 67→66 | peak 29.9 |
+
+Known band is well above 10; llama-bench cpufix was 18.19. 15.7 on `bmoe-cli` is in-band. **If the rebuild had tanked Q4_K GEMV, A would be ~12.** It is not. The 4.4 t/s mellum number is not "this binary cannot compute".
+
+### Cells B / C (UNPLUGGED, floor 45%, cold fadvise, campaign flags as F1b)
+
+| cell | decode | MiB/tok | hit% | compute s/tok | flash s/tok | flash MiB/s | nproc | CLI cpus | batt | temp |
+|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|
+| **B k=8 r1** | 2.905 | 183.14 | 76.8 | **0.227** | 0.436 | 420 | 7 | 0-7 | 66→65 | 29.9→32.1 |
+| **B k=8 r2** | 2.922 | 183.14 | 76.8 | **0.228** | 0.433 | 423 | 7 | 0-7 | 65→65 | 32.1→33.3 |
+| **B median** | **2.914** | **183.1** | **76.8** | **0.228** | 0.434 | 422 | 7 | 0-7 | 66→65 | peak 33.3 |
+| F1b k=8 median | 2.944 | 185.0 | 76.0 | 0.224 | 0.436 | 424 | 6 | — | 72→71 | 30.4 |
+| **C t=5 pin 3-7 r1** | 2.059 | 183.14 | 76.8 | **0.362** | 0.467 | 392 | 6 | 3-7 | 65→63 | 33.3→36.1 |
+| **C t=5 pin 3-7 r2** | 2.232 | 183.14 | 76.8 | **0.332** | 0.450 | 407 | 6 | 3-7 | 63→62 | 36.1→37.1 |
+
+Only five performance cores exist (3-7). C used `-t 5` on `taskset -c 3-7` rather than `-t 6` (that would require a little). Pin landed. Compute **got worse** (0.228 → 0.35): 5 compute threads + 4 I/O threads on 5 cores. More / better-placed compute does not raise tok/s. Flash 0.43 s/tok still dominates; the cell is I/O-bound at k=8. The interesting number — recomputed compute s/tok — moved the **wrong** way.
+
+Exact B r1 split:
+
+```
+generation: 200 tokens, 0.344 s/token (2.905 tok/s)
+moe-stream: read 36627.2 MiB (183.14 MiB/token), decode 0.344 s/token (compute 0.227 + cache mgmt 0.018 + flash I/O 0.436 s/token, 420 MiB/s)
+moe-cache: 76.8% hit, resident 1997.4 MiB
+```
+
+### Verdict
+
+**CEILING_REAL(mul_mat_id)**
+
+| suspect | result |
+|---|---|
+| CEILING_WAS_BUILD | **REFUTED.** Dropping `+i8mm` (HAVE_MATMUL_INT8 Failed) left compute at 0.228 vs F1b 0.224. Dense 2B 15.7 t/s. |
+| CEILING_WAS_CPUSET | **NOT the 2× hole.** `nproc=6` is a 6-bit affinity mask, not offline cores. 74% of unpinned mellum threads sit on littles — real, and it is how this 64-expert workload is scheduled. Forcing bigs did not raise the ceiling. |
+| CEILING_REAL(mul_mat_id) | **CONFIRMED.** 64 experts × (3 × 2304 × 896) Q4_K `mul_mat_id` on this stack computes at **0.228 s/tok (4.39 t/s)** even on a campaign-flag binary that runs dense 2B at 15.7. Marco1c 8.8 t/s all-in is fewer, larger experts, not a 2.5B-active GEMV. F1c on the *old* binary already showed the shape: k=8 compute 0.224 → k=4 0.149 → k=2 0.118 (ceiling 8.5). Cutting k is what moves compute. |
+
+F1b's 4.5 t/s was not a measurement error. The anomaly was the comparison (2.5B-active ≠ dense 2.5B).
+
+### Corrected compute + KEXP band
+
+Compute s/tok at native k=8 Q4, campaign flags, clean counters: **0.228** (median of 2). Ceiling **1/0.228 = 4.39 t/s**. Flash 422 MiB/s. Full expert traffic 183.14 / (1−0.768) ≈ **789 MiB/tok** (same geometry check as F1b).
+
+Assumptions unchanged: KEXP cuts routed experts only to mid 2.75 bpw; dense stays ~4.5 / anon-resident; Q2/Q3 GEMM not assumed faster; flash stays ~422 MiB/s.
+
+Hit **should rise** as the k=8 working set shrinks (789 → ~482 MiB vs 2000 MiB cache), same direction as Marco 36.7 → 53.5.
+
+| variant | MiB/tok | decode | note |
+|---|---:|---:|---|
+| **Q4 k=8 measured (F1d B)** | **183** | **2.91 t/s** | compute 0.228, flash-bound |
+| KEXP k=8, hit held 76.8% | 183×(2.75/4.5) ≈ **112** | **~3.5 t/s** | flash 112/422 = 0.265 > compute |
+| **KEXP k=8, 85% hit** | 482×0.15 ≈ **72** | **~4.4 t/s** | flash 0.172 < compute 0.228; **hits the Q4 compute wall** |
+| KEXP file size | — | — | **4.1–4.8 GB** (unchanged) |
+
+**KEXP k=8 still does not clear 10 tok/s.** Paying down flash (hit 76.8 → 85, or Q4 → 2.75 bpw) lands on the **4.4 t/s `mul_mat_id` wall**. The lever is k/drop (F1c: k=2 already 5.7 t/s all-in, compute ceiling 8.5), not a rebuild.
+
+Artifacts: `results/mellum2_f1_s23/f1d/` (CSV, 1 Hz forensics, topology, shas, per-rep logs, `build.txt`, `build_pc.log`). Campaign pin verified after install and after the run.
+
+---
+
 ## F1c — runtime k/drop grid
 
 **SPEED RECON ONLY. Quality at cut k is UNGATED.** These cells are not product cells. The PPL gate (PC, Fase-1 protocol) is required before any of k=6 / k=4 / k=2 / k=2+d0.65 becomes a product cell. **PC is busy today; that gate queues behind selfspec.** Do not read coherent k=6/k=4 English on `p_fact` as a pass, and do not read k=2 garbage as a kill. Neither is a PPL number.
