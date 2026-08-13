@@ -16,7 +16,7 @@
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 67 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 68 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -77,7 +77,7 @@
 
 | domanda | stato | chi sblocca |
 |---|---|---|
-| **Marco Fase 1 runtime** (k/drop KEXP su Marco i1-Q4_K_M, NO requant — `results/marco_phase1/PROTOCOL.md`) | **fail-fast IT v2+EN: 3/3 PASS** (A1 k8d065 Δit +0.004/Δen +0.003; A2 k6d065 +0.019/+0.010; A3 k6d050 +0.009/+0.005 — tutte ≤ +0.05). Full multi5: **A1 CHIUSA, full_gate PASS** (12:23 — 5/5 lingue entro +0.10: en +0.003, es +0.002, fr +0.003, it +0.004, zh +0.008; macro Δ+0.0040 ≤ +0.04); A2 full IN CORSO (pid 17852), poi A3 → `VERDICT.md`. ETA ~sera. **SPEED GATE S23: ✅ PASS SU ENTRAMBE LE LEVE** (2026-08-12, ABBA 2 prompt n≈200, cold fadvise, staccato, batt 100→92, no SESSION_SLOW): decode A2 **5.371** vs A0 4.122 = **1.303×** (≥1.15 PASS); MiB/tok **126.2 vs 192.5 = −34.4%** (≤−20% PASS); hit solo +3.2 pt. Confronto stesso-device: KEXP k6d065 5.696 tok/s ma **30.7 MiB/tok e hit 80.7%** → Marco runtime NON è KEXP-class su I/O (esperti Q4_K troppo grossi per cache 2000) = argomento quantificato PRO Fase 2 MarcoKEXP. `results/marco_phase1/speed_s23/` | PC in corso (qualità); poi verdetto Fase 1 completo |
+| **✅ Marco FASE 1: CHIUSA, PASS PIENO** (`results/marco_phase1/VERDICT.md`) | **Qualità full multi5 3/3 PASS**: A1 k8d065 ΔMacro **+0.0040** (drop quasi gratis a k=8); A3 k6d050 **+0.0095**; A2 k6d065 **+0.0182** (peggiore ma in gate; peggior lingua zh +0.033 vs soglia +0.10). **Speed S23 PASS su entrambe le leve**: A2 1.303× decode, −34.4% MiB/tok, hit +3.2pt. **Per PROTOCOL: transfer runtime SUFFICIENTE** → k/drop di campagna adottabili su Marco senza requant. Scelta cella prodotto (gualt): **A2** = speed misurata + qualità peggiore-ma-in-gate; **A3** = metà del costo qualità ma speed device non misurata; A1 = qualità ~gratis, leva solo-I/O. **Fase 2 MarcoKEXP resta l'upgrade di REGIME I/O** (KEXP stesso device: 30.7 MiB/tok e hit 80.7% vs 126.2/36.7 di Marco A2 → batteria e sostenuto) — GO gualt separato. Report di fase in scrittura | gualt: scelta cella + decisione Fase 2 |
 | **MarcoKEXP** — download Q8 (~18 GB) + quantize con recipe pronta | **T2c PASS** (IT v2). Prep: source ID + `tensor_types*.txt` + cmd NOT RUN. **Manca solo GO gualt** — decisione sensata DOPO il verdetto Fase 1. **Motivazione RADDOPPIATA (2026-08-12)**: dense Q4-Q8 sblocca anche il B1-STOP dello spike Xiaomi → MarcoKEXP è il veicolo del fail-fast MoE-GPU su Adreno 750 (Marco non-ibrido, K2 non si applica) | gualt GO (post Fase 1) |
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
@@ -1119,6 +1119,27 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-12 (notte) — 🏆 FASE 1 MARCO: CHIUSA CON PASS PIENO — qualità
+  3/3 full multi5 + speed entrambe le leve. Il transfer runtime della
+  config di campagna su Marco è UFFICIALE: k/drop funzionano su qwen3moe
+  senza requant.**
+
+  | cella | ΔMacro bpb | peggior lingua | gate |
+  |---|---|---|---|
+  | A1 k8d065 | **+0.0040** | zh +0.008 | PASS |
+  | A3 k6d050 | +0.0095 | zh +0.018 | PASS |
+  | A2 k6d065 | +0.0182 | zh +0.033 | PASS |
+
+  Letture: (1) il drop 0.65 a k=8 è quasi GRATIS in qualità — la penalità
+  vera è del k ridotto, non del drop (coerente con l'audit "il drop non
+  salta il matmul": toglie I/O, non calcolo); (2) zh è sempre la lingua
+  più sensibile; (3) con lo speed gate di stamattina (A2 1.303×, −34.4%
+  MiB/tok) il PROTOCOL dichiara il transfer SUFFICIENTE. Decisioni a
+  gualt: cella prodotto (A2 misurata vs A3 conservativa) e GO Fase 2
+  MarcoKEXP per il regime I/O (gap 4× MiB/tok e +44pt hit vs KEXP).
+  Nota di processo: il run PC è sopravvissuto a uno shutdown notturno
+  (resume idempotente) e ha macinato ~19 ore totali su 3 celle × 5 lingue.
 
 - **2026-08-12 (sera) — 🧭 RECON 750: la speranza "sul 750 i subgroup ci
   sono" era FALSA — il 750 è A7X come il 740, broadcast=false anche lì.
