@@ -256,7 +256,7 @@ export function PdfToImages({
         ]);
         if (!mounted) return;
         if (pdfB64.length > maxBytes * 1.34) {
-          setError(t("errors.pdfTooLarge"));
+          fail(t("errors.pdfTooLarge"), "cap");
           return;
         }
         if (isTextExtractMode(mode)) {

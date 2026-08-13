@@ -79,11 +79,15 @@ export function computeHistoryHashFromMessages(messages: unknown): string {
 
 let bootHistoryHashPromise: Promise<string> | null = null;
 /**
- * History hash captured ONCE per app process, at first call (AppShell mount) —
- * BEFORE any send can append the in-flight turn to kalsa.messages.v1. The KV
- * session gate must compare against the history the conversation STARTS from,
- * not a mid-send snapshot (lazy engine init reads after the user message is
- * already persisted → guaranteed mismatch; CI run 31279879254).
+ * History hash captured ONCE per engine-lifetime, at first call (AppShell
+ * mount) — BEFORE any send can append the in-flight turn to kalsa.messages.v1.
+ * The KV session gate must compare against the history the conversation
+ * STARTS from, not a mid-send snapshot (lazy engine init reads after the user
+ * message is already persisted → guaranteed mismatch; CI run 31279879254).
+ *
+ * After save+dispose (same-process unload), call resetBootHistoryHash so the
+ * next initEngine recomputes against the just-saved history instead of stale
+ * H0 (which would miss and delete the .kvs).
  */
 export function getBootHistoryHash(): Promise<string> {
   if (!bootHistoryHashPromise) {
@@ -97,6 +101,11 @@ export function getBootHistoryHash(): Promise<string> {
     })();
   }
   return bootHistoryHashPromise;
+}
+
+/** Drop the cached boot hash so the next getBootHistoryHash rereads storage. */
+export function resetBootHistoryHash(): void {
+  bootHistoryHashPromise = null;
 }
 
 /**

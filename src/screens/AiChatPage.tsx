@@ -8,8 +8,8 @@ import {
   FlatList,
   Image,
   Linking,
+  type ListRenderItemInfo,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -41,11 +41,8 @@ import {
   Image as ImageIcon,
   Languages,
   Menu,
-  Mic,
-  Plus,
-  Send,
+  MoreHorizontal,
   Sparkles,
-  Square,
   SquarePen,
   Volume2,
   X,
@@ -85,6 +82,8 @@ import { createStreamCoalescer } from "../engine/streamCoalescer";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
+import { StreamCaret } from "../chat/StreamCaret";
+import { BrandIcon } from "../theme/icons/BrandIcon";
 import { typography, useTypography, fontFamilies } from "../theme/typography";
 import {
   cancelCapture,
@@ -108,6 +107,20 @@ import {
 import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
 
 const HISTORY_KEY = "kalsa.messages.v1";
+
+/** Metro still sees the require(); a missing packager asset must not kill chat. */
+function tryRequireAsset(load: () => unknown): number | undefined {
+  try {
+    const value = load();
+    return typeof value === "number" ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const EMPTY_STATE_RASTER = tryRequireAsset(
+  () => require("../../assets/brand/light/empty-state.jpg"),
+);
 
 export type AiChatSelectedRun = {
   jobId: string;
@@ -198,6 +211,11 @@ export type HandleSendResult =
   | { ok: true }
   | { ok: false; reasonKey: string };
 
+/** Extra flags for the user bubble handleSend appends (edit-then-regen). */
+type HandleSendOpts = {
+  edited?: boolean;
+};
+
 /** UI phase for tap-to-talk (mirrors pure VoiceUiPhase). */
 type VoiceUiState = VoiceUiPhase;
 
@@ -236,7 +254,15 @@ type Props = {
    */
   engineCtx?: number;
   /** Snapshot of the local document library (for attach-from-library). */
-  documentLibrary?: { docs: Array<{ id: string; name: string; kind: string; pageCount?: number }> };
+  documentLibrary?: {
+    docs: Array<{
+      id: string;
+      name: string;
+      kind: string;
+      pageCount?: number;
+      previewUri?: string;
+    }>;
+  };
   /** Open the Documents overlay (empty library / manage). */
   onOpenDocuments?: () => void;
   /**
@@ -321,8 +347,6 @@ function parseMessageSegments(text: string): MessageSegment[] {
   }
   return segments.length > 0 ? segments : [{ type: "text", content: text }];
 }
-
-const MONO_FONT = Platform.OS === "ios" ? "Menlo" : "monospace";
 
 function greetingForHour(h: number, t: TranslateFn): string {
   if (h < 12) return t("chat.greetingMorning");
@@ -636,12 +660,11 @@ export function AiChatPage({
   onOpenDocuments,
   onMemoryBanner,
 }: Props) {
-  const { colors } = useLabTheme<any>();
-  // Shadows the module-level `typography` import for this component only
-  // (AttachSheetRow/TranslationBlock/MiniappCard below keep the static one —
-  // they always remount together with AiChatPage on a font-scale change, see
-  // AppShell's key={fontScaleId}). Reading it from context here makes the
-  // chat text reactive without depending on that remount.
+  const { colors, mode } = useLabTheme<any>();
+  // Reactive tokens: font-scale change re-renders this page via context.
+  // ChatMessageRow also calls useTypography() so memoized rows pick up the
+  // new sizes. AttachSheetRow / TranslationBlock / MiniappCard still read
+  // the static singleton; they re-render as children of a subscribed parent.
   const typography = useTypography();
   const { t, locale } = useLocale();
   const insets = useSafeAreaInsets();
@@ -710,8 +733,12 @@ export function AiChatPage({
   const [messages, setMessages] = useState<Message[]>([]);
   /** One-shot long-chat nudge for this conversation; reset on clearChat. */
   const [longChatNudgeShown, setLongChatNudgeShown] = useState(false);
+  const [emptyArtFailed, setEmptyArtFailed] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  // BLOCKER-3: synchronous in-flight guard (React state updates are async).
+  // Declared next to `sending` so handleMicPress can gate on the ref, not stale state.
+  const sendingRef = useRef(false);
   const [voiceUi, setVoiceUi] = useState<VoiceUiState>("idle");
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
@@ -733,6 +760,7 @@ export function AiChatPage({
   const voiceRunIdRef = useRef(0);
   const voiceNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copiedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messageMenuCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** Keep voiceUiRef and React state in lockstep for every phase change. */
   const setVoicePhase = useCallback((phase: VoiceUiState) => {
@@ -746,11 +774,14 @@ export function AiChatPage({
   const atBottomRef = useRef(true);
   const inputRef = useRef<TextInput>(null);
   const greeting = useMemo(() => greetingForHour(new Date().getHours(), t), [t]);
+  const showEmptyArt = EMPTY_STATE_RASTER != null && !emptyArtFailed;
   const suggestions = useMemo(() => buildSuggestions(t), [t]);
   /** Newest-first view of the history. FlatList keys on m.id so only the
    *  changed row re-renders; the array is reallocated per flush (same item
    *  refs), which is what signals a streaming update. */
   const reversedMessages = useMemo(() => messages.slice().reverse(), [messages]);
+  const reversedMessagesRef = useRef(reversedMessages);
+  reversedMessagesRef.current = reversedMessages;
 
   // ── Persistenza conversazione (Fase 1) ──────────────────────────────────
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -892,9 +923,12 @@ export function AiChatPage({
   }, [longChat, longChatNudgeShown]);
 
   const showVoiceNote = useCallback((text: string) => {
+    if (!mountedRef.current) return;
     setVoiceNote(text);
     if (voiceNoteTimer.current) clearTimeout(voiceNoteTimer.current);
-    voiceNoteTimer.current = setTimeout(() => setVoiceNote(null), 4000);
+    voiceNoteTimer.current = setTimeout(() => {
+      if (mountedRef.current) setVoiceNote(null);
+    }, 4000);
   }, []);
 
   /** Invalidate any in-flight voice run and hard-reset capture/TTS UI. */
@@ -1054,7 +1088,7 @@ export function AiChatPage({
       capturing: isCapturing(),
       busy: voiceBusyRef.current,
       stopInFlight: voiceStopInFlightRef.current,
-      sending,
+      sending: sendingRef.current || sendClaimRef.current,
     });
 
     if (intent.type === "ignore") {
@@ -1131,12 +1165,14 @@ export function AiChatPage({
     } finally {
       // On failure / cancel mid-start, clear busy. On success (listening),
       // leave busy true until stopAndTranscribe finishes.
-      if (voiceRunIdRef.current === runId && !isCapturing()) {
+      // Run-id mismatch (send/cancel/clear): never leave THIS start's busy stuck.
+      if (voiceRunIdRef.current !== runId) {
+        voiceBusyRef.current = false;
+      } else if (!isCapturing()) {
         voiceBusyRef.current = false;
       }
     }
   }, [
-    sending,
     setVoicePhase,
     showVoiceNote,
     stopAndTranscribe,
@@ -1300,8 +1336,6 @@ export function AiChatPage({
 
   // BLOCKER-1: unmount guard + abort ref
   const mountedRef = useRef(true);
-  // BLOCKER-3: synchronous in-flight guard (React state updates are async)
-  const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   /**
    * Promise of the active handleSend turn (resolves when the stream + finally
@@ -1340,8 +1374,13 @@ export function AiChatPage({
       abortRef.current?.abort();
       regenAbortRef.current?.abort();
       translateAbortRef.current?.abort();
+      translateRunRef.current += 1;
       translationInFlightRef.current = false;
       sendingInFlightRef.current = false;
+      // Owner transfer FIRST (match clearChat): bump generation/runId so a
+      // stale handleSend finally cannot clear a remounted turn's claim.
+      sendRunIdRef.current += 1;
+      regenGenerationRef.current += 1;
       sendClaimRef.current = false;
       if (stopWatchdogRef.current != null) {
         clearTimeout(stopWatchdogRef.current);
@@ -1350,6 +1389,14 @@ export function AiChatPage({
       if (copiedFlashTimer.current) {
         clearTimeout(copiedFlashTimer.current);
         copiedFlashTimer.current = null;
+      }
+      if (messageMenuCloseTimer.current) {
+        clearTimeout(messageMenuCloseTimer.current);
+        messageMenuCloseTimer.current = null;
+      }
+      if (voiceNoteTimer.current) {
+        clearTimeout(voiceNoteTimer.current);
+        voiceNoteTimer.current = null;
       }
     };
   }, []);
@@ -1414,6 +1461,7 @@ export function AiChatPage({
     } catch {
       available = null;
     }
+    if (!mountedRef.current) return { ok: false, reasonKey: "chat.regenFailed" };
     const decision = decidePreSendFit(
       {
         sizeBytes: model.sizeBytes,
@@ -1458,14 +1506,21 @@ export function AiChatPage({
       Date.now() - tSpin < 5000
     ) {
       const sendP = sendInFlightPromiseRef.current;
+      const remaining = 5000 - (Date.now() - tSpin);
+      if (remaining <= 0) break;
       if (sendP) {
         try {
-          await sendP;
+          // Race the in-flight send: a promise that never settles must not
+          // pin background discard past the 5s budget.
+          await Promise.race([
+            sendP,
+            new Promise<void>((r) => setTimeout(r, remaining)),
+          ]);
         } catch {
           // ignore — failure already recorded on the result
         }
       } else {
-        await new Promise((r) => setTimeout(r, 50));
+        await new Promise((r) => setTimeout(r, Math.min(50, remaining)));
       }
       // Re-assert abort each tick: a late handleSend may install a new controller
       // while sendClaimRef is still held during the fit-gate await.
@@ -1514,8 +1569,10 @@ export function AiChatPage({
     async (
       text: string,
       currentAttachments?: LocalAttachment[],
+      opts?: HandleSendOpts,
     ): Promise<HandleSendResult> => {
       const trimmed = text.trim();
+      const hasAttachments = (currentAttachments?.length ?? 0) > 0;
       // BLOCKER-3: synchronous ref check — not subject to React batching.
       // Also ignore send while a translation holds the engine (silent),
       // or while voice is listening/transcribing (voiceBusyRef is sync).
@@ -1527,8 +1584,10 @@ export function AiChatPage({
       // one-shot allow so regenerate/edit can call handleSend without deadlock.
       // sendClaimRef is the pre-await lock: two rapid ordinary sends must not
       // both pass the busy check and both enter the uncached fit-gate await.
+      // Attachment-only turns are allowed: modelText falls back to doc hints
+      // or a generic look-at-file prompt when trimmed is empty.
       if (
-        !trimmed ||
+        (!trimmed && !hasAttachments) ||
         sendClaimRef.current ||
         sendingRef.current ||
         translationInFlightRef.current ||
@@ -1556,6 +1615,17 @@ export function AiChatPage({
       // Alias used by post-await body gates (same capture as claim ownership).
       const myGen = mySendGen;
       const stillThisRun = (my: number) => regenGenerationRef.current === my;
+      const invalidateVoiceForSend = () => {
+        if (
+          isCapturing() ||
+          voiceBusyRef.current ||
+          voiceUiRef.current !== "idle"
+        ) {
+          invalidateVoice();
+        } else {
+          voiceRunIdRef.current += 1;
+        }
+      };
       sendClaimRef.current = true;
       // Install abort controller early so background lifecycle can abort this
       // turn during the fit-gate await (before sendingRef is claimed).
@@ -1605,7 +1675,7 @@ export function AiChatPage({
       // Does not call the model. History may keep the exchange for harness logs.
       // Accept /bench … and slash-free bench:… (Git Bash mangles leading / via adb).
       if (isBenchCommand(trimmed)) {
-        voiceRunIdRef.current += 1;
+        invalidateVoiceForSend();
         sendingRef.current = true;
         sendingInFlightRef.current = true;
         setSending(true);
@@ -1642,6 +1712,7 @@ export function AiChatPage({
                 role: "user",
                 text: trimmed,
                 createdAt: now,
+                ...(opts?.edited ? { edited: true } : {}),
               },
               {
                 id: assistantId,
@@ -1668,7 +1739,7 @@ export function AiChatPage({
       // fall through to the normal stream below.
       const classification = classifyChatContent(trimmed);
       if (!classification.shouldCallProvider) {
-        voiceRunIdRef.current += 1;
+        invalidateVoiceForSend();
         sendingRef.current = true;
         sendingInFlightRef.current = true;
         setSending(true);
@@ -1694,6 +1765,7 @@ export function AiChatPage({
                 text: trimmed,
                 createdAt: now,
                 attachments: gateAttachments.length > 0 ? gateAttachments : undefined,
+                ...(opts?.edited ? { edited: true } : {}),
               },
               {
                 id: assistantId,
@@ -1715,8 +1787,9 @@ export function AiChatPage({
       }
 
       // Invalidate any in-flight transcription so a late result cannot rewrite draft
-      // after this send clears it.
-      voiceRunIdRef.current += 1;
+      // after this send clears it. If a listen snuck in during the fit-gate await,
+      // cancel capture too so voiceBusyRef cannot stay stuck true.
+      invalidateVoiceForSend();
       sendingRef.current = true;
       sendingInFlightRef.current = true;
       setSending(true);
@@ -1729,7 +1802,11 @@ export function AiChatPage({
         .filter((a) => a.kind === "document" && a.libraryDocId)
         .map((a) => `[document:${a.libraryDocId} name="${a.name}"]`)
         .join(" ");
-      const modelText = docHints ? `${trimmed}\n\n${docHints}` : trimmed;
+      const modelText = trimmed
+        ? docHints
+          ? `${trimmed}\n\n${docHints}`
+          : trimmed
+        : docHints || t("chat.lookAtAttachedFile");
 
       // BLOCKER-2: module counter, no Date.now() collision
       const userMsgId = nextMsgId("u");
@@ -1758,6 +1835,7 @@ export function AiChatPage({
               text: trimmed,
               createdAt: now,
               attachments: snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
+              ...(opts?.edited ? { edited: true } : {}),
             },
             {
               id: assistantId,
@@ -2227,13 +2305,17 @@ export function AiChatPage({
         }
       }
     },
-    [awaitPreSendFitGate, historyLoaded, onSendStream, pdfToRender, t, updateMessage],
+    [awaitPreSendFitGate, historyLoaded, invalidateVoice, onSendStream, pdfToRender, t, updateMessage],
   );
 
   // Publish the active handleSend promise so background discard can await it.
   const handleSendTracked = useCallback(
-    (text: string, currentAttachments?: LocalAttachment[]) => {
-      const p = handleSend(text, currentAttachments);
+    (
+      text: string,
+      currentAttachments?: LocalAttachment[],
+      opts?: HandleSendOpts,
+    ) => {
+      const p = handleSend(text, currentAttachments, opts);
       sendInFlightPromiseRef.current = p;
       void p.finally(() => {
         if (sendInFlightPromiseRef.current === p) {
@@ -2263,7 +2345,10 @@ export function AiChatPage({
       // ownedRunId is our post-bump token: if clearChat/new-send bumps again
       // before React applies the updater, the inner gate no-ops (same reason
       // finally gates persist+messagesRef inside the setState updater).
+      // Owner transfer matches clearChat: bump regenGenerationRef BEFORE
+      // clearing sendClaimRef so a stale send finally cannot drop a newer claim.
       sendRunIdRef.current += 1;
+      regenGenerationRef.current += 1;
       const ownedRunId = sendRunIdRef.current;
       // 2) Mark streaming assistants interrupted + persist in lockstep (like finally).
       // Empty placeholders (no streamed text) are dropped, mirroring the abort path.
@@ -2297,6 +2382,11 @@ export function AiChatPage({
       if (sendRunIdRef.current === ownedRunId) {
         sendingRef.current = false;
         sendingInFlightRef.current = false;
+        sendClaimRef.current = false;
+        // Stop during regen: the bumped generation makes regen's finally skip
+        // lock release — clear here so the composer does not stay regenBusy.
+        regenInFlightRef.current = false;
+        regenHandleSendPassRef.current = false;
         setSending(false);
       }
     }, 3000);
@@ -2388,15 +2478,17 @@ export function AiChatPage({
   }, [setVoicePhase]);
 
   /**
-   * Find the original user text that produced a target message in a slice.
-   * Walks backwards for the nearest user message at or before the end of the slice.
+   * Find the original user turn that produced a target message in a slice.
+   * Walks backwards for the nearest user message with text and/or attachments
+   * (captionless image turns are valid regen sources).
    */
-  const findOriginalUserText = useCallback((slice: Message[]): string | null => {
+  const findOriginalUserMessage = useCallback((slice: Message[]): Message | null => {
     for (let i = slice.length - 1; i >= 0; i -= 1) {
       const m = slice[i];
-      if (m && m.role === "user" && typeof m.text === "string" && m.text.trim()) {
-        return m.text;
-      }
+      if (!m || m.role !== "user") continue;
+      const hasText = typeof m.text === "string" && !!m.text.trim();
+      const hasAttachments = (m.attachments?.length ?? 0) > 0;
+      if (hasText || hasAttachments) return m;
     }
     return null;
   }, []);
@@ -2430,10 +2522,12 @@ export function AiChatPage({
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
         const slice = messagesRef.current.slice(0, targetIndex + 1);
-        const originalUserText = findOriginalUserText(slice);
-        if (!originalUserText) {
+        const originalUser = findOriginalUserMessage(slice);
+        if (!originalUser) {
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
+        const originalUserText = originalUser.text ?? "";
+        const originalAttachments = originalUser.attachments;
         // Truncate to target (keep target and everything before).
         // For assistant targets we drop the assistant bubble so handleSend can
         // append a fresh user+assistant pair from the original user text —
@@ -2476,7 +2570,10 @@ export function AiChatPage({
           }
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
-        const sendResult = await handleSendTracked(originalUserText);
+        const sendResult = await handleSendTracked(
+          originalUserText,
+          originalAttachments,
+        );
         // clearChat during handleSend: do not rollback into the new chat.
         if (regenGenerationRef.current !== myGeneration) {
           return { ok: false, reasonKey: "chat.regenFailed" };
@@ -2524,7 +2621,7 @@ export function AiChatPage({
         }
       }
     },
-    [findOriginalUserText, handleSendTracked],
+    [findOriginalUserMessage, handleSendTracked],
   );
 
   /**
@@ -2603,11 +2700,13 @@ export function AiChatPage({
           }
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
-        // handleSend appends a fresh user message; mark edited after it lands
-        // by patching the last user message once send starts. We pass edited
-        // text as the send body; then stamp edited on the new user bubble.
-        const sendResult = await handleSendTracked(trimmed);
-        // clearChat during handleSend: do not rollback or stamp the new chat.
+        // handleSend appends the user bubble with edited:true at creation so
+        // a live stream cannot be patched mid-flight (and the badge is on
+        // the bubble from the first paint).
+        const sendResult = await handleSendTracked(trimmed, target.attachments, {
+          edited: true,
+        });
+        // clearChat during handleSend: do not rollback into the new chat.
         if (regenGenerationRef.current !== myGeneration) {
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
@@ -2626,28 +2725,6 @@ export function AiChatPage({
           }
           return { ok: false, reasonKey: sendResult.reasonKey || "chat.regenFailed" };
         }
-        // Stamp edited on the user message that handleSend just appended.
-        // Gate again: generation may have moved between the check above and
-        // this updater if another clear raced in (defensive; updater may also
-        // run async relative to this call stack on some RN schedulers).
-        if (regenGenerationRef.current !== myGeneration) {
-          return { ok: false, reasonKey: "chat.regenFailed" };
-        }
-        setMessages((prev) => {
-          // Stale stamp must not mark a newer conversation's user bubble.
-          if (regenGenerationRef.current !== myGeneration) {
-            return prev;
-          }
-          const next = prev.slice();
-          for (let i = next.length - 1; i >= 0; i -= 1) {
-            if (next[i]?.role === "user") {
-              next[i] = { ...next[i], text: trimmed, edited: true };
-              break;
-            }
-          }
-          messagesRef.current = next;
-          return next;
-        });
         return { ok: true };
       } catch {
         if (regenGenerationRef.current !== myGeneration) {
@@ -2678,6 +2755,22 @@ export function AiChatPage({
     [handleSendTracked],
   );
 
+  // A live turn must not keep an edit sheet open: Save would race the stream
+  // (stamp / truncate while tokens still land). Close both overlays on send.
+  useEffect(() => {
+    if (!sending) return;
+    setEditingMessage(null);
+    setMessageMenu(null);
+  }, [sending]);
+
+  useEffect(() => {
+    if (messageMenu) return;
+    if (messageMenuCloseTimer.current) {
+      clearTimeout(messageMenuCloseTimer.current);
+      messageMenuCloseTimer.current = null;
+    }
+  }, [messageMenu]);
+
   /** Open message action sheet (Copy + Translate + Read aloud + Regen/Edit). No-op while streaming / engine busy. */
   const openMessageMenu = useCallback(
     (id: string, text: string, role: Message["role"], streaming?: boolean) => {
@@ -2705,9 +2798,13 @@ export function AiChatPage({
   const copyTextToClipboard = useCallback(async (value: string): Promise<boolean> => {
     try {
       await Clipboard.setStringAsync(value);
-      setCopiedFlash(true);
-      if (copiedFlashTimer.current) clearTimeout(copiedFlashTimer.current);
-      copiedFlashTimer.current = setTimeout(() => setCopiedFlash(false), 1500);
+      if (mountedRef.current) {
+        setCopiedFlash(true);
+        if (copiedFlashTimer.current) clearTimeout(copiedFlashTimer.current);
+        copiedFlashTimer.current = setTimeout(() => {
+          if (mountedRef.current) setCopiedFlash(false);
+        }, 1500);
+      }
       return true;
     } catch {
       // fallback: share sheet if clipboard write fails
@@ -2795,7 +2892,7 @@ export function AiChatPage({
   const voiceBlocksComposer = voiceUi !== "idle" || voiceBusyRef.current;
   const canSend = useMemo(
     () =>
-      !!draft.trim() &&
+      (!!draft.trim() || attachedItems.length > 0) &&
       !sending &&
       !translatingId &&
       historyLoaded &&
@@ -2804,7 +2901,15 @@ export function AiChatPage({
       // flight — otherwise the late handlePdfDone queues the PDF chip into
       // the NEXT message instead of the one being sent now.
       !pdfToRender,
-    [draft, historyLoaded, pdfToRender, sending, translatingId, voiceBlocksComposer],
+    [
+      attachedItems.length,
+      draft,
+      historyLoaded,
+      pdfToRender,
+      sending,
+      translatingId,
+      voiceBlocksComposer,
+    ],
   );
 
   // ── Attach chip color helper ────────────────────────────────────────────
@@ -2842,6 +2947,111 @@ export function AiChatPage({
       setDocPickOpen(false);
     },
     [showVoiceNote, t],
+  );
+
+  const keyExtractor = useCallback((m: Message) => m.id, []);
+
+  const listContentContainerStyle = useMemo(
+    () => ({
+      paddingTop: 160,
+      paddingBottom: spacing.md,
+      paddingHorizontal: spacing.md,
+    }),
+    [],
+  );
+
+  const handleListScroll = useCallback((e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    // Inverted list: offset 0 is the visual bottom (newest message).
+    atBottomRef.current = e.nativeEvent.contentOffset.y <= 48;
+  }, []);
+
+  const handleListContentSizeChange = useCallback(() => {
+    // Follow the stream only when the user is at the bottom; never yank when scrolled up.
+    if (atBottomRef.current) {
+      scrollViewRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+  }, []);
+
+  const listExtraData = useMemo(
+    () => ({
+      translatingId,
+      translationResult,
+      colors,
+      t,
+      locale,
+    }),
+    [
+      translatingId,
+      translationResult,
+      colors,
+      t,
+      locale,
+    ],
+  );
+
+  const renderMessageItem = useCallback(
+    ({ item: m, index: i }: ListRenderItemInfo<Message>) => {
+      // Inverted list: the message visually ABOVE row i is data[i+1]
+      // (the next-newer one). Gap/divider logic mirrors the old
+      // pre-inversion code with that neighbor.
+      const list = reversedMessagesRef.current;
+      const above = list[i + 1];
+      const isTurnStart = !above || above.role !== m.role;
+      // Visually topmost row = oldest message = last index of reversed data.
+      // (Pre-inversion: idx===0 was oldest at top with topGap 0.)
+      const topGap =
+        i === list.length - 1
+          ? 0
+          : isTurnStart
+            ? spacing.lg
+            : spacing.md;
+      const showDayDivider = !above || !isSameDay(above.createdAt, m.createdAt);
+      const dayLabel = showDayDivider ? formatDayLabel(m.createdAt, t, locale) : null;
+      return (
+        <ChatMessageRow
+          key={m.id}
+          message={m}
+          topGap={topGap}
+          dayLabel={dayLabel}
+          isFirst={i === list.length - 1}
+          isTranslating={translatingId === m.id}
+          translationResult={translationResult?.id === m.id ? translationResult : null}
+          translationExpanded={
+            translationResult?.id === m.id ? translationExpanded : false
+          }
+          colors={colors}
+          t={t}
+          onOpenMessageMenu={openMessageMenu}
+          onCopyText={(text) => { void copyTextToClipboard(text); }}
+          onSpeak={handleReadAloud}
+          onRegenerate={(id) => { void regenerate(id); }}
+          isSpeaking={speakingId === m.id}
+          onCloseTranslation={closeTranslation}
+          onRetryTranslate={runTranslate}
+          onToggleTranslationExpanded={toggleTranslationExpanded}
+          onOpenMiniapp={onOpenMiniapp}
+          onCtaPress={onCtaPress}
+        />
+      );
+    },
+    [
+      closeTranslation,
+      colors,
+      copyTextToClipboard,
+      handleReadAloud,
+      locale,
+      onCtaPress,
+      onOpenMiniapp,
+      openMessageMenu,
+      regenerate,
+      runTranslate,
+      speakingId,
+      t,
+      toggleTranslationExpanded,
+      translatingId,
+      translationExpanded,
+      translationResult,
+    ],
   );
 
   return (
@@ -3000,14 +3210,62 @@ export function AiChatPage({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Greeting */}
-          <Text style={[typography.displayMd, { color: colors.ink, marginBottom: spacing.xs }]}>
-            {greeting}
-            {userName ? (
-              <Text style={{ color: colors.accent }}>{`, ${userName}`}</Text>
+          {/* Greeting — optional sage plate (raster has no letters). */}
+          <View
+            style={
+              showEmptyArt
+                ? {
+                    marginBottom: spacing.xs,
+                    borderRadius: radius.lg,
+                    overflow: "hidden",
+                    aspectRatio: 4 / 3,
+                    justifyContent: "center",
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.md,
+                  }
+                : { marginBottom: spacing.xs }
+            }
+          >
+            {showEmptyArt ? (
+              <Image
+                source={EMPTY_STATE_RASTER}
+                style={{
+                  position: "absolute",
+                  width: "100%",
+                  height: "100%",
+                }}
+                resizeMode="cover"
+                resizeMethod="resize"
+                accessible={false}
+                importantForAccessibility="no"
+                onError={() => setEmptyArtFailed(true)}
+              />
             ) : null}
-            {"."}
-          </Text>
+            {showEmptyArt && mode === "dark" ? (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: colors.shell,
+                  opacity: 0.78,
+                }}
+              />
+            ) : null}
+            <Text
+              style={[
+                typography.displayXl,
+                { color: colors.ink, maxWidth: showEmptyArt ? "70%" : undefined },
+              ]}
+            >
+              {greeting}
+              {userName ? (
+                <Text style={{ color: colors.accent }}>{`, ${userName}`}</Text>
+              ) : null}
+              {"."}
+            </Text>
+          </View>
           <Text style={[typography.bodyMd, { color: colors.muted, marginBottom: spacing.xl }]}>
             {t("chat.welcomePrompt")}
           </Text>
@@ -3063,68 +3321,22 @@ export function AiChatPage({
         <FlatList
           ref={scrollViewRef}
           data={reversedMessages}
-          keyExtractor={(m) => m.id}
+          extraData={listExtraData}
+          keyExtractor={keyExtractor}
           inverted
           // Visual bottom padding (below the newest message): with `inverted`
           // the content container is flipped, so paddingTop lands at the
           // visual bottom.
-          contentContainerStyle={{ paddingTop: 160, paddingBottom: spacing.md, paddingHorizontal: spacing.md }}
+          contentContainerStyle={listContentContainerStyle}
           keyboardShouldPersistTaps="handled"
           style={{ flex: 1 }}
           initialNumToRender={12}
           maxToRenderPerBatch={10}
           windowSize={7}
-          onScroll={(e) => {
-            // Inverted list: offset 0 is the visual bottom (newest message).
-            const { contentOffset } = e.nativeEvent;
-            atBottomRef.current = contentOffset.y <= 48;
-          }}
+          onScroll={handleListScroll}
           scrollEventThrottle={32}
-          onContentSizeChange={() => {
-            // Follow the stream only when the user is at the bottom; never
-            // yank when scrolled up.
-            if (atBottomRef.current) {
-              scrollViewRef.current?.scrollToOffset({ offset: 0, animated: false });
-            }
-          }}
-          renderItem={({ item: m, index: i }) => {
-            // Inverted list: the message visually ABOVE row i is data[i+1]
-            // (the next-newer one). Gap/divider logic mirrors the old
-            // pre-inversion code with that neighbor.
-            const above = reversedMessages[i + 1];
-            const isTurnStart = !above || above.role !== m.role;
-            // Visually topmost row = oldest message = last index of reversed data.
-            // (Pre-inversion: idx===0 was oldest at top with topGap 0.)
-            const topGap =
-              i === reversedMessages.length - 1
-                ? 0
-                : isTurnStart
-                  ? spacing.lg
-                  : spacing.md;
-            const showDayDivider = !above || !isSameDay(above.createdAt, m.createdAt);
-            const dayLabel = showDayDivider ? formatDayLabel(m.createdAt, t, locale) : null;
-            return (
-              <ChatMessageRow
-                key={m.id}
-                message={m}
-                topGap={topGap}
-                dayLabel={dayLabel}
-                isFirst={i === reversedMessages.length - 1}
-                isTranslating={translatingId === m.id}
-                translationResult={translationResult?.id === m.id ? translationResult : null}
-                translationExpanded={translationExpanded}
-                colors={colors}
-                t={t}
-                onOpenMessageMenu={openMessageMenu}
-                onCopyText={(text) => { void copyTextToClipboard(text); }}
-                onCloseTranslation={closeTranslation}
-                onRetryTranslate={runTranslate}
-                onToggleTranslationExpanded={toggleTranslationExpanded}
-                onOpenMiniapp={onOpenMiniapp}
-                onCtaPress={onCtaPress}
-              />
-            );
-          }}
+          onContentSizeChange={handleListContentSizeChange}
+          renderItem={renderMessageItem}
         />
       )}
 
@@ -3167,34 +3379,65 @@ export function AiChatPage({
           >
             {attachedItems.map(item => {
               const { dot, bg } = chipColorForKind(item.kind);
+              const libraryCover =
+                item.kind === "document" && item.libraryDocId
+                  ? documentLibrary?.docs.find((d) => d.id === item.libraryDocId)
+                      ?.previewUri
+                  : undefined;
+              const thumbUri =
+                item.kind === "image" && item.uri
+                  ? item.uri
+                  : item.kind === "pdf" && item.pages?.[0]
+                    ? item.pages[0]
+                    : libraryCover;
               return (
                 <View
                   key={item.id}
+                  accessibilityLabel={item.name}
                   style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 4,
+                    width: 56,
+                    height: 72,
+                    borderRadius: 12,
+                    overflow: "hidden",
                     backgroundColor: bg,
-                    borderRadius: radius.pill,
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  {item.kind === "image" ? (
-                    <ImageIcon size={11} color={dot} />
+                  {thumbUri ? (
+                    <Image
+                      source={{ uri: thumbUri }}
+                      style={{ width: 56, height: 72 }}
+                      resizeMode="cover"
+                      accessible={false}
+                      importantForAccessibility="no"
+                    />
+                  ) : item.kind === "image" ? (
+                    <ImageIcon size={22} color={dot} />
                   ) : item.kind === "document" ? (
-                    <BookOpen size={11} color={dot} />
+                    <BookOpen size={22} color={dot} />
                   ) : (
-                    <FileText size={11} color={dot} />
+                    <FileText size={22} color={dot} />
                   )}
-                  <Text numberOfLines={1} style={[typography.bodyXs, { color: colors.ink, maxWidth: 140 }]}>
-                    {item.name}
-                  </Text>
                   <Pressable
                     onPress={() =>
                       setAttachedItems(prev => prev.filter(a => a.id !== item.id))
                     }
                     hitSlop={8}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={t("chat.a11yRemoveAttachment")}
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      right: 2,
+                      width: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      backgroundColor: colors.panelSolid,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
                   >
                     <X size={12} color={colors.muted} />
                   </Pressable>
@@ -3282,21 +3525,23 @@ export function AiChatPage({
                   setAttachSheetOpen(true);
                 }}
                 disabled={sending || voiceBlocksComposer || !!pdfToRender}
+                accessible
+                accessibilityRole="button"
                 accessibilityLabel={t("chat.a11yAttach")}
+                accessibilityState={{
+                  disabled: sending || voiceBlocksComposer || !!pdfToRender,
+                }}
                 style={({ pressed }) => ({
                   width: 36,
                   height: 36,
                   borderRadius: 18,
-                  backgroundColor: colors.panel,
-                  borderWidth: 1,
-                  borderColor: colors.line,
                   alignItems: "center",
                   justifyContent: "center",
                   opacity:
                     sending || voiceBlocksComposer || pdfToRender ? 0.45 : pressed ? 0.7 : 1,
                 })}
               >
-                <Plus color={colors.muted} size={18} />
+                <BrandIcon name="attach" />
               </Pressable>
             </View>
 
@@ -3311,6 +3556,8 @@ export function AiChatPage({
                   void handleMicPress();
                 }}
                 disabled={sending || voiceUi === "transcribing"}
+                accessible
+                accessibilityRole="button"
                 accessibilityState={{
                   disabled: sending || voiceUi === "transcribing",
                   busy: voiceUi === "transcribing",
@@ -3326,12 +3573,6 @@ export function AiChatPage({
                   width: 36,
                   height: 36,
                   borderRadius: 18,
-                  backgroundColor:
-                    voiceUi === "listening"
-                      ? (colors.bad ?? "#c0392b")
-                      : colors.panel,
-                  borderWidth: 1,
-                  borderColor: voiceUi === "listening" ? (colors.bad ?? "#c0392b") : colors.line,
                   alignItems: "center",
                   justifyContent: "center",
                   opacity:
@@ -3344,54 +3585,63 @@ export function AiChatPage({
                           : 0.55,
                 })}
               >
-                <Mic
-                  color={
-                    voiceUi === "listening" ? colors.primaryText : colors.muted
-                  }
-                  size={18}
+                <BrandIcon
+                  name="mic"
+                  tone={voiceUi === "listening" ? "danger" : "accent"}
                 />
               </Pressable>
 
-              {/* Stop button during streaming; Send when ready; dimmed when empty+idle */}
-              {sending ? (
-                <Pressable
-                  onPress={handleStop}
-                  accessibilityLabel={t("chat.a11yStop")}
-                  style={({ pressed }) => ({
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: colors.accent,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: pressed ? 0.85 : 1,
-                  })}
-                >
-                  <Square size={16} color={colors.primaryText} />
-                </Pressable>
-              ) : (
-                <Pressable
-                  onPress={() => {
-                    if (pdfToRender) return;
-                    handleSendTracked(draft, attachedItems);
-                  }}
-                  disabled={!canSend}
-                  accessibilityLabel={t("chat.a11ySend")}
-                  accessibilityElementsHidden={!canSend}
-                  importantForAccessibility={canSend ? "yes" : "no-hide-descendants"}
-                  style={({ pressed }) => ({
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: colors.accent,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: canSend ? (pressed ? 0.85 : 1) : 0,
-                  })}
-                >
-                  <Send color={colors.primaryText} size={18} />
-                </Pressable>
-              )}
+              {/* Stop while streaming; send-idle stays in the tree when empty
+                  (do not use Pressable disabled — Android TalkBack drops it).
+                  Both glyphs stay mounted — remounting send vs stop re-decodes
+                  the JPEG. Hide the unused one. */}
+              <Pressable
+                onPress={() => {
+                  if (sending) {
+                    handleStop();
+                    return;
+                  }
+                  if (!canSend || pdfToRender) return;
+                  handleSendTracked(draft, attachedItems);
+                }}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={sending ? t("chat.a11yStop") : t("chat.a11ySend")}
+                accessibilityState={{ disabled: !sending && !canSend }}
+                style={({ pressed }) => ({
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: pressed ? 0.85 : 1,
+                })}
+              >
+                <View style={{ width: 36, height: 36 }}>
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: "absolute",
+                      opacity: sending ? 1 : 0,
+                    }}
+                    accessibilityElementsHidden={!sending}
+                    importantForAccessibility={sending ? "auto" : "no-hide-descendants"}
+                  >
+                    <BrandIcon name="stop" />
+                  </View>
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: "absolute",
+                      opacity: sending ? 0 : 1,
+                    }}
+                    accessibilityElementsHidden={sending}
+                    importantForAccessibility={sending ? "no-hide-descendants" : "auto"}
+                  >
+                    <BrandIcon name={canSend ? "send-ready" : "send-idle"} />
+                  </View>
+                </View>
+              </Pressable>
             </View>
           </View>
         </View>
@@ -3435,7 +3685,13 @@ export function AiChatPage({
                     // Keep menu open ~400ms with "Copied!" so feedback is visible.
                     void (async () => {
                       await copyTextToClipboard(messageMenu.text);
-                      setTimeout(() => setMessageMenu(null), 400);
+                      if (messageMenuCloseTimer.current) {
+                        clearTimeout(messageMenuCloseTimer.current);
+                      }
+                      messageMenuCloseTimer.current = setTimeout(() => {
+                        messageMenuCloseTimer.current = null;
+                        if (mountedRef.current) setMessageMenu(null);
+                      }, 400);
                     })();
                   }}
                   colors={colors}
@@ -3699,7 +3955,7 @@ export function AiChatPage({
         >
           <Text
             style={{
-              fontFamily: MONO_FONT,
+              fontFamily: fontFamilies.mono,
               fontSize: 10,
               color: colors.shell,
             }}
@@ -3741,6 +3997,184 @@ function AttachSheetRow({
   );
 }
 
+function MessageActionChip({
+  icon,
+  label,
+  onPress,
+  colors,
+  active,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+  colors: any;
+  active?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={6}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingVertical: 4,
+        paddingHorizontal: 6,
+        borderRadius: radius.sm,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      {icon}
+      <Text style={[typography.bodyXs, { color: active ? colors.accent : colors.muted }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function ThinkingBlock({
+  statusLabel,
+  statusHistory,
+  colors,
+  t,
+}: {
+  statusLabel?: string;
+  statusHistory?: string[];
+  colors: any;
+  t: TranslateFn;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const history = statusHistory ?? [];
+  const canExpand = history.length > 0;
+  const header = statusLabel || t("chat.thinkingStatus");
+  return (
+    <View>
+      <Pressable
+        onPress={canExpand ? () => setExpanded((v) => !v) : undefined}
+        accessibilityRole={canExpand ? "button" : undefined}
+        accessibilityState={canExpand ? { expanded } : undefined}
+        accessibilityLabel={header}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: spacing.xs,
+          paddingVertical: 2,
+        }}
+      >
+        {statusLabel ? <ActivityIndicator size="small" color={colors.muted} /> : null}
+        <Text style={[typography.displaySm, { color: colors.ink, flex: 1 }]}>{header}</Text>
+        {canExpand ? (
+          <View style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}>
+            <ChevronDown size={14} color={colors.muted} />
+          </View>
+        ) : null}
+      </Pressable>
+      {expanded
+        ? history.map((label, i) => (
+            <View
+              key={`${i}-${label}`}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                paddingVertical: 1,
+                paddingLeft: spacing.xs,
+              }}
+            >
+              <Check size={12} color={colors.muted} />
+              <Text style={[typography.bodyXs, { color: colors.muted }]}>{label}</Text>
+            </View>
+          ))
+        : null}
+    </View>
+  );
+}
+
+function CodeFenceBlock({
+  lang,
+  content,
+  colors,
+  t,
+  onCopyText,
+}: {
+  lang: string;
+  content: string;
+  colors: any;
+  t: TranslateFn;
+  onCopyText: (text: string) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+    },
+    [],
+  );
+  return (
+    <View
+      style={{
+        backgroundColor: colors.surfaceSunken,
+        borderWidth: 1,
+        borderColor: colors.lineStrong,
+        borderRadius: radius.sm,
+        marginVertical: 4,
+        overflow: "hidden",
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: spacing.sm,
+          paddingVertical: 4,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.lineStrong,
+        }}
+      >
+        <Text style={[typography.bodyXs, { color: colors.muted }]}>{lang}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+          <Pressable
+            onPress={() => {
+              onCopyText(content);
+              setCopied(true);
+              if (copiedTimer.current) clearTimeout(copiedTimer.current);
+              copiedTimer.current = setTimeout(() => setCopied(false), 1500);
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.copy")}
+          >
+            <Text style={[typography.bodyXs, { color: colors.accent }]}>
+              {copied ? t("common.copied") : t("common.copy")}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              void Share.share({ message: content }).catch(() => undefined);
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.share")}
+          >
+            <Text style={[typography.bodyXs, { color: colors.accent }]}>
+              {t("common.share")}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+      <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false}>
+        <Text style={[typography.monoSm, { color: colors.ink, padding: spacing.sm }]}>
+          {content}
+        </Text>
+      </ScrollView>
+    </View>
+  );
+}
+
 
 // ── Memoized chat row: history rows skip re-render during streaming flushes ──
 // updateMessage only replaces the streaming message's object identity; other
@@ -3769,6 +4203,9 @@ type ChatMessageRowProps = {
     streaming?: boolean,
   ) => void;
   onCopyText: (text: string) => void;
+  onSpeak?: (id: string, text: string) => void;
+  onRegenerate?: (id: string) => void;
+  isSpeaking: boolean;
   onCloseTranslation: () => void;
   onRetryTranslate: (id: string, text: string) => void;
   onToggleTranslationExpanded: () => void;
@@ -3786,7 +4223,8 @@ function chatMessageRowPropsEqual(prev: ChatMessageRowProps, next: ChatMessageRo
     prev.translationResult === next.translationResult &&
     prev.translationExpanded === next.translationExpanded &&
     prev.colors === next.colors &&
-    prev.t === next.t
+    prev.t === next.t &&
+    prev.isSpeaking === next.isSpeaking
   );
 }
 
@@ -3802,12 +4240,16 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   t,
   onOpenMessageMenu,
   onCopyText,
+  onSpeak,
+  onRegenerate,
+  isSpeaking,
   onCloseTranslation,
   onRetryTranslate,
   onToggleTranslationExpanded,
   onOpenMiniapp,
   onCtaPress,
 }: ChatMessageRowProps) {
+  const typography = useTypography();
   const isUser = m.role === "user";
   const dayDivider = dayLabel ? (
     <View
@@ -3840,12 +4282,14 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
           }}
         >
           {m.attachments && m.attachments.length > 0 ? (
-            <View
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
+            <ScrollView
+              horizontal
+              nestedScrollEnabled
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
                 gap: spacing.xs,
                 marginBottom: 4,
+                flexGrow: 1,
                 justifyContent: "flex-end",
               }}
             >
@@ -3854,38 +4298,52 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                   att.kind === "pdf" || att.kind === "document"
                     ? { dot: colors.compute, bg: colors.computeSoft }
                     : { dot: colors.accent, bg: colors.accentSoft };
+                const thumbUri =
+                  att.kind === "image" && att.uri
+                    ? att.uri
+                    : att.kind === "pdf" && att.pages?.[0]
+                      ? att.pages[0]
+                      : undefined;
                 return (
                   <View
                     key={att.id}
+                    accessibilityLabel={att.name}
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 4,
+                      width: 56,
+                      height: 72,
+                      borderRadius: 12,
+                      overflow: "hidden",
                       backgroundColor: bg,
-                      borderRadius: radius.pill,
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    {att.kind === "image" ? (
-                      <ImageIcon size={11} color={dot} />
+                    {thumbUri ? (
+                      <Image
+                        source={{ uri: thumbUri }}
+                        style={{ width: 56, height: 72 }}
+                        resizeMode="cover"
+                        accessible={false}
+                        importantForAccessibility="no"
+                      />
+                    ) : att.kind === "image" ? (
+                      <ImageIcon size={22} color={dot} />
                     ) : att.kind === "document" ? (
-                      <BookOpen size={11} color={dot} />
+                      <BookOpen size={22} color={dot} />
                     ) : (
-                      <FileText size={11} color={dot} />
+                      <FileText size={22} color={dot} />
                     )}
-                    <Text style={[typography.bodyXs, { color: colors.ink }]} numberOfLines={1}>
-                      {att.name}
-                    </Text>
                   </View>
                 );
               })}
-            </View>
+            </ScrollView>
           ) : null}
+          {m.text.trim() ? (
           <Pressable
             onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
             delayLongPress={350}
-            accessibilityLabel={t("chat.a11yLongPress")}
+            accessibilityLabel={m.text.length > 200 ? m.text.slice(0, 200) : m.text}
+            accessibilityHint={t("chat.a11yLongPress")}
             style={{
               backgroundColor: colors.accentSoft,
               borderRadius: radius.lg,
@@ -3893,8 +4351,43 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
               paddingHorizontal: spacing.md,
             }}
           >
-            <Text style={[typography.chatBody, { color: colors.ink }]}>{m.text}</Text>
+            <Text style={[typography.bodyLg, { color: colors.ink }]}>{m.text}</Text>
           </Pressable>
+          ) : null}
+          {!m.streaming && m.text.trim() ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
+                marginTop: spacing.xs,
+              }}
+            >
+              <MessageActionChip
+                icon={<Copy size={14} color={colors.muted} />}
+                label={t("common.copy")}
+                onPress={() => onCopyText(m.text)}
+                colors={colors}
+              />
+              <MessageActionChip
+                icon={<MoreHorizontal size={14} color={colors.muted} />}
+                label={t("chat.more")}
+                onPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+                colors={colors}
+              />
+            </View>
+          ) : null}
+          {m.edited ? (
+            <Text
+              style={[
+                typography.bodyXs,
+                { color: colors.muted, marginTop: spacing.xs, alignSelf: "flex-end" },
+              ]}
+            >
+              {t("chat.edit")}
+            </Text>
+          ) : null}
 
           {isTranslating ? (
             <View
@@ -3932,8 +4425,8 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
     );
   }
 
-  const showToolStrip = !!m.statusLabel && !m.text;
   const showCursor = !!m.streaming && !!m.text;
+  const showThinking = !!m.statusLabel || !!(m.statusHistory && m.statusHistory.length > 0);
 
   const segments: MessageSegment[] =
     !m.streaming && m.text
@@ -3956,107 +4449,33 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
           <Text style={[typography.label, { color: colors.muted }]}>Kalsa</Text>
         </View>
 
-        {m.statusHistory && m.statusHistory.length > 0
-          ? m.statusHistory.map((label, i) => (
-              <View
-                key={i}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
-                  paddingVertical: 1,
-                }}
-              >
-                <Check size={12} color={colors.muted} />
-                <Text
-                  style={[
-                    typography.bodyXs,
-                    { color: colors.muted, fontFamily: MONO_FONT },
-                  ]}
-                >
-                  {label}
-                </Text>
-              </View>
-            ))
-          : null}
+        {showThinking ? (
+          <ThinkingBlock
+            statusLabel={m.statusLabel}
+            statusHistory={m.statusHistory}
+            colors={colors}
+            t={t}
+          />
+        ) : null}
 
-        {showToolStrip ? (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: spacing.xs,
-              paddingVertical: 2,
-            }}
-          >
-            <ActivityIndicator size="small" color={colors.muted} />
-            <Text style={[typography.bodyXs, { color: colors.muted }]}>{m.statusLabel}</Text>
-          </View>
-        ) : m.text.trim() || showCursor ? (
+        {m.text.trim() || showCursor ? (
           <Pressable
             onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
             delayLongPress={350}
-            accessibilityLabel={t("chat.a11yLongPress")}
+            accessibilityLabel={m.text.length > 200 ? m.text.slice(0, 200) : m.text}
+            accessibilityHint={t("chat.a11yLongPress")}
           >
             {segments.map((seg, segIdx) => {
               if (seg.type === "code") {
                 return (
-                  <View
+                  <CodeFenceBlock
                     key={segIdx}
-                    style={{
-                      backgroundColor: colors.surfaceSunken,
-                      borderWidth: 1,
-                      borderColor: colors.lineStrong,
-                      borderRadius: radius.sm,
-                      marginVertical: 4,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        paddingHorizontal: spacing.sm,
-                        paddingVertical: 4,
-                        borderBottomWidth: 1,
-                        borderBottomColor: colors.lineStrong,
-                      }}
-                    >
-                      <Text style={[typography.bodyXs, { color: colors.muted }]}>
-                        {seg.lang}
-                      </Text>
-                      <Pressable
-                        onPress={() => {
-                          void Share.share({ message: seg.content }).catch(() => undefined);
-                        }}
-                        hitSlop={8}
-                        accessibilityLabel={t("common.share")}
-                      >
-                        <Text style={[typography.bodyXs, { color: colors.accent }]}>
-                          {t("common.share")}
-                        </Text>
-                      </Pressable>
-                    </View>
-                    <ScrollView
-                      horizontal
-                      nestedScrollEnabled
-                      showsHorizontalScrollIndicator={false}
-                    >
-                      <Text
-                        style={[
-                          typography.monoSm,
-                          {
-                            fontFamily: MONO_FONT,
-                            color: colors.ink,
-                            padding: spacing.sm,
-                          },
-                        ]}
-                      >
-                        {seg.content}
-                      </Text>
-                    </ScrollView>
-                  </View>
+                    lang={seg.lang}
+                    content={seg.content}
+                    colors={colors}
+                    t={t}
+                    onCopyText={onCopyText}
+                  />
                 );
               }
               // Streaming perf: parseMarkdownBlocks on the full growing text
@@ -4070,11 +4489,23 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                 return (
                   <Text
                     key={segIdx}
-                    style={[typography.chatBody, { color: colors.ink }]}
+                    style={[
+                      typography.chatBody,
+                      { color: colors.quiet ?? colors.ink },
+                    ]}
                     onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, true)}
                   >
                     {seg.content}
-                    {segIdx === segments.length - 1 && showCursor ? "▋" : ""}
+                    {segIdx === segments.length - 1 && showCursor ? (
+                      <StreamCaret
+                        color={colors.accent}
+                        lineHeight={
+                          typeof typography.chatBody.lineHeight === "number"
+                            ? typography.chatBody.lineHeight
+                            : undefined
+                        }
+                      />
+                    ) : null}
                   </Text>
                 );
               }
@@ -4091,14 +4522,57 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
           </Pressable>
         ) : null}
 
+        {!m.streaming && m.text.trim() ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              flexWrap: "wrap",
+              marginTop: spacing.xs,
+            }}
+          >
+            <MessageActionChip
+              icon={<Copy size={14} color={colors.muted} />}
+              label={t("common.copy")}
+              onPress={() => onCopyText(m.text)}
+              colors={colors}
+            />
+            {onSpeak ? (
+              <MessageActionChip
+                icon={
+                  <Volume2
+                    size={14}
+                    color={isSpeaking ? colors.accent : colors.muted}
+                  />
+                }
+                label={
+                  isSpeaking ? t("voice.stopReading") : t("voice.readAloud")
+                }
+                onPress={() => onSpeak(m.id, m.text)}
+                colors={colors}
+                active={isSpeaking}
+              />
+            ) : null}
+            {onRegenerate ? (
+              <MessageActionChip
+                icon={<Sparkles size={14} color={colors.muted} />}
+                label={t("chat.regenerate")}
+                onPress={() => onRegenerate(m.id)}
+                colors={colors}
+              />
+            ) : null}
+            <MessageActionChip
+              icon={<MoreHorizontal size={14} color={colors.muted} />}
+              label={t("chat.more")}
+              onPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+              colors={colors}
+            />
+          </View>
+        ) : null}
+
         {m.interrupted ? (
           <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
             {t("chat.interrupted")}
-          </Text>
-        ) : null}
-        {m.edited ? (
-          <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
-            {t("chat.edit")}
           </Text>
         ) : null}
 

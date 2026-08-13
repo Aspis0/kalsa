@@ -106,7 +106,7 @@ export const en = {
       "Changing model will stop generation. Continue?",
     privacy: "Privacy",
     privacyBody:
-      "Kalsa runs fully on this device. Your chats stay local. The only network calls are model downloads from Hugging Face and web search through the provider you choose. API keys are stored in this device's secure storage. There is no account and no cloud sync. Telemetry is off by default and opt-in.",
+      "Kalsa runs fully on this device. Your chats stay local. Network calls are model downloads from Hugging Face, web search through the provider you choose, optional page fetches (web_fetch), and opt-in telemetry. API keys are stored in this device's secure storage. There is no account and no cloud sync. Telemetry is off by default.",
     telemetry: "Telemetry",
     telemetryBodyOff:
       "Off by default. No telemetry leaves this device.",
@@ -455,10 +455,13 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     a11yNewChat: "New chat",
     a11yClearRun: "Clear selected run",
     a11yLongPress: "Long press for copy or translate",
+    lookAtAttachedFile: "Look at the attached file.",
     a11yAttach: "Add attachment",
+    a11yRemoveAttachment: "Remove attachment",
     a11yStop: "Stop generation",
     a11ySend: "Send",
     regenerate: "Regenerate",
+    more: "More",
     edit: "Edit",
     cancelRegenerate: "Cancel regenerate",
     regenCostHint: "Reload — may take several seconds",

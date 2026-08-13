@@ -697,6 +697,14 @@ export function initEngine(
     )
       return { effectiveNCtx };
     await disposeEngineLocked();
+    // Re-check after dispose: timeout / release() failure sets contextHung
+    // and returns. Calling initLlama on a hung or half-released native
+    // context is fail-open (second context + UAF). Fail closed.
+    if (contextHung) {
+      throw new Error(
+        "Engine context hung after dispose timeout with active native work; restart the app",
+      );
+    }
 
     const isMultimodal = Boolean(options.mmprojPath);
 
@@ -996,7 +1004,8 @@ async function disposeEngineLocked(): Promise<void> {
       try {
         await current.release();
       } catch {
-        // rilascio best-effort
+        // Unknown native state after a failed release — do not initLlama.
+        contextHung = true;
       }
     } else {
       // Still drain the job queue in case a job is mid-flight with a captured ctx.

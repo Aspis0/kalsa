@@ -45,6 +45,7 @@ import {
   isPdfTextExtractionBusy,
   requestPdfText,
 } from "../pdf/pdfTextService";
+import { MAX_PDF_PAGES } from "../util/pdfBridgeProtocol";
 import { htmlToText } from "../util/htmlToText";
 import { useLocale } from "../i18n";
 import { Header } from "../theme/components";
@@ -317,14 +318,20 @@ export function DocumentsScreen({
           docCount = extractedDocs.filter(
             (d) => d && typeof d.text === "string" && d.text.trim().length > 0,
           ).length;
-          if (
+          // Store the extracted cap, not pdf.js numPages — we only read
+          // MAX_PDF_PAGES, so claiming the full document length is dishonest.
+          const extractedPages =
+            extractedDocs.length + (extracted?.skippedPages?.length ?? 0);
+          if (extractedPages > 0) {
+            pageCount = extractedPages;
+          } else if (
             typeof extracted?.documentPageCount === "number" &&
             extracted.documentPageCount > 0
           ) {
-            pageCount = extracted.documentPageCount;
-          } else if (extractedDocs.length > 0) {
-            pageCount =
-              extractedDocs.length + (extracted?.skippedPages?.length ?? 0);
+            pageCount = Math.min(
+              Math.floor(extracted.documentPageCount),
+              MAX_PDF_PAGES,
+            );
           }
           const fullText = extractedDocs.map((d) => d.text ?? "").join("\n\n");
           estimatedTokens = estimateTokensForDoc(fullText);

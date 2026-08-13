@@ -105,7 +105,7 @@ export const it: typeof en = {
       "Cambiare modello interromperà la generazione. Continuare?",
     privacy: "Privacy",
     privacyBody:
-      "Kalsa gira interamente su questo dispositivo. Le chat restano locali. Le uniche chiamate di rete sono il download dei modelli da Hugging Face e la ricerca web tramite il provider che scegli. Le chiavi API sono salvate nell'archivio sicuro del dispositivo. Nessun account e nessuna sincronizzazione cloud. La telemetria è disattivata di default e solo opt-in.",
+      "Kalsa gira interamente su questo dispositivo. Le chat restano locali. Le chiamate di rete sono il download dei modelli da Hugging Face, la ricerca web tramite il provider che scegli, i fetch di pagine opzionali (web_fetch) e la telemetria opt-in. Le chiavi API sono salvate nell'archivio sicuro del dispositivo. Nessun account e nessuna sincronizzazione cloud. La telemetria è disattivata di default.",
     telemetry: "Telemetria",
     telemetryBodyOff:
       "Disattivata di default. Nessuna telemetria lascia questo dispositivo.",
@@ -452,10 +452,13 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     a11yNewChat: "Nuova chat",
     a11yClearRun: "Cancella esecuzione selezionata",
     a11yLongPress: "Tieni premuto per copiare o tradurre",
+    lookAtAttachedFile: "Guarda il file allegato.",
     a11yAttach: "Aggiungi allegato",
+    a11yRemoveAttachment: "Rimuovi allegato",
     a11yStop: "Interrompi generazione",
     a11ySend: "Invia",
     regenerate: "Rigenera",
+    more: "Altro",
     edit: "Modifica",
     cancelRegenerate: "Annulla rigenera",
     regenCostHint: "Ricarica la risposta — può richiedere diversi secondi",

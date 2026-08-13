@@ -34,6 +34,7 @@ import {
   isDeleteActive,
   tryAcquireRead,
   releaseRead,
+  isReadActive,
 } from "../documents/docOpGate";
 import { DocRetrieverIndex } from "../context/retrievalLoop";
 import { htmlToText } from "../util/htmlToText";
@@ -122,7 +123,7 @@ import {
   sendingInFlightRef,
 } from "../engine/regenState";
 import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
-import { computePromptEnvHash, getBootHistoryHash, historyHash } from "../engine/sessionPersistence";
+import { computePromptEnvHash, getBootHistoryHash, historyHash, resetBootHistoryHash } from "../engine/sessionPersistence";
 import { getEngineOverride, getSpeculativeOverride } from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import {
@@ -1006,7 +1007,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return null;
       }
 
-      if (!tryAcquireRead()) return null;
+      // document_chat already holds READ (non-reentrant). Reuse that latch
+      // instead of tryAcquireRead, which would fail and skip the sidecar load.
+      const readAlreadyHeld = isReadActive();
+      if (!readAlreadyHeld && !tryAcquireRead()) return null;
       try {
         const raw = await readVectorIndexFile(docId);
         // Re-check after await.
@@ -1059,7 +1063,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         docDenseReasonByIdRef.current.set(docId, "corrupt");
         return null;
       } finally {
-        releaseRead();
+        if (!readAlreadyHeld) releaseRead();
       }
     },
     [],
@@ -1249,6 +1253,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           const extracted = await requestPdfText(entry.fileUri, {
             sourceId: entry.sourceId || entry.id,
             title: entry.name,
+            signal,
           });
           if (!stillCurrent() || signal.aborted) {
             // eslint-disable-next-line no-console
@@ -2018,8 +2023,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       },
       onAppState: (state) => {
         if (disposed) return;
-        if (state === "background" || state === "inactive") {
-          // RN can emit both inactive and background; only one discard at a time.
+        if (state === "background") {
+          // True background only. iOS `inactive` is Control Center / shade —
+          // abort/save/dispose there would kill a still-visible session.
+          // (AiChatPage already skips expensive KV save on inactive.)
           if (discardInFlightRef.current) return;
           discardInFlightRef.current = true;
           void (async () => {
@@ -2095,6 +2102,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 try {
                   if (isEngineReady()) {
                     await runNativeOp(() => disposeEngine());
+                    // Same-process unload→reload must not compare stale H0
+                    // against the just-saved .kvs (would miss and delete it).
+                    resetBootHistoryHash();
                     setProcessUnloadedReason("chat.unloaded");
                     setMemoryBannerKey("chat.unloaded");
                     console.info(
@@ -3947,21 +3957,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     // cancelled while the user only changed text size).
     <View style={{ flex: 1, backgroundColor: colors.shell }}>
     {/*
-      key=fontScaleId: force a full remount of the visible tree on text-size
-      change. Most of theme/components/* still reads the static `typography`
-      singleton at module scope instead of useTypography() — a plain
-      re-render leaves their already-created style objects looking stale even
-      though the singleton's fontSize/lineHeight are updated (React does not
-      know to re-render a component that isn't itself subscribed to the
-      change). Remounting is the small, low-risk fix: AppShell's own hooks
-      (engine refs, download state, model index) live above this element and
-      are untouched, so the loaded model/engine and any in-flight downloads
-      are NOT torn down — only the display subtree (chat, drawer, settings,
-      help) unmounts and remounts, re-reading the (already-updated) typography
-      values. AiChatPage reloads its message list from AsyncStorage on mount,
-      which is written on every change, so no chat data is lost.
+      PainterlyBg + header + AiChatPage stay unkeyed: they already call
+      useTypography() and re-render via theme context. key=fontScaleId lives
+      only on Help / Documents / drawer — those still read the static
+      typography singleton via theme/components, so they remount to pick up
+      the new sizes without resetting the chat FlatList / JPEG decode /
+      history reload. Settings is NOT keyed: it already uses useTypography()
+      and remounting would wipe an in-progress API-key draft.
     */}
-    <View key={fontScaleId} style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <PainterlyBg />
       <GestureDetector gesture={edgeSwipe}>
       <View style={{ flex: 1 }}>
@@ -3984,7 +3988,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             <Text
               style={[
                 typography.bodyMd,
-                { color: colors.ink, fontFamily: fontFamilies.displayBold, letterSpacing: 0.2, lineHeight: 20 },
+                { color: colors.ink, fontFamily: fontFamilies.displayBold, letterSpacing: 0.2 },
               ]}
               numberOfLines={1}
             >
@@ -4028,7 +4032,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             >
               {/* Allow wrap at large font scales so the status segment
                   (Ready / Download …) is never clipped. Do not shrink type. */}
-              <Text style={[typography.bodyXs, { color: modelBarStatus.color, lineHeight: 15 }]}>
+              <Text style={[typography.bodyXs, { color: modelBarStatus.color }]}>
                 {currentModel.name} · {currentModel.quant} · {modelBarStatus.label}
               </Text>
             </Pressable>
@@ -4172,6 +4176,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       </GestureDetector>
 
       <Drawer
+        key={fontScaleId}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         brand="Kalsa"
@@ -4226,6 +4231,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
       {activeOverlay?.kind === "documents" ? (
         <DocumentsScreen
+          key={fontScaleId}
           library={documentLibrary}
           onAddDocument={addDocument}
           onDeleteDocument={deleteDocument}
@@ -4238,6 +4244,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
       {activeOverlay?.kind === "help" ? (
         <HelpScreen
+          key={fontScaleId}
           // Back from Help returns to Settings (Help is opened from Settings).
           onBack={() => setActiveOverlay({ kind: "settings" })}
         />
@@ -4285,7 +4292,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         </Modal>
       ) : null}
     </View>
-      {/* Sibling of the fontScale-keyed tree — never remounts on text-size change. */}
+      {/* Hosts stay unkeyed — never remount on text-size change. */}
       <PdfTextExtractorHost />
       <DocumentCoverHost />
     </View>
