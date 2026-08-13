@@ -7,31 +7,35 @@ import { useLabTheme } from "../ui/labTheme";
 // On Android, fontWeight is NOT synthesized for custom families — weight MUST
 // come from the fontFamily name (never pair a custom family with numeric fontWeight).
 const display = Platform.select({
-  default: "PlusJakartaSans_600SemiBold",
+  default: "Fraunces_600SemiBold",
 });
 const displayBold = Platform.select({
-  default: "PlusJakartaSans_700Bold",
+  default: "Fraunces_700Bold",
 });
 const displayExtra = Platform.select({
-  default: "PlusJakartaSans_800ExtraBold",
+  default: "Fraunces_800ExtraBold",
 });
 const body = Platform.select({
-  default: "PlusJakartaSans_400Regular",
+  default: "BricolageGrotesque_400Regular",
 });
+// Bricolage Grotesque ships no italic face; chat/markdown italic uses Source Serif 4.
 const bodyItalic = Platform.select({
-  default: "PlusJakartaSans_400Regular_Italic",
+  default: "SourceSerif4_400Regular_Italic",
 });
 const bodyMedium = Platform.select({
-  default: "PlusJakartaSans_500Medium",
+  default: "BricolageGrotesque_500Medium",
 });
 const bodySemi = Platform.select({
-  default: "PlusJakartaSans_600SemiBold",
+  default: "BricolageGrotesque_600SemiBold",
+});
+const chatBody = Platform.select({
+  default: "SourceSerif4_400Regular",
 });
 const mono = Platform.select({
-  default: "JetBrainsMono_400Regular",
+  default: "IBMPlexMono_400Regular",
 });
 const monoBold = Platform.select({
-  default: "JetBrainsMono_700Bold",
+  default: "IBMPlexMono_700Bold",
 });
 
 export const fontFamilies = {
@@ -42,6 +46,7 @@ export const fontFamilies = {
   bodyItalic,
   bodyMedium,
   bodySemi,
+  chatBody,
   mono,
   monoBold,
 };
@@ -102,7 +107,7 @@ export const baseTypography: Record<string, TextStyle> = {
     letterSpacing: -0.1,
   },
   chatBody: {
-    fontFamily: body,
+    fontFamily: chatBody,
     fontSize: 16,
     lineHeight: 25,
   },

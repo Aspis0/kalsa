@@ -14,8 +14,10 @@
     "harness:telemetry": "node scripts/telemetryHarness.mjs"
   },
   "dependencies": {
-    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
-    "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
+    "@expo-google-fonts/bricolage-grotesque": "^0.4.1",
+    "@expo-google-fonts/fraunces": "^0.4.1",
+    "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
+    "@expo-google-fonts/source-serif-4": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
     "@fugood/react-native-audio-pcm-stream": "^1.1.4",
     "@react-native-async-storage/async-storage": "2.2.0",

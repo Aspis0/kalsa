@@ -23,6 +23,7 @@ import {
   isSafeHttpUrl,
   parseMarkdownBlocks,
 } from "./markdown";
+import { StreamCaret } from "./StreamCaret";
 
 export type MarkdownSource = {
   url?: string;
@@ -58,10 +59,12 @@ export function MarkdownText({
   const ink = colors.ink;
   const bodyStyle = [typography.chatBody, { color: ink }];
 
+  const caret = showCursor ? <StreamCaret color={colors.accent} /> : null;
+
   if (blocks.length === 0) {
     return (
       <Text style={bodyStyle} onLongPress={onLongPress}>
-        {showCursor ? "▋" : ""}
+        {caret}
       </Text>
     );
   }
@@ -73,7 +76,7 @@ export function MarkdownText({
       {blocks.map((block, idx) => {
         const isLast = idx === blocks.length - 1;
         // Rule has no text slot — cursor is rendered after the map when last is rule.
-        const cursor = isLast && showCursor && block.type !== "rule" ? "▋" : "";
+        const cursor = isLast && showCursor && block.type !== "rule" ? caret : null;
         return (
           <BlockView
             key={idx}
@@ -89,7 +92,7 @@ export function MarkdownText({
       })}
       {showCursor && lastIsRule ? (
         <Text style={bodyStyle} onLongPress={onLongPress}>
-          ▋
+          {caret}
         </Text>
       ) : null}
     </View>
@@ -122,7 +125,7 @@ function BlockView({
   colors: ThemeColors;
   typography: Typo;
   ink: string;
-  cursor: string;
+  cursor: React.ReactNode;
   onLongPress?: () => void;
   sources?: MarkdownSource[];
 }) {

@@ -8,14 +8,14 @@ import { radius, spacing } from "./tokens";
 export type ResponsiveMetrics = typeof DEFAULT_RESPONSIVE_METRICS;
 
 export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = DEFAULT_RESPONSIVE_METRICS) {
-  // Plus Jakarta Sans for all UI text. On Android RN does NOT synthesize
-  // weight for custom families — the face name encodes weight (…_400Regular,
-  // …_500Medium, …_600SemiBold, …_700Bold). Do NOT also set a numeric weight
+  // Bricolage Grotesque for UI body, Fraunces for display. On Android RN does
+  // NOT synthesize weight for custom families — the face name encodes weight
+  // (…_400Regular, …_600SemiBold, …_700Bold). Do NOT also set a numeric weight
   // property on these faces. Loaded via useAgoraFonts (App.tsx blocks render
   // until ready). Falls back to System if the load somehow bypassed the gate.
-  const fontBody = "PlusJakartaSans_400Regular";
-  const fontSemi = "PlusJakartaSans_600SemiBold";
-  const fontDisplay = "PlusJakartaSans_700Bold";
+  const fontBody = "BricolageGrotesque_400Regular";
+  const fontSemi = "BricolageGrotesque_600SemiBold";
+  const fontDisplay = "Fraunces_700Bold";
   const textClear = { includeFontPadding: false };
   const androidGlassSurface = Platform.OS === "android" ? colors.panelSolid : "transparent";
   return StyleSheet.create({
