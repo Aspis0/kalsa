@@ -492,6 +492,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     lazyReload: "Tap to reload",
     thermalHot: "Device warm",
     regenFailed: "Regenerate failed",
+    editEmpty: "Add a caption or keep an attachment.",
+    sendAborted: "Generation stopped before a reply started.",
   },
 
   notify: {

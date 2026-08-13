@@ -90,7 +90,7 @@ import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
 import { StreamCaret } from "../chat/StreamCaret";
-import { BrandIcon } from "../theme/icons/BrandIcon";
+import { BrandIcon, SendGlyphPair } from "../theme/icons/BrandIcon";
 import { typography, useTypography, fontFamilies } from "../theme/typography";
 import {
   cancelCapture,
@@ -737,12 +737,14 @@ export function AiChatPage({
   isActiveChatEmptyRef,
   bumpPersistEpochRef,
 }: Props) {
-  const { colors, mode } = useLabTheme<any>();
+  const { colors, mode, fontScaleId } = useLabTheme<any>();
   // Reactive tokens: font-scale change re-renders this page via context.
-  // ChatMessageRow also calls useTypography() so memoized rows pick up the
-  // new sizes. AttachSheetRow / TranslationBlock / MiniappCard still read
-  // the static singleton; they re-render as children of a subscribed parent.
+  // Rows get a fontScaleId-stable typography prop so IME height ticks
+  // (which recreate themeValue) do not bust ChatMessageRow memo.
+  // AttachSheetRow / TranslationBlock / MiniappCard still read the static
+  // singleton; they re-render as children of a subscribed parent.
   const typography = useTypography();
+  const rowTypography = useMemo(() => typography, [fontScaleId]);
   const { t, locale } = useLocale();
   const insets = useSafeAreaInsets();
   // Manual keyboard padding from the lib's animated height (see Animated.View below).
@@ -812,6 +814,8 @@ export function AiChatPage({
   const [longChatNudgeShown, setLongChatNudgeShown] = useState(false);
   const [emptyArtFailed, setEmptyArtFailed] = useState(false);
   const [draft, setDraft] = useState("");
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
   const [sending, setSending] = useState(false);
   // BLOCKER-3: synchronous in-flight guard (React state updates are async).
   // Declared next to `sending` so handleMicPress can gate on the ref, not stale state.
@@ -1871,7 +1875,8 @@ export function AiChatPage({
       // Audit follow-up: also belt-and-braces block while a PDF conversion
       // is in flight — the composer-side guards (onSubmitEditing, send
       // button) already block this, but handleSend can also be invoked
-      // directly (suggestion cards) so it needs its own check too.
+      // directly (suggestion cards / regen). Read pdfToRenderRef so a stale
+      // handleSend/regenerate closure cannot bypass or stay blocked.
       // regenInFlight blocks concurrent user sends; regenHandleSendPassRef is a
       // one-shot allow so regenerate/edit can call handleSend without deadlock.
       // sendClaimRef is the pre-await lock: two rapid ordinary sends must not
@@ -1885,7 +1890,7 @@ export function AiChatPage({
         translationInFlightRef.current ||
         voiceBusyRef.current ||
         (regenInFlightRef.current && !regenHandleSendPassRef.current) ||
-        !!pdfToRender ||
+        !!pdfToRenderRef.current ||
         !historyLoaded
       ) {
         return {
@@ -2299,6 +2304,11 @@ export function AiChatPage({
           if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
             failed = true;
             failReasonKey = "chat.regenFailed";
+          } else if (controller.signal.aborted && !anyTextStreamed) {
+            // Stop / background discard with no tokens: ok:false so regen/edit
+            // restore the previous assistant instead of dropping it.
+            failed = true;
+            failReasonKey = "chat.sendAborted";
           } else if (streamResult && typeof streamResult === "object") {
             afterSessionSave = streamResult.afterSessionSave;
           }
@@ -2333,6 +2343,10 @@ export function AiChatPage({
               }
               return prev.filter(m => m.id !== assistantId);
             });
+          }
+          if (!anyTextStreamed) {
+            failed = true;
+            failReasonKey = "chat.sendAborted";
           }
           // If partial text was streamed, the finally block finalizes it cleanly — no action needed
         } else if (mountedRef.current) {
@@ -2585,6 +2599,12 @@ export function AiChatPage({
           }
         }
       }
+      if (controller.signal.aborted && !anyTextStreamed) {
+        failed = true;
+        if (failReasonKey === "chat.serviceUnreachable") {
+          failReasonKey = "chat.sendAborted";
+        }
+      }
       return failed
         ? { ok: false as const, reasonKey: failReasonKey }
         : { ok: true as const };
@@ -2597,7 +2617,7 @@ export function AiChatPage({
         }
       }
     },
-    [awaitPreSendFitGate, historyLoaded, invalidateVoice, onSendStream, pdfToRender, t, updateMessage],
+    [awaitPreSendFitGate, historyLoaded, invalidateVoice, onSendStream, t, updateMessage],
   );
 
   // Publish the active handleSend promise so background discard can await it.
@@ -2931,6 +2951,12 @@ export function AiChatPage({
     [findOriginalUserMessage, handleSendTracked],
   );
 
+  const regenerateRef = useRef(regenerate);
+  regenerateRef.current = regenerate;
+  const onRegenerateStable = useCallback((id: string) => {
+    void regenerateRef.current(id);
+  }, []);
+
   /**
    * Edit a user message then regenerate from that point.
    * Atomic splice (edited flag) + truncate + handleSend(newText).
@@ -2944,13 +2970,18 @@ export function AiChatPage({
       newText: string,
     ): Promise<{ ok: true } | { ok: false; reasonKey: string }> => {
       const trimmed = newText.trim();
-      if (!trimmed) return { ok: false, reasonKey: "chat.regenFailed" };
       if (
         regenInFlightRef.current ||
         sendingRef.current ||
         sendClaimRef.current
       ) {
         return { ok: false, reasonKey: "chat.regenBusy" };
+      }
+      const editTarget = messagesRef.current.find((m) => m.id === targetMsgId);
+      const editHasAttachments = (editTarget?.attachments?.length ?? 0) > 0;
+      // Same as send: empty caption is valid when attachments remain.
+      if (!trimmed && !editHasAttachments) {
+        return { ok: false, reasonKey: "chat.editEmpty" };
       }
       // Capture generation at acquire (before any await).
       const myGeneration = regenGenerationRef.current;
@@ -3083,17 +3114,20 @@ export function AiChatPage({
     (id: string, text: string, role: Message["role"], streaming?: boolean) => {
       // Skip while this message streams, a chat turn is in flight, or a translate is running.
       // Refs ONLY (no state reads): ChatMessageRow's memo comparator ignores
-      // callback identity, so a state-capturing closure would freeze inside
-      // memoized rows (user rows created mid-send froze sending=true and their
-      // long-press menu died — hostile-review finding 1a). sendingRef /
-      // translationInFlightRef mirror the state synchronously and keep this
-      // callback identity-stable, which is what makes the memo safe.
+      // most callback identity, so a state-capturing closure would freeze
+      // inside memoized rows (user rows created mid-send froze sending=true
+      // and their long-press menu died — hostile-review finding 1a).
+      // sendingRef / translationInFlightRef / messagesRef keep this callback
+      // identity-stable. onRegenerate is compared so a stale regen cannot
+      // bypass or stay blocked on the PDF-in-flight gate.
+      const menuMsg = messagesRef.current.find((m) => m.id === id);
+      const hasAttachments = (menuMsg?.attachments?.length ?? 0) > 0;
       if (
         streaming ||
         sendingRef.current ||
         translationInFlightRef.current ||
         regenInFlightRef.current ||
-        !text.trim()
+        (!text.trim() && !hasAttachments)
       ) {
         return;
       }
@@ -3218,6 +3252,25 @@ export function AiChatPage({
       voiceBlocksComposer,
     ],
   );
+
+  const onComposerAttach = useCallback(() => {
+    if (voiceBusyRef.current || voiceUiRef.current !== "idle" || pdfToRenderRef.current) {
+      return;
+    }
+    setAttachSheetOpen(true);
+  }, []);
+
+  const onComposerSendOrStop = useCallback(() => {
+    if (sendingRef.current) {
+      handleStop();
+      return;
+    }
+    if (pdfToRenderRef.current) return;
+    const text = draftRef.current;
+    const attachments = attachedItemsRef.current;
+    if (!text.trim() && attachments.length === 0) return;
+    handleSendTracked(text, attachments);
+  }, [handleSendTracked, handleStop]);
 
   // ── Attach chip color helper ────────────────────────────────────────────
   function chipColorForKind(kind: LocalAttachment["kind"]) {
@@ -3440,11 +3493,12 @@ export function AiChatPage({
             translationResult?.id === m.id ? translationExpanded : false
           }
           colors={colors}
+          typography={rowTypography}
           t={t}
           onOpenMessageMenu={openMessageMenu}
           onCopyText={(text) => { void copyTextToClipboard(text); }}
           onSpeak={handleReadAloud}
-          onRegenerate={(id) => { void regenerate(id); }}
+          onRegenerate={onRegenerateStable}
           isSpeaking={speakingId === m.id}
           onCloseTranslation={closeTranslation}
           onRetryTranslate={runTranslate}
@@ -3462,8 +3516,9 @@ export function AiChatPage({
       locale,
       onCtaPress,
       onOpenMiniapp,
+      onRegenerateStable,
       openMessageMenu,
-      regenerate,
+      rowTypography,
       runTranslate,
       speakingId,
       t,
@@ -3483,78 +3538,13 @@ export function AiChatPage({
     <Animated.View style={[{ flex: 1, backgroundColor: colors.shell }, kbPad]}>
 
       {/* ── Nav bar ── */}
-      <View
-        style={{
-          // No top inset here: AppShell's model bar sits directly above this row
-          // and already applies `insets.top`. Applying it again reserved the
-          // status-bar height a second time and left an empty band under the
-          // model name — invisible while surfaces were translucent, obvious once
-          // this header got an opaque background and a bottom border.
-          // `insets.bottom` is still used below, for the composer.
-          backgroundColor: colors.shell,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.line,
-        }}
-      >
-        <View
-          style={{
-            height: 48,
-            flexDirection: "row",
-            alignItems: "center",
-            paddingHorizontal: spacing.md,
-          }}
-        >
-          {/* Left: hamburger → drawer (settings) */}
-          <Pressable
-            onPress={onMenuPress}
-            accessibilityLabel={t("chat.a11yMenu")}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Menu size={20} color={colors.ink} />
-          </Pressable>
-
-          {/* Center spacer — model name/status lives in AppShell header */}
-          <View style={{ flex: 1 }} />
-
-          {/* Right: export chat */}
-          <Pressable
-            onPress={exportChat}
-            hitSlop={8}
-            accessibilityLabel={t("chat.a11yExport")}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <BrandIcon name="share" size={28} />
-          </Pressable>
-
-          {/* Right: new chat */}
-          <Pressable
-            onPress={clearChat}
-            hitSlop={8}
-            accessibilityLabel={t("chat.a11yNewChat")}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <BrandIcon name="new-chat" size={28} />
-          </Pressable>
-        </View>
-      </View>
+      <ChatNavBar
+        colors={colors}
+        t={t}
+        onMenuPress={onMenuPress}
+        onExport={exportChat}
+        onNewChat={clearChat}
+      />
 
       {/* ── Selected run banner ── */}
       {selectedRun ? (
@@ -3928,144 +3918,19 @@ export function AiChatPage({
             />
           </Pressable>
 
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginTop: spacing.xs,
-            }}
-          >
-            {/* Left: attach and other action icons */}
-            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-              {/* Attach: foto/PDF per la vision — blocked during voice capture/transcribe */}
-              {/* U2: also blocked while a PDF conversion is in flight — reusing the
-                  attach sheet mid-conversion is what causes the stuck-composer bug. */}
-              <Pressable
-                onPress={() => {
-                  if (voiceBusyRef.current || voiceUi !== "idle" || pdfToRender) return;
-                  setAttachSheetOpen(true);
-                }}
-                disabled={sending || voiceBlocksComposer || !!pdfToRender}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t("chat.a11yAttach")}
-                accessibilityState={{
-                  disabled: sending || voiceBlocksComposer || !!pdfToRender,
-                }}
-                style={({ pressed }) => ({
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity:
-                    sending || voiceBlocksComposer || pdfToRender ? 0.45 : pressed ? 0.7 : 1,
-                })}
-              >
-                <BrandIcon name="attach" />
-              </Pressable>
-            </View>
-
-            {/* Right: mic + send/stop */}
-            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-              {/* Mic: tap to talk → stop → draft (on-device whisper).
-                  Disabled while sending/transcribing; stays pressable when model
-                  missing so the user still gets the download hint. Listening stays
-                  enabled so the user can stop. */}
-              <Pressable
-                onPress={() => {
-                  void handleMicPress();
-                }}
-                disabled={sending || voiceUi === "transcribing"}
-                accessible
-                accessibilityRole="button"
-                accessibilityState={{
-                  disabled: sending || voiceUi === "transcribing",
-                  busy: voiceUi === "transcribing",
-                }}
-                accessibilityLabel={
-                  voiceUi === "listening"
-                    ? t("voice.a11yMicStop")
-                    : !voiceReady
-                      ? t("voice.modelMissing")
-                      : t("voice.a11yMic")
-                }
-                style={({ pressed }) => ({
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity:
-                    sending || voiceUi === "transcribing"
-                      ? 0.45
-                      : pressed
-                        ? 0.7
-                        : voiceReady
-                          ? 1
-                          : 0.55,
-                })}
-              >
-                <BrandIcon
-                  name="mic"
-                  tone={voiceUi === "listening" ? "danger" : "accent"}
-                />
-              </Pressable>
-
-              {/* Stop while streaming; send-idle stays in the tree when empty
-                  (do not use Pressable disabled — Android TalkBack drops it).
-                  Both glyphs stay mounted — remounting send vs stop re-decodes
-                  the JPEG. Hide the unused one. */}
-              <Pressable
-                onPress={() => {
-                  if (sending) {
-                    handleStop();
-                    return;
-                  }
-                  if (!canSend || pdfToRender) return;
-                  handleSendTracked(draft, attachedItems);
-                }}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={sending ? t("chat.a11yStop") : t("chat.a11ySend")}
-                accessibilityState={{ disabled: !sending && !canSend }}
-                style={({ pressed }) => ({
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity: pressed ? 0.85 : 1,
-                })}
-              >
-                <View style={{ width: 36, height: 36 }}>
-                  <View
-                    pointerEvents="none"
-                    style={{
-                      position: "absolute",
-                      opacity: sending ? 1 : 0,
-                    }}
-                    accessibilityElementsHidden={!sending}
-                    importantForAccessibility={sending ? "auto" : "no-hide-descendants"}
-                  >
-                    <BrandIcon name="stop" />
-                  </View>
-                  <View
-                    pointerEvents="none"
-                    style={{
-                      position: "absolute",
-                      opacity: sending ? 0 : 1,
-                    }}
-                    accessibilityElementsHidden={sending}
-                    importantForAccessibility={sending ? "no-hide-descendants" : "auto"}
-                  >
-                    <BrandIcon name={canSend ? "send-ready" : "send-idle"} />
-                  </View>
-                </View>
-              </Pressable>
-            </View>
-          </View>
+          <ComposerActionRow
+            canSend={canSend}
+            sending={sending}
+            pdfBlocked={!!pdfToRender}
+            voiceBlocksComposer={voiceBlocksComposer}
+            voiceUi={voiceUi}
+            voiceReady={voiceReady}
+            colors={colors}
+            t={t}
+            onAttach={onComposerAttach}
+            onMic={handleMicPress}
+            onSendOrStop={onComposerSendOrStop}
+          />
         </View>
       </View>
 
@@ -4253,8 +4118,14 @@ export function AiChatPage({
                   onPress={() => {
                     const id = editingMessage.id;
                     const draft = editingMessage.draft;
-                    setEditingMessage(null);
-                    void editMessage(id, draft);
+                    void editMessage(id, draft).then((res) => {
+                      if (!mountedRef.current) return;
+                      if (!res.ok) {
+                        showVoiceNote(t(res.reasonKey as any));
+                        return;
+                      }
+                      setEditingMessage(null);
+                    });
                   }}
                   accessibilityLabel={t("common.save")}
                   style={({ pressed }) => ({
@@ -4400,6 +4271,231 @@ export function AiChatPage({
     </Animated.View>
   );
 }
+
+const ChatNavBar = React.memo(function ChatNavBar({
+  colors,
+  t,
+  onMenuPress,
+  onExport,
+  onNewChat,
+}: {
+  colors: any;
+  t: TranslateFn;
+  onMenuPress?: () => void;
+  onExport: () => void;
+  onNewChat: () => void;
+}) {
+  return (
+    <View
+      style={{
+        // No top inset here: AppShell's model bar sits directly above this row
+        // and already applies `insets.top`. Applying it again reserved the
+        // status-bar height a second time and left an empty band under the
+        // model name — invisible while surfaces were translucent, obvious once
+        // this header got an opaque background and a bottom border.
+        // `insets.bottom` is still used below, for the composer.
+        backgroundColor: colors.shell,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.line,
+      }}
+    >
+      <View
+        style={{
+          height: 48,
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: spacing.md,
+        }}
+      >
+        <Pressable
+          onPress={onMenuPress}
+          accessibilityLabel={t("chat.a11yMenu")}
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <Menu size={20} color={colors.ink} />
+        </Pressable>
+
+        <View style={{ flex: 1 }} />
+
+        <Pressable
+          onPress={onExport}
+          hitSlop={8}
+          accessibilityLabel={t("chat.a11yExport")}
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <BrandIcon name="share" size={28} />
+        </Pressable>
+
+        <Pressable
+          onPress={onNewChat}
+          hitSlop={8}
+          accessibilityLabel={t("chat.a11yNewChat")}
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <BrandIcon name="new-chat" size={28} />
+        </Pressable>
+      </View>
+    </View>
+  );
+});
+
+const ComposerActionRow = React.memo(function ComposerActionRow({
+  canSend,
+  sending,
+  pdfBlocked,
+  voiceBlocksComposer,
+  voiceUi,
+  voiceReady,
+  colors,
+  t,
+  onAttach,
+  onMic,
+  onSendOrStop,
+}: {
+  canSend: boolean;
+  sending: boolean;
+  pdfBlocked: boolean;
+  voiceBlocksComposer: boolean;
+  voiceUi: VoiceUiState;
+  voiceReady: boolean;
+  colors: any;
+  t: TranslateFn;
+  onAttach: () => void;
+  onMic: () => void;
+  onSendOrStop: () => void;
+}) {
+  const attachDisabled = sending || voiceBlocksComposer || pdfBlocked;
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginTop: spacing.xs,
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+        <Pressable
+          onPress={onAttach}
+          disabled={attachDisabled}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t("chat.a11yAttach")}
+          accessibilityState={{ disabled: attachDisabled }}
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: attachDisabled ? 0.45 : pressed ? 0.7 : 1,
+          })}
+        >
+          <BrandIcon name="attach" />
+        </Pressable>
+      </View>
+
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+        <Pressable
+          onPress={onMic}
+          disabled={sending || voiceUi === "transcribing"}
+          accessible
+          accessibilityRole="button"
+          accessibilityState={{
+            disabled: sending || voiceUi === "transcribing",
+            busy: voiceUi === "transcribing",
+          }}
+          accessibilityLabel={
+            voiceUi === "listening"
+              ? t("voice.a11yMicStop")
+              : !voiceReady
+                ? t("voice.modelMissing")
+                : t("voice.a11yMic")
+          }
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity:
+              sending || voiceUi === "transcribing"
+                ? 0.45
+                : pressed
+                  ? 0.7
+                  : voiceReady
+                    ? 1
+                    : 0.55,
+          })}
+        >
+          <BrandIcon
+            name="mic"
+            tone={voiceUi === "listening" ? "danger" : "accent"}
+          />
+        </Pressable>
+
+        <Pressable
+          onPress={onSendOrStop}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={sending ? t("chat.a11yStop") : t("chat.a11ySend")}
+          accessibilityState={{ disabled: !sending && !canSend }}
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.85 : 1,
+          })}
+        >
+          <View style={{ width: 36, height: 36 }}>
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                opacity: sending ? 1 : 0,
+              }}
+              accessibilityElementsHidden={!sending}
+              importantForAccessibility={sending ? "auto" : "no-hide-descendants"}
+            >
+              <BrandIcon name="stop" />
+            </View>
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                opacity: sending ? 0 : 1,
+              }}
+              accessibilityElementsHidden={sending}
+              importantForAccessibility={sending ? "no-hide-descendants" : "auto"}
+            >
+              <SendGlyphPair canSend={canSend} />
+            </View>
+          </View>
+        </Pressable>
+      </View>
+    </View>
+  );
+});
 
 function AttachSheetRow({
   icon,
@@ -4628,6 +4724,8 @@ type ChatMessageRowProps = {
   } | null;
   translationExpanded: boolean;
   colors: any;
+  /** fontScaleId-stable tokens from the parent — do not subscribe to theme here. */
+  typography: Record<string, any>;
   t: TranslateFn;
   onOpenMessageMenu: (
     id: string,
@@ -4656,8 +4754,10 @@ function chatMessageRowPropsEqual(prev: ChatMessageRowProps, next: ChatMessageRo
     prev.translationResult === next.translationResult &&
     prev.translationExpanded === next.translationExpanded &&
     prev.colors === next.colors &&
+    prev.typography === next.typography &&
     prev.t === next.t &&
-    prev.isSpeaking === next.isSpeaking
+    prev.isSpeaking === next.isSpeaking &&
+    prev.onRegenerate === next.onRegenerate
   );
 }
 
@@ -4670,6 +4770,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   translationResult,
   translationExpanded,
   colors,
+  typography,
   t,
   onOpenMessageMenu,
   onCopyText,
@@ -4682,8 +4783,9 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   onOpenMiniapp,
   onCtaPress,
 }: ChatMessageRowProps) {
-  const typography = useTypography();
   const isUser = m.role === "user";
+  const hasAttachments = (m.attachments?.length ?? 0) > 0;
+  const hasText = !!m.text.trim();
   const dayDivider = dayLabel ? (
     <View
       key={`day-${m.id}`}
@@ -4714,7 +4816,12 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             marginTop: dayDivider ? 0 : topGap,
           }}
         >
-          {m.attachments && m.attachments.length > 0 ? (
+          {hasAttachments ? (
+            <Pressable
+              onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+              delayLongPress={350}
+              accessibilityHint={t("chat.a11yLongPress")}
+            >
             <ScrollView
               horizontal
               nestedScrollEnabled
@@ -4726,7 +4833,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                 justifyContent: "flex-end",
               }}
             >
-              {m.attachments.map((att) => {
+              {(m.attachments ?? []).map((att) => {
                 const { dot, bg } =
                   att.kind === "pdf" || att.kind === "document"
                     ? { dot: colors.compute, bg: colors.computeSoft }
@@ -4770,8 +4877,9 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                 );
               })}
             </ScrollView>
+            </Pressable>
           ) : null}
-          {m.text.trim() ? (
+          {hasText ? (
           <Pressable
             onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
             delayLongPress={350}
@@ -4787,7 +4895,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             <Text style={[typography.bodyLg, { color: colors.ink }]}>{m.text}</Text>
           </Pressable>
           ) : null}
-          {!m.streaming && m.text.trim() ? (
+          {!m.streaming && (hasText || hasAttachments) ? (
             <View
               style={{
                 flexDirection: "row",
@@ -4797,12 +4905,14 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                 marginTop: spacing.xs,
               }}
             >
+              {hasText ? (
               <MessageActionChip
                 icon={<BrandIcon name="copy" size={18} />}
                 label={t("common.copy")}
                 onPress={() => onCopyText(m.text)}
                 colors={colors}
               />
+              ) : null}
               <MessageActionChip
                 icon={<MoreHorizontal size={14} color={colors.muted} />}
                 label={t("chat.more")}

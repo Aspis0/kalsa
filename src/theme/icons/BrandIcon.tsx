@@ -211,6 +211,35 @@ const A11Y_HIDE = {
   importantForAccessibility: "no-hide-descendants" as const,
 };
 
+/**
+ * Keep both send rasters mounted. Swapping `name` unmounts a 1024 JPEG on
+ * the first keystroke (canSend flip). Opacity matches stop vs send.
+ */
+export const SendGlyphPair = React.memo(function SendGlyphPair({
+  canSend,
+  size = HIT,
+}: {
+  canSend: boolean;
+  size?: number;
+}) {
+  return (
+    <View style={{ width: size, height: size }}>
+      <View
+        pointerEvents="none"
+        style={{ position: "absolute", opacity: canSend ? 1 : 0 }}
+      >
+        <BrandIcon name="send-ready" size={size} />
+      </View>
+      <View
+        pointerEvents="none"
+        style={{ position: "absolute", opacity: canSend ? 0 : 1 }}
+      >
+        <BrandIcon name="send-idle" size={size} />
+      </View>
+    </View>
+  );
+});
+
 export function BrandIcon({ name, size = HIT, tone = "accent" }: BrandIconProps) {
   const { colors, mode } = useLabTheme<any>();
   const raster = tone === "danger" ? undefined : resolveRaster(name, mode);

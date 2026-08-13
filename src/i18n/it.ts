@@ -489,6 +489,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     lazyReload: "Tocca per ricaricare",
     thermalHot: "Telefono caldo",
     regenFailed: "Rigenera fallita",
+    editEmpty: "Aggiungi una didascalia o mantieni un allegato.",
+    sendAborted: "Generazione interrotta prima della risposta.",
   },
 
   notify: {
