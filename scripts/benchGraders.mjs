@@ -320,8 +320,90 @@ function gradeToolEmittedProbe(turn) {
   };
 }
 
+// ── Miniapp: attempt + any-form quiz (language-independent) ─────────────
+// Shapes only: digits, list markers, question marks. No word lists.
+// A valid miniapp_v1 is the requested artifact; markdown quiz is the
+// observed 2B substitute. The two families disagreeing is the finding.
+
+const QUESTION_MARK_RE = /[?？؟;]/;
+
+/** Unwrap heading hashes and matching **...** / *...* emphasis. */
+function unwrapMarkup(line) {
+  let t = String(line ?? "").trim();
+  t = t.replace(/^#{1,6}\s+/, "");
+  if (/^\*{2}[\s\S]*\*{2}$/.test(t)) t = t.slice(2, -2).trim();
+  else if (/^\*[^*][\s\S]*\*$/.test(t)) t = t.slice(1, -1).trim();
+  return t;
+}
+
+function isQuestionLike(line) {
+  const raw = String(line ?? "").trim();
+  if (!raw) return false;
+  const t = unwrapMarkup(raw);
+  if (!t) return false;
+  // Numbered: 1.  1)  1、  (1)  1:
+  if (/^(?:\(?\p{N}{1,3}\)?[.)、:：])\s+\S/u.test(t)) return true;
+  // Label + index, any letters: "Domanda 1:" / "問 1：" / "Ερώτηση 1."
+  // Linear (no nested + on the same class) — the previous
+  // (?:\p{L}+[\s._-]*)+ form ReDoS'd on long prose lines.
+  if (/^\p{L}[\p{L}\s._-]*\p{N}{1,3}\s*[:：.)]/u.test(t)) return true;
+  const tail = t.replace(/[\s*#_]+$/g, "");
+  return tail.length > 0 && QUESTION_MARK_RE.test(tail.slice(-1));
+}
+
+function isOptionLike(line) {
+  const raw = String(line ?? "").trim();
+  if (!raw || isQuestionLike(raw)) return false;
+  // Bullets, including markdown "*   A) …"
+  if (/^[-+•·]\s+\S/.test(raw) || /^\*(?!\*)\s+\S/.test(raw)) return true;
+  const t = unwrapMarkup(raw);
+  // Lettered/numbered choice: A)  a.  (b)  α.  ア、
+  if (/^(?:\(?[\p{L}\p{N}]{1,3}\)|[\p{L}\p{N}]{1,3}[.)、:：])\s+\S/u.test(t)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * True when the reply has ≥3 question-like lines each followed by ≥2
+ * option-like lines. Deliberately generous: format-wrong ≠ task-refused.
+ */
+function quizInAnyForm(text) {
+  const lines = String(text ?? "").split(/\r?\n/);
+  let questions = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (!isQuestionLike(lines[i])) continue;
+    let options = 0;
+    for (let j = i + 1; j < lines.length; j++) {
+      if (!lines[j].trim()) continue;
+      if (isQuestionLike(lines[j])) break;
+      if (isOptionLike(lines[j])) options += 1;
+    }
+    if (options >= 2) questions += 1;
+  }
+  return questions >= 3;
+}
+
+/**
+ * Something that looks like a miniapp JSON attempt: a ```json fence, or a
+ * `{`…`}` (possibly unclosed) mentioning miniapp_v1 / kind / blocks.
+ */
+function miniappJsonAttempted(text) {
+  const s = String(text ?? "");
+  if (/```\s*json\b/i.test(s)) return true;
+  const open = s.indexOf("{");
+  if (open < 0) return false;
+  const span = s.slice(open);
+  return (
+    /miniapp_v1/.test(span) ||
+    /(?<!\p{L})kind(?!\p{L})/u.test(span) ||
+    /(?<!\p{L})blocks(?!\p{L})/u.test(span)
+  );
+}
+
 function gradeMiniappProbe(turn) {
-  const parsed = parseMiniappFromText(turn.reply ?? "").miniapp;
+  const reply = turn.reply ?? "";
+  const parsed = parseMiniappFromText(reply).miniapp;
   let found = false;
   if (parsed) {
     // WHY require ≥1 block: empty miniapp_v1 envelope renders as an empty
@@ -330,13 +412,31 @@ function gradeMiniappProbe(turn) {
   } else {
     found = turn.hasMiniapp === true;
   }
+  const parsedQuiz = Boolean(
+    parsed && Array.isArray(parsed.blocks) && parsed.blocks.length >= 1,
+  );
   return {
     name: "miniapp",
     family: "miniapp",
     turnIndex: turn.index,
     expected: "miniapp_v1",
     found,
+    miniappJsonValid: found,
+    miniappJsonAttempted: miniappJsonAttempted(reply),
+    quizInAnyForm: parsedQuiz || quizInAnyForm(reply),
   };
+}
+
+/**
+ * When stopword counts are 0–0, fall back to letters that separate Italian
+ * from English (grave/acute on aeiou). No word lists — undecidable → null.
+ * @returns {true|null}
+ */
+function languageScriptSignal(text) {
+  // Italian orthography vs English: à è é ì ò ù. English has no native
+  // equivalents; é in café is a loanword, not a counter-signal.
+  if (/[àèéìòùÀÈÉÌÒÙ]/.test(String(text ?? ""))) return true;
+  return null;
 }
 
 /**
@@ -346,8 +446,14 @@ function gradeLanguageProbe(turn) {
   const stripped = stripThink(turn.reply);
   const italianHits = countWholeWords(stripped, ITALIAN_STOPWORDS);
   const englishHits = countWholeWords(stripped, ENGLISH_STOPWORDS);
-  // Ties (including 0–0) grade as NOT found.
-  const found = italianHits > englishHits;
+  // Non-zero tie still fails (italian > english). 0–0 is "no evidence":
+  // try a script/diacritic signal, else null (excluded), never false.
+  let found;
+  if (italianHits === 0 && englishHits === 0) {
+    found = languageScriptSignal(stripped);
+  } else {
+    found = italianHits > englishHits;
+  }
   const probe = {
     name: "language",
     family: "language",
@@ -453,6 +559,16 @@ function gradeAllProbes(turns, facts) {
       const p = gradeMiniappProbe(turn);
       if (empty) p.found = null;
       probes.push(p);
+      probes.push({
+        name: "miniapp_task",
+        family: "miniapp_task",
+        turnIndex: turn.index,
+        expected: "quiz in any form",
+        found: empty ? null : p.quizInAnyForm,
+        miniappJsonValid: p.miniappJsonValid,
+        miniappJsonAttempted: p.miniappJsonAttempted,
+        quizInAnyForm: p.quizInAnyForm,
+      });
     } else if (id === "probe_language") {
       if (empty) {
         probes.push({

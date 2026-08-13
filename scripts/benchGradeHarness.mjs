@@ -332,13 +332,26 @@ async function main() {
         tmp,
       );
       check(
-        "language: terse answer grades false",
-        findProbe(terse, "language")?.found === false,
+        "language: terse 0–0 stopwords → null, not false",
+        findProbe(terse, "language")?.found === null,
+        `got ${findProbe(terse, "language")?.found}`,
       );
       check(
-        "language: terse 0–0 adds note",
+        "language: terse 0–0 keeps the zero-stopword note",
         (terse.notes ?? []).some((n) => /both stopword counts at zero/i.test(n)),
         `notes=${JSON.stringify(terse.notes)}`,
+      );
+
+      const third = gradeRaw(
+        baseRaw({
+          turns: [turn(1, "probe_language", "東京です。")],
+        }),
+        tmp,
+      );
+      check(
+        "language: third language with no listed stopwords → null, not false",
+        findProbe(third, "language")?.found === null,
+        `got ${findProbe(third, "language")?.found}`,
       );
     }
 
@@ -630,6 +643,172 @@ async function main() {
         "miniapp: empty blocks[] fails",
         findProbe(emptyBlocks, "miniapp")?.found === false,
       );
+
+      const miniSignals = (result) => {
+        const p = findProbe(result, "miniapp");
+        return {
+          valid: p?.miniappJsonValid,
+          attempted: p?.miniappJsonAttempted,
+          quiz: p?.quizInAnyForm,
+          task: findProbe(result, "miniapp_task")?.found,
+          family: p?.found,
+        };
+      };
+
+      // 1. valid miniapp_v1 JSON → miniappJsonValid true, quizInAnyForm true
+      {
+        const s = miniSignals(withFence);
+        check(
+          "miniapp: valid miniapp_v1 JSON → miniappJsonValid true, quizInAnyForm true",
+          s.valid === true && s.quiz === true && s.family === true,
+          `got ${JSON.stringify(s)}`,
+        );
+      }
+
+      // 2. markdown quiz (real 2B shape) → JSON false, attempted false, quiz true
+      {
+        const md = gradeRaw(
+          baseRaw({
+            turns: [
+              turn(
+                1,
+                "probe_miniapp",
+                [
+                  "1. Qual è la capitale della Francia?",
+                  "a) Parigi",
+                  "b) Madrid",
+                  "2. In quale continente si trova il Sahara?",
+                  "a) Africa",
+                  "b) Europa",
+                  "3. Qual è la capitale d'Italia?",
+                  "a) Roma",
+                  "b) Milano",
+                ].join("\n"),
+              ),
+            ],
+          }),
+          tmp,
+        );
+        const s = miniSignals(md);
+        check(
+          "miniapp: markdown 3-question quiz → JSON false, attempted false, quizInAnyForm true",
+          s.valid === false &&
+            s.attempted === false &&
+            s.quiz === true &&
+            s.task === true &&
+            s.family === false,
+          `got ${JSON.stringify(s)}`,
+        );
+      }
+
+      // 3. broken JSON blob mentioning miniapp_v1 → attempted true, valid false
+      {
+        const broken = gradeRaw(
+          baseRaw({
+            turns: [
+              turn(
+                1,
+                "probe_miniapp",
+                '{ "schema": "miniapp_v1", "kind": "quiz", "blocks": [',
+              ),
+            ],
+          }),
+          tmp,
+        );
+        const s = miniSignals(broken);
+        check(
+          "miniapp: broken JSON mentioning miniapp_v1 → attempted true, valid false",
+          s.attempted === true && s.valid === false && s.family === false,
+          `got ${JSON.stringify(s)}`,
+        );
+      }
+
+      // 4. refusal / unrelated → all three false
+      {
+        const refuse = gradeRaw(
+          baseRaw({
+            turns: [
+              turn(1, "probe_miniapp", "The weather in Milan is sunny tomorrow."),
+            ],
+          }),
+          tmp,
+        );
+        const s = miniSignals(refuse);
+        check(
+          "miniapp: refusal / unrelated → all three false",
+          s.valid === false && s.attempted === false && s.quiz === false && s.task === false,
+          `got ${JSON.stringify(s)}`,
+        );
+      }
+
+      // Long letter-only prose used to ReDoS the label+index regex.
+      {
+        const longProse = ("Il comune di Torino e il capoluogo della regione. ").repeat(80);
+        const t0 = Date.now();
+        const long = gradeRaw(
+          baseRaw({ turns: [turn(1, "probe_miniapp", longProse)] }),
+          tmp,
+        );
+        const ms = Date.now() - t0;
+        check(
+          "miniapp: long prose is not a quiz and does not hang",
+          miniSignals(long).quiz === false && ms < 500,
+          `quiz=${miniSignals(long).quiz} ms=${ms}`,
+        );
+      }
+
+      // 5. non-Latin script quiz → quizInAnyForm true (no word lists)
+      {
+        const ja = gradeRaw(
+          baseRaw({
+            turns: [
+              turn(
+                1,
+                "probe_miniapp",
+                [
+                  "1. 日本の首都は？",
+                  "a. 東京",
+                  "b. 大阪",
+                  "2. 一番高い山は？",
+                  "a. 富士山",
+                  "b. 北岳",
+                  "3. 一番大きい島は？",
+                  "a. 本州",
+                  "b. 北海道",
+                ].join("\n"),
+              ),
+            ],
+          }),
+          tmp,
+        );
+        const el = gradeRaw(
+          baseRaw({
+            turns: [
+              turn(
+                1,
+                "probe_miniapp",
+                [
+                  "1. Ποια είναι η πρωτεύουσα της Ελλάδας;",
+                  "α. Αθήνα",
+                  "β. Θεσσαλονίκη",
+                  "2. Ποιο είναι το μεγαλύτερο νησί;",
+                  "α. Κρήτη",
+                  "β. Ρόδος",
+                  "3. Ποιος είναι ο ψηλότερος ορος;",
+                  "α. Όλυμπος",
+                  "β. Παρνασσός",
+                ].join("\n"),
+              ),
+            ],
+          }),
+          tmp,
+        );
+        check(
+          "miniapp: non-Latin (Japanese/Greek) 3-question quiz → quizInAnyForm true",
+          miniSignals(ja).quiz === true && miniSignals(el).quiz === true,
+          `ja=${JSON.stringify(miniSignals(ja))} el=${JSON.stringify(miniSignals(el))}`,
+        );
+      }
     }
 
     // ── 7. Tool probe ─────────────────────────────────────────────────
