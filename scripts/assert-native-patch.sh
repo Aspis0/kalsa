@@ -7,8 +7,11 @@
 # is present in the built librnllama.so — the native equivalent of a mutation
 # test, and the check whose absence wasted a night of experiments (2026-08-09).
 #
-# Default marker is "kalsa-native-patches" (appended to systemInfo in
-# RNLlamaJSI.cpp). Override with an argument for legacy checks (e.g. KALSA_KVDIAG0).
+# Default marker is "kalsa-native-patches" (appended by
+# common_params_get_system_info in common.cpp, which CMake compiles into
+# librnllama.so). RNLlamaJSI.cpp is the JNI wrapper (always-from-source) and
+# is the wrong place — grepping librnllama.so would never see it.
+# Override with an argument for legacy checks (e.g. KALSA_KVDIAG0).
 #
 #   assert-native-patch.sh [marker]        default marker: kalsa-native-patches
 set -uo pipefail
