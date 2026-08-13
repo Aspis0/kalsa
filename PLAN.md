@@ -90,7 +90,7 @@
 | **🪦🪦 Typeahead CalaQwen + phase-split 2B (test gualt S23 2026-08-13): DUE DEAD, entrambi su buchi ENGINE non di fisica** | **Typeahead DEAD**: prefill incrementale ricalcola tutto (527 tok: 67 s vs 64 s da zero; a pezzi = 3.5× il prefill unico) — riuso KV solo con `--chatml` (`n_common=0` senza) e manca l'API "rimpiazza prompt + prefilla delta". **Split 2B**: soffitto 0.73× (20.6 s vs 28.3 CPU su turno 490+128) SOLO con handover KV in-process; con 2 processi = 1.27× (peggio); tutto-GPU 29.2 s (peggio). Dettagli nel registro checkpoint | riapertura solo su engine-work (API delta-prefill / KV handover) |
 | Jelly free-tier baseline (Qwen3.5-4B dense, llama-bench ABBA `-t 2`) | **BLOCKED** — Jelly irraggiungibile (ping OK, adb/sshd chiusi: wireless debug perso post-reboot). Modello+sha già staged in `results/jelly/` — `reports/moe-jelly-freetier.md` | gualt fisico (riattivare wireless debug/sshd) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
-| **🔧 KERNEL CPU micro-esperti (mul_mat_id batched) — GO SPIKE (gualt 2026-08-13 sera)** | Il caso F1d: Mellum2 computa 0.228 s/tok, scaling dal dense 2B predice ~0.09-0.10 → **~2.5× perso in mul_mat_id** (672 micro-GEMV/token 896-wide, sync per-op, WALT→little 74%, dequant senza pack). Design: GEMV batched per-layer (k esperti fusi), pack SIMD al cache-insert, 1 sync/layer, hint scheduler. Paga: Mellum2-S23 (4.4→6-9), TUTTO il residente (iPhone Pro/flagship = target SKU), LFM2.5-class; NON Marco1c-S23 (tetto flash). Weakness nota upstream → PR-worthy. **Gate: spike profiling 1g** — se ≥50% di 0.228 recuperabile → GO kernel (1-2 sett); se GEMV puro a tetto DRAM → chiuso col numero | spike IN VOLO |
+| **🔧 KERNEL CPU micro-esperti (mul_mat_id batched) — GO SPIKE (gualt 2026-08-13 sera)** | Il caso F1d: Mellum2 computa 0.228 s/tok, scaling dal dense 2B predice ~0.09-0.10 → **~2.5× perso in mul_mat_id** (672 micro-GEMV/token 896-wide, sync per-op, WALT→little 74%, dequant senza pack). Design: GEMV batched per-layer (k esperti fusi), pack SIMD al cache-insert, 1 sync/layer, hint scheduler. Paga: Mellum2-S23 (4.4→6-9), TUTTO il residente (iPhone Pro/flagship = target SKU), LFM2.5-class; NON Marco1c-S23 (tetto flash). Weakness nota upstream → PR-worthy. **Gate: spike profiling 1g** — se ≥50% di 0.228 recuperabile → GO kernel (1-2 sett); se GEMV puro a tetto DRAM → chiuso col numero. **K0 DONE (2026-08-13): GO_KERNEL, recuperabile 72%** (`moe-mellum2-kernel-k0.md`): GEMV puro NON a tetto (fused Q4_K 39 GB/s, floor 0.023 = 10% di 0.228); waterfall = layout 8% + dispatch per-op 43% + tax sync/scheduler t4-vs-t2 21%; dequant <2% (non leva). Sorprese: (a) **`-t 2` batte `-t 4`: 0.181 vs 0.236 — stage 0 GRATIS, zero codice**; (b) down NON è Q4_K (Q8_0×14+Q5_0×14, già a tetto DRAM 53.5 GB/s — non impaccare); (c) mul_mat_id Q4_K = "8 GEMV in fila" (ID 557 µs ≈ 8×single 571). Design a stadi: S0 `-t 2` (5.5 t/s) → S1 pack 8 esperti Q4_K in un MUL_MAT (6.1) → S2 fusione per-layer gate+up+SiLU+down, 84→28 launch (7-9) → S3 placement solo dopo. Soffitto onesto 7-9 t/s compute; 10 t/s richiede anche KEXP/k-cut sul flash. Gate correttezza: NMSE <5e-4 + greedy n=32 token-match vs pin | gualt: GO implementazione kernel (S1-S2) |
 | **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065 su S23/CPU. **NUOVO (mandato gualt 2026-08-12): pista MoE-GPU scoped Adreno 750+** — sequenza gated (a)-(e) in candidati #1: F-0 Amdahl → riverifica upstream → MarcoKEXP come veicolo → S2 split su Xiaomi 14 → solo dopo il kernel serio (GDN/SSM per CalaQwen) | F-0 = carta; S2 dopo MarcoKEXP |
 
 ### Candidati "esperimento serio" (il collo è il calcolo a 1.39 GHz)
@@ -1125,6 +1125,33 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-13 — 🔧 KERNEL K0: GO_KERNEL, il 72% dello 0.228 s/tok è
+  RECUPERABILE — e lo stage 0 è gratis (`-t 2`).**
+  (`moe-mellum2-kernel-k0.md`, artefatti `results/mellum2_kernel_k0/`)
+
+  **Il gate pre-dichiarato (≥50% recuperabile) è passato con margine.**
+  Waterfall dello 0.228 s/tok (k=8, S23 staccato, campaign-flag build):
+  - **GEMV puro fused: 0.023 s (10%)** — pack Q4_K a 39 GB/s, SOPRA il
+    tetto campagna 25. Il GEMV non è il problema: lo 0.228 è 10× il floor.
+  - **Layout/scatter mul_mat_id: 0.018 s (8%)** — ID Q4_K 557 µs ≈ 8 GEMV
+    singoli in fila (571): oggi mul_mat_id è "8 GEMV in un trench", zero pack.
+  - **Dispatch per-op: 0.097 s (43%)** — 84 launch MoE/token + barriere.
+  - **Tax sync/scheduler t=4 vs t=2: 0.047 s (21%)** — la U dei thread:
+    t1 0.205 / **t2 0.181 (best)** / t4 0.236. Il 3° e 4° thread PEGGIORANO
+    (occupancy 87→72%, cpu-s 0.61→1.05, WALT→little 68.8%).
+  - Dequant <2% (fuso nel vec_dot, non è leva). Attn ~0.035 stimata;
+    sensibilità: perfino attn 0.050 lascia 65% — il gate non si ribalta.
+  - Correzione geometria dal GGUF: down NON è Q4_K (896%256≠0) →
+    Q8_0×14 + Q5_0×14, GIÀ a tetto DRAM (53.5 GB/s): non impaccarlo.
+
+  **Design a stadi (numeri attesi, gate correttezza NMSE<5e-4 + greedy match):**
+  S0 `-t 2` runtime flag → 5.5 t/s compute; S1 pack 8 esperti Q4_K in un
+  MUL_MAT (556→236 µs) → 6.1; S2 UNA launch per layer (84→28) → 7-9;
+  S3 placement solo a op grassa. Soffitto onesto **7-9 t/s compute**;
+  il wall-clock resta flash-bound finché KEXP/k-cut non paga i 183 MiB/tok.
+  Igiene: pin campagna 1ca51420… intatto, tool solo in ~/bin/kernel_k0/,
+  staccato 58→55%, F1e atteso finire prima di ogni cella.
 
 - **2026-08-13 (sera tardi) — 🏭 L'ARCO MELLUM2 F1→F1e IN UN GIORNO + la
   decisione KERNEL CPU: il muro è `mul_mat_id` (fattore ~2.5× perso), spike

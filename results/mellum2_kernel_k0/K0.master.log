@@ -1,0 +1,40 @@
+[2026-08-13T18:21:49-0400] BIN_SHA=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c real=/data/data/com.termux/files/home/bin/mellum2/bmoe-cli
+[2026-08-13T18:21:50-0400] CAMPAIGN_SHA=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-13T18:22:15-0400] MODEL size=8071293600 sha=b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7
+[2026-08-13T18:22:15-0400] PFACT sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-13T18:22:15-0400] OPS_SHA=ede2bb02a9f45153156b7e713783b5bfce5d2fffcce35ce836dd806d8d80f3e8
+[2026-08-13T18:22:15-0400] backend_filter=CPU
+[2026-08-13T18:22:16-0400] ===== K0-A test-backend-ops =====
+[2026-08-13T18:22:16-0400] preflight i=1 plugged=UNPLUGGED batt=58 temp=28.8 memavail_kib=4774232 nproc=6 online=0-7
+[2026-08-13T18:22:17-0400] K0-A START A_id_tdef op=MUL_MAT_ID pat=n_mats=64 threads=default nproc=6 cpus=0-7 batt=58
+[2026-08-13T18:22:26-0400] K0-A END A_id_tdef rc=0 wall=9s
+[2026-08-13T18:22:27-0400] preflight i=1 plugged=UNPLUGGED batt=58 temp=29.5 memavail_kib=4770324 nproc=6 online=0-7
+[2026-08-13T18:22:27-0400] K0-A START A_id_t1 op=MUL_MAT_ID pat=n_mats=64 threads=1 nproc=6 cpus=0-7 batt=58
+[2026-08-13T18:22:35-0400] K0-A END A_id_t1 rc=0 wall=8s
+[2026-08-13T18:22:36-0400] preflight i=1 plugged=UNPLUGGED batt=58 temp=29.5 memavail_kib=4771492 nproc=6 online=0-7
+[2026-08-13T18:22:37-0400] K0-A START A_mm_tdef op=MUL_MAT pat=k=2304|k=896 threads=default nproc=6 cpus=0-7 batt=58
+[2026-08-13T18:22:48-0400] K0-A END A_mm_tdef rc=0 wall=11s
+[2026-08-13T18:22:49-0400] preflight i=1 plugged=UNPLUGGED batt=58 temp=29.5 memavail_kib=4759972 nproc=6 online=0-7
+[2026-08-13T18:22:50-0400] K0-A START A_mm_t1 op=MUL_MAT pat=k=2304|k=896 threads=1 nproc=7 cpus=0-7 batt=57
+[2026-08-13T18:23:01-0400] K0-A END A_mm_t1 rc=0 wall=11s
+[2026-08-13T18:23:01-0400] K0-A done
+[2026-08-13T18:23:01-0400] ===== K0-B on-model thread sweep =====
+[2026-08-13T18:23:02-0400] preflight i=1 plugged=UNPLUGGED batt=57 temp=31.3 memavail_kib=4770632 nproc=6 online=0-7
+[2026-08-13T18:23:02-0400] B_t1 START -t 1 n=64 pin=0 batt=57 temp=31.3 nproc=6
+[2026-08-13T18:23:40-0400] B_t1 END rc=0 wall=37s decode=2.736 compute=0.205 flash=0.486 batt=57->57
+[2026-08-13T18:23:41-0400] preflight i=1 plugged=UNPLUGGED batt=57 temp=32.5 memavail_kib=4741372 nproc=6 online=0-7
+[2026-08-13T18:23:41-0400] B_t2 START -t 2 n=64 pin=0 batt=57 temp=32.5 nproc=6
+[2026-08-13T18:24:18-0400] B_t2 END rc=0 wall=36s decode=2.839 compute=0.181 flash=0.493 batt=57->57
+[2026-08-13T18:24:19-0400] preflight i=1 plugged=UNPLUGGED batt=57 temp=32.6 memavail_kib=4961496 nproc=6 online=0-7
+[2026-08-13T18:24:19-0400] B_t4 START -t 4 n=64 pin=0 batt=57 temp=32.6 nproc=6
+[2026-08-13T18:24:57-0400] B_t4 END rc=0 wall=35s decode=2.732 compute=0.236 flash=0.506 batt=57->56
+[2026-08-13T18:24:57-0400] ===== K0-C scheduler =====
+[2026-08-13T18:24:57-0400] preflight i=1 plugged=UNPLUGGED batt=56 temp=33.9 memavail_kib=5057140 nproc=6 online=0-7
+[2026-08-13T18:24:58-0400] C_t4_unpinned START -t 4 pin=0 batt=56
+[2026-08-13T18:25:34-0400] C_t4_unpinned END rc=0 decode=2.661 compute=0.241 little%=68.8 x3%=4.8
+[2026-08-13T18:25:35-0400] preflight i=1 plugged=UNPLUGGED batt=56 temp=33.9 memavail_kib=5106740 nproc=6 online=0-7
+[2026-08-13T18:25:35-0400] C_t4_pin_mid START -t 4 pin=1 batt=56
+[2026-08-13T18:26:11-0400] WARN no ggml-* threads found to pin (Termux may not expose names)
+[2026-08-13T18:26:14-0400] C_t4_pin_mid END rc=0 decode=2.651 compute=0.242 little%=65.3 x3%=5.0
+[2026-08-13T18:26:14-0400] CAMPAIGN_SHA_AFTER=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-13T18:26:14-0400] K0 ALL CELLS DONE

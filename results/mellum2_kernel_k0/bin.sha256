@@ -1,0 +1,5 @@
+test-backend-ops.unstripped  size=19279696  sha256=ed3114c303e8bc7c2d7c828c8be423465b57846a62fc03047516c11a5ea2a012
+test-backend-ops             size=2474864  sha256=ede2bb02a9f45153156b7e713783b5bfce5d2fffcce35ce836dd806d8d80f3e8
+arch=armv8.2-a+dotprod+fp16  REPACK=ON(default)  i8mm=OFF  HAVE_MATMUL_INT8=Failed
+source_tree=BigMoeOnEdge/third_party/llama.cpp  build=build-android-kernel-k0
+campaign_pin_untouched=yes

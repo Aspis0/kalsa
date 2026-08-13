@@ -1,0 +1,12 @@
+Testing 1 devices
+
+Backend 1/1: CPU
+  Device description: CPU
+  Device memory: 7073 MB (7073 MB free)
+
+  MUL_MAT_ID(type_a=q4_K,type_b=f32,n_mats=64,n_used=8,b=0,m=896,n=1,k=2304):                   1944 runs -   556.58 us/run -  33.03 MFLOP/run - [1;34m 59.35 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=64,n_used=8,b=0,m=2304,n=1,k=896):                   3159 runs -   328.26 us/run -  33.03 MFLOP/run - [1;34m100.62 GFLOPS[0m
+  MUL_MAT_ID(type_a=q5_0,type_b=f32,n_mats=64,n_used=8,b=0,m=2304,n=1,k=896):                   2673 runs -   392.25 us/run -  33.03 MFLOP/run - [1;34m 84.21 GFLOPS[0m
+  Backend CPU: [1;32mOK[0m
+1/1 backends passed
+[1;32mOK[0m

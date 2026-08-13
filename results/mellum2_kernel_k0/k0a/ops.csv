@@ -1,0 +1,5 @@
+ts,cell,op,params,threads,taskset,us_per_run,flops_per_s,n_runs,rc,wall_s,batt,temp,nproc,cpus_allowed
+2026-08-13T18:22:26-0400,A_id_tdef,MUL_MAT_ID,n_mats=64,default,default,,,,,0,9,58,28.8,6,0-7
+2026-08-13T18:22:36-0400,A_id_t1,MUL_MAT_ID,n_mats=64,1,default,,,,,0,8,58,29.5,6,0-7
+2026-08-13T18:22:48-0400,A_mm_tdef,MUL_MAT,k=2304|k=896,default,default,,,,,0,11,58,29.5,6,0-7
+2026-08-13T18:23:01-0400,A_mm_t1,MUL_MAT,k=2304|k=896,1,default,,,,,0,11,57,29.5,7,0-7

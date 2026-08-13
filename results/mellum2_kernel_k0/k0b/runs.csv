@@ -1,0 +1,4 @@
+ts,cell,threads,taskset,warm,decode_tps,mib_per_tok,hit_pct,ttft_s,load_s,prefill_s,n_gen,rss_mib,batt_start,batt_end,temp_start,temp_end,plugged,compute_s,cache_s,flash_s,flash_mibs,stall_s,nproc,cpus_allowed,cli_cpus,rc,wall_s
+2026-08-13T18:23:40-0400,B_t1,1,default,1,2.736,219.20,68.2,12.538,4.245,8.293,64,,57,57,31.3,32.5,UNPLUGGED,0.205,0.021,0.486,451,0.139,6,0-7,,0,37
+2026-08-13T18:24:18-0400,B_t2,2,default,1,2.839,219.20,68.2,12.328,5.704,6.624,64,,57,57,32.5,32.6,UNPLUGGED,0.181,0.024,0.493,445,0.147,6,0-7,,0,36
+2026-08-13T18:24:57-0400,B_t4,4,default,1,2.732,219.20,68.2,11.818,6.047,5.771,64,,57,56,32.6,33.9,UNPLUGGED,0.236,0.022,0.506,433,0.108,6,0-7,,0,35

@@ -1,0 +1,18 @@
+Testing 1 devices
+
+Backend 1/1: CPU
+  Device description: CPU
+  Device memory: 7073 MB (7073 MB free)
+
+  MUL_MAT(type_a=q4_K,type_b=f32,m=896,n=8,k=2304,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                   1701 runs -   638.84 us/run -  33.03 MFLOP/run - [1;34m 51.70 GFLOPS[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=2304,n=8,k=896,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                   2673 runs -   390.52 us/run -  33.03 MFLOP/run - [1;34m 84.58 GFLOPS[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=2304,n=8,k=896,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                    972 runs -  1114.33 us/run -  33.03 MFLOP/run - [1;34m 29.64 GFLOPS[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=7168,n=1,k=2304,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                  1701 runs -   609.04 us/run -  33.03 MFLOP/run - [1;34m 54.23 GFLOPS[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=18432,n=1,k=896,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                  1458 runs -   815.24 us/run -  33.03 MFLOP/run - [1;34m 40.52 GFLOPS[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=18432,n=1,k=896,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                   972 runs -  1180.78 us/run -  33.03 MFLOP/run - [1;34m 27.97 GFLOPS[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=896,n=1,k=2304,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                  13566 runs -    78.73 us/run -   4.13 MFLOP/run - [1;34m 52.44 GFLOPS[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=2304,n=1,k=896,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                  11628 runs -    96.21 us/run -   4.13 MFLOP/run - [1;34m 42.91 GFLOPS[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=2304,n=1,k=896,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                   7752 runs -   141.22 us/run -   4.13 MFLOP/run - [1;34m 29.24 GFLOPS[0m
+  Backend CPU: [1;32mOK[0m
+1/1 backends passed
+[1;32mOK[0m
