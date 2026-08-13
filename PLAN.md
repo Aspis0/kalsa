@@ -81,6 +81,7 @@
 | **✅ MarcoKEXP (FASE 2): QUALITÀ PASS + SPEED 1.62× — decisione ship matura** | Qualità (Grok#2): 1c e cons PASS full; la tassa è il requant (~+0.03 bpb it/en), il drop aggiunge ~+0.01. **Speed S23 (ABBA same-session): Marco-1c 8.819 tok/s vs Marco-Q4 5.442 = 1.62×; MiB/tok 126→51.5 (−59%, bar ≤60 PASS); hit 36.7→53.5 (+16.8pt, sotto il +20)**. Non è ancora regime KEXP-35B (31/81) ma **Marco-1c è ora il modello grande più VELOCE del listino** (8.8 vs 5.7 di CalaQwen). **🚢 SHIPPATO (gualt 2026-08-13): lineup grandi = CalaQwen + Marco1c.** Originale Q4KM + cons + sorgente Q8 CANCELLATI (PC −35 GB; device cleanup in corso). Scheda listino 3-telefoni in compilazione (Grok): celle Jelly-Marco1c in misura; Xiaomi-Marco1c pending (device non disponibile oggi) | scheda in volo |
 | **⚠⚠ SCHEDA FLAGSHIP CalaQwen (Xiaomi 14): regime IDENTICO, decode DIMEZZATO** (`moe-calaqwen-xiaomi.md`, retry con extm OFF + pin campagna linkato) | **t6 med 2.55 tok/s / 30.4 MiB/tok / hit 80.75%** vs S23 5.86/30.7/80.7. Due fatti enormi: (1) **il regime streaming è INDIPENDENTE dal silicio** (30.4/80.7 ≈ identici) — la macchina KEXP trasferisce perfettamente; (2) **il decode del flagship 2024 è LA METÀ del 2023**: prima cella fredda 4.02 poi crollo a 2.3-2.7 = throttle/scheduler HyperOS sostenuto (majflt ~0: lo swap è morto, confermato — era la Memory Extension). Lezioni prodotto: perf NON prevedibile dalla gen del silicio; serve probe runtime (RAM E sustained-perf) + possibile perf-mode HyperOS da testare (Game Turbo/performance toggle, follow-up opzionale ~20 min) | gualt: follow-up perf-mode sì/no |
 | **Free tier G99 a 15-20 tok/s — pista LFM2.5-8B-A1B: ✅ VIVA, misurata** (`moe-g99-freetier.md`) | Jelly staccato `-t 2` n=200: dense 2B **8.04** (come da fisica); **LFM2.5 k=4 10.60, k=3 12.28, k=2 14.38** (−4% dal target). `lfm2moe` supportato dal fork, `--n-expert-used` funziona; RAM ok (RSS ~5 GiB, no thrash). BW effettiva solo 10.8 GB/s su 15-17 → i tagli byte pagano ~lineari. **PROIEZIONE KEXP-experts (2-3 bit): 14.7/16.3/18.3 a k=4/3/2 → target 15-20 raggiungibile.** Gate mancanti: PPL PC per k=3/2 (pipeline IN CORSO: k4 done, k3 running) + requant esperti LFM2.5 con gate qualità. **Sfidante Ling 3.0 Tiny: NOT_BETTER** (`research-ling3tiny.md`) — arch `bailingmoe3` non mergiata (PR #26608), think-on 51k tok/task, no IT/ES/FR, proiezione Jelly ~14-16 = stessa banda; watchlist post-merge + smoke think-off, non un secondo SKU | gualt: GO gate qualità k + requant LFM2.5 |
+| **💪 Mellum2 coding-SKU ("pro a pagamento"): F0 PASS — STRONG 15/20** (`moe-mellum2-f0.md`) | fromdoc 5/5, review 3/3, bugfix 6/8, refactor 1/4 (debole); EN code-explain 7/7, **IT usabile** (il "en only" di HF era pessimista); PC idle 24.2 tok/s. Rischio prodotto: diff no-op dall'aspetto valido → il client deve verificare che il patch cambi codice. Appendice Metal pronta per M1 Max | gualt: GO F1 on-device S23 (streaming, 8.07 GB) + bench Mac |
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
 | energia J/token col drop k6d065 | opzionale F4.7-style | telefono staccato |
@@ -1123,6 +1124,27 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-13 (pomeriggio) — 💪 MELLUM2 F0: STRONG 15/20 — il gate coding-SKU
+  è superato, e il "ROSSO multilingua" della recon è RIBALTATO dalla misura.**
+  (`moe-mellum2-f0.md`)
+
+  Suite 20 task isolati (greedy, template ufficiale, PC `-t 4` senza pestare
+  la PPL LFM2.5): **15/20 = CANDIDATE_STRONG** (gate ≥14). Per famiglia:
+  fromdoc **5/5**, review bug piantati **3/3**, bugfix 6/8, refactor **1/4**
+  (la famiglia debole). Lingue: EN code-explain **7/7 perfetto** (era il
+  kill-gate), IT 9×2+1×1 = usabile (risponde in italiano, non madrelingua),
+  ES/FR tutti 2 — il tag HF "en only" era pessimista. Speed PC idle 24.2
+  tok/s (i ~10 della suite erano contesi con la PPL, non regressione).
+  **Rischio prodotto individuato dai fail: diff "no-op"** (05/06: patch
+  dall'aspetto valido che tocca solo il docstring e lascia il bug) — un
+  merge-bot cieco la applicherebbe; il client DEVE strippare i fence e
+  verificare che il patch cambi codice. Refactor locali deboli = pitch "SE
+  assistant", non "agente refactor autonomo" (coerente con JetBrains).
+  Appendice Metal pronta da incollare per l'M1 Max di gualt (bench + smoke,
+  confronto vs 24.2 PC). Prossimo gate naturale: F1 on-device S23 col
+  nostro stack streaming (12B/A2.5B, file 8.07 GB → streaming obbligatorio
+  su 8 GB) — GO gualt.
 
 - **2026-08-13 (pomeriggio) — 📉📊 DOPPIO VERDETTO: Ling 3.0 Tiny NOT_BETTER
   (watchlist, non sostituisce LFM2.5) + TTFT-F0 Jelly COMPLETO: i minuti sono
