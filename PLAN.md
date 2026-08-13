@@ -16,7 +16,7 @@
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 69 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 70 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -1120,6 +1120,35 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-13 (alba) — 🌍 LA NOTTE DELLO SPLIT: il 35B streamato da flash
+  gira con TRONCO SU GPU ed esperti su CPU su un telefono da 8 GB, hook
+  vivo, output BYTE-IDENTICO al CPU (dopo il pin del router). Il primo
+  sistema del genere che si conosca. Manca solo il verdetto velocità
+  (N3/N4 armati sullo stacco).**
+
+  Arco completo (workflow notturno di gualt + 3 task di completamento):
+  1. **N0** (workflow gualt): il fork esprime già lo split SENZA patch a
+     llama.cpp — esperti Q2/Q3 → `supports_op` false → CPU+hook; pin
+     prodotto `--moe-cpu-experts` nel parent (@ 8958cdf). Build Android OK.
+  2. **N1 PASS**: KEXP carica con 40 layer su GPU, esperti pinnati CPU,
+     82 split, hook vivo — MA solo a **cache 1000 `--force-cache`**
+     (ram-guard rifiuta 2000/1500; transiente MemFree 14-90 MiB in alloc
+     OpenCL, poi 3-4 GiB dopo anon-drop). Costo regime: hit ~44% vs 80%.
+  3. **N2 FAIL → N2b CONFIRMED → PASS col pin**: la divergenza testo era
+     il ROUTER MoE su OpenCL (flip di selezione esperti su pareggi ~1e-6);
+     `--override-tensor ffn_gate_inp.weight=CPU` → greedy **byte-identico**
+     (sha match), hook 43.7 vs 44.0. I dense 2B/4B erano identici perché
+     senza router. Patch prodotto 5 righe pronta, non applicata.
+     Residuo onesto: l'hidden che entra nel router viene dal trunk GPU
+     (softmax può muoversi di epsilon senza flippare il greedy).
+  4. **N3/N4 armati** (waiter sullo stacco, batt ≥45%): burst ABBA con pin
+     → se ≥1.10× decode o TTFT ≥1.5×, maratona sostenuta automatica.
+  Nella stessa notte: curva prefill 750 completa (GPU 5.2×→7.6× che CRESCE
+  con la lunghezza, 4B pp2048 86.2 vs 11.3), maratona 4B (CPU sostenuto
+  vince 0.80×, legge confermata), Task B CalaQwen-flagship in corso su
+  Xiaomi, MarcoKEXP gates + LFM2.5-KEXP pipeline sul PC, pulizia disco
+  −82 GB. Report: `moe-k4-split.md` (in completamento con N3/N4).
 
 - **2026-08-12 (notte fonda) — 🔒 750 CHIUSO: decode gate FAIL 0.44× (predizione
   recon CONFERMATA) — ma prefill GPU 5.77×: il dividendo GPU su A7X è il TTFT,
