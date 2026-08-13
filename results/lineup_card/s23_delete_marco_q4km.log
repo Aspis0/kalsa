@@ -1,0 +1,30 @@
+TS=2026-08-13T11:54:30-0400
+TARGET_PRIMARY=/data/data/com.termux/files/home/experiments/models/Marco-Mini-Instruct.i1-Q4_K_M.gguf
+TARGET_HOME_MODELS=/data/data/com.termux/files/home/models/Marco-Mini-Instruct.i1-Q4_K_M.gguf
+-rw-r--r--. 1 u0_a344 u0_a344 9.8G Aug 12 09:56 /data/data/com.termux/files/home/experiments/models/Marco-Mini-Instruct.i1-Q4_K_M.gguf
+SIZE=10505424704
+PGREP_HOLDERS:
+28306 /data/data/com.termux/files/usr/bin/bash -c export PREFIX=/data/data/com.termux/files/usr export PATH=$PREFIX/bin:$PATH export HOME=/data/data/com.termux/files/home F="$HOME/experiments/models/Marco-Mini-Instruct.i1-Q4_K_M.gguf" F2="$HOME/models/Marco-Mini-Instruct.i1-Q4_K_M.gguf" echo "TS=$(date '+%Y-%m-%dT%H:%M:%S%z')" echo "TARGET_PRIMARY=$F" echo "TARGET_HOME_MODELS=$F2" ls -lah "$F" "$F2" 2>/dev/null || true if [ -f "$F2" ]; then echo "NOTE also exists in ~/models/"; fi if [ ! -f "$F" ]; then echo "PRIMARY_GONE"; else   echo "SIZE=$(stat -c%s "$F")"   echo "PGREP_HOLDERS:"   pgrep -af "bmoe|llama" || echo none   echo "DF_BEFORE=$(df -h /data | tail -1)"   rm -f "$F"   if [ -f "$F" ]; then echo "DELETE_FAIL still exists"; exit 1; fi   echo "DELETED=$F"   echo "DF_AFTER=$(df -h /data | tail -1)" fi echo "KEPT:" ls -lah $HOME/models $HOME/experiments/models
+DF_BEFORE=/dev/block/dm-60 104G 101G  3.0G  98% /data/user/0
+DELETED=/data/data/com.termux/files/home/experiments/models/Marco-Mini-Instruct.i1-Q4_K_M.gguf
+DF_AFTER=/dev/block/dm-60 104G  91G   13G  88% /data/user/0
+KEPT:
+/data/data/com.termux/files/home/experiments/models:
+total 13G
+drwx------.  2 u0_a344 u0_a344 3.4K Aug 13 11:54 .
+drwxr-xr-x. 13 u0_a344 u0_a344 3.4K Aug 11 16:23 ..
+-rw-------.  1 u0_a344 u0_a344  13G Aug 10 14:59 Qwen3.6-35B-A3B-KEXP.gguf
+
+/data/data/com.termux/files/home/models:
+total 30G
+drwxr-xr-x.  2 u0_a344 u0_a344 3.4K Aug 13 10:22 .
+drwx------. 13 u0_a344 u0_a344 3.4K Aug 12 12:45 ..
+lrwxrwxrwx.  1 u0_a344 u0_a344   77 Aug 10 17:29 CAMPAIGN.gguf -> /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+-rw-r--r--.  1 u0_a344 u0_a344 4.5G Aug  5 14:36 LFM2-8B-A1B-Q4_0.gguf
+-rw-r--r--.  1 u0_a344 u0_a344 4.7G Aug  4 02:08 LFM2-8B-A1B-Q4_K_M.gguf
+-rw-r--r--.  1 u0_a344 u0_a344 6.0G Aug 13 10:25 Marco-Mini-Instruct-KEXP.gguf
+-rw-r--r--.  1 u0_a344 u0_a344 1.2G Aug 12 09:09 Qwen3.5-2B-Q4_K_M.gguf
+-rw-r--r--.  1 u0_a344 u0_a344 2.6G Aug  3 21:16 Qwen3.5-4B-Q4_K_M.gguf
+lrwxrwxrwx.  1 u0_a344 u0_a344   77 Aug 10 17:29 Qwen3.6-35B-A3B-KEXP.gguf -> /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+-rw-r--r--.  1 u0_a344 u0_a344  11G Aug  3 21:18 Qwen3.6-35B-A3B-UD-IQ2_M.gguf
+-rw-r--r--.  1 u0_a344 u0_a344   22 Aug  3 21:12 scp-smoke.txt

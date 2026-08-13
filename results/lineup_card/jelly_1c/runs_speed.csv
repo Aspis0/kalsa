@@ -1,0 +1,5 @@
+ts,cell,k,drop,prompt_id,order_idx,decode_tps,mib_per_tok,hit_pct,ttft_s,load_s,n_gen,batt_start,batt_end,temp_max,cold,plugged,memavail_start_kib
+2026-08-13T12:01:50-0400,ARM_1C,6,0.65,fact,1,3.594,52.68,52.3,9.633,3.114,200,74,73,29.0,1,UNPLUGGED,6031160
+2026-08-13T12:03:18-0400,ARM_1C,6,0.65,creative,2,3.770,50.48,54.5,8.353,2.610,200,73,73,30.0,1,UNPLUGGED,6026804
+2026-08-13T12:04:46-0400,ARM_1C,6,0.65,creative,3,3.690,50.48,54.5,8.379,2.618,200,73,72,31.0,1,UNPLUGGED,5987852
+2026-08-13T12:06:16-0400,ARM_1C,6,0.65,fact,4,3.576,52.68,52.3,8.922,2.606,200,72,72,32.0,1,UNPLUGGED,5950740

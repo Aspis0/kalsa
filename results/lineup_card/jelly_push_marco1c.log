@@ -1,0 +1,5 @@
+START 2026-08-13T11:52:48-04:00 src=C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf size=6385238848 dest=u0_a225@192.168.1.82:~/models/Marco-Mini-Instruct-KEXP.gguf
+END 2026-08-13T11:58:32-04:00 exit=0
+SIZE=6385238848
+2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777  /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf
+/dev/block/dm-41 228G  59G  168G  27% /data/user/0

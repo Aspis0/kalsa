@@ -1,0 +1,21 @@
+TS=2026-08-13T11:52:29-0400
+TARGET=/data/data/com.termux/files/home/experiments/models/Marco-Mini-Instruct.i1-Q4_K_M.gguf
+SIZE=10505424704
+SHA_PRECOMPUTED=a001d324b6edc6a797009fbe6eb94a52a9f32453ee8d06465409875f3e3a6dbc
+HOLDERS=none (pgrep/fuser checked immediately before)
+DF_BEFORE=/dev/block/dm-41 228G  63G  164G  28% /data/user/0
+DELETED=yes
+DF_AFTER=/dev/block/dm-41 228G  53G  174G  24% /data/user/0
+REMAINING_MODELS:
+/data/data/com.termux/files/home/experiments/models:
+total 13G
+drwxr-xr-x. 2 u0_a225 u0_a225 3.4K Aug 13 11:52 .
+drwxr-xr-x. 7 u0_a225 u0_a225 3.4K Aug 12 22:45 ..
+-rw-r--r--. 1 u0_a225 u0_a225  13G Aug 10 19:40 Qwen3.6-35B-A3B-KEXP.gguf
+
+/data/data/com.termux/files/home/models:
+total 6.1G
+drwx------. 2 u0_a225 u0_a225 3.4K Aug 12 22:40 .
+drwx------. 8 u0_a225 u0_a225 3.4K Aug 12 00:08 ..
+-rw-r--r--. 1 u0_a225 u0_a225 4.9G Aug 12 22:45 LFM2.5-8B-A1B-Q4_K_M.gguf
+-rw-------. 1 u0_a225 u0_a225 1.2G Aug 12 00:16 Qwen3.5-2B-Q4_K_M.gguf
