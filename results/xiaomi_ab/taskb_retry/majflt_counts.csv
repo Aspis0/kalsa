@@ -1,0 +1,7 @@
+# Engine major-faults/token (swap-fix proof). /proc CSV is invalid (mksh $10).
+t6_fact_o1,5.21,cold fadvise first touch
+t6_creative_o2,0.00,steady
+t6_creative_o3,0.00,steady
+t6_fact_o4,0.01,steady
+t4_fact_ref,0.01,steady
+t4_creative_ref,0.01,steady

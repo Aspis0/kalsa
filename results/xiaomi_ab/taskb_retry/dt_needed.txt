@@ -1,0 +1,100 @@
+FILE bmoe-cli.CAMPAIGN SONAME=
+  NEEDED libllama-common.so.0
+  NEEDED libllama.so.0
+  NEEDED libggml.so.0
+  NEEDED libggml-cpu.so.0
+  NEEDED libggml-base.so.0
+  NEEDED libc.so
+  NEEDED libandroid.so
+  NEEDED libc++_shared.so
+  NEEDED libdl.so
+  NEEDED libm.so
+
+FILE libggml-base.so.0.16.0 SONAME=libggml-base.so.0
+  NEEDED libm.so
+  NEEDED libdl.so
+  NEEDED libc++_shared.so
+  NEEDED libc.so
+
+FILE libggml-cpu.so.0.16.0 SONAME=libggml-cpu.so.0
+  NEEDED libggml-base.so.0
+  NEEDED libc++_shared.so
+  NEEDED libdl.so
+  NEEDED libm.so
+  NEEDED libc.so
+
+FILE libggml.so.0.16.0 SONAME=libggml.so.0
+  NEEDED libggml-cpu.so.0
+  NEEDED libggml-base.so.0
+  NEEDED libc++_shared.so
+  NEEDED libdl.so
+  NEEDED libm.so
+  NEEDED libc.so
+
+FILE libllama-common.so.0.0.9965 SONAME=libllama-common.so.0
+  NEEDED libllama.so.0
+  NEEDED libssl.so.3
+  NEEDED libcrypto.so.3
+  NEEDED libggml.so.0
+  NEEDED libggml-cpu.so.0
+  NEEDED libggml-base.so.0
+  NEEDED libc.so
+  NEEDED libc++_shared.so
+  NEEDED libdl.so
+  NEEDED libm.so
+
+FILE libllama.so.0.0.9965 SONAME=libllama.so.0
+  NEEDED libggml.so.0
+  NEEDED libggml-cpu.so.0
+  NEEDED libggml-base.so.0
+  NEEDED libc++_shared.so
+  NEEDED libdl.so
+  NEEDED libm.so
+  NEEDED libc.so
+
+=== PROVIDED ===
+bmoe-cli.CAMPAIGN
+libggml-base.so
+libggml-base.so.0
+libggml-base.so.0.16.0
+libggml-cpu.so
+libggml-cpu.so.0
+libggml-cpu.so.0.16.0
+libggml.so
+libggml.so.0
+libggml.so.0.16.0
+libllama-common.so
+libllama-common.so.0
+libllama-common.so.0.0.9965
+libllama.so
+libllama.so.0
+libllama.so.0.0.9965
+=== ALL NEEDED ===
+libandroid.so
+libc.so
+libc++_shared.so
+libcrypto.so.3
+libdl.so
+libggml-base.so.0
+libggml-cpu.so.0
+libggml.so.0
+libllama-common.so.0
+libllama.so.0
+libm.so
+libssl.so.3
+=== MISSING (not provided by staged set) ===
+SYSTEM libandroid.so
+SYSTEM libc.so
+SYSTEM libc++_shared.so
+MISSING libcrypto.so.3
+SYSTEM libdl.so
+STAGED libggml-base.so.0
+STAGED libggml-cpu.so.0
+STAGED libggml.so.0
+STAGED libllama-common.so.0
+STAGED libllama.so.0
+SYSTEM libm.so
+MISSING libssl.so.3
+
+CAMPAIGN_SHA256=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+

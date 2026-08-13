@@ -1,0 +1,7 @@
+=== extm 2026-08-13T10:28:51 ===
+persist.miui.extm.enable=
+persist.miui.extm.bdsize=
+persist.miui.extm.version=
+getprop_grep_extm:
+(none)
+EXTM_GONE_OR_DENIED

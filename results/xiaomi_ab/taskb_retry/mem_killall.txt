@@ -1,0 +1,121 @@
+=== meminfo_BEFORE ===
+MemTotal:       11436476 kB
+MemFree:          209148 kB
+MemAvailable:    3991288 kB
+Buffers:            2304 kB
+Cached:          3475972 kB
+SwapCached:        10356 kB
+Active:          1252284 kB
+Inactive:        4574268 kB
+SwapTotal:      12582908 kB
+SwapFree:        7667708 kB
+AnonPages:       2508700 kB
+
+=== dumpsys_BEFORE ===
+Applications Memory Usage (in Kilobytes):
+Uptime: 260634 Realtime: 274726
+
+
+Total RSS by process:
+    816,904K: com.google.android.apps.wellbeing (pid 29749)
+    748,012K: system (pid 2415)
+    504,182K: com.miui.home (pid 4325 / activities)
+    415,848K: com.android.systemui (pid 4878)
+    356,376K: com.instagram.android (pid 30124)
+    288,780K: com.microsoft.office.outlook (pid 29578)
+    248,888K: com.google.android.gms.persistent (pid 4982)
+    238,964K: com.google.android.gms (pid 6569)
+    222,344K: com.whatsapp (pid 29194)
+    205,044K: org.mozilla.firefox (pid 27708)
+    204,696K: com.google.android.gm (pid 17783)
+    198,896K: com.google.android.gms (pid 7181) (user 999)
+    182,876K: com.mi.globalminusscreen (pid 9499)
+    180,264K: com.google.android.googlequicksearchbox:googleapp (pid 9444)
+    175,024K: com.google.android.gms.persistent (pid 7060) (user 999)
+    174,104K: com.dd.doordash (pid 21277)
+    171,152K: com.facebook.orca (pid 15524)
+Failed to write while dumping service meminfo: Broken pipe
+    170,704K: net.ajcloud.wansviewplus:heartbeat (pid 28816)
+    170,532K: com.imaginecurve.curve.prd (pid 23326)
+    168,896K: com.google.android.apps.walletnfcrel (pid 29864)
+    164,972K: com.google.android.apps.photos (pid 29102)
+    164,216K: com.anthropic.claude (pid 20345)
+    160,584K: co.bytemark.nycf (pid 18595)
+    160,160K: com.google.android.apps.maps (pid 17129)
+    156,912K: com.android.vending (pid 10919)
+    156,340K: com.google.android.gms.unstable (pid 15449)
+    156,040K: com.google.android.gms.unstable (pid 16240) (user 999)
+    155,448K: com.google.android.inputmethod.latin (pid 8984)
+    153,304K: com.miui.android.fashiongallery (pid 9775)
+    152,844K: com.xiaomi.mipicks (pid 18781)
+    151,324K: com.uvnv.mintsim (pid 25935)
+    150,972K: taxi.android.client (pid 27961)
+    150,700K: me.lyft.android (pid 27550)
+    148,616K: com.applidium.vianavigo (pid 20585)
+    148,376K: com.lemonadeinc.lemonade (pid 23797)
+
+=== kill-all ===
+KILL_ALL_RC:0
+
+=== memory-factor ===
+MF_SET_RC:0
+MF_GET_RC:255
+Error: unknown command 'get'
+
+=== meminfo_AFTER ===
+MemTotal:       11436476 kB
+MemFree:         2057576 kB
+MemAvailable:    6444844 kB
+Buffers:            6460 kB
+Cached:          4014540 kB
+SwapCached:        14416 kB
+Active:          1292024 kB
+Inactive:        3929896 kB
+SwapTotal:      12582908 kB
+SwapFree:        9857532 kB
+AnonPages:       1362916 kB
+
+=== dumpsys_AFTER ===
+Failed to write while dumping service meminfo: Broken pipe
+Applications Memory Usage (in Kilobytes):
+Uptime: 271191 Realtime: 285283
+
+
+Total RSS by process:
+    629,660K: system (pid 2415)
+    424,076K: com.android.systemui (pid 4878)
+    318,408K: com.instagram.android (pid 30124)
+    260,624K: com.google.android.gms.persistent (pid 4982)
+    233,944K: com.android.camera (pid 31452)
+    218,440K: com.miui.home (pid 4325 / activities)
+    214,208K: com.google.android.gms (pid 6569)
+    211,816K: com.whatsapp (pid 29194)
+    193,060K: com.google.android.gms (pid 7181) (user 999)
+    175,064K: com.mi.globalminusscreen (pid 9499)
+    173,392K: com.google.android.gms.persistent (pid 7060) (user 999)
+    172,228K: com.google.android.inputmethod.latin (pid 8984)
+    167,472K: com.google.android.apps.maps (pid 17129)
+    162,908K: org.mozilla.firefox (pid 27708)
+    160,384K: com.google.android.googlequicksearchbox:googleapp (pid 9444)
+    159,512K: com.android.vending (pid 10919)
+    158,904K: com.google.android.projection.gearhead:car (pid 31406)
+    155,664K: com.google.android.gms.unstable (pid 16240) (user 999)
+    153,388K: com.google.android.gms.unstable (pid 15449)
+    153,156K: com.android.phone (pid 4821)
+    153,144K: com.miui.android.fashiongallery (pid 9775)
+    153,092K: com.google.android.tts (pid 11761)
+    149,872K: com.android.settings (pid 7114 / activities)
+    147,044K: com.citymapper.app.release (pid 21174)
+    143,480K: it.atm.appmobile (pid 27310)
+    141,364K: com.google.android.googlequicksearchbox:search (pid 9678)
+    140,452K: com.android.bluetooth (pid 4596)
+    139,008K: zygote64 (pid 1551)
+    138,808K: com.google.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0 (pid 10993)
+    136,344K: com.google.android.googlequicksearchbox:interactor (pid 9100)
+    133,852K: com.miui.securitycenter.remote (pid 12957)
+    132,528K: com.whatsapp (pid 13161) (user 999)
+    132,052K: com.google.android.apps.messaging (pid 10264)
+    131,212K: com.miui.powerkeeper (pid 12420)
+    131,152K: com.worldline.wallet (pid 26104)
+
+

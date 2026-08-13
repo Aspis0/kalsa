@@ -1,0 +1,414 @@
+2026-08-13T10:31:23 watcher start
+2026-08-13T10:31:24 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:28:51 TASK_B_RETRY begin
+2026-08-13T10:28:51 LD_LIBRARY_PATH=/data/local/tmp/gdn_750/taskb/bin:/vendor/lib64:/system/vendor/lib64
+2026-08-13T10:29:53 GATE_OK unplugged level=88 tempC=33
+2026-08-13T10:29:54 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:29:56 START t6_fact_o1 -t 6 prompt=fact MemAvailable_kB=7016952
+2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)>> alive=<<11578
+--->>
+2026-08-13T10:31:55 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:28:51 LD_LIBRARY_PATH=/data/local/tmp/gdn_750/taskb/bin:/vendor/lib64:/system/vendor/lib64
+2026-08-13T10:29:53 GATE_OK unplugged level=88 tempC=33
+2026-08-13T10:29:54 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:29:56 START t6_fact_o1 -t 6 prompt=fact MemAvailable_kB=7016952
+2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524>> alive=<<11778
+12008
+--->>
+2026-08-13T10:32:26 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:28:51 LD_LIBRARY_PATH=/data/local/tmp/gdn_750/taskb/bin:/vendor/lib64:/system/vendor/lib64
+2026-08-13T10:29:53 GATE_OK unplugged level=88 tempC=33
+2026-08-13T10:29:54 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:29:56 START t6_fact_o1 -t 6 prompt=fact MemAvailable_kB=7016952
+2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524>> alive=<<11778
+13249
+--->>
+2026-08-13T10:32:56 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:28:51 LD_LIBRARY_PATH=/data/local/tmp/gdn_750/taskb/bin:/vendor/lib64:/system/vendor/lib64
+2026-08-13T10:29:53 GATE_OK unplugged level=88 tempC=33
+2026-08-13T10:29:54 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:29:56 START t6_fact_o1 -t 6 prompt=fact MemAvailable_kB=7016952
+2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524>> alive=<<11778
+13351
+--->>
+2026-08-13T10:33:27 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:28:51 LD_LIBRARY_PATH=/data/local/tmp/gdn_750/taskb/bin:/vendor/lib64:/system/vendor/lib64
+2026-08-13T10:29:53 GATE_OK unplugged level=88 tempC=33
+2026-08-13T10:29:54 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:29:56 START t6_fact_o1 -t 6 prompt=fact MemAvailable_kB=7016952
+2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524>> alive=<<11778
+13428
+--->>
+2026-08-13T10:33:58 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:28:51 LD_LIBRARY_PATH=/data/local/tmp/gdn_750/taskb/bin:/vendor/lib64:/system/vendor/lib64
+2026-08-13T10:29:53 GATE_OK unplugged level=88 tempC=33
+2026-08-13T10:29:54 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:29:56 START t6_fact_o1 -t 6 prompt=fact MemAvailable_kB=7016952
+2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524>> alive=<<11778
+13572
+--->>
+2026-08-13T10:34:29 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:29:53 GATE_OK unplugged level=88 tempC=33
+2026-08-13T10:29:54 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:29:56 START t6_fact_o1 -t 6 prompt=fact MemAvailable_kB=7016952
+2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524
+2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0>> alive=<<13686
+--->>
+2026-08-13T10:34:59 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:29:56 START t6_fact_o1 -t 6 prompt=fact MemAvailable_kB=7016952
+2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524
+2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf>> alive=<<13902
+--->>
+2026-08-13T10:35:30 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524
+2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088>> alive=<<14041
+14214
+--->>
+2026-08-13T10:36:01 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524
+2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088>> alive=<<14041
+14799
+--->>
+2026-08-13T10:36:32 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524
+2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088>> alive=<<14041
+14878
+--->>
+2026-08-13T10:37:02 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524
+2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088>> alive=<<14041
+14989
+--->>
+2026-08-13T10:37:33 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524
+2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088>> alive=<<14041
+15077
+--->>
+2026-08-13T10:38:04 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524
+2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088>> alive=<<14041
+15204
+--->>
+2026-08-13T10:38:35 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524
+2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088>> alive=<<14041
+15277
+--->>
+2026-08-13T10:39:06 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524
+2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088
+2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)>> alive=<<15884
+--->>
+2026-08-13T10:39:38 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088
+2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368>> alive=<<16066
+16102
+--->>
+2026-08-13T10:40:10 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088
+2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368>> alive=<<16066
+16704
+--->>
+2026-08-13T10:40:41 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088
+2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368>> alive=<<16066
+16765
+--->>
+2026-08-13T10:41:14 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088
+2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368>> alive=<<16066
+16846
+--->>
+2026-08-13T10:41:46 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088
+2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368>> alive=<<16066
+16934
+--->>
+2026-08-13T10:42:19 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088
+2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368>> alive=<<16066
+17000
+--->>
+2026-08-13T10:42:51 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088
+2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368>> alive=<<16066
+17076
+--->>
+2026-08-13T10:43:22 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088
+2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368
+2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)>> alive=<<17271
+--->>
+2026-08-13T10:43:54 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368
+2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232>> alive=<<17486
+17586
+--->>
+2026-08-13T10:44:25 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368
+2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232>> alive=<<17486
+18001
+--->>
+2026-08-13T10:44:57 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368
+2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232>> alive=<<17486
+18072
+--->>
+2026-08-13T10:45:28 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368
+2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232>> alive=<<17486
+18139
+--->>
+2026-08-13T10:45:59 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368
+2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232>> alive=<<17486
+18258
+--->>
+2026-08-13T10:46:30 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368
+2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232>> alive=<<17486
+18305
+--->>
+2026-08-13T10:47:01 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368
+2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232>> alive=<<17486
+18375
+--->>
+2026-08-13T10:47:32 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368
+2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232
+2026-08-13T10:47:22 END t4_fact_ref EXIT=0 wall_s=215 majflt_delta=0>> alive=<<18531
+--->>
+2026-08-13T10:48:02 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232
+2026-08-13T10:47:22 END t4_fact_ref EXIT=0 wall_s=215 majflt_delta=0
+2026-08-13T10:47:35 CSV t4_fact_ref 2.384,33.57,79.1,23.898,12.016,200 batt=85->85 temp=33->33 wall=215 rc=0 ma=7608232->7666296 majflt=0 (0.0000/tok)
+2026-08-13T10:47:52 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:48:02 START t4_creative_ref -t 4 prompt=creative MemAvailable_kB=7614936>> alive=<<18766
+18830
+--->>
+2026-08-13T10:48:35 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232
+2026-08-13T10:47:22 END t4_fact_ref EXIT=0 wall_s=215 majflt_delta=0
+2026-08-13T10:47:35 CSV t4_fact_ref 2.384,33.57,79.1,23.898,12.016,200 batt=85->85 temp=33->33 wall=215 rc=0 ma=7608232->7666296 majflt=0 (0.0000/tok)
+2026-08-13T10:47:52 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:48:02 START t4_creative_ref -t 4 prompt=creative MemAvailable_kB=7614936>> alive=<<18766
+20220
+--->>
+2026-08-13T10:49:06 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232
+2026-08-13T10:47:22 END t4_fact_ref EXIT=0 wall_s=215 majflt_delta=0
+2026-08-13T10:47:35 CSV t4_fact_ref 2.384,33.57,79.1,23.898,12.016,200 batt=85->85 temp=33->33 wall=215 rc=0 ma=7608232->7666296 majflt=0 (0.0000/tok)
+2026-08-13T10:47:52 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:48:02 START t4_creative_ref -t 4 prompt=creative MemAvailable_kB=7614936>> alive=<<18766
+20267
+--->>
+2026-08-13T10:49:37 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232
+2026-08-13T10:47:22 END t4_fact_ref EXIT=0 wall_s=215 majflt_delta=0
+2026-08-13T10:47:35 CSV t4_fact_ref 2.384,33.57,79.1,23.898,12.016,200 batt=85->85 temp=33->33 wall=215 rc=0 ma=7608232->7666296 majflt=0 (0.0000/tok)
+2026-08-13T10:47:52 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:48:02 START t4_creative_ref -t 4 prompt=creative MemAvailable_kB=7614936>> alive=<<18766
+20351
+--->>
+2026-08-13T10:50:08 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232
+2026-08-13T10:47:22 END t4_fact_ref EXIT=0 wall_s=215 majflt_delta=0
+2026-08-13T10:47:35 CSV t4_fact_ref 2.384,33.57,79.1,23.898,12.016,200 batt=85->85 temp=33->33 wall=215 rc=0 ma=7608232->7666296 majflt=0 (0.0000/tok)
+2026-08-13T10:47:52 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:48:02 START t4_creative_ref -t 4 prompt=creative MemAvailable_kB=7614936>> alive=<<18766
+20418
+--->>
+2026-08-13T10:50:40 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232
+2026-08-13T10:47:22 END t4_fact_ref EXIT=0 wall_s=215 majflt_delta=0
+2026-08-13T10:47:35 CSV t4_fact_ref 2.384,33.57,79.1,23.898,12.016,200 batt=85->85 temp=33->33 wall=215 rc=0 ma=7608232->7666296 majflt=0 (0.0000/tok)
+2026-08-13T10:47:52 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:48:02 START t4_creative_ref -t 4 prompt=creative MemAvailable_kB=7614936>> alive=<<18766
+20535
+--->>
+2026-08-13T10:51:11 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232
+2026-08-13T10:47:22 END t4_fact_ref EXIT=0 wall_s=215 majflt_delta=0
+2026-08-13T10:47:35 CSV t4_fact_ref 2.384,33.57,79.1,23.898,12.016,200 batt=85->85 temp=33->33 wall=215 rc=0 ma=7608232->7666296 majflt=0 (0.0000/tok)
+2026-08-13T10:47:52 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:48:02 START t4_creative_ref -t 4 prompt=creative MemAvailable_kB=7614936>> alive=<<18766
+20579
+--->>
+2026-08-13T10:51:42 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232
+2026-08-13T10:47:22 END t4_fact_ref EXIT=0 wall_s=215 majflt_delta=0
+2026-08-13T10:47:35 CSV t4_fact_ref 2.384,33.57,79.1,23.898,12.016,200 batt=85->85 temp=33->33 wall=215 rc=0 ma=7608232->7666296 majflt=0 (0.0000/tok)
+2026-08-13T10:47:52 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:48:02 START t4_creative_ref -t 4 prompt=creative MemAvailable_kB=7614936
+2026-08-13T10:51:27 END t4_creative_ref EXIT=0 wall_s=203 majflt_delta=0
+2026-08-13T10:51:41 CSV t4_creative_ref 2.476,27.77,82.2,23.347,11.176,200 batt=85->85 temp=32->32 wall=203 rc=0 ma=7614936->7668804 majflt=0 (0.0000/tok)>> alive=<<20766
+--->>
+2026-08-13T10:52:13 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232
+2026-08-13T10:47:22 END t4_fact_ref EXIT=0 wall_s=215 majflt_delta=0
+2026-08-13T10:47:35 CSV t4_fact_ref 2.384,33.57,79.1,23.898,12.016,200 batt=85->85 temp=33->33 wall=215 rc=0 ma=7608232->7666296 majflt=0 (0.0000/tok)
+2026-08-13T10:47:52 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:48:02 START t4_creative_ref -t 4 prompt=creative MemAvailable_kB=7614936
+2026-08-13T10:51:27 END t4_creative_ref EXIT=0 wall_s=203 majflt_delta=0
+2026-08-13T10:51:41 CSV t4_creative_ref 2.476,27.77,82.2,23.347,11.176,200 batt=85->85 temp=32->32 wall=203 rc=0 ma=7614936->7668804 majflt=0 (0.0000/tok)
+2026-08-13T10:52:14 TASK_B_RETRY done plugged=0 level=84 tempC=32>> alive=<<20926
+--->>
+2026-08-13T10:52:44 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp status=<<2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232
+2026-08-13T10:47:22 END t4_fact_ref EXIT=0 wall_s=215 majflt_delta=0
+2026-08-13T10:47:35 CSV t4_fact_ref 2.384,33.57,79.1,23.898,12.016,200 batt=85->85 temp=33->33 wall=215 rc=0 ma=7608232->7666296 majflt=0 (0.0000/tok)
+2026-08-13T10:47:52 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T10:48:02 START t4_creative_ref -t 4 prompt=creative MemAvailable_kB=7614936
+2026-08-13T10:51:27 END t4_creative_ref EXIT=0 wall_s=203 majflt_delta=0
+2026-08-13T10:51:41 CSV t4_creative_ref 2.476,27.77,82.2,23.347,11.176,200 batt=85->85 temp=32->32 wall=203 rc=0 ma=7614936->7668804 majflt=0 (0.0000/tok)
+2026-08-13T10:52:14 TASK_B_RETRY done plugged=0 level=84 tempC=32>> alive=<<20973
+---
+HAS_DONE>>
+2026-08-13T10:52:44 DONE seen
+2026-08-13T10:52:44 watcher exit

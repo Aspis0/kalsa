@@ -1,0 +1,36 @@
+=== IDENTITY ===
+houji
+23127PN0CG
+V816
+16
+=== EXTM ===
+
+
+
+=== EXTM_FILE ===
+ls: /data/extm: Permission denied
+ls: /data/extm/extm_file: Permission denied
+=== ZRAM ===
+cat: /sys/block/zram0/bd_stat: Permission denied
+NO_BD_STAT
+cat: /sys/block/zram0/backing_dev: Permission denied
+NO_BACKING_DEV
+=== BATTERY ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 89
+  temperature: 363
+=== MEMINFO_BEFORE_KILL ===
+MemTotal:       11436476 kB
+MemFree:          168144 kB
+MemAvailable:    3965604 kB
+Cached:          3510484 kB
+SwapCached:        15548 kB
+SwapTotal:      12582908 kB
+SwapFree:        9387772 kB
+AnonPages:       3276176 kB
+=== ID ===
+uid=2000(shell) gid=2000(shell) groups=2000(shell),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:shell:s0

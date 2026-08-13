@@ -1,0 +1,182 @@
+=== battery start_b 2026-08-13T10:29:53 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 88
+  temperature: 335
+max_therm_mC=69100
+MemAvailable_kB=6958384
+MemFree_kB=239776
+SwapFree_kB=10190588
+AnonPages_kB=1225764
+=== battery before_t6_fact_o1 2026-08-13T10:29:55 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 88
+  temperature: 335
+max_therm_mC=58500
+MemAvailable_kB=7018508
+MemFree_kB=4321344
+SwapFree_kB=10200316
+AnonPages_kB=1209024
+=== battery after_t6_fact_o1 2026-08-13T10:31:16 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 87
+  temperature: 360
+max_therm_mC=48300
+MemAvailable_kB=6886400
+MemFree_kB=4053476
+SwapFree_kB=10087676
+AnonPages_kB=1386284
+=== battery before_t6_creative_o2 2026-08-13T10:31:38 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 87
+  temperature: 360
+max_therm_mC=44888
+MemAvailable_kB=6864760
+MemFree_kB=4043324
+SwapFree_kB=10103036
+AnonPages_kB=1408532
+=== battery after_t6_creative_o2 2026-08-13T10:34:27 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 87
+  temperature: 356
+max_therm_mC=46333
+MemAvailable_kB=7562440
+MemFree_kB=4169836
+SwapFree_kB=10081020
+AnonPages_kB=756648
+=== battery before_t6_creative_o3 2026-08-13T10:35:01 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 87
+  temperature: 356
+max_therm_mC=47779
+MemAvailable_kB=7548600
+MemFree_kB=6031804
+SwapFree_kB=10087164
+AnonPages_kB=767148
+=== battery after_t6_creative_o3 2026-08-13T10:38:54 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 86
+  temperature: 338
+max_therm_mC=47174
+MemAvailable_kB=7583876
+MemFree_kB=3784196
+SwapFree_kB=10031612
+AnonPages_kB=755224
+=== battery before_t6_fact_o4 2026-08-13T10:39:14 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 86
+  temperature: 338
+max_therm_mC=48955
+MemAvailable_kB=7529864
+MemFree_kB=5586540
+SwapFree_kB=10051068
+AnonPages_kB=790124
+=== battery after_t6_fact_o4 2026-08-13T10:43:02 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 85
+  temperature: 334
+max_therm_mC=47980
+MemAvailable_kB=7629572
+MemFree_kB=4109644
+SwapFree_kB=10038524
+AnonPages_kB=705024
+=== battery before_t4_fact_ref 2026-08-13T10:43:35 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 85
+  temperature: 334
+max_therm_mC=48888
+MemAvailable_kB=7601320
+MemFree_kB=6468248
+SwapFree_kB=10059260
+AnonPages_kB=730724
+=== battery after_t4_fact_ref 2026-08-13T10:47:22 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 85
+  temperature: 329
+max_therm_mC=48854
+MemAvailable_kB=7667572
+MemFree_kB=4104328
+SwapFree_kB=9985020
+AnonPages_kB=652684
+=== battery before_t4_creative_ref 2026-08-13T10:47:54 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 85
+  temperature: 329
+max_therm_mC=49896
+MemAvailable_kB=7615448
+MemFree_kB=6478304
+SwapFree_kB=10017788
+AnonPages_kB=707988
+=== battery after_t4_creative_ref 2026-08-13T10:51:27 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 84
+  temperature: 327
+max_therm_mC=49560
+MemAvailable_kB=7669812
+MemFree_kB=4107852
+SwapFree_kB=10003196
+AnonPages_kB=660020
+=== battery end_b 2026-08-13T10:51:58 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 84
+  temperature: 327
+max_therm_mC=50669
+MemAvailable_kB=7666448
+MemFree_kB=4046104
+SwapFree_kB=10005756
+AnonPages_kB=665448

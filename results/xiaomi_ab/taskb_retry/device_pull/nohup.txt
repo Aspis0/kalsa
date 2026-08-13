@@ -1,0 +1,216 @@
+2026-08-13T10:28:51 TASK_B_RETRY begin
+2026-08-13T10:28:51 LD_LIBRARY_PATH=/data/local/tmp/gdn_750/taskb/bin:/vendor/lib64:/system/vendor/lib64
+2026-08-13T10:29:53 GATE_OK unplugged level=88 tempC=33
+=== battery start_b 2026-08-13T10:29:53 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 88
+  temperature: 335
+max_therm_mC=69100
+MemAvailable_kB=6958384
+MemFree_kB=239776
+SwapFree_kB=10190588
+AnonPages_kB=1225764
+2026-08-13T10:29:54 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=1018091 resident_after=0 pages fadvise_rc=0
+=== battery before_t6_fact_o1 2026-08-13T10:29:55 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 88
+  temperature: 335
+max_therm_mC=58500
+MemAvailable_kB=7018508
+MemFree_kB=4321344
+SwapFree_kB=10200316
+AnonPages_kB=1209024
+2026-08-13T10:29:56 START t6_fact_o1 -t 6 prompt=fact MemAvailable_kB=7016952
+2026-08-13T10:31:15 END t6_fact_o1 EXIT=0 wall_s=79 majflt_delta=0
+=== battery after_t6_fact_o1 2026-08-13T10:31:16 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 87
+  temperature: 360
+max_therm_mC=48300
+MemAvailable_kB=6886400
+MemFree_kB=4053476
+SwapFree_kB=10087676
+AnonPages_kB=1386284
+2026-08-13T10:31:23 CSV t6_fact_o1 4.023,33.16,79.2,18.370,8.979,200 batt=88->88 temp=33->33 wall=79 rc=0 ma=7016952->6885652 majflt=0 (0.0000/tok)
+2026-08-13T10:31:36 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=35371 resident_after=0 pages fadvise_rc=0
+=== battery before_t6_creative_o2 2026-08-13T10:31:38 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 87
+  temperature: 360
+max_therm_mC=44888
+MemAvailable_kB=6864760
+MemFree_kB=4043324
+SwapFree_kB=10103036
+AnonPages_kB=1408532
+2026-08-13T10:31:48 START t6_creative_o2 -t 6 prompt=creative MemAvailable_kB=6864524
+2026-08-13T10:34:27 END t6_creative_o2 EXIT=0 wall_s=152 majflt_delta=0
+=== battery after_t6_creative_o2 2026-08-13T10:34:27 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 87
+  temperature: 356
+max_therm_mC=46333
+MemAvailable_kB=7562440
+MemFree_kB=4169836
+SwapFree_kB=10081020
+AnonPages_kB=756648
+2026-08-13T10:34:42 CSV t6_creative_o2 2.698,27.61,82.3,18.190,11.627,200 batt=87->87 temp=36->36 wall=152 rc=0 ma=6864524->7561712 majflt=0 (0.0000/tok)
+2026-08-13T10:35:00 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=479572 resident_after=0 pages fadvise_rc=0
+=== battery before_t6_creative_o3 2026-08-13T10:35:01 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 87
+  temperature: 356
+max_therm_mC=47779
+MemAvailable_kB=7548600
+MemFree_kB=6031804
+SwapFree_kB=10087164
+AnonPages_kB=767148
+2026-08-13T10:35:09 START t6_creative_o3 -t 6 prompt=creative MemAvailable_kB=7547088
+2026-08-13T10:38:54 END t6_creative_o3 EXIT=0 wall_s=218 majflt_delta=0
+=== battery after_t6_creative_o3 2026-08-13T10:38:54 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 86
+  temperature: 338
+max_therm_mC=47174
+MemAvailable_kB=7583876
+MemFree_kB=3784196
+SwapFree_kB=10031612
+AnonPages_kB=755224
+2026-08-13T10:38:57 CSV t6_creative_o3 2.403,27.61,82.3,25.301,13.805,200 batt=87->87 temp=35->35 wall=218 rc=0 ma=7547088->7581304 majflt=0 (0.0000/tok)
+2026-08-13T10:39:13 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=513921 resident_after=0 pages fadvise_rc=0
+=== battery before_t6_fact_o4 2026-08-13T10:39:14 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 86
+  temperature: 338
+max_therm_mC=48955
+MemAvailable_kB=7529864
+MemFree_kB=5586540
+SwapFree_kB=10051068
+AnonPages_kB=790124
+2026-08-13T10:39:28 START t6_fact_o4 -t 6 prompt=fact MemAvailable_kB=7528368
+2026-08-13T10:43:01 END t6_fact_o4 EXIT=0 wall_s=212 majflt_delta=0
+=== battery after_t6_fact_o4 2026-08-13T10:43:02 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 85
+  temperature: 334
+max_therm_mC=47980
+MemAvailable_kB=7629572
+MemFree_kB=4109644
+SwapFree_kB=10038524
+AnonPages_kB=705024
+2026-08-13T10:43:15 CSV t6_fact_o4 2.315,33.16,79.2,23.836,11.715,200 batt=86->86 temp=33->33 wall=212 rc=0 ma=7528368->7629824 majflt=0 (0.0000/tok)
+2026-08-13T10:43:34 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=597299 resident_after=0 pages fadvise_rc=0
+=== battery before_t4_fact_ref 2026-08-13T10:43:35 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 85
+  temperature: 334
+max_therm_mC=48888
+MemAvailable_kB=7601320
+MemFree_kB=6468248
+SwapFree_kB=10059260
+AnonPages_kB=730724
+2026-08-13T10:43:41 START t4_fact_ref -t 4 prompt=fact MemAvailable_kB=7608232
+2026-08-13T10:47:22 END t4_fact_ref EXIT=0 wall_s=215 majflt_delta=0
+=== battery after_t4_fact_ref 2026-08-13T10:47:22 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 85
+  temperature: 329
+max_therm_mC=48854
+MemAvailable_kB=7667572
+MemFree_kB=4104328
+SwapFree_kB=9985020
+AnonPages_kB=652684
+2026-08-13T10:47:35 CSV t4_fact_ref 2.384,33.57,79.1,23.898,12.016,200 batt=85->85 temp=33->33 wall=215 rc=0 ma=7608232->7666296 majflt=0 (0.0000/tok)
+2026-08-13T10:47:52 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=636568 resident_after=0 pages fadvise_rc=0
+=== battery before_t4_creative_ref 2026-08-13T10:47:54 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 85
+  temperature: 329
+max_therm_mC=49896
+MemAvailable_kB=7615448
+MemFree_kB=6478304
+SwapFree_kB=10017788
+AnonPages_kB=707988
+2026-08-13T10:48:02 START t4_creative_ref -t 4 prompt=creative MemAvailable_kB=7614936
+2026-08-13T10:51:27 END t4_creative_ref EXIT=0 wall_s=203 majflt_delta=0
+=== battery after_t4_creative_ref 2026-08-13T10:51:27 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 84
+  temperature: 327
+max_therm_mC=49560
+MemAvailable_kB=7669812
+MemFree_kB=4107852
+SwapFree_kB=10003196
+AnonPages_kB=660020
+2026-08-13T10:51:41 CSV t4_creative_ref 2.476,27.77,82.2,23.347,11.176,200 batt=85->85 temp=32->32 wall=203 rc=0 ma=7614936->7668804 majflt=0 (0.0000/tok)
+=== battery end_b 2026-08-13T10:51:58 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 84
+  temperature: 327
+max_therm_mC=50669
+MemAvailable_kB=7666448
+MemFree_kB=4046104
+SwapFree_kB=10005756
+AnonPages_kB=665448
+2026-08-13T10:52:14 TASK_B_RETRY done plugged=0 level=84 tempC=32

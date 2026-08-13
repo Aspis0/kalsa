@@ -1,0 +1,6 @@
+=== binary 2026-08-13T10:28:52 ===
+-rwxr-xr-x 1 shell shell 402416 2026-08-13 05:33 /data/local/tmp/gdn_750/taskb/bin/bmoe-cli
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/local/tmp/gdn_750/taskb/bin/bmoe-cli
+-rwxr-xr-x 1 shell shell 5205472 2026-08-13 10:25 /data/local/tmp/gdn_750/taskb/bin/libcrypto.so.3
+-rwxr-xr-x 1 shell shell  875304 2026-08-13 10:25 /data/local/tmp/gdn_750/taskb/bin/libssl.so.3
+0.19.0

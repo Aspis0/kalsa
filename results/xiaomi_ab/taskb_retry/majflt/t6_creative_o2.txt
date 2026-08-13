@@ -1,0 +1,3 @@
+t0 2026-08-13T10:31:50 pid=11778 fields=10021 R0 3152
+t1 2026-08-13T10:34:27 pid=11778 fields= rc=0 wall=152
+majflt_start=0 majflt_end=0 majflt_delta=0

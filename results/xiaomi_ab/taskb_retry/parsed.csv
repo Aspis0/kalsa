@@ -1,0 +1,7 @@
+tag,prompt,threads,decode_tps,mib_per_tok,hit_pct,ttft_s,load_s,n_gen,compute_s_tok,flash_s_tok,flash_mibs,cpu_occ_pct,eng_majflt_tok,drop_pct,resident_mib,ma_min_kib,ma_max_kib,wall_s,batt,temp_c,plugged
+t6_fact_o1,fact,6,4.023,33.16,79.2,18.370,8.979,200,0.151,0.222,149,56.4,5.21,5.6,1999.2,2577388,7095240,79,88,33,UNPLUGGED
+t6_creative_o2,creative,6,2.698,27.61,82.3,18.190,11.627,200,0.200,0.390,71,37.9,0.00,2.9,1999.2,3416608,7005324,152,87,36,UNPLUGGED
+t6_creative_o3,creative,6,2.403,27.61,82.3,25.301,13.805,200,0.211,0.501,55,33.9,0.00,2.9,1999.2,3689904,7539812,218,87,35,UNPLUGGED
+t6_fact_o4,fact,6,2.315,33.16,79.2,23.836,11.715,200,0.217,0.505,66,34.2,0.01,5.6,1999.2,3614356,7476488,212,86,33,UNPLUGGED
+t4_fact_ref,fact,4,2.384,33.57,79.1,23.898,12.016,200,0.235,0.433,78,38.9,0.01,5.7,1999.2,3658396,7555040,215,85,33,UNPLUGGED
+t4_creative_ref,creative,4,2.476,27.77,82.2,23.347,11.176,200,0.219,0.441,63,39.7,0.01,2.9,1999.2,3662564,7507696,203,85,32,UNPLUGGED
