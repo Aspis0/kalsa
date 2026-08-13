@@ -189,3 +189,30 @@ results/gdn_gpu_750/
 ```
 
 On device (nothing deleted): `/data/local/tmp/gdn_750/` bins + model + logs. Re-run phase 3 only after unplug.
+
+---
+
+## Phase 3 — SPEED (measured 2026-08-12 23:1x, UNPLUGGED, batt 100→99, temp ~30°C)
+
+llama-bench, same cpufix binary, Qwen3.5-2B Q4_K_M, `-t 6`, r=2:
+
+| cell | pp128 | tg256 |
+|---|---:|---:|
+| CPU `-ngl 0` | 31.46 | **16.15** |
+| GPU `-ngl 99 -fa off` | **181.65** | 7.07 |
+
+- **Decode gate (≥1.15×): FAIL — 0.44×.** Recon prediction (LIKELY_FAIL) CONFIRMED.
+  The A7X decode wall holds on 750 exactly as on 740.
+- **Prefill: GPU 5.77× CPU** (181.65 vs 31.46) — far bigger than the 740's ~2.2×.
+  Prefill is compute-bound and the 750's GPU has the muscle; decode stays
+  bandwidth/dispatch-bound and loses.
+
+## Final strategic read (750 closed)
+
+1. GPU-decode on A7X (740 + 750): **dead, by measurement, on both devices.**
+2. GPU-prefill on A7X: **alive and large** — 2.2× (740) to 5.8× (750). The TTFT
+   lever is real across the whole A7X installed base and feeds directly into the
+   K4-split design (trunk prefill on GPU) and any hybrid phase-scheduling product
+   feature.
+3. Correctness stack (GDN hybrid) proven on both A7X gens. First-mover position
+   intact.

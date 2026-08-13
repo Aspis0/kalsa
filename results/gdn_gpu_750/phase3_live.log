@@ -1,0 +1,147 @@
+=== battery wait_start 2026-08-12T23:17:29 ===
+Current Battery Service state:
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Max charging current: 0
+ Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +1d0h30m35s69ms
+  Max charging voltage: 0
+  Charge counter: 4246000
+  status: 3
+  health: 2
+  present: true
+  level: 100
+  scale: 100
+  voltage: 4401
+ Time when the latest updated value of the voltage was sent via battery changed broadcast: +1d0h33m24s903ms
+ The last voltage value sent via the battery changed broadcast: 4401
+  temperature: 289
+  technology: Li-poly
+  Charging state: 0
+  Charging policy: 0
+  Capacity level: -1
+MiuiBatteryService first usage time:
+  mSetBatteryUsageTimeCount=0
+  mNtpTime=-1
+  mParseNtpTime=
+max_therm_mC=54233
+2026-08-12T23:17:43 poll elapsed=0s plugged=0 level=100 tempC=28 ac=false usb=false wl=false
+2026-08-12T23:17:43 READY unplugged level=100 tempC=28
+=== battery before_bench_cpu 2026-08-12T23:17:43 ===
+Current Battery Service state:
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Max charging current: 0
+ Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +1d0h30m35s69ms
+  Max charging voltage: 0
+  Charge counter: 4246000
+  status: 3
+  health: 2
+  present: true
+  level: 100
+  scale: 100
+  voltage: 4401
+ Time when the latest updated value of the voltage was sent via battery changed broadcast: +1d0h33m24s903ms
+ The last voltage value sent via the battery changed broadcast: 4401
+  temperature: 289
+  technology: Li-poly
+  Charging state: 0
+  Charging policy: 0
+  Capacity level: -1
+MiuiBatteryService first usage time:
+  mSetBatteryUsageTimeCount=0
+  mNtpTime=-1
+  mParseNtpTime=
+max_therm_mC=54401
+2026-08-12T23:17:53 START bench_cpu -t 6 -ngl 0 -p 128 -n 256 -r 2
+2026-08-12T23:19:12 END bench_cpu EXIT=0
+=== battery after_bench_cpu 2026-08-12T23:19:13 ===
+Current Battery Service state:
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Max charging current: 0
+ Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +1d0h30m35s69ms
+  Max charging voltage: 0
+  Charge counter: 4224000
+  status: 3
+  health: 2
+  present: true
+  level: 100
+  scale: 100
+  voltage: 4377
+ Time when the latest updated value of the voltage was sent via battery changed broadcast: +1d0h33m24s903ms
+ The last voltage value sent via the battery changed broadcast: 4401
+  temperature: 295
+  technology: Li-poly
+  Charging state: 0
+  Charging policy: 0
+  Capacity level: -1
+MiuiBatteryService first usage time:
+  mSetBatteryUsageTimeCount=0
+  mNtpTime=-1
+  mParseNtpTime=
+max_therm_mC=59300
+=== battery before_bench_gpu 2026-08-12T23:19:52 ===
+Current Battery Service state:
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Max charging current: 0
+ Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +1d0h30m35s69ms
+  Max charging voltage: 0
+  Charge counter: 4215000
+  status: 3
+  health: 2
+  present: true
+  level: 100
+  scale: 100
+  voltage: 4374
+ Time when the latest updated value of the voltage was sent via battery changed broadcast: +1d0h38m1s486ms
+ The last voltage value sent via the battery changed broadcast: 4374
+  temperature: 304
+  technology: Li-poly
+  Charging state: 0
+  Charging policy: 0
+  Capacity level: -1
+MiuiBatteryService first usage time:
+  mSetBatteryUsageTimeCount=0
+  mNtpTime=-1
+  mParseNtpTime=
+max_therm_mC=51342
+2026-08-12T23:20:02 START bench_gpu -t 6 -ngl 99 -fa off -p 128 -n 256 -r 2
+2026-08-12T23:22:51 END bench_gpu EXIT=0
+=== battery after_bench_gpu 2026-08-12T23:22:51 ===
+Current Battery Service state:
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Max charging current: 0
+ Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +1d0h30m35s69ms
+  Max charging voltage: 0
+  Charge counter: 4192000
+  status: 3
+  health: 2
+  present: true
+  level: 99
+  scale: 100
+  voltage: 4381
+ Time when the latest updated value of the voltage was sent via battery changed broadcast: +1d0h41m21s214ms
+ The last voltage value sent via the battery changed broadcast: 4381
+  temperature: 304
+  technology: Li-poly
+  Charging state: 0
+  Charging policy: 0
+  Capacity level: -1
+MiuiBatteryService first usage time:
+  mSetBatteryUsageTimeCount=0
+  mNtpTime=-1
+  mParseNtpTime=
+max_therm_mC=49392
+2026-08-12T23:22:54 PHASE3 done
