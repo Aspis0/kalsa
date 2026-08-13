@@ -20,6 +20,8 @@ const config = {
     infoPlist: {
       NSMicrophoneUsageDescription:
         "Kalsa uses the microphone for on-device voice dictation. Audio stays on this device.",
+      // Without this, Core Animation stays at 60Hz on iPhone (iPad Pro does not need it).
+      CADisableMinimumFrameDurationOnPhone: true,
     },
   },
   android: {
@@ -38,6 +40,7 @@ const config = {
   },
   plugins: [
     "./plugins/withLintOff",
+    "./plugins/withDisplayRefreshRate",
     "expo-font",
     "expo-secure-store",
     "expo-sharing",
