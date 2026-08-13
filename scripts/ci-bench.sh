@@ -49,6 +49,7 @@ TOOLGATE="${TOOLGATE:-1}"
 NCTX="${NCTX:-}"
 WINBUDGET="${WINBUDGET:-}"
 LEGACYWINDOW="${LEGACYWINDOW:-}"
+RANKING="${RANKING:-}"
 RUNS_PER_ARM="${RUNS_PER_ARM:-3}"
 INTER_TURN_DELAY_S="${INTER_TURN_DELAY_S:-0}"
 MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
@@ -149,6 +150,10 @@ case "$LEGACYWINDOW" in
   *[!0-9]*) die "LEGACYWINDOW must be empty or a positive integer (got '$LEGACYWINDOW')" ;;
   *) [ "$LEGACYWINDOW" -ge 4 ] || die "LEGACYWINDOW must be >= 4 (floor to hold current turn), got '$LEGACYWINDOW'" ;;
 esac
+case "$RANKING" in
+  ""|bm25|hybrid) ;;
+  *) die "RANKING must be empty, bm25, or hybrid (got '$RANKING')" ;;
+esac
 
 log "arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
 # LFM2.5 is always-on reasoning: the chat template has preserve_thinking only,
@@ -234,6 +239,13 @@ set_prefs() {
   else
     sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.legacywindow';"
   fi
+  # RANKING: the knob that decides digest retrieval ranking mode.
+  # Same delete-when-empty rule, same both-branch assert.
+  if [ -n "$RANKING" ]; then
+    sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.ranking','$RANKING');"
+  else
+    sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.ranking';"
+  fi
   # Opt-in memory subsystem must stay off: otherwise its extract/recall path
   # confounds the compaction A/B (same facts could leak via memory, not context).
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.memory.enabled','0');"
@@ -292,6 +304,14 @@ if [ -n "$LEGACYWINDOW" ]; then
 else
   [ -z "$LEGACYWINDOW_PREF_RAW" ] \
     || die "legacywindow pref on device is '$LEGACYWINDOW_PREF_RAW', expected absent (LEGACYWINDOW empty = LEGACY_MAX_HISTORY)"
+fi
+RANKING_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.ranking';" | head -1 | tr -d '[:space:]')
+if [ -n "$RANKING" ]; then
+  [ "$RANKING_PREF_RAW" = "$RANKING" ] \
+    || die "ranking pref on device is '$RANKING_PREF_RAW', expected '$RANKING'"
+else
+  [ -z "$RANKING_PREF_RAW" ] \
+    || die "ranking pref on device is '$RANKING_PREF_RAW', expected absent (RANKING empty = bm25)"
 fi
 
 adb logcat -c

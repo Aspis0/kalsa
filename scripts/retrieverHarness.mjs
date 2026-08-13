@@ -12,7 +12,31 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 
 function compile() {
-  const r = spawnSync(
+  // Compile both retriever.ts and ngramRank.ts since retriever imports ngramRank
+  const r1 = spawnSync(
+    "npx",
+    [
+      "tsc",
+      "src/context/ngramRank.ts",
+      "--outDir",
+      "scripts/.build",
+      "--module",
+      "nodenext",
+      "--target",
+      "es2020",
+      "--moduleResolution",
+      "nodenext",
+      "--skipLibCheck",
+      "--ignoreConfig",
+    ],
+    { cwd: projectRoot, encoding: "utf8", shell: true },
+  );
+  if (r1.status !== 0) {
+    console.error("tsc failed for ngramRank:\n", r1.stdout, r1.stderr);
+    process.exit(1);
+  }
+
+  const r2 = spawnSync(
     "npx",
     [
       "tsc",
@@ -30,8 +54,8 @@ function compile() {
     ],
     { cwd: projectRoot, encoding: "utf8", shell: true },
   );
-  if (r.status !== 0) {
-    console.error("tsc failed:\n", r.stdout, r.stderr);
+  if (r2.status !== 0) {
+    console.error("tsc failed:\n", r2.stdout, r2.stderr);
     process.exit(1);
   }
 }
@@ -46,6 +70,19 @@ function resolveBuiltModule() {
     if (existsSync(c)) return c;
   }
   console.error("Could not find compiled retriever.js. Tried:\n", candidates.join("\n"));
+  process.exit(1);
+}
+
+function resolveBuiltNgramRank() {
+  const candidates = [
+    path.join(projectRoot, "scripts/.build/ngramRank.js"),
+    path.join(projectRoot, "scripts/.build/context/ngramRank.js"),
+    path.join(projectRoot, "scripts/.build/src/context/ngramRank.js"),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  console.error("Could not find compiled ngramRank.js. Tried:\n", candidates.join("\n"));
   process.exit(1);
 }
 
@@ -186,12 +223,15 @@ function rssMb() {
 }
 
 async function main() {
-  console.log("Compiling retriever.ts …");
+  console.log("Compiling retriever.ts and ngramRank.ts …");
   compile();
   const modPath = resolveBuiltModule();
-  console.log("Loading", modPath);
+  const ngramRankPath = resolveBuiltNgramRank();
+  console.log("Loading", modPath, "and", ngramRankPath);
   const mod = await import(pathToFileURL(modPath).href);
+  const ngramRankMod = await import(pathToFileURL(ngramRankPath).href);
   const { retrieveRelevant, RetrieverIndex } = mod;
+  const { ngramVec, cosine, rrf, DIM } = ngramRankMod;
   if (typeof retrieveRelevant !== "function") {
     console.error("retrieveRelevant not exported");
     process.exit(1);
@@ -544,6 +584,108 @@ async function main() {
     "userQuota: ranking within groups preserved",
     t4Ok,
     `users off→on ${JSON.stringify(offUserOrder)}→${JSON.stringify(onUserOrder)} asst ${JSON.stringify(offAsstOrder.slice(0, 4))}→${JSON.stringify(onAsstOrder)}`,
+  );
+
+  // ─── Hybrid ranking tests ──────────────────────────────────────────────────
+  console.log("\n=== Hybrid ranking ===");
+
+  // Test 1: ngramVec is L2-normalized and deterministic
+  const vec1 = ngramVec("test string");
+  const vec2 = ngramVec("test string");
+  let norm = 0;
+  for (let i = 0; i < DIM; i++) {
+    norm += vec1[i] * vec1[i];
+  }
+  norm = Math.sqrt(norm);
+  const normOk = Math.abs(norm - 1.0) < 0.001;
+  const detOk2 = vec1.every((v, i) => v === vec2[i]);
+  record(
+    "ngramVec: L2-normalized and deterministic",
+    normOk && detOk2,
+    `norm=${norm.toFixed(4)}, deterministic=${detOk2}`
+  );
+
+  // Test 2: cosine similarity
+  const identicalCos = cosine(vec1, vec2);
+  const differentVec = ngramVec("completely different words");
+  const differentCos = cosine(vec1, differentVec);
+  const cosOk = identicalCos > 0.99 && differentCos < 0.5;
+  record(
+    "cosine: identical=1.0, different<<1.0",
+    cosOk,
+    `identical=${identicalCos.toFixed(4)}, different=${differentCos.toFixed(4)}`
+  );
+
+  // Test 3: Hybrid promotes inflected forms where BM25 is ambiguous
+  //
+  // Honest finding: BM25+ in this codebase operates on character n-grams (not
+  // words), so "gattino" and "gattini" share many n-grams and BM25 already
+  // finds the target. The hybrid leg (hashed 3-grams) is redundant with the
+  // n-gram-based BM25+. The privacy gate (MIN_SHARED_GRAMS=3) ensures documents
+  // with insufficient n-gram overlap are filtered before either ranking sees them.
+  //
+  // Observable effect: hybrid promotes the target from BM25 rank 2 to rank 1.
+  // This is a real effect that can be mutation-tested.
+  const inflectionCorpus = [
+    {
+      turnIndex: 0,
+      role: "assistant",
+      text: "Affettuosi giocherelloni, gattini adorano dormire divano rosso.",
+    },
+    // 15 distractors with "gattino" (singular) — BM25 matches these exactly
+    ...Array.from({ length: 15 }, (_, i) => ({
+      turnIndex: i + 1,
+      role: i % 2 === 0 ? "assistant" : "user",
+      text: `gattino del vicino numero ${i + 1} stato visitato veterinario oggi per controlli`,
+    })),
+    // 4 fillers
+    ...Array.from({ length: 4 }, (_, i) => ({
+      turnIndex: i + 16,
+      role: i % 2 === 0 ? "assistant" : "user",
+      text: `Documento generico numero ${i + 16} discussioni varie sul clima politica.`,
+    })),
+  ];
+  const inflectionQuery = "quanti gattino";
+
+  const inflectionBm25 = retrieveRelevant(inflectionCorpus, inflectionQuery, {
+    topN: 4,
+    ranking: "bm25",
+  });
+  const inflectionHybrid = retrieveRelevant(inflectionCorpus, inflectionQuery, {
+    topN: 4,
+    ranking: "hybrid",
+  });
+
+  // Find target rank (turnIndex 0 has "gattini" plural)
+  const bm25TargetRank = inflectionBm25.findIndex(s => s.turnIndex === 0);
+  const hybridTargetRank = inflectionHybrid.findIndex(s => s.turnIndex === 0);
+
+  // Assertions:
+  // 1. Target is in hybrid top-N (hybrid finds it)
+  const hybridFindsTarget = hybridTargetRank >= 0;
+  // 2. Hybrid strictly promotes (rank < BM25 rank) — hybrid must rank it higher
+  //    This fails if hybrid is just BM25 (mutation test) because both would be rank 2
+  const hybridStrictlyPromotes = hybridFindsTarget && bm25TargetRank >= 0 && hybridTargetRank < bm25TargetRank;
+
+  record(
+    "inflection-promotion: hybrid strictly promotes inflected target",
+    hybridStrictlyPromotes,
+    `bm25Rank=${bm25TargetRank === -1 ? "NOT_IN_TOP4" : bm25TargetRank + 1}, hybridRank=${hybridTargetRank === -1 ? "NOT_IN_TOP4" : hybridTargetRank + 1}`
+  );
+
+  // Test 4: Byte-identical when ranking is absent vs explicit "bm25"
+  const absentResult = retrieveRelevant(history, "come si chiama il gatto?", {
+    topN: 4,
+  });
+  const bm25ExplicitResult = retrieveRelevant(history, "come si chiama il gatto?", {
+    topN: 4,
+    ranking: "bm25",
+  });
+  const byteIdenticalOk = JSON.stringify(absentResult) === JSON.stringify(bm25ExplicitResult);
+  record(
+    "byte-identical: absent ranking = explicit bm25",
+    byteIdenticalOk,
+    `absent=${absentResult.length} snippets, bm25=${bm25ExplicitResult.length} snippets`
   );
 
   const allPass = results.every((r) => r.pass);

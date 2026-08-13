@@ -80,7 +80,7 @@ export interface CompactorConfig {
 export interface DigestIndex {
   retrieve(
     query: string | null | undefined,
-    options?: RetrieveOptions,
+    options?: RetrieveOptions & { ranking?: "bm25" | "hybrid" },
   ): RetrievedSnippet[];
   readonly documentCount?: number;
 }
@@ -155,6 +155,22 @@ export function parseBenchLegacyWindow(
   if (!Number.isFinite(n) || !Number.isInteger(n)) return null;
   if (n < BENCH_LEGACY_WINDOW_FLOOR) return null;
   return n;
+}
+
+/**
+ * Defensive parser for the bench-only ranking mode override.
+ * Absent / empty / unknown → null (no override, "bm25" wins).
+ * Accepts "bm25" or "hybrid" (case-insensitive). Returns lowercase.
+ */
+export function parseBenchRanking(
+  raw: string | null | undefined,
+): "bm25" | "hybrid" | null {
+  if (raw == null) return null;
+  const trimmed = String(raw).trim().toLowerCase();
+  if (trimmed === "") return null;
+  if (trimmed === "bm25") return "bm25";
+  if (trimmed === "hybrid") return "hybrid";
+  return null;
 }
 
 export const DEFAULT_COMPACTOR_CONFIG: CompactorConfig = {
@@ -396,6 +412,7 @@ export function buildDigest(
   currentQuery: string | null | undefined,
   config?: Partial<CompactorConfig> | null,
   onTelemetry?: (telemetry: DigestTelemetry) => void,
+  ranking?: "bm25" | "hybrid",
 ): string {
   const startTime = Date.now();
   const cfg = mergeConfig(config);
@@ -412,6 +429,7 @@ export function buildDigest(
     maxCharsPerSnippet: DEFAULT_DIGEST_SNIPPET_CHARS,
     // Spend digest slots on user-planted facts, not assistant hedging boilerplate.
     userQuota: true,
+    ranking: ranking ?? "bm25",
   };
 
   let snippets: RetrievedSnippet[] = [];
@@ -668,6 +686,7 @@ export function refreshQueryDigest(
     currentQuery: string;
     config?: Partial<CompactorConfig> | null;
     onTelemetry?: (telemetry: DigestTelemetry) => void;
+    ranking?: "bm25" | "hybrid";
   },
 ): CompactorState {
   const base = prev ?? emptyCompactorState(args.chatId || DEFAULT_CHAT_ID);
@@ -677,6 +696,7 @@ export function refreshQueryDigest(
     args.currentQuery,
     args.config,
     args.onTelemetry,
+    args.ranking,
   );
   return {
     ...base,
@@ -705,6 +725,7 @@ export function rebuildFrozenDigest(
     config?: Partial<CompactorConfig> | null;
     /** If set, becomes the new rollingSummary; else keep previous. */
     nextSummary?: string | null;
+    ranking?: "bm25" | "hybrid";
   },
 ): CompactorState {
   const advanced = advanceCompactionBoundary(prev, {
@@ -721,6 +742,7 @@ export function rebuildFrozenDigest(
     oldTurns: args.oldTurns,
     currentQuery: args.currentQuery,
     config: args.config,
+    ranking: args.ranking,
   });
 }
 

@@ -34,7 +34,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getThreadCountSource } from "../engine/threadProfile";
 import { parseBenchNCtx } from "../engine/contextProfile";
-import { parseBenchWindowBudget, parseBenchLegacyWindow } from "../context/compactor";
+import { parseBenchWindowBudget, parseBenchLegacyWindow, parseBenchRanking } from "../context/compactor";
 
 export const BENCH_THINKING_KEY = "kalsa.bench.thinking";
 export const BENCH_FORMAT_KEY = "kalsa.bench.format";
@@ -45,6 +45,7 @@ export const BENCH_TOOLGATE_KEY = "kalsa.bench.toolgate";
 export const BENCH_NCTX_KEY = "kalsa.bench.nctx";
 export const BENCH_WINBUDGET_KEY = "kalsa.bench.winbudget";
 export const BENCH_LEGACYWINDOW_KEY = "kalsa.bench.legacywindow";
+export const BENCH_RANKING_KEY = "kalsa.bench.ranking";
 
 export type ThinkingMode = "default" | "off" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
@@ -220,6 +221,22 @@ export async function getBenchLegacyWindow(): Promise<number | null> {
   try {
     const raw = await AsyncStorage.getItem(BENCH_LEGACYWINDOW_KEY);
     return parseBenchLegacyWindow(raw);
+  } catch {
+    return null;
+  }
+}
+
+/** Ranking mode for the digest retriever. Absent / invalid → null ("bm25" wins). */
+export type RankingMode = "bm25" | "hybrid";
+
+/**
+ * Bench-only ranking mode override. Absent / invalid → null (production "bm25"
+ * wins). "hybrid" fuses BM25 + char 3-gram cosine via RRF (no model download).
+ */
+export async function getBenchRanking(): Promise<RankingMode | null> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_RANKING_KEY);
+    return parseBenchRanking(raw);
   } catch {
     return null;
   }

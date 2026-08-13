@@ -42,6 +42,15 @@ on:
         required: false
         default: ""
         type: string
+      ranking:
+        description: "Bench-only ranking mode (empty = bm25). Controls digest retrieval: bm25 (lexical) or hybrid (BM25 + char 3-gram fused via RRF)."
+        required: false
+        default: ""
+        type: string
+        options:
+          - ""
+          - bm25
+          - hybrid
 
 jobs:
   build:
@@ -492,6 +501,7 @@ jobs:
           NCTX: ${{ inputs.nctx || '' }}
           WINBUDGET: ${{ inputs.winbudget || '' }}
           LEGACYWINDOW: ${{ inputs.legacywindow || '' }}
+          RANKING: ${{ inputs.ranking || '' }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
           # 40s = SUMMARY_IDLE_DEBOUNCE_MS (8s) + SUMMARIZE_TIMEOUT_MS (30s) +
           # margin. On CI emulator the 2B decodes at ~2.45 tok/s, so

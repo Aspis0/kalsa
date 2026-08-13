@@ -129,6 +129,7 @@ import {
   getBenchNCtx,
   getBenchWindowBudget,
   getBenchLegacyWindow,
+  getBenchRanking,
   getEngineOverride,
   getSpeculativeOverride,
 } from "../bench/benchConfig";
@@ -3616,6 +3617,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // both inside (for ciswire corpus boundary) and outside
             // (for off-arm assembly).
             const legacyWindowOverride = await getBenchLegacyWindow();
+            // Bench-only: ranking mode for the digest retriever.
+            // Absent in production → null → "bm25" (existing behavior).
+            const rankingOverride = await getBenchRanking();
 
             if (retrievalOn) {
               const userTurnCount = countUserTurns(validatedHistory, true);
@@ -3758,6 +3762,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 oldTurns: oldUnits,
                 currentQuery: text,
                 onTelemetry: (t) => console.log(formatDigestLine(t)),
+                ranking: rankingOverride ?? "bm25",
               });
               compactorStateByChat.set(chatId, state);
 
