@@ -16,7 +16,7 @@
 
 > **Leggi questa sezione e basta.** Le §0-§12 sotto sono il piano **originale del 3 agosto** e
 > sono in gran parte **superate**: servono da razionale storico, non da guida. Il `Registro
-> checkpoint` (§dopo la 12) è il log cronologico completo, 70 voci: è la fonte, ma non si legge
+> checkpoint` (§dopo la 12) è il log cronologico completo, 71 voci: è la fonte, ma non si legge
 > per orientarsi. Questa sezione è la vista di stato e va tenuta aggiornata a ogni fase.
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
@@ -1121,6 +1121,26 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-13 (mattina) — ⚖️ K4 CHIUSO: lo split è CORRETTO ma PIÙ LENTO su
+  ogni asse sul 740 — N3 FAIL (decode 0.698×, TTFT 0.59×), N4 skippata.
+  Il primato resta di meccanica e correttezza, non di velocità.**
+
+  N3 (ABBA 2 prompt, staccato 100%, guardia MemAvailable dopo il false-kill
+  MemFree — post-mortem `k4_n3_false_ram_kill.md`): decode mediano split
+  2.02 vs CPU 2.90; TTFT 30.4 vs 17.8 s (il load raddoppia: re-upload dei
+  dense a ogni cold start); prefill ~pari (9.5 vs 9.9 — il vantaggio
+  dense-GPU visto sui densi 2B/4B NON trasferisce al MoE streamato: il
+  prefill è dominato dal GEMM esperti su CPU); hit/MiB ~uguali. Gate
+  pre-dichiarato FAIL → N4 skip automatico. **Lane velocità split su A7X:
+  CHIUSA per misura.** Asset bancati: stack correttezza GDN+split+pin
+  router, residency kernel nel parent, flag prodotto `--moe-cpu-experts`,
+  e il primato documentato (mai pubblicato da nessuno: 35B MoE streamato
+  con tronco GPU su telefono, output byte-identico). Riaperture plausibili:
+  830+/subgroup veri, o fused-executor (mesi) — parcheggiate salvo bisogno
+  prodotto. Nota metodo: 2 false-kill di guardie in 2 notti (waiter 15s,
+  MemFree) — la regola nuova a verbale: le guardie RAM leggono
+  MemAvailable, mai MemFree sotto page-cache pressure.
 
 - **2026-08-13 (alba) — 🌍 LA NOTTE DELLO SPLIT: il 35B streamato da flash
   gira con TRONCO SU GPU ed esperti su CPU su un telefono da 8 GB, hook
