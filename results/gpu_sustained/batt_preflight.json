@@ -1,0 +1,24 @@
+{
+  "ts": "2026-08-12T18:39:38-04:00",
+  "source": "termux-battery-status",
+  "dumpsys_battery": "UNAVAILABLE (Can't find service: battery) — Termux UID cannot bind the battery dumpsys service on this build. Campaign substitute: termux-battery-status. Temperature is already °C with 0.1 precision (equivalent to dumpsys tenths/10).",
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 29.9,
+  "voltage": 3889,
+  "current": -35000,
+  "current_average": -71,
+  "percentage": 56,
+  "level": 56,
+  "scale": 100,
+  "charge_counter": 2118750,
+  "cycle": 0,
+  "gate": {
+    "start_min_pct": 60,
+    "abort_min_pct": 25,
+    "verdict": "REFUSE_BATT"
+  }
+}

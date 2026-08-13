@@ -1,0 +1,12 @@
+=== sha 2026-08-12T18:44:04-04:00 ===
+4986ff30447cb866656bce6762e6d30266669a2ebc4055a9c2ada00b9e4fdd80  /data/data/com.termux/files/home/gdn_k2/bin_cpufix/llama-cli
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  /data/data/com.termux/files/home/gdn_k2/bin_cpufix/libc++_shared.so
+aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223  /data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf
+55427c842b94878828e8c55baa1cd3ee8e3db123da9bebec4c2b33010f0c82e5  /data/data/com.termux/files/home/gdn_k2/gpu_sustained/prompt.txt
+=== llama-cli --version ===
+=== sha 2026-08-12T22:04:30-04:00 ===
+4986ff30447cb866656bce6762e6d30266669a2ebc4055a9c2ada00b9e4fdd80  /data/data/com.termux/files/home/gdn_k2/bin_cpufix/llama-cli
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  /data/data/com.termux/files/home/gdn_k2/bin_cpufix/libc++_shared.so
+aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223  /data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf
+55427c842b94878828e8c55baa1cd3ee8e3db123da9bebec4c2b33010f0c82e5  /data/data/com.termux/files/home/gdn_k2/gpu_sustained/prompt.txt
+=== llama-cli --version ===

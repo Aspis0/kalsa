@@ -1,0 +1,62 @@
+2026-08-12T18:44:03-04:00 termux-wake-lock acquired
+2026-08-12T18:44:03-04:00 === PREFLIGHT 2026-08-12T18:44:03-04:00 ===
+2026-08-12T18:44:04-04:00 host=Linux localhost 5.15.178-android13-8-31998796-abS911USQS6EYL1 #1 SMP PREEMPT Wed Dec 3 12:03:34 UTC 2025 aarch64 Android
+2026-08-12T18:44:04-04:00 pwd=/data/data/com.termux/files/home
+2026-08-12T18:44:04-04:00 MODEL=/data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf
+2026-08-12T18:44:04-04:00 CLI=/data/data/com.termux/files/home/gdn_k2/bin_cpufix/llama-cli
+2026-08-12T18:44:08-04:00 REFUSE: battery 56% < 60%
+2026-08-12T18:44:08-04:00 STATUS REFUSE_BATT pct=56 need=60
+2026-08-12T22:04:30-04:00 termux-wake-lock acquired
+2026-08-12T22:04:30-04:00 === PREFLIGHT 2026-08-12T22:04:30-04:00 ===
+2026-08-12T22:04:30-04:00 host=Linux localhost 5.15.178-android13-8-31998796-abS911USQS6EYL1 #1 SMP PREEMPT Wed Dec 3 12:03:34 UTC 2025 aarch64 Android
+2026-08-12T22:04:30-04:00 pwd=/data/data/com.termux/files/home
+2026-08-12T22:04:30-04:00 MODEL=/data/data/com.termux/files/home/gdn_k2/models/Qwen3.5-2B-Q4_K_M.gguf
+2026-08-12T22:04:30-04:00 CLI=/data/data/com.termux/files/home/gdn_k2/bin_cpufix/llama-cli
+2026-08-12T22:04:37-04:00 battery=88% temp=30.2C voltage=4272mV current=-774000uA plugged=UNPLUGGED DISCHARGING
+2026-08-12T22:04:37-04:00 T0 temp=30.2C fields=88 30.2 4272 -934000 UNPLUGGED DISCHARGING
+2026-08-12T22:04:37-04:00 STATUS ARM_CPU
+2026-08-12T22:04:37-04:00 sampler started pid=31150 arm=ARM_CPU
+2026-08-12T22:04:38-04:00 ARM ARM_CPU start t0=2026-08-12T22:04:38-04:00 deadline=+900s extra=-ngl 0
+2026-08-12T22:04:38-04:00 SEG ARM_CPU_seg01 start batt=88% temp=30.2C
+2026-08-12T22:09:49-04:00 SEG ARM_CPU_seg01 end exit=0 wall=311s gen=12.2 t/s batt=88->84 temp=30.2->39.8
+2026-08-12T22:09:50-04:00 SEG ARM_CPU_seg02 start batt=84% temp=39.8C
+2026-08-12T22:15:41-04:00 SEG ARM_CPU_seg02 end exit=0 wall=351s gen=10.9 t/s batt=84->81 temp=39.8->41.7
+2026-08-12T22:15:42-04:00 SEG ARM_CPU_seg03 start batt=81% temp=41.7C
+2026-08-12T22:21:56-04:00 SEG ARM_CPU_seg03 end exit=0 wall=373s gen=10.2 t/s batt=81->78 temp=41.7->42.3
+2026-08-12T22:21:56-04:00 ARM ARM_CPU reached 900s after 3 segments
+2026-08-12T22:21:57-04:00 sampler stopped
+2026-08-12T22:21:57-04:00 ARM ARM_CPU done segments=3 wall=1040s
+2026-08-12T22:21:57-04:00 COOLDOWN target<=30.2C + 1.0C (sample every 60s)
+2026-08-12T22:21:57-04:00 STATUS COOLDOWN target=30.2
+2026-08-12T22:21:58-04:00 COOLDOWN now temp=42.3C batt=78% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:22:59-04:00 COOLDOWN now temp=40C batt=78% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:23:59-04:00 COOLDOWN now temp=38.4C batt=78% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:25:00-04:00 COOLDOWN now temp=37.2C batt=78% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:26:00-04:00 COOLDOWN now temp=37.2C batt=78% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:27:01-04:00 COOLDOWN now temp=35.3C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:28:01-04:00 COOLDOWN now temp=35.3C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:29:02-04:00 COOLDOWN now temp=33.9C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:30:02-04:00 COOLDOWN now temp=33.9C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:31:03-04:00 COOLDOWN now temp=33.9C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:32:04-04:00 COOLDOWN now temp=32.6C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:33:04-04:00 COOLDOWN now temp=32.6C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:34:05-04:00 COOLDOWN now temp=32.6C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:35:05-04:00 COOLDOWN now temp=32.6C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:36:06-04:00 COOLDOWN now temp=31.4C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:37:07-04:00 COOLDOWN now temp=31.4C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:38:07-04:00 COOLDOWN now temp=31.4C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:39:08-04:00 COOLDOWN now temp=30.2C batt=77% plugged=UNPLUGGED (target 30.2+1.0)
+2026-08-12T22:39:08-04:00 COOLDOWN reached temp=30.2C
+2026-08-12T22:39:09-04:00 battery=77% temp=30.2C voltage=4108mV current=-340000uA plugged=UNPLUGGED DISCHARGING
+2026-08-12T22:39:10-04:00 STATUS ARM_GPU
+2026-08-12T22:39:10-04:00 sampler started pid=8897 arm=ARM_GPU
+2026-08-12T22:39:10-04:00 ARM ARM_GPU start t0=2026-08-12T22:39:10-04:00 deadline=+900s extra=-ngl 99 -fa off
+2026-08-12T22:39:11-04:00 SEG ARM_GPU_seg01 start batt=77% temp=30.2C
+2026-08-12T22:46:51-04:00 SEG ARM_GPU_seg01 end exit=0 wall=460s gen=8.2 t/s batt=77->73 temp=30.2->37.7
+2026-08-12T22:46:52-04:00 SEG ARM_GPU_seg02 start batt=73% temp=37.7C
+2026-08-12T22:54:38-04:00 SEG ARM_GPU_seg02 end exit=0 wall=465s gen=8.2 t/s batt=73->71 temp=37.7->38.5
+2026-08-12T22:54:38-04:00 ARM ARM_GPU reached 900s after 2 segments
+2026-08-12T22:54:38-04:00 sampler stopped
+2026-08-12T22:54:38-04:00 ARM ARM_GPU done segments=2 wall=928s
+2026-08-12T22:54:38-04:00 STATUS BOTH_ARMS_DONE
+2026-08-12T22:54:38-04:00 === DONE both arms ===
