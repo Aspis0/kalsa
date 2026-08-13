@@ -1,0 +1,15 @@
+date=2026-08-12T23:13:57-04:00
+arm=ARM_CPU
+segment=1
+batt_pct=69
+temp_c=30.6
+plugged=4019 -657000 UNPLUGGED DISCHARGING
+cmd=/data/data/com.termux/files/home/gdn_k2/bin_cpufix/llama-cli -m /data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf -t 4 -c 4096 -n 6144 --temp 0.7 -st -no-cnv --ignore-eos --perf --simple-io --no-repack -f /data/data/com.termux/files/home/gdn_k2/gpu_sustained_4b/prompt.txt -ngl 0 
+exit=0
+wall_s=652
+end=2026-08-12T23:24:50-04:00
+gen_tps=5.8
+pp_tps=14.2
+n_eval=
+batt_pct_end=62
+temp_c_end=41.9

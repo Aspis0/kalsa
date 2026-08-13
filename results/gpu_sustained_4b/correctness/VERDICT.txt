@@ -1,0 +1,4 @@
+PASS_CORRECTNESS
+same=True
+cpu_len=186
+gpu_len=186

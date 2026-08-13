@@ -1,0 +1,51 @@
+2026-08-12T23:13:45-04:00 termux-wake-lock acquired
+2026-08-12T23:13:45-04:00 === PREFLIGHT 2026-08-12T23:13:45-04:00 ===
+2026-08-12T23:13:45-04:00 host=Linux localhost 5.15.178-android13-8-31998796-abS911USQS6EYL1 #1 SMP PREEMPT Wed Dec 3 12:03:34 UTC 2025 aarch64 Android
+2026-08-12T23:13:45-04:00 pwd=/data/data/com.termux/files/home
+2026-08-12T23:13:45-04:00 MODEL=/data/data/com.termux/files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+2026-08-12T23:13:45-04:00 CLI=/data/data/com.termux/files/home/gdn_k2/bin_cpufix/llama-cli
+2026-08-12T23:13:56-04:00 battery=69% temp=30.6C voltage=4019mV current=-170000uA plugged=UNPLUGGED DISCHARGING
+2026-08-12T23:13:56-04:00 T0 temp=30.6C fields=69 30.6 4019 -164000 UNPLUGGED DISCHARGING
+2026-08-12T23:13:56-04:00 STATUS ARM_CPU
+2026-08-12T23:13:56-04:00 sampler started pid=11856 arm=ARM_CPU
+2026-08-12T23:13:57-04:00 ARM ARM_CPU start t0=2026-08-12T23:13:57-04:00 deadline=+900s extra=-ngl 0
+2026-08-12T23:13:57-04:00 SEG ARM_CPU_seg01 start batt=69% temp=30.6C
+2026-08-12T23:24:51-04:00 SEG ARM_CPU_seg01 end exit=0 wall=652s gen=5.8 t/s batt=69->62 temp=30.6->41.9
+2026-08-12T23:24:51-04:00 SEG ARM_CPU_seg02 start batt=62% temp=41.9C
+2026-08-12T23:37:44-04:00 SEG ARM_CPU_seg02 end exit=0 wall=772s gen=5.0 t/s batt=62->56 temp=41.9->42.4
+2026-08-12T23:37:44-04:00 ARM ARM_CPU reached 900s after 2 segments
+2026-08-12T23:37:44-04:00 sampler stopped
+2026-08-12T23:37:45-04:00 ARM ARM_CPU done segments=2 wall=1429s
+2026-08-12T23:37:45-04:00 COOLDOWN target<=30.6C + 1.0C (sample every 60s)
+2026-08-12T23:37:45-04:00 STATUS COOLDOWN target=30.6
+2026-08-12T23:37:46-04:00 COOLDOWN now temp=42.4C batt=56% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:38:46-04:00 COOLDOWN now temp=40.8C batt=56% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:39:47-04:00 COOLDOWN now temp=39.1C batt=56% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:40:47-04:00 COOLDOWN now temp=39.1C batt=56% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:41:48-04:00 COOLDOWN now temp=37.7C batt=56% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:42:49-04:00 COOLDOWN now temp=36.5C batt=56% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:43:49-04:00 COOLDOWN now temp=36.5C batt=56% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:44:50-04:00 COOLDOWN now temp=35.2C batt=56% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:45:51-04:00 COOLDOWN now temp=35.2C batt=56% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:46:51-04:00 COOLDOWN now temp=33.8C batt=56% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:47:52-04:00 COOLDOWN now temp=33.2C batt=55% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:48:53-04:00 COOLDOWN now temp=33.2C batt=55% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:49:54-04:00 COOLDOWN now temp=32C batt=55% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:50:54-04:00 COOLDOWN now temp=32C batt=55% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:51:55-04:00 COOLDOWN now temp=32C batt=55% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:52:55-04:00 COOLDOWN now temp=32C batt=55% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:53:56-04:00 COOLDOWN now temp=30.8C batt=55% plugged=UNPLUGGED (target 30.6+1.0)
+2026-08-12T23:53:56-04:00 COOLDOWN reached temp=30.8C
+2026-08-12T23:53:57-04:00 battery=55% temp=30.8C voltage=3887mV current=-813000uA plugged=UNPLUGGED DISCHARGING
+2026-08-12T23:53:58-04:00 STATUS ARM_GPU
+2026-08-12T23:53:58-04:00 sampler started pid=7747 arm=ARM_GPU
+2026-08-12T23:53:58-04:00 ARM ARM_GPU start t0=2026-08-12T23:53:58-04:00 deadline=+900s extra=-ngl 99 -fa off
+2026-08-12T23:53:59-04:00 SEG ARM_GPU_seg01 start batt=55% temp=30.8C
+2026-08-13T00:08:48-04:00 SEG ARM_GPU_seg01 end exit=0 wall=888s gen=4.2 t/s batt=55->48 temp=30.8->40.1
+2026-08-13T00:08:49-04:00 SEG ARM_GPU_seg02 start batt=48% temp=40.1C
+2026-08-13T00:24:39-04:00 SEG ARM_GPU_seg02 end exit=0 wall=949s gen=4.0 t/s batt=48->41 temp=40.1->40.9
+2026-08-13T00:24:39-04:00 ARM ARM_GPU reached 900s after 2 segments
+2026-08-13T00:24:40-04:00 sampler stopped
+2026-08-13T00:24:40-04:00 ARM ARM_GPU done segments=2 wall=1842s
+2026-08-13T00:24:40-04:00 STATUS BOTH_ARMS_DONE
+2026-08-13T00:24:40-04:00 === DONE both arms ===

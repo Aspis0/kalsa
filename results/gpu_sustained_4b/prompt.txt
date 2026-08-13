@@ -1,0 +1,30 @@
+Write a long, continuous essay of at least six thousand words titled "A Walking History of Computation, from Tally Sticks to On-Device Neural Networks".
+
+Requirements:
+- Produce twenty numbered sections. Each section must be at least three hundred words. Do not skip, compress, or summarize any section.
+- Do not write a short abstract and stop. Do not ask a follow-up question. Do not end early. Keep writing until the token budget is exhausted.
+- Use concrete names, dates, mechanisms, and tradeoffs. Prefer specific technical detail over slogans.
+
+Cover, in order:
+1. Tally sticks, abaci, and the idea of externalized memory.
+2. Mechanical calculators: Pascal, Leibniz, Babbage, and why difference engines stalled.
+3. Electromechanical tabulators and the birth of stored records.
+4. Turing, Church, and what a general-purpose computer actually is.
+5. Colossus, ENIAC, EDVAC, and the stored-program break.
+6. Transistors, integrated circuits, and why density became destiny.
+7. Operating systems, time-sharing, and the cost of waiting.
+8. Memory hierarchies: registers, caches, DRAM, flash, and the latency wall.
+9. Instruction-level parallelism and why clocks stopped climbing.
+10. Mobile SoCs: big.LITTLE, DVFS, and thermal envelopes in a pocket.
+11. GPUs as throughput machines versus CPUs as latency machines.
+12. Quantization, SIMD, and why integer matmul dominates on-device inference.
+13. Attention, KV cache, and why long context is a memory problem.
+14. Mixture-of-experts routing and the I/O vs compute trade.
+15. On-device constraints: battery joules, skin temperature, and sustained clocks.
+16. A worked example: decoding a 2B-class transformer on a 2023 phone.
+17. Why burst benchmarks lie about marathon sessions.
+18. Energy per token as a product metric, not a lab curiosity.
+19. Open problems: speculative decoding, better kernels, and honest telemetry.
+20. A closing argument: what "fast enough" should mean in a handset.
+
+Begin immediately with section 1. Write in plain prose. No bullet-only sections. Keep going.

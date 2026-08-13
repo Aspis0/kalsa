@@ -1,0 +1,5 @@
+arm,segment,t/s,batt%,temp
+ARM_CPU,1,5.8,62,41.9
+ARM_CPU,2,5.0,56,42.4
+ARM_GPU,1,4.2,48,40.1
+ARM_GPU,2,4.0,41,40.9

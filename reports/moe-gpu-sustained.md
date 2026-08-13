@@ -153,3 +153,23 @@ per token even sustained (faster at similar drain).
 - Extrapolation (not measured): CPU curve flattening toward ~9.5-10; crossover with
   8.2 unlikely within realistic chat sessions on 2B. Larger models / hotter ambient /
   concurrent load could shift this — separate test if product ever needs it.
+
+---
+
+## Round 2 — Qwen3.5-4B (measured 2026-08-13 ~00:00, S23 unplugged, waiter-triggered)
+
+Correctness pre-check: greedy CPU vs GPU token-identical (4B hybrid E2E validated on GPU).
+
+| arm | seg1 | seg2 (final) | degradation | end temp |
+|---|---:|---:|---:|---:|
+| CPU `-ngl 0` | 5.8 | **5.0** | −14% | 42.4°C |
+| GPU `-ngl 99 -fa off` | 4.2 | **4.0** | −5% | 40.9°C |
+
+## Round 2 verdict
+
+- **CPU wins the 4B marathon too**: final 5.0 vs 4.0 (GPU = 0.80× sustained).
+- Convergence pattern across sizes: sustained GPU/CPU is ~0.80× at BOTH 2B
+  (8.2/10.2) and 4B (4.0/5.0) — the throttling narrows the burst gap but never
+  crosses. GPU remains the cooler, flatter option (−5% vs −14% degradation).
+- Question closed: on the 740, GPU decode loses sustained at every product size.
+  The GPU dividend on A7X remains prefill/TTFT only.

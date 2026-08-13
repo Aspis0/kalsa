@@ -1,0 +1,5 @@
+arm,segment,gen_tps,pp_tps,n_eval,wall_s,batt_start,batt_end,temp_start,temp_end,exit,ts,tag
+ARM_CPU,1,5.8,14.2,,652,69,62,30.6,41.9,0,2026-08-12T23:24:50-04:00,ARM_CPU_seg01
+ARM_CPU,2,5.0,10.2,,772,62,56,41.9,42.4,0,2026-08-12T23:37:44-04:00,ARM_CPU_seg02
+ARM_GPU,1,4.2,40.5,,888,55,48,30.8,40.1,0,2026-08-13T00:08:48-04:00,ARM_GPU_seg01
+ARM_GPU,2,4.0,33.4,,949,48,41,40.1,40.9,0,2026-08-13T00:24:39-04:00,ARM_GPU_seg02
