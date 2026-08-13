@@ -1,0 +1,10 @@
+# Variant → file mapping (from results/marcokexp/PROTOCOL.md + QUANTIZE_VERIFY.md)
+# KEXP-1c  tensor_types_1c.txt            models/Marco-Mini-Instruct-KEXP.gguf       size=6385238848
+# KEXP-cons tensor_types_conservative_q3k.txt models/Marco-Mini-Instruct-KEXP-q3k.gguf size=7508263744
+#
+# This test uses KEXP-1c ONLY.
+2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777  models/Marco-Mini-Instruct-KEXP.gguf
+a001d324b6edc6a797009fbe6eb94a52a9f32453ee8d06465409875f3e3a6dbc  models/Marco-Mini-Instruct.i1-Q4_K_M.gguf
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  bmoe-cli.CAMPAIGN
+b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd  prompts/p_fact.txt
+761db0d07cbc312acb35fb8c64894be83f38a3a7f0ba14e2100ef6a44a29c871  prompts/p_creative.txt

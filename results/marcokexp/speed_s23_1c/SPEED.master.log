@@ -1,0 +1,41 @@
+[2026-08-13T10:27:11-0400] BIN_SHA=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f path=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+[2026-08-13T10:27:11-0400] PIN OK
+[2026-08-13T10:27:11-0400] MARCO path=/data/data/com.termux/files/home/experiments/models/Marco-Mini-Instruct.i1-Q4_K_M.gguf size=10505424704
+[2026-08-13T10:27:12-0400] MARCO_SHA=a001d324b6edc6a797009fbe6eb94a52a9f32453ee8d06465409875f3e3a6dbc
+[2026-08-13T10:27:12-0400] ONEC path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-13T10:27:12-0400] ONEC_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-13T10:27:12-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-13T10:27:12-0400] prompt_creative_sha=761db0d07cbc312acb35fb8c64894be83f38a3a7f0ba14e2100ef6a44a29c871
+[2026-08-13T10:27:12-0400] === MARCOKEXP-1c SPEED START ===
+[2026-08-13T10:27:13-0400] preflight i=1 plugged=UNPLUGGED batt=92 temp=28.5 memavail_kib=4518488 floor=45
+[2026-08-13T10:27:13-0400] === ABBA prompt=fact ===
+[2026-08-13T10:27:14-0400] preflight i=1 plugged=UNPLUGGED batt=92 temp=28.5 memavail_kib=4521116 floor=45
+[2026-08-13T10:27:14-0400] RUN ARM_MARCO_fact_o1 batt=92 plugged=UNPLUGGED temp=28.5 memavail_kib=4518704
+[2026-08-13T10:28:36-0400] DONE ARM_MARCO_fact_o1 rc=0 wall=51s decode_tps=5.279 mib=130.10 hit=34.7 ttft=13.446 load=6.824 n_gen=191 batt=92->92 temp_max=30.3 memavail=4518704
+[2026-08-13T10:28:37-0400] RUN ARM_1C_fact_o2 batt=92 plugged=UNPLUGGED temp=30.3 memavail_kib=4969500
+[2026-08-13T10:29:43-0400] DONE ARM_1C_fact_o2 rc=0 wall=33s decode_tps=8.758 mib=52.29 hit=52.6 ttft=9.746 load=4.814 n_gen=200 batt=92->91 temp_max=31.3 memavail=4969500
+[2026-08-13T10:29:43-0400] RUN ARM_1C_fact_o3 batt=91 plugged=UNPLUGGED temp=31.3 memavail_kib=4950628
+[2026-08-13T10:30:48-0400] DONE ARM_1C_fact_o3 rc=0 wall=32s decode_tps=8.707 mib=52.29 hit=52.6 ttft=9.020 load=4.208 n_gen=200 batt=91->91 temp_max=32.2 memavail=4950628
+[2026-08-13T10:30:48-0400] RUN ARM_MARCO_fact_o4 batt=91 plugged=UNPLUGGED temp=32.2 memavail_kib=4939156
+[2026-08-13T10:32:10-0400] DONE ARM_MARCO_fact_o4 rc=0 wall=51s decode_tps=5.149 mib=130.10 hit=34.7 ttft=13.220 load=6.463 n_gen=191 batt=91->91 temp_max=32.5 memavail=4939156
+[2026-08-13T10:32:10-0400] === ABBA prompt=creative ===
+[2026-08-13T10:32:11-0400] preflight i=1 plugged=UNPLUGGED batt=91 temp=32.5 memavail_kib=4870940 floor=45
+[2026-08-13T10:32:12-0400] RUN ARM_MARCO_creative_o1 batt=91 plugged=UNPLUGGED temp=32.5 memavail_kib=4868276
+[2026-08-13T10:33:33-0400] DONE ARM_MARCO_creative_o1 rc=0 wall=49s decode_tps=5.604 mib=122.31 hit=38.6 ttft=12.380 load=6.196 n_gen=200 batt=91->90 temp_max=33.4 memavail=4868276
+[2026-08-13T10:33:33-0400] RUN ARM_1C_creative_o2 batt=90 plugged=UNPLUGGED temp=33.4 memavail_kib=4951188
+[2026-08-13T10:34:37-0400] DONE ARM_1C_creative_o2 rc=0 wall=33s decode_tps=8.880 mib=50.70 hit=54.3 ttft=9.287 load=4.830 n_gen=200 batt=90->90 temp_max=33.4 memavail=4951188
+[2026-08-13T10:34:37-0400] RUN ARM_1C_creative_o3 batt=90 plugged=UNPLUGGED temp=33.4 memavail_kib=4940012
+[2026-08-13T10:35:39-0400] DONE ARM_1C_creative_o3 rc=0 wall=32s decode_tps=8.884 mib=50.70 hit=54.3 ttft=8.713 load=4.305 n_gen=200 batt=90->90 temp_max=33.4 memavail=4940012
+[2026-08-13T10:35:40-0400] RUN ARM_MARCO_creative_o4 batt=90 plugged=UNPLUGGED temp=33.4 memavail_kib=4874924
+[2026-08-13T10:36:59-0400] DONE ARM_MARCO_creative_o4 rc=0 wall=49s decode_tps=5.641 mib=122.31 hit=38.6 ttft=12.547 load=6.482 n_gen=200 batt=90->89 temp_max=33.4 memavail=4874924
+[2026-08-13T10:36:59-0400] === MARCOKEXP-1c SPEED COMPLETE ===
+ts,cell,k,drop,prompt_id,order_idx,decode_tps,mib_per_tok,hit_pct,ttft_s,load_s,n_gen,batt_start,batt_end,temp_max,cold,plugged,memavail_start_kib
+2026-08-13T10:28:36-0400,ARM_MARCO,6,0.65,fact,1,5.279,130.10,34.7,13.446,6.824,191,92,92,30.3,1,UNPLUGGED,4518704
+2026-08-13T10:29:43-0400,ARM_1C,6,0.65,fact,2,8.758,52.29,52.6,9.746,4.814,200,92,91,31.3,1,UNPLUGGED,4969500
+2026-08-13T10:30:48-0400,ARM_1C,6,0.65,fact,3,8.707,52.29,52.6,9.020,4.208,200,91,91,32.2,1,UNPLUGGED,4950628
+2026-08-13T10:32:10-0400,ARM_MARCO,6,0.65,fact,4,5.149,130.10,34.7,13.220,6.463,191,91,91,32.5,1,UNPLUGGED,4939156
+2026-08-13T10:33:33-0400,ARM_MARCO,6,0.65,creative,1,5.604,122.31,38.6,12.380,6.196,200,91,90,33.4,1,UNPLUGGED,4868276
+2026-08-13T10:34:37-0400,ARM_1C,6,0.65,creative,2,8.880,50.70,54.3,9.287,4.830,200,90,90,33.4,1,UNPLUGGED,4951188
+2026-08-13T10:35:39-0400,ARM_1C,6,0.65,creative,3,8.884,50.70,54.3,8.713,4.305,200,90,90,33.4,1,UNPLUGGED,4940012
+2026-08-13T10:36:59-0400,ARM_MARCO,6,0.65,creative,4,5.641,122.31,38.6,12.547,6.482,200,90,89,33.4,1,UNPLUGGED,4874924
+[2026-08-13T10:37:00-0400] trap cleanup
