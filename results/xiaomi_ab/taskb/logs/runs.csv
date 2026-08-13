@@ -1,0 +1,4 @@
+ts,tag,prompt_id,threads,decode_tps,mib_per_tok,hit_pct,ttft_s,load_s,n_gen,batt_start,batt_end,temp_start,temp_end,wall_s,rc,plugged
+2026-08-13T07:15:25,after_before_t6_fact_o1,fact,6,,57,57,29,29,1253,0,UNPLUGGED
+2026-08-13T07:36:01,after_before_t6_creative_o2,creative,6,,54,54,29,29,1196,0,UNPLUGGED
+2026-08-13T07:57:02,after_before_t6_creative_o3,creative,6,,51,51,29,29,1207,0,UNPLUGGED

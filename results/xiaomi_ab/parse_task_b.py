@@ -7,7 +7,7 @@ import statistics
 from pathlib import Path
 
 ROOT = Path(r"C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\xiaomi_ab")
-CANDIDATES = [ROOT / "task_b", ROOT / "task_b" / "task_b"]
+CANDIDATES = [ROOT / "taskb", ROOT / "task_b", ROOT / "task_b" / "task_b"]
 
 
 def find_logdir() -> Path:

@@ -1,0 +1,16 @@
+2026-08-13T06:53:59 TASK_B begin BIN=/data/local/tmp/gdn_750/taskb/bin/bmoe-cli.k4 (k4 static b8b1c732, NOT campaign 1ca51420; libssl.so.3 missing)
+2026-08-13T06:54:13 START_FLOOR_OK level=57 tempC=29
+2026-08-13T06:54:14 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T06:54:23 START before_t6_fact_o1 -t 6 prompt=fact
+2026-08-13T07:15:16 END before_t6_fact_o1 EXIT=0 wall_s=1253
+CSV after_before_t6_fact_o1  batt=57->57 temp=29->29 wall=1253 rc=0
+2026-08-13T07:15:39 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T07:15:53 START before_t6_creative_o2 -t 6 prompt=creative
+2026-08-13T07:35:50 END before_t6_creative_o2 EXIT=0 wall_s=1196
+CSV after_before_t6_creative_o2  batt=54->54 temp=29->29 wall=1196 rc=0
+2026-08-13T07:36:21 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T07:36:37 START before_t6_creative_o3 -t 6 prompt=creative
+2026-08-13T07:56:45 END before_t6_creative_o3 EXIT=0 wall_s=1207
+CSV after_before_t6_creative_o3  batt=51->51 temp=29->29 wall=1207 rc=0
+2026-08-13T07:57:20 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T07:57:29 START before_t6_fact_o4 -t 6 prompt=fact

@@ -1,0 +1,96 @@
+=== battery start_b 2026-08-13T06:53:59 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 57
+  temperature: 295
+max_therm_mC=52720
+2026-08-13T06:54:13 START_FLOOR_OK level=57 tempC=29
+/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=0 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf size=2740937888 resident_before=5296 resident_after=0 pages fadvise_rc=0
+2026-08-13T06:54:14 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=1133118 resident_after=0 pages fadvise_rc=0
+=== battery before_t6_fact_o1 2026-08-13T06:54:15 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 57
+  temperature: 295
+max_therm_mC=52619
+2026-08-13T06:54:23 START before_t6_fact_o1 -t 6 prompt=fact
+2026-08-13T07:15:16 END before_t6_fact_o1 EXIT=0 wall_s=1253
+=== battery after_before_t6_fact_o1 2026-08-13T07:15:17 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 54
+  temperature: 299
+max_therm_mC=51275
+./run_task_b.sh[172]: can't open /data/local/tmp/gdn_750/taskb/logs/after_before_t6_fact_o1.out: No such file or directory
+CSV after_before_t6_fact_o1  batt=57->57 temp=29->29 wall=1253 rc=0
+2026-08-13T07:15:39 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=131548 resident_after=0 pages fadvise_rc=0
+=== battery before_t6_creative_o2 2026-08-13T07:15:40 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 54
+  temperature: 299
+max_therm_mC=52384
+2026-08-13T07:15:53 START before_t6_creative_o2 -t 6 prompt=creative
+2026-08-13T07:35:50 END before_t6_creative_o2 EXIT=0 wall_s=1196
+=== battery after_before_t6_creative_o2 2026-08-13T07:35:50 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 51
+  temperature: 296
+max_therm_mC=52350
+./run_task_b.sh[173]: can't open /data/local/tmp/gdn_750/taskb/logs/after_before_t6_creative_o2.out: No such file or directory
+CSV after_before_t6_creative_o2  batt=54->54 temp=29->29 wall=1196 rc=0
+2026-08-13T07:36:21 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=49982 resident_after=0 pages fadvise_rc=0
+=== battery before_t6_creative_o3 2026-08-13T07:36:23 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 51
+  temperature: 296
+max_therm_mC=53292
+2026-08-13T07:36:37 START before_t6_creative_o3 -t 6 prompt=creative
+2026-08-13T07:56:45 END before_t6_creative_o3 EXIT=0 wall_s=1207
+=== battery after_before_t6_creative_o3 2026-08-13T07:56:45 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 49
+  temperature: 297
+max_therm_mC=51745
+./run_task_b.sh[174]: can't open /data/local/tmp/gdn_750/taskb/logs/after_before_t6_creative_o3.out: No such file or directory
+CSV after_before_t6_creative_o3  batt=51->51 temp=29->29 wall=1207 rc=0
+2026-08-13T07:57:20 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=70243 resident_after=0 pages fadvise_rc=0
+=== battery before_t6_fact_o4 2026-08-13T07:57:21 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 49
+  temperature: 297
+max_therm_mC=52182
+2026-08-13T07:57:29 START before_t6_fact_o4 -t 6 prompt=fact

@@ -1,0 +1,4 @@
+=== push start 2026-08-13T06:39:17.9318664-04:00 size=13416430592 ===
+=== push end 2026-08-13T06:51:43.0011004-04:00 rc=0 wall_s=745 ===
+-rw-rw-rw- 1 shell shell 13416430592 2026-08-10 13:48 /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+PUSH_OK wall_s=745

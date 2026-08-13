@@ -1,0 +1,2 @@
+ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a  /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+sha_wall_s=14

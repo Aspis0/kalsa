@@ -1,0 +1,16 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant:A Mixture-of-Experts (MoE) model consists of multiple distinct "expert" neural networks that are activated selectively for each input token based on a learned routing mechanism, which directs data to the most relevant subset of experts. This sparse activation significantly reduces the computational cost during inference because the model only processes a small fraction of its total parameters for any given token, rather than running all of them through.
+
+*   **Routing and Compute Efficiency**: The routing mechanism acts as a dynamic gatekeeper that determines which experts handle each token, ensuring that only a few experts are active per token. This sparsity allows the model to scale up its total parameter count—improving accuracy and capacity—without increasing the actual floating-point operations (FLOPs) required for inference, thereby saving energy and processing time.
+*   **On-Device Memory Constraints**: Despite the low compute requirements, the entire model's weights must still be downloaded and stored on the phone's storage because the routing logic can change
+
+generation: 200 tokens, 2.988 s/token (0.335 tok/s)
+compute: 39.2% CPU occupancy (7.0313 cpu-s/token over 6 threads), 1.32 major faults/token
+prefill: 86 tokens, 6.865 s (12.5 tok/s) | model load 31.234 s | TTFT 38.100 s
+moe-stream: read 6964.1 MiB (34.82 MiB/token), decode 2.988 s/token (compute 2.929 + cache mgmt 0.008 + flash I/O 0.577 s/token, 60 MiB/s)
+moe-cache: 78.5% hit, resident 1999.2 MiB
+moe-cache: 8753 evictions, 5347 re-reads (26.7/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.051 s/token (flash reads overlapped with FFN compute)
+moe-drop: 2861/48000 routed experts dropped (6.0%), threshold 0.65 x uniform

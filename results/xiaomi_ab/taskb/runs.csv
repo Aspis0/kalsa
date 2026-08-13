@@ -1,0 +1,7 @@
+ts,tag,prompt_id,threads,decode_tps,mib_per_tok,hit_pct,ttft_s,load_s,n_gen,batt_start,batt_end,temp_start,temp_end,wall_s,rc,plugged,binary,notes
+2026-08-13T07:15:16,t6_fact_o1,fact,6,0.335,34.82,78.5,38.100,31.234,200,57,54,29,29,1253,0,UNPLUGGED,k4-b8b1c732,parsed from before_t6_fact_o1.out; harness CSV tag-clobbered
+2026-08-13T07:35:50,t6_creative_o2,creative,6,0.369,27.50,82.3,40.268,27.656,200,54,51,29,29,1196,0,UNPLUGGED,k4-b8b1c732,parsed from before_t6_creative_o2.out
+2026-08-13T07:56:45,t6_creative_o3,creative,6,0.350,27.50,82.3,41.130,31.129,200,51,49,29,29,1207,0,UNPLUGGED,k4-b8b1c732,parsed from before_t6_creative_o3.out
+# t6_fact_o4 STARTED 07:57:29 then a second bmoe-cli.k4 was launched (rest script). Device dropped off LAN. NO METRICS. CONTAMINATED.
+# t4_fact_ref NOT RUN
+# t4_creative_ref NOT RUN

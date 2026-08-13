@@ -1,0 +1,72 @@
+=== battery start_b 2026-08-13T06:53:59 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 57
+  temperature: 295
+max_therm_mC=52720
+=== battery before_t6_fact_o1 2026-08-13T06:54:15 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 57
+  temperature: 295
+max_therm_mC=52619
+=== battery after_before_t6_fact_o1 2026-08-13T07:15:17 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 54
+  temperature: 299
+max_therm_mC=51275
+=== battery before_t6_creative_o2 2026-08-13T07:15:40 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 54
+  temperature: 299
+max_therm_mC=52384
+=== battery after_before_t6_creative_o2 2026-08-13T07:35:50 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 51
+  temperature: 296
+max_therm_mC=52350
+=== battery before_t6_creative_o3 2026-08-13T07:36:23 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 51
+  temperature: 296
+max_therm_mC=53292
+=== battery after_before_t6_creative_o3 2026-08-13T07:56:45 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 49
+  temperature: 297
+max_therm_mC=51745
+=== battery before_t6_fact_o4 2026-08-13T07:57:21 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 49
+  temperature: 297
+max_therm_mC=52182
