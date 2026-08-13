@@ -1556,7 +1556,10 @@ function renderFase4(agg) {
     "",
     "**Three pairwise one-sided permutation tests are run. Raw p-values are NOT corrected for multiplicity.** Holm-adjusted p-values are shown alongside; do not silently pick the best raw p.",
     "",
-    "| comparison | primary? | mean A | mean B | Δ | p (raw) | p (Holm) | nA | nB | design floor | method |",
+    // Columns follow the comparison label, treatment first: "ciswire vs off"
+    // prints ciswire then off. Generic "mean A / mean B" read backwards against
+    // the label (A is the control) and invited exactly one misreading already.
+    "| comparison | primary? | mean treatment | mean control | Δ | p (raw) | p (Holm) | n treatment | n control | design floor | method |",
     "|---|---|---|---|---|---|---|---|---|---|---|",
   );
 
@@ -1575,7 +1578,7 @@ function renderFase4(agg) {
       row.pHolm != null ? fmt(row.pHolm, 4) : "n/a";
     const methodLabel = perm?.methodLabel ?? "n/a";
     lines.push(
-      `| ${row.label} | ${row.primary ? "yes" : "no"} | ${fmt(row.rateA)} | ${fmt(row.rateB)} | ${deltaStr} | ${pRaw} | ${pHolm} | ${row.nA} | ${row.nB} | ${fmt(row.floor, 4)} | ${methodLabel} |`,
+      `| ${row.label} | ${row.primary ? "yes" : "no"} | ${fmt(row.rateB)} | ${fmt(row.rateA)} | ${deltaStr} | ${pRaw} | ${pHolm} | ${row.nB} | ${row.nA} | ${fmt(row.floor, 4)} | ${methodLabel} |`,
     );
   }
 
