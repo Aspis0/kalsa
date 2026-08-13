@@ -1,0 +1,6 @@
+[2026-08-13T00:05:43] START wait for PC idle of Marco/quantize
+[2026-08-13T00:05:43] still busy: 4568:powershell.exe, 34776:python.exe, 33132:bmoe-cli.exe, 3436:grok.exe
+[relaunch 2026-08-13T00:06:28.2394759-04:00] after Test-PcBusy fix
+[2026-08-13T00:06:28] START wait for PC idle of Marco/quantize
+[2026-08-13T00:06:29] still busy: 4568:powershell.exe, 34776:python.exe, 33132:bmoe-cli.exe
+[2026-08-13T00:16:29] still busy: 4568:powershell.exe, 34776:python.exe, 8780:bmoe-cli.exe

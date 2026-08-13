@@ -1,0 +1,32 @@
+# LFM2.5-8B-A1B KEXP pattern summary (NOT the file passed to llama-quantize)
+# Use tensor_types_lfm25.txt with --tensor-type-file
+#
+# CLASS                          TYPE    COUNT  NOTES
+token_embd.weight                q5_k   n= 1  KEXP embd class
+token_embd_norm.weight           f32    n= 1  norm
+attn_q.weight                    q5_k   n= 6  6 GQA attn layers
+attn_k.weight                    q5_k   n= 6  6 GQA attn layers
+attn_v.weight                    q5_k   n= 6  6 GQA attn layers
+attn_output.weight               q5_k   n= 6  6 GQA attn layers
+attn_norm.weight                 f32    n=24  all 24 layers
+attn_q_norm.weight               f32    n= 6  6 attn layers
+attn_k_norm.weight               f32    n= 6  6 attn layers
+shortconv.in_proj.weight         q5_k   n=18  attn-replacement; NOT in qwen35moe KEXP
+shortconv.out_proj.weight        q6_k   n=18  analog of KEXP ssm_out
+shortconv.conv.weight            f32    n=18  analog of KEXP ssm_conv1d
+ffn_gate.weight                  q5_k   n= 2  2 leading dense blocks
+ffn_up.weight                    q5_k   n= 2  2 leading dense blocks
+ffn_down.weight                  q6_k   n= 2  2 leading dense blocks (KEXP shexp-down class)
+ffn_gate_exps.weight             q2_k   n=22  22 MoE layers, KEXP gate-exps
+ffn_up_exps.weight               q2_k   n=22  22 MoE layers, KEXP up-exps
+ffn_down_exps.weight             q3_k   n=22  22 MoE layers, KEXP down-exps
+ffn_gate_inp.weight              f32    n=22  router
+exp_probs_b.bias                 f32    n=22  router bias; LFM-specific, not in qwen35moe
+ffn_norm.weight                  f32    n=24  all 24 layers
+
+INAPPLICABLE vs qwen35moe KEXP (do not invent tensors):
+  ffn_*_shexp          — no shared expert on lfm2moe
+  ffn_gate_inp_shexp   — no shared-expert router
+  attn_qkv / attn_gate — unfused Q/K/V; no attn_gate
+  ssm_*                — LFM2.5 uses shortconv, not SSM
+  output.weight        — tied to token_embd (absent in dump)

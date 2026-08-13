@@ -1,0 +1,44 @@
+# LFM2.5-KEXP SHA records
+# 2026-08-12  Get-FileHash SHA256 unless noted HF LFS oid
+
+## Official LiquidAI F16 (requant source)
+path:     models/LFM2.5-8B-A1B-F16.gguf
+size:     16947260640
+sha256:   c6eb857414327e26d32654d996838d305cb57c01c06def0894bde244f7baa159
+          MATCH HF LFS oid (Get-FileHash 2026-08-12)
+
+## Official LiquidAI Q4_K_M (A0 + tensor dump)
+path:     models/LFM2.5-8B-A1B-Q4_K_M.gguf
+size:     5155564768
+sha256:   4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0
+          MATCH HF LFS oid (already in results/g99_freetier/SHA_RECORDS.txt)
+
+## Official LiquidAI Q8_0 (fallback, NOT downloaded)
+url:      https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/resolve/main/LFM2.5-8B-A1B-Q8_0.gguf
+size:     9010195680
+sha256:   33ab3b8ce6a964fb8ebac89360c9b3cf72c4fa418d5e4c0a94d46883124d5c02
+          HF LFS oid only
+
+## Official LiquidAI BF16 (not chosen)
+size:     16947260640
+sha256:   2b471037695ef5908cb88065c7ebb23fe285a07950d7433fabf0c865273728ab
+          HF LFS oid only
+
+## Unsloth LFM2.5 imatrix (quantize input)
+path:     models/imatrix_lfm25_unsloth.gguf_file
+src:      unsloth/LFM2.5-8B-A1B-GGUF / imatrix_unsloth.gguf_file
+size:     17375232
+sha256:   09cf3e3f38c9906dc0239750f524d4e728b8fe985ad04bcfc07dd55bbb6e4474
+          MATCH HF LFS oid (Get-FileHash 2026-08-12)
+dataset:  unsloth_calibration_LFM2.5-8B-A1B.txt  (from GGUF kv)
+
+## multi5 it.txt (gate corpus — is v2)
+path:     corpus/multi5/it.txt
+size:     45747
+sha256:   498a5f3b554fac4bb6f7eda4f7bdcea60f3ad6be30699f306a3255d8ba85545a
+          IDENTICAL to corpus/multi5/it_v2_wikipedia_caffe.txt (Get-FileHash 2026-08-13)
+          MANIFEST.json / SHA256SUMS still list the stale v1 oid — ignore those
+
+## KEXP output (NOT produced)
+path:     models/LFM2.5-8B-A1B-KEXP.gguf
+sha256:   ABSENT

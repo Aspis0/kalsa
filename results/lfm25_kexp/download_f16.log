@@ -1,0 +1,5 @@
+A new version of huggingface_hub (1.27.0) is available! You are using version 1.10.1.
+To update, run: C:\Users\gualt\AppData\Local\Programs\Python\Python312\python.exe -m pip install -U huggingface_hub
+
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\LFM2.5-8B-A1B-F16.gguf

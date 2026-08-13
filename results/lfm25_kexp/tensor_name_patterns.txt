@@ -1,0 +1,22 @@
+# unique tensor suffixes / global names and counts
+attn_k.weight	count=6	ex_type=12	ex_shape=(2048, 512)	ex_bytes=589824
+attn_k_norm.weight	count=6	ex_type=0	ex_shape=(64,)	ex_bytes=256
+attn_norm.weight	count=24	ex_type=0	ex_shape=(2048,)	ex_bytes=8192
+attn_output.weight	count=6	ex_type=12	ex_shape=(2048, 2048)	ex_bytes=2359296
+attn_q.weight	count=6	ex_type=12	ex_shape=(2048, 2048)	ex_bytes=2359296
+attn_q_norm.weight	count=6	ex_type=0	ex_shape=(64,)	ex_bytes=256
+attn_v.weight	count=6	ex_type=12	ex_shape=(2048, 512)	ex_bytes=589824
+exp_probs_b.bias	count=22	ex_type=0	ex_shape=(32,)	ex_bytes=128
+ffn_down.weight	count=2	ex_type=14	ex_shape=(7168, 2048)	ex_bytes=12042240
+ffn_down_exps.weight	count=22	ex_type=14	ex_shape=(1792, 2048, 32)	ex_bytes=96337920
+ffn_gate.weight	count=2	ex_type=12	ex_shape=(2048, 7168)	ex_bytes=8257536
+ffn_gate_exps.weight	count=22	ex_type=12	ex_shape=(2048, 1792, 32)	ex_bytes=66060288
+ffn_gate_inp.weight	count=22	ex_type=0	ex_shape=(2048, 32)	ex_bytes=262144
+ffn_norm.weight	count=24	ex_type=0	ex_shape=(2048,)	ex_bytes=8192
+ffn_up.weight	count=2	ex_type=12	ex_shape=(2048, 7168)	ex_bytes=8257536
+ffn_up_exps.weight	count=22	ex_type=12	ex_shape=(2048, 1792, 32)	ex_bytes=66060288
+shortconv.conv.weight	count=18	ex_type=0	ex_shape=(3, 2048)	ex_bytes=24576
+shortconv.in_proj.weight	count=18	ex_type=12	ex_shape=(2048, 6144)	ex_bytes=7077888
+shortconv.out_proj.weight	count=18	ex_type=12	ex_shape=(2048, 2048)	ex_bytes=2359296
+token_embd.weight	count=1	ex_type=14	ex_shape=(2048, 128000)	ex_bytes=215040000
+token_embd_norm.weight	count=1	ex_type=0	ex_shape=(2048,)	ex_bytes=8192
