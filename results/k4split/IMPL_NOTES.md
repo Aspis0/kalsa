@@ -19,6 +19,7 @@ follows `results/k4split/recon_*.md` plus the mandate minimum wiring.
 | `BigMoeOnEdge/core/src/engine/session.cpp` | `n_gpu_layers` from config; B/Auto `tensor_buft_overrides`; FA off unless asked; RAM guard; placement log |
 | `BigMoeOnEdge/core/src/moe/dense_weights.{h,cpp}` | skip non-host tensors; still `drop_mmap_copies`; AnonGpu |
 | `BigMoeOnEdge/core/src/moe/expert_stream_source.cpp` | cache-auto deducts host-pending dense only |
+| `BigMoeOnEdge/core/src/moe/router_hook.cpp` | `HostAlias`: copy GPU topk/weights through backend get/set so the streamer can read ids |
 | `BigMoeOnEdge/core/src/metrics/csv_metrics_sink.cpp` | preamble `n_gpu_layers` / `flash_attn` / `moe_cpu_experts` |
 | `BigMoeOnEdge/cli/main.cpp` | `--ngl`, `--flash-attn`, `--moe-cpu-experts`, `--override-tensor`, `anon-gpu` |
 | `BigMoeOnEdge/tests/config_test.cpp` | placement defaults + AnonGpu / override validation |
@@ -100,6 +101,23 @@ Re-read e926a54 + the live tree. The listed residency holes:
 | anon-gpu freeing experts | **CONFIRMED** hole | Capture-miss / name-mismatch could put `ffn_*_exps` in the dense list. AnonGpu would then rebind them or `MADV_DONTNEED` their live mmap. Dense list now skips `is_routed_expert_name`; `DenseWeights` refuses to copy or drop those names; `drop_mmap_copies` also refuses a range whose `tensor->data` still points into it. Cache-auto does not deduct leaked expert bytes. |
 
 Compile after the fix (existing `moe-experiments/build-pc`, `-j4` after `vcvars64`): `session.cpp`, `dense_weights.cpp`, `expert_stream_source.cpp` rebuilt; `bmoe_config_test` all passed, including `placement defaults are ngl=0 / fa=off / experts=off`. BigMoeOnEdge commit `342df14`. No fork branch, no push, no device work.
+
+## Final-audit fix (2026-08-13)
+
+`audit_final_hook.md` / `audit_final_ram.md` / `audit_final_product.md` were not
+in the tree. Independent re-read of those three angles:
+
+| item | verdict | action |
+|---|---|---|
+| GPU `ffn_moe_topk` / weights `t->data` is not host-readable | **CONFIRMED** | OpenCL `ARGSORT` is supported for n_expert=256; `get_base` is a dummy; eval callback syncs but does not `tensor_get`. Streamer/drop-policy deref `t->data`. `HostAlias` in `router_hook.cpp` copies through `ggml_backend_tensor_get`/`set` for the callback. CPU path is a no-op. |
+| dangling overrides / expert mmap / ngl default / FA default | already fixed in `342df14` | none |
+| 300 MiB RAM floor missing | **REFUTED** | `ram_guard_allows_gpu` is real code (`session.cpp`) |
+| `anon-gpu` doubles dense or frees experts | **REFUTED** | skip non-host + name skip + live-mmap guard |
+| campaign without `--ngl` changed | **REFUTED** | defaults ngl=0, FA off, pin only when Auto+ngl |
+| `build-android.ps1` OpenCL default | **REFUTED** | still `GGML_OPENCL=OFF` |
+| predict / route-ahead GEMV on GPU hidden/gate | **PLAUSIBLE** | those flags are off on k6d065; ids path is covered |
+
+No ggml-opencl / FLASH_ATTN / GEMV edits.
 
 ## Compile check (PC, 2026-08-13)
 
