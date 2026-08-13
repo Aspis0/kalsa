@@ -153,6 +153,7 @@ import {
   type PersonasPersisted,
 } from "../conversations/PersonasStore";
 import { applyPersonaTail } from "../engine/personaTail";
+import { MEMORY_FACTS_ON_USER_TAIL } from "../engine/ttftFlags";
 import { parseShareUrl, SHARE_TEXT_CAP, SHARE_TEXT_FILE_MAX_BYTES } from "./shareIntent";
 import { importSharedPdf, SharedImportError } from "../documents/importSharedDocument";
 import { saveNote } from "../notes/NotesStore";
@@ -763,7 +764,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   /** Mirror of MemoryStore.getEnabled — never inject facts when false. */
   const memoryEnabledRef = useRef(false);
   /**
-   * Facts actually injected into the system prompt for the CURRENT turn.
+   * Facts actually injected this turn (last-user tail / legacy system prompt).
    * Captured at send time so the search echo guard still matches them if the
    * user disables memory mid-turn (live enabled/facts refs would go empty).
    */
@@ -2282,7 +2283,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     }
   }, []);
 
-  // ── User memory (local facts for system prompt personalization) ──────────
+  // ── User memory (local facts; injected on last-user tail when flag on) ──
   // Refs declared above agentOptions; keep state + sync here.
   const [memoryFacts, setMemoryFacts] = useState<string[]>([]);
   memoryFactsRef.current = memoryFacts;
@@ -3026,19 +3027,22 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Boot-captured HISTORY_KEY hash: conversation start, not mid-send (lazy
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
-      // Same memoryFacts slice the system prompt uses (newest 10, or [] if off).
+      // Same inputs the system prompt uses. Facts on the user tail must not
+      // enter this hash or a new fact cold-starts the entire KV prefix.
       let sessionPromptEnvHash = computePromptEnvHash(locale, []);
-      try {
-        const enabled = await MemoryStore.getEnabled();
-        if (enabled) {
-          const facts = await MemoryStore.listFacts();
-          sessionPromptEnvHash = computePromptEnvHash(
-            locale,
-            facts.map((f) => f.text).slice(-10),
-          );
+      if (!MEMORY_FACTS_ON_USER_TAIL) {
+        try {
+          const enabled = await MemoryStore.getEnabled();
+          if (enabled) {
+            const facts = await MemoryStore.listFacts();
+            sessionPromptEnvHash = computePromptEnvHash(
+              locale,
+              facts.map((f) => f.text).slice(-10),
+            );
+          }
+        } catch {
+          // empty facts → match disabled / cold
         }
-      } catch {
-        // empty facts → match disabled / cold
       }
       if (!stillCurrent()) {
         markChatReleased(chatGen);
@@ -3502,17 +3506,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
       let sessionPromptEnvHash = computePromptEnvHash(locale, []);
-      try {
-        const enabled = await MemoryStore.getEnabled();
-        if (enabled) {
-          const facts = await MemoryStore.listFacts();
-          sessionPromptEnvHash = computePromptEnvHash(
-            locale,
-            facts.map((f) => f.text).slice(-10),
-          );
+      if (!MEMORY_FACTS_ON_USER_TAIL) {
+        try {
+          const enabled = await MemoryStore.getEnabled();
+          if (enabled) {
+            const facts = await MemoryStore.listFacts();
+            sessionPromptEnvHash = computePromptEnvHash(
+              locale,
+              facts.map((f) => f.text).slice(-10),
+            );
+          }
+        } catch {
+          // empty facts → match disabled / cold
         }
-      } catch {
-        // empty facts → match disabled / cold
       }
       if (!stillCurrent()) {
         markChatReleased(chatGenDl);
@@ -3889,8 +3895,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   /**
    * Stream a chat turn. Resolves with `afterSessionSave` so the UI can run
-   * turn-end KV save first, then schedule memory extract (extract clearCache's
-   * the chat KV — save must win the FIFO).
+   * turn-end KV save first, then schedule memory extract (extract may reuse
+   * that .kvs to restore chat KV — save should still win the FIFO).
    */
   const handleSendStream = useCallback(
     (
@@ -3940,9 +3946,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
            *   2) AiChatPage awaits saveEngineSession (FIFO)
            *   3) afterSessionSave releases the save-gate → extractMemory runs
            *
-           * extractMemory clearCache's the chat KV (kvHoldsChatSession=false).
-           * If extract were queued before save, save would always skip with
-           * reason kv_not_chat. Gates: memory enabled, non-empty reply, not
+           * extractMemory checkpoint-restores chat KV (EXTRACT_MEMORY_PRESERVE_CHAT_KV).
+           * Save-first still lets extract reuse the just-written .kvs instead of
+           * a second snapshot. Gates: memory enabled, non-empty reply, not
            * aborted/failed, sendRunId (AiChatPage).
            */
           let releaseSaveGate: (() => void) | undefined;
@@ -4266,6 +4272,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               activePersonaIdRef.current,
               builtinCopyFromT(t),
             );
+            // Last-user composition (engine, format B):
+            //   factsBlock + "\n\n" + applyPersonaTail(userText, persona)
+            // Persona is applied here; facts are prefixed in streamAssistantTurn
+            // (applyMemoryFactsToLastUser) so they never rewrite the system prefix.
             const userMessage: EngineMessage = {
               role: "user",
               content: applyPersonaTail(text, persona?.instructions),

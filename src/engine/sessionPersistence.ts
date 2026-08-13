@@ -24,7 +24,9 @@ export type SessionMeta = {
   historyHash: string;
   /**
    * djb2 over JSON.stringify({locale, memoryFactsJoined, hasTools:true}).
-   * Mismatch → cold start (same as historyHash). Optional for back-compat reads.
+   * When MEMORY_FACTS_ON_USER_TAIL, callers must pass [] for facts so a new
+   * fact does not cold-start the whole prefix. Mismatch → cold start.
+   * Optional for back-compat reads.
    */
   promptEnvHash?: string;
   /**
@@ -34,7 +36,23 @@ export type SessionMeta = {
   conversationId?: string;
   /** Date.now() at save; ignored by sessionMetaMatches */
   savedAt?: number;
+  /**
+   * Format-B last-user prefixes baked into later engine history.
+   * Payload only — ignored by sessionMetaMatches (historyHash is the gate).
+   */
+  bakedUserTails?: Array<{ bare: unknown; prefixed: unknown }>;
 };
+
+/**
+ * True when loadSession returned a usable KV prefix.
+ * llama.rn resolves with tokens_loaded=0 when the file is empty or not
+ * resumable (SWA rollback clears embd) — that is not a successful restore.
+ */
+export function sessionLoadHasTokens(
+  result: { tokens_loaded?: unknown } | null | undefined,
+): boolean {
+  return typeof result?.tokens_loaded === "number" && result.tokens_loaded > 0;
+}
 
 /** Default messages key until migrate / AppShell bind the active conversation. */
 export const DEFAULT_BOOT_MESSAGES_KEY = "kalsa.messages.v1";
@@ -158,6 +176,8 @@ export function setSessionConversationId(id: string | undefined): void {
  * Hash of system-prompt env inputs that are not covered by historyHash.
  * `hasTools` is always the literal `true` today (tools wired on every chat turn).
  * Uses the same djb2 as historyHash.
+ * When MEMORY_FACTS_ON_USER_TAIL the caller must pass [] / omit facts — they
+ * are no longer part of the system prompt.
  */
 export function computePromptEnvHash(
   locale: string,
@@ -311,6 +331,7 @@ export async function readSessionMeta(modelId: string): Promise<SessionMeta | nu
       meta.conversationId = parsed.conversationId;
     }
     if (typeof parsed.savedAt === "number") meta.savedAt = parsed.savedAt;
+    if (Array.isArray(parsed.bakedUserTails)) meta.bakedUserTails = parsed.bakedUserTails;
     return meta;
   } catch {
     return null;

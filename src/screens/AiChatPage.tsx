@@ -251,7 +251,7 @@ type VoiceUiState = VoiceUiPhase;
 type SendStreamResult = {
   /**
    * Call after turn-end saveEngineSession settles so memory extract runs after
-   * the KV snapshot is on disk (extract clearCache's the chat KV).
+   * the KV snapshot is on disk (extract can restore from that file).
    */
   afterSessionSave?: () => void;
 };
@@ -2496,11 +2496,10 @@ export function AiChatPage({
                   getEpoch: () => persistEpochRef.current,
                 });
                 // Turn-end order (FIFO): saveEngineSession FIRST, then memory
-                // extract. extractMemory clearCache's the chat KV and flips
-                // kvHoldsChatSession=false — if extract is queued first the
-                // save always skips (reason: kv_not_chat). Fire-and-forget so
-                // the UI is not blocked; gates (runId, memory, non-empty reply)
-                // live inside afterSessionSave / scheduleMemoryExtract.
+                // extract. extractMemory restores chat KV after the one-shot
+                // completion (reuses this .kvs when save won). Fire-and-forget
+                // so the UI is not blocked; gates (runId, memory, non-empty
+                // reply) live inside afterSessionSave / scheduleMemoryExtract.
                 // A2: mark BEFORE save when miniapp JSON was stripped from text.
                 if (applied.miniappStripped) {
                   markKvNonReproducible("miniapp_stripped");

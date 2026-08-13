@@ -120,6 +120,7 @@ async function main() {
     computeHistoryHashFromMessages,
     computePromptEnvHash,
     estimateSessionBytes,
+    sessionLoadHasTokens,
   } = await import(pathToFileURL(modPath).href);
 
   let passed = 0;
@@ -325,6 +326,26 @@ async function main() {
     assert(estimateSessionBytes(8192) === 8192 * 64 * 1024, "8192");
     assert(estimateSessionBytes(0) === 0, "0");
     assert(estimateSessionBytes(-1) === 0, "negative → 0");
+  });
+
+  test("bakedUserTails payload does not affect sessionMetaMatches", () => {
+    assert(
+      sessionMetaMatches(base, {
+        ...base,
+        bakedUserTails: [{ bare: "hi", prefixed: "FACTS\n\nhi" }],
+      }),
+      "baked tails ignored by gate",
+    );
+  });
+
+  test("sessionLoadHasTokens rejects 0 / missing / non-number", () => {
+    assert(sessionLoadHasTokens({ tokens_loaded: 12 }) === true, "positive");
+    assert(sessionLoadHasTokens({ tokens_loaded: 0 }) === false, "zero");
+    assert(sessionLoadHasTokens({ tokens_loaded: -1 }) === false, "negative");
+    assert(sessionLoadHasTokens({ tokens_loaded: "12" }) === false, "string");
+    assert(sessionLoadHasTokens({}) === false, "missing");
+    assert(sessionLoadHasTokens(null) === false, "null");
+    assert(sessionLoadHasTokens(undefined) === false, "undefined");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

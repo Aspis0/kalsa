@@ -66,6 +66,7 @@ import {
   readSessionMeta,
   sessionFileExists,
   sessionFilePath,
+  sessionLoadHasTokens,
   sessionMetaMismatchField,
   shouldSaveSession,
   writeSessionMeta,
@@ -83,6 +84,20 @@ import {
   markChatCompleting,
   markChatCompletingDone,
 } from "./llamaContextGate";
+import {
+  applyBakedUserTails,
+  applyMemoryFactsToLastUser,
+  buildMemoryFactsBlock,
+  commitBakedLastUser,
+  lastUserContent,
+  parseBakedUserTails,
+  type BakedUserTail,
+} from "./memoryFactsTail";
+import {
+  BAKE_FORMAT_B_USER_PREFIX,
+  EXTRACT_MEMORY_PRESERVE_CHAT_KV,
+  MEMORY_FACTS_ON_USER_TAIL,
+} from "./ttftFlags";
 import * as FileSystem from "expo-file-system/legacy";
 
 /**
@@ -116,11 +131,18 @@ let activeMtpNMax: number | undefined;
 let activeSpecType: string | undefined;
 /**
  * True only when the native KV still holds chat-turn state (post streamAssistantTurn
- * or successful loadSession). Utility jobs (extract/translate/summarize) call
- * clearCache and leave a non-chat prompt in the context — saving then would
- * restore a useless prefix on next start. Cleared on dispose / utility clearCache.
+ * or successful loadSession). Utility jobs (translate/summarize, and extract when
+ * EXTRACT_MEMORY_PRESERVE_CHAT_KV is off) call clearCache and leave a non-chat
+ * prompt in the context — saving then would restore a useless prefix on next
+ * start. Cleared on dispose / those utility clearCache paths.
  */
 let kvHoldsChatSession = false;
+/**
+ * True when the on-disk .kvs matches the in-memory chat KV (successful
+ * saveEngineSession since the last completion). extractMemory can then restore
+ * from that file instead of writing a second snapshot.
+ */
+let chatKvDiskCurrent = false;
 /**
  * Whether the native KV can be reproduced by re-rendering persisted history.
  * Sticky `reproducible` + per-turn `turnInjected`; all transitions go through
@@ -132,10 +154,17 @@ let kvHoldsChatSession = false;
 let kvReproState: KvReproState = { ...INITIAL_KV_REPRO_STATE };
 /**
  * promptEnvHash of the system-prompt inputs that produced the current chat KV
- * (locale + memoryFacts + hasTools). Set on streamAssistantTurn / successful load.
- * Written into session meta on save so restore can reject wasted cold-prefills.
+ * (locale + hasTools; memoryFacts only when MEMORY_FACTS_ON_USER_TAIL is off).
+ * Set on streamAssistantTurn / successful load. Written into session meta on
+ * save so restore can reject wasted cold-prefills.
  */
 let lastPromptEnvHash: string | undefined;
+/**
+ * Format-B last-user prefixes already encoded into chat KV. Re-applied onto
+ * earlier users on the next turn so llama.rn prefix-match does not die at
+ * the previous user. Restored from session meta after loadSession.
+ */
+let bakedUserTails: BakedUserTail[] = [];
 
 /**
  * True while disposeEngineLocked is unwinding a context. streamAssistantTurn's
@@ -204,10 +233,6 @@ function rethrowWithNativeTail(error: unknown): never {
   throw new Error(withNativeTail(String(error)));
 }
 
-/** Max user-memory facts injected into the system prompt. */
-const MAX_PROMPT_FACTS = 10;
-/** Hard cap per fact line injected into the system prompt. */
-const MAX_PROMPT_FACT_CHARS = 120;
 /** extractMemory wall-clock timeout (ms); on expiry stopCompletion is called. */
 const EXTRACT_MEMORY_TIMEOUT_MS = 20_000;
 /** translateText wall-clock timeout (ms); on expiry stopCompletion is called. */
@@ -237,18 +262,6 @@ const TARGET_LANG_NAME: Record<Locale, string> = {
   it: "Italian",
 };
 
-/**
- * Normalize a fact for prompt injection: strip control chars / newlines,
- * collapse whitespace, cap length. Treats facts as untrusted data only.
- */
-function sanitizeFactForPrompt(fact: string): string {
-  return fact
-    .replace(/[\u0000-\u001f\u007f]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, MAX_PROMPT_FACT_CHARS);
-}
-
 /** System prompt for the on-device model, localized via settings locale. */
 export function buildSystemPrompt(
   locale: Locale,
@@ -257,14 +270,11 @@ export function buildSystemPrompt(
 ): string {
   const strings = getStrings(locale);
   let prompt = withTools ? strings.systemPromptWithSearch : strings.systemPrompt;
-  // Most recent facts first for injection budget (callers should already pass newest).
-  const cleaned = (facts ?? [])
-    .map((fact) => sanitizeFactForPrompt(fact))
-    .filter((fact) => fact.length > 0)
-    .slice(-MAX_PROMPT_FACTS);
-  if (cleaned.length > 0) {
-    const factBlock = cleaned.map((fact) => `- ${fact}`).join("\n");
-    prompt += `\n\n${strings.memory.promptSection.replace("{facts}", factBlock)}`;
+  // Default: facts ride the last user message (MEMORY_FACTS_ON_USER_TAIL).
+  // Legacy path keeps them here so a flag flip restores the old prefix.
+  if (!MEMORY_FACTS_ON_USER_TAIL) {
+    const factBlock = buildMemoryFactsBlock(locale, facts);
+    if (factBlock) prompt += `\n\n${factBlock}`;
   }
   return prompt;
 }
@@ -610,7 +620,7 @@ export type EngineInitOptions = {
    */
   sessionRestore?: {
     historyHash: string;
-    /** djb2 of system-prompt env (locale/memoryFacts/hasTools). */
+    /** djb2 of system-prompt env (locale/hasTools; facts only if tail flag off). */
     promptEnvHash: string;
     /** Active conversation; compared only when stored meta also has one. */
     conversationId?: string;
@@ -956,8 +966,10 @@ async function disposeEngineLocked(): Promise<void> {
     activeMtpNMax = undefined;
     activeSpecType = undefined;
     kvHoldsChatSession = false;
+    chatKvDiskCurrent = false;
     kvReproState = nextKvReproState(kvReproState, "dispose");
     lastPromptEnvHash = undefined;
+    bakedUserTails = [];
     // Intentionally do NOT delete session files here — they survive dispose
     // so the next initEngine can restore KV after app restart / model reload.
     if (current) {
@@ -1226,10 +1238,14 @@ export async function saveEngineSession(
       if (activeEngineKnob !== undefined) meta.engineKnob = activeEngineKnob;
       const conversationId = getSessionConversationId();
       if (conversationId) meta.conversationId = conversationId;
+      if (BAKE_FORMAT_B_USER_PREFIX && bakedUserTails.length > 0) {
+        meta.bakedUserTails = bakedUserTails;
+      }
       // Meta after rename so a kill between file and meta keeps the previous
       // meta (hash mismatch → cold) or pairs old meta with complete new file
       // when history is unchanged (valid restore).
       await writeSessionMeta(modelId, meta);
+      chatKvDiskCurrent = true;
       // Only after a successful write: drop other models' sessions (keep current).
       await deleteOtherModelSessions(modelId);
       log(true, {
@@ -1311,10 +1327,11 @@ async function tryLoadEngineSession(
     if (expected.conversationId) expectedMeta.conversationId = expected.conversationId;
     const mismatchField = sessionMetaMismatchField(stored, expectedMeta);
     if (mismatchField !== null) {
+      bakedUserTails = [];
       await deleteSessionArtifacts(modelId);
       // Field name only (enum-like) — attributable cold starts: historyHash =
-      // save missed/raced; promptEnvHash = memory facts / locale changed
-      // (semantically correct cold); nCtx/KV = config change.
+      // save missed/raced; promptEnvHash = locale (or legacy facts-in-system)
+      // changed (semantically correct cold); nCtx/KV = config change.
       // metaHash/bootHash only for historyHash MISS so CI can compare at a glance
       // without changing the grepped reason string.
       log(false, {
@@ -1326,16 +1343,27 @@ async function tryLoadEngineSession(
       return false;
     }
     const result = await context.loadSession(sessionFilePath(modelId));
+    if (!sessionLoadHasTokens(result)) {
+      bakedUserTails = [];
+      await deleteSessionArtifacts(modelId);
+      log(false, { reason: "tokens_loaded:0" });
+      return false;
+    }
     kvHoldsChatSession = true;
+    chatKvDiskCurrent = true;
     // Keep lastPromptEnvHash aligned with the restored KV for a later save.
     lastPromptEnvHash =
       stored.promptEnvHash ?? expected.promptEnvHash ?? lastPromptEnvHash;
+    bakedUserTails = BAKE_FORMAT_B_USER_PREFIX
+      ? parseBakedUserTails(stored.bakedUserTails)
+      : [];
     log(true, {
       tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,
     });
     return true;
   } catch (error) {
     console.warn("[tryLoadEngineSession]", error);
+    bakedUserTails = [];
     await deleteSessionArtifacts(modelId);
     log(false, { reason: sessionErrorReason(error) });
     return false;
@@ -1355,6 +1383,8 @@ export async function invalidateEngineSession(modelId: string): Promise<void> {
       // (clearChat leaves the engine up; a later background must not save).
       if (activeModelId === modelId) {
         kvHoldsChatSession = false;
+        chatKvDiskCurrent = false;
+        bakedUserTails = [];
       }
       await deleteSessionArtifacts(modelId);
     } catch {
@@ -1427,7 +1457,11 @@ function prefixUserMessageContent(
  * "none" → identity (production path) unless compaction context is present, in which
  * case format B (user-prefix) is used so digest/summary ride on the last user message.
  * Because the block is in the last-user tail, a query-time digest that changes every
- * turn re-encodes only that tail — the stable history prefix (and its KV) is preserved.
+ * turn re-encodes only that tail — the stable history prefix (and its KV) is preserved
+ * only if later turns re-send that prefixed last-user (BAKE_FORMAT_B_USER_PREFIX).
+ * Memory facts (MEMORY_FACTS_ON_USER_TAIL) use the same last-user prefix via
+ * applyMemoryFactsToLastUser after this function — they must not flip format to
+ * user-prefix here, or production turns would also inject the operative rules.
  * Synthetic user-note is engine-only (not UI history).
  */
 function applyOperativeBlockFormat(
@@ -1486,7 +1520,10 @@ function applyOperativeBlockFormat(
 export type StreamTurnOptions = EngineTurnOptions & {
   /** Settings locale — drives system prompt language (required). */
   locale: Locale;
-  /** Durable user facts to inject into the system prompt (max 10 used). */
+  /**
+   * Durable user facts (max 10 used). Default: last-user tail (format B), not
+   * the system prompt — see MEMORY_FACTS_ON_USER_TAIL. Empty when memory off.
+   */
   memoryFacts?: string[];
   /**
    * Compaction context for the operative block:
@@ -1596,12 +1633,23 @@ export async function streamAssistantTurn(
       typeof options.lastUserMessage === "string"
         ? options.lastUserMessage
         : (messages[userIndex]?.content ?? "");
-    const historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) =>
+    let historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) =>
       index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
     );
-    // Capture prompt-env hash from the same inputs buildSystemPrompt uses so a
+    // Capture prompt-env hash from the same inputs the system prompt uses so a
     // later saveEngineSession can reject restores whose system prompt drifted.
-    lastPromptEnvHash = computePromptEnvHash(locale, options.memoryFacts);
+    // Facts on the user tail are not part of that prefix — do not hash them.
+    lastPromptEnvHash = computePromptEnvHash(
+      locale,
+      MEMORY_FACTS_ON_USER_TAIL ? [] : options.memoryFacts,
+    );
+
+    let bakedMatched: BakedUserTail[] = [];
+    if (BAKE_FORMAT_B_USER_PREFIX) {
+      const baked = applyBakedUserTails(historyMessages, bakedUserTails);
+      historyMessages = baked.messages;
+      bakedMatched = baked.matched;
+    }
 
     let currentMessages: ToolChatMessage[] = applyOperativeBlockFormat(
       { role: "system", content: buildSystemPrompt(locale, hasTools, options.memoryFacts) },
@@ -1610,6 +1658,27 @@ export async function streamAssistantTurn(
       locale,
       options.operativeContext ?? null,
     ) as ToolChatMessage[];
+    // Last-user composition (format B): factsBlock + "\n\n" + [operative?] +
+    // applyPersonaTail(userText, persona). Facts first, then the existing
+    // persona frame (already on last user from AppShell), then bare user text.
+    // Bake the FULL prefixed last-user (facts+persona+text), not facts alone.
+    // lastBare is persist/assemble UI text so next-turn history can rematch.
+    if (MEMORY_FACTS_ON_USER_TAIL) {
+      const factsTail = buildMemoryFactsBlock(locale, options.memoryFacts);
+      if (factsTail) {
+        currentMessages = applyMemoryFactsToLastUser(currentMessages, factsTail);
+      }
+    }
+    if (BAKE_FORMAT_B_USER_PREFIX) {
+      const lastBare =
+        typeof options.lastUserMessage === "string"
+          ? options.lastUserMessage
+          : lastUserContent(historyMessages);
+      const lastPrefixed = lastUserContent(currentMessages);
+      if (lastBare !== undefined && lastPrefixed !== undefined) {
+        bakedUserTails = commitBakedLastUser(bakedMatched, lastBare, lastPrefixed);
+      }
+    }
 
     // Accumulo locale del testo: streaming garantito anche se il campo
     // `accumulated_text` di llama.rn non fosse popolato dal binding.
@@ -2131,6 +2200,7 @@ export async function streamAssistantTurn(
       // for saveSession on background (utility jobs clear this flag).
       if (engine === context && !disposing) {
         kvHoldsChatSession = true;
+        chatKvDiskCurrent = false;
       }
     }
   });
@@ -2190,6 +2260,42 @@ function findBalancedJsonObject(
   return null;
 }
 
+/** Native path for saveSession (llama.rn does not strip file:// on save). */
+function nativeSessionPath(uri: string): string {
+  return uri.replace(/^file:\/\//, "");
+}
+
+async function snapshotNativeSession(
+  engine: LlamaContext,
+  destPath: string,
+): Promise<boolean> {
+  try {
+    if (!(await hasEnoughDiskForSession(activeEngineCtx))) return false;
+    await ensureSessionsDir();
+    try {
+      await FileSystem.deleteAsync(destPath, { idempotent: true });
+    } catch {
+      // overwrite
+    }
+    await engine.saveSession(nativeSessionPath(destPath));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function restoreNativeSession(
+  engine: LlamaContext,
+  srcPath: string,
+): Promise<boolean> {
+  try {
+    const result = await engine.loadSession(srcPath);
+    return sessionLoadHasTokens(result);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Non-streaming completion that extracts durable USER facts from a finished turn.
  * Call only AFTER the chat turn is done — never during streaming.
@@ -2199,13 +2305,11 @@ function findBalancedJsonObject(
  * Timeout: ~20s wall clock; on expiry calls engine.stopCompletion() so the native
  * completion does not keep the engine busy (Promise.race alone is not enough).
  *
- * clearCache: called before extract only. Chat turns intentionally do NOT clear
- * the KV cache: non-vision paths use ctx_shift:true and stream full message history
- * each turn; clearing would discard useful prefix state without benefit. Vision
- * turns use ctx_shift:false with media anchored to the current user message —
- * clearing mid-session between chat turns is unnecessary and risks extra cost.
- * Extract is a separate one-shot completion, so clearCache avoids contamination
- * from a prior vision/tool completion.
+ * EXTRACT_MEMORY_PRESERVE_CHAT_KV (default): do not call clearCache. The extract
+ * completion overwrites native KV; we restore from the just-saved .kvs when it
+ * matches in-memory chat, otherwise from a temp checkpoint taken first. If we
+ * cannot snapshot, skip extract rather than nuke a warm prefix. Flag off restores
+ * the old clearCache + kvHoldsChatSession=false path.
  *
  * json_schema / grammar: llama.rn supports response_format json_schema, but small
  * on-device models often fail grammar-constrained sampling; we rely on the balanced
@@ -2230,19 +2334,47 @@ export async function extractMemory(
     const engine = context;
     if (!engine) return { add: [], remove: [] };
 
-    let timedOut = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    const preserve =
+      EXTRACT_MEMORY_PRESERVE_CHAT_KV &&
+      kvHoldsChatSession &&
+      engine === context;
 
-    try {
-      // Isolate extract from prior vision/tool KV state (API: LlamaContext.clearCache).
+    let restorePath: string | null = null;
+    let tempPath: string | null = null;
+
+    if (preserve) {
+      if (chatKvDiskCurrent && activeModelId && (await sessionFileExists(activeModelId))) {
+        restorePath = sessionFilePath(activeModelId);
+      } else if (activeModelId) {
+        tempPath = `${sessionFilePath(activeModelId)}.extract-ckpt`;
+        const snapped = await snapshotNativeSession(engine, tempPath);
+        if (!snapped) {
+          try {
+            await FileSystem.deleteAsync(tempPath, { idempotent: true });
+          } catch {
+            // ignore
+          }
+          // Cannot isolate extract without destroying chat KV — skip.
+          return { add: [], remove: [] };
+        }
+        restorePath = tempPath;
+      } else {
+        return { add: [], remove: [] };
+      }
+    } else if (!EXTRACT_MEMORY_PRESERVE_CHAT_KV) {
       try {
         await engine.clearCache();
       } catch {
         // best effort — extract still proceeds
       }
-      // clearCache + synthetic prompt — native KV no longer holds the chat session.
       kvHoldsChatSession = false;
+      chatKvDiskCurrent = false;
+    }
 
+    let timedOut = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    try {
       timer = setTimeout(() => {
         timedOut = true;
         // Real cancellation: stop the native completion, do not leave engine busy.
@@ -2278,6 +2410,23 @@ export async function extractMemory(
       return { add: [], remove: [] };
     } finally {
       if (timer) clearTimeout(timer);
+      if (restorePath) {
+        if (engine === context) {
+          const restored = await restoreNativeSession(engine, restorePath);
+          kvHoldsChatSession = restored;
+          if (!restored) chatKvDiskCurrent = false;
+        } else {
+          kvHoldsChatSession = false;
+          chatKvDiskCurrent = false;
+        }
+      }
+      if (tempPath) {
+        try {
+          await FileSystem.deleteAsync(tempPath, { idempotent: true });
+        } catch {
+          // ignore
+        }
+      }
     }
   });
 }
@@ -2327,7 +2476,7 @@ export type TranslateResult = {
 
 /**
  * Non-streaming completion that translates arbitrary text into targetLang.
- * Same isolation pattern as extractMemory: clearCache first, wall-clock timeout
+ * Isolation: clearCache first (unlike extractMemory's checkpoint-restore), wall-clock timeout
  * with stopCompletion, fail-closed → empty text (caller shows localized error).
  *
  * Serialized via withEngineJob (FIFO with stream/extract). Accepts AbortSignal
@@ -2381,6 +2530,7 @@ export async function translateText(
         // best effort — translate still proceeds
       }
       kvHoldsChatSession = false;
+      chatKvDiskCurrent = false;
       if (aborted || signal?.aborted) return { text: "", truncated };
 
       timer = setTimeout(() => {
@@ -2485,6 +2635,7 @@ export async function summarizeConversation(
         // best effort
       }
       kvHoldsChatSession = false;
+      chatKvDiskCurrent = false;
       if (aborted || signal?.aborted || engine !== context) return "";
 
       timer = setTimeout(() => {
