@@ -25,6 +25,10 @@ $A0 = @{
 $macroA0 = ($A0.en + $A0.es + $A0.fr + $A0.it + $A0.zh) / 5.0
 
 function Run-Langs($id, $k, $drop, $outdir, $langs) {
+  # IMPORTANT: do not leak python stdout into the caller's assignment.
+  # In PowerShell, `$rc = Run-Langs ...` captures ALL success-stream output,
+  # not only the intended return value — that previously made a successful
+  # A1 look like failure (rc became the full ppl log text).
   if ($langs.Count -eq 0) { L "$id nothing to run"; return 0 }
   $langStr = ($langs -join ",")
   L "=== $id run langs=$langStr k=$k drop=$drop out=$outdir ==="
@@ -33,10 +37,15 @@ function Run-Langs($id, $k, $drop, $outdir, $langs) {
   & python $py --binary $bin --model $model --tag $tag --outdir $outdir `
     --langs $langStr --threads 8 --ctx 4096 --ubatch 512 `
     --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap `
-    --n-expert-used $k --drop-cold-experts $drop
-  $rc = $LASTEXITCODE
-  L "$id langs rc=$rc"
-  return $rc
+    --n-expert-used $k --drop-cold-experts $drop 2>&1 | ForEach-Object {
+      # Host-only: keeps pipeline clean so `return $code` is the sole output.
+      Write-Host $_
+      Add-Content -Path $log -Value $_ -Encoding utf8
+    }
+  $code = $LASTEXITCODE
+  if ($null -eq $code) { $code = 0 }
+  L "$id langs rc=$code"
+  return $code
 }
 
 function Merge-FullJson($id, $k, $drop, $fullDir) {
