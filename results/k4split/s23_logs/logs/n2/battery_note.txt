@@ -1,0 +1,50 @@
+plugged_note=PLUGGED_OK N2 correctness not speed; cache-mb 1000 --force-cache (N1 fairness)
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 34.6,
+  "voltage": 4208,
+  "current": 3448,
+  "current_average": 3412,
+  "percentage": 58,
+  "level": 58,
+  "scale": 100,
+  "charge_counter": 2190000,
+  "cycle": 0
+}
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 34.6,
+  "voltage": 4208,
+  "current": 3046,
+  "current_average": 3325,
+  "percentage": 58,
+  "level": 58,
+  "scale": 100,
+  "charge_counter": 2190000,
+  "cycle": 0
+}
+archived unknown-arg -f failures to bad_dash_f (bmoe-cli has -p only)
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 38.3,
+  "voltage": 4181,
+  "current": 3038,
+  "current_average": 3171,
+  "percentage": 64,
+  "level": 64,
+  "scale": 100,
+  "charge_counter": 2415000,
+  "cycle": 0
+}

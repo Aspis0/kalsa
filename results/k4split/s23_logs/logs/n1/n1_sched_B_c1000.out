@@ -1,0 +1,16 @@
+Say OK in one word.
+
+<think>
+
+</think>
+
+OK
+
+generation: 6 tokens, 0.394 s/token (2.540 tok/s)
+compute: 38.4% CPU occupancy (0.6049 cpu-s/token over 4 threads), 0.17 major faults/token
+prefill: 6 tokens, 4.583 s (1.3 tok/s) | model load 24.456 s | TTFT 29.039 s
+moe-stream: read 490.6 MiB (81.76 MiB/token), decode 0.394 s/token (compute 0.332 + cache mgmt 0.011 + flash I/O 0.354 s/token, 231 MiB/s)
+moe-cache: 38.5% hit, resident 999.1 MiB
+moe-cache: 461 evictions, 53 re-reads (8.8/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.050 s/token (flash reads overlapped with FFN compute)
+moe-drop: 128/1440 routed experts dropped (8.9%), threshold 0.65 x uniform

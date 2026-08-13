@@ -1,0 +1,7 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+bmoe: ram-guard avail=3856 MiB need=4538 MiB (gpu_dense=1330 host_dense=333 leftover_mmap=0 cache=2000 kv+rs=73 compute=501 slack=300)
+
+error: n_gpu_layers=99 would need ~4538 MiB (avail 3856 MiB). Lower --cache-mb, use --dense-weights anon-gpu, or pass --ngl 0. Refusing rather than risking RescueParty.

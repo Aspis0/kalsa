@@ -1,0 +1,16 @@
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 30.2,
+  "voltage": 4145,
+  "current": 3372,
+  "current_average": 3521,
+  "percentage": 43,
+  "level": 43,
+  "scale": 100,
+  "charge_counter": 1631250,
+  "cycle": 0
+}

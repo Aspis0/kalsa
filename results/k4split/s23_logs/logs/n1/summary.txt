@@ -1,0 +1,6 @@
+n1_c512_B_c2000 wall_s=0 rc=1 cache_mb=2000
+n1_c512_B_c1000 wall_s=21 rc=143 cache_mb=1000
+n1_c512_B_c1000 ABORTED_RAM
+N1_BLOCKED_RAM after c512
+n1_sched_B_c1000 wall_s=32 rc=0
+n1_c4096_B_c1000 wall_s=32 rc=0

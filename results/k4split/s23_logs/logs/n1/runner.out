@@ -1,0 +1,196 @@
+2026-08-13T05:34:11-04:00 N1 begin cache-mb=2000 force=
+MemTotal:        7243740 kB
+MemFree:         1469308 kB
+MemAvailable:    3967960 kB
+Buffers:            2788 kB
+Cached:          2488708 kB
+SwapCached:        42448 kB
+RbinCached:       402432 kB
+SwapTotal:       4194300 kB
+SwapFree:        3079260 kB
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 30.1,
+  "voltage": 4136,
+  "current": 3321,
+  "current_average": 3532,
+  "percentage": 42,
+  "level": 42,
+  "scale": 100,
+  "charge_counter": 1567500,
+  "cycle": 0
+}
+plugged_note=PLUGGED_OK N1 is load/correctness not speed
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 30.1,
+  "voltage": 4136,
+  "current": 3123,
+  "current_average": 3521,
+  "percentage": 42,
+  "level": 42,
+  "scale": 100,
+  "charge_counter": 1567500,
+  "cycle": 0
+}
+2026-08-13T05:34:12-04:00 START n1_c512_B_c2000  cache-mb=2000  /data/data/com.termux/files/home/gdn_k2/k4split/bin/bmoe-cli -m /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf -p Say OK in one word. -n 8 -c 512 -t 4 --moe-stream --cache-mb 2000 --overlap --io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65 --dense-weights anon --ngl 99 --flash-attn off --moe-cpu-experts on
+MemTotal:        7243740 kB
+MemFree:         1471060 kB
+MemAvailable:    3970832 kB
+Buffers:            2788 kB
+Cached:          2489724 kB
+SwapCached:        42448 kB
+RbinCached:       402432 kB
+SwapTotal:       4194300 kB
+SwapFree:        3079260 kB
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 30.1,
+  "voltage": 4136,
+  "current": 3181,
+  "current_average": 3521,
+  "percentage": 42,
+  "level": 42,
+  "scale": 100,
+  "charge_counter": 1567500,
+  "cycle": 0
+}
+MemTotal:        7243740 kB
+MemFree:         1444900 kB
+MemAvailable:    3971172 kB
+Buffers:            2792 kB
+Cached:          2516876 kB
+SwapCached:        42448 kB
+RbinCached:       402432 kB
+SwapTotal:       4194300 kB
+SwapFree:        3079260 kB
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 30.1,
+  "voltage": 4136,
+  "current": 3390,
+  "current_average": 3510,
+  "percentage": 42,
+  "level": 42,
+  "scale": 100,
+  "charge_counter": 1567500,
+  "cycle": 0
+}
+n1_c512_B_c2000 wall_s=0 rc=1 cache_mb=2000
+2026-08-13T05:35:17-04:00 N1 begin cache-mb=1000 force=1
+MemTotal:        7243740 kB
+MemFree:         1416724 kB
+MemAvailable:    3953216 kB
+Buffers:            2800 kB
+Cached:          2526104 kB
+SwapCached:        42448 kB
+RbinCached:       402432 kB
+SwapTotal:       4194300 kB
+SwapFree:        3079772 kB
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 30.2,
+  "voltage": 4145,
+  "current": 3221,
+  "current_average": 3532,
+  "percentage": 43,
+  "level": 43,
+  "scale": 100,
+  "charge_counter": 1631250,
+  "cycle": 0
+}
+plugged_note=PLUGGED_OK N1 is load/correctness not speed
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 30.2,
+  "voltage": 4145,
+  "current": 3028,
+  "current_average": 3532,
+  "percentage": 43,
+  "level": 43,
+  "scale": 100,
+  "charge_counter": 1631250,
+  "cycle": 0
+}
+2026-08-13T05:35:18-04:00 START n1_c512_B_c1000  cache-mb=1000  /data/data/com.termux/files/home/gdn_k2/k4split/bin/bmoe-cli -m /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf -p Say OK in one word. -n 8 -c 512 -t 4 --moe-stream --cache-mb 1000 --overlap --io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65 --force-cache --dense-weights anon --ngl 99 --flash-attn off --moe-cpu-experts on
+MemTotal:        7243740 kB
+MemFree:         1411832 kB
+MemAvailable:    3948296 kB
+Buffers:            2800 kB
+Cached:          2526248 kB
+SwapCached:        42448 kB
+RbinCached:       402432 kB
+SwapTotal:       4194300 kB
+SwapFree:        3079772 kB
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 30.2,
+  "voltage": 4145,
+  "current": 3372,
+  "current_average": 3521,
+  "percentage": 43,
+  "level": 43,
+  "scale": 100,
+  "charge_counter": 1631250,
+  "cycle": 0
+}
+LOW MemFree=73168 KiB consec=1
+LOW MemFree=98784 KiB consec=2
+LOW MemFree=71976 KiB consec=3
+ABORT MemFree=71976 KiB < 300 MiB sustained (3x5s)
+MemTotal:        7243740 kB
+MemFree:         2745508 kB
+MemAvailable:    4957644 kB
+Buffers:             976 kB
+Cached:          2224912 kB
+SwapCached:        14604 kB
+RbinCached:       402168 kB
+SwapTotal:       4194300 kB
+SwapFree:        1904980 kB
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "PLUGGED_AC",
+  "status": "CHARGING",
+  "temperature": 30.3,
+  "voltage": 4099,
+  "current": 2657,
+  "current_average": 2728,
+  "percentage": 44,
+  "level": 44,
+  "scale": 100,
+  "charge_counter": 1650000,
+  "cycle": 0
+}
+n1_c512_B_c1000 wall_s=21 rc=143 cache_mb=1000
+n1_c512_B_c1000 ABORTED_RAM
+N1_BLOCKED_RAM after c512

@@ -1,0 +1,213 @@
+-- The CXX compiler identification is Clang 18.0.2
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang++.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- The C compiler identification is Clang 18.0.2
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+CMAKE_BUILD_TYPE=Release
+-- Found Git: C:/Program Files/Git/cmd/git.exe (found version "2.54.0.windows.1") 
+-- The ASM compiler identification is Clang with GNU-like command-line
+-- Found assembler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe
+-- Setting GGML_NATIVE_DEFAULT to OFF
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Check if compiler accepts -pthread
+-- Check if compiler accepts -pthread - yes
+-- Found Threads: TRUE  
+-- CMAKE_SYSTEM_PROCESSOR: aarch64
+-- GGML_SYSTEM_ARCH: ARM
+-- Including CPU backend
+-- ARM detected
+-- Performing Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E
+-- Performing Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E - Failed
+-- Checking for ARM features using flags:
+--   -march=armv8.2-a+dotprod+i8mm+fp16
+-- Performing Test HAVE_DOTPROD
+-- Performing Test HAVE_DOTPROD - Success
+-- Performing Test HAVE_SVE
+-- Performing Test HAVE_SVE - Failed
+-- Performing Test HAVE_MATMUL_INT8
+-- Performing Test HAVE_MATMUL_INT8 - Success
+-- Performing Test HAVE_FMA
+-- Performing Test HAVE_FMA - Success
+-- Performing Test HAVE_FP16_VECTOR_ARITHMETIC
+-- Performing Test HAVE_FP16_VECTOR_ARITHMETIC - Success
+-- Performing Test HAVE_SME
+-- Performing Test HAVE_SME - Failed
+-- Adding CPU backend variant ggml-cpu: -march=armv8.2-a+dotprod+i8mm+fp16 
+-- Looking for CL_VERSION_2_2
+-- Looking for CL_VERSION_2_2 - found
+-- Found OpenCL: C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/icd-build-android/libOpenCL.so (found version "2.2") 
+-- Found Python3: C:/Users/gualt/AppData/Local/Programs/Python/Python312/python.exe (found version "3.12.10") found components: Interpreter 
+-- OpenCL will use matmul kernels optimized for Adreno
+-- opencl: embedding kernel add
+-- opencl: embedding kernel add_id
+-- opencl: embedding kernel argsort
+-- opencl: embedding kernel tri
+-- opencl: embedding kernel fill
+-- opencl: embedding kernel clamp
+-- opencl: embedding kernel cpy
+-- opencl: embedding kernel cvt
+-- opencl: embedding kernel diag_mask_inf
+-- opencl: embedding kernel diag
+-- opencl: embedding kernel div
+-- opencl: embedding kernel gelu
+-- opencl: embedding kernel get_rows
+-- opencl: embedding kernel glu
+-- opencl: embedding kernel group_norm
+-- opencl: embedding kernel solve_tri
+-- opencl: embedding kernel im2col_f32
+-- opencl: embedding kernel im2col_f16
+-- opencl: embedding kernel mean
+-- opencl: embedding kernel mul_mv_f16_f16
+-- opencl: embedding kernel mul_mv_f16_f32_1row
+-- opencl: embedding kernel mul_mv_f16_f32_l4
+-- opencl: embedding kernel mul_mv_f16_f32
+-- opencl: embedding kernel mul_mv_f32_f32
+-- opencl: embedding kernel mul_mv_q1_0_f32
+-- opencl: embedding kernel mul_mv_q1_0_f32_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32
+-- opencl: embedding kernel mul_mv_q4_0_f32_v
+-- opencl: embedding kernel mul_mv_q4_0_f32_8x_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32_1d_8x_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32_1d_16x_flat
+-- opencl: embedding kernel mul_mv_q4_1_f32
+-- opencl: embedding kernel mul_mv_q4_1_f32_flat
+-- opencl: embedding kernel mul_mv_q4_k_f32
+-- opencl: embedding kernel mul_mv_q4_k_f32_flat
+-- opencl: embedding kernel mul_mv_q5_0_f32
+-- opencl: embedding kernel mul_mv_q5_0_f32_flat
+-- opencl: embedding kernel mul_mv_q5_1_f32
+-- opencl: embedding kernel mul_mv_q5_1_f32_flat
+-- opencl: embedding kernel mul_mv_q5_k_f32
+-- opencl: embedding kernel mul_mv_q5_k_f32_flat
+-- opencl: embedding kernel mul_mv_q6_k_f32
+-- opencl: embedding kernel mul_mv_q6_k_f32_flat
+-- opencl: embedding kernel mul_mv_q8_0_f32
+-- opencl: embedding kernel mul_mv_q8_0_f32_flat
+-- opencl: embedding kernel mul_mv_iq4_nl_f32
+-- opencl: embedding kernel mul_mv_iq4_nl_f32_flat
+-- opencl: embedding kernel mul_mv_mxfp4_f32
+-- opencl: embedding kernel mul_mv_mxfp4_f32_flat
+-- opencl: embedding kernel mul_mv_id_q4_0_f32_8x_flat
+-- opencl: embedding kernel mul_mv_id_q8_0_f32
+-- opencl: embedding kernel mul_mv_id_q8_0_f32_flat
+-- opencl: embedding kernel mul_mv_id_mxfp4_f32
+-- opencl: embedding kernel mul_mv_id_mxfp4_f32_flat
+-- opencl: embedding kernel gemm_moe_q4_0_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_0_f32_ns
+-- opencl: embedding kernel gemm_moe_q4_1_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_1_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_0_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_0_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_1_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_1_f32_ns
+-- opencl: embedding kernel gemm_moe_q4_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_k_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_k_f32_ns
+-- opencl: embedding kernel gemm_moe_q6_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q6_k_f32_ns
+-- opencl: embedding kernel gemm_moe_mxfp4_f32
+-- opencl: embedding kernel gemv_moe_mxfp4_f32
+-- opencl: embedding kernel gemm_moe_mxfp4_f32_ns
+-- opencl: embedding kernel gemv_moe_mxfp4_f32_ns
+-- opencl: embedding kernel moe_reorder_b
+-- opencl: embedding kernel moe_sort_by_expert
+-- opencl: embedding kernel mul_mm_f32_f32_l4_lm
+-- opencl: embedding kernel mul_mm_f16_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q1_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_1_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_1_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q8_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_iq4_nl_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_k_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_k_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q6_k_f32_l4_lm
+-- opencl: embedding kernel gemv_noshuffle_q1_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q1_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_0_f32_spec
+-- opencl: embedding kernel gemm_noshuffle_q4_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_1_f32
+-- opencl: embedding kernel gemm_noshuffle_q4_1_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_1_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_1_f32
+-- opencl: embedding kernel gemv_noshuffle_iq4_nl_f32
+-- opencl: embedding kernel gemm_noshuffle_iq4_nl_f32
+-- opencl: embedding kernel gemv_noshuffle_q8_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q8_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q4_k_f32
+-- opencl: embedding kernel gemv_noshuffle_q6_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q6_k_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_k_f32
+-- opencl: embedding kernel mul
+-- opencl: embedding kernel neg
+-- opencl: embedding kernel norm
+-- opencl: embedding kernel relu
+-- opencl: embedding kernel l2_norm
+-- opencl: embedding kernel rms_norm
+-- opencl: embedding kernel rope
+-- opencl: embedding kernel scale
+-- opencl: embedding kernel set_rows
+-- opencl: embedding kernel sigmoid
+-- opencl: embedding kernel silu
+-- opencl: embedding kernel softmax_4_f32
+-- opencl: embedding kernel softmax_4_f16
+-- opencl: embedding kernel softmax_f32
+-- opencl: embedding kernel softmax_f16
+-- opencl: embedding kernel sqr
+-- opencl: embedding kernel sqrt
+-- opencl: embedding kernel ssm_conv
+-- opencl: embedding kernel gated_delta_net
+-- opencl: embedding kernel sub
+-- opencl: embedding kernel sum_rows
+-- opencl: embedding kernel cumsum
+-- opencl: embedding kernel transpose
+-- opencl: embedding kernel concat
+-- opencl: embedding kernel tsembd
+-- opencl: embedding kernel upscale
+-- opencl: embedding kernel tanh
+-- opencl: embedding kernel exp
+-- opencl: embedding kernel expm1
+-- opencl: embedding kernel softplus
+-- opencl: embedding kernel pad
+-- opencl: embedding kernel repeat
+-- opencl: embedding kernel mul_mat_f16_f32
+-- opencl: embedding kernel mul_mm_f16_f32_kq_kqv
+-- opencl: embedding kernel conv2d
+-- opencl: embedding kernel conv2d_f16_f32
+-- opencl: embedding kernel flash_attn_pre_f16
+-- opencl: embedding kernel flash_attn_f32_f16
+-- opencl: embedding kernel flash_attn_f32_q8_0
+-- opencl: embedding kernel flash_attn_f32_q4_0
+-- opencl: embedding kernel flash_attn_f16
+-- opencl: embedding kernel flash_attn_f32
+-- opencl: embedding kernel gemm_xmem_f16_f32_os8
+-- Including OpenCL backend
+-- ggml version: 0.16.0
+-- ggml commit:  04c5d362a
+-- Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR (missing: OPENSSL_CRYPTO_LIBRARY OPENSSL_INCLUDE_DIR) 
+CMake Warning at third_party/llama.cpp/vendor/cpp-httplib/CMakeLists.txt:152 (message):
+  OpenSSL not found, HTTPS support disabled
+
+
+-- bmoe: expert-ready hook present (I/OΓÇôcompute overlap available)
+-- BigMoeOnEdge: llama.cpp present = ON
+-- Configuring done
+-- Generating done
+-- Build files have been written to: C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-opencl-k4split

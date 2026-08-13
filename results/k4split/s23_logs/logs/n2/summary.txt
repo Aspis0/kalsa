@@ -1,0 +1,10 @@
+n2_CPU_c1000 wall_s=0 rc=1
+n2_A_c1000 wall_s=0 rc=1
+n2_B_c1000 wall_s=1 rc=1
+n2_AUTO_c1000 wall_s=0 rc=1
+N2_SEQ_DONE
+n2_CPU_c1000 wall_s=31 rc=0
+n2_A_c1000 wall_s=51 rc=0
+n2_B_c1000 wall_s=43 rc=0
+n2_AUTO_c1000 wall_s=58 rc=0
+N2_SEQ_DONE

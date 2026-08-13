@@ -1,0 +1,6 @@
+  0x0000000000000001 (NEEDED)       Shared library: [libm.so]
+  0x0000000000000001 (NEEDED)       Shared library: [libdl.so]
+  0x0000000000000001 (NEEDED)       Shared library: [libOpenCL.so]
+  0x0000000000000001 (NEEDED)       Shared library: [libandroid.so]
+  0x0000000000000001 (NEEDED)       Shared library: [libc++_shared.so]
+  0x0000000000000001 (NEEDED)       Shared library: [libc.so]
