@@ -1,0 +1,23 @@
+{
+  "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\LFM2.5-8B-A1B-KEXP.gguf",
+  "n_tensors": 256,
+  "types": {
+    "q5_k": 47,
+    "f32": 123,
+    "q6_k": 20,
+    "q3_k": 22,
+    "q2_k": 44
+  },
+  "n_mismatch": 0,
+  "mismatches": [],
+  "gate_exps": {
+    "q2_k": 22
+  },
+  "up_exps": {
+    "q2_k": 22
+  },
+  "down_exps": {
+    "q3_k": 22
+  },
+  "iq_count": 0
+}

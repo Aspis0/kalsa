@@ -1,0 +1,1 @@
+Aborted by gualt decision 2026-08-13: k2 collapsed in both arms already at en (KEXP en PPL 55.21 vs A0-k2 48.04; A0-k2 macro_bpb 1.48). Remaining es/fr/it/zh not run. PC freed for selfspec.

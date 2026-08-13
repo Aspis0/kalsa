@@ -1,9 +1,3 @@
-# LFM2.5-8B-A1B KEXP tensor_types
-# source dump: results/lfm25_kexp/tensor_dump.txt (official Q4_K_M; names identical on F16)
-# default llama-quantize type: Q5_K
-# KEXP 1c split: routed gate/up -> q2_k ; routed down -> q3_k
-# dense/attn/shortconv mixer kept Q5_K/Q6_K ; norms/router/conv F32
-# tied embeddings: no output.weight in dump; regex kept as 1c lesson
 ^output\.weight$=q5_k
 token_embd.weight=q5_k
 token_embd_norm.weight=f32
