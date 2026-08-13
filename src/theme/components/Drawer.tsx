@@ -10,11 +10,11 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { SquarePen } from "lucide-react-native";
 import { useLocale } from "../../i18n";
 import { useLabTheme } from "../../ui/labTheme";
 import { radius, spacing } from "../tokens";
 import { typography } from "../typography";
+import { BrandIcon } from "../icons/BrandIcon";
 import { GlassPanel2 } from "./GlassPanel2";
 
 const DRAWER_WIDTH = 280;
@@ -48,6 +48,8 @@ type Props = {
   searchValue?: string;
   onSearchChange?: (query: string) => void;
   onNewChat?: () => void;
+  personaLabel?: string;
+  onPersonaPress?: () => void;
 };
 
 // Side drawer that slides from the left. The Modal stays mounted while
@@ -62,6 +64,8 @@ export function Drawer({
   searchValue,
   onSearchChange,
   onNewChat,
+  personaLabel,
+  onPersonaPress,
 }: Props) {
   const { colors } = useLabTheme<any>();
   const { t } = useLocale();
@@ -173,7 +177,7 @@ export function Drawer({
                       backgroundColor: pressed ? colors.panel : "transparent",
                     })}
                   >
-                    <SquarePen size={16} color={colors.accent} />
+                    <BrandIcon name="new-chat" size={22} />
                     <Text style={[typography.bodyMd, { color: colors.ink, fontFamily: typography.bodySm.fontFamily }]}>
                       {t("drawer.newChat")}
                     </Text>
@@ -271,6 +275,51 @@ export function Drawer({
                   ) : null}
                 </Pressable>
               ))}
+              {onPersonaPress ? (
+                <Pressable
+                  onPress={() => {
+                    onPersonaPress();
+                    onClose();
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("drawer.personas")}
+                  style={({ pressed }) => ({
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.md,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 10,
+                    borderRadius: radius.sm,
+                    backgroundColor: pressed ? colors.panel : "transparent",
+                  })}
+                >
+                  <View
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: radius.sm,
+                      backgroundColor: `${colors.accent}1A`,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={[typography.bodyXs, { color: colors.accent }]}>P</Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text
+                      style={[
+                        typography.bodyMd,
+                        { color: colors.ink, fontFamily: typography.bodySm.fontFamily },
+                      ]}
+                    >
+                      {t("drawer.personas")}
+                    </Text>
+                    <Text style={[typography.bodyXs, { color: colors.muted }]} numberOfLines={1}>
+                      {personaLabel || t("drawer.personaNone")}
+                    </Text>
+                  </View>
+                </Pressable>
+              ) : null}
             </View>
           </GlassPanel2>
         </Animated.View>

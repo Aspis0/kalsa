@@ -34,7 +34,6 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
-  Copy,
   Download,
   FileText,
   Globe,
@@ -266,6 +265,11 @@ type Props = {
   ) => Promise<SendStreamResult | void>;
   selectedRun?: AiChatSelectedRun | null;
   prefillText?: string | null;
+  /** Bumps when the same share text is delivered again. */
+  prefillNonce?: number;
+  /** Attach a library document from Android share-in (do not auto-send). */
+  attachLibraryDoc?: { id: string; name: string; nonce: number } | null;
+  onSaveToNotes?: (text: string) => void;
   onClearSelectedRun?: () => void;
   userName?: string | null;
   onOpenMiniapp?: (miniapp: any) => void;
@@ -710,6 +714,9 @@ export function AiChatPage({
   onSendStream,
   selectedRun,
   prefillText,
+  prefillNonce,
+  attachLibraryDoc,
+  onSaveToNotes,
   onClearSelectedRun,
   userName,
   onOpenMiniapp,
@@ -1693,7 +1700,9 @@ export function AiChatPage({
 
   useEffect(() => {
     if (prefillText) setDraft(prefillText);
-  }, [prefillText]);
+  }, [prefillText, prefillNonce]);
+
+
 
   // HIGH-1: targeted update — supports both patch object and function-form updater.
   // ownerGen / ownerRunId: capture at the call site; the functional setMessages
@@ -3245,6 +3254,12 @@ export function AiChatPage({
     [showVoiceNote, t],
   );
 
+  useEffect(() => {
+    const doc = attachLibraryDoc;
+    if (!doc?.id) return;
+    addLibraryDocumentAttachment({ id: doc.id, name: doc.name });
+  }, [addLibraryDocumentAttachment, attachLibraryDoc]);
+
   const importAndAttachDocx = useCallback(
     async (uri: string, name: string) => {
       if (!mountedRef.current) return;
@@ -3518,7 +3533,7 @@ export function AiChatPage({
               opacity: pressed ? 0.6 : 1,
             })}
           >
-            <Download size={18} color={colors.muted} />
+            <BrandIcon name="share" size={28} />
           </Pressable>
 
           {/* Right: new chat */}
@@ -3534,7 +3549,7 @@ export function AiChatPage({
               opacity: pressed ? 0.6 : 1,
             })}
           >
-            <SquarePen size={18} color={colors.muted} />
+            <BrandIcon name="new-chat" size={28} />
           </Pressable>
         </View>
       </View>
@@ -4084,7 +4099,7 @@ export function AiChatPage({
                   {copiedFlash ? t("common.copied") : t("chat.a11yLongPress")}
                 </Text>
                 <AttachSheetRow
-                  icon={<Copy size={18} color={colors.ink} />}
+                  icon={<BrandIcon name="copy" size={22} />}
                   label={copiedFlash ? t("common.copied") : t("common.copy")}
                   onPress={() => {
                     // Keep menu open ~400ms with "Copied!" so feedback is visible.
@@ -4101,6 +4116,17 @@ export function AiChatPage({
                   }}
                   colors={colors}
                 />
+                {onSaveToNotes ? (
+                  <AttachSheetRow
+                    icon={<ClipboardList size={18} color={colors.ink} />}
+                    label={t("notes.saveToNotes")}
+                    onPress={() => {
+                      onSaveToNotes(messageMenu.text);
+                      setMessageMenu(null);
+                    }}
+                    colors={colors}
+                  />
+                ) : null}
                 <AttachSheetRow
                   icon={<Languages size={18} color={colors.ink} />}
                   label={t("translate.title")}
@@ -4770,7 +4796,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
               }}
             >
               <MessageActionChip
-                icon={<Copy size={14} color={colors.muted} />}
+                icon={<BrandIcon name="copy" size={18} />}
                 label={t("common.copy")}
                 onPress={() => onCopyText(m.text)}
                 colors={colors}
@@ -4937,7 +4963,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             }}
           >
             <MessageActionChip
-              icon={<Copy size={14} color={colors.muted} />}
+              icon={<BrandIcon name="copy" size={18} />}
               label={t("common.copy")}
               onPress={() => onCopyText(m.text)}
               colors={colors}
@@ -5366,7 +5392,7 @@ function TranslationBlock({
                 style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4 }}
                 accessibilityLabel={copiedLocal ? t("common.copied") : t("common.copy")}
               >
-                <Copy size={12} color={colors.compute} />
+                <BrandIcon name="copy" size={16} />
                 <Text style={[typography.bodyXs, { color: colors.compute }]}>
                   {copiedLocal ? t("common.copied") : t("common.copy")}
                 </Text>

@@ -41,6 +41,9 @@ export const it: typeof en = {
     untitled: "Senza titolo",
     deleteChat: "Elimina chat",
     deleteChatConfirm: "Eliminare questa conversazione?",
+    notes: "Note",
+    personas: "Persona",
+    personaNone: "Predefinita",
   },
 
   settings: {
@@ -148,6 +151,12 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     openDocuments: "Apri Documenti",
     /** Riga dispositivo sotto la RAM in Modelli: brand + modello. */
     deviceLine: "Dispositivo: {brand} {model}",
+    deviceTools: "Strumenti del dispositivo",
+    deviceToolsHint:
+      "L'assistente può leggere orologio, lingua e batteria, e calcolare espressioni aritmetiche semplici su questo dispositivo.",
+    calendarTools: "Agenda del calendario",
+    calendarToolsHint:
+      "Disattivata di default. Se attiva, l'assistente può leggere titolo, orario e luogo degli eventi — mai partecipanti o note. Non scrive nulla sul calendario.",
   },
 
   documents: {
@@ -463,7 +472,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     a11yExport: "Esporta chat",
     a11yNewChat: "Nuova chat",
     a11yClearRun: "Cancella esecuzione selezionata",
-    a11yLongPress: "Tieni premuto per copiare o tradurre",
+    a11yLongPress: "Tieni premuto per copiare, tradurre o salvare nelle note",
+    saveToNotes: "Salva nelle note",
     lookAtAttachedFile: "Guarda il file allegato.",
     a11yAttach: "Aggiungi allegato",
     a11yRemoveAttachment: "Rimuovi allegato",
@@ -615,6 +625,15 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "Ricerca saltata: la query si limita a ripetere informazioni che l'utente ha fornito su di sé. Rispondi direttamente dalla conversazione invece di cercare.",
     unknownTool: "Tool sconosciuto: {name}",
     toolError: "Errore tool: {message}",
+    calendarDenied:
+      "Accesso al calendario negato. Abilitalo nelle impostazioni di sistema per usare l'agenda.",
+    calendarFailed: "Impossibile leggere il calendario.",
+    deviceCalcInvalid: "Questa non è un'espressione aritmetica valida.",
+    deviceCalcDivZero: "Divisione per zero.",
+    deviceUnavailable: "Strumenti del dispositivo non disponibili.",
+    shareImportFailed: "Impossibile importare il file condiviso.",
+    shareImportTooLarge: "Il file condiviso è troppo grande.",
+    shareImportBusy: "Qualcosa è già in corso. Riprova a condividere tra un momento.",
     source: "Fonte",
     searchKeyMissing: "API key mancante per {provider}. Aggiungila in Impostazioni.",
     searchKeyInvalid: "API key non valida per {provider}. Controlla Impostazioni.",
@@ -810,6 +829,62 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "API key, numeri di carta, email, telefoni, IBAN, codici fiscali o dettagli sanitari. " +
       "Se non c'è nulla da estrarre: {\"add\": [], \"remove\": []}.\n\n" +
       "Conversazione:\nUSER: {user}\nASSISTANT: {assistant}",
+  },
+
+  personas: {
+    title: "Persone",
+    subtitle: "Modelli da copiare, oppure scrivi la tua.",
+    templates: "Modelli",
+    yours: "Le tue",
+    create: "Nuova persona",
+    edit: "Modifica persona",
+    name: "Nome",
+    namePlaceholder: "Nome",
+    instructions: "Istruzioni",
+    instructionsPlaceholder: "Come deve rispondere questa persona?",
+    duplicate: "Duplica",
+    delete: "Elimina persona",
+    deleteConfirm: "Eliminare questa persona?",
+    hide: "Nascondi",
+    show: "Mostra",
+    empty: "Nessuna persona personalizzata.",
+    use: "Usa",
+    clear: "Nessuna persona",
+    active: "Attiva",
+    none: "Assistente predefinito",
+    nameRequired: "Aggiungi un nome e delle istruzioni.",
+    capHint: "Massimo {max} caratteri.",
+    hidden: "Nascosta",
+    assistantName: "Assistente",
+    assistantInstructions:
+      "Sei un assistente generale utile e conciso. Preferisci risposte brevi e chiare. Fai una domanda di chiarimento se la richiesta è ambigua.",
+    coderName: "Programmatore",
+    coderInstructions:
+      "Sei un assistente software attento. Preferisci codice funzionante, indica i compromessi e non inventare API. Usa la lingua dell'utente per le spiegazioni.",
+    translatorName: "Traduttore",
+    translatorInstructions:
+      "Sei un traduttore. Conserva significato e tono. Se la lingua di destinazione non è chiara, chiedi una volta. Non aggiungere commenti se non richiesti.",
+    mentorName: "Mentore",
+    mentorInstructions:
+      "Sei un mentore paziente. Spiega passo passo, verifica la comprensione e proponi un piccolo esercizio successivo quando utile. Non essere condiscendente.",
+  },
+
+  notes: {
+    title: "Note",
+    search: "Cerca nelle note",
+    empty: "Nessuna nota ancora",
+    emptyBody: "Salva un messaggio dalla chat oppure scrivi una nota.",
+    new: "Nuova nota",
+    edit: "Modifica nota",
+    delete: "Elimina nota",
+    deleteConfirm: "Eliminare questa nota?",
+    export: "Esporta nota",
+    untitled: "Senza titolo",
+    saved: "Salvata nelle note",
+    saveToNotes: "Salva nelle note",
+    bodyPlaceholder: "Scrivi una nota…",
+    errorSave: "Impossibile salvare la nota.",
+    errorLoad: "Impossibile aprire la nota.",
   },
 
   operativeBlock: {

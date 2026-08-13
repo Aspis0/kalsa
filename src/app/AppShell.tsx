@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Keyboard, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Keyboard, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { X as LucideX, Globe as LucideGlobe, Settings as LucideSettings, FileText as LucideFileText } from "lucide-react-native";
+import { X as LucideX, Globe as LucideGlobe, Settings as LucideSettings, FileText as LucideFileText, StickyNote as LucideStickyNote } from "lucide-react-native";
 
 import { AiChatPage, type ChatCta, type LocalAttachment } from "../screens/AiChatPage";
 import { HelpScreen } from "../screens/HelpScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { DocumentsScreen } from "../screens/DocumentsScreen";
+import { NotesScreen } from "../screens/NotesScreen";
+import { PersonasScreen, builtinCopyFromT } from "../screens/PersonasScreen";
 import {
   emptyLibraryState,
   loadLibraryState,
@@ -144,6 +146,29 @@ import {
   upsertMeta,
   type ConversationsState,
 } from "../conversations/ConversationsStore";
+import {
+  findPersona,
+  getDefaultPersonasStorage,
+  loadPersonasState,
+  type PersonasPersisted,
+} from "../conversations/PersonasStore";
+import { applyPersonaTail } from "../engine/personaTail";
+import { parseShareUrl } from "./shareIntent";
+import { importSharedPdf, SharedImportError } from "../documents/importSharedDocument";
+import { saveNote } from "../notes/NotesStore";
+import {
+  DEVICE_CALC_TOOL,
+  DEVICE_INFO_TOOL,
+  formatDeviceInfoResult,
+  readDeviceInfo,
+  runDeviceCalc,
+} from "../agent/deviceTools";
+import { CALENDAR_AGENDA_TOOL, runCalendarAgenda } from "../agent/calendarTool";
+import {
+  CALENDAR_TOOLS_KEY,
+  DEVICE_TOOLS_KEY,
+  parseToolToggle,
+} from "../agent/toolToggles";
 import { getEngineOverride, getSpeculativeOverride } from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import {
@@ -217,6 +242,8 @@ type ActiveOverlay =
   | { kind: "settings" }
   | { kind: "help" }
   | { kind: "documents" }
+  | { kind: "notes"; focusId?: string }
+  | { kind: "personas" }
   | { kind: "miniapp"; miniapp: AskAssistantMiniapp }
   | null;
 
@@ -626,6 +653,58 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       return next;
     });
   }, []);
+
+  const [deviceToolsEnabled, setDeviceToolsEnabled] = useState(true);
+  const deviceToolsEnabledRef = useRef(true);
+  deviceToolsEnabledRef.current = deviceToolsEnabled;
+  const [calendarToolsEnabled, setCalendarToolsEnabled] = useState(false);
+  const calendarToolsEnabledRef = useRef(false);
+  calendarToolsEnabledRef.current = calendarToolsEnabled;
+
+  const refreshToolFlags = useCallback(async () => {
+    try {
+      const [deviceRaw, calendarRaw] = await Promise.all([
+        AsyncStorage.getItem(DEVICE_TOOLS_KEY),
+        AsyncStorage.getItem(CALENDAR_TOOLS_KEY),
+      ]);
+      const deviceOn = parseToolToggle(deviceRaw, true);
+      const calendarOn = parseToolToggle(calendarRaw, false);
+      setDeviceToolsEnabled(deviceOn);
+      deviceToolsEnabledRef.current = deviceOn;
+      setCalendarToolsEnabled(calendarOn);
+      calendarToolsEnabledRef.current = calendarOn;
+    } catch {
+      // keep defaults
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshToolFlags();
+  }, [refreshToolFlags]);
+
+  const [personasState, setPersonasState] = useState<PersonasPersisted>({
+    items: [],
+    hiddenBuiltinIds: [],
+  });
+  const [activePersonaId, setActivePersonaId] = useState("");
+  const personasStateRef = useRef(personasState);
+  personasStateRef.current = personasState;
+  const activePersonaIdRef = useRef(activePersonaId);
+  activePersonaIdRef.current = activePersonaId;
+
+  const refreshPersonas = useCallback(async () => {
+    try {
+      const loaded = await loadPersonasState(getDefaultPersonasStorage());
+      setPersonasState(loaded.state);
+      setActivePersonaId(loaded.activeId);
+    } catch {
+      // keep last
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshPersonas();
+  }, [refreshPersonas]);
 
   // Opt-in error telemetry (default OFF). Passive — never blocks anti-OOM.
   useEffect(() => {
@@ -1779,9 +1858,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
     // HIGH-5: omit web tools when the user toggled Web off. document_chat always
     // stays available so library attachments keep working offline.
-    const tools = webToolsEnabled
-      ? [WEB_SEARCH_TOOL, WEB_FETCH_TOOL, DOCUMENT_CHAT_TOOL]
-      : [DOCUMENT_CHAT_TOOL];
+    const tools = [
+      ...(webToolsEnabled ? [WEB_SEARCH_TOOL, WEB_FETCH_TOOL] : []),
+      DOCUMENT_CHAT_TOOL,
+      ...(deviceToolsEnabled ? [DEVICE_INFO_TOOL, DEVICE_CALC_TOOL] : []),
+      ...(calendarToolsEnabled ? [CALENDAR_AGENDA_TOOL] : []),
+    ];
 
     return {
       tools,
@@ -1817,6 +1899,41 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
         if (name === "web_fetch") {
           return fetchExec(name, args, signal);
+        }
+
+        if (
+          !deviceToolsEnabledRef.current &&
+          (name === "device_info" || name === "device_calc")
+        ) {
+          return {
+            text: getStrings(locale).errors.unknownTool.replace("{name}", name),
+          };
+        }
+        if (!calendarToolsEnabledRef.current && name === "calendar_agenda") {
+          return {
+            text: getStrings(locale).errors.unknownTool.replace("{name}", name),
+          };
+        }
+
+        if (name === "device_info") {
+          try {
+            const info = await readDeviceInfo(locale);
+            return formatDeviceInfoResult(info);
+          } catch {
+            return { text: getStrings(locale).errors.deviceUnavailable };
+          }
+        }
+
+        if (name === "device_calc") {
+          const strings = getStrings(locale).errors;
+          return runDeviceCalc(args, strings.deviceCalcInvalid, strings.deviceCalcDivZero);
+        }
+
+        if (name === "calendar_agenda") {
+          return runCalendarAgenda(args, {
+            denied: getStrings(locale).errors.calendarDenied,
+            failed: getStrings(locale).errors.calendarFailed,
+          });
         }
 
         if (name === "document_chat") {
@@ -1858,7 +1975,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         };
       },
     };
-  }, [locale, webToolsEnabled]);
+  }, [calendarToolsEnabled, deviceToolsEnabled, locale, webToolsEnabled]);
 
   // ── Drawer + exclusive overlay (settings | documents | miniapp | null) ──
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -2036,6 +2153,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           Keyboard.dismiss();
           setDrawerOpen(false);
           setActiveOverlay({ kind: "documents" });
+        },
+      },
+      {
+        id: "notes",
+        label: t("notes.title"),
+        Icon: LucideStickyNote,
+        onPress: () => {
+          Keyboard.dismiss();
+          setDrawerOpen(false);
+          setActiveOverlay({ kind: "notes" });
         },
       },
     ],
@@ -2463,6 +2590,106 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
     noticeTimer.current = setTimeout(() => setNotice(null), 4000);
   }, []);
+
+  const [sharePrefill, setSharePrefill] = useState<{ text: string; nonce: number } | null>(null);
+  const [shareAttachDoc, setShareAttachDoc] = useState<{
+    id: string;
+    name: string;
+    nonce: number;
+  } | null>(null);
+  const shareNonceRef = useRef(0);
+  const shareImportingRef = useRef(false);
+  const handledShareUrlsRef = useRef(new Set<string>());
+
+  const applySharePayload = useCallback(
+    async (url: string) => {
+      const payload = parseShareUrl(url);
+      if (!payload) return;
+      setDrawerOpen(false);
+      if (payload.kind === "text") {
+        shareNonceRef.current += 1;
+        setSharePrefill({ text: payload.text, nonce: shareNonceRef.current });
+        return;
+      }
+      const path = (payload.uri.split("?")[0] ?? "").toLowerCase();
+      const looksText = path.endsWith(".txt") || path.endsWith(".md");
+      if (looksText) {
+        try {
+          const text = await FileSystem.readAsStringAsync(payload.uri);
+          if (typeof text === "string" && text.trim()) {
+            shareNonceRef.current += 1;
+            setSharePrefill({ text: text.slice(0, 20_000), nonce: shareNonceRef.current });
+            return;
+          }
+        } catch {
+          showNotice(t("errors.shareImportFailed"));
+          return;
+        }
+      }
+      if (shareImportingRef.current) {
+        showNotice(t("errors.shareImportBusy"));
+        return;
+      }
+      shareImportingRef.current = true;
+      try {
+        const entry = await importSharedPdf(payload.uri);
+        if (!addDocument(entry)) {
+          showNotice(t("errors.shareImportBusy"));
+          return;
+        }
+        shareNonceRef.current += 1;
+        setShareAttachDoc({
+          id: entry.id,
+          name: entry.name,
+          nonce: shareNonceRef.current,
+        });
+      } catch (err) {
+        if (err instanceof SharedImportError) {
+          if (err.code === "too_large") showNotice(t("errors.shareImportTooLarge"));
+          else if (err.code === "busy") showNotice(t("errors.shareImportBusy"));
+          else showNotice(t("errors.shareImportFailed"));
+        } else {
+          showNotice(t("errors.shareImportFailed"));
+        }
+      } finally {
+        shareImportingRef.current = false;
+      }
+    },
+    [addDocument, showNotice, t],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const consume = (url: string | null) => {
+      if (cancelled || !url || handledShareUrlsRef.current.has(url)) return;
+      if (!parseShareUrl(url)) return;
+      handledShareUrlsRef.current.add(url);
+      void applySharePayload(url);
+    };
+    void Linking.getInitialURL()
+      .then((url) => consume(url))
+      .catch(() => undefined);
+    const sub = Linking.addEventListener("url", (event) => consume(event.url));
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
+  }, [applySharePayload]);
+
+  const handleSaveToNotes = useCallback(
+    async (text: string) => {
+      if (!text.trim()) return;
+      try {
+        const note = await saveNote(text);
+        showNotice(t("notes.saved"));
+        return note.id;
+      } catch {
+        showNotice(t("notes.errorSave"));
+        return undefined;
+      }
+    },
+    [showNotice, t],
+  );
 
   useEffect(() => {
     return () => {
@@ -3996,7 +4223,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 }
               }
             }
-            const userMessage: EngineMessage = { role: "user", content: text };
+            const persona = findPersona(
+              personasStateRef.current,
+              activePersonaIdRef.current,
+              builtinCopyFromT(t),
+            );
+            const userMessage: EngineMessage = {
+              role: "user",
+              content: applyPersonaTail(text, persona?.instructions),
+            };
             if (images.length) userMessage.images = images;
             engineMessages.push(userMessage);
 
@@ -4381,7 +4616,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           <AiChatPage
             userName={null}
             selectedRun={null}
-            prefillText={null}
+            prefillText={sharePrefill?.text ?? null}
+            prefillNonce={sharePrefill?.nonce}
+            attachLibraryDoc={shareAttachDoc}
+            onSaveToNotes={(text) => {
+              void handleSaveToNotes(text);
+            }}
             onSendStream={handleSendStream}
             voiceReady={voiceState === "ready"}
             ttsEnabled={ttsEnabled}
@@ -4396,7 +4636,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               setActiveOverlay((prev) =>
                 prev?.kind === "settings" ||
                 prev?.kind === "help" ||
-                prev?.kind === "documents"
+                prev?.kind === "documents" ||
+                prev?.kind === "notes" ||
+                prev?.kind === "personas"
                   ? prev
                   : { kind: "miniapp", miniapp: miniapp as AskAssistantMiniapp },
               );
@@ -4450,6 +4692,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         searchValue={chatSearch}
         onSearchChange={setChatSearch}
         onNewChat={handleNewConversation}
+        personaLabel={
+          findPersona(personasState, activePersonaId, builtinCopyFromT(t))?.name ??
+          t("drawer.personaNone")
+        }
+        onPersonaPress={() => {
+          Keyboard.dismiss();
+          setDrawerOpen(false);
+          setActiveOverlay({ kind: "personas" });
+        }}
       />
 
       {activeOverlay?.kind === "settings" ? (
@@ -4458,6 +4709,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             setActiveOverlay(null);
             // Settings may have edited memory — refresh facts for the next turn.
             void refreshMemoryFacts();
+            void refreshToolFlags();
           }}
           onOpenHelp={() => setActiveOverlay({ kind: "help" })}
           model={{
@@ -4507,6 +4759,25 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           onUpdateDocumentPreview={updateDocumentPreview}
           isDocumentDeleteInFlight={isDocumentDeleteInFlight}
           onBack={() => setActiveOverlay(null)}
+        />
+      ) : null}
+
+      {activeOverlay?.kind === "notes" ? (
+        <NotesScreen
+          key={fontScaleId}
+          focusId={activeOverlay.focusId}
+          onBack={() => setActiveOverlay(null)}
+        />
+      ) : null}
+
+      {activeOverlay?.kind === "personas" ? (
+        <PersonasScreen
+          key={fontScaleId}
+          onBack={() => {
+            setActiveOverlay(null);
+            void refreshPersonas();
+          }}
+          onActiveChange={(id) => setActivePersonaId(id)}
         />
       ) : null}
 

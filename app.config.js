@@ -20,13 +20,39 @@ const config = {
     infoPlist: {
       NSMicrophoneUsageDescription:
         "Kalsa uses the microphone for on-device voice dictation. Audio stays on this device.",
+      NSCalendarsUsageDescription:
+        "Kalsa reads your calendar to answer agenda questions on this device. Events stay on the device.",
+      NSCalendarsFullAccessUsageDescription:
+        "Kalsa reads your calendar to answer agenda questions on this device. Events stay on the device.",
       // Without this, Core Animation stays at 60Hz on iPhone (iPad Pro does not need it).
       CADisableMinimumFrameDurationOnPhone: true,
     },
   },
   android: {
     package: "com.kalsa.app",
-    permissions: ["android.permission.RECORD_AUDIO"],
+    permissions: ["android.permission.RECORD_AUDIO", "android.permission.READ_CALENDAR"],
+    intentFilters: [
+      {
+        action: "android.intent.action.SEND",
+        category: ["android.intent.category.DEFAULT"],
+        data: [{ mimeType: "text/plain" }],
+      },
+      {
+        action: "android.intent.action.SEND",
+        category: ["android.intent.category.DEFAULT"],
+        data: [{ mimeType: "application/pdf" }],
+      },
+      {
+        action: "android.intent.action.SEND_MULTIPLE",
+        category: ["android.intent.category.DEFAULT"],
+        data: [{ mimeType: "text/plain" }],
+      },
+      {
+        action: "android.intent.action.SEND_MULTIPLE",
+        category: ["android.intent.category.DEFAULT"],
+        data: [{ mimeType: "application/pdf" }],
+      },
+    ],
     allowBackup: false,
     usesCleartextTraffic: false,
     adaptiveIcon: {
@@ -41,6 +67,7 @@ const config = {
   plugins: [
     "./plugins/withLintOff",
     "./plugins/withDisplayRefreshRate",
+    "./plugins/withAndroidShareIntent",
     "expo-font",
     "expo-secure-store",
     "expo-sharing",
@@ -82,6 +109,14 @@ const config = {
     // Compiles llama.rn cpp/ by default so patches/llama.rn+*.patch take effect.
     // Opt out with KALSA_LLAMA_FROM_SOURCE=0 (prebuilt jniLibs). See plugin header.
     "./plugins/withLlamaFromSource",
+    [
+      "expo-calendar",
+      {
+        calendarPermission:
+          "Kalsa reads your calendar to answer agenda questions on this device. Events stay on the device.",
+      },
+    ],
+    "./plugins/withCalendarReadOnly",
   ],
 };
 

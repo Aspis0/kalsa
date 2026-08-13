@@ -60,6 +60,11 @@ import { useThermalMonitor } from "../hooks/useThermalMonitor";
 import * as MemoryStore from "../memory/MemoryStore";
 import type { MemoryFact } from "../memory/MemoryStore";
 import { COMPACTION_ENABLED_KEY } from "../context/compactor";
+import {
+  CALENDAR_TOOLS_KEY,
+  DEVICE_TOOLS_KEY,
+  parseToolToggle,
+} from "../agent/toolToggles";
 import { getThinkingMode, setThinkingMode, type ThinkingMode } from "../bench/benchConfig";
 import { GlassPanel2, Header } from "../theme/components";
 import { radius, spacing } from "../theme/tokens";
@@ -186,6 +191,8 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
 
   // ── Local memory (facts) ─────────────────────────────────────────────────
   // OPT-IN: default off until storage says otherwise.
+  const [deviceToolsEnabled, setDeviceToolsEnabled] = useState(true);
+  const [calendarToolsEnabled, setCalendarToolsEnabled] = useState(false);
   const [memoryEnabled, setMemoryEnabled] = useState(false);
   const [memoryFacts, setMemoryFacts] = useState<MemoryFact[]>([]);
   const [memoryDraft, setMemoryDraft] = useState("");
@@ -350,6 +357,39 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    void Promise.all([
+      AsyncStorage.getItem(DEVICE_TOOLS_KEY),
+      AsyncStorage.getItem(CALENDAR_TOOLS_KEY),
+    ])
+      .then(([deviceRaw, calendarRaw]) => {
+        if (!mounted) return;
+        setDeviceToolsEnabled(parseToolToggle(deviceRaw, true));
+        setCalendarToolsEnabled(parseToolToggle(calendarRaw, false));
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleToggleDeviceTools = useCallback((next: boolean) => {
+    const previous = deviceToolsEnabled;
+    setDeviceToolsEnabled(next);
+    void AsyncStorage.setItem(DEVICE_TOOLS_KEY, next ? "1" : "0").catch(() => {
+      if (mountedRef.current) setDeviceToolsEnabled(previous);
+    });
+  }, [deviceToolsEnabled]);
+
+  const handleToggleCalendarTools = useCallback((next: boolean) => {
+    const previous = calendarToolsEnabled;
+    setCalendarToolsEnabled(next);
+    void AsyncStorage.setItem(CALENDAR_TOOLS_KEY, next ? "1" : "0").catch(() => {
+      if (mountedRef.current) setCalendarToolsEnabled(previous);
+    });
+  }, [calendarToolsEnabled]);
 
   const handleToggleCompaction = useCallback(
     (next: boolean) => {
@@ -1224,6 +1264,62 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               {memoryNotice}
             </Text>
           ) : null}
+        </GlassPanel2>
+
+        {/* ── On-device tools ──────────────────────────────────────────── */}
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+            {t("common.tools")}
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.bodySm, { color: colors.ink }]}>
+                {t("settings.deviceTools")}
+              </Text>
+              <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 4 }]}>
+                {t("settings.deviceToolsHint")}
+              </Text>
+            </View>
+            <Switch
+              value={deviceToolsEnabled}
+              onValueChange={handleToggleDeviceTools}
+              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+              thumbColor={deviceToolsEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("settings.deviceTools")}
+            />
+          </View>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+              marginTop: spacing.sm,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.bodySm, { color: colors.ink }]}>
+                {t("settings.calendarTools")}
+              </Text>
+              <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 4 }]}>
+                {t("settings.calendarToolsHint")}
+              </Text>
+            </View>
+            <Switch
+              value={calendarToolsEnabled}
+              onValueChange={handleToggleCalendarTools}
+              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+              thumbColor={calendarToolsEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("settings.calendarTools")}
+            />
+          </View>
         </GlassPanel2>
 
         {/* ── Web search ───────────────────────────────────────────────── */}
