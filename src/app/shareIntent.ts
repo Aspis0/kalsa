@@ -4,6 +4,22 @@
  */
 
 export const SHARE_TEXT_CAP = 20_000;
+/** Cap for reading a shared .txt/.md file before `readAsStringAsync`. */
+export const SHARE_TEXT_FILE_MAX_BYTES = 256 * 1024;
+
+/** Merge a share payload into an existing composer draft. Cap 20k. */
+export function mergeSharePrefill(
+  existing: string,
+  incoming: string,
+  cap: number = SHARE_TEXT_CAP,
+): string {
+  const shared = typeof incoming === "string" ? incoming.slice(0, cap) : "";
+  const prev = typeof existing === "string" ? existing : "";
+  if (!prev.trim()) return shared;
+  if (!shared) return prev.slice(0, cap);
+  const merged = `${prev.replace(/\s+$/, "")}\n\n${shared}`;
+  return merged.slice(0, cap);
+}
 
 export type ShareInPayload =
   | { kind: "text"; text: string }

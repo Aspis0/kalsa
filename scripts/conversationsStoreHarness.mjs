@@ -173,6 +173,8 @@ async function main() {
     migrateLegacyIfNeeded,
     loadConversationsState,
     conversationHasPersistedMessages,
+    createEmptyConversationMeta,
+    persistedMessagesAreNonEmpty,
     INDEX_KEY,
     LEGACY_MESSAGES_KEY,
     MIGRATED_KEY,
@@ -518,6 +520,43 @@ async function main() {
     check(
       "conversationHasPersistedMessages non-empty",
       (await conversationHasPersistedMessages(storage, "c1")) === true,
+    );
+    check("peek empty array", persistedMessagesAreNonEmpty("[]") === false);
+    check("peek null token", persistedMessagesAreNonEmpty("null") === false);
+    check("peek missing", persistedMessagesAreNonEmpty(null) === false);
+    check(
+      "peek huge payload without parse",
+      persistedMessagesAreNonEmpty(`[{"role":"user","text":"${"x".repeat(200_000)}"}]`) === true,
+    );
+    const emptyMeta = createEmptyConversationMeta(1);
+    check("empty meta hasMessages false", emptyMeta.hasMessages === false);
+    const withFlag = parseConversationsState(
+      serializeConversationsState({
+        activeId: "conv-1",
+        items: [sampleMeta({ hasMessages: false })],
+      }),
+    );
+    check(
+      "hasMessages survives serialize/parse",
+      withFlag.items[0]?.hasMessages === false,
+    );
+    const legacyIndex = parseConversationsState(
+      JSON.stringify({
+        activeId: "conv-1",
+        items: [
+          {
+            id: "conv-1",
+            title: "Hello world",
+            updatedAt: 1,
+            preview: "last line",
+            searchBlob: "hello",
+          },
+        ],
+      }),
+    );
+    check(
+      "legacy index hasMessages omitted",
+      legacyIndex.items[0]?.hasMessages === undefined,
     );
   }
 

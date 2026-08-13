@@ -623,11 +623,14 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     emptySearchQuery: "Query di ricerca vuota.",
     webSearchPrivacyBlocked:
       "Ricerca saltata: la query si limita a ripetere informazioni che l'utente ha fornito su di sé. Rispondi direttamente dalla conversazione invece di cercare.",
+    searchSkippedPrivate:
+      "Ricerca saltata: questo turno ha già usato dati privati sul dispositivo. Rispondi dal risultato del calendario o del dispositivo invece di cercare.",
     unknownTool: "Tool sconosciuto: {name}",
     toolError: "Errore tool: {message}",
     calendarDenied:
       "Accesso al calendario negato. Abilitalo nelle impostazioni di sistema per usare l'agenda.",
     calendarFailed: "Impossibile leggere il calendario.",
+    calendarUnavailable: "Il calendario non è disponibile in questa build.",
     deviceCalcInvalid: "Questa non è un'espressione aritmetica valida.",
     deviceCalcDivZero: "Divisione per zero.",
     deviceUnavailable: "Strumenti del dispositivo non disponibili.",

@@ -84,6 +84,7 @@ import {
   previewFromMessages,
   searchBlobFromMessages,
 } from "../conversations/ConversationsStore";
+import { mergeSharePrefill } from "../app/shareIntent";
 import { createStreamCoalescer } from "../engine/streamCoalescer";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
@@ -1699,7 +1700,8 @@ export function AiChatPage({
   }, [messages, translationResult]);
 
   useEffect(() => {
-    if (prefillText) setDraft(prefillText);
+    if (!prefillText) return;
+    setDraft((prev) => mergeSharePrefill(prev, prefillText));
   }, [prefillText, prefillNonce]);
 
 

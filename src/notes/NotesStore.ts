@@ -187,6 +187,18 @@ async function writeIndex(fs: NotesFs, items: NoteMeta[]): Promise<void> {
   await fs.writeAsStringAsync(notesIndexPath(fs.documentDirectory as string), serializeNotesIndex(items));
 }
 
+/** Serialize index RMW so concurrent saveNote/deleteNote cannot clobber. */
+let notesWriteChain: Promise<void> = Promise.resolve();
+
+function enqueueNotesWrite<T>(run: () => Promise<T>): Promise<T> {
+  const next = notesWriteChain.then(run, run);
+  notesWriteChain = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+}
+
 export async function readNote(id: string): Promise<Note | null> {
   const fs = getFs();
   let safe: string;
@@ -215,30 +227,34 @@ export async function readNote(id: string): Promise<Note | null> {
 }
 
 export async function saveNote(body: string, id?: string, nowMs: number = Date.now()): Promise<Note> {
-  const fs = getFs();
-  await ensureNotesDir(fs);
-  const safe = id ? sanitizeNoteId(id) : nextNoteId();
-  const cleaned = sanitizeNoteBody(body);
-  const title = titleFromNoteBody(cleaned);
-  const searchBlob = searchBlobFromNoteBody(cleaned);
-  const updatedAt =
-    typeof nowMs === "number" && Number.isFinite(nowMs) ? Math.floor(nowMs) : Date.now();
-  await fs.writeAsStringAsync(notePath(fs.documentDirectory as string, safe), cleaned);
-  const index = (await loadNotesIndex()).filter((item) => item.id !== safe);
-  index.push({ id: safe, title, updatedAt, searchBlob });
-  await writeIndex(fs, index);
-  return { id: safe, title, updatedAt, body: cleaned };
+  return enqueueNotesWrite(async () => {
+    const fs = getFs();
+    await ensureNotesDir(fs);
+    const safe = id ? sanitizeNoteId(id) : nextNoteId();
+    const cleaned = sanitizeNoteBody(body);
+    const title = titleFromNoteBody(cleaned);
+    const searchBlob = searchBlobFromNoteBody(cleaned);
+    const updatedAt =
+      typeof nowMs === "number" && Number.isFinite(nowMs) ? Math.floor(nowMs) : Date.now();
+    await fs.writeAsStringAsync(notePath(fs.documentDirectory as string, safe), cleaned);
+    const index = (await loadNotesIndex()).filter((item) => item.id !== safe);
+    index.push({ id: safe, title, updatedAt, searchBlob });
+    await writeIndex(fs, index);
+    return { id: safe, title, updatedAt, body: cleaned };
+  });
 }
 
 export async function deleteNote(id: string): Promise<void> {
-  const fs = getFs();
-  const safe = sanitizeNoteId(id);
-  await ensureNotesDir(fs);
-  try {
-    await fs.deleteAsync(notePath(fs.documentDirectory as string, safe), { idempotent: true });
-  } catch {
-    /* missing file */
-  }
-  const index = (await loadNotesIndex()).filter((item) => item.id !== safe);
-  await writeIndex(fs, index);
+  return enqueueNotesWrite(async () => {
+    const fs = getFs();
+    const safe = sanitizeNoteId(id);
+    await ensureNotesDir(fs);
+    try {
+      await fs.deleteAsync(notePath(fs.documentDirectory as string, safe), { idempotent: true });
+    } catch {
+      /* missing file */
+    }
+    const index = (await loadNotesIndex()).filter((item) => item.id !== safe);
+    await writeIndex(fs, index);
+  });
 }

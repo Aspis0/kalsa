@@ -153,7 +153,7 @@ import {
   type PersonasPersisted,
 } from "../conversations/PersonasStore";
 import { applyPersonaTail } from "../engine/personaTail";
-import { parseShareUrl } from "./shareIntent";
+import { parseShareUrl, SHARE_TEXT_CAP, SHARE_TEXT_FILE_MAX_BYTES } from "./shareIntent";
 import { importSharedPdf, SharedImportError } from "../documents/importSharedDocument";
 import { saveNote } from "../notes/NotesStore";
 import {
@@ -432,6 +432,10 @@ let summaryAbortController: AbortController | null = null;
  * same text; identical consecutive messages must get a fresh allowlist.
  */
 let fetchAllowlistTurnSeq = 0;
+/** Turn seq that already ran calendar_agenda or device_info — refuse web_search. */
+let privateSearchLatchSeq = -1;
+/** Turn seq that ran calendar_agenda — skip extractMemory for that turn. */
+let calendarExtractSkipSeq = -1;
 /** Debounce timer: schedule summary only after idle (8s post-turn). */
 let summaryDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const SUMMARY_IDLE_DEBOUNCE_MS = 8_000;
@@ -789,6 +793,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const conversationsMutationRef = useRef(0);
   const pendingConversationSaveRef = useRef<Promise<void>>(Promise.resolve());
   const newChatInFlightRef = useRef(false);
+  /** Raw user text for this turn (pre persona tail). Tools must not see the tail. */
+  const lastUserRawRef = useRef("");
 
   const enqueueConversationSave = useCallback((state: ConversationsState) => {
     const run = async () => {
@@ -1868,7 +1874,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     return {
       tools,
       executeTool: async (name, args, signal, lastUserMessage) => {
-        ensureAllowlistForTurn(lastUserMessage);
+        // Persona / format-B tails are prompt-only. Prefer the raw user text
+        // captured at send (lastUserRawRef) over the engine message content.
+        const rawUserText =
+          typeof lastUserRawRef.current === "string"
+            ? lastUserRawRef.current
+            : (lastUserMessage ?? "");
+        ensureAllowlistForTurn(rawUserText);
 
         // Defense in depth: even if a stale completion still holds the tool
         // schema, refuse web tools when the toggle is off.
@@ -1885,7 +1897,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
 
         if (name === "web_search") {
-          const outcome = await searchExec(name, args, signal, lastUserMessage);
+          if (privateSearchLatchSeq === fetchAllowlistTurnSeq) {
+            return { text: getStrings(locale).errors.searchSkippedPrivate };
+          }
+          const outcome = await searchExec(name, args, signal, rawUserText);
           const sources = outcome.sources as Array<{ url?: string }> | undefined;
           if (sources?.length) {
             for (const source of sources) {
@@ -1916,6 +1931,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
 
         if (name === "device_info") {
+          privateSearchLatchSeq = fetchAllowlistTurnSeq;
           try {
             const info = await readDeviceInfo(locale);
             return formatDeviceInfoResult(info);
@@ -1930,9 +1946,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
 
         if (name === "calendar_agenda") {
+          privateSearchLatchSeq = fetchAllowlistTurnSeq;
+          calendarExtractSkipSeq = fetchAllowlistTurnSeq;
           return runCalendarAgenda(args, {
             denied: getStrings(locale).errors.calendarDenied,
             failed: getStrings(locale).errors.calendarFailed,
+            unavailable: getStrings(locale).errors.calendarUnavailable,
           });
         }
 
@@ -2017,13 +2036,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         const currentId = conversationsRef.current.activeId;
         for (const item of conversationsRef.current.items) {
           if (item.id === currentId) continue;
-          let hasMessages = false;
-          try {
-            hasMessages = await conversationHasPersistedMessages(storage, item.id);
-          } catch {
-            hasMessages = false;
+          let occupied = item.hasMessages;
+          if (occupied !== true && occupied !== false) {
+            try {
+              occupied = await conversationHasPersistedMessages(storage, item.id);
+            } catch {
+              occupied = false;
+            }
           }
-          if (!hasMessages) {
+          if (!occupied) {
             handleSwitchConversation(item.id);
             return;
           }
@@ -2050,8 +2071,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       const prev = conversationsRef.current;
       if (!prev.items.some((item) => item.id === id)) return;
       const deletingActive = prev.activeId === id;
-      abortBackgroundSummary();
-      bumpPersistEpochRef.current?.();
       void resetCompactorChat(id);
       let next = removeConversation(prev, id);
       if (next.items.length === 0) {
@@ -2065,10 +2084,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         // ignore illegal id
       }
       if (deletingActive) {
+        abortBackgroundSummary();
+        bumpPersistEpochRef.current?.();
         const modelId = getActiveModelId();
         if (modelId) void invalidateEngineSession(modelId);
+        bindActiveConversation(next.activeId);
       }
-      bindActiveConversation(next.activeId);
       setDrawerOpen(false);
     },
     [applyConversations, bindActiveConversation],
@@ -2100,6 +2121,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           updatedAt: Date.now(),
           preview: meta.preview,
           searchBlob: meta.searchBlob,
+          hasMessages: true,
         }),
       );
     },
@@ -2615,10 +2637,24 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       const looksText = path.endsWith(".txt") || path.endsWith(".md");
       if (looksText) {
         try {
+          const info = await FileSystem.getInfoAsync(payload.uri);
+          const size = (info as { exists?: boolean; isDirectory?: boolean; size?: number });
+          if (!info.exists || size.isDirectory) {
+            showNotice(t("errors.shareImportFailed"));
+            return;
+          }
+          if (typeof size.size !== "number" || !Number.isFinite(size.size) || size.size < 0) {
+            showNotice(t("errors.shareImportFailed"));
+            return;
+          }
+          if (size.size > SHARE_TEXT_FILE_MAX_BYTES) {
+            showNotice(t("errors.shareImportTooLarge"));
+            return;
+          }
           const text = await FileSystem.readAsStringAsync(payload.uri);
           if (typeof text === "string" && text.trim()) {
             shareNonceRef.current += 1;
-            setSharePrefill({ text: text.slice(0, 20_000), nonce: shareNonceRef.current });
+            setSharePrefill({ text: text.slice(0, SHARE_TEXT_CAP), nonce: shareNonceRef.current });
             return;
           }
         } catch {
@@ -3887,6 +3923,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
         streamInFlightRef.current = true;
         setStreaming(true);
+        lastUserRawRef.current = typeof text === "string" ? text : "";
         // Fresh web_fetch allowlist for every send (F5), even if text matches the previous turn.
         fetchAllowlistTurnSeq += 1;
 
@@ -3913,6 +3950,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             if (extractScheduled) return;
             extractScheduled = true;
             if (signal.aborted || turnFailed || !assistantFull.trim()) return;
+            if (calendarExtractSkipSeq === fetchAllowlistTurnSeq) return;
 
             const capturedAssistant = assistantFull;
             const capturedUser = text;
@@ -4354,6 +4392,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 locale,
                 memoryFacts: promptFacts,
                 operativeContext,
+                lastUserMessage: text,
               },
             );
             // Safety: if the stream returns without onDone/onError (e.g. abort path).

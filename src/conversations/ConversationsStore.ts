@@ -26,6 +26,8 @@ export type ConversationMeta = {
   updatedAt: number;
   preview: string;
   searchBlob: string;
+  /** True when this chat has at least one persisted message. Optional on old indexes. */
+  hasMessages?: boolean;
 };
 
 export type ConversationsState = {
@@ -162,6 +164,7 @@ export function createEmptyConversationMeta(
       typeof nowMs === "number" && Number.isFinite(nowMs) ? Math.floor(nowMs) : Date.now(),
     preview: "",
     searchBlob: "",
+    hasMessages: false,
   };
 }
 
@@ -286,15 +289,15 @@ export function legacyMessagesAreValid(raw: string | null | undefined): boolean 
   }
 }
 
-/** True when the persisted messages value is a non-empty array. */
+/**
+ * True when the persisted messages payload looks non-empty.
+ * Peeks length / trivial tokens only — never JSON.parse (new-chat empty-scan).
+ */
 export function persistedMessagesAreNonEmpty(raw: string | null | undefined): boolean {
   if (!raw || typeof raw !== "string") return false;
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) && parsed.length > 0;
-  } catch {
-    return false;
-  }
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === "[]" || trimmed === "null") return false;
+  return trimmed.length > 2;
 }
 
 export async function conversationHasPersistedMessages(
@@ -380,6 +383,7 @@ export async function migrateLegacyIfNeeded(
     updatedAt: Date.now(),
     preview: previewFromMessages(messages),
     searchBlob: searchBlobFromMessages(messages),
+    hasMessages: messages.length > 0,
   };
   const state: ConversationsState = { activeId: id, items: [meta] };
   await storage.setItem(INDEX_KEY, serializeConversationsState(state));
@@ -434,6 +438,7 @@ function sanitizeMeta(meta: ConversationMeta): ConversationMeta {
         : Date.now(),
     preview: typeof meta.preview === "string" ? meta.preview : "",
     searchBlob: typeof meta.searchBlob === "string" ? meta.searchBlob : "",
+    ...(typeof meta.hasMessages === "boolean" ? { hasMessages: meta.hasMessages } : {}),
   };
 }
 
@@ -449,6 +454,7 @@ function tryParseMeta(item: unknown): ConversationMeta | null {
       updatedAt: typeof o.updatedAt === "number" ? o.updatedAt : Date.now(),
       preview: typeof o.preview === "string" ? o.preview : "",
       searchBlob: typeof o.searchBlob === "string" ? o.searchBlob : "",
+      hasMessages: typeof o.hasMessages === "boolean" ? o.hasMessages : undefined,
     });
   } catch {
     return null;

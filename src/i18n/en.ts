@@ -626,10 +626,13 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     emptySearchQuery: "Empty search query.",
     webSearchPrivacyBlocked:
       "Search skipped: the query only restates information the user provided about themselves. Answer directly from the conversation instead of searching.",
+    searchSkippedPrivate:
+      "Search skipped: this turn already used private on-device data. Answer from the calendar or device result instead of searching.",
     unknownTool: "Unknown tool: {name}",
     toolError: "Tool error: {message}",
     calendarDenied: "Calendar access was denied. Enable it in system settings to use the agenda.",
     calendarFailed: "Could not read the calendar.",
+    calendarUnavailable: "Calendar is unavailable on this build.",
     deviceCalcInvalid: "That is not a valid arithmetic expression.",
     deviceCalcDivZero: "Division by zero.",
     deviceUnavailable: "Device tools are unavailable.",

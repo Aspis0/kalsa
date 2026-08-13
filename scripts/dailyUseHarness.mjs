@@ -25,6 +25,7 @@ function compile() {
       "src/notes/NotesStore.ts",
       "src/agent/deviceCalc.ts",
       "src/app/shareIntent.ts",
+      "src/agent/calendarAgenda.ts",
       "src/conversations/PersonasStore.ts",
       "src/conversations/ConversationsStore.ts",
       "--outDir",
@@ -88,7 +89,9 @@ async function main() {
   const { applyPersonaTail, sanitizePersonaInstructions, PERSONA_INSTRUCTIONS_CAP } = persona;
   const { filterNotes, parseNotesIndex, serializeNotesIndex, titleFromNoteBody } = notes;
   const { evaluateCalc } = calc;
-  const { parseShareUrl, normalizeShareFileUri } = share;
+  const { parseShareUrl, normalizeShareFileUri, mergeSharePrefill, SHARE_TEXT_CAP } = share;
+  const calendar = await import(pathToFileURL(resolveBuilt(["agent", "calendarAgenda.js"])).href);
+  const { resolveAgendaRange, mapCalendarEvents, AGENDA_MAX_DAYS, AGENDA_MAX_EVENTS } = calendar;
   const { parsePersonasPersisted, upsertUserPersona, removeUserPersona, findPersona, emptyPersonasPersisted } =
     personas;
 
@@ -175,6 +178,31 @@ async function main() {
   check("share empty", parseShareUrl("kalsa://share") === null);
   check("normalize bare path", normalizeShareFileUri("/tmp/a.pdf") === "file:///tmp/a.pdf");
   check("normalize file uri", normalizeShareFileUri("file:///tmp/a.pdf") === "file:///tmp/a.pdf");
+  check("share merge empty draft", mergeSharePrefill("", "hello") === "hello");
+  check("share merge append", mergeSharePrefill("draft", "shared") === "draft\n\nshared");
+  check(
+    "share merge cap",
+    mergeSharePrefill("x".repeat(SHARE_TEXT_CAP - 4), "yyyyyyyy").length === SHARE_TEXT_CAP,
+  );
+
+  // ── calendar clamp ──────────────────────────────────────────────────────
+  const from = new Date("2026-01-01T00:00:00.000Z");
+  const far = resolveAgendaRange(
+    { fromISO: from.toISOString(), toISO: "2026-03-01T00:00:00.000Z" },
+    from,
+  );
+  check(
+    "agenda range clamp 14 days",
+    far.to.getTime() - far.from.getTime() === AGENDA_MAX_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const many = Array.from({ length: AGENDA_MAX_EVENTS + 10 }, (_, i) => ({
+    title: `e${i}`,
+    startDate: "2026-01-01T00:00:00.000Z",
+    endDate: "2026-01-01T01:00:00.000Z",
+    allDay: false,
+    location: "x",
+  }));
+  check("agenda event cap 50", mapCalendarEvents(many).length === AGENDA_MAX_EVENTS);
 
   console.log(`\n${pass} passed, ${fail} failed`);
   if (fail > 0) process.exit(1);

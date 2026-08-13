@@ -1499,6 +1499,11 @@ export type StreamTurnOptions = EngineTurnOptions & {
    * byte-identical to the legacy path.
    */
   operativeContext?: OperativeBlockContext | null;
+  /**
+   * Raw current-user text (pre persona tail / format-B frames). Prompt-only
+   * tails must not reach executeTool, auto document_chat, or privacy guards.
+   */
+  lastUserMessage?: string;
 };
 
 export async function streamAssistantTurn(
@@ -1586,7 +1591,11 @@ export async function streamAssistantTurn(
     const userIndex = messages.length - 1;
     // Current user turn's plain text — fed to executeTool (e.g. web_search
     // privacy guard) alongside the model-chosen query; never logged here.
-    const lastUserMessageText = messages[userIndex]?.content ?? "";
+    // Prefer the caller-supplied raw text so persona/format-B tails stay prompt-only.
+    const lastUserMessageText =
+      typeof options.lastUserMessage === "string"
+        ? options.lastUserMessage
+        : (messages[userIndex]?.content ?? "");
     const historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) =>
       index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
     );

@@ -126,7 +126,7 @@ const KOTLIN_HELPERS = `
         dest.outputStream().use { output ->
           val buf = ByteArray(64 * 1024)
           var total = 0L
-          val max = 50L * 1024L * 1024L
+          val max = 5L * 1024L * 1024L
           while (true) {
             val n = input.read(buf)
             if (n <= 0) break
