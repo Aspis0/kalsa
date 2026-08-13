@@ -15,6 +15,7 @@ export type SummaryEvent =
   | "skip-aborted"
   | "skip-no-corpus"
   | "skip-cadence"
+  | "cadence-unreachable-size-trigger"
   | "skip-empty-transcript"
   | "debounce-armed"
   | "debounce-busy"

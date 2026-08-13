@@ -128,6 +128,7 @@ import { formatDigestLine } from "../engine/digestTelemetry";
 import {
   getBenchNCtx,
   getBenchWindowBudget,
+  getBenchLegacyWindow,
   getEngineOverride,
   getSpeculativeOverride,
 } from "../bench/benchConfig";
@@ -3607,6 +3608,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             let operativeContext: { digest?: string; summary?: string } | null = null;
             let olderForSummary: HistoryRoleMessage[] = [];
             let boundaryForAssemble = 0;
+            // Bench-only: shrink the legacy sliding window so eviction
+            // pressure increases on BOTH arms of the primary comparison
+            // (ciswire vs off). Absent in production → null → production
+            // constants (LEGACY_MAX_HISTORY / LEGACY_MAX_HISTORY_IMAGES).
+            // Declared outside the retrievalOn block so it's available
+            // both inside (for ciswire corpus boundary) and outside
+            // (for off-arm assembly).
+            const legacyWindowOverride = await getBenchLegacyWindow();
 
             if (retrievalOn) {
               const userTurnCount = countUserTurns(validatedHistory, true);
@@ -3716,7 +3725,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               // - ciswire: everything outside the legacy sliding window
               const corpusBoundary =
                 contextMode === "ciswire"
-                  ? legacyWindowStartIndex(validatedHistory.length, hasImages)
+                  ? legacyWindowStartIndex(validatedHistory.length, hasImages, legacyWindowOverride)
                   : boundaryForAssemble;
 
               // Older corpus for summary scheduling + warm-index sync.
@@ -3781,6 +3790,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               compactionEnabled: contextMode === "v42",
               hasImages,
               boundaryIndex: boundaryForAssemble,
+              legacyWindowOverride,
             });
             const engineMessages: EngineMessage[] = assembled.map((m) => ({
               role: m.role,
@@ -3850,6 +3860,20 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 st && typeof st.builtAtUserTurn === "number" && st.builtAtUserTurn >= 0
                   ? countUserTurns(validatedHistory, true) - st.builtAtUserTurn
                   : 0;
+
+              // Emit telemetry when cadence arm is unreachable (size-trigger rebuild just happened).
+              // This makes visible in the report when winbudget causes every-turn rebuilds,
+              // preventing the rolling summary from ever scheduling.
+              if (turnsSinceRebuild === 0 && st && st.builtAtUserTurn >= 0) {
+                console.log(
+                  formatSummaryLine("cadence-unreachable-size-trigger", {
+                    turn,
+                    turnsSinceRebuild,
+                    k: K,
+                  }),
+                );
+              }
+
               if (turnsSinceRebuild !== K - 1) {
                 console.log(
                   formatSummaryLine("skip-cadence", {

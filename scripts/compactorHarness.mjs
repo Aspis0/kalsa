@@ -449,6 +449,74 @@ async function main() {
     parseBenchWindowBudget("500") === 500 &&
       parseBenchWindowBudget(" 2000 ") === 2000,
   );
+
+  // (4e) Bench-only legacy-window override — the knob that decides what falls
+  // out of context on BOTH arms of the primary comparison (ciswire vs off).
+  const parseBenchLegacyWindow = mod.parseBenchLegacyWindow;
+  const BENCH_LEGACY_WINDOW_FLOOR = mod.BENCH_LEGACY_WINDOW_FLOOR;
+  const legacyWindowStartIndex = mod.legacyWindowStartIndex;
+  
+  if (typeof parseBenchLegacyWindow !== "function") {
+    console.error("parseBenchLegacyWindow not exported");
+    process.exit(1);
+  }
+  if (typeof legacyWindowStartIndex !== "function") {
+    console.error("legacyWindowStartIndex not exported");
+    process.exit(1);
+  }
+  if (typeof BENCH_LEGACY_WINDOW_FLOOR !== "number") {
+    console.error("BENCH_LEGACY_WINDOW_FLOOR not exported");
+    process.exit(1);
+  }
+
+  record(
+    "(4e) parseBenchLegacyWindow rejects absent / malformed / sub-floor",
+    parseBenchLegacyWindow(null) === null &&
+      parseBenchLegacyWindow("") === null &&
+      parseBenchLegacyWindow("   ") === null &&
+      parseBenchLegacyWindow("abc") === null &&
+      parseBenchLegacyWindow("3.5") === null &&
+      parseBenchLegacyWindow("0") === null &&
+      parseBenchLegacyWindow("3") === null,
+  );
+  record(
+    "(4e) parseBenchLegacyWindow accepts the floor and above",
+    parseBenchLegacyWindow("4") === 4 &&
+      parseBenchLegacyWindow("10") === 10 &&
+      parseBenchLegacyWindow(" 12 ") === 12,
+  );
+
+  // legacyWindowStartIndex: override absent → identical to production constants.
+  // This is the safety net: the override must be invisible in production.
+  const prodNoImg = legacyWindowStartIndex(30, false);
+  const prodImg = legacyWindowStartIndex(30, true);
+  record(
+    "(4e) legacyWindowStartIndex override absent → production constants",
+    prodNoImg === Math.max(0, 30 - LEGACY_MAX_HISTORY) &&
+      prodImg === Math.max(0, 30 - LEGACY_MAX_HISTORY_IMAGES),
+    `noImg=${prodNoImg} (expect ${30 - LEGACY_MAX_HISTORY}), img=${prodImg} (expect ${30 - LEGACY_MAX_HISTORY_IMAGES})`,
+  );
+  record(
+    "(4e) legacyWindowStartIndex override null → production constants",
+    legacyWindowStartIndex(30, false, null) === prodNoImg &&
+      legacyWindowStartIndex(30, true, null) === prodImg,
+  );
+  record(
+    "(4e) legacyWindowStartIndex override below floor → production constants",
+    legacyWindowStartIndex(30, false, 3) === prodNoImg &&
+      legacyWindowStartIndex(30, true, 0) === prodImg,
+  );
+  record(
+    "(4e) legacyWindowStartIndex override present → uses override",
+    legacyWindowStartIndex(30, false, 10) === 20 &&
+      legacyWindowStartIndex(30, true, 10) === 20 &&
+      legacyWindowStartIndex(30, false, 4) === 26,
+  );
+  record(
+    "(4e) legacyWindowStartIndex override at floor",
+    legacyWindowStartIndex(30, false, BENCH_LEGACY_WINDOW_FLOOR) ===
+      Math.max(0, 30 - BENCH_LEGACY_WINDOW_FLOOR),
+  );
   // The override must change the size trigger: a window that is under the
   // default budget but over the override has to force a rebuild.
   const budgetProbe = [{ text: "x".repeat(3000) }];

@@ -37,6 +37,11 @@ on:
         required: false
         default: ""
         type: string
+      legacywindow:
+        description: "Bench-only legacy-window override (empty = LEGACY_MAX_HISTORY). Controls what falls out of context on both arms. Floor 4."
+        required: false
+        default: ""
+        type: string
 
 jobs:
   build:
@@ -486,6 +491,7 @@ jobs:
           TOOLGATE: ${{ matrix.toolgate || '1' }}
           NCTX: ${{ inputs.nctx || '' }}
           WINBUDGET: ${{ inputs.winbudget || '' }}
+          LEGACYWINDOW: ${{ inputs.legacywindow || '' }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
           # 40s = SUMMARY_IDLE_DEBOUNCE_MS (8s) + SUMMARIZE_TIMEOUT_MS (30s) +
           # margin. On CI emulator the 2B decodes at ~2.45 tok/s, so

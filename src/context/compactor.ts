@@ -133,6 +133,30 @@ export function parseBenchWindowBudget(
   return n;
 }
 
+/**
+ * Floor for the bench-only legacy-window override. The window must hold the
+ * current turn (plant + fillers + probe), so anything below 4 is meaningless.
+ * Absent / empty / non-integer / below floor → null (production constants win).
+ */
+export const BENCH_LEGACY_WINDOW_FLOOR = 4;
+
+/**
+ * Defensive parser for the bench-only legacy-window override.
+ * Absent / empty / non-numeric / non-integer / below floor → null (no override,
+ * LEGACY_MAX_HISTORY / LEGACY_MAX_HISTORY_IMAGES win). Never 0 or NaN.
+ */
+export function parseBenchLegacyWindow(
+  raw: string | null | undefined,
+): number | null {
+  if (raw == null) return null;
+  const trimmed = String(raw).trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return null;
+  if (n < BENCH_LEGACY_WINDOW_FLOOR) return null;
+  return n;
+}
+
 export const DEFAULT_COMPACTOR_CONFIG: CompactorConfig = {
   rebuildEveryKUserTurns: 3,
   recentWindow: 6,
@@ -163,15 +187,30 @@ export function parseContextMode(raw: string | null): ContextMode {
  * Start index of the legacy sliding window used by assembleEngineHistory when
  * compaction is off. Messages before this index fall outside the engine window
  * (ciswire uses this as the BM25/summary corpus boundary).
+ * 
+ * Optional `override` parameter: bench-only knob that shrinks the window to
+ * increase eviction pressure. Absent / null / below floor → production constants
+ * (LEGACY_MAX_HISTORY / LEGACY_MAX_HISTORY_IMAGES) win. Both call sites
+ * (assembleEngineHistory off-arm and ciswire corpus boundary) must pass the
+ * SAME override or the corpus and window overlap/leave a gap.
  */
 export function legacyWindowStartIndex(
   historyLength: number,
   hasImages: boolean,
+  override?: number | null,
 ): number {
   const len = Number.isFinite(historyLength)
     ? Math.max(0, Math.floor(historyLength))
     : 0;
-  const maxHistory = hasImages ? LEGACY_MAX_HISTORY_IMAGES : LEGACY_MAX_HISTORY;
+  const maxHistory =
+    typeof override === "number" &&
+    Number.isFinite(override) &&
+    Number.isInteger(override) &&
+    override >= BENCH_LEGACY_WINDOW_FLOOR
+      ? override
+      : hasImages
+        ? LEGACY_MAX_HISTORY_IMAGES
+        : LEGACY_MAX_HISTORY;
   return Math.max(0, len - maxHistory);
 }
 
@@ -519,6 +558,8 @@ export function assembleEngineHistory(
     /** Required when compactionEnabled — absolute index into messages. */
     boundaryIndex?: number;
     config?: Partial<CompactorConfig> | null;
+    /** Bench-only legacy-window override (null/undefined → production constants). */
+    legacyWindowOverride?: number | null;
   },
 ): EngineHistoryMessage[] {
   const hasImages = Boolean(options.hasImages);
@@ -527,7 +568,11 @@ export function assembleEngineHistory(
   const maxChars = hasImages ? LEGACY_MAX_CHARS_IMAGES : LEGACY_MAX_CHARS;
 
   if (!options.compactionEnabled) {
-    const start = legacyWindowStartIndex((messages ?? []).length, hasImages);
+    const start = legacyWindowStartIndex(
+      (messages ?? []).length,
+      hasImages,
+      options.legacyWindowOverride,
+    );
     return (messages ?? [])
       .slice(start)
       .map((m) => ({

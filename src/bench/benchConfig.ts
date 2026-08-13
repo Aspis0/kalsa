@@ -34,7 +34,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getThreadCountSource } from "../engine/threadProfile";
 import { parseBenchNCtx } from "../engine/contextProfile";
-import { parseBenchWindowBudget } from "../context/compactor";
+import { parseBenchWindowBudget, parseBenchLegacyWindow } from "../context/compactor";
 
 export const BENCH_THINKING_KEY = "kalsa.bench.thinking";
 export const BENCH_FORMAT_KEY = "kalsa.bench.format";
@@ -44,6 +44,7 @@ export const BENCH_TOOLCHOICE_KEY = "kalsa.bench.toolchoice";
 export const BENCH_TOOLGATE_KEY = "kalsa.bench.toolgate";
 export const BENCH_NCTX_KEY = "kalsa.bench.nctx";
 export const BENCH_WINBUDGET_KEY = "kalsa.bench.winbudget";
+export const BENCH_LEGACYWINDOW_KEY = "kalsa.bench.legacywindow";
 
 export type ThinkingMode = "default" | "off" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
@@ -203,6 +204,22 @@ export async function getBenchWindowBudget(): Promise<number | null> {
   try {
     const raw = await AsyncStorage.getItem(BENCH_WINBUDGET_KEY);
     return parseBenchWindowBudget(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Bench-only legacy-window override. Absent / invalid / below floor (4) → null
+ * (LEGACY_MAX_HISTORY / LEGACY_MAX_HISTORY_IMAGES win). This is the knob that
+ * decides what falls out of context on BOTH arms of the primary comparison
+ * (ciswire vs off): the same eviction on both, so the baseline loses planted
+ * facts and ciswire should recover them via the digest.
+ */
+export async function getBenchLegacyWindow(): Promise<number | null> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_LEGACYWINDOW_KEY);
+    return parseBenchLegacyWindow(raw);
   } catch {
     return null;
   }

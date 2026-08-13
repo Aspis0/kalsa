@@ -1788,7 +1788,7 @@ function renderFase4(agg) {
       : `#### ${table.label}`;
     lines.push(head, "");
     lines.push(
-      `| family | ${table.modeA ?? "A"} | ${table.modeB ?? "B"} | Δ | p (one-sided) | method |`,
+      `| family | ${table.modeB ?? "B"} | ${table.modeA ?? "A"} | Δ | p (one-sided) | method |`,
       "|---|---|---|---|---|---|",
     );
     for (const row of table.rows ?? []) {
@@ -1804,7 +1804,7 @@ function renderFase4(agg) {
       const rateB = row.rateB ?? row.v42Rate;
       if (!row.permutation) {
         lines.push(
-          `| ${label} | ${rateA == null ? "n/a" : fmt(rateA)} | ${rateB == null ? "n/a" : fmt(rateB)} | n/a | n/a (missing arm) | n/a |`,
+          `| ${label} | ${rateB == null ? "n/a" : fmt(rateB)} | ${rateA == null ? "n/a" : fmt(rateA)} | n/a | n/a (missing arm) | n/a |`,
         );
         continue;
       }
@@ -1814,7 +1814,7 @@ function renderFase4(agg) {
         ? `${fmt(p, 4)} — optimistic; probes in one conversation are correlated`
         : `${fmt(p, 4)} — not multiplicity-corrected; a single secondary p < 0.05 among four is not evidence on its own`;
       lines.push(
-        `| ${label} | ${rateA == null ? "n/a" : fmt(rateA)} | ${rateB == null ? "n/a" : fmt(rateB)} | ${delta} | ${pNote} | ${methodLabel ?? "n/a"} |`,
+        `| ${label} | ${rateB == null ? "n/a" : fmt(rateB)} | ${rateA == null ? "n/a" : fmt(rateA)} | ${delta} | ${pNote} | ${methodLabel ?? "n/a"} |`,
       );
     }
     lines.push("");

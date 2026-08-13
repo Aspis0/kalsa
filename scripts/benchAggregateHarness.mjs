@@ -293,6 +293,26 @@ function writeNogateArms(root, seeds, extra = {}) {
 
 /** nA/nB from the primary pairwise row (ciswire vs off | yes |). */
 function primaryPairNs(markdown) {
+  // Assert column ORDER: find the header row and verify treatment-first order
+  // Header: | comparison | primary? | mean treatment | mean control | Δ | p (raw) | p (Holm) | n treatment | n control | design floor | method |
+  const headerRow = markdown
+    .split("\n")
+    .find((l) => l.includes("mean treatment") && l.includes("mean control"));
+  if (headerRow) {
+    const headerCells = headerRow
+      .split("|")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    // Treatment (index 2) must come before control (index 3)
+    if (!headerCells[2]?.includes("treatment") || !headerCells[3]?.includes("control")) {
+      throw new Error(`primaryPairNs: header column order wrong - expected treatment-first at [2],[3], got [${headerCells[2]}] [${headerCells[3]}]`);
+    }
+    // n treatment (index 7) must come before n control (index 8)
+    if (!headerCells[7]?.includes("treatment") || !headerCells[8]?.includes("control")) {
+      throw new Error(`primaryPairNs: n-column order wrong - expected [n treatment] [n control] at [7],[8], got [${headerCells[7]}] [${headerCells[8]}]`);
+    }
+  }
+
   const row = markdown
     .split("\n")
     .find((l) => l.includes("ciswire vs off") && l.includes("| yes |"));
@@ -301,8 +321,9 @@ function primaryPairNs(markdown) {
     .split("|")
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
-  // label, yes, meanA, meanB, Δ, p, pHolm, nA, nB, floor, method
-  return { nA: cells[7], nB: cells[8] };
+  // After treatment-first reorder:
+  // [0]=label, [1]=yes, [2]=mean treatment, [3]=mean control, [4]=Δ, [5]=p, [6]=pHolm, [7]=n treatment, [8]=n control, [9]=floor, [10]=method
+  return { nA: cells[8], nB: cells[7] };
 }
 
 function withEnv(envPatch, fn) {
