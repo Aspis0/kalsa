@@ -1,0 +1,89 @@
+2026-08-13T09:36:02-04:00 === PREFLIGHT 2026-08-13T09:36:02-04:00 ===
+2026-08-13T09:36:02-04:00 BIN_SHA=b8b1c732064f5f1d8e0d6ba3f5257af51bfe3d40ccb71ecaad49911677c815ab
+2026-08-13T09:36:02-04:00 PIN OK b8b1c732
+b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd  /data/data/com.termux/files/home/gdn_k2/k4split/prompts/p_fact.txt
+761db0d07cbc312acb35fb8c64894be83f38a3a7f0ba14e2100ef6a44a29c871  /data/data/com.termux/files/home/gdn_k2/k4split/prompts/p_creative.txt
+MemTotal:        7243740 kB
+MemFree:         2296816 kB
+MemAvailable:    4288700 kB
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 27.7,
+  "voltage": 4351,
+  "current": -747000,
+  "current_average": -185,
+  "percentage": 100,
+  "level": 100,
+  "scale": 100,
+  "charge_counter": 3750000,
+  "cycle": 0
+}
+2026-08-13T09:36:03-04:00 battery=100% temp=27.7C plugged=UNPLUGGED DISCHARGING
+2026-08-13T09:36:03-04:00 STATUS N3_RUNNING
+2026-08-13T09:36:03-04:00 === N3 ABBA prompt=fact ===
+2026-08-13T09:36:04-04:00 battery=100% temp=27.7C plugged=UNPLUGGED DISCHARGING
+2026-08-13T09:36:04-04:00 COLD fadvise before n3_ARM_CPU_fact_o1
+/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=77407 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T09:36:33-04:00
+2026-08-13T09:36:33-04:00 RUN n3_ARM_CPU_fact_o1 n=200 batt=100% temp=27.7C extra=--ngl 0 --moe-cpu-experts off
+2026-08-13T09:38:04-04:00 DONE n3_ARM_CPU_fact_o1 rc=0 wall=89s decode=2.914 prefill=9.9 ttft=18.969 load=11.465 mib=74.47 hit=63.4 batt=100->100 temp=27.7->30 memfree_min=37.8MiB
+2026-08-13T09:38:04-04:00 battery=100% temp=30C plugged=UNPLUGGED DISCHARGING
+2026-08-13T09:38:04-04:00 COLD fadvise before n3_ARM_SPLIT_fact_o2
+/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=147329 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T09:38:35-04:00
+2026-08-13T09:38:35-04:00 RUN n3_ARM_SPLIT_fact_o2 n=200 batt=100% temp=30C extra=--ngl 99 --moe-cpu-experts on --override-tensor ffn_gate_inp.weight=CPU
+2026-08-13T09:40:52-04:00 DONE n3_ARM_SPLIT_fact_o2 rc=0 wall=135s decode=1.942 prefill=9.5 ttft=31.147 load=23.377 mib=73.49 hit=63.7 batt=100->99 temp=30->32.6 memfree_min=13.1MiB
+2026-08-13T09:40:52-04:00 battery=99% temp=32.6C plugged=UNPLUGGED DISCHARGING
+2026-08-13T09:40:53-04:00 COLD fadvise before n3_ARM_SPLIT_fact_o3
+/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T09:41:22-04:00
+2026-08-13T09:41:22-04:00 RUN n3_ARM_SPLIT_fact_o3 n=200 batt=99% temp=32.6C extra=--ngl 99 --moe-cpu-experts on --override-tensor ffn_gate_inp.weight=CPU
+2026-08-13T09:43:40-04:00 DONE n3_ARM_SPLIT_fact_o3 rc=0 wall=136s decode=1.936 prefill=9.6 ttft=31.414 load=23.742 mib=73.49 hit=63.7 batt=99->98 temp=32.6->33.5 memfree_min=36.7MiB
+2026-08-13T09:43:40-04:00 battery=98% temp=33.5C plugged=UNPLUGGED DISCHARGING
+2026-08-13T09:43:41-04:00 COLD fadvise before n3_ARM_CPU_fact_o4
+/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=18234 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T09:44:10-04:00
+2026-08-13T09:44:10-04:00 RUN n3_ARM_CPU_fact_o4 n=200 batt=98% temp=33.5C extra=--ngl 0 --moe-cpu-experts off
+2026-08-13T09:45:41-04:00 DONE n3_ARM_CPU_fact_o4 rc=0 wall=89s decode=2.853 prefill=10.0 ttft=18.135 load=10.755 mib=74.47 hit=63.4 batt=98->97 temp=33.5->35.1 memfree_min=12.5MiB
+2026-08-13T09:45:41-04:00 === N3 ABBA prompt=creative ===
+2026-08-13T09:45:41-04:00 battery=97% temp=35.1C plugged=UNPLUGGED DISCHARGING
+2026-08-13T09:45:42-04:00 COLD fadvise before n3_ARM_CPU_creative_o1
+/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=188710 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T09:46:11-04:00
+2026-08-13T09:46:11-04:00 RUN n3_ARM_CPU_creative_o1 n=200 batt=97% temp=35.1C extra=--ngl 0 --moe-cpu-experts off
+2026-08-13T09:47:40-04:00 DONE n3_ARM_CPU_creative_o1 rc=0 wall=88s decode=2.888 prefill=9.0 ttft=17.549 load=10.870 mib=66.05 hit=68.3 batt=97->96 temp=35.1->34.8 memfree_min=58.2MiB
+2026-08-13T09:47:41-04:00 battery=96% temp=34.8C plugged=UNPLUGGED DISCHARGING
+2026-08-13T09:47:41-04:00 COLD fadvise before n3_ARM_SPLIT_creative_o2
+/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=211820 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T09:48:10-04:00
+2026-08-13T09:48:11-04:00 RUN n3_ARM_SPLIT_creative_o2 n=200 batt=96% temp=34.8C extra=--ngl 99 --moe-cpu-experts on --override-tensor ffn_gate_inp.weight=CPU
+2026-08-13T09:50:01-04:00 DONE n3_ARM_SPLIT_creative_o2 rc=0 wall=109s decode=2.547 prefill=8.7 ttft=29.719 load=22.795 mib=69.75 hit=66.8 batt=96->95 temp=34.8->35.8 memfree_min=57.3MiB
+2026-08-13T09:50:02-04:00 battery=95% temp=35.8C plugged=UNPLUGGED DISCHARGING
+2026-08-13T09:50:02-04:00 COLD fadvise before n3_ARM_SPLIT_creative_o3
+/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=3139 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T09:50:31-04:00
+2026-08-13T09:50:31-04:00 RUN n3_ARM_SPLIT_creative_o3 n=200 batt=95% temp=35.8C extra=--ngl 99 --moe-cpu-experts on --override-tensor ffn_gate_inp.weight=CPU
+2026-08-13T09:52:39-04:00 DONE n3_ARM_SPLIT_creative_o3 rc=0 wall=126s decode=2.107 prefill=8.4 ttft=29.623 load=22.450 mib=69.75 hit=66.8 batt=95->94 temp=35.8->36.5 memfree_min=48.2MiB
+2026-08-13T09:52:39-04:00 battery=94% temp=36.5C plugged=UNPLUGGED DISCHARGING
+2026-08-13T09:52:40-04:00 COLD fadvise before n3_ARM_CPU_creative_o4
+/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T09:53:09-04:00
+2026-08-13T09:53:09-04:00 RUN n3_ARM_CPU_creative_o4 n=200 batt=94% temp=36.5C extra=--ngl 0 --moe-cpu-experts off
+2026-08-13T09:54:36-04:00 DONE n3_ARM_CPU_creative_o4 rc=0 wall=85s decode=2.977 prefill=9.0 ttft=17.259 load=10.565 mib=66.05 hit=68.3 batt=94->94 temp=36.5->36.5 memfree_min=46.9MiB
+awk: fatal: cannot use gawk builtin `split' as variable name
+n3_cpu_decode_median=2.901000
+n3_split_decode_median=2.024500
+n3_decode_speedup=0.6979
+n3_cpu_ttft_median=17.842000
+n3_split_ttft_median=30.433000
+n3_ttft_speedup=
+gate_decode_need=1.10
+gate_ttft_need=1.50
+N3_GATE=FAIL decode_ok=0 ttft_ok=0 decode_x=0.6979 ttft_x=
+2026-08-13T09:54:36-04:00 STATUS N3_FAIL_SKIP_N4 decode_x=0.6979 ttft_x=
+2026-08-13T09:54:37-04:00 N3 gate FAIL — skip N4 (honest)
+2026-08-13T09:54:37-04:00 STATUS N3_FAIL_SKIP_N4 n3_cpu_decode_median=2.901000 n3_split_decode_median=2.024500 n3_decode_speedup=0.6979 n3_cpu_ttft_median=17.842000 n3_split_ttft_median=30.433000 n3_ttft_speedup= gate_decode_need=1.10 gate_ttft_need=1.50 N3_GATE=FAIL decode_ok=0 ttft_ok=0 decode_x=0.6979 ttft_x= 

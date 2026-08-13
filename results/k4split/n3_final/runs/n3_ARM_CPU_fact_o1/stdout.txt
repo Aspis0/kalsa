@@ -1,0 +1,22 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant:
+
+<think>
+
+</think>
+
+A Mixture-of-Experts (MoE) model consists of multiple distinct neural network "experts" that are selectively activated for each token based on a routing mechanism, which directs data to the most relevant experts to maximize efficiency. Although this sparse activation significantly reduces the actual computation and memory bandwidth required during inference, the entire model must still be downloaded to the device because the on-disk weight file contains all experts to ensure the model can handle diverse inputs, and flash streaming allows the system to load only the necessary small portions of these weights into fast memory on demand.
+
+*   **Routing and Sparse Activation**: The routing mechanism ensures that only a subset of experts processes each token, drastically lowering the active compute and power consumption compared to a dense model, even though the total parameter count remains high.
+*   **Storage and Flash Streaming Constraints**: The large on-disk file size persists because the device needs access to all experts to function correctly across different queries, and flash streaming
+
+generation: 200 tokens, 0.343 s/token (2.914 tok/s)
+compute: 74.5% CPU occupancy (1.0225 cpu-s/token over 4 threads), 0.01 major faults/token
+prefill: 74 tokens, 7.504 s (9.9 tok/s) | model load 11.465 s | TTFT 18.969 s
+moe-stream: read 14894.4 MiB (74.47 MiB/token), decode 0.343 s/token (compute 0.282 + cache mgmt 0.010 + flash I/O 0.273 s/token, 273 MiB/s)
+moe-cache: 63.4% hit, resident 999.1 MiB
+moe-cache: 16451 evictions, 12472 re-reads (62.4/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.051 s/token (flash reads overlapped with FFN compute)
+moe-drop: 4351/48000 routed experts dropped (9.1%), threshold 0.65 x uniform

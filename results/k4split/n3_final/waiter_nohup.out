@@ -1,0 +1,92 @@
+2026-08-13T06:46:19-04:00 waiter start max=21600s poll=60s start_min=45% temp<=35.0C
+2026-08-13T06:46:26-04:00 poll pct=100 temp=29.5C plugged=PLUGGED_AC
+2026-08-13T06:49:35-04:00 poll pct=100 temp=29.5C plugged=PLUGGED_AC
+2026-08-13T06:51:58-04:00 poll pct=100 temp=29.5C plugged=PLUGGED_AC
+2026-08-13T06:54:31-04:00 poll pct=100 temp=29.5C plugged=PLUGGED_AC
+2026-08-13T06:57:51-04:00 poll pct=100 temp=29.5C plugged=PLUGGED_AC
+2026-08-13T07:01:21-04:00 poll pct=100 temp=28.3C plugged=PLUGGED_AC
+2026-08-13T07:04:33-04:00 poll pct=100 temp=28.3C plugged=PLUGGED_AC
+2026-08-13T07:07:40-04:00 poll pct=100 temp=28.3C plugged=PLUGGED_AC
+2026-08-13T07:11:09-04:00 poll pct=100 temp=28.3C plugged=PLUGGED_AC
+2026-08-13T07:14:12-04:00 poll pct=100 temp=27.1C plugged=PLUGGED_AC
+2026-08-13T07:17:24-04:00 poll pct=100 temp=27.1C plugged=PLUGGED_AC
+2026-08-13T07:19:25-04:00 poll pct=100 temp=27.1C plugged=PLUGGED_AC
+2026-08-13T07:22:31-04:00 poll pct=100 temp=27.1C plugged=PLUGGED_AC
+2026-08-13T07:26:00-04:00 poll pct=100 temp=27.1C plugged=PLUGGED_AC
+2026-08-13T07:29:19-04:00 poll pct=100 temp=27.1C plugged=PLUGGED_AC
+2026-08-13T07:32:23-04:00 poll pct=100 temp=27.1C plugged=PLUGGED_AC
+2026-08-13T07:35:38-04:00 poll pct=100 temp=27.1C plugged=PLUGGED_AC
+2026-08-13T07:38:27-04:00 poll pct=100 temp=27.1C plugged=PLUGGED_AC
+2026-08-13T07:41:24-04:00 poll pct=100 temp=27.1C plugged=PLUGGED_AC
+2026-08-13T07:44:38-04:00 poll pct=100 temp=27.1C plugged=PLUGGED_AC
+2026-08-13T07:47:44-04:00 poll pct=100 temp=27.1C plugged=PLUGGED_AC
+2026-08-13T07:50:57-04:00 poll pct=100 temp=25.9C plugged=PLUGGED_AC
+2026-08-13T07:54:15-04:00 poll pct=100 temp=25.9C plugged=PLUGGED_AC
+2026-08-13T07:57:31-04:00 poll pct=100 temp=25.9C plugged=PLUGGED_AC
+2026-08-13T08:00:43-04:00 poll pct=100 temp=25.9C plugged=PLUGGED_AC
+2026-08-13T08:03:43-04:00 poll pct=100 temp=25.9C plugged=PLUGGED_AC
+2026-08-13T08:06:14-04:00 poll pct=100 temp=25.9C plugged=PLUGGED_AC
+2026-08-13T08:07:41-04:00 poll pct=100 temp=27.3C plugged=PLUGGED_AC
+2026-08-13T08:10:55-04:00 poll pct=100 temp=27.3C plugged=PLUGGED_AC
+2026-08-13T08:14:13-04:00 poll pct=100 temp=27.3C plugged=PLUGGED_AC
+2026-08-13T08:17:32-04:00 poll pct=100 temp=27.3C plugged=PLUGGED_AC
+2026-08-13T08:20:55-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T08:24:12-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T08:27:35-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T08:30:49-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T08:33:54-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T08:36:15-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T08:39:16-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T08:42:37-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T08:45:59-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T08:49:27-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T08:52:30-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T08:55:52-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T08:59:19-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T09:02:36-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T09:05:59-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T09:09:29-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T09:12:45-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T09:15:53-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T09:19:07-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T09:22:17-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T09:25:38-04:00 poll pct=100 temp=26.1C plugged=PLUGGED_AC
+2026-08-13T09:26:52-04:00 poll pct=100 temp=25.9C plugged=UNPLUGGED
+2026-08-13T09:26:52-04:00 GATE MET pct=100% temp=25.9C plugged=UNPLUGGED — starting N3
+2026-08-13T09:26:53-04:00 === PREFLIGHT 2026-08-13T09:26:53-04:00 ===
+2026-08-13T09:26:53-04:00 BIN_SHA=b8b1c732064f5f1d8e0d6ba3f5257af51bfe3d40ccb71ecaad49911677c815ab
+2026-08-13T09:26:53-04:00 PIN OK b8b1c732
+b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd  /data/data/com.termux/files/home/gdn_k2/k4split/prompts/p_fact.txt
+761db0d07cbc312acb35fb8c64894be83f38a3a7f0ba14e2100ef6a44a29c871  /data/data/com.termux/files/home/gdn_k2/k4split/prompts/p_creative.txt
+MemTotal:        7243740 kB
+MemFree:          176392 kB
+MemAvailable:    3535160 kB
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 25.9,
+  "voltage": 4366,
+  "current": -274000,
+  "current_average": -178,
+  "percentage": 100,
+  "level": 100,
+  "scale": 100,
+  "charge_counter": 3750000,
+  "cycle": 0
+}
+2026-08-13T09:26:54-04:00 battery=100% temp=25.9C plugged=UNPLUGGED DISCHARGING
+2026-08-13T09:26:54-04:00 STATUS N3_RUNNING
+2026-08-13T09:26:54-04:00 === N3 ABBA prompt=fact ===
+2026-08-13T09:26:55-04:00 battery=100% temp=25.9C plugged=UNPLUGGED DISCHARGING
+2026-08-13T09:26:55-04:00 COLD fadvise before n3_ARM_CPU_fact_o1
+/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T09:27:25-04:00
+2026-08-13T09:27:26-04:00 RUN n3_ARM_CPU_fact_o1 n=200 batt=100% temp=25.9C extra=--ngl 0 --moe-cpu-experts off
+Terminated
+2026-08-13T09:28:23-04:00 DONE n3_ARM_CPU_fact_o1 rc=143 wall=57s decode= prefill= ttft= load= mib= hit= batt=100->100 temp=25.9->28.3 memfree_min=25.0MiB
+2026-08-13T09:28:23-04:00 RAM abort during n3_ARM_CPU_fact_o1: ABORT_RAM mf=67224
+2026-08-13T09:28:23-04:00 STATUS ABORT_RAM tag=n3_ARM_CPU_fact_o1
+2026-08-13T09:28:23-04:00 N3 aborted rc=99 — skip N4

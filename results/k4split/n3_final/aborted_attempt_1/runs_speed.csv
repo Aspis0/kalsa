@@ -1,0 +1,2 @@
+ts,tag,arm,prompt,order,decode_tps,prefill_tps,ttft_s,load_s,mib_per_tok,hit_pct,n_gen,batt_start,batt_end,temp_start,temp_end,wall_s,rc,memfree_min_mib,plugged
+2026-08-13T09:28:23-04:00,n3_ARM_CPU_fact_o1,ARM_CPU,fact,1,,,,,,,,100,100,25.9,28.3,57,143,25.0,UNPLUGGED

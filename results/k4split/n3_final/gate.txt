@@ -1,0 +1,9 @@
+n3_cpu_decode_median=2.901000
+n3_split_decode_median=2.024500
+n3_decode_speedup=0.6979
+n3_cpu_ttft_median=17.842000
+n3_split_ttft_median=30.433000
+n3_ttft_speedup=
+gate_decode_need=1.10
+gate_ttft_need=1.50
+N3_GATE=FAIL decode_ok=0 ttft_ok=0 decode_x=0.6979 ttft_x=
