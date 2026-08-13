@@ -1,0 +1,17 @@
+{
+  "arm": "after",
+  "scenario": "S3_r1",
+  "rep": "",
+  "ttft_ms": 58804,
+  "ttft_source": "telemetry_minus_predicted",
+  "prompt_ms": 51686.191,
+  "predicted_ms": 1291.3139999999999,
+  "power": "AC=true",
+  "level": "100",
+  "temp_c": 34.0,
+  "prompt": "25",
+  "ok": true,
+  "notes": "",
+  "dir": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\ttft_verify_jelly\\after\\S3_r1",
+  "utc": "2026-08-13T23:09:57.207545+00:00"
+}

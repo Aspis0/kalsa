@@ -1,0 +1,81 @@
+{
+  "utc": "2026-08-13T22:20:13.741104+00:00",
+  "serial": "192.168.1.82:44395",
+  "pkg": "com.kalsa.app",
+  "power": {
+    "ac": "true",
+    "usb": "false",
+    "level": "100",
+    "status": "4",
+    "temp_tenths_c": "320"
+  },
+  "metrics": {
+    "ttft_json": null,
+    "mark_ts": "08-13 18:17:19.948",
+    "telemetry": [
+      {
+        "ts": "08-13 18:18:15.231",
+        "turnId": "1",
+        "round": 0,
+        "tokensCached": 1306,
+        "tokensEvaluated": 1293,
+        "tokensPredicted": 12,
+        "draftTokens": 0,
+        "draftAccepted": 0,
+        "promptMs": 46860.333,
+        "predictedMs": 1543.077,
+        "predictedPerSecond": 7.7766696023594415,
+        "contextFull": false,
+        "interrupted": false
+      },
+      {
+        "ts": "08-13 18:18:15.339",
+        "turnId": "1",
+        "round": 1,
+        "tokensCached": 1306,
+        "tokensEvaluated": 1375,
+        "tokensPredicted": 0,
+        "draftTokens": 0,
+        "draftAccepted": 0,
+        "promptMs": 0,
+        "predictedMs": 0,
+        "predictedPerSecond": 0,
+        "contextFull": false,
+        "interrupted": true,
+        "tool": "device_info"
+      }
+    ],
+    "first_telemetry": {
+      "ts": "08-13 18:18:15.231",
+      "turnId": "1",
+      "round": 0,
+      "tokensCached": 1306,
+      "tokensEvaluated": 1293,
+      "tokensPredicted": 12,
+      "draftTokens": 0,
+      "draftAccepted": 0,
+      "promptMs": 46860.333,
+      "predictedMs": 1543.077,
+      "predictedPerSecond": 7.7766696023594415,
+      "contextFull": false,
+      "interrupted": false
+    },
+    "ttft_ms": 53740,
+    "ttft_source": "telemetry_minus_predicted",
+    "prompt_ms": 46860.333,
+    "predicted_ms": 1543.077
+  },
+  "scenario": "S1",
+  "arm": "after",
+  "rep": 2,
+  "send_info": {
+    "tap": [
+      426,
+      447
+    ],
+    "prompt": "Reply with the single word hello",
+    "typed": "Reply with the single word hello",
+    "mark": "S1_after_r2"
+  },
+  "notes": "chip_not_pronto;ui_after_fail:uiautomator dump failed: overlay pkg=com.android.launcher3"
+}

@@ -1,0 +1,5 @@
+DONE AFTER-only. Gboard re-enabled. S3 r2 runner killed.
+Report: reports/kalsa-ttft-verify-jelly.md
+S1 AFTER 53.4/53.7s = 6.6s load + 47s prefill n_past=0
+S3 AFTER 16.7s in-process (compaction was stored OFF)
+Overall FAIL. Q6.c is the 47s.

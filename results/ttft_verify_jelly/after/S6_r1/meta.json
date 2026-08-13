@@ -1,0 +1,65 @@
+{
+  "utc": "2026-08-13T22:55:20.165725+00:00",
+  "serial": "192.168.1.82:44395",
+  "pkg": "com.kalsa.app",
+  "power": {
+    "ac": "true",
+    "usb": "false",
+    "level": "100",
+    "status": "4",
+    "temp_tenths_c": "370"
+  },
+  "metrics": {
+    "ttft_json": null,
+    "mark_ts": "08-13 18:53:50.008",
+    "telemetry": [
+      {
+        "ts": "08-13 18:55:14.377",
+        "turnId": "1",
+        "round": 0,
+        "tokensCached": 1635,
+        "tokensEvaluated": 1599,
+        "tokensPredicted": 35,
+        "draftTokens": 0,
+        "draftAccepted": 0,
+        "promptMs": 67534.519,
+        "predictedMs": 8010.944,
+        "predictedPerSecond": 4.369023176294829,
+        "contextFull": false,
+        "interrupted": false
+      }
+    ],
+    "first_telemetry": {
+      "ts": "08-13 18:55:14.377",
+      "turnId": "1",
+      "round": 0,
+      "tokensCached": 1635,
+      "tokensEvaluated": 1599,
+      "tokensPredicted": 35,
+      "draftTokens": 0,
+      "draftAccepted": 0,
+      "promptMs": 67534.519,
+      "predictedMs": 8010.944,
+      "predictedPerSecond": 4.369023176294829,
+      "contextFull": false,
+      "interrupted": false
+    },
+    "ttft_ms": 76358,
+    "ttft_source": "telemetry_minus_predicted",
+    "prompt_ms": 67534.519,
+    "predicted_ms": 8010.944
+  },
+  "scenario": "S6",
+  "arm": "after",
+  "rep": 1,
+  "send_info": {
+    "tap": [
+      426,
+      475
+    ],
+    "prompt": "What word did I ask you to remember",
+    "typed": "What word did I ask you to remember",
+    "mark": "S6_after_r1"
+  },
+  "notes": "chip_not_pronto"
+}

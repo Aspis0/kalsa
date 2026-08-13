@@ -1,0 +1,17 @@
+{
+  "arm": "after",
+  "scenario": "S2",
+  "rep": 1,
+  "ttft_ms": 51946,
+  "ttft_source": "telemetry_minus_predicted",
+  "prompt_ms": 45412.196,
+  "predicted_ms": 0,
+  "power": "AC=true",
+  "level": "100",
+  "temp_c": 32.0,
+  "prompt": "Reply with the single word hello",
+  "ok": true,
+  "notes": "background_s=300.0;warmup_sent",
+  "dir": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\ttft_verify_jelly\\after\\S2_r1",
+  "utc": "2026-08-13T22:38:33.365339+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "arm": "after",
+  "scenario": "S6",
+  "rep": 1,
+  "ttft_ms": 76358,
+  "ttft_source": "telemetry_minus_predicted",
+  "prompt_ms": 67534.519,
+  "predicted_ms": 8010.944,
+  "power": "AC=true",
+  "level": "100",
+  "temp_c": 37.0,
+  "prompt": "What word did I ask you to remember",
+  "ok": true,
+  "notes": "chip_not_pronto",
+  "dir": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\ttft_verify_jelly\\after\\S6_r1",
+  "utc": "2026-08-13T22:55:20.165725+00:00"
+}

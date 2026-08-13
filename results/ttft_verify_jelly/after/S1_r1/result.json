@@ -1,0 +1,17 @@
+{
+  "arm": "after",
+  "scenario": "S1",
+  "rep": 1,
+  "ttft_ms": 53437,
+  "ttft_source": "telemetry_minus_predicted",
+  "prompt_ms": 47032.005,
+  "predicted_ms": 3009.077,
+  "power": "AC=true",
+  "level": "100",
+  "temp_c": 31.0,
+  "prompt": "Reply with the single word hello",
+  "ok": true,
+  "notes": "ui_after_fail:uiautomator dump failed: overlay pkg=com.android.launcher3",
+  "dir": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\ttft_verify_jelly\\after\\S1_r1",
+  "utc": "2026-08-13T22:16:05.004409+00:00"
+}

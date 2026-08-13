@@ -1,0 +1,4 @@
+utc=2026-08-13T22:04:33.836870+00:00
+ac=true usb=false level=100 temp=290
+ttft=None
+notes=
