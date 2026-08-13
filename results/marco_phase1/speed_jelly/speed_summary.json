@@ -1,0 +1,19 @@
+{
+  "n_rows": 8,
+  "A0": {
+    "median_tok_s": 2.4755000000000003,
+    "median_mib_tok": 191.09,
+    "median_hit_pct": 34.2
+  },
+  "A2": {
+    "median_tok_s": 2.8914999999999997,
+    "median_mib_tok": 123.015,
+    "median_hit_pct": 38.45
+  },
+  "ratio_A2_over_A0": 1.1680468592203592,
+  "mib_rel_delta": -0.35624574807682247,
+  "hit_delta_pt": 4.25,
+  "gate_decode_1_15x": true,
+  "gate_mib_minus20": true,
+  "SPEED_GATE": "PASS"
+}
