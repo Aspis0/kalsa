@@ -124,7 +124,13 @@ import {
 import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
 import { computePromptEnvHash, getBootHistoryHash, historyHash } from "../engine/sessionPersistence";
 import { formatSummaryLine } from "../engine/summaryTelemetry";
-import { getEngineOverride, getSpeculativeOverride } from "../bench/benchConfig";
+import { formatDigestLine } from "../engine/digestTelemetry";
+import {
+  getBenchNCtx,
+  getBenchWindowBudget,
+  getEngineOverride,
+  getSpeculativeOverride,
+} from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import {
   WEB_FETCH_TOOL,
@@ -1942,14 +1948,21 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // reported effectiveNCtx (memory clamp may shrink). Document tool
   // (getCtxTokens → chatEngineCtxRef) and AiChatPage longChat (engineCtx prop)
   // share that same resolved value — see comment on chatEngineCtxRef.
+  const [benchNCtxOverride, setBenchNCtxOverride] = useState<number | null>(null);
+  // Read bench nctx override on mount; applies to all three resolveContextProfile
+  // call sites so the engine reload key never disagrees mid-conversation.
+  useEffect(() => {
+    getBenchNCtx().then(setBenchNCtxOverride).catch(() => setBenchNCtxOverride(null));
+  }, []);
   const catalogEngineCtx = useMemo(
     () =>
       resolveContextProfile({
         hybrid: currentModel.hybrid,
         kvCache: currentModel.kvCache,
         catalogCtx: currentModel.engineCtx,
+        explicitNCtx: benchNCtxOverride ?? undefined,
       }).nCtx,
-    [currentModel],
+    [currentModel, benchNCtxOverride],
   );
   const [chatEngineCtx, setChatEngineCtx] = useState<number>(catalogEngineCtx);
   // Keep state in sync when the selected model changes (pre-init estimate).
@@ -2510,10 +2523,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx (no silent downgrade)
       // + optional high-RAM upgrade for hybrids + catalog-authoritative KV.
       // initEngine does not re-resolve — pass nCtx and cache types explicitly.
+      const benchNCtx = await getBenchNCtx();
       const profile = resolveContextProfile({
         hybrid: model.hybrid,
         kvCache: model.kvCache,
         catalogCtx: model.engineCtx,
+        explicitNCtx: benchNCtx ?? undefined,
       });
       const speculativeOverride = await getSpeculativeOverride();
       const engineOverride = await getEngineOverride();
@@ -2984,10 +2999,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
 
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx + optional high-RAM upgrade.
+      const benchNCtx = await getBenchNCtx();
       const profile = resolveContextProfile({
         hybrid: model.hybrid,
         kvCache: model.kvCache,
         catalogCtx: model.engineCtx,
+        explicitNCtx: benchNCtx ?? undefined,
       });
       const speculativeOverride = await getSpeculativeOverride();
       const engineOverride = await getEngineOverride();
@@ -3647,10 +3664,24 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 boundaryProbe,
               ).recent;
 
+              // Bench-only: shrink the verbatim-window budget so compaction
+              // fires often, the regime a phone actually runs in. Absent in
+              // production → null → WINDOW_CHAR_BUDGET. Read inline (not via
+              // React state) so there is no window where the trigger disagrees
+              // with itself.
+              const winBudget = await getBenchWindowBudget();
+              const compactorConfig =
+                winBudget == null ? null : { windowCharBudget: winBudget };
+
               // Boundary + rolling summary: K-turn cadence (or early size / force).
               // Verbatim window stays append-only between these rebuilds (KV prefix).
               if (
-                shouldRebuild(state, userTurnCount, null, recentForBudget) ||
+                shouldRebuild(
+                  state,
+                  userTurnCount,
+                  compactorConfig,
+                  recentForBudget,
+                ) ||
                 forceRebuild
               ) {
                 const pending = pendingSummaryByChat.get(chatId);
@@ -3717,6 +3748,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 index: digestIndex,
                 oldTurns: oldUnits,
                 currentQuery: text,
+                onTelemetry: (t) => console.log(formatDigestLine(t)),
               });
               compactorStateByChat.set(chatId, state);
 

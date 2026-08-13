@@ -9,6 +9,34 @@ import type { KvCacheProfile } from "./ModelRegistry";
 export const DEFAULT_N_CTX = 8192;
 export const HIGH_RAM_N_CTX = 16384;
 /**
+ * Floor for the bench n_ctx override. llama.rn clamps n_ctx to 2048
+ * (LlamaService.ts:702); values below this are meaningless and the parser
+ * rejects them rather than passing them through to a silent clamp.
+ */
+export const BENCH_NCTX_FLOOR = 2048;
+
+/**
+ * Defensive parser for the bench-only n_ctx override pref.
+ * - null / undefined / empty / whitespace → null (no override — catalog wins)
+ * - non-numeric / NaN / non-integer → null (no override)
+ * - below BENCH_NCTX_FLOOR (2048) → null (no override; llama.rn floor)
+ * - valid integer >= 2048 → the number
+ *
+ * "no override" means resolveContextProfile falls through to catalog n_ctx.
+ * Returning null (never 0 or NaN) prevents a silently broken engine init.
+ */
+export function parseBenchNCtx(
+  raw: string | null | undefined,
+): number | null {
+  if (raw == null) return null;
+  const trimmed = String(raw).trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return null;
+  if (n < BENCH_NCTX_FLOOR) return null;
+  return n;
+}
+/**
  * "≥ 8GB" device RAM gate for optional n_ctx UPGRADE only (never downgrade).
  * Marketing-"8GB" devices report ~7.6–7.9e9 via expo-device; threshold 7.5e9
  * catches them. The 6GB class stays at catalog ctx: vision mmproj residency

@@ -46,6 +46,8 @@ BLOCK_FORMAT="${BLOCK_FORMAT:-none}"
 THINKING="${THINKING:-off}"
 TOOLCHOICE="${TOOLCHOICE:-auto}"
 TOOLGATE="${TOOLGATE:-1}"
+NCTX="${NCTX:-}"
+WINBUDGET="${WINBUDGET:-}"
 RUNS_PER_ARM="${RUNS_PER_ARM:-3}"
 INTER_TURN_DELAY_S="${INTER_TURN_DELAY_S:-0}"
 MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
@@ -126,8 +128,23 @@ case "$TOOLGATE" in
   0|1) ;;
   *) die "TOOLGATE must be 0|1 (got '$TOOLGATE')" ;;
 esac
+# Empty = no override (catalog n_ctx). Anything else must be an integer at or
+# above the llama.rn floor: the app parser silently ignores a malformed value,
+# so without this the run would report the requested nctx and quietly execute
+# the whole campaign at catalog 16384 — the exact regime bug this axis exists
+# to fix.
+case "$NCTX" in
+  "") ;;
+  *[!0-9]*) die "NCTX must be empty or a positive integer (got '$NCTX')" ;;
+  *) [ "$NCTX" -ge 2048 ] || die "NCTX must be >= 2048 (llama.rn floor), got '$NCTX'" ;;
+esac
+case "$WINBUDGET" in
+  "") ;;
+  *[!0-9]*) die "WINBUDGET must be empty or a positive integer (got '$WINBUDGET')" ;;
+  *) [ "$WINBUDGET" -ge 500 ] || die "WINBUDGET must be >= 500 chars, got '$WINBUDGET'" ;;
+esac
 
-log "arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
+log "arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
 # LFM2.5 is always-on reasoning: the chat template has preserve_thinking only,
 # no off switch. Record THINKING as today; do not try to force it off.
 if [ "$MODEL_DIR" = "lfm2.5-2.6b" ]; then
@@ -185,6 +202,24 @@ set_prefs() {
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.format','$BLOCK_FORMAT');"
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.toolchoice','$TOOLCHOICE');"
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.toolgate','$TOOLGATE');"
+  # NCTX override. Empty must DELETE the key, not merely skip the write: an
+  # arm that inherits a previous arm's pref would run at that n_ctx while the
+  # report claims catalog — the exact silent-wrong-regime this axis exists to
+  # prevent. Inert on today's fresh-per-job emulator, live the moment an AVD
+  # is reused. Both branches are asserted below.
+  if [ -n "$NCTX" ]; then
+    sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.nctx','$NCTX');"
+  else
+    sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.nctx';"
+  fi
+  # WINBUDGET: the knob that actually controls how often the compactor runs —
+  # shouldRebuild fires on this char budget and on the K-turn cadence, never on
+  # n_ctx. Same delete-when-empty rule, same both-branch assert.
+  if [ -n "$WINBUDGET" ]; then
+    sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.winbudget','$WINBUDGET');"
+  else
+    sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.winbudget';"
+  fi
   # Opt-in memory subsystem must stay off: otherwise its extract/recall path
   # confounds the compaction A/B (same facts could leak via memory, not context).
   sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.memory.enabled','0');"
@@ -215,6 +250,27 @@ TOOLCHOICE_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kal
 TOOLGATE_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.toolgate';" | head -1 | tr -d '[:space:]')
 [ "$TOOLGATE_PREF_RAW" = "$TOOLGATE" ] \
   || die "toolgate pref on device is '$TOOLGATE_PREF_RAW', expected '$TOOLGATE'"
+# NCTX assert, BOTH branches. When set, the on-device pref must match exactly:
+# a silent write failure would leave catalogCtx in place and the whole bench
+# regime wrong. When empty, the key must be ABSENT — an inherited value from a
+# previous arm is the same failure with the opposite sign, and asserting only
+# the non-empty branch would leave it unguarded.
+NCTX_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.nctx';" | head -1 | tr -d '[:space:]')
+if [ -n "$NCTX" ]; then
+  [ "$NCTX_PREF_RAW" = "$NCTX" ] \
+    || die "nctx pref on device is '$NCTX_PREF_RAW', expected '$NCTX'"
+else
+  [ -z "$NCTX_PREF_RAW" ] \
+    || die "nctx pref on device is '$NCTX_PREF_RAW', expected absent (NCTX empty = catalog n_ctx)"
+fi
+WINBUDGET_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.winbudget';" | head -1 | tr -d '[:space:]')
+if [ -n "$WINBUDGET" ]; then
+  [ "$WINBUDGET_PREF_RAW" = "$WINBUDGET" ] \
+    || die "winbudget pref on device is '$WINBUDGET_PREF_RAW', expected '$WINBUDGET'"
+else
+  [ -z "$WINBUDGET_PREF_RAW" ] \
+    || die "winbudget pref on device is '$WINBUDGET_PREF_RAW', expected absent (WINBUDGET empty = WINDOW_CHAR_BUDGET)"
+fi
 
 adb logcat -c
 
@@ -759,6 +815,11 @@ capture_turn_evidence() {
   # the file (empty when none) so absent-file vs empty-capture stay distinguishable.
   grep -F "KALSA_TOOLCALL " "$buf" 2>/dev/null \
     | sed 's/.*KALSA_TOOLCALL //' > "$tdir/toolcall.jsonl" 2>/dev/null || : > "$tdir/toolcall.jsonl"
+
+  # digest.jsonl — per-digest timing (KALSA_DIGEST). Always write the file
+  # (empty when none) so absent-file vs empty-capture stay distinguishable.
+  grep -F "KALSA_DIGEST " "$buf" 2>/dev/null \
+    | sed 's/.*KALSA_DIGEST //' > "$tdir/digest.jsonl" 2>/dev/null || : > "$tdir/digest.jsonl"
 
   {
     grep -F "Input processed: n_past=" "$buf" 2>/dev/null || true

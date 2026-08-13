@@ -562,6 +562,41 @@ function readToolRounds(turnDir) {
   return rounds;
 }
 
+/**
+ * Parse turn<N>/digest.jsonl (KALSA_DIGEST timing). Missing / unreadable
+ * / empty → []. Never throw. Each line is one digest-build telemetry object
+ * with { durationMs, corpusSize, selectedCount }.
+ */
+function readDigestTelemetry(turnDir) {
+  const file = path.join(turnDir, "digest.jsonl");
+  if (!existsSync(file)) return [];
+  let raw;
+  try {
+    raw = readFileSync(file, "utf8");
+  } catch {
+    return [];
+  }
+  const records = [];
+  for (const line of raw.split("\n")) {
+    const t = line.trim();
+    if (!t) continue;
+    try {
+      const obj = JSON.parse(t);
+      if (obj && typeof obj === "object") {
+        const durationMs = typeof obj.durationMs === "number" ? obj.durationMs : null;
+        const corpusSize = typeof obj.corpusSize === "number" ? obj.corpusSize : null;
+        const selectedCount = typeof obj.selectedCount === "number" ? obj.selectedCount : null;
+        if (durationMs != null || corpusSize != null || selectedCount != null) {
+          records.push({ durationMs, corpusSize, selectedCount });
+        }
+      }
+    } catch {
+      // skip unparseable lines
+    }
+  }
+  return records;
+}
+
 function emptyToolAggregates() {
   return {
     emittedAnyToolCall: false,
@@ -812,6 +847,12 @@ function gradeRaw(raw, baseDir) {
   const { toolPrecision, toolRecall, spuriousCalls, missedCalls } =
     scoreToolTiming(turns, toolRoundsPerTurn);
 
+  const digestTelemetryPerTurn = turns.map((t) =>
+    t.index == null
+      ? []
+      : readDigestTelemetry(path.join(baseDir, `turn${t.index}`)),
+  );
+
   const turnMetrics = turns.map((t) => metricsForTurn(baseDir, t.index));
 
   // contextFullTurns / errorTurns: product signals the harness used to ignore.
@@ -1013,6 +1054,7 @@ function gradeRaw(raw, baseDir) {
     toolRecall,
     spuriousCalls,
     missedCalls,
+    digestTelemetry: digestTelemetryPerTurn,
     model: raw.model ?? null,
     fillerRotation: raw.fillerRotation ?? null,
     historyChars: raw.historyChars ?? null,

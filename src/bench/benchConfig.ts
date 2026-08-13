@@ -33,6 +33,8 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getThreadCountSource } from "../engine/threadProfile";
+import { parseBenchNCtx } from "../engine/contextProfile";
+import { parseBenchWindowBudget } from "../context/compactor";
 
 export const BENCH_THINKING_KEY = "kalsa.bench.thinking";
 export const BENCH_FORMAT_KEY = "kalsa.bench.format";
@@ -40,6 +42,8 @@ export const BENCH_SPECULATIVE_KEY = "kalsa.bench.speculative";
 export const BENCH_ENGINE_KEY = "kalsa.bench.engine";
 export const BENCH_TOOLCHOICE_KEY = "kalsa.bench.toolchoice";
 export const BENCH_TOOLGATE_KEY = "kalsa.bench.toolgate";
+export const BENCH_NCTX_KEY = "kalsa.bench.nctx";
+export const BENCH_WINBUDGET_KEY = "kalsa.bench.winbudget";
 
 export type ThinkingMode = "default" | "off" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
@@ -173,6 +177,35 @@ export async function getToolChoiceMode(): Promise<ToolChoiceMode> {
     // best-effort
   }
   return "auto";
+}
+
+/**
+ * Bench-only n_ctx override. Absent / invalid / below floor (2048) → null
+ * (catalog n_ctx wins). The parser rejects 0, NaN, and sub-floor values
+ * rather than passing them through to a silent clamp.
+ */
+export async function getBenchNCtx(): Promise<number | null> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_NCTX_KEY);
+    return parseBenchNCtx(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Bench-only verbatim-window char budget. Absent / invalid / below floor → null
+ * (WINDOW_CHAR_BUDGET wins). This is the knob that actually controls how often
+ * the compactor runs: shouldRebuild fires on this budget and on the K-turn
+ * cadence, never on n_ctx.
+ */
+export async function getBenchWindowBudget(): Promise<number | null> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_WINBUDGET_KEY);
+    return parseBenchWindowBudget(raw);
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -38,6 +38,7 @@ import {
   type RetrieveOptions,
   type RetrievedSnippet,
 } from "./retriever";
+import type { DigestTelemetry } from "../engine/digestTelemetry";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,37 @@ export type EngineHistoryMessage = {
 
 /** Default verbatim-window char budget (~4k tokens). See CompactorConfig.windowCharBudget. */
 export const WINDOW_CHAR_BUDGET = 16_000;
+
+/**
+ * Floor for the bench-only window-budget override. Below one per-message cap
+ * (LEGACY_MAX_CHARS = 4000) a single long message already blows the budget, so
+ * every turn rebuilds — a legitimate extreme to measure, but under this floor
+ * the value is just noise.
+ */
+export const BENCH_WINDOW_BUDGET_FLOOR = 500;
+
+/**
+ * Defensive parser for the bench-only windowCharBudget override.
+ * Absent / empty / non-numeric / non-integer / below floor → null (no override,
+ * WINDOW_CHAR_BUDGET wins). Never 0 or NaN: a zero budget would rebuild the
+ * boundary on every single turn and silently destroy the KV prefix the whole
+ * design exists to preserve.
+ *
+ * Exists because the compaction trigger is decoupled from the engine window:
+ * shouldRebuild fires on this char budget and on the K-turn cadence, never on
+ * n_ctx. Shrinking n_ctx alone does NOT make the compactor run more often.
+ */
+export function parseBenchWindowBudget(
+  raw: string | null | undefined,
+): number | null {
+  if (raw == null) return null;
+  const trimmed = String(raw).trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return null;
+  if (n < BENCH_WINDOW_BUDGET_FLOOR) return null;
+  return n;
+}
 
 export const DEFAULT_COMPACTOR_CONFIG: CompactorConfig = {
   rebuildEveryKUserTurns: 3,
@@ -324,10 +356,17 @@ export function buildDigest(
   oldTurns: RetrievalUnit[] | null | undefined,
   currentQuery: string | null | undefined,
   config?: Partial<CompactorConfig> | null,
+  onTelemetry?: (telemetry: DigestTelemetry) => void,
 ): string {
+  const startTime = Date.now();
   const cfg = mergeConfig(config);
   const q = typeof currentQuery === "string" ? currentQuery : "";
-  if (!q.trim()) return "";
+  if (!q.trim()) {
+    if (onTelemetry) {
+      onTelemetry({ durationMs: Date.now() - startTime, corpusSize: 0, selectedCount: 0 });
+    }
+    return "";
+  }
 
   const opts: RetrieveOptions = {
     topN: DEFAULT_DIGEST_TOP_N,
@@ -337,30 +376,51 @@ export function buildDigest(
   };
 
   let snippets: RetrievedSnippet[] = [];
+  // Documents the ranking actually scanned — the variable the cost scales on.
+  // NOT snippets.length: that is the post-top-N selection (≤ DEFAULT_DIGEST_TOP_N)
+  // and says nothing about the work done to produce it.
+  let corpusSize = 0;
   const hasIndexDocs =
     index &&
     typeof index.retrieve === "function" &&
     (typeof index.documentCount !== "number" || index.documentCount > 0);
 
   if (hasIndexDocs && index) {
+    corpusSize =
+      typeof index.documentCount === "number" ? index.documentCount : 0;
     snippets = index.retrieve(q, opts);
   } else if (Array.isArray(oldTurns) && oldTurns.length > 0) {
+    corpusSize = oldTurns.length;
     const tmp = new RetrieverIndex();
     tmp.append(oldTurns);
     snippets = tmp.retrieve(q, opts);
   }
 
-  if (!snippets.length) return "";
+  if (!snippets.length) {
+    if (onTelemetry) {
+      onTelemetry({ durationMs: Date.now() - startTime, corpusSize, selectedCount: 0 });
+    }
+    return "";
+  }
 
   const parts: string[] = [];
   for (const sn of snippets) {
     const t = typeof sn.text === "string" ? sn.text.trim() : "";
     if (t) parts.push(t);
   }
-  if (parts.length === 0) return "";
+  if (parts.length === 0) {
+    if (onTelemetry) {
+      onTelemetry({ durationMs: Date.now() - startTime, corpusSize, selectedCount: 0 });
+    }
+    return "";
+  }
 
   const joined = parts.join(" · ");
-  return truncateBudget(joined, cfg.digestBudgetChars);
+  const result = truncateBudget(joined, cfg.digestBudgetChars);
+  if (onTelemetry) {
+    onTelemetry({ durationMs: Date.now() - startTime, corpusSize, selectedCount: parts.length });
+  }
+  return result;
 }
 
 /** Size of the recent verbatim window at rebuild (images shrink the target R). */
@@ -562,6 +622,7 @@ export function refreshQueryDigest(
     oldTurns: RetrievalUnit[];
     currentQuery: string;
     config?: Partial<CompactorConfig> | null;
+    onTelemetry?: (telemetry: DigestTelemetry) => void;
   },
 ): CompactorState {
   const base = prev ?? emptyCompactorState(args.chatId || DEFAULT_CHAT_ID);
@@ -570,6 +631,7 @@ export function refreshQueryDigest(
     args.oldTurns,
     args.currentQuery,
     args.config,
+    args.onTelemetry,
   );
   return {
     ...base,

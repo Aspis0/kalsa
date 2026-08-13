@@ -925,6 +925,55 @@ function collectToolTimingByMode(fase4) {
   });
 }
 
+/**
+ * Per-mode digest-build timing. The digest ranking runs on every compaction
+ * turn. Measured on-device (Hermes on mid-range Android), this is the baseline
+ * the CisWire hybrid leg has to be judged against.
+ * 
+ * digestTelemetry is an array (one entry per turn) of arrays of {durationMs, corpusSize, selectedCount}.
+ * We flatten and compute mean/max durationMs per mode.
+ */
+function collectDigestTimingByMode(fase4) {
+  const acc = new Map();
+  for (const mode of FASE4_MODES) {
+    acc.set(mode, { durations: [], corpus: [], selected: [] });
+  }
+  for (const r of fase4) {
+    const mode = modeOf(r);
+    if (!mode || !acc.has(mode)) continue;
+    const row = acc.get(mode);
+    const telemetry = r.digestTelemetry;
+    if (!Array.isArray(telemetry)) continue;
+    // digestTelemetry is per-turn array of per-digest arrays
+    for (const turnDigest of telemetry) {
+      if (!Array.isArray(turnDigest)) continue;
+      for (const d of turnDigest) {
+        if (typeof d.durationMs === "number" && Number.isFinite(d.durationMs)) {
+          row.durations.push(d.durationMs);
+        }
+        if (typeof d.corpusSize === "number" && Number.isFinite(d.corpusSize)) {
+          row.corpus.push(d.corpusSize);
+        }
+        if (typeof d.selectedCount === "number" && Number.isFinite(d.selectedCount)) {
+          row.selected.push(d.selectedCount);
+        }
+      }
+    }
+  }
+  return FASE4_MODES.map((mode) => {
+    const row = acc.get(mode);
+    const durations = row.durations;
+    return {
+      mode,
+      meanDurationMs: durations.length === 0 ? null : meanOf(durations),
+      maxDurationMs: durations.length === 0 ? null : Math.max(...durations),
+      nSamples: durations.length,
+      meanCorpusSize: row.corpus.length === 0 ? null : meanOf(row.corpus),
+      meanSelectedCount: row.selected.length === 0 ? null : meanOf(row.selected),
+    };
+  });
+}
+
 function accumulateToolTiming(results) {
   const acc = { prec: [], rec: [], spurious: 0, missed: 0, blocked: 0, n: 0 };
   for (const r of results) {
@@ -1346,6 +1395,7 @@ function aggregateFase4(results) {
   const notes = collectNotes(fase4);
   const summaryByMode = collectSummaryByMode(compaction);
   const toolTimingByMode = collectToolTimingByMode(compaction);
+  const digestTimingByMode = collectDigestTimingByMode(compaction);
   const toolTimingGateAB = collectToolTimingGateAB(fase4);
 
   const gated = shouldGateFase4();
@@ -1387,6 +1437,7 @@ function aggregateFase4(results) {
     pairwise,
     summaryByMode,
     toolTimingByMode,
+    digestTimingByMode,
     toolTimingGateAB,
     prefill,
     positiveControl,
@@ -1688,6 +1739,32 @@ function renderFase4(agg) {
   } else {
     // One arm missing — n/a table, not a result that pretends the gate differed.
     pushGateTable();
+  }
+
+  // ── Digest-build cost, measured on device ───────────────────────────
+  // The digest ranking runs on every compaction turn, and on a phone that is
+  // often. Reported so "the ranking is fast enough" is a number from Hermes,
+  // not an extrapolation from a laptop.
+  lines.push(
+    "",
+    "### Digest build cost (on-device)",
+    "",
+    "_Wall-clock ms per `buildDigest` call, from `KALSA_DIGEST`. Absent telemetry is n/a, never 0 — an unmeasured cost must not read as a free one._",
+    "",
+    "| mode | mean ms | max ms | samples | mean corpus | mean selected |",
+    "|---|---|---|---|---|---|",
+  );
+  const digestTiming = agg.digestTimingByMode ?? [];
+  if (digestTiming.length === 0) {
+    lines.push("| — | n/a | n/a | 0 | n/a | n/a |");
+  } else {
+    for (const row of digestTiming) {
+      const ms = (v) => (v == null ? "n/a" : v.toFixed(1));
+      const n = (v) => (v == null ? "n/a" : v.toFixed(1));
+      lines.push(
+        `| ${row.mode} | ${ms(row.meanDurationMs)} | ${ms(row.maxDurationMs)} | ${row.nSamples} | ${n(row.meanCorpusSize)} | ${n(row.meanSelectedCount)} |`,
+      );
+    }
   }
 
   // ── Probe-level (pseudo-replicated — NOT the gate) ──────────────────

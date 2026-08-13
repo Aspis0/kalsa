@@ -27,6 +27,16 @@ on:
         required: true
         default: "2"
         type: string
+      nctx:
+        description: "Bench-only n_ctx override (empty = catalog wins). Floor 2048."
+        required: false
+        default: ""
+        type: string
+      winbudget:
+        description: "Bench-only verbatim-window char budget (empty = 16000). Controls how often compaction fires. Floor 500."
+        required: false
+        default: ""
+        type: string
 
 jobs:
   build:
@@ -86,6 +96,7 @@ jobs:
           node scripts/webFetchPdfMutationMatrix.mjs
           node scripts/benchGradeHarness.mjs
           node scripts/benchAggregateHarness.mjs
+          node scripts/benchNCtxHarness.mjs
           node scripts/matrixParityHarness.mjs
 
       - name: Free disk space
@@ -473,6 +484,8 @@ jobs:
           # Forcing (required) measured worse than auto on smoke 31640101893 — knob stays so the axis can be re-run; do not re-enable thinking it is untried.
           TOOLCHOICE: ${{ matrix.toolchoice || 'auto' }}
           TOOLGATE: ${{ matrix.toolgate || '1' }}
+          NCTX: ${{ inputs.nctx || '' }}
+          WINBUDGET: ${{ inputs.winbudget || '' }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
           # 40s = SUMMARY_IDLE_DEBOUNCE_MS (8s) + SUMMARIZE_TIMEOUT_MS (30s) +
           # margin. On CI emulator the 2B decodes at ~2.45 tok/s, so

@@ -9,7 +9,7 @@
  *  (6) boundary rebuild cadence still every K user turns
  */
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,7 +17,17 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 
+// Dedicated, wiped-on-every-run outDir. The shared scripts/.build is NOT safe:
+// compactor.ts imports ../engine/digestTelemetry, so tsc's common root is src/
+// and the output lands in <outDir>/context/compactor.js — while an older build
+// (when the root was src/context) left a flat <outDir>/compactor.js that
+// resolveBuilt prefers. That shadow made this harness silently validate a stale
+// compiler output for a whole day. Wipe first, resolve second.
+const outDir = path.join(projectRoot, "scripts/.build/compactorHarness");
+
 function compile() {
+  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(outDir, { recursive: true });
   const r = spawnSync(
     "npx",
     [
@@ -25,7 +35,7 @@ function compile() {
       "src/context/retriever.ts",
       "src/context/compactor.ts",
       "--outDir",
-      "scripts/.build",
+      outDir,
       "--module",
       "nodenext",
       "--target",
@@ -45,9 +55,9 @@ function compile() {
 
 function resolveBuilt(name) {
   const candidates = [
-    path.join(projectRoot, `scripts/.build/${name}.js`),
-    path.join(projectRoot, `scripts/.build/context/${name}.js`),
-    path.join(projectRoot, `scripts/.build/src/context/${name}.js`),
+    path.join(outDir, `context/${name}.js`),
+    path.join(outDir, `src/context/${name}.js`),
+    path.join(outDir, `${name}.js`),
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;
@@ -122,6 +132,7 @@ async function main() {
     resolveBoundaryIndex,
     replaceLiteral,
     estimateWindowChars,
+    parseBenchWindowBudget,
     WINDOW_CHAR_BUDGET,
     LEGACY_MAX_HISTORY,
     LEGACY_MAX_HISTORY_IMAGES,
@@ -392,6 +403,77 @@ async function main() {
   const detC = buildDigest(null, units, "come si chiama il gatto?");
   const detOk = detA === detB && detA === detC;
   record("(4b) determinism", detOk, `len=${detA.length}`);
+
+  // (4c) Digest telemetry: exactly one emission per call, and corpusSize is the
+  // scanned corpus — NOT snippets.length, which is capped at top-N (4) and would
+  // make the cost look flat no matter how large the conversation grows.
+  const emitted = [];
+  buildDigest(idx, units, "come si chiama il gatto?", null, (t) =>
+    emitted.push(t),
+  );
+  record(
+    "(4c) telemetry emitted exactly once per buildDigest",
+    emitted.length === 1,
+    `got ${emitted.length}`,
+  );
+  record(
+    "(4c) corpusSize is the scanned corpus, not the top-N slice",
+    emitted[0]?.corpusSize === idx.documentCount && idx.documentCount > 4,
+    `corpusSize=${emitted[0]?.corpusSize} documentCount=${idx.documentCount}`,
+  );
+  record(
+    "(4c) selectedCount is capped by top-N",
+    emitted[0]?.selectedCount > 0 && emitted[0]?.selectedCount <= 4,
+    `selectedCount=${emitted[0]?.selectedCount}`,
+  );
+  record(
+    "(4c) durationMs is a finite non-negative number",
+    Number.isFinite(emitted[0]?.durationMs) && emitted[0]?.durationMs >= 0,
+    `durationMs=${emitted[0]?.durationMs}`,
+  );
+
+  // (4d) Bench-only windowCharBudget override — the knob that actually decides
+  // how often the compactor runs. n_ctx does NOT: shouldRebuild never reads it.
+  record(
+    "(4d) parseBenchWindowBudget rejects absent / malformed / sub-floor",
+    parseBenchWindowBudget(null) === null &&
+      parseBenchWindowBudget("") === null &&
+      parseBenchWindowBudget("   ") === null &&
+      parseBenchWindowBudget("abc") === null &&
+      parseBenchWindowBudget("1200.5") === null &&
+      parseBenchWindowBudget("0") === null &&
+      parseBenchWindowBudget("499") === null,
+  );
+  record(
+    "(4d) parseBenchWindowBudget accepts the floor and above",
+    parseBenchWindowBudget("500") === 500 &&
+      parseBenchWindowBudget(" 2000 ") === 2000,
+  );
+  // The override must change the size trigger: a window that is under the
+  // default budget but over the override has to force a rebuild.
+  const budgetProbe = [{ text: "x".repeat(3000) }];
+  const settled = { ...emptyCompactorState("default"), builtAtUserTurn: 1 };
+  record(
+    "(4d) window under default budget does NOT rebuild",
+    shouldRebuild(settled, 2, null, budgetProbe) === false,
+    `chars=${estimateWindowChars(budgetProbe)} default=${WINDOW_CHAR_BUDGET}`,
+  );
+  record(
+    "(4d) same window OVER the override DOES rebuild",
+    shouldRebuild(settled, 2, { windowCharBudget: 1000 }, budgetProbe) === true,
+  );
+
+  // Empty query short-circuits before any ranking: still exactly one emission,
+  // so nSamples in the aggregate can never be inflated by a skipped build.
+  const emptyEmitted = [];
+  buildDigest(idx, units, "   ", null, (t) => emptyEmitted.push(t));
+  record(
+    "(4c) empty query still emits exactly once, zeroed",
+    emptyEmitted.length === 1 &&
+      emptyEmitted[0].corpusSize === 0 &&
+      emptyEmitted[0].selectedCount === 0,
+    JSON.stringify(emptyEmitted),
+  );
 
   // (5) Toggle OFF → legacy sliding-window shape (byte-identical)
   const legacy = assembleEngineHistory(convo, {
