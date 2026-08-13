@@ -1,0 +1,74 @@
+# K2-bis Xiaomi 14 (Adreno 750) connection log
+# Host time zone: local (America/New_York observed on PC)
+
+2026-08-12T22:09:xx  adb mdns services
+  adb-625689a2-9xEOfw  _adb-tls-connect._tcp  192.168.1.193:39643
+  adb-R3CW406P8CV-zyLM4b  _adb-tls-connect._tcp  192.168.1.152:44831   # S23 — NOT TOUCHED
+  adb-JELLYS0000053795-UFuN1D  _adb-tls-connect._tcp  192.168.1.82:44395  # Jelly — NOT TOUCHED
+
+2026-08-12T22:09:xx  already authorized; serial used for ALL subsequent commands:
+  -s adb-625689a2-9xEOfw._adb-tls-connect._tcp
+  product:houji_global model:23127PN0CG device:houji
+  ro.soc.model=SM8650  ro.build.version.release=16  abi=arm64-v8a
+
+2026-08-12T22:09:xx  battery first snapshot
+  AC powered: true  USB: false  Wireless: false
+  status: 2 (charging)  level: 64-65  temperature: 318 (31.8 C)
+  NEVER benched while this was true.
+
+2026-08-12T22:09:xx  adb shell = uid=2000(shell) context=u:r:shell:s0
+  Termux home / run-as: model present (1280835840 B) but OpenCL+SELinux:
+    S0 already showed run-as cannot clGetPlatformIDs.
+    run-as cp to /data/local/tmp/gdn_750 (777) → Permission denied (SELinux).
+  sshd binary present, process NOT running. Did not start sshd.
+  Execution path: /data/local/tmp/gdn_750 via adb shell (works; OpenCL inits).
+
+2026-08-12T22:09:xx  cpu_capacity
+  cpu0=379 cpu1=379 cpu2=923 cpu3=923 cpu4=923 cpu5=867 cpu6=867 cpu7=1024
+  max=1024  50% threshold=512
+  cores >=512: cpu2,3,4,5,6,7 → n_threads=6
+  Marketing 1+5+2 (X4 + 5xA720 + 2xA520) maps to capacities 1x1024 + 5x(867-923) + 2x379.
+  Campaign rule used: -t 6 (same as S0).
+
+2026-08-12T22:10:xx  mkdir /data/local/tmp/gdn_750/{bin,logs,out} chmod 777
+2026-08-12T22:10:xx  pushed cpufix stripped bins from results/cpu_build_gap/bin/
+                      + test-backend-ops from results/gdn_gpu_k22/bin/ (same commit a92a51627)
+2026-08-12T22:11:xx  on-device sha256 MATCH cpu_build_gap SHA256SUMS.txt
+                      test-backend-ops MATCH gdn_gpu_k22 SHA256SUMS.txt e96b7d4c...
+2026-08-12T22:11:xx  PHASE1 OpenCL probe (test-backend-ops -o CUMSUM) SUCCESS as shell
+  driver: OpenCL 3.0 QUALCOMM build: 0762.36.1 Compiler E031.45.02.25
+  vector subgroup broadcast support: false
+  CUMSUM 15/15 OK
+
+2026-08-12T22:12:24  phase2 nohup started (GATED_DELTA_NET first)
+2026-08-12T22:12:37  adb push models_staging/Qwen3.5-2B-Q4_K_M.gguf (while phase2 ran)
+2026-08-12T22:13:57  push done 15.3 MB/s (1280835840 B in 79.7s)
+  sha256 on device: aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223 MATCH
+
+2026-08-12T22:12:50  GATED_DELTA_NET EXIT=0
+2026-08-12T22:13:05  SSM_CONV EXIT=0
+2026-08-12T22:13:19  L2_NORM EXIT=0
+2026-08-12T22:13:33  SOLVE_TRI EXIT=0
+2026-08-12T22:13:47  CUMSUM EXIT=0
+2026-08-12T22:13:47  MUL_MAT q6_K started
+2026-08-12T22:14:29  MUL_MAT q6_K EXIT=0  (14/14 including flat m=16 AND real-shape 248320)
+2026-08-12T22:14:29  MUL_MAT q4_K started
+2026-08-12T22:15:02  MUL_MAT q4_K EXIT=0  (33/33)
+2026-08-12T22:15:02  PHASE2 all ops done
+
+2026-08-12T22:15:40  PHASE2B greedy+FA start, -t 6
+2026-08-12T22:15:49  greedy_cpu start; 22:16:02 EXIT=0
+                     body = Thinking Process: ... (matches K2.2 740)
+                     llama-cli pp=25.0 tg=6.3  (plugged, n=32, NOT the gate)
+2026-08-12T22:16:11  greedy_gpu_faoff start; 22:16:55 EXIT=0
+                     body IDENTICAL to CPU. pp=15.2 tg=8.6 (plugged, n=32)
+2026-08-12T22:17:04  FA auto/on probe start; 22:17:53 EXIT=134
+                     clBuildProgram err=-11  sub_group_shuffle_xor undeclared
+                     then std::out_of_range map::at. A7X FA declined. CONFIRMED.
+2026-08-12T22:18:02  PHASE2B done
+
+2026-08-12T22:18:28  PHASE3 waiter start (45 min cap). AC=true level=75 temp=33.1C
+                     first poll 22:18:35 plugged=1. Will NOT bench until unplug.
+                     28 polls, always AC=true. Charge 75 → 100. Temp 33 → 29 C.
+2026-08-12T23:08:46  SPEED_PENDING_UNPLUG elapsed=2700s plugged=1 level=100 tempC=29
+                     No llama-bench launched. No JSON. Device files left in place.

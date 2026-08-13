@@ -1,0 +1,28 @@
+# Greedy A/B extracted body (after "> The capital of France is")
+# CPU -ngl 0 -t 6  vs  GPU -ngl 99 -fa off -t 6
+# Both: --temp 0 -s 42 -n 32 -no-cnv -st -c 512
+# Source: logs/greedy_cpu.txt and logs/greedy_gpu_faoff.txt
+
+----- CPU -----
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:** The user is asking a simple factual question: "The capital of France is".
+
+2.
+
+[ Prompt: 25.0 t/s | Generation: 6.3 t/s ]
+
+----- GPU -fa off -----
+[Start thinking]
+
+Thinking Process:
+
+1.  **Analyze the Request:** The user is asking a simple factual question: "The capital of France is".
+
+2.
+
+[ Prompt: 15.2 t/s | Generation: 8.6 t/s ]
+
+VERDICT: token-identical generated body. PASS

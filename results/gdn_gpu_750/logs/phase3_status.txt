@@ -1,0 +1,2 @@
+2026-08-12T22:18:28 PHASE3 wait begin t=6 max_wait=2700s
+2026-08-12T23:08:46 SPEED_PENDING_UNPLUG plugged=1 level=100 tempC=29 elapsed=2700s

@@ -1,0 +1,33 @@
+0.48.161.398 E ggml_opencl: kernel compile error (err=-11) building fa f32_f16:
+
+BC-src-code:2010:22: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+                s += sub_group_shuffle_xor(s, step);
+                     ^
+BC-src-code:2056:19: error: call to builtin 'max' is ambiguous due to multiple possible argument type matches
+            m_c = max(m_c, sub_group_shuffle_xor(m_c, step));
+                  ^~~
+BC-src-code:496:58: note: candidate function
+                const ACC_TYPE m_new      = max(m_i, max(max(s0, s1), max(s2, s3)));
+                                                         ^
+BC-src-code:496:58: note: candidate function
+BC-src-code:496:58: note: candidate function
+BC-src-code:496:58: note: candidate function
+2 diagnostic(s) generated.
+
+0.48.176.659 E ggml_opencl: kernel compile error (err=-11) building fa f32_f16 split:
+
+BC-src-code:299:33: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+                    partial0 += sub_group_shuffle_xor(partial0, step);
+                                ^
+BC-src-code:2056:19: error: call to builtin 'max' is ambiguous due to multiple possible argument type matches
+            m_c = max(m_c, sub_group_shuffle_xor(m_c, step));
+                  ^~~
+BC-src-code:333:49: note: candidate function
+                const ACC_TYPE m_new = max(m_i, max(score0, score1));
+                                                ^
+BC-src-code:333:49: note: candidate function
+BC-src-code:333:49: note: candidate function
+BC-src-code:333:49: note: candidate function
+2 diagnostic(s) generated.
+
+libc++abi: terminating due to uncaught exception of type std::out_of_range: map::at:  key not found

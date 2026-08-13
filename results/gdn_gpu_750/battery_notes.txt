@@ -1,0 +1,21 @@
+# Battery / thermal notes — Xiaomi 14 K2-bis
+# Raw dumpsys snapshots: logs/battery_notes.txt
+# Waiter polls: logs/phase3_wait.txt
+
+## Policy
+- Phase 1–2 (driver, test-backend-ops, greedy, FA): plugged OK.
+- Phase 3 (llama-bench): UNPLUGGED + level>=60 + start temp<=35C. Never launched.
+
+## Snapshots
+
+| when | AC | level | batt temp | max_therm_mC | source |
+|---|---|---:|---:|---:|---|
+| first identity | true | 64–65 | 31.8 C | — | connection_log |
+| before greedy_cpu | true | 72 | 33.1 C | 48451 | logs/battery_notes.txt |
+| after greedy_cpu | true | 72 | 32.9 C | 46400 | same |
+| before greedy_gpu | true | 72 | 32.9 C | 46837 | same |
+| after FA / phase2b done | true | 75 | 33.1 C | — | dumpsys |
+| phase3 waiter start | true | 75 | 33.1 C | — | phase3_wait |
+| phase3 abort | true | 100 | 29 C | — | SPEED_PENDING_UNPLUG |
+
+Phase 3: 28 polls over 2700s, AC always true. Charge 75→100. No bench.

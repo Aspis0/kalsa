@@ -1,0 +1,74 @@
+=== battery wait_start 2026-08-12T22:18:28 ===
+Current Battery Service state:
+  AC powered: true
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Max charging current: 1700000
+ Time when the latest updated value of the Max charging current was sent via battery changed broadcast: +23h23m37s349ms
+  Max charging voltage: 9040000
+  Charge counter: 3121000
+  status: 2
+  health: 2
+  present: true
+  level: 75
+  scale: 100
+  voltage: 4358
+ Time when the latest updated value of the voltage was sent via battery changed broadcast: +23h36m57s644ms
+ The last voltage value sent via the battery changed broadcast: 4358
+  temperature: 331
+  technology: Li-poly
+  Charging state: 0
+  Charging policy: 0
+  Capacity level: -1
+MiuiBatteryService first usage time:
+  mSetBatteryUsageTimeCount=0
+  mNtpTime=-1
+  mParseNtpTime=
+max_therm_mC=48720
+2026-08-12T22:18:35 poll elapsed=0s plugged=1 level=75 tempC=33 ac=true usb=false wl=false
+2026-08-12T22:20:10 poll elapsed=60s plugged=1 level=77 tempC=32 ac=true usb=false wl=false
+2026-08-12T22:21:31 poll elapsed=120s plugged=1 level=79 tempC=32 ac=true usb=false wl=false
+2026-08-12T22:23:02 poll elapsed=180s plugged=1 level=81 tempC=32 ac=true usb=false wl=false
+2026-08-12T22:24:14 poll elapsed=240s plugged=1 level=82 tempC=32 ac=true usb=false wl=false
+2026-08-12T22:25:25 poll elapsed=300s plugged=1 level=83 tempC=32 ac=true usb=false wl=false
+2026-08-12T22:26:26 poll elapsed=360s plugged=1 level=84 tempC=32 ac=true usb=false wl=false
+2026-08-12T22:27:26 poll elapsed=420s plugged=1 level=85 tempC=32 ac=true usb=false wl=false
+2026-08-12T22:28:26 poll elapsed=480s plugged=1 level=86 tempC=32 ac=true usb=false wl=false
+2026-08-12T22:29:26 poll elapsed=540s plugged=1 level=87 tempC=31 ac=true usb=false wl=false
+2026-08-12T22:30:27 poll elapsed=600s plugged=1 level=88 tempC=31 ac=true usb=false wl=false
+2026-08-12T22:31:27 poll elapsed=660s plugged=1 level=89 tempC=31 ac=true usb=false wl=false
+2026-08-12T22:32:27 poll elapsed=720s plugged=1 level=90 tempC=31 ac=true usb=false wl=false
+2026-08-12T22:33:27 poll elapsed=780s plugged=1 level=90 tempC=30 ac=true usb=false wl=false
+2026-08-12T22:34:27 poll elapsed=840s plugged=1 level=91 tempC=30 ac=true usb=false wl=false
+2026-08-12T22:35:27 poll elapsed=900s plugged=1 level=91 tempC=30 ac=true usb=false wl=false
+2026-08-12T22:36:27 poll elapsed=960s plugged=1 level=92 tempC=30 ac=true usb=false wl=false
+2026-08-12T22:37:28 poll elapsed=1020s plugged=1 level=92 tempC=29 ac=true usb=false wl=false
+2026-08-12T22:38:28 poll elapsed=1080s plugged=1 level=93 tempC=29 ac=true usb=false wl=false
+2026-08-12T22:39:28 poll elapsed=1140s plugged=1 level=93 tempC=29 ac=true usb=false wl=false
+2026-08-12T22:40:28 poll elapsed=1200s plugged=1 level=94 tempC=29 ac=true usb=false wl=false
+2026-08-12T22:41:28 poll elapsed=1260s plugged=1 level=94 tempC=29 ac=true usb=false wl=false
+2026-08-12T22:42:29 poll elapsed=1320s plugged=1 level=95 tempC=28 ac=true usb=false wl=false
+2026-08-12T22:43:29 poll elapsed=1380s plugged=1 level=95 tempC=30 ac=true usb=false wl=false
+2026-08-12T22:44:29 poll elapsed=1440s plugged=1 level=95 tempC=32 ac=true usb=false wl=false
+2026-08-12T22:45:29 poll elapsed=1500s plugged=1 level=96 tempC=33 ac=true usb=false wl=false
+2026-08-12T22:46:29 poll elapsed=1560s plugged=1 level=96 tempC=34 ac=true usb=false wl=false
+2026-08-12T22:47:29 poll elapsed=1620s plugged=1 level=96 tempC=34 ac=true usb=false wl=false
+2026-08-12T22:48:30 poll elapsed=1680s plugged=1 level=97 tempC=34 ac=true usb=false wl=false
+2026-08-12T22:49:30 poll elapsed=1740s plugged=1 level=97 tempC=34 ac=true usb=false wl=false
+2026-08-12T22:50:30 poll elapsed=1800s plugged=1 level=97 tempC=34 ac=true usb=false wl=false
+2026-08-12T22:51:30 poll elapsed=1860s plugged=1 level=98 tempC=34 ac=true usb=false wl=false
+2026-08-12T22:52:31 poll elapsed=1920s plugged=1 level=98 tempC=33 ac=true usb=false wl=false
+2026-08-12T22:53:31 poll elapsed=1980s plugged=1 level=98 tempC=33 ac=true usb=false wl=false
+2026-08-12T22:54:31 poll elapsed=2040s plugged=1 level=99 tempC=32 ac=true usb=false wl=false
+2026-08-12T22:55:31 poll elapsed=2100s plugged=1 level=99 tempC=32 ac=true usb=false wl=false
+2026-08-12T22:56:41 poll elapsed=2160s plugged=1 level=99 tempC=32 ac=true usb=false wl=false
+2026-08-12T22:58:06 poll elapsed=2220s plugged=1 level=99 tempC=31 ac=true usb=false wl=false
+2026-08-12T22:59:33 poll elapsed=2280s plugged=1 level=99 tempC=31 ac=true usb=false wl=false
+2026-08-12T23:00:52 poll elapsed=2340s plugged=1 level=99 tempC=31 ac=true usb=false wl=false
+2026-08-12T23:02:08 poll elapsed=2400s plugged=1 level=99 tempC=30 ac=true usb=false wl=false
+2026-08-12T23:03:08 poll elapsed=2460s plugged=1 level=100 tempC=30 ac=true usb=false wl=false
+2026-08-12T23:04:37 poll elapsed=2520s plugged=1 level=100 tempC=30 ac=true usb=false wl=false
+2026-08-12T23:06:01 poll elapsed=2580s plugged=1 level=100 tempC=29 ac=true usb=false wl=false
+2026-08-12T23:07:22 poll elapsed=2640s plugged=1 level=100 tempC=29 ac=true usb=false wl=false
+2026-08-12T23:08:46 SPEED_PENDING_UNPLUG plugged=1 level=100 tempC=29 elapsed=2700s

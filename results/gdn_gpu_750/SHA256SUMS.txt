@@ -1,0 +1,11 @@
+# K2-bis Xiaomi 14 — binaries + model (on-device sha256 verified 2026-08-12)
+# llama-cli / llama-bench / libc++ from results/cpu_build_gap/bin/ (cpufix, REPACK=OFF, stripped)
+#   branch kalsa/opencl-q6k-dispatch-fix @ a92a51627
+# test-backend-ops from results/gdn_gpu_k22/bin/ (same commit a92a51627; not present in cpu_build_gap/bin)
+# model from models_staging/Qwen3.5-2B-Q4_K_M.gguf
+
+4986ff30447cb866656bce6762e6d30266669a2ebc4055a9c2ada00b9e4fdd80  llama-cli
+5092a319dd43a4e62095cc49ce15b329be96d0188734e7380d8935fe56b01ea3  llama-bench
+e96b7d4c107b9c9dcff50fbdbe51f2ce36a70de5c8b74dae5a02d3b2785261e3  test-backend-ops
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so
+aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223  Qwen3.5-2B-Q4_K_M.gguf

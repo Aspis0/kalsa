@@ -1,0 +1,8 @@
+2026-08-12T22:15:40 PHASE2B begin t=6
+2026-08-12T22:15:49 START greedy_cpu
+2026-08-12T22:16:02 END greedy_cpu EXIT=0
+2026-08-12T22:16:11 START greedy_gpu_faoff
+2026-08-12T22:16:55 END greedy_gpu_faoff EXIT=0
+2026-08-12T22:17:04 START greedy_gpu_fa_auto
+2026-08-12T22:17:53 END greedy_gpu_fa_auto EXIT=134
+2026-08-12T22:18:02 PHASE2B done
