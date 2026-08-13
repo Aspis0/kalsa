@@ -40,12 +40,6 @@ const KOTLIN_HELPER = `
     params.preferredDisplayModeId = best.modeId
     params.preferredRefreshRate = best.refreshRate
     window.attributes = params
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-      window.decorView.setFrameRate(
-        best.refreshRate,
-        android.view.Surface.FRAME_RATE_COMPATIBILITY_DEFAULT,
-      )
-    }
   }
 `;
 
@@ -80,12 +74,6 @@ const JAVA_HELPER = `
     params.preferredDisplayModeId = best.getModeId();
     params.preferredRefreshRate = best.getRefreshRate();
     window.setAttributes(params);
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-      window.getDecorView().setFrameRate(
-        best.getRefreshRate(),
-        android.view.Surface.FRAME_RATE_COMPATIBILITY_DEFAULT
-      );
-    }
   }
 `;
 
