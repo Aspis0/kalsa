@@ -80,7 +80,7 @@
 | **✅ Marco FASE 1: CHIUSA, PASS PIENO** (`results/marco_phase1/VERDICT.md`) | **Qualità full multi5 3/3 PASS**: A1 k8d065 ΔMacro **+0.0040** (drop quasi gratis a k=8); A3 k6d050 **+0.0095**; A2 k6d065 **+0.0182** (peggiore ma in gate; peggior lingua zh +0.033 vs soglia +0.10). **Speed S23 PASS su entrambe le leve**: A2 1.303× decode, −34.4% MiB/tok, hit +3.2pt. **Per PROTOCOL: transfer runtime SUFFICIENTE** → k/drop di campagna adottabili su Marco senza requant. **CONFERMA CROSS-SILICIO (Jelly Mali/G99, Grok#2 gualt, 2026-08-12 notte): A2 1.17× decode, MiB/tok −35.6%, hit +4.3pt — la riduzione byte è IDENTICA all'S23 (−34.4%), il moltiplicatore velocità scala col silicio (1.30× Adreno / 1.17× Mali).** Scelta cella prodotto (gualt): **A2** = speed misurata + qualità peggiore-ma-in-gate; **A3** = metà del costo qualità ma speed device non misurata; A1 = qualità ~gratis, leva solo-I/O. **Fase 2 MarcoKEXP resta l'upgrade di REGIME I/O** (KEXP stesso device: 30.7 MiB/tok e hit 80.7% vs 126.2/36.7 di Marco A2 → batteria e sostenuto) — GO gualt separato. Report di fase in scrittura | gualt: scelta cella + decisione Fase 2 |
 | **✅ MarcoKEXP (FASE 2): QUALITÀ PASS + SPEED 1.62× — decisione ship matura** | Qualità (Grok#2): 1c e cons PASS full; la tassa è il requant (~+0.03 bpb it/en), il drop aggiunge ~+0.01. **Speed S23 (ABBA same-session): Marco-1c 8.819 tok/s vs Marco-Q4 5.442 = 1.62×; MiB/tok 126→51.5 (−59%, bar ≤60 PASS); hit 36.7→53.5 (+16.8pt, sotto il +20)**. Non è ancora regime KEXP-35B (31/81) ma **Marco-1c è ora il modello grande più VELOCE del listino** (8.8 vs 5.7 di CalaQwen). **🚢 SHIPPATO (gualt 2026-08-13): lineup grandi = CalaQwen + Marco1c.** Originale Q4KM + cons + sorgente Q8 CANCELLATI (PC −35 GB; device cleanup in corso). Scheda listino 3-telefoni in compilazione (Grok): celle Jelly-Marco1c in misura; Xiaomi-Marco1c pending (device non disponibile oggi) | scheda in volo |
 | **⚠⚠ SCHEDA FLAGSHIP CalaQwen (Xiaomi 14): regime IDENTICO, decode DIMEZZATO** (`moe-calaqwen-xiaomi.md`, retry con extm OFF + pin campagna linkato) | **t6 med 2.55 tok/s / 30.4 MiB/tok / hit 80.75%** vs S23 5.86/30.7/80.7. Due fatti enormi: (1) **il regime streaming è INDIPENDENTE dal silicio** (30.4/80.7 ≈ identici) — la macchina KEXP trasferisce perfettamente; (2) **il decode del flagship 2024 è LA METÀ del 2023**: prima cella fredda 4.02 poi crollo a 2.3-2.7 = throttle/scheduler HyperOS sostenuto (majflt ~0: lo swap è morto, confermato — era la Memory Extension). Lezioni prodotto: perf NON prevedibile dalla gen del silicio; serve probe runtime (RAM E sustained-perf) + possibile perf-mode HyperOS da testare (Game Turbo/performance toggle, follow-up opzionale ~20 min) | gualt: follow-up perf-mode sì/no |
-| **Free tier G99 a 15-20 tok/s — pista LFM2.5-8B-A1B: ✅ VIVA, misurata** (`moe-g99-freetier.md`) | Jelly staccato `-t 2` n=200: dense 2B **8.04** (come da fisica); **LFM2.5 k=4 10.60, k=3 12.28, k=2 14.38** (−4% dal target). `lfm2moe` supportato dal fork, `--n-expert-used` funziona; RAM ok (RSS ~5 GiB, no thrash). BW effettiva solo 10.8 GB/s su 15-17 → i tagli byte pagano ~lineari. **PROIEZIONE KEXP-experts (2-3 bit): 14.7/16.3/18.3 a k=4/3/2 → target 15-20 raggiungibile.** Gate mancanti: PPL PC per k=3/2 (pipeline IN CORSO: k4 done, k3 running) + requant esperti LFM2.5 con gate qualità. **Sfidante Ling 3.0 Tiny: NOT_BETTER** (`research-ling3tiny.md`) — arch `bailingmoe3` non mergiata (PR #26608), think-on 51k tok/task, no IT/ES/FR, proiezione Jelly ~14-16 = stessa banda; watchlist post-merge + smoke think-off, non un secondo SKU | gualt: GO gate qualità k + requant LFM2.5 |
+| **Free tier G99 a 15-20 tok/s — pista LFM2.5-8B-A1B: ✅ VIVA, misurata** (`moe-g99-freetier.md`) | Jelly staccato `-t 2` n=200: dense 2B **8.04** (come da fisica); **LFM2.5 k=4 10.60, k=3 12.28, k=2 14.38** (−4% dal target). `lfm2moe` supportato dal fork, `--n-expert-used` funziona; RAM ok (RSS ~5 GiB, no thrash). BW effettiva solo 10.8 GB/s su 15-17 → i tagli byte pagano ~lineari. **PROIEZIONE KEXP-experts (2-3 bit): 14.7/16.3/18.3 a k=4/3/2 → target 15-20 raggiungibile.** Pipeline PC: **A0 k4/3/2 DONE, KEXP quantizzato e VERIFICATO** (falso-FAIL del verify riparato — era enum-vs-int; ricetta rispettata al tensore: 44×q2_k gate/up, 22×q3_k down), **PPL KEXP k4/3/2 IN CORSO** → gate qualità leggibile a fine run; poi speed re-test Jelly (staccato, telefono in carica ora = perfetto). **Sfidante Ling 3.0 Tiny: NOT_BETTER** (`research-ling3tiny.md`) — arch `bailingmoe3` non mergiata (PR #26608), think-on 51k tok/task, no IT/ES/FR, proiezione Jelly ~14-16 = stessa banda; watchlist post-merge + smoke think-off, non un secondo SKU | gualt: GO gate qualità k + requant LFM2.5 |
 | **💪 Mellum2 coding-SKU ("pro a pagamento"): F0 PASS — STRONG 15/20** (`moe-mellum2-f0.md`) | fromdoc 5/5, review 3/3, bugfix 6/8, refactor 1/4 (debole); EN code-explain 7/7, **IT usabile** (il "en only" di HF era pessimista); PC idle 24.2 tok/s. Rischio prodotto: diff no-op dall'aspetto valido → il client deve verificare che il patch cambi codice. Appendice Metal pronta per M1 Max. **F1b S23: STREAMS_OK ma regime PESANTE — 2.944 t/s / 185.0 MiB/tok / hit 76.0%** (2 rep staccato, riga ricetta `mellum` su branch `kalsa/mellum-recipe` @ d987027, build `bmoe-cli-mellum` sha 69a35f5e, pin campagna intoccato; no shared expert, router ffn_gate_inp). La proiezione carta (92 MiB/tok) era SBAGLIATA: attivi pieni ~780 MiB/tok × 24% miss = 185 misurati. **Compute ceiling ~4.5 t/s SOSPETTO** (Marco1c computa ~3B attivi a 8.8 all-in → indiziati: build fresca con REPACK default −33%, cpuset nproc=6). **F1c griglia k (2 rep, staccato): k8 2.94 / k6 3.76 / k4 4.72 / k2 5.68 t/s** (1.93× a k=2, mai compute-bound puro; MiB/tok 185→55.5 ma hit crolla a 68.5 a k=2); **drop 0.65 a k=2: taglia I/O (→47.9) ma PERDE tok/s** (compute 0.119→0.133). Qualità k tagliato NON gatata (k=2 garbage a vista, k=4/6 coerenti). Banda KEXP+k col ceiling attuale: 3.5-8.4. **F1d VERDETTO: CEILING_REAL(mul_mat_id)** — rebuild flag-campagna identico a F1b (2.90 vs 2.94, compute 0.228 vs 0.224: i8mm/REPACK innocenti QUI); **dense 2B sullo stesso binario = 15.9 t/s** (build sana); pin sui big peggiora (oversub); forense 1 Hz: 73.9% dei tick sui LITTLE (WALT classifica i 64 micro-mul_mat_id come lavoro little) ma forzare i big non alza il tetto. **È la geometria: 64 micro-esperti (3×2304×896) ≠ GEMV denso da 2.5B** (Marco1c 8.8 = esperti più grossi e meno numerosi). Banda finale KEXP k=8: **3.5-4.4** (l'85% hit sbatte sul muro compute). F1e (drop 0.75 zona-viva + io-two-wave) = ultima strizzata verso ~5; poi decisione SKU: S23-class 8GB = streaming 4-5 t/s ("funziona, non premium") vs **target primario iPhone Pro / flagship 12-16GB dove il KEXP ~4.5GB sta RESIDENTE** (niente flash tax; su Apple A18 Pro il muro compute si alza — da misurare; M1 Max di gualt = solo proxy superiore Apple-silicon, non target; porting iOS dello streaming = lavoro vero, ma residente NON serve streaming) | F1e in volo; gualt: soglia SKU + gate PPL k dietro selfspec |
 | corpus PPL v2 di campagna (sostituire Dante sul metro floor) | in valutazione; ri-ancorare floor ≈ 3 run PPL PC (KEXP F=0, k6d065, IQ2 hist) | gualt design + PC |
 | **Integrazione prodotto Kalsa** (llama.rn ↔ BigMoeOnEdge) | design doc esiste; non ricerca | gualt GO Fase 1 |
@@ -90,6 +90,7 @@
 | **🪦🪦 Typeahead CalaQwen + phase-split 2B (test gualt S23 2026-08-13): DUE DEAD, entrambi su buchi ENGINE non di fisica** | **Typeahead DEAD**: prefill incrementale ricalcola tutto (527 tok: 67 s vs 64 s da zero; a pezzi = 3.5× il prefill unico) — riuso KV solo con `--chatml` (`n_common=0` senza) e manca l'API "rimpiazza prompt + prefilla delta". **Split 2B**: soffitto 0.73× (20.6 s vs 28.3 CPU su turno 490+128) SOLO con handover KV in-process; con 2 processi = 1.27× (peggio); tutto-GPU 29.2 s (peggio). Dettagli nel registro checkpoint | riapertura solo su engine-work (API delta-prefill / KV handover) |
 | Jelly free-tier baseline (Qwen3.5-4B dense, llama-bench ABBA `-t 2`) | **BLOCKED** — Jelly irraggiungibile (ping OK, adb/sshd chiusi: wireless debug perso post-reboot). Modello+sha già staged in `results/jelly/` — `reports/moe-jelly-freetier.md` | gualt fisico (riattivare wireless debug/sshd) |
 | REAP multilingua F0 | smoke PC PASS; phone path parziale | gualt se priorità |
+| **🔧 KERNEL CPU micro-esperti (mul_mat_id batched) — GO SPIKE (gualt 2026-08-13 sera)** | Il caso F1d: Mellum2 computa 0.228 s/tok, scaling dal dense 2B predice ~0.09-0.10 → **~2.5× perso in mul_mat_id** (672 micro-GEMV/token 896-wide, sync per-op, WALT→little 74%, dequant senza pack). Design: GEMV batched per-layer (k esperti fusi), pack SIMD al cache-insert, 1 sync/layer, hint scheduler. Paga: Mellum2-S23 (4.4→6-9), TUTTO il residente (iPhone Pro/flagship = target SKU), LFM2.5-class; NON Marco1c-S23 (tetto flash). Weakness nota upstream → PR-worthy. **Gate: spike profiling 1g** — se ≥50% di 0.228 recuperabile → GO kernel (1-2 sett); se GEMV puro a tetto DRAM → chiuso col numero | spike IN VOLO |
 | **Esperimento serio sul CALCOLO** | plateau ~5.9 tok/s k6d065 su S23/CPU. **NUOVO (mandato gualt 2026-08-12): pista MoE-GPU scoped Adreno 750+** — sequenza gated (a)-(e) in candidati #1: F-0 Amdahl → riverifica upstream → MarcoKEXP come veicolo → S2 split su Xiaomi 14 → solo dopo il kernel serio (GDN/SSM per CalaQwen) | F-0 = carta; S2 dopo MarcoKEXP |
 
 ### Candidati "esperimento serio" (il collo è il calcolo a 1.39 GHz)
@@ -1124,6 +1125,57 @@ F7: policy > LRU+5pt? ──sì──> F8 full ──no──> F8 = hardening + 
 ---
 
 ## Registro checkpoint
+
+- **2026-08-13 (sera tardi) — 🏭 L'ARCO MELLUM2 F1→F1e IN UN GIORNO + la
+  decisione KERNEL CPU: il muro è `mul_mat_id` (fattore ~2.5× perso), spike
+  di profiling GO (gualt).** (`moe-mellum2-f1-s23.md` §F1-F1e,
+  `research-mellum2-paper-tuning.md`)
+
+  **La catena dei fatti (tutti misurati, S23 staccato):**
+  - F1: arch `mellum` carica, streaming bloccato da UNA riga ricetta mancante.
+  - F1b: riga aggiunta (branch `kalsa/mellum-recipe`), STREAMS_OK —
+    **2.944 t/s / 185.0 MiB/tok / hit 76%** a k=8 (proiezione carta 92
+    MiB/tok era sbagliata 2×: attivi pieni ~780 MiB/tok × 24% miss).
+  - F1c griglia k: 2.94→3.76→4.72→5.68 (k8→k2, 1.93×); drop 0.65 a k=2
+    taglia I/O ma PERDE tok/s; k=2 garbage a vista, k=4/6 coerenti.
+  - F1d forense: **CEILING_REAL(mul_mat_id)** — rebuild flag-campagna
+    identico (i8mm/REPACK innocenti QUI); **dense 2B sullo stesso binario =
+    15.9 t/s** (build sana); WALT manda 74% dei tick Mellum sui little; pin
+    sui big non alza il tetto. Il muro 4.4 t/s è la GEOMETRIA: 64
+    micro-esperti (3×2304×896) = 672 micro-GEMV/token.
+  - F1e (drop zona-viva 0.75/1.0 + io-two-wave): IN VOLO.
+  - Paper 2605.31268 = **Mellum 2 Technical Report** (JetBrains): non è un
+    paper di streaming (H100/vLLM/FP8 non trasferisce); conferma MTP
+    assente dai pesi; leva k confermata (loro 1.5× su H100, noi 1.93×
+    I/O-bound). Matrice di tuning completa bancata: knob mai testati =
+    io-two-wave, drop 0.75/1.0 (0.65 possibile zona morta), ahwb (+17.9%
+    dichiarato, leva sustained).
+
+  **LA DECISIONE (assessment Claude, GO gualt): kernel CPU nostro per la
+  classe micro-esperti.** Il caso: Mellum2 computa a 0.228 s/tok ma lo
+  scaling dal dense 2B (0.063 s/tok per 1.15B attivi) predice ~0.09-0.10
+  → **fattore ~2.5× perso in mul_mat_id** (micro-kernel 896-wide, sync
+  per-op, WALT→little, dequant senza pack). Il kernel = GEMV batched
+  per-layer (8 esperti fusi), pack SIMD al cache-insert, una sync/layer,
+  hint scheduler. Paga: Mellum2-S23 (tetto 4.4→6-9), TUTTI i modelli in
+  scenario RESIDENTE (iPhone Pro/flagship 12-16GB, dove compute è il collo
+  — posizionamento SKU corretto: iPhone-first, NON "Mac-first", M1 Max =
+  solo proxy da banco), LFM2.5 e futuri MoE micro-esperti. NON paga: Marco1c
+  su S23 (è al tetto flash 453 MiB/s). **Gate pre-dichiarato: spike
+  profiling 1 giorno** — spaccare 0.228 in dequant/GEMV-puro/dispatch/sync/
+  migrazione; se ≥50% recuperabile → GO kernel (1-2 settimane); se è GEMV
+  puro al tetto DRAM → chiuso con un numero. Weakness nota di llama.cpp
+  upstream → materiale da PR se funziona.
+
+  **Infra riparata in cascata (stesso pomeriggio):** (1) verify KEXP LFM2.5
+  era un FALSO FAIL (libreria gguf restituisce tipi come int, script
+  confrontava "13" vs "q5_k") — file KEXP PERFETTO, fix + rilancio, ora
+  RUNNING_KEXP-PPL; (2) runner selfspec moriva su flag inesistenti
+  (--flash-attn/--ngl sul bmoe-cli PC) mascherati da "timeout BMOE_READY"
+  — fix + waiter rilanciato in coda corretta; (3) skip-if-done aggiunto al
+  loop A0 della pipeline (mai più 6h di PPL ripagate). Mandato
+  ttft-verify-jelly scritto e consegnato a gualt (matrice 6 scenari
+  before/after sul branch fix/ttft-load-policy, finito).
 
 - **2026-08-13 (sera) — 🔴 C3-RERUN COL KVFIX: FAIL — non era il binario. Il
   contratto di riuso sessione multi-turn è ROTTO sull'ibrido attn+SSM, con
