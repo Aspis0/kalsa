@@ -595,6 +595,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       "PDF renderer process died (document too large or complex for this device).",
     pdfExtractCap: "PDF extraction aborted ({reason}).",
     pdfExtractFailed: "PDF text extraction failed.",
+    pdfInvalidType: "That file is not a PDF.",
+    pdfNoPages: "Could not read any pages from this PDF.",
     searchCancelled: "Search cancelled",
     noResults: "No results.",
     noResultsFound: "No results found.",

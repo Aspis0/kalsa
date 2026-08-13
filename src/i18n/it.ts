@@ -592,6 +592,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "Processo renderer PDF terminato (documento troppo grande o complesso per questo dispositivo).",
     pdfExtractCap: "Estrazione PDF interrotta ({reason}).",
     pdfExtractFailed: "Estrazione del testo PDF non riuscita.",
+    pdfInvalidType: "Questo file non è un PDF.",
+    pdfNoPages: "Impossibile leggere le pagine di questo PDF.",
     searchCancelled: "Ricerca annullata",
     noResults: "Nessun risultato.",
     noResultsFound: "Nessun risultato trovato.",

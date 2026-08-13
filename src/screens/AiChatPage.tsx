@@ -51,7 +51,8 @@ import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as DocumentPicker from "expo-document-picker";
-import { PdfToImages } from "../components/PdfToImages";
+import * as FileSystem from "expo-file-system/legacy";
+import { PdfExtractError, PdfToImages } from "../components/PdfToImages";
 import { MarkdownText } from "../chat/MarkdownText";
 import { isSafeHttpUrl } from "../util/url";
 import { isBenchCommand, tryHandleBenchCommand } from "../bench/benchConfig";
@@ -873,11 +874,16 @@ export function AiChatPage({
 
   // Feature 4: attach state (immagini/foto/PDF → vision; library docs → document_chat)
   const [attachedItems, setAttachedItems] = useState<LocalAttachment[]>([]);
+  const attachedItemsRef = useRef(attachedItems);
+  attachedItemsRef.current = attachedItems;
   const [attachSheetOpen, setAttachSheetOpen] = useState(false);
   /** Nested picker: choose a library document to attach as a retrieval source. */
   const [docPickOpen, setDocPickOpen] = useState(false);
   const [pdfToRender, setPdfToRender] = useState<{ uri: string; name: string } | null>(null);
+  const pdfToRenderRef = useRef(pdfToRender);
+  pdfToRenderRef.current = pdfToRender;
   const pdfPagesRef = useRef<string[]>([]);
+  const pickingPdfRef = useRef(false);
 
   // In-app translation (volatile — NOT persisted with history).
   // One translation at a time: a new run replaces the previous result.
@@ -1274,6 +1280,12 @@ export function AiChatPage({
   }, [showVoiceNote, t]);
 
   const addPdfAttachment = useCallback(async () => {
+    if (pickingPdfRef.current || pdfToRenderRef.current) return;
+    if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
+      showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+      return;
+    }
+    pickingPdfRef.current = true;
     try {
       const picked = await DocumentPicker.getDocumentAsync({
         type: "application/pdf",
@@ -1284,13 +1296,32 @@ export function AiChatPage({
       if (!mountedRef.current) return;
       if (picked.canceled || !picked.assets?.length) return;
       const asset = picked.assets[0];
+      const mime = (asset.mimeType ?? "").toLowerCase();
+      const name = (asset.name ?? "").trim();
+      const isPdf =
+        mime === "application/pdf" ||
+        mime === "application/x-pdf" ||
+        name.toLowerCase().endsWith(".pdf");
+      if (!isPdf) {
+        showVoiceNote(t("errors.pdfInvalidType"));
+        return;
+      }
+      if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
+        showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+        return;
+      }
       setAttachSheetOpen(false);
       pdfPagesRef.current = [];
-      setPdfToRender({ uri: asset.uri, name: asset.name ?? "document.pdf" });
+      const displayName = name || "document.pdf";
+      const next = { uri: asset.uri, name: displayName };
+      pdfToRenderRef.current = next;
+      setPdfToRender(next);
     } catch {
       // ignora
+    } finally {
+      pickingPdfRef.current = false;
     }
-  }, []);
+  }, [showVoiceNote, t]);
 
   const handlePdfPage = useCallback((_index: number, imageUri: string) => {
     pdfPagesRef.current.push(imageUri);
@@ -1301,38 +1332,54 @@ export function AiChatPage({
     // (nav away mid-conversion) — guard like the rest of the file's async
     // completions before touching state.
     if (!mountedRef.current) return;
-    setPdfToRender((prev) => {
-      if (prev) {
-        const pages = pdfPagesRef.current;
-        if (pages.length) {
-          setAttachedItems((current) => {
-            if (current.length >= MAX_IMAGE_ATTACHMENTS) {
-              // U8: cap already reached — surface a notice instead of silently
-              // discarding the converted PDF (composer would otherwise look
-              // like the attach just did nothing).
-              showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
-              return current;
-            }
-            return [
-              ...current,
-              { id: nextMsgId("pdf"), kind: "pdf", name: prev.name, uri: prev.uri, pages, pageCount: pages.length },
-            ];
-          });
-        }
-        pdfPagesRef.current = [];
+    const meta = pdfToRenderRef.current;
+    const pages = pdfPagesRef.current.slice();
+    pdfPagesRef.current = [];
+    pdfToRenderRef.current = null;
+    setPdfToRender(null);
+    if (!meta) return;
+    if (!pages.length) {
+      showVoiceNote(t("errors.pdfNoPages"));
+      return;
+    }
+    if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
+      for (const uri of pages) {
+        void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
       }
-      return null;
+      showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+      return;
+    }
+    setAttachedItems((current) => {
+      if (current.length >= MAX_IMAGE_ATTACHMENTS) return current;
+      return [
+        ...current,
+        {
+          id: nextMsgId("pdf"),
+          kind: "pdf",
+          name: meta.name,
+          uri: meta.uri,
+          pages,
+          pageCount: pages.length,
+        },
+      ];
     });
   }, [showVoiceNote, t]);
 
-  const handlePdfError = useCallback(() => {
-    // Audit follow-up: same WebView bridge as handlePdfDone (30s page timer
-    // or async FS failure can fire fail() after nav-away) — guard before
-    // touching state.
+  const handlePdfError = useCallback((error: Error) => {
     if (!mountedRef.current) return;
     pdfPagesRef.current = [];
+    pdfToRenderRef.current = null;
     setPdfToRender(null);
-  }, []);
+    if (error instanceof PdfExtractError) {
+      if (error.code === "timeout") showVoiceNote(t("errors.pdfExtractTimeout"));
+      else if (error.code === "page_timeout") showVoiceNote(t("errors.pdfTimeout"));
+      else if (error.code === "renderer_gone") showVoiceNote(t("errors.pdfRendererGone"));
+      else if (error.code === "cap") showVoiceNote(t("errors.pdfTooLarge"));
+      else showVoiceNote(t("errors.pdfExtractFailed"));
+    } else {
+      showVoiceNote(t("errors.pdfExtractFailed"));
+    }
+  }, [showVoiceNote, t]);
 
   // BLOCKER-1: unmount guard + abort ref
   const mountedRef = useRef(true);
@@ -2444,12 +2491,14 @@ export function AiChatPage({
     setDraft("");
     // U9: reset any in-flight PDF conversion so a stale WebView/instance never
     // resurfaces attachments or a stuck "Reading pages…" composer state.
+    pdfToRenderRef.current = null;
     setPdfToRender(null);
     pdfPagesRef.current = [];
     setAttachSheetOpen(false);
     // Audit follow-up: also drop already-queued attachments — otherwise a
     // stale chip (image/PDF picked before "New chat") rides into the fresh
     // conversation and gets sent with the next message.
+    attachedItemsRef.current = [];
     setAttachedItems([]);
     // Voice: invalidate transcription token, cancel capture, stop TTS, clear UI.
     voiceRunIdRef.current += 1;
