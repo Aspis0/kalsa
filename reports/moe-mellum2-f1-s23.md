@@ -110,3 +110,75 @@ No on-device MiB/tok or hit% was measured, so this is **still the pre-F1 house g
 4. **Do not** treat F1 as a KEXP GO. F0 quality is still STRONG. F1 says "this pin cannot stream mellum". That is a one-commit fork gap, not a SKU kill — but until the recipe binary exists, S23 decode is unknown and the house 4.5–8.8 tok/s band remains a paper number.
 
 Artifacts: `results/mellum2_f1_s23/` (smoke logs + cmdline + shas + header CSV + `run_f1_s23.sh` + `F1.master.log`).
+
+---
+
+## F1b — recipe row + labeled binary
+
+**STREAMS_OK decode 2.94 t/s** (median of 2 unplugged cold reps; 185.0 MiB/tok, 76.0% hit).
+
+**Date:** 2026-08-13  
+**Branch / commit:** `kalsa/mellum-recipe` `d98702747593e169f5b05fade8af661894fe86f3`  
+**Binary:** `~/bin/bmoe-cli-mellum` → `~/bin/mellum/bmoe-cli` sha `69a35f5ef85e286a1d05069872a3ae75b9a8c66d4098695936a5baf4b4d61b8a`  
+**Campaign pin:** `bmoe-cli.CAMPAIGN` still `1ca51420…` (not overwritten; `~/bin/bmoe-cli` still absent).  
+**Build:** NDK r27.1 (`27.1.12297006`) · API 29 · `GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16` · `HAVE_DOTPROD=1` · `HAVE_MATMUL_INT8=1` · `-j 4`  
+**GGUF dump (PC):** `general.architecture=mellum` · 28 layers · 64 experts · k=8 · `ffn_{gate,up,down}_exps` ×28 · router `ffn_gate_inp` ×28 · **no** `expert_shared_count` · **0** `shexp` tensors.
+
+Recipe row (qwen3moe class, no shared-expert wiring):
+
+```cpp
+{"mellum", {"ffn_gate_exps", "ffn_up_exps", "ffn_down_exps"}},
+```
+
+`--list-archs` on the labeled binary prints `mellum` last.
+
+### Smoke (may be plugged; was UNPLUGGED 72% / 25.2 °C, nproc=8)
+
+| gate | result | evidence |
+|---|---|---|
+| loads `mellum` | **YES** | `print_info: arch = mellum` |
+| expert-ready / streaming | **YES** | `bmoe: expert streaming ON  n_expert=64 … cache=2000` · `expert-mmap: dropped 7055 MiB` · `dense-weights=anon — 637 MiB` |
+| silent mmap fallback | **NO** | hook fired; expert mmap dropped |
+| RSS / MemAvailable | **sane** | smoke peak RSS **2779 MiB**; MemAvailable 4052→5059 MiB (mmap drop, not a leak). Guard is MemAvailable 300 MiB / 60 s — never tripped |
+| output sanity (~32 tok, coding) | **PASS** | greedy `factorial` loop: `def factorial(n): result=1; for i in range(1,n+1): result*=i` — coherent, matches PC F0 class |
+
+Smoke `-n 8`: 2.635 tok/s, 222.8 MiB/tok, 51.4% hit. Sanity `-n 32`: 2.613 tok/s, 232.7 MiB/tok, 62.7% hit.
+
+### Regime cell (UNPLUGGED, floor 45%, abort 45 °C)
+
+Ran. Not plugged. Cold `fadvise` both reps. `p_fact` sha `b5301c32…`. `-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 8`. nproc=6 at regime start (smoke had 8). n_gen=**166** both (EOS, not a hang).
+
+| cell | decode tok/s | MiB/tok | hit% | TTFT s | load s | prefill s | RSS MiB | n | batt | temp °C |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|
+| **Mellum2 Q4 k=8 r1** | 2.975 | 185.04 | 76.0 | 11.634 | 5.936 | 5.699 | 2952.9 | 166 | 72→71 UNPLUGGED | 27.7→28.3 |
+| **Mellum2 Q4 k=8 r2** | 2.912 | 185.04 | 76.0 | 11.682 | 5.856 | 5.826 | 2974.9 | 166 | 71→71 UNPLUGGED | 28.3→30.4 |
+| **Mellum2 Q4 k=8 median** | **2.944** | **185.0** | **76.0** | 11.66 | 5.90 | 5.76 | 2964 | 166 | 72→71 | peak 30.4 |
+| Marco1c (k6d065) | **8.819** | **51.5** | **53.5** | 9.15 | 4.56 | — | — | — | — | — |
+| CalaQwen KEXP 35B | **5.696** | **30.7** | **80.7** | 18.98 | — | — | — | — | — | — |
+
+Instrumented decode split (r1): compute 0.224 + cache 0.018 + flash I/O 0.436 s/tok, **424 MiB/s** flash. Wall 0.336 s/tok because lanes overlap. Compute ceiling at this k/quant ≈ **4.5 tok/s**. Flash-bound today.
+
+### KEXP projection (anchored on the measured cell)
+
+Replace the F1 paper band (92 MiB/tok → 4.5–6 t/s Q4; 56 → 7.5–8.8 KEXP).
+
+**Measured Q4 k=8 is 185 MiB/tok, not 92.** Cross-check: 28×8×(3×2304×896)×4.5/8 B ≈ 780 MiB full expert traffic; 780×(1−0.76) ≈ 187 ≈ **185**. So MiB/tok is **flash misses**, hit 76% is real, and the Cala-scaled 92 was ~2× too optimistic.
+
+Assumptions (house method, experts-only bpw cut):
+
+1. KEXP cuts **routed experts only** to 2.5–3.0 bpw (mid **2.75**); dense stays ~4.5 bpw (already anon-resident, 637 MiB, not in MiB/tok).
+2. No shared expert, no dense FFN layers (GGUF + research-mellum2.md).
+3. Flash rate stays the measured **~424 MiB/s** (this cell), not 20 GB/s DRAM. Overlap stays.
+4. Q2/Q3 GEMM is **not** assumed faster than Q4_K; the 0.224 s/tok compute is a ceiling, not a floor.
+5. Hit may rise because the k=8 working set shrinks (780 → ~477 MiB vs 2000 MiB cache). Conservative case holds hit at 76%.
+
+| variant | MiB/tok | decode | note |
+|---|---:|---:|---|
+| **Q4 k=8 measured** | **185** | **2.94 t/s** | this cell |
+| KEXP k=8, hit held 76% | 185×(2.75/4.5) ≈ **113** | **~3.5 t/s** | still flash-ish: 113/424 |
+| KEXP k=8, miss scales with expert bytes | ~70 | **~4.5 t/s** | flash drops below compute 0.224 s; hits the Q4 compute ceiling |
+| KEXP file size (geometry, unchanged) | — | — | **4.1–4.8 GB** |
+
+**KEXP k=8 does not clear 10 tok/s on this measurement.** It mostly pays down flash until the **4.5 t/s compute wall** at native k=8. A later k/drop grid (k=6 / drop-cold) is what would move the compute term; that is not this cell.
+
+Artifacts: `results/mellum2_f1_s23/f1b/` (CSV, master log, smoke/sanity/regime logs, mem samples, `build.txt`). F1 files left in place.
