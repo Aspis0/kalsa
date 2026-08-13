@@ -72,6 +72,7 @@ function compile() {
     [
       "tsc",
       "src/conversations/ConversationsStore.ts",
+      "src/util/filterByTokens.ts",
       "src/engine/sessionPersistence.ts",
       "--outDir",
       outDir,

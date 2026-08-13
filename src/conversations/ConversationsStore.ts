@@ -18,6 +18,8 @@
  * message (format B), never buildSystemPrompt. Cap ~2k chars.
  */
 
+import { filterByTokens } from "../util/filterByTokens";
+
 export type ConversationMeta = {
   id: string;
   title: string;
@@ -143,16 +145,7 @@ export function filterConversations(
   query: string,
 ): ConversationMeta[] {
   const list = sortByRecency(Array.isArray(items) ? items : []);
-  const q = typeof query === "string" ? query.trim().toLowerCase() : "";
-  if (!q) return list;
-  const tokens = q.split(/\s+/).filter((tok) => tok.length >= 3);
-  const matchTokens = tokens.length > 0 ? tokens : q.split(/\s+/).filter(Boolean);
-  if (matchTokens.length === 0) return [];
-  return list.filter((item) => {
-    const title = typeof item.title === "string" ? item.title.toLowerCase() : "";
-    const blob = typeof item.searchBlob === "string" ? item.searchBlob : "";
-    return matchTokens.every((tok) => title.includes(tok) || blob.includes(tok));
-  });
+  return filterByTokens(list, query, (item) => [item.title, item.searchBlob]);
 }
 
 export function emptyConversationsState(): ConversationsState {
