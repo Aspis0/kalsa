@@ -1,0 +1,8 @@
+﻿{
+    "tag":  "KEXP-cons",
+    "macro_bpb":  0.75731037713491445,
+    "full_gate":  "PASS",
+    "k":  6,
+    "drop":  0.65,
+    "delta_macro":  0.029593773523764577
+}
