@@ -1,0 +1,37 @@
+# LFM2.5-KEXP Jelly speed re-test — SHA / source records
+# 2026-08-13
+
+## KEXP file (shipped)
+
+pc_path:     models/LFM2.5-8B-A1B-KEXP.gguf
+pc_size:     3326160384
+pc_sha256:   b07c80870f8a864549f4a419ccbfb4d4282ba2d55a2e8d808b7c377d3fc6c3f4
+             MATCHES results/lfm25_kexp/KEXP.sha256
+device_path: ~/models/LFM2.5-8B-A1B-KEXP.gguf
+device_size: 3326160384
+device_sha256: b07c80870f8a864549f4a419ccbfb4d4282ba2d55a2e8d808b7c377d3fc6c3f4
+             MATCHES PC (2026-08-13 sha256sum on Jelly, after scp)
+transfer:    scp -P 8022 → u0_a225@192.168.1.82:models/ (same SSH path as G99 report)
+
+## A0 Q4_K_M control (left in place)
+
+device_path: ~/models/LFM2.5-8B-A1B-Q4_K_M.gguf
+device_size: 5155564768
+expected_sha: 4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0
+             (G99 report; not re-hashed this session — file untouched)
+
+## On-device binary (must match G99 pin)
+
+path:     ~/bin/bmoe-cli
+sha256:   36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81
+          MATCHES reports/moe-g99-freetier.md
+wrapper:  ~/bin/run-bmoe
+sha256:   713f5e57f7c3567a06e7489013cbd06a9b0a622e9e3556e939da0765f895c5a4
+
+## QUANTIZE_VERIFY (PC, pre-existing)
+
+n_mismatch: 0
+gate_exps: q2_k x22
+up_exps:   q2_k x22
+down_exps: q3_k x22
+iq_count:  0

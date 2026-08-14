@@ -1,0 +1,80 @@
+[2026-08-13T19:55:45-0400] RUN cell=KEXP_K4 run=1 model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf extra=[--n-expert-used 4]
+/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf size=3326160384 resident_before=811710 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T19:56:10-04:00
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 47, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 39, in main
+    size, npages, res = resident_pages(path)
+                        ~~~~~~~~~~~~~~^^^^^^
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 23, in resident_pages
+    addr = ctypes.addressof(ctypes.c_char.from_buffer(mm))
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^
+TypeError: underlying buffer is not writable
+
+[2026-08-13T19:56:44-0400] RUN cell=KEXP_K4 run=1 rc=0
+[2026-08-13T19:56:57-0400] RUN cell=A0_K4 run=1 model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-Q4_K_M.gguf extra=[--n-expert-used 4]
+/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-Q4_K_M.gguf size=5155564768 resident_before=0 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T19:57:22-04:00
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 47, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 39, in main
+    size, npages, res = resident_pages(path)
+                        ~~~~~~~~~~~~~~^^^^^^
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 23, in resident_pages
+    addr = ctypes.addressof(ctypes.c_char.from_buffer(mm))
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^
+TypeError: underlying buffer is not writable
+
+[2026-08-13T19:58:01-0400] RUN cell=A0_K4 run=1 rc=0
+[2026-08-13T19:58:15-0400] RUN cell=KEXP_K4 run=2 model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf extra=[--n-expert-used 4]
+/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf size=3326160384 resident_before=41392 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T19:58:40-04:00
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 47, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 39, in main
+    size, npages, res = resident_pages(path)
+                        ~~~~~~~~~~~~~~^^^^^^
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 23, in resident_pages
+    addr = ctypes.addressof(ctypes.c_char.from_buffer(mm))
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^
+TypeError: underlying buffer is not writable
+
+[2026-08-13T19:59:18-0400] RUN cell=KEXP_K4 run=2 rc=0
+[2026-08-13T19:59:32-0400] RUN cell=KEXP_K3 run=1 model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf extra=[--n-expert-used 3]
+/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf size=3326160384 resident_before=811473 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T19:59:58-04:00
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 47, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 39, in main
+    size, npages, res = resident_pages(path)
+                        ~~~~~~~~~~~~~~^^^^^^
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 23, in resident_pages
+    addr = ctypes.addressof(ctypes.c_char.from_buffer(mm))
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^
+TypeError: underlying buffer is not writable
+
+[2026-08-13T20:00:28-0400] RUN cell=KEXP_K3 run=1 rc=0
+[2026-08-13T20:00:41-0400] RUN cell=KEXP_K3 run=2 model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf extra=[--n-expert-used 3]
+/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf size=3326160384 resident_before=812051 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T20:01:07-04:00
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 47, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 39, in main
+    size, npages, res = resident_pages(path)
+                        ~~~~~~~~~~~~~~^^^^^^
+  File "/data/data/com.termux/files/home/bench_kexp/residency.py", line 23, in resident_pages
+    addr = ctypes.addressof(ctypes.c_char.from_buffer(mm))
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^
+TypeError: underlying buffer is not writable
+
+[2026-08-13T20:01:37-0400] RUN cell=KEXP_K3 run=2 rc=0

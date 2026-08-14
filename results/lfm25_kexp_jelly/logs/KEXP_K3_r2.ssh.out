@@ -1,0 +1,7 @@
+[2026-08-13T20:00:41-0400] RUN cell=KEXP_K3 run=2 model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf extra=[--n-expert-used 3]
+
+PARSE tok=10.285 majflt=0.00 rss_kib=21111 res_pages= hit_pct= mapped_mib= n_expert_used=3 rc=0
+[2026-08-13T20:01:37-0400] RUN cell=KEXP_K3 run=2 rc=0
+RC=0
+
+---STDERR---

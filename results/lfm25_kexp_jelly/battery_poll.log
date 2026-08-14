@@ -1,0 +1,8 @@
+2026-08-13T19:45:07-04:00 poll=1 AC=true USB=false wireless=false status=4 level=100 temp_C=31.0 voltage=4415 PENDING_UNPLUG
+2026-08-13T19:46:26-04:00 poll=2 AC= USB= status= level= temp_C=
+2026-08-13T19:47:08-0400 poll=3 AC=true USB=false wireless=false status=4 level=100 temp_C=32.0 voltage=4700000 PLUGGED
+2026-08-13T19:48:31-0400 poll=4 AC=true USB=false wireless=false status=4 level=100 temp_C=32.0 voltage=4700000 PLUGGED
+2026-08-13T19:49:42-0400 poll=5 AC=true USB=false wireless=false status=4 level=100 temp_C=32.0 PLUGGED
+2026-08-13T19:51:42-0400 poll=6 AC=true USB=false wireless=false status=4 level=100 temp_C=32.0 PLUGGED
+2026-08-13T19:53:42-0400 poll=7 AC=true USB=false wireless=false status=4 level=100 temp_C=32.0 PLUGGED
+2026-08-13T19:55:42-0400 poll=8 AC=false USB=false wireless=false status=3 level=100 temp_C=32.0 UNPLUGGED

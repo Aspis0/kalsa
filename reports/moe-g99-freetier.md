@@ -182,3 +182,31 @@ results/g99_freetier/
   prompt.txt
   logs/{B1,B2,K3,K2}_r{1,2}.log
 ```
+
+---
+
+## KEXP speed re-test (Jelly)
+
+**Date:** 2026-08-13 · UNPLUGGED from 19:55 (AC until then; polls in `results/lfm25_kexp_jelly/battery_poll.log`)  
+**Binary:** same pin `~/bin/bmoe-cli` sha `36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81`  
+**File:** `~/models/LFM2.5-8B-A1B-KEXP.gguf` · 3 326 160 384 B · sha `b07c80870f8a864549f4a419ccbfb4d4282ba2d55a2e8d808b7c377d3fc6c3f4` (device MATCH) · 3.09 GiB, 3.13 BPW, 44×q2_K + 22×q3_K + 47×q5_K + 20×q6_K  
+**Harness:** identical to this report (`-t 2 -c 1024 -n 200 --temp 0 --ubatch 256`, same prompt, cold `fadvise`, mmap, no `--moe-stream`)  
+**A0 control:** left on device, 1 rep between the two KEXP k=4 reps (ABBA)
+
+**Verdict:** **KEXP_REGRESSION + K4_FINAL.** KEXP k=4 is **8.83 tok/s**. k=3 is **10.27 tok/s** (1.16× k4, not ≥1.25×). The −35% file does **not** buy 15–20. It does not even beat Q4_K_M.
+
+| cell | model | k | run1 | run2 | **median** | majflt/tok | mapped MiB | batt% | °C | vs G99 A0 10.60 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| B1 (G99) | Qwen3.5-2B Q4_K_M | — | 8.023 | 8.060 | **8.04** | — | — | 87 / 86 | 31 | 0.54× floor |
+| B2 (G99) | LFM2.5 A0 Q4_K_M | 4 | 10.471 | 10.730 | **10.60** | 6.20 | 4908.87 | 86 / 85 | 32–33 | headline |
+| K3 (G99) | same | 3 | 12.271 | 12.286 | **12.28** | — | 4908.87 | 85 / 84 | 33–34 | +15.8% vs B2 |
+| K2 (G99) | same | 2 | 14.354 | 14.411 | **14.38** | — | 4908.87 | 84 / 83 | 34 | +35.6% vs B2 |
+| **KEXP k4** | LFM2.5 KEXP | 4 | 8.882 | 8.787 | **8.83** | 0.00 / 2.15 | 3164.22 | 100 / 99 | 32–33 | **−16.7% · REGRESSION** |
+| A0 k4 (this session) | LFM2.5 A0 Q4_K_M | 4 | 9.762 | — | **9.76** | 22.80 | 4908.87 | 100 | 32 | −7.9% vs G99 B2 (drift) |
+| **KEXP k3** | LFM2.5 KEXP | 3 | 10.249 | 10.285 | **10.27** | 0.00 / 0.00 | 3164.22 | 98 / 98 | 34 | 1.16× KEXP k4 · K4_FINAL |
+
+Same-session A0 is 8% under the 08-12 10.60 (22.80 decode faults vs 6.20; `Marco-Mini-Instruct-KEXP.gguf` 6.39 GiB now shares `~/models/`). KEXP is still slower than that A0 (8.83 vs 9.76).
+
+The cache mechanism the projection counted on **did fire**. KEXP decode major-faults are ~0 (file 3.09 GiB stays ~100% resident after a run: 811k/811k pages). A0 this session faults 22.80/tok. Load/prefill/TTFT improve (KEXP load ~3.9 s vs A0 7.9 s; k3 prefill 13.6 t/s vs A0 8.3). Decode does not. G99 projected 14.7 / 16.3 tok/s by applying the Q4 implied 10.8 GB/s to a 737 / 664 MiB active-byte budget. Measured implied bandwidth at those budgets is **~6.8 / 7.1 GB/s**, and cpu-s/token *rises* (KEXP k4 0.225 vs A0 0.198). Q2_K/Q3_K dequant on 2×A76 is more expensive than the bytes it saves. 15–20 remains a projection, and this file is the wrong direction for decode.
+
+Artefacts: `results/lfm25_kexp_jelly/`.

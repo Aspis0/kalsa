@@ -1,0 +1,21 @@
+[2026-08-13T19:49:40-0400] orchestrator start
+[2026-08-13T19:49:42-0400] 2026-08-13T19:49:42-0400 poll=5 AC=true USB=false wireless=false status=4 level=100 temp_C=32.0 PLUGGED
+[2026-08-13T19:51:42-0400] 2026-08-13T19:51:42-0400 poll=6 AC=true USB=false wireless=false status=4 level=100 temp_C=32.0 PLUGGED
+[2026-08-13T19:53:42-0400] 2026-08-13T19:53:42-0400 poll=7 AC=true USB=false wireless=false status=4 level=100 temp_C=32.0 PLUGGED
+[2026-08-13T19:55:42-0400] 2026-08-13T19:55:42-0400 poll=8 AC=false USB=false wireless=false status=3 level=100 temp_C=32.0 UNPLUGGED
+[2026-08-13T19:55:43-0400] START KEXP_K4 r1 batt=100 temp=32.0 extra=[--n-expert-used 4]
+[2026-08-13T19:56:44-0400] SSH rc=0 KEXP_K4 r1
+[2026-08-13T19:56:44-0400] STDOUT [2026-08-13T19:55:45-0400] RUN cell=KEXP_K4 run=1 model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf extra=[--n-expert-used 4] |  | PARSE tok=8.882 majflt=0.00 rss_kib=14551 res_pages= hit_pct= mapped_mib= n_expert_used=4 rc=0 | [2026-08-13T19:56:44-0400] RUN cell=KEXP_K4 run=1 rc=0 | RC=0
+[2026-08-13T19:56:56-0400] START A0_K4 r1 batt=100 temp=32.0 extra=[--n-expert-used 4]
+[2026-08-13T19:58:01-0400] SSH rc=0 A0_K4 r1
+[2026-08-13T19:58:01-0400] STDOUT [2026-08-13T19:56:57-0400] RUN cell=A0_K4 run=1 model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-Q4_K_M.gguf extra=[--n-expert-used 4] |  | PARSE tok=9.762 majflt=22.80 rss_kib=16112 res_pages= hit_pct= mapped_mib= n_expert_used=4 rc=0 | [2026-08-13T19:58:01-0400] RUN cell=A0_K4 run=1 rc=0 | RC=0
+[2026-08-13T19:58:12-0400] START KEXP_K4 r2 batt=99 temp=33.0 extra=[--n-expert-used 4]
+[2026-08-13T19:59:18-0400] SSH rc=0 KEXP_K4 r2
+[2026-08-13T19:59:18-0400] STDOUT [2026-08-13T19:58:15-0400] RUN cell=KEXP_K4 run=2 model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf extra=[--n-expert-used 4] |  | PARSE tok=8.787 majflt=2.15 rss_kib=18004 res_pages= hit_pct= mapped_mib= n_expert_used=4 rc=0 | [2026-08-13T19:59:18-0400] RUN cell=KEXP_K4 run=2 rc=0 | RC=0
+[2026-08-13T19:59:29-0400] START KEXP_K3 r1 batt=98 temp=34.0 extra=[--n-expert-used 3]
+[2026-08-13T20:00:28-0400] SSH rc=0 KEXP_K3 r1
+[2026-08-13T20:00:28-0400] STDOUT [2026-08-13T19:59:32-0400] RUN cell=KEXP_K3 run=1 model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf extra=[--n-expert-used 3] |  | PARSE tok=10.249 majflt=0.00 rss_kib=19567 res_pages= hit_pct= mapped_mib= n_expert_used=3 rc=0 | [2026-08-13T20:00:28-0400] RUN cell=KEXP_K3 run=1 rc=0 | RC=0
+[2026-08-13T20:00:39-0400] START KEXP_K3 r2 batt=98 temp=34.0 extra=[--n-expert-used 3]
+[2026-08-13T20:01:37-0400] SSH rc=0 KEXP_K3 r2
+[2026-08-13T20:01:37-0400] STDOUT [2026-08-13T20:00:41-0400] RUN cell=KEXP_K3 run=2 model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf extra=[--n-expert-used 3] |  | PARSE tok=10.285 majflt=0.00 rss_kib=21111 res_pages= hit_pct= mapped_mib= n_expert_used=3 rc=0 | [2026-08-13T20:01:37-0400] RUN cell=KEXP_K3 run=2 rc=0 | RC=0
+[2026-08-13T20:01:47-0400] DONE all cells

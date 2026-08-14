@@ -1,0 +1,50 @@
+=== MEM pre KEXP_K4_r1 2026-08-13T19:56:10-0400 ===
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       2.0Gi       3.7Gi        15Mi       1.9Gi       5.5Gi
+Swap:          4.2Gi       692Mi       3.5Gi
+---
+=== MEM post KEXP_K4_r1 2026-08-13T19:56:43-0400 ===
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       2.0Gi       635Mi        15Mi       5.0Gi       5.5Gi
+Swap:          4.2Gi       692Mi       3.5Gi
+---
+=== MEM pre A0_K4_r1 2026-08-13T19:57:22-0400 ===
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       2.0Gi       501Mi        15Mi       5.1Gi       5.5Gi
+Swap:          4.2Gi       691Mi       3.5Gi
+---
+=== MEM post A0_K4_r1 2026-08-13T19:58:00-0400 ===
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       1.7Gi       112Mi        12Mi       5.7Gi       5.7Gi
+Swap:          4.2Gi       1.0Gi       3.1Gi
+---
+=== MEM pre KEXP_K4_r2 2026-08-13T19:58:40-0400 ===
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       1.8Gi       218Mi        12Mi       5.6Gi       5.7Gi
+Swap:          4.2Gi       1.0Gi       3.1Gi
+---
+=== MEM post KEXP_K4_r2 2026-08-13T19:59:18-0400 ===
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       1.7Gi       130Mi        11Mi       5.8Gi       5.8Gi
+Swap:          4.2Gi       1.1Gi       3.1Gi
+---
+=== MEM pre KEXP_K3_r1 2026-08-13T19:59:58-0400 ===
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       1.7Gi       3.2Gi        11Mi       2.8Gi       5.8Gi
+Swap:          4.2Gi       1.1Gi       3.1Gi
+---
+=== MEM post KEXP_K3_r1 2026-08-13T20:00:28-0400 ===
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       1.7Gi       147Mi        11Mi       5.8Gi       5.8Gi
+Swap:          4.2Gi       1.1Gi       3.1Gi
+---
+=== MEM pre KEXP_K3_r2 2026-08-13T20:01:07-0400 ===
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       1.7Gi       3.2Gi        11Mi       2.7Gi       5.8Gi
+Swap:          4.2Gi       1.1Gi       3.1Gi
+---
+=== MEM post KEXP_K3_r2 2026-08-13T20:01:36-0400 ===
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       1.7Gi       161Mi        11Mi       5.7Gi       5.8Gi
+Swap:          4.2Gi       1.0Gi       3.1Gi
+---
