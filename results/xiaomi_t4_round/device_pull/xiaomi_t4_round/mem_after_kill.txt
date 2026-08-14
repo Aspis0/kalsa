@@ -1,0 +1,8 @@
+=== mem_after_kill 2026-08-13T23:36:47 ===
+MemTotal:       11436476 kB
+MemFree:          251092 kB
+MemAvailable:    6304028 kB
+Cached:          5574472 kB
+SwapTotal:      12582908 kB
+SwapFree:        8292996 kB
+AnonPages:        553092 kB

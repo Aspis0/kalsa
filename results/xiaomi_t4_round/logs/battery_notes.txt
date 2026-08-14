@@ -1,0 +1,380 @@
+=== battery start_cq_t6 2026-08-13T23:36:47 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 65
+  temperature: 319
+max_therm_mC=44383
+MemAvailable_kB=6282600
+MemFree_kB=196428
+SwapFree_kB=8299908
+AnonPages_kB=558624
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery before_cq_t6_fact_r1 2026-08-13T23:36:52 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 65
+  temperature: 320
+max_therm_mC=46198
+MemAvailable_kB=6246496
+MemFree_kB=4987776
+SwapFree_kB=8329680
+AnonPages_kB=595304
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery after_cq_t6_fact_r1 2026-08-13T23:37:58 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 65
+  temperature: 337
+max_therm_mC=46700
+MemAvailable_kB=6040688
+MemFree_kB=3592788
+SwapFree_kB=8372912
+AnonPages_kB=795324
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery before_cq_t6_fact_r2 2026-08-13T23:38:12 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 64
+  temperature: 337
+max_therm_mC=45190
+MemAvailable_kB=6007028
+MemFree_kB=4174464
+SwapFree_kB=8386736
+AnonPages_kB=830196
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery after_cq_t6_fact_r2 2026-08-13T23:39:19 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 64
+  temperature: 350
+max_therm_mC=47644
+MemAvailable_kB=6177252
+MemFree_kB=4089944
+SwapFree_kB=8277704
+AnonPages_kB=652344
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery start_cq_t4 2026-08-13T23:39:44 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 64
+  temperature: 350
+max_therm_mC=45257
+MemAvailable_kB=6167748
+MemFree_kB=3896208
+SwapFree_kB=8344520
+AnonPages_kB=665656
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery before_cq_t4_fact_r1 2026-08-13T23:39:48 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 64
+  temperature: 348
+max_therm_mC=45560
+MemAvailable_kB=6158284
+MemFree_kB=4589776
+SwapFree_kB=8350664
+AnonPages_kB=674908
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery after_cq_t4_fact_r1 2026-08-13T23:40:54 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 63
+  temperature: 353
+max_therm_mC=46837
+MemAvailable_kB=6292428
+MemFree_kB=4076644
+SwapFree_kB=8117936
+AnonPages_kB=479244
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery before_cq_t4_fact_r2 2026-08-13T23:41:08 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 63
+  temperature: 353
+max_therm_mC=51800
+MemAvailable_kB=5913320
+MemFree_kB=3946896
+SwapFree_kB=8404912
+AnonPages_kB=916644
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery after_cq_t4_fact_r2 2026-08-13T23:42:14 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 63
+  temperature: 360
+max_therm_mC=48283
+MemAvailable_kB=6231396
+MemFree_kB=4107836
+SwapFree_kB=8356164
+AnonPages_kB=627336
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery start_cq_t4_sust 2026-08-13T23:43:03 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 63
+  temperature: 358
+max_therm_mC=45694
+MemAvailable_kB=6153836
+MemFree_kB=3818588
+SwapFree_kB=8507460
+AnonPages_kB=726684
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery before_cq_t4_fact_sust 2026-08-13T23:43:06 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 63
+  temperature: 358
+max_therm_mC=46165
+MemAvailable_kB=6140892
+MemFree_kB=3766812
+SwapFree_kB=8515396
+AnonPages_kB=741060
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery after_cq_t4_fact_sust 2026-08-13T23:44:12 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 62
+  temperature: 360
+max_therm_mC=48720
+MemAvailable_kB=6379900
+MemFree_kB=4093268
+SwapFree_kB=8183900
+AnonPages_kB=424736
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery start_m1c_t4 2026-08-13T23:44:27 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 62
+  temperature: 360
+max_therm_mC=47500
+MemAvailable_kB=6330460
+MemFree_kB=3903692
+SwapFree_kB=8309852
+AnonPages_kB=498496
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery before_m1c_t4_fact 2026-08-13T23:44:30 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 62
+  temperature: 360
+max_therm_mC=44820
+MemAvailable_kB=6315124
+MemFree_kB=3886052
+SwapFree_kB=8310876
+AnonPages_kB=504876
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery after_m1c_t4_fact 2026-08-13T23:45:06 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 62
+  temperature: 360
+max_therm_mC=47073
+MemAvailable_kB=6198692
+MemFree_kB=2491560
+SwapFree_kB=8408156
+AnonPages_kB=680176
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery start_m1c_t5 2026-08-13T23:45:31 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 62
+  temperature: 360
+max_therm_mC=44921
+MemAvailable_kB=6167484
+MemFree_kB=2401812
+SwapFree_kB=8415580
+AnonPages_kB=705508
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery before_m1c_t5_fact 2026-08-13T23:45:35 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 62
+  temperature: 360
+max_therm_mC=45224
+MemAvailable_kB=6158344
+MemFree_kB=4558632
+SwapFree_kB=8420188
+AnonPages_kB=715936
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000
+=== battery after_m1c_t5_fact 2026-08-13T23:46:10 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 62
+  temperature: 361
+max_therm_mC=47341
+MemAvailable_kB=6245884
+MemFree_kB=2924936
+SwapFree_kB=8344416
+AnonPages_kB=624564
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+mWakefulness=Awake
+screen_off_timeout=1800000

@@ -191,3 +191,38 @@ Factor vs 2.55: **0.97×**. Opener 2.156 vs 4.023 — the cold 4.02 did not come
 Same-session side note (not this question): Marco1c t6 fact went 4.109 → 6.253 with the same three keys. That does not move the CalaQwen product number.
 
 Artifacts: `results/marco1c_xiaomi/` (`cq_t6_fact_perf_r1/r2`, `perf_mode_on.txt`, `perf_mode_restored.txt`).
+
+## t4 + screen round
+
+**Verdict: SCREEN (doze was the lever).**
+
+Every campaign Xiaomi cell (2.55 med / 4.02 cold) and every Marco1c Xiaomi cell tonight ran `mWakefulness=Dozing`. This round is the product condition: screen ON, unlocked, `mWakefulness=Awake` before and after every timed cell. Same campaign pin `1ca51420…`, same k6d065, same `p_fact`, n=200, fadvise on cold cells, UNPLUGGED 65% → 61%, 31–36 °C, PERF-MODE 0/0/0, extm OFF. Zero SCREEN_FAIL. Artifacts: `results/xiaomi_t4_round/`.
+
+### 2×2 — CalaQwen fact tok/s
+
+| | screen-off (campaign / Dozing) | screen-on (this round / Awake) |
+|---|---|---|
+| **t6** | **2.55** med (4.023 / 2.698 / 2.403 / 2.315) | **4.750** med (4.697 / 4.802) |
+| **t4** | 2.384 / 2.476 | **4.580** med (4.613 / 4.547); sustained no-fadvise **4.392** |
+
+t6 screen-on vs t6 campaign: **1.86×**. t4 vs t6 at screen-on: 4.580 vs 4.750 (**0.96×** — not the lever). t4 sustained holds 4.392; the original collapse does not return when the panel stays Awake.
+
+Compute / flash on the screen-on fact cells:
+
+| tag | tok/s | compute s/tok | flash I/O s/tok | flash MiB/s |
+|---|---:|---:|---:|---:|
+| campaign t6 fact o1 (Dozing, cold opener) | 4.023 | 0.151 | 0.222 | 149 |
+| campaign t6 later (Dozing) | 2.3–2.7 | 0.20–0.22 | 0.39–0.51 | 55–78 |
+| cq_t6_fact_r1 (Awake) | 4.697 | 0.122 | 0.208 | 160 |
+| cq_t6_fact_r2 (Awake) | 4.802 | 0.123 | 0.195 | 170 |
+| cq_t4_fact_r1 (Awake) | 4.613 | 0.132 | 0.198 | 169 |
+| cq_t4_fact_r2 (Awake) | 4.547 | 0.135 | 0.197 | 170 |
+| cq_t4_fact_sust (Awake, no fadvise) | 4.392 | 0.141 | 0.202 | 166 |
+
+The campaign 2.55 was flash I/O stretching 0.22 → 0.50 s/tok under Dozing (UFS / SoC DVFS with the panel off). Screen-on holds flash ~0.20 s/tok on the second cold cell. I/O regime unchanged (33.16 / 79.2% at t6; 33.57 / 79.1% at t4). Card product number stays the campaign **2.55** (measured Dozing); the screen-on fact median is **4.75**.
+
+### Marco1c side (not the CalaQwen card)
+
+Tonight screen-off: t6 4.109 / t4 8.577 (compute 0.116 vs 0.048). This screen-on: t4 **10.574** (compute 0.041, flash 0.123 vs 0.150 Dozing) · t5 **9.253**. Marco t4 is real and screen-on is faster still; threads remain the bigger Marco lever. Knee t4 > t5 > t6.
+
+Cleanup: `screen_off_timeout=60000`, perf-mode 0/0/0 confirmed.

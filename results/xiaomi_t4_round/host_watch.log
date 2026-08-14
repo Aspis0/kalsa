@@ -1,0 +1,13 @@
+2026-08-13T23:36:17 host_run begin — t4 + screen-ON round
+2026-08-13T23:36:17 GATE plugged=False level=65 tempC=31
+2026-08-13T23:36:17 screen_off_timeout set=1800000
+2026-08-13T23:36:18 BIN before 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/local/tmp/gdn_750/taskb/bin/bmoe-cli
+2026-08-13T23:36:18 extm.enable='' (must be empty)
+2026-08-13T23:36:18 perf-mode System.Object[] (must be 0/0/0)
+2026-08-13T23:36:20 START phase=cq_t6 wake=mWakefulness=Awake
+2026-08-13T23:39:39 host_resume begin
+2026-08-13T23:39:39 GATE plugged=False level=64 tempC=35
+2026-08-13T23:39:41 PHASE_CQ_T6 already done
+2026-08-13T23:39:41 cq_t6 pulled
+2026-08-13T23:39:42 post cq_t6 plugged=False level=64 tempC=35
+2026-08-13T23:39:42 START phase=cq_t4 wake=mWakefulness=Awake

@@ -1,0 +1,6 @@
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=1216385 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=160744 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=176097 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=268525 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+/data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=544017 resident_after=0 pages fadvise_rc=0

@@ -1,0 +1,16 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant:A Mixture-of-Experts (MoE) language model is a type of neural network that uses many specialized sub-networks called “experts” to process input tokens, with only a subset of experts activated per token to save compute. This design allows the model to be large and powerful while keeping inference efficient by not activating all experts for every token. The weights are stored in a compact on-disk format because the model’s parameters are distributed across many experts, and only the active ones are loaded into memory during inference. Routing mechanisms decide which experts to activate, and flash streaming enables fast, incremental processing of tokens as they arrive, allowing the model to keep running even when only a few experts are needed per token.
+
+- The model uses a routing mechanism to select a small number of active experts per token, reducing computation and memory usage during inference.  
+- The large on-disk weight file is stored as a compact, sparse representation of expert weights, allowing efficient loading and retrieval on devices like phones
+
+generation: 200 tokens, 0.108 s/token (9.253 tok/s)
+compute: 70.2% CPU occupancy (0.3796 cpu-s/token over 5 threads), 0.00 major faults/token
+prefill: 80 tokens, 3.348 s (23.9 tok/s) | model load 3.037 s | TTFT 6.385 s
+moe-stream: read 10423.6 MiB (52.12 MiB/token), decode 0.108 s/token (compute 0.047 + cache mgmt 0.011 + flash I/O 0.140 s/token, 373 MiB/s)
+moe-cache: 52.7% hit, resident 1999.5 MiB
+moe-cache: 15030 evictions, 10976 re-reads (54.9/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.050 s/token (flash reads overlapped with FFN compute)
+moe-drop: 1477/33600 routed experts dropped (4.4%), threshold 0.65 x uniform

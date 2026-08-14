@@ -1,0 +1,127 @@
+2026-08-13T23:36:22 PHASE cq_t6 begin (CalaQwen t6 fact, 2 cold, SCREEN-ON)
+=== battery start_cq_t6 2026-08-13T23:36:47 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 65
+  temperature: 319
+max_therm_mC=44383
+MemAvailable_kB=6282600
+MemFree_kB=196428
+SwapFree_kB=8299908
+AnonPages_kB=558624
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+Failed to write while dumping service power: Broken pipe
+mWakefulness=Awake
+screen_off_timeout=1800000
+2026-08-13T23:36:50 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=1216385 resident_after=0 pages fadvise_rc=0
+=== battery before_cq_t6_fact_r1 2026-08-13T23:36:52 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 65
+  temperature: 320
+max_therm_mC=46198
+MemAvailable_kB=6246496
+MemFree_kB=4987776
+SwapFree_kB=8329680
+AnonPages_kB=595304
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+Failed to write while dumping service power: Broken pipe
+mWakefulness=Awake
+screen_off_timeout=1800000
+Failed to write while dumping service power: Broken pipe
+before cq_t6_fact_r1 mWakefulness=Awake 2026-08-13T23:36:55
+2026-08-13T23:36:55 START cq_t6_fact_r1 -t 6 prompt=fact mode=cold screen=Awake MemAvailable_kB=6241876 model=Qwen3.6-35B-A3B-KEXP.gguf
+Failed to write while dumping service power: Broken pipe
+after cq_t6_fact_r1 mWakefulness=Awake 2026-08-13T23:37:58
+2026-08-13T23:37:58 END cq_t6_fact_r1 EXIT=0 wall_s=59 majflt_delta=0 screen=Awake/Awake
+=== battery after_cq_t6_fact_r1 2026-08-13T23:37:58 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 65
+  temperature: 337
+max_therm_mC=46700
+MemAvailable_kB=6040688
+MemFree_kB=3592788
+SwapFree_kB=8372912
+AnonPages_kB=795324
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+Failed to write while dumping service power: Broken pipe
+mWakefulness=Awake
+screen_off_timeout=1800000
+2026-08-13T23:38:01 CSV cq_t6_fact_r1 4.697,33.16,79.2,14.977,8.769,200 batt=65->65 temp=31->31 wall=59 rc=0 ma=6241876->6039488 majflt=0 rss_mib=1178.1 screen=Awake/Awake
+2026-08-13T23:38:12 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=160744 resident_after=0 pages fadvise_rc=0
+=== battery before_cq_t6_fact_r2 2026-08-13T23:38:12 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 64
+  temperature: 337
+max_therm_mC=45190
+MemAvailable_kB=6007028
+MemFree_kB=4174464
+SwapFree_kB=8386736
+AnonPages_kB=830196
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+Failed to write while dumping service power: Broken pipe
+mWakefulness=Awake
+screen_off_timeout=1800000
+Failed to write while dumping service power: Broken pipe
+before cq_t6_fact_r2 mWakefulness=Awake 2026-08-13T23:38:15
+2026-08-13T23:38:15 START cq_t6_fact_r2 -t 6 prompt=fact mode=cold screen=Awake MemAvailable_kB=6006476 model=Qwen3.6-35B-A3B-KEXP.gguf
+Failed to write while dumping service power: Broken pipe
+after cq_t6_fact_r2 mWakefulness=Awake 2026-08-13T23:39:19
+2026-08-13T23:39:19 END cq_t6_fact_r2 EXIT=0 wall_s=58 majflt_delta=0 screen=Awake/Awake
+=== battery after_cq_t6_fact_r2 2026-08-13T23:39:19 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 64
+  temperature: 350
+max_therm_mC=47644
+MemAvailable_kB=6177252
+MemFree_kB=4089944
+SwapFree_kB=8277704
+AnonPages_kB=652344
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+Failed to write while dumping service power: Broken pipe
+mWakefulness=Awake
+screen_off_timeout=1800000
+2026-08-13T23:39:22 CSV cq_t6_fact_r2 4.802,33.16,79.2,14.949,8.460,200 batt=64->64 temp=33->33 wall=58 rc=0 ma=6006476->6172496 majflt=0 rss_mib=1178.1 screen=Awake/Awake
+2026-08-13T23:39:32 PHASE cq_t6 done
+Failed to write while dumping service power: Broken pipe
+2026-08-13T23:39:32 PHASE cq_t6 exit plugged=0 level=64 tempC=35 screen=Awake

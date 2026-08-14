@@ -1,0 +1,8 @@
+ts,tag,prompt_id,threads,decode_tps,mib_per_tok,hit_pct,ttft_s,load_s,n_gen,batt_start,batt_end,temp_start,temp_end,wall_s,rc,memavail_start,memavail_end,majflt_delta,majflt_per_tok,rss_mib,mode,plugged,screen
+2026-08-13T23:38:01,cq_t6_fact_r1,fact,6,4.697,33.16,79.2,14.977,8.769,200,65,65,31,31,59,0,6241876,6039488,0,0.0000,1178.1,cold,UNPLUGGED,Awake/Awake
+2026-08-13T23:39:22,cq_t6_fact_r2,fact,6,4.802,33.16,79.2,14.949,8.460,200,64,64,33,33,58,0,6006476,6172496,0,0.0000,1178.1,cold,UNPLUGGED,Awake/Awake
+2026-08-13T23:40:58,cq_t4_fact_r1,fact,4,4.613,33.57,79.1,15.166,8.271,200,64,64,34,34,60,0,6160392,6287872,0,0.0000,263.8,cold,UNPLUGGED,Awake/Awake
+2026-08-13T23:42:17,cq_t4_fact_r2,fact,4,4.547,33.57,79.1,15.397,8.009,200,63,63,35,35,60,0,5905764,6232384,0,0.0000,263.8,cold,UNPLUGGED,Awake/Awake
+2026-08-13T23:44:16,cq_t4_fact_sust,fact,4,4.392,33.57,79.1,15.638,8.507,200,63,63,35,35,63,0,6138876,6375720,0,0.0000,474.4,hot,UNPLUGGED,Awake/Awake
+2026-08-13T23:45:09,m1c_t4_fact,fact,4,10.574,52.29,52.6,7.078,3.542,200,62,62,36,36,26,0,6311776,6197932,0,0.0000,566.3,cold,UNPLUGGED,Awake/Awake
+2026-08-13T23:46:13,m1c_t5_fact,fact,5,9.253,52.12,52.7,6.385,3.037,200,62,62,36,36,28,0,6159720,6307024,0,0.0000,623.1,cold,UNPLUGGED,Awake/Awake
