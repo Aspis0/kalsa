@@ -13,7 +13,9 @@ PROMPT_IDS = ("fact", "creative", "longfact", "code")
 
 PROMPT_SHA256 = {
     "fact": "b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd",
-    "creative": "761db0d07cbc312acb35fb8c64894be83f38a3a7f0ba14e2100ef6a44a29c871",
+    # 2026-08-13: nudged local copy ("Begin the story now…") — the original made
+    # CalaQwen k6d065 emit EOS as the first token at temp 0 (0-token target).
+    "creative": "a8fa26c1644c9d5f83fd24a79986a49eb8e755722967ffc3ca2e86858e00043d",
     "longfact": "24694e05189a25581384e9ab3dd6e80e92bdacf728a1a33c2a5e5f4cd3524f37",
     "code": "fc9467a37f595de422ec3255a4b0bb48586da741a0fad0d207a66a35569dbaa8",
 }
