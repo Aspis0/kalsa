@@ -1,0 +1,324 @@
+=== battery start_decode 2026-08-13T22:58:08 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 72
+  temperature: 346
+max_therm_mC=48700
+MemAvailable_kB=5422428
+MemFree_kB=201104
+SwapFree_kB=9060196
+AnonPages_kB=1870748
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery before_m1c_t6_fact_r1 2026-08-13T22:58:12 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 72
+  temperature: 346
+max_therm_mC=44700
+MemAvailable_kB=5490624
+MemFree_kB=3278444
+SwapFree_kB=9061220
+AnonPages_kB=1804956
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery after_m1c_t6_fact_r1 2026-08-13T23:00:06 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 71
+  temperature: 351
+max_therm_mC=45190
+MemAvailable_kB=5793900
+MemFree_kB=2718436
+SwapFree_kB=8655236
+AnonPages_kB=1421980
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery before_m1c_t6_creative_r2 2026-08-13T23:00:32 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 71
+  temperature: 351
+max_therm_mC=46972
+MemAvailable_kB=5698404
+MemFree_kB=3301032
+SwapFree_kB=8700292
+AnonPages_kB=1534140
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery after_m1c_t6_creative_r2 2026-08-13T23:02:33 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 71
+  temperature: 347
+max_therm_mC=45795
+MemAvailable_kB=6162276
+MemFree_kB=2857800
+SwapFree_kB=8665488
+AnonPages_kB=1125872
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery before_m1c_t6_creative_sust 2026-08-13T23:04:02 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 71
+  temperature: 335
+max_therm_mC=67100
+MemAvailable_kB=5671384
+MemFree_kB=1716940
+SwapFree_kB=8959888
+AnonPages_kB=1537244
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery after_m1c_t6_creative_sust 2026-08-13T23:04:58 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 71
+  temperature: 340
+max_therm_mC=46568
+MemAvailable_kB=5958032
+MemFree_kB=2573192
+SwapFree_kB=8831212
+AnonPages_kB=1323572
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery start_perf_cq 2026-08-13T23:06:56 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 70
+  temperature: 329
+max_therm_mC=47100
+MemAvailable_kB=5983164
+MemFree_kB=193940
+SwapFree_kB=8638180
+AnonPages_kB=1237028
+speed_mode=1
+screen_game_mode=1
+gb_boosting=1
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery before_cq_t6_fact_perf_r1 2026-08-13T23:07:00 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 70
+  temperature: 332
+max_therm_mC=45100
+MemAvailable_kB=5976008
+MemFree_kB=4513964
+SwapFree_kB=8663012
+AnonPages_kB=1245700
+speed_mode=1
+screen_game_mode=1
+gb_boosting=1
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery after_cq_t6_fact_perf_r1 2026-08-13T23:10:52 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 69
+  temperature: 335
+max_therm_mC=48249
+MemAvailable_kB=6467088
+MemFree_kB=3991940
+SwapFree_kB=8436864
+AnonPages_kB=755516
+speed_mode=1
+screen_game_mode=1
+gb_boosting=1
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery before_cq_t6_fact_perf_r2 2026-08-13T23:11:24 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 69
+  temperature: 333
+max_therm_mC=48955
+MemAvailable_kB=6374772
+MemFree_kB=4723248
+SwapFree_kB=8456832
+AnonPages_kB=835316
+speed_mode=1
+screen_game_mode=1
+gb_boosting=1
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery after_cq_t6_fact_perf_r2 2026-08-13T23:14:22 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 69
+  temperature: 341
+max_therm_mC=45056
+MemAvailable_kB=6005420
+MemFree_kB=3955488
+SwapFree_kB=8853200
+AnonPages_kB=1324704
+speed_mode=1
+screen_game_mode=1
+gb_boosting=1
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery start_perf_m1c 2026-08-13T23:15:20 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 69
+  temperature: 341
+max_therm_mC=60500
+MemAvailable_kB=5860028
+MemFree_kB=3556276
+SwapFree_kB=8897744
+AnonPages_kB=1391296
+speed_mode=1
+screen_game_mode=1
+gb_boosting=1
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery before_m1c_t6_fact_perf 2026-08-13T23:15:21 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 69
+  temperature: 341
+max_therm_mC=65200
+MemAvailable_kB=5863044
+MemFree_kB=3555168
+SwapFree_kB=8898768
+AnonPages_kB=1391548
+speed_mode=1
+screen_game_mode=1
+gb_boosting=1
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery after_m1c_t6_fact_perf 2026-08-13T23:16:27 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 68
+  temperature: 343
+max_therm_mC=46602
+MemAvailable_kB=6106520
+MemFree_kB=2838540
+SwapFree_kB=8813256
+AnonPages_kB=1247504
+speed_mode=1
+screen_game_mode=1
+gb_boosting=1
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery start_t4 2026-08-13T23:17:24 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 68
+  temperature: 343
+max_therm_mC=63200
+MemAvailable_kB=5960864
+MemFree_kB=2522916
+SwapFree_kB=8986312
+AnonPages_kB=1342972
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery before_m1c_t4_fact 2026-08-13T23:17:26 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 68
+  temperature: 343
+max_therm_mC=62000
+MemAvailable_kB=5956712
+MemFree_kB=4216248
+SwapFree_kB=8986568
+AnonPages_kB=1344452
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+=== battery after_m1c_t4_fact 2026-08-13T23:18:08 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 68
+  temperature: 342
+max_therm_mC=44350
+MemAvailable_kB=6087812
+MemFree_kB=2653060
+SwapFree_kB=8864380
+AnonPages_kB=1255460
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0

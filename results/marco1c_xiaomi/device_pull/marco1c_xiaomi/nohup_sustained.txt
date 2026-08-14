@@ -1,0 +1,43 @@
+2026-08-13T23:04:02 PHASE sustained begin (Marco1c t6 creative, NO fadvise, no cooldown)
+2026-08-13T23:04:02 NO_FADV sustained m1c_t6_creative_sust
+=== battery before_m1c_t6_creative_sust 2026-08-13T23:04:02 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 71
+  temperature: 335
+max_therm_mC=67100
+MemAvailable_kB=5671384
+MemFree_kB=1716940
+SwapFree_kB=8959888
+AnonPages_kB=1537244
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+2026-08-13T23:04:03 START m1c_t6_creative_sust -t 6 prompt=creative mode=hot MemAvailable_kB=5666648 model=Marco-Mini-Instruct-KEXP.gguf
+2026-08-13T23:04:57 END m1c_t6_creative_sust EXIT=0 wall_s=51 majflt_delta=0
+=== battery after_m1c_t6_creative_sust 2026-08-13T23:04:58 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 71
+  temperature: 340
+max_therm_mC=46568
+MemAvailable_kB=5958032
+MemFree_kB=2573192
+SwapFree_kB=8831212
+AnonPages_kB=1323572
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+2026-08-13T23:05:15 CSV m1c_t6_creative_sust 6.839,50.69,54.3,5.835,2.854,200 batt=71->71 temp=33->33 wall=51 rc=0 ma=5666648->5959072 majflt=0 rss_mib=1144.5
+2026-08-13T23:05:15 PHASE sustained done
+2026-08-13T23:05:16 PHASE sustained exit plugged=0 level=71 tempC=34

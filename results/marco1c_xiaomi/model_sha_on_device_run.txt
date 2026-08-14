@@ -1,0 +1,6 @@
+=== model marco 2026-08-13T22:57:59 ===
+-rw-rw-rw- 1 shell shell 6385238848 2026-08-12 23:14 /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf
+2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777  /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf
+=== model cala 2026-08-13T23:06:42 ===
+-rw-rw-rw- 1 shell shell 13416430592 2026-08-10 13:48 /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a  /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf

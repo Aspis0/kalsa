@@ -1,0 +1,103 @@
+2026-08-13T22:57:59 PHASE decode begin (Marco1c t6, 2 cold reps: fact then creative)
+=== battery start_decode 2026-08-13T22:58:08 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 72
+  temperature: 346
+max_therm_mC=48700
+MemAvailable_kB=5422428
+MemFree_kB=201104
+SwapFree_kB=9060196
+AnonPages_kB=1870748
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+2026-08-13T22:58:11 FADV /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=758114 resident_after=0 pages fadvise_rc=0
+=== battery before_m1c_t6_fact_r1 2026-08-13T22:58:12 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 72
+  temperature: 346
+max_therm_mC=44700
+MemAvailable_kB=5490624
+MemFree_kB=3278444
+SwapFree_kB=9061220
+AnonPages_kB=1804956
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+2026-08-13T22:58:15 START m1c_t6_fact_r1 -t 6 prompt=fact mode=cold MemAvailable_kB=5493188 model=Marco-Mini-Instruct-KEXP.gguf
+2026-08-13T23:00:06 END m1c_t6_fact_r1 EXIT=0 wall_s=108 majflt_delta=0
+=== battery after_m1c_t6_fact_r1 2026-08-13T23:00:06 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 71
+  temperature: 351
+max_therm_mC=45190
+MemAvailable_kB=5793900
+MemFree_kB=2718436
+SwapFree_kB=8655236
+AnonPages_kB=1421980
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+2026-08-13T23:00:16 CSV m1c_t6_fact_r1 4.109,52.28,52.6,9.347,3.568,200 batt=72->72 temp=34->34 wall=108 rc=0 ma=5493188->5799832 majflt=0 rss_mib=970.3
+2026-08-13T23:00:31 FADV /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf
+/data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=228324 resident_after=0 pages fadvise_rc=0
+=== battery before_m1c_t6_creative_r2 2026-08-13T23:00:32 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 71
+  temperature: 351
+max_therm_mC=46972
+MemAvailable_kB=5698404
+MemFree_kB=3301032
+SwapFree_kB=8700292
+AnonPages_kB=1534140
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+2026-08-13T23:00:41 START m1c_t6_creative_r2 -t 6 prompt=creative mode=cold MemAvailable_kB=5694896 model=Marco-Mini-Instruct-KEXP.gguf
+2026-08-13T23:02:32 END m1c_t6_creative_r2 EXIT=0 wall_s=109 majflt_delta=0
+=== battery after_m1c_t6_creative_r2 2026-08-13T23:02:33 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 71
+  temperature: 347
+max_therm_mC=45795
+MemAvailable_kB=6162276
+MemFree_kB=2857800
+SwapFree_kB=8665488
+AnonPages_kB=1125872
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+POWER_SAVE_MODE_OPEN=0
+POWER_BALANCED_MODE_OPEN=0
+2026-08-13T23:02:45 CSV m1c_t6_creative_r2 4.093,50.69,54.3,13.108,7.073,200 batt=71->71 temp=35->35 wall=109 rc=0 ma=5694896->6162836 majflt=0 rss_mib=970.3
+2026-08-13T23:03:04 PHASE decode done
+2026-08-13T23:03:06 PHASE decode exit plugged=0 level=71 tempC=34

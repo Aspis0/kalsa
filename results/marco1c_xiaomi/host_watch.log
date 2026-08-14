@@ -1,0 +1,17 @@
+﻿2026-08-13T22:47:07 host_run begin â€” 3h unplug window
+2026-08-13T22:47:07 POLL plugged=False level=-1 tempC=-1 wait
+2026-08-13T22:47:54 host_run begin â€” 3h unplug window
+2026-08-13T22:47:54 POLL plugged=True level=64 tempC=34 wait
+2026-08-13T22:52:07 POLL plugged=False level=-1 tempC=-1 wait
+2026-08-13T22:52:54 POLL plugged=True level=70 tempC=35 wait
+2026-08-13T22:57:08 POLL plugged=False level=-1 tempC=-1 wait
+2026-08-13T22:57:54 POLL plugged=False level=72 tempC=34 GATE_OK
+2026-08-13T22:57:55 BIN before 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/local/tmp/gdn_750/taskb/bin/bmoe-cli
+2026-08-13T22:57:55 extm.enable='' (must be empty)
+2026-08-13T22:57:57 START phase=decode
+2026-08-13T23:02:08 POLL plugged=False level=-1 tempC=-1 wait
+2026-08-13T23:03:05 STARTED:24838
+2026-08-13T23:07:08 POLL plugged=False level=-1 tempC=-1 wait
+2026-08-13T23:12:09 POLL plugged=False level=-1 tempC=-1 wait
+2026-08-13T23:17:09 POLL plugged=False level=-1 tempC=-1 wait
+2026-08-13T23:22:09 POLL plugged=False level=-1 tempC=-1 wait

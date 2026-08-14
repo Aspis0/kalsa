@@ -1,0 +1,10 @@
+enabled: 2026-08-13
+keys:
+  settings put system speed_mode 1
+  settings put system screen_game_mode 1
+  settings put secure gb_boosting 1
+meaning:
+  speed_mode = HyperOS / MIUI Performance (QS tile "Performance", settings system)
+  screen_game_mode + gb_boosting = Game Turbo / Game Booster boosting flags (pref_open_game_booster was already 1)
+baseline before: all 0
+PowerModeHandler default was already enhance / powerMode=2; speed_mode is the user-facing Performance toggle

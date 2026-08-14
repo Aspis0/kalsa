@@ -1,0 +1,43 @@
+2026-08-13T22:57:59 PHASE decode begin (Marco1c t6, 2 cold reps: fact then creative)
+2026-08-13T22:58:11 FADV /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf
+2026-08-13T22:58:15 START m1c_t6_fact_r1 -t 6 prompt=fact mode=cold MemAvailable_kB=5493188 model=Marco-Mini-Instruct-KEXP.gguf
+2026-08-13T23:00:06 END m1c_t6_fact_r1 EXIT=0 wall_s=108 majflt_delta=0
+2026-08-13T23:00:16 CSV m1c_t6_fact_r1 4.109,52.28,52.6,9.347,3.568,200 batt=72->72 temp=34->34 wall=108 rc=0 ma=5493188->5799832 majflt=0 rss_mib=970.3
+2026-08-13T23:00:31 FADV /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf
+2026-08-13T23:00:41 START m1c_t6_creative_r2 -t 6 prompt=creative mode=cold MemAvailable_kB=5694896 model=Marco-Mini-Instruct-KEXP.gguf
+2026-08-13T23:02:32 END m1c_t6_creative_r2 EXIT=0 wall_s=109 majflt_delta=0
+2026-08-13T23:02:45 CSV m1c_t6_creative_r2 4.093,50.69,54.3,13.108,7.073,200 batt=71->71 temp=35->35 wall=109 rc=0 ma=5694896->6162836 majflt=0 rss_mib=970.3
+2026-08-13T23:03:04 PHASE decode done
+2026-08-13T23:03:06 PHASE decode exit plugged=0 level=71 tempC=34
+2026-08-13T23:04:02 PHASE sustained begin (Marco1c t6 creative, NO fadvise, no cooldown)
+2026-08-13T23:04:02 NO_FADV sustained m1c_t6_creative_sust
+2026-08-13T23:04:03 START m1c_t6_creative_sust -t 6 prompt=creative mode=hot MemAvailable_kB=5666648 model=Marco-Mini-Instruct-KEXP.gguf
+2026-08-13T23:04:57 END m1c_t6_creative_sust EXIT=0 wall_s=51 majflt_delta=0
+2026-08-13T23:05:15 CSV m1c_t6_creative_sust 6.839,50.69,54.3,5.835,2.854,200 batt=71->71 temp=33->33 wall=51 rc=0 ma=5666648->5959072 majflt=0 rss_mib=1144.5
+2026-08-13T23:05:15 PHASE sustained done
+2026-08-13T23:05:16 PHASE sustained exit plugged=0 level=71 tempC=34
+2026-08-13T23:06:42 PHASE perf_cq begin (CalaQwen t6 fact, 2 cold, perf-mode ON)
+2026-08-13T23:06:59 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T23:07:02 START cq_t6_fact_perf_r1 -t 6 prompt=fact mode=cold MemAvailable_kB=5972876 model=Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T23:10:52 END cq_t6_fact_perf_r1 EXIT=0 wall_s=219 majflt_delta=0
+2026-08-13T23:11:04 CSV cq_t6_fact_perf_r1 2.156,33.16,79.2,21.966,12.844,200 batt=70->70 temp=32->32 wall=219 rc=0 ma=5972876->6464356 majflt=0 rss_mib=1258.2
+2026-08-13T23:11:23 FADV /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T23:11:36 START cq_t6_fact_perf_r2 -t 6 prompt=fact mode=cold MemAvailable_kB=6379700 model=Qwen3.6-35B-A3B-KEXP.gguf
+2026-08-13T23:14:22 END cq_t6_fact_perf_r2 EXIT=0 wall_s=162 majflt_delta=0
+2026-08-13T23:14:39 CSV cq_t6_fact_perf_r2 2.793,33.16,79.2,25.438,14.220,200 batt=69->69 temp=33->33 wall=162 rc=0 ma=6379700->6005144 majflt=0 rss_mib=1258.2
+2026-08-13T23:14:56 PHASE perf_cq done
+2026-08-13T23:14:56 PHASE perf_cq exit plugged=0 level=69 tempC=34
+2026-08-13T23:15:20 PHASE perf_m1c begin (Marco1c t6 fact, 1 cold, perf-mode ON)
+2026-08-13T23:15:21 FADV /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf
+2026-08-13T23:15:22 START m1c_t6_fact_perf -t 6 prompt=fact mode=cold MemAvailable_kB=5864524 model=Marco-Mini-Instruct-KEXP.gguf
+2026-08-13T23:16:27 END m1c_t6_fact_perf EXIT=0 wall_s=58 majflt_delta=0
+2026-08-13T23:16:39 CSV m1c_t6_fact_perf 6.253,52.28,52.6,6.781,3.458,200 batt=69->69 temp=34->34 wall=58 rc=0 ma=5864524->6106716 majflt=0 rss_mib=418.7
+2026-08-13T23:17:02 PHASE perf_m1c done
+2026-08-13T23:17:03 PHASE perf_m1c exit plugged=0 level=68 tempC=34
+2026-08-13T23:17:24 PHASE t4 begin (Marco1c t4 fact, 1 cold)
+2026-08-13T23:17:25 FADV /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf
+2026-08-13T23:17:27 START m1c_t4_fact -t 4 prompt=fact mode=cold MemAvailable_kB=5954804 model=Marco-Mini-Instruct-KEXP.gguf
+2026-08-13T23:18:08 END m1c_t4_fact EXIT=0 wall_s=38 majflt_delta=0
+2026-08-13T23:18:14 CSV m1c_t4_fact 8.577,52.29,52.6,6.049,3.013,200 batt=68->68 temp=34->34 wall=38 rc=0 ma=5954804->6086964 majflt=0 rss_mib=543.6
+2026-08-13T23:18:29 PHASE t4 done
+2026-08-13T23:18:30 PHASE t4 exit plugged=0 level=68 tempC=34

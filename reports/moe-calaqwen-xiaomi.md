@@ -161,3 +161,33 @@ opener.
 - `results/xiaomi_ab/taskb_retry/sha_records.md`
 - `results/xiaomi_ab/taskb_retry/mem_curves.md`
 - on-device harness: `results/xiaomi_ab/taskb_retry/run_task_b_retry.sh`
+
+## 6. Follow-up — HyperOS performance mode
+
+**PERF_MODE_NULL**
+
+Question: does Game Turbo / the HyperOS performance toggle restore the 4.02 cold opener or lift the 2.55 t6 median?
+
+What was enabled (then restored to 0):
+
+```
+settings put system speed_mode 1          # Performance / Speed QS tile
+settings put system screen_game_mode 1
+settings put secure gb_boosting 1         # Game Turbo boosting flags
+```
+
+`pref_open_game_booster` was already 1. PowerModeHandler default was already `enhance` / `powerMode=2`. Memory Extension stayed OFF. Same campaign pin, same k6d065, `-t 6`, `p_fact`, n=200, cold fadvise, UNPLUGGED 70% → 69%, 32–33 °C.
+
+| cell | decode t/s | compute s/tok | flash I/O s/tok | flash MiB/s |
+|---|---:|---:|---:|---:|
+| original t6 fact o1 (cold) | **4.023** | 0.151 | 0.222 | 149 |
+| original t6 median (n=4) | **2.55** | 0.15–0.22 | 0.22–0.51 | 55–149 |
+| perf r1 fact | **2.156** | 0.256 | 0.496 | 67 |
+| perf r2 fact | **2.793** | 0.217 | 0.320 | 104 |
+| perf median | **2.475** | | | |
+
+Factor vs 2.55: **0.97×**. Opener 2.156 vs 4.023 — the cold 4.02 did not come back. I/O regime unchanged (33.16 MiB/tok, 79.2% hit). The bound is still UFS streaming / SoC DVFS, not a user-toggleable power plan.
+
+Same-session side note (not this question): Marco1c t6 fact went 4.109 → 6.253 with the same three keys. That does not move the CalaQwen product number.
+
+Artifacts: `results/marco1c_xiaomi/` (`cq_t6_fact_perf_r1/r2`, `perf_mode_on.txt`, `perf_mode_restored.txt`).

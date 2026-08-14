@@ -1,0 +1,4 @@
+speed_mode=0
+screen_game_mode=0
+gb_boosting=0
+restored=2026-08-13T23:17:20.3682967-04:00
