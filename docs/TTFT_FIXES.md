@@ -1,7 +1,13 @@
 # TTFT fixes (v2)
 
-Branch: `fix/ttft-v2` @ `203bd2f`. Jelly PLUGGED then unplugged mid-S3.
+Branch: `fix/ttft-v2`. Jelly PLUGGED then unplugged mid-S3.
 This file is the honesty log — do not treat `ok:true` as KV reuse.
+
+Review blockers closed before merge:
+
+1. Dense restore: skip prewarm when `kvHoldsChatSession && !hybrid`.
+2. Bake rematch key: `bakeRematchKey` + persona'd history string.
+3. Compaction: stored `"0"` is explicit OFF (no leftover-default-0).
 
 ## Jelly measured (2026-08-13, Qwen 3.5 2B Q4_K_M, PLUGGED unless noted)
 
@@ -100,11 +106,12 @@ users get the same persona frame so rematch is not a silent no-op.
 
 ## Compaction default (V2-3)
 
-`kalsa.context.compaction` stays the value (`"1"` / `"0"`).
-`kalsa.context.compaction.choice` is `"1"` only after the user toggles
-Settings. Without that marker, leftover `"0"` from the old default is
-treated as ON (`parseCompactionEnabled`). Settings first-read does not
-write. AppShell send uses the shared parse.
+`kalsa.context.compaction` stays the value (`"1"` / `"0"`). The only
+writer is the Settings toggle — every stored `"0"` is an explicit user
+OFF. `parseCompactionEnabled` honors that (default ON only when the key
+is absent / unrecognized). `kalsa.context.compaction.choice` is still
+written on toggle for future flips; it does not override a stored `"0"`.
+Settings first-read does not write. AppShell send uses the shared parse.
 
 ## Explicitly not in this branch
 

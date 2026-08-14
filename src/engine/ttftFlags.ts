@@ -53,28 +53,30 @@ export const EAGER_PREFIX_PREWARM = true;
  * Compaction default ON, including upgrades.
  *
  * Storage:
- * - `kalsa.context.compaction` remains the value ("1" / "0").
- * - `kalsa.context.compaction.choice` = "1" only after the user toggles
- *   the Settings switch (explicit choice).
+ * - `kalsa.context.compaction` is the value ("1" / "0"). Every stored "0"
+ *   is an explicit user OFF (Settings is the only writer; no version ever
+ *   persisted a default "0").
+ * - `kalsa.context.compaction.choice` = "1" after a Settings toggle. Kept
+ *   for future flips; it does not override a stored "0"/"1".
  *
- * Residual stored "0" from the old default must NOT keep upgrades OFF.
+ * Default ON applies only when the value key is absent / unrecognized.
  * Settings first-read must not write "0" just because the switch painted off.
  */
 export const COMPACTION_ENABLED_DEFAULT = true;
 
 /**
  * Resolve the compaction toggle.
- * - hasExplicitChoice: honor raw "0"/"false" OFF, "1"/"true" ON.
- * - else: ON (missing key AND leftover "0" from the old default).
+ * Stored "0"/"false" is always OFF. Stored "1"/"true" is always ON.
+ * Missing / garbage → COMPACTION_ENABLED_DEFAULT.
+ * `hasExplicitChoice` is accepted for call-site compat; it does not
+ * re-enable an explicit stored OFF.
  */
 export function parseCompactionEnabled(
   rawValue: string | null | undefined,
-  hasExplicitChoice: boolean,
+  _hasExplicitChoice?: boolean,
 ): boolean {
-  if (hasExplicitChoice) {
-    if (rawValue === "0" || rawValue === "false") return false;
-    if (rawValue === "1" || rawValue === "true") return true;
-  }
+  if (rawValue === "0" || rawValue === "false") return false;
+  if (rawValue === "1" || rawValue === "true") return true;
   return COMPACTION_ENABLED_DEFAULT;
 }
 

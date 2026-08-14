@@ -1,5 +1,6 @@
 /**
- * Harness for parseCompactionEnabled (V2-3 default ON including upgrades).
+ * Harness for parseCompactionEnabled (V2-3 default ON when key absent;
+ * stored "0" is always explicit OFF).
  * Compile-from-disk. Exit 1 on fail.
  */
 import { spawnSync } from "node:child_process";
@@ -64,12 +65,13 @@ async function main() {
 
   assert(COMPACTION_ENABLED_DEFAULT === true, "default must be ON");
 
-  // No explicit choice: ON even when leftover "0" from the old default.
+  // Absent / unrecognized → default ON. Stored "0" is always explicit OFF
+  // (Settings is the only writer; there was never a leftover default "0").
   assert(parseCompactionEnabled(null, false) === true, "missing key → ON");
   assert(parseCompactionEnabled(undefined, false) === true, "undefined → ON");
   assert(parseCompactionEnabled("", false) === true, "empty → ON");
-  assert(parseCompactionEnabled("0", false) === true, "leftover 0 → ON");
-  assert(parseCompactionEnabled("false", false) === true, "leftover false → ON");
+  assert(parseCompactionEnabled("0", false) === false, "stored 0 → OFF");
+  assert(parseCompactionEnabled("false", false) === false, "stored false → OFF");
   assert(parseCompactionEnabled("1", false) === true, "stored 1 without choice → ON");
   assert(parseCompactionEnabled("true", false) === true, "stored true without choice → ON");
   assert(parseCompactionEnabled("nope", false) === true, "garbage without choice → ON");
