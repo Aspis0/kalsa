@@ -49,7 +49,19 @@
 > config default, e N≥10 pre-registrato per qualsiasi claim di ship.
 > Branch kalsa/kf-layer-ahead @ c3e8fc4; report
 > reports/moe-kernel-kf-proto.md.
-> **SCOREBOARD K-F (gualt, 2026-08-14 — aggiornato dopo cella REALITY):**
+> **SCOREBOARD K-F v2 (gualt, 2026-08-14 notte — tassonomia ufficiale,
+> missione: tutta verde o quasi):**
+> KF_MEDIAN_WIN ✅ · KF_ENERGY_NEUTRAL ✅ · KF_THERMAL ⚠️ inconclusivo
+> (→ verde con blocchi lunghi anti-EOS: sweep in lancio) · KF_MEMORY ⚠️
+> cold-start da analizzare (→ split majflt primi-100 vs resto nello
+> sweep; se è warm-up non integrato → fix E) · KF_TAIL ❌ fail ·
+> KF_ROBUST ❌ fail (→ Pareto width 2/3/4/6 stanotte + telemetria
+> lead-time per B-late vs C-over-issuing, poi UN fix mirato) ·
+> KF_GENERAL ⏸ hold (→ dopo ROBUST: secondo modello/device) ·
+> KF_SHIP ⛔ blocked (→ ultimo: cella N≥10 pre-registrata). Non si
+> promuove nulla finché la riga sopra non è verde.
+>
+> **(storico, prima tassonomia — dopo cella REALITY):**
 > KF_PROTO_WIN ✅ · KF_PHYSICS_WIN ✅ · KF_SPEED_WIN ✅ ·
 > KF_IDENTITY_D0_WIN ✅ · **KF_ENERGY_WIN ✅ (J/tok 0.762 vs 0.770,
 > ratio 0.99)** · **KF_THERMAL_WIN ✅ debole (sag 0.054 vs 0.095, ma
