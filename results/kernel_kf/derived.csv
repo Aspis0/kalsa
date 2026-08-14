@@ -1,0 +1,5 @@
+source,device,date,prompt,order,wall_s_tok,compute_s_tok,mgmt_s_tok,flash_lane_busy_s_tok,stall_s_tok,stall_frac,hit_pct,mib_tok,decode_tps,n_gen,drain_printed
+lineup_card/jelly_1c,Jelly,2026-08-13,fact,1,0.278,0.156,0.018,0.363,0.105,0.3777,52.3,52.68,3.594,200,0
+lineup_card/jelly_1c,Jelly,2026-08-13,creative,2,0.265,0.149,0.017,0.343,0.099,0.3736,54.5,50.48,3.770,200,0
+lineup_card/jelly_1c,Jelly,2026-08-13,creative,3,0.271,0.153,0.017,0.345,0.101,0.3727,54.5,50.48,3.690,200,0
+lineup_card/jelly_1c,Jelly,2026-08-13,fact,4,0.280,0.157,0.018,0.360,0.104,0.3714,52.3,52.68,3.576,200,0

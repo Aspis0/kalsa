@@ -1,0 +1,9 @@
+KF_GO
+stall_pct=37.3
+source=derived
+phase1_device_run=no
+reason=lineup_card/jelly_1c 2026-08-13 already prints moe-overlap stall on the campaign pin
+device_not_touched=Jelly
+untouched=S23,Xiaomi,PPL
+binary_pin=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81
+model_pin=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
