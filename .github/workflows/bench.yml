@@ -125,6 +125,8 @@ jobs:
           node scripts/toolCallParseHarness.mjs
           node scripts/memoryTelemetryHarness.mjs
           npx jest --silent
+          # Sideload guards are bash, so the *Harness.mjs sweep does not see them.
+          bash scripts/test_sideload_guards.sh
           node scripts/matrixParityHarness.mjs
 
       # Preflight: HEAD every model URL the workflow can select, fail fast if
@@ -485,7 +487,12 @@ jobs:
           # Public repo => 4-vCPU runners; a turn costs ~185s at 4 cores vs 516s at 2.
           cores: 4
           ram-size: 8192M
-          disk-size: 8192M
+          # 12 GB userdata: model 5.2 GB (LFM2.5-8B single-copy after mv fix) +
+          # system image ~1.5 GB + APK/data 0.5 GB + logs 0.3 GB + FS overhead
+          # 0.5 GB + runtime/mmap headroom 2.0 GB = ~10.0 GB peak.  The old
+          # 8 GB forced a 10.4 GB peak (cp doubled the 8B) and silently failed.
+          # qcow2 is sparse so a larger virtual disk does not slow AVD boot.
+          disk-size: 12288M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: bash scripts/ci-bench.sh

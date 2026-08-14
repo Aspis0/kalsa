@@ -134,6 +134,37 @@ capture_kv_reuse() {
   return 0
 }
 
+# ── Sideload guards ─────────────────────────────────────────────────
+# Pure-logic functions (take values, never run adb) so they can be unit-tested
+# with fake inputs — the caller extracts on-device values and passes them in.
+
+# assert_size_match <actual_bytes> <expected_bytes> <label>
+#   A silent partial copy must become a loud failure at the moment it happens,
+#   not a mystery 18 minutes later (smoke 31829304518 lesson).
+assert_size_match() {
+  local actual="$1" expected="$2" label="$3"
+  if [ "$actual" != "$expected" ]; then
+    die "sideload size mismatch for $label: on-device ${actual} bytes != expected ${expected} bytes (truncated/corrupt transfer)"
+  fi
+  log "sideload verified: $label ($actual bytes)"
+}
+
+# check_free_space <available_bytes> <needed_bytes> <model_label>
+#   Dies naming the model, its size, and the space available — the message a
+#   human should see, not "model not downloaded".
+check_free_space() {
+  local available="$1" needed="$2" label="$3"
+  case "$available" in
+    ''|*[!0-9]*) die "check_free_space: could not determine free space on device (got '$available')" ;;
+  esac
+  case "$needed" in
+    ''|*[!0-9]*) die "check_free_space: invalid needed size '$needed'" ;;
+  esac
+  if [ "$available" -lt "$needed" ]; then
+    die "insufficient device space for $label: need $needed bytes, only $available bytes available on /data"
+  fi
+}
+
 # Installs the APK, sideloads the GGUF into files/models/<model_dir>/<model_file>,
 # and does the first-launch dance that creates the AsyncStorage sqlite db.
 #   install_and_sideload <apk_path> <model_src_path> <model_dir> <model_file>
@@ -150,11 +181,39 @@ install_and_sideload() {
   log "install APK ($apk)"
   adb install -r "$apk" 2>&1 | tail -2
 
+  # ── Pre-flight: source size + device free space ───────────────
+  local src_size
+  src_size=$(stat -c %s "$model_src")
+  log "model source size: $src_size bytes ($model_file)"
+
+  # df -P (POSIX format): Filesystem 1024-blocks Used Available Capacity Mounted
+  # Column 4 = Available in 1K blocks.  /data is the userdata partition where
+  # the app's files/ directory lives.
+  local avail_kb
+  avail_kb=$(adb shell "df -P /data" 2>/dev/null | awk 'NR==2{print $4}' | tr -d '\r')
+  case "$avail_kb" in
+    ''|*[!0-9]*) die "could not parse df output for /data (raw: $(adb shell df -P /data 2>/dev/null | head -3 | tr -d '\r'))" ;;
+  esac
+  local avail_bytes=$((avail_kb * 1024))
+  log "device /data free: $avail_bytes bytes (df reported ${avail_kb}K)"
+
+  check_free_space "$avail_bytes" "$src_size" "$model_file"
+
+  # ── Push + move (single copy, not two) ────────────────────────
+  # /data/local/tmp and /data/data are on the same ext4/f2fs filesystem,
+  # so mv is a rename(2) — instant, zero extra disk.  cp would hold two
+  # full copies at peak (5.2 GB → 10.4 GB for the 8B model, exceeding the
+  # old 8 GB userdata partition and silently failing the push).
   log "sideload model $model_file"
-  adb push "$model_src" /data/local/tmp/model.gguf 2>&1 | tail -1
   adb shell "mkdir -p /data/data/$PKG/files/models/$model_dir"
-  adb shell "cp /data/local/tmp/model.gguf /data/data/$PKG/files/models/$model_dir/$model_file"
-  adb shell "rm -f /data/local/tmp/model.gguf"
+  adb push "$model_src" /data/local/tmp/model.gguf 2>&1 | tail -1
+  adb shell "mv /data/local/tmp/model.gguf /data/data/$PKG/files/models/$model_dir/$model_file"
+
+  # ── Assert on-device size matches source ──────────────────────
+  local dev_size
+  dev_size=$(adb shell "stat -c %s /data/data/$PKG/files/models/$model_dir/$model_file" 2>/dev/null | tr -d '\r')
+  assert_size_match "$dev_size" "$src_size" "$model_file"
+
   local uid_line
   uid_line=$(adb shell "stat -c %U /data/data/$PKG" | tr -d '\r')
   adb shell "chown -R $uid_line:$uid_line /data/data/$PKG/files/models"
