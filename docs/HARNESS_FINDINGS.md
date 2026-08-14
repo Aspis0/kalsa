@@ -44,9 +44,30 @@ from context.
 So the honest statement is: **the 2/96 figure is the gate refusing, not the model abstaining.**
 The recall benefit is real but the mechanism is blunt and costs the user a working web search.
 
-**Shipping blocker.** The threshold must become scale-free before this ships; 0.18 on char
-3-grams is a same-language constant, not a similarity criterion. See §3.5 for the memory-facts
-half of the same defect.
+**Shipping blocker, now proven from campaign data rather than inferred.** The conversation
+contains one turn where searching IS the correct answer — the user says *"Cerca sul web le
+previsioni del meteo di domani a Milano"* (`probe_tool`, expectation `must`). Campaign
+`31760516762`, 6 seeds per arm:
+
+| arm | that turn succeeded | turns with web sources |
+|---|---|---|
+| baseline (gate on) | **0 / 6** | 2 |
+| ciswire (gate on) | **0 / 6** | 3 |
+| v42 (gate on) | **0 / 6** | 10 |
+| **nogate (gate off)** | **6 / 6** | 37 |
+
+The user asks in plain words and the gate refuses, 100% of the time, on every gated arm.
+
+**This also corrects an earlier claim of mine in this document**: the `tool_call` family sitting
+at 0.000 everywhere was blamed on a broken grader (`sources >= 1`). The grader was right — the
+system was failing. I accused the instrument.
+
+The fix under way inverts the comparison: a *legitimate* query paraphrases what the user just
+asked (0.39–0.68) while a *spurious* one is about something else (0.15), so the rule should
+block the unrelated case, not the related one. Inversion also fails in the safer direction — a
+language with high baseline similarity lets searches through rather than killing the feature.
+Known risk being measured, not assumed: a short or vague last message (`ok`, `cosa ne pensi?`)
+makes everything score low, so a naive inversion would block legitimate follow-ups.
 
 **Confidence in the numbers: high. Confidence in the earlier causal story: retracted.**
 
