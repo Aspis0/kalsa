@@ -21,10 +21,18 @@
 
 ## TL;DR lanes (2026-08-14)
 
-> 🎯 **DIRETTIVA gualt (2026-08-14 mattina): TRE cose vive — (1) KERNEL S3
-> repack-aware ("voglio il kernel"), (2) SELFSPEC F1 engine, (3) il PPL
-> quality gate Mellum in corso su PC (gata il 5.151 e le config S3 —
-> "quello non è chiuso", gualt). TUTTO IL RESTO È CHIUSO/CONGELATO** (free-tier: si ferma alla scala misurata; celle card
+> 🎯 **DIRETTIVA gualt (2026-08-14, aggiornata): "VOGLIO UN NOSTRO KERNEL"
+> — CPU per velocità, O RAM, O GPU/SSD per temperatura/calore: la value
+> proposition è che lavoreremo sempre su LLM appena uscite** (day-zero
+> enablement dove upstream ha solo fallback lenti + streaming-aware paths
+> che upstream non farà mai + efficienza termica). Lane vive: (1) KERNEL
+> — pista attuale K-E "efficiency/thermal" in volo (i8mm = −21% CPU-time
+> per op a wall pari → J/token e throttle sostenuto MAI misurati; la pista
+> SPEED CPU t2 resta chiusa coi 3 bench); prossima candidata K-G = GPU
+> prefill executor A7X (TTFT 1.3-1.7× misurato + sposta il calore fuori
+> dalla CPU; prima M2-carta). (2) SELFSPEC F1b diagnosi in volo. (3) PPL
+> gate in corso. Bug app P0/P1 trovati sul Xiaomi (KNOWN_ISSUES ab3b747):
+> fix NON autorizzato per ora. Il resto resta congelato. (free-tier: si ferma alla scala misurata; celle card
 > Xiaomi, FT lane, GPU: freeze — si riaprono solo su parola di gualt).
 > Design S3 del coordinatore: `docs/kernel-s3-design.md` (3 meccanismi
 > ranked: Phase-D cache-ostile prima del repack; repack-at-cache-insert
