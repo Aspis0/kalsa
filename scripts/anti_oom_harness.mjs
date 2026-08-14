@@ -174,6 +174,36 @@ async function main() {
     assert(d.bannerKey === "model.memoryUnknown", `banner ${d.bannerKey}`);
   });
 
+  // P0: resident model must not double-count its own footprint vs leftover RAM.
+  // Xiaomi 14: 4B (~2.7 GB) resident, HyperOS MemAvailable ~2.1 GB.
+  const model4B = {
+    sizeBytes: 2693 * 1024 * 1024,
+    engineCtx: 8192,
+    kvBytesPerToken: 4.88 * 1024,
+    mmproj: null,
+  };
+  const leftoverAfter4B = 2100 * 1024 * 1024;
+
+  await test("decidePreSendFit resident + low availableMb → completion allowed", () => {
+    const blocked = decidePreSendFit(model4B, leftoverAfter4B);
+    assert(blocked.allow === false, "unloaded 4B vs 2.1 GiB leftover must refuse");
+    const d = decidePreSendFit(model4B, leftoverAfter4B, { alreadyResident: true });
+    assert(d.allow === true, `resident must allow, got ${JSON.stringify(d)}`);
+    assert(d.bannerKey === null, `no banner when resident, got ${d.bannerKey}`);
+  });
+
+  await test("decidePreSendFit unloaded + low availableMb → still blocked", () => {
+    const d = decidePreSendFit(model4B, leftoverAfter4B);
+    assert(d.allow === false, "unloaded must still refuse");
+    assert(
+      d.reasonKey === "model.tooLarge" || d.reasonKey === "model.tightNow",
+      `reason ${d.reasonKey}`,
+    );
+    const tiny = decidePreSendFit(model2B, halfGiB);
+    assert(tiny.allow === false, "unloaded 2B vs 512 MiB must refuse");
+    assert(tiny.reasonKey === "model.tooLarge", tiny.reasonKey);
+  });
+
   // --- mmproj accounting ---
   await test("evaluateModelFit mmproj increases footprint (may worsen verdict)", () => {
     const baseModel = { sizeBytes: 2_000_000_000, engineCtx: 4096, kvBytesPerToken: 0 };

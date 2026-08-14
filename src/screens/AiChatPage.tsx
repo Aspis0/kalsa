@@ -60,6 +60,7 @@ import { classifyChatContent, type ContentFilterReason } from "../domain/content
 import {
   getActiveModelId,
   invalidateEngineSession,
+  isEngineReady,
   markKvNonReproducible,
   saveEngineSession,
   translateText,
@@ -1747,12 +1748,15 @@ export function AiChatPage({
   /**
    * Uncached pre-send fit gate. Refuses does_not_fit / tight-under-1.5x.
    * unknown → allow + non-blocking banner via onMemoryBanner.
+   * If the engine already holds this model, skip size-vs-available — those
+   * resident bytes are what lowered MemAvailable (P0 double-count).
    */
   const awaitPreSendFitGate = useCallback(async (): Promise<HandleSendResult> => {
     const mid = getActiveModelId();
     // No active model yet → allow; ensureEngineForModel will surface load errors.
     if (!mid) return { ok: true };
     const model = getModelById(mid);
+    const alreadyResident = isEngineReady() && getActiveModelId() === mid;
     let available: number | null = null;
     try {
       available = await getAvailableMemoryBytesUncached();
@@ -1768,6 +1772,7 @@ export function AiChatPage({
         mmproj: model.mmproj ? { sizeBytes: model.mmproj.sizeBytes } : null,
       },
       available,
+      { alreadyResident },
     );
     if (!decision.allow) {
       showVoiceNote(t(decision.reasonKey as any));
