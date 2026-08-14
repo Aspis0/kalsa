@@ -127,6 +127,15 @@ jobs:
           npx jest --silent
           node scripts/matrixParityHarness.mjs
 
+      # Preflight: HEAD every model URL the workflow can select, fail fast if
+      # any is unreachable or wrong-size. Runs BEFORE the expensive build steps
+      # (Free disk space / Prebuild / Build APK) so a bad model ref fails in
+      # seconds, not after burning 30+ minutes building an APK nobody will use.
+      # Checks ALL four models (not just the selected one) — a broken ref for
+      # an unselected model is a trap for the next person.
+      - name: Preflight model URLs
+        run: node scripts/benchPreflight.mjs
+
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc /usr/local/share/boost || true
@@ -433,55 +442,23 @@ jobs:
 
       - name: Download GGUF model
         if: matrix.phase == inputs.phase
+        # URLs come from benchPreflight.mjs (reads ModelRegistry.ts — single
+        # source of truth). The YAML contains zero hardcoded HF URLs; drift
+        # between the registry and the download step is structurally impossible.
         run: |
           set -e
-          if [ "${{ inputs.model || 'qwen3.5-2b' }}" = "qwen3.5-4b" ]; then
-            URL="https://huggingface.co/unsloth/Qwen3.5-4B-MTP-GGUF/resolve/86835bf9949e4d14d6860f7910b1340ad4f271a9/Qwen3.5-4B-Q4_K_M.gguf?download=true"
-            echo "MODEL_FILE=Qwen3.5-4B-Q4_K_M.gguf" >> $GITHUB_ENV
-            echo "MODEL_DIR=qwen3.5-4b" >> $GITHUB_ENV
-            # WHY: ModelRegistry qwen3.5-4b requires mmproj; ModelDownloader
-            # isFileComplete is size-exact. Sideloading only the main GGUF made
-            # every turn reply "Modello non ancora scaricato" while both arms
-            # stayed green (CI run 31420693167). mmproj is a different HF
-            # repo+revision from the weights (unsloth/Qwen3.5-4B-GGUF @ e87f176).
-            echo "MMPROJ_FILE=mmproj-F16.gguf" >> $GITHUB_ENV
-            # ModelRegistry mmproj.sizeBytes for qwen3.5-4b (exact-byte gate).
-            echo "MMPROJ_BYTES=672423616" >> $GITHUB_ENV
-            # ModelRegistry sizeBytes for qwen3.5-4b (exact-byte gate).
-            EXPECTED_BYTES=2834975040
-            curl -sL -o model.gguf "$URL"
-            curl -sL -o mmproj.gguf \
-              "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/mmproj-F16.gguf?download=true"
-            # Both files: a truncated download is visible here, not only after push.
+          MODEL="${{ inputs.model || 'qwen3.5-2b' }}"
+          MANIFEST=$(node scripts/benchPreflight.mjs --env "$MODEL")
+          echo "$MANIFEST" >> "$GITHUB_ENV"
+          MODEL_URL=$(echo "$MANIFEST" | grep '^MODEL_URL=' | cut -d= -f2-)
+          EXPECTED_BYTES=$(echo "$MANIFEST" | grep '^EXPECTED_BYTES=' | cut -d= -f2-)
+          curl -sL -o model.gguf "$MODEL_URL"
+          # mmproj is optional — only qwen3.5-4b has one (vision model).
+          MMPROJ_URL=$(echo "$MANIFEST" | grep '^MMPROJ_URL=' | cut -d= -f2- || true)
+          if [ -n "$MMPROJ_URL" ]; then
+            curl -sL -o mmproj.gguf "$MMPROJ_URL"
             ls -la model.gguf mmproj.gguf
-          elif [ "${{ inputs.model || 'qwen3.5-2b' }}" = "lfm2.5-2.6b" ]; then
-            # text-only: no mmproj in the HF repo — leave MMPROJ_FILE unset
-            # so the driver's sideload block stays inactive.
-            URL="https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/b421ad1d549afeda6a0fb2ad3a697cb5a7879adc/LFM2.5-2.6B-Q4_K_M.gguf?download=true"
-            echo "MODEL_FILE=LFM2.5-2.6B-Q4_K_M.gguf" >> $GITHUB_ENV
-            echo "MODEL_DIR=lfm2.5-2.6b" >> $GITHUB_ENV
-            # ModelRegistry sizeBytes for lfm2.5-2.6b (exact-byte gate).
-            EXPECTED_BYTES=1674454848
-            curl -sL -o model.gguf "$URL"
-            ls -la model.gguf
-          elif [ "${{ inputs.model || 'qwen3.5-2b' }}" = "lfm2.5-8b-a1b" ]; then
-            # text-only: no mmproj in the HF repo — leave MMPROJ_FILE unset
-            # so the driver's sideload block stays inactive.
-            URL="https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/resolve/dfd5fdcad7a1c0d31473fb4ca443b8befbacddf0/LFM2.5-8B-A1B-Q4_K_M.gguf?download=true"
-            echo "MODEL_FILE=LFM2.5-8B-A1B-Q4_K_M.gguf" >> $GITHUB_ENV
-            echo "MODEL_DIR=lfm2.5-8b-a1b" >> $GITHUB_ENV
-            # ModelRegistry sizeBytes for lfm2.5-8b-a1b (exact-byte gate).
-            EXPECTED_BYTES=5155564768
-            curl -sL -o model.gguf "$URL"
-            ls -la model.gguf
           else
-            # 2B has no mmproj entry — leave alone (why 2B always worked).
-            URL="https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf?download=true"
-            echo "MODEL_FILE=Qwen3.5-2B-Q4_K_M.gguf" >> $GITHUB_ENV
-            echo "MODEL_DIR=qwen3.5-2b" >> $GITHUB_ENV
-            # ModelRegistry sizeBytes for qwen3.5-2b (exact-byte gate).
-            EXPECTED_BYTES=1280835840
-            curl -sL -o model.gguf "$URL"
             ls -la model.gguf
           fi
           # Fail here on a truncated download — do not wait for the on-device
