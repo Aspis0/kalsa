@@ -48,7 +48,15 @@
 > J/token NON misurato → serve cella energia K-F prima di promuoverlo in
 > config default, e N≥10 pre-registrato per qualsiasi claim di ship.
 > Branch kalsa/kf-layer-ahead @ c3e8fc4; report
-> reports/moe-kernel-kf-proto.md.**
+> reports/moe-kernel-kf-proto.md.
+> **SCOREBOARD K-F (gualt, 2026-08-14 sera — gate espliciti):**
+> KF_PROTO_WIN ✅ · KF_PHYSICS_WIN ✅ · KF_SPEED_WIN ✅ ·
+> KF_IDENTITY_D0_WIN ✅ · KF_ENERGY_WIN ❓ · KF_THERMAL_WIN ❓ ·
+> KF_MEMORY_WIN ❓ · KF_ROBUST_WIN ❓ (coda p95/p99, token che si
+> blocca = UI che scatta, page faults, CPU freq) · KF_GENERAL_WIN ❓
+> (altri modelli/device) · KF_SHIP_WIN ⏳ (N≥10 pre-registrato).
+> Prossima cella: REALITY su Jelly — sustained caldo con per-token CSV
+> (p50/p95/p99, worst token), J/token, majflt, read bytes, freq CPU.**
 > Paniere p-value = dispatcher/config (✅ QUALITY GATE PASSED: PPL
 > k6d1.0 dMacro +0.0378 / worst fr +0.0877 → **5.151 t/s È config
 > prodotto certificata Mellum2-S23**) + K-F (prototipo) + libreria.
