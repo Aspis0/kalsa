@@ -1,0 +1,583 @@
+Sì, l’ho letto come auditor ostile. Risposta brutale: **se per “kernel” intendete un kernel matematico che vi dia più tok/s sul parco installato attuale, quasi niente si salva**. Il piano stesso lo dice, anche se ogni tanto si innamora ancora dell’idea del kernel eroico.
+
+La verità dura è questa:
+
+- **CPU decode veloce su SD8Gen2/A7X a t2: chiuso.**  
+  Avete misurato un floor attorno a **0.148 s/tok** su tre famiglie di kernel, con t2 che batte t4, fusion che perde, REPACK che perde, i8mm che vince il microbench ma quasi non muove il token-model. Questo è il punto più onesto del documento.
+
+- **GPU decode su Adreno 7xx: chiuso.**  
+  GPU sta a **0.41×–0.44×** della CPU in decode. Non è un progetto migliorabile con un kernel furbo: è proprio il caso d’uso sbagliato su quel silicon.
+
+- **Il vero “kernel” difendibile non è un GEMV più veloce.**  
+  È il vostro **layer MoE streammato da flash**: cache esperti, expert-ready hook, drop-cold, configurazione per SoC, day-zero su nuove architetture. Quella è la parte realmente vostra.
+
+Detto in modo secco: **non salvate “un kernel”; salvate un kernel layer operativo.** Se volete un singolo artefatto da finanziare, finanziate il **playbook day-zero + streaming cache + harness di correttezza**, non un altro tentativo di spremere CPU/GPU decode.
+
+---
+
+## Cosa si salva davvero
+
+### 1. Si salva: lo streaming MoE da flash / cache esperti
+
+Questa è la cosa più difendibile del piano.
+
+**Perché si salva:**
+- È vincolata al vostro runtime: `use_extra_bufts=false`, hook nel loop CPU `mul_mat_id`, esperti streammati.
+- È misurata e stabile tra dispositivi: MiB/tok e hit% identici tra S23, Xiaomi, Jelly.
+- È il punto dove nuove architetture MoE possono richiedere supporto proprietario.
+- È l’unico posto dove “cache-aware” non è solo una parola: se gli esperti vivono su flash, la politica di cache è parte integrante della performance.
+
+**Cosa tenere:**
+- expert cache;
+- expert-ready hook;
+- drop-cold;
+- insert path geometry-agnostic;
+- naming/layout per nuovi archivi esperti;
+- telemetria su miss/stall/hit rate.
+
+**Cosa non fare:**
+- cache-insert repack: morto, **-1.5%**;
+- REPACK 8x4 su esperti streammati a t2: perde, **949 vs 496 µs**;
+- compressione in cache: quasi morta, rischia di essere solo un’altra forma di dequant tax.
+
+**Verdetto:**  
+Questo è il vostro “kernel layer” reale. Non è glamour, ma è vostro.
+
+---
+
+### 2. Si salva: il day-zero playbook, cioè K-N
+
+Questa è la parte strategicamente più importante del documento.
+
+**Perché si salva:**
+- Avete già dimostrato di poter reagire rapidamente a nuove architetture.
+- Avete già asset reali: convert pipeline, harness, oracoli NMSE, matcher review, greedy determinism gates, PPL gate.
+- Il valore non è battere llama.cpp oggi; è **non essere lenti quando esce una nuova architettura**.
+- È il tipo di capacità che upstream non garantisce nei primi giorni/settimane.
+
+**Cosa salvare:**
+- convert + smoke pipeline;
+- S3b microbench matrix;
+- test-backend-ops pattern;
+- adversarial matcher review;
+- NMSE oracle vs `use_ref`;
+- greedy determinism gates;
+- policy ON≠OFF reorder + PPL gate;
+- failure taxonomy;
+- branch PR-ready quando possibile.
+
+**Verdetto brutale:**  
+K-N non è un kernel in senso stretto. È un **processo industrializzato**. Ma è probabilmente l’asset più prezioso che avete. Se il capo vuole “OUR kernel”, questa è la risposta più onesta: **il nostro kernel è la capacità di avere fast path corrette il giorno zero**.
+
+---
+
+### 3. Si salva: K-A, autotune probe per SoC
+
+Non è un kernel, ma è product win quasi gratuito.
+
+**Perché si salva:**
+- I dati sulle U-curve per SoC esistono già: S23 t2, SM8650 t4, ecc.
+- È engineering puro, non ricerca rischiosa.
+- Può dare benefici immediati senza toccare kernels matematici.
+- È esattamente il tipo di cosa che upstream potrebbe non fare per ogni dispositivo.
+
+**Valore:**
+- threads;
+- k;
+- drop;
+- config cached per device;
+- first-launch micro-bench;
+- best config day one.
+
+**Verdetto:**  
+Da fare. Non chiamatelo kernel se volete essere onesti. È **autotuning/config layer**, ma ha ROI alto.
+
+---
+
+### 4. Si salva, con grande cautela: K-G, GPU prefill executor
+
+Qui il documento ha una buona intuizione, ma va trattata con le molle.
+
+**Cosa è misurato:**
+- GPU prefill su A7X dà almeno **1.29×** in un caso misurato.
+- Dati recon suggeriscono fino a **5.77×**, ma sono crossgen e quindi più deboli.
+- GPU decode invece perde, quindi l’idea giusta è spostare il valore su **TTFT**, non decode.
+
+**Perché potrebbe salvarsi:**
+- TTFT è un metric product-visible.
+- Sposta il picco termico del prefill fuori dalla CPU.
+- Può ridurre il prewarm CPU iniziale.
+- Prefill è compute-bound, quindi GPU può vincere dove decode perde.
+
+**Perché rischia di non salvarsi:**
+- Non è principalmente un kernel: è un **executor**.
+- Il documento stesso dice che il gap M1 era dispatch/glue, ~60 ms/tok, non kernels.
+- Con esperti su CPU per via del `Q7-LANDMINE`, il grafo ibrido può essere mangiato dalle sincronizzazioni.
+- Se attention/dense non dominano il costo del prefill, il ceiling si abbassa.
+- Non avete ancora misurato energia per prefill token.
+
+**Gate brutale:**  
+K-G ha senso solo se M2-carta dimostra:
+
+1. frazione di tempo prefill in attention/dense abbastanza alta;
+2. dispatch count accettabile;
+3. copie CPU↔GPU e barriere non dominano;
+4. ceiling stimato ≥ **1.3×**;
+5. staged deliverable possibile entro 2 settimane;
+6. TTFT reale migliora, non solo FLOPs teorici.
+
+Se M2-carta non passa, kill immediato.
+
+**Verdetto:**  
+Si salva solo come scommessa TTFT/termica, non come kernel decode. Ed è più “executor” che kernel.
+
+---
+
+### 5. Si salva solo se misurato: K-E, i8mm come kernel termico
+
+Questa è l’unica idea CPU che non è chiaramente morta, ma non è ancora un prodotto.
+
+**Cosa sappiamo:**
+- i8mm vince l’op: **1.27×**.
+- CPU-time per op: **-21%** a parità di wall.
+- Token-model: solo **+0.2–4%**.
+- J/token e sustained curves non misurati.
+
+**Interpretazione brutale:**  
+Se la wall non migliora, l’unico motivo per tenerlo è **energia/termica**. Ma non lo avete dimostrato. “Meno CPU-time” non è automaticamente “meno joule”, “meno throttle” o “più sustained tok/s”.
+
+**Cosa serve per renderlo onesto:**
+- misurare energia per token;
+- misurare sustained decode per 5–10 minuti;
+- misurare temperatura/throttle;
+- confrontare stessa identica sequenza di token;
+- controllare frequenza, core pinning, stato termico iniziale;
+- riportare mediana, p95, varianza.
+
+**Kill criterion già nel doc:**  
+CPU-time/token delta <10% oppure nessun dividend sustained/thermal.
+
+**Verdetto:**  
+Si salva come cell sperimentale, non come progetto. Se dopo 1 giorno non mostra J/token o sustained migliore, kill.
+
+---
+
+### 6. Si salva: Q6_K dispatch fix e relativi regression tests
+
+Questo è piccolo ma reale.
+
+**Perché si salva:**
+- Avete trovato un vero bug upstream-like: large-M redirect rompeva `lm_head`.
+- Avete corretto.
+- Greedy token-identical.
+- Regression tests aggiunti.
+- È esattamente il tipo di credibility che serve per day-zero e upstreaming.
+
+**Verdetto:**  
+Non è il futuro, ma è prova che il team sa fare kernel work serio. Tenetelo come precedente operativo.
+
+---
+
+### 7. Si salva come ramo futuro: S1/S2 fused substrate, ma non per decode attuale
+
+Qui bisogna essere chiari.
+
+**Cosa è vero:**
+- S1 virtual tall GEMV: **2.58×** a t8 nel microbench.
+- Ma a t2 on-model è NULL: 421 µs stock=fused=tall.
+- S2 fused FFN è bit-exact e correctness-clean.
+- Però perde ~7% rispetto a stock nelle coppie same-t.
+
+**Interpretazione:**
+- La fusion non paga se peggiora locality o bypassa path già veloci.
+- Può avere senso solo con:
+  - fat ops;
+  - più core veloci;
+  - più thermal headroom;
+  - architetture future;
+  - upstreaming;
+  - grafi dove launch overhead è davvero dominante.
+
+**Verdetto:**  
+Tenete il branch, la matcher, i test. Non mettetelo nella roadmap product attuale per decode su SD8Gen2/A7X.
+
+---
+
+## Cosa NON si salva
+
+### 1. Non si salva: CPU speed kernels a t2 su SD8Gen2-class
+
+Questo è il punto più importante.
+
+Il documento lo dice: **CLOSED**, misurato tre volte.
+
+Prove principali:
+- t2 batte t4;
+- k6d10 t2 = 0.148 s/tok;
+- S1 a t2 è NULL;
+- S2 fused perde ~7%;
+- REPACK 8x4 perde;
+- i8mm migliora l’op ma non il token-model in modo significativo;
+- dense control mostra che il problema è la geometria 64-micro-expert, non il build.
+
+**Verdetto brutale:**  
+Se qualcuno propone “facciamo un kernel CPU più veloce per Mellum/Marco su S23 a t2”, la risposta deve essere: no, chiuso. Portate dati nuovi o cambiate metrica.
+
+---
+
+### 2. Non si salva: GPU decode su Adreno 7xx
+
+Numeri:
+- A740: GPU decode **0.41× CPU**.
+- Xiaomi 750: GPU **7.07** vs CPU **16.15**, cioè **0.44×**.
+
+Non c’è kernel che renda attraente un decode GPU a meno di metà della CPU, salvo casi molto particolari.
+
+**Verdetto:**  
+Chiuso. GPU decode su A7X è un vicolo cieco. Riaprirlo solo su 8 Elite / Adreno 830+ con subgroup broadcast, altro silicon altro piano.
+
+---
+
+### 3. Non si salva: REPACK 8x4 per streamed experts
+
+Misurato:
+- REPACK 8x4 ID a t2 perde: **949 vs 496 µs**, cioè **0.52×**.
+- Motivo: per-expert row split + 8-row alignment con 2 thread.
+- Inoltre `use_extra_bufts=false` rende gli esperti streammati non repackabili nel percorso attuale.
+
+**Verdetto:**  
+Morto per il caso attuale.
+
+---
+
+### 4. Non si salva: cache-insert repack
+
+Dal doc:
+- **-1.5%**.
+- Aiuterebbe solo gate/up.
+- ID t2 perde comunque su 8x4.
+
+**Verdetto:**  
+Morto.
+
+---
+
+### 5. Non si salva: S2 fused FFN come win immediato
+
+S2 è utile come asset di correctness e come substrato futuro, ma non come product win attuale.
+
+Perché perde:
+- gate/up per-row bounce su tensori grandi;
+- 4 barrier per layer;
+- wait-all-three I/O serialization;
+- locality peggiore;
+- bypass di path stock già più veloci.
+
+**Verdetto:**  
+Ottimo lavoro di ingegneria, pessimo win immediato su quel grafo. Tenere per futuro/upstream.
+
+---
+
+### 6. Non si salva: sub-4-bit su weak cores
+
+Il documento è chiaro:
+- KEXP k4 su G99: **8.83** vs A0 **10.60**.
+- Effective bandwidth: 6.8 GB/s vs roofline 10.8 GB/s.
+- Sub-4-bit introduce dequant tax su core deboli.
+
+**Verdetto:**  
+Non usare come leva universale. Solo flagship, solo se PPL regge, solo se il dequant cost non mangia il BW saving.
+
+---
+
+### 7. Non si salva: “fewer stored bytes = faster decode”
+
+Il caso REAP-50 è brutale:
+- resident 2.82 GB = **10.68**;
+- streamed A0 = **10.60**;
+- majflt 0, hot=cold.
+
+Quindi ridurre byte salvati non basta. Conta ridurre **active bytes**, miss, stall, dequant cost.
+
+**Verdetto:**  
+Tenere come lezione permanente. Non inseguire pruning/size come metrica primaria.
+
+---
+
+### 8. Non si salva: compression-in-cache
+
+È quasi certamente una tassa travestita.
+
+Motivi:
+- decompress ≈ dequant tax;
+- codec hardware cheap non garantito;
+- beneficio solo su strong cores;
+- priorità bassa.
+
+**Verdetto:**  
+Non finanziare ora.
+
+---
+
+### 9. Non si salva: REAP-style prunes for speed
+
+Il doc lo mette tra gli explicit NOT in plan. Giusto.
+
+**Verdetto:**  
+Non usare pruning come strategia di velocità. Può aiutare memoria/residency, ma non è un kernel win.
+
+---
+
+## Dove il documento è debole e va attaccato
+
+### 1. La claim L1 “t2 saturates BW” è forte ma non universale
+
+Il doc dice che t2 satura bandwidth e lo supporta con:
+- t2 batte t4;
+- S1 a t2 è tre-way tie a 421 µs;
+- K0 dispatch 43% a t4 evapora a t2.
+
+Ma questo vale per le shape e i grafi misurati. Infatti:
+- S1 a t8 dà 2.58×;
+- fat ops possono riaprire scaling;
+- futuri SoC con più core veloci possono cambiare la curva.
+
+**Audit brutale:**  
+Non trasformate L1 in una legge fisica. È una chiusura locale: “su questi grafi, questi SoC, questi thread count”. Non “mai”.
+
+---
+
+### 2. K-E non è ancora onesto senza J/token
+
+Dire “CPU-time -21%” non basta.
+
+Domande cattive:
+- State campionando `current_avg` abbastanza?
+- Avete accesso a power rail reale?
+- State misurando energia durante decode sostenuto o solo burst?
+- State sottraendo idle power?
+- State controllando thermal soak?
+- State usando stessi prompt, stessi seed, stessa greedy?
+- State misurando p95 e non solo media?
+
+**Formula minima:**
+
+\[
+J/token = \frac{\int P(t) dt}{N_{tokens}}
+\]
+
+Se non potete misurare potenza vera, usate corrente × tensione campionata ad alta frequenza, ma dichiarate il limite.
+
+**Verdetto:**  
+K-E è sensato solo come esperimento di 1 giorno con strumentazione seria. Se non produce energia/termica misurabile, kill.
+
+---
+
+### 3. K-G potrebbe non essere coerente con esperti su CPU
+
+Il problema è il grafo ibrido.
+
+Avete:
+- attention/dense potenzialmente su GPU;
+- esperti MoE costretti su CPU per `Q7-LANDMINE`;
+- sync points tra CPU e GPU;
+- dispatch/glue che su M1 valeva ~60 ms/tok.
+
+Domande cattive:
+- Quanta frazione del prefill è attention/dense vs expert FFN?
+- Se expert FFN domina, GPU prefill quanto può davvero aiutare?
+- Quante transizioni CPU↔GPU per layer?
+- Quante barriere?
+- Quanti copy?
+- Il 1.29× misurato è end-to-end o solo op-level?
+- Il TTFT migliora dopo warmup o solo in microbench?
+
+**Verdetto:**  
+K-G non va bocciato a priori, ma va gateato duramente. M2-carta prima di scrivere codice.
+
+---
+
+### 4. K-F route-ahead prefetch è plausibile ma non dimostrato
+
+Il doc è onesto: flash è raramente il muro su S23-class.
+
+Dove potrebbe aiutare:
+- Marco1c-class su mid silicon;
+- flash 0.3+ s/tok;
+- compute 0.05;
+- I/O stall visibile.
+
+Ma serve telemetria.
+
+**Kill criterion giusto:**
+- se overlap nasconde già >90% dell’I/O, kill;
+- se stall <10% del token time, kill.
+
+**Verdetto:**  
+Non è un kernel da costruire subito. È una cell da misurare in 1 giorno.
+
+---
+
+### 5. I target owner sono in tensione con i dati misurati
+
+Questo è il punto più brutale di tutti.
+
+Il target dice:
+- S23 wall ≥7 tok/s, stretch 9, big-model tier.
+
+Ma il doc riporta:
+- k6d10 t2 = **5.151 wall tok/s**;
+- CPU speed a t2 dichiarato CLOSED;
+- floor 0.148 s/tok, che come tetto ideale è ~6.75 tok/s, e comunque non è wall completa.
+
+Quindi:
+- se il target riguarda lo stesso modello/config misurato, **≥7 via CPU kernel non è supportato**;
+- se il target riguarda un’altra tier/modello/residency, va specificato;
+- se il target richiede 7–9 su questo stato, state chiedendo qualcosa che il piano dichiara non ottenibile con kernel CPU attuali.
+
+**Verdetto:**  
+Bisogna riconciliare i target con i dati. O si cambia modello, o si accetta residency diversa, o si sposta il valore su TTFT/thermal/future silicon, oppure il target è fantasia.
+
+---
+
+## Classifica finale: cosa finanziare
+
+### Fascia A — salvare subito
+
+1. **Streaming MoE cache/engine**
+   - il vero layer proprietario;
+   - misurato;
+   - difendibile;
+   - necessario per nuove architetture.
+
+2. **K-N day-zero playbook + harness packaging**
+   - asset strategico;
+   - riduce time-to-fast su nuovi LLM;
+   - aumenta disciplina di correctness;
+   - utile anche per upstream.
+
+3. **K-A autotune probe**
+   - piccolo costo;
+   - alto ROI;
+   - non è kernel ma è prodotto.
+
+---
+
+### Fascia B — salvare solo con gate
+
+4. **K-G GPU prefill executor**
+   - solo se M2-carta passa;
+   - solo se TTFT migliora realmente;
+   - solo se il ceiling non è mangiato da sync/dispatch;
+   - solo se staged deliverable in 2 settimane.
+
+5. **K-E i8mm thermal**
+   - solo se misurate J/token;
+   - solo se c’è sustained/thermal dividend;
+   - kill rapido se no.
+
+6. **K-F router-ahead prefetch**
+   - solo se telemetria mostra stall >10%;
+   - cell di 1 giorno, non progetto.
+
+---
+
+### Fascia C — tenere come asset, non come roadmap
+
+7. **S1/S2 fused substrate**
+   - keep branch;
+   - keep matcher;
+   - keep tests;
+   - non usare per decode attuale.
+
+8. **Q6_K fix / regression tests**
+   - ottimo precedente;
+   - utile per reputazione e upstream.
+
+---
+
+### Fascia D — chiudere
+
+9. **CPU speed kernels a t2 su SD8Gen2-class**
+10. **GPU decode su A7X**
+11. **cache-insert repack**
+12. **REPACK 8x4 streamed experts**
+13. **compression-in-cache**
+14. **sub-4-bit su weak cores come strategia generale**
+15. **REAP-style prunes for speed**
+
+---
+
+## Se dovete scegliere UNA cosa sola
+
+Se la domanda è: “vogliamo un kernel, dimmi quale”, la risposta onesta è:
+
+### Non un kernel singolo. Salvate il layer.
+
+La cosa più sensata da finanziare è:
+
+> **Streaming MoE cache + day-zero fast-path harness + autotune per SoC.**
+
+Questa è la vostra kernel layer reale.
+
+Se proprio volete un progetto con nome:
+
+- **K-N + K-A + streaming cache** = core ownership.
+- **K-G** = scommessa TTFT, ma dopo M2-carta.
+- **K-E** = scommessa termica, ma dopo power measurement.
+- **K-F** = cell diagnostica, non progetto.
+
+---
+
+## Roadmap brutale minima
+
+### Settimana 1
+
+**Giorno 1–2: K-E measurement cell**
+- Strumentare potenza/temperatura.
+- Misurare J/token.
+- Misurare sustained decode.
+- Kill se CPU-time delta <10% o nessun dividend.
+
+**Giorno 2–4: K-A autotune**
+- Implementare probe threads/k/drop.
+- Cache per device.
+- First-launch micro-bench.
+- Ship config migliore.
+
+**Giorno 5: K-G M2-carta**
+- Dispatch count per prefill.
+- Split attention/dense vs expert FFN.
+- Stima sync/copy overhead.
+- Ceiling ≥1.3×? No → kill.
+
+**Giorno 6: K-F telemetry cell**
+- Misurare I/O stall su Marco-class.
+- Stall >10%? Sì → prototype. No → kill.
+
+**Giorno 7: K-N packaging**
+- Documentare playbook.
+- Impacchettare harness.
+- Renderlo eseguibile per nuova architettura.
+
+---
+
+## Verdetto finale
+
+Il documento è più onesto della maggior parte dei piani kernel. Ha molti meriti: misura, ammette failure, mette kill criteria, identifica L1/L4/L5/L8/L9. Però deve accettare una verità scomoda:
+
+**non esiste oggi un kernel magico che vi dia grandi token/s in più sul decode attuale.**
+
+Quello che si salva non è un kernel matematico isolato. Si salva:
+
+1. **il vostro streaming MoE cache layer**;
+2. **la capacità day-zero su nuove architetture**;
+3. **l’autotuning per dispositivo**;
+4. **eventualmente GPU prefill per TTFT**, se passa il gate;
+5. **eventualmente i8mm thermal**, se dimostra energia/termica.
+
+Tutto il resto va chiuso o tenuto come ramo futuro.
+
+La frase brutale da scrivere al top del piano è:
+
+> **Il nostro kernel non è un GEMV più veloce. È il layer che rende MoE streammato da flash sostenibile, configurato per SoC, corretto, e pronto al giorno zero.**

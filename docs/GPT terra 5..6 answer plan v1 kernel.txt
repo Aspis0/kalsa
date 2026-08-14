@@ -1,0 +1,63 @@
+• Verdetto brutale: questo è un ottimo piano di ricerca/performance-runtime, ma non è ancora un piano per costruire un kernel proprietario. Così com’è, produrrà
+  configurazioni migliori, cache migliore e forse TTFT migliore; non una libreria di primitive basse riusabile e difendibile.
+
+  Si salvano parecchie cose:
+
+  - La disciplina sperimentale: risultati negativi espliciti, kill criterion, correttezza bit-exact/NMSE e confronti on-model. È rara e vale molto.
+  - La conclusione “non inseguire GEMV CPU su S23 a t2” è pragmatica, purché resti limitata a quelle geometrie/configurazioni, non diventi una legge fisica. docs/
+    kernel-plan-v1.md:30
+
+  - Il vero asset è K-N: converter, harness, oracle di correttezza, matcher geometrico, regressioni e capacità di intervenire quando esce una nuova architettura. docs/
+    kernel-plan-v1.md:173
+
+  - Il Q6_K fix e S3b dimostrano che avete già il seme di un kernel team: trovate il fallback, isolate la shape, scrivete la primitive, validate determinismo.
+  - La cache per expert streammati è differenziante come runtime. Ma chiamarla “kernel” confonde il messaggio: è un componente di runtime/memory manager.
+
+  Quello che non si salva:
+
+  - Il target S23 “≥7 tok/s” non ha una strada credibile nel piano. Il baseline migliore dichiarato è 5.151 tok/s; K-E promette, nella migliore lettura, qualche punto
+    percentuale e forse sostenuto, K-G migliora TTFT, K-F è condizionale. Manca circa il 36% e nessun workstream lo finanzia. Quindi quel target va rimosso, oppure va
+    introdotta un’ipotesi tecnica che lo possa materialmente sbloccare.
+
+  - “CPU speed … CLOSED” è troppo forte. Avete chiuso tre famiglie di kernel su una shape/modello/threading specifici; non avete chiuso CPU optimization. Scriverei:
+    “nessuna pista con upside >10% dimostrata per Mellum2/S23/t2 nel regime corrente”. docs/kernel-plan-v1.md:59
+
+  - K-E non è ancora una tesi energetica. “−21% CPU time per op” non implica meno joule/token né meno throttling; può persino non cambiare l’energia di piattaforma.
+    Serve un protocollo termico/energetico e una curva sostenuta, non current_avg come prova principale.
+
+  - K-G è il rischio maggiore mascherato da opportunità. “Prefill GPU, expert CPU” implica probabilmente round-trip CPU↔GPU a ogni layer MoE. Se il trasferimento di
+    attivazioni, fence e conversioni non è misurato end-to-end, l’1.29× non è un budget spendibile. Il “paper ceiling” deve includere copie, sincronizzazioni e layout
+    conversion, non solo dispatch count. docs/kernel-plan-v1.md:129
+
+  - K-F è formulato in modo impreciso: non puoi conoscere deterministicamente gli expert del token successivo prima di aver prodotto il token. Se è predizione/
+    speculazione, la metrica principale è precisione del prefetched set, cache pollution e byte sprecati; non solo I/O stall. docs/kernel-plan-v1.md:157
+
+  - K-A è prodotto/configuration management, non kernel. Va fatto, ma non deve consumare lo spazio mentale del progetto “facciamo un kernel”.
+  - La tabella di sequencing miscela una cella da un giorno, un progetto executor da mesi e documentazione in una stessa scala. “2-week stages” per un executor GPU
+    quando il post-mortem dice “months, not weeks” è una contraddizione interna. docs/kernel-plan-v1.md:199
+
+  Se volete davvero un kernel, riframerei il progetto attorno a un prodotto concreto:
+
+  Kalsa Kernel = una libreria/strato C-C++ con ABI stabile per MoE quantizzato streammato:
+
+  - primitive: mul_mat_id/expert GEMV-GEMM, dequantizzazione, routing/layout transform;
+  - backend CPU: NEON dotprod + i8mm, dispatch per shape e SoC;
+  - backend GPU: OpenCL soltanto dove il grafo resta residente e il confine CPU/GPU è misurato;
+  - runtime hooks: expert-ready, cache/prefetch, ma separati dalle primitive;
+  - benchmark e correctness CI versionati per modello, quant, shape, device, temperatura e commit.
+
+  La prossima sequenza sensata sarebbe:
+
+  1. Chiudere K-E con un vero pass/fail sostenuto; se fallisce, archiviarlo.
+  2. Costruire subito K-N come infrastruttura eseguibile, non “playbook doc”: registry di shape, microbench, oracle, raw logs, regressioni perf.
+  3. Fare un prototipo K-G di una sola cosa: misurare i due boundary CPU↔GPU e l’intera catena di una layer prefill. Nessun executor prima di dimostrare che resta
+     ≥1.3× dopo copie e sync.
+
+  4. Rendere mul_mat_id streammato il primo kernel ufficiale, con un contratto di input/output, shape supportate, fallback e budget prestazionale. S3b può essere la
+     prima implementazione candidata, ma oggi non ha ancora vinto abbastanza on-model.
+
+  5. Trattare autotune e cache come prodotti che consumano il kernel, non come il kernel stesso.
+
+  In breve: il documento mostra che avete capacità kernel; il piano però sta cercando rendimento incrementale in quattro posti diversi. Per ottenere “nostro kernel”,
+  serve una superficie tecnica stretta, una prima primitive proprietaria che vinca o riduca energia in modo ripetibile, e un’infrastruttura che renda la seconda molto
+  più veloce della prima.
