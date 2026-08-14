@@ -1,0 +1,11 @@
+# Host-side adb mWakefulness (Termux dumpsys is SELinux-blocked).
+# Continuous poller pid 63612 died after the first sample; values below are spot checks.
+2026-08-14T00:40:02-04:00  mWakefulness=Dozing   # Phase A start
+2026-08-14T00:48:19-04:00  (Phase A end; still Dozing — not re-polled)
+2026-08-14T00:51:xx-04:00  KEYCODE_WAKEUP + screen_off_timeout already 1800000
+2026-08-14T00:51:xx-04:00  mWakefulness=Awake
+2026-08-14T00:52:01-04:00  Phase B start, Awake
+2026-08-14T01:00:xx-04:00  mWakefulness=Awake   # mid k6d065
+2026-08-14T01:11:xx-04:00  mWakefulness=Awake   # k6d10_off_t2_r1 start
+2026-08-14T01:20:40-04:00  GATES_DONE
+2026-08-14T01:21:xx-04:00  mWakefulness=Dozing  # post-gates poll

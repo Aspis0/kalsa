@@ -1,0 +1,7 @@
+identical=true
+first_diff_byte=1435 a_len=1435 b_len=1435
+a_ctx= b'RAM at any given time.\n\n'
+b_ctx= b'RAM at any given time.\n\n'
+first_diff_char=1419 first_diff_word=230
+a_word= 
+b_word= 

@@ -1,0 +1,2 @@
+mWakefulness poll start 2026-08-14T00:40:01.8706003-04:00
+2026-08-14T00:40:02.1119341-04:00    mWakefulness=Dozing

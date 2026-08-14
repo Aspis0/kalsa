@@ -1,0 +1,27 @@
+on_on=true
+off_off=true
+on_off=false
+--- on vs on ---
+identical=true
+first_diff_byte=1435 a_len=1435 b_len=1435
+a_ctx= b'RAM at any given time.\n\n'
+b_ctx= b'RAM at any given time.\n\n'
+first_diff_char=1419 first_diff_word=230
+a_word= 
+b_word= 
+--- off vs off ---
+identical=true
+first_diff_byte=1393 a_len=1393 b_len=1393
+a_ctx= b'RAM at any given time.\n\n'
+b_ctx= b'RAM at any given time.\n\n'
+first_diff_char=1379 first_diff_word=224
+a_word= 
+b_word= 
+--- on vs off (r1) ---
+identical=false
+first_diff_byte=1037 a_len=1435 b_len=1393
+a_ctx= b'ates the current token (or context) and assigns '
+b_ctx= b'ates the current token (and often its context) a'
+first_diff_char=1027 first_diff_word=167
+a_word= or
+b_word= and

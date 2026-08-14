@@ -1,0 +1,5 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+A Mixture‑of‑Experts (MoE) language model splits the parameters of a large network into several smaller “expert” subnetworks, each specialized for different parts of the vocabulary or task, and uses a router to decide which experts should handle each token; by activating only a handful of experts per token the system does far less actual computation, yet the full set of expert weights must still be stored on the phone because any token could, in theory, require any expert, so the entire on‑disk weight file remains large. Routing determines which experts receive each token, while flash streaming pre‑loads the needed expert weights from storage into fast memory just in time for processing, allowing the phone to keep the weight file massive while only using a small slice of compute at runtime.
+

@@ -14,3 +14,80 @@
 [2026-08-14T00:26:18-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
 [2026-08-14T00:28:13-04:00] CELL end p1c_n256_off rc=0 decode=3.046 compute=0.204 flash=0.426 mib=180.67 hit=77.2 rss=2958.1 batt=88->87 temp=34.3->36.2 screen=/ banner=bmoe: moe-fused-ffn OFF
 [2026-08-14T00:28:13-04:00] P1C FAIL n=256 token drift
+[2026-08-14T00:40:10-04:00] S2 Phase A determinism triage start
+[2026-08-14T00:40:10-04:00] campaign pin MATCH 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-14T00:40:11-04:00] preflight batt=86% temp=31.2C plug=UNPLUGGED screen= mem=4238.7MiB
+[2026-08-14T00:40:12-04:00] CELL start phaseA_on_r1 fused=on t=4 k=8 drop=- n=256 batt=86 temp=31.2 plug=UNPLUGGED screen= mem=4240.9
+[2026-08-14T00:40:12-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T00:42:19-04:00] CELL end phaseA_on_r1 rc=0 decode=2.755 compute=0.177 flash=0.419 mib=179.10 hit=77.5 rss=2954.9 batt=86->86 temp=31.2->32.7 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T00:42:20-04:00] CELL start phaseA_on_r2 fused=on t=4 k=8 drop=- n=256 batt=86 temp=32.7 plug=UNPLUGGED screen= mem=4640.4
+[2026-08-14T00:42:20-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T00:44:24-04:00] CELL end phaseA_on_r2 rc=0 decode=2.738 compute=0.176 flash=0.422 mib=179.10 hit=77.5 rss=2948.3 batt=86->85 temp=32.7->33.9 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T00:44:26-04:00] CELL start phaseA_off_r1 fused=off t=4 k=8 drop=- n=256 batt=85 temp=33.9 plug=UNPLUGGED screen= mem=4645.0
+[2026-08-14T00:44:26-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T00:46:22-04:00] CELL end phaseA_off_r1 rc=0 decode=3.038 compute=0.200 flash=0.427 mib=180.67 hit=77.2 rss=2962.3 batt=85->84 temp=33.9->35.2 screen=/ banner=bmoe: moe-fused-ffn OFF
+[2026-08-14T00:46:23-04:00] CELL start phaseA_off_r2 fused=off t=4 k=8 drop=- n=256 batt=84 temp=35.2 plug=UNPLUGGED screen= mem=4597.0
+[2026-08-14T00:46:23-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T00:48:18-04:00] CELL end phaseA_off_r2 rc=0 decode=3.057 compute=0.200 flash=0.427 mib=180.67 hit=77.2 rss=2957.4 batt=84->84 temp=35.2->35.7 screen=/ banner=bmoe: moe-fused-ffn OFF
+[2026-08-14T00:48:19-04:00] campaign pin still MATCH 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-14T00:48:19-04:00] VERDICT DETERMINISTIC_REORDER on==on off==off on_off=false
+[2026-08-14T00:52:01-04:00] S2 Phase B gate cells start
+[2026-08-14T00:52:01-04:00] campaign pin MATCH 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-14T00:52:02-04:00] preflight batt=84% temp=33.0C plug=UNPLUGGED screen= mem=4251.9MiB
+[2026-08-14T00:52:03-04:00] CELL start k6d065_off_t2_r1 fused=off t=2 k=6 drop=0.65 n=200 batt=84 temp=33.0 plug=UNPLUGGED screen= mem=4257.2
+[2026-08-14T00:52:03-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T00:53:36-04:00] CELL end k6d065_off_t2_r1 rc=0 decode=3.846 compute=0.163 flash=0.250 mib=99.70 hit=80.7 rss=2954.0 batt=84->83 temp=33.0->34.3 screen=/ banner=bmoe: moe-fused-ffn OFF
+[2026-08-14T00:53:37-04:00] CELL start k6d065_off_t2_r2 fused=off t=2 k=6 drop=0.65 n=200 batt=83 temp=34.3 plug=UNPLUGGED screen= mem=4520.9
+[2026-08-14T00:53:37-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T00:55:08-04:00] CELL end k6d065_off_t2_r2 rc=0 decode=3.827 compute=0.163 flash=0.250 mib=99.70 hit=80.7 rss=2970.1 batt=83->83 temp=34.3->34.3 screen=/ banner=bmoe: moe-fused-ffn OFF
+[2026-08-14T00:55:10-04:00] CELL start k6d065_on_t2_r1 fused=on t=2 k=6 drop=0.65 n=200 batt=83 temp=34.3 plug=UNPLUGGED screen= mem=4642.4
+[2026-08-14T00:55:10-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T00:56:39-04:00] CELL end k6d065_on_t2_r1 rc=0 decode=3.368 compute=0.173 flash=0.248 mib=99.79 hit=80.0 rss=2962.1 batt=83->82 temp=34.3->35.7 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T00:56:41-04:00] CELL start k6d065_on_t2_r2 fused=on t=2 k=6 drop=0.65 n=200 batt=82 temp=35.7 plug=UNPLUGGED screen= mem=4650.1
+[2026-08-14T00:56:41-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T00:58:10-04:00] CELL end k6d065_on_t2_r2 rc=0 decode=3.354 compute=0.174 flash=0.247 mib=99.79 hit=80.0 rss=2948.2 batt=82->82 temp=35.7->35.7 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T00:58:10-04:00] compare k6d065 t2 OFF=0.163 ON=0.1735
+[2026-08-14T00:58:10-04:00] RETRY k6d065_on_t2 (ON slower than OFF)
+[2026-08-14T01:01:22-04:00] S2 Phase B RESUME after retry-arg crash
+[2026-08-14T01:01:22-04:00] campaign pin MATCH 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-14T01:01:23-04:00] resume preflight batt=81% temp=34.6C plug=UNPLUGGED screen= mem=4507.7MiB
+[2026-08-14T01:01:24-04:00] CELL start k6d065_on_t2_retry fused=on t=2 k=6 drop=0.65 n=200 batt=81 temp=34.6 plug=UNPLUGGED screen= mem=4513.5
+[2026-08-14T01:01:24-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T01:02:54-04:00] CELL end k6d065_on_t2_retry rc=0 decode=3.370 compute=0.173 flash=0.251 mib=99.79 hit=80.0 rss=2929.9 batt=81->81 temp=34.6->34.6 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T01:02:55-04:00] CELL start k6d065_on_t4_r1 fused=on t=4 k=6 drop=0.65 n=200 batt=81 temp=34.6 plug=UNPLUGGED screen= mem=4614.1
+[2026-08-14T01:02:56-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T01:04:22-04:00] CELL end k6d065_on_t4_r1 rc=0 decode=3.523 compute=0.163 flash=0.246 mib=99.79 hit=80.0 rss=2959.4 batt=81->80 temp=34.6->35.8 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T01:04:23-04:00] CELL start k6d065_on_t4_r2 fused=on t=4 k=6 drop=0.65 n=200 batt=80 temp=35.8 plug=UNPLUGGED screen= mem=4646.2
+[2026-08-14T01:04:23-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T01:05:51-04:00] CELL end k6d065_on_t4_r2 rc=0 decode=3.525 compute=0.160 flash=0.250 mib=99.79 hit=80.0 rss=2965.8 batt=80->80 temp=35.8->35.8 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T01:05:52-04:00] CELL start k6d065_on_t6_r1 fused=on t=6 k=6 drop=0.65 n=200 batt=80 temp=35.8 plug=UNPLUGGED screen= mem=4622.4
+[2026-08-14T01:05:52-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T01:08:31-04:00] CELL end k6d065_on_t6_r1 rc=0 decode=1.529 compute=0.457 flash=0.390 mib=99.79 hit=80.0 rss=2927.9 batt=80->79 temp=35.8->36.9 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T01:08:32-04:00] CELL start k6d065_on_t6_r2 fused=on t=6 k=6 drop=0.65 n=200 batt=79 temp=36.9 plug=UNPLUGGED screen= mem=4558.9
+[2026-08-14T01:08:32-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T01:11:13-04:00] CELL end k6d065_on_t6_r2 rc=0 decode=1.543 compute=0.444 flash=0.395 mib=99.79 hit=80.0 rss=2927.8 batt=79->78 temp=36.9->37.8 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T01:11:14-04:00] CELL start k6d10_off_t2_r1 fused=off t=2 k=6 drop=1.0 n=200 batt=78 temp=37.8 plug=UNPLUGGED screen= mem=4575.0
+[2026-08-14T01:11:15-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T01:12:28-04:00] CELL end k6d10_off_t2_r1 rc=0 decode=5.103 compute=0.149 flash=0.114 mib=39.20 hit=87.6 rss=2942.6 batt=78->78 temp=37.8->37.8 screen=/ banner=bmoe: moe-fused-ffn OFF
+[2026-08-14T01:12:29-04:00] CELL start k6d10_off_t2_r2 fused=off t=2 k=6 drop=1.0 n=200 batt=78 temp=37.8 plug=UNPLUGGED screen= mem=4621.8
+[2026-08-14T01:12:29-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T01:13:41-04:00] CELL end k6d10_off_t2_r2 rc=0 decode=5.198 compute=0.147 flash=0.109 mib=39.20 hit=87.6 rss=2970.5 batt=78->77 temp=37.8->37.8 screen=/ banner=bmoe: moe-fused-ffn OFF
+[2026-08-14T01:13:42-04:00] CELL start k6d10_on_t2_r1 fused=on t=2 k=6 drop=1.0 n=200 batt=77 temp=37.8 plug=UNPLUGGED screen= mem=4625.8
+[2026-08-14T01:13:42-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T01:15:03-04:00] CELL end k6d10_on_t2_r1 rc=0 decode=4.477 compute=0.161 flash=0.121 mib=41.14 hit=87.8 rss=2964.9 batt=77->77 temp=37.8->37.8 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T01:15:05-04:00] CELL start k6d10_on_t2_r2 fused=on t=2 k=6 drop=1.0 n=200 batt=77 temp=37.8 plug=UNPLUGGED screen= mem=4667.9
+[2026-08-14T01:15:05-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T01:16:26-04:00] CELL end k6d10_on_t2_r2 rc=0 decode=4.591 compute=0.156 flash=0.123 mib=41.14 hit=87.8 rss=2957.3 batt=77->76 temp=37.8->38.7 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T01:16:26-04:00] compare k6d10 t2 OFF=0.148 ON=0.1585
+[2026-08-14T01:16:26-04:00] RETRY k6d10_on_t2 (ON slower than OFF)
+[2026-08-14T01:16:27-04:00] CELL start k6d10_on_t2_retry fused=on t=2 k=6 drop=1.0 n=200 batt=76 temp=38.7 plug=UNPLUGGED screen= mem=4650.5
+[2026-08-14T01:16:28-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T01:17:49-04:00] CELL end k6d10_on_t2_retry rc=0 decode=4.544 compute=0.155 flash=0.129 mib=41.14 hit=87.8 rss=2939.5 batt=76->76 temp=38.7->38.7 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T01:17:51-04:00] CELL start k6d10_on_t4_r1 fused=on t=4 k=6 drop=1.0 n=200 batt=76 temp=38.7 plug=UNPLUGGED screen= mem=4662.0
+[2026-08-14T01:17:51-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T01:19:11-04:00] CELL end k6d10_on_t4_r1 rc=0 decode=4.518 compute=0.160 flash=0.118 mib=41.14 hit=87.8 rss=2945.5 batt=76->76 temp=38.7->38.7 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T01:19:13-04:00] CELL start k6d10_on_t4_r2 fused=on t=4 k=6 drop=1.0 n=200 batt=76 temp=38.7 plug=UNPLUGGED screen= mem=4651.8
+[2026-08-14T01:19:14-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T01:20:40-04:00] CELL end k6d10_on_t4_r2 rc=0 decode=4.113 compute=0.174 flash=0.138 mib=41.14 hit=87.8 rss=2963.2 batt=76->75 temp=38.7->38.9 screen=/ banner=bmoe: moe-fused-ffn ON
+[2026-08-14T01:20:40-04:00] campaign pin still MATCH 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+[2026-08-14T01:20:40-04:00] PHASE2 GATES DONE

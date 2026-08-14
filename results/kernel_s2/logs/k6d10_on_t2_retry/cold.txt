@@ -1,0 +1,2 @@
+/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600 resident_before=246877 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-14T01:16:58-04:00

@@ -1,8 +1,1 @@
-CORRECTNESS_FAIL P1C
-P1A PASS 7/7
-P1B PASS n=32
-P1C FAIL n=256 ON vs OFF first_diff_char=677 word=110
-gate cells NOT RUN (brief: STOP)
-xiaomi tail NOT RUN
-campaign pin MATCH before and after 1ca51420…
-DONE
+GATES_DONE
