@@ -21,7 +21,7 @@ function compile() {
       "src/rules/evaluate.ts",
       "src/rules/ngramSim.ts",
       "src/rules/toolGate.ts",
-      "src/rules/entityContainment.ts",
+      "--allowJs",
       "--outDir",
       outDir,
       "--module",

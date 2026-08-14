@@ -22,7 +22,7 @@
 
 import type { RuleTable } from "./evaluate";
 import { cosine, ngramVec } from "./ngramSim";
-import { containsPrivateData } from "./entityContainment";
+import { containsPrivateData } from "./entityContainment.js";
 
 /** High threshold: non-question user messages. */
 export const ECHO_SIMILARITY_THRESHOLD = 0.40;

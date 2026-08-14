@@ -4,21 +4,24 @@
  * 1. A distinctive token from fact (contains digit, @, or starts uppercase AND is not first token)
  * 2. Two or more consecutive content tokens from fact
  * Case-insensitive, same normalization as existing rule.
+ *
+ * Shared primitive: imported by both the app (toolGate.ts via allowJs) and
+ * the bench grader (benchGraders.mjs, plain Node). No build step on either side.
  */
 
-export function normalize(s: string): string {
+function normalize(s) {
   return s.toLowerCase().replace(/[^\w\s]/g, "").replace(/\s+/g, " ").trim();
 }
 
-function tokenizeOriginal(s: string): string[] {
+function tokenizeOriginal(s) {
   return s.trim().split(/\s+/).filter((t) => t.length > 0);
 }
 
-function tokenizeNormalized(s: string): string[] {
+function tokenizeNormalized(s) {
   return normalize(s).split(/\s+/).filter((t) => t.length > 0);
 }
 
-function isCapitalized(token: string): boolean {
+function isCapitalized(token) {
   const first = token.charAt(0);
   return first !== first.toLowerCase() && first === first.toUpperCase();
 }
@@ -32,7 +35,7 @@ function isCapitalized(token: string): boolean {
  * Special case: single-token replies that are capitalized are fact-shaped
  * (e.g., "Leopoldo" is a proper noun, not a sentence-initial word).
  */
-export function containsFactShapedTokens(text: string): boolean {
+function containsFactShapedTokens(text) {
   const tokens = text.trim().split(/\s+/);
   
   // Single-token reply: if it's capitalized, it's fact-shaped
@@ -71,7 +74,7 @@ export function containsFactShapedTokens(text: string): boolean {
  * 3. Consecutive tokens: 2+ consecutive query tokens appear in fact
  * Returns true if query should be blocked.
  */
-export function containsPrivateData(query: string, fact: string): boolean {
+function containsPrivateData(query, fact) {
   const queryTokensOriginal = tokenizeOriginal(query);
   const queryTokensNormalized = tokenizeNormalized(query);
   const factTokensOriginal = tokenizeOriginal(fact);
@@ -135,3 +138,9 @@ export function containsPrivateData(query: string, fact: string): boolean {
 
   return false;
 }
+
+module.exports = {
+  normalize,
+  containsFactShapedTokens,
+  containsPrivateData,
+};

@@ -49,9 +49,53 @@ tap_node() {
   adb shell input tap "$cx" "$cy"
 }
 
+# capture_death_evidence — on the fatal path, capture system-level evidence
+# (logcat, crash buffer, memory state) so we can distinguish OOM kill from
+# native crash. Called from die() before exit; every adb call can fail since
+# the process may already be gone, so each is guarded with || true.
+# Writes separate files in $OUT/ next to fatal_state.txt (upload glob bench-out/**
+# picks them up — confirmed in .github/workflows/bench.yml line 534).
+capture_death_evidence() {
+  [ -n "${OUT:-}" ] || return 0
+  mkdir -p "$OUT" 2>/dev/null || true
+
+  # 1) Logcat tail (last 500 lines) — enough context around the death event,
+  #    not the whole ring buffer (which can be thousands of lines of noise).
+  adb logcat -d 2>/dev/null | tail -500 > "$OUT/fatal_logcat_tail.txt" || true
+
+  # 2) Crash buffer specifically — native crashes, ANRs, tombstones.
+  adb logcat -d -b crash 2>/dev/null > "$OUT/fatal_logcat_crash.txt" || true
+
+  # 3) Filter main buffer for kill/OOM/crash signals.
+  #    Patterns: lowmemorykiller, Killing, ANR, FATAL EXCEPTION, libc, SIGSEGV,
+  #    SIGABRT, died. Empty file when nothing matches (absence is evidence too).
+  adb logcat -d 2>/dev/null \
+    | grep -E 'lowmemorykiller|Killing|ANR|FATAL EXCEPTION|libc|SIGSEGV|SIGABRT|died' \
+    > "$OUT/fatal_logcat_filtered.txt" 2>/dev/null || true
+
+  # 4) Per-process memory if the process still exists; otherwise note it is gone.
+  #    dumpsys meminfo fails when the PID is dead — that is the expected case.
+  if adb shell dumpsys meminfo "$PKG" 2>/dev/null > "$OUT/fatal_meminfo.txt"; then
+    # Process alive but dumpsys returned nothing — leave a note.
+    [ -s "$OUT/fatal_meminfo.txt" ] || echo "(dumpsys meminfo returned empty)" > "$OUT/fatal_meminfo.txt"
+  else
+    echo "(process gone — dumpsys meminfo failed)" > "$OUT/fatal_meminfo.txt"
+  fi
+
+  # 5) System-wide free memory — always captured (does not depend on the app).
+  adb shell cat /proc/meminfo 2>/dev/null | head -20 > "$OUT/fatal_procmeminfo.txt" || true
+  [ -s "$OUT/fatal_procmeminfo.txt" ] || echo "(could not read /proc/meminfo)" > "$OUT/fatal_procmeminfo.txt"
+}
+
 # die() expects $OUT to already exist (the caller creates it before sourcing
 # or before the first call that can fail).
-die() { log "FATAL: $*"; ui_texts > "$OUT/fatal_state.txt" 2>/dev/null; shot fatal; exit 1; }
+die() {
+  log "FATAL: $*"
+  ui_texts > "$OUT/fatal_state.txt" 2>/dev/null
+  shot fatal
+  capture_death_evidence
+  exit 1
+}
 
 # After a primary turn-end signal (telemetry / SQL), confirm the chat UI is
 # idle before the next type_into_composer. Soft-fail on timeout.
