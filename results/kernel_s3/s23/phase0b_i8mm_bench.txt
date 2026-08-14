@@ -1,0 +1,115 @@
+# Phase 0b i8mm microbench — S23 UNPLUGGED 2026-08-14
+# binary: ~/bin/kernel_s3_i8mm/test-s3-repack-bench
+# sha256: 60cc103238ad38096cedef333519402f8cbee532f16331f5a4ef902df20e7e2a
+# march:  armv8.6-a+dotprod+fp16+i8mm  HAVE_MATMUL_INT8=Success
+# features: neon=1 dotprod=1 i8mm=1 MATMUL_INT8=1 REPACK=1 llamafile=0
+# repack type (GGML_MOE_REPACK_TRACE): q4_K_8x8 / q8_0_4x8
+# n=16  t=1 then t=2  floor 45%  abort 43C
+===== PHASE0b START =====
+Fri Aug 14 07:39:49 EDT 2026
+----- battery START -----
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 26.1,
+  "voltage": 3916,
+  "current": -1078,
+  "current_average": -140,
+  "percentage": 65,
+  "level": 65,
+  "scale": 100,
+  "charge_counter": 2471250,
+  "cycle": 0
+}
+----- features smoke (first lines after t=1 start) -----
+===== t=1 n=16 =====
+S3 REPACK microbench
+  neon=1  dotprod=1  i8mm=1  avx2=0  llamafile=0
+  host_buft=CPU  repack_buft=CPU_REPACK
+  features: NEON=1 ARM_FMA=1 FP16_VA=1 MATMUL_INT8=1 DOTPROD=1 REPACK=1
+
+case                                host                              | REPACK
+  Q4_K gemv 896x2304           t=1   host    79.56 us   14.7 GB/s    51.9 GF/s  | REPACK    46.81 us   25.0 GB/s    88.2 GF/s  x1.700  nmse=3.455e-14  CPU_REPACK
+  Q4_K gemv 8x2304             t=1   host     4.62 us    4.2 GB/s     8.0 GF/s  | REPACK     4.31 us    4.5 GB/s     8.5 GF/s  x1.072  nmse=5.369e-14  CPU_REPACK
+  Q4_K tall 7168x2304          t=1   host   482.69 us   19.3 GB/s    68.4 GF/s  | REPACK   351.06 us   26.5 GB/s    94.1 GF/s  x1.375  nmse=3.638e-14  CPU_REPACK
+  Q8_0 gemv 2304x896           t=1   host    80.19 us   27.4 GB/s    51.5 GF/s  | REPACK    40.44 us   54.3 GB/s   102.1 GF/s  x1.983  nmse=1.595e-14  CPU_REPACK
+  Q5_0 gemv 2304x896           t=1   host   113.69 us   12.5 GB/s    36.3 GF/s  | REPACK  SKIP  (buft=CPU_REPACK)
+  Q4_K id 64/8 896x2304        t=1   host   557.44 us   16.8 GB/s    59.3 GF/s  | REPACK   442.81 us   21.1 GB/s    74.6 GF/s  x1.259  nmse=3.788e-14  CPU_REPACK
+  Q4_K id 64/6 896x2304        t=1   host   426.81 us   16.5 GB/s    58.0 GF/s  | REPACK   326.38 us   21.5 GB/s    75.9 GF/s  x1.308  nmse=3.748e-14  CPU_REPACK
+  Q8_0 id 64/8 2304x896        t=1   host   731.50 us   24.0 GB/s    45.2 GF/s  | REPACK   533.00 us   33.0 GB/s    62.0 GF/s  x1.372  nmse=1.626e-14  CPU_REPACK
+  Q5_0 id 64/8 2304x896        t=1   host  1067.25 us   10.7 GB/s    30.9 GF/s  | REPACK  SKIP  (buft=CPU_REPACK)
+
+=== token model (28 layers, k=6, t=1) ===
+  host  gate+up ID     888.4 us   down    616.9 us   token   0.0421 s
+  REPACK gate+up       696.5 us   down    498.2 us   token   0.0335 s
+  delta               0.0087 s/tok  =   5.9% of S2 stock compute 0.148
+  Q4_K single gemv  host 72.2 us  REPACK 51.2 us
+  honesty: NO_HEADROOM  (need >= ~10% of compute = 0.0148 s/tok to justify S3)
+----- battery MID -----
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 28.1,
+  "voltage": 3880,
+  "current": -719000,
+  "current_average": -1013,
+  "percentage": 65,
+  "level": 65,
+  "scale": 100,
+  "charge_counter": 2467500,
+  "cycle": 0
+}
+===== t=2 n=16 =====
+S3 REPACK microbench
+  neon=1  dotprod=1  i8mm=1  avx2=0  llamafile=0
+  host_buft=CPU  repack_buft=CPU_REPACK
+  features: NEON=1 ARM_FMA=1 FP16_VA=1 MATMUL_INT8=1 DOTPROD=1 REPACK=1
+
+case                                host                              | REPACK
+  Q4_K gemv 896x2304           t=2   host   142.56 us    8.2 GB/s    29.0 GF/s  | REPACK   108.06 us   10.8 GB/s    38.2 GF/s  x1.319  nmse=3.455e-14  CPU_REPACK
+  Q4_K gemv 8x2304             t=2   host    57.94 us    0.3 GB/s     0.6 GF/s  | REPACK    58.94 us    0.3 GB/s     0.6 GF/s  x0.983  nmse=5.369e-14  CPU_REPACK
+  Q4_K tall 7168x2304          t=2   host   421.25 us   22.1 GB/s    78.4 GF/s  | REPACK   374.56 us   24.8 GB/s    88.2 GF/s  x1.125  nmse=3.638e-14  CPU_REPACK
+  Q8_0 gemv 2304x896           t=2   host   389.81 us    5.6 GB/s    10.6 GF/s  | REPACK    92.88 us   23.7 GB/s    44.5 GF/s  x4.197  nmse=1.595e-14  CPU_REPACK
+  Q5_0 gemv 2304x896           t=2   host   136.69 us   10.4 GB/s    30.2 GF/s  | REPACK  SKIP  (buft=CPU_REPACK)
+  Q4_K id 64/8 896x2304        t=2   host   884.31 us   10.6 GB/s    37.4 GF/s  | REPACK   493.38 us   19.0 GB/s    66.9 GF/s  x1.792  nmse=3.788e-14  CPU_REPACK
+  Q4_K id 64/6 896x2304        t=2   host   601.88 us   11.7 GB/s    41.2 GF/s  | REPACK   388.69 us   18.1 GB/s    63.7 GF/s  x1.548  nmse=3.748e-14  CPU_REPACK
+  Q8_0 id 64/8 2304x896        t=2   host   993.56 us   17.7 GB/s    33.2 GF/s  | REPACK  1454.94 us   12.1 GB/s    22.7 GF/s  x0.683  nmse=1.626e-14  CPU_REPACK
+  Q5_0 id 64/8 2304x896        t=2   host   913.75 us   12.5 GB/s    36.1 GF/s  | REPACK  SKIP  (buft=CPU_REPACK)
+
+=== token model (28 layers, k=6, t=2) ===
+  host  gate+up ID     704.6 us   down    753.8 us   token   0.0408 s
+  REPACK gate+up       777.5 us   down    671.8 us   token   0.0406 s
+  delta               0.0003 s/tok  =   0.2% of S2 stock compute 0.148
+  Q4_K single gemv  host 137.9 us  REPACK 122.7 us
+  honesty: NO_HEADROOM  (need >= ~10% of compute = 0.0148 s/tok to justify S3)
+----- battery END -----
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 29.3,
+  "voltage": 3879,
+  "current": -342000,
+  "current_average": -1010,
+  "percentage": 65,
+  "level": 65,
+  "scale": 100,
+  "charge_counter": 2460000,
+  "cycle": 0
+}
+Fri Aug 14 07:41:09 EDT 2026
+===== PHASE0b END =====
+----- pin sha AFTER -----
+0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c  /data/data/com.termux/files/home/bin/mellum2/bmoe-cli
+559bc59d341441473d3a4e5e0876991cbec90b46d5bbf0b884aeb8a4651b7a73  /data/data/com.termux/files/home/bin/kernel_s1/bmoe-cli
+71f3556d99ffaf4dbe2cd7305463d625bc9a3a34901562c5556be59e427661a5  /data/data/com.termux/files/home/bin/kernel_s2/bmoe-cli
+fcbcad437d4335537a0ad36610ebf6d057f0450b6c7cd1eba4bde1085554ca17  /data/data/com.termux/files/home/bin/kernel_s3/test-s3-repack-bench
+60cc103238ad38096cedef333519402f8cbee532f16331f5a4ef902df20e7e2a  /data/data/com.termux/files/home/bin/kernel_s3_i8mm/test-s3-repack-bench

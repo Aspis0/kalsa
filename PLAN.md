@@ -37,7 +37,7 @@
 |---|---|---|---|
 | **Lineup 3 telefoni** (CalaQwen + Marco1c shippati) | S23/Jelly done (screen-on); Xiaomi era in Doze → rifare celle card screen-on | Marco1c: S23 **8.82** (t4) · Xiaomi **10.57** (t4 screen-on, sorpasso) · Jelly 3.64 (t2, ranking) · CalaQwen: S23 5.86 · Xiaomi 4.75 | celle card Xiaomi screen-on |
 | **TTFT app (Kalsa)** | ✅ **v2 MERGIATO su ai-chat main** | 53.4 s → **1.40 s** (Jelly, cold+90s+send) | QA app; engine-track Q6.c per chat lunghe |
-| **Kernel CPU S2/S3** (micro-esperti) | S2 corretto ma PERF_NULL; **S3 Phase 0 (2026-08-14 06:05): S3_NO_HEADROOM al gate d'onestà — REPACK delta token-model −1.5%** (`moe-mellum2-kernel-s3.md`): lo stock NON repacka gli esperti streamati (`use_extra_bufts=false` per il rebind cache) quindi S2-vs-stock era vec_dot-vs-vec_dot; il kernel REPACK sul path ID a t2 PERDE (0.52×, row-split allineato a 8 con 2 thread); i ~10ms del fuso = cache/TLB bounce gate↔up + barrier + wait-all, non REPACK. **Probe i8mm IN VOLO (S3b)**: la bench era dotprod-only, i core S23 hanno i8mm ma la build no — ultima leva non misurata; se ID t2 i8mm < 495µs host di ≥10% token-model → S3_REOPENED, altrimenti lane chiusa su OGNI asse | pepita ferma: **k6d10 t2 stock = 5.151 t/s** (PPL gate in corso) | probe i8mm decide |
+| **Kernel CPU S2/S3** (micro-esperti) | S2 corretto ma PERF_NULL; **S3 Phase 0 (2026-08-14 06:05): S3_NO_HEADROOM al gate d'onestà — REPACK delta token-model −1.5%** (`moe-mellum2-kernel-s3.md`): lo stock NON repacka gli esperti streamati (`use_extra_bufts=false` per il rebind cache) quindi S2-vs-stock era vec_dot-vs-vec_dot; il kernel REPACK sul path ID a t2 PERDE (0.52×, row-split allineato a 8 con 2 thread); i ~10ms del fuso = cache/TLB bounce gate↔up + barrier + wait-all, non REPACK. **S3b i8mm DONE (2026-08-14 mattina): S3_CLOSED_ALL_ANGLES** (§Phase 0b nel report): HAVE_MATMUL_INT8 acceso con armv8.6, kernel `q4_K_8x8` VIVO e ripara il collasso 8x4 (ID t2 949→**389 µs**, ×1.27 sul floor host 495.5) MA token-model **+0.2%÷4.0%** — vale solo su gate/up Q4_K, il down Q8_0/Q5_0 non ne beneficia (Q8_0 ID t2 ancora 0.68×, Q5_0 senza traits). **Tre assi misurati, tre volte sotto il gate 10%: vec_dot/llamafile floor, REPACK 8x4 (perde), i8mm 8x8 (vince la cella, non il token). LANE KERNEL CPU CHIUSA — il floor t2 0.148 compute / 5.151 wall È il silicio.** Eredità: branch S1+S2+fix corretti e PR-abili upstream (matcher difensivo incluso); la velocità ora passa da selfspec | **5.151 t/s k6d10 t2** in attesa solo del PPL gate | lane chiusa; resta PPL |
 | **Free-tier G99** | KEXP_REGRESSION + **REAP-50 MORTO** (10.68 resident ≈ 10.60 streamed: REAP dimezza gli stored, non gli active — stesso muro ~11 GB/s); 4B dense = fondo (3.52) | ladder finale: A0 k4 **10.6** / 2B 8.04 / 4B 3.52; target 15-20 irraggiungibile su G99 | gualt: (i) A0 10.6 o (iii) no-LFM — (ii) eliminata coi dati |
 | **FT tool-call + IT** (Qwen3.5-2B primo) | tutti i gate chiusi: licenza YELLOW ok, ricette GREEN ×2, Registry **FROZEN** | dataset ~20-30k, 1 epoca, 24 GB bastano | GO spike gualt → PR-0 + PR-2 |
 | **Mellum2 coding-SKU** | F0 STRONG 15/20; ceiling compute → dipende dal kernel | k6d1.0 = 4.64 t/s S23; con kernel ~7-9 | PPL gates drop/k (PC, dietro selfspec) |
@@ -303,6 +303,22 @@ DONE
 ## Registro checkpoint
 
 *(voci ≤ 2026-08-11 in `PLAN-archive.md` → «Registro checkpoint (archivio)»)*
+
+- **2026-08-14 (mattina) — 🏁 LANE KERNEL CPU: CHIUSA SU OGNI ASSE, il
+  floor è il silicio.** Arco completo S0→S3b in ~36 ore: S0 t2 (+37% vs
+  t4, gratis) → S1 pack (corretto, nullo a t2) → S2 fusione (corretta,
+  bit-exact, adversarial-audited, PERF_NULL: perde dai propri overhead
+  cache/barrier, non dal REPACK) → S3 Phase 0 (REPACK 8x4 delta −1.5%,
+  e la scoperta che NESSUNO repacka gli esperti streamati) → S3b i8mm
+  (8x8 mmla ripara l'8x4: ID t2 389 µs ×1.27 sul floor, ma token-model
+  +0.2÷4.0% < gate 10%). **Tre kernel diversi misurati onestamente
+  sotto soglia → 0.148 s/tok compute a t2 È il floor fisico del path
+  micro-esperti su S23-class.** Il prodotto della lane: config
+  **k6d10 t2 = 5.151 t/s wall (+37% dal 3.76 di partenza F1c), zero
+  righe di kernel nel binario di campagna**, più un branch S1+S2+fix
+  upstreamabile (fusione corretta + matcher difensivo — il perf su
+  altri silici resta da vedere upstream). La lane velocità passa a
+  selfspec (F1 in volo, α=0.70).
 
 - **2026-08-14 (01:40) — 🪦 REAP-50: LOSES, e la fisica era ovvia col senno
   di poi.** Pipeline intera in una notte (fetch 9.18 GB → PRIMO convert
