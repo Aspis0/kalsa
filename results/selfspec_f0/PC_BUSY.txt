@@ -1,5 +1,5 @@
-﻿PC_BUSY â€” selfspec-f0 waiter (poll 600s)
-time=2026-08-13T14:56:33
-still busy: 31872:pwsh.exe, 3656:python.exe, 37992:bmoe-cli.exe
-FreePhysicalMemory_KB=14142784
+PC_BUSY — selfspec-f0 waiter (poll 600s)
+time=2026-08-13T19:31:50
+still busy: 26320:pwsh.exe, 61380:python.exe, 59296:bmoe-cli.exe
+FreePhysicalMemory_KB=14334236
 Grid NOT started. Do not kill LFM/Marco/quantize.

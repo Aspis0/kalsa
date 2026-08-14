@@ -1,0 +1,6 @@
+BMOE_BEGIN {"id":1}
+BMOE_LOAD {"mb":46.10,"ms":234.4}
+BMOE_PROGRESS {"step":1,"steps":128,"wall_ms":172.7,"io_ms":234.4,"compute_ms":88.0,"mgmt_ms":10.7,"stall_ms":74.0,"read_mb":46.10,"cache_hit_pct":1.0,"majflt":0,"cpu_ms":0.0,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":"\n\n"}
+BMOE_LOAD {"mb":24.15,"ms":94.1}
+BMOE_PROGRESS {"step":2,"steps":128,"wall_ms":122.7,"io_ms":94.1,"compute_ms":78.6,"mgmt_ms":6.2,"stall_ms":37.9,"read_mb":24.15,"cache_hit_pct":2.5,"majflt":0,"cpu_ms":0.0,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":"\n\n"}
+BMOE_DONE {"id":1,"cancelled":false,"tokens":2,"tok_s":6.770,"prefill_s":13.337,"prefill_tps":21.97,"load_s":3.561,"cache_hit_pct":2.5,"n_prompt":293,"n_past":295,"compute_s_tok":0.0833,"io_s_tok":0.1643,"cache_resident_mib":1999,"cache_budget_mib":2000,"read_mib":70.2,"stall_s_tok":0.0560,"mgmt_s_tok":0.0084,"majflt_tok":0.00,"cpu_s_tok":0.0000,"token_demand_mib":86.9,"mtp_drafted":0,"mtp_accepted":0,"mtp_decodes":2,"mtp_draft_s_tok":0.0000,"drafted_steps":0,"loop_overhead_s_tok":0.0006,"reasoning":"","text":"\n\n\n\n"}

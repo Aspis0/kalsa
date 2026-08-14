@@ -30,7 +30,7 @@
 | **FT tool-call + IT** (Qwen3.5-2B primo) | tutti i gate chiusi: licenza YELLOW ok, ricette GREEN ×2, Registry **FROZEN** | dataset ~20-30k, 1 epoca, 24 GB bastano | GO spike gualt → PR-0 + PR-2 |
 | **Mellum2 coding-SKU** | F0 STRONG 15/20; ceiling compute → dipende dal kernel | k6d1.0 = 4.64 t/s S23; con kernel ~7-9 | PPL gates drop/k (PC, dietro selfspec) |
 | **GPU Adreno** | parcheggiata su A7X (decode 0.41×, dispatch-bound); GDN kernel esistono nel pin | prefill GPU 1.29-1.7× = leva TTFT | gualt: park vs M2-carta |
-| **Selfspec F0** | run 3 su PC in corso | alpha fact 0.5419 < gate 0.60 | verdetto a fine run |
+| **Selfspec F0** | ✅ **PASS_LANE_OPEN (2026-08-14 00:50)** — run 3 completo | **alpha pooled 0.6991** (n=1037, gate ≥0.60; k2 draft / k6 verify, entrambi i bracci drop) | F1 prototipo on-device = engine-work (loop speculativo in BigMoeOnEdge); PC LIBERO → coda PPL gates Mellum |
 
 ## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
 
@@ -291,6 +291,19 @@ DONE
 ## Registro checkpoint
 
 *(voci ≤ 2026-08-11 in `PLAN-archive.md` → «Registro checkpoint (archivio)»)*
+
+- **2026-08-14 (00:50) — 🎯 SELFSPEC F0: PASS_LANE_OPEN, alpha pooled
+  0.6991 (n=1037, gate ≥0.60).** Run 3 completo dopo i 3 bug infra della
+  serata (EOS creative, --execute, sha pin): draft k=2 / verify k=6 su
+  CalaQwen, 4 categorie × 2 bracci drop (d065 + d0). Il 0.5419 visto a
+  metà era la sola categoria fact in corso — il pooled chiude a ~0.70.
+  Con α=0.70 e γ≤4 l'aspettativa è ~2.7-2.8 token accettati per ciclo di
+  verify: la matematica dello speedup dipende dal rapporto costo k2/k6
+  on-device (da misurare in F1). F1 = engine-work (loop speculativo in
+  BigMoeOnEdge), non carta. PC LIBERO → coda: PPL gates Mellum drop/k
+  (k6d1.0 = la config su cui punta il kernel S2), da lanciare quando la
+  review adversariale finisce di usare il PC. Artefatti:
+  `results/selfspec_f0/acceptance/` (8 file ckpt+csv).
 
 - **2026-08-14 (notte fonda) — 🌙 PRIMA NOTTATA A 4 LANE: S2 STOP onesto al
   n=256, Jelly 4B chiude la scala free-tier.** (1) **Kernel S2 su S23**

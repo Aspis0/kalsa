@@ -1,0 +1,8 @@
+<think>
+
+</think>
+
+A Mixture-of-Experts (MoE) model consists of multiple distinct "expert" neural networks that are combined under a gating mechanism to process inputs. By using a router to activate only the most relevant experts for each token, the model performs significantly fewer total calculations during inference, which reduces the immediate computational load and power consumption required to generate text.
+
+*   **Routing and Flash Streaming:** The router dynamically selects which experts to use based on the input, allowing the system to skip unnecessary calculations; this efficiency is further enhanced by flash streaming, a technique that overlaps data transfer with computation to keep the processor busy and minimize latency.
+*   **Large On-Disk Weights:** Despite the reduced active computation, the entire model's weights must still be stored on the device's storage because the router needs access to all expert parameters to make routing decisions and load the specific experts needed for each token, resulting in a large file size even if only a fraction is actively used at any given moment.

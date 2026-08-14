@@ -1,0 +1,89 @@
+{
+  "started": "2026-08-13T20:37:46",
+  "bin_sha256": "42cd907c38fb223d1b04c7070a0c9a6e3b200e186afc19439189651dcac74f69",
+  "bin_version_expected": "0.19.0",
+  "model_bytes": 13416430592,
+  "model_published_sha256": "ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a",
+  "model_published_sha_source": "quality/ppl_baseline.json:111",
+  "model_hashed_this_run": false,
+  "threads": 8,
+  "n_target": 300,
+  "n_speed": 128,
+  "method": "EXACT-RESTART with WINDOWED-W16 fallback",
+  "method_plan": "results/selfspec_f0/METHOD_PLAN.md",
+  "chatml": false,
+  "flag_line": "-t 8 -c 4096 --ubatch 512 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --progress --session",
+  "thread_note": "METHOD_PLAN.md:103 used -t 4 while LFM PPL held -t 8. This execute uses -t 8 as specified for idle PC (mandates/selfspec-f0-acceptance.md campaign flags this turn).",
+  "target_ready": {
+    "load_s": 3.182,
+    "arch": "qwen35moe",
+    "n_ctx": 4096,
+    "think_ctl": "template",
+    "n_expert_used": 6
+  },
+  "targets": {
+    "fact": {
+      "skipped": true,
+      "n_pieces": 203,
+      "n_prompt": 75
+    },
+    "creative": {
+      "skipped": false,
+      "n_pieces": 234,
+      "n_prompt": 71,
+      "tok_s": 7.357,
+      "tokens": 234
+    },
+    "longfact": {
+      "skipped": true,
+      "n_pieces": 300,
+      "n_prompt": 293
+    },
+    "code": {
+      "skipped": true,
+      "n_pieces": 300,
+      "n_prompt": 399
+    }
+  },
+  "speed_k6": {
+    "k": 6,
+    "n_predict": 128,
+    "prompt": "longfact",
+    "tok_s": 5.326,
+    "tokens": 128,
+    "prefill_s": 16.473,
+    "n_prompt": 293
+  },
+  "draft_k2_d065_ready": {
+    "load_s": 3.141,
+    "arch": "qwen35moe",
+    "n_ctx": 4096,
+    "think_ctl": "template",
+    "n_expert_used": 2
+  },
+  "speed_k2": {
+    "k": 2,
+    "n_predict": 128,
+    "prompt": "longfact",
+    "tok_s": 6.77,
+    "tokens": 2,
+    "prefill_s": 13.337,
+    "n_prompt": 293
+  },
+  "k2_d065_after_primary": {
+    "n": 1037,
+    "alpha": 0.6991321118611379
+  },
+  "draft_k2_d0_ready": {
+    "load_s": 3.065,
+    "arch": "qwen35moe",
+    "n_ctx": 4096,
+    "think_ctl": "template",
+    "n_expert_used": 2
+  },
+  "k2_d065_pooled": {
+    "n": 1037,
+    "alpha": 0.6991321118611379
+  },
+  "finished": "2026-08-14T00:50:10"
+}

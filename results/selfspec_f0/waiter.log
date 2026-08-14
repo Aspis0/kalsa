@@ -56,3 +56,54 @@
 [2026-08-13T14:46:32] STATUS BLOCKED_PC
 [2026-08-13T14:56:32] still busy: 31872:pwsh.exe, 3656:python.exe, 37992:bmoe-cli.exe
 [2026-08-13T14:56:33] STATUS BLOCKED_PC
+[2026-08-13T15:06:33] still busy: 31872:pwsh.exe, 71092:python.exe, 56104:bmoe-cli.exe
+[2026-08-13T15:06:33] STATUS BLOCKED_PC
+[2026-08-13T15:16:34] still busy: 31872:pwsh.exe, 71092:python.exe, 71140:bmoe-cli.exe
+[2026-08-13T15:16:34] STATUS BLOCKED_PC
+[2026-08-13T15:26:35] still busy: 31872:pwsh.exe, 71092:python.exe, 48216:bmoe-cli.exe
+[2026-08-13T15:26:35] STATUS BLOCKED_PC
+[2026-08-13T15:36:35] still busy: 31872:pwsh.exe, 71092:python.exe, 48216:bmoe-cli.exe
+[2026-08-13T15:36:35] STATUS BLOCKED_PC
+[2026-08-13T15:46:38] still busy: 31872:pwsh.exe, 71092:python.exe, 10904:bmoe-cli.exe
+[2026-08-13T15:46:38] STATUS BLOCKED_PC
+[2026-08-13T15:56:39] still busy: 31872:pwsh.exe, 71092:python.exe, 55672:bmoe-cli.exe
+[2026-08-13T15:56:39] STATUS BLOCKED_PC
+[2026-08-13T16:06:39] PC idle
+[2026-08-13T16:06:39] launch run_selfspec_f0.py --execute
+[2026-08-13T16:06:42] runner rc=1
+[2026-08-13T16:47:12] START wait for PC idle of LFM/Marco/quantize/bmoe-cli
+[2026-08-13T16:47:12] STATUS BLOCKED_PC
+[2026-08-13T16:47:13] still busy: 53152:pwsh.exe, 38980:llama-quantize.exe
+[2026-08-13T16:47:13] STATUS BLOCKED_PC
+[2026-08-13T16:57:14] PC idle
+[2026-08-13T16:57:14] launch run_selfspec_f0.py --execute
+[2026-08-13T16:57:17] runner rc=1
+[2026-08-13T17:41:40] START wait for PC idle of LFM/Marco/quantize/bmoe-cli
+[2026-08-13T17:41:40] STATUS BLOCKED_PC
+[2026-08-13T17:41:41] still busy: 26320:pwsh.exe, 72624:python.exe, 40040:bmoe-cli.exe
+[2026-08-13T17:41:41] STATUS BLOCKED_PC
+[2026-08-13T17:51:42] still busy: 26320:pwsh.exe, 72624:python.exe, 40040:bmoe-cli.exe
+[2026-08-13T17:51:42] STATUS BLOCKED_PC
+[2026-08-13T18:01:43] still busy: 26320:pwsh.exe, 72624:python.exe, 41108:bmoe-cli.exe
+[2026-08-13T18:01:43] STATUS BLOCKED_PC
+[2026-08-13T18:11:44] still busy: 26320:pwsh.exe, 72624:python.exe, 32404:bmoe-cli.exe
+[2026-08-13T18:11:44] STATUS BLOCKED_PC
+[2026-08-13T18:21:44] still busy: 26320:pwsh.exe, 72624:python.exe, 54552:bmoe-cli.exe
+[2026-08-13T18:21:45] STATUS BLOCKED_PC
+[2026-08-13T18:31:45] still busy: 26320:pwsh.exe, 72624:python.exe, 41464:bmoe-cli.exe
+[2026-08-13T18:31:45] STATUS BLOCKED_PC
+[2026-08-13T18:41:46] still busy: 26320:pwsh.exe, 48868:python.exe, 66864:bmoe-cli.exe
+[2026-08-13T18:41:46] STATUS BLOCKED_PC
+[2026-08-13T18:51:47] still busy: 26320:pwsh.exe, 48868:python.exe, 25648:bmoe-cli.exe
+[2026-08-13T18:51:47] STATUS BLOCKED_PC
+[2026-08-13T19:01:47] still busy: 26320:pwsh.exe, 48868:python.exe, 12376:bmoe-cli.exe
+[2026-08-13T19:01:48] STATUS BLOCKED_PC
+[2026-08-13T19:11:48] still busy: 26320:pwsh.exe, 48868:python.exe, 66648:bmoe-cli.exe
+[2026-08-13T19:11:48] STATUS BLOCKED_PC
+[2026-08-13T19:21:49] still busy: 26320:pwsh.exe, 48868:python.exe, 30632:bmoe-cli.exe
+[2026-08-13T19:21:49] STATUS BLOCKED_PC
+[2026-08-13T19:31:50] still busy: 26320:pwsh.exe, 61380:python.exe, 59296:bmoe-cli.exe
+[2026-08-13T19:31:50] STATUS BLOCKED_PC
+[2026-08-13T19:41:50] PC idle
+[2026-08-13T19:41:50] launch run_selfspec_f0.py --execute
+[2026-08-13T20:14:49] runner rc=1

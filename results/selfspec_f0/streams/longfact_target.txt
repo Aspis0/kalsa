@@ -1,0 +1,20 @@
+
+
+<think>
+Here's a thinking process:
+
+1.  **Analyze User Input:**
+   - **Role:** Careful technical writer
+   - **Style:** Plain English, no bullet-only answers, use short paragraphs, then a compact numbered list where clearer
+   - **Topic:** Running a 35B-class MoE model on a phone with 8 GB RAM and UFS flash, comparing three approaches:
+     1. `mmap` the whole file, hope kernel keeps hot pages
+     2. Stream only routed experts per token into an LRU cache (~2 GiB), dense weights in anonymous buffers
+     3. Split dense trunk to mobile GPU, keep expert GEMMs on CPU
+   - **Required Content for Each Approach:**
+     - What is resident
+     - What is read from flash per token
+     - What a major page fault means here
+     - Why activating k=6 experts out of a large pool still leaves a large on-disk file
+   - **Concrete Decode Step Walkthrough:** Router scores, top-k, cache hit/miss, optional drop of cold low-weight expert, how it changes math and bytes
+   - **Closing Caveats:** (a) cache hit rate ≠ quality metric, (b) tok/s excluding prefill/draft ≠ user-perceived rate
+   - **Constraints:** 400-600 words, no markdown fences, no invented benchmark numbers

@@ -1,0 +1,18 @@
+[2026-08-13T20:26:39] STATUS RUNNING
+[2026-08-13T20:26:39] bin sha256=42cd907c38fb223d1b04c7070a0c9a6e3b200e186afc19439189651dcac74f69 size=332800
+[2026-08-13T20:26:39] prompt fact bytes=361 sha256=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-13T20:26:39] FATAL RuntimeError: prompt sha mismatch creative: got a8fa26c1644c9d5f83fd24a79986a49eb8e755722967ffc3ca2e86858e00043d want 761db0d07cbc312acb35fb8c64894be83f38a3a7f0ba14e2100ef6a44a29c871 path=C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_creative.txt
+[2026-08-13T20:26:39] STATUS BLOCKED_ENGINE
+Traceback (most recent call last):
+  File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scripts\run_selfspec_f0.py", line 889, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scripts\run_selfspec_f0.py", line 881, in main
+    return execute()
+           ^^^^^^^^^
+  File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scripts\run_selfspec_f0.py", line 718, in execute
+    prompts = load_prompts()
+              ^^^^^^^^^^^^^^
+  File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scripts\run_selfspec_f0.py", line 375, in load_prompts
+    raise RuntimeError(
+RuntimeError: prompt sha mismatch creative: got a8fa26c1644c9d5f83fd24a79986a49eb8e755722967ffc3ca2e86858e00043d want 761db0d07cbc312acb35fb8c64894be83f38a3a7f0ba14e2100ef6a44a29c871 path=C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_creative.txt

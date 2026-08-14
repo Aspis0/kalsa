@@ -1,0 +1,204 @@
+pos,accepted,restart_id,n_prompt,draft_piece,gold_piece,join_flag,method,window
+0,1,0,75,<think>,<think>,,EXACT-RESTART,0
+1,0,0,75,\n,\n\n,,EXACT-RESTART,0
+2,1,1,77,</think>,</think>,,EXACT-RESTART,0
+3,1,1,77,\n\n,\n\n,,EXACT-RESTART,0
+4,0,1,77,The,A,,EXACT-RESTART,0
+5,1,2,80, M, M,,EXACT-RESTART,0
+6,1,2,80,ixture,ixture,,EXACT-RESTART,0
+7,0,2,80, of,-of,,EXACT-RESTART,0
+8,1,3,83,-,-,,EXACT-RESTART,0
+9,1,3,83,Experts,Experts,,EXACT-RESTART,0
+10,1,3,83, (, (,,EXACT-RESTART,0
+11,1,3,83,Mo,Mo,,EXACT-RESTART,0
+12,1,3,83,E,E,,EXACT-RESTART,0
+13,1,3,83,),),,EXACT-RESTART,0
+14,0,3,83, language, model,,EXACT-RESTART,0
+15,0,4,90, is, consists,,EXACT-RESTART,0
+16,1,5,91, of, of,,EXACT-RESTART,0
+17,1,5,91, multiple, multiple,,EXACT-RESTART,0
+18,0,5,91," """, distinct,,EXACT-RESTART,0
+19,1,6,94," """," """,,EXACT-RESTART,0
+20,1,6,94,expert,expert,,EXACT-RESTART,0
+21,1,6,94,"""","""",,EXACT-RESTART,0
+22,0,6,94, networks, neural,,EXACT-RESTART,0
+23,1,7,98, networks, networks,,EXACT-RESTART,0
+24,1,7,98, that, that,,EXACT-RESTART,0
+25,0,7,98, share, are,,EXACT-RESTART,0
+26,1,8,101, combined, combined,,EXACT-RESTART,0
+27,0,8,101, during, under,,EXACT-RESTART,0
+28,1,9,103, a, a,,EXACT-RESTART,0
+29,0,9,103, single, gating,,EXACT-RESTART,0
+30,1,10,105, mechanism, mechanism,,EXACT-RESTART,0
+31,1,10,105, to, to,,EXACT-RESTART,0
+32,1,10,105, process, process,,EXACT-RESTART,0
+33,1,10,105, inputs, inputs,,EXACT-RESTART,0
+34,1,10,105,.,.,,EXACT-RESTART,0
+35,1,10,105, By, By,,EXACT-RESTART,0
+36,0,10,105, routing, using,,EXACT-RESTART,0
+37,1,11,112, a, a,,EXACT-RESTART,0
+38,0,11,112, sparse, router,,EXACT-RESTART,0
+39,0,12,114,",", to,,EXACT-RESTART,0
+40,0,13,115, select, activate,,EXACT-RESTART,0
+41,1,14,116, only, only,,EXACT-RESTART,0
+42,0,14,116, a, the,,EXACT-RESTART,0
+43,0,15,118, top, most,,EXACT-RESTART,0
+44,1,16,119, relevant, relevant,,EXACT-RESTART,0
+45,1,16,119, experts, experts,,EXACT-RESTART,0
+46,1,16,119, for, for,,EXACT-RESTART,0
+47,1,16,119, each, each,,EXACT-RESTART,0
+48,1,16,119, token, token,,EXACT-RESTART,0
+49,1,16,119,",",",",,EXACT-RESTART,0
+50,1,16,119, the, the,,EXACT-RESTART,0
+51,1,16,119, model, model,,EXACT-RESTART,0
+52,0,16,119, can, performs,,EXACT-RESTART,0
+53,0,17,128, much, significantly,,EXACT-RESTART,0
+54,0,18,129, less, fewer,,EXACT-RESTART,0
+55,0,19,130, computations, total,,EXACT-RESTART,0
+56,0,20,131, parameters, calculations,,EXACT-RESTART,0
+57,0,21,132, per, during,,EXACT-RESTART,0
+58,1,22,133, inference, inference,,EXACT-RESTART,0
+59,1,22,133,",",",",,EXACT-RESTART,0
+60,0,22,133, reducing, which,,EXACT-RESTART,0
+61,1,23,136, reduces, reduces,,EXACT-RESTART,0
+62,1,23,136, the, the,,EXACT-RESTART,0
+63,0,23,136, amount, immediate,,EXACT-RESTART,0
+64,0,24,139, compute, computational,,EXACT-RESTART,0
+65,0,25,140, cost, load,,EXACT-RESTART,0
+66,1,26,141, and, and,,EXACT-RESTART,0
+67,0,26,141, increases, power,,EXACT-RESTART,0
+68,1,27,143, consumption, consumption,,EXACT-RESTART,0
+69,0,27,143,., required,,EXACT-RESTART,0
+70,0,28,145, for, to,,EXACT-RESTART,0
+71,0,29,146, process, generate,,EXACT-RESTART,0
+72,0,30,147, each, text,,EXACT-RESTART,0
+73,1,31,148,.,.,,EXACT-RESTART,0
+74,0,31,148, This,\n\n,,EXACT-RESTART,0
+75,0,32,150,However,*,,EXACT-RESTART,0
+76,1,33,151,  ,  ,,EXACT-RESTART,0
+77,1,33,151, **, **,,EXACT-RESTART,0
+78,1,33,151,Routing,Routing,,EXACT-RESTART,0
+79,1,33,151, and, and,,EXACT-RESTART,0
+80,0,33,151, Sparse, Flash,,EXACT-RESTART,0
+81,0,34,156, Memory, Streaming,,EXACT-RESTART,0
+82,1,35,157,:**,:**,,EXACT-RESTART,0
+83,0,35,157, In, The,,EXACT-RESTART,0
+84,1,36,159, router, router,,EXACT-RESTART,0
+85,0,36,159,",", dynamically,,EXACT-RESTART,0
+86,1,37,161, selects, selects,,EXACT-RESTART,0
+87,0,37,161, the, which,,EXACT-RESTART,0
+88,0,38,163, specific, experts,,EXACT-RESTART,0
+89,0,39,164, process, to,,EXACT-RESTART,0
+90,0,40,165, activate, use,,EXACT-RESTART,0
+91,0,41,166,",", based,,EXACT-RESTART,0
+92,1,42,167, on, on,,EXACT-RESTART,0
+93,1,42,167, the, the,,EXACT-RESTART,0
+94,1,42,167, input, input,,EXACT-RESTART,0
+95,1,42,167,",",",",,EXACT-RESTART,0
+96,0,42,167, ensuring, allowing,,EXACT-RESTART,0
+97,1,43,172, the, the,,EXACT-RESTART,0
+98,1,43,172, system, system,,EXACT-RESTART,0
+99,1,43,172, to, to,,EXACT-RESTART,0
+100,0,43,172," """, skip,,EXACT-RESTART,0
+101,0,44,176, heavy, unnecessary,,EXACT-RESTART,0
+102,0,45,177, experts, calculations,,EXACT-RESTART,0
+103,0,46,178, for,;,,EXACT-RESTART,0
+104,0,47,179, however, this,,EXACT-RESTART,0
+105,0,48,180, is, efficiency,,EXACT-RESTART,0
+106,0,49,181, means, is,,EXACT-RESTART,0
+107,0,50,182, particularly, further,,EXACT-RESTART,0
+108,1,51,183, enhanced, enhanced,,EXACT-RESTART,0
+109,1,51,183, by, by,,EXACT-RESTART,0
+110,1,51,183, flash, flash,,EXACT-RESTART,0
+111,1,51,183, streaming, streaming,,EXACT-RESTART,0
+112,1,51,183,",",",",,EXACT-RESTART,0
+113,0,51,183, which, a,,EXACT-RESTART,0
+114,1,52,189, technique, technique,,EXACT-RESTART,0
+115,1,52,189, that, that,,EXACT-RESTART,0
+116,0,52,189, reduces, overlaps,,EXACT-RESTART,0
+117,0,53,192, computation, data,,EXACT-RESTART,0
+118,1,54,193, transfer, transfer,,EXACT-RESTART,0
+119,1,54,193, with, with,,EXACT-RESTART,0
+120,1,54,193, computation, computation,,EXACT-RESTART,0
+121,1,54,193, to, to,,EXACT-RESTART,0
+122,0,54,193, hide, keep,,EXACT-RESTART,0
+123,1,55,198, the, the,,EXACT-RESTART,0
+124,0,55,198, GPU, processor,,EXACT-RESTART,0
+125,0,56,200, fed, busy,,EXACT-RESTART,0
+126,0,57,201,., and,,EXACT-RESTART,0
+127,0,58,202, speed, minimize,,EXACT-RESTART,0
+128,0,59,203, idle, latency,,EXACT-RESTART,0
+129,1,60,204,.,.,,EXACT-RESTART,0
+130,1,60,204,\n,\n,,EXACT-RESTART,0
+131,1,60,204,*,*,,EXACT-RESTART,0
+132,1,60,204,  ,  ,,EXACT-RESTART,0
+133,1,60,204, **, **,,EXACT-RESTART,0
+134,0,60,204,Pr,Large,,EXACT-RESTART,0
+135,1,61,210, On, On,,EXACT-RESTART,0
+136,1,61,210,-D,-D,,EXACT-RESTART,0
+137,1,61,210,isk,isk,,EXACT-RESTART,0
+138,1,61,210, We, We,,EXACT-RESTART,0
+139,1,61,210,ights,ights,,EXACT-RESTART,0
+140,0,61,210, and,:**,,EXACT-RESTART,0
+141,0,62,216, The, Despite,,EXACT-RESTART,0
+142,1,63,217, the, the,,EXACT-RESTART,0
+143,0,63,217, reduction, reduced,,EXACT-RESTART,0
+144,0,64,219, compute, active,,EXACT-RESTART,0
+145,0,65,220, compute, computation,,EXACT-RESTART,0
+146,1,66,221,",",",",,EXACT-RESTART,0
+147,1,66,221, the, the,,EXACT-RESTART,0
+148,0,66,221, model, entire,,EXACT-RESTART,0
+149,1,67,224, model, model,,EXACT-RESTART,0
+150,0,67,224, needs,'s,,EXACT-RESTART,0
+151,1,68,226, weights, weights,,EXACT-RESTART,0
+152,1,68,226, must, must,,EXACT-RESTART,0
+153,1,68,226, still, still,,EXACT-RESTART,0
+154,0,68,226, reside, be,,EXACT-RESTART,0
+155,0,69,230, downloaded, stored,,EXACT-RESTART,0
+156,0,70,231, locally, on,,EXACT-RESTART,0
+157,0,71,232,-device, the,,EXACT-RESTART,0
+158,1,72,233, device, device,,EXACT-RESTART,0
+159,0,72,233, to,'s,,EXACT-RESTART,0
+160,0,73,235, hardware, storage,,EXACT-RESTART,0
+161,0,74,236, to, because,,EXACT-RESTART,0
+162,1,75,237, the, the,,EXACT-RESTART,0
+163,1,75,237, router, router,,EXACT-RESTART,0
+164,0,75,237,'s, needs,,EXACT-RESTART,0
+165,0,76,240, to, access,,EXACT-RESTART,0
+166,1,77,241, to, to,,EXACT-RESTART,0
+167,0,77,241, the, all,,EXACT-RESTART,0
+168,0,78,243, possible, expert,,EXACT-RESTART,0
+169,1,79,244, parameters, parameters,,EXACT-RESTART,0
+170,1,79,244, to, to,,EXACT-RESTART,0
+171,0,79,244, function, make,,EXACT-RESTART,0
+172,1,80,247, routing, routing,,EXACT-RESTART,0
+173,1,80,247, decisions, decisions,,EXACT-RESTART,0
+174,0,80,247,",", and,,EXACT-RESTART,0
+175,0,81,250, manage, load,,EXACT-RESTART,0
+176,1,82,251, the, the,,EXACT-RESTART,0
+177,0,82,251, correct, specific,,EXACT-RESTART,0
+178,0,83,253, weights, experts,,EXACT-RESTART,0
+179,0,84,254, that, needed,,EXACT-RESTART,0
+180,1,85,255, for, for,,EXACT-RESTART,0
+181,0,85,255, the, each,,EXACT-RESTART,0
+182,1,86,257, token, token,,EXACT-RESTART,0
+183,1,86,257,",",",",,EXACT-RESTART,0
+184,0,86,257, ensuring, resulting,,EXACT-RESTART,0
+185,1,87,260, in, in,,EXACT-RESTART,0
+186,1,87,260, a, a,,EXACT-RESTART,0
+187,1,87,260, large, large,,EXACT-RESTART,0
+188,0,87,260, on, file,,EXACT-RESTART,0
+189,1,88,264, size, size,,EXACT-RESTART,0
+190,1,88,264, even, even,,EXACT-RESTART,0
+191,1,88,264, if, if,,EXACT-RESTART,0
+192,0,88,264, the, only,,EXACT-RESTART,0
+193,1,89,268, a, a,,EXACT-RESTART,0
+194,1,89,268, fraction, fraction,,EXACT-RESTART,0
+195,0,89,268, of, is,,EXACT-RESTART,0
+196,1,90,271, actively, actively,,EXACT-RESTART,0
+197,1,90,271, used, used,,EXACT-RESTART,0
+198,0,90,271,., at,,EXACT-RESTART,0
+199,1,91,274, any, any,,EXACT-RESTART,0
+200,0,91,274, time, given,,EXACT-RESTART,0
+201,0,92,276, time, moment,,EXACT-RESTART,0
+202,1,93,277,.,.,,EXACT-RESTART,0
