@@ -1,0 +1,13 @@
+{
+  "identical": false,
+  "diff_pos": 12,
+  "alpha": 0.08585858585858586,
+  "accepted": 51,
+  "drafted": 594,
+  "plain_n": 256,
+  "selfspec_n": 256,
+  "plain_head": "Running a 35 billion parameter Mixture-of-Experts model on a device with 8 GB of",
+  "selfspec_head": "Running a 35-billion parameter Mixture-of-Experts model on a device with 8 GB of",
+  "spec_tok_s": 0.998,
+  "spec_draft_s": 0.6976
+}

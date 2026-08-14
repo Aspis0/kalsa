@@ -1,0 +1,15 @@
+DRIFT longfact pos=225 a_len=977 b_len=1003
+  plain : ' clearer.\n   - **Topic:*'
+  spec  : ' clearer\n   - **Topic:**'
+  perf  : {'accepted': 102, 'drafted': 567, 'alpha_pct': 18.0, 'tok_per_decode': 1.66, 'draft_s_tok': 0.6742, 'tok_s_eff': 0.59, 'tok_s': 0.99, 'n_generated': 256, 'tok_s_decode': 0.986}
+DRIFT creative pos=47 a_len=1145 b_len=1052
+  plain : 't Unit 734’s polished ch'
+  spec  : 't Unit 7’s chrome platin'
+  perf  : {'accepted': 48, 'drafted': 715, 'alpha_pct': 6.7, 'tok_per_decode': 1.25, 'draft_s_tok': 0.8339, 'tok_s_eff': 0.53, 'tok_s': 0.95, 'n_generated': 239, 'tok_s_decode': 0.948}
+DRIFT code pos=203 a_len=1005 b_len=918
+  plain : 'ys.\n2.  Teacher-forced s'
+  spec  : 'ys.\n2.  Logic: For each '
+  perf  : {'accepted': 75, 'drafted': 644, 'alpha_pct': 11.6, 'tok_per_decode': 1.41, 'draft_s_tok': 0.7053, 'tok_s_eff': 0.55, 'tok_s': 0.9, 'n_generated': 256, 'tok_s_decode': 0.897}
+POOLED_ALPHA 225/1926 = 0.11682242990654206
+IDENTICAL_ALL False
+FIRST_DRIFT longfact@225

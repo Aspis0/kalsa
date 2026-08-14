@@ -1,0 +1,28 @@
+```python
+import json
+import sys
+from typing import List
+
+def accept_curve(gold: List[int], draft: List[int], gamma: int) -> dict:
+    if len(gold) != len(draft):
+        raise ValueError("gold and draft must have the same length")
+    if gamma < 1:
+        raise ValueError("gamma must be >= 1")
+    if not gold:
+        raise ValueError("gold and draft must not be empty")
+    
+    n = len(gold)
+    hist = [0] * (gamma + 1)
+    n_accepted = 0
+    n_draft_tokens = 0
+    n_pos = 0
+    full_window_count = 0
+    
+    for t in range(n):
+        # The drafter emits tokens at positions t, t+1, ..., t+gamma-1
+        # But we only care about the window [t, t+gamma-1]
+        # The verifier checks against gold[t], gold[t+1], ...
+        
+        # How many draft tokens are accepted?
+        # We check draft[t+k] vs gold[t+k] for k in 0..gamma-1
+        # But

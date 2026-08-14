@@ -1,0 +1,46 @@
+[07:32:49] START plain :: C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --progress --session -c 2048 --ubatch 512 -n 256 -t 4 --n-expert-used 6
+[07:34:21] START plain :: C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --progress --session -c 2048 --ubatch 512 -n 256 -t 4 --n-expert-used 6
+[07:34:32] plain READY: BMOE_READY {"load_s":11.769,"arch":"qwen35moe","n_ctx":2048,"think_ctl":"template","n_expert_used":6,"spec":"off","selfspec_draft_k":0}
+[07:34:32] plain SEND id=1 name=longfact bytes=1305
+[07:38:32] plain DONE id=1 name=longfact len=1523
+[07:38:32] plain SEND id=2 name=creative bytes=411
+[07:39:51] plain DONE id=2 name=creative len=1678
+[07:39:51] plain SEND id=3 name=code bytes=1733
+[07:41:05] plain process exited mid-generate id=3 rc=4294967295
+[07:41:05] plain DONE id=3 name=code len=0
+[07:41:05] END plain rc=4294967295
+[07:41:05] START selfspec :: C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --progress --session -c 2048 --ubatch 512 -n 256 -t 4 --n-expert-used 6 --selfspec-draft-k 2 --selfspec-gamma 4
+[07:41:17] selfspec READY: BMOE_READY {"load_s":11.643,"arch":"qwen35moe","n_ctx":2048,"think_ctl":"template","n_expert_used":6,"spec":"selfspec","selfspec_draft_k":2}
+[07:41:17] selfspec SEND id=1 name=longfact bytes=1305
+[07:44:17] REUSE plain/longfact chars=977
+[07:44:17] REUSE plain/creative chars=1145
+[07:44:17] START plain/code
+[07:47:01] END plain/code rc=4294967295 s=164.5 chars=0 perf={}
+[07:47:01] START selfspec/longfact
+[07:57:57] END selfspec/longfact rc=0 s=655.6 chars=1003 perf={'accepted': 44, 'drafted': 789, 'alpha_pct': 5.6, 'tok_per_decode': 1.21, 'draft_s_tok': 0.7344, 'tok_s_eff': 0.47, 'tok_s': 0.71, 'n_generated': 256, 'tok_s_decode': 0.707}
+[07:57:57] START selfspec/creative
+[08:09:02] REUSE plain/longfact chars=977
+[08:09:02] REUSE plain/creative chars=1145
+[08:09:02] START plain/code
+[08:12:34] END plain/code rc=0 s=212.6 chars=1005 perf={'n_generated': 256, 'tok_s_decode': 1.766}
+[08:12:34] START selfspec/longfact
+[08:23:22] END selfspec/longfact rc=0 s=647.9 chars=1003 perf={'accepted': 44, 'drafted': 789, 'alpha_pct': 5.6, 'tok_per_decode': 1.21, 'draft_s_tok': 0.7157, 'tok_s_eff': 0.47, 'tok_s': 0.71, 'n_generated': 256, 'tok_s_decode': 0.708}
+[08:23:22] START selfspec/creative
+[08:37:52] REUSE plain/longfact chars=977
+[08:37:52] REUSE plain/creative chars=1145
+[08:37:52] START plain/code
+[08:41:26] END plain/code rc=0 s=213.8 chars=1005 perf={'n_generated': 256, 'tok_s_decode': 1.709}
+[08:41:26] START selfspec/longfact
+[08:50:19] END selfspec/longfact rc=0 s=533.7 chars=1003 perf={'accepted': 102, 'drafted': 567, 'alpha_pct': 18.0, 'tok_per_decode': 1.66, 'draft_s_tok': 0.6742, 'tok_s_eff': 0.59, 'tok_s': 0.99, 'n_generated': 256, 'tok_s_decode': 0.986}
+[08:50:19] START selfspec/creative
+[08:58:36] END selfspec/creative rc=0 s=496.9 chars=1052 perf={'accepted': 48, 'drafted': 715, 'alpha_pct': 6.7, 'tok_per_decode': 1.25, 'draft_s_tok': 0.8339, 'tok_s_eff': 0.53, 'tok_s': 0.95, 'n_generated': 239, 'tok_s_decode': 0.948}
+[08:58:36] START selfspec/code
+[09:08:11] END selfspec/code rc=0 s=574.4 chars=918 perf={'accepted': 75, 'drafted': 644, 'alpha_pct': 11.6, 'tok_per_decode': 1.41, 'draft_s_tok': 0.7053, 'tok_s_eff': 0.55, 'tok_s': 0.9, 'n_generated': 256, 'tok_s_decode': 0.897}
+[09:08:11] COMPARE identical=False alpha=0.1168 first=longfact@225
+[09:08:11] START plain_d065/longfact
+[09:11:08] END plain_d065/longfact rc=0 s=177.7 chars=1001 perf={'n_generated': 256, 'tok_s_decode': 2.1}
+[09:11:08] START selfspec_d065/longfact
+[09:18:16] END selfspec_d065/longfact rc=0 s=427.8 chars=1003 perf={'accepted': 102, 'drafted': 567, 'alpha_pct': 18.0, 'tok_per_decode': 1.66, 'draft_s_tok': 0.5244, 'tok_s_eff': 0.77, 'tok_s': 1.29, 'n_generated': 256, 'tok_s_decode': 1.294}
+[09:18:16] SPEED plain=2.1 spec_eff=0.77 speedup=0.36666666666666664
+[09:18:16] F1_CORRECT(drift@longfact@225) alpha=0.12 PC speedup 0.37 (NOISY_ENV)
+[09:18:16] RUNNER_DONE

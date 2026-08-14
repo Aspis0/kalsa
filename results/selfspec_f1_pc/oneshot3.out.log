@@ -1,0 +1,18 @@
+[08:37:52] REUSE plain/longfact chars=977
+[08:37:52] REUSE plain/creative chars=1145
+[08:37:52] START plain/code
+[08:41:26] END plain/code rc=0 s=213.8 chars=1005 perf={'n_generated': 256, 'tok_s_decode': 1.709}
+[08:41:26] START selfspec/longfact
+[08:50:19] END selfspec/longfact rc=0 s=533.7 chars=1003 perf={'accepted': 102, 'drafted': 567, 'alpha_pct': 18.0, 'tok_per_decode': 1.66, 'draft_s_tok': 0.6742, 'tok_s_eff': 0.59, 'tok_s': 0.99, 'n_generated': 256, 'tok_s_decode': 0.986}
+[08:50:19] START selfspec/creative
+[08:58:36] END selfspec/creative rc=0 s=496.9 chars=1052 perf={'accepted': 48, 'drafted': 715, 'alpha_pct': 6.7, 'tok_per_decode': 1.25, 'draft_s_tok': 0.8339, 'tok_s_eff': 0.53, 'tok_s': 0.95, 'n_generated': 239, 'tok_s_decode': 0.948}
+[08:58:36] START selfspec/code
+[09:08:11] END selfspec/code rc=0 s=574.4 chars=918 perf={'accepted': 75, 'drafted': 644, 'alpha_pct': 11.6, 'tok_per_decode': 1.41, 'draft_s_tok': 0.7053, 'tok_s_eff': 0.55, 'tok_s': 0.9, 'n_generated': 256, 'tok_s_decode': 0.897}
+[09:08:11] COMPARE identical=False alpha=0.1168 first=longfact@225
+[09:08:11] START plain_d065/longfact
+[09:11:08] END plain_d065/longfact rc=0 s=177.7 chars=1001 perf={'n_generated': 256, 'tok_s_decode': 2.1}
+[09:11:08] START selfspec_d065/longfact
+[09:18:16] END selfspec_d065/longfact rc=0 s=427.8 chars=1003 perf={'accepted': 102, 'drafted': 567, 'alpha_pct': 18.0, 'tok_per_decode': 1.66, 'draft_s_tok': 0.5244, 'tok_s_eff': 0.77, 'tok_s': 1.29, 'n_generated': 256, 'tok_s_decode': 1.294}
+[09:18:16] SPEED plain=2.1 spec_eff=0.77 speedup=0.36666666666666664
+[09:18:16] F1_CORRECT(drift@longfact@225) alpha=0.12 PC speedup 0.37 (NOISY_ENV)
+[09:18:16] RUNNER_DONE

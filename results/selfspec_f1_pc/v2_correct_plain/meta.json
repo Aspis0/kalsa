@@ -1,0 +1,52 @@
+{
+  "name": "v2_correct_plain",
+  "cmd": [
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\BigMoeOnEdge-selfspec-f1\\build\\cli\\bmoe-cli.exe",
+    "-m",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\Qwen3.6-35B-A3B-KEXP.gguf",
+    "--temp",
+    "0",
+    "--moe-stream",
+    "--cache-mb",
+    "2000",
+    "--dense-weights",
+    "anon",
+    "--overlap",
+    "--io-threads",
+    "4",
+    "--progress",
+    "--session",
+    "--chatml",
+    "--no-think",
+    "-c",
+    "2048",
+    "--ubatch",
+    "512",
+    "-n",
+    "256",
+    "-t",
+    "4",
+    "--n-expert-used",
+    "6"
+  ],
+  "ready": {
+    "load_s": 6.849,
+    "arch": "qwen35moe",
+    "n_ctx": 2048,
+    "think_ctl": "template",
+    "n_expert_used": 6,
+    "spec": "off",
+    "selfspec_draft_k": 0
+  },
+  "error": "[Errno 22] Invalid argument",
+  "elapsed_s": 49.020408391952515,
+  "returncode": 4294967295,
+  "results": [
+    {
+      "prompt": "longfact",
+      "id": 1,
+      "error": "eof mid-generate",
+      "done": null
+    }
+  ]
+}

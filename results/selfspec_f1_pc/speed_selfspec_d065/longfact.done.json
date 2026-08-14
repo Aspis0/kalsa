@@ -1,0 +1,5 @@
+{
+  "id": 1,
+  "fatal": true,
+  "msg": "the cheaper-k draft context does not support rewinding its KV cache"
+}

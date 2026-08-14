@@ -1,0 +1,17 @@
+
+
+<think>
+The user wants a Python script implementing a speculative decoding acceptance scorer.
+Key requirements:
+1.  Function `accept_curve(gold, draft, gamma)` returning a dict with specific keys.
+2.  Teacher-forced simulation: at each position `t`, the draft model produces `draft[t...t+gamma-1]`. The verifier checks these against `gold[t...t+gamma-1]`.
+3.  Acceptance rule: Count consecutive matches from the start of the window until the first mismatch.
+4.  Return stats: `n_pos`, `n_draft_tokens`, `n_accepted`, `accept_rate`, `full_window_rate`, `mean_accepted_prefix`, `hist`.
+5.  Error handling: Length mismatch, `gamma < 1`, empty lists.
+6.  Function `expected_tokens_per_step(alpha, gamma)` for theoretical calculation.
+7.  `__main__` block with a 12-token example, outputting JSON.
+8.  Constraints: No classes (except namedtuple/dataclass if helpful, but simple dicts are fine here), no third-party imports, single file.
+
+Let's break down the logic for `accept_curve`:
+- Input validation:
+   

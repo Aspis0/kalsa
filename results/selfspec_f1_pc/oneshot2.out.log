@@ -1,0 +1,7 @@
+[08:09:02] REUSE plain/longfact chars=977
+[08:09:02] REUSE plain/creative chars=1145
+[08:09:02] START plain/code
+[08:12:34] END plain/code rc=0 s=212.6 chars=1005 perf={'n_generated': 256, 'tok_s_decode': 1.766}
+[08:12:34] START selfspec/longfact
+[08:23:22] END selfspec/longfact rc=0 s=647.9 chars=1003 perf={'accepted': 44, 'drafted': 789, 'alpha_pct': 5.6, 'tok_per_decode': 1.21, 'draft_s_tok': 0.7157, 'tok_s_eff': 0.47, 'tok_s': 0.71, 'n_generated': 256, 'tok_s_decode': 0.708}
+[08:23:22] START selfspec/creative

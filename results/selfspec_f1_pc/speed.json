@@ -1,0 +1,23 @@
+{
+  "plain": {
+    "tok_s": 0.736,
+    "mtp_draft_s_tok": 0.0,
+    "tok_s_eff": 0.736,
+    "tokens": 1,
+    "mtp_accepted": 0,
+    "mtp_drafted": 0,
+    "mtp_decodes": 1
+  },
+  "selfspec": {
+    "tok_s": 0.0,
+    "mtp_draft_s_tok": 0.0,
+    "tok_s_eff": 0.0,
+    "tokens": null,
+    "mtp_accepted": null,
+    "mtp_drafted": null,
+    "mtp_decodes": null
+  },
+  "plain_error": null,
+  "selfspec_error": null,
+  "label": "NOISY_ENV"
+}

@@ -1,0 +1,11 @@
+{
+  "accepted": 75,
+  "drafted": 644,
+  "alpha_pct": 11.6,
+  "tok_per_decode": 1.41,
+  "draft_s_tok": 0.7053,
+  "tok_s_eff": 0.55,
+  "tok_s": 0.9,
+  "n_generated": 256,
+  "tok_s_decode": 0.897
+}

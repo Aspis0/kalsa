@@ -1,0 +1,49 @@
+SELFSPEC F1 — PC gates (NOISY_ENV)
+Date: 2026-08-14
+Worktree: C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1
+Branch: kalsa/selfspec-f1
+Binary: C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build\cli\bmoe-cli.exe
+Model: C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf
+Prompts: C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\
+  p_longfact.txt, p_creative.txt, p_code.txt
+Threads: -t 4 (mandate). A live PPL bmoe-cli may share the machine — label NOISY_ENV.
+Build: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=ON ; cmake --build build -j 6
+
+Common flags (match F0 campaign, F1 mandate overrides -t 4 -c 2048 -n 256):
+  --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4
+  --progress --session -c 2048 --ubatch 512 -n 256 -t 4
+  raw prompts (no --chatml). If --session dies on a template, retry one-shot -p (noted below).
+  --drop-renorm is the engine default (true); not passed. A/B uses --drop-cold-experts 0.65.
+
+1) Correctness (d0, identity well-defined)
+  Plain:    --n-expert-used 6
+  Selfspec: --n-expert-used 6 --selfspec-draft-k 2 --selfspec-gamma 4
+  3 prompts, n=256, greedy. Compare emitted text from BMOE_DONE.
+
+2) Alpha sanity — pooled mtp_accepted/mtp_drafted over the 3 selfspec runs.
+
+3) PC speed A/B (NOISY_ENV)
+  Prompt: p_longfact, n=256, -t 4
+  Plain k=6 d065:  same as plain + --drop-cold-experts 0.65
+  Selfspec d065:   same as selfspec + --drop-cold-experts 0.65
+  (verify uses campaign drop; draft pass internally d0)
+
+Host gates before this file: ctest -R "config_validate|moe_gates|ngram" all passed.
+G15a qwen3moe: 8 steps drafted, 24 tokens in 8 decodes.
+G15b qwen3moe: alpha=1.000 (16/16).
+
+v1 raw attempt: selfspec died — "draft context does not support rewinding its KV cache".
+Cause: qwen35moe is hybrid; llama_memory_recurrent::seq_rm needs n_rs_seq > 0.
+Fix: cheaper-k draft ctx uses n_rs_seq = draft_max (MTP stays 0; nextn is attention-only).
+v1 raw longfact also emitted 1 token ("\n\n") then EOG.
+
+v2 (run_f1_v2.py): same flags plus --chatml --no-think, after the n_rs_seq fix.
+Outputs under v2_* directories.
+
+v3 (run_f1_v3.py): draft ctx created at draft_k. Full 3-prompt identity + speed A/B.
+  Pooled alpha 131/1670 = 0.0784. Drift at pos 12/29/22. Speedup 0.22× (NOISY_ENV).
+
+v4 (run_f1_v4.py): replay catch-up. longfact only.
+  Alpha 51/594 = 0.086. Same drift@pos 12 (billion vs -billion).
+
+Final binary: commit be3c7fe. Verdict: F1_CORRECT(drift@pos) alpha=0.08 PC speedup 0.22 (NOISY_ENV).

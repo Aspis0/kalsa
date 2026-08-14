@@ -1,0 +1,13 @@
+- Do not include any other code, no extra functions, no markdown fences.
+
+<think>
+The user wants a single Python file implementing a speculative decoding acceptance scorer.
+Key requirements:
+1.  Function `accept_curve(gold, draft, gamma)` returning a specific dict.
+2.  Logic: For each start position `t`, compare `draft[t:t+gamma]` with `gold[t:t+gamma]`. Count matches until first mismatch.
+3.  Return stats: `n_pos`, `n_draft_tokens`, `n_accepted`, `accept_rate`, `full_window_rate`, `mean_accepted_prefix`, `hist`.
+4.  Validation: Lengths must match, `gamma >= 1`, lists non-empty. Raise `ValueError` otherwise.
+5.  Function `expected_tokens_per_step(alpha, gamma)` returning `(1 - alpha**(gamma+1)) / (1 - alpha)` for `alpha < 1`, else `gamma+1`. Validate `alpha`.
+6.  `if __name__ == "__main__":` block with a 12-token example.
+7.  Output: JSON object to stdout.
+8.  Constraints: No classes (except namedtuple/dataclass if helpful

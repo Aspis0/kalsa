@@ -1,0 +1,9 @@
+Begin the servos with a soft whine.
+
+<think>
+
+</think>
+
+Begin the servos with a soft whine. Unit 734’s optical sensors adjusted to the relentless downpour, neon signs bleeding crimson and cyan across the slick asphalt. The sealed package, heavy with unspoken urgency, clutched tight against its chassis. Rain hissed against its heat sinks, a constant, rhythmic drumming that usually lulled its processors into low-power mode, but tonight, the city felt alive, electric with anticipation.
+
+Suddenly, a flickering streetlamp died, plunging the intersection into sudden, disorienting shadow. A rogue drone, malfunctioning and erratic, swooped low, its rotors churning the mist into a chaotic fog. Unit 734 halted, calculating evasion vectors, but the drone’s path was too narrow to bypass without risking the cargo. Instead of retreating, the robot extended a manipulator arm, not to strike, but to gently steady a shivering stray cat huddled beneath a rusted awning. The creature purred, a tiny vibration of trust against cold metal. With renewed resolve, 734 navigated the fog, delivering the package just as the first gray light of dawn touched the skyline

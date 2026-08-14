@@ -1,0 +1,69 @@
+{
+  "identical": false,
+  "first_diff": {
+    "prompt": "longfact",
+    "pos": 12,
+    "plain_ctx": "Running a 35 billion parameter Mixture-of-Experts mo",
+    "selfspec_ctx": "Running a 35-billion parameter Mixture-of-Experts mo",
+    "plain_len": 1366,
+    "selfspec_len": 1242
+  },
+  "pooled_alpha": 0.0784431137724551,
+  "pooled_accepted": 131,
+  "pooled_drafted": 1670,
+  "prompts": {
+    "longfact": {
+      "identical": false,
+      "diff": {
+        "pos": 12,
+        "plain_ctx": "Running a 35 billion parameter Mixture-of-Experts mo",
+        "selfspec_ctx": "Running a 35-billion parameter Mixture-of-Experts mo",
+        "plain_len": 1366,
+        "selfspec_len": 1242
+      },
+      "plain_n": 256,
+      "selfspec_n": 256,
+      "mtp_accepted": 43,
+      "mtp_drafted": 573,
+      "mtp_decodes": 213,
+      "tok_s": 1.08,
+      "mtp_draft_s_tok": 0.5494
+    },
+    "creative": {
+      "identical": false,
+      "diff": {
+        "pos": 29,
+        "plain_ctx": "Rain lashed against Unit 7\u2019s polished chrome plating, turning the neo",
+        "selfspec_ctx": "Rain lashed against Unit 7\u2019s chrome plating, turning the neon-drenche",
+        "plain_len": 1008,
+        "selfspec_len": 988
+      },
+      "plain_n": 216,
+      "selfspec_n": 216,
+      "mtp_accepted": 29,
+      "mtp_drafted": 520,
+      "mtp_decodes": 188,
+      "tok_s": 1.224,
+      "mtp_draft_s_tok": 0.4973
+    },
+    "code": {
+      "identical": false,
+      "diff": {
+        "pos": 22,
+        "plain_ctx": "```python\nimport json\nfrom typing import List\n\ndef accept_curv",
+        "selfspec_ctx": "```python\nimport json\nimport sys\nfrom typing import List\n\ndef ",
+        "plain_len": 942,
+        "selfspec_len": 860
+      },
+      "plain_n": 256,
+      "selfspec_n": 256,
+      "mtp_accepted": 59,
+      "mtp_drafted": 577,
+      "mtp_decodes": 197,
+      "tok_s": 0.932,
+      "mtp_draft_s_tok": 0.5641
+    }
+  },
+  "plain_error": null,
+  "selfspec_error": null
+}

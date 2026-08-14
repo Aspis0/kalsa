@@ -1,0 +1,67 @@
+{
+  "prompts": {
+    "longfact": {
+      "identical": false,
+      "diff": {
+        "pos": 0,
+        "plain_ctx": "\n\n",
+        "selfspec_ctx": "",
+        "plain_len": 2,
+        "selfspec_len": 0
+      },
+      "plain_n": 1,
+      "selfspec_n": null,
+      "mtp_accepted": null,
+      "mtp_drafted": null,
+      "mtp_decodes": null,
+      "tok_s": null,
+      "mtp_draft_s_tok": null
+    },
+    "creative": {
+      "identical": false,
+      "diff": {
+        "pos": 0,
+        "plain_ctx": "Begin the servos with a soft whine.\n\n<th",
+        "selfspec_ctx": "",
+        "plain_len": 1156,
+        "selfspec_len": 0
+      },
+      "plain_n": 256,
+      "selfspec_n": null,
+      "mtp_accepted": null,
+      "mtp_drafted": null,
+      "mtp_decodes": null,
+      "tok_s": null,
+      "mtp_draft_s_tok": null
+    },
+    "code": {
+      "identical": false,
+      "diff": {
+        "pos": 0,
+        "plain_ctx": "- Do not include any other code, no extr",
+        "selfspec_ctx": "",
+        "plain_len": 936,
+        "selfspec_len": 0
+      },
+      "plain_n": 256,
+      "selfspec_n": null,
+      "mtp_accepted": null,
+      "mtp_drafted": null,
+      "mtp_decodes": null,
+      "tok_s": null,
+      "mtp_draft_s_tok": null
+    }
+  },
+  "identical": false,
+  "first_diff": {
+    "prompt": "longfact",
+    "pos": 0,
+    "plain_ctx": "\n\n",
+    "selfspec_ctx": "",
+    "plain_len": 2,
+    "selfspec_len": 0
+  },
+  "pooled_alpha": 0.0,
+  "pooled_accepted": 0,
+  "pooled_drafted": 0
+}

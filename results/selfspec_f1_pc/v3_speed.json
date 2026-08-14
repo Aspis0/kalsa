@@ -1,0 +1,22 @@
+{
+  "plain": {
+    "tok_s": 2.905,
+    "mtp_draft_s_tok": 0.0,
+    "tok_s_eff": 2.905,
+    "tokens": 256,
+    "mtp_accepted": 0,
+    "mtp_drafted": 0,
+    "mtp_decodes": 256
+  },
+  "selfspec": {
+    "tok_s": 0.995,
+    "mtp_draft_s_tok": 0.5886,
+    "tok_s_eff": 0.6275001466269187,
+    "tokens": 256,
+    "mtp_accepted": 43,
+    "mtp_drafted": 573,
+    "mtp_decodes": 213
+  },
+  "label": "NOISY_ENV",
+  "speedup": 0.21600693515556582
+}

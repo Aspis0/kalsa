@@ -1,0 +1,25 @@
+{
+  "plain": {
+    "tok_s": 3.757,
+    "mtp_draft_s_tok": 0.0,
+    "tok_s_eff": 3.757,
+    "tokens": 256,
+    "mtp_accepted": 0,
+    "mtp_drafted": 0,
+    "mtp_decodes": 256
+  },
+  "selfspec": {
+    "tok_s": 0.91,
+    "mtp_draft_s_tok": 0.5875,
+    "tok_s_eff": 0.5929787407347071,
+    "tokens": 256,
+    "mtp_accepted": 43,
+    "mtp_drafted": 573,
+    "mtp_decodes": 213
+  },
+  "plain_error": null,
+  "selfspec_error": null,
+  "label": "NOISY_ENV",
+  "chatml": true,
+  "speedup": 0.15783304251655766
+}
