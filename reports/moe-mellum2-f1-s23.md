@@ -519,3 +519,42 @@ Same house method: KEXP cuts routed experts only to mid **2.75** bpw; dense stay
 **Product recommendation:** Mellum2 on S23-class is a stream-existence / demo SKU (measured 2.9–4.6 t/s at usable k, ceiling 4.4–5.7 with KEXP). Ship flagship / Mac first. Do not sell this as a 10 t/s phone model.
 
 Artifacts: `results/mellum2_f1_s23/f1e/` (CSV, master log, 8× logs + mem samples + preflight/cpus, `bin.sha256`, `STATUS.txt=DONE`). Script: `results/mellum2_f1_s23/run_f1e_s23.sh`. F1 / F1b / F1c / F1d files left in place.
+
+## PPL quality gate (PC, 2026-08-14)
+
+PC only. Same multi5 corpus + `scripts/run_multi5_ppl_host.py --ppl-decode` as Marco phase-1 / LFM KEXP. Stock kernel (`--no-moe-fused-gemv --no-moe-fused-ffn`), same streaming recipe as the campaign PPL runs (`--moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap -c 4096 --ubatch 512 -t 16`).
+
+This is the quality gate that F1c/F1e left open. The 5.151 tok/s S23 number (kernel-s2-gate, k6d1.0 fused-OFF t=2) is **config only**; this run decides whether that cell is adoptable.
+
+### Identity
+
+- GGUF `models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf` sha256 `b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7` (8071293600 B) — MATCH F0/F1 pin `b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7`.
+- Binary `build-pc-mellum-ppl/cli/bmoe-cli.exe` sha256 `7722cb23729d367a274fb682cadd28ef5d456f50fc9b5c064e4923ed04d75d52` (Ninja Release, GGML_NATIVE=ON / AVX2; mellum recipe + fused flags forced OFF). Campaign `build-pc/cli/bmoe-cli.exe` (2026-08-09) was **not** overwritten — it predates the mellum recipe row.
+- Corpus: `corpus/multi5/{en,es,fr,it,zh}.txt`. **No code-heavy PPL slice** exists under `corpus/` or `quality/`; multi5 only (not invented).
+- Artifacts: `results/mellum2_ppl_gate/`.
+
+### Results vs k8d0 (native k, no drop)
+
+Gates = Marco phase-1 protocol: per-lang ΔBPB ≤ +0.10, macro ΔBPB ≤ +0.04 → GATE_PASS. Soft band +0.06 / +0.15 → GATE_MARGINAL. Precedent: Marco A2 k6d065 **+0.0182** in-gate (worst lang zh +0.033).
+
+| arm | k | drop | macro BPB | Δmacro | worst lang | Δworst | verdict |
+|---|---:|---:|---:|---:|---|---:|---|
+| **k8d0** | 8 | 0 | **1.0208** | 0.0000 | — | 0.0000 | ANCHOR |
+| **k6d10** | 6 | 1.0 | 1.0586 | +0.0378 | fr | +0.0877 | **GATE_PASS** |
+| k6d065 | 6 | 0.65 | — | — | — | — | INCOMPLETE |
+| k4d0 | 4 | 0.0 | — | — | — | — | INCOMPLETE |
+
+Per-language BPB (and Δ vs k8d0):
+
+| arm | en | es | fr | it | zh |
+|---|---:|---:|---:|---:|---:|
+| k8d0 | 0.7783 | 0.9485 | 0.9540 | 1.0666 | 1.3566 |
+| k6d10 | 0.7484 (-0.0299) | 0.9635 (+0.0150) | 1.0418 (+0.0877) | 1.1300 (+0.0634) | 1.4095 (+0.0530) |
+| k6d065 | — | — | — | — | — |
+| k4d0 | — | — | — | — | — |
+
+### Product call on 5.151
+
+**YES — k6d1.0 is adoptable as the product config** on quality. The 5.151 t/s S23 cell (stock kernel, t=2) clears the same Marco-phase-1 tolerances that licensed A2.
+
+Written 2026-08-14T12:49:41-0400.

@@ -1,0 +1,5 @@
+GATE_PASS
+GATE_PASS k6d1.0 dMacro=+0.0378 worst=fr dWorst=+0.0877
+k8d0 ANCHOR macro=1.0208 (en=0.7783 es=0.9485 fr=0.9540 it=1.0666 zh=1.3566)
+k6d065 INCOMPLETE
+k4d0 INCOMPLETE

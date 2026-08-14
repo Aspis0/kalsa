@@ -1,0 +1,2 @@
+smoke_en_slice rc=0 n_scored=2755 ppl=10.7788 sum_logprob=-6550.23945754 seconds=618.711 k=8 drop=0 t=16 stock_kernel
+estimate_full_lang_s~2600 estimate_arm_h~3.7

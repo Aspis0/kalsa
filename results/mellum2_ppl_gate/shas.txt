@@ -1,0 +1,6 @@
+model  b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7  8071293600  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+expect b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7
+match  True
+binary 7722cb23729d367a274fb682cadd28ef5d456f50fc9b5c064e4923ed04d75d52  349696  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe
+extra  --no-moe-fused-gemv --no-moe-fused-ffn
+code_slice  NONE (corpus/ + quality/ have no code-heavy PPL file)

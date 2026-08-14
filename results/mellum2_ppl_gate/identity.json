@@ -1,0 +1,32 @@
+{
+  "model": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf",
+  "model_sha256": "b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7",
+  "model_bytes": 8071293600,
+  "binary": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\build-pc-mellum-ppl\\cli\\bmoe-cli.exe",
+  "binary_sha256": "7722cb23729d367a274fb682cadd28ef5d456f50fc9b5c064e4923ed04d75d52",
+  "binary_bytes": 349696,
+  "expected_model_sha256": "b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7",
+  "extra_flags": [
+    "--no-moe-fused-gemv",
+    "--no-moe-fused-ffn"
+  ],
+  "threads": null,
+  "corpus": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5",
+  "code_slice": null,
+  "note": "No code-heavy PPL slice exists under corpus/ or quality/; multi5 only (do not invent a corpus).",
+  "gates": {
+    "macro_pass": 0.04,
+    "lang_pass": 0.1,
+    "macro_marginal": 0.06,
+    "lang_marginal": 0.15,
+    "precedent": "Marco A2 dMacro=+0.0182 GATE_PASS (in-gate); per-lang +0.10 / macro +0.04"
+  },
+  "written": "2026-08-14T02:11:39-0400",
+  "dll_sha256": {
+    "ggml-base.dll": "b72667acab062c253df6c2449cb642fbe6fb9a50ec7c4201b7680b1be24b609d",
+    "ggml-cpu.dll": "eb1d25cdab6d41a9ca30e2cdcaa1592c2dbc1d08c76685db31bad14ea4c11529",
+    "ggml.dll": "e4513bb2e6fee9c63f8262c47e716d650788bb23875c68942c13c0a41ae555ef",
+    "llama-common.dll": "d1cad7e687fc23d2d8209b18ede879dd3f1c9a34484b29ced01056caebe30959",
+    "llama.dll": "020d6045b226fe717276d2a6f9bc1c82bec41423d7254ef497eba715c66edc85"
+  }
+}
