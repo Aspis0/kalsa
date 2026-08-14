@@ -218,6 +218,24 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     thinking: { short: 256, extended: 512 },
     descriptionKey: "models.lfm25.description",
   },
+  {
+    id: "lfm2.5-8b-a1b",
+    name: "LFM2.5 8B-A1B",
+    vendor: "Liquid AI",
+    quant: "Q4_K_M",
+    hfRepo: "LiquidAI/LFM2.5-8B-A1B-GGUF",
+    revision: "b421ad1d549afeda6a0fb2ad3a697cb5a7879adc",
+    file: "LFM2.5-8B-A1B-Q4_K_M.gguf",
+    sizeBytes: 5_155_564_768,
+    // text-only: no mmproj in the HF repo
+    contextLength: 131072,
+    engineCtx: 8192, // consistent with lfm2.5-2.6b and other large models; 8B MoE needs all weights resident
+    kvCache: { k: "q8_0", v: "q4_0" },
+    hybrid: true,
+    // Budget caps the think block but cannot disable it (template has no off switch).
+    thinking: { short: 256, extended: 512 },
+    descriptionKey: "models.lfm258b.description",
+  },
 ];
 
 /**

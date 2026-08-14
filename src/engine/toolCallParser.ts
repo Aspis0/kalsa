@@ -9,8 +9,11 @@
  * the chat bubble (UX bug) AND the tool never actually runs (the turn ends
  * with no real answer).
  *
- * LFM2.5 emits a different dialect:
- *   <|tool_call_start|>[{"name":"...","arguments":{...}}]<|tool_call_end|>
+ * LFM2.5 chat template emits **Python-style calls** (not JSON):
+ *   <|tool_call_start|>[func_name(arg1=val1, arg2=val2)]<|tool_call_end|>
+ * e.g. <|tool_call_start|>[web_search(query="capitale del Madagascar")]<|tool_call_end|>
+ * Argument values: quoted strings (single/double, with escapes), ints/floats,
+ * true/false, None/null, and JSON-serialised values for complex types ({...}, [...]).
  *
  * This module is intentionally dependency-free (no llama.rn import) so it
  * can be unit-tested with a plain tsc + node harness
@@ -67,10 +70,23 @@ function normaliseCallObject(value: unknown): FallbackToolCall | null {
 }
 
 /**
- * LFM2.5 dialect: `<|tool_call_start|>[{...}, ...]<|tool_call_end|>`.
+ * LFM2.5 dialect — two forms in the wild:
+ *
+ * (A) Real chat-template output (Python-style calls, what LiquidAI models emit):
+ *     <|tool_call_start|>[web_search(query="Roma, Italia"), get_time()]<|tool_call_end|>
+ *
+ * (B) JSON-array form (some finetunes may emit this — kept as fallback):
+ *     <|tool_call_start|>[{"name":"web_search","arguments":{"query":"x"}}]<|tool_call_end|>
+ *
  * Returns null if the start marker is absent (caller may try other dialects).
  * Returns [] when the marker is present but payload is missing/invalid.
- * Tolerates a missing end marker when the trailing payload is valid JSON.
+ * Tolerates a missing end marker when the trailing payload is valid.
+ *
+ * Python-call form is tried first: it is what the upstream template produces.
+ * The JSON path is a fallback and must not mask a malformed Python payload —
+ * once we recognise the content as Python-call-shaped, parse failures yield []
+ * rather than falling through to JSON.parse (which would also throw and give []
+ * but for the wrong reason, hiding the bug).
  */
 function parseLfmToolCalls(rawText: string): FallbackToolCall[] | null {
   const openIdx = rawText.indexOf(LFM_TOOL_CALL_START);
@@ -79,6 +95,12 @@ function parseLfmToolCalls(rawText: string): FallbackToolCall[] | null {
   const closeIdx = afterOpen.indexOf(LFM_TOOL_CALL_END);
   const inner = (closeIdx === -1 ? afterOpen : afterOpen.slice(0, closeIdx)).trim();
   if (!inner) return [];
+
+  // (A) Python-call form — what the upstream chat template actually emits.
+  const py = tryParsePythonCallList(inner);
+  if (py !== null) return py;
+
+  // (B) JSON-array fallback — some finetunes emit the canonical JSON form.
   try {
     const parsed: unknown = JSON.parse(inner);
     if (!Array.isArray(parsed)) return [];
@@ -91,6 +113,214 @@ function parseLfmToolCalls(rawText: string): FallbackToolCall[] | null {
   } catch {
     return [];
   }
+}
+
+// ── Python-call parser (LFM2.5 real dialect) ─────────────────────────────
+
+/**
+ * Split `s` by top-level occurrences of `sep`, respecting quoted strings
+ * (both `"` and `'`, with `\`-escapes) and nested `()`, `[]`, `{}`.
+ * A comma inside a string, a paren inside a string, or a comma inside
+ * nested brackets/braces never splits.
+ */
+function splitTopLevel(s: string, sep: string): string[] {
+  const out: string[] = [];
+  let buf = "";
+  let dParen = 0;
+  let dBracket = 0;
+  let dBrace = 0;
+  let quote: string | null = null;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (quote !== null) {
+      buf += c;
+      if (c === "\\" && i + 1 < s.length) {
+        buf += s[i + 1];
+        i++;
+        continue;
+      }
+      if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      quote = c;
+      buf += c;
+      continue;
+    }
+    if (c === "(") dParen++;
+    else if (c === ")") dParen--;
+    else if (c === "[") dBracket++;
+    else if (c === "]") dBracket--;
+    else if (c === "{") dBrace++;
+    else if (c === "}") dBrace--;
+    else if (c === sep && dParen === 0 && dBracket === 0 && dBrace === 0) {
+      out.push(buf);
+      buf = "";
+      continue;
+    }
+    buf += c;
+  }
+  out.push(buf);
+  return out;
+}
+
+/**
+ * Index of the first top-level `=` in `s` (not inside strings / brackets).
+ * Returns -1 when no top-level `=` exists.
+ */
+function findTopLevelEq(s: string): number {
+  let dParen = 0;
+  let dBracket = 0;
+  let dBrace = 0;
+  let quote: string | null = null;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (quote !== null) {
+      if (c === "\\" && i + 1 < s.length) { i++; continue; }
+      if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'") { quote = c; continue; }
+    if (c === "(") dParen++;
+    else if (c === ")") dParen--;
+    else if (c === "[") dBracket++;
+    else if (c === "]") dBracket--;
+    else if (c === "{") dBrace++;
+    else if (c === "}") dBrace--;
+    else if (c === "=" && dParen === 0 && dBracket === 0 && dBrace === 0) return i;
+  }
+  return -1;
+}
+
+/**
+ * Parse one argument value from the Python-call form.
+ *
+ * Per the upstream `format_arg_value` macro:
+ *  - quoted strings (single or double) with `\`-escapes → string
+ *  - integers and floats → number
+ *  - true / false → boolean
+ *  - None / null → null
+ *  - complex types (object / array) → JSON-serialised literal → JSON.parse
+ *
+ * Never throws: truly unparseable values fall through to their raw string.
+ */
+function parseArgValue(s: string): unknown {
+  if (s.length === 0) return "";
+  // Quoted string (single or double) — must start AND end with the same quote.
+  const first = s[0];
+  const last = s[s.length - 1];
+  if (s.length >= 2 && (first === '"' || first === "'") && last === first) {
+    const inner = s.slice(1, -1);
+    // Unescape: \n \t \r \\ \" \' — any other \X keeps X.
+    return inner.replace(/\\(.)/g, (_match, ch: string) => {
+      if (ch === "n") return "\n";
+      if (ch === "t") return "\t";
+      if (ch === "r") return "\r";
+      return ch;
+    });
+  }
+  if (s === "true") return true;
+  if (s === "false") return false;
+  if (s === "None" || s === "null") return null;
+  // Number: integer, float, scientific notation.
+  if (/^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(s)) {
+    const n = Number(s);
+    if (Number.isFinite(n)) return n;
+  }
+  // Complex type — try JSON parse (covers {...}, [...]).
+  try {
+    return JSON.parse(s);
+  } catch {
+    // Fall back to raw string so the call is at least surfaced.
+    return s;
+  }
+}
+
+const PYTHON_CALL_RE = /^([A-Za-z_]\w*)\(/;
+
+/**
+ * Parse one `name(arg1=val1, arg2=val2)` Python-call chunk.
+ * Returns null when the chunk is not a valid Python-call shape.
+ */
+function parseOnePythonCall(s: string): FallbackToolCall | null {
+  const m = PYTHON_CALL_RE.exec(s);
+  if (!m) return null;
+  const name = m[1];
+  const rest = s.slice(m[0].length);
+  // rest must end with the balanced closing `)`. Walk from the start of
+  // `rest` to find the matching close — the outermost open is the `(`
+  // consumed by PYTHON_CALL_RE.
+  let depth = 1;
+  let quote: string | null = null;
+  let closeIdx = -1;
+  for (let i = 0; i < rest.length; i++) {
+    const c = rest[i];
+    if (quote !== null) {
+      if (c === "\\" && i + 1 < rest.length) { i++; continue; }
+      if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'") { quote = c; continue; }
+    if (c === "(") depth++;
+    else if (c === ")") {
+      depth--;
+      if (depth === 0) { closeIdx = i; break; }
+    }
+  }
+  if (closeIdx === -1) return null;
+  // Anything after the closing `)` (trimmed) means junk — reject.
+  if (rest.slice(closeIdx + 1).trim() !== "") return null;
+  const inner = rest.slice(0, closeIdx).trim();
+  if (!inner) return { name, arguments: {} };
+  // Split args by top-level comma, then parse each `key=value`.
+  const argChunks = splitTopLevel(inner, ",");
+  const args: Record<string, unknown> = {};
+  for (const chunk of argChunks) {
+    const trimmed = chunk.trim();
+    if (!trimmed) continue; // trailing/leading comma
+    const eqIdx = findTopLevelEq(trimmed);
+    if (eqIdx === -1) return null;
+    const key = trimmed.slice(0, eqIdx).trim();
+    if (!/^[A-Za-z_]\w*$/.test(key)) return null;
+    const valStr = trimmed.slice(eqIdx + 1).trim();
+    args[key] = parseArgValue(valStr);
+  }
+  return { name, arguments: args };
+}
+
+/**
+ * Try to parse `inner` as a Python-call list: `[call1, call2, ...]`.
+ *
+ * Returns:
+ *  - null   → content doesn't look like a Python-call list (fall through to JSON)
+ *  - []     → recognised as Python-call form but empty/malformed → stop, don't JSON-fallback
+ *  - calls  → successfully parsed
+ *
+ * Heuristic for "looks like Python": the trimmed body (inside `[...]`) starts
+ * with an identifier character. JSON arrays of objects start with `{`;
+ * `[123]` (not identifier-start) is not Python-call-shaped either.
+ */
+function tryParsePythonCallList(inner: string): FallbackToolCall[] | null {
+  const trimmed = inner.trim();
+  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return null;
+  const body = trimmed.slice(1, -1).trim();
+  if (!body) return [];
+  // First non-whitespace character decides the dialect.
+  const first = body[0];
+  if (first === "{" || first === "[" || first === '"') return null; // JSON territory
+  if (!/[A-Za-z_]/.test(first)) return null; // not Python-call-shaped
+  // Python-call territory: parse each chunk. A malformed chunk yields []
+  // (do NOT fall through to JSON — that would mask the Python failure).
+  const chunks = splitTopLevel(body, ",");
+  const calls: FallbackToolCall[] = [];
+  for (const chunk of chunks) {
+    const t = chunk.trim();
+    if (!t) continue; // empty (trailing comma) — skip
+    const call = parseOnePythonCall(t);
+    if (!call) return []; // malformed Python call — stop, don't JSON-fallback
+    calls.push(call);
+  }
+  return calls;
 }
 
 /**

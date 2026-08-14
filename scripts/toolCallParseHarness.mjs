@@ -73,7 +73,7 @@ async function main() {
   const modPath = resolveBuilt();
   console.log("Loading", modPath);
   const mod = await import(`${pathToFileURL(modPath).href}?t=${Date.now()}`);
-  const { parseFallbackToolCall, createToolCallDeltaStripper, stripToolCallTagsFinal, TOOL_CALL_OPEN, TOOL_CALL_CLOSE } = mod;
+  const { parseFallbackToolCall, parseFallbackToolCalls, createToolCallDeltaStripper, stripToolCallTagsFinal, TOOL_CALL_OPEN, TOOL_CALL_CLOSE, LFM_TOOL_CALL_START, LFM_TOOL_CALL_END } = mod;
 
   const results = [];
   const check = (label, cond, detail) => {
@@ -225,6 +225,108 @@ async function main() {
     JSON.stringify(streamed6),
   );
 
+  // ── Fixture 6: LFM2.5 Python-call dialect (real upstream chat-template form) ──
+  // The old parser assumed JSON; the real template emits `func_name(arg=val)`.
+  // These cases cover every robustness bullet from the spec.
+
+  // 6a: comma inside a string value
+  {
+    const RAW = `${LFM_TOOL_CALL_START}[web_search(query="Roma, Italia")]${LFM_TOOL_CALL_END}`;
+    const calls = parseFallbackToolCalls(RAW);
+    check(
+      "F6a LFM2.5: comma inside string value",
+      calls.length === 1 && calls[0].name === "web_search" && calls[0].arguments.query === "Roma, Italia",
+      JSON.stringify(calls),
+    );
+  }
+  // 6b: closing paren inside a string
+  {
+    const RAW = `${LFM_TOOL_CALL_START}[web_search(query="smile :)")]${LFM_TOOL_CALL_END}`;
+    const calls = parseFallbackToolCalls(RAW);
+    check(
+      "F6b LFM2.5: closing paren inside string",
+      calls.length === 1 && calls[0].name === "web_search" && calls[0].arguments.query === "smile :)",
+      JSON.stringify(calls),
+    );
+  }
+  // 6c: escaped quote inside a string
+  {
+    const RAW = `${LFM_TOOL_CALL_START}[web_search(query="dice \\"ciao\\"")]${LFM_TOOL_CALL_END}`;
+    const calls = parseFallbackToolCalls(RAW);
+    check(
+      "F6c LFM2.5: escaped quote inside string",
+      calls.length === 1 && calls[0].name === "web_search" && calls[0].arguments.query === 'dice "ciao"',
+      JSON.stringify(calls),
+    );
+  }
+  // 6d: two calls in one payload
+  {
+    const RAW = `${LFM_TOOL_CALL_START}[web_search(query="a"), web_fetch(url="b")]${LFM_TOOL_CALL_END}`;
+    const calls = parseFallbackToolCalls(RAW);
+    check(
+      "F6d LFM2.5: two calls in one payload",
+      calls.length === 2 &&
+        calls[0].name === "web_search" && calls[0].arguments.query === "a" &&
+        calls[1].name === "web_fetch" && calls[1].arguments.url === "b",
+      JSON.stringify(calls),
+    );
+  }
+  // 6e: JSON object value (complex type — format_arg_value JSON-serialises it)
+  {
+    const RAW = `${LFM_TOOL_CALL_START}[foo(opts={"k": [1,2]})]${LFM_TOOL_CALL_END}`;
+    const calls = parseFallbackToolCalls(RAW);
+    const opts = calls[0] && calls[0].arguments && calls[0].arguments.opts;
+    check(
+      "F6e LFM2.5: JSON object value",
+      calls.length === 1 && calls[0].name === "foo" &&
+        opts && typeof opts === "object" && !Array.isArray(opts) &&
+        Array.isArray(opts.k) && opts.k.length === 2 && opts.k[0] === 1 && opts.k[1] === 2,
+      JSON.stringify(calls),
+    );
+  }
+  // 6f: no arguments
+  {
+    const RAW = `${LFM_TOOL_CALL_START}[get_time()]${LFM_TOOL_CALL_END}`;
+    const calls = parseFallbackToolCalls(RAW);
+    check(
+      "F6f LFM2.5: no arguments",
+      calls.length === 1 && calls[0].name === "get_time" &&
+        calls[0].arguments && Object.keys(calls[0].arguments).length === 0,
+      JSON.stringify(calls),
+    );
+  }
+  // 6g: unknown/garbage payload → [] never a throw, never a partial bogus call
+  {
+    let threw = false;
+    let calls;
+    try { calls = parseFallbackToolCalls(`${LFM_TOOL_CALL_START}[???]${LFM_TOOL_CALL_END}`); }
+    catch { threw = true; }
+    check(
+      "F6g LFM2.5: garbage payload → [] (never throws, never partial)",
+      !threw && Array.isArray(calls) && calls.length === 0,
+      JSON.stringify(calls),
+    );
+  }
+  // 6h: JSON-array form still parses (no regression)
+  {
+    const RAW = `${LFM_TOOL_CALL_START}[{"name":"web_search","arguments":{"query":"cats"}}]${LFM_TOOL_CALL_END}`;
+    const calls = parseFallbackToolCalls(RAW);
+    check(
+      "F6h LFM2.5: JSON-array form still parses (no regression)",
+      calls.length === 1 && calls[0].name === "web_search" && calls[0].arguments.query === "cats",
+      JSON.stringify(calls),
+    );
+  }
+  // 6i: Qwen dialect unaffected
+  {
+    const QWEN = '<tool_call>\n<function=web_search>\n<parameter=query>Qwen untouched\n</parameter>\n</function>\n</tool_call>'
+    const parsed = parseFallbackToolCall(QWEN);
+    check(
+      "F6i Qwen dialect unaffected by LFM2.5 Python-call parser",
+      parsed && parsed.name === "web_search" && parsed.arguments.query === "Qwen untouched",
+      JSON.stringify(parsed),
+    );
+  }
   // ── Report ───────────────────────────────────────────────────────────────
   console.log("\n=== Results ===");
   let allPass = true;

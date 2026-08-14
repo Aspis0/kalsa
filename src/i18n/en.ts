@@ -219,6 +219,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       description:
         "Liquid AI hybrid model. Always-on reasoning, text only (no images). ~1.7 GB download.",
     },
+    lfm258b: {
+      description:
+        "Liquid AI 8B MoE model (~1B active). Always-on reasoning, text only. ~4.8 GB download.",
+    },
     whisperTiny: {
       description:
         "On-device speech recognition (multilingual tiny). ~75 MB. Used for voice dictation only.",

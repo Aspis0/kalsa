@@ -213,6 +213,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       description:
         "Modello ibrido Liquid AI. Ragionamento sempre attivo, solo testo (niente immagini). Download ~1,7 GB.",
     },
+    lfm258b: {
+      description:
+        "Modello Liquid AI 8B MoE (~1B attivo). Ragionamento sempre attivo, solo testo. Download ~4,8 GB.",
+    },
     whisperTiny: {
       description:
         "Riconoscimento vocale sul dispositivo (multilingua, tiny). ~75 MB. Usato solo per la dettatura vocale.",

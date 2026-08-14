@@ -21,7 +21,7 @@ on:
         required: true
         default: "qwen3.5-2b"
         type: choice
-        options: [qwen3.5-2b, qwen3.5-4b, lfm2.5-2.6b]
+        options: [qwen3.5-2b, qwen3.5-4b, lfm2.5-2.6b, lfm2.5-8b-a1b]
       runs_per_arm:
         description: "Fase 0 ONLY — in-job repeat count per arm (PIANO: '3 run/formato'). Fase 4 always uses the fixed 6-seed matrix below, independent of this input."
         required: true
@@ -456,6 +456,16 @@ jobs:
             echo "MODEL_DIR=lfm2.5-2.6b" >> $GITHUB_ENV
             # ModelRegistry sizeBytes for lfm2.5-2.6b (exact-byte gate).
             EXPECTED_BYTES=1674454848
+            curl -sL -o model.gguf "$URL"
+            ls -la model.gguf
+          elif [ "${{ inputs.model || 'qwen3.5-2b' }}" = "lfm2.5-8b-a1b" ]; then
+            # text-only: no mmproj in the HF repo — leave MMPROJ_FILE unset
+            # so the driver's sideload block stays inactive.
+            URL="https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/resolve/b421ad1d549afeda6a0fb2ad3a697cb5a7879adc/LFM2.5-8B-A1B-Q4_K_M.gguf?download=true"
+            echo "MODEL_FILE=LFM2.5-8B-A1B-Q4_K_M.gguf" >> $GITHUB_ENV
+            echo "MODEL_DIR=lfm2.5-8b-a1b" >> $GITHUB_ENV
+            # ModelRegistry sizeBytes for lfm2.5-8b-a1b (exact-byte gate).
+            EXPECTED_BYTES=5155564768
             curl -sL -o model.gguf "$URL"
             ls -la model.gguf
           else
