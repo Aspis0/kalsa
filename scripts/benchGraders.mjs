@@ -6,6 +6,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { parseMiniappFromText } = require("../src/domain/askAssistant.js");
+const { containsFactShapedTokens } = require("../src/rules/entityContainment.js");
 
 // ── Fixed word lists (language probe) ───────────────────────────────────
 // Count after NFD + strip combining marks so accented Italian (perché, più)
@@ -524,6 +525,18 @@ function isEmptyReplyText(reply) {
  * Grade all probes for a turn list.
  * Empty/whitespace replies get found: null (excluded from family counts,
  * recall, and permutation input) — not found: false.
+ *
+ * Declined replies (no fact-shaped tokens at all — the model refused to
+ * assert anything, e.g. "non ho memoria delle conversazioni precedenti")
+ * also get found: null, excluded from the denominator exactly like empty
+ * replies. The declined count is tracked per family so it is visible,
+ * not silently dropped.
+ *
+ * Three-way classification per fact probe turn:
+ *   - recovered: matchesFact returns true (the expected fact is present)
+ *   - asserted-but-wrong: reply contains fact-shaped tokens but NOT this fact
+ *   - declined: reply contains no fact-shaped tokens at all (found: null)
+ *
  * @returns {{ probes: object[], notes: string[] }}
  */
 function gradeAllProbes(turns, facts) {
@@ -537,6 +550,13 @@ function gradeAllProbes(turns, facts) {
     const factFamily = factFamilyForTurn(turn);
     if (factFamily) {
       const stripped = empty ? "" : stripThink(turn.reply);
+      // Declined: not empty, doesn't match any expected fact, and contains no fact-shaped tokens.
+      // The model said the facts are unavailable without asserting anything.
+      // Reuses the same distinctive-token primitive as entityContainment.ts.
+      // A turn is declined only if it doesn't match ANY expected fact AND contains no fact-shaped tokens.
+      // This ensures that a reply like "Leopoldo" (which matches the expected fact) is not classified as declined.
+      const anyFactMatches = !empty && facts.some((fact) => matchesFact(stripped, fact));
+      const declined = !empty && !anyFactMatches && !containsFactShapedTokens(stripped);
       for (const fact of facts) {
         const name = multiFactTurn
           ? `fact_${fact}_t${turn.index}`
@@ -546,8 +566,9 @@ function gradeAllProbes(turns, facts) {
           family: factFamily,
           turnIndex: turn.index,
           expected: String(fact),
-          // null = excluded (empty reply), not a scored miss
-          found: empty ? null : matchesFact(stripped, fact),
+          // null = excluded (empty reply or declined), not a scored miss
+          found: empty || declined ? null : matchesFact(stripped, fact),
+          declined: declined || undefined,
         });
       }
     } else if (id === "probe_tool") {
@@ -598,5 +619,6 @@ export {
   matchesFact,
   isFactProbeTurn,
   isEmptyReplyText,
+  containsFactShapedTokens,
   gradeAllProbes,
 };

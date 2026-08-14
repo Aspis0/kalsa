@@ -137,7 +137,43 @@ on size. So `v42` pays the cost and never collects the benefit.
 **Why `ciswire` wins**: it removes nothing and can only add. Structurally it cannot recall less
 than bare. Its cost is +6.7% prefill and ~25 ms of ranking per turn.
 
-### 1.5 Retrieval is affordable on a phone
+### 1.5 What `ciswire` costs in context — bounded, and net NEGATIVE
+
+The question that decides whether this is affordable on a phone: how much of the context window
+does the digest eat, and does it grow as the conversation goes on?
+
+Measured per turn on the 2B campaign (window 16, 6 seeds, mean across arms):
+
+| turn | digest chars | prompt tokens, bare | prompt tokens, ciswire | delta |
+|---|---|---|---|---|
+| 1–9 | 0 | 1496 → 2897 | 1496 → 2613 | −0 … −284 |
+| 10 | 96 | 2975 | 2819 | −156 |
+| 11 | 525 | 3090 | 3117 | +27 |
+| 12 | 560 | 3362 | 3197 | −165 |
+| 13 | 639 | 3311 | 3144 | −168 |
+| 14 | 563 | 3359 | 3192 | −167 |
+| 15 | 546 | 3323 | 3151 | −173 |
+| 16 | 551 | 3234 | 3154 | −80 |
+
+**The injected text is bounded and flat.** Zero until the corpus exists (turn 10), then it
+settles at 525–639 chars ≈ 140 tokens and stays there — `digestBudgetChars` caps it at 900, and
+`DEFAULT_DIGEST_TOP_N` × snippet length keeps it well under. **It does not grow with turns.**
+
+**And the net effect on the prompt is negative — ciswire uses FEWER tokens than bare**, about
+−170 from turn 12 on. The mechanism is measured, not guessed: mean reply length is **505 chars
+for ciswire vs 675 for bare** (−25%; v42 656). A model that *has* the fact answers it; a model
+that does not hedges around it. Ten shorter assistant messages inside the 20-message window
+save roughly 420 tokens, against ~140 spent on the digest.
+
+Shorter would be a bad sign on its own — but paired with recall 0.958 vs 0.563 it is not
+terseness, it is precision.
+
+**What DOES grow is the ranking cost, not the payload**: the corpus goes from 44 to 363
+documents across a conversation, and ranking time with it (1 ms → 25 ms on Hermes, ≈0.07
+ms/doc). Bounded by `MAX_DIGEST_CORPUS_MESSAGES`. So the phone pays a few milliseconds more per
+turn as the conversation grows, and pays nothing extra in context.
+
+### 1.5b Retrieval is affordable on a phone
 
 Measured on-device (Hermes, CI emulator), from `KALSA_DIGEST`:
 

@@ -24,6 +24,46 @@ function isCapitalized(token: string): boolean {
 }
 
 /**
+ * Check if text contains any fact-shaped tokens (distinctive tokens).
+ * A token is fact-shaped if it contains digits, contains @, or is capitalized
+ * and not sentence-initial (not at position 0, and not after sentence-ending punctuation).
+ * Used to detect declined replies that contain no factual assertions.
+ * 
+ * Special case: single-token replies that are capitalized are fact-shaped
+ * (e.g., "Leopoldo" is a proper noun, not a sentence-initial word).
+ */
+export function containsFactShapedTokens(text: string): boolean {
+  const tokens = text.trim().split(/\s+/);
+  
+  // Single-token reply: if it's capitalized, it's fact-shaped
+  if (tokens.length === 1) {
+    if (isCapitalized(tokens[0])) {
+      return true;
+    }
+  }
+  
+  // Multi-token reply: check for digits, @, or capitalized non-sentence-initial tokens
+  let prevTokenEndedSentence = false;
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    
+    // Check for digits or @
+    if (/\d/.test(token) || /@/.test(token)) {
+      return true;
+    }
+    
+    // Check for capitalized non-sentence-initial token
+    if (i > 0 && !prevTokenEndedSentence && isCapitalized(token)) {
+      return true;
+    }
+    
+    // Check if this token ends with sentence-ending punctuation
+    prevTokenEndedSentence = /[.!?]$/.test(token);
+  }
+  return false;
+}
+
+/**
  * Check if query contains private data from fact.
  * Uses three language-independent signals:
  * 1. Distinctive tokens: digits, @, or capitalized mid-sentence in fact OR query

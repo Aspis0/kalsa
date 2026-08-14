@@ -273,9 +273,12 @@ async function main() {
         ],
       });
       const result = gradeRaw(raw, tmp);
+      // After the decline fix: "I forgot." has no fact-shaped tokens,
+      // so it's classified as declined (found: null), not a miss (found: false).
+      // The think-stripped reply doesn't assert any facts.
       check(
-        "grade: fact only in think → not found",
-        findProbe(result, "fact_Leopoldo")?.found === false,
+        "grade: fact only in think → declined (no fact-shaped tokens after strip)",
+        findProbe(result, "fact_Leopoldo")?.found === null,
       );
     }
 
@@ -1490,6 +1493,205 @@ async function main() {
       );
     }
 
+    // ── 10b4. fact recall three-way: recovered / asserted-but-wrong / declined ──
+    // The defect: "I don't know" scored the same as wrong facts. The fix
+    // classifies each fact probe turn as:
+    //   - recovered: reply contains the expected facts (matchesFact true)
+    //   - asserted-but-wrong: reply contains fact-shaped tokens but NOT this fact
+    //   - declined: reply contains NO fact-shaped tokens at all (excluded)
+    {
+      // Case 1: reply repeats the facts → recovered
+      const recovered = gradeRaw(
+        baseRaw({
+          facts: ["Leopoldo", "4500", "Torino"],
+          turns: [
+            turn(11, "probe_facts_early", "Il gatto si chiama Leopoldo, il budget è 4500 euro e la città è Torino"),
+          ],
+        }),
+        tmp,
+      );
+      const earlyRecovered = recovered.byFamily?.fact_recall_early;
+      check(
+        "fact recall: reply repeating facts → all recovered (found=3, declined=0)",
+        earlyRecovered?.found === 3 &&
+          earlyRecovered?.total === 3 &&
+          earlyRecovered?.declined === 0 &&
+          earlyRecovered?.rate === 1,
+        `got ${JSON.stringify(earlyRecovered)}`,
+      );
+
+      // Case 2: reply names different values → asserted-but-wrong
+      const wrong = gradeRaw(
+        baseRaw({
+          facts: ["Leopoldo", "4500", "Torino"],
+          turns: [
+            turn(16, "probe_facts_late", "Il gatto si chiama Fuffi, il budget è 9999 euro e la città è Milano"),
+          ],
+        }),
+        tmp,
+      );
+      const lateWrong = wrong.byFamily?.fact_recall_late;
+      check(
+        "fact recall: reply naming different values → all asserted-but-wrong (found=0, declined=0)",
+        lateWrong?.found === 0 &&
+          lateWrong?.total === 3 &&
+          lateWrong?.declined === 0 &&
+          lateWrong?.rate === 0,
+        `got ${JSON.stringify(lateWrong)}`,
+      );
+
+      // Case 3: the real 4B refusal → declined (excluded from denominator)
+      const refusal = gradeRaw(
+        baseRaw({
+          facts: ["Leopoldo", "4500", "Torino", "PK42"],
+          turns: [
+            turn(
+              16,
+              "probe_facts_late",
+              "Non posso ripetere i dati dei tuoi primi messaggi perché non ho memoria delle conversazioni precedenti una volta che la sessione si è riavviata.",
+            ),
+          ],
+        }),
+        tmp,
+      );
+      const lateDeclined = refusal.byFamily?.fact_recall_late;
+      check(
+        "fact recall: real 4B refusal → all declined (found=0, total=0, declined=4, rate=null)",
+        lateDeclined?.found === 0 &&
+          lateDeclined?.total === 0 &&
+          lateDeclined?.declined === 4 &&
+          lateDeclined?.excluded === 4 &&
+          lateDeclined?.rate == null,
+        `got ${JSON.stringify(lateDeclined)}`,
+      );
+      check(
+        "fact recall: refusal → recall is null (no scored probes)",
+        refusal.recall == null,
+        `got ${refusal.recall}`,
+      );
+
+      // Case 4: blank reply → still excluded as today (not declined)
+      const blank = gradeRaw(
+        baseRaw({
+          facts: ["Leopoldo", "4500"],
+          turns: [turn(11, "probe_facts_early", "")],
+        }),
+        tmp,
+      );
+      const earlyBlank = blank.byFamily?.fact_recall_early;
+      check(
+        "fact recall: blank reply → excluded but NOT declined (excluded=2, declined=0)",
+        earlyBlank?.excluded === 2 &&
+          earlyBlank?.declined === 0 &&
+          earlyBlank?.total === 0,
+        `got ${JSON.stringify(earlyBlank)}`,
+      );
+
+      // Case 5: decline in German (no wordlist, structural detection)
+      // Note: German capitalizes all nouns, so a realistic German decline
+      // contains fact-shaped tokens (capitalized nouns). This means it would
+      // be classified as "asserted-but-wrong" not "declined". To test that
+      // a German decline can be classified as "declined", we use a short
+      // decline that doesn't contain any capitalized nouns except sentence-initial.
+      // This is a limitation of the distinctive-token primitive for German.
+      const germanDecline = gradeRaw(
+        baseRaw({
+          facts: ["Leopoldo", "4500"],
+          turns: [
+            turn(
+              11,
+              "probe_facts_early",
+              "nein, das kann ich nicht.",
+            ),
+          ],
+        }),
+        tmp,
+      );
+      const earlyGerman = germanDecline.byFamily?.fact_recall_early;
+      check(
+        "fact recall: German decline (short) → declined (no fact-shaped tokens, excluded=2, declined=2)",
+        earlyGerman?.declined === 2 &&
+          earlyGerman?.excluded === 2 &&
+          earlyGerman?.total === 0,
+        `got ${JSON.stringify(earlyGerman)}`,
+      );
+
+      // Case 6: decline in Japanese (no wordlist, structural detection)
+      const japaneseDecline = gradeRaw(
+        baseRaw({
+          facts: ["Leopoldo", "4500"],
+          turns: [
+            turn(
+              11,
+              "probe_facts_early",
+              "申し訳ありませんが、以前の会話のデータを繰り返すことはできません。セッションが再起動すると、前の会話のメモリが失われます。",
+            ),
+          ],
+        }),
+        tmp,
+      );
+      const earlyJapanese = japaneseDecline.byFamily?.fact_recall_early;
+      check(
+        "fact recall: Japanese decline → declined (no fact-shaped tokens, excluded=2, declined=2)",
+        earlyJapanese?.declined === 2 &&
+          earlyJapanese?.excluded === 2 &&
+          earlyJapanese?.total === 0,
+        `got ${JSON.stringify(earlyJapanese)}`,
+      );
+
+      // Case 7: decline-AND-names ("non ricordo il colore, forse Rosso")
+      // Rule: if the reply contains ANY fact-shaped tokens, it's NOT declined.
+      // The model asserted something (even if wrong), so it's asserted-but-wrong.
+      // Justification: the signal is structural (does it assert anything?),
+      // not semantic (is it a refusal?). If it names something, it's asserting.
+      const declineAndName = gradeRaw(
+        baseRaw({
+          facts: ["Zaffiro", "4500"],
+          turns: [
+            turn(
+              16,
+              "probe_facts_late",
+              "Non ricordo il colore, forse Rosso, ma il budget non lo so.",
+            ),
+          ],
+        }),
+        tmp,
+      );
+      const lateDeclineName = declineAndName.byFamily?.fact_recall_late;
+      check(
+        "fact recall: decline-AND-names → NOT declined (has fact-shaped tokens)",
+        lateDeclineName?.declined === 0 &&
+          lateDeclineName?.total === 2 &&
+          lateDeclineName?.found === 0, // "Rosso" is not "Zaffiro", so wrong
+        `got ${JSON.stringify(lateDeclineName)}`,
+      );
+      check(
+        "fact recall: decline-AND-names → asserted-but-wrong (rate=0, not null)",
+        lateDeclineName?.rate === 0,
+        `got rate=${lateDeclineName?.rate}`,
+      );
+
+      // Case 8: mixed turn - some facts recovered, some wrong
+      const mixed = gradeRaw(
+        baseRaw({
+          facts: ["Leopoldo", "4500", "Torino"],
+          turns: [
+            turn(11, "probe_facts_early", "Il gatto si chiama Leopoldo e la città è Milano"),
+          ],
+        }),
+        tmp,
+      );
+      const earlyMixed = mixed.byFamily?.fact_recall_early;
+      check(
+        "fact recall: mixed → 1 recovered, 2 asserted-but-wrong, 0 declined",
+        earlyMixed?.found === 1 &&
+          earlyMixed?.total === 3 &&
+          earlyMixed?.declined === 0 &&
+          earlyMixed?.rate === 1/3,
+        `got ${JSON.stringify(earlyMixed)}`,
+      );
+    }
+
     // ── 10b3. per-turn compactor_state.json attached to turn + PC ─────
     {
       const d = path.join(tmp, "cs-turn");
@@ -1646,7 +1848,7 @@ async function main() {
       check(
         "fase0 multi-turn fact names use _t<index>",
         findProbe(result, "fact_XR9_t1")?.found === true &&
-          findProbe(result, "fact_XR9_t2")?.found === false,
+          findProbe(result, "fact_XR9_t2")?.found === null, // "nothing" has no fact-shaped tokens → declined
       );
       check(
         "tool-assisted fact note when sources>=1",

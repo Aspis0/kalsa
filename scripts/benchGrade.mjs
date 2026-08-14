@@ -338,12 +338,19 @@ function metricsForTurn(baseDir, turnIndex) {
 function familyStats(probes) {
   const by = {};
   for (const p of probes) {
-    if (!by[p.family]) by[p.family] = { found: 0, total: 0, excluded: 0, rate: null };
+    if (!by[p.family]) by[p.family] = { found: 0, total: 0, excluded: 0, declined: 0, rate: null };
     // found === null: empty-reply exclusion (run 31379031892 blank bubble).
     // Must not enter total — a rate over fewer observations than it appears
     // is a silent lie; `excluded` makes the shrinkage visible.
     if (p.found === null || p.found === undefined) {
       by[p.family].excluded += 1;
+      // Track declined probes separately: model refused to assert facts
+      // (e.g., "non ho memoria delle conversazioni precedenti").
+      // These are excluded from the denominator like empty replies,
+      // but we count them so we can report the decline rate.
+      if (p.declined === true) {
+        by[p.family].declined += 1;
+      }
       continue;
     }
     by[p.family].total += 1;
