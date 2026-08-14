@@ -32,7 +32,23 @@
 > prefill executor A7X (TTFT 1.3-1.7× misurato + sposta il calore fuori
 > dalla CPU; prima M2-carta). (2) SELFSPEC F1b diagnosi in volo. (3) PPL
 > gate in corso. Bug app P0/P1 trovati sul Xiaomi (KNOWN_ISSUES ab3b747):
-> fix NON autorizzato per ora. Il resto resta congelato. (free-tier: si ferma alla scala misurata; celle card
+> fix autorizzato via "sbrigati TTFT" (in volo). Il resto resta congelato.
+>
+> 📐 **DECISIONI gualt (2026-08-14):**
+> **(1) Target velocità:** i MoE grandi (Mellum2/Marco/CalaQwen) su
+> S23-class si ACCETTANO a **5-6 tok/s** — l'ambizione 7-9 passa a
+> flagship/fasce residenti; unica via di revisione = selfspec (F1b decide).
+> Sui Qwen piccoli si spera ancora: 2B = 15.9 misurato su S23, residente
+> su qualsiasi RAM.
+> **(2) Dottrina fasce:** stesso SoC ≠ stessa fascia. La fascia è la
+> matrice **compute-class × RAM misurata**: più RAM a pari silicio =
+> residenza per i grandi (via il termine flash dal wall: Mellum 5.15 →
+> tetto ~6.5-6.75; il 46% di miss di Marco evapora; CalaQwen ammissibile
+> residente a 24 GB); meno RAM = hit% e ammissibilità giù. I piccoli
+> clusterizzano solo per SoC. Ad assegnare la fascia è il **probe runtime
+> del dispatcher al primo avvio** (compute + budget RAM + sustained), non
+> la scheda tecnica. Test di falsificazione economico quando capita: S23
+> Ultra (stesso 8Gen2, 12 GB) — Marco residente vs 8.82 streamato. (free-tier: si ferma alla scala misurata; celle card
 > Xiaomi, FT lane, GPU: freeze — si riaprono solo su parola di gualt).
 > Design S3 del coordinatore: `docs/kernel-s3-design.md` (3 meccanismi
 > ranked: Phase-D cache-ostile prima del repack; repack-at-cache-insert
