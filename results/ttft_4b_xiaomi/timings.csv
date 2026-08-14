@@ -1,0 +1,5 @@
+scenario,rep,ttft_ms,ttft_source,prompt_ms,predicted_ms,prewarm_s,prewarm_prompt_ms,reuse,eager,level,temp_c,wakefulness,plugged,prompt,ok,notes,dir,utc
+1a,1,,,,11.5,44.7,44386.488,,true,92,32.0,Awake,false,Reply with the single word hello,false,send_tap_missed_gesture_home,results/ttft_4b_xiaomi/1a_r1,2026-08-14T11:38:41Z
+1a,2,,,,,42.701,42288.214,,true,90,34.5,Awake,false,Reply with the single word hello,false,send_tap_missed_right_edge,results/ttft_4b_xiaomi/1a_r2,2026-08-14T11:45:41Z
+1a,3,,,,,42.872,42501.674,,true,88,34.9,Awake,false,Reply with the single word hello,false,send_tap_missed_right_edge,results/ttft_4b_xiaomi/1a_r3,2026-08-14T11:51:27Z
+diag_behind_lock,0,,,,52.1,,,skip:background,true,99,29.3,Awake,false,,false,lockscreen_foreground_gate,results/ttft_4b_xiaomi/diag_behind_lock,2026-08-14T10:19:33Z

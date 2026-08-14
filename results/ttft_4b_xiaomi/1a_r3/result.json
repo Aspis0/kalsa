@@ -1,0 +1,21 @@
+{
+  "scenario": "1a",
+  "rep": 3,
+  "ttft_ms": "",
+  "ttft_source": "",
+  "prompt_ms": "",
+  "predicted_ms": "",
+  "prewarm_s": 42.872,
+  "prewarm_prompt_ms": 42501.674,
+  "reuse": "",
+  "eager": true,
+  "level": 88,
+  "temp_c": 34.9,
+  "wakefulness": "Awake",
+  "plugged": false,
+  "prompt": "Reply with the single word hello",
+  "ok": false,
+  "notes": "wait_s=90.0",
+  "dir": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\ttft_4b_xiaomi\\1a_r3",
+  "utc": "2026-08-14T11:51:27.685532+00:00"
+}

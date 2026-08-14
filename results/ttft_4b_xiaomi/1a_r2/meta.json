@@ -1,0 +1,115 @@
+{
+  "utc": "2026-08-14T11:45:41.561268+00:00",
+  "serial": "adb-625689a2-9xEOfw._adb-tls-connect._tcp",
+  "pkg": "com.kalsa.app",
+  "power": {
+    "ac": "false",
+    "usb": "false",
+    "wireless": "false",
+    "level": 90,
+    "status": "3",
+    "temp_tenths_c": "345",
+    "temp_c": 34.5,
+    "wakefulness": "Awake"
+  },
+  "metrics": {
+    "ttft_json": null,
+    "mark_ts": "08-14 07:42:12.822",
+    "telemetry": [],
+    "first_telemetry": null,
+    "prewarm": {
+      "events": [
+        {
+          "ts": "08-14 07:40:26.991",
+          "op": "start",
+          "hash": "30001358",
+          "systemChars": 3015,
+          "toolCount": 5
+        },
+        {
+          "ts": "08-14 07:41:09.692",
+          "op": "done",
+          "promptMs": 42288.214,
+          "hash": "30001358"
+        }
+      ],
+      "start": {
+        "ts": "08-14 07:40:26.991",
+        "op": "start",
+        "hash": "30001358",
+        "systemChars": 3015,
+        "toolCount": 5
+      },
+      "done": {
+        "ts": "08-14 07:41:09.692",
+        "op": "done",
+        "promptMs": 42288.214,
+        "hash": "30001358"
+      },
+      "duration_s": 42.701,
+      "prompt_ms": 42288.214,
+      "reuse": null,
+      "kvdiag": [
+        {
+          "n_past": 0,
+          "tokens_on_disk": 0,
+          "ok": false
+        }
+      ],
+      "eager": true
+    }
+  },
+  "scenario": "1a",
+  "rep": 2,
+  "send_info": {
+    "tap": [
+      1083,
+      2541
+    ],
+    "prompt": "Reply with the single word hello",
+    "typed": "Reply with the single word hello",
+    "mark": "1a_r2"
+  },
+  "prewarm_watch": {
+    "events": [
+      {
+        "ts": "08-14 07:40:26.991",
+        "op": "start",
+        "hash": "30001358",
+        "systemChars": 3015,
+        "toolCount": 5
+      },
+      {
+        "ts": "08-14 07:41:09.692",
+        "op": "done",
+        "promptMs": 42288.214,
+        "hash": "30001358"
+      }
+    ],
+    "start": {
+      "ts": "08-14 07:40:26.991",
+      "op": "start",
+      "hash": "30001358",
+      "systemChars": 3015,
+      "toolCount": 5
+    },
+    "done": {
+      "ts": "08-14 07:41:09.692",
+      "op": "done",
+      "promptMs": 42288.214,
+      "hash": "30001358"
+    },
+    "duration_s": 42.701,
+    "prompt_ms": 42288.214,
+    "reuse": null,
+    "kvdiag": [
+      {
+        "n_past": 0,
+        "tokens_on_disk": 0,
+        "ok": false
+      }
+    ],
+    "eager": true
+  },
+  "notes": "wait_s=90.0;ui_after_fail:uiautomator dump failed: overlay pkg=com.miui.home"
+}

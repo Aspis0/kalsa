@@ -1,0 +1,53 @@
+{
+  "utc": "2026-08-14T11:38:41.937904+00:00",
+  "serial": "adb-625689a2-9xEOfw._adb-tls-connect._tcp",
+  "pkg": "com.kalsa.app",
+  "power": {
+    "ac": "false",
+    "usb": "false",
+    "wireless": "false",
+    "level": 92,
+    "status": "3",
+    "temp_tenths_c": "320",
+    "temp_c": 32.0,
+    "wakefulness": "Awake"
+  },
+  "metrics": {
+    "ttft_json": null,
+    "mark_ts": "08-14 07:34:33.417",
+    "telemetry": [],
+    "first_telemetry": null,
+    "prewarm": {
+      "events": [],
+      "start": null,
+      "done": null,
+      "duration_s": null,
+      "prompt_ms": null,
+      "reuse": null,
+      "kvdiag": [],
+      "eager": true
+    }
+  },
+  "scenario": "1a",
+  "rep": 1,
+  "send_info": {
+    "tap": [
+      1083,
+      1459
+    ],
+    "prompt": "Reply with the single word hello",
+    "typed": "Reply with the single word hello",
+    "mark": "1a_r1"
+  },
+  "prewarm_watch": {
+    "events": [],
+    "start": null,
+    "done": null,
+    "duration_s": null,
+    "prompt_ms": null,
+    "reuse": null,
+    "kvdiag": [],
+    "eager": true
+  },
+  "notes": "wait_s=90.0;prewarm_not_done_in_wait"
+}

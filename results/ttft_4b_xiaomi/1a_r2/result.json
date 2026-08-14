@@ -1,0 +1,21 @@
+{
+  "scenario": "1a",
+  "rep": 2,
+  "ttft_ms": "",
+  "ttft_source": "",
+  "prompt_ms": "",
+  "predicted_ms": "",
+  "prewarm_s": 42.701,
+  "prewarm_prompt_ms": 42288.214,
+  "reuse": "",
+  "eager": true,
+  "level": 90,
+  "temp_c": 34.5,
+  "wakefulness": "Awake",
+  "plugged": false,
+  "prompt": "Reply with the single word hello",
+  "ok": false,
+  "notes": "wait_s=90.0;ui_after_fail:uiautomator dump failed: overlay pkg=com.miui.home",
+  "dir": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\ttft_4b_xiaomi\\1a_r2",
+  "utc": "2026-08-14T11:45:41.561268+00:00"
+}

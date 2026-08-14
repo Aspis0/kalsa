@@ -1,0 +1,115 @@
+{
+  "utc": "2026-08-14T11:51:27.685532+00:00",
+  "serial": "adb-625689a2-9xEOfw._adb-tls-connect._tcp",
+  "pkg": "com.kalsa.app",
+  "power": {
+    "ac": "false",
+    "usb": "false",
+    "wireless": "false",
+    "level": 88,
+    "status": "3",
+    "temp_tenths_c": "349",
+    "temp_c": 34.9,
+    "wakefulness": "Awake"
+  },
+  "metrics": {
+    "ttft_json": null,
+    "mark_ts": "08-14 07:48:16.441",
+    "telemetry": [],
+    "first_telemetry": null,
+    "prewarm": {
+      "events": [
+        {
+          "ts": "08-14 07:46:36.541",
+          "op": "start",
+          "hash": "30001358",
+          "systemChars": 3015,
+          "toolCount": 5
+        },
+        {
+          "ts": "08-14 07:47:19.413",
+          "op": "done",
+          "promptMs": 42501.674,
+          "hash": "30001358"
+        }
+      ],
+      "start": {
+        "ts": "08-14 07:46:36.541",
+        "op": "start",
+        "hash": "30001358",
+        "systemChars": 3015,
+        "toolCount": 5
+      },
+      "done": {
+        "ts": "08-14 07:47:19.413",
+        "op": "done",
+        "promptMs": 42501.674,
+        "hash": "30001358"
+      },
+      "duration_s": 42.872,
+      "prompt_ms": 42501.674,
+      "reuse": null,
+      "kvdiag": [
+        {
+          "n_past": 0,
+          "tokens_on_disk": 0,
+          "ok": false
+        }
+      ],
+      "eager": true
+    }
+  },
+  "scenario": "1a",
+  "rep": 3,
+  "send_info": {
+    "tap": [
+      1083,
+      1620
+    ],
+    "prompt": "Reply with the single word hello",
+    "typed": "Reply with the single word hello",
+    "mark": "1a_r3"
+  },
+  "prewarm_watch": {
+    "events": [
+      {
+        "ts": "08-14 07:46:36.541",
+        "op": "start",
+        "hash": "30001358",
+        "systemChars": 3015,
+        "toolCount": 5
+      },
+      {
+        "ts": "08-14 07:47:19.413",
+        "op": "done",
+        "promptMs": 42501.674,
+        "hash": "30001358"
+      }
+    ],
+    "start": {
+      "ts": "08-14 07:46:36.541",
+      "op": "start",
+      "hash": "30001358",
+      "systemChars": 3015,
+      "toolCount": 5
+    },
+    "done": {
+      "ts": "08-14 07:47:19.413",
+      "op": "done",
+      "promptMs": 42501.674,
+      "hash": "30001358"
+    },
+    "duration_s": 42.872,
+    "prompt_ms": 42501.674,
+    "reuse": null,
+    "kvdiag": [
+      {
+        "n_past": 0,
+        "tokens_on_disk": 0,
+        "ok": false
+      }
+    ],
+    "eager": true
+  },
+  "notes": "wait_s=90.0"
+}

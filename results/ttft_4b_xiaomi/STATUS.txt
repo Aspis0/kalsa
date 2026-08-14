@@ -1,0 +1,3 @@
+PREWARM_PARTIAL 2026-08-14
+eager+prewarm CONFIRMED on 4B (~43s / 1510 tok). 1a TTFT not clocked (right-edge Send tap + PIN after SystemUI bounce).
+UNPLUGGED. Reports written. Polling lock for a possible 1a retry.
