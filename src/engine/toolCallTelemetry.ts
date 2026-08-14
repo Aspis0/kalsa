@@ -26,6 +26,32 @@ export type ToolRoundTelemetry = {
 };
 
 /**
+ * Telemetry for the "tool rounds exhausted without text" fallback path.
+ * Fires when the tool loop uses all MAX_TOOL_ROUNDS but no round produced
+ * user-visible text (blank bubble case). Counters-only: no model or user text.
+ */
+export type ToolRoundExhaustedTelemetry = {
+  roundsUsed: number;      // MAX_TOOL_ROUNDS (should be 3)
+  streamedLen: number;     // length of streamed text before fallback (should be 0)
+  fallbackFired: boolean;  // did we try the extra text-only completion?
+  fallbackOk: boolean;     // did the extra completion produce text?
+};
+
+/**
+ * Machine-parseable single line for adb logcat / CI.
+ * Fields listed by name so extra properties on `r` cannot leak into the payload.
+ */
+export function formatToolRoundExhaustedLine(turnId: string, r: ToolRoundExhaustedTelemetry): string {
+  return `KALSA_TOOLROUND_EXHAUSTED ${JSON.stringify({
+    turnId,
+    roundsUsed: r.roundsUsed,
+    streamedLen: r.streamedLen,
+    fallbackFired: r.fallbackFired,
+    fallbackOk: r.fallbackOk,
+  })}`;
+}
+
+/**
  * Machine-parseable single line for adb logcat / CI.
  * Fields listed by name so extra properties on `r` cannot leak into the payload.
  */

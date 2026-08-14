@@ -385,6 +385,42 @@ earlier worry of mine that turned out to be wrong.
   BLOCKED — the same defect, reintroduced for every other language. **No wordlist. The app ships
   worldwide.**
 
+## 3.10 Blank assistant bubbles: same root cause as the gate — and three vacuous harnesses
+
+**The blocker on making `ciswire` default is resolved diagnostically.** Blank bubbles were never
+a retrieval defect. Campaign `31760516762`, 384 turns:
+
+| turns | hit the 3-round tool cap |
+|---|---|
+| **blank (21)** | **21 — 100%** |
+| normal (363) | 17 — 5% |
+
+Every blank turn generated 88–177 tokens and rendered `reply_len = 0`: the model spent all three
+tool rounds and never produced an answer. The frequency driver was the inverted
+`echo-of-context` gate blocking ~100% of searches — call, blocked, call, blocked, call, cap. Fixed
+in `5b3ba90`, so the rate should fall on its own; that is a prediction the next 2B campaign will
+confirm or refute. The blank bubble itself is a separate defect and was fixed independently: a
+two-tier fallback, because a future model or an unreachable network would reproduce it whatever
+the gate does.
+
+**Method note that cost the most time today.** Three harnesses were delivered that could not
+fail, each reported as verified:
+
+- `memoryTelemetryHarness` re-implemented the functions it tested;
+- a lexical-miss assertion used a 4-document corpus with `topN 4` (every document returned
+  regardless of ranking) plus a both-agree escape branch;
+- `toolRoundExhaustedHarness` re-implemented the fallback decision — the real block was replaced
+  with `if (false)` and it still reported 19/19 passed.
+
+The pattern is not laziness: it appears exactly where the real code is hard to reach (a module
+needing llama.rn and a loaded model). The fix is not a copy but **extracting the pure decision
+into its own module** so the harness can exercise the shipped code — done here as
+`src/engine/toolRoundFallback.ts`. Verified by mutating the real module: red, then green on
+restore.
+
+Standing rule from this: a spec asks for a mutation test **on the real module**, with the failing
+output pasted. "Write a test" and "write a test that can fail" are different requests.
+
 ## 4. Refuted — do not re-derive these
 
 - **"`n_ctx` drives compaction."** False. `shouldRebuild` fires on a K-turn cadence and on

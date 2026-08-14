@@ -605,6 +605,11 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "Ricerca saltata: la query si limita a ripetere informazioni che l'utente ha fornito su di sé. Rispondi direttamente dalla conversazione invece di cercare.",
     unknownTool: "Tool sconosciuto: {name}",
     toolError: "Errore tool: {message}",
+    /**
+     * Shown when the tool loop exhausts all rounds without producing any user-visible text
+     * and the final text-only fallback also produces no text. Honest fallback, not silent blank.
+     */
+    toolRoundsExhausted: "Non ho potuto completare la ricerca. Riprova o riformula la domanda.",
     source: "Fonte",
     searchKeyMissing: "API key mancante per {provider}. Aggiungila in Impostazioni.",
     searchKeyInvalid: "API key non valida per {provider}. Controlla Impostazioni.",

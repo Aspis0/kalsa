@@ -608,6 +608,11 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       "Search skipped: the query only restates information the user provided about themselves. Answer directly from the conversation instead of searching.",
     unknownTool: "Unknown tool: {name}",
     toolError: "Tool error: {message}",
+    /**
+     * Shown when the tool loop exhausts all rounds without producing any user-visible text
+     * and the final text-only fallback also produces no text. Honest fallback, not silent blank.
+     */
+    toolRoundsExhausted: "I couldn't complete the search. Please try again or rephrase your question.",
     source: "Source",
     searchKeyMissing: "API key missing for {provider}. Add it in Settings.",
     searchKeyInvalid: "Invalid API key for {provider}. Check Settings.",

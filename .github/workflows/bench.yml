@@ -124,6 +124,7 @@ jobs:
           node scripts/rulesCoreHarness.mjs
           node scripts/toolCallParseHarness.mjs
           node scripts/memoryTelemetryHarness.mjs
+          node scripts/toolRoundExhaustedHarness.mjs
           npx jest --silent
           # Sideload guards are bash, so the *Harness.mjs sweep does not see them.
           bash scripts/test_sideload_guards.sh

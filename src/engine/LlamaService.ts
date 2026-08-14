@@ -53,8 +53,11 @@ import {
 import { createThinkStreamCleaner } from "./thinkStream";
 import {
   formatToolCallLine,
+  formatToolRoundExhaustedLine,
+  type ToolRoundExhaustedTelemetry,
   type ToolRoundTelemetry,
 } from "./toolCallTelemetry";
+import { shouldFireToolRoundFallback } from "./toolRoundFallback";
 import {
   formatTelemetryLine,
   isSuccessfulToolOutcome,
@@ -2183,7 +2186,88 @@ export async function streamAssistantTurn(
         callbacks.onStatus?.({ label: statusLabel });
       }
 
-      // Raggiunto il massimo dei round senza risposta testuale: chiudi comunque.
+      // Tool rounds exhausted without user-visible text: the model spent all
+      // MAX_TOOL_ROUNDS producing tool calls (or think/tool_call markup stripped
+      // to nothing). Without a fallback, the user sees an empty bubble.
+      // Two-tier fallback:
+      //  1. One extra text-only completion (tool_choice: "none", no tools) so
+      //     the model can synthesize from the tool results already in context.
+      //     Cost: ~2-5s on device, but only fires on the blank path (~5% of
+      //     turns pre-gate-fix, much less after). Bounded, not a new steady state.
+      //  2. If that also produces no text, emit a localized honest message so
+      //     the bubble is never empty.
+      if (shouldFireToolRoundFallback(streamedText)) {
+        const exhaustedTel: ToolRoundExhaustedTelemetry = {
+          roundsUsed: MAX_TOOL_ROUNDS,
+          streamedLen: streamedText.length,
+          fallbackFired: false,
+          fallbackOk: false,
+        };
+        if (!bailIfStopped()) {
+          exhaustedTel.fallbackFired = true;
+          // Fresh cleaners for the fallback round (same as each loop round).
+          thinkCleaner = createThinkStreamCleaner();
+          toolCallStrip = createToolCallDeltaStripper();
+          const fallbackStreamedTextAtStart = streamedText;
+          try {
+            const fallbackResult = await trackCompletion(
+              engine.completion(
+                {
+                  messages: currentMessages as RNLlamaOAICompatibleMessage[],
+                  n_predict: nPredict,
+                  stop: STOP_WORDS,
+                  temperature: 0.7,
+                  top_k: 40,
+                  top_p: 0.95,
+                  ...thinkingFields,
+                  ...(hasImages ? { speculative: false as const } : {}),
+                },
+                (data: TokenData) => {
+                  if (finished || aborted) return;
+                  const raw = data.token ?? "";
+                  const delta = cleanStreamDelta(raw);
+                  if (delta) {
+                    streamedText += delta;
+                    callbacks.onDelta(delta, streamedText);
+                  }
+                },
+              ),
+            );
+            emitTurnTelemetry(turnId, MAX_TOOL_ROUNDS, fallbackResult, toolAttribution.snapshot());
+            // Strip tool_call/think markup from the fallback result. If text
+            // remains, emit it; otherwise fall through to the canned message.
+            let fallbackText = stripToolCallTagsFinal(
+              thinkCleaner.finalize(extractRawResultText(fallbackResult)),
+            ).trim();
+            if (fallbackText) {
+              exhaustedTel.fallbackOk = true;
+              if (!fallbackStreamedTextAtStart) fallbackText = fallbackText.trimStart();
+              callbacks.onDelta(fallbackText, fallbackStreamedTextAtStart + fallbackText);
+              kvReproState = nextKvReproState(kvReproState, "clean_completion");
+            }
+          } catch (fallbackError) {
+            // Fallback completion failed (engine error, abort, etc.) — fall
+            // through to the canned message. emitEngineError will fire below
+            // only if we have no text at all; for now just log and continue.
+            console.warn("[toolRoundsExhausted] fallback completion failed", fallbackError);
+          }
+        }
+        // Emit telemetry regardless of outcome (bench needs to measure frequency).
+        try {
+          console.log(formatToolRoundExhaustedLine(turnId, exhaustedTel));
+        } catch {
+          // Telemetry must never break a turn.
+        }
+        // If fallback produced no text, emit the localized honest message so
+        // the bubble is never empty. The user can act on it (retry/rephrase).
+        // Use fallbackOk (authoritative) rather than re-checking streamedText,
+        // because the token callback may have streamed partial text that was
+        // later stripped by thinkCleaner.finalize.
+        if (!exhaustedTel.fallbackOk) {
+          const fallbackMessage = strings.errors.toolRoundsExhausted;
+          callbacks.onDelta(fallbackMessage, fallbackMessage);
+        }
+      }
       finishOnce(() => callbacks.onDone());
     } catch (error) {
       if (aborted || signal?.aborted) {
