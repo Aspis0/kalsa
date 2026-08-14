@@ -1,3 +1,4 @@
-PREWARM_PARTIAL 2026-08-14
-eager+prewarm CONFIRMED on 4B (~43s / 1510 tok). 1a TTFT not clocked (right-edge Send tap + PIN after SystemUI bounce).
-UNPLUGGED. Reports written. Polling lock for a possible 1a retry.
+PREWARM_PARTIAL 2026-08-14 retry ~08:50
+eager+prewarm CONFIRMED on 4B (~43s / 1510 tok). 1a TTFT still not clocked.
+Retry: wm dismiss-keyguard does not skip HyperOS PIN. Swipe-up shows PIN pad. PIN not in artefacts → NEEDS_HUMAN.
+UNPLUGGED 75% 33.6C. S23/Jelly untouched.
