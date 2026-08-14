@@ -73,6 +73,21 @@ export function buildStaticPrefixMessages(systemText: string): StaticPrefixMessa
   return [{ role: "system", content: typeof systemText === "string" ? systemText : "" }];
 }
 
+/**
+ * Queue skip: only when this process already prewarmed (or marked hot) this
+ * prefix. Do NOT skip because kvHoldsChatSession — hybrid restore can set that
+ * flag (JS ok:true / tokens>0) while native n_past is still 0. After a live
+ * chat turn the caller sets prewarmPrefixHash so ensure() will not overwrite
+ * hot chat KV with a system-only prefill. After disk restore the hash is null
+ * → prewarm runs (that is the point).
+ */
+export function shouldSkipStaticPrefixPrewarm(
+  prewarmPrefixHash: string | null | undefined,
+  prefixHash: string,
+): boolean {
+  return prewarmPrefixHash === prefixHash;
+}
+
 export function assembleStaticPrefix(input: {
   locale: string;
   systemText: string;

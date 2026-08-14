@@ -84,6 +84,7 @@ async function main() {
     computePrewarmPrefixHash,
     buildStaticPrefixMessages,
     assembleStaticPrefix,
+    shouldSkipStaticPrefixPrewarm,
   } = prewarmMod;
 
   assert(flagsMod.EAGER_PREFIX_PREWARM === true, "EAGER_PREFIX_PREWARM must default true");
@@ -176,6 +177,25 @@ async function main() {
 
   assert(djb2("abc") === djb2("abc"), "djb2 stable");
   assert(djb2("abc") !== djb2("abd"), "djb2 sensitive");
+
+  // V2-2: skip only on same-process hash match. After hybrid restore the
+  // hash is null (even if kvHoldsChatSession would be true) → do not skip.
+  assert(
+    shouldSkipStaticPrefixPrewarm(null, assembled.hash) === false,
+    "after restore (hash null) prewarm must run",
+  );
+  assert(
+    shouldSkipStaticPrefixPrewarm(undefined, assembled.hash) === false,
+    "undefined hash does not skip",
+  );
+  assert(
+    shouldSkipStaticPrefixPrewarm(assembled.hash, assembled.hash) === true,
+    "already-prewarmed / post-turn mark skips",
+  );
+  assert(
+    shouldSkipStaticPrefixPrewarm("other", assembled.hash) === false,
+    "different hash does not skip",
+  );
 
   console.log("prefixPrewarmHarness OK");
 }

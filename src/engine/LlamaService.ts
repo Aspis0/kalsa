@@ -100,6 +100,7 @@ import {
 import {
   assembleStaticPrefix,
   computePrewarmPrefixHash,
+  shouldSkipStaticPrefixPrewarm,
 } from "./prefixPrewarm";
 import {
   BAKE_FORMAT_B_USER_PREFIX,
@@ -182,14 +183,13 @@ let lastPromptEnvHash: string | undefined;
 let bakedUserTails: BakedUserTail[] = [];
 
 /**
- * Last successfully prewarmed system+tools hash.
- * Null after dispose / settings-stale until the next prewarm stores one.
+ * Last successfully prewarmed system+tools hash, or the hash marked after a
+ * live chat turn (so a later ensure() will not overwrite hot chat KV).
+ * Null after dispose / settings-stale / disk restore until prewarm or a turn.
  */
 let prewarmPrefixHash: string | null = null;
 /** Hash currently queued or running — one prewarm per prefix identity. */
 let prewarmQueuedKey: string | null = null;
-/** Identity we already skipped (kv_holds_chat) — do not re-enqueue. */
-let prewarmSkippedKey: string | null = null;
 /** Bumped on dispose / settings-stale so an in-flight prewarm cannot store. */
 let prewarmGeneration = 0;
 
@@ -520,7 +520,6 @@ function resetPrewarmState(): void {
   prewarmGeneration += 1;
   prewarmPrefixHash = null;
   prewarmQueuedKey = null;
-  prewarmSkippedKey = null;
 }
 
 function resolvePrewarmPrefix(locale: Locale, tools: EngineTool[] | undefined) {
@@ -548,10 +547,12 @@ export function queueStaticPrefixPrewarm(
     return;
   }
   const prefix = resolvePrewarmPrefix(locale, tools);
+  // Skip only if this process already prewarmed / marked this prefix.
+  // Do not skip solely because kvHoldsChatSession — hybrid restore reports
+  // ok:true while native n_past=0; skipping would leave a cold KV.
   if (
-    prewarmPrefixHash === prefix.hash ||
-    prewarmQueuedKey === prefix.hash ||
-    prewarmSkippedKey === prefix.hash
+    shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash) ||
+    prewarmQueuedKey === prefix.hash
   ) {
     return;
   }
@@ -571,13 +572,6 @@ export function queueStaticPrefixPrewarm(
       }
       if (disposing || !context) {
         logPrewarm({ op: "skip", reason: !context ? "no_context" : "disposing" });
-        return;
-      }
-      if (kvHoldsChatSession) {
-        // Restored or post-turn chat KV — do not overwrite with a system-only
-        // prefill. Remember the skip so later ensure() calls do not re-enqueue.
-        prewarmSkippedKey = prefix.hash;
-        logPrewarm({ op: "skip", reason: "kv_holds_chat" });
         return;
       }
       const engine = context;
@@ -615,7 +609,6 @@ export function queueStaticPrefixPrewarm(
       const promptMs =
         typeof result?.timings?.prompt_ms === "number" ? result.timings.prompt_ms : -1;
       prewarmPrefixHash = prefix.hash;
-      prewarmSkippedKey = null;
       logPrewarm({ op: "done", promptMs, hash: prefix.hash });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error ?? "");
@@ -643,9 +636,8 @@ export function notifyStaticPrefixInputs(
   if (!isEngineReady()) return;
   const prefix = resolvePrewarmPrefix(locale, tools);
   if (
-    prewarmPrefixHash === prefix.hash ||
-    prewarmQueuedKey === prefix.hash ||
-    prewarmSkippedKey === prefix.hash
+    shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash) ||
+    prewarmQueuedKey === prefix.hash
   ) {
     return;
   }
@@ -1863,14 +1855,15 @@ export async function streamAssistantTurn(
     }
 
     const systemText = buildSystemPrompt(locale, hasTools, options.memoryFacts);
+    let turnPrefixHash: string | null = null;
     if (EAGER_PREFIX_PREWARM) {
-      const sendHash = computePrewarmPrefixHash(
+      turnPrefixHash = computePrewarmPrefixHash(
         locale,
         systemText,
         hasTools ? options.tools : [],
       );
-      if (sendHash !== prewarmPrefixHash) {
-        logPrewarm({ match: false, prewarm: prewarmPrefixHash, send: sendHash });
+      if (turnPrefixHash !== prewarmPrefixHash) {
+        logPrewarm({ match: false, prewarm: prewarmPrefixHash, send: turnPrefixHash });
       }
     }
 
@@ -2430,6 +2423,10 @@ export async function streamAssistantTurn(
       if (engine === context && !disposing) {
         kvHoldsChatSession = true;
         chatKvDiskCurrent = false;
+        // Mark this prefix hot so a later ensure() does not wipe chat KV
+        // with a system-only prefill. After disk restore the hash stays
+        // null and prewarm still runs.
+        if (turnPrefixHash) prewarmPrefixHash = turnPrefixHash;
       }
     }
   });
