@@ -576,20 +576,22 @@ export function queueStaticPrefixPrewarm(
         return;
       }
       const engine = context;
+      // Qwen jinja cannot format a system-only chat (empty prompt, or
+      // "Unable to generate parser"). A one-char user makes the same
+      // template path as message 1; prefix-match still covers the ~1.3k
+      // system+tool tokens and diverges at the real user line.
+      const prewarmMessages = [
+        ...prefix.messages,
+        { role: "user" as const, content: "." },
+      ];
       const result = await trackCompletion(
         engine.completion({
-          messages: prefix.messages as RNLlamaOAICompatibleMessage[],
+          messages: prewarmMessages as RNLlamaOAICompatibleMessage[],
           ...(prefix.hasTools
-            ? { tools: prefix.tools, tool_choice: "none" as const }
+            ? { tools: prefix.tools, tool_choice: "auto" as const }
             : {}),
-          // llama.cpp "eval prompt only". Binding documents n_predict:0 as
-          // cache-only; if it ever rejects, fail the prewarm — never n_predict:1
-          // (that would emit a token and poison prefix-match).
           n_predict: 0,
           stop: STOP_WORDS,
-          // System-only + default add_generation_prompt can format to ""
-          // (llama.rn then throws "Prompt is required" in ~40ms).
-          jinja: true,
           add_generation_prompt: false,
           enable_thinking: false,
           thinking_budget_tokens: 0,
