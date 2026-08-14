@@ -31,16 +31,47 @@
 > streamati bypassano (`use_extra_bufts=false` portante); decode +1.1%
 > cpu, wall −2.4% = rumore, il −6.3% cpu-time era artefatto n_gen; anche
 > il sustained confondato dall'ordine termico. Kill criterion rispettato.**
-> **K-G MORTA (KG_KILL, pomeriggio): il "prefill GPU 1.29×" era un
-> artefatto — baseline K2.2 = media con una rep cold-outlier (82.29,
-> 44.95); rimisurato onesto p512 1.12×, 4B warmed 1.15×, ibrido 1.07×;
-> i boundary CPU↔GPU costano solo 0.068 ms/tok = NON sono il collo, è la
-> GPU 740 che non batte 8 core sul prefill. Expert-FFN = 39% del prefill.
-> Mesi di OpenCL per 1.1× = kill dal suo stesso gate ≥1.3×. NOTA: le
-> claim "prefill GPU 1.29-1.7×" nei documenti precedenti sono CORRETTE da
-> questo dato.** Paniere p-value del kernel = dispatcher/config (misurato,
-> enorme) + layer-ahead (ultimo candidato gated) + la libreria stessa
-> (contratti/CI/day-zero). (2) SELFSPEC F1b diagnosi in volo. (3) PPL gate in corso.
+> **K-G MORTA (KG_KILL): il "prefill GPU 1.29×" era un artefatto
+> (baseline = media con rep cold-outlier); onesto p512 1.12×, ibrido
+> 1.07×; boundary 0.068 ms/tok = non sono il collo. K-F VIVA (KF_GO):
+> stall = 37.3% del wall su Marco-Jelly (0.1025/0.2746, identità
+> wall=compute+mgmt+stall chiude al ms), derivato dai log esistenti a
+> zero minuti device; tetto layer-ahead issue-only ~36% del wall (finestra
+> stretta 8-14%); il macchinario route_ahead_submit/collect/issue_for
+> ESISTE già nell'engine — PROTOTIPO IN VOLO (branch kalsa/kf-layer-ahead,
+> flag --kf-prefetch, output byte-identico obbligatorio, A/B Jelly).**
+> Paniere p-value = dispatcher/config (✅ QUALITY GATE PASSED: PPL
+> k6d1.0 dMacro +0.0378 / worst fr +0.0877 → **5.151 t/s È config
+> prodotto certificata Mellum2-S23**) + K-F (prototipo) + libreria.
+>
+> 🏠 **CASA DELL'ENGINE (direttiva gualt, pomeriggio): BigMoeOnEdge È
+> FINITO.** `kalsa-engine/` in questo repo = l'engine nostro (tree fuso:
+> libreria kernel + split residency + fix, llama.cpp vendored al pin
+> locale e5605f3; compila, ctest 13/13) + `kalsa-engine/bundles/` = tutta
+> la storia git (ogni branch BigMoeOnEdge + i kalsa/* di llama.cpp come
+> delta). PUSHATO su Aspis0/kalsa-moe-experiments dopo riscrittura della
+> storia non pushata (5 blob >100MB filtrati in un clone bare, 159
+> commit, locale allineato). Cancellazione fisica del checkout
+> BigMoeOnEdge: al landing di kf-prototype e F1b (lavorano nei suoi
+> worktree), previo refresh bundle.
+>
+> 📱 **TTFT: PREWARM_UNIVERSAL confermato** (Xiaomi 4B 1.42/2.02 s, riuso
+> 98.9%, fix P0 memguard mergiato su ai-chat main b274fb9). **P1
+> idle-zombie: saga review completa** — fix v1 REJECT (il probe RSS era
+> insano: mmap eviction ≠ morte, falso positivo = leak+OOM), fix v2
+> on-contact (ping tokenize 8s, recoverLost scopato, harness 41/41) →
+> re-review MERGE_WITH_FIXES(1) (soppressione busy troppo larga) →
+> fix3 IN VOLO. Merge P1 dopo fix3.
+>
+> 🔮 **SELFSPEC: F1 implementata e corretta (same-k 1.000) ma alpha live
+> 0.08 vs 0.70 teacher-forced; speedup 0.22×.** Parere Qwen Max (canale
+> chat.qwen.ai, `docs/qwen-max-selfspec-opinion.md`): 45% corruzione
+> stato/rollback ("prefisso fantasma"), 30-35% infedeltà verify batchato
+> GDN, <10% "k2 debole"; ordine operativo = fixare 2 invarianti prima di
+> tunare; bomba aritmetica: iterazione ~4.94 C6 → il verify batch deve
+> essere SUBLINEARE (ammortamento flash) o γ=4 è morta a prescindere.
+> F1b (E1/E2/E3, spec gualt) IN VOLO — incrocio con la tabella Qwen al
+> landing. (2) SELFSPEC F1b diagnosi in volo. (3) PPL gate in corso.
 > **(4) TTFT: PREWARM_UNIVERSAL — Xiaomi 4B post-fix P0: 1a 1.42/2.02 s,
 > riuso 1174/1187 (98.9%), prewarm 29-31 s, 1b join 26 s; fix memguard
 > mergiato su ai-chat main (b274fb9, harness 27/27); P1 zombie APERTO.** Bug app P0/P1 trovati sul Xiaomi (KNOWN_ISSUES ab3b747):
@@ -350,6 +381,30 @@ DONE
 ## Registro checkpoint
 
 *(voci ≤ 2026-08-11 in `PLAN-archive.md` → «Registro checkpoint (archivio)»)*
+
+- **2026-08-14 (pomeriggio) — 🏭 IL GIORNO DEL FUNNEL: sei candidati
+  kernel processati, la casa nuova, e il primo bollino qualità.**
+  (1) **Kernel funnel**: K-E morta (i8mm non gira mai: mmla vive solo nel
+  REPACK che gli esperti streamati bypassano); K-G morta (l'1.29× GPU
+  prefill era una media con cold-outlier; onesto 1.12×; boundary
+  innocenti 0.068 ms/tok); **K-F VIVA** (stall 37.3% del wall derivato a
+  zero minuti device; prototipo issue-only in volo sul macchinario
+  route_ahead già esistente); **libreria Kalsa Kernel** costruita,
+  review MERGE_WITH_FIXES(7)→10/10 chiusi (geometria CABLATA, flag
+  utente vincono, CI mai verde-a-vuoto). (2) **PPL GATE_PASS k6d1.0**
+  (dMacro +0.0378, worst fr +0.0877) → 5.151 t/s = config prodotto
+  certificata. (3) **TTFT PREWARM_UNIVERSAL** su Xiaomi-4B post fix P0
+  (1.42/2.02 s, riuso 98.9%); saga P1: REJECT (probe RSS insano su
+  engine mmappato — la review ha salvato da un fix che convertiva zombie
+  in crash OOM) → on-contact v2 → MERGE_WITH_FIXES(1) → fix3 in volo.
+  (4) **Migrazione: BigMoeOnEdge dismesso** (direttiva gualt) →
+  `kalsa-engine/` nostro + bundle storia completa, pushato su
+  Aspis0/kalsa-moe-experiments previa riscrittura bare-clone della
+  storia (5 blob >100MB filtrati da 159 commit, groks in volo mai
+  disturbati). (5) Canale Qwen Max attivato via browser: parere
+  selfspec bancato (45% rollback-corruption, bomba aritmetica
+  sublinearità verify). Lezione ops: `git add -A` mai più (l'APK in
+  history è costata una riscrittura); pre-push scan >90MB nel protocollo.
 
 - **2026-08-14 (mattina) — 🏁 LANE KERNEL CPU: CHIUSA SU OGNI ASSE, il
   floor è il silicio.** Arco completo S0→S3b in ~36 ore: S0 t2 (+37% vs
