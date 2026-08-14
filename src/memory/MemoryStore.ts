@@ -67,6 +67,7 @@ let mutationChain: Promise<void> = Promise.resolve();
 // Counts extraction/storage/rejection/injection events for bench telemetry.
 // Emitted as KALSA_MEMORY log line at turn boundaries.
 let telemetryAccum = {
+  memoryEnabled: 0,
   factsExtracted: 0,
   factsStored: 0,
   factsRejectedSensitive: 0,
@@ -74,6 +75,14 @@ let telemetryAccum = {
   factsInjected: 0,
   totalFactsInStore: 0,
 };
+
+/**
+ * Track whether memory is enabled (called from AppShell).
+ * @param enabled Whether memory is enabled
+ */
+export function trackMemoryEnabled(enabled: boolean): void {
+  telemetryAccum.memoryEnabled = enabled ? 1 : 0;
+}
 
 /**
  * Track when facts are injected into system prompt (called from AppShell).
@@ -91,6 +100,7 @@ export function getAndResetMemoryTelemetry(): typeof telemetryAccum {
   const snapshot = { ...telemetryAccum };
   // Reset for next turn
   telemetryAccum = {
+    memoryEnabled: 0,
     factsExtracted: 0,
     factsStored: 0,
     factsRejectedSensitive: 0,
@@ -557,12 +567,13 @@ export async function applyExtractResults(
       changed = true;
     }
 
+    // Always report the true size, even if nothing changed
+    telemetryAccum.totalFactsInStore = facts.length;
+
     if (!changed) return false;
     // Final race check right before write.
     if (epoch !== expectedEpoch) return false;
     await writeFacts(facts);
-    // Update total facts in store after successful write
-    telemetryAccum.totalFactsInStore = facts.length;
     return true;
   });
 }

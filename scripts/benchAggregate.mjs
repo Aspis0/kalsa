@@ -1001,7 +1001,10 @@ function collectMemoryTelemetryByMode(fase4) {
     for (const turnTelemetry of telemetry) {
       if (!Array.isArray(turnTelemetry)) continue;
       for (const m of turnTelemetry) {
-        row.hasData = true;
+        // Only count as hasData if memory was actually enabled
+        if (m.memoryEnabled === 1) {
+          row.hasData = true;
+        }
         if (typeof m.factsExtracted === "number") row.extracted += m.factsExtracted;
         if (typeof m.factsStored === "number") row.stored += m.factsStored;
         if (typeof m.factsRejectedSensitive === "number") row.rejectedSensitive += m.factsRejectedSensitive;
@@ -2345,4 +2348,4 @@ if (isMain) {
   main();
 }
 
-export { runAggregate, permutationTestOneSided };
+export { runAggregate, permutationTestOneSided, collectMemoryTelemetryByMode };

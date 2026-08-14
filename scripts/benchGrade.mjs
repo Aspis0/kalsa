@@ -618,14 +618,15 @@ function readMemoryTelemetry(turnDir) {
     try {
       const obj = JSON.parse(t);
       if (obj && typeof obj === "object") {
+        const memoryEnabled = typeof obj.memoryEnabled === "number" ? obj.memoryEnabled : null;
         const factsExtracted = typeof obj.factsExtracted === "number" ? obj.factsExtracted : null;
         const factsStored = typeof obj.factsStored === "number" ? obj.factsStored : null;
         const factsRejectedSensitive = typeof obj.factsRejectedSensitive === "number" ? obj.factsRejectedSensitive : null;
         const factsRejectedFull = typeof obj.factsRejectedFull === "number" ? obj.factsRejectedFull : null;
         const factsInjected = typeof obj.factsInjected === "number" ? obj.factsInjected : null;
         const totalFactsInStore = typeof obj.totalFactsInStore === "number" ? obj.totalFactsInStore : null;
-        if (factsExtracted != null || factsStored != null || factsRejectedSensitive != null || factsRejectedFull != null || factsInjected != null || totalFactsInStore != null) {
-          records.push({ factsExtracted, factsStored, factsRejectedSensitive, factsRejectedFull, factsInjected, totalFactsInStore });
+        if (memoryEnabled != null || factsExtracted != null || factsStored != null || factsRejectedSensitive != null || factsRejectedFull != null || factsInjected != null || totalFactsInStore != null) {
+          records.push({ memoryEnabled, factsExtracted, factsStored, factsRejectedSensitive, factsRejectedFull, factsInjected, totalFactsInStore });
         }
       }
     } catch {
@@ -1187,6 +1188,7 @@ export {
   matchesFact,
   parseContextModeFromPref,
   isCompactionActive,
+  readMemoryTelemetry,
   gradeRaw,
   gradeFile,
 };

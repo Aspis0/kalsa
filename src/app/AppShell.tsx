@@ -4015,6 +4015,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
                 onDone: () => {
                   // Emit memory telemetry at turn end (counters only, no fact text)
+                  MemoryStore.trackMemoryEnabled(memoryEnabledRef.current);
                   const memTelemetry = MemoryStore.getAndResetMemoryTelemetry();
                   console.log(formatMemoryLine(memTelemetry));
                   // Arm extract (memoryExtractRef) before unlocking; gate opens

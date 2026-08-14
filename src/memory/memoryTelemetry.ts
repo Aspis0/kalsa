@@ -12,6 +12,8 @@
  */
 
 export interface MemoryTelemetry {
+  /** Whether memory was enabled this turn (1=on, 0=off). */
+  memoryEnabled: number;
   /** Candidates the extract job produced this turn (before filtering). */
   factsExtracted: number;
   /** Facts actually stored after dedup/cap/sensitive filter. */
@@ -32,6 +34,7 @@ export interface MemoryTelemetry {
  */
 export function formatMemoryLine(t: MemoryTelemetry): string {
   return `KALSA_MEMORY ${JSON.stringify({
+    memoryEnabled: t.memoryEnabled,
     factsExtracted: t.factsExtracted,
     factsStored: t.factsStored,
     factsRejectedSensitive: t.factsRejectedSensitive,

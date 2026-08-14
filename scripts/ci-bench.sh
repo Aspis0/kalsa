@@ -331,6 +331,9 @@ reset_chat() {
   sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.messages.v1';"
   sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.chat.compactor.default';"
   sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.chat.summary.default';"
+  # Memory facts key — facts extracted in one arm must not persist into the next.
+  # The enabled key is set at script start and should persist within an arm.
+  sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.memory.facts';"
 }
 
 launch_app() {
