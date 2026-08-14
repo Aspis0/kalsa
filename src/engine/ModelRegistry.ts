@@ -224,7 +224,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     vendor: "Liquid AI",
     quant: "Q4_K_M",
     hfRepo: "LiquidAI/LFM2.5-8B-A1B-GGUF",
-    revision: "b421ad1d549afeda6a0fb2ad3a697cb5a7879adc",
+    revision: "dfd5fdcad7a1c0d31473fb4ca443b8befbacddf0",
     file: "LFM2.5-8B-A1B-Q4_K_M.gguf",
     sizeBytes: 5_155_564_768,
     // text-only: no mmproj in the HF repo

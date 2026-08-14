@@ -467,7 +467,7 @@ jobs:
           elif [ "${{ inputs.model || 'qwen3.5-2b' }}" = "lfm2.5-8b-a1b" ]; then
             # text-only: no mmproj in the HF repo — leave MMPROJ_FILE unset
             # so the driver's sideload block stays inactive.
-            URL="https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/resolve/b421ad1d549afeda6a0fb2ad3a697cb5a7879adc/LFM2.5-8B-A1B-Q4_K_M.gguf?download=true"
+            URL="https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/resolve/dfd5fdcad7a1c0d31473fb4ca443b8befbacddf0/LFM2.5-8B-A1B-Q4_K_M.gguf?download=true"
             echo "MODEL_FILE=LFM2.5-8B-A1B-Q4_K_M.gguf" >> $GITHUB_ENV
             echo "MODEL_DIR=lfm2.5-8b-a1b" >> $GITHUB_ENV
             # ModelRegistry sizeBytes for lfm2.5-8b-a1b (exact-byte gate).
