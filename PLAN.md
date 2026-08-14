@@ -49,14 +49,19 @@
 > config default, e N≥10 pre-registrato per qualsiasi claim di ship.
 > Branch kalsa/kf-layer-ahead @ c3e8fc4; report
 > reports/moe-kernel-kf-proto.md.
-> **SCOREBOARD K-F (gualt, 2026-08-14 sera — gate espliciti):**
+> **SCOREBOARD K-F (gualt, 2026-08-14 — aggiornato dopo cella REALITY):**
 > KF_PROTO_WIN ✅ · KF_PHYSICS_WIN ✅ · KF_SPEED_WIN ✅ ·
-> KF_IDENTITY_D0_WIN ✅ · KF_ENERGY_WIN ❓ · KF_THERMAL_WIN ❓ ·
-> KF_MEMORY_WIN ❓ · KF_ROBUST_WIN ❓ (coda p95/p99, token che si
-> blocca = UI che scatta, page faults, CPU freq) · KF_GENERAL_WIN ❓
-> (altri modelli/device) · KF_SHIP_WIN ⏳ (N≥10 pre-registrato).
-> Prossima cella: REALITY su Jelly — sustained caldo con per-token CSV
-> (p50/p95/p99, worst token), J/token, majflt, read bytes, freq CPU.**
+> KF_IDENTITY_D0_WIN ✅ · **KF_ENERGY_WIN ✅ (J/tok 0.762 vs 0.770,
+> ratio 0.99)** · **KF_THERMAL_WIN ✅ debole (sag 0.054 vs 0.095, ma
+> mai oltre 30°C: blocchi morti a EOS ~200 tok — serve v2 sustained
+> con --ignore-eos)** · **KF_MEMORY_WIN ❌ (majflt/tok 7.2 vs 0.93 —
+> ma dominato dal primo blocco ON: b3=0.15/tok, steady-state ~parità;
+> rimisurare in v2)** · **KF_ROBUST_WIN ❌ — LA CODA PERDE: p99 605 ms
+> vs 442, worst 1352 vs 666, stutter 1.55% vs 0.45%. La media vince
+> (p50 207 vs 313) ma il p99 regredisce: da ingegnerizzare (width 6→4,
+> throttle di issue) prima di qualsiasi ROBUST claim** · KF_GENERAL_WIN
+> ❓ · KF_SHIP_WIN ⏳. K-F FUORI dai default finché ROBUST + ship cell
+> N≥10 non passano. Report: reports/moe-kernel-kf-reality.md.**
 > Paniere p-value = dispatcher/config (✅ QUALITY GATE PASSED: PPL
 > k6d1.0 dMacro +0.0378 / worst fr +0.0877 → **5.151 t/s È config
 > prodotto certificata Mellum2-S23**) + K-F (prototipo) + libreria.

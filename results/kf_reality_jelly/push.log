@@ -1,0 +1,26 @@
+[2026-08-14T18:09:51.5792791-04:00] LF_OK C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kf_reality_jelly\run_kf_reality_jelly.sh (34797 bytes)
+[2026-08-14T18:09:51.6003301-04:00] LF_OK C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kf_reality_jelly\prompts\p_fact.txt (361 bytes)
+[2026-08-14T18:09:51.6199967-04:00] hash pins BEFORE push (read-only; must not change)
+[2026-08-14T18:09:52.1030550-04:00] pins OK before push
+[2026-08-14T18:09:52.1221600-04:00] mkdir remote dirs
+[2026-08-14T18:09:52.5609318-04:00] scp harness + prompt (no binaries)
+[2026-08-14T18:09:53.5813924-04:00] remote LF check + chmod + re-hash pins
+[2026-08-14T18:09:54.1725697-04:00] termux-api-start + battery JSON verify (STOP_BATT false-alarm guard)
+[2026-08-14T18:09:58.5774769-04:00] battery: {
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 27.0,
+  "voltage": 4140,
+  "current": -135000,
+  "current_average": -135000,
+  "percentage": 73,
+  "level": 73,
+  "scale": 100,
+  "charge_counter": 2150580
+}
+[2026-08-14T18:09:58.6182746-04:00] battery 73% UNPLUGGED temp=27 — precheck OK
+[2026-08-14T18:09:58.6375764-04:00] refuse a second nohup if STATUS=RUNNING (unless FORCE=1)
+[2026-08-14T18:09:59.0732812-04:00] start harness in nohup + wake-lock

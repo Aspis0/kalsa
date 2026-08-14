@@ -1,0 +1,45 @@
+[2026-08-14T18:10:05-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-14T18:10:05-0400] CAMPAIGN PIN OK
+[2026-08-14T18:10:06-0400] KF_BIN_SHA=81c10e8c7c6f9cd35db4848f44e257e5fe52bfbe27daa316a01d8ece3f9b814c path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-14T18:10:06-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-14T18:10:06-0400] computing MODEL sha256...
+[2026-08-14T18:10:43-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-14T18:10:43-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-14T18:10:45-0400] FREQ_READABLE=1 n_cpu=8 sample=500000
+[2026-08-14T18:10:45-0400] === KF REALITY Jelly START resume=0 start_block=1 n_gen=1000 ===
+[2026-08-14T18:10:45-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <p_fact> -n 1000 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-14T18:10:45-0400] ON adds: --kf-prefetch --kf-prefetch-width 6 --csv <per_token>
+[2026-08-14T18:10:45-0400] blocks: 1=OFF 2=ON 3=ON 4=OFF (no cold reset)
+[2026-08-14T18:10:46-0400] preflight i=1 plugged=UNPLUGGED batt=73 temp=27.0 memavail_kib=6230524 floor=35 screen=
+[2026-08-14T18:10:47-0400] preflight i=1 plugged=UNPLUGGED batt=73 temp=27.0 memavail_kib=6230864 floor=35 screen=
+[2026-08-14T18:10:47-0400] RESUME_AT=1
+[2026-08-14T18:10:48-0400] RUN b1_OFF arm=OFF batt=73 plugged=UNPLUGGED temp=27.0 screen=? memavail_kib=6230800 n=1000 cooldown_wait_s=0
+[2026-08-14T18:10:48-0400] BASELINE_TEMP=27.0 (block 1 start)
+[2026-08-14T18:12:12-0400] DONE b1_OFF rc=0 wall=83s tps=3.353 s/tok=0.298 stall=0.089 (29.9%) issued= hit= wasted= prec= joules=172.756077 j/tok=0.77469093 ttft=15.626 j_window=decode majflt=5592 read_gb=19.435860 batt=73->72 temp=27.0/28.000/28.000 cooldown_wait_s=0 excluded=0
+[2026-08-14T18:12:13-0400] preflight i=1 plugged=UNPLUGGED batt=72 temp=28.0 memavail_kib=6446168 floor=35 screen=
+[2026-08-14T18:12:13-0400] RESUME_AT=2
+[2026-08-14T18:12:13-0400] COOLDOWN block=2 target=28.0 reached=28.0 waited=0 s
+[2026-08-14T18:12:14-0400] RUN b2_ON arm=ON batt=72 plugged=UNPLUGGED temp=28.0 screen=? memavail_kib=6444332 n=1000 cooldown_wait_s=0
+[2026-08-14T18:13:15-0400] DONE b2_ON rc=0 wall=60s tps=4.334 s/tok=0.231 stall=0.047 (20.3%) issued=6942.6 hit=4642.4 wasted=2300.2 prec=66.9 joules=148.743012 j/tok=0.77875923 ttft=14.421 j_window=decode majflt=2759 read_gb=22.645432 batt=72->71 temp=28.0/29.000/29.000 cooldown_wait_s=0 excluded=0
+[2026-08-14T18:13:16-0400] preflight i=1 plugged=UNPLUGGED batt=71 temp=29.0 memavail_kib=6473528 floor=35 screen=
+[2026-08-14T18:13:16-0400] RESUME_AT=3
+[2026-08-14T18:18:20-0400] COOLDOWN block=3 target=28.0 reached=29.0 waited=300 s (cap expired — proceed)
+[2026-08-14T18:18:20-0400] RUN b3_ON arm=ON batt=71 plugged=UNPLUGGED temp=29.0 screen=? memavail_kib=6226156 n=1000 cooldown_wait_s=300
+[2026-08-14T18:19:19-0400] DONE b3_ON rc=0 wall=58s tps=4.677 s/tok=0.214 stall=0.036 (16.8%) issued=7341.2 hit=5004.0 wasted=2337.2 prec=68.2 joules=146.178838 j/tok=0.74581040 ttft=14.821 j_window=decode majflt=29 read_gb=23.003464 batt=71->70 temp=29.0/30.000/30.000 cooldown_wait_s=300 excluded=0
+[2026-08-14T18:19:20-0400] preflight i=1 plugged=UNPLUGGED batt=70 temp=30.0 memavail_kib=6531688 floor=35 screen=
+[2026-08-14T18:19:20-0400] RESUME_AT=4
+[2026-08-14T18:24:24-0400] COOLDOWN block=4 target=28.0 reached=30.0 waited=300 s (cap expired — proceed)
+[2026-08-14T18:24:25-0400] RUN b4_OFF arm=OFF batt=69 plugged=UNPLUGGED temp=30.0 screen=? memavail_kib=6445780 n=1000 cooldown_wait_s=300
+[2026-08-14T18:25:49-0400] DONE b4_OFF rc=0 wall=83s tps=3.203 s/tok=0.312 stall=0.087 (27.9%) issued= hit= wasted= prec= joules=171.677869 j/tok=0.76985591 ttft=12.231 j_window=decode majflt=208 read_gb=20.107543 batt=69->68 temp=30.0/30.000/30.000 cooldown_wait_s=300 excluded=0
+[2026-08-14T18:25:49-0400] void_scan= this_cycle_void=
+[2026-08-14T18:25:50-0400] CAMPAIGN_SHA_AFTER=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81
+[2026-08-14T18:25:50-0400] KF_BIN_SHA_AFTER=81c10e8c7c6f9cd35db4848f44e257e5fe52bfbe27daa316a01d8ece3f9b814c
+[2026-08-14T18:25:50-0400] excluded rows remaining at DONE: (none)
+[2026-08-14T18:25:50-0400] void blocks remaining at DONE: (none)
+[2026-08-14T18:25:50-0400] === KF REALITY Jelly COMPLETE ===
+ts,order_idx,arm,label,decode_tps,wall_s_tok,compute,mgmt,stall,stall_pct,issued_mib,hit_mib,wasted_mib,precision_pct,hit_pct,joules,j_per_tok,j_window,ttft_s,majflt_delta,read_bytes,read_bytes_gb,temp_start,cooldown_wait_s,temp_max,temp_end,batt_start,batt_end,freq_p50_c0,freq_p95_c0,freq_p50_c1,freq_p95_c1,n_tokens,duration_s,memavail_start_kib,memavail_min_kib,screen,plugged,excluded,csv_path,freq_readable
+2026-08-14T18:12:12-0400,1,OFF,b1_OFF,3.353,0.298,0.195,0.014,0.089,29.9,,,,,52.5,172.756077,0.77469093,decode,15.626,5592,19435859968,19.435860,27.0,0,28.000,28.000,73,72,1450000,2000000,2200000,2200000,223,83,6230800,3778624,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_reality_jelly/per_token/b1_OFF.csv,1
+2026-08-14T18:13:15-0400,2,ON,b2_ON,4.334,0.231,0.172,0.012,0.047,20.3,6942.6,4642.4,2300.2,66.9,68.2,148.743012,0.77875923,decode,14.421,2759,22645432320,22.645432,28.0,0,29.000,29.000,72,71,2000000,2200000,,,191,60,6444332,3775132,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_reality_jelly/per_token/b2_ON.csv,1
+2026-08-14T18:19:19-0400,3,ON,b3_ON,4.677,0.214,0.166,0.012,0.036,16.8,7341.2,5004.0,2337.2,68.2,68.2,146.178838,0.74581040,decode,14.821,29,23003463680,23.003464,29.0,300,30.000,30.000,71,70,2000000,2200000,,,196,58,6226156,3626036,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_reality_jelly/per_token/b3_ON.csv,1
+2026-08-14T18:25:49-0400,4,OFF,b4_OFF,3.203,0.312,0.210,0.015,0.087,27.9,,,,,52.5,171.677869,0.76985591,decode,12.231,208,20107542528,20.107543,30.0,300,30.000,30.000,69,68,1150000,2000000,2200000,2200000,223,83,6445780,3691364,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_reality_jelly/per_token/b4_OFF.csv,1
+[2026-08-14T18:25:52-0400] trap cleanup
