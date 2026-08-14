@@ -22,7 +22,8 @@ This file is the honesty log — do not treat `ok:true` as KV reuse.
 | 3 | Swipe-relaunch / process death, then send | Hybrid restore does **not** populate native KV (Q6.c). Prewarm still runs (`prewarmPrefixHash` is null). Then 1b-shaped send | UNKNOWN_DEVICE |
 
 Catalog chat models (`ModelRegistry`) are `hybrid` / `kvUnified`. Gemma is
-dense; the skip policy is still hash-only (see prewarm).
+dense: a successful restore populates real KV, so prewarm is skipped
+(`kvHoldsChatSession && !hybrid`). Hybrid restores still prewarm (`n_past=0`).
 
 ## Keepalive (P0-1) — not shipped
 
@@ -48,11 +49,18 @@ Background still: abort in-flight turn → save if KV-reproducible →
   the hot system+tools KV.
 - **`n_predict: 0`.** Eval prompt only. If the binding rejects that, the
   prewarm fails — we never fall back to `n_predict: 1` (that would emit a
-  token and poison prefix-match).
-- **Hash miss falls through.** If `prewarmPrefixHash !== sendHash`, we log
-  `KALSA_PREWARM {"match":false,...}` and send anyway (full prefill). No
-  retry, no second completion.
-- **Hybrid restore still prewarms.** Skip only when
+  token and poison prefix-match). Rejection also emits
+  `KALSA_SESSION {"op":"prewarm","ok":false,"reason":"n_predict_rejected"}`
+  so the existing session grep sees it.
+- **Hash is identity-only.** `computePrewarmPrefixHash` covers
+  `{locale, systemText, tools:{name,schema}}`. It is **not** a byte-proof
+  of the rendered jinja prompt (`now()`, template drift, binding changes
+  can miss while `match:true` logs). Native `KALSA_KVDIAG0` / `reusing n/m`
+  remain the byte-level signal.
+- **Foreground only.** `queueStaticPrefixPrewarm` no-ops unless
+  `AppState.currentState === "active"` so an OEM background relaunch does
+  not burn a 40 s prefill. AppShell re-kicks on foreground.
+- **Hybrid restore still prewarms.** Hash-skip only when
   `prewarmPrefixHash === prefix.hash` (already prewarmed / marked this
   process). Do **not** skip solely because `kvHoldsChatSession`. After
   `tryLoadEngineSession` JS can report `ok:true tokens:1635` while native
@@ -60,6 +68,11 @@ Background still: abort in-flight turn → save if KV-reproducible →
   cold KV (swipe-relaunch still ~53s). After a live chat turn we set
   `prewarmPrefixHash` to the current static prefix hash so a later
   `ensure()` does not wipe hot chat KV with a system-only prefill.
+- **Dense restore skips prewarm.** `shouldSkipPrewarmAfterRestore`:
+  `kvHoldsChatSession && !isHybridOrKvUnifiedModel`. Gemma `loadSession`
+  is real KV; a system+`.` prewarm would `seq_rm` the restored tail and
+  the first send would re-prefill the whole history. Hybrid behavior
+  unchanged. Post-turn hash-marking unchanged.
 
 ## KVDIAG honesty (V2-4)
 

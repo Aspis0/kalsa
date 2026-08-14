@@ -75,17 +75,34 @@ export function buildStaticPrefixMessages(systemText: string): StaticPrefixMessa
 
 /**
  * Queue skip: only when this process already prewarmed (or marked hot) this
- * prefix. Do NOT skip because kvHoldsChatSession — hybrid restore can set that
- * flag (JS ok:true / tokens>0) while native n_past is still 0. After a live
- * chat turn the caller sets prewarmPrefixHash so ensure() will not overwrite
- * hot chat KV with a system-only prefill. After disk restore the hash is null
- * → prewarm runs (that is the point).
+ * prefix. After a live chat turn the caller sets prewarmPrefixHash so ensure()
+ * will not overwrite hot chat KV with a system-only prefill.
+ *
+ * Disk restore is split: hybrid/kvUnified loadSession is not a real native
+ * restore (n_past=0) so prewarm must still run when the hash is null. Dense
+ * restores (Gemma) populate real KV — see shouldSkipPrewarmAfterRestore.
+ *
+ * Hash is identity-only (locale + systemText + tool name/schema), not a
+ * byte-proof of the rendered jinja prompt.
  */
 export function shouldSkipStaticPrefixPrewarm(
   prewarmPrefixHash: string | null | undefined,
   prefixHash: string,
 ): boolean {
   return prewarmPrefixHash === prefixHash;
+}
+
+/**
+ * Dense restore populated real chat KV. A system+user"." prewarm would
+ * seq_rm-succeed and delete the restored tail; first send then re-prefills
+ * the whole history. Hybrid/kvUnified restores are not real (n_past=0) —
+ * never skip those.
+ */
+export function shouldSkipPrewarmAfterRestore(
+  kvHoldsChatSession: boolean,
+  hybridOrKvUnified: boolean,
+): boolean {
+  return kvHoldsChatSession === true && hybridOrKvUnified === false;
 }
 
 export function assembleStaticPrefix(input: {

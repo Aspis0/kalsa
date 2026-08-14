@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import {
   addNativeLogListener,
@@ -101,6 +101,7 @@ import {
 import {
   assembleStaticPrefix,
   computePrewarmPrefixHash,
+  shouldSkipPrewarmAfterRestore,
   shouldSkipStaticPrefixPrewarm,
 } from "./prefixPrewarm";
 import {
@@ -543,6 +544,13 @@ export function queueStaticPrefixPrewarm(
   tools?: EngineTool[],
 ): void {
   if (!EAGER_PREFIX_PREWARM) return;
+  // OEM process-restore can relaunch us in background; do not burn a 40s
+  // prefill until the user is actually looking at the app. Foreground
+  // AppState → active re-kicks from AppShell.
+  if (AppState.currentState !== "active") {
+    logPrewarm({ op: "skip", reason: "background" });
+    return;
+  }
   if (!isEngineReady()) {
     logPrewarm({ op: "skip", reason: "not_ready" });
     return;
@@ -551,6 +559,16 @@ export function queueStaticPrefixPrewarm(
   // Skip only if this process already prewarmed / marked this prefix.
   // Do not skip solely because kvHoldsChatSession — hybrid restore reports
   // ok:true while native n_past=0; skipping would leave a cold KV.
+  // Dense restore (Gemma) is real: prewarm seq_rm would delete the tail.
+  if (
+    shouldSkipPrewarmAfterRestore(
+      kvHoldsChatSession,
+      isHybridOrKvUnifiedModel(activeModelId ?? ""),
+    )
+  ) {
+    logPrewarm({ op: "skip", reason: "dense_restore" });
+    return;
+  }
   if (
     shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash) ||
     prewarmQueuedKey === prefix.hash
@@ -619,15 +637,25 @@ export function queueStaticPrefixPrewarm(
       logPrewarm({ op: "done", promptMs, hash: prefix.hash });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error ?? "");
+      const reason = /n_predict/i.test(msg)
+        ? "n_predict_rejected"
+        : /Prompt is required/i.test(msg)
+          ? "empty_prompt"
+          : "fail";
       logPrewarm({
         op: "skip",
-        reason: /n_predict/i.test(msg)
-          ? "n_predict_rejected"
-          : /Prompt is required/i.test(msg)
-            ? "empty_prompt"
-            : "fail",
+        reason,
         err: msg.slice(0, 160),
       });
+      if (reason === "n_predict_rejected") {
+        try {
+          console.log(
+            `KALSA_SESSION ${JSON.stringify({ op: "prewarm", ok: false, reason: "n_predict_rejected" })}`,
+          );
+        } catch {
+          // telemetry must never throw
+        }
+      }
     } finally {
       if (prewarmQueuedKey === prefix.hash) prewarmQueuedKey = null;
     }
