@@ -1,0 +1,35 @@
+[2026-08-14T17:10:50-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-14T17:10:50-0400] CAMPAIGN PIN OK (36b01966)
+[2026-08-14T17:10:50-0400] NEW_BIN_SHA=81c10e8c7c6f9cd35db4848f44e257e5fe52bfbe27daa316a01d8ece3f9b814c path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-14T17:10:50-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-14T17:10:50-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-14T17:10:50-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-14T17:10:51-0400] === KF PROTO Jelly Marco1c START ===
+[2026-08-14T17:10:52-0400] preflight i=1 plugged=UNPLUGGED batt=84 temp=27.0 memavail_kib=5954300 floor=35 screen=
+[2026-08-14T17:10:52-0400] RUN fact_OFF_o1 batt=84 plugged=UNPLUGGED temp=27.0 screen=? memavail_kib=5955644 cold=1
+[2026-08-14T17:12:38-0400] DONE fact_OFF_o1 rc=0 wall=80s tps=3.123 stall=0.086 (26.9%) issued= hit= wasted= prec= batt=84->84 temp_max=28.0 screen=?
+[2026-08-14T17:12:39-0400] RUN fact_ON_o2 batt=84 plugged=UNPLUGGED temp=28.0 screen=? memavail_kib=6002960 cold=1
+[2026-08-14T17:14:02-0400] DONE fact_ON_o2 rc=0 wall=58s tps=4.704 stall=0.037 (17.4%) issued=7659.9 hit=5226.3 wasted=2433.6 prec=68.2 batt=84->83 temp_max=29.0 screen=?
+[2026-08-14T17:14:02-0400] RUN fact_ON_o3 batt=83 plugged=UNPLUGGED temp=29.0 screen=? memavail_kib=6046700 cold=1
+[2026-08-14T17:15:24-0400] DONE fact_ON_o3 rc=0 wall=56s tps=4.829 stall=0.035 (16.9%) issued=7052.0 hit=4815.9 wasted=2236.2 prec=68.3 batt=83->82 temp_max=30.0 screen=?
+[2026-08-14T17:15:25-0400] RUN fact_OFF_o4 batt=82 plugged=UNPLUGGED temp=30.0 screen=? memavail_kib=6063808 cold=1
+[2026-08-14T17:17:09-0400] DONE fact_OFF_o4 rc=0 wall=79s tps=3.162 stall=0.085 (26.9%) issued= hit= wasted= prec= batt=82->81 temp_max=31.0 screen=?
+[2026-08-14T17:17:10-0400] RUN fact_ON_o5 batt=81 plugged=UNPLUGGED temp=31.0 screen=? memavail_kib=6111128 cold=0
+[2026-08-14T17:18:13-0400] DONE fact_ON_o5 rc=0 wall=62s tps=4.428 stall=0.044 (19.5%) issued=7881.9 hit=5470.7 wasted=2411.2 prec=69.4 batt=81->81 temp_max=32.0 screen=?
+[2026-08-14T17:18:14-0400] RUN identity_OFF_d0 batt=81 plugged=UNPLUGGED temp=32.0 screen=? memavail_kib=6272708 cold=0
+[2026-08-14T17:19:36-0400] DONE identity_OFF_d0 rc=0 wall=81s tps=3.098 stall=0.097 (30.0%) issued= hit= wasted= prec= batt=81->80 temp_max=33.0 screen=?
+[2026-08-14T17:19:37-0400] RUN identity_ON_d0 batt=80 plugged=UNPLUGGED temp=33.0 screen=? memavail_kib=6409884 cold=0
+[2026-08-14T17:20:42-0400] DONE identity_ON_d0 rc=0 wall=64s tps=4.170 stall=0.054 (22.5%) issued=5759.1 hit=3924.8 wasted=1834.2 prec=68.2 batt=80->79 temp_max=34.0 screen=?
+[2026-08-14T17:20:42-0400] IDENTITY_D0=PASS
+[2026-08-14T17:20:42-0400] D065_TEXT_MATCH=no (divergence under drop is EXPECTED per review F2 — informational, not a failure)
+[2026-08-14T17:20:42-0400] === KF PROTO Jelly Marco1c COMPLETE ===
+ts,order_idx,flag,cold,decode_tps,wall_s_tok,compute,mgmt,stall,stall_pct,issued_mib,hit_mib,wasted_mib,precision_pct,spec_useful,spec_experts,hit_pct,mib_per_tok,n_gen,batt_start,batt_end,temp_max,screen,plugged,memavail_start_kib
+2026-08-14T17:12:38-0400,1,OFF,1,3.123,0.320,0.219,0.015,0.086,26.9,,,,,,,52.3,52.68,200,84,84,28.0,?,UNPLUGGED,5955644
+2026-08-14T17:14:02-0400,2,ON,1,4.704,0.213,0.165,0.011,0.037,17.4,7659.9,5226.3,2433.6,68.2,6417,8615,67.5,76.13,200,84,83,29.0,?,UNPLUGGED,6002960
+2026-08-14T17:15:24-0400,3,ON,1,4.829,0.207,0.161,0.011,0.035,16.9,7052.0,4815.9,2236.2,68.3,5913,8032,69.4,68.72,200,83,82,30.0,?,UNPLUGGED,6046700
+2026-08-14T17:17:09-0400,4,OFF,1,3.162,0.316,0.217,0.015,0.085,26.9,,,,,,,52.3,52.68,200,82,81,31.0,?,UNPLUGGED,6063808
+2026-08-14T17:18:13-0400,5,ON,0,4.428,0.226,0.170,0.012,0.044,19.5,7881.9,5470.7,2411.2,69.4,6717,8931,68.6,75.33,200,81,81,32.0,?,UNPLUGGED,6111128
+2026-08-14T17:19:36-0400,6,OFF,0,3.098,0.323,0.208,0.018,0.097,30.0,,,,,,,50.2,59.02,200,81,80,33.0,?,UNPLUGGED,6272708
+2026-08-14T17:20:42-0400,7,ON,0,4.170,0.240,0.161,0.026,0.054,22.5,5759.1,3924.8,1834.2,68.2,4819,6392,62.5,76.16,200,80,79,34.0,?,UNPLUGGED,6409884
+[2026-08-14T17:20:42-0400] CAMPAIGN_SHA_AFTER=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81
+[2026-08-14T17:20:44-0400] trap cleanup

@@ -38,12 +38,17 @@
 > wall=compute+mgmt+stall chiude al ms), derivato dai log esistenti a
 > zero minuti device; tetto layer-ahead issue-only ~36% del wall (finestra
 > stretta 8-14%); il macchinario route_ahead_submit/collect/issue_for
-> ESISTE già nell'engine — **PROTOTIPO LANDATO (kalsa/kf-layer-ahead @
-> c3e8fc4: feat+test+docs+2 fix review), review ostile PASS strutturale,
-> ctest 10/10, G15 byte-identity ok; caveat F2: identità NON vale sotto
-> drop → gate identità a d0, ABBA d065 solo per il wall. Build Android
-> pronta; A/B Jelly in attesa SOLO dell'unplug fisico (watcher auto-start
-> armato, 7 run: ABBA 2+2 + hot + coppia identità d0).**
+> ESISTE già nell'engine — **🏆 KF_PROTO_WIN (2026-08-14 sera, Jelly
+> Marco1c): wall 0.318→0.210 s/tok (−34.0%), tok/s 3.14→4.77 (+51.8%),
+> stall 26.9%→17.2%, precision 68.3%, IDENTITY_D0=PASS (sha identici a
+> drop 0); a d0 il win regge (−25.7%) quindi non è artefatto del drop;
+> divergenza testo a d065 ATTESA (F2 review). Il −34% satura quasi il
+> tetto derivato ~36%: il prefetch elimina anche i page-fault dentro
+> "compute" (0.218→0.163). Costi onesti: ~31% byte issued sprecati,
+> J/token NON misurato → serve cella energia K-F prima di promuoverlo in
+> config default, e N≥10 pre-registrato per qualsiasi claim di ship.
+> Branch kalsa/kf-layer-ahead @ c3e8fc4; report
+> reports/moe-kernel-kf-proto.md.**
 > Paniere p-value = dispatcher/config (✅ QUALITY GATE PASSED: PPL
 > k6d1.0 dMacro +0.0378 / worst fr +0.0877 → **5.151 t/s È config
 > prodotto certificata Mellum2-S23**) + K-F (prototipo) + libreria.
@@ -390,6 +395,23 @@ DONE
 ## Registro checkpoint
 
 *(voci ≤ 2026-08-11 in `PLAN-archive.md` → «Registro checkpoint (archivio)»)*
+
+- **2026-08-14 (sera) — 🏆 KF_PROTO_WIN: il primo kernel-candidato che
+  VINCE su device.** A/B Jelly Marco1c (config campagna t2 k6 d065,
+  ABBA cold 2+2 + hot + coppia identità d0, batt 84→79, pin intoccato):
+  **wall −34.0% (0.318→0.210 s/tok), +51.8% tok/s, IDENTITY_D0=PASS**
+  (byte identici a drop 0), win presente anche a d0 (−25.7%), stall
+  −58%, e il prefetch mangia pure i page-fault dentro compute
+  (0.218→0.163) — quasi saturato il tetto teorico ~36%. Divergenza a
+  d065 attesa (F2): l'harness corretto l'ha classificata informativa —
+  il gate vecchio avrebbe urlato un falso BROKEN. Costi: ~31% issued
+  sprecato (precision 68%), J/token non misurato → cella energia prima
+  di ogni promozione a default; N≥10 pre-registrato prima di ogni claim
+  di ship. Contesto ops: 2 false partenze (CRLF che uccide il bash
+  Termux alla riga 5 con push rc=0; Termux:API morta che finge batteria
+  scarica) → 2 memorie con contromisure. In parallelo: **ship A/B S23
+  partita** (PREREG 12 coppie stock-vs-certified, warm-up ok, RUNNING).
+  Report: reports/moe-kernel-kf-proto.md.
 
 - **2026-08-14 (tardo pomeriggio) — 🔧 K-F: PROTOTIPO LANDATO E BLINDATO,
   in attesa solo dello stacco fisico del Jelly.** (1) **Implementazione
