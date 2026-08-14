@@ -1,0 +1,66 @@
+{
+  "verdict": "KG_KILL",
+  "verdict_reason": "K2.2's 1.29x does not survive a fair same-session CPU baseline. Warmed dense pp512 is 1.12x (2B) / 1.15x (4B second-rep). Hybrid CalaQwen projects 1.07x. Boundaries are ~0.07 ms/tok (not the killer). 4B average 1.55x is the cold-mmap first-rep (14.98 vs 30.89 t/s) — same trap as K2.2's 63.6 CPU average (82 then 45).",
+  "m0": {
+    "wall_n_prompt": 984,
+    "wall_prefill_s": 63.445,
+    "wall_prefill_tps": 15.5,
+    "trace_n_prompt": 272,
+    "trace_traced_s": 18.080,
+    "expert_ffn_frac": 0.3907,
+    "attn_dense_frac": 0.5794,
+    "glue_frac": 0.0253,
+    "other_frac": 0.0045,
+    "gate_expert_gt_60pct": false,
+    "mul_mat_id_frac": 0.3462,
+    "mul_mat_frac": 0.5184,
+    "gdn_frac": 0.0425
+  },
+  "m1": {
+    "shape": "512x2048 f32 = 4.000 MiB",
+    "write_median_us": 330.37,
+    "write_p95_us": 623.18,
+    "read_median_us": 287.92,
+    "read_p95_us": 411.09,
+    "handoff_pair_median_us": 873.59,
+    "handoff_pair_p95_us": 1545.0,
+    "empty_kernel_host_median_us": 297.14,
+    "empty_kernel_dev_median_us": 3.07,
+    "layout_copy_dev_median_us": 347.14,
+    "clFinish_idle_median_us": 1.67,
+    "decode_1x2048_write_median_us": 2.55,
+    "decode_1x2048_empty_kernel_host_median_us": 300.00,
+    "per_layer_handoff_us": 873.59,
+    "bound_ms_per_512tok_ubatch": 34.94,
+    "bound_ms_per_tok": 0.068,
+    "note": "F32 activations: clEnqueueWrite/ReadBuffer CL_TRUE, no convert kernel in ggml-opencl"
+  },
+  "dense": {
+    "2b_p128": {"cpu_tps": 82.77, "gpu_tps": 85.45, "speedup": 1.032},
+    "2b_p512": {"cpu_tps": 80.69, "gpu_tps": 90.54, "speedup": 1.122, "cpu_reps": [81.19, 80.19], "gpu_reps": [90.60, 90.49]},
+    "4b_p512_avg": {"cpu_tps": 22.93, "gpu_tps": 35.65, "speedup": 1.555, "cpu_reps": [14.98, 30.89], "gpu_reps": [35.70, 35.60]},
+    "4b_p512_warmed": {"cpu_tps": 30.89, "gpu_tps": 35.65, "speedup": 1.154},
+    "k22_published_p128": {"cpu_tps": 63.62, "gpu_tps": 82.26, "speedup": 1.29, "cpu_reps": [82.29, 44.95], "note": "CPU second-rep thermal/mmap drop created the 1.29x"}
+  },
+  "hybrid": {
+    "approximation": "t_hybrid = t_cpu * f_expert + t_cpu * (1-f_expert) / s_attn + t_bound. s_attn = 2B pp512 GPU/CPU (same GDN family, n_embd=2048). Expert FFN stays CPU (Q7-LANDMINE). True hybrid layer not wired — this is the spec-allowed approximation.",
+    "f_expert": 0.3907,
+    "t_cpu_s": 63.445,
+    "n_prompt": 984,
+    "s_attn_from_2b_p512": 1.122,
+    "t_expert_s": 24.79,
+    "t_rest_gpu_s": 34.45,
+    "t_bound_s": 0.067,
+    "t_hybrid_s": 59.31,
+    "speedup": 1.070,
+    "ceiling_if_attn_free": 2.56
+  },
+  "energy_screening": {
+    "method": "termux-battery-status current (uA) * voltage, point samples not integral",
+    "unplugged": true,
+    "approx_W_cpu_2b": 2.66,
+    "approx_W_gpu_2b": 2.95,
+    "approx_J_per_tok_cala_prefill": 0.18,
+    "note": "SCREENING only. No idle subtraction, no p95 soak. Not a K-E confirmatory protocol."
+  }
+}

@@ -31,9 +31,16 @@
 > streamati bypassano (`use_extra_bufts=false` portante); decode +1.1%
 > cpu, wall −2.4% = rumore, il −6.3% cpu-time era artefatto n_gen; anche
 > il sustained confondato dall'ordine termico. Kill criterion rispettato.**
-> Paniere p-value del kernel = dispatcher/config (misurato, enorme) +
-> K-G GPU prefill (gated su boundary prototype) + layer-ahead (gated su
-> telemetria). (2) SELFSPEC F1b diagnosi in volo. (3) PPL gate in corso.
+> **K-G MORTA (KG_KILL, pomeriggio): il "prefill GPU 1.29×" era un
+> artefatto — baseline K2.2 = media con una rep cold-outlier (82.29,
+> 44.95); rimisurato onesto p512 1.12×, 4B warmed 1.15×, ibrido 1.07×;
+> i boundary CPU↔GPU costano solo 0.068 ms/tok = NON sono il collo, è la
+> GPU 740 che non batte 8 core sul prefill. Expert-FFN = 39% del prefill.
+> Mesi di OpenCL per 1.1× = kill dal suo stesso gate ≥1.3×. NOTA: le
+> claim "prefill GPU 1.29-1.7×" nei documenti precedenti sono CORRETTE da
+> questo dato.** Paniere p-value del kernel = dispatcher/config (misurato,
+> enorme) + layer-ahead (ultimo candidato gated) + la libreria stessa
+> (contratti/CI/day-zero). (2) SELFSPEC F1b diagnosi in volo. (3) PPL gate in corso.
 > **(4) TTFT: PREWARM_UNIVERSAL — Xiaomi 4B post-fix P0: 1a 1.42/2.02 s,
 > riuso 1174/1187 (98.9%), prewarm 29-31 s, 1b join 26 s; fix memguard
 > mergiato su ai-chat main (b274fb9, harness 27/27); P1 zombie APERTO.** Bug app P0/P1 trovati sul Xiaomi (KNOWN_ISSUES ab3b747):

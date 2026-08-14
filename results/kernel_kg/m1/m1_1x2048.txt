@@ -1,0 +1,23 @@
+kg_boundary tokens=1 embd=2048 iters=16 warmup=4
+platform=QUALCOMM Snapdragon(TM)
+device=QUALCOMM Adreno(TM)
+device_version=OpenCL 3.0 Adreno(TM) 740
+global_mem_bytes=3708796928 max_alloc=927199232 clock_mhz=1
+
+=== SHAPE tokens=1 embd=2048 bytes=8192 (0.008 MiB) ===
+RESULT write_f32_1x2048 n=16 min_us=2.50 median_us=2.55 p95_us=2.81 mean_us=2.57 max_us=2.81
+RAW write_f32_1x2048 2.50 2.50 2.55 2.55 2.55 2.55 2.55 2.55 2.55 2.55 2.55 2.55 2.55 2.60 2.66 2.81
+RESULT read_f32_1x2048 n=16 min_us=2.50 median_us=2.55 p95_us=2.87 mean_us=2.57 max_us=2.87
+RAW read_f32_1x2048 2.50 2.50 2.50 2.50 2.50 2.50 2.55 2.55 2.55 2.55 2.55 2.55 2.60 2.66 2.71 2.87
+RESULT clFinish_idle n=16 min_us=1.61 median_us=1.67 p95_us=1.93 mean_us=1.70 max_us=1.93
+RAW clFinish_idle 1.61 1.67 1.67 1.67 1.67 1.67 1.67 1.67 1.67 1.67 1.72 1.72 1.72 1.72 1.72 1.93
+RESULT empty_kernel_host_1x2048 n=16 min_us=288.80 median_us=300.00 p95_us=563.12 mean_us=319.20 max_us=563.12
+RAW empty_kernel_host_1x2048 288.80 289.90 294.22 296.46 296.51 296.61 298.12 298.59 300.00 300.10 306.72 308.65 310.10 311.51 347.76 563.12
+RESULT empty_kernel_dev_1x2048 n=16 min_us=2.82 median_us=3.07 p95_us=3.84 mean_us=3.09 max_us=3.84
+RAW empty_kernel_dev_1x2048 2.82 2.82 3.07 3.07 3.07 3.07 3.07 3.07 3.07 3.07 3.07 3.07 3.07 3.07 3.07 3.84
+RESULT layout_copy_host_1x2048 n=16 min_us=286.15 median_us=349.27 p95_us=527.55 mean_us=336.30 max_us=527.55
+RAW layout_copy_host_1x2048 286.15 287.97 288.23 288.59 290.52 291.88 292.97 297.71 349.27 350.42 350.78 352.81 352.92 383.18 389.84 527.55
+RESULT layout_copy_dev_1x2048 n=16 min_us=3.84 median_us=4.10 p95_us=5.12 mean_us=4.08 max_us=5.12
+RAW layout_copy_dev_1x2048 3.84 3.84 3.84 3.84 3.84 4.10 4.10 4.10 4.10 4.10 4.10 4.10 4.10 4.10 4.10 5.12
+RESULT handoff_pair_f32_1x2048 n=16 min_us=6.35 median_us=6.41 p95_us=6.56 mean_us=6.42 max_us=6.56
+RAW handoff_pair_f32_1x2048 6.35 6.35 6.35 6.35 6.36 6.41 6.41 6.41 6.41 6.41 6.41 6.41 6.46 6.51 6.56 6.56

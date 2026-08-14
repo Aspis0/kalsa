@@ -1,0 +1,12 @@
+cell,rc,wall_s,note,batt_s,batt_e,temp_s,temp_e,screen_s,screen_e
+m1_512x2048,0,1,cmd,87,87,30.7,30.7,screen=?,screen=?
+m1_1x2048,0,1,cmd,87,86,30.7,30.2,screen=?,screen=?
+m2_2b_cpu_p128,0,69,cmd,85,85,30.6,30.6,screen=?,screen=?
+m2_2b_gpu_p128,0,67,cmd,85,85,30.6,30.6,screen=?,screen=?
+m2_2b_cpu_p128,0,7,cmd,85,85,30.6,30.5,screen=?,screen=?
+m2_2b_cpu,0,20,cmd,85,85,30.5,30.5,screen=?,screen=?
+m2_2b_gpu,0,31,cmd,85,84,30.5,32.8,screen=?,screen=?
+m2_4b_cpu,0,76,cmd,84,84,32.8,34.7,screen=?,screen=?
+m2_4b_gpu,0,66,cmd,84,83,34.7,36.4,screen=?,screen=?
+m0_wall_14h,0,74,cmd,83,82,36.4,38.1,screen=?,screen=?
+m0_trace_512,0,28,cmd,82,82,38.1,39.5,screen=?,screen=?

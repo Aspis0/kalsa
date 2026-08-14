@@ -1,0 +1,10 @@
+# Preview run 2026-08-14 (before orchestrator). Device Adreno 740, OpenCL 3.0.
+# 512 x 2048 f32 = 4.000 MiB. N=16 after 4 warmup.
+RESULT write_f32_512x2048 n=16 min_us=289.17 median_us=296.56 p95_us=722.92 mean_us=338.27 max_us=722.92
+RESULT read_f32_512x2048 n=16 min_us=285.37 median_us=286.51 p95_us=357.24 mean_us=293.94 max_us=357.24
+RESULT clFinish_idle n=16 min_us=1.56 median_us=1.61 p95_us=3.23 mean_us=1.73 max_us=3.23
+RESULT empty_kernel_host_512x2048 n=16 min_us=295.16 median_us=343.85 p95_us=538.54 mean_us=365.56 max_us=538.54
+RESULT empty_kernel_dev_512x2048 n=16 min_us=2.82 median_us=3.07 p95_us=4.10 mean_us=3.20 max_us=4.10
+RESULT layout_copy_host_512x2048 n=16 min_us=709.74 median_us=890.31 p95_us=968.12 mean_us=833.38 max_us=968.12
+RESULT layout_copy_dev_512x2048 n=16 min_us=344.83 median_us=346.88 p95_us=348.16 mean_us=346.22 max_us=348.16
+RESULT handoff_pair_f32_512x2048 n=16 min_us=906.09 median_us=984.84 p95_us=1216.88 mean_us=998.91 max_us=1216.88

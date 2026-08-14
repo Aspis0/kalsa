@@ -1,0 +1,23 @@
+kg_boundary tokens=512 embd=2048 iters=16 warmup=4
+platform=QUALCOMM Snapdragon(TM)
+device=QUALCOMM Adreno(TM)
+device_version=OpenCL 3.0 Adreno(TM) 740
+global_mem_bytes=3708796928 max_alloc=927199232 clock_mhz=1
+
+=== SHAPE tokens=512 embd=2048 bytes=4194304 (4.000 MiB) ===
+RESULT write_f32_512x2048 n=16 min_us=290.52 median_us=330.37 p95_us=623.18 mean_us=376.75 max_us=623.18
+RAW write_f32_512x2048 290.52 291.82 294.27 298.49 300.10 309.06 309.53 324.43 330.37 339.22 373.33 402.76 425.94 495.57 619.48 623.18
+RESULT read_f32_512x2048 n=16 min_us=286.67 median_us=287.92 p95_us=411.09 mean_us=302.82 max_us=411.09
+RAW read_f32_512x2048 286.67 287.08 287.13 287.34 287.40 287.40 287.55 287.71 287.92 288.23 288.28 288.44 295.37 336.67 350.78 411.09
+RESULT clFinish_idle n=16 min_us=1.56 median_us=1.67 p95_us=2.45 mean_us=1.71 max_us=2.45
+RAW clFinish_idle 1.56 1.56 1.61 1.61 1.61 1.61 1.61 1.61 1.67 1.67 1.67 1.67 1.67 1.67 2.13 2.45
+RESULT empty_kernel_host_512x2048 n=16 min_us=256.04 median_us=297.14 p95_us=577.55 mean_us=317.42 max_us=577.55
+RAW empty_kernel_host_512x2048 256.04 256.56 257.13 258.02 260.52 265.47 268.33 280.26 297.14 299.53 316.77 318.75 335.52 374.69 456.46 577.55
+RESULT empty_kernel_dev_512x2048 n=16 min_us=2.82 median_us=3.07 p95_us=3.84 mean_us=3.09 max_us=3.84
+RAW empty_kernel_dev_512x2048 2.82 2.82 2.82 2.82 2.82 3.07 3.07 3.07 3.07 3.07 3.07 3.07 3.07 3.07 3.84 3.84
+RESULT layout_copy_host_512x2048 n=16 min_us=881.88 median_us=1005.47 p95_us=1159.48 mean_us=1032.78 max_us=1159.48
+RAW layout_copy_host_512x2048 881.88 922.24 951.41 976.67 988.23 996.15 996.25 1003.75 1005.47 1074.84 1085.68 1098.86 1115.21 1124.17 1144.17 1159.48
+RESULT layout_copy_dev_512x2048 n=16 min_us=345.09 median_us=347.14 p95_us=348.16 mean_us=347.31 max_us=348.16
+RAW layout_copy_dev_512x2048 345.09 346.88 346.88 346.88 346.88 346.88 347.14 347.14 347.14 347.90 347.90 347.90 347.90 348.16 348.16 348.16
+RESULT handoff_pair_f32_512x2048 n=16 min_us=573.96 median_us=873.59 p95_us=1545.00 mean_us=878.08 max_us=1545.00
+RAW handoff_pair_f32_512x2048 573.96 606.35 667.60 667.76 670.21 748.70 755.62 871.72 873.59 910.88 1015.16 1024.74 1030.73 1036.72 1050.52 1545.00

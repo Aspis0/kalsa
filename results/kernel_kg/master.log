@@ -1,0 +1,266 @@
+[2026-08-14T10:57:44-0400] K-G start ROOT=/data/data/com.termux/files/home/experiments/results/kernel_kg
+=== SNAP start 2026-08-14T10:57:44-0400 ===
+level=? temp_c=? plugged=? status=? current=? voltage=?
+[2026-08-14T10:58:42-0400] K-G start ROOT=/data/data/com.termux/files/home/experiments/results/kernel_kg
+=== SNAP start 2026-08-14T10:58:42-0400 ===
+level=87 temp_c=30.7 plugged=UNPLUGGED status=DISCHARGING current=-217000 voltage=4203
+batt_c=30.7
+screen=screen=?
+uptime= 10:58:43 up 6 min,  load average: 0.80, 1.22, 0.81
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2967         557          15        3548        3993
+ok batt=87 temp_c=30.7
+=== SHAS 2026-08-14T10:58:44-0400 ===
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+0b6be132c2476f6d0848631ecff703ad6400337c612972c2ad43da2a5a8fd8da  /data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli
+1456239bc3a033e9d6198d2370516990e0e97c0dc939c54d94b2bf7fb8e18aca  /data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-bench
+8f0037c90f9edf2e70ac56c4ba9c5874d625999b140f85bfb84ed8f9a954b0ea  /data/data/com.termux/files/home/gdn_k2/bin_fix2/test-backend-ops
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  /data/data/com.termux/files/home/gdn_k2/bin_fix2/libc++_shared.so
+expected campaign 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+expected llama-cli 0b6be132c2476f6d0848631ecff703ad6400337c612972c2ad43da2a5a8fd8da
+expected llama-bench 1456239bc3a033e9d6198d2370516990e0e97c0dc939c54d94b2bf7fb8e18aca
+expected test-backend-ops 8f0037c90f9edf2e70ac56c4ba9c5874d625999b140f85bfb84ed8f9a954b0ea
+[2026-08-14T10:58:48-0400] M1 compile
+=== SNAP before_m1_512x2048 2026-08-14T10:58:49-0400 ===
+level=87 temp_c=30.7 plugged=UNPLUGGED status=DISCHARGING current=-180000 voltage=4203
+batt_c=30.7
+screen=screen=?
+uptime= 10:58:51 up 7 min,  load average: 0.83, 1.21, 0.81
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2970         231          15        3872        3991
+ok batt=87 temp_c=30.7
+=== SNAP after_m1_512x2048 2026-08-14T10:58:55-0400 ===
+level=87 temp_c=30.7 plugged=UNPLUGGED status=DISCHARGING current=-243000 voltage=4203
+batt_c=30.7
+screen=screen=?
+uptime= 10:58:57 up 7 min,  load average: 0.93, 1.23, 0.82
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2965         234          15        3873        3996
+[2026-08-14T10:58:57-0400] CELL m1_512x2048 rc=0 wall=1s batt=87->87 temp=30.7->30.7
+=== SNAP before_m1_1x2048 2026-08-14T10:58:57-0400 ===
+level=87 temp_c=30.7 plugged=UNPLUGGED status=DISCHARGING current=-360000 voltage=4203
+batt_c=30.7
+screen=screen=?
+uptime= 10:58:59 up 7 min,  load average: 0.93, 1.23, 0.82
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2970         229          15        3873        3990
+ok batt=87 temp_c=30.7
+=== SNAP after_m1_1x2048 2026-08-14T10:59:03-0400 ===
+level=86 temp_c=30.2 plugged=UNPLUGGED status=DISCHARGING current=-307000 voltage=4188
+batt_c=30.2
+screen=screen=?
+uptime= 10:59:05 up 7 min,  load average: 1.09, 1.26, 0.83
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2977         221          15        3874        3984
+[2026-08-14T10:59:05-0400] CELL m1_1x2048 rc=0 wall=1s batt=87->86 temp=30.7->30.2
+=== SNAP before_m2_2b_cpu 2026-08-14T10:59:05-0400 ===
+level=86 temp_c=30.2 plugged=UNPLUGGED status=DISCHARGING current=-294000 voltage=4188
+batt_c=30.2
+screen=screen=?
+uptime= 10:59:07 up 7 min,  load average: 1.08, 1.25, 0.83
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2979         220          15        3874        3982
+ok batt=86 temp_c=30.2
+[2026-08-14T11:05:20-0400] cleanup
+[2026-08-14T11:06:05-0400] K-G start ROOT=/data/data/com.termux/files/home/experiments/results/kernel_kg
+=== SNAP start 2026-08-14T11:06:05-0400 ===
+level=85 temp_c=30.6 plugged=UNPLUGGED status=DISCHARGING current=-451000 voltage=4179
+batt_c=30.6
+screen=screen=?
+uptime= 11:06:06 up 14 min,  load average: 2.28, 3.14, 1.99
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2669        1777          12        2626        4325
+ok batt=85 temp_c=30.6
+=== SHAS 2026-08-14T11:06:08-0400 ===
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+0b6be132c2476f6d0848631ecff703ad6400337c612972c2ad43da2a5a8fd8da  /data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli
+1456239bc3a033e9d6198d2370516990e0e97c0dc939c54d94b2bf7fb8e18aca  /data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-bench
+8f0037c90f9edf2e70ac56c4ba9c5874d625999b140f85bfb84ed8f9a954b0ea  /data/data/com.termux/files/home/gdn_k2/bin_fix2/test-backend-ops
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  /data/data/com.termux/files/home/gdn_k2/bin_fix2/libc++_shared.so
+expected campaign 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+expected llama-cli 0b6be132c2476f6d0848631ecff703ad6400337c612972c2ad43da2a5a8fd8da
+expected llama-bench 1456239bc3a033e9d6198d2370516990e0e97c0dc939c54d94b2bf7fb8e18aca
+expected test-backend-ops 8f0037c90f9edf2e70ac56c4ba9c5874d625999b140f85bfb84ed8f9a954b0ea
+[2026-08-14T11:06:12-0400] M1 skip (m1_512x2048.txt exists)
+=== SNAP before_m2_2b_cpu_p128 2026-08-14T11:06:12-0400 ===
+level=85 temp_c=30.6 plugged=UNPLUGGED status=DISCHARGING current=-246000 voltage=4179
+batt_c=30.6
+screen=screen=?
+uptime= 11:06:13 up 14 min,  load average: 2.26, 3.12, 1.99
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2677        1447          12        2949        4318
+ok batt=85 temp_c=30.6
+=== SNAP after_m2_2b_cpu_p128 2026-08-14T11:07:26-0400 ===
+level=85 temp_c=30.6 plugged=UNPLUGGED status=DISCHARGING current=-241000 voltage=4179
+batt_c=30.6
+screen=screen=?
+uptime= 11:07:28 up 15 min,  load average: 3.39, 3.27, 2.12
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2474        1809          10        2789        4489
+[2026-08-14T11:07:28-0400] CELL m2_2b_cpu_p128 rc=0 wall=69s batt=85->85 temp=30.6->30.6
+=== SNAP before_m2_2b_gpu_p128 2026-08-14T11:07:28-0400 ===
+level=85 temp_c=30.6 plugged=UNPLUGGED status=DISCHARGING current=-246000 voltage=4179
+batt_c=30.6
+screen=screen=?
+uptime= 11:07:30 up 15 min,  load average: 3.39, 3.27, 2.12
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2474        1808          10        2790        4488
+ok batt=85 temp_c=30.6
+=== SNAP after_m2_2b_gpu_p128 2026-08-14T11:08:40-0400 ===
+level=85 temp_c=30.6 plugged=UNPLUGGED status=DISCHARGING current=-266000 voltage=4179
+batt_c=30.6
+screen=screen=?
+uptime= 11:08:42 up 16 min,  load average: 1.85, 2.83, 2.06
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2481        2356          10        2235        4617
+[2026-08-14T11:08:42-0400] CELL m2_2b_gpu_p128 rc=0 wall=67s batt=85->85 temp=30.6->30.6
+=== SNAP before_m2_2b_cpu 2026-08-14T11:08:42-0400 ===
+level=85 temp_c=30.6 plugged=UNPLUGGED status=DISCHARGING current=-282000 voltage=4179
+batt_c=30.6
+screen=screen=?
+uptime= 11:08:44 up 16 min,  load average: 1.85, 2.83, 2.06
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2482        2355          10        2236        4617
+ok batt=85 temp_c=30.6
+[2026-08-14T11:09:32-0400] cleanup
+[2026-08-14T11:10:29-0400] K-G start ROOT=/data/data/com.termux/files/home/experiments/results/kernel_kg
+=== SNAP start 2026-08-14T11:10:29-0400 ===
+level=85 temp_c=30.6 plugged=UNPLUGGED status=DISCHARGING current=-684000 voltage=4179
+batt_c=30.6
+screen=screen=?
+uptime= 11:10:29 up 18 min,  load average: 1.45, 2.55, 2.05
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2688        1907          15        2477        4433
+ok batt=85 temp_c=30.6
+=== SHAS 2026-08-14T11:10:30-0400 ===
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+0b6be132c2476f6d0848631ecff703ad6400337c612972c2ad43da2a5a8fd8da  /data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli
+1456239bc3a033e9d6198d2370516990e0e97c0dc939c54d94b2bf7fb8e18aca  /data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-bench
+8f0037c90f9edf2e70ac56c4ba9c5874d625999b140f85bfb84ed8f9a954b0ea  /data/data/com.termux/files/home/gdn_k2/bin_fix2/test-backend-ops
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  /data/data/com.termux/files/home/gdn_k2/bin_fix2/libc++_shared.so
+expected campaign 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+expected llama-cli 0b6be132c2476f6d0848631ecff703ad6400337c612972c2ad43da2a5a8fd8da
+expected llama-bench 1456239bc3a033e9d6198d2370516990e0e97c0dc939c54d94b2bf7fb8e18aca
+expected test-backend-ops 8f0037c90f9edf2e70ac56c4ba9c5874d625999b140f85bfb84ed8f9a954b0ea
+[2026-08-14T11:10:31-0400] M1 skip (m1_512x2048.txt exists)
+=== SNAP before_m2_2b_cpu_p128 2026-08-14T11:10:31-0400 ===
+level=85 temp_c=30.6 plugged=UNPLUGGED status=DISCHARGING current=-666000 voltage=4179
+batt_c=30.6
+screen=screen=?
+uptime= 11:10:31 up 18 min,  load average: 1.58, 2.56, 2.06
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2700        1870          15        2503        4420
+ok batt=85 temp_c=30.6
+=== SNAP after_m2_2b_cpu_p128 2026-08-14T11:10:39-0400 ===
+level=85 temp_c=30.5 plugged=UNPLUGGED status=DISCHARGING current=-770000 voltage=4046
+batt_c=30.5
+screen=screen=?
+uptime= 11:10:40 up 18 min,  load average: 1.77, 2.59, 2.07
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2602        2017          15        2453        4467
+[2026-08-14T11:10:40-0400] CELL m2_2b_cpu_p128 rc=0 wall=7s batt=85->85 temp=30.6->30.5
+=== SNAP before_m2_2b_cpu 2026-08-14T11:10:40-0400 ===
+level=85 temp_c=30.5 plugged=UNPLUGGED status=DISCHARGING current=-1112 voltage=4046
+batt_c=30.5
+screen=screen=?
+uptime= 11:10:40 up 18 min,  load average: 1.77, 2.59, 2.07
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2606        2014          15        2453        4464
+ok batt=85 temp_c=30.5
+=== SNAP after_m2_2b_cpu 2026-08-14T11:11:02-0400 ===
+level=85 temp_c=30.5 plugged=UNPLUGGED status=DISCHARGING current=-657000 voltage=4046
+batt_c=30.5
+screen=screen=?
+uptime= 11:11:02 up 19 min,  load average: 2.12, 2.60, 2.09
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2603        2012          16        2457        4468
+[2026-08-14T11:11:02-0400] CELL m2_2b_cpu rc=0 wall=20s batt=85->85 temp=30.5->30.5
+=== SNAP before_m2_2b_gpu 2026-08-14T11:11:02-0400 ===
+level=85 temp_c=30.5 plugged=UNPLUGGED status=DISCHARGING current=-1420 voltage=4046
+batt_c=30.5
+screen=screen=?
+uptime= 11:11:02 up 19 min,  load average: 2.12, 2.60, 2.09
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2599        2016          16        2457        4471
+ok batt=85 temp_c=30.5
+=== SNAP after_m2_2b_gpu 2026-08-14T11:11:35-0400 ===
+level=84 temp_c=32.8 plugged=UNPLUGGED status=DISCHARGING current=-726000 voltage=4068
+batt_c=32.8
+screen=screen=?
+uptime= 11:11:35 up 19 min,  load average: 1.53, 2.42, 2.04
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2263        2622          14        2188        4662
+[2026-08-14T11:11:36-0400] CELL m2_2b_gpu rc=0 wall=31s batt=85->84 temp=30.5->32.8
+=== SNAP before_m2_4b_cpu 2026-08-14T11:11:36-0400 ===
+level=84 temp_c=32.8 plugged=UNPLUGGED status=DISCHARGING current=-1034 voltage=4068
+batt_c=32.8
+screen=screen=?
+uptime= 11:11:36 up 19 min,  load average: 1.53, 2.42, 2.04
+               total        used        free      shared  buff/cache   available
+Mem:            7073        2263        2622          14        2188        4663
+ok batt=84 temp_c=32.8
+=== SNAP after_m2_4b_cpu 2026-08-14T11:12:53-0400 ===
+level=84 temp_c=34.7 plugged=UNPLUGGED status=DISCHARGING current=-566000 voltage=4067
+batt_c=34.7
+screen=screen=?
+uptime= 11:12:54 up 21 min,  load average: 3.35, 2.77, 2.20
+               total        used        free      shared  buff/cache   available
+Mem:            7073        1923        3236           7        1913        4989
+[2026-08-14T11:12:54-0400] CELL m2_4b_cpu rc=0 wall=76s batt=84->84 temp=32.8->34.7
+=== SNAP before_m2_4b_gpu 2026-08-14T11:12:54-0400 ===
+level=84 temp_c=34.7 plugged=UNPLUGGED status=DISCHARGING current=-1242 voltage=4067
+batt_c=34.7
+screen=screen=?
+uptime= 11:12:54 up 21 min,  load average: 3.35, 2.77, 2.20
+               total        used        free      shared  buff/cache   available
+Mem:            7073        1925        3233           7        1914        4986
+ok batt=84 temp_c=34.7
+=== SNAP after_m2_4b_gpu 2026-08-14T11:14:02-0400 ===
+level=83 temp_c=36.4 plugged=UNPLUGGED status=DISCHARGING current=-543000 voltage=4061
+batt_c=36.4
+screen=screen=?
+uptime= 11:14:02 up 22 min,  load average: 1.78, 2.42, 2.12
+               total        used        free      shared  buff/cache   available
+Mem:            7073        1892        3998           5        1182        5019
+[2026-08-14T11:14:02-0400] CELL m2_4b_gpu rc=0 wall=66s batt=84->83 temp=34.7->36.4
+=== SNAP before_m0_wall_14h 2026-08-14T11:14:02-0400 ===
+level=83 temp_c=36.4 plugged=UNPLUGGED status=DISCHARGING current=-1328 voltage=4061
+batt_c=36.4
+screen=screen=?
+uptime= 11:14:03 up 22 min,  load average: 1.78, 2.42, 2.12
+               total        used        free      shared  buff/cache   available
+Mem:            7073        1898        3992           5        1183        5013
+ok batt=83 temp_c=36.4
+=== SNAP after_m0_wall_14h 2026-08-14T11:15:18-0400 ===
+level=82 temp_c=38.1 plugged=UNPLUGGED status=DISCHARGING current=-1089 voltage=4043
+batt_c=38.1
+screen=screen=?
+uptime= 11:15:18 up 23 min,  load average: 3.89, 2.94, 2.32
+               total        used        free      shared  buff/cache   available
+Mem:            7073        1912        3938           5        1222        5032
+[2026-08-14T11:15:18-0400] CELL m0_wall_14h rc=0 wall=74s batt=83->82 temp=36.4->38.1
+=== SNAP before_m0_trace_512 2026-08-14T11:15:18-0400 ===
+level=82 temp_c=38.1 plugged=UNPLUGGED status=DISCHARGING current=-955000 voltage=4043
+batt_c=38.1
+screen=screen=?
+uptime= 11:15:19 up 23 min,  load average: 3.89, 2.94, 2.32
+               total        used        free      shared  buff/cache   available
+Mem:            7073        1913        3937           5        1222        5031
+ok batt=82 temp_c=38.1
+=== SNAP after_m0_trace_512 2026-08-14T11:15:49-0400 ===
+level=82 temp_c=39.5 plugged=UNPLUGGED status=DISCHARGING current=-893000 voltage=4029
+batt_c=39.5
+screen=screen=?
+uptime= 11:15:49 up 24 min,  load average: 5.24, 3.36, 2.48
+               total        used        free      shared  buff/cache   available
+Mem:            7073        1788        3902           5        1383        5124
+[2026-08-14T11:15:49-0400] CELL m0_trace_512 rc=0 wall=28s batt=82->82 temp=38.1->39.5
+=== SNAP end 2026-08-14T11:15:50-0400 ===
+level=82 temp_c=39.5 plugged=UNPLUGGED status=DISCHARGING current=-1046 voltage=4029
+batt_c=39.5
+screen=screen=?
+uptime= 11:15:50 up 24 min,  load average: 5.24, 3.36, 2.48
+               total        used        free      shared  buff/cache   available
+Mem:            7073        1793        3896           5        1384        5118
+[2026-08-14T11:15:50-0400] K-G orchestrator done
+[2026-08-14T11:15:50-0400] cleanup

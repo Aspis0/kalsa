@@ -1,0 +1,25 @@
+file=/data/data/com.termux/files/home/experiments/results/kernel_kg/m0/compute_512.csv
+model=/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf arch=qwen35moe n_layer=40
+prefill_rows=3567 traced_s=18.080
+expert_ffn     7.065s   39.07%
+attn_dense    10.476s   57.94%
+glue           0.458s    2.53%
+other          0.082s    0.45%
+GATE expert>60% = False
+
+by op (top 15):
+  MUL_MAT               9.373s  51.84%  n=391
+  MUL_MAT_ID            6.259s  34.62%  n=120
+  GATED_DELTA_NET       0.769s   4.25%  n=30
+  GET_ROWS              0.434s   2.40%  n=162
+  CONCAT                0.374s   2.07%  n=30
+  FLASH_ATTN_EXT        0.228s   1.26%  n=10
+  SSM_CONV              0.138s   0.76%  n=30
+  MUL                   0.133s   0.74%  n=281
+  UNARY                 0.106s   0.58%  n=170
+  GLU                   0.066s   0.36%  n=80
+  RMS_NORM              0.057s   0.32%  n=131
+  ADD                   0.057s   0.32%  n=350
+  ARGSORT               0.031s   0.17%  n=40
+  L2_NORM               0.015s   0.08%  n=60
+  ROPE                  0.007s   0.04%  n=20

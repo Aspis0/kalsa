@@ -1,0 +1,12 @@
+S23 SM_S911U (adb-R3CW406P8CV) Adreno 740 driver via OpenCL 3.0
+UNPLUGGED entire timed campaign. Battery 87% -> 81%. Abort floor 45% / 43C never hit.
+Peak termux temp 39.5 C (M0 trace). Screen: Awake (adb dumpsys power mWakefulness=Awake;
+TermuxActivity focused so the process sat in /top-app cpuset 0-7).
+First M2 CPU cells ran in /background cpuset 0-2 (little A510 only, 6.44 t/s) — DISCARDED.
+After `monkey -p com.termux` foreground, big cores ramped (cpu7 3.36 GHz, cpu3-6 2.80 GHz)
+and CPU p128 reproduced K2.2's first-rep 82.8 t/s. All cited CPU numbers are the
+foreground/top-app rerun.
+
+K2.2b binaries ~/gdn_k2/bin_fix2/ SHA-matched (see SHAS.txt). Campaign pin 1ca51420… intact.
+New binary only: ~/bin/kernel_kg/kg_boundary (Termux clang -O2 -ldl).
+PPL job on PC not touched. Xiaomi not touched. Campaign bins not overwritten.

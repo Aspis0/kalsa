@@ -1,0 +1,10 @@
+=== SHAS 2026-08-14T11:10:30-0400 ===
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+0b6be132c2476f6d0848631ecff703ad6400337c612972c2ad43da2a5a8fd8da  /data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-cli
+1456239bc3a033e9d6198d2370516990e0e97c0dc939c54d94b2bf7fb8e18aca  /data/data/com.termux/files/home/gdn_k2/bin_fix2/llama-bench
+8f0037c90f9edf2e70ac56c4ba9c5874d625999b140f85bfb84ed8f9a954b0ea  /data/data/com.termux/files/home/gdn_k2/bin_fix2/test-backend-ops
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  /data/data/com.termux/files/home/gdn_k2/bin_fix2/libc++_shared.so
+expected campaign 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+expected llama-cli 0b6be132c2476f6d0848631ecff703ad6400337c612972c2ad43da2a5a8fd8da
+expected llama-bench 1456239bc3a033e9d6198d2370516990e0e97c0dc939c54d94b2bf7fb8e18aca
+expected test-backend-ops 8f0037c90f9edf2e70ac56c4ba9c5874d625999b140f85bfb84ed8f9a954b0ea

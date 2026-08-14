@@ -1,0 +1,13 @@
+BMOE_LOAD {"mb":204.15,"ms":572.0}
+BMOE_PROGRESS {"step":1,"steps":1,"wall_ms":295.8,"io_ms":572.0,"compute_ms":134.7,"mgmt_ms":17.4,"stall_ms":143.7,"read_mb":204.15,"cache_hit_pct":0.4,"majflt":0,"cpu_ms":660.9,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":"Here"}
+=== answer ===
+Here
+=== perf ===
+generation: 1 tokens, 0.296 s/token (3.380 tok/s)
+compute: 55.9% CPU occupancy (0.6609 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 984 tokens, 63.445 s (15.5 tok/s) | model load 9.442 s | TTFT 72.886 s
+moe-stream: read 204.2 MiB (204.15 MiB/token), decode 0.296 s/token (compute 0.135 + cache mgmt 0.017 + flash I/O 0.572 s/token, 357 MiB/s)
+moe-cache: 0.4% hit, resident 1999.2 MiB
+moe-cache: 11820 evictions, 5928 re-reads (5928.0/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.144 s/token (flash reads overlapped with FFN compute)
+moe-drop: 0/240 routed experts dropped (0.0%), threshold 0.65 x uniform

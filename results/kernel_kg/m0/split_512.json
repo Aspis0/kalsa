@@ -1,0 +1,157 @@
+{
+  "meta": {
+    "model": "/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf",
+    "arch": "qwen35moe",
+    "n_layer": "40",
+    "n_threads": "4",
+    "io_threads": "4",
+    "o_direct": "1",
+    "overlap": "1"
+  },
+  "n_rows_prefill": 3567,
+  "n_rows_all": 7134,
+  "total_ns": 18080325618,
+  "total_s": 18.080325618,
+  "expert_ffn_ns": 7064825366,
+  "expert_ffn_frac": 0.39074657809074864,
+  "attn_dense_ns": 10475554577,
+  "attn_dense_frac": 0.5793897078142766,
+  "glue_ns": 457926512,
+  "glue_frac": 0.025327337663880782,
+  "other_ns": 82019163,
+  "other_frac": 0.004536376431093986,
+  "rest_frac": 0.6092534219092514,
+  "gate_expert_gt_60pct": false,
+  "buckets": {
+    "attn_dense": {
+      "ns": 10475554577,
+      "n": 1174,
+      "majflt": 931
+    },
+    "glue": {
+      "ns": 457926512,
+      "n": 1273,
+      "majflt": 1
+    },
+    "other": {
+      "ns": 82019163,
+      "n": 120,
+      "majflt": 0
+    },
+    "expert_ffn": {
+      "ns": 7064825366,
+      "n": 1000,
+      "majflt": 1
+    }
+  },
+  "by_op": {
+    "MUL_MAT": {
+      "ns": 9373482652,
+      "n": 391
+    },
+    "MUL_MAT_ID": {
+      "ns": 6259432964,
+      "n": 120
+    },
+    "GATED_DELTA_NET": {
+      "ns": 769101979,
+      "n": 30
+    },
+    "GET_ROWS": {
+      "ns": 433910368,
+      "n": 162
+    },
+    "CONCAT": {
+      "ns": 373828904,
+      "n": 30
+    },
+    "FLASH_ATTN_EXT": {
+      "ns": 227879217,
+      "n": 10
+    },
+    "SSM_CONV": {
+      "ns": 137780575,
+      "n": 30
+    },
+    "MUL": {
+      "ns": 133099165,
+      "n": 281
+    },
+    "UNARY": {
+      "ns": 105552293,
+      "n": 170
+    },
+    "GLU": {
+      "ns": 65531617,
+      "n": 80
+    },
+    "RMS_NORM": {
+      "ns": 57269896,
+      "n": 131
+    },
+    "ADD": {
+      "ns": 57080673,
+      "n": 350
+    },
+    "ARGSORT": {
+      "ns": 30900209,
+      "n": 40
+    },
+    "L2_NORM": {
+      "ns": 15051299,
+      "n": 60
+    },
+    "ROPE": {
+      "ns": 6746195,
+      "n": 20
+    },
+    "CONT": {
+      "ns": 6149948,
+      "n": 10
+    },
+    "CPY": {
+      "ns": 5523637,
+      "n": 120
+    },
+    "SCALE": {
+      "ns": 4208646,
+      "n": 60
+    },
+    "SOFT_MAX": {
+      "ns": 3937499,
+      "n": 40
+    },
+    "VIEW": {
+      "ns": 3548609,
+      "n": 712
+    },
+    "SET_ROWS": {
+      "ns": 3422654,
+      "n": 20
+    },
+    "RESHAPE": {
+      "ns": 3267921,
+      "n": 520
+    },
+    "DIV": {
+      "ns": 2764582,
+      "n": 40
+    },
+    "SUM_ROWS": {
+      "ns": 410782,
+      "n": 40
+    },
+    "CLAMP": {
+      "ns": 170208,
+      "n": 40
+    },
+    "PERMUTE": {
+      "ns": 141199,
+      "n": 30
+    },
+    "TRANSPOSE": {
+      "ns": 131927,
+      "n": 30
+    }
+  }
+}
