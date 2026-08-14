@@ -98,7 +98,12 @@ import {
   type BakedUserTail,
 } from "./memoryFactsTail";
 import {
+  assembleStaticPrefix,
+  computePrewarmPrefixHash,
+} from "./prefixPrewarm";
+import {
   BAKE_FORMAT_B_USER_PREFIX,
+  EAGER_PREFIX_PREWARM,
   EXTRACT_MEMORY_PRESERVE_CHAT_KV,
   MEMORY_FACTS_ON_USER_TAIL,
 } from "./ttftFlags";
@@ -175,6 +180,18 @@ let lastPromptEnvHash: string | undefined;
  * the previous user. Restored from session meta after loadSession.
  */
 let bakedUserTails: BakedUserTail[] = [];
+
+/**
+ * Last successfully prewarmed system+tools hash.
+ * Null after dispose / settings-stale until the next prewarm stores one.
+ */
+let prewarmPrefixHash: string | null = null;
+/** Hash currently queued or running — one prewarm per prefix identity. */
+let prewarmQueuedKey: string | null = null;
+/** Identity we already skipped (kv_holds_chat) — do not re-enqueue. */
+let prewarmSkippedKey: string | null = null;
+/** Bumped on dispose / settings-stale so an in-flight prewarm cannot store. */
+let prewarmGeneration = 0;
 
 /**
  * True while disposeEngineLocked is unwinding a context. streamAssistantTurn's
@@ -489,6 +506,167 @@ async function runEngineJob<T>(fn: () => Promise<T>): Promise<T> {
   } finally {
     markChatCompletingDone();
   }
+}
+
+function logPrewarm(payload: Record<string, unknown>): void {
+  try {
+    console.log("KALSA_PREWARM", JSON.stringify(payload));
+  } catch {
+    // never throw
+  }
+}
+
+function resetPrewarmState(): void {
+  prewarmGeneration += 1;
+  prewarmPrefixHash = null;
+  prewarmQueuedKey = null;
+  prewarmSkippedKey = null;
+}
+
+function resolvePrewarmPrefix(locale: Locale, tools: EngineTool[] | undefined) {
+  const list = Array.isArray(tools) ? tools : [];
+  const systemText = buildSystemPrompt(locale, list.length > 0, []);
+  return {
+    ...assembleStaticPrefix({ locale, systemText, tools: list }),
+    tools: list,
+  };
+}
+
+/**
+ * Join: do NOT start a second completion. This enqueues via withEngineJob;
+ * streamAssistantTurn is also withEngineJob. FIFO is the join — a send that
+ * lands during prewarm waits, then llama.rn prefix-match reuses the hot
+ * system+tools KV. Never completion() in parallel.
+ */
+export function queueStaticPrefixPrewarm(
+  locale: Locale,
+  tools?: EngineTool[],
+): void {
+  if (!EAGER_PREFIX_PREWARM) return;
+  if (!isEngineReady()) {
+    logPrewarm({ op: "skip", reason: "not_ready" });
+    return;
+  }
+  const prefix = resolvePrewarmPrefix(locale, tools);
+  if (
+    prewarmPrefixHash === prefix.hash ||
+    prewarmQueuedKey === prefix.hash ||
+    prewarmSkippedKey === prefix.hash
+  ) {
+    return;
+  }
+  const gen = prewarmGeneration;
+  prewarmQueuedKey = prefix.hash;
+  logPrewarm({
+    op: "start",
+    hash: prefix.hash,
+    systemChars: prefix.systemChars,
+    toolCount: prefix.toolCount,
+  });
+  void withEngineJob(async () => {
+    try {
+      if (gen !== prewarmGeneration) {
+        logPrewarm({ op: "skip", reason: "stale" });
+        return;
+      }
+      if (disposing || !context) {
+        logPrewarm({ op: "skip", reason: !context ? "no_context" : "disposing" });
+        return;
+      }
+      if (kvHoldsChatSession) {
+        // Restored or post-turn chat KV — do not overwrite with a system-only
+        // prefill. Remember the skip so later ensure() calls do not re-enqueue.
+        prewarmSkippedKey = prefix.hash;
+        logPrewarm({ op: "skip", reason: "kv_holds_chat" });
+        return;
+      }
+      const engine = context;
+      const result = await trackCompletion(
+        engine.completion({
+          messages: prefix.messages as RNLlamaOAICompatibleMessage[],
+          ...(prefix.hasTools
+            ? { tools: prefix.tools, tool_choice: "auto" as const }
+            : {}),
+          // llama.cpp "eval prompt only". Binding documents n_predict:0 as
+          // cache-only; if it ever rejects, fail the prewarm — never n_predict:1
+          // (that would emit a token and poison prefix-match).
+          n_predict: 0,
+          stop: STOP_WORDS,
+          enable_thinking: false,
+          thinking_budget_tokens: 0,
+          reasoning_format: "none",
+          chat_template_kwargs: { enable_thinking: false },
+        }),
+      );
+      if (gen !== prewarmGeneration) {
+        logPrewarm({ op: "skip", reason: "stale" });
+        return;
+      }
+      if (result?.interrupted) {
+        logPrewarm({ op: "skip", reason: "interrupted" });
+        return;
+      }
+      const predicted =
+        typeof result?.tokens_predicted === "number" ? result.tokens_predicted : 0;
+      if (predicted > 0) {
+        logPrewarm({ op: "skip", reason: "generated" });
+        return;
+      }
+      const promptMs =
+        typeof result?.timings?.prompt_ms === "number" ? result.timings.prompt_ms : -1;
+      prewarmPrefixHash = prefix.hash;
+      prewarmSkippedKey = null;
+      logPrewarm({ op: "done", promptMs, hash: prefix.hash });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error ?? "");
+      logPrewarm({
+        op: "skip",
+        reason: /n_predict/i.test(msg) ? "n_predict_rejected" : "fail",
+      });
+    } finally {
+      if (prewarmQueuedKey === prefix.hash) prewarmQueuedKey = null;
+    }
+  });
+}
+
+/**
+ * Settings that change the static prefix (locale / web / device / calendar).
+ * Same identity → no-op. Else mark stale. If a chat (or any engine job) is
+ * in flight, do not clearCache (do not fight an in-flight turn / cc8ed55).
+ * Next send logs a hash-miss. If idle, clearCache + re-queue prewarm.
+ */
+export function notifyStaticPrefixInputs(
+  locale: Locale,
+  tools?: EngineTool[],
+): void {
+  if (!EAGER_PREFIX_PREWARM) return;
+  if (!isEngineReady()) return;
+  const prefix = resolvePrewarmPrefix(locale, tools);
+  if (
+    prewarmPrefixHash === prefix.hash ||
+    prewarmQueuedKey === prefix.hash ||
+    prewarmSkippedKey === prefix.hash
+  ) {
+    return;
+  }
+  const busy = engineJobPendingCount > 0;
+  resetPrewarmState();
+  if (busy) {
+    logPrewarm({ op: "skip", reason: "in_flight" });
+    return;
+  }
+  void withEngineJob(async () => {
+    if (!context || disposing) return;
+    try {
+      await context.clearCache();
+    } catch {
+      // best-effort; the following prewarm still evals the new prefix
+    }
+    kvHoldsChatSession = false;
+    lastChatNPast = undefined;
+    chatKvDiskCurrent = false;
+  });
+  queueStaticPrefixPrewarm(locale, tools);
 }
 
 function trackCompletion<T>(promise: Promise<T>): Promise<T> {
@@ -981,6 +1159,7 @@ async function disposeEngineLocked(): Promise<void> {
     kvReproState = nextKvReproState(kvReproState, "dispose");
     lastPromptEnvHash = undefined;
     bakedUserTails = [];
+    resetPrewarmState();
     // Intentionally do NOT delete session files here — they survive dispose
     // so the next initEngine can restore KV after app restart / model reload.
     if (current) {
@@ -1683,8 +1862,20 @@ export async function streamAssistantTurn(
       bakedMatched = baked.matched;
     }
 
+    const systemText = buildSystemPrompt(locale, hasTools, options.memoryFacts);
+    if (EAGER_PREFIX_PREWARM) {
+      const sendHash = computePrewarmPrefixHash(
+        locale,
+        systemText,
+        hasTools ? options.tools : [],
+      );
+      if (sendHash !== prewarmPrefixHash) {
+        logPrewarm({ match: false, prewarm: prewarmPrefixHash, send: sendHash });
+      }
+    }
+
     let currentMessages: ToolChatMessage[] = applyOperativeBlockFormat(
-      { role: "system", content: buildSystemPrompt(locale, hasTools, options.memoryFacts) },
+      { role: "system", content: systemText },
       historyMessages,
       blockFormat,
       locale,

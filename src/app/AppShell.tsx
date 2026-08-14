@@ -106,6 +106,8 @@ import {
   initEngine,
   invalidateEngineSession,
   isEngineReady,
+  notifyStaticPrefixInputs,
+  queueStaticPrefixPrewarm,
   saveEngineSession,
   streamAssistantTurn,
   summarizeConversation,
@@ -2001,6 +2003,20 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       },
     };
   }, [calendarToolsEnabled, deviceToolsEnabled, locale, webToolsEnabled]);
+  const agentOptionsRef = useRef(agentOptions);
+  agentOptionsRef.current = agentOptions;
+
+  // Prefix identity (locale + tool schemas). Skip the mount run so remount /
+  // AppState does not redo prewarm. Real setting flips mark stale and may
+  // clearCache + re-queue when no engine job is in flight.
+  const staticPrefixNotifySkipRef = useRef(true);
+  useEffect(() => {
+    if (staticPrefixNotifySkipRef.current) {
+      staticPrefixNotifySkipRef.current = false;
+      return;
+    }
+    notifyStaticPrefixInputs(locale, agentOptionsRef.current.tools);
+  }, [locale, webToolsEnabled, deviceToolsEnabled, calendarToolsEnabled]);
 
   // ── Drawer + exclusive overlay (settings | documents | miniapp | null) ──
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -2869,7 +2885,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       generation === engineGenerationRef.current &&
       MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
 
-    if (isEngineReady() && getActiveModelId() === model.id) return true;
+    if (isEngineReady() && getActiveModelId() === model.id) {
+      queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
+      return true;
+    }
     // Round 8 FIX 2: if embedder is hung, refuse immediately — never reach
     // acquire/submit. markEmbedderHung clears the lifecycle gate to idle so a
     // retry could otherwise re-acquire chat, skip release (hung short-circuit),
@@ -3152,6 +3171,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelError(null);
       setModelErrorDetail(null);
       setModelErrorKind(null);
+      queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
       return true;
     } catch (error) {
       // FIX B / FIX 1: init failure → release only the gen THIS call acquired.

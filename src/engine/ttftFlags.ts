@@ -4,6 +4,7 @@
  * Set false to restore the old policy.
  *
  * V2-1: EAGER_ENGINE_INIT + claimEagerKick (one-shot per process+generation).
+ * V2-2: EAGER_PREFIX_PREWARM (boot prefill of static system+tools prefix).
  */
 
 /**
@@ -41,6 +42,12 @@ export const SESSION_DISK_GATE_USED_TOKENS = true;
  * Set false to restore lazy first-send init.
  */
 export const EAGER_ENGINE_INIT = true;
+
+/**
+ * After engine init, prefill the byte-exact system+tools prefix (no user
+ * content) so message 1 only pays the user-line delta. Set false to skip.
+ */
+export const EAGER_PREFIX_PREWARM = true;
 
 /**
  * One-shot eager-init claim. Survives AppShell remounts in the same JS process.

@@ -59,9 +59,12 @@ async function main() {
   console.log("Compiling ttftFlags.ts …");
   compile();
   const modPath = resolveBuilt();
-  const { EAGER_ENGINE_INIT, claimEagerKick } = await import(pathToFileURL(modPath).href);
+  const { EAGER_ENGINE_INIT, EAGER_PREFIX_PREWARM, claimEagerKick } = await import(
+    pathToFileURL(modPath).href
+  );
 
   assert(EAGER_ENGINE_INIT === true, "EAGER_ENGINE_INIT must default true");
+  assert(EAGER_PREFIX_PREWARM === true, "EAGER_PREFIX_PREWARM must default true");
   assert(claimEagerKick("m1", 0) === true, "first claim wins");
   assert(claimEagerKick("m1", 0) === false, "same key is one-shot");
   assert(claimEagerKick("m1", 1) === true, "new generation may claim again");
