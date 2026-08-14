@@ -181,7 +181,7 @@ built: counters-only telemetry, a **NOT-RUN verdict when an arm has memory on bu
 store**, and a privacy probe asserting the echo guard blocks a stored personal fact from
 reaching a web-search query. No numbers yet.
 
-### 3.5 Enabling memory would break web search entirely (measured, not predicted)
+### 3.5 FIXED 2026-08-14 — the memory guard was breaking web search; replaced with containment
 
 The same `ECHO_SIMILARITY_THRESHOLD = 0.18` governs `echo-of-memory-fact`, which compares the
 query against the injected memory facts. Measured with three plausible stored facts:
@@ -200,7 +200,19 @@ search an Italian user makes.** The privacy direction holds (facts do not leak);
 direction fails completely.
 
 This is the debt recorded weeks ago — "0.18 has 0.0146 of margin, and an Italian-only benchmark
-will never exercise it" — now demonstrated with numbers. Fix before memory ships, not after.
+will never exercise it" — now demonstrated with numbers. **Fixed in `8226817`.** `echo-of-memory-fact` now uses containment
+(`src/rules/entityContainment.ts`): block on a distinctive token from a fact (digit, `@`, or
+leading uppercase) or on two consecutive content tokens. 12/12 acceptance cases verified
+independently — the six MUST-BLOCK still block, the six MUST-PASS now pass.
+
+**Residual risk, accepted knowingly**: a single common token (`arachidi`) or a synonym
+(`allergia alle noccioline`) passes. That is *topic* exposure, not *identity* exposure — neither
+carries the user's name or an identifier — and no containment rule can catch synonymy. The old
+rule blocked those only because it blocked everything.
+
+`echo-of-context` is deliberately UNCHANGED and still has the defect described in §1.1: it
+blocks legitimate searches. That is a separate decision, to be made from campaign data — fixing
+both at once would make the next campaign uninterpretable.
 
 ### 3.4 Spurious tool calls survive the gate
 
