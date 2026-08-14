@@ -227,6 +227,18 @@ async function main() {
     "Marco lavora alla Banca Intesa di Torino",
   ];
 
+  // Individual facts for isolated testing
+  const FACT_MARIO = "Mario Rossi abita in Via Roma 12";
+  const FACT_MARCO_ALLERGICO = "Marco è allergico alle arachidi";
+  const FACT_PLUTO = "il mio account è pluto";
+  const FACT_CODICE = "Il codice fiscale di Marco è RSSMRC80A01L219X";
+  const FACT_BANCA = "Marco lavora alla Banca Intesa di Torino";
+
+  // Multi-language facts
+  const DE_FACTS = ["Der Hund heißt Rex", "Die Wohnung ist in Berlin"];
+  const ES_FACTS = ["El perro se llama Rex", "La casa está en Madrid"];
+  const FR_FACTS = ["Le chien s'appelle Rex", "La maison est à Lyon"];
+
   const gateCases = [
     { name: "it-paraphrase (real failure)", query: IT_PARA, msg: IT_MSG, facts: [], expectBlock: true },
     { name: "it-verbatim-echo", query: IT_MSG, msg: IT_MSG, facts: [], expectBlock: true },
@@ -242,12 +254,14 @@ async function main() {
     { name: "empty-message", query: IT_PARA, msg: "", facts: [], expectBlock: false },
     { name: "1-char-query", query: "L", msg: IT_MSG, facts: [], expectBlock: false },
     { name: "2-char-query", query: "Le", msg: IT_MSG, facts: [], expectBlock: false },
-    // Acceptance criteria: MUST BLOCK
+    // Acceptance criteria: MUST BLOCK (each against only its own fact in isolation)
+    { name: "accept-block-mario-rossi", query: "dove abita Mario?", msg: "unrelated", facts: [FACT_MARIO], expectBlock: true },
+    { name: "accept-block-marco-allergico", query: "marco allergico arachidi", msg: "unrelated", facts: [FACT_MARCO_ALLERGICO], expectBlock: true },
+    { name: "accept-block-pluto", query: "account pluto", msg: "unrelated", facts: [FACT_PLUTO], expectBlock: true },
+    { name: "accept-block-codice-fiscale", query: "RSSMRC80A01L219X", msg: "unrelated", facts: [FACT_CODICE], expectBlock: true },
+    { name: "accept-block-banca-intesa", query: "Banca Intesa Torino dipendenti", msg: "unrelated", facts: [FACT_BANCA], expectBlock: true },
     { name: "accept-block-fact1-verbatim", query: "Marco è allergico alle arachidi", msg: "unrelated", facts: acceptanceFacts, expectBlock: true },
-    { name: "accept-block-marco-allergico-arachidi", query: "marco allergico arachidi", msg: "unrelated", facts: acceptanceFacts, expectBlock: true },
     { name: "accept-block-allergia-alle-arachidi", query: "allergia alle arachidi cosa fare", msg: "unrelated", facts: acceptanceFacts, expectBlock: true },
-    { name: "accept-block-codice-fiscale", query: "RSSMRC80A01L219X", msg: "unrelated", facts: acceptanceFacts, expectBlock: true },
-    { name: "accept-block-banca-intesa-torino", query: "Banca Intesa Torino dipendenti", msg: "unrelated", facts: acceptanceFacts, expectBlock: true },
     { name: "accept-block-meteo-torino", query: "meteo Torino domani", msg: "unrelated", facts: acceptanceFacts, expectBlock: true },
     // Acceptance criteria: MUST PASS
     { name: "accept-pass-ricetta-pasta", query: "ricetta pasta al forno", msg: "unrelated", facts: acceptanceFacts, expectBlock: false },
@@ -256,6 +270,20 @@ async function main() {
     { name: "accept-pass-voli-tokyo", query: "voli per Tokyo a marzo prezzi", msg: "unrelated", facts: acceptanceFacts, expectBlock: false },
     { name: "accept-pass-cuocere-riso", query: "come si cuoce il riso", msg: "unrelated", facts: acceptanceFacts, expectBlock: false },
     { name: "accept-pass-quantum-chromodynamics", query: "quantum chromodynamics", msg: "unrelated", facts: acceptanceFacts, expectBlock: false },
+    // Multi-language MUST PASS
+    { name: "de-pass-der-beste-film", query: "der beste film 2024", msg: "unrelated", facts: DE_FACTS, expectBlock: false },
+    { name: "de-pass-die-hauptstadt", query: "die hauptstadt von Peru", msg: "unrelated", facts: DE_FACTS, expectBlock: false },
+    { name: "de-pass-wie-kocht", query: "wie kocht man reis", msg: "unrelated", facts: DE_FACTS, expectBlock: false },
+    { name: "es-pass-el-mejor", query: "el mejor libro del año", msg: "unrelated", facts: ES_FACTS, expectBlock: false },
+    { name: "es-pass-la-capital", query: "la capital de Peru", msg: "unrelated", facts: ES_FACTS, expectBlock: false },
+    { name: "es-pass-receta-paella", query: "receta de paella", msg: "unrelated", facts: ES_FACTS, expectBlock: false },
+    { name: "fr-pass-le-meilleur", query: "le meilleur film 2024", msg: "unrelated", facts: FR_FACTS, expectBlock: false },
+    { name: "fr-pass-la-capitale", query: "la capitale du Perou", msg: "unrelated", facts: FR_FACTS, expectBlock: false },
+    // Multi-language MUST BLOCK
+    { name: "de-block-wo-wohnt-rex", query: "wo wohnt Rex", msg: "unrelated", facts: DE_FACTS, expectBlock: true },
+    { name: "de-block-wohnung-berlin", query: "Wohnung Berlin mieten", msg: "unrelated", facts: DE_FACTS, expectBlock: true },
+    { name: "es-block-donde-vive-rex", query: "donde vive Rex", msg: "unrelated", facts: ES_FACTS, expectBlock: true },
+    { name: "es-block-casa-madrid", query: "casa Madrid alquiler", msg: "unrelated", facts: ES_FACTS, expectBlock: true },
     // Empty facts assertion
     { name: "accept-empty-facts-no-block", query: "Marco è allergico alle arachidi", msg: "unrelated", facts: [], expectBlock: false },
   ];
