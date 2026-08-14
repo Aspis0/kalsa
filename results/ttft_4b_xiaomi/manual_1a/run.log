@@ -1,0 +1,20 @@
+wakefulness:   mWakefulness=Awake
+launched 2026-08-14T09:28:26.4042989-04:00
+prewarm done: 08-14 09:29:35.385 26156 30045 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":49528.158,"hash":"2665666730"}'
+composer center: 600,2413.5
+send center: 1083,1459
+tap at: 2026-08-14T09:29:51.2829474-04:00
+markers found: 0
+reuse: 
+DONE
+v2 wakefulness:   mWakefulness=Awake
+new chat tap 1104,338
+composer text after input: 'ciao'
+send tap 1083,1459 at 2026-08-14T09:33:34.9188560-04:00
+v2 markers: 0
+V2 DONE
+v3 tap-left 1035,1459 at 2026-08-14T09:36:28.2714495-04:00
+v4 ENTER at 2026-08-14T09:37:00.1278264-04:00
+v5 swipe-press 1080,1460 at 2026-08-14T09:37:30.9945084-04:00
+relaunched 2026-08-14T09:43:08.2941762-04:00
+PREWARM DONE: I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":30316.004,"hash":"2665666730"}'
