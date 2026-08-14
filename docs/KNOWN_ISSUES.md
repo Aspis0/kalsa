@@ -52,8 +52,19 @@ handle (or a stuck `sendClaimRef`) produced zero logcat. Detection is now
 Foreground does **not** mark lost (chip kind recomputes from existing
 `jsReady`). `recoverLost` / `blocked_ram` bypass is scoped to `lostModelId ===
 model.id` and is cleared on load **failure** as well as success. Every send
-attempt logs `KALSA_SEND`. Probe unavailable / mid-stream busy → alive
-(fail-safe).
+attempt logs `KALSA_SEND`. The on-contact ping **always runs** when
+JS-ready (tokenize is parallel-safe); a stuck background job
+(prewarm/summary/extractMemory) cannot disable detection. Only a live
+user-facing turn (`sendingInFlightRef`) suppresses the lost-**mark**.
+Probe unavailable → alive (fail-safe). Sync `release()` throws set
+`contextHung` (fail-safe: throw ⇒ hung ⇒ restart).
+
+**UX follow-up (F4, deferred):** worst-case zombie send is probe 8 s +
+stop/settled 60 s + release 60 s (~128 s) of dead air while
+`sendClaimRef` is held but the composer is not in "sending" state.
+Repeated taps are silently dropped (KALSA_SEND breadcrumb logs them).
+Recovered, but invisible. Add a "detecting engine…" banner when the
+probe returns `timeout`.
 
 **On-device verify still required** (Xiaomi/HyperOS not in hand):
 1. Cold load 4B, wait for prewarm done, confirm header Ready · local.

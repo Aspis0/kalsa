@@ -84,7 +84,7 @@ async function main() {
   const {
     decideEngineLiveness,
     decideEngineBarKind,
-    nextEngineUiPhase,
+    decideContactProbe,
     nextEngineLostRecovery,
     initialEngineLostRecovery,
     parseProcessRssBytes,
@@ -297,6 +297,38 @@ async function main() {
     assert(v.status === "alive", `busy must not mark lost, got ${JSON.stringify(v)}`);
   });
 
+  await test("stuck background job + dead contact → lost marked (no user turn)", () => {
+    const d = decideContactProbe({
+      jsReady: true,
+      userTurnLive: false,
+      pendingJobCount: 1,
+      contact: "timeout",
+    });
+    assert(d.issuePing === true, "pending job must not skip ping");
+    assert(d.markLost === true, "no user turn → mark lost");
+    assert(d.verdict.status === "lost" && d.verdict.reason === "native_timeout", JSON.stringify(d.verdict));
+    const err = decideContactProbe({
+      jsReady: true,
+      userTurnLive: false,
+      pendingJobCount: 3,
+      contact: "error",
+    });
+    assert(err.issuePing === true && err.markLost === true, "error + stuck jobs still marks");
+    assert(err.verdict.status === "lost" && err.verdict.reason === "native_error", JSON.stringify(err.verdict));
+  });
+
+  await test("stuck background job + dead contact + user turn → mark suppressed, ping ran", () => {
+    const d = decideContactProbe({
+      jsReady: true,
+      userTurnLive: true,
+      pendingJobCount: 1,
+      contact: "timeout",
+    });
+    assert(d.issuePing === true, "user turn must not skip ping");
+    assert(d.markLost === false, "user turn suppresses lost-mark");
+    assert(d.verdict.status === "alive", `suppressed mark reports alive, got ${JSON.stringify(d.verdict)}`);
+  });
+
   await test("decideEngineLiveness js not ready → absent", () => {
     const v = decideEngineLiveness({
       jsReady: false,
@@ -374,30 +406,25 @@ async function main() {
     );
   });
 
-  await test("state machine ready→lost→send→reload→ready", () => {
-    let p = "ready";
-    p = nextEngineUiPhase(p, { type: "probe", status: "alive" });
-    assert(p === "ready", `alive stays ready, got ${p}`);
-    p = nextEngineUiPhase(p, { type: "probe", status: "lost" });
-    assert(p === "lost", `probe lost, got ${p}`);
-    p = nextEngineUiPhase(p, { type: "send" });
-    assert(p === "loading", `send recovers via load, got ${p}`);
-    p = nextEngineUiPhase(p, { type: "load_ok" });
-    assert(p === "ready", `reload done, got ${p}`);
-  });
-
-  await test("state machine lost→foreground leaves lost (no auto-load)", () => {
-    let p = nextEngineUiPhase("ready", { type: "probe", status: "lost" });
-    assert(p === "lost", p);
-    p = nextEngineUiPhase(p, { type: "foreground" });
-    assert(p === "lost", `foreground must not auto-load, got ${p}`);
+  await test("foreground does not invent lost; chip leaves Ready when JS wrapper is gone", () => {
+    // AppShell no longer probes on AppState active. Chip kind is derived
+    // from existing jsReady — RSS collapse / foreground cannot flip Ready
+    // unless the JS wrapper is already gone.
+    assert(
+      decideEngineBarKind({
+        modelState: "ready",
+        jsReady: true,
+        activeMatches: true,
+      }) === "ready",
+      "resident stays Ready (foreground does not probe)",
+    );
     assert(
       decideEngineBarKind({
         modelState: "ready",
         jsReady: false,
         activeMatches: false,
       }) === "reload",
-      "chip leaves Ready after foreground probe",
+      "chip leaves Ready when JS wrapper gone",
     );
   });
 

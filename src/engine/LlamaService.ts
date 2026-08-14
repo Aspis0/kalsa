@@ -37,10 +37,15 @@ import { DEFAULT_N_CTX } from "./contextProfile";
 import { getCachedDeviceProfile } from "./deviceProfile";
 import {
   decideBoundedReleaseOutcome,
-  decideEngineLiveness,
+  decideContactProbe,
   ENGINE_CONTACT_PROBE_TIMEOUT_MS,
+  initialEngineLostRecovery,
+  nextEngineLostRecovery,
+  shouldBypassRamGate,
+  type ContactProbeDecision,
   type ContactProbeResult,
   type EngineLivenessVerdict,
+  type EngineLostRecoveryState,
 } from "./engineLiveness";
 import { getProcessRssBytesUncached } from "./monitor";
 import {
@@ -228,10 +233,11 @@ let contextHung = false;
 let lastKnownEngineRssBytes: number | null = null;
 /**
  * Armed after markEngineLost until the next initEngine attempt (success OR
- * failure). Bypass is scoped to engineLostModelId — never a different model.
+ * failure). Transitions go through `nextEngineLostRecovery` (the same
+ * reducer the harness tests). Bypass is scoped to lostModelId.
  */
-let engineLostRecovery = false;
-let engineLostModelId: string | null = null;
+let engineLostRecoveryState: EngineLostRecoveryState =
+  initialEngineLostRecovery();
 
 /** Monotonic turn id for KALSA_TELEMETRY lines. No Date.now — stable, parseable. */
 let turnSeq = 0;
@@ -785,32 +791,26 @@ export function getActiveModelId(): string | null {
 }
 
 export function isEngineLostRecovery(modelId?: string): boolean {
-  if (!engineLostRecovery || engineLostModelId == null) return false;
+  if (!engineLostRecoveryState.armed) return false;
   if (modelId === undefined) return true;
-  return engineLostModelId === modelId;
+  return shouldBypassRamGate(engineLostRecoveryState, modelId);
 }
 
 export function getEngineLostModelId(): string | null {
-  return engineLostRecovery ? engineLostModelId : null;
+  return engineLostRecoveryState.armed
+    ? engineLostRecoveryState.lostModelId
+    : null;
 }
 
 export function getLastKnownEngineRssBytes(): number | null {
   return lastKnownEngineRssBytes;
 }
 
-function clearEngineLostRecovery(): void {
-  engineLostRecovery = false;
-  engineLostModelId = null;
-}
-
 function armEngineLostRecovery(modelId: string | null): void {
-  if (typeof modelId === "string" && modelId.length > 0) {
-    engineLostModelId = modelId;
-    engineLostRecovery = true;
-    return;
-  }
-  engineLostModelId = null;
-  engineLostRecovery = false;
+  engineLostRecoveryState = nextEngineLostRecovery(engineLostRecoveryState, {
+    type: "mark_lost",
+    modelId,
+  });
 }
 
 /**
@@ -839,7 +839,7 @@ export function markEngineLost(reason: string): Promise<void> {
         JSON.stringify({
           reason,
           hadContext,
-          lostModelId: engineLostModelId,
+          lostModelId: engineLostRecoveryState.lostModelId,
         }),
       );
     } catch {
@@ -850,32 +850,39 @@ export function markEngineLost(reason: string): Promise<void> {
 
 /**
  * Cheap native ping (tokenize) with a wall-clock timeout. Never a lost
- * verdict from RSS. Busy / unavailable ⇒ alive (fail-safe).
+ * verdict from RSS. Always pings when JS-ready — job counts do not skip
+ * the ping (tokenize is parallel-safe). `opts.busy` (user-facing turn)
+ * suppresses only the lost-mark, via decideContactProbe.
  */
+async function contactProbeDecision(opts?: {
+  busy?: boolean;
+}): Promise<ContactProbeDecision> {
+  if (!isEngineReady()) {
+    return { issuePing: false, verdict: { status: "absent" }, markLost: false };
+  }
+  const contact = await pingNativeContext(ENGINE_CONTACT_PROBE_TIMEOUT_MS);
+  return decideContactProbe({
+    jsReady: true,
+    userTurnLive: !!opts?.busy,
+    contact,
+  });
+}
+
 export async function probeEngineLiveness(opts?: {
   busy?: boolean;
 }): Promise<EngineLivenessVerdict> {
-  if (!isEngineReady()) return { status: "absent" };
-  if (
-    opts?.busy ||
-    activeCompletionSet.size > 0 ||
-    engineJobPendingCount > 0
-  ) {
-    return decideEngineLiveness({ jsReady: true, contact: "busy" });
-  }
-  const contact = await pingNativeContext(ENGINE_CONTACT_PROBE_TIMEOUT_MS);
-  return decideEngineLiveness({ jsReady: true, contact });
+  return (await contactProbeDecision(opts)).verdict;
 }
 
 /** Probe and, if lost, bounded-release so UI / send can recover. */
 export async function probeAndReconcileEngine(opts?: {
   busy?: boolean;
 }): Promise<EngineLivenessVerdict> {
-  const verdict = await probeEngineLiveness(opts);
-  if (verdict.status === "lost") {
-    await markEngineLost(verdict.reason);
+  const decision = await contactProbeDecision(opts);
+  if (decision.markLost && decision.verdict.status === "lost") {
+    await markEngineLost(decision.verdict.reason);
   }
-  return verdict;
+  return decision.verdict;
 }
 
 async function pingNativeContext(
@@ -1015,6 +1022,7 @@ export function initEngine(
   modelId: string,
   options: EngineInitOptions,
 ): Promise<EngineInitResult> {
+  let loadOk = false;
   return withLifecycleLock(async () => {
     if (contextHung) {
       throw new Error(
@@ -1069,6 +1077,7 @@ export function initEngine(
       activeEngineOverrideKey === engineOverrideKey
     ) {
       if (lastKnownEngineRssBytes == null) void noteEngineRssAfterInit();
+      loadOk = true;
       return { effectiveNCtx };
     }
     await disposeEngineLocked();
@@ -1298,6 +1307,7 @@ export function initEngine(
     // systemInfo carries the "kalsa-native-patches" marker when cpp/ was built
     // from patched source (RNLlamaJSI appends it); absent on skip-reload path.
     void noteEngineRssAfterInit();
+    loadOk = true;
     return {
       effectiveNCtx,
       systemInfo:
@@ -1305,8 +1315,13 @@ export function initEngine(
     };
   })
     .finally(() => {
-      // One-shot: success AND failure disarm the RAM-gate bypass.
-      clearEngineLostRecovery();
+      // One-shot via the same reducer the harness tests: load_ok AND
+      // load_fail both disarm — a failed reload must not leave the P0
+      // RAM gate open.
+      engineLostRecoveryState = nextEngineLostRecovery(
+        engineLostRecoveryState,
+        loadOk ? { type: "load_ok" } : { type: "load_fail" },
+      );
     });
 }
 
@@ -1356,7 +1371,7 @@ async function disposeEngineLocked(opts?: {
     lastKnownEngineRssBytes = null;
     // Intentionally do NOT delete session files here — they survive dispose
     // so the next initEngine can restore KV after app restart / model reload.
-    // engineLostRecovery is owned by markEngineLost / initEngine.finally.
+    // engineLostRecoveryState is owned by markEngineLost / initEngine.finally.
     if (current) {
       // Unblock any in-flight native completion, then wait for the FIFO job
       // chain (and tracked completions) to settle before release(). Race
@@ -1420,8 +1435,11 @@ async function disposeEngineLocked(opts?: {
       }
       try {
         if (opts?.neverForceRelease) {
-          // Lost-mark: release() on a dead JSI handle may throw or hang.
-          // Throw ⇒ treat as gone, keep reload possible. Hang ⇒ hung.
+          // Lost-mark: release() on a dead JSI handle may reject or hang.
+          // Async reject ⇒ treat as gone (reload possible). Hang ⇒ hung.
+          // A sync throw from release() hits the outer catch and sets
+          // contextHung (fail-safe: throw ⇒ hung ⇒ restart). Implausible
+          // (createPromiseTask wraps the native call) but documented.
           const released = await Promise.race([
             current.release().then(
               () => true,

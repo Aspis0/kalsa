@@ -10,8 +10,10 @@
  * triggered the reading.
  *
  * Detection is on first native contact (send path): a bounded-timeout
- * tokenize/ping. Timeout or native error ⇒ lost. Probe unavailable,
- * omitted, or busy (in-flight stream/send) ⇒ alive (fail-safe / no-op).
+ * tokenize/ping. Timeout or native error ⇒ lost. Probe unavailable or
+ * omitted ⇒ alive (fail-safe). Tokenize is parallel-safe, so the ping
+ * always runs when JS-ready — a stuck background job must not disable
+ * detection. Only a live user-facing turn suppresses the lost-mark.
  *
  * This module is pure (no RN / expo imports) so node harnesses compile it.
  * I/O (native ping, bounded release) lives in LlamaService.
@@ -19,8 +21,6 @@
 
 /** Wall-clock budget for the on-contact native ping (tokenize). */
 export const ENGINE_CONTACT_PROBE_TIMEOUT_MS = 8_000;
-
-export type EngineLivenessStatus = "alive" | "lost" | "absent";
 
 export type EngineLivenessReason = "native_timeout" | "native_error";
 
@@ -32,9 +32,10 @@ export type EngineLivenessVerdict =
 /**
  * Result of the send-path native ping.
  * - ok: tokenize returned — engine is alive (even if RSS collapsed).
- * - timeout / error: mark lost.
+ * - timeout / error: lost (mark gated by `decideContactProbe`).
  * - unavailable: ping could not be issued — fail-safe alive.
- * - busy: stream/send already in flight — no-op, do not mark lost.
+ * - busy: fail-safe alive if a caller still synthesizes it. Production
+ *   always pings; it does not skip on job counts.
  */
 export type ContactProbeResult =
   | "ok"
@@ -74,6 +75,48 @@ export function decideEngineLiveness(
     return { status: "lost", reason: "native_error" };
   }
   return { status: "alive" };
+}
+
+export type ContactProbeDecision = {
+  /** Always true when jsReady. Background job counts never skip the ping. */
+  issuePing: boolean;
+  verdict: EngineLivenessVerdict;
+  /** True only when lost AND no user-facing turn is live. */
+  markLost: boolean;
+};
+
+/**
+ * Ping vs lost-mark policy. Tokenize is read-only / parallel-safe
+ * (`createPromiseTask`); a stuck background job (prewarm, summary,
+ * extractMemory) must not disable detection. Only `userTurnLive`
+ * (send-path `sendingInFlightRef`) suppresses the mark — the ping
+ * still runs.
+ *
+ * `pendingJobCount` is accepted so tests can pass a stuck FIFO depth;
+ * it is ignored on purpose.
+ */
+export function decideContactProbe(input: {
+  jsReady: boolean;
+  userTurnLive: boolean;
+  pendingJobCount?: number;
+  contact?: ContactProbeResult | null;
+}): ContactProbeDecision {
+  void input.pendingJobCount;
+  if (!input.jsReady) {
+    return { issuePing: false, verdict: { status: "absent" }, markLost: false };
+  }
+  const verdict = decideEngineLiveness({
+    jsReady: true,
+    contact: input.contact,
+  });
+  if (verdict.status === "lost" && input.userTurnLive) {
+    return { issuePing: true, verdict: { status: "alive" }, markLost: false };
+  }
+  return {
+    issuePing: true,
+    verdict,
+    markLost: verdict.status === "lost",
+  };
 }
 
 /**
@@ -126,48 +169,6 @@ export function decideEngineBarKind(input: {
       return input.modelState;
     case "ready":
       return input.jsReady && input.activeMatches ? "ready" : "reload";
-  }
-}
-
-/**
- * Spec for the recover path (ready → lost → send → reload → ready;
- * lost → foreground leaves "lost", never auto-loads).
- */
-export type EngineUiPhase = "ready" | "lost" | "loading" | "absent";
-
-export type EngineUiEvent =
-  | { type: "probe"; status: EngineLivenessStatus }
-  | { type: "send" }
-  | { type: "load_started" }
-  | { type: "load_ok" }
-  | { type: "load_fail" }
-  | { type: "foreground" };
-
-export function nextEngineUiPhase(
-  phase: EngineUiPhase,
-  event: EngineUiEvent,
-): EngineUiPhase {
-  switch (event.type) {
-    case "probe":
-      if (event.status === "lost") return "lost";
-      if (event.status === "absent") {
-        return phase === "loading" ? "loading" : "absent";
-      }
-      return "ready";
-    case "send":
-      if (phase === "lost" || phase === "absent") return "loading";
-      return phase;
-    case "load_started":
-      return "loading";
-    case "load_ok":
-      return "ready";
-    case "load_fail":
-      return phase === "loading" ? "absent" : phase;
-    case "foreground":
-      // ANTI_OOM: never auto-load. Lost stays lost so the chip can leave Ready.
-      return phase;
-    default:
-      return phase;
   }
 }
 
