@@ -130,6 +130,7 @@ async function main() {
     SESSION_DISK_TOKEN_FLOOR,
     SESSION_DISK_TOKENS_PER_HISTORY_MSG,
     sessionLoadHasTokens,
+    buildKvDiagPayload,
   } = await import(pathToFileURL(modPath).href);
 
   let passed = 0;
@@ -419,6 +420,43 @@ async function main() {
     assert(sessionLoadHasTokens({}) === false, "missing");
     assert(sessionLoadHasTokens(null) === false, "null");
     assert(sessionLoadHasTokens(undefined) === false, "undefined");
+  });
+
+  test("buildKvDiagPayload is honest on hybrid restore (JS tokens, native 0)", () => {
+    const hybridOk = buildKvDiagPayload({
+      ok: true,
+      tokensLoaded: 1635,
+      hybridOrKvUnified: true,
+    });
+    assert(hybridOk.ok === true, "hybrid ok");
+    assert(hybridOk.tokens_on_disk === 1635, "hybrid tokens_on_disk");
+    assert(hybridOk.n_past === 0, "hybrid n_past is 0 — do not repeat the JS lie");
+
+    const denseOk = buildKvDiagPayload({
+      ok: true,
+      tokensLoaded: 1635,
+      hybridOrKvUnified: false,
+    });
+    assert(denseOk.n_past === 1635, "non-hybrid n_past is tokens_loaded");
+    assert(denseOk.tokens_on_disk === 1635, "non-hybrid tokens_on_disk");
+    assert(denseOk.ok === true, "non-hybrid ok");
+
+    const fail = buildKvDiagPayload({
+      ok: false,
+      tokensLoaded: undefined,
+      hybridOrKvUnified: true,
+    });
+    assert(fail.ok === false, "fail ok");
+    assert(fail.tokens_on_disk === 0, "fail tokens_on_disk defaults 0");
+    assert(fail.n_past === 0, "fail hybrid n_past 0");
+
+    const failDense = buildKvDiagPayload({
+      ok: false,
+      tokensLoaded: "nope",
+      hybridOrKvUnified: false,
+    });
+    assert(failDense.tokens_on_disk === 0, "non-number tokens_loaded → 0");
+    assert(failDense.n_past === 0, "non-hybrid fail n_past 0");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

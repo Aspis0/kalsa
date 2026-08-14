@@ -70,6 +70,7 @@ import {
   sessionFilePath,
   sessionLoadHasTokens,
   sessionMetaMismatchField,
+  buildKvDiagPayload,
   shouldSaveSession,
   writeSessionMeta,
   type SessionMeta,
@@ -81,7 +82,7 @@ import {
   type KvReproState,
 } from "./kvReproducibility";
 import { resolveThinkingParams } from "./thinkingBudgets";
-import { getModelById } from "./ModelRegistry";
+import { getModelById, isHybridOrKvUnifiedModel } from "./ModelRegistry";
 import {
   markChatCompleting,
   markChatCompletingDone,
@@ -1500,6 +1501,8 @@ async function tryLoadEngineSession(
   },
 ): Promise<boolean> {
   const t0 = Date.now();
+  let loadOk = false;
+  let tokensLoaded: unknown;
   const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
     try {
       console.log(
@@ -1507,6 +1510,22 @@ async function tryLoadEngineSession(
       );
     } catch {
       // telemetry must never throw
+    }
+  };
+  const emitKvDiag = () => {
+    try {
+      console.log(
+        "KALSA_KVDIAG",
+        JSON.stringify(
+          buildKvDiagPayload({
+            ok: loadOk,
+            tokensLoaded,
+            hybridOrKvUnified: isHybridOrKvUnifiedModel(modelId),
+          }),
+        ),
+      );
+    } catch {
+      // never throw
     }
   };
   try {
@@ -1556,6 +1575,7 @@ async function tryLoadEngineSession(
       return false;
     }
     const result = await context.loadSession(sessionFilePath(modelId));
+    tokensLoaded = result?.tokens_loaded;
     if (!sessionLoadHasTokens(result)) {
       bakedUserTails = [];
       await deleteSessionArtifacts(modelId);
@@ -1571,6 +1591,7 @@ async function tryLoadEngineSession(
     bakedUserTails = BAKE_FORMAT_B_USER_PREFIX
       ? parseBakedUserTails(stored.bakedUserTails)
       : [];
+    loadOk = true;
     log(true, {
       tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,
     });
@@ -1581,6 +1602,8 @@ async function tryLoadEngineSession(
     await deleteSessionArtifacts(modelId);
     log(false, { reason: sessionErrorReason(error) });
     return false;
+  } finally {
+    emitKvDiag();
   }
 }
 

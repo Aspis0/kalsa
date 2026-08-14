@@ -58,6 +58,32 @@ export function sessionLoadHasTokens(
   return typeof result?.tokens_loaded === "number" && result.tokens_loaded > 0;
 }
 
+export type KvDiagPayload = {
+  n_past: number;
+  tokens_on_disk: number;
+  ok: boolean;
+};
+
+/**
+ * Honest restore line. loadSession can report tokens_loaded>0 while native
+ * n_past is 0 on hybrid/kvUnified models (Q6.c). Never treat ok:true as reuse.
+ */
+export function buildKvDiagPayload(input: {
+  ok: boolean;
+  tokensLoaded: unknown;
+  hybridOrKvUnified: boolean;
+}): KvDiagPayload {
+  const tokens_on_disk =
+    typeof input.tokensLoaded === "number" && Number.isFinite(input.tokensLoaded)
+      ? input.tokensLoaded
+      : 0;
+  return {
+    n_past: input.hybridOrKvUnified ? 0 : tokens_on_disk,
+    tokens_on_disk,
+    ok: input.ok === true,
+  };
+}
+
 /** Default messages key until migrate / AppShell bind the active conversation. */
 export const DEFAULT_BOOT_MESSAGES_KEY = "kalsa.messages.v1";
 
