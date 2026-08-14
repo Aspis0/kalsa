@@ -46,12 +46,10 @@ PC_BUSY = OUT / "PC_BUSY.txt"
 
 PROMPT_PATHS = {
     "fact": ROOT / "results" / "marco_phase1" / "speed_s23" / "prompts" / "p_fact.txt",
-    "creative": ROOT
-    / "results"
-    / "marco_phase1"
-    / "speed_s23"
-    / "prompts"
-    / "p_creative.txt",
+    # creative: local copy with a "begin now" nudge — the marco_phase1 original
+    # makes CalaQwen k6d065 emit EOS as the FIRST token at temp 0 (0-token target,
+    # seen 2026-08-13). Same prompt for target and draft, so acceptance is unaffected.
+    "creative": OUT / "prompts" / "p_creative.txt",
     "longfact": OUT / "prompts" / "p_longfact.txt",
     "code": OUT / "prompts" / "p_code.txt",
 }
@@ -577,6 +575,12 @@ def run_targets(session: BmoeSession, prompts: dict[str, str]) -> dict[str, Any]
             }
             continue
         result = session.generate(prompts[pid], N_TARGET, clear_kv=True)
+        if not result.pieces:
+            # Fail HERE with a clear message instead of saving an empty target
+            # that run_draft trips over later ("missing target stream").
+            raise RuntimeError(
+                f"target {pid} generated 0 tokens (immediate EOS?) — fix the prompt"
+            )
         save_target(pid, prompts[pid], result)
         meta[pid] = {
             "skipped": False,
