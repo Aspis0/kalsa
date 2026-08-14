@@ -1,0 +1,11 @@
+--- /data/data/com.termux/files/home/experiments/results/kernel_s2/s23/p1c_off_gen.txt	2026-08-14 00:28:13.433009083 -0400
++++ /data/data/com.termux/files/home/experiments/results/kernel_s2/s23/p1c_on_gen.txt	2026-08-14 00:28:13.417009083 -0400
+@@ -3,6 +3,6 @@
+ User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+ A Mixture-of-Experts (MoE) language model is a type of neural network that splits the model into many specialized “expert” sub‑models, each trained to handle different parts of the input, and uses a router to decide which experts should process each token; by activating only a small subset of experts for every token, the model saves computation during inference, yet the full set of expert weights must still be stored on the device because any expert could be needed for some tokens, and techniques like flash streaming allow the phone to load only the required expert weights on‑demand from the large on‑disk file.  
+ 
+-- **Routing:** The router evaluates the current token (and often its context) and assigns it to a few selected experts, ensuring that only the most relevant sub‑models are used.  
+-- **Flash streaming:** This method streams the needed expert weights directly from storage to memory as they are activated, keeping the on‑disk file large while minimizing the amount of data resident in RAM at any given time.
++- **Routing:** The router evaluates the current token (or context) and assigns it to a few pre‑selected experts, ensuring that only the most relevant sub‑models are used for each prediction.  
++- **Flash streaming:** This method streams the necessary expert weights directly from the storage medium to memory as they are activated, keeping the on‑disk file large while minimizing the amount of data that must be resident in RAM at any given time.
+ 

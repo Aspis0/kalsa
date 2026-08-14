@@ -1,0 +1,5 @@
+#!/data/data/com.termux/files/usr/bin/bash
+HERE="$(cd "$(dirname "$0")" && pwd)"
+export LD_LIBRARY_PATH="$HERE/kernel_s2${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec "$HERE/kernel_s2/bmoe-cli" "$@"
+

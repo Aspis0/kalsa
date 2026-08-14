@@ -1,0 +1,18 @@
+ggml_backend_set_n_threads(CPU, 8)
+Testing 1 devices
+
+Backend 1/1: CPU
+  Device description: CPU
+  Device memory: 7073 MB (7073 MB free)
+
+  MOE_SWIGLU_ID(type_gate=q4_K,type_up=q4_K,type_down=q8_0,n_expert=64,k=8,n=1,n_embd=2304,n_ff=896): [1;32mOK[0m
+  MOE_SWIGLU_ID(type_gate=q4_K,type_up=q4_K,type_down=q5_0,n_expert=64,k=8,n=1,n_embd=2304,n_ff=896): [1;32mOK[0m
+  MOE_SWIGLU_ID(type_gate=q4_K,type_up=q4_K,type_down=q8_0,n_expert=64,k=1,n=1,n_embd=2304,n_ff=896): [1;32mOK[0m
+  MOE_SWIGLU_ID(type_gate=q4_K,type_up=q4_K,type_down=q8_0,n_expert=64,k=6,n=1,n_embd=2304,n_ff=896): [1;32mOK[0m
+  MOE_SWIGLU_ID(type_gate=q4_K,type_up=q4_K,type_down=q8_0,n_expert=64,k=8,n=2,n_embd=2304,n_ff=896): [1;32mOK[0m
+  MOE_SWIGLU_ID(type_gate=q4_K,type_up=q4_K,type_down=q8_0,n_expert=128,k=8,n=1,n_embd=768,n_ff=2048): [1;32mOK[0m
+  MOE_SWIGLU_ID(type_gate=q4_K,type_up=q4_K,type_down=q8_0,n_expert=32,k=4,n=1,n_embd=256,n_ff=256): [1;32mOK[0m
+  7/7 tests passed
+  Backend CPU: [1;32mOK[0m
+1/1 backends passed
+[1;32mOK[0m

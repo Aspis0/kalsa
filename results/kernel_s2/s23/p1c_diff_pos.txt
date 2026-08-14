@@ -1,0 +1,22 @@
+P1C n=256 greedy fused ON vs OFF — CORRECTNESS_FAIL
+same binary, --moe-fused-ffn vs --no-moe-fused-ffn, -t 4 --n-expert-used 8 --temp 0, fadvise between cells
+
+generation-only first differing character: 677
+generation-only first differing word: 110
+raw extract first differing byte (includes prompt): 1037
+ON gen length: 1069 chars / 221 tokens (EOS)
+OFF gen length: 1029 chars / 213 tokens (EOS)
+
+common prefix ends at:
+  "...The router evaluates the current token ("
+
+ON  continues: "or context) and assigns it to a few pre‑selected experts..."
+OFF continues: "and often its context) and assigns it to a few selected experts..."
+
+n=32 prefix (S1 gate string) is inside the common prefix — P1B would not have seen this.
+
+This is greedy argmax divergence after a long identical first paragraph.
+NMSE kernel test was 7/7 (max_nmse_err=5e-4). Late-token drift is consistent with
+accumulated fused-vs-stock float error flipping a near-tie logit, OR with
+streamer/cache non-determinism. Distinguishing those needs ON-vs-ON n=256
+(not run — brief said STOP).

@@ -1,0 +1,5 @@
+2026-08-14T00:08:58-04:00 poll=0 AC=false USB=false wireless=false status=3 level=100 temp_C=30.0 voltage=4370 UNPLUGGED screen=Awake
+2026-08-14T00:16:45-04:00 poll=1 AC=false USB=false wireless=false status=3 level=97 temp_C=33.0 voltage=0 UNPLUGGED mWakefulness=Awake
+2026-08-14T00:21:46-04:00 poll=2 AC=false USB=false wireless=false status=3 level=94 temp_C=35.0 voltage=0 UNPLUGGED mWakefulness=Awake
+2026-08-14T00:26:47-04:00 poll=3 AC=false USB=false wireless=false status=3 level=92 temp_C=37.0 voltage=0 UNPLUGGED mWakefulness=Awake
+2026-08-14T00:31:47-04:00 poll=4 AC=false USB=false wireless=false status=3 level=90 temp_C=37.0 voltage=0 UNPLUGGED mWakefulness=Awake

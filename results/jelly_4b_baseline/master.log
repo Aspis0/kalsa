@@ -1,0 +1,13 @@
+2026-08-14 Jelly Qwen3.5-4B dense llama-bench ABBA -t 2
+access: adb 192.168.1.82:44395 Jelly_Star JELLYS0000053795; ssh :8022 u0_a225
+bmoe-cli pin 36b01966… before=after MATCH
+model scp 196s; sha 00fe7986… MATCH 2740937888 B
+llama-bench ~/opt/llama-bench a92a51627 ngl0 t2 (not campaign pin)
+ABBA A1 tg128 3.53205/3.5317  98->97% 31->32C Awake
+     B1 pp512 5.00219/5.00406 97->94% 32->35C Awake
+     A2 tg128 3.51559/2.08774 94->93% 35->36C Awake  (rep2 drop)
+     B2 pp512 3.93398/3.84991 93->90% 36->37C Awake  (drift)
+product decode median 3.52 tok/s
+ladder: 4B 3.52 < 2B 8.04 < LFM k4 10.60
+UNPLUGGED entire block; floor 35% / abort 43C not hit
+S23/Xiaomi not touched

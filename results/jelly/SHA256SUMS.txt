@@ -1,1 +1,1 @@
-00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4  Qwen3.5-4B-Q4_K_M.gguf  # PC only; on-device verify pending
+00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4  Qwen3.5-4B-Q4_K_M.gguf  # PC MATCH; on-device MATCH 2026-08-14 (~/models/, 2740937888 B)

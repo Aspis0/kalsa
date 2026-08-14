@@ -1,0 +1,9 @@
+# KERNEL S2 — campaign pin AFTER correctness stop
+# 2026-08-14T00:29:30-04:00
+# device: S23 UNPLUGGED 87% 34.6C mWakefulness=Awake
+# no leftover bmoe/llama processes
+
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  /data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c  /data/data/com.termux/files/home/bin/mellum2/bmoe-cli
+559bc59d341441473d3a4e5e0876991cbec90b46d5bbf0b884aeb8a4651b7a73  /data/data/com.termux/files/home/bin/kernel_s1/bmoe-cli

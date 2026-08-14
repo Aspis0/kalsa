@@ -1,0 +1,25 @@
+# Jelly Qwen3.5-4B dense baseline — SHA records
+# Date: 2026-08-14
+# Device: Jelly_Star JELLYS0000053795  192.168.1.82:44395 / ssh 8022 u0_a225
+
+# Campaign binary (UNTOUCHABLE) — before transfer/run
+# path: ~/bin/bmoe-cli
+36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81  bmoe-cli  # before
+
+# Model
+# PC:   models/draft/Qwen3.5-4B-Q4_K_M.gguf  2740937888 B
+# Jelly: ~/models/Qwen3.5-4B-Q4_K_M.gguf     2740937888 B  MATCH
+00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4  Qwen3.5-4B-Q4_K_M.gguf
+
+# llama-bench harness (NOT the campaign pin; campaign pin is bmoe-cli)
+# source: moe-experiments/build-android-opencl-cpufix/bin/llama-bench
+# llama.cpp commit a92a51627  build 9969  Clang 18.0.2  Android aarch64
+# flags: -march=armv8.2-a+dotprod+fp16  GGML_OPENCL=ON (init fails on Mali; -ngl 0)
+# report TASK C asked pin 5236140e5; not rebuilt on-device (would heat timed cells).
+e9c25631134b697c5ccb32e73514ed46ce7f6c14173126d2cbd9eca39d392c56  llama-bench
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so  # NDK 27.1 aarch64
+
+# Campaign binary after ABBA — UNCHANGED
+36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81  bmoe-cli  # after MATCH
+36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81  bmoe-cli.JELLY  # after MATCH
+

@@ -1,0 +1,21 @@
+[2026-08-14T00:09:00.2556680-04:00] START cmake=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe ninja=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe
+[2026-08-14T00:09:00.2741046-04:00] === CONFIGURE bmoe-cli ===
+[2026-08-14T00:09:20.3606783-04:00] bmoe configure OK
+[2026-08-14T00:09:20.3884097-04:00] === CONFIGURE test-backend-ops ===
+[2026-08-14T00:09:51.8235737-04:00] ops configure OK
+[2026-08-14T00:09:51.8434087-04:00] === BUILD bmoe-cli -j 4 ===
+[2026-08-14T00:15:39.1418215-04:00] bmoe build OK
+[2026-08-14T00:15:39.1438012-04:00] === BUILD test-backend-ops -j 4 ===
+[2026-08-14T00:21:39.0209390-04:00] ops build OK
+[2026-08-14T00:21:39.0454842-04:00] === STAGE ===
+[2026-08-14T00:21:39.3576979-04:00] cxx=C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so
+[2026-08-14T00:21:39.4760313-04:00] ops=C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-kernel-s2-ops\bin\test-backend-ops
+[2026-08-14T00:21:39.5407387-04:00] STAGED libc++_shared.so 1794776
+[2026-08-14T00:21:39.5635986-04:00] STAGED libggml-base.so 6604920
+[2026-08-14T00:21:39.5837562-04:00] STAGED libggml-cpu.so 5045576
+[2026-08-14T00:21:39.6044252-04:00] STAGED libggml.so 630056
+[2026-08-14T00:21:39.6266122-04:00] STAGED libllama-common.so 78405904
+[2026-08-14T00:21:39.6463285-04:00] STAGED libllama.so 40605088
+[2026-08-14T00:21:39.6674538-04:00] STAGED test-backend-ops 19428104
+[2026-08-14T00:21:39.8955480-04:00] SHA test-backend-ops d04219996e753fc892aebb9cf925fa379cb20033b18bfde71683cda9be995e07
+[2026-08-14T00:21:39.9137719-04:00] ALL BUILD DONE

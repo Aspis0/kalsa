@@ -1,0 +1,8 @@
+71f3556d99ffaf4dbe2cd7305463d625bc9a3a34901562c5556be59e427661a5  /data/data/com.termux/files/home/bin/kernel_s2/bmoe-cli
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  /data/data/com.termux/files/home/bin/kernel_s2/libc++_shared.so
+0be173327fee4fb1cb109b82e96cc4a16ddb682ee5b95b2c683fce2aeca90f8c  /data/data/com.termux/files/home/bin/kernel_s2/libggml-base.so
+49554a486c8f9a09f1c6309a968f199cf4ac2fb60da8bdd16a4c2610ae4074f8  /data/data/com.termux/files/home/bin/kernel_s2/libggml-cpu.so
+3727fe6b3c9d242b946cab60cf17eed842f9c96d11b3c5b052a1d7b99549724e  /data/data/com.termux/files/home/bin/kernel_s2/libggml.so
+e3bdc958d3a4b73c89699114ce6a2bb85acab22082d20857bdf46508a5fa575e  /data/data/com.termux/files/home/bin/kernel_s2/libllama-common.so
+7362f4ab0dbdeefa8a1c9a6cc49670fdc8358dd72b7ab5191ebdd23557160e51  /data/data/com.termux/files/home/bin/kernel_s2/libllama.so
+581aa153803602891c2e82554a0aca262d8d6ff7db0263442c248cafd5ee0304  /data/data/com.termux/files/home/bin/kernel_s2/test-backend-ops

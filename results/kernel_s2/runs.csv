@@ -1,0 +1,5 @@
+run_id,date,phase,model,cell,fused,threads,k,drop,n_gen,run_type,decode_toks,compute_s_tok,flash_s_tok,mib_tok,hit_pct,vmrss_peak_mb,batt_pct_start,batt_pct_end,batt_temp_start,batt_temp_end,plugged,screen,memavail_mb,rc,notes
+p1a_ops,2026-08-14T00:23:08-04:00,s2-correctness,n/a,p1a_ops,on,8,-,-,0,n/a,,,,,,,89,89,29.4,32.6,UNPLUGGED,Awake,3641.3,0,7/7 MOE_SWIGLU_ID
+p1b_n32_on,2026-08-14T00:24:09-04:00,s2-correctness,mellum2-q4km,p1b_n32_on,on,4,8,-,32,cold,2.286,0.207,0.541,240.19,60.3,2936.1,89,88,32.6,33.3,UNPLUGGED,Awake,3607.1,0,P1B PASS prefix match; moe-fused-ffn ON
+p1c_n256_on,2026-08-14T00:26:17-04:00,s2-correctness,mellum2-q4km,p1c_n256_on,on,4,8,-,221,cold,2.730,0.179,0.419,179.10,77.5,2958.3,88,88,33.3,34.3,UNPLUGGED,Awake,4617.4,0,EOS at 221; moe-fused-ffn ON; UNOFFICIAL
+p1c_n256_off,2026-08-14T00:28:13-04:00,s2-correctness,mellum2-q4km,p1c_n256_off,off,4,8,-,213,cold,3.046,0.204,0.426,180.67,77.2,2958.1,88,87,34.3,36.2,UNPLUGGED,Awake,4569.2,0,EOS at 213; moe-fused-ffn OFF; P1C FAIL drift char 677
