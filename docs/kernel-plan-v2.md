@@ -74,6 +74,23 @@ ideal ceiling ~6.75 even with flash at zero. Therefore:
   day-zero speed on new archs, thermal (if K-E survives), TTFT (if K-G
   survives) — none of which promises 7 on S23 big-tier.
 
+**RESOLVED (owner, 2026-08-14):** option (b) accepted for big MoEs —
+**S23-class big-tier = 5-6 tok/s** (Mellum2/Marco/CalaQwen); the 7-9
+ambition moves to flagship/residency tiers; small Qwens stay fast
+everywhere (2B = 15.9 measured on S23, resident on any RAM). Selfspec
+(§2a) remains the only candidate that could revisit this — pending F1b.
+
+**Tier doctrine (owner Q, same date):** same SoC ≠ same tier. Tiers are
+a matrix of compute-class × measured RAM budget: more RAM at equal
+silicon shifts big MoEs toward residency (miss→0 removes the flash term
+from wall — Mellum 5.15 → ~6.5-6.75 ceiling; Marco's 46% miss traffic
+evaporates; CalaQwen becomes admissible resident at 24 GB); less RAM
+degrades hit% and admissibility. Small models cluster by SoC alone. The
+dispatcher's first-launch probe (compute + RAM budget + sustained) — not
+the spec sheet — assigns the tier. Cheap falsification test when
+available: S23 Ultra (same 8Gen2, 12 GB) — resident Marco vs our
+streamed 8.82.
+
 ## 3. Workstreams (re-gated per audit)
 
 ### 3.1 K-E thermal — screening now, confirmatory protocol defined
