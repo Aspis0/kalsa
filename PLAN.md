@@ -21,6 +21,17 @@
 
 ## TL;DR lanes (2026-08-14)
 
+> 🎯 **DIRETTIVA gualt (2026-08-14 mattina): DUE lane vive — (1) KERNEL S3
+> repack-aware ("voglio il kernel"), (2) SELFSPEC F1 engine. TUTTO IL RESTO
+> È CHIUSO/CONGELATO** (free-tier: si ferma alla scala misurata; celle card
+> Xiaomi, FT lane, GPU: freeze — si riaprono solo su parola di gualt).
+> Design S3 del coordinatore: `docs/kernel-s3-design.md` (3 meccanismi
+> ranked: Phase-D cache-ostile prima del repack; repack-at-cache-insert
+> solo gate/up; braccio build i8mm — la build S23 è armv8.2, i core
+> supportano armv8.6+i8mm). Selfspec F1 in volo su `kalsa/selfspec-f1`
+> (k switchabile draft2/verify6, KV rollback su verify, gate = output
+> identico al k6 greedy, PC-first; cella S23 dopo che S3 libera il device).
+
 | lane | stato | numero chiave | prossimo passo |
 |---|---|---|---|
 | **Lineup 3 telefoni** (CalaQwen + Marco1c shippati) | S23/Jelly done (screen-on); Xiaomi era in Doze → rifare celle card screen-on | Marco1c: S23 **8.82** (t4) · Xiaomi **10.57** (t4 screen-on, sorpasso) · Jelly 3.64 (t2, ranking) · CalaQwen: S23 5.86 · Xiaomi 4.75 | celle card Xiaomi screen-on |
