@@ -105,8 +105,10 @@ import {
   getActiveModelId,
   initEngine,
   invalidateEngineSession,
+  isEngineLostRecovery,
   isEngineReady,
   notifyStaticPrefixInputs,
+  probeAndReconcileEngine,
   queueStaticPrefixPrewarm,
   saveEngineSession,
   streamAssistantTurn,
@@ -114,6 +116,7 @@ import {
   type EngineMessage,
   type EngineTurnOptions,
 } from "../engine/LlamaService";
+import { decideEngineBarKind } from "../engine/engineLiveness";
 import { startMemoryMonitor, getAvailableMemoryBytesUncached } from "../engine/monitor";
 import {
   backgroundDiscardLifecycleRef,
@@ -2572,6 +2575,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             try {
               const model = MODEL_REGISTRY[modelIndexRef.current];
               if (!model) return;
+              if (isEngineReady()) {
+                const verdict = await probeAndReconcileEngine();
+                if (verdict.status === "lost") {
+                  const gen = chatGateGenRef.current ?? getChatGeneration();
+                  markChatReleased(gen);
+                  chatGateGenRef.current = null;
+                  setProcessUnloadedReason("chat.unloaded");
+                  setMemoryBannerKey("chat.unloaded");
+                  // ANTI_OOM: never auto-load. Chip leaves Ready via re-render.
+                  return;
+                }
+              }
               if (isEngineReady() && getActiveModelId() === model.id) return;
               const available = await getAvailableMemoryBytesUncached();
               const fit = evaluateModelFit(
@@ -2937,11 +2952,17 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           (gate.reason === "blocked_ram" || gate.reason === "blocked_tier") &&
           getActiveModelId() !== model.id
         ) {
-          setModelState("error");
-          setModelErrorKind("engine");
-          setModelError(gateReasonMessage(gate.reason, t));
-          setModelErrorDetail(null);
-          return false;
+          // Lost-engine recovery: leftover MemAvailable is the P0 trap.
+          // Reload is what brings the bytes back; do not hard-block on RAM.
+          if (gate.reason === "blocked_ram" && isEngineLostRecovery()) {
+            // fall through
+          } else {
+            setModelState("error");
+            setModelErrorKind("engine");
+            setModelError(gateReasonMessage(gate.reason, t));
+            setModelErrorDetail(null);
+            return false;
+          }
         }
       } catch {
         // Probe failure → fall through to existing load path (no hard block).
@@ -3173,6 +3194,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelError(null);
       setModelErrorDetail(null);
       setModelErrorKind(null);
+      setMemoryBannerKey(null);
+      setProcessUnloadedReason(null);
       queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
       return true;
     } catch (error) {
@@ -3645,6 +3668,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelError(null);
       setModelErrorDetail(null);
       setModelErrorKind(null);
+      setMemoryBannerKey(null);
+      setProcessUnloadedReason(null);
       setDownloadedById((prev) => ({ ...prev, [model.id]: true }));
       showNotice(t("download.readyNotice", { name: model.name }));
       void notifyDownload(
@@ -4512,8 +4537,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   })();
 
   const modelBarStatus = (() => {
-    const engineLoaded = isEngineReady() && getActiveModelId() === currentModel.id;
-    switch (modelState) {
+    const barKind = decideEngineBarKind({
+      modelState,
+      jsReady: isEngineReady(),
+      activeMatches: getActiveModelId() === currentModel.id,
+    });
+    switch (barKind) {
       case "checking":
         return { label: t("download.checking"), color: colors.muted };
       case "missing":
@@ -4543,13 +4572,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           color: colors.bad,
         };
       case "ready":
-        // HIGH-2: downloaded-but-unloaded is tappable ("Tap to reload"), never auto-load.
-        return {
-          label: engineLoaded
-            ? t("download.readyLocal")
-            : t("chat.lazyReload"),
-          color: engineLoaded ? colors.good : colors.accent,
-        };
+        return { label: t("download.readyLocal"), color: colors.good };
+      case "reload":
+        // HIGH-2: downloaded-but-unloaded / engine-lost is tappable, never auto-load.
+        return { label: t("chat.lazyReload"), color: colors.accent };
     }
   })();
 

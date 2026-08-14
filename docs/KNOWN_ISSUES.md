@@ -31,8 +31,24 @@ Same session, ~10 min idle after a completed prewarm: app process alive but RSS
 dropped 3 GB → 167 MB (engine/model gone), header still "Qwen 3.5 4B · Ready ·
 local", Send taps (including physical finger taps) produce **zero** ReactNativeJS
 logcat output, composer still accepts text. Force-stop + relaunch recovers.
-Suspected: the memory-pressure path unloads the engine without updating UI state or
-re-arming the send path; possibly the same guard as P0. Needs repro + fix.
+
+**Code-level fix (2026-08-14, `fix/p1-idle-zombie`):** JS `isEngineReady()` was
+only `context !== null` — HyperOS can reclaim the native heap without going
+through `disposeEngine` (no `onTrimMemory`; background dispose would have left
+Ready). Send had no breadcrumb before the busy-guard / first await, so a hung
+native call or a stuck `sendClaimRef` produced zero logcat. Fix: RSS-vs-baseline
+liveness probe on foreground + send; `markEngineLost` drops the JS wrapper
+without native `release()`; header leaves Ready; send recovers via
+`ensureEngineForModel` (`recoverLost` skips the leftover-MemAvailable refuse).
+Every send attempt logs `KALSA_SEND`.
+
+**On-device verify still required** (Xiaomi/HyperOS not in hand):
+1. Cold load 4B, wait for prewarm done, confirm header Ready · local.
+2. Idle ~10 min (or until RSS collapses); confirm chip leaves Ready (reload
+   affordance) on foreground, and `engine.lost` in logcat.
+3. Type + Send: one `KALSA_SEND` line, then load progress, then a real
+   completion (not "not enough memory").
+4. Confirm a second send after recover still works (prewarm re-queued).
 
 ## Note for automated testing on HyperOS
 

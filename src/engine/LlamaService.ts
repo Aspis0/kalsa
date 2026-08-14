@@ -36,6 +36,11 @@ import { getStrings, type Locale } from "../i18n";
 import { DEFAULT_N_CTX } from "./contextProfile";
 import { getCachedDeviceProfile } from "./deviceProfile";
 import {
+  decideEngineLiveness,
+  type EngineLivenessVerdict,
+} from "./engineLiveness";
+import { getProcessRssBytesUncached } from "./monitor";
+import {
   nGpuLayersForBackend,
   resolveEngineTuning,
 } from "./deviceTuning";
@@ -84,8 +89,10 @@ import {
 import { resolveThinkingParams } from "./thinkingBudgets";
 import { getModelById, isHybridOrKvUnifiedModel } from "./ModelRegistry";
 import {
+  getChatGeneration,
   markChatCompleting,
   markChatCompletingDone,
+  markChatReleased,
 } from "./llamaContextGate";
 import {
   applyBakedUserTails,
@@ -210,6 +217,18 @@ let disposing = false;
  * subsequent initEngine calls — recovery is process restart.
  */
 let contextHung = false;
+
+/**
+ * VmRSS sampled after a successful initLlama. Used by probeEngineLiveness
+ * to detect HyperOS reclaiming the native heap while the JS wrapper lives.
+ */
+let lastKnownEngineRssBytes: number | null = null;
+/**
+ * True after markEngineLost until the next successful init. Lets the send
+ * path skip the leftover-MemAvailable refuse and lets ensureEngineForModel
+ * skip blocked_ram so reload can recover.
+ */
+let engineLostRecovery = false;
 
 /** Monotonic turn id for KALSA_TELEMETRY lines. No Date.now — stable, parseable. */
 let turnSeq = 0;
@@ -762,6 +781,88 @@ export function getActiveModelId(): string | null {
   return activeModelId;
 }
 
+export function isEngineLostRecovery(): boolean {
+  return engineLostRecovery;
+}
+
+export function getLastKnownEngineRssBytes(): number | null {
+  return lastKnownEngineRssBytes;
+}
+
+/**
+ * Drop the JS engine wrapper WITHOUT calling native release().
+ * The native heap is already gone (or calling into it can hang / UAF).
+ * Does not set contextHung — reload via initEngine is the recovery.
+ */
+export function markEngineLost(reason: string): void {
+  const hadContext = context !== null;
+  context = null;
+  activeModelId = null;
+  activeMmprojPath = null;
+  activeEngineCtx = 0;
+  activeCacheTypeK = null;
+  activeCacheTypeV = null;
+  activeSpeculativeOverrideKey = null;
+  activeEngineOverrideKey = null;
+  activeEngineKnob = undefined;
+  activeMtpNMax = undefined;
+  activeSpecType = undefined;
+  kvHoldsChatSession = false;
+  lastChatNPast = undefined;
+  chatKvDiskCurrent = false;
+  kvReproState = nextKvReproState(kvReproState, "dispose");
+  lastPromptEnvHash = undefined;
+  bakedUserTails = [];
+  resetPrewarmState();
+  lastKnownEngineRssBytes = null;
+  engineLostRecovery = hadContext || engineLostRecovery;
+  disposing = false;
+  // Gate stays chat_ready after an OS reclaim; tryAcquireChat would refuse
+  // the reload as a double-load. Release the current owner.
+  try {
+    markChatReleased(getChatGeneration());
+  } catch {
+    // gate must not block invalidate
+  }
+  try {
+    console.info(
+      "engine.lost",
+      JSON.stringify({ reason, hadContext }),
+    );
+  } catch {
+    // telemetry never throws
+  }
+}
+
+/**
+ * RSS vs last-known baseline. Never touches the native llama handle.
+ */
+export async function probeEngineLiveness(): Promise<EngineLivenessVerdict> {
+  if (!isEngineReady()) return { status: "absent" };
+  let rssBytes: number | null = null;
+  try {
+    rssBytes = await getProcessRssBytesUncached();
+  } catch {
+    rssBytes = null;
+  }
+  const model = activeModelId ? getModelById(activeModelId) : undefined;
+  return decideEngineLiveness({
+    jsReady: true,
+    rssBytes,
+    lastKnownRssBytes: lastKnownEngineRssBytes,
+    modelSizeBytes: model?.sizeBytes ?? null,
+  });
+}
+
+/** Probe and, if lost, invalidate the JS wrapper so UI / send can recover. */
+export async function probeAndReconcileEngine(): Promise<EngineLivenessVerdict> {
+  const verdict = await probeEngineLiveness();
+  if (verdict.status === "lost") {
+    markEngineLost(verdict.reason);
+  }
+  return verdict;
+}
+
 /**
  * Effective n_ctx of the loaded engine (post memory-clamp).
  * 0 when no engine is loaded. Single source of truth for document routing
@@ -927,8 +1028,10 @@ export function initEngine(
       activeCacheTypeV === cacheTypeV &&
       activeSpeculativeOverrideKey === speculativeOverrideKey &&
       activeEngineOverrideKey === engineOverrideKey
-    )
+    ) {
+      if (lastKnownEngineRssBytes == null) void noteEngineRssAfterInit();
       return { effectiveNCtx };
+    }
     await disposeEngineLocked();
     // Re-check after dispose: timeout / release() failure sets contextHung
     // and returns. Calling initLlama on a hung or half-released native
@@ -1155,12 +1258,25 @@ export function initEngine(
     // and long-chat budgeting against the loaded engine (not pre-clamp catalog).
     // systemInfo carries the "kalsa-native-patches" marker when cpp/ was built
     // from patched source (RNLlamaJSI appends it); absent on skip-reload path.
+    engineLostRecovery = false;
+    void noteEngineRssAfterInit();
     return {
       effectiveNCtx,
       systemInfo:
         typeof context?.systemInfo === "string" ? context.systemInfo : undefined,
     };
   });
+}
+
+async function noteEngineRssAfterInit(): Promise<void> {
+  try {
+    const rss = await getProcessRssBytesUncached();
+    if (typeof rss === "number" && Number.isFinite(rss) && rss > 0) {
+      lastKnownEngineRssBytes = rss;
+    }
+  } catch {
+    // probe degrades to model-size fallback when no sample
+  }
 }
 
 export function disposeEngine(): Promise<void> {
@@ -1192,6 +1308,9 @@ async function disposeEngineLocked(): Promise<void> {
     lastPromptEnvHash = undefined;
     bakedUserTails = [];
     resetPrewarmState();
+    lastKnownEngineRssBytes = null;
+    // Keep engineLostRecovery until a successful init so a failed reload
+    // still skips the leftover-MemAvailable refuse on the next send.
     // Intentionally do NOT delete session files here — they survive dispose
     // so the next initEngine can restore KV after app restart / model reload.
     if (current) {

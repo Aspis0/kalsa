@@ -9,6 +9,7 @@
  */
 
 import { parseMemAvailableBytes } from "./memoryEstimate";
+import { parseProcessRssBytes } from "./engineLiveness";
 
 export type AppStateValue = "active" | "background" | "inactive" | "unknown" | string;
 
@@ -58,6 +59,27 @@ export async function getAvailableMemoryBytesUncached(): Promise<number | null> 
     const text = await readProcText(FileSystem, "/proc/meminfo");
     if (text == null) return null;
     return parseMemAvailableBytes(text);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read this process's VmRSS from /proc/self/status with NO cache.
+ * Never throws. Returns null off-Android / on read or parse failure.
+ */
+export async function getProcessRssBytesUncached(): Promise<number | null> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Platform } = require("react-native") as { Platform: { OS: string } };
+    if (Platform.OS !== "android") return null;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const FileSystem = require("expo-file-system/legacy") as {
+      readAsStringAsync: (uri: string) => Promise<string>;
+    };
+    const text = await readProcText(FileSystem, "/proc/self/status");
+    if (text == null) return null;
+    return parseProcessRssBytes(text);
   } catch {
     return null;
   }

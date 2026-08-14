@@ -252,6 +252,12 @@ export type PreSendFitDecision =
  */
 export type PreSendFitOptions = {
   alreadyResident?: boolean;
+  /**
+   * Engine was resident then lost (HyperOS reclaimed native heap).
+   * Skip size-vs-available so Send can recover via ensureEngineForModel
+   * instead of repeating the P0 "not enough memory" dead end.
+   */
+  recoverLost?: boolean;
 };
 
 /**
@@ -337,6 +343,11 @@ export function decidePreSendFit(
 ): PreSendFitDecision {
   // Model already in-process: do not compare GGUF size vs leftover MemAvailable.
   if (opts?.alreadyResident) {
+    return { allow: true, bannerKey: null };
+  }
+  // OS stole the resident engine: leftover MemAvailable is the same double-
+  // count trap as P0. Reload is the recovery; allow the send path through.
+  if (opts?.recoverLost) {
     return { allow: true, bannerKey: null };
   }
   const main =

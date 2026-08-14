@@ -26,6 +26,7 @@ function compile() {
       "src/engine/memoryEstimate.ts",
       "src/engine/threadProfile.ts",
       "src/engine/monitor.ts",
+      "src/engine/engineLiveness.ts",
       "src/engine/regenState.ts",
       "src/engine/llamaContextGate.ts",
       "--outDir",
@@ -72,11 +73,21 @@ async function main() {
   compile();
   const dpPath = resolveBuilt("deviceProfile");
   const monPath = resolveBuilt("monitor");
+  const livePath = resolveBuilt("engineLiveness");
   console.log("Loading", dpPath);
   console.log("Loading", monPath);
+  console.log("Loading", livePath);
   const dp = require(dpPath);
   const mon = require(monPath);
+  const live = require(livePath);
   const { evaluateModelFit, estimateModelNonEvictableMiB, decidePreSendFit } = dp;
+  const {
+    decideEngineLiveness,
+    decideEngineBarKind,
+    nextEngineUiPhase,
+    parseProcessRssBytes,
+    ENGINE_RSS_COLLAPSE_RATIO,
+  } = live;
   const { getAvailableMemoryBytesUncached, startMemoryMonitor, parseMemAvailableBytes } = {
     ...mon,
     // parseMemAvailableBytes lives in memoryEstimate — re-export via mon import chain not needed
@@ -202,6 +213,127 @@ async function main() {
     const tiny = decidePreSendFit(model2B, halfGiB);
     assert(tiny.allow === false, "unloaded 2B vs 512 MiB must refuse");
     assert(tiny.reasonKey === "model.tooLarge", tiny.reasonKey);
+  });
+
+  await test("decidePreSendFit recoverLost + low availableMb → reload allowed", () => {
+    const blocked = decidePreSendFit(model4B, leftoverAfter4B);
+    assert(blocked.allow === false, "unloaded without recover must refuse");
+    const d = decidePreSendFit(model4B, leftoverAfter4B, { recoverLost: true });
+    assert(d.allow === true, `recoverLost must allow, got ${JSON.stringify(d)}`);
+    assert(d.bannerKey === null, `no banner on recover, got ${d.bannerKey}`);
+  });
+
+  // --- P1 engine-lost state machine ---
+  const rssReady = 3000 * 1024 * 1024;
+  const rssZombie = 167 * 1024 * 1024;
+
+  await test("parseProcessRssBytes reads VmRSS kB", () => {
+    const bytes = parseProcessRssBytes("Name:\tfoo\nVmRSS:\t171088 kB\nVmSize:\t1 kB\n");
+    assert(bytes === 171088 * 1024, `got ${bytes}`);
+    assert(parseProcessRssBytes("nope") === null, "malformed");
+    assert(parseProcessRssBytes("") === null, "empty");
+  });
+
+  await test("decideEngineLiveness ready RSS stays alive", () => {
+    const v = decideEngineLiveness({
+      jsReady: true,
+      rssBytes: rssReady,
+      lastKnownRssBytes: rssReady,
+    });
+    assert(v.status === "alive", v.status);
+  });
+
+  await test("decideEngineLiveness RSS collapse → lost", () => {
+    const v = decideEngineLiveness({
+      jsReady: true,
+      rssBytes: rssZombie,
+      lastKnownRssBytes: rssReady,
+    });
+    assert(v.status === "lost", v.status);
+    assert(v.status === "lost" && v.reason === "rss_collapsed", JSON.stringify(v));
+    assert(rssZombie < rssReady * ENGINE_RSS_COLLAPSE_RATIO, "fixture under ratio");
+  });
+
+  await test("decideEngineLiveness js not ready → absent", () => {
+    const v = decideEngineLiveness({
+      jsReady: false,
+      rssBytes: rssZombie,
+      lastKnownRssBytes: rssReady,
+    });
+    assert(v.status === "absent", v.status);
+  });
+
+  await test("decideEngineLiveness missing RSS does not invent lost", () => {
+    const v = decideEngineLiveness({
+      jsReady: true,
+      rssBytes: null,
+      lastKnownRssBytes: rssReady,
+    });
+    assert(v.status === "alive", "false lost would leak a live model");
+  });
+
+  await test("decideEngineLiveness model-size fallback when no baseline", () => {
+    const v = decideEngineLiveness({
+      jsReady: true,
+      rssBytes: rssZombie,
+      lastKnownRssBytes: null,
+      modelSizeBytes: 2693 * 1024 * 1024,
+    });
+    assert(v.status === "lost", JSON.stringify(v));
+  });
+
+  await test("decideEngineBarKind ready+jsReady → ready; lost → reload", () => {
+    assert(
+      decideEngineBarKind({
+        modelState: "ready",
+        jsReady: true,
+        activeMatches: true,
+      }) === "ready",
+      "resident",
+    );
+    assert(
+      decideEngineBarKind({
+        modelState: "ready",
+        jsReady: false,
+        activeMatches: false,
+      }) === "reload",
+      "lost leaves Ready",
+    );
+    assert(
+      decideEngineBarKind({
+        modelState: "loading",
+        jsReady: false,
+        activeMatches: false,
+      }) === "loading",
+      "reload in progress",
+    );
+  });
+
+  await test("state machine ready→lost→send→reload→ready", () => {
+    let p = "ready";
+    p = nextEngineUiPhase(p, { type: "probe", status: "alive" });
+    assert(p === "ready", `alive stays ready, got ${p}`);
+    p = nextEngineUiPhase(p, { type: "probe", status: "lost" });
+    assert(p === "lost", `probe lost, got ${p}`);
+    p = nextEngineUiPhase(p, { type: "send" });
+    assert(p === "loading", `send recovers via load, got ${p}`);
+    p = nextEngineUiPhase(p, { type: "load_ok" });
+    assert(p === "ready", `reload done, got ${p}`);
+  });
+
+  await test("state machine lost→foreground leaves lost (no auto-load)", () => {
+    let p = nextEngineUiPhase("ready", { type: "probe", status: "lost" });
+    assert(p === "lost", p);
+    p = nextEngineUiPhase(p, { type: "foreground" });
+    assert(p === "lost", `foreground must not auto-load, got ${p}`);
+    assert(
+      decideEngineBarKind({
+        modelState: "ready",
+        jsReady: false,
+        activeMatches: false,
+      }) === "reload",
+      "chip leaves Ready after foreground probe",
+    );
   });
 
   // --- mmproj accounting ---
