@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Draft-r3 |
+| Status | **FROZEN v1** (2026-08-13, FREEZE_OK after 3 hostile-review rounds; see Review changelog). Two non-blocking micro-notes live in PR-0/PR-3: (1) PR-0 must write `"provenance"` on the five carrying ids in the canonical JSON (inline preview omits it); (2) dispatcher passes `spec.provenance` only for success envelopes (`ok:false` = no provenance, no cite). |
 | Date | 2026-08-13 |
 | Author | Kalsa / design-doc-writer |
 | Contract id | `kalsa.tools.v1` |
