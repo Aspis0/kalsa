@@ -38,8 +38,12 @@
 > wall=compute+mgmt+stall chiude al ms), derivato dai log esistenti a
 > zero minuti device; tetto layer-ahead issue-only ~36% del wall (finestra
 > stretta 8-14%); il macchinario route_ahead_submit/collect/issue_for
-> ESISTE già nell'engine — PROTOTIPO IN VOLO (branch kalsa/kf-layer-ahead,
-> flag --kf-prefetch, output byte-identico obbligatorio, A/B Jelly).**
+> ESISTE già nell'engine — **PROTOTIPO LANDATO (kalsa/kf-layer-ahead @
+> c3e8fc4: feat+test+docs+2 fix review), review ostile PASS strutturale,
+> ctest 10/10, G15 byte-identity ok; caveat F2: identità NON vale sotto
+> drop → gate identità a d0, ABBA d065 solo per il wall. Build Android
+> pronta; A/B Jelly in attesa SOLO dell'unplug fisico (watcher auto-start
+> armato, 7 run: ABBA 2+2 + hot + coppia identità d0).**
 > Paniere p-value = dispatcher/config (✅ QUALITY GATE PASSED: PPL
 > k6d1.0 dMacro +0.0378 / worst fr +0.0877 → **5.151 t/s È config
 > prodotto certificata Mellum2-S23**) + K-F (prototipo) + libreria.
@@ -61,7 +65,9 @@
 > insano: mmap eviction ≠ morte, falso positivo = leak+OOM), fix v2
 > on-contact (ping tokenize 8s, recoverLost scopato, harness 41/41) →
 > re-review MERGE_WITH_FIXES(1) (soppressione busy troppo larga) →
-> fix3 IN VOLO. Merge P1 dopo fix3.
+> fix3 (always-ping, mark solo su turno utente) → **MERGIATO su ai-chat
+> main 47be749: stack TTFT ship-grade** (prewarm + P0 + P1 + breadcrumb).
+> Restano: checklist verify on-device (serve HyperOS libero) e UX F4.
 >
 > 🔮 **SELFSPEC: F1 implementata e corretta (same-k 1.000) ma alpha live
 > 0.08 vs 0.70 teacher-forced; speedup 0.22×.** Parere Qwen Max (canale
@@ -70,8 +76,11 @@
 > GDN, <10% "k2 debole"; ordine operativo = fixare 2 invarianti prima di
 > tunare; bomba aritmetica: iterazione ~4.94 C6 → il verify batch deve
 > essere SUBLINEARE (ammortamento flash) o γ=4 è morta a prescindere.
-> F1b (E1/E2/E3, spec gualt) IN VOLO — incrocio con la tabella Qwen al
-> landing. (2) SELFSPEC F1b diagnosi in volo. (3) PPL gate in corso.
+> F1b (E1/E2/E3, spec gualt) **IMPLEMENTATA e committata (2396c56 su
+> kalsa/selfspec-f1: --selfspec-diag, protocollo E2 anti graph-reuse,
+> RAII k-switch; G15 same-k 1.000)**; la corsa sul 35B è ACCODATA a fine
+> PPL arms (PC conteso) — incrocio con la tabella Qwen al landing.
+> (3) PPL gate: k6d1.0 PASS bancato; arm k6d065+k4d0 in corso (~4-5h).
 > **(4) TTFT: PREWARM_UNIVERSAL — Xiaomi 4B post-fix P0: 1a 1.42/2.02 s,
 > riuso 1174/1187 (98.9%), prewarm 29-31 s, 1b join 26 s; fix memguard
 > mergiato su ai-chat main (b274fb9, harness 27/27); P1 zombie APERTO.** Bug app P0/P1 trovati sul Xiaomi (KNOWN_ISSUES ab3b747):
@@ -381,6 +390,31 @@ DONE
 ## Registro checkpoint
 
 *(voci ≤ 2026-08-11 in `PLAN-archive.md` → «Registro checkpoint (archivio)»)*
+
+- **2026-08-14 (tardo pomeriggio) — 🔧 K-F: PROTOTIPO LANDATO E BLINDATO,
+  in attesa solo dello stacco fisico del Jelly.** (1) **Implementazione
+  consegnata**: `--kf-prefetch` issue-only su `kalsa/kf-layer-ahead`
+  (b737374 feat / 2150b56 test / dfce4e8 docs), ctest 10/10, G15
+  byte-identity PASS, G15b non-vacuo (325 speculati, 27% precision host).
+  NB: l'orchestratore grok aveva chiuso la sessione "aspettando il coder"
+  3 min prima della consegna — staffetta ripresa a mano ~2.5h dopo.
+  (2) **Review ostile (DeepSeek via opencode-go; conto deepseek diretto a
+  secco, 402)**: strutturalmente sano — 4 claim contrattuali CONFIRMED,
+  race/leak/lifecycle REFUTED; 3 fix pre-A/B applicati e verificati
+  (b2f3509 F1 telemetria CPU worker kf esposta in RunSummary/CLI/CSV;
+  c3e8fc4 F2 caveat drop + F3 changelog Unreleased). **F2 ha salvato
+  l'A/B da un falso BROKEN**: con d065 (config campagna!) l'identità
+  byte NON regge (residency è input di apply_drop) — harness corretto:
+  coppia identità a drop 0 in coda (gate vero), divergenza d065 loggata
+  come ATTESA, vecchio gate hard OUTPUT_COMPARE rimosso. (3) **Runner:
+  build Android canonica ok, ma BLOCKED_PLUGGED** (Jelly 100% attaccato,
+  pre-check onorato, pin mai toccato). Watcher armato: all'unplug parte
+  da solo push+ABBA(7 run: 2+2+hot+coppia d0) con follow per-run.
+  (4) **F1b committata da coordinatore** (2396c56, 8 file +670/−10,
+  protocollo E2 anti graph-reuse col pad token, RAII k-switch); corsa
+  E1/E2/E3 sul 35B ACCODATA a fine PPL arms (due 35B streaming insieme
+  = thrash RAM/IO). (5) P1 mergiato su ai-chat main (47be749): stack
+  TTFT ship-grade (già bancato 926958f).
 
 - **2026-08-14 (pomeriggio) — 🏭 IL GIORNO DEL FUNNEL: sei candidati
   kernel processati, la casa nuova, e il primo bollino qualità.**
