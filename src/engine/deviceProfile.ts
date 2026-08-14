@@ -244,6 +244,17 @@ export type PreSendFitDecision =
   | { allow: false; reasonKey: "model.tooLarge" | "model.tightNow" };
 
 /**
+ * Completion-path options. alreadyResident = engine READY and already
+ * holding the requested model: skip size-vs-available (those resident
+ * bytes are what lowered MemAvailable). Incremental KV/compute is already
+ * in the process; a second full-footprint check is a double count.
+ * Pre-load callers must omit this (or pass false).
+ */
+export type PreSendFitOptions = {
+  alreadyResident?: boolean;
+};
+
+/**
  * Fit a registry model (main GGUF + optional mmproj) against live MemAvailable.
  * Bundle size = sizeBytes + (mmproj?.sizeBytes ?? 0). Uses fitMemoryEstimate
  * (repack + compute + KV). reasonKey maps for i18n banners.
@@ -312,6 +323,7 @@ export function evaluateModelFit(
  * tight + availableBytes < 1.5 × requiredBytes → refuse model.tightNow.
  * unknown → allow + model.memoryUnknown banner. fits → allow.
  * requiredBytes uses non-evictable estimate (repack+compute+KV) in bytes.
+ * alreadyResident (completion path only): skip size-vs-available entirely.
  */
 export function decidePreSendFit(
   model: {
@@ -321,7 +333,12 @@ export function decidePreSendFit(
     mmproj?: { sizeBytes: number } | null;
   },
   availableBytes: number | null,
+  opts?: PreSendFitOptions,
 ): PreSendFitDecision {
+  // Model already in-process: do not compare GGUF size vs leftover MemAvailable.
+  if (opts?.alreadyResident) {
+    return { allow: true, bannerKey: null };
+  }
   const main =
     typeof model.sizeBytes === "number" && Number.isFinite(model.sizeBytes)
       ? Math.max(0, model.sizeBytes)
