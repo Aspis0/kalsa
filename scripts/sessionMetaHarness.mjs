@@ -70,6 +70,7 @@ function compile() {
     [
       "tsc",
       "src/engine/sessionPersistence.ts",
+      "src/engine/ttftFlags.ts",
       "--outDir",
       outDir,
       "--module",
@@ -120,6 +121,16 @@ async function main() {
     computeHistoryHashFromMessages,
     computePromptEnvHash,
     estimateSessionBytes,
+    resolveSessionDiskTokens,
+    sessionDiskBytesRequired,
+    SESSION_DISK_GATE_USED_TOKENS,
+    SESSION_BYTES_PER_TOKEN,
+    SESSION_DISK_MARGIN,
+    SESSION_DISK_FLOOR_BYTES,
+    SESSION_DISK_TOKEN_FLOOR,
+    SESSION_DISK_TOKENS_PER_HISTORY_MSG,
+    sessionLoadHasTokens,
+    buildKvDiagPayload,
   } = await import(pathToFileURL(modPath).href);
 
   let passed = 0;
@@ -321,10 +332,131 @@ async function main() {
     );
   });
 
-  test("estimateSessionBytes is nCtx * 64KB", () => {
-    assert(estimateSessionBytes(8192) === 8192 * 64 * 1024, "8192");
+  test("estimateSessionBytes is usedTokens * 64KB", () => {
+    assert(estimateSessionBytes(8192) === 8192 * SESSION_BYTES_PER_TOKEN, "8192");
     assert(estimateSessionBytes(0) === 0, "0");
     assert(estimateSessionBytes(-1) === 0, "negative → 0");
+  });
+
+  test("SESSION_DISK_GATE_USED_TOKENS defaults on", () => {
+    assert(SESSION_DISK_GATE_USED_TOKENS === true, "flag default");
+  });
+
+  test("resolveSessionDiskTokens prefers nPast over nCtx", () => {
+    assert(
+      resolveSessionDiskTokens({ nPast: 400, nCtx: 16384 }) === 400,
+      "nPast wins",
+    );
+    assert(
+      resolveSessionDiskTokens({ nPast: 400, historyLength: 20, nCtx: 16384 }) === 400,
+      "nPast beats history",
+    );
+  });
+
+  test("resolveSessionDiskTokens estimates from history length when nPast unknown", () => {
+    const expected = Math.max(
+      SESSION_DISK_TOKEN_FLOOR,
+      4 * SESSION_DISK_TOKENS_PER_HISTORY_MSG,
+    );
+    assert(
+      resolveSessionDiskTokens({ historyLength: 4, nCtx: 16384 }) === expected,
+      `history 4 → ${expected}`,
+    );
+    assert(
+      resolveSessionDiskTokens({ historyLength: 0, nCtx: 16384 }) === SESSION_DISK_TOKEN_FLOOR,
+      "empty history → token floor",
+    );
+    assert(
+      expected < 16384,
+      "history estimate must not collapse to full nCtx",
+    );
+  });
+
+  test("resolveSessionDiskTokens fail-closed when nPast and history unknown", () => {
+    assert(resolveSessionDiskTokens({ nCtx: 16384 }) === null, "nCtx only");
+    assert(resolveSessionDiskTokens({}) === null, "empty input");
+    assert(resolveSessionDiskTokens({ nPast: 0, nCtx: 16384 }) === null, "nPast 0");
+    assert(resolveSessionDiskTokens({ nPast: -1, nCtx: 16384 }) === null, "nPast neg");
+  });
+
+  test("resolveSessionDiskTokens caps at nCtx", () => {
+    assert(resolveSessionDiskTokens({ nPast: 99999, nCtx: 2048 }) === 2048, "nPast cap");
+    const uncapped = 100 * SESSION_DISK_TOKENS_PER_HISTORY_MSG;
+    assert(uncapped > 2048, "precondition");
+    assert(
+      resolveSessionDiskTokens({ historyLength: 100, nCtx: 2048 }) === 2048,
+      "history cap",
+    );
+  });
+
+  test("sessionDiskBytesRequired applies margin and floor", () => {
+    const mid = sessionDiskBytesRequired(400);
+    assert(
+      mid === Math.max(SESSION_DISK_FLOOR_BYTES, 400 * SESSION_BYTES_PER_TOKEN * SESSION_DISK_MARGIN),
+      "400 tokens",
+    );
+    assert(sessionDiskBytesRequired(1) === SESSION_DISK_FLOOR_BYTES, "tiny → floor");
+    assert(
+      sessionDiskBytesRequired(400) < estimateSessionBytes(16384) * SESSION_DISK_MARGIN,
+      "used-token budget << full nCtx",
+    );
+  });
+
+  test("bakedUserTails payload does not affect sessionMetaMatches", () => {
+    assert(
+      sessionMetaMatches(base, {
+        ...base,
+        bakedUserTails: [{ bare: "hi", prefixed: "FACTS\n\nhi" }],
+      }),
+      "baked tails ignored by gate",
+    );
+  });
+
+  test("sessionLoadHasTokens rejects 0 / missing / non-number", () => {
+    assert(sessionLoadHasTokens({ tokens_loaded: 12 }) === true, "positive");
+    assert(sessionLoadHasTokens({ tokens_loaded: 0 }) === false, "zero");
+    assert(sessionLoadHasTokens({ tokens_loaded: -1 }) === false, "negative");
+    assert(sessionLoadHasTokens({ tokens_loaded: "12" }) === false, "string");
+    assert(sessionLoadHasTokens({}) === false, "missing");
+    assert(sessionLoadHasTokens(null) === false, "null");
+    assert(sessionLoadHasTokens(undefined) === false, "undefined");
+  });
+
+  test("buildKvDiagPayload is honest on hybrid restore (JS tokens, native 0)", () => {
+    const hybridOk = buildKvDiagPayload({
+      ok: true,
+      tokensLoaded: 1635,
+      hybridOrKvUnified: true,
+    });
+    assert(hybridOk.ok === true, "hybrid ok");
+    assert(hybridOk.tokens_on_disk === 1635, "hybrid tokens_on_disk");
+    assert(hybridOk.n_past === 0, "hybrid n_past is 0 — do not repeat the JS lie");
+
+    const denseOk = buildKvDiagPayload({
+      ok: true,
+      tokensLoaded: 1635,
+      hybridOrKvUnified: false,
+    });
+    assert(denseOk.n_past === 1635, "non-hybrid n_past is tokens_loaded");
+    assert(denseOk.tokens_on_disk === 1635, "non-hybrid tokens_on_disk");
+    assert(denseOk.ok === true, "non-hybrid ok");
+
+    const fail = buildKvDiagPayload({
+      ok: false,
+      tokensLoaded: undefined,
+      hybridOrKvUnified: true,
+    });
+    assert(fail.ok === false, "fail ok");
+    assert(fail.tokens_on_disk === 0, "fail tokens_on_disk defaults 0");
+    assert(fail.n_past === 0, "fail hybrid n_past 0");
+
+    const failDense = buildKvDiagPayload({
+      ok: false,
+      tokensLoaded: "nope",
+      hybridOrKvUnified: false,
+    });
+    assert(failDense.tokens_on_disk === 0, "non-number tokens_loaded → 0");
+    assert(failDense.n_past === 0, "non-hybrid fail n_past 0");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

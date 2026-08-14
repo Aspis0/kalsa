@@ -59,7 +59,11 @@ import { useProcessHealth } from "../hooks/useProcessHealth";
 import { useThermalMonitor } from "../hooks/useThermalMonitor";
 import * as MemoryStore from "../memory/MemoryStore";
 import type { MemoryFact } from "../memory/MemoryStore";
-import { COMPACTION_ENABLED_KEY } from "../context/compactor";
+import { COMPACTION_CHOICE_KEY, COMPACTION_ENABLED_KEY } from "../context/compactor";
+import {
+  COMPACTION_ENABLED_DEFAULT,
+  parseCompactionEnabled,
+} from "../engine/ttftFlags";
 import {
   CALENDAR_TOOLS_KEY,
   DEVICE_TOOLS_KEY,
@@ -179,8 +183,8 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   const [statusMessage, setStatusMessage] = useState("");
 
-  // ── Context compaction (ConversationCompactor — default OFF) ─────────────
-  const [compactionEnabled, setCompactionEnabled] = useState(false);
+  // ── Context compaction (ConversationCompactor — default ON) ─────────────
+  const [compactionEnabled, setCompactionEnabled] = useState(COMPACTION_ENABLED_DEFAULT);
 
   // ── Telemetry opt-in (default OFF) ───────────────────────────────────────
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
@@ -347,10 +351,14 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
 
   useEffect(() => {
     let mounted = true;
-    AsyncStorage.getItem(COMPACTION_ENABLED_KEY)
-      .then((raw) => {
+    // Read only — never persist visual-off as "0" on first paint.
+    void Promise.all([
+      AsyncStorage.getItem(COMPACTION_ENABLED_KEY),
+      AsyncStorage.getItem(COMPACTION_CHOICE_KEY),
+    ])
+      .then(([raw, choice]) => {
         if (!mounted) return;
-        setCompactionEnabled(raw === "1" || raw === "true");
+        setCompactionEnabled(parseCompactionEnabled(raw, choice === "1"));
       })
       .catch(() => undefined);
     return () => {
@@ -397,7 +405,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
       setCompactionEnabled(next);
       void (async () => {
         try {
-          await AsyncStorage.setItem(COMPACTION_ENABLED_KEY, next ? "1" : "0");
+          await AsyncStorage.multiSet([
+            [COMPACTION_ENABLED_KEY, next ? "1" : "0"],
+            [COMPACTION_CHOICE_KEY, "1"],
+          ]);
         } catch {
           if (mountedRef.current) setCompactionEnabled(previous);
         }

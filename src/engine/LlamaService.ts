@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import {
   addNativeLogListener,
@@ -63,10 +63,14 @@ import {
   estimateSessionBytes,
   getSessionConversationId,
   hasEnoughDiskForSession,
+  readPersistedHistoryLength,
   readSessionMeta,
+  resolveSessionDiskTokens,
   sessionFileExists,
   sessionFilePath,
+  sessionLoadHasTokens,
   sessionMetaMismatchField,
+  buildKvDiagPayload,
   shouldSaveSession,
   writeSessionMeta,
   type SessionMeta,
@@ -78,11 +82,34 @@ import {
   type KvReproState,
 } from "./kvReproducibility";
 import { resolveThinkingParams } from "./thinkingBudgets";
-import { getModelById } from "./ModelRegistry";
+import { getModelById, isHybridOrKvUnifiedModel } from "./ModelRegistry";
 import {
   markChatCompleting,
   markChatCompletingDone,
 } from "./llamaContextGate";
+import {
+  applyBakedUserTails,
+  applyMemoryFactsToLastUser,
+  bakeTextContent,
+  buildMemoryFactsBlock,
+  commitBakedLastUser,
+  lastUserContent,
+  parseBakedUserTails,
+  prefixMessageContent,
+  type BakedUserTail,
+} from "./memoryFactsTail";
+import {
+  assembleStaticPrefix,
+  computePrewarmPrefixHash,
+  shouldSkipPrewarmAfterRestore,
+  shouldSkipStaticPrefixPrewarm,
+} from "./prefixPrewarm";
+import {
+  BAKE_FORMAT_B_USER_PREFIX,
+  EAGER_PREFIX_PREWARM,
+  EXTRACT_MEMORY_PRESERVE_CHAT_KV,
+  MEMORY_FACTS_ON_USER_TAIL,
+} from "./ttftFlags";
 import * as FileSystem from "expo-file-system/legacy";
 
 /**
@@ -116,11 +143,24 @@ let activeMtpNMax: number | undefined;
 let activeSpecType: string | undefined;
 /**
  * True only when the native KV still holds chat-turn state (post streamAssistantTurn
- * or successful loadSession). Utility jobs (extract/translate/summarize) call
- * clearCache and leave a non-chat prompt in the context — saving then would
- * restore a useless prefix on next start. Cleared on dispose / utility clearCache.
+ * or successful loadSession). Utility jobs (translate/summarize, and extract when
+ * EXTRACT_MEMORY_PRESERVE_CHAT_KV is off) call clearCache and leave a non-chat
+ * prompt in the context — saving then would restore a useless prefix on next
+ * start. Cleared on dispose / those utility clearCache paths.
  */
 let kvHoldsChatSession = false;
+/**
+ * Last known chat KV used-token count (n_past). llama.rn exposes this as
+ * completion tokens_cached and loadSession tokens_loaded. Disk-gate input;
+ * cleared when chat KV is dropped.
+ */
+let lastChatNPast: number | undefined;
+/**
+ * True when the on-disk .kvs matches the in-memory chat KV (successful
+ * saveEngineSession since the last completion). extractMemory can then restore
+ * from that file instead of writing a second snapshot.
+ */
+let chatKvDiskCurrent = false;
 /**
  * Whether the native KV can be reproduced by re-rendering persisted history.
  * Sticky `reproducible` + per-turn `turnInjected`; all transitions go through
@@ -132,10 +172,28 @@ let kvHoldsChatSession = false;
 let kvReproState: KvReproState = { ...INITIAL_KV_REPRO_STATE };
 /**
  * promptEnvHash of the system-prompt inputs that produced the current chat KV
- * (locale + memoryFacts + hasTools). Set on streamAssistantTurn / successful load.
- * Written into session meta on save so restore can reject wasted cold-prefills.
+ * (locale + hasTools; memoryFacts only when MEMORY_FACTS_ON_USER_TAIL is off).
+ * Set on streamAssistantTurn / successful load. Written into session meta on
+ * save so restore can reject wasted cold-prefills.
  */
 let lastPromptEnvHash: string | undefined;
+/**
+ * Format-B last-user prefixes already encoded into chat KV. Re-applied onto
+ * earlier users on the next turn so llama.rn prefix-match does not die at
+ * the previous user. Restored from session meta after loadSession.
+ */
+let bakedUserTails: BakedUserTail[] = [];
+
+/**
+ * Last successfully prewarmed system+tools hash, or the hash marked after a
+ * live chat turn (so a later ensure() will not overwrite hot chat KV).
+ * Null after dispose / settings-stale / disk restore until prewarm or a turn.
+ */
+let prewarmPrefixHash: string | null = null;
+/** Hash currently queued or running — one prewarm per prefix identity. */
+let prewarmQueuedKey: string | null = null;
+/** Bumped on dispose / settings-stale so an in-flight prewarm cannot store. */
+let prewarmGeneration = 0;
 
 /**
  * True while disposeEngineLocked is unwinding a context. streamAssistantTurn's
@@ -204,10 +262,6 @@ function rethrowWithNativeTail(error: unknown): never {
   throw new Error(withNativeTail(String(error)));
 }
 
-/** Max user-memory facts injected into the system prompt. */
-const MAX_PROMPT_FACTS = 10;
-/** Hard cap per fact line injected into the system prompt. */
-const MAX_PROMPT_FACT_CHARS = 120;
 /** extractMemory wall-clock timeout (ms); on expiry stopCompletion is called. */
 const EXTRACT_MEMORY_TIMEOUT_MS = 20_000;
 /** translateText wall-clock timeout (ms); on expiry stopCompletion is called. */
@@ -237,18 +291,6 @@ const TARGET_LANG_NAME: Record<Locale, string> = {
   it: "Italian",
 };
 
-/**
- * Normalize a fact for prompt injection: strip control chars / newlines,
- * collapse whitespace, cap length. Treats facts as untrusted data only.
- */
-function sanitizeFactForPrompt(fact: string): string {
-  return fact
-    .replace(/[\u0000-\u001f\u007f]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, MAX_PROMPT_FACT_CHARS);
-}
-
 /** System prompt for the on-device model, localized via settings locale. */
 export function buildSystemPrompt(
   locale: Locale,
@@ -257,14 +299,11 @@ export function buildSystemPrompt(
 ): string {
   const strings = getStrings(locale);
   let prompt = withTools ? strings.systemPromptWithSearch : strings.systemPrompt;
-  // Most recent facts first for injection budget (callers should already pass newest).
-  const cleaned = (facts ?? [])
-    .map((fact) => sanitizeFactForPrompt(fact))
-    .filter((fact) => fact.length > 0)
-    .slice(-MAX_PROMPT_FACTS);
-  if (cleaned.length > 0) {
-    const factBlock = cleaned.map((fact) => `- ${fact}`).join("\n");
-    prompt += `\n\n${strings.memory.promptSection.replace("{facts}", factBlock)}`;
+  // Default: facts ride the last user message (MEMORY_FACTS_ON_USER_TAIL).
+  // Legacy path keeps them here so a flag flip restores the old prefix.
+  if (!MEMORY_FACTS_ON_USER_TAIL) {
+    const factBlock = buildMemoryFactsBlock(locale, facts);
+    if (factBlock) prompt += `\n\n${factBlock}`;
   }
   return prompt;
 }
@@ -471,6 +510,197 @@ async function runEngineJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+function logPrewarm(payload: Record<string, unknown>): void {
+  try {
+    console.log("KALSA_PREWARM", JSON.stringify(payload));
+  } catch {
+    // never throw
+  }
+}
+
+function resetPrewarmState(): void {
+  prewarmGeneration += 1;
+  prewarmPrefixHash = null;
+  prewarmQueuedKey = null;
+}
+
+function resolvePrewarmPrefix(locale: Locale, tools: EngineTool[] | undefined) {
+  const list = Array.isArray(tools) ? tools : [];
+  const systemText = buildSystemPrompt(locale, list.length > 0, []);
+  return {
+    ...assembleStaticPrefix({ locale, systemText, tools: list }),
+    tools: list,
+  };
+}
+
+/**
+ * Join: do NOT start a second completion. This enqueues via withEngineJob;
+ * streamAssistantTurn is also withEngineJob. FIFO is the join — a send that
+ * lands during prewarm waits, then llama.rn prefix-match reuses the hot
+ * system+tools KV. Never completion() in parallel.
+ */
+export function queueStaticPrefixPrewarm(
+  locale: Locale,
+  tools?: EngineTool[],
+): void {
+  if (!EAGER_PREFIX_PREWARM) return;
+  // OEM process-restore can relaunch us in background; do not burn a 40s
+  // prefill until the user is actually looking at the app. Foreground
+  // AppState → active re-kicks from AppShell.
+  if (AppState.currentState !== "active") {
+    logPrewarm({ op: "skip", reason: "background" });
+    return;
+  }
+  if (!isEngineReady()) {
+    logPrewarm({ op: "skip", reason: "not_ready" });
+    return;
+  }
+  const prefix = resolvePrewarmPrefix(locale, tools);
+  // Skip only if this process already prewarmed / marked this prefix.
+  // Do not skip solely because kvHoldsChatSession — hybrid restore reports
+  // ok:true while native n_past=0; skipping would leave a cold KV.
+  // Dense restore (Gemma) is real: prewarm seq_rm would delete the tail.
+  if (
+    shouldSkipPrewarmAfterRestore(
+      kvHoldsChatSession,
+      isHybridOrKvUnifiedModel(activeModelId ?? ""),
+    )
+  ) {
+    logPrewarm({ op: "skip", reason: "dense_restore" });
+    return;
+  }
+  if (
+    shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash) ||
+    prewarmQueuedKey === prefix.hash
+  ) {
+    return;
+  }
+  const gen = prewarmGeneration;
+  prewarmQueuedKey = prefix.hash;
+  logPrewarm({
+    op: "start",
+    hash: prefix.hash,
+    systemChars: prefix.systemChars,
+    toolCount: prefix.toolCount,
+  });
+  void withEngineJob(async () => {
+    try {
+      if (gen !== prewarmGeneration) {
+        logPrewarm({ op: "skip", reason: "stale" });
+        return;
+      }
+      if (disposing || !context) {
+        logPrewarm({ op: "skip", reason: !context ? "no_context" : "disposing" });
+        return;
+      }
+      const engine = context;
+      // Qwen jinja cannot format a system-only chat (empty prompt, or
+      // "Unable to generate parser"). A one-char user makes the same
+      // template path as message 1; prefix-match still covers the ~1.3k
+      // system+tool tokens and diverges at the real user line.
+      const prewarmMessages = [
+        ...prefix.messages,
+        { role: "user" as const, content: "." },
+      ];
+      const result = await trackCompletion(
+        engine.completion({
+          messages: prewarmMessages as RNLlamaOAICompatibleMessage[],
+          ...(prefix.hasTools
+            ? { tools: prefix.tools, tool_choice: "auto" as const }
+            : {}),
+          n_predict: 0,
+          stop: STOP_WORDS,
+          add_generation_prompt: false,
+          enable_thinking: false,
+          thinking_budget_tokens: 0,
+          reasoning_format: "none",
+          chat_template_kwargs: { enable_thinking: false },
+        }),
+      );
+      if (gen !== prewarmGeneration) {
+        logPrewarm({ op: "skip", reason: "stale" });
+        return;
+      }
+      if (result?.interrupted) {
+        logPrewarm({ op: "skip", reason: "interrupted" });
+        return;
+      }
+      const predicted =
+        typeof result?.tokens_predicted === "number" ? result.tokens_predicted : 0;
+      if (predicted > 0) {
+        logPrewarm({ op: "skip", reason: "generated" });
+        return;
+      }
+      const promptMs =
+        typeof result?.timings?.prompt_ms === "number" ? result.timings.prompt_ms : -1;
+      prewarmPrefixHash = prefix.hash;
+      logPrewarm({ op: "done", promptMs, hash: prefix.hash });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error ?? "");
+      const reason = /n_predict/i.test(msg)
+        ? "n_predict_rejected"
+        : /Prompt is required/i.test(msg)
+          ? "empty_prompt"
+          : "fail";
+      logPrewarm({
+        op: "skip",
+        reason,
+        err: msg.slice(0, 160),
+      });
+      if (reason === "n_predict_rejected") {
+        try {
+          console.log(
+            `KALSA_SESSION ${JSON.stringify({ op: "prewarm", ok: false, reason: "n_predict_rejected" })}`,
+          );
+        } catch {
+          // telemetry must never throw
+        }
+      }
+    } finally {
+      if (prewarmQueuedKey === prefix.hash) prewarmQueuedKey = null;
+    }
+  });
+}
+
+/**
+ * Settings that change the static prefix (locale / web / device / calendar).
+ * Same identity → no-op. Else mark stale. If a chat (or any engine job) is
+ * in flight, do not clearCache (do not fight an in-flight turn / cc8ed55).
+ * Next send logs a hash-miss. If idle, clearCache + re-queue prewarm.
+ */
+export function notifyStaticPrefixInputs(
+  locale: Locale,
+  tools?: EngineTool[],
+): void {
+  if (!EAGER_PREFIX_PREWARM) return;
+  if (!isEngineReady()) return;
+  const prefix = resolvePrewarmPrefix(locale, tools);
+  if (
+    shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash) ||
+    prewarmQueuedKey === prefix.hash
+  ) {
+    return;
+  }
+  const busy = engineJobPendingCount > 0;
+  resetPrewarmState();
+  if (busy) {
+    logPrewarm({ op: "skip", reason: "in_flight" });
+    return;
+  }
+  void withEngineJob(async () => {
+    if (!context || disposing) return;
+    try {
+      await context.clearCache();
+    } catch {
+      // best-effort; the following prewarm still evals the new prefix
+    }
+    kvHoldsChatSession = false;
+    lastChatNPast = undefined;
+    chatKvDiskCurrent = false;
+  });
+  queueStaticPrefixPrewarm(locale, tools);
+}
+
 function trackCompletion<T>(promise: Promise<T>): Promise<T> {
   const tracked = promise.finally(() => {
     activeCompletionSet.delete(tracked);
@@ -610,7 +840,7 @@ export type EngineInitOptions = {
    */
   sessionRestore?: {
     historyHash: string;
-    /** djb2 of system-prompt env (locale/memoryFacts/hasTools). */
+    /** djb2 of system-prompt env (locale/hasTools; facts only if tail flag off). */
     promptEnvHash: string;
     /** Active conversation; compared only when stored meta also has one. */
     conversationId?: string;
@@ -956,8 +1186,12 @@ async function disposeEngineLocked(): Promise<void> {
     activeMtpNMax = undefined;
     activeSpecType = undefined;
     kvHoldsChatSession = false;
+    lastChatNPast = undefined;
+    chatKvDiskCurrent = false;
     kvReproState = nextKvReproState(kvReproState, "dispose");
     lastPromptEnvHash = undefined;
+    bakedUserTails = [];
+    resetPrewarmState();
     // Intentionally do NOT delete session files here — they survive dispose
     // so the next initEngine can restore KV after app restart / model reload.
     if (current) {
@@ -1101,6 +1335,28 @@ export function markKvNonReproducible(
   kvReproState = nextKvReproState(kvReproState, event);
 }
 
+/** Record chat KV used tokens. 0 / non-finite clears (empty or unknown). */
+function noteChatNPast(value: unknown): void {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    lastChatNPast = Math.floor(value);
+    return;
+  }
+  if (value === 0) lastChatNPast = undefined;
+}
+
+async function sessionDiskGateInput(): Promise<{
+  nPast?: number;
+  historyLength?: number | null;
+  nCtx: number;
+}> {
+  const nPast = lastChatNPast;
+  let historyLength: number | null | undefined;
+  if (nPast == null || nPast <= 0) {
+    historyLength = await readPersistedHistoryLength();
+  }
+  return { nPast, historyLength, nCtx: activeEngineCtx };
+}
+
 /**
  * Persist native KV + meta for the active model. Serialized via withEngineJob
  * so it never races a completion. Never throws; returns false on skip/failure.
@@ -1120,7 +1376,11 @@ export async function saveEngineSession(
   return withLifecycleLock(() =>
   withEngineJob(async () => {
     const t0 = Date.now();
-    const estimatedBytes = estimateSessionBytes(activeEngineCtx);
+    let usedTokens = resolveSessionDiskTokens({
+      nPast: lastChatNPast,
+      nCtx: activeEngineCtx,
+    });
+    let estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
     const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
       try {
         console.log(
@@ -1129,6 +1389,7 @@ export async function saveEngineSession(
             ms: Date.now() - t0,
             ok,
             estimatedBytes,
+            usedTokens: usedTokens ?? -1,
             ...extra,
           })}`,
         );
@@ -1158,7 +1419,10 @@ export async function saveEngineSession(
         log(false, { reason: "no_context" });
         return false;
       }
-      if (!(await hasEnoughDiskForSession(activeEngineCtx))) {
+      const diskInput = await sessionDiskGateInput();
+      usedTokens = resolveSessionDiskTokens(diskInput);
+      estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
+      if (!(await hasEnoughDiskForSession(diskInput))) {
         log(false, { reason: "disk" });
         return false;
       }
@@ -1226,10 +1490,15 @@ export async function saveEngineSession(
       if (activeEngineKnob !== undefined) meta.engineKnob = activeEngineKnob;
       const conversationId = getSessionConversationId();
       if (conversationId) meta.conversationId = conversationId;
+      if (BAKE_FORMAT_B_USER_PREFIX && bakedUserTails.length > 0) {
+        meta.bakedUserTails = bakedUserTails;
+      }
       // Meta after rename so a kill between file and meta keeps the previous
       // meta (hash mismatch → cold) or pairs old meta with complete new file
       // when history is unchanged (valid restore).
       await writeSessionMeta(modelId, meta);
+      chatKvDiskCurrent = true;
+      noteChatNPast(tokens);
       // Only after a successful write: drop other models' sessions (keep current).
       await deleteOtherModelSessions(modelId);
       log(true, {
@@ -1271,6 +1540,8 @@ async function tryLoadEngineSession(
   },
 ): Promise<boolean> {
   const t0 = Date.now();
+  let loadOk = false;
+  let tokensLoaded: unknown;
   const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
     try {
       console.log(
@@ -1278,6 +1549,22 @@ async function tryLoadEngineSession(
       );
     } catch {
       // telemetry must never throw
+    }
+  };
+  const emitKvDiag = () => {
+    try {
+      console.log(
+        "KALSA_KVDIAG",
+        JSON.stringify(
+          buildKvDiagPayload({
+            ok: loadOk,
+            tokensLoaded,
+            hybridOrKvUnified: isHybridOrKvUnifiedModel(modelId),
+          }),
+        ),
+      );
+    } catch {
+      // never throw
     }
   };
   try {
@@ -1311,10 +1598,11 @@ async function tryLoadEngineSession(
     if (expected.conversationId) expectedMeta.conversationId = expected.conversationId;
     const mismatchField = sessionMetaMismatchField(stored, expectedMeta);
     if (mismatchField !== null) {
+      bakedUserTails = [];
       await deleteSessionArtifacts(modelId);
       // Field name only (enum-like) — attributable cold starts: historyHash =
-      // save missed/raced; promptEnvHash = memory facts / locale changed
-      // (semantically correct cold); nCtx/KV = config change.
+      // save missed/raced; promptEnvHash = locale (or legacy facts-in-system)
+      // changed (semantically correct cold); nCtx/KV = config change.
       // metaHash/bootHash only for historyHash MISS so CI can compare at a glance
       // without changing the grepped reason string.
       log(false, {
@@ -1326,19 +1614,35 @@ async function tryLoadEngineSession(
       return false;
     }
     const result = await context.loadSession(sessionFilePath(modelId));
+    tokensLoaded = result?.tokens_loaded;
+    if (!sessionLoadHasTokens(result)) {
+      bakedUserTails = [];
+      await deleteSessionArtifacts(modelId);
+      log(false, { reason: "tokens_loaded:0" });
+      return false;
+    }
     kvHoldsChatSession = true;
+    chatKvDiskCurrent = true;
+    noteChatNPast(result?.tokens_loaded);
     // Keep lastPromptEnvHash aligned with the restored KV for a later save.
     lastPromptEnvHash =
       stored.promptEnvHash ?? expected.promptEnvHash ?? lastPromptEnvHash;
+    bakedUserTails = BAKE_FORMAT_B_USER_PREFIX
+      ? parseBakedUserTails(stored.bakedUserTails)
+      : [];
+    loadOk = true;
     log(true, {
       tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,
     });
     return true;
   } catch (error) {
     console.warn("[tryLoadEngineSession]", error);
+    bakedUserTails = [];
     await deleteSessionArtifacts(modelId);
     log(false, { reason: sessionErrorReason(error) });
     return false;
+  } finally {
+    emitKvDiag();
   }
 }
 
@@ -1355,6 +1659,9 @@ export async function invalidateEngineSession(modelId: string): Promise<void> {
       // (clearChat leaves the engine up; a later background must not save).
       if (activeModelId === modelId) {
         kvHoldsChatSession = false;
+        lastChatNPast = undefined;
+        chatKvDiskCurrent = false;
+        bakedUserTails = [];
       }
       await deleteSessionArtifacts(modelId);
     } catch {
@@ -1393,33 +1700,15 @@ function buildUserMessage(message: EngineMessage): RNLlamaOAICompatibleMessage {
   return { role: "user", content: parts };
 }
 
-/**
- * Prefix the text content of a user message (string or multimodal parts).
- * Used by bench format "user-prefix" — does not mutate the original.
- */
+/** Prefix last-user text via the shared helper (bench format B / operative). */
 function prefixUserMessageContent(
   message: RNLlamaOAICompatibleMessage,
   prefix: string,
 ): RNLlamaOAICompatibleMessage {
-  const content = message.content;
-  if (typeof content === "string") {
-    return { role: "user", content: `${prefix}\n\n${content}` };
-  }
-  if (Array.isArray(content)) {
-    let prefixed = false;
-    const parts: RNLlamaMessagePart[] = content.map((part) => {
-      if (!prefixed && part.type === "text") {
-        prefixed = true;
-        return { type: "text" as const, text: `${prefix}\n\n${part.text}` };
-      }
-      return part;
-    });
-    if (!prefixed) {
-      parts.unshift({ type: "text", text: prefix });
-    }
-    return { role: "user", content: parts };
-  }
-  return { role: "user", content: `${prefix}\n\n` };
+  return {
+    role: "user",
+    content: prefixMessageContent(message.content, prefix) as RNLlamaOAICompatibleMessage["content"],
+  };
 }
 
 /**
@@ -1427,7 +1716,11 @@ function prefixUserMessageContent(
  * "none" → identity (production path) unless compaction context is present, in which
  * case format B (user-prefix) is used so digest/summary ride on the last user message.
  * Because the block is in the last-user tail, a query-time digest that changes every
- * turn re-encodes only that tail — the stable history prefix (and its KV) is preserved.
+ * turn re-encodes only that tail — the stable history prefix (and its KV) is preserved
+ * only if later turns re-send that prefixed last-user (BAKE_FORMAT_B_USER_PREFIX).
+ * Memory facts (MEMORY_FACTS_ON_USER_TAIL) use the same last-user prefix via
+ * applyMemoryFactsToLastUser after this function — they must not flip format to
+ * user-prefix here, or production turns would also inject the operative rules.
  * Synthetic user-note is engine-only (not UI history).
  */
 function applyOperativeBlockFormat(
@@ -1486,7 +1779,10 @@ function applyOperativeBlockFormat(
 export type StreamTurnOptions = EngineTurnOptions & {
   /** Settings locale — drives system prompt language (required). */
   locale: Locale;
-  /** Durable user facts to inject into the system prompt (max 10 used). */
+  /**
+   * Durable user facts (max 10 used). Default: last-user tail (format B), not
+   * the system prompt — see MEMORY_FACTS_ON_USER_TAIL. Empty when memory off.
+   */
   memoryFacts?: string[];
   /**
    * Compaction context for the operative block:
@@ -1504,6 +1800,12 @@ export type StreamTurnOptions = EngineTurnOptions & {
    * tails must not reach executeTool, auto document_chat, or privacy guards.
    */
   lastUserMessage?: string;
+  /**
+   * Persist/assemble text for this user (already sliced like
+   * assembleEngineHistory). Bake rematch key — not modelText (docHints /
+   * attachment placeholder / unsliced).
+   */
+  lastUserBare?: string;
 };
 
 export async function streamAssistantTurn(
@@ -1596,20 +1898,69 @@ export async function streamAssistantTurn(
       typeof options.lastUserMessage === "string"
         ? options.lastUserMessage
         : (messages[userIndex]?.content ?? "");
-    const historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) =>
+    let historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) =>
       index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
     );
-    // Capture prompt-env hash from the same inputs buildSystemPrompt uses so a
+    // Capture prompt-env hash from the same inputs the system prompt uses so a
     // later saveEngineSession can reject restores whose system prompt drifted.
-    lastPromptEnvHash = computePromptEnvHash(locale, options.memoryFacts);
+    // Facts on the user tail are not part of that prefix — do not hash them.
+    lastPromptEnvHash = computePromptEnvHash(
+      locale,
+      MEMORY_FACTS_ON_USER_TAIL ? [] : options.memoryFacts,
+    );
+
+    let bakedMatched: BakedUserTail[] = [];
+    if (BAKE_FORMAT_B_USER_PREFIX) {
+      const baked = applyBakedUserTails(historyMessages, bakedUserTails);
+      historyMessages = baked.messages;
+      bakedMatched = baked.matched;
+    }
+
+    const systemText = buildSystemPrompt(locale, hasTools, options.memoryFacts);
+    let turnPrefixHash: string | null = null;
+    if (EAGER_PREFIX_PREWARM) {
+      turnPrefixHash = computePrewarmPrefixHash(
+        locale,
+        systemText,
+        hasTools ? options.tools : [],
+      );
+      if (turnPrefixHash !== prewarmPrefixHash) {
+        logPrewarm({ match: false, prewarm: prewarmPrefixHash, send: turnPrefixHash });
+      }
+    }
 
     let currentMessages: ToolChatMessage[] = applyOperativeBlockFormat(
-      { role: "system", content: buildSystemPrompt(locale, hasTools, options.memoryFacts) },
+      { role: "system", content: systemText },
       historyMessages,
       blockFormat,
       locale,
       options.operativeContext ?? null,
     ) as ToolChatMessage[];
+    // Last-user composition (format B): factsBlock + "\n\n" + [operative?] +
+    // applyPersonaTail(userText, persona). Facts first, then the existing
+    // persona frame (already on last user from AppShell), then bare user text.
+    // Bake the FULL prefixed last-user TEXT (facts+persona+text), not facts
+    // alone and never image_url. lastBare is persist/assemble text.
+    if (MEMORY_FACTS_ON_USER_TAIL) {
+      const factsTail = buildMemoryFactsBlock(locale, options.memoryFacts);
+      if (factsTail) {
+        currentMessages = applyMemoryFactsToLastUser(currentMessages, factsTail);
+      }
+    }
+    if (BAKE_FORMAT_B_USER_PREFIX) {
+      const lastPrefixedRaw = lastUserContent(currentMessages);
+      if (lastPrefixedRaw !== undefined) {
+        const lastBare =
+          typeof options.lastUserBare === "string"
+            ? options.lastUserBare
+            : bakeTextContent(lastUserContent(historyMessages));
+        bakedUserTails = commitBakedLastUser(
+          bakedMatched,
+          lastBare,
+          bakeTextContent(lastPrefixedRaw),
+        );
+      }
+    }
 
     // Accumulo locale del testo: streaming garantito anche se il campo
     // `accumulated_text` di llama.rn non fosse popolato dal binding.
@@ -1900,6 +2251,8 @@ export async function streamAssistantTurn(
             },
           ),
         );
+        // tokens_cached is n_past in llama.rn — used-token disk gate.
+        noteChatNPast(result?.tokens_cached);
 
         // Per-round counters+timings only — never user text / completion content.
         // tool/strategy = last SUCCESSFUL tool earlier in this turn (see
@@ -2131,6 +2484,11 @@ export async function streamAssistantTurn(
       // for saveSession on background (utility jobs clear this flag).
       if (engine === context && !disposing) {
         kvHoldsChatSession = true;
+        chatKvDiskCurrent = false;
+        // Mark this prefix hot so a later ensure() does not wipe chat KV
+        // with a system-only prefill. After disk restore the hash stays
+        // null and prewarm still runs.
+        if (turnPrefixHash) prewarmPrefixHash = turnPrefixHash;
       }
     }
   });
@@ -2190,6 +2548,42 @@ function findBalancedJsonObject(
   return null;
 }
 
+/** Native path for saveSession (llama.rn does not strip file:// on save). */
+function nativeSessionPath(uri: string): string {
+  return uri.replace(/^file:\/\//, "");
+}
+
+async function snapshotNativeSession(
+  engine: LlamaContext,
+  destPath: string,
+): Promise<boolean> {
+  try {
+    if (!(await hasEnoughDiskForSession(await sessionDiskGateInput()))) return false;
+    await ensureSessionsDir();
+    try {
+      await FileSystem.deleteAsync(destPath, { idempotent: true });
+    } catch {
+      // overwrite
+    }
+    await engine.saveSession(nativeSessionPath(destPath));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function restoreNativeSession(
+  engine: LlamaContext,
+  srcPath: string,
+): Promise<boolean> {
+  try {
+    const result = await engine.loadSession(srcPath);
+    return sessionLoadHasTokens(result);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Non-streaming completion that extracts durable USER facts from a finished turn.
  * Call only AFTER the chat turn is done — never during streaming.
@@ -2199,13 +2593,12 @@ function findBalancedJsonObject(
  * Timeout: ~20s wall clock; on expiry calls engine.stopCompletion() so the native
  * completion does not keep the engine busy (Promise.race alone is not enough).
  *
- * clearCache: called before extract only. Chat turns intentionally do NOT clear
- * the KV cache: non-vision paths use ctx_shift:true and stream full message history
- * each turn; clearing would discard useful prefix state without benefit. Vision
- * turns use ctx_shift:false with media anchored to the current user message —
- * clearing mid-session between chat turns is unnecessary and risks extra cost.
- * Extract is a separate one-shot completion, so clearCache avoids contamination
- * from a prior vision/tool completion.
+ * EXTRACT_MEMORY_PRESERVE_CHAT_KV (default): do not call clearCache. The extract
+ * completion overwrites native KV; we restore from the just-saved .kvs when it
+ * matches in-memory chat, otherwise from a temp checkpoint taken first. If we
+ * cannot snapshot, skip extract rather than nuke a warm prefix. If the flag is
+ * on but kvHoldsChatSession is already false, skip (no naked extract). Flag off
+ * restores the old clearCache + kvHoldsChatSession=false path.
  *
  * json_schema / grammar: llama.rn supports response_format json_schema, but small
  * on-device models often fail grammar-constrained sampling; we rely on the balanced
@@ -2230,19 +2623,52 @@ export async function extractMemory(
     const engine = context;
     if (!engine) return { add: [], remove: [] };
 
-    let timedOut = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    const preserve =
+      EXTRACT_MEMORY_PRESERVE_CHAT_KV &&
+      kvHoldsChatSession &&
+      engine === context;
 
-    try {
-      // Isolate extract from prior vision/tool KV state (API: LlamaContext.clearCache).
+    let restorePath: string | null = null;
+    let tempPath: string | null = null;
+
+    if (preserve) {
+      if (chatKvDiskCurrent && activeModelId && (await sessionFileExists(activeModelId))) {
+        restorePath = sessionFilePath(activeModelId);
+      } else if (activeModelId) {
+        tempPath = `${sessionFilePath(activeModelId)}.extract-ckpt`;
+        const snapped = await snapshotNativeSession(engine, tempPath);
+        if (!snapped) {
+          try {
+            await FileSystem.deleteAsync(tempPath, { idempotent: true });
+          } catch {
+            // ignore
+          }
+          // Cannot isolate extract without destroying chat KV — skip.
+          return { add: [], remove: [] };
+        }
+        restorePath = tempPath;
+      } else {
+        return { add: [], remove: [] };
+      }
+    } else if (!EXTRACT_MEMORY_PRESERVE_CHAT_KV) {
       try {
         await engine.clearCache();
       } catch {
         // best effort — extract still proceeds
       }
-      // clearCache + synthetic prompt — native KV no longer holds the chat session.
       kvHoldsChatSession = false;
+      lastChatNPast = undefined;
+      chatKvDiskCurrent = false;
+    } else {
+      // Flag on but nothing to restore (kvHoldsChatSession already false).
+      // Skip rather than run a naked extract over whatever is in context.
+      return { add: [], remove: [] };
+    }
 
+    let timedOut = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    try {
       timer = setTimeout(() => {
         timedOut = true;
         // Real cancellation: stop the native completion, do not leave engine busy.
@@ -2278,6 +2704,27 @@ export async function extractMemory(
       return { add: [], remove: [] };
     } finally {
       if (timer) clearTimeout(timer);
+      if (restorePath) {
+        if (engine === context) {
+          const restored = await restoreNativeSession(engine, restorePath);
+          kvHoldsChatSession = restored;
+          if (!restored) {
+            lastChatNPast = undefined;
+            chatKvDiskCurrent = false;
+          }
+        } else {
+          kvHoldsChatSession = false;
+          lastChatNPast = undefined;
+          chatKvDiskCurrent = false;
+        }
+      }
+      if (tempPath) {
+        try {
+          await FileSystem.deleteAsync(tempPath, { idempotent: true });
+        } catch {
+          // ignore
+        }
+      }
     }
   });
 }
@@ -2327,7 +2774,7 @@ export type TranslateResult = {
 
 /**
  * Non-streaming completion that translates arbitrary text into targetLang.
- * Same isolation pattern as extractMemory: clearCache first, wall-clock timeout
+ * Isolation: clearCache first (unlike extractMemory's checkpoint-restore), wall-clock timeout
  * with stopCompletion, fail-closed → empty text (caller shows localized error).
  *
  * Serialized via withEngineJob (FIFO with stream/extract). Accepts AbortSignal
@@ -2381,6 +2828,8 @@ export async function translateText(
         // best effort — translate still proceeds
       }
       kvHoldsChatSession = false;
+      lastChatNPast = undefined;
+      chatKvDiskCurrent = false;
       if (aborted || signal?.aborted) return { text: "", truncated };
 
       timer = setTimeout(() => {
@@ -2485,6 +2934,8 @@ export async function summarizeConversation(
         // best effort
       }
       kvHoldsChatSession = false;
+      lastChatNPast = undefined;
+      chatKvDiskCurrent = false;
       if (aborted || signal?.aborted || engine !== context) return "";
 
       timer = setTimeout(() => {

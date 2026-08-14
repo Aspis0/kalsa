@@ -106,6 +106,8 @@ import {
   initEngine,
   invalidateEngineSession,
   isEngineReady,
+  notifyStaticPrefixInputs,
+  queueStaticPrefixPrewarm,
   saveEngineSession,
   streamAssistantTurn,
   summarizeConversation,
@@ -153,6 +155,13 @@ import {
   type PersonasPersisted,
 } from "../conversations/PersonasStore";
 import { applyPersonaTail } from "../engine/personaTail";
+import {
+  COMPACTION_ENABLED_DEFAULT,
+  EAGER_ENGINE_INIT,
+  MEMORY_FACTS_ON_USER_TAIL,
+  claimEagerKick,
+  parseCompactionEnabled,
+} from "../engine/ttftFlags";
 import { parseShareUrl, SHARE_TEXT_CAP, SHARE_TEXT_FILE_MAX_BYTES } from "./shareIntent";
 import { importSharedPdf, SharedImportError } from "../documents/importSharedDocument";
 import { saveNote } from "../notes/NotesStore";
@@ -190,6 +199,7 @@ import {
   advanceCompactionBoundary,
   assembleEngineHistory,
   buildSummaryTranscript,
+  COMPACTION_CHOICE_KEY,
   COMPACTION_ENABLED_KEY,
   compactorStorageKey,
   countUserTurns,
@@ -763,7 +773,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   /** Mirror of MemoryStore.getEnabled — never inject facts when false. */
   const memoryEnabledRef = useRef(false);
   /**
-   * Facts actually injected into the system prompt for the CURRENT turn.
+   * Facts actually injected this turn (last-user tail / legacy system prompt).
    * Captured at send time so the search echo guard still matches them if the
    * user disables memory mid-turn (live enabled/facts refs would go empty).
    */
@@ -1995,6 +2005,20 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       },
     };
   }, [calendarToolsEnabled, deviceToolsEnabled, locale, webToolsEnabled]);
+  const agentOptionsRef = useRef(agentOptions);
+  agentOptionsRef.current = agentOptions;
+
+  // Prefix identity (locale + tool schemas). Skip the mount run so remount /
+  // AppState does not redo prewarm. Real setting flips mark stale and may
+  // clearCache + re-queue when no engine job is in flight.
+  const staticPrefixNotifySkipRef = useRef(true);
+  useEffect(() => {
+    if (staticPrefixNotifySkipRef.current) {
+      staticPrefixNotifySkipRef.current = false;
+      return;
+    }
+    notifyStaticPrefixInputs(locale, agentOptionsRef.current.tools);
+  }, [locale, webToolsEnabled, deviceToolsEnabled, calendarToolsEnabled]);
 
   // ── Drawer + exclusive overlay (settings | documents | miniapp | null) ──
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -2282,12 +2306,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     }
   }, []);
 
-  // ── User memory (local facts for system prompt personalization) ──────────
+  // ── User memory (local facts; injected on last-user tail when flag on) ──
   // Refs declared above agentOptions; keep state + sync here.
   const [memoryFacts, setMemoryFacts] = useState<string[]>([]);
   memoryFactsRef.current = memoryFacts;
-  /** Mirror of kalsa.context.compaction — default OFF (legacy sliding window). */
-  const compactionEnabledRef = useRef(false);
+  /** Mirror of kalsa.context.compaction — default ON (incl. leftover "0"). */
+  const compactionEnabledRef = useRef(COMPACTION_ENABLED_DEFAULT);
   /** Serialize extractMemory so it never overlaps a chat completion on the same engine. */
   const memoryExtractRef = useRef<Promise<void> | null>(null);
 
@@ -2384,6 +2408,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const confirmDownloadLockRef = useRef(false);
   const downloadAbortRef = useRef<AbortController | null>(null);
   const engineGenerationRef = useRef(0);
+  /** Latest ensureEngineForModel — boot kick reads this so its effect stays [modelIndex]. */
+  const ensureEngineForModelRef = useRef<(model: ModelInfo) => Promise<boolean>>(
+    async () => false,
+  );
   /**
    * Ownership token from tryAcquireChat (null when chat slot not held).
    * markChatReady / markChatReleased must pass this gen so a stale load
@@ -2816,15 +2844,30 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   }, []);
 
   // Controllo iniziale: il modello corrente è già scaricato?
+  // v1 trap = runAfterInteractions + volatile effect deps. This kick is
+  // one-shot per process+generation (claimEagerKick). Effect deps stay
+  // [modelIndex] only — ensureEngineForModel is read from a ref, not listed.
   useEffect(() => {
     let mounted = true;
     const checkedIndex = modelIndexRef.current;
     void (async () => {
       try {
-        const ok = await isModelBundleDownloaded(MODEL_REGISTRY[checkedIndex]);
+        const model = MODEL_REGISTRY[checkedIndex];
+        const ok = await isModelBundleDownloaded(model);
         // Il modello selezionato potrebbe essere cambiato nel frattempo (load preferenza).
         if (mounted && modelIndexRef.current === checkedIndex) {
           setModelState(ok ? "ready" : "missing");
+          if (ok && EAGER_ENGINE_INIT && model) {
+            const generation = engineGenerationRef.current;
+            if (claimEagerKick(model.id, generation)) {
+              // eslint-disable-next-line no-console
+              console.log(
+                "engine.eagerInit",
+                JSON.stringify({ modelId: model.id, generation }),
+              );
+              void ensureEngineForModelRef.current(model);
+            }
+          }
         }
       } catch {
         if (mounted && modelIndexRef.current === checkedIndex) setModelState("missing");
@@ -2844,7 +2887,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       generation === engineGenerationRef.current &&
       MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
 
-    if (isEngineReady() && getActiveModelId() === model.id) return true;
+    if (isEngineReady() && getActiveModelId() === model.id) {
+      queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
+      return true;
+    }
     // Round 8 FIX 2: if embedder is hung, refuse immediately — never reach
     // acquire/submit. markEmbedderHung clears the lifecycle gate to idle so a
     // retry could otherwise re-acquire chat, skip release (hung short-circuit),
@@ -3026,19 +3072,22 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Boot-captured HISTORY_KEY hash: conversation start, not mid-send (lazy
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
-      // Same memoryFacts slice the system prompt uses (newest 10, or [] if off).
+      // Same inputs the system prompt uses. Facts on the user tail must not
+      // enter this hash or a new fact cold-starts the entire KV prefix.
       let sessionPromptEnvHash = computePromptEnvHash(locale, []);
-      try {
-        const enabled = await MemoryStore.getEnabled();
-        if (enabled) {
-          const facts = await MemoryStore.listFacts();
-          sessionPromptEnvHash = computePromptEnvHash(
-            locale,
-            facts.map((f) => f.text).slice(-10),
-          );
+      if (!MEMORY_FACTS_ON_USER_TAIL) {
+        try {
+          const enabled = await MemoryStore.getEnabled();
+          if (enabled) {
+            const facts = await MemoryStore.listFacts();
+            sessionPromptEnvHash = computePromptEnvHash(
+              locale,
+              facts.map((f) => f.text).slice(-10),
+            );
+          }
+        } catch {
+          // empty facts → match disabled / cold
         }
-      } catch {
-        // empty facts → match disabled / cold
       }
       if (!stillCurrent()) {
         markChatReleased(chatGen);
@@ -3124,6 +3173,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelError(null);
       setModelErrorDetail(null);
       setModelErrorKind(null);
+      queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
       return true;
     } catch (error) {
       // FIX B / FIX 1: init failure → release only the gen THIS call acquired.
@@ -3140,6 +3190,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       return false;
     }
   }, [locale, t, bumpEmbedJobGeneration]);
+  ensureEngineForModelRef.current = ensureEngineForModel;
 
   const selectModel = useCallback(
     (nextIndex: number) => {
@@ -3502,17 +3553,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
       let sessionPromptEnvHash = computePromptEnvHash(locale, []);
-      try {
-        const enabled = await MemoryStore.getEnabled();
-        if (enabled) {
-          const facts = await MemoryStore.listFacts();
-          sessionPromptEnvHash = computePromptEnvHash(
-            locale,
-            facts.map((f) => f.text).slice(-10),
-          );
+      if (!MEMORY_FACTS_ON_USER_TAIL) {
+        try {
+          const enabled = await MemoryStore.getEnabled();
+          if (enabled) {
+            const facts = await MemoryStore.listFacts();
+            sessionPromptEnvHash = computePromptEnvHash(
+              locale,
+              facts.map((f) => f.text).slice(-10),
+            );
+          }
+        } catch {
+          // empty facts → match disabled / cold
         }
-      } catch {
-        // empty facts → match disabled / cold
       }
       if (!stillCurrent()) {
         markChatReleased(chatGenDl);
@@ -3889,8 +3942,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   /**
    * Stream a chat turn. Resolves with `afterSessionSave` so the UI can run
-   * turn-end KV save first, then schedule memory extract (extract clearCache's
-   * the chat KV — save must win the FIFO).
+   * turn-end KV save first, then schedule memory extract (extract may reuse
+   * that .kvs to restore chat KV — save should still win the FIFO).
    */
   const handleSendStream = useCallback(
     (
@@ -3899,6 +3952,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       signal: AbortSignal,
       attachments?: LocalAttachment[],
       history?: unknown[],
+      _lastUserBare?: string,
     ) =>
       new Promise<{ afterSessionSave?: () => void }>((resolve) => {
         let settled = false;
@@ -3940,9 +3994,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
            *   2) AiChatPage awaits saveEngineSession (FIFO)
            *   3) afterSessionSave releases the save-gate → extractMemory runs
            *
-           * extractMemory clearCache's the chat KV (kvHoldsChatSession=false).
-           * If extract were queued before save, save would always skip with
-           * reason kv_not_chat. Gates: memory enabled, non-empty reply, not
+           * extractMemory checkpoint-restores chat KV (EXTRACT_MEMORY_PRESERVE_CHAT_KV).
+           * Save-first still lets extract reuse the just-written .kvs instead of
+           * a second snapshot. Gates: memory enabled, non-empty reply, not
            * aborted/failed, sendRunId (AiChatPage).
            */
           let releaseSaveGate: (() => void) | undefined;
@@ -4088,10 +4142,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               setMemoryFacts([]);
             }
             try {
-              const raw = await AsyncStorage.getItem(COMPACTION_ENABLED_KEY);
-              compactionEnabledRef.current = raw === "1" || raw === "true";
+              const [raw, choice] = await Promise.all([
+                AsyncStorage.getItem(COMPACTION_ENABLED_KEY),
+                AsyncStorage.getItem(COMPACTION_CHOICE_KEY),
+              ]);
+              compactionEnabledRef.current = parseCompactionEnabled(
+                raw,
+                choice === "1",
+              );
             } catch {
-              compactionEnabledRef.current = false;
+              compactionEnabledRef.current = COMPACTION_ENABLED_DEFAULT;
             }
 
             const compactionOn = compactionEnabledRef.current;
@@ -4242,9 +4302,21 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               hasImages,
               boundaryIndex: boundaryForAssemble,
             });
+            const persona = findPersona(
+              personasStateRef.current,
+              activePersonaIdRef.current,
+              builtinCopyFromT(t),
+            );
+            // Persona on every history user so bake rematch keys equal
+            // applyPersonaTail(persist, persona) — the string that lands in
+            // the engine last-user slot. Matched tails then replace this
+            // with the full facts+persona prefix.
             const engineMessages: EngineMessage[] = assembled.map((m) => ({
               role: m.role,
-              content: m.content,
+              content:
+                m.role === "user"
+                  ? applyPersonaTail(m.content, persona?.instructions)
+                  : m.content,
             }));
 
             // Immagini da allegare all'ultimo messaggio user (cap 5):
@@ -4261,14 +4333,17 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 }
               }
             }
-            const persona = findPersona(
-              personasStateRef.current,
-              activePersonaIdRef.current,
-              builtinCopyFromT(t),
+            // Last-user composition (engine, format B):
+            //   factsBlock + "\n\n" + applyPersonaTail(userText, persona)
+            // Persona is applied here; facts are prefixed in streamAssistantTurn
+            // (applyMemoryFactsToLastUser) so they never rewrite the system prefix.
+            const lastUserHistoryContent = applyPersonaTail(
+              text,
+              persona?.instructions,
             );
             const userMessage: EngineMessage = {
               role: "user",
-              content: applyPersonaTail(text, persona?.instructions),
+              content: lastUserHistoryContent,
             };
             if (images.length) userMessage.images = images;
             engineMessages.push(userMessage);
@@ -4393,6 +4468,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 memoryFacts: promptFacts,
                 operativeContext,
                 lastUserMessage: text,
+                lastUserBare: lastUserHistoryContent,
               },
             );
             // Safety: if the stream returns without onDone/onError (e.g. abort path).

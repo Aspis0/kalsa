@@ -87,7 +87,7 @@ export const it: typeof en = {
     context: "Contesto",
     contextCompaction: "Memoria conversazionale intelligente",
     contextCompactionHint:
-      "Disattivata di default. Se attiva, i turni più vecchi vengono compattati in un breve digest così le chat lunghe tengono i fatti rilevanti senza una finestra scorrevole enorme. Sperimentale — abilita per i test.",
+      "Attiva di default. I turni più vecchi vengono compattati in un breve digest così le chat lunghe tengono i fatti rilevanti senza una finestra scorrevole enorme. Disattiva per usare la finestra scorrevole legacy.",
     thinking: "Ragionamento",
     thinkingHint:
       "Il ragionamento permette al modello di riflettere passo per passo prima di rispondere — di solito meglio sulle domande difficili, ma più lento e più pesante per la batteria. Il ragionamento non viene mai mostrato in chat, solo la risposta finale.",
