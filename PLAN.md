@@ -40,6 +40,17 @@
 > flagship/fasce residenti; unica via di revisione = selfspec (F1b decide).
 > Sui Qwen piccoli si spera ancora: 2B = 15.9 misurato su S23, residente
 > su qualsiasi RAM.
+> **(3) CRITERIO DI SUCCESSO DEL KERNEL (gualt): si spedisce un kernel
+> che FUNZIONA e migliora IN GENERALE (non solo velocità: sustained,
+> termica, batteria, TTFT) i modelli che spediamo, in modo SIGNIFICATIVO
+> — "voglio quel p-value alla fine".** Endpoint pre-registrato: A/B
+> appaiato (config stock vs kernel/dispatcher) per device×modello del
+> listino, ABBA interleaved N≥10 rep/braccio, metriche primarie dichiarate
+> PRIMA (wall mediano, sustained late-rep, J/token, °C, TTFT), test
+> appaiato (Wilcoxon) + effect size + p-value nel report finale di ship.
+> Dividendi già misurati che entrano nel paniere: dispatcher/config (+37%
+> Mellum-S23 t2+d1.0; +158% Marco-Xiaomi t4; dottrina screen), K-E
+> termico (screening in corso), K-G TTFT (gated), layer-ahead (gated).
 > **(2) Dottrina fasce:** stesso SoC ≠ stessa fascia. La fascia è la
 > matrice **compute-class × RAM misurata**: più RAM a pari silicio =
 > residenza per i grandi (via il termine flash dal wall: Mellum 5.15 →
