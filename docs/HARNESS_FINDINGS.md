@@ -14,19 +14,41 @@ Last updated: 2026-08-14 · Evidence: campaigns `31739205810` (window 10) and `3
 
 ## 1. Decided — act on these
 
-### 1.1 The tool-call gate is essential, and for a bigger reason than precision
+### 1.1 The tool gate raises fact recall — but by breaking web search, not by being smart
+
+**REVISED 2026-08-14 after measuring the rule directly. The earlier reading of this table was
+wrong and is kept below so the correction is visible.**
 
 | gate | tool precision | turns that hit the web | fact recall |
 |---|---|---|---|
 | on (`baseline`) | 0.374 | **2** / 96 | **0.563** |
 | off (`nogate`) | 0.263 | **37** / 96 | **0.000** |
 
-Turning the gate off does not merely cost precision: the model **substitutes web search for
-recall**. It searches instead of remembering, answers from search results, and fact recall
-collapses to zero (4 of 6 seeds scored 0 on all 16 probes, with no errors and no empty replies —
-clean runs, total failure).
+What I first concluded: "the gate stops the model substituting web search for recall."
+What the rule actually does, measured offline against `src/rules/toolGate.ts`
+(`ECHO_SIMILARITY_THRESHOLD = 0.18`, hashed char 3-gram cosine):
 
-**Confidence: high.** n=6, mechanism visible and consistent, large effect.
+| user question | query the model would send | similarity | outcome |
+|---|---|---|---|
+| "Qual è la capitale del Madagascar?" | "capitale Madagascar" | 0.677 | **BLOCKED** |
+| "Chi ha vinto il campionato 2024?" | "campionato calcio 2024 vincitore" | 0.571 | **BLOCKED** |
+| "Quanto costa un volo per Tokyo?" | "voli Tokyo marzo prezzi" | 0.391 | **BLOCKED** |
+| "Ricordati che il gatto si chiama Leopoldo" | "razze di gatti domestici" | 0.146 | passes |
+
+**The gate is inverted in practice.** A *good* search query paraphrases the user's question, so
+it scores high and gets blocked; a *spurious* search is about something else, so it scores low
+and passes. Web search is close to non-functional with the gate on, and fact recall rises
+because the model is forced back onto context — on a benchmark whose probes are all answerable
+from context.
+
+So the honest statement is: **the 2/96 figure is the gate refusing, not the model abstaining.**
+The recall benefit is real but the mechanism is blunt and costs the user a working web search.
+
+**Shipping blocker.** The threshold must become scale-free before this ships; 0.18 on char
+3-grams is a same-language constant, not a similarity criterion. See §3.5 for the memory-facts
+half of the same defect.
+
+**Confidence in the numbers: high. Confidence in the earlier causal story: retracted.**
 
 ### 1.2 Losing context *causes* tool misuse — the two axes are not independent
 
@@ -159,6 +181,27 @@ built: counters-only telemetry, a **NOT-RUN verdict when an arm has memory on bu
 store**, and a privacy probe asserting the echo guard blocks a stored personal fact from
 reaching a web-search query. No numbers yet.
 
+### 3.5 Enabling memory would break web search entirely (measured, not predicted)
+
+The same `ECHO_SIMILARITY_THRESHOLD = 0.18` governs `echo-of-memory-fact`, which compares the
+query against the injected memory facts. Measured with three plausible stored facts:
+
+| query | max similarity to a fact | outcome |
+|---|---|---|
+| the fact, verbatim | 1.000 | blocked — correct |
+| "allergia alle arachidi cosa fare" | 0.598 | blocked — correct |
+| "meteo Torino domani" | 0.283 | **blocked — false positive** |
+| "ricetta pasta al forno" | 0.182 | **blocked — false positive** |
+| "quantum chromodynamics lattice" (English) | 0.113 | passes |
+
+Any two Italian sentences share enough character trigrams (" di ", "la ", "co ") to clear 0.18.
+Only a different language falls below it. **Turning memory on would block essentially every web
+search an Italian user makes.** The privacy direction holds (facts do not leak); the usability
+direction fails completely.
+
+This is the debt recorded weeks ago — "0.18 has 0.0146 of margin, and an Italian-only benchmark
+will never exercise it" — now demonstrated with numbers. Fix before memory ships, not after.
+
 ### 3.4 Spurious tool calls survive the gate
 
 17 spurious calls still get through with the gate on. The gate more than doubles precision but
@@ -205,3 +248,4 @@ does not finish the job.
 | date | change |
 |---|---|
 | 2026-08-14 | First version. Conclusions from campaigns `31739205810` and `31760516762`. 4B campaign `31807501488` launched; memory instrumentation and a hostile audit of `cc703e6`/`aa2f350` in flight — **both may change §1.3 and §3**. |
+| 2026-08-14 | **§1.1 retracted and rewritten.** Measured the gate rule offline: it blocks legitimate searches (a good query paraphrases the question, scoring 0.39-0.68) and passes spurious ones (0.15). The 2/96 web-turn figure is the gate refusing, not the model abstaining. Added §3.5: with memory on, the same 0.18 threshold blocks ordinary Italian queries ("ricetta pasta al forno" = 0.182). Both are shipping blockers. |
