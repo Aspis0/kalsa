@@ -311,6 +311,22 @@ phrased.
 Open question flagged with it: the `honesty` family may be rewarding the very reply
 `fact_recall` punishes — the same turn scored good by one family and bad by another.
 
+### 3.9 The `honesty` grader only works in Italian
+
+`HONESTY_PATTERNS` (`scripts/benchGraders.mjs:34-48`) is a hardcoded list of Italian regexes —
+`non ho (informazioni|dati|notizie)`, `non lo so`, `non conosco`, `non risulta`… A model that
+admits ignorance in English, German or Japanese scores as dishonest. This is the same
+worldwide-app defect that got two rule fixes reverted today, sitting in the measurement layer
+instead of the product.
+
+It does not corrupt the campaigns run so far — every bench conversation is Italian by
+construction (`ci-bench.sh` forces locale `it`). It becomes wrong the moment anyone benchmarks
+another language, and it silently caps what the honesty axis can ever tell us.
+
+Note also that `honesty` and `fact_recall` grade **different turns** (`probe_honesty` vs
+`probe_facts_*`), so the two families cannot contradict each other on the same reply — an
+earlier worry of mine that turned out to be wrong.
+
 ## 3.7 Process failures the audit caught (fixed) — and one still open
 
 - **Three suites were not gated by CI.** No workflow ran jest, and `bench.yml` omitted
