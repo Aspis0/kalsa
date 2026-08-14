@@ -108,7 +108,6 @@ import {
   isEngineLostRecovery,
   isEngineReady,
   notifyStaticPrefixInputs,
-  probeAndReconcileEngine,
   queueStaticPrefixPrewarm,
   saveEngineSession,
   streamAssistantTurn,
@@ -2575,18 +2574,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             try {
               const model = MODEL_REGISTRY[modelIndexRef.current];
               if (!model) return;
-              if (isEngineReady()) {
-                const verdict = await probeAndReconcileEngine();
-                if (verdict.status === "lost") {
-                  const gen = chatGateGenRef.current ?? getChatGeneration();
-                  markChatReleased(gen);
-                  chatGateGenRef.current = null;
-                  setProcessUnloadedReason("chat.unloaded");
-                  setMemoryBannerKey("chat.unloaded");
-                  // ANTI_OOM: never auto-load. Chip leaves Ready via re-render.
-                  return;
-                }
-              }
+              // Foreground does not mark lost (RSS collapse is mmap eviction,
+              // not death). Chip kind recomputes from existing jsReady.
               if (isEngineReady() && getActiveModelId() === model.id) return;
               const available = await getAvailableMemoryBytesUncached();
               const fit = evaluateModelFit(
@@ -2954,8 +2943,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         ) {
           // Lost-engine recovery: leftover MemAvailable is the P0 trap.
           // Reload is what brings the bytes back; do not hard-block on RAM.
-          if (gate.reason === "blocked_ram" && isEngineLostRecovery()) {
-            // fall through
+          if (
+            gate.reason === "blocked_ram" &&
+            isEngineLostRecovery(model.id)
+          ) {
+            // fall through — scoped to the model that was marked lost
           } else {
             setModelState("error");
             setModelErrorKind("engine");

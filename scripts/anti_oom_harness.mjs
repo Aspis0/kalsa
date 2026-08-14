@@ -85,8 +85,13 @@ async function main() {
     decideEngineLiveness,
     decideEngineBarKind,
     nextEngineUiPhase,
+    nextEngineLostRecovery,
+    initialEngineLostRecovery,
     parseProcessRssBytes,
-    ENGINE_RSS_COLLAPSE_RATIO,
+    shouldRecoverLost,
+    shouldBypassRamGate,
+    decideBoundedReleaseOutcome,
+    ENGINE_CONTACT_PROBE_TIMEOUT_MS,
   } = live;
   const { getAvailableMemoryBytesUncached, startMemoryMonitor, parseMemAvailableBytes } = {
     ...mon,
@@ -218,12 +223,29 @@ async function main() {
   await test("decidePreSendFit recoverLost + low availableMb → reload allowed", () => {
     const blocked = decidePreSendFit(model4B, leftoverAfter4B);
     assert(blocked.allow === false, "unloaded without recover must refuse");
-    const d = decidePreSendFit(model4B, leftoverAfter4B, { recoverLost: true });
+    const d = decidePreSendFit(model4B, leftoverAfter4B, {
+      recoverLost: true,
+      lostModelId: "qwen-4b",
+      requestedModelId: "qwen-4b",
+    });
     assert(d.allow === true, `recoverLost must allow, got ${JSON.stringify(d)}`);
     assert(d.bannerKey === null, `no banner on recover, got ${d.bannerKey}`);
   });
 
-  // --- P1 engine-lost state machine ---
+  await test("decidePreSendFit recoverLost for a DIFFERENT model id must NOT bypass", () => {
+    const d = decidePreSendFit(model4B, leftoverAfter4B, {
+      recoverLost: true,
+      lostModelId: "qwen-4b",
+      requestedModelId: "qwen-2b",
+    });
+    assert(d.allow === false, `foreign model must still refuse, got ${JSON.stringify(d)}`);
+    const unscoped = decidePreSendFit(model4B, leftoverAfter4B, {
+      recoverLost: true,
+    });
+    assert(unscoped.allow === false, "unscoped recoverLost must fail closed");
+  });
+
+  // --- P1 engine-lost state machine (on-contact, not RSS) ---
   const rssReady = 3000 * 1024 * 1024;
   const rssZombie = 167 * 1024 * 1024;
 
@@ -234,52 +256,95 @@ async function main() {
     assert(parseProcessRssBytes("") === null, "empty");
   });
 
-  await test("decideEngineLiveness ready RSS stays alive", () => {
-    const v = decideEngineLiveness({
-      jsReady: true,
-      rssBytes: rssReady,
-      lastKnownRssBytes: rssReady,
-    });
+  await test("decideEngineLiveness contact ok stays alive", () => {
+    const v = decideEngineLiveness({ jsReady: true, contact: "ok" });
     assert(v.status === "alive", v.status);
   });
 
-  await test("decideEngineLiveness RSS collapse → lost", () => {
-    const v = decideEngineLiveness({
+  await test("alive-but-slow first send / RSS collapse must NOT mark lost", () => {
+    // mmap eviction looks like the field 3 GB → 167 MB reading. Live engine.
+    const collapsed = decideEngineLiveness({
       jsReady: true,
+      contact: "ok",
       rssBytes: rssZombie,
       lastKnownRssBytes: rssReady,
     });
-    assert(v.status === "lost", v.status);
-    assert(v.status === "lost" && v.reason === "rss_collapsed", JSON.stringify(v));
-    assert(rssZombie < rssReady * ENGINE_RSS_COLLAPSE_RATIO, "fixture under ratio");
+    assert(collapsed.status === "alive", `ok ping + collapsed RSS must be alive, got ${JSON.stringify(collapsed)}`);
+    const noContact = decideEngineLiveness({
+      jsReady: true,
+      rssBytes: rssZombie,
+      lastKnownRssBytes: rssReady,
+      modelSizeBytes: 2693 * 1024 * 1024,
+    });
+    assert(noContact.status === "alive", "RSS-only must not invent lost");
+  });
+
+  await test("timeout send marks lost (native_timeout)", () => {
+    const v = decideEngineLiveness({ jsReady: true, contact: "timeout" });
+    assert(v.status === "lost" && v.reason === "native_timeout", JSON.stringify(v));
+    const err = decideEngineLiveness({ jsReady: true, contact: "error" });
+    assert(err.status === "lost" && err.reason === "native_error", JSON.stringify(err));
+    assert(
+      typeof ENGINE_CONTACT_PROBE_TIMEOUT_MS === "number" &&
+        ENGINE_CONTACT_PROBE_TIMEOUT_MS > 0 &&
+        ENGINE_CONTACT_PROBE_TIMEOUT_MS <= 30_000,
+      `timeout budget ${ENGINE_CONTACT_PROBE_TIMEOUT_MS}`,
+    );
+  });
+
+  await test("mid-stream probe attempt must no-op (busy → alive)", () => {
+    const v = decideEngineLiveness({ jsReady: true, contact: "busy" });
+    assert(v.status === "alive", `busy must not mark lost, got ${JSON.stringify(v)}`);
   });
 
   await test("decideEngineLiveness js not ready → absent", () => {
     const v = decideEngineLiveness({
       jsReady: false,
+      contact: "timeout",
       rssBytes: rssZombie,
       lastKnownRssBytes: rssReady,
     });
     assert(v.status === "absent", v.status);
   });
 
-  await test("decideEngineLiveness missing RSS does not invent lost", () => {
-    const v = decideEngineLiveness({
-      jsReady: true,
-      rssBytes: null,
-      lastKnownRssBytes: rssReady,
-    });
+  await test("decideEngineLiveness probe unavailable does not invent lost", () => {
+    const v = decideEngineLiveness({ jsReady: true, contact: "unavailable" });
     assert(v.status === "alive", "false lost would leak a live model");
+    const missing = decideEngineLiveness({ jsReady: true, contact: null });
+    assert(missing.status === "alive", "omitted contact is fail-safe alive");
   });
 
-  await test("decideEngineLiveness model-size fallback when no baseline", () => {
-    const v = decideEngineLiveness({
-      jsReady: true,
-      rssBytes: rssZombie,
-      lastKnownRssBytes: null,
-      modelSizeBytes: 2693 * 1024 * 1024,
-    });
-    assert(v.status === "lost", JSON.stringify(v));
+  await test("bounded release: timeout → hung; settled → released", () => {
+    assert(
+      decideBoundedReleaseOutcome({ settled: false, hasActiveNative: true }) === "hung",
+      "timeout + active → hung",
+    );
+    assert(
+      decideBoundedReleaseOutcome({ settled: false, hasActiveNative: false }) === "hung",
+      "timeout even without tracked jobs → hung (never force-release)",
+    );
+    assert(
+      decideBoundedReleaseOutcome({ settled: true, hasActiveNative: false }) === "released",
+      "settled → released",
+    );
+  });
+
+  await test("recoverLost scoped to lost model; failed reload clears flag", () => {
+    let rec = initialEngineLostRecovery();
+    rec = nextEngineLostRecovery(rec, { type: "mark_lost", modelId: "qwen-4b" });
+    assert(rec.armed && rec.lostModelId === "qwen-4b", JSON.stringify(rec));
+    assert(shouldRecoverLost(rec.lostModelId, "qwen-4b") === true, "same id");
+    assert(shouldRecoverLost(rec.lostModelId, "qwen-2b") === false, "other id");
+    assert(shouldBypassRamGate(rec, "qwen-4b") === true, "bypass same");
+    assert(shouldBypassRamGate(rec, "qwen-2b") === false, "no bypass other");
+    rec = nextEngineLostRecovery(rec, { type: "load_fail" });
+    assert(rec.armed === false && rec.lostModelId === null, `cleared on fail: ${JSON.stringify(rec)}`);
+    assert(shouldBypassRamGate(rec, "qwen-4b") === false, "fail clears bypass");
+    rec = nextEngineLostRecovery(rec, { type: "mark_lost", modelId: "qwen-4b" });
+    rec = nextEngineLostRecovery(rec, { type: "load_ok" });
+    assert(rec.armed === false, "success also clears");
+    rec = nextEngineLostRecovery(rec, { type: "mark_lost", modelId: null });
+    assert(rec.armed === false, "null model id must not arm");
   });
 
   await test("decideEngineBarKind ready+jsReady → ready; lost → reload", () => {

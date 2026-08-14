@@ -1,79 +1,85 @@
 /**
  * Engine-lost detection + UI/send recovery state machine.
  *
- * JS `isEngineReady()` is only `context !== null`. HyperOS can reclaim the
- * native llama heap (RSS 3 GB → ~167 MB) while the JS wrapper survives —
- * the header stays "Ready" and Send talks to a dead handle.
+ * RSS collapse is NOT a death signal. llama.rn memory-maps the GGUF
+ * (`LLAMA_LOAD_MODE_MMAP`) and `use_mlock: true` is fail-soft on Android
+ * (RLIMIT_MEMLOCK ≈ 64 KB). Under pressure the kernel evicts file-backed
+ * pages; a live engine shows a large RSS drop by design. Treating that
+ * as "lost" leaks the still-live native context (no GC finalizer) and
+ * double-allocates on reload — an OOM on the exact device state that
+ * triggered the reading.
+ *
+ * Detection is on first native contact (send path): a bounded-timeout
+ * tokenize/ping. Timeout or native error ⇒ lost. Probe unavailable,
+ * omitted, or busy (in-flight stream/send) ⇒ alive (fail-safe / no-op).
  *
  * This module is pure (no RN / expo imports) so node harnesses compile it.
- * I/O (RSS read, JS-context invalidate) lives in monitor / LlamaService.
+ * I/O (native ping, bounded release) lives in LlamaService.
  */
 
-/** RSS below this fraction of the last post-init sample ⇒ native heap is gone. */
-export const ENGINE_RSS_COLLAPSE_RATIO = 0.3;
-
-/**
- * Fallback when no post-init RSS sample exists: compare live RSS to the
- * GGUF size. 167 MB vs a 2.7 GB 4B is still a clear collapse.
- */
-export const ENGINE_RSS_VS_MODEL_RATIO = 0.25;
+/** Wall-clock budget for the on-contact native ping (tokenize). */
+export const ENGINE_CONTACT_PROBE_TIMEOUT_MS = 8_000;
 
 export type EngineLivenessStatus = "alive" | "lost" | "absent";
 
-export type EngineLivenessReason = "rss_collapsed" | "native_probe_failed";
+export type EngineLivenessReason = "native_timeout" | "native_error";
 
 export type EngineLivenessVerdict =
   | { status: "absent" }
   | { status: "alive" }
   | { status: "lost"; reason: EngineLivenessReason };
 
+/**
+ * Result of the send-path native ping.
+ * - ok: tokenize returned — engine is alive (even if RSS collapsed).
+ * - timeout / error: mark lost.
+ * - unavailable: ping could not be issued — fail-safe alive.
+ * - busy: stream/send already in flight — no-op, do not mark lost.
+ */
+export type ContactProbeResult =
+  | "ok"
+  | "timeout"
+  | "error"
+  | "unavailable"
+  | "busy";
+
 export type EngineLivenessInput = {
   /** JS-side `isEngineReady()` (context wrapper present, not hung). */
   jsReady: boolean;
-  /** Live process RSS (`/proc/self/status` VmRSS). Null when unreadable. */
-  rssBytes: number | null;
-  /** RSS captured after a successful initLlama. Null if never sampled. */
-  lastKnownRssBytes: number | null;
-  /** Active model file size; used only when lastKnownRssBytes is missing. */
+  /**
+   * On-contact native ping. Omitted / null / unavailable / busy ⇒ alive.
+   * RSS fields below are telemetry only and never produce `lost`.
+   */
+  contact?: ContactProbeResult | null;
+  /** Live process RSS (`/proc/self/status` VmRSS). Telemetry only. */
+  rssBytes?: number | null;
+  /** RSS captured after a successful initLlama. Telemetry only. */
+  lastKnownRssBytes?: number | null;
+  /** Active model file size. Telemetry only. */
   modelSizeBytes?: number | null;
 };
 
 /**
- * Cheap invariant: JS says ready, but RSS collapsed vs the post-init
- * baseline (or vs GGUF size). Never calls into the native context.
+ * On-contact liveness. RSS is ignored: mmap eviction is not death.
+ * Probe unavailable / busy / omitted ⇒ alive (false-negative-safe).
  */
 export function decideEngineLiveness(
   input: EngineLivenessInput,
 ): EngineLivenessVerdict {
   if (!input.jsReady) return { status: "absent" };
-
-  const rss = asPositiveBytes(input.rssBytes);
-  if (rss == null) {
-    // Cannot see RSS — do not invent a lost verdict (false lost + reload
-    // would leak a still-resident model and OOM). Treat as alive.
-    return { status: "alive" };
+  if (input.contact === "timeout") {
+    return { status: "lost", reason: "native_timeout" };
   }
-
-  const baseline = asPositiveBytes(input.lastKnownRssBytes);
-  if (baseline != null && rss < baseline * ENGINE_RSS_COLLAPSE_RATIO) {
-    return { status: "lost", reason: "rss_collapsed" };
+  if (input.contact === "error") {
+    return { status: "lost", reason: "native_error" };
   }
-
-  const modelBytes = asPositiveBytes(input.modelSizeBytes);
-  if (
-    baseline == null &&
-    modelBytes != null &&
-    rss < modelBytes * ENGINE_RSS_VS_MODEL_RATIO
-  ) {
-    return { status: "lost", reason: "rss_collapsed" };
-  }
-
   return { status: "alive" };
 }
 
 /**
  * Parse VmRSS from `/proc/self/status` (or a fixture).
  * `VmRSS:    171088 kB` → bytes. Null on missing / malformed input.
+ * Telemetry only — never a lost trigger.
  */
 export function parseProcessRssBytes(statusText: string): number | null {
   if (typeof statusText !== "string") return null;
@@ -165,9 +171,76 @@ export function nextEngineUiPhase(
   }
 }
 
-function asPositiveBytes(value: number | null | undefined): number | null {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    return null;
+/** Scoped RAM-gate bypass: armed only for the model that was marked lost. */
+export type EngineLostRecoveryState = {
+  armed: boolean;
+  lostModelId: string | null;
+};
+
+export function initialEngineLostRecovery(): EngineLostRecoveryState {
+  return { armed: false, lostModelId: null };
+}
+
+export type EngineLostRecoveryEvent =
+  | { type: "mark_lost"; modelId: string | null }
+  | { type: "load_ok" }
+  | { type: "load_fail" }
+  | { type: "clear" };
+
+/**
+ * Recovery is one-shot and model-scoped. load_ok AND load_fail both
+ * disarm — a failed reload must not leave the P0 RAM gate open.
+ */
+export function nextEngineLostRecovery(
+  _state: EngineLostRecoveryState,
+  event: EngineLostRecoveryEvent,
+): EngineLostRecoveryState {
+  switch (event.type) {
+    case "mark_lost": {
+      const id =
+        typeof event.modelId === "string" && event.modelId.length > 0
+          ? event.modelId
+          : null;
+      return { armed: id != null, lostModelId: id };
+    }
+    case "load_ok":
+    case "load_fail":
+    case "clear":
+      return { armed: false, lostModelId: null };
+    default:
+      return { armed: false, lostModelId: null };
   }
-  return value;
+}
+
+/** True only when both ids are non-empty strings and equal. */
+export function shouldRecoverLost(
+  lostModelId: string | null | undefined,
+  requestedModelId: string | null | undefined,
+): boolean {
+  return (
+    typeof lostModelId === "string" &&
+    lostModelId.length > 0 &&
+    lostModelId === requestedModelId
+  );
+}
+
+export function shouldBypassRamGate(
+  recovery: EngineLostRecoveryState,
+  requestedModelId: string,
+): boolean {
+  return recovery.armed && shouldRecoverLost(recovery.lostModelId, requestedModelId);
+}
+
+/**
+ * Lost-mark release: stopCompletion + settled wait + safety timeout.
+ * Any timeout ⇒ hung (never force-release a handle that just failed a ping).
+ */
+export type BoundedReleaseOutcome = "released" | "hung";
+
+export function decideBoundedReleaseOutcome(input: {
+  settled: boolean;
+  /** Recorded for telemetry; lost-path never force-releases on timeout. */
+  hasActiveNative?: boolean;
+}): BoundedReleaseOutcome {
+  return input.settled ? "released" : "hung";
 }

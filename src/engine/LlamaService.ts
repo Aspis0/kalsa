@@ -36,7 +36,10 @@ import { getStrings, type Locale } from "../i18n";
 import { DEFAULT_N_CTX } from "./contextProfile";
 import { getCachedDeviceProfile } from "./deviceProfile";
 import {
+  decideBoundedReleaseOutcome,
   decideEngineLiveness,
+  ENGINE_CONTACT_PROBE_TIMEOUT_MS,
+  type ContactProbeResult,
   type EngineLivenessVerdict,
 } from "./engineLiveness";
 import { getProcessRssBytesUncached } from "./monitor";
@@ -219,16 +222,16 @@ let disposing = false;
 let contextHung = false;
 
 /**
- * VmRSS sampled after a successful initLlama. Used by probeEngineLiveness
- * to detect HyperOS reclaiming the native heap while the JS wrapper lives.
+ * VmRSS sampled after a successful initLlama. Telemetry only — RSS collapse
+ * is mmap eviction, not a lost signal.
  */
 let lastKnownEngineRssBytes: number | null = null;
 /**
- * True after markEngineLost until the next successful init. Lets the send
- * path skip the leftover-MemAvailable refuse and lets ensureEngineForModel
- * skip blocked_ram so reload can recover.
+ * Armed after markEngineLost until the next initEngine attempt (success OR
+ * failure). Bypass is scoped to engineLostModelId — never a different model.
  */
 let engineLostRecovery = false;
+let engineLostModelId: string | null = null;
 
 /** Monotonic turn id for KALSA_TELEMETRY lines. No Date.now — stable, parseable. */
 let turnSeq = 0;
@@ -781,86 +784,122 @@ export function getActiveModelId(): string | null {
   return activeModelId;
 }
 
-export function isEngineLostRecovery(): boolean {
-  return engineLostRecovery;
+export function isEngineLostRecovery(modelId?: string): boolean {
+  if (!engineLostRecovery || engineLostModelId == null) return false;
+  if (modelId === undefined) return true;
+  return engineLostModelId === modelId;
+}
+
+export function getEngineLostModelId(): string | null {
+  return engineLostRecovery ? engineLostModelId : null;
 }
 
 export function getLastKnownEngineRssBytes(): number | null {
   return lastKnownEngineRssBytes;
 }
 
-/**
- * Drop the JS engine wrapper WITHOUT calling native release().
- * The native heap is already gone (or calling into it can hang / UAF).
- * Does not set contextHung — reload via initEngine is the recovery.
- */
-export function markEngineLost(reason: string): void {
-  const hadContext = context !== null;
-  context = null;
-  activeModelId = null;
-  activeMmprojPath = null;
-  activeEngineCtx = 0;
-  activeCacheTypeK = null;
-  activeCacheTypeV = null;
-  activeSpeculativeOverrideKey = null;
-  activeEngineOverrideKey = null;
-  activeEngineKnob = undefined;
-  activeMtpNMax = undefined;
-  activeSpecType = undefined;
-  kvHoldsChatSession = false;
-  lastChatNPast = undefined;
-  chatKvDiskCurrent = false;
-  kvReproState = nextKvReproState(kvReproState, "dispose");
-  lastPromptEnvHash = undefined;
-  bakedUserTails = [];
-  resetPrewarmState();
-  lastKnownEngineRssBytes = null;
-  engineLostRecovery = hadContext || engineLostRecovery;
-  disposing = false;
-  // Gate stays chat_ready after an OS reclaim; tryAcquireChat would refuse
-  // the reload as a double-load. Release the current owner.
-  try {
-    markChatReleased(getChatGeneration());
-  } catch {
-    // gate must not block invalidate
+function clearEngineLostRecovery(): void {
+  engineLostRecovery = false;
+  engineLostModelId = null;
+}
+
+function armEngineLostRecovery(modelId: string | null): void {
+  if (typeof modelId === "string" && modelId.length > 0) {
+    engineLostModelId = modelId;
+    engineLostRecovery = true;
+    return;
   }
-  try {
-    console.info(
-      "engine.lost",
-      JSON.stringify({ reason, hadContext }),
-    );
-  } catch {
-    // telemetry never throws
-  }
+  engineLostModelId = null;
+  engineLostRecovery = false;
 }
 
 /**
- * RSS vs last-known baseline. Never touches the native llama handle.
+ * Bounded release of a suspect native handle. Reuses stopCompletion +
+ * settled-wait + DISPOSE_SAFETY_TIMEOUT_MS. Timeout ⇒ contextHung (never
+ * a naked null, never force-release a handle that just failed a ping).
+ * Records lostModelId so RAM-gate bypass is scoped to that model.
  */
-export async function probeEngineLiveness(): Promise<EngineLivenessVerdict> {
-  if (!isEngineReady()) return { status: "absent" };
-  let rssBytes: number | null = null;
-  try {
-    rssBytes = await getProcessRssBytesUncached();
-  } catch {
-    rssBytes = null;
-  }
-  const model = activeModelId ? getModelById(activeModelId) : undefined;
-  return decideEngineLiveness({
-    jsReady: true,
-    rssBytes,
-    lastKnownRssBytes: lastKnownEngineRssBytes,
-    modelSizeBytes: model?.sizeBytes ?? null,
+export function markEngineLost(reason: string): Promise<void> {
+  return withLifecycleLock(async () => {
+    if (disposing || contextHung || context === null) {
+      return;
+    }
+    const hadContext = true;
+    const lostId = activeModelId;
+    armEngineLostRecovery(lostId);
+    await disposeEngineLocked({ neverForceRelease: true });
+    try {
+      markChatReleased(getChatGeneration());
+    } catch {
+      // gate must not block invalidate
+    }
+    try {
+      console.info(
+        "engine.lost",
+        JSON.stringify({
+          reason,
+          hadContext,
+          lostModelId: engineLostModelId,
+        }),
+      );
+    } catch {
+      // telemetry never throws
+    }
   });
 }
 
-/** Probe and, if lost, invalidate the JS wrapper so UI / send can recover. */
-export async function probeAndReconcileEngine(): Promise<EngineLivenessVerdict> {
-  const verdict = await probeEngineLiveness();
+/**
+ * Cheap native ping (tokenize) with a wall-clock timeout. Never a lost
+ * verdict from RSS. Busy / unavailable ⇒ alive (fail-safe).
+ */
+export async function probeEngineLiveness(opts?: {
+  busy?: boolean;
+}): Promise<EngineLivenessVerdict> {
+  if (!isEngineReady()) return { status: "absent" };
+  if (
+    opts?.busy ||
+    activeCompletionSet.size > 0 ||
+    engineJobPendingCount > 0
+  ) {
+    return decideEngineLiveness({ jsReady: true, contact: "busy" });
+  }
+  const contact = await pingNativeContext(ENGINE_CONTACT_PROBE_TIMEOUT_MS);
+  return decideEngineLiveness({ jsReady: true, contact });
+}
+
+/** Probe and, if lost, bounded-release so UI / send can recover. */
+export async function probeAndReconcileEngine(opts?: {
+  busy?: boolean;
+}): Promise<EngineLivenessVerdict> {
+  const verdict = await probeEngineLiveness(opts);
   if (verdict.status === "lost") {
-    markEngineLost(verdict.reason);
+    await markEngineLost(verdict.reason);
   }
   return verdict;
+}
+
+async function pingNativeContext(
+  timeoutMs: number,
+): Promise<ContactProbeResult> {
+  const ctx = context;
+  if (!ctx || typeof ctx.tokenize !== "function") return "unavailable";
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const ping = ctx.tokenize("ok");
+    return await Promise.race([
+      ping.then(
+        () => "ok" as const,
+        () => "error" as const,
+      ),
+      new Promise<ContactProbeResult>((resolve) => {
+        timer = setTimeout(() => resolve("timeout"), timeoutMs);
+      }),
+    ]);
+  } catch {
+    return "unavailable";
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
 }
 
 /**
@@ -1258,14 +1297,17 @@ export function initEngine(
     // and long-chat budgeting against the loaded engine (not pre-clamp catalog).
     // systemInfo carries the "kalsa-native-patches" marker when cpp/ was built
     // from patched source (RNLlamaJSI appends it); absent on skip-reload path.
-    engineLostRecovery = false;
     void noteEngineRssAfterInit();
     return {
       effectiveNCtx,
       systemInfo:
         typeof context?.systemInfo === "string" ? context.systemInfo : undefined,
     };
-  });
+  })
+    .finally(() => {
+      // One-shot: success AND failure disarm the RAM-gate bypass.
+      clearEngineLostRecovery();
+    });
 }
 
 async function noteEngineRssAfterInit(): Promise<void> {
@@ -1280,10 +1322,13 @@ async function noteEngineRssAfterInit(): Promise<void> {
 }
 
 export function disposeEngine(): Promise<void> {
-  return withLifecycleLock(disposeEngineLocked);
+  return withLifecycleLock(() => disposeEngineLocked());
 }
 
-async function disposeEngineLocked(): Promise<void> {
+async function disposeEngineLocked(opts?: {
+  /** Lost-mark path: timeout ⇒ hung; never force-release a suspect handle. */
+  neverForceRelease?: boolean;
+}): Promise<void> {
   // Set BEFORE invalidating context: any job already running (or about to run)
   // in engineJobChain sees this immediately and bails before its next completion().
   disposing = true;
@@ -1309,33 +1354,48 @@ async function disposeEngineLocked(): Promise<void> {
     bakedUserTails = [];
     resetPrewarmState();
     lastKnownEngineRssBytes = null;
-    // Keep engineLostRecovery until a successful init so a failed reload
-    // still skips the leftover-MemAvailable refuse on the next send.
     // Intentionally do NOT delete session files here — they survive dispose
     // so the next initEngine can restore KV after app restart / model reload.
+    // engineLostRecovery is owned by markEngineLost / initEngine.finally.
     if (current) {
       // Unblock any in-flight native completion, then wait for the FIFO job
-      // chain (and tracked completions) to settle before release(). No arbitrary
-      // cap: the `disposing` flag (checked by streamAssistantTurn before every
-      // completion) is what bounds this wait, not a timeout race.
-      try {
-        await current.stopCompletion();
-      } catch {
-        // best effort
-      }
+      // chain (and tracked completions) to settle before release(). Race
+      // stopCompletion too — a dead JSI handle can hang on the stop itself.
+      const stopP = current.stopCompletion().then(
+        () => undefined,
+        () => undefined,
+      );
       const settled = await Promise.race([
         Promise.allSettled([
+          stopP,
           engineJobChain.then(() => undefined, () => undefined),
           ...activeCompletionSet,
         ]).then(() => true),
         new Promise<boolean>((resolve) => setTimeout(() => resolve(false), DISPOSE_SAFETY_TIMEOUT_MS)),
       ]);
+      const hasActive =
+        activeCompletionSet.size > 0 || engineJobPendingCount > 0;
+      const lostOutcome = decideBoundedReleaseOutcome({
+        settled,
+        hasActiveNative: hasActive,
+      });
+      // Lost-mark path: any timeout ⇒ hung. Never force-release a handle
+      // that just failed a native ping (UAF / second hang).
+      if (opts?.neverForceRelease && lostOutcome === "hung") {
+        contextHung = true;
+        console.warn(
+          "[disposeEngineLocked] lost-mark safety timeout — marking hung, NOT releasing",
+          JSON.stringify({
+            activeCompletions: activeCompletionSet.size,
+            engineJobs: engineJobPendingCount,
+          }),
+        );
+        return;
+      }
       // FIX 3: if the safety timeout fires while native work is still active,
       // do NOT release — a late completion/stopCompletion on a freed context is
       // a UAF. Mark hung and require process restart for recovery.
       if (!settled) {
-        const hasActive =
-          activeCompletionSet.size > 0 || engineJobPendingCount > 0;
         if (hasActive) {
           contextHung = true;
           console.warn(
@@ -1359,7 +1419,27 @@ async function disposeEngineLocked(): Promise<void> {
         // best effort
       }
       try {
-        await current.release();
+        if (opts?.neverForceRelease) {
+          // Lost-mark: release() on a dead JSI handle may throw or hang.
+          // Throw ⇒ treat as gone, keep reload possible. Hang ⇒ hung.
+          const released = await Promise.race([
+            current.release().then(
+              () => true,
+              () => true,
+            ),
+            new Promise<boolean>((resolve) =>
+              setTimeout(() => resolve(false), DISPOSE_SAFETY_TIMEOUT_MS),
+            ),
+          ]);
+          if (!released) {
+            contextHung = true;
+            console.warn(
+              "[disposeEngineLocked] lost-mark release() timed out — marking hung",
+            );
+          }
+        } else {
+          await current.release();
+        }
       } catch {
         // Unknown native state after a failed release — do not initLlama.
         contextHung = true;
