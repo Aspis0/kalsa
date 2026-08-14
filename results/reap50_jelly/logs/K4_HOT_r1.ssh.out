@@ -1,0 +1,8 @@
+[2026-08-14T01:33:32-0400] RUN cell=K4_HOT run=1 mode=hot model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf extra=[--n-expert-used 4]
+[2026-08-14T01:33:32-0400] HOT no fadvise (back-to-back residency)
+
+PARSE tok=10.665 majflt=0.00 rss_kib=23542 res_pages= hit_pct= mapped_mib= n_expert_used=4 load_s=0.897 mib_tok= hit_bin= rc=0
+[2026-08-14T01:33:52-0400] RUN cell=K4_HOT run=1 rc=0
+RC=0
+
+---STDERR---

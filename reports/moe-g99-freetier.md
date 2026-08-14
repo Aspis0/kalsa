@@ -210,3 +210,43 @@ Same-session A0 is 8% under the 08-12 10.60 (22.80 decode faults vs 6.20; `Marco
 The cache mechanism the projection counted on **did fire**. KEXP decode major-faults are ~0 (file 3.09 GiB stays ~100% resident after a run: 811k/811k pages). A0 this session faults 22.80/tok. Load/prefill/TTFT improve (KEXP load ~3.9 s vs A0 7.9 s; k3 prefill 13.6 t/s vs A0 8.3). Decode does not. G99 projected 14.7 / 16.3 tok/s by applying the Q4 implied 10.8 GB/s to a 737 / 664 MiB active-byte budget. Measured implied bandwidth at those budgets is **~6.8 / 7.1 GB/s**, and cpu-s/token *rises* (KEXP k4 0.225 vs A0 0.198). Q2_K/Q3_K dequant on 2×A76 is more expensive than the bytes it saves. 15–20 remains a projection, and this file is the wrong direction for decode.
 
 Artefacts: `results/lfm25_kexp_jelly/`.
+
+---
+
+## REAP-50 (resident) on Jelly
+
+**Date:** 2026-08-14 01:25–01:36 EDT · UNPLUGGED 81%→78% · 30.0→32.0 °C · `mWakefulness=Awake` every cell  
+**Binary:** same pin `~/bin/bmoe-cli` sha `36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81` before = after MATCH  
+**File:** `~/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf` · 2 821 302 016 B · sha `2d027f33f134e5d17637430b881be7bdc29e4c78bdab3262e348cd5a745732a5` (PC + device MATCH) · 2.62 GiB, 4.90 BPW, `expert_count=16`, `expert_used_count=4`  
+**Harness:** identical to this report (`-t 2 -c 1024 -n 200 --temp 0 --ubatch 256`, same prompt, mmap, no `--moe-stream`). Cold cells `fadvise` DONTNEED. One hot back-to-back (no fadvise) after k4 cold r2.  
+**License:** LFM Open License v1.0. The REAP repo's Apache-2.0 tag is **wrong**. Do not treat this GGUF as Apache.
+
+**Verdict:** **REAP50_LOSES.** k4 is **10.68 tok/s** (vs A0 10.60, +0.8%). The hypothesis was 15–19 tok/s from full RAM residency and no sub-4bit dequant tax. The file **is** resident. Decode does not move. Option (ii) dies; no quality gate.
+
+| cell | model | k | run1 | run2 | **median** | majflt/tok | mapped MiB | batt% | °C | screen | vs G99 A0 10.60 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| B1 (G99) | Qwen3.5-2B Q4_K_M | — | 8.023 | 8.060 | **8.04** | — | — | 87 / 86 | 31 | — | 0.54× floor |
+| B2 (G99) | LFM2.5 A0 Q4_K_M | 4 | 10.471 | 10.730 | **10.60** | 6.20 | 4908.87 | 86 / 85 | 32–33 | — | headline |
+| K3 (G99) | same | 3 | 12.271 | 12.286 | **12.28** | — | 4908.87 | 85 / 84 | 33–34 | — | +15.8% vs B2 |
+| K2 (G99) | same | 2 | 14.354 | 14.411 | **14.38** | — | 4908.87 | 84 / 83 | 34 | — | +35.6% vs B2 |
+| KEXP k4 | LFM2.5 KEXP | 4 | 8.882 | 8.787 | **8.83** | 0.00 / 2.15 | 3164.22 | 100 / 99 | 32–33 | — | −16.7% · REGRESSION |
+| **REAP k4 cold** | REAP-50 Q4_K_M | 4 | 10.702 | 10.663 | **10.68** | **0.00 / 0.00** | 2682.75 | 79 / 79 | 30–31 | Awake | **+0.8% · LOSES** |
+| **REAP k4 hot** | same | 4 | 10.665 | — | **10.67** | **0.00** | 2682.75 | 78 | 31 | Awake | hot = cold |
+| **REAP k3** | same | 3 | 12.198 | — | **12.20** | **0.00** | 2682.75 | 78 | 31 | Awake | −0.7% vs A0 k3 |
+| **REAP k2** | same | 2 | 14.226 | — | **14.23** | **0.00** | 2682.75 | 78 | 32 | Awake | −1.1% vs A0 k2 |
+
+`--n-expert-used` applies (`n_expert_used = 4 / 3 / 2`). k-scaling is the A0 curve: k4→k3 **+14.2%**, k4→k2 **+33.2%**.
+
+### Residency — YES
+
+`posix_fadvise(DONTNEED)` before every cold cell returns `resident_after=0`. After every run the next fadvise sees `resident_before=688795` pages (688795 × 4 KiB ≈ file size) → **~100% of the 2.62 GiB file stays in page cache**. Decode `major faults/token = 0.00` on cold and hot. Hot decode **10.67 ≈ cold 10.68**; hot load 0.90 s vs cold 3.36 s. `buff/cache` 1.0 GiB after fadvise → 3.5–3.9 GiB after a run. Swap flat ~0.7 GiB. `CPU_Mapped = 2682.75 MiB`. Binary did not print MiB/tok or hit%; I/O is the majflt line (zero). Competing models in `~/models/` were fadvise'd to 0 pages before the block.
+
+### Why it cannot be 15–19
+
+REAP-50 halves **stored** experts (32 → 16). At k=4 it still activates 4 experts of the same 1792 FFN. Active bytes/token ≈ A0 k4 (~1033 MiB). Implied BW 10.68 × 1033 ≈ **11.0 GB/s** — the same roofline A0 already sat on. File size is not the decode working set. Prefill/TTFT improve (prefill 15.9 t/s vs A0 B2 10.0; TTFT 8.2 s cold / 5.7 s hot vs A0 13.3 s). Decode does not. cpu-s/token k4 **0.186** vs A0 B2 0.189.
+
+k4/k3 hit EOS at 146 / 135 tokens; k2 ran the full 200. tok/s is the binary's per-token decode rate, same definition as A0.
+
+S23 / Xiaomi not touched. PC: hash + scp only. Transfer `scp -P 8022`.
+
+Artefacts: `results/reap50_jelly/`.

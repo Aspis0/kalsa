@@ -1,0 +1,36 @@
+# REAP-50 Jelly SHAs — 2026-08-14
+
+PC model
+  path   models_staging/reap50/gguf/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf
+  bytes  2821302016
+  sha256 2d027f33f134e5d17637430b881be7bdc29e4c78bdab3262e348cd5a745732a5
+
+Jelly model ~/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf
+  bytes  2821302016
+  sha256 2d027f33f134e5d17637430b881be7bdc29e4c78bdab3262e348cd5a745732a5
+  MATCH vs PC
+
+Campaign binary ~/bin/bmoe-cli
+  pin    36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81
+  before 36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 MATCH
+  after  36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 MATCH
+
+SCP 2026-08-14T01:25:43-04:00 -> 01:28:45-04:00 rc=0 (scp -P 8022, Compression=no)
+
+=== before 2026-08-14T01:29:19-04:00 ===
+BIN
+36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81  /data/data/com.termux/files/home/bin/bmoe-cli
+MODEL
+-rw-r--r-- 1 u0_a225 u0_a225 2821302016 2026-08-14 01:28 /data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf
+2d027f33f134e5d17637430b881be7bdc29e4c78bdab3262e348cd5a745732a5  /data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf
+BYTES
+2821302016
+
+=== after 2026-08-14T01:35:58-04:00 ===
+BIN
+36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81  /data/data/com.termux/files/home/bin/bmoe-cli
+MODEL
+-rw-r--r-- 1 u0_a225 u0_a225 2821302016 2026-08-14 01:28 /data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf
+2d027f33f134e5d17637430b881be7bdc29e4c78bdab3262e348cd5a745732a5  /data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf
+BYTES
+2821302016

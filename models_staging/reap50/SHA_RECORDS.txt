@@ -1,0 +1,59 @@
+# SHA records — konic-labs/LFM2.5-8B-A1B-REAP-50
+# Source: Hugging Face LFS metadata (GET /api/models/.../tree/main)
+# Verified locally with Get-FileHash -Algorithm SHA256
+# Date: 2026-08-14
+
+repo: https://huggingface.co/konic-labs/LFM2.5-8B-A1B-REAP-50
+revision: main (commit family bc2d8d61 / b974bff, ~25 days old)
+
+file: model.safetensors
+  bytes:    9183353176
+  GiB:      8.553
+  GB:       9.183
+  sha256:   db18118c9ae112eac15f64a702a854191ce8f817ea3a26f26fbe4f9bf4afa675
+  lfs_oid:  db18118c9ae112eac15f64a702a854191ce8f817ea3a26f26fbe4f9bf4afa675
+  match:    YES
+
+file: tokenizer.json
+  bytes:    17905697
+  sha256:   d9a97525e4d50da89a2f489561f74810f593be6dffa4a5aeea570bd69537f50d
+  lfs_oid:  d9a97525e4d50da89a2f489561f74810f593be6dffa4a5aeea570bd69537f50d
+  match:    YES
+
+non-LFS files (git blob oid from HF API, not sha256 of content):
+  .gitattributes           1570   oid 52373fe24473b1aa44333d318f578ae6bf04b49b
+  LICENSE                 11358   oid d645695673349e3947e8e5ae42332d0ac3164cd7
+  README.md                3512   oid 2cf344315c25e00726b6f9096122f95bdc64252d
+  chat_template.jinja      4621   oid 8bca4a545e9ec8dc0c5d4689a78886c0741c47e4
+  config.json              1206   oid 1d82dacb848c7d75dcf900a28e023485e679023d
+  generation_config.json    319   oid ce1b20d2cec906557963e51f3635fe4e12227f88
+  tokenizer_config.json     344   oid efcc0a22a13c7c1c2f4dcc12d647392c03b8f0c9
+
+quant: none (native bf16/f32 safetensors). No GGUF in this repo or community (bartowski / mradermacher / unsloth).
+sibling: konic-labs/LFM2.5-8B-A1B-REAP-50-AWQ-INT4 (AWQ, not GGUF; not downloaded)
+siblings NOT found: REAP-25, REAP-37.5
+
+# --- local convert 2026-08-14 (safetensors -> GGUF, first of this family) ---
+# Converter: BigMoeOnEdge/third_party/llama.cpp/convert_hf_to_gguf.py  Lfm2MoeForCausalLM
+# Quantizer: build-pc-quantize/bin/llama-quantize.exe  Q4_K_M  nthreads=11
+# LICENSE: copy of repo LICENSE sits next to GGUF. Hub apache-2.0 tag is WRONG;
+#          LFM Open License v1.0 applies (upstream LiquidAI weights).
+
+file: gguf/LFM2.5-8B-A1B-REAP50-BF16.gguf
+  bytes:    9193301760
+  GiB:      8.562
+  GB:       9.193
+  sha256:   3a04bad165994ccc53eb31b1bab60d4080104e155c0951faa2906b6ec23377ad
+
+file: gguf/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf
+  bytes:    2821302016
+  GiB:      2.6275
+  GB:       2.8213
+  sha256:   2d027f33f134e5d17637430b881be7bdc29e4c78bdab3262e348cd5a745732a5
+  file_type: Q4_K_M (15)
+  bpw:      4.90
+  arch:     lfm2moe
+  n_expert: 16
+  expert_used: 4
+  n_layer:  24
+  ntensors: 256

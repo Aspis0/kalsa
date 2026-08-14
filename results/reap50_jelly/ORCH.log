@@ -1,0 +1,36 @@
+[2026-08-14T01:29:12-0400] orchestrator start REAP-50 Jelly
+[2026-08-14T01:29:13-0400] preflight UNPLUGGED batt=80 temp=30.0 screen=Awake
+[2026-08-14T01:29:19-0400] SHA before
+BIN
+36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81  /data/data/com.termux/files/home/bin/bmoe-cli
+MODEL
+-rw-r--r-- 1 u0_a225 u0_a225 2821302016 2026-08-14 01:28 /data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf
+2d027f33f134e5d17637430b881be7bdc29e4c78bdab3262e348cd5a745732a5  /data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf
+BYTES
+2821302016
+[2026-08-14T01:31:31-0400] EVICT competitors stdout=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-Q4_K_M.gguf size=5155564768 resident_before=0 resident_after=0 pages fadvise_rc=0 | /data/data/com.termux/files/home/models/LFM2.5-8B-A1B-KEXP.gguf size=3326160384 resident_before=0 resident_after=0 pages fadvise_rc=0 | /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages
+[2026-08-14T01:31:32-0400] START K4_COLD r1 mode=cold batt=79 temp=30.0 screen=Awake extra=[--n-expert-used 4]
+[2026-08-14T01:32:24-0400] SSH rc=0 K4_COLD r1
+[2026-08-14T01:32:24-0400] STDOUT [2026-08-14T01:31:35-0400] RUN cell=K4_COLD run=1 mode=cold model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf extra=[--n-expert-used 4] |  | PARSE tok=10.702 majflt=0.00 rss_kib=21798 res_pages= hit_pct= mapped_mib= n_expert_used=4 load_s=3.358 mib_tok= hit_bin= rc=0 | [2026-08-14T01:32:24-0400] RUN cell=K4_COLD run=1 rc=0 | RC=0
+[2026-08-14T01:32:35-0400] START K4_COLD r2 mode=cold batt=79 temp=31.0 screen=Awake extra=[--n-expert-used 4]
+[2026-08-14T01:33:25-0400] SSH rc=0 K4_COLD r2
+[2026-08-14T01:33:25-0400] STDOUT [2026-08-14T01:32:37-0400] RUN cell=K4_COLD run=2 mode=cold model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf extra=[--n-expert-used 4] |  | PARSE tok=10.663 majflt=0.00 rss_kib=23328 res_pages= hit_pct= mapped_mib= n_expert_used=4 load_s=3.362 mib_tok= hit_bin= rc=0 | [2026-08-14T01:33:25-0400] RUN cell=K4_COLD run=2 rc=0 | RC=0
+[2026-08-14T01:33:30-0400] START K4_HOT r1 mode=hot batt=78 temp=31.0 screen=Awake extra=[--n-expert-used 4]
+[2026-08-14T01:33:52-0400] SSH rc=0 K4_HOT r1
+[2026-08-14T01:33:52-0400] STDOUT [2026-08-14T01:33:32-0400] RUN cell=K4_HOT run=1 mode=hot model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf extra=[--n-expert-used 4] | [2026-08-14T01:33:32-0400] HOT no fadvise (back-to-back residency) |  | PARSE tok=10.665 majflt=0.00 rss_kib=23542 res_pages= hit_pct= mapped_mib= n_expert_used=4 load_s=0.897 mib_tok= hit_bin= rc=0 | [2026-08-14T01:33:52-0400] RUN cell=K4_HOT run=1 rc=0 | RC=0
+[2026-08-14T01:33:57-0400] START K3 r1 mode=cold batt=78 temp=31.0 screen=Awake extra=[--n-expert-used 3]
+[2026-08-14T01:34:43-0400] SSH rc=0 K3 r1
+[2026-08-14T01:34:43-0400] STDOUT [2026-08-14T01:33:59-0400] RUN cell=K3 run=1 mode=cold model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf extra=[--n-expert-used 3] |  | PARSE tok=12.198 majflt=0.00 rss_kib=25021 res_pages= hit_pct= mapped_mib= n_expert_used=3 load_s=3.386 mib_tok= hit_bin= rc=0 | [2026-08-14T01:34:44-0400] RUN cell=K3 run=1 rc=0 | RC=0
+[2026-08-14T01:34:55-0400] START K2 r1 mode=cold batt=78 temp=32.0 screen=Awake extra=[--n-expert-used 2]
+[2026-08-14T01:35:43-0400] SSH rc=0 K2 r1
+[2026-08-14T01:35:43-0400] STDOUT [2026-08-14T01:34:57-0400] RUN cell=K2 run=1 mode=cold model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf extra=[--n-expert-used 2] |  | PARSE tok=14.226 majflt=0.00 rss_kib=26470 res_pages= hit_pct= mapped_mib= n_expert_used=2 load_s=3.365 mib_tok= hit_bin= rc=0 | [2026-08-14T01:35:43-0400] RUN cell=K2 run=1 rc=0 | RC=0
+[2026-08-14T01:35:54-0400] binary sha after=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81
+[2026-08-14T01:35:58-0400] SHA after
+BIN
+36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81  /data/data/com.termux/files/home/bin/bmoe-cli
+MODEL
+-rw-r--r-- 1 u0_a225 u0_a225 2821302016 2026-08-14 01:28 /data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf
+2d027f33f134e5d17637430b881be7bdc29e4c78bdab3262e348cd5a745732a5  /data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf
+BYTES
+2821302016
+[2026-08-14T01:35:58-0400] DONE all cells

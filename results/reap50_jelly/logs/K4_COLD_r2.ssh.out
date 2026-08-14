@@ -1,0 +1,7 @@
+[2026-08-14T01:32:37-0400] RUN cell=K4_COLD run=2 mode=cold model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf extra=[--n-expert-used 4]
+
+PARSE tok=10.663 majflt=0.00 rss_kib=23328 res_pages= hit_pct= mapped_mib= n_expert_used=4 load_s=3.362 mib_tok= hit_bin= rc=0
+[2026-08-14T01:33:25-0400] RUN cell=K4_COLD run=2 rc=0
+RC=0
+
+---STDERR---

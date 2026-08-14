@@ -1,0 +1,79 @@
+[2026-08-14T01:31:35-0400] RUN cell=K4_COLD run=1 mode=cold model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf extra=[--n-expert-used 4]
+/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf size=2821302016 resident_before=688795 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-14T01:32:01-04:00
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 47, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 39, in main
+    size, npages, res = resident_pages(path)
+                        ~~~~~~~~~~~~~~^^^^^^
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 23, in resident_pages
+    addr = ctypes.addressof(ctypes.c_char.from_buffer(mm))
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^
+TypeError: underlying buffer is not writable
+
+[2026-08-14T01:32:24-0400] RUN cell=K4_COLD run=1 rc=0
+[2026-08-14T01:32:37-0400] RUN cell=K4_COLD run=2 mode=cold model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf extra=[--n-expert-used 4]
+/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf size=2821302016 resident_before=688795 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-14T01:33:02-04:00
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 47, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 39, in main
+    size, npages, res = resident_pages(path)
+                        ~~~~~~~~~~~~~~^^^^^^
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 23, in resident_pages
+    addr = ctypes.addressof(ctypes.c_char.from_buffer(mm))
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^
+TypeError: underlying buffer is not writable
+
+[2026-08-14T01:33:25-0400] RUN cell=K4_COLD run=2 rc=0
+[2026-08-14T01:33:32-0400] RUN cell=K4_HOT run=1 mode=hot model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf extra=[--n-expert-used 4]
+[2026-08-14T01:33:32-0400] HOT no fadvise (back-to-back residency)
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 47, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 39, in main
+    size, npages, res = resident_pages(path)
+                        ~~~~~~~~~~~~~~^^^^^^
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 23, in resident_pages
+    addr = ctypes.addressof(ctypes.c_char.from_buffer(mm))
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^
+TypeError: underlying buffer is not writable
+
+[2026-08-14T01:33:52-0400] RUN cell=K4_HOT run=1 rc=0
+[2026-08-14T01:33:59-0400] RUN cell=K3 run=1 mode=cold model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf extra=[--n-expert-used 3]
+/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf size=2821302016 resident_before=688795 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-14T01:34:24-04:00
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 47, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 39, in main
+    size, npages, res = resident_pages(path)
+                        ~~~~~~~~~~~~~~^^^^^^
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 23, in resident_pages
+    addr = ctypes.addressof(ctypes.c_char.from_buffer(mm))
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^
+TypeError: underlying buffer is not writable
+
+[2026-08-14T01:34:44-0400] RUN cell=K3 run=1 rc=0
+[2026-08-14T01:34:57-0400] RUN cell=K2 run=1 mode=cold model=/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf extra=[--n-expert-used 2]
+/data/data/com.termux/files/home/models/LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf size=2821302016 resident_before=688795 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-14T01:35:22-04:00
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 47, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 39, in main
+    size, npages, res = resident_pages(path)
+                        ~~~~~~~~~~~~~~^^^^^^
+  File "/data/data/com.termux/files/home/bench_reap50/residency.py", line 23, in resident_pages
+    addr = ctypes.addressof(ctypes.c_char.from_buffer(mm))
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^
+TypeError: underlying buffer is not writable
+
+[2026-08-14T01:35:43-0400] RUN cell=K2 run=1 rc=0
