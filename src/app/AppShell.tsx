@@ -105,6 +105,7 @@ import {
   getActiveModelId,
   initEngine,
   invalidateEngineSession,
+  isEngineLostRecovery,
   isEngineReady,
   notifyStaticPrefixInputs,
   queueStaticPrefixPrewarm,
@@ -114,6 +115,7 @@ import {
   type EngineMessage,
   type EngineTurnOptions,
 } from "../engine/LlamaService";
+import { decideEngineBarKind } from "../engine/engineLiveness";
 import { startMemoryMonitor, getAvailableMemoryBytesUncached } from "../engine/monitor";
 import {
   backgroundDiscardLifecycleRef,
@@ -2572,6 +2574,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             try {
               const model = MODEL_REGISTRY[modelIndexRef.current];
               if (!model) return;
+              // Foreground does not mark lost (RSS collapse is mmap eviction,
+              // not death). Chip kind recomputes from existing jsReady.
               if (isEngineReady() && getActiveModelId() === model.id) return;
               const available = await getAvailableMemoryBytesUncached();
               const fit = evaluateModelFit(
@@ -2937,11 +2941,20 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           (gate.reason === "blocked_ram" || gate.reason === "blocked_tier") &&
           getActiveModelId() !== model.id
         ) {
-          setModelState("error");
-          setModelErrorKind("engine");
-          setModelError(gateReasonMessage(gate.reason, t));
-          setModelErrorDetail(null);
-          return false;
+          // Lost-engine recovery: leftover MemAvailable is the P0 trap.
+          // Reload is what brings the bytes back; do not hard-block on RAM.
+          if (
+            gate.reason === "blocked_ram" &&
+            isEngineLostRecovery(model.id)
+          ) {
+            // fall through — scoped to the model that was marked lost
+          } else {
+            setModelState("error");
+            setModelErrorKind("engine");
+            setModelError(gateReasonMessage(gate.reason, t));
+            setModelErrorDetail(null);
+            return false;
+          }
         }
       } catch {
         // Probe failure → fall through to existing load path (no hard block).
@@ -3173,6 +3186,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelError(null);
       setModelErrorDetail(null);
       setModelErrorKind(null);
+      setMemoryBannerKey(null);
+      setProcessUnloadedReason(null);
       queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
       return true;
     } catch (error) {
@@ -3645,6 +3660,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelError(null);
       setModelErrorDetail(null);
       setModelErrorKind(null);
+      setMemoryBannerKey(null);
+      setProcessUnloadedReason(null);
       setDownloadedById((prev) => ({ ...prev, [model.id]: true }));
       showNotice(t("download.readyNotice", { name: model.name }));
       void notifyDownload(
@@ -4512,8 +4529,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   })();
 
   const modelBarStatus = (() => {
-    const engineLoaded = isEngineReady() && getActiveModelId() === currentModel.id;
-    switch (modelState) {
+    const barKind = decideEngineBarKind({
+      modelState,
+      jsReady: isEngineReady(),
+      activeMatches: getActiveModelId() === currentModel.id,
+    });
+    switch (barKind) {
       case "checking":
         return { label: t("download.checking"), color: colors.muted };
       case "missing":
@@ -4543,13 +4564,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           color: colors.bad,
         };
       case "ready":
-        // HIGH-2: downloaded-but-unloaded is tappable ("Tap to reload"), never auto-load.
-        return {
-          label: engineLoaded
-            ? t("download.readyLocal")
-            : t("chat.lazyReload"),
-          color: engineLoaded ? colors.good : colors.accent,
-        };
+        return { label: t("download.readyLocal"), color: colors.good };
+      case "reload":
+        // HIGH-2: downloaded-but-unloaded / engine-lost is tappable, never auto-load.
+        return { label: t("chat.lazyReload"), color: colors.accent };
     }
   })();
 

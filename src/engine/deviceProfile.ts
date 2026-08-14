@@ -22,6 +22,7 @@ import {
   getAvailableMemoryBytes,
 } from "./memoryEstimate";
 import { parseCpuPresent, readCpuCapacities } from "./threadProfile";
+import { shouldRecoverLost } from "./engineLiveness";
 
 export type DeviceFamily = "xiaomi" | "samsung" | "pixel" | "generic";
 
@@ -252,6 +253,16 @@ export type PreSendFitDecision =
  */
 export type PreSendFitOptions = {
   alreadyResident?: boolean;
+  /**
+   * Engine was resident then lost (on-contact native ping timed out).
+   * Skip size-vs-available so Send can recover via ensureEngineForModel
+   * instead of repeating the P0 "not enough memory" dead end.
+   * Both lostModelId and requestedModelId must be set and equal —
+   * an unscoped recoverLost is ignored (fail closed).
+   */
+  recoverLost?: boolean;
+  lostModelId?: string | null;
+  requestedModelId?: string | null;
 };
 
 /**
@@ -337,6 +348,15 @@ export function decidePreSendFit(
 ): PreSendFitDecision {
   // Model already in-process: do not compare GGUF size vs leftover MemAvailable.
   if (opts?.alreadyResident) {
+    return { allow: true, bannerKey: null };
+  }
+  // OS stole the resident engine: leftover MemAvailable is the same double-
+  // count trap as P0. Reload is the recovery; allow the send path through.
+  // Unscoped recoverLost (missing or mismatched model id) is ignored.
+  if (
+    opts?.recoverLost &&
+    shouldRecoverLost(opts.lostModelId, opts.requestedModelId)
+  ) {
     return { allow: true, bannerKey: null };
   }
   const main =

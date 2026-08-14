@@ -59,12 +59,16 @@ import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
 import { classifyChatContent, type ContentFilterReason } from "../domain/contentFilter";
 import {
   getActiveModelId,
+  getEngineLostModelId,
   invalidateEngineSession,
+  isEngineLostRecovery,
   isEngineReady,
   markKvNonReproducible,
+  probeAndReconcileEngine,
   saveEngineSession,
   translateText,
 } from "../engine/LlamaService";
+import { shouldRecoverLost } from "../engine/engineLiveness";
 import {
   backgroundDiscardLifecycleRef,
   regenAbortRef,
@@ -1752,11 +1756,46 @@ export function AiChatPage({
    * resident bytes are what lowered MemAvailable (P0 double-count).
    */
   const awaitPreSendFitGate = useCallback(async (): Promise<HandleSendResult> => {
-    const mid = getActiveModelId();
-    // No active model yet → allow; ensureEngineForModel will surface load errors.
-    if (!mid) return { ok: true };
+    // sendClaimRef is this send's own lock — not a mid-stream busy. A
+    // completion already running (sendingInFlightRef / native jobs) must
+    // no-op the lost-mark so we never drop a live turn.
+    const liveness = await probeAndReconcileEngine({
+      busy: !!sendingInFlightRef.current,
+    });
+    if (liveness.status === "lost") {
+      onMemoryBanner?.("chat.unloaded");
+    }
+    const lostModelId = getEngineLostModelId();
+    const mid = getActiveModelId() ?? lostModelId;
+    // No active model and no lost mark → allow; ensureEngineForModel
+    // will surface load errors. After a scoped lost mark, mid is the
+    // lost model id so recoverLost cannot apply to a different model.
+    if (!mid) {
+      try {
+        console.log(
+          `KALSA_SEND ${JSON.stringify({
+            phase: "fit",
+            liveness: liveness.status,
+            alreadyResident: false,
+            recoverLost: false,
+            allow: true,
+            reasonKey: "no_active_model",
+          })}`,
+        );
+      } catch {
+        // breadcrumb must never throw
+      }
+      return { ok: true };
+    }
     const model = getModelById(mid);
-    const alreadyResident = isEngineReady() && getActiveModelId() === mid;
+    if (!model) {
+      return { ok: true };
+    }
+    const alreadyResident =
+      liveness.status === "alive" &&
+      isEngineReady() &&
+      getActiveModelId() === mid;
+    const recoverLost = shouldRecoverLost(lostModelId, mid);
     let available: number | null = null;
     try {
       available = await getAvailableMemoryBytesUncached();
@@ -1772,8 +1811,31 @@ export function AiChatPage({
         mmproj: model.mmproj ? { sizeBytes: model.mmproj.sizeBytes } : null,
       },
       available,
-      { alreadyResident },
+      {
+        alreadyResident,
+        recoverLost,
+        lostModelId,
+        requestedModelId: mid,
+      },
     );
+    try {
+      console.log(
+        `KALSA_SEND ${JSON.stringify({
+          phase: "fit",
+          liveness: liveness.status,
+          alreadyResident,
+          recoverLost,
+          allow: decision.allow,
+          reasonKey: decision.allow ? decision.bannerKey : decision.reasonKey,
+          availableMb:
+            typeof available === "number"
+              ? Math.round(available / (1024 * 1024))
+              : null,
+        })}`,
+      );
+    } catch {
+      // breadcrumb must never throw
+    }
     if (!decision.allow) {
       showVoiceNote(t(decision.reasonKey as any));
       onMemoryBanner?.(decision.reasonKey);
@@ -1876,6 +1938,32 @@ export function AiChatPage({
     ): Promise<HandleSendResult> => {
       const trimmed = text.trim();
       const hasAttachments = (currentAttachments?.length ?? 0) > 0;
+      let jsReady = false;
+      try {
+        jsReady = isEngineReady();
+      } catch {
+        jsReady = false;
+      }
+      try {
+        console.log(
+          `KALSA_SEND ${JSON.stringify({
+            empty: !trimmed && !hasAttachments,
+            sendClaim: !!sendClaimRef.current,
+            sending: !!sendingRef.current,
+            translation: !!translationInFlightRef.current,
+            voiceBusy: !!voiceBusyRef.current,
+            regen: !!regenInFlightRef.current,
+            regenPass: !!regenHandleSendPassRef.current,
+            pdf: !!pdfToRenderRef.current,
+            historyLoaded: !!historyLoaded,
+            jsReady,
+            lostRecovery: isEngineLostRecovery(),
+            activeModel: getActiveModelId(),
+          })}`,
+        );
+      } catch {
+        // breadcrumb must never throw
+      }
       // BLOCKER-3: synchronous ref check — not subject to React batching.
       // Also ignore send while a translation holds the engine (silent),
       // or while voice is listening/transcribing (voiceBusyRef is sync).
