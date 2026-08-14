@@ -275,6 +275,42 @@ does not finish the job.
 
 ---
 
+### 3.8 The primary metric scores "I don't know" the same as "I got it wrong"
+
+`fact_recall_*` grades found/not-found. A reply that correctly reports the facts are
+unavailable scores identically to one that invents them. Real Qwen3.5-4B baseline reply on
+`probe_facts_late`, scored 0.000:
+
+> *"Non posso ripetere i dati dei tuoi primi messaggi perché non ho memoria delle conversazioni
+> precedenti una volta che la sessione si è riavviata."*
+
+The facts genuinely were outside its window. The model is right and is punished for it.
+Counted across finished arms: **4B baseline 5 of 8 probe turns are explicit refusals; 2B
+baseline 6 of 12**. The stronger model refuses more, so it scores lower — 4B baseline 0.362 vs
+2B baseline 0.563.
+
+Consequences, in order:
+
+1. **It does NOT invalidate ciswire vs bare.** Retrieval genuinely supplies facts the window
+   lost; that comparison measures something real. What it invalidates is reading a low bare
+   score as *unreliability*. Bare is honest about its limit; ciswire removes the limit. That is
+   a capability difference, not a correctness one — and §1.3 was written as if it were the
+   latter.
+2. **Cross-model comparison of the baseline is unsafe.** A model that confabulates more looks
+   better. "4B bare 0.362 vs 2B bare 0.563" does not mean the 4B remembers worse.
+3. **It contaminates any fine-tuning decision.** If a fine-tune shifts how readily the model
+   declines, this metric moves for the wrong reason and the change gets miscredited.
+
+Fix in flight: three outcomes per probe — recovered / asserted-but-wrong / **declined** — with
+declined excluded from the denominator like blank replies already are, and reported per arm so
+an arm that declines everything is readable as such. Detection must be wordlist-free: the
+signal is whether the reply asserts any fact-shaped token at all (the distinctive-token
+primitive from `entityContainment.ts`, already verified across four languages), not how it is
+phrased.
+
+Open question flagged with it: the `honesty` family may be rewarding the very reply
+`fact_recall` punishes — the same turn scored good by one family and bad by another.
+
 ## 3.7 Process failures the audit caught (fixed) — and one still open
 
 - **Three suites were not gated by CI.** No workflow ran jest, and `bench.yml` omitted
@@ -338,3 +374,4 @@ does not finish the job.
 | 2026-08-14 | First version. Conclusions from campaigns `31739205810` and `31760516762`. 4B campaign `31807501488` launched; memory instrumentation and a hostile audit of `cc703e6`/`aa2f350` in flight — **both may change §1.3 and §3**. |
 | 2026-08-14 | **§1.1 retracted and rewritten.** Measured the gate rule offline: it blocks legitimate searches (a good query paraphrases the question, scoring 0.39-0.68) and passes spurious ones (0.15). The 2/96 web-turn figure is the gate refusing, not the model abstaining. Added §3.5: with memory on, the same 0.18 threshold blocks ordinary Italian queries ("ricetta pasta al forno" = 0.182). Both are shipping blockers. |
 | 2026-08-14 | Hostile audit of `c93d163` on an isolated worktree. §1.3 confidence raised — both fabrication routes closed with quoted code. Added §3.7: three suites shipped ungated by CI, a harness that could not fail, and a NOT-RUN verdict that would have failed the next campaign — all fixed. Identity leak past the containment guard still open; the first fix attempt was reverted for adding a language wordlist that blocked ordinary German and Spanish queries. |
+| 2026-08-14 | §1.1 resolved: echo-of-context inverted and shipped (`5b3ba90`) — it blocked 100% of explicitly requested searches; verified across six scripts, with CJK abstention documented. Added §3.8: the fact metric conflates an honest refusal with a wrong answer, which penalises stronger models and makes cross-model baseline comparison unsafe. |
