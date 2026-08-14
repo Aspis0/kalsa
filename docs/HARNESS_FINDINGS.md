@@ -1,0 +1,207 @@
+# Harness findings — what we know, how well we know it
+
+Living document. **Update it every time a review lands or new data arrives**, including when a
+finding is weakened or refuted. The change log at the bottom is not optional: a conclusion that
+silently changed is worse than no conclusion.
+
+Goal it serves: make Kalsa's harness better than a bare sliding window on an on-device chat —
+tool calls, context that survives, memory.
+
+Last updated: 2026-08-14 · Evidence: campaigns `31739205810` (window 10) and `31760516762`
+(window 16), Qwen3.5-2B, 6 seeds/arm, 16-turn conversations, Italian, CI emulator.
+
+---
+
+## 1. Decided — act on these
+
+### 1.1 The tool-call gate is essential, and for a bigger reason than precision
+
+| gate | tool precision | turns that hit the web | fact recall |
+|---|---|---|---|
+| on (`baseline`) | 0.374 | **2** / 96 | **0.563** |
+| off (`nogate`) | 0.263 | **37** / 96 | **0.000** |
+
+Turning the gate off does not merely cost precision: the model **substitutes web search for
+recall**. It searches instead of remembering, answers from search results, and fact recall
+collapses to zero (4 of 6 seeds scored 0 on all 16 probes, with no errors and no empty replies —
+clean runs, total failure).
+
+**Confidence: high.** n=6, mechanism visible and consistent, large effect.
+
+### 1.2 Losing context *causes* tool misuse — the two axes are not independent
+
+Share of turns where the model reached for the web, by position in the conversation:
+
+| arm | turns 1–5 | 6–10 | 11–16 |
+|---|---|---|---|
+| `off` (bare) | 0% | 0% | 6% |
+| `ciswire` | 0% | 0% | 8% |
+| `v42` | 0% | 7% | **22%** |
+
+`v42` shrinks the verbatim window, and as the conversation grows the model stops finding the
+answer in context and goes searching. Modes that keep context flat do not degrade.
+
+**Confidence: medium-high.** One model, one campaign, clear monotone trend.
+
+### 1.3 `ciswire` mode beats both bare and `v42`
+
+Primary endpoint = per-conversation mean of early and late fact recall. Window 16 (the graded
+regime, where bare still has partial access — not the floor):
+
+| arm | n | early | late | **mean** | sd |
+|---|---|---|---|---|---|
+| `off` (bare) | 6 | 0.563 | 0.563 | **0.563** | 0.409 |
+| `ciswire` | 6 | 0.938 | 0.979 | **0.958** | **0.051** |
+| `v42` | 5 | 0.550 | 0.500 | **0.525** | 0.095 |
+
+- `ciswire` vs bare: **+0.396, p = 0.0249** (exact, 924 assignments, unit = conversation)
+- `ciswire` vs `v42`: **+0.433, p = 0.0043** (exact, 462)
+- `v42` vs bare: −0.037, p = 0.60 — **indistinguishable from doing nothing**
+
+The strongest signal is not the mean but the **variance**: `ciswire` sd 0.051 vs bare 0.409. It
+is not just better on average, it is reliable.
+
+**Confidence: medium.** One model, one language, n=6, emulator. See §3 for what would raise it.
+
+### 1.4 What the three modes actually do
+
+- **`off`** — last 20 messages verbatim (8 with images), each capped at 4000 chars. Anything
+  older is gone.
+- **`v42`** — **shrinks** the verbatim window to ~6 recent messages (boundary advances every 3
+  user turns) and compensates with a BM25 digest of the older corpus **plus a rolling LLM
+  summary**.
+- **`ciswire`** — **keeps the full 20-message window, identical to bare**, and **adds** a BM25
+  digest of everything outside it. Purely additive.
+
+**Why `v42` loses**: it is a trade — it gives up verbatim context to buy a summary, and **the
+summary is never built**. Measured: `summaryChars = 0` on every arm of every campaign; the
+scheduler condition (`turnsSinceRebuild !== K-1`) is unreachable whenever the boundary advances
+on size. So `v42` pays the cost and never collects the benefit.
+
+**Why `ciswire` wins**: it removes nothing and can only add. Structurally it cannot recall less
+than bare. Its cost is +6.7% prefill and ~25 ms of ranking per turn.
+
+### 1.5 Retrieval is affordable on a phone
+
+Measured on-device (Hermes, CI emulator), from `KALSA_DIGEST`:
+
+| corpus (docs) | ranking time |
+|---|---|
+| 74 | 7 ms |
+| 128 | 9 ms |
+| 156 | 6 ms |
+| 363 | 25 ms |
+
+≈ **0.07 ms per document**, about **9× slower than the same code on a laptop (V8)** — that
+factor is the useful calibration for future estimates. Corpus is bounded by
+`MAX_DIGEST_CORPUS_MESSAGES`.
+
+### 1.6 The free hybrid n-gram leg is redundant — do not ship it for retrieval quality
+
+Kalsa's BM25 is **already character 3/4-gram based** (`retriever.ts` `ngramCounts` emits char
+3-grams and 4-grams; `bm25plus` scores over those). Porting CisWire's hashed 3-gram cosine leg
+therefore duplicates the existing ranker: the best case anyone could construct is a rank 2 → 1
+promotion on an inflected form, never a recovery. It is committed behind
+`kalsa.bench.ranking=hybrid`, **off by default**, as a lexical leg for a future dense fusion.
+
+Consequence for the 132 MB e5-small option: it must buy **synonymy**, not robustness to
+inflection or typos. That is the only thing left for it to buy.
+
+---
+
+## 2. What to tell whoever develops Kalsa
+
+**Not** "replace Kalsa with CisWire". Kalsa imports **zero** lines of CisWire code — verified.
+The mode named `ciswire` is Kalsa's own code implementing a CisWire-*inspired* strategy (full
+window + additive digest) with Kalsa's own BM25. What won is a strategy already in the repo.
+
+1. **Make `ciswire` the default** — today `parseContextMode(null) → "off"`, so shipped devices
+   run bare. The winning mode is present and switched off. **Blocked on §3.1.**
+2. **Retire `v42`** — equal to bare on recall, 22% spurious web searches late in the
+   conversation, and the most empty replies.
+3. **The rolling summary is dead code in practice** — it never runs. Fix it or remove it; it is
+   half of `v42`'s rationale.
+4. **Production defect, independent of all the above**: `windowCharBudget` (16 000 chars ≈ 4k
+   tokens) is a constant never derived from the engine window, while `effectiveNCtx` can be
+   clamped to 2048 on low-RAM devices. Nothing bounds the assembled prompt by `n_ctx`;
+   `assembleEngineHistory` caps message *count* and per-message *chars* only. On overflow,
+   text-only chats rely on `ctx_shift: true` (llama.cpp evicts silently, app unaware) and
+   multimodal chats have `ctx_shift: false` with no fallback. **`n_keep` is never set anywhere**,
+   so we do not control what survives a shift. Not verified: llama.rn's exact ctx_shift/n_keep
+   semantics — read `node_modules/llama.rn/cpp/` before acting.
+
+---
+
+## 3. Open — do not claim these are settled
+
+### 3.1 Treated arms produce more empty replies (blocker for making `ciswire` default)
+
+Blank assistant bubbles per campaign: `ciswire` 6, `v42` 8, bare 3, `nogate` 4. Roughly double
+on the treated arms, in both campaigns. An assistant that recalls facts but shows a blank bubble
+~1 turn in 12 is not obviously better for a user. **Cause unknown. Close this before changing
+any default.**
+
+### 3.2 Generalisation beyond one model
+
+Everything above is Qwen3.5-2B — which is the **low-RAM fallback**, not the shipped default
+(`recommendedModelId`: high RAM → `qwen3.5-4b`). Campaign `31807501488` runs the 4B in the same
+graded regime; LFM2.5-2.6B is next. Prediction on record: **the effect should shrink on the 4B**
+— a stronger model holds more context and needs the crutch less. If it shrinks a lot, the
+conclusion becomes "the harness rescues small models", which is still valuable but changes the
+default recommendation.
+
+Risk on record: a 2B arm took **143 min median** against a 300-min cap; the 4B may hit it.
+
+### 3.3 Memory: still zero measurements
+
+`kalsa.memory.enabled` has been `'0'` in every arm of every campaign. Instrumentation is being
+built: counters-only telemetry, a **NOT-RUN verdict when an arm has memory on but an empty
+store**, and a privacy probe asserting the echo guard blocks a stored personal fact from
+reaching a web-search query. No numbers yet.
+
+### 3.4 Spurious tool calls survive the gate
+
+17 spurious calls still get through with the gate on. The gate more than doubles precision but
+does not finish the job.
+
+---
+
+## 4. Refuted — do not re-derive these
+
+- **"`n_ctx` drives compaction."** False. `shouldRebuild` fires on a K-turn cadence and on
+  `windowCharBudget`, and never reads `n_ctx`. Shrinking `n_ctx` only makes llama.cpp truncate.
+- **"`windowCharBudget` is the lever for the primary arm."** False for `ciswire`: its corpus is
+  `legacyWindowStartIndex(...)` and its history is the legacy window, so the boundary that
+  budget moves reaches nothing the model sees. It only affects `v42`.
+- **"The benchmark never compacted."** Too strong. The K-turn cadence fired ~5× per
+  conversation; what never happened was engine-level context pressure (peak 4968 prompt tokens
+  against a 16384 window = 30% fill).
+- **"CisWire loses on honesty."** False — that was a broken grader, in both directions.
+- **"The APK was built without the native patches."** False — the patch applied every time; the
+  proof marker was in a binary the assert never inspected.
+- **"n_ctx = 4096 puts the bench in the phone regime."** False, see above. The lever that
+  reproduces phone-like eviction for `off` and `ciswire` is `LEGACY_MAX_HISTORY`
+  (`kalsa.bench.legacywindow`).
+
+---
+
+## 5. Method notes that earned their place
+
+- **A label is not evidence.** Positive controls demand direct proof of mechanism
+  (`digestCharsByTurn > 0`, observed `toolGateActive`), never the arm name. Three campaigns were
+  spent measuring a retrieval system whose digest was empty.
+- **Prompt-token divergence is not a mechanism signal** — arms diverge from generation noise
+  alone. Removed from the verdict.
+- **Every new assertion must be seen failing.** One test in this repo was structurally vacuous
+  (4-document corpus with topN 4, plus a both-agree escape branch) and another harness ran green
+  for a day against a stale compiled build.
+- **Run the whole offline harness suite from a wiped build dir**, not jest alone, and not a
+  subset.
+
+---
+
+## Change log
+
+| date | change |
+|---|---|
+| 2026-08-14 | First version. Conclusions from campaigns `31739205810` and `31760516762`. 4B campaign `31807501488` launched; memory instrumentation and a hostile audit of `cc703e6`/`aa2f350` in flight — **both may change §1.3 and §3**. |
