@@ -1,0 +1,2 @@
+/data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=27859 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-14T10:28:46-04:00

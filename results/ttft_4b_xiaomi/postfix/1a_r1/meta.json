@@ -1,0 +1,156 @@
+{
+  "utc": "2026-08-14T14:21:18.976157+00:00",
+  "serial": "adb-625689a2-9xEOfw._adb-tls-connect._tcp",
+  "pkg": "com.kalsa.app",
+  "power": {
+    "ac": "false",
+    "usb": "false",
+    "wireless": "false",
+    "level": 60,
+    "status": "3",
+    "temp_tenths_c": "329",
+    "temp_c": 32.9,
+    "wakefulness": "Awake"
+  },
+  "metrics": {
+    "ttft_json": null,
+    "mark_ts": "08-14 10:20:54.531",
+    "telemetry": [
+      {
+        "ts": "08-14 10:20:56.848",
+        "turnId": "1",
+        "round": 0,
+        "tokensCached": 1197,
+        "tokensEvaluated": 1187,
+        "tokensPredicted": 9,
+        "draftTokens": 0,
+        "draftAccepted": 0,
+        "promptMs": 70655.162,
+        "predictedMs": 892.534,
+        "predictedPerSecond": 10.083649474417783,
+        "contextFull": false,
+        "interrupted": false
+      }
+    ],
+    "first_telemetry": {
+      "ts": "08-14 10:20:56.848",
+      "turnId": "1",
+      "round": 0,
+      "tokensCached": 1197,
+      "tokensEvaluated": 1187,
+      "tokensPredicted": 9,
+      "draftTokens": 0,
+      "draftAccepted": 0,
+      "promptMs": 70655.162,
+      "predictedMs": 892.534,
+      "predictedPerSecond": 10.083649474417783,
+      "contextFull": false,
+      "interrupted": false
+    },
+    "prewarm": {
+      "events": [
+        {
+          "ts": "08-14 10:19:14.176",
+          "op": "start",
+          "hash": "2665666730",
+          "systemChars": 3015,
+          "toolCount": 3
+        },
+        {
+          "ts": "08-14 10:19:45.430",
+          "op": "done",
+          "promptMs": 30915.481,
+          "hash": "2665666730"
+        }
+      ],
+      "start": {
+        "ts": "08-14 10:19:14.176",
+        "op": "start",
+        "hash": "2665666730",
+        "systemChars": 3015,
+        "toolCount": 3
+      },
+      "done": {
+        "ts": "08-14 10:19:45.430",
+        "op": "done",
+        "promptMs": 30915.481,
+        "hash": "2665666730"
+      },
+      "duration_s": 31.254,
+      "prompt_ms": 30915.481,
+      "reuse": {
+        "reused": 1174,
+        "total": 1187
+      },
+      "kvdiag": [
+        {
+          "n_past": 0,
+          "tokens_on_disk": 0,
+          "ok": false
+        }
+      ],
+      "eager": true
+    },
+    "ttft_ms": 1424,
+    "ttft_source": "telemetry_minus_predicted",
+    "prompt_ms": 70655.162,
+    "predicted_ms": 892.534
+  },
+  "scenario": "1a",
+  "rep": 1,
+  "send_info": {
+    "tap": [
+      1083,
+      1656
+    ],
+    "prompt": "ciao",
+    "typed": "ciao",
+    "mark": "1a_r1",
+    "send_method": "center_tap",
+    "retry": false,
+    "ime_enter": false,
+    "engine_hit": true
+  },
+  "prewarm_watch": {
+    "events": [
+      {
+        "ts": "08-14 10:19:14.176",
+        "op": "start",
+        "hash": "2665666730",
+        "systemChars": 3015,
+        "toolCount": 3
+      },
+      {
+        "ts": "08-14 10:19:45.430",
+        "op": "done",
+        "promptMs": 30915.481,
+        "hash": "2665666730"
+      }
+    ],
+    "start": {
+      "ts": "08-14 10:19:14.176",
+      "op": "start",
+      "hash": "2665666730",
+      "systemChars": 3015,
+      "toolCount": 3
+    },
+    "done": {
+      "ts": "08-14 10:19:45.430",
+      "op": "done",
+      "promptMs": 30915.481,
+      "hash": "2665666730"
+    },
+    "duration_s": 31.254,
+    "prompt_ms": 30915.481,
+    "reuse": null,
+    "kvdiag": [
+      {
+        "n_past": 0,
+        "tokens_on_disk": 0,
+        "ok": false
+      }
+    ],
+    "eager": true
+  },
+  "notes": "wait_s=90.0;ui_after_fail:uiautomator dump failed: overlay pkg=com.miui.home"
+}

@@ -26,12 +26,17 @@
 > proposition è che lavoreremo sempre su LLM appena uscite** (day-zero
 > enablement dove upstream ha solo fallback lenti + streaming-aware paths
 > che upstream non farà mai + efficienza termica). Lane vive: (1) KERNEL
-> — pista attuale K-E "efficiency/thermal" in volo (i8mm = −21% CPU-time
-> per op a wall pari → J/token e throttle sostenuto MAI misurati; la pista
-> SPEED CPU t2 resta chiusa coi 3 bench); prossima candidata K-G = GPU
-> prefill executor A7X (TTFT 1.3-1.7× misurato + sposta il calore fuori
-> dalla CPU; prima M2-carta). (2) SELFSPEC F1b diagnosi in volo. (3) PPL
-> gate in corso. Bug app P0/P1 trovati sul Xiaomi (KNOWN_ISSUES ab3b747):
+> — **K-E MORTA (KE_NULL, 2026-08-14): l'i8mm non gira mai nel motore
+> reale — i kernel mmla vivono solo nel path REPACK che gli esperti
+> streamati bypassano (`use_extra_bufts=false` portante); decode +1.1%
+> cpu, wall −2.4% = rumore, il −6.3% cpu-time era artefatto n_gen; anche
+> il sustained confondato dall'ordine termico. Kill criterion rispettato.**
+> Paniere p-value del kernel = dispatcher/config (misurato, enorme) +
+> K-G GPU prefill (gated su boundary prototype) + layer-ahead (gated su
+> telemetria). (2) SELFSPEC F1b diagnosi in volo. (3) PPL gate in corso.
+> **(4) TTFT: PREWARM_UNIVERSAL — Xiaomi 4B post-fix P0: 1a 1.42/2.02 s,
+> riuso 1174/1187 (98.9%), prewarm 29-31 s, 1b join 26 s; fix memguard
+> mergiato su ai-chat main (b274fb9, harness 27/27); P1 zombie APERTO.** Bug app P0/P1 trovati sul Xiaomi (KNOWN_ISSUES ab3b747):
 > fix autorizzato via "sbrigati TTFT" (in volo). Il resto resta congelato.
 >
 > 📐 **DECISIONI gualt (2026-08-14):**

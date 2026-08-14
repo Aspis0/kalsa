@@ -1,0 +1,8 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+A Mixture-of-Experts (MoE) model consists of multiple distinct "expert" neural networks that are activated selectively for each input token based on a learned routing mechanism, which directs data to the most relevant subset of experts. This sparse activation significantly reduces the computational cost during inference because the model only processes a small fraction of its total parameters for any given token, rather than running all of them through.
+
+*   **Routing and Compute Efficiency**: The routing mechanism acts as a dynamic gatekeeper that determines which experts handle each token, ensuring that only a few experts are active per token. This sparsity allows the model to scale up its total parameter count—improving accuracy and capacity—without increasing the actual floating-point operations (FLOPs) required for inference, thereby saving energy and processing time.
+*   **On-Device Memory Constraints**: Despite the low compute requirements, the entire model's weights must still be downloaded and stored on the phone's storage because the routing logic can change
+

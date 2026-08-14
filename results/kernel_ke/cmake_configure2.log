@@ -1,0 +1,61 @@
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  CMakeLists.txt:22 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  CMakeLists.txt:22 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-CXX.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXInformation.cmake:48 (include)
+  CMakeLists.txt:22 (project)
+
+
+CMAKE_BUILD_TYPE=Release
+-- Setting GGML_NATIVE_DEFAULT to OFF
+-- Warning: ccache not found - consider installing it for faster compilation or disable this warning with GGML_CCACHE=OFF
+-- CMAKE_SYSTEM_PROCESSOR: aarch64
+-- GGML_SYSTEM_ARCH: ARM
+-- Including CPU backend
+-- ARM detected
+-- Checking for ARM features using flags:
+--   -march=armv8.6-a+dotprod+fp16+i8mm
+-- Adding CPU backend variant ggml-cpu: -march=armv8.6-a+dotprod+fp16+i8mm 
+-- ggml version: 0.16.0
+-- ggml commit:  e5605f3bd
+-- Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR (missing: OPENSSL_CRYPTO_LIBRARY OPENSSL_INCLUDE_DIR) 
+CMake Warning at third_party/llama.cpp/vendor/cpp-httplib/CMakeLists.txt:152 (message):
+  OpenSSL not found, HTTPS support disabled
+
+
+-- bmoe: expert-ready hook present (I/OΓÇôcompute overlap available)
+-- BigMoeOnEdge: llama.cpp present = ON
+-- Configuring done (1.7s)
+-- Generating done (0.4s)
+-- Build files have been written to: C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke

@@ -1,0 +1,31 @@
+-m
+/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+-p
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant:
+-n
+200
+--n-expert-used
+6
+--moe-stream
+--cache-mb
+2000
+--dense-weights
+anon
+--overlap
+--io-threads
+4
+--ubatch
+512
+-t
+2
+-c
+4096
+--temp
+0
+--chatml
+--no-think
+--drop-cold-experts
+1.0

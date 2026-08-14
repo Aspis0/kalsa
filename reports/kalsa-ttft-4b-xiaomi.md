@@ -1,42 +1,63 @@
 # kalsa-ttft-4b-xiaomi
 
 **Question:** does the TTFT-v2 prewarm recipe (eager engine kick + static-prefix prewarm) generalize from Jelly 2B to Qwen3.5-4B on Xiaomi 14?
-**App:** `com.kalsa.app` 0.1.0 @ `bea257e` (main merge of `fix/ttft-v2`)
-**APK:** `results/ttft_4b_xiaomi/kalsa-ttft-v2-bea257e.apk` sha `2B71032D87B3B6A695AE7ABECDEF4FA63DF75276C4D2AE56A0D1FD47417CA4CA` · assembleRelease arm64 · `--max-workers=4` · installed `-r` 2026-08-14 06:12 (existing 2026-08-09 install **not wiped**, 4736 MiB data kept)
 **Device:** Xiaomi 14 · houji · 23127PN0CG · SM8650 · wireless adb `adb-625689a2-9xEOfw._adb-tls-connect._tcp`
-**Model:** in-app catalog `qwen3.5-4b` (official MTP Q4_K_M + mmproj). Campaign file `/data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf` 2740937888 B sha `00fe7986…ef11a4` MATCH, copied to `/sdcard/Download/` only (gdn tree untouched). App already had the catalog bundle; eagerInit selected `qwen3.5-4b`.
-**Power:** UNPLUGGED the whole window. 100% → 87% · 29–35 °C (abort 43 °C never approached).
+**Model:** in-app catalog `qwen3.5-4b` (official MTP Q4_K_M + mmproj). `/data/local/tmp` tree not written.
 **S23 / Jelly:** not touched.
+
+### Post-fix APK (the numbered run)
+
+**App:** `com.kalsa.app` @ `fix/memguard-p0` `4f5c034` (P0 send-path skip when the requested model is already resident).
+**APK:** `results/ttft_4b_xiaomi/kalsa-memguard-p0-4f5c034.apk` sha256 `AE2AA467966886FA04D53C92BDFC8391F5611B4AC054E4D10CE0DD7F29BB3E2F` · assembleRelease arm64 · `--max-workers=4` · installed `-r` 2026-08-14 ~14:15 UTC (no wipe). Bundle contains `alreadyResident`.
+**Power:** UNPLUGGED the whole window. 62% → 56% · 30.5–35.6 °C (abort 43 °C never approached). Screen unlocked by owner. USB debugging (Security settings) ON — synthetic `input tap` lands.
 
 ---
 
 ## Verdict
 
-**PREWARM_PARTIAL(1a_ttft_unmeasured).**
+**PREWARM_UNIVERSAL.** **FIX_VERIFIED** (harness 27/27 + on-device Send after 4B resident).
 
-The recipe **runs** on this SoC + 4B: `engine.eagerInit` fires, `KALSA_PREWARM start→done` completes in **~43 s** over **1510** prefix tokens (~35 tok/s). That is the hidden boot cost. First-send TTFT and the `reusing X/Y` fraction were **not clocked**: HyperOS right-edge back eats injected taps on the Send control (x≳1030 / 1200), and a SystemUI restart to apply `back_gesture_inset_scale_right=0` re-locked the PIN. Left-side taps (Menu, attach, mic) work. Protocol send = tap Send.
+Both 1a reps land in the 1–3 s class with `reusing 1174/1187` (98.9% of the **actual** prefix; this APK/session is 1179 prewarm / 1187 send, not the earlier 1510). Hidden boot cost is a ~30 s prefill.
 
-Do **not** cite a 1–3 s 1a number from this run.
+P0 ("not enough memory" with the model already loaded) is gone on this device. P1 (idle unload / zombie Ready header) is **not** covered by this fix.
 
 ---
 
 ## vs Jelly 2B (kalsa-ttft-v2-jelly.md)
 
-| | Jelly 2B Q4_K_M | Xiaomi 14 4B Q4_K_M |
-|---|---|---|
-| SoC | Helio G99 | SM8650 |
-| `engine.eagerInit` | yes | **yes** (3/3 colds) |
-| `initLlama` / load | 6.6 s | first-ever 52.1 s (cold page cache); later colds **11.5 / 12.1 / 14.4 s** |
-| Prewarm tokens | ~1293 | **1510** (`n_past=0`, `embd.size=1510`) |
-| Prewarm `promptMs` | 40.1 s | **44.4 / 42.3 / 42.5 s** |
-| Prefill rate | ~28 tok/s | **~35 tok/s** |
-| 1a TTFT | **1.40 s** · `reusing 1276/1293` | **not measured** |
-| 1b (join) | 39.5 s | not run |
-| swipe-kill | 2.48 s | not run |
-| KVDIAG after restore | n_past:0 | n_past:0 · `no_meta` / `meta_mismatch` (expected, hybrid) |
-| Foreground gate | — | **CONFIRMED**: behind lock `KALSA_PREWARM skip reason=background` |
+| | Jelly 2B Q4_K_M | Xiaomi 14 4B (pre-fix, unmeasured send) | Xiaomi 14 4B **post P0 fix** |
+|---|---|---|---|
+| SoC | Helio G99 | SM8650 | SM8650 |
+| APK | `fix/ttft-v2` | `bea257e` | `fix/memguard-p0` `4f5c034` |
+| `engine.eagerInit` | yes | yes (3/3 colds) | **yes** (1a×2 + 1b) |
+| `initLlama` / load | 6.6 s | first-ever 52.1 s; later 11.5 / 12.1 / 14.4 s | later-cold class (prewarm starts ~4–14 s after launch) |
+| Prewarm tokens | ~1293 | **1510** | **1179** (`embd.size`; send total **1187**) |
+| Prewarm `promptMs` | 40.1 s | 44.4 / 42.3 / 42.5 s | **30.9 / 29.1 / 33.1 s** |
+| Prefill rate | ~28 tok/s | ~35 tok/s | **~38 tok/s** (1179 / 31 s) |
+| 1a TTFT | **1.40 s** · `reusing 1276/1293` | not measured (taps eaten) | **1.42 s / 2.02 s** · `reusing 1174/1187` |
+| 1b (join) | 39.5 s | not run | **26.0 s** · remaining prewarm + 2.52 s · `reusing 1174/1247` |
+| swipe-kill | 2.48 s | not run | not run (out of this mandate) |
+| Send after 4B resident | — | **blocked** (P0 memguard) | **works** |
+| Foreground gate | — | behind lock: `skip reason=background` | n/a (screen unlocked) |
 
-The 4B prefix is **heavier** (1510 vs ~1293) but **not slower in wall time** on this phone. The hidden cost the user never sees is still a ~40 s class prefill, same order as Jelly 2B.
+The earlier campaign's 1510-token prefix was heavier than Jelly's ~1293 and still ~40 s class. The post-fix session prefix is **1179 / 1187** and the hidden prefill is **~30 s** — still the cost the user never sees on a cold launch, just cheaper on this SoC.
+
+---
+
+## Post-fix numbers (2026-08-14 ~14:15–14:32 UTC)
+
+Prompt: `ciao`. Clock: `TTFT_MARK` → first `KALSA_TELEMETRY` (`ttft ≈ telemetry_ts − predictedMs`). Artefacts: `results/ttft_4b_xiaomi/postfix/` + `timings.csv`.
+
+| # | Gate | Measured | Detail |
+|---|---|---|---|
+| 1a r1 | eager; TTFT 1–3 s; reuse >90% | **1.424 s** | eagerInit yes; prewarm 31.254 s / 30915 ms; `reusing 1174/1187`; 60% 32.9 °C UNPLUGGED |
+| 1a r2 | same | **2.016 s** | prewarm 29.413 s / 29088 ms; `reusing 1174/1187`; 59% 33.9 °C UNPLUGGED |
+| 1b r1 | join | miss | Send during model-load, 4 s before `KALSA_PREWARM start`. No user `loadPrompt`. |
+| 1b r2 | join after `KALSA_PREWARM start` | **25.992 s** | remaining prewarm + 2.52 s user `promptMs`; `reusing 1174/1247`; 56% 35.6 °C UNPLUGGED |
+
+1a r1 device timestamps: `TTFT_MARK` 10:20:54.531 → `loadPrompt` 10:20:54.802 (`reusing 1174/1187`, `n_past=1174`) → `KALSA_TELEMETRY` 10:20:56.848 (`predictedMs` 892.5). No `model.tooLarge`.
+
+P0 was the other blocker on this phone: after prewarm, HyperOS `MemAvailable` ~2.1 GB vs 2.7 GB GGUF → Send refused. `alreadyResident` skips that check. Harness: loaded + low available → allow; unloaded + low → still refuse.
 
 ---
 
@@ -74,8 +95,38 @@ Behind-lock diagnostic (06:19): eagerInit `qwen3.5-4b`, load **52.1 s**, mmproj 
 
 ---
 
-## Next (if someone has the PIN)
+## Next (superseded)
 
-Keep 3-button nav. After unlock, confirm a right-edge tap now reaches Send. Then 1a ×2, 1b, swipe. Gate: 1a TTFT in the 1–3 s class **and** `reusing` >90% of 1510.
+The PIN / right-edge-tap blockers are closed: owner unlocked the phone and enabled **USB debugging (Security settings)**. The 1a/1b numbers above are the ones to cite. Swipe-kill was out of this mandate. P1 idle-zombie is still open.
+
+---
+
+## Retry 2026-08-14 ~08:50 (clock-only — stopped on PIN)
+
+**Verdict still PREWARM_PARTIAL(1a_ttft_unmeasured).** No 1a/1b numbers. Upgrade to PREWARM_UNIVERSAL not earned.
+
+Attempted the surgical retry on the same device/APK/4B (no reinstall, no wipe, S23/Jelly untouched). UNPLUGGED 76% → 75% · 33.5–33.6 °C.
+
+| step | result |
+|---|---|
+| `KEYCODE_WAKEUP` | leaves HyperOS **Dozing/AOD** (black + fingerprint circle) |
+| `KEYCODE_POWER` | **Awake**, full lockscreen (clock + media card + fingerprint) |
+| `wm dismiss-keyguard` | **does not** clear this lock (`NotificationShade`, `mDreamingLockscreen=true`) |
+| mid-screen swipe-up | reveals **PIN + fingerprint bouncer** (`id/keyguard_pin_view`, “Enter PIN or use fingerprint to unlock”) |
+| PIN in prior artefacts | **no** — not typed, not guessed |
+
+`navigation_mode` is still **2** (gestures). `back_gesture_inset_scale_right=0` is already set; applying it last run required a SystemUI bounce that re-showed this PIN. Do **not** bounce SystemUI.
+
+Send center-tap and KEYCODE_ENTER were not reached (app behind keyguard → prewarm would `skip reason=background` again).
+
+Human unlock (PIN or fingerprint, ~30 s) then 1a ×2 / 1b ×1. After send, read `KALSA_PREWARM` `op=done`, `RNLlama : loadPrompt`, first `KALSA_TELEMETRY`, and `reusing X/Y`.
+
+Artefacts: `results/ttft_4b_xiaomi/retry_lock/` (`immed.xml` = PIN pad). Task report: scratchpad `agents/ttft-4b-xiaomi-retry/report.md`.
+
+---
+
+## Post-fix artefacts
+
+`results/ttft_4b_xiaomi/postfix/` — 1a_r1, 1a_r2, 1b_r1 (load-time miss), 1b_r2 (join), `timings.csv`. APK + sha in `sha_records.md`. Task report: scratchpad `agents/ttft-p0fix-measure/report.md`.
 
 DONE

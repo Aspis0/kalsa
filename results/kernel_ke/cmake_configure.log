@@ -1,0 +1,606 @@
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  CMakeLists.txt:22 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  CMakeLists.txt:22 (project)
+
+
+-- The CXX compiler identification is Clang 18.0.2
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-CXX.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXInformation.cmake:48 (include)
+  CMakeLists.txt:22 (project)
+
+
+-- Detecting CXX compiler ABI info
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-ju9ur5/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-ju9ur5/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-CXX.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-ju9ur5/CMakeLists.txt:3 (project)
+
+
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang++.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- The C compiler identification is Clang 18.0.2
+-- Detecting C compiler ABI info
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-yczkao/CMakeLists.txt:2 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-yczkao/CMakeLists.txt:2 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-C.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-yczkao/CMakeLists.txt:2 (project)
+
+
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+CMAKE_BUILD_TYPE=Release
+-- Found Git: C:/Program Files/Git/cmd/git.exe (found version "2.54.0.windows.1")
+-- The ASM compiler identification is Clang with GNU-like command-line
+-- Found assembler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe
+-- Setting GGML_NATIVE_DEFAULT to OFF
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-5fqnkd/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-5fqnkd/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-C.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-5fqnkd/CMakeLists.txt:3 (project)
+
+
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Check if compiler accepts -pthread
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-hq39fz/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-hq39fz/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-C.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-hq39fz/CMakeLists.txt:3 (project)
+
+
+-- Check if compiler accepts -pthread - yes
+-- Found Threads: TRUE
+-- Warning: ccache not found - consider installing it for faster compilation or disable this warning with GGML_CCACHE=OFF
+-- CMAKE_SYSTEM_PROCESSOR: aarch64
+-- GGML_SYSTEM_ARCH: ARM
+-- Including CPU backend
+-- ARM detected
+-- Performing Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-u7iq79/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-u7iq79/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-CXX.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-u7iq79/CMakeLists.txt:3 (project)
+
+
+-- Performing Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E - Failed
+-- Checking for ARM features using flags:
+--   -march=armv8.6-a+dotprod+fp16+i8mm
+-- Performing Test HAVE_DOTPROD
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-m49j9q/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-m49j9q/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-CXX.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-m49j9q/CMakeLists.txt:3 (project)
+
+
+-- Performing Test HAVE_DOTPROD - Success
+-- Performing Test HAVE_SVE
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-bjqm5t/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-bjqm5t/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-CXX.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-bjqm5t/CMakeLists.txt:3 (project)
+
+
+-- Performing Test HAVE_SVE - Failed
+-- Performing Test HAVE_MATMUL_INT8
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-659dsa/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-659dsa/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-CXX.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-659dsa/CMakeLists.txt:3 (project)
+
+
+-- Performing Test HAVE_MATMUL_INT8 - Success
+-- Performing Test HAVE_FMA
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-l07h3m/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-l07h3m/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-CXX.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-l07h3m/CMakeLists.txt:3 (project)
+
+
+-- Performing Test HAVE_FMA - Success
+-- Performing Test HAVE_FP16_VECTOR_ARITHMETIC
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-m869l5/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-m869l5/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-CXX.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-m869l5/CMakeLists.txt:3 (project)
+
+
+-- Performing Test HAVE_FP16_VECTOR_ARITHMETIC - Success
+-- Performing Test HAVE_SME
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-5lygnt/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-5lygnt/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-CXX.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCXXInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-5lygnt/CMakeLists.txt:3 (project)
+
+
+-- Performing Test HAVE_SME - Failed
+-- Adding CPU backend variant ggml-cpu: -march=armv8.6-a+dotprod+fp16+i8mm 
+-- ggml version: 0.16.0
+-- ggml commit:  e5605f3bd
+-- Looking for pthread_create in pthreads
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-0uhvxr/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-0uhvxr/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-C.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-0uhvxr/CMakeLists.txt:3 (project)
+
+
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-zx2tx6/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android-legacy.toolchain.cmake:35 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/android.toolchain.cmake:55 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/3.31.6-msvc6/CMakeSystem.cmake:6 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-zx2tx6/CMakeLists.txt:3 (project)
+
+
+CMake Deprecation Warning at C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/build/cmake/flags.cmake:18 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang.cmake:23 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/Platform/Android-Clang-C.cmake:1 (include)
+  C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/share/cmake-3.31/Modules/CMakeCInformation.cmake:48 (include)
+  C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke/CMakeFiles/CMakeScratch/TryCompile-zx2tx6/CMakeLists.txt:3 (project)
+
+
+-- Looking for pthread_create in pthread - not found
+-- Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR (missing: OPENSSL_CRYPTO_LIBRARY OPENSSL_INCLUDE_DIR) 
+CMake Warning at third_party/llama.cpp/vendor/cpp-httplib/CMakeLists.txt:152 (message):
+  OpenSSL not found, HTTPS support disabled
+
+
+-- bmoe: expert-ready hook present (I/OΓÇôcompute overlap available)
+-- BigMoeOnEdge: llama.cpp present = ON
+-- Configuring done (20.2s)
+-- Generating done (0.5s)
+-- Build files have been written to: C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-kernel-ke

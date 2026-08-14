@@ -1,0 +1,13 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant:A Mixture‑of‑Experts (MoE) language model splits the network into many specialized “expert” sub‑networks, each trained to handle a particular type of input, and uses a router to decide which few experts should be activated for any given token; by only running those selected experts the model saves compute during inference, yet the full set of expert weights must still be stored on the phone because they are needed to make the routing decisions and can be streamed in on‑demand (flash‑stream) as the the model is used. The router can therefore be lightweight on‑device, while the large weight file remains on disk and is fetched in pieces only when the corresponding expert parameters are required.
+
+generation: 144 tokens, 0.198 s/token (5.041 tok/s)
+compute: 69.8% CPU occupancy (0.2770 cpu-s/token over 2 threads), 0.01 major faults/token
+prefill: 89 tokens, 6.257 s (14.2 tok/s) | model load 5.343 s | TTFT 11.600 s
+moe-stream: read 5644.6 MiB (39.20 MiB/token), decode 0.198 s/token (compute 0.151 + cache mgmt 0.005 + flash I/O 0.114 s/token, 343 MiB/s)
+moe-cache: 87.6% hit, resident 1997.3 MiB
+moe-cache: 2310 evictions, 1373 re-reads (9.5/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.042 s/token (flash reads overlapped with FFN compute)
+moe-drop: 2935/24192 routed experts dropped (12.1%), threshold 1.00 x uniform

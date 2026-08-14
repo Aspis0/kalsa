@@ -1,0 +1,51 @@
+[2026-08-14T10:09:50-04:00] KERNEL K-E start CLK_TCK=100
+[2026-08-14T10:09:51-04:00] WAIT_UNPLUG plug=PLUGGED_AC batt=96 temp=28.7
+[2026-08-14T10:10:12-04:00] WAIT_UNPLUG plug=PLUGGED_AC batt=96 temp=28.7
+[2026-08-14T10:10:33-04:00] WAIT_UNPLUG plug=PLUGGED_AC batt=96 temp=28.7
+[2026-08-14T10:10:53-04:00] WAIT_UNPLUG plug=PLUGGED_AC batt=97 temp=28.7
+[2026-08-14T10:11:14-04:00] UNPLUGGED confirmed batt=97 temp=28.7
+[2026-08-14T10:11:16-04:00] preflight batt=97 temp=28.7 plug=UNPLUGGED screen=Awake
+[2026-08-14T10:11:18-04:00] CELL start c1_A_r1 arch=dotprod t=2 k=6 drop=1.0 n=200 cold=1 batt=97 temp=28.7 plug=UNPLUGGED screen=Awake mem=3565.0
+[2026-08-14T10:11:18-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T10:12:33-04:00] CELL end c1_A_r1 rc=0 decode=4.910 compute=0.151 cpu_s=62.6500 cpu/tok=0.435069 J=163.899476 J/tok=1.138191 Iavg=882.1 batt=97->96 temp=28.7->30.7 screen=Awake/Awake
+[2026-08-14T10:12:35-04:00] CELL start c1_B_r1 arch=i8mm t=2 k=6 drop=1.0 n=200 cold=1 batt=96 temp=30.7 plug=UNPLUGGED screen=Awake mem=4622.0
+[2026-08-14T10:12:35-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T10:13:55-04:00] CELL end c1_B_r1 rc=0 decode=5.004 compute=0.152 cpu_s=69.7500 cpu/tok=0.394068 J=180.511216 J/tok=1.019837 Iavg=867.2 batt=96->96 temp=30.7->30.7 screen=Awake/Awake
+[2026-08-14T10:13:57-04:00] CELL start c1_B_r2 arch=i8mm t=2 k=6 drop=1.0 n=200 cold=1 batt=96 temp=30.7 plug=UNPLUGGED screen=Awake mem=4618.1
+[2026-08-14T10:13:57-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T10:15:19-04:00] CELL end c1_B_r2 rc=0 decode=4.950 compute=0.153 cpu_s=70.2500 cpu/tok=0.396893 J=191.710680 J/tok=1.083111 Iavg=888.9 batt=96->95 temp=30.7->32.7 screen=Awake/Awake
+[2026-08-14T10:15:20-04:00] CELL start c1_A_r2 arch=dotprod t=2 k=6 drop=1.0 n=200 cold=1 batt=95 temp=32.7 plug=UNPLUGGED screen=Awake mem=4586.2
+[2026-08-14T10:15:21-04:00] fadvise DONTNEED /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-14T10:16:33-04:00] CELL end c1_A_r2 rc=0 decode=5.287 compute=0.146 cpu_s=58.8800 cpu/tok=0.408889 J=153.579159 J/tok=1.066522 Iavg=892.0 batt=95->95 temp=32.7->32.7 screen=Awake/Awake
+[2026-08-14T10:16:35-04:00] CELL start c2_A_s1 arch=dotprod t=2 k=6 drop=1.0 n=200 cold=0 batt=95 temp=32.7 plug=UNPLUGGED screen=Awake mem=4618.9
+[2026-08-14T10:17:18-04:00] CELL end c2_A_s1 rc=0 decode=5.040 compute=0.150 cpu_s=59.4000 cpu/tok=0.412500 J=185.175359 J/tok=1.285940 Iavg=1066.6 batt=95->95 temp=32.7->34.7 screen=Awake/Awake
+[2026-08-14T10:17:20-04:00] CELL start c2_A_s2 arch=dotprod t=2 k=6 drop=1.0 n=200 cold=0 batt=95 temp=34.7 plug=UNPLUGGED screen=Awake mem=4592.8
+[2026-08-14T10:18:04-04:00] CELL end c2_A_s2 rc=0 decode=4.984 compute=0.153 cpu_s=60.5800 cpu/tok=0.420694 J=182.983933 J/tok=1.270722 Iavg=1049.2 batt=95->94 temp=34.7->35.0 screen=Awake/Awake
+[2026-08-14T10:18:06-04:00] CELL start c2_A_s3 arch=dotprod t=2 k=6 drop=1.0 n=200 cold=0 batt=94 temp=35.0 plug=UNPLUGGED screen=Awake mem=4603.6
+[2026-08-14T10:18:49-04:00] CELL end c2_A_s3 rc=0 decode=5.041 compute=0.151 cpu_s=60.8700 cpu/tok=0.422708 J=181.978233 J/tok=1.263738 Iavg=1059.8 batt=94->94 temp=35.0->35.0 screen=Awake/Awake
+[2026-08-14T10:18:51-04:00] CELL start c2_A_s4 arch=dotprod t=2 k=6 drop=1.0 n=200 cold=0 batt=94 temp=35.0 plug=UNPLUGGED screen=Awake mem=4716.8
+[2026-08-14T10:19:33-04:00] CELL end c2_A_s4 rc=0 decode=5.224 compute=0.147 cpu_s=57.8600 cpu/tok=0.401806 J=177.357621 J/tok=1.231650 Iavg=1063.9 batt=94->93 temp=35.0->36.8 screen=Awake/Awake
+[2026-08-14T10:19:35-04:00] CELL start c2_A_s5 arch=dotprod t=2 k=6 drop=1.0 n=200 cold=0 batt=93 temp=36.8 plug=UNPLUGGED screen=Awake mem=4715.3
+[2026-08-14T10:20:18-04:00] CELL end c2_A_s5 rc=0 decode=5.118 compute=0.148 cpu_s=59.6000 cpu/tok=0.413889 J=181.185590 J/tok=1.258233 Iavg=1063.7 batt=93->93 temp=36.8->37.2 screen=Awake/Awake
+[2026-08-14T10:20:20-04:00] CELL start c2_A_s6 arch=dotprod t=2 k=6 drop=1.0 n=200 cold=0 batt=93 temp=37.2 plug=UNPLUGGED screen=Awake mem=4504.1
+[2026-08-14T10:21:02-04:00] CELL end c2_A_s6 rc=0 decode=5.337 compute=0.140 cpu_s=59.8700 cpu/tok=0.415764 J=177.501606 J/tok=1.232650 Iavg=1071.6 batt=93->93 temp=37.2->37.2 screen=Awake/Awake
+[2026-08-14T10:21:04-04:00] CELL start c2_B_s1 arch=i8mm t=2 k=6 drop=1.0 n=200 cold=0 batt=93 temp=37.2 plug=UNPLUGGED screen=Awake mem=4650.5
+[2026-08-14T10:21:56-04:00] CELL end c2_B_s1 rc=0 decode=4.980 compute=0.150 cpu_s=72.9600 cpu/tok=0.412203 J=197.392748 J/tok=1.115213 Iavg=973.7 batt=93->92 temp=37.2->37.9 screen=Awake/Awake
+[2026-08-14T10:21:58-04:00] CELL start c2_B_s2 arch=i8mm t=2 k=6 drop=1.0 n=200 cold=0 batt=92 temp=37.9 plug=UNPLUGGED screen=Awake mem=4806.7
+[2026-08-14T10:22:49-04:00] CELL end c2_B_s2 rc=0 decode=4.974 compute=0.153 cpu_s=75.7600 cpu/tok=0.428023 J=187.016281 J/tok=1.056589 Iavg=911.7 batt=92->92 temp=37.9->37.9 screen=Awake/Awake
+[2026-08-14T10:22:51-04:00] CELL start c2_B_s3 arch=i8mm t=2 k=6 drop=1.0 n=200 cold=0 batt=92 temp=37.9 plug=UNPLUGGED screen=Awake mem=4800.7
+[2026-08-14T10:23:46-04:00] CELL end c2_B_s3 rc=0 decode=4.528 compute=0.165 cpu_s=79.5300 cpu/tok=0.449322 J=185.813033 J/tok=1.049791 Iavg=845.9 batt=92->92 temp=37.9->37.9 screen=Awake/Awake
+[2026-08-14T10:23:49-04:00] CELL start c2_B_s4 arch=i8mm t=2 k=6 drop=1.0 n=200 cold=0 batt=92 temp=37.9 plug=UNPLUGGED screen=Awake mem=4839.3
+[2026-08-14T10:24:44-04:00] CELL end c2_B_s4 rc=0 decode=4.558 compute=0.164 cpu_s=80.1000 cpu/tok=0.452542 J=181.965208 J/tok=1.028052 Iavg=821.5 batt=92->91 temp=37.9->37.7 screen=Awake/Awake
+[2026-08-14T10:24:47-04:00] CELL start c2_B_s5 arch=i8mm t=2 k=6 drop=1.0 n=200 cold=0 batt=91 temp=37.7 plug=UNPLUGGED screen=Awake mem=4790.5
+[2026-08-14T10:25:42-04:00] CELL end c2_B_s5 rc=0 decode=4.703 compute=0.158 cpu_s=78.2000 cpu/tok=0.441808 J=178.936582 J/tok=1.010941 Iavg=814.4 batt=91->91 temp=37.7->37.7 screen=Awake/Awake
+[2026-08-14T10:25:44-04:00] CELL start c2_B_s6 arch=i8mm t=2 k=6 drop=1.0 n=200 cold=0 batt=91 temp=37.7 plug=UNPLUGGED screen=Awake mem=4830.9
+[2026-08-14T10:26:37-04:00] CELL end c2_B_s6 rc=0 decode=4.746 compute=0.156 cpu_s=77.1000 cpu/tok=0.435593 J=171.560082 J/tok=0.969266 Iavg=802.5 batt=91->90 temp=37.7->38.0 screen=Awake/Awake
+[2026-08-14T10:26:41-04:00] CELL start c3_A_r1 arch=dotprod t=4 k=6 drop=0.65 n=200 cold=1 batt=90 temp=38.0 plug=UNPLUGGED screen=Awake mem=4792.2
+[2026-08-14T10:26:41-04:00] fadvise DONTNEED /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+[2026-08-14T10:28:12-04:00] CELL end c3_A_r1 rc=0 decode=5.401 compute=0.122 cpu_s=164.6400 cpu/tok=0.823200 J=261.461487 J/tok=1.307307 Iavg=1059.7 batt=90->90 temp=38.0->38.0 screen=Awake/Awake
+[2026-08-14T10:28:14-04:00] CELL start c3_B_r1 arch=i8mm t=4 k=6 drop=0.65 n=200 cold=1 batt=90 temp=38.0 plug=UNPLUGGED screen=Awake mem=4940.9
+[2026-08-14T10:28:15-04:00] fadvise DONTNEED /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+[2026-08-14T10:31:08-04:00] CELL end c3_B_r1 rc=0 decode=1.704 compute=0.475 cpu_s=368.4800 cpu/tok=1.842400 J=408.855359 J/tok=2.044277 Iavg=696.2 batt=90->89 temp=38.0->38.5 screen=Awake/Awake
+[2026-08-14T10:31:08-04:00] KERNEL K-E done
+DONE

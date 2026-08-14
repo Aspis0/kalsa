@@ -11,3 +11,10 @@ apk_commit: bea257e (main, merge fix/ttft-v2)
 | kalsa-ttft-v2-bea257e.apk | 143424435 | `2B71032D87B3B6A695AE7ABECDEF4FA63DF75276C4D2AE56A0D1FD47417CA4CA` | assembleRelease arm64, debug-keystore |
 
 Catalog `qwen3.5-4b` sizeBytes in main is 2_834_975_040 (MTP GGUF + mmproj). The campaign file is the 2.74 GiB non-MTP Q4_K_M used in all Xiaomi/Jelly benches. App data after install-over is still 4736.3 MiB (models kept).
+
+## postfix 2026-08-14T10:18:22.0124245-04:00
+- apk: kalsa-memguard-p0-4f5c034.apk
+- sha256: AE2AA467966886FA04D53C92BDFC8391F5611B4AC054E4D10CE0DD7F29BB3E2F
+- branch: fix/memguard-p0 @ 4f5c034
+- install: adb -r no wipe
+

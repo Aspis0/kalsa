@@ -1,0 +1,20 @@
+bmoe_src=d98702747593e169f5b05fade8af661894fe86f3
+llama_src=e5605f3bd3545867b2eb2581c96fd7042e243541
+bmoe_note=mellum-recipe (campaign-equivalent that can stream Mellum2). Campaign pin 1ca51420 is d408e03; mellum2 pin 0ac612de is this source + dotprod. ONLY cmake delta vs mellum2 pin: GGML_CPU_ARM_ARCH.
+arch_campaign=armv8.2-a+dotprod+fp16
+arch_ke=armv8.6-a+dotprod+fp16+i8mm
+ndk=27.1.12297006
+api=29
+jobs=6
+have_matmul_int8=Success
+ke_bmoe_cli_sha256=590e72543b4640f2c1f266e883e72d044d5259d2b55ca7a0e08571117d13762b
+ke_libggml_cpu_sha256=724d4050c615a9d817da527cb48473a6ebcf006cf608bba3fafd03e26706dbd1
+campaign_pin=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+mellum2_pin=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c
+kernel_s1_pin=559bc59d341441473d3a4e5e0876991cbec90b46d5bbf0b884aeb8a4651b7a73
+kernel_s2_pin=71f3556d99ffaf4dbe2cd7305463d625bc9a3a34901562c5556be59e427661a5
+A_mellum2=mellum2_pin (dotprod; same source as KE)
+A_calaqwen=campaign_pin (dotprod)
+B=kernel_ke i8mm
+use_extra_bufts=false
+note_i8mm_path=REPACK extra-buffer 8x8 will NOT fire on-model. i8mm vec_dot in quants.c is nrc==2 only. Decode ID is typically nrc==1. Expect dilution / possible KE_NULL.

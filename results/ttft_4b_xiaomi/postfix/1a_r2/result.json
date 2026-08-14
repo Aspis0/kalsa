@@ -1,0 +1,21 @@
+{
+  "scenario": "1a",
+  "rep": 2,
+  "ttft_ms": 2016,
+  "ttft_source": "telemetry_minus_predicted",
+  "prompt_ms": 75392.136,
+  "predicted_ms": 715.5939999999999,
+  "prewarm_s": 29.413,
+  "prewarm_prompt_ms": 29088.463,
+  "reuse": "1174/1187",
+  "eager": true,
+  "level": 59,
+  "temp_c": 33.9,
+  "wakefulness": "Awake",
+  "plugged": false,
+  "prompt": "ciao",
+  "ok": true,
+  "notes": "wait_s=90.0;ui_after_fail:uiautomator dump failed: overlay pkg=com.miui.home",
+  "dir": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\ttft_4b_xiaomi\\postfix\\1a_r2",
+  "utc": "2026-08-14T14:24:13.844000+00:00"
+}

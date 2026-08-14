@@ -1,0 +1,78 @@
+{
+  "utc": "2026-08-14T14:29:51.662372+00:00",
+  "serial": "adb-625689a2-9xEOfw._adb-tls-connect._tcp",
+  "pkg": "com.kalsa.app",
+  "power": {
+    "ac": "false",
+    "usb": "false",
+    "wireless": "false",
+    "level": 57,
+    "status": "3",
+    "temp_tenths_c": "337",
+    "temp_c": 33.7,
+    "wakefulness": "Awake"
+  },
+  "metrics": {
+    "ttft_json": null,
+    "mark_ts": "08-14 10:25:22.741",
+    "telemetry": [],
+    "first_telemetry": null,
+    "prewarm": {
+      "events": [
+        {
+          "ts": "08-14 10:25:26.612",
+          "op": "start",
+          "hash": "2665666730",
+          "systemChars": 3015,
+          "toolCount": 3
+        },
+        {
+          "ts": "08-14 10:25:54.912",
+          "op": "done",
+          "promptMs": 28027.419,
+          "hash": "2665666730"
+        }
+      ],
+      "start": {
+        "ts": "08-14 10:25:26.612",
+        "op": "start",
+        "hash": "2665666730",
+        "systemChars": 3015,
+        "toolCount": 3
+      },
+      "done": {
+        "ts": "08-14 10:25:54.912",
+        "op": "done",
+        "promptMs": 28027.419,
+        "hash": "2665666730"
+      },
+      "duration_s": 28.3,
+      "prompt_ms": 28027.419,
+      "reuse": null,
+      "kvdiag": [
+        {
+          "n_past": 0,
+          "tokens_on_disk": 1195,
+          "ok": true
+        }
+      ],
+      "eager": true
+    }
+  },
+  "scenario": "1b",
+  "rep": 1,
+  "send_info": {
+    "tap": [
+      1083,
+      1656
+    ],
+    "prompt": "ciao",
+    "typed": "ciao",
+    "mark": "1b_r1",
+    "send_method": "center_tap",
+    "retry": false,
+    "ime_enter": false,
+    "engine_hit": true
+  },
+  "notes": "send_immediately;ui_after_fail:uiautomator dump failed: overlay pkg=com.miui.home"
+}
