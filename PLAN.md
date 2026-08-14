@@ -61,7 +61,21 @@
 > (p50 207 vs 313) ma il p99 regredisce: da ingegnerizzare (width 6→4,
 > throttle di issue) prima di qualsiasi ROBUST claim** · KF_GENERAL_WIN
 > ❓ · KF_SHIP_WIN ⏳. K-F FUORI dai default finché ROBUST + ship cell
-> N≥10 non passano. Report: reports/moe-kernel-kf-reality.md.**
+> N≥10 non passano. Report: reports/moe-kernel-kf-reality.md.
+> **DIAGNOSI CODA/COLD-START (direttiva gualt, 2026-08-14 sera):**
+> cold-start = majflt primo blocco ON ⇒ prefetch tardi / pagine non
+> residenti al compute / warm-up non integrato / issuing iniziale troppo
+> aggressivo — impatta TTFT/avvio reale. Steady-state in parità ⇒ NON è
+> cache pollution continua. Metriche richieste: majflt/tok primi-N vs
+> post-warmup, majflt/blocco, TTFT, first-block latency, hit rate.
+> Cause candidate della coda persa: (A) width troppo alta → sweep
+> width 2/3/4/6 con Pareto p50×p99×stutter×J/tok; (B) prefetch late
+> vs deadline → strumentare issue_time/completion_time/first_touch_time,
+> lead_time=completion−first_touch; (C) over-issuing senza backpressure
+> → admission control (gated su evidenza B/C); (D) pollution da
+> prefetch sprecati; (E) primo blocco non scaldato → integrare il
+> prefetch nel warm-up. Esecuzione: sweep width su Jelly (cella lunga
+> anti-EOS) + strumentazione lead-time nell'engine in parallelo.**
 > Paniere p-value = dispatcher/config (✅ QUALITY GATE PASSED: PPL
 > k6d1.0 dMacro +0.0378 / worst fr +0.0877 → **5.151 t/s È config
 > prodotto certificata Mellum2-S23**) + K-F (prototipo) + libreria.
