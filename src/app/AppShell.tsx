@@ -153,7 +153,11 @@ import {
   type PersonasPersisted,
 } from "../conversations/PersonasStore";
 import { applyPersonaTail } from "../engine/personaTail";
-import { MEMORY_FACTS_ON_USER_TAIL } from "../engine/ttftFlags";
+import {
+  EAGER_ENGINE_INIT,
+  MEMORY_FACTS_ON_USER_TAIL,
+  claimEagerKick,
+} from "../engine/ttftFlags";
 import { parseShareUrl, SHARE_TEXT_CAP, SHARE_TEXT_FILE_MAX_BYTES } from "./shareIntent";
 import { importSharedPdf, SharedImportError } from "../documents/importSharedDocument";
 import { saveNote } from "../notes/NotesStore";
@@ -2386,6 +2390,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const confirmDownloadLockRef = useRef(false);
   const downloadAbortRef = useRef<AbortController | null>(null);
   const engineGenerationRef = useRef(0);
+  /** Latest ensureEngineForModel — boot kick reads this so its effect stays [modelIndex]. */
+  const ensureEngineForModelRef = useRef<(model: ModelInfo) => Promise<boolean>>(
+    async () => false,
+  );
   /**
    * Ownership token from tryAcquireChat (null when chat slot not held).
    * markChatReady / markChatReleased must pass this gen so a stale load
@@ -2818,15 +2826,30 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   }, []);
 
   // Controllo iniziale: il modello corrente è già scaricato?
+  // v1 trap = runAfterInteractions + volatile effect deps. This kick is
+  // one-shot per process+generation (claimEagerKick). Effect deps stay
+  // [modelIndex] only — ensureEngineForModel is read from a ref, not listed.
   useEffect(() => {
     let mounted = true;
     const checkedIndex = modelIndexRef.current;
     void (async () => {
       try {
-        const ok = await isModelBundleDownloaded(MODEL_REGISTRY[checkedIndex]);
+        const model = MODEL_REGISTRY[checkedIndex];
+        const ok = await isModelBundleDownloaded(model);
         // Il modello selezionato potrebbe essere cambiato nel frattempo (load preferenza).
         if (mounted && modelIndexRef.current === checkedIndex) {
           setModelState(ok ? "ready" : "missing");
+          if (ok && EAGER_ENGINE_INIT && model) {
+            const generation = engineGenerationRef.current;
+            if (claimEagerKick(model.id, generation)) {
+              // eslint-disable-next-line no-console
+              console.log(
+                "engine.eagerInit",
+                JSON.stringify({ modelId: model.id, generation }),
+              );
+              void ensureEngineForModelRef.current(model);
+            }
+          }
         }
       } catch {
         if (mounted && modelIndexRef.current === checkedIndex) setModelState("missing");
@@ -3145,6 +3168,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       return false;
     }
   }, [locale, t, bumpEmbedJobGeneration]);
+  ensureEngineForModelRef.current = ensureEngineForModel;
 
   const selectModel = useCallback(
     (nextIndex: number) => {

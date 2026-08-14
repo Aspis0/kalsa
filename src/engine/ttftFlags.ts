@@ -2,6 +2,8 @@
  * Flags that revert P1-1 memory-facts-tail (V2-0.1) and P1-2 disk-gate
  * (V2-0.2) without deleting that code. Default = new (fixed) behavior.
  * Set false to restore the old policy.
+ *
+ * V2-1: EAGER_ENGINE_INIT + claimEagerKick (one-shot per process+generation).
  */
 
 /**
@@ -33,3 +35,23 @@ export const EXTRACT_MEMORY_PRESERVE_CHAT_KV = true;
  * sessionPersistence (resolveSessionDiskTokens / sessionDiskBytesRequired).
  */
 export const SESSION_DISK_GATE_USED_TOKENS = true;
+
+/**
+ * Boot-kick chat engine load after the download probe (V2-1).
+ * Set false to restore lazy first-send init.
+ */
+export const EAGER_ENGINE_INIT = true;
+
+/**
+ * One-shot eager-init claim. Survives AppShell remounts in the same JS process.
+ * Returns true once per `${modelId}@${generation}`. A new generation (real
+ * model switch) may claim again. Same key → false.
+ */
+let eagerKickKey: string | null = null;
+
+export function claimEagerKick(modelId: string, generation: number): boolean {
+  const key = `${modelId}@${generation}`;
+  if (eagerKickKey === key) return false;
+  eagerKickKey = key;
+  return true;
+}
