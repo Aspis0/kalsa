@@ -580,13 +580,17 @@ export function queueStaticPrefixPrewarm(
         engine.completion({
           messages: prefix.messages as RNLlamaOAICompatibleMessage[],
           ...(prefix.hasTools
-            ? { tools: prefix.tools, tool_choice: "auto" as const }
+            ? { tools: prefix.tools, tool_choice: "none" as const }
             : {}),
           // llama.cpp "eval prompt only". Binding documents n_predict:0 as
           // cache-only; if it ever rejects, fail the prewarm — never n_predict:1
           // (that would emit a token and poison prefix-match).
           n_predict: 0,
           stop: STOP_WORDS,
+          // System-only + default add_generation_prompt can format to ""
+          // (llama.rn then throws "Prompt is required" in ~40ms).
+          jinja: true,
+          add_generation_prompt: false,
           enable_thinking: false,
           thinking_budget_tokens: 0,
           reasoning_format: "none",
@@ -615,7 +619,12 @@ export function queueStaticPrefixPrewarm(
       const msg = error instanceof Error ? error.message : String(error ?? "");
       logPrewarm({
         op: "skip",
-        reason: /n_predict/i.test(msg) ? "n_predict_rejected" : "fail",
+        reason: /n_predict/i.test(msg)
+          ? "n_predict_rejected"
+          : /Prompt is required/i.test(msg)
+            ? "empty_prompt"
+            : "fail",
+        err: msg.slice(0, 160),
       });
     } finally {
       if (prewarmQueuedKey === prefix.hash) prewarmQueuedKey = null;
