@@ -83,7 +83,20 @@ regime, where bare still has partial access — not the floor):
 The strongest signal is not the mean but the **variance**: `ciswire` sd 0.051 vs bare 0.409. It
 is not just better on average, it is reliable.
 
-**Confidence: medium.** One model, one language, n=6, emulator. See §3 for what would raise it.
+**Confidence: medium-high.** One model, one language, n=6, emulator — but a hostile audit of
+the code that produced it (commit `c93d163`, isolated worktree) closed the two ways it could
+have been fabricated:
+
+- *"the baseline kept 20 messages while the treatment got 16"* — **cannot occur**: one read per
+  turn, two symmetric consumers, no third assembly path.
+- *"a fact reaches the digest before the probe that asks for it"*, i.e. the treated arm reading
+  the answer out of its own digest — **no such path exists**.
+
+One audit concern was checked against the data and does not apply: blank-reply probes are
+excluded from denominators, and the treated arms have ~2× the blanks, which could inflate them.
+On the primary pair **neither arm had a single fact probe excluded** (92/96 either way). It does
+flatter `v42`, which drops 0.525 → 0.438 if exclusions counted as misses — so §1.3's "v42 adds
+nothing" is if anything understated.
 
 ### 1.4 What the three modes actually do
 
@@ -241,6 +254,28 @@ does not finish the job.
 
 ---
 
+## 3.7 Process failures the audit caught (fixed) — and one still open
+
+- **Three suites were not gated by CI.** No workflow ran jest, and `bench.yml` omitted
+  `rulesCoreHarness`, `toolCallParseHarness` and `memoryTelemetryHarness`. The privacy guard's
+  acceptance cases, the LFM tool-dialect fixtures and the memory telemetry contract were all
+  manual-only — true when run, unprotected afterwards. Fixed in `5e422fc`.
+- **`memoryTelemetryHarness` could not fail**: it re-implemented the functions it claimed to
+  test. Now imports the real modules; verified by mutating the real formatter to emit a fact
+  string (goes red). An interface-only mutation does not count — it changes no runtime
+  behaviour.
+- **The NOT-RUN verdict did the opposite of its job**: telemetry was emitted unconditionally, so
+  every memory-OFF arm looked like "memory on, store empty" and fed the INCOMPLETE gate. The
+  next primary campaign would have failed its own gate. Fixed in `da70755`.
+- **Facts survived across arms** — `reset_chat` never deleted `kalsa.memory.facts`. Fixed.
+- **STILL OPEN — identity leaks past the containment guard.** A fact that *starts* with the
+  user's name never contributes it, so `Mario Rossi abita in Via Roma 12` + `dove abita Mario?`
+  passes. Inert today (memory is off), blocking before memory ships. The first fix attempt was
+  rejected: it added an Italian/English function-word list, and measured on the built rule a
+  German user's `der beste film 2024` and a Spanish user's `el mejor libro del año` were
+  BLOCKED — the same defect, reintroduced for every other language. **No wordlist. The app ships
+  worldwide.**
+
 ## 4. Refuted — do not re-derive these
 
 - **"`n_ctx` drives compaction."** False. `shouldRebuild` fires on a K-turn cadence and on
@@ -281,3 +316,4 @@ does not finish the job.
 |---|---|
 | 2026-08-14 | First version. Conclusions from campaigns `31739205810` and `31760516762`. 4B campaign `31807501488` launched; memory instrumentation and a hostile audit of `cc703e6`/`aa2f350` in flight — **both may change §1.3 and §3**. |
 | 2026-08-14 | **§1.1 retracted and rewritten.** Measured the gate rule offline: it blocks legitimate searches (a good query paraphrases the question, scoring 0.39-0.68) and passes spurious ones (0.15). The 2/96 web-turn figure is the gate refusing, not the model abstaining. Added §3.5: with memory on, the same 0.18 threshold blocks ordinary Italian queries ("ricetta pasta al forno" = 0.182). Both are shipping blockers. |
+| 2026-08-14 | Hostile audit of `c93d163` on an isolated worktree. §1.3 confidence raised — both fabrication routes closed with quoted code. Added §3.7: three suites shipped ungated by CI, a harness that could not fail, and a NOT-RUN verdict that would have failed the next campaign — all fixed. Identity leak past the containment guard still open; the first fix attempt was reverted for adding a language wordlist that blocked ordinary German and Spanish queries. |
