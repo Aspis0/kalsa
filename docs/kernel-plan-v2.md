@@ -156,3 +156,81 @@ deliverable.
 | this week | K-G boundary prototype (1 profile run + 2 boundary measurements) | ≥1.3× survives → staged plan (own doc, months-honest); else kill |
 | next | K-F layer-ahead cell on Marco-class/mid silicon | stall −X% measured or kill |
 | standing | K-N kit hardening; selfspec owns the 7 t/s question (§2a) | — |
+
+## 6. State update (2026-08-14, post-funnel — supersedes §3/§5 rows)
+
+The funnel ran. Outcomes, with evidence in `reports/` and PLAN checkpoints:
+
+- **K-E: DEAD (KE_NULL).** i8mm never executes in the real engine — mmla
+  kernels live only in the REPACK path that streamed experts bypass
+  (`use_extra_bufts=false` is load-bearing). Decode deltas were noise;
+  the −6.3% cpu-time was an n_gen artifact. Kill criterion honored.
+- **K-G: DEAD (KG_KILL).** The "1.29× GPU prefill" was a cold-outlier
+  mean; honest p512 is 1.12–1.15×, hybrid 1.07×, boundary cost 0.068
+  ms/tok (not the bottleneck). No executor was ever built. §3.2 closed.
+- **K-F: ALIVE → prototype LANDED.** Stall measured at 37.3% of wall on
+  Marco-Jelly (wall = compute + mgmt + stall closes at the ms), derived
+  from existing logs at zero device-minutes. Issue-only layer-ahead
+  implemented as `--kf-prefetch` on `kalsa/kf-layer-ahead` (@ `c3e8fc4`:
+  feat + tests + docs + 2 review fixes). Hostile review: 4 contract
+  claims CONFIRMED (issue-only single call site; byte-identity with drop
+  OFF; off-by-default allocation-free; exclusivity validated), races/
+  leaks/lifecycle REFUTED. Key caveat (F2): byte-identity does NOT hold
+  under `--drop-cold-experts` (residency feeds `apply_drop`) — identity
+  is gated at drop 0; d065 text divergence is expected and informational.
+  **ABBA A/B running on Jelly now** (2+2 + hot + identity-d0 pair).
+- **Library (§1): BUILT.** Contract #1 (streamed mul_mat_id: NMSE 5e-4,
+  determinism classes, measured floors as budgets), dispatcher
+  (SoC × RAM × geometry → threads/k/drop/impl, default OFF, user flags
+  win), keyed CI. Hostile review closed 10/10, ctest green. Lives in
+  `kalsa-engine/` (BigMoeOnEdge decommissioned by owner directive).
+- **Quality gate: PASSED.** PPL k6d1.0 dMacro +0.0378 / worst fr +0.0877
+  → 5.151 t/s is the certified Mellum2-S23 product config. Remaining
+  arms (k6d065, k4d0) in flight.
+- **Ship criterion: PRE-REGISTERED AND RUNNING.** Owner decision: paired
+  ABBA, declared-first metrics (median wall, sustained late-rep, J/token,
+  temp, TTFT), Wilcoxon + effect size + p-value. PREREG at
+  `results/kernel_ship_ab_s23/PREREG.md`; 12-pair config-only A/B
+  (stock t4/k8/no-drop vs certified t2/k6/d1.0) running on S23 with the
+  campaign cell binary. K-F is deliberately excluded (factor isolation).
+- **Tier doctrine (§2): resolved in PLAN** — tiers = SoC × measured RAM
+  matrix, dispatcher first-launch probe assigns the tier; big-MoE target
+  on S23-class accepted at 5–6 t/s.
+
+## 7. Related work — bibliography (added 2026-08-14)
+
+Everyone hides memory latency behind compute; none of these combine
+single-phone + MoE-native expert selection + byte-identity + zero
+per-model training. Positioning per source:
+
+1. **PRESERVE** — arXiv:2501.08192. Prefetch of weights/KV into on-chip
+   caches during inter-device communication, GPU/NPU clusters. Hides
+   *network* latency in datacenters; dense serving. Different universe
+   from flash-on-phone.
+2. **PreScope** — arXiv:2509.23638. Closest technical relative: MoE
+   expert prefetch with a *trained* next-layer predictor (LLaPor, >90%
+   top-4), cross-layer scheduling, async PCIe I/O on V100/A100. Diff:
+   per-model trained NN predictor vs our reuse of the model's own gate
+   weights (zero training = day-zero); PCIe offload vs UFS flash; no
+   phone constraints (thermal/battery/dispatcher).
+3. **AirLLM** — github.com/lyogavin/airllm. Capacity play: layer-/
+   expert-at-a-time streaming to fit huge models in tiny VRAM; accepts
+   disk-bound speed. We start from the same streaming premise but the
+   whole kernel program is making it *fast enough to ship* on a phone.
+4. **prima.cpp** — github.com/OpenCPIL/prima.cpp. Orthogonal axis:
+   piped-ring parallelism across multiple home devices, OS-advise
+   prefetch of the (deterministically known) next dense layer. No MoE —
+   no expert-selection problem, which is exactly where our prefetch
+   lives. We make one phone self-sufficient instead of adding devices.
+5. **ActiveFlow** — arXiv:2504.08378. Closest on-device relative:
+   DRAM↔flash active-weight swapping on mobile with cross-layer
+   preloading. Diff: relies on contextual sparsity + *sparsity-aware
+   distillation* — the model is retrained and outputs change; we are
+   byte-identical, model untouched, no per-model pipeline.
+6. **Intel, US20240370699A1** — "Data pre-fetch for LLM processing".
+   Processor circuitry + staging buffer prefetching the *deterministic*
+   next layer's weights/KV on server-class parts; OS-driver scope; no
+   flash, no expert selection. IP awareness: generic prefetch is dense
+   prior-art territory; our defensible ground is *which bytes* (router-
+   native expert ranking) and the issue-only identity contract, not
+   prefetching per se.
