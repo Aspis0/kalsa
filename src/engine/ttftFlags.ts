@@ -50,6 +50,35 @@ export const EAGER_ENGINE_INIT = true;
 export const EAGER_PREFIX_PREWARM = true;
 
 /**
+ * Compaction default ON, including upgrades.
+ *
+ * Storage:
+ * - `kalsa.context.compaction` remains the value ("1" / "0").
+ * - `kalsa.context.compaction.choice` = "1" only after the user toggles
+ *   the Settings switch (explicit choice).
+ *
+ * Residual stored "0" from the old default must NOT keep upgrades OFF.
+ * Settings first-read must not write "0" just because the switch painted off.
+ */
+export const COMPACTION_ENABLED_DEFAULT = true;
+
+/**
+ * Resolve the compaction toggle.
+ * - hasExplicitChoice: honor raw "0"/"false" OFF, "1"/"true" ON.
+ * - else: ON (missing key AND leftover "0" from the old default).
+ */
+export function parseCompactionEnabled(
+  rawValue: string | null | undefined,
+  hasExplicitChoice: boolean,
+): boolean {
+  if (hasExplicitChoice) {
+    if (rawValue === "0" || rawValue === "false") return false;
+    if (rawValue === "1" || rawValue === "true") return true;
+  }
+  return COMPACTION_ENABLED_DEFAULT;
+}
+
+/**
  * One-shot eager-init claim. Survives AppShell remounts in the same JS process.
  * Returns true once per `${modelId}@${generation}`. A new generation (real
  * model switch) may claim again. Same key → false.

@@ -109,8 +109,15 @@ export const DEFAULT_COMPACTOR_CONFIG: CompactorConfig = {
   windowCharBudget: WINDOW_CHAR_BUDGET,
 };
 
-/** AsyncStorage key: compaction feature toggle (default OFF). */
+/** AsyncStorage key: compaction feature toggle ("1" / "0"). */
 export const COMPACTION_ENABLED_KEY = "kalsa.context.compaction";
+
+/**
+ * Written as "1" only when the user toggles the Settings switch.
+ * Absent → treat leftover "0" as the old default, not an explicit OFF
+ * (see parseCompactionEnabled / COMPACTION_ENABLED_DEFAULT).
+ */
+export const COMPACTION_CHOICE_KEY = "kalsa.context.compaction.choice";
 
 /** Per-chat compactor state (last digest + boundary + summary meta). */
 export function compactorStorageKey(chatId: string): string {

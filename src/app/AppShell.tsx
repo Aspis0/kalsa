@@ -156,9 +156,11 @@ import {
 } from "../conversations/PersonasStore";
 import { applyPersonaTail } from "../engine/personaTail";
 import {
+  COMPACTION_ENABLED_DEFAULT,
   EAGER_ENGINE_INIT,
   MEMORY_FACTS_ON_USER_TAIL,
   claimEagerKick,
+  parseCompactionEnabled,
 } from "../engine/ttftFlags";
 import { parseShareUrl, SHARE_TEXT_CAP, SHARE_TEXT_FILE_MAX_BYTES } from "./shareIntent";
 import { importSharedPdf, SharedImportError } from "../documents/importSharedDocument";
@@ -197,6 +199,7 @@ import {
   advanceCompactionBoundary,
   assembleEngineHistory,
   buildSummaryTranscript,
+  COMPACTION_CHOICE_KEY,
   COMPACTION_ENABLED_KEY,
   compactorStorageKey,
   countUserTurns,
@@ -2308,8 +2311,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // Refs declared above agentOptions; keep state + sync here.
   const [memoryFacts, setMemoryFacts] = useState<string[]>([]);
   memoryFactsRef.current = memoryFacts;
-  /** Mirror of kalsa.context.compaction — default OFF (legacy sliding window). */
-  const compactionEnabledRef = useRef(false);
+  /** Mirror of kalsa.context.compaction — default ON (incl. leftover "0"). */
+  const compactionEnabledRef = useRef(COMPACTION_ENABLED_DEFAULT);
   /** Serialize extractMemory so it never overlaps a chat completion on the same engine. */
   const memoryExtractRef = useRef<Promise<void> | null>(null);
 
@@ -4140,10 +4143,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               setMemoryFacts([]);
             }
             try {
-              const raw = await AsyncStorage.getItem(COMPACTION_ENABLED_KEY);
-              compactionEnabledRef.current = raw === "1" || raw === "true";
+              const [raw, choice] = await Promise.all([
+                AsyncStorage.getItem(COMPACTION_ENABLED_KEY),
+                AsyncStorage.getItem(COMPACTION_CHOICE_KEY),
+              ]);
+              compactionEnabledRef.current = parseCompactionEnabled(
+                raw,
+                choice === "1",
+              );
             } catch {
-              compactionEnabledRef.current = false;
+              compactionEnabledRef.current = COMPACTION_ENABLED_DEFAULT;
             }
 
             const compactionOn = compactionEnabledRef.current;

@@ -88,7 +88,7 @@ export const en = {
     context: "Context",
     contextCompaction: "Smart conversation memory",
     contextCompactionHint:
-      "Off by default. When on, older turns are compacted into a short digest so long chats keep relevant facts without a huge sliding window. Experimental — enable for testing.",
+      "On by default. Older turns are compacted into a short digest so long chats keep relevant facts without a huge sliding window. Turn off to use the legacy sliding window.",
     thinking: "Thinking",
     thinkingHint:
       "Thinking lets the model reason step by step before answering — usually better on hard questions, but slower and heavier on battery. The reasoning itself is never shown in the chat, only the final answer.",
