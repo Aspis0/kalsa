@@ -214,6 +214,26 @@ rule blocked those only because it blocked everything.
 blocks legitimate searches. That is a separate decision, to be made from campaign data — fixing
 both at once would make the next campaign uninterpretable.
 
+### 3.6 LFM2.5 tool calls never parse — production bug, whole family
+
+`src/engine/toolCallParser.ts:70` documents the LFM dialect as
+`<|tool_call_start|>[{"name":...,"arguments":{...}}]<|tool_call_end|>` and `parseLfmToolCalls`
+does `JSON.parse` on the payload. **LFM2.5 does not emit that.** Both `LFM2.5-2.6B` and
+`LFM2.5-8B-A1B` ship a chat template whose macro builds
+`func_name + "(" + args + ")"`, i.e. Python-style calls:
+`<|tool_call_start|>[web_search(query="capitale del Madagascar")]<|tool_call_end|>`.
+
+Measured against the compiled parser:
+
+```
+real LFM2.5 format       -> []                          every call silently dropped
+the format kalsa assumes -> [{"name":"web_search",...}]
+```
+
+`JSON.parse` throws, the `catch` returns `[]`, the caller reads "no tool calls". No error, no
+log. Never caught because LFM has never been benchmarked — and the comment stating the wrong
+dialect is why nobody looked. Fix dispatched.
+
 ### 3.4 Spurious tool calls survive the gate
 
 17 spurious calls still get through with the gate on. The gate more than doubles precision but
