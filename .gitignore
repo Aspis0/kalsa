@@ -30,3 +30,5 @@ results/**/bin/bmoe-cli*
 results/**/bin/*.dll
 results/**/bin/*.exe
 results/ttft_verify_jelly/_bundle_fixed/
+
+*.apk
