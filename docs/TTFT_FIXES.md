@@ -1,7 +1,16 @@
 # TTFT fixes (v2)
 
-Branch: `fix/ttft-v2`. Device numbers stay **UNKNOWN_DEVICE** until Jelly
-verify. This file is the honesty log — do not treat `ok:true` as KV reuse.
+Branch: `fix/ttft-v2` @ `203bd2f`. Jelly PLUGGED then unplugged mid-S3.
+This file is the honesty log — do not treat `ok:true` as KV reuse.
+
+## Jelly measured (2026-08-13, Qwen 3.5 2B Q4_K_M, PLUGGED unless noted)
+
+| Mandate | Result | Notes |
+|---|---|---|
+| 1a wait 90s → send | **1.40 s** TTFT | `engine.eagerInit` in logcat; prewarm `done` 40.1 s; `reusing 1276/1293` |
+| 1b send immediately | **39.5 s** TTFT | Join: mark during prewarm, `done` then `reusing 1276/1293`, send `promptMs` 3.1 s. < 53 s |
+| 2 25-msg window | **PARTIAL** | In-process measure lost (process died, unplugged 72%). Recovery send reused 1276/1456, not a full 1.4k re-prefill |
+| 3 swipe → wait 90s → send | **2.48 s** TTFT | KVDIAG `n_past:0` (expected); prewarm 40.2 s then `reusing 1276/1313` |
 
 ## Scenario table
 
