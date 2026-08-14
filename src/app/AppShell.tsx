@@ -206,7 +206,6 @@ import {
   DEFAULT_CHAT_ID,
   DEFAULT_COMPACTOR_CONFIG,
   emptyCompactorState,
-  LEGACY_MAX_CHARS,
   parseCompactorState,
   refreshQueryDigest,
   resolveBoundaryIndex,
@@ -3953,7 +3952,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       signal: AbortSignal,
       attachments?: LocalAttachment[],
       history?: unknown[],
-      lastUserBare?: string,
+      _lastUserBare?: string,
     ) =>
       new Promise<{ afterSessionSave?: () => void }>((resolve) => {
         let settled = false;
@@ -4303,9 +4302,21 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               hasImages,
               boundaryIndex: boundaryForAssemble,
             });
+            const persona = findPersona(
+              personasStateRef.current,
+              activePersonaIdRef.current,
+              builtinCopyFromT(t),
+            );
+            // Persona on every history user so bake rematch keys equal
+            // applyPersonaTail(persist, persona) — the string that lands in
+            // the engine last-user slot. Matched tails then replace this
+            // with the full facts+persona prefix.
             const engineMessages: EngineMessage[] = assembled.map((m) => ({
               role: m.role,
-              content: m.content,
+              content:
+                m.role === "user"
+                  ? applyPersonaTail(m.content, persona?.instructions)
+                  : m.content,
             }));
 
             // Immagini da allegare all'ultimo messaggio user (cap 5):
@@ -4322,18 +4333,17 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 }
               }
             }
-            const persona = findPersona(
-              personasStateRef.current,
-              activePersonaIdRef.current,
-              builtinCopyFromT(t),
-            );
             // Last-user composition (engine, format B):
             //   factsBlock + "\n\n" + applyPersonaTail(userText, persona)
             // Persona is applied here; facts are prefixed in streamAssistantTurn
             // (applyMemoryFactsToLastUser) so they never rewrite the system prefix.
+            const lastUserHistoryContent = applyPersonaTail(
+              text,
+              persona?.instructions,
+            );
             const userMessage: EngineMessage = {
               role: "user",
-              content: applyPersonaTail(text, persona?.instructions),
+              content: lastUserHistoryContent,
             };
             if (images.length) userMessage.images = images;
             engineMessages.push(userMessage);
@@ -4458,9 +4468,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 memoryFacts: promptFacts,
                 operativeContext,
                 lastUserMessage: text,
-                ...(typeof lastUserBare === "string"
-                  ? { lastUserBare: lastUserBare.slice(0, LEGACY_MAX_CHARS) }
-                  : {}),
+                lastUserBare: lastUserHistoryContent,
               },
             );
             // Safety: if the stream returns without onDone/onError (e.g. abort path).

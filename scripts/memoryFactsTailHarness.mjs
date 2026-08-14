@@ -21,6 +21,7 @@ function compile() {
     [
       "tsc",
       "src/engine/memoryFactsTail.ts",
+      "src/engine/personaTail.ts",
       "--outDir",
       outDir,
       "--module",
@@ -74,9 +75,22 @@ async function main() {
     lastUserContent,
     parseBakedUserTails,
     bakeTextContent,
+    bakeRematchKey,
     keepStillValidBakedTails,
     MAX_BAKED_USER_TAILS,
   } = await import(pathToFileURL(modPath).href);
+
+  function resolvePersona() {
+    const candidates = [
+      path.join(outDir, "personaTail.js"),
+      path.join(outDir, "engine/personaTail.js"),
+      path.join(outDir, "src/engine/personaTail.js"),
+    ];
+    for (const c of candidates) {
+      if (existsSync(c)) return c;
+    }
+    return null;
+  }
 
   let passed = 0;
   let failed = 0;
@@ -417,6 +431,53 @@ async function main() {
       },
     ]);
     assert(stripped.length === 1 && stripped[0].prefixed === "F\nhi", "strip image_url");
+  });
+
+  const personaPath = resolvePersona();
+  assert(personaPath, "compiled personaTail.js");
+  const { applyPersonaTail } = await import(pathToFileURL(personaPath).href);
+
+  test("bake: rematch key is persona'd history content", () => {
+    const persist = "hello";
+    const historyLanding = applyPersonaTail(persist, "Be terse.");
+    assert(historyLanding !== persist, "persona frame applied");
+    const prefixed = `FACTS\n\n${historyLanding}`;
+    const baked = commitBakedLastUser([], bakeRematchKey(historyLanding), prefixed);
+    assert(baked[0].bare === bakeRematchKey(historyLanding), "bare is persona'd key");
+    const applied = applyBakedUserTails(
+      [
+        { role: "user", content: historyLanding },
+        { role: "assistant", content: "a" },
+        { role: "user", content: "next" },
+      ],
+      baked,
+    );
+    assert(applied.matched.length === 1, "persona rematch hits");
+    assert(applied.messages[0].content === prefixed, "prefixed reapplied");
+    const miss = applyBakedUserTails(
+      [
+        { role: "user", content: persist },
+        { role: "assistant", content: "a" },
+        { role: "user", content: "next" },
+      ],
+      baked,
+    );
+    assert(miss.matched.length === 0, "bare persist does not match persona'd key");
+  });
+
+  test("bake: rematch ignores trailing/leading whitespace", () => {
+    const baked = commitBakedLastUser([], bakeRematchKey("hello  "), "P\nhello");
+    assert(baked[0].bare === "hello", "commit trims");
+    const applied = applyBakedUserTails(
+      [
+        { role: "user", content: "  hello" },
+        { role: "assistant", content: "a" },
+        { role: "user", content: "next" },
+      ],
+      baked,
+    );
+    assert(applied.matched.length === 1, "whitespace rematch hits");
+    assert(applied.messages[0].content === "P\nhello", "prefixed reapplied");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

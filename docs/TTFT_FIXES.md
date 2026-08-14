@@ -91,6 +91,13 @@ KALSA_KVDIAG {"n_past":0,"tokens_on_disk":1635,"ok":true}
 `ok:true` is **not** reuse. On catalog hybrids the honest line is
 `n_past: 0` even when `tokens_on_disk > 0`.
 
+## Bake rematch key (review 5.4)
+
+`commitBakedLastUser` and `applyBakedUserTails` share `bakeRematchKey`
+(trim + 4000-char slice). `lastUserBare` is the same string that lands in
+engine history: `applyPersonaTail(text, persona)`. Previous assembled
+users get the same persona frame so rematch is not a silent no-op.
+
 ## Compaction default (V2-3)
 
 `kalsa.context.compaction` stays the value (`"1"` / `"0"`).

@@ -70,6 +70,16 @@ export type BakedUserTail = {
 
 /** Safety cap on persisted / in-memory baked tails (engine window is smaller). */
 export const MAX_BAKED_USER_TAILS = 64;
+/** Same cap assembleEngineHistory uses for text-only turns. */
+export const BAKE_REMATCH_MAX_CHARS = 4000;
+
+/**
+ * Canonical rematch key: the string that must equal on commit and on the
+ * next turn's previous-user history (persona'd content, trim, slice).
+ */
+export function bakeRematchKey(content: unknown): string {
+  return bakeTextContent(content).trim().slice(0, BAKE_REMATCH_MAX_CHARS);
+}
 
 /**
  * Text used for bake rematch / persist. Strings pass through. Arrays keep
@@ -137,7 +147,8 @@ function findLongestBareRun(
       while (
         bakedStart + length < baked.length &&
         prevStart + length < prevContents.length &&
-        prevContents[prevStart + length] === baked[bakedStart + length]!.bare
+        bakeRematchKey(prevContents[prevStart + length]) ===
+          bakeRematchKey(baked[bakedStart + length]!.bare)
       ) {
         length++;
       }
@@ -166,10 +177,10 @@ export function keepStillValidBakedTails(
   baked: readonly BakedUserTail[],
   prevContents: readonly unknown[],
 ): BakedUserTail[] {
-  const remaining = prevContents.map((c) => bakeTextContent(c));
+  const remaining = prevContents.map((c) => bakeRematchKey(c));
   const keepers: BakedUserTail[] = [];
   for (const tail of baked) {
-    const idx = remaining.indexOf(tail.bare);
+    const idx = remaining.indexOf(bakeRematchKey(tail.bare));
     if (idx >= 0) {
       keepers.push({
         bare: bakeTextContent(tail.bare),
@@ -209,7 +220,7 @@ export function applyBakedUserTails<T extends TailMessage>(
   }
   const prevIdxs = userIdxs.slice(0, -1);
   const prevContents = prevIdxs.map((idx) =>
-    bakeTextContent(messages[idx]?.content),
+    bakeRematchKey(messages[idx]?.content),
   );
   const run = findLongestBareRun(prevContents, baked);
   const replacements: { idx: number; tail: BakedUserTail }[] = [];
@@ -246,7 +257,7 @@ export function commitBakedLastUser(
       prefixed: bakeTextContent(tail.prefixed),
     }))
     .concat({
-      bare: bakeTextContent(lastBare),
+      bare: bakeRematchKey(lastBare),
       prefixed: bakeTextContent(lastPrefixed),
     });
   return next.length > MAX_BAKED_USER_TAILS
