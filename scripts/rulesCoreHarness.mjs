@@ -241,14 +241,14 @@ async function main() {
 
   const gateCases = [
     { name: "it-paraphrase (real failure)", query: IT_PARA, msg: IT_MSG, facts: [], expectBlock: true },
-    { name: "it-verbatim-echo", query: IT_MSG, msg: IT_MSG, facts: [], expectBlock: true },
-    { name: "it-unrelated", query: IT_UNREL, msg: IT_MSG, facts: [], expectBlock: false },
+    { name: "it-verbatim-echo", query: IT_MSG, msg: IT_MSG, facts: [], expectBlock: false },
+    { name: "it-unrelated", query: IT_UNREL, msg: IT_MSG, facts: [], expectBlock: true },
     { name: "japanese-paraphrase", query: JP_PARA, msg: JP_MSG, facts: [], expectBlock: true },
-    { name: "japanese-unrelated", query: JP_UNREL, msg: JP_MSG, facts: [], expectBlock: false },
+    { name: "japanese-unrelated", query: JP_UNREL, msg: JP_MSG, facts: [], expectBlock: true },
     { name: "arabic-paraphrase", query: AR_PARA, msg: AR_MSG, facts: [], expectBlock: true },
-    { name: "arabic-unrelated", query: AR_UNREL, msg: AR_MSG, facts: [], expectBlock: false },
+    { name: "arabic-unrelated", query: AR_UNREL, msg: AR_MSG, facts: [], expectBlock: true },
     { name: "greek-paraphrase", query: EL_PARA, msg: EL_MSG, facts: [], expectBlock: true },
-    { name: "greek-unrelated", query: EL_UNREL, msg: EL_MSG, facts: [], expectBlock: false },
+    { name: "greek-unrelated", query: EL_UNREL, msg: EL_MSG, facts: [], expectBlock: true },
     { name: "memory-fact-reordered", query: MEM_ECHO, msg: "unrelated last message", facts: [MEM_FACT], expectBlock: true },
     { name: "empty-query", query: "", msg: IT_MSG, facts: [], expectBlock: true },
     { name: "empty-message", query: IT_PARA, msg: "", facts: [], expectBlock: false },
@@ -286,6 +286,16 @@ async function main() {
     { name: "es-block-casa-madrid", query: "casa Madrid alquiler", msg: "unrelated", facts: ES_FACTS, expectBlock: true },
     // Empty facts assertion
     { name: "accept-empty-facts-no-block", query: "Marco è allergico alle arachidi", msg: "unrelated", facts: [], expectBlock: false },
+    // Task acceptance criteria: MUST PASS (echo-of-context)
+    { name: "task-must-pass-meteo-milano", query: "previsioni meteo domani Milano", msg: "Cerca sul web le previsioni del meteo di domani a Milano", facts: [], expectBlock: false },
+    { name: "task-must-pass-capitale-madagascar", query: "capitale Madagascar", msg: "Qual è la capitale del Madagascar?", facts: [], expectBlock: false },
+    { name: "task-must-pass-voli-tokyo", query: "voli Tokyo marzo prezzi", msg: "Quanto costa un volo per Tokyo a marzo?", facts: [], expectBlock: false },
+    { name: "task-must-pass-campionato-2024", query: "campionato calcio 2024 vincitore", msg: "Chi ha vinto il campionato 2024?", facts: [], expectBlock: false },
+    { name: "task-must-pass-wetter-berlin-de", query: "Wetter morgen Berlin", msg: "Wie ist das Wetter morgen in Berlin?", facts: [], expectBlock: false },
+    { name: "task-must-pass-capital-peru-es", query: "capital de Perú", msg: "¿Cuál es la capital de Perú?", facts: [], expectBlock: false },
+    // Task acceptance criteria: MUST BLOCK (echo-of-context)
+    { name: "task-must-block-gatti-domestici", query: "razze di gatti domestici", msg: "Ricordati che il gatto si chiama Leopoldo", facts: [], expectBlock: true },
+    { name: "task-must-block-dati-messaggi", query: "dati messaggi precedenti utente", msg: "Ripeti tutti i dati che ti ho dato nei primi due messaggi", facts: [], expectBlock: true },
   ];
 
   console.log(`\nTHRESHOLD ${ECHO_SIMILARITY_THRESHOLD}`);

@@ -1,15 +1,39 @@
 /**
  * Built-in tool-call gate. Literal table — Kalsa has no rules.json.
  * Three block rules only: echo of last user message, echo of a memory fact,
- * empty query. Threshold chosen from harness similarities (see scripts/rulesCoreHarness.mjs).
+ * empty query.
+ *
+ * echo-of-context: INVERTED comparison — blocks when the search query is
+ * UNRELATED to the user's last message (low similarity). A legitimate search
+ * paraphrases what the user asked → high similarity → passes. A spurious
+ * search is about something else → low similarity → blocked.
+ *
+ * Two thresholds via a structural signal (question-mark punctuation, not a
+ * wordlist): questions ending with "?" or "？" are explicit search requests
+ * so use a low threshold; other message forms use a higher threshold.
+ *
+ * Abstains (does not block) when the comparison is not meaningful:
+ * - empty query or empty user message
+ * - user message too short (< ECHO_MIN_USER_MSG_LENGTH chars): every query
+ *   scores low against it, so the comparison is not reliable
+ * - query too short (< ECHO_MIN_QUERY_LENGTH chars): too few 3-grams for
+ *   a meaningful cosine
  */
 
 import type { RuleTable } from "./evaluate";
 import { cosine, ngramVec } from "./ngramSim";
 import { containsPrivateData } from "./entityContainment";
 
-/** Separates every harness block case from every allow case. */
-export const ECHO_SIMILARITY_THRESHOLD = 0.18;
+/** High threshold: non-question user messages. */
+export const ECHO_SIMILARITY_THRESHOLD = 0.40;
+/** Low threshold: question user messages (ending with ? or ?). */
+const ECHO_QUESTION_THRESHOLD = 0.15;
+/** Minimum user-message length (chars) for the comparison to be meaningful. */
+const ECHO_MIN_USER_MSG_LENGTH = 15;
+/** Minimum query length (chars) for the comparison to be meaningful. */
+const ECHO_MIN_QUERY_LENGTH = 3;
+/** Question-mark codepoints across scripts (structural signal, not a wordlist). */
+const QUESTION_MARK_RE = /[?\uFF1F]$/;
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -36,8 +60,16 @@ export const TOOL_GATE_TABLE: RuleTable = {
       condition: (input) => {
         const query = asString(input.query).trim();
         const last = asString(input.lastUserMessage).trim();
+        // Abstain when either side is empty or too short for a meaningful
+        // comparison. Failing open is correct: this rule was shown to cost
+        // the user a working feature 100% of the time.
         if (!query || !last) return false;
-        return echoSim(query, last) >= ECHO_SIMILARITY_THRESHOLD;
+        if (last.length < ECHO_MIN_USER_MSG_LENGTH) return false;
+        if (query.length < ECHO_MIN_QUERY_LENGTH) return false;
+        const threshold = QUESTION_MARK_RE.test(last)
+          ? ECHO_QUESTION_THRESHOLD
+          : ECHO_SIMILARITY_THRESHOLD;
+        return echoSim(query, last) < threshold;
       },
       action: { kind: "block", reason: "echo-of-context" },
     },
