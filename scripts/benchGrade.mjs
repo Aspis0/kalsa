@@ -597,6 +597,44 @@ function readDigestTelemetry(turnDir) {
   return records;
 }
 
+/**
+ * Parse turn<N>/memory.jsonl (KALSA_MEMORY telemetry). Missing / unreadable
+ * / empty → []. Never throw. Each line is one memory-telemetry object
+ * with { factsExtracted, factsStored, factsRejectedSensitive, factsRejectedFull, factsInjected, totalFactsInStore }.
+ */
+function readMemoryTelemetry(turnDir) {
+  const file = path.join(turnDir, "memory.jsonl");
+  if (!existsSync(file)) return [];
+  let raw;
+  try {
+    raw = readFileSync(file, "utf8");
+  } catch {
+    return [];
+  }
+  const records = [];
+  for (const line of raw.split("\n")) {
+    const t = line.trim();
+    if (!t) continue;
+    try {
+      const obj = JSON.parse(t);
+      if (obj && typeof obj === "object") {
+        const factsExtracted = typeof obj.factsExtracted === "number" ? obj.factsExtracted : null;
+        const factsStored = typeof obj.factsStored === "number" ? obj.factsStored : null;
+        const factsRejectedSensitive = typeof obj.factsRejectedSensitive === "number" ? obj.factsRejectedSensitive : null;
+        const factsRejectedFull = typeof obj.factsRejectedFull === "number" ? obj.factsRejectedFull : null;
+        const factsInjected = typeof obj.factsInjected === "number" ? obj.factsInjected : null;
+        const totalFactsInStore = typeof obj.totalFactsInStore === "number" ? obj.totalFactsInStore : null;
+        if (factsExtracted != null || factsStored != null || factsRejectedSensitive != null || factsRejectedFull != null || factsInjected != null || totalFactsInStore != null) {
+          records.push({ factsExtracted, factsStored, factsRejectedSensitive, factsRejectedFull, factsInjected, totalFactsInStore });
+        }
+      }
+    } catch {
+      // skip unparseable lines
+    }
+  }
+  return records;
+}
+
 function emptyToolAggregates() {
   return {
     emittedAnyToolCall: false,
@@ -853,6 +891,12 @@ function gradeRaw(raw, baseDir) {
       : readDigestTelemetry(path.join(baseDir, `turn${t.index}`)),
   );
 
+  const memoryTelemetryPerTurn = turns.map((t) =>
+    t.index == null
+      ? []
+      : readMemoryTelemetry(path.join(baseDir, `turn${t.index}`)),
+  );
+
   const turnMetrics = turns.map((t) => metricsForTurn(baseDir, t.index));
 
   // contextFullTurns / errorTurns: product signals the harness used to ignore.
@@ -1055,6 +1099,7 @@ function gradeRaw(raw, baseDir) {
     spuriousCalls,
     missedCalls,
     digestTelemetry: digestTelemetryPerTurn,
+    memoryTelemetry: memoryTelemetryPerTurn,
     model: raw.model ?? null,
     fillerRotation: raw.fillerRotation ?? null,
     historyChars: raw.historyChars ?? null,

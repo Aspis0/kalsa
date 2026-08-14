@@ -125,6 +125,7 @@ import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
 import { computePromptEnvHash, getBootHistoryHash, historyHash } from "../engine/sessionPersistence";
 import { formatSummaryLine } from "../engine/summaryTelemetry";
 import { formatDigestLine } from "../engine/digestTelemetry";
+import { formatMemoryLine } from "../memory/memoryTelemetry";
 import {
   getBenchNCtx,
   getBenchWindowBudget,
@@ -3821,6 +3822,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             engineMessages.push(userMessage);
 
             const promptFacts = memoryEnabledRef.current ? memoryFactsRef.current : [];
+            // Track injection count for telemetry (numbers only, no fact text)
+            MemoryStore.trackMemoryInjection(promptFacts.length);
             // Echo guard uses exactly the facts injected this turn (immune to
             // mid-turn memory disable). Empty when memory off / no facts.
             injectedFactsRef.current = promptFacts;
@@ -4011,6 +4014,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
                 onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
                 onDone: () => {
+                  // Emit memory telemetry at turn end (counters only, no fact text)
+                  const memTelemetry = MemoryStore.getAndResetMemoryTelemetry();
+                  console.log(formatMemoryLine(memTelemetry));
                   // Arm extract (memoryExtractRef) before unlocking; gate opens
                   // only after AiChatPage's turn-end save settles.
                   armMemoryExtract();

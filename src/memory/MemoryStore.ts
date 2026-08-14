@@ -63,6 +63,44 @@ let migrationDirty = false;
 /** Serialize all store mutations (promise chain). */
 let mutationChain: Promise<void> = Promise.resolve();
 
+// ── Telemetry accumulator (per-turn counters) ────────────────────────────
+// Counts extraction/storage/rejection/injection events for bench telemetry.
+// Emitted as KALSA_MEMORY log line at turn boundaries.
+let telemetryAccum = {
+  factsExtracted: 0,
+  factsStored: 0,
+  factsRejectedSensitive: 0,
+  factsRejectedFull: 0,
+  factsInjected: 0,
+  totalFactsInStore: 0,
+};
+
+/**
+ * Track when facts are injected into system prompt (called from AppShell).
+ * @param count Number of facts injected (0..10)
+ */
+export function trackMemoryInjection(count: number): void {
+  telemetryAccum.factsInjected = count;
+}
+
+/**
+ * Get current telemetry snapshot and reset accumulator for next turn.
+ * Returns the counters accumulated since last call.
+ */
+export function getAndResetMemoryTelemetry(): typeof telemetryAccum {
+  const snapshot = { ...telemetryAccum };
+  // Reset for next turn
+  telemetryAccum = {
+    factsExtracted: 0,
+    factsStored: 0,
+    factsRejectedSensitive: 0,
+    factsRejectedFull: 0,
+    factsInjected: 0,
+    totalFactsInStore: 0,
+  };
+  return snapshot;
+}
+
 function withMutex<T>(fn: () => Promise<T>): Promise<T> {
   const run = mutationChain.then(fn, fn);
   mutationChain = run.then(
@@ -462,6 +500,9 @@ export async function applyExtractResults(
   remove: string[],
   expectedEpoch: number,
 ): Promise<boolean> {
+  // Track extraction candidates (before filtering)
+  telemetryAccum.factsExtracted += add.length;
+  
   return withMutex(async () => {
     if (epoch !== expectedEpoch) return false;
     // Read enabled without nested mutex (we already hold it).
@@ -497,14 +538,22 @@ export async function applyExtractResults(
       if (!normalized) continue;
       // Check the FULL untruncated input — normalizeText() truncates to
       // MAX_TEXT_LEN, which could otherwise hide a sensitive keyword past the cutoff.
-      if (isSensitiveFact(rawAdd)) continue;
+      if (isSensitiveFact(rawAdd)) {
+        telemetryAccum.factsRejectedSensitive++;
+        continue;
+      }
       const key = normalizeKey(normalized);
       if (facts.some((fact) => normalizeKey(fact.text) === key)) continue;
+      if (facts.length >= MAX_FACTS) {
+        telemetryAccum.factsRejectedFull++;
+        continue;
+      }
       facts = facts.concat({
         id: makeId(),
         text: normalized,
         createdAt: Date.now(),
       });
+      telemetryAccum.factsStored++;
       changed = true;
     }
 
@@ -512,6 +561,8 @@ export async function applyExtractResults(
     // Final race check right before write.
     if (epoch !== expectedEpoch) return false;
     await writeFacts(facts);
+    // Update total facts in store after successful write
+    telemetryAccum.totalFactsInStore = facts.length;
     return true;
   });
 }

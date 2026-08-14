@@ -6,6 +6,7 @@
 
 import type { RuleTable } from "./evaluate";
 import { cosine, ngramVec } from "./ngramSim";
+import { containsPrivateData } from "./entityContainment";
 
 /** Separates every harness block case from every allow case. */
 export const ECHO_SIMILARITY_THRESHOLD = 0.18;
@@ -49,7 +50,7 @@ export const TOOL_GATE_TABLE: RuleTable = {
         for (const fact of asFacts(input.memoryFacts)) {
           const trimmed = fact.trim();
           if (!trimmed) continue;
-          if (echoSim(query, trimmed) >= ECHO_SIMILARITY_THRESHOLD) return true;
+          if (containsPrivateData(query, trimmed)) return true;
         }
         return false;
       },

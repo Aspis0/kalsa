@@ -24,6 +24,7 @@
 #   TOOLCHOICE     auto|required|none → kalsa.bench.toolchoice (default auto)
 #   TOOLGATE       1|0 → kalsa.bench.toolgate (default 1; 0 disables the
 #                  echo-of-context rules gate)
+#   MEMORY         1|0 → kalsa.memory.enabled (default 0; 1 enables memory extract/inject)
 #   RUNS_PER_ARM   fase0 in-job repeat count (default 3, per PIANO "3 run/formato")
 #   INTER_TURN_DELAY_S  seconds of pure idle between turns (default 0).
 #                  After capture_turn_evidence, before the next prompt is typed.
@@ -50,6 +51,7 @@ NCTX="${NCTX:-}"
 WINBUDGET="${WINBUDGET:-}"
 LEGACYWINDOW="${LEGACYWINDOW:-}"
 RANKING="${RANKING:-}"
+MEMORY="${MEMORY:-0}"
 RUNS_PER_ARM="${RUNS_PER_ARM:-3}"
 INTER_TURN_DELAY_S="${INTER_TURN_DELAY_S:-0}"
 MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
@@ -154,8 +156,12 @@ case "$RANKING" in
   ""|bm25|hybrid) ;;
   *) die "RANKING must be empty, bm25, or hybrid (got '$RANKING')" ;;
 esac
+case "$MEMORY" in
+  0|1) ;;
+  *) die "MEMORY must be 0 or 1 (got '$MEMORY')" ;;
+esac
 
-log "arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
+log "arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW memory=$MEMORY runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
 # LFM2.5 is always-on reasoning: the chat template has preserve_thinking only,
 # no off switch. Record THINKING as today; do not try to force it off.
 if [ "$MODEL_DIR" = "lfm2.5-2.6b" ]; then
@@ -246,9 +252,10 @@ set_prefs() {
   else
     sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.ranking';"
   fi
-  # Opt-in memory subsystem must stay off: otherwise its extract/recall path
-  # confounds the compaction A/B (same facts could leak via memory, not context).
-  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.memory.enabled','0');"
+  # Opt-in memory subsystem: MEMORY env controls kalsa.memory.enabled (0=off, 1=on, default 0).
+  # With a short legacy window (kalsa.bench.legacywindow), planted facts fall out of verbatim
+  # context, so memory becomes the only retrieval path — not a confounder. Both-branch assert below.
+  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.memory.enabled','$MEMORY');"
   # Locale MUST be "it" on every phase/arm. Bench prompts and probes are Italian.
   # DEFAULT_LOCALE in src/i18n/index.ts is "en"; without this seed both arms run
   # English. The operative block's language rule (en.ts operativeBlock.language)
@@ -313,6 +320,10 @@ else
   [ -z "$RANKING_PREF_RAW" ] \
     || die "ranking pref on device is '$RANKING_PREF_RAW', expected absent (RANKING empty = bm25)"
 fi
+# Memory is always written (default 0, never deleted) — simple equality assert.
+MEMORY_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.memory.enabled';" | head -1 | tr -d '[:space:]')
+[ "$MEMORY_PREF_RAW" = "$MEMORY" ] \
+  || die "memory pref on device is '$MEMORY_PREF_RAW', expected '$MEMORY'"
 
 adb logcat -c
 
@@ -862,6 +873,11 @@ capture_turn_evidence() {
   # (empty when none) so absent-file vs empty-capture stay distinguishable.
   grep -F "KALSA_DIGEST " "$buf" 2>/dev/null \
     | sed 's/.*KALSA_DIGEST //' > "$tdir/digest.jsonl" 2>/dev/null || : > "$tdir/digest.jsonl"
+
+  # memory.jsonl — per-turn memory telemetry (KALSA_MEMORY). Always write the file
+  # (empty when none) so absent-file vs empty-capture stay distinguishable.
+  grep -F "KALSA_MEMORY " "$buf" 2>/dev/null \
+    | sed 's/.*KALSA_MEMORY //' > "$tdir/memory.jsonl" 2>/dev/null || : > "$tdir/memory.jsonl"
 
   {
     grep -F "Input processed: n_past=" "$buf" 2>/dev/null || true

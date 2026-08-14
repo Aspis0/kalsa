@@ -21,6 +21,7 @@ function compile() {
       "src/rules/evaluate.ts",
       "src/rules/ngramSim.ts",
       "src/rules/toolGate.ts",
+      "src/rules/entityContainment.ts",
       "--outDir",
       outDir,
       "--module",
@@ -220,6 +221,12 @@ async function main() {
   });
 
   // ── gate behaviour ────────────────────────────────────────────────────
+  const acceptanceFacts = [
+    "Marco è allergico alle arachidi",
+    "Il codice fiscale di Marco è RSSMRC80A01L219X",
+    "Marco lavora alla Banca Intesa di Torino",
+  ];
+
   const gateCases = [
     { name: "it-paraphrase (real failure)", query: IT_PARA, msg: IT_MSG, facts: [], expectBlock: true },
     { name: "it-verbatim-echo", query: IT_MSG, msg: IT_MSG, facts: [], expectBlock: true },
@@ -235,6 +242,22 @@ async function main() {
     { name: "empty-message", query: IT_PARA, msg: "", facts: [], expectBlock: false },
     { name: "1-char-query", query: "L", msg: IT_MSG, facts: [], expectBlock: false },
     { name: "2-char-query", query: "Le", msg: IT_MSG, facts: [], expectBlock: false },
+    // Acceptance criteria: MUST BLOCK
+    { name: "accept-block-fact1-verbatim", query: "Marco è allergico alle arachidi", msg: "unrelated", facts: acceptanceFacts, expectBlock: true },
+    { name: "accept-block-marco-allergico-arachidi", query: "marco allergico arachidi", msg: "unrelated", facts: acceptanceFacts, expectBlock: true },
+    { name: "accept-block-allergia-alle-arachidi", query: "allergia alle arachidi cosa fare", msg: "unrelated", facts: acceptanceFacts, expectBlock: true },
+    { name: "accept-block-codice-fiscale", query: "RSSMRC80A01L219X", msg: "unrelated", facts: acceptanceFacts, expectBlock: true },
+    { name: "accept-block-banca-intesa-torino", query: "Banca Intesa Torino dipendenti", msg: "unrelated", facts: acceptanceFacts, expectBlock: true },
+    { name: "accept-block-meteo-torino", query: "meteo Torino domani", msg: "unrelated", facts: acceptanceFacts, expectBlock: true },
+    // Acceptance criteria: MUST PASS
+    { name: "accept-pass-ricetta-pasta", query: "ricetta pasta al forno", msg: "unrelated", facts: acceptanceFacts, expectBlock: false },
+    { name: "accept-pass-capitale-madagascar", query: "capitale del Madagascar", msg: "unrelated", facts: acceptanceFacts, expectBlock: false },
+    { name: "accept-pass-campionato-calcio", query: "campionato calcio 2024 vincitore", msg: "unrelated", facts: acceptanceFacts, expectBlock: false },
+    { name: "accept-pass-voli-tokyo", query: "voli per Tokyo a marzo prezzi", msg: "unrelated", facts: acceptanceFacts, expectBlock: false },
+    { name: "accept-pass-cuocere-riso", query: "come si cuoce il riso", msg: "unrelated", facts: acceptanceFacts, expectBlock: false },
+    { name: "accept-pass-quantum-chromodynamics", query: "quantum chromodynamics", msg: "unrelated", facts: acceptanceFacts, expectBlock: false },
+    // Empty facts assertion
+    { name: "accept-empty-facts-no-block", query: "Marco è allergico alle arachidi", msg: "unrelated", facts: [], expectBlock: false },
   ];
 
   console.log(`\nTHRESHOLD ${ECHO_SIMILARITY_THRESHOLD}`);

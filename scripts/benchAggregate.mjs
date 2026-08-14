@@ -974,6 +974,62 @@ function collectDigestTimingByMode(fase4) {
   });
 }
 
+function collectMemoryTelemetryByMode(fase4) {
+  const acc = new Map();
+  for (const mode of FASE4_MODES) {
+    acc.set(mode, {
+      extracted: 0,
+      stored: 0,
+      rejectedSensitive: 0,
+      rejectedFull: 0,
+      injected: 0,
+      maxInStore: 0,
+      hasData: false,
+      arm: null,
+    });
+  }
+  
+  for (const r of fase4) {
+    const mode = modeOf(r);
+    if (!mode || !acc.has(mode)) continue;
+    const row = acc.get(mode);
+    row.arm = r.arm;
+    const telemetry = r.memoryTelemetry;
+    if (!Array.isArray(telemetry)) continue;
+    
+    // memoryTelemetry is per-turn array of per-turn arrays
+    for (const turnTelemetry of telemetry) {
+      if (!Array.isArray(turnTelemetry)) continue;
+      for (const m of turnTelemetry) {
+        row.hasData = true;
+        if (typeof m.factsExtracted === "number") row.extracted += m.factsExtracted;
+        if (typeof m.factsStored === "number") row.stored += m.factsStored;
+        if (typeof m.factsRejectedSensitive === "number") row.rejectedSensitive += m.factsRejectedSensitive;
+        if (typeof m.factsRejectedFull === "number") row.rejectedFull += m.factsRejectedFull;
+        if (typeof m.factsInjected === "number") row.injected += m.factsInjected;
+        if (typeof m.totalFactsInStore === "number") {
+          row.maxInStore = Math.max(row.maxInStore, m.totalFactsInStore);
+        }
+      }
+    }
+  }
+  
+  return FASE4_MODES.map((mode) => {
+    const row = acc.get(mode);
+    return {
+      mode,
+      arm: row.arm,
+      hasData: row.hasData,
+      totalExtracted: row.extracted,
+      totalStored: row.stored,
+      totalRejectedSensitive: row.rejectedSensitive,
+      totalRejectedFull: row.rejectedFull,
+      totalInjected: row.injected,
+      maxFactsInStore: row.maxInStore,
+    };
+  });
+}
+
 function accumulateToolTiming(results) {
   const acc = { prec: [], rec: [], spurious: 0, missed: 0, blocked: 0, n: 0 };
   for (const r of results) {
@@ -1396,6 +1452,7 @@ function aggregateFase4(results) {
   const summaryByMode = collectSummaryByMode(compaction);
   const toolTimingByMode = collectToolTimingByMode(compaction);
   const digestTimingByMode = collectDigestTimingByMode(compaction);
+  const memoryTelemetryByMode = collectMemoryTelemetryByMode(compaction);
   const toolTimingGateAB = collectToolTimingGateAB(fase4);
 
   const gated = shouldGateFase4();
@@ -1438,6 +1495,7 @@ function aggregateFase4(results) {
     summaryByMode,
     toolTimingByMode,
     digestTimingByMode,
+    memoryTelemetryByMode,
     toolTimingGateAB,
     prefill,
     positiveControl,
@@ -1770,6 +1828,53 @@ function renderFase4(agg) {
     }
   }
 
+  // ── Memory subsystem telemetry ──────────────────────────────────────
+  // Memory is opt-in (MEMORY env var). When enabled, we track extraction,
+  // storage, rejection, and injection counters. This proves the mechanism ran.
+  lines.push(
+    "",
+    "### Memory subsystem telemetry",
+    "",
+    "_Opt-in via `MEMORY=1` env var. Counters prove the extraction/storage/injection path ran. Empty-store with hasData=true means the mechanism was invoked but stored nothing — a broken arm._",
+    "",
+    "| mode | arm | has data | extracted | stored | rejected (sensitive) | rejected (full) | injected | max in store |",
+    "|---|---|---|---|---|---|---|---|---|",
+  );
+  const memoryTelemetry = agg.memoryTelemetryByMode ?? [];
+  if (memoryTelemetry.length === 0) {
+    lines.push("| — | — | — | — | — | — | — | — | — |");
+  } else {
+    for (const row of memoryTelemetry) {
+      const hasData = row.hasData ? "yes" : "no";
+      lines.push(
+        `| ${row.mode} | ${row.arm || "—"} | ${hasData} | ${row.totalExtracted} | ${row.totalStored} | ${row.totalRejectedSensitive} | ${row.totalRejectedFull} | ${row.totalInjected} | ${row.maxFactsInStore} |`,
+      );
+    }
+  }
+  
+  // Check for empty-store failures
+  const emptyStoreFailures = memoryTelemetry.filter(
+    (row) => row.hasData && row.totalStored === 0
+  );
+  if (emptyStoreFailures.length > 0) {
+    lines.push(
+      "",
+      "**⚠ MEMORY SUBSYSTEM FAILURE:** The following arms have memory telemetry data but stored zero facts:",
+      "",
+      "| mode | arm | extracted | rejected (sensitive) | rejected (full) |",
+      "|---|---|---|---|---|",
+    );
+    for (const row of emptyStoreFailures) {
+      lines.push(
+        `| ${row.mode} | ${row.arm} | ${row.totalExtracted} | ${row.totalRejectedSensitive} | ${row.totalRejectedFull} |`,
+      );
+    }
+    lines.push(
+      "",
+      "_This means the extraction job ran but nothing was stored. Check sensitive filter or cap limits._",
+    );
+  }
+
   // ── Probe-level (pseudo-replicated — NOT the gate) ──────────────────
   // One table per pairwise comparison so the primary ciswire arm is present.
   lines.push(
@@ -2011,6 +2116,11 @@ function renderGateFailures(agg) {
       r.captureFailedTurns.length > 0,
   );
   const hasCaptureFailed = captureFailed.length > 0;
+  // Memory subsystem: fail when hasData=true but totalStored=0 (mechanism invoked but stored nothing)
+  const memoryEmptyStore = (agg.memoryTelemetryByMode ?? []).filter(
+    (row) => row.hasData && row.totalStored === 0
+  );
+  const hasMemoryEmptyStore = memoryEmptyStore.length > 0;
   const seedsInfo = agg.seedsInfo;
 
   if (
@@ -2022,7 +2132,8 @@ function renderGateFailures(agg) {
     !hasPrimaryUsableZero &&
     !hasSummaryCaptureEmpty &&
     !posCtrlFailed &&
-    !hasCaptureFailed
+    !hasCaptureFailed &&
+    !hasMemoryEmptyStore
   ) {
     return { markdown: "", exitCode: 0 };
   }
@@ -2151,6 +2262,21 @@ function renderGateFailures(agg) {
     for (const r of captureFailed) {
       lines.push(
         `| ${r.arm} | ${r.seed} | ${r.captureFailedTurns.join(", ")} |`,
+      );
+    }
+    lines.push("");
+  }
+
+  if (hasMemoryEmptyStore) {
+    lines.push(
+      "**Memory subsystem stored zero facts despite having telemetry data** — the extraction mechanism was invoked but nothing was stored. This is a broken arm, not a measurement.",
+      "",
+      "| mode | arm | extracted | rejected (sensitive) | rejected (full) |",
+      "|---|---|---|---|---|",
+    );
+    for (const row of memoryEmptyStore) {
+      lines.push(
+        `| ${row.mode} | ${row.arm} | ${row.totalExtracted} | ${row.totalRejectedSensitive} | ${row.totalRejectedFull} |`,
       );
     }
     lines.push("");
