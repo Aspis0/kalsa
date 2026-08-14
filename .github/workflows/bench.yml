@@ -119,6 +119,12 @@ jobs:
           node scripts/benchGradeHarness.mjs
           node scripts/benchAggregateHarness.mjs
           node scripts/benchNCtxHarness.mjs
+          # Gates for the privacy guard, the LFM tool dialect and memory telemetry.
+          # Absent until 2026-08-14: all three shipped with manual-only verification.
+          node scripts/rulesCoreHarness.mjs
+          node scripts/toolCallParseHarness.mjs
+          node scripts/memoryTelemetryHarness.mjs
+          npx jest --silent
           node scripts/matrixParityHarness.mjs
 
       - name: Free disk space
