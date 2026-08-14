@@ -21,9 +21,10 @@
 
 ## TL;DR lanes (2026-08-14)
 
-> 🎯 **DIRETTIVA gualt (2026-08-14 mattina): DUE lane vive — (1) KERNEL S3
-> repack-aware ("voglio il kernel"), (2) SELFSPEC F1 engine. TUTTO IL RESTO
-> È CHIUSO/CONGELATO** (free-tier: si ferma alla scala misurata; celle card
+> 🎯 **DIRETTIVA gualt (2026-08-14 mattina): TRE cose vive — (1) KERNEL S3
+> repack-aware ("voglio il kernel"), (2) SELFSPEC F1 engine, (3) il PPL
+> quality gate Mellum in corso su PC (gata il 5.151 e le config S3 —
+> "quello non è chiuso", gualt). TUTTO IL RESTO È CHIUSO/CONGELATO** (free-tier: si ferma alla scala misurata; celle card
 > Xiaomi, FT lane, GPU: freeze — si riaprono solo su parola di gualt).
 > Design S3 del coordinatore: `docs/kernel-s3-design.md` (3 meccanismi
 > ranked: Phase-D cache-ostile prima del repack; repack-at-cache-insert
