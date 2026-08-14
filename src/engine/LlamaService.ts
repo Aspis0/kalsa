@@ -63,7 +63,9 @@ import {
   estimateSessionBytes,
   getSessionConversationId,
   hasEnoughDiskForSession,
+  readPersistedHistoryLength,
   readSessionMeta,
+  resolveSessionDiskTokens,
   sessionFileExists,
   sessionFilePath,
   sessionLoadHasTokens,
@@ -139,6 +141,12 @@ let activeSpecType: string | undefined;
  * start. Cleared on dispose / those utility clearCache paths.
  */
 let kvHoldsChatSession = false;
+/**
+ * Last known chat KV used-token count (n_past). llama.rn exposes this as
+ * completion tokens_cached and loadSession tokens_loaded. Disk-gate input;
+ * cleared when chat KV is dropped.
+ */
+let lastChatNPast: number | undefined;
 /**
  * True when the on-disk .kvs matches the in-memory chat KV (successful
  * saveEngineSession since the last completion). extractMemory can then restore
@@ -968,6 +976,7 @@ async function disposeEngineLocked(): Promise<void> {
     activeMtpNMax = undefined;
     activeSpecType = undefined;
     kvHoldsChatSession = false;
+    lastChatNPast = undefined;
     chatKvDiskCurrent = false;
     kvReproState = nextKvReproState(kvReproState, "dispose");
     lastPromptEnvHash = undefined;
@@ -1115,6 +1124,28 @@ export function markKvNonReproducible(
   kvReproState = nextKvReproState(kvReproState, event);
 }
 
+/** Record chat KV used tokens. 0 / non-finite clears (empty or unknown). */
+function noteChatNPast(value: unknown): void {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    lastChatNPast = Math.floor(value);
+    return;
+  }
+  if (value === 0) lastChatNPast = undefined;
+}
+
+async function sessionDiskGateInput(): Promise<{
+  nPast?: number;
+  historyLength?: number | null;
+  nCtx: number;
+}> {
+  const nPast = lastChatNPast;
+  let historyLength: number | null | undefined;
+  if (nPast == null || nPast <= 0) {
+    historyLength = await readPersistedHistoryLength();
+  }
+  return { nPast, historyLength, nCtx: activeEngineCtx };
+}
+
 /**
  * Persist native KV + meta for the active model. Serialized via withEngineJob
  * so it never races a completion. Never throws; returns false on skip/failure.
@@ -1134,7 +1165,11 @@ export async function saveEngineSession(
   return withLifecycleLock(() =>
   withEngineJob(async () => {
     const t0 = Date.now();
-    const estimatedBytes = estimateSessionBytes(activeEngineCtx);
+    let usedTokens = resolveSessionDiskTokens({
+      nPast: lastChatNPast,
+      nCtx: activeEngineCtx,
+    });
+    let estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
     const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
       try {
         console.log(
@@ -1143,6 +1178,7 @@ export async function saveEngineSession(
             ms: Date.now() - t0,
             ok,
             estimatedBytes,
+            usedTokens: usedTokens ?? -1,
             ...extra,
           })}`,
         );
@@ -1172,7 +1208,10 @@ export async function saveEngineSession(
         log(false, { reason: "no_context" });
         return false;
       }
-      if (!(await hasEnoughDiskForSession(activeEngineCtx))) {
+      const diskInput = await sessionDiskGateInput();
+      usedTokens = resolveSessionDiskTokens(diskInput);
+      estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
+      if (!(await hasEnoughDiskForSession(diskInput))) {
         log(false, { reason: "disk" });
         return false;
       }
@@ -1248,6 +1287,7 @@ export async function saveEngineSession(
       // when history is unchanged (valid restore).
       await writeSessionMeta(modelId, meta);
       chatKvDiskCurrent = true;
+      noteChatNPast(tokens);
       // Only after a successful write: drop other models' sessions (keep current).
       await deleteOtherModelSessions(modelId);
       log(true, {
@@ -1353,6 +1393,7 @@ async function tryLoadEngineSession(
     }
     kvHoldsChatSession = true;
     chatKvDiskCurrent = true;
+    noteChatNPast(result?.tokens_loaded);
     // Keep lastPromptEnvHash aligned with the restored KV for a later save.
     lastPromptEnvHash =
       stored.promptEnvHash ?? expected.promptEnvHash ?? lastPromptEnvHash;
@@ -1385,6 +1426,7 @@ export async function invalidateEngineSession(modelId: string): Promise<void> {
       // (clearChat leaves the engine up; a later background must not save).
       if (activeModelId === modelId) {
         kvHoldsChatSession = false;
+        lastChatNPast = undefined;
         chatKvDiskCurrent = false;
         bakedUserTails = [];
       }
@@ -1963,6 +2005,8 @@ export async function streamAssistantTurn(
             },
           ),
         );
+        // tokens_cached is n_past in llama.rn — used-token disk gate.
+        noteChatNPast(result?.tokens_cached);
 
         // Per-round counters+timings only — never user text / completion content.
         // tool/strategy = last SUCCESSFUL tool earlier in this turn (see
@@ -2264,7 +2308,7 @@ async function snapshotNativeSession(
   destPath: string,
 ): Promise<boolean> {
   try {
-    if (!(await hasEnoughDiskForSession(activeEngineCtx))) return false;
+    if (!(await hasEnoughDiskForSession(await sessionDiskGateInput()))) return false;
     await ensureSessionsDir();
     try {
       await FileSystem.deleteAsync(destPath, { idempotent: true });
@@ -2363,6 +2407,7 @@ export async function extractMemory(
         // best effort — extract still proceeds
       }
       kvHoldsChatSession = false;
+      lastChatNPast = undefined;
       chatKvDiskCurrent = false;
     } else {
       // Flag on but nothing to restore (kvHoldsChatSession already false).
@@ -2413,9 +2458,13 @@ export async function extractMemory(
         if (engine === context) {
           const restored = await restoreNativeSession(engine, restorePath);
           kvHoldsChatSession = restored;
-          if (!restored) chatKvDiskCurrent = false;
+          if (!restored) {
+            lastChatNPast = undefined;
+            chatKvDiskCurrent = false;
+          }
         } else {
           kvHoldsChatSession = false;
+          lastChatNPast = undefined;
           chatKvDiskCurrent = false;
         }
       }
@@ -2529,6 +2578,7 @@ export async function translateText(
         // best effort — translate still proceeds
       }
       kvHoldsChatSession = false;
+      lastChatNPast = undefined;
       chatKvDiskCurrent = false;
       if (aborted || signal?.aborted) return { text: "", truncated };
 
@@ -2634,6 +2684,7 @@ export async function summarizeConversation(
         // best effort
       }
       kvHoldsChatSession = false;
+      lastChatNPast = undefined;
       chatKvDiskCurrent = false;
       if (aborted || signal?.aborted || engine !== context) return "";
 

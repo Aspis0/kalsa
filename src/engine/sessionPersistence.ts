@@ -9,6 +9,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 
+import { SESSION_DISK_GATE_USED_TOKENS } from "./ttftFlags";
+
+export { SESSION_DISK_GATE_USED_TOKENS };
+
 // ── Pure section ────────────────────────────────────────────────────────────
 
 export type SessionMeta = {
@@ -251,17 +255,99 @@ export async function ensureSessionsDir(): Promise<void> {
   }
 }
 
+/** Dense measured ceiling ≈58–60 KB per used token (q8_0 K / q4_0 V, 4B). */
+export const SESSION_BYTES_PER_TOKEN = 64 * 1024;
+
+/** Free space must exceed this × estimated bytes (write + FS overhead). */
+export const SESSION_DISK_MARGIN = 1.5;
+
+/** Minimum free bytes even for a tiny session. */
+export const SESSION_DISK_FLOOR_BYTES = 4 * 1024 * 1024;
+
+/** Minimum token count when estimating from history (not from n_past). */
+export const SESSION_DISK_TOKEN_FLOOR = 64;
+
+/**
+ * Conservative tokens-per-message when n_past is unknown.
+ * Over-estimates (templates / system prompt) so we skip save rather than
+ * fill the disk. Not nCtx — that blocked every save on small volumes.
+ */
+export const SESSION_DISK_TOKENS_PER_HISTORY_MSG = 512;
+
+export type SessionDiskGateInput = {
+  /** Native KV used tokens (completion tokens_cached / load tokens_loaded). */
+  nPast?: number | null;
+  /** Persisted chat message count; used only when nPast is unknown. */
+  historyLength?: number | null;
+  /** Context window; cap when the used-token flag is on, size when off. */
+  nCtx?: number | null;
+};
+
+function finiteInt(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.floor(value);
+}
+
+/**
+ * Token count the disk gate should budget for.
+ * Prefers n_past; if unknown, conservative historyLength * tokens/msg
+ * (floor applied). Never falls back to full nCtx when the flag is on.
+ * Returns null when neither n_past nor history is known (fail closed).
+ */
+export function resolveSessionDiskTokens(input: SessionDiskGateInput): number | null {
+  const nCtx = finiteInt(input.nCtx);
+  const cap = nCtx != null && nCtx > 0 ? nCtx : null;
+
+  if (!SESSION_DISK_GATE_USED_TOKENS) {
+    return cap ?? 0;
+  }
+
+  const nPast = finiteInt(input.nPast);
+  if (nPast != null && nPast > 0) {
+    return cap != null ? Math.min(nPast, cap) : nPast;
+  }
+
+  const historyLength = finiteInt(input.historyLength);
+  if (historyLength != null && historyLength >= 0) {
+    const estimated = Math.max(
+      SESSION_DISK_TOKEN_FLOOR,
+      historyLength * SESSION_DISK_TOKENS_PER_HISTORY_MSG,
+    );
+    return cap != null ? Math.min(estimated, cap) : estimated;
+  }
+
+  return null;
+}
+
 /**
  * Dense measured ceiling ≈58–60 KB per used token (q8_0 K / q4_0 V, 4B default:
- * ~1.6 KB/cell/layer × 36 layers). We use nCtx * 64 KB as a cheap upper bound
- * without counting tokens in history. Hybrid (kvUnified) recurrent tensors
+ * ~1.6 KB/cell/layer × 36 layers). Hybrid (kvUnified) recurrent tensors
  * (r_l/s_l) can add more and are NOT included in this estimate.
- *
- * Free space must exceed 1.5 × estimated bytes (headroom for write + FS overhead).
- * On check failure/throw → false (skip save).
  */
-export function estimateSessionBytes(nCtx: number): number {
-  return Math.max(0, nCtx) * 64 * 1024;
+export function estimateSessionBytes(usedTokens: number): number {
+  const n = finiteInt(usedTokens);
+  return (n != null && n > 0 ? n : 0) * SESSION_BYTES_PER_TOKEN;
+}
+
+/** Bytes of free space required to attempt a session write. */
+export function sessionDiskBytesRequired(usedTokens: number): number {
+  const estimated = estimateSessionBytes(usedTokens);
+  if (!SESSION_DISK_GATE_USED_TOKENS) {
+    return SESSION_DISK_MARGIN * estimated;
+  }
+  return Math.max(SESSION_DISK_FLOOR_BYTES, estimated * SESSION_DISK_MARGIN);
+}
+
+/** Message count of persisted chat history, or null if missing/invalid. */
+export async function readPersistedHistoryLength(): Promise<number | null> {
+  try {
+    const raw = await AsyncStorage.getItem(bootMessagesKey);
+    if (raw == null) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.length : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -289,11 +375,14 @@ export function shouldSaveSession(args: {
   return { save: true };
 }
 
-export async function hasEnoughDiskForSession(nCtx: number): Promise<boolean> {
+export async function hasEnoughDiskForSession(
+  input: SessionDiskGateInput,
+): Promise<boolean> {
   try {
+    const usedTokens = resolveSessionDiskTokens(input);
+    if (usedTokens == null) return false;
     const free = await FileSystem.getFreeDiskStorageAsync();
-    const estimated = estimateSessionBytes(nCtx);
-    return free > 1.5 * estimated;
+    return free > sessionDiskBytesRequired(usedTokens);
   } catch {
     return false;
   }

@@ -1,8 +1,7 @@
 /**
- * Flags that revert P1-1 memory-facts-tail (V2-0.1) without deleting that code.
- * Default = new (fixed) behavior. Set false to restore the old policy.
- *
- * Do not add other v2 flags here until their steps land.
+ * Flags that revert P1-1 memory-facts-tail (V2-0.1) and P1-2 disk-gate
+ * (V2-0.2) without deleting that code. Default = new (fixed) behavior.
+ * Set false to restore the old policy.
  */
 
 /**
@@ -26,3 +25,11 @@ export const BAKE_FORMAT_B_USER_PREFIX = true;
  * restore clearCache + kvHoldsChatSession=false (next turn 100% cold).
  */
 export const EXTRACT_MEMORY_PRESERVE_CHAT_KV = true;
+
+/**
+ * Disk-gate on used tokens (n_past / history estimate), not full nCtx.
+ * nCtx * 64 KiB * 1.5 is ~1.5 GiB at 16k — low-storage phones never saved.
+ * Set false to restore that nCtx-sized check. Estimate lives in
+ * sessionPersistence (resolveSessionDiskTokens / sessionDiskBytesRequired).
+ */
+export const SESSION_DISK_GATE_USED_TOKENS = true;
