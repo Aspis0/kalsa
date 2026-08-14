@@ -124,7 +124,12 @@
 > kalsa/selfspec-f1: --selfspec-diag, protocollo E2 anti graph-reuse,
 > RAII k-switch; G15 same-k 1.000)**; la corsa sul 35B è ACCODATA a fine
 > PPL arms (PC conteso) — incrocio con la tabella Qwen al landing.
-> (3) PPL gate: k6d1.0 PASS bancato; arm k6d065+k4d0 in corso (~4-5h).
+> (3) **PPL gate Mellum COMPLETO (2026-08-14 sera): k6d065 GATE_PASS con
+> dMacro −0.0086 (MEGLIO dell'ancora k8; worst zh +0.0303) → il default
+> campagna è quality-certified con margine. k6d1.0 PASS confermato
+> (config velocità 5.151). k4d0 GATE_FAIL (dMacro +0.099, fr +0.166) —
+> il k4 "coerente a vista" non regge: via di fuga chiusa.** PC libero →
+> corsa F1b E1/E2/E3 LANCIATA (longfact, 2396c56).
 > **(4) TTFT: PREWARM_UNIVERSAL — Xiaomi 4B post-fix P0: 1a 1.42/2.02 s,
 > riuso 1174/1187 (98.9%), prewarm 29-31 s, 1b join 26 s; fix memguard
 > mergiato su ai-chat main (b274fb9, harness 27/27); P1 zombie APERTO.** Bug app P0/P1 trovati sul Xiaomi (KNOWN_ISSUES ab3b747):

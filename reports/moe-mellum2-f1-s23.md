@@ -541,8 +541,8 @@ Gates = Marco phase-1 protocol: per-lang ΔBPB ≤ +0.10, macro ΔBPB ≤ +0.04 
 |---|---:|---:|---:|---:|---|---:|---|
 | **k8d0** | 8 | 0 | **1.0208** | 0.0000 | — | 0.0000 | ANCHOR |
 | **k6d10** | 6 | 1.0 | 1.0586 | +0.0378 | fr | +0.0877 | **GATE_PASS** |
-| k6d065 | 6 | 0.65 | — | — | — | — | INCOMPLETE |
-| k4d0 | 4 | 0.0 | — | — | — | — | INCOMPLETE |
+| **k6d065** | 6 | 0.65 | 1.0122 | -0.0086 | zh | +0.0303 | **GATE_PASS** |
+| **k4d0** | 4 | 0.0 | 1.1200 | +0.0991 | fr | +0.1660 | **GATE_FAIL** |
 
 Per-language BPB (and Δ vs k8d0):
 
@@ -550,11 +550,16 @@ Per-language BPB (and Δ vs k8d0):
 |---|---:|---:|---:|---:|---:|
 | k8d0 | 0.7783 | 0.9485 | 0.9540 | 1.0666 | 1.3566 |
 | k6d10 | 0.7484 (-0.0299) | 0.9635 (+0.0150) | 1.0418 (+0.0877) | 1.1300 (+0.0634) | 1.4095 (+0.0530) |
-| k6d065 | — | — | — | — | — |
-| k4d0 | — | — | — | — | — |
+| k6d065 | 0.7201 (-0.0583) | 0.9302 (-0.0183) | 0.9661 (+0.0121) | 1.0578 (-0.0088) | 1.3868 (+0.0303) |
+| k4d0 | 0.7734 (-0.0050) | 1.0319 (+0.0834) | 1.1201 (+0.1660) | 1.1888 (+0.1221) | 1.4856 (+0.1290) |
 
 ### Product call on 5.151
 
-**YES — k6d1.0 is adoptable as the product config** on quality. The 5.151 t/s S23 cell (stock kernel, t=2) clears the same Marco-phase-1 tolerances that licensed A2.
+**YES — k6d1.0 is adoptable as the product config** on quality. The 5.151 t/s S23 cell (stock kernel, t=2) clears the same Marco-phase-1 tolerances that licensed A2. Tight, not free: dMacro +0.0378 spends 95% of the +0.04 budget (Marco A2 was +0.0182); worst language is FR +0.0877 vs +0.10. EN BPB actually *fell* (−0.0299) — coding tokenizer on prose, not a reason to distrust the gate.
 
-Written 2026-08-14T12:49:41-0400.
+The other two arms, now that they exist:
+
+- **k6d065 GATE_PASS and cheaper than native k8 on macro** (dMacro **−0.0086**, worst zh +0.0303). Quality-safer than d1.0; the S23 speed cell for this config is the older ~3.76–3.85 t/s, not 5.151.
+- **k4d0 GATE_FAIL** (dMacro +0.0991, FR +0.1660, IT +0.122, ZH +0.129). The F1c 4.72 t/s k=4 point is a speed anecdote. Do not ship a k=4 Mellum2 cell.
+
+Written 2026-08-14T19:37:12-0400.

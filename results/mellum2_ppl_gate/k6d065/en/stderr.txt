@@ -628,7 +628,7 @@ graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n
 sched_reserve:        CPU compute buffer size =   305.51 MiB
 sched_reserve: graph nodes  = 1798
 sched_reserve: graph splits = 1
-sched_reserve: reserve took 9.23 ms, sched copies = 1
+sched_reserve: reserve took 8.27 ms, sched copies = 1
 set_n_threads: n_threads = 16, n_threads_batch = 16
 set_abort_callback: call
 bmoe: expert-mmap: dropped 0 MiB
@@ -639,5 +639,5 @@ ppl-decode: n_tokens=11256 n_ctx=4096 batch=1 moe=1 drop_cold=0.650 k=6
 ppl-decode: scored 4095 / 11255 tokens (sum_logprob=-8991.5582)
 ppl-decode: scored 8190 / 11255 tokens (sum_logprob=-18275.3955)
 ppl-decode: scored 11253 / 11255 tokens (sum_logprob=-25426.4772)
-ppl done (decode): n_scored=11253 ppl=9.5786 sum_logprob=-25426.4772 (1874.9 s)
+ppl done (decode): n_scored=11253 ppl=9.5786 sum_logprob=-25426.4772 (1967.2 s)
 ~llama_context:        CPU compute buffer size is 305.5137 MiB, matches expectation of 305.5137 MiB
