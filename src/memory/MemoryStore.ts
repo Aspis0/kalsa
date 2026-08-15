@@ -74,6 +74,7 @@ let telemetryAccum = {
   factsRejectedFull: 0,
   factsInjected: 0,
   totalFactsInStore: 0,
+  extractParseOutcome: 0,
 };
 
 /**
@@ -93,6 +94,14 @@ export function trackMemoryInjection(count: number): void {
 }
 
 /**
+ * Track the parse outcome of the extract completion (called from AppShell).
+ * @param outcome 0=did not run/timeout, 1=parsed OK (zero items OK), 2=parser rejected
+ */
+export function trackMemoryParseOutcome(outcome: number): void {
+  telemetryAccum.extractParseOutcome = outcome;
+}
+
+/**
  * Get current telemetry snapshot and reset accumulator for next turn.
  * Returns the counters accumulated since last call.
  */
@@ -107,6 +116,7 @@ export function getAndResetMemoryTelemetry(): typeof telemetryAccum {
     factsRejectedFull: 0,
     factsInjected: 0,
     totalFactsInStore: 0,
+    extractParseOutcome: 0,
   };
   return snapshot;
 }

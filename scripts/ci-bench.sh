@@ -1214,7 +1214,7 @@ if [ "$PHASE" = "fase0" ]; then
     # No inter-turn delay after final turn of the run.
   done
 
-elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ] || [ "$PHASE" = "mem" ]; then
+elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
   # Build the turn plan as lists; phase only chooses which plan (no loop copy-paste).
   PLAN_KIND=()
   PLAN_ID=()
@@ -1300,6 +1300,58 @@ elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ] || [ "$PHASE" = "mem" ]; t
   new_conversation
   adb logcat -c 2>/dev/null || true
   # Fail-fast before any turn: UI-string mismatch must not burn a 12-arm matrix.
+  assert_input_path_ready
+  run_turn_plan
+
+elif [ "$PHASE" = "mem" ]; then
+  # Memory subsystem benchmark: measure whether memory extract/inject carries
+  # user facts when the verbatim window has evicted them.
+  # Plants: facts about the USER (name, job, preference, language, interest)
+  # plus a sensitive plant (IBAN) that should be rejected by isSensitiveFact.
+  # Probes: after 8 fillers, all plants are outside legacywindow=16.
+  PLAN_KIND=()
+  PLAN_ID=()
+  PLAN_PROMPT=()
+  PLAN_EXPECT=()
+  plan_add() { PLAN_KIND+=("$1"); PLAN_ID+=("$2"); PLAN_PROMPT+=("$3"); PLAN_EXPECT+=("$4"); }
+
+  # Plant A: name, job, preference — distinctive tokens (Teodoro, orologiaio)
+  # that cannot be guessed from general knowledge.
+  plan_add plant plant_a \
+    "Mi chiamo Teodoro lavoro come orologiaio e mi piace il cibo piccante" \
+    must_not
+  # Plant B: language, color, pet — distinctive tokens (indaco, basenji)
+  plan_add plant plant_b \
+    "Parlo italiano e il mio colore preferito e l indaco ho un cane di razza basenji" \
+    must_not
+  # Plant C: sensitive data (IBAN) — should be rejected by isSensitiveFact.
+  # IT60X054281110100000012345 matches the IBAN regex: [A-Z]{2}\d{2}[A-Z0-9]{10,30}
+  plan_add plant plant_sensitive \
+    "Il mio iban e IT60X054281110100000012345" \
+    must_not
+  # 8 fillers to push plants outside legacywindow=16
+  for i in "${!FILLERS[@]}"; do
+    plan_add filler "filler_$((i+1))" "${FILLERS[$i]}" either
+  done
+  # Probe 1: identity (name + job) — must answer from memory
+  # Turn 12: messages 22,23. slice(-16) keeps 8..23. Plants at 0..5 are OUTSIDE.
+  plan_add probe probe_facts \
+    "Come mi chiamo e che lavoro faccio" \
+    must_not
+  # Probe 2: preference (color + pet) — must answer from memory
+  plan_add probe probe_facts \
+    "Qual e il mio colore preferito e che razza di cane ho" \
+    must_not
+  # Probe 3: sensitive (IBAN) — should NOT contain the IBAN (was rejected by filter)
+  plan_add probe probe_sensitive \
+    "Ti ho dato un codice bancario nei messaggi precedenti" \
+    must_not
+
+  # Facts for grading: distinctive tokens from plants A and B
+  FACTS_JSON='["Teodoro","orologiaio","indaco","basenji"]'
+
+  new_conversation
+  adb logcat -c 2>/dev/null || true
   assert_input_path_ready
   run_turn_plan
 

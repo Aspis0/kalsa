@@ -26,6 +26,8 @@ export interface MemoryTelemetry {
   factsInjected: number;
   /** Total facts in the store at turn end. */
   totalFactsInStore: number;
+  /** Extract parse outcome: 0=did not run/timeout, 1=parsed OK (zero items OK), 2=parser rejected. */
+  extractParseOutcome: number;
 }
 
 /**
@@ -41,5 +43,6 @@ export function formatMemoryLine(t: MemoryTelemetry): string {
     factsRejectedFull: t.factsRejectedFull,
     factsInjected: t.factsInjected,
     totalFactsInStore: t.totalFactsInStore,
+    extractParseOutcome: t.extractParseOutcome,
   })}`;
 }

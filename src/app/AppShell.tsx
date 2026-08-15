@@ -3491,11 +3491,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 if (!(await MemoryStore.getEnabled())) return;
                 if (MemoryStore.getEpoch() !== startEpoch) return;
 
-                const { add, remove } = await extractMemory(
+                const { add, remove, parseOutcome } = await extractMemory(
                   capturedUser,
                   capturedAssistant,
                   locale,
                 );
+
+                // Track parse outcome BEFORE the early return so telemetry
+                // distinguishes "model returned valid JSON with empty arrays" (1)
+                // from "parser rejected" (2) from "did not run" (0).
+                MemoryStore.trackMemoryParseOutcome(parseOutcome);
 
                 // Single batched apply: re-checks epoch + enabled under the store mutex
                 // so a clear/toggle-off during extract cannot be partially overwritten.

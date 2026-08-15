@@ -2369,10 +2369,10 @@ export async function extractMemory(
   userText: string,
   assistantText: string,
   locale: Locale,
-): Promise<{ add: string[]; remove: string[] }> {
+): Promise<{ add: string[]; remove: string[]; parseOutcome: MemoryParseOutcome }> {
   const userSlice = (userText ?? "").trim().slice(0, 2000);
   const assistantSlice = (assistantText ?? "").trim().slice(0, 2000);
-  if (!userSlice && !assistantSlice) return { add: [], remove: [] };
+  if (!userSlice && !assistantSlice) return { add: [], remove: [], parseOutcome: 0 };
 
   const strings = getStrings(locale);
   const prompt = strings.memory.extractPrompt
@@ -2382,7 +2382,7 @@ export async function extractMemory(
   return withEngineJob(async () => {
     // Capture context INSIDE the serialized job.
     const engine = context;
-    if (!engine) return { add: [], remove: [] };
+    if (!engine) return { add: [], remove: [], parseOutcome: 0 as const };
 
     let timedOut = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -2420,7 +2420,7 @@ export async function extractMemory(
 
       emitTurnTelemetry(`util-extractMemory-${++turnSeq}`, 0, result);
 
-      if (timedOut) return { add: [], remove: [] };
+      if (timedOut) return { add: [], remove: [], parseOutcome: 0 as const };
 
       const raw =
         typeof result.content === "string" && result.content.length > 0
@@ -2429,16 +2429,21 @@ export async function extractMemory(
       return parseMemoryExtract(raw);
     } catch {
       // Timeout stopCompletion often rejects the completion promise — treat as empty.
-      return { add: [], remove: [] };
+      return { add: [], remove: [], parseOutcome: 0 as const };
     } finally {
       if (timer) clearTimeout(timer);
     }
   });
 }
 
-/** Parse model JSON for memory extract — fail-closed, balanced first object. */
-function parseMemoryExtract(raw: string): { add: string[]; remove: string[] } {
-  if (!raw || typeof raw !== "string") return { add: [], remove: [] };
+/** Parse outcome: 0=did not run, 1=parsed OK, 2=parser rejected. */
+export type MemoryParseOutcome = 0 | 1 | 2;
+
+/** Parse model JSON for memory extract — fail-closed, balanced first object.
+ *  Returns {add, remove, parseOutcome} where parseOutcome distinguishes
+ *  "valid JSON, zero items" (1) from "parser rejected" (2). */
+function parseMemoryExtract(raw: string): { add: string[]; remove: string[]; parseOutcome: MemoryParseOutcome } {
+  if (!raw || typeof raw !== "string") return { add: [], remove: [], parseOutcome: 0 };
   // Strip optional think tags / fences, then find the first balanced JSON object.
   const cleaned = raw
     .replace(/<think>[\s\S]*?<\/think>/g, "")
@@ -2446,11 +2451,11 @@ function parseMemoryExtract(raw: string): { add: string[]; remove: string[] } {
     .replace(/```/g, "")
     .trim();
   const found = findBalancedJsonObject(cleaned, 0);
-  if (!found) return { add: [], remove: [] };
+  if (!found) return { add: [], remove: [], parseOutcome: 2 };
   try {
     const parsed = JSON.parse(found.text) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return { add: [], remove: [] };
+      return { add: [], remove: [], parseOutcome: 2 };
     }
     const obj = parsed as { add?: unknown; remove?: unknown };
     const add = Array.isArray(obj.add)
@@ -2467,9 +2472,9 @@ function parseMemoryExtract(raw: string): { add: string[]; remove: string[] } {
           .filter((item) => item.length > 0)
           .slice(0, 10)
       : [];
-    return { add, remove };
+    return { add, remove, parseOutcome: 1 };
   } catch {
-    return { add: [], remove: [] };
+    return { add: [], remove: [], parseOutcome: 2 };
   }
 }
 

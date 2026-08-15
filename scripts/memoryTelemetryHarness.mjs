@@ -91,6 +91,7 @@ async function test1_formatMemoryLineEnumeratesFields() {
     factsRejectedFull: 1,
     factsInjected: 3,
     totalFactsInStore: 10,
+    extractParseOutcome: 1,
   };
 
   const line = formatMemoryLine(telemetry);
@@ -102,7 +103,7 @@ async function test1_formatMemoryLineEnumeratesFields() {
   const jsonPart = line.substring("KALSA_MEMORY ".length);
   const parsed = JSON.parse(jsonPart);
 
-  // Verify all 7 fields are present (including memoryEnabled)
+  // Verify all 8 fields are present (including memoryEnabled and extractParseOutcome)
   assert("memoryEnabled" in parsed, "memoryEnabled must be present");
   assert("factsExtracted" in parsed, "factsExtracted must be present");
   assert("factsStored" in parsed, "factsStored must be present");
@@ -110,6 +111,7 @@ async function test1_formatMemoryLineEnumeratesFields() {
   assert("factsRejectedFull" in parsed, "factsRejectedFull must be present");
   assert("factsInjected" in parsed, "factsInjected must be present");
   assert("totalFactsInStore" in parsed, "totalFactsInStore must be present");
+  assert("extractParseOutcome" in parsed, "extractParseOutcome must be present");
 
   // Verify all values are numbers
   assert(typeof parsed.memoryEnabled === "number", "memoryEnabled must be number");
@@ -119,10 +121,11 @@ async function test1_formatMemoryLineEnumeratesFields() {
   assert(typeof parsed.factsRejectedFull === "number", "factsRejectedFull must be number");
   assert(typeof parsed.factsInjected === "number", "factsInjected must be number");
   assert(typeof parsed.totalFactsInStore === "number", "totalFactsInStore must be number");
+  assert(typeof parsed.extractParseOutcome === "number", "extractParseOutcome must be number");
 
   // Verify NO string fields can leak (the whole point of enumerating by name)
   const keys = Object.keys(parsed);
-  assert(keys.length === 7, "Exactly 7 fields must be present");
+  assert(keys.length === 8, "Exactly 8 fields must be present");
 
   console.log("✓ formatMemoryLine enumerates fields by name, no strings leak");
 }
@@ -137,8 +140,8 @@ function test2_readMemoryTelemetryParsesSidecar() {
   // Write a sample memory.jsonl
   const sidecarPath = path.join(tmpDir, "memory.jsonl");
   const lines = [
-    '{"memoryEnabled":1,"factsExtracted":5,"factsStored":3,"factsRejectedSensitive":1,"factsRejectedFull":1,"factsInjected":3,"totalFactsInStore":10}',
-    '{"memoryEnabled":1,"factsExtracted":2,"factsStored":2,"factsRejectedSensitive":0,"factsRejectedFull":0,"factsInjected":2,"totalFactsInStore":12}',
+    '{"memoryEnabled":1,"factsExtracted":5,"factsStored":3,"factsRejectedSensitive":1,"factsRejectedFull":1,"factsInjected":3,"totalFactsInStore":10,"extractParseOutcome":1}',
+    '{"memoryEnabled":1,"factsExtracted":2,"factsStored":2,"factsRejectedSensitive":0,"factsRejectedFull":0,"factsInjected":2,"totalFactsInStore":12,"extractParseOutcome":1}',
   ];
   writeFileSync(sidecarPath, lines.join("\n"));
 
@@ -148,9 +151,11 @@ function test2_readMemoryTelemetryParsesSidecar() {
   assert(records.length === 2, `Expected 2 records, got ${records.length}`);
   assert(records[0].memoryEnabled === 1, "First record memoryEnabled must be 1");
   assert(records[0].factsExtracted === 5, "First record factsExtracted must be 5");
+  assert(records[0].extractParseOutcome === 1, "First record extractParseOutcome must be 1");
   assert(records[1].memoryEnabled === 1, "Second record memoryEnabled must be 1");
   assert(records[1].factsStored === 2, "Second record factsStored must be 2");
   assert(records[1].totalFactsInStore === 12, "Second record totalFactsInStore must be 12");
+  assert(records[1].extractParseOutcome === 1, "Second record extractParseOutcome must be 1");
 
   rmSync(tmpDir, { recursive: true, force: true });
   console.log("✓ readMemoryTelemetry parses memory.jsonl correctly");
@@ -164,15 +169,15 @@ function test3_collectMemoryTelemetryByModeAggregates() {
       arm: "baseline",
       compactionActive: "off",
       memoryTelemetry: [
-        [{ memoryEnabled: 1, factsExtracted: 5, factsStored: 3, factsRejectedSensitive: 1, factsRejectedFull: 1, factsInjected: 3, totalFactsInStore: 10 }],
-        [{ memoryEnabled: 1, factsExtracted: 2, factsStored: 2, factsRejectedSensitive: 0, factsRejectedFull: 0, factsInjected: 2, totalFactsInStore: 12 }],
+        [{ memoryEnabled: 1, factsExtracted: 5, factsStored: 3, factsRejectedSensitive: 1, factsRejectedFull: 1, factsInjected: 3, totalFactsInStore: 10, extractParseOutcome: 1 }],
+        [{ memoryEnabled: 1, factsExtracted: 2, factsStored: 2, factsRejectedSensitive: 0, factsRejectedFull: 0, factsInjected: 2, totalFactsInStore: 12, extractParseOutcome: 1 }],
       ],
     },
     {
       arm: "v42",
       compactionActive: "v42",
       memoryTelemetry: [
-        [{ memoryEnabled: 1, factsExtracted: 10, factsStored: 8, factsRejectedSensitive: 2, factsRejectedFull: 0, factsInjected: 5, totalFactsInStore: 20 }],
+        [{ memoryEnabled: 1, factsExtracted: 10, factsStored: 8, factsRejectedSensitive: 2, factsRejectedFull: 0, factsInjected: 5, totalFactsInStore: 20, extractParseOutcome: 1 }],
       ],
     },
   ];
@@ -236,6 +241,7 @@ async function test5_privacyFactTextCannotLeak() {
     factsRejectedFull: 0,
     factsInjected: 0,
     totalFactsInStore: 0,
+    extractParseOutcome: 2,
   };
 
   const line = formatMemoryLine(telemetry);
@@ -264,8 +270,8 @@ function test6_memoryEnabledGate() {
       arm: "baseline",
       compactionActive: "off",
       memoryTelemetry: [
-        [{ memoryEnabled: 0, factsExtracted: 0, factsStored: 0, factsRejectedSensitive: 0, factsRejectedFull: 0, factsInjected: 0, totalFactsInStore: 0 }],
-        [{ memoryEnabled: 0, factsExtracted: 0, factsStored: 0, factsRejectedSensitive: 0, factsRejectedFull: 0, factsInjected: 0, totalFactsInStore: 0 }],
+        [{ memoryEnabled: 0, factsExtracted: 0, factsStored: 0, factsRejectedSensitive: 0, factsRejectedFull: 0, factsInjected: 0, totalFactsInStore: 0, extractParseOutcome: 0 }],
+        [{ memoryEnabled: 0, factsExtracted: 0, factsStored: 0, factsRejectedSensitive: 0, factsRejectedFull: 0, factsInjected: 0, totalFactsInStore: 0, extractParseOutcome: 0 }],
       ],
     },
   ];
@@ -281,8 +287,8 @@ function test6_memoryEnabledGate() {
       arm: "v42",
       compactionActive: "v42",
       memoryTelemetry: [
-        [{ memoryEnabled: 1, factsExtracted: 5, factsStored: 0, factsRejectedSensitive: 5, factsRejectedFull: 0, factsInjected: 0, totalFactsInStore: 0 }],
-        [{ memoryEnabled: 1, factsExtracted: 3, factsStored: 0, factsRejectedSensitive: 3, factsRejectedFull: 0, factsInjected: 0, totalFactsInStore: 0 }],
+        [{ memoryEnabled: 1, factsExtracted: 5, factsStored: 0, factsRejectedSensitive: 5, factsRejectedFull: 0, factsInjected: 0, totalFactsInStore: 0, extractParseOutcome: 1 }],
+        [{ memoryEnabled: 1, factsExtracted: 3, factsStored: 0, factsRejectedSensitive: 3, factsRejectedFull: 0, factsInjected: 0, totalFactsInStore: 0, extractParseOutcome: 1 }],
       ],
     },
   ];

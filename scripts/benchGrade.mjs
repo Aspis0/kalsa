@@ -639,8 +639,9 @@ function readMemoryTelemetry(turnDir) {
         const factsRejectedFull = typeof obj.factsRejectedFull === "number" ? obj.factsRejectedFull : null;
         const factsInjected = typeof obj.factsInjected === "number" ? obj.factsInjected : null;
         const totalFactsInStore = typeof obj.totalFactsInStore === "number" ? obj.totalFactsInStore : null;
-        if (memoryEnabled != null || factsExtracted != null || factsStored != null || factsRejectedSensitive != null || factsRejectedFull != null || factsInjected != null || totalFactsInStore != null) {
-          records.push({ memoryEnabled, factsExtracted, factsStored, factsRejectedSensitive, factsRejectedFull, factsInjected, totalFactsInStore });
+        const extractParseOutcome = typeof obj.extractParseOutcome === "number" ? obj.extractParseOutcome : null;
+        if (memoryEnabled != null || factsExtracted != null || factsStored != null || factsRejectedSensitive != null || factsRejectedFull != null || factsInjected != null || totalFactsInStore != null || extractParseOutcome != null) {
+          records.push({ memoryEnabled, factsExtracted, factsStored, factsRejectedSensitive, factsRejectedFull, factsInjected, totalFactsInStore, extractParseOutcome });
         }
       }
     } catch {
