@@ -109,6 +109,17 @@
 > esclusa qui; W4 conferma il ginocchio anche su secondo device).
 > Report: reports/moe-kernel-kf-general.md** ·
 > KF_SHIP ⛔. Report sweep: reports/moe-kernel-kf-sweep.md.
+> **CELLA BURST (regime prodotto, W4, PRELIMINARE 8/12 blocchi — STOP
+> termico onesto a 43°C dopo la giornata piena del Jelly; RESUME_AT=9,
+> i 4 blocchi restanti domattina a telefono freddo = burst-cold, il
+> pezzo mancante):** a caldo (40-43°C tutta la cella) ENERGY ✅ 0.975 ·
+> THERMAL ✅ (sag ON 0.085 vs OFF 0.149 — nel burst ON sagga MENO,
+> opposto del sustained) · MEMORY ✅ (majflt ON 12.1 vs OFF 20.4) ·
+> ROBUST MIXED: **p99 ON 492 vs OFF 562 ms — la coda VINCE anche nel
+> regime prodotto a W4** (+7% tok/s mediano); resta solo il conteggio
+> stutter (3 vs 1 eventi, statisticamente sottile) e il max (869 vs
+> 713). La regressione di coda v1 (regime tiepido W6) NON si riproduce
+> a W4 in burst. Dati: results/kf_burst/.
 >
 > **(storico, prima tassonomia — dopo cella REALITY):**
 > KF_PROTO_WIN ✅ · KF_PHYSICS_WIN ✅ · KF_SPEED_WIN ✅ ·
