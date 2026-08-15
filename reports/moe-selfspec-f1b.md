@@ -53,3 +53,33 @@ else is clean enough. This matches Qwen's top prior (45%: rollback /
 
 `results/selfspec_f1b/longfact/` (SUMMARY.txt, e1.csv, e2.csv, e3.csv,
 run.log), n_prompt=293, n_gold=300. Diag exit 0, ~25 min on freed PC.
+
+---
+
+## ADDENDUM (same night) — phantom prefix REPRODUCED in vitro
+
+G16 forced-rejection restore gate (owner spec, commit `673febe`) +
+CLI exposure (`ae63c5d`), run on the real hybrid 35B (longfact inputs):
+
+| arm | restore_pass | first diverge | first \|dlogit\| | argmax | top8 | max \|dlogit\| |
+|---|---|---|---|---|---|---|
+| tiny transformers (3 fixtures) | **exact** 32/32 | — | 0 | 32/32 | 32/32 | 0 |
+| 35B, reject_every=3 | **FAIL** | gold[3] (first seq_rm) | 14.07 | 15/99 | 0/99 | 22.85 |
+| 35B, reject_every=0 | **FAIL** | gold[2] | 11.62 | 36/149 | 0/149 | 21.60 |
+
+**Root cause: `llama_memory_seq_rm` rewinds attention KV but the GDN
+recurrent R/S state does not rewind to an arbitrary position.** Every
+draft rewind-replay cycle — even with ZERO rejections — leaves the
+rejected/rewound tokens baked into the recurrent state; the corruption
+compounds across cycles, which is exactly the live alpha collapse
+(0.70 teacher-forced ceiling vs 0.078-0.086 free-running). The two Qwen
+Max priors (45% rollback corruption, 30-35% GDN infidelity) were one
+mechanism seen from two sides.
+
+Fix is structural and NOT attempted yet: checkpoint the draft context's
+recurrent state before each draft burst and restore it on rewind
+(llama.cpp public API `llama_state_seq_*` — third_party stays
+unpatched), or equivalent via the n_rs_seq machinery the F1 design
+already reserved. Then re-measure live alpha (target: the 0.83 E1
+ceiling), THEN the economics (the 4.94-C6 arithmetic bomb still stands).
+Artifacts: `results/selfspec_f1b/restore35b/runA.log`, `runB.log`.

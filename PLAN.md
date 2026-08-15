@@ -171,11 +171,18 @@
 > standard ⇒ **l'indiziato si restringe allo stato ricorrente GDN che
 > non si riavvolge col seq_rm** (i fixture tiny non sono ibridi; il
 > collasso live era sul 35B ibrido — i due prior di Qwen convergono in
-> un meccanismo solo). Commit 673febe. IN VOLO:
-> --selfspec-restore-test via CLI + corsa sul 35B vero (riproduzione
-> decisiva). Poi: fix (checkpoint R/S pre-draft?), re-misura alpha live
-> (target 0.7-0.83), POI economia (bomba 4.94·C6 in piedi, serve verify
-> sublineare). Report: reports/moe-selfspec-f1b.md.
+> un meccanismo solo). Commit 673febe. **🎯 RIPRODOTTO SUL 35B
+> (ae63c5d): restore FAIL immediato sull'ibrido — |dlogit| 14-23, top8
+> 0/99 — CON e SENZA rejection (anche il normale rewind-replay del
+> catch-up avvelena!), mentre lo stesso binario è bitwise-esatto sui
+> transformer puri. CAUSA: seq_rm riavvolge l'attenzione ma lo stato
+> ricorrente GDN NO — ogni ciclo lascia fantasmi che si compongono =
+> alpha 0.70→0.08. I due prior Qwen erano UN meccanismo. FIX
+> (strutturale, non tentato): checkpoint R/S del draft ctx pre-burst +
+> restore al rewind via llama_state_seq_* (API pubblica, third_party
+> intatto) o macchinario n_rs_seq già riservato dal design F1. Poi
+> re-misura alpha live (target 0.83), POI economia (bomba 4.94·C6 in
+> piedi).** Report: reports/moe-selfspec-f1b.md (+addendum).
 > (3) **PPL gate Mellum COMPLETO (2026-08-14 sera): k6d065 GATE_PASS con
 > dMacro −0.0086 (MEGLIO dell'ancora k8; worst zh +0.0303) → il default
 > campagna è quality-certified con margine. k6d1.0 PASS confermato
