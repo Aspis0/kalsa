@@ -1,97 +1,64 @@
-# Trick slate T2 — "crazy but physical" candidates (owner mandate 2026-08-15 night)
+# Trick slate T2 — round 2 (bio-derived combinations) — 2026-08-15 night
 
-Owner mandate: invent NEW tricks nobody has even tried (web-verified),
-grounded in our measured physics. Generate many, kill fast on PC.
+Owner steering after round 1: think outside the box; steal from
+biology; if it feels like a "built thing" you remember, it exists —
+COMBINE your own notions instead. Round 1 (lossy tier / similarity
+fold / dynamic k) all died to prior art (HOBBIT, DyMoE, DynaExq, SMoE,
+MC-SMoE, AdapMoE, Elastic MoE — see t2-novelty report). The occupied
+map itself became the input for round 2.
 
-## The measured facts any new trick must exploit
+## Round 2 candidates
 
-- F1: **Re-read waste is huge**: 45.6 re-reads/token on S23 k8, 55.3 on
-  Xiaomi — "bytes the cache had already paid for once". The cache
-  thrashes; flash re-pays constantly.
-- F2: **Drop is quality-certified**: d0.65 PASSES the PPL gate (even
-  BEATS the k8 anchor) and d1.0 passes. The marginal (low-router-weight)
-  experts contribute almost nothing — we already ship configs that
-  DELETE them entirely.
-- F3: **Compute-bound flagship regime**: certified Mellum k6d1.0 is 82%
-  compute (0.175/0.213). S3b measured REPACK 8x8 GEMV x1.27 vs stock —
-  unreachable for streamed experts at insert-time (S3 kill), but the
-  kill was about *when/where to repack*, not the GEMV win itself.
-- F4: **Prefetch pays only where stall>20%** (K-F law); on fast flash
-  the bottleneck moves to compute and cache capacity.
-- F5: **Thermal ceiling flattens everyone** on small silicon: sustained
-  regime converges to ~2.5 tok/s regardless of trick (sweep).
-- F6: Router weights are INFORMATION available before serving each
-  expert (topk + weights known at route time).
+### T2-K — "Chaperones" — tiered JIT for weights ⭐ spike candidate
+Bio: chaperone proteins fold clients asynchronously, off the synthesis
+path. CS twin: JVM tiered compilation (interpreter -> JIT for hot code).
+Mechanism: cache entries start in stock Q4_K layout (interpreter);
+a background folder repacks HOT entries to the 8x8 i8mm layout
+(S3b measured: GEMV 389us vs 495us host = x1.27) ONLY when io-threads
+idle, priority by hit counters. S3's insert-repack kill does not apply:
+zero cost on the critical path, folding amortized over an entry's hot
+life. Ceiling on the certified Mellum cell (82% compute): ~+17% wall.
+- Kill criteria: folded-entry hit-share < 50% (folding lags the working
+  set); repack throughput < eviction churn; G15-class identity breaks
+  (repack is layout-only — identity class known from S2/S3 gates).
+- PC-testable: yes (engine change moderate; host cell measurable).
 
-## Candidates
+### T2-L — "Autophagy" — memory-pressure self-cannibalization
+Bio: under starvation the cell digests non-vital components to protect
+vital ones. Mechanism: the engine self-monitors majflt/swap deltas (the
+zram sentinel that exposed the 60-100x stock collapse); when pressure
+rises it SHRINKS ITS OWN CACHE and re-pins dense weights (madvise/
+mlock priority inversion) before the OS swaps the heart to keep the
+fat. Derived from OUR 2026-08-14 zram discovery; papers never touch
+OS-pressure interplay (they live on servers).
+- Kill criteria: sentinel can't detect early enough (collapse faster
+  than the loop); cache shrink hurts more than swap (measure the
+  crossover).
+- Product-hardening value even if "novelty" is judged systems-craft.
 
-### T2-A — Two-tier LOSSY expert cache ("demote, don't evict") ⭐ primary
-On eviction, do not discard: re-quantize the expert Q4_K -> Q2_K-class
-into a second RAM tier (~2.5-3x denser). On next access, serve from:
-full tier if present; LOSSY tier if the ROUTER WEIGHT for this expert
-is below a threshold (F2: those experts barely matter — we already
-drop them at d0.65!); flash re-read only when a HIGH-weight expert
-misses both tiers. Router-weight-conditioned precision serving.
-- Physics: converts F1's 45 re-reads/token into RAM hits; capacity of
-  tier-2 ~3x; quality knob is strictly gentler than drop (a 2-bit
-  expert >> a deleted expert), and drop is already gated PASS.
-- Cost: one Q4K->Q2K requant per eviction (io-threads are idle between
-  bursts; async).
-- Kill criteria: (a) requant cost/expert > eviction rate budget;
-  (b) PPL gate fails even at weight-threshold = drop-threshold (would
-  contradict F2 — unlikely); (c) hit% gain < 10 points.
-- Novelty to verify: EdgeMoE does STATIC per-expert bitwidth offline;
-  AdapMoE does skip-on-miss; MoE-Infinity/Fiddler do offload orchestration.
-  A DYNAMIC demotion cache with router-weight-conditional tier serving
-  at inference — believed untried. WEB-CHECK REQUIRED.
+### T2-M — "REM sleep" — nightly self-reorganization per user
+Bio: sleep consolidation + synaptic pruning. Mechanism: while charging
+and idle (the phone's night), replay the day's routing telemetry and
+METABOLIZE the local model: demote never-used experts to Q2 on disk,
+cluster co-activated experts adjacently (sequential UFS reads), refresh
+cache priors — guarded by an ON-DEVICE micro-PPL gate (our gate
+discipline, miniaturized). Every phone's model slowly takes its
+owner's shape. Privacy-perfect (nothing leaves the device).
+- Enabler probe (PC, tonight): does per-conversation/per-user expert
+  usage SKEW exist? predict_log on Marco/Mellum across different
+  prompt domains -> usage histograms, Gini, overlap across domains.
+  No skew -> T2-M dies cheaply.
+- Kill criteria: skew Gini < ~0.3 (uniform usage); micro-PPL gate too
+  expensive on device; rewrite wear on flash unacceptable.
 
-### T2-B — Expert similarity folding (cache-side dedup) — cheap probe first
-If experts within a layer are redundant (common post-training), cluster
-them; cache ONE representative per cluster; serve near-duplicates from
-the representative (optionally + low-rank delta). Cache capacity
-multiplies by the clustering factor.
-- Decisive PC probe (~1h, pure python): read Mellum2/Marco GGUF expert
-  tensors, pairwise cosine/JSD per layer. No structure -> DEAD tonight.
-- Novelty: expert MERGING exists offline (MC-SMoE etc.) as model
-  compression; as a runtime CACHE policy keyed by similarity groups —
-  believed untried. WEB-CHECK REQUIRED.
+### Round-2 novelty checks in flight
+- T2-J closed-loop prefetch controller on lead-time telemetry (round-1.5,
+  report2 pending) + T2-E co-activation flash layout (Apple patent
+  proximity check pending) — both feed T2-K/T2-M tooling regardless.
 
-### T2-C — Entropy-gated dynamic k (confidence-adaptive routing width)
-Per token, choose k from router entropy: confident -> k=2, uncertain ->
-k=8. Static k2 is garbage (F1c) but dynamic-k2-when-confident is a
-different animal; IO and compute both scale with k.
-- Cheap probe: --predict-log already dumps router data -> offline
-  analysis: what % of tokens are "confident" and what would quality-
-  proxy do. No engine change for the upper bound.
-- Novelty: top-p/dynamic routing exists in TRAINING literature and some
-  inference papers; in an on-device streaming engine where k drives
-  FLASH IO — believed untried as a product lever. WEB-CHECK REQUIRED.
-- Risk: quality gate; k-mix in context proved toxic for selfspec state
-  (E2) but normal decode has no rewind so hparams k-switch per token is
-  the same mechanism the engine already uses for diag — needs care.
-
-### T2-D — Thermal pacing ("race-to-knee"): deliberately cap early-burst
-speed to stay under the throttle knee; sustained median rises (F5 shows
-greedy ON sags 0.35 vs OFF 0.23). Scheduler trick, sustained-regime
-only; product regime is bursts — park unless a long-form SKU appears.
-
-### T2-E — Persistent repacked expert store (REPACK resurrection):
-one-time offline conversion of expert tensors to the 8x8 layout on
-flash; streamed reads land already-repacked (S3b x1.27 GEMV, i8mm
-reachable). On the 82%-compute certified cell, ceiling ~ +17% wall.
-- Not "never tried by anyone" in spirit (file-layout variants existed
-  in llama.cpp as Q4_0_8_8 file types, deprecated) — park as a KNOWN
-  lever with new evidence, not a T2 novelty candidate.
-
-## Tonight's execution
-
-1. Novelty web-sweep (Grok, web search): T2-A, T2-B, T2-C against
-   EdgeMoE / AdapMoE / MoE-Infinity / Fiddler / PreScope / ActiveFlow /
-   llama.cpp PRs/issues / SwapMoE / HOBBIT / Mixtral-offloading / any
-   2024-2026 arXiv. Verdict per candidate: NOVEL / NEAR-DUPLICATE(who) /
-   KNOWN.
-2. T2-B probe on PC: expert similarity structure of Mellum2 (python,
-   gguf reader, numpy). Structure or death by morning.
-3. T2-C probe if predict-log data exists or is cheap to produce on PC.
-4. T2-A: design doc + engine touch-point analysis (no code tonight);
-   spike tomorrow if the web-check clears it.
+## Round 1 postmortem (kept for the record)
+A (lossy demotion cache) = HOBBIT/DyMoE/DynaExq. B (similarity fold) =
+SMoE + MC-SMoE + Cache-Conditional. C (entropy-gated k) = AdapMoE
+(decrease-only) and Elastic MoE showed increase-k degrades. Full
+citations in scratchpad t2-novelty/report.md — bank a copy in
+docs/ if any candidate graduates.
