@@ -389,7 +389,23 @@ completion runs every turn, adds ~40% wall clock, and stores nothing. It is the 
 this project paid on *every* turn regardless of benefit — the digest costs 25 ms of ranking and
 *saves* 170 prompt tokens; memory costs a whole inference.
 
-**The likely cause is not a bug.** `strings.memory.extractPrompt` (`src/i18n/it.ts:800`) asks for
+**CORRECTION (later the same day): the explanation below was wrong, twice over.** A second smoke
+(`31891272873`) planted explicit user facts — *"Mi chiamo Teodoro lavoro come orologiaio e mi
+piace il cibo piccante"* — and changed nothing: still zero extracted on every memory-enabled arm.
+And the new `extractParseOutcome` field reads **0 = did not run**, not 1 = ran and returned empty,
+which is what the prompt-mismatch story predicted.
+
+**And the deeper problem: these counters cannot currently prove anything.** The extract job is
+fire-and-forget (`AppShell.tsx:3487`) and runs a **full LLM completion** (`n_predict: 256`, tens
+of seconds on a 2B), while the telemetry line is emitted at turn end (`:4018`) and
+`getAndResetMemoryTelemetry()` **resets** the accumulator. The snapshot almost certainly happens
+before the extraction finishes, and the reset discards the outcome rather than letting it surface
+on the next turn. So the subsystem may be working and invisible. Measuring at an instant when the
+work has not happened yet, and concluding it never happens, is the same error as reading
+`nogate`'s 0.000 recall as "the gate protects recall" (§1.1). Fix dispatched: make the
+measurement match the work, without logging the extraction output, which is user data.
+
+**Superseded hypothesis, kept so nobody re-derives it:** `strings.memory.extractPrompt` (`src/i18n/it.ts:800`) asks for
 facts *about the USER* — "nome, preferenze, interessi, lavoro, lingua" — and says explicitly
 "I fatti devono riguardare l'utente, non le tue risposte". The fase4 conversation plants
 arbitrary tokens: *"il gatto si chiama Leopoldo il budget e 4500 euro … il codice e PK42"*. A

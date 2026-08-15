@@ -113,11 +113,13 @@ function unquote(s) {
  */
 function parseMatrixInclude(text) {
   const entries = [];
+  const duplicates = []; // Track {entryIndex, key} for duplicate keys within an entry
   let inInclude = false;
   let includeIndent = -1;
   let itemIndent = -1;
   let seenMatrix = false;
   let current = null;
+  let entryIndex = -1;
 
   for (const line of text.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -143,16 +145,27 @@ function parseMatrixInclude(text) {
     if (item && (itemIndent < 0 || indent === itemIndent)) {
       current = { [item[1]]: unquote(item[2]) };
       entries.push(current);
+      entryIndex += 1;
       itemIndent = indent;
       continue;
     }
 
     const kv = content.match(/^(\w+):\s*(.*?)\s*$/);
     if (kv && current && indent > itemIndent) {
-      current[kv[1]] = unquote(kv[2]);
+      const key = kv[1];
+      if (Object.prototype.hasOwnProperty.call(current, key)) {
+        duplicates.push({
+          entryIndex,
+          key,
+          phase: current.phase ?? "(unknown)",
+          arm: current.arm ?? "(unknown)",
+          seed: current.seed ?? "(unknown)",
+        });
+      }
+      current[key] = unquote(kv[2]);
     }
   }
-  return entries;
+  return { entries, duplicates };
 }
 
 function axisRecord(entry) {
@@ -170,9 +183,12 @@ function axesEqual(a, b) {
   return true;
 }
 
-/** Distinct arms for one phase. Conflicting axis values on the same arm fail. */
+/** Distinct arms for one phase. Conflicting axis values on the same arm fail.
+ * Within-arm seed divergence: every seed of an arm must carry identical axes.
+ * Failure names arm, seed, and field — enough to fix without opening the YAML. */
 function distinctArms(entries, phase) {
   const map = new Map();
+  const firstSeed = new Map(); // arm -> first seed seen
   const failures = [];
   for (const e of entries) {
     if (e.phase !== phase) continue;
@@ -181,13 +197,14 @@ function distinctArms(entries, phase) {
     const axes = axisRecord(e);
     if (!map.has(arm)) {
       map.set(arm, axes);
+      firstSeed.set(arm, e.seed);
       continue;
     }
     const prev = map.get(arm);
     for (const k of AXES) {
       if (prev[k] !== axes[k]) {
         failures.push(
-          `arm '${arm}' field '${k}' conflicts within ${phase}: ${fmt(prev[k])} vs ${fmt(axes[k])}`,
+          `arm '${arm}' seed ${e.seed} field '${k}' differs from seed ${firstSeed.get(arm)} within ${phase}: ${fmt(prev[k])} vs ${fmt(axes[k])}`,
         );
       }
     }
@@ -302,7 +319,7 @@ function main() {
     { phase: "fase4", seed: "2", ...matchedPair("baseline") },
     { phase: "smoke", seed: "1", ...matchedPair("baseline") },
   ];
-  const fMatch = checkParity(parseMatrixInclude(yamlFromRows(matched)));
+  const fMatch = checkParity(parseMatrixInclude(yamlFromRows(matched)).entries);
   check(
     "matched campaign/smoke pairs pass",
     fMatch.length === 0,
@@ -316,7 +333,7 @@ function main() {
     { phase: "fase4", seed: "2", ...matchedPair("nogate", { toolgate: "0" }) },
     { phase: "smoke", seed: "1", ...matchedPair("baseline") },
   ];
-  const fNoTwin = checkParity(parseMatrixInclude(yamlFromRows(noTwin)));
+  const fNoTwin = checkParity(parseMatrixInclude(yamlFromRows(noTwin)).entries);
   check(
     "fase4 arm with no smoke twin fails naming the arm",
     fNoTwin.some((m) => /fase4 arm 'nogate' has no smoke twin/.test(m)),
@@ -332,7 +349,7 @@ function main() {
       ...matchedPair("baseline", { thinking: "budget256" }),
     },
   ];
-  const fThink = checkParity(parseMatrixInclude(yamlFromRows(thinkDiff)));
+  const fThink = checkParity(parseMatrixInclude(yamlFromRows(thinkDiff)).entries);
   check(
     "thinking mismatch fails naming the field",
     fThink.some((m) => /arm 'baseline' field 'thinking' differs/.test(m)),
@@ -345,7 +362,7 @@ function main() {
     { phase: "smoke", seed: "1", ...matchedPair("baseline") },
     { phase: "smoke", seed: "1", ...matchedPair("forcing") },
   ];
-  const fSmoke = checkParity(parseMatrixInclude(yamlFromRows(smokeOnly)));
+  const fSmoke = checkParity(parseMatrixInclude(yamlFromRows(smokeOnly)).entries);
   check(
     "smoke-only arm fails",
     fSmoke.some((m) => /smoke arm 'forcing' has no campaign counterpart/.test(m)),
@@ -359,7 +376,7 @@ function main() {
     { phase: "fase4", seed: "2", ...matchedPair("baseline") },
     { phase: "smoke", seed: "1", ...matchedPair("baseline") },
   ];
-  const fF0 = checkParity(parseMatrixInclude(yamlFromRows(withFase0)));
+  const fF0 = checkParity(parseMatrixInclude(yamlFromRows(withFase0)).entries);
   check("fase0 entries ignored", fF0.length === 0, fF0.join("; "));
 
   // Test that mem phase is now covered
@@ -369,15 +386,51 @@ function main() {
     { phase: "mem", seed: "1", ...matchedPair("off_on", { memory: "1" }) },
     { phase: "mem", seed: "2", ...matchedPair("off_on", { memory: "1" }) },
   ];
-  const fMemNoTwin = checkParity(parseMatrixInclude(yamlFromRows(memNoTwin)));
+  const fMemNoTwin = checkParity(parseMatrixInclude(yamlFromRows(memNoTwin)).entries);
   check(
     "mem arm with no smoke twin fails naming the arm",
     fMemNoTwin.some((m) => /mem arm 'off_on' has no smoke twin/.test(m)),
     fMemNoTwin.join("; "),
   );
 
+  // Test that seed divergence is detected and names the seed
+  const seedDiverge = [
+    { phase: "fase4", seed: "1", ...matchedPair("baseline", { thinking: "off" }) },
+    { phase: "fase4", seed: "2", ...matchedPair("baseline", { thinking: "off" }) },
+    { phase: "fase4", seed: "3", ...matchedPair("baseline", { thinking: "budget256" }) },
+    { phase: "smoke", seed: "1", ...matchedPair("baseline", { thinking: "off" }) },
+  ];
+  const fSeedDiverge = checkParity(parseMatrixInclude(yamlFromRows(seedDiverge)).entries);
+  check(
+    "seed divergence fails naming arm, seed, and field",
+    fSeedDiverge.some(
+      (m) =>
+        /arm 'baseline' seed 3 field 'thinking' differs from seed 1 within fase4/.test(
+          m,
+        ),
+    ),
+    fSeedDiverge.join("; "),
+  );
+
   const realText = readFileSync(BENCH_YML, "utf8");
-  const realEntries = parseMatrixInclude(realText);
+  const realParsed = parseMatrixInclude(realText);
+  const realEntries = realParsed.entries;
+
+  // Duplicate-key guard: a matrix include entry must not declare the same
+  // key twice. YAML forbids duplicate keys; GitHub silently takes one value,
+  // which masks injections (e.g. thinking: budget256 before thinking: "off").
+  // The parser's last-wins semantics would otherwise erase the divergence
+  // before distinctArms sees it. Fail naming entry index and key.
+  check(
+    "real bench.yml has no duplicate keys in any matrix entry",
+    realParsed.duplicates.length === 0,
+    realParsed.duplicates
+      .map(
+        (d) =>
+          `phase '${d.phase}' arm '${d.arm}' seed ${d.seed} has duplicate key '${d.key}'`,
+      )
+      .join("; "),
+  );
   const fase4 = distinctArms(realEntries, "fase4");
   const mem = distinctArms(realEntries, "mem");
   const smoke = distinctArms(realEntries, "smoke");
