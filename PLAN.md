@@ -12,7 +12,20 @@
 
 ---
 
-# ⭐ STATO CORRENTE — aggiornato 2026-08-14 (notte)
+# ⭐ STATO CORRENTE — aggiornato 2026-08-15 (notte fonda)
+
+> 🏆🏆 **IL P-VALUE È ARRIVATO (2026-08-15 ~00:30): SHIP CRITERION MET.**
+> Cella pre-registrata Mellum2-S23, 12 coppie ABBA da telefono
+> dichiarato pulito: **stock 0.2585 → certificata 0.1480 s/token
+> (−42.7%, tok/s 3.87 → 6.76, +75%), Wilcoxon W=0 p=0.000488** — tutte
+> e 12 le coppie favoriscono la certificata, p al floor del test esatto.
+> Assi di contorno: sustained −38% ✅, temp parità ✅, TTFT parità ✅,
+> **J/token +11.8% ❌ dichiarato** (la certificata spinge di più i core:
+> ~+12% energia per risposta — 4 assi su 5 verdi/neutri). Bonus finding:
+> la certificata è ROBUSTA alla pressione RAM reale (lo stock collassa
+> 60-100× con zram sporco, riprodotto 2×). Report:
+> reports/moe-kernel-ship-ab-s23.md. Primo mattone PRE-REGISTRATO del
+> paniere ship; K-F escluso di proposito (fattori isolati).
 
 > 🚨 **SHIP A/B S23: SOSPESA CON CAUSA TROVATA (2026-08-14 ~21:00).**
 > Il braccio A "stock" (k8, no drop) fa 21 s/token — 60× degradato vs le
