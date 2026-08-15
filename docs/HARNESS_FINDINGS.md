@@ -199,6 +199,41 @@ promotion on an inflected form, never a recovery. It is committed behind
 Consequence for the 132 MB e5-small option: it must buy **synonymy**, not robustness to
 inflection or typos. That is the only thing left for it to buy.
 
+### 1.7 LFM2.5-8B-A1B: do not ship it — the MoE discount does not apply to prefill
+
+Measured on the CI emulator (x86_64, swiftshader, no GPU), first turn of a smoke run:
+
+```
+tokensEvaluated  1394     promptMs      174851      ~175 s of prefill
+tokensPredicted    97     predictedMs    30332
+predictedPerSecond 3.20
+```
+
+**Decode is fine** — 3.2 tok/s, comparable to the 2B's 2.45. The MoE promise holds there: ~1B
+active parameters, 1B-class generation speed. **Prefill is not**: 175 s for 1394 tokens, ~8
+tok/s. Arms died after 56–60 minutes having completed a single turn.
+
+The reason is architectural, not a defect. MoE saves compute when decoding one token (one token,
+one expert set). Prefill processes ~1400 tokens at once, they route to different experts, and the
+batch effectively activates the whole 8B. **You get 8B knowledge at 1B decode speed and pay 8B
+prefill cost** — and in a long conversation prefill is what dominates.
+
+It does **load**: 5.2 GB resident on an 8 GB emulator, 6.5 GB still available at the fatal
+moment, no OOM, empty crash buffer. So the memory question — the one that motivated trying it —
+answers positively, and is not the reason to decline it.
+
+Caveat: emulator without GPU, so the absolute numbers would improve a lot on a real phone. The
+*ratio* (prefill expensive, decode cheap) is a property of the architecture and would not.
+
+For more capability than the 2B, the dense 4B is the better trade on a phone — which is already
+what `recommendedModelId` gives the high-RAM tier.
+
+Getting to this answer took three attempts and three unrelated infrastructure defects (a
+revision copied from the sibling repo, a two-copy sideload needing 10.4 GB on an 8 GB disk, and
+a sideload that never verified it had worked). It was only diagnosable because the fatal-path
+capture added the same day worked on its first real failure — before it, the artifact was a
+screenshot of the Android home screen.
+
 ---
 
 ## 2. What to tell whoever develops Kalsa
