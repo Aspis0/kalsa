@@ -15,7 +15,7 @@ on:
         required: true
         default: "fase0"
         type: choice
-        options: [fase0, fase4, smoke, tools]
+        options: [fase0, fase4, smoke, tools, mem]
       model:
         description: "Model to test"
         required: true
@@ -390,6 +390,181 @@ jobs:
             block_format: none
             thinking: "off"
             toolgate: "0"
+          # ── Mem — 2 compaction modes (off/ciswire) × 2 memory modes (0/1) × 6 seeds
+          # (24 jobs). Memory is a within-matrix axis (not a workflow input) so the
+          # comparison is within-runner, within-APK, within-seed. Facts are planted
+          # in conversation and leave the verbatim window as it grows; the four arms
+          # measure whether memory carries the fact when context cannot, alone or
+          # combined with the digest, and whether the two retrieval paths add or
+          # interfere. Phase name `mem` does not collide with existing ones.
+          - phase: mem
+            arm: off_off
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 2
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 3
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 4
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 5
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 6
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: mem
+            arm: off_on
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 2
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 3
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 4
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 5
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 6
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_off
+            seed: 1
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 2
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 3
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 4
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 5
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 6
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_on
+            seed: 1
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 2
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 3
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 4
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 5
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 6
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "1"
           # ── Smoke — ~5-turn harness self-test on all four arms (~20 min),
           # not a measurement campaign. Use phase=smoke dispatch instead of
           # burning the full 2-hour fase0/fase4 matrix when only the harness
@@ -424,10 +599,47 @@ jobs:
             block_format: none
             thinking: "off"
             toolgate: "0"
+          # ── Mem smoke twins — one seed each of the four mem campaign arms.
+          # The parity harness (scripts/matrixParityHarness.mjs) requires every
+          # campaign phase (any phase with seed >= 2) to have smoke twins with
+          # identical axis values. These four arms mirror the mem campaign.
+          - phase: smoke
+            arm: off_off
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: smoke
+            arm: off_on
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            memory: "1"
+          - phase: smoke
+            arm: ciswire_off
+            seed: 1
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "0"
+          - phase: smoke
+            arm: ciswire_on
+            seed: 1
+            compaction: "ciswire"
+            block_format: none
+            thinking: "off"
+            memory: "1"
           # ── Tools — tool-use benchmark (required/forbidden/selection).
           # Measures whether the model calls tools at the right time and picks
           # the right tool. Not a compaction A/B; single arm, single seed.
           # Phase selected by input; no default matrix entry.
+          # EXCLUSION: tools is a single-arm, single-seed validation run, not
+          # a measurement campaign. The parity harness derives campaign phases
+          # structurally (any phase with seed >= 2) so tools is automatically
+          # excluded. An implicit exclusion is how the mem gap appeared; this
+          # comment makes the decision explicit.
           - phase: tools
             arm: baseline
             seed: 1
@@ -523,7 +735,7 @@ jobs:
           WINBUDGET: ${{ inputs.winbudget || '' }}
           LEGACYWINDOW: ${{ inputs.legacywindow || '' }}
           RANKING: ${{ inputs.ranking || '' }}
-          MEMORY: ${{ inputs.memory || '0' }}
+          MEMORY: ${{ matrix.memory || inputs.memory || '0' }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
           # 40s = SUMMARY_IDLE_DEBOUNCE_MS (8s) + SUMMARIZE_TIMEOUT_MS (30s) +
           # margin. On CI emulator the 2B decodes at ~2.45 tok/s, so
@@ -533,7 +745,7 @@ jobs:
           # it does NOT exist to make the summary succeed. fase0 stays at 0.
           # Job timeout-minutes: 300 still covers 16 turns × ~8.6 min work +
           # 15 × 40s idle (~148 min worst case, ~152 min headroom).
-          INTER_TURN_DELAY_S: ${{ (matrix.phase == 'fase4' || matrix.phase == 'smoke') && '40' || '0' }}
+          INTER_TURN_DELAY_S: ${{ (matrix.phase == 'fase4' || matrix.phase == 'smoke' || matrix.phase == 'mem') && '40' || '0' }}
           MODEL_DIR: ${{ env.MODEL_DIR }}
           MODEL_FILE: ${{ env.MODEL_FILE }}
           MMPROJ_FILE: ${{ env.MMPROJ_FILE }}

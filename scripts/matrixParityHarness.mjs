@@ -1,10 +1,22 @@
 #!/usr/bin/env node
 /**
- * Smoke must mirror the fase4 campaign matrix in .github/workflows/bench.yml.
+ * Smoke must mirror every campaign phase in .github/workflows/bench.yml.
  *
  * Three times a smoke de-risked a config the campaign does not run
  * (a78f126 thinking, 4ab91a8 families, fase4 toolchoice arms with no twin).
  * This harness fails the build when the two matrices drift.
+ *
+ * Campaign phases are derived structurally from the workflow: a phase is a
+ * "campaign" if any arm in it has seed ≥ 2 (repeated measurements for
+ * statistical power). Single-seed phases (smoke itself, fase0, tools) are
+ * excluded. If a future campaign is added (fase5, emote, …) with multi-seed
+ * arms, it is covered automatically. A hardcoded list silently misses the
+ * next phase — that is exactly the defect this harness exists to prevent.
+ *
+ * tools: single arm, single seed — a tool-use validation run selected by its
+ * own workflow_dispatch input, not a measurement campaign. Excluded
+ * structurally by the seed ≥ 2 rule. An implicit exclusion is how the mem
+ * gap appeared; this comment makes the decision explicit.
  *
  * Fase0 is out of scope and ignored. Zero npm deps: the include block is a
  * flat list of maps; a full YAML library is not declared in package.json
@@ -18,9 +30,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const BENCH_YML = path.join(projectRoot, ".github/workflows/bench.yml");
 
-const AXES = ["compaction", "toolchoice", "toolgate", "block_format", "thinking"];
-const EXPECTED_ARMS = ["baseline", "v42", "ciswire", "nogate"];
+const AXES = ["compaction", "toolchoice", "toolgate", "block_format", "thinking", "memory"];
+
+// Expected arms for each campaign phase
+const EXPECTED_FASE4_ARMS = ["baseline", "v42", "ciswire", "nogate"];
+const EXPECTED_MEM_ARMS = ["off_off", "off_on", "ciswire_off", "ciswire_on"];
+const EXPECTED_SMOKE_ARMS = [...EXPECTED_FASE4_ARMS, ...EXPECTED_MEM_ARMS].sort();
+
+// Expected axis values for each arm
 const EXPECTED_AXES = {
+  // fase4 arms
   baseline: { compaction: "off", block_format: "none", thinking: "off" },
   v42: { compaction: "on", block_format: "none", thinking: "off" },
   ciswire: { compaction: "ciswire", block_format: "none", thinking: "off" },
@@ -29,6 +48,31 @@ const EXPECTED_AXES = {
     block_format: "none",
     thinking: "off",
     toolgate: "0",
+  },
+  // mem arms
+  off_off: {
+    compaction: "off",
+    block_format: "none",
+    thinking: "off",
+    memory: "0",
+  },
+  off_on: {
+    compaction: "off",
+    block_format: "none",
+    thinking: "off",
+    memory: "1",
+  },
+  ciswire_off: {
+    compaction: "ciswire",
+    block_format: "none",
+    thinking: "off",
+    memory: "0",
+  },
+  ciswire_on: {
+    compaction: "ciswire",
+    block_format: "none",
+    thinking: "off",
+    memory: "1",
   },
 };
 
@@ -156,34 +200,70 @@ function fmt(v) {
 }
 
 /**
- * Fase0 is excluded explicitly. Every distinct fase4 arm needs a smoke twin
- * with the same axis values; a smoke-only arm is also a failure.
+ * Derive campaign phases structurally: a phase is a "campaign" if any arm
+ * in it has seed ≥ 2 (repeated measurements for statistical power).
+ * Single-seed phases (smoke itself, fase0, tools) are excluded.
+ *
+ * Why structural, not literal: if a future campaign is added (fase5, emote, …)
+ * with multi-seed arms, it is covered automatically. A hardcoded list
+ * silently misses the next phase — that is exactly the defect this harness
+ * exists to prevent (three campaigns shipped with unmirrored smokes).
+ *
+ * tools: single arm, single seed — a tool-use validation run, not a
+ * measurement campaign. Excluded structurally by the seed ≥ 2 rule;
+ * named here so the exclusion is visible, not implicit.
  */
 function checkParity(entries) {
   const failures = [];
-  const fase4 = distinctArms(entries, "fase4");
-  const smoke = distinctArms(entries, "smoke");
-  failures.push(...fase4.failures, ...smoke.failures);
 
-  for (const [arm, axes] of fase4.map) {
-    if (!smoke.map.has(arm)) {
-      failures.push(`fase4 arm '${arm}' has no smoke twin`);
-      continue;
-    }
-    const s = smoke.map.get(arm);
-    for (const k of AXES) {
-      if (axes[k] !== s[k]) {
-        failures.push(
-          `arm '${arm}' field '${k}' differs: fase4=${fmt(axes[k])} smoke=${fmt(s[k])}`,
-        );
+  // Derive campaign phases: any phase (except smoke/fase0) with max seed ≥ 2
+  const phaseMaxSeed = new Map();
+  for (const e of entries) {
+    const p = e.phase;
+    if (p === "smoke" || p === "fase0") continue;
+    const s = e.seed !== undefined ? Number(e.seed) : 1;
+    phaseMaxSeed.set(p, Math.max(phaseMaxSeed.get(p) || 0, s));
+  }
+  const campaignPhases = [...phaseMaxSeed.entries()]
+    .filter(([, maxSeed]) => maxSeed >= 2)
+    .map(([p]) => p)
+    .sort();
+
+  const smoke = distinctArms(entries, "smoke");
+  failures.push(...smoke.failures);
+
+  // Track all campaign arms for the "smoke arm has no counterpart" check
+  const allCampaignArms = new Map(); // arm -> { phase, axes }
+
+  for (const phase of campaignPhases) {
+    const dp = distinctArms(entries, phase);
+    failures.push(...dp.failures);
+
+    for (const [arm, axes] of dp.map) {
+      allCampaignArms.set(arm, { phase, axes });
+
+      if (!smoke.map.has(arm)) {
+        failures.push(`${phase} arm '${arm}' has no smoke twin`);
+        continue;
+      }
+      const s = smoke.map.get(arm);
+      for (const k of AXES) {
+        if (axes[k] !== s[k]) {
+          failures.push(
+            `arm '${arm}' field '${k}' differs: ${phase}=${fmt(axes[k])} smoke=${fmt(s[k])}`,
+          );
+        }
       }
     }
   }
+
+  // Every smoke arm must be the twin of some campaign arm
   for (const arm of smoke.map.keys()) {
-    if (!fase4.map.has(arm)) {
-      failures.push(`smoke arm '${arm}' has no fase4 counterpart`);
+    if (!allCampaignArms.has(arm)) {
+      failures.push(`smoke arm '${arm}' has no campaign counterpart`);
     }
   }
+
   return failures;
 }
 
@@ -230,9 +310,11 @@ function main() {
   );
 
   const noTwin = [
-    { phase: "fase4", ...matchedPair("baseline") },
-    { phase: "fase4", ...matchedPair("nogate", { toolgate: "0" }) },
-    { phase: "smoke", ...matchedPair("baseline") },
+    { phase: "fase4", seed: "1", ...matchedPair("baseline") },
+    { phase: "fase4", seed: "2", ...matchedPair("baseline") },
+    { phase: "fase4", seed: "1", ...matchedPair("nogate", { toolgate: "0" }) },
+    { phase: "fase4", seed: "2", ...matchedPair("nogate", { toolgate: "0" }) },
+    { phase: "smoke", seed: "1", ...matchedPair("baseline") },
   ];
   const fNoTwin = checkParity(parseMatrixInclude(yamlFromRows(noTwin)));
   check(
@@ -242,9 +324,11 @@ function main() {
   );
 
   const thinkDiff = [
-    { phase: "fase4", ...matchedPair("baseline", { thinking: "off" }) },
+    { phase: "fase4", seed: "1", ...matchedPair("baseline", { thinking: "off" }) },
+    { phase: "fase4", seed: "2", ...matchedPair("baseline", { thinking: "off" }) },
     {
       phase: "smoke",
+      seed: "1",
       ...matchedPair("baseline", { thinking: "budget256" }),
     },
   ];
@@ -256,48 +340,78 @@ function main() {
   );
 
   const smokeOnly = [
-    { phase: "fase4", ...matchedPair("baseline") },
-    { phase: "smoke", ...matchedPair("baseline") },
-    { phase: "smoke", ...matchedPair("forcing") },
+    { phase: "fase4", seed: "1", ...matchedPair("baseline") },
+    { phase: "fase4", seed: "2", ...matchedPair("baseline") },
+    { phase: "smoke", seed: "1", ...matchedPair("baseline") },
+    { phase: "smoke", seed: "1", ...matchedPair("forcing") },
   ];
   const fSmoke = checkParity(parseMatrixInclude(yamlFromRows(smokeOnly)));
   check(
     "smoke-only arm fails",
-    fSmoke.some((m) => /smoke arm 'forcing' has no fase4 counterpart/.test(m)),
+    fSmoke.some((m) => /smoke arm 'forcing' has no campaign counterpart/.test(m)),
     fSmoke.join("; "),
   );
 
   const withFase0 = [
-    { phase: "fase0", arm: "none_off", block_format: "none", thinking: "off" },
-    { phase: "fase4", ...matchedPair("baseline") },
-    { phase: "smoke", ...matchedPair("baseline") },
+    { phase: "fase0", arm: "none_off", seed: "1", block_format: "none", thinking: "off" },
+    { phase: "fase0", arm: "none_off", seed: "2", block_format: "none", thinking: "off" },
+    { phase: "fase4", seed: "1", ...matchedPair("baseline") },
+    { phase: "fase4", seed: "2", ...matchedPair("baseline") },
+    { phase: "smoke", seed: "1", ...matchedPair("baseline") },
   ];
   const fF0 = checkParity(parseMatrixInclude(yamlFromRows(withFase0)));
   check("fase0 entries ignored", fF0.length === 0, fF0.join("; "));
 
+  // Test that mem phase is now covered
+  const memNoTwin = [
+    { phase: "mem", seed: "1", ...matchedPair("off_off", { memory: "0" }) },
+    { phase: "mem", seed: "2", ...matchedPair("off_off", { memory: "0" }) },
+    { phase: "mem", seed: "1", ...matchedPair("off_on", { memory: "1" }) },
+    { phase: "mem", seed: "2", ...matchedPair("off_on", { memory: "1" }) },
+  ];
+  const fMemNoTwin = checkParity(parseMatrixInclude(yamlFromRows(memNoTwin)));
+  check(
+    "mem arm with no smoke twin fails naming the arm",
+    fMemNoTwin.some((m) => /mem arm 'off_on' has no smoke twin/.test(m)),
+    fMemNoTwin.join("; "),
+  );
+
   const realText = readFileSync(BENCH_YML, "utf8");
   const realEntries = parseMatrixInclude(realText);
   const fase4 = distinctArms(realEntries, "fase4");
+  const mem = distinctArms(realEntries, "mem");
   const smoke = distinctArms(realEntries, "smoke");
   const fase4Names = [...fase4.map.keys()].sort();
+  const memNames = [...mem.map.keys()].sort();
   const smokeNames = [...smoke.map.keys()].sort();
-  const expected = [...EXPECTED_ARMS].sort();
-  const axesOk =
-    expected.every((arm) => {
+  const expectedFase4 = [...EXPECTED_FASE4_ARMS].sort();
+  const expectedMem = [...EXPECTED_MEM_ARMS].sort();
+  const expectedSmoke = [...EXPECTED_SMOKE_ARMS].sort();
+
+  const fase4Ok =
+    expectedFase4.every((arm) => {
       const want = EXPECTED_AXES[arm];
-      return (
-        fase4.map.has(arm) &&
-        smoke.map.has(arm) &&
-        axesEqual(fase4.map.get(arm), want) &&
-        axesEqual(smoke.map.get(arm), want)
-      );
-    }) &&
-    fase4Names.join(",") === expected.join(",") &&
-    smokeNames.join(",") === expected.join(",");
+      return fase4.map.has(arm) && axesEqual(fase4.map.get(arm), want);
+    }) && fase4Names.join(",") === expectedFase4.join(",");
+
+  const memOk =
+    expectedMem.every((arm) => {
+      const want = EXPECTED_AXES[arm];
+      return mem.map.has(arm) && axesEqual(mem.map.get(arm), want);
+    }) && memNames.join(",") === expectedMem.join(",");
+
+  const smokeOk =
+    expectedSmoke.every((arm) => {
+      const want = EXPECTED_AXES[arm];
+      return smoke.map.has(arm) && axesEqual(smoke.map.get(arm), want);
+    }) && smokeNames.join(",") === expectedSmoke.join(",");
+
+  const axesOk = fase4Ok && memOk && smokeOk;
+
   check(
     "parses current bench.yml into expected arm set",
     axesOk,
-    `fase4=${fase4Names.join(",")} smoke=${smokeNames.join(",")}`,
+    `fase4=${fase4Names.join(",")} mem=${memNames.join(",")} smoke=${smokeNames.join(",")}`,
   );
 
   const realFail = checkParity(realEntries);

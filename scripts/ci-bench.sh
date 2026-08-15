@@ -112,7 +112,7 @@ case "$PHASE" in
     # a real block-content A/B is needed later.
     COMPACTION="on"
     ;;
-  fase4|smoke)
+  fase4|smoke|mem)
     COMPACTION="${COMPACTION:?COMPACTION is required for $PHASE (on|off|ciswire)}"
     case "$COMPACTION" in
       on|off|ciswire) ;;
@@ -1214,7 +1214,7 @@ if [ "$PHASE" = "fase0" ]; then
     # No inter-turn delay after final turn of the run.
   done
 
-elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
+elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ] || [ "$PHASE" = "mem" ]; then
   # Build the turn plan as lists; phase only chooses which plan (no loop copy-paste).
   PLAN_KIND=()
   PLAN_ID=()
