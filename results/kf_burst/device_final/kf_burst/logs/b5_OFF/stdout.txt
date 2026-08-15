@@ -1,0 +1,16 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant:A Mixture-of-Experts (MoE) language model uses many specialized "expert" networks, each trained for a specific task or pattern, and activates only a subset of them for each token to save compute. Instead of using all experts for every input, the model routes the token to a few relevant experts via a lightweight routing mechanism, which is learned during training. This allows the model to be large and powerful while keeping inference efficient. The weights are stored in a single large on-disk file because the full model parameters are still needed for the experts, even if only a few are activated per token. Routing is typically done using a sparse attention or gating mechanism, and flash streaming enables the model to process tokens in real time by loading only the necessary expert weights from disk as needed, reducing memory pressure on mobile devices.
+
+- The model uses a routing mechanism to select only a few active experts per token, reducing computation and memory usage during inference.  
+- Flash streaming allows the model to load and
+
+generation: 200 tokens, 0.344 s/token (2.910 tok/s)
+compute: 99.0% CPU occupancy (0.6802 cpu-s/token over 2 threads), 0.00 major faults/token
+prefill: 80 tokens, 8.896 s (9.0 tok/s) | model load 5.292 s | TTFT 14.188 s
+moe-stream: read 10535.0 MiB (52.68 MiB/token), decode 0.344 s/token (compute 0.246 + cache mgmt 0.017 + flash I/O 0.380 s/token, 139 MiB/s)
+moe-cache: 52.3% hit, resident 1999.5 MiB
+moe-cache: 15157 evictions, 11120 re-reads (55.6/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.080 s/token (flash reads overlapped with FFN compute)
+moe-drop: 1552/33600 routed experts dropped (4.6%), threshold 0.65 x uniform

@@ -1,0 +1,35 @@
+[2026-08-15T10:28:44-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-15T10:28:44-0400] CAMPAIGN PIN OK
+[2026-08-15T10:28:44-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-15T10:28:45-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-15T10:28:45-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-15T10:28:45-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-15T10:28:45-0400] auto-resume from RESUME_AT=9
+[2026-08-15T10:28:45-0400] RESUME BLOCK_PLAN='OFF ON:4 OFF ON:4 OFF ON:4 OFF ON:4 OFF ON:4 OFF ON:4'
+[2026-08-15T10:28:47-0400] parsed n_blocks=12 arms=OFF ON OFF ON OFF ON OFF ON OFF ON OFF ON
+[2026-08-15T10:28:47-0400] === RESUME append mode START_BLOCK=9 ===
+[2026-08-15T10:29:34-0400] FREQ_READABLE=1 n_cpu=8 sample=500000
+[2026-08-15T10:29:34-0400] === KF REALITY Jelly START resume=1 start_block=9 n_gen=200 n_blocks=12 ===
+[2026-08-15T10:29:34-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <prompt> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-15T10:29:34-0400] ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>
+[2026-08-15T10:29:34-0400] BLOCK_PLAN=OFF ON:4 OFF ON:4 OFF ON:4 OFF ON:4 OFF ON:4 OFF ON:4 (no cold reset)
+[2026-08-15T10:29:35-0400] preflight i=1 plugged=UNPLUGGED batt=99 temp=25.0 memavail_kib=4645932 floor=35 screen=
+[2026-08-15T10:29:36-0400] preflight i=1 plugged=UNPLUGGED batt=99 temp=25.0 memavail_kib=4645088 floor=35 screen=
+[2026-08-15T10:29:36-0400] RESUME_AT=9
+[2026-08-15T10:29:37-0400] COOLDOWN block=9 target=40.0 reached=25.0 waited=0 s
+[2026-08-15T10:29:38-0400] RUN b9_OFF arm=OFF kf_width=0 batt=99 plugged=UNPLUGGED temp=25.0 screen=? memavail_kib=4644888 n=200 cooldown_wait_s=0
+[2026-08-15T10:30:55-0400] DONE b9_OFF rc=0 wall=76s tps=3.810 s/tok=0.262 stall=0.065 (24.8%) issued= hit= wasted= prec= joules=154.183395 j/tok=0.77091698 ttft=22.273 j_window=decode majflt=1184 read_gb=22.827647 kf_width=0 batt=99->98 temp=25.0/26.000/26.000 cooldown_wait_s=0 excluded=0
+[2026-08-15T10:30:56-0400] preflight i=1 plugged=UNPLUGGED batt=98 temp=26.0 memavail_kib=5354056 floor=35 screen=
+[2026-08-15T10:30:57-0400] RESUME_AT=10
+[2026-08-15T10:30:57-0400] COOLDOWN block=10 target=40.0 reached=26.0 waited=0 s
+[2026-08-15T10:30:58-0400] RUN b10_ON_w4 arm=ON kf_width=4 batt=98 plugged=UNPLUGGED temp=26.0 screen=? memavail_kib=5354580 n=200 cooldown_wait_s=0
+[2026-08-15T10:32:02-0400] DONE b10_ON_w4 rc=0 wall=62s tps=4.715 s/tok=0.212 stall=0.027 (12.7%) issued=6008.2 hit=4623.7 wasted=1384.5 prec=77.0 joules=144.860396 j/tok=0.72430198 ttft=17.595 j_window=decode majflt=469 read_gb=22.317568 kf_width=4 batt=98->97 temp=26.0/27.000/27.000 cooldown_wait_s=0 excluded=0
+[2026-08-15T10:32:03-0400] preflight i=1 plugged=UNPLUGGED batt=97 temp=27.0 memavail_kib=5611872 floor=35 screen=
+[2026-08-15T10:32:03-0400] RESUME_AT=11
+[2026-08-15T10:32:04-0400] COOLDOWN block=11 target=40.0 reached=27.0 waited=0 s
+[2026-08-15T10:32:04-0400] RUN b11_OFF arm=OFF kf_width=0 batt=97 plugged=UNPLUGGED temp=27.0 screen=? memavail_kib=5611032 n=200 cooldown_wait_s=0
+[2026-08-15T10:33:21-0400] DONE b11_OFF rc=0 wall=74s tps=3.875 s/tok=0.258 stall=0.058 (22.5%) issued= hit= wasted= prec= joules=150.838602 j/tok=0.75419301 ttft=21.160 j_window=decode majflt=120 read_gb=20.210487 kf_width=0 batt=97->97 temp=27.0/29.000/29.000 cooldown_wait_s=0 excluded=0
+[2026-08-15T10:33:22-0400] preflight i=1 plugged=UNPLUGGED batt=97 temp=29.0 memavail_kib=6038400 floor=35 screen=
+[2026-08-15T10:33:22-0400] RESUME_AT=12
+[2026-08-15T10:33:22-0400] COOLDOWN block=12 target=40.0 reached=29.0 waited=0 s
+[2026-08-15T10:33:23-0400] RUN b12_ON_w4 arm=ON kf_width=4 batt=97 plugged=UNPLUGGED temp=29.0 screen=? memavail_kib=6038740 n=200 cooldown_wait_s=0

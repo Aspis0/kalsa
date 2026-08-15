@@ -29,10 +29,30 @@
 > letteratura 2026 (Component-Aware SSD, arXiv:2605.01106) ha provato
 > la POLARITÀ OPPOSTA (draft solo-SSM) fallendo con α=0.038 sui
 > sequential hybrid — la loro ablazione predice che la NOSTRA polarità
-> vinca. Nessuno l'ha pubblicata. Baseline da battere: 0.038. Prossimo
-> passo: diagnostica E4 (alpha teacher-forced del draft a GDN frozen)
-> col macchinario diag già committato su kalsa/selfspec-f1. FRETTA: la
+> vinca. Nessuno l'ha pubblicata. Baseline da battere: 0.038. FRETTA: la
 > finestra si chiude in mesi (ReplaySSM giu-2026, C-A mag-2026).
+> **E4 IMPLEMENTATA (2026-08-15 pomeriggio, kalsa/selfspec-f1 @
+> dc944f5, 11 commit):** spec docs/e4-stateless-draft-spec.md (as-built
+> annotata); freeze = skip-write via eval-callback (nop del nodo store
+> CPY/DUP, MAI snapshot/restore); catch-up con seq_rm SOLO-attention
+> (scoperta review R1-F1: il seq_rm ibrido stock riavvolge R/S dai
+> piani snapshot che i draft frozen non scrivono — il veleno rientrava
+> dalla finestra); gate S2/S3 bitwise contro riferimenti shape-mirrored
+> (R2-F1: batch-vs-serial >1e-3 al 100% su questo engine, tolleranze
+> larghe VIETATE); verdetto automatico prima riga SUMMARY
+> (GO≥0.60+EL1.5 / MARGINAL / DEAD<0.30 / PRODUCT per k2/k6 /
+> BLOCKED). Audit: 3 round ostili + pass finale 3-auditor
+> (deepseek/hy3/mimo) + conferma — tutto verde, ctest 11/11.
+> Letteratura (RELATED.md nel task dir): SP-MoE, C-A SSD (α=0.038 è
+> ALL-TOKEN a k=2 — confronto onesto = alpha_alltok), ReplaySSM (stesso
+> primitivo skip-write, uso diverso: I/O non drafting — conferma
+> indipendente + urgenza), LayerSkip (early-exit 50% su ibridi
+> sequenziali = α 0.000: MAI saltare i GDN, solo congelarne la
+> scrittura). RUNNER NOTTURNO ARMATO: results/selfspec_e4/
+> run_e4_arms.py (PID in runner.pid.txt) aspetta fine dropcurve →
+> A2 G=8 (refs O(B²/G) più economici) → A1 G=4 (headline) → A3 k2
+> (prodotto). Poi, se GO: F5 loop reale; cella device su S23 con
+> CalaQwen IQ2_M (modello già a bordo, serve build Android).
 > In coda dal mandato: curva drop qualità in corso sul PC
 > (DROPCURVE: l'ottimo a d>0 di k6d065 dMacro −0.0086 è reale?);
 > 3 survivor ingegneristici senza claim (controller stutter
@@ -157,17 +177,22 @@
 > esclusa qui; W4 conferma il ginocchio anche su secondo device).
 > Report: reports/moe-kernel-kf-general.md** ·
 > KF_SHIP ⛔. Report sweep: reports/moe-kernel-kf-sweep.md.
-> **CELLA BURST (regime prodotto, W4, PRELIMINARE 8/12 blocchi — STOP
-> termico onesto a 43°C dopo la giornata piena del Jelly; RESUME_AT=9,
-> i 4 blocchi restanti domattina a telefono freddo = burst-cold, il
-> pezzo mancante):** a caldo (40-43°C tutta la cella) ENERGY ✅ 0.975 ·
-> THERMAL ✅ (sag ON 0.085 vs OFF 0.149 — nel burst ON sagga MENO,
-> opposto del sustained) · MEMORY ✅ (majflt ON 12.1 vs OFF 20.4) ·
-> ROBUST MIXED: **p99 ON 492 vs OFF 562 ms — la coda VINCE anche nel
-> regime prodotto a W4** (+7% tok/s mediano); resta solo il conteggio
-> stutter (3 vs 1 eventi, statisticamente sottile) e il max (869 vs
-> 713). La regressione di coda v1 (regime tiepido W6) NON si riproduce
-> a W4 in burst. Dati: results/kf_burst/.
+> **CELLA BURST COMPLETA 12/12 (2026-08-15 mattina, blocchi 9-12 a
+> telefono freddo 26-29°C = il burst-cold mancante) — TUTTI E 4 I GATE
+> YES:** ENERGY ✅ 1.005 · THERMAL ✅ (sag ON 0.069 vs OFF 0.136 — nel
+> burst ON degrada METÀ, temp_max identica 43/43) · MEMORY ✅
+> (majflt/tok ON 9.2 vs OFF 13.5) · **ROBUST ✅ — p99 ON 467 vs OFF
+> 565 ms (−17%), stutter DIMEZZATO (0.25% vs 0.50%), max 869 vs 1142.**
+> Nel burst-cold puro (b9-b12): ON 0.205-0.212 vs OFF 0.258-0.262
+> s/tok (−20%), TTFT ON 12-18s vs OFF 21-22s — a freddo il prefetch
+> vince ANCHE il primo token. I vecchi ❌ TAIL/ROBUST erano artefatti
+> del regime corto/tiepido: nel regime prodotto la coda la vince ON.
+> Bilanciamento: 4+4 blocchi a caldo (39-43°C sera) + 2+2 a freddo
+> (26-29°C mattina), ABBA, arm bilanciati su entrambe le condizioni.
+> Nota onestà: b12 v1 ucciso dal phantom-killer Android (screen-off
+> senza wake-lock, sshd morto, orfano congelato) → re-run pulito a
+> freddo; lezione: SEMPRE termux-wake-lock prima di harness lunghi.
+> Dati: results/kf_burst/device_final/, analisi ANALYSIS_FINAL.md.
 > **STUTTER CARATTERIZZATI (analisi per-token): tutti e 3 = ingorgo IO
 > alla RIPARTENZA del burst (io_ms 2.2-2.5s aggregati nei primi token
 > del blocco, stall 350-400ms; worker 1-2ms e majflt ~0 innocenti) —

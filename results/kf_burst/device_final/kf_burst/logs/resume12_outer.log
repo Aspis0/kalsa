@@ -1,0 +1,41 @@
+[2026-08-15T10:51:00-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-15T10:51:00-0400] CAMPAIGN PIN OK
+[2026-08-15T10:51:00-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-15T10:51:00-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-15T10:51:00-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-15T10:51:00-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-15T10:51:00-0400] auto-resume from RESUME_AT=12
+[2026-08-15T10:51:00-0400] RESUME BLOCK_PLAN='OFF ON:4 OFF ON:4 OFF ON:4 OFF ON:4 OFF ON:4 OFF ON:4'
+[2026-08-15T10:51:01-0400] parsed n_blocks=12 arms=OFF ON OFF ON OFF ON OFF ON OFF ON OFF ON
+[2026-08-15T10:51:01-0400] === RESUME append mode START_BLOCK=12 ===
+[2026-08-15T10:51:02-0400] FREQ_READABLE=1 n_cpu=8 sample=650000
+[2026-08-15T10:51:02-0400] === KF REALITY Jelly START resume=1 start_block=12 n_gen=200 n_blocks=12 ===
+[2026-08-15T10:51:02-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <prompt> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-15T10:51:02-0400] ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>
+[2026-08-15T10:51:02-0400] BLOCK_PLAN=OFF ON:4 OFF ON:4 OFF ON:4 OFF ON:4 OFF ON:4 OFF ON:4 (no cold reset)
+[2026-08-15T10:51:03-0400] preflight i=1 plugged=UNPLUGGED batt=95 temp=26.0 memavail_kib=5937952 floor=35 screen=
+[2026-08-15T10:51:04-0400] preflight i=1 plugged=UNPLUGGED batt=95 temp=26.0 memavail_kib=5937448 floor=35 screen=
+[2026-08-15T10:51:04-0400] RESUME_AT=12
+[2026-08-15T10:51:04-0400] COOLDOWN block=12 target=40.0 reached=26.0 waited=0 s
+[2026-08-15T10:51:05-0400] RUN b12_ON_w4 arm=ON kf_width=4 batt=95 plugged=UNPLUGGED temp=26.0 screen=? memavail_kib=5937304 n=200 cooldown_wait_s=0
+[2026-08-15T10:52:00-0400] DONE b12_ON_w4 rc=0 wall=54s tps=4.887 s/tok=0.205 stall=0.029 (14.1%) issued=6009.2 hit=4561.8 wasted=1447.4 prec=75.9 joules=150.456215 j/tok=0.75228107 ttft=12.079 j_window=decode majflt=836 read_gb=21.891338 kf_width=4 batt=95->95 temp=26.0/27.000/27.000 cooldown_wait_s=0 excluded=0
+[2026-08-15T10:52:00-0400] void_scan= this_cycle_void=
+[2026-08-15T10:52:00-0400] CAMPAIGN_SHA_AFTER=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81
+[2026-08-15T10:52:00-0400] KF_BIN_SHA_AFTER=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e
+[2026-08-15T10:52:00-0400] excluded rows remaining at DONE: (none)
+[2026-08-15T10:52:00-0400] void blocks remaining at DONE: (none)
+[2026-08-15T10:52:00-0400] === KF REALITY Jelly COMPLETE ===
+ts,order_idx,arm,label,decode_tps,wall_s_tok,compute,mgmt,stall,stall_pct,issued_mib,hit_mib,wasted_mib,precision_pct,hit_pct,joules,j_per_tok,j_window,ttft_s,majflt_delta,read_bytes,read_bytes_gb,temp_start,cooldown_wait_s,temp_max,temp_end,batt_start,batt_end,freq_p50_c0,freq_p95_c0,freq_p50_c1,freq_p95_c1,n_tokens,duration_s,memavail_start_kib,memavail_min_kib,screen,plugged,excluded,csv_path,freq_readable,kf_width
+2026-08-14T23:11:57-0400,1,OFF,b1_OFF,3.225,0.310,0.207,0.015,0.088,28.4,,,,,52.3,256.980409,1.28490204,decode,14.935,12537,18678341632,18.678342,39.0,0,40.000,40.000,90,89,1450000,2000000,2000000,2200000,200,79,6227648,3788592,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_burst/per_token/b1_OFF.csv,1,
+2026-08-14T23:13:25-0400,2,ON,b2_ON_w4,3.088,0.324,0.269,0.022,0.033,10.2,6680.5,5250.8,1429.7,78.6,68.0,258.439609,1.29219805,decode,18.348,324,21238521856,21.238522,40.0,0,41.000,41.000,89,88,2000000,2200000,,,200,85,6364512,3655800,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_burst/per_token/b2_ON_w4.csv,1,4
+2026-08-14T23:19:24-0400,3,OFF,b3_OFF,3.050,0.328,0.228,0.016,0.083,25.3,,,,,52.3,258.778588,1.29389294,decode,14.849,8893,18897387520,18.897388,40.0,270,41.000,41.000,86,84,2000000,2200000,,,200,82,6427460,3736516,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_burst/per_token/b3_OFF.csv,1,
+2026-08-14T23:25:49-0400,4,ON,b4_ON_w4,3.209,0.312,0.255,0.020,0.036,11.5,6051.4,4737.7,1313.8,78.3,67.5,239.706462,1.25500765,decode,15.338,2937,20142759936,20.142760,41.0,300,42.000,42.000,82,81,2000000,2200000,,,191,77,6372964,3745120,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_burst/per_token/b4_ON_w4.csv,1,4
+2026-08-14T23:32:21-0400,5,OFF,b5_OFF,2.910,0.344,0.246,0.017,0.080,23.3,,,,,52.3,257.928659,1.28964329,decode,14.188,799,18628952064,18.628952,41.0,300,42.000,42.000,78,77,2000000,2200000,,,200,86,6253996,3598792,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_burst/per_token/b5_OFF.csv,1,
+2026-08-14T23:38:53-0400,6,ON,b6_ON_w4,3.078,0.325,0.274,0.023,0.028,8.6,6802.4,5369.7,1432.7,78.9,67.6,253.840001,1.26920001,decode,17.364,1511,21724409856,21.724410,42.0,300,43.000,43.000,75,74,2000000,2200000,,,200,84,6361004,3698912,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_burst/per_token/b6_ON_w4.csv,1,4
+2026-08-14T23:45:36-0400,7,OFF,b7_OFF,2.613,0.383,0.289,0.021,0.073,19.1,,,,,52.3,276.381570,1.38190785,decode,17.155,2552,18637398016,18.637398,42.0,300,43.000,43.000,71,70,2000000,2200000,,,200,96,6383892,3708676,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_burst/per_token/b7_OFF.csv,1,
+2026-08-14T23:52:14-0400,8,ON,b8_ON_w4,2.890,0.346,0.292,0.024,0.030,8.7,6134.5,4783.3,1351.3,78.0,69.1,267.420931,1.33710466,decode,18.135,4833,19928133632,19.928134,43.0,300,43.000,43.000,67,66,2000000,2200000,,,200,90,6406920,3791352,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_burst/per_token/b8_ON_w4.csv,1,4
+2026-08-15T10:30:55-0400,9,OFF,b9_OFF,3.810,0.262,0.185,0.012,0.065,24.8,,,,,52.3,154.183395,0.77091698,decode,22.273,1184,22827646976,22.827647,25.0,0,26.000,26.000,99,98,2000000,2200000,,,200,76,4644888,2138440,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_burst/per_token/b9_OFF.csv,1,
+2026-08-15T10:32:02-0400,10,ON,b10_ON_w4,4.715,0.212,0.173,0.012,0.027,12.7,6008.2,4623.7,1384.5,77.0,69.0,144.860396,0.72430198,decode,17.595,469,22317568000,22.317568,26.0,0,27.000,27.000,98,97,2000000,2200000,,,200,62,5354580,2673044,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_burst/per_token/b10_ON_w4.csv,1,4
+2026-08-15T10:33:20-0400,11,OFF,b11_OFF,3.875,0.258,0.188,0.013,0.058,22.5,,,,,52.3,150.838602,0.75419301,decode,21.160,120,20210487296,20.210487,27.0,0,29.000,29.000,97,97,2000000,2200000,,,200,74,5611032,3202604,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_burst/per_token/b11_OFF.csv,1,
+2026-08-15T10:52:00-0400,12,ON,b12_ON_w4,4.887,0.205,0.166,0.009,0.029,14.1,6009.2,4561.8,1447.4,75.9,66.8,150.456215,0.75228107,decode,12.079,836,21891338240,21.891338,26.0,0,27.000,27.000,95,95,2000000,2200000,,,200,54,5937304,3390736,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_burst/per_token/b12_ON_w4.csv,1,4
+[2026-08-15T10:52:01-0400] trap cleanup
