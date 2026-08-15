@@ -71,6 +71,40 @@ makes everything score low, so a naive inversion would block legitimate follow-u
 
 **Confidence in the numbers: high. Confidence in the earlier causal story: retracted.**
 
+### 1.1b The fixed gate, re-measured — the claim survives, the mechanism is different
+
+Campaign `31861056717` (2B, same regime, everything fixed), first arms:
+
+| arm | gate | precision | recall | spurious | **the explicitly requested search** |
+|---|---|---|---|---|---|
+| baseline | on | **0.333** | 1.000 | 8 | **3/3** |
+| nogate | off | 0.264 | 1.000 | 11 | **3/3** |
+
+The turn where the user says *"cerca sul web…"* now succeeds in **both** arms. It was 0/6 with
+the gate on this morning. So the fix did what it was meant to, and only now is the gate's real
+value visible: **it cuts spurious calls 11 → 8 and lifts precision, at no cost to recall and
+without blocking a single legitimate search.**
+
+Put the two statements side by side, because the verdict looks the same and the reason is not:
+
+- *this morning*: "the gate is essential — turning it off collapses recall." **Wrong.** The gate
+  was breaking web search, and recall rose only because the model was forced back onto context.
+- *now*: "the fixed gate reduces unnecessary calls without blocking the necessary ones."
+  Measured, with both arms completing the required search.
+
+Only the second survives being built on.
+
+**And the blank bubbles are gone**: 0 in 96 turns, against 21 in 384 before — the prediction in
+§3.10 recorded before the data arrived. Turns exhausting the 3-round cap fell from 9.9% to 6.3%,
+and turns where a search actually succeeded rose from 13.5% to 22.9%.
+
+**What remains is the number that matters for the fine-tuning question**: precision 0.333 with
+the gate and 0.264 without — both low, and this is the first clean measurement of either. The 2B
+calls tools on turns that do not need them; the gate catches some and the rest get through. It is
+not a *format* problem (19/20 structured, 0 invalid names, 0 unparsed arguments) and not a
+*recall* problem (1.000). It is a decision problem — which is what the `tools` phase exists to
+split into "whether to call" versus "which to call".
+
 ### 1.2 Losing context *causes* tool misuse — the two axes are not independent
 
 Share of turns where the model reached for the web, by position in the conversation:
