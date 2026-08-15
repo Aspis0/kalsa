@@ -84,7 +84,18 @@
 > registrata nel regime prodotto · **PARETO: ginocchio a W4 (+15.6%
 > tok/s a energia pari); W6 max speed (+20%) a +12.5% J; W2
 > energy-positive (−2.4%)** — candidato default W4 pending burst-test ·
-> KF_GENERAL ⏸ · KF_SHIP ⛔. Report: reports/moe-kernel-kf-sweep.md.
+> **KF_GENERAL MISURATO (Xiaomi, finestra offerta da gualt): NON
+> universale — sul fast-flash l'OFF caldo VINCE (0.398 vs 0.404-0.406,
+> ON −1.5/−2%): lo stall dimezza ma il compute sale uguale (interferenza
+> banda DRAM). Legge di scala: il win segue la quota stall (Jelly
+> 27-30% → −34%; Xiaomi 19-21% → nullo/negativo; soglia morte ~20%).
+> ⇒ K-F è una leva DA DISPATCHER (ON solo dove il probe misura stall%
+> alto), non un default universale — ed è la fascia che ne ha più
+> bisogno a riceverla. Bonus: prima telemetria lead-time sul campo
+> (late 9% con gap 8-14ms = near-miss B; inflight mai oltre width = C
+> esclusa qui; W4 conferma il ginocchio anche su secondo device).
+> Report: reports/moe-kernel-kf-general.md** ·
+> KF_SHIP ⛔. Report sweep: reports/moe-kernel-kf-sweep.md.
 >
 > **(storico, prima tassonomia — dopo cella REALITY):**
 > KF_PROTO_WIN ✅ · KF_PHYSICS_WIN ✅ · KF_SPEED_WIN ✅ ·
