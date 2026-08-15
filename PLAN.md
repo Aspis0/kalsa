@@ -12,7 +12,32 @@
 
 ---
 
-# ⭐ STATO CORRENTE — aggiornato 2026-08-15 (notte fonda)
+# ⭐ STATO CORRENTE
+
+> 🧬 **NOTTE DELL'INVENZIONE (2026-08-15, mandato gualt "trucco mai
+> provato"): 10 candidati, 9 kill onesti, UN VINCITORE DI CORSA.**
+> Kill: cache-tricks tutti occupati (HOBBIT/DyMoE/SMoE/AdapMoE/
+> ExpertFlow/Apple — bibbia related-work in docs/t2-novelty-round1-4);
+> similarità e skew morti PER FISICA sui nostri modelli (esperti
+> ortogonali cos~0.02; routing ad alta entropia: 96% esperti toccati in
+> 300 tok, top-16=25% — LA PERLA: spiega le 45 riletture/tok e valida
+> l'architettura hide-latency+weighted-drop); drop-asimmetrico morto
+> (XShare: potare in prefill avvelena la KV, MMLU 51→27).
+> **🏇 VINCITORE: "DRAFT SENZA STATO" (F)** — selfspec su ibridi con
+> draft attention-only e GDN CONGELATO all'ultimo commit: il prefisso
+> fantasma sparisce PER COSTRUZIONE, draft più economico, e la
+> letteratura 2026 (Component-Aware SSD, arXiv:2605.01106) ha provato
+> la POLARITÀ OPPOSTA (draft solo-SSM) fallendo con α=0.038 sui
+> sequential hybrid — la loro ablazione predice che la NOSTRA polarità
+> vinca. Nessuno l'ha pubblicata. Baseline da battere: 0.038. Prossimo
+> passo: diagnostica E4 (alpha teacher-forced del draft a GDN frozen)
+> col macchinario diag già committato su kalsa/selfspec-f1. FRETTA: la
+> finestra si chiude in mesi (ReplaySSM giu-2026, C-A mag-2026).
+> In coda dal mandato: curva drop qualità in corso sul PC
+> (DROPCURVE: l'ottimo a d>0 di k6d065 dMacro −0.0086 è reale?);
+> 3 survivor ingegneristici senza claim (controller stutter
+> ExpertFlow-style, repack lazy hot ×1.27, corazza anti-zram).**
+ — aggiornato 2026-08-15 (notte fonda)
 
 > 🏆🏆 **IL P-VALUE È ARRIVATO (2026-08-15 ~00:30): SHIP CRITERION MET.**
 > Cella pre-registrata Mellum2-S23, 12 coppie ABBA da telefono
