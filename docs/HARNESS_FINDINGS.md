@@ -120,38 +120,40 @@ answer in context and goes searching. Modes that keep context flat do not degrad
 
 **Confidence: medium-high.** One model, one campaign, clear monotone trend.
 
-### 1.3 `ciswire` mode beats both bare and `v42`
+### 1.3 `ciswire` mode beats both bare and `v42` — CONFIRMED with every defect fixed
 
-Primary endpoint = per-conversation mean of early and late fact recall. Window 16 (the graded
-regime, where bare still has partial access — not the floor):
+**Campaign `31861056717`** (2B, window 16, six seeds, run after the gate inversion, the
+blank-bubble fallback, the decline-aware metric and the locale gate all landed). This supersedes
+the earlier numbers, which were measured while the tool gate was blocking ~100% of searches.
 
-| arm | n | early | late | **mean** | sd |
-|---|---|---|---|---|---|
-| `off` (bare) | 6 | 0.563 | 0.563 | **0.563** | 0.409 |
-| `ciswire` | 6 | 0.938 | 0.979 | **0.958** | **0.051** |
-| `v42` | 5 | 0.550 | 0.500 | **0.525** | 0.095 |
+| arm | n | early | late | **mean** | sd | blank | tool precision |
+|---|---|---|---|---|---|---|---|
+| `off` (bare) | 5 | 0.325 | 0.300 | **0.313** | 0.348 | **0** | 0.241 |
+| `ciswire` | 6 | 0.938 | 0.958 | **0.948** | **0.083** | **0** | **0.485** |
+| `v42` | 6 | 0.854 | 0.479 | **0.667** | 0.094 | **0** | 0.281 |
+| `nogate` | 4 | 0.094 | 0.075 | 0.094 | 0.188 | **0** | 0.253 |
 
-- `ciswire` vs bare: **+0.396, p = 0.0249** (exact, 924 assignments, unit = conversation)
-- `ciswire` vs `v42`: **+0.433, p = 0.0043** (exact, 462)
-- `v42` vs bare: −0.037, p = 0.60 — **indistinguishable from doing nothing**
+- `ciswire` vs bare: **+0.635, p = 0.0043** (exact, 462) — was +0.396, p=0.0249 before the fixes
+- `ciswire` vs `v42`: **+0.281, p = 0.0022** (exact, 924)
+- `v42` vs bare: **+0.354, p = 0.0432** (exact, 462)
 
-The strongest signal is not the mean but the **variance**: `ciswire` sd 0.051 vs bare 0.409. It
-is not just better on average, it is reliable.
+**Zero blank bubbles across all 24 arms**, against 21 before — the §3.10 prediction, recorded
+before the data existed.
 
-**Confidence: medium-high.** One model, one language, n=6, emulator — but a hostile audit of
-the code that produced it (commit `c93d163`, isolated worktree) closed the two ways it could
-have been fabricated:
+**Two earlier conclusions are corrected by this run:**
 
-- *"the baseline kept 20 messages while the treatment got 16"* — **cannot occur**: one read per
-  turn, two symmetric consumers, no third assembly path.
-- *"a fact reaches the digest before the probe that asks for it"*, i.e. the treated arm reading
-  the answer out of its own digest — **no such path exists**.
+1. **"`v42` adds nothing" was an artefact of the broken gate.** It was −0.037 (p=0.60); with the
+   gate fixed it beats bare by +0.354 (p=0.043). It is still clearly worse than `ciswire`, so the
+   recommendation becomes "`ciswire` is better", not "retire `v42`" — a different statement, and
+   shipping the first one would have removed something that works.
+2. **Better context *improves* tool precision**: `ciswire` 0.485 vs bare 0.241, nearly double.
+   This is the mirror of §1.2 — losing context causes tool misuse, so holding it prevents the
+   misuse. The two axes are coupled in both directions.
 
-One audit concern was checked against the data and does not apply: blank-reply probes are
-excluded from denominators, and the treated arms have ~2× the blanks, which could inflate them.
-On the primary pair **neither arm had a single fact probe excluded** (92/96 either way). It does
-flatter `v42`, which drops 0.525 → 0.438 if exclusions counted as misses — so §1.3's "v42 adds
-nothing" is if anything understated.
+**The decay curve is the strongest single argument.** `ciswire` runs 0.938 early → 0.958 late:
+it does not degrade with distance at all. `v42` runs 0.854 → **0.479**. Bare is flat at 0.31
+because it has nothing left to lose. A mean can be argued with; a system that holds its accuracy
+as the conversation grows is the property a phone assistant actually needs.
 
 ### 1.4 What the three modes actually do
 
