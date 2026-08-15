@@ -1,0 +1,130 @@
+[2026-08-15T00:36:52-0400] CAMPAIGN_SHA=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c path=/data/data/com.termux/files/home/bin/mellum2/bmoe-cli
+[2026-08-15T00:36:52-0400] CAMPAIGN PIN OK
+[2026-08-15T00:36:52-0400] MODEL path=/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600
+[2026-08-15T00:36:52-0400] computing MODEL sha256...
+[2026-08-15T00:37:17-0400] MODEL_SHA=b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7
+[2026-08-15T00:37:17-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-15T00:37:17-0400] POWER_SOURCE=termux (sysfs unreadable) sample={
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 29.3,
+  "voltage": 4129,
+  "current": -985000,
+  "current_average": -876,
+  "percentage": 86,
+  "level": 86,
+  "scale": 100,
+  "charge_counter": 3251250,
+  "cycle": 0
+}
+[2026-08-15T00:37:17-0400] === SHIP A/B S23 START resume=0 start_pair=1 ===
+[2026-08-15T00:37:17-0400] ARM A: /data/data/com.termux/files/home/bin/mellum2/bmoe-cli -m /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -p <p_fact> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -c 4096 --temp 0 --chatml --no-think -t 4
+[2026-08-15T00:37:17-0400] ARM B: /data/data/com.termux/files/home/bin/mellum2/bmoe-cli -m /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -p <p_fact> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -c 4096 --temp 0 --chatml --no-think -t 2 --n-expert-used 6 --drop-cold-experts 1.0
+[2026-08-15T00:37:18-0400] preflight i=1 plugged=UNPLUGGED batt=86 temp=29.3 memavail_kib=4356240 floor=45 screen= power=termux
+[2026-08-15T00:37:19-0400] RUN warmup pair=0 arm=B batt=86 plugged=UNPLUGGED temp=29.3 screen=? memavail_kib=4350172 power=termux
+[2026-08-15T00:37:49-0400] DONE warmup rc=0 wall=29s tps=8.441 s/tok=0.118 joules=0.141848 j/tok=0.00098506 ttft=11.525 j_window=decode batt=86->86 temp_max=31.3 screen=? excluded=1
+[2026-08-15T00:37:50-0400] preflight i=1 plugged=UNPLUGGED batt=86 temp=31.3 memavail_kib=5113836 floor=45 screen= power=termux
+[2026-08-15T00:37:51-0400] RUN p01_A pair=1 arm=A batt=86 plugged=UNPLUGGED temp=31.3 screen=? memavail_kib=5111204 power=termux
+[2026-08-15T00:38:48-0400] DONE p01_A rc=0 wall=56s tps=4.580 s/tok=0.218 joules=0.398133 j/tok=0.00199066 ttft=11.480 j_window=decode batt=86->85 temp_max=34.6 screen=? excluded=0
+[2026-08-15T00:38:49-0400] RUN p01_B pair=1 arm=B batt=85 plugged=UNPLUGGED temp=34.6 screen=? memavail_kib=5125352 power=termux
+[2026-08-15T00:39:18-0400] DONE p01_B rc=0 wall=28s tps=8.303 s/tok=0.120 joules=0.151870 j/tok=0.00105465 ttft=10.798 j_window=decode batt=85->85 temp_max=34.6 screen=? excluded=0
+[2026-08-15T00:39:18-0400] PAIR_OK pair=1 order=AB
+[2026-08-15T00:39:19-0400] preflight i=1 plugged=UNPLUGGED batt=85 temp=34.6 memavail_kib=5188360 floor=45 screen= power=termux
+[2026-08-15T00:39:20-0400] RUN p02_B pair=2 arm=B batt=85 plugged=UNPLUGGED temp=34.6 screen=? memavail_kib=5184360 power=termux
+[2026-08-15T00:39:49-0400] DONE p02_B rc=0 wall=28s tps=8.304 s/tok=0.120 joules=0.141153 j/tok=0.00098023 ttft=9.702 j_window=decode batt=85->84 temp_max=36.3 screen=? excluded=0
+[2026-08-15T00:39:50-0400] RUN p02_A pair=2 arm=A batt=84 plugged=UNPLUGGED temp=36.3 screen=? memavail_kib=5169464 power=termux
+[2026-08-15T00:40:49-0400] DONE p02_A rc=0 wall=58s tps=4.356 s/tok=0.230 joules=10.081675 j/tok=0.05040838 ttft=11.755 j_window=decode batt=84->83 temp_max=37.7 screen=? excluded=0
+[2026-08-15T00:40:49-0400] PAIR_OK pair=2 order=BA
+[2026-08-15T00:40:50-0400] preflight i=1 plugged=UNPLUGGED batt=83 temp=37.7 memavail_kib=5229372 floor=45 screen= power=termux
+[2026-08-15T00:40:51-0400] RUN p03_A pair=3 arm=A batt=83 plugged=UNPLUGGED temp=37.7 screen=? memavail_kib=5229256 power=termux
+[2026-08-15T00:41:57-0400] DONE p03_A rc=0 wall=65s tps=3.912 s/tok=0.256 joules=4.299735 j/tok=0.02149868 ttft=12.501 j_window=decode batt=83->83 temp_max=37.7 screen=? excluded=0
+[2026-08-15T00:41:58-0400] RUN p03_B pair=3 arm=B batt=83 plugged=UNPLUGGED temp=37.7 screen=? memavail_kib=5210952 power=termux
+[2026-08-15T00:42:34-0400] DONE p03_B rc=0 wall=34s tps=6.703 s/tok=0.149 joules=3.612169 j/tok=0.02508451 ttft=12.360 j_window=decode batt=83->83 temp_max=37.7 screen=? excluded=0
+[2026-08-15T00:42:34-0400] PAIR_OK pair=3 order=AB
+[2026-08-15T00:42:35-0400] preflight i=1 plugged=UNPLUGGED batt=83 temp=37.7 memavail_kib=5254440 floor=45 screen= power=termux
+[2026-08-15T00:42:36-0400] RUN p04_B pair=4 arm=B batt=83 plugged=UNPLUGGED temp=37.7 screen=? memavail_kib=5261012 power=termux
+[2026-08-15T00:43:12-0400] DONE p04_B rc=0 wall=35s tps=6.783 s/tok=0.147 joules=0.103688 j/tok=0.00072006 ttft=12.559 j_window=decode batt=83->82 temp_max=37.9 screen=? excluded=0
+[2026-08-15T00:43:13-0400] RUN p04_A pair=4 arm=A batt=82 plugged=UNPLUGGED temp=37.9 screen=? memavail_kib=5214008 power=termux
+[2026-08-15T00:44:20-0400] DONE p04_A rc=0 wall=66s tps=3.892 s/tok=0.257 joules=16.354202 j/tok=0.08177101 ttft=13.151 j_window=decode batt=82->82 temp_max=37.9 screen=? excluded=0
+[2026-08-15T00:44:20-0400] PAIR_OK pair=4 order=BA
+[2026-08-15T00:44:21-0400] preflight i=1 plugged=UNPLUGGED batt=82 temp=37.9 memavail_kib=5181716 floor=45 screen= power=termux
+[2026-08-15T00:44:22-0400] RUN p05_A pair=5 arm=A batt=82 plugged=UNPLUGGED temp=37.9 screen=? memavail_kib=5174204 power=termux
+[2026-08-15T00:45:28-0400] DONE p05_A rc=0 wall=65s tps=3.906 s/tok=0.256 joules=5.018629 j/tok=0.02509314 ttft=12.601 j_window=decode batt=82->81 temp_max=39.3 screen=? excluded=0
+[2026-08-15T00:45:29-0400] RUN p05_B pair=5 arm=B batt=81 plugged=UNPLUGGED temp=39.3 screen=? memavail_kib=5210564 power=termux
+[2026-08-15T00:46:05-0400] DONE p05_B rc=0 wall=34s tps=6.806 s/tok=0.147 joules=5.989723 j/tok=0.04159530 ttft=12.435 j_window=decode batt=81->81 temp_max=39.3 screen=? excluded=0
+[2026-08-15T00:46:05-0400] PAIR_OK pair=5 order=AB
+[2026-08-15T00:46:06-0400] preflight i=1 plugged=UNPLUGGED batt=81 temp=39.3 memavail_kib=5245200 floor=45 screen= power=termux
+[2026-08-15T00:46:07-0400] RUN p06_B pair=6 arm=B batt=81 plugged=UNPLUGGED temp=39.3 screen=? memavail_kib=5242532 power=termux
+[2026-08-15T00:46:43-0400] DONE p06_B rc=0 wall=34s tps=6.777 s/tok=0.148 joules=7.417247 j/tok=0.05150866 ttft=12.667 j_window=decode batt=81->81 temp_max=39.3 screen=? excluded=0
+[2026-08-15T00:46:45-0400] RUN p06_A pair=6 arm=A batt=81 plugged=UNPLUGGED temp=39.3 screen=? memavail_kib=5231404 power=termux
+[2026-08-15T00:47:53-0400] DONE p06_A rc=0 wall=67s tps=3.750 s/tok=0.267 joules=13.476093 j/tok=0.06738047 ttft=13.084 j_window=decode batt=81->80 temp_max=40.0 screen=? excluded=0
+[2026-08-15T00:47:53-0400] PAIR_OK pair=6 order=BA
+[2026-08-15T00:47:55-0400] preflight i=1 plugged=UNPLUGGED batt=80 temp=40.0 memavail_kib=5150920 floor=45 screen= power=termux
+[2026-08-15T00:47:56-0400] RUN p07_A pair=7 arm=A batt=80 plugged=UNPLUGGED temp=40.0 screen=? memavail_kib=5150636 power=termux
+[2026-08-15T00:49:05-0400] DONE p07_A rc=0 wall=68s tps=3.751 s/tok=0.267 joules=17.368571 j/tok=0.08684285 ttft=13.326 j_window=decode batt=80->80 temp_max=40.0 screen=? excluded=0
+[2026-08-15T00:49:06-0400] RUN p07_B pair=7 arm=B batt=80 plugged=UNPLUGGED temp=40.0 screen=? memavail_kib=5244840 power=termux
+[2026-08-15T00:49:51-0400] DONE p07_B rc=0 wall=43s tps=6.035 s/tok=0.166 joules=36.104452 j/tok=0.25072536 ttft=18.467 j_window=decode batt=80->79 temp_max=40.3 screen=? excluded=0
+[2026-08-15T00:49:51-0400] PAIR_OK pair=7 order=AB
+[2026-08-15T00:49:52-0400] preflight i=1 plugged=UNPLUGGED batt=79 temp=40.3 memavail_kib=5254736 floor=45 screen= power=termux
+[2026-08-15T00:49:54-0400] RUN p08_B pair=8 arm=B batt=79 plugged=UNPLUGGED temp=40.3 screen=? memavail_kib=5254028 power=termux
+[2026-08-15T00:50:36-0400] DONE p08_B rc=0 wall=40s tps=5.508 s/tok=0.182 joules=59.183966 j/tok=0.41099976 ttft=13.745 j_window=decode batt=79->79 temp_max=40.3 screen=? excluded=0
+[2026-08-15T00:50:37-0400] RUN p08_A pair=8 arm=A batt=79 plugged=UNPLUGGED temp=40.3 screen=? memavail_kib=5265088 power=termux
+[2026-08-15T00:51:46-0400] DONE p08_A rc=0 wall=67s tps=3.763 s/tok=0.266 joules=5.887428 j/tok=0.02943714 ttft=13.117 j_window=decode batt=79->78 temp_max=40.6 screen=? excluded=0
+[2026-08-15T00:51:46-0400] PAIR_OK pair=8 order=BA
+[2026-08-15T00:51:47-0400] preflight i=1 plugged=UNPLUGGED batt=78 temp=40.6 memavail_kib=5192548 floor=45 screen= power=termux
+[2026-08-15T00:51:48-0400] RUN p09_A pair=9 arm=A batt=78 plugged=UNPLUGGED temp=40.6 screen=? memavail_kib=5186696 power=termux
+[2026-08-15T00:52:59-0400] DONE p09_A rc=0 wall=69s tps=3.722 s/tok=0.269 joules=5.615233 j/tok=0.02807617 ttft=14.435 j_window=decode batt=78->78 temp_max=40.6 screen=? excluded=0
+[2026-08-15T00:53:00-0400] RUN p09_B pair=9 arm=B batt=78 plugged=UNPLUGGED temp=40.6 screen=? memavail_kib=5128352 power=termux
+[2026-08-15T00:53:41-0400] DONE p09_B rc=0 wall=39s tps=6.042 s/tok=0.166 joules=29.251647 j/tok=0.20313644 ttft=14.196 j_window=decode batt=78->78 temp_max=40.6 screen=? excluded=0
+[2026-08-15T00:53:41-0400] PAIR_OK pair=9 order=AB
+[2026-08-15T00:53:42-0400] preflight i=1 plugged=UNPLUGGED batt=78 temp=40.6 memavail_kib=5219844 floor=45 screen= power=termux
+[2026-08-15T00:53:43-0400] RUN p10_B pair=10 arm=B batt=78 plugged=UNPLUGGED temp=40.6 screen=? memavail_kib=5217492 power=termux
+[2026-08-15T00:54:22-0400] DONE p10_B rc=0 wall=37s tps=6.103 s/tok=0.164 joules=36.854333 j/tok=0.25593287 ttft=12.649 j_window=decode batt=78->77 temp_max=40.9 screen=? excluded=0
+[2026-08-15T00:54:23-0400] RUN p10_A pair=10 arm=A batt=77 plugged=UNPLUGGED temp=40.9 screen=? memavail_kib=5170968 power=termux
+[2026-08-15T00:55:32-0400] DONE p10_A rc=0 wall=68s tps=3.746 s/tok=0.267 joules=19.336839 j/tok=0.09668420 ttft=13.427 j_window=decode batt=77->77 temp_max=40.9 screen=? excluded=0
+[2026-08-15T00:55:32-0400] PAIR_OK pair=10 order=BA
+[2026-08-15T00:55:33-0400] preflight i=1 plugged=UNPLUGGED batt=77 temp=40.9 memavail_kib=5236056 floor=45 screen= power=termux
+[2026-08-15T00:55:35-0400] RUN p11_A pair=11 arm=A batt=77 plugged=UNPLUGGED temp=40.9 screen=? memavail_kib=5238736 power=termux
+[2026-08-15T00:56:44-0400] DONE p11_A rc=0 wall=68s tps=3.722 s/tok=0.269 joules=16.083494 j/tok=0.08041747 ttft=13.430 j_window=decode batt=77->76 temp_max=41.5 screen=? excluded=0
+[2026-08-15T00:56:46-0400] RUN p11_B pair=11 arm=B batt=76 plugged=UNPLUGGED temp=41.5 screen=? memavail_kib=5231328 power=termux
+[2026-08-15T00:57:25-0400] DONE p11_B rc=0 wall=38s tps=6.074 s/tok=0.165 joules=28.840370 j/tok=0.20028035 ttft=13.807 j_window=decode batt=76->76 temp_max=41.5 screen=? excluded=0
+[2026-08-15T00:57:25-0400] PAIR_OK pair=11 order=AB
+[2026-08-15T00:57:27-0400] preflight i=1 plugged=UNPLUGGED batt=76 temp=41.5 memavail_kib=5153460 floor=45 screen= power=termux
+[2026-08-15T00:57:28-0400] RUN p12_B pair=12 arm=B batt=76 plugged=UNPLUGGED temp=41.5 screen=? memavail_kib=5148568 power=termux
+[2026-08-15T00:58:07-0400] DONE p12_B rc=0 wall=38s tps=6.101 s/tok=0.164 joules=25.066420 j/tok=0.17407236 ttft=13.421 j_window=decode batt=76->76 temp_max=41.5 screen=? excluded=0
+[2026-08-15T00:58:09-0400] RUN p12_A pair=12 arm=A batt=76 plugged=UNPLUGGED temp=41.5 screen=? memavail_kib=5203928 power=termux
+[2026-08-15T00:59:20-0400] DONE p12_A rc=0 wall=69s tps=3.702 s/tok=0.270 joules=28.893649 j/tok=0.14446824 ttft=14.619 j_window=decode batt=76->75 temp_max=41.6 screen=? excluded=0
+[2026-08-15T00:59:20-0400] PAIR_OK pair=12 order=BA
+[2026-08-15T00:59:20-0400] void_scan= this_cycle_void=
+[2026-08-15T00:59:20-0400] CAMPAIGN_SHA_AFTER=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c
+[2026-08-15T00:59:20-0400] === SHIP A/B S23 COMPLETE ===
+ts,pair,arm,label,excluded,decode_tps,wall_s_tok,compute,mgmt,stall,tokens_generated,joules,j_per_tok,ttft_s,batt_start,batt_end,temp_start,temp_max,screen,plugged,memavail_start_kib,power_source,j_window
+2026-08-15T00:37:49-0400,0,B,warmup,1,8.441,0.118,0.083,0.004,0.031,144,0.141848,0.00098506,11.525,86,86,29.3,31.3,?,UNPLUGGED,4350172,termux,decode
+2026-08-15T00:38:48-0400,1,A,p01_A,0,4.580,0.218,0.092,0.015,0.111,200,0.398133,0.00199066,11.480,86,85,31.3,34.6,?,UNPLUGGED,5111204,termux,decode
+2026-08-15T00:39:18-0400,1,B,p01_B,0,8.303,0.120,0.085,0.004,0.032,144,0.151870,0.00105465,10.798,85,85,34.6,34.6,?,UNPLUGGED,5125352,termux,decode
+2026-08-15T00:39:49-0400,2,B,p02_B,0,8.304,0.120,0.086,0.003,0.032,144,0.141153,0.00098023,9.702,85,84,34.6,36.3,?,UNPLUGGED,5184360,termux,decode
+2026-08-15T00:40:49-0400,2,A,p02_A,0,4.356,0.230,0.102,0.016,0.111,200,10.081675,0.05040838,11.755,84,83,36.3,37.7,?,UNPLUGGED,5169464,termux,decode
+2026-08-15T00:41:57-0400,3,A,p03_A,0,3.912,0.256,0.131,0.019,0.105,200,4.299735,0.02149868,12.501,83,83,37.7,37.7,?,UNPLUGGED,5229256,termux,decode
+2026-08-15T00:42:34-0400,3,B,p03_B,0,6.703,0.149,0.113,0.005,0.032,144,3.612169,0.02508451,12.360,83,83,37.7,37.7,?,UNPLUGGED,5210952,termux,decode
+2026-08-15T00:43:12-0400,4,B,p04_B,0,6.783,0.147,0.112,0.005,0.031,144,0.103688,0.00072006,12.559,83,82,37.7,37.9,?,UNPLUGGED,5261012,termux,decode
+2026-08-15T00:44:20-0400,4,A,p04_A,0,3.892,0.257,0.135,0.020,0.103,200,16.354202,0.08177101,13.151,82,82,37.9,37.9,?,UNPLUGGED,5214008,termux,decode
+2026-08-15T00:45:28-0400,5,A,p05_A,0,3.906,0.256,0.134,0.020,0.102,200,5.018629,0.02509314,12.601,82,81,37.9,39.3,?,UNPLUGGED,5174204,termux,decode
+2026-08-15T00:46:05-0400,5,B,p05_B,0,6.806,0.147,0.112,0.005,0.031,144,5.989723,0.04159530,12.435,81,81,39.3,39.3,?,UNPLUGGED,5210564,termux,decode
+2026-08-15T00:46:43-0400,6,B,p06_B,0,6.777,0.148,0.110,0.005,0.032,144,7.417247,0.05150866,12.667,81,81,39.3,39.3,?,UNPLUGGED,5242532,termux,decode
+2026-08-15T00:47:53-0400,6,A,p06_A,0,3.750,0.267,0.148,0.021,0.097,200,13.476093,0.06738047,13.084,81,80,39.3,40.0,?,UNPLUGGED,5231404,termux,decode
+2026-08-15T00:49:05-0400,7,A,p07_A,0,3.751,0.267,0.153,0.022,0.092,200,17.368571,0.08684285,13.326,80,80,40.0,40.0,?,UNPLUGGED,5150636,termux,decode
+2026-08-15T00:49:51-0400,7,B,p07_B,0,6.035,0.166,0.130,0.005,0.030,144,36.104452,0.25072536,18.467,80,79,40.0,40.3,?,UNPLUGGED,5244840,termux,decode
+2026-08-15T00:50:36-0400,8,B,p08_B,0,5.508,0.182,0.145,0.006,0.031,144,59.183966,0.41099976,13.745,79,79,40.3,40.3,?,UNPLUGGED,5254028,termux,decode
+2026-08-15T00:51:46-0400,8,A,p08_A,0,3.763,0.266,0.151,0.021,0.094,200,5.887428,0.02943714,13.117,79,78,40.3,40.6,?,UNPLUGGED,5265088,termux,decode
+2026-08-15T00:52:59-0400,9,A,p09_A,0,3.722,0.269,0.155,0.022,0.092,200,5.615233,0.02807617,14.435,78,78,40.6,40.6,?,UNPLUGGED,5186696,termux,decode
+2026-08-15T00:53:41-0400,9,B,p09_B,0,6.042,0.166,0.127,0.005,0.033,144,29.251647,0.20313644,14.196,78,78,40.6,40.6,?,UNPLUGGED,5128352,termux,decode
+2026-08-15T00:54:22-0400,10,B,p10_B,0,6.103,0.164,0.128,0.005,0.032,144,36.854333,0.25593287,12.649,78,77,40.6,40.9,?,UNPLUGGED,5217492,termux,decode
+2026-08-15T00:55:32-0400,10,A,p10_A,0,3.746,0.267,0.153,0.022,0.092,200,19.336839,0.09668420,13.427,77,77,40.9,40.9,?,UNPLUGGED,5170968,termux,decode
+2026-08-15T00:56:44-0400,11,A,p11_A,0,3.722,0.269,0.155,0.022,0.092,200,16.083494,0.08041747,13.430,77,76,40.9,41.5,?,UNPLUGGED,5238736,termux,decode
+2026-08-15T00:57:25-0400,11,B,p11_B,0,6.074,0.165,0.129,0.005,0.031,144,28.840370,0.20028035,13.807,76,76,41.5,41.5,?,UNPLUGGED,5231328,termux,decode
+2026-08-15T00:58:07-0400,12,B,p12_B,0,6.101,0.164,0.127,0.006,0.031,144,25.066420,0.17407236,13.421,76,76,41.5,41.5,?,UNPLUGGED,5148568,termux,decode
+2026-08-15T00:59:20-0400,12,A,p12_A,0,3.702,0.270,0.154,0.021,0.095,200,28.893649,0.14446824,14.619,76,75,41.5,41.6,?,UNPLUGGED,5203928,termux,decode
+[2026-08-15T00:59:20-0400] trap cleanup
