@@ -36,6 +36,15 @@
 > nell'uso reale lo schermo (~1-2 W) brucia metà tempo a velocità
 > doppia: serve la cella "J per risposta a schermo acceso" prima di
 > fissare le soglie (il costo potrebbe ribaltarsi in risparmio netto).
+> **MISURATO (2026-08-15 notte): ribaltamento CONFERMATO per l'uso
+> interattivo.** Sessione screen-on: velocità replica esatta (−41.3%,
+> W=0 p=0.000488 — secondo campione indipendente); J/token con display
+> attivo inaffidabile (sensore Samsung mescola scale mA/µA) → misura
+> %-drop: schermo ≤~0.6W (sotto risoluzione 1%/15min). Aritmetica:
+> certificata risparmia 22s schermo/risposta (4-13 J) vs +2.6 J compute
+> → A SCHERMO ACCESO LA CONFIG VELOCE RISPARMIA BATTERIA NETTA.
+> Policy corretta: gate su TERMICA e task screen-off (lì +12% J/tok è
+> reale), NON sul livello batteria in chat interattiva.
 > Chiarimento terminologia (per non confondersi mai più): (1) ricetta/
 > dispatcher = funziona OVUNQUE (S23 p-value; Xiaomi +158% Marco t4);
 > (2) K-F prefetch = solo dove stall%>~20% (Jelly sì, Xiaomi no);
