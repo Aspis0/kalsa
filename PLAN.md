@@ -26,6 +26,20 @@
 > 60-100× con zram sporco, riprodotto 2×). Report:
 > reports/moe-kernel-ship-ab-s23.md. Primo mattone PRE-REGISTRATO del
 > paniere ship; K-F escluso di proposito (fattori isolati).
+> **DIRETTIVA gualt (2026-08-15): POLICY DI ATTIVAZIONE del kernel** —
+> la promozione finale richiede: (a) completamento burst-cold, (b)
+> caratterizzazione eventi stutter/max, (c) policy che limiti l'uso
+> aggressivo quando batteria o termica sono vincolanti (es. "spegni"
+> la config aggressiva sotto soglia batteria). Ingressi policy: stall%
+> (K-F), livello batteria, stato termico. Nota misurata: J/token +11.8%
+> e potenza media ~raddoppiata (0.42→0.82 W) MA a schermo spento —
+> nell'uso reale lo schermo (~1-2 W) brucia metà tempo a velocità
+> doppia: serve la cella "J per risposta a schermo acceso" prima di
+> fissare le soglie (il costo potrebbe ribaltarsi in risparmio netto).
+> Chiarimento terminologia (per non confondersi mai più): (1) ricetta/
+> dispatcher = funziona OVUNQUE (S23 p-value; Xiaomi +158% Marco t4);
+> (2) K-F prefetch = solo dove stall%>~20% (Jelly sì, Xiaomi no);
+> (3) K-G prefill GPU = lane morta ovunque (artefatto).
 
 > 🚨 **SHIP A/B S23: SOSPESA CON CAUSA TROVATA (2026-08-14 ~21:00).**
 > Il braccio A "stock" (k8, no drop) fa 21 s/token — 60× degradato vs le
