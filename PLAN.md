@@ -134,6 +134,11 @@
 > stutter (3 vs 1 eventi, statisticamente sottile) e il max (869 vs
 > 713). La regressione di coda v1 (regime tiepido W6) NON si riproduce
 > a W4 in burst. Dati: results/kf_burst/.
+> **STUTTER CARATTERIZZATI (analisi per-token): tutti e 3 = ingorgo IO
+> alla RIPARTENZA del burst (io_ms 2.2-2.5s aggregati nei primi token
+> del blocco, stall 350-400ms; worker 1-2ms e majflt ~0 innocenti) —
+> causa E (warm-up non integrato) + C locale. Fix candidati: ramp-up
+> issue nei primi ~10 token, o warm-start nel prefill.**
 >
 > **(storico, prima tassonomia — dopo cella REALITY):**
 > KF_PROTO_WIN ✅ · KF_PHYSICS_WIN ✅ · KF_SPEED_WIN ✅ ·
