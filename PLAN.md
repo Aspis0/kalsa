@@ -176,7 +176,25 @@
 > (late 9% con gap 8-14ms = near-miss B; inflight mai oltre width = C
 > esclusa qui; W4 conferma il ginocchio anche su secondo device).
 > Report: reports/moe-kernel-kf-general.md** ·
-> KF_SHIP ⛔. Report sweep: reports/moe-kernel-kf-sweep.md.
+> **SONDA S23 (2026-08-15 pomeriggio, esplorativa, 8 blocchi ABBA,
+> kf-bin ad104222 pins dichiarati): NULL PULITO = terza conferma della
+> legge di scala.** Stall S23 ~11% in config campagna → sotto soglia
+> ~20% → wall identico (0.271 vs 0.271 s/tok) con stall dimezzato
+> (11%→6%) e zero danni (p99 pari, energia 1.03, sag migliore). Legge
+> a 3 device: Jelly 27-30%→−34% · Xiaomi 19-21%→nullo · S23 11%→nullo.
+> La regola dispatcher (ON solo con stall%>~20 misurato) è VALIDATA.
+> Anomalia archiviata: la sonda gira con compute 2.5× più lento del
+> ship arm B (0.24 vs 0.095 s/tok; sospetta affinity thread Termux) —
+> a velocità ship lo stall share risalirebbe ~25%: eventuale cella
+> futura, non blocca. Dati: results/kf_probe_s23/.
+> **CELLA CONFERMATIVA JELLY PRE-REGISTRATA (results/kf_ship_jelly/
+> PREREG.md, commit 3785392 PRIMA del run): 24 blocchi ABBA, N=12
+> coppie, Wilcoxon esatto two-sided p<0.05. Primo lancio ucciso dal
+> phantom-killer (screen-off, owner fuori casa) — si rilancia quando
+> l'owner sistema timeout schermo + batteria Termux. ZERO blocchi
+> corsi = prereg intatta.** ·
+> KF_SHIP ⛔ (manca solo: cella Jelly confermativa + policy scritta).
+> Report sweep: reports/moe-kernel-kf-sweep.md.
 > **CELLA BURST COMPLETA 12/12 (2026-08-15 mattina, blocchi 9-12 a
 > telefono freddo 26-29°C = il burst-cold mancante) — TUTTI E 4 I GATE
 > YES:** ENERGY ✅ 1.005 · THERMAL ✅ (sag ON 0.069 vs OFF 0.136 — nel

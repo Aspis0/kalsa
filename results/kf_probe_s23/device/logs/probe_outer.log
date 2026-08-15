@@ -1,0 +1,4 @@
+[2026-08-15T13:02:24-0400] CAMPAIGN_SHA=ad1042226e7e11f08c67f90da6c0c14218bebded436117d051340f047db440b9 path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-15T13:02:24-0400] CAMPAIGN PIN OK
+[2026-08-15T13:02:24-0400] KF_BIN_SHA=ad1042226e7e11f08c67f90da6c0c14218bebded436117d051340f047db440b9 path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-15T13:02:24-0400] KF BIN is the campaign pin — refuse to A/B a no-op
