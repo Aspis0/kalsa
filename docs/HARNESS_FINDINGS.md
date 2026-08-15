@@ -7,8 +7,14 @@ silently changed is worse than no conclusion.
 Goal it serves: make Kalsa's harness better than a bare sliding window on an on-device chat —
 tool calls, context that survives, memory.
 
-Last updated: 2026-08-14 · Evidence: campaigns `31739205810` (window 10) and `31760516762`
-(window 16), Qwen3.5-2B, 6 seeds/arm, 16-turn conversations, Italian, CI emulator.
+Last updated: 2026-08-15 · Evidence: campaigns `31739205810` (window 10), `31760516762`
+(window 16) and `31861056717` (window 16, every 2026-08-14 defect fixed), Qwen3.5-2B, 6
+seeds/arm, 16-turn conversations, Italian, CI emulator.
+
+**In flight, dispatched 2026-08-15 22:20 UTC on `6516b3e`:** `31910747849` (memory smoke, the
+first measurement with the settled telemetry of `bf3794d`), `31911860830` (the `tools` phase,
+gate/nogate pair — never executed before today), `31911872610` (Qwen3.5-**4B**, fase4, **10
+seeds**, window 16). Nothing below is revised for them yet.
 
 ---
 
@@ -323,17 +329,22 @@ window + additive digest) with Kalsa's own BM25. What won is a strategy already 
 
 ### Product decisions the data supports
 
-5. **Make `ciswire` the default on the 2B path.** +0.396 over bare, p=0.0249, audited against
-   both ways it could have been fabricated, and it costs *fewer* prompt tokens than bare (§1.5).
-   The blocker (§3.1) is resolved. Confirm with the campaign now running before flipping it.
+5. **`ciswire` is the default on the 2B path — DECIDED 2026-08-15.** The confirming campaign
+   (`31861056717`) landed: **+0.635 over bare, p = 0.0043**, sd 0.083 against bare's 0.348, no
+   decay with distance (0.938 early → 0.958 late), and it costs *fewer* prompt tokens than bare
+   (§1.5). The §3.1 blocker is closed: zero blank bubbles in 96 turns. The pre-fix figure quoted
+   here before (+0.396, p=0.0249) was measured through the inverted gate — do not quote it.
 6. **`v42` hurts small models specifically.** On the 2B it equals bare (−0.037, p=0.60) while
    ciswire beats it by +0.433 (p=0.0043). On the 4B the two are **indistinguishable**. So this is
    "retire it for the 2B", not "retire it" — and the reason is that its rolling summary, half of
    its rationale, **never runs** (`summaryChars = 0` on every arm of every campaign).
-7. **Do not ship LFM2.5-8B-A1B** (§1.7). It loads fine — memory was never the problem — but MoE
-   discounts decode, not prefill: 175 s for 1394 tokens. For more than the 2B, the dense 4B is
-   the better trade, which is already what `recommendedModelId` gives the high-RAM tier.
-8. **Do not fine-tune for tool calls yet.** The 2B already emits near-perfect calls (19/20
+7. **Do not ship LFM2.5-8B-A1B — DECIDED 2026-08-15** (§1.7). It loads fine — memory was never
+   the problem — but MoE discounts decode, not prefill: 175 s for 1394 tokens. For more than the
+   2B, the dense 4B is the better trade, which is already what `recommendedModelId` gives the
+   high-RAM tier. **The one thing that could reopen it** is the physical-device track (§6): that
+   175 s is swiftshader with no GPU, and the *absolute* prefill cost is the whole verdict. The
+   *ratio* (prefill expensive, decode cheap) is architectural and will not move.
+8. **Do not fine-tune for tool calls yet — DECIDED 2026-08-15.** The 2B already emits near-perfect calls (19/20
    structured, 0 invalid names, 0 unparsed arguments) — there is no headroom in *format*. Every
    precision number available before today was measured through the inverted gate and is void.
    The `tools` phase (`e907809`) separates the three failure modes; only *selection* is the kind
@@ -547,6 +558,26 @@ earlier worry of mine that turned out to be wrong.
   every memory-OFF arm looked like "memory on, store empty" and fed the INCOMPLETE gate. The
   next primary campaign would have failed its own gate. Fixed in `da70755`.
 - **Facts survived across arms** — `reset_chat` never deleted `kalsa.memory.facts`. Fixed.
+- **The `tools` phase could never have run — four defects on one path, none of them measured
+  because nobody had dispatched it once** (found and fixed 2026-08-15, `6516b3e`). It was
+  offered as a dispatch option, had a complete 14-turn plan and working graders, and was cited
+  in this document as "built, never executed". It would have died in seconds:
+  1. `ci-bench.sh`'s phase guard accepted `fase4|smoke|mem` and sent `tools` to
+     `die "unknown PHASE"`. The gate now derives both lists from the real files
+     (`matrixParityHarness.mjs`) and fails if either parses empty.
+  2. Its prompts were **the only non-ASCII lines in any turn plan** (`Qual è …`), against the
+     contract at `ci-bench.sh:655` — `input text` mangles punctuation and the landing gate is
+     `grep -qF "$msg"`, so the arm would have died at turn 3 after ~30 min of runner time.
+     Every other plan de-accents.
+  3. The tool graders never consulted `empty`, while every sibling family nulls out on a blank
+     reply: a blank bubble scored as a **correct abstention** on `tool_forbidden`. An app defect
+     credited to the model — the §3.8 error in a different family.
+  4. A single gated arm cannot separate the model from the rule it is being measured through, so
+     the phase now runs a `baseline`/`nogate` pair.
+- **The job timeout was deciding the sample size, not the model.** In `31807501488` (4B, 6
+  seeds) two arms were cancelled at exactly 300 min by `timeout-minutes: 300` and three more
+  finished at 285–298. Raised to 350 (GitHub's hard ceiling is 360). Any 4B arm count quoted
+  from that campaign is a count of *survivors*, not of runs.
 - **STILL OPEN — identity leaks past the containment guard.** A fact that *starts* with the
   user's name never contributes it, so `Mario Rossi abita in Via Roma 12` + `dove abita Mario?`
   passes. Inert today (memory is off), blocking before memory ships. The first fix attempt was
@@ -625,6 +656,53 @@ output pasted. "Write a test" and "write a test that can fail" are different req
 
 ---
 
+## 6. The physical-device track — opened 2026-08-15
+
+Every number in this document was measured on a CI emulator with no GPU, at 2.45 tok/s, inside
+a job GitHub kills at 6 h. That ceiling is what blocks the regime a phone actually lives in:
+16-turn conversations are what fits, not what is representative. A **Galaxy S23** (SM-S911U,
+Android 16, arm64, 7.2 GB usable RAM) is now attached for a multi-day campaign.
+
+**What it buys, with numbers rather than hope.** The sibling repo `kalsa-moe-experiments` has
+207 logged runs on this exact handset (`results/runs.csv`, `reports/moe-litert-product-classes.md`):
+**Qwen3.5-2B Q4 tg256 = 18.10 tok/s, 4B = 8.38 tok/s**, CPU, unplugged. Against the emulator's
+2.45 tok/s for the 2B that is ~7×, so a turn falls from ~9 min to ~1.5–2 min and a **40-turn
+conversation costs 60–80 min per arm** — feasible, and with no 6 h cap above it.
+
+*Correction on record*: an earlier estimate of mine in this session said a turn would drop "to
+seconds" on real silicon. That was wrong by an order of magnitude; the measured factor is ~7×,
+not ~100×. The instrument that corrected me was the sibling repo's own CSV.
+
+**What it costs — four things, all verified on the device rather than assumed:**
+
+1. **`run-as` needs a debuggable build, and today's device APK is neither debuggable nor
+   patched.** `apk.yml` builds `assembleRelease` (so `android:debuggable=false`, and on a user
+   build with no root `run-as` is refused) **and** it never sets `KALSA_LLAMA_FROM_SOURCE: "1"`,
+   which `bench.yml` sets precisely because llama.rn ships prebuilt jniLibs — without it
+   `patches/llama.rn+*.patch` is a silent no-op. The only installable arm64 APK we could build
+   before today may have been measuring an unpatched engine.
+2. **The harness assumes a root-capable shell.** `ci-lib.sh:19` is
+   `sql() { adb shell "sqlite3 $DB \"$1\"" ...}` against `/data/data/$PKG/databases/RKStorage`,
+   and the model sideload writes into `/data/data/$PKG/files/models` and `chown`s it. Verified
+   on the device: **no `sqlite3` binary and no `su`** (`ro.build.type=user`). Both paths have to
+   go through `run-as` (or the app's own downloader for the model).
+3. **Measurement discipline is inherited, not invented.** From `kalsa-moe-experiments`
+   (`scripts/run_staccato.sh`): unplugged hard-gate per cell, die-temperature gates
+   `DIE_STOP_MC=98000` / `DIE_START_MC=80000`, `BATT_STOP=30`, flight recorder mandatory, one
+   CSV row per run. USB is for setup only — measuring while charging is explicitly forbidden
+   there, so the campaign runs over adb-on-Wi-Fi (`192.168.1.152:5555`) and is cyclic:
+   measure 100 % → 30 %, charge without measuring, resume.
+4. **A single device serialises what CI parallelised**, so time-of-day and thermal drift become
+   confounds the matrix never had. Mitigation to build into the driver: interleave arms rather
+   than running an arm's seeds back to back, randomise seed order, and log battery temperature
+   per turn — the sibling repo's CSV already carries `batt_temp_start/end` for this reason.
+
+**Storage**: `/data` was at 96 % (4.8 GB free), which does not hold LFM2.5-8B-A1B's 5.2 GB
+regardless of MoE — the GGUF is mapped whole from flash, and expert paging is a RAM property,
+not a disk one. Freed to **8.2 GB** by deleting a byte-identical duplicate
+(`gemma-4-E2B-it-gpu.litertlm`, md5 `621a43cd…`, the copy inside `litert-f0/` kept) and a
+`Qwen2.5-1.5B` GGUF with zero references in `results/runs.csv`.
+
 ## Change log
 
 | date | change |
@@ -632,4 +710,6 @@ output pasted. "Write a test" and "write a test that can fail" are different req
 | 2026-08-14 | First version. Conclusions from campaigns `31739205810` and `31760516762`. 4B campaign `31807501488` launched; memory instrumentation and a hostile audit of `cc703e6`/`aa2f350` in flight — **both may change §1.3 and §3**. |
 | 2026-08-14 | **§1.1 retracted and rewritten.** Measured the gate rule offline: it blocks legitimate searches (a good query paraphrases the question, scoring 0.39-0.68) and passes spurious ones (0.15). The 2/96 web-turn figure is the gate refusing, not the model abstaining. Added §3.5: with memory on, the same 0.18 threshold blocks ordinary Italian queries ("ricetta pasta al forno" = 0.182). Both are shipping blockers. |
 | 2026-08-14 | Hostile audit of `c93d163` on an isolated worktree. §1.3 confidence raised — both fabrication routes closed with quoted code. Added §3.7: three suites shipped ungated by CI, a harness that could not fail, and a NOT-RUN verdict that would have failed the next campaign — all fixed. Identity leak past the containment guard still open; the first fix attempt was reverted for adding a language wordlist that blocked ordinary German and Spanish queries. |
+| 2026-08-15 | **The `tools` phase had four defects and had never been dispatched once** (§3.7, fixed `6516b3e`): the phase guard rejected it outright, its prompts were the only non-ASCII ones in any turn plan (it would have died at turn 3), its graders scored a blank bubble as a correct abstention, and a single gated arm could not separate model from rule — now a gate/nogate pair. Job timeout 300 → 350: in `31807501488` the cap, not the model, decided the 4B sample size. Three campaigns dispatched: memory smoke on the settled telemetry, the `tools` pair, and the 4B at 10 seeds. |
+| 2026-08-15 | Decisions recorded in §2: `ciswire` is the 2B default (+0.635, p=0.0043, §1.3); LFM2.5-8B-A1B stays out (§1.7) with the physical-device track named as the only thing that could reopen it; no fine-tune until the `tools` phase separates *whether* from *which*. Added §6: the Galaxy S23 track, its measured ~7× speed factor (2B 18.10 tok/s vs the emulator's 2.45), the four things it costs, and a correction of my own order-of-magnitude overestimate of that factor. |
 | 2026-08-14 | §1.1 resolved: echo-of-context inverted and shipped (`5b3ba90`) — it blocked 100% of explicitly requested searches; verified across six scripts, with CJK abstention documented. Added §3.8: the fact metric conflates an honest refusal with a wrong answer, which penalises stronger models and makes cross-model baseline comparison unsafe. |
