@@ -882,6 +882,13 @@ capture_turn_evidence() {
   grep -F "KALSA_MEMORY " "$buf" 2>/dev/null \
     | sed 's/.*KALSA_MEMORY //' > "$tdir/memory.jsonl" 2>/dev/null || : > "$tdir/memory.jsonl"
 
+  # memory-extract.jsonl — settled memory telemetry (KALSA_MEMORY_EXTRACT, emitted
+  # when extract job completes). Always write the file (empty when none) so
+  # absent-file vs empty-capture stay distinguishable. This is the late/settled
+  # figure, not the turn-end snapshot — the grader and aggregator key off this.
+  grep -F "KALSA_MEMORY_EXTRACT " "$buf" 2>/dev/null \
+    | sed 's/.*KALSA_MEMORY_EXTRACT //' > "$tdir/memory-extract.jsonl" 2>/dev/null || : > "$tdir/memory-extract.jsonl"
+
   {
     grep -F "Input processed: n_past=" "$buf" 2>/dev/null || true
     grep -F "restored state checkpoint: reusing" "$buf" 2>/dev/null || true

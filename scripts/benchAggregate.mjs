@@ -1033,6 +1033,69 @@ function collectMemoryTelemetryByMode(fase4) {
   });
 }
 
+/**
+ * Settled/late memory telemetry (KALSA_MEMORY_EXTRACT, emitted when extract
+ * job completes). Same shape as collectMemoryTelemetryByMode but reads from
+ * memoryExtractTelemetry. This is the figure the NOT-RUN verdict keys off,
+ * because the turn-end snapshot is known to be premature.
+ */
+function collectMemoryExtractTelemetryByMode(fase4) {
+  const acc = new Map();
+  for (const mode of FASE4_MODES) {
+    acc.set(mode, {
+      extracted: 0,
+      stored: 0,
+      rejectedSensitive: 0,
+      rejectedFull: 0,
+      injected: 0,
+      maxInStore: 0,
+      hasData: false,
+      arm: null,
+    });
+  }
+  
+  for (const r of fase4) {
+    const mode = modeOf(r);
+    if (!mode || !acc.has(mode)) continue;
+    const row = acc.get(mode);
+    row.arm = r.arm;
+    const telemetry = r.memoryExtractTelemetry;
+    if (!Array.isArray(telemetry)) continue;
+    
+    for (const turnTelemetry of telemetry) {
+      if (!Array.isArray(turnTelemetry)) continue;
+      for (const m of turnTelemetry) {
+        if (m.memoryEnabled === 1) {
+          row.hasData = true;
+        }
+        if (typeof m.factsExtracted === "number") row.extracted += m.factsExtracted;
+        if (typeof m.factsStored === "number") row.stored += m.factsStored;
+        if (typeof m.factsRejectedSensitive === "number") row.rejectedSensitive += m.factsRejectedSensitive;
+        if (typeof m.factsRejectedFull === "number") row.rejectedFull += m.factsRejectedFull;
+        if (typeof m.factsInjected === "number") row.injected += m.factsInjected;
+        if (typeof m.totalFactsInStore === "number") {
+          row.maxInStore = Math.max(row.maxInStore, m.totalFactsInStore);
+        }
+      }
+    }
+  }
+  
+  return FASE4_MODES.map((mode) => {
+    const row = acc.get(mode);
+    return {
+      mode,
+      arm: row.arm,
+      hasData: row.hasData,
+      totalExtracted: row.extracted,
+      totalStored: row.stored,
+      totalRejectedSensitive: row.rejectedSensitive,
+      totalRejectedFull: row.rejectedFull,
+      totalInjected: row.injected,
+      maxFactsInStore: row.maxInStore,
+    };
+  });
+}
+
 function accumulateToolTiming(results) {
   const acc = { prec: [], rec: [], spurious: 0, missed: 0, blocked: 0, n: 0 };
   for (const r of results) {
@@ -1456,6 +1519,7 @@ function aggregateFase4(results) {
   const toolTimingByMode = collectToolTimingByMode(compaction);
   const digestTimingByMode = collectDigestTimingByMode(compaction);
   const memoryTelemetryByMode = collectMemoryTelemetryByMode(compaction);
+  const memoryExtractTelemetryByMode = collectMemoryExtractTelemetryByMode(compaction);
   const toolTimingGateAB = collectToolTimingGateAB(fase4);
 
   const gated = shouldGateFase4();
@@ -1499,6 +1563,7 @@ function aggregateFase4(results) {
     toolTimingByMode,
     digestTimingByMode,
     memoryTelemetryByMode,
+    memoryExtractTelemetryByMode,
     toolTimingGateAB,
     prefill,
     positiveControl,
@@ -1834,11 +1899,17 @@ function renderFase4(agg) {
   // ── Memory subsystem telemetry ──────────────────────────────────────
   // Memory is opt-in (MEMORY env var). When enabled, we track extraction,
   // storage, rejection, and injection counters. This proves the mechanism ran.
+  //
+  // Two rows per mode: turn-end snapshot AND settled (extract-complete).
+  // The settled row is the one the NOT-RUN verdict keys off, because the
+  // turn-end snapshot is known to be premature.
   lines.push(
     "",
     "### Memory subsystem telemetry",
     "",
     "_Opt-in via `MEMORY=1` env var. Counters prove the extraction/storage/injection path ran. Empty-store with hasData=true means the mechanism was invoked but stored nothing — a broken arm._",
+    "",
+    "#### Turn-end snapshot",
     "",
     "| mode | arm | has data | extracted | stored | rejected (sensitive) | rejected (full) | injected | max in store |",
     "|---|---|---|---|---|---|---|---|---|",
@@ -1855,14 +1926,34 @@ function renderFase4(agg) {
     }
   }
   
-  // Check for empty-store failures
-  const emptyStoreFailures = memoryTelemetry.filter(
+  lines.push(
+    "",
+    "#### Settled (extract-complete) — keys the NOT-RUN verdict",
+    "",
+    "| mode | arm | has data | extracted | stored | rejected (sensitive) | rejected (full) | injected | max in store |",
+    "|---|---|---|---|---|---|---|---|---|",
+  );
+  const memoryExtractTelemetry = agg.memoryExtractTelemetryByMode ?? [];
+  if (memoryExtractTelemetry.length === 0) {
+    lines.push("| — | — | — | — | — | — | — | — | — |");
+  } else {
+    for (const row of memoryExtractTelemetry) {
+      const hasData = row.hasData ? "yes" : "no";
+      lines.push(
+        `| ${row.mode} | ${row.arm || "—"} | ${hasData} | ${row.totalExtracted} | ${row.totalStored} | ${row.totalRejectedSensitive} | ${row.totalRejectedFull} | ${row.totalInjected} | ${row.maxFactsInStore} |`,
+      );
+    }
+  }
+  
+  // Check for empty-store failures — keyed off the SETTLED figures, not the
+  // turn-end snapshot, because the snapshot is known to be premature.
+  const emptyStoreFailures = memoryExtractTelemetry.filter(
     (row) => row.hasData && row.totalStored === 0
   );
   if (emptyStoreFailures.length > 0) {
     lines.push(
       "",
-      "**⚠ MEMORY SUBSYSTEM FAILURE:** The following arms have memory telemetry data but stored zero facts:",
+      "**⚠ MEMORY SUBSYSTEM FAILURE (NOT-RUN verdict — settled figures):** The following arms have settled memory telemetry data but stored zero facts:",
       "",
       "| mode | arm | extracted | rejected (sensitive) | rejected (full) |",
       "|---|---|---|---|---|",
@@ -1874,7 +1965,7 @@ function renderFase4(agg) {
     }
     lines.push(
       "",
-      "_This means the extraction job ran but nothing was stored. Check sensitive filter or cap limits._",
+      "_This means the extraction job ran but nothing was stored. Check sensitive filter or cap limits. Verdict keyed off settled (extract-complete) figures, not turn-end snapshot._",
     );
   }
 
@@ -2426,4 +2517,4 @@ if (isMain) {
   main();
 }
 
-export { runAggregate, permutationTestOneSided, collectMemoryTelemetryByMode };
+export { runAggregate, permutationTestOneSided, collectMemoryTelemetryByMode, collectMemoryExtractTelemetryByMode };

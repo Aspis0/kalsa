@@ -102,6 +102,14 @@ export function trackMemoryParseOutcome(outcome: number): void {
 }
 
 /**
+ * Get current telemetry snapshot WITHOUT resetting.
+ * Used by extract-complete telemetry to observe late-arriving counters.
+ */
+export function snapshotMemoryTelemetry(): typeof telemetryAccum {
+  return { ...telemetryAccum };
+}
+
+/**
  * Get current telemetry snapshot and reset accumulator for next turn.
  * Returns the counters accumulated since last call.
  */

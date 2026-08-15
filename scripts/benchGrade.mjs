@@ -651,6 +651,46 @@ function readMemoryTelemetry(turnDir) {
   return records;
 }
 
+/**
+ * Parse turn<N>/memory-extract.jsonl (KALSA_MEMORY_EXTRACT telemetry — settled/
+ * late figures, emitted when the extract job completes). Missing / unreadable
+ * / empty → []. Never throw. Same schema as readMemoryTelemetry.
+ */
+function readMemoryExtractTelemetry(turnDir) {
+  const file = path.join(turnDir, "memory-extract.jsonl");
+  if (!existsSync(file)) return [];
+  let raw;
+  try {
+    raw = readFileSync(file, "utf8");
+  } catch {
+    return [];
+  }
+  const records = [];
+  for (const line of raw.split("\n")) {
+    const t = line.trim();
+    if (!t) continue;
+    try {
+      const obj = JSON.parse(t);
+      if (obj && typeof obj === "object") {
+        const memoryEnabled = typeof obj.memoryEnabled === "number" ? obj.memoryEnabled : null;
+        const factsExtracted = typeof obj.factsExtracted === "number" ? obj.factsExtracted : null;
+        const factsStored = typeof obj.factsStored === "number" ? obj.factsStored : null;
+        const factsRejectedSensitive = typeof obj.factsRejectedSensitive === "number" ? obj.factsRejectedSensitive : null;
+        const factsRejectedFull = typeof obj.factsRejectedFull === "number" ? obj.factsRejectedFull : null;
+        const factsInjected = typeof obj.factsInjected === "number" ? obj.factsInjected : null;
+        const totalFactsInStore = typeof obj.totalFactsInStore === "number" ? obj.totalFactsInStore : null;
+        const extractParseOutcome = typeof obj.extractParseOutcome === "number" ? obj.extractParseOutcome : null;
+        if (memoryEnabled != null || factsExtracted != null || factsStored != null || factsRejectedSensitive != null || factsRejectedFull != null || factsInjected != null || totalFactsInStore != null || extractParseOutcome != null) {
+          records.push({ memoryEnabled, factsExtracted, factsStored, factsRejectedSensitive, factsRejectedFull, factsInjected, totalFactsInStore, extractParseOutcome });
+        }
+      }
+    } catch {
+      // skip unparseable lines
+    }
+  }
+  return records;
+}
+
 function emptyToolAggregates() {
   return {
     emittedAnyToolCall: false,
@@ -913,6 +953,14 @@ function gradeRaw(raw, baseDir) {
       : readMemoryTelemetry(path.join(baseDir, `turn${t.index}`)),
   );
 
+  // memoryExtractTelemetry: settled/late figures (emitted when extract job completes).
+  // Keys off this, not the turn-end snapshot, for the NOT-RUN verdict.
+  const memoryExtractTelemetryPerTurn = turns.map((t) =>
+    t.index == null
+      ? []
+      : readMemoryExtractTelemetry(path.join(baseDir, `turn${t.index}`)),
+  );
+
   const turnMetrics = turns.map((t) => metricsForTurn(baseDir, t.index));
 
   // contextFullTurns / errorTurns: product signals the harness used to ignore.
@@ -1117,6 +1165,7 @@ function gradeRaw(raw, baseDir) {
     missedCalls,
     digestTelemetry: digestTelemetryPerTurn,
     memoryTelemetry: memoryTelemetryPerTurn,
+    memoryExtractTelemetry: memoryExtractTelemetryPerTurn,
     model: raw.model ?? null,
     fillerRotation: raw.fillerRotation ?? null,
     historyChars: raw.historyChars ?? null,
@@ -1205,6 +1254,7 @@ export {
   parseContextModeFromPref,
   isCompactionActive,
   readMemoryTelemetry,
+  readMemoryExtractTelemetry,
   gradeRaw,
   gradeFile,
 };

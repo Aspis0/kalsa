@@ -3485,6 +3485,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             }, 10_000);
 
             const extractJob = (async () => {
+              // Track whether extraction actually ran (vs. early-returned).
+              // Only emit extract-complete telemetry if we called extractMemory().
+              let extractionRan = false;
               try {
                 await saveGate;
                 if (signal.aborted || turnFailed) return;
@@ -3496,6 +3499,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   capturedAssistant,
                   locale,
                 );
+                extractionRan = true;
 
                 // Track parse outcome BEFORE the early return so telemetry
                 // distinguishes "model returned valid JSON with empty arrays" (1)
@@ -3519,6 +3523,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               } catch {
                 // ignore — extraction must never surface to the user
               } finally {
+                // Emit extract-complete telemetry line (separate from turn-end line).
+                // Only emit if extraction actually ran (not early-returned).
+                // This makes extraction results observable even when they land late.
+                if (extractionRan && !signal.aborted) {
+                  const extractTelemetry = MemoryStore.snapshotMemoryTelemetry();
+                  console.log(formatMemoryLine(extractTelemetry, "KALSA_MEMORY_EXTRACT"));
+                }
+                
                 clearTimeout(gateTimeoutId);
                 try {
                   signal.removeEventListener("abort", onAbortRelease);

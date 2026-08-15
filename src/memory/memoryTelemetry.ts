@@ -33,9 +33,10 @@ export interface MemoryTelemetry {
 /**
  * Machine-parseable single line for adb logcat / CI.
  * Fields listed by name — never spread an object that could leak strings.
+ * @param prefix Log line prefix (default: KALSA_MEMORY for turn-end, KALSA_MEMORY_EXTRACT for extract-complete)
  */
-export function formatMemoryLine(t: MemoryTelemetry): string {
-  return `KALSA_MEMORY ${JSON.stringify({
+export function formatMemoryLine(t: MemoryTelemetry, prefix = "KALSA_MEMORY"): string {
+  return `${prefix} ${JSON.stringify({
     memoryEnabled: t.memoryEnabled,
     factsExtracted: t.factsExtracted,
     factsStored: t.factsStored,
