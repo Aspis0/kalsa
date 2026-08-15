@@ -8,7 +8,7 @@
 # runner, a rebuild per arm would blow the job matrix budget.
 #
 # Env:
-#   PHASE          fase0 | fase4 | smoke                      (required)
+#   PHASE          fase0 | fase4 | smoke | mem | tools           (required)
 #   ARM            free-form label, used only for logging       (required)
 #   SEED           replicate index — fase4/smoke: 1|2|3, one per matrix
 #                  job; also rotates filler order (paired design).
@@ -40,7 +40,7 @@
 set -uo pipefail
 OUT="bench-out"; mkdir -p "$OUT"
 
-PHASE="${PHASE:?PHASE is required (fase0|fase4|smoke)}"
+PHASE="${PHASE:?PHASE is required (fase0|fase4|smoke|mem|tools)}"
 ARM="${ARM:?ARM is required}"
 SEED="${SEED:-1}"
 BLOCK_FORMAT="${BLOCK_FORMAT:-none}"
@@ -112,7 +112,7 @@ case "$PHASE" in
     # a real block-content A/B is needed later.
     COMPACTION="on"
     ;;
-  fase4|smoke|mem)
+  fase4|smoke|mem|tools)
     COMPACTION="${COMPACTION:?COMPACTION is required for $PHASE (on|off|ciswire)}"
     case "$COMPACTION" in
       on|off|ciswire) ;;
@@ -120,7 +120,7 @@ case "$PHASE" in
     esac
     ;;
   *)
-    die "unknown PHASE '$PHASE' (expected fase0|fase4|smoke)"
+    die "unknown PHASE '$PHASE' (expected fase0|fase4|smoke|mem|tools)"
     ;;
 esac
 
@@ -1385,10 +1385,10 @@ elif [ "$PHASE" = "tools" ]; then
 
   # Required turns (4): answer not in conversation, must call tool
   plan_add probe tool_required_weather \
-    "Qual è la temperatura attuale a Roma" \
+    "Qual e la temperatura attuale a Roma" \
     must
   plan_add probe tool_required_price \
-    "Qual è il prezzo attuale del bitcoin" \
+    "Qual e il prezzo attuale del bitcoin" \
     must
   plan_add probe tool_required_page \
     "Apri la pagina https example com" \
@@ -1399,7 +1399,7 @@ elif [ "$PHASE" = "tools" ]; then
 
   # Forbidden turns (5): answer is general knowledge or in conversation, must not call
   plan_add probe tool_forbidden_capital \
-    "Qual è la capitale della Francia" \
+    "Qual e la capitale della Francia" \
     must_not
   plan_add probe tool_forbidden_math \
     "Quanto fa due piu due" \

@@ -826,12 +826,17 @@ function gradeAllProbes(turns, facts, locale) {
     } else {
       // Tool-axis benchmark graders (required / forbidden / selection).
       const toolFamily = toolFamilyForTurn(turn);
+      let p;
       if (toolFamily === "tool_required") {
-        probes.push(gradeToolRequired(turn));
+        p = gradeToolRequired(turn);
       } else if (toolFamily === "tool_forbidden") {
-        probes.push(gradeToolForbidden(turn));
+        p = gradeToolForbidden(turn);
       } else if (toolFamily === "tool_selection") {
-        probes.push(gradeToolSelection(turn));
+        p = gradeToolSelection(turn);
+      }
+      if (p) {
+        if (empty) p.found = null;
+        probes.push(p);
       }
     }
   }

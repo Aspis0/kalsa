@@ -184,7 +184,15 @@ jobs:
     # 9 turns (fase4), each gated at 1500s by ci-bench.sh's send_and_wait — well
     # under this, and WAY under GitHub's 6h hard job limit. Real turns finish in
     # ~8.6 min (516s), so typical wall-clock is closer to 90-100 min per arm.
-    timeout-minutes: 300
+    # GitHub's hosted-job hard ceiling is 6h (360 min). In campaign 31807501488
+    # (Qwen3.5-4B, 6 seeds) per-arm durations ran 171-300 min; two arms
+    # (ciswire seed 2, ciswire seed 5) were CANCELLED at exactly 300m by this
+    # cap, and three more finished at 285/288/290/298m. 350m leaves ~10 min of
+    # headroom under the 360m platform kill while rescuing the arms that were
+    # finishing at 285-300 min; the next 4B campaign (10 seeds) would otherwise
+    # lose arms the same way. 300m measured too tight against the model, not the
+    # other way around.
+    timeout-minutes: 350
     strategy:
       fail-fast: false
       matrix:
@@ -863,6 +871,17 @@ jobs:
             compaction: "off"
             block_format: none
             thinking: "off"
+          # Gate/nogate pair: TOOLGATE defaults to 1, so the baseline arm
+          # measures the model AND the echo-of-context gate together. The
+          # nogate arm sets toolgate: "0" to isolate the model. Without both,
+          # a wrong call cannot be attributed to the model rather than the rule.
+          - phase: tools
+            arm: nogate
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "off"
+            toolgate: "0"
     # `matrix` is not available in a job-level `if`, so the phase filter lives
     # inside the matrix itself: entries carry their phase and the emulator step
     # is skipped for the non-selected ones (see the step-level `if`).
@@ -960,8 +979,8 @@ jobs:
           # 30s timeout on this hardware no matter what. The delay makes that
           # timeout observable (logged) rather than an ambiguous abort at 12s;
           # it does NOT exist to make the summary succeed. fase0 stays at 0.
-          # Job timeout-minutes: 300 still covers 16 turns × ~8.6 min work +
-          # 15 × 40s idle (~148 min worst case, ~152 min headroom).
+          # Job timeout-minutes: 350 still covers 16 turns × ~8.6 min work +
+          # 15 × 40s idle (~148 min worst case, ~202 min headroom).
           INTER_TURN_DELAY_S: ${{ (matrix.phase == 'fase4' || matrix.phase == 'smoke' || matrix.phase == 'mem') && '40' || '0' }}
           MODEL_DIR: ${{ env.MODEL_DIR }}
           MODEL_FILE: ${{ env.MODEL_FILE }}

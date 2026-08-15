@@ -29,6 +29,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const BENCH_YML = path.join(projectRoot, ".github/workflows/bench.yml");
+const CI_BENCH_SH = path.join(projectRoot, "scripts/ci-bench.sh");
 
 const AXES = ["compaction", "toolchoice", "toolgate", "block_format", "thinking", "memory"];
 
@@ -166,6 +167,47 @@ function parseMatrixInclude(text) {
     }
   }
   return { entries, duplicates };
+}
+
+/**
+ * Phases dispatchable from bench.yml's workflow_dispatch `phase` input:
+ * the flow-style `options:` list immediately under the `phase:` input.
+ * Not a YAML parser — plain regex over the file text. The `phase:` input is
+ * the only `phase:` followed by a newline (matrix include uses `- phase: X`
+ * on a single line), so the match anchors on the input block.
+ */
+function parsePhaseOptions(text) {
+  const m = text.match(/phase:\s*\n[\s\S]*?options:\s*\[([^\]]*)\]/);
+  if (!m) return [];
+  return m[1]
+    .split(",")
+    .map((s) => unquote(s.trim()))
+    .filter(Boolean);
+}
+
+/**
+ * Phases accepted by ci-bench.sh's `case "$PHASE" in` block. Collect the
+ * pattern of every branch except the final `*)`; patterns are pipe-separated
+ * literals (e.g. `fase4|smoke|mem|tools`), so each is an accepted phase.
+ * Plain string/regex over the file text — no shell evaluator, no new dep.
+ */
+function parseAcceptedPhases(text) {
+  const m = text.match(/case\s+"\$PHASE"\s+in\n([\s\S]*?)\n\s*esac/);
+  if (!m) return new Set();
+  const accepted = new Set();
+  for (const line of m[1].split("\n")) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const pm = t.match(/^(.+?)\)\s*$/);
+    if (!pm) continue;
+    const pat = pm[1].trim();
+    if (pat === "*") continue;
+    for (const p of pat.split("|")) {
+      const phase = p.trim();
+      if (phase) accepted.add(phase);
+    }
+  }
+  return accepted;
 }
 
 function axisRecord(entry) {
@@ -472,6 +514,36 @@ function main() {
     "real bench.yml passes",
     realFail.length === 0 && axesOk,
     realFail.join("; "),
+  );
+
+  // Gate: every phase dispatchable via bench.yml's `phase` input option list
+  // must be accepted by ci-bench.sh's `case "$PHASE" in` — otherwise a
+  // dispatched arm dies instantly with "unknown PHASE". Three prior harnesses
+  // shipped vacuous; this one derives both lists from the real files and names
+  // the offending phase, so it can be seen to fail under mutation.
+  const ciBenchText = readFileSync(CI_BENCH_SH, "utf8");
+  const phaseOptions = parsePhaseOptions(realText);
+  const acceptedPhases = parseAcceptedPhases(ciBenchText);
+  check(
+    "phase options parsed from bench.yml",
+    phaseOptions.length > 0,
+    "no phase options parsed from bench.yml `phase` input options list (regex missed?)",
+  );
+  check(
+    "accepted phases parsed from ci-bench.sh",
+    acceptedPhases.size > 0,
+    'no accepted phases parsed from ci-bench.sh `case "$PHASE" in` (block reformatted?)',
+  );
+  const rejectedPhases = phaseOptions.filter((p) => !acceptedPhases.has(p));
+  check(
+    "every dispatchable phase is accepted by ci-bench.sh",
+    rejectedPhases.length === 0,
+    rejectedPhases
+      .map(
+        (p) =>
+          `phase '${p}' is dispatchable in bench.yml but rejected by ci-bench.sh`,
+      )
+      .join("; "),
   );
 
   console.log("");
