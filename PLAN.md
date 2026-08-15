@@ -164,10 +164,18 @@
 > verify==gold 0.937 dove doveva essere 1.000). Teacher-forced sano
 > (0.83) vs live 0.08 ⇒ la corruzione vive nel ciclo
 > accept/reject/rollback + k-switch (il "prefisso fantasma" di Qwen, 45%
-> prior → quasi certezza). Prossimi: test forced-rejection restore
-> (invariante #2), caccia all'impurità costante, fix, re-misura alpha
-> live (target 0.7-0.83), POI economia (bomba 4.94·C6 in piedi, serve
-> verify sublineare). Report: reports/moe-selfspec-f1b.md.
+> prior → quasi certezza). **G16 (gate restore, spec gualt) ESEGUITO:
+> PASS ESATTO su transformer puri** (32/32 rejection forzate
+> ripristinate bitwise; purity γ=1 48/48, residuo ~1e-7 = rumore fp,
+> non scala-E3). Il ciclo rollback/k-switch è PULITO sull'attenzione
+> standard ⇒ **l'indiziato si restringe allo stato ricorrente GDN che
+> non si riavvolge col seq_rm** (i fixture tiny non sono ibridi; il
+> collasso live era sul 35B ibrido — i due prior di Qwen convergono in
+> un meccanismo solo). Commit 673febe. IN VOLO:
+> --selfspec-restore-test via CLI + corsa sul 35B vero (riproduzione
+> decisiva). Poi: fix (checkpoint R/S pre-draft?), re-misura alpha live
+> (target 0.7-0.83), POI economia (bomba 4.94·C6 in piedi, serve verify
+> sublineare). Report: reports/moe-selfspec-f1b.md.
 > (3) **PPL gate Mellum COMPLETO (2026-08-14 sera): k6d065 GATE_PASS con
 > dMacro −0.0086 (MEGLIO dell'ancora k8; worst zh +0.0303) → il default
 > campagna è quality-certified con margine. k6d1.0 PASS confermato
