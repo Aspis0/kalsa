@@ -1,0 +1,6 @@
+ts,pair,arm,label,excluded,decode_tps,wall_s_tok,compute,mgmt,stall,tokens_generated,joules,j_per_tok,ttft_s,batt_start,batt_end,temp_start,temp_max,screen,plugged,memavail_start_kib,power_source,j_window
+2026-08-14T17:03:02-0400,0,B,warmup,1,2.283,0.438,0.361,0.012,0.064,144,128.562099,0.89279235,31.351,72,71,26.3,27.7,?,UNPLUGGED,4069936,termux,decode
+2026-08-14T18:16:21-0400,1,A,p01_A,0,0.047,21.314,21.243,0.071,0.000,200,4226.404339,21.13202169,125.018,71,63,27.7,29.4,?,UNPLUGGED,5101840,termux,decode
+2026-08-14T18:18:01-0400,1,B,p01_B,0,2.328,0.430,0.360,0.013,0.057,144,130.989012,0.90964592,29.322,63,63,29.4,29.4,?,UNPLUGGED,4898284,termux,decode
+2026-08-14T18:19:43-0400,2,B,p02_B,0,2.350,0.425,0.359,0.012,0.055,144,141.188731,0.98047730,28.884,63,62,29.4,31.0,?,UNPLUGGED,5182704,termux,decode
+2026-08-14T18:25:43-0400,2,A,p02_A,1,,,,,,,370.071330,,,62,62,31.0,31.0,?,UNPLUGGED,5138844,termux,full_run_fallback

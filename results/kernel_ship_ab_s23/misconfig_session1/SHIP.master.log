@@ -1,0 +1,45 @@
+[2026-08-14T17:00:04-0400] CAMPAIGN_SHA=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c path=/data/data/com.termux/files/home/bin/mellum2/bmoe-cli
+[2026-08-14T17:00:04-0400] CAMPAIGN PIN OK
+[2026-08-14T17:00:04-0400] MODEL path=/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600
+[2026-08-14T17:00:04-0400] computing MODEL sha256...
+[2026-08-14T17:01:14-0400] MODEL_SHA=b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7
+[2026-08-14T17:01:14-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-14T17:01:15-0400] POWER_SOURCE=termux (sysfs unreadable) sample={
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 26.3,
+  "voltage": 4059,
+  "current": -180000,
+  "current_average": -205,
+  "percentage": 72,
+  "level": 72,
+  "scale": 100,
+  "charge_counter": 2703750,
+  "cycle": 0
+}
+[2026-08-14T17:01:15-0400] === SHIP A/B S23 START resume=0 start_pair=1 ===
+[2026-08-14T17:01:15-0400] ARM A: /data/data/com.termux/files/home/bin/mellum2/bmoe-cli -m /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -p <p_fact> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -c 4096 --temp 0 --chatml --no-think -t 4
+[2026-08-14T17:01:15-0400] ARM B: /data/data/com.termux/files/home/bin/mellum2/bmoe-cli -m /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -p <p_fact> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -c 4096 --temp 0 --chatml --no-think -t 2 --n-expert-used 6 --drop-cold-experts 1.0
+[2026-08-14T17:01:18-0400] preflight i=1 plugged=UNPLUGGED batt=72 temp=26.3 memavail_kib=4072172 floor=45 screen= power=termux
+[2026-08-14T17:01:22-0400] RUN warmup pair=0 arm=B batt=72 plugged=UNPLUGGED temp=26.3 screen=? memavail_kib=4069936 power=termux
+[2026-08-14T17:03:02-0400] DONE warmup rc=0 wall=96s tps=2.283 s/tok=0.438 joules=128.562099 j/tok=0.89279235 ttft=31.351 j_window=decode batt=72->71 temp_max=27.7 screen=? excluded=1
+[2026-08-14T17:03:05-0400] preflight i=1 plugged=UNPLUGGED batt=71 temp=27.7 memavail_kib=5102628 floor=45 screen= power=termux
+[2026-08-14T17:03:08-0400] RUN p01_A pair=1 arm=A batt=71 plugged=UNPLUGGED temp=27.7 screen=? memavail_kib=5101840 power=termux
+[2026-08-14T18:16:21-0400] DONE p01_A rc=0 wall=4389s tps=0.047 s/tok=21.314 joules=4226.404339 j/tok=21.13202169 ttft=125.018 j_window=decode batt=71->63 temp_max=29.4 screen=? excluded=0
+[2026-08-14T18:16:24-0400] RUN p01_B pair=1 arm=B batt=63 plugged=UNPLUGGED temp=29.4 screen=? memavail_kib=4898284 power=termux
+[2026-08-14T18:18:01-0400] DONE p01_B rc=0 wall=93s tps=2.328 s/tok=0.430 joules=130.989012 j/tok=0.90964592 ttft=29.322 j_window=decode batt=63->63 temp_max=29.4 screen=? excluded=0
+[2026-08-14T18:18:01-0400] PAIR_OK pair=1 order=AB
+[2026-08-14T18:18:04-0400] preflight i=1 plugged=UNPLUGGED batt=63 temp=29.4 memavail_kib=5181424 floor=45 screen= power=termux
+[2026-08-14T18:18:07-0400] RUN p02_B pair=2 arm=B batt=63 plugged=UNPLUGGED temp=29.4 screen=? memavail_kib=5182704 power=termux
+[2026-08-14T18:19:43-0400] DONE p02_B rc=0 wall=92s tps=2.350 s/tok=0.425 joules=141.188731 j/tok=0.98047730 ttft=28.884 j_window=decode batt=63->62 temp_max=31.0 screen=? excluded=0
+[2026-08-14T18:19:46-0400] RUN p02_A pair=2 arm=A batt=62 plugged=UNPLUGGED temp=31.0 screen=? memavail_kib=5138844 power=termux
+[2026-08-14T18:25:43-0400] EXCLUDE p02_A harness error cli rc=143
+[2026-08-14T18:25:43-0400] EXCLUDE p02_A missing decode s/token
+[2026-08-14T18:25:43-0400] DONE p02_A rc=143 wall=353s tps= s/tok= joules=370.071330 j/tok= ttft= j_window=full_run_fallback batt=62->62 temp_max=31.0 screen=? excluded=1
+[2026-08-14T18:25:43-0400] VOID pair=2 after A
+[2026-08-14T18:25:46-0400] preflight i=1 plugged=UNPLUGGED batt=62 temp=31.0 memavail_kib=5136492 floor=45 screen= power=termux
+[2026-08-14T18:25:49-0400] RUN p03_A pair=3 arm=A batt=62 plugged=UNPLUGGED temp=31.0 screen=? memavail_kib=5135468 power=termux
+[2026-08-14T18:26:16-0400] trap cleanup
