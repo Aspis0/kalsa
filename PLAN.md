@@ -14,6 +14,23 @@
 
 # ⭐ STATO CORRENTE — aggiornato 2026-08-14 (notte)
 
+> 🚨 **SHIP A/B S23: SOSPESA CON CAUSA TROVATA (2026-08-14 ~21:00).**
+> Il braccio A "stock" (k8, no drop) fa 21 s/token — 60× degradato vs le
+> celle storiche F1d (2.90) su STESSO binario/telefono/flag — e il fix
+> del flag esplicito NON c'entrava (stessa patologia con e senza).
+> **Pistola fumante: 1.5 GB di pagine anon in zram** (SwapFree 2.68/4.19
+> GB, mm_stat 1.44 GB orig): i pesi densi anon sono swappati compressi;
+> il churn page-cache del k8 no-drop (183 MiB/tok) li tiene fuori e ogni
+> GEMV paga la decompressione → compute 21.2 s/tok. Il braccio B (d1.0,
+> 39 MiB/tok) non pressa abbastanza → normale. Harness fermato pulito
+> (STOPPED_FOR_DIAG), 2 coppie valide archiviate nel csv, telefono in
+> carica. **PROSSIMO: reboot S23 (serve gualt: riavvio + Termux + sshd)
+> → singola run A-config: se compute torna ~0.5 s/tok, causa confermata
+> → PREREG emendamento 2 (stato RAM dichiarato post-reboot) → riparte la
+> prova. Finding di prodotto: la config certificata è RESILIENTE alla
+> pressione RAM reale, lo stock collassa 60× — da misurare e bancare nel
+> ship report.**
+
 > **Leggi questa sezione e basta.** Il piano originale del 3 agosto (contesto, ipotesi,
 > roadmap F0-F9, rischi, fonti) e i checkpoint fino all'11 agosto vivono in
 > `PLAN-archive.md`. Qui: TL;DR lanes, scheda prodotto, tabella aperta, regole operative,
