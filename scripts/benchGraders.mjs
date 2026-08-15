@@ -483,6 +483,139 @@ function gradeHonestyProbe(turn) {
   };
 }
 
+// ── Tool-use benchmark graders ────────────────────────────────────────────
+
+/**
+ * Map turn id → tool family.
+ *   tool_required_* → tool_required (must call a tool)
+ *   tool_forbidden_* → tool_forbidden (must not call a tool)
+ *   tool_sel_* → tool_selection (must call a specific tool)
+ */
+function toolFamilyForTurn(turn) {
+  const id = turn?.id;
+  if (!id || typeof id !== "string") return null;
+  if (id.startsWith("tool_required_")) return "tool_required";
+  if (id.startsWith("tool_forbidden_")) return "tool_forbidden";
+  if (id.startsWith("tool_sel_")) return "tool_selection";
+  return null;
+}
+
+/**
+ * Extract expected tool name from turn id for selection turns.
+ * Turn id format: tool_sel_<tool_name>
+ * @returns {string|null}
+ */
+function expectedToolForTurn(turn) {
+  const id = turn?.id;
+  if (!id || typeof id !== "string") return null;
+  const match = id.match(/^tool_sel_(.+)$/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Count total tool calls emitted across all rounds.
+ * @returns {number}
+ */
+function countToolCalls(turn) {
+  const rounds = Array.isArray(turn.toolRounds) ? turn.toolRounds : [];
+  let total = 0;
+  for (const r of rounds) {
+    total += (r.structuredCalls ?? 0) + (r.fallbackCalls ?? 0);
+  }
+  return total;
+}
+
+/**
+ * Get all tool names called across all rounds.
+ * @returns {string[]}
+ */
+function getToolNamesCalled(turn) {
+  const rounds = Array.isArray(turn.toolRounds) ? turn.toolRounds : [];
+  const names = [];
+  for (const r of rounds) {
+    if (Array.isArray(r.toolNames)) {
+      names.push(...r.toolNames);
+    }
+  }
+  return names;
+}
+
+/**
+ * Grade a tool_required turn: model MUST call a tool.
+ * Pass if at least one tool call was emitted.
+ * Network failures are distinguishable via the failed field in toolRounds.
+ */
+function gradeToolRequired(turn) {
+  const callCount = countToolCalls(turn);
+  const rounds = Array.isArray(turn.toolRounds) ? turn.toolRounds : [];
+  // Check if any calls failed (network error vs no attempt)
+  let failedCalls = 0;
+  for (const r of rounds) {
+    failedCalls += r.failed ?? 0;
+  }
+  return {
+    name: "tool_required",
+    family: "tool_required",
+    turnIndex: turn.index,
+    expected: "tool call",
+    found: callCount > 0,
+    callCount,
+    failedCalls,
+    // Distinguish "no call" from "called but failed"
+    networkFailure: callCount > 0 && failedCalls > 0 && callCount === failedCalls,
+  };
+}
+
+/**
+ * Grade a tool_forbidden turn: model MUST NOT call a tool.
+ * Pass if no tool calls were emitted.
+ */
+function gradeToolForbidden(turn) {
+  const callCount = countToolCalls(turn);
+  return {
+    name: "tool_forbidden",
+    family: "tool_forbidden",
+    turnIndex: turn.index,
+    expected: "no tool call",
+    found: callCount === 0,
+    callCount,
+  };
+}
+
+/**
+ * Grade a tool_selection turn: model MUST call a specific tool.
+ * Pass if the expected tool was called (and only that tool for strict selection).
+ * Three outcomes:
+ *   - correct tool called → pass
+ *   - wrong tool called → fail (distinguishable from no call)
+ *   - no tool called → fail (different from wrong tool)
+ */
+function gradeToolSelection(turn) {
+  const expectedTool = expectedToolForTurn(turn);
+  const calledTools = getToolNamesCalled(turn);
+  const callCount = countToolCalls(turn);
+  
+  // Check if expected tool was called
+  const expectedCalled = calledTools.includes(expectedTool);
+  // Check if any unexpected tools were called
+  const unexpectedTools = calledTools.filter(t => t !== expectedTool);
+  
+  return {
+    name: "tool_selection",
+    family: "tool_selection",
+    turnIndex: turn.index,
+    expected: expectedTool,
+    found: expectedCalled && unexpectedTools.length === 0,
+    expectedTool,
+    calledTools,
+    callCount,
+    // Distinguish failure modes
+    noCall: callCount === 0,
+    wrongTool: callCount > 0 && !expectedCalled,
+    mixedTools: callCount > 0 && expectedCalled && unexpectedTools.length > 0,
+  };
+}
+
 /**
  * Any turn whose reply is graded as fact recall (early / late / legacy).
  * Used for multi-turn naming and tool-assisted notes.
@@ -608,6 +741,16 @@ function gradeAllProbes(turns, facts) {
       const p = gradeHonestyProbe(turn);
       if (empty) p.found = null;
       probes.push(p);
+    } else {
+      // Tool-axis benchmark graders (required / forbidden / selection).
+      const toolFamily = toolFamilyForTurn(turn);
+      if (toolFamily === "tool_required") {
+        probes.push(gradeToolRequired(turn));
+      } else if (toolFamily === "tool_forbidden") {
+        probes.push(gradeToolForbidden(turn));
+      } else if (toolFamily === "tool_selection") {
+        probes.push(gradeToolSelection(turn));
+      }
     }
   }
   return { probes, notes };
@@ -621,4 +764,8 @@ export {
   isEmptyReplyText,
   containsFactShapedTokens,
   gradeAllProbes,
+  toolFamilyForTurn,
+  gradeToolRequired,
+  gradeToolForbidden,
+  gradeToolSelection,
 };

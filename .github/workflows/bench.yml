@@ -15,7 +15,7 @@ on:
         required: true
         default: "fase0"
         type: choice
-        options: [fase0, fase4, smoke]
+        options: [fase0, fase4, smoke, tools]
       model:
         description: "Model to test"
         required: true
@@ -125,6 +125,8 @@ jobs:
           node scripts/toolCallParseHarness.mjs
           node scripts/memoryTelemetryHarness.mjs
           node scripts/toolRoundExhaustedHarness.mjs
+          node scripts/toolBenchHarness.mjs
+          node scripts/telemetryClampHarness.mjs
           npx jest --silent
           # Sideload guards are bash, so the *Harness.mjs sweep does not see them.
           bash scripts/test_sideload_guards.sh
@@ -422,6 +424,16 @@ jobs:
             block_format: none
             thinking: "off"
             toolgate: "0"
+          # ── Tools — tool-use benchmark (required/forbidden/selection).
+          # Measures whether the model calls tools at the right time and picks
+          # the right tool. Not a compaction A/B; single arm, single seed.
+          # Phase selected by input; no default matrix entry.
+          - phase: tools
+            arm: baseline
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "off"
     # `matrix` is not available in a job-level `if`, so the phase filter lives
     # inside the matrix itself: entries carry their phase and the emulator step
     # is skipped for the non-selected ones (see the step-level `if`).

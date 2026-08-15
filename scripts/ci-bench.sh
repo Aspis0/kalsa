@@ -1302,6 +1302,74 @@ elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
   # Fail-fast before any turn: UI-string mismatch must not burn a 12-arm matrix.
   assert_input_path_ready
   run_turn_plan
+
+elif [ "$PHASE" = "tools" ]; then
+  # Tool-use benchmark: measure whether the model calls tools at the right time
+  # and picks the right tool. Three families:
+  #   - tool_required: answer not in conversation, MUST call tool
+  #   - tool_forbidden: answer is general knowledge or in conversation, MUST NOT call
+  #   - tool_selection: tool required, only one of three is right
+  # Several turns of each kind so a rate is meaningful.
+  PLAN_KIND=()
+  PLAN_ID=()
+  PLAN_PROMPT=()
+  PLAN_EXPECT=()
+  plan_add() { PLAN_KIND+=("$1"); PLAN_ID+=("$2"); PLAN_PROMPT+=("$3"); PLAN_EXPECT+=("$4"); }
+
+  # Plant turns: provide context for forbidden (recall) and selection (document_chat)
+  plan_add plant plant_a \
+    "Ricorda questi dati il progetto X ha budget 1000 euro e deadline dicembre 2024" \
+    must_not
+  plan_add plant plant_doc \
+    "Ecco un documento il progetto Alpha ha budget 5000 euro e scadenza marzo 2025 ricorda queste informazioni" \
+    must_not
+
+  # Required turns (4): answer not in conversation, must call tool
+  plan_add probe tool_required_weather \
+    "Qual è la temperatura attuale a Roma" \
+    must
+  plan_add probe tool_required_price \
+    "Qual è il prezzo attuale del bitcoin" \
+    must
+  plan_add probe tool_required_page \
+    "Apri la pagina https example com" \
+    must
+  plan_add probe tool_required_news \
+    "Quali sono le notizie di oggi" \
+    must
+
+  # Forbidden turns (5): answer is general knowledge or in conversation, must not call
+  plan_add probe tool_forbidden_capital \
+    "Qual è la capitale della Francia" \
+    must_not
+  plan_add probe tool_forbidden_math \
+    "Quanto fa due piu due" \
+    must_not
+  plan_add probe tool_forbidden_haiku \
+    "Scrivi un haiku sul mare" \
+    must_not
+  plan_add probe tool_forbidden_recall \
+    "Ripetimi i dati del progetto X che ti ho dato prima" \
+    must_not
+  plan_add probe tool_forbidden_history \
+    "Chi ha dipinto la Gioconda" \
+    must_not
+
+  # Selection turns (3): tool required, only one of three is right
+  plan_add probe tool_sel_web_search \
+    "Cosa sta succedendo nel mondo oggi" \
+    must
+  plan_add probe tool_sel_web_fetch \
+    "Leggi https example com e riassumila" \
+    must
+  plan_add probe tool_sel_document_chat \
+    "Cosa dice il documento riguardo al budget del progetto Alpha" \
+    must
+
+  new_conversation
+  adb logcat -c 2>/dev/null || true
+  assert_input_path_ready
+  run_turn_plan
 fi
 
 # No final logcat dump: after per-turn adb logcat -c it can only capture post-last-

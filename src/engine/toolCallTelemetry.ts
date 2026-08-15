@@ -23,7 +23,23 @@ export type ToolRoundTelemetry = {
   blockedPrivacy: number; // refused by the web-search echo guard
   namesValid: boolean; // every emitted call named a tool that exists
   argsParsed: boolean; // every emitted call had args that parsed as an object
+  /** Tool names emitted this round (for bench tool-selection grading). Privacy-safe: names only, no arguments. */
+  toolNames: string[];
 };
+
+/**
+ * Known tool names that Kalsa exposes to the model.
+ * MUST stay in sync with src/app/AppShell.tsx:1698 (the tools array).
+ * Adding a fourth tool requires updating BOTH files, or unknown tools
+ * silently become "other" and selection grading breaks.
+ */
+const KNOWN_TOOL_NAMES = Object.freeze(["web_search", "web_fetch", "document_chat"]);
+
+/**
+ * Placeholder for tool names the model produced but Kalsa does not recognize.
+ * Single fixed token so an unknown name is visible as a count, not its content.
+ */
+const UNKNOWN_TOOL_PLACEHOLDER = "other";
 
 /**
  * Telemetry for the "tool rounds exhausted without text" fallback path.
@@ -52,6 +68,18 @@ export function formatToolRoundExhaustedLine(turnId: string, r: ToolRoundExhaust
 }
 
 /**
+ * Clamp tool names to the known set. Unknown names become the placeholder,
+ * so an arbitrary model-invented string never reaches the log.
+ * The count is preserved: each input name maps to exactly one output token.
+ */
+export function clampToolNames(names: string[]): string[] {
+  if (!Array.isArray(names)) return [];
+  return names.map((name) =>
+    KNOWN_TOOL_NAMES.includes(name) ? name : UNKNOWN_TOOL_PLACEHOLDER,
+  );
+}
+
+/**
  * Machine-parseable single line for adb logcat / CI.
  * Fields listed by name so extra properties on `r` cannot leak into the payload.
  */
@@ -71,5 +99,6 @@ export function formatToolCallLine(turnId: string, r: ToolRoundTelemetry): strin
     blockedPrivacy: r.blockedPrivacy,
     namesValid: r.namesValid,
     argsParsed: r.argsParsed,
+    toolNames: clampToolNames(r.toolNames),
   })}`;
 }

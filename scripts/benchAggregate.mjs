@@ -2288,6 +2288,81 @@ function renderGateFailures(agg) {
   return { markdown: lines.join("\n"), exitCode: 1 };
 }
 
+// ── Tools phase aggregation ────────────────────────────────────────────────
+
+function aggregateTools(results) {
+  const tools = results.filter((r) => r.phase === "tools");
+  if (tools.length === 0) return { rows: [] };
+
+  const byArm = new Map();
+  for (const r of tools) {
+    const arm = r.arm ?? "unknown";
+    if (!byArm.has(arm)) {
+      byArm.set(arm, {
+        arm,
+        files: 0,
+        toolRequired: { found: 0, total: 0 },
+        toolForbidden: { found: 0, total: 0 },
+        toolSelection: { found: 0, total: 0 },
+      });
+    }
+    const g = byArm.get(arm);
+    g.files += 1;
+    for (const probe of r.probes ?? []) {
+      if (probe.family === "tool_required") {
+        g.toolRequired.total += 1;
+        if (probe.found === true) g.toolRequired.found += 1;
+      } else if (probe.family === "tool_forbidden") {
+        g.toolForbidden.total += 1;
+        if (probe.found === true) g.toolForbidden.found += 1;
+      } else if (probe.family === "tool_selection") {
+        g.toolSelection.total += 1;
+        if (probe.found === true) g.toolSelection.found += 1;
+      }
+    }
+  }
+
+  const rows = [...byArm.values()].map((g) => ({
+    arm: g.arm,
+    files: g.files,
+    toolRequiredRate: g.toolRequired.total > 0 ? g.toolRequired.found / g.toolRequired.total : 0,
+    toolForbiddenRate: g.toolForbidden.total > 0 ? g.toolForbidden.found / g.toolForbidden.total : 0,
+    toolSelectionRate: g.toolSelection.total > 0 ? g.toolSelection.found / g.toolSelection.total : 0,
+    toolRequired: g.toolRequired,
+    toolForbidden: g.toolForbidden,
+    toolSelection: g.toolSelection,
+  }));
+
+  return { rows };
+}
+
+function renderTools(agg) {
+  const lines = [];
+  lines.push("## Tools phase — tool-use correctness");
+  if (agg.rows.length === 0) {
+    lines.push("", "_No tools result.json files found._", "");
+    return lines.join("\n");
+  }
+  lines.push(
+    "",
+    "| arm | tool_required | tool_forbidden | tool_selection | runs |",
+    "|---|---|---|---|---|",
+  );
+  for (const r of agg.rows) {
+    const reqStr = r.toolRequired.total > 0
+      ? `${fmt(r.toolRequiredRate)} (${r.toolRequired.found}/${r.toolRequired.total})`
+      : "n/a (0/0)";
+    const forbStr = r.toolForbidden.total > 0
+      ? `${fmt(r.toolForbiddenRate)} (${r.toolForbidden.found}/${r.toolForbidden.total})`
+      : "n/a (0/0)";
+    const selStr = r.toolSelection.total > 0
+      ? `${fmt(r.toolSelectionRate)} (${r.toolSelection.found}/${r.toolSelection.total})`
+      : "n/a (0/0)";
+    lines.push(`| ${r.arm} | ${reqStr} | ${forbStr} | ${selStr} | ${r.files} |`);
+  }
+  return lines.join("\n");
+}
+
 // ── Public entry used by harness + CLI ───────────────────────────────────
 
 /**
@@ -2302,6 +2377,7 @@ function runAggregate(dirs) {
 
   const fase0 = aggregateFase0(results);
   const fase4 = aggregateFase4(results);
+  const tools = aggregateTools(results);
   const rendered4 = renderFase4(fase4);
 
   const parts = [
@@ -2312,6 +2388,8 @@ function runAggregate(dirs) {
     renderFase0(fase0),
     "",
     rendered4.body,
+    "",
+    renderTools(tools),
   ];
 
   // Gate failures go BELOW the partial data so a broken campaign is still

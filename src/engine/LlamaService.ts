@@ -1983,6 +1983,7 @@ export async function streamAssistantTurn(
           blockedPrivacy: 0,
           namesValid: shape.namesValid,
           argsParsed: shape.argsParsed,
+          toolNames: [],
         };
         if (!toolCalls.length || !options?.executeTool) {
           emitToolCallTelemetry(turnId, toolTel);
@@ -2022,6 +2023,7 @@ export async function streamAssistantTurn(
         // across search + fetch in the same turn (AiChatPage replaces, not merges).
         for (const call of executableCalls) {
           const name = call.function?.name ?? "";
+          if (name) toolTel.toolNames.push(name);
           const rawArguments =
             typeof call.function?.arguments === "string" ? call.function.arguments : "";
           const { args, parseFailed } = parseToolArguments(
