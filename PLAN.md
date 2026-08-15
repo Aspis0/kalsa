@@ -51,15 +51,23 @@
 > reports/moe-kernel-kf-proto.md.
 > **SCOREBOARD K-F v2 (gualt, 2026-08-14 notte — tassonomia ufficiale,
 > missione: tutta verde o quasi):**
-> KF_MEDIAN_WIN ✅ · KF_ENERGY_NEUTRAL ✅ · KF_THERMAL ⚠️ inconclusivo
-> (→ verde con blocchi lunghi anti-EOS: sweep in lancio) · KF_MEMORY ⚠️
-> cold-start da analizzare (→ split majflt primi-100 vs resto nello
-> sweep; se è warm-up non integrato → fix E) · KF_TAIL ❌ fail ·
-> KF_ROBUST ❌ fail (→ Pareto width 2/3/4/6 stanotte + telemetria
-> lead-time per B-late vs C-over-issuing, poi UN fix mirato) ·
-> KF_GENERAL ⏸ hold (→ dopo ROBUST: secondo modello/device) ·
-> KF_SHIP ⛔ blocked (→ ultimo: cella N≥10 pre-registrata). Non si
-> promuove nulla finché la riga sopra non è verde.
+> KF_MEDIAN_WIN ✅ · KF_ENERGY_NEUTRAL ✅ (pooled 1.028; mappa width:
+> W2 0.976 / W4 1.008 / W6 1.125) · **KF_THERMAL ❌ sotto sustained, ED
+> È FISICA** (ON sag 0.32-0.36 vs OFF 0.23: corre più forte presto,
+> scalda di più, tutti convergono a ~2.5 tok/s late — K-F è un
+> acceleratore di burst, non alza il rate termico; la mediana su 1000
+> tok vince comunque +20%) · **KF_MEMORY: gate da RIDEFINIRE** (majflt
+> non monotono e invertito vs IO — misura QUALE path legge, non il
+> distress; RAM min 3.46GB, zero pressione reale; niente cold-start
+> bill nello sweep) · **KF_TAIL: REGIME-SPLIT — sotto sustained la coda
+> si RIBALTA: ON batte OFF a ogni width, p99 monotono 638→481 ms
+> (W6); la regressione v1 era artefatto del regime tiepido. MA il
+> regime prodotto chat = burst corti ≈ v1 dove ON perdeva → decide la
+> cella burst (generazioni corte + pause)** · KF_ROBUST → cella
+> registrata nel regime prodotto · **PARETO: ginocchio a W4 (+15.6%
+> tok/s a energia pari); W6 max speed (+20%) a +12.5% J; W2
+> energy-positive (−2.4%)** — candidato default W4 pending burst-test ·
+> KF_GENERAL ⏸ · KF_SHIP ⛔. Report: reports/moe-kernel-kf-sweep.md.
 >
 > **(storico, prima tassonomia — dopo cella REALITY):**
 > KF_PROTO_WIN ✅ · KF_PHYSICS_WIN ✅ · KF_SPEED_WIN ✅ ·
