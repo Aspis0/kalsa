@@ -120,10 +120,18 @@
 > GDN, <10% "k2 debole"; ordine operativo = fixare 2 invarianti prima di
 > tunare; bomba aritmetica: iterazione ~4.94 C6 → il verify batch deve
 > essere SUBLINEARE (ammortamento flash) o γ=4 è morta a prescindere.
-> F1b (E1/E2/E3, spec gualt) **IMPLEMENTATA e committata (2396c56 su
-> kalsa/selfspec-f1: --selfspec-diag, protocollo E2 anti graph-reuse,
-> RAII k-switch; G15 same-k 1.000)**; la corsa sul 35B è ACCODATA a fine
-> PPL arms (PC conteso) — incrocio con la tabella Qwen al landing.
+> **F1b ESEGUITA (2026-08-14 sera) — LANE_ALIVE, ENGINE_BUG:** E1
+> draft==gold 0.833 (k2 SANO, ipotesi k2-debole morta) · E2 collasso a
+> 0.353 con prefisso k6→predict k2 (k-mixing tossico: state-fork gratis
+> morto per fisica) · E3 0.983 identico a γ=4 e γ=1 (batching innocente,
+> MA ≠1.000 = invariante Qwen violata: impurità costante di runtime,
+> verify==gold 0.937 dove doveva essere 1.000). Teacher-forced sano
+> (0.83) vs live 0.08 ⇒ la corruzione vive nel ciclo
+> accept/reject/rollback + k-switch (il "prefisso fantasma" di Qwen, 45%
+> prior → quasi certezza). Prossimi: test forced-rejection restore
+> (invariante #2), caccia all'impurità costante, fix, re-misura alpha
+> live (target 0.7-0.83), POI economia (bomba 4.94·C6 in piedi, serve
+> verify sublineare). Report: reports/moe-selfspec-f1b.md.
 > (3) **PPL gate Mellum COMPLETO (2026-08-14 sera): k6d065 GATE_PASS con
 > dMacro −0.0086 (MEGLIO dell'ancora k8; worst zh +0.0303) → il default
 > campagna è quality-certified con margine. k6d1.0 PASS confermato

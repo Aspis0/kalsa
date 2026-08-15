@@ -1,0 +1,37 @@
+SELFSPEC F1b — isolate why alpha collapsed 0.70 → 0.08
+Date: 2026-08-14
+Worktree: C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1
+Branch: kalsa/selfspec-f1 @ be3c7fe
+Binary: C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build\cli\bmoe-cli.exe
+Model: C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf
+Gold: C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\streams\*_target.txt
+Prompts: C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\
+         fact: results\marco_phase1\speed_s23\prompts\p_fact.txt
+Threads: -t 4. PPL job (build-pc-mellum-ppl) is untouchable.
+Kernel checkout: off limits. PC only.
+
+F0 measured teacher-forced TEXT-piece agreement via EXACT-RESTART
+(scripts/run_selfspec_f0.py + selfspec_f0_lib.py). Each restart prefills
+prompt+gold_text[:t] at k=2 as a batched prompt, then generates; gold was
+k=6 d0.65, --session, NO --chatml. Primary alpha 0.6991 (k=2 d0.65, n=1037).
+
+E1: same gold text, F1 two-context machinery, SERIAL teacher-force,
+token-id argmax. draft-ctx k=2 vs verify-ctx k=6. d0 both. No chatml.
+If ~0.70 → F0 methodology matches; collapse is deployment-only.
+If ~0.10 → F0 measured something else (text pieces + batched re-prefill).
+
+E2: prefix committed at k=6 on draft-ctx, 1-token predict at k=2.
+Cache-bust dummy token because allow_reuse does not compare n_expert_used.
+If alpha jumps toward 0.70 → killer is k=2 state compounding.
+
+E3: serial k=6 vs batched k=6 (gamma=4 and gamma=1) argmax + |dlogit| on top-2.
+If agree < ~99% → batched verify unfaithful on hybrid GDN (engine finding).
+
+E4: only if E1 ~0.70 and E2 explains the gap. Free-running draft_k=3 and 4.
+
+Common flags:
+  --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap
+  --io-threads 4 --n-expert-used 6 --selfspec-draft-k 2 -c 2048 --ubatch 512
+  -t 4 --prompt-file ... --selfspec-gold ... --selfspec-diag-out ...
+  --selfspec-diag e1,e2,e3 --selfspec-draft-prefill-k 6 -n 256
+  NO --chatml, NO --session, d0 (no --drop-cold-experts).

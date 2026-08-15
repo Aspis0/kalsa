@@ -1,0 +1,9 @@
+selfspec-diag e1: draft==verify 251/300=0.837 draft==gold 250/300=0.833 verify==gold 281/300=0.937
+selfspec-diag e2: draft==verify 106/300=0.353 draft==gold 103/300=0.343 (prefill_k=6 predict_k=2)
+selfspec-diag e3 gamma=4: argmax_agree 295/300=0.983 max|dlogit|_top2=3.96
+selfspec-diag e3 gamma=1: argmax_agree 295/300=0.983 max|dlogit|_top2=3.96
+n_prompt=293
+n_gold=300
+draft_k=2
+verify_k=6
+prefill_k=6
