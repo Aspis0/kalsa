@@ -242,20 +242,56 @@ screenshot of the Android home screen.
 The mode named `ciswire` is Kalsa's own code implementing a CisWire-*inspired* strategy (full
 window + additive digest) with Kalsa's own BM25. What won is a strategy already in the repo.
 
-1. **Make `ciswire` the default** — today `parseContextMode(null) → "off"`, so shipped devices
-   run bare. The winning mode is present and switched off. **Blocked on §3.1.**
-2. **Retire `v42`** — equal to bare on recall, 22% spurious web searches late in the
-   conversation, and the most empty replies.
-3. **The rolling summary is dead code in practice** — it never runs. Fix it or remove it; it is
-   half of `v42`'s rationale.
-4. **Production defect, independent of all the above**: `windowCharBudget` (16 000 chars ≈ 4k
-   tokens) is a constant never derived from the engine window, while `effectiveNCtx` can be
-   clamped to 2048 on low-RAM devices. Nothing bounds the assembled prompt by `n_ctx`;
-   `assembleEngineHistory` caps message *count* and per-message *chars* only. On overflow,
-   text-only chats rely on `ctx_shift: true` (llama.cpp evicts silently, app unaware) and
-   multimodal chats have `ctx_shift: false` with no fallback. **`n_keep` is never set anywhere**,
-   so we do not control what survives a shift. Not verified: llama.rn's exact ctx_shift/n_keep
-   semantics — read `node_modules/llama.rn/cpp/` before acting.
+### Shipped defects worth acting on regardless of any benchmark
+
+1. **The tool gate blocked ~100% of the searches users explicitly asked for** (§1.1). Measured:
+   the turn where the user says *"cerca sul web…"* succeeded 0/6 with the gate on and 6/6 with it
+   off, on every gated arm. The rule compared the query to the user's message and blocked on
+   *high* similarity — but a good query paraphrases the question, so it scored high and died,
+   while a spurious one was about something else and survived. Inverted in `5b3ba90`.
+2. **LFM2.5 tool calls were never parsed, on the whole family** (§3.6). The parser `JSON.parse`d
+   a payload the model does not emit — both LFM2.5 templates produce Python-style
+   `[func(arg="v")]`. Every call was silently dropped: no error, no log. Fixed in `c93d163`.
+   Never caught because LFM had never been benchmarked, and the comment stating the wrong
+   dialect is why nobody looked.
+3. **Blank assistant bubbles** (§3.10) were tool rounds running out with no answer produced —
+   100% of blank turns hit the 3-round cap against 5% of normal ones. Driven by (1); the
+   fallback in `a4343c7` fixes the blank itself, which would otherwise recur with any model or
+   an unreachable network.
+4. **`windowCharBudget` is not derived from the engine window.** 16 000 chars ≈ 4k tokens is a
+   constant, while `effectiveNCtx` can be clamped to 2048 on low-RAM devices. Nothing bounds the
+   assembled prompt by `n_ctx`; `assembleEngineHistory` caps message *count* and per-message
+   *chars* only. On overflow, text-only chats rely on `ctx_shift: true` (llama.cpp evicts
+   silently, app unaware) and multimodal chats have `ctx_shift: false` with no fallback.
+   **`n_keep` is never set anywhere**, so we do not control what survives a shift. Not verified:
+   llama.rn's exact ctx_shift/n_keep semantics — read `node_modules/llama.rn/cpp/` before acting.
+
+### Product decisions the data supports
+
+5. **Make `ciswire` the default on the 2B path.** +0.396 over bare, p=0.0249, audited against
+   both ways it could have been fabricated, and it costs *fewer* prompt tokens than bare (§1.5).
+   The blocker (§3.1) is resolved. Confirm with the campaign now running before flipping it.
+6. **`v42` hurts small models specifically.** On the 2B it equals bare (−0.037, p=0.60) while
+   ciswire beats it by +0.433 (p=0.0043). On the 4B the two are **indistinguishable**. So this is
+   "retire it for the 2B", not "retire it" — and the reason is that its rolling summary, half of
+   its rationale, **never runs** (`summaryChars = 0` on every arm of every campaign).
+7. **Do not ship LFM2.5-8B-A1B** (§1.7). It loads fine — memory was never the problem — but MoE
+   discounts decode, not prefill: 175 s for 1394 tokens. For more than the 2B, the dense 4B is
+   the better trade, which is already what `recommendedModelId` gives the high-RAM tier.
+8. **Do not fine-tune for tool calls yet.** The 2B already emits near-perfect calls (19/20
+   structured, 0 invalid names, 0 unparsed arguments) — there is no headroom in *format*. Every
+   precision number available before today was measured through the inverted gate and is void.
+   The `tools` phase (`e907809`) separates the three failure modes; only *selection* is the kind
+   a fine-tune fixes better than a rule. Measure, then decide.
+
+### Measurement caveats anyone quoting these numbers must carry
+
+- One model per result, one language, 16-turn conversations, CI emulator.
+- The effect is only visible in a regime that had to be engineered (`legacywindow=16`); at the
+  shipped window of 20 the baseline lost facts in 2 conversations out of 6.
+- The 4B result is directionally larger (+0.469) but **not significant** (p=0.139) because arm
+  crashes and honest-refusal exclusions cut n to 3.
+- `honesty` is graded by an Italian wordlist (§3.9) and means nothing in another language.
 
 ---
 
