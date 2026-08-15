@@ -155,23 +155,42 @@ it does not degrade with distance at all. `v42` runs 0.854 → **0.479**. Bare i
 because it has nothing left to lose. A mean can be argued with; a system that holds its accuracy
 as the conversation grows is the property a phone assistant actually needs.
 
-### 1.4 What the three modes actually do
+### 1.4 The three modes, side by side — what they do and what it measures out at
 
-- **`off`** — last 20 messages verbatim (8 with images), each capped at 4000 chars. Anything
-  older is gone.
-- **`v42`** — **shrinks** the verbatim window to ~6 recent messages (boundary advances every 3
-  user turns) and compensates with a BM25 digest of the older corpus **plus a rolling LLM
-  summary**.
-- **`ciswire`** — **keeps the full 20-message window, identical to bare**, and **adds** a BM25
-  digest of everything outside it. Purely additive.
+Everything below is Qwen3.5-2B, window 16, six seeds, campaign `31861056717` (every defect found
+on 2026-08-14 fixed). Read §2's caveats before quoting any of it.
 
-**Why `v42` loses**: it is a trade — it gives up verbatim context to buy a summary, and **the
-summary is never built**. Measured: `summaryChars = 0` on every arm of every campaign; the
-scheduler condition (`turnsSinceRebuild !== K-1`) is unreachable whenever the boundary advances
-on size. So `v42` pays the cost and never collects the benefit.
+| | **`off` (bare)** | **`v42`** | **`ciswire`** |
+|---|---|---|---|
+| **Context strategy** | last 20 messages verbatim (8 with images), 4000 chars each; older is gone | **shrinks** the verbatim window to ~6 recent messages, compensates with a BM25 digest **+ a rolling LLM summary** | **keeps the full 20-message window, identical to bare**, and **adds** a BM25 digest of everything outside it |
+| Nature of the trade | none — pure loss | **a trade**: gives up verbatim context to buy a summary | **purely additive**: removes nothing |
+| **Fact recall (mean)** | 0.313 | 0.667 | **0.948** |
+| — early probes | 0.325 | 0.854 | 0.938 |
+| — late probes | 0.300 | **0.479** | **0.958** |
+| **Decay with distance** | flat at floor (nothing left to lose) | **collapses**, −0.375 | **none**, +0.020 |
+| Consistency (sd) | 0.348 | 0.094 | **0.083** |
+| vs bare | — | +0.354, p=0.0432 | **+0.635, p=0.0043** |
+| **Tool-call precision** | 0.241 | 0.281 | **0.485** |
+| **Blank bubbles** | 0 | 0 | 0 |
+| **Context cost** | baseline | — | **−170 prompt tokens/turn** vs bare; digest capped ~140 tokens, flat from turn 10 |
+| **Ranking cost on device** | none | ~0.07 ms/doc | ~0.07 ms/doc (1 ms at 44 docs → 25 ms at 363) |
+| **Memory subsystem** | never enabled in any campaign | never enabled | never enabled |
+| **Tool repair tiers** | n/a — the 2B emits 19/20 structured calls, 0 invalid names, 0 unparsed args | n/a | n/a — nothing to repair |
 
-**Why `ciswire` wins**: it removes nothing and can only add. Structurally it cannot recall less
-than bare. Its cost is +6.7% prefill and ~25 ms of ranking per turn.
+**Why `v42` costs what it costs**: half of its rationale is a rolling LLM summary that **is never
+built** — `summaryChars = 0` on every arm of every campaign, because the scheduler condition
+(`turnsSinceRebuild !== K-1`) is unreachable whenever the boundary advances on size. It pays the
+verbatim context and collects only the digest, which is why its late-probe recall collapses while
+`ciswire`'s does not.
+
+**Why `ciswire` wins**: it removes nothing and can only add, so structurally it cannot recall less
+than bare — the statistics only quantify how much more. And the additive design is why it is
+*cheaper*: with the fact in hand the model answers instead of hedging, replies shrink 675 → 505
+chars, and the saved window space exceeds the digest's cost.
+
+**The coupling nobody planned for**: `ciswire` nearly doubles tool precision (0.485 vs 0.241).
+Holding the context stops the model reaching for a tool to find what it already has — the mirror
+of §1.2, where losing context caused tool misuse. Improving context buys two axes at once.
 
 ### 1.5 What `ciswire` costs in context — bounded, and net NEGATIVE
 
