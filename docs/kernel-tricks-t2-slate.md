@@ -51,6 +51,21 @@ owner's shape. Privacy-perfect (nothing leaves the device).
 - Kill criteria: skew Gini < ~0.3 (uniform usage); micro-PPL gate too
   expensive on device; rewrite wear on flash unacceptable.
 
+### Kill tally (updated 2026-08-15 ~02:00)
+- T2-B similarity fold: **DEAD BY PHYSICS** — simprobe on Mellum2 AND
+  Qwen35: experts are near-orthogonal (max off-diag cos 0.02 / 0.14 vs
+  threshold 0.95, ZERO pairs, multiplier 1.00 everywhere; cross-layer
+  baseline same order). 8 minutes of compute killed it forever.
+- T2-J/D closed-loop prefetch controller: NEAR-DUP — ExpertFlow (Shen
+  2025, arXiv:2510.26730) closes the same loop (stall counter -> widen
+  S, overfetch counter -> narrow S, occupancy backpressure). Our
+  lead-time sensors are richer but the loop is occupied. STILL the
+  right ENGINEERING fix for our stutter (validated approach, no novelty
+  claim).
+- T2-E co-activation flash layout: NEAR-DUP(Apple) LOUDLY —
+  LLM-in-a-Flash §3.2 tried exactly this at neuron level, published the
+  hub-neuron FAILURE mode, shipped row-column bundling instead.
+
 ### Round-2 novelty checks in flight
 - T2-J closed-loop prefetch controller on lead-time telemetry (round-1.5,
   report2 pending) + T2-E co-activation flash layout (Apple patent
