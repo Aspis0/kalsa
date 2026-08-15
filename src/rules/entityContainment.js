@@ -31,35 +31,42 @@ function isCapitalized(token) {
  * A token is fact-shaped if it contains digits, contains @, or is capitalized
  * and not sentence-initial (not at position 0, and not after sentence-ending punctuation).
  * Used to detect declined replies that contain no factual assertions.
- * 
+ *
  * Special case: single-token replies that are capitalized are fact-shaped
  * (e.g., "Leopoldo" is a proper noun, not a sentence-initial word).
+ *
+ * NOTE: This primitive does NOT attempt to detect noun-capitalizing languages
+ * (German, Dutch, Luxembourgish) from text features. That responsibility belongs
+ * to the grader, which uses the bench locale from configuration to decide whether
+ * three-way classification (recovered/asserted/declined) is enabled. See
+ * gradeAllProbes() in benchGraders.mjs.
  */
 function containsFactShapedTokens(text) {
   const tokens = text.trim().split(/\s+/);
-  
+
   // Single-token reply: if it's capitalized, it's fact-shaped
+  // (e.g., "Leopoldo" is a proper noun, not a sentence-initial word)
   if (tokens.length === 1) {
     if (isCapitalized(tokens[0])) {
       return true;
     }
   }
-  
+
   // Multi-token reply: check for digits, @, or capitalized non-sentence-initial tokens
   let prevTokenEndedSentence = false;
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
-    
-    // Check for digits or @
+
+    // Check for digits or @ (universal signals, always reliable)
     if (/\d/.test(token) || /@/.test(token)) {
       return true;
     }
-    
+
     // Check for capitalized non-sentence-initial token
     if (i > 0 && !prevTokenEndedSentence && isCapitalized(token)) {
       return true;
     }
-    
+
     // Check if this token ends with sentence-ending punctuation
     prevTokenEndedSentence = /[.!?]$/.test(token);
   }

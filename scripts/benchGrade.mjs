@@ -338,7 +338,7 @@ function metricsForTurn(baseDir, turnIndex) {
 function familyStats(probes) {
   const by = {};
   for (const p of probes) {
-    if (!by[p.family]) by[p.family] = { found: 0, total: 0, excluded: 0, declined: 0, rate: null };
+    if (!by[p.family]) by[p.family] = { found: 0, total: 0, excluded: 0, declined: 0, abstained: 0, rate: null };
     // found === null: empty-reply exclusion (run 31379031892 blank bubble).
     // Must not enter total — a rate over fewer observations than it appears
     // is a silent lie; `excluded` makes the shrinkage visible.
@@ -350,6 +350,13 @@ function familyStats(probes) {
       // but we count them so we can report the decline rate.
       if (p.declined === true) {
         by[p.family].declined += 1;
+      }
+      // Track abstained probes separately: grader abstained because locale
+      // is not in the validated set (it/en/ja). These are excluded from the
+      // denominator like empty replies, but we count them so an arm graded
+      // mostly by abstention is visible.
+      if (p.abstained === true) {
+        by[p.family].abstained += 1;
       }
       continue;
     }
@@ -986,6 +993,7 @@ function gradeRaw(raw, baseDir) {
   const { probes, notes: probeNotes } = gradeAllProbes(
     turns.map((t, i) => ({ ...t, toolRounds: toolRoundsPerTurn[i] })),
     facts,
+    raw.localePrefRaw,
   );
   const byFamily = familyStats(probes);
 
