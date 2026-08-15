@@ -71,6 +71,41 @@ owner's shape. Privacy-perfect (nothing leaves the device).
   report2 pending) + T2-E co-activation flash layout (Apple patent
   proximity check pending) — both feed T2-K/T2-M tooling regardless.
 
+## FINAL TALLY — invention night 2026-08-15 (8 candidates, 8 honest kills)
+
+| # | candidate | killed by |
+|---|---|---|
+| A | lossy demotion cache | prior art (HOBBIT, DyMoE, DynaExq) |
+| B | similarity folding | prior art (SMoE, MC-SMoE) AND physics (experts near-orthogonal: max cos 0.02/0.14) |
+| C | entropy-gated dynamic k | prior art (AdapMoE) + documented failure (Elastic MoE scaling wall) |
+| D | closed-loop prefetch controller | prior art (ExpertFlow Shen 2025 — same stall/overfetch loop) |
+| E | co-activation flash layout | prior art (Apple LLM-in-a-Flash 3.2, incl. their published hub failure) |
+| K | chaperone tiered-JIT repack | prior art (llama.cpp online-repack; ours is "a timer change") |
+| L | autophagy PSI self-shrink | prior art union (onTrimMemory + --mlock + DynaExq); sensor fusion, not new idea |
+| M | REM-sleep nightly rewrite | prior art (EdgeMoE + PreMoe/REAP + Apple adapters) AND physics (skewprobe) |
+
+**THE HIDDEN PEARL — routing entropy is structural (skewprobe):** 300
+decode tokens touch 86-95% of experts; top-16 carries only ~25%; five
+domains leave 10/7168 slots unused. This EXPLAINS the 45 re-reads/token
+(no sub-model-size cache can avoid thrash at 220-250/256 active per
+layer) and VALIDATES our architecture: hide latency (K-F prefetch where
+stall is high) and prune by router WEIGHT (drop, quality-gated), never
+chase hit-rate. Modern high-expert-count MoEs structurally defeat
+cache-cleverness — measured, on our models, in one night.
+
+**What survives as ENGINEERING (no novelty claims):**
+1. Stutter fix via ExpertFlow-style stall/overfetch counters + burst
+   ramp-up (approach now literature-validated; our lead-time telemetry
+   is a richer sensor pack).
+2. K-schedule: idle-io-thread repack of HOT cache entries (llama.cpp's
+   own #19578 pain proves the gap; x1.27 on the 82%-compute certified
+   cell is worth ~+17% ceiling).
+3. L-armor: zram sentinel + class-aware pinning (product hardening for
+   the measured 60-100x stock collapse).
+
+Novelty reports archived: docs/t2-novelty-round{1,2,3}.md;
+skew probe: results/t2_skewprobe/REPORT.md.
+
 ## Round 1 postmortem (kept for the record)
 A (lossy demotion cache) = HOBBIT/DyMoE/DynaExq. B (similarity fold) =
 SMoE + MC-SMoE + Cache-Conditional. C (entropy-gated k) = AdapMoE

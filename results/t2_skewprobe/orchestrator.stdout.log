@@ -1,0 +1,17 @@
+=== RUN coding ===
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-kf\build\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -p Write a complete, well-documented Python function that implements an LRU cache with per-entry TTL. Include the class, helper methods, a short pytest module, and two usage examples. Do not stop until the implementation is complete. -n 300 -t ... --route-trace coding.route.csv
+=== DONE coding exit=0 elapsed=37.3s csv=True ===
+=== RUN cooking ===
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-kf\build\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -p Write a detailed recipe for a three-course Italian dinner for eight people: antipasto, primo, and dessert. List every ingredient with quantities, the full step-by-step method, timing, make-ahead notes, and a wine pairing. -n 300 -t ... --route-trace cooking.route.csv
+=== DONE cooking exit=0 elapsed=43.5s csv=True ===
+=== RUN legal ===
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-kf\build\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -p Draft a formal software license and SaaS subscription agreement between a vendor and an enterprise customer. Cover grant of license, fees, service levels, data protection, liability caps, indemnities, termination, and governing law. Use formal legal English. -n 300 -t ... --route-trace legal.route.csv
+=== DONE legal exit=0 elapsed=45.8s csv=True ===
+=== RUN casual ===
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-kf\build\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -p Hey! How is your weekend going? Tell me about a funny thing that happened to you recently, like we are just chatting over coffee. Keep it warm, rambling, and conversational — stories, asides, questions back to me. -n 300 -t ... --route-trace casual.route.csv
+=== DONE casual exit=0 elapsed=46.5s csv=True ===
+=== RUN math ===
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-kf\build\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -p A train leaves station A at 9:00 AM traveling east at 60 mph. Another leaves station B, 180 miles east of A, at 9:30 AM traveling west at 75 mph. A bird flies back and forth between them at 90 mph starting at 9:00 AM. When and where do the trains meet, and how far does the bird fly? Solve step by step, show all algebra, then generalize to speeds u, v, bird speed w, distance D, and a delayed start. -n 300 -t ... --route-trace math.route.csv
+=== DONE math exit=0 elapsed=55.4s csv=True ===
+VERDICT SKEW_WEAK/UNIFORM(gini=0.500, top16=24.7%, jaccard=0.057)
+wrote C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\t2_skewprobe\analysis.json C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\t2_skewprobe\per_layer_metrics.csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\t2_skewprobe\jaccard_pairs.csv

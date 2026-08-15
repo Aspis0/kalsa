@@ -1,0 +1,1 @@
+SKEW_WEAK/UNIFORM(gini=0.500, top16=24.7%, jaccard=0.057)
