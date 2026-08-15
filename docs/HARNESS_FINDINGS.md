@@ -370,12 +370,40 @@ default recommendation.
 
 Risk on record: a 2B arm took **143 min median** against a 300-min cap; the 4B may hit it.
 
-### 3.3 Memory: still zero measurements
+### 3.3 Memory: measurable at last, and it extracts nothing — the benchmark is the wrong shape
 
-`kalsa.memory.enabled` has been `'0'` in every arm of every campaign. Instrumentation is being
-built: counters-only telemetry, a **NOT-RUN verdict when an arm has memory on but an empty
-store**, and a privacy probe asserting the echo guard blocks a stored personal fact from
-reaching a web-search query. No numbers yet.
+Smoke `31885329570` (2B, window 16, `memory=1`) ran 8 arms green. Six had memory enabled:
+
+| arms with memory on | 6 |
+|---|---|
+| **facts extracted, total** | **0** |
+| facts stored | 0 |
+| facts injected | 0 |
+
+Zero across every context mode — `baseline`, `ciswire`, `v42`, `nogate` — so it is not
+mode-dependent. The memory-off arms are correctly zero, so the negative control holds and the
+NOT-RUN verdict (§3.7) no longer false-fires.
+
+Cost, measured: `off_on` took **83 min against 59** for its memory-off twin. The extraction
+completion runs every turn, adds ~40% wall clock, and stores nothing. It is the first cost in
+this project paid on *every* turn regardless of benefit — the digest costs 25 ms of ranking and
+*saves* 170 prompt tokens; memory costs a whole inference.
+
+**The likely cause is not a bug.** `strings.memory.extractPrompt` (`src/i18n/it.ts:800`) asks for
+facts *about the USER* — "nome, preferenze, interessi, lavoro, lingua" — and says explicitly
+"I fatti devono riguardare l'utente, non le tue risposte". The fase4 conversation plants
+arbitrary tokens: *"il gatto si chiama Leopoldo il budget e 4500 euro … il codice e PK42"*. A
+model following that prompt correctly answers `{"add": [], "remove": []}`.
+
+So the extractor is probably working and the benchmark is the wrong shape for it. **Not yet
+verified**: nothing distinguishes "the model returned empty arrays" from "the model returned
+something the parser rejected", because the extraction output contains user facts by definition
+and must not be logged. A numeric parse-outcome field is being added to separate the two without
+recording text.
+
+**The 24-arm campaign was not launched.** With an empty store, memory-on and memory-off arms are
+the same experiment run twice at 40% extra cost — the empty-digest disaster with a different
+name. The smoke cost 83 minutes and prevented it; that is what the smoke is for.
 
 ### 3.5 FIXED 2026-08-14 — the memory guard was breaking web search; replaced with containment
 
