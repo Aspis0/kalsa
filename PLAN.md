@@ -163,6 +163,37 @@
 > ritocco a discrezione owner. results/mellum2_dropcurve/.**
 > 3 survivor ingegneristici senza claim (controller stutter
 > ExpertFlow-style, repack lazy hot ×1.27, corazza anti-zram).**
+> 🧮 **L'INVARIANTE CHE DECIDE TUTTO (16/08, brainstorm con Qwen 3.8
+> Max, verificato da me).** Con verifica a batch: byte/token =
+> `[γα + (γ+1)β]/L` e `L ≤ γ+1`; con verifica sequenziale early-stop:
+> `β + γα/L`. **Se β ≥ 1, byte/token ≥ 1 ANCHE con draft gratis (α=0):
+> la speculazione al massimo PAREGGIA, non vince mai.** Quindi l'unica
+> via è **β < 1**: la verifica deve leggere meno byte di una
+> generazione normale. Conseguenza immediata: la direzione "draft a
+> zero byte" (che avevo messo prima) non poteva funzionare da sola —
+> ottimizzava il termine da 1.33 lasciando quello da 5.0. E il prefetch
+> non tocca i byte per definizione. **L'unica porta aperta: certificare
+> costa meno che generare.** Generare vuole l'argmax su tutto il
+> vocabolario → tutti i 6 esperti. Certificare un candidato vuole solo
+> mostrare che vince → può bastare un bound sul contributo dei mancanti.
+> **PROBE F6 IN CORSA** (results/f6_certify_probe/): accordo argmax a
+> k=1..5 contro k=6, teacher-forced su CalaQwen. Break-even misurato:
+> β < 0.56 → **meno di ~3.3 esperti in media**. k=2 è già noto (0.6905,
+> F0) e serve da check dell'harness. GO se a k=3 l'accordo è ≥ ~0.95,
+> DEAD se ~0.80. Nota onesta registrata: se lo skipping rende leggera
+> la verifica, rende leggero anche il plain — la baseline si sposta e la
+> speculazione deve battere il plain GIÀ alleggerito.
+> **DENSI (Qwen3.5 2B/4B, misurato su Xiaomi 16/08):** `qwen35` = denso
+> MA IBRIDO (24 layer GDN su 32) → il freeze serve anche lì, e stando in
+> RAM il batch AMMORTIZZA (prefill/decode = 2.33×), cioè il regime dove
+> la speculazione può pagare. **MA il 4B ha 2.24× i pesi del 2B e va
+> solo 1.32× più lento** → draft/target = 0.755, troppo vicino: con γ=4
+> spendi ~3 passaggi-target per guadagnarne ~2.4. Servirebbe un draft
+> 5-10× più economico (un ~0.6B della stessa famiglia), che non abbiamo.
+> `--ngram` provato: drafta sul 2.5% dei passi (testo non ripetitivo),
+> inutile. **E varianza del device ±50% fra run consecutive (3.99 →
+> 8.27 tok/s stesso modello/config): qualunque claim di velocità sui
+> densi richiede coppie ABBA, due run back-to-back non provano nulla.**
 > ⛔ **F5 ARM D1 SU FLASH (16/08, Xiaomi, ESPLORATIVO): NULL. La
 > self-speculation perde anche su telefono.** 12/12 run valide,
 > intercalate a/b/c/d × 3, n=200, staccato 70→46%, 28.9→40.1 °C.
@@ -184,6 +215,31 @@
 > prefetch**, per nascondere lo stall invece di saltare decodifiche;
 > (4) verify più magro sfruttando il drop già certificato.
 > results/selfspec_f5_d1_xiaomi/.
+> ❄️ **CELLA K-F A FREDDO SUL JELLY (16/08, in corso) — sblocca o
+> chiude KF_SHIP.** PREREG committato PRIMA dello staging (01350f1):
+> 24 blocchi OFF-ON-ON-OFF ×6, N=12, Wilcoxon esatto two-sided, Marco
+> KEXP, un solo binario (il braccio è il flag). Motivo: il regime warm
+> ha un NEGATIVO pre-registrato (+7.1% contro, p=0.000977) e l'unico
+> positivo (cold −20%) non lo era — asimmetria indifendibile.
+> **Meccanismo di integrità specifico del freddo:** `fadv` prima di
+> OGNI run, `Cached` registrata prima/dopo, run COLD-VALID solo se il
+> calo ≥ 1000 MB E le letture superano il pavimento fissato dal primo
+> blocco OFF (11.14 GB, dichiarato in COLD_FLOOR.md prima delle
+> coppie). Perché conta: un reset fallito in silenzio produce una run
+> WARM, e warm è dove il K-F PERDE del 7% — quindi non aggiunge rumore,
+> **spinge sistematicamente a smentire la nostra stessa tesi**.
+> Registrata in anticipo anche la POLICY che un pass licenzierebbe:
+> K-F ON sse stall misurato alto E cache fredda E nessun allarme
+> termico; batteria esplicitamente NON un gate.
+> **Primi 4 blocchi (2 coppie su 12, non concludono):** il meccanismo
+> funziona — stall 22.8/22.3% (OFF) → 15.5/14.0% (ON), otto punti in
+> meno — ma le letture salgono 22.3 → 24.5 GB (+10%, prefetch sprecato)
+> e il tempo netto è pari: una coppia ON più lenta di 0.011, una in
+> pareggio. **Interruzione dichiarata:** alle 14:41 lo schermo si è
+> spento, sshd è morto e con lui l'harness (non era staccato — colpa
+> del mandato, non dell'agente); 93 minuti persi, 5 blocchi salvi,
+> RESUME_AT=6, ripresa in nohup con prova di sopravvivenza.
+> results/kf_cold_jelly/.
 > 📱 **CELLA REPLICA XIAOMI (16/08, in corso).** Replica pre-registrata
 > della claim di ship su secondo device: stesso ELF, stesso modello,
 > stesso prompt, cambia solo il telefono. PREREG committato PRIMA dello
