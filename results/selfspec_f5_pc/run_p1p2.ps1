@@ -11,7 +11,13 @@ $prompt= "$root\results\selfspec_f0\prompts\p_longfact.txt"
 
 function Log($m) {
     $line = "{0}  {1}" -f (Get-Date -Format o), $m
-    Add-Content -Path "$out\STATUS.txt" -Value $line -Encoding utf8
+    # A stale runner holding STATUS.txt open must not kill a 9-minute measurement:
+    # retry, then fall back to the console rather than throwing.
+    for ($i = 0; $i -lt 10; $i++) {
+        try { Add-Content -Path "$out\STATUS.txt" -Value $line -Encoding utf8 -ErrorAction Stop; return }
+        catch { Start-Sleep -Milliseconds 300 }
+    }
+    Write-Output "LOG_FALLBACK $line"
 }
 
 New-Item -ItemType Directory -Force -Path $out | Out-Null

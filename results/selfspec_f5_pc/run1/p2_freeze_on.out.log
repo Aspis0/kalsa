@@ -1,0 +1,25 @@
+You are a careful technical writer. Write in plain English. Do not use bullet-only answers; use short paragraphs and then a compact numbered list where a list is actually clearer.
+
+Topic: On a phone with 8 GB of RAM and UFS flash, compare three ways a 35B-class Mixture-of-Experts model can run:
+
+1. mmap the whole file and hope the kernel keeps hot pages,
+2. stream only the routed experts each token into an LRU cache of about 2 GiB, with dense (non-expert) weights held in anonymous buffers,
+3. split the dense trunk onto a mobile GPU and keep expert GEMMs on the CPU.
+
+For each way, explain what is resident, what is read from flash per token, what a major page fault means here, and why activating k=6 experts out of a much larger pool still leaves a large on-disk file. Then walk through one concrete decode step: router scores, top-k, cache hit vs miss, optional drop of a cold low-weight expert, and how that changes both the math and the bytes. Close with two quantitative caveats: (a) a cache hit rate is not a quality metric, (b) a tok/s number that excludes prefill and draft time is not the rate a user feels.
+
+Write about 400-600 words. No markdown fences. No invented benchmark numbers.
+Running a 35-billion parameter Mixture-of-Experts model on a device with 8 GB of RAM and UFS storage requires careful memory management. The total model size is substantial, often exceeding 10 GB even with quantization, which means the entire model cannot fit in RAM. The system must decide how to handle the data movement between the fast flash storage and the limited working memory.
+
+The first approach maps the entire model file into memory using memory-mapped I/O. The operating system kernel attempts to keep frequently accessed pages in RAM, but this relies entirely on the kernel’s paging algorithm. In this scenario, the whole file is logically resident, but only the hot pages are physically in RAM. A major page fault occurs when the kernel evicts a page to make room for new data, forcing a slow read from the UFS flash. This method is simple but unpredictable, as the kernel may evict critical expert weights just as they are needed.
+
+The second approach uses a strict streaming strategy with a limited 2 GiB LRU cache. Here, only the dense, non-expert weights are held in anonymous buffers in RAM. For each token, the router selects a small subset of experts, and the system streams only those specific expert weights from flash
+
+generation: 256 tokens, 0.291 s/token (3.431 tok/s)
+selfspec: 126/512 drafts accepted (24.6% = alpha), 1.97 tokens per verify decode (130 decodes for 256 tokens)
+selfspec: drafting costs 0.2569 s/token on top of decode → 1.82 tok/s effective (vs 3.43 reported)
+prefill: 304 tokens, 39.176 s (7.8 tok/s) | model load 5.781 s | TTFT 44.958 s
+moe-stream: read 32833.5 MiB (128.26 MiB/token), decode 0.291 s/token (compute 0.117 + cache mgmt 0.023 + flash I/O 0.601 s/token, 213 MiB/s)
+moe-cache: 76.3% hit, resident 1999.2 MiB
+moe-cache: 39316 evictions, 34171 re-reads (133.5/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.151 s/token (flash reads overlapped with FFN compute)

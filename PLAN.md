@@ -92,6 +92,25 @@
 > il prodotto-prefisso supera k_d/k_v (0.33) → γ=3 ottimo a k=2, γ=4 già
 > sovra-esteso; a k pari (ratio 1.0) NESSUNO slot qualifica — a1/a2 sono
 > bracci scientifici, mai candidati prodotto.**
+> **🔥 F5 — L'INVENZIONE FUNZIONA NEL LOOP VERO (2026-08-16, 35B hybrid,
+> 256 token, k2/k6 γ=4, `--chatml`): freeze OFF alpha di loop 8.6%
+> (51/594), 1.25 token/verify · freeze ON **24.6% (126/512), 1.97
+> token/verify**. **2.9× di alpha cambiando SOLO il flag.** Il braccio
+> OFF riproduce la baseline pubblicata di F1 (0.117), quindi il
+> confronto è pulito. Riprodotto su DUE binari diversi (d31ad8d
+> 08d16910 e 2a7f365 524973b8) con conteggi BIT-IDENTICI — greedy
+> deterministico, e vale anche da regressione del fix round.
+> Meccanismo: senza freeze ogni rifiuto riavvolge lo stato ricorrente
+> dai piani snapshot, ed è proprio il restore che E4 aveva dimostrato
+> sbagliato (R1-F1); col freeze non c'è riavvolgimento, la riga viva È
+> s_t0. L'alpha guadagnato è la rimozione di un difetto di stato, non
+> un bonus. RAM: 251.25 MiB risparmiati a γ=4 (misurato).
+> **MA sul PC la selfspec PERDE comunque** (5.99 plain vs 1.82
+> effettivi) e il prefill quasi raddoppia (19.1→37.0s: il contesto
+> draft rifà il prefill del prompt). Il caso velocità vive o muore su
+> flash — arm D1. Codice: 3 round di audit ostile, 6+2+? findings
+> CONFIRMED, tutti chiusi con test-che-falliva-prima.
+> results/selfspec_f5_pc/.**
 > Report completo: reports/moe-selfspec-e4.md. Spec F5 aggiornata
 > (arm D2 = γ ∈ {2,3,4}). **F5 NON lanciato: il classifier ha bloccato
 > l'avvio di grok con --always-approve mentre l'owner dorme — prompt

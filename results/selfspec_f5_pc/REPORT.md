@@ -34,7 +34,40 @@ saved". That was wrong — 314.06 MiB is the *total* buffer at γ=4; `n_rs_seq =
 still allocates the one live row (62.81 MiB). The saving is 251.25 MiB. Every
 document that said 314 has been corrected.
 
-## Result 2 — RETRACTED: the first speed table measured prefill, not decode
+## Result 2 — the freeze nearly TRIPLES loop alpha (the first loop-level evidence)
+
+256 tokens, `--chatml --no-think`, draft k=2 / verify k=6, γ=4. Same binary, same
+prompt, same config in both selfspec arms — **only the flag differs**.
+
+| arm | decode s/tok | **loop alpha** | tokens/verify | effective tok/s |
+|---|---|---|---|---|
+| p0 plain | 0.167 | — | — | **5.99** |
+| p1 freeze OFF | 0.397 | 51/594 = **8.6 %** | 1.25 | 1.33 |
+| p2 freeze ON | 0.291 | 126/512 = **24.6 %** | **1.97** | 1.82 |
+
+Freeze-OFF reproduces F1's published loop alpha (0.117 pooled window on the same
+prompt family), so the baseline is the known one and the comparison is clean.
+**Freeze-ON is 2.9× that**, and tokens per verify go 1.25 → 1.97 (+58 %).
+
+**Reproduced on a different binary.** Run 1 used `08d16910…` (rev `d31ad8d`),
+run 2 used `524973b8…` (rev `2a7f365`, after the N1/N2/N3 fix round): acceptance
+counts **bit-identical** (51/594 and 126/512), decode within 1 %. Greedy decoding
+is deterministic, so identical counts are the expected signature of a stable
+measurement — and they double as a regression check that the fix round did not
+perturb the loop.
+
+**Why the freeze buys acceptance** (mechanism, consistent with E4's R1-F1): with
+the freeze off, every rejection rewinds the draft context's recurrent state
+through the snapshot planes, and that restore is what E4 showed to be
+wrong — the draft then conditions on a state that is not s_{t0}. With the freeze
+on there is no rewind at all: the live row *is* s_{t0} by construction. The alpha
+gain is not a bonus, it is the removal of a silent state defect.
+
+**What this does not say:** self-speculation still loses badly to plain decoding
+on this host (5.99 vs 1.82 effective tok/s). The technique's speed case lives or
+dies on flash, where the draft's smaller expert footprint can pay — arm D1.
+
+## Result 3 — RETRACTED: the first speed table measured prefill, not decode
 
 **The first version of this report presented a speed comparison (30.2 / 46.4 /
 45.3 s "for 256 tokens") and read it as "speculation loses 0.67×". That was
