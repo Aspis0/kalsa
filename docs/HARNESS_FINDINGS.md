@@ -930,10 +930,34 @@ differently.
 cache may ever change. Satisfy that and `n_common` becomes 1712, the 1712 checkpoint matches
 exactly, and a turn costs only its new tokens.
 
-Prime suspect for those 66 tokens — **stated as a hypothesis, not a finding**: the Qwen3.5 chat
-template retroactively strips `<think>` blocks from earlier assistant turns (the sibling repo's
-`preserve_thinking` fix, which does not exist in this template). A `KALSA_KVDIVERGE` diagnostic
-printing the tokens on both sides of the divergence is queued to settle it by measurement.
+**Settled by measurement 2026-08-16** (`KALSA_KVDIVERGE`, APK 8 / `12868ea`, device run at
+19:49:38). The divergence is four tokens, and the log prints them in plain text:
+
+```
+shared : … PK42<|im_end|>\n<|im_start|>assistant\n
+cache  : <think>\n\n</think>\n\n Salvato! 👋 …
+prompt :                         Salvato! 👋 …
+```
+
+`shared_ids` ends `[… 248046 198 248045 74455 198]` (`<|im_end|> \n <|im_start|> assistant \n`);
+the cache then holds `[248068 271 248069 271]` — `<think>`, blank, `</think>`, blank — and from
+there both streams are identical (`16737 85 4189 0 59720 233 271 9` on each side).
+
+Qwen3.5's template injects an **empty** think block after the assistant header when it asks the
+model to answer with thinking disabled. Those four tokens enter the KV. The next turn replays the
+*stored* assistant message, which never had them. Nothing is misbehaving: the template is right to
+add them when prompting and right not to add them when repeating, and the divergence is the
+friction between two reasonable behaviours.
+
+The root cause on our side is that we keep only the cleaned, user-visible text — `Message`
+(`AiChatPage.tsx:199-222`) has `text` and nothing else — so what the model actually produced cannot
+be replayed. The fix is to separate the two: store the model-visible text, render the cleaned one.
+Deliberately **not** fixed by prepending the template's tokens in prompt assembly: this app also
+runs LFM2.5 and gemma, and hardcoding one template's internals buys today's fix with tomorrow's bug.
+
+Note the scale of the exchange, because it is the argument for instrumenting before theorising:
+**1646 tokens of valid cache, ~390 s of prefill, discarded every turn over four tokens of template
+punctuation.**
 
 **The latent defects found on the way** (real, worth fixing, but not the 390 s):
 
