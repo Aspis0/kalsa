@@ -111,6 +111,30 @@
 > flash — arm D1. Codice: 3 round di audit ostile, 6+2+? findings
 > CONFIRMED, tutti chiusi con test-che-falliva-prima.
 > results/selfspec_f5_pc/.**
+> **🧪 F5 CHAT MULTI-TURNO (16/08 mattina) — la prova nel caso d'uso
+> vero.** Sonda `chat_multiturn.py` via `bmoe-cli --session`, 3 turni,
+> `clear_kv:false` dal 2°: **senza freeze l'accettazione decade 3.9×
+> lungo la conversazione (0.117 → 0.100 → 0.030); col freeze non
+> decade (0.183 → 0.275 → 0.138), al 3° turno 4.6×.** Token emessi
+> identici nei due bracci (governa il target). Freeze verificato per
+> run dall'allocatore (draft ctx n_rs_seq=0 / 62.81 MiB), non assunto.
+> Braccio flag-off BIT-IDENTICO prima e dopo i fix: la feature non
+> tocca chi non la usa.
+> **AUDIT: 3 round + 3 finali su angoli/modelli diversi → 11 finding
+> CONFIRMED, 6 chiusi con test-che-falliva-prima (F5 fix a b3eb60c).
+> E TRE spiegazioni alternative proposte dagli auditor SONO CADUTE SUI
+> DATI:** (a) "il riuso del grafo vanifica il freeze" → 512 draft/130
+> cicli ≈ γ=4 e canary muto; lo skip-write vive nell'ask di compute,
+> non nel build; (b) "il guadagno viene da clear+rebuild a ogni
+> rifiuto" → un prefill costa 39s e p2 ha fatto 130 cicli in 187s, e
+> ha letto 32.8 GiB contro 51.8; (c) "il modello di chat è non-hybrid"
+> → l'allocatore nei log stessi dice n_rs_seq=0/62.81 MiB.
+> **RITRATTAZIONE ONESTA:** la prima tabella di velocità F5 misurava
+> prefill, non decode (le run avevano generato 1 token; nessun gate di
+> validità). Ritirata. Ne è uscito però un costo reale: **la selfspec
+> quasi raddoppia il prefill (+94%)** perché il contesto draft rifà il
+> prefill del prompt — non ammortizzabile su risposte corte.
+> results/selfspec_f5_pc/ (REPORT + 5 audit archiviati).
 > Report completo: reports/moe-selfspec-e4.md. Spec F5 aggiornata
 > (arm D2 = γ ∈ {2,3,4}). **F5 NON lanciato: il classifier ha bloccato
 > l'avvio di grok con --always-approve mentre l'owner dorme — prompt
@@ -139,7 +163,27 @@
 > ritocco a discrezione owner. results/mellum2_dropcurve/.**
 > 3 survivor ingegneristici senza claim (controller stutter
 > ExpertFlow-style, repack lazy hot ×1.27, corazza anti-zram).**
- — aggiornato 2026-08-15 (notte fonda)
+> 📱 **CELLA REPLICA XIAOMI (16/08, in corso).** Replica pre-registrata
+> della claim di ship su secondo device: stesso ELF, stesso modello,
+> stesso prompt, cambia solo il telefono. PREREG committato PRIMA dello
+> staging con **predizione registrata: effetto più piccolo o nullo qui**
+> (11.4 GB RAM, SD8G3, flash veloce → il braccio stock soffre meno il
+> costo I/O che il certificato rimuove; stall a freddo 8.7%). Un nullo è
+> SCOPE, non fallimento. **3 emendamenti, tutti prima di qualsiasi
+> dato:** (1) l'ELF della claim esisteva SOLO sul S23 — tirato,
+> verificato 7/7 file bit-identici, archiviato (models_staging/); (2)
+> J/token non riproducibile qui (sysfs negato a uid 2000) → coulomb
+> counter, 2 letture per run, meno perturbante del sampler 1 Hz del S23;
+> (3) **lo schermo resta acceso** (prassi di questo device contro Doze)
+> e questo GONFIA il J/token del braccio lento, cioè favorisce la NOSTRA
+> config sull'unico asse dove il S23 era rosso → misurata baseline
+> **P₀ = 0.503 W**, energia riportata grezza E corretta. Baseline dello
+> stesso ordine di TUTTO il calcolo (S23: 0.42/0.82 W): senza correzione
+> il segno del +11.8% si ribalterebbe per artefatto.
+> Staging verificato per hash sul device; harness portato a `sh` POSIX
+> (23 colonne identiche → analyzer S23 intoccato). Run delegata a grok.
+> results/kernel_ship_ab_xiaomi/.
+ — aggiornato 2026-08-16 (mattina)
 
 > 🏆🏆 **IL P-VALUE È ARRIVATO (2026-08-15 ~00:30): SHIP CRITERION MET.**
 > Cella pre-registrata Mellum2-S23, 12 coppie ABBA da telefono
