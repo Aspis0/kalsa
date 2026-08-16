@@ -2392,7 +2392,7 @@ function aggregateTools(results) {
         files: 0,
         toolRequired: { found: 0, total: 0 },
         toolForbidden: { found: 0, total: 0 },
-        toolSelection: { found: 0, total: 0 },
+        toolSelection: { found: 0, total: 0, noCall: 0 },
       });
     }
     const g = byArm.get(arm);
@@ -2405,8 +2405,15 @@ function aggregateTools(results) {
         g.toolForbidden.total += 1;
         if (probe.found === true) g.toolForbidden.found += 1;
       } else if (probe.family === "tool_selection") {
-        g.toolSelection.total += 1;
-        if (probe.found === true) g.toolSelection.found += 1;
+        const noCall = probe.noCall === true || probe.callCount === 0;
+        if (noCall) {
+          g.toolSelection.noCall += 1;
+        } else {
+          // Selection is conditional on attempting a call. A no-call turn is
+          // a recall failure, not a wrong-tool selection.
+          g.toolSelection.total += 1;
+          if (probe.found === true) g.toolSelection.found += 1;
+        }
       }
     }
   }
@@ -2416,7 +2423,7 @@ function aggregateTools(results) {
     files: g.files,
     toolRequiredRate: g.toolRequired.total > 0 ? g.toolRequired.found / g.toolRequired.total : 0,
     toolForbiddenRate: g.toolForbidden.total > 0 ? g.toolForbidden.found / g.toolForbidden.total : 0,
-    toolSelectionRate: g.toolSelection.total > 0 ? g.toolSelection.found / g.toolSelection.total : 0,
+    toolSelectionRate: g.toolSelection.total > 0 ? g.toolSelection.found / g.toolSelection.total : null,
     toolRequired: g.toolRequired,
     toolForbidden: g.toolForbidden,
     toolSelection: g.toolSelection,
@@ -2434,8 +2441,8 @@ function renderTools(agg) {
   }
   lines.push(
     "",
-    "| arm | tool_required | tool_forbidden | tool_selection | runs |",
-    "|---|---|---|---|---|",
+    "| arm | tool_required | tool_forbidden | tool_selection | sel_no_call | runs |",
+    "|---|---|---|---|---|---|",
   );
   for (const r of agg.rows) {
     const reqStr = r.toolRequired.total > 0
@@ -2447,7 +2454,7 @@ function renderTools(agg) {
     const selStr = r.toolSelection.total > 0
       ? `${fmt(r.toolSelectionRate)} (${r.toolSelection.found}/${r.toolSelection.total})`
       : "n/a (0/0)";
-    lines.push(`| ${r.arm} | ${reqStr} | ${forbStr} | ${selStr} | ${r.files} |`);
+    lines.push(`| ${r.arm} | ${reqStr} | ${forbStr} | ${selStr} | ${r.toolSelection.noCall} | ${r.files} |`);
   }
   return lines.join("\n");
 }

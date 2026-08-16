@@ -181,6 +181,7 @@ test("tool_selection: fail when wrong tool called", () => {
   assertEquals(result.family, "tool_selection");
   assertEquals(result.expectedTool, "web_fetch");
   assertEquals(result.found, false, "Should fail when wrong tool called");
+  assertEquals(result.noCall, false, "Wrong-tool calls are not no-call turns");
 });
 
 test("tool_selection: fail when no tool called", () => {
@@ -199,6 +200,7 @@ test("tool_selection: fail when no tool called", () => {
   assertEquals(result.family, "tool_selection");
   assertEquals(result.expectedTool, "document_chat");
   assertEquals(result.found, false, "Should fail when no tool called");
+  assertEquals(result.noCall, true, "Should expose no-call as a distinct outcome");
 });
 
 test("tool_selection: pass with fallback call of correct tool", () => {

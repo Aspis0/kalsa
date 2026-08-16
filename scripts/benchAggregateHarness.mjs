@@ -39,6 +39,18 @@ function probe(name, family, found, turnIndex = 1) {
   return { name, family, turnIndex, expected: name, found };
 }
 
+function selectionProbe(found, callCount) {
+  return {
+    name: "tool_selection",
+    family: "tool_selection",
+    turnIndex: callCount,
+    expected: "web_search",
+    found,
+    callCount,
+    noCall: callCount === 0,
+  };
+}
+
 function baseResult(overrides = {}) {
   return {
     schema: 2,
@@ -355,6 +367,37 @@ async function main() {
   console.log("temp dir:", tmp);
 
   try {
+    // ── Tools selection is conditional on making a call ────────────────
+    {
+      const cases = [
+        {
+          name: "3 no-calls",
+          probes: [selectionProbe(false, 0), selectionProbe(false, 0), selectionProbe(false, 0)],
+          expected: "| baseline | n/a (0/0) | n/a (0/0) | n/a (0/0) | 3 | 1 |",
+        },
+        {
+          name: "2 correct, 1 wrong",
+          probes: [selectionProbe(true, 1), selectionProbe(true, 1), selectionProbe(false, 1)],
+          expected: "| baseline | n/a (0/0) | n/a (0/0) | 0.667 (2/3) | 0 | 1 |",
+        },
+        {
+          name: "1 correct, 1 wrong, 1 no-call",
+          probes: [selectionProbe(true, 1), selectionProbe(false, 1), selectionProbe(false, 0)],
+          expected: "| baseline | n/a (0/0) | n/a (0/0) | 0.500 (1/2) | 1 | 1 |",
+        },
+      ];
+      for (const [i, c] of cases.entries()) {
+        const d = path.join(tmp, `tools-selection-${i}`);
+        mkdirSync(d, { recursive: true });
+        writeResult(d, "baseline", 1, baseResult({
+          phase: "tools",
+          probes: c.probes,
+        }));
+        const { markdown } = runAggregate([d]);
+        check(`${c.name}: tools table`, markdown.includes(c.expected), markdown);
+      }
+    }
+
     // ── 1. Complete 3 modes × 3 seeds fase4 campaign → tables, exit 0 ─
     {
       const d = path.join(tmp, "complete");
