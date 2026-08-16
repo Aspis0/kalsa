@@ -53,6 +53,20 @@
 > A2 G=8 (refs O(B²/G) più economici) → A1 G=4 (headline) → A3 k2
 > (prodotto). Poi, se GO: F5 loop reale; cella device su S23 con
 > CalaQwen IQ2_M (modello già a bordo, serve build Android).
+> **🚨 E4 PRIMO RISULTATO REALE (2026-08-16 01:54, CalaQwen-35B PC,
+> rev c977d58, wall 4073s): A2 G=8 →
+> `E4_GO_PENDING_G4(alpha1=1.000, EL=3.556)`. Tutti e quattro i gate
+> BITWISE VERDI (S1 identity 300/300 dlogit=0 dopo il fix ref-su-ctx_dft;
+> S2 leftover 38/38=0; S2 freeze-read 38/38=0; S3 post-catch-up 37/37=0):
+> il congelamento NON contamina e il catch-up ricostruisce esattamente.
+> Curva accettazione: α_s0 0.974 · **α_s1 1.000** · α_s2 0.789 ·
+> α_s3 0.579 · α_s4 0.486 · α_s5 0.541 · α_s6 0.378 · α_s7 0.378 —
+> macro 193/300 = 0.643, **E[L] = 3.556 token per verify a G=8**.
+> Confronto onesto col paper mirror (Component-Aware SSD, polarità
+> opposta, α=0.038 all-token a k=2): il nostro α_s1 = 1.000 e il macro
+> 0.643 stanno **oltre un ordine di grandezza sopra**. `alpha_alltok(G=8)
+> = 0.000` è atteso (richiede 8/8 token corretti di fila). Il verdetto
+> ufficiale resta ad A1 G=4 (in corsa da 01:54).**
 > **DROPCURVE VERDETTO (notte 15-16/08): DROPCURVE_OPTIMUM(dstar=0.5,
 > dMacro=−0.0150). IL CLAIM VIVE: potare gli esperti freddi MIGLIORA
 > la PPL multilingue — minimo reale a d=0.5 (−0.0015 sotto k6d0,

@@ -1,0 +1,19 @@
+E4_GO_PENDING_G4(alpha1=1.000, EL=3.556)
+selfspec-diag e4 S1 flag-off identity: PASS argmax 300/300 max|dlogit|=0
+selfspec-diag e4 S2 σ=0 leftover: PASS argmax 38/38 max|dlogit|=0
+selfspec-diag e4 S2 freeze-read (true state): PASS argmax 38/38 max|dlogit|=0
+selfspec-diag e4 S3 post-catch-up σ=0: PASS argmax 37/37 max|dlogit|=0
+selfspec-diag e4 alpha_s0: 37/38=0.974 max|dlogit| p50=1.168 p95=2.042
+selfspec-diag e4 alpha_s1: 38/38=1.000 max|dlogit| p50=1.172 p95=3.473
+selfspec-diag e4 alpha_s2: 30/38=0.789 max|dlogit| p50=11.4 p95=16.99
+selfspec-diag e4 alpha_s3: 22/38=0.579 max|dlogit| p50=13.77 p95=19.89
+selfspec-diag e4 alpha_s4: 18/37=0.486 max|dlogit| p50=14.98 p95=20.56
+selfspec-diag e4 alpha_s5: 20/37=0.541 max|dlogit| p50=14.94 p95=21.98
+selfspec-diag e4 alpha_s6: 14/37=0.378 max|dlogit| p50=15.28 p95=22.35
+selfspec-diag e4 alpha_s7: 14/37=0.378 max|dlogit| p50=15.78 p95=20.85
+selfspec-diag e4: macro_alpha 193/300=0.643 E[L]=3.556 alpha_alltok(G=8)=0.000 draft_k=6 verify_k=6 noped=360
+n_prompt=293
+n_gold=300
+draft_k=6
+verify_k=6
+prefill_k=6

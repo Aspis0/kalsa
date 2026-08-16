@@ -1,0 +1,22 @@
+2026-08-15T10:45:37-04:00  === E4 ARMS RUNNER START ===
+2026-08-15T10:45:37-04:00  WAIT_GATE start: need 6x'END k6' in dropcurve STATUS and no bmoe-cli.exe
+2026-08-15T10:45:38-04:00  WAIT_GATE progress: dropcurve arms done=2/6 busy=True
+2026-08-15T14:00:52-04:00  WAIT_GATE progress: dropcurve arms done=3/6 busy=True
+2026-08-15T15:55:59-04:00  WAIT_GATE progress: dropcurve arms done=4/6 busy=True
+2026-08-15T19:46:13-04:00  WAIT_GATE progress: dropcurve arms done=5/6 busy=True
+2026-08-15T23:26:28-04:00  WAIT_GATE open: dropcurve complete, PC free
+2026-08-15T23:26:28-04:00  PIN git_rev=dc944f5
+2026-08-15T23:26:28-04:00  PIN bin_sha=35e16b585fcdcb2c8654cee154c3a945be8e1534e5797a11fcb12ef81a8b989d
+2026-08-15T23:26:59-04:00  PIN model_sha=ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a
+2026-08-15T23:26:59-04:00  RUN a2_g8: C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --selfspec-draft-k 6 --selfspec-gamma 8 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt --selfspec-gold C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\streams\longfact_target.txt --selfspec-diag e4 --selfspec-diag-out C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_e4\a2_g8
+2026-08-16T00:37:05-04:00  DONE a2_g8 rc=1 wall=4206s verdict=E4_SANITY_FAIL(S1=FAIL, S2=PASS, S3=PASS)
+2026-08-16T00:37:05-04:00  ABORT remaining arms: a2_g8 says instrument broken (E4_SANITY_FAIL(S1=FAIL, S2=PASS, S3=PASS))
+2026-08-16T00:37:05-04:00  E4_ARMS_ABORT
+2026-08-16T00:46:19-04:00  === E4 ARMS RUNNER START ===
+2026-08-16T00:46:19-04:00  WAIT_GATE skipped (FORCE_START=1)
+2026-08-16T00:46:19-04:00  PIN git_rev=c977d58
+2026-08-16T00:46:19-04:00  PIN bin_sha=6ae38f4b192a07863d45e428873c9569c56b0310e1e0287103ce870f9cdd36da
+2026-08-16T00:46:42-04:00  PIN model_sha=ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a
+2026-08-16T00:46:42-04:00  RUN a2_g8: C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --selfspec-draft-k 6 --selfspec-gamma 8 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt --selfspec-gold C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\streams\longfact_target.txt --selfspec-diag e4 --selfspec-diag-out C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_e4\a2_g8
+2026-08-16T01:54:35-04:00  DONE a2_g8 rc=0 wall=4073s verdict=E4_GO_PENDING_G4(alpha1=1.000, EL=3.556)
+2026-08-16T01:54:35-04:00  RUN a1_g4: C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --selfspec-draft-k 6 --selfspec-gamma 4 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt --selfspec-gold C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\streams\longfact_target.txt --selfspec-diag e4 --selfspec-diag-out C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_e4\a1_g4
