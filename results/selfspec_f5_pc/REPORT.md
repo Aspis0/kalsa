@@ -1,8 +1,12 @@
 # F5 arms P1/P2 — first exercise of the freeze on a real hybrid (PC)
 
-2026-08-16 07:00-07:03. Binary `build-f5/cli/bmoe-cli.exe` sha `0bc29020…`,
-rev `0b725d3`. Model CalaQwen `Qwen3.6-35B-A3B-KEXP.gguf`. Raw `--prompt-file`
-p_longfact, `-n 256`, `-t 4`, campaign flags, no drop.
+2026-08-16, five runs across four revisions (`0b725d3` → `8ed1f0d`), binary
+`build-f5/cli/bmoe-cli.exe`. Model CalaQwen `Qwen3.6-35B-A3B-KEXP.gguf`,
+p_longfact, `-n 256`, `-t 4`, campaign flags, no drop. Runs 1-2 were invalid
+(1 token, see Result 3); runs 3-5 used `--chatml --no-think` and generated 256.
+**Surviving artifacts: `run1/` (rev 0b725d3, 1-token) and `run3_8ed1f0d/` (the
+last run). Everything quoted as measured below comes from those**, except where
+explicitly marked as coming from an overwritten log.
 
 ## Why these arms exist
 
@@ -39,15 +43,25 @@ document that said 314 has been corrected.
 256 tokens, `--chatml --no-think`, draft k=2 / verify k=6, γ=4. Same binary, same
 prompt, same config in both selfspec arms — **only the flag differs**.
 
-| arm | decode s/tok | **loop alpha** | tokens/verify | effective tok/s |
-|---|---|---|---|---|
-| p0 plain | 0.167 | — | — | **5.99** |
-| p1 freeze OFF | 0.397 | 51/594 = **8.6 %** | 1.25 | 1.33 |
-| p2 freeze ON | 0.291 | 126/512 = **24.6 %** | **1.97** | 1.82 |
+**Every number below is from the surviving logs of the last run**
+(`run3_8ed1f0d/`, rev `8ed1f0d`). An earlier version of this report quoted
+timings from runs whose logs had been overwritten by the next run — a claims
+audit caught it (`AUDIT_claims_final.md`, C1/C4/C5). The runner now archives each
+run into its own directory.
 
-Freeze-OFF reproduces F1's published loop alpha (0.117 pooled window on the same
-prompt family), so the baseline is the known one and the comparison is clean.
-**Freeze-ON is 2.9× that**, and tokens per verify go 1.25 → 1.97 (+58 %).
+| arm | decode s/tok | **loop alpha** | tokens/verify | effective tok/s | read |
+|---|---|---|---|---|---|
+| p0 plain | 0.170 | — | — | **5.89** | 12 734 MiB |
+| p1 freeze OFF | 0.397 | 51/594 = **8.6 %** | 1.25 | 1.33 | 51 776 MiB |
+| p2 freeze ON | 0.292 | 126/512 = **24.6 %** | **1.97** | 1.81 | 32 834 MiB |
+
+**Freeze-ON is 2.9× the acceptance of freeze-OFF**, and tokens per verify go
+1.25 → 1.97 (+58 %). It also reads **37 % fewer bytes** than freeze-OFF
+(32.8 vs 51.8 GiB) while producing the same 256 tokens.
+
+Freeze-OFF's 8.6 % sits in the same low band as F1's published 0.117 pooled
+window alpha. That is a **qualitative consistency check, not a reproduction** —
+different binary, different session, 27 % apart in relative terms.
 
 **Reproduced on three binaries spanning the whole fix history** — `d31ad8d`
 (`08d16910…`), `2a7f365` (`524973b8…`), `8ed1f0d`: acceptance counts
@@ -70,8 +84,31 @@ wrong — the draft then conditions on a state that is not s_{t0}. With the free
 on there is no rewind at all: the live row *is* s_{t0} by construction. The alpha
 gain is not a bonus, it is the removal of a silent state defect.
 
+**The rival explanation, tested and rejected.** A claims audit proposed that the
+gain is not the freeze at all but a side effect: with `n_rs_seq = 0` the stock
+`seq_rm` would fail on every rejection, trigger a full `llama_memory_clear`, and
+the draft context would be rebuilt from scratch each cycle. Two independent
+measurements kill it:
+
+- **Wall clock.** One prefill of this prompt costs 39 s (measured). p2 ran 130
+  verify cycles; rebuilding on even half of them would cost tens of minutes. The
+  entire p2 run took **187 s**.
+- **Bytes.** A rebuild-per-rejection path would read far *more* than the
+  snapshot path. p2 read **32.8 GiB vs p1's 51.8 GiB** — a third less.
+
+Its supporting premise (that graph reuse defeats the freeze on drafts 2..γ) was
+separately refuted in code: skip-write lives in the **compute-time eval-callback
+ask**, not in graph build, so a reused graph is still frozen
+(`ggml-backend.cpp:1677-1688`, `router_hook.cpp:1183`). The canary that would fire
+if that ever stopped being true stayed silent in all three runs.
+
+**The dependency that follows, stated because it is load-bearing:** the freeze
+works because `cb_eval` is installed and ggml asks about every node at compute
+time. Remove the callback, or take ggml's non-callback path, and skip-write
+silently stops applying. The canary is the sensor for exactly that.
+
 **What this does not say:** self-speculation still loses badly to plain decoding
-on this host (5.99 vs 1.82 effective tok/s). The technique's speed case lives or
+on this host (5.89 vs 1.81 effective tok/s). The technique's speed case lives or
 dies on flash, where the draft's smaller expert footprint can pay — arm D1.
 
 ## Result 3 — RETRACTED: the first speed table measured prefill, not decode
@@ -92,11 +129,16 @@ What those runs *do* legitimately show, from the same logs:
 | p1 freeze OFF | 6.7 s | **37.0 s** | 1 | 0/4 |
 | p2 freeze ON | 6.1 s | **37.1 s** | 1 | 0/3 |
 
+*(Those 1-token logs were overwritten by later runs; the prefill-doubling they
+showed is reproduced in the surviving 256-token logs: 20.2 s plain vs 39.2 /
+39.0 s selfspec, +94 %. The per-step MiB figures quoted below are from the
+overwritten logs and are not independently verifiable — flagged by the claims
+audit, C5.)*
+
 **Prefill nearly doubles (+94 %) when self-speculation is on**, because the draft
 context prefills the same 293 tokens a second time. That cost is real, it is
 paid before the first token, and on a streamed device it is flash reads
-(p0 read 188.8 MiB for its single step, p1 420.3 MiB). It is independent of the
-freeze (both selfspec arms pay it) and it is a genuine argument against the
+It is independent of the freeze (both selfspec arms pay it) and it is a genuine argument against the
 technique on short answers, where it can never be amortised.
 
 The acceptance figures (0/4, 0/3) come from a single cycle each and say nothing

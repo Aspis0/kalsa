@@ -1064,7 +1064,7 @@ graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n
 sched_reserve:        CPU compute buffer size =   503.02 MiB
 sched_reserve: graph nodes  = 3567
 sched_reserve: graph splits = 1
-sched_reserve: reserve took 28.18 ms, sched copies = 1
+sched_reserve: reserve took 26.59 ms, sched copies = 1
 set_n_threads: n_threads = 4, n_threads_batch = 4
 set_abort_callback: call
 bmoe: dense-weights=anon — 1664 MiB in 613 anon buffers

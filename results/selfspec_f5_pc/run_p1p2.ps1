@@ -21,6 +21,12 @@ function Log($m) {
 }
 
 New-Item -ItemType Directory -Force -Path $out | Out-Null
+# Each run gets its own directory. Overwriting fixed log names cost this report
+# its timing provenance once: the numbers were real when read, then unverifiable
+# because the next run had eaten the logs.
+$rev = (& git -C "$root\BigMoeOnEdge-selfspec-f1" rev-parse --short HEAD)
+$out = Join-Path $out ("run_{0}_{1}" -f $rev, (Get-Date -Format "MMdd-HHmmss"))
+New-Item -ItemType Directory -Force -Path $out | Out-Null
 # The CLI is dynamically linked; its DLLs live in build-f5\bin, not next to the
 # exe. Without this the process dies instantly with 0xc0000135 and leaves a
 # 0-byte log — which looks exactly like "it ran and produced nothing".

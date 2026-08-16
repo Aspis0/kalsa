@@ -1064,7 +1064,7 @@ graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n
 sched_reserve:        CPU compute buffer size =   503.02 MiB
 sched_reserve: graph nodes  = 3927
 sched_reserve: graph splits = 1
-sched_reserve: reserve took 25.67 ms, sched copies = 1
+sched_reserve: reserve took 27.60 ms, sched copies = 1
 set_n_threads: n_threads = 4, n_threads_batch = 4
 llama_context: constructing llama_context
 llama_context: n_seq_max     = 1
@@ -1187,7 +1187,7 @@ graph_reserve: reserving a graph for ubatch with n_tokens =   32, n_seqs =  1, n
 sched_reserve:        CPU compute buffer size =    31.44 MiB
 sched_reserve: graph nodes  = 3607
 sched_reserve: graph splits = 1
-sched_reserve: reserve took 23.70 ms, sched copies = 1
+sched_reserve: reserve took 33.55 ms, sched copies = 1
 set_n_threads: n_threads = 4, n_threads_batch = 4
 set_abort_callback: call
 set_abort_callback: call

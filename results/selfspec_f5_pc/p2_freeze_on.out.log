@@ -15,11 +15,11 @@ The first approach maps the entire model file into memory using memory-mapped I/
 
 The second approach uses a strict streaming strategy with a limited 2 GiB LRU cache. Here, only the dense, non-expert weights are held in anonymous buffers in RAM. For each token, the router selects a small subset of experts, and the system streams only those specific expert weights from flash
 
-generation: 256 tokens, 0.294 s/token (3.396 tok/s)
+generation: 256 tokens, 0.292 s/token (3.424 tok/s)
 selfspec: 126/512 drafts accepted (24.6% = alpha), 1.97 tokens per verify decode (130 decodes for 256 tokens)
-selfspec: drafting costs 0.2591 s/token on top of decode → 1.81 tok/s effective (vs 3.40 reported)
-prefill: 304 tokens, 38.794 s (7.8 tok/s) | model load 5.461 s | TTFT 44.255 s
-moe-stream: read 32833.5 MiB (128.26 MiB/token), decode 0.294 s/token (compute 0.118 + cache mgmt 0.023 + flash I/O 0.610 s/token, 210 MiB/s)
+selfspec: drafting costs 0.2591 s/token on top of decode → 1.81 tok/s effective (vs 3.42 reported)
+prefill: 304 tokens, 39.018 s (7.8 tok/s) | model load 5.894 s | TTFT 44.913 s
+moe-stream: read 32833.5 MiB (128.26 MiB/token), decode 0.292 s/token (compute 0.117 + cache mgmt 0.023 + flash I/O 0.603 s/token, 213 MiB/s)
 moe-cache: 76.3% hit, resident 1999.2 MiB
 moe-cache: 39316 evictions, 34171 re-reads (133.5/token) — bytes the cache had already paid for once
-moe-overlap: stall 0.153 s/token (flash reads overlapped with FFN compute)
+moe-overlap: stall 0.151 s/token (flash reads overlapped with FFN compute)

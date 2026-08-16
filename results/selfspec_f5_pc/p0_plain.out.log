@@ -13,9 +13,9 @@ Running a 35 billion parameter Mixture-of-Experts model on a device with 8 GB of
 
 First, memory-mapping the entire model file allows the operating system kernel to handle paging automatically. In this scenario, the entire model file remains on disk, and only the specific weights required for the current computation are loaded into RAM. A major page fault occurs when the kernel must read a full page from the slower UFS storage because the requested data is not in physical memory. This approach is simple to implement but suffers from high latency if the kernel cannot keep all necessary hot pages resident. Second, streaming only the routed experts into a limited 2 GiB Least Recently Used cache offers a more controlled approach. Here, dense weights are held in anonymous buffers, while expert weights are fetched dynamically. A page fault here is a deliberate miss in the application-level cache
 
-generation: 256 tokens, 0.166 s/token (6.022 tok/s)
-prefill: 304 tokens, 20.026 s (15.2 tok/s) | model load 9.038 s | TTFT 29.063 s
-moe-stream: read 12734.2 MiB (49.74 MiB/token), decode 0.166 s/token (compute 0.095 + cache mgmt 0.010 + flash I/O 0.202 s/token, 246 MiB/s)
+generation: 256 tokens, 0.170 s/token (5.894 tok/s)
+prefill: 304 tokens, 20.159 s (15.1 tok/s) | model load 6.387 s | TTFT 26.546 s
+moe-stream: read 12734.2 MiB (49.74 MiB/token), decode 0.170 s/token (compute 0.093 + cache mgmt 0.009 + flash I/O 0.214 s/token, 233 MiB/s)
 moe-cache: 73.9% hit, resident 1999.2 MiB
 moe-cache: 15753 evictions, 11117 re-reads (43.4/token) — bytes the cache had already paid for once
-moe-overlap: stall 0.062 s/token (flash reads overlapped with FFN compute)
+moe-overlap: stall 0.068 s/token (flash reads overlapped with FFN compute)
