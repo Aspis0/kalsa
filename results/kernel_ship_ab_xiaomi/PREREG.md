@@ -89,6 +89,31 @@ allowed to convert a loss into a win by re-reading it as one-sided.
 - **Continuation**: if the battery floor stops the sequence, the remainder runs
   on the next battery cycle, same protocol, appended whole pairs only.
 
+**AMENDMENT 3 (2026-08-16 ~10:4x, before any run and before any data): the
+screen stays ON for this session, and that biases metric 3 in our favour — so it
+is measured and declared.**
+
+The device-side harness forces the screen awake (`screen_off_timeout` 7 200 000).
+This follows the precedent of every prior cell on *this* phone
+(`run_xiaomi_t4_round.sh` issues `KEYCODE_WAKEUP` and refuses to run unless
+`mWakefulness=Awake`), which exists because Doze contaminated earlier Xiaomi
+measurements. The S23 cell, by contrast, only *logged* the screen state.
+
+Consequence, stated plainly: a screen draws roughly constant power, so its energy
+lands **per unit time**, and arm A is the slower arm per token. The screen
+therefore inflates A's J/token more than B's — **a bias that flatters the
+certified config on the one axis where the S23 cell came out RED (+11.8 %)**.
+
+Mitigation declared before any run: a **screen-on idle baseline** is measured
+immediately before the session (coulomb counter over 180 s, no compute), giving
+the device's constant draw P₀. Metric 3 is then reported **twice**: raw
+J/token, and J/token with `P₀ × t` subtracted per run. If the two disagree in
+sign, the corrected figure is the one quoted, and both are shown. Screen state is
+logged on every run (`screen` column) so any deviation is visible.
+
+This does not touch the confirmatory metric: decode s/token is unaffected by
+screen power.
+
 ## Primary metrics (declared now)
 
 1. **Decode wall s/token** (harness-parsed `decode X s/token`), per run —
