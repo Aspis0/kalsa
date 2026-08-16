@@ -3457,10 +3457,58 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
            * aborted/failed, sendRunId (AiChatPage).
            */
           let releaseSaveGate: (() => void) | undefined;
+          let extractGateSource = 0;
+          const emitSettledMemoryTelemetry = async (
+            snapshot?: ReturnType<typeof MemoryStore.snapshotMemoryTelemetry>,
+          ) => {
+            let extractTelemetry = snapshot;
+            if (!extractTelemetry) {
+              // The turn-end reset clears this state before the extract job runs.
+              // Re-read it here so the settled line is authoritative in both
+              // directions (memory on and memory off).
+              const settledMemoryEnabled = await MemoryStore.getEnabled();
+              MemoryStore.trackMemoryEnabled(settledMemoryEnabled);
+              const settledFacts = await MemoryStore.listFacts();
+              MemoryStore.trackMemoryStoreSize(settledFacts.length);
+              extractTelemetry = MemoryStore.snapshotMemoryTelemetry();
+            }
+            console.log(formatMemoryLine({
+              ...extractTelemetry,
+              // Injection belongs to the turn, not to extraction.
+              factsInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+            }, "KALSA_MEMORY_EXTRACT"));
+          };
+          const trackMemoryExtractJob = (extractJob: Promise<void>) => {
+            memoryExtractRef.current = extractJob;
+            void extractJob.finally(() => {
+              if (memoryExtractRef.current === extractJob) {
+                memoryExtractRef.current = null;
+              }
+            });
+          };
           const armMemoryExtract = () => {
             if (extractScheduled) return;
             extractScheduled = true;
-            if (signal.aborted || turnFailed || !assistantFull.trim()) return;
+            if (signal.aborted || turnFailed || !assistantFull.trim()) {
+              // Snapshot before any await: this turn never had an extract job,
+              // so a later turn's counters must not appear on its stop-reason line.
+              MemoryStore.trackMemoryEnabled(memoryEnabledRef.current);
+              MemoryStore.trackMemoryExtractStopReason(4);
+              const earlyTelemetry = {
+                ...MemoryStore.snapshotMemoryTelemetry(),
+                factsExtracted: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                factsStored: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                factsRejectedSensitive: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                factsRejectedFull: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                factsInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                totalFactsInStore: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                extractParseOutcome: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                extractGateSource: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                extractStopReason: 4,
+              };
+              trackMemoryExtractJob(emitSettledMemoryTelemetry(earlyTelemetry));
+              return;
+            }
 
             const capturedAssistant = assistantFull;
             const capturedUser = text;
@@ -3471,6 +3519,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             });
             // clearChat/stop aborts the signal — release so we never hang the ref.
             const onAbortRelease = () => {
+              if (releaseSaveGate && extractGateSource === 0) extractGateSource = 3;
               releaseSaveGate?.();
             };
             signal.addEventListener("abort", onAbortRelease, { once: true });
@@ -3481,29 +3530,35 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // send. Worst case of firing early: the save skips with
             // kv_not_chat, which is the pre-feature behavior, never a hang.
             const gateTimeoutId = setTimeout(() => {
+              if (releaseSaveGate && extractGateSource === 0) extractGateSource = 2;
               releaseSaveGate?.();
             }, 10_000);
 
             const extractJob = (async () => {
-              // Track whether extraction actually ran (vs. early-returned).
-              // Only emit extract-complete telemetry if we called extractMemory().
-              let extractionRan = false;
               try {
                 await saveGate;
-                if (signal.aborted || turnFailed) return;
-                if (!(await MemoryStore.getEnabled())) return;
-                if (MemoryStore.getEpoch() !== startEpoch) return;
+                if (signal.aborted || turnFailed) {
+                  MemoryStore.trackMemoryExtractStopReason(1);
+                  return;
+                }
+                if (!(await MemoryStore.getEnabled())) {
+                  MemoryStore.trackMemoryExtractStopReason(2);
+                  return;
+                }
+                if (MemoryStore.getEpoch() !== startEpoch) {
+                  MemoryStore.trackMemoryExtractStopReason(3);
+                  return;
+                }
 
+                MemoryStore.trackMemoryExtractStopReason(0);
                 const { add, remove, parseOutcome } = await extractMemory(
                   capturedUser,
                   capturedAssistant,
                   locale,
                 );
-                extractionRan = true;
 
-                // Track parse outcome BEFORE the early return so telemetry
-                // distinguishes "model returned valid JSON with empty arrays" (1)
-                // from "parser rejected" (2) from "did not run" (0).
+                // Track parse outcome BEFORE the early return; outcome codes are
+                // documented with trackMemoryParseOutcome in MemoryStore.ts.
                 MemoryStore.trackMemoryParseOutcome(parseOutcome);
 
                 // Single batched apply: re-checks epoch + enabled under the store mutex
@@ -3521,16 +3576,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   await refreshMemoryFacts();
                 }
               } catch {
+                MemoryStore.trackMemoryParseOutcome(3);
                 // ignore — extraction must never surface to the user
               } finally {
-                // Emit extract-complete telemetry line (separate from turn-end line).
-                // Only emit if extraction actually ran (not early-returned).
-                // This makes extraction results observable even when they land late.
-                if (extractionRan && !signal.aborted) {
-                  const extractTelemetry = MemoryStore.snapshotMemoryTelemetry();
-                  console.log(formatMemoryLine(extractTelemetry, "KALSA_MEMORY_EXTRACT"));
-                }
-                
+                // Record the gate source before taking the late-arriving snapshot.
+                MemoryStore.trackMemoryExtractGateSource(extractGateSource);
+                // Emit extract-complete telemetry even if the send signal aborted.
+                await emitSettledMemoryTelemetry();
+
                 clearTimeout(gateTimeoutId);
                 try {
                   signal.removeEventListener("abort", onAbortRelease);
@@ -3540,17 +3593,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               }
             })();
 
-            memoryExtractRef.current = extractJob;
-            void extractJob.finally(() => {
-              if (memoryExtractRef.current === extractJob) {
-                memoryExtractRef.current = null;
-              }
-            });
+            trackMemoryExtractJob(extractJob);
           };
           // AiChatPage: await saveEngineSession → afterSessionSave() (releases gate).
           afterSessionSave = () => {
             const release = releaseSaveGate;
             if (release) {
+              if (extractGateSource === 0) extractGateSource = 1;
               release();
               return;
             }
@@ -3558,7 +3607,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // arm now and release immediately so extract is not silently dropped.
             armMemoryExtract();
             const releaseAfterArm = releaseSaveGate;
-            if (releaseAfterArm) releaseAfterArm();
+            if (releaseAfterArm) {
+              if (extractGateSource === 0) extractGateSource = 1;
+              releaseAfterArm();
+            }
           };
 
           try {
@@ -4031,9 +4083,22 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
                 onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
                 onDone: () => {
-                  // Emit memory telemetry at turn end (counters only, no fact text)
+                  // Emit turn telemetry before extraction is armed. Extraction
+                  // fields are explicitly not applicable here; the settled line
+                  // is the only source of truth for them.
                   MemoryStore.trackMemoryEnabled(memoryEnabledRef.current);
-                  const memTelemetry = MemoryStore.getAndResetMemoryTelemetry();
+                  const turnTelemetry = MemoryStore.getAndResetMemoryTelemetry();
+                  const memTelemetry = {
+                    ...turnTelemetry,
+                    factsExtracted: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    factsStored: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    factsRejectedSensitive: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    factsRejectedFull: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    totalFactsInStore: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    extractParseOutcome: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    extractGateSource: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    extractStopReason: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                  };
                   console.log(formatMemoryLine(memTelemetry));
                   // Arm extract (memoryExtractRef) before unlocking; gate opens
                   // only after AiChatPage's turn-end save settles.

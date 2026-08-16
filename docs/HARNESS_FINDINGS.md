@@ -432,6 +432,42 @@ recording text.
 the same experiment run twice at 40% extra cost — the empty-digest disaster with a different
 name. The smoke cost 83 minutes and prevented it; that is what the smoke is for.
 
+### 3.3b The settled telemetry measured nothing either — and the fault was the instrument, three times
+
+Smoke `31910747849` (2026-08-15, 2B, window 16) is the first run carrying `bf3794d`'s settled
+line. Result: **`memoryExtractTelemetry` empty on every arm, every turn** — zero
+`KALSA_MEMORY_EXTRACT` lines in 8 arms. The turn-end `KALSA_MEMORY` line, captured from the same
+logcat buffer by the same mechanism, was populated throughout, so the capture is not the
+suspect: the app never emitted the line.
+
+Reading the code found three separate reasons the instrument could not see, none of them a
+defect of the memory subsystem itself:
+
+1. **"Ran and threw" was indistinguishable from "never ran."** `extractionRan` was set only
+   *after* `await extractMemory(...)` resolved (`AppShell.tsx:3502`), the `catch` swallowed
+   everything (`:3523`), and the emit was guarded on that flag (`:3529`). An extraction that
+   started and failed produced the identical artifact to one that never started — precisely the
+   distinction §3.3 needs. Fixed: attempt semantics, plus a numeric outcome for the throw.
+2. **The line was suppressed exactly in the case it existed to capture.** The emit also required
+   `!signal.aborted`, so a late-finishing extraction — the reason the settled line was added —
+   was dropped. Fixed: counters-only lines are emitted regardless of abort.
+3. **The codes were meaningless on the line that carries them.** The turn-end line resets and
+   emits *before* the extract job is armed (`:4051-4056`), so `extractParseOutcome`,
+   `extractGateSource` and `extractStopReason` were structurally always 0 there — reading as
+   "did not run" even on turns where extraction ran; and on the settled line `memoryEnabled` was
+   always 0 because the reset had already cleared it, so that line could not tell "memory off"
+   from "memory on, nothing extracted". Fixed: the settled line re-tracks what the reset cleared
+   and is now authoritative; the turn-end line reports not-applicable fields with a sentinel
+   instead of a misleading zero; the bench consumers read the codes from the settled line.
+
+**Nothing is yet known about whether extraction works.** Every measurement so far has measured
+the measurement. The next smoke is the first one whose zero — if it is a zero — will mean
+something, because the line now always arrives and carries a reason code.
+
+**Standing lesson, stated plainly because this is the third round on the same subsystem in two
+days**: an instrument that can only report success is not an instrument. Each of the three
+defects above shipped with a green harness and a plausible commit message.
+
 ### 3.5 FIXED 2026-08-14 — the memory guard was breaking web search; replaced with containment
 
 The same `ECHO_SIMILARITY_THRESHOLD = 0.18` governs `echo-of-memory-fact`, which compares the

@@ -6,7 +6,7 @@
  * from MEMORY=0 — the report looks like a measurement but measures nothing.
  *
  * Fields are enumerated by name so a string field added later cannot leak
- * user text into a log line. Numbers only: extracted, stored, rejected, injected, total.
+ * user text into a log line. Numbers only: counters and extraction lifecycle codes.
  *
  * Privacy: fact TEXT is never included. Counters only.
  */
@@ -14,26 +14,35 @@
 export interface MemoryTelemetry {
   /** Whether memory was enabled this turn (1=on, 0=off). */
   memoryEnabled: number;
-  /** Candidates the extract job produced this turn (before filtering). */
+  /** Candidates the settled extract job produced (before filtering). */
   factsExtracted: number;
-  /** Facts actually stored after dedup/cap/sensitive filter. */
+  /** Facts actually stored by the settled extract job. */
   factsStored: number;
-  /** Facts rejected by isSensitiveFact. */
+  /** Facts rejected by isSensitiveFact by the settled extract job. */
   factsRejectedSensitive: number;
-  /** Facts rejected because store was full (cap 40). */
+  /** Facts rejected because the store was full (cap 40). */
   factsRejectedFull: number;
-  /** Facts injected into this turn's system prompt (0..10). */
+  /** Facts injected into this turn's system prompt (0..10); turn-end only. */
   factsInjected: number;
-  /** Total facts in the store at turn end. */
+  /** Total facts in the store after the settled extract job. */
   totalFactsInStore: number;
-  /** Extract parse outcome: 0=did not run/timeout, 1=parsed OK (zero items OK), 2=parser rejected. */
+  /** Extract parse outcome codes are documented with trackMemoryParseOutcome in MemoryStore.ts. */
   extractParseOutcome: number;
+  /** Gate-source codes are documented with trackMemoryExtractGateSource in MemoryStore.ts. */
+  extractGateSource: number;
+  /** Stop-reason codes are documented with trackMemoryExtractStopReason in MemoryStore.ts. */
+  extractStopReason: number;
 }
 
 /**
  * Machine-parseable single line for adb logcat / CI.
  * Fields listed by name — never spread an object that could leak strings.
  * @param prefix Log line prefix (default: KALSA_MEMORY for turn-end, KALSA_MEMORY_EXTRACT for extract-complete)
+ *
+ * The turn-end line uses -1 for every field whose value belongs to the not-yet-
+ * settled extract job: factsExtracted, factsStored, both rejection counters,
+ * totalFactsInStore, and all three extraction lifecycle codes. The settled line
+ * uses -1 for factsInjected because prompt injection belongs to the turn.
  */
 export function formatMemoryLine(t: MemoryTelemetry, prefix = "KALSA_MEMORY"): string {
   return `${prefix} ${JSON.stringify({
@@ -45,5 +54,7 @@ export function formatMemoryLine(t: MemoryTelemetry, prefix = "KALSA_MEMORY"): s
     factsInjected: t.factsInjected,
     totalFactsInStore: t.totalFactsInStore,
     extractParseOutcome: t.extractParseOutcome,
+    extractGateSource: t.extractGateSource,
+    extractStopReason: t.extractStopReason,
   })}`;
 }

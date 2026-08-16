@@ -974,21 +974,16 @@ function collectDigestTimingByMode(fase4) {
   });
 }
 
+function findEmptyStoreFailures(rows) {
+  return rows.filter((row) => row.hasData && row.totalStored === 0);
+}
+
 function collectMemoryTelemetryByMode(fase4) {
   const acc = new Map();
   for (const mode of FASE4_MODES) {
-    acc.set(mode, {
-      extracted: 0,
-      stored: 0,
-      rejectedSensitive: 0,
-      rejectedFull: 0,
-      injected: 0,
-      maxInStore: 0,
-      hasData: false,
-      arm: null,
-    });
+    acc.set(mode, { injected: 0, hasData: false, arm: null });
   }
-  
+
   for (const r of fase4) {
     const mode = modeOf(r);
     if (!mode || !acc.has(mode)) continue;
@@ -996,39 +991,32 @@ function collectMemoryTelemetryByMode(fase4) {
     row.arm = r.arm;
     const telemetry = r.memoryTelemetry;
     if (!Array.isArray(telemetry)) continue;
-    
-    // memoryTelemetry is per-turn array of per-turn arrays
+
+    // The turn-end line owns memoryEnabled and factsInjected only. All
+    // extraction counters are intentionally absent from this aggregate.
     for (const turnTelemetry of telemetry) {
       if (!Array.isArray(turnTelemetry)) continue;
       for (const m of turnTelemetry) {
-        // Only count as hasData if memory was actually enabled
-        if (m.memoryEnabled === 1) {
-          row.hasData = true;
-        }
-        if (typeof m.factsExtracted === "number") row.extracted += m.factsExtracted;
-        if (typeof m.factsStored === "number") row.stored += m.factsStored;
-        if (typeof m.factsRejectedSensitive === "number") row.rejectedSensitive += m.factsRejectedSensitive;
-        if (typeof m.factsRejectedFull === "number") row.rejectedFull += m.factsRejectedFull;
-        if (typeof m.factsInjected === "number") row.injected += m.factsInjected;
-        if (typeof m.totalFactsInStore === "number") {
-          row.maxInStore = Math.max(row.maxInStore, m.totalFactsInStore);
+        if (m.memoryEnabled === 1) row.hasData = true;
+        if (typeof m.factsInjected === "number" && m.factsInjected >= 0) {
+          row.injected += m.factsInjected;
         }
       }
     }
   }
-  
+
   return FASE4_MODES.map((mode) => {
     const row = acc.get(mode);
     return {
       mode,
       arm: row.arm,
       hasData: row.hasData,
-      totalExtracted: row.extracted,
-      totalStored: row.stored,
-      totalRejectedSensitive: row.rejectedSensitive,
-      totalRejectedFull: row.rejectedFull,
+      totalExtracted: null,
+      totalStored: null,
+      totalRejectedSensitive: null,
+      totalRejectedFull: null,
       totalInjected: row.injected,
-      maxFactsInStore: row.maxInStore,
+      maxFactsInStore: null,
     };
   });
 }
@@ -1047,8 +1035,10 @@ function collectMemoryExtractTelemetryByMode(fase4) {
       stored: 0,
       rejectedSensitive: 0,
       rejectedFull: 0,
-      injected: 0,
       maxInStore: 0,
+      parseOutcomes: [],
+      gateSources: [],
+      stopReasons: [],
       hasData: false,
       arm: null,
     });
@@ -1068,13 +1058,22 @@ function collectMemoryExtractTelemetryByMode(fase4) {
         if (m.memoryEnabled === 1) {
           row.hasData = true;
         }
-        if (typeof m.factsExtracted === "number") row.extracted += m.factsExtracted;
-        if (typeof m.factsStored === "number") row.stored += m.factsStored;
-        if (typeof m.factsRejectedSensitive === "number") row.rejectedSensitive += m.factsRejectedSensitive;
-        if (typeof m.factsRejectedFull === "number") row.rejectedFull += m.factsRejectedFull;
-        if (typeof m.factsInjected === "number") row.injected += m.factsInjected;
-        if (typeof m.totalFactsInStore === "number") {
+        if (typeof m.factsExtracted === "number" && m.factsExtracted >= 0) row.extracted += m.factsExtracted;
+        if (typeof m.factsStored === "number" && m.factsStored >= 0) row.stored += m.factsStored;
+        if (typeof m.factsRejectedSensitive === "number" && m.factsRejectedSensitive >= 0) row.rejectedSensitive += m.factsRejectedSensitive;
+        if (typeof m.factsRejectedFull === "number" && m.factsRejectedFull >= 0) row.rejectedFull += m.factsRejectedFull;
+        if (typeof m.totalFactsInStore === "number" && m.totalFactsInStore >= 0) {
           row.maxInStore = Math.max(row.maxInStore, m.totalFactsInStore);
+        }
+        for (const [field, values] of [
+          ["extractParseOutcome", row.parseOutcomes],
+          ["extractGateSource", row.gateSources],
+          ["extractStopReason", row.stopReasons],
+        ]) {
+          const value = m[field];
+          if (typeof value === "number" && value >= 0 && !values.includes(value)) {
+            values.push(value);
+          }
         }
       }
     }
@@ -1090,8 +1089,10 @@ function collectMemoryExtractTelemetryByMode(fase4) {
       totalStored: row.stored,
       totalRejectedSensitive: row.rejectedSensitive,
       totalRejectedFull: row.rejectedFull,
-      totalInjected: row.injected,
       maxFactsInStore: row.maxInStore,
+      extractParseOutcomes: row.parseOutcomes,
+      extractGateSources: row.gateSources,
+      extractStopReasons: row.stopReasons,
     };
   });
 }
@@ -1911,17 +1912,18 @@ function renderFase4(agg) {
     "",
     "#### Turn-end snapshot",
     "",
-    "| mode | arm | has data | extracted | stored | rejected (sensitive) | rejected (full) | injected | max in store |",
-    "|---|---|---|---|---|---|---|---|---|",
+    "| mode | arm | has data | injected |",
+    "|---|---|---|---|",
   );
+  const memoryMetric = (value) => value == null ? "n/a" : value;
   const memoryTelemetry = agg.memoryTelemetryByMode ?? [];
   if (memoryTelemetry.length === 0) {
-    lines.push("| — | — | — | — | — | — | — | — | — |");
+    lines.push("| — | — | — | — |");
   } else {
     for (const row of memoryTelemetry) {
       const hasData = row.hasData ? "yes" : "no";
       lines.push(
-        `| ${row.mode} | ${row.arm || "—"} | ${hasData} | ${row.totalExtracted} | ${row.totalStored} | ${row.totalRejectedSensitive} | ${row.totalRejectedFull} | ${row.totalInjected} | ${row.maxFactsInStore} |`,
+        `| ${row.mode} | ${row.arm || "—"} | ${hasData} | ${memoryMetric(row.totalInjected)} |`,
       );
     }
   }
@@ -1930,26 +1932,24 @@ function renderFase4(agg) {
     "",
     "#### Settled (extract-complete) — keys the NOT-RUN verdict",
     "",
-    "| mode | arm | has data | extracted | stored | rejected (sensitive) | rejected (full) | injected | max in store |",
-    "|---|---|---|---|---|---|---|---|---|",
+    "| mode | arm | has data | extracted | stored | rejected (sensitive) | rejected (full) | max in store | parse outcomes | gate sources | stop reasons |",
+    "|---|---|---|---|---|---|---|---|---|---|---|",
   );
   const memoryExtractTelemetry = agg.memoryExtractTelemetryByMode ?? [];
   if (memoryExtractTelemetry.length === 0) {
-    lines.push("| — | — | — | — | — | — | — | — | — |");
+    lines.push("| — | — | — | — | — | — | — | — | — | — | — |");
   } else {
     for (const row of memoryExtractTelemetry) {
       const hasData = row.hasData ? "yes" : "no";
       lines.push(
-        `| ${row.mode} | ${row.arm || "—"} | ${hasData} | ${row.totalExtracted} | ${row.totalStored} | ${row.totalRejectedSensitive} | ${row.totalRejectedFull} | ${row.totalInjected} | ${row.maxFactsInStore} |`,
+        `| ${row.mode} | ${row.arm || "—"} | ${hasData} | ${memoryMetric(row.totalExtracted)} | ${memoryMetric(row.totalStored)} | ${memoryMetric(row.totalRejectedSensitive)} | ${memoryMetric(row.totalRejectedFull)} | ${memoryMetric(row.maxFactsInStore)} | ${(row.extractParseOutcomes ?? []).join(",") || "n/a"} | ${(row.extractGateSources ?? []).join(",") || "n/a"} | ${(row.extractStopReasons ?? []).join(",") || "n/a"} |`,
       );
     }
   }
   
   // Check for empty-store failures — keyed off the SETTLED figures, not the
   // turn-end snapshot, because the snapshot is known to be premature.
-  const emptyStoreFailures = memoryExtractTelemetry.filter(
-    (row) => row.hasData && row.totalStored === 0
-  );
+  const emptyStoreFailures = findEmptyStoreFailures(memoryExtractTelemetry);
   if (emptyStoreFailures.length > 0) {
     lines.push(
       "",
@@ -2211,9 +2211,7 @@ function renderGateFailures(agg) {
   );
   const hasCaptureFailed = captureFailed.length > 0;
   // Memory subsystem: fail when hasData=true but totalStored=0 (mechanism invoked but stored nothing)
-  const memoryEmptyStore = (agg.memoryTelemetryByMode ?? []).filter(
-    (row) => row.hasData && row.totalStored === 0
-  );
+  const memoryEmptyStore = findEmptyStoreFailures(agg.memoryExtractTelemetryByMode ?? []);
   const hasMemoryEmptyStore = memoryEmptyStore.length > 0;
   const seedsInfo = agg.seedsInfo;
 
@@ -2517,4 +2515,10 @@ if (isMain) {
   main();
 }
 
-export { runAggregate, permutationTestOneSided, collectMemoryTelemetryByMode, collectMemoryExtractTelemetryByMode };
+export {
+  runAggregate,
+  permutationTestOneSided,
+  collectMemoryTelemetryByMode,
+  collectMemoryExtractTelemetryByMode,
+  findEmptyStoreFailures,
+};

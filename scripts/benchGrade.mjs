@@ -613,8 +613,8 @@ function readDigestTelemetry(turnDir) {
 
 /**
  * Parse turn<N>/memory.jsonl (KALSA_MEMORY telemetry). Missing / unreadable
- * / empty → []. Never throw. Each line is one memory-telemetry object
- * with { factsExtracted, factsStored, factsRejectedSensitive, factsRejectedFull, factsInjected, totalFactsInStore }.
+ * / empty → []. Never throw. The turn-end object carries only turn-owned
+ * fields; extraction fields are authoritative in readMemoryExtractTelemetry.
  */
 function readMemoryTelemetry(turnDir) {
   const file = path.join(turnDir, "memory.jsonl");
@@ -633,15 +633,9 @@ function readMemoryTelemetry(turnDir) {
       const obj = JSON.parse(t);
       if (obj && typeof obj === "object") {
         const memoryEnabled = typeof obj.memoryEnabled === "number" ? obj.memoryEnabled : null;
-        const factsExtracted = typeof obj.factsExtracted === "number" ? obj.factsExtracted : null;
-        const factsStored = typeof obj.factsStored === "number" ? obj.factsStored : null;
-        const factsRejectedSensitive = typeof obj.factsRejectedSensitive === "number" ? obj.factsRejectedSensitive : null;
-        const factsRejectedFull = typeof obj.factsRejectedFull === "number" ? obj.factsRejectedFull : null;
         const factsInjected = typeof obj.factsInjected === "number" ? obj.factsInjected : null;
-        const totalFactsInStore = typeof obj.totalFactsInStore === "number" ? obj.totalFactsInStore : null;
-        const extractParseOutcome = typeof obj.extractParseOutcome === "number" ? obj.extractParseOutcome : null;
-        if (memoryEnabled != null || factsExtracted != null || factsStored != null || factsRejectedSensitive != null || factsRejectedFull != null || factsInjected != null || totalFactsInStore != null || extractParseOutcome != null) {
-          records.push({ memoryEnabled, factsExtracted, factsStored, factsRejectedSensitive, factsRejectedFull, factsInjected, totalFactsInStore, extractParseOutcome });
+        if (memoryEnabled != null || factsInjected != null) {
+          records.push({ memoryEnabled, factsInjected });
         }
       }
     } catch {
@@ -654,7 +648,8 @@ function readMemoryTelemetry(turnDir) {
 /**
  * Parse turn<N>/memory-extract.jsonl (KALSA_MEMORY_EXTRACT telemetry — settled/
  * late figures, emitted when the extract job completes). Missing / unreadable
- * / empty → []. Never throw. Same schema as readMemoryTelemetry.
+ * / empty → []. Never throw. This is authoritative for extraction counters,
+ * totalFactsInStore, and all extract lifecycle codes.
  */
 function readMemoryExtractTelemetry(turnDir) {
   const file = path.join(turnDir, "memory-extract.jsonl");
@@ -680,8 +675,10 @@ function readMemoryExtractTelemetry(turnDir) {
         const factsInjected = typeof obj.factsInjected === "number" ? obj.factsInjected : null;
         const totalFactsInStore = typeof obj.totalFactsInStore === "number" ? obj.totalFactsInStore : null;
         const extractParseOutcome = typeof obj.extractParseOutcome === "number" ? obj.extractParseOutcome : null;
-        if (memoryEnabled != null || factsExtracted != null || factsStored != null || factsRejectedSensitive != null || factsRejectedFull != null || factsInjected != null || totalFactsInStore != null || extractParseOutcome != null) {
-          records.push({ memoryEnabled, factsExtracted, factsStored, factsRejectedSensitive, factsRejectedFull, factsInjected, totalFactsInStore, extractParseOutcome });
+        const extractGateSource = typeof obj.extractGateSource === "number" ? obj.extractGateSource : null;
+        const extractStopReason = typeof obj.extractStopReason === "number" ? obj.extractStopReason : null;
+        if (memoryEnabled != null || factsExtracted != null || factsStored != null || factsRejectedSensitive != null || factsRejectedFull != null || factsInjected != null || totalFactsInStore != null || extractParseOutcome != null || extractGateSource != null || extractStopReason != null) {
+          records.push({ memoryEnabled, factsExtracted, factsStored, factsRejectedSensitive, factsRejectedFull, factsInjected, totalFactsInStore, extractParseOutcome, extractGateSource, extractStopReason });
         }
       }
     } catch {
