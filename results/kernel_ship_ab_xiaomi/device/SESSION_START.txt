@@ -1,0 +1,10 @@
+ts=2026-08-16T10:59:11-0400
+uptime_s=1022
+uptime_threshold_s=1800
+fresh_reboot=yes
+MemAvailable_kib=6794408
+SwapFree_kib=9703420
+SwapTotal_kib=12582908
+MemTotal_kib=11436476
+POWER_SOURCE=COULOMB_COUNTER
+resume_mode=0

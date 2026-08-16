@@ -1,0 +1,46 @@
+[2026-08-16T10:52:12-0400] CAMPAIGN_SHA=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c path=/data/local/tmp/ship_ab/bin/bmoe-cli
+[2026-08-16T10:52:12-0400] PIN libc++_shared.so sha=e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6 path=/data/local/tmp/ship_ab/bin/libc++_shared.so
+[2026-08-16T10:52:12-0400] PIN libggml-base.so sha=cfed1b4e511511a28ca4f6bc9d3976976ff2fcf67f22919a875d9454a39b0dc1 path=/data/local/tmp/ship_ab/bin/libggml-base.so
+[2026-08-16T10:52:12-0400] PIN libggml-cpu.so sha=b164d48a955329964a08248d1c2a26576c3b654eda17b6727d396fd5de901052 path=/data/local/tmp/ship_ab/bin/libggml-cpu.so
+[2026-08-16T10:52:12-0400] PIN libggml.so sha=af29c01eeafcba1bb981bb336ea9f231e62fafdb0203fa9884f776b7f06a1939 path=/data/local/tmp/ship_ab/bin/libggml.so
+[2026-08-16T10:52:12-0400] PIN libllama-common.so sha=09d54baac36407f2c1197f8f65bba32a5c84f8ed2c381dc2bfc914838f2d86c1 path=/data/local/tmp/ship_ab/bin/libllama-common.so
+[2026-08-16T10:52:12-0400] PIN libllama.so sha=4d505d3c403a60c0f617fe52512cbc5be38b31e314e571b31c5548e4ecda7288 path=/data/local/tmp/ship_ab/bin/libllama.so
+[2026-08-16T10:52:12-0400] RUNTIME PIN OK 7/7
+[2026-08-16T10:52:12-0400] MODEL path=/data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600
+[2026-08-16T10:52:12-0400] computing MODEL sha256 (8 GiB, may take a minute)...
+[2026-08-16T10:52:22-0400] MODEL_SHA=b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7
+[2026-08-16T10:52:22-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T10:52:25-0400] POWER_SOURCE=COULOMB_COUNTER estimator=dQ_uAh*3.6e-3*Vbar_V (two dumpsys reads bracketing the CLI). Absolute J/token is NOT comparable to S23. Guard: dQ < 2000 uAh -> energy fields empty, run stays valid.
+[2026-08-16T10:52:25-0400] === SHIP A/B XIAOMI START resume=0 start_pair=1 ===
+[2026-08-16T10:52:25-0400] ARM A: /data/local/tmp/ship_ab/bin/bmoe-cli -m /data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -p <p_fact> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -c 4096 --temp 0 --chatml --no-think -t 4 --n-expert-used 8
+[2026-08-16T10:52:25-0400] ARM B: /data/local/tmp/ship_ab/bin/bmoe-cli -m /data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -p <p_fact> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -c 4096 --temp 0 --chatml --no-think -t 2 --n-expert-used 6 --drop-cold-experts 1.0
+[2026-08-16T10:52:25-0400] FLOORS unplugged batt>=45 thermal_abort>43C uptime_max=1800s min_wall=12s min_log=20480B
+ts=2026-08-16T10:52:25-0400
+uptime_s=616
+uptime_threshold_s=1800
+fresh_reboot=yes
+MemAvailable_kib=5833484
+SwapFree_kib=7368188
+SwapTotal_kib=12582908
+MemTotal_kib=11436476
+POWER_SOURCE=COULOMB_COUNTER
+resume_mode=0
+[2026-08-16T10:52:25-0400] SESSION_START uptime_s=616 fresh_reboot=yes MemAvailable=5833484 SwapFree=7368188 SwapTotal=12582908
+[2026-08-16T10:52:25-0400] preflight i=1 plugged=UNPLUGGED batt=84 temp=33.9 memavail_kib=5830560 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T10:52:26-0400] RUN warmup pair=0 arm=B batt=84 plugged=UNPLUGGED temp=33.9 screen=Awake memavail_kib=5848784 power=COULOMB_COUNTER
+[2026-08-16T10:52:26-0400] COULOMB_START warmup try=1 Q_uAh=3421000 V_mV=4197
+[2026-08-16T10:53:16-0400] COULOMB_END warmup try=1 Q_uAh=3403000 V_mV=4151
+[2026-08-16T10:53:17-0400] RETRY warmup try=1 FAIL[no_decode_s_tok ] decode_s_tok=none wall=50s bytes=37349 rc=0
+[2026-08-16T10:53:28-0400] COULOMB_START warmup try=2 Q_uAh=3403000 V_mV=4183
+[2026-08-16T10:54:17-0400] COULOMB_END warmup try=2 Q_uAh=3403000 V_mV=4183
+[2026-08-16T10:54:19-0400] RETRY warmup try=2 FAIL[no_decode_s_tok ] decode_s_tok=none wall=49s bytes=37349 rc=0
+[2026-08-16T10:54:29-0400] COULOMB_START warmup try=3 Q_uAh=3403000 V_mV=4183
+[2026-08-16T10:55:17-0400] COULOMB_END warmup try=3 Q_uAh=3403000 V_mV=4183
+[2026-08-16T10:55:20-0400] RETRY warmup try=3 FAIL[no_decode_s_tok ] decode_s_tok=none wall=48s bytes=37348 rc=0
+[2026-08-16T10:55:20-0400] FAIL warmup after 3 tries -- last FAIL[no_decode_s_tok ] decode_s_tok=none wall=48s bytes=37348 rc=0 -- writing excluded row, not accepting as a measurement
+[2026-08-16T10:55:21-0400] ENERGY warmup dropped: dQ=0 uAh < 2000 (unreliable). Q0=3403000 Q1=3403000 V0=4183 V1=4183. Run stays valid; energy fields empty.
+[2026-08-16T10:55:21-0400] EXCLUDE warmup completion check failed after 3 tries [no_decode_s_tok ]
+[2026-08-16T10:55:21-0400] DONE warmup rc=0 wall=48s tps= s/tok= mib/tok=3.644|0.274|0.232|0.009|0.034|144|7.747|39.20 joules= j/tok= ttft= j_window=full_invocation batt=84->83 temp_max=34.6 screen=Awake excluded=1 complete=0
+[2026-08-16T10:55:21-0400] FAIL warmup completion -- runtime is not producing measurements; stop before the 24-run sequence
+[2026-08-16T10:55:21-0400] CAMPAIGN_SHA_AFTER=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c
+[2026-08-16T10:55:22-0400] trap cleanup

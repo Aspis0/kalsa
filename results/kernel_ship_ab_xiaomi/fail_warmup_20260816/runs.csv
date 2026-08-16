@@ -1,0 +1,2 @@
+ts,pair,arm,label,excluded,decode_tps,wall_s_tok,compute,mgmt,stall,tokens_generated,joules,j_per_tok,ttft_s,batt_start,batt_end,temp_start,temp_max,screen,plugged,memavail_start_kib,power_source,j_window
+2026-08-16T10:55:21-0400,0,B,warmup,1,,,,,,,,,,84,83,33.9,34.6,Awake,UNPLUGGED,5848784,COULOMB_COUNTER,full_invocation

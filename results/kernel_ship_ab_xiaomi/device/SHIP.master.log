@@ -1,0 +1,278 @@
+[2026-08-16T10:52:12-0400] CAMPAIGN_SHA=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c path=/data/local/tmp/ship_ab/bin/bmoe-cli
+[2026-08-16T10:52:12-0400] PIN libc++_shared.so sha=e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6 path=/data/local/tmp/ship_ab/bin/libc++_shared.so
+[2026-08-16T10:52:12-0400] PIN libggml-base.so sha=cfed1b4e511511a28ca4f6bc9d3976976ff2fcf67f22919a875d9454a39b0dc1 path=/data/local/tmp/ship_ab/bin/libggml-base.so
+[2026-08-16T10:52:12-0400] PIN libggml-cpu.so sha=b164d48a955329964a08248d1c2a26576c3b654eda17b6727d396fd5de901052 path=/data/local/tmp/ship_ab/bin/libggml-cpu.so
+[2026-08-16T10:52:12-0400] PIN libggml.so sha=af29c01eeafcba1bb981bb336ea9f231e62fafdb0203fa9884f776b7f06a1939 path=/data/local/tmp/ship_ab/bin/libggml.so
+[2026-08-16T10:52:12-0400] PIN libllama-common.so sha=09d54baac36407f2c1197f8f65bba32a5c84f8ed2c381dc2bfc914838f2d86c1 path=/data/local/tmp/ship_ab/bin/libllama-common.so
+[2026-08-16T10:52:12-0400] PIN libllama.so sha=4d505d3c403a60c0f617fe52512cbc5be38b31e314e571b31c5548e4ecda7288 path=/data/local/tmp/ship_ab/bin/libllama.so
+[2026-08-16T10:52:12-0400] RUNTIME PIN OK 7/7
+[2026-08-16T10:52:12-0400] MODEL path=/data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600
+[2026-08-16T10:52:12-0400] computing MODEL sha256 (8 GiB, may take a minute)...
+[2026-08-16T10:52:22-0400] MODEL_SHA=b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7
+[2026-08-16T10:52:22-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T10:52:25-0400] POWER_SOURCE=COULOMB_COUNTER estimator=dQ_uAh*3.6e-3*Vbar_V (two dumpsys reads bracketing the CLI). Absolute J/token is NOT comparable to S23. Guard: dQ < 2000 uAh -> energy fields empty, run stays valid.
+[2026-08-16T10:52:25-0400] === SHIP A/B XIAOMI START resume=0 start_pair=1 ===
+[2026-08-16T10:52:25-0400] ARM A: /data/local/tmp/ship_ab/bin/bmoe-cli -m /data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -p <p_fact> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -c 4096 --temp 0 --chatml --no-think -t 4 --n-expert-used 8
+[2026-08-16T10:52:25-0400] ARM B: /data/local/tmp/ship_ab/bin/bmoe-cli -m /data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -p <p_fact> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -c 4096 --temp 0 --chatml --no-think -t 2 --n-expert-used 6 --drop-cold-experts 1.0
+[2026-08-16T10:52:25-0400] FLOORS unplugged batt>=45 thermal_abort>43C uptime_max=1800s min_wall=12s min_log=20480B
+ts=2026-08-16T10:52:25-0400
+uptime_s=616
+uptime_threshold_s=1800
+fresh_reboot=yes
+MemAvailable_kib=5833484
+SwapFree_kib=7368188
+SwapTotal_kib=12582908
+MemTotal_kib=11436476
+POWER_SOURCE=COULOMB_COUNTER
+resume_mode=0
+[2026-08-16T10:52:25-0400] SESSION_START uptime_s=616 fresh_reboot=yes MemAvailable=5833484 SwapFree=7368188 SwapTotal=12582908
+[2026-08-16T10:52:25-0400] preflight i=1 plugged=UNPLUGGED batt=84 temp=33.9 memavail_kib=5830560 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T10:52:26-0400] RUN warmup pair=0 arm=B batt=84 plugged=UNPLUGGED temp=33.9 screen=Awake memavail_kib=5848784 power=COULOMB_COUNTER
+[2026-08-16T10:52:26-0400] COULOMB_START warmup try=1 Q_uAh=3421000 V_mV=4197
+[2026-08-16T10:53:16-0400] COULOMB_END warmup try=1 Q_uAh=3403000 V_mV=4151
+[2026-08-16T10:53:17-0400] RETRY warmup try=1 FAIL[no_decode_s_tok ] decode_s_tok=none wall=50s bytes=37349 rc=0
+[2026-08-16T10:53:28-0400] COULOMB_START warmup try=2 Q_uAh=3403000 V_mV=4183
+[2026-08-16T10:54:17-0400] COULOMB_END warmup try=2 Q_uAh=3403000 V_mV=4183
+[2026-08-16T10:54:19-0400] RETRY warmup try=2 FAIL[no_decode_s_tok ] decode_s_tok=none wall=49s bytes=37349 rc=0
+[2026-08-16T10:54:29-0400] COULOMB_START warmup try=3 Q_uAh=3403000 V_mV=4183
+[2026-08-16T10:55:17-0400] COULOMB_END warmup try=3 Q_uAh=3403000 V_mV=4183
+[2026-08-16T10:55:20-0400] RETRY warmup try=3 FAIL[no_decode_s_tok ] decode_s_tok=none wall=48s bytes=37348 rc=0
+[2026-08-16T10:55:20-0400] FAIL warmup after 3 tries -- last FAIL[no_decode_s_tok ] decode_s_tok=none wall=48s bytes=37348 rc=0 -- writing excluded row, not accepting as a measurement
+[2026-08-16T10:55:21-0400] ENERGY warmup dropped: dQ=0 uAh < 2000 (unreliable). Q0=3403000 Q1=3403000 V0=4183 V1=4183. Run stays valid; energy fields empty.
+[2026-08-16T10:55:21-0400] EXCLUDE warmup completion check failed after 3 tries [no_decode_s_tok ]
+[2026-08-16T10:55:21-0400] DONE warmup rc=0 wall=48s tps= s/tok= mib/tok=3.644|0.274|0.232|0.009|0.034|144|7.747|39.20 joules= j/tok= ttft= j_window=full_invocation batt=84->83 temp_max=34.6 screen=Awake excluded=1 complete=0
+[2026-08-16T10:55:21-0400] FAIL warmup completion -- runtime is not producing measurements; stop before the 24-run sequence
+[2026-08-16T10:55:21-0400] CAMPAIGN_SHA_AFTER=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c
+[2026-08-16T10:55:22-0400] trap cleanup
+[2026-08-16T10:59:09-0400] CAMPAIGN_SHA=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c path=/data/local/tmp/ship_ab/bin/bmoe-cli
+[2026-08-16T10:59:09-0400] PIN libc++_shared.so sha=e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6 path=/data/local/tmp/ship_ab/bin/libc++_shared.so
+[2026-08-16T10:59:09-0400] PIN libggml-base.so sha=cfed1b4e511511a28ca4f6bc9d3976976ff2fcf67f22919a875d9454a39b0dc1 path=/data/local/tmp/ship_ab/bin/libggml-base.so
+[2026-08-16T10:59:09-0400] PIN libggml-cpu.so sha=b164d48a955329964a08248d1c2a26576c3b654eda17b6727d396fd5de901052 path=/data/local/tmp/ship_ab/bin/libggml-cpu.so
+[2026-08-16T10:59:09-0400] PIN libggml.so sha=af29c01eeafcba1bb981bb336ea9f231e62fafdb0203fa9884f776b7f06a1939 path=/data/local/tmp/ship_ab/bin/libggml.so
+[2026-08-16T10:59:09-0400] PIN libllama-common.so sha=09d54baac36407f2c1197f8f65bba32a5c84f8ed2c381dc2bfc914838f2d86c1 path=/data/local/tmp/ship_ab/bin/libllama-common.so
+[2026-08-16T10:59:09-0400] PIN libllama.so sha=4d505d3c403a60c0f617fe52512cbc5be38b31e314e571b31c5548e4ecda7288 path=/data/local/tmp/ship_ab/bin/libllama.so
+[2026-08-16T10:59:09-0400] RUNTIME PIN OK 7/7
+[2026-08-16T10:59:09-0400] MODEL path=/data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600
+[2026-08-16T10:59:09-0400] MODEL_SHA (cached)=b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7
+[2026-08-16T10:59:09-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T10:59:11-0400] POWER_SOURCE=COULOMB_COUNTER estimator=dQ_uAh*3.6e-3*Vbar_V (two dumpsys reads bracketing the CLI). Absolute J/token is NOT comparable to S23. Guard: dQ < 2000 uAh -> energy fields empty, run stays valid.
+[2026-08-16T10:59:11-0400] === SHIP A/B XIAOMI START resume=0 start_pair=1 ===
+[2026-08-16T10:59:11-0400] ARM A: /data/local/tmp/ship_ab/bin/bmoe-cli -m /data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -p <p_fact> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -c 4096 --temp 0 --chatml --no-think -t 4 --n-expert-used 8
+[2026-08-16T10:59:11-0400] ARM B: /data/local/tmp/ship_ab/bin/bmoe-cli -m /data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -p <p_fact> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -c 4096 --temp 0 --chatml --no-think -t 2 --n-expert-used 6 --drop-cold-experts 1.0
+[2026-08-16T10:59:11-0400] FLOORS unplugged batt>=45 thermal_abort>43C uptime_max=1800s min_wall=12s min_log=20480B
+ts=2026-08-16T10:59:11-0400
+uptime_s=1022
+uptime_threshold_s=1800
+fresh_reboot=yes
+MemAvailable_kib=6794408
+SwapFree_kib=9703420
+SwapTotal_kib=12582908
+MemTotal_kib=11436476
+POWER_SOURCE=COULOMB_COUNTER
+resume_mode=0
+[2026-08-16T10:59:11-0400] SESSION_START uptime_s=1022 fresh_reboot=yes MemAvailable=6794408 SwapFree=9703420 SwapTotal=12582908
+[2026-08-16T10:59:12-0400] preflight i=1 plugged=UNPLUGGED batt=83 temp=32.9 memavail_kib=6789672 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T10:59:12-0400] RUN warmup pair=0 arm=B batt=83 plugged=UNPLUGGED temp=32.9 screen=Awake memavail_kib=6786148 power=COULOMB_COUNTER
+[2026-08-16T10:59:12-0400] COULOMB_START warmup try=1 Q_uAh=3373000 V_mV=4181
+[2026-08-16T11:00:00-0400] COULOMB_END warmup try=1 Q_uAh=3362000 V_mV=4141
+[2026-08-16T11:00:04-0400] COMPLETE warmup try=1 decode_s_tok=0.268 wall=48s bytes=37349
+[2026-08-16T11:00:04-0400] ENERGY warmup dQ_uAh=11000 Q0=3373000 Q1=3362000 V0=4181 V1=4141 joules=164.775600 j/tok=1.14427500 j_window=full_invocation
+[2026-08-16T11:00:04-0400] DONE warmup rc=0 wall=48s tps=3.729 s/tok=0.268 mib/tok=39.20 joules=164.775600 j/tok=1.14427500 ttft=8.655 j_window=full_invocation batt=83->82 temp_max=33.5 screen=Awake excluded=1 complete=1
+[2026-08-16T11:00:04-0400] preflight i=1 plugged=UNPLUGGED batt=82 temp=33.5 memavail_kib=7338004 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T11:00:05-0400] RUN p01_A pair=1 arm=A batt=82 plugged=UNPLUGGED temp=33.5 screen=Awake memavail_kib=7335220 power=COULOMB_COUNTER
+[2026-08-16T11:00:05-0400] COULOMB_START p01_A try=1 Q_uAh=3362000 V_mV=4141
+[2026-08-16T11:01:21-0400] COULOMB_END p01_A try=1 Q_uAh=3349000 V_mV=4106
+[2026-08-16T11:01:22-0400] COMPLETE p01_A try=1 decode_s_tok=0.336 wall=76s bytes=37532
+[2026-08-16T11:01:22-0400] ENERGY p01_A dQ_uAh=13000 Q0=3362000 Q1=3349000 V0=4141 V1=4106 joules=192.979800 j/tok=0.96489900 j_window=full_invocation
+[2026-08-16T11:01:22-0400] DONE p01_A rc=0 wall=76s tps=2.973 s/tok=0.336 mib/tok=183.14 joules=192.979800 j/tok=0.96489900 ttft=7.207 j_window=full_invocation batt=82->82 temp_max=34.1 screen=Awake excluded=0 complete=1
+[2026-08-16T11:01:23-0400] RUN p01_B pair=1 arm=B batt=82 plugged=UNPLUGGED temp=34.1 screen=Awake memavail_kib=7402008 power=COULOMB_COUNTER
+[2026-08-16T11:01:23-0400] COULOMB_START p01_B try=1 Q_uAh=3349000 V_mV=4106
+[2026-08-16T11:02:10-0400] COULOMB_END p01_B try=1 Q_uAh=3329000 V_mV=4130
+[2026-08-16T11:02:15-0400] COMPLETE p01_B try=1 decode_s_tok=0.261 wall=46s bytes=37349
+[2026-08-16T11:02:15-0400] ENERGY p01_B dQ_uAh=20000 Q0=3349000 Q1=3329000 V0=4106 V1=4130 joules=296.496000 j/tok=2.05900000 j_window=full_invocation
+[2026-08-16T11:02:15-0400] DONE p01_B rc=0 wall=46s tps=3.831 s/tok=0.261 mib/tok=39.20 joules=296.496000 j/tok=2.05900000 ttft=7.769 j_window=full_invocation batt=82->82 temp_max=35.2 screen=Awake excluded=0 complete=1
+[2026-08-16T11:02:15-0400] PAIR_OK pair=1 order=AB
+[2026-08-16T11:02:15-0400] preflight i=1 plugged=UNPLUGGED batt=81 temp=35.2 memavail_kib=7217328 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T11:02:16-0400] RUN p02_B pair=2 arm=B batt=81 plugged=UNPLUGGED temp=35.2 screen=Awake memavail_kib=7215836 power=COULOMB_COUNTER
+[2026-08-16T11:02:16-0400] COULOMB_START p02_B try=1 Q_uAh=3322000 V_mV=4159
+[2026-08-16T11:03:06-0400] COULOMB_END p02_B try=1 Q_uAh=3322000 V_mV=4034
+[2026-08-16T11:03:07-0400] COMPLETE p02_B try=1 decode_s_tok=0.279 wall=50s bytes=37349
+[2026-08-16T11:03:08-0400] ENERGY p02_B dropped: dQ=0 uAh < 2000 (unreliable). Q0=3322000 Q1=3322000 V0=4159 V1=4034. Run stays valid; energy fields empty.
+[2026-08-16T11:03:08-0400] DONE p02_B rc=0 wall=50s tps=3.586 s/tok=0.279 mib/tok=39.20 joules= j/tok= ttft=8.883 j_window=full_invocation batt=81->81 temp_max=35.2 screen=Awake excluded=0 complete=1
+[2026-08-16T11:03:08-0400] RUN p02_A pair=2 arm=A batt=81 plugged=UNPLUGGED temp=35.2 screen=Awake memavail_kib=7254424 power=COULOMB_COUNTER
+[2026-08-16T11:03:09-0400] COULOMB_START p02_A try=1 Q_uAh=3322000 V_mV=4034
+[2026-08-16T11:04:16-0400] COULOMB_END p02_A try=1 Q_uAh=3294000 V_mV=4077
+[2026-08-16T11:04:20-0400] COMPLETE p02_A try=1 decode_s_tok=0.295 wall=67s bytes=37532
+[2026-08-16T11:04:21-0400] ENERGY p02_A dQ_uAh=28000 Q0=3322000 Q1=3294000 V0=4034 V1=4077 joules=408.794400 j/tok=2.04397200 j_window=full_invocation
+[2026-08-16T11:04:21-0400] DONE p02_A rc=0 wall=67s tps=3.386 s/tok=0.295 mib/tok=183.14 joules=408.794400 j/tok=2.04397200 ttft=6.892 j_window=full_invocation batt=81->81 temp_max=36.1 screen=Awake excluded=0 complete=1
+[2026-08-16T11:04:21-0400] PAIR_OK pair=2 order=BA
+[2026-08-16T11:04:21-0400] preflight i=1 plugged=UNPLUGGED batt=81 temp=36.1 memavail_kib=7188924 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T11:04:21-0400] RUN p03_A pair=3 arm=A batt=81 plugged=UNPLUGGED temp=36.1 screen=Awake memavail_kib=7186024 power=COULOMB_COUNTER
+[2026-08-16T11:04:22-0400] COULOMB_START p03_A try=1 Q_uAh=3294000 V_mV=4077
+[2026-08-16T11:05:29-0400] COULOMB_END p03_A try=1 Q_uAh=3271000 V_mV=4078
+[2026-08-16T11:05:33-0400] COMPLETE p03_A try=1 decode_s_tok=0.294 wall=67s bytes=37532
+[2026-08-16T11:05:34-0400] ENERGY p03_A dQ_uAh=23000 Q0=3294000 Q1=3271000 V0=4077 V1=4078 joules=337.617000 j/tok=1.68808500 j_window=full_invocation
+[2026-08-16T11:05:34-0400] DONE p03_A rc=0 wall=67s tps=3.401 s/tok=0.294 mib/tok=183.14 joules=337.617000 j/tok=1.68808500 ttft=7.186 j_window=full_invocation batt=81->80 temp_max=37.0 screen=Awake excluded=0 complete=1
+[2026-08-16T11:05:34-0400] RUN p03_B pair=3 arm=B batt=80 plugged=UNPLUGGED temp=37.0 screen=Awake memavail_kib=7154676 power=COULOMB_COUNTER
+[2026-08-16T11:05:35-0400] COULOMB_START p03_B try=1 Q_uAh=3271000 V_mV=4078
+[2026-08-16T11:06:27-0400] COULOMB_END p03_B try=1 Q_uAh=3271000 V_mV=4078
+[2026-08-16T11:06:31-0400] COMPLETE p03_B try=1 decode_s_tok=0.294 wall=52s bytes=37349
+[2026-08-16T11:06:31-0400] ENERGY p03_B dropped: dQ=0 uAh < 2000 (unreliable). Q0=3271000 Q1=3271000 V0=4078 V1=4078. Run stays valid; energy fields empty.
+[2026-08-16T11:06:31-0400] DONE p03_B rc=0 wall=52s tps=3.402 s/tok=0.294 mib/tok=39.20 joules= j/tok= ttft=8.830 j_window=full_invocation batt=80->80 temp_max=37.0 screen=Awake excluded=0 complete=1
+[2026-08-16T11:06:32-0400] PAIR_OK pair=3 order=AB
+[2026-08-16T11:06:32-0400] preflight i=1 plugged=UNPLUGGED batt=80 temp=37.0 memavail_kib=7228616 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T11:06:32-0400] RUN p04_B pair=4 arm=B batt=80 plugged=UNPLUGGED temp=37.0 screen=Awake memavail_kib=7225172 power=COULOMB_COUNTER
+[2026-08-16T11:06:33-0400] COULOMB_START p04_B try=1 Q_uAh=3271000 V_mV=4078
+[2026-08-16T11:07:24-0400] COULOMB_END p04_B try=1 Q_uAh=3271000 V_mV=4078
+[2026-08-16T11:07:29-0400] COMPLETE p04_B try=1 decode_s_tok=0.295 wall=51s bytes=37348
+[2026-08-16T11:07:29-0400] ENERGY p04_B dropped: dQ=0 uAh < 2000 (unreliable). Q0=3271000 Q1=3271000 V0=4078 V1=4078. Run stays valid; energy fields empty.
+[2026-08-16T11:07:29-0400] DONE p04_B rc=0 wall=51s tps=3.394 s/tok=0.295 mib/tok=39.20 joules= j/tok= ttft=8.015 j_window=full_invocation batt=80->80 temp_max=37.0 screen=Awake excluded=0 complete=1
+[2026-08-16T11:07:30-0400] RUN p04_A pair=4 arm=A batt=80 plugged=UNPLUGGED temp=37.0 screen=Awake memavail_kib=7181964 power=COULOMB_COUNTER
+[2026-08-16T11:07:30-0400] COULOMB_START p04_A try=1 Q_uAh=3271000 V_mV=4078
+[2026-08-16T11:08:53-0400] COULOMB_END p04_A try=1 Q_uAh=3236000 V_mV=4074
+[2026-08-16T11:08:57-0400] COMPLETE p04_A try=1 decode_s_tok=0.368 wall=82s bytes=37531
+[2026-08-16T11:08:57-0400] ENERGY p04_A dQ_uAh=35000 Q0=3271000 Q1=3236000 V0=4078 V1=4074 joules=513.576000 j/tok=2.56788000 j_window=full_invocation
+[2026-08-16T11:08:57-0400] DONE p04_A rc=0 wall=82s tps=2.715 s/tok=0.368 mib/tok=183.14 joules=513.576000 j/tok=2.56788000 ttft=7.623 j_window=full_invocation batt=80->79 temp_max=37.3 screen=Awake excluded=0 complete=1
+[2026-08-16T11:08:58-0400] PAIR_OK pair=4 order=BA
+[2026-08-16T11:08:58-0400] preflight i=1 plugged=UNPLUGGED batt=79 temp=37.3 memavail_kib=7104580 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T11:08:58-0400] RUN p05_A pair=5 arm=A batt=79 plugged=UNPLUGGED temp=37.3 screen=Awake memavail_kib=7102564 power=COULOMB_COUNTER
+[2026-08-16T11:08:59-0400] COULOMB_START p05_A try=1 Q_uAh=3236000 V_mV=4074
+[2026-08-16T11:10:24-0400] COULOMB_END p05_A try=1 Q_uAh=3198000 V_mV=4090
+[2026-08-16T11:10:25-0400] COMPLETE p05_A try=1 decode_s_tok=0.382 wall=85s bytes=37530
+[2026-08-16T11:10:26-0400] ENERGY p05_A dQ_uAh=38000 Q0=3236000 Q1=3198000 V0=4074 V1=4090 joules=558.417600 j/tok=2.79208800 j_window=full_invocation
+[2026-08-16T11:10:26-0400] DONE p05_A rc=0 wall=85s tps=2.616 s/tok=0.382 mib/tok=183.14 joules=558.417600 j/tok=2.79208800 ttft=7.951 j_window=full_invocation batt=79->78 temp_max=38.3 screen=Awake excluded=0 complete=1
+[2026-08-16T11:10:26-0400] RUN p05_B pair=5 arm=B batt=78 plugged=UNPLUGGED temp=38.3 screen=Awake memavail_kib=7169224 power=COULOMB_COUNTER
+[2026-08-16T11:10:26-0400] COULOMB_START p05_B try=1 Q_uAh=3198000 V_mV=4090
+[2026-08-16T11:11:23-0400] COULOMB_END p05_B try=1 Q_uAh=3198000 V_mV=4090
+[2026-08-16T11:11:28-0400] COMPLETE p05_B try=1 decode_s_tok=0.325 wall=57s bytes=37350
+[2026-08-16T11:11:28-0400] ENERGY p05_B dropped: dQ=0 uAh < 2000 (unreliable). Q0=3198000 Q1=3198000 V0=4090 V1=4090. Run stays valid; energy fields empty.
+[2026-08-16T11:11:28-0400] DONE p05_B rc=0 wall=57s tps=3.078 s/tok=0.325 mib/tok=39.20 joules= j/tok= ttft=9.207 j_window=full_invocation batt=78->78 temp_max=38.3 screen=Awake excluded=0 complete=1
+[2026-08-16T11:11:28-0400] PAIR_OK pair=5 order=AB
+[2026-08-16T11:11:29-0400] preflight i=1 plugged=UNPLUGGED batt=78 temp=38.3 memavail_kib=7294440 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T11:11:29-0400] RUN p06_B pair=6 arm=B batt=78 plugged=UNPLUGGED temp=38.3 screen=Awake memavail_kib=7293760 power=COULOMB_COUNTER
+[2026-08-16T11:11:30-0400] COULOMB_START p06_B try=1 Q_uAh=3198000 V_mV=4090
+[2026-08-16T11:12:25-0400] COULOMB_END p06_B try=1 Q_uAh=3198000 V_mV=4090
+[2026-08-16T11:12:26-0400] COMPLETE p06_B try=1 decode_s_tok=0.317 wall=55s bytes=37348
+[2026-08-16T11:12:26-0400] ENERGY p06_B dropped: dQ=0 uAh < 2000 (unreliable). Q0=3198000 Q1=3198000 V0=4090 V1=4090. Run stays valid; energy fields empty.
+[2026-08-16T11:12:26-0400] DONE p06_B rc=0 wall=55s tps=3.151 s/tok=0.317 mib/tok=39.20 joules= j/tok= ttft=8.549 j_window=full_invocation batt=78->78 temp_max=38.3 screen=Awake excluded=0 complete=1
+[2026-08-16T11:12:27-0400] RUN p06_A pair=6 arm=A batt=78 plugged=UNPLUGGED temp=38.3 screen=Awake memavail_kib=7402816 power=COULOMB_COUNTER
+[2026-08-16T11:12:27-0400] COULOMB_START p06_A try=1 Q_uAh=3198000 V_mV=4090
+[2026-08-16T11:13:50-0400] COULOMB_END p06_A try=1 Q_uAh=3156000 V_mV=4074
+[2026-08-16T11:13:54-0400] COMPLETE p06_A try=1 decode_s_tok=0.368 wall=83s bytes=37531
+[2026-08-16T11:13:55-0400] ENERGY p06_A dQ_uAh=42000 Q0=3198000 Q1=3156000 V0=4090 V1=4074 joules=617.198400 j/tok=3.08599200 j_window=full_invocation
+[2026-08-16T11:13:55-0400] DONE p06_A rc=0 wall=83s tps=2.714 s/tok=0.368 mib/tok=183.14 joules=617.198400 j/tok=3.08599200 ttft=8.108 j_window=full_invocation batt=78->77 temp_max=38.6 screen=Awake excluded=0 complete=1
+[2026-08-16T11:13:55-0400] PAIR_OK pair=6 order=BA
+[2026-08-16T11:13:55-0400] preflight i=1 plugged=UNPLUGGED batt=77 temp=38.6 memavail_kib=7171328 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T11:13:55-0400] RUN p07_A pair=7 arm=A batt=77 plugged=UNPLUGGED temp=38.6 screen=Awake memavail_kib=7165536 power=COULOMB_COUNTER
+[2026-08-16T11:13:56-0400] COULOMB_START p07_A try=1 Q_uAh=3156000 V_mV=4074
+[2026-08-16T11:15:18-0400] COULOMB_END p07_A try=1 Q_uAh=3133000 V_mV=4068
+[2026-08-16T11:15:23-0400] COMPLETE p07_A try=1 decode_s_tok=0.367 wall=82s bytes=37531
+[2026-08-16T11:15:23-0400] ENERGY p07_A dQ_uAh=23000 Q0=3156000 Q1=3133000 V0=4074 V1=4068 joules=337.078800 j/tok=1.68539400 j_window=full_invocation
+[2026-08-16T11:15:23-0400] DONE p07_A rc=0 wall=82s tps=2.721 s/tok=0.367 mib/tok=183.14 joules=337.078800 j/tok=1.68539400 ttft=7.799 j_window=full_invocation batt=77->77 temp_max=39.4 screen=Awake excluded=0 complete=1
+[2026-08-16T11:15:23-0400] RUN p07_B pair=7 arm=B batt=77 plugged=UNPLUGGED temp=39.4 screen=Awake memavail_kib=7001400 power=COULOMB_COUNTER
+[2026-08-16T11:15:24-0400] COULOMB_START p07_B try=1 Q_uAh=3116000 V_mV=4096
+[2026-08-16T11:16:18-0400] COULOMB_END p07_B try=1 Q_uAh=3116000 V_mV=4071
+[2026-08-16T11:16:20-0400] COMPLETE p07_B try=1 decode_s_tok=0.313 wall=54s bytes=37347
+[2026-08-16T11:16:21-0400] ENERGY p07_B dropped: dQ=0 uAh < 2000 (unreliable). Q0=3116000 Q1=3116000 V0=4096 V1=4071. Run stays valid; energy fields empty.
+[2026-08-16T11:16:21-0400] DONE p07_B rc=0 wall=54s tps=3.198 s/tok=0.313 mib/tok=39.20 joules= j/tok= ttft=8.519 j_window=full_invocation batt=77->76 temp_max=39.4 screen=Awake excluded=0 complete=1
+[2026-08-16T11:16:21-0400] PAIR_OK pair=7 order=AB
+[2026-08-16T11:16:21-0400] preflight i=1 plugged=UNPLUGGED batt=76 temp=39.4 memavail_kib=7087668 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T11:16:21-0400] RUN p08_B pair=8 arm=B batt=76 plugged=UNPLUGGED temp=39.4 screen=Awake memavail_kib=7085908 power=COULOMB_COUNTER
+[2026-08-16T11:16:22-0400] COULOMB_START p08_B try=1 Q_uAh=3116000 V_mV=4071
+[2026-08-16T11:17:17-0400] COULOMB_END p08_B try=1 Q_uAh=3116000 V_mV=4071
+[2026-08-16T11:17:18-0400] COMPLETE p08_B try=1 decode_s_tok=0.321 wall=55s bytes=37347
+[2026-08-16T11:17:19-0400] ENERGY p08_B dropped: dQ=0 uAh < 2000 (unreliable). Q0=3116000 Q1=3116000 V0=4071 V1=4071. Run stays valid; energy fields empty.
+[2026-08-16T11:17:19-0400] DONE p08_B rc=0 wall=55s tps=3.115 s/tok=0.321 mib/tok=39.20 joules= j/tok= ttft=8.156 j_window=full_invocation batt=76->76 temp_max=39.4 screen=Awake excluded=0 complete=1
+[2026-08-16T11:17:19-0400] RUN p08_A pair=8 arm=A batt=76 plugged=UNPLUGGED temp=39.0 screen=Awake memavail_kib=7288048 power=COULOMB_COUNTER
+[2026-08-16T11:17:20-0400] COULOMB_START p08_A try=1 Q_uAh=3095000 V_mV=4069
+[2026-08-16T11:18:42-0400] COULOMB_END p08_A try=1 Q_uAh=3075000 V_mV=4052
+[2026-08-16T11:18:47-0400] COMPLETE p08_A try=1 decode_s_tok=0.368 wall=82s bytes=37533
+[2026-08-16T11:18:47-0400] ENERGY p08_A dQ_uAh=20000 Q0=3095000 Q1=3075000 V0=4069 V1=4052 joules=292.356000 j/tok=1.46178000 j_window=full_invocation
+[2026-08-16T11:18:47-0400] DONE p08_A rc=0 wall=82s tps=2.719 s/tok=0.368 mib/tok=183.14 joules=292.356000 j/tok=1.46178000 ttft=8.007 j_window=full_invocation batt=76->75 temp_max=39.4 screen=Awake excluded=0 complete=1
+[2026-08-16T11:18:47-0400] PAIR_OK pair=8 order=BA
+[2026-08-16T11:18:47-0400] preflight i=1 plugged=UNPLUGGED batt=75 temp=39.4 memavail_kib=7366180 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T11:18:48-0400] RUN p09_A pair=9 arm=A batt=75 plugged=UNPLUGGED temp=39.4 screen=Awake memavail_kib=7364760 power=COULOMB_COUNTER
+[2026-08-16T11:18:48-0400] COULOMB_START p09_A try=1 Q_uAh=3075000 V_mV=4052
+[2026-08-16T11:20:12-0400] COULOMB_END p09_A try=1 Q_uAh=3075000 V_mV=4052
+[2026-08-16T11:20:15-0400] COMPLETE p09_A try=1 decode_s_tok=0.374 wall=84s bytes=37531
+[2026-08-16T11:20:16-0400] ENERGY p09_A dropped: dQ=0 uAh < 2000 (unreliable). Q0=3075000 Q1=3075000 V0=4052 V1=4052. Run stays valid; energy fields empty.
+[2026-08-16T11:20:16-0400] DONE p09_A rc=0 wall=84s tps=2.675 s/tok=0.374 mib/tok=183.14 joules= j/tok= ttft=7.757 j_window=full_invocation batt=75->75 temp_max=39.4 screen=Awake excluded=0 complete=1
+[2026-08-16T11:20:16-0400] RUN p09_B pair=9 arm=B batt=75 plugged=UNPLUGGED temp=39.4 screen=Awake memavail_kib=7281324 power=COULOMB_COUNTER
+[2026-08-16T11:20:16-0400] COULOMB_START p09_B try=1 Q_uAh=3075000 V_mV=4052
+[2026-08-16T11:21:11-0400] COULOMB_END p09_B try=1 Q_uAh=3034000 V_mV=4064
+[2026-08-16T11:21:13-0400] COMPLETE p09_B try=1 decode_s_tok=0.315 wall=55s bytes=37347
+[2026-08-16T11:21:13-0400] ENERGY p09_B dQ_uAh=41000 Q0=3075000 Q1=3034000 V0=4052 V1=4064 joules=598.960800 j/tok=4.15945000 j_window=full_invocation
+[2026-08-16T11:21:13-0400] DONE p09_B rc=0 wall=55s tps=3.175 s/tok=0.315 mib/tok=39.20 joules=598.960800 j/tok=4.15945000 ttft=8.487 j_window=full_invocation batt=75->75 temp_max=39.7 screen=Awake excluded=0 complete=1
+[2026-08-16T11:21:13-0400] PAIR_OK pair=9 order=AB
+[2026-08-16T11:21:14-0400] preflight i=1 plugged=UNPLUGGED batt=75 temp=39.7 memavail_kib=7264132 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T11:21:14-0400] RUN p10_B pair=10 arm=B batt=75 plugged=UNPLUGGED temp=39.7 screen=Awake memavail_kib=7260608 power=COULOMB_COUNTER
+[2026-08-16T11:21:15-0400] COULOMB_START p10_B try=1 Q_uAh=3034000 V_mV=4064
+[2026-08-16T11:22:11-0400] COULOMB_END p10_B try=1 Q_uAh=3034000 V_mV=4019
+[2026-08-16T11:22:16-0400] COMPLETE p10_B try=1 decode_s_tok=0.327 wall=56s bytes=37347
+[2026-08-16T11:22:17-0400] ENERGY p10_B dropped: dQ=0 uAh < 2000 (unreliable). Q0=3034000 Q1=3034000 V0=4064 V1=4019. Run stays valid; energy fields empty.
+[2026-08-16T11:22:17-0400] DONE p10_B rc=0 wall=56s tps=3.057 s/tok=0.327 mib/tok=39.20 joules= j/tok= ttft=8.257 j_window=full_invocation batt=75->74 temp_max=39.7 screen=Awake excluded=0 complete=1
+[2026-08-16T11:22:17-0400] RUN p10_A pair=10 arm=A batt=74 plugged=UNPLUGGED temp=39.5 screen=Awake memavail_kib=7356108 power=COULOMB_COUNTER
+[2026-08-16T11:22:17-0400] COULOMB_START p10_A try=1 Q_uAh=3023000 V_mV=4087
+[2026-08-16T11:23:44-0400] COULOMB_END p10_A try=1 Q_uAh=3023000 V_mV=4087
+[2026-08-16T11:23:44-0400] COMPLETE p10_A try=1 decode_s_tok=0.382 wall=86s bytes=37531
+[2026-08-16T11:23:45-0400] ENERGY p10_A dropped: dQ=0 uAh < 2000 (unreliable). Q0=3023000 Q1=3023000 V0=4087 V1=4087. Run stays valid; energy fields empty.
+[2026-08-16T11:23:45-0400] DONE p10_A rc=0 wall=86s tps=2.617 s/tok=0.382 mib/tok=183.14 joules= j/tok= ttft=8.690 j_window=full_invocation batt=74->74 temp_max=39.5 screen=Awake excluded=0 complete=1
+[2026-08-16T11:23:45-0400] PAIR_OK pair=10 order=BA
+[2026-08-16T11:23:45-0400] preflight i=1 plugged=UNPLUGGED batt=74 temp=39.5 memavail_kib=7133608 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T11:23:46-0400] RUN p11_A pair=11 arm=A batt=74 plugged=UNPLUGGED temp=39.5 screen=Awake memavail_kib=7127564 power=COULOMB_COUNTER
+[2026-08-16T11:23:46-0400] COULOMB_START p11_A try=1 Q_uAh=3023000 V_mV=4087
+[2026-08-16T11:25:20-0400] COULOMB_END p11_A try=1 Q_uAh=2991000 V_mV=4039
+[2026-08-16T11:25:23-0400] COMPLETE p11_A try=1 decode_s_tok=0.419 wall=94s bytes=37531
+[2026-08-16T11:25:24-0400] ENERGY p11_A dQ_uAh=32000 Q0=3023000 Q1=2991000 V0=4087 V1=4039 joules=468.057600 j/tok=2.34028800 j_window=full_invocation
+[2026-08-16T11:25:24-0400] DONE p11_A rc=0 wall=94s tps=2.389 s/tok=0.419 mib/tok=183.14 joules=468.057600 j/tok=2.34028800 ttft=9.253 j_window=full_invocation batt=74->73 temp_max=40.1 screen=Awake excluded=0 complete=1
+[2026-08-16T11:25:24-0400] RUN p11_B pair=11 arm=B batt=73 plugged=UNPLUGGED temp=40.1 screen=Awake memavail_kib=7218492 power=COULOMB_COUNTER
+[2026-08-16T11:25:24-0400] COULOMB_START p11_B try=1 Q_uAh=2991000 V_mV=4039
+[2026-08-16T11:26:22-0400] COULOMB_END p11_B try=1 Q_uAh=2991000 V_mV=4039
+[2026-08-16T11:26:26-0400] COMPLETE p11_B try=1 decode_s_tok=0.329 wall=57s bytes=37348
+[2026-08-16T11:26:26-0400] ENERGY p11_B dropped: dQ=0 uAh < 2000 (unreliable). Q0=2991000 Q1=2991000 V0=4039 V1=4039. Run stays valid; energy fields empty.
+[2026-08-16T11:26:27-0400] DONE p11_B rc=0 wall=57s tps=3.035 s/tok=0.329 mib/tok=39.20 joules= j/tok= ttft=9.377 j_window=full_invocation batt=73->73 temp_max=40.1 screen=Awake excluded=0 complete=1
+[2026-08-16T11:26:27-0400] PAIR_OK pair=11 order=AB
+[2026-08-16T11:26:27-0400] preflight i=1 plugged=UNPLUGGED batt=73 temp=40.1 memavail_kib=7051072 floor=45 screen=Awake power=COULOMB_COUNTER
+[2026-08-16T11:26:27-0400] RUN p12_B pair=12 arm=B batt=73 plugged=UNPLUGGED temp=40.1 screen=Awake memavail_kib=7050236 power=COULOMB_COUNTER
+[2026-08-16T11:26:28-0400] COULOMB_START p12_B try=1 Q_uAh=2991000 V_mV=4039
+[2026-08-16T11:27:22-0400] COULOMB_END p12_B try=1 Q_uAh=2953000 V_mV=4044
+[2026-08-16T11:27:24-0400] COMPLETE p12_B try=1 decode_s_tok=0.314 wall=54s bytes=37349
+[2026-08-16T11:27:25-0400] ENERGY p12_B dQ_uAh=38000 Q0=2991000 Q1=2953000 V0=4039 V1=4044 joules=552.877200 j/tok=3.83942500 j_window=full_invocation
+[2026-08-16T11:27:25-0400] DONE p12_B rc=0 wall=54s tps=3.186 s/tok=0.314 mib/tok=39.20 joules=552.877200 j/tok=3.83942500 ttft=7.880 j_window=full_invocation batt=73->72 temp_max=40.1 screen=Awake excluded=0 complete=1
+[2026-08-16T11:27:25-0400] RUN p12_A pair=12 arm=A batt=72 plugged=UNPLUGGED temp=39.8 screen=Awake memavail_kib=7225232 power=COULOMB_COUNTER
+[2026-08-16T11:27:25-0400] COULOMB_START p12_A try=1 Q_uAh=2953000 V_mV=4044
+[2026-08-16T11:28:54-0400] COULOMB_END p12_A try=1 Q_uAh=2939000 V_mV=4021
+[2026-08-16T11:28:57-0400] COMPLETE p12_A try=1 decode_s_tok=0.396 wall=89s bytes=37533
+[2026-08-16T11:28:58-0400] ENERGY p12_A dQ_uAh=14000 Q0=2953000 Q1=2939000 V0=4044 V1=4021 joules=203.238000 j/tok=1.01619000 j_window=full_invocation
+[2026-08-16T11:28:58-0400] DONE p12_A rc=0 wall=89s tps=2.525 s/tok=0.396 mib/tok=183.14 joules=203.238000 j/tok=1.01619000 ttft=8.367 j_window=full_invocation batt=72->72 temp_max=40.0 screen=Awake excluded=0 complete=1
+[2026-08-16T11:28:58-0400] PAIR_OK pair=12 order=BA
+[2026-08-16T11:28:58-0400] void_scan= this_cycle_void=
+[2026-08-16T11:28:58-0400] CAMPAIGN_SHA_AFTER=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c
+[2026-08-16T11:28:58-0400] === SHIP A/B XIAOMI COMPLETE ===
+ts,pair,arm,label,excluded,decode_tps,wall_s_tok,compute,mgmt,stall,tokens_generated,joules,j_per_tok,ttft_s,batt_start,batt_end,temp_start,temp_max,screen,plugged,memavail_start_kib,power_source,j_window
+2026-08-16T11:00:04-0400,0,B,warmup,1,3.729,0.268,0.227,0.008,0.033,144,164.775600,1.14427500,8.655,83,82,32.9,33.5,Awake,UNPLUGGED,6786148,COULOMB_COUNTER,full_invocation
+2026-08-16T11:01:22-0400,1,A,p01_A,0,2.973,0.336,0.292,0.023,0.022,200,192.979800,0.96489900,7.207,82,82,33.5,34.1,Awake,UNPLUGGED,7335220,COULOMB_COUNTER,full_invocation
+2026-08-16T11:02:15-0400,1,B,p01_B,0,3.831,0.261,0.221,0.008,0.033,144,296.496000,2.05900000,7.769,82,82,34.1,35.2,Awake,UNPLUGGED,7402008,COULOMB_COUNTER,full_invocation
+2026-08-16T11:03:08-0400,2,B,p02_B,0,3.586,0.279,0.237,0.008,0.034,144,,,8.883,81,81,35.2,35.2,Awake,UNPLUGGED,7215836,COULOMB_COUNTER,full_invocation
+2026-08-16T11:04:21-0400,2,A,p02_A,0,3.386,0.295,0.251,0.023,0.021,200,408.794400,2.04397200,6.892,81,81,35.2,36.1,Awake,UNPLUGGED,7254424,COULOMB_COUNTER,full_invocation
+2026-08-16T11:05:34-0400,3,A,p03_A,0,3.401,0.294,0.249,0.023,0.021,200,337.617000,1.68808500,7.186,81,80,36.1,37.0,Awake,UNPLUGGED,7186024,COULOMB_COUNTER,full_invocation
+2026-08-16T11:06:31-0400,3,B,p03_B,0,3.402,0.294,0.251,0.008,0.035,144,,,8.830,80,80,37.0,37.0,Awake,UNPLUGGED,7154676,COULOMB_COUNTER,full_invocation
+2026-08-16T11:07:29-0400,4,B,p04_B,0,3.394,0.295,0.251,0.009,0.035,144,,,8.015,80,80,37.0,37.0,Awake,UNPLUGGED,7225172,COULOMB_COUNTER,full_invocation
+2026-08-16T11:08:57-0400,4,A,p04_A,0,2.715,0.368,0.321,0.027,0.020,200,513.576000,2.56788000,7.623,80,79,37.0,37.3,Awake,UNPLUGGED,7181964,COULOMB_COUNTER,full_invocation
+2026-08-16T11:10:26-0400,5,A,p05_A,0,2.616,0.382,0.336,0.026,0.020,200,558.417600,2.79208800,7.951,79,78,37.3,38.3,Awake,UNPLUGGED,7102564,COULOMB_COUNTER,full_invocation
+2026-08-16T11:11:28-0400,5,B,p05_B,0,3.078,0.325,0.279,0.009,0.037,144,,,9.207,78,78,38.3,38.3,Awake,UNPLUGGED,7169224,COULOMB_COUNTER,full_invocation
+2026-08-16T11:12:26-0400,6,B,p06_B,0,3.151,0.317,0.274,0.009,0.035,144,,,8.549,78,78,38.3,38.3,Awake,UNPLUGGED,7293760,COULOMB_COUNTER,full_invocation
+2026-08-16T11:13:55-0400,6,A,p06_A,0,2.714,0.368,0.321,0.026,0.021,200,617.198400,3.08599200,8.108,78,77,38.3,38.6,Awake,UNPLUGGED,7402816,COULOMB_COUNTER,full_invocation
+2026-08-16T11:15:23-0400,7,A,p07_A,0,2.721,0.367,0.320,0.026,0.021,200,337.078800,1.68539400,7.799,77,77,38.6,39.4,Awake,UNPLUGGED,7165536,COULOMB_COUNTER,full_invocation
+2026-08-16T11:16:21-0400,7,B,p07_B,0,3.198,0.313,0.269,0.009,0.036,144,,,8.519,77,76,39.4,39.4,Awake,UNPLUGGED,7001400,COULOMB_COUNTER,full_invocation
+2026-08-16T11:17:19-0400,8,B,p08_B,0,3.115,0.321,0.275,0.009,0.037,144,,,8.156,76,76,39.4,39.4,Awake,UNPLUGGED,7085908,COULOMB_COUNTER,full_invocation
+2026-08-16T11:18:47-0400,8,A,p08_A,0,2.719,0.368,0.321,0.025,0.022,200,292.356000,1.46178000,8.007,76,75,39.0,39.4,Awake,UNPLUGGED,7288048,COULOMB_COUNTER,full_invocation
+2026-08-16T11:20:16-0400,9,A,p09_A,0,2.675,0.374,0.325,0.026,0.023,200,,,7.757,75,75,39.4,39.4,Awake,UNPLUGGED,7364760,COULOMB_COUNTER,full_invocation
+2026-08-16T11:21:13-0400,9,B,p09_B,0,3.175,0.315,0.271,0.009,0.036,144,598.960800,4.15945000,8.487,75,75,39.4,39.7,Awake,UNPLUGGED,7281324,COULOMB_COUNTER,full_invocation
+2026-08-16T11:22:17-0400,10,B,p10_B,0,3.057,0.327,0.281,0.009,0.037,144,,,8.257,75,74,39.7,39.7,Awake,UNPLUGGED,7260608,COULOMB_COUNTER,full_invocation
+2026-08-16T11:23:45-0400,10,A,p10_A,0,2.617,0.382,0.333,0.026,0.023,200,,,8.690,74,74,39.5,39.5,Awake,UNPLUGGED,7356108,COULOMB_COUNTER,full_invocation
+2026-08-16T11:25:24-0400,11,A,p11_A,0,2.389,0.419,0.364,0.030,0.025,200,468.057600,2.34028800,9.253,74,73,39.5,40.1,Awake,UNPLUGGED,7127564,COULOMB_COUNTER,full_invocation
+2026-08-16T11:26:27-0400,11,B,p11_B,0,3.035,0.329,0.284,0.009,0.037,144,,,9.377,73,73,40.1,40.1,Awake,UNPLUGGED,7218492,COULOMB_COUNTER,full_invocation
+2026-08-16T11:27:25-0400,12,B,p12_B,0,3.186,0.314,0.269,0.008,0.036,144,552.877200,3.83942500,7.880,73,72,40.1,40.1,Awake,UNPLUGGED,7050236,COULOMB_COUNTER,full_invocation
+2026-08-16T11:28:58-0400,12,A,p12_A,0,2.525,0.396,0.345,0.028,0.024,200,203.238000,1.01619000,8.367,72,72,39.8,40.0,Awake,UNPLUGGED,7225232,COULOMB_COUNTER,full_invocation
+[2026-08-16T11:29:00-0400] trap cleanup

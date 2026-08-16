@@ -1,0 +1,99 @@
+[2026-08-16T10:51:57.6387440-04:00] adb devices
+[2026-08-16T10:51:57.7217161-04:00] List of devices attached
+adb-625689a2-9xEOfw._adb-tls-connect._tcp device product:houji_global model:23127PN0CG device:houji transport_id:87
+adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp device product:dm1qsqw model:SM_S911U device:dm1q transport_id:78
+[2026-08-16T10:51:57.7803139-04:00] verify 7 runtime shas on device (read-only; never push binaries)
+[2026-08-16T10:51:58.0668046-04:00] RUNTIME bmoe-cli 0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c
+[2026-08-16T10:51:58.2887473-04:00] RUNTIME libc++_shared.so e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6
+[2026-08-16T10:51:58.5522520-04:00] RUNTIME libggml-base.so cfed1b4e511511a28ca4f6bc9d3976976ff2fcf67f22919a875d9454a39b0dc1
+[2026-08-16T10:51:58.8340612-04:00] RUNTIME libggml-cpu.so b164d48a955329964a08248d1c2a26576c3b654eda17b6727d396fd5de901052
+[2026-08-16T10:51:59.1133724-04:00] RUNTIME libggml.so af29c01eeafcba1bb981bb336ea9f231e62fafdb0203fa9884f776b7f06a1939
+[2026-08-16T10:51:59.4325750-04:00] RUNTIME libllama-common.so 09d54baac36407f2c1197f8f65bba32a5c84f8ed2c381dc2bfc914838f2d86c1
+[2026-08-16T10:51:59.7320485-04:00] RUNTIME libllama.so 4d505d3c403a60c0f617fe52512cbc5be38b31e314e571b31c5548e4ecda7288
+[2026-08-16T10:51:59.7526557-04:00] RUNTIME PIN OK 7/7 (no binary written)
+[2026-08-16T10:51:59.7667386-04:00] chmod 755 on existing runtime (content untouched)
+[2026-08-16T10:51:59.8830516-04:00] verify model size + sha (read-only; never push the gguf)
+[2026-08-16T10:52:00.0153177-04:00] MODEL size=8071293600
+[2026-08-16T10:52:00.0317512-04:00] MODEL sha256 (8 GiB; may take a minute)...
+[2026-08-16T10:52:09.5050234-04:00] MODEL b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7  /data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-16T10:52:09.5224589-04:00] verify prompt sha (read-only; never push the prompt)
+[2026-08-16T10:52:09.6520239-04:00] PROMPT b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd  /data/local/tmp/ship_ab/prompts/p_fact.txt
+[2026-08-16T10:52:09.6683996-04:00] fresh-reboot gate (uptime <= 1800 s on a NEW session)
+[2026-08-16T10:52:09.7815753-04:00] uptime_s=602
+[2026-08-16T10:52:10.0208446-04:00] device STATUS=NONE RESUME_AT=NO
+[2026-08-16T10:52:10.0401060-04:00] pre-check battery + UNPLUGGED + thermal
+[2026-08-16T10:52:10.1951382-04:00] battery level=84 tempC=33.9 plugged=False
+[2026-08-16T10:52:10.3287418-04:00] meminfo MemTotal:       11436476 kB
+MemAvailable:    5426488 kB
+SwapTotal:      12582908 kB
+SwapFree:        8005628 kB
+[2026-08-16T10:52:10.3473424-04:00] mkdir remote log dirs (no binaries)
+[2026-08-16T10:52:10.4756074-04:00] adb push harness only
+[2026-08-16T10:52:10.7870922-04:00] start harness in nohup (device-side sh)
+[2026-08-16T10:55:21.9107342-04:00] PID:16076
+---STATUS---
+---TAIL---
+[2026-08-16T10:52:12-0400] CAMPAIGN_SHA=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c path=/data/local/tmp/ship_ab/bin/bmoe-cli
+[2026-08-16T10:52:12-0400] PIN libc++_shared.so sha=e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6 path=/data/local/tmp/ship_ab/bin/libc++_shared.so
+[2026-08-16T10:52:12-0400] PIN libggml-base.so sha=cfed1b4e511511a28ca4f6bc9d3976976ff2fcf67f22919a875d9454a39b0dc1 path=/data/local/tmp/ship_ab/bin/libggml-base.so
+[2026-08-16T10:52:12-0400] PIN libggml-cpu.so sha=b164d48a955329964a08248d1c2a26576c3b654eda17b6727d396fd5de901052 path=/data/local/tmp/ship_ab/bin/libggml-cpu.so
+[2026-08-16T10:52:12-0400] PIN libggml.so sha=af29c01eeafcba1bb981bb336ea9f231e62fafdb0203fa9884f776b7f06a1939 path=/data/local/tmp/ship_ab/bin/libggml.so
+[2026-08-16T10:52:12-0400] PIN libllama-common.so sha=09d54baac36407f2c1197f8f65bba32a5c84f8ed2c381dc2bfc914838f2d86c1 path=/data/local/tmp/ship_ab/bin/libllama-common.so
+[2026-08-16T10:52:12-0400] PIN libllama.so sha=4d505d3c403a60c0f617fe52512cbc5be38b31e314e571b31c5548e4ecda7288 path=/data/local/tmp/ship_ab/bin/libllama.so
+[2026-08-16T10:52:12-0400] RUNTIME PIN OK 7/7
+[2026-08-16T10:52:12-0400] MODEL path=/data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600
+[2026-08-16T10:52:12-0400] computing MODEL sha256 (8 GiB, may take a minute)...
+[2026-08-16T10:55:21.9341621-04:00] PUSH+START done
+[2026-08-16T10:58:54.5553622-04:00] adb devices
+[2026-08-16T10:58:54.6751582-04:00] List of devices attached
+adb-625689a2-9xEOfw._adb-tls-connect._tcp device product:houji_global model:23127PN0CG device:houji transport_id:87
+adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp device product:dm1qsqw model:SM_S911U device:dm1q transport_id:78
+[2026-08-16T10:58:54.7555048-04:00] verify 7 runtime shas on device (read-only; never push binaries)
+[2026-08-16T10:58:55.1422248-04:00] RUNTIME bmoe-cli 0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c
+[2026-08-16T10:58:55.4529339-04:00] RUNTIME libc++_shared.so e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6
+[2026-08-16T10:58:55.7386326-04:00] RUNTIME libggml-base.so cfed1b4e511511a28ca4f6bc9d3976976ff2fcf67f22919a875d9454a39b0dc1
+[2026-08-16T10:58:56.0196040-04:00] RUNTIME libggml-cpu.so b164d48a955329964a08248d1c2a26576c3b654eda17b6727d396fd5de901052
+[2026-08-16T10:58:56.2906853-04:00] RUNTIME libggml.so af29c01eeafcba1bb981bb336ea9f231e62fafdb0203fa9884f776b7f06a1939
+[2026-08-16T10:58:56.7134556-04:00] RUNTIME libllama-common.so 09d54baac36407f2c1197f8f65bba32a5c84f8ed2c381dc2bfc914838f2d86c1
+[2026-08-16T10:58:57.0360610-04:00] RUNTIME libllama.so 4d505d3c403a60c0f617fe52512cbc5be38b31e314e571b31c5548e4ecda7288
+[2026-08-16T10:58:57.0644909-04:00] RUNTIME PIN OK 7/7 (no binary written)
+[2026-08-16T10:58:57.0818889-04:00] chmod 755 on existing runtime (content untouched)
+[2026-08-16T10:58:57.2279730-04:00] verify model size + sha (read-only; never push the gguf)
+[2026-08-16T10:58:57.3612869-04:00] MODEL size=8071293600
+[2026-08-16T10:58:57.3803932-04:00] MODEL sha256 (8 GiB; may take a minute)...
+[2026-08-16T10:59:06.3227159-04:00] MODEL b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7  /data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+[2026-08-16T10:59:06.3475281-04:00] verify prompt sha (read-only; never push the prompt)
+[2026-08-16T10:59:06.5859091-04:00] PROMPT b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd  /data/local/tmp/ship_ab/prompts/p_fact.txt
+[2026-08-16T10:59:06.6144775-04:00] fresh-reboot gate (uptime <= 1800 s on a NEW session)
+[2026-08-16T10:59:06.7590454-04:00] uptime_s=1019
+[2026-08-16T10:59:07.0253798-04:00] device STATUS=NONE RESUME_AT=NO
+[2026-08-16T10:59:07.0527273-04:00] pre-check battery + UNPLUGGED + thermal
+[2026-08-16T10:59:07.2080439-04:00] battery level=83 tempC=32.9 plugged=False
+[2026-08-16T10:59:07.3561351-04:00] meminfo MemTotal:       11436476 kB
+MemAvailable:    6848736 kB
+SwapTotal:      12582908 kB
+SwapFree:        9703932 kB
+[2026-08-16T10:59:07.3769444-04:00] mkdir remote log dirs (no binaries)
+[2026-08-16T10:59:07.4945901-04:00] adb push harness only
+[2026-08-16T10:59:07.7311205-04:00] start harness in nohup (device-side sh)
+[2026-08-16T11:28:59.1752880-04:00] PID:19839
+---STATUS---
+RUNNING
+---TAIL---
+[2026-08-16T10:55:21-0400] EXCLUDE warmup completion check failed after 3 tries [no_decode_s_tok ]
+[2026-08-16T10:55:21-0400] DONE warmup rc=0 wall=48s tps= s/tok= mib/tok=3.644|0.274|0.232|0.009|0.034|144|7.747|39.20 joules= j/tok= ttft= j_window=full_invocation batt=84->83 temp_max=34.6 screen=Awake excluded=1 complete=0
+[2026-08-16T10:55:21-0400] FAIL warmup completion -- runtime is not producing measurements; stop before the 24-run sequence
+[2026-08-16T10:55:21-0400] CAMPAIGN_SHA_AFTER=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c
+[2026-08-16T10:55:22-0400] trap cleanup
+[2026-08-16T10:59:09-0400] CAMPAIGN_SHA=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c path=/data/local/tmp/ship_ab/bin/bmoe-cli
+[2026-08-16T10:59:09-0400] PIN libc++_shared.so sha=e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6 path=/data/local/tmp/ship_ab/bin/libc++_shared.so
+[2026-08-16T10:59:09-0400] PIN libggml-base.so sha=cfed1b4e511511a28ca4f6bc9d3976976ff2fcf67f22919a875d9454a39b0dc1 path=/data/local/tmp/ship_ab/bin/libggml-base.so
+[2026-08-16T10:59:09-0400] PIN libggml-cpu.so sha=b164d48a955329964a08248d1c2a26576c3b654eda17b6727d396fd5de901052 path=/data/local/tmp/ship_ab/bin/libggml-cpu.so
+[2026-08-16T10:59:09-0400] PIN libggml.so sha=af29c01eeafcba1bb981bb336ea9f231e62fafdb0203fa9884f776b7f06a1939 path=/data/local/tmp/ship_ab/bin/libggml.so
+[2026-08-16T10:59:09-0400] PIN libllama-common.so sha=09d54baac36407f2c1197f8f65bba32a5c84f8ed2c381dc2bfc914838f2d86c1 path=/data/local/tmp/ship_ab/bin/libllama-common.so
+[2026-08-16T10:59:09-0400] PIN libllama.so sha=4d505d3c403a60c0f617fe52512cbc5be38b31e314e571b31c5548e4ecda7288 path=/data/local/tmp/ship_ab/bin/libllama.so
+[2026-08-16T10:59:09-0400] RUNTIME PIN OK 7/7
+[2026-08-16T10:59:09-0400] MODEL path=/data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600
+[2026-08-16T10:59:09-0400] MODEL_SHA (cached)=b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7
+[2026-08-16T10:59:09-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T11:28:59.1996279-04:00] PUSH+START done

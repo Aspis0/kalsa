@@ -682,20 +682,15 @@ run_one() {
     fi
 
     _pm=$(parse_metrics "$_ro_out/combo.txt")
-    decode_tps="${_pm%%|*}"
-    _pm_rest="${_pm#*|}"
-    wall_s_tok="${_pm_rest%%|*}"
-    _pm_rest="${_pm_rest#*|}"
-    compute="${_pm_rest%%|*}"
-    _pm_rest="${_pm_rest#*|}"
-    mgmt="${_pm_rest%%|*}"
-    _pm_rest="${_pm_rest#*|}"
-    stall="${_pm_rest%%|*}"
-    _pm_rest="${_pm_rest#*|}"
-    n_gen="${_pm_rest%%|*}"
-    _pm_rest="${_pm_rest#*|}"
-    ttft_s="${_pm_rest%%|*}"
-    mib_per_tok="${_pm_rest#*|}"
+    # mksh extglob treats | as alternation, so ${var%%|*} empties every field.
+    decode_tps=$(printf '%s\n' "$_pm" | awk -F'|' '{print $1}')
+    wall_s_tok=$(printf '%s\n' "$_pm" | awk -F'|' '{print $2}')
+    compute=$(printf '%s\n' "$_pm" | awk -F'|' '{print $3}')
+    mgmt=$(printf '%s\n' "$_pm" | awk -F'|' '{print $4}')
+    stall=$(printf '%s\n' "$_pm" | awk -F'|' '{print $5}')
+    n_gen=$(printf '%s\n' "$_pm" | awk -F'|' '{print $6}')
+    ttft_s=$(printf '%s\n' "$_pm" | awk -F'|' '{print $7}')
+    mib_per_tok=$(printf '%s\n' "$_pm" | awk -F'|' '{print $8}')
 
     _ro_bytes=$(wc -c < "$_ro_out/combo.txt" 2>/dev/null | tr -d ' \t\r')
     [ -n "$_ro_bytes" ] || _ro_bytes=0
