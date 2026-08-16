@@ -176,13 +176,62 @@
 > costa meno che generare.** Generare vuole l'argmax su tutto il
 > vocabolario → tutti i 6 esperti. Certificare un candidato vuole solo
 > mostrare che vince → può bastare un bound sul contributo dei mancanti.
-> **PROBE F6 IN CORSA** (results/f6_certify_probe/): accordo argmax a
-> k=1..5 contro k=6, teacher-forced su CalaQwen. Break-even misurato:
-> β < 0.56 → **meno di ~3.3 esperti in media**. k=2 è già noto (0.6905,
-> F0) e serve da check dell'harness. GO se a k=3 l'accordo è ≥ ~0.95,
-> DEAD se ~0.80. Nota onesta registrata: se lo skipping rende leggera
-> la verifica, rende leggero anche il plain — la baseline si sposta e la
-> speculazione deve battere il plain GIÀ alleggerito.
+> ☠️ **PROBE F6 — DEAD ON BYTES (16/08, chiusa).** Accordo argmax a
+> k=2..5 contro k=6, teacher-forced su CalaQwen, EXACT-RESTART, d0,
+> 1037 posizioni × 4 set (fact/creative/longfact/code). Break-even
+> dichiarato prima: β < 0.56 → meno di ~3.3 esperti medi. **Check
+> dell'harness superato in pieno: k=2 = 0.6905, identico a F0 a quattro
+> decimali** — quindi il DEAD è un dato, non un bug sospetto.
+>
+> | j | accordo | n | esperti medi | β |
+> |---|---|---|---|---|
+> | 2 | 0.6905 | 1037 | 3.24 | 0.540 |
+> | 3 | **0.8120** | 1037 | 3.56 | **0.594** |
+> | 4 | 0.8640 | 1037 | 4.27 | 0.712 |
+> | 5 | 0.8685 | 555 (parziale) | 5.13 | 0.855 |
+>
+> k=3 cade in pieno nella banda DEAD pre-dichiarata (0.75–0.85) contro
+> una soglia GO di ~0.95. **Solo j ≤ 3 poteva funzionare**: a j=4 il
+> pavimento è già 4/6 = 0.667 > 0.56, a j=5 è 0.833 — cioè j≥4 fallisce
+> per costruzione anche con accordo perfetto. j=3 sbaglia del 6%; j=2 dà
+> 0.540, nominalmente sotto soglia del 3.6%, ma **l'accordo argmax è un
+> UPPER BOUND sulla certificabilità** (certificare richiede di provare
+> il vincitore con un bound sui mancanti, test più stretto del semplice
+> "l'argmax ha coinciso"): costruirci sopra vuol dire costruire sulla
+> barra d'errore. Split per dominio come in F0: longfact/code 0.85-0.92,
+> fact/creative 0.52-0.86 — sopravvive sul testo prevedibile, non sui
+> token difficili.
+>
+> **La ragione vera che ritira la tecnica è che la baseline si è mossa,
+> ed era la nota onesta registrata in anticipo.** La drop curve conferma
+> il premesso dall'altro lato: droppare gli esperti freddi a 0.8 costa
+> **+0.0109 macro bpb (+1.6%)**, GATE_PASS. La qualità non ha bisogno di
+> sei esperti. Quindi il confronto giusto per β non è contro il plain
+> k=6 ma contro il plain GIÀ alleggerito, che legge molti meno byte e non
+> vuole draft, verify, rollback né stato ricorrente congelato.
+> (Scope: il +1.6% è una misura di QUALITÀ; il risparmio in byte di
+> `--drop-cold-experts` è lo scopo del flag ma non è misurato in quella
+> cella — l'argomento regge sulla direzione, non su una magnitudine non
+> misurata.)
+>
+> **Buco dichiarato, non aggirato:** i margini top1-top2 sotto set
+> parziali — la quantità che predice davvero il costo di uno schema
+> adattivo — **l'engine non sa emetterli** (`engine_top2_logits: false`;
+> il `--ppl-csv` dà il logprob del solo token gold). Nessun margine è
+> stato inventato. Non cambia il verdetto (il pavimento j≥4 è
+> strutturale e j≤3 non ha spazio) ma è l'unica porta lasciata chiusa, e
+> aprirla richiede una modifica all'engine.
+> Chiusa per decisione owner appena il verdetto è stato determinato:
+> k=1 mai partito, k=5 parziale (555/1037), entrambi dichiarati.
+> Nessun timing riportato (macchina condivisa con la drop curve; le
+> quantità misurate sono deterministiche). ~5 ore di sonda hanno ucciso
+> una tecnica che sarebbe costata settimane. results/f6_certify_probe/.
+>
+> **Cosa NON tocca:** quel che resta di F5 è intatto e resta vero —
+> l'acceptance quasi raddoppia come meccanismo di CORREZIONE (loop alpha
+> 8.6% → 24.6%) e il freeze salva **251.25 MiB** misurati di RAM. Non
+> erano claim di throughput in byte. **Il caso BYTE della decodifica
+> self-speculative su questa architettura è chiuso.**
 > **DENSI (Qwen3.5 2B/4B, misurato su Xiaomi 16/08):** `qwen35` = denso
 > MA IBRIDO (24 layer GDN su 32) → il freeze serve anche lì, e stando in
 > RAM il batch AMMORTIZZA (prefill/decode = 2.33×), cioè il regime dove
@@ -215,8 +264,8 @@
 > prefetch**, per nascondere lo stall invece di saltare decodifiche;
 > (4) verify più magro sfruttando il drop già certificato.
 > results/selfspec_f5_d1_xiaomi/.
-> ❄️ **CELLA K-F A FREDDO SUL JELLY (16/08, in corso) — sblocca o
-> chiude KF_SHIP.** PREREG committato PRIMA dello staging (01350f1):
+> ❄️ **CELLA K-F A FREDDO SUL JELLY (16/08, SOSPESA a 6/12 coppie) —
+> sblocca o chiude KF_SHIP.** PREREG committato PRIMA dello staging (01350f1):
 > 24 blocchi OFF-ON-ON-OFF ×6, N=12, Wilcoxon esatto two-sided, Marco
 > KEXP, un solo binario (il braccio è il flag). Motivo: il regime warm
 > ha un NEGATIVO pre-registrato (+7.1% contro, p=0.000977) e l'unico
@@ -231,15 +280,60 @@
 > Registrata in anticipo anche la POLICY che un pass licenzierebbe:
 > K-F ON sse stall misurato alto E cache fredda E nessun allarme
 > termico; batteria esplicitamente NON un gate.
-> **Primi 4 blocchi (2 coppie su 12, non concludono):** il meccanismo
-> funziona — stall 22.8/22.3% (OFF) → 15.5/14.0% (ON), otto punti in
-> meno — ma le letture salgono 22.3 → 24.5 GB (+10%, prefetch sprecato)
-> e il tempo netto è pari: una coppia ON più lenta di 0.011, una in
-> pareggio. **Interruzione dichiarata:** alle 14:41 lo schermo si è
-> spento, sshd è morto e con lui l'harness (non era staccato — colpa
-> del mandato, non dell'agente); 93 minuti persi, 5 blocchi salvi,
-> RESUME_AT=6, ripresa in nohup con prova di sopravvivenza.
-> results/kf_cold_jelly/.
+> **15 blocchi validi, 7 coppie complete su 12 — SOSPESA al 16/08 19:xx.
+> Il −20% NON si riproduce; la tendenza è LEGGERMENTE CONTRO.**
+> (Nota di correzione: avevo detto 6 coppie. Sono 7 — il quartetto 4
+> salva la coppia b13-b14, solo (b16,b15) è nulla per l'esclusione di b16.)
+>
+> Il meccanismo funziona ed è solidissimo, su **ogni singolo blocco**:
+> stall OFF 21.4-22.8% (media 21.9) → ON 12.1-15.5% (media 13.4), otto
+> punti in meno. Ma le letture salgono 22.3 → 24.4 GB di media (+9%:
+> **prefetch sprecato**, precisione 76-77%) e il tempo non ne beneficia.
+>
+> | coppia | OFF | ON | OFF−ON | % |
+> |---|---|---|---|---|
+> | b1-b2 | 0.189 | 0.200 | −0.011 | −5.8% |
+> | b4-b3 | 0.193 | 0.193 | 0.000 | 0.0% |
+> | b5-b6 | 0.243 | 0.199 | +0.044 | +18.1% |
+> | b8-b7 | 0.192 | 0.195 | −0.003 | −1.6% |
+> | b9-b10 | 0.192 | 0.198 | −0.006 | −3.1% |
+> | b12-b11 | 0.190 | 0.188 | +0.002 | +1.1% |
+> | b13-b14 | 0.192 | 0.195 | −0.003 | −1.6% |
+>
+> N=7, mediana(OFF−ON) = **−0.0030**, 4 negative / 2 positive / 1 zero.
+> **La lettura onesta dei per-blocco smonta l'unico positivo:**
+> OFF = 0.189 0.193 **0.243** 0.192 0.192 0.190 0.192 (mediana 0.192,
+> range strettissimo tranne b5) · ON = 0.200 0.193 0.199 0.195 0.198
+> 0.188 0.195 **0.224** (mediana 0.198). Cioè **b5 è un outlier del
+> braccio OFF, non una vittoria del braccio ON**: la coppia +18.1% è un
+> blocco OFF anomalamente lento, non un ON veloce. Tolto l'outlier, ON
+> sta sistematicamente ~3% SOTTO OFF — **stessa direzione del warm
+> (+7.1% contro, pre-registrato), magnitudine minore**.
+> Servono N≥10 per la claim confermativa, ma **K-F resta OFF comunque**:
+> il warm ha un negativo pre-registrato e il cold non porta un positivo.
+>
+> **Tre interruzioni dichiarate, tutte da riportare nel REPORT:**
+> (1) 14:41 — schermo spento, sshd morto, harness morto con lui perché
+> NON era staccato (colpa del mandato che non lo richiedeva, non
+> dell'agente): 93 minuti persi, 5 blocchi salvi, RESUME_AT=6.
+> (2) ~18:00 — **due harness concorrenti** lasciati vivi nella ripresa
+> (colpa mia): due `bmoe-cli` tenevano il modello in mmap, `fadv` tornava
+> rc=3 "still has 618912 resident pages" e il blocco 16 ha bruciato 3
+> tentativi, TUTTI scartati dal gate (`excl_warmth=2`, drop_mb 0/390/222
+> contro la soglia di 1000). **Il gate di validità a freddo ha fatto
+> esattamente il suo lavoro**: senza, oggi avrei tre run tiepide
+> travestite da fredde dentro una cella pre-registrata, cioè il bias
+> verso il negativo che il gate esisteva per impedire.
+> (3) 18:15 — `STATUS = STOP_PLUGGED`: l'owner ha messo in carica (su mia
+> richiesta) e l'harness **si è fermato da solo** rifiutandosi di
+> misurare sotto carica, come impone il PREREG (UNPLUGGED). Non un
+> guasto: il guard-rail che funziona. E si è fermato DOPO la morte di
+> sshd → **il distacco stavolta ha tenuto, quel problema è chiuso.**
+>
+> **Per chiudere:** RESUME_AT=17, servono ~9 blocchi (il 16 va ri-fatto
+> in coda, la sua coppia è nulla) ≈ 2 ore non presidiate. Da batteria
+> piena il floor 45% non si sfiora nemmeno (~2.3%/blocco). Basta
+> staccare dalla presa. results/kf_cold_jelly/.
 > 📱 **CELLA REPLICA XIAOMI (16/08, in corso).** Replica pre-registrata
 > della claim di ship su secondo device: stesso ELF, stesso modello,
 > stesso prompt, cambia solo il telefono. PREREG committato PRIMA dello

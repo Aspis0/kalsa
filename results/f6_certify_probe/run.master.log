@@ -1,0 +1,1523 @@
+[2026-08-16T13:37:11] STATUS RUNNING
+[2026-08-16T13:37:11] FATAL OSError: [Errno 22] Invalid argument
+[2026-08-16T13:39:30] STATUS RUNNING
+[2026-08-16T13:39:30] prompt fact bytes=361 sha256=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T13:39:30] prompt creative bytes=314 sha256=a8fa26c1644c9d5f83fd24a79986a49eb8e755722967ffc3ca2e86858e00043d
+[2026-08-16T13:39:30] prompt longfact bytes=1202 sha256=24694e05189a25581384e9ab3dd6e80e92bdacf728a1a33c2a5e5f4cd3524f37
+[2026-08-16T13:39:30] prompt code bytes=1628 sha256=fc9467a37f595de422ec3255a4b0bb48586da741a0fad0d207a66a35569dbaa8
+[2026-08-16T13:39:30] START C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 4096 --ubatch 512 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 2 --progress --session
+[2026-08-16T13:39:35] READY draft_k2_d0 {"load_s": 4.805, "arch": "qwen35moe", "n_ctx": 4096, "think_ctl": "template", "n_expert_used": 2}
+[2026-08-16T13:39:35] GEN draft_k2_d0 id=1 n_predict=16 prefix_chars=361
+[2026-08-16T13:39:47] DONE draft_k2_d0 id=1 tokens=16 n_prompt=75 pieces=16 reset=0
+[2026-08-16T13:39:47] GEN draft_k2_d0 id=2 n_predict=16 prefix_chars=370
+[2026-08-16T13:39:57] DONE draft_k2_d0 id=2 tokens=16 n_prompt=77 pieces=16 reset=0
+[2026-08-16T13:39:57] GEN draft_k2_d0 id=3 n_predict=16 prefix_chars=393
+[2026-08-16T13:40:08] DONE draft_k2_d0 id=3 tokens=16 n_prompt=84 pieces=16 reset=0
+[2026-08-16T13:40:08] GEN draft_k2_d0 id=4 n_predict=16 prefix_chars=412
+[2026-08-16T13:40:20] DONE draft_k2_d0 id=4 tokens=16 n_prompt=90 pieces=16 reset=0
+[2026-08-16T13:40:20] GEN draft_k2_d0 id=5 n_predict=16 prefix_chars=421
+[2026-08-16T13:40:32] DONE draft_k2_d0 id=5 tokens=16 n_prompt=91 pieces=16 reset=0
+[2026-08-16T13:40:32] GEN draft_k2_d0 id=6 n_predict=16 prefix_chars=442
+[2026-08-16T13:40:44] DONE draft_k2_d0 id=6 tokens=16 n_prompt=94 pieces=16 reset=0
+[2026-08-16T13:40:44] GEN draft_k2_d0 id=7 n_predict=16 prefix_chars=458
+[2026-08-16T13:40:57] DONE draft_k2_d0 id=7 tokens=16 n_prompt=98 pieces=16 reset=0
+[2026-08-16T13:40:57] GEN draft_k2_d0 id=8 n_predict=16 prefix_chars=476
+[2026-08-16T13:41:10] DONE draft_k2_d0 id=8 tokens=16 n_prompt=101 pieces=16 reset=0
+[2026-08-16T13:41:10] GEN draft_k2_d0 id=9 n_predict=16 prefix_chars=491
+[2026-08-16T13:41:23] DONE draft_k2_d0 id=9 tokens=16 n_prompt=103 pieces=16 reset=0
+[2026-08-16T13:41:23] GEN draft_k2_d0 id=10 n_predict=16 prefix_chars=500
+[2026-08-16T13:41:36] DONE draft_k2_d0 id=10 tokens=16 n_prompt=105 pieces=16 reset=0
+[2026-08-16T13:41:36] GEN draft_k2_d0 id=11 n_predict=16 prefix_chars=547
+[2026-08-16T13:41:50] DONE draft_k2_d0 id=11 tokens=16 n_prompt=114 pieces=16 reset=0
+[2026-08-16T13:41:50] GEN draft_k2_d0 id=12 n_predict=16 prefix_chars=550
+[2026-08-16T13:42:05] DONE draft_k2_d0 id=12 tokens=16 n_prompt=115 pieces=16 reset=0
+[2026-08-16T13:42:05] GEN draft_k2_d0 id=13 n_predict=16 prefix_chars=559
+[2026-08-16T13:42:18] DONE draft_k2_d0 id=13 tokens=16 n_prompt=116 pieces=16 reset=0
+[2026-08-16T13:42:18] GEN draft_k2_d0 id=14 n_predict=16 prefix_chars=568
+[2026-08-16T13:42:32] DONE draft_k2_d0 id=14 tokens=16 n_prompt=118 pieces=16 reset=0
+[2026-08-16T13:42:32] GEN draft_k2_d0 id=15 n_predict=16 prefix_chars=573
+[2026-08-16T13:42:47] DONE draft_k2_d0 id=15 tokens=16 n_prompt=119 pieces=16 reset=0
+[2026-08-16T13:42:47] GEN draft_k2_d0 id=16 n_predict=16 prefix_chars=625
+[2026-08-16T13:43:01] DONE draft_k2_d0 id=16 tokens=16 n_prompt=128 pieces=16 reset=0
+[2026-08-16T13:43:01] GEN draft_k2_d0 id=17 n_predict=16 prefix_chars=639
+[2026-08-16T13:43:16] DONE draft_k2_d0 id=17 tokens=16 n_prompt=129 pieces=16 reset=0
+[2026-08-16T13:43:16] GEN draft_k2_d0 id=18 n_predict=16 prefix_chars=645
+[2026-08-16T13:43:32] DONE draft_k2_d0 id=18 tokens=16 n_prompt=130 pieces=16 reset=0
+[2026-08-16T13:43:32] GEN draft_k2_d0 id=19 n_predict=16 prefix_chars=651
+[2026-08-16T13:43:47] DONE draft_k2_d0 id=19 tokens=16 n_prompt=131 pieces=16 reset=0
+[2026-08-16T13:43:47] GEN draft_k2_d0 id=20 n_predict=16 prefix_chars=664
+[2026-08-16T13:44:02] DONE draft_k2_d0 id=20 tokens=16 n_prompt=132 pieces=16 reset=0
+[2026-08-16T13:44:02] GEN draft_k2_d0 id=21 n_predict=16 prefix_chars=671
+[2026-08-16T13:44:18] DONE draft_k2_d0 id=21 tokens=16 n_prompt=133 pieces=16 reset=0
+[2026-08-16T13:44:18] GEN draft_k2_d0 id=22 n_predict=16 prefix_chars=710
+[2026-08-16T13:44:34] DONE draft_k2_d0 id=22 tokens=16 n_prompt=139 pieces=16 reset=0
+[2026-08-16T13:44:34] GEN draft_k2_d0 id=23 n_predict=16 prefix_chars=724
+[2026-08-16T13:44:49] DONE draft_k2_d0 id=23 tokens=16 n_prompt=140 pieces=16 reset=0
+[2026-08-16T13:44:49] GEN draft_k2_d0 id=24 n_predict=16 prefix_chars=729
+[2026-08-16T13:45:05] DONE draft_k2_d0 id=24 tokens=16 n_prompt=141 pieces=16 reset=0
+[2026-08-16T13:45:05] GEN draft_k2_d0 id=25 n_predict=16 prefix_chars=739
+[2026-08-16T13:45:21] DONE draft_k2_d0 id=25 tokens=16 n_prompt=143 pieces=16 reset=0
+[2026-08-16T13:45:21] GEN draft_k2_d0 id=26 n_predict=16 prefix_chars=760
+[2026-08-16T13:45:37] DONE draft_k2_d0 id=26 tokens=16 n_prompt=145 pieces=16 reset=0
+[2026-08-16T13:45:37] GEN draft_k2_d0 id=27 n_predict=16 prefix_chars=763
+[2026-08-16T13:45:53] DONE draft_k2_d0 id=27 tokens=16 n_prompt=146 pieces=16 reset=0
+[2026-08-16T13:45:53] GEN draft_k2_d0 id=28 n_predict=16 prefix_chars=772
+[2026-08-16T13:46:09] DONE draft_k2_d0 id=28 tokens=16 n_prompt=147 pieces=16 reset=0
+[2026-08-16T13:46:09] GEN draft_k2_d0 id=29 n_predict=16 prefix_chars=777
+[2026-08-16T13:46:26] DONE draft_k2_d0 id=29 tokens=16 n_prompt=148 pieces=16 reset=0
+[2026-08-16T13:46:26] GEN draft_k2_d0 id=30 n_predict=16 prefix_chars=780
+[2026-08-16T13:46:42] DONE draft_k2_d0 id=30 tokens=16 n_prompt=150 pieces=16 reset=0
+[2026-08-16T13:46:42] GEN draft_k2_d0 id=31 n_predict=16 prefix_chars=781
+[2026-08-16T13:46:59] DONE draft_k2_d0 id=31 tokens=16 n_prompt=151 pieces=16 reset=0
+[2026-08-16T13:46:59] GEN draft_k2_d0 id=32 n_predict=16 prefix_chars=803
+[2026-08-16T13:47:16] DONE draft_k2_d0 id=32 tokens=16 n_prompt=156 pieces=16 reset=0
+[2026-08-16T13:47:16] GEN draft_k2_d0 id=33 n_predict=16 prefix_chars=813
+[2026-08-16T13:47:32] DONE draft_k2_d0 id=33 tokens=16 n_prompt=157 pieces=16 reset=0
+[2026-08-16T13:47:32] GEN draft_k2_d0 id=34 n_predict=16 prefix_chars=820
+[2026-08-16T13:47:49] DONE draft_k2_d0 id=34 tokens=16 n_prompt=159 pieces=16 reset=0
+[2026-08-16T13:47:49] GEN draft_k2_d0 id=35 n_predict=16 prefix_chars=839
+[2026-08-16T13:48:06] DONE draft_k2_d0 id=35 tokens=16 n_prompt=161 pieces=16 reset=0
+[2026-08-16T13:48:06] GEN draft_k2_d0 id=36 n_predict=16 prefix_chars=861
+[2026-08-16T13:48:22] DONE draft_k2_d0 id=36 tokens=16 n_prompt=164 pieces=16 reset=0
+[2026-08-16T13:48:22] GEN draft_k2_d0 id=37 n_predict=16 prefix_chars=864
+[2026-08-16T13:48:40] DONE draft_k2_d0 id=37 tokens=16 n_prompt=165 pieces=16 reset=0
+[2026-08-16T13:48:40] GEN draft_k2_d0 id=38 n_predict=16 prefix_chars=868
+[2026-08-16T13:48:57] DONE draft_k2_d0 id=38 tokens=16 n_prompt=166 pieces=16 reset=0
+[2026-08-16T13:48:57] GEN draft_k2_d0 id=39 n_predict=16 prefix_chars=874
+[2026-08-16T13:49:15] DONE draft_k2_d0 id=39 tokens=16 n_prompt=167 pieces=16 reset=0
+[2026-08-16T13:49:15] GEN draft_k2_d0 id=40 n_predict=16 prefix_chars=887
+[2026-08-16T13:49:33] DONE draft_k2_d0 id=40 tokens=16 n_prompt=170 pieces=16 reset=0
+[2026-08-16T13:49:33] GEN draft_k2_d0 id=41 n_predict=16 prefix_chars=908
+[2026-08-16T13:49:51] DONE draft_k2_d0 id=41 tokens=16 n_prompt=174 pieces=16 reset=0
+[2026-08-16T13:49:51] GEN draft_k2_d0 id=42 n_predict=16 prefix_chars=916
+[2026-08-16T13:50:09] DONE draft_k2_d0 id=42 tokens=16 n_prompt=176 pieces=16 reset=0
+[2026-08-16T13:50:09] GEN draft_k2_d0 id=43 n_predict=16 prefix_chars=928
+[2026-08-16T13:50:27] DONE draft_k2_d0 id=43 tokens=16 n_prompt=177 pieces=16 reset=0
+[2026-08-16T13:50:27] GEN draft_k2_d0 id=44 n_predict=16 prefix_chars=941
+[2026-08-16T13:50:46] DONE draft_k2_d0 id=44 tokens=16 n_prompt=178 pieces=16 reset=0
+[2026-08-16T13:50:46] GEN draft_k2_d0 id=45 n_predict=16 prefix_chars=942
+[2026-08-16T13:51:04] DONE draft_k2_d0 id=45 tokens=16 n_prompt=179 pieces=16 reset=0
+[2026-08-16T13:51:04] GEN draft_k2_d0 id=46 n_predict=16 prefix_chars=947
+[2026-08-16T13:51:23] DONE draft_k2_d0 id=46 tokens=16 n_prompt=180 pieces=16 reset=0
+[2026-08-16T13:51:23] GEN draft_k2_d0 id=47 n_predict=16 prefix_chars=958
+[2026-08-16T13:51:42] DONE draft_k2_d0 id=47 tokens=16 n_prompt=181 pieces=16 reset=0
+[2026-08-16T13:51:42] GEN draft_k2_d0 id=48 n_predict=16 prefix_chars=961
+[2026-08-16T13:52:01] DONE draft_k2_d0 id=48 tokens=16 n_prompt=182 pieces=16 reset=0
+[2026-08-16T13:52:01] GEN draft_k2_d0 id=49 n_predict=16 prefix_chars=969
+[2026-08-16T13:52:20] DONE draft_k2_d0 id=49 tokens=16 n_prompt=183 pieces=16 reset=0
+[2026-08-16T13:52:20] GEN draft_k2_d0 id=50 n_predict=16 prefix_chars=987
+[2026-08-16T13:52:38] DONE draft_k2_d0 id=50 tokens=16 n_prompt=186 pieces=16 reset=0
+[2026-08-16T13:52:38] GEN draft_k2_d0 id=51 n_predict=16 prefix_chars=997
+[2026-08-16T13:52:57] DONE draft_k2_d0 id=51 tokens=16 n_prompt=187 pieces=16 reset=0
+[2026-08-16T13:52:57] GEN draft_k2_d0 id=52 n_predict=16 prefix_chars=1000
+[2026-08-16T13:53:15] DONE draft_k2_d0 id=52 tokens=16 n_prompt=189 pieces=16 reset=0
+[2026-08-16T13:53:15] GEN draft_k2_d0 id=53 n_predict=16 prefix_chars=1024
+[2026-08-16T13:53:32] DONE draft_k2_d0 id=53 tokens=16 n_prompt=192 pieces=16 reset=0
+[2026-08-16T13:53:32] GEN draft_k2_d0 id=54 n_predict=16 prefix_chars=1029
+[2026-08-16T13:53:49] DONE draft_k2_d0 id=54 tokens=16 n_prompt=193 pieces=16 reset=0
+[2026-08-16T13:53:49] GEN draft_k2_d0 id=55 n_predict=16 prefix_chars=1043
+[2026-08-16T13:54:09] DONE draft_k2_d0 id=55 tokens=16 n_prompt=195 pieces=16 reset=0
+[2026-08-16T13:54:09] GEN draft_k2_d0 id=56 n_predict=16 prefix_chars=1063
+[2026-08-16T13:54:29] DONE draft_k2_d0 id=56 tokens=16 n_prompt=198 pieces=16 reset=0
+[2026-08-16T13:54:29] GEN draft_k2_d0 id=57 n_predict=16 prefix_chars=1077
+[2026-08-16T13:54:49] DONE draft_k2_d0 id=57 tokens=16 n_prompt=200 pieces=16 reset=0
+[2026-08-16T13:54:49] GEN draft_k2_d0 id=58 n_predict=16 prefix_chars=1082
+[2026-08-16T13:55:09] DONE draft_k2_d0 id=58 tokens=16 n_prompt=201 pieces=16 reset=0
+[2026-08-16T13:55:09] GEN draft_k2_d0 id=59 n_predict=16 prefix_chars=1086
+[2026-08-16T13:55:29] DONE draft_k2_d0 id=59 tokens=16 n_prompt=202 pieces=16 reset=0
+[2026-08-16T13:55:29] GEN draft_k2_d0 id=60 n_predict=16 prefix_chars=1095
+[2026-08-16T13:55:48] DONE draft_k2_d0 id=60 tokens=6 n_prompt=203 pieces=6 reset=0
+[2026-08-16T13:55:48] GEN draft_k2_d0 id=61 n_predict=16 prefix_chars=1103
+[2026-08-16T13:56:09] DONE draft_k2_d0 id=61 tokens=16 n_prompt=204 pieces=16 reset=0
+[2026-08-16T13:56:09] GEN draft_k2_d0 id=62 n_predict=16 prefix_chars=1116
+[2026-08-16T13:56:30] DONE draft_k2_d0 id=62 tokens=16 n_prompt=210 pieces=16 reset=0
+[2026-08-16T13:56:30] GEN draft_k2_d0 id=63 n_predict=16 prefix_chars=1127
+[2026-08-16T13:56:51] DONE draft_k2_d0 id=63 tokens=16 n_prompt=214 pieces=16 reset=0
+[2026-08-16T13:56:51] GEN draft_k2_d0 id=64 n_predict=16 prefix_chars=1143
+[2026-08-16T13:57:12] DONE draft_k2_d0 id=64 tokens=16 n_prompt=217 pieces=16 reset=0
+[2026-08-16T13:57:12] GEN draft_k2_d0 id=65 n_predict=16 prefix_chars=1162
+[2026-08-16T13:57:33] DONE draft_k2_d0 id=65 tokens=16 n_prompt=220 pieces=16 reset=0
+[2026-08-16T13:57:33] GEN draft_k2_d0 id=66 n_predict=16 prefix_chars=1174
+[2026-08-16T13:57:54] DONE draft_k2_d0 id=66 tokens=16 n_prompt=221 pieces=16 reset=0
+[2026-08-16T13:57:54] GEN draft_k2_d0 id=67 n_predict=16 prefix_chars=1186
+[2026-08-16T13:58:16] DONE draft_k2_d0 id=67 tokens=16 n_prompt=224 pieces=16 reset=0
+[2026-08-16T13:58:16] GEN draft_k2_d0 id=68 n_predict=16 prefix_chars=1194
+[2026-08-16T13:58:37] DONE draft_k2_d0 id=68 tokens=16 n_prompt=226 pieces=16 reset=0
+[2026-08-16T13:58:37] GEN draft_k2_d0 id=69 n_predict=16 prefix_chars=1239
+[2026-08-16T13:58:59] DONE draft_k2_d0 id=69 tokens=16 n_prompt=235 pieces=16 reset=0
+[2026-08-16T13:58:59] GEN draft_k2_d0 id=70 n_predict=16 prefix_chars=1247
+[2026-08-16T13:59:22] DONE draft_k2_d0 id=70 tokens=16 n_prompt=236 pieces=16 reset=0
+[2026-08-16T13:59:22] GEN draft_k2_d0 id=71 n_predict=16 prefix_chars=1255
+[2026-08-16T13:59:44] DONE draft_k2_d0 id=71 tokens=16 n_prompt=237 pieces=16 reset=0
+[2026-08-16T13:59:44] GEN draft_k2_d0 id=72 n_predict=16 prefix_chars=1272
+[2026-08-16T14:00:07] DONE draft_k2_d0 id=72 tokens=16 n_prompt=240 pieces=16 reset=0
+[2026-08-16T14:00:07] GEN draft_k2_d0 id=73 n_predict=16 prefix_chars=1279
+[2026-08-16T14:00:30] DONE draft_k2_d0 id=73 tokens=16 n_prompt=241 pieces=16 reset=0
+[2026-08-16T14:00:30] GEN draft_k2_d0 id=74 n_predict=16 prefix_chars=1286
+[2026-08-16T14:00:54] DONE draft_k2_d0 id=74 tokens=16 n_prompt=243 pieces=16 reset=0
+[2026-08-16T14:00:54] GEN draft_k2_d0 id=75 n_predict=16 prefix_chars=1293
+[2026-08-16T14:01:17] DONE draft_k2_d0 id=75 tokens=16 n_prompt=244 pieces=16 reset=0
+[2026-08-16T14:01:17] GEN draft_k2_d0 id=76 n_predict=16 prefix_chars=1312
+[2026-08-16T14:01:40] DONE draft_k2_d0 id=76 tokens=16 n_prompt=247 pieces=16 reset=0
+[2026-08-16T14:01:40] GEN draft_k2_d0 id=77 n_predict=16 prefix_chars=1334
+[2026-08-16T14:02:03] DONE draft_k2_d0 id=77 tokens=16 n_prompt=250 pieces=16 reset=0
+[2026-08-16T14:02:03] GEN draft_k2_d0 id=78 n_predict=16 prefix_chars=1339
+[2026-08-16T14:02:27] DONE draft_k2_d0 id=78 tokens=16 n_prompt=251 pieces=16 reset=0
+[2026-08-16T14:02:27] GEN draft_k2_d0 id=79 n_predict=16 prefix_chars=1352
+[2026-08-16T14:02:50] DONE draft_k2_d0 id=79 tokens=16 n_prompt=253 pieces=16 reset=0
+[2026-08-16T14:02:50] GEN draft_k2_d0 id=80 n_predict=16 prefix_chars=1360
+[2026-08-16T14:03:12] DONE draft_k2_d0 id=80 tokens=7 n_prompt=254 pieces=7 reset=0
+[2026-08-16T14:03:12] GEN draft_k2_d0 id=81 n_predict=16 prefix_chars=1367
+[2026-08-16T14:03:36] DONE draft_k2_d0 id=81 tokens=16 n_prompt=255 pieces=16 reset=0
+[2026-08-16T14:03:36] GEN draft_k2_d0 id=82 n_predict=16 prefix_chars=1376
+[2026-08-16T14:04:00] DONE draft_k2_d0 id=82 tokens=16 n_prompt=257 pieces=16 reset=0
+[2026-08-16T14:04:00] GEN draft_k2_d0 id=83 n_predict=16 prefix_chars=1393
+[2026-08-16T14:04:24] DONE draft_k2_d0 id=83 tokens=16 n_prompt=260 pieces=16 reset=0
+[2026-08-16T14:04:24] GEN draft_k2_d0 id=84 n_predict=14 prefix_chars=1409
+[2026-08-16T14:04:49] DONE draft_k2_d0 id=84 tokens=14 n_prompt=264 pieces=14 reset=0
+[2026-08-16T14:04:49] GEN draft_k2_d0 id=85 n_predict=12 prefix_chars=1419
+[2026-08-16T14:05:14] DONE draft_k2_d0 id=85 tokens=12 n_prompt=266 pieces=12 reset=0
+[2026-08-16T14:05:14] GEN draft_k2_d0 id=86 n_predict=10 prefix_chars=1427
+[2026-08-16T14:05:38] DONE draft_k2_d0 id=86 tokens=10 n_prompt=268 pieces=10 reset=0
+[2026-08-16T14:05:38] GEN draft_k2_d0 id=87 n_predict=7 prefix_chars=1441
+[2026-08-16T14:06:02] DONE draft_k2_d0 id=87 tokens=7 n_prompt=271 pieces=7 reset=0
+[2026-08-16T14:06:02] GEN draft_k2_d0 id=88 n_predict=4 prefix_chars=1458
+[2026-08-16T14:06:25] DONE draft_k2_d0 id=88 tokens=4 n_prompt=274 pieces=4 reset=0
+[2026-08-16T14:06:25] GEN draft_k2_d0 id=89 n_predict=1 prefix_chars=1475
+[2026-08-16T14:06:48] DONE draft_k2_d0 id=89 tokens=1 n_prompt=277 pieces=1 reset=0
+[2026-08-16T14:06:48] draft running pooled k=2 n=203 alpha=0.5665
+[2026-08-16T14:06:48] GEN draft_k2_d0 id=90 n_predict=16 prefix_chars=314
+[2026-08-16T14:06:57] DONE draft_k2_d0 id=90 tokens=0 n_prompt=71 pieces=0 reset=0
+[2026-08-16T14:06:57] GEN draft_k2_d0 id=91 n_predict=16 prefix_chars=319
+[2026-08-16T14:07:09] DONE draft_k2_d0 id=91 tokens=16 n_prompt=72 pieces=16 reset=0
+[2026-08-16T14:07:09] GEN draft_k2_d0 id=92 n_predict=16 prefix_chars=328
+[2026-08-16T14:07:21] DONE draft_k2_d0 id=92 tokens=16 n_prompt=74 pieces=16 reset=0
+[2026-08-16T14:07:21] GEN draft_k2_d0 id=93 n_predict=16 prefix_chars=330
+[2026-08-16T14:07:32] DONE draft_k2_d0 id=93 tokens=16 n_prompt=75 pieces=16 reset=0
+[2026-08-16T14:07:32] GEN draft_k2_d0 id=94 n_predict=16 prefix_chars=337
+[2026-08-16T14:07:43] DONE draft_k2_d0 id=94 tokens=16 n_prompt=77 pieces=16 reset=0
+[2026-08-16T14:07:43] GEN draft_k2_d0 id=95 n_predict=16 prefix_chars=342
+[2026-08-16T14:07:54] DONE draft_k2_d0 id=95 tokens=16 n_prompt=78 pieces=16 reset=0
+[2026-08-16T14:07:54] GEN draft_k2_d0 id=96 n_predict=16 prefix_chars=345
+[2026-08-16T14:08:06] DONE draft_k2_d0 id=96 tokens=16 n_prompt=79 pieces=16 reset=0
+[2026-08-16T14:08:06] GEN draft_k2_d0 id=97 n_predict=16 prefix_chars=349
+[2026-08-16T14:08:18] DONE draft_k2_d0 id=97 tokens=16 n_prompt=81 pieces=16 reset=0
+[2026-08-16T14:08:18] GEN draft_k2_d0 id=98 n_predict=16 prefix_chars=351
+[2026-08-16T14:08:29] DONE draft_k2_d0 id=98 tokens=16 n_prompt=82 pieces=16 reset=0
+[2026-08-16T14:08:29] GEN draft_k2_d0 id=99 n_predict=16 prefix_chars=360
+[2026-08-16T14:08:41] DONE draft_k2_d0 id=99 tokens=16 n_prompt=84 pieces=16 reset=0
+[2026-08-16T14:08:41] GEN draft_k2_d0 id=100 n_predict=16 prefix_chars=375
+[2026-08-16T14:08:54] DONE draft_k2_d0 id=100 tokens=16 n_prompt=87 pieces=16 reset=0
+[2026-08-16T14:08:54] GEN draft_k2_d0 id=101 n_predict=16 prefix_chars=384
+[2026-08-16T14:09:06] DONE draft_k2_d0 id=101 tokens=16 n_prompt=89 pieces=16 reset=0
+[2026-08-16T14:09:06] GEN draft_k2_d0 id=102 n_predict=16 prefix_chars=405
+[2026-08-16T14:09:19] DONE draft_k2_d0 id=102 tokens=16 n_prompt=96 pieces=16 reset=0
+[2026-08-16T14:09:19] GEN draft_k2_d0 id=103 n_predict=16 prefix_chars=410
+[2026-08-16T14:09:32] DONE draft_k2_d0 id=103 tokens=16 n_prompt=97 pieces=16 reset=0
+[2026-08-16T14:09:32] GEN draft_k2_d0 id=104 n_predict=16 prefix_chars=416
+[2026-08-16T14:09:46] DONE draft_k2_d0 id=104 tokens=16 n_prompt=102 pieces=16 reset=0
+[2026-08-16T14:09:46] GEN draft_k2_d0 id=105 n_predict=16 prefix_chars=432
+[2026-08-16T14:10:01] DONE draft_k2_d0 id=105 tokens=16 n_prompt=104 pieces=16 reset=0
+[2026-08-16T14:10:01] GEN draft_k2_d0 id=106 n_predict=16 prefix_chars=438
+[2026-08-16T14:10:14] DONE draft_k2_d0 id=106 tokens=16 n_prompt=105 pieces=16 reset=0
+[2026-08-16T14:10:14] GEN draft_k2_d0 id=107 n_predict=16 prefix_chars=443
+[2026-08-16T14:10:29] DONE draft_k2_d0 id=107 tokens=16 n_prompt=107 pieces=16 reset=0
+[2026-08-16T14:10:29] GEN draft_k2_d0 id=108 n_predict=16 prefix_chars=471
+[2026-08-16T14:10:43] DONE draft_k2_d0 id=108 tokens=16 n_prompt=111 pieces=16 reset=0
+[2026-08-16T14:10:43] GEN draft_k2_d0 id=109 n_predict=16 prefix_chars=476
+[2026-08-16T14:11:00] DONE draft_k2_d0 id=109 tokens=16 n_prompt=112 pieces=16 reset=0
+[2026-08-16T14:11:00] GEN draft_k2_d0 id=110 n_predict=16 prefix_chars=492
+[2026-08-16T14:11:15] DONE draft_k2_d0 id=110 tokens=16 n_prompt=115 pieces=16 reset=0
+[2026-08-16T14:11:15] GEN draft_k2_d0 id=111 n_predict=16 prefix_chars=503
+[2026-08-16T14:11:33] DONE draft_k2_d0 id=111 tokens=16 n_prompt=118 pieces=16 reset=0
+[2026-08-16T14:11:33] GEN draft_k2_d0 id=112 n_predict=16 prefix_chars=518
+[2026-08-16T14:11:56] DONE draft_k2_d0 id=112 tokens=16 n_prompt=120 pieces=16 reset=0
+[2026-08-16T14:11:56] GEN draft_k2_d0 id=113 n_predict=16 prefix_chars=523
+[2026-08-16T14:12:11] DONE draft_k2_d0 id=113 tokens=16 n_prompt=121 pieces=16 reset=0
+[2026-08-16T14:12:11] GEN draft_k2_d0 id=114 n_predict=16 prefix_chars=530
+[2026-08-16T14:12:27] DONE draft_k2_d0 id=114 tokens=16 n_prompt=123 pieces=16 reset=0
+[2026-08-16T14:12:27] GEN draft_k2_d0 id=115 n_predict=16 prefix_chars=538
+[2026-08-16T14:12:42] DONE draft_k2_d0 id=115 tokens=16 n_prompt=125 pieces=16 reset=0
+[2026-08-16T14:12:42] GEN draft_k2_d0 id=116 n_predict=16 prefix_chars=556
+[2026-08-16T14:12:58] DONE draft_k2_d0 id=116 tokens=16 n_prompt=128 pieces=16 reset=0
+[2026-08-16T14:12:58] GEN draft_k2_d0 id=117 n_predict=16 prefix_chars=576
+[2026-08-16T14:13:15] DONE draft_k2_d0 id=117 tokens=16 n_prompt=133 pieces=16 reset=0
+[2026-08-16T14:13:15] GEN draft_k2_d0 id=118 n_predict=16 prefix_chars=587
+[2026-08-16T14:13:31] DONE draft_k2_d0 id=118 tokens=16 n_prompt=135 pieces=16 reset=0
+[2026-08-16T14:13:31] GEN draft_k2_d0 id=119 n_predict=16 prefix_chars=600
+[2026-08-16T14:13:47] DONE draft_k2_d0 id=119 tokens=16 n_prompt=137 pieces=16 reset=0
+[2026-08-16T14:13:47] GEN draft_k2_d0 id=120 n_predict=16 prefix_chars=604
+[2026-08-16T14:14:04] DONE draft_k2_d0 id=120 tokens=16 n_prompt=138 pieces=16 reset=0
+[2026-08-16T14:14:04] GEN draft_k2_d0 id=121 n_predict=16 prefix_chars=614
+[2026-08-16T14:14:20] DONE draft_k2_d0 id=121 tokens=16 n_prompt=141 pieces=16 reset=0
+[2026-08-16T14:14:20] GEN draft_k2_d0 id=122 n_predict=16 prefix_chars=622
+[2026-08-16T14:14:37] DONE draft_k2_d0 id=122 tokens=16 n_prompt=143 pieces=16 reset=0
+[2026-08-16T14:14:37] GEN draft_k2_d0 id=123 n_predict=16 prefix_chars=627
+[2026-08-16T14:14:54] DONE draft_k2_d0 id=123 tokens=16 n_prompt=144 pieces=16 reset=0
+[2026-08-16T14:14:54] GEN draft_k2_d0 id=124 n_predict=16 prefix_chars=647
+[2026-08-16T14:15:11] DONE draft_k2_d0 id=124 tokens=16 n_prompt=147 pieces=16 reset=0
+[2026-08-16T14:15:11] GEN draft_k2_d0 id=125 n_predict=16 prefix_chars=653
+[2026-08-16T14:15:28] DONE draft_k2_d0 id=125 tokens=16 n_prompt=149 pieces=16 reset=0
+[2026-08-16T14:15:28] GEN draft_k2_d0 id=126 n_predict=16 prefix_chars=659
+[2026-08-16T14:15:45] DONE draft_k2_d0 id=126 tokens=16 n_prompt=150 pieces=16 reset=0
+[2026-08-16T14:15:45] GEN draft_k2_d0 id=127 n_predict=16 prefix_chars=677
+[2026-08-16T14:16:03] DONE draft_k2_d0 id=127 tokens=16 n_prompt=154 pieces=16 reset=0
+[2026-08-16T14:16:03] GEN draft_k2_d0 id=128 n_predict=16 prefix_chars=695
+[2026-08-16T14:16:20] DONE draft_k2_d0 id=128 tokens=16 n_prompt=157 pieces=16 reset=0
+[2026-08-16T14:16:20] GEN draft_k2_d0 id=129 n_predict=16 prefix_chars=704
+[2026-08-16T14:16:38] DONE draft_k2_d0 id=129 tokens=16 n_prompt=159 pieces=16 reset=0
+[2026-08-16T14:16:38] GEN draft_k2_d0 id=130 n_predict=16 prefix_chars=734
+[2026-08-16T14:16:56] DONE draft_k2_d0 id=130 tokens=16 n_prompt=164 pieces=16 reset=0
+[2026-08-16T14:16:56] GEN draft_k2_d0 id=131 n_predict=16 prefix_chars=735
+[2026-08-16T14:17:15] DONE draft_k2_d0 id=131 tokens=16 n_prompt=165 pieces=16 reset=0
+[2026-08-16T14:17:15] GEN draft_k2_d0 id=132 n_predict=16 prefix_chars=752
+[2026-08-16T14:17:33] DONE draft_k2_d0 id=132 tokens=16 n_prompt=168 pieces=16 reset=0
+[2026-08-16T14:17:33] GEN draft_k2_d0 id=133 n_predict=16 prefix_chars=759
+[2026-08-16T14:17:52] DONE draft_k2_d0 id=133 tokens=16 n_prompt=169 pieces=16 reset=0
+[2026-08-16T14:17:52] GEN draft_k2_d0 id=134 n_predict=16 prefix_chars=763
+[2026-08-16T14:18:11] DONE draft_k2_d0 id=134 tokens=16 n_prompt=170 pieces=16 reset=0
+[2026-08-16T14:18:11] GEN draft_k2_d0 id=135 n_predict=16 prefix_chars=772
+[2026-08-16T14:18:30] DONE draft_k2_d0 id=135 tokens=16 n_prompt=171 pieces=16 reset=0
+[2026-08-16T14:18:30] GEN draft_k2_d0 id=136 n_predict=16 prefix_chars=777
+[2026-08-16T14:18:48] DONE draft_k2_d0 id=136 tokens=16 n_prompt=174 pieces=16 reset=0
+[2026-08-16T14:18:48] GEN draft_k2_d0 id=137 n_predict=16 prefix_chars=786
+[2026-08-16T14:19:07] DONE draft_k2_d0 id=137 tokens=16 n_prompt=176 pieces=16 reset=0
+[2026-08-16T14:19:07] GEN draft_k2_d0 id=138 n_predict=16 prefix_chars=790
+[2026-08-16T14:19:27] DONE draft_k2_d0 id=138 tokens=16 n_prompt=177 pieces=16 reset=0
+[2026-08-16T14:19:27] GEN draft_k2_d0 id=139 n_predict=16 prefix_chars=802
+[2026-08-16T14:19:46] DONE draft_k2_d0 id=139 tokens=16 n_prompt=179 pieces=16 reset=0
+[2026-08-16T14:19:46] GEN draft_k2_d0 id=140 n_predict=16 prefix_chars=809
+[2026-08-16T14:20:06] DONE draft_k2_d0 id=140 tokens=16 n_prompt=180 pieces=16 reset=0
+[2026-08-16T14:20:06] GEN draft_k2_d0 id=141 n_predict=16 prefix_chars=824
+[2026-08-16T14:20:25] DONE draft_k2_d0 id=141 tokens=16 n_prompt=184 pieces=16 reset=0
+[2026-08-16T14:20:25] GEN draft_k2_d0 id=142 n_predict=16 prefix_chars=827
+[2026-08-16T14:20:46] DONE draft_k2_d0 id=142 tokens=16 n_prompt=185 pieces=16 reset=0
+[2026-08-16T14:20:46] GEN draft_k2_d0 id=143 n_predict=16 prefix_chars=835
+[2026-08-16T14:21:05] DONE draft_k2_d0 id=143 tokens=16 n_prompt=187 pieces=16 reset=0
+[2026-08-16T14:21:05] GEN draft_k2_d0 id=144 n_predict=16 prefix_chars=841
+[2026-08-16T14:21:25] DONE draft_k2_d0 id=144 tokens=16 n_prompt=188 pieces=16 reset=0
+[2026-08-16T14:21:25] GEN draft_k2_d0 id=145 n_predict=16 prefix_chars=843
+[2026-08-16T14:21:45] DONE draft_k2_d0 id=145 tokens=16 n_prompt=189 pieces=16 reset=0
+[2026-08-16T14:21:45] GEN draft_k2_d0 id=146 n_predict=16 prefix_chars=849
+[2026-08-16T14:22:06] DONE draft_k2_d0 id=146 tokens=16 n_prompt=190 pieces=16 reset=0
+[2026-08-16T14:22:06] GEN draft_k2_d0 id=147 n_predict=16 prefix_chars=870
+[2026-08-16T14:22:26] DONE draft_k2_d0 id=147 tokens=16 n_prompt=195 pieces=16 reset=0
+[2026-08-16T14:22:26] GEN draft_k2_d0 id=148 n_predict=16 prefix_chars=873
+[2026-08-16T14:22:46] DONE draft_k2_d0 id=148 tokens=16 n_prompt=196 pieces=16 reset=0
+[2026-08-16T14:22:46] GEN draft_k2_d0 id=149 n_predict=16 prefix_chars=878
+[2026-08-16T14:23:06] DONE draft_k2_d0 id=149 tokens=16 n_prompt=197 pieces=16 reset=0
+[2026-08-16T14:23:06] GEN draft_k2_d0 id=150 n_predict=16 prefix_chars=883
+[2026-08-16T14:23:27] DONE draft_k2_d0 id=150 tokens=16 n_prompt=198 pieces=16 reset=0
+[2026-08-16T14:23:27] GEN draft_k2_d0 id=151 n_predict=16 prefix_chars=890
+[2026-08-16T14:23:48] DONE draft_k2_d0 id=151 tokens=16 n_prompt=200 pieces=16 reset=0
+[2026-08-16T14:23:48] GEN draft_k2_d0 id=152 n_predict=16 prefix_chars=891
+[2026-08-16T14:24:08] DONE draft_k2_d0 id=152 tokens=16 n_prompt=201 pieces=16 reset=0
+[2026-08-16T14:24:08] GEN draft_k2_d0 id=153 n_predict=16 prefix_chars=898
+[2026-08-16T14:24:28] DONE draft_k2_d0 id=153 tokens=16 n_prompt=202 pieces=16 reset=0
+[2026-08-16T14:24:28] GEN draft_k2_d0 id=154 n_predict=16 prefix_chars=907
+[2026-08-16T14:24:49] DONE draft_k2_d0 id=154 tokens=16 n_prompt=204 pieces=16 reset=0
+[2026-08-16T14:24:49] GEN draft_k2_d0 id=155 n_predict=16 prefix_chars=930
+[2026-08-16T14:25:10] DONE draft_k2_d0 id=155 tokens=16 n_prompt=208 pieces=16 reset=0
+[2026-08-16T14:25:10] GEN draft_k2_d0 id=156 n_predict=16 prefix_chars=935
+[2026-08-16T14:25:31] DONE draft_k2_d0 id=156 tokens=16 n_prompt=210 pieces=16 reset=0
+[2026-08-16T14:25:31] GEN draft_k2_d0 id=157 n_predict=16 prefix_chars=941
+[2026-08-16T14:25:52] DONE draft_k2_d0 id=157 tokens=16 n_prompt=211 pieces=16 reset=0
+[2026-08-16T14:25:52] GEN draft_k2_d0 id=158 n_predict=16 prefix_chars=951
+[2026-08-16T14:26:14] DONE draft_k2_d0 id=158 tokens=16 n_prompt=213 pieces=16 reset=0
+[2026-08-16T14:26:14] GEN draft_k2_d0 id=159 n_predict=16 prefix_chars=970
+[2026-08-16T14:26:36] DONE draft_k2_d0 id=159 tokens=16 n_prompt=216 pieces=16 reset=0
+[2026-08-16T14:26:36] GEN draft_k2_d0 id=160 n_predict=16 prefix_chars=993
+[2026-08-16T14:26:58] DONE draft_k2_d0 id=160 tokens=16 n_prompt=220 pieces=16 reset=0
+[2026-08-16T14:26:58] GEN draft_k2_d0 id=161 n_predict=16 prefix_chars=998
+[2026-08-16T14:27:21] DONE draft_k2_d0 id=161 tokens=16 n_prompt=221 pieces=16 reset=0
+[2026-08-16T14:27:21] GEN draft_k2_d0 id=162 n_predict=16 prefix_chars=1002
+[2026-08-16T14:27:43] DONE draft_k2_d0 id=162 tokens=16 n_prompt=222 pieces=16 reset=0
+[2026-08-16T14:27:43] GEN draft_k2_d0 id=163 n_predict=16 prefix_chars=1008
+[2026-08-16T14:28:05] DONE draft_k2_d0 id=163 tokens=16 n_prompt=223 pieces=16 reset=0
+[2026-08-16T14:28:05] GEN draft_k2_d0 id=164 n_predict=16 prefix_chars=1015
+[2026-08-16T14:28:27] DONE draft_k2_d0 id=164 tokens=16 n_prompt=224 pieces=16 reset=0
+[2026-08-16T14:28:27] GEN draft_k2_d0 id=165 n_predict=16 prefix_chars=1019
+[2026-08-16T14:28:49] DONE draft_k2_d0 id=165 tokens=16 n_prompt=226 pieces=16 reset=0
+[2026-08-16T14:28:49] GEN draft_k2_d0 id=166 n_predict=16 prefix_chars=1033
+[2026-08-16T14:29:11] DONE draft_k2_d0 id=166 tokens=16 n_prompt=228 pieces=16 reset=0
+[2026-08-16T14:29:11] GEN draft_k2_d0 id=167 n_predict=16 prefix_chars=1039
+[2026-08-16T14:29:34] DONE draft_k2_d0 id=167 tokens=16 n_prompt=230 pieces=16 reset=0
+[2026-08-16T14:29:34] GEN draft_k2_d0 id=168 n_predict=16 prefix_chars=1050
+[2026-08-16T14:29:56] DONE draft_k2_d0 id=168 tokens=16 n_prompt=232 pieces=16 reset=0
+[2026-08-16T14:29:56] GEN draft_k2_d0 id=169 n_predict=16 prefix_chars=1055
+[2026-08-16T14:30:19] DONE draft_k2_d0 id=169 tokens=16 n_prompt=233 pieces=16 reset=0
+[2026-08-16T14:30:19] GEN draft_k2_d0 id=170 n_predict=16 prefix_chars=1056
+[2026-08-16T14:30:43] DONE draft_k2_d0 id=170 tokens=16 n_prompt=234 pieces=16 reset=0
+[2026-08-16T14:30:43] GEN draft_k2_d0 id=171 n_predict=16 prefix_chars=1060
+[2026-08-16T14:31:06] DONE draft_k2_d0 id=171 tokens=16 n_prompt=235 pieces=16 reset=0
+[2026-08-16T14:31:06] GEN draft_k2_d0 id=172 n_predict=16 prefix_chars=1065
+[2026-08-16T14:31:29] DONE draft_k2_d0 id=172 tokens=16 n_prompt=236 pieces=16 reset=0
+[2026-08-16T14:31:29] GEN draft_k2_d0 id=173 n_predict=16 prefix_chars=1072
+[2026-08-16T14:31:52] DONE draft_k2_d0 id=173 tokens=16 n_prompt=238 pieces=16 reset=0
+[2026-08-16T14:31:52] GEN draft_k2_d0 id=174 n_predict=16 prefix_chars=1081
+[2026-08-16T14:32:15] DONE draft_k2_d0 id=174 tokens=16 n_prompt=241 pieces=16 reset=0
+[2026-08-16T14:32:15] GEN draft_k2_d0 id=175 n_predict=16 prefix_chars=1110
+[2026-08-16T14:32:39] DONE draft_k2_d0 id=175 tokens=16 n_prompt=246 pieces=16 reset=0
+[2026-08-16T14:32:39] GEN draft_k2_d0 id=176 n_predict=16 prefix_chars=1121
+[2026-08-16T14:33:03] DONE draft_k2_d0 id=176 tokens=16 n_prompt=249 pieces=16 reset=0
+[2026-08-16T14:33:03] GEN draft_k2_d0 id=177 n_predict=16 prefix_chars=1128
+[2026-08-16T14:33:27] DONE draft_k2_d0 id=177 tokens=16 n_prompt=250 pieces=16 reset=0
+[2026-08-16T14:33:27] GEN draft_k2_d0 id=178 n_predict=16 prefix_chars=1131
+[2026-08-16T14:33:51] DONE draft_k2_d0 id=178 tokens=16 n_prompt=251 pieces=16 reset=0
+[2026-08-16T14:33:51] GEN draft_k2_d0 id=179 n_predict=16 prefix_chars=1135
+[2026-08-16T14:34:15] DONE draft_k2_d0 id=179 tokens=16 n_prompt=252 pieces=16 reset=0
+[2026-08-16T14:34:16] GEN draft_k2_d0 id=180 n_predict=16 prefix_chars=1150
+[2026-08-16T14:34:40] DONE draft_k2_d0 id=180 tokens=16 n_prompt=254 pieces=16 reset=0
+[2026-08-16T14:34:40] GEN draft_k2_d0 id=181 n_predict=16 prefix_chars=1159
+[2026-08-16T14:35:05] DONE draft_k2_d0 id=181 tokens=16 n_prompt=256 pieces=16 reset=0
+[2026-08-16T14:35:05] GEN draft_k2_d0 id=182 n_predict=16 prefix_chars=1162
+[2026-08-16T14:35:29] DONE draft_k2_d0 id=182 tokens=16 n_prompt=257 pieces=16 reset=0
+[2026-08-16T14:35:29] GEN draft_k2_d0 id=183 n_predict=16 prefix_chars=1171
+[2026-08-16T14:35:54] DONE draft_k2_d0 id=183 tokens=16 n_prompt=258 pieces=16 reset=0
+[2026-08-16T14:35:54] GEN draft_k2_d0 id=184 n_predict=16 prefix_chars=1178
+[2026-08-16T14:36:18] DONE draft_k2_d0 id=184 tokens=16 n_prompt=261 pieces=16 reset=0
+[2026-08-16T14:36:18] GEN draft_k2_d0 id=185 n_predict=16 prefix_chars=1192
+[2026-08-16T14:36:42] DONE draft_k2_d0 id=185 tokens=16 n_prompt=266 pieces=16 reset=0
+[2026-08-16T14:36:42] GEN draft_k2_d0 id=186 n_predict=16 prefix_chars=1201
+[2026-08-16T14:37:06] DONE draft_k2_d0 id=186 tokens=16 n_prompt=268 pieces=16 reset=0
+[2026-08-16T14:37:06] GEN draft_k2_d0 id=187 n_predict=16 prefix_chars=1213
+[2026-08-16T14:37:31] DONE draft_k2_d0 id=187 tokens=16 n_prompt=271 pieces=16 reset=0
+[2026-08-16T14:37:31] GEN draft_k2_d0 id=188 n_predict=16 prefix_chars=1220
+[2026-08-16T14:37:55] DONE draft_k2_d0 id=188 tokens=16 n_prompt=273 pieces=16 reset=0
+[2026-08-16T14:37:55] GEN draft_k2_d0 id=189 n_predict=16 prefix_chars=1226
+[2026-08-16T14:38:19] DONE draft_k2_d0 id=189 tokens=16 n_prompt=274 pieces=16 reset=0
+[2026-08-16T14:38:19] GEN draft_k2_d0 id=190 n_predict=16 prefix_chars=1239
+[2026-08-16T14:38:44] DONE draft_k2_d0 id=190 tokens=16 n_prompt=276 pieces=16 reset=0
+[2026-08-16T14:38:45] GEN draft_k2_d0 id=191 n_predict=16 prefix_chars=1282
+[2026-08-16T14:39:10] DONE draft_k2_d0 id=191 tokens=16 n_prompt=285 pieces=16 reset=0
+[2026-08-16T14:39:10] GEN draft_k2_d0 id=192 n_predict=16 prefix_chars=1289
+[2026-08-16T14:39:34] DONE draft_k2_d0 id=192 tokens=4 n_prompt=288 pieces=4 reset=0
+[2026-08-16T14:39:34] GEN draft_k2_d0 id=193 n_predict=16 prefix_chars=1300
+[2026-08-16T14:40:01] DONE draft_k2_d0 id=193 tokens=16 n_prompt=289 pieces=16 reset=0
+[2026-08-16T14:40:01] GEN draft_k2_d0 id=194 n_predict=15 prefix_chars=1303
+[2026-08-16T14:40:25] DONE draft_k2_d0 id=194 tokens=6 n_prompt=290 pieces=6 reset=0
+[2026-08-16T14:40:25] GEN draft_k2_d0 id=195 n_predict=14 prefix_chars=1312
+[2026-08-16T14:40:51] DONE draft_k2_d0 id=195 tokens=14 n_prompt=291 pieces=14 reset=0
+[2026-08-16T14:40:51] GEN draft_k2_d0 id=196 n_predict=11 prefix_chars=1325
+[2026-08-16T14:41:15] DONE draft_k2_d0 id=196 tokens=5 n_prompt=294 pieces=5 reset=0
+[2026-08-16T14:41:15] GEN draft_k2_d0 id=197 n_predict=7 prefix_chars=1337
+[2026-08-16T14:41:40] DONE draft_k2_d0 id=197 tokens=7 n_prompt=298 pieces=7 reset=0
+[2026-08-16T14:41:40] GEN draft_k2_d0 id=198 n_predict=4 prefix_chars=1358
+[2026-08-16T14:42:05] DONE draft_k2_d0 id=198 tokens=4 n_prompt=301 pieces=4 reset=0
+[2026-08-16T14:42:05] GEN draft_k2_d0 id=199 n_predict=3 prefix_chars=1361
+[2026-08-16T14:42:30] DONE draft_k2_d0 id=199 tokens=3 n_prompt=302 pieces=3 reset=0
+[2026-08-16T14:42:30] GEN draft_k2_d0 id=200 n_predict=2 prefix_chars=1365
+[2026-08-16T14:42:55] DONE draft_k2_d0 id=200 tokens=2 n_prompt=303 pieces=2 reset=0
+[2026-08-16T14:42:55] GEN draft_k2_d0 id=201 n_predict=1 prefix_chars=1373
+[2026-08-16T14:43:19] DONE draft_k2_d0 id=201 tokens=1 n_prompt=304 pieces=1 reset=0
+[2026-08-16T14:43:19] draft running pooled k=2 n=437 alpha=0.5423
+[2026-08-16T14:43:19] GEN draft_k2_d0 id=202 n_predict=16 prefix_chars=1202
+[2026-08-16T14:43:47] DONE draft_k2_d0 id=202 tokens=16 n_prompt=293 pieces=16 reset=0
+[2026-08-16T14:43:47] GEN draft_k2_d0 id=203 n_predict=16 prefix_chars=1211
+[2026-08-16T14:44:15] DONE draft_k2_d0 id=203 tokens=16 n_prompt=294 pieces=16 reset=0
+[2026-08-16T14:44:15] GEN draft_k2_d0 id=204 n_predict=16 prefix_chars=1237
+[2026-08-16T14:44:43] DONE draft_k2_d0 id=204 tokens=16 n_prompt=300 pieces=16 reset=0
+[2026-08-16T14:44:43] GEN draft_k2_d0 id=205 n_predict=16 prefix_chars=1238
+[2026-08-16T14:45:10] DONE draft_k2_d0 id=205 tokens=16 n_prompt=301 pieces=16 reset=0
+[2026-08-16T14:45:10] GEN draft_k2_d0 id=206 n_predict=16 prefix_chars=1240
+[2026-08-16T14:45:39] DONE draft_k2_d0 id=206 tokens=16 n_prompt=302 pieces=16 reset=0
+[2026-08-16T14:45:39] GEN draft_k2_d0 id=207 n_predict=16 prefix_chars=1243
+[2026-08-16T14:46:07] DONE draft_k2_d0 id=207 tokens=16 n_prompt=305 pieces=16 reset=0
+[2026-08-16T14:46:07] GEN draft_k2_d0 id=208 n_predict=16 prefix_chars=1248
+[2026-08-16T14:46:36] DONE draft_k2_d0 id=208 tokens=16 n_prompt=307 pieces=16 reset=0
+[2026-08-16T14:46:36] GEN draft_k2_d0 id=209 n_predict=16 prefix_chars=1308
+[2026-08-16T14:47:06] DONE draft_k2_d0 id=209 tokens=16 n_prompt=322 pieces=16 reset=0
+[2026-08-16T14:47:06] GEN draft_k2_d0 id=210 n_predict=16 prefix_chars=1341
+[2026-08-16T14:47:36] DONE draft_k2_d0 id=210 tokens=16 n_prompt=331 pieces=16 reset=0
+[2026-08-16T14:47:36] GEN draft_k2_d0 id=211 n_predict=16 prefix_chars=1366
+[2026-08-16T14:48:07] DONE draft_k2_d0 id=211 tokens=16 n_prompt=336 pieces=16 reset=0
+[2026-08-16T14:48:07] GEN draft_k2_d0 id=212 n_predict=16 prefix_chars=1427
+[2026-08-16T14:48:38] DONE draft_k2_d0 id=212 tokens=16 n_prompt=346 pieces=16 reset=0
+[2026-08-16T14:48:38] GEN draft_k2_d0 id=213 n_predict=16 prefix_chars=1428
+[2026-08-16T14:49:10] DONE draft_k2_d0 id=213 tokens=16 n_prompt=347 pieces=16 reset=0
+[2026-08-16T14:49:10] GEN draft_k2_d0 id=214 n_predict=16 prefix_chars=1430
+[2026-08-16T14:49:41] DONE draft_k2_d0 id=214 tokens=16 n_prompt=348 pieces=16 reset=0
+[2026-08-16T14:49:41] GEN draft_k2_d0 id=215 n_predict=16 prefix_chars=1432
+[2026-08-16T14:50:11] DONE draft_k2_d0 id=215 tokens=16 n_prompt=349 pieces=16 reset=0
+[2026-08-16T14:50:11] GEN draft_k2_d0 id=216 n_predict=16 prefix_chars=1463
+[2026-08-16T14:50:41] DONE draft_k2_d0 id=216 tokens=16 n_prompt=359 pieces=16 reset=0
+[2026-08-16T14:50:41] GEN draft_k2_d0 id=217 n_predict=16 prefix_chars=1466
+[2026-08-16T14:51:12] DONE draft_k2_d0 id=217 tokens=16 n_prompt=360 pieces=16 reset=0
+[2026-08-16T14:51:12] GEN draft_k2_d0 id=218 n_predict=16 prefix_chars=1473
+[2026-08-16T14:51:43] DONE draft_k2_d0 id=218 tokens=16 n_prompt=362 pieces=16 reset=0
+[2026-08-16T14:51:43] GEN draft_k2_d0 id=219 n_predict=16 prefix_chars=1494
+[2026-08-16T14:52:15] DONE draft_k2_d0 id=219 tokens=16 n_prompt=369 pieces=16 reset=0
+[2026-08-16T14:52:15] GEN draft_k2_d0 id=220 n_predict=16 prefix_chars=1513
+[2026-08-16T14:52:47] DONE draft_k2_d0 id=220 tokens=16 n_prompt=375 pieces=16 reset=0
+[2026-08-16T14:52:47] GEN draft_k2_d0 id=221 n_predict=16 prefix_chars=1541
+[2026-08-16T14:53:19] DONE draft_k2_d0 id=221 tokens=16 n_prompt=379 pieces=16 reset=0
+[2026-08-16T14:53:19] GEN draft_k2_d0 id=222 n_predict=16 prefix_chars=1551
+[2026-08-16T14:53:52] DONE draft_k2_d0 id=222 tokens=16 n_prompt=385 pieces=16 reset=0
+[2026-08-16T14:53:52] GEN draft_k2_d0 id=223 n_predict=16 prefix_chars=1577
+[2026-08-16T14:54:26] DONE draft_k2_d0 id=223 tokens=16 n_prompt=393 pieces=16 reset=0
+[2026-08-16T14:54:26] GEN draft_k2_d0 id=224 n_predict=16 prefix_chars=1601
+[2026-08-16T14:55:00] DONE draft_k2_d0 id=224 tokens=16 n_prompt=398 pieces=16 reset=0
+[2026-08-16T14:55:00] GEN draft_k2_d0 id=225 n_predict=16 prefix_chars=1605
+[2026-08-16T14:55:35] DONE draft_k2_d0 id=225 tokens=16 n_prompt=399 pieces=16 reset=0
+[2026-08-16T14:55:35] GEN draft_k2_d0 id=226 n_predict=16 prefix_chars=1639
+[2026-08-16T14:56:10] DONE draft_k2_d0 id=226 tokens=16 n_prompt=407 pieces=16 reset=0
+[2026-08-16T14:56:10] GEN draft_k2_d0 id=227 n_predict=16 prefix_chars=1663
+[2026-08-16T14:56:46] DONE draft_k2_d0 id=227 tokens=16 n_prompt=413 pieces=16 reset=0
+[2026-08-16T14:56:46] GEN draft_k2_d0 id=228 n_predict=16 prefix_chars=1670
+[2026-08-16T14:57:22] DONE draft_k2_d0 id=228 tokens=16 n_prompt=416 pieces=16 reset=0
+[2026-08-16T14:57:22] GEN draft_k2_d0 id=229 n_predict=16 prefix_chars=1687
+[2026-08-16T14:57:58] DONE draft_k2_d0 id=229 tokens=16 n_prompt=420 pieces=16 reset=0
+[2026-08-16T14:57:58] GEN draft_k2_d0 id=230 n_predict=16 prefix_chars=1737
+[2026-08-16T14:58:33] DONE draft_k2_d0 id=230 tokens=16 n_prompt=432 pieces=16 reset=0
+[2026-08-16T14:58:33] GEN draft_k2_d0 id=231 n_predict=16 prefix_chars=1798
+[2026-08-16T14:59:10] DONE draft_k2_d0 id=231 tokens=16 n_prompt=448 pieces=16 reset=0
+[2026-08-16T14:59:10] GEN draft_k2_d0 id=232 n_predict=16 prefix_chars=1802
+[2026-08-16T14:59:47] DONE draft_k2_d0 id=232 tokens=16 n_prompt=449 pieces=16 reset=0
+[2026-08-16T14:59:47] GEN draft_k2_d0 id=233 n_predict=16 prefix_chars=1816
+[2026-08-16T15:00:25] DONE draft_k2_d0 id=233 tokens=16 n_prompt=451 pieces=16 reset=0
+[2026-08-16T15:00:25] GEN draft_k2_d0 id=234 n_predict=16 prefix_chars=1844
+[2026-08-16T15:01:03] DONE draft_k2_d0 id=234 tokens=16 n_prompt=459 pieces=16 reset=0
+[2026-08-16T15:01:03] GEN draft_k2_d0 id=235 n_predict=16 prefix_chars=1848
+[2026-08-16T15:01:40] DONE draft_k2_d0 id=235 tokens=16 n_prompt=460 pieces=16 reset=0
+[2026-08-16T15:01:40] GEN draft_k2_d0 id=236 n_predict=16 prefix_chars=1889
+[2026-08-16T15:02:17] DONE draft_k2_d0 id=236 tokens=16 n_prompt=470 pieces=16 reset=0
+[2026-08-16T15:02:17] GEN draft_k2_d0 id=237 n_predict=16 prefix_chars=1960
+[2026-08-16T15:02:55] DONE draft_k2_d0 id=237 tokens=16 n_prompt=487 pieces=16 reset=0
+[2026-08-16T15:02:55] GEN draft_k2_d0 id=238 n_predict=16 prefix_chars=1964
+[2026-08-16T15:03:34] DONE draft_k2_d0 id=238 tokens=16 n_prompt=488 pieces=16 reset=0
+[2026-08-16T15:03:34] GEN draft_k2_d0 id=239 n_predict=16 prefix_chars=1975
+[2026-08-16T15:04:13] DONE draft_k2_d0 id=239 tokens=16 n_prompt=491 pieces=16 reset=0
+[2026-08-16T15:04:13] GEN draft_k2_d0 id=240 n_predict=16 prefix_chars=1986
+[2026-08-16T15:04:51] DONE draft_k2_d0 id=240 tokens=16 n_prompt=493 pieces=16 reset=0
+[2026-08-16T15:04:51] GEN draft_k2_d0 id=241 n_predict=16 prefix_chars=2030
+[2026-08-16T15:05:31] DONE draft_k2_d0 id=241 tokens=16 n_prompt=505 pieces=16 reset=0
+[2026-08-16T15:05:31] GEN draft_k2_d0 id=242 n_predict=16 prefix_chars=2064
+[2026-08-16T15:06:10] DONE draft_k2_d0 id=242 tokens=16 n_prompt=511 pieces=16 reset=0
+[2026-08-16T15:06:10] GEN draft_k2_d0 id=243 n_predict=16 prefix_chars=2135
+[2026-08-16T15:06:52] DONE draft_k2_d0 id=243 tokens=16 n_prompt=528 pieces=16 reset=0
+[2026-08-16T15:06:52] GEN draft_k2_d0 id=244 n_predict=16 prefix_chars=2181
+[2026-08-16T15:07:34] DONE draft_k2_d0 id=244 tokens=16 n_prompt=540 pieces=16 reset=0
+[2026-08-16T15:07:34] GEN draft_k2_d0 id=245 n_predict=16 prefix_chars=2186
+[2026-08-16T15:08:17] DONE draft_k2_d0 id=245 tokens=16 n_prompt=541 pieces=16 reset=0
+[2026-08-16T15:08:17] GEN draft_k2_d0 id=246 n_predict=16 prefix_chars=2202
+[2026-08-16T15:09:02] DONE draft_k2_d0 id=246 tokens=16 n_prompt=547 pieces=16 reset=0
+[2026-08-16T15:09:02] GEN draft_k2_d0 id=247 n_predict=16 prefix_chars=2265
+[2026-08-16T15:09:48] DONE draft_k2_d0 id=247 tokens=16 n_prompt=564 pieces=16 reset=0
+[2026-08-16T15:09:48] GEN draft_k2_d0 id=248 n_predict=11 prefix_chars=2314
+[2026-08-16T15:10:36] DONE draft_k2_d0 id=248 tokens=11 n_prompt=581 pieces=11 reset=0
+[2026-08-16T15:10:36] draft running pooled k=2 n=737 alpha=0.6662
+[2026-08-16T15:10:36] GEN draft_k2_d0 id=249 n_predict=16 prefix_chars=1628
+[2026-08-16T15:11:09] DONE draft_k2_d0 id=249 tokens=16 n_prompt=399 pieces=16 reset=0
+[2026-08-16T15:11:09] GEN draft_k2_d0 id=250 n_predict=16 prefix_chars=1629
+[2026-08-16T15:11:40] DONE draft_k2_d0 id=250 tokens=0 n_prompt=400 pieces=0 reset=0
+[2026-08-16T15:11:40] GEN draft_k2_d0 id=251 n_predict=16 prefix_chars=1633
+[2026-08-16T15:12:12] DONE draft_k2_d0 id=251 tokens=9 n_prompt=401 pieces=9 reset=0
+[2026-08-16T15:12:12] GEN draft_k2_d0 id=252 n_predict=16 prefix_chars=1638
+[2026-08-16T15:12:44] DONE draft_k2_d0 id=252 tokens=16 n_prompt=402 pieces=16 reset=0
+[2026-08-16T15:12:44] GEN draft_k2_d0 id=253 n_predict=16 prefix_chars=1647
+[2026-08-16T15:13:18] DONE draft_k2_d0 id=253 tokens=13 n_prompt=403 pieces=13 reset=0
+[2026-08-16T15:13:18] GEN draft_k2_d0 id=254 n_predict=16 prefix_chars=1659
+[2026-08-16T15:13:52] DONE draft_k2_d0 id=254 tokens=13 n_prompt=406 pieces=13 reset=0
+[2026-08-16T15:13:52] GEN draft_k2_d0 id=255 n_predict=16 prefix_chars=1685
+[2026-08-16T15:14:26] DONE draft_k2_d0 id=255 tokens=16 n_prompt=409 pieces=16 reset=0
+[2026-08-16T15:14:26] GEN draft_k2_d0 id=256 n_predict=16 prefix_chars=1690
+[2026-08-16T15:14:59] DONE draft_k2_d0 id=256 tokens=3 n_prompt=410 pieces=3 reset=0
+[2026-08-16T15:14:59] GEN draft_k2_d0 id=257 n_predict=16 prefix_chars=1698
+[2026-08-16T15:15:32] DONE draft_k2_d0 id=257 tokens=9 n_prompt=412 pieces=9 reset=0
+[2026-08-16T15:15:32] GEN draft_k2_d0 id=258 n_predict=16 prefix_chars=1710
+[2026-08-16T15:16:05] DONE draft_k2_d0 id=258 tokens=2 n_prompt=416 pieces=2 reset=0
+[2026-08-16T15:16:05] GEN draft_k2_d0 id=259 n_predict=16 prefix_chars=1717
+[2026-08-16T15:16:40] DONE draft_k2_d0 id=259 tokens=16 n_prompt=417 pieces=16 reset=0
+[2026-08-16T15:16:40] GEN draft_k2_d0 id=260 n_predict=16 prefix_chars=1718
+[2026-08-16T15:17:16] DONE draft_k2_d0 id=260 tokens=16 n_prompt=418 pieces=16 reset=0
+[2026-08-16T15:17:16] GEN draft_k2_d0 id=261 n_predict=16 prefix_chars=1726
+[2026-08-16T15:17:52] DONE draft_k2_d0 id=261 tokens=16 n_prompt=420 pieces=16 reset=0
+[2026-08-16T15:17:52] GEN draft_k2_d0 id=262 n_predict=16 prefix_chars=1732
+[2026-08-16T15:18:28] DONE draft_k2_d0 id=262 tokens=16 n_prompt=421 pieces=16 reset=0
+[2026-08-16T15:18:28] GEN draft_k2_d0 id=263 n_predict=16 prefix_chars=1741
+[2026-08-16T15:19:04] DONE draft_k2_d0 id=263 tokens=16 n_prompt=423 pieces=16 reset=0
+[2026-08-16T15:19:04] GEN draft_k2_d0 id=264 n_predict=16 prefix_chars=1761
+[2026-08-16T15:19:40] DONE draft_k2_d0 id=264 tokens=16 n_prompt=425 pieces=16 reset=0
+[2026-08-16T15:19:40] GEN draft_k2_d0 id=265 n_predict=16 prefix_chars=1775
+[2026-08-16T15:20:16] DONE draft_k2_d0 id=265 tokens=16 n_prompt=427 pieces=16 reset=0
+[2026-08-16T15:20:16] GEN draft_k2_d0 id=266 n_predict=16 prefix_chars=1795
+[2026-08-16T15:20:52] DONE draft_k2_d0 id=266 tokens=16 n_prompt=429 pieces=16 reset=0
+[2026-08-16T15:20:52] GEN draft_k2_d0 id=267 n_predict=16 prefix_chars=1807
+[2026-08-16T15:21:29] DONE draft_k2_d0 id=267 tokens=16 n_prompt=433 pieces=16 reset=0
+[2026-08-16T15:21:29] GEN draft_k2_d0 id=268 n_predict=16 prefix_chars=1820
+[2026-08-16T15:22:05] DONE draft_k2_d0 id=268 tokens=16 n_prompt=434 pieces=16 reset=0
+[2026-08-16T15:22:05] GEN draft_k2_d0 id=269 n_predict=16 prefix_chars=1823
+[2026-08-16T15:22:42] DONE draft_k2_d0 id=269 tokens=16 n_prompt=437 pieces=16 reset=0
+[2026-08-16T15:22:42] GEN draft_k2_d0 id=270 n_predict=16 prefix_chars=1841
+[2026-08-16T15:23:20] DONE draft_k2_d0 id=270 tokens=16 n_prompt=443 pieces=16 reset=0
+[2026-08-16T15:23:20] GEN draft_k2_d0 id=271 n_predict=16 prefix_chars=1845
+[2026-08-16T15:23:58] DONE draft_k2_d0 id=271 tokens=16 n_prompt=445 pieces=16 reset=0
+[2026-08-16T15:23:58] GEN draft_k2_d0 id=272 n_predict=16 prefix_chars=1886
+[2026-08-16T15:24:36] DONE draft_k2_d0 id=272 tokens=16 n_prompt=456 pieces=16 reset=0
+[2026-08-16T15:24:36] GEN draft_k2_d0 id=273 n_predict=16 prefix_chars=1894
+[2026-08-16T15:25:15] DONE draft_k2_d0 id=273 tokens=16 n_prompt=459 pieces=16 reset=0
+[2026-08-16T15:25:15] GEN draft_k2_d0 id=274 n_predict=16 prefix_chars=1901
+[2026-08-16T15:25:53] DONE draft_k2_d0 id=274 tokens=16 n_prompt=461 pieces=16 reset=0
+[2026-08-16T15:25:53] GEN draft_k2_d0 id=275 n_predict=16 prefix_chars=1903
+[2026-08-16T15:26:32] DONE draft_k2_d0 id=275 tokens=16 n_prompt=462 pieces=16 reset=0
+[2026-08-16T15:26:32] GEN draft_k2_d0 id=276 n_predict=16 prefix_chars=1928
+[2026-08-16T15:27:11] DONE draft_k2_d0 id=276 tokens=16 n_prompt=468 pieces=16 reset=0
+[2026-08-16T15:27:11] GEN draft_k2_d0 id=277 n_predict=16 prefix_chars=1955
+[2026-08-16T15:27:50] DONE draft_k2_d0 id=277 tokens=16 n_prompt=474 pieces=16 reset=0
+[2026-08-16T15:27:50] GEN draft_k2_d0 id=278 n_predict=16 prefix_chars=1961
+[2026-08-16T15:28:30] DONE draft_k2_d0 id=278 tokens=16 n_prompt=476 pieces=16 reset=0
+[2026-08-16T15:28:30] GEN draft_k2_d0 id=279 n_predict=16 prefix_chars=1963
+[2026-08-16T15:29:09] DONE draft_k2_d0 id=279 tokens=16 n_prompt=478 pieces=16 reset=0
+[2026-08-16T15:29:09] GEN draft_k2_d0 id=280 n_predict=16 prefix_chars=1965
+[2026-08-16T15:29:46] DONE draft_k2_d0 id=280 tokens=16 n_prompt=479 pieces=16 reset=0
+[2026-08-16T15:29:46] GEN draft_k2_d0 id=281 n_predict=16 prefix_chars=1978
+[2026-08-16T15:30:26] DONE draft_k2_d0 id=281 tokens=16 n_prompt=484 pieces=16 reset=0
+[2026-08-16T15:30:26] GEN draft_k2_d0 id=282 n_predict=16 prefix_chars=1985
+[2026-08-16T15:31:06] DONE draft_k2_d0 id=282 tokens=16 n_prompt=485 pieces=16 reset=0
+[2026-08-16T15:31:06] GEN draft_k2_d0 id=283 n_predict=16 prefix_chars=1999
+[2026-08-16T15:31:46] DONE draft_k2_d0 id=283 tokens=16 n_prompt=487 pieces=16 reset=0
+[2026-08-16T15:31:46] GEN draft_k2_d0 id=284 n_predict=16 prefix_chars=2004
+[2026-08-16T15:32:26] DONE draft_k2_d0 id=284 tokens=16 n_prompt=489 pieces=16 reset=0
+[2026-08-16T15:32:26] GEN draft_k2_d0 id=285 n_predict=16 prefix_chars=2020
+[2026-08-16T15:33:06] DONE draft_k2_d0 id=285 tokens=16 n_prompt=491 pieces=16 reset=0
+[2026-08-16T15:33:06] GEN draft_k2_d0 id=286 n_predict=16 prefix_chars=2022
+[2026-08-16T15:33:47] DONE draft_k2_d0 id=286 tokens=16 n_prompt=492 pieces=16 reset=0
+[2026-08-16T15:33:47] GEN draft_k2_d0 id=287 n_predict=16 prefix_chars=2027
+[2026-08-16T15:34:27] DONE draft_k2_d0 id=287 tokens=16 n_prompt=493 pieces=16 reset=0
+[2026-08-16T15:34:27] GEN draft_k2_d0 id=288 n_predict=16 prefix_chars=2029
+[2026-08-16T15:35:08] DONE draft_k2_d0 id=288 tokens=16 n_prompt=494 pieces=16 reset=0
+[2026-08-16T15:35:08] GEN draft_k2_d0 id=289 n_predict=16 prefix_chars=2032
+[2026-08-16T15:35:48] DONE draft_k2_d0 id=289 tokens=16 n_prompt=496 pieces=16 reset=0
+[2026-08-16T15:35:48] GEN draft_k2_d0 id=290 n_predict=16 prefix_chars=2050
+[2026-08-16T15:36:29] DONE draft_k2_d0 id=290 tokens=16 n_prompt=504 pieces=16 reset=0
+[2026-08-16T15:36:29] GEN draft_k2_d0 id=291 n_predict=16 prefix_chars=2058
+[2026-08-16T15:37:11] DONE draft_k2_d0 id=291 tokens=16 n_prompt=505 pieces=16 reset=0
+[2026-08-16T15:37:11] GEN draft_k2_d0 id=292 n_predict=16 prefix_chars=2060
+[2026-08-16T15:37:52] DONE draft_k2_d0 id=292 tokens=16 n_prompt=506 pieces=16 reset=0
+[2026-08-16T15:37:52] GEN draft_k2_d0 id=293 n_predict=16 prefix_chars=2066
+[2026-08-16T15:38:34] DONE draft_k2_d0 id=293 tokens=16 n_prompt=508 pieces=16 reset=0
+[2026-08-16T15:38:34] GEN draft_k2_d0 id=294 n_predict=16 prefix_chars=2086
+[2026-08-16T15:39:18] DONE draft_k2_d0 id=294 tokens=16 n_prompt=518 pieces=16 reset=0
+[2026-08-16T15:39:18] GEN draft_k2_d0 id=295 n_predict=16 prefix_chars=2101
+[2026-08-16T15:40:01] DONE draft_k2_d0 id=295 tokens=16 n_prompt=523 pieces=16 reset=0
+[2026-08-16T15:40:01] GEN draft_k2_d0 id=296 n_predict=16 prefix_chars=2111
+[2026-08-16T15:40:43] DONE draft_k2_d0 id=296 tokens=16 n_prompt=525 pieces=16 reset=0
+[2026-08-16T15:40:43] GEN draft_k2_d0 id=297 n_predict=16 prefix_chars=2118
+[2026-08-16T15:41:26] DONE draft_k2_d0 id=297 tokens=16 n_prompt=527 pieces=16 reset=0
+[2026-08-16T15:41:26] GEN draft_k2_d0 id=298 n_predict=16 prefix_chars=2134
+[2026-08-16T15:42:08] DONE draft_k2_d0 id=298 tokens=16 n_prompt=530 pieces=16 reset=0
+[2026-08-16T15:42:08] GEN draft_k2_d0 id=299 n_predict=16 prefix_chars=2157
+[2026-08-16T15:42:52] DONE draft_k2_d0 id=299 tokens=16 n_prompt=536 pieces=16 reset=0
+[2026-08-16T15:42:52] GEN draft_k2_d0 id=300 n_predict=16 prefix_chars=2164
+[2026-08-16T15:43:35] DONE draft_k2_d0 id=300 tokens=16 n_prompt=537 pieces=16 reset=0
+[2026-08-16T15:43:35] GEN draft_k2_d0 id=301 n_predict=16 prefix_chars=2168
+[2026-08-16T15:44:18] DONE draft_k2_d0 id=301 tokens=16 n_prompt=538 pieces=16 reset=0
+[2026-08-16T15:44:18] GEN draft_k2_d0 id=302 n_predict=16 prefix_chars=2185
+[2026-08-16T15:45:03] DONE draft_k2_d0 id=302 tokens=16 n_prompt=541 pieces=16 reset=0
+[2026-08-16T15:45:03] GEN draft_k2_d0 id=303 n_predict=16 prefix_chars=2206
+[2026-08-16T15:45:50] DONE draft_k2_d0 id=303 tokens=16 n_prompt=548 pieces=16 reset=0
+[2026-08-16T15:45:50] GEN draft_k2_d0 id=304 n_predict=16 prefix_chars=2214
+[2026-08-16T15:46:36] DONE draft_k2_d0 id=304 tokens=16 n_prompt=549 pieces=16 reset=0
+[2026-08-16T15:46:36] GEN draft_k2_d0 id=305 n_predict=16 prefix_chars=2217
+[2026-08-16T15:47:21] DONE draft_k2_d0 id=305 tokens=16 n_prompt=551 pieces=16 reset=0
+[2026-08-16T15:47:21] GEN draft_k2_d0 id=306 n_predict=16 prefix_chars=2273
+[2026-08-16T15:48:08] DONE draft_k2_d0 id=306 tokens=16 n_prompt=568 pieces=16 reset=0
+[2026-08-16T15:48:08] GEN draft_k2_d0 id=307 n_predict=16 prefix_chars=2342
+[2026-08-16T15:48:56] DONE draft_k2_d0 id=307 tokens=16 n_prompt=585 pieces=16 reset=0
+[2026-08-16T15:48:56] GEN draft_k2_d0 id=308 n_predict=16 prefix_chars=2351
+[2026-08-16T15:49:47] DONE draft_k2_d0 id=308 tokens=16 n_prompt=587 pieces=16 reset=0
+[2026-08-16T15:49:47] GEN draft_k2_d0 id=309 n_predict=16 prefix_chars=2383
+[2026-08-16T15:50:37] DONE draft_k2_d0 id=309 tokens=16 n_prompt=597 pieces=16 reset=0
+[2026-08-16T15:50:37] GEN draft_k2_d0 id=310 n_predict=16 prefix_chars=2396
+[2026-08-16T15:51:28] DONE draft_k2_d0 id=310 tokens=16 n_prompt=602 pieces=16 reset=0
+[2026-08-16T15:51:28] GEN draft_k2_d0 id=311 n_predict=16 prefix_chars=2439
+[2026-08-16T15:52:19] DONE draft_k2_d0 id=311 tokens=16 n_prompt=613 pieces=16 reset=0
+[2026-08-16T15:52:19] GEN draft_k2_d0 id=312 n_predict=16 prefix_chars=2481
+[2026-08-16T15:53:11] DONE draft_k2_d0 id=312 tokens=16 n_prompt=626 pieces=16 reset=0
+[2026-08-16T15:53:11] GEN draft_k2_d0 id=313 n_predict=16 prefix_chars=2523
+[2026-08-16T15:54:04] DONE draft_k2_d0 id=313 tokens=16 n_prompt=643 pieces=16 reset=0
+[2026-08-16T15:54:04] GEN draft_k2_d0 id=314 n_predict=16 prefix_chars=2538
+[2026-08-16T15:54:58] DONE draft_k2_d0 id=314 tokens=16 n_prompt=648 pieces=16 reset=0
+[2026-08-16T15:54:58] GEN draft_k2_d0 id=315 n_predict=16 prefix_chars=2554
+[2026-08-16T15:55:54] DONE draft_k2_d0 id=315 tokens=16 n_prompt=655 pieces=16 reset=0
+[2026-08-16T15:55:54] GEN draft_k2_d0 id=316 n_predict=16 prefix_chars=2587
+[2026-08-16T15:56:48] DONE draft_k2_d0 id=316 tokens=16 n_prompt=666 pieces=16 reset=0
+[2026-08-16T15:56:48] GEN draft_k2_d0 id=317 n_predict=16 prefix_chars=2596
+[2026-08-16T15:57:43] DONE draft_k2_d0 id=317 tokens=16 n_prompt=670 pieces=16 reset=0
+[2026-08-16T15:57:43] GEN draft_k2_d0 id=318 n_predict=16 prefix_chars=2609
+[2026-08-16T15:58:39] DONE draft_k2_d0 id=318 tokens=16 n_prompt=678 pieces=16 reset=0
+[2026-08-16T15:58:39] GEN draft_k2_d0 id=319 n_predict=16 prefix_chars=2611
+[2026-08-16T15:59:36] DONE draft_k2_d0 id=319 tokens=16 n_prompt=680 pieces=16 reset=0
+[2026-08-16T15:59:36] GEN draft_k2_d0 id=320 n_predict=15 prefix_chars=2617
+[2026-08-16T16:00:33] DONE draft_k2_d0 id=320 tokens=15 n_prompt=684 pieces=15 reset=0
+[2026-08-16T16:00:33] GEN draft_k2_d0 id=321 n_predict=10 prefix_chars=2631
+[2026-08-16T16:01:29] DONE draft_k2_d0 id=321 tokens=10 n_prompt=689 pieces=10 reset=0
+[2026-08-16T16:01:29] GEN draft_k2_d0 id=322 n_predict=5 prefix_chars=2640
+[2026-08-16T16:02:25] DONE draft_k2_d0 id=322 tokens=5 n_prompt=693 pieces=5 reset=0
+[2026-08-16T16:02:25] GEN draft_k2_d0 id=323 n_predict=4 prefix_chars=2641
+[2026-08-16T16:03:22] DONE draft_k2_d0 id=323 tokens=4 n_prompt=695 pieces=4 reset=0
+[2026-08-16T16:03:22] GEN draft_k2_d0 id=324 n_predict=1 prefix_chars=2656
+[2026-08-16T16:04:17] DONE draft_k2_d0 id=324 tokens=1 n_prompt=698 pieces=1 reset=0
+[2026-08-16T16:04:17] draft running pooled k=2 n=1037 alpha=0.6905
+[2026-08-16T16:04:17] CLOSED draft_k2_d0
+[2026-08-16T16:04:17] VALIDATE k=2 valid=True n=1037 alpha=0.6904532304725168
+[2026-08-16T16:04:17] HARNESS PASS k=2 alpha=0.690453 delta=0.000000
+[2026-08-16T16:04:17] START C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 4096 --ubatch 512 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 3 --progress --session
+[2026-08-16T16:04:21] READY draft_k3_d0 {"load_s": 3.921, "arch": "qwen35moe", "n_ctx": 4096, "think_ctl": "template", "n_expert_used": 3}
+[2026-08-16T16:04:21] GEN draft_k3_d0 id=1 n_predict=16 prefix_chars=361
+[2026-08-16T16:04:35] DONE draft_k3_d0 id=1 tokens=16 n_prompt=75 pieces=16 reset=0
+[2026-08-16T16:04:35] GEN draft_k3_d0 id=2 n_predict=16 prefix_chars=368
+[2026-08-16T16:04:47] DONE draft_k3_d0 id=2 tokens=16 n_prompt=76 pieces=16 reset=0
+[2026-08-16T16:04:47] GEN draft_k3_d0 id=3 n_predict=16 prefix_chars=370
+[2026-08-16T16:05:00] DONE draft_k3_d0 id=3 tokens=16 n_prompt=77 pieces=16 reset=0
+[2026-08-16T16:05:00] GEN draft_k3_d0 id=4 n_predict=16 prefix_chars=381
+[2026-08-16T16:05:12] DONE draft_k3_d0 id=4 tokens=16 n_prompt=80 pieces=16 reset=0
+[2026-08-16T16:05:12] GEN draft_k3_d0 id=5 n_predict=16 prefix_chars=393
+[2026-08-16T16:05:26] DONE draft_k3_d0 id=5 tokens=16 n_prompt=84 pieces=16 reset=0
+[2026-08-16T16:05:26] GEN draft_k3_d0 id=6 n_predict=16 prefix_chars=421
+[2026-08-16T16:05:39] DONE draft_k3_d0 id=6 tokens=16 n_prompt=91 pieces=16 reset=0
+[2026-08-16T16:05:39] GEN draft_k3_d0 id=7 n_predict=16 prefix_chars=442
+[2026-08-16T16:05:53] DONE draft_k3_d0 id=7 tokens=16 n_prompt=94 pieces=16 reset=0
+[2026-08-16T16:05:53] GEN draft_k3_d0 id=8 n_predict=16 prefix_chars=458
+[2026-08-16T16:06:07] DONE draft_k3_d0 id=8 tokens=16 n_prompt=98 pieces=16 reset=0
+[2026-08-16T16:06:07] GEN draft_k3_d0 id=9 n_predict=16 prefix_chars=476
+[2026-08-16T16:06:22] DONE draft_k3_d0 id=9 tokens=16 n_prompt=101 pieces=16 reset=0
+[2026-08-16T16:06:22] GEN draft_k3_d0 id=10 n_predict=16 prefix_chars=485
+[2026-08-16T16:06:37] DONE draft_k3_d0 id=10 tokens=16 n_prompt=102 pieces=16 reset=0
+[2026-08-16T16:06:37] GEN draft_k3_d0 id=11 n_predict=16 prefix_chars=491
+[2026-08-16T16:06:52] DONE draft_k3_d0 id=11 tokens=16 n_prompt=103 pieces=16 reset=0
+[2026-08-16T16:06:52] GEN draft_k3_d0 id=12 n_predict=16 prefix_chars=500
+[2026-08-16T16:07:06] DONE draft_k3_d0 id=12 tokens=16 n_prompt=105 pieces=16 reset=0
+[2026-08-16T16:07:06] GEN draft_k3_d0 id=13 n_predict=16 prefix_chars=513
+[2026-08-16T16:07:21] DONE draft_k3_d0 id=13 tokens=16 n_prompt=107 pieces=16 reset=0
+[2026-08-16T16:07:21] GEN draft_k3_d0 id=14 n_predict=16 prefix_chars=528
+[2026-08-16T16:07:37] DONE draft_k3_d0 id=14 tokens=16 n_prompt=109 pieces=16 reset=0
+[2026-08-16T16:07:37] GEN draft_k3_d0 id=15 n_predict=16 prefix_chars=538
+[2026-08-16T16:07:52] DONE draft_k3_d0 id=15 tokens=16 n_prompt=112 pieces=16 reset=0
+[2026-08-16T16:07:52] GEN draft_k3_d0 id=16 n_predict=16 prefix_chars=547
+[2026-08-16T16:08:08] DONE draft_k3_d0 id=16 tokens=16 n_prompt=114 pieces=16 reset=0
+[2026-08-16T16:08:08] GEN draft_k3_d0 id=17 n_predict=16 prefix_chars=568
+[2026-08-16T16:08:24] DONE draft_k3_d0 id=17 tokens=16 n_prompt=118 pieces=16 reset=0
+[2026-08-16T16:08:24] GEN draft_k3_d0 id=18 n_predict=16 prefix_chars=625
+[2026-08-16T16:08:41] DONE draft_k3_d0 id=18 tokens=16 n_prompt=128 pieces=16 reset=0
+[2026-08-16T16:08:41] GEN draft_k3_d0 id=19 n_predict=16 prefix_chars=651
+[2026-08-16T16:08:58] DONE draft_k3_d0 id=19 tokens=16 n_prompt=131 pieces=16 reset=0
+[2026-08-16T16:08:58] GEN draft_k3_d0 id=20 n_predict=16 prefix_chars=664
+[2026-08-16T16:09:15] DONE draft_k3_d0 id=20 tokens=16 n_prompt=132 pieces=16 reset=0
+[2026-08-16T16:09:15] GEN draft_k3_d0 id=21 n_predict=16 prefix_chars=671
+[2026-08-16T16:09:32] DONE draft_k3_d0 id=21 tokens=16 n_prompt=133 pieces=16 reset=0
+[2026-08-16T16:09:32] GEN draft_k3_d0 id=22 n_predict=16 prefix_chars=710
+[2026-08-16T16:09:50] DONE draft_k3_d0 id=22 tokens=16 n_prompt=139 pieces=16 reset=0
+[2026-08-16T16:09:50] GEN draft_k3_d0 id=23 n_predict=16 prefix_chars=724
+[2026-08-16T16:10:08] DONE draft_k3_d0 id=23 tokens=16 n_prompt=140 pieces=16 reset=0
+[2026-08-16T16:10:08] GEN draft_k3_d0 id=24 n_predict=16 prefix_chars=763
+[2026-08-16T16:10:26] DONE draft_k3_d0 id=24 tokens=16 n_prompt=146 pieces=16 reset=0
+[2026-08-16T16:10:26] GEN draft_k3_d0 id=25 n_predict=16 prefix_chars=772
+[2026-08-16T16:10:44] DONE draft_k3_d0 id=25 tokens=16 n_prompt=147 pieces=16 reset=0
+[2026-08-16T16:10:44] GEN draft_k3_d0 id=26 n_predict=16 prefix_chars=777
+[2026-08-16T16:11:03] DONE draft_k3_d0 id=26 tokens=16 n_prompt=148 pieces=16 reset=0
+[2026-08-16T16:11:03] GEN draft_k3_d0 id=27 n_predict=16 prefix_chars=786
+[2026-08-16T16:11:21] DONE draft_k3_d0 id=27 tokens=16 n_prompt=153 pieces=16 reset=0
+[2026-08-16T16:11:21] GEN draft_k3_d0 id=28 n_predict=16 prefix_chars=803
+[2026-08-16T16:11:40] DONE draft_k3_d0 id=28 tokens=16 n_prompt=156 pieces=16 reset=0
+[2026-08-16T16:11:40] GEN draft_k3_d0 id=29 n_predict=16 prefix_chars=864
+[2026-08-16T16:11:59] DONE draft_k3_d0 id=29 tokens=16 n_prompt=165 pieces=16 reset=0
+[2026-08-16T16:11:59] GEN draft_k3_d0 id=30 n_predict=16 prefix_chars=868
+[2026-08-16T16:12:19] DONE draft_k3_d0 id=30 tokens=16 n_prompt=166 pieces=16 reset=0
+[2026-08-16T16:12:19] GEN draft_k3_d0 id=31 n_predict=16 prefix_chars=874
+[2026-08-16T16:12:38] DONE draft_k3_d0 id=31 tokens=16 n_prompt=167 pieces=16 reset=0
+[2026-08-16T16:12:39] GEN draft_k3_d0 id=32 n_predict=16 prefix_chars=916
+[2026-08-16T16:12:59] DONE draft_k3_d0 id=32 tokens=16 n_prompt=176 pieces=16 reset=0
+[2026-08-16T16:12:59] GEN draft_k3_d0 id=33 n_predict=16 prefix_chars=941
+[2026-08-16T16:13:19] DONE draft_k3_d0 id=33 tokens=16 n_prompt=178 pieces=16 reset=0
+[2026-08-16T16:13:19] GEN draft_k3_d0 id=34 n_predict=16 prefix_chars=942
+[2026-08-16T16:13:39] DONE draft_k3_d0 id=34 tokens=16 n_prompt=179 pieces=16 reset=0
+[2026-08-16T16:13:39] GEN draft_k3_d0 id=35 n_predict=16 prefix_chars=947
+[2026-08-16T16:14:00] DONE draft_k3_d0 id=35 tokens=16 n_prompt=180 pieces=16 reset=0
+[2026-08-16T16:14:00] GEN draft_k3_d0 id=36 n_predict=16 prefix_chars=958
+[2026-08-16T16:14:20] DONE draft_k3_d0 id=36 tokens=16 n_prompt=181 pieces=16 reset=0
+[2026-08-16T16:14:20] GEN draft_k3_d0 id=37 n_predict=16 prefix_chars=969
+[2026-08-16T16:14:40] DONE draft_k3_d0 id=37 tokens=16 n_prompt=183 pieces=16 reset=0
+[2026-08-16T16:14:40] GEN draft_k3_d0 id=38 n_predict=16 prefix_chars=987
+[2026-08-16T16:15:01] DONE draft_k3_d0 id=38 tokens=16 n_prompt=186 pieces=16 reset=0
+[2026-08-16T16:15:01] GEN draft_k3_d0 id=39 n_predict=16 prefix_chars=1024
+[2026-08-16T16:15:22] DONE draft_k3_d0 id=39 tokens=16 n_prompt=192 pieces=16 reset=0
+[2026-08-16T16:15:22] GEN draft_k3_d0 id=40 n_predict=16 prefix_chars=1029
+[2026-08-16T16:15:42] DONE draft_k3_d0 id=40 tokens=16 n_prompt=193 pieces=16 reset=0
+[2026-08-16T16:15:42] GEN draft_k3_d0 id=41 n_predict=16 prefix_chars=1043
+[2026-08-16T16:16:04] DONE draft_k3_d0 id=41 tokens=16 n_prompt=195 pieces=16 reset=0
+[2026-08-16T16:16:04] GEN draft_k3_d0 id=42 n_predict=16 prefix_chars=1063
+[2026-08-16T16:16:26] DONE draft_k3_d0 id=42 tokens=16 n_prompt=198 pieces=16 reset=0
+[2026-08-16T16:16:26] GEN draft_k3_d0 id=43 n_predict=16 prefix_chars=1103
+[2026-08-16T16:16:47] DONE draft_k3_d0 id=43 tokens=16 n_prompt=204 pieces=16 reset=0
+[2026-08-16T16:16:47] GEN draft_k3_d0 id=44 n_predict=16 prefix_chars=1121
+[2026-08-16T16:17:09] DONE draft_k3_d0 id=44 tokens=16 n_prompt=212 pieces=16 reset=0
+[2026-08-16T16:17:09] GEN draft_k3_d0 id=45 n_predict=16 prefix_chars=1162
+[2026-08-16T16:17:31] DONE draft_k3_d0 id=45 tokens=16 n_prompt=220 pieces=16 reset=0
+[2026-08-16T16:17:31] GEN draft_k3_d0 id=46 n_predict=16 prefix_chars=1186
+[2026-08-16T16:17:55] DONE draft_k3_d0 id=46 tokens=16 n_prompt=224 pieces=16 reset=0
+[2026-08-16T16:17:55] GEN draft_k3_d0 id=47 n_predict=16 prefix_chars=1194
+[2026-08-16T16:18:18] DONE draft_k3_d0 id=47 tokens=16 n_prompt=226 pieces=16 reset=0
+[2026-08-16T16:18:18] GEN draft_k3_d0 id=48 n_predict=16 prefix_chars=1223
+[2026-08-16T16:18:41] DONE draft_k3_d0 id=48 tokens=16 n_prompt=231 pieces=16 reset=0
+[2026-08-16T16:18:41] GEN draft_k3_d0 id=49 n_predict=16 prefix_chars=1255
+[2026-08-16T16:19:05] DONE draft_k3_d0 id=49 tokens=16 n_prompt=237 pieces=16 reset=0
+[2026-08-16T16:19:05] GEN draft_k3_d0 id=50 n_predict=16 prefix_chars=1286
+[2026-08-16T16:19:30] DONE draft_k3_d0 id=50 tokens=16 n_prompt=243 pieces=16 reset=0
+[2026-08-16T16:19:30] GEN draft_k3_d0 id=51 n_predict=16 prefix_chars=1293
+[2026-08-16T16:19:54] DONE draft_k3_d0 id=51 tokens=16 n_prompt=244 pieces=16 reset=0
+[2026-08-16T16:19:54] GEN draft_k3_d0 id=52 n_predict=16 prefix_chars=1334
+[2026-08-16T16:20:19] DONE draft_k3_d0 id=52 tokens=16 n_prompt=250 pieces=16 reset=0
+[2026-08-16T16:20:19] GEN draft_k3_d0 id=53 n_predict=16 prefix_chars=1339
+[2026-08-16T16:20:45] DONE draft_k3_d0 id=53 tokens=16 n_prompt=251 pieces=16 reset=0
+[2026-08-16T16:20:45] GEN draft_k3_d0 id=54 n_predict=16 prefix_chars=1367
+[2026-08-16T16:21:10] DONE draft_k3_d0 id=54 tokens=14 n_prompt=255 pieces=14 reset=0
+[2026-08-16T16:21:10] GEN draft_k3_d0 id=55 n_predict=14 prefix_chars=1409
+[2026-08-16T16:21:36] DONE draft_k3_d0 id=55 tokens=14 n_prompt=264 pieces=14 reset=0
+[2026-08-16T16:21:36] GEN draft_k3_d0 id=56 n_predict=10 prefix_chars=1427
+[2026-08-16T16:22:01] DONE draft_k3_d0 id=56 tokens=10 n_prompt=268 pieces=10 reset=0
+[2026-08-16T16:22:01] GEN draft_k3_d0 id=57 n_predict=4 prefix_chars=1458
+[2026-08-16T16:22:26] DONE draft_k3_d0 id=57 tokens=4 n_prompt=274 pieces=4 reset=0
+[2026-08-16T16:22:26] GEN draft_k3_d0 id=58 n_predict=2 prefix_chars=1468
+[2026-08-16T16:22:50] DONE draft_k3_d0 id=58 tokens=2 n_prompt=276 pieces=2 reset=0
+[2026-08-16T16:22:50] GEN draft_k3_d0 id=59 n_predict=1 prefix_chars=1475
+[2026-08-16T16:23:14] DONE draft_k3_d0 id=59 tokens=1 n_prompt=277 pieces=1 reset=0
+[2026-08-16T16:23:14] draft running pooled k=3 n=203 alpha=0.7143
+[2026-08-16T16:23:14] GEN draft_k3_d0 id=60 n_predict=16 prefix_chars=314
+[2026-08-16T16:23:26] DONE draft_k3_d0 id=60 tokens=16 n_prompt=71 pieces=16 reset=0
+[2026-08-16T16:23:26] GEN draft_k3_d0 id=61 n_predict=16 prefix_chars=328
+[2026-08-16T16:23:39] DONE draft_k3_d0 id=61 tokens=16 n_prompt=74 pieces=16 reset=0
+[2026-08-16T16:23:39] GEN draft_k3_d0 id=62 n_predict=16 prefix_chars=342
+[2026-08-16T16:23:51] DONE draft_k3_d0 id=62 tokens=16 n_prompt=78 pieces=16 reset=0
+[2026-08-16T16:23:51] GEN draft_k3_d0 id=63 n_predict=16 prefix_chars=360
+[2026-08-16T16:24:05] DONE draft_k3_d0 id=63 tokens=16 n_prompt=84 pieces=16 reset=0
+[2026-08-16T16:24:05] GEN draft_k3_d0 id=64 n_predict=16 prefix_chars=414
+[2026-08-16T16:24:19] DONE draft_k3_d0 id=64 tokens=16 n_prompt=101 pieces=16 reset=0
+[2026-08-16T16:24:19] GEN draft_k3_d0 id=65 n_predict=16 prefix_chars=416
+[2026-08-16T16:24:34] DONE draft_k3_d0 id=65 tokens=16 n_prompt=102 pieces=16 reset=0
+[2026-08-16T16:24:34] GEN draft_k3_d0 id=66 n_predict=16 prefix_chars=424
+[2026-08-16T16:24:50] DONE draft_k3_d0 id=66 tokens=16 n_prompt=103 pieces=16 reset=0
+[2026-08-16T16:24:50] GEN draft_k3_d0 id=67 n_predict=16 prefix_chars=438
+[2026-08-16T16:25:05] DONE draft_k3_d0 id=67 tokens=16 n_prompt=105 pieces=16 reset=0
+[2026-08-16T16:25:05] GEN draft_k3_d0 id=68 n_predict=16 prefix_chars=443
+[2026-08-16T16:25:20] DONE draft_k3_d0 id=68 tokens=16 n_prompt=107 pieces=16 reset=0
+[2026-08-16T16:25:20] GEN draft_k3_d0 id=69 n_predict=16 prefix_chars=453
+[2026-08-16T16:25:36] DONE draft_k3_d0 id=69 tokens=16 n_prompt=108 pieces=16 reset=0
+[2026-08-16T16:25:36] GEN draft_k3_d0 id=70 n_predict=16 prefix_chars=471
+[2026-08-16T16:25:52] DONE draft_k3_d0 id=70 tokens=16 n_prompt=111 pieces=16 reset=0
+[2026-08-16T16:25:52] GEN draft_k3_d0 id=71 n_predict=16 prefix_chars=476
+[2026-08-16T16:26:07] DONE draft_k3_d0 id=71 tokens=16 n_prompt=112 pieces=16 reset=0
+[2026-08-16T16:26:07] GEN draft_k3_d0 id=72 n_predict=16 prefix_chars=492
+[2026-08-16T16:26:24] DONE draft_k3_d0 id=72 tokens=16 n_prompt=115 pieces=16 reset=0
+[2026-08-16T16:26:24] GEN draft_k3_d0 id=73 n_predict=16 prefix_chars=501
+[2026-08-16T16:26:40] DONE draft_k3_d0 id=73 tokens=16 n_prompt=117 pieces=16 reset=0
+[2026-08-16T16:26:40] GEN draft_k3_d0 id=74 n_predict=16 prefix_chars=530
+[2026-08-16T16:26:57] DONE draft_k3_d0 id=74 tokens=16 n_prompt=123 pieces=16 reset=0
+[2026-08-16T16:26:57] GEN draft_k3_d0 id=75 n_predict=16 prefix_chars=556
+[2026-08-16T16:27:10] DONE draft_k3_d0 id=75 tokens=16 n_prompt=128 pieces=16 reset=0
+[2026-08-16T16:27:10] GEN draft_k3_d0 id=76 n_predict=16 prefix_chars=587
+[2026-08-16T16:27:26] DONE draft_k3_d0 id=76 tokens=16 n_prompt=135 pieces=16 reset=0
+[2026-08-16T16:27:26] GEN draft_k3_d0 id=77 n_predict=16 prefix_chars=600
+[2026-08-16T16:27:39] DONE draft_k3_d0 id=77 tokens=16 n_prompt=137 pieces=16 reset=0
+[2026-08-16T16:27:39] GEN draft_k3_d0 id=78 n_predict=16 prefix_chars=659
+[2026-08-16T16:27:58] DONE draft_k3_d0 id=78 tokens=16 n_prompt=150 pieces=16 reset=0
+[2026-08-16T16:27:58] GEN draft_k3_d0 id=79 n_predict=16 prefix_chars=677
+[2026-08-16T16:28:17] DONE draft_k3_d0 id=79 tokens=16 n_prompt=154 pieces=16 reset=0
+[2026-08-16T16:28:17] GEN draft_k3_d0 id=80 n_predict=16 prefix_chars=683
+[2026-08-16T16:28:37] DONE draft_k3_d0 id=80 tokens=16 n_prompt=156 pieces=16 reset=0
+[2026-08-16T16:28:37] GEN draft_k3_d0 id=81 n_predict=16 prefix_chars=695
+[2026-08-16T16:28:56] DONE draft_k3_d0 id=81 tokens=16 n_prompt=157 pieces=16 reset=0
+[2026-08-16T16:28:56] GEN draft_k3_d0 id=82 n_predict=16 prefix_chars=716
+[2026-08-16T16:29:15] DONE draft_k3_d0 id=82 tokens=16 n_prompt=162 pieces=16 reset=0
+[2026-08-16T16:29:15] GEN draft_k3_d0 id=83 n_predict=16 prefix_chars=734
+[2026-08-16T16:29:35] DONE draft_k3_d0 id=83 tokens=16 n_prompt=164 pieces=16 reset=0
+[2026-08-16T16:29:35] GEN draft_k3_d0 id=84 n_predict=16 prefix_chars=752
+[2026-08-16T16:29:54] DONE draft_k3_d0 id=84 tokens=16 n_prompt=168 pieces=16 reset=0
+[2026-08-16T16:29:54] GEN draft_k3_d0 id=85 n_predict=16 prefix_chars=772
+[2026-08-16T16:30:13] DONE draft_k3_d0 id=85 tokens=16 n_prompt=171 pieces=16 reset=0
+[2026-08-16T16:30:13] GEN draft_k3_d0 id=86 n_predict=16 prefix_chars=777
+[2026-08-16T16:30:32] DONE draft_k3_d0 id=86 tokens=16 n_prompt=174 pieces=16 reset=0
+[2026-08-16T16:30:32] GEN draft_k3_d0 id=87 n_predict=16 prefix_chars=794
+[2026-08-16T16:30:53] DONE draft_k3_d0 id=87 tokens=16 n_prompt=178 pieces=16 reset=0
+[2026-08-16T16:30:53] GEN draft_k3_d0 id=88 n_predict=16 prefix_chars=809
+[2026-08-16T16:31:13] DONE draft_k3_d0 id=88 tokens=16 n_prompt=180 pieces=16 reset=0
+[2026-08-16T16:31:13] GEN draft_k3_d0 id=89 n_predict=16 prefix_chars=843
+[2026-08-16T16:31:33] DONE draft_k3_d0 id=89 tokens=16 n_prompt=189 pieces=16 reset=0
+[2026-08-16T16:31:33] GEN draft_k3_d0 id=90 n_predict=16 prefix_chars=849
+[2026-08-16T16:31:53] DONE draft_k3_d0 id=90 tokens=16 n_prompt=190 pieces=16 reset=0
+[2026-08-16T16:31:53] GEN draft_k3_d0 id=91 n_predict=16 prefix_chars=873
+[2026-08-16T16:32:14] DONE draft_k3_d0 id=91 tokens=16 n_prompt=196 pieces=16 reset=0
+[2026-08-16T16:32:14] GEN draft_k3_d0 id=92 n_predict=16 prefix_chars=883
+[2026-08-16T16:32:35] DONE draft_k3_d0 id=92 tokens=16 n_prompt=198 pieces=16 reset=0
+[2026-08-16T16:32:35] GEN draft_k3_d0 id=93 n_predict=16 prefix_chars=890
+[2026-08-16T16:32:56] DONE draft_k3_d0 id=93 tokens=16 n_prompt=200 pieces=16 reset=0
+[2026-08-16T16:32:56] GEN draft_k3_d0 id=94 n_predict=16 prefix_chars=891
+[2026-08-16T16:33:17] DONE draft_k3_d0 id=94 tokens=16 n_prompt=201 pieces=16 reset=0
+[2026-08-16T16:33:17] GEN draft_k3_d0 id=95 n_predict=16 prefix_chars=898
+[2026-08-16T16:33:39] DONE draft_k3_d0 id=95 tokens=16 n_prompt=202 pieces=16 reset=0
+[2026-08-16T16:33:39] GEN draft_k3_d0 id=96 n_predict=16 prefix_chars=907
+[2026-08-16T16:34:00] DONE draft_k3_d0 id=96 tokens=16 n_prompt=204 pieces=16 reset=0
+[2026-08-16T16:34:00] GEN draft_k3_d0 id=97 n_predict=16 prefix_chars=921
+[2026-08-16T16:34:22] DONE draft_k3_d0 id=97 tokens=16 n_prompt=206 pieces=16 reset=0
+[2026-08-16T16:34:22] GEN draft_k3_d0 id=98 n_predict=16 prefix_chars=930
+[2026-08-16T16:34:44] DONE draft_k3_d0 id=98 tokens=16 n_prompt=208 pieces=16 reset=0
+[2026-08-16T16:34:44] GEN draft_k3_d0 id=99 n_predict=16 prefix_chars=935
+[2026-08-16T16:35:06] DONE draft_k3_d0 id=99 tokens=16 n_prompt=210 pieces=16 reset=0
+[2026-08-16T16:35:06] GEN draft_k3_d0 id=100 n_predict=16 prefix_chars=941
+[2026-08-16T16:35:28] DONE draft_k3_d0 id=100 tokens=16 n_prompt=211 pieces=16 reset=0
+[2026-08-16T16:35:28] GEN draft_k3_d0 id=101 n_predict=16 prefix_chars=960
+[2026-08-16T16:35:49] DONE draft_k3_d0 id=101 tokens=16 n_prompt=214 pieces=16 reset=0
+[2026-08-16T16:35:49] GEN draft_k3_d0 id=102 n_predict=16 prefix_chars=961
+[2026-08-16T16:36:11] DONE draft_k3_d0 id=102 tokens=16 n_prompt=215 pieces=16 reset=0
+[2026-08-16T16:36:11] GEN draft_k3_d0 id=103 n_predict=16 prefix_chars=970
+[2026-08-16T16:36:33] DONE draft_k3_d0 id=103 tokens=16 n_prompt=216 pieces=16 reset=0
+[2026-08-16T16:36:33] GEN draft_k3_d0 id=104 n_predict=16 prefix_chars=981
+[2026-08-16T16:36:55] DONE draft_k3_d0 id=104 tokens=16 n_prompt=218 pieces=16 reset=0
+[2026-08-16T16:36:55] GEN draft_k3_d0 id=105 n_predict=16 prefix_chars=986
+[2026-08-16T16:37:17] DONE draft_k3_d0 id=105 tokens=16 n_prompt=219 pieces=16 reset=0
+[2026-08-16T16:37:17] GEN draft_k3_d0 id=106 n_predict=16 prefix_chars=1008
+[2026-08-16T16:37:40] DONE draft_k3_d0 id=106 tokens=16 n_prompt=223 pieces=16 reset=0
+[2026-08-16T16:37:40] GEN draft_k3_d0 id=107 n_predict=16 prefix_chars=1015
+[2026-08-16T16:38:02] DONE draft_k3_d0 id=107 tokens=16 n_prompt=224 pieces=16 reset=0
+[2026-08-16T16:38:02] GEN draft_k3_d0 id=108 n_predict=16 prefix_chars=1026
+[2026-08-16T16:38:25] DONE draft_k3_d0 id=108 tokens=16 n_prompt=227 pieces=16 reset=0
+[2026-08-16T16:38:25] GEN draft_k3_d0 id=109 n_predict=16 prefix_chars=1033
+[2026-08-16T16:38:48] DONE draft_k3_d0 id=109 tokens=16 n_prompt=228 pieces=16 reset=0
+[2026-08-16T16:38:48] GEN draft_k3_d0 id=110 n_predict=16 prefix_chars=1039
+[2026-08-16T16:39:11] DONE draft_k3_d0 id=110 tokens=16 n_prompt=230 pieces=16 reset=0
+[2026-08-16T16:39:11] GEN draft_k3_d0 id=111 n_predict=16 prefix_chars=1046
+[2026-08-16T16:39:34] DONE draft_k3_d0 id=111 tokens=16 n_prompt=231 pieces=16 reset=0
+[2026-08-16T16:39:34] GEN draft_k3_d0 id=112 n_predict=16 prefix_chars=1050
+[2026-08-16T16:39:56] DONE draft_k3_d0 id=112 tokens=16 n_prompt=232 pieces=16 reset=0
+[2026-08-16T16:39:56] GEN draft_k3_d0 id=113 n_predict=16 prefix_chars=1060
+[2026-08-16T16:40:19] DONE draft_k3_d0 id=113 tokens=16 n_prompt=235 pieces=16 reset=0
+[2026-08-16T16:40:19] GEN draft_k3_d0 id=114 n_predict=16 prefix_chars=1110
+[2026-08-16T16:40:42] DONE draft_k3_d0 id=114 tokens=16 n_prompt=246 pieces=16 reset=0
+[2026-08-16T16:40:42] GEN draft_k3_d0 id=115 n_predict=16 prefix_chars=1121
+[2026-08-16T16:41:05] DONE draft_k3_d0 id=115 tokens=16 n_prompt=249 pieces=16 reset=0
+[2026-08-16T16:41:05] GEN draft_k3_d0 id=116 n_predict=16 prefix_chars=1128
+[2026-08-16T16:41:29] DONE draft_k3_d0 id=116 tokens=16 n_prompt=250 pieces=16 reset=0
+[2026-08-16T16:41:29] GEN draft_k3_d0 id=117 n_predict=16 prefix_chars=1135
+[2026-08-16T16:41:52] DONE draft_k3_d0 id=117 tokens=16 n_prompt=252 pieces=16 reset=0
+[2026-08-16T16:41:52] GEN draft_k3_d0 id=118 n_predict=16 prefix_chars=1162
+[2026-08-16T16:42:16] DONE draft_k3_d0 id=118 tokens=16 n_prompt=257 pieces=16 reset=0
+[2026-08-16T16:42:16] GEN draft_k3_d0 id=119 n_predict=16 prefix_chars=1178
+[2026-08-16T16:42:41] DONE draft_k3_d0 id=119 tokens=16 n_prompt=261 pieces=16 reset=0
+[2026-08-16T16:42:41] GEN draft_k3_d0 id=120 n_predict=16 prefix_chars=1192
+[2026-08-16T16:43:06] DONE draft_k3_d0 id=120 tokens=16 n_prompt=266 pieces=16 reset=0
+[2026-08-16T16:43:06] GEN draft_k3_d0 id=121 n_predict=16 prefix_chars=1269
+[2026-08-16T16:43:33] DONE draft_k3_d0 id=121 tokens=16 n_prompt=283 pieces=16 reset=0
+[2026-08-16T16:43:33] GEN draft_k3_d0 id=122 n_predict=16 prefix_chars=1300
+[2026-08-16T16:44:00] DONE draft_k3_d0 id=122 tokens=14 n_prompt=289 pieces=14 reset=0
+[2026-08-16T16:44:00] GEN draft_k3_d0 id=123 n_predict=15 prefix_chars=1303
+[2026-08-16T16:44:29] DONE draft_k3_d0 id=123 tokens=14 n_prompt=290 pieces=14 reset=0
+[2026-08-16T16:44:29] GEN draft_k3_d0 id=124 n_predict=6 prefix_chars=1346
+[2026-08-16T16:44:56] DONE draft_k3_d0 id=124 tokens=5 n_prompt=299 pieces=5 reset=0
+[2026-08-16T16:44:56] GEN draft_k3_d0 id=125 n_predict=4 prefix_chars=1358
+[2026-08-16T16:45:22] DONE draft_k3_d0 id=125 tokens=4 n_prompt=301 pieces=4 reset=0
+[2026-08-16T16:45:22] GEN draft_k3_d0 id=126 n_predict=3 prefix_chars=1361
+[2026-08-16T16:45:48] DONE draft_k3_d0 id=126 tokens=2 n_prompt=302 pieces=2 reset=0
+[2026-08-16T16:45:48] GEN draft_k3_d0 id=127 n_predict=2 prefix_chars=1365
+[2026-08-16T16:46:14] DONE draft_k3_d0 id=127 tokens=2 n_prompt=303 pieces=2 reset=0
+[2026-08-16T16:46:14] GEN draft_k3_d0 id=128 n_predict=1 prefix_chars=1373
+[2026-08-16T16:46:40] DONE draft_k3_d0 id=128 tokens=1 n_prompt=304 pieces=1 reset=0
+[2026-08-16T16:46:40] draft running pooled k=3 n=437 alpha=0.7117
+[2026-08-16T16:46:40] GEN draft_k3_d0 id=129 n_predict=16 prefix_chars=1202
+[2026-08-16T16:47:08] DONE draft_k3_d0 id=129 tokens=16 n_prompt=293 pieces=16 reset=0
+[2026-08-16T16:47:08] GEN draft_k3_d0 id=130 n_predict=16 prefix_chars=1211
+[2026-08-16T16:47:36] DONE draft_k3_d0 id=130 tokens=16 n_prompt=294 pieces=16 reset=0
+[2026-08-16T16:47:36] GEN draft_k3_d0 id=131 n_predict=16 prefix_chars=1212
+[2026-08-16T16:48:05] DONE draft_k3_d0 id=131 tokens=16 n_prompt=295 pieces=16 reset=0
+[2026-08-16T16:48:05] GEN draft_k3_d0 id=132 n_predict=16 prefix_chars=1268
+[2026-08-16T16:48:35] DONE draft_k3_d0 id=132 tokens=16 n_prompt=312 pieces=16 reset=0
+[2026-08-16T16:48:35] GEN draft_k3_d0 id=133 n_predict=16 prefix_chars=1308
+[2026-08-16T16:49:05] DONE draft_k3_d0 id=133 tokens=16 n_prompt=322 pieces=16 reset=0
+[2026-08-16T16:49:05] GEN draft_k3_d0 id=134 n_predict=16 prefix_chars=1366
+[2026-08-16T16:49:37] DONE draft_k3_d0 id=134 tokens=16 n_prompt=336 pieces=16 reset=0
+[2026-08-16T16:49:37] GEN draft_k3_d0 id=135 n_predict=16 prefix_chars=1389
+[2026-08-16T16:50:08] DONE draft_k3_d0 id=135 tokens=16 n_prompt=340 pieces=16 reset=0
+[2026-08-16T16:50:08] GEN draft_k3_d0 id=136 n_predict=16 prefix_chars=1428
+[2026-08-16T16:50:40] DONE draft_k3_d0 id=136 tokens=16 n_prompt=347 pieces=16 reset=0
+[2026-08-16T16:50:40] GEN draft_k3_d0 id=137 n_predict=16 prefix_chars=1451
+[2026-08-16T16:51:13] DONE draft_k3_d0 id=137 tokens=16 n_prompt=353 pieces=16 reset=0
+[2026-08-16T16:51:13] GEN draft_k3_d0 id=138 n_predict=16 prefix_chars=1463
+[2026-08-16T16:51:45] DONE draft_k3_d0 id=138 tokens=16 n_prompt=359 pieces=16 reset=0
+[2026-08-16T16:51:45] GEN draft_k3_d0 id=139 n_predict=16 prefix_chars=1494
+[2026-08-16T16:52:18] DONE draft_k3_d0 id=139 tokens=16 n_prompt=369 pieces=16 reset=0
+[2026-08-16T16:52:18] GEN draft_k3_d0 id=140 n_predict=16 prefix_chars=1513
+[2026-08-16T16:52:51] DONE draft_k3_d0 id=140 tokens=16 n_prompt=375 pieces=16 reset=0
+[2026-08-16T16:52:51] GEN draft_k3_d0 id=141 n_predict=16 prefix_chars=1551
+[2026-08-16T16:53:26] DONE draft_k3_d0 id=141 tokens=16 n_prompt=385 pieces=16 reset=0
+[2026-08-16T16:53:26] GEN draft_k3_d0 id=142 n_predict=16 prefix_chars=1608
+[2026-08-16T16:54:01] DONE draft_k3_d0 id=142 tokens=16 n_prompt=402 pieces=16 reset=0
+[2026-08-16T16:54:01] GEN draft_k3_d0 id=143 n_predict=16 prefix_chars=1666
+[2026-08-16T16:54:37] DONE draft_k3_d0 id=143 tokens=16 n_prompt=414 pieces=16 reset=0
+[2026-08-16T16:54:37] GEN draft_k3_d0 id=144 n_predict=16 prefix_chars=1670
+[2026-08-16T16:55:13] DONE draft_k3_d0 id=144 tokens=16 n_prompt=416 pieces=16 reset=0
+[2026-08-16T16:55:13] GEN draft_k3_d0 id=145 n_predict=16 prefix_chars=1679
+[2026-08-16T16:55:50] DONE draft_k3_d0 id=145 tokens=16 n_prompt=419 pieces=16 reset=0
+[2026-08-16T16:55:50] GEN draft_k3_d0 id=146 n_predict=16 prefix_chars=1737
+[2026-08-16T16:56:27] DONE draft_k3_d0 id=146 tokens=16 n_prompt=432 pieces=16 reset=0
+[2026-08-16T16:56:27] GEN draft_k3_d0 id=147 n_predict=16 prefix_chars=1802
+[2026-08-16T16:57:05] DONE draft_k3_d0 id=147 tokens=16 n_prompt=449 pieces=16 reset=0
+[2026-08-16T16:57:05] GEN draft_k3_d0 id=148 n_predict=16 prefix_chars=1816
+[2026-08-16T16:57:44] DONE draft_k3_d0 id=148 tokens=16 n_prompt=451 pieces=16 reset=0
+[2026-08-16T16:57:44] GEN draft_k3_d0 id=149 n_predict=16 prefix_chars=1884
+[2026-08-16T16:58:23] DONE draft_k3_d0 id=149 tokens=16 n_prompt=468 pieces=16 reset=0
+[2026-08-16T16:58:23] GEN draft_k3_d0 id=150 n_predict=16 prefix_chars=1951
+[2026-08-16T16:59:03] DONE draft_k3_d0 id=150 tokens=16 n_prompt=485 pieces=16 reset=0
+[2026-08-16T16:59:04] GEN draft_k3_d0 id=151 n_predict=16 prefix_chars=1975
+[2026-08-16T16:59:46] DONE draft_k3_d0 id=151 tokens=16 n_prompt=491 pieces=16 reset=0
+[2026-08-16T16:59:46] GEN draft_k3_d0 id=152 n_predict=16 prefix_chars=2030
+[2026-08-16T17:00:28] DONE draft_k3_d0 id=152 tokens=16 n_prompt=505 pieces=16 reset=0
+[2026-08-16T17:00:28] GEN draft_k3_d0 id=153 n_predict=16 prefix_chars=2064
+[2026-08-16T17:01:11] DONE draft_k3_d0 id=153 tokens=16 n_prompt=511 pieces=16 reset=0
+[2026-08-16T17:01:11] GEN draft_k3_d0 id=154 n_predict=16 prefix_chars=2090
+[2026-08-16T17:01:55] DONE draft_k3_d0 id=154 tokens=16 n_prompt=519 pieces=16 reset=0
+[2026-08-16T17:01:55] GEN draft_k3_d0 id=155 n_predict=16 prefix_chars=2167
+[2026-08-16T17:02:42] DONE draft_k3_d0 id=155 tokens=16 n_prompt=536 pieces=16 reset=0
+[2026-08-16T17:02:42] GEN draft_k3_d0 id=156 n_predict=16 prefix_chars=2229
+[2026-08-16T17:03:32] DONE draft_k3_d0 id=156 tokens=16 n_prompt=553 pieces=16 reset=0
+[2026-08-16T17:03:32] GEN draft_k3_d0 id=157 n_predict=16 prefix_chars=2237
+[2026-08-16T17:04:20] DONE draft_k3_d0 id=157 tokens=16 n_prompt=557 pieces=16 reset=0
+[2026-08-16T17:04:20] GEN draft_k3_d0 id=158 n_predict=16 prefix_chars=2265
+[2026-08-16T17:05:11] DONE draft_k3_d0 id=158 tokens=16 n_prompt=564 pieces=16 reset=0
+[2026-08-16T17:05:11] GEN draft_k3_d0 id=159 n_predict=11 prefix_chars=2314
+[2026-08-16T17:06:03] DONE draft_k3_d0 id=159 tokens=11 n_prompt=581 pieces=11 reset=0
+[2026-08-16T17:06:03] GEN draft_k3_d0 id=160 n_predict=3 prefix_chars=2345
+[2026-08-16T17:06:52] DONE draft_k3_d0 id=160 tokens=3 n_prompt=589 pieces=3 reset=0
+[2026-08-16T17:06:52] draft running pooled k=3 n=737 alpha=0.7870
+[2026-08-16T17:06:52] GEN draft_k3_d0 id=161 n_predict=16 prefix_chars=1628
+[2026-08-16T17:07:23] DONE draft_k3_d0 id=161 tokens=0 n_prompt=399 pieces=0 reset=0
+[2026-08-16T17:07:24] GEN draft_k3_d0 id=162 n_predict=16 prefix_chars=1629
+[2026-08-16T17:07:59] DONE draft_k3_d0 id=162 tokens=16 n_prompt=400 pieces=16 reset=0
+[2026-08-16T17:07:59] GEN draft_k3_d0 id=163 n_predict=16 prefix_chars=1633
+[2026-08-16T17:08:34] DONE draft_k3_d0 id=163 tokens=16 n_prompt=401 pieces=16 reset=0
+[2026-08-16T17:08:34] GEN draft_k3_d0 id=164 n_predict=16 prefix_chars=1667
+[2026-08-16T17:09:06] DONE draft_k3_d0 id=164 tokens=7 n_prompt=407 pieces=7 reset=0
+[2026-08-16T17:09:06] GEN draft_k3_d0 id=165 n_predict=16 prefix_chars=1674
+[2026-08-16T17:09:43] DONE draft_k3_d0 id=165 tokens=16 n_prompt=408 pieces=16 reset=0
+[2026-08-16T17:09:43] GEN draft_k3_d0 id=166 n_predict=16 prefix_chars=1685
+[2026-08-16T17:10:18] DONE draft_k3_d0 id=166 tokens=16 n_prompt=409 pieces=16 reset=0
+[2026-08-16T17:10:18] GEN draft_k3_d0 id=167 n_predict=16 prefix_chars=1710
+[2026-08-16T17:10:50] DONE draft_k3_d0 id=167 tokens=0 n_prompt=416 pieces=0 reset=0
+[2026-08-16T17:10:50] GEN draft_k3_d0 id=168 n_predict=16 prefix_chars=1717
+[2026-08-16T17:11:27] DONE draft_k3_d0 id=168 tokens=16 n_prompt=417 pieces=16 reset=0
+[2026-08-16T17:11:27] GEN draft_k3_d0 id=169 n_predict=16 prefix_chars=1718
+[2026-08-16T17:12:05] DONE draft_k3_d0 id=169 tokens=16 n_prompt=418 pieces=16 reset=0
+[2026-08-16T17:12:05] GEN draft_k3_d0 id=170 n_predict=16 prefix_chars=1741
+[2026-08-16T17:12:44] DONE draft_k3_d0 id=170 tokens=16 n_prompt=423 pieces=16 reset=0
+[2026-08-16T17:12:44] GEN draft_k3_d0 id=171 n_predict=16 prefix_chars=1775
+[2026-08-16T17:13:23] DONE draft_k3_d0 id=171 tokens=16 n_prompt=427 pieces=16 reset=0
+[2026-08-16T17:13:23] GEN draft_k3_d0 id=172 n_predict=16 prefix_chars=1807
+[2026-08-16T17:14:02] DONE draft_k3_d0 id=172 tokens=16 n_prompt=433 pieces=16 reset=0
+[2026-08-16T17:14:02] GEN draft_k3_d0 id=173 n_predict=16 prefix_chars=1869
+[2026-08-16T17:14:44] DONE draft_k3_d0 id=173 tokens=16 n_prompt=450 pieces=16 reset=0
+[2026-08-16T17:14:44] GEN draft_k3_d0 id=174 n_predict=16 prefix_chars=1874
+[2026-08-16T17:15:24] DONE draft_k3_d0 id=174 tokens=16 n_prompt=453 pieces=16 reset=0
+[2026-08-16T17:15:24] GEN draft_k3_d0 id=175 n_predict=16 prefix_chars=1876
+[2026-08-16T17:16:05] DONE draft_k3_d0 id=175 tokens=16 n_prompt=454 pieces=16 reset=0
+[2026-08-16T17:16:05] GEN draft_k3_d0 id=176 n_predict=16 prefix_chars=1886
+[2026-08-16T17:16:46] DONE draft_k3_d0 id=176 tokens=16 n_prompt=456 pieces=16 reset=0
+[2026-08-16T17:16:46] GEN draft_k3_d0 id=177 n_predict=16 prefix_chars=1894
+[2026-08-16T17:17:27] DONE draft_k3_d0 id=177 tokens=16 n_prompt=459 pieces=16 reset=0
+[2026-08-16T17:17:27] GEN draft_k3_d0 id=178 n_predict=16 prefix_chars=1928
+[2026-08-16T17:18:08] DONE draft_k3_d0 id=178 tokens=16 n_prompt=468 pieces=16 reset=0
+[2026-08-16T17:18:08] GEN draft_k3_d0 id=179 n_predict=16 prefix_chars=1953
+[2026-08-16T17:18:49] DONE draft_k3_d0 id=179 tokens=16 n_prompt=473 pieces=16 reset=0
+[2026-08-16T17:18:49] GEN draft_k3_d0 id=180 n_predict=16 prefix_chars=1978
+[2026-08-16T17:19:31] DONE draft_k3_d0 id=180 tokens=16 n_prompt=484 pieces=16 reset=0
+[2026-08-16T17:19:31] GEN draft_k3_d0 id=181 n_predict=16 prefix_chars=1999
+[2026-08-16T17:20:14] DONE draft_k3_d0 id=181 tokens=16 n_prompt=487 pieces=16 reset=0
+[2026-08-16T17:20:14] GEN draft_k3_d0 id=182 n_predict=16 prefix_chars=2020
+[2026-08-16T17:20:57] DONE draft_k3_d0 id=182 tokens=16 n_prompt=491 pieces=16 reset=0
+[2026-08-16T17:20:57] GEN draft_k3_d0 id=183 n_predict=16 prefix_chars=2022
+[2026-08-16T17:21:39] DONE draft_k3_d0 id=183 tokens=16 n_prompt=492 pieces=16 reset=0
+[2026-08-16T17:21:39] GEN draft_k3_d0 id=184 n_predict=16 prefix_chars=2067
+[2026-08-16T17:22:23] DONE draft_k3_d0 id=184 tokens=16 n_prompt=509 pieces=16 reset=0
+[2026-08-16T17:22:23] GEN draft_k3_d0 id=185 n_predict=16 prefix_chars=2114
+[2026-08-16T17:23:09] DONE draft_k3_d0 id=185 tokens=16 n_prompt=526 pieces=16 reset=0
+[2026-08-16T17:23:09] GEN draft_k3_d0 id=186 n_predict=16 prefix_chars=2168
+[2026-08-16T17:23:54] DONE draft_k3_d0 id=186 tokens=16 n_prompt=538 pieces=16 reset=0
+[2026-08-16T17:23:54] GEN draft_k3_d0 id=187 n_predict=16 prefix_chars=2206
+[2026-08-16T17:24:41] DONE draft_k3_d0 id=187 tokens=16 n_prompt=548 pieces=16 reset=0
+[2026-08-16T17:24:41] GEN draft_k3_d0 id=188 n_predict=16 prefix_chars=2264
+[2026-08-16T17:25:31] DONE draft_k3_d0 id=188 tokens=16 n_prompt=565 pieces=16 reset=0
+[2026-08-16T17:25:31] GEN draft_k3_d0 id=189 n_predict=16 prefix_chars=2327
+[2026-08-16T17:26:22] DONE draft_k3_d0 id=189 tokens=16 n_prompt=582 pieces=16 reset=0
+[2026-08-16T17:26:22] GEN draft_k3_d0 id=190 n_predict=16 prefix_chars=2342
+[2026-08-16T17:27:16] DONE draft_k3_d0 id=190 tokens=16 n_prompt=585 pieces=16 reset=0
+[2026-08-16T17:27:16] GEN draft_k3_d0 id=191 n_predict=16 prefix_chars=2351
+[2026-08-16T17:28:10] DONE draft_k3_d0 id=191 tokens=16 n_prompt=587 pieces=16 reset=0
+[2026-08-16T17:28:10] GEN draft_k3_d0 id=192 n_predict=16 prefix_chars=2365
+[2026-08-16T17:29:04] DONE draft_k3_d0 id=192 tokens=16 n_prompt=591 pieces=16 reset=0
+[2026-08-16T17:29:04] GEN draft_k3_d0 id=193 n_predict=16 prefix_chars=2419
+[2026-08-16T17:29:59] DONE draft_k3_d0 id=193 tokens=16 n_prompt=608 pieces=16 reset=0
+[2026-08-16T17:29:59] GEN draft_k3_d0 id=194 n_predict=16 prefix_chars=2478
+[2026-08-16T17:30:56] DONE draft_k3_d0 id=194 tokens=16 n_prompt=625 pieces=16 reset=0
+[2026-08-16T17:30:56] GEN draft_k3_d0 id=195 n_predict=16 prefix_chars=2521
+[2026-08-16T17:31:54] DONE draft_k3_d0 id=195 tokens=16 n_prompt=642 pieces=16 reset=0
+[2026-08-16T17:31:54] GEN draft_k3_d0 id=196 n_predict=16 prefix_chars=2538
+[2026-08-16T17:32:54] DONE draft_k3_d0 id=196 tokens=16 n_prompt=648 pieces=16 reset=0
+[2026-08-16T17:32:54] GEN draft_k3_d0 id=197 n_predict=16 prefix_chars=2540
+[2026-08-16T17:33:53] DONE draft_k3_d0 id=197 tokens=16 n_prompt=649 pieces=16 reset=0
+[2026-08-16T17:33:53] GEN draft_k3_d0 id=198 n_predict=16 prefix_chars=2587
+[2026-08-16T17:34:54] DONE draft_k3_d0 id=198 tokens=16 n_prompt=666 pieces=16 reset=0
+[2026-08-16T17:34:54] GEN draft_k3_d0 id=199 n_predict=16 prefix_chars=2615
+[2026-08-16T17:35:55] DONE draft_k3_d0 id=199 tokens=16 n_prompt=683 pieces=16 reset=0
+[2026-08-16T17:35:55] draft running pooled k=3 n=1037 alpha=0.8120
+[2026-08-16T17:35:56] CLOSED draft_k3_d0
+[2026-08-16T17:35:56] VALIDATE k=3 valid=True n=1037 alpha=0.8119575699132112
+[2026-08-16T17:35:56] START C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 4096 --ubatch 512 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 4 --progress --session
+[2026-08-16T17:36:00] READY draft_k4_d0 {"load_s": 4.468, "arch": "qwen35moe", "n_ctx": 4096, "think_ctl": "template", "n_expert_used": 4}
+[2026-08-16T17:36:00] GEN draft_k4_d0 id=1 n_predict=16 prefix_chars=361
+[2026-08-16T17:36:12] DONE draft_k4_d0 id=1 tokens=0 n_prompt=75 pieces=0 reset=0
+[2026-08-16T17:36:12] GEN draft_k4_d0 id=2 n_predict=16 prefix_chars=368
+[2026-08-16T17:36:27] DONE draft_k4_d0 id=2 tokens=16 n_prompt=76 pieces=16 reset=0
+[2026-08-16T17:36:27] GEN draft_k4_d0 id=3 n_predict=16 prefix_chars=421
+[2026-08-16T17:36:43] DONE draft_k4_d0 id=3 tokens=16 n_prompt=91 pieces=16 reset=0
+[2026-08-16T17:36:43] GEN draft_k4_d0 id=4 n_predict=16 prefix_chars=433
+[2026-08-16T17:36:59] DONE draft_k4_d0 id=4 tokens=16 n_prompt=93 pieces=16 reset=0
+[2026-08-16T17:36:59] GEN draft_k4_d0 id=5 n_predict=16 prefix_chars=442
+[2026-08-16T17:37:15] DONE draft_k4_d0 id=5 tokens=16 n_prompt=94 pieces=16 reset=0
+[2026-08-16T17:37:15] GEN draft_k4_d0 id=6 n_predict=16 prefix_chars=458
+[2026-08-16T17:37:31] DONE draft_k4_d0 id=6 tokens=16 n_prompt=98 pieces=16 reset=0
+[2026-08-16T17:37:31] GEN draft_k4_d0 id=7 n_predict=16 prefix_chars=485
+[2026-08-16T17:37:47] DONE draft_k4_d0 id=7 tokens=16 n_prompt=102 pieces=16 reset=0
+[2026-08-16T17:37:47] GEN draft_k4_d0 id=8 n_predict=16 prefix_chars=491
+[2026-08-16T17:38:04] DONE draft_k4_d0 id=8 tokens=16 n_prompt=103 pieces=16 reset=0
+[2026-08-16T17:38:04] GEN draft_k4_d0 id=9 n_predict=16 prefix_chars=500
+[2026-08-16T17:38:21] DONE draft_k4_d0 id=9 tokens=16 n_prompt=105 pieces=16 reset=0
+[2026-08-16T17:38:21] GEN draft_k4_d0 id=10 n_predict=16 prefix_chars=573
+[2026-08-16T17:38:39] DONE draft_k4_d0 id=10 tokens=16 n_prompt=119 pieces=16 reset=0
+[2026-08-16T17:38:39] GEN draft_k4_d0 id=11 n_predict=16 prefix_chars=625
+[2026-08-16T17:38:58] DONE draft_k4_d0 id=11 tokens=16 n_prompt=128 pieces=16 reset=0
+[2026-08-16T17:38:58] GEN draft_k4_d0 id=12 n_predict=16 prefix_chars=639
+[2026-08-16T17:39:17] DONE draft_k4_d0 id=12 tokens=16 n_prompt=129 pieces=16 reset=0
+[2026-08-16T17:39:17] GEN draft_k4_d0 id=13 n_predict=16 prefix_chars=651
+[2026-08-16T17:39:37] DONE draft_k4_d0 id=13 tokens=16 n_prompt=131 pieces=16 reset=0
+[2026-08-16T17:39:37] GEN draft_k4_d0 id=14 n_predict=16 prefix_chars=664
+[2026-08-16T17:39:56] DONE draft_k4_d0 id=14 tokens=16 n_prompt=132 pieces=16 reset=0
+[2026-08-16T17:39:56] GEN draft_k4_d0 id=15 n_predict=16 prefix_chars=710
+[2026-08-16T17:40:16] DONE draft_k4_d0 id=15 tokens=16 n_prompt=139 pieces=16 reset=0
+[2026-08-16T17:40:16] GEN draft_k4_d0 id=16 n_predict=16 prefix_chars=763
+[2026-08-16T17:40:37] DONE draft_k4_d0 id=16 tokens=16 n_prompt=146 pieces=16 reset=0
+[2026-08-16T17:40:37] GEN draft_k4_d0 id=17 n_predict=16 prefix_chars=803
+[2026-08-16T17:40:59] DONE draft_k4_d0 id=17 tokens=16 n_prompt=156 pieces=16 reset=0
+[2026-08-16T17:40:59] GEN draft_k4_d0 id=18 n_predict=16 prefix_chars=839
+[2026-08-16T17:41:20] DONE draft_k4_d0 id=18 tokens=16 n_prompt=161 pieces=16 reset=0
+[2026-08-16T17:41:20] GEN draft_k4_d0 id=19 n_predict=16 prefix_chars=847
+[2026-08-16T17:41:42] DONE draft_k4_d0 id=19 tokens=16 n_prompt=162 pieces=16 reset=0
+[2026-08-16T17:41:42] GEN draft_k4_d0 id=20 n_predict=16 prefix_chars=868
+[2026-08-16T17:42:04] DONE draft_k4_d0 id=20 tokens=16 n_prompt=166 pieces=16 reset=0
+[2026-08-16T17:42:04] GEN draft_k4_d0 id=21 n_predict=16 prefix_chars=874
+[2026-08-16T17:42:25] DONE draft_k4_d0 id=21 tokens=16 n_prompt=167 pieces=16 reset=0
+[2026-08-16T17:42:25] GEN draft_k4_d0 id=22 n_predict=16 prefix_chars=928
+[2026-08-16T17:42:48] DONE draft_k4_d0 id=22 tokens=16 n_prompt=177 pieces=16 reset=0
+[2026-08-16T17:42:48] GEN draft_k4_d0 id=23 n_predict=16 prefix_chars=941
+[2026-08-16T17:43:10] DONE draft_k4_d0 id=23 tokens=16 n_prompt=178 pieces=16 reset=0
+[2026-08-16T17:43:10] GEN draft_k4_d0 id=24 n_predict=16 prefix_chars=942
+[2026-08-16T17:43:33] DONE draft_k4_d0 id=24 tokens=16 n_prompt=179 pieces=16 reset=0
+[2026-08-16T17:43:33] GEN draft_k4_d0 id=25 n_predict=16 prefix_chars=947
+[2026-08-16T17:43:55] DONE draft_k4_d0 id=25 tokens=16 n_prompt=180 pieces=16 reset=0
+[2026-08-16T17:43:55] GEN draft_k4_d0 id=26 n_predict=16 prefix_chars=987
+[2026-08-16T17:44:17] DONE draft_k4_d0 id=26 tokens=16 n_prompt=186 pieces=16 reset=0
+[2026-08-16T17:44:17] GEN draft_k4_d0 id=27 n_predict=16 prefix_chars=1024
+[2026-08-16T17:44:40] DONE draft_k4_d0 id=27 tokens=16 n_prompt=192 pieces=16 reset=0
+[2026-08-16T17:44:40] GEN draft_k4_d0 id=28 n_predict=16 prefix_chars=1103
+[2026-08-16T17:45:04] DONE draft_k4_d0 id=28 tokens=16 n_prompt=204 pieces=16 reset=0
+[2026-08-16T17:45:04] GEN draft_k4_d0 id=29 n_predict=16 prefix_chars=1162
+[2026-08-16T17:45:29] DONE draft_k4_d0 id=29 tokens=16 n_prompt=220 pieces=16 reset=0
+[2026-08-16T17:45:29] GEN draft_k4_d0 id=30 n_predict=16 prefix_chars=1194
+[2026-08-16T17:45:54] DONE draft_k4_d0 id=30 tokens=16 n_prompt=226 pieces=16 reset=0
+[2026-08-16T17:45:54] GEN draft_k4_d0 id=31 n_predict=16 prefix_chars=1223
+[2026-08-16T17:46:20] DONE draft_k4_d0 id=31 tokens=16 n_prompt=231 pieces=16 reset=0
+[2026-08-16T17:46:20] GEN draft_k4_d0 id=32 n_predict=16 prefix_chars=1255
+[2026-08-16T17:46:48] DONE draft_k4_d0 id=32 tokens=16 n_prompt=237 pieces=16 reset=0
+[2026-08-16T17:46:48] GEN draft_k4_d0 id=33 n_predict=16 prefix_chars=1286
+[2026-08-16T17:47:14] DONE draft_k4_d0 id=33 tokens=16 n_prompt=243 pieces=16 reset=0
+[2026-08-16T17:47:14] GEN draft_k4_d0 id=34 n_predict=16 prefix_chars=1293
+[2026-08-16T17:47:42] DONE draft_k4_d0 id=34 tokens=16 n_prompt=244 pieces=16 reset=0
+[2026-08-16T17:47:42] GEN draft_k4_d0 id=35 n_predict=16 prefix_chars=1334
+[2026-08-16T17:48:09] DONE draft_k4_d0 id=35 tokens=16 n_prompt=250 pieces=16 reset=0
+[2026-08-16T17:48:09] GEN draft_k4_d0 id=36 n_predict=16 prefix_chars=1339
+[2026-08-16T17:48:37] DONE draft_k4_d0 id=36 tokens=16 n_prompt=251 pieces=16 reset=0
+[2026-08-16T17:48:37] GEN draft_k4_d0 id=37 n_predict=16 prefix_chars=1367
+[2026-08-16T17:49:05] DONE draft_k4_d0 id=37 tokens=16 n_prompt=255 pieces=16 reset=0
+[2026-08-16T17:49:05] GEN draft_k4_d0 id=38 n_predict=6 prefix_chars=1450
+[2026-08-16T17:49:33] DONE draft_k4_d0 id=38 tokens=6 n_prompt=272 pieces=6 reset=0
+[2026-08-16T17:49:33] draft running pooled k=4 n=203 alpha=0.8177
+[2026-08-16T17:49:33] GEN draft_k4_d0 id=39 n_predict=16 prefix_chars=314
+[2026-08-16T17:49:44] DONE draft_k4_d0 id=39 tokens=0 n_prompt=71 pieces=0 reset=0
+[2026-08-16T17:49:44] GEN draft_k4_d0 id=40 n_predict=16 prefix_chars=319
+[2026-08-16T17:50:00] DONE draft_k4_d0 id=40 tokens=16 n_prompt=72 pieces=16 reset=0
+[2026-08-16T17:50:00] GEN draft_k4_d0 id=41 n_predict=16 prefix_chars=328
+[2026-08-16T17:50:15] DONE draft_k4_d0 id=41 tokens=16 n_prompt=74 pieces=16 reset=0
+[2026-08-16T17:50:15] GEN draft_k4_d0 id=42 n_predict=16 prefix_chars=360
+[2026-08-16T17:50:32] DONE draft_k4_d0 id=42 tokens=16 n_prompt=84 pieces=16 reset=0
+[2026-08-16T17:50:32] GEN draft_k4_d0 id=43 n_predict=16 prefix_chars=414
+[2026-08-16T17:50:49] DONE draft_k4_d0 id=43 tokens=16 n_prompt=101 pieces=16 reset=0
+[2026-08-16T17:50:49] GEN draft_k4_d0 id=44 n_predict=16 prefix_chars=438
+[2026-08-16T17:51:07] DONE draft_k4_d0 id=44 tokens=16 n_prompt=105 pieces=16 reset=0
+[2026-08-16T17:51:07] GEN draft_k4_d0 id=45 n_predict=16 prefix_chars=443
+[2026-08-16T17:51:25] DONE draft_k4_d0 id=45 tokens=16 n_prompt=107 pieces=16 reset=0
+[2026-08-16T17:51:25] GEN draft_k4_d0 id=46 n_predict=16 prefix_chars=453
+[2026-08-16T17:51:43] DONE draft_k4_d0 id=46 tokens=16 n_prompt=108 pieces=16 reset=0
+[2026-08-16T17:51:43] GEN draft_k4_d0 id=47 n_predict=16 prefix_chars=476
+[2026-08-16T17:52:02] DONE draft_k4_d0 id=47 tokens=16 n_prompt=112 pieces=16 reset=0
+[2026-08-16T17:52:02] GEN draft_k4_d0 id=48 n_predict=16 prefix_chars=523
+[2026-08-16T17:52:21] DONE draft_k4_d0 id=48 tokens=16 n_prompt=121 pieces=16 reset=0
+[2026-08-16T17:52:21] GEN draft_k4_d0 id=49 n_predict=16 prefix_chars=525
+[2026-08-16T17:52:41] DONE draft_k4_d0 id=49 tokens=16 n_prompt=122 pieces=16 reset=0
+[2026-08-16T17:52:41] GEN draft_k4_d0 id=50 n_predict=16 prefix_chars=549
+[2026-08-16T17:53:01] DONE draft_k4_d0 id=50 tokens=16 n_prompt=127 pieces=16 reset=0
+[2026-08-16T17:53:01] GEN draft_k4_d0 id=51 n_predict=16 prefix_chars=556
+[2026-08-16T17:53:20] DONE draft_k4_d0 id=51 tokens=16 n_prompt=128 pieces=16 reset=0
+[2026-08-16T17:53:20] GEN draft_k4_d0 id=52 n_predict=16 prefix_chars=600
+[2026-08-16T17:53:40] DONE draft_k4_d0 id=52 tokens=16 n_prompt=137 pieces=16 reset=0
+[2026-08-16T17:53:40] GEN draft_k4_d0 id=53 n_predict=16 prefix_chars=653
+[2026-08-16T17:54:01] DONE draft_k4_d0 id=53 tokens=16 n_prompt=149 pieces=16 reset=0
+[2026-08-16T17:54:01] GEN draft_k4_d0 id=54 n_predict=16 prefix_chars=659
+[2026-08-16T17:54:23] DONE draft_k4_d0 id=54 tokens=16 n_prompt=150 pieces=16 reset=0
+[2026-08-16T17:54:23] GEN draft_k4_d0 id=55 n_predict=16 prefix_chars=677
+[2026-08-16T17:54:44] DONE draft_k4_d0 id=55 tokens=16 n_prompt=154 pieces=16 reset=0
+[2026-08-16T17:54:44] GEN draft_k4_d0 id=56 n_predict=16 prefix_chars=695
+[2026-08-16T17:55:06] DONE draft_k4_d0 id=56 tokens=16 n_prompt=157 pieces=16 reset=0
+[2026-08-16T17:55:06] GEN draft_k4_d0 id=57 n_predict=16 prefix_chars=716
+[2026-08-16T17:55:28] DONE draft_k4_d0 id=57 tokens=16 n_prompt=162 pieces=16 reset=0
+[2026-08-16T17:55:28] GEN draft_k4_d0 id=58 n_predict=16 prefix_chars=734
+[2026-08-16T17:55:51] DONE draft_k4_d0 id=58 tokens=16 n_prompt=164 pieces=16 reset=0
+[2026-08-16T17:55:51] GEN draft_k4_d0 id=59 n_predict=16 prefix_chars=772
+[2026-08-16T17:56:13] DONE draft_k4_d0 id=59 tokens=16 n_prompt=171 pieces=16 reset=0
+[2026-08-16T17:56:13] GEN draft_k4_d0 id=60 n_predict=16 prefix_chars=777
+[2026-08-16T17:56:36] DONE draft_k4_d0 id=60 tokens=16 n_prompt=174 pieces=16 reset=0
+[2026-08-16T17:56:36] GEN draft_k4_d0 id=61 n_predict=16 prefix_chars=819
+[2026-08-16T17:56:59] DONE draft_k4_d0 id=61 tokens=16 n_prompt=183 pieces=16 reset=0
+[2026-08-16T17:56:59] GEN draft_k4_d0 id=62 n_predict=16 prefix_chars=827
+[2026-08-16T17:57:22] DONE draft_k4_d0 id=62 tokens=16 n_prompt=185 pieces=16 reset=0
+[2026-08-16T17:57:22] GEN draft_k4_d0 id=63 n_predict=16 prefix_chars=898
+[2026-08-16T17:57:46] DONE draft_k4_d0 id=63 tokens=16 n_prompt=202 pieces=16 reset=0
+[2026-08-16T17:57:47] GEN draft_k4_d0 id=64 n_predict=16 prefix_chars=907
+[2026-08-16T17:58:11] DONE draft_k4_d0 id=64 tokens=16 n_prompt=204 pieces=16 reset=0
+[2026-08-16T17:58:11] GEN draft_k4_d0 id=65 n_predict=16 prefix_chars=930
+[2026-08-16T17:58:35] DONE draft_k4_d0 id=65 tokens=16 n_prompt=208 pieces=16 reset=0
+[2026-08-16T17:58:35] GEN draft_k4_d0 id=66 n_predict=16 prefix_chars=941
+[2026-08-16T17:59:00] DONE draft_k4_d0 id=66 tokens=16 n_prompt=211 pieces=16 reset=0
+[2026-08-16T17:59:00] GEN draft_k4_d0 id=67 n_predict=16 prefix_chars=961
+[2026-08-16T17:59:25] DONE draft_k4_d0 id=67 tokens=16 n_prompt=215 pieces=16 reset=0
+[2026-08-16T17:59:25] GEN draft_k4_d0 id=68 n_predict=16 prefix_chars=986
+[2026-08-16T17:59:51] DONE draft_k4_d0 id=68 tokens=16 n_prompt=219 pieces=16 reset=0
+[2026-08-16T17:59:51] GEN draft_k4_d0 id=69 n_predict=16 prefix_chars=1008
+[2026-08-16T18:00:16] DONE draft_k4_d0 id=69 tokens=16 n_prompt=223 pieces=16 reset=0
+[2026-08-16T18:00:16] GEN draft_k4_d0 id=70 n_predict=16 prefix_chars=1015
+[2026-08-16T18:00:42] DONE draft_k4_d0 id=70 tokens=16 n_prompt=224 pieces=16 reset=0
+[2026-08-16T18:00:42] GEN draft_k4_d0 id=71 n_predict=16 prefix_chars=1026
+[2026-08-16T18:01:08] DONE draft_k4_d0 id=71 tokens=16 n_prompt=227 pieces=16 reset=0
+[2026-08-16T18:01:08] GEN draft_k4_d0 id=72 n_predict=16 prefix_chars=1033
+[2026-08-16T18:01:35] DONE draft_k4_d0 id=72 tokens=16 n_prompt=228 pieces=16 reset=0
+[2026-08-16T18:01:35] GEN draft_k4_d0 id=73 n_predict=16 prefix_chars=1046
+[2026-08-16T18:02:02] DONE draft_k4_d0 id=73 tokens=16 n_prompt=231 pieces=16 reset=0
+[2026-08-16T18:02:02] GEN draft_k4_d0 id=74 n_predict=16 prefix_chars=1050
+[2026-08-16T18:02:29] DONE draft_k4_d0 id=74 tokens=16 n_prompt=232 pieces=16 reset=0
+[2026-08-16T18:02:29] GEN draft_k4_d0 id=75 n_predict=16 prefix_chars=1060
+[2026-08-16T18:02:55] DONE draft_k4_d0 id=75 tokens=16 n_prompt=235 pieces=16 reset=0
+[2026-08-16T18:02:55] GEN draft_k4_d0 id=76 n_predict=16 prefix_chars=1072
+[2026-08-16T18:03:23] DONE draft_k4_d0 id=76 tokens=16 n_prompt=238 pieces=16 reset=0
+[2026-08-16T18:03:23] GEN draft_k4_d0 id=77 n_predict=16 prefix_chars=1121
+[2026-08-16T18:03:50] DONE draft_k4_d0 id=77 tokens=16 n_prompt=249 pieces=16 reset=0
+[2026-08-16T18:03:50] GEN draft_k4_d0 id=78 n_predict=16 prefix_chars=1128
+[2026-08-16T18:04:19] DONE draft_k4_d0 id=78 tokens=16 n_prompt=250 pieces=16 reset=0
+[2026-08-16T18:04:19] GEN draft_k4_d0 id=79 n_predict=16 prefix_chars=1135
+[2026-08-16T18:04:48] DONE draft_k4_d0 id=79 tokens=16 n_prompt=252 pieces=16 reset=0
+[2026-08-16T18:04:48] GEN draft_k4_d0 id=80 n_predict=16 prefix_chars=1192
+[2026-08-16T18:05:17] DONE draft_k4_d0 id=80 tokens=16 n_prompt=266 pieces=16 reset=0
+[2026-08-16T18:05:17] GEN draft_k4_d0 id=81 n_predict=16 prefix_chars=1196
+[2026-08-16T18:05:46] DONE draft_k4_d0 id=81 tokens=16 n_prompt=267 pieces=16 reset=0
+[2026-08-16T18:05:46] GEN draft_k4_d0 id=82 n_predict=16 prefix_chars=1213
+[2026-08-16T18:06:16] DONE draft_k4_d0 id=82 tokens=16 n_prompt=271 pieces=16 reset=0
+[2026-08-16T18:06:16] GEN draft_k4_d0 id=83 n_predict=16 prefix_chars=1289
+[2026-08-16T18:06:46] DONE draft_k4_d0 id=83 tokens=14 n_prompt=288 pieces=14 reset=0
+[2026-08-16T18:06:46] GEN draft_k4_d0 id=84 n_predict=16 prefix_chars=1300
+[2026-08-16T18:07:17] DONE draft_k4_d0 id=84 tokens=16 n_prompt=289 pieces=16 reset=0
+[2026-08-16T18:07:17] GEN draft_k4_d0 id=85 n_predict=12 prefix_chars=1319
+[2026-08-16T18:07:46] DONE draft_k4_d0 id=85 tokens=12 n_prompt=293 pieces=12 reset=0
+[2026-08-16T18:07:46] GEN draft_k4_d0 id=86 n_predict=4 prefix_chars=1358
+[2026-08-16T18:08:13] DONE draft_k4_d0 id=86 tokens=4 n_prompt=301 pieces=4 reset=0
+[2026-08-16T18:08:13] GEN draft_k4_d0 id=87 n_predict=3 prefix_chars=1361
+[2026-08-16T18:08:41] DONE draft_k4_d0 id=87 tokens=3 n_prompt=302 pieces=3 reset=0
+[2026-08-16T18:08:41] GEN draft_k4_d0 id=88 n_predict=1 prefix_chars=1373
+[2026-08-16T18:09:08] DONE draft_k4_d0 id=88 tokens=1 n_prompt=304 pieces=1 reset=0
+[2026-08-16T18:09:08] draft running pooled k=4 n=437 alpha=0.8032
+[2026-08-16T18:09:08] GEN draft_k4_d0 id=89 n_predict=16 prefix_chars=1202
+[2026-08-16T18:09:35] DONE draft_k4_d0 id=89 tokens=0 n_prompt=293 pieces=0 reset=0
+[2026-08-16T18:09:35] GEN draft_k4_d0 id=90 n_predict=16 prefix_chars=1204
+[2026-08-16T18:10:08] DONE draft_k4_d0 id=90 tokens=16 n_prompt=293 pieces=16 reset=0
+[2026-08-16T18:10:08] GEN draft_k4_d0 id=91 n_predict=16 prefix_chars=1212
+[2026-08-16T18:10:40] DONE draft_k4_d0 id=91 tokens=16 n_prompt=295 pieces=16 reset=0
+[2026-08-16T18:10:40] GEN draft_k4_d0 id=92 n_predict=16 prefix_chars=1237
+[2026-08-16T18:11:12] DONE draft_k4_d0 id=92 tokens=16 n_prompt=300 pieces=16 reset=0
+[2026-08-16T18:11:12] GEN draft_k4_d0 id=93 n_predict=16 prefix_chars=1282
+[2026-08-16T18:11:45] DONE draft_k4_d0 id=93 tokens=16 n_prompt=317 pieces=16 reset=0
+[2026-08-16T18:11:45] GEN draft_k4_d0 id=94 n_predict=16 prefix_chars=1361
+[2026-08-16T18:12:20] DONE draft_k4_d0 id=94 tokens=16 n_prompt=334 pieces=16 reset=0
+[2026-08-16T18:12:20] GEN draft_k4_d0 id=95 n_predict=16 prefix_chars=1428
+[2026-08-16T18:12:55] DONE draft_k4_d0 id=95 tokens=16 n_prompt=347 pieces=16 reset=0
+[2026-08-16T18:12:55] GEN draft_k4_d0 id=96 n_predict=16 prefix_chars=1451
+[2026-08-16T18:13:30] DONE draft_k4_d0 id=96 tokens=16 n_prompt=353 pieces=16 reset=0
+[2026-08-16T18:13:30] GEN draft_k4_d0 id=97 n_predict=16 prefix_chars=1463
+[2026-08-16T18:14:07] DONE draft_k4_d0 id=97 tokens=16 n_prompt=359 pieces=16 reset=0
+[2026-08-16T18:14:07] GEN draft_k4_d0 id=98 n_predict=16 prefix_chars=1523
+[2026-08-16T18:14:46] DONE draft_k4_d0 id=98 tokens=16 n_prompt=376 pieces=16 reset=0
+[2026-08-16T18:14:46] GEN draft_k4_d0 id=99 n_predict=16 prefix_chars=1577
+[2026-08-16T18:15:25] DONE draft_k4_d0 id=99 tokens=16 n_prompt=393 pieces=16 reset=0
+[2026-08-16T18:15:25] GEN draft_k4_d0 id=100 n_predict=16 prefix_chars=1653
+[2026-08-16T18:16:06] DONE draft_k4_d0 id=100 tokens=16 n_prompt=410 pieces=16 reset=0
+[2026-08-16T18:16:06] GEN draft_k4_d0 id=101 n_predict=16 prefix_chars=1670
+[2026-08-16T18:16:47] DONE draft_k4_d0 id=101 tokens=16 n_prompt=416 pieces=16 reset=0
+[2026-08-16T18:16:47] GEN draft_k4_d0 id=102 n_predict=16 prefix_chars=1679
+[2026-08-16T18:17:28] DONE draft_k4_d0 id=102 tokens=16 n_prompt=419 pieces=16 reset=0
+[2026-08-16T18:17:28] GEN draft_k4_d0 id=103 n_predict=16 prefix_chars=1737
+[2026-08-16T18:18:10] DONE draft_k4_d0 id=103 tokens=16 n_prompt=432 pieces=16 reset=0
+[2026-08-16T18:18:10] GEN draft_k4_d0 id=104 n_predict=16 prefix_chars=1802
+[2026-08-16T18:18:52] DONE draft_k4_d0 id=104 tokens=16 n_prompt=449 pieces=16 reset=0
+[2026-08-16T18:18:52] GEN draft_k4_d0 id=105 n_predict=16 prefix_chars=1874
+[2026-08-16T18:19:36] DONE draft_k4_d0 id=105 tokens=16 n_prompt=466 pieces=16 reset=0
+[2026-08-16T18:19:36] GEN draft_k4_d0 id=106 n_predict=16 prefix_chars=1948
+[2026-08-16T18:20:21] DONE draft_k4_d0 id=106 tokens=16 n_prompt=483 pieces=16 reset=0
+[2026-08-16T18:20:21] GEN draft_k4_d0 id=107 n_predict=16 prefix_chars=1967
+[2026-08-16T18:21:07] DONE draft_k4_d0 id=107 tokens=16 n_prompt=489 pieces=16 reset=0
+[2026-08-16T18:21:07] GEN draft_k4_d0 id=108 n_predict=16 prefix_chars=2030
+[2026-08-16T18:21:53] DONE draft_k4_d0 id=108 tokens=16 n_prompt=505 pieces=16 reset=0
+[2026-08-16T18:21:53] GEN draft_k4_d0 id=109 n_predict=16 prefix_chars=2104
+[2026-08-16T18:22:42] DONE draft_k4_d0 id=109 tokens=16 n_prompt=522 pieces=16 reset=0
+[2026-08-16T18:22:42] GEN draft_k4_d0 id=110 n_predict=16 prefix_chars=2174
+[2026-08-16T18:23:34] DONE draft_k4_d0 id=110 tokens=16 n_prompt=539 pieces=16 reset=0
+[2026-08-16T18:23:34] GEN draft_k4_d0 id=111 n_predict=16 prefix_chars=2233
+[2026-08-16T18:24:28] DONE draft_k4_d0 id=111 tokens=16 n_prompt=556 pieces=16 reset=0
+[2026-08-16T18:24:28] GEN draft_k4_d0 id=112 n_predict=16 prefix_chars=2304
+[2026-08-16T18:25:24] DONE draft_k4_d0 id=112 tokens=16 n_prompt=573 pieces=16 reset=0
+[2026-08-16T18:25:24] GEN draft_k4_d0 id=113 n_predict=2 prefix_chars=2354
+[2026-08-16T18:26:18] DONE draft_k4_d0 id=113 tokens=2 n_prompt=590 pieces=2 reset=0
+[2026-08-16T18:26:18] draft running pooled k=4 n=737 alpha=0.8507
+[2026-08-16T18:26:18] GEN draft_k4_d0 id=114 n_predict=16 prefix_chars=1628
+[2026-08-16T18:26:52] DONE draft_k4_d0 id=114 tokens=0 n_prompt=399 pieces=0 reset=0
+[2026-08-16T18:26:52] GEN draft_k4_d0 id=115 n_predict=16 prefix_chars=1629
+[2026-08-16T18:27:30] DONE draft_k4_d0 id=115 tokens=16 n_prompt=400 pieces=16 reset=0
+[2026-08-16T18:27:30] GEN draft_k4_d0 id=116 n_predict=16 prefix_chars=1659
+[2026-08-16T18:28:09] DONE draft_k4_d0 id=116 tokens=16 n_prompt=406 pieces=16 reset=0
+[2026-08-16T18:28:09] GEN draft_k4_d0 id=117 n_predict=16 prefix_chars=1685
+[2026-08-16T18:28:48] DONE draft_k4_d0 id=117 tokens=16 n_prompt=409 pieces=16 reset=0
+[2026-08-16T18:28:48] GEN draft_k4_d0 id=118 n_predict=16 prefix_chars=1707
+[2026-08-16T18:29:26] DONE draft_k4_d0 id=118 tokens=16 n_prompt=414 pieces=16 reset=0
+[2026-08-16T18:29:26] GEN draft_k4_d0 id=119 n_predict=16 prefix_chars=1710
+[2026-08-16T18:30:05] DONE draft_k4_d0 id=119 tokens=16 n_prompt=416 pieces=16 reset=0
+[2026-08-16T18:30:05] GEN draft_k4_d0 id=120 n_predict=16 prefix_chars=1721
+[2026-08-16T18:30:44] DONE draft_k4_d0 id=120 tokens=16 n_prompt=419 pieces=16 reset=0
+[2026-08-16T18:30:44] GEN draft_k4_d0 id=121 n_predict=16 prefix_chars=1761
+[2026-08-16T18:31:23] DONE draft_k4_d0 id=121 tokens=16 n_prompt=425 pieces=16 reset=0
+[2026-08-16T18:31:23] GEN draft_k4_d0 id=122 n_predict=16 prefix_chars=1775
+[2026-08-16T18:32:03] DONE draft_k4_d0 id=122 tokens=16 n_prompt=427 pieces=16 reset=0
+[2026-08-16T18:32:03] GEN draft_k4_d0 id=123 n_predict=16 prefix_chars=1844
+[2026-08-16T18:32:44] DONE draft_k4_d0 id=123 tokens=16 n_prompt=444 pieces=16 reset=0
+[2026-08-16T18:32:44] GEN draft_k4_d0 id=124 n_predict=16 prefix_chars=1886
+[2026-08-16T18:33:25] DONE draft_k4_d0 id=124 tokens=16 n_prompt=456 pieces=16 reset=0
+[2026-08-16T18:33:25] GEN draft_k4_d0 id=125 n_predict=16 prefix_chars=1903
+[2026-08-16T18:34:07] DONE draft_k4_d0 id=125 tokens=16 n_prompt=462 pieces=16 reset=0
+[2026-08-16T18:34:07] GEN draft_k4_d0 id=126 n_predict=16 prefix_chars=1928
+[2026-08-16T18:34:49] DONE draft_k4_d0 id=126 tokens=16 n_prompt=468 pieces=16 reset=0
+[2026-08-16T18:34:49] GEN draft_k4_d0 id=127 n_predict=16 prefix_chars=1931
+[2026-08-16T18:35:31] DONE draft_k4_d0 id=127 tokens=16 n_prompt=469 pieces=16 reset=0
+[2026-08-16T18:35:31] GEN draft_k4_d0 id=128 n_predict=16 prefix_chars=1953
+[2026-08-16T18:36:13] DONE draft_k4_d0 id=128 tokens=16 n_prompt=473 pieces=16 reset=0
+[2026-08-16T18:36:13] GEN draft_k4_d0 id=129 n_predict=16 prefix_chars=1999
+[2026-08-16T18:36:56] DONE draft_k4_d0 id=129 tokens=16 n_prompt=487 pieces=16 reset=0
+[2026-08-16T18:36:56] GEN draft_k4_d0 id=130 n_predict=16 prefix_chars=2022
+[2026-08-16T18:37:39] DONE draft_k4_d0 id=130 tokens=16 n_prompt=492 pieces=16 reset=0
+[2026-08-16T18:37:39] GEN draft_k4_d0 id=131 n_predict=16 prefix_chars=2032
+[2026-08-16T18:38:22] DONE draft_k4_d0 id=131 tokens=16 n_prompt=496 pieces=16 reset=0
+[2026-08-16T18:38:22] GEN draft_k4_d0 id=132 n_predict=16 prefix_chars=2050
+[2026-08-16T18:39:06] DONE draft_k4_d0 id=132 tokens=16 n_prompt=504 pieces=16 reset=0
+[2026-08-16T18:39:06] GEN draft_k4_d0 id=133 n_predict=16 prefix_chars=2092
+[2026-08-16T18:39:53] DONE draft_k4_d0 id=133 tokens=16 n_prompt=521 pieces=16 reset=0
+[2026-08-16T18:39:53] GEN draft_k4_d0 id=134 n_predict=16 prefix_chars=2168
+[2026-08-16T18:40:43] DONE draft_k4_d0 id=134 tokens=16 n_prompt=538 pieces=16 reset=0
+[2026-08-16T18:40:43] GEN draft_k4_d0 id=135 n_predict=16 prefix_chars=2206
+[2026-08-16T18:41:34] DONE draft_k4_d0 id=135 tokens=16 n_prompt=548 pieces=16 reset=0
+[2026-08-16T18:41:34] GEN draft_k4_d0 id=136 n_predict=16 prefix_chars=2264
+[2026-08-16T18:42:28] DONE draft_k4_d0 id=136 tokens=16 n_prompt=565 pieces=16 reset=0
+[2026-08-16T18:42:28] GEN draft_k4_d0 id=137 n_predict=16 prefix_chars=2327
+[2026-08-16T18:43:23] DONE draft_k4_d0 id=137 tokens=16 n_prompt=582 pieces=16 reset=0
+[2026-08-16T18:43:23] GEN draft_k4_d0 id=138 n_predict=16 prefix_chars=2393
+[2026-08-16T18:44:21] DONE draft_k4_d0 id=138 tokens=16 n_prompt=599 pieces=16 reset=0
+[2026-08-16T18:44:21] GEN draft_k4_d0 id=139 n_predict=16 prefix_chars=2450
+[2026-08-16T18:45:24] DONE draft_k4_d0 id=139 tokens=16 n_prompt=616 pieces=16 reset=0
+[2026-08-16T18:45:24] GEN draft_k4_d0 id=140 n_predict=16 prefix_chars=2495
+[2026-08-16T18:46:27] DONE draft_k4_d0 id=140 tokens=16 n_prompt=633 pieces=16 reset=0
+[2026-08-16T18:46:27] GEN draft_k4_d0 id=141 n_predict=16 prefix_chars=2538
+[2026-08-16T18:47:32] DONE draft_k4_d0 id=141 tokens=16 n_prompt=648 pieces=16 reset=0
+[2026-08-16T18:47:32] GEN draft_k4_d0 id=142 n_predict=16 prefix_chars=2576
+[2026-08-16T18:48:37] DONE draft_k4_d0 id=142 tokens=16 n_prompt=665 pieces=16 reset=0
+[2026-08-16T18:48:37] GEN draft_k4_d0 id=143 n_predict=16 prefix_chars=2613
+[2026-08-16T18:49:44] DONE draft_k4_d0 id=143 tokens=16 n_prompt=682 pieces=16 reset=0
+[2026-08-16T18:49:44] GEN draft_k4_d0 id=144 n_predict=15 prefix_chars=2617
+[2026-08-16T18:50:50] DONE draft_k4_d0 id=144 tokens=15 n_prompt=684 pieces=15 reset=0
+[2026-08-16T18:50:50] GEN draft_k4_d0 id=145 n_predict=1 prefix_chars=2656
+[2026-08-16T18:51:53] DONE draft_k4_d0 id=145 tokens=1 n_prompt=698 pieces=1 reset=0
+[2026-08-16T18:51:53] draft running pooled k=4 n=1037 alpha=0.8640
+[2026-08-16T18:51:54] CLOSED draft_k4_d0
+[2026-08-16T18:51:54] VALIDATE k=4 valid=True n=1037 alpha=0.8640308582449373
+[2026-08-16T18:51:54] START C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 4096 --ubatch 512 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 5 --progress --session
+[2026-08-16T18:51:58] READY draft_k5_d0 {"load_s": 4.166, "arch": "qwen35moe", "n_ctx": 4096, "think_ctl": "template", "n_expert_used": 5}
+[2026-08-16T18:51:58] GEN draft_k5_d0 id=1 n_predict=16 prefix_chars=361
+[2026-08-16T18:52:11] DONE draft_k5_d0 id=1 tokens=0 n_prompt=75 pieces=0 reset=0
+[2026-08-16T18:52:11] GEN draft_k5_d0 id=2 n_predict=16 prefix_chars=368
+[2026-08-16T18:52:29] DONE draft_k5_d0 id=2 tokens=16 n_prompt=76 pieces=16 reset=0
+[2026-08-16T18:52:29] GEN draft_k5_d0 id=3 n_predict=16 prefix_chars=370
+[2026-08-16T18:52:46] DONE draft_k5_d0 id=3 tokens=16 n_prompt=77 pieces=16 reset=0
+[2026-08-16T18:52:46] GEN draft_k5_d0 id=4 n_predict=16 prefix_chars=421
+[2026-08-16T18:53:04] DONE draft_k5_d0 id=4 tokens=16 n_prompt=91 pieces=16 reset=0
+[2026-08-16T18:53:04] GEN draft_k5_d0 id=5 n_predict=16 prefix_chars=433
+[2026-08-16T18:53:21] DONE draft_k5_d0 id=5 tokens=16 n_prompt=93 pieces=16 reset=0
+[2026-08-16T18:53:21] GEN draft_k5_d0 id=6 n_predict=16 prefix_chars=442
+[2026-08-16T18:53:39] DONE draft_k5_d0 id=6 tokens=16 n_prompt=94 pieces=16 reset=0
+[2026-08-16T18:53:39] GEN draft_k5_d0 id=7 n_predict=16 prefix_chars=458
+[2026-08-16T18:53:58] DONE draft_k5_d0 id=7 tokens=16 n_prompt=98 pieces=16 reset=0
+[2026-08-16T18:53:58] GEN draft_k5_d0 id=8 n_predict=16 prefix_chars=476
+[2026-08-16T18:54:17] DONE draft_k5_d0 id=8 tokens=16 n_prompt=101 pieces=16 reset=0
+[2026-08-16T18:54:17] GEN draft_k5_d0 id=9 n_predict=16 prefix_chars=485
+[2026-08-16T18:54:37] DONE draft_k5_d0 id=9 tokens=16 n_prompt=102 pieces=16 reset=0
+[2026-08-16T18:54:37] GEN draft_k5_d0 id=10 n_predict=16 prefix_chars=573
+[2026-08-16T18:54:57] DONE draft_k5_d0 id=10 tokens=16 n_prompt=119 pieces=16 reset=0
+[2026-08-16T18:54:57] GEN draft_k5_d0 id=11 n_predict=16 prefix_chars=590
+[2026-08-16T18:55:16] DONE draft_k5_d0 id=11 tokens=16 n_prompt=121 pieces=16 reset=0
+[2026-08-16T18:55:16] GEN draft_k5_d0 id=12 n_predict=16 prefix_chars=700
+[2026-08-16T18:55:37] DONE draft_k5_d0 id=12 tokens=16 n_prompt=138 pieces=16 reset=0
+[2026-08-16T18:55:37] GEN draft_k5_d0 id=13 n_predict=16 prefix_chars=710
+[2026-08-16T18:55:59] DONE draft_k5_d0 id=13 tokens=16 n_prompt=139 pieces=16 reset=0
+[2026-08-16T18:55:59] GEN draft_k5_d0 id=14 n_predict=16 prefix_chars=803
+[2026-08-16T18:56:21] DONE draft_k5_d0 id=14 tokens=16 n_prompt=156 pieces=16 reset=0
+[2026-08-16T18:56:21] GEN draft_k5_d0 id=15 n_predict=16 prefix_chars=853
+[2026-08-16T18:56:43] DONE draft_k5_d0 id=15 tokens=16 n_prompt=163 pieces=16 reset=0
+[2026-08-16T18:56:43] GEN draft_k5_d0 id=16 n_predict=16 prefix_chars=928
+[2026-08-16T18:57:07] DONE draft_k5_d0 id=16 tokens=16 n_prompt=177 pieces=16 reset=0
+[2026-08-16T18:57:07] GEN draft_k5_d0 id=17 n_predict=16 prefix_chars=941
+[2026-08-16T18:57:30] DONE draft_k5_d0 id=17 tokens=16 n_prompt=178 pieces=16 reset=0
+[2026-08-16T18:57:30] GEN draft_k5_d0 id=18 n_predict=16 prefix_chars=942
+[2026-08-16T18:57:54] DONE draft_k5_d0 id=18 tokens=16 n_prompt=179 pieces=16 reset=0
+[2026-08-16T18:57:54] GEN draft_k5_d0 id=19 n_predict=16 prefix_chars=947
+[2026-08-16T18:58:17] DONE draft_k5_d0 id=19 tokens=16 n_prompt=180 pieces=16 reset=0
+[2026-08-16T18:58:17] GEN draft_k5_d0 id=20 n_predict=16 prefix_chars=987
+[2026-08-16T18:58:41] DONE draft_k5_d0 id=20 tokens=16 n_prompt=186 pieces=16 reset=0
+[2026-08-16T18:58:41] GEN draft_k5_d0 id=21 n_predict=16 prefix_chars=1024
+[2026-08-16T18:59:05] DONE draft_k5_d0 id=21 tokens=16 n_prompt=192 pieces=16 reset=0
+[2026-08-16T18:59:05] GEN draft_k5_d0 id=22 n_predict=16 prefix_chars=1077
+[2026-08-16T18:59:31] DONE draft_k5_d0 id=22 tokens=16 n_prompt=200 pieces=16 reset=0
+[2026-08-16T18:59:31] GEN draft_k5_d0 id=23 n_predict=16 prefix_chars=1103
+[2026-08-16T18:59:58] DONE draft_k5_d0 id=23 tokens=16 n_prompt=204 pieces=16 reset=0
+[2026-08-16T18:59:58] GEN draft_k5_d0 id=24 n_predict=16 prefix_chars=1174
+[2026-08-16T19:00:24] DONE draft_k5_d0 id=24 tokens=16 n_prompt=221 pieces=16 reset=0
+[2026-08-16T19:00:25] GEN draft_k5_d0 id=25 n_predict=16 prefix_chars=1255
+[2026-08-16T19:00:53] DONE draft_k5_d0 id=25 tokens=16 n_prompt=237 pieces=16 reset=0
+[2026-08-16T19:00:53] GEN draft_k5_d0 id=26 n_predict=16 prefix_chars=1279
+[2026-08-16T19:01:22] DONE draft_k5_d0 id=26 tokens=16 n_prompt=241 pieces=16 reset=0
+[2026-08-16T19:01:22] GEN draft_k5_d0 id=27 n_predict=16 prefix_chars=1293
+[2026-08-16T19:01:50] DONE draft_k5_d0 id=27 tokens=16 n_prompt=244 pieces=16 reset=0
+[2026-08-16T19:01:50] GEN draft_k5_d0 id=28 n_predict=16 prefix_chars=1334
+[2026-08-16T19:02:18] DONE draft_k5_d0 id=28 tokens=16 n_prompt=250 pieces=16 reset=0
+[2026-08-16T19:02:18] GEN draft_k5_d0 id=29 n_predict=11 prefix_chars=1422
+[2026-08-16T19:02:46] DONE draft_k5_d0 id=29 tokens=11 n_prompt=267 pieces=11 reset=0
+[2026-08-16T19:02:46] GEN draft_k5_d0 id=30 n_predict=5 prefix_chars=1455
+[2026-08-16T19:03:13] DONE draft_k5_d0 id=30 tokens=5 n_prompt=273 pieces=5 reset=0
+[2026-08-16T19:03:13] draft running pooled k=5 n=203 alpha=0.8571
+[2026-08-16T19:03:13] GEN draft_k5_d0 id=31 n_predict=16 prefix_chars=314
+[2026-08-16T19:03:30] DONE draft_k5_d0 id=31 tokens=16 n_prompt=71 pieces=16 reset=0
+[2026-08-16T19:03:30] GEN draft_k5_d0 id=32 n_predict=16 prefix_chars=328
+[2026-08-16T19:03:46] DONE draft_k5_d0 id=32 tokens=16 n_prompt=74 pieces=16 reset=0
+[2026-08-16T19:03:46] GEN draft_k5_d0 id=33 n_predict=16 prefix_chars=335
+[2026-08-16T19:04:02] DONE draft_k5_d0 id=33 tokens=16 n_prompt=76 pieces=16 reset=0
+[2026-08-16T19:04:02] GEN draft_k5_d0 id=34 n_predict=16 prefix_chars=348
+[2026-08-16T19:04:19] DONE draft_k5_d0 id=34 tokens=16 n_prompt=80 pieces=16 reset=0
+[2026-08-16T19:04:19] GEN draft_k5_d0 id=35 n_predict=16 prefix_chars=410
+[2026-08-16T19:04:37] DONE draft_k5_d0 id=35 tokens=16 n_prompt=97 pieces=16 reset=0
+[2026-08-16T19:04:37] GEN draft_k5_d0 id=36 n_predict=16 prefix_chars=416
+[2026-08-16T19:04:56] DONE draft_k5_d0 id=36 tokens=16 n_prompt=102 pieces=16 reset=0
+[2026-08-16T19:04:56] GEN draft_k5_d0 id=37 n_predict=16 prefix_chars=438
+[2026-08-16T19:05:15] DONE draft_k5_d0 id=37 tokens=16 n_prompt=105 pieces=16 reset=0
+[2026-08-16T19:05:15] GEN draft_k5_d0 id=38 n_predict=16 prefix_chars=476
+[2026-08-16T19:05:34] DONE draft_k5_d0 id=38 tokens=16 n_prompt=112 pieces=16 reset=0
+[2026-08-16T19:05:34] GEN draft_k5_d0 id=39 n_predict=16 prefix_chars=523
+[2026-08-16T19:05:55] DONE draft_k5_d0 id=39 tokens=16 n_prompt=121 pieces=16 reset=0
+[2026-08-16T19:05:55] GEN draft_k5_d0 id=40 n_predict=16 prefix_chars=556
+[2026-08-16T19:06:16] DONE draft_k5_d0 id=40 tokens=16 n_prompt=128 pieces=16 reset=0
+[2026-08-16T19:06:16] GEN draft_k5_d0 id=41 n_predict=16 prefix_chars=569
+[2026-08-16T19:06:36] DONE draft_k5_d0 id=41 tokens=16 n_prompt=131 pieces=16 reset=0
+[2026-08-16T19:06:36] GEN draft_k5_d0 id=42 n_predict=16 prefix_chars=576
+[2026-08-16T19:06:58] DONE draft_k5_d0 id=42 tokens=16 n_prompt=133 pieces=16 reset=0
+[2026-08-16T19:06:58] GEN draft_k5_d0 id=43 n_predict=16 prefix_chars=659
+[2026-08-16T19:07:20] DONE draft_k5_d0 id=43 tokens=16 n_prompt=150 pieces=16 reset=0
+[2026-08-16T19:07:20] GEN draft_k5_d0 id=44 n_predict=16 prefix_chars=695
+[2026-08-16T19:07:44] DONE draft_k5_d0 id=44 tokens=16 n_prompt=157 pieces=16 reset=0
+[2026-08-16T19:07:44] GEN draft_k5_d0 id=45 n_predict=16 prefix_chars=716
+[2026-08-16T19:08:09] DONE draft_k5_d0 id=45 tokens=16 n_prompt=162 pieces=16 reset=0
+[2026-08-16T19:08:09] GEN draft_k5_d0 id=46 n_predict=16 prefix_chars=734
+[2026-08-16T19:08:34] DONE draft_k5_d0 id=46 tokens=16 n_prompt=164 pieces=16 reset=0
+[2026-08-16T19:08:34] GEN draft_k5_d0 id=47 n_predict=16 prefix_chars=810
+[2026-08-16T19:08:59] DONE draft_k5_d0 id=47 tokens=16 n_prompt=181 pieces=16 reset=0
+[2026-08-16T19:08:59] GEN draft_k5_d0 id=48 n_predict=16 prefix_chars=819
+[2026-08-16T19:09:24] DONE draft_k5_d0 id=48 tokens=16 n_prompt=183 pieces=16 reset=0
+[2026-08-16T19:09:24] GEN draft_k5_d0 id=49 n_predict=16 prefix_chars=824
+[2026-08-16T19:09:50] DONE draft_k5_d0 id=49 tokens=16 n_prompt=184 pieces=16 reset=0
+[2026-08-16T19:09:50] GEN draft_k5_d0 id=50 n_predict=16 prefix_chars=890
+[2026-08-16T19:10:16] DONE draft_k5_d0 id=50 tokens=16 n_prompt=200 pieces=16 reset=0
+[2026-08-16T19:10:16] GEN draft_k5_d0 id=51 n_predict=16 prefix_chars=930
+[2026-08-16T19:10:43] DONE draft_k5_d0 id=51 tokens=16 n_prompt=208 pieces=16 reset=0
+[2026-08-16T19:10:43] GEN draft_k5_d0 id=52 n_predict=16 prefix_chars=941
+[2026-08-16T19:11:10] DONE draft_k5_d0 id=52 tokens=16 n_prompt=211 pieces=16 reset=0
+[2026-08-16T19:11:10] GEN draft_k5_d0 id=53 n_predict=16 prefix_chars=986
+[2026-08-16T19:11:38] DONE draft_k5_d0 id=53 tokens=16 n_prompt=219 pieces=16 reset=0
+[2026-08-16T19:11:38] GEN draft_k5_d0 id=54 n_predict=16 prefix_chars=1026
+[2026-08-16T19:12:05] DONE draft_k5_d0 id=54 tokens=16 n_prompt=227 pieces=16 reset=0
+[2026-08-16T19:12:05] GEN draft_k5_d0 id=55 n_predict=16 prefix_chars=1046
+[2026-08-16T19:12:34] DONE draft_k5_d0 id=55 tokens=16 n_prompt=231 pieces=16 reset=0
+[2026-08-16T19:12:34] GEN draft_k5_d0 id=56 n_predict=16 prefix_chars=1050
+[2026-08-16T19:13:01] DONE draft_k5_d0 id=56 tokens=16 n_prompt=232 pieces=16 reset=0
+[2026-08-16T19:13:01] GEN draft_k5_d0 id=57 n_predict=16 prefix_chars=1072
+[2026-08-16T19:13:29] DONE draft_k5_d0 id=57 tokens=16 n_prompt=238 pieces=16 reset=0
+[2026-08-16T19:13:29] GEN draft_k5_d0 id=58 n_predict=16 prefix_chars=1121
+[2026-08-16T19:13:57] DONE draft_k5_d0 id=58 tokens=16 n_prompt=249 pieces=16 reset=0
+[2026-08-16T19:13:57] GEN draft_k5_d0 id=59 n_predict=16 prefix_chars=1135
+[2026-08-16T19:14:26] DONE draft_k5_d0 id=59 tokens=16 n_prompt=252 pieces=16 reset=0
+[2026-08-16T19:14:26] GEN draft_k5_d0 id=60 n_predict=16 prefix_chars=1159
+[2026-08-16T19:14:55] DONE draft_k5_d0 id=60 tokens=16 n_prompt=256 pieces=16 reset=0
+[2026-08-16T19:14:55] GEN draft_k5_d0 id=61 n_predict=16 prefix_chars=1178
+[2026-08-16T19:15:24] DONE draft_k5_d0 id=61 tokens=16 n_prompt=261 pieces=16 reset=0
+[2026-08-16T19:15:24] GEN draft_k5_d0 id=62 n_predict=16 prefix_chars=1226
+[2026-08-16T19:15:54] DONE draft_k5_d0 id=62 tokens=16 n_prompt=274 pieces=16 reset=0
+[2026-08-16T19:15:54] GEN draft_k5_d0 id=63 n_predict=16 prefix_chars=1285
+[2026-08-16T19:16:25] DONE draft_k5_d0 id=63 tokens=16 n_prompt=287 pieces=16 reset=0
+[2026-08-16T19:16:25] GEN draft_k5_d0 id=64 n_predict=15 prefix_chars=1303
+[2026-08-16T19:16:56] DONE draft_k5_d0 id=64 tokens=15 n_prompt=290 pieces=15 reset=0
+[2026-08-16T19:16:56] GEN draft_k5_d0 id=65 n_predict=1 prefix_chars=1373
+[2026-08-16T19:17:24] DONE draft_k5_d0 id=65 tokens=1 n_prompt=304 pieces=1 reset=0
+[2026-08-16T19:17:24] draft running pooled k=5 n=437 alpha=0.8558
+[2026-08-16T19:17:24] GEN draft_k5_d0 id=66 n_predict=16 prefix_chars=1202
+[2026-08-16T19:17:51] DONE draft_k5_d0 id=66 tokens=0 n_prompt=293 pieces=0 reset=0
+[2026-08-16T19:17:51] GEN draft_k5_d0 id=67 n_predict=16 prefix_chars=1204
+[2026-08-16T19:18:23] DONE draft_k5_d0 id=67 tokens=16 n_prompt=293 pieces=16 reset=0
+[2026-08-16T19:18:23] GEN draft_k5_d0 id=68 n_predict=16 prefix_chars=1211
+[2026-08-16T19:18:55] DONE draft_k5_d0 id=68 tokens=16 n_prompt=294 pieces=16 reset=0
+[2026-08-16T19:18:55] GEN draft_k5_d0 id=69 n_predict=16 prefix_chars=1267
+[2026-08-16T19:19:29] DONE draft_k5_d0 id=69 tokens=16 n_prompt=311 pieces=16 reset=0
+[2026-08-16T19:19:29] GEN draft_k5_d0 id=70 n_predict=16 prefix_chars=1329
+[2026-08-16T19:20:05] DONE draft_k5_d0 id=70 tokens=16 n_prompt=328 pieces=16 reset=0
+[2026-08-16T19:20:05] GEN draft_k5_d0 id=71 n_predict=16 prefix_chars=1419
+[2026-08-16T19:20:44] DONE draft_k5_d0 id=71 tokens=16 n_prompt=345 pieces=16 reset=0
+[2026-08-16T19:20:44] GEN draft_k5_d0 id=72 n_predict=16 prefix_chars=1428
+[2026-08-16T19:21:22] DONE draft_k5_d0 id=72 tokens=16 n_prompt=347 pieces=16 reset=0
+[2026-08-16T19:21:22] GEN draft_k5_d0 id=73 n_predict=16 prefix_chars=1463
+[2026-08-16T19:22:00] DONE draft_k5_d0 id=73 tokens=16 n_prompt=359 pieces=16 reset=0
+[2026-08-16T19:22:00] GEN draft_k5_d0 id=74 n_predict=16 prefix_chars=1523
+[2026-08-16T19:22:40] DONE draft_k5_d0 id=74 tokens=16 n_prompt=376 pieces=16 reset=0
+[2026-08-16T19:22:40] GEN draft_k5_d0 id=75 n_predict=16 prefix_chars=1577
+[2026-08-16T19:23:20] DONE draft_k5_d0 id=75 tokens=16 n_prompt=393 pieces=16 reset=0
+[2026-08-16T19:23:20] GEN draft_k5_d0 id=76 n_predict=16 prefix_chars=1653
