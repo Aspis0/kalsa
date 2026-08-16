@@ -49,12 +49,19 @@ Freeze-OFF reproduces F1's published loop alpha (0.117 pooled window on the same
 prompt family), so the baseline is the known one and the comparison is clean.
 **Freeze-ON is 2.9× that**, and tokens per verify go 1.25 → 1.97 (+58 %).
 
-**Reproduced on a different binary.** Run 1 used `08d16910…` (rev `d31ad8d`),
-run 2 used `524973b8…` (rev `2a7f365`, after the N1/N2/N3 fix round): acceptance
-counts **bit-identical** (51/594 and 126/512), decode within 1 %. Greedy decoding
-is deterministic, so identical counts are the expected signature of a stable
-measurement — and they double as a regression check that the fix round did not
-perturb the loop.
+**Reproduced on three binaries spanning the whole fix history** — `d31ad8d`
+(`08d16910…`), `2a7f365` (`524973b8…`), `8ed1f0d`: acceptance counts
+**bit-identical every time** (51/594 and 126/512). Greedy decoding is
+deterministic, so identical counts are the expected signature of a stable
+measurement, and they double as a regression check that three rounds of audit
+fixes did not perturb the loop. Wall-clock is noisier: plain decode ranged
+0.166-0.182 s/tok across runs (~10 %), so **the counts are the evidence and the
+timings are not**.
+
+The canary added in `2a7f365` (`nop'd 0 store nodes`, fires if skip-write fails
+to engage on a draft decode) stayed **silent in every run** — which is the
+positive evidence that the freeze applied to drafts 2..γ, not only to the first
+of each group.
 
 **Why the freeze buys acceptance** (mechanism, consistent with E4's R1-F1): with
 the freeze off, every rejection rewinds the draft context's recurrent state
