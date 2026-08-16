@@ -183,6 +183,70 @@ _wf_expect "" 0 "wakefulness empty"
 # unknown → continue (never fail on a probe that did not answer)
 _wf_expect "Partial" 0 "wakefulness unknown"
 
+# ── Deviceidle whitelist matcher (_device_whitelist_match) ───────────
+# dumpsys deviceidle whitelist prints section headers and one package per
+# indented line — no commas. Exact trimmed-line match against $PKG; a name
+# that merely has $PKG as a prefix must not match.
+
+_WL_SAMPLE_PRESENT="  Whitelist system apps:
+    com.android.providers.downloads
+    com.sec.android.app.shealth
+  Whitelist user apps:
+    com.kalsa.app
+    com.example.other"
+
+_WL_SAMPLE_ABSENT="  Whitelist system apps:
+    com.android.providers.downloads
+  Whitelist user apps:
+    com.example.other"
+
+_WL_SAMPLE_PREFIX="  Whitelist user apps:
+    com.kalsa.app.extra
+    com.kalsa.application"
+
+# _wl_expect <dumpsys-text> <expect:0|1> <label>
+_wl_expect() {
+  local text="$1" expect="$2" label="$3" got
+  got=$(_device_whitelist_match "$text")
+  if [ "$got" = "$expect" ]; then
+    echo "PASS: $label — match=$got"
+    pass=$((pass + 1))
+  else
+    echo "FAIL: $label — expected match=$expect got=$got"
+    fail=$((fail + 1))
+  fi
+}
+
+_wl_expect "$_WL_SAMPLE_PRESENT" 1 "whitelist present (indented exact line)"
+_wl_expect "$_WL_SAMPLE_ABSENT" 0 "whitelist absent"
+_wl_expect "" 0 "whitelist empty input"
+_wl_expect "$_WL_SAMPLE_PREFIX" 0 "whitelist prefix/substring must not match"
+
+# ── screen_off_timeout restore decision ──────────────────────────────
+# Pure: given the value saved at setup, decide put / delete / leave.
+#   numeric → put it back
+#   null    → delete (settings put cannot undo "unset")
+#   empty   → leave + warn (adb unreadable)
+#   == KA_SCREEN_TIMEOUT_MS → delete (leak from a prior un-restored run)
+
+# _to_expect <saved> <expect-decision> <label>
+_to_expect() {
+  local saved="$1" expect="$2" label="$3" got
+  got=$(_device_timeout_restore_decision "$saved")
+  if [ "$got" = "$expect" ]; then
+    echo "PASS: $label — decision='$got'"
+    pass=$((pass + 1))
+  else
+    echo "FAIL: $label — expected '$expect' got '$got'"
+    fail=$((fail + 1))
+  fi
+}
+
+_to_expect "30000" "put 30000" "timeout restore numeric"
+_to_expect "null" "delete" "timeout restore null → delete"
+_to_expect "" "leave" "timeout restore empty/unreadable → leave"
+_to_expect "$KA_SCREEN_TIMEOUT_MS" "delete" "timeout restore leak (== KA ceiling) → delete"
+
 rm -rf "$OUT"
 echo ""
 echo "=== $pass passed, $fail failed ==="

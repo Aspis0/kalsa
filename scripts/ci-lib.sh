@@ -433,14 +433,48 @@ wakefulness_is_fatal() {
   esac
 }
 
+# Pure matcher: given dumpsys deviceidle whitelist text (one package per
+# indented line, plus section headers), report whether $PKG is present as an
+# exact trimmed line. Output: "1" if present, "0" otherwise.
+# dumpsys does NOT emit comma-separated lists — do not match on commas.
+# Covered by scripts/test_sideload_guards.sh.
+_device_whitelist_match() {
+  local line
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    if [ "$line" = "$PKG" ]; then
+      echo 1
+      return 0
+    fi
+  done <<EOF
+${1:-}
+EOF
+  echo 0
+}
+
 # Report whether $PKG is already in the deviceidle whitelist. Output: "1" if
 # present, "0" if absent (any read failure → "0", best-effort).
 _device_whitelist_has_pkg() {
   local wl
   wl=$(adb shell "dumpsys deviceidle whitelist" 2>/dev/null | tr -d '\r' || true)
-  case "$wl" in
-    *",$PKG,"*) echo 1 ;;
-    *) echo 0 ;;
+  _device_whitelist_match "$wl"
+}
+
+# Pure restore decision for screen_off_timeout given the value saved at setup.
+# Prints one of: put <ms> | delete | leave
+#   numeric (not our KA ceiling) → put it back
+#   null                         → delete (setting was never written; put cannot undo unset)
+#   empty                        → leave  (adb unreadable — do not guess)
+#   equal to KA_SCREEN_TIMEOUT_MS → delete (leak from a prior un-restored run;
+#                                  platform default is the sane fallback)
+# Covered by scripts/test_sideload_guards.sh.
+_device_timeout_restore_decision() {
+  local saved="${1-}"
+  case "$saved" in
+    '') echo leave ;;
+    null|"$KA_SCREEN_TIMEOUT_MS") echo delete ;;
+    *) echo "put $saved" ;;
   esac
 }
 
@@ -450,18 +484,25 @@ device_keepawake_setup() {
   [ "$BENCH_TARGET" = "device" ] || return 0
   [ "${_KA_SETUP_DONE:-0}" = "1" ] && return 0
 
-  # 1) screen_off_timeout — save current, then raise to KA_SCREEN_TIMEOUT_MS.
+  # Save current values and arm the EXIT trap BEFORE any mutation so a kill
+  # mid-setup still restores (the old order left a 24h timeout with no trap).
   _KA_SCREEN_TIMEOUT_SAVED=$(adb shell "settings get system screen_off_timeout" 2>/dev/null | tr -d '\r' || true)
   log "keep-awake: saved screen_off_timeout=${_KA_SCREEN_TIMEOUT_SAVED:-<empty>}"
+  # 2) deviceidle whitelist — remember whether WE add it so restore only removes
+  #    what we added (never drop a whitelist entry the device already had).
+  _KA_WL_WAS_WHITELISTED=$(_device_whitelist_has_pkg)
+  _KA_SETUP_DONE=1
+  # Restore on success, failure (die), and interrupt (the EXIT trap also fires
+  # on signal-induced exit). Idempotent + no-op when never set up.
+  trap device_keepawake_restore EXIT
+
+  # 1) screen_off_timeout — raise to KA_SCREEN_TIMEOUT_MS (saved above).
   if adb shell "settings put system screen_off_timeout $KA_SCREEN_TIMEOUT_MS" >/dev/null 2>&1; then
     log "keep-awake: set screen_off_timeout=$KA_SCREEN_TIMEOUT_MS (restored on exit)"
   else
     log "keep-awake: WARNING could not set screen_off_timeout (continuing best-effort)"
   fi
 
-  # 2) deviceidle whitelist — remember whether WE add it so restore only removes
-  #    what we added (never drop a whitelist entry the device already had).
-  _KA_WL_WAS_WHITELISTED=$(_device_whitelist_has_pkg)
   if adb shell "dumpsys deviceidle whitelist +$PKG" >/dev/null 2>&1; then
     log "keep-awake: added $PKG to deviceidle whitelist (was_whitelisted=$_KA_WL_WAS_WHITELISTED)"
   else
@@ -471,11 +512,6 @@ device_keepawake_setup() {
   # 3) Wake the display once so the arm never begins against a dozing device.
   adb shell "input keyevent KEYCODE_WAKEUP" >/dev/null 2>&1 || true
   log "keep-awake: sent KEYCODE_WAKEUP"
-
-  _KA_SETUP_DONE=1
-  # Restore on success, failure (die), and interrupt (the EXIT trap also fires
-  # on signal-induced exit). Idempotent + no-op when never set up.
-  trap device_keepawake_restore EXIT
 }
 
 # Inverse of setup. Called by the EXIT trap; safe to call repeatedly.
@@ -483,10 +519,23 @@ device_keepawake_restore() {
   [ "${_KA_SETUP_DONE:-0}" = "1" ] || return 0
   _KA_SETUP_DONE=0
 
-  # 1) Restore screen_off_timeout to its pre-run value (auditable both ways).
-  case "${_KA_SCREEN_TIMEOUT_SAVED:-}" in
-    ''|null) log "keep-awake: WARNING no saved screen_off_timeout to restore (left $KA_SCREEN_TIMEOUT_MS); check the device" ;;
-    *)
+  # 1) Restore screen_off_timeout (put / delete / leave — pure decision above).
+  case "$(_device_timeout_restore_decision "${_KA_SCREEN_TIMEOUT_SAVED-}")" in
+    leave)
+      log "keep-awake: WARNING screen_off_timeout unreadable at setup (adb failed); left $KA_SCREEN_TIMEOUT_MS; check the device"
+      ;;
+    delete)
+      if adb shell "settings delete system screen_off_timeout" >/dev/null 2>&1; then
+        if [ "${_KA_SCREEN_TIMEOUT_SAVED-}" = "null" ]; then
+          log "keep-awake: deleted screen_off_timeout (was unset/null at setup; put cannot undo unset)"
+        else
+          log "keep-awake: deleted screen_off_timeout (leak: saved equalled KA_SCREEN_TIMEOUT_MS=$KA_SCREEN_TIMEOUT_MS from a prior run)"
+        fi
+      else
+        log "keep-awake: WARNING failed to delete screen_off_timeout (saved=${_KA_SCREEN_TIMEOUT_SAVED-}); left $KA_SCREEN_TIMEOUT_MS"
+      fi
+      ;;
+    put\ *)
       if adb shell "settings put system screen_off_timeout ${_KA_SCREEN_TIMEOUT_SAVED}" >/dev/null 2>&1; then
         log "keep-awake: restored screen_off_timeout=${_KA_SCREEN_TIMEOUT_SAVED} (was $KA_SCREEN_TIMEOUT_MS)"
       else
