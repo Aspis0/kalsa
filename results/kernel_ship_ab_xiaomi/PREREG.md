@@ -61,6 +61,16 @@ allowed to convert a loss into a win by re-reading it as one-sided.
   **deviation**, the cell is reported as a **conceptual** replication (device
   AND binary changed), and the weaker label is used in the report — no
   retroactive upgrade.
+
+  **AMENDMENT 1 (2026-08-16 06:16, before any run and before any staging):**
+  resolved — owner authorized the pull, the S23's sshd was restarted, and the
+  full runtime was copied and verified 7/7 bit-identical
+  (`models_staging/ship_runtime_s23_0ac612de/`, MANIFEST.md). The deviation
+  clause above is therefore **not invoked**: this cell runs the exact ELF the
+  S23 claim was measured on and is an **exact** replication on the binary axis.
+  Note recorded while pulling: the ELF is dynamically linked, so the pin is the
+  whole 7-file runtime (binary + 6 shared objects), not `bmoe-cli` alone — the
+  Xiaomi must receive and verify all seven before the first run.
 - **Arms** (identical base flags: `--moe-stream --cache-mb 2000 --dense-weights
   anon --overlap --io-threads 4 --ubatch 512 -c 4096 --temp 0 --chatml
   --no-think`, `-n 200`, fact prompt sha-pinned
