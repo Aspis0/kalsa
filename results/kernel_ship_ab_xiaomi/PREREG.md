@@ -96,6 +96,38 @@ allowed to convert a loss into a win by re-reading it as one-sided.
 2. Sustained late-rep: median decode s/token of the last 4 pairs.
 3. J/token: 1 Hz battery sampler (voltage_uV × current_uA over the decode
    window) / tokens generated. Whole-device power, same screen state both arms.
+
+   **AMENDMENT 2 (2026-08-16 06:5x, before any run and before any data):** the
+   S23 estimator is **not reproducible on this device** — verified twice,
+   independently: `/sys/class/power_supply/battery/{current,voltage}_now` are
+   `Permission denied` for uid 2000 under HyperOS, `/sys/class/power_supply/bms/*`
+   does not exist, and `dumpsys battery` exposes `voltage` but **no** `current_uA`.
+   Metric 3 is therefore measured here with a **different instrument**: the
+   **coulomb counter** (`dumpsys battery` → `Charge counter`, µAh), read **twice
+   per run** — once at the start and once at the end of the decode window —
+   giving `ΔQ × V̄` as energy. Declared consequences:
+   - Two reads per run instead of 1 Hz polling means **less** perturbation of
+     metric 1, not more. The 1 Hz sampler is explicitly not used.
+   - **Absolute J/token from this cell is NOT comparable to the S23's** (different
+     instrument, battery, screen and silicon). Only the **within-cell A-vs-B
+     ratio** is reported — which is what the S23 claim was too (+11.8 % B over A).
+   - **Window differs too, and is labelled as such.** The two reads bracket the
+     whole CLI invocation (load + prefill + decode); isolating the post-TTFT
+     window would require a third mid-run read. `runs.csv` therefore carries
+     `j_window=full_invocation` on every row. The S23 measured the decode window
+     only. This is a second, independent reason the absolute numbers are not
+     comparable across cells — and it makes this cell's figure an *energy per
+     answer*, which is arguably the more product-relevant quantity anyway.
+   - Quantization sanity: at ~1 A draw over a ≥60 s decode window, ΔQ is on the
+     order of 20 000 µAh against a counter that reads in µAh — three orders of
+     margin. If a measured ΔQ falls below 2 000 µAh the value is reported as
+     unreliable for that pair rather than used.
+   - **Integrity note, stated because it would be convenient to omit:** metric 3
+     is the *only* axis on which the S23 cell came out RED (+11.8 % energy for the
+     certified config). It must not quietly disappear from the replication. If the
+     coulomb-counter estimator turns out unusable in practice, the cell is still
+     valid on its confirmatory metric, but the report must say **in the verdict
+     section** that the energy axis was not replicated — not in a footnote.
 4. Max battery temperature per run.
 5. TTFT proxy: prefill + first-token time on each arm's first measured run.
 6. ⚠ Added for this device: **MiB/token of page-cache churn per arm** (the
