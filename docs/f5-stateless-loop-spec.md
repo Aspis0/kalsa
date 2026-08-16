@@ -91,7 +91,7 @@ first-drift position of the text.
 | P1 | PC | plain k6 vs selfspec k6/k2 γ=4 freeze OFF | reproduce F1's 0.37x baseline on this rev |
 | P2 | PC | same, freeze ON | loop alpha + RAM delta, DRAM-bound |
 | D1 | S23 (or Xiaomi) | plain k6 d065 vs selfspec freeze ON, γ=4 | **the real question: does verify-batch flash amortisation pay?** |
-| D2 | device | freeze ON, γ ∈ {4, 8} | γ is free memory-wise now; is it free in latency? |
+| D2 | device | freeze ON, k2/k6, **γ ∈ {2, 3, 4}** | tests the registered prediction that γ=3 is optimal and γ=4 overshoots |
 | D3 | device | freeze ON, `--cache-mb` raised by the freed amount | does spending the 314 MiB as expert cache buy tok/s? |
 
 **D3 is the arm that turns the RAM saving into a speed claim, and it is not
@@ -119,7 +119,11 @@ pairs, Wilcoxon exact, unplugged, declared-clean phone) — same protocol as
 
 ## 5. Go / no-go before implementing
 
-Read `results/selfspec_e4/a3_k2_g4/SUMMARY.txt` first:
+**RESOLVED 2026-08-16 04:24: `E4_PRODUCT(alpha1=0.867, EL=2.029)` at k2/k6 γ=4 —
+above the 1.5 bar, so build F5 as specified.** Carry in the marginal rule from
+`reports/moe-selfspec-e4.md`: extend γ only while the prefix acceptance product
+exceeds k_d/k_v, which predicts **γ=3 optimal at k=2** and disqualifies every
+slot at equal k. Original decision table kept for the record:
 
 - **E4_PRODUCT / GO with E[L] ≥ 1.5 at k2/k6:** build F5 as specified.
 - **E[L] < 1.5 at k2/k6 but ≥ 1.5 at k6/k6:** the cheap-k lever is dead; the

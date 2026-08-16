@@ -107,14 +107,73 @@ Whether the freed RAM converts into tok/s (spend it as `--cache-mb`, or bank it
 as headroom against the zram cliff that collapses stock 60-100×) is arm D3 of
 F5. Not assumed here.
 
-## Status of the third arm
+## a3 — the product arm: `E4_PRODUCT(alpha1=0.867, EL=2.029)`
 
-`a3_k2_g4` (draft k=2, verify k=6) started 03:39. It is the **product** arm: a
-draft is only worth running if it is cheaper than the target, and top-k is the
-only cheapening lever left (layer-skip on sequential hybrids gives α = 0.000 —
-never skip the recurrent layers, only freeze their writes). It is also the
-apples-to-apples comparison with the mirror paper's k=2 setting. **Section to be
-completed when it lands.**
+Draft k=2, verify k=6, γ=4. A draft is only worth running if it is **cheaper**
+than the target, and top-k is the only cheapening lever left (layer-skip on
+sequential hybrids gives α = 0.000 — never skip the recurrent layers, only
+freeze their writes). Gates bitwise again (300/300, 75/75, 75/75, 74/74, all
+0.0). Wall 2711 s vs a1's 6303 s at the same γ.
+
+| | s0 | s1 | s2 | s3 |
+|---|---|---|---|---|
+| agreement | 60/75 = 0.800 | 65/75 = **0.867** | 41/75 = 0.547 | 31/75 = 0.413 |
+
+macro 197/300 = 0.657 · **E[L] = 2.029** · **alpha_alltok = 0.173** · draft_k=2
+
+**alpha_alltok = 0.173 at k=2 is the apples-to-apples number** against the mirror
+paper's 0.038 at k=2 on sequential hybrids: **4.6× above it**, same draft budget,
+opposite polarity. That is the headline scientific result of E4.
+
+## What E[L] is, exactly, and what it does not buy
+
+`E[L] = Σ_{j=1..γ} Π_{i<j} α_i` (`session.cpp:2458-2463`) — the expected number
+of **accepted draft** tokens per cycle. The verify pass always emits one more, so
+tokens per cycle = **E[L] + 1**: 3.03 (a3), 4.00 (a1), 4.56 (a2). F1's real loop
+delivered 1.66 tokens/verify, for scale.
+
+**None of this is a speedup yet.** On a streaming MoE the loop wins iff
+
+    γ·cost(draft pass @ k_d) + cost(verify batch of γ+1 @ k_v) + cost(catch-up batch)
+      <  (E[L]+1) · cost(single-token pass @ k_v)
+
+and two terms in there are unmeasured, not unknown-in-principle:
+
+1. **The k-ratio.** Does a k=2 pass really cost ⅓ of a k=6 pass? Only the expert
+   bytes shrink; dense weights and attention do not.
+2. **The batch overlap factor.** Speculative decoding is usually sold on "the
+   verify batch streams weights once". Our own routing measurement argues that
+   discount is *small on this model*: 96 % of experts are touched within 300
+   tokens, top-16 accounts for 25 % of the mass, ~45 expert re-reads per token —
+   consecutive tokens route to nearly disjoint expert sets, so a batch of 5
+   streams close to 5× the bytes, not 1×. The same entropy that killed every
+   cache-similarity trick in the invention night also caps the batching win here.
+
+So the win, if it exists, comes from **the draft being cheaper**, not from
+batching — which is exactly why F1's equal-cost loop measured 0.37× on DRAM.
+
+## A falsifiable prediction for F5: γ = 3, not 4 (and never at equal k)
+
+The marginal draft at slot *j* buys `Π_{i<j} α_i` expected tokens and costs one
+draft pass, i.e. ≈ `k_d/k_v` of a target pass. Extend γ only while the prefix
+product exceeds that ratio. At k=2/k=6 (ratio ≈ 0.33) with a3's measured
+products:
+
+| slot | prefix product | > 0.33 ? |
+|---|---|---|
+| 1 | 0.800 | yes |
+| 2 | 0.694 | yes |
+| 3 | 0.379 | yes, barely |
+| 4 | **0.157** | **no** |
+
+**Prediction: γ=3 is the optimum at k=2, and the γ=4 we measured already
+overshoots.** Registered here before F5 runs.
+
+The same rule applied to the equal-k arms (ratio = 1.0) disqualifies *every*
+slot — p₁ = 0.947 < 1.0 — so a1/a2 are scientific arms, never product
+candidates, independently of how pretty their α curves are. That is consistent
+with F1's measured 0.37×, and it is the honest reading of "E[L] = 3.556 at γ=8":
+more tokens per verify, bought at full price.
 
 ## Provenance
 

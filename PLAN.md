@@ -73,8 +73,29 @@
 > **0.823**, **E[L] = 2.995 token per verify**. E soprattutto:
 > **alpha_alltok(G=4) = 0.413** — QUESTO è il numero confrontabile col
 > paper specchio (Component-Aware SSD, α=0.038 all-token): ~11× sopra,
-> a parità di k. Il confronto apples-to-apples col loro k=2 lo dà A3
-> (in corsa da 03:39).**
+> a parità di k.
+> **🏁 A3 PRODOTTO (04:24, wall 2711s): `E4_PRODUCT(alpha1=0.867,
+> EL=2.029)` a draft k=2 / verify k=6. Gate di nuovo tutti bitwise.
+> α 0.800 · 0.867 · 0.547 · 0.413 → macro 0.657, E[L] 2.029,
+> **alpha_alltok = 0.173 — QUESTO è il confronto apples-to-apples col
+> paper (0.038 a k=2): 4.6× sopra, stesso budget di draft, polarità
+> opposta.** E4_ARMS_DONE, tre bracci su tre.
+> **MA: E[L] NON è speedup.** E[L] = Σ prodotti-prefisso = draft
+> ACCETTATI per ciclo (session.cpp:2458), +1 dal verify → 3.03 token per
+> ciclo a k2γ4. Il loop vince solo se γ·costo(draft k2) + verify-batch +
+> catch-up < 3.03 passi a k6, e il termine ignoto è l'overlap di batch:
+> la NOSTRA misura di entropia (96% esperti in 300 tok, top-16=25%, 45
+> riletture/tok) dice che token consecutivi routano a insiemi quasi
+> DISGIUNTI → il batch di verify streamma ~5×, non 1×. Quindi il premio
+> non è il batching ma il draft più economico — ed è esattamente perché
+> F1 misurò 0.37×. **PREDIZIONE REGISTRATA per F5: estendi γ solo finché
+> il prodotto-prefisso supera k_d/k_v (0.33) → γ=3 ottimo a k=2, γ=4 già
+> sovra-esteso; a k pari (ratio 1.0) NESSUNO slot qualifica — a1/a2 sono
+> bracci scientifici, mai candidati prodotto.**
+> Report completo: reports/moe-selfspec-e4.md. Spec F5 aggiornata
+> (arm D2 = γ ∈ {2,3,4}). **F5 NON lanciato: il classifier ha bloccato
+> l'avvio di grok con --always-approve mentre l'owner dorme — prompt
+> pronto in scratchpad/agents/f5-impl/prompt.md, serve ok owner.**
 > **F5 SPEC SCRITTA (docs/f5-stateless-loop-spec.md) — e rileggendo F1 è
 > saltato fuori che il premio grosso non è la velocità ma la RAM: il
 > loop F1 deve chiedere `n_rs_seq = draft_max` snapshot ricorrenti sul

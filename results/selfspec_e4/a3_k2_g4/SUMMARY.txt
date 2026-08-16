@@ -1,0 +1,15 @@
+E4_PRODUCT(alpha1=0.867, EL=2.029)
+selfspec-diag e4 S1 flag-off identity: PASS argmax 300/300 max|dlogit|=0
+selfspec-diag e4 S2 σ=0 leftover: PASS argmax 75/75 max|dlogit|=0
+selfspec-diag e4 S2 freeze-read (true state): PASS argmax 75/75 max|dlogit|=0
+selfspec-diag e4 S3 post-catch-up σ=0: PASS argmax 74/74 max|dlogit|=0
+selfspec-diag e4 alpha_s0: 60/75=0.800 max|dlogit| p50=10.15 p95=14.74
+selfspec-diag e4 alpha_s1: 65/75=0.867 max|dlogit| p50=9.477 p95=14.33
+selfspec-diag e4 alpha_s2: 41/75=0.547 max|dlogit| p50=12.99 p95=19.56
+selfspec-diag e4 alpha_s3: 31/75=0.413 max|dlogit| p50=15.16 p95=23.57
+selfspec-diag e4: macro_alpha 197/300=0.657 E[L]=2.029 alpha_alltok(G=4)=0.173 draft_k=2 verify_k=6 noped=240
+n_prompt=293
+n_gold=300
+draft_k=2
+verify_k=6
+prefill_k=6
