@@ -1,0 +1,1 @@
+drop=1.5 not runnable: moe.drop_cold_frac must be in [0, 1]

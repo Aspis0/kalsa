@@ -53,8 +53,16 @@
 > A2 G=8 (refs O(B²/G) più economici) → A1 G=4 (headline) → A3 k2
 > (prodotto). Poi, se GO: F5 loop reale; cella device su S23 con
 > CalaQwen IQ2_M (modello già a bordo, serve build Android).
-> In coda dal mandato: curva drop qualità in corso sul PC
-> (DROPCURVE: l'ottimo a d>0 di k6d065 dMacro −0.0086 è reale?);
+> **DROPCURVE VERDETTO (notte 15-16/08): DROPCURVE_OPTIMUM(dstar=0.5,
+> dMacro=−0.0150). IL CLAIM VIVE: potare gli esperti freddi MIGLIORA
+> la PPL multilingue — minimo reale a d=0.5 (−0.0015 sotto k6d0,
+> −0.0150 sotto k8), rumore run-to-run 1e-6 (continuità d065 e d1.0
+> riprodotte a 6 e 4+ decimali: protocollo deterministico, corpus
+> fisso — la generalizzazione cross-corpus resta il vero margine).
+> Curva: d0 −0.0135 · d0.3 −0.0122 · d0.5 −0.0150 · d0.65 −0.0086 ·
+> d0.8 +0.0047 · d1.0 +0.0378. Nota prodotto: la certificata d0.65 è
+> leggermente OLTRE l'ottimo; d0.5 = +qualità, −risparmio I/O —
+> ritocco a discrezione owner. results/mellum2_dropcurve/.**
 > 3 survivor ingegneristici senza claim (controller stutter
 > ExpertFlow-style, repack lazy hot ×1.27, corazza anti-zram).**
  — aggiornato 2026-08-15 (notte fonda)

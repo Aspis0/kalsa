@@ -1,0 +1,40 @@
+{
+  "experiment": "mellum2_dropcurve",
+  "model": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf",
+  "model_sha256": "b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7",
+  "model_bytes": 8071293600,
+  "binary": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\build-pc-mellum-ppl\\cli\\bmoe-cli.exe",
+  "binary_sha256": "7722cb23729d367a274fb682cadd28ef5d456f50fc9b5c064e4923ed04d75d52",
+  "binary_bytes": 349696,
+  "expected_model_sha256": "b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7",
+  "expected_binary_sha256": "7722cb23729d367a274fb682cadd28ef5d456f50fc9b5c064e4923ed04d75d52",
+  "extra_flags": [
+    "--no-moe-fused-gemv",
+    "--no-moe-fused-ffn"
+  ],
+  "threads": 16,
+  "corpus": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5",
+  "note": "Drop-curve at k=6. Protocol = mellum2 PPL gate verbatim. k8d0 reused from results/mellum2_ppl_gate (not re-run). Arms interleaved: d0, d08, d03, d10, d05, d065. d>1.0 probed then skipped (CLI rejects drop_cold_frac > 1.0).",
+  "gates": {
+    "macro_pass": 0.04,
+    "lang_pass": 0.1,
+    "precedent": "gate k6d065 dMacro=-0.0086 vs k8d0"
+  },
+  "written": "2026-08-15T02:09:40-0400",
+  "dll_sha256": {
+    "ggml-base.dll": "b72667acab062c253df6c2449cb642fbe6fb9a50ec7c4201b7680b1be24b609d",
+    "ggml-cpu.dll": "eb1d25cdab6d41a9ca30e2cdcaa1592c2dbc1d08c76685db31bad14ea4c11529",
+    "ggml.dll": "e4513bb2e6fee9c63f8262c47e716d650788bb23875c68942c13c0a41ae555ef",
+    "llama-common.dll": "d1cad7e687fc23d2d8209b18ede879dd3f1c9a34484b29ced01056caebe30959",
+    "llama.dll": "020d6045b226fe717276d2a6f9bc1c82bec41423d7254ef497eba715c66edc85"
+  },
+  "dll_match": {
+    "ggml-base.dll": true,
+    "ggml-cpu.dll": true,
+    "ggml.dll": true,
+    "llama-common.dll": true,
+    "llama.dll": true
+  },
+  "model_match": true,
+  "binary_match": true
+}
