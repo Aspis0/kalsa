@@ -32,7 +32,7 @@ export type LibraryDoc = {
   kind: LibraryDocKind;
   /** Epoch ms when the doc was added. */
   addedAt: number;
-  /** PDF page count when known; omitted for TXT. */
+  /** Extracted PDF page count (capped at MAX_PDF_PAGES); omitted for TXT. */
   pageCount?: number;
   sizeBytes: number;
   /**

@@ -1,10 +1,20 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, Modal, Pressable, Text, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale } from "../../i18n";
 import { useLabTheme } from "../../ui/labTheme";
 import { radius, spacing } from "../tokens";
 import { typography } from "../typography";
+import { BrandIcon } from "../icons/BrandIcon";
 import { GlassPanel2 } from "./GlassPanel2";
 
 const DRAWER_WIDTH = 280;
@@ -18,17 +28,45 @@ export type DrawerItem = {
   onPress: () => void;
 };
 
+export type DrawerConversationItem = {
+  id: string;
+  title: string;
+  preview?: string;
+  active?: boolean;
+  onPress: () => void;
+  onLongPress?: () => void;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
   brand?: string;
   subtitle?: string;
   items: DrawerItem[];
+  /** Optional conversation list + search (Phase 1). Tools stay at the bottom. */
+  conversationItems?: DrawerConversationItem[];
+  searchValue?: string;
+  onSearchChange?: (query: string) => void;
+  onNewChat?: () => void;
+  personaLabel?: string;
+  onPersonaPress?: () => void;
 };
 
 // Side drawer that slides from the left. The Modal stays mounted while
 // animating closed so the slide-out is visible (open prop drives anim).
-export function Drawer({ open, onClose, brand = "Kalsa", subtitle, items }: Props) {
+export function Drawer({
+  open,
+  onClose,
+  brand = "Kalsa",
+  subtitle,
+  items,
+  conversationItems,
+  searchValue,
+  onSearchChange,
+  onNewChat,
+  personaLabel,
+  onPersonaPress,
+}: Props) {
   const { colors } = useLabTheme<any>();
   const { t } = useLocale();
   const insets = useSafeAreaInsets();
@@ -55,6 +93,8 @@ export function Drawer({ open, onClose, brand = "Kalsa", subtitle, items }: Prop
 
   if (!mounted) return null;
 
+  const showConversations = Array.isArray(conversationItems);
+
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <Animated.View style={{ flex: 1, opacity }}>
@@ -69,13 +109,133 @@ export function Drawer({ open, onClose, brand = "Kalsa", subtitle, items }: Prop
             transform: [{ translateX }],
           }}
         >
-          <GlassPanel2 opaque rounded="lg" style={{ flex: 1, borderRadius: 0, paddingTop: insets.top, paddingBottom: insets.bottom }}>
+          <GlassPanel2
+            opaque
+            rounded="lg"
+            style={{ flex: 1, borderRadius: 0, paddingTop: insets.top, paddingBottom: insets.bottom }}
+            contentStyle={{ flex: 1, minHeight: 0 }}
+          >
             <View style={{ padding: spacing.lg, paddingBottom: spacing.md }}>
               <Text style={[typography.displayMd, { color: colors.ink }]}>{brand}</Text>
               {subtitle ? (
                 <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 4 }]}>{subtitle}</Text>
               ) : null}
             </View>
+            <View style={{ height: 1, backgroundColor: colors.line, marginHorizontal: spacing.md }} />
+
+            {showConversations ? (
+              <View style={{ flex: 1, minHeight: 0 }}>
+                <Text
+                  style={[
+                    typography.bodyXs,
+                    { color: colors.muted, paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xs },
+                  ]}
+                >
+                  {t("drawer.chats")}
+                </Text>
+                {onSearchChange ? (
+                  <View style={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.xs }}>
+                    <TextInput
+                      value={searchValue ?? ""}
+                      onChangeText={onSearchChange}
+                      placeholder={t("drawer.searchChats")}
+                      placeholderTextColor={colors.muted}
+                      autoCorrect={false}
+                      autoCapitalize="none"
+                      returnKeyType="search"
+                      accessibilityLabel={t("drawer.searchChats")}
+                      style={[
+                        typography.bodySm,
+                        {
+                          color: colors.ink,
+                          backgroundColor: colors.panel,
+                          borderRadius: radius.sm,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: 8,
+                        },
+                      ]}
+                    />
+                  </View>
+                ) : null}
+                {onNewChat ? (
+                  <Pressable
+                    onPress={() => {
+                      onNewChat();
+                      onClose();
+                    }}
+                    accessibilityLabel={t("drawer.newChat")}
+                    style={({ pressed }) => ({
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: spacing.sm,
+                      marginHorizontal: spacing.sm,
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 10,
+                      borderRadius: radius.sm,
+                      backgroundColor: pressed ? colors.panel : "transparent",
+                    })}
+                  >
+                    <BrandIcon name="new-chat" size={22} />
+                    <Text style={[typography.bodyMd, { color: colors.ink, fontFamily: typography.bodySm.fontFamily }]}>
+                      {t("drawer.newChat")}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                <ScrollView
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.sm }}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {conversationItems.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => {
+                        item.onPress();
+                        onClose();
+                      }}
+                      onLongPress={item.onLongPress}
+                      delayLongPress={380}
+                      accessibilityLabel={item.title}
+                      accessibilityState={{ selected: Boolean(item.active) }}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 10,
+                        borderRadius: radius.sm,
+                        backgroundColor: item.active
+                          ? colors.accentSoft
+                          : pressed
+                            ? colors.panel
+                            : "transparent",
+                      })}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          typography.bodyMd,
+                          {
+                            color: colors.ink,
+                            fontFamily: typography.bodySm.fontFamily,
+                          },
+                        ]}
+                      >
+                        {item.title}
+                      </Text>
+                      {item.preview ? (
+                        <Text
+                          numberOfLines={1}
+                          style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}
+                        >
+                          {item.preview}
+                        </Text>
+                      ) : null}
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+
             <View style={{ height: 1, backgroundColor: colors.line, marginHorizontal: spacing.md }} />
             <View style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.sm }}>
               <Text style={[typography.bodyXs, { color: colors.muted, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }]}>
@@ -115,6 +275,51 @@ export function Drawer({ open, onClose, brand = "Kalsa", subtitle, items }: Prop
                   ) : null}
                 </Pressable>
               ))}
+              {onPersonaPress ? (
+                <Pressable
+                  onPress={() => {
+                    onPersonaPress();
+                    onClose();
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("drawer.personas")}
+                  style={({ pressed }) => ({
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.md,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 10,
+                    borderRadius: radius.sm,
+                    backgroundColor: pressed ? colors.panel : "transparent",
+                  })}
+                >
+                  <View
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: radius.sm,
+                      backgroundColor: `${colors.accent}1A`,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={[typography.bodyXs, { color: colors.accent }]}>P</Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text
+                      style={[
+                        typography.bodyMd,
+                        { color: colors.ink, fontFamily: typography.bodySm.fontFamily },
+                      ]}
+                    >
+                      {t("drawer.personas")}
+                    </Text>
+                    <Text style={[typography.bodyXs, { color: colors.muted }]} numberOfLines={1}>
+                      {personaLabel || t("drawer.personaNone")}
+                    </Text>
+                  </View>
+                </Pressable>
+              ) : null}
             </View>
           </GlassPanel2>
         </Animated.View>

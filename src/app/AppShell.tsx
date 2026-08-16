@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Keyboard, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Keyboard, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { X as LucideX, Globe as LucideGlobe, Settings as LucideSettings, FileText as LucideFileText } from "lucide-react-native";
+import { X as LucideX, Globe as LucideGlobe, Settings as LucideSettings, FileText as LucideFileText, StickyNote as LucideStickyNote } from "lucide-react-native";
 
 import { AiChatPage, type ChatCta, type LocalAttachment } from "../screens/AiChatPage";
 import { HelpScreen } from "../screens/HelpScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { DocumentsScreen } from "../screens/DocumentsScreen";
+import { NotesScreen } from "../screens/NotesScreen";
+import { PersonasScreen, builtinCopyFromT } from "../screens/PersonasScreen";
 import {
   emptyLibraryState,
   loadLibraryState,
@@ -34,11 +36,12 @@ import {
   isDeleteActive,
   tryAcquireRead,
   releaseRead,
+  isReadActive,
 } from "../documents/docOpGate";
 import { DocRetrieverIndex } from "../context/retrievalLoop";
 import { htmlToText } from "../util/htmlToText";
 import { AskAssistantMiniappRenderer } from "../ui/AskAssistantMiniappRenderer";
-import { Drawer, PainterlyBg, type DrawerItem } from "../theme/components";
+import { Drawer, PainterlyBg, type DrawerConversationItem, type DrawerItem } from "../theme/components";
 import { spacing } from "../theme/tokens";
 import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
@@ -122,10 +125,53 @@ import {
   sendingInFlightRef,
 } from "../engine/regenState";
 import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
-import { computePromptEnvHash, getBootHistoryHash, historyHash } from "../engine/sessionPersistence";
+import {
+  computePromptEnvHash,
+  getBootHistoryHash,
+  historyHash,
+  resetBootHistoryHash,
+  setBootMessagesKey,
+  setSessionConversationId,
+} from "../engine/sessionPersistence";
 import { formatSummaryLine } from "../engine/summaryTelemetry";
 import { formatDigestLine } from "../engine/digestTelemetry";
 import { formatMemoryLine } from "../memory/memoryTelemetry";
+import {
+  conversationHasPersistedMessages,
+  createEmptyConversationMeta,
+  filterConversations,
+  getDefaultConversationsStorage,
+  loadConversationsState,
+  messagesKey,
+  removeConversation,
+  saveConversationsState,
+  setActive,
+  upsertMeta,
+  type ConversationsState,
+} from "../conversations/ConversationsStore";
+import {
+  findPersona,
+  getDefaultPersonasStorage,
+  loadPersonasState,
+  type PersonasPersisted,
+} from "../conversations/PersonasStore";
+import { applyPersonaTail } from "../engine/personaTail";
+import { parseShareUrl, SHARE_TEXT_CAP, SHARE_TEXT_FILE_MAX_BYTES } from "./shareIntent";
+import { importSharedPdf, SharedImportError } from "../documents/importSharedDocument";
+import { saveNote } from "../notes/NotesStore";
+import {
+  DEVICE_CALC_TOOL,
+  DEVICE_INFO_TOOL,
+  formatDeviceInfoResult,
+  readDeviceInfo,
+  runDeviceCalc,
+} from "../agent/deviceTools";
+import { CALENDAR_AGENDA_TOOL, runCalendarAgenda } from "../agent/calendarTool";
+import {
+  CALENDAR_TOOLS_KEY,
+  DEVICE_TOOLS_KEY,
+  parseToolToggle,
+} from "../agent/toolToggles";
 import {
   getBenchNCtx,
   getBenchWindowBudget,
@@ -209,6 +255,8 @@ type ActiveOverlay =
   | { kind: "settings" }
   | { kind: "help" }
   | { kind: "documents" }
+  | { kind: "notes"; focusId?: string }
+  | { kind: "personas" }
   | { kind: "miniapp"; miniapp: AskAssistantMiniapp }
   | null;
 
@@ -395,10 +443,10 @@ const MAX_DIGEST_CORPUS_MESSAGES = 400;
 /** Soft message cap before buildSummaryTranscript's existing char budget. */
 const MAX_SUMMARY_CORPUS_MESSAGES = 200;
 /**
- * MULTI-CHAT LANDMINE: summaryAbortController / summaryDebounceTimer are GLOBAL
- * singletons while other compactor state is per-chat Maps. Fine today because
- * chatId is hardcoded "default". These MUST become per-chat Maps before
- * multi-chat ships, or a send/clear on chat A will abort chat B's summary.
+ * MULTI-CHAT: summaryAbortController / summaryDebounceTimer are still GLOBAL
+ * singletons (other compactor state is per-chat Maps keyed by conversation id).
+ * One active chat at a time — abortBackgroundSummary on switch / new / delete
+ * so a pending summary cannot write into the next conversation.
  */
 let summaryAbortController: AbortController | null = null;
 /**
@@ -407,6 +455,10 @@ let summaryAbortController: AbortController | null = null;
  * same text; identical consecutive messages must get a fresh allowlist.
  */
 let fetchAllowlistTurnSeq = 0;
+/** Turn seq that already ran calendar_agenda or device_info — refuse web_search. */
+let privateSearchLatchSeq = -1;
+/** Turn seq that ran calendar_agenda — skip extractMemory for that turn. */
+let calendarExtractSkipSeq = -1;
 /** Debounce timer: schedule summary only after idle (8s post-turn). */
 let summaryDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const SUMMARY_IDLE_DEBOUNCE_MS = 8_000;
@@ -642,6 +694,58 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     });
   }, []);
 
+  const [deviceToolsEnabled, setDeviceToolsEnabled] = useState(true);
+  const deviceToolsEnabledRef = useRef(true);
+  deviceToolsEnabledRef.current = deviceToolsEnabled;
+  const [calendarToolsEnabled, setCalendarToolsEnabled] = useState(false);
+  const calendarToolsEnabledRef = useRef(false);
+  calendarToolsEnabledRef.current = calendarToolsEnabled;
+
+  const refreshToolFlags = useCallback(async () => {
+    try {
+      const [deviceRaw, calendarRaw] = await Promise.all([
+        AsyncStorage.getItem(DEVICE_TOOLS_KEY),
+        AsyncStorage.getItem(CALENDAR_TOOLS_KEY),
+      ]);
+      const deviceOn = parseToolToggle(deviceRaw, true);
+      const calendarOn = parseToolToggle(calendarRaw, false);
+      setDeviceToolsEnabled(deviceOn);
+      deviceToolsEnabledRef.current = deviceOn;
+      setCalendarToolsEnabled(calendarOn);
+      calendarToolsEnabledRef.current = calendarOn;
+    } catch {
+      // keep defaults
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshToolFlags();
+  }, [refreshToolFlags]);
+
+  const [personasState, setPersonasState] = useState<PersonasPersisted>({
+    items: [],
+    hiddenBuiltinIds: [],
+  });
+  const [activePersonaId, setActivePersonaId] = useState("");
+  const personasStateRef = useRef(personasState);
+  personasStateRef.current = personasState;
+  const activePersonaIdRef = useRef(activePersonaId);
+  activePersonaIdRef.current = activePersonaId;
+
+  const refreshPersonas = useCallback(async () => {
+    try {
+      const loaded = await loadPersonasState(getDefaultPersonasStorage());
+      setPersonasState(loaded.state);
+      setActivePersonaId(loaded.activeId);
+    } catch {
+      // keep last
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshPersonas();
+  }, [refreshPersonas]);
+
   // Opt-in error telemetry (default OFF). Passive — never blocks anti-OOM.
   useEffect(() => {
     let cancelled = false;
@@ -709,6 +813,94 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   );
   const documentLibraryRef = useRef<LibraryState>(documentLibrary);
   documentLibraryRef.current = documentLibrary;
+
+  // ── Conversations index (swipe drawer) ────────────────────────────────
+  const [conversations, setConversations] = useState<ConversationsState>({
+    activeId: "",
+    items: [],
+  });
+  const conversationsRef = useRef<ConversationsState>(conversations);
+  conversationsRef.current = conversations;
+  const [conversationsReady, setConversationsReady] = useState(false);
+  const [chatSearch, setChatSearch] = useState("");
+  const persistFlushRef = useRef<(() => void) | null>(null);
+  const isActiveChatEmptyRef = useRef<(() => boolean) | null>(null);
+  const bumpPersistEpochRef = useRef<(() => void) | null>(null);
+  const conversationsMutationRef = useRef(0);
+  const pendingConversationSaveRef = useRef<Promise<void>>(Promise.resolve());
+  const newChatInFlightRef = useRef(false);
+  /** Raw user text for this turn (pre persona tail). Tools must not see the tail. */
+  const lastUserRawRef = useRef("");
+
+  const enqueueConversationSave = useCallback((state: ConversationsState) => {
+    const run = async () => {
+      try {
+        await saveConversationsState(getDefaultConversationsStorage(), state);
+      } catch {
+        // best-effort; queue must keep draining
+      }
+    };
+    pendingConversationSaveRef.current = pendingConversationSaveRef.current
+      .then(run, run)
+      .catch(() => undefined);
+  }, []);
+
+  const applyConversations = useCallback(
+    (next: ConversationsState) => {
+      conversationsMutationRef.current += 1;
+      conversationsRef.current = next;
+      setConversations(next);
+      enqueueConversationSave(next);
+    },
+    [enqueueConversationSave],
+  );
+
+  const bindActiveConversation = useCallback((id: string) => {
+    if (!id) return;
+    try {
+      setBootMessagesKey(messagesKey(id));
+    } catch {
+      return;
+    }
+    setSessionConversationId(id);
+    resetBootHistoryHash();
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadGen = conversationsMutationRef.current;
+    void loadConversationsState(getDefaultConversationsStorage())
+      .then(async (loaded) => {
+        if (!mounted) return;
+        if (conversationsMutationRef.current !== loadGen) return;
+        let state = loaded;
+        if (state.items.length === 0) {
+          const meta = createEmptyConversationMeta();
+          state = { activeId: meta.id, items: [meta] };
+          enqueueConversationSave(state);
+        }
+        if (!mounted) return;
+        conversationsRef.current = state;
+        setConversations(state);
+        bindActiveConversation(state.activeId);
+        void getBootHistoryHash();
+        setConversationsReady(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        const meta = createEmptyConversationMeta();
+        const state: ConversationsState = { activeId: meta.id, items: [meta] };
+        conversationsRef.current = state;
+        setConversations(state);
+        enqueueConversationSave(state);
+        bindActiveConversation(state.activeId);
+        void getBootHistoryHash();
+        setConversationsReady(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [bindActiveConversation, enqueueConversationSave]);
   const docIndexByIdRef = useRef<Map<string, DocRetrieverIndex>>(new Map());
   /**
    * Per-doc dense vector index. Durable under kalsa-documents/{docId}.vec.json;
@@ -1042,7 +1234,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return null;
       }
 
-      if (!tryAcquireRead()) return null;
+      // document_chat already holds READ (non-reentrant). Reuse that latch
+      // instead of tryAcquireRead, which would fail and skip the sidecar load.
+      const readAlreadyHeld = isReadActive();
+      if (!readAlreadyHeld && !tryAcquireRead()) return null;
       try {
         const raw = await readVectorIndexFile(docId);
         // Re-check after await.
@@ -1095,7 +1290,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         docDenseReasonByIdRef.current.set(docId, "corrupt");
         return null;
       } finally {
-        releaseRead();
+        if (!readAlreadyHeld) releaseRead();
       }
     },
     [],
@@ -1285,6 +1480,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           const extracted = await requestPdfText(entry.fileUri, {
             sourceId: entry.sourceId || entry.id,
             title: entry.name,
+            signal,
           });
           if (!stillCurrent() || signal.aborted) {
             // eslint-disable-next-line no-console
@@ -1704,14 +1900,23 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
     // HIGH-5: omit web tools when the user toggled Web off. document_chat always
     // stays available so library attachments keep working offline.
-    const tools = webToolsEnabled
-      ? [WEB_SEARCH_TOOL, WEB_FETCH_TOOL, DOCUMENT_CHAT_TOOL]
-      : [DOCUMENT_CHAT_TOOL];
+    const tools = [
+      ...(webToolsEnabled ? [WEB_SEARCH_TOOL, WEB_FETCH_TOOL] : []),
+      DOCUMENT_CHAT_TOOL,
+      ...(deviceToolsEnabled ? [DEVICE_INFO_TOOL, DEVICE_CALC_TOOL] : []),
+      ...(calendarToolsEnabled ? [CALENDAR_AGENDA_TOOL] : []),
+    ];
 
     return {
       tools,
       executeTool: async (name, args, signal, lastUserMessage) => {
-        ensureAllowlistForTurn(lastUserMessage);
+        // Persona / format-B tails are prompt-only. Prefer the raw user text
+        // captured at send (lastUserRawRef) over the engine message content.
+        const rawUserText =
+          typeof lastUserRawRef.current === "string"
+            ? lastUserRawRef.current
+            : (lastUserMessage ?? "");
+        ensureAllowlistForTurn(rawUserText);
 
         // Defense in depth: even if a stale completion still holds the tool
         // schema, refuse web tools when the toggle is off.
@@ -1728,7 +1933,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
 
         if (name === "web_search") {
-          const outcome = await searchExec(name, args, signal, lastUserMessage);
+          if (privateSearchLatchSeq === fetchAllowlistTurnSeq) {
+            return { text: getStrings(locale).errors.searchSkippedPrivate };
+          }
+          const outcome = await searchExec(name, args, signal, rawUserText);
           const sources = outcome.sources as Array<{ url?: string }> | undefined;
           if (sources?.length) {
             for (const source of sources) {
@@ -1742,6 +1950,45 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
         if (name === "web_fetch") {
           return fetchExec(name, args, signal);
+        }
+
+        if (
+          !deviceToolsEnabledRef.current &&
+          (name === "device_info" || name === "device_calc")
+        ) {
+          return {
+            text: getStrings(locale).errors.unknownTool.replace("{name}", name),
+          };
+        }
+        if (!calendarToolsEnabledRef.current && name === "calendar_agenda") {
+          return {
+            text: getStrings(locale).errors.unknownTool.replace("{name}", name),
+          };
+        }
+
+        if (name === "device_info") {
+          privateSearchLatchSeq = fetchAllowlistTurnSeq;
+          try {
+            const info = await readDeviceInfo(locale);
+            return formatDeviceInfoResult(info);
+          } catch {
+            return { text: getStrings(locale).errors.deviceUnavailable };
+          }
+        }
+
+        if (name === "device_calc") {
+          const strings = getStrings(locale).errors;
+          return runDeviceCalc(args, strings.deviceCalcInvalid, strings.deviceCalcDivZero);
+        }
+
+        if (name === "calendar_agenda") {
+          privateSearchLatchSeq = fetchAllowlistTurnSeq;
+          calendarExtractSkipSeq = fetchAllowlistTurnSeq;
+          return runCalendarAgenda(args, {
+            denied: getStrings(locale).errors.calendarDenied,
+            failed: getStrings(locale).errors.calendarFailed,
+            unavailable: getStrings(locale).errors.calendarUnavailable,
+          });
         }
 
         if (name === "document_chat") {
@@ -1783,11 +2030,160 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         };
       },
     };
-  }, [locale, webToolsEnabled]);
+  }, [calendarToolsEnabled, deviceToolsEnabled, locale, webToolsEnabled]);
 
   // ── Drawer + exclusive overlay (settings | documents | miniapp | null) ──
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeOverlay, setActiveOverlay] = useState<ActiveOverlay>(null);
+
+  const handleSwitchConversation = useCallback(
+    (id: string) => {
+      if (!id) return;
+      if (id === conversationsRef.current.activeId) {
+        setDrawerOpen(false);
+        return;
+      }
+      persistFlushRef.current?.();
+      abortBackgroundSummary();
+      const modelId = getActiveModelId();
+      if (modelId) void invalidateEngineSession(modelId);
+      applyConversations(setActive(conversationsRef.current, id));
+      bindActiveConversation(id);
+      setDrawerOpen(false);
+    },
+    [applyConversations, bindActiveConversation],
+  );
+
+  const handleNewConversation = useCallback(() => {
+    if (isActiveChatEmptyRef.current?.()) {
+      setDrawerOpen(false);
+      return;
+    }
+    if (newChatInFlightRef.current) {
+      setDrawerOpen(false);
+      return;
+    }
+    persistFlushRef.current?.();
+    abortBackgroundSummary();
+    newChatInFlightRef.current = true;
+    void (async () => {
+      try {
+        const storage = getDefaultConversationsStorage();
+        const currentId = conversationsRef.current.activeId;
+        for (const item of conversationsRef.current.items) {
+          if (item.id === currentId) continue;
+          let occupied = item.hasMessages;
+          if (occupied !== true && occupied !== false) {
+            try {
+              occupied = await conversationHasPersistedMessages(storage, item.id);
+            } catch {
+              occupied = false;
+            }
+          }
+          if (!occupied) {
+            handleSwitchConversation(item.id);
+            return;
+          }
+        }
+        if (isActiveChatEmptyRef.current?.()) {
+          setDrawerOpen(false);
+          return;
+        }
+        const meta = createEmptyConversationMeta();
+        const modelId = getActiveModelId();
+        if (modelId) void invalidateEngineSession(modelId);
+        applyConversations(setActive(upsertMeta(conversationsRef.current, meta), meta.id));
+        bindActiveConversation(meta.id);
+        setDrawerOpen(false);
+      } finally {
+        newChatInFlightRef.current = false;
+      }
+    })();
+  }, [applyConversations, bindActiveConversation, handleSwitchConversation]);
+
+  const handleDeleteConversation = useCallback(
+    (id: string) => {
+      if (!id) return;
+      const prev = conversationsRef.current;
+      if (!prev.items.some((item) => item.id === id)) return;
+      const deletingActive = prev.activeId === id;
+      void resetCompactorChat(id);
+      let next = removeConversation(prev, id);
+      if (next.items.length === 0) {
+        const meta = createEmptyConversationMeta();
+        next = { activeId: meta.id, items: [meta] };
+      }
+      applyConversations(next);
+      try {
+        void getDefaultConversationsStorage().removeItem?.(messagesKey(id));
+      } catch {
+        // ignore illegal id
+      }
+      if (deletingActive) {
+        abortBackgroundSummary();
+        bumpPersistEpochRef.current?.();
+        const modelId = getActiveModelId();
+        if (modelId) void invalidateEngineSession(modelId);
+        bindActiveConversation(next.activeId);
+      }
+      setDrawerOpen(false);
+    },
+    [applyConversations, bindActiveConversation],
+  );
+
+  const confirmDeleteConversation = useCallback(
+    (id: string) => {
+      Alert.alert(t("drawer.deleteChat"), t("drawer.deleteChatConfirm"), [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("drawer.deleteChat"),
+          style: "destructive",
+          onPress: () => handleDeleteConversation(id),
+        },
+      ]);
+    },
+    [handleDeleteConversation, t],
+  );
+
+  const handleConversationTouched = useCallback(
+    (meta: { title: string; preview: string; searchBlob: string }) => {
+      const id = conversationsRef.current.activeId;
+      if (!id) return;
+      const existing = conversationsRef.current.items.find((item) => item.id === id);
+      applyConversations(
+        upsertMeta(conversationsRef.current, {
+          id,
+          title: meta.title || existing?.title || "",
+          updatedAt: Date.now(),
+          preview: meta.preview,
+          searchBlob: meta.searchBlob,
+          hasMessages: true,
+        }),
+      );
+    },
+    [applyConversations],
+  );
+
+  const drawerConversationItems: DrawerConversationItem[] = useMemo(
+    () =>
+      filterConversations(conversations.items, chatSearch).map((item) => ({
+        id: item.id,
+        title: item.title.trim() ? item.title : t("drawer.untitled"),
+        preview: item.preview,
+        active: item.id === conversations.activeId,
+        onPress: () => handleSwitchConversation(item.id),
+        onLongPress: () => confirmDeleteConversation(item.id),
+      })),
+    [
+      chatSearch,
+      confirmDeleteConversation,
+      conversations.activeId,
+      conversations.items,
+      handleSwitchConversation,
+      t,
+    ],
+  );
+
   const edgeSwipe = Gesture.Pan()
     .activeOffsetX(24)
     .failOffsetY([-15, 15]) // scroll verticale NON deve aprire il drawer
@@ -1815,6 +2211,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           Keyboard.dismiss();
           setDrawerOpen(false);
           setActiveOverlay({ kind: "documents" });
+        },
+      },
+      {
+        id: "notes",
+        label: t("notes.title"),
+        Icon: LucideStickyNote,
+        onPress: () => {
+          Keyboard.dismiss();
+          setDrawerOpen(false);
+          setActiveOverlay({ kind: "notes" });
         },
       },
     ],
@@ -2012,10 +2418,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     };
   }, []);
 
-  // Capture pre-send history for the KV gate (before any send mutates kalsa.messages.v1).
-  useEffect(() => {
-    void getBootHistoryHash();
-  }, []);
+  // Boot history hash is captured after the conversation index loads
+  // (bindActiveConversation + getBootHistoryHash in that effect).
 
   // Guard sincrone per download/switch/stream (non soggette al batching di React).
   const downloadInFlight = useRef(false);
@@ -2061,8 +2465,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       },
       onAppState: (state) => {
         if (disposed) return;
-        if (state === "background" || state === "inactive") {
-          // RN can emit both inactive and background; only one discard at a time.
+        if (state === "background") {
+          // True background only. iOS `inactive` is Control Center / shade —
+          // abort/save/dispose there would kill a still-visible session.
+          // (AiChatPage already skips expensive KV save on inactive.)
           if (discardInFlightRef.current) return;
           discardInFlightRef.current = true;
           void (async () => {
@@ -2138,6 +2544,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 try {
                   if (isEngineReady()) {
                     await runNativeOp(() => disposeEngine());
+                    // Same-process unload→reload must not compare stale H0
+                    // against the just-saved .kvs (would miss and delete it).
+                    resetBootHistoryHash();
                     setProcessUnloadedReason("chat.unloaded");
                     setMemoryBannerKey("chat.unloaded");
                     console.info(
@@ -2246,6 +2655,120 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
     noticeTimer.current = setTimeout(() => setNotice(null), 4000);
   }, []);
+
+  const [sharePrefill, setSharePrefill] = useState<{ text: string; nonce: number } | null>(null);
+  const [shareAttachDoc, setShareAttachDoc] = useState<{
+    id: string;
+    name: string;
+    nonce: number;
+  } | null>(null);
+  const shareNonceRef = useRef(0);
+  const shareImportingRef = useRef(false);
+  const handledShareUrlsRef = useRef(new Set<string>());
+
+  const applySharePayload = useCallback(
+    async (url: string) => {
+      const payload = parseShareUrl(url);
+      if (!payload) return;
+      setDrawerOpen(false);
+      if (payload.kind === "text") {
+        shareNonceRef.current += 1;
+        setSharePrefill({ text: payload.text, nonce: shareNonceRef.current });
+        return;
+      }
+      const path = (payload.uri.split("?")[0] ?? "").toLowerCase();
+      const looksText = path.endsWith(".txt") || path.endsWith(".md");
+      if (looksText) {
+        try {
+          const info = await FileSystem.getInfoAsync(payload.uri);
+          const size = (info as { exists?: boolean; isDirectory?: boolean; size?: number });
+          if (!info.exists || size.isDirectory) {
+            showNotice(t("errors.shareImportFailed"));
+            return;
+          }
+          if (typeof size.size !== "number" || !Number.isFinite(size.size) || size.size < 0) {
+            showNotice(t("errors.shareImportFailed"));
+            return;
+          }
+          if (size.size > SHARE_TEXT_FILE_MAX_BYTES) {
+            showNotice(t("errors.shareImportTooLarge"));
+            return;
+          }
+          const text = await FileSystem.readAsStringAsync(payload.uri);
+          if (typeof text === "string" && text.trim()) {
+            shareNonceRef.current += 1;
+            setSharePrefill({ text: text.slice(0, SHARE_TEXT_CAP), nonce: shareNonceRef.current });
+            return;
+          }
+        } catch {
+          showNotice(t("errors.shareImportFailed"));
+          return;
+        }
+      }
+      if (shareImportingRef.current) {
+        showNotice(t("errors.shareImportBusy"));
+        return;
+      }
+      shareImportingRef.current = true;
+      try {
+        const entry = await importSharedPdf(payload.uri);
+        if (!addDocument(entry)) {
+          showNotice(t("errors.shareImportBusy"));
+          return;
+        }
+        shareNonceRef.current += 1;
+        setShareAttachDoc({
+          id: entry.id,
+          name: entry.name,
+          nonce: shareNonceRef.current,
+        });
+      } catch (err) {
+        if (err instanceof SharedImportError) {
+          if (err.code === "too_large") showNotice(t("errors.shareImportTooLarge"));
+          else if (err.code === "busy") showNotice(t("errors.shareImportBusy"));
+          else showNotice(t("errors.shareImportFailed"));
+        } else {
+          showNotice(t("errors.shareImportFailed"));
+        }
+      } finally {
+        shareImportingRef.current = false;
+      }
+    },
+    [addDocument, showNotice, t],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const consume = (url: string | null) => {
+      if (cancelled || !url || handledShareUrlsRef.current.has(url)) return;
+      if (!parseShareUrl(url)) return;
+      handledShareUrlsRef.current.add(url);
+      void applySharePayload(url);
+    };
+    void Linking.getInitialURL()
+      .then((url) => consume(url))
+      .catch(() => undefined);
+    const sub = Linking.addEventListener("url", (event) => consume(event.url));
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
+  }, [applySharePayload]);
+
+  const handleSaveToNotes = useCallback(
+    async (text: string) => {
+      if (!text.trim()) return;
+      try {
+        const note = await saveNote(text);
+        showNotice(t("notes.saved"));
+        return note.id;
+      } catch {
+        showNotice(t("notes.errorSave"));
+        return undefined;
+      }
+    },
+    [showNotice, t],
+  );
 
   useEffect(() => {
     return () => {
@@ -2601,6 +3124,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             sessionRestore: {
               historyHash: sessionHistoryHash,
               promptEnvHash: sessionPromptEnvHash,
+              conversationId: conversationsRef.current.activeId || undefined,
             },
             locale,
           }),
@@ -3083,6 +3607,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             sessionRestore: {
               historyHash: sessionHistoryHash,
               promptEnvHash: sessionPromptEnvHash,
+              conversationId: conversationsRef.current.activeId || undefined,
             },
             locale,
           }),
@@ -3452,6 +3977,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
         streamInFlightRef.current = true;
         setStreaming(true);
+        lastUserRawRef.current = typeof text === "string" ? text : "";
         // Fresh web_fetch allowlist for every send (F5), even if text matches the previous turn.
         fetchAllowlistTurnSeq += 1;
 
@@ -3526,6 +4052,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               trackMemoryExtractJob(emitSettledMemoryTelemetry(earlyTelemetry));
               return;
             }
+            if (calendarExtractSkipSeq === fetchAllowlistTurnSeq) return;
 
             const capturedAssistant = assistantFull;
             const capturedUser = text;
@@ -3663,7 +4190,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               return;
             }
 
-            const chatId = DEFAULT_CHAT_ID;
+            const chatId = conversationsRef.current.activeId || DEFAULT_CHAT_ID;
             const hasImages = Boolean(attachments?.length);
             const validatedHistory = validateHistoryMessages(history);
 
@@ -3903,7 +4430,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 }
               }
             }
-            const userMessage: EngineMessage = { role: "user", content: text };
+            const persona = findPersona(
+              personasStateRef.current,
+              activePersonaIdRef.current,
+              builtinCopyFromT(t),
+            );
+            const userMessage: EngineMessage = {
+              role: "user",
+              content: applyPersonaTail(text, persona?.instructions),
+            };
             if (images.length) userMessage.images = images;
             engineMessages.push(userMessage);
 
@@ -4150,6 +4685,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 locale,
                 memoryFacts: promptFacts,
                 operativeContext,
+                lastUserMessage: text,
               },
             );
             // Safety: if the stream returns without onDone/onError (e.g. abort path).
@@ -4240,21 +4776,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     // cancelled while the user only changed text size).
     <View style={{ flex: 1, backgroundColor: colors.shell }}>
     {/*
-      key=fontScaleId: force a full remount of the visible tree on text-size
-      change. Most of theme/components/* still reads the static `typography`
-      singleton at module scope instead of useTypography() — a plain
-      re-render leaves their already-created style objects looking stale even
-      though the singleton's fontSize/lineHeight are updated (React does not
-      know to re-render a component that isn't itself subscribed to the
-      change). Remounting is the small, low-risk fix: AppShell's own hooks
-      (engine refs, download state, model index) live above this element and
-      are untouched, so the loaded model/engine and any in-flight downloads
-      are NOT torn down — only the display subtree (chat, drawer, settings,
-      help) unmounts and remounts, re-reading the (already-updated) typography
-      values. AiChatPage reloads its message list from AsyncStorage on mount,
-      which is written on every change, so no chat data is lost.
+      PainterlyBg + header + AiChatPage stay unkeyed: they already call
+      useTypography() and re-render via theme context. key=fontScaleId lives
+      only on Help / Documents / drawer — those still read the static
+      typography singleton via theme/components, so they remount to pick up
+      the new sizes without resetting the chat FlatList / JPEG decode /
+      history reload. Settings is NOT keyed: it already uses useTypography()
+      and remounting would wipe an in-progress API-key draft.
     */}
-    <View key={fontScaleId} style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <PainterlyBg />
       <GestureDetector gesture={edgeSwipe}>
       <View style={{ flex: 1 }}>
@@ -4277,7 +4807,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             <Text
               style={[
                 typography.bodyMd,
-                { color: colors.ink, fontFamily: fontFamilies.displayBold, letterSpacing: 0.2, lineHeight: 20 },
+                { color: colors.ink, fontFamily: fontFamilies.displayBold, letterSpacing: 0.2 },
               ]}
               numberOfLines={1}
             >
@@ -4321,7 +4851,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             >
               {/* Allow wrap at large font scales so the status segment
                   (Ready / Download …) is never clipped. Do not shrink type. */}
-              <Text style={[typography.bodyXs, { color: modelBarStatus.color, lineHeight: 15 }]}>
+              <Text style={[typography.bodyXs, { color: modelBarStatus.color }]}>
                 {currentModel.name} · {currentModel.quant} · {modelBarStatus.label}
               </Text>
             </Pressable>
@@ -4418,7 +4948,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           <AiChatPage
             userName={null}
             selectedRun={null}
-            prefillText={null}
+            prefillText={sharePrefill?.text ?? null}
+            prefillNonce={sharePrefill?.nonce}
+            attachLibraryDoc={shareAttachDoc}
+            onSaveToNotes={(text) => {
+              void handleSaveToNotes(text);
+            }}
             onSendStream={handleSendStream}
             voiceReady={voiceState === "ready"}
             ttsEnabled={ttsEnabled}
@@ -4426,19 +4961,30 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             documentLibrary={documentLibrary}
             onMemoryBanner={(key) => setMemoryBannerKey(key)}
             onOpenDocuments={() => setActiveOverlay({ kind: "documents" })}
+            onAddDocument={addDocument}
             onOpenMiniapp={(miniapp) => {
               // Policy: ignore miniapp open while Settings/Help/Documents is active
               // (exclusive overlay; stays until user closes it).
               setActiveOverlay((prev) =>
                 prev?.kind === "settings" ||
                 prev?.kind === "help" ||
-                prev?.kind === "documents"
+                prev?.kind === "documents" ||
+                prev?.kind === "notes" ||
+                prev?.kind === "personas"
                   ? prev
                   : { kind: "miniapp", miniapp: miniapp as AskAssistantMiniapp },
               );
             }}
             onCtaPress={(_cta: ChatCta) => undefined}
             onMenuPress={() => setDrawerOpen(true)}
+            conversationId={conversationsReady ? conversations.activeId : undefined}
+            onNewConversation={handleNewConversation}
+            onSwitchConversation={handleSwitchConversation}
+            onDeleteConversation={handleDeleteConversation}
+            onConversationTouched={handleConversationTouched}
+            persistFlushRef={persistFlushRef}
+            isActiveChatEmptyRef={isActiveChatEmptyRef}
+            bumpPersistEpochRef={bumpPersistEpochRef}
           />
         </View>
 
@@ -4465,11 +5011,28 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       </GestureDetector>
 
       <Drawer
+        key={fontScaleId}
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => {
+          setDrawerOpen(false);
+          setChatSearch("");
+        }}
         brand="Kalsa"
         subtitle={t("drawer.subtitle")}
         items={drawerItems}
+        conversationItems={drawerConversationItems}
+        searchValue={chatSearch}
+        onSearchChange={setChatSearch}
+        onNewChat={handleNewConversation}
+        personaLabel={
+          findPersona(personasState, activePersonaId, builtinCopyFromT(t))?.name ??
+          t("drawer.personaNone")
+        }
+        onPersonaPress={() => {
+          Keyboard.dismiss();
+          setDrawerOpen(false);
+          setActiveOverlay({ kind: "personas" });
+        }}
       />
 
       {activeOverlay?.kind === "settings" ? (
@@ -4478,6 +5041,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             setActiveOverlay(null);
             // Settings may have edited memory — refresh facts for the next turn.
             void refreshMemoryFacts();
+            void refreshToolFlags();
           }}
           onOpenHelp={() => setActiveOverlay({ kind: "help" })}
           model={{
@@ -4519,6 +5083,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
       {activeOverlay?.kind === "documents" ? (
         <DocumentsScreen
+          key={fontScaleId}
           library={documentLibrary}
           onAddDocument={addDocument}
           onDeleteDocument={deleteDocument}
@@ -4529,8 +5094,28 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         />
       ) : null}
 
+      {activeOverlay?.kind === "notes" ? (
+        <NotesScreen
+          key={fontScaleId}
+          focusId={activeOverlay.focusId}
+          onBack={() => setActiveOverlay(null)}
+        />
+      ) : null}
+
+      {activeOverlay?.kind === "personas" ? (
+        <PersonasScreen
+          key={fontScaleId}
+          onBack={() => {
+            setActiveOverlay(null);
+            void refreshPersonas();
+          }}
+          onActiveChange={(id) => setActivePersonaId(id)}
+        />
+      ) : null}
+
       {activeOverlay?.kind === "help" ? (
         <HelpScreen
+          key={fontScaleId}
           // Back from Help returns to Settings (Help is opened from Settings).
           onBack={() => setActiveOverlay({ kind: "settings" })}
         />
@@ -4578,7 +5163,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         </Modal>
       ) : null}
     </View>
-      {/* Sibling of the fontScale-keyed tree — never remounts on text-size change. */}
+      {/* Hosts stay unkeyed — never remount on text-size change. */}
       <PdfTextExtractorHost />
       <DocumentCoverHost />
     </View>

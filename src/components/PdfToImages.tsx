@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import { useLocale } from "../i18n";
+import { useTypography } from "../theme/typography";
+import { useLabTheme } from "../ui/labTheme";
 import {
   pageHasTextLayer,
   pdfPagesToRetrievalDocs,
@@ -132,6 +134,8 @@ type Props = {
   title?: string | null;
   /** Optional per-document metrics (also logged with `[pdf-extract]` prefix). */
   onExtractMetrics?: (metrics: PdfDocumentExtractMetrics) => void;
+  /** Hide the status row (hosts already wrap an off-screen WebView). */
+  headless?: boolean;
 };
 
 const DEFAULT_MAX_PAGES = MAX_PDF_PAGES;
@@ -150,8 +154,13 @@ export function PdfToImages({
   sourceId,
   title,
   onExtractMetrics,
+  headless = false,
 }: Props) {
   const { t } = useLocale();
+  const { colors } = useLabTheme<{
+    colors: { panel: string; ink: string; muted: string; bad: string };
+  }>();
+  const typography = useTypography();
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const webViewRef = useRef<WebView>(null);
@@ -256,7 +265,7 @@ export function PdfToImages({
         ]);
         if (!mounted) return;
         if (pdfB64.length > maxBytes * 1.34) {
-          setError(t("errors.pdfTooLarge"));
+          fail(t("errors.pdfTooLarge"), "cap");
           return;
         }
         if (isTextExtractMode(mode)) {
@@ -271,8 +280,11 @@ export function PdfToImages({
     return () => {
       mounted = false;
       clearTimers();
-      // Unmount before success: drop orphan JPEGs. After success parent owns them.
+      // Unmount before success: trip doneRef so late JPEG .then deletes
+      // instead of calling onPage, and drop already-tracked orphans.
       if (!succeededRef.current) {
+        doneRef.current = true;
+        pendingGlobalDoneRef.current = false;
         deleteCreatedImages();
       }
     };
@@ -289,12 +301,11 @@ export function PdfToImages({
 
   const armTotalTimer = useCallback(() => {
     if (totalTimerRef.current) clearTimeout(totalTimerRef.current);
-    if (!isTextExtractMode(mode)) return;
     totalTimerRef.current = setTimeout(
       () => fail(t("errors.pdfExtractTimeout"), "timeout"),
       TOTAL_EXTRACTION_TIMEOUT_MS,
     );
-  }, [fail, mode, t]);
+  }, [fail, t]);
 
   const emitTextDocsAndMaybeRasterize = useCallback(
     (pageTexts: PdfPageText[]) => {
@@ -539,60 +550,82 @@ export function PdfToImages({
     ],
   );
 
+  // Total timer only: 150s safety net for hung bootstrap. Do not arm the
+  // page timer until the first WebView message (see handleMessage) — cold
+  // Jelly + large PDF can exceed PAGE_TIMEOUT_MS before the first post.
   useEffect(() => {
-    if (html && isTextExtractMode(mode)) {
+    if (html) {
       armTotalTimer();
-      armPageTimer();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [html, mode]);
 
-  if (error) {
-    return (
-      <View style={styles.box}>
-        <Text style={styles.error}>{t("pdf.errorPrefix", { error })}</Text>
-      </View>
-    );
-  }
-
-  if (!html) {
-    return (
-      <View style={styles.box}>
-        <ActivityIndicator size="small" />
-        <Text style={styles.loading}>{t("pdf.preparing")}</Text>
-      </View>
-    );
-  }
+  const statusLabel = error
+    ? t("pdf.errorPrefix", { error })
+    : !html
+      ? t("pdf.preparing")
+      : isTextExtractMode(mode)
+        ? t("pdf.extractingText")
+        : t("pdf.readingPages");
 
   return (
-    <View style={styles.box}>
-      <WebView
-        ref={webViewRef}
-        originWhitelist={["about:", "data:"]}
-        source={{ html }}
-        style={styles.webview}
-        setSupportMultipleWindows={false}
-        allowFileAccess={false}
-        allowFileAccessFromFileURLs={false}
-        onShouldStartLoadWithRequest={(request) =>
-          request.url.startsWith("about:") || request.url.startsWith("data:")
-        }
-        onMessage={handleMessage}
-        // Android: renderer killed under memory pressure (app process survives).
-        // Without this the message stream stops until the page/total timer fires
-        // with a misleading "timed out — try again".
-        onRenderProcessGone={() => {
-          fail(t("errors.pdfRendererGone"), "renderer_gone");
-          return true;
-        }}
-        // iOS: WKWebView content process terminated.
-        onContentProcessDidTerminate={() => {
-          fail(t("errors.pdfRendererGone"), "renderer_gone");
-        }}
-      />
-      <Text style={styles.loading}>
-        {isTextExtractMode(mode) ? t("pdf.extractingText") : t("pdf.readingPages")}
-      </Text>
+    <View>
+      {headless ? null : (
+        <View
+          style={[styles.statusRow, { backgroundColor: colors.panel }]}
+          accessibilityLiveRegion="polite"
+        >
+          {error ? null : <ActivityIndicator size="small" color={colors.muted} />}
+          <Text
+            style={[
+              typography.bodyXs,
+              styles.statusText,
+              { color: error ? colors.bad : colors.ink },
+            ]}
+          >
+            {statusLabel}
+          </Text>
+        </View>
+      )}
+      {html && !error ? (
+        <View
+          pointerEvents="none"
+          collapsable={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.webviewHost}
+        >
+          <WebView
+            ref={webViewRef}
+            originWhitelist={["about:", "data:"]}
+            source={{ html }}
+            style={styles.webview}
+            containerStyle={styles.webview}
+            // Hardware SurfaceView ignores size/opacity/overflow; software layer clips.
+            androidLayerType="software"
+            nestedScrollEnabled={false}
+            scrollEnabled={false}
+            setSupportMultipleWindows={false}
+            allowFileAccess={false}
+            allowFileAccessFromFileURLs={false}
+            onShouldStartLoadWithRequest={(request) =>
+              request.url.startsWith("about:") || request.url.startsWith("data:")
+            }
+            onMessage={handleMessage}
+            // Android: renderer killed under memory pressure (app process survives).
+            // Without this the message stream stops until the page/total timer fires
+            // with a misleading "timed out — try again".
+            onRenderProcessGone={() => {
+              fail(t("errors.pdfRendererGone"), "renderer_gone");
+              return true;
+            }}
+            // iOS: WKWebView content process terminated.
+            onContentProcessDidTerminate={() => {
+              fail(t("errors.pdfRendererGone"), "renderer_gone");
+            }}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -852,24 +885,33 @@ function buildPdfHtmlTextMode(
 }
 
 const styles = StyleSheet.create({
-  box: {
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  statusText: {
+    flexShrink: 1,
+  },
+  webviewHost: {
+    position: "absolute",
+    width: 1,
+    height: 1,
     overflow: "hidden",
-    padding: 8,
-    backgroundColor: "#0b1512",
+    // Punch-through belt: some API 33 OEM SurfaceViews ignore size but follow
+    // window position — park off-screen instead of over the FlatList.
+    left: -4000,
+    top: 0,
+    opacity: 0.01,
   },
   webview: {
-    height: 1,
     width: 1,
-    opacity: 0,
-  },
-  loading: {
-    color: "#8aa39b",
-    fontSize: 12,
-    paddingVertical: 4,
-  },
-  error: {
-    color: "#f87171",
-    fontSize: 12,
+    height: 1,
+    overflow: "hidden",
+    opacity: 0.01,
+    backgroundColor: "transparent",
   },
 });

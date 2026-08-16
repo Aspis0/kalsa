@@ -313,6 +313,7 @@ export function DocumentCoverHost(): React.ReactElement | null {
     <View
       style={styles.hidden}
       pointerEvents="none"
+      collapsable={false}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
@@ -321,6 +322,7 @@ export function DocumentCoverHost(): React.ReactElement | null {
         pdfUri={request.fileUri}
         mode="images"
         maxPages={1}
+        headless
         onPage={(pageIndex, imageUri) => {
           if (pageIndex !== 0) return;
           const cur = inflight;
@@ -404,9 +406,11 @@ export function __resetCoverHostForTests(): void {
 const styles = StyleSheet.create({
   hidden: {
     position: "absolute",
+    left: 0,
+    top: 0,
     width: 1,
     height: 1,
-    opacity: 0,
+    opacity: 0.01,
     overflow: "hidden",
   },
 });

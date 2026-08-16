@@ -20,6 +20,7 @@ import {
   type RetrievedPassage,
 } from "../context/retrievalLoop";
 import type { PdfRetrievalDocsResult } from "../util/pdfText";
+import { MAX_PDF_PAGES } from "../util/pdfBridgeProtocol";
 import {
   decideDocStrategy,
   estimateTokensForDoc,
@@ -604,11 +605,19 @@ async function loadDocText(
         text: d.text,
       }));
     const fullText = pages.map((p) => p.text).join("\n\n");
+    const extractedPages =
+      docs.length +
+      (Array.isArray(extracted?.skippedPages) ? extracted.skippedPages.length : 0);
+    const reportedPages =
+      typeof extracted?.documentPageCount === "number" &&
+      extracted.documentPageCount > 0
+        ? Math.min(Math.floor(extracted.documentPageCount), MAX_PDF_PAGES)
+        : undefined;
     return {
       kind: "ok",
       fullText,
       docCount: pages.length,
-      pageCount: extracted?.documentPageCount,
+      pageCount: extractedPages > 0 ? extractedPages : reportedPages,
       pages,
     };
   } catch (err) {

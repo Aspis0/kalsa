@@ -8,8 +8,8 @@ import {
   FlatList,
   Image,
   Linking,
+  type ListRenderItemInfo,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -34,18 +34,14 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
-  Copy,
   Download,
   FileText,
   Globe,
   Image as ImageIcon,
   Languages,
   Menu,
-  Mic,
-  Plus,
-  Send,
+  MoreHorizontal,
   Sparkles,
-  Square,
   SquarePen,
   Volume2,
   X,
@@ -54,7 +50,8 @@ import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as DocumentPicker from "expo-document-picker";
-import { PdfToImages } from "../components/PdfToImages";
+import * as FileSystem from "expo-file-system/legacy";
+import { PdfExtractError, PdfToImages } from "../components/PdfToImages";
 import { MarkdownText } from "../chat/MarkdownText";
 import { isSafeHttpUrl } from "../util/url";
 import { isBenchCommand, tryHandleBenchCommand } from "../bench/benchConfig";
@@ -81,10 +78,19 @@ import { getAvailableMemoryBytesUncached } from "../engine/monitor";
 import { getModelById } from "../engine/ModelRegistry";
 import { miniappStripMakesKvNonReproducible } from "../engine/kvReproducibility";
 import { historyHash } from "../engine/sessionPersistence";
+import {
+  messagesKey,
+  titleFromFirstUserText,
+  previewFromMessages,
+  searchBlobFromMessages,
+} from "../conversations/ConversationsStore";
+import { mergeSharePrefill } from "../app/shareIntent";
 import { createStreamCoalescer } from "../engine/streamCoalescer";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
+import { StreamCaret } from "../chat/StreamCaret";
+import { BrandIcon, SendGlyphPair } from "../theme/icons/BrandIcon";
 import { typography, useTypography, fontFamilies } from "../theme/typography";
 import {
   cancelCapture,
@@ -106,8 +112,44 @@ import {
   type VoiceUiPhase,
 } from "../voice/voiceUiState";
 import { shouldShowLongChatNudge } from "../chat/longChatEstimate";
+import {
+  estimateTokensForDoc,
+  formatBytesLocalized,
+  type LibraryDoc,
+} from "../documents/DocumentLibrary";
+import {
+  CHAT_DOCUMENT_PICKER_TYPES,
+  pickKind,
+  shouldSniffPickedKind,
+  sniffDocxOrLegacy,
+} from "../documents/documentKinds";
+import {
+  DocxExtractError,
+  extractDocxTextFromFile,
+} from "../documents/docxToText";
+import {
+  MAX_DOCUMENT_BYTES,
+  MAX_TEXT_BYTES,
+  deleteOwnedFile,
+  peekFileHead,
+  resolveAssetSizeBytes,
+  sizeWithinLimits,
+  writeOwnedText,
+} from "../documents/documentStorage";
 
-const HISTORY_KEY = "kalsa.messages.v1";
+/** Metro still sees the require(); a missing packager asset must not kill chat. */
+function tryRequireAsset(load: () => unknown): number | undefined {
+  try {
+    const value = load();
+    return typeof value === "number" ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const EMPTY_STATE_RASTER = tryRequireAsset(
+  () => require("../../assets/brand/light/empty-state.jpg"),
+);
 
 export type AiChatSelectedRun = {
   jobId: string;
@@ -198,6 +240,11 @@ export type HandleSendResult =
   | { ok: true }
   | { ok: false; reasonKey: string };
 
+/** Extra flags for the user bubble handleSend appends (edit-then-regen). */
+type HandleSendOpts = {
+  edited?: boolean;
+};
+
 /** UI phase for tap-to-talk (mirrors pure VoiceUiPhase). */
 type VoiceUiState = VoiceUiPhase;
 
@@ -219,6 +266,11 @@ type Props = {
   ) => Promise<SendStreamResult | void>;
   selectedRun?: AiChatSelectedRun | null;
   prefillText?: string | null;
+  /** Bumps when the same share text is delivered again. */
+  prefillNonce?: number;
+  /** Attach a library document from Android share-in (do not auto-send). */
+  attachLibraryDoc?: { id: string; name: string; nonce: number } | null;
+  onSaveToNotes?: (text: string) => void;
   onClearSelectedRun?: () => void;
   userName?: string | null;
   onOpenMiniapp?: (miniapp: any) => void;
@@ -236,14 +288,45 @@ type Props = {
    */
   engineCtx?: number;
   /** Snapshot of the local document library (for attach-from-library). */
-  documentLibrary?: { docs: Array<{ id: string; name: string; kind: string; pageCount?: number }> };
+  documentLibrary?: {
+    docs: Array<{
+      id: string;
+      name: string;
+      kind: string;
+      pageCount?: number;
+      previewUri?: string;
+    }>;
+  };
   /** Open the Documents overlay (empty library / manage). */
   onOpenDocuments?: () => void;
+  /**
+   * AppShell-owned library add. Chat Word import persists as owned TXT.
+   * Omitted in isolated tests — those paths must not leave orphan files.
+   */
+  onAddDocument?: (entry: LibraryDoc) => boolean;
   /**
    * Optional UI banner sink for non-blocking fit signals (e.g. model.memoryUnknown).
    * AppShell wires this to setMemoryBannerKey.
    */
   onMemoryBanner?: (reasonKey: string | null) => void;
+  /** Active conversation id — messages load/persist under messagesKey(id). */
+  conversationId?: string;
+  /** Header / long-chat "new chat": parent inserts a fresh conversation. */
+  onNewConversation?: () => void;
+  onSwitchConversation?: (id: string) => void;
+  onDeleteConversation?: (id: string) => void;
+  /** After a successful persist, parent updates title/preview/searchBlob. */
+  onConversationTouched?: (meta: {
+    title: string;
+    preview: string;
+    searchBlob: string;
+  }) => void;
+  /** Parent calls this to flush the active conversation before a switch. */
+  persistFlushRef?: React.MutableRefObject<(() => void) | null>;
+  /** True when the active chat has no in-memory/persisted messages (after load). */
+  isActiveChatEmptyRef?: React.MutableRefObject<(() => boolean) | null>;
+  /** Parent bumps the persist epoch before deleting this chat's messages key. */
+  bumpPersistEpochRef?: React.MutableRefObject<(() => void) | null>;
 };
 
 type SuggestionItem = {
@@ -322,8 +405,6 @@ function parseMessageSegments(text: string): MessageSegment[] {
   return segments.length > 0 ? segments : [{ type: "text", content: text }];
 }
 
-const MONO_FONT = Platform.OS === "ios" ? "Menlo" : "monospace";
-
 function greetingForHour(h: number, t: TranslateFn): string {
   if (h < 12) return t("chat.greetingMorning");
   if (h < 18) return t("chat.greetingAfternoon");
@@ -381,6 +462,10 @@ let _msgIdCounter = Math.floor((Date.now() % 1_000_000_000) / 7);
 function nextMsgId(prefix: string): string {
   _msgIdCounter += 1;
   return `${prefix}-${_msgIdCounter}`;
+}
+
+function nextLibraryDocId(): string {
+  return `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 // PDF attach rimosso (Fase 3): nessun endpoint remoto, tutto locale.
@@ -442,6 +527,7 @@ function buildPersistableMessages(
  * Invariant: every write is epoch-stamped; clear bumps the epoch; stale writes
  * are no-ops. Callers capture `epoch` at SCHEDULE time and pass getEpoch so a
  * clearChat (or hard reset) that lands before setItem drops the write.
+ * Returns true when a write was scheduled.
  */
 function persistMessagesNow(
   messagesSnapshot: Message[],
@@ -451,28 +537,33 @@ function persistMessagesNow(
     epoch?: number;
     /** Reads the live epoch; stale when !== opts.epoch. */
     getEpoch?: () => number;
+    /** Per-conversation messages key. Missing → skip write. */
+    storageKey?: string;
   },
-): void {
-  if (!messagesSnapshot.length) return;
+): boolean {
+  if (!messagesSnapshot.length) return false;
+  const storageKey = opts?.storageKey;
+  if (!storageKey) return false;
   // Drop if clear/reset already advanced the epoch before we build the payload.
   if (
     opts?.epoch != null &&
     typeof opts.getEpoch === "function" &&
     opts.getEpoch() !== opts.epoch
   ) {
-    return;
+    return false;
   }
   const clean = buildPersistableMessages(messagesSnapshot, opts);
-  if (!clean.length) return;
+  if (!clean.length) return false;
   // Re-check immediately before the write so a clear that raced the build drops.
   if (
     opts?.epoch != null &&
     typeof opts.getEpoch === "function" &&
     opts.getEpoch() !== opts.epoch
   ) {
-    return;
+    return false;
   }
-  AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(clean)).catch(() => undefined);
+  AsyncStorage.setItem(storageKey, JSON.stringify(clean)).catch(() => undefined);
+  return true;
 }
 
 /** Sanitizza lo storico persistito: ogni campo (anche annidato) è validato, niente crash su payload corrotti. */
@@ -624,6 +715,9 @@ export function AiChatPage({
   onSendStream,
   selectedRun,
   prefillText,
+  prefillNonce,
+  attachLibraryDoc,
+  onSaveToNotes,
   onClearSelectedRun,
   userName,
   onOpenMiniapp,
@@ -634,15 +728,23 @@ export function AiChatPage({
   engineCtx,
   documentLibrary,
   onOpenDocuments,
+  onAddDocument,
   onMemoryBanner,
+  conversationId,
+  onNewConversation,
+  onConversationTouched,
+  persistFlushRef,
+  isActiveChatEmptyRef,
+  bumpPersistEpochRef,
 }: Props) {
-  const { colors } = useLabTheme<any>();
-  // Shadows the module-level `typography` import for this component only
-  // (AttachSheetRow/TranslationBlock/MiniappCard below keep the static one —
-  // they always remount together with AiChatPage on a font-scale change, see
-  // AppShell's key={fontScaleId}). Reading it from context here makes the
-  // chat text reactive without depending on that remount.
+  const { colors, mode, fontScaleId } = useLabTheme<any>();
+  // Reactive tokens: font-scale change re-renders this page via context.
+  // Rows get a fontScaleId-stable typography prop so IME height ticks
+  // (which recreate themeValue) do not bust ChatMessageRow memo.
+  // AttachSheetRow / TranslationBlock / MiniappCard still read the static
+  // singleton; they re-render as children of a subscribed parent.
   const typography = useTypography();
+  const rowTypography = useMemo(() => typography, [fontScaleId]);
   const { t, locale } = useLocale();
   const insets = useSafeAreaInsets();
   // Manual keyboard padding from the lib's animated height (see Animated.View below).
@@ -710,8 +812,14 @@ export function AiChatPage({
   const [messages, setMessages] = useState<Message[]>([]);
   /** One-shot long-chat nudge for this conversation; reset on clearChat. */
   const [longChatNudgeShown, setLongChatNudgeShown] = useState(false);
+  const [emptyArtFailed, setEmptyArtFailed] = useState(false);
   const [draft, setDraft] = useState("");
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
   const [sending, setSending] = useState(false);
+  // BLOCKER-3: synchronous in-flight guard (React state updates are async).
+  // Declared next to `sending` so handleMicPress can gate on the ref, not stale state.
+  const sendingRef = useRef(false);
   const [voiceUi, setVoiceUi] = useState<VoiceUiState>("idle");
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
@@ -733,6 +841,7 @@ export function AiChatPage({
   const voiceRunIdRef = useRef(0);
   const voiceNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copiedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messageMenuCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /** Keep voiceUiRef and React state in lockstep for every phase change. */
   const setVoicePhase = useCallback((phase: VoiceUiState) => {
@@ -746,14 +855,19 @@ export function AiChatPage({
   const atBottomRef = useRef(true);
   const inputRef = useRef<TextInput>(null);
   const greeting = useMemo(() => greetingForHour(new Date().getHours(), t), [t]);
+  const showEmptyArt = EMPTY_STATE_RASTER != null && !emptyArtFailed;
   const suggestions = useMemo(() => buildSuggestions(t), [t]);
   /** Newest-first view of the history. FlatList keys on m.id so only the
    *  changed row re-renders; the array is reallocated per flush (same item
    *  refs), which is what signals a streaming update. */
   const reversedMessages = useMemo(() => messages.slice().reverse(), [messages]);
+  const reversedMessagesRef = useRef(reversedMessages);
+  reversedMessagesRef.current = reversedMessages;
 
   // ── Persistenza conversazione (Fase 1) ──────────────────────────────────
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const historyLoadedRef = useRef(historyLoaded);
+  historyLoadedRef.current = historyLoaded;
   /** Always mirrors latest messages for flush paths (AppState / unmount / throttle). */
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -762,37 +876,135 @@ export function AiChatPage({
   /**
    * Persistence epoch: every delayed/async write stamps the epoch at SCHEDULE
    * time and re-checks immediately before AsyncStorage.setItem. clearChat (and
-   * any HISTORY_KEY remove) bumps the epoch first so a pending debounce /
+   * conversation switch) bumps the epoch first so a pending debounce /
    * safety-net / AppState write that still holds the old messages is a no-op.
    * Invariant: every write is epoch-stamped; clear bumps the epoch; stale writes
    * are no-ops.
    */
   const persistEpochRef = useRef(0);
+  const persistKeyRef = useRef(
+    conversationId ? messagesKey(conversationId) : "",
+  );
+  const onConversationTouchedRef = useRef(onConversationTouched);
+  onConversationTouchedRef.current = onConversationTouched;
+
+  const notifyConversationTouched = useCallback((msgs: Message[]) => {
+    const cb = onConversationTouchedRef.current;
+    if (!cb) return;
+    const firstUser = msgs.find(
+      (m) => m.role === "user" && typeof m.text === "string" && m.text.trim(),
+    );
+    cb({
+      title: titleFromFirstUserText(firstUser?.text ?? ""),
+      preview: previewFromMessages(msgs),
+      searchBlob: searchBlobFromMessages(msgs),
+    });
+  }, []);
+
+  const persistActiveMessages = useCallback(
+    (
+      msgs: Message[],
+      opts?: {
+        allowStreamingPartial?: boolean;
+        epoch?: number;
+        getEpoch?: () => number;
+      },
+    ): boolean => {
+      const key = persistKeyRef.current;
+      if (!key) return false;
+      const wrote = persistMessagesNow(msgs, { ...opts, storageKey: key });
+      if (wrote) notifyConversationTouched(msgs);
+      return wrote;
+    },
+    [notifyConversationTouched],
+  );
 
   useEffect(() => {
+    persistEpochRef.current += 1;
+    const loadEpoch = persistEpochRef.current;
+    let key = "";
+    try {
+      key = conversationId ? messagesKey(conversationId) : "";
+    } catch {
+      key = "";
+    }
+    persistKeyRef.current = key;
+
+    setMessages([]);
+    messagesRef.current = [];
+    setLongChatNudgeShown(false);
+    setDraft("");
+    setHistoryLoaded(false);
+
+    if (!key) {
+      setHistoryLoaded(true);
+      return;
+    }
+
     let mounted = true;
-    AsyncStorage.getItem(HISTORY_KEY)
+    AsyncStorage.getItem(key)
       .then((raw) => {
-        if (!mounted || !raw) return;
+        if (!mounted || persistEpochRef.current !== loadEpoch || !raw) return;
         try {
           const parsed = JSON.parse(raw);
           // locale is already resolved (App gates on localeReady).
           const valid = sanitizeHistoryMessages(parsed, locale);
-          if (valid.length) setMessages(valid);
+          if (valid.length) {
+            setMessages(valid);
+            messagesRef.current = valid;
+          }
         } catch {
           // storico corrotto: ignora e riparti pulito
         }
       })
       .catch(() => undefined)
       .finally(() => {
-        if (mounted) setHistoryLoaded(true);
+        if (mounted && persistEpochRef.current === loadEpoch) {
+          setHistoryLoaded(true);
+        }
       });
     return () => {
       mounted = false;
     };
-    // Load once on mount; locale is stable after LocaleProvider ready gate.
+    // Reload when the active conversation changes. locale is stable after
+    // LocaleProvider ready gate.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (persistFlushRef) {
+      persistFlushRef.current = () => {
+        const snap = messagesRef.current;
+        const epoch = persistEpochRef.current;
+        persistActiveMessages(snap, {
+          allowStreamingPartial: true,
+          epoch,
+          getEpoch: () => persistEpochRef.current,
+        });
+      };
+    }
+    if (isActiveChatEmptyRef) {
+      isActiveChatEmptyRef.current = () => {
+        if (!historyLoadedRef.current) return false;
+        return messagesRef.current.length === 0;
+      };
+    }
+    if (bumpPersistEpochRef) {
+      bumpPersistEpochRef.current = () => {
+        persistEpochRef.current += 1;
+      };
+    }
+    return () => {
+      if (persistFlushRef) persistFlushRef.current = null;
+      if (isActiveChatEmptyRef) isActiveChatEmptyRef.current = null;
+      if (bumpPersistEpochRef) bumpPersistEpochRef.current = null;
+    };
+  }, [
+    bumpPersistEpochRef,
+    isActiveChatEmptyRef,
+    persistFlushRef,
+    persistActiveMessages,
+  ]);
 
   // Debounced normal path: skip while any turn is streaming so the 400ms quiet
   // gap cannot clobber a throttled/AppState partial (drops streaming messages).
@@ -806,13 +1018,13 @@ export function AiChatPage({
     const timer = setTimeout(() => {
       if (persistEpochRef.current !== epoch) return;
       // X4: attachments[].uri/pages stripped inside buildPersistableMessages.
-      persistMessagesNow(messages, {
+      persistActiveMessages(messages, {
         epoch,
         getEpoch: () => persistEpochRef.current,
       });
     }, 400);
     return () => clearTimeout(timer);
-  }, [historyLoaded, messages]);
+  }, [historyLoaded, messages, persistActiveMessages]);
 
   // Safety net while streaming: at most one partial persist every 10s.
   useEffect(() => {
@@ -833,20 +1045,28 @@ export function AiChatPage({
     }
     lastPartialPersistAtRef.current = now;
     const epoch = persistEpochRef.current;
-    persistMessagesNow(messages, {
+    persistActiveMessages(messages, {
       allowStreamingPartial: true,
       epoch,
       getEpoch: () => persistEpochRef.current,
     });
-  }, [historyLoaded, messages]);
+  }, [historyLoaded, messages, persistActiveMessages]);
 
   // Feature 4: attach state (immagini/foto/PDF → vision; library docs → document_chat)
   const [attachedItems, setAttachedItems] = useState<LocalAttachment[]>([]);
+  const attachedItemsRef = useRef(attachedItems);
+  attachedItemsRef.current = attachedItems;
   const [attachSheetOpen, setAttachSheetOpen] = useState(false);
   /** Nested picker: choose a library document to attach as a retrieval source. */
   const [docPickOpen, setDocPickOpen] = useState(false);
   const [pdfToRender, setPdfToRender] = useState<{ uri: string; name: string } | null>(null);
+  const pdfToRenderRef = useRef(pdfToRender);
+  pdfToRenderRef.current = pdfToRender;
   const pdfPagesRef = useRef<string[]>([]);
+  const pickingPdfRef = useRef(false);
+  const importAndAttachDocxRef = useRef<
+    (uri: string, name: string) => Promise<void>
+  >(async () => undefined);
 
   // In-app translation (volatile — NOT persisted with history).
   // One translation at a time: a new run replaces the previous result.
@@ -892,9 +1112,12 @@ export function AiChatPage({
   }, [longChat, longChatNudgeShown]);
 
   const showVoiceNote = useCallback((text: string) => {
+    if (!mountedRef.current) return;
     setVoiceNote(text);
     if (voiceNoteTimer.current) clearTimeout(voiceNoteTimer.current);
-    voiceNoteTimer.current = setTimeout(() => setVoiceNote(null), 4000);
+    voiceNoteTimer.current = setTimeout(() => {
+      if (mountedRef.current) setVoiceNote(null);
+    }, 4000);
   }, []);
 
   /** Invalidate any in-flight voice run and hard-reset capture/TTS UI. */
@@ -997,7 +1220,7 @@ export function AiChatPage({
             (m) => m.streaming && typeof m.text === "string" && m.text.trim().length > 0,
           )
         ) {
-          persistMessagesNow(snap, {
+          persistActiveMessages(snap, {
             allowStreamingPartial: true,
             epoch,
             getEpoch: () => persistEpochRef.current,
@@ -1014,11 +1237,13 @@ export function AiChatPage({
               // Empty chat: drop stale session so next load stays cold-clean.
               void invalidateEngineSession(modelId);
             } else if (persistEpochRef.current === epoch) {
-              // Same JSON as HISTORY_KEY write so ensureEngine load hash matches.
-              // Epoch check: drop if clearChat raced before this write lands.
+              // Same JSON as the conversation messages write so ensureEngine
+              // load hash matches. Epoch check: drop if clearChat raced.
               const payload = JSON.stringify(clean);
-              if (persistEpochRef.current === epoch) {
-                AsyncStorage.setItem(HISTORY_KEY, payload).catch(() => undefined);
+              const storageKey = persistKeyRef.current;
+              if (persistEpochRef.current === epoch && storageKey) {
+                AsyncStorage.setItem(storageKey, payload).catch(() => undefined);
+                notifyConversationTouched(clean as Message[]);
                 void saveEngineSession(modelId, historyHash(payload));
               }
             }
@@ -1039,7 +1264,7 @@ export function AiChatPage({
     };
     const sub = AppState.addEventListener("change", onAppState);
     return () => sub.remove();
-  }, [invalidateVoice]);
+  }, [invalidateVoice, persistActiveMessages, notifyConversationTouched]);
 
   /**
    * Tap mic: start listening; tap again: stop + transcribe into draft.
@@ -1054,7 +1279,7 @@ export function AiChatPage({
       capturing: isCapturing(),
       busy: voiceBusyRef.current,
       stopInFlight: voiceStopInFlightRef.current,
-      sending,
+      sending: sendingRef.current || sendClaimRef.current,
     });
 
     if (intent.type === "ignore") {
@@ -1131,12 +1356,14 @@ export function AiChatPage({
     } finally {
       // On failure / cancel mid-start, clear busy. On success (listening),
       // leave busy true until stopAndTranscribe finishes.
-      if (voiceRunIdRef.current === runId && !isCapturing()) {
+      // Run-id mismatch (send/cancel/clear): never leave THIS start's busy stuck.
+      if (voiceRunIdRef.current !== runId) {
+        voiceBusyRef.current = false;
+      } else if (!isCapturing()) {
         voiceBusyRef.current = false;
       }
     }
   }, [
-    sending,
     setVoicePhase,
     showVoiceNote,
     stopAndTranscribe,
@@ -1238,9 +1465,15 @@ export function AiChatPage({
   }, [showVoiceNote, t]);
 
   const addPdfAttachment = useCallback(async () => {
+    if (pickingPdfRef.current || pdfToRenderRef.current) return;
+    if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
+      showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+      return;
+    }
+    pickingPdfRef.current = true;
     try {
       const picked = await DocumentPicker.getDocumentAsync({
-        type: "application/pdf",
+        type: CHAT_DOCUMENT_PICKER_TYPES,
         copyToCacheDirectory: true,
         multiple: false,
       });
@@ -1248,13 +1481,48 @@ export function AiChatPage({
       if (!mountedRef.current) return;
       if (picked.canceled || !picked.assets?.length) return;
       const asset = picked.assets[0];
+      const name = (asset.name ?? "").trim();
+      let kind = pickKind(asset.mimeType, name);
+      if (shouldSniffPickedKind(kind, name)) {
+        const head = await peekFileHead(asset.uri, 8);
+        if (head) {
+          const sniffed = sniffDocxOrLegacy(head);
+          if (sniffed) kind = sniffed;
+        }
+      }
+      if (kind === "doc_legacy") {
+        showVoiceNote(t("documents.errorLegacyWord"));
+        return;
+      }
+      if (kind === "docx") {
+        if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
+          showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+          return;
+        }
+        setAttachSheetOpen(false);
+        await importAndAttachDocxRef.current(asset.uri, name || "document.docx");
+        return;
+      }
+      if (kind !== "pdf") {
+        showVoiceNote(t("errors.attachmentInvalidType"));
+        return;
+      }
+      if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
+        showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+        return;
+      }
       setAttachSheetOpen(false);
       pdfPagesRef.current = [];
-      setPdfToRender({ uri: asset.uri, name: asset.name ?? "document.pdf" });
+      const displayName = name || "document.pdf";
+      const next = { uri: asset.uri, name: displayName };
+      pdfToRenderRef.current = next;
+      setPdfToRender(next);
     } catch {
       // ignora
+    } finally {
+      pickingPdfRef.current = false;
     }
-  }, []);
+  }, [showVoiceNote, t]);
 
   const handlePdfPage = useCallback((_index: number, imageUri: string) => {
     pdfPagesRef.current.push(imageUri);
@@ -1265,43 +1533,57 @@ export function AiChatPage({
     // (nav away mid-conversion) — guard like the rest of the file's async
     // completions before touching state.
     if (!mountedRef.current) return;
-    setPdfToRender((prev) => {
-      if (prev) {
-        const pages = pdfPagesRef.current;
-        if (pages.length) {
-          setAttachedItems((current) => {
-            if (current.length >= MAX_IMAGE_ATTACHMENTS) {
-              // U8: cap already reached — surface a notice instead of silently
-              // discarding the converted PDF (composer would otherwise look
-              // like the attach just did nothing).
-              showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
-              return current;
-            }
-            return [
-              ...current,
-              { id: nextMsgId("pdf"), kind: "pdf", name: prev.name, uri: prev.uri, pages, pageCount: pages.length },
-            ];
-          });
-        }
-        pdfPagesRef.current = [];
+    const meta = pdfToRenderRef.current;
+    const pages = pdfPagesRef.current.slice();
+    pdfPagesRef.current = [];
+    pdfToRenderRef.current = null;
+    setPdfToRender(null);
+    if (!meta) return;
+    if (!pages.length) {
+      showVoiceNote(t("errors.pdfNoPages"));
+      return;
+    }
+    if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
+      for (const uri of pages) {
+        void FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
       }
-      return null;
+      showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+      return;
+    }
+    setAttachedItems((current) => {
+      if (current.length >= MAX_IMAGE_ATTACHMENTS) return current;
+      return [
+        ...current,
+        {
+          id: nextMsgId("pdf"),
+          kind: "pdf",
+          name: meta.name,
+          uri: meta.uri,
+          pages,
+          pageCount: pages.length,
+        },
+      ];
     });
   }, [showVoiceNote, t]);
 
-  const handlePdfError = useCallback(() => {
-    // Audit follow-up: same WebView bridge as handlePdfDone (30s page timer
-    // or async FS failure can fire fail() after nav-away) — guard before
-    // touching state.
+  const handlePdfError = useCallback((error: Error) => {
     if (!mountedRef.current) return;
     pdfPagesRef.current = [];
+    pdfToRenderRef.current = null;
     setPdfToRender(null);
-  }, []);
+    if (error instanceof PdfExtractError) {
+      if (error.code === "timeout") showVoiceNote(t("errors.pdfExtractTimeout"));
+      else if (error.code === "page_timeout") showVoiceNote(t("errors.pdfTimeout"));
+      else if (error.code === "renderer_gone") showVoiceNote(t("errors.pdfRendererGone"));
+      else if (error.code === "cap") showVoiceNote(t("errors.pdfTooLarge"));
+      else showVoiceNote(t("errors.pdfExtractFailed"));
+    } else {
+      showVoiceNote(t("errors.pdfExtractFailed"));
+    }
+  }, [showVoiceNote, t]);
 
   // BLOCKER-1: unmount guard + abort ref
   const mountedRef = useRef(true);
-  // BLOCKER-3: synchronous in-flight guard (React state updates are async)
-  const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   /**
    * Promise of the active handleSend turn (resolves when the stream + finally
@@ -1325,13 +1607,58 @@ export function AiChatPage({
   /** 3s recovery if abort never settles native completion (sending stuck true). */
   const stopWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Abort in-flight work when the active conversation changes. Message reload
+  // lives in the conversationId load effect (must bump persist epoch first).
+  const lastAbortConvRef = useRef<string | undefined>(conversationId);
+  useEffect(() => {
+    const prev = lastAbortConvRef.current;
+    lastAbortConvRef.current = conversationId;
+    if (prev === conversationId) return;
+    abortRef.current?.abort();
+    sendRunIdRef.current += 1;
+    regenGenerationRef.current += 1;
+    sendClaimRef.current = false;
+    regenAbortRef.current?.abort();
+    regenAbortRef.current = null;
+    regenInFlightRef.current = false;
+    regenHandleSendPassRef.current = false;
+    sendingRef.current = false;
+    sendingInFlightRef.current = false;
+    setSending(false);
+    if (stopWatchdogRef.current != null) {
+      clearTimeout(stopWatchdogRef.current);
+      stopWatchdogRef.current = null;
+    }
+    translateAbortRef.current?.abort();
+    translateAbortRef.current = null;
+    translationInFlightRef.current = false;
+    translateRunRef.current += 1;
+    setMessageMenu(null);
+    setTranslatingId(null);
+    setTranslationResult(null);
+    pdfToRenderRef.current = null;
+    setPdfToRender(null);
+    pdfPagesRef.current = [];
+    setAttachSheetOpen(false);
+    attachedItemsRef.current = [];
+    setAttachedItems([]);
+    voiceRunIdRef.current += 1;
+    voiceBusyRef.current = false;
+    voiceStopInFlightRef.current = false;
+    setVoicePhase(reduceVoicePhase(voiceUiRef.current, { type: "CANCEL" }));
+    setVoiceNote(null);
+    void cancelCapture();
+    void TtsService.stop();
+    setSpeakingId(null);
+  }, [conversationId, setVoicePhase]);
+
   useEffect(() => {
     return () => {
       // Flush partial from ref BEFORE abort: updateMessage no-ops once unmounted,
       // and finally may never rewrite state — ref still holds latest streamed text.
       // Epoch-stamped so a clearChat that already ran drops this unmount write.
       const epoch = persistEpochRef.current;
-      persistMessagesNow(messagesRef.current, {
+      persistActiveMessages(messagesRef.current, {
         allowStreamingPartial: true,
         epoch,
         getEpoch: () => persistEpochRef.current,
@@ -1340,8 +1667,13 @@ export function AiChatPage({
       abortRef.current?.abort();
       regenAbortRef.current?.abort();
       translateAbortRef.current?.abort();
+      translateRunRef.current += 1;
       translationInFlightRef.current = false;
       sendingInFlightRef.current = false;
+      // Owner transfer FIRST (match clearChat): bump generation/runId so a
+      // stale handleSend finally cannot clear a remounted turn's claim.
+      sendRunIdRef.current += 1;
+      regenGenerationRef.current += 1;
       sendClaimRef.current = false;
       if (stopWatchdogRef.current != null) {
         clearTimeout(stopWatchdogRef.current);
@@ -1350,6 +1682,14 @@ export function AiChatPage({
       if (copiedFlashTimer.current) {
         clearTimeout(copiedFlashTimer.current);
         copiedFlashTimer.current = null;
+      }
+      if (messageMenuCloseTimer.current) {
+        clearTimeout(messageMenuCloseTimer.current);
+        messageMenuCloseTimer.current = null;
+      }
+      if (voiceNoteTimer.current) {
+        clearTimeout(voiceNoteTimer.current);
+        voiceNoteTimer.current = null;
       }
     };
   }, []);
@@ -1364,8 +1704,11 @@ export function AiChatPage({
   }, [messages, translationResult]);
 
   useEffect(() => {
-    if (prefillText) setDraft(prefillText);
-  }, [prefillText]);
+    if (!prefillText) return;
+    setDraft((prev) => mergeSharePrefill(prev, prefillText));
+  }, [prefillText, prefillNonce]);
+
+
 
   // HIGH-1: targeted update — supports both patch object and function-form updater.
   // ownerGen / ownerRunId: capture at the call site; the functional setMessages
@@ -1414,6 +1757,7 @@ export function AiChatPage({
     } catch {
       available = null;
     }
+    if (!mountedRef.current) return { ok: false, reasonKey: "chat.regenFailed" };
     const decision = decidePreSendFit(
       {
         sizeBytes: model.sizeBytes,
@@ -1458,14 +1802,21 @@ export function AiChatPage({
       Date.now() - tSpin < 5000
     ) {
       const sendP = sendInFlightPromiseRef.current;
+      const remaining = 5000 - (Date.now() - tSpin);
+      if (remaining <= 0) break;
       if (sendP) {
         try {
-          await sendP;
+          // Race the in-flight send: a promise that never settles must not
+          // pin background discard past the 5s budget.
+          await Promise.race([
+            sendP,
+            new Promise<void>((r) => setTimeout(r, remaining)),
+          ]);
         } catch {
           // ignore — failure already recorded on the result
         }
       } else {
-        await new Promise((r) => setTimeout(r, 50));
+        await new Promise((r) => setTimeout(r, Math.min(50, remaining)));
       }
       // Re-assert abort each tick: a late handleSend may install a new controller
       // while sendClaimRef is still held during the fit-gate await.
@@ -1514,27 +1865,32 @@ export function AiChatPage({
     async (
       text: string,
       currentAttachments?: LocalAttachment[],
+      opts?: HandleSendOpts,
     ): Promise<HandleSendResult> => {
       const trimmed = text.trim();
+      const hasAttachments = (currentAttachments?.length ?? 0) > 0;
       // BLOCKER-3: synchronous ref check — not subject to React batching.
       // Also ignore send while a translation holds the engine (silent),
       // or while voice is listening/transcribing (voiceBusyRef is sync).
       // Audit follow-up: also belt-and-braces block while a PDF conversion
       // is in flight — the composer-side guards (onSubmitEditing, send
       // button) already block this, but handleSend can also be invoked
-      // directly (suggestion cards) so it needs its own check too.
+      // directly (suggestion cards / regen). Read pdfToRenderRef so a stale
+      // handleSend/regenerate closure cannot bypass or stay blocked.
       // regenInFlight blocks concurrent user sends; regenHandleSendPassRef is a
       // one-shot allow so regenerate/edit can call handleSend without deadlock.
       // sendClaimRef is the pre-await lock: two rapid ordinary sends must not
       // both pass the busy check and both enter the uncached fit-gate await.
+      // Attachment-only turns are allowed: modelText falls back to doc hints
+      // or a generic look-at-file prompt when trimmed is empty.
       if (
-        !trimmed ||
+        (!trimmed && !hasAttachments) ||
         sendClaimRef.current ||
         sendingRef.current ||
         translationInFlightRef.current ||
         voiceBusyRef.current ||
         (regenInFlightRef.current && !regenHandleSendPassRef.current) ||
-        !!pdfToRender ||
+        !!pdfToRenderRef.current ||
         !historyLoaded
       ) {
         return {
@@ -1556,6 +1912,17 @@ export function AiChatPage({
       // Alias used by post-await body gates (same capture as claim ownership).
       const myGen = mySendGen;
       const stillThisRun = (my: number) => regenGenerationRef.current === my;
+      const invalidateVoiceForSend = () => {
+        if (
+          isCapturing() ||
+          voiceBusyRef.current ||
+          voiceUiRef.current !== "idle"
+        ) {
+          invalidateVoice();
+        } else {
+          voiceRunIdRef.current += 1;
+        }
+      };
       sendClaimRef.current = true;
       // Install abort controller early so background lifecycle can abort this
       // turn during the fit-gate await (before sendingRef is claimed).
@@ -1605,7 +1972,7 @@ export function AiChatPage({
       // Does not call the model. History may keep the exchange for harness logs.
       // Accept /bench … and slash-free bench:… (Git Bash mangles leading / via adb).
       if (isBenchCommand(trimmed)) {
-        voiceRunIdRef.current += 1;
+        invalidateVoiceForSend();
         sendingRef.current = true;
         sendingInFlightRef.current = true;
         setSending(true);
@@ -1642,6 +2009,7 @@ export function AiChatPage({
                 role: "user",
                 text: trimmed,
                 createdAt: now,
+                ...(opts?.edited ? { edited: true } : {}),
               },
               {
                 id: assistantId,
@@ -1668,7 +2036,7 @@ export function AiChatPage({
       // fall through to the normal stream below.
       const classification = classifyChatContent(trimmed);
       if (!classification.shouldCallProvider) {
-        voiceRunIdRef.current += 1;
+        invalidateVoiceForSend();
         sendingRef.current = true;
         sendingInFlightRef.current = true;
         setSending(true);
@@ -1694,6 +2062,7 @@ export function AiChatPage({
                 text: trimmed,
                 createdAt: now,
                 attachments: gateAttachments.length > 0 ? gateAttachments : undefined,
+                ...(opts?.edited ? { edited: true } : {}),
               },
               {
                 id: assistantId,
@@ -1715,8 +2084,9 @@ export function AiChatPage({
       }
 
       // Invalidate any in-flight transcription so a late result cannot rewrite draft
-      // after this send clears it.
-      voiceRunIdRef.current += 1;
+      // after this send clears it. If a listen snuck in during the fit-gate await,
+      // cancel capture too so voiceBusyRef cannot stay stuck true.
+      invalidateVoiceForSend();
       sendingRef.current = true;
       sendingInFlightRef.current = true;
       setSending(true);
@@ -1729,7 +2099,11 @@ export function AiChatPage({
         .filter((a) => a.kind === "document" && a.libraryDocId)
         .map((a) => `[document:${a.libraryDocId} name="${a.name}"]`)
         .join(" ");
-      const modelText = docHints ? `${trimmed}\n\n${docHints}` : trimmed;
+      const modelText = trimmed
+        ? docHints
+          ? `${trimmed}\n\n${docHints}`
+          : trimmed
+        : docHints || t("chat.lookAtAttachedFile");
 
       // BLOCKER-2: module counter, no Date.now() collision
       const userMsgId = nextMsgId("u");
@@ -1758,6 +2132,7 @@ export function AiChatPage({
               text: trimmed,
               createdAt: now,
               attachments: snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
+              ...(opts?.edited ? { edited: true } : {}),
             },
             {
               id: assistantId,
@@ -1929,6 +2304,11 @@ export function AiChatPage({
           if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
             failed = true;
             failReasonKey = "chat.regenFailed";
+          } else if (controller.signal.aborted && !anyTextStreamed) {
+            // Stop / background discard with no tokens: ok:false so regen/edit
+            // restore the previous assistant instead of dropping it.
+            failed = true;
+            failReasonKey = "chat.sendAborted";
           } else if (streamResult && typeof streamResult === "object") {
             afterSessionSave = streamResult.afterSessionSave;
           }
@@ -1963,6 +2343,10 @@ export function AiChatPage({
               }
               return prev.filter(m => m.id !== assistantId);
             });
+          }
+          if (!anyTextStreamed) {
+            failed = true;
+            failReasonKey = "chat.sendAborted";
           }
           // If partial text was streamed, the finally block finalizes it cleanly — no action needed
         } else if (mountedRef.current) {
@@ -2107,7 +2491,7 @@ export function AiChatPage({
                 // queued delta first — still the correct composed result.
                 // Epoch-stamped: clearChat bumps epoch before removeItem.
                 const epoch = persistEpochRef.current;
-                persistMessagesNow(finalized, {
+                persistActiveMessages(finalized, {
                   epoch,
                   getEpoch: () => persistEpochRef.current,
                 });
@@ -2163,7 +2547,7 @@ export function AiChatPage({
               const next = applied.messages;
               messagesRef.current = next;
               const epoch = persistEpochRef.current;
-              persistMessagesNow(next, {
+              persistActiveMessages(next, {
                 epoch,
                 getEpoch: () => persistEpochRef.current,
               });
@@ -2215,6 +2599,12 @@ export function AiChatPage({
           }
         }
       }
+      if (controller.signal.aborted && !anyTextStreamed) {
+        failed = true;
+        if (failReasonKey === "chat.serviceUnreachable") {
+          failReasonKey = "chat.sendAborted";
+        }
+      }
       return failed
         ? { ok: false as const, reasonKey: failReasonKey }
         : { ok: true as const };
@@ -2227,13 +2617,17 @@ export function AiChatPage({
         }
       }
     },
-    [awaitPreSendFitGate, historyLoaded, onSendStream, pdfToRender, t, updateMessage],
+    [awaitPreSendFitGate, historyLoaded, invalidateVoice, onSendStream, t, updateMessage],
   );
 
   // Publish the active handleSend promise so background discard can await it.
   const handleSendTracked = useCallback(
-    (text: string, currentAttachments?: LocalAttachment[]) => {
-      const p = handleSend(text, currentAttachments);
+    (
+      text: string,
+      currentAttachments?: LocalAttachment[],
+      opts?: HandleSendOpts,
+    ) => {
+      const p = handleSend(text, currentAttachments, opts);
       sendInFlightPromiseRef.current = p;
       void p.finally(() => {
         if (sendInFlightPromiseRef.current === p) {
@@ -2263,7 +2657,10 @@ export function AiChatPage({
       // ownedRunId is our post-bump token: if clearChat/new-send bumps again
       // before React applies the updater, the inner gate no-ops (same reason
       // finally gates persist+messagesRef inside the setState updater).
+      // Owner transfer matches clearChat: bump regenGenerationRef BEFORE
+      // clearing sendClaimRef so a stale send finally cannot drop a newer claim.
       sendRunIdRef.current += 1;
+      regenGenerationRef.current += 1;
       const ownedRunId = sendRunIdRef.current;
       // 2) Mark streaming assistants interrupted + persist in lockstep (like finally).
       // Empty placeholders (no streamed text) are dropped, mirroring the abort path.
@@ -2284,7 +2681,7 @@ export function AiChatPage({
           });
         messagesRef.current = next;
         const epoch = persistEpochRef.current;
-        persistMessagesNow(next, {
+        persistActiveMessages(next, {
           epoch,
           getEpoch: () => persistEpochRef.current,
         });
@@ -2297,6 +2694,11 @@ export function AiChatPage({
       if (sendRunIdRef.current === ownedRunId) {
         sendingRef.current = false;
         sendingInFlightRef.current = false;
+        sendClaimRef.current = false;
+        // Stop during regen: the bumped generation makes regen's finally skip
+        // lock release — clear here so the composer does not stay regenBusy.
+        regenInFlightRef.current = false;
+        regenHandleSendPassRef.current = false;
         setSending(false);
       }
     }, 3000);
@@ -2316,11 +2718,21 @@ export function AiChatPage({
   }, [messages, t]);
 
   const clearChat = useCallback(() => {
+    if (onNewConversation && historyLoadedRef.current && messagesRef.current.length === 0) {
+      return;
+    }
     abortRef.current?.abort();
+    // Flush the current conversation BEFORE bumping the persist epoch so
+    // "new chat" cannot drop the last un-debounced write of the old thread.
+    persistActiveMessages(messagesRef.current, {
+      allowStreamingPartial: true,
+      epoch: persistEpochRef.current,
+      getEpoch: () => persistEpochRef.current,
+    });
     // U1: invalidate any in-flight send turn so its later finally/bench/gate
     // reset cannot clobber the synchronous reset below.
     sendRunIdRef.current += 1;
-    // Persistence epoch FIRST: every delayed write is epoch-stamped; bumping
+    // Persistence epoch: every delayed write is epoch-stamped; bumping
     // here makes pending debounce / safety-net / AppState / unmount setItems
     // no-ops even if they already hold a pre-clear messages closure.
     persistEpochRef.current += 1;
@@ -2354,12 +2766,14 @@ export function AiChatPage({
     setDraft("");
     // U9: reset any in-flight PDF conversion so a stale WebView/instance never
     // resurfaces attachments or a stuck "Reading pages…" composer state.
+    pdfToRenderRef.current = null;
     setPdfToRender(null);
     pdfPagesRef.current = [];
     setAttachSheetOpen(false);
     // Audit follow-up: also drop already-queued attachments — otherwise a
     // stale chip (image/PDF picked before "New chat") rides into the fresh
     // conversation and gets sent with the next message.
+    attachedItemsRef.current = [];
     setAttachedItems([]);
     // Voice: invalidate transcription token, cancel capture, stop TTS, clear UI.
     voiceRunIdRef.current += 1;
@@ -2380,23 +2794,28 @@ export function AiChatPage({
     setTranslatingId(null);
     setTranslationResult(null);
     setCopiedFlash(false);
-    // Epoch already bumped above — removeItem after so a racing setItem is dropped.
-    AsyncStorage.removeItem(HISTORY_KEY).catch(() => undefined);
-    // Drop native KV so a restored empty chat cannot reuse stale prefill.
-    const activeId = getActiveModelId();
-    if (activeId) void invalidateEngineSession(activeId);
-  }, [setVoicePhase]);
+    // Do not removeItem the previous conversation's messages — parent owns
+    // the index and inserts a new empty conversation.
+    if (onNewConversation) {
+      onNewConversation();
+    } else {
+      const activeId = getActiveModelId();
+      if (activeId) void invalidateEngineSession(activeId);
+    }
+  }, [onNewConversation, persistActiveMessages, setVoicePhase]);
 
   /**
-   * Find the original user text that produced a target message in a slice.
-   * Walks backwards for the nearest user message at or before the end of the slice.
+   * Find the original user turn that produced a target message in a slice.
+   * Walks backwards for the nearest user message with text and/or attachments
+   * (captionless image turns are valid regen sources).
    */
-  const findOriginalUserText = useCallback((slice: Message[]): string | null => {
+  const findOriginalUserMessage = useCallback((slice: Message[]): Message | null => {
     for (let i = slice.length - 1; i >= 0; i -= 1) {
       const m = slice[i];
-      if (m && m.role === "user" && typeof m.text === "string" && m.text.trim()) {
-        return m.text;
-      }
+      if (!m || m.role !== "user") continue;
+      const hasText = typeof m.text === "string" && !!m.text.trim();
+      const hasAttachments = (m.attachments?.length ?? 0) > 0;
+      if (hasText || hasAttachments) return m;
     }
     return null;
   }, []);
@@ -2430,10 +2849,12 @@ export function AiChatPage({
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
         const slice = messagesRef.current.slice(0, targetIndex + 1);
-        const originalUserText = findOriginalUserText(slice);
-        if (!originalUserText) {
+        const originalUser = findOriginalUserMessage(slice);
+        if (!originalUser) {
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
+        const originalUserText = originalUser.text ?? "";
+        const originalAttachments = originalUser.attachments;
         // Truncate to target (keep target and everything before).
         // For assistant targets we drop the assistant bubble so handleSend can
         // append a fresh user+assistant pair from the original user text —
@@ -2476,7 +2897,10 @@ export function AiChatPage({
           }
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
-        const sendResult = await handleSendTracked(originalUserText);
+        const sendResult = await handleSendTracked(
+          originalUserText,
+          originalAttachments,
+        );
         // clearChat during handleSend: do not rollback into the new chat.
         if (regenGenerationRef.current !== myGeneration) {
           return { ok: false, reasonKey: "chat.regenFailed" };
@@ -2524,8 +2948,14 @@ export function AiChatPage({
         }
       }
     },
-    [findOriginalUserText, handleSendTracked],
+    [findOriginalUserMessage, handleSendTracked],
   );
+
+  const regenerateRef = useRef(regenerate);
+  regenerateRef.current = regenerate;
+  const onRegenerateStable = useCallback((id: string) => {
+    void regenerateRef.current(id);
+  }, []);
 
   /**
    * Edit a user message then regenerate from that point.
@@ -2540,13 +2970,18 @@ export function AiChatPage({
       newText: string,
     ): Promise<{ ok: true } | { ok: false; reasonKey: string }> => {
       const trimmed = newText.trim();
-      if (!trimmed) return { ok: false, reasonKey: "chat.regenFailed" };
       if (
         regenInFlightRef.current ||
         sendingRef.current ||
         sendClaimRef.current
       ) {
         return { ok: false, reasonKey: "chat.regenBusy" };
+      }
+      const editTarget = messagesRef.current.find((m) => m.id === targetMsgId);
+      const editHasAttachments = (editTarget?.attachments?.length ?? 0) > 0;
+      // Same as send: empty caption is valid when attachments remain.
+      if (!trimmed && !editHasAttachments) {
+        return { ok: false, reasonKey: "chat.editEmpty" };
       }
       // Capture generation at acquire (before any await).
       const myGeneration = regenGenerationRef.current;
@@ -2603,11 +3038,13 @@ export function AiChatPage({
           }
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
-        // handleSend appends a fresh user message; mark edited after it lands
-        // by patching the last user message once send starts. We pass edited
-        // text as the send body; then stamp edited on the new user bubble.
-        const sendResult = await handleSendTracked(trimmed);
-        // clearChat during handleSend: do not rollback or stamp the new chat.
+        // handleSend appends the user bubble with edited:true at creation so
+        // a live stream cannot be patched mid-flight (and the badge is on
+        // the bubble from the first paint).
+        const sendResult = await handleSendTracked(trimmed, target.attachments, {
+          edited: true,
+        });
+        // clearChat during handleSend: do not rollback into the new chat.
         if (regenGenerationRef.current !== myGeneration) {
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
@@ -2626,28 +3063,6 @@ export function AiChatPage({
           }
           return { ok: false, reasonKey: sendResult.reasonKey || "chat.regenFailed" };
         }
-        // Stamp edited on the user message that handleSend just appended.
-        // Gate again: generation may have moved between the check above and
-        // this updater if another clear raced in (defensive; updater may also
-        // run async relative to this call stack on some RN schedulers).
-        if (regenGenerationRef.current !== myGeneration) {
-          return { ok: false, reasonKey: "chat.regenFailed" };
-        }
-        setMessages((prev) => {
-          // Stale stamp must not mark a newer conversation's user bubble.
-          if (regenGenerationRef.current !== myGeneration) {
-            return prev;
-          }
-          const next = prev.slice();
-          for (let i = next.length - 1; i >= 0; i -= 1) {
-            if (next[i]?.role === "user") {
-              next[i] = { ...next[i], text: trimmed, edited: true };
-              break;
-            }
-          }
-          messagesRef.current = next;
-          return next;
-        });
         return { ok: true };
       } catch {
         if (regenGenerationRef.current !== myGeneration) {
@@ -2678,22 +3093,41 @@ export function AiChatPage({
     [handleSendTracked],
   );
 
+  // A live turn must not keep an edit sheet open: Save would race the stream
+  // (stamp / truncate while tokens still land). Close both overlays on send.
+  useEffect(() => {
+    if (!sending) return;
+    setEditingMessage(null);
+    setMessageMenu(null);
+  }, [sending]);
+
+  useEffect(() => {
+    if (messageMenu) return;
+    if (messageMenuCloseTimer.current) {
+      clearTimeout(messageMenuCloseTimer.current);
+      messageMenuCloseTimer.current = null;
+    }
+  }, [messageMenu]);
+
   /** Open message action sheet (Copy + Translate + Read aloud + Regen/Edit). No-op while streaming / engine busy. */
   const openMessageMenu = useCallback(
     (id: string, text: string, role: Message["role"], streaming?: boolean) => {
       // Skip while this message streams, a chat turn is in flight, or a translate is running.
       // Refs ONLY (no state reads): ChatMessageRow's memo comparator ignores
-      // callback identity, so a state-capturing closure would freeze inside
-      // memoized rows (user rows created mid-send froze sending=true and their
-      // long-press menu died — hostile-review finding 1a). sendingRef /
-      // translationInFlightRef mirror the state synchronously and keep this
-      // callback identity-stable, which is what makes the memo safe.
+      // most callback identity, so a state-capturing closure would freeze
+      // inside memoized rows (user rows created mid-send froze sending=true
+      // and their long-press menu died — hostile-review finding 1a).
+      // sendingRef / translationInFlightRef / messagesRef keep this callback
+      // identity-stable. onRegenerate is compared so a stale regen cannot
+      // bypass or stay blocked on the PDF-in-flight gate.
+      const menuMsg = messagesRef.current.find((m) => m.id === id);
+      const hasAttachments = (menuMsg?.attachments?.length ?? 0) > 0;
       if (
         streaming ||
         sendingRef.current ||
         translationInFlightRef.current ||
         regenInFlightRef.current ||
-        !text.trim()
+        (!text.trim() && !hasAttachments)
       ) {
         return;
       }
@@ -2705,9 +3139,13 @@ export function AiChatPage({
   const copyTextToClipboard = useCallback(async (value: string): Promise<boolean> => {
     try {
       await Clipboard.setStringAsync(value);
-      setCopiedFlash(true);
-      if (copiedFlashTimer.current) clearTimeout(copiedFlashTimer.current);
-      copiedFlashTimer.current = setTimeout(() => setCopiedFlash(false), 1500);
+      if (mountedRef.current) {
+        setCopiedFlash(true);
+        if (copiedFlashTimer.current) clearTimeout(copiedFlashTimer.current);
+        copiedFlashTimer.current = setTimeout(() => {
+          if (mountedRef.current) setCopiedFlash(false);
+        }, 1500);
+      }
       return true;
     } catch {
       // fallback: share sheet if clipboard write fails
@@ -2795,7 +3233,7 @@ export function AiChatPage({
   const voiceBlocksComposer = voiceUi !== "idle" || voiceBusyRef.current;
   const canSend = useMemo(
     () =>
-      !!draft.trim() &&
+      (!!draft.trim() || attachedItems.length > 0) &&
       !sending &&
       !translatingId &&
       historyLoaded &&
@@ -2804,8 +3242,35 @@ export function AiChatPage({
       // flight — otherwise the late handlePdfDone queues the PDF chip into
       // the NEXT message instead of the one being sent now.
       !pdfToRender,
-    [draft, historyLoaded, pdfToRender, sending, translatingId, voiceBlocksComposer],
+    [
+      attachedItems.length,
+      draft,
+      historyLoaded,
+      pdfToRender,
+      sending,
+      translatingId,
+      voiceBlocksComposer,
+    ],
   );
+
+  const onComposerAttach = useCallback(() => {
+    if (voiceBusyRef.current || voiceUiRef.current !== "idle" || pdfToRenderRef.current) {
+      return;
+    }
+    setAttachSheetOpen(true);
+  }, []);
+
+  const onComposerSendOrStop = useCallback(() => {
+    if (sendingRef.current) {
+      handleStop();
+      return;
+    }
+    if (pdfToRenderRef.current) return;
+    const text = draftRef.current;
+    const attachments = attachedItemsRef.current;
+    if (!text.trim() && attachments.length === 0) return;
+    handleSendTracked(text, attachments);
+  }, [handleSendTracked, handleStop]);
 
   // ── Attach chip color helper ────────────────────────────────────────────
   function chipColorForKind(kind: LocalAttachment["kind"]) {
@@ -2844,6 +3309,226 @@ export function AiChatPage({
     [showVoiceNote, t],
   );
 
+  useEffect(() => {
+    const doc = attachLibraryDoc;
+    if (!doc?.id) return;
+    addLibraryDocumentAttachment({ id: doc.id, name: doc.name });
+  }, [addLibraryDocumentAttachment, attachLibraryDoc]);
+
+  const importAndAttachDocx = useCallback(
+    async (uri: string, name: string) => {
+      if (!mountedRef.current) return;
+      if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
+        showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+        return;
+      }
+      showVoiceNote(t("documents.importingWord"));
+      const resolvedSize = await resolveAssetSizeBytes(uri);
+      if (!mountedRef.current) return;
+      // Images inside the zip are skipped; the 50 MiB cap is the container, the 10 MiB cap is inflated text.
+      const sizeCheck = sizeWithinLimits(resolvedSize, "docx");
+      if (!sizeCheck.ok) {
+        if (sizeCheck.reason === "empty") {
+          showVoiceNote(t("documents.errorEmpty"));
+        } else if (sizeCheck.reason === "too_large") {
+          showVoiceNote(
+            t("documents.errorTooLarge", {
+              max: formatBytesLocalized(MAX_DOCUMENT_BYTES, locale),
+            }),
+          );
+        } else {
+          showVoiceNote(t("documents.errorDocx"));
+        }
+        return;
+      }
+      let text = "";
+      try {
+        text = await extractDocxTextFromFile(uri);
+      } catch (error) {
+        if (!mountedRef.current) return;
+        if (error instanceof DocxExtractError) {
+          if (error.code === "DOCX_EMPTY") {
+            showVoiceNote(t("documents.errorEmpty"));
+          } else if (error.code === "DOCX_TOO_LARGE") {
+            showVoiceNote(
+              t("documents.errorTooLarge", {
+                max: formatBytesLocalized(MAX_TEXT_BYTES, locale),
+              }),
+            );
+          } else {
+            showVoiceNote(t("documents.errorDocx"));
+          }
+        } else {
+          showVoiceNote(t("documents.errorDocx"));
+        }
+        return;
+      }
+      if (!mountedRef.current) return;
+      if (new TextEncoder().encode(text).length > MAX_TEXT_BYTES) {
+        showVoiceNote(
+          t("documents.errorTooLarge", {
+            max: formatBytesLocalized(MAX_TEXT_BYTES, locale),
+          }),
+        );
+        return;
+      }
+      if (attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS) {
+        showVoiceNote(t("errors.attachmentLimitReached", { max: MAX_IMAGE_ATTACHMENTS }));
+        return;
+      }
+      const id = nextLibraryDocId();
+      let ownedUri: string;
+      try {
+        ownedUri = await writeOwnedText(id, text);
+      } catch (err) {
+        if (!mountedRef.current) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        showVoiceNote(
+          msg === "NO_DOCUMENT_DIRECTORY"
+            ? t("documents.errorStorage")
+            : t("documents.errorDocx"),
+        );
+        return;
+      }
+      if (!mountedRef.current) {
+        await deleteOwnedFile(ownedUri);
+        return;
+      }
+      if (!onAddDocument) {
+        await deleteOwnedFile(ownedUri);
+        showVoiceNote(t("documents.errorSave"));
+        return;
+      }
+      const entry: LibraryDoc = {
+        id,
+        name,
+        sourceId: id,
+        kind: "txt",
+        addedAt: Date.now(),
+        sizeBytes: new TextEncoder().encode(text).length,
+        docCount: 1,
+        fileUri: ownedUri,
+        extractionStatus: "ok",
+        estimatedTokens: estimateTokensForDoc(text),
+      };
+      if (!onAddDocument(entry)) {
+        await deleteOwnedFile(ownedUri);
+        if (mountedRef.current) showVoiceNote(t("documents.errorBusy"));
+        return;
+      }
+      addLibraryDocumentAttachment({ id, name });
+    },
+    [addLibraryDocumentAttachment, locale, onAddDocument, showVoiceNote, t],
+  );
+  importAndAttachDocxRef.current = importAndAttachDocx;
+
+  const keyExtractor = useCallback((m: Message) => m.id, []);
+
+  const listContentContainerStyle = useMemo(
+    () => ({
+      paddingTop: 160,
+      paddingBottom: spacing.md,
+      paddingHorizontal: spacing.md,
+    }),
+    [],
+  );
+
+  const handleListScroll = useCallback((e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    // Inverted list: offset 0 is the visual bottom (newest message).
+    atBottomRef.current = e.nativeEvent.contentOffset.y <= 48;
+  }, []);
+
+  const handleListContentSizeChange = useCallback(() => {
+    // Follow the stream only when the user is at the bottom; never yank when scrolled up.
+    if (atBottomRef.current) {
+      scrollViewRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+  }, []);
+
+  const listExtraData = useMemo(
+    () => ({
+      translatingId,
+      translationResult,
+      colors,
+      t,
+      locale,
+    }),
+    [
+      translatingId,
+      translationResult,
+      colors,
+      t,
+      locale,
+    ],
+  );
+
+  const renderMessageItem = useCallback(
+    ({ item: m, index: i }: ListRenderItemInfo<Message>) => {
+      // Inverted list: the message visually ABOVE row i is data[i+1]
+      // (the next-newer one). Gap/divider logic mirrors the old
+      // pre-inversion code with that neighbor.
+      const list = reversedMessagesRef.current;
+      const above = list[i + 1];
+      const isTurnStart = !above || above.role !== m.role;
+      // Visually topmost row = oldest message = last index of reversed data.
+      // (Pre-inversion: idx===0 was oldest at top with topGap 0.)
+      const topGap =
+        i === list.length - 1
+          ? 0
+          : isTurnStart
+            ? spacing.lg
+            : spacing.md;
+      const showDayDivider = !above || !isSameDay(above.createdAt, m.createdAt);
+      const dayLabel = showDayDivider ? formatDayLabel(m.createdAt, t, locale) : null;
+      return (
+        <ChatMessageRow
+          key={m.id}
+          message={m}
+          topGap={topGap}
+          dayLabel={dayLabel}
+          isFirst={i === list.length - 1}
+          isTranslating={translatingId === m.id}
+          translationResult={translationResult?.id === m.id ? translationResult : null}
+          translationExpanded={
+            translationResult?.id === m.id ? translationExpanded : false
+          }
+          colors={colors}
+          typography={rowTypography}
+          t={t}
+          onOpenMessageMenu={openMessageMenu}
+          onCopyText={(text) => { void copyTextToClipboard(text); }}
+          onSpeak={handleReadAloud}
+          onRegenerate={onRegenerateStable}
+          isSpeaking={speakingId === m.id}
+          onCloseTranslation={closeTranslation}
+          onRetryTranslate={runTranslate}
+          onToggleTranslationExpanded={toggleTranslationExpanded}
+          onOpenMiniapp={onOpenMiniapp}
+          onCtaPress={onCtaPress}
+        />
+      );
+    },
+    [
+      closeTranslation,
+      colors,
+      copyTextToClipboard,
+      handleReadAloud,
+      locale,
+      onCtaPress,
+      onOpenMiniapp,
+      onRegenerateStable,
+      openMessageMenu,
+      rowTypography,
+      runTranslate,
+      speakingId,
+      t,
+      toggleTranslationExpanded,
+      translatingId,
+      translationExpanded,
+      translationResult,
+    ],
+  );
+
   return (
     // Manual padding from the lib's animated keyboard height — the lib KAV's
     // frame-diff formula under-lifted by a constant on API 34/35 emulators and
@@ -2853,78 +3538,13 @@ export function AiChatPage({
     <Animated.View style={[{ flex: 1, backgroundColor: colors.shell }, kbPad]}>
 
       {/* ── Nav bar ── */}
-      <View
-        style={{
-          // No top inset here: AppShell's model bar sits directly above this row
-          // and already applies `insets.top`. Applying it again reserved the
-          // status-bar height a second time and left an empty band under the
-          // model name — invisible while surfaces were translucent, obvious once
-          // this header got an opaque background and a bottom border.
-          // `insets.bottom` is still used below, for the composer.
-          backgroundColor: colors.shell,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.line,
-        }}
-      >
-        <View
-          style={{
-            height: 48,
-            flexDirection: "row",
-            alignItems: "center",
-            paddingHorizontal: spacing.md,
-          }}
-        >
-          {/* Left: hamburger → drawer (settings) */}
-          <Pressable
-            onPress={onMenuPress}
-            accessibilityLabel={t("chat.a11yMenu")}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Menu size={20} color={colors.ink} />
-          </Pressable>
-
-          {/* Center spacer — model name/status lives in AppShell header */}
-          <View style={{ flex: 1 }} />
-
-          {/* Right: export chat */}
-          <Pressable
-            onPress={exportChat}
-            hitSlop={8}
-            accessibilityLabel={t("chat.a11yExport")}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <Download size={18} color={colors.muted} />
-          </Pressable>
-
-          {/* Right: new chat */}
-          <Pressable
-            onPress={clearChat}
-            hitSlop={8}
-            accessibilityLabel={t("chat.a11yNewChat")}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: pressed ? 0.6 : 1,
-            })}
-          >
-            <SquarePen size={18} color={colors.muted} />
-          </Pressable>
-        </View>
-      </View>
+      <ChatNavBar
+        colors={colors}
+        t={t}
+        onMenuPress={onMenuPress}
+        onExport={exportChat}
+        onNewChat={clearChat}
+      />
 
       {/* ── Selected run banner ── */}
       {selectedRun ? (
@@ -2985,7 +3605,9 @@ export function AiChatPage({
       ) : null}
 
       {/* ── Messages / welcome ── */}
-      {messages.length === 0 ? (
+      {!historyLoaded ? (
+        <View style={{ flex: 1 }} />
+      ) : messages.length === 0 ? (
         // HIGH-1 (Jelly 480×854): welcome chips must NOT cover the composer.
         // flex:1 + ScrollView keeps the EditText always in the tree and tappable;
         // on tall screens the list simply does not scroll.
@@ -3000,14 +3622,62 @@ export function AiChatPage({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Greeting */}
-          <Text style={[typography.displayMd, { color: colors.ink, marginBottom: spacing.xs }]}>
-            {greeting}
-            {userName ? (
-              <Text style={{ color: colors.accent }}>{`, ${userName}`}</Text>
+          {/* Greeting — optional sage plate (raster has no letters). */}
+          <View
+            style={
+              showEmptyArt
+                ? {
+                    marginBottom: spacing.xs,
+                    borderRadius: radius.lg,
+                    overflow: "hidden",
+                    aspectRatio: 4 / 3,
+                    justifyContent: "center",
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.md,
+                  }
+                : { marginBottom: spacing.xs }
+            }
+          >
+            {showEmptyArt ? (
+              <Image
+                source={EMPTY_STATE_RASTER}
+                style={{
+                  position: "absolute",
+                  width: "100%",
+                  height: "100%",
+                }}
+                resizeMode="cover"
+                resizeMethod="resize"
+                accessible={false}
+                importantForAccessibility="no"
+                onError={() => setEmptyArtFailed(true)}
+              />
             ) : null}
-            {"."}
-          </Text>
+            {showEmptyArt && mode === "dark" ? (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: colors.shell,
+                  opacity: 0.78,
+                }}
+              />
+            ) : null}
+            <Text
+              style={[
+                typography.displayXl,
+                { color: colors.ink, maxWidth: showEmptyArt ? "70%" : undefined },
+              ]}
+            >
+              {greeting}
+              {userName ? (
+                <Text style={{ color: colors.accent }}>{`, ${userName}`}</Text>
+              ) : null}
+              {"."}
+            </Text>
+          </View>
           <Text style={[typography.bodyMd, { color: colors.muted, marginBottom: spacing.xl }]}>
             {t("chat.welcomePrompt")}
           </Text>
@@ -3063,68 +3733,22 @@ export function AiChatPage({
         <FlatList
           ref={scrollViewRef}
           data={reversedMessages}
-          keyExtractor={(m) => m.id}
+          extraData={listExtraData}
+          keyExtractor={keyExtractor}
           inverted
           // Visual bottom padding (below the newest message): with `inverted`
           // the content container is flipped, so paddingTop lands at the
           // visual bottom.
-          contentContainerStyle={{ paddingTop: 160, paddingBottom: spacing.md, paddingHorizontal: spacing.md }}
+          contentContainerStyle={listContentContainerStyle}
           keyboardShouldPersistTaps="handled"
           style={{ flex: 1 }}
           initialNumToRender={12}
           maxToRenderPerBatch={10}
           windowSize={7}
-          onScroll={(e) => {
-            // Inverted list: offset 0 is the visual bottom (newest message).
-            const { contentOffset } = e.nativeEvent;
-            atBottomRef.current = contentOffset.y <= 48;
-          }}
+          onScroll={handleListScroll}
           scrollEventThrottle={32}
-          onContentSizeChange={() => {
-            // Follow the stream only when the user is at the bottom; never
-            // yank when scrolled up.
-            if (atBottomRef.current) {
-              scrollViewRef.current?.scrollToOffset({ offset: 0, animated: false });
-            }
-          }}
-          renderItem={({ item: m, index: i }) => {
-            // Inverted list: the message visually ABOVE row i is data[i+1]
-            // (the next-newer one). Gap/divider logic mirrors the old
-            // pre-inversion code with that neighbor.
-            const above = reversedMessages[i + 1];
-            const isTurnStart = !above || above.role !== m.role;
-            // Visually topmost row = oldest message = last index of reversed data.
-            // (Pre-inversion: idx===0 was oldest at top with topGap 0.)
-            const topGap =
-              i === reversedMessages.length - 1
-                ? 0
-                : isTurnStart
-                  ? spacing.lg
-                  : spacing.md;
-            const showDayDivider = !above || !isSameDay(above.createdAt, m.createdAt);
-            const dayLabel = showDayDivider ? formatDayLabel(m.createdAt, t, locale) : null;
-            return (
-              <ChatMessageRow
-                key={m.id}
-                message={m}
-                topGap={topGap}
-                dayLabel={dayLabel}
-                isFirst={i === reversedMessages.length - 1}
-                isTranslating={translatingId === m.id}
-                translationResult={translationResult?.id === m.id ? translationResult : null}
-                translationExpanded={translationExpanded}
-                colors={colors}
-                t={t}
-                onOpenMessageMenu={openMessageMenu}
-                onCopyText={(text) => { void copyTextToClipboard(text); }}
-                onCloseTranslation={closeTranslation}
-                onRetryTranslate={runTranslate}
-                onToggleTranslationExpanded={toggleTranslationExpanded}
-                onOpenMiniapp={onOpenMiniapp}
-                onCtaPress={onCtaPress}
-              />
-            );
-          }}
+          onContentSizeChange={handleListContentSizeChange}
+          renderItem={renderMessageItem}
         />
       )}
 
@@ -3167,34 +3791,65 @@ export function AiChatPage({
           >
             {attachedItems.map(item => {
               const { dot, bg } = chipColorForKind(item.kind);
+              const libraryCover =
+                item.kind === "document" && item.libraryDocId
+                  ? documentLibrary?.docs.find((d) => d.id === item.libraryDocId)
+                      ?.previewUri
+                  : undefined;
+              const thumbUri =
+                item.kind === "image" && item.uri
+                  ? item.uri
+                  : item.kind === "pdf" && item.pages?.[0]
+                    ? item.pages[0]
+                    : libraryCover;
               return (
                 <View
                   key={item.id}
+                  accessibilityLabel={item.name}
                   style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 4,
+                    width: 56,
+                    height: 72,
+                    borderRadius: 12,
+                    overflow: "hidden",
                     backgroundColor: bg,
-                    borderRadius: radius.pill,
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  {item.kind === "image" ? (
-                    <ImageIcon size={11} color={dot} />
+                  {thumbUri ? (
+                    <Image
+                      source={{ uri: thumbUri }}
+                      style={{ width: 56, height: 72 }}
+                      resizeMode="cover"
+                      accessible={false}
+                      importantForAccessibility="no"
+                    />
+                  ) : item.kind === "image" ? (
+                    <ImageIcon size={22} color={dot} />
                   ) : item.kind === "document" ? (
-                    <BookOpen size={11} color={dot} />
+                    <BookOpen size={22} color={dot} />
                   ) : (
-                    <FileText size={11} color={dot} />
+                    <FileText size={22} color={dot} />
                   )}
-                  <Text numberOfLines={1} style={[typography.bodyXs, { color: colors.ink, maxWidth: 140 }]}>
-                    {item.name}
-                  </Text>
                   <Pressable
                     onPress={() =>
                       setAttachedItems(prev => prev.filter(a => a.id !== item.id))
                     }
                     hitSlop={8}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={t("chat.a11yRemoveAttachment")}
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      right: 2,
+                      width: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      backgroundColor: colors.panelSolid,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
                   >
                     <X size={12} color={colors.muted} />
                   </Pressable>
@@ -3263,137 +3918,19 @@ export function AiChatPage({
             />
           </Pressable>
 
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginTop: spacing.xs,
-            }}
-          >
-            {/* Left: attach and other action icons */}
-            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-              {/* Attach: foto/PDF per la vision — blocked during voice capture/transcribe */}
-              {/* U2: also blocked while a PDF conversion is in flight — reusing the
-                  attach sheet mid-conversion is what causes the stuck-composer bug. */}
-              <Pressable
-                onPress={() => {
-                  if (voiceBusyRef.current || voiceUi !== "idle" || pdfToRender) return;
-                  setAttachSheetOpen(true);
-                }}
-                disabled={sending || voiceBlocksComposer || !!pdfToRender}
-                accessibilityLabel={t("chat.a11yAttach")}
-                style={({ pressed }) => ({
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: colors.panel,
-                  borderWidth: 1,
-                  borderColor: colors.line,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity:
-                    sending || voiceBlocksComposer || pdfToRender ? 0.45 : pressed ? 0.7 : 1,
-                })}
-              >
-                <Plus color={colors.muted} size={18} />
-              </Pressable>
-            </View>
-
-            {/* Right: mic + send/stop */}
-            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-              {/* Mic: tap to talk → stop → draft (on-device whisper).
-                  Disabled while sending/transcribing; stays pressable when model
-                  missing so the user still gets the download hint. Listening stays
-                  enabled so the user can stop. */}
-              <Pressable
-                onPress={() => {
-                  void handleMicPress();
-                }}
-                disabled={sending || voiceUi === "transcribing"}
-                accessibilityState={{
-                  disabled: sending || voiceUi === "transcribing",
-                  busy: voiceUi === "transcribing",
-                }}
-                accessibilityLabel={
-                  voiceUi === "listening"
-                    ? t("voice.a11yMicStop")
-                    : !voiceReady
-                      ? t("voice.modelMissing")
-                      : t("voice.a11yMic")
-                }
-                style={({ pressed }) => ({
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor:
-                    voiceUi === "listening"
-                      ? (colors.bad ?? "#c0392b")
-                      : colors.panel,
-                  borderWidth: 1,
-                  borderColor: voiceUi === "listening" ? (colors.bad ?? "#c0392b") : colors.line,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity:
-                    sending || voiceUi === "transcribing"
-                      ? 0.45
-                      : pressed
-                        ? 0.7
-                        : voiceReady
-                          ? 1
-                          : 0.55,
-                })}
-              >
-                <Mic
-                  color={
-                    voiceUi === "listening" ? colors.primaryText : colors.muted
-                  }
-                  size={18}
-                />
-              </Pressable>
-
-              {/* Stop button during streaming; Send when ready; dimmed when empty+idle */}
-              {sending ? (
-                <Pressable
-                  onPress={handleStop}
-                  accessibilityLabel={t("chat.a11yStop")}
-                  style={({ pressed }) => ({
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: colors.accent,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: pressed ? 0.85 : 1,
-                  })}
-                >
-                  <Square size={16} color={colors.primaryText} />
-                </Pressable>
-              ) : (
-                <Pressable
-                  onPress={() => {
-                    if (pdfToRender) return;
-                    handleSendTracked(draft, attachedItems);
-                  }}
-                  disabled={!canSend}
-                  accessibilityLabel={t("chat.a11ySend")}
-                  accessibilityElementsHidden={!canSend}
-                  importantForAccessibility={canSend ? "yes" : "no-hide-descendants"}
-                  style={({ pressed }) => ({
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: colors.accent,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: canSend ? (pressed ? 0.85 : 1) : 0,
-                  })}
-                >
-                  <Send color={colors.primaryText} size={18} />
-                </Pressable>
-              )}
-            </View>
-          </View>
+          <ComposerActionRow
+            canSend={canSend}
+            sending={sending}
+            pdfBlocked={!!pdfToRender}
+            voiceBlocksComposer={voiceBlocksComposer}
+            voiceUi={voiceUi}
+            voiceReady={voiceReady}
+            colors={colors}
+            t={t}
+            onAttach={onComposerAttach}
+            onMic={handleMicPress}
+            onSendOrStop={onComposerSendOrStop}
+          />
         </View>
       </View>
 
@@ -3429,17 +3966,34 @@ export function AiChatPage({
                   {copiedFlash ? t("common.copied") : t("chat.a11yLongPress")}
                 </Text>
                 <AttachSheetRow
-                  icon={<Copy size={18} color={colors.ink} />}
+                  icon={<BrandIcon name="copy" size={22} />}
                   label={copiedFlash ? t("common.copied") : t("common.copy")}
                   onPress={() => {
                     // Keep menu open ~400ms with "Copied!" so feedback is visible.
                     void (async () => {
                       await copyTextToClipboard(messageMenu.text);
-                      setTimeout(() => setMessageMenu(null), 400);
+                      if (messageMenuCloseTimer.current) {
+                        clearTimeout(messageMenuCloseTimer.current);
+                      }
+                      messageMenuCloseTimer.current = setTimeout(() => {
+                        messageMenuCloseTimer.current = null;
+                        if (mountedRef.current) setMessageMenu(null);
+                      }, 400);
                     })();
                   }}
                   colors={colors}
                 />
+                {onSaveToNotes ? (
+                  <AttachSheetRow
+                    icon={<ClipboardList size={18} color={colors.ink} />}
+                    label={t("notes.saveToNotes")}
+                    onPress={() => {
+                      onSaveToNotes(messageMenu.text);
+                      setMessageMenu(null);
+                    }}
+                    colors={colors}
+                  />
+                ) : null}
                 <AttachSheetRow
                   icon={<Languages size={18} color={colors.ink} />}
                   label={t("translate.title")}
@@ -3564,8 +4118,14 @@ export function AiChatPage({
                   onPress={() => {
                     const id = editingMessage.id;
                     const draft = editingMessage.draft;
-                    setEditingMessage(null);
-                    void editMessage(id, draft);
+                    void editMessage(id, draft).then((res) => {
+                      if (!mountedRef.current) return;
+                      if (!res.ok) {
+                        showVoiceNote(t(res.reasonKey as any));
+                        return;
+                      }
+                      setEditingMessage(null);
+                    });
                   }}
                   accessibilityLabel={t("common.save")}
                   style={({ pressed }) => ({
@@ -3617,7 +4177,7 @@ export function AiChatPage({
                 />
                 <AttachSheetRow
                   icon={<FileText size={18} color={colors.ink} />}
-                  label={t("chat.pdfDocument")}
+                  label={t("chat.pdfOrWord")}
                   onPress={() => void addPdfAttachment()}
                   colors={colors}
                 />
@@ -3699,7 +4259,7 @@ export function AiChatPage({
         >
           <Text
             style={{
-              fontFamily: MONO_FONT,
+              fontFamily: fontFamilies.mono,
               fontSize: 10,
               color: colors.shell,
             }}
@@ -3711,6 +4271,231 @@ export function AiChatPage({
     </Animated.View>
   );
 }
+
+const ChatNavBar = React.memo(function ChatNavBar({
+  colors,
+  t,
+  onMenuPress,
+  onExport,
+  onNewChat,
+}: {
+  colors: any;
+  t: TranslateFn;
+  onMenuPress?: () => void;
+  onExport: () => void;
+  onNewChat: () => void;
+}) {
+  return (
+    <View
+      style={{
+        // No top inset here: AppShell's model bar sits directly above this row
+        // and already applies `insets.top`. Applying it again reserved the
+        // status-bar height a second time and left an empty band under the
+        // model name — invisible while surfaces were translucent, obvious once
+        // this header got an opaque background and a bottom border.
+        // `insets.bottom` is still used below, for the composer.
+        backgroundColor: colors.shell,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.line,
+      }}
+    >
+      <View
+        style={{
+          height: 48,
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: spacing.md,
+        }}
+      >
+        <Pressable
+          onPress={onMenuPress}
+          accessibilityLabel={t("chat.a11yMenu")}
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <Menu size={20} color={colors.ink} />
+        </Pressable>
+
+        <View style={{ flex: 1 }} />
+
+        <Pressable
+          onPress={onExport}
+          hitSlop={8}
+          accessibilityLabel={t("chat.a11yExport")}
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <BrandIcon name="share" size={28} />
+        </Pressable>
+
+        <Pressable
+          onPress={onNewChat}
+          hitSlop={8}
+          accessibilityLabel={t("chat.a11yNewChat")}
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.6 : 1,
+          })}
+        >
+          <BrandIcon name="new-chat" size={28} />
+        </Pressable>
+      </View>
+    </View>
+  );
+});
+
+const ComposerActionRow = React.memo(function ComposerActionRow({
+  canSend,
+  sending,
+  pdfBlocked,
+  voiceBlocksComposer,
+  voiceUi,
+  voiceReady,
+  colors,
+  t,
+  onAttach,
+  onMic,
+  onSendOrStop,
+}: {
+  canSend: boolean;
+  sending: boolean;
+  pdfBlocked: boolean;
+  voiceBlocksComposer: boolean;
+  voiceUi: VoiceUiState;
+  voiceReady: boolean;
+  colors: any;
+  t: TranslateFn;
+  onAttach: () => void;
+  onMic: () => void;
+  onSendOrStop: () => void;
+}) {
+  const attachDisabled = sending || voiceBlocksComposer || pdfBlocked;
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginTop: spacing.xs,
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+        <Pressable
+          onPress={onAttach}
+          disabled={attachDisabled}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t("chat.a11yAttach")}
+          accessibilityState={{ disabled: attachDisabled }}
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: attachDisabled ? 0.45 : pressed ? 0.7 : 1,
+          })}
+        >
+          <BrandIcon name="attach" />
+        </Pressable>
+      </View>
+
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+        <Pressable
+          onPress={onMic}
+          disabled={sending || voiceUi === "transcribing"}
+          accessible
+          accessibilityRole="button"
+          accessibilityState={{
+            disabled: sending || voiceUi === "transcribing",
+            busy: voiceUi === "transcribing",
+          }}
+          accessibilityLabel={
+            voiceUi === "listening"
+              ? t("voice.a11yMicStop")
+              : !voiceReady
+                ? t("voice.modelMissing")
+                : t("voice.a11yMic")
+          }
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity:
+              sending || voiceUi === "transcribing"
+                ? 0.45
+                : pressed
+                  ? 0.7
+                  : voiceReady
+                    ? 1
+                    : 0.55,
+          })}
+        >
+          <BrandIcon
+            name="mic"
+            tone={voiceUi === "listening" ? "danger" : "accent"}
+          />
+        </Pressable>
+
+        <Pressable
+          onPress={onSendOrStop}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={sending ? t("chat.a11yStop") : t("chat.a11ySend")}
+          accessibilityState={{ disabled: !sending && !canSend }}
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.85 : 1,
+          })}
+        >
+          <View style={{ width: 36, height: 36 }}>
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                opacity: sending ? 1 : 0,
+              }}
+              accessibilityElementsHidden={!sending}
+              importantForAccessibility={sending ? "auto" : "no-hide-descendants"}
+            >
+              <BrandIcon name="stop" />
+            </View>
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                opacity: sending ? 0 : 1,
+              }}
+              accessibilityElementsHidden={sending}
+              importantForAccessibility={sending ? "no-hide-descendants" : "auto"}
+            >
+              <SendGlyphPair canSend={canSend} />
+            </View>
+          </View>
+        </Pressable>
+      </View>
+    </View>
+  );
+});
 
 function AttachSheetRow({
   icon,
@@ -3741,6 +4526,184 @@ function AttachSheetRow({
   );
 }
 
+function MessageActionChip({
+  icon,
+  label,
+  onPress,
+  colors,
+  active,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+  colors: any;
+  active?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={6}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingVertical: 4,
+        paddingHorizontal: 6,
+        borderRadius: radius.sm,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      {icon}
+      <Text style={[typography.bodyXs, { color: active ? colors.accent : colors.muted }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function ThinkingBlock({
+  statusLabel,
+  statusHistory,
+  colors,
+  t,
+}: {
+  statusLabel?: string;
+  statusHistory?: string[];
+  colors: any;
+  t: TranslateFn;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const history = statusHistory ?? [];
+  const canExpand = history.length > 0;
+  const header = statusLabel || t("chat.thinkingStatus");
+  return (
+    <View>
+      <Pressable
+        onPress={canExpand ? () => setExpanded((v) => !v) : undefined}
+        accessibilityRole={canExpand ? "button" : undefined}
+        accessibilityState={canExpand ? { expanded } : undefined}
+        accessibilityLabel={header}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: spacing.xs,
+          paddingVertical: 2,
+        }}
+      >
+        {statusLabel ? <ActivityIndicator size="small" color={colors.muted} /> : null}
+        <Text style={[typography.displaySm, { color: colors.ink, flex: 1 }]}>{header}</Text>
+        {canExpand ? (
+          <View style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}>
+            <ChevronDown size={14} color={colors.muted} />
+          </View>
+        ) : null}
+      </Pressable>
+      {expanded
+        ? history.map((label, i) => (
+            <View
+              key={`${i}-${label}`}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                paddingVertical: 1,
+                paddingLeft: spacing.xs,
+              }}
+            >
+              <Check size={12} color={colors.muted} />
+              <Text style={[typography.bodyXs, { color: colors.muted }]}>{label}</Text>
+            </View>
+          ))
+        : null}
+    </View>
+  );
+}
+
+function CodeFenceBlock({
+  lang,
+  content,
+  colors,
+  t,
+  onCopyText,
+}: {
+  lang: string;
+  content: string;
+  colors: any;
+  t: TranslateFn;
+  onCopyText: (text: string) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+    },
+    [],
+  );
+  return (
+    <View
+      style={{
+        backgroundColor: colors.surfaceSunken,
+        borderWidth: 1,
+        borderColor: colors.lineStrong,
+        borderRadius: radius.sm,
+        marginVertical: 4,
+        overflow: "hidden",
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: spacing.sm,
+          paddingVertical: 4,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.lineStrong,
+        }}
+      >
+        <Text style={[typography.bodyXs, { color: colors.muted }]}>{lang}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+          <Pressable
+            onPress={() => {
+              onCopyText(content);
+              setCopied(true);
+              if (copiedTimer.current) clearTimeout(copiedTimer.current);
+              copiedTimer.current = setTimeout(() => setCopied(false), 1500);
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.copy")}
+          >
+            <Text style={[typography.bodyXs, { color: colors.accent }]}>
+              {copied ? t("common.copied") : t("common.copy")}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              void Share.share({ message: content }).catch(() => undefined);
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.share")}
+          >
+            <Text style={[typography.bodyXs, { color: colors.accent }]}>
+              {t("common.share")}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+      <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false}>
+        <Text style={[typography.monoSm, { color: colors.ink, padding: spacing.sm }]}>
+          {content}
+        </Text>
+      </ScrollView>
+    </View>
+  );
+}
+
 
 // ── Memoized chat row: history rows skip re-render during streaming flushes ──
 // updateMessage only replaces the streaming message's object identity; other
@@ -3761,6 +4724,8 @@ type ChatMessageRowProps = {
   } | null;
   translationExpanded: boolean;
   colors: any;
+  /** fontScaleId-stable tokens from the parent — do not subscribe to theme here. */
+  typography: Record<string, any>;
   t: TranslateFn;
   onOpenMessageMenu: (
     id: string,
@@ -3769,6 +4734,9 @@ type ChatMessageRowProps = {
     streaming?: boolean,
   ) => void;
   onCopyText: (text: string) => void;
+  onSpeak?: (id: string, text: string) => void;
+  onRegenerate?: (id: string) => void;
+  isSpeaking: boolean;
   onCloseTranslation: () => void;
   onRetryTranslate: (id: string, text: string) => void;
   onToggleTranslationExpanded: () => void;
@@ -3786,7 +4754,10 @@ function chatMessageRowPropsEqual(prev: ChatMessageRowProps, next: ChatMessageRo
     prev.translationResult === next.translationResult &&
     prev.translationExpanded === next.translationExpanded &&
     prev.colors === next.colors &&
-    prev.t === next.t
+    prev.typography === next.typography &&
+    prev.t === next.t &&
+    prev.isSpeaking === next.isSpeaking &&
+    prev.onRegenerate === next.onRegenerate
   );
 }
 
@@ -3799,9 +4770,13 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   translationResult,
   translationExpanded,
   colors,
+  typography,
   t,
   onOpenMessageMenu,
   onCopyText,
+  onSpeak,
+  onRegenerate,
+  isSpeaking,
   onCloseTranslation,
   onRetryTranslate,
   onToggleTranslationExpanded,
@@ -3809,6 +4784,8 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   onCtaPress,
 }: ChatMessageRowProps) {
   const isUser = m.role === "user";
+  const hasAttachments = (m.attachments?.length ?? 0) > 0;
+  const hasText = !!m.text.trim();
   const dayDivider = dayLabel ? (
     <View
       key={`day-${m.id}`}
@@ -3839,53 +4816,75 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             marginTop: dayDivider ? 0 : topGap,
           }}
         >
-          {m.attachments && m.attachments.length > 0 ? (
-            <View
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
+          {hasAttachments ? (
+            <Pressable
+              onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+              delayLongPress={350}
+              accessibilityHint={t("chat.a11yLongPress")}
+            >
+            <ScrollView
+              horizontal
+              nestedScrollEnabled
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
                 gap: spacing.xs,
                 marginBottom: 4,
+                flexGrow: 1,
                 justifyContent: "flex-end",
               }}
             >
-              {m.attachments.map((att) => {
+              {(m.attachments ?? []).map((att) => {
                 const { dot, bg } =
                   att.kind === "pdf" || att.kind === "document"
                     ? { dot: colors.compute, bg: colors.computeSoft }
                     : { dot: colors.accent, bg: colors.accentSoft };
+                const thumbUri =
+                  att.kind === "image" && att.uri
+                    ? att.uri
+                    : att.kind === "pdf" && att.pages?.[0]
+                      ? att.pages[0]
+                      : undefined;
                 return (
                   <View
                     key={att.id}
+                    accessibilityLabel={att.name}
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 4,
+                      width: 56,
+                      height: 72,
+                      borderRadius: 12,
+                      overflow: "hidden",
                       backgroundColor: bg,
-                      borderRadius: radius.pill,
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    {att.kind === "image" ? (
-                      <ImageIcon size={11} color={dot} />
+                    {thumbUri ? (
+                      <Image
+                        source={{ uri: thumbUri }}
+                        style={{ width: 56, height: 72 }}
+                        resizeMode="cover"
+                        accessible={false}
+                        importantForAccessibility="no"
+                      />
+                    ) : att.kind === "image" ? (
+                      <ImageIcon size={22} color={dot} />
                     ) : att.kind === "document" ? (
-                      <BookOpen size={11} color={dot} />
+                      <BookOpen size={22} color={dot} />
                     ) : (
-                      <FileText size={11} color={dot} />
+                      <FileText size={22} color={dot} />
                     )}
-                    <Text style={[typography.bodyXs, { color: colors.ink }]} numberOfLines={1}>
-                      {att.name}
-                    </Text>
                   </View>
                 );
               })}
-            </View>
+            </ScrollView>
+            </Pressable>
           ) : null}
+          {hasText ? (
           <Pressable
             onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
             delayLongPress={350}
-            accessibilityLabel={t("chat.a11yLongPress")}
+            accessibilityLabel={m.text.length > 200 ? m.text.slice(0, 200) : m.text}
+            accessibilityHint={t("chat.a11yLongPress")}
             style={{
               backgroundColor: colors.accentSoft,
               borderRadius: radius.lg,
@@ -3893,8 +4892,45 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
               paddingHorizontal: spacing.md,
             }}
           >
-            <Text style={[typography.chatBody, { color: colors.ink }]}>{m.text}</Text>
+            <Text style={[typography.bodyLg, { color: colors.ink }]}>{m.text}</Text>
           </Pressable>
+          ) : null}
+          {!m.streaming && (hasText || hasAttachments) ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
+                marginTop: spacing.xs,
+              }}
+            >
+              {hasText ? (
+              <MessageActionChip
+                icon={<BrandIcon name="copy" size={18} />}
+                label={t("common.copy")}
+                onPress={() => onCopyText(m.text)}
+                colors={colors}
+              />
+              ) : null}
+              <MessageActionChip
+                icon={<MoreHorizontal size={14} color={colors.muted} />}
+                label={t("chat.more")}
+                onPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+                colors={colors}
+              />
+            </View>
+          ) : null}
+          {m.edited ? (
+            <Text
+              style={[
+                typography.bodyXs,
+                { color: colors.muted, marginTop: spacing.xs, alignSelf: "flex-end" },
+              ]}
+            >
+              {t("chat.edit")}
+            </Text>
+          ) : null}
 
           {isTranslating ? (
             <View
@@ -3932,8 +4968,8 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
     );
   }
 
-  const showToolStrip = !!m.statusLabel && !m.text;
   const showCursor = !!m.streaming && !!m.text;
+  const showThinking = !!m.statusLabel || !!(m.statusHistory && m.statusHistory.length > 0);
 
   const segments: MessageSegment[] =
     !m.streaming && m.text
@@ -3956,107 +4992,33 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
           <Text style={[typography.label, { color: colors.muted }]}>Kalsa</Text>
         </View>
 
-        {m.statusHistory && m.statusHistory.length > 0
-          ? m.statusHistory.map((label, i) => (
-              <View
-                key={i}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
-                  paddingVertical: 1,
-                }}
-              >
-                <Check size={12} color={colors.muted} />
-                <Text
-                  style={[
-                    typography.bodyXs,
-                    { color: colors.muted, fontFamily: MONO_FONT },
-                  ]}
-                >
-                  {label}
-                </Text>
-              </View>
-            ))
-          : null}
+        {showThinking ? (
+          <ThinkingBlock
+            statusLabel={m.statusLabel}
+            statusHistory={m.statusHistory}
+            colors={colors}
+            t={t}
+          />
+        ) : null}
 
-        {showToolStrip ? (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: spacing.xs,
-              paddingVertical: 2,
-            }}
-          >
-            <ActivityIndicator size="small" color={colors.muted} />
-            <Text style={[typography.bodyXs, { color: colors.muted }]}>{m.statusLabel}</Text>
-          </View>
-        ) : m.text.trim() || showCursor ? (
+        {m.text.trim() || showCursor ? (
           <Pressable
             onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
             delayLongPress={350}
-            accessibilityLabel={t("chat.a11yLongPress")}
+            accessibilityLabel={m.text.length > 200 ? m.text.slice(0, 200) : m.text}
+            accessibilityHint={t("chat.a11yLongPress")}
           >
             {segments.map((seg, segIdx) => {
               if (seg.type === "code") {
                 return (
-                  <View
+                  <CodeFenceBlock
                     key={segIdx}
-                    style={{
-                      backgroundColor: colors.surfaceSunken,
-                      borderWidth: 1,
-                      borderColor: colors.lineStrong,
-                      borderRadius: radius.sm,
-                      marginVertical: 4,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        paddingHorizontal: spacing.sm,
-                        paddingVertical: 4,
-                        borderBottomWidth: 1,
-                        borderBottomColor: colors.lineStrong,
-                      }}
-                    >
-                      <Text style={[typography.bodyXs, { color: colors.muted }]}>
-                        {seg.lang}
-                      </Text>
-                      <Pressable
-                        onPress={() => {
-                          void Share.share({ message: seg.content }).catch(() => undefined);
-                        }}
-                        hitSlop={8}
-                        accessibilityLabel={t("common.share")}
-                      >
-                        <Text style={[typography.bodyXs, { color: colors.accent }]}>
-                          {t("common.share")}
-                        </Text>
-                      </Pressable>
-                    </View>
-                    <ScrollView
-                      horizontal
-                      nestedScrollEnabled
-                      showsHorizontalScrollIndicator={false}
-                    >
-                      <Text
-                        style={[
-                          typography.monoSm,
-                          {
-                            fontFamily: MONO_FONT,
-                            color: colors.ink,
-                            padding: spacing.sm,
-                          },
-                        ]}
-                      >
-                        {seg.content}
-                      </Text>
-                    </ScrollView>
-                  </View>
+                    lang={seg.lang}
+                    content={seg.content}
+                    colors={colors}
+                    t={t}
+                    onCopyText={onCopyText}
+                  />
                 );
               }
               // Streaming perf: parseMarkdownBlocks on the full growing text
@@ -4070,11 +5032,23 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                 return (
                   <Text
                     key={segIdx}
-                    style={[typography.chatBody, { color: colors.ink }]}
+                    style={[
+                      typography.chatBody,
+                      { color: colors.quiet ?? colors.ink },
+                    ]}
                     onLongPress={() => onOpenMessageMenu(m.id, m.text, m.role, true)}
                   >
                     {seg.content}
-                    {segIdx === segments.length - 1 && showCursor ? "▋" : ""}
+                    {segIdx === segments.length - 1 && showCursor ? (
+                      <StreamCaret
+                        color={colors.accent}
+                        lineHeight={
+                          typeof typography.chatBody.lineHeight === "number"
+                            ? typography.chatBody.lineHeight
+                            : undefined
+                        }
+                      />
+                    ) : null}
                   </Text>
                 );
               }
@@ -4091,14 +5065,57 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
           </Pressable>
         ) : null}
 
+        {!m.streaming && m.text.trim() ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              flexWrap: "wrap",
+              marginTop: spacing.xs,
+            }}
+          >
+            <MessageActionChip
+              icon={<BrandIcon name="copy" size={18} />}
+              label={t("common.copy")}
+              onPress={() => onCopyText(m.text)}
+              colors={colors}
+            />
+            {onSpeak ? (
+              <MessageActionChip
+                icon={
+                  <Volume2
+                    size={14}
+                    color={isSpeaking ? colors.accent : colors.muted}
+                  />
+                }
+                label={
+                  isSpeaking ? t("voice.stopReading") : t("voice.readAloud")
+                }
+                onPress={() => onSpeak(m.id, m.text)}
+                colors={colors}
+                active={isSpeaking}
+              />
+            ) : null}
+            {onRegenerate ? (
+              <MessageActionChip
+                icon={<Sparkles size={14} color={colors.muted} />}
+                label={t("chat.regenerate")}
+                onPress={() => onRegenerate(m.id)}
+                colors={colors}
+              />
+            ) : null}
+            <MessageActionChip
+              icon={<MoreHorizontal size={14} color={colors.muted} />}
+              label={t("chat.more")}
+              onPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
+              colors={colors}
+            />
+          </View>
+        ) : null}
+
         {m.interrupted ? (
           <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
             {t("chat.interrupted")}
-          </Text>
-        ) : null}
-        {m.edited ? (
-          <Text style={[typography.bodyXs, { color: colors.muted, marginTop: spacing.xs }]}>
-            {t("chat.edit")}
           </Text>
         ) : null}
 
@@ -4487,7 +5504,7 @@ function TranslationBlock({
                 style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4 }}
                 accessibilityLabel={copiedLocal ? t("common.copied") : t("common.copy")}
               >
-                <Copy size={12} color={colors.compute} />
+                <BrandIcon name="copy" size={16} />
                 <Text style={[typography.bodyXs, { color: colors.compute }]}>
                   {copiedLocal ? t("common.copied") : t("common.copy")}
                 </Text>

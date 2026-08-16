@@ -74,6 +74,7 @@ import {
   deleteSessionArtifacts,
   ensureSessionsDir,
   estimateSessionBytes,
+  getSessionConversationId,
   hasEnoughDiskForSession,
   readSessionMeta,
   sessionFileExists,
@@ -635,6 +636,8 @@ export type EngineInitOptions = {
     historyHash: string;
     /** djb2 of system-prompt env (locale/memoryFacts/hasTools). */
     promptEnvHash: string;
+    /** Active conversation; compared only when stored meta also has one. */
+    conversationId?: string;
   };
   /** Settings locale for user-facing init errors (required). */
   locale: Locale;
@@ -730,6 +733,14 @@ export function initEngine(
     )
       return { effectiveNCtx };
     await disposeEngineLocked();
+    // Re-check after dispose: timeout / release() failure sets contextHung
+    // and returns. Calling initLlama on a hung or half-released native
+    // context is fail-open (second context + UAF). Fail closed.
+    if (contextHung) {
+      throw new Error(
+        "Engine context hung after dispose timeout with active native work; restart the app",
+      );
+    }
 
     const isMultimodal = Boolean(options.mmprojPath);
 
@@ -920,6 +931,7 @@ export function initEngine(
         mtpNMax: nextMtpNMax,
         specType: nextSpecType,
         engineKnob: activeEngineKnob,
+        conversationId: options.sessionRestore.conversationId,
       });
     }
 
@@ -1046,7 +1058,8 @@ async function disposeEngineLocked(): Promise<void> {
       try {
         await current.release();
       } catch {
-        // rilascio best-effort
+        // Unknown native state after a failed release — do not initLlama.
+        contextHung = true;
       }
     } else {
       // Still drain the job queue in case a job is mid-flight with a captured ctx.
@@ -1261,6 +1274,8 @@ export async function saveEngineSession(
       if (activeMtpNMax !== undefined) meta.mtpNMax = activeMtpNMax;
       if (activeSpecType !== undefined) meta.specType = activeSpecType;
       if (activeEngineKnob !== undefined) meta.engineKnob = activeEngineKnob;
+      const conversationId = getSessionConversationId();
+      if (conversationId) meta.conversationId = conversationId;
       // Meta after rename so a kill between file and meta keeps the previous
       // meta (hash mismatch → cold) or pairs old meta with complete new file
       // when history is unchanged (valid restore).
@@ -1302,6 +1317,7 @@ async function tryLoadEngineSession(
     mtpNMax?: number;
     specType?: string;
     engineKnob?: string;
+    conversationId?: string;
   },
 ): Promise<boolean> {
   const t0 = Date.now();
@@ -1342,6 +1358,7 @@ async function tryLoadEngineSession(
     if (expected.mtpNMax !== undefined) expectedMeta.mtpNMax = expected.mtpNMax;
     if (expected.specType !== undefined) expectedMeta.specType = expected.specType;
     if (expected.engineKnob !== undefined) expectedMeta.engineKnob = expected.engineKnob;
+    if (expected.conversationId) expectedMeta.conversationId = expected.conversationId;
     const mismatchField = sessionMetaMismatchField(stored, expectedMeta);
     if (mismatchField !== null) {
       await deleteSessionArtifacts(modelId);
@@ -1549,6 +1566,11 @@ export type StreamTurnOptions = EngineTurnOptions & {
    * byte-identical to the legacy path.
    */
   operativeContext?: OperativeBlockContext | null;
+  /**
+   * Raw current-user text (pre persona tail / format-B frames). Prompt-only
+   * tails must not reach executeTool, auto document_chat, or privacy guards.
+   */
+  lastUserMessage?: string;
 };
 
 export async function streamAssistantTurn(
@@ -1638,7 +1660,11 @@ export async function streamAssistantTurn(
     const userIndex = messages.length - 1;
     // Current user turn's plain text — fed to executeTool (e.g. web_search
     // privacy guard) alongside the model-chosen query; never logged here.
-    const lastUserMessageText = messages[userIndex]?.content ?? "";
+    // Prefer the caller-supplied raw text so persona/format-B tails stay prompt-only.
+    const lastUserMessageText =
+      typeof options.lastUserMessage === "string"
+        ? options.lastUserMessage
+        : (messages[userIndex]?.content ?? "");
     const historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) =>
       index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
     );

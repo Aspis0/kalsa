@@ -185,7 +185,7 @@ async function main() {
     ) {
       return { ok: false, reason: "unknown" };
     }
-    const max = kind === "pdf" ? MAX_DOCUMENT_BYTES : MAX_TEXT_BYTES;
+    const max = kind === "txt" ? MAX_TEXT_BYTES : MAX_DOCUMENT_BYTES;
     const n = Math.floor(sizeBytes);
     if (n === 0) return { ok: false, reason: "empty" };
     if (n > max) return { ok: false, reason: "too_large" };

@@ -36,6 +36,8 @@ const SCREEN_KEYS = [
   "errorTxt",
   "errorEmpty",
   "errorBinary",
+  "errorLegacyWord",
+  "errorDocx",
   "errorTooLarge",
   "errorBusy",
   "errorStorage",

@@ -73,6 +73,7 @@ export function PdfTextExtractorHost() {
     <View
       style={styles.hidden}
       pointerEvents="none"
+      collapsable={false}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
@@ -80,6 +81,7 @@ export function PdfTextExtractorHost() {
         key={request.id}
         pdfUri={request.fileUri}
         mode="text"
+        headless
         sourceId={request.sourceId}
         title={request.title}
         onPage={() => {
@@ -119,9 +121,11 @@ export function PdfTextExtractorHost() {
 const styles = StyleSheet.create({
   hidden: {
     position: "absolute",
+    left: 0,
+    top: 0,
     width: 1,
     height: 1,
-    opacity: 0,
+    opacity: 0.01,
     overflow: "hidden",
   },
 });

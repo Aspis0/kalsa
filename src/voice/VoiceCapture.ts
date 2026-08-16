@@ -58,6 +58,22 @@ let limitHandler: CaptureLimitHandler | null = null;
 let limitFired = false;
 /** Stream already stopped (e.g. by auto-limit) but buffer still held for stopCapture. */
 let streamStopped = false;
+/**
+ * Capture-session token. `stopCapture` finally must not teardown a newer
+ * listen: invalidate/clearChat/switch bump this while an older stop is
+ * still awaiting native `LiveAudioStream.stop()`.
+ */
+let captureSession = 0;
+
+function bumpCaptureSession(): number {
+  captureSession += 1;
+  return captureSession;
+}
+
+/** Live capture session id (newer listen invalidates an in-flight stop). */
+export function getCaptureSession(): number {
+  return captureSession;
+}
 
 /** Decode a base64 PCM chunk without relying on Node Buffer. */
 function base64ToUint8Array(b64: string): Uint8Array {
@@ -207,12 +223,15 @@ export async function startCapture(opts?: {
     throw new CaptureBusyError();
   }
 
+  const mySession = bumpCaptureSession();
   state = "starting";
   chunks = [];
   totalChars = 0;
   limitFired = false;
   streamStopped = false;
   limitHandler = opts?.onLimitReached ?? null;
+
+  const stillThisSession = () => captureSession === mySession;
 
   try {
     // Detach any previous listener before re-init (Android releases recorder on stop).
@@ -233,9 +252,9 @@ export async function startCapture(opts?: {
       await maybePromise;
     }
 
-    // Bail if cancelCapture raced during init.
-    if (state !== "starting") {
-      await hardReset();
+    // Bail if cancelCapture raced during init (or a newer session started).
+    if (state !== "starting" || !stillThisSession()) {
+      if (stillThisSession()) await hardReset();
       throw new CaptureBusyError();
     }
 
@@ -246,9 +265,9 @@ export async function startCapture(opts?: {
 
     LiveAudioStream.start();
 
-    if (state !== "starting") {
-      // Cancelled mid-start after start() — tear down.
-      await hardReset();
+    if (state !== "starting" || !stillThisSession()) {
+      // Cancelled mid-start after start() — tear down only our session.
+      if (stillThisSession()) await hardReset();
       throw new CaptureBusyError();
     }
 
@@ -259,26 +278,31 @@ export async function startCapture(opts?: {
     }, MAX_CAPTURE_MS);
   } catch (error) {
     // ANY setup failure: stop + remove listener + reset chunks.
-    clearLimitTimer();
-    removeDataListener();
-    await stopStreamBestEffort();
-    chunks = [];
-    totalChars = 0;
-    limitHandler = null;
-    limitFired = false;
-    streamStopped = false;
-    state = "idle";
+    // A newer session (invalidate + start) owns the mic — leave it alone.
+    if (stillThisSession()) {
+      clearLimitTimer();
+      removeDataListener();
+      await stopStreamBestEffort();
+      chunks = [];
+      totalChars = 0;
+      limitHandler = null;
+      limitFired = false;
+      streamStopped = false;
+      state = "idle";
+    }
     throw error;
   }
 }
 
 /**
  * Stop capture and return merged mono 16 kHz int16 PCM as ArrayBuffer.
- * Captures the chunk list locally first; finally always stops stream, removes
- * listener, and resets — even if merge/decode fails.
+ * Captures the chunk list locally first; finally stops stream, removes
+ * listener, and resets — even if merge/decode fails — unless a newer
+ * capture session started (invalidateVoice / clearChat / switch).
  * Safe to call when not recording (returns empty buffer).
  */
 export async function stopCapture(): Promise<ArrayBuffer> {
+  const mySession = captureSession;
   if (state === "idle") {
     return new ArrayBuffer(0);
   }
@@ -305,15 +329,19 @@ export async function stopCapture(): Promise<ArrayBuffer> {
       return new ArrayBuffer(0);
     }
   } finally {
-    removeDataListener();
-    // Ensure stream is stopped even if the try path threw before stopStreamBestEffort.
-    await stopStreamBestEffort();
-    chunks = [];
-    totalChars = 0;
-    limitHandler = null;
-    limitFired = false;
-    streamStopped = false;
-    state = "idle";
+    // invalidateVoice / clearChat / switch bump the session so a successor
+    // startCapture is not killed by this older stop's teardown.
+    if (captureSession === mySession) {
+      removeDataListener();
+      // Ensure stream is stopped even if the try path threw before stopStreamBestEffort.
+      await stopStreamBestEffort();
+      chunks = [];
+      totalChars = 0;
+      limitHandler = null;
+      limitFired = false;
+      streamStopped = false;
+      state = "idle";
+    }
   }
 }
 
@@ -322,6 +350,9 @@ export async function stopCapture(): Promise<ArrayBuffer> {
  * Works from `"starting"` as well as `"recording"` / `"stopping"`.
  */
 export async function cancelCapture(): Promise<void> {
+  // Invalidate first so an in-flight stopCapture finally cannot teardown
+  // a listen started after clearChat / conversation switch.
+  bumpCaptureSession();
   if (state === "idle") {
     chunks = [];
     totalChars = 0;

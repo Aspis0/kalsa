@@ -27,9 +27,20 @@ export type SessionMeta = {
    * Mismatch → cold start (same as historyHash). Optional for back-compat reads.
    */
   promptEnvHash?: string;
+  /**
+   * Active conversation id when the session was saved. Optional for back-compat.
+   * Both absent/empty match. One side non-empty and the other empty → mismatch.
+   */
+  conversationId?: string;
   /** Date.now() at save; ignored by sessionMetaMatches */
   savedAt?: number;
 };
+
+/** Default messages key until migrate / AppShell bind the active conversation. */
+export const DEFAULT_BOOT_MESSAGES_KEY = "kalsa.messages.v1";
+
+let bootMessagesKey = DEFAULT_BOOT_MESSAGES_KEY;
+let sessionConversationId: string | undefined;
 
 /**
  * Strip path separators / traversal so model ids stay single path segments.
@@ -79,17 +90,26 @@ export function computeHistoryHashFromMessages(messages: unknown): string {
 
 let bootHistoryHashPromise: Promise<string> | null = null;
 /**
- * History hash captured ONCE per app process, at first call (AppShell mount) —
- * BEFORE any send can append the in-flight turn to kalsa.messages.v1. The KV
- * session gate must compare against the history the conversation STARTS from,
- * not a mid-send snapshot (lazy engine init reads after the user message is
- * already persisted → guaranteed mismatch; CI run 31279879254).
+ * History hash captured ONCE per engine-lifetime, at first call (AppShell
+ * mount) — BEFORE any send can append the in-flight turn to the boot messages
+ * key (legacy kalsa.messages.v1, or kalsa.messages.<id> after migrate).
+ * The KV session gate must compare against the history the conversation
+ * STARTS from, not a mid-send snapshot (lazy engine init reads after the user
+ * message is already persisted → guaranteed mismatch; CI run 31279879254).
+ *
+ * After save+dispose (same-process unload), call resetBootHistoryHash so the
+ * next initEngine recomputes against the just-saved history instead of stale
+ * H0 (which would miss and delete the .kvs).
+ *
+ * Conversation switch / new chat / migrate must call setBootMessagesKey +
+ * resetBootHistoryHash so the next capture reads the active conversation.
  */
 export function getBootHistoryHash(): Promise<string> {
   if (!bootHistoryHashPromise) {
+    const key = bootMessagesKey;
     bootHistoryHashPromise = (async () => {
       try {
-        const raw = await AsyncStorage.getItem("kalsa.messages.v1");
+        const raw = await AsyncStorage.getItem(key);
         return historyHash(raw || "[]");
       } catch {
         return historyHash("[]");
@@ -97,6 +117,41 @@ export function getBootHistoryHash(): Promise<string> {
     })();
   }
   return bootHistoryHashPromise;
+}
+
+/** Drop the cached boot hash so the next getBootHistoryHash rereads storage. */
+export function resetBootHistoryHash(): void {
+  bootHistoryHashPromise = null;
+}
+
+/** AsyncStorage key getBootHistoryHash reads. Default stays kalsa.messages.v1. */
+export function getBootMessagesKey(): string {
+  return bootMessagesKey;
+}
+
+/**
+ * Point the boot-history capture at a conversation messages key.
+ * Resets the cached hash when the key actually changes.
+ */
+export function setBootMessagesKey(key: string): void {
+  const next =
+    typeof key === "string" && key.length > 0 ? key : DEFAULT_BOOT_MESSAGES_KEY;
+  if (next === bootMessagesKey) return;
+  bootMessagesKey = next;
+  resetBootHistoryHash();
+}
+
+/** Conversation id written into SessionMeta on save (optional). */
+export function getSessionConversationId(): string | undefined {
+  return sessionConversationId;
+}
+
+export function setSessionConversationId(id: string | undefined): void {
+  if (typeof id === "string" && id.length > 0) {
+    sessionConversationId = id;
+    return;
+  }
+  sessionConversationId = undefined;
 }
 
 /**
@@ -122,7 +177,7 @@ export function computePromptEnvHash(
  * True when stored meta is safe to load for the current engine + history.
  * Does NOT require savedAt equality. Optional mtpNMax/specType/engineKnob:
  * missing and undefined are treated as equal. promptEnvHash must match
- * (missing ≡ undefined).
+ * (missing ≡ undefined). conversationId: both empty match; one-sided is a mismatch.
  */
 export function sessionMetaMatches(a: SessionMeta, b: SessionMeta): boolean {
   return sessionMetaMismatchField(a, b) === null;
@@ -145,6 +200,15 @@ export function sessionMetaMismatchField(a: SessionMeta, b: SessionMeta): string
   if (a.mtpNMax !== b.mtpNMax) return "mtpNMax";
   if (a.specType !== b.specType) return "specType";
   if (a.engineKnob !== b.engineKnob) return "engineKnob";
+  const aConv =
+    typeof a.conversationId === "string" && a.conversationId.length > 0
+      ? a.conversationId
+      : "";
+  const bConv =
+    typeof b.conversationId === "string" && b.conversationId.length > 0
+      ? b.conversationId
+      : "";
+  if (aConv !== bConv) return "conversationId";
   return null;
 }
 
@@ -243,6 +307,9 @@ export async function readSessionMeta(modelId: string): Promise<SessionMeta | nu
     if (typeof parsed.specType === "string") meta.specType = parsed.specType;
     if (typeof parsed.engineKnob === "string") meta.engineKnob = parsed.engineKnob;
     if (typeof parsed.promptEnvHash === "string") meta.promptEnvHash = parsed.promptEnvHash;
+    if (typeof parsed.conversationId === "string" && parsed.conversationId.length > 0) {
+      meta.conversationId = parsed.conversationId;
+    }
     if (typeof parsed.savedAt === "number") meta.savedAt = parsed.savedAt;
     return meta;
   } catch {
