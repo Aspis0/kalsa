@@ -1,0 +1,57 @@
+2026-08-15T21:19:58-04:00  === KF COLD PROBE XIAOMI START (plugged, stayon, t4, k6d065, n200) ===
+2026-08-15T21:20:00-04:00  TEMP_OK 309
+2026-08-15T21:20:00-04:00  RUN b0_warmup_OFF try=1
+2026-08-15T21:20:01-04:00  DONE b0_warmup_OFF perf=[] bytes=9708
+2026-08-15T21:20:01-04:00  TEMP_OK 309
+2026-08-15T21:20:01-04:00  RUN w1_warmanchor_OFF try=1
+2026-08-15T21:20:02-04:00  DONE w1_warmanchor_OFF perf=[] bytes=9708
+2026-08-15T21:20:02-04:00  ANCHOR CHECK: w1 must be ~398-406 ms/tok (kf_general warm OFF) else config mismatch
+2026-08-15T21:20:02-04:00  TEMP_OK 309
+2026-08-15T21:20:02-04:00  FADV c01_OFF: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:20:02-04:00  RUN c01_OFF try=1
+2026-08-15T21:20:03-04:00  DONE c01_OFF perf=[] bytes=9708
+2026-08-15T21:20:03-04:00  TEMP_OK 309
+2026-08-15T21:20:04-04:00  FADV c02_ON: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:20:04-04:00  RUN c02_ON try=1
+2026-08-15T21:20:04-04:00  DONE c02_ON perf=[] bytes=9708
+2026-08-15T21:20:05-04:00  TEMP_OK 309
+2026-08-15T21:20:05-04:00  FADV c03_ON: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:20:05-04:00  RUN c03_ON try=1
+2026-08-15T21:20:06-04:00  DONE c03_ON perf=[] bytes=9708
+2026-08-15T21:20:06-04:00  TEMP_OK 309
+2026-08-15T21:20:06-04:00  FADV c04_OFF: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:20:07-04:00  RUN c04_OFF try=1
+2026-08-15T21:20:07-04:00  DONE c04_OFF perf=[] bytes=9708
+2026-08-15T21:20:07-04:00  TEMP_OK 309
+2026-08-15T21:20:08-04:00  FADV c05_OFF: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:20:08-04:00  RUN c05_OFF try=1
+2026-08-15T21:20:08-04:00  DONE c05_OFF perf=[] bytes=9708
+2026-08-15T21:20:09-04:00  TEMP_OK 309
+2026-08-15T21:20:09-04:00  FADV c06_ON: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:20:09-04:00  RUN c06_ON try=1
+2026-08-15T21:20:10-04:00  DONE c06_ON perf=[] bytes=9708
+2026-08-15T21:20:10-04:00  TEMP_OK 309
+2026-08-15T21:20:10-04:00  FADV c07_ON: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:20:10-04:00  RUN c07_ON try=1
+2026-08-15T21:20:11-04:00  DONE c07_ON perf=[] bytes=9708
+2026-08-15T21:20:11-04:00  TEMP_OK 309
+2026-08-15T21:20:11-04:00  FADV c08_OFF: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:20:12-04:00  RUN c08_OFF try=1
+2026-08-15T21:20:12-04:00  DONE c08_OFF perf=[] bytes=9708
+2026-08-15T21:20:12-04:00  TEMP_OK 309
+2026-08-15T21:20:13-04:00  FADV c09_OFF: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:20:13-04:00  RUN c09_OFF try=1
+2026-08-15T21:20:13-04:00  DONE c09_OFF perf=[] bytes=9708
+2026-08-15T21:20:14-04:00  TEMP_OK 309
+2026-08-15T21:20:14-04:00  FADV c10_ON: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:20:14-04:00  RUN c10_ON try=1
+2026-08-15T21:20:15-04:00  DONE c10_ON perf=[] bytes=9708
+2026-08-15T21:20:15-04:00  TEMP_OK 309
+2026-08-15T21:20:15-04:00  FADV c11_ON: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:20:16-04:00  RUN c11_ON try=1
+2026-08-15T21:20:16-04:00  DONE c11_ON perf=[] bytes=9708
+2026-08-15T21:20:16-04:00  TEMP_OK 309
+2026-08-15T21:20:17-04:00  FADV c12_OFF: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:20:17-04:00  RUN c12_OFF try=1
+2026-08-15T21:20:17-04:00  DONE c12_OFF perf=[] bytes=9708
+2026-08-15T21:20:19-04:00  COLD_PROBE_DONE

@@ -200,9 +200,23 @@
 > (TTFT 12-18 vs 21-22s, p99 −17% a freddo), auto-OFF a caldo.
 > 3 interruzioni Android dichiarate, 12/12 coppie intatte, 0 escluse.
 > Report: results/kf_ship_jelly/REPORT.md.** ·
-> KF_SHIP ⛔ (per spedire: eventuale cella COLD pre-registrata con
-> reset cache tra coppie + policy dispatcher a 2 segnali — decisione
-> owner).
+> **SONDA COLD XIAOMI (sera 15/08, esplorativa, fadv-verificata,
+> plugged): NULL PULITO CON MECCANISMO — sul flash veloce l'--overlap
+> da solo assorbe già l'IO freddo (c01 OFF cold: 0.446 s/tok di
+> letture flash → stall residuo 0.048 = 8.7%). Il prefetch funziona
+> (precision 78%, late 2%) ma non ha nulla da nascondere. MAPPA K-F
+> COMPLETA 3 device × 2 regimi: Jelly cold WIN −20% · Jelly warm LOSS
+> +7% · S23 null · Xiaomi warm null · Xiaomi cold null ⇒ K-F =
+> acceleratore cold-start SOLO per device a flash lento; altrove
+> l'overlap è già tutta la storia. v1 sonda = garbage da flag
+> --prompt-file inesistente (usage dump, check di validità debole):
+> fix grok con DONE a 3 condizioni. results/kf_cold_xiaomi/.** ·
+> POLICY DISPATCHER (formula finale): K-F ON ⟺ stall% misurato alto
+> E cache fredda E niente allarme termico — CPU/RAM/modello sono già
+> dentro lo stall% misurato; GPU fuori scope; batteria NON è un gate
+> (inversione screen-on). ·
+> KF_SHIP ⛔ (per spedire: eventuale cella COLD pre-registrata su
+> Jelly con reset fadv tra coppie + policy scritta — decisione owner).
 > Report sweep: reports/moe-kernel-kf-sweep.md.
 > **CELLA BURST COMPLETA 12/12 (2026-08-15 mattina, blocchi 9-12 a
 > telefono freddo 26-29°C = il burst-cold mancante) — TUTTI E 4 I GATE

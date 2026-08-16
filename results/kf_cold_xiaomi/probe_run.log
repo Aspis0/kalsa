@@ -1,0 +1,57 @@
+2026-08-15T21:27:09-04:00  === KF COLD PROBE XIAOMI START (plugged, stayon, t4, k6d065, n200) ===
+2026-08-15T21:27:11-04:00  TEMP_OK 313
+2026-08-15T21:27:11-04:00  RUN b0_warmup_OFF try=1
+2026-08-15T21:28:25-04:00  DONE b0_warmup_OFF ms/tok=311.0 wall=73s bytes=40286 try=1
+2026-08-15T21:28:25-04:00  TEMP_OK 323
+2026-08-15T21:28:25-04:00  RUN w1_warmanchor_OFF try=1
+2026-08-15T21:30:26-04:00  DONE w1_warmanchor_OFF ms/tok=554.0 wall=120s bytes=40284 try=1
+2026-08-15T21:30:26-04:00  ANCHOR CHECK: w1 must be ~398-406 ms/tok (kf_general warm OFF) else config mismatch
+2026-08-15T21:30:26-04:00  TEMP_OK 332
+2026-08-15T21:30:27-04:00  FADV c01_OFF: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=558067 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:30:27-04:00  RUN c01_OFF try=1
+2026-08-15T21:32:30-04:00  DONE c01_OFF ms/tok=551.0 wall=123s bytes=40284 try=1
+2026-08-15T21:32:30-04:00  TEMP_OK 338
+2026-08-15T21:32:31-04:00  FADV c02_ON: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=551847 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:32:31-04:00  RUN c02_ON try=1
+2026-08-15T21:34:19-04:00  DONE c02_ON ms/tok=558.0 wall=108s bytes=40557 try=1
+2026-08-15T21:34:19-04:00  TEMP_OK 343
+2026-08-15T21:34:20-04:00  FADV c03_ON: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=633001 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:34:20-04:00  RUN c03_ON try=1
+2026-08-15T21:36:06-04:00  DONE c03_ON ms/tok=551.0 wall=106s bytes=40557 try=1
+2026-08-15T21:36:06-04:00  TEMP_OK 350
+2026-08-15T21:36:07-04:00  FADV c04_OFF: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=586008 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:36:07-04:00  RUN c04_OFF try=1
+2026-08-15T21:38:06-04:00  DONE c04_OFF ms/tok=535.0 wall=119s bytes=40284 try=1
+2026-08-15T21:38:06-04:00  TEMP_OK 355
+2026-08-15T21:38:07-04:00  FADV c05_OFF: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=446806 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:38:07-04:00  RUN c05_OFF try=1
+2026-08-15T21:40:05-04:00  DONE c05_OFF ms/tok=529.0 wall=118s bytes=40286 try=1
+2026-08-15T21:40:06-04:00  TEMP_OK 358
+2026-08-15T21:40:07-04:00  FADV c06_ON: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=675894 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:40:07-04:00  RUN c06_ON try=1
+2026-08-15T21:41:18-04:00  DONE c06_ON ms/tok=323.0 wall=70s bytes=40599 try=1
+2026-08-15T21:41:18-04:00  TEMP_OK 362
+2026-08-15T21:41:19-04:00  FADV c07_ON: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=590719 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:41:19-04:00  RUN c07_ON try=1
+2026-08-15T21:42:29-04:00  DONE c07_ON ms/tok=329.0 wall=70s bytes=40558 try=1
+2026-08-15T21:42:30-04:00  TEMP_OK 365
+2026-08-15T21:42:31-04:00  FADV c08_OFF: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=698970 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:42:31-04:00  RUN c08_OFF try=1
+2026-08-15T21:43:50-04:00  DONE c08_OFF ms/tok=335.0 wall=79s bytes=40284 try=1
+2026-08-15T21:43:51-04:00  TEMP_OK 368
+2026-08-15T21:43:52-04:00  FADV c09_OFF: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=521394 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:43:52-04:00  RUN c09_OFF try=1
+2026-08-15T21:45:10-04:00  DONE c09_OFF ms/tok=329.0 wall=78s bytes=40284 try=1
+2026-08-15T21:45:10-04:00  TEMP_OK 370
+2026-08-15T21:45:11-04:00  FADV c10_ON: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=600523 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:45:11-04:00  RUN c10_ON try=1
+2026-08-15T21:46:25-04:00  DONE c10_ON ms/tok=331.0 wall=74s bytes=40605 try=1
+2026-08-15T21:46:25-04:00  TEMP_OK 372
+2026-08-15T21:46:26-04:00  FADV c11_ON: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=703099 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:46:26-04:00  RUN c11_ON try=1
+2026-08-15T21:47:37-04:00  DONE c11_ON ms/tok=327.0 wall=71s bytes=40588 try=1
+2026-08-15T21:47:37-04:00  TEMP_OK 376
+2026-08-15T21:47:38-04:00  FADV c12_OFF: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=715365 resident_after=0 pages fadvise_rc=0
+2026-08-15T21:47:38-04:00  RUN c12_OFF try=1
+2026-08-15T21:49:08-04:00  DONE c12_OFF ms/tok=384.0 wall=90s bytes=40284 try=1
+2026-08-15T21:49:10-04:00  COLD_PROBE_DONE
