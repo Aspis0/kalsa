@@ -111,7 +111,57 @@ silently stops applying. The canary is the sensor for exactly that.
 on this host (5.89 vs 1.81 effective tok/s). The technique's speed case lives or
 dies on flash, where the draft's smaller expert footprint can pay — arm D1.
 
-## Result 3 — RETRACTED: the first speed table measured prefill, not decode
+## Result 3 — multi-turn chat on the real hybrid: without the freeze, acceptance decays across the conversation
+
+The host gates cannot reach this: tiny-moe is `qwen3moe`, not hybrid, so the
+freeze branch is dead code there. This probe drives the real model through
+`bmoe-cli --session` (JSON requests on stdin), three turns, turns 2-3 with
+`clear_kv:false` — the prefix-reuse path where the F1/F2 defects live.
+Driver: `chat_multiturn.py`; logs `chat_freeze_{on,off}.log`,
+pre-fix copies in `chat_prefix_2a7f365/`.
+
+The observable is **acceptance per turn, not the text**: if the draft context is
+poisoned, the target context still governs and the answer stays correct — only
+the work saved collapses. Both arms emitted identical token counts per turn
+(82 / 94 / 96), confirming that.
+
+| turn | freeze OFF | freeze ON (pre-fix `2a7f365`) | freeze ON (post-fix `b3eb60c`) |
+|---|---|---|---|
+| 1 | 12/103 = 0.117 | 35/191 = 0.183 | 35/191 = 0.183 |
+| 2 | 11/110 = 0.100 | 50/174 = 0.287 | 49/178 = 0.275 |
+| 3 | 3/101 = **0.030** | 32/250 = 0.128 | 33/240 = **0.138** |
+
+**Without the freeze, acceptance decays 3.9× along the conversation** (0.117 →
+0.030). **With it, there is no decay** and turn 3 is **4.6× better**. The
+flag-off arm is *bit-identical* before and after the audit fixes — the feature
+does not touch code paths that do not use it.
+
+Freeze activity is verified per run from the allocator, not assumed: the
+freeze-ON draft context reports `n_rs_seq = 0` and a 62.81 MiB RS buffer, which
+only happens when the freeze engages on a hybrid; the freeze-OFF arm shows
+314.06 MiB on both contexts.
+
+### Three rival explanations, all tested and rejected
+
+The final audit round put three alternative readings on the table. Each is
+answered from artifacts, not argument:
+
+1. *"Graph reuse defeats the freeze; drafts 2..γ run unfrozen"* (round-3 R1).
+   **Refuted** three ways: 512 drafts over 130 cycles ≈ γ=4 (not 1/cycle); the
+   canary string never appears; and the mechanism is wrong — skip-write lives in
+   the compute-time eval-callback ask, so a reused graph is still frozen.
+2. *"The alpha gain comes from `n_rs_seq=0` forcing a full clear+rebuild each
+   rejection, not from the freeze"* (claims audit C3). **Refuted** by arithmetic:
+   one prefill costs 39 s and p2 ran 130 cycles in 187 s total; and p2 read
+   32.8 GiB against p1's 51.8 GiB — a third *less*, where rebuilding would read
+   far more.
+3. *"The chat model is `qwen35moe`, non-hybrid, so the flag is ignored and both
+   chat arms are the same path"* (final audit B1). **Refuted** by the same logs
+   the claim cites: the freeze-ON draft context allocates `n_rs_seq = 0` /
+   62.81 MiB and no "not hybrid" warning is emitted. The architecture string was
+   read without checking the allocator underneath it.
+
+## Result 4 — RETRACTED: the first speed table measured prefill, not decode
 
 **The first version of this report presented a speed comparison (30.2 / 46.4 /
 45.3 s "for 256 tokens") and read it as "speculation loses 0.67×". That was

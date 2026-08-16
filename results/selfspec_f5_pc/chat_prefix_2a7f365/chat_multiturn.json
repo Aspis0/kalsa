@@ -1,0 +1,66 @@
+{
+  "freeze_off": [
+    {
+      "turn": 1,
+      "tokens": 82,
+      "cancelled": false,
+      "decodes": 71,
+      "alpha": [
+        12,
+        103
+      ]
+    },
+    {
+      "turn": 2,
+      "tokens": 94,
+      "cancelled": false,
+      "decodes": 84,
+      "alpha": [
+        11,
+        110
+      ]
+    },
+    {
+      "turn": 3,
+      "tokens": 96,
+      "cancelled": false,
+      "decodes": 93,
+      "alpha": [
+        3,
+        101
+      ]
+    }
+  ],
+  "freeze_on": [
+    {
+      "turn": 1,
+      "tokens": 82,
+      "cancelled": false,
+      "decodes": 48,
+      "alpha": [
+        35,
+        191
+      ]
+    },
+    {
+      "turn": 2,
+      "tokens": 94,
+      "cancelled": false,
+      "decodes": 45,
+      "alpha": [
+        50,
+        174
+      ]
+    },
+    {
+      "turn": 3,
+      "tokens": 96,
+      "cancelled": false,
+      "decodes": 64,
+      "alpha": [
+        32,
+        250
+      ]
+    }
+  ]
+}
