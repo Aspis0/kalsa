@@ -25,8 +25,9 @@ export type SessionMeta = {
   /** Length of the messages array that produced historyHash. Enables prefix restore. */
   historyMessageCount?: number;
   /**
-   * djb2 over JSON.stringify({locale, memoryFactsJoined, hasTools:true}).
+   * djb2 over JSON.stringify({locale, memoryFactsJoined, hasTools}).
    * Mismatch → cold start (same as historyHash). Optional for back-compat reads.
+   * Changing the hashed shape invalidates older saved sessions (one cold prefill).
    */
   promptEnvHash?: string;
   /**
@@ -235,19 +236,22 @@ export function setSessionConversationId(id: string | undefined): void {
 
 /**
  * Hash of system-prompt env inputs that are not covered by historyHash.
- * `hasTools` is always the literal `true` today (tools wired on every chat turn).
- * Uses the same djb2 as historyHash.
+ * Covers locale, memory facts (joined), and whether tools are wired into
+ * buildSystemPrompt (systemPrompt vs systemPromptWithSearch). Uses the same
+ * djb2 as historyHash. Changing the hashed shape invalidates older saved
+ * sessions (one cold prefill).
  */
 export function computePromptEnvHash(
   locale: string,
   memoryFacts: string[] | undefined | null,
+  hasTools: boolean,
 ): string {
   const memoryFactsJoined = Array.isArray(memoryFacts) ? memoryFacts.join("\n") : "";
   return historyHash(
     JSON.stringify({
       locale,
       memoryFactsJoined,
-      hasTools: true,
+      hasTools,
     }),
   );
 }

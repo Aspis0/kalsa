@@ -278,30 +278,30 @@ async function main() {
     );
   });
 
-  // promptEnvHash — system-prompt env gate
+  // promptEnvHash — system-prompt env gate (locale + memoryFacts + hasTools)
   test("computePromptEnvHash stable + djb2 shape", () => {
-    const a = computePromptEnvHash("en", ["fact one", "fact two"]);
-    const b = computePromptEnvHash("en", ["fact one", "fact two"]);
+    const a = computePromptEnvHash("en", ["fact a"], true);
+    const b = computePromptEnvHash("en", ["fact a"], true);
     assert(a === b, "stable");
     assert(typeof a === "string" && a.length > 0, "non-empty");
     const expected = historyHash(
       JSON.stringify({
         locale: "en",
-        memoryFactsJoined: "fact one\nfact two",
+        memoryFactsJoined: "fact a",
         hasTools: true,
       }),
     );
     assert(a === expected, "equals historyHash of canonical JSON");
   });
 
-  test("computePromptEnvHash sensitive to locale / facts", () => {
-    const base = computePromptEnvHash("en", ["a"]);
-    assert(base !== computePromptEnvHash("it", ["a"]), "locale");
-    assert(base !== computePromptEnvHash("en", ["b"]), "facts");
-    assert(base !== computePromptEnvHash("en", []), "empty facts");
+  test("computePromptEnvHash sensitive to locale / facts / hasTools", () => {
+    const base = computePromptEnvHash("en", ["f"], true);
+    assert(base !== computePromptEnvHash("it", ["f"], true), "locale");
+    assert(base !== computePromptEnvHash("en", ["g"], true), "facts");
+    assert(base !== computePromptEnvHash("en", ["f"], false), "hasTools");
     assert(
-      computePromptEnvHash("en", null) === computePromptEnvHash("en", []),
-      "null facts ≡ []",
+      computePromptEnvHash("en", null, true) === computePromptEnvHash("en", [], true),
+      "null ≡ [] facts",
     );
   });
 

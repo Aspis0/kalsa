@@ -68,6 +68,7 @@ import {
   type ToolAttributionSnapshot,
   type ToolRetrievalStrategy,
 } from "./turnTelemetry";
+import { buildSystemPrompt } from "./memoryPrompt";
 import {
   computeHistoryHashFromMessages,
   computePromptEnvHash,
@@ -222,10 +223,6 @@ function rethrowWithNativeTail(error: unknown): never {
   throw new Error(withNativeTail(String(error)));
 }
 
-/** Max user-memory facts injected into the system prompt. */
-const MAX_PROMPT_FACTS = 10;
-/** Hard cap per fact line injected into the system prompt. */
-const MAX_PROMPT_FACT_CHARS = 120;
 /** extractMemory wall-clock timeout (ms); on expiry stopCompletion is called. */
 const EXTRACT_MEMORY_TIMEOUT_MS = 20_000;
 /** translateText wall-clock timeout (ms); on expiry stopCompletion is called. */
@@ -254,38 +251,6 @@ const TARGET_LANG_NAME: Record<Locale, string> = {
   en: "English",
   it: "Italian",
 };
-
-/**
- * Normalize a fact for prompt injection: strip control chars / newlines,
- * collapse whitespace, cap length. Treats facts as untrusted data only.
- */
-function sanitizeFactForPrompt(fact: string): string {
-  return fact
-    .replace(/[\u0000-\u001f\u007f]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, MAX_PROMPT_FACT_CHARS);
-}
-
-/** System prompt for the on-device model, localized via settings locale. */
-export function buildSystemPrompt(
-  locale: Locale,
-  withTools: boolean,
-  facts?: string[],
-): string {
-  const strings = getStrings(locale);
-  let prompt = withTools ? strings.systemPromptWithSearch : strings.systemPrompt;
-  // Most recent facts first for injection budget (callers should already pass newest).
-  const cleaned = (facts ?? [])
-    .map((fact) => sanitizeFactForPrompt(fact))
-    .filter((fact) => fact.length > 0)
-    .slice(-MAX_PROMPT_FACTS);
-  if (cleaned.length > 0) {
-    const factBlock = cleaned.map((fact) => `- ${fact}`).join("\n");
-    prompt += `\n\n${strings.memory.promptSection.replace("{facts}", factBlock)}`;
-  }
-  return prompt;
-}
 
 const STOP_WORDS = [
   "<|im_end|>",
@@ -1584,7 +1549,7 @@ function applyOperativeBlockFormat(
 export type StreamTurnOptions = EngineTurnOptions & {
   /** Settings locale — drives system prompt language (required). */
   locale: Locale;
-  /** Durable user facts to inject into the system prompt (max 10 used). */
+  /** Durable user facts injected into the system prompt (max 10 used). */
   memoryFacts?: string[];
   /**
    * Compaction context for the operative block:
@@ -1701,7 +1666,7 @@ export async function streamAssistantTurn(
     );
     // Capture prompt-env hash from the same inputs buildSystemPrompt uses so a
     // later saveEngineSession can reject restores whose system prompt drifted.
-    lastPromptEnvHash = computePromptEnvHash(locale, options.memoryFacts);
+    lastPromptEnvHash = computePromptEnvHash(locale, options.memoryFacts, hasTools);
 
     let currentMessages: ToolChatMessage[] = applyOperativeBlockFormat(
       { role: "system", content: buildSystemPrompt(locale, hasTools, options.memoryFacts) },

@@ -3085,7 +3085,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
       // Same memoryFacts slice the system prompt uses (newest 10, or [] if off).
-      let sessionPromptEnvHash = computePromptEnvHash(locale, []);
+      // hasTools=true: chat turns always wire tools + executeTool.
+      let sessionPromptEnvHash = computePromptEnvHash(locale, [], true);
       try {
         const enabled = await MemoryStore.getEnabled();
         if (enabled) {
@@ -3093,6 +3094,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           sessionPromptEnvHash = computePromptEnvHash(
             locale,
             facts.map((f) => f.text).slice(-10),
+            true,
           );
         }
       } catch {
@@ -3568,7 +3570,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Boot-captured HISTORY_KEY hash: conversation start, not mid-send (lazy
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
-      let sessionPromptEnvHash = computePromptEnvHash(locale, []);
+      // Same memoryFacts slice + hasTools=true as ensureEngineForModel.
+      let sessionPromptEnvHash = computePromptEnvHash(locale, [], true);
       try {
         const enabled = await MemoryStore.getEnabled();
         if (enabled) {
@@ -3576,6 +3579,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           sessionPromptEnvHash = computePromptEnvHash(
             locale,
             facts.map((f) => f.text).slice(-10),
+            true,
           );
         }
       } catch {

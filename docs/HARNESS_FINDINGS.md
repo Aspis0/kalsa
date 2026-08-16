@@ -658,6 +658,23 @@ restore.
 Standing rule from this: a spec asks for a mutation test **on the real module**, with the failing
 output pasted. "Write a test" and "write a test that can fail" are different requests.
 
+## 3.11 The privacy gate inspects a different fact set than the prompt exposes
+
+Found by hostile audit 2026-08-16 while reviewing an unrelated change; **pre-existing, not
+introduced by it**, and not yet fixed.
+
+- the prompt takes the **last** ten facts — `.slice(-MAX_PROMPT_FACTS)` in the fact renderer;
+- `webSearchTool.ts:88` passes `memoryFacts: facts.slice(0, 10)` — the **first** ten — to the check
+  that decides what may leave the device.
+
+So with more than ten durable facts the two sets can be disjoint: the gate clears facts the prompt
+never shows, and the prompt shows facts the gate never saw. A setting that means "where do I send
+traffic" must never quietly also mean "you may upload the user's content", and a consent check that
+inspects the wrong list is exactly that failure in slow motion.
+
+Not fixed here because it is orthogonal to the prefill work and deserves its own change plus a test
+that constructs eleven facts and asserts both sides agree.
+
 ## 4. Refuted — do not re-derive these
 
 - **"`n_ctx` drives compaction."** False. `shouldRebuild` fires on a K-turn cadence and on
