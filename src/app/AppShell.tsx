@@ -101,6 +101,7 @@ import {
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
 import {
+  completeOnce,
   disposeEngine,
   extractMemory,
   getActiveEngineNCtx,
@@ -117,6 +118,7 @@ import {
   type EngineMessage,
   type EngineTurnOptions,
 } from "../engine/LlamaService";
+import { runDeepResearch } from "../research/deepResearch";
 import { decideEngineBarKind } from "../engine/engineLiveness";
 import { startMemoryMonitor, getAvailableMemoryBytesUncached } from "../engine/monitor";
 import {
@@ -3984,6 +3986,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       attachments?: LocalAttachment[],
       history?: unknown[],
       _lastUserBare?: string,
+      sendOpts?: { research?: boolean },
     ) =>
       new Promise<{ afterSessionSave?: () => void }>((resolve) => {
         let settled = false;
@@ -4149,6 +4152,65 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   "chat.modelNotDownloaded",
                 );
               }
+              return;
+            }
+
+            if (sendOpts?.research) {
+              const libraryDocs = documentLibraryRef.current.docs ?? [];
+              const attachedDocIds = (attachments ?? [])
+                .filter((a) => a.kind === "document" && typeof a.libraryDocId === "string" && a.libraryDocId)
+                .map((a) => a.libraryDocId as string);
+              const filtered = attachedDocIds.length
+                ? libraryDocs.filter(
+                    (d) =>
+                      attachedDocIds.includes(d.id) ||
+                      attachedDocIds.includes(d.sourceId),
+                  )
+                : [];
+              // Explicitly scoped attachments that all vanished from the
+              // library: research would silently widen to the whole library
+              // and cite documents the user never asked about.
+              if (attachedDocIds.length > 0 && filtered.length === 0) {
+                const goneText =
+                  getStrings(locale).errors.deepResearchAttachedMissing ??
+                  "The attached documents are no longer in the library. Add them back and send again.";
+                callbacks.onDelta?.(goneText, goneText);
+                finish();
+                return;
+              }
+              const docs = filtered.length > 0 ? filtered : libraryDocs;
+              const executeTool = agentOptionsRef.current.executeTool;
+              const question = String(text ?? "")
+                .replace(/\[document:[^\]]*\]/g, "")
+                .replace(/\s+/g, " ")
+                .trim();
+              const outcome = await runDeepResearch({
+                question,
+                locale,
+                docs,
+                execute: (name, args, toolSignal) =>
+                  executeTool
+                    ? executeTool(name, args, toolSignal, text)
+                    : Promise.resolve({ strategy: "error", error: "no executor" }),
+                completeOnce,
+                nCtx: getActiveEngineNCtx() || chatEngineCtxRef.current || 0,
+                signal,
+                callbacks: {
+                  onStatus: (status) => callbacks.onStatus?.(status),
+                  onDelta: (delta, full) => {
+                    assistantFull = full;
+                    callbacks.onDelta?.(delta, full);
+                  },
+                },
+              });
+              if (outcome.kind !== "aborted" && !signal.aborted) {
+                // Research completions ran clearCache on the native KV; the
+                // pre-research .kvs on disk is now stale (historyHash no
+                // longer matches). Drop it instead of letting the next boot
+                // pay a cold meta_mismatch.
+                void invalidateEngineSession(getActiveModelId() ?? currentModel.id);
+              }
+              finish();
               return;
             }
 
@@ -4803,6 +4865,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             persistFlushRef={persistFlushRef}
             isActiveChatEmptyRef={isActiveChatEmptyRef}
             bumpPersistEpochRef={bumpPersistEpochRef}
+            supportsVision={Boolean(currentModel?.mmproj)}
           />
         </View>
 

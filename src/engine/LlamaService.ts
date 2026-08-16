@@ -450,6 +450,8 @@ export type EngineTool = {
 export type EngineToolResult = {
   text: string;
   sources?: unknown[];
+  /** Retrieved passages from document_chat (research reuses this). */
+  passages?: import("../context/retrievalLoop").RetrievedPassage[];
   /** Optional tool-kind tag (e.g. "document_chat") for post-truncation provenance. */
   kind?: string;
   /**
@@ -3195,6 +3197,153 @@ export async function summarizeConversation(
       signal?.removeEventListener("abort", onAbort);
     }
   });
+}
+
+const COMPLETE_ONCE_TIMEOUT_MS = 120_000;
+
+export type CompleteOnceOpts = {
+  system: string;
+  user: string;
+  temperature: number;
+  nPredict: number;
+  jsonSchema?: object;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+};
+
+/**
+ * Isolated one-shot completion (planner / writer). FIFO via withEngineJob,
+ * thinking off, optional json_schema. Clears native KV so a later chat turn
+ * does not inherit a research prefix. Fail-closed → empty text on abort/timeout.
+ */
+export async function completeOnce(
+  opts: CompleteOnceOpts,
+): Promise<{ text: string; aborted: boolean; engineSwapped?: boolean }> {
+  const system = typeof opts.system === "string" ? opts.system : "";
+  const user = typeof opts.user === "string" ? opts.user : "";
+  const temperature =
+    typeof opts.temperature === "number" && Number.isFinite(opts.temperature)
+      ? opts.temperature
+      : 0.3;
+  const nPredict =
+    typeof opts.nPredict === "number" && opts.nPredict > 0
+      ? Math.floor(opts.nPredict)
+      : 256;
+  const signal = opts.signal;
+  const timeoutMs =
+    typeof opts.timeoutMs === "number" && opts.timeoutMs > 0
+      ? opts.timeoutMs
+      : COMPLETE_ONCE_TIMEOUT_MS;
+
+  return withEngineJob(async () => {
+    if (signal?.aborted) return { text: "", aborted: true };
+
+    const engine = context;
+    if (!engine) return { text: "", aborted: true };
+
+    let timedOut = false;
+    let aborted = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const onAbort = () => {
+      aborted = true;
+      if (engine === context) {
+        void engine.stopCompletion().catch(() => undefined);
+      }
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) {
+      signal.removeEventListener("abort", onAbort);
+      return { text: "", aborted: true };
+    }
+
+    try {
+      try {
+        await engine.clearCache();
+      } catch {
+        // best effort — completion still proceeds
+      }
+      kvHoldsChatSession = false;
+      lastChatNPast = undefined;
+      chatKvDiskCurrent = false;
+      // Native KV no longer holds the chat static prefix.
+      prewarmPrefixHash = null;
+      if (aborted || signal?.aborted || engine !== context) {
+        return { text: "", aborted: true, engineSwapped: engine !== context };
+      }
+
+      timer = setTimeout(() => {
+        timedOut = true;
+        if (engine === context) {
+          void engine.stopCompletion().catch(() => undefined);
+        }
+      }, timeoutMs);
+
+      const result = await trackCompletion(
+        engine.completion({
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ] as RNLlamaOAICompatibleMessage[],
+          n_predict: nPredict,
+          stop: STOP_WORDS,
+          temperature,
+          top_k: 20,
+          top_p: 0.9,
+          enable_thinking: false,
+          thinking_budget_tokens: 0,
+          reasoning_format: "none",
+          chat_template_kwargs: { enable_thinking: false },
+          ...(opts.jsonSchema
+            ? {
+                response_format: {
+                  type: "json_schema" as const,
+                  json_schema: { strict: true, schema: opts.jsonSchema },
+                },
+              }
+            : {}),
+        }),
+      );
+
+      emitTurnTelemetry(`util-completeOnce-${++turnSeq}`, 0, result);
+
+      const raw =
+        typeof result.content === "string" && result.content.length > 0
+          ? result.content
+          : (result.text ?? "");
+      const text = stripThinkAndFences(raw);
+      // Timeout salvage: keep generated tokens so the writer can emit a partial
+      // draft. User abort / engine swap stay empty (but distinct).
+      if (timedOut) return { text, aborted: true };
+      if (aborted || signal?.aborted) {
+        return { text: "", aborted: true };
+      }
+      if (engine !== context) {
+        return { text: "", aborted: true, engineSwapped: true };
+      }
+      return { text, aborted: false };
+    } catch {
+      return { text: "", aborted: aborted || Boolean(signal?.aborted) || timedOut, engineSwapped: engine !== context };
+    } finally {
+      if (timer) clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      // Native KV was cleared for an isolated completion; the chat static
+      // prefix is no longer warm, whatever a concurrent prewarm recorded.
+      prewarmPrefixHash = null;
+    }
+  });
+}
+
+function stripThinkAndFences(raw: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  let out = raw;
+  out = out.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  out = out.replace(/<think>[\s\S]*$/gi, "");
+  out = out.replace(/<\/?think>/gi, "");
+  out = out.trim();
+  const fenced = out.match(/^```(?:\w+)?\s*\n?([\s\S]*?)\n?```$/);
+  if (fenced) out = fenced[1].trim();
+  return out;
 }
 
 /** Strip think tags / fences / preambles from a summary; keep plain prose. */

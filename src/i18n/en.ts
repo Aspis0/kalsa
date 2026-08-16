@@ -479,6 +479,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     a11yLongPress: "Long press for copy, translate, or save to notes",
     saveToNotes: "Save to notes",
     lookAtAttachedFile: "Look at the attached file.",
+    visionUnsupportedNotice:
+      "The active model can't see images — switch to a vision model (Qwen 3.5 4B or Gemma 4) in Settings to analyze photos.",
     a11yAttach: "Add attachment",
     a11yRemoveAttachment: "Remove attachment",
     a11yStop: "Stop generation",
@@ -495,6 +497,21 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     regenFailed: "Regenerate failed",
     editEmpty: "Add a caption or keep an attachment.",
     sendAborted: "Generation stopped before a reply started.",
+    deepResearch: "Deep research",
+    deepResearchActive: "Deep research on — tap to disable",
+    deepResearchPlanning: "Planning research…",
+    deepResearchQuery: "Query {n}/{total}…",
+    deepResearchWriting: "Writing report…",
+    deepResearchNoResults:
+      "The library returned no relevant passages for this question.",
+    deepResearchPartial: " (partial — some sources were unavailable)",
+    deepResearchNeedsQuestion: "Ask a question to research your library.",
+    deepResearchIgnoringImages:
+      "Deep research works on text documents — images on this message won't be used.",
+    deepResearchWriterFailed:
+      "The report could not be finished on this device — retrieved passages below.",
+    deepResearchInterrupted:
+      "Research was interrupted because the model engine changed. Send again to retry.",
   },
 
   notify: {
@@ -779,6 +796,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       "Text extraction for “{name}” failed (file read error). Ask the user to re-import from Documents.",
     documentChatExtractFailed:
       "Text extraction for “{name}” failed. Ask the user to re-import from Documents (retry).",
+    deepResearchEmptyLibrary:
+      "No documents in the library to research. Add documents first.",
+    deepResearchAttachedMissing:
+      "The attached documents are no longer in the library. Add them back and send again.",
   },
 
   /** PdfToImages component (WebView bridge that renders PDF pages to JPEG). */

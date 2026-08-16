@@ -41,11 +41,16 @@ import {
   Languages,
   Menu,
   MoreHorizontal,
+  Search,
   Sparkles,
   SquarePen,
   Volume2,
   X,
 } from "lucide-react-native";
+import {
+  hasDeepResearchTrigger,
+  stripDeepResearchTrigger,
+} from "../research/plan";
 import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -270,6 +275,7 @@ type Props = {
     history?: unknown[],
     /** Persist/assemble user text (trimmed, no docHints / placeholder). */
     lastUserBare?: string,
+    opts?: { research?: boolean },
   ) => Promise<SendStreamResult | void>;
   selectedRun?: AiChatSelectedRun | null;
   prefillText?: string | null;
@@ -334,6 +340,12 @@ type Props = {
   isActiveChatEmptyRef?: React.MutableRefObject<(() => boolean) | null>;
   /** Parent bumps the persist epoch before deleting this chat's messages key. */
   bumpPersistEpochRef?: React.MutableRefObject<(() => void) | null>;
+  /**
+   * Catalog vision capability of the selected model (mmproj present).
+   * Derived from the registry, not from a loaded engine context.
+   * Missing / unknown → treat as text-only so the notice is conservative.
+   */
+  supportsVision?: boolean;
 };
 
 type SuggestionItem = {
@@ -743,6 +755,7 @@ export function AiChatPage({
   persistFlushRef,
   isActiveChatEmptyRef,
   bumpPersistEpochRef,
+  supportsVision = false,
 }: Props) {
   const { colors, mode, fontScaleId } = useLabTheme<any>();
   // Reactive tokens: font-scale change re-renders this page via context.
@@ -1063,6 +1076,10 @@ export function AiChatPage({
   const [attachedItems, setAttachedItems] = useState<LocalAttachment[]>([]);
   const attachedItemsRef = useRef(attachedItems);
   attachedItemsRef.current = attachedItems;
+  /** Arms the next send as deep research (one-shot; cleared on send). */
+  const [researchMode, setResearchMode] = useState(false);
+  const researchModeRef = useRef(false);
+  researchModeRef.current = researchMode;
   const [attachSheetOpen, setAttachSheetOpen] = useState(false);
   /** Nested picker: choose a library document to attach as a retrieval source. */
   const [docPickOpen, setDocPickOpen] = useState(false);
@@ -1447,6 +1464,7 @@ export function AiChatPage({
         { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG },
       );
       if (!mountedRef.current) return;
+      const atCap = attachedItemsRef.current.length >= MAX_IMAGE_ATTACHMENTS;
       setAttachedItems((prev) => {
         if (prev.length >= MAX_IMAGE_ATTACHMENTS) {
           // Audit follow-up: was a silent no-op — surface the same class of
@@ -1465,11 +1483,16 @@ export function AiChatPage({
           },
         ];
       });
+      // Notice, not a block — user may switch model later. Skip when the
+      // cap path already owns the voice note.
+      if (!atCap && !supportsVision) {
+        showVoiceNote(t("chat.visionUnsupportedNotice"));
+      }
       setAttachSheetOpen(false);
     } catch {
       // picker annullato/errore: ignora
     }
-  }, [showVoiceNote, t]);
+  }, [showVoiceNote, supportsVision, t]);
 
   const addPdfAttachment = useCallback(async () => {
     if (pickingPdfRef.current || pdfToRenderRef.current) return;
@@ -1571,7 +1594,10 @@ export function AiChatPage({
         },
       ];
     });
-  }, [showVoiceNote, t]);
+    if (!supportsVision) {
+      showVoiceNote(t("chat.visionUnsupportedNotice"));
+    }
+  }, [showVoiceNote, supportsVision, t]);
 
   const handlePdfError = useCallback((error: Error) => {
     if (!mountedRef.current) return;
@@ -1649,6 +1675,9 @@ export function AiChatPage({
     setAttachSheetOpen(false);
     attachedItemsRef.current = [];
     setAttachedItems([]);
+    // Arm must not leak across conversations (cross-chat bug).
+    researchModeRef.current = false;
+    setResearchMode(false);
     voiceRunIdRef.current += 1;
     voiceBusyRef.current = false;
     voiceStopInFlightRef.current = false;
@@ -2188,16 +2217,36 @@ export function AiChatPage({
 
       // Snapshot attachments at send time
       const snapshotAttachments = currentAttachments ?? [];
+      const hasVisionInput = snapshotAttachments.some(
+        (a) =>
+          a.kind === "image" ||
+          (a.kind === "pdf" && (a.pages?.length ?? 0) > 0),
+      );
+      if (hasVisionInput && !supportsVision) {
+        showVoiceNote(t("chat.visionUnsupportedNotice"));
+      }
       // Library documents are retrieval sources (document_chat tool), not vision.
       // Annotate the model-facing text with doc ids so the tool can select them.
       const docHints = snapshotAttachments
         .filter((a) => a.kind === "document" && a.libraryDocId)
         .map((a) => `[document:${a.libraryDocId} name="${a.name}"]`)
         .join(" ");
-      const modelText = trimmed
+      const armedResearch = researchModeRef.current;
+      const keywordResearch = hasDeepResearchTrigger(trimmed);
+      const useResearch = armedResearch || keywordResearch;
+      if (armedResearch) setResearchMode(false);
+      // Research is text-only: on a vision-capable model an attached image
+      // would be silently dropped — say so.
+      if (useResearch && hasVisionInput && supportsVision) {
+        showVoiceNote(t("chat.deepResearchIgnoringImages"));
+      }
+      const researchQuestion = keywordResearch
+        ? stripDeepResearchTrigger(trimmed) || trimmed
+        : trimmed;
+      const modelText = researchQuestion
         ? docHints
-          ? `${trimmed}\n\n${docHints}`
-          : trimmed
+          ? `${researchQuestion}\n\n${docHints}`
+          : researchQuestion
         : docHints || t("chat.lookAtAttachedFile");
 
       // BLOCKER-2: module counter, no Date.now() collision
@@ -2395,6 +2444,7 @@ export function AiChatPage({
             snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
             messagesRef.current,
             trimmed,
+            useResearch ? { research: true } : undefined,
           );
           // clearChat mid-stream: do not adopt stream result into a new chat.
           if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
@@ -2712,7 +2762,7 @@ export function AiChatPage({
         }
       }
     },
-    [awaitPreSendFitGate, historyLoaded, invalidateVoice, onSendStream, t, updateMessage],
+    [awaitPreSendFitGate, historyLoaded, invalidateVoice, onSendStream, showVoiceNote, supportsVision, t, updateMessage],
   );
 
   // Publish the active handleSend promise so background discard can await it.
@@ -2870,6 +2920,7 @@ export function AiChatPage({
     // conversation and gets sent with the next message.
     attachedItemsRef.current = [];
     setAttachedItems([]);
+    setResearchMode(false);
     // Voice: invalidate transcription token, cancel capture, stop TTS, clear UI.
     voiceRunIdRef.current += 1;
     voiceBusyRef.current = false;
@@ -3878,6 +3929,30 @@ export function AiChatPage({
           </View>
         ) : null}
 
+        {researchMode ? (
+          <Pressable
+            onPress={() => setResearchMode(false)}
+            accessibilityRole="button"
+            accessibilityLabel={t("chat.deepResearchActive")}
+            accessibilityHint={t("chat.deepResearchActive")}
+            style={{
+              alignSelf: "flex-start",
+              maxWidth: "90%",
+              paddingHorizontal: spacing.sm,
+              paddingVertical: 4,
+              borderRadius: radius.md ?? 12,
+              backgroundColor: colors.panelSolid,
+              borderWidth: 1,
+              borderColor: colors.lineStrong,
+              marginBottom: 4,
+            }}
+          >
+            <Text style={[typography.bodyXs, { color: colors.ink }]}>
+              {t("chat.deepResearchActive")}
+            </Text>
+          </Pressable>
+        ) : null}
+
         {attachedItems.length > 0 ? (
           <ScrollView
             horizontal
@@ -4287,6 +4362,15 @@ export function AiChatPage({
                       return;
                     }
                     setDocPickOpen(true);
+                  }}
+                  colors={colors}
+                />
+                <AttachSheetRow
+                  icon={<Search size={18} color={colors.ink} />}
+                  label={t("chat.deepResearch")}
+                  onPress={() => {
+                    setAttachSheetOpen(false);
+                    setResearchMode(true);
                   }}
                   colors={colors}
                 />

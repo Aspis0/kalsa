@@ -476,6 +476,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     a11yLongPress: "Tieni premuto per copiare, tradurre o salvare nelle note",
     saveToNotes: "Salva nelle note",
     lookAtAttachedFile: "Guarda il file allegato.",
+    visionUnsupportedNotice:
+      "Il modello attivo non vede le immagini — passa a un modello vision (Qwen 3.5 4B o Gemma 4) nelle Impostazioni per analizzare le foto.",
     a11yAttach: "Aggiungi allegato",
     a11yRemoveAttachment: "Rimuovi allegato",
     a11yStop: "Interrompi generazione",
@@ -492,6 +494,21 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     regenFailed: "Rigenera fallita",
     editEmpty: "Aggiungi una didascalia o mantieni un allegato.",
     sendAborted: "Generazione interrotta prima della risposta.",
+    deepResearch: "Ricerca approfondita",
+    deepResearchActive: "Ricerca approfondita attiva — tocca per disattivare",
+    deepResearchPlanning: "Pianifico la ricerca…",
+    deepResearchQuery: "Ricerca {n}/{total}…",
+    deepResearchWriting: "Scrivo il report…",
+    deepResearchNoResults:
+      "La libreria non ha trovato passaggi rilevanti per questa domanda.",
+    deepResearchPartial: " (parziale — alcune fonti non erano disponibili)",
+    deepResearchNeedsQuestion: "Scrivi una domanda per ricercare nella libreria.",
+    deepResearchIgnoringImages:
+      "La ricerca approfondita lavora sui documenti di testo — le immagini di questo messaggio non verranno usate.",
+    deepResearchWriterFailed:
+      "Il report non è stato completato su questo dispositivo — passaggi trovati qui sotto.",
+    deepResearchInterrupted:
+      "Ricerca interrotta perché il motore del modello è cambiato. Invia di nuovo per riprovare.",
   },
 
   notify: {
@@ -753,6 +770,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "Estrazione testo di “{name}” non riuscita (errore di lettura file). Chiedi all’utente di reimportare da Documenti.",
     documentChatExtractFailed:
       "Estrazione testo di “{name}” non riuscita. Chiedi all’utente di reimportare da Documenti (riprova).",
+    deepResearchEmptyLibrary:
+      "Nessun documento in libreria da ricercare. Aggiungi prima dei documenti.",
+    deepResearchAttachedMissing:
+      "I documenti allegati non sono più in libreria. Aggiungili di nuovo e reinvia.",
   },
 
   pdf: {
