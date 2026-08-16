@@ -65,8 +65,16 @@
 > Confronto onesto col paper mirror (Component-Aware SSD, polarità
 > opposta, α=0.038 all-token a k=2): il nostro α_s1 = 1.000 e il macro
 > 0.643 stanno **oltre un ordine di grandezza sopra**. `alpha_alltok(G=8)
-> = 0.000` è atteso (richiede 8/8 token corretti di fila). Il verdetto
-> ufficiale resta ad A1 G=4 (in corsa da 01:54).
+> = 0.000` è atteso (richiede 8/8 token corretti di fila).
+> **🏆 A1 G=4 — VERDETTO UFFICIALE (2026-08-16 03:39, wall 6303s):
+> `E4_GO(alpha1=0.987, EL=2.995)`. Gate di nuovo tutti bitwise (S1
+> 300/300, S2 75/75, S2 freeze-read 75/75, S3 74/74, max|dlogit| = 0).
+> α_s0 0.947 · α_s1 0.987 · α_s2 0.733 · α_s3 0.627 → macro 247/300 =
+> **0.823**, **E[L] = 2.995 token per verify**. E soprattutto:
+> **alpha_alltok(G=4) = 0.413** — QUESTO è il numero confrontabile col
+> paper specchio (Component-Aware SSD, α=0.038 all-token): ~11× sopra,
+> a parità di k. Il confronto apples-to-apples col loro k=2 lo dà A3
+> (in corsa da 03:39).**
 > **F5 SPEC SCRITTA (docs/f5-stateless-loop-spec.md) — e rileggendo F1 è
 > saltato fuori che il premio grosso non è la velocità ma la RAM: il
 > loop F1 deve chiedere `n_rs_seq = draft_max` snapshot ricorrenti sul
