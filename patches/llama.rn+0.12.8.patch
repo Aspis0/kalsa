@@ -119,10 +119,10 @@ index fa4cbad..da4af9b 100644
          // legacy files (media is then conservatively reprocessed)
          ctx->setMediaHashes(embd.empty() ? std::vector<std::string>{}
 diff --git a/node_modules/llama.rn/cpp/rn-completion.cpp b/node_modules/llama.rn/cpp/rn-completion.cpp
-index a60bd15..5cdedae 100644
+index a60bd15..92002fd 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.cpp
 +++ b/node_modules/llama.rn/cpp/rn-completion.cpp
-@@ -427,6 +427,13 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -427,6 +427,54 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
          // n_common = shared prefix with the live cache; it bounds how far a
          // checkpoint may be trusted.
          size_t n_common = is_enc_dec ? 0 : find_common_prefix_length(embd, text_tokens);
@@ -133,10 +133,51 @@ index a60bd15..5cdedae 100644
 +            "KALSA_KVPREFIX embd=%zu text_tokens=%zu n_common=%zu mtp_draft_mem_shared=%d is_enc_dec=%d this=%p",
 +            embd.size(), text_tokens.size(), n_common,
 +            (int) mtp_draft_mem_shared, (int) is_enc_dec, (const void *) this);
++        // Real divergence only: shared prefix is a proper subset of both sides.
++        // Window = 8 tokens before n_common (shared context) + 12 from n_common
++        // on each side. IDs + detokenized text (tokens_to_str) so tags like
++        // <think> are visible; IDs alone cannot name them.
++        if (n_common < embd.size() && n_common < text_tokens.size()) {
++            const size_t pre = 8;
++            const size_t post = 12;
++            const size_t shared_lo = n_common > pre ? n_common - pre : 0;
++            const size_t embd_hi = std::min(n_common + post, embd.size());
++            const size_t text_hi = std::min(n_common + post, text_tokens.size());
++            std::string shared_ids, embd_ids, text_ids;
++            for (size_t i = shared_lo; i < n_common; i++) {
++                shared_ids += std::to_string(embd[i]) + " ";
++            }
++            for (size_t i = n_common; i < embd_hi; i++) {
++                embd_ids += std::to_string(embd[i]) + " ";
++            }
++            for (size_t i = n_common; i < text_hi; i++) {
++                text_ids += std::to_string(text_tokens[i]) + " ";
++            }
++            auto clip200 = [](std::string s) {
++                if (s.size() > 200) s.resize(200);
++                return s;
++            };
++            const std::string shared_txt = n_common > shared_lo
++                ? clip200(tokens_to_str(parent_ctx->ctx, embd.cbegin() + shared_lo, embd.cbegin() + n_common))
++                : std::string();
++            const std::string embd_txt = embd_hi > n_common
++                ? clip200(tokens_to_str(parent_ctx->ctx, embd.cbegin() + n_common, embd.cbegin() + embd_hi))
++                : std::string();
++            const std::string text_txt = text_hi > n_common
++                ? clip200(tokens_to_str(parent_ctx->ctx, text_tokens.cbegin() + n_common, text_tokens.cbegin() + text_hi))
++                : std::string();
++            rnllama::log("WARNING", __func__, __LINE__,
++                "KALSA_KVDIVERGE n_common=%zu shared_lo=%zu embd_hi=%zu text_hi=%zu "
++                "shared_ids=[%s] embd_ids=[%s] text_ids=[%s] "
++                "shared_txt=[%s] embd_txt=[%s] text_txt=[%s]",
++                n_common, shared_lo, embd_hi, text_hi,
++                shared_ids.c_str(), embd_ids.c_str(), text_ids.c_str(),
++                shared_txt.c_str(), embd_txt.c_str(), text_txt.c_str());
++        }
          // A mem-shared MTP draft leaves stale speculative cells in the target's
          // SHARED KV window that upstream never cleans (TAG_KV_CACHE_SHARE_CELLS,
          // see initMTP). Reusing any prefix — even the plain seq_rm fast path —
-@@ -436,6 +443,22 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -436,6 +484,22 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
          if (mtp_draft_mem_shared) {
              n_common = 0;
          }
@@ -159,7 +200,7 @@ index a60bd15..5cdedae 100644
          n_past = (llama_pos) n_common;
  
          embd = text_tokens;
-@@ -459,6 +482,21 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -459,6 +523,21 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
                  LOG_INFO("restored state checkpoint: reusing %d/%zu prompt tokens",
                      n_past, num_prompt_tokens);
              } else {
@@ -181,7 +222,7 @@ index a60bd15..5cdedae 100644
                  LOG_WARNING("no usable state checkpoint (recurrent/hybrid/SWA model), doing full cache clear");
                  llama_memory_clear(kv, false);
                  clearStateCheckpoints();
-@@ -626,9 +664,14 @@ void llama_rn_context_completion::updateGenerationTiming() {
+@@ -626,9 +705,14 @@ void llama_rn_context_completion::updateGenerationTiming() {
  }
  
  bool llama_rn_context_completion::shouldUseMTP() const {
