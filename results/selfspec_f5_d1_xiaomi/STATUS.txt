@@ -1,0 +1,66 @@
+2026-08-16T12:09:53.4028586-04:00  === F5 D1 XIAOMI START (EXPLORATORY — not a claim) ===
+2026-08-16T12:09:53.4236782-04:00  PIN git_rev=b3eb60c08b1e5533d0e939b1e0a35995c2550cdb (b3eb60c)
+2026-08-16T12:09:53.4449513-04:00  PIN host_sha256=a94d12ae8d343542a2c48eff408be8494052ccb957fe314ff0983e9091151123
+2026-08-16T12:09:53.4623083-04:00  PIN serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp
+2026-08-16T12:09:53.5201636-04:00  PUSH bmoe-cli  host=C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-android-f5\cli\bmoe-cli bytes=6903352
+2026-08-16T12:09:53.5673347-04:00  PUSH libggml.so  host=C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-android-f5\bin\libggml.so bytes=630080
+2026-08-16T12:09:53.5915598-04:00  PUSH libggml-base.so  host=C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-android-f5\bin\libggml-base.so bytes=6604808
+2026-08-16T12:09:53.6093751-04:00  PUSH libggml-cpu.so  host=C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-android-f5\bin\libggml-cpu.so bytes=5006512
+2026-08-16T12:09:53.6301153-04:00  PUSH libllama.so  host=C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-android-f5\bin\libllama.so bytes=40613360
+2026-08-16T12:09:53.6510525-04:00  PUSH libllama-common.so  host=C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-android-f5\bin\libllama-common.so bytes=78642384
+2026-08-16T12:09:53.6770981-04:00  PUSH libc++_shared.so  host=C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so bytes=1794776
+2026-08-16T12:09:57.4363972-04:00  PIN device_sha256_line=a94d12ae8d343542a2c48eff408be8494052ccb957fe314ff0983e9091151123  /data/local/tmp/f5_d1/bin/bmoe-cli
+2026-08-16T12:09:57.4675161-04:00  PIN device_sha_ok=a94d12ae8d343542a2c48eff408be8494052ccb957fe314ff0983e9091151123
+2026-08-16T12:09:57.7087688-04:00  SMOKE --help lists --selfspec-freeze-recurrent
+2026-08-16T12:09:59.2132482-04:00  BATT level=70% temp=28.9C plugged=False ac=false usb=false wl=false
+2026-08-16T12:09:59.3653875-04:00  BATT level=70% temp=28.9C plugged=False ac=false usb=false wl=false
+2026-08-16T12:09:59.4312537-04:00  RUN a_plain_r1 try=1 extra=[]
+2026-08-16T12:12:15.0934601-04:00  PARSE a_plain_r1 try=1 tokens=200 spt=0.5 eff=2.001 alpha=- tpv= mib/tok=35.6 rss_kb=5466428 wall=135s bytes=64590 n_rs_seq=[0] rs_buf=[62.81]
+2026-08-16T12:12:15.1239959-04:00  VALID a_plain_r1 try=1 wall=135s tokens=200 spt=0.5
+2026-08-16T12:12:15.3582343-04:00  BATT level=69% temp=31.1C plugged=False ac=false usb=false wl=false
+2026-08-16T12:12:15.3799786-04:00  RUN b_off_r1 try=1 extra=[--selfspec-draft-k 2 --selfspec-gamma 4]
+2026-08-16T12:18:18.5753508-04:00  PARSE b_off_r1 try=1 tokens=200 spt=0.596 eff=0.65 alpha=57/411 tpv=1.4 mib/tok=174.39 rss_kb=6562244 wall=363s bytes=70723 n_rs_seq=[4,4] rs_buf=[314.06,314.06]
+2026-08-16T12:18:18.5971742-04:00  VALID b_off_r1 try=1 wall=363s tokens=200 spt=0.596
+2026-08-16T12:18:18.7915184-04:00  BATT level=66% temp=35.8C plugged=False ac=false usb=false wl=false
+2026-08-16T12:18:18.8166625-04:00  RUN c_on_r1 try=1 extra=[--selfspec-draft-k 2 --selfspec-gamma 4 --selfspec-freeze-recurrent]
+2026-08-16T12:23:47.1670640-04:00  PARSE c_on_r1 try=1 tokens=200 spt=0.474 eff=0.74 alpha=96/407 tpv=1.92 mib/tok=132.95 rss_kb=6393144 wall=328s bytes=70707 n_rs_seq=[4,0] rs_buf=[314.06,62.81]
+2026-08-16T12:23:47.1854821-04:00  VALID c_on_r1 try=1 wall=328s tokens=200 spt=0.474
+2026-08-16T12:23:47.3932929-04:00  BATT level=64% temp=37.5C plugged=False ac=false usb=false wl=false
+2026-08-16T12:23:47.4138731-04:00  RUN d_on_g3_r1 try=1 extra=[--selfspec-draft-k 2 --selfspec-gamma 3 --selfspec-freeze-recurrent]
+2026-08-16T12:29:20.5090724-04:00  PARSE d_on_g3_r1 try=1 tokens=200 spt=0.46 eff=0.75 alpha=93/317 tpv=1.87 mib/tok=109.92 rss_kb=6581224 wall=333s bytes=70706 n_rs_seq=[3,0] rs_buf=[251.25,62.81]
+2026-08-16T12:29:20.5328682-04:00  VALID d_on_g3_r1 try=1 wall=333s tokens=200 spt=0.46
+2026-08-16T12:29:20.7295000-04:00  BATT level=62% temp=38.3C plugged=False ac=false usb=false wl=false
+2026-08-16T12:29:20.7503537-04:00  RUN a_plain_r2 try=1 extra=[]
+2026-08-16T12:32:19.9921660-04:00  PARSE a_plain_r2 try=1 tokens=200 spt=0.665 eff=1.505 alpha=- tpv= mib/tok=35.6 rss_kb=6298612 wall=179s bytes=64590 n_rs_seq=[0] rs_buf=[62.81]
+2026-08-16T12:32:20.0165543-04:00  VALID a_plain_r2 try=1 wall=179s tokens=200 spt=0.665
+2026-08-16T12:32:20.2136269-04:00  BATT level=61% temp=38.7C plugged=False ac=false usb=false wl=false
+2026-08-16T12:32:20.2349995-04:00  RUN b_off_r2 try=1 extra=[--selfspec-draft-k 2 --selfspec-gamma 4]
+2026-08-16T12:39:52.1489310-04:00  PARSE b_off_r2 try=1 tokens=200 spt=0.635 eff=0.52 alpha=57/411 tpv=1.4 mib/tok=174.39 rss_kb=6361440 wall=452s bytes=70723 n_rs_seq=[4,4] rs_buf=[314.06,314.06]
+2026-08-16T12:39:52.1689312-04:00  VALID b_off_r2 try=1 wall=452s tokens=200 spt=0.635
+2026-08-16T12:39:52.4075806-04:00  BATT level=59% temp=38.7C plugged=False ac=false usb=false wl=false
+2026-08-16T12:39:52.4281855-04:00  RUN c_on_r2 try=1 extra=[--selfspec-draft-k 2 --selfspec-gamma 4 --selfspec-freeze-recurrent]
+2026-08-16T12:46:18.7398657-04:00  PARSE c_on_r2 try=1 tokens=200 spt=0.52 eff=0.63 alpha=96/407 tpv=1.92 mib/tok=132.95 rss_kb=6596948 wall=386s bytes=70706 n_rs_seq=[4,0] rs_buf=[314.06,62.81]
+2026-08-16T12:46:18.7629950-04:00  VALID c_on_r2 try=1 wall=386s tokens=200 spt=0.52
+2026-08-16T12:46:18.9676857-04:00  BATT level=56% temp=39.3C plugged=False ac=false usb=false wl=false
+2026-08-16T12:46:18.9908641-04:00  RUN d_on_g3_r2 try=1 extra=[--selfspec-draft-k 2 --selfspec-gamma 3 --selfspec-freeze-recurrent]
+2026-08-16T12:52:14.5455446-04:00  PARSE d_on_g3_r2 try=1 tokens=200 spt=0.483 eff=0.7 alpha=93/317 tpv=1.87 mib/tok=109.92 rss_kb=6263268 wall=355s bytes=70706 n_rs_seq=[3,0] rs_buf=[251.25,62.81]
+2026-08-16T12:52:14.5473686-04:00  VALID d_on_g3_r2 try=1 wall=355s tokens=200 spt=0.483
+2026-08-16T12:52:14.8126636-04:00  BATT level=54% temp=39.6C plugged=False ac=false usb=false wl=false
+2026-08-16T12:52:14.8318870-04:00  RUN a_plain_r3 try=1 extra=[]
+2026-08-16T12:55:17.6608120-04:00  PARSE a_plain_r3 try=1 tokens=200 spt=0.686 eff=1.457 alpha=- tpv= mib/tok=35.6 rss_kb=6523444 wall=183s bytes=64591 n_rs_seq=[0] rs_buf=[62.81]
+2026-08-16T12:55:17.6808204-04:00  VALID a_plain_r3 try=1 wall=183s tokens=200 spt=0.686
+2026-08-16T12:55:17.9118072-04:00  BATT level=53% temp=39.7C plugged=False ac=false usb=false wl=false
+2026-08-16T12:55:17.9323430-04:00  RUN b_off_r3 try=1 extra=[--selfspec-draft-k 2 --selfspec-gamma 4]
+2026-08-16T13:02:52.4175036-04:00  PARSE b_off_r3 try=1 tokens=200 spt=0.652 eff=0.52 alpha=57/411 tpv=1.4 mib/tok=174.39 rss_kb=6728716 wall=454s bytes=70723 n_rs_seq=[4,4] rs_buf=[314.06,314.06]
+2026-08-16T13:02:52.4340937-04:00  VALID b_off_r3 try=1 wall=454s tokens=200 spt=0.652
+2026-08-16T13:02:52.6714076-04:00  BATT level=51% temp=39.8C plugged=False ac=false usb=false wl=false
+2026-08-16T13:02:52.6915977-04:00  RUN c_on_r3 try=1 extra=[--selfspec-draft-k 2 --selfspec-gamma 4 --selfspec-freeze-recurrent]
+2026-08-16T13:09:35.8787615-04:00  PARSE c_on_r3 try=1 tokens=200 spt=0.529 eff=0.6 alpha=96/407 tpv=1.92 mib/tok=132.95 rss_kb=6151104 wall=403s bytes=70706 n_rs_seq=[4,0] rs_buf=[314.06,62.81]
+2026-08-16T13:09:35.8803952-04:00  VALID c_on_r3 try=1 wall=403s tokens=200 spt=0.529
+2026-08-16T13:09:36.1202167-04:00  BATT level=48% temp=39.9C plugged=False ac=false usb=false wl=false
+2026-08-16T13:09:36.1409288-04:00  RUN d_on_g3_r3 try=1 extra=[--selfspec-draft-k 2 --selfspec-gamma 3 --selfspec-freeze-recurrent]
+2026-08-16T13:15:29.9870485-04:00  PARSE d_on_g3_r3 try=1 tokens=200 spt=0.478 eff=0.71 alpha=93/317 tpv=1.87 mib/tok=109.92 rss_kb=6629376 wall=354s bytes=70706 n_rs_seq=[3,0] rs_buf=[251.25,62.81]
+2026-08-16T13:15:30.0072462-04:00  VALID d_on_g3_r3 try=1 wall=354s tokens=200 spt=0.478
+2026-08-16T13:15:30.2247185-04:00  END_BATT level=46% temp=40.1C plugged=False
+2026-08-16T13:15:32.0104310-04:00  REPS_OK b_off=3 a_plain=3 d_on_g3=3 c_on=3
+2026-08-16T13:15:32.0349621-04:00  === F5 D1 XIAOMI DONE ===

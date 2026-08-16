@@ -163,6 +163,27 @@
 > ritocco a discrezione owner. results/mellum2_dropcurve/.**
 > 3 survivor ingegneristici senza claim (controller stutter
 > ExpertFlow-style, repack lazy hot ×1.27, corazza anti-zram).**
+> ⛔ **F5 ARM D1 SU FLASH (16/08, Xiaomi, ESPLORATIVO): NULL. La
+> self-speculation perde anche su telefono.** 12/12 run valide,
+> intercalate a/b/c/d × 3, n=200, staccato 70→46%, 28.9→40.1 °C.
+> plain **1.654 tok/s** · freeze OFF γ4 0.563 (**0.34×**) · freeze ON γ4
+> 0.657 (**0.40×**) · freeze ON **γ3 0.720 (0.44×)**. Il freeze fa il
+> suo (alpha 13.9→23.6%, RS 314.06→62.81 MiB) e γ=3 batte γ=4 come
+> predetto — ma serve 2.3× e se ne recupera 1.3.
+> **IL DATO CHE ORIENTA IL SEGUITO: i byte per token emesso scendono
+> 174 → 133 → 110 MiB man mano che le migliorie mordono.** Il plain sta
+> a ~50-60. Quindi non è "non funziona": **manca ~2×, e la grandezza su
+> cui prenderlo è nota**. La speculazione su questo modello LEGGE PIÙ
+> byte di quanti ne risparmi (verify batch senza ammortamento: token
+> consecutivi routano a esperti quasi disgiunti — la stessa entropia
+> misurata nella notte dell'invenzione). Direzioni aperte (brainstorm
+> in corso, anche con Qwen 3.8 Max): (1) draft che leggono ZERO byte
+> nuovi (solo esperti già residenti in cache / shared expert); (2) un
+> solo contesto con k commutato → via il prefill doppio (+94%) e la KV
+> in più; (3) **ribaltare il draft da generatore a PREDITTORE per il
+> prefetch**, per nascondere lo stall invece di saltare decodifiche;
+> (4) verify più magro sfruttando il drop già certificato.
+> results/selfspec_f5_d1_xiaomi/.
 > 📱 **CELLA REPLICA XIAOMI (16/08, in corso).** Replica pre-registrata
 > della claim di ship su secondo device: stesso ELF, stesso modello,
 > stesso prompt, cambia solo il telefono. PREREG committato PRIMA dello

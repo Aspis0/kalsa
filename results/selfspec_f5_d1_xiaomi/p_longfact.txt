@@ -1,0 +1,11 @@
+You are a careful technical writer. Write in plain English. Do not use bullet-only answers; use short paragraphs and then a compact numbered list where a list is actually clearer.
+
+Topic: On a phone with 8 GB of RAM and UFS flash, compare three ways a 35B-class Mixture-of-Experts model can run:
+
+1. mmap the whole file and hope the kernel keeps hot pages,
+2. stream only the routed experts each token into an LRU cache of about 2 GiB, with dense (non-expert) weights held in anonymous buffers,
+3. split the dense trunk onto a mobile GPU and keep expert GEMMs on the CPU.
+
+For each way, explain what is resident, what is read from flash per token, what a major page fault means here, and why activating k=6 experts out of a much larger pool still leaves a large on-disk file. Then walk through one concrete decode step: router scores, top-k, cache hit vs miss, optional drop of a cold low-weight expert, and how that changes both the math and the bytes. Close with two quantitative caveats: (a) a cache hit rate is not a quality metric, (b) a tok/s number that excludes prefill and draft time is not the rate a user feels.
+
+Write about 400-600 words. No markdown fences. No invented benchmark numbers.
