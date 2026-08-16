@@ -120,6 +120,7 @@ async function main() {
     computeHistoryHashFromMessages,
     computePromptEnvHash,
     estimateSessionBytes,
+    sessionHistoryPrefixAccepts,
   } = await import(pathToFileURL(modPath).href);
 
   let passed = 0;
@@ -325,6 +326,152 @@ async function main() {
     assert(estimateSessionBytes(8192) === 8192 * 64 * 1024, "8192");
     assert(estimateSessionBytes(0) === 0, "0");
     assert(estimateSessionBytes(-1) === 0, "negative → 0");
+  });
+
+  // ── sessionHistoryPrefixAccepts ──────────────────────────────────────────
+  const prefixMsgs = [
+    { role: "user", text: "hi" },
+    { role: "assistant", text: "hello" },
+  ];
+  const prefixHash = computeHistoryHashFromMessages(prefixMsgs);
+
+  test("prefix ACCEPT: saved prefix == current truncated to count", () => {
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      prefixMsgs,
+    );
+    assert(r.accept === true, JSON.stringify(r));
+  });
+
+  test("prefix ACCEPT: current has one extra user message (pending turn)", () => {
+    const current = [...prefixMsgs, { role: "user", text: "next turn" }];
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      current,
+    );
+    assert(r.accept === true, JSON.stringify(r));
+  });
+
+  // Empty suffix: length === count, prefix hash matches → ACCEPT (exact restore).
+  test("prefix ACCEPT: empty suffix (nothing appended after count)", () => {
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      prefixMsgs,
+    );
+    assert(r.accept === true, JSON.stringify(r));
+  });
+
+  test("prefix REJECT stale_kv: user + assistant suffix (skipped tool turn)", () => {
+    const current = [
+      ...prefixMsgs,
+      { role: "user", text: "search something" },
+      { role: "assistant", text: "tool results summary" },
+    ];
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      current,
+    );
+    assert(
+      r.accept === false && r.reason === "stale_kv_completed_turn",
+      JSON.stringify(r),
+    );
+  });
+
+  test("prefix REJECT stale_kv: assistant-only suffix", () => {
+    const current = [...prefixMsgs, { role: "assistant", text: "orphan reply" }];
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      current,
+    );
+    assert(
+      r.accept === false && r.reason === "stale_kv_completed_turn",
+      JSON.stringify(r),
+    );
+  });
+
+  test("prefix REJECT: content diverges inside prefix", () => {
+    const diverged = [
+      { role: "user", text: "hi EDITED" },
+      { role: "assistant", text: "hello" },
+      { role: "user", text: "next" },
+    ];
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      diverged,
+    );
+    assert(r.accept === false && r.reason === "historyHash", JSON.stringify(r));
+  });
+
+  test("prefix REJECT: same count, different content (hash mismatch)", () => {
+    const other = [
+      { role: "user", text: "different" },
+      { role: "assistant", text: "reply" },
+    ];
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      other,
+    );
+    assert(r.accept === false && r.reason === "historyHash", JSON.stringify(r));
+  });
+
+  test("prefix REJECT: current shorter than count", () => {
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      [{ role: "user", text: "hi" }],
+    );
+    assert(r.accept === false && r.reason === "historyHash", JSON.stringify(r));
+  });
+
+  test("prefix REJECT: missing/null saved or empty historyHash", () => {
+    assert(
+      sessionHistoryPrefixAccepts(null, prefixMsgs).accept === false,
+      "null saved",
+    );
+    assert(
+      sessionHistoryPrefixAccepts(undefined, prefixMsgs).reason === "historyHash",
+      "undefined saved",
+    );
+    assert(
+      sessionHistoryPrefixAccepts({ historyHash: "", historyMessageCount: 2 }, prefixMsgs)
+        .reason === "historyHash",
+      "empty hash",
+    );
+    assert(
+      sessionHistoryPrefixAccepts({ historyMessageCount: 2 }, prefixMsgs).reason ===
+        "historyHash",
+      "missing hash",
+    );
+  });
+
+  test("prefix REJECT: corrupt historyMessageCount", () => {
+    const cases = [-1, "3", 1.5, NaN, null];
+    for (const bad of cases) {
+      const r = sessionHistoryPrefixAccepts(
+        { historyHash: prefixHash, historyMessageCount: bad },
+        prefixMsgs,
+      );
+      assert(
+        r.accept === false && r.reason === "historyMessageCount",
+        `bad=${JSON.stringify(bad)} → ${JSON.stringify(r)}`,
+      );
+    }
+  });
+
+  test("prefix ACCEPT legacy: no historyMessageCount, full hash matches", () => {
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash },
+      prefixMsgs,
+    );
+    assert(r.accept === true, JSON.stringify(r));
+  });
+
+  test("prefix REJECT legacy: no historyMessageCount, extra message fails exact", () => {
+    const current = [...prefixMsgs, { role: "user", text: "extra" }];
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash },
+      current,
+    );
+    assert(r.accept === false && r.reason === "historyHash", JSON.stringify(r));
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

@@ -2484,6 +2484,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               // Abort-and-await lifecycle owned by AiChatPage: aborts send,
               // awaits stream finalization + turn-end save, returns real hash.
               let historyHashValue = historyHash("");
+              let historyMessageCount = 0;
               const lifecycle = backgroundDiscardLifecycleRef.current;
               if (lifecycle) {
                 try {
@@ -2493,6 +2494,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     typeof result.historyHashValue === "string"
                   ) {
                     historyHashValue = result.historyHashValue;
+                  }
+                  if (
+                    result &&
+                    typeof result.historyMessageCount === "number" &&
+                    Number.isInteger(result.historyMessageCount) &&
+                    result.historyMessageCount >= 0
+                  ) {
+                    historyMessageCount = result.historyMessageCount;
                   }
                 } catch {
                   // fall through with empty-history hash only if genuinely empty
@@ -2527,7 +2536,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 // saveEngineSession itself gates on kvReproducible.
                 // Use the real historyHash from lifecycle (empty only if empty).
                 try {
-                  await saveEngineSession(modelId, historyHashValue);
+                  await saveEngineSession(
+                    modelId,
+                    historyHashValue,
+                    historyMessageCount,
+                  );
                 } catch {
                   // ignore
                 }

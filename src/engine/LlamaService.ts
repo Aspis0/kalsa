@@ -69,6 +69,7 @@ import {
   type ToolRetrievalStrategy,
 } from "./turnTelemetry";
 import {
+  computeHistoryHashFromMessages,
   computePromptEnvHash,
   deleteOtherModelSessions,
   deleteSessionArtifacts,
@@ -76,9 +77,11 @@ import {
   estimateSessionBytes,
   getSessionConversationId,
   hasEnoughDiskForSession,
+  readBootMessages,
   readSessionMeta,
   sessionFileExists,
   sessionFilePath,
+  sessionHistoryPrefixAccepts,
   sessionMetaMismatchField,
   shouldSaveSession,
   writeSessionMeta,
@@ -1162,6 +1165,7 @@ export function markKvNonReproducible(
 export async function saveEngineSession(
   modelId: string,
   historyHashValue: string,
+  historyMessageCount?: number,
 ): Promise<boolean> {
   // FIX 4: lifecycle lock for the full save (disk I/O + native saveSession) so
   // a concurrent dispose/model-switch cannot null active* fields or release the
@@ -1270,6 +1274,14 @@ export async function saveEngineSession(
         historyHash: historyHashValue,
         savedAt: Date.now(),
       };
+      if (
+        typeof historyMessageCount === "number" &&
+        Number.isInteger(historyMessageCount) &&
+        historyMessageCount >= 0 &&
+        Number.isFinite(historyMessageCount)
+      ) {
+        meta.historyMessageCount = historyMessageCount;
+      }
       if (lastPromptEnvHash !== undefined) meta.promptEnvHash = lastPromptEnvHash;
       if (activeMtpNMax !== undefined) meta.mtpNMax = activeMtpNMax;
       if (activeSpecType !== undefined) meta.specType = activeSpecType;
@@ -1285,6 +1297,9 @@ export async function saveEngineSession(
       log(true, {
         tokens: typeof tokens === "number" ? tokens : 0,
         hash: historyHashValue,
+        ...(meta.historyMessageCount !== undefined
+          ? { messageCount: meta.historyMessageCount }
+          : {}),
       });
       return true;
     } catch (error) {
@@ -1345,12 +1360,19 @@ async function tryLoadEngineSession(
       log(false, { reason: "no_file" });
       return false;
     }
+    // Non-history fields only: force historyHash equal on both sides so
+    // sessionMetaMismatchField does not double-check history (prefix check below).
+    const historySentinel = "__prefix_history_skip__";
+    const storedForConfig: SessionMeta = {
+      ...stored,
+      historyHash: historySentinel,
+    };
     const expectedMeta: SessionMeta = {
       formatVersion: 1,
       nCtx: expected.nCtx,
       cacheTypeK: expected.cacheTypeK,
       cacheTypeV: expected.cacheTypeV,
-      historyHash: expected.historyHash,
+      historyHash: historySentinel,
     };
     if (expected.promptEnvHash !== undefined) {
       expectedMeta.promptEnvHash = expected.promptEnvHash;
@@ -1359,18 +1381,27 @@ async function tryLoadEngineSession(
     if (expected.specType !== undefined) expectedMeta.specType = expected.specType;
     if (expected.engineKnob !== undefined) expectedMeta.engineKnob = expected.engineKnob;
     if (expected.conversationId) expectedMeta.conversationId = expected.conversationId;
-    const mismatchField = sessionMetaMismatchField(stored, expectedMeta);
+    const mismatchField = sessionMetaMismatchField(storedForConfig, expectedMeta);
     if (mismatchField !== null) {
       await deleteSessionArtifacts(modelId);
-      // Field name only (enum-like) — attributable cold starts: historyHash =
-      // save missed/raced; promptEnvHash = memory facts / locale changed
-      // (semantically correct cold); nCtx/KV = config change.
-      // metaHash/bootHash only for historyHash MISS so CI can compare at a glance
-      // without changing the grepped reason string.
+      // Field name only (enum-like) — attributable cold starts: promptEnvHash =
+      // memory facts / locale changed (semantically correct cold); nCtx/KV = config.
       log(false, {
         reason: `meta_mismatch:${mismatchField}`,
-        ...(mismatchField === "historyHash"
-          ? { metaHash: stored.historyHash, bootHash: expected.historyHash }
+      });
+      return false;
+    }
+    // Prefix-aware history: saved hash may be a strict prefix of boot messages
+    // (new user turn already persisted before ensureEngine restore).
+    const bootMessages = await readBootMessages();
+    const historyCheck = sessionHistoryPrefixAccepts(stored, bootMessages);
+    if (!historyCheck.accept) {
+      await deleteSessionArtifacts(modelId);
+      const bootHash = computeHistoryHashFromMessages(bootMessages);
+      log(false, {
+        reason: `meta_mismatch:${historyCheck.reason}`,
+        ...(historyCheck.reason === "historyHash"
+          ? { metaHash: stored.historyHash, bootHash }
           : {}),
       });
       return false;

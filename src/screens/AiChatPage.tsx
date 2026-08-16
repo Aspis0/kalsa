@@ -1244,7 +1244,7 @@ export function AiChatPage({
               if (persistEpochRef.current === epoch && storageKey) {
                 AsyncStorage.setItem(storageKey, payload).catch(() => undefined);
                 notifyConversationTouched(clean as Message[]);
-                void saveEngineSession(modelId, historyHash(payload));
+                void saveEngineSession(modelId, historyHash(payload), clean.length);
               }
             }
           }
@@ -1847,7 +1847,10 @@ export function AiChatPage({
     }
     const clean = buildPersistableMessages(messagesRef.current);
     const payload = clean.length > 0 ? JSON.stringify(clean) : "";
-    return { historyHashValue: historyHash(payload) };
+    return {
+      historyHashValue: historyHash(payload),
+      historyMessageCount: clean.length,
+    };
   }, []);
 
   // Register lifecycle for AppShell background handler; clear on unmount.
@@ -2509,13 +2512,16 @@ export function AiChatPage({
                   const mid = getActiveModelId();
                   const runAfterSave = afterSessionSave;
                   if (mid) {
-                    const payload = JSON.stringify(
-                      buildPersistableMessages(finalized),
-                    );
+                    const persistable = buildPersistableMessages(finalized);
+                    const payload = JSON.stringify(persistable);
                     saveWorkScheduled = true;
                     void (async () => {
                       try {
-                        await saveEngineSession(mid, historyHash(payload));
+                        await saveEngineSession(
+                          mid,
+                          historyHash(payload),
+                          persistable.length,
+                        );
                         turnSaveHold.resolve?.();
                       } catch (err) {
                         turnSaveHold.reject?.(err);
@@ -2557,11 +2563,16 @@ export function AiChatPage({
               const mid = getActiveModelId();
               const runAfterSave = afterSessionSave;
               if (mid) {
-                const payload = JSON.stringify(buildPersistableMessages(next));
+                const persistable = buildPersistableMessages(next);
+                const payload = JSON.stringify(persistable);
                 // Synchronous install even on the unmounted path.
                 const saveP = (async () => {
                   try {
-                    await saveEngineSession(mid, historyHash(payload));
+                    await saveEngineSession(
+                      mid,
+                      historyHash(payload),
+                      persistable.length,
+                    );
                   } finally {
                     if (sendRunIdRef.current === runId && stillThisRun(myGen)) {
                       runAfterSave?.();

@@ -22,6 +22,8 @@ export type SessionMeta = {
   /** JSON.stringify of bench EngineOverride; omitted when production defaults. */
   engineKnob?: string;
   historyHash: string;
+  /** Length of the messages array that produced historyHash. Enables prefix restore. */
+  historyMessageCount?: number;
   /**
    * djb2 over JSON.stringify({locale, memoryFactsJoined, hasTools:true}).
    * Mismatch → cold start (same as historyHash). Optional for back-compat reads.
@@ -86,6 +88,83 @@ export function historyHash(messagesJson: string): string {
 export function computeHistoryHashFromMessages(messages: unknown): string {
   const arr = Array.isArray(messages) ? messages : [];
   return historyHash(JSON.stringify(arr));
+}
+
+/**
+ * Accept restore when saved history is an exact prefix of current messages.
+ * New user messages after save (turn N+1 boot) must not force a cold start.
+ * Content hash of the prefix is the only history check — never token counts.
+ *
+ * After a matching prefix, every suffix message must be role "user" (pending
+ * input the model has not answered). An assistant/tool/miniapp suffix means a
+ * full turn completed after the KV was saved (e.g. shouldSaveSession skipped a
+ * non-reproducible tool turn while AsyncStorage still wrote the reply) — reject
+ * with stale_kv_completed_turn so we cold-start instead of loading a KV that
+ * never saw that turn.
+ *
+ * AppState-background save + buildPersistableMessages: a still-streaming reply
+ * is dropped from the meta count/hash but may already sit in native KV. The
+ * suffix rule then rejects (suffix holds that assistant message) — safe direction.
+ */
+export function sessionHistoryPrefixAccepts(
+  saved: { historyHash?: unknown; historyMessageCount?: unknown } | null | undefined,
+  currentMessages: unknown,
+): { accept: true } | { accept: false; reason: string } {
+  if (saved == null) return { accept: false, reason: "historyHash" };
+  const hash = saved.historyHash;
+  if (typeof hash !== "string" || hash.length === 0) {
+    return { accept: false, reason: "historyHash" };
+  }
+  if (!Array.isArray(currentMessages)) {
+    return { accept: false, reason: "historyHash" };
+  }
+  const count = saved.historyMessageCount;
+  if (count === undefined) {
+    // Legacy meta: exact full-history match.
+    if (computeHistoryHashFromMessages(currentMessages) === hash) {
+      return { accept: true };
+    }
+    return { accept: false, reason: "historyHash" };
+  }
+  if (
+    typeof count !== "number" ||
+    !Number.isInteger(count) ||
+    count < 0 ||
+    !Number.isFinite(count)
+  ) {
+    return { accept: false, reason: "historyMessageCount" };
+  }
+  if (currentMessages.length < count) {
+    return { accept: false, reason: "historyHash" };
+  }
+  const prefix = currentMessages.slice(0, count);
+  if (computeHistoryHashFromMessages(prefix) !== hash) {
+    return { accept: false, reason: "historyHash" };
+  }
+  // Prefix matches. Accept only if the suffix is pending user input (or empty).
+  for (let i = count; i < currentMessages.length; i++) {
+    const msg = currentMessages[i];
+    const role =
+      msg != null && typeof msg === "object" && "role" in msg
+        ? (msg as { role?: unknown }).role
+        : undefined;
+    if (role !== "user") {
+      return { accept: false, reason: "stale_kv_completed_turn" };
+    }
+  }
+  return { accept: true };
+}
+
+/** Boot messages from AsyncStorage. Best-effort; never throws; [] on failure. */
+export async function readBootMessages(): Promise<unknown[]> {
+  try {
+    const raw = await AsyncStorage.getItem(bootMessagesKey);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 let bootHistoryHashPromise: Promise<string> | null = null;
@@ -311,6 +390,14 @@ export async function readSessionMeta(modelId: string): Promise<SessionMeta | nu
       meta.conversationId = parsed.conversationId;
     }
     if (typeof parsed.savedAt === "number") meta.savedAt = parsed.savedAt;
+    if (
+      typeof parsed.historyMessageCount === "number" &&
+      Number.isInteger(parsed.historyMessageCount) &&
+      parsed.historyMessageCount >= 0 &&
+      Number.isFinite(parsed.historyMessageCount)
+    ) {
+      meta.historyMessageCount = parsed.historyMessageCount;
+    }
     return meta;
   } catch {
     return null;
