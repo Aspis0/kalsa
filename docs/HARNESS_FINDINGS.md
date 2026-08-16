@@ -841,6 +841,76 @@ a single discharge holds ~2.3 h — **a 3 h arm does not fit one charge**. Eithe
 or the campaign runs plugged and declares the thermal confound, or §7.1 gets fixed and every turn
 becomes cheap enough that the question disappears.
 
+### 7.5 The KV chain, followed to the bottom: the engine loads the session and then throws it away
+
+§7.1 said the engine was disposed between turns and no KV survived. Following that produced three
+fixes and one root cause, in this order:
+
+1. **The restore guard could never succeed** — it compared the hash of the WHOLE history while the
+   history had grown by the new user message. Fixed (prefix + suffix rule, §commit `1afe789`), and
+   the device now logs `{"op":"load","ok":true,"tokens":1713}`.
+2. **The harness stopped seeing replies at all** after the merge with main, which moved messages to
+   per-conversation keys (`kalsa.messages.conv-<id>`). The reply was on screen and in the database
+   while `history_count` read a key that no longer existed. Fixed (`2d1ad72`).
+3. **The prefill still did not drop**: `reused=0`, turn after turn, with the session restored.
+
+The bottom of the chain is in the vendored engine, `node_modules/llama.rn/cpp/jsi/JSISession.h`:
+
+```cpp
+bool resumable = pos_max + 1 == n_tokens ||
+                 (mrope_media && pos_max >= 0 && pos_max + 1 < n_tokens);
+…
+if (!resumable) {
+    llama_memory_seq_rm(kv, 0, 0, -1);
+    embd.clear();                    // the restored tokens are discarded
+}
+```
+
+The session file loads — hence `ok:true` — and then a resumability check compares the restored
+memory's furthest position against the token count. When it disagrees, the KV is wiped and the
+token list cleared, so the next prompt starts from an empty cache: `n_past=0`, full re-prefill,
+and even the `KALSA_KVDIAG0` diagnostic cannot fire because it requires a non-empty cache. The
+empty `kvdiag.txt` was the symptom, not a capture failure.
+
+Why it disagrees here matches the sibling repo's H5 (`moe-kv-reuse-diagnosis.md`): Qwen3.5-4B is
+**hybrid (GDN + attention) and M-RoPE**, the tolerance branch applies only when media placeholders
+are present (our conversations are text-only), and for recurrent/hybrid memories the position
+frontier need not equal the token count.
+
+**One number closes it**: `pos_max` against `n_tokens` at that decision, which the code does not
+log. A three-line native patch prints them — this repo already patches llama.rn
+(`patches/llama.rn+0.12.8.patch`), so it is the house road. With those two values the choice is
+between reconciling the check for hybrids (as is already done for media) and accepting an engine
+limit.
+
+Note the layering, because it is the lesson: the guard fix was *necessary and insufficient*, and
+each layer was invisible until the one above it was removed. Reuse does work — turn 3 shows
+`reused=1984 total=2707` on a second round **within** a turn, where nothing is re-rendered and
+nothing is reloaded.
+
+### 7.6 Thermal drift runs inside the arm, and now the arm waits
+
+Measured on the unplugged S23, same arm, same regime:
+
+    turn   1    2    3    4    5    6    7
+    sec  165  167  232  217  296  391  505
+
+against 237 s at turn 7 the night before on a cool phone — more than double, at
+battery 44.1 °C with `Thermal Status: 3` (SEVERE). Recall does not depend on temperature; every
+latency number after the knee does. In a 30-turn regime the drift sits *inside* the arm, so late
+turns run on a slower machine than early ones — fatal for a benchmark whose subject is early vs
+late — and the first arm of a session is the fastest by construction.
+
+Device mode now pauses before a turn at SEVERE or 44 °C and resumes at LIGHT and 39 °C, logging
+the wait. Proven on the device the same day:
+
+    [ci] thermal: pause — status=3 battery_deci=420 …
+    [ci] thermal: cooling… waited=60s status=2 battery_deci=399
+
+Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate costs minutes, not hours.
+Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
+30 % floor one discharge holds ~2.3 h of measurement.
+
 ## Change log
 
 | date | change |
