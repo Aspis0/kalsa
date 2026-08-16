@@ -187,13 +187,22 @@
 > ship arm B (0.24 vs 0.095 s/tok; sospetta affinity thread Termux) —
 > a velocità ship lo stall share risalirebbe ~25%: eventuale cella
 > futura, non blocca. Dati: results/kf_probe_s23/.
-> **CELLA CONFERMATIVA JELLY PRE-REGISTRATA (results/kf_ship_jelly/
-> PREREG.md, commit 3785392 PRIMA del run): 24 blocchi ABBA, N=12
-> coppie, Wilcoxon esatto two-sided p<0.05. Primo lancio ucciso dal
-> phantom-killer (screen-off, owner fuori casa) — si rilancia quando
-> l'owner sistema timeout schermo + batteria Termux. ZERO blocchi
-> corsi = prereg intatta.** ·
-> KF_SHIP ⛔ (manca solo: cella Jelly confermativa + policy scritta).
+> **CELLA CONFERMATIVA JELLY (prereg 3785392) COMPLETATA 24/24 la sera
+> del 15/08: VERDETTO NEGATIVO ONESTO — W=1 p=0.000977 nella DIREZIONE
+> OPPOSTA: a cache calda (giornata intera di inferenza) ON = +7.1%
+> (0.2056 vs 0.1920), 11/12 coppie contro, p99 423 vs 345, stutter e
+> J/tok peggio. Stesso device/binario/config della cella burst-cold
+> del mattino che dava −20% ALL GATES YES ⇒ È IL REGIME A DECIDERE,
+> non il device. E lo stall OFF stanotte era 21-29% (SOPRA soglia 20%)
+> eppure ON ha perso ⇒ lo stall% DA SOLO non basta al dispatcher:
+> serve il segnale cache-fredda (majflt-rate primi token /
+> time-since-last-inference). Prodotto: K-F = ACCELERATORE COLD-START
+> (TTFT 12-18 vs 21-22s, p99 −17% a freddo), auto-OFF a caldo.
+> 3 interruzioni Android dichiarate, 12/12 coppie intatte, 0 escluse.
+> Report: results/kf_ship_jelly/REPORT.md.** ·
+> KF_SHIP ⛔ (per spedire: eventuale cella COLD pre-registrata con
+> reset cache tra coppie + policy dispatcher a 2 segnali — decisione
+> owner).
 > Report sweep: reports/moe-kernel-kf-sweep.md.
 > **CELLA BURST COMPLETA 12/12 (2026-08-15 mattina, blocchi 9-12 a
 > telefono freddo 26-29°C = il burst-cold mancante) — TUTTI E 4 I GATE

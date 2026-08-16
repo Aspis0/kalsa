@@ -1,0 +1,5 @@
+[2026-08-15T12:54:43-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-15T12:54:44-0400] CAMPAIGN PIN OK
+[2026-08-15T12:54:44-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-15T12:54:44-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-15T12:54:44-0400] computing MODEL sha256...

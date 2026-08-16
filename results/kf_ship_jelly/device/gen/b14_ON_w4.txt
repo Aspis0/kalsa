@@ -1,0 +1,4 @@
+A Mixture-of-Experts (MoE) language model uses many specialized sub-networks called “experts” to process different parts of the input, and only a few are activated per token to save compute. This allows the model to be large and powerful without the cost of running all experts for every query. The weights are stored in a compact on-disk format because the model’s total parameter count is high, but only a small subset of weights is used at inference time. Routing mechanisms decide which experts to activate, and flash streaming enables efficient, low-latency inference by processing tokens in a streaming fashion, only loading and activating the necessary experts as needed.
+
+- Only a few experts are activated per token, reducing computation and memory usage during inference.  
+- The model’s weights are stored in a compact, on-disk format, allowing efficient storage and retrieval on mobile devices despite the large total parameter count.

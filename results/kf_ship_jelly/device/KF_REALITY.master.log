@@ -1,0 +1,192 @@
+[2026-08-15T12:54:43-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-15T12:54:44-0400] CAMPAIGN PIN OK
+[2026-08-15T12:54:44-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-15T12:54:44-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-15T12:54:44-0400] computing MODEL sha256...
+[2026-08-15T16:42:47-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-15T16:42:47-0400] CAMPAIGN PIN OK
+[2026-08-15T16:42:48-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-15T16:42:48-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-15T16:42:48-0400] computing MODEL sha256...
+[2026-08-15T16:43:25-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-15T16:43:25-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-15T16:43:25-0400] BLOCK_PLAN='OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF' persisted to /data/data/com.termux/files/home/experiments/results/kf_ship_jelly/block_plan.txt
+[2026-08-15T16:43:26-0400] parsed n_blocks=24 arms=OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF
+[2026-08-15T16:43:27-0400] FREQ_READABLE=1 n_cpu=8 sample=1600000
+[2026-08-15T16:43:27-0400] === KF REALITY Jelly START resume=0 start_block=1 n_gen=200 n_blocks=24 ===
+[2026-08-15T16:43:27-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <prompt> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-15T16:43:27-0400] ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>
+[2026-08-15T16:43:28-0400] BLOCK_PLAN=OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF (no cold reset)
+[2026-08-15T16:43:28-0400] preflight i=1 plugged=UNPLUGGED batt=87 temp=23.0 memavail_kib=6033096 floor=35 screen=
+[2026-08-15T16:43:29-0400] preflight i=1 plugged=UNPLUGGED batt=87 temp=23.0 memavail_kib=6032236 floor=35 screen=
+[2026-08-15T16:43:29-0400] RESUME_AT=1
+[2026-08-15T16:43:30-0400] RUN b1_OFF arm=OFF kf_width=0 batt=87 plugged=UNPLUGGED temp=23.0 screen=? memavail_kib=6032008 n=200 cooldown_wait_s=0
+[2026-08-15T16:43:30-0400] BASELINE_TEMP=23.0 (block 1 start)
+[2026-08-15T16:44:29-0400] DONE b1_OFF rc=0 wall=58s tps=4.857 s/tok=0.206 stall=0.060 (29.1%) issued= hit= wasted= prec= joules=152.867994 j/tok=0.76433997 ttft=15.517 j_window=decode majflt=1740 read_gb=20.803080 kf_width=0 batt=87->87 temp=23.0/24.000/24.000 cooldown_wait_s=0 excluded=0
+[2026-08-15T16:44:29-0400] preflight i=1 plugged=UNPLUGGED batt=87 temp=24.0 memavail_kib=6385080 floor=35 screen=
+[2026-08-15T16:44:29-0400] RESUME_AT=2
+[2026-08-15T16:44:30-0400] COOLDOWN block=2 target=24.0 reached=24.0 waited=0 s
+[2026-08-15T16:44:30-0400] RUN b2_ON_w4 arm=ON kf_width=4 batt=87 plugged=UNPLUGGED temp=24.0 screen=? memavail_kib=6383384 n=200 cooldown_wait_s=0
+[2026-08-15T16:45:27-0400] DONE b2_ON_w4 rc=0 wall=56s tps=4.885 s/tok=0.205 stall=0.033 (16.1%) issued=5840.4 hit=4414.3 wasted=1426.0 prec=75.6 joules=155.588484 j/tok=0.78978926 ttft=14.114 j_window=decode majflt=2475 read_gb=22.555312 kf_width=4 batt=87->86 temp=24.0/25.000/25.000 cooldown_wait_s=0 excluded=0
+[2026-08-15T16:45:28-0400] preflight i=1 plugged=UNPLUGGED batt=86 temp=25.0 memavail_kib=6519780 floor=35 screen=
+[2026-08-15T16:45:28-0400] RESUME_AT=3
+[2026-08-15T16:50:32-0400] COOLDOWN block=3 target=24.0 reached=27.0 waited=300 s (cap expired — proceed)
+[2026-08-15T16:50:32-0400] RUN b3_ON_w4 arm=ON kf_width=4 batt=85 plugged=UNPLUGGED temp=27.0 screen=? memavail_kib=6252584 n=200 cooldown_wait_s=300
+[2026-08-15T16:51:27-0400] DONE b3_ON_w4 rc=0 wall=54s tps=5.071 s/tok=0.197 stall=0.030 (15.2%) issued=6004.1 hit=4558.5 wasted=1445.6 prec=75.9 joules=162.749874 j/tok=0.81374937 ttft=13.510 j_window=decode majflt=1297 read_gb=22.045704 kf_width=4 batt=85->84 temp=27.0/28.000/28.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T16:51:28-0400] preflight i=1 plugged=UNPLUGGED batt=84 temp=28.0 memavail_kib=6571564 floor=35 screen=
+[2026-08-15T16:51:28-0400] RESUME_AT=4
+[2026-08-15T16:56:32-0400] COOLDOWN block=4 target=24.0 reached=29.0 waited=300 s (cap expired — proceed)
+[2026-08-15T16:56:33-0400] RUN b4_OFF arm=OFF kf_width=0 batt=83 plugged=UNPLUGGED temp=29.0 screen=? memavail_kib=6473488 n=200 cooldown_wait_s=300
+[2026-08-15T16:57:22-0400] DONE b4_OFF rc=0 wall=48s tps=5.466 s/tok=0.183 stall=0.041 (22.4%) issued= hit= wasted= prec= joules=147.139734 j/tok=0.73569867 ttft=10.725 j_window=decode majflt=25 read_gb=18.401665 kf_width=0 batt=83->82 temp=29.0/30.000/30.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T16:57:23-0400] preflight i=1 plugged=UNPLUGGED batt=82 temp=30.0 memavail_kib=6579988 floor=35 screen=
+[2026-08-15T16:57:23-0400] RESUME_AT=5
+[2026-08-15T17:02:27-0400] COOLDOWN block=5 target=24.0 reached=30.0 waited=300 s (cap expired — proceed)
+[2026-08-15T17:02:27-0400] RUN b5_OFF arm=OFF kf_width=0 batt=81 plugged=UNPLUGGED temp=30.0 screen=? memavail_kib=6457336 n=200 cooldown_wait_s=300
+[2026-08-15T17:03:23-0400] DONE b5_OFF rc=0 wall=54s tps=5.310 s/tok=0.188 stall=0.046 (24.5%) issued= hit= wasted= prec= joules=149.848616 j/tok=0.74924308 ttft=16.061 j_window=decode majflt=5276 read_gb=18.838299 kf_width=0 batt=81->81 temp=30.0/31.000/31.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T17:03:24-0400] preflight i=1 plugged=UNPLUGGED batt=81 temp=31.0 memavail_kib=6575888 floor=35 screen=
+[2026-08-15T17:03:24-0400] RESUME_AT=6
+[2026-08-15T17:08:28-0400] COOLDOWN block=6 target=24.0 reached=31.0 waited=300 s (cap expired — proceed)
+[2026-08-15T17:08:29-0400] RUN b6_ON_w4 arm=ON kf_width=4 batt=79 plugged=UNPLUGGED temp=31.0 screen=? memavail_kib=6414424 n=200 cooldown_wait_s=300
+[2026-08-15T17:09:22-0400] DONE b6_ON_w4 rc=0 wall=52s tps=5.156 s/tok=0.194 stall=0.029 (14.9%) issued=5965.1 hit=4565.8 wasted=1399.3 prec=76.5 joules=162.314325 j/tok=0.81157163 ttft=12.463 j_window=decode majflt=2224 read_gb=21.181174 kf_width=4 batt=79->79 temp=31.0/32.000/32.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T17:09:23-0400] preflight i=1 plugged=UNPLUGGED batt=79 temp=32.0 memavail_kib=6766488 floor=35 screen=
+[2026-08-15T17:09:23-0400] RESUME_AT=7
+[2026-08-15T17:14:27-0400] COOLDOWN block=7 target=24.0 reached=31.0 waited=300 s (cap expired — proceed)
+[2026-08-15T17:14:27-0400] RUN b7_ON_w4 arm=ON kf_width=4 batt=78 plugged=UNPLUGGED temp=31.0 screen=? memavail_kib=6576488 n=200 cooldown_wait_s=300
+[2026-08-15T17:15:22-0400] DONE b7_ON_w4 rc=0 wall=53s tps=4.832 s/tok=0.207 stall=0.026 (12.6%) issued=5593.7 hit=4175.7 wasted=1418.0 prec=74.6 joules=153.758993 j/tok=0.76879496 ttft=10.779 j_window=decode majflt=0 read_gb=19.565986 kf_width=4 batt=78->77 temp=31.0/32.000/32.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T17:15:22-0400] preflight i=1 plugged=UNPLUGGED batt=77 temp=32.0 memavail_kib=6701936 floor=35 screen=
+[2026-08-15T17:15:23-0400] RESUME_AT=8
+[2026-08-15T17:20:26-0400] COOLDOWN block=8 target=24.0 reached=31.0 waited=300 s (cap expired — proceed)
+[2026-08-15T17:20:27-0400] RUN b8_OFF arm=OFF kf_width=0 batt=76 plugged=UNPLUGGED temp=31.0 screen=? memavail_kib=6568604 n=200 cooldown_wait_s=300
+[2026-08-15T17:21:24-0400] DONE b8_OFF rc=0 wall=56s tps=4.919 s/tok=0.203 stall=0.056 (27.6%) issued= hit= wasted= prec= joules=168.097281 j/tok=0.84048641 ttft=14.534 j_window=decode majflt=7302 read_gb=18.952745 kf_width=0 batt=76->75 temp=31.0/32.000/32.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T17:21:25-0400] preflight i=1 plugged=UNPLUGGED batt=75 temp=32.0 memavail_kib=6514412 floor=35 screen=
+[2026-08-15T17:21:25-0400] RESUME_AT=9
+[2026-08-15T17:26:29-0400] COOLDOWN block=9 target=24.0 reached=32.0 waited=300 s (cap expired — proceed)
+[2026-08-15T17:26:30-0400] RUN b9_OFF arm=OFF kf_width=0 batt=74 plugged=UNPLUGGED temp=32.0 screen=? memavail_kib=6466456 n=200 cooldown_wait_s=300
+[2026-08-15T17:27:20-0400] DONE b9_OFF rc=0 wall=49s tps=5.432 s/tok=0.184 stall=0.041 (22.3%) issued= hit= wasted= prec= joules=151.678591 j/tok=0.75839296 ttft=11.559 j_window=decode majflt=658 read_gb=18.953421 kf_width=0 batt=74->73 temp=32.0/32.000/32.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T17:27:21-0400] preflight i=1 plugged=UNPLUGGED batt=73 temp=32.0 memavail_kib=6583708 floor=35 screen=
+[2026-08-15T17:27:21-0400] RESUME_AT=10
+[2026-08-15T17:32:25-0400] COOLDOWN block=10 target=24.0 reached=32.0 waited=300 s (cap expired — proceed)
+[2026-08-15T17:32:26-0400] RUN b10_ON_w4 arm=ON kf_width=4 batt=72 plugged=UNPLUGGED temp=32.0 screen=? memavail_kib=6568240 n=200 cooldown_wait_s=300
+[2026-08-15T17:33:18-0400] DONE b10_ON_w4 rc=0 wall=51s tps=4.939 s/tok=0.202 stall=0.034 (16.8%) issued=5232.2 hit=3888.2 wasted=1344.0 prec=74.3 joules=152.315609 j/tok=0.81890112 ttft=12.927 j_window=decode majflt=1515 read_gb=20.220764 kf_width=4 batt=72->71 temp=32.0/32.000/32.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T17:33:19-0400] preflight i=1 plugged=UNPLUGGED batt=71 temp=32.0 memavail_kib=6722968 floor=35 screen=
+[2026-08-15T17:33:19-0400] RESUME_AT=11
+[2026-08-15T17:38:24-0400] COOLDOWN block=11 target=24.0 reached=30.0 waited=300 s (cap expired — proceed)
+[2026-08-15T17:38:25-0400] RUN b11_ON_w4 arm=ON kf_width=4 batt=71 plugged=UNPLUGGED temp=30.0 screen=? memavail_kib=6518296 n=200 cooldown_wait_s=300
+[2026-08-15T19:31:25-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-15T19:31:25-0400] CAMPAIGN PIN OK
+[2026-08-15T19:31:25-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-15T19:31:25-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-15T19:31:25-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-15T19:31:26-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-15T19:31:26-0400] auto-resume from RESUME_AT=11
+[2026-08-15T19:31:26-0400] RESUME BLOCK_PLAN='OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF'
+[2026-08-15T19:31:27-0400] parsed n_blocks=24 arms=OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF
+[2026-08-15T19:31:27-0400] === RESUME append mode START_BLOCK=11 ===
+[2026-08-15T19:31:28-0400] FREQ_READABLE=1 n_cpu=8 sample=500000
+[2026-08-15T19:31:28-0400] === KF REALITY Jelly START resume=1 start_block=11 n_gen=200 n_blocks=24 ===
+[2026-08-15T19:31:28-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <prompt> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-15T19:31:28-0400] ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>
+[2026-08-15T19:31:28-0400] BLOCK_PLAN=OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF (no cold reset)
+[2026-08-15T19:31:29-0400] preflight i=1 plugged=UNPLUGGED batt=62 temp=24.0 memavail_kib=6050252 floor=35 screen=
+[2026-08-15T19:31:30-0400] preflight i=1 plugged=UNPLUGGED batt=62 temp=24.0 memavail_kib=6049036 floor=35 screen=
+[2026-08-15T19:31:30-0400] RESUME_AT=11
+[2026-08-15T19:31:31-0400] COOLDOWN block=11 target=24.0 reached=24.0 waited=0 s
+[2026-08-15T19:31:31-0400] RUN b11_ON_w4 arm=ON kf_width=4 batt=62 plugged=UNPLUGGED temp=24.0 screen=? memavail_kib=6047936 n=200 cooldown_wait_s=0
+[2026-08-15T19:32:31-0400] DONE b11_ON_w4 rc=0 wall=59s tps=4.571 s/tok=0.219 stall=0.040 (18.3%) issued=5792.5 hit=4419.2 wasted=1373.3 prec=76.3 joules=172.682310 j/tok=0.87213288 ttft=14.684 j_window=decode majflt=4344 read_gb=23.190606 kf_width=4 batt=62->61 temp=24.0/26.000/26.000 cooldown_wait_s=0 excluded=0
+[2026-08-15T19:32:31-0400] preflight i=1 plugged=UNPLUGGED batt=61 temp=26.0 memavail_kib=6512288 floor=35 screen=
+[2026-08-15T19:32:32-0400] RESUME_AT=12
+[2026-08-15T19:37:35-0400] COOLDOWN block=12 target=24.0 reached=27.0 waited=300 s (cap expired — proceed)
+[2026-08-15T19:37:36-0400] RUN b12_OFF arm=OFF kf_width=0 batt=60 plugged=UNPLUGGED temp=27.0 screen=? memavail_kib=6419460 n=200 cooldown_wait_s=300
+[2026-08-15T19:38:28-0400] DONE b12_OFF rc=0 wall=51s tps=5.182 s/tok=0.193 stall=0.042 (21.8%) issued= hit= wasted= prec= joules=148.588075 j/tok=0.74294037 ttft=11.551 j_window=decode majflt=268 read_gb=18.604282 kf_width=0 batt=60->60 temp=27.0/28.000/28.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T19:38:29-0400] preflight i=1 plugged=UNPLUGGED batt=60 temp=28.0 memavail_kib=6571964 floor=35 screen=
+[2026-08-15T19:38:29-0400] RESUME_AT=13
+[2026-08-15T19:43:33-0400] COOLDOWN block=13 target=24.0 reached=29.0 waited=300 s (cap expired — proceed)
+[2026-08-15T19:43:34-0400] RUN b13_OFF arm=OFF kf_width=0 batt=58 plugged=UNPLUGGED temp=29.0 screen=? memavail_kib=6483596 n=200 cooldown_wait_s=300
+[2026-08-15T19:44:27-0400] DONE b13_OFF rc=0 wall=51s tps=5.171 s/tok=0.193 stall=0.048 (24.9%) issued= hit= wasted= prec= joules=153.278545 j/tok=0.76639272 ttft=12.080 j_window=decode majflt=1912 read_gb=18.737431 kf_width=0 batt=58->58 temp=29.0/30.000/30.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T19:44:27-0400] preflight i=1 plugged=UNPLUGGED batt=58 temp=30.0 memavail_kib=6615228 floor=35 screen=
+[2026-08-15T19:44:27-0400] RESUME_AT=14
+[2026-08-15T19:49:31-0400] COOLDOWN block=14 target=24.0 reached=30.0 waited=300 s (cap expired — proceed)
+[2026-08-15T19:49:32-0400] RUN b14_ON_w4 arm=ON kf_width=4 batt=57 plugged=UNPLUGGED temp=30.0 screen=? memavail_kib=6425220 n=200 cooldown_wait_s=300
+[2026-08-15T19:50:25-0400] DONE b14_ON_w4 rc=0 wall=52s tps=5.019 s/tok=0.199 stall=0.030 (15.1%) issued=5571.1 hit=4213.2 wasted=1358.0 prec=75.6 joules=145.665623 j/tok=0.79598701 ttft=14.278 j_window=decode majflt=11600 read_gb=20.162531 kf_width=4 batt=57->56 temp=30.0/31.000/30.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T19:50:25-0400] preflight i=1 plugged=UNPLUGGED batt=56 temp=31.0 memavail_kib=6645216 floor=35 screen=
+[2026-08-15T19:50:26-0400] RESUME_AT=15
+[2026-08-15T19:55:29-0400] COOLDOWN block=15 target=24.0 reached=31.0 waited=300 s (cap expired — proceed)
+[2026-08-15T19:55:30-0400] RUN b15_ON_w4 arm=ON kf_width=4 batt=55 plugged=UNPLUGGED temp=31.0 screen=? memavail_kib=6565144 n=200 cooldown_wait_s=300
+[2026-08-15T19:56:23-0400] DONE b15_ON_w4 rc=0 wall=52s tps=4.999 s/tok=0.200 stall=0.028 (14.0%) issued=6231.2 hit=4790.6 wasted=1440.5 prec=76.9 joules=163.820096 j/tok=0.81910048 ttft=10.660 j_window=decode majflt=187 read_gb=21.244469 kf_width=4 batt=55->54 temp=31.0/32.000/32.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T19:56:23-0400] preflight i=1 plugged=UNPLUGGED batt=54 temp=32.0 memavail_kib=6704748 floor=35 screen=
+[2026-08-15T19:56:24-0400] RESUME_AT=16
+[2026-08-15T20:01:27-0400] COOLDOWN block=16 target=24.0 reached=31.0 waited=300 s (cap expired — proceed)
+[2026-08-15T20:01:28-0400] RUN b16_OFF arm=OFF kf_width=0 batt=53 plugged=UNPLUGGED temp=31.0 screen=? memavail_kib=6624588 n=200 cooldown_wait_s=300
+[2026-08-15T20:02:26-0400] DONE b16_OFF rc=0 wall=57s tps=5.108 s/tok=0.196 stall=0.048 (24.5%) issued= hit= wasted= prec= joules=142.325459 j/tok=0.71162729 ttft=16.652 j_window=decode majflt=6698 read_gb=18.822791 kf_width=0 batt=53->52 temp=31.0/32.000/32.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T20:02:26-0400] preflight i=1 plugged=UNPLUGGED batt=52 temp=32.0 memavail_kib=6516424 floor=35 screen=
+[2026-08-15T20:02:27-0400] RESUME_AT=17
+[2026-08-15T20:07:30-0400] COOLDOWN block=17 target=24.0 reached=31.0 waited=300 s (cap expired — proceed)
+[2026-08-15T20:07:31-0400] RUN b17_OFF arm=OFF kf_width=0 batt=51 plugged=UNPLUGGED temp=31.0 screen=? memavail_kib=6397100 n=200 cooldown_wait_s=300
+[2026-08-15T20:08:25-0400] DONE b17_OFF rc=0 wall=53s tps=5.453 s/tok=0.183 stall=0.044 (24.0%) issued= hit= wasted= prec= joules=146.626685 j/tok=0.73313343 ttft=15.224 j_window=decode majflt=697 read_gb=19.722330 kf_width=0 batt=51->51 temp=31.0/32.000/32.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T20:08:26-0400] preflight i=1 plugged=UNPLUGGED batt=51 temp=32.0 memavail_kib=6704636 floor=35 screen=
+[2026-08-15T20:08:26-0400] RESUME_AT=18
+[2026-08-15T20:13:30-0400] COOLDOWN block=18 target=24.0 reached=32.0 waited=300 s (cap expired — proceed)
+[2026-08-15T20:13:30-0400] RUN b18_ON_w4 arm=ON kf_width=4 batt=50 plugged=UNPLUGGED temp=32.0 screen=? memavail_kib=6616988 n=200 cooldown_wait_s=300
+[2026-08-15T20:14:24-0400] DONE b18_ON_w4 rc=0 wall=52s tps=4.852 s/tok=0.206 stall=0.031 (15.0%) issued=6076.0 hit=4680.7 wasted=1395.3 prec=77.0 joules=161.543431 j/tok=0.80771715 ttft=10.664 j_window=decode majflt=293 read_gb=21.074207 kf_width=4 batt=50->49 temp=32.0/33.000/33.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T20:14:25-0400] preflight i=1 plugged=UNPLUGGED batt=49 temp=33.0 memavail_kib=6640972 floor=35 screen=
+[2026-08-15T20:14:25-0400] RESUME_AT=19
+[2026-08-15T20:19:29-0400] COOLDOWN block=19 target=24.0 reached=32.0 waited=300 s (cap expired — proceed)
+[2026-08-15T20:19:30-0400] RUN b19_ON_w4 arm=ON kf_width=4 batt=48 plugged=UNPLUGGED temp=32.0 screen=? memavail_kib=6579880 n=200 cooldown_wait_s=300
+[2026-08-15T20:20:25-0400] DONE b19_ON_w4 rc=0 wall=54s tps=4.950 s/tok=0.202 stall=0.032 (15.8%) issued=5833.7 hit=4380.1 wasted=1453.6 prec=75.1 joules=163.026905 j/tok=0.81513452 ttft=12.558 j_window=decode majflt=2239 read_gb=21.126889 kf_width=4 batt=48->47 temp=32.0/33.000/33.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T20:20:26-0400] preflight i=1 plugged=UNPLUGGED batt=47 temp=33.0 memavail_kib=6719836 floor=35 screen=
+[2026-08-15T20:20:26-0400] RESUME_AT=20
+[2026-08-15T20:25:30-0400] COOLDOWN block=20 target=24.0 reached=32.0 waited=300 s (cap expired — proceed)
+[2026-08-15T20:25:31-0400] RUN b20_OFF arm=OFF kf_width=0 batt=46 plugged=UNPLUGGED temp=32.0 screen=? memavail_kib=6593040 n=200 cooldown_wait_s=300
+[2026-08-15T20:26:24-0400] DONE b20_OFF rc=0 wall=53s tps=5.208 s/tok=0.192 stall=0.047 (24.5%) issued= hit= wasted= prec= joules=154.573045 j/tok=0.77286522 ttft=13.329 j_window=decode majflt=4269 read_gb=18.260095 kf_width=0 batt=46->45 temp=32.0/33.000/33.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T20:26:25-0400] preflight i=1 plugged=UNPLUGGED batt=45 temp=33.0 memavail_kib=6757860 floor=35 screen=
+[2026-08-15T20:26:25-0400] RESUME_AT=21
+[2026-08-15T20:31:29-0400] COOLDOWN block=21 target=24.0 reached=32.0 waited=300 s (cap expired — proceed)
+[2026-08-15T20:31:30-0400] RUN b21_OFF arm=OFF kf_width=0 batt=44 plugged=UNPLUGGED temp=32.0 screen=? memavail_kib=6601092 n=200 cooldown_wait_s=300
+[2026-08-15T20:32:21-0400] DONE b21_OFF rc=0 wall=50s tps=5.203 s/tok=0.192 stall=0.042 (21.9%) issued= hit= wasted= prec= joules=156.311765 j/tok=0.78155883 ttft=10.396 j_window=decode majflt=102 read_gb=18.102514 kf_width=0 batt=44->44 temp=32.0/33.000/33.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T20:32:21-0400] preflight i=1 plugged=UNPLUGGED batt=44 temp=33.0 memavail_kib=6719248 floor=35 screen=
+[2026-08-15T20:32:22-0400] RESUME_AT=22
+[2026-08-15T20:37:25-0400] COOLDOWN block=22 target=24.0 reached=32.0 waited=300 s (cap expired — proceed)
+[2026-08-15T20:37:26-0400] RUN b22_ON_w4 arm=ON kf_width=4 batt=43 plugged=UNPLUGGED temp=32.0 screen=? memavail_kib=6602588 n=200 cooldown_wait_s=300
+[2026-08-15T20:38:22-0400] DONE b22_ON_w4 rc=0 wall=55s tps=4.857 s/tok=0.206 stall=0.035 (17.0%) issued=5713.2 hit=4358.1 wasted=1355.1 prec=76.3 joules=161.177347 j/tok=0.85732631 ttft=15.073 j_window=decode majflt=5120 read_gb=21.301674 kf_width=4 batt=43->42 temp=32.0/33.000/33.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T20:38:23-0400] preflight i=1 plugged=UNPLUGGED batt=42 temp=33.0 memavail_kib=6596856 floor=35 screen=
+[2026-08-15T20:38:23-0400] RESUME_AT=23
+[2026-08-15T20:43:27-0400] COOLDOWN block=23 target=24.0 reached=32.0 waited=300 s (cap expired — proceed)
+[2026-08-15T20:43:27-0400] RUN b23_ON_w4 arm=ON kf_width=4 batt=41 plugged=UNPLUGGED temp=32.0 screen=? memavail_kib=6548020 n=200 cooldown_wait_s=300
+[2026-08-15T20:44:30-0400] DONE b23_ON_w4 rc=0 wall=62s tps=4.341 s/tok=0.230 stall=0.042 (18.3%) issued=5917.4 hit=4613.1 wasted=1304.3 prec=78.0 joules=174.924930 j/tok=0.87462465 ttft=13.651 j_window=decode majflt=2557 read_gb=20.740100 kf_width=4 batt=41->40 temp=32.0/33.000/33.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T20:44:31-0400] preflight i=1 plugged=UNPLUGGED batt=40 temp=33.0 memavail_kib=6609712 floor=35 screen=
+[2026-08-15T20:44:31-0400] RESUME_AT=24
+[2026-08-15T20:49:36-0400] COOLDOWN block=24 target=24.0 reached=31.0 waited=300 s (cap expired — proceed)
+[2026-08-15T20:49:37-0400] RUN b24_OFF arm=OFF kf_width=0 batt=40 plugged=UNPLUGGED temp=31.0 screen=? memavail_kib=6484072 n=200 cooldown_wait_s=300
+[2026-08-15T20:50:28-0400] DONE b24_OFF rc=0 wall=50s tps=5.246 s/tok=0.191 stall=0.040 (20.9%) issued= hit= wasted= prec= joules=149.629192 j/tok=0.74814596 ttft=10.908 j_window=decode majflt=0 read_gb=18.507702 kf_width=0 batt=40->39 temp=31.0/32.000/32.000 cooldown_wait_s=300 excluded=0
+[2026-08-15T20:50:28-0400] void_scan= this_cycle_void=
+[2026-08-15T20:50:28-0400] CAMPAIGN_SHA_AFTER=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81
+[2026-08-15T20:50:28-0400] KF_BIN_SHA_AFTER=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e
+[2026-08-15T20:50:28-0400] excluded rows remaining at DONE: (none)
+[2026-08-15T20:50:28-0400] void blocks remaining at DONE: (none)
+[2026-08-15T20:50:28-0400] === KF REALITY Jelly COMPLETE ===
+ts,order_idx,arm,label,decode_tps,wall_s_tok,compute,mgmt,stall,stall_pct,issued_mib,hit_mib,wasted_mib,precision_pct,hit_pct,joules,j_per_tok,j_window,ttft_s,majflt_delta,read_bytes,read_bytes_gb,temp_start,cooldown_wait_s,temp_max,temp_end,batt_start,batt_end,freq_p50_c0,freq_p95_c0,freq_p50_c1,freq_p95_c1,n_tokens,duration_s,memavail_start_kib,memavail_min_kib,screen,plugged,excluded,csv_path,freq_readable,kf_width
+2026-08-15T16:44:29-0400,1,OFF,b1_OFF,4.857,0.206,0.139,0.008,0.060,29.1,,,,,52.3,152.867994,0.76433997,decode,15.517,1740,20803080192,20.803080,23.0,0,24.000,24.000,87,87,2000000,2200000,,,200,58,6032008,3611424,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b1_OFF.csv,1,
+2026-08-15T16:45:27-0400,2,ON,b2_ON_w4,4.885,0.205,0.163,0.009,0.033,16.1,5840.4,4414.3,1426.0,75.6,66.8,155.588484,0.78978926,decode,14.114,2475,22555312128,22.555312,24.0,0,25.000,25.000,87,86,2000000,2200000,,,197,56,6383384,3748248,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b2_ON_w4.csv,1,4
+2026-08-15T16:51:27-0400,3,ON,b3_ON_w4,5.071,0.197,0.158,0.009,0.030,15.2,6004.1,4558.5,1445.6,75.9,66.9,162.749874,0.81374937,decode,13.510,1297,22045704192,22.045704,27.0,300,28.000,28.000,85,84,2000000,2200000,,,200,54,6252584,3764224,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b3_ON_w4.csv,1,4
+2026-08-15T16:57:22-0400,4,OFF,b4_OFF,5.466,0.183,0.135,0.008,0.041,22.4,,,,,52.3,147.139734,0.73569867,decode,10.725,25,18401665024,18.401665,29.0,300,30.000,30.000,83,82,2000000,2200000,,,200,48,6473488,3736484,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b4_OFF.csv,1,
+2026-08-15T17:03:23-0400,5,OFF,b5_OFF,5.310,0.188,0.134,0.008,0.046,24.5,,,,,52.3,149.848616,0.74924308,decode,16.061,5276,18838298624,18.838299,30.0,300,31.000,31.000,81,81,2000000,2200000,,,200,54,6457336,3901312,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b5_OFF.csv,1,
+2026-08-15T17:09:22-0400,6,ON,b6_ON_w4,5.156,0.194,0.156,0.009,0.029,14.9,5965.1,4565.8,1399.3,76.5,67.1,162.314325,0.81157163,decode,12.463,2224,21181173760,21.181174,31.0,300,32.000,32.000,79,79,2000000,2200000,,,200,52,6414424,3929972,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b6_ON_w4.csv,1,4
+2026-08-15T17:15:22-0400,7,ON,b7_ON_w4,4.832,0.207,0.172,0.008,0.026,12.6,5593.7,4175.7,1418.0,74.6,68.4,153.758993,0.76879496,decode,10.779,0,19565985792,19.565986,31.0,300,32.000,32.000,78,77,2000000,2200000,,,200,53,6576488,3840164,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b7_ON_w4.csv,1,4
+2026-08-15T17:21:24-0400,8,OFF,b8_OFF,4.919,0.203,0.140,0.008,0.056,27.6,,,,,52.3,168.097281,0.84048641,decode,14.534,7302,18952744960,18.952745,31.0,300,32.000,32.000,76,75,2000000,2200000,,,200,56,6568604,3945664,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b8_OFF.csv,1,
+2026-08-15T17:27:20-0400,9,OFF,b9_OFF,5.432,0.184,0.136,0.008,0.041,22.3,,,,,52.3,151.678591,0.75839296,decode,11.559,658,18953420800,18.953421,32.0,300,32.000,32.000,74,73,2000000,2200000,,,200,49,6466456,3728276,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b9_OFF.csv,1,
+2026-08-15T17:33:18-0400,10,ON,b10_ON_w4,4.939,0.202,0.160,0.009,0.034,16.8,5232.2,3888.2,1344.0,74.3,67.0,152.315609,0.81890112,decode,12.927,1515,20220764160,20.220764,32.0,300,32.000,32.000,72,71,2000000,2200000,,,186,51,6568240,3894488,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b10_ON_w4.csv,1,4
+2026-08-15T19:32:31-0400,11,ON,b11_ON_w4,4.571,0.219,0.170,0.009,0.040,18.3,5792.5,4419.2,1373.3,76.3,67.1,172.682310,0.87213288,decode,14.684,4344,23190605824,23.190606,24.0,0,26.000,26.000,62,61,2000000,2200000,,,198,59,6047936,3742952,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b11_ON_w4.csv,1,4
+2026-08-15T19:38:28-0400,12,OFF,b12_OFF,5.182,0.193,0.143,0.008,0.042,21.8,,,,,52.3,148.588075,0.74294037,decode,11.551,268,18604281856,18.604282,27.0,300,28.000,28.000,60,60,2000000,2200000,,,200,51,6419460,3711132,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b12_OFF.csv,1,
+2026-08-15T19:44:26-0400,13,OFF,b13_OFF,5.171,0.193,0.138,0.008,0.048,24.9,,,,,52.3,153.278545,0.76639272,decode,12.080,1912,18737430528,18.737431,29.0,300,30.000,30.000,58,58,2000000,2200000,,,200,51,6483596,3824556,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b13_OFF.csv,1,
+2026-08-15T19:50:25-0400,14,ON,b14_ON_w4,5.019,0.199,0.160,0.009,0.030,15.1,5571.1,4213.2,1358.0,75.6,65.5,145.665623,0.79598701,decode,14.278,11600,20162531328,20.162531,30.0,300,31.000,30.000,57,56,2000000,2200000,,,183,52,6425220,4031256,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b14_ON_w4.csv,1,4
+2026-08-15T19:56:23-0400,15,ON,b15_ON_w4,4.999,0.200,0.163,0.009,0.028,14.0,6231.2,4790.6,1440.5,76.9,66.1,163.820096,0.81910048,decode,10.660,187,21244469248,21.244469,31.0,300,32.000,32.000,55,54,2000000,2200000,,,200,52,6565144,3847956,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b15_ON_w4.csv,1,4
+2026-08-15T20:02:26-0400,16,OFF,b16_OFF,5.108,0.196,0.140,0.008,0.048,24.5,,,,,52.3,142.325459,0.71162729,decode,16.652,6698,18822791168,18.822791,31.0,300,32.000,32.000,53,52,2000000,2200000,,,200,57,6624588,4039276,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b16_OFF.csv,1,
+2026-08-15T20:08:25-0400,17,OFF,b17_OFF,5.453,0.183,0.131,0.008,0.044,24.0,,,,,52.3,146.626685,0.73313343,decode,15.224,697,19722330112,19.722330,31.0,300,32.000,32.000,51,51,2000000,2200000,,,200,53,6397100,3893696,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b17_OFF.csv,1,
+2026-08-15T20:14:24-0400,18,ON,b18_ON_w4,4.852,0.206,0.166,0.009,0.031,15.0,6076.0,4680.7,1395.3,77.0,66.8,161.543431,0.80771715,decode,10.664,293,21074206720,21.074207,32.0,300,33.000,33.000,50,49,2000000,2200000,,,200,52,6616988,3815920,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b18_ON_w4.csv,1,4
+2026-08-15T20:20:25-0400,19,ON,b19_ON_w4,4.950,0.202,0.161,0.009,0.032,15.8,5833.7,4380.1,1453.6,75.1,67.3,163.026905,0.81513452,decode,12.558,2239,21126889472,21.126889,32.0,300,33.000,33.000,48,47,2000000,2200000,,,200,54,6579880,3942784,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b19_ON_w4.csv,1,4
+2026-08-15T20:26:24-0400,20,OFF,b20_OFF,5.208,0.192,0.138,0.008,0.047,24.5,,,,,52.3,154.573045,0.77286522,decode,13.329,4269,18260094976,18.260095,32.0,300,33.000,33.000,46,45,2000000,2200000,,,200,53,6593040,4149484,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b20_OFF.csv,1,
+2026-08-15T20:32:21-0400,21,OFF,b21_OFF,5.203,0.192,0.142,0.008,0.042,21.9,,,,,52.3,156.311765,0.78155883,decode,10.396,102,18102513664,18.102514,32.0,300,33.000,33.000,44,44,2000000,2200000,,,200,50,6601092,3866100,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b21_OFF.csv,1,
+2026-08-15T20:38:22-0400,22,ON,b22_ON_w4,4.857,0.206,0.162,0.009,0.035,17.0,5713.2,4358.1,1355.1,76.3,66.0,161.177347,0.85732631,decode,15.073,5120,21301673984,21.301674,32.0,300,33.000,33.000,43,42,2000000,2200000,,,188,55,6602588,3932724,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b22_ON_w4.csv,1,4
+2026-08-15T20:44:30-0400,23,ON,b23_ON_w4,4.341,0.230,0.178,0.010,0.042,18.3,5917.4,4613.1,1304.3,78.0,67.7,174.924930,0.87462465,decode,13.651,2557,20740100096,20.740100,32.0,300,33.000,33.000,41,40,2000000,2200000,,,200,62,6548020,3920204,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b23_ON_w4.csv,1,4
+2026-08-15T20:50:28-0400,24,OFF,b24_OFF,5.246,0.191,0.142,0.008,0.040,20.9,,,,,52.3,149.629192,0.74814596,decode,10.908,0,18507702272,18.507702,31.0,300,32.000,32.000,40,39,2000000,2200000,,,200,50,6484072,3735128,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_ship_jelly/per_token/b24_OFF.csv,1,
+[2026-08-15T20:50:29-0400] trap cleanup

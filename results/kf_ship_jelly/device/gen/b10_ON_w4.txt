@@ -1,0 +1,4 @@
+A Mixture-of-Experts (MoE) language model uses many specialized "expert" networks, each trained for a specific task or pattern, and activates only a subset of them for each token to save compute. This is done by routing the input to a small number of active experts, which reduces the number of parameters processed per token. The model’s weights are stored in a large on-disk file because the full set of expert parameters is still needed to represent the model’s capacity, even though only a few are used per inference. Routing mechanisms decide which experts to activate, and flash streaming allows the model to process tokens incrementally, using only the necessary experts as the input is streamed, making it efficient for mobile devices.
+
+- Only a few experts are activated per token, reducing compute by avoiding full model inference.  
+- The full weight matrix is stored on disk, enabling efficient loading and retrieval of expert parameters for inference.

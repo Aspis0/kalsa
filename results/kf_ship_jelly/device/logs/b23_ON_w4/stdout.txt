@@ -1,0 +1,19 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant:A Mixture-of-Experts (MoE) language model uses multiple specialized sub-networks called “experts” to process different parts of the input, allowing the model to be much larger than a single dense network while only activating a few experts per token. This selective activation reduces compute because only the relevant experts are used for each input, and the model’s weights are stored in a compact, sparse format. The large on-disk weight file exists because the full model’s weights are still stored, even though only a subset is used per token—this is managed via a routing mechanism that selects which experts to activate, and flash streaming enables efficient, low-latency access to the active experts during inference, allowing the model to run on devices like phones without requiring full model computation at every step.
+
+- The model uses a routing mechanism to select a small number of active experts per token, minimizing computation while preserving performance.  
+- Flash streaming allows the model to load and activate only the necessary expert weights on
+
+generation: 200 tokens, 0.230 s/token (4.341 tok/s)
+compute: 76.9% CPU occupancy (0.3541 cpu-s/token over 2 threads), 10.00 major faults/token
+prefill: 80 tokens, 8.395 s (9.5 tok/s) | model load 5.255 s | TTFT 13.651 s
+moe-stream: read 12527.7 MiB (62.64 MiB/token), decode 0.230 s/token (compute 0.178 + cache mgmt 0.010 + flash I/O 0.356 s/token, 176 MiB/s)
+moe-cache: 67.7% hit, resident 1999.5 MiB
+moe-cache: 16414 evictions, 13389 re-reads (66.9/token) — bytes the cache had already paid for once
+moe-kf-prefetch: issued 5917.4 MiB, hit 4613.1 MiB, wasted 1304.3 MiB, precision 78.0% (5664/6915 experts)
+moe-kf-prefetch: lead p10/p50/p90 = 0/1/10 ms, late 15% (gap p50/p90 = 5/71 ms), io-svc median 3 ms, max-inflight 4
+moe-kf-prefetch: prediction 2.5 ms/token of worker CPU (5373 GEMVs, 0.093 ms each) + 0.3 ms/token issuing the reads + 0.0 ms/token watchdog, both on the eval thread
+moe-overlap: stall 0.042 s/token (flash reads overlapped with FFN compute)
+moe-drop: 1401/33600 routed experts dropped (4.2%), threshold 0.65 x uniform
