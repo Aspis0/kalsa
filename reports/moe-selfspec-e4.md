@@ -96,10 +96,13 @@ block. Which one wins in wall-clock is an F5 question.
 ## The RAM prize (found while writing the F5 spec)
 
 F1's shipped loop needs `n_rs_seq = draft_max` recurrent snapshots on the draft
-context — **314 MiB at γ=4 on this 35B**, and it scales linearly with γ (≈628 MiB
-at γ=8, which is simply not affordable on an 8 GB phone). With the freeze the
-draft context never writes recurrent state and rollback is attention-only, so
-**`n_rs_seq = 0`**: the allocation disappears and γ stops costing memory. That is
+context. **Measured on this 35B (2026-08-16, `results/selfspec_f5_pc/`): the
+draft context's RS buffer is 314.06 MiB at `n_rs_seq = 4` and 62.81 MiB at
+`n_rs_seq = 0` — so the snapshots cost 251.25 MiB at γ=4**, scaling as
+`(n_rs_seq + 1) × 62.81 MiB` (502.5 MiB of snapshots at γ=8, not affordable on an
+8 GB phone). With the freeze the draft context never writes recurrent state and
+rollback is attention-only, so `n_rs_seq = 0`: the snapshots disappear and γ
+stops costing memory. That is
 what makes the γ=8 regime — the one with the best E[L] — reachable on a phone at
 all.
 

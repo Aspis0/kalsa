@@ -25,14 +25,28 @@ positions 2..γ inside a block are conditioned on the draft's own prefix. So:
 
 F1 shipped the loop with the stock hybrid catch-up: rewind the cycle on
 `ctx_dft` and replay. To make `llama_memory_recurrent::seq_rm` able to restore
-R/S at all, the draft context must ask for `n_rs_seq = draft_max` snapshots —
-**314 MiB of recurrent snapshots at γ=4 on this 35B hybrid**
-(`reports/moe-selfspec-f1.md`, "What the S23 cell needs").
+R/S at all, the draft context must ask for `n_rs_seq = draft_max` snapshots.
+
+**MEASURED 2026-08-16 on the real 35B hybrid** (`results/selfspec_f5_pc/`, arms
+p1/p2 — this replaces the figure carried over from F1, which the ledger below
+said to re-measure and which was then wrongly restated as fact in the first
+implementation's docs):
+
+| arm | draft ctx `n_rs_seq` | CPU RS buffer |
+|---|---|---|
+| freeze OFF | 4 | **314.06 MiB** |
+| freeze ON | 0 | **62.81 MiB** |
+
+So the rule on this model is `RS buffer = (n_rs_seq + 1) × 62.81 MiB`, and the
+**saving is 251.25 MiB at γ=4** — not 314: `n_rs_seq = 0` still allocates the one
+live row. At γ=8 the saving would be 502.5 MiB. Peak RSS corroborates
+(6176.4 → 5916.0 MiB, −260 MiB).
 
 With the E4 mechanism the draft context never writes recurrent state and the
 catch-up rewinds attention only. Therefore:
 
-- `ctx_dft` needs **`n_rs_seq = 0`** → the 314 MiB is not allocated at all.
+- `ctx_dft` needs **`n_rs_seq = 0`** → the 251.25 MiB of snapshots is not
+  allocated at all (the 62.81 MiB live row remains).
 - Snapshot cost no longer scales with γ, so γ becomes a free knob memory-wise.
 
 On an 8 GB phone running a 35B model from flash that saving is a product fact on
@@ -92,17 +106,17 @@ first-drift position of the text.
 | P2 | PC | same, freeze ON | loop alpha + RAM delta, DRAM-bound |
 | D1 | S23 (or Xiaomi) | plain k6 d065 vs selfspec freeze ON, γ=4 | **the real question: does verify-batch flash amortisation pay?** |
 | D2 | device | freeze ON, k2/k6, **γ ∈ {2, 3, 4}** | tests the registered prediction that γ=3 is optimal and γ=4 overshoots |
-| D3 | device | freeze ON, `--cache-mb` raised by the freed amount | does spending the 314 MiB as expert cache buy tok/s? |
+| D3 | device | freeze ON, `--cache-mb` raised by the freed amount | does spending the 251.25 MiB as expert cache buy tok/s? |
 
 **D3 is the arm that turns the RAM saving into a speed claim, and it is not
 automatic.** Freed RAM does nothing by itself — it must be handed back
 explicitly. Two channels, both measurable, both plausibly small:
 
-- *Cache channel:* `--cache-mb 2000 → ~2314` (+15% cache). Whether that buys hit
+- *Cache channel:* `--cache-mb 2000 → ~2251` (+12.5% cache). Whether that buys hit
   rate is doubtful a priori: routing entropy on this model is high (96% of
   experts touched in 300 tokens, top-16 = 25% of mass, ~45 re-reads/token), so
   the marginal hit-rate curve may be flat. Measure it; do not assume it.
-- *Pressure channel:* 314 MiB not allocated is 314 MiB of headroom against the
+- *Pressure channel:* 251.25 MiB not allocated is 251.25 MiB of headroom against the
   memory cliff. We have measured that cliff: stock collapses 60-100x under dirty
   zram (reproduced 2x), and K-F burst showed majflt 9.2 vs 13.5. Report peak RSS,
   majflt and p99 latency, not just the mean.
@@ -135,8 +149,9 @@ slot at equal k. Original decision table kept for the record:
 ## 6. Honesty ledger (carry into the report)
 
 - E4 alphas are teacher-forced; F5's loop alpha will be lower. Quote both.
-- The 314 MiB figure is F1's measurement at γ=4 on this model; re-measure, do not
-  copy it forward.
+- ~~The 314 MiB figure is F1's measurement at γ=4; re-measure.~~ **Done**: the
+  measured saving is 251.25 MiB at γ=4 (see §1). The first implementation restated
+  314 as fact in CHANGELOG/docs/code comments — an audit caught it; corrected.
 - Batched-verify near-tie drift is inherited, not introduced (F1 documented it at
   pos 225 / 47 / 203). The freeze must not make it worse; if it does, that is a
   finding, not a footnote.

@@ -99,9 +99,11 @@
 > **F5 SPEC SCRITTA (docs/f5-stateless-loop-spec.md) — e rileggendo F1 è
 > saltato fuori che il premio grosso non è la velocità ma la RAM: il
 > loop F1 deve chiedere `n_rs_seq = draft_max` snapshot ricorrenti sul
-> contesto draft = **314 MiB a γ=4 su questo 35B**. Col congelamento il
+> contesto draft = **251.25 MiB di snapshot a γ=4 su questo 35B** (MISURATO
+> 2026-08-16: buffer RS 314.06 MiB a n_rs_seq=4 contro 62.81 a 0; la riga viva
+> resta). Col congelamento il
 > draft non scrive MAI stato ricorrente e il rollback è solo-attention →
-> `n_rs_seq = 0`, quei 314 MiB non vengono allocati e γ diventa gratis
+> `n_rs_seq = 0`, quei 251.25 MiB non vengono allocati e γ diventa gratis
 > in memoria. Su un telefono da 8 GB è un fatto di prodotto anche se la
 > velocità non paga. ATTENZIONE ONESTÀ: gli α di E4 sono teacher-forced
 > (classe F0 0.6991); il loop vero F1 è crollato a 0.117 — l'α di loop

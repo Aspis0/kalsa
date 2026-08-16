@@ -1,0 +1,20 @@
+﻿2026-08-16T07:00:09.0701233-04:00  === F5 P1/P2 START ===
+2026-08-16T07:00:09.2293267-04:00  PIN exe_sha=0bc29020dfbf3dc309bcdbe83f13c8d9fe6263dd046539bf4529b567ddb67def
+2026-08-16T07:00:09.2782687-04:00  PIN git_rev=0b725d3
+2026-08-16T07:00:09.2895120-04:00  RUN p0_plain : C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-f5\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt
+2026-08-16T07:00:09.8201156-04:00  DONE p0_plain rc= wall=0.5s peak_rss=2.6 MiB
+2026-08-16T07:00:09.8201156-04:00  RUN p1_freeze_off : C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-f5\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt --selfspec-draft-k 2 --selfspec-gamma 4
+2026-08-16T07:00:10.2845764-04:00  DONE p1_freeze_off rc= wall=0.4s peak_rss=2.6 MiB
+2026-08-16T07:00:10.2871465-04:00  RUN p2_freeze_on : C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-f5\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt --selfspec-draft-k 2 --selfspec-gamma 4 --selfspec-freeze-recurrent
+2026-08-16T07:00:10.7366593-04:00  DONE p2_freeze_on rc= wall=0.4s peak_rss=2.6 MiB
+2026-08-16T07:00:10.7366593-04:00  === F5 P1/P2 DONE ===
+2026-08-16T07:00:46.4553675-04:00  === F5 P1/P2 START ===
+2026-08-16T07:00:46.5555599-04:00  PIN exe_sha=0bc29020dfbf3dc309bcdbe83f13c8d9fe6263dd046539bf4529b567ddb67def
+2026-08-16T07:00:46.5947446-04:00  PIN git_rev=0b725d3
+2026-08-16T07:00:46.5947446-04:00  RUN p0_plain : C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-f5\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt
+2026-08-16T07:01:16.8452017-04:00  DONE p0_plain rc= wall=30.2s peak_rss=5525.3 MiB
+2026-08-16T07:01:16.8497920-04:00  RUN p1_freeze_off : C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-f5\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt --selfspec-draft-k 2 --selfspec-gamma 4
+2026-08-16T07:02:03.2632480-04:00  DONE p1_freeze_off rc= wall=46.4s peak_rss=6176.4 MiB
+2026-08-16T07:02:03.2657624-04:00  RUN p2_freeze_on : C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-f5\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt --selfspec-draft-k 2 --selfspec-gamma 4 --selfspec-freeze-recurrent
+2026-08-16T07:02:48.5382734-04:00  DONE p2_freeze_on rc= wall=45.3s peak_rss=5916 MiB
+2026-08-16T07:02:48.5382734-04:00  === F5 P1/P2 DONE ===
