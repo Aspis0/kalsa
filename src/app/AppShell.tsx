@@ -2,11 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Alert, Keyboard, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { X as LucideX, Globe as LucideGlobe, Settings as LucideSettings, FileText as LucideFileText, StickyNote as LucideStickyNote } from "lucide-react-native";
+import { X as LucideX, Globe as LucideGlobe, Settings as LucideSettings, FileText as LucideFileText, StickyNote as LucideStickyNote, UserCircle as LucideUserCircle } from "lucide-react-native";
 
 import { AiChatPage, type ChatCta, type LocalAttachment } from "../screens/AiChatPage";
 import { HelpScreen } from "../screens/HelpScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { AccountScreen } from "../screens/AccountScreen";
+import { ProScreen } from "../screens/ProScreen";
 import { DocumentsScreen } from "../screens/DocumentsScreen";
 import { NotesScreen } from "../screens/NotesScreen";
 import { PersonasScreen, builtinCopyFromT } from "../screens/PersonasScreen";
@@ -252,6 +254,8 @@ type ModelState = ModelPipelineState;
 /** Exclusive full-screen overlays (drawer stays separate — transient chrome). */
 type ActiveOverlay =
   | { kind: "settings" }
+  | { kind: "account" }
+  | { kind: "pro" }
   | { kind: "help" }
   | { kind: "documents" }
   | { kind: "notes"; focusId?: string }
@@ -2022,7 +2026,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     notifyStaticPrefixInputs(locale, agentOptionsRef.current.tools);
   }, [locale, webToolsEnabled, deviceToolsEnabled, calendarToolsEnabled]);
 
-  // ── Drawer + exclusive overlay (settings | documents | miniapp | null) ──
+  // ── Drawer + exclusive overlay (settings | account | pro | help | documents | notes | personas | miniapp | null) ──
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeOverlay, setActiveOverlay] = useState<ActiveOverlay>(null);
 
@@ -2191,6 +2195,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           setDrawerOpen(false);
           // Opening settings replaces any open miniapp (exclusive overlay).
           setActiveOverlay({ kind: "settings" });
+        },
+      },
+      {
+        id: "account",
+        label: t("drawer.account"),
+        Icon: LucideUserCircle,
+        onPress: () => {
+          Keyboard.dismiss();
+          setDrawerOpen(false);
+          setActiveOverlay({ kind: "account" });
         },
       },
       {
@@ -4764,10 +4778,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             onOpenDocuments={() => setActiveOverlay({ kind: "documents" })}
             onAddDocument={addDocument}
             onOpenMiniapp={(miniapp) => {
-              // Policy: ignore miniapp open while Settings/Help/Documents is active
-              // (exclusive overlay; stays until user closes it).
+              // Policy: ignore miniapp open while an exclusive overlay is active
+              // (settings | account | pro | help | documents | notes | personas;
+              // stays until user closes it).
               setActiveOverlay((prev) =>
                 prev?.kind === "settings" ||
+                prev?.kind === "account" ||
+                prev?.kind === "pro" ||
                 prev?.kind === "help" ||
                 prev?.kind === "documents" ||
                 prev?.kind === "notes" ||
@@ -4880,6 +4897,17 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             onDownload: confirmEmbeddingDownload,
           }}
         />
+      ) : null}
+
+      {activeOverlay?.kind === "account" ? (
+        <AccountScreen
+          onBack={() => setActiveOverlay(null)}
+          onOpenPro={() => setActiveOverlay({ kind: "pro" })}
+        />
+      ) : null}
+
+      {activeOverlay?.kind === "pro" ? (
+        <ProScreen onBack={() => setActiveOverlay({ kind: "account" })} />
       ) : null}
 
       {activeOverlay?.kind === "documents" ? (

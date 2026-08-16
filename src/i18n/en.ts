@@ -45,6 +45,7 @@ export const en = {
     notes: "Notes",
     personas: "Persona",
     personaNone: "Default",
+    account: "Account",
   },
 
   settings: {
@@ -920,6 +921,39 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     bodyPlaceholder: "Write a note…",
     errorSave: "Could not save the note.",
     errorLoad: "Could not open the note.",
+  },
+
+  account: {
+    title: "Account",
+    loading: "Loading account",
+    signInGoogle: "Continue with Google",
+    signInApple: "Continue with Apple",
+    orContinueEmail: "or continue with email",
+    emailPlaceholder: "Email address",
+    emailInvalid: "Enter a valid email address",
+    saveFailed: "Could not save the account on this phone. Try again.",
+    disabledProviders:
+      "Sign in with Google or Apple is available when Kalsa is installed from the Play Store or the App Store.",
+    socialUnavailable:
+      "Store sign-in is not connected yet. Continue with email on this phone.",
+    planCurrent: "Current plan: Free",
+    upgradeToPro: "Upgrade to Pro",
+    signOut: "Sign out",
+    optionalHint:
+      "No account? No problem — everything stays on this phone.",
+    avatarA11y: "Account avatar",
+    proTitle: "Pro",
+    proHero: "Kalsa Pro — unlock the full lab",
+    proBenefit1: "Keep long chats coherent without losing the thread",
+    proBenefit2: "More room for harder questions on this device",
+    proBenefit3: "Get more from the documents already on your phone",
+    proBenefit4: "Stay first in line when new lab tools land",
+    proPrice: "{price}/month",
+    proPriceValue: "$4.99",
+    proBilledMonthly: "billed monthly",
+    proCancelAnytime: "Cancel anytime",
+    proCta: "Upgrade to Pro",
+    proComingSoon: "Payments are not connected yet — Pro is coming soon.",
   },
 
   /**

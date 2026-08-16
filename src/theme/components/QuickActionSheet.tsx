@@ -16,7 +16,7 @@ type Props = {
   onAction: (action: QuickAction) => void;
 };
 
-// Bottom sheet triggered by long-press on the FAB.
+// Bottom sheet for quick actions (no longer tied to the FAB, which was removed).
 export function QuickActionSheet({ visible, onClose, onAction }: Props) {
   const { colors } = useLabTheme<any>();
   const { t } = useLocale();

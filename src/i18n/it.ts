@@ -44,6 +44,7 @@ export const it: typeof en = {
     notes: "Note",
     personas: "Persona",
     personaNone: "Predefinita",
+    account: "Account",
   },
 
   settings: {
@@ -890,6 +891,39 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     bodyPlaceholder: "Scrivi una nota…",
     errorSave: "Impossibile salvare la nota.",
     errorLoad: "Impossibile aprire la nota.",
+  },
+
+  account: {
+    title: "Account",
+    loading: "Caricamento account",
+    signInGoogle: "Continua con Google",
+    signInApple: "Continua con Apple",
+    orContinueEmail: "oppure continua con l'email",
+    emailPlaceholder: "Indirizzo email",
+    emailInvalid: "Inserisci un indirizzo email valido",
+    saveFailed: "Impossibile salvare l'account su questo telefono. Riprova.",
+    disabledProviders:
+      "Accedi con Google o Apple quando Kalsa è installata dal Play Store o dall'App Store.",
+    socialUnavailable:
+      "L'accesso dallo store non è ancora collegato. Continua con l'email su questo telefono.",
+    planCurrent: "Piano attuale: Free",
+    upgradeToPro: "Passa a Pro",
+    signOut: "Esci",
+    optionalHint:
+      "Nessun account? Nessun problema — tutto resta su questo telefono.",
+    avatarA11y: "Avatar dell'account",
+    proTitle: "Pro",
+    proHero: "Kalsa Pro — sblocca il laboratorio completo",
+    proBenefit1: "Tieni le chat lunghe coerenti senza perdere il filo",
+    proBenefit2: "Più spazio per le domande difficili su questo dispositivo",
+    proBenefit3: "Ottieni di più dai documenti già sul telefono",
+    proBenefit4: "Resta in prima fila quando arrivano nuovi strumenti",
+    proPrice: "{price}/mese",
+    proPriceValue: "4,99 €",
+    proBilledMonthly: "fatturato mensilmente",
+    proCancelAnytime: "Annulla quando vuoi",
+    proCta: "Passa a Pro",
+    proComingSoon: "I pagamenti non sono ancora collegati — Pro arriva presto.",
   },
 
   operativeBlock: {
