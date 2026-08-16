@@ -746,6 +746,101 @@ not a disk one. Freed to **8.2 GB** by deleting a byte-identical duplicate
 (`gemma-4-E2B-it-gpu.litertlm`, md5 `621a43cd…`, the copy inside `litert-f0/` kept) and a
 `Qwen2.5-1.5B` GGUF with zero references in `results/runs.csv`.
 
+## 7. What the phone measured in one night — and the cost nobody was measuring
+
+First complete arm on a physical Galaxy S23, unplugged, Qwen3.5-4B Q4_K_M with the F16 vision
+projector resident, `ciswire`, window 16, `NOREPACK=1`, 16 turns:
+
+| family | result |
+|---|---|
+| `fact_recall_early` | **8/8 = 1.000** |
+| `fact_recall_late` | **8/8 = 1.000** |
+| honesty / language / tool_call | 1/1 each |
+| miniapp | 0/1 |
+| error turns, blank bubbles | **0** |
+| digest | active on 7 turns, corpus max 64 docs |
+
+One seed, one arm, and **no `off` arm beside it** — so this says "the 4B with ciswire held every
+fact across 16 turns on real hardware", not yet "ciswire beats bare on a phone".
+
+### 7.1 Prefill is the whole cost, and it is paid again every turn
+
+| turn | prompt tokens | prefill | decode |
+|---|---|---|---|
+| 1 | 1496 | 84 s | 8.0 tok/s |
+| 6 | 2196 | 160 s | 6.6 tok/s |
+| 14 | 4100 | 346 s | 5.4 tok/s |
+| 16 | 4156 | **394 s** | 5.8 tok/s (21 s) |
+
+Decode is healthy — 5–8 tok/s, matching the sibling repo's `llama-bench` figure for this model on
+this handset — and disabling the ARM repack does not hurt it. **Prefill is 95 % of the turn**, and
+`reusedTokens` (from the engine's own `Input processed: n_past=…` line) is **0 on every turn**.
+
+The cause is not the sliding window, not prompt divergence and not the MTP reuse guard. It is in
+the app's own log, once per turn:
+
+    ReactNativeJS: 'model.unload', '{"reason":"background"}'
+    KALSA_SESSION {"op":"init"} → {"op":"load"} → Input processed: n_past=0
+
+**The engine is disposed and rebuilt between turns.** There is no KV to reuse because the context
+is new each time, which is why a 4156-token prompt is re-processed from scratch for 394 s. The
+trigger is an AppState transition to `background` (`AppShell.tsx:2545-2555`), and the logcat at
+that exact second is loading Samsung and Google TTS resources — a correlation, not yet a proven
+cause. **Next experiment, cheap and decisive**: log `topResumedActivity` every few seconds across
+two turns and name what pauses the activity.
+
+Two consequences, and the second is bigger than the benchmark:
+
+1. **Every campaign ever run may have paid this**, CI included — the 4B's 940 s/turn on the
+   emulator is consistent with a full re-prefill each turn. It inflates absolute costs everywhere,
+   though it hits all arms equally, so the A/B comparisons between context modes stay valid.
+2. **For a user, this is the product's speed.** A phone assistant that reloads its engine between
+   messages pays hundreds of seconds per turn no matter how good the retrieval is. Recall of 1.000
+   is worth little at 7 minutes a turn.
+
+### 7.2 Repack: measured, real, and not what was hanging the arms
+
+`no_extra_bufts` (llama.rn) disables the ARM weight repack, which this repo's own estimator
+describes as "a second copy of the weights" in anonymous memory. Measured on the device with the
+4B loaded:
+
+| | repack ON | repack OFF |
+|---|---|---|
+| app VmRSS | 677 MB | 3.60 GB |
+| app VmSwap | **3.32 GB** | **93 MB** |
+| system MemAvailable | 726 MB | **3.55 GB** |
+
+With repack on, 3.3 GB of the app sits in zram while the GGUF itself is mmap'd and evictable; with
+it off, the weights stay file-backed and the system keeps 3.5 GB free. That is a real fix for
+8 GB phones and it costs nothing measurable in decode.
+
+**Correction on record**: I first read the swap as the cause of the arms hanging at turn 2. It was
+not — with repack off the arm hung identically. The hang was the harness (§7.3). Two true
+statements were being welded into one false one.
+
+### 7.3 The harness waited 40 minutes for a reply to a message it never sent
+
+Three device arms died at turn 2. The app was idle (`State: S`, no thread running, 745 % of 800 %
+idle) and the conversation on screen ended at turn 1 — because the message was **still in the
+composer**. `send_and_wait` verified that the text LANDED and treated that as sent. On the emulator
+the send tap always worked; a real device with a different layout and a localised control exposed
+it. Fixed: submission is proven (history grew or composer emptied) before any waiting, the send is
+retried by re-finding the control, and a failed UI dump counts as *not* submitted rather than as
+an empty composer.
+
+### 7.4 Cost model for the long-conversation regime
+
+Per-turn cost plateaus once the window fills (prompt tokens 4100 → 4156 at turns 14-16, ~430 s):
+16 turns = 77 min measured; 30 turns ≈ 3 h; 40 turns ≈ 4.2 h. Beyond turn ~14 the extra turns no
+longer add context pressure — the window is capped — they add **retrieval corpus** (64 docs at 16
+turns, ~120 at 30). Decision with Marco: **30 turns**, because doubling the corpus is the step
+that matters and the extra hour and a half buys a third more of an already-doubled number.
+
+Battery is the other constraint: ~30 %/h of heavy inference, so with the sibling repo's 30 % floor
+a single discharge holds ~2.3 h — **a 3 h arm does not fit one charge**. Either the arm shortens,
+or the campaign runs plugged and declares the thermal confound, or §7.1 gets fixed and every turn
+becomes cheap enough that the question disappears.
+
 ## Change log
 
 | date | change |
