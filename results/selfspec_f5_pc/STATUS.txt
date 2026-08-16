@@ -18,3 +18,13 @@
 2026-08-16T07:02:03.2657624-04:00  RUN p2_freeze_on : C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-f5\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt --selfspec-draft-k 2 --selfspec-gamma 4 --selfspec-freeze-recurrent
 2026-08-16T07:02:48.5382734-04:00  DONE p2_freeze_on rc= wall=45.3s peak_rss=5916 MiB
 2026-08-16T07:02:48.5382734-04:00  === F5 P1/P2 DONE ===
+2026-08-16T07:19:51.7688116-04:00  === F5 P1/P2 START ===
+2026-08-16T07:19:51.9112556-04:00  PIN exe_sha=08d169100c69b7dc2d4f87ea92965218de29d2aa46acb35074121b6ad174f884
+2026-08-16T07:19:51.9496151-04:00  PIN git_rev=d31ad8d
+2026-08-16T07:19:51.9592425-04:00  RUN p0_plain : C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-f5\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt
+2026-08-16T07:20:19.0210198-04:00  DONE p0_plain rc= wall=27s peak_rss=5525.1 MiB
+2026-08-16T07:20:19.0210198-04:00  RUN p1_freeze_off : C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-f5\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt --selfspec-draft-k 2 --selfspec-gamma 4
+2026-08-16T07:21:05.4873222-04:00  DONE p1_freeze_off rc= wall=46.4s peak_rss=6176.3 MiB
+2026-08-16T07:21:05.4893341-04:00  RUN p2_freeze_on : C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge-selfspec-f1\build-f5\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 2048 --ubatch 512 -n 256 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --n-expert-used 6 --prompt-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\selfspec_f0\prompts\p_longfact.txt --selfspec-draft-k 2 --selfspec-gamma 4 --selfspec-freeze-recurrent
+2026-08-16T07:21:51.0478903-04:00  DONE p2_freeze_on rc= wall=45.5s peak_rss=5915.9 MiB
+2026-08-16T07:21:51.0505569-04:00  === F5 P1/P2 DONE ===

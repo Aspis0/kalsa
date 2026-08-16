@@ -23,6 +23,12 @@ never executed on a model that actually has recurrent state.
 snapshot planes entirely: **251.25 MiB saved at γ=4**, and it would be 502.5 MiB
 at γ=8. Peak RSS corroborates independently (−260.4 MiB).
 
+**Reproduced on the audit-fix binary (`d31ad8d`, 07:21)** — the whole table is
+bit-stable across a 322-line diff: RS buffers identical (314.06 / 62.81), peak
+RSS 6176.3 / 5915.9 MiB (0.1 MiB from the first run), wall 46.4 / 45.5 s. The
+freeze arm is ~1-2 % faster than freeze-OFF in both runs; two runs is not a
+claim, and it is not the claim being made here.
+
 **Correction to earlier text:** the figure carried forward from F1 was "314 MiB
 saved". That was wrong — 314.06 MiB is the *total* buffer at γ=4; `n_rs_seq = 0`
 still allocates the one live row (62.81 MiB). The saving is 251.25 MiB. Every
