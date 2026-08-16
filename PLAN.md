@@ -334,9 +334,20 @@
 > in coda, la sua coppia è nulla) ≈ 2 ore non presidiate. Da batteria
 > piena il floor 45% non si sfiora nemmeno (~2.3%/blocco). Basta
 > staccare dalla presa. results/kf_cold_jelly/.
-> 📱 **CELLA REPLICA XIAOMI (16/08, in corso).** Replica pre-registrata
-> della claim di ship su secondo device: stesso ELF, stesso modello,
-> stesso prompt, cambia solo il telefono. PREREG committato PRIMA dello
+> 📱✅ **CELLA REPLICA XIAOMI (16/08) — REPLICATA.** La config certificata
+> vince anche sul secondo device: **W=0, p=0.000977, HL B−A = −0.05625
+> s/token, mediana −14.5%**, N=12 coppie, zero esclusioni. Onestà sul
+> test: la coppia 3 è un pareggio esatto (0.2940 = 0.2940 alla
+> risoluzione a 4 decimali dell'harness) e Wilcoxon scarta le differenze
+> nulle → il test gira su **11 coppie effettive**, quindi p = 2/2¹¹ =
+> 0.000977 è il floor esatto per N=11, NON il floor N=12 di 0.000488
+> (dichiarato perché chi ricalcola da "N=12" troverebbe una discrepanza).
+> Tutte e 11 le differenze non nulle favoriscono B.
+> **La predizione pre-registrata ha tenuto sulla magnitudine:** effetto
+> molto più piccolo del −42.7% del S23, ma NON nullo. L'asse energia
+> NON è stato replicato (quantizzazione del coulomb counter).
+> Replica pre-registrata della claim di ship su secondo device: stesso
+> ELF, stesso modello, stesso prompt, cambia solo il telefono. PREREG committato PRIMA dello
 > staging con **predizione registrata: effetto più piccolo o nullo qui**
 > (11.4 GB RAM, SD8G3, flash veloce → il braccio stock soffre meno il
 > costo I/O che il certificato rimuove; stall a freddo 8.7%). Un nullo è
