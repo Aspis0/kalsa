@@ -1,12 +1,14 @@
 /**
  * Harness for src/engine/deviceProfile.ts
- * (pure deviceFamilyForBrand + isFoldableModelName + modelGateVerdict).
+ * (pure deviceFamilyForBrand + isFoldableModelName + modelGateVerdict,
+ * real getRamTier fixtures, and the real blocked download path).
  *
  * Compile-from-disk pattern (same as threadProfileHarness). Exit 1 on fail.
  * Does NOT wire into CI workflows (another agent owns that).
  */
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
+import Module from "node:module";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,9 +18,9 @@ const projectRoot = path.resolve(__dirname, "..");
 const require = createRequire(import.meta.url);
 
 function compile() {
-  // Compile deviceProfile + its pure deps (contextProfile, memoryEstimate,
-  // threadProfile). memoryEstimate/threadProfile are pure; contextProfile
-  // has a guarded require("expo-device") that never runs in these pure tests.
+  // Compile deviceProfile and its pure deps plus the registry/downloader used
+  // by the real blocked-download assertion. Native modules are stubbed only
+  // while the compiled downloader is loaded below.
   const r = spawnSync(
     "npx",
     [
@@ -27,6 +29,8 @@ function compile() {
       "src/engine/contextProfile.ts",
       "src/engine/memoryEstimate.ts",
       "src/engine/threadProfile.ts",
+      "src/engine/ModelRegistry.ts",
+      "src/engine/ModelDownloader.ts",
       "--outDir",
       "scripts/.build",
       "--module",
@@ -84,6 +88,42 @@ async function main() {
     diskRequirementBytes,
     __resetDeviceProfileCacheForTests,
   } = mod;
+
+  const contextProfilePath = path.join(projectRoot, "scripts/.build/engine/contextProfile.js");
+  const { getRamTier, resolveContextProfile } = require(contextProfilePath);
+  const modelRegistryPath = path.join(projectRoot, "scripts/.build/engine/ModelRegistry.js");
+  const { MODEL_REGISTRY } = require(modelRegistryPath);
+  const qwen4b = MODEL_REGISTRY.find((entry) => entry.id === "qwen3.5-4b");
+  const qwen4bQ3 = MODEL_REGISTRY.find((entry) => entry.id === "qwen3.5-4b-q3");
+  assert(qwen4b, "qwen3.5-4b missing from registry");
+  assert(qwen4bQ3, "qwen3.5-4b-q3 missing from registry");
+
+  // Load the real downloader with native modules stubbed only at the boundary.
+  // The blocked case must return before its internal downloadFile is reached.
+  let downloadCalls = 0;
+  const originalModuleLoad = Module._load;
+  Module._load = function (request, parent, isMain) {
+    if (request === "@react-native-async-storage/async-storage") {
+      return { default: {} };
+    }
+    if (request === "expo-file-system/legacy") {
+      return {
+        documentDirectory: "file:///tmp/",
+        createDownloadResumable: () => {
+          downloadCalls += 1;
+          throw new Error("download should not have started");
+        },
+      };
+    }
+    return originalModuleLoad.call(this, request, parent, isMain);
+  };
+  let downloadModelBundle;
+  try {
+    const downloaderPath = path.join(projectRoot, "scripts/.build/engine/ModelDownloader.js");
+    ({ downloadModelBundle } = require(downloaderPath));
+  } finally {
+    Module._load = originalModuleLoad;
+  }
 
   let passed = 0;
   let failed = 0;
@@ -143,6 +183,94 @@ async function main() {
   await test("isFoldableModelName sm-f720 lowercase → true", () => {
     assert(isFoldableModelName("sm-f720b", null) === true, "lowercase sm-f");
     assert(isFoldableModelName(null, "SM-F926B") === true, "name SM-F");
+  });
+
+  // --- real Android MemTotal tier fixtures ---
+
+  await test("S23 MemTotal 7,417,589,760 → high, no context upgrade", () => {
+    const totalMemoryBytes = 7_417_589_760;
+    assert(getRamTier(totalMemoryBytes) === "high", "S23 must classify as high");
+    assert(
+      resolveContextProfile({
+        hybrid: qwen4b.hybrid,
+        kvCache: qwen4b.kvCache,
+        catalogCtx: qwen4b.engineCtx,
+        totalMemoryBytes,
+      }).nCtx === 8192,
+      "S23 must keep catalog context",
+    );
+    const v = modelGateVerdict({
+      totalMemoryBytes,
+      availableMemoryBytes: 4_000 * 1024 * 1024,
+      freeDiskBytes: 10_000_000_000,
+      ramTier: getRamTier(7_417_589_760),
+      modelMinRamTier: qwen4b.minRamTier,
+      modelNonEvictableMiB: null,
+      modelSizeBytes: qwen4b.sizeBytes + (qwen4b.mmproj?.sizeBytes ?? 0),
+    });
+    assert(v.allowed === true, `allowed=${v.allowed}`);
+  });
+
+  await test("7.6e9 MemTotal → high and context upgrade", () => {
+    const totalMemoryBytes = 7_600_000_000;
+    assert(getRamTier(totalMemoryBytes) === "high", "7.6e9 must classify as high");
+    assert(
+      resolveContextProfile({
+        hybrid: qwen4b.hybrid,
+        kvCache: qwen4b.kvCache,
+        catalogCtx: qwen4b.engineCtx,
+        totalMemoryBytes,
+      }).nCtx === 16384,
+      "7.6e9 must upgrade context",
+    );
+  });
+
+  await test("nominal 6GB low MemAvailable: download allowed, load blocked", () => {
+    const totalMemoryBytes = 5_600_000_000;
+    const availableMemoryBytes = 2_500 * 1024 * 1024;
+    const contextTokens = resolveContextProfile({
+      hybrid: qwen4bQ3.hybrid,
+      kvCache: qwen4bQ3.kvCache,
+      catalogCtx: qwen4bQ3.engineCtx,
+      totalMemoryBytes,
+    }).nCtx;
+    const modelNonEvictableMiB = estimateModelNonEvictableMiB({
+      sizeBytes: qwen4bQ3.sizeBytes + (qwen4bQ3.mmproj?.sizeBytes ?? 0),
+      contextTokens,
+    });
+    const input = {
+      totalMemoryBytes,
+      availableMemoryBytes,
+      freeDiskBytes: 10_000_000_000,
+      ramTier: getRamTier(totalMemoryBytes),
+      modelMinRamTier: qwen4bQ3.minRamTier,
+      modelNonEvictableMiB,
+      modelSizeBytes: qwen4bQ3.sizeBytes + (qwen4bQ3.mmproj?.sizeBytes ?? 0),
+    };
+    const download = modelGateVerdict(input, { checkVolatileMemory: false });
+    assert(download.allowed === true, `download allowed=${download.allowed}`);
+    assert(download.reason === "ok", `download reason=${download.reason}`);
+    const load = modelGateVerdict(input);
+    assert(load.allowed === false, `load allowed=${load.allowed}`);
+    assert(load.reason === "blocked_ram", `load reason=${load.reason}`);
+  });
+
+  await test("nominal 4GB MemTotal 3,700,000,000 → low", () => {
+    assert(getRamTier(3_700_000_000) === "low", "4GB must classify as low");
+  });
+
+  await test("blocked verdict prevents the real download function", async () => {
+    let blocked = false;
+    try {
+      await downloadModelBundle(qwen4b, {
+        locale: "en",
+        gate: { allowed: false, reason: "blocked_tier" },
+      });
+    } catch {
+      blocked = true;
+    }
+    assert(blocked, "blocked download should stop before file work");
+    assert(downloadCalls === 0, `download calls=${downloadCalls}`);
   });
 
   // --- modelGateVerdict matrix ---
@@ -220,7 +348,7 @@ async function main() {
   await test("estimateModelNonEvictableMiB returns finite > 0 for 2B-ish", () => {
     const n = estimateModelNonEvictableMiB({
       sizeBytes: 1_280_835_840,
-      engineCtx: 16384,
+      contextTokens: 16384,
       kvBytesPerToken: Math.round(4.88 * 1024),
     });
     assert(typeof n === "number" && Number.isFinite(n) && n > 0, `got ${n}`);

@@ -280,23 +280,33 @@ function gateForModel(
   model: ModelInfo,
   profile: Awaited<ReturnType<typeof getCachedDeviceProfile>>,
   freeDiskBytes: number | null,
+  checkVolatileMemory = true,
 ): ModelGateVerdict {
   // RAM estimate includes optional mmproj (vision bundle); disk already bundles.
   const bundleBytes = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
-  return modelGateVerdict({
+  const resolvedContextTokens = resolveContextProfile({
+    hybrid: model.hybrid,
+    kvCache: model.kvCache,
+    catalogCtx: model.engineCtx,
     totalMemoryBytes: profile.totalMemoryBytes,
-    availableMemoryBytes: profile.availableMemoryBytes,
-    freeDiskBytes,
-    ramTier: profile.ramTier,
-    modelMinRamTier: model.minRamTier,
-    modelNonEvictableMiB: estimateModelNonEvictableMiB({
-      sizeBytes: bundleBytes,
-      engineCtx: model.engineCtx,
-      kvBytesPerToken: model.kvBytesPerToken,
-    }),
-    // Always margined so confirm/start/Settings share one disk requirement.
-    modelSizeBytes: diskRequirementBytes(modelBundleSizeBytes(model)),
-  });
+  }).nCtx;
+  return modelGateVerdict(
+    {
+      totalMemoryBytes: profile.totalMemoryBytes,
+      availableMemoryBytes: profile.availableMemoryBytes,
+      freeDiskBytes,
+      ramTier: profile.ramTier,
+      modelMinRamTier: model.minRamTier,
+      modelNonEvictableMiB: estimateModelNonEvictableMiB({
+        sizeBytes: bundleBytes,
+        contextTokens: resolvedContextTokens,
+        kvBytesPerToken: model.kvBytesPerToken,
+      }),
+      // Always margined so confirm/start/Settings share one disk requirement.
+      modelSizeBytes: diskRequirementBytes(modelBundleSizeBytes(model)),
+    },
+    { checkVolatileMemory },
+  );
 }
 
 /** Localized hard-gate reason for Alert / error banner. */
@@ -2797,22 +2807,28 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       generation === engineGenerationRef.current &&
       MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
 
-    // Re-check free disk before downloadModelBundle (same margined requirement
-    // as gateForModel / Settings — diskRequirementBytes = size × 1.1).
+    // Re-check the stable download gate immediately before starting the
+    // transfer. Tier and disk are stable; volatile MemAvailable is checked
+    // by the full gate at load time, when the memory is actually used.
+    let downloadGate: ModelGateVerdict | undefined;
     try {
-      const free = await getFreeDiskBytes();
+      const [deviceProfile, free] = await Promise.all([
+        getCachedDeviceProfile(),
+        getFreeDiskBytes(),
+      ]);
       if (generation !== engineGenerationRef.current) {
         downloadInFlight.current = false;
         return;
       }
-      const need = diskRequirementBytes(modelBundleSizeBytes(model));
-      if (typeof free === "number" && free < need) {
-        Alert.alert(t("download.title"), t("models.blockedDisk"));
+      const gate = gateForModel(model, deviceProfile, free, false);
+      if (!gate.allowed) {
+        Alert.alert(t("download.title"), gateReasonMessage(gate.reason, t));
         downloadInFlight.current = false;
         return;
       }
+      downloadGate = gate;
     } catch {
-      // Probe failure → proceed (existing path had no disk pre-check).
+      // Probe failure → proceed without a verdict, as the load path does.
     }
 
     if (generation !== engineGenerationRef.current) {
@@ -2857,6 +2873,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         },
         signal: controller.signal,
         locale,
+        gate: downloadGate,
       });
       if (!stillCurrent()) return;
       if (outcome.model.status === "aborted" || outcome.mmproj?.status === "aborted") {
@@ -3157,14 +3174,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Synchronous double-tap guard before any await (probes + Alert).
       if (downloadInFlight.current || confirmDownloadLockRef.current) return;
       confirmDownloadLockRef.current = true;
-      // Hard gate before the size Alert: refuse download of models that cannot fit.
+      // Stable download gate before the size Alert: tier and disk only.
       void (async () => {
         try {
           const [deviceProfile, free] = await Promise.all([
             getCachedDeviceProfile(),
             getFreeDiskBytes(),
           ]);
-          const gate = gateForModel(model, deviceProfile, free);
+          const gate = gateForModel(model, deviceProfile, free, false);
           if (!gate.allowed) {
             confirmDownloadLockRef.current = false;
             Alert.alert(t("download.title"), gateReasonMessage(gate.reason, t));

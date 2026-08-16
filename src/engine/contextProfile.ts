@@ -37,33 +37,30 @@ export function parseBenchNCtx(
   return n;
 }
 /**
- * "≥ 8GB" device RAM gate for optional n_ctx UPGRADE only (never downgrade).
- * Marketing-"8GB" devices report ~7.6–7.9e9 via expo-device; threshold 7.5e9
- * catches them. The 6GB class stays at catalog ctx: vision mmproj residency
- * makes +~130MB KV at 16k an OOM risk there.
+ * Minimum reportable MemTotal for the optional n_ctx upgrade (never downgrade).
+ * This answers "can this phone hold twice the KV?", not "which model class
+ * fits this phone". Keep the original conservative 7.5e9 value until KV
+ * bytes/token are measured on-device; the measured S23 is below this gate.
  */
-export const HIGH_RAM_BYTES = 7_500_000_000;
+export const CTX_UPGRADE_MIN_TOTAL_BYTES = 7_500_000_000;
 
 /**
  * RAM tiers for model recommendation (Settings → Models, advisory only —
- * NEVER auto-switches the user's chosen model). Product decision: Qwen 3.5 4B
- * is the default model; the Q3 and 2B variants exist only as fallbacks for
- * lower-RAM phones.
+ * NEVER auto-switches the user's chosen model). This answers "which model
+ * class fits this phone", not whether it can hold a doubled KV context.
  *
- *   high (>= RAM_HIGH_BYTES, marketing "8GB") -> qwen3.5-4b
- *     2.83GB weights + 672MB mmproj (vision) + ~256MB KV @16k = full experience.
- *   mid  (>= RAM_MID_BYTES,  marketing "6GB")  -> qwen3.5-4b-q3
- *     2.37GB weights (Q3_K_M), KV q4/q4 — same model, lighter quant.
- *   low  (< RAM_MID_BYTES)                     -> qwen3.5-2b
- *     1.28GB, text-only fallback.
- *
- * RAM_HIGH_BYTES reuses HIGH_RAM_BYTES (the same "8GB" gate already used to
- * upgrade n_ctx) so there is exactly one 8GB threshold in the codebase.
+ *   high (>= RAM_TIER_HIGH_BYTES, reportable "8GB" class) -> qwen3.5-4b
+ *   mid  (>= RAM_MID_BYTES, reportable "6GB" class) -> qwen3.5-4b-q3
+ *   low  (< RAM_MID_BYTES) -> qwen3.5-2b
  */
 export type RamTier = "low" | "mid" | "high";
-/** Marketing "6GB" devices report ~5.7-5.9e9 via expo-device; this catches them. */
-export const RAM_MID_BYTES = 6_000_000_000;
-export const RAM_HIGH_BYTES = HIGH_RAM_BYTES;
+/**
+ * A nominal 6GB phone reports about 90–93% of that after reserved memory is
+ * excluded; this threshold is for tier classification only.
+ */
+export const RAM_MID_BYTES = 5_400_000_000;
+/** Tier threshold only: the model class that suits this phone. */
+export const RAM_TIER_HIGH_BYTES = 6_900_000_000;
 
 const RAM_TIER_ORDER: Record<RamTier, number> = { low: 0, mid: 1, high: 2 };
 
@@ -76,7 +73,7 @@ export function getRamTier(totalBytes: number | null): RamTier {
   if (typeof totalBytes !== "number" || !Number.isFinite(totalBytes) || totalBytes <= 0) {
     return "low";
   }
-  if (totalBytes >= RAM_HIGH_BYTES) return "high";
+  if (totalBytes >= RAM_TIER_HIGH_BYTES) return "high";
   if (totalBytes >= RAM_MID_BYTES) return "mid";
   return "low";
 }
@@ -112,7 +109,7 @@ export type ContextProfile = {
  * Returns null when unavailable; callers keep catalog n_ctx (no upgrade).
  *
  * NOTE: `expo-device@~57.0.1` is installed — hybrid models on devices with
- * totalMemory ≥ HIGH_RAM_BYTES may UPGRADE n_ctx to max(catalog, 16384).
+ * totalMemory ≥ CTX_UPGRADE_MIN_TOTAL_BYTES may UPGRADE n_ctx to max(catalog, 16384).
  * The guarded require + null fallback remains so web / missing-native paths
  * never crash the bundle.
  */
@@ -167,7 +164,7 @@ export function resolveContextProfile(input: {
     if (
       hybrid &&
       typeof totalMemoryBytes === "number" &&
-      totalMemoryBytes >= HIGH_RAM_BYTES
+      totalMemoryBytes >= CTX_UPGRADE_MIN_TOTAL_BYTES
     ) {
       nCtx = Math.max(catalogCtx, HIGH_RAM_N_CTX);
     }

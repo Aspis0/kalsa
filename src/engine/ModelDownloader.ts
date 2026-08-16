@@ -3,6 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 
 import { getStrings, type Locale } from "../i18n";
 import type { ModelInfo, ModelFileSpec } from "./ModelRegistry";
+import type { ModelGateVerdict } from "./deviceProfile";
 
 /**
  * Download bundle modelli (GGUF + mmproj vision) da HuggingFace con:
@@ -38,6 +39,8 @@ export type DownloadOptions = {
   signal?: AbortSignal;
   /** Settings locale for user-facing download errors (required). */
   locale: Locale;
+  /** Caller-computed hard gate; blocked bundles never reach downloadFile. */
+  gate?: ModelGateVerdict;
 };
 
 export function modelLocalPath(model: ModelInfo, file: string): string {
@@ -350,6 +353,10 @@ export async function downloadModelBundle(
   model: ModelInfo,
   options: DownloadOptions,
 ): Promise<{ model: DownloadOutcome; mmproj?: DownloadOutcome }> {
+  if (options.gate?.allowed === false) {
+    throw new Error(`model download blocked: ${options.gate.reason}`);
+  }
+
   const mmprojTotal = model.mmproj ? model.mmproj.sizeBytes : 0;
   const totalBytes = model.sizeBytes + mmprojTotal;
   let modelBytes = 0;

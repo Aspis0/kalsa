@@ -44,8 +44,8 @@ export type ModelInfo = {
   contextLength: number;
   /**
    * Catalog soft default for n_ctx. Runtime prefers resolveContextProfile
-   * (hybrid + RAM ≥6GB → 16k; otherwise 8192). Catalog values remain as
-   * documentation / non-hybrid fallback reference.
+   * (hybrid + CTX_UPGRADE_MIN_TOTAL_BYTES → 16k; otherwise 8192). Catalog
+   * values remain as documentation / non-hybrid fallback reference.
    */
   engineCtx: number;
   /** Cache KV quantizzata (K/V). */

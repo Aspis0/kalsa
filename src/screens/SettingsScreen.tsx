@@ -43,6 +43,7 @@ import {
   getRamTier,
   ramTierMeets,
   recommendedModelId,
+  resolveContextProfile,
 } from "../engine/contextProfile";
 import {
   diskRequirementBytes,
@@ -1681,13 +1682,18 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                     modelNonEvictableMiB: estimateModelNonEvictableMiB({
                       sizeBytes:
                         entry.sizeBytes + (entry.mmproj?.sizeBytes ?? 0),
-                      engineCtx: entry.engineCtx,
+                      contextTokens: resolveContextProfile({
+                        hybrid: entry.hybrid,
+                        kvCache: entry.kvCache,
+                        catalogCtx: entry.engineCtx,
+                        totalMemoryBytes: deviceProfile.totalMemoryBytes,
+                      }).nCtx,
                       kvBytesPerToken: entry.kvBytesPerToken,
                     }),
                     modelSizeBytes: diskRequirementBytes(
                       entry.sizeBytes + (entry.mmproj?.sizeBytes ?? 0),
                     ),
-                  })
+                  }, { checkVolatileMemory: false })
                 : null;
               const hardBlocked = gate?.allowed === false && !active;
               const hardBlockLabel = hardBlocked ? gateReasonLabel(gate) : null;

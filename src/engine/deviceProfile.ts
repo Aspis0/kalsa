@@ -114,22 +114,28 @@ export function isFoldableModelName(
  *
  * Order:
  *  1. tier — modelMinRamTier set and device ramTier does not meet it → blocked_tier
- *  2. ram  — availableMemoryBytes + modelNonEvictableMiB both numeric and
- *            nonEvictable > available (MiB) → blocked_ram
- *            (mirrors fitMemoryEstimate "does_not_fit"; tight is NOT a block)
+ *  2. ram  — when the volatile check is enabled, availableMemoryBytes +
+ *            modelNonEvictableMiB both numeric and nonEvictable > available
+ *            (MiB) → blocked_ram (tight is NOT a block)
  *  3. disk — freeDiskBytes numeric and modelSizeBytes > freeDiskBytes → blocked_disk
  *  4. else allowed "ok", or "unknown" when memory is unknown and nothing else blocked
  *     (allowed=true so we never hard-block on missing probes)
+ *
+ * Download callers disable the volatile check: downloads use only the stable
+ * tier and disk properties. Load callers keep the default full gate.
  */
-export function modelGateVerdict(input: {
-  totalMemoryBytes: number | null;
-  availableMemoryBytes: number | null;
-  freeDiskBytes: number | null;
-  ramTier: RamTier;
-  modelMinRamTier?: RamTier;
-  modelNonEvictableMiB?: number | null;
-  modelSizeBytes: number;
-}): ModelGateVerdict {
+export function modelGateVerdict(
+  input: {
+    totalMemoryBytes: number | null;
+    availableMemoryBytes: number | null;
+    freeDiskBytes: number | null;
+    ramTier: RamTier;
+    modelMinRamTier?: RamTier;
+    modelNonEvictableMiB?: number | null;
+    modelSizeBytes: number;
+  },
+  options: { checkVolatileMemory?: boolean } = {},
+): ModelGateVerdict {
   const {
     availableMemoryBytes,
     freeDiskBytes,
@@ -138,12 +144,14 @@ export function modelGateVerdict(input: {
     modelNonEvictableMiB,
     modelSizeBytes,
   } = input;
+  const checkVolatileMemory = options.checkVolatileMemory !== false;
 
   if (modelMinRamTier !== undefined && !ramTierMeets(ramTier, modelMinRamTier)) {
     return { allowed: false, reason: "blocked_tier" };
   }
 
   if (
+    checkVolatileMemory &&
     typeof availableMemoryBytes === "number" &&
     Number.isFinite(availableMemoryBytes) &&
     availableMemoryBytes > 0 &&
@@ -185,12 +193,15 @@ export function modelGateVerdict(input: {
 
 /**
  * Best-effort non-evictable MiB for a registry entry via estimateMemory.
- * Uses main GGUF sizeBytes, catalog engineCtx, kvBytesPerToken (0 when absent),
- * ubatch 256, repack true (llama.rn default). Returns null on bad input.
+ * `contextTokens` is the resolved load context, not the catalog default.
+ * For registry models with no measured bytes/token, the KV term is 0; this is
+ * therefore a LOWER BOUND. The 4B at 16k is ~256 MiB above it. Do not invent
+ * a kvBytesPerToken. ubatch 256, repack true (llama.rn default).
+ * Returns null on bad input.
  */
 export function estimateModelNonEvictableMiB(input: {
   sizeBytes: number;
-  engineCtx: number;
+  contextTokens: number;
   kvBytesPerToken?: number | null;
 }): number | null {
   try {
@@ -202,8 +213,8 @@ export function estimateModelNonEvictableMiB(input: {
       return null;
     }
     const contextTokens =
-      typeof input.engineCtx === "number" && Number.isFinite(input.engineCtx)
-        ? input.engineCtx
+      typeof input.contextTokens === "number" && Number.isFinite(input.contextTokens)
+        ? input.contextTokens
         : 0;
     const kvBytesPerToken =
       typeof input.kvBytesPerToken === "number" &&
