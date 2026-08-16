@@ -1032,6 +1032,12 @@ capture_turn_evidence() {
     grep -F "restored state checkpoint: reusing" "$buf" 2>/dev/null || true
   } > "$tdir/loadprompt.txt" 2>/dev/null || : > "$tdir/loadprompt.txt"
 
+  # kvdiag.txt — KALSA_KVDIAG0 (prefix-reuse collapse heads). Sibling of
+  # loadprompt, not a third grep into it: free-form native warning (hence
+  # .txt not .jsonl), and the existing two loadprompt greps stay untouched.
+  # Fires when n_common==0 with a non-empty cache; heads name the divergence.
+  capture_kvdiag_from_buf "$buf" "$tdir/kvdiag.txt"
+
   # prompt_meta.txt: one line per "Input processed" — reused=n_past total=embd.size.
   # WHY no sha256 of loadPrompt token ids: logcat truncates a line at ~4 KB
   # (smoke run 31358530713), so `loadPrompt: prompt_tokens = …` only ever
@@ -1039,10 +1045,13 @@ capture_turn_evidence() {
   # constant on every turn of both arms by construction; restoring it would
   # make the aggregator's positive control fail a valid campaign with
   # IDENTICAL PROMPTS — MEASURING NOTHING. embd.size / n_past are not truncated.
+  # When KALSA_KVDIAG0 fired, also surface cache_len/prompt_len so a reader
+  # sees the divergence without opening kvdiag.txt.
   {
     grep -oE "Input processed: n_past=[0-9]+, embd\.size=[0-9]+" "$tdir/loadprompt.txt" 2>/dev/null \
       | sed -E 's/.*n_past=([0-9]+), embd\.size=([0-9]+)/reused=\1 total=\2/' \
       || true
+    kvdiag_meta_lines "$tdir/kvdiag.txt"
   } > "$tdir/prompt_meta.txt" 2>/dev/null || : > "$tdir/prompt_meta.txt"
 
   # WHY per-turn (not end-of-arm only): the only direct evidence of whether

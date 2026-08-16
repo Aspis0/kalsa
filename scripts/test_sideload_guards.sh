@@ -430,6 +430,78 @@ else
   fail=$((fail + 1))
 fi
 
+# ── KALSA_KVDIAG0 capture (capture_kvdiag_from_buf / kvdiag_meta_lines) ──
+# Same contract as capture_turn_evidence neighbours: fixture buffer → sibling
+# file; empty buffer → empty file (not missing). loadprompt greps stay separate.
+
+_KV_BUF="$OUT/kvdiag_buf.txt"
+_KV_DEST="$OUT/kvdiag.txt"
+_KV_LINE='08-16 12:00:01.000  1234  5678 W llama-rn: KALSA_KVDIAG0 cache_len=1713 prompt_len=1840 cache_head=[1 2 3 4 5 6 7 8 9 10 11 12 ] prompt_head=[1 99 3 4 5 6 7 8 9 10 11 12 ]'
+{
+  echo "08-16 12:00:00.000  1234  5678 W llama-rn: some unrelated warning"
+  echo "$_KV_LINE"
+  echo "08-16 12:00:02.000  1234  5678 I llama-rn: Input processed: n_past=0, embd.size=1840"
+} > "$_KV_BUF"
+
+capture_kvdiag_from_buf "$_KV_BUF" "$_KV_DEST"
+if [ -f "$_KV_DEST" ] \
+  && grep -qF "KALSA_KVDIAG0 cache_len=1713 prompt_len=1840" "$_KV_DEST" \
+  && ! grep -qF "unrelated warning" "$_KV_DEST" \
+  && ! grep -qF "Input processed" "$_KV_DEST"; then
+  echo "PASS: kvdiag capture — diagnostic lands, noise excluded"
+  pass=$((pass + 1))
+else
+  echo "FAIL: kvdiag capture — got: '$(tr '\n' '|' < "$_KV_DEST" 2>/dev/null)'"
+  fail=$((fail + 1))
+fi
+
+# Existing loadprompt greps unchanged: still see Input processed from same buf.
+_LP_DEST="$OUT/loadprompt.txt"
+{
+  grep -F "Input processed: n_past=" "$_KV_BUF" 2>/dev/null || true
+  grep -F "restored state checkpoint: reusing" "$_KV_BUF" 2>/dev/null || true
+} > "$_LP_DEST" 2>/dev/null || : > "$_LP_DEST"
+if grep -qF "Input processed: n_past=0, embd.size=1840" "$_LP_DEST" \
+  && ! grep -qF "KALSA_KVDIAG0" "$_LP_DEST"; then
+  echo "PASS: loadprompt greps unchanged — Input processed only, no KVDIAG bleed"
+  pass=$((pass + 1))
+else
+  echo "FAIL: loadprompt greps — got: '$(tr '\n' '|' < "$_LP_DEST" 2>/dev/null)'"
+  fail=$((fail + 1))
+fi
+
+# prompt_meta surfaces cache_len/prompt_len (same style as reused=/total=)
+_META=$(kvdiag_meta_lines "$_KV_DEST" | tr -d '\r')
+if [ "$_META" = "cache_len=1713 prompt_len=1840" ]; then
+  echo "PASS: kvdiag_meta_lines — cache_len/prompt_len for prompt_meta"
+  pass=$((pass + 1))
+else
+  echo "FAIL: kvdiag_meta_lines — got '$_META'"
+  fail=$((fail + 1))
+fi
+
+# Empty buffer → empty file, not missing
+: > "$_KV_BUF"
+rm -f "$_KV_DEST"
+capture_kvdiag_from_buf "$_KV_BUF" "$_KV_DEST"
+if [ -f "$_KV_DEST" ] && [ ! -s "$_KV_DEST" ]; then
+  echo "PASS: empty buffer → empty kvdiag.txt (file exists)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: empty buffer — exists=$([ -f "$_KV_DEST" ] && echo y || echo n) size=$(wc -c < "$_KV_DEST" 2>/dev/null || echo missing)"
+  fail=$((fail + 1))
+fi
+
+# ci-bench must wire the pure helper into capture_turn_evidence
+if grep -qF 'capture_kvdiag_from_buf "$buf" "$tdir/kvdiag.txt"' "$(dirname "$0")/ci-bench.sh" \
+  && grep -qF 'kvdiag_meta_lines "$tdir/kvdiag.txt"' "$(dirname "$0")/ci-bench.sh"; then
+  echo "PASS: ci-bench.sh wires kvdiag capture + prompt_meta surface"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ci-bench.sh missing capture_kvdiag_from_buf / kvdiag_meta_lines wire-up"
+  fail=$((fail + 1))
+fi
+
 rm -rf "$OUT"
 echo ""
 echo "=== $pass passed, $fail failed ==="

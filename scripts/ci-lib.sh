@@ -307,6 +307,23 @@ capture_kv_reuse() {
   return 0
 }
 
+# Write KALSA_KVDIAG0 lines from a logcat buffer to dest. Always creates dest
+# (empty when none) so absent-file vs empty-capture stay distinguishable —
+# same contract as capture_turn_evidence's neighbouring greps. Pure: no adb.
+#   capture_kvdiag_from_buf <buf_path> <dest_path>
+capture_kvdiag_from_buf() {
+  grep -F "KALSA_KVDIAG0 " "$1" 2>/dev/null > "$2" 2>/dev/null || : > "$2"
+}
+
+# One "cache_len=N prompt_len=M" line per KALSA_KVDIAG0 match — for
+# prompt_meta.txt (human glance: did prefix reuse collapse this turn?).
+#   kvdiag_meta_lines <kvdiag_path>
+kvdiag_meta_lines() {
+  grep -oE "KALSA_KVDIAG0 cache_len=[0-9]+ prompt_len=[0-9]+" "$1" 2>/dev/null \
+    | sed -E 's/.*cache_len=([0-9]+) prompt_len=([0-9]+)/cache_len=\1 prompt_len=\2/' \
+    || true
+}
+
 # ── Sideload guards ─────────────────────────────────────────────────
 # Pure-logic functions (take values, never run adb) so they can be unit-tested
 # with fake inputs — the caller extracts on-device values and passes them in.
