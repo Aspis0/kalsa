@@ -152,8 +152,12 @@ jobs:
           df -h /
 
       - name: Prebuild (CNG)
-        # llama.rn ships PREBUILT jniLibs: without this env the patched cpp/ is
-        # never compiled and patches/llama.rn+*.patch is a silent no-op.
+        # llama.rn ships PREBUILT jniLibs, but the plugin defaults to a source
+        # build of its cpp/ so the patched cpp/ is compiled and patches/ take
+        # effect; KALSA_LLAMA_FROM_SOURCE=0 is the opt-out that restores
+        # prebuilt jniLibs. The env is set here only for explicitness. The real
+        # guarantee the patches are in the binary is assert-native-patch.sh
+        # below, not this env.
         env:
           KALSA_LLAMA_FROM_SOURCE: "1"
         run: npx expo prebuild --platform android --no-install

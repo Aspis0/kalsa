@@ -29,6 +29,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const BENCH_YML = path.join(projectRoot, ".github/workflows/bench.yml");
+const APK_YML = path.join(projectRoot, ".github/workflows/apk.yml");
 const CI_BENCH_SH = path.join(projectRoot, "scripts/ci-bench.sh");
 
 const AXES = ["compaction", "toolchoice", "toolgate", "block_format", "thinking", "memory"];
@@ -208,6 +209,28 @@ function parseAcceptedPhases(text) {
     }
   }
   return accepted;
+}
+
+/**
+ * Extract `node scripts/<name>.mjs` harness lines from a workflow's
+ * "Typecheck + logic harnesses" step. Plain regex over the file text — no
+ * YAML parser. We anchor on the unique step name, then collect `node
+ * scripts/...mjs` lines until the next job step (a `- ` item at the 6-space
+ * step indent). Comment lines, `npm run typecheck`, `npx jest`, and the
+ * bash sideload-guards line are not `node scripts/*.mjs` and are skipped.
+ */
+function extractTypecheckHarnesses(text) {
+  const lines = text.split(/\r?\n/);
+  const stepIdx = lines.findIndex((l) => l.includes("Typecheck + logic harnesses"));
+  if (stepIdx < 0) return [];
+  const out = [];
+  for (let i = stepIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^      - /.test(line)) break; // next step at the 6-space indent
+    const m = line.match(/^(\s*)node scripts\/(\S+\.mjs)\s*$/);
+    if (m) out.push(m[2]);
+  }
+  return out;
 }
 
 function axisRecord(entry) {
@@ -544,6 +567,28 @@ function main() {
           `phase '${p}' is dispatchable in bench.yml but rejected by ci-bench.sh`,
       )
       .join("; "),
+  );
+
+  // apk.yml harness parity: this workflow must run every *Harness.mjs that
+  // bench.yml's typecheck step runs, or the device APK can ship logic that
+  // bench validated but apk never executed. Enforced structurally — not a
+  // hand-maintained list — so a harness added to bench.yml fails here naming
+  // the missing file. Fails (one of the two checks below) if either step
+  // parses to zero harnesses.
+  const apkText = readFileSync(APK_YML, "utf8");
+  const apkHarnesses = extractTypecheckHarnesses(apkText);
+  const benchHarnesses = extractTypecheckHarnesses(realText);
+  check(
+    "bench.yml and apk.yml typecheck harness lists parse non-empty",
+    benchHarnesses.length > 0 && apkHarnesses.length > 0,
+    `bench=${benchHarnesses.length} apk=${apkHarnesses.length}`,
+  );
+  const apkSet = new Set(apkHarnesses);
+  const missingInApk = benchHarnesses.filter((h) => !apkSet.has(h));
+  check(
+    "apk.yml runs every bench.yml typecheck harness",
+    missingInApk.length === 0,
+    `missing from apk.yml: ${missingInApk.join(", ")}`,
   );
 
   console.log("");

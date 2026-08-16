@@ -675,12 +675,19 @@ not ~100×. The instrument that corrected me was the sibling repo's own CSV.
 
 **What it costs — four things, all verified on the device rather than assumed:**
 
-1. **`run-as` needs a debuggable build, and today's device APK is neither debuggable nor
-   patched.** `apk.yml` builds `assembleRelease` (so `android:debuggable=false`, and on a user
-   build with no root `run-as` is refused) **and** it never sets `KALSA_LLAMA_FROM_SOURCE: "1"`,
-   which `bench.yml` sets precisely because llama.rn ships prebuilt jniLibs — without it
-   `patches/llama.rn+*.patch` is a silent no-op. The only installable arm64 APK we could build
-   before today may have been measuring an unpatched engine.
+1. **`run-as` needs a debuggable build, and today's device APK is a release build.** `apk.yml`
+   builds `assembleRelease`, so `android:debuggable=false`, and on a user build with no root
+   `run-as` is refused — the harness cannot reach the app at all.
+
+   **Correction, recorded because I published the wrong version of this first**: I also claimed
+   that APK might be running an *unpatched* engine, because `apk.yml` never sets
+   `KALSA_LLAMA_FROM_SOURCE: "1"` the way `bench.yml` does. That is false, and the hostile audit
+   caught it. `plugins/withLlamaFromSource.js:34` is **opt-out only** — `=0` restores the
+   prebuilt jniLibs, everything else (including unset) builds from source. The env in `bench.yml`
+   is decorative and its comment there is inverted too. What `apk.yml` genuinely lacked is the
+   *verification*: it never ran `scripts/assert-native-patch.sh`, so nothing proved the marker
+   was in the binary. A missing check is not the same finding as a broken build, and quoting the
+   first would have sent someone hunting a bug that does not exist.
 2. **The harness assumes a root-capable shell.** `ci-lib.sh:19` is
    `sql() { adb shell "sqlite3 $DB \"$1\"" ...}` against `/data/data/$PKG/databases/RKStorage`,
    and the model sideload writes into `/data/data/$PKG/files/models` and `chown`s it. Verified
@@ -711,5 +718,6 @@ not a disk one. Freed to **8.2 GB** by deleting a byte-identical duplicate
 | 2026-08-14 | **§1.1 retracted and rewritten.** Measured the gate rule offline: it blocks legitimate searches (a good query paraphrases the question, scoring 0.39-0.68) and passes spurious ones (0.15). The 2/96 web-turn figure is the gate refusing, not the model abstaining. Added §3.5: with memory on, the same 0.18 threshold blocks ordinary Italian queries ("ricetta pasta al forno" = 0.182). Both are shipping blockers. |
 | 2026-08-14 | Hostile audit of `c93d163` on an isolated worktree. §1.3 confidence raised — both fabrication routes closed with quoted code. Added §3.7: three suites shipped ungated by CI, a harness that could not fail, and a NOT-RUN verdict that would have failed the next campaign — all fixed. Identity leak past the containment guard still open; the first fix attempt was reverted for adding a language wordlist that blocked ordinary German and Spanish queries. |
 | 2026-08-15 | **The `tools` phase had four defects and had never been dispatched once** (§3.7, fixed `6516b3e`): the phase guard rejected it outright, its prompts were the only non-ASCII ones in any turn plan (it would have died at turn 3), its graders scored a blank bubble as a correct abstention, and a single gated arm could not separate model from rule — now a gate/nogate pair. Job timeout 300 → 350: in `31807501488` the cap, not the model, decided the 4B sample size. Three campaigns dispatched: memory smoke on the settled telemetry, the `tools` pair, and the 4B at 10 seeds. |
+| 2026-08-15 | **§6 item 1 corrected within the hour it was written.** I claimed the device APK might be built without the native patches because `apk.yml` does not set `KALSA_LLAMA_FROM_SOURCE`. The hostile audit refuted it from the plugin source: `withLlamaFromSource.js:34` is opt-out (`=0`), so source-build is already the default and the env is decorative — in `bench.yml` too, whose comment states the same inverted claim. The real gap was that `apk.yml` never ran `assert-native-patch.sh`: a missing verification, not a broken build. |
 | 2026-08-15 | Decisions recorded in §2: `ciswire` is the 2B default (+0.635, p=0.0043, §1.3); LFM2.5-8B-A1B stays out (§1.7) with the physical-device track named as the only thing that could reopen it; no fine-tune until the `tools` phase separates *whether* from *which*. Added §6: the Galaxy S23 track, its measured ~7× speed factor (2B 18.10 tok/s vs the emulator's 2.45), the four things it costs, and a correction of my own order-of-magnitude overestimate of that factor. |
 | 2026-08-14 | §1.1 resolved: echo-of-context inverted and shipped (`5b3ba90`) — it blocked 100% of explicitly requested searches; verified across six scripts, with CJK abstention documented. Added §3.8: the fact metric conflates an honest refusal with a wrong answer, which penalises stronger models and makes cross-model baseline comparison unsafe. |

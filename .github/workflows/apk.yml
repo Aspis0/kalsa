@@ -18,6 +18,13 @@ on:
         type: choice
         options: [arm64-v8a, "arm64-v8a,armeabi-v7a", x86_64]
 
+      debuggable:
+        description: "true produces a bench instrument for a physical device (run-as works, the harness can reach the app DB); it is NOT for distribution."
+        required: true
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+
 concurrency:
   group: apk-${{ github.ref }}
   cancel-in-progress: true
@@ -41,8 +48,11 @@ jobs:
       - name: Install JS deps
         run: npm ci
 
-      # Same gate as every other workflow: a build that ships is a build whose
-      # logic passed. No emulator here, so no inference — contracts only.
+      # Same logic-gate as bench.yml: every *Harness.mjs run in bench.yml's
+      # typecheck step is run here too. Parity is not a promise — it is enforced
+      # structurally by scripts/matrixParityHarness.mjs (which fails naming any
+      # harness present in bench.yml but missing here). This workflow has no
+      # emulator, so no inference — contracts only.
       - name: Typecheck + logic harnesses
         run: |
           npm run typecheck
@@ -72,14 +82,80 @@ jobs:
           node scripts/sessionSaveGateHarness.mjs
           node scripts/voiceStateHarness.mjs
           node scripts/webFetchPdfMutationMatrix.mjs
+          node scripts/benchGradeHarness.mjs
+          node scripts/benchAggregateHarness.mjs
+          node scripts/benchNCtxHarness.mjs
+          # Gates for the privacy guard, the LFM tool dialect and memory telemetry.
+          # Absent until 2026-08-14: all three shipped with manual-only verification.
+          node scripts/rulesCoreHarness.mjs
+          node scripts/toolCallParseHarness.mjs
+          node scripts/memoryTelemetryHarness.mjs
+          node scripts/toolRoundExhaustedHarness.mjs
+          node scripts/toolBenchHarness.mjs
+          node scripts/telemetryClampHarness.mjs
+          # npx jest and scripts/test_sideload_guards.sh are intentionally NOT
+          # run here: they gate the emulator/sideload path, not the sideloadable
+          # artifact this workflow produces, so they have nothing to assert on a
+          # device-only APK build.
+          node scripts/matrixParityHarness.mjs
 
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc /usr/local/share/boost || true
           df -h /
 
+      # llama.rn ships PREBUILT jniLibs, but the plugin
+      # (plugins/withLlamaFromSource.js) DEFAULTS to a source build of its
+      # cpp/, so the patched cpp/ is compiled and patches/ take effect.
+      # KALSA_LLAMA_FROM_SOURCE=0 is the opt-out that restores prebuilt jniLibs.
+      # The env is set here only for explicitness — it changes nothing in CI.
+      # The real guarantee the patches are in the binary is the
+      # assert-native-patch.sh step below, not this env.
       - name: Prebuild (CNG)
+        env:
+          KALSA_LLAMA_FROM_SOURCE: "1"
         run: npx expo prebuild --platform android --no-install
+
+      # On a non-rooted user build, assembleRelease (debuggable=false) refuses
+      # run-as, so the bench harness cannot reach the app DB or sideload a model.
+      # The GENERATED android/app/build.gradle is gitignored (see .gitignore),
+      # so this edit cannot be a committed source file — it must run after
+      # prebuild and before assembleRelease. Idempotent; fails loudly (exit 1)
+      # if the release block anchor is missing, because a silent no-op here
+      # yields an APK that looks fine and cannot be benchmarked.
+      - name: Make release build debuggable (physical-device bench instrument)
+        if: inputs.debuggable == 'true'
+        run: |
+          GRADLE=android/app/build.gradle
+          if [ ! -f "$GRADLE" ]; then
+            echo "FATAL: $GRADLE not found — did expo prebuild run?"; exit 1
+          fi
+          # Insert 'debuggable true' right after the buildTypes release { line.
+          # Range is limited to the buildTypes block so signingConfigs.release
+          # is never touched. The idempotence check (grep below) and the final
+          # verification grep are scoped to this SAME buildTypes block, not the
+          # whole file: a future template that sets 'debuggable true' in the
+          # debug build type must not make the sed a no-op while a file-wide
+          # guard still passes and ships a NON-debuggable APK reported
+          # debuggable.
+          BT=$(sed -n '/buildTypes {/,/^    }[[:space:]]*$/p' "$GRADLE")
+          if printf '%s\n' "$BT" | grep -q 'debuggable true'; then
+            echo "debuggable true already present in release block; idempotent no-op"
+          else
+            TMP=$(mktemp)
+            sed '/buildTypes {/,/^    }[[:space:]]*$/ s/\(release {\)/\1\n            debuggable true/' "$GRADLE" > "$TMP" \
+              && mv "$TMP" "$GRADLE"
+          fi
+          # Fail loudly if the anchor/edit did not land (within the buildTypes
+          # block, not the whole file).
+          BT=$(sed -n '/buildTypes {/,/^    }[[:space:]]*$/p' "$GRADLE")
+          if ! printf '%s\n' "$BT" | grep -q 'debuggable true'; then
+            echo "FATAL: 'release {' anchor not found in $GRADLE — debuggable not set"
+            exit 1
+          fi
+          echo "added 'debuggable true' to the release build type (idempotent re-run prints the no-op line above)"
+          echo "---- buildTypes block (after edit) ----"
+          sed -n '/buildTypes {/,/^    }[[:space:]]*$/p' "$GRADLE"
 
       - name: Build APK (${{ inputs.abi }})
         run: |
@@ -87,16 +163,56 @@ jobs:
           ./gradlew assembleRelease -PreactNativeArchitectures="${{ inputs.abi }}" --console=plain
           ls -la app/build/outputs/apk/release/
 
+      # A benchmark that measures an unpatched binary measures the wrong binary.
+      # assert-native-patch.sh exits 1 on a missing marker — fail the job, not warn.
+      - name: Assert the native patch is in the binary
+        run: bash scripts/assert-native-patch.sh
+
       - name: Report APK size and ABIs
         run: |
           cd android/app/build/outputs/apk/release
           ls -la app-release.apk
           unzip -l app-release.apk | grep -E "lib/[a-z0-9-]+/" | awk -F/ '{print $2}' | sort -u
 
+      # Do NOT trust the gradle edit — verify the artifact. aapt2 ships with the
+      # runner's Android SDK ($ANDROID_HOME/build-tools/*/aapt2). `aapt2 dump
+      # badging` prints application flags as BARE TOKENS: the line is just
+      # "application-debuggable" with no value, and it is ABSENT entirely when
+      # the flag is not set (no value is ever printed). Both branches below
+      # therefore grep the bare token — the true branch matches presence, the
+      # false branch matches absence. (A bare-token grep is independent of
+      # whether a value is ever printed.)
+      - name: Verify debuggable flag in the built APK
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          AAPT2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -n1)
+          if [ -z "$AAPT2" ]; then
+            AAPT2=$(ls "$ANDROID_SDK_ROOT"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -n1)
+          fi
+          if [ -z "$AAPT2" ]; then
+            echo "FATAL: aapt2 not found under \$ANDROID_HOME/\$ANDROID_SDK_ROOT build-tools"; exit 1
+          fi
+          BADGING=$("$AAPT2" dump badging "$APK")
+          echo "$BADGING" | grep -E 'application-debuggable' || echo "[verify] (application-debuggable line absent)"
+          echo "[verify] debuggable requested: ${{ inputs.debuggable }}"
+          if [ "${{ inputs.debuggable }}" = "true" ]; then
+            if echo "$BADGING" | grep -Eq 'application-debuggable'; then
+              echo "[verify] OK: debuggable present in APK as requested (true)"
+            else
+              echo "[verify] FATAL: requested debuggable=true but flag absent from APK"; exit 1
+            fi
+          else
+            if echo "$BADGING" | grep -Eq 'application-debuggable'; then
+              echo "[verify] FATAL: requested debuggable=false but flag present in APK"; exit 1
+            else
+              echo "[verify] OK: debuggable absent from APK as requested (false)"
+            fi
+          fi
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: kalsa-apk-${{ inputs.abi }}-${{ github.sha }}
+          name: kalsa-apk-${{ inputs.abi }}${{ inputs.debuggable == 'true' && '-debuggable' || '' }}-${{ github.sha }}
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 14
