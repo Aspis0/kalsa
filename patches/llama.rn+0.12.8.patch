@@ -51,13 +51,50 @@ index 650349e..0594914 100644
      }
  }
 diff --git a/node_modules/llama.rn/cpp/jsi/JSISession.h b/node_modules/llama.rn/cpp/jsi/JSISession.h
-index fa4cbad..50c16ca 100644
+index fa4cbad..51f2510 100644
 --- a/node_modules/llama.rn/cpp/jsi/JSISession.h
 +++ b/node_modules/llama.rn/cpp/jsi/JSISession.h
-@@ -99,6 +99,24 @@ namespace rnllama_jsi {
+@@ -76,17 +76,24 @@ namespace rnllama_jsi {
+             std::find(embd.begin(), embd.end(), LLAMA_TOKEN_NULL) != embd.end();
+         bool resumable = pos_max + 1 == n_tokens ||
+                          (mrope_media && pos_max >= 0 && pos_max + 1 < n_tokens);
++        // Flags used by the SWA check below; also logged so a wiped restore
++        // shows whether hybrid/SWA shaped the decision.
++        const bool is_recurrent = llama_model_is_recurrent(ctx->model);
++        const bool is_hybrid = llama_model_is_hybrid(ctx->model);
++        const bool is_recurrent_or_hybrid = is_recurrent || is_hybrid;
++        const int32_t n_swa = ctx->params.swa_full ? 0 : llama_model_n_swa(ctx->model);
+         if (!resumable && pos_max + 1 > n_tokens) {
+-            resumable = llama_memory_seq_rm(kv, 0, n_tokens, -1) &&
++            // Split for diagnostics only: same short-circuit as before.
++            const bool seq_rm_ok = llama_memory_seq_rm(kv, 0, n_tokens, -1);
++            resumable = seq_rm_ok &&
+                         llama_memory_seq_pos_max(kv, 0) + 1 == n_tokens;
++            LOG_WARNING("KALSA_KVRESUME_SEQ_RM seq_rm_ok=%d n_tokens=%d pos_max=%d",
++                (int) seq_rm_ok, (int) n_tokens, (int) pos_max);
+             if (resumable) {
+                 // SWA caches prune cells behind the attention window; after
+                 // rolling back, the window ending at n_tokens must be intact.
+                 // Recurrent/hybrid models are exempt (their pos_min reflects
+                 // the recurrent tail; seq_rm itself enforces their safety).
+-                const bool is_recurrent_or_hybrid =
+-                    llama_model_is_recurrent(ctx->model) || llama_model_is_hybrid(ctx->model);
+-                const int32_t n_swa = ctx->params.swa_full ? 0 : llama_model_n_swa(ctx->model);
+                 if (n_swa > 0 && !is_recurrent_or_hybrid) {
+                     const llama_pos pos_min = llama_memory_seq_pos_min(kv, 0);
+                     resumable = pos_min == 0 ||
+@@ -94,11 +101,32 @@ namespace rnllama_jsi {
+                 }
+             }
+         }
++        LOG_WARNING("KALSA_KVRESUME n_tokens=%d pos_max=%d mrope_media=%d is_recurrent=%d is_hybrid=%d n_swa=%d resumable=%d",
++            (int) n_tokens, (int) pos_max, (int) mrope_media,
++            (int) is_recurrent, (int) is_hybrid, (int) n_swa, (int) resumable);
+         if (!resumable) {
+             llama_memory_seq_rm(kv, 0, 0, -1);
              embd.clear();
          }
-
+ 
 +        // Kalsa patch #2: adopt the restored memory as a state checkpoint.
 +        // On recurrent/hybrid models (Qwen3.5) loadPrompt's llama_memory_seq_rm
 +        // fails, so it falls back to recoverStateCheckpoint — and in a FRESH
