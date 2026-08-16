@@ -816,13 +816,51 @@ send_and_wait() {
   # risk duplicating it.
   # One attempt tries every SEND_LABELS variant before counting as a miss
   # (same both-languages rationale as the composer placeholder).
+  # After each tap, prove submission in a short window (history advanced or
+  # composer empty). A tap can miss while Send stays visible — do not burn
+  # timeout_s waiting for a reply that was never requested.
   local send_ok=false send_attempt
   for send_attempt in $(seq 1 "$max_attempts"); do
     log "Send attempt ${send_attempt}/${max_attempts}: $msg"
-    if tap_send; then
-      send_ok=true
+    if ! tap_send; then
+      log "Send button not found (any of SEND_LABELS) for: $msg (attempt ${send_attempt}/${max_attempts})"
+      if [ "$send_attempt" -lt "$max_attempts" ]; then
+        dump_ui_retry >/dev/null || true
+        dismiss_anr
+        dismiss_foreign_dialog
+        sleep 2
+      fi
+      continue
+    fi
+
+    # Short poll (~18s): same style as typing visibility (sleep 3, accumulate).
+    local sub_t=0 count ctext
+    while [ "$sub_t" -lt 18 ]; do
+      snapshot_history "$OUT/.hist_now.json"
+      count=$(history_count "$OUT/.hist_now.json")
+      # dump_ui_retry: failed dump ≠ empty composer (run 31367691176). Bare
+      # composer_text uses non-retrying dump_ui and collapses both to "".
+      local ui
+      if ui=$(dump_ui_retry); then
+        ctext=$(printf '%s' "$ui" | tr '>' '\n' | grep 'class="android.widget.EditText"' \
+          | grep -o 'text="[^"]*"' | head -1 | sed 's/^text="//; s/"$//')
+        if composer_looks_empty "$ctext"; then
+          ctext=""
+        fi
+      else
+        ctext="$COMPOSER_PROBE_FAILED"
+      fi
+      if message_was_submitted "$prev_count" "$count" "$ctext"; then
+        send_ok=true
+        break
+      fi
+      sleep 3
+      sub_t=$((sub_t + 3))
+    done
+    if [ "$send_ok" = true ]; then
       break
     fi
+    log "message still in composer after Send tap (attempt ${send_attempt}/${max_attempts})"
     if [ "$send_attempt" -lt "$max_attempts" ]; then
       dump_ui_retry >/dev/null || true
       dismiss_anr
@@ -831,12 +869,12 @@ send_and_wait() {
     fi
   done
   if [ "$send_ok" = false ]; then
-    log "Send button not found (any of SEND_LABELS) for: $msg"
-    return 1
+    die "message never left the composer after ${max_attempts} send attempts"
   fi
   # SAW_SENT_AT is global so settle_turn_reply can derive settled_s
   # (Send → last history change). Do NOT repurpose SAW_ELAPSED: it remains
   # UI time-to-first-token for campaign comparability (run 31358530713).
+  # Set only after submission is confirmed so TTFT measures from real send.
   SAW_SENT_AT=$(date +%s)
   sleep 5
 

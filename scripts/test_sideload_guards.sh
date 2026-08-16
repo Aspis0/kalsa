@@ -282,6 +282,49 @@ _nr_expect "2" 0 "NOREPACK 2 rejected"
 _nr_expect "yes" 0 "NOREPACK yes rejected"
 _nr_expect "-1" 0 "NOREPACK -1 rejected"
 
+# ── Message submission decision (message_was_submitted) ─────────────
+# Pure logic: did the message leave the composer? Count grew, or count
+# equal with empty composer → submitted; equal + still holding text, or
+# garbage count probes → not submitted (retry / never false success).
+
+# _ms_expect <prev> <cur> <composer> <expect_submitted:0|1> <label>
+# expect_submitted 1 → function returns 0; 0 → function returns 1.
+_ms_expect() {
+  local prev="$1" cur="$2" ctext="$3" expect="$4" label="$5" rc
+  message_was_submitted "$prev" "$cur" "$ctext"; rc=$?
+  if [ "$expect" -eq 1 ]; then
+    if [ "$rc" -eq 0 ]; then
+      echo "PASS: $label — submitted (rc=0)"
+      pass=$((pass + 1))
+    else
+      echo "FAIL: $label — expected submitted, got rc=$rc"
+      fail=$((fail + 1))
+    fi
+  else
+    if [ "$rc" -ne 0 ]; then
+      echo "PASS: $label — not submitted (rc=$rc)"
+      pass=$((pass + 1))
+    else
+      echo "FAIL: $label — expected not submitted, got rc=0"
+      fail=$((fail + 1))
+    fi
+  fi
+}
+
+# count grew → submitted
+_ms_expect "2" "3" "still here" 1 "message_was_submitted count grew"
+# count equal + composer still holding text → NOT submitted
+_ms_expect "2" "2" "hello world" 0 "message_was_submitted equal + text"
+# count equal + composer empty → submitted (reply may not have landed)
+_ms_expect "2" "2" "" 1 "message_was_submitted equal + empty"
+# count equal + probe failed (dump unavailable) → NOT submitted (retry send)
+_ms_expect "2" "2" "$COMPOSER_PROBE_FAILED" 0 "message_was_submitted equal + probe failed"
+# empty / unknown / non-integer probes → NOT submitted
+_ms_expect "" "2" "" 0 "message_was_submitted empty prev"
+_ms_expect "2" "" "" 0 "message_was_submitted empty cur"
+_ms_expect "x" "2" "" 0 "message_was_submitted non-integer prev"
+_ms_expect "2" "n/a" "" 0 "message_was_submitted non-integer cur"
+
 rm -rf "$OUT"
 echo ""
 echo "=== $pass passed, $fail failed ==="

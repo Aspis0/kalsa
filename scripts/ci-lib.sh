@@ -433,6 +433,47 @@ wakefulness_is_fatal() {
   esac
 }
 
+# Sentinel for composer probe failure (dump unavailable). Cannot appear as real
+# EditText text. Distinct from "" so message_was_submitted does not treat a
+# failed dump as "composer empty → submitted".
+COMPOSER_PROBE_FAILED="__composer_probe_failed__"
+
+# message_was_submitted <prev_count> <cur_count> <composer_text>
+#   Pure decision (no adb): did the user message leave the composer?
+#   Returns 0 if submitted, 1 if not.
+#   Third arg has THREE states:
+#     1. real empty string ""  → composer empty (may mean submitted when counts equal)
+#     2. non-empty real text   → still holding message → NOT submitted
+#     3. COMPOSER_PROBE_FAILED → dump probe failed → NOT submitted (retry send)
+#   Count rules:
+#     cur_count > prev_count                          → submitted (0)
+#     cur_count == prev_count AND composer empty      → submitted (0)
+#       (reply may not have landed in history yet)
+#     cur_count == prev_count AND composer non-empty  → NOT submitted (1)
+#     empty / non-integer / unknown count probes      → NOT submitted (1)
+#       so a retry runs; never a false success.
+# Covered by scripts/test_sideload_guards.sh.
+message_was_submitted() {
+  local prev="${1:-}" cur="${2:-}" ctext="${3:-}"
+  # Probe failed → not submitted; never confuse with real empty.
+  if [ "$ctext" = "$COMPOSER_PROBE_FAILED" ]; then
+    return 1
+  fi
+  case "$prev" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  case "$cur" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  if [ "$cur" -gt "$prev" ]; then
+    return 0
+  fi
+  if [ "$cur" -eq "$prev" ] && [ -z "$ctext" ]; then
+    return 0
+  fi
+  return 1
+}
+
 # validate_bench_norepack <value>
 #   Pure (no adb): empty / 0 / 1 accepted; anything else dies with a message.
 #   empty → leave kalsa.bench.norepack absent (production repack on)
