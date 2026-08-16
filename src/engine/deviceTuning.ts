@@ -106,6 +106,8 @@ export type TuningInput = {
     contextBudget?: number;
     ubatchOverride?: number;
     threadsOverride?: number;
+    /** Default true (production). false → memory budget ignores repack term. */
+    repack?: boolean;
   };
   /**
    * Platform hint when profile.osName is missing (LlamaService / harness).
@@ -476,6 +478,7 @@ function resolveContextBudget(
   profile: TuningDeviceProfile,
   requestedIn: number | undefined,
   ubatch: number,
+  repack: boolean = true,
 ): {
   n_ctx: number;
   ctxSource: string;
@@ -526,7 +529,7 @@ function resolveContextBudget(
       contextTokens: ctx,
       kvBytesPerToken,
       ubatch,
-      repack: true,
+      repack,
     });
 
   const estRequested = estimateAt(requested);
@@ -646,6 +649,7 @@ export function resolveEngineTuningSync(input: TuningInput): TuningResult {
     input.profile,
     input.request.contextBudget,
     n_ubatch,
+    input.request.repack !== false,
   );
 
   const thermal = resolveThermal(input.model, ctx.memory.availableMiB);

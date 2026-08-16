@@ -196,13 +196,16 @@ export function modelGateVerdict(
  * `contextTokens` is the resolved load context, not the catalog default.
  * For registry models with no measured bytes/token, the KV term is 0; this is
  * therefore a LOWER BOUND. The 4B at 16k is ~256 MiB above it. Do not invent
- * a kvBytesPerToken. ubatch 256, repack true (llama.rn default).
+ * a kvBytesPerToken. ubatch 256, repack true (llama.rn default) unless the
+ * caller passes `repack: false` (bench norepack arm).
  * Returns null on bad input.
  */
 export function estimateModelNonEvictableMiB(input: {
   sizeBytes: number;
   contextTokens: number;
   kvBytesPerToken?: number | null;
+  /** Default true (production). false → repack term 0. */
+  repack?: boolean;
 }): number | null {
   try {
     if (
@@ -226,7 +229,7 @@ export function estimateModelNonEvictableMiB(input: {
       contextTokens,
       kvBytesPerToken,
       ubatch: 256,
-      repack: true,
+      repack: input.repack !== false,
     });
     return est.nonEvictableMiB;
   } catch {
@@ -291,6 +294,9 @@ export function evaluateModelFit(
     Number.isFinite(model.kvBytesPerToken)
       ? model.kvBytesPerToken
       : 0;
+  // Gates deliberately assume the conservative repack-ON footprint. The bench
+  // norepack arm bypasses these gates; wiring a gate to a different load mode
+  // than the engine actually uses is the S23-class bug class.
   const estimate = estimateMemory({
     fileBytes,
     contextTokens,
@@ -353,6 +359,8 @@ export function decidePreSendFit(
     Number.isFinite(model.kvBytesPerToken)
       ? model.kvBytesPerToken
       : 0;
+  // Gates deliberately assume the conservative repack-ON footprint (see
+  // evaluateModelFit). requiredBytes must match that same estimate.
   const estimate =
     fileBytes > 0
       ? estimateMemory({

@@ -22,7 +22,12 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { readMemoryTelemetry } from "./benchGrade.mjs";
+import {
+  readMemoryTelemetry,
+  readSessionInitTelemetry,
+  resolveNoExtraBufts,
+  gradeRaw,
+} from "./benchGrade.mjs";
 import {
   collectMemoryTelemetryByMode,
   collectMemoryExtractTelemetryByMode,
@@ -479,6 +484,99 @@ async function test7_settledLineIsAuthoritative() {
   console.log("✓ Settled line is authoritative; both memory states and N/A turn fields are covered");
 }
 
+/**
+ * Real capture path for KALSA_SESSION op:init — same grep|sed as
+ * capture_turn_evidence in ci-bench.sh, then grader surfaces no_extra_bufts.
+ */
+function test8_sessionInitCapturePathSurfacesMode() {
+  console.log("\nTest 8: KALSA_SESSION op:init capture → no_extra_bufts in result");
+
+  const ciBench = readFileSync(path.join(projectRoot, "scripts/ci-bench.sh"), "utf8");
+  assert(
+    ciBench.includes('session-init.jsonl'),
+    "ci-bench.sh must write session-init.jsonl",
+  );
+  assert(
+    ciBench.includes('KALSA_SESSION '),
+    "ci-bench.sh must grep KALSA_SESSION from the logcat buffer",
+  );
+
+  const tmpDir = path.join(projectRoot, "scripts/.build/sessionInitCaptureTest");
+  rmSync(tmpDir, { recursive: true, force: true });
+  mkdirSync(tmpDir, { recursive: true });
+
+  // Fake logcat ring buffer (Android prefix + RN log line), as capture_turn_evidence sees it.
+  const buf = path.join(tmpDir, ".logcat_turn_buf.txt");
+  writeFileSync(
+    buf,
+    [
+      "08-16 12:00:00.123  1234  5678 I ReactNativeJS: noise before",
+      '08-16 12:00:01.000  1234  5678 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":1}',
+      '08-16 12:00:02.000  1234  5678 I ReactNativeJS: KALSA_SESSION {"op":"save","ok":true}',
+      "08-16 12:00:03.000  1234  5678 I ReactNativeJS: noise after",
+      "",
+    ].join("\n"),
+  );
+
+  const tdir = path.join(tmpDir, "turn1");
+  mkdirSync(tdir, { recursive: true });
+  // Exact pipeline from capture_turn_evidence (prefix strip → bare JSON lines).
+  const cap = spawnSync(
+    "bash",
+    [
+      "-c",
+      `grep -F "KALSA_SESSION " "$1" 2>/dev/null | sed 's/.*KALSA_SESSION //' > "$2/session-init.jsonl" 2>/dev/null || : > "$2/session-init.jsonl"`,
+      "_",
+      buf,
+      tdir,
+    ],
+    { encoding: "utf8" },
+  );
+  assert(cap.status === 0, `capture pipeline failed: ${cap.stderr || cap.stdout}`);
+
+  const records = readSessionInitTelemetry(tdir);
+  assert(records.length === 1, `expected 1 init record, got ${records.length}`);
+  assert(records[0].no_extra_bufts === 1, `expected no_extra_bufts=1, got ${records[0].no_extra_bufts}`);
+
+  const turns = [{ index: 1, kind: "plant", id: "p1", reply: "ok", replyLen: 2 }];
+  assert(resolveNoExtraBufts(tmpDir, turns) === 1, "resolveNoExtraBufts must return 1");
+
+  // Minimal raw that gradeRaw accepts; sidecars live under tmpDir/turn1/.
+  const raw = {
+    schema: 2,
+    phase: "fase4",
+    arm: "baseline",
+    seed: 1,
+    blockFormat: "none",
+    thinking: "budget256",
+    compaction: "off",
+    compactionPrefRaw: "0",
+    localePrefRaw: "it",
+    model: { dir: "qwen", file: "m.gguf" },
+    facts: [],
+    fillerRotation: 0,
+    historyChars: 0,
+    turns,
+  };
+  writeFileSync(path.join(tdir, "telemetry.jsonl"), "");
+  const result = gradeRaw(raw, tmpDir);
+  assert(result.no_extra_bufts === 1, `result.no_extra_bufts must be 1, got ${result.no_extra_bufts}`);
+
+  // Production path (repack on) also surfaces as 0, not null.
+  writeFileSync(
+    path.join(tdir, "session-init.jsonl"),
+    JSON.stringify({ op: "init", no_extra_bufts: 0 }) + "\n",
+  );
+  assert(gradeRaw(raw, tmpDir).no_extra_bufts === 0, "repack-on must surface as 0");
+
+  // Missing capture → null (never invent from arm label).
+  writeFileSync(path.join(tdir, "session-init.jsonl"), "");
+  assert(gradeRaw(raw, tmpDir).no_extra_bufts === null, "empty capture → null");
+
+  rmSync(tmpDir, { recursive: true, force: true });
+  console.log("✓ session-init capture path surfaces no_extra_bufts in result.json");
+}
+
 // Run all tests
 async function main() {
   compile();
@@ -489,6 +587,7 @@ async function main() {
   await test5_privacyFactTextCannotLeak();
   test6_memoryEnabledGate();
   await test7_settledLineIsAuthoritative();
+  test8_sessionInitCapturePathSurfacesMode();
 
   console.log("\n✅ All memory telemetry harness tests passed");
   process.exit(0);

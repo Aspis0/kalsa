@@ -24,6 +24,8 @@
 #   TOOLCHOICE     auto|required|none → kalsa.bench.toolchoice (default auto)
 #   TOOLGATE       1|0 → kalsa.bench.toolgate (default 1; 0 disables the
 #                  echo-of-context rules gate)
+#   NOREPACK       empty|0|1 → kalsa.bench.norepack (empty = absent = production
+#                  repack on; 1 disables weight repacking via no_extra_bufts)
 #   MEMORY         1|0 → kalsa.memory.enabled (default 0; 1 enables memory extract/inject)
 #   RUNS_PER_ARM   fase0 in-job repeat count (default 3, per PIANO "3 run/formato")
 #   INTER_TURN_DELAY_S  seconds of pure idle between turns (default 0).
@@ -51,6 +53,7 @@ NCTX="${NCTX:-}"
 WINBUDGET="${WINBUDGET:-}"
 LEGACYWINDOW="${LEGACYWINDOW:-}"
 RANKING="${RANKING:-}"
+NOREPACK="${NOREPACK:-}"
 MEMORY="${MEMORY:-0}"
 RUNS_PER_ARM="${RUNS_PER_ARM:-3}"
 INTER_TURN_DELAY_S="${INTER_TURN_DELAY_S:-0}"
@@ -157,12 +160,15 @@ case "$RANKING" in
   ""|bm25|hybrid) ;;
   *) die "RANKING must be empty, bm25, or hybrid (got '$RANKING')" ;;
 esac
+# Empty = leave pref absent (production repack). 0/1 accepted; else die.
+# Pure validator lives in ci-lib (validate_bench_norepack) so unit tests cover it.
+validate_bench_norepack "$NOREPACK"
 case "$MEMORY" in
   0|1) ;;
   *) die "MEMORY must be 0 or 1 (got '$MEMORY')" ;;
 esac
 
-log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW memory=$MEMORY runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
+log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK memory=$MEMORY runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
 # LFM2.5 is always-on reasoning: the chat template has preserve_thinking only,
 # no off switch. Record THINKING as today; do not try to force it off.
 if [ "$MODEL_DIR" = "lfm2.5-2.6b" ] || [ "$MODEL_DIR" = "lfm2.5-8b-a1b" ]; then
@@ -267,6 +273,14 @@ set_prefs() {
   else
     sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.ranking';" "kalsa.bench.ranking" "__ABSENT__"
   fi
+  # NOREPACK: empty must DELETE the key (production repack on). "1" disables
+  # weight repacking (no_extra_bufts); "0" is an explicit production write.
+  # Same both-branch assert as NCTX / WINBUDGET.
+  if [ -n "$NOREPACK" ]; then
+    sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.norepack','$NOREPACK');" "kalsa.bench.norepack" "$NOREPACK"
+  else
+    sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.norepack';" "kalsa.bench.norepack" "__ABSENT__"
+  fi
   # Opt-in memory subsystem: MEMORY env controls kalsa.memory.enabled (0=off, 1=on, default 0).
   # With a short legacy window (kalsa.bench.legacywindow), planted facts fall out of verbatim
   # context, so memory becomes the only retrieval path — not a confounder. Both-branch assert below.
@@ -334,6 +348,14 @@ if [ -n "$RANKING" ]; then
 else
   [ -z "$RANKING_PREF_RAW" ] \
     || die "ranking pref on device is '$RANKING_PREF_RAW', expected absent (RANKING empty = bm25)"
+fi
+NOREPACK_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.norepack';" | head -1 | tr -d '[:space:]')
+if [ -n "$NOREPACK" ]; then
+  [ "$NOREPACK_PREF_RAW" = "$NOREPACK" ] \
+    || die "norepack pref on device is '$NOREPACK_PREF_RAW', expected '$NOREPACK'"
+else
+  [ -z "$NOREPACK_PREF_RAW" ] \
+    || die "norepack pref on device is '$NOREPACK_PREF_RAW', expected absent (NOREPACK empty = production repack)"
 fi
 # Memory is always written (default 0, never deleted) — simple equality assert.
 MEMORY_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.memory.enabled';" | head -1 | tr -d '[:space:]')
@@ -917,6 +939,12 @@ capture_turn_evidence() {
   # figure, not the turn-end snapshot — the grader and aggregator key off this.
   grep -F "KALSA_MEMORY_EXTRACT " "$buf" 2>/dev/null \
     | sed 's/.*KALSA_MEMORY_EXTRACT //' > "$tdir/memory-extract.jsonl" 2>/dev/null || : > "$tdir/memory-extract.jsonl"
+
+  # session-init.jsonl — engine load mode (KALSA_SESSION op:init, once per real
+  # load). Always write the file (empty when none). Grader surfaces no_extra_bufts
+  # so each arm's result.json names the repack mode it actually ran under.
+  grep -F "KALSA_SESSION " "$buf" 2>/dev/null \
+    | sed 's/.*KALSA_SESSION //' > "$tdir/session-init.jsonl" 2>/dev/null || : > "$tdir/session-init.jsonl"
 
   {
     grep -F "Input processed: n_past=" "$buf" 2>/dev/null || true

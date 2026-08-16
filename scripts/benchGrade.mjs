@@ -612,6 +612,59 @@ function readDigestTelemetry(turnDir) {
 }
 
 /**
+ * Parse turn<N>/session-init.jsonl (KALSA_SESSION lines). Missing / unreadable
+ * / empty → []. Never throw. Keeps op:init rows with a 0|1 no_extra_bufts so
+ * the arm's result can name the repack mode the engine actually loaded with.
+ */
+function readSessionInitTelemetry(turnDir) {
+  const file = path.join(turnDir, "session-init.jsonl");
+  if (!existsSync(file)) return [];
+  let raw;
+  try {
+    raw = readFileSync(file, "utf8");
+  } catch {
+    return [];
+  }
+  const records = [];
+  for (const line of raw.split("\n")) {
+    const t = line.trim();
+    if (!t) continue;
+    try {
+      const obj = JSON.parse(t);
+      if (!obj || typeof obj !== "object") continue;
+      if (obj.op !== "init") continue;
+      const n = obj.no_extra_bufts;
+      if (n === 0 || n === 1) {
+        records.push({ op: "init", no_extra_bufts: n });
+      }
+    } catch {
+      // skip unparseable lines
+    }
+  }
+  return records;
+}
+
+/**
+ * First KALSA_SESSION op:init no_extra_bufts across turn sidecars, or null.
+ * Init fires once per real engine load — usually turn 1 after logcat clear.
+ */
+function resolveNoExtraBufts(baseDir, turns) {
+  if (!Array.isArray(turns)) return null;
+  for (const turn of turns) {
+    if (turn == null || turn.index == null) continue;
+    const recs = readSessionInitTelemetry(
+      path.join(baseDir, `turn${turn.index}`),
+    );
+    for (const r of recs) {
+      if (r.no_extra_bufts === 0 || r.no_extra_bufts === 1) {
+        return r.no_extra_bufts;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Parse turn<N>/memory.jsonl (KALSA_MEMORY telemetry). Missing / unreadable
  * / empty → []. Never throw. The turn-end object carries only turn-owned
  * fields; extraction fields are authoritative in readMemoryExtractTelemetry.
@@ -958,6 +1011,10 @@ function gradeRaw(raw, baseDir) {
       : readMemoryExtractTelemetry(path.join(baseDir, `turn${t.index}`)),
   );
 
+  // Engine load mode from KALSA_SESSION op:init (once per real load).
+  // null when capture missed it — never invent from the NOREPACK env label.
+  const no_extra_bufts = resolveNoExtraBufts(baseDir, turns);
+
   const turnMetrics = turns.map((t) => metricsForTurn(baseDir, t.index));
 
   // contextFullTurns / errorTurns: product signals the harness used to ignore.
@@ -1163,6 +1220,8 @@ function gradeRaw(raw, baseDir) {
     digestTelemetry: digestTelemetryPerTurn,
     memoryTelemetry: memoryTelemetryPerTurn,
     memoryExtractTelemetry: memoryExtractTelemetryPerTurn,
+    // Observed engine load mode from session-init capture (0|1), or null.
+    no_extra_bufts,
     model: raw.model ?? null,
     fillerRotation: raw.fillerRotation ?? null,
     historyChars: raw.historyChars ?? null,
@@ -1252,6 +1311,8 @@ export {
   isCompactionActive,
   readMemoryTelemetry,
   readMemoryExtractTelemetry,
+  readSessionInitTelemetry,
+  resolveNoExtraBufts,
   gradeRaw,
   gradeFile,
 };

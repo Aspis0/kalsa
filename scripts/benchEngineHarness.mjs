@@ -8,7 +8,7 @@
  */
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -117,6 +117,9 @@ async function main() {
     tryHandleBenchCommand,
     formatBenchStatus,
     BENCH_ENGINE_KEY,
+    BENCH_NOREPACK_KEY,
+    parseBenchNoRepack,
+    getBenchNoRepack,
   } = mod;
 
   let passed = 0;
@@ -252,6 +255,53 @@ async function main() {
     const r = await tryHandleBenchCommand("/bench engine foo=1");
     assert(typeof r === "string" && r.includes("invalid engine"), `got ${r}`);
     assert(r.includes("bench usage:"), "should include usage");
+  });
+
+  // ── kalsa.bench.norepack (no_extra_bufts arm) ──────────────────────────
+  await test('parseBenchNoRepack: only "1" disables repack', () => {
+    assert(parseBenchNoRepack("1") === true, '"1" → true');
+    assert(parseBenchNoRepack("0") === false, '"0" → false (production)');
+    assert(parseBenchNoRepack(null) === false, "null → false");
+    assert(parseBenchNoRepack(undefined) === false, "undefined → false");
+    assert(parseBenchNoRepack("") === false, "empty → false");
+    assert(parseBenchNoRepack("yes") === false, "junk → false");
+  });
+
+  await test("getBenchNoRepack: absent → false; '1' → true; other → false", async () => {
+    store.clear();
+    assert((await getBenchNoRepack()) === false, "absent defaults to false");
+    store.set(BENCH_NOREPACK_KEY, "1");
+    assert((await getBenchNoRepack()) === true, "'1' → true");
+    store.set(BENCH_NOREPACK_KEY, "0");
+    assert((await getBenchNoRepack()) === false, "'0' → false");
+    store.set(BENCH_NOREPACK_KEY, "2");
+    assert((await getBenchNoRepack()) === false, "junk → false");
+  });
+
+  // Reload skip key must include the resolved no_extra_bufts mode — otherwise
+  // flipping kalsa.bench.norepack with an identical context silently keeps the
+  // old engine mode and emits no KALSA_SESSION init telemetry.
+  await test("initEngine skip-reload key includes noExtraBufts mode", () => {
+    const src = readFileSync(
+      path.join(projectRoot, "src/engine/LlamaService.ts"),
+      "utf8",
+    );
+    assert(
+      /let activeNoExtraBufts\b/.test(src),
+      "activeNoExtraBufts state must exist",
+    );
+    assert(
+      src.includes("activeNoExtraBufts === noExtraBufts"),
+      "skip-reload condition must compare activeNoExtraBufts === noExtraBufts",
+    );
+    assert(
+      /activeNoExtraBufts = noExtraBufts\s*;/.test(src),
+      "successful load must record activeNoExtraBufts",
+    );
+    assert(
+      /activeNoExtraBufts = null\s*;/.test(src),
+      "dispose must clear activeNoExtraBufts",
+    );
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

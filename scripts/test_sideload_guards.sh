@@ -247,6 +247,41 @@ _to_expect "null" "delete" "timeout restore null → delete"
 _to_expect "" "leave" "timeout restore empty/unreadable → leave"
 _to_expect "$KA_SCREEN_TIMEOUT_MS" "delete" "timeout restore leak (== KA ceiling) → delete"
 
+# ── NOREPACK env validation (validate_bench_norepack) ────────────────
+# empty / 0 / 1 accepted; anything else dies. Same contract as NCTX empty=
+# leave-absent; only the accepted set differs (boolean axis, not integer).
+
+# _nr_expect <value> <expect_ok:0|1> <label>
+_nr_expect() {
+  local value="$1" expect="$2" label="$3"
+  _died=""
+  validate_bench_norepack "$value"
+  if [ "$expect" -eq 1 ]; then
+    if [ -z "$_died" ]; then
+      echo "PASS: $label — accepted"
+      pass=$((pass + 1))
+    else
+      echo "FAIL: $label — unexpected die: $_died"
+      fail=$((fail + 1))
+    fi
+  else
+    if echo "$_died" | grep -q "NOREPACK must be empty, 0, or 1"; then
+      echo "PASS: $label — die fired: $_died"
+      pass=$((pass + 1))
+    else
+      echo "FAIL: $label — expected die, got: '$_died'"
+      fail=$((fail + 1))
+    fi
+  fi
+}
+
+_nr_expect "" 1 "NOREPACK empty accepted"
+_nr_expect "0" 1 "NOREPACK 0 accepted"
+_nr_expect "1" 1 "NOREPACK 1 accepted"
+_nr_expect "2" 0 "NOREPACK 2 rejected"
+_nr_expect "yes" 0 "NOREPACK yes rejected"
+_nr_expect "-1" 0 "NOREPACK -1 rejected"
+
 rm -rf "$OUT"
 echo ""
 echo "=== $pass passed, $fail failed ==="

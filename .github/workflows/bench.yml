@@ -56,6 +56,15 @@ on:
           - ""
           - bm25
           - hybrid
+      norepack:
+        description: "Bench-only weight-repack disable (empty = production repack on). 1 → no_extra_bufts (saves ~file-size anonymous RSS; slower prefill). 0 → explicit repack on."
+        required: false
+        default: ""
+        type: string
+        options:
+          - ""
+          - "0"
+          - "1"
       memory:
         description: "Enable memory subsystem (0 = off, 1 = on). When on, facts are extracted and stored. Default 0 (off) to avoid confounding compaction A/B."
         required: false
@@ -975,6 +984,7 @@ jobs:
           WINBUDGET: ${{ inputs.winbudget || '' }}
           LEGACYWINDOW: ${{ inputs.legacywindow || '' }}
           RANKING: ${{ inputs.ranking || '' }}
+          NOREPACK: ${{ inputs.norepack || '' }}
           MEMORY: ${{ matrix.memory || inputs.memory || '0' }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
           # 40s = SUMMARY_IDLE_DEBOUNCE_MS (8s) + SUMMARIZE_TIMEOUT_MS (30s) +

@@ -27,6 +27,7 @@
  * - kalsa.bench.engine: JSON { nGpuLayers?, nThreads?, nUbatch? } (CI A/B only)
  * - kalsa.bench.toolchoice: "auto" | "required" | "none" (CI A/B only)
  * - kalsa.bench.toolgate:   "1" (default) | "0" (CI A/B only)
+ * - kalsa.bench.norepack:   "1" disables weight repacking (CI A/B only)
  *
  * No in-memory cache: one fresh read per turn (best-effort).
  */
@@ -46,6 +47,8 @@ export const BENCH_NCTX_KEY = "kalsa.bench.nctx";
 export const BENCH_WINBUDGET_KEY = "kalsa.bench.winbudget";
 export const BENCH_LEGACYWINDOW_KEY = "kalsa.bench.legacywindow";
 export const BENCH_RANKING_KEY = "kalsa.bench.ranking";
+/** "1" disables weight repacking (no_extra_bufts). Absent / other → production. */
+export const BENCH_NOREPACK_KEY = "kalsa.bench.norepack";
 
 export type ThinkingMode = "default" | "off" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
@@ -255,6 +258,29 @@ export async function getToolGateEnabled(): Promise<boolean> {
     // best-effort
   }
   return true;
+}
+
+/**
+ * Pure parse for kalsa.bench.norepack. "1" → disable repacking; empty /
+ * absent / anything else → false (production: repack on). Same "empty =
+ * catalog wins" shape as parseBenchNCtx — only the explicit arm value bites.
+ */
+export function parseBenchNoRepack(raw: string | null | undefined): boolean {
+  return raw === "1";
+}
+
+/**
+ * Bench-only weight-repack disable. Absent / invalid → false (production
+ * repack on). "1" → no_extra_bufts at engine init (saves ~file-size of
+ * anonymous RSS; slower prefill). Applies at ENGINE INIT only.
+ */
+export async function getBenchNoRepack(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_NOREPACK_KEY);
+    return parseBenchNoRepack(raw);
+  } catch {
+    return false;
+  }
 }
 
 /**

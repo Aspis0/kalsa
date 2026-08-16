@@ -15,7 +15,7 @@
  * 2. Repacked weights — ggml ARM-friendly second copy when
  *    llama_model_params::use_extra_bufts is true (default). ANONYMOUS → only
  *    reclaimable by killing the process. Dominates background survival.
- *    llama.rn 0.12.8 does not expose the switch yet (follow-up).
+ *    Disable via llama.rn `no_extra_bufts` (bench: kalsa.bench.norepack=1).
  * 3. Compute buffer — linear in n_ubatch, independent of model size and of
  *    context (vocab × ubatch dominated): 497@512, 249@256, 125@128, 62@64 MiB.
  *    Same for 2B and 4B.

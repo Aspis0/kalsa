@@ -12,6 +12,7 @@ import {
 } from "llama.rn";
 
 import {
+  getBenchNoRepack,
   getBlockFormat,
   getThinkingMode,
   getToolChoiceMode,
@@ -119,6 +120,8 @@ let activeCacheTypeV: string | null = null;
 let activeSpeculativeOverrideKey: string | null = null;
 /** Fingerprint of bench-only engineOverride; forces reload when it changes. */
 let activeEngineOverrideKey: string | null = null;
+/** Resolved no_extra_bufts for the loaded engine; part of the skip-reload key. */
+let activeNoExtraBufts: boolean | null = null;
 /** JSON of engine override for session meta; undefined when production defaults. */
 let activeEngineKnob: string | undefined;
 /** Speculative knobs for session meta (save/load match). Cleared on dispose. */
@@ -691,13 +694,21 @@ export function initEngine(
     // activeEngineCtx, KV-session meta, restore validation, and skip-reload.
     // deviceProfile.cpuCapacities is forwarded so the G99 measured prefill
     // preset (8) is reachable in production (not only in harness fixtures).
+    // Bench-only kalsa.bench.norepack: "1" → no_extra_bufts (disable ARM weight
+    // repacking). Resolved here so the skip-reload key and the init params share
+    // one value; flipping the pref must force a real reload + KALSA_SESSION init.
     const modelInfo = getModelById(modelId);
     const deviceProfile = await getCachedDeviceProfile();
+    const noExtraBufts = await getBenchNoRepack();
     const tuning = await resolveEngineTuning({
       model: modelInfo,
       profile: deviceProfile,
       cpuCapacities: deviceProfile.cpuCapacities,
-      request: { contextBudget: engineCtx },
+      request: {
+        contextBudget: engineCtx,
+        // When norepack is on, non-evictable estimate drops the repack term.
+        repack: !noExtraBufts,
+      },
       platformHint: Platform.OS,
     });
     // Prefer caller engineCtx when budget did not shrink (identical path on
@@ -714,7 +725,8 @@ export function initEngine(
       activeCacheTypeK === cacheTypeK &&
       activeCacheTypeV === cacheTypeV &&
       activeSpeculativeOverrideKey === speculativeOverrideKey &&
-      activeEngineOverrideKey === engineOverrideKey
+      activeEngineOverrideKey === engineOverrideKey &&
+      activeNoExtraBufts === noExtraBufts
     )
       return { effectiveNCtx };
     await disposeEngineLocked();
@@ -731,6 +743,8 @@ export function initEngine(
     const params: ContextParams = {
       model: modelPath,
       use_mlock: true,
+      // When true, skip the anonymous repack buffer (~file size of extra RSS).
+      no_extra_bufts: noExtraBufts,
       n_ctx: effectiveNCtx,
       n_batch: 512,
       // HARD GUARD (moe-experiments F5.1): ubatch ≤512; default 256 ≈ 250 MB.
@@ -748,6 +762,19 @@ export function initEngine(
       // Richiesto per multimodal: senza context shifting i media restano ancorati.
       ctx_shift: isMultimodal ? false : true,
     };
+
+    // Once per load: arm evidence must name the repack mode it ran under.
+    // Number (0|1), same KALSA_SESSION shape as save/load (op + extras).
+    try {
+      console.log(
+        `KALSA_SESSION ${JSON.stringify({
+          op: "init",
+          no_extra_bufts: noExtraBufts ? 1 : 0,
+        })}`,
+      );
+    } catch {
+      /* telemetry never throws into engine path */
+    }
 
     // Bench-only engineOverride: apply after production defaults; absent fields keep production.
     // Android GPU gate lives in applyEngineOverride (never override the n_gpu_layers guard above).
@@ -873,6 +900,7 @@ export function initEngine(
     activeCacheTypeV = cacheTypeV;
     activeSpeculativeOverrideKey = speculativeOverrideKey;
     activeEngineOverrideKey = engineOverrideKey;
+    activeNoExtraBufts = noExtraBufts;
     activeEngineKnob =
       options.engineOverride !== undefined
         ? JSON.stringify(options.engineOverride)
@@ -961,6 +989,7 @@ async function disposeEngineLocked(): Promise<void> {
     activeCacheTypeV = null;
     activeSpeculativeOverrideKey = null;
     activeEngineOverrideKey = null;
+    activeNoExtraBufts = null;
     activeEngineKnob = undefined;
     activeMtpNMax = undefined;
     activeSpecType = undefined;

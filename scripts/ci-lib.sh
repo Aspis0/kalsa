@@ -433,6 +433,19 @@ wakefulness_is_fatal() {
   esac
 }
 
+# validate_bench_norepack <value>
+#   Pure (no adb): empty / 0 / 1 accepted; anything else dies with a message.
+#   empty → leave kalsa.bench.norepack absent (production repack on)
+#   0     → write "0" (repack on, explicit)
+#   1     → write "1" (no_extra_bufts / repack off)
+# Covered by scripts/test_sideload_guards.sh.
+validate_bench_norepack() {
+  case "${1:-}" in
+    ""|0|1) return 0 ;;
+    *) die "NOREPACK must be empty, 0, or 1 (got '$1')" ;;
+  esac
+}
+
 # Pure matcher: given dumpsys deviceidle whitelist text (one package per
 # indented line, plus section headers), report whether $PKG is present as an
 # exact trimmed line. Output: "1" if present, "0" otherwise.
