@@ -325,6 +325,111 @@ _ms_expect "2" "" "" 0 "message_was_submitted empty cur"
 _ms_expect "x" "2" "" 0 "message_was_submitted non-integer prev"
 _ms_expect "2" "n/a" "" 0 "message_was_submitted non-integer cur"
 
+# ── Active conversation resolution (multi-chat storage) ─────────────
+# Shape from ConversationsStore: { activeId, items:[{id, updatedAt, …}] }.
+# Rule: activeId when it names an item; else most recent by updatedAt.
+# Empty index → "" (legacy key fallback). Present but bad → die.
+# Call resolve in the current shell (redirect stdout) so overridden die can
+# set _died — command substitution would hide die in a subshell.
+
+# one conversation → its id, keys built correctly
+_died=""
+_one='{"activeId":"conv-1786896210824-bj2n8joh","items":[{"id":"conv-1786896210824-bj2n8joh","title":"hi","updatedAt":1786896210824,"preview":"ok","searchBlob":"hi"}]}'
+resolve_active_conversation_id "$_one" > "$OUT/conv_id.txt"
+_got=$(tr -d '\n' < "$OUT/conv_id.txt")
+_mkey=$(messages_storage_key "$_got")
+_ckey=$(compactor_storage_key "$_got")
+if [ -z "$_died" ] \
+  && [ "$_got" = "conv-1786896210824-bj2n8joh" ] \
+  && [ "$_mkey" = "kalsa.messages.conv-1786896210824-bj2n8joh" ] \
+  && [ "$_ckey" = "kalsa.chat.compactor.conv-1786896210824-bj2n8joh" ]; then
+  echo "PASS: one conversation — id + keys resolved"
+  pass=$((pass + 1))
+else
+  echo "FAIL: one conversation — got id='$_got' mkey='$_mkey' ckey='$_ckey' die='$_died'"
+  fail=$((fail + 1))
+fi
+
+# several conversations → activeId wins over a more recent non-active item
+_died=""
+_multi='{"activeId":"conv-old","items":[{"id":"conv-old","title":"a","updatedAt":100,"preview":"","searchBlob":""},{"id":"conv-new","title":"b","updatedAt":999,"preview":"","searchBlob":""}]}'
+resolve_active_conversation_id "$_multi" > "$OUT/conv_id.txt"
+_got=$(tr -d '\n' < "$OUT/conv_id.txt")
+if [ -z "$_died" ] && [ "$_got" = "conv-old" ]; then
+  echo "PASS: several conversations — activeId wins (not most-recent conv-new)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: several conversations activeId — got '$_got' die='$_died'"
+  fail=$((fail + 1))
+fi
+
+# several conversations, activeId missing/invalid → most recent by updatedAt
+_died=""
+_multi_fb='{"activeId":"","items":[{"id":"conv-old","title":"a","updatedAt":100,"preview":"","searchBlob":""},{"id":"conv-new","title":"b","updatedAt":999,"preview":"","searchBlob":""}]}'
+resolve_active_conversation_id "$_multi_fb" > "$OUT/conv_id.txt"
+_got=$(tr -d '\n' < "$OUT/conv_id.txt")
+if [ -z "$_died" ] && [ "$_got" = "conv-new" ]; then
+  echo "PASS: several conversations — empty activeId falls back to most recent (updatedAt)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: several conversations fallback — got '$_got' die='$_died'"
+  fail=$((fail + 1))
+fi
+
+# empty items list → die naming the index key
+_died=""
+: > "$OUT/conv_id.txt"
+resolve_active_conversation_id '{"activeId":"","items":[]}' > "$OUT/conv_id.txt"
+_got=$(tr -d '\n' < "$OUT/conv_id.txt")
+if echo "$_died" | grep -q "kalsa.conversations.v1" \
+  && echo "$_died" | grep -qiE "unparseable|empty|cannot resolve"; then
+  echo "PASS: empty list — die fired: $_died"
+  pass=$((pass + 1))
+else
+  echo "FAIL: empty list — expected die naming key (got id='$_got' die='$_died')"
+  fail=$((fail + 1))
+fi
+
+# malformed JSON → die naming the index key
+_died=""
+: > "$OUT/conv_id.txt"
+resolve_active_conversation_id '{not-json' > "$OUT/conv_id.txt"
+_got=$(tr -d '\n' < "$OUT/conv_id.txt")
+if echo "$_died" | grep -q "kalsa.conversations.v1"; then
+  echo "PASS: malformed JSON — die fired: $_died"
+  pass=$((pass + 1))
+else
+  echo "FAIL: malformed JSON — expected die (got id='$_got' die='$_died')"
+  fail=$((fail + 1))
+fi
+
+# legacy shape: no index value → empty id → legacy messages key
+_died=""
+resolve_active_conversation_id "" > "$OUT/conv_id.txt"
+_got=$(tr -d '\n' < "$OUT/conv_id.txt")
+_mkey=$(messages_storage_key "$_got")
+_ckey=$(compactor_storage_key "$_got")
+if [ -z "$_died" ] \
+  && [ -z "$_got" ] \
+  && [ "$_mkey" = "kalsa.messages.v1" ] \
+  && [ "$_ckey" = "kalsa.chat.compactor.default" ]; then
+  echo "PASS: legacy shape (no list) — fallback to kalsa.messages.v1 + compactor.default"
+  pass=$((pass + 1))
+else
+  echo "FAIL: legacy shape — got id='$_got' mkey='$_mkey' ckey='$_ckey' die='$_died'"
+  fail=$((fail + 1))
+fi
+
+# list_conversation_ids: both ids, one per line (reset wipe target)
+_ids=$(list_conversation_ids "$_multi" | tr '\n' ' ')
+if echo "$_ids" | grep -q "conv-old" && echo "$_ids" | grep -q "conv-new"; then
+  echo "PASS: list_conversation_ids returns both ids"
+  pass=$((pass + 1))
+else
+  echo "FAIL: list_conversation_ids — got '$_ids'"
+  fail=$((fail + 1))
+fi
+
 rm -rf "$OUT"
 echo ""
 echo "=== $pass passed, $fail failed ==="

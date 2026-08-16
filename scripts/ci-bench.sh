@@ -365,7 +365,24 @@ MEMORY_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.m
 adb logcat -c
 
 reset_chat() {
-  sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" "kalsa.messages.v1" "__ABSENT__"
+  # Multi-chat: wipe every per-conversation payload + the index, then legacy
+  # keys so an arm still starts from a clean chat (ConversationsStore shape).
+  local index_raw id msg_key c_key s_key
+  index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
+  while IFS= read -r id || [ -n "${id-}" ]; do
+    [ -z "${id-}" ] && continue
+    msg_key=$(messages_storage_key "$id")
+    c_key=$(compactor_storage_key "$id")
+    s_key=$(summary_storage_key "$id")
+    sql_write "DELETE FROM catalystLocalStorage WHERE key='$msg_key';" "$msg_key" "__ABSENT__"
+    sql_write "DELETE FROM catalystLocalStorage WHERE key='$c_key';" "$c_key" "__ABSENT__"
+    sql_write "DELETE FROM catalystLocalStorage WHERE key='$s_key';" "$s_key" "__ABSENT__"
+  done <<EOF
+$(list_conversation_ids "$index_raw")
+EOF
+  sql_write "DELETE FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" "$CONVERSATIONS_INDEX_KEY" "__ABSENT__"
+  # Legacy pre-multi-chat keys (older APK / migrate source).
+  sql_write "DELETE FROM catalystLocalStorage WHERE key='$LEGACY_MESSAGES_KEY';" "$LEGACY_MESSAGES_KEY" "__ABSENT__"
   sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.chat.compactor.default';" "kalsa.chat.compactor.default" "__ABSENT__"
   sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.chat.summary.default';" "kalsa.chat.summary.default" "__ABSENT__"
   # Memory facts key — facts extracted in one arm must not persist into the next.
@@ -379,9 +396,9 @@ launch_app() {
 }
 
 # Force-stop, wipe chat state, relaunch → a genuinely fresh conversation.
-# Plain "clear the messages key" is not enough: AiChatPage only reads
-# kalsa.messages.v1 at mount, so the running React tree would keep showing
-# the stale in-memory history without a real process restart.
+# Plain "clear the messages key" is not enough: the chat page only loads
+# history at mount, so the running React tree would keep showing the stale
+# in-memory history without a real process restart.
 new_conversation() {
   adb shell am force-stop $PKG; sleep 2
   reset_chat
@@ -597,10 +614,36 @@ dismiss_foreign_dialog() {
 # (saturated 30k tail → stuck wait; escaped-quote sed → false-negative recall).
 # ---------------------------------------------------------------------------
 
-# Dump the FULL kalsa.messages.v1 value to $1. The value is a single JSON line
-# (JSON escapes newlines), so no multiline handling is needed. Missing key → empty file.
+# Resolve the messages AsyncStorage key for the active conversation.
+# Empty index → legacy kalsa.messages.v1 (older APK). Present but unresolvable → die.
+_active_messages_key() {
+  local index_raw id
+  index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
+  id=$(resolve_active_conversation_id "$index_raw")
+  messages_storage_key "$id"
+}
+
+# Resolve the compactor/summary key for the active conversation (or legacy default).
+_active_compactor_key() {
+  local index_raw id
+  index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
+  id=$(resolve_active_conversation_id "$index_raw")
+  compactor_storage_key "$id"
+}
+
+_active_summary_key() {
+  local index_raw id
+  index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
+  id=$(resolve_active_conversation_id "$index_raw")
+  summary_storage_key "$id"
+}
+
+# Dump the FULL messages value for the active conversation to $1.
+# Value is a single JSON line (JSON escapes newlines). Missing key → empty file.
 snapshot_history() {
-  sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" \
+  local key
+  key=$(_active_messages_key)
+  sql "SELECT value FROM catalystLocalStorage WHERE key='$key';" \
     > "$1" || : > "$1"
 }
 
@@ -1009,7 +1052,10 @@ capture_turn_evidence() {
   # measured tokens (run 31379031892 turn 15: v42 larger than baseline).
   # Empty file when the key is absent — baseline reset_chat deletes it at
   # arm start, so anything here came from this run. Never fail a turn over it.
-  sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.chat.compactor.default';" \
+  # Per-conversation key (multi-chat); falls back to *.default when no index.
+  local ckey
+  ckey=$(_active_compactor_key)
+  sql "SELECT value FROM catalystLocalStorage WHERE key='$ckey';" \
     > "$tdir/compactor_state.json" 2>/dev/null \
     || : > "$tdir/compactor_state.json"
 
@@ -1568,8 +1614,8 @@ _len_or_0() {
     *) echo "$v" ;;
   esac
 }
-COMPACTOR_CHARS=$(_len_or_0 "SELECT length(value) FROM catalystLocalStorage WHERE key='kalsa.chat.compactor.default';")
-SUMMARY_CHARS=$(_len_or_0 "SELECT length(value) FROM catalystLocalStorage WHERE key='kalsa.chat.summary.default';")
+COMPACTOR_CHARS=$(_len_or_0 "SELECT length(value) FROM catalystLocalStorage WHERE key='$(_active_compactor_key)';")
+SUMMARY_CHARS=$(_len_or_0 "SELECT length(value) FROM catalystLocalStorage WHERE key='$(_active_summary_key)';")
 log "compactorState: compactorChars=$COMPACTOR_CHARS summaryChars=$SUMMARY_CHARS"
 
 # raw.json via python3 (escaping correct by construction — no hand-concat JSON).

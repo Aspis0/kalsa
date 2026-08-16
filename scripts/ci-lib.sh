@@ -487,6 +487,125 @@ validate_bench_norepack() {
   esac
 }
 
+# ── Multi-conversation storage keys ─────────────────────────────────
+# App writer: src/conversations/ConversationsStore.ts
+#   INDEX_KEY = kalsa.conversations.v1  →  { activeId, items: [{id, updatedAt, …}] }
+#   messagesKey(id) = kalsa.messages.<id>
+# Compactor: src/context/compactor.ts
+#   kalsa.chat.compactor.<chatId || "default">
+#   kalsa.chat.summary.<chatId || "default">
+# Pre-multi-chat legacy (older APKs): kalsa.messages.v1 + *.default
+# Covered by scripts/test_sideload_guards.sh.
+
+CONVERSATIONS_INDEX_KEY="kalsa.conversations.v1"
+LEGACY_MESSAGES_KEY="kalsa.messages.v1"
+
+# resolve_active_conversation_id <json>
+#   Pure (no adb). Rule matches ConversationsStore.parseConversationsState:
+#     1) activeId when it names an item in items[]
+#     2) else most recent item by updatedAt
+#   Empty / missing index value → print "" (caller falls back to legacy keys
+#   so an older APK that never wrote kalsa.conversations.v1 still benches).
+#   Present but unparseable / empty items / no resolvable id → die naming the
+#   key (silent empty key burned a 40-min arm after the multi-chat merge).
+resolve_active_conversation_id() {
+  local raw="${1-}" out rc
+  if [ -z "$raw" ]; then
+    printf '%s\n' ""
+    return 0
+  fi
+  out=$(python3 -c '
+import json, sys
+raw = sys.argv[1]
+try:
+    obj = json.loads(raw)
+except Exception:
+    sys.exit(2)
+if not isinstance(obj, dict) or not isinstance(obj.get("items"), list):
+    sys.exit(2)
+items = []
+for it in obj["items"]:
+    if not isinstance(it, dict):
+        continue
+    cid = it.get("id")
+    if isinstance(cid, str) and cid:
+        items.append(it)
+if not items:
+    sys.exit(2)
+active = obj.get("activeId")
+if isinstance(active, str) and active:
+    for it in items:
+        if it["id"] == active:
+            print(active)
+            sys.exit(0)
+def recency(it):
+    u = it.get("updatedAt")
+    return u if isinstance(u, (int, float)) and u == u else 0
+items.sort(key=recency, reverse=True)
+print(items[0]["id"])
+' "$raw" 2>/dev/null)
+  rc=$?
+  if [ "$rc" -ne 0 ] || [ -z "$out" ]; then
+    die "cannot resolve active conversation id from $CONVERSATIONS_INDEX_KEY (missing, unparseable, or empty items)"
+    return 1
+  fi
+  printf '%s\n' "$out"
+}
+
+# list_conversation_ids <json>
+#   Pure: one id per line from items[]. Empty / unparseable → no output
+#   (reset still wipes the index key + legacy keys).
+list_conversation_ids() {
+  local raw="${1-}"
+  [ -z "$raw" ] && return 0
+  python3 -c '
+import json, sys
+raw = sys.argv[1]
+try:
+    obj = json.loads(raw)
+except Exception:
+    sys.exit(0)
+if not isinstance(obj, dict) or not isinstance(obj.get("items"), list):
+    sys.exit(0)
+for it in obj["items"]:
+    if isinstance(it, dict) and isinstance(it.get("id"), str) and it["id"]:
+        print(it["id"])
+' "$raw" 2>/dev/null || true
+}
+
+# messages_storage_key <conversation_id>
+#   Empty id → legacy kalsa.messages.v1 (older APK / no multi-chat index).
+messages_storage_key() {
+  local id="${1-}"
+  if [ -z "$id" ]; then
+    printf '%s\n' "$LEGACY_MESSAGES_KEY"
+  else
+    printf '%s\n' "kalsa.messages.$id"
+  fi
+}
+
+# compactor_storage_key <conversation_id>
+#   Empty id → kalsa.chat.compactor.default (legacy / app default chatId).
+compactor_storage_key() {
+  local id="${1-}"
+  if [ -z "$id" ]; then
+    printf '%s\n' "kalsa.chat.compactor.default"
+  else
+    printf '%s\n' "kalsa.chat.compactor.$id"
+  fi
+}
+
+# summary_storage_key <conversation_id>
+#   Empty id → kalsa.chat.summary.default.
+summary_storage_key() {
+  local id="${1-}"
+  if [ -z "$id" ]; then
+    printf '%s\n' "kalsa.chat.summary.default"
+  else
+    printf '%s\n' "kalsa.chat.summary.$id"
+  fi
+}
+
 # Pure matcher: given dumpsys deviceidle whitelist text (one package per
 # indented line, plus section headers), report whether $PKG is present as an
 # exact trimmed line. Output: "1" if present, "0" otherwise.
