@@ -941,6 +941,23 @@ capture_turn_evidence() {
   return 0
 }
 
+# Engine positive control, FIRST turn only. Runs where turn 1's evidence is
+# already on disk (right after capture_turn_evidence), so it costs no extra adb
+# round-trip. Applies to both BENCH_TARGET values: a CI emulator arm with a dead
+# engine is exactly as worthless as a phone one.
+# Scope is deliberate: a LATER turn without telemetry is a different phenomenon
+# (context growth, OOM, background summarize stealing the dump) and must stay
+# visible as itself instead of being swallowed by this gate.
+assert_engine_ran_turn1() {
+  local tdir="$OUT/turn1"
+  # capture_failed ⇒ the logcat dump itself failed; say so BEFORE the die so the
+  # named cause below is not read as "engine dead" when the evidence never arrived.
+  if [ -f "$tdir/capture_failed" ]; then
+    log "WARN: turn 1 logcat dump failed — telemetry evidence may be incomplete"
+  fi
+  assert_engine_ran "$tdir/telemetry.jsonl" 1
+}
+
 # Append one turn record to the turns JSONL.
 # Args: index kind id prompt elapsed_s sources hasMiniapp; reply bytes already
 # in $OUT/.reply_tmp (written by _apply_last_reply — do not rebuild from SAW_REPLY).
@@ -1132,6 +1149,9 @@ run_turn_plan() {
     send_and_wait "$msg" 2400 || die "timeout/failure on turn $turn (${PLAN_ID[$i]})"
     settle_turn_reply
     capture_turn_evidence "$turn"
+    if [ "$turn" -eq 1 ]; then
+      assert_engine_ran_turn1
+    fi
     record_turn "$turn" "${PLAN_KIND[$i]}" "${PLAN_ID[$i]}" "$msg" \
       "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP" \
       "${SAW_SETTLED_S:-}" "${PLAN_EXPECT[$i]}"
@@ -1204,6 +1224,9 @@ if [ "$PHASE" = "fase0" ]; then
     send_and_wait "$PLANT" 1500 || die "run $run: timeout/failure on plant turn"
     settle_turn_reply
     capture_turn_evidence "$global_turn"
+    if [ "$global_turn" -eq 1 ]; then
+      assert_engine_ran_turn1
+    fi
     record_turn "$global_turn" "plant" "plant" "$PLANT" \
       "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP"
     # More turns remain (fillers + probe) — pure idle for summary debounce.

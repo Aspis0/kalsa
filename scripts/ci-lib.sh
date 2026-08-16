@@ -334,6 +334,66 @@ check_free_space() {
   fi
 }
 
+# ── Engine positive control ─────────────────────────────────────────
+# assert_engine_ran <telemetry_jsonl> [turn_label]
+#   Direct proof that the inference engine actually ran: at least one
+#   KALSA_TELEMETRY line (src/engine/LlamaService.ts, one per completion round)
+#   with a numeric tokensEvaluated > 0. Pure logic on a file — no adb — so it is
+#   unit-testable (scripts/test_sideload_guards.sh).
+#
+#   WHY numbers only: a device arm (BENCH_TARGET=device, smoke, 4B) could not
+#   load the model, so all 7 turns recorded the app's error bubble
+#   ("⚠️ Caricamento del modello non riuscito…"), the arm exited 0 and wrote a
+#   complete result.json with fact_recall null — an infrastructure failure that
+#   looks exactly like a model failure, so the next person debugs the model.
+#   The bubble text is localized and this repo has already been burned by a
+#   language-dependent grader (HONESTY_PATTERNS, Italian-only): keying this gate
+#   on any user-visible string would reintroduce that defect. tokensEvaluated is
+#   language-independent by construction.
+#
+#   A malformed line is not evidence (skipped, not trusted): only strictly
+#   parseable JSON objects count. Non-positive counts are not evidence either:
+#   0 is turnTelemetry.ts's `result.tokens_evaluated ?? 0` default (native counter
+#   absent) and -1 is the grader's "unavailable" sentinel. On turn 1 of a fresh
+#   conversation the new user message cannot come from the KV cache, so a live
+#   engine always evaluates prompt tokens — full reuse cannot fake a 0 here.
+assert_engine_ran() {
+  local file="$1" turn="${2:-1}" evaluated
+  evaluated=$(python3 -c '
+import json, sys
+best = 0
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except Exception:
+                continue
+            if not isinstance(rec, dict):
+                continue
+            v = rec.get("tokensEvaluated")
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                continue
+            if int(v) > best:
+                best = int(v)
+except Exception:
+    pass
+print(best)
+' "$file" 2>/dev/null)
+  case "$evaluated" in
+    ''|*[!0-9]*) evaluated=0 ;;
+  esac
+  if [ "$evaluated" -le 0 ]; then
+    die "engine never ran on turn $turn (no KALSA_TELEMETRY / tokensEvaluated<=0) — model not loaded? (evidence: $file)"
+    return 1
+  fi
+  log "engine control: turn $turn tokensEvaluated=$evaluated (engine alive)"
+  return 0
+}
+
 # Installs the APK and, on the emulator, sideloads the GGUF into
 # files/models/<model_dir>/<model_file>. On a device, the model must already
 # have been downloaded by the app.
