@@ -1,0 +1,8 @@
+# core.autocrlf is true on this machine, which rewrites checked-out files to
+# CRLF. Device-side scripts MUST stay LF: Android/Termux `sh` fails silently on
+# CRLF (it dies mid-script with no error), and that failure mode has already
+# cost this campaign real runs. Pin them.
+*.sh text eol=lf
+
+# Data written and re-read by device harnesses and analyzers.
+*.csv text eol=lf
