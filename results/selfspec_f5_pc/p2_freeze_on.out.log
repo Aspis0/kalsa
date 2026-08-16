@@ -1,0 +1,23 @@
+You are a careful technical writer. Write in plain English. Do not use bullet-only answers; use short paragraphs and then a compact numbered list where a list is actually clearer.
+
+Topic: On a phone with 8 GB of RAM and UFS flash, compare three ways a 35B-class Mixture-of-Experts model can run:
+
+1. mmap the whole file and hope the kernel keeps hot pages,
+2. stream only the routed experts each token into an LRU cache of about 2 GiB, with dense (non-expert) weights held in anonymous buffers,
+3. split the dense trunk onto a mobile GPU and keep expert GEMMs on the CPU.
+
+For each way, explain what is resident, what is read from flash per token, what a major page fault means here, and why activating k=6 experts out of a much larger pool still leaves a large on-disk file. Then walk through one concrete decode step: router scores, top-k, cache hit vs miss, optional drop of a cold low-weight expert, and how that changes both the math and the bytes. Close with two quantitative caveats: (a) a cache hit rate is not a quality metric, (b) a tok/s number that excludes prefill and draft time is not the rate a user feels.
+
+Write about 400-600 words. No markdown fences. No invented benchmark numbers.
+
+
+
+
+generation: 1 tokens, 0.575 s/token (1.740 tok/s)
+selfspec: 0/3 drafts accepted (0.0% = alpha), 1.00 tokens per verify decode (1 decodes for 1 tokens)
+selfspec: drafting costs 0.3868 s/token on top of decode → 1.04 tok/s effective (vs 1.74 reported)
+prefill: 293 tokens, 37.149 s (7.9 tok/s) | model load 6.092 s | TTFT 43.242 s
+moe-stream: read 288.6 MiB (288.65 MiB/token), decode 0.575 s/token (compute 0.195 + cache mgmt 0.049 + flash I/O 1.327 s/token, 217 MiB/s)
+moe-cache: 37.0% hit, resident 1999.2 MiB
+moe-cache: 9113 evictions, 5106 re-reads (5106.0/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.331 s/token (flash reads overlapped with FFN compute)

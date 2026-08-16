@@ -27,8 +27,13 @@ $base = @(
   "-m", $model, "-t", "4", "-c", "2048", "--ubatch", "512", "-n", "256",
   "--temp", "0", "--moe-stream", "--cache-mb", "2000", "--dense-weights", "anon",
   "--overlap", "--io-threads", "4", "--n-expert-used", "6",
+  # Without a chat wrapper this model emits EOG after ONE token on this prompt,
+  # which silently turns every "speed" number into a prefill measurement. The
+  # first version of this script had no such guard and produced exactly that.
+  "--chatml", "--no-think",
   "--prompt-file", $prompt
 )
+$MIN_TOKENS = 200
 
 $arms = @(
   @{ name = "p0_plain";      extra = @() },
@@ -53,6 +58,13 @@ foreach ($a in $arms) {
     $sw.Stop()
     try { if ($p.PeakWorkingSet64 -gt $peak) { $peak = $p.PeakWorkingSet64 } } catch { }
     $peakMB = [math]::Round($peak / 1MB, 1)
-    Log ("DONE {0} rc={1} wall={2}s peak_rss={3} MiB" -f $name, $p.ExitCode, [math]::Round($sw.Elapsed.TotalSeconds,1), $peakMB)
+    # Validity gate: a run that emitted a handful of tokens measured prefill, not
+    # decode. Say so loudly instead of letting the wall time look like a result.
+    $gen = 0
+    $m = Select-String -Path "$out\$name.out.log" -Pattern 'generation:\s+(\d+) tokens' | Select-Object -First 1
+    if ($m) { $gen = [int]$m.Matches[0].Groups[1].Value }
+    $verdict = if ($gen -ge $MIN_TOKENS) { "VALID" } else { "INVALID_TOO_FEW_TOKENS" }
+    Log ("DONE {0} rc={1} wall={2}s peak_rss={3} MiB tokens={4} {5}" -f $name, $p.ExitCode, [math]::Round($sw.Elapsed.TotalSeconds,1), $peakMB, $gen, $verdict)
+    if ($verdict -ne "VALID") { Log "FAIL $name generated $gen tokens (< $MIN_TOKENS): timing numbers from this arm are NOT decode measurements" }
 }
 Log "=== F5 P1/P2 DONE ==="

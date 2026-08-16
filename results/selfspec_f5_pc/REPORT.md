@@ -23,32 +23,47 @@ never executed on a model that actually has recurrent state.
 snapshot planes entirely: **251.25 MiB saved at γ=4**, and it would be 502.5 MiB
 at γ=8. Peak RSS corroborates independently (−260.4 MiB).
 
-**Reproduced on the audit-fix binary (`d31ad8d`, 07:21)** — the whole table is
-bit-stable across a 322-line diff: RS buffers identical (314.06 / 62.81), peak
-RSS 6176.3 / 5915.9 MiB (0.1 MiB from the first run), wall 46.4 / 45.5 s. The
-freeze arm is ~1-2 % faster than freeze-OFF in both runs; two runs is not a
-claim, and it is not the claim being made here.
+**Reproduced on the audit-fix binary (`d31ad8d`, 07:21)** — the RS buffers and
+peak RSS are bit-stable across a 322-line diff: 314.06 / 62.81 MiB identical,
+peak RSS 6176.3 / 5915.9 MiB (0.1 MiB from the first run). This result does not
+depend on how many tokens were generated: it is an allocation decided at context
+construction, which is why it survives the retraction below.
 
 **Correction to earlier text:** the figure carried forward from F1 was "314 MiB
 saved". That was wrong — 314.06 MiB is the *total* buffer at γ=4; `n_rs_seq = 0`
 still allocates the one live row (62.81 MiB). The saving is 251.25 MiB. Every
 document that said 314 has been corrected.
 
-## Result 2 — speed, on a host that cannot pay for a draft
+## Result 2 — RETRACTED: the first speed table measured prefill, not decode
 
-Single run each, warm page cache, idle machine — indicative, not a claim:
+**The first version of this report presented a speed comparison (30.2 / 46.4 /
+45.3 s "for 256 tokens") and read it as "speculation loses 0.67×". That was
+wrong and is withdrawn.** All three arms emitted **one token**: with a raw
+`--prompt-file` and no chat wrapper this model hits EOG immediately, and the
+runner had no validity gate, so wall time was almost entirely model load +
+prefill. The audit of the fix commit surfaced the tell ("alpha 0 % on both
+arms"); checking the stdout confirmed `generation: 1 tokens`.
 
-| arm | wall (256 tok) |
-|---|---|
-| p0 plain | 30.2 s |
-| p1 freeze OFF | 46.4 s |
-| p2 freeze ON | 45.3 s |
+What those runs *do* legitimately show, from the same logs:
 
-Speculation **loses** here (0.67× vs plain), consistent with F1's 0.37× on the
-same host class: a DRAM-bound PC gets no I/O amortisation from a batched verify,
-and our routing entropy says the batch discount is small on this model anyway.
-The freeze's 2.4 % edge over freeze-OFF is within single-run noise and is not
-claimed. **The prize is on flash; this host cannot answer it.** That is arm D1.
+| arm | model load | prefill (293 tok) | tokens generated | drafts accepted |
+|---|---|---|---|---|
+| p0 plain | 6.2 s | **19.1 s** | 1 | — |
+| p1 freeze OFF | 6.7 s | **37.0 s** | 1 | 0/4 |
+| p2 freeze ON | 6.1 s | **37.1 s** | 1 | 0/3 |
+
+**Prefill nearly doubles (+94 %) when self-speculation is on**, because the draft
+context prefills the same 293 tokens a second time. That cost is real, it is
+paid before the first token, and on a streamed device it is flash reads
+(p0 read 188.8 MiB for its single step, p1 420.3 MiB). It is independent of the
+freeze (both selfspec arms pay it) and it is a genuine argument against the
+technique on short answers, where it can never be amortised.
+
+The acceptance figures (0/4, 0/3) come from a single cycle each and say nothing
+about alpha. **No loop-alpha and no speed claim exists yet on this host.**
+
+Runner now gates on `generation: N tokens` and marks any arm with fewer than 200
+as `INVALID_TOO_FEW_TOKENS`; re-run with `--chatml --no-think` is in flight.
 
 ## What these arms could NOT catch — stated plainly
 
