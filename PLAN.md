@@ -215,6 +215,17 @@
 > E cache fredda E niente allarme termico — CPU/RAM/modello sono già
 > dentro lo stall% misurato; GPU fuori scope; batteria NON è un gate
 > (inversione screen-on). ·
+> **SONDA CALAQWEN-35B XIAOMI (notte 15/08, esplorativa): l'ipotesi
+> "modello grosso → flagship sopra soglia" è SMENTITA — stall cold
+> 6.0% (vs 8.7% di Marco: il 35B legge il doppio ma computa più a
+> lungo per token, il rapporto resta assorbibile), KF ON −7%. K-F
+> resta spento sul fast flash ANCHE col 35B. La mappa K-F è chiusa
+> definitivamente. results/kf_calaqwen_xiaomi/.** ·
+> **CARD SCREEN-ON XIAOMI RIFATTE (item Doze CHIUSO): CalaQwen 4.677
+> vs card 4.75 (−1.5%) · Marco 11.78 vs 10.57 (+11%, vecchio punto
+> n=1 dentro lo spread n=3). Nessun collasso Doze, protocollo
+> originale ritrovato (xiaomi_t4_round) e replicato con fadv cold +
+> wakefulness registrata. results/card_screenon_xiaomi_v2/.** ·
 > KF_SHIP ⛔ (per spedire: eventuale cella COLD pre-registrata su
 > Jelly con reset fadv tra coppie + policy scritta — decisione owner).
 > Report sweep: reports/moe-kernel-kf-sweep.md.

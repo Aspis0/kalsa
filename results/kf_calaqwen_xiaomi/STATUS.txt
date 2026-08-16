@@ -1,0 +1,48 @@
+2026-08-15T22:46:22-04:00  === CALAQWEN STALL/KF PROBE XIAOMI START (unplugged, stayon, t4, k6d065, n150) ===
+2026-08-15T22:46:22-04:00  SERIAL=adb-625689a2-9xEOfw._adb-tls-connect._tcp MODEL=/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf BIN_KF=/data/local/tmp/kf_general/bin BIN_CAMP=/data/local/tmp/gdn_750/taskb/bin
+2026-08-15T22:46:25-04:00  BATT level=77% temp=299 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T22:46:26-04:00  BATT level=77% temp=299 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T22:46:26-04:00  TEMP_OK 299
+2026-08-15T22:46:26-04:00  RUN a1_warmup_OFF try=1 bin=KF extra=[]
+2026-08-15T22:48:04-04:00  EXTRACT a1_warmup_OFF stream=[moe-stream: read 5151.5 MiB (34.34 MiB/token), decode 0.479 s/token (compute 0.395 + cache mgmt 0.008 + flash I/O 0.309 s/token, 111 MiB/s)]
+2026-08-15T22:48:04-04:00  EXTRACT a1_warmup_OFF overlap=[moe-overlap: stall 0.076 s/token (flash reads overlapped with FFN compute)]
+2026-08-15T22:48:04-04:00  STALL_SHARE a1_warmup_OFF stall=0.076 decode=0.479 share=15.9%
+2026-08-15T22:48:04-04:00  DONE a1_warmup_OFF ms/tok=479.0 wall=96s bytes=63517 try=1 bin=KF
+2026-08-15T22:48:04-04:00  KF_LOAD_OK qwen35moe loaded on KF binary
+2026-08-15T22:48:05-04:00  BATT level=77% temp=311 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T22:48:06-04:00  TEMP_OK 311
+2026-08-15T22:48:07-04:00  FADV a2_cold_OFF: /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=328629 resident_after=0 pages fadvise_rc=0
+2026-08-15T22:48:07-04:00  RUN a2_cold_OFF try=1 bin=KF extra=[]
+2026-08-15T22:50:37-04:00  EXTRACT a2_cold_OFF stream=[moe-stream: read 5151.5 MiB (34.34 MiB/token), decode 0.849 s/token (compute 0.789 + cache mgmt 0.008 + flash I/O 0.335 s/token, 103 MiB/s)]
+2026-08-15T22:50:37-04:00  EXTRACT a2_cold_OFF overlap=[moe-overlap: stall 0.051 s/token (flash reads overlapped with FFN compute)]
+2026-08-15T22:50:37-04:00  STALL_SHARE a2_cold_OFF stall=0.051 decode=0.849 share=6.0%
+2026-08-15T22:50:38-04:00  DONE a2_cold_OFF ms/tok=849.0 wall=149s bytes=63517 try=1 bin=KF
+2026-08-15T22:50:39-04:00  BATT level=76% temp=330 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T22:50:39-04:00  TEMP_OK 330
+2026-08-15T22:50:40-04:00  FADV a3_cold_ON: /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=383999 resident_after=0 pages fadvise_rc=0
+2026-08-15T22:50:40-04:00  RUN a3_cold_ON try=1 bin=KF extra=[ --kf-prefetch --kf-prefetch-width 4]
+2026-08-15T22:53:02-04:00  EXTRACT a3_cold_ON stream=[moe-stream: read 5968.4 MiB (39.79 MiB/token), decode 0.787 s/token (compute 0.755 + cache mgmt 0.009 + flash I/O 0.350 s/token, 114 MiB/s)]
+2026-08-15T22:53:02-04:00  EXTRACT a3_cold_ON overlap=[moe-overlap: stall 0.024 s/token (flash reads overlapped with FFN compute)]
+2026-08-15T22:53:02-04:00  STALL_SHARE a3_cold_ON stall=0.024 decode=0.787 share=3.0%
+2026-08-15T22:53:02-04:00  DONE a3_cold_ON ms/tok=787.0 wall=140s bytes=63921 try=1 bin=KF
+2026-08-15T22:53:03-04:00  BATT level=75% temp=340 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T22:53:03-04:00  TEMP_OK 340
+2026-08-15T22:53:05-04:00  FADV a4_cold_OFF: /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=303970 resident_after=0 pages fadvise_rc=0
+2026-08-15T22:53:05-04:00  RUN a4_cold_OFF try=1 bin=KF extra=[]
+2026-08-15T22:55:38-04:00  EXTRACT a4_cold_OFF stream=[moe-stream: read 5151.5 MiB (34.34 MiB/token), decode 0.866 s/token (compute 0.812 + cache mgmt 0.008 + flash I/O 0.329 s/token, 104 MiB/s)]
+2026-08-15T22:55:38-04:00  EXTRACT a4_cold_OFF overlap=[moe-overlap: stall 0.046 s/token (flash reads overlapped with FFN compute)]
+2026-08-15T22:55:38-04:00  STALL_SHARE a4_cold_OFF stall=0.046 decode=0.866 share=5.3%
+2026-08-15T22:55:38-04:00  DONE a4_cold_OFF ms/tok=866.0 wall=151s bytes=63517 try=1 bin=KF
+2026-08-15T22:55:39-04:00  BATT level=74% temp=350 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T22:55:40-04:00  TEMP_OK 350
+2026-08-15T22:55:41-04:00  FADV a5_cold_ON: /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=206847 resident_after=0 pages fadvise_rc=0
+2026-08-15T22:55:41-04:00  RUN a5_cold_ON try=1 bin=KF extra=[ --kf-prefetch --kf-prefetch-width 4]
+2026-08-15T22:57:26-04:00  EXTRACT a5_cold_ON stream=[moe-stream: read 9548.8 MiB (63.66 MiB/token), decode 0.540 s/token (compute 0.474 + cache mgmt 0.011 + flash I/O 0.476 s/token, 134 MiB/s)]
+2026-08-15T22:57:26-04:00  EXTRACT a5_cold_ON overlap=[moe-overlap: stall 0.055 s/token (flash reads overlapped with FFN compute)]
+2026-08-15T22:57:26-04:00  STALL_SHARE a5_cold_ON stall=0.055 decode=0.540 share=10.2%
+2026-08-15T22:57:26-04:00  DONE a5_cold_ON ms/tok=540.0 wall=103s bytes=63679 try=1 bin=KF
+2026-08-15T22:57:27-04:00  BATT level=74% temp=360 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T22:57:29-04:00  CALAQWEN_STALL_PROBE_DONE
+CALAQWEN_STALL(share=6.0% cold)
+KF_ON_35B(delta=-7% vs OFF cold)
+VERDICT CALAQWEN_STALL(share=6.0% cold) KF_ON_35B(delta=-7% vs OFF cold) — below 20-25% pay band, KF null on 35B fast flash

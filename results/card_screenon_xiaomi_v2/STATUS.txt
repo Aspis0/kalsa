@@ -1,0 +1,59 @@
+2026-08-15T22:58:45-04:00  === CARD SCREEN-ON REDO XIAOMI START (unplugged, stayon, campaign bin, n200, chatml/no-think) ===
+2026-08-15T22:58:45-04:00  SERIAL=adb-625689a2-9xEOfw._adb-tls-connect._tcp BIN=/data/local/tmp/gdn_750/taskb/bin P=/data/local/tmp/gdn_750/taskb/prompts/p_fact.txt
+2026-08-15T22:58:47-04:00  WAKE mWakefulness=Awake
+2026-08-15T22:58:48-04:00  BATT level=74% temp=359 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T22:58:49-04:00  BATT level=74% temp=359 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T22:58:50-04:00  TEMP_OK 359
+2026-08-15T22:58:51-04:00  WAKE mWakefulness=Awake
+2026-08-15T22:58:52-04:00  FADV cq_t6_r1: /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=337347 resident_after=0 pages fadvise_rc=0
+2026-08-15T22:58:52-04:00  RUN cq_t6_r1 try=1 t=6
+2026-08-15T22:59:50-04:00  EXTRACT cq_t6_r1 gen=[generation: 200 tokens, 0.206 s/token (4.858 tok/s)]
+2026-08-15T22:59:50-04:00  EXTRACT cq_t6_r1 stream=[moe-stream: read 6631.8 MiB (33.16 MiB/token), decode 0.206 s/token (compute 0.119 + cache mgmt 0.009 + flash I/O 0.198 s/token, 167 MiB/s)]
+2026-08-15T22:59:50-04:00  DONE cq_t6_r1 tok/s=4.858 wall=57s bytes=63871 try=1
+2026-08-15T22:59:51-04:00  BATT level=73% temp=360 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T22:59:52-04:00  TEMP_OK 360
+2026-08-15T22:59:53-04:00  WAKE mWakefulness=Awake
+2026-08-15T22:59:54-04:00  FADV cq_t6_r2: /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=428482 resident_after=0 pages fadvise_rc=0
+2026-08-15T22:59:54-04:00  RUN cq_t6_r2 try=1 t=6
+2026-08-15T23:00:54-04:00  EXTRACT cq_t6_r2 gen=[generation: 200 tokens, 0.214 s/token (4.677 tok/s)]
+2026-08-15T23:00:55-04:00  EXTRACT cq_t6_r2 stream=[moe-stream: read 6631.8 MiB (33.16 MiB/token), decode 0.214 s/token (compute 0.126 + cache mgmt 0.010 + flash I/O 0.201 s/token, 165 MiB/s)]
+2026-08-15T23:00:55-04:00  DONE cq_t6_r2 tok/s=4.677 wall=60s bytes=63871 try=1
+2026-08-15T23:00:56-04:00  BATT level=73% temp=376 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T23:00:56-04:00  TEMP_OK 376
+2026-08-15T23:00:57-04:00  WAKE mWakefulness=Awake
+2026-08-15T23:00:58-04:00  FADV cq_t6_r3: /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf size=13416430592 resident_before=346818 resident_after=0 pages fadvise_rc=0
+2026-08-15T23:00:58-04:00  RUN cq_t6_r3 try=1 t=6
+2026-08-15T23:02:05-04:00  EXTRACT cq_t6_r3 gen=[generation: 200 tokens, 0.241 s/token (4.152 tok/s)]
+2026-08-15T23:02:05-04:00  EXTRACT cq_t6_r3 stream=[moe-stream: read 6631.8 MiB (33.16 MiB/token), decode 0.241 s/token (compute 0.142 + cache mgmt 0.010 + flash I/O 0.232 s/token, 143 MiB/s)]
+2026-08-15T23:02:05-04:00  DONE cq_t6_r3 tok/s=4.152 wall=65s bytes=63871 try=1
+2026-08-15T23:02:06-04:00  BATT level=72% temp=381 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T23:02:07-04:00  TEMP_WAIT 381
+2026-08-15T23:03:07-04:00  TEMP_OK 378
+2026-08-15T23:03:08-04:00  WAKE mWakefulness=Awake
+2026-08-15T23:03:09-04:00  FADV m1c_t4_r1: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+2026-08-15T23:03:09-04:00  RUN m1c_t4_r1 try=1 t=4
+2026-08-15T23:03:36-04:00  EXTRACT m1c_t4_r1 gen=[generation: 200 tokens, 0.085 s/token (11.786 tok/s)]
+2026-08-15T23:03:36-04:00  EXTRACT m1c_t4_r1 stream=[moe-stream: read 10458.3 MiB (52.29 MiB/token), decode 0.085 s/token (compute 0.035 + cache mgmt 0.010 + flash I/O 0.113 s/token, 463 MiB/s)]
+2026-08-15T23:03:36-04:00  DONE m1c_t4_r1 tok/s=11.786 wall=26s bytes=40444 try=1
+2026-08-15T23:03:37-04:00  BATT level=72% temp=378 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T23:03:37-04:00  TEMP_OK 378
+2026-08-15T23:03:38-04:00  WAKE mWakefulness=Awake
+2026-08-15T23:03:39-04:00  FADV m1c_t4_r2: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=593139 resident_after=0 pages fadvise_rc=0
+2026-08-15T23:03:39-04:00  RUN m1c_t4_r2 try=1 t=4
+2026-08-15T23:04:08-04:00  EXTRACT m1c_t4_r2 gen=[generation: 200 tokens, 0.096 s/token (10.467 tok/s)]
+2026-08-15T23:04:08-04:00  EXTRACT m1c_t4_r2 stream=[moe-stream: read 10458.3 MiB (52.29 MiB/token), decode 0.096 s/token (compute 0.043 + cache mgmt 0.010 + flash I/O 0.122 s/token, 430 MiB/s)]
+2026-08-15T23:04:08-04:00  DONE m1c_t4_r2 tok/s=10.467 wall=28s bytes=40444 try=1
+2026-08-15T23:04:09-04:00  BATT level=71% temp=381 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T23:04:09-04:00  TEMP_WAIT 381
+2026-08-15T23:05:10-04:00  TEMP_OK 379
+2026-08-15T23:05:11-04:00  WAKE mWakefulness=Awake
+2026-08-15T23:05:12-04:00  FADV m1c_t4_r3: /data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=604531 resident_after=0 pages fadvise_rc=0
+2026-08-15T23:05:12-04:00  RUN m1c_t4_r3 try=1 t=4
+2026-08-15T23:05:38-04:00  EXTRACT m1c_t4_r3 gen=[generation: 200 tokens, 0.085 s/token (11.780 tok/s)]
+2026-08-15T23:05:38-04:00  EXTRACT m1c_t4_r3 stream=[moe-stream: read 10458.3 MiB (52.29 MiB/token), decode 0.085 s/token (compute 0.035 + cache mgmt 0.009 + flash I/O 0.115 s/token, 454 MiB/s)]
+2026-08-15T23:05:38-04:00  DONE m1c_t4_r3 tok/s=11.780 wall=25s bytes=40444 try=1
+2026-08-15T23:05:39-04:00  BATT level=71% temp=379 plugged=[  AC powered: false   USB powered: false   Wireless powered: false ]
+2026-08-15T23:05:41-04:00  CARD_SCREENON_REDO_DONE
+CARD_CALAQWEN(med=4.677 vs 4.75, delta=-1.5%)
+CARD_MARCO(med=11.780 vs 10.57, delta=+11.4%)
+VERDICT SCREENON_REDO: both cells reproduce; no Doze collapse; no >15% flag
