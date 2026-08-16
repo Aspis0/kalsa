@@ -92,6 +92,22 @@ first-drift position of the text.
 | P2 | PC | same, freeze ON | loop alpha + RAM delta, DRAM-bound |
 | D1 | S23 (or Xiaomi) | plain k6 d065 vs selfspec freeze ON, γ=4 | **the real question: does verify-batch flash amortisation pay?** |
 | D2 | device | freeze ON, γ ∈ {4, 8} | γ is free memory-wise now; is it free in latency? |
+| D3 | device | freeze ON, `--cache-mb` raised by the freed amount | does spending the 314 MiB as expert cache buy tok/s? |
+
+**D3 is the arm that turns the RAM saving into a speed claim, and it is not
+automatic.** Freed RAM does nothing by itself — it must be handed back
+explicitly. Two channels, both measurable, both plausibly small:
+
+- *Cache channel:* `--cache-mb 2000 → ~2314` (+15% cache). Whether that buys hit
+  rate is doubtful a priori: routing entropy on this model is high (96% of
+  experts touched in 300 tokens, top-16 = 25% of mass, ~45 re-reads/token), so
+  the marginal hit-rate curve may be flat. Measure it; do not assume it.
+- *Pressure channel:* 314 MiB not allocated is 314 MiB of headroom against the
+  memory cliff. We have measured that cliff: stock collapses 60-100x under dirty
+  zram (reproduced 2x), and K-F burst showed majflt 9.2 vs 13.5. Report peak RSS,
+  majflt and p99 latency, not just the mean.
+
+If D3 shows no tok/s gain, the RAM result stays a RAM result. Say so.
 
 PC arms are sanity + RAM only. F1 already showed a DRAM-bound host cannot pay for
 an autoregressive draft (0.37x); the prize, if any, is on flash. D1 is the arm
