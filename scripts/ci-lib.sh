@@ -11,12 +11,132 @@ set -uo pipefail
 
 PKG="${PKG:-com.kalsa.app}"
 DB="/data/data/$PKG/databases/RKStorage"
+BENCH_TARGET="${BENCH_TARGET:-emulator}"
 
 log() { echo "[ci] $*"; }
 dump_ui() { adb shell uiautomator dump /data/local/tmp/ui.xml >/dev/null 2>&1; adb shell cat /data/local/tmp/ui.xml 2>/dev/null; }
 ui_texts() { dump_ui | grep -o 'text="[^"]\{1,200\}"' | sed 's/^text="//; s/"$//'; }
 shot() { adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null; }
-sql() { adb shell "sqlite3 $DB \"$1\"" 2>&1 | tr -d '\r'; }
+
+_device_pull_db() {
+  local dir="$1"
+  local files="RKStorage"
+  # Decide which siblings exist before the pull so we can tolerate an
+  # absent -wal/-shm (a freshly checkpointed DB has none).
+  adb shell "run-as $PKG test -f databases/RKStorage-wal" >/dev/null 2>&1 && files="$files RKStorage-wal"
+  adb shell "run-as $PKG test -f databases/RKStorage-shm" >/dev/null 2>&1 && files="$files RKStorage-shm"
+
+  # ONE stream for all three files (Fix 1): pulling base + WAL + shm in a
+  # single `tar cf -` shrinks the window in which the app can checkpoint
+  # between the base file and its WAL/shm siblings, so we never get base
+  # state A with WAL frames from state B→C. If tar is unavailable in the
+  # app's run-as environment, fall back to three separate cats below.
+  if adb exec-out run-as "$PKG" tar cf - -C databases $files 2>/dev/null \
+       | tar xf - -C "$dir" 2>/dev/null; then
+    local f all_ok=1
+    for f in $files; do [ -f "$dir/$f" ] || all_ok=0; done
+    [ "$all_ok" -eq 1 ] && return 0
+  fi
+
+  # Fallback: tar absent or failed — re-pull each file with a separate cat,
+  # tolerating absent -wal/-shm.
+  rm -f "$dir/RKStorage" "$dir/RKStorage-wal" "$dir/RKStorage-shm"
+  adb exec-out run-as "$PKG" cat databases/RKStorage > "$dir/RKStorage" 2>/dev/null || return 1
+  case " $files " in
+    *" RKStorage-wal "*) adb exec-out run-as "$PKG" cat databases/RKStorage-wal > "$dir/RKStorage-wal" 2>/dev/null || return 1 ;;
+  esac
+  case " $files " in
+    *" RKStorage-shm "*) adb exec-out run-as "$PKG" cat databases/RKStorage-shm > "$dir/RKStorage-shm" 2>/dev/null || return 1 ;;
+  esac
+  [ -f "$dir/RKStorage" ] || return 1
+}
+
+# Validate a pulled copy before trusting it (Fix 1). quick_check must report
+# exactly "ok" — an inconsistent base/WAL pair reports corruption here instead
+# of silent garbage or a malformed-image error downstream.
+_device_db_ok() {
+  local db="$1"
+  [ -f "$db" ] || return 1
+  [ "$(sqlite3 "$db" "PRAGMA quick_check;" 2>/dev/null | tr -d '\r')" = "ok" ] || return 1
+}
+
+sql() {
+  if [ "$BENCH_TARGET" = "emulator" ]; then
+    adb shell "sqlite3 $DB \"$1\"" 2>&1 | tr -d '\r'
+    return
+  fi
+
+  local dir status attempt=0
+  # Pull + validate, retry up to 3 times. A failed/invalid pull is NOT silent:
+  # it logs a greppable line and returns non-zero so the empty evidence file
+  # left by `|| : > file` has a recorded cause (Fix 1).
+  while [ "$attempt" -lt 3 ]; do
+    attempt=$((attempt + 1))
+    dir=$(mktemp -d "${TMPDIR:-/tmp}/kalsa-rkstorage.XXXXXX") || return 1
+    if _device_pull_db "$dir" && _device_db_ok "$dir/RKStorage"; then
+      sqlite3 "$dir/RKStorage" "$1"
+      status=$?
+      rm -rf "$dir"
+      return "$status"
+    fi
+    rm -rf "$dir"
+    log "device DB pull invalid or failed (attempt $attempt/3)"
+    sleep 1
+  done
+  log "device DB pull failed after 3 attempts"
+  return 1
+}
+
+# sql_write <statement> <key> <expected-value>; use __ABSENT__ for a delete.
+sql_write() {
+  if [ "$BENCH_TARGET" = "emulator" ]; then
+    sql "$1"
+    return
+  fi
+
+  local statement="$1" key="$2" expected="$3" dir remote actual escaped_key
+  local app_state
+  app_state=$(adb shell "if pidof $PKG >/dev/null 2>&1; then echo RUNNING; else echo STOPPED; fi" 2>/dev/null | tr -d '\r') || {
+    die "cannot determine whether $PKG is running before device SQL write"
+  }
+  case "$app_state" in
+    RUNNING) die "refusing device SQL write while $PKG is running; force-stop the app first" ;;
+    STOPPED) ;;
+    *) die "cannot determine whether $PKG is running before device SQL write (got '$app_state')" ;;
+  esac
+
+  dir=$(mktemp -d "${TMPDIR:-/tmp}/kalsa-rkstorage.XXXXXX") || die "cannot create temporary directory for device SQL write"
+  if ! _device_pull_db "$dir"; then
+    rm -rf "$dir"
+    die "cannot read $DB through run-as before device SQL write"
+  fi
+  if ! printf '%s\nPRAGMA wal_checkpoint(TRUNCATE);\n' "$statement" | sqlite3 -bail "$dir/RKStorage" >/dev/null; then
+    rm -rf "$dir"
+    die "host sqlite3 failed while applying device SQL write"
+  fi
+
+  remote="/data/local/tmp/kalsa-rkstorage-$$"
+  if ! adb push "$dir/RKStorage" "$remote" >/dev/null 2>&1 \
+    || ! adb shell "run-as $PKG cp $remote databases/RKStorage" >/dev/null 2>&1 \
+    || ! adb shell "run-as $PKG rm -f databases/RKStorage-wal databases/RKStorage-shm" >/dev/null 2>&1; then
+    adb shell "rm -f $remote" >/dev/null 2>&1 || true
+    rm -rf "$dir"
+    die "could not install the locally updated database through run-as"
+  fi
+  adb shell "rm -f $remote" >/dev/null 2>&1 || true
+  rm -rf "$dir"
+
+  escaped_key=$(printf '%s' "$key" | sed "s/'/''/g")
+  if ! actual=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$escaped_key';"); then
+    die "device SQL write verification read failed for key '$key'"
+  fi
+  if [ "$expected" = "__ABSENT__" ]; then
+    [ -z "$actual" ] || die "device SQL write verification found key '$key' after delete (got '$actual')"
+  else
+    [ "$actual" = "$expected" ] \
+      || die "device SQL write verification for key '$key' got '$actual', expected '$expected'"
+  fi
+}
 
 # Dismiss a system ANR dialog ("<app> isn't responding") covering the screen —
 # the loaded CI AVD throws these for Pixel Launcher after multi-GB pushes and
@@ -96,6 +216,11 @@ die() {
   capture_death_evidence
   exit 1
 }
+
+case "$BENCH_TARGET" in
+  emulator|device) ;;
+  *) die "BENCH_TARGET must be one of: emulator, device (got '$BENCH_TARGET')" ;;
+esac
 
 # After a primary turn-end signal (telemetry / SQL), confirm the chat UI is
 # idle before the next type_into_composer. Soft-fail on timeout.
@@ -209,8 +334,9 @@ check_free_space() {
   fi
 }
 
-# Installs the APK, sideloads the GGUF into files/models/<model_dir>/<model_file>,
-# and does the first-launch dance that creates the AsyncStorage sqlite db.
+# Installs the APK and, on the emulator, sideloads the GGUF into
+# files/models/<model_dir>/<model_file>. On a device, the model must already
+# have been downloaded by the app.
 #   install_and_sideload <apk_path> <model_src_path> <model_dir> <model_file>
 install_and_sideload() {
   local apk="$1"
@@ -220,10 +346,34 @@ install_and_sideload() {
 
   adb wait-for-device
   adb shell settings put global hide_error_dialogs 1 || true
-  adb root >/dev/null 2>&1 || true; sleep 5; adb wait-for-device
+  if [ "$BENCH_TARGET" = "emulator" ]; then
+    adb root >/dev/null 2>&1 || true; sleep 5; adb wait-for-device
+  fi
 
   log "install APK ($apk)"
-  adb install -r "$apk" 2>&1 | tail -2
+  if [ "$BENCH_TARGET" = "device" ]; then
+    if ! adb install -r "$apk" 2>&1 | tail -2; then
+      die "adb install -r failed for $apk"
+    fi
+  else
+    adb install -r "$apk" 2>&1 | tail -2
+  fi
+
+  if [ "$BENCH_TARGET" = "device" ]; then
+    adb shell am force-stop "$PKG" >/dev/null 2>&1 || true
+    local model_ls model_size
+    if ! model_ls=$(adb shell "run-as $PKG ls -la files/models/$model_dir/$model_file" 2>/dev/null | tr -d '\r'); then
+      die "model $model_file is not downloaded; open the app and download $model_file once"
+    fi
+    model_size=$(printf '%s\n' "$model_ls" | awk 'NF >= 5 {print $5; exit}')
+    case "$model_size" in
+      ''|*[!0-9]*) die "model $model_file is not plausibly sized; open the app and download $model_file once" ;;
+    esac
+    [ "$model_size" -ge 1048576 ] \
+      || die "model $model_file is not plausibly sized ($model_size bytes); open the app and download $model_file once"
+    log "model present through run-as: $model_ls"
+    return 0
+  fi
 
   # ── Pre-flight: source size + device free space ───────────────
   local src_size

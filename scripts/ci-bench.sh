@@ -58,6 +58,7 @@ MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
 MODEL_DIR="${MODEL_DIR:-qwen3.5-2b}"
 APK_PATH="${APK_PATH:-android/app/build/outputs/apk/release/app-release.apk}"
 PKG=com.kalsa.app
+BENCH_TARGET="${BENCH_TARGET:-emulator}"
 
 # shellcheck source=ci-lib.sh
 source "$(dirname "$0")/ci-lib.sh"
@@ -161,7 +162,7 @@ case "$MEMORY" in
   *) die "MEMORY must be 0 or 1 (got '$MEMORY')" ;;
 esac
 
-log "arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW memory=$MEMORY runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
+log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW memory=$MEMORY runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
 # LFM2.5 is always-on reasoning: the chat template has preserve_thinking only,
 # no off switch. Record THINKING as today; do not try to force it off.
 if [ "$MODEL_DIR" = "lfm2.5-2.6b" ] || [ "$MODEL_DIR" = "lfm2.5-8b-a1b" ]; then
@@ -170,7 +171,9 @@ fi
 
 # Fail fast on setup errors — do not burn emulator boot time on a broken input.
 [ -f "$APK_PATH" ] || die "APK not found at $APK_PATH (build job artifact missing?)"
-[ -f "model.gguf" ] || die "model.gguf not found in cwd (download step missing?)"
+if [ "$BENCH_TARGET" = "emulator" ]; then
+  [ -f "model.gguf" ] || die "model.gguf not found in cwd (download step missing?)"
+fi
 
 install_and_sideload "$APK_PATH" "model.gguf" "$MODEL_DIR" "$MODEL_FILE"
 
@@ -178,9 +181,21 @@ install_and_sideload "$APK_PATH" "model.gguf" "$MODEL_DIR" "$MODEL_FILE"
 # ModelDownloader isFileComplete is size-exact (ModelDownloader.ts:67-68).
 # Sideloading only the main GGUF made every turn reply "Modello non ancora
 # scaricato" while both smoke arms stayed green (CI run 31420693167).
-# Skip silently when MMPROJ_FILE unset (2B has no mmproj — leave alone).
-# Push after install_and_sideload (same idioms) rather than changing ci-lib.sh.
-if [ -n "${MMPROJ_FILE:-}" ] && [ -f mmproj.gguf ]; then
+# The 4B bundle also requires an mmproj. On a phone both files must have been
+# downloaded in-app; only the emulator path may use the host-side push below.
+if [ "$BENCH_TARGET" = "device" ]; then
+  if [ -n "${MMPROJ_FILE:-}" ]; then
+    _mmproj_ls=$(adb shell "run-as $PKG ls -la files/models/$MODEL_DIR/$MMPROJ_FILE" 2>/dev/null | tr -d '\r') \
+      || die "model component $MMPROJ_FILE is not downloaded; open the app and download $MMPROJ_FILE once"
+    _mmproj_size=$(printf '%s\n' "$_mmproj_ls" | awk 'NF >= 5 {print $5; exit}')
+    case "$_mmproj_size" in
+      ''|*[!0-9]*) die "model component $MMPROJ_FILE is not plausibly sized; open the app and download $MMPROJ_FILE once" ;;
+    esac
+    [ "$_mmproj_size" -ge 1048576 ] \
+      || die "model component $MMPROJ_FILE is not plausibly sized ($_mmproj_size bytes); open the app and download $MMPROJ_FILE once"
+    log "model component present through run-as: $_mmproj_ls"
+  fi
+elif [ -n "${MMPROJ_FILE:-}" ] && [ -f mmproj.gguf ]; then
   log "sideload mmproj $MMPROJ_FILE"
   adb push mmproj.gguf /data/local/tmp/mmproj.gguf 2>&1 | tail -1
   adb shell "cp /data/local/tmp/mmproj.gguf /data/data/$PKG/files/models/$MODEL_DIR/$MMPROJ_FILE"
@@ -213,49 +228,49 @@ compaction_pref_raw_for() {
 set_prefs() {
   local compaction_val
   compaction_val=$(compaction_pref_raw_for "$COMPACTION")
-  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR');"
-  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.context.compaction','$compaction_val');"
-  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.thinking','$THINKING');"
-  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.format','$BLOCK_FORMAT');"
-  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.toolchoice','$TOOLCHOICE');"
-  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.toolgate','$TOOLGATE');"
+  sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR');" "kalsa.model.id" "$MODEL_DIR"
+  sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.context.compaction','$compaction_val');" "kalsa.context.compaction" "$compaction_val"
+  sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.thinking','$THINKING');" "kalsa.bench.thinking" "$THINKING"
+  sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.format','$BLOCK_FORMAT');" "kalsa.bench.format" "$BLOCK_FORMAT"
+  sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.toolchoice','$TOOLCHOICE');" "kalsa.bench.toolchoice" "$TOOLCHOICE"
+  sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.toolgate','$TOOLGATE');" "kalsa.bench.toolgate" "$TOOLGATE"
   # NCTX override. Empty must DELETE the key, not merely skip the write: an
   # arm that inherits a previous arm's pref would run at that n_ctx while the
   # report claims catalog — the exact silent-wrong-regime this axis exists to
   # prevent. Inert on today's fresh-per-job emulator, live the moment an AVD
   # is reused. Both branches are asserted below.
   if [ -n "$NCTX" ]; then
-    sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.nctx','$NCTX');"
+    sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.nctx','$NCTX');" "kalsa.bench.nctx" "$NCTX"
   else
-    sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.nctx';"
+    sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.nctx';" "kalsa.bench.nctx" "__ABSENT__"
   fi
   # WINBUDGET: the knob that actually controls how often the compactor runs —
   # shouldRebuild fires on this char budget and on the K-turn cadence, never on
   # n_ctx. Same delete-when-empty rule, same both-branch assert.
   if [ -n "$WINBUDGET" ]; then
-    sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.winbudget','$WINBUDGET');"
+    sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.winbudget','$WINBUDGET');" "kalsa.bench.winbudget" "$WINBUDGET"
   else
-    sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.winbudget';"
+    sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.winbudget';" "kalsa.bench.winbudget" "__ABSENT__"
   fi
   # LEGACYWINDOW: the knob that decides what falls out of context on BOTH arms
   # of the primary comparison (ciswire vs off). Same delete-when-empty rule,
   # same both-branch assert.
   if [ -n "$LEGACYWINDOW" ]; then
-    sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.legacywindow','$LEGACYWINDOW');"
+    sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.legacywindow','$LEGACYWINDOW');" "kalsa.bench.legacywindow" "$LEGACYWINDOW"
   else
-    sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.legacywindow';"
+    sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.legacywindow';" "kalsa.bench.legacywindow" "__ABSENT__"
   fi
   # RANKING: the knob that decides digest retrieval ranking mode.
   # Same delete-when-empty rule, same both-branch assert.
   if [ -n "$RANKING" ]; then
-    sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.ranking','$RANKING');"
+    sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.ranking','$RANKING');" "kalsa.bench.ranking" "$RANKING"
   else
-    sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.ranking';"
+    sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.ranking';" "kalsa.bench.ranking" "__ABSENT__"
   fi
   # Opt-in memory subsystem: MEMORY env controls kalsa.memory.enabled (0=off, 1=on, default 0).
   # With a short legacy window (kalsa.bench.legacywindow), planted facts fall out of verbatim
   # context, so memory becomes the only retrieval path — not a confounder. Both-branch assert below.
-  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.memory.enabled','$MEMORY');"
+  sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.memory.enabled','$MEMORY');" "kalsa.memory.enabled" "$MEMORY"
   # Locale MUST be "it" on every phase/arm. Bench prompts and probes are Italian.
   # DEFAULT_LOCALE in src/i18n/index.ts is "en"; without this seed both arms run
   # English. The operative block's language rule (en.ts operativeBlock.language)
@@ -265,7 +280,7 @@ set_prefs() {
   # CI run 31379031892 scored language 6/6 baseline vs 2/5 v42 because v42 was
   # told in English to answer in English while probes asked in Italian.
   # LOCALE_KEY is exactly "kalsa.locale"; "it" is a valid Locale (src/i18n/index.ts).
-  sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.locale','it');"
+  sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.locale','it');" "kalsa.locale" "it"
   sql "SELECT key,substr(value,1,40) FROM catalystLocalStorage;" | tee "$OUT/prefs.txt"
 }
 set_prefs
@@ -328,12 +343,12 @@ MEMORY_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.m
 adb logcat -c
 
 reset_chat() {
-  sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.messages.v1';"
-  sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.chat.compactor.default';"
-  sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.chat.summary.default';"
+  sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" "kalsa.messages.v1" "__ABSENT__"
+  sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.chat.compactor.default';" "kalsa.chat.compactor.default" "__ABSENT__"
+  sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.chat.summary.default';" "kalsa.chat.summary.default" "__ABSENT__"
   # Memory facts key — facts extracted in one arm must not persist into the next.
   # The enabled key is set at script start and should persist within an arm.
-  sql "DELETE FROM catalystLocalStorage WHERE key='kalsa.memory.facts';"
+  sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.memory.facts';" "kalsa.memory.facts" "__ABSENT__"
 }
 
 launch_app() {
@@ -563,8 +578,8 @@ dismiss_foreign_dialog() {
 # Dump the FULL kalsa.messages.v1 value to $1. The value is a single JSON line
 # (JSON escapes newlines), so no multiline handling is needed. Missing key → empty file.
 snapshot_history() {
-  adb shell "sqlite3 -noheader $DB \"SELECT value FROM catalystLocalStorage WHERE key='kalsa.messages.v1';\"" 2>/dev/null \
-    | tr -d '\r' > "$1" || : > "$1"
+  sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" \
+    > "$1" || : > "$1"
 }
 
 # history_count <file>  → prints the number of assistant messages (0 on any error)
@@ -914,8 +929,8 @@ capture_turn_evidence() {
   # measured tokens (run 31379031892 turn 15: v42 larger than baseline).
   # Empty file when the key is absent — baseline reset_chat deletes it at
   # arm start, so anything here came from this run. Never fail a turn over it.
-  adb shell "sqlite3 -noheader $DB \"SELECT value FROM catalystLocalStorage WHERE key='kalsa.chat.compactor.default';\"" 2>/dev/null \
-    | tr -d '\r' > "$tdir/compactor_state.json" 2>/dev/null \
+  sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.chat.compactor.default';" \
+    > "$tdir/compactor_state.json" 2>/dev/null \
     || : > "$tdir/compactor_state.json"
 
   # Clear only after a successful dump. A failed dump must leave the ring
