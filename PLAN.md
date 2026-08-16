@@ -66,7 +66,17 @@
 > opposta, α=0.038 all-token a k=2): il nostro α_s1 = 1.000 e il macro
 > 0.643 stanno **oltre un ordine di grandezza sopra**. `alpha_alltok(G=8)
 > = 0.000` è atteso (richiede 8/8 token corretti di fila). Il verdetto
-> ufficiale resta ad A1 G=4 (in corsa da 01:54).**
+> ufficiale resta ad A1 G=4 (in corsa da 01:54).
+> **F5 SPEC SCRITTA (docs/f5-stateless-loop-spec.md) — e rileggendo F1 è
+> saltato fuori che il premio grosso non è la velocità ma la RAM: il
+> loop F1 deve chiedere `n_rs_seq = draft_max` snapshot ricorrenti sul
+> contesto draft = **314 MiB a γ=4 su questo 35B**. Col congelamento il
+> draft non scrive MAI stato ricorrente e il rollback è solo-attention →
+> `n_rs_seq = 0`, quei 314 MiB non vengono allocati e γ diventa gratis
+> in memoria. Su un telefono da 8 GB è un fatto di prodotto anche se la
+> velocità non paga. ATTENZIONE ONESTÀ: gli α di E4 sono teacher-forced
+> (classe F0 0.6991); il loop vero F1 è crollato a 0.117 — l'α di loop
+> lo dà solo F5, non si cita 0.643 come numero di loop.**
 > **DROPCURVE VERDETTO (notte 15-16/08): DROPCURVE_OPTIMUM(dstar=0.5,
 > dMacro=−0.0150). IL CLAIM VIVE: potare gli esperti freddi MIGLIORA
 > la PPL multilingue — minimo reale a d=0.5 (−0.0015 sotto k6d0,
