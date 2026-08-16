@@ -782,12 +782,16 @@ the app's own log, once per turn:
     ReactNativeJS: 'model.unload', '{"reason":"background"}'
     KALSA_SESSION {"op":"init"} → {"op":"load"} → Input processed: n_past=0
 
-**The engine is disposed and rebuilt between turns.** There is no KV to reuse because the context
-is new each time, which is why a 4156-token prompt is re-processed from scratch for 394 s. The
-trigger is an AppState transition to `background` (`AppShell.tsx:2545-2555`), and the logcat at
-that exact second is loading Samsung and Google TTS resources — a correlation, not yet a proven
-cause. **Next experiment, cheap and decisive**: log `topResumedActivity` every few seconds across
-two turns and name what pauses the activity.
+**The engine is disposed and rebuilt between turns** — `model.unload {"reason":"background"}`,
+triggered by an AppState transition to `background` (`AppShell.tsx:2545-2555`); the logcat at that
+second is loading Samsung and Google TTS resources, a correlation never proven into a cause.
+
+⚠️ **Superseded as the explanation of the 394 s — see §7.5.** The dispose is real, but session
+save/restore exists precisely to bridge it, and it does: the device logs `resumable=1` and
+`{"op":"load","ok":true,"tokens":1736}`. The KV survives the rebuild and is *then* ignored,
+because the prompt is rebuilt with the memory block at position 0. Fixing the dispose would not
+have recovered a single second. Keep this paragraph as the record of a plausible cause that the
+measurement removed.
 
 Two consequences, and the second is bigger than the benchmark:
 
@@ -841,7 +845,7 @@ a single discharge holds ~2.3 h — **a 3 h arm does not fit one charge**. Eithe
 or the campaign runs plugged and declares the thermal confound, or §7.1 gets fixed and every turn
 becomes cheap enough that the question disappears.
 
-### 7.5 The KV chain, followed to the bottom: the engine loads the session and then throws it away
+### 7.5 The KV chain, followed to the bottom: we invalidate our own cache, every turn, on purpose
 
 §7.1 said the engine was disposed between turns and no KV survived. Following that produced three
 fixes and one root cause, in this order:
@@ -854,39 +858,107 @@ fixes and one root cause, in this order:
    while `history_count` read a key that no longer existed. Fixed (`2d1ad72`).
 3. **The prefill still did not drop**: `reused=0`, turn after turn, with the session restored.
 
-The bottom of the chain is in the vendored engine, `node_modules/llama.rn/cpp/jsi/JSISession.h`:
+**The engine hypothesis was wrong, and the patch is what refuted it.** The suspicion was that
+`JSISession.h` wiped the restored KV because its resumability check (`pos_max + 1 == n_tokens`,
+with a tolerance branch only for M-RoPE media) could not hold for a hybrid GDN+attention model —
+the sibling repo's H5 in `moe-kv-reuse-diagnosis.md`. A three-line native patch (`4e64b97`,
+`8d35a18`, shipped in APK 7 / `6f2946d`) printed the two numbers, and they say the opposite:
 
-```cpp
-bool resumable = pos_max + 1 == n_tokens ||
-                 (mrope_media && pos_max >= 0 && pos_max + 1 < n_tokens);
-…
-if (!resumable) {
-    llama_memory_seq_rm(kv, 0, 0, -1);
-    embd.clear();                    // the restored tokens are discarded
-}
+```
+KALSA_KVRESUME n_tokens=1736 pos_max=1735 mrope_media=0 is_recurrent=0 is_hybrid=1 n_swa=0 resumable=1
+{"op":"load","ms":45,"ok":true,"tokens":1736}
+Input processed: n_past=0, embd.size=1772
 ```
 
-The session file loads — hence `ok:true` — and then a resumability check compares the restored
-memory's furthest position against the token count. When it disagrees, the KV is wiped and the
-token list cleared, so the next prompt starts from an empty cache: `n_past=0`, full re-prefill,
-and even the `KALSA_KVDIAG0` diagnostic cannot fire because it requires a non-empty cache. The
-empty `kvdiag.txt` was the symptom, not a capture failure.
+`resumable=1`. The cache is loaded, judged valid, and **kept**. The engine is not the culprit and
+was never the culprit; the re-prefill happens with a healthy cache sitting right there.
 
-Why it disagrees here matches the sibling repo's H5 (`moe-kv-reuse-diagnosis.md`): Qwen3.5-4B is
-**hybrid (GDN + attention) and M-RoPE**, the tolerance branch applies only when media placeholders
-are present (our conversations are text-only), and for recurrent/hybrid memories the position
-frontier need not equal the token count.
+**Nor is the cause the memory block's position, which was the next wrong guess.** The prefix is
+mostly intact — the same patch printed it:
 
-**One number closes it**: `pos_max` against `n_tokens` at that decision, which the code does not
-log. A three-line native patch prints them — this repo already patches llama.rn
-(`patches/llama.rn+0.12.8.patch`), so it is the house road. With those two values the choice is
-between reconciling the check for hybrids (as is already done for media) and accepting an engine
-limit.
+```
+KALSA_KVPREFIX embd=1712 text_tokens=1748 n_common=1646
+KALSA_KVDIAG   n_common=1646 total=1748 search_max=1646 checkpoints=[1712,]
+no usable state checkpoint (recurrent/hybrid/SWA model), doing full cache clear
+Input processed: n_past=0, embd.size=1748
+```
 
-Note the layering, because it is the lesson: the guard fix was *necessary and insufficient*, and
-each layer was invisible until the one above it was removed. Reuse does work — turn 3 shows
-`reused=1984 total=2707` on a second round **within** a turn, where nothing is re-rendered and
-nothing is reloaded.
+**1646 of 1748 tokens are shared — 94 %.** The prompt is stable almost to its end; the divergence
+sits in the last ~100 positions. So a memory block at position 0 is not what is being paid for
+here (it remains a latent defect — see below — but it is not the 390 s).
+
+**The cause is a hybrid model meeting a prompt that is not append-only**, and the engine says so in
+its own words (`rn-completion.cpp:500-503`):
+
+```cpp
+LOG_WARNING("no usable state checkpoint (recurrent/hybrid/SWA model), doing full cache clear");
+llama_memory_clear(kv, false);
+n_past = 0;
+```
+
+Qwen3.5-4B is hybrid (GDN + attention; our own `is_hybrid=1`). A recurrent state **cannot be
+rolled back**: reusing a prefix of 1646 would mean dropping cells beyond that point, an operation
+that does not exist for this memory type. The only escape is a state checkpoint at exactly the
+needed position. One checkpoint exists — at **1712**. The position needed is **1646**.
+
+**The whole prefix is discarded because the checkpoint is 66 tokens too far forward.** 1646 tokens
+re-prefilled to avoid being 66 short.
+
+This finally explains the datum that never fitted: `reused=1984` on a second round *within* a
+turn. There the prompt only grows — no cached position is rewritten, so no rollback is needed and
+reuse works. Between turns, something in the last ~66 tokens of the previous prompt is re-rendered
+differently.
+
+**The operative rule for this model: the prompt must be append-only.** Nothing already in the
+cache may ever change. Satisfy that and `n_common` becomes 1712, the 1712 checkpoint matches
+exactly, and a turn costs only its new tokens.
+
+Prime suspect for those 66 tokens — **stated as a hypothesis, not a finding**: the Qwen3.5 chat
+template retroactively strips `<think>` blocks from earlier assistant turns (the sibling repo's
+`preserve_thinking` fix, which does not exist in this template). A `KALSA_KVDIVERGE` diagnostic
+printing the tokens on both sides of the divergence is queued to settle it by measurement.
+
+**The latent defects found on the way** (real, worth fixing, but not the 390 s):
+
+1. `src/engine/LlamaService.ts:271-288` — `buildSystemPrompt` appends the retrieved-memory block
+   to the **system prompt**, i.e. position 0 of the prompt:
+   `prompt += "\n\n" + strings.memory.promptSection.replace("{facts}", factBlock)`.
+2. `src/engine/LlamaService.ts:1704-1712` — that system message is built first, then history. So
+   when the retrieval layer returns a different fact set — which is its entire job, every turn —
+   the prompt diverges at its first tokens and **everything after it must be re-prefilled**.
+3. `src/engine/sessionPersistence.ts:241-253` — `computePromptEnvHash(locale, memoryFacts)` hashes
+   the joined facts, so a changed fact set makes the saved session be *rejected* on restore. By
+   design.
+
+These do not cost the 390 s today — the smoke arm above diverges at 94 %, not at position 0 — but
+they are loaded guns under the append-only rule: the day retrieval returns a different fact set,
+the divergence point jumps to the top of the prompt and the same full clear fires, only worse.
+
+The same reading found a latent defect next to it: `computePromptEnvHash` hardcodes
+`hasTools: true` while `buildSystemPrompt` really switches between `systemPrompt` and
+`systemPromptWithSearch`. A session saved with tools and restored without passes the check with a
+demonstrably different system prompt.
+
+Moving the block to the tail is therefore still the right change — it removes the loaded gun and
+fixes the `hasTools` defect — but it must be judged as hardening, **not** as the prefill fix. Its
+declared risk stands: tail-position memory changes model behaviour, recency usually helps recall
+but that is a bet, and the baseline to beat exists (§7, 16 turns, `fact_recall_early` 8/8 and
+`fact_recall_late` 8/8). Re-run that exact arm and compare.
+
+**Note the layering — it is the real lesson of this section.** Four causes were proposed and three
+were wrong, each one plausible and each one removed only by an instrument that printed a number:
+
+| proposed cause | verdict | what killed it |
+|---|---|---|
+| restore guard always refuses | **true, fixed** (`1afe789`) | `ok:false → ok:true` in the device log |
+| engine disposed between turns leaves no KV | refuted | `resumable=1`, cache kept across the rebuild |
+| engine wipes the restored KV (hybrid resumability check) | refuted | the native patch printed `resumable=1` |
+| memory block at position 0 destroys the prefix | refuted as the cost | `n_common=1646/1748` — 94 % shared |
+| hybrid KV cannot roll back to the divergence point | **standing** | the engine's own `full cache clear` line |
+
+Each layer was invisible until the one above it was removed, and each wrong guess was cheap only
+because it was written down before being tested. The standing cause is itself one measurement from
+being complete: which 66 tokens change.
 
 ### 7.6 Thermal drift runs inside the arm, and now the arm waits
 
