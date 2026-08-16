@@ -141,6 +141,48 @@ else
   fail=$((fail + 1))
 fi
 
+# ── Device wakefulness decision (wakefulness_is_fatal) ──────────────
+# Pure logic: given a mWakefulness token, decide whether the arm must die.
+# Awake/""/unknown → continue; Dozing/Asleep/Dreaming → die. This is the check
+# that would have saved the S23 arm (die early on a dozing device instead of
+# burning the 40-min reply timeout). A guard nobody has seen fire is not a guard.
+
+# _wf_expect <token> <expect_fatal:0|1> <label>
+_wf_expect() {
+  local token="$1" expect="$2" label="$3" rc
+  wakefulness_is_fatal "$token"; rc=$?
+  if [ "$expect" -eq 1 ]; then
+    if [ "$rc" -eq 0 ]; then
+      echo "PASS: $label — wakefulness='$token' is fatal (arm dies)"
+      pass=$((pass + 1))
+    else
+      echo "FAIL: $label — wakefulness='$token' expected fatal but continued"
+      fail=$((fail + 1))
+    fi
+  else
+    if [ "$rc" -ne 0 ]; then
+      echo "PASS: $label — wakefulness='$token' continues (arm continues)"
+      pass=$((pass + 1))
+    else
+      echo "FAIL: $label — wakefulness='$token' expected continue but died"
+      fail=$((fail + 1))
+    fi
+  fi
+}
+
+# Awake → continue (not fatal)
+_wf_expect "Awake" 0 "wakefulness Awake"
+# Dozing → die
+_wf_expect "Dozing" 1 "wakefulness Dozing"
+# Asleep → die
+_wf_expect "Asleep" 1 "wakefulness Asleep"
+# Dreaming → die
+_wf_expect "Dreaming" 1 "wakefulness Dreaming"
+# empty → continue (probe did not answer — never fail an arm on that)
+_wf_expect "" 0 "wakefulness empty"
+# unknown → continue (never fail on a probe that did not answer)
+_wf_expect "Partial" 0 "wakefulness unknown"
+
 rm -rf "$OUT"
 echo ""
 echo "=== $pass passed, $fail failed ==="

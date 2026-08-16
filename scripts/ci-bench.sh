@@ -847,6 +847,20 @@ send_and_wait() {
       log "reply after ${SAW_ELAPSED}s (len=${#SAW_REPLY} sources=$SAW_SOURCES miniapp=$SAW_MINIAPP): ${SAW_REPLY:0:200}"
       return 0
     fi
+
+    # Device-mode only: if the device has dozed/asleep between polls it can
+    # never reply — die NOW with the real cause instead of burning the full
+    # reply timeout (Galaxy S23 arm: 40 min wasted waiting on a sleeping device).
+    # Checked at most every ~30s (poll_interval=15, waited is a multiple of 15)
+    # so the poll stays cheap — no adb on every iteration.
+    if [ "$BENCH_TARGET" = "device" ] && [ "$(( waited % 30 ))" -eq 0 ]; then
+      _wf=$(adb shell "dumpsys power 2>/dev/null | grep -m1 'mWakefulness='" 2>/dev/null \
+              | sed 's/.*mWakefulness=//' | awk '{print $1}' | tr -d '\r' || true)
+      if wakefulness_is_fatal "$_wf"; then
+        die "device is dozing/asleep — cannot generate; keep-awake failed (mWakefulness=$_wf)"
+      fi
+    fi
+
     log "waiting… ${waited}s / ${timeout_s}s"
   done
   log "TIMEOUT waiting for reply to: $msg"

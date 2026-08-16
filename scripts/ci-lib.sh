@@ -12,6 +12,10 @@ set -uo pipefail
 PKG="${PKG:-com.kalsa.app}"
 DB="/data/data/$PKG/databases/RKStorage"
 BENCH_TARGET="${BENCH_TARGET:-emulator}"
+# Keep-awake ceiling applied to system screen_off_timeout on a device arm (ms).
+# 24h covers the full length of any single arm; it is always saved+restored
+# on exit, so a dev phone is never left with a long timeout.
+KA_SCREEN_TIMEOUT_MS=86400000
 
 log() { echo "[ci] $*"; }
 dump_ui() { adb shell uiautomator dump /data/local/tmp/ui.xml >/dev/null 2>&1; adb shell cat /data/local/tmp/ui.xml 2>/dev/null; }
@@ -394,6 +398,115 @@ print(best)
   return 0
 }
 
+# ── Device keep-awake (unplugged measurement discipline) ──────────────
+# A real arm runs UNPLUGGED (as the measurement discipline requires). On USB the
+# old `svc power stayon usb` held the display, but unplugged the device hits
+# screen_off_timeout, then Doze, and a Galaxy S23 mid-arm went
+# mWakefulness=Dozing — the app stopped generating and the harness wasted its
+# full 40-min reply timeout waiting for a turn that could never arrive (turn 2
+# of a 4B fase4 arm).
+#
+# This applies THREE things, ONLY when BENCH_TARGET=device (the emulator path is
+# untouched), and SAVES+RESTORES every mutated value through an EXIT trap so a
+# dev phone is never left with a 24h screen timeout or a permanent Doze exemption.
+#
+#   KA_SCREEN_TIMEOUT_MS  screen_off_timeout raised so the display cannot sleep
+#                         for the length of one arm (restored to the saved value).
+#   deviceidle whitelist  $PKG exempted from Doze/app-standby for the run
+#                         (removed on exit UNLESS it was already whitelisted).
+#   KEYCODE_WAKEUP       display woken once so the arm never starts dozing.
+
+# wakefulness_is_fatal <wakefulness-token>
+#   Pure decision (no adb): given the mWakefulness token from `dumpsys power`
+#   (e.g. "Awake", "Dozing", "Asleep", "Dreaming", or "" when the probe did not
+#   answer), return 0 (fatal → arm must die NOW) or 1 (continue).
+#     Awake      → continue (1)
+#     Dozing     → die      (0)   device is idle/dozing, cannot generate
+#     Asleep     → die      (0)
+#     Dreaming   → die      (0)   screensaver / dream state, app not active
+#     ""/unknown → continue (1)   never fail an arm on a probe that did not answer
+# Covered by scripts/test_sideload_guards.sh.
+wakefulness_is_fatal() {
+  case "${1:-}" in
+    Dozing|Asleep|Dreaming) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Report whether $PKG is already in the deviceidle whitelist. Output: "1" if
+# present, "0" if absent (any read failure → "0", best-effort).
+_device_whitelist_has_pkg() {
+  local wl
+  wl=$(adb shell "dumpsys deviceidle whitelist" 2>/dev/null | tr -d '\r' || true)
+  case "$wl" in
+    *",$PKG,"*) echo 1 ;;
+    *) echo 0 ;;
+  esac
+}
+
+# Install the keep-awake settings and register the restore trap. Idempotent:
+# calling it twice (or on emulator) is a no-op beyond the first successful setup.
+device_keepawake_setup() {
+  [ "$BENCH_TARGET" = "device" ] || return 0
+  [ "${_KA_SETUP_DONE:-0}" = "1" ] && return 0
+
+  # 1) screen_off_timeout — save current, then raise to KA_SCREEN_TIMEOUT_MS.
+  _KA_SCREEN_TIMEOUT_SAVED=$(adb shell "settings get system screen_off_timeout" 2>/dev/null | tr -d '\r' || true)
+  log "keep-awake: saved screen_off_timeout=${_KA_SCREEN_TIMEOUT_SAVED:-<empty>}"
+  if adb shell "settings put system screen_off_timeout $KA_SCREEN_TIMEOUT_MS" >/dev/null 2>&1; then
+    log "keep-awake: set screen_off_timeout=$KA_SCREEN_TIMEOUT_MS (restored on exit)"
+  else
+    log "keep-awake: WARNING could not set screen_off_timeout (continuing best-effort)"
+  fi
+
+  # 2) deviceidle whitelist — remember whether WE add it so restore only removes
+  #    what we added (never drop a whitelist entry the device already had).
+  _KA_WL_WAS_WHITELISTED=$(_device_whitelist_has_pkg)
+  if adb shell "dumpsys deviceidle whitelist +$PKG" >/dev/null 2>&1; then
+    log "keep-awake: added $PKG to deviceidle whitelist (was_whitelisted=$_KA_WL_WAS_WHITELISTED)"
+  else
+    log "keep-awake: WARNING 'dumpsys deviceidle whitelist +$PKG' failed/unavailable on this build (Doze exemption skipped; timeout still applies)"
+  fi
+
+  # 3) Wake the display once so the arm never begins against a dozing device.
+  adb shell "input keyevent KEYCODE_WAKEUP" >/dev/null 2>&1 || true
+  log "keep-awake: sent KEYCODE_WAKEUP"
+
+  _KA_SETUP_DONE=1
+  # Restore on success, failure (die), and interrupt (the EXIT trap also fires
+  # on signal-induced exit). Idempotent + no-op when never set up.
+  trap device_keepawake_restore EXIT
+}
+
+# Inverse of setup. Called by the EXIT trap; safe to call repeatedly.
+device_keepawake_restore() {
+  [ "${_KA_SETUP_DONE:-0}" = "1" ] || return 0
+  _KA_SETUP_DONE=0
+
+  # 1) Restore screen_off_timeout to its pre-run value (auditable both ways).
+  case "${_KA_SCREEN_TIMEOUT_SAVED:-}" in
+    ''|null) log "keep-awake: WARNING no saved screen_off_timeout to restore (left $KA_SCREEN_TIMEOUT_MS); check the device" ;;
+    *)
+      if adb shell "settings put system screen_off_timeout ${_KA_SCREEN_TIMEOUT_SAVED}" >/dev/null 2>&1; then
+        log "keep-awake: restored screen_off_timeout=${_KA_SCREEN_TIMEOUT_SAVED} (was $KA_SCREEN_TIMEOUT_MS)"
+      else
+        log "keep-awake: WARNING failed to restore screen_off_timeout (saved=${_KA_SCREEN_TIMEOUT_SAVED}); left $KA_SCREEN_TIMEOUT_MS"
+      fi
+      ;;
+  esac
+
+  # 2) Remove from Doze whitelist only if WE added it.
+  if [ "${_KA_WL_WAS_WHITELISTED:-0}" = "0" ]; then
+    if adb shell "dumpsys deviceidle whitelist -$PKG" >/dev/null 2>&1; then
+      log "keep-awake: removed $PKG from deviceidle whitelist"
+    else
+      log "keep-awake: WARNING failed to remove $PKG from deviceidle whitelist"
+    fi
+  else
+    log "keep-awake: left $PKG in deviceidle whitelist (was already whitelisted before run)"
+  fi
+}
+
 # Installs the APK and, on the emulator, sideloads the GGUF into
 # files/models/<model_dir>/<model_file>. On a device, the model must already
 # have been downloaded by the app.
@@ -406,6 +519,9 @@ install_and_sideload() {
 
   adb wait-for-device
   adb shell settings put global hide_error_dialogs 1 || true
+  if [ "$BENCH_TARGET" = "device" ]; then
+    device_keepawake_setup
+  fi
   if [ "$BENCH_TARGET" = "emulator" ]; then
     adb root >/dev/null 2>&1 || true; sleep 5; adb wait-for-device
   fi
