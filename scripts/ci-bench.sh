@@ -743,6 +743,11 @@ send_and_wait() {
   local msg="$1"
   local timeout_s="${2:-1500}"
 
+  # Device-mode only: pause if the phone is thermally throttled (SEVERE / hot
+  # battery) so reply times stay comparable. Emulator path is untouched.
+  # Sets THERMAL_STATUS_AT_TURN / THERMAL_BATTERY_DECI_AT_TURN for evidence.
+  device_thermal_gate
+
   snapshot_history "$OUT/.hist_prev.json"
   local prev_count
   prev_count=$(history_count "$OUT/.hist_prev.json")
@@ -1053,6 +1058,14 @@ capture_turn_evidence() {
       || true
     kvdiag_meta_lines "$tdir/kvdiag.txt"
   } > "$tdir/prompt_meta.txt" 2>/dev/null || : > "$tdir/prompt_meta.txt"
+
+  # Thermal state at turn start (device gate; empty/unknown on emulator or mute
+  # probe). Same key=value glance style as prompt_meta — a campaign can mark
+  # which turns ran warm without re-deriving from wall-clock drift.
+  {
+    printf 'thermal_status=%s\n' "${THERMAL_STATUS_AT_TURN:-}"
+    printf 'battery_deci_c=%s\n' "${THERMAL_BATTERY_DECI_AT_TURN:-}"
+  } > "$tdir/thermal.txt" 2>/dev/null || : > "$tdir/thermal.txt"
 
   # WHY per-turn (not end-of-arm only): the only direct evidence of whether
   # boundaryIndex ever advanced and how much retrieved text (frozenDigest)

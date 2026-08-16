@@ -183,6 +183,80 @@ _wf_expect "" 0 "wakefulness empty"
 # unknown → continue (never fail on a probe that did not answer)
 _wf_expect "Partial" 0 "wakefulness unknown"
 
+# ── Device thermal decision (thermal_decision) ──────────────────────
+# Pure: (status, battery_deci_c) → continue | pause | unknown.
+# Pause at SEVERE/44°C (S23 arm: 44.1°C + status 3 while turns doubled);
+# unreadable → unknown (gate never acts — same rule as wakefulness).
+
+# _th_expect <status> <battery_deci> <expect_decision> <label>
+_th_expect() {
+  local status="$1" batt="$2" expect="$3" label="$4" got
+  got=$(thermal_decision "$status" "$batt")
+  if [ "$got" = "$expect" ]; then
+    echo "PASS: $label — decision='$got'"
+    pass=$((pass + 1))
+  else
+    echo "FAIL: $label — expected '$expect' got '$got' (status='$status' batt='$batt')"
+    fail=$((fail + 1))
+  fi
+}
+
+# status 0 + 25.0°C → continue
+_th_expect "0" "250" "continue" "thermal status 0 / 25°C → continue"
+# status 3 (SEVERE) → pause (battery irrelevant once SEVERE)
+_th_expect "3" "250" "pause" "thermal status 3 (SEVERE) → pause"
+# battery 44.0°C with status 1 → pause
+_th_expect "1" "440" "pause" "thermal battery 44.0°C status 1 → pause"
+# status 1 + 38.0°C after a pause → resume (= continue)
+_th_expect "1" "380" "continue" "thermal status 1 / 38°C after pause → resume"
+# unreadable probe → unknown (gate continues; never act on mute probe)
+_th_expect "" "" "unknown" "thermal empty probe → unknown (continue)"
+_th_expect "N/A" "N/A" "unknown" "thermal N/A probe → unknown (continue)"
+
+# cool-enough helper (wait-loop exit): status 1 + 38°C resumes; status 2 stays hot
+if thermal_is_cool_enough "1" "380"; then
+  echo "PASS: thermal_is_cool_enough status 1 / 38°C → yes (resume)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: thermal_is_cool_enough status 1 / 38°C expected yes"
+  fail=$((fail + 1))
+fi
+if ! thermal_is_cool_enough "2" "380"; then
+  echo "PASS: thermal_is_cool_enough status 2 / 38°C → no (keep waiting)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: thermal_is_cool_enough status 2 / 38°C expected no"
+  fail=$((fail + 1))
+fi
+if ! thermal_is_cool_enough "" "380"; then
+  echo "PASS: thermal_is_cool_enough unreadable → no (never act)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: thermal_is_cool_enough unreadable expected no"
+  fail=$((fail + 1))
+fi
+
+# ci-bench must call the gate before each turn and record thermal evidence
+if grep -qF 'device_thermal_gate' "$(dirname "$0")/ci-bench.sh" \
+  && grep -qF 'thermal.txt' "$(dirname "$0")/ci-bench.sh"; then
+  echo "PASS: ci-bench.sh wires device_thermal_gate + thermal.txt evidence"
+  pass=$((pass + 1))
+else
+  echo "FAIL: ci-bench.sh missing device_thermal_gate / thermal.txt wire-up"
+  fail=$((fail + 1))
+fi
+
+# thresholds must cite the S23 measurement (44.1°C / status 3)
+if grep -qF 'THERMAL_STATUS_PAUSE=3' "$(dirname "$0")/ci-lib.sh" \
+  && grep -qF 'THERMAL_BATTERY_PAUSE_DECI=440' "$(dirname "$0")/ci-lib.sh" \
+  && grep -qF '44.1' "$(dirname "$0")/ci-lib.sh"; then
+  echo "PASS: thermal thresholds documented with S23 44.1°C / status 3 evidence"
+  pass=$((pass + 1))
+else
+  echo "FAIL: thermal thresholds missing or undocumented in ci-lib.sh"
+  fail=$((fail + 1))
+fi
+
 # ── Deviceidle whitelist matcher (_device_whitelist_match) ───────────
 # dumpsys deviceidle whitelist prints section headers and one package per
 # indented line — no commas. Exact trimmed-line match against $PKG; a name

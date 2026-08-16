@@ -17,6 +17,21 @@ BENCH_TARGET="${BENCH_TARGET:-emulator}"
 # on exit, so a dev phone is never left with a long timeout.
 KA_SCREEN_TIMEOUT_MS=86400000
 
+# ── Device thermal gate (unplugged measurement discipline) ───────────
+# Measured on an unplugged S23 16-turn arm: battery 44.1 °C and
+# dumpsys thermalservice → Thermal Status: 3 (SEVERE) while reply times
+# roughly doubled vs a cool phone (turn 7: 505 s vs 237 s). Numbers that
+# drift with temperature cannot be compared — including with earlier turns
+# of the same arm. Pause above the hot ceiling; resume below the cool floor.
+# Android thermal status: 0=NONE … 3=SEVERE … 6=SHUTDOWN.
+# Battery temperature from dumpsys battery is tenths of a degree Celsius.
+THERMAL_STATUS_PAUSE=3            # SEVERE and above → pause before the turn
+THERMAL_STATUS_RESUME=1           # LIGHT or cooler → cool enough to resume
+THERMAL_BATTERY_PAUSE_DECI=440    # 44.0 °C
+THERMAL_BATTERY_RESUME_DECI=390   # 39.0 °C
+THERMAL_POLL_S=30
+THERMAL_WAIT_CAP_S=1200           # 20 min; then die naming the thermal state
+
 log() { echo "[ci] $*"; }
 dump_ui() { adb shell uiautomator dump /data/local/tmp/ui.xml >/dev/null 2>&1; adb shell cat /data/local/tmp/ui.xml 2>/dev/null; }
 ui_texts() { dump_ui | grep -o 'text="[^"]\{1,200\}"' | sed 's/^text="//; s/"$//'; }
@@ -744,6 +759,140 @@ device_keepawake_restore() {
   else
     log "keep-awake: left $PKG in deviceidle whitelist (was already whitelisted before run)"
   fi
+}
+
+# thermal_decision <status> <battery_deci_celsius>
+#   Pure decision (no adb): given Android thermal status (0–6) and battery
+#   temperature in tenths of a degree C, print one of:
+#     pause    — status >= THERMAL_STATUS_PAUSE or battery >= THERMAL_BATTERY_PAUSE_DECI
+#     continue — cool enough to run (or warm but below the pause ceiling)
+#     unknown  — probe unreadable (empty / non-numeric / N/A); caller must NOT
+#                pause or resume on this — same rule as wakefulness_is_fatal
+#   Resume after a pause is just continue once status <= THERMAL_STATUS_RESUME
+#   and battery <= THERMAL_BATTERY_RESUME_DECI (checked by the wait loop).
+# Covered by scripts/test_sideload_guards.sh.
+thermal_decision() {
+  local status="${1:-}" batt="${2:-}"
+  local status_ok=0 batt_ok=0
+  case "$status" in
+    ''|*[!0-9]*) ;;
+    *) status_ok=1 ;;
+  esac
+  case "$batt" in
+    ''|*[!0-9]*) ;;
+    *) batt_ok=1 ;;
+  esac
+  # Both fields mute → unknown (caller continues; never invent a pause).
+  if [ "$status_ok" -eq 0 ] && [ "$batt_ok" -eq 0 ]; then
+    echo unknown
+    return 0
+  fi
+  # Act on whichever half answered. SEVERE alone or 44°C alone is enough.
+  if [ "$status_ok" -eq 1 ] && [ "$status" -ge "$THERMAL_STATUS_PAUSE" ]; then
+    echo pause
+    return 0
+  fi
+  if [ "$batt_ok" -eq 1 ] && [ "$batt" -ge "$THERMAL_BATTERY_PAUSE_DECI" ]; then
+    echo pause
+    return 0
+  fi
+  echo continue
+}
+
+# thermal_is_cool_enough <status> <battery_deci_celsius>
+#   Pure: return 0 if status <= RESUME and battery <= RESUME_DECI (readable).
+#   Unreadable → 1 (keep waiting; never act on a mute probe).
+thermal_is_cool_enough() {
+  local status="${1:-}" batt="${2:-}"
+  case "$status" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  case "$batt" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  [ "$status" -le "$THERMAL_STATUS_RESUME" ] && [ "$batt" -le "$THERMAL_BATTERY_RESUME_DECI" ]
+}
+
+# device_thermal_probe
+#   Read Thermal Status (dumpsys thermalservice) and battery temperature
+#   (dumpsys battery, tenths of °C). Print "STATUS BATTERY_DECI" on one line.
+#   On any unreadable field print "unknown" for that field — never invent
+#   numbers. Caller must not act on unknown (thermal_decision → unknown).
+device_thermal_probe() {
+  local status batt raw
+  raw=$(adb shell "dumpsys thermalservice" 2>/dev/null | tr -d '\r' || true)
+  status=$(printf '%s\n' "$raw" | grep -m1 -E 'Thermal Status:[[:space:]]*[0-9]+' \
+    | sed -E 's/.*Thermal Status:[[:space:]]*([0-9]+).*/\1/' || true)
+  case "$status" in
+    ''|*[!0-9]*) status=unknown ;;
+  esac
+
+  raw=$(adb shell "dumpsys battery" 2>/dev/null | tr -d '\r' || true)
+  batt=$(printf '%s\n' "$raw" | grep -m1 -E 'temperature:[[:space:]]*[0-9]+' \
+    | sed -E 's/.*temperature:[[:space:]]*([0-9]+).*/\1/' || true)
+  case "$batt" in
+    ''|*[!0-9]*) batt=unknown ;;
+  esac
+
+  printf '%s %s\n' "$status" "$batt"
+}
+
+# Last probe values at turn start (set by device_thermal_gate). Empty when
+# the emulator path skipped the gate or the probe never ran.
+THERMAL_STATUS_AT_TURN=""
+THERMAL_BATTERY_DECI_AT_TURN=""
+
+# device_thermal_gate
+#   Device mode only (emulator is a no-op). Probe thermal state; if hot
+#   (thermal_decision → pause), wait until cool enough, polling every
+#   THERMAL_POLL_S, capped at THERMAL_WAIT_CAP_S — then die naming the
+#   thermal state rather than emit throttled data. unknown → continue
+#   without pausing. Sets THERMAL_STATUS_AT_TURN / THERMAL_BATTERY_DECI_AT_TURN
+#   to the values at the moment the turn is allowed to start.
+device_thermal_gate() {
+  THERMAL_STATUS_AT_TURN=""
+  THERMAL_BATTERY_DECI_AT_TURN=""
+  [ "$BENCH_TARGET" = "device" ] || return 0
+
+  local status batt decision waited=0 cool_ok=0
+  # shellcheck disable=SC2034  # read assigns both
+  read -r status batt <<EOF
+$(device_thermal_probe)
+EOF
+  THERMAL_STATUS_AT_TURN="$status"
+  THERMAL_BATTERY_DECI_AT_TURN="$batt"
+
+  decision=$(thermal_decision "$status" "$batt")
+  case "$decision" in
+    pause) ;;
+    *) return 0 ;;
+  esac
+
+  log "thermal: pause — status=$status battery_deci=$batt (SEVERE or battery>=${THERMAL_BATTERY_PAUSE_DECI}dC); waiting for status<=$THERMAL_STATUS_RESUME and battery<=${THERMAL_BATTERY_RESUME_DECI}dC (cap ${THERMAL_WAIT_CAP_S}s)"
+
+  while [ "$waited" -lt "$THERMAL_WAIT_CAP_S" ]; do
+    sleep "$THERMAL_POLL_S"
+    waited=$((waited + THERMAL_POLL_S))
+    read -r status batt <<EOF
+$(device_thermal_probe)
+EOF
+    THERMAL_STATUS_AT_TURN="$status"
+    THERMAL_BATTERY_DECI_AT_TURN="$batt"
+
+    # Sparse poll log (every poll is 30s — one line each is readable, not spam).
+    log "thermal: cooling… waited=${waited}s status=$status battery_deci=$batt"
+
+    if thermal_is_cool_enough "$status" "$batt"; then
+      cool_ok=1
+      break
+    fi
+  done
+
+  if [ "$cool_ok" -ne 1 ]; then
+    die "thermal: still hot after ${THERMAL_WAIT_CAP_S}s — status=$status battery_deci=$batt (refusing throttled data)"
+  fi
+  log "thermal: resume after ${waited}s — status=$status battery_deci=$batt"
+  return 0
 }
 
 # Installs the APK and, on the emulator, sideloads the GGUF into
