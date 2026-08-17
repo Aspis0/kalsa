@@ -5,6 +5,7 @@
 
 import {
   decideAdvance,
+  dropReRenderedTail,
   firstDiverge,
   generationSuffix,
   glueEot,
@@ -23,6 +24,7 @@ let epoch = 0;
 let pendingRebuild: KvRebuildReason | undefined;
 let commitLen = 0;
 let commitFp = transcriptFingerprint("");
+let lastEmitted = "";
 
 function recordCommit(): void {
   commitLen = transcript.length;
@@ -54,6 +56,7 @@ export function resetKvTranscript(): void {
   lastPPrev = null;
   envHashForT = undefined;
   pendingRebuild = undefined;
+  lastEmitted = "";
   epoch += 1;
   recordCommit();
 }
@@ -70,6 +73,10 @@ export function seedKvTranscript(prompt: string, envHash?: string): void {
   lastPPrev = null;
   envHashForT = envHash;
   pendingRebuild = undefined;
+  // Restored T still carries the last reply (as-generated). Keep lastEmitted
+  // so the next delta can drop the history-form repeat; drop it only if T
+  // no longer contains that message at all.
+  if (lastEmitted !== "" && !prompt.includes(lastEmitted)) lastEmitted = "";
   epoch += 1;
   recordCommit();
   logKv({ op: "session_restore", tLen: transcript.length });
@@ -99,12 +106,17 @@ export function computeCandidatePrompt(args: {
     commitLen,
     commitFp,
   });
-  // Append path: T (KV, as-generated) + optional eot glue + (pNew − pPrev).
-  // pPrev is a ruler, not T. Glue eot when restore left T without it.
+  const eot = args.eot ?? "";
+  if (decision.kind === "rebuild") lastEmitted = "";
+  // Append path: drop the history-form repeat of the last reply, then glue eot.
+  const trimmed =
+    decision.kind === "rebuild"
+      ? ""
+      : dropReRenderedTail(decision.delta, lastEmitted, eot, transcript);
   const prompt =
     decision.kind === "rebuild"
       ? args.pNew
-      : glueEot(transcript, decision.delta, args.eot ?? "");
+      : glueEot(transcript, trimmed, eot);
   if (decision.kind === "rebuild" && decision.reason === "prefix_mismatch") {
     const d = firstDiverge(args.pNew, args.pPrev);
     console.log(
@@ -121,13 +133,15 @@ export function computeCandidatePrompt(args: {
   if (decision.kind === "rebuild") {
     logKv({ op: "rebuild", reason: decision.reason, tLen: prompt.length });
   } else {
-    const glued = prompt.length - transcript.length - decision.delta.length;
+    const trimLen = decision.delta.length - trimmed.length;
+    const glued = prompt.length - transcript.length - trimmed.length;
     logKv({
       op: "delta",
       prevLen: args.pPrev.length,
       newLen: args.pNew.length,
       deltaLen: decision.delta.length,
       glueLen: glued,
+      trimLen,
       tTail: transcript.slice(-48),
       dHead: decision.delta.slice(0, 48),
       tLen: prompt.length,
@@ -155,6 +169,7 @@ export function commitAcceptedCompletion(args: {
     args.stoppedWord,
   );
   transcript = args.candidate + args.emitted + suffix;
+  lastEmitted = args.emitted;
   lastPPrev = args.pPrev;
   envHashForT = args.envHash;
   if (args.consumeReason && pendingRebuild === args.consumeReason) {

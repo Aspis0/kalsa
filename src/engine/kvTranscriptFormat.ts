@@ -132,6 +132,18 @@ export async function formatTranscriptPair(
     rAsst.prompt ?? "",
     PREV_SENTINEL,
   );
+  const cutLen = cut?.length ?? 0;
+  const u = rUser.prompt ?? "";
+  const a = rAsst.prompt ?? "";
+  console.log(
+    "KALSA_KVTRANSCRIPT " +
+      JSON.stringify({
+        op: "cut",
+        cutLen,
+        uWin: u.slice(cutLen, cutLen + 48),
+        aWin: a.slice(cutLen, cutLen + 48),
+      }),
+  );
   return {
     pPrev: { ...rUser, prompt: cut ?? (pNew.prompt ?? "") },
     pNew,

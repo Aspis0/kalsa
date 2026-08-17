@@ -4,6 +4,7 @@
 
 import {
   decideAdvance,
+  dropReRenderedTail,
   firstDiverge,
   generationSuffix,
   glueEot,
@@ -142,6 +143,48 @@ describe("glueEot", () => {
   test("restores trailing newline if restore dropped it", () => {
     const t = "hello<|im_end|>";
     expect(glueEot(t, delta, eot)).toBe(t + "\n" + delta);
+  });
+});
+
+describe("dropReRenderedTail", () => {
+  const eot = "<|im_end|>\n";
+  const emitted = "Di che cosa hai bisogno?";
+  const user = "<|im_start|>user\nnext";
+
+  test("drops emitted+eot prefix (normal commit)", () => {
+    const t = `<think>\n\n</think>\n\n${emitted}${eot}`;
+    const delta = `${emitted}${eot}${user}`;
+    expect(dropReRenderedTail(delta, emitted, eot, t)).toBe(user);
+  });
+
+  test("drops emitted-only prefix (post-restore)", () => {
+    const t = `<think>\n\n</think>\n\n${emitted}`;
+    const delta = `${emitted}${eot}${user}`;
+    expect(dropReRenderedTail(delta, emitted, eot, t)).toBe(user);
+  });
+
+  test("untouched when delta does not start with emitted", () => {
+    const t = `<think>\n\n</think>\n\n${emitted}`;
+    const delta = user;
+    expect(dropReRenderedTail(delta, emitted, eot, t)).toBe(user);
+  });
+
+  test("empty emitted leaves delta unchanged", () => {
+    expect(dropReRenderedTail(user, "", eot, "T")).toBe(user);
+  });
+
+  test("belt: T does not end with emitted — no trim", () => {
+    const t = "unrelated tail";
+    const delta = `${emitted}${eot}${user}`;
+    expect(dropReRenderedTail(delta, emitted, eot, t)).toBe(delta);
+  });
+
+  test("emitted also later in delta is not trimmed twice", () => {
+    const t = `head${emitted}`;
+    const delta = `${emitted}${eot}${emitted}${user}`;
+    expect(dropReRenderedTail(delta, emitted, eot, t)).toBe(
+      `${emitted}${user}`,
+    );
   });
 });
 

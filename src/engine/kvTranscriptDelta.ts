@@ -156,6 +156,24 @@ export function glueEot(t: string, delta: string, eot: string): string {
   return t + eot + delta;
 }
 
+/**
+ * T ends with the assistant turn as generated; pNew re-renders that same
+ * message in history form, so the raw delta repeats it. Drop the repeat.
+ */
+export function dropReRenderedTail(
+  delta: string,
+  emitted: string,
+  eot: string,
+  t: string,
+): string {
+  if (emitted === "") return delta;
+  if (!t.endsWith(emitted) && !t.endsWith(emitted + eot)) return delta;
+  if (!delta.startsWith(emitted)) return delta;
+  let rest = delta.slice(emitted.length);
+  if (eot.length > 0 && rest.startsWith(eot)) rest = rest.slice(eot.length);
+  return rest;
+}
+
 /** Native refusal / abort → do not commit. context_full wins (prompt not accepted). */
 export function refuseReasonFromResult(flags: {
   context_full?: boolean;
