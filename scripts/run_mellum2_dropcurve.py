@@ -662,16 +662,29 @@ def render_report(out_root: Path, summary: dict, k8: dict, stored_d065: dict, st
     n_done = len(complete)
     n_total = len(CURVE_ARMS)
 
+    # Name the model actually run. This script was written for Mellum2 and is now
+    # reused for other models via --expect-model-sha; the hardcoded name put
+    # "Mellum2" next to CalaQwen's sha in a committed VERDICT.md — a provenance
+    # bug, not a cosmetic one. identity.json is the only place that carries the
+    # real path (summary.json does not), so read it there and stay silent rather
+    # than guess if it is missing.
+    try:
+        _ident = json.loads((out_root / "identity.json").read_text(encoding="utf-8"))
+        model_path = Path(_ident["model"])
+        model_name, model_file = model_path.stem, model_path.name
+    except Exception:
+        model_name, model_file = "drop", "unknown (identity.json unreadable)"
+
     lines = [
         summary["verdict"],
         "",
-        "# Mellum2 drop-curve (k=6, multi5 PPL, PC)",
+        f"# {model_name} drop-curve (k=6, multi5 PPL, PC)",
         "",
         "Protocol = mellum2 PPL gate verbatim: campaign multi5 `--ppl-decode` "
         "`--moe-stream cache=2000 anon io=4 overlap -t 16 --stock-kernel`.",
         "",
         f"- binary `{summary.get('binary', 'bmoe-cli.exe')}` sha `{EXPECTED_BINARY}` (verified)",
-        f"- model Mellum2 F1 Q4 sha `{EXPECTED_MODEL}` (verified)",
+        f"- model `{model_file}` sha `{EXPECTED_MODEL}` (verified)",
         f"- k8d0 anchor REUSED from `results/mellum2_ppl_gate/k8d0/` "
         f"(macro={k8['macro_bpb']:.6f}); not re-run",
         f"- arms interleaved: d0, d0.8, d0.3, d1.0, d0.5, d0.65 so drift cannot fake a trend",
