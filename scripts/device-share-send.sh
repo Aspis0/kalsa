@@ -23,6 +23,7 @@
 # Proves the turn left the composer (message_was_submitted) before any
 # reply wait. Does not wait for a reply; the caller does. Does not
 # install an APK, set prefs, or type into the composer.
+# No -e at source time (tests and callers source this). The CLI block sets -e.
 set -uo pipefail
 
 OUT="${OUT:-device-share-send-out}"
