@@ -58,6 +58,12 @@ DROPS="${DROPS:-0.0 0.3 0.65 1.0}"
 ROUNDS="${ROUNDS:-3}"
 MIN_DROP_MB=1000
 
+# bmoe-cli ships its .so files next to the executable and they are NOT on the
+# default loader path. Without this the binary dies with
+# 'CANNOT LINK EXECUTABLE ... library "libllama-common.so" not found' before it
+# reads a single byte of the model. Same line as run_kf_reality_jelly.sh:42.
+export LD_LIBRARY_PATH="$(dirname "$BIN")${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
 mkdir -p "$OUT/per_token" "$OUT/logs"
 CSV="$OUT/runs.csv"
 LOG="$OUT/sweep.log"
@@ -137,12 +143,20 @@ for round in $(seq 1 "$ROUNDS"); do
       sleep 1
     done
     wait "$pid"; rc=$?
-    set -e
+    # NOTE: do NOT `set -e` here. The header sets only `-uo pipefail`, so errexit
+    # was never on; turning it on mid-loop made the next failing command kill the
+    # whole sweep silently — the grep below legitimately returns 1 when a run
+    # produced no summary, which is exactly the case we need to record, not die on.
     t1=$(temp); be=$(batt)
 
     # --- parse the engine's own summary line ---
     S=$(grep '^# summary' "$pt" 2>/dev/null | tail -1)
-    g(){ printf '%s' "$S" | sed -n "s/.*[[:space:]]$1=\([^[:space:]]*\).*/\1/p"; }
+    # The engine's keys contain slashes (s/tok, tok/s, stall_s/tok, majflt/tok).
+    # A sed s///-based extractor breaks on them: the slash inside the key is read
+    # as the s/// delimiter and the field silently comes back empty, which is what
+    # voided the first 11 runs of this cell. Split on whitespace and match the key
+    # literally instead — no delimiter, no escaping, no silent failure.
+    g(){ printf '%s' "$S" | tr ' ' '\n' | awk -F= -v k="$1" '$1==k {print $2; exit}'; }
     s_tok=$(g 's/tok'); tok_s=$(g 'tok/s'); read_mib=$(g 'read_MiB')
     stall=$(g 'stall_s/tok'); comp=$(g 'compute_s/tok'); ios=$(g 'io_s/tok')
     hit=$(g 'cache_hit_pct'); er=$(g 'experts_routed'); ed=$(g 'experts_dropped')
