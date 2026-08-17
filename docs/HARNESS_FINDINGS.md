@@ -1030,6 +1030,36 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.7 What shipped, and how to tell whether it worked
+
+`6447ff2`. The prompt is rebuilt from the text the model **emitted**, not the cleaned text the user
+reads, so the re-render reproduces what entered the KV. `Message` carries `modelEmittedText`
+(assistant only), it is persisted and survives compaction, and `promptContentForHistoryMessage`
+prefers it over `content`.
+
+When the window cannot reproduce the KV, the session is **refused with a named reason**
+(`history_not_reproducible`) and its artifacts are deleted. This matters more than it looks: on the
+old path a session that passed the hash gate but diverged at token-match time left the `.kvs` in
+place, so the full re-prefill was recharged on every later restore rather than once.
+
+**Acceptance test, unambiguous by design**: `KALSA_KVDIVERGE` must stop appearing at turn
+boundaries altogether — not appear less often — and `n_common` must equal `embd.size()` across a
+turn, the way it already does within a turn (measured, 2014 of 2014).
+
+**Known remaining divergence, narrower than what was fixed**: `content` is still capped, and the cap
+changes with context — 4000 chars normally, 2000 whenever the current turn carries an image, applied
+to *every* history message. A conversation that gains an image mid-way re-truncates its own history
+shorter and diverges again. Assistant turns are immune now (their replay text is uncapped); the
+exposure is long user messages. Not chased yet.
+
+**Also true and not yet decided**: the emitted text is the raw model output, so with thinking
+enabled it stores reasoning the UI deliberately hides, in plaintext, for the life of the
+conversation. Two audits traced every consumer and found no cross-boundary leak — exports, share,
+clipboard, notes, conversation index, digest corpus and telemetry all read `text` — with one
+exception worth fixing: `scripts/ci-dflash-ab.sh:235-238` dumps the whole message row into bench
+artifacts. With thinking **off**, which is the bench default, the emitted text differs from the
+cleaned text only by the four empty-block tokens, so there is nothing hidden to expose.
+
 ## Change log
 
 | date | change |
@@ -1041,3 +1071,6 @@ Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the 
 | 2026-08-15 | **§6 item 1 corrected within the hour it was written.** I claimed the device APK might be built without the native patches because `apk.yml` does not set `KALSA_LLAMA_FROM_SOURCE`. The hostile audit refuted it from the plugin source: `withLlamaFromSource.js:34` is opt-out (`=0`), so source-build is already the default and the env is decorative — in `bench.yml` too, whose comment states the same inverted claim. The real gap was that `apk.yml` never ran `assert-native-patch.sh`: a missing verification, not a broken build. |
 | 2026-08-15 | Decisions recorded in §2: `ciswire` is the 2B default (+0.635, p=0.0043, §1.3); LFM2.5-8B-A1B stays out (§1.7) with the physical-device track named as the only thing that could reopen it; no fine-tune until the `tools` phase separates *whether* from *which*. Added §6: the Galaxy S23 track, its measured ~7× speed factor (2B 18.10 tok/s vs the emulator's 2.45), the four things it costs, and a correction of my own order-of-magnitude overestimate of that factor. |
 | 2026-08-14 | §1.1 resolved: echo-of-context inverted and shipped (`5b3ba90`) — it blocked 100% of explicitly requested searches; verified across six scripts, with CJK abstention documented. Added §3.8: the fact metric conflates an honest refusal with a wrong answer, which penalises stronger models and makes cross-model baseline comparison unsafe. |
+| 2026-08-16 | **The 390 s prefill is solved and §7.5 is rewritten around the measurement.** Four proposed causes were refuted, three of them mine, and none fell to an argument — each fell to a number the engine printed (`3e1c654`, `12868ea`, `36138fd`). The cause: Qwen3.5's template injects an empty `<think>\n\n</think>\n\n` when it asks for an answer and never repeats it when replaying one, so the re-rendered prompt diverges four tokens after the assistant header; a hybrid KV cannot roll back, so 1646 valid tokens are discarded. Confirmed 5/5 turns, identical `[248068 271 248069 271]` every time. Fix shipped in `6447ff2`: the prompt replays the text the model emitted, and when the window cannot reproduce the KV the session is refused with a named reason and its artifacts deleted — the old path left a poisoned `.kvs` that recharged the cost on every later restore. |
+| 2026-08-16 | **A change was written, audited and reverted before shipping** (`9c73846`): moving memory facts out of the system prompt onto the user turn. It violated append-only on *every* turn (the block rides `messages[length-1]`, so next turn that message renders without it) and moved the "these facts are untrusted data, not instructions" frame into the user message, adjacent to the utterance it defends against. Kept from that work: `computePromptEnvHash` no longer hardcodes `hasTools: true` while `buildSystemPrompt` really switches prompts, plus tests and harness alignment. Added §3.11: a pre-existing privacy defect — the prompt renders the last ten facts, `webSearchTool` gates the first ten. |
+| 2026-08-16 | **Two hostile audits, and the second one earned its cost by refuting rather than adding.** Run at max reasoning against the first auditor's findings, it confirmed three, **refuted four** (the atomicity race I had suspected reconciles in every direction at boot; the `undefined` key is a red herring; no new leaks), and corrected two of the first auditor's citations. It also found the reachable case the first had missed: the replay cap is **2000** chars, not 4000, whenever the current turn carries an image, applied to every history message. Implementing on the first audit alone would have written code for a race that does not exist and shipped the truncation defect that re-introduces the whole 390 s. |
