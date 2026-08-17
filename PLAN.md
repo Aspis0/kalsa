@@ -110,6 +110,45 @@
 > intende. L'asimmetria 144-vs-200 è dichiarata nel report Xiaomi e
 > **non** in quello S23.
 >
+> 🧪 **CELLA DROP SWEEP SUL JELLY (16/08 sera, LANCIATA) — la misura che
+> manca: TEMPO E BYTE INSIEME, a freddo.**
+> `--drop-cold-experts` è la leva viva della campagna e il suo costo di
+> QUALITÀ è misurato (curva PC: d0.3 +0.06%, d0.8 +1.6%, d1.0 +4.0%
+> macro bpb). **Il suo risparmio di BYTE non è MAI stato misurato** — è
+> lo scopo dichiarato del flag, citato come se fosse un risultato. La
+> cella PC non ha strumentato i byte e i suoi tempi sono confusi da una
+> contesa CPU diversa per braccio.
+> Questa lo misura sul device dove i byte costano davvero (flash lento,
+> stall ~22%), da page cache verificata fredda.
+>
+> **Dichiarato prima di lanciare:** bracci d ∈ {0.0, 0.3, 0.65, 1.0} ·
+> ordine **round-robin ×3 round = 12 run**, così ogni livello è
+> campionato presto/medio/tardi e la deriva termica o di batteria non
+> può fabbricare un trend monotono · n=200 · **reset a freddo verificato
+> prima di OGNI run** (fadv + Cached prima/dopo, COLD-VALID solo se il
+> calo ≥ 1000 MB — lo stesso gate che oggi ha beccato tre run tiepide) ·
+> cooldown 120 s (dichiarato: il device sta a ~20 °C, ben sotto il
+> target 30 °C che usava la cella K-F) · UNPLUGGED, floor 45%.
+>
+> **CONTROLLO INTERNO, ed è il motivo per cui d=0.65 è nello sweep:**
+> d=0.65 senza prefetch È esattamente il braccio OFF della cella K-F a
+> freddo — stesso binario, stesso modello, stessi flag. Deve riprodurre
+> ~0.192 s/tok e ~22.3 GB. **Se non lo riproduce, la cella sta misurando
+> altro ed è nulla.**
+>
+> **Attesa e kill dichiarati:** i byte devono scendere monotonicamente
+> con d. **Se NON scendono, il flag non fa quello che stiamo affermando**
+> e "l'expert skipping è la nostra modalità veloce" perde il meccanismo.
+> Quell'esito è un risultato, non un fallimento, e va riportato.
+> Esplorativa: niente p-value, niente pre-registrazione, niente claim.
+> results/dropsweep_jelly/.
+> ⚠️ **Ops:** lanciata staccata (setsid nohup) alle 88% batteria, 20 °C;
+> **sshd è caduto ~30 s dopo il lancio** (comportamento noto del device)
+> prima che potessi provare il PPID=1 da sessione nuova. Il pattern di
+> distacco è lo stesso che stamattina è sopravvissuto alla morte di sshd,
+> quindi è probabile che stia girando — ma **non è provato**, e va
+> verificato appena sshd torna.
+>
 > ☠️ **IDEA 2 (k ADATTIVO SULLA CONFIDENZA DEL ROUTER) — MORTA IN UN
 > MINUTO, A COSTO ZERO. Era il rank 1 mio E di Qwen.**
 > Test dichiarato prima: se i bin ad alta confidenza sono troppo piccoli
