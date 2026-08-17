@@ -371,30 +371,11 @@ check_free_space() {
 }
 
 # ── Engine positive control ─────────────────────────────────────────
-# assert_engine_ran <telemetry_jsonl> [turn_label]
-#   Direct proof that the inference engine actually ran: at least one
-#   KALSA_TELEMETRY line (src/engine/LlamaService.ts, one per completion round)
-#   with a numeric tokensEvaluated > 0. Pure logic on a file — no adb — so it is
-#   unit-testable (scripts/test_sideload_guards.sh).
-#
-#   WHY numbers only: a device arm (BENCH_TARGET=device, smoke, 4B) could not
-#   load the model, so all 7 turns recorded the app's error bubble
-#   ("⚠️ Caricamento del modello non riuscito…"), the arm exited 0 and wrote a
-#   complete result.json with fact_recall null — an infrastructure failure that
-#   looks exactly like a model failure, so the next person debugs the model.
-#   The bubble text is localized and this repo has already been burned by a
-#   language-dependent grader (HONESTY_PATTERNS, Italian-only): keying this gate
-#   on any user-visible string would reintroduce that defect. tokensEvaluated is
-#   language-independent by construction.
-#
-#   A malformed line is not evidence (skipped, not trusted): only strictly
-#   parseable JSON objects count. Non-positive counts are not evidence either:
-#   0 is turnTelemetry.ts's `result.tokens_evaluated ?? 0` default (native counter
-#   absent) and -1 is the grader's "unavailable" sentinel. On turn 1 of a fresh
-#   conversation the new user message cannot come from the KV cache, so a live
-#   engine always evaluates prompt tokens — full reuse cannot fake a 0 here.
-assert_engine_ran() {
-  local file="$1" turn="${2:-1}" evaluated
+# _engine_tokens_evaluated <telemetry_jsonl>
+#   Best numeric tokensEvaluated > 0 across parseable lines, else 0.
+#   Shared by assert_engine_ran (lethal) and wait_for_engine_ran (poll).
+_engine_tokens_evaluated() {
+  local file="$1" evaluated
   evaluated=$(python3 -c '
 import json, sys
 best = 0
@@ -422,12 +403,82 @@ print(best)
   case "$evaluated" in
     ''|*[!0-9]*) evaluated=0 ;;
   esac
+  printf '%s\n' "$evaluated"
+}
+
+# assert_engine_ran <telemetry_jsonl> [turn_label]
+#   Direct proof that the inference engine actually ran: at least one
+#   KALSA_TELEMETRY line (src/engine/LlamaService.ts, one per completion round)
+#   with a numeric tokensEvaluated > 0. Pure logic on a file — no adb — so it is
+#   unit-testable (scripts/test_sideload_guards.sh).
+#
+#   WHY numbers only: a device arm (BENCH_TARGET=device, smoke, 4B) could not
+#   load the model, so all 7 turns recorded the app's error bubble
+#   ("⚠️ Caricamento del modello non riuscito…"), the arm exited 0 and wrote a
+#   complete result.json with fact_recall null — an infrastructure failure that
+#   looks exactly like a model failure, so the next person debugs the model.
+#   The bubble text is localized and this repo has already been burned by a
+#   language-dependent grader (HONESTY_PATTERNS, Italian-only): keying this gate
+#   on any user-visible string would reintroduce that defect. tokensEvaluated is
+#   language-independent by construction.
+#
+#   A malformed line is not evidence (skipped, not trusted): only strictly
+#   parseable JSON objects count. Non-positive counts are not evidence either:
+#   0 is turnTelemetry.ts's `result.tokens_evaluated ?? 0` default (native counter
+#   absent) and -1 is the grader's "unavailable" sentinel. On turn 1 of a fresh
+#   conversation the new user message cannot come from the KV cache, so a live
+#   engine always evaluates prompt tokens — full reuse cannot fake a 0 here.
+assert_engine_ran() {
+  local file="$1" turn="${2:-1}" evaluated
+  evaluated=$(_engine_tokens_evaluated "$file")
   if [ "$evaluated" -le 0 ]; then
     die "engine never ran on turn $turn (no KALSA_TELEMETRY / tokensEvaluated<=0) — model not loaded? (evidence: $file)"
     return 1
   fi
   log "engine control: turn $turn tokensEvaluated=$evaluated (engine alive)"
   return 0
+}
+
+# wait_for_engine_ran <telemetry_jsonl> [turn] [timeout_s] [interval_s] [refresh_fn]
+#   Poll until tokensEvaluated>0 instead of sampling once. The UI can settle
+#   (history stable) before the native layer emits end-of-turn KALSA_TELEMETRY
+#   — measured gap: settled_s=136s vs promptMs+predictedMs≈153s on a device
+#   arm; a single post-settle sample then false-dies a live engine.
+#
+#   refresh_fn (optional function name) is invoked after each sleep so the
+#   caller can re-source evidence (adb logcat → telemetry.jsonl in production;
+#   a test double that writes the file late). First sample uses the file as-is
+#   (no sleep). No busy-spin: sleeps interval_s between attempts.
+#
+#   Default timeout 180s: exceeds the measured 153s full engine turn so a
+#   premature settle or thermal mid-turn throttle still has headroom; interval
+#   5s matches other ci-lib polls. On late success logs the wait. On timeout
+#   still dies via assert_engine_ran — this removes a false negative, not the
+#   guard.
+wait_for_engine_ran() {
+  local file="$1" turn="${2:-1}" timeout_s="${3:-180}" interval_s="${4:-5}"
+  local refresh_fn="${5:-}"
+  local waited=0 evaluated
+
+  while true; do
+    evaluated=$(_engine_tokens_evaluated "$file")
+    if [ "$evaluated" -gt 0 ]; then
+      if [ "$waited" -gt 0 ]; then
+        log "engine control: telemetry appeared after ${waited}s wait (turn $turn)"
+      fi
+      assert_engine_ran "$file" "$turn"
+      return 0
+    fi
+    if [ "$waited" -ge "$timeout_s" ]; then
+      assert_engine_ran "$file" "$turn"
+      return 1
+    fi
+    sleep "$interval_s"
+    waited=$((waited + interval_s))
+    if [ -n "$refresh_fn" ]; then
+      "$refresh_fn" || true
+    fi
+  done
 }
 
 # ── Device keep-awake (unplugged measurement discipline) ──────────────

@@ -141,6 +141,62 @@ else
   fail=$((fail + 1))
 fi
 
+# ── wait_for_engine_ran (poll, not single-sample) ───────────────────
+# Fake log source via refresh_fn — no adb. Short timeout/interval so the suite
+# stays cheap. Covers the race: UI settled before KALSA_TELEMETRY landed.
+
+# Test 10: line present immediately → returns at once (no wait log).
+_died=""
+_logs=""
+log() { _logs="${_logs}$1"$'\n'; }
+echo '{"turnId":"t1","round":0,"tokensEvaluated":99,"tokensPredicted":10}' > "$TJ"
+wait_for_engine_ran "$TJ" 1 2 1 ""
+if [ -z "$_died" ] && ! echo "$_logs" | grep -q "appeared after"; then
+  echo "PASS: wait immediate — no die, no wait log"
+  pass=$((pass + 1))
+else
+  echo "FAIL: wait immediate — died='$_died' logs='$_logs'"
+  fail=$((fail + 1))
+fi
+log() { :; }
+
+# Test 11: line appears only after a few polls → returns and reports the wait.
+_died=""
+_logs=""
+_refresh_n=0
+_fake_late_telemetry() {
+  _refresh_n=$((_refresh_n + 1))
+  # After 2 sleeps (waited=2 with interval 1) refresh has run twice → write line.
+  if [ "$_refresh_n" -ge 2 ]; then
+    echo '{"turnId":"t1","round":0,"tokensEvaluated":77,"tokensPredicted":5}' > "$TJ"
+  fi
+}
+log() { _logs="${_logs}$1"$'\n'; }
+: > "$TJ"
+wait_for_engine_ran "$TJ" 1 5 1 _fake_late_telemetry
+if [ -z "$_died" ] && echo "$_logs" | grep -q "telemetry appeared after 2s wait"; then
+  echo "PASS: wait late — appeared after 2s, no die"
+  pass=$((pass + 1))
+else
+  echo "FAIL: wait late — died='$_died' logs='$_logs' refresh_n=$_refresh_n"
+  fail=$((fail + 1))
+fi
+log() { :; }
+
+# Test 12: line never appears → still dies with the existing message.
+_died=""
+: > "$TJ"
+_noop_refresh() { :; }
+wait_for_engine_ran "$TJ" 1 2 1 _noop_refresh
+if echo "$_died" | grep -q "engine never ran on turn 1" \
+  && echo "$_died" | grep -q "tokensEvaluated<=0"; then
+  echo "PASS: wait never — die fired: $_died"
+  pass=$((pass + 1))
+else
+  echo "FAIL: wait never — no/ incomplete die (got: '$_died')"
+  fail=$((fail + 1))
+fi
+
 # ── Device wakefulness decision (wakefulness_is_fatal) ──────────────
 # Pure logic: given a mWakefulness token, decide whether the arm must die.
 # Awake/""/unknown → continue; Dozing/Asleep/Dreaming → die. This is the check

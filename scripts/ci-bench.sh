@@ -1090,12 +1090,18 @@ capture_turn_evidence() {
 }
 
 # Engine positive control, FIRST turn only. Runs where turn 1's evidence is
-# already on disk (right after capture_turn_evidence), so it costs no extra adb
-# round-trip. Applies to both BENCH_TARGET values: a CI emulator arm with a dead
-# engine is exactly as worthless as a phone one.
+# already on disk (right after capture_turn_evidence). Applies to both
+# BENCH_TARGET values: a CI emulator arm with a dead engine is exactly as
+# worthless as a phone one.
 # Scope is deliberate: a LATER turn without telemetry is a different phenomenon
 # (context growth, OOM, background summarize stealing the dump) and must stay
 # visible as itself instead of being swallowed by this gate.
+#
+# Polls (does not sample once): UI settle can precede the native end-of-turn
+# KALSA_TELEMETRY line (settled_s=136s vs engine ~153s on device). Refresh
+# re-dumps logcat and appends new telemetry lines; capture_turn_evidence already
+# cleared the ring, so only post-settle lines appear. 180s / 5s — see
+# wait_for_engine_ran.
 assert_engine_ran_turn1() {
   local tdir="$OUT/turn1"
   # capture_failed ⇒ the logcat dump itself failed; say so BEFORE the die so the
@@ -1103,7 +1109,18 @@ assert_engine_ran_turn1() {
   if [ -f "$tdir/capture_failed" ]; then
     log "WARN: turn 1 logcat dump failed — telemetry evidence may be incomplete"
   fi
-  assert_engine_ran "$tdir/telemetry.jsonl" 1
+  # shellcheck disable=SC2329  # invoked by name from wait_for_engine_ran
+  _refresh_turn1_engine_telemetry() {
+    local buf="$OUT/.logcat_turn_buf.txt" dest="$OUT/turn1/telemetry.jsonl"
+    if ! adb logcat -d > "$buf" 2>/dev/null; then
+      return 1
+    fi
+    grep -F "KALSA_TELEMETRY " "$buf" 2>/dev/null \
+      | sed 's/.*KALSA_TELEMETRY //' >> "$dest" 2>/dev/null || true
+    adb logcat -c 2>/dev/null || true
+    return 0
+  }
+  wait_for_engine_ran "$tdir/telemetry.jsonl" 1 180 5 _refresh_turn1_engine_telemetry
 }
 
 # Append one turn record to the turns JSONL.
