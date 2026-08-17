@@ -19,6 +19,8 @@ function nativeCommit(
     context_full?: boolean;
     truncated?: boolean;
     interrupted?: boolean;
+    tokens_cached?: number;
+    tokens_evaluated?: number;
     epoch?: number;
     candidate?: string;
     emitted?: string;
@@ -37,6 +39,8 @@ function nativeCommit(
     context_full: extra.context_full === true,
     truncated: extra.truncated === true,
     interrupted: extra.interrupted === true,
+    tokens_cached: extra.tokens_cached,
+    tokens_evaluated: extra.tokens_evaluated,
     consumeReason: extra.consumeReason,
   });
 }
@@ -192,5 +196,35 @@ describe("commit protocol", () => {
     expect(
       advance("sys user genans<eot>x", "sys user genans<eot>").decision,
     ).toEqual({ kind: "rebuild", reason: "eot_unknown" });
+  });
+
+  test("restore T ending at a period glues eot before the user delta", () => {
+    const t = "Per favore, usa un formato JSON valido.";
+    const pPrev = t;
+    const pNew = `${t}<|im_start|>user\nnext<|im_end|>\n<|im_start|>assistant\n`;
+    seedKvTranscript(t, "h");
+    const { prompt, decision } = computeCandidatePrompt({
+      pPrev,
+      pNew,
+      envHash: "h",
+      kvHoldsChatSession: true,
+      eot: "<|im_end|>\n",
+    });
+    expect(decision.kind).toBe("delta");
+    expect(prompt.startsWith(`${t}<|im_end|>\n`)).toBe(true);
+    expect(prompt.includes("valido.<|im_start|>")).toBe(false);
+  });
+
+  test("media pending survives a seed the way save/restore would", () => {
+    seedKvTranscript("restored-prompt", "h");
+    markKvUntrusted("media");
+    expect(
+      computeCandidatePrompt({
+        pPrev: "restored-prompt",
+        pNew: "restored-prompt user",
+        envHash: "h",
+        kvHoldsChatSession: true,
+      }).decision,
+    ).toEqual({ kind: "rebuild", reason: "media" });
   });
 });

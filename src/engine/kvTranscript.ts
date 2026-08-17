@@ -7,6 +7,7 @@ import {
   decideAdvance,
   firstDiverge,
   generationSuffix,
+  glueEot,
   refuseReasonFromResult,
   transcriptFingerprint,
   type AdvanceDecision,
@@ -42,6 +43,10 @@ export function getKvEpoch(): number {
 
 export function markKvUntrusted(reason: KvRebuildReason): void {
   pendingRebuild = reason;
+}
+
+export function getPendingRebuild(): KvRebuildReason | undefined {
+  return pendingRebuild;
 }
 
 export function resetKvTranscript(): void {
@@ -80,6 +85,7 @@ export function computeCandidatePrompt(args: {
   pNew: string;
   envHash: string;
   kvHoldsChatSession: boolean;
+  eot?: string;
 }): { prompt: string; decision: AdvanceDecision } {
   const decision = decideAdvance({
     t: transcript,
@@ -93,9 +99,12 @@ export function computeCandidatePrompt(args: {
     commitLen,
     commitFp,
   });
-  // Append path: T (KV, as-generated) + (pNew − pPrev). pPrev is a ruler, not T.
+  // Append path: T (KV, as-generated) + optional eot glue + (pNew − pPrev).
+  // pPrev is a ruler, not T. Glue eot when restore left T without it.
   const prompt =
-    decision.kind === "rebuild" ? args.pNew : transcript + decision.delta;
+    decision.kind === "rebuild"
+      ? args.pNew
+      : glueEot(transcript, decision.delta, args.eot ?? "");
   if (decision.kind === "rebuild" && decision.reason === "prefix_mismatch") {
     const d = firstDiverge(args.pNew, args.pPrev);
     console.log(
@@ -112,11 +121,15 @@ export function computeCandidatePrompt(args: {
   if (decision.kind === "rebuild") {
     logKv({ op: "rebuild", reason: decision.reason, tLen: prompt.length });
   } else {
+    const glued = prompt.length - transcript.length - decision.delta.length;
     logKv({
       op: "delta",
       prevLen: args.pPrev.length,
       newLen: args.pNew.length,
       deltaLen: decision.delta.length,
+      glueLen: glued,
+      tTail: transcript.slice(-48),
+      dHead: decision.delta.slice(0, 48),
       tLen: prompt.length,
     });
   }
@@ -172,6 +185,8 @@ export function commitFromNativeResult(args: {
   context_full: boolean;
   truncated: boolean;
   interrupted: boolean;
+  tokens_cached?: number;
+  tokens_evaluated?: number;
   consumeReason?: KvRebuildReason;
 }): "committed" | KvRebuildReason {
   const refuse = refuseReasonFromResult(args);

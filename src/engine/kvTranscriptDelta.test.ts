@@ -6,6 +6,7 @@ import {
   decideAdvance,
   firstDiverge,
   generationSuffix,
+  glueEot,
   messagesThroughLastAssistant,
   refuseReasonFromResult,
   sliceDelta,
@@ -121,6 +122,29 @@ describe("generationSuffix", () => {
   });
 });
 
+describe("glueEot", () => {
+  const eot = "<|im_end|>\n";
+  const delta = "<|im_start|>user\nU1<|im_end|>\n<|im_start|>assistant\n";
+
+  test("inserts eot when T ends at a generated period (turn-6 join)", () => {
+    const t = "Per favore, usa un formato JSON valido.";
+    const prompt = glueEot(t, delta, eot);
+    expect(prompt.startsWith(t + eot)).toBe(true);
+    expect(prompt).toBe(t + eot + delta);
+    expect(prompt.includes("valido.<|im_start|>")).toBe(false);
+  });
+
+  test("does not double-insert when T already ends with eot", () => {
+    const t = `hello${eot}`;
+    expect(glueEot(t, delta, eot)).toBe(t + delta);
+  });
+
+  test("restores trailing newline if restore dropped it", () => {
+    const t = "hello<|im_end|>";
+    expect(glueEot(t, delta, eot)).toBe(t + "\n" + delta);
+  });
+});
+
 describe("refuseReasonFromResult", () => {
   test("context_full wins over truncated and interrupted", () => {
     expect(
@@ -148,6 +172,21 @@ describe("refuseReasonFromResult", () => {
         context_full: false,
         truncated: false,
         interrupted: false,
+      }),
+    ).toBeNull();
+  });
+
+  test("tokens_cached < tokens_evaluated is decode_failed", () => {
+    expect(
+      refuseReasonFromResult({
+        tokens_cached: 1648,
+        tokens_evaluated: 1700,
+      }),
+    ).toBe("decode_failed");
+    expect(
+      refuseReasonFromResult({
+        tokens_cached: 1700,
+        tokens_evaluated: 1700,
       }),
     ).toBeNull();
   });

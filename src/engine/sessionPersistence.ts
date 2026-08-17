@@ -37,6 +37,11 @@ export type SessionMeta = {
   conversationId?: string;
   /** Date.now() at save; ignored by sessionMetaMatches */
   savedAt?: number;
+  /**
+   * Outstanding kv-transcript rebuild mark (e.g. "media"). Restored so an
+   * image turn's pending rebuild survives save/load. Not part of meta match.
+   */
+  kvTranscriptPending?: string;
 };
 
 /** Default messages key until migrate / AppShell bind the active conversation. */
@@ -401,6 +406,12 @@ export async function readSessionMeta(modelId: string): Promise<SessionMeta | nu
       Number.isFinite(parsed.historyMessageCount)
     ) {
       meta.historyMessageCount = parsed.historyMessageCount;
+    }
+    if (
+      typeof parsed.kvTranscriptPending === "string" &&
+      parsed.kvTranscriptPending.length > 0
+    ) {
+      meta.kvTranscriptPending = parsed.kvTranscriptPending;
     }
     return meta;
   } catch {

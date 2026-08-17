@@ -16,7 +16,8 @@ export type KvRebuildReason =
   | "context_full"
   | "truncated"
   | "media"
-  | "pprev_sentinel";
+  | "pprev_sentinel"
+  | "decode_failed";
 
 export type AdvanceDecision =
   | { kind: "rebuild"; reason: KvRebuildReason }
@@ -138,14 +139,44 @@ export function generationSuffix(
   return "";
 }
 
+/**
+ * Insert eot between T and delta when T (native/restored KV bytes) does not
+ * already end with it. Restore detokenizes the KV; if the last generated
+ * token was not the eot (n_predict stop, etc.), T ends at that token and
+ * T+delta would join it to the next user header — a one-token BPE remap.
+ */
+export function glueEot(t: string, delta: string, eot: string): string {
+  if (!delta) return t;
+  if (!eot) return t + delta;
+  if (t.endsWith(eot)) return t + delta;
+  const trimmed = eot.replace(/\n+$/, "");
+  if (trimmed.length > 0 && t.endsWith(trimmed)) {
+    return t + eot.slice(trimmed.length) + delta;
+  }
+  return t + eot + delta;
+}
+
 /** Native refusal / abort → do not commit. context_full wins (prompt not accepted). */
 export function refuseReasonFromResult(flags: {
   context_full?: boolean;
   truncated?: boolean;
   interrupted?: boolean;
+  tokens_cached?: number;
+  tokens_evaluated?: number;
 }): KvRebuildReason | null {
   if (flags.context_full) return "context_full";
   if (flags.truncated) return "truncated";
   if (flags.interrupted) return "completion_failed";
+  // llama_decode fail trims embd to n_past and returns a clean-looking result
+  // (no truncated/context_full/interrupted). KV then holds fewer tokens than
+  // the prompt we sent.
+  if (
+    typeof flags.tokens_cached === "number" &&
+    typeof flags.tokens_evaluated === "number" &&
+    flags.tokens_evaluated > 0 &&
+    flags.tokens_cached < flags.tokens_evaluated
+  ) {
+    return "decode_failed";
+  }
   return null;
 }

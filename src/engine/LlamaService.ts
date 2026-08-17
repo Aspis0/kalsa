@@ -104,6 +104,7 @@ import {
   commitFromNativeResult,
   computeCandidatePrompt,
   getKvEpoch,
+  getPendingRebuild,
   logKvHalt,
   markKvUntrusted,
   resetKvTranscript,
@@ -1288,6 +1289,8 @@ export async function saveEngineSession(
       if (activeEngineKnob !== undefined) meta.engineKnob = activeEngineKnob;
       const conversationId = getSessionConversationId();
       if (conversationId) meta.conversationId = conversationId;
+      const pending = getPendingRebuild();
+      if (pending) meta.kvTranscriptPending = pending;
       // Meta after rename so a kill between file and meta keeps the previous
       // meta (hash mismatch → cold) or pairs old meta with complete new file
       // when history is unchanged (valid restore).
@@ -1427,6 +1430,15 @@ async function tryLoadEngineSession(
       stored.promptEnvHash ?? expected.promptEnvHash ?? lastPromptEnvHash;
     if (typeof result.prompt === "string" && result.prompt.length) {
       seedKvTranscript(result.prompt, lastPromptEnvHash);
+      const pending = stored.kvTranscriptPending;
+      if (
+        pending === "media" ||
+        pending === "tool_round" ||
+        pending === "eot_unknown" ||
+        pending === "pprev_sentinel"
+      ) {
+        markKvUntrusted(pending);
+      }
     }
     log(true, {
       tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,
@@ -2053,6 +2065,7 @@ export async function streamAssistantTurn(
           pNew: pNew.prompt ?? "",
           envHash: envHashForTurn,
           kvHoldsChatSession,
+          eot,
         });
         // Force the *next* advance to rebuild — this turn still uses stopping_word.
         if (eot === "" && pPrevSentinelFound) markKvUntrusted("eot_unknown");
@@ -2091,6 +2104,8 @@ export async function streamAssistantTurn(
           context_full?: boolean;
           truncated?: boolean;
           interrupted?: boolean;
+          tokens_cached?: number;
+          tokens_evaluated?: number;
         },
       ): void => {
         if (!kvTranscriptEnabled) return;
@@ -2111,6 +2126,8 @@ export async function streamAssistantTurn(
           context_full: flags.context_full === true,
           truncated: flags.truncated === true,
           interrupted: flags.interrupted === true,
+          tokens_cached: flags.tokens_cached,
+          tokens_evaluated: flags.tokens_evaluated,
           consumeReason:
             kvDecision?.kind === "rebuild" ? kvDecision.reason : undefined,
         });
