@@ -397,6 +397,105 @@
 > proiezione 14.7). Il test DEVE misurare il decode sul device DEBOLE,
 > non i byte sul forte.
 >
+> ⚖️ **AUDIT QWEN SULLE 5 IDEE (16/08) — ranking, due kill, e un colpo
+> al cuore di M4 che ho dovuto verificare al sorgente.**
+> Ranking per valore atteso: **(2) k adattivo > (5) quantizzazione per
+> temperatura > (4) maschere per lingua > (3) predittore di route >
+> (1) expert-major**. Le prime due sopravvivono, le ultime due sono da
+> archiviare, la (4) è sospesa in attesa di un'ablazione.
+>
+> ☠️ **IDEA 1 (expert-major) — MORTA per il nostro regime.** L'aritmetica
+> dell'unione con la NOSTRA skew: B=8 → 42/48 = 0.88; B=16 → 0.81;
+> B=32 → 0.65. Serve **< 0.56**, cioè B≈64, e su un telefono
+> single-user quei 64 token non esistono. Due argomenti che mi ero
+> perso: (a) **in una sequenza causale singola non puoi riordinare per
+> esperto** perché le route future non le conosci finché non le hai
+> calcolate — l'expert-major funziona su item di batch INDIPENDENTI,
+> non su un'autoregressione; (b) **se la cache LRU tiene ~38 esperti e
+> l'unione di 5 token è ~28, la cache sta GIÀ leggendo l'unione e non
+> la somma** — l'expert-major aiuterebbe solo se il nostro chunking
+> fosse rotto. E lo scheduling per-esperto è standard nei sistemi MoE
+> (DeepSpeed-MoE, Megablocks, Tutel, FasterMoE). Archiviata.
+>
+> ☠️ **IDEA 3 (predittore di route) — MORTA, e l'errore era retorico.**
+> Avevo venduto "legge zero byte di flash". Vero e **irrilevante**: il
+> predittore legge zero byte, ma **il prefetch che ne consegue li
+> legge**. È esattamente M7 (76% di precisione, +14% byte, −4.3% wall).
+> Un predittore migliore deve battere non il caso ma l'ECONOMIA dei
+> byte sprecati, e la metrica giusta non è la recall top-6 ma il
+> *guadagno wall per byte extra prefetchato*. In più è pubblicata
+> (ExpertFlow, MoE-Infinity, Pre-gated MoE); l'unico angolo forse nuovo
+> era l'input SSM/GDN, ma la novità dell'input non ripara l'economia.
+>
+> ✅ **IDEA 2 (k adattivo sulla confidenza del router) — RANK 1, e il
+> caveat di Qwen NON ci si applica.** Lui avverte: "se l'output esatto
+> a k=6 è un vincolo duro, l'idea muore". **Da noi non lo è**: la
+> ricetta certificata SPEDISCE già `--n-expert-used 6` (da k=8) e
+> `--drop-cold-experts 0.65`, cioè una config lossy passata da un gate
+> PPL. L'idea sta dentro il contratto che abbiamo già. Resta l'obiezione
+> teorica seria: **la gate del router misura la preferenza di ROUTING,
+> non la decisività dell'OUTPUT** — un esperto con gate piccola può
+> comunque ribaltare l'argmax se il margine top1-top2 è sottile.
+> Test aggiornato (migliore del mio): non solo accordo per bin, ma anche
+> **k medio implicito + bpb su held-out + confronto contro k statico E
+> contro drop-cold a parità di byte/compute**. Kill: accordo piatto fra
+> i bin, o bin ad alta confidenza troppo piccoli per muovere il k medio.
+>
+> ✅ **IDEA 5 (quantizzazione per temperatura) — RANK 2, la più
+> spedibile e la meno originale** (MoQE, QMoE, HAQ/HAWQ). Sequenziamento
+> di Qwen, migliore del mio: **prima il microbenchmark di dequant sui
+> formati candidati sul device DEBOLE**, poi si costruisce il GGUF misto.
+> Così sai quali formati sono permessi prima di spendere la pipeline.
+> Rischio aggiuntivo che non avevo scritto: la frequenza di accesso è
+> corpus-dipendente — un esperto freddo nel nostro istogramma può essere
+> caldo per una lingua a bassa risorsa, per il codice o per la matematica.
+> **La PPL macro nasconde il fallimento sulle route rare** → misurare la
+> qualità CONDIZIONATA ai token che routano sugli esperti a bassa
+> precisione, non solo la media.
+>
+> 🔬 **IDEA 4 / M4 — IL COLPO GROSSO, E LA VERIFICA AL SORGENTE.**
+> Qwen sostiene che M4 (drop 0.5 MIGLIORA la PPL) ha una spiegazione
+> banale: dato che lo slot droppato è ripuntato sul top expert (M5),
+> l'intervento non sarebbe "togli l'esperto freddo" ma
+> `y' = y − g_j·E_j + g_j·E_top`, cioè **un boost del top expert**.
+> **VERIFICATO AL SORGENTE (`router_hook.cpp:267-268`): la formula di
+> Qwen è SBAGLIATA.** Il peso viene messo **a zero**, non trasferito:
+> `*weight_at(...) = 0.0f; *id_at(...) = best_id;` — e il commento dice
+> perché il repoint esiste: far leggere al kernel memoria valida «and
+> multiply it by exactly zero». Il dot duplicato contribuisce ZERO.
+>
+> **MA la sua intuizione si salva su un altro ramo, e questo cambia
+> tutto: `drop_renorm` è TRUE di default** (`config.h:175`; si spegne
+> con `--drop-no-renorm`), e **la dropcurve NON lo ha mai spento**
+> (verificato nei `command.txt`). Quindi il codice che gira è
+> `router_hook.cpp:278-282`: i sopravvissuti vengono riscalati per
+> `total/kept > 1`. E siccome **il top expert non è mai droppabile**
+> (riga 262, `k != best`), la rinormalizzazione concentra massa su un
+> insieme superstite top-heavy. **Cioè: è mixture sharpening.**
+> Formula vera: `y' = (total/kept) · Σ_{superstiti} g_i·E_i(x)`.
+> Quindi il miglioramento di PPL può venire dallo SHARPENING e non dal
+> togliere rumore — Qwen ha sbagliato il meccanismo e azzeccato la
+> sostanza. **Non si costruiscono maschere per lingua finché M4 non è
+> spiegata.**
+>
+> 🎯 **E L'ESPERIMENTO DECISIVO È UN FLAG CHE ABBIAMO GIÀ.**
+> Bracci: (A) d=0.5 renorm ON = comportamento attuale · (B) d=0.5
+> **`--drop-no-renorm`** = rimozione pura senza riscalatura ·
+> (C) d=0 baseline · (D) controllo di Qwen: drop di esperti **a caso**
+> allo stesso conteggio, renorm ON.
+> Lettura: **A > B ≈ C → il guadagno è la rinormalizzazione**, l'idea 4
+> è costruita sulla sabbia — ma avremmo trovato una **leva di qualità
+> gratis che non richiede NESSUN risparmio di byte** (basta sharpare le
+> gate). **A ≈ B > C → il rumore degli esperti freddi è reale** e
+> l'idea 4 vive. Se anche (D) migliora, è sharpening puro.
+>
+> ⚠️ **E una nota di onestà che indebolisce M4 già ora:** il
+> miglioramento sotto zero è un risultato **MELLUM** (d0.5 = −0.0150).
+> Sulla curva CalaQwen il minimo è a d=0 (0.6781) e d0.3 sta
+> marginalmente SOPRA (+0.0004) — cioè su CalaQwen il miglioramento
+> **non si vede**. Prima di chiamarlo "il nostro risultato più strano"
+> va detto che finora è di un modello solo.
+>
 > **Cosa NON tocca:** quel che resta di F5 è intatto e resta vero —
 > l'acceptance quasi raddoppia come meccanismo di CORREZIONE (loop alpha
 > 8.6% → 24.6%) e il freeze salva **251.25 MiB** misurati di RAM. Non
