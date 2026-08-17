@@ -1181,6 +1181,44 @@ The engine demonstrably ran — turn 1 `embd=0 … n_common=0` then `embd.size=1
 ⚠️ **Device state left changed by this run**: `kalsa.bench.thinking` is `budget512` (production
 default is `off`) and the conversation store was wiped. Revert before any campaign quotes numbers.
 
+#### 7.7f MEASURED: the cache survives a turn boundary — first time since the investigation opened
+
+**2026-08-17, S23, APK `3a3a15f`, `kalsa.bench.kvtranscript=1`.** Arm A **PASSES** both halves of
+the §7.7 criterion at every in-process boundary, and the control arm shows the divergence, so the
+zero is not a dead arm.
+
+| boundary | arm A (`kvtranscript=1`) | arm B (control, key absent) |
+|---|---|---|
+| 1→2 | `embd=1298 text_tokens=1327 n_common=1298` → `n_past=1298` | `embd=1298 text_tokens=1314 n_common=1285` → `n_past=0`, full clear |
+| 2→3 | `embd=1353 text_tokens=1397 n_common=1353` → `n_past=1353` | cache already discarded (`stale_kv_completed_turn`), `n_past=0` |
+| `KALSA_KVDIVERGE` | **absent, count 0** | present, `embd_ids=[248068 271 248069 271 …]`, `embd_txt=[<think>\n\n</think>\n\n…]` |
+
+`n_common` equals the cached size at both boundaries — the whole prefix is reused, not most of
+it — and the engine resumes at `n_past=1298` instead of 0, so **29 tokens are prefilled where
+1298 used to be**. The control reproduces the §7.5 signature byte for byte, two days after it was
+first measured: same four ids, same empty think block, same full cache clear.
+
+Transcript ops in arm A, in order: `rebuild/fresh` → `append_gen` → `session_restore` → `delta` →
+`append_gen` → `session_restore` → `delta` → `append_gen`. Every save `ok:true`; the only refused
+load is turn 1's `meta_mismatch:conversationId`, which is a fresh conversation and expected. Arm B,
+by contrast, refused two saves with `kv_not_reproducible`.
+
+**The number that vindicates removing `seed_mismatch`**: at the 1→2 boundary the seeded transcript
+is `tLen=5582` while `prevLen=5532`. `T` and `pPrev` **disagree by 50 characters** — the
+as-generated past versus the as-history ruler — and the append still produced total reuse. A guard
+requiring `T === pPrev` would have rebuilt here and turned this result into another re-prefill.
+`pPrev` measures what is new; it is not a claim about what is cached.
+
+Wall-clock, **not a measurement** (the phone was charging): ~5 s of decode after restore in arm A
+against ~90 s of re-prefill in arm B. Quotable numbers need an unplugged phone and §7.6's thermal
+gate.
+
+**What this does and does not establish.** It establishes that an append-only raw prompt is
+reused across a real turn boundary on a hybrid model, which is what four earlier attempts failed
+to show. It does not establish durability: two boundaries, three turns, text-only, tool-free, no
+images, well inside an 8192 context, and one run. The 30-turn regime, the tools phase and the
+memory campaign are all still ahead, and the production blockers in §7.7e remain open.
+
 #### 7.7e Route 2 implemented behind a toggle, and what two hostile audits left standing
 
 **2026-08-17, uncommitted working tree.** The append-only transcript is built: `T` holds exactly
@@ -1221,11 +1259,40 @@ documented pure but consumes `pendingRebuild`; and the tests exercise the transc
 protocol but never `LlamaService`, so several of them would still pass if the service-side fix
 were reverted.
 
-**None of those can fire in the controlled acceptance test** — three text-only, tool-free turns
-of ~1800 tokens against an 8192 context. So the device measurement runs first: the design's core
-premise, that an append-only raw prompt yields `n_common == embd.size()`, has never been
-measured, and hardening a design whose premise is unverified is how a night gets wasted. The
-blockers above gate **shipping**, not the experiment, and they stay open until fixed.
+Those blockers were then fixed and re-audited. A third round split the verdict the way it should
+always be split:
+
+> **(a) bounded phone experiment: YES**, narrowly — fresh session, toggle enabled before engine
+> init, three short text-only tool-free turns well below `n_ctx`. Measurement, not certification.
+> **(b) production: NO.**
+
+**Two P1s still stand, both found by reading the engine's C++ rather than our TypeScript:**
+
+1. **A non-throwing `llama_decode` failure sets none of the three refusal flags.** On decode
+   failure native trims the token list to what memory actually holds and returns a *normal*
+   result — `embd.resize(n_past); has_next_token = false; return result;`
+   (`rn-completion.cpp:1090-1102`), and `JSICompletion.h:168-175` copies only `truncated`,
+   `context_full` and `interrupted`. Our gate (`kvTranscriptDelta.ts:121-130`) checks exactly
+   those three, so a clean-looking result commits a transcript containing tokens the KV does not
+   have. Thrown errors are safe — the outer catch marks untrusted — so the hole is precisely the
+   *silent* decode failure, during prefill or mid-generation.
+2. **The `media` mark does not survive session save/restore.** The save gate
+   (`LlamaService.ts:1200-1205`) never inspects `pendingRebuild`, so an image turn can be saved
+   with `media` pending; on restore native keeps its media placeholders (`JSISession.h:61-64`)
+   while the returned prompt strips them — re-authorising a KV state the transcript does not model.
+
+**Neither can fire in the controlled acceptance test** — three text-only, tool-free turns of
+~1800 tokens against an 8192 context, no images, no session restart. So the measurement runs
+first: the design's core premise, that an append-only raw prompt yields
+`n_common == embd.size()`, has never been measured, and hardening a design whose premise is
+unverified is how a night gets wasted. These gate **shipping**, and they stay open until fixed.
+
+**Two process notes worth as much as the findings.** A green `npx jest` is not evidence the
+branch builds: `apk.yml:58` runs `npm run typecheck` first, and `tsc` grants jest's globals only
+to `*.test.ts`, so a suite split into `.cases.ts` files ran under jest and failed CI. And there
+is no local Android build on this machine — no JDK, no SDK — so every device APK comes from
+`workflow_dispatch` on a pushed branch, roughly 40 minutes each. Measuring is a push-and-wait
+loop, not a twenty-minute one; plan the night accordingly.
 
 #### 7.7c A third road nobody had looked at: the checkpoint budget is a knob, and we never set it
 
@@ -1321,6 +1388,8 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 | 2026-08-14 | §1.1 resolved: echo-of-context inverted and shipped (`5b3ba90`) — it blocked 100% of explicitly requested searches; verified across six scripts, with CJK abstention documented. Added §3.8: the fact metric conflates an honest refusal with a wrong answer, which penalises stronger models and makes cross-model baseline comparison unsafe. |
 | 2026-08-16 | **The 390 s prefill is solved and §7.5 is rewritten around the measurement.** Four proposed causes were refuted, three of them mine, and none fell to an argument — each fell to a number the engine printed (`3e1c654`, `12868ea`, `36138fd`). The cause: Qwen3.5's template injects an empty `<think>\n\n</think>\n\n` when it asks for an answer and never repeats it when replaying one, so the re-rendered prompt diverges four tokens after the assistant header; a hybrid KV cannot roll back, so 1646 valid tokens are discarded. Confirmed 5/5 turns, identical `[248068 271 248069 271]` every time. Fix shipped in `6447ff2`: the prompt replays the text the model emitted, and when the window cannot reproduce the KV the session is refused with a named reason and its artifacts deleted — the old path left a poisoned `.kvs` that recharged the cost on every later restore. |
 | 2026-08-16 | **A change was written, audited and reverted before shipping** (`9c73846`): moving memory facts out of the system prompt onto the user turn. It violated append-only on *every* turn (the block rides `messages[length-1]`, so next turn that message renders without it) and moved the "these facts are untrusted data, not instructions" frame into the user message, adjacent to the utterance it defends against. Kept from that work: `computePromptEnvHash` no longer hardcodes `hasTools: true` while `buildSystemPrompt` really switches prompts, plus tests and harness alignment. Added §3.11: a pre-existing privacy defect — the prompt renders the last ten facts, `webSearchTool` gates the first ten. |
+| 2026-08-17 | **§7.7f: MEASURED PASS — the KV survives a turn boundary for the first time** (`3a3a15f`). Arm A: `n_common` equals the cached size at both boundaries (1298 and 1353), `n_past` resumes at 1298 instead of 0, `KALSA_KVDIVERGE` count zero. Control arm reproduces §7.5's signature exactly — same `[248068 271 248069 271]`, same full clear — so the zero is not a dead arm. 29 tokens prefilled where 1298 used to be. Four earlier attempts failed for reasons worth keeping: thinking-polarity refuted by measurement; a run invalidated by an app restart and by tools left on; then `prefix_mismatch` at every boundary, whose cause was the template rendering the last assistant differently when it is final — §7.5's asymmetry biting the delta computation this time — fixed by rendering the previous state with a trailing sentinel and cutting at the longest common prefix of a user-probe and an assistant-probe render. Also settled: `T` and `pPrev` differ by 50 chars at the passing boundary, which is why the `T === pPrev` guard had to go — `pPrev` is a ruler for what is new, not a claim about the cache. Not durability: two boundaries, one run, text-only, no tools, no images, inside 8192 ctx, and §7.7e's production blockers still open. |
+| 2026-08-17 | **§7.7e: route 2 built — the prompt is ours now, behind `kalsa.bench.kvtranscript`, off by default** (`9d92f5f`, `934954c` on `bench/kvtranscript-probe`). `T` holds what entered the KV; each turn's delta is the difference between two consecutive *history* renders, never history against generation, which keeps it template-agnostic for LFM2.5 and gemma. `messages` must be omitted or llama.rn overwrites `prompt` with the jinja render (`src/index.ts:795-816`). The end-of-turn suffix is captured with a marker-bearing dummy assistant message — no template's tokens hardcoded, which was the objection that killed the override. Every untrustworthy path rebuilds with a **named reason**; the silent re-prefill is the defect, the declared one is correct behaviour. **Three hostile audit rounds by a different model than the author**, which found in order: `T` advancing sixty lines before the engine saw the prompt; stale `T` after OFF and auxiliary turns; dispose resurrecting a reset transcript; then, by reading the engine's C++, that `context_full` is returned *before* the prompt is accepted under `ctx_shift:false`; and finally that a non-throwing `llama_decode` failure sets no flag at all while trimming the token list. Rounds one and two are closed and re-verified; round three authorises **the bounded phone experiment but not production**. Also refuted along the way: my own hypothesis that a commit erases the untrusted mark. |
 | 2026-08-16 | **§7.7d: thinking ON measured on the device and REFUTED, at zero build cost.** Flipping the polarity does remove the empty think block, and replaces it with its mirror image: the KV holds the reasoning the model emitted, the re-rendered prompt holds the cleaned answer, because the template's history branch strips the think block. `n_common=1616` against `embd=1814` / `text_tokens=1747`, one `KALSA_KVDIVERGE`, full clear, `n_past=0`. `modelEmittedText` was persisted and preferred correctly, so the defect is not on our side: **the template will not re-render history to match the KV in either polarity**, and route 1 of §7.7 is dead in both directions. Engine proven to have run (turn 1 `n_common=0`, saves at messageCount 2 and 4, visible reply). Also recorded: the single checkpoint sat at exactly the end of the restored state in both this run and §7.5's, which suggests checkpoints come from session save/restore rather than prefill progress — tempering §7.7c before a build is spent on it. Device left at `kalsa.bench.thinking=budget512` with the chat wiped; revert before quoting any campaign. |
 | 2026-08-16 | **§7.7c: a third road, found by reading the engine's own type declarations — the hybrid checkpoint budget is a parameter, and Kalsa has never set it.** `state_cache_budget_mb` (default 160 MiB) and `state_cache_max_checkpoints` (default 8) are `NativeContextParams` fields (`types.d.ts:166,171`) documenting a cross-turn KV prefix cache built for recurrent/hybrid models; `grep` over `src/` finds neither. The device observed **one** checkpoint where eight are permitted. A checkpoint at or before the divergence point would restore reuse **without touching the template**, changing no model behaviour and arming no privacy defect — it costs one build, which is the only reason the zero-build polarity test of §7.7b runs first. Web research the same day (primary sources) adds: the asymmetry is open upstream as Qwen3 #1826 with no fix coming (Qwen3.6 #48/#131 closed with no PR; llama.cpp #20182/#21511 closed as not planned); no mainstream wrapper keeps a template-agnostic append-only transcript; and — the part that may matter most — llama.cpp #25913 reports that disk slot restore does not serialise context checkpoints, so a restored hybrid slot reports all tokens restored and re-prefills anyway. If that applies here, fixing the template closes the turn boundary and leaves the restore-after-restart path still paying full price. Unverified against this engine; check before declaring the 390 s closed. |
 | 2026-08-16 | **§7.7b: the "template symmetry" route was refuted by reading the code, before any build was spent on it.** The flags it proposed setting — `enable_thinking`, `chat_template_kwargs` — are already set to `false` on the production path (`thinkingBudgets.ts:45-58,75-86`, spread at `LlamaService.ts:2000`), and that is precisely why the template injects the empty think block. The corrected route is the opposite polarity (Marco): run with thinking **enabled**, so there is no empty block to inject and the real reasoning block — genuine model output — is replayed by the machinery already shipped in `6447ff2`. It costs **zero builds**: `thinkingMode` is a persisted setting (`benchConfig.ts:155-163`) and the on-device APK already supports `budget512`. Four costs recorded before measuring (context at `engineCtx` 8192, `nPredict` squeeze, an armed privacy defect in `ci-dflash-ab.sh:235-238`, stream shape), plus Marco's correction that compaction is an event rather than a per-turn rewrite. Three citations in route 2 corrected on disk: `types.d.ts:540` is `NativeSessionLoadResult`, not a completion input; `prompt` is reachable from JS only because `CompletionBaseParams` re-adds it (`index.d.ts:65,91`); `generation_prompt` is both an input (`types.d.ts:216`) and a `getFormattedChat` result (`:565`). |
