@@ -353,15 +353,32 @@
 > abbia letto la metà di ogni altro OFF (22.1-22.5 GB) e abbia l'energia
 > rotta (0.0867 J/tok contro ~0.78).
 >
-> **Il meccanismo funziona e non basta:** stall OFF 21.9% → ON 13.4% su
-> OGNI blocco, ma letture 21.39 → 24.41 GB (**+14%**) con precisione del
-> prefetch 76% (un quarto dei byte prefetchati non serve mai). Energia
-> ratio 1.070 (escluso b24 rotto; l'analyzer dice 1.162 includendolo).
-> majflt, temp e TTFT in parità. **Assi di coda (p50/p95/p99, stutter)
-> MANCANTI**: l'harness non ha scritto righe per-token in questa cella →
-> KF_ROBUST e sag restano `MIXED (missing)`, dichiarato come buco.
+> **Il meccanismo funziona e non basta SULLA MEDIA — ma vince sulla
+> CODA.** Stall OFF 21.9% → ON 13.4% su OGNI blocco, letture 21.39 →
+> 24.41 GB (**+14%**) con precisione del prefetch 76% (un quarto dei byte
+> prefetchati non serve mai). Ma con i dati per-token **due gate
+> ribaltano a YES**: `KF_ROBUST_WIN ✅` (p99 ON **328** vs OFF **341** ms,
+> stutter ON **0.34%** vs OFF **0.55%**) e `KF_THERMAL_WIN ✅` (sag ON
+> 0.0423 vs OFF 0.0670, dT 0). Energia NO (ratio 1.070 escludendo il b24
+> rotto, 1.162 includendolo), majflt MIXED, TTFT in parità.
+> **Quindi la caratterizzazione onesta non è "K-F è inutile" ma "K-F
+> scambia throughput medio per fluidità della coda"** — stessa forma
+> trovata nella cella burst (p99 −17%, stutter dimezzato). Non licenzia
+> una claim di velocità; è un argomento di UX, e come tale va misurato
+> con un endpoint suo se mai lo vorremo.
 >
-> **Il gate di validità a freddo si è ripagato:** 2 run escluse per
+> ⚠️ **Due miei errori nel primo giro di report, corretti da un agente
+> delegato che ha riscritto il REPORT:** (1) avevo dichiarato gli assi di
+> coda MANCANTI — falso, i 27 file per-token erano sul device, non li
+> avevo tirati giù, e sono proprio quelli che ribaltano i gate;
+> (2) avevo scritto 2 run escluse per tepore fidandomi del contatore
+> `excl_warmth.txt` dell'harness, mentre il CSV ne mostra **3**
+> (`not_cold_valid`) più 1 esclusa per SIGTERM. Il CSV è ground truth, il
+> contatore ne conta una in meno — bug dell'harness, nessuna riga tenuta
+> è affetta. Lezione: non fidarsi di un contatore quando il dato grezzo è
+> lì accanto.
+>
+> **Il gate di validità a freddo si è ripagato:** 3 run escluse per
 > tepore, 1 blocco (b16) vuoto e rifatto in coda dal void-scan. Erano le
 > tre run bruciate dai due harness concorrenti (errore mio, causa radice:
 > il wrapper fa `exec` nello script interno → `pgrep` sul nome del

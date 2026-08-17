@@ -1,179 +1,270 @@
-# K-F confirmatory cell, COLD regime, Jelly Star — REPORT
+# kf_cold_jelly — pre-registered COLD confirmatory cell: NULL
 
-**VERDICT: NULL, leaning against K-F. The exploratory −20% does not reproduce.
-The registered activation policy is NOT licensed. KF_SHIP closes as
-characterization only.**
+**Pre-registered verdict: NULL. The exploratory −20 % did not reproduce.**
+Wilcoxon exact two-sided on the 12 registered (OFF − ON) pairs:
+**W=12, p=0.0635 — not significant at alpha 0.05.** One tie dropped →
+**effective N=11**, exact-test floor for that N = **0.000977** (`2/2^11`).
+Point estimate: ON is **+4.3 % slower** than OFF (mean 0.2001 vs 0.1919
+s/tok). Signs: 9 against, 2 for, 1 tie. Hodges–Lehmann shift (OFF−ON) =
+−0.009 s/tok (ON slower). Registration: `PREREG.md`, commit `01350f1`.
 
-Registered endpoint, Wilcoxon signed-rank exact two-sided on 12 (OFF − ON) pair
-differences, alpha 0.05: **W = 12, p = 0.0635 — not significant**. Direction:
-K-F ON is **4.3% slower** than OFF (mean OFF 0.1919 vs ON 0.2001 s/token),
-Hodges–Lehmann shift −0.0090 s/token, with **9 of 11 non-tied pairs favouring
-OFF**.
+This closes `KF_SHIP` as **characterisation only**. The registered
+activation policy is **not licensed**.
 
-Cell ran to the full pre-registered design: **24/24 blocks, 12/12 complete
-pairs**, no arm/flag/endpoint/test changed after registration
-(`results/kf_cold_jelly/PREREG.md`, committed `01350f1` before staging).
+## Pins (verified on device before block 1)
 
-## Primary result (registered, verbatim from `analyze_pairs.py`)
+| pin | value |
+|---|---|
+| K-F binary | `~/bin/kernel_kf/bmoe-cli` sha `77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e` — carries `--kf-prefetch`; the arm is the flag |
+| campaign pin | `~/bin/bmoe-cli.JELLY` sha `36b01966…` (not used as the A/B binary) |
+| model | `Marco-Mini-Instruct-KEXP.gguf` sha `2f921958…` size 6385238848 |
+| prompt | `p_fact.txt` sha `b5301c32…` |
+| start | UNPLUGGED, batt 96 %, 29 °C (block-1 start ≤ 33 °C) |
 
-```
-Kept blocks (excluded=0): 24 / 24
-Complete registered pairs: 12 (need >= 10)
+`~/bin/bmoe-cli` and `bmoe-cli.JELLY` (402 416 B) are the campaign pin and
+do **not** carry `--kf-prefetch`. `bmoe-cli-kvfix` does not either. No
+substitution was made.
 
-| pair | OFF blk | ON blk | OFF s/tok | ON s/tok | OFF-ON |
-|    1 |      1 |      2 |    0.1890 |   0.2000 | -0.0110 |
-|    2 |      4 |      3 |    0.1930 |   0.1930 | +0.0000 |
-|    3 |      5 |      6 |    0.2430 |   0.1990 | +0.0440 |
-|    4 |      8 |      7 |    0.1920 |   0.1950 | -0.0030 |
-|    5 |      9 |     10 |    0.1920 |   0.1980 | -0.0060 |
-|    6 |     12 |     11 |    0.1900 |   0.1880 | +0.0020 |
-|    7 |     13 |     14 |    0.1920 |   0.1950 | -0.0030 |
-|    8 |     16 |     15 |    0.1910 |   0.2240 | -0.0330 |
-|    9 |     17 |     18 |    0.1780 |   0.2000 | -0.0220 |
-|   10 |     20 |     19 |    0.1850 |   0.1990 | -0.0140 |
-|   11 |     21 |     22 |    0.1830 |   0.1980 | -0.0150 |
-|   12 |     24 |     23 |    0.1750 |   0.2120 | -0.0370 |
+## Cold floor (declared 14:22:15, before remaining pairs)
 
-N pairs = 12; ties dropped -> effective N = 11
-exact-test floor for that N = 0.000976562 (2/2^11)
-Wilcoxon exact two-sided: W=12 p=0.0634766
-mean OFF=0.1919 ON=0.2001 -> ON vs OFF +4.3%
-Hodges-Lehmann shift (OFF-ON) = -0.009000 s/tok
-signs: ON faster 2 / ON slower 9 / ties 1
+Pinned from first COLD-VALID OFF (`b1_OFF_try1`):
 
-Decision: not significant at alpha 0.05 (null).
-```
+| pin | value |
+|---|---|
+| first OFF `read_bytes` | 22 288 732 160 (22.289 GB) |
+| **COLD_READ_FLOOR** | **11 144 366 080 bytes** (50 %) |
+| first OFF Cached drop | 3884 MB; fadv `resident_after=0` |
 
-Note the exact-test floor: pair 2 is a tie (0.1930 = 0.1930 at the harness's
-4-decimal resolution) and Wilcoxon drops zero differences, so the test runs on
-**11 effective pairs** and the floor is 2/2¹¹ = 0.000977, not the N=12 floor of
-0.000488. Stated because anyone recomputing from "N=12" will otherwise find a
-discrepancy. (Same situation arose in the Xiaomi ship cell.)
+A later run is COLD-VALID iff Cached drop ≥ 1000 MB **and**
+`read_bytes ≥ 11144366080`.
 
-## Robustness checks — disclosed, post-hoc, NOT the registered endpoint
+## Cold-validity accounting
 
-Two blocks are visibly anomalous. Both checks below are post-hoc and are
-reported only as sensitivity; the primary result above stands as the verdict.
+| | n |
+|---|---|
+| kept COLD-VALID blocks | **24 / 24** (every registered order_idx has an `excluded=0` row) |
+| excluded-for-warmth runs | **3** (all on the first attempt at block 16) |
+| other excluded runs | **1** (block 16 try1, `cli_rc=143` SIGTERM during a duplicate-harness kill; that attempt *was* COLD-VALID, drop 2439 MB) |
+| void pairs recovered | 1 (pair (16 OFF, 15 ON) — block 16 re-run appended at end as `b16_OFF_retry_try1`, drop 2874 MB, kept) |
+| systematic reset failure | no — not infeasible |
+
+The three warmth excludes were an already-cold file (drop 0, resident 0)
+and two failed fadv calls (drop 390 / 222 MB) while a duplicate harness
+held the model mapped. They are not silent warm contamination of the
+kept set. Every kept row has `cold_valid=1` and drop ≥ 1325 MB.
+
+## Primary test (registered pairing)
+
+ABBA quartets, pairs (OFF₁, ON₂) and (OFF₄, ON₃) × 6.
+
+| pair | OFF blk | ON blk | OFF s/tok | ON s/tok | OFF−ON |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 1 | 2 | 0.189 | 0.200 | −0.011 |
+| 2 | 4 | 3 | 0.193 | 0.193 | 0 (tie) |
+| 3 | 5 | 6 | 0.243 | 0.199 | +0.044 |
+| 4 | 8 | 7 | 0.192 | 0.195 | −0.003 |
+| 5 | 9 | 10 | 0.192 | 0.198 | −0.006 |
+| 6 | 12 | 11 | 0.190 | 0.188 | +0.002 |
+| 7 | 13 | 14 | 0.192 | 0.195 | −0.003 |
+| 8 | 16 | 15 | 0.191 | 0.224 | −0.033 |
+| 9 | 17 | 18 | 0.178 | 0.200 | −0.022 |
+| 10 | 20 | 19 | 0.185 | 0.199 | −0.014 |
+| 11 | 21 | 22 | 0.183 | 0.198 | −0.015 |
+| 12 | 24 | 23 | 0.175 | 0.212 | −0.037 |
+
+N=12, ties dropped → effective N=11, exact-test floor 0.000977.
+W=12, p=0.0635. Null.
+
+## Robustness — post-hoc, disclosed, NOT the registered endpoint
+
+Two blocks are visibly anomalous. The primary above stands as the verdict; these
+variants are sensitivity only.
 
 | variant | N | eff | W | p | ON vs OFF | ON slower |
-|---|---|---|---|---|---|---|
-| **primary (registered)** | 12 | 11 | 12 | **0.0635** | **+4.3%** | 9/11 |
-| without b24 | 11 | 10 | 11 | 0.0996 | +2.9% | 8/10 |
-| without b5 | 11 | 10 | 1 | **0.0039** | **+6.9%** | 9/10 |
-| without b24 and b5 | 10 | 9 | 1 | 0.0078 | +5.6% | 8/9 |
+|---|---:|---:|---:|---:|---|---|
+| **primary (registered)** | 12 | 11 | 12 | **0.0635** | **+4.3 %** | 9/11 |
+| without b24 | 11 | 10 | 11 | 0.0996 | +2.9 % | 8/10 |
+| without b5 | 11 | 10 | 1 | **0.0039** | **+6.9 %** | 9/10 |
+| without b24 and b5 | 10 | 9 | 1 | 0.0078 | +5.6 % | 8/9 |
 
-**Every post-hoc variant makes our own technique look worse, not better.** That
-is why these are safe to disclose: the usual hazard of post-hoc exclusion is
-that it rescues the author's hypothesis, and here it does the opposite. Nothing
-below licenses K-F; the checks only sharpen the negative.
+**Every variant makes our own technique look worse, never better.** That is what
+makes this safe to disclose: the usual hazard of post-hoc exclusion is that it
+rescues the author's hypothesis, and here it does the opposite. Nothing here
+licenses K-F.
 
-**b5** (OFF, 0.2430 s/token against an OFF median of ~0.19) is the single
-anomalously slow OFF block, and it is the sole reason the primary lands at
-p=0.0635 instead of significance. It contributes the only large positive
-difference (+0.0440), i.e. the only pair that looks like a K-F win. **The one
-apparent win in this cell is an OFF-arm outlier, not an ON-arm success.**
-Removing it yields **+6.9% against K-F at p=0.0039** — which is within noise of
-the warm cell's pre-registered **+7.1% against (p=0.000977)**. Two independent
-regimes, two independent cells, the same magnitude and the same sign.
+**b5** (OFF, 0.243 s/tok against an OFF median of ~0.19) is the sole reason the
+primary lands at p=0.0635 rather than at significance. It contributes the only
+large positive difference (+0.044) — i.e. **the one pair in this cell that looks
+like a K-F win is an OFF-arm outlier, not an ON-arm success.** Removing it gives
+**+6.9 % against at p=0.0039**, within noise of the warm cell's pre-registered
+**+7.1 % against**. Two independent regimes, two cells, same sign and magnitude.
 
-**b24** (OFF) read **12.60 GB** against 22.1–22.5 GB for every other OFF block,
-and was the fastest block in the cell (0.1750 s/token). It passed the registered
-cold-validity rule — `fadv_rc=0`, `drop_mb=2739` (threshold 1000), reads 12.60 GB
-above the pinned floor of 11.14 GB — so it is COLD-VALID by the rule declared in
-advance and is **not** excluded. But it is plainly a different regime from the
-other 11 OFF blocks and is flagged here. Its energy reading is also broken
-(0.0867 J/token against ~0.75–0.83 elsewhere, ~10× off).
+**b24** (OFF) read 12.60 GB against 22.1–22.5 GB for every other OFF block and
+was the fastest block in the cell (0.175 s/tok). It is COLD-VALID under the rule
+declared in advance (`fadv_rc=0`, drop 2739 MB, reads above the 11.14 GB floor)
+and is therefore **not** excluded — but it is plainly a different regime, and its
+energy reading is broken (see the b24 caveat under Secondary axes).
 
-## Cold-validity accounting (the integrity mechanism)
+**Harness counter discrepancy:** `excl_warmth.txt` reports **2**, while the CSV
+shows **3** rows carrying `not_cold_valid`. The CSV is ground truth and the
+accounting above uses 3; the counter under-counts by one. Recorded as a harness
+bug, not a data problem — no kept row is affected.
 
-| item | value |
-|---|---|
-| cold floor, pinned from first OFF block before pairs | 11 144 366 080 bytes |
-| `fadv` DONTNEED before every measured run, both arms | yes, no exception |
-| `Cached` recorded before and after every call | yes (`cold_reset.csv`) |
-| COLD-VALID rule | drop ≥ 1000 MB **and** reads above floor |
-| runs excluded for warmth | **2** |
-| blocks void after retries, re-run appended | **1** (block 16) |
-| final blocks kept | 24/24 |
+## Secondary axes
 
-**The gate earned its place.** At ~18:00 I left two harnesses running
-concurrently during a resume; two `bmoe-cli` processes held the model mmap'd,
-`fadv` returned rc=3 ("still has 618912 resident pages"), and block 16 burned
-three attempts with `drop_mb` of 0, 390 and 222 against the 1000 MB threshold.
-All three were excluded automatically. Without the gate those would have entered
-a pre-registered cell as *warm* runs — and warm is exactly where K-F loses by
-7%, so they would not have added noise, they would have biased the cell toward
-refuting our own hypothesis while looking like an honest refutation. Block 16
-was later re-run cleanly by the harness's void-scan pass (`b16_OFF_retry_try1`,
-`drop_mb` clean) and is pair 8 in the primary table.
-
-## Secondary endpoints (disclosed, not gated)
+Stall share stayed in the "high" band on both arms (OFF 21–26 %, ON
+12–16 %). Prefetch still removes stall; it does not buy wall. That is
+the same shape as the warm cell, at a smaller ON penalty (+4.3 % here
+vs +7.1 % warm).
 
 | axis | OFF | ON | note |
 |---|---|---|---|
-| stall share | 21.4–25.7% (mean 21.9) | 12.1–15.5% (mean 13.4) | **the mechanism works, on every single block** |
-| read bytes (block mean) | 21.39 GB | 24.41 GB | **+14% — prefetch wasted** |
-| prefetch precision | — | 76.4–76.6% | ~23% of issued bytes never used |
-| J/token | 0.7764 (excl. broken b24) | 0.8308 | ratio **1.070** |
-| J/token as analyzer reports | 0.7147 (incl. broken b24) | 0.8306 | ratio 1.162 — inflated by b24 |
-| majflt/token | 8.20 | 8.64 | parity |
-| temp max | 36.0 °C | 36.0 °C | parity |
-| TTFT | 13.83 s | 13.86 s | parity |
+| wall s/tok (pair mean) | 0.1919 | 0.2001 | **+4.3 %** — primary |
+| stall share | 21–26 % | 12–16 % | prefetch still cuts stall |
+| per-token p50 / p99 | 187 / 341 ms | 197 / 328 ms | p99 slightly ON-better |
+| stutter rate | 0.55 % | 0.34 % | ON better |
+| J/token (analyzer) | 0.715 | 0.831 | ON worse; see b24 caveat |
+| majflt/token | 8.20 | 8.64 | mixed |
+| TTFT (width table) | 13.83 s | 13.86 s | wash |
+| temp_max | 36 °C | 36 °C | thermal YES |
 
-Per-token tail axes (p50/p95/p99, stutter rate) are **missing**: the harness
-recorded no per-token rows in this cell, so `KF_ROBUST_WIN` and the thermal sag
-gate are `MIXED (missing)`, not measured. Reported as a gap, not glossed.
+**b24 OFF joules = 0.087** (17 J for a 49 s / 200-token run) is a
+sampler-integration failure, not a real 9× energy win. It pulls the
+pooled OFF J/token down. Drop 2739 MB and `read_bytes` 12.60 GB still
+clear COLD-VALID; the wall number is kept. Energy NO would still hold
+if b24 is ignored.
 
-**This is the shape of the whole K-F story in one table.** The mechanism does
-exactly what it was designed to do — it removes eight to twelve points of I/O
-stall, reproducibly, on every block. It just does not convert that into time,
-because it reads 14% more bytes to get it and roughly a quarter of the prefetched
-bytes are never used.
+## Disclosed interruptions (resume allowed)
 
-## Interruptions (declared)
+1. Launch 14:20. Blocks 1–5 kept. sshd/process died mid-cooldown of
+   block 6 (~14:43).
+2. Resume 16:15 at block 6. Blocks 6–15 kept. Process died after
+   block 15 (~17:05).
+3. Resume 18:05 at block 16. A `am start com.termux` keepalive spawned
+   a **second harness**; both CLIs raced. Block 16's first three
+   attempts excluded (1 SIGTERM + 3 warmth). `STOP_PLUGGED` at block 17
+   (phone placed on charge, 55 %).
+4. Resume 19:39 at 100 % / 22 °C / UNPLUGGED. Blocks 17–24 kept. Block
+   16 re-run appended, kept. STATUS=`DONE` 20:03:34.
 
-1. **14:41** — screen went off, sshd died, and the harness died with it because
-   it was not detached. That is a defect of my mandate, which never required
-   detachment, not of the agent. 93 minutes lost, 5 blocks safe, `RESUME_AT=6`.
-2. **~18:00** — two concurrent harnesses (my error, see the gate section above).
-   Cost: block 16, three excluded attempts. Root cause: the wrapper `exec`s into
-   the inner script, so `pgrep` on the wrapper name returns empty on a live
-   harness and I read that as "nothing is running".
-3. **18:15** — `STATUS = STOP_PLUGGED`. The device was put on charge and the
-   harness **refused to measure while charging**, as the PREREG requires
-   (UNPLUGGED). Not a fault: the guard-rail working. It also stopped *after*
-   sshd had died, which proves the detachment finally held.
+All 12 pairs are complete. Pair 8's two blocks (15, then 16-retry) are
+the only pair split across a long interruption (~3 h). Disclosed.
 
-No partial pair entered the analysis. Blocks 17–24 and the block-16 re-run all
-ran unattended on a single detached harness at battery 100→90%, 24–31 °C.
+## Activation policy — not licensed
 
-## Does this license the registered activation policy?
+Registered policy:
 
-The policy registered in advance, before any data:
+> K-F is enabled if and only if: measured stall share is high AND the
+> cache is cold AND no thermal alarm is active.
 
-> K-F is enabled if and only if measured stall share is high AND the cache is
-> cold AND no thermal alarm is active. Battery level is explicitly NOT a gate.
-
-**No. It is not licensed.** The cold half of that conjunction was the last
-surviving hope for K-F, and it does not deliver: cold K-F is 4.3% slower
-(p=0.0635), and under robustness checks it converges on the same ~7% deficit the
-warm cell measured pre-registered. The policy stays unshipped and **K-F stays
-off**.
-
-## Where this leaves K-F
+This cell is exactly that regime (stall 21–26 % OFF, every kept run
+COLD-VALID, no thermal abort) and the primary test is a **null**, with
+the point estimate against. The policy does **not** ship. K-F stays
+off. The characterisation map is the deliverable:
 
 | device / regime | result |
 |---|---|
-| Jelly, warm | **+7.1% against**, pre-registered, W=1 p=0.000977 |
-| Jelly, cold | **+4.3% against**, pre-registered, W=12 **p=0.0635 (null)** |
-| Jelly, cold (exploratory, never pre-registered) | −20% — **does not reproduce** |
-| S23 | null (stall 11% → 6%) |
-| Xiaomi, warm and cold | null (cold stall share 8.7%) |
-| CalaQwen-35B, cold | stall share 6.0% — big-model hypothesis refuted |
+| Jelly, cold (this cell, pre-registered) | **null** (+4.3 % against, p=0.0635) |
+| Jelly, warm | **+7.1 % against**, W=1 p=0.000977 |
+| Jelly, cold (exploratory, never pre-registered) | −20 % — **not confirmed** |
+| S23 | null |
+| Xiaomi, warm and cold | null |
+| CalaQwen-35B, cold | stall share 6.0 % — big-model hypothesis refuted |
 
-The asymmetry this cell was built to remove is now removed: the only surviving
-positive was exploratory, and its pre-registered replication is a null that leans
-the other way. **The characterization map is the deliverable, not the technique.**
-That map is a real result — it says precisely where a prefetch of this kind can
-and cannot pay, and it cost far less than shipping the technique and discovering
-it in the field.
+## Analyzer output (verbatim, `analyze_kf_reality.py` unchanged)
+
+```
+# KF REALITY — Jelly analysis
+
+Per-token mechanism: native `--csv` (`wall_ms`). Hot blocks: `order_idx >= 2`.
+
+Rows in runs.csv: 28 (excluded=0: 24)
+
+| order | arm | width | tok/s | wall_s/tok | stall% | J/tok | majflt | read_GB | temp_max | batt | n | dur_s |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |
+| 1 | OFF |  | 5.302 | 0.189 | 22.8 | 0.76574403 | 1922 | 22.288732 | 30.000 | 96→95 | 200 | 53 |
+| 2 | ON | 4 | 5.010 | 0.200 | 15.5 | 0.84427043 | 1878 | 24.862323 | 32.000 | 95→94 | 200 | 54 |
+| 3 | ON | 4 | 5.185 | 0.193 | 14.0 | 0.80640993 | 2207 | 24.224698 | 33.000 | 93→92 | 200 | 52 |
+| 4 | OFF |  | 5.177 | 0.193 | 22.3 | 0.79138999 | 1922 | 22.334771 | 34.000 | 91→91 | 200 | 53 |
+| 5 | OFF |  | 4.108 | 0.243 | 21.8 | 0.78494911 | 599 | 22.266147 | 34.000 | 90→89 | 200 | 67 |
+| 6 | ON | 4 | 5.030 | 0.199 | 12.6 | 0.82291445 | 1983 | 24.601297 | 30.000 | 78→77 | 200 | 54 |
+| 7 | ON | 4 | 5.121 | 0.195 | 13.3 | 0.84954568 | 1524 | 24.497582 | 31.000 | 77→77 | 200 | 53 |
+| 8 | OFF |  | 5.200 | 0.192 | 21.4 | 0.80961512 | 1774 | 22.328107 | 33.000 | 75→75 | 200 | 53 |
+| 9 | OFF |  | 5.211 | 0.192 | 21.9 | 0.82731185 | 2035 | 22.307217 | 35.000 | 73→73 | 200 | 53 |
+| 10 | ON | 4 | 5.055 | 0.198 | 13.6 | 0.85556609 | 2410 | 24.349196 | 35.000 | 71→71 | 192 | 52 |
+| 11 | ON | 4 | 5.316 | 0.188 | 12.8 | 0.84078037 | 2012 | 23.758983 | 35.000 | 69→69 | 200 | 52 |
+| 12 | OFF |  | 5.269 | 0.190 | 21.6 | 0.78695652 | 2036 | 22.134755 | 35.000 | 67→67 | 200 | 52 |
+| 13 | OFF |  | 5.197 | 0.192 | 21.4 | 0.83248227 | 1895 | 22.239556 | 36.000 | 65→65 | 200 | 53 |
+| 14 | ON | 4 | 5.130 | 0.195 | 13.3 | 0.82383428 | 1623 | 24.140112 | 36.000 | 63→63 | 200 | 53 |
+| 15 | ON | 4 | 4.470 | 0.224 | 12.1 | 0.80505553 | 518 | 24.524026 | 35.000 | 62→61 | 200 | 63 |
+| 17 | OFF |  | 5.605 | 0.178 | 24.2 | 0.71983993 | 2143 | 22.498939 | 24.000 | 100→99 | 200 | 51 |
+| 18 | ON | 4 | 4.996 | 0.200 | 14.0 | 0.78670700 | 2121 | 24.695288 | 25.000 | 99→98 | 200 | 55 |
+| 19 | ON | 4 | 5.027 | 0.199 | 14.6 | 0.83776707 | 1468 | 24.702456 | 27.000 | 98→98 | 193 | 53 |
+| 20 | OFF |  | 5.411 | 0.185 | 23.2 | 0.76969045 | 1237 | 22.275211 | 28.000 | 98→97 | 200 | 52 |
+| 21 | OFF |  | 5.450 | 0.183 | 23.0 | 0.75374743 | 1718 | 22.141743 | 30.000 | 97→96 | 200 | 51 |
+| 22 | ON | 4 | 5.039 | 0.198 | 14.1 | 0.84776886 | 1303 | 24.625422 | 31.000 | 96→95 | 200 | 54 |
+| 23 | ON | 4 | 4.714 | 0.212 | 14.2 | 0.84918484 | 1475 | 23.960748 | 31.000 | 94→94 | 191 | 55 |
+| 24 | OFF |  | 5.721 | 0.175 | 25.7 | 0.08671375 | 1469 | 12.599276 | 31.000 | 92→92 | 200 | 49 |
+| 16 | OFF |  | 5.235 | 0.191 | 23.0 | 0.69902026 | 1207 | 22.140908 | 31.000 | 91→90 | 200 | 52 |
+
+## Per-token tail (hot blocks)
+
+- **OFF** n=2200  p50=`186.70` p90=`255.06` p95=`281.71` p99=`340.81` max=`491.17` ms  stutter(>2×p50)=`12` (0.55%)
+- **ON** n=2376  p50=`196.92` p90=`259.38` p95=`278.99` p99=`327.99` max=`768.84` ms  stutter(>2×p50)=`8` (0.34%)
+
+## Thermal sag (late-half vs early-half tok/s, per hot block)
+
+- b1_OFF_try1 (cold-first): sag=`0.0861` n=200
+- b2_ON_w4_try1 (hot): sag=`0.1331` n=200
+- b3_ON_w4_try1 (hot): sag=`0.0666` n=200
+- b4_OFF_try1 (hot): sag=`0.0778` n=200
+- b5_OFF_try1 (hot): sag=`0.1363` n=200
+- b6_ON_w4_try1 (hot): sag=`0.0456` n=200
+- b7_ON_w4_try1 (hot): sag=`-0.0146` n=200
+- b8_OFF_try1 (hot): sag=`0.0168` n=200
+- b9_OFF_try1 (hot): sag=`0.0686` n=200
+- b10_ON_w4_try1 (hot): sag=`0.0123` n=192
+- b11_ON_w4_try1 (hot): sag=`-0.0097` n=200
+- b12_OFF_try1 (hot): sag=`0.0572` n=200
+- b13_OFF_try1 (hot): sag=`0.0762` n=200
+- b14_ON_w4_try1 (hot): sag=`0.0300` n=200
+- b15_ON_w4_try1 (hot): sag=`0.1180` n=200
+- b17_OFF_try1 (hot): sag=`0.0444` n=200
+- b18_ON_w4_try1 (hot): sag=`0.0991` n=200
+- b19_ON_w4_try1 (hot): sag=`0.0487` n=193
+- b20_OFF_try1 (hot): sag=`0.0788` n=200
+- b21_OFF_try1 (hot): sag=`0.0819` n=200
+- b22_ON_w4_try1 (hot): sag=`0.0488` n=200
+- b23_ON_w4_try1 (hot): sag=`-0.0699` n=191
+- b24_OFF_try1 (hot): sag=`0.0135` n=200
+- b16_OFF_retry_try1 (hot): sag=`0.0855` n=200
+
+## Supporting (hot-block aggregates)
+
+- J/token  OFF=`0.7147015177272728`  ON=`0.8306436645622896`
+- majflt/token  OFF=`8.197727272727272`  ON=`8.637205387205388`
+- read_bytes_gb (block mean)  OFF=`21.387875454545455`  ON=`24.41184425`
+- temp_max (max over hot blocks)  OFF=`36.0`  ON=`36.0`
+- memavail_min_kib (hot blocks) = `3023488.0`
+
+## Width Pareto (hot blocks)
+
+Hot = `order_idx >= 2`. OFF pooled; each ON width is its own group. `majflt/tok first100` vs `rest` uses the per-token CSV `majflt` column (already a per-token delta).
+
+| width | tok/s | p50 | p90 | p99 | max | stutter% | J/tok | majflt/tok | majflt/tok first100 | majflt/tok rest | read GB | ttft_s |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| OFF | 5.235 | 186.70 | 255.06 | 340.81 | 491.17 | 0.55 | 0.714702 | 8.197727 | 0.0000 | 0.0000 | 21.3879 | 13.827 |
+| 4 | 5.008 | 196.92 | 259.38 | 327.99 | 768.84 | 0.34 | 0.830644 | 8.637205 | 0.0000 | 0.0000 | 24.4118 | 13.864 |
+
+## Verdicts
+
+| gate | verdict | numbers |
+| --- | --- | --- |
+| KF_ENERGY_WIN | **NO** | j/tok ON=0.830644 OFF=0.714702 ratio=1.1622 (YES≤1.05 NO>1.15) |
+| KF_THERMAL_WIN | **YES** | sag ON=0.0423 OFF=0.0670  temp_max ON=36.00 OFF=36.00 dT=+0.00C (YES: sag_ON≤sag_OFF and dT≤+1.0  NO: sag_ON>sag_OFF+0.05 or dT>+2.0) |
+| KF_MEMORY_WIN | **MIXED** | majflt/tok ON=8.637205387205388 OFF=8.197727272727272 memavail_min_kib=3023488.0 (abort=307200 safe>614400) |
+| KF_ROBUST_WIN | **YES** | p99_ms ON=327.99 OFF=340.81  stutter_rate ON=0.0034 OFF=0.0055 (YES: p99_ON≤p99_OFF and stutter_ON≤stutter_OFF  NO: p99_ON>p99_OFF×1.1 or stutter_ON>stutter_OFF+0.01) |
+```
+
+Data: `device/` (runs.csv, master log, per_token, power, cold_reset.csv).
+Wilcoxon: `analyze_pairs.py` (does not modify `analyze_kf_reality.py`).

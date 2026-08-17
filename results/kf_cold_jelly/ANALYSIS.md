@@ -33,35 +33,35 @@ Rows in runs.csv: 28 (excluded=0: 24)
 
 ## Per-token tail (hot blocks)
 
-- **OFF**: no per-token rows (hot blocks=11)
-- **ON**: no per-token rows (hot blocks=12)
+- **OFF** n=2200  p50=`186.70` p90=`255.06` p95=`281.71` p99=`340.81` max=`491.17` ms  stutter(>2×p50)=`12` (0.55%)
+- **ON** n=2376  p50=`196.92` p90=`259.38` p95=`278.99` p99=`327.99` max=`768.84` ms  stutter(>2×p50)=`8` (0.34%)
 
 ## Thermal sag (late-half vs early-half tok/s, per hot block)
 
-- b1_OFF_try1 (cold-first): sag=`n/a` n=0
-- b2_ON_w4_try1 (hot): sag=`n/a` n=0
-- b3_ON_w4_try1 (hot): sag=`n/a` n=0
-- b4_OFF_try1 (hot): sag=`n/a` n=0
-- b5_OFF_try1 (hot): sag=`n/a` n=0
-- b6_ON_w4_try1 (hot): sag=`n/a` n=0
-- b7_ON_w4_try1 (hot): sag=`n/a` n=0
-- b8_OFF_try1 (hot): sag=`n/a` n=0
-- b9_OFF_try1 (hot): sag=`n/a` n=0
-- b10_ON_w4_try1 (hot): sag=`n/a` n=0
-- b11_ON_w4_try1 (hot): sag=`n/a` n=0
-- b12_OFF_try1 (hot): sag=`n/a` n=0
-- b13_OFF_try1 (hot): sag=`n/a` n=0
-- b14_ON_w4_try1 (hot): sag=`n/a` n=0
-- b15_ON_w4_try1 (hot): sag=`n/a` n=0
-- b17_OFF_try1 (hot): sag=`n/a` n=0
-- b18_ON_w4_try1 (hot): sag=`n/a` n=0
-- b19_ON_w4_try1 (hot): sag=`n/a` n=0
-- b20_OFF_try1 (hot): sag=`n/a` n=0
-- b21_OFF_try1 (hot): sag=`n/a` n=0
-- b22_ON_w4_try1 (hot): sag=`n/a` n=0
-- b23_ON_w4_try1 (hot): sag=`n/a` n=0
-- b24_OFF_try1 (hot): sag=`n/a` n=0
-- b16_OFF_retry_try1 (hot): sag=`n/a` n=0
+- b1_OFF_try1 (cold-first): sag=`0.0861` n=200
+- b2_ON_w4_try1 (hot): sag=`0.1331` n=200
+- b3_ON_w4_try1 (hot): sag=`0.0666` n=200
+- b4_OFF_try1 (hot): sag=`0.0778` n=200
+- b5_OFF_try1 (hot): sag=`0.1363` n=200
+- b6_ON_w4_try1 (hot): sag=`0.0456` n=200
+- b7_ON_w4_try1 (hot): sag=`-0.0146` n=200
+- b8_OFF_try1 (hot): sag=`0.0168` n=200
+- b9_OFF_try1 (hot): sag=`0.0686` n=200
+- b10_ON_w4_try1 (hot): sag=`0.0123` n=192
+- b11_ON_w4_try1 (hot): sag=`-0.0097` n=200
+- b12_OFF_try1 (hot): sag=`0.0572` n=200
+- b13_OFF_try1 (hot): sag=`0.0762` n=200
+- b14_ON_w4_try1 (hot): sag=`0.0300` n=200
+- b15_ON_w4_try1 (hot): sag=`0.1180` n=200
+- b17_OFF_try1 (hot): sag=`0.0444` n=200
+- b18_ON_w4_try1 (hot): sag=`0.0991` n=200
+- b19_ON_w4_try1 (hot): sag=`0.0487` n=193
+- b20_OFF_try1 (hot): sag=`0.0788` n=200
+- b21_OFF_try1 (hot): sag=`0.0819` n=200
+- b22_ON_w4_try1 (hot): sag=`0.0488` n=200
+- b23_ON_w4_try1 (hot): sag=`-0.0699` n=191
+- b24_OFF_try1 (hot): sag=`0.0135` n=200
+- b16_OFF_retry_try1 (hot): sag=`0.0855` n=200
 
 ## Supporting (hot-block aggregates)
 
@@ -77,15 +77,15 @@ Hot = `order_idx >= 2`. OFF pooled; each ON width is its own group. `majflt/tok 
 
 | width | tok/s | p50 | p90 | p99 | max | stutter% | J/tok | majflt/tok | majflt/tok first100 | majflt/tok rest | read GB | ttft_s |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| OFF | 5.235 |  |  |  |  |  | 0.714702 | 8.197727 |  |  | 21.3879 | 13.827 |
-| 4 | 5.008 |  |  |  |  |  | 0.830644 | 8.637205 |  |  | 24.4118 | 13.864 |
+| OFF | 5.235 | 186.70 | 255.06 | 340.81 | 491.17 | 0.55 | 0.714702 | 8.197727 | 0.0000 | 0.0000 | 21.3879 | 13.827 |
+| 4 | 5.008 | 196.92 | 259.38 | 327.99 | 768.84 | 0.34 | 0.830644 | 8.637205 | 0.0000 | 0.0000 | 24.4118 | 13.864 |
 
 ## Verdicts
 
 | gate | verdict | numbers |
 | --- | --- | --- |
 | KF_ENERGY_WIN | **NO** | j/tok ON=0.830644 OFF=0.714702 ratio=1.1622 (YES≤1.05 NO>1.15) |
-| KF_THERMAL_WIN | **MIXED** | sag ON=None OFF=None temp_max ON=36.0 OFF=36.0 (missing) |
+| KF_THERMAL_WIN | **YES** | sag ON=0.0423 OFF=0.0670  temp_max ON=36.00 OFF=36.00 dT=+0.00C (YES: sag_ON≤sag_OFF and dT≤+1.0  NO: sag_ON>sag_OFF+0.05 or dT>+2.0) |
 | KF_MEMORY_WIN | **MIXED** | majflt/tok ON=8.637205387205388 OFF=8.197727272727272 memavail_min_kib=3023488.0 (abort=307200 safe>614400) |
-| KF_ROBUST_WIN | **MIXED** | p99 ON=None OFF=None stutter_rate ON=None OFF=None (missing) |
+| KF_ROBUST_WIN | **YES** | p99_ms ON=327.99 OFF=340.81  stutter_rate ON=0.0034 OFF=0.0055 (YES: p99_ON≤p99_OFF and stutter_ON≤stutter_OFF  NO: p99_ON>p99_OFF×1.1 or stutter_ON>stutter_OFF+0.01) |
 
