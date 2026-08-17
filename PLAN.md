@@ -216,8 +216,7 @@
 > della morte. Nota: sul device ci sono **Termux:Boot e Termux:API**, non
 > ancora sfruttati — un boot-script che riprende le celle interrotte è la
 > via naturale.
->
-> 🧪 **(design dichiarato prima del lancio:)**
+> results/dropsweep_jelly/.
 >
 > ☠️ **IDEA 2 (k ADATTIVO SULLA CONFIDENZA DEL ROUTER) — MORTA IN UN
 > MINUTO, A COSTO ZERO. Era il rank 1 mio E di Qwen.**
