@@ -110,6 +110,84 @@
 > intende. L'asimmetria 144-vs-200 è dichiarata nel report Xiaomi e
 > **non** in quello S23.
 >
+> ⚰️ **AUDIT OSTILE SUI KILL (16/08, mimo-v2.5 thinking max): 20 kill su
+> 25 corretti, accuratezza 80%. Cinque buchi, e uno è un tesoro sepolto.**
+>
+> 🏴‍☠️ **(1) IL TESORO: 5.77× di PREFILL GPU misurato e poi RIDOTTO A
+> 1.3-1.7× nel nostro stesso sommario.** Verificato al sorgente,
+> `reports/moe-gdn-750.md:201-206`, Phase 3, Xiaomi 14 / Adreno 750,
+> staccato, llama-bench r=2:
+>
+> | | pp128 | tg256 |
+> |---|---|---|
+> | CPU `-ngl 0` | 31.46 | **16.15** |
+> | GPU `-ngl 99 -fa off` | **181.65** | 7.07 |
+>
+> Cioè **prefill GPU 5.77× la CPU**, e il report stesso concludeva
+> «GPU-prefill on A7X: **alive and large** — 2.2× (740) to 5.8× (750).
+> The TTFT lever is real across the whole A7X installed base».
+> **Poi la riga di lane del PLAN l'ha registrato come "prefill GPU
+> 1.29-1.7×" e ALIVE.md ha messo la GPU nel cimitero senza distinguere
+> decode da prefill.** Una lane dichiarata VIVA dal suo stesso report è
+> stata contabilizzata come morta. Ed è su **TTFT**, che questo piano
+> chiama «LA priorità user-facing».
+> ⚠️ **QUALIFICATORE DECISIVO, che l'audit non mette:** la misura è su
+> **Qwen3.5-2B DENSO**, non sul 35B MoE. Per CalaQwen resta la
+> Q7-LANDMINE (l'hook expert-ready dello streaming vive solo nel loop CPU
+> di `mul_mat_id` → gli esperti del 35B DEVONO stare su CPU). Quindi il
+> 5.77× vale per i **densi 2B/4B su Adreno 750-class**, che però sono
+> proprio gli slot free-tier/piccoli del listino, e il dolore TTFT
+> dell'app è il prefill del prompt di sistema da ~1.4k token — cioè
+> esattamente prefill. **Da riaprire come lane TTFT sui densi**, non come
+> lane MoE. Cautela: il vecchio claim "1.29× prefill GPU" sul 740 si
+> rivelò un artefatto da cold-outlier, quindi il 5.77× va riverificato
+> con la stessa severità prima di spenderlo — ma è su un altro device e
+> un margine 4× più grande, quindi un artefatto lo spiega male.
+>
+> ✅ **(2) L'ablazione M4 renorm è il buco più caro, e l'audit ci arriva
+> INDIPENDENTEMENTE.** Stesso verdetto già registrato sopra dopo l'audit
+> Qwen: `drop_renorm` true di default, mai disattivato in nessun
+> `command.txt`, il guadagno di PPL può essere sharpening. L'audit la
+> classifica «highest-value missing measurement in the campaign», ~4 ore
+> di PC, zero device. Due auditor indipendenti sulla stessa cosa.
+>
+> ❌ **(3) "Selfspec mai testata sul Jelly" — REFUTATA DA ME, il
+> ragionamento è invertito.** L'audit dice: la selfspec è stata uccisa
+> sullo Xiaomi dove lo stall è 6%, mentre il Jelly ha 27-30% di stall,
+> quindi lì avrebbe «più margine da comprimere». **No: la selfspec non
+> comprime i byte, li ESPANDE.** Dato nostro (D1): byte per token emesso
+> 174 → 133 → 110 MiB man mano che le migliorie mordono, contro un plain
+> a **50-60**. Cioè legge ~2× i byte del plain. Su un device dove i byte
+> costano di PIÙ (flash lento), una penale del 2× sui byte fa **più**
+> male, non meno. Il Jelly è il device PEGGIORE per la selfspec, non il
+> più promettente. La regola "stall alto = più margine" vale per una
+> tecnica che nasconde o riduce l'I/O, non per una che ne aggiunge.
+>
+> 🔧 **(4) Il kernel S2 non è mai stato misurato su silicio SENZA REPACK
+> — e costa 5 minuti.** La build S23 ha REPACK ON, e il path fuso di S2
+> lo bypassa: è esattamente il motivo per cui perde (restituisce più di
+> quanto il taglio di launch compri). Su silicio senza REPACK anche lo
+> stock userebbe `vec_dot`, e il taglio 84→28 launch potrebbe vincere.
+> **Quel silicio ce l'abbiamo: il PC x86_64.** `results/kernel_s2/` ha la
+> correttezza PC PASS ma **nessuna misura di velocità**. Un
+> `llama-bench -r 2` ON/OFF chiude la questione. Se vince, il branch (già
+> corretto e PR-abile) vale per iPhone Pro / ARM senza REPACK.
+>
+> 📉 **(5) La componente UX di K-F è stata abbandonata senza decisione.**
+> Il kill come tecnica di THROUGHPUT è corretto e pre-registrato. Ma
+> p99 −17%, stutter dimezzato e TTFT 12-18 vs 21-22 s a freddo sono
+> misurati, e sono stati archiviati come nota fra parentesi invece che
+> come decisione. Non serve nessuna misura nuova: i dati sono in
+> `results/kf_burst/` e `results/kf_cold_jelly/`. Serve una scelta owner.
+>
+> **REFUTED (attaccati e hanno tenuto): 20 kill su 25** — F6, GPU decode
+> (740 e 750), REAP-50, KEXP-G99, MTP, prefetch cross-layer, politiche di
+> cache, taglia cache, ubatch, k<6, drop come leva compute, requant 1c,
+> kernel IQ2, typeahead, phase-split, expert-major, predittore di route,
+> LFM su G99. Sul drop-come-leva-compute l'audit ha verificato il
+> sorgente e conferma: lo slot droppato è ricalcolato con peso zero, il
+> matmul non si salta mai.
+>
 > 🧬 **NOTTE DELL'INVENZIONE (2026-08-15, mandato gualt "trucco mai
 > provato"): 10 candidati, 9 kill onesti, UN VINCITORE DI CORSA.**
 > Kill: cache-tricks tutti occupati (HOBBIT/DyMoE/SMoE/AdapMoE/
