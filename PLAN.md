@@ -227,6 +227,71 @@
 > quantità misurate sono deterministiche). ~5 ore di sonda hanno ucciso
 > una tecnica che sarebbe costata settimane. results/f6_certify_probe/.
 >
+> ☠️ **"DRAFT BY DROP" — MORTA IN 2 ORE, PRIMA DI SCRIVERE UNA RIGA
+> (16/08, audit Qwen 3.8 Max su docs/qwen-prompt-drop-draft.md).**
+> Proposta: usare `--drop-cold-experts 0.8` come DRAFT e il config pieno
+> come VERIFY → output bitwise identico al modello pieno, e finalmente
+> il "draft 5-10× più economico della stessa famiglia" che avevo
+> dichiarato mancante quando ho scartato la coppia densa 2B/4B (rapporto
+> 0.755, troppo vicino). **Falsa.**
+>
+> **L'errore, mio, grave: ho assunto c_draft = 0.2 senza misurarlo.**
+> Il nostro stesso dato dice 6.401 vs 5.807 tok/s → il config drop-0.8
+> costa **0.91×** il pieno, non 0.2×. Droppare l'80% degli esperti
+> FREDDI non è droppare l'80% del LAVORO, e la nostra throughput lo
+> dimostrava già. Quindi il draft economico **non esiste**: 1.1×, cioè
+> *peggio* del 4B/2B a 0.755 che avevo già scartato per questo motivo.
+> Conseguenza aritmetica (γ=4, c_v=1, accettazione PERFETTA):
+> `L_max/(4·0.91+1) = 5/4.64 = 1.08×`. Con c_v=2 → **sotto 1**. Morta
+> prima ancora di parlare di accettazione. Il numero era nel prompt,
+> nella sezione 4, e l'ho contraddetto nella sezione 5.
+>
+> **Secondo colpo — bpb NON è un proxy dell'accettazione.** La bpb è
+> liscia, l'accettazione greedy è una soglia sul margine top1-top2:
+> p=[0.501,0.499] vs q=[0.499,0.501] ha cross-entropy quasi identica e
+> ribalta l'argmax il 100% delle volte. Pinsker (TV ≤ √(Δ/2)) lega la
+> KL all'accettazione **campionata**, non a quella greedy. Quindi il
+> ponte "+1.6% bpb → il draft sbaglia poco" è un non sequitur.
+> **E c'è di peggio, deducibile dai nostri dati senza misurare nulla:**
+> se ~5 dei 6 esperti sono freddi, drop-0.8 ne butta ~4 e ne tiene ~2 —
+> cioè un k≈2 scelto per RESIDENZA invece che per rango del router.
+> Il top-2 (la scelta MIGLIORE) dà 0.6905 di accordo; una scelta peggiore
+> non può fare meglio. **α del draft-by-drop ≲ 0.69, non 0.9.**
+>
+> **Terzo colpo — osservazione che non era nostra: la cache è un secondo
+> stato non riavvolgibile.** Abbiamo congelato il GDN, ma il draft che
+> carica/sfratta esperti sporca la expert-cache, e quelle side effect
+> **sopravvivono al rigetto**. Se il draft è resident-only non inquina ma
+> non scalda nulla di utile; se carica esperti freddi inquina. Nessun
+> pasto gratis. In più il draft diventa NON stazionario: dipende da
+> LRU e dalla storia di accept/reject, quindi ogni misura teacher-forced
+> è strutturalmente cieca su questo.
+>
+> **Anche il verify batch a costo 1 era ottimistico, e contraddiceva un
+> nostro risultato:** con token consecutivi che routano a esperti quasi
+> disgiunti (96% toccati in 300 token — la nostra misura), un batch da 5
+> tocca ~5× i pesi, non 1×. È esattamente il motivo per cui avevo detto
+> che il batching non ammortizza su questo MoE.
+>
+> **Dove Qwen è pessimista senza che cambi il verdetto:** stima la
+> residenza con routing uniforme (2000 MiB/13.4 GB → ~38 esperti su 256
+> → ~0.9 hit su un top-6). Il nostro routing è skewed e l'LRU lo sfrutta:
+> `hit_pct` misurato nelle celle K-F sta a ~52%, non 15%. Ma non salva
+> niente, perché l'ancora decisiva (c_d = 0.91) è **misurata in wall
+> clock** ed è indipendente da quel conto.
+>
+> **Verdetto: la proposta ha una storia di CORRETTEZZA ma non di
+> PRESTAZIONI.** In regime I/O-bound l'invariante la uccide (verify
+> esatto → β=1). In regime compute-bound è morta sull'aritmetica con
+> numeri che avevamo già. Nessuna misura da fare: la sonda argmax che
+> avevo pianificato è un gate asimmetrico (male → uccide, bene → non
+> salva), quindi non la lanciamo.
+> **Cosa sopravvive e va spedito da solo:** `--drop-cold-experts` come
+> MODALITÀ VELOCE LOSSY, senza speculazione sopra. Curva qualità:
+> d0.3 = **+0.06%** bpb (gratis), d0.8 = +1.6%. Manca la misura che la
+> rende spedibile: **throughput E byte, senza contesa** (la cella attuale
+> non ha strumentato i byte e i timing sono confusi dalla sonda F6).
+>
 > **Cosa NON tocca:** quel che resta di F5 è intatto e resta vero —
 > l'acceptance quasi raddoppia come meccanismo di CORREZIONE (loop alpha
 > 8.6% → 24.6%) e il freeze salva **251.25 MiB** misurati di RAM. Non
@@ -264,8 +329,47 @@
 > prefetch**, per nascondere lo stall invece di saltare decodifiche;
 > (4) verify più magro sfruttando il drop già certificato.
 > results/selfspec_f5_d1_xiaomi/.
-> ❄️ **CELLA K-F A FREDDO SUL JELLY (16/08, SOSPESA a 6/12 coppie) —
-> sblocca o chiude KF_SHIP.** PREREG committato PRIMA dello staging (01350f1):
+> ❄️☠️ **CELLA K-F A FREDDO SUL JELLY — COMPLETA 24/24, VERDETTO NULLO
+> CHE PENDE CONTRO. KF_SHIP CHIUSA COME "SOLA CARATTERIZZAZIONE".**
+> Endpoint registrato: Wilcoxon esatto two-sided su 12 coppie,
+> **W=12 p=0.0635 → non significativo**. Direzione: K-F ON è **+4.3% più
+> LENTO** (OFF 0.1919 vs ON 0.2001 s/tok), HL −0.0090, **9 coppie su 11
+> non-pari a favore di OFF**. Una coppia è pari esatto → N efficace 11,
+> floor 2/2¹¹ = 0.000977. Il −20% esplorativo **NON si riproduce**.
+> **La policy di attivazione registrata NON è licenziata: K-F resta OFF.**
+>
+> **Robustezza (post-hoc, dichiarata, NON l'endpoint):** ogni variante
+> peggiora la NOSTRA tecnica, mai il contrario — per questo è sicuro
+> pubblicarla. Senza b24: p=0.0996, +2.9%. **Senza b5: p=0.0039, +6.9%.**
+> Senza entrambi: p=0.0078, +5.6%. Cioè **b5 è l'unica ragione per cui il
+> primario è un nullo invece di un negativo significativo**: è un blocco
+> OFF anomalo (0.243 contro mediana OFF ~0.19) e produce l'unica coppia
+> che sembra una vittoria K-F. **L'unica vittoria della cella è un
+> outlier del braccio OFF, non un successo del braccio ON.** E il +6.9%
+> che ne esce sta dentro il rumore del **+7.1% pre-registrato del warm**:
+> due regimi indipendenti, due celle, stesso segno e stessa magnitudine.
+> b24 dichiarato ma NON escluso (COLD-VALID per la regola registrata:
+> fadv_rc=0, drop 2739 MB, letture 12.60 GB sopra il floor 11.14) benché
+> abbia letto la metà di ogni altro OFF (22.1-22.5 GB) e abbia l'energia
+> rotta (0.0867 J/tok contro ~0.78).
+>
+> **Il meccanismo funziona e non basta:** stall OFF 21.9% → ON 13.4% su
+> OGNI blocco, ma letture 21.39 → 24.41 GB (**+14%**) con precisione del
+> prefetch 76% (un quarto dei byte prefetchati non serve mai). Energia
+> ratio 1.070 (escluso b24 rotto; l'analyzer dice 1.162 includendolo).
+> majflt, temp e TTFT in parità. **Assi di coda (p50/p95/p99, stutter)
+> MANCANTI**: l'harness non ha scritto righe per-token in questa cella →
+> KF_ROBUST e sag restano `MIXED (missing)`, dichiarato come buco.
+>
+> **Il gate di validità a freddo si è ripagato:** 2 run escluse per
+> tepore, 1 blocco (b16) vuoto e rifatto in coda dal void-scan. Erano le
+> tre run bruciate dai due harness concorrenti (errore mio, causa radice:
+> il wrapper fa `exec` nello script interno → `pgrep` sul nome del
+> wrapper torna VUOTO su harness vivo). Senza il gate sarebbero entrate
+> come run WARM in una cella pre-registrata, e warm è dove K-F perde del
+> 7%: non rumore, **bias a smentire la nostra stessa tesi**.
+> results/kf_cold_jelly/REPORT.md.
+> (contesto originale della cella:) PREREG committato PRIMA dello staging (01350f1):
 > 24 blocchi OFF-ON-ON-OFF ×6, N=12, Wilcoxon esatto two-sided, Marco
 > KEXP, un solo binario (il braccio è il flag). Motivo: il regime warm
 > ha un NEGATIVO pre-registrato (+7.1% contro, p=0.000977) e l'unico
