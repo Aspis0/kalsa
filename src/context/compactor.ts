@@ -90,11 +90,18 @@ export type HistoryRoleMessage = {
   text: string;
   /** Terminal partial kept after kill/abort — exclude from BM25/summary corpus. */
   interrupted?: boolean;
+  /**
+   * Text the model actually emitted (assistant only). Prompt assembly prefers
+   * this over `text` so the KV shared prefix matches what was produced.
+   */
+  modelEmittedText?: string;
 };
 
 export type EngineHistoryMessage = {
   role: "user" | "assistant";
   content: string;
+  /** See HistoryRoleMessage.modelEmittedText — carried into EngineMessage. */
+  modelEmittedText?: string;
 };
 
 // ── Defaults & storage key layout ──────────────────────────────────────────
@@ -593,10 +600,7 @@ export function assembleEngineHistory(
     );
     return (messages ?? [])
       .slice(start)
-      .map((m) => ({
-        role: m.role,
-        content: m.text.slice(0, maxChars),
-      }));
+      .map((m) => toEngineHistoryMessage(m, maxChars));
   }
 
   const boundary = resolveBoundaryIndex(
@@ -611,10 +615,27 @@ export function assembleEngineHistory(
     (messages ?? []).length,
   );
   const { recent } = splitAtBoundary(messages ?? [], boundary);
-  return recent.map((m) => ({
+  return recent.map((m) => toEngineHistoryMessage(m, maxChars));
+}
+
+function toEngineHistoryMessage(
+  m: HistoryRoleMessage,
+  maxChars: number,
+): EngineHistoryMessage {
+  const out: EngineHistoryMessage = {
     role: m.role,
     content: m.text.slice(0, maxChars),
-  }));
+  };
+  // Replay field must stay byte-identical to what fed the KV. Cap bounds
+  // prompt *content* only; generation already ceilings emission length.
+  if (
+    m.role === "assistant" &&
+    typeof m.modelEmittedText === "string" &&
+    m.modelEmittedText.length > 0
+  ) {
+    out.modelEmittedText = m.modelEmittedText;
+  }
+  return out;
 }
 
 /** Convert history messages to RetrievalUnit[] for digest. */

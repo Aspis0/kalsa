@@ -77,6 +77,10 @@ import { decidePreSendFit } from "../engine/deviceProfile";
 import { getAvailableMemoryBytesUncached } from "../engine/monitor";
 import { getModelById } from "../engine/ModelRegistry";
 import { miniappStripMakesKvNonReproducible } from "../engine/kvReproducibility";
+import {
+  normalizeModelEmittedTextForSave,
+  readModelEmittedText,
+} from "../engine/modelEmittedText";
 import { historyHash } from "../engine/sessionPersistence";
 import {
   messagesKey,
@@ -200,6 +204,11 @@ type Message = {
   id: string;
   role: "user" | "assistant";
   text: string;
+  /**
+   * Text the model actually emitted (assistant only). UI renders `text`
+   * (cleaned); prompt assembly replays this when present so the KV prefix matches.
+   */
+  modelEmittedText?: string;
   streaming?: boolean;
   /** Terminal marker: generation was interrupted mid-stream (partial text kept). */
   interrupted?: boolean;
@@ -231,6 +240,8 @@ type StreamCallbacks = {
   onMiniapp?: (miniapp: any) => void;
   // RNA-seq job context: emitted once per stream before the LLM starts.
   onImages?: (images: ResultImage[], downloads: ResultDownload[]) => void;
+  /** Unmodified model output for this assistant turn (prompt replay / KV). */
+  onModelEmittedText?: (text: string) => void;
   /** Optional failure signal from stream backends that resolve instead of reject. */
   onFailed?: (reasonKey: string) => void;
 };
@@ -499,6 +510,13 @@ function buildPersistableMessages(
           ? { libraryDocId: a.libraryDocId.slice(0, 120) }
           : {}),
       }));
+      // modelEmittedText rides on ...message (assistant-only). New persisted
+      // field → historyHash changes once (one cold prefill; fails safe).
+      // Whitespace-only normalises to absent (matches restore).
+      const emitted = normalizeModelEmittedTextForSave(
+        message.role,
+        message.modelEmittedText,
+      );
       if (message.streaming && allowStreamingPartial) {
         return {
           ...message,
@@ -507,6 +525,9 @@ function buildPersistableMessages(
           statusHistory: undefined,
           interrupted: true,
           attachments,
+          ...(emitted !== undefined
+            ? { modelEmittedText: emitted }
+            : { modelEmittedText: undefined }),
         };
       }
       return {
@@ -517,6 +538,9 @@ function buildPersistableMessages(
         statusLabel: undefined,
         statusHistory: undefined,
         attachments,
+        ...(emitted !== undefined
+          ? { modelEmittedText: emitted }
+          : { modelEmittedText: undefined }),
       };
     });
 }
@@ -562,7 +586,10 @@ function persistMessagesNow(
   ) {
     return false;
   }
-  AsyncStorage.setItem(storageKey, JSON.stringify(clean)).catch(() => undefined);
+  AsyncStorage.setItem(storageKey, JSON.stringify(clean)).catch((err) => {
+    // Same non-fatal surface as saveEngineSession / voice failures.
+    console.warn("[persistMessages]", err);
+  });
   return true;
 }
 
@@ -601,6 +628,11 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
     }
     if (record.edited === true) {
       message.edited = true;
+    }
+    // Model-emitted text (assistant only) for prompt replay / KV prefix match.
+    const emitted = readModelEmittedText(record.role, record.modelEmittedText);
+    if (emitted !== undefined) {
+      message.modelEmittedText = emitted.slice(0, MAX_TEXT);
     }
     // Transient UI only — never restore live status strips after kill/reload
     // (orphan "Writing / Reading document…" after a finished turn — Jelly MED-5).
@@ -1242,7 +1274,9 @@ export function AiChatPage({
               const payload = JSON.stringify(clean);
               const storageKey = persistKeyRef.current;
               if (persistEpochRef.current === epoch && storageKey) {
-                AsyncStorage.setItem(storageKey, payload).catch(() => undefined);
+                AsyncStorage.setItem(storageKey, payload).catch((err) => {
+                  console.warn("[persistMessages]", err);
+                });
                 notifyConversationTouched(clean as Message[]);
                 void saveEngineSession(modelId, historyHash(payload), clean.length);
               }
@@ -2161,6 +2195,8 @@ export function AiChatPage({
       // Track whether any text has streamed — used to decide whether to remove empty placeholder on abort.
       // Set on onDelta (not on coalescer flush) so abort-before-first-flush still keeps the bubble.
       let anyTextStreamed = false;
+      // Unmodified model output for this turn (prompt replay). UI still streams cleaned text.
+      let modelEmittedText: string | undefined;
       // ~30 fps UI flush: llama.rn is 5–15 tok/s; setState every token is wasteful.
       // Coalescer overwrites with the latest full text and flushes on a 33 ms cadence.
       // Capture myGen/runId into the flush: a deferred trailing timer must not
@@ -2192,6 +2228,14 @@ export function AiChatPage({
                   return;
                 }
                 streamCoalescer.push(full);
+              },
+              onModelEmittedText: (text) => {
+                if (regenGenerationRef.current !== myGen || sendRunIdRef.current !== runId) {
+                  return;
+                }
+                if (typeof text === "string" && text.length > 0) {
+                  modelEmittedText = text;
+                }
               },
               // Feature 1: append to history AND set current label
               onStatus: (status) => {
@@ -2421,11 +2465,16 @@ export function AiChatPage({
               let miniappStripped = false;
               const messages = prev.map((message) => {
                 if (message.id !== assistantId) return message;
+                const emittedSave = normalizeModelEmittedTextForSave(
+                  "assistant",
+                  modelEmittedText,
+                );
                 const base: Message = {
                   ...message,
                   streaming: false,
                   statusLabel: undefined,
                   interrupted: wasInterrupted ? true : undefined,
+                  ...(emittedSave !== undefined ? { modelEmittedText: emittedSave } : {}),
                 };
                 if (base.miniapp) return base;
                 const extracted = parseMiniappFromText(base.text || "");

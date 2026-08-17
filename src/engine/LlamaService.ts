@@ -53,6 +53,11 @@ import {
 } from "./toolCallParser";
 import { createThinkStreamCleaner } from "./thinkStream";
 import {
+  historyWindowReproducesKv,
+  modelEmittedTextForVisibleReply,
+  promptContentForHistoryMessage,
+} from "./modelEmittedText";
+import {
   formatToolCallLine,
   formatToolRoundExhaustedLine,
   type ToolRoundExhaustedTelemetry,
@@ -352,6 +357,11 @@ export type EngineMessage = {
   content: string;
   /** URI locali (file://) di immagini da allegare al messaggio USER corrente. */
   images?: string[];
+  /**
+   * Text the model actually emitted for this assistant turn (prompt replay).
+   * Assistant-only; when present, streamAssistantTurn uses it instead of content.
+   */
+  modelEmittedText?: string;
 };
 
 export type EngineTool = {
@@ -397,6 +407,11 @@ export type EngineCallbacks = {
   onTool?: (tool: unknown) => void;
   onSources?: (sources: unknown[]) => void;
   onMiniapp?: (miniapp: unknown) => void;
+  /**
+   * Unmodified model output for the assistant turn (think wrappers etc.).
+   * Fired once when the final text is produced; UI stream stays cleaned via onDelta.
+   */
+  onModelEmittedText?: (text: string) => void;
   onDone: () => void;
   onError: (error: Error) => void;
 };
@@ -1371,6 +1386,20 @@ async function tryLoadEngineSession(
       });
       return false;
     }
+    // Byte-identity gate: refuse when the prefix cannot re-render the KV
+    // (legacy assistant without modelEmittedText, interrupted without capture).
+    const prefixCount =
+      typeof stored.historyMessageCount === "number"
+        ? stored.historyMessageCount
+        : bootMessages.length;
+    const reproCheck = historyWindowReproducesKv(
+      bootMessages.slice(0, Math.max(0, prefixCount)),
+    );
+    if (!reproCheck.accept) {
+      await deleteSessionArtifacts(modelId);
+      log(false, { reason: `meta_mismatch:${reproCheck.reason}` });
+      return false;
+    }
     const result = await context.loadSession(sessionFilePath(modelId));
     kvHoldsChatSession = true;
     // Keep lastPromptEnvHash aligned with the restored KV for a later save.
@@ -1599,6 +1628,9 @@ export async function streamAssistantTurn(
 
     let finished = false;
     let aborted = false;
+    // Raw tokens for this turn (all rounds). On abort, emit before onDone so
+    // the UI can persist modelEmittedText for the interrupted partial.
+    let rawEmittedAccum = "";
     const finishOnce = (fn: () => void) => {
       if (!finished) {
         finished = true;
@@ -1608,6 +1640,9 @@ export async function streamAssistantTurn(
 
     const abort = () => {
       aborted = true;
+      if (rawEmittedAccum) {
+        callbacks.onModelEmittedText?.(rawEmittedAccum);
+      }
       finishOnce(() => callbacks.onDone());
       // Same identity guard as bailIfStopped: after the disposeEngineLocked
       // safety-net timeout forces a release(), `engine` no longer matches the
@@ -1662,7 +1697,12 @@ export async function streamAssistantTurn(
         ? options.lastUserMessage
         : (messages[userIndex]?.content ?? "");
     const historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) =>
-      index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
+      index === userIndex
+        ? buildUserMessage(message)
+        : {
+            role: message.role,
+            content: promptContentForHistoryMessage(message),
+          },
     );
     // Capture prompt-env hash from the same inputs buildSystemPrompt uses so a
     // later saveEngineSession can reject restores whose system prompt drifted.
@@ -1708,12 +1748,16 @@ export async function streamAssistantTurn(
       // Prepend prior-round streamed prefix: finalText is LAST-round only, but
       // the UI already shows round-1 prose via streaming; a bare full-replace
       // used to wipe that prose from the bubble and persisted history.
-      let finalText = stripToolCallTagsFinal(thinkCleaner.finalize(extractRawResultText(raw)));
+      const modelEmitted = extractRawResultText(raw);
+      let finalText = stripToolCallTagsFinal(thinkCleaner.finalize(modelEmitted));
       // Binding's parsed content keeps `\n\n` left by an empty think block while
       // the streamed cleaner strips it — full-replace then differs by leading
       // whitespace only (blank lines atop the bubble + late DB rewrite). Only
       // when there is no prior-round prefix.
       if (!streamedTextAtRoundStart) finalText = finalText.trimStart();
+      // Keep what the model produced for next-turn prompt replay (KV prefix).
+      // UI still receives cleaned text only via onDelta.
+      if (modelEmitted) callbacks.onModelEmittedText?.(modelEmitted);
       if (finalText) callbacks.onDelta(finalText, streamedTextAtRoundStart + finalText);
       // clean_completion: reducer sets reproducible only if !turnInjected
       // (tool turn final emit stays false). Miniapp strip is marked later by
@@ -1966,6 +2010,7 @@ export async function streamAssistantTurn(
               // <think>/<tool_call> markup that appears in the raw token stream.
               if (finished || aborted) return;
               const raw = data.token ?? "";
+              if (raw) rawEmittedAccum += raw;
               const delta = cleanStreamDelta(raw);
               if (delta) {
                 streamedText += delta;
@@ -2278,6 +2323,7 @@ export async function streamAssistantTurn(
                 (data: TokenData) => {
                   if (finished || aborted) return;
                   const raw = data.token ?? "";
+                  if (raw) rawEmittedAccum += raw;
                   const delta = cleanStreamDelta(raw);
                   if (delta) {
                     streamedText += delta;
@@ -2289,12 +2335,19 @@ export async function streamAssistantTurn(
             emitTurnTelemetry(turnId, MAX_TOOL_ROUNDS, fallbackResult, toolAttribution.snapshot());
             // Strip tool_call/think markup from the fallback result. If text
             // remains, emit it; otherwise fall through to the canned message.
+            const fallbackEmitted = extractRawResultText(fallbackResult);
             let fallbackText = stripToolCallTagsFinal(
-              thinkCleaner.finalize(extractRawResultText(fallbackResult)),
+              thinkCleaner.finalize(fallbackEmitted),
             ).trim();
             if (fallbackText) {
               exhaustedTel.fallbackOk = true;
               if (!fallbackStreamedTextAtStart) fallbackText = fallbackText.trimStart();
+              // Attach raw only when cleaned text survived (canned path keeps none).
+              const attachEmitted = modelEmittedTextForVisibleReply(
+                fallbackText,
+                fallbackEmitted,
+              );
+              if (attachEmitted) callbacks.onModelEmittedText?.(attachEmitted);
               callbacks.onDelta(fallbackText, fallbackStreamedTextAtStart + fallbackText);
               kvReproState = nextKvReproState(kvReproState, "clean_completion");
             }

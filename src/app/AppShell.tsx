@@ -629,9 +629,17 @@ function validateHistoryMessages(history: unknown[] | undefined): HistoryRoleMes
         (m as { interrupted?: unknown }).interrupted === true ? true : undefined;
       const edited =
         (m as { edited?: unknown }).edited === true ? true : undefined;
+      const rawEmitted = (m as { modelEmittedText?: unknown }).modelEmittedText;
+      const modelEmittedText =
+        role === "assistant" &&
+        typeof rawEmitted === "string" &&
+        rawEmitted.trim().length > 0
+          ? rawEmitted.trim()
+          : undefined;
       const rec: HistoryRoleMessage & { edited?: boolean } = { role, text };
       if (interrupted !== undefined) rec.interrupted = interrupted;
       if (edited !== undefined) rec.edited = edited;
+      if (modelEmittedText !== undefined) rec.modelEmittedText = modelEmittedText;
       out.push(rec);
     }
   }
@@ -4428,10 +4436,20 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               boundaryIndex: boundaryForAssemble,
               legacyWindowOverride,
             });
-            const engineMessages: EngineMessage[] = assembled.map((m) => ({
-              role: m.role,
-              content: m.content,
-            }));
+            const engineMessages: EngineMessage[] = assembled.map((m) => {
+              const msg: EngineMessage = {
+                role: m.role,
+                content: m.content,
+              };
+              if (
+                m.role === "assistant" &&
+                typeof m.modelEmittedText === "string" &&
+                m.modelEmittedText.length > 0
+              ) {
+                msg.modelEmittedText = m.modelEmittedText;
+              }
+              return msg;
+            });
 
             // Immagini da allegare all'ultimo messaggio user (cap 5):
             // immagini dirette + pagine PDF renderizzate.
@@ -4645,6 +4663,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 onDelta: (delta, full) => {
                   assistantFull = full;
                   callbacks.onDelta?.(delta, full);
+                },
+                onModelEmittedText: (text) => {
+                  callbacks.onModelEmittedText?.(text);
                 },
                 onStatus: (status) => callbacks.onStatus?.(status),
                 onSources: (sources) =>

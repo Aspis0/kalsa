@@ -955,6 +955,12 @@ be replayed. The fix is to separate the two: store the model-visible text, rende
 Deliberately **not** fixed by prepending the template's tokens in prompt assembly: this app also
 runs LFM2.5 and gemma, and hardcoding one template's internals buys today's fix with tomorrow's bug.
 
+**Five of five turns show the identical divergence** — `embd_ids` begins `[248068 271 248069 271]`
+in every sample of the arm (n_common 1646, 1749, 1937, 2250, 2395), after which each reply differs
+as expected. The four tokens are invariant; only what follows them differs. That makes the acceptance
+test for the fix unambiguous: after it, `KALSA_KVDIVERGE` must stop appearing at turn boundaries
+altogether, not merely appear less often.
+
 Note the scale of the exchange, because it is the argument for instrumenting before theorising:
 **1646 tokens of valid cache, ~390 s of prefill, discarded every turn over four tokens of template
 punctuation.**
