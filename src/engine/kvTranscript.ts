@@ -5,6 +5,7 @@
 
 import {
   decideAdvance,
+  firstDiverge,
   generationSuffix,
   refuseReasonFromResult,
   transcriptFingerprint,
@@ -52,6 +53,13 @@ export function resetKvTranscript(): void {
   recordCommit();
 }
 
+/**
+ * Seed T from NativeSessionLoadResult.prompt — the native KV bytes, as-generated
+ * (think block included). Template renders of the same history are the
+ * history-shape (think stripped). Those two strings are never textually equal;
+ * pPrev is only a ruler for what is new, not a claim about T. Do not require
+ * T === pPrev (that disables append on every restore).
+ */
 export function seedKvTranscript(prompt: string, envHash?: string): void {
   transcript = prompt;
   lastPPrev = null;
@@ -85,8 +93,22 @@ export function computeCandidatePrompt(args: {
     commitLen,
     commitFp,
   });
+  // Append path: T (KV, as-generated) + (pNew − pPrev). pPrev is a ruler, not T.
   const prompt =
     decision.kind === "rebuild" ? args.pNew : transcript + decision.delta;
+  if (decision.kind === "rebuild" && decision.reason === "prefix_mismatch") {
+    const d = firstDiverge(args.pNew, args.pPrev);
+    console.log(
+      "KALSA_KVDIVERGE " +
+        JSON.stringify({
+          offset: d.offset,
+          prevLen: args.pPrev.length,
+          newLen: args.pNew.length,
+          prev: d.prevWin,
+          next: d.newWin,
+        }),
+    );
+  }
   if (decision.kind === "rebuild") {
     logKv({ op: "rebuild", reason: decision.reason, tLen: prompt.length });
   } else {

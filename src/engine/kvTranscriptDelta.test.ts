@@ -4,6 +4,7 @@
 
 import {
   decideAdvance,
+  firstDiverge,
   generationSuffix,
   messagesThroughLastAssistant,
   refuseReasonFromResult,
@@ -33,6 +34,24 @@ describe("sliceDelta", () => {
     const smile = "\uD83D\uDE00";
     expect(sliceDelta(`x${smile}`, `x${high}`)).toBe(null);
     expect(sliceDelta(`ok${smile}`, "ok")).toBe(smile);
+  });
+});
+
+describe("firstDiverge", () => {
+  test("offset is the first differing index", () => {
+    const d = firstDiverge("aaaXbbb", "aaaYbbb");
+    expect(d.offset).toBe(3);
+    expect(d.prevWin).toContain("Y");
+    expect(d.newWin).toContain("X");
+  });
+
+  test("windows are capped at 80", () => {
+    const prev = "P".repeat(200);
+    const next = "P".repeat(50) + "Q" + "P".repeat(149);
+    const d = firstDiverge(next, prev);
+    expect(d.offset).toBe(50);
+    expect(d.prevWin.length).toBeLessThanOrEqual(80);
+    expect(d.newWin.length).toBeLessThanOrEqual(80);
   });
 });
 
@@ -179,11 +198,20 @@ describe("decideAdvance rebuild reasons", () => {
     });
   });
 
-  test("delta when prefix holds", () => {
+  test("delta when prefix holds even if T is not pPrev", () => {
     expect(decideAdvance({ ...base, t: "A", pNew: "ABC" })).toEqual({
       kind: "delta",
       delta: "BC",
     });
+    expect(
+      decideAdvance({ ...base, t: "AS-GENERATED", pPrev: "A", pNew: "ABC" }),
+    ).toEqual({ kind: "delta", delta: "BC" });
+  });
+
+  test("pprev_sentinel pending forces rebuild", () => {
+    expect(
+      decideAdvance({ ...base, pendingReason: "pprev_sentinel" }),
+    ).toEqual({ kind: "rebuild", reason: "pprev_sentinel" });
   });
 
   test("completion_failed pending wins over delta", () => {

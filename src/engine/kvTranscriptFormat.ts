@@ -4,6 +4,8 @@
  */
 
 export const EOT_MARKER = "\u0007KALSATX\u0007";
+/** Dummy content for the role-pair pPrev cut. Must not appear in a template. */
+export const PREV_SENTINEL = "\u0007KALSAPREV\u0007";
 
 export type FormattedChatLike = {
   type: string;
@@ -64,23 +66,77 @@ export type JinjaCompletionExtras = {
   thinking_end_tag?: string;
 };
 
+export function longestCommonPrefix(a: string, b: string): string {
+  const n = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < n && a.charCodeAt(i) === b.charCodeAt(i)) i += 1;
+  return a.slice(0, i);
+}
+
+/**
+ * pPrev = LCP(R_user, R_asst) so assistant N is historical on both sides
+ * and the cut is the first byte of the *role* header of the dummy message.
+ *
+ * ChatML user/assistant headers share `<|im_start|>`. Walking the LCP back
+ * to the nearest newline from the diverge point drops that shared suffix
+ * so pPrev ends at assistant N's eot, not mid-header. No template tokens.
+ *
+ * Null: missing sentinel, empty LCP, or a side whose suffix is the sentinel
+ * (consecutive-assistant merge — no role header).
+ */
+export function cutPPrevFromRolePair(
+  rUser: string,
+  rAsst: string,
+  sentinel: string,
+): string | null {
+  if (rUser.indexOf(sentinel) < 0 || rAsst.indexOf(sentinel) < 0) return null;
+  let lcp = longestCommonPrefix(rUser, rAsst);
+  if (lcp.length === 0) return null;
+  if (rUser.startsWith(sentinel, lcp.length) || rAsst.startsWith(sentinel, lcp.length)) {
+    return null;
+  }
+  let i = lcp.length - 1;
+  while (i >= 0 && lcp[i] !== "\n") i -= 1;
+  if (i >= 0) lcp = lcp.slice(0, i + 1);
+  return lcp.length > 0 ? lcp : null;
+}
+
 export async function formatTranscriptPair(
   engine: FormatEngine,
   pPrevMsgs: object[],
   pNewMsgs: object[],
   kwargs: FormatKwargs,
-): Promise<{ pPrev: FormattedChatLike; pNew: FormattedChatLike }> {
-  const pPrev = await engine.getFormattedChat(pPrevMsgs, null, {
-    jinja: true,
-    add_generation_prompt: false,
-    ...kwargs,
-  });
+): Promise<{
+  pPrev: FormattedChatLike;
+  pNew: FormattedChatLike;
+  pPrevSentinelFound: boolean;
+}> {
+  const noGen = { jinja: true as const, add_generation_prompt: false, ...kwargs };
+  const rUser = await engine.getFormattedChat(
+    [...pPrevMsgs, { role: "user", content: PREV_SENTINEL }],
+    null,
+    noGen,
+  );
+  const rAsst = await engine.getFormattedChat(
+    [...pPrevMsgs, { role: "assistant", content: PREV_SENTINEL }],
+    null,
+    noGen,
+  );
   const pNew = await engine.getFormattedChat(pNewMsgs, null, {
     jinja: true,
     add_generation_prompt: true,
     ...kwargs,
   });
-  return { pPrev, pNew };
+  const cut = cutPPrevFromRolePair(
+    rUser.prompt ?? "",
+    rAsst.prompt ?? "",
+    PREV_SENTINEL,
+  );
+  return {
+    pPrev: { ...rUser, prompt: cut ?? (pNew.prompt ?? "") },
+    pNew,
+    pPrevSentinelFound: cut !== null,
+  };
 }
 
 export async function captureEotSuffix(

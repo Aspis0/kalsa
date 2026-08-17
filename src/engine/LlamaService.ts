@@ -2023,7 +2023,7 @@ export async function streamAssistantTurn(
             : {}),
         };
         const fmtEngine = engine as FormatEngine;
-        const { pPrev, pNew } = await formatTranscriptPair(
+        const { pPrev, pNew, pPrevSentinelFound } = await formatTranscriptPair(
           fmtEngine,
           pPrevMsgs as object[],
           currentMessages as object[],
@@ -2047,6 +2047,7 @@ export async function streamAssistantTurn(
           currentMessages as object[],
           formatKwargs,
         );
+        if (!pPrevSentinelFound) markKvUntrusted("pprev_sentinel");
         const computed = computeCandidatePrompt({
           pPrev: pPrev.prompt ?? "",
           pNew: pNew.prompt ?? "",
@@ -2054,7 +2055,7 @@ export async function streamAssistantTurn(
           kvHoldsChatSession,
         });
         // Force the *next* advance to rebuild — this turn still uses stopping_word.
-        if (eot === "") markKvUntrusted("eot_unknown");
+        if (eot === "" && pPrevSentinelFound) markKvUntrusted("eot_unknown");
         kvEot = eot;
         kvPPrev = pPrev.prompt ?? "";
         kvCandidate = computed.prompt;

@@ -15,7 +15,8 @@ export type KvRebuildReason =
   | "commit_mismatch"
   | "context_full"
   | "truncated"
-  | "media";
+  | "media"
+  | "pprev_sentinel";
 
 export type AdvanceDecision =
   | { kind: "rebuild"; reason: KvRebuildReason }
@@ -61,6 +62,25 @@ export function sliceDelta(pNew: string, pPrev: string): string | null {
     if (last >= 0xd800 && last <= 0xdbff) return null;
   }
   return pNew.slice(pPrev.length);
+}
+
+const DIVERGE_WIN = 80;
+
+/** First UTF-16 offset where pPrev and pNew differ, plus a capped window each. */
+export function firstDiverge(
+  pNew: string,
+  pPrev: string,
+): { offset: number; prevWin: string; newWin: string } {
+  const n = Math.min(pPrev.length, pNew.length);
+  let i = 0;
+  while (i < n && pPrev.charCodeAt(i) === pNew.charCodeAt(i)) i += 1;
+  const half = DIVERGE_WIN / 2;
+  const from = Math.max(0, i - half);
+  return {
+    offset: i,
+    prevWin: pPrev.slice(from, from + DIVERGE_WIN),
+    newWin: pNew.slice(from, from + DIVERGE_WIN),
+  };
 }
 
 export function decideAdvance(args: {
