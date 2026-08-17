@@ -36,8 +36,14 @@ expensive thing (§3.3).
 | 1 | Better than bare for small models? | **Yes on the 2B, decisively.** 4B in flight, LFM2.5 never run | 2B: high · 4B/LFM: none |
 | 2 | Better tool / web-search use? | **Yes — tool precision nearly doubles** | medium |
 | 3 | Holds context after many turns? | **Yes — no decay at all. Strongest result we have** | high |
-| 4 | Faster / less prefill? | **Yes — it uses *fewer* tokens than bare.** But memory-on reverses it | high |
+| 4 | Faster / less prefill? | **Yes — it uses *fewer* tokens than bare.** But memory-on reverses it, and it may fight the KV fix outright — see the runtime section | high on tokens · none on the interaction |
 | 5 | Only for small models, or large too? | **Unknown.** The mechanism says "later, not never" | none |
+
+Two sections follow the five answers and are not optional reading: **what it costs to run on a
+phone** (the KV cache, load times, what happens when the user leaves and comes back) and **which
+model each claim rests on** — the quality answers are all Qwen3.5-**2B** on an emulator, the speed
+answers all Qwen3.5-**4B** on real hardware, and the two halves have never been checked against
+each other.
 
 ### 1. Is CisWire better than bare for small models (Qwen3.5-2B/4B, LFM2.5)?
 
@@ -97,6 +103,94 @@ removes nothing and adds a digest of what left the window — so by construction
 *less* than bare, on any model. But the size of the gain depends on **how much falls out of the
 window**, which is a function of conversation length against window size, **not of how clever the
 model is**. A large model with a large window needs it **later, not never**.
+
+### What it costs to run on a phone — measured 2026-08-17, S23, Qwen3.5-4B
+
+The quality answers above are worth nothing at 7 minutes a turn, so these are the runtime answers.
+All from one unplugged six-turn run, ~1300–1500 tokens of context, `b31fb53`.
+
+**The KV cache was being thrown away every turn, and that is fixed.** Qwen3.5 is hybrid — its KV
+cannot be rewound — and the chat template appends `<think>\n\n</think>\n\n` when it asks for an
+answer and **never repeats it** when it re-renders that same answer as history. The new prompt
+therefore diverged four tokens after the assistant header and the whole prefix was discarded, every
+turn (§7.5). Two candidate fixes were **refuted by measurement, not argument**: replaying the
+emitted text (shipped, then measured, then reverted) and flipping the thinking polarity (the mirror
+image of the same asymmetry, §7.7d). What works is owning the prompt: keep `T` = the bytes actually
+in the KV and append only the delta (§7.7e–j).
+
+| | before | after |
+|---|---|---|
+| prefill per turn | 72–80 s | **1.4–3.9 s** |
+| `n_past` at turn start | 0 | **1298 → 1454** — the whole prefix reused |
+| turns before thermal self-block | 4 (SEVERE) | 6+, never left `Thermal Status` 0 |
+
+**Load and response, broken down** (the same run):
+
+| phase | time |
+|---|---|
+| model load, first cold start | 4.7 s |
+| model **re**load, weights still in page cache | 0.8 s |
+| KV session restore from disk | **33–45 ms** |
+| prefill, with the fix | 1.4–3.9 s |
+| decode, short replies | 0.5–1.2 s |
+
+Cold prefill runs ~18 tok/s; decode 5–8 tok/s. **The model's own work on a warm turn is ~4 s** —
+earlier "31 s per turn" figures in this document were the harness's polling, not the product.
+
+**Leaving the app and coming back: the model unloads itself, every single time.** Six out of six
+turns logged `'model.unload', '{"reason":"background"}'` on an AppState transition — the user does
+not have to close anything. What the fix changes is what happens on return:
+
+```
+12:28:26.448  'model.unload', '{"reason":"background"}'
+12:28:37.042  KALSA_SESSION {"op":"load","ms":41,"ok":true,"tokens":1337}
+12:28:38.108  Input processed: n_past=1337, embd.size=1365
+```
+
+**~5 s to a reply after returning, against ~80 s before.** The KV always survived the unload — the
+file was on disk and `resumable=1` — it was simply *ignored*. That is the whole difference.
+
+⚠️ **Injecting memory is expensive for a reason that is not tokens.** Facts live in the system
+prompt (`LlamaService.ts:1712`) and the environment hash covers them (`:1709`), so changing one
+fact trips `system_prompt_changed` and **rebuilds the entire cache**: 72 s at 1300 tokens, 394 s at
+4100 (§7.1). Every memory write costs a full prefill. Injecting rarely is worth real seconds, not
+cosmetic ones. The larger cost today is extraction, which runs a **full LLM completion every turn**
+for +40 % wall clock and has stored zero facts (§3.3).
+
+A fact leaves the model's reach **at a cliff, not a slope**: the verbatim window is the last 20
+messages ≈ 10 exchanges, so something said at turn 1 is gone at turn 11. Bare's flat 0.325 → 0.300
+is that cliff already hit.
+
+⚠️⚠️ **UNMEASURED AND HOSTILE BY CONSTRUCTION: `ciswire` and the KV fix fight each other.** The
+digest is not in the system prompt — `applyOperativeBlockFormat` prefixes it onto **the last user
+message** (`LlamaService.ts:1556-1562`). Next turn that message is history and re-renders *without*
+the digest, so the prefix diverges and the cache is discarded — which is precisely the defect that
+forced the revert of memory-facts-on-the-user-turn (`9c73846`). **The 1.4–3.9 s prefill above was
+measured on bare, not on ciswire.** Nobody has run the two together. Assume the saving does not
+survive ciswire until a run says otherwise.
+
+### Which model each claim rests on — the two halves have never met
+
+| claim | model | where |
+|---|---|---|
+| ciswire beats bare, tool precision, decay curve, token cost | **Qwen3.5-2B only** | CI emulator, 6 seeds |
+| KV fix, prefill, thermal, load/unload, ~5 s on return | **Qwen3.5-4B only** | S23, real hardware |
+| MoE discount does not apply to prefill — do not ship | LFM2.5-8B-A1B | CI emulator (§1.7) |
+| tool calls never parse | LFM2.5, whole family | (§3.6) |
+
+**The quality claims and the speed claims come from different models on different hardware, and
+neither has been checked against the other.** The 4B campaign in flight (`32048465417`) closes half
+of that. LFM2.5-2.6B has never run a graded campaign at all.
+
+**And the model-specific findings are piling up, which is the argument for making the harness
+model-aware:** the empty-think-block asymmetry is a *Qwen3.5 template* property; LFM2.5 cannot get
+a tool call parsed while the 2B emits 19/20 clean ones; the MoE prefill discount does not exist.
+Three measured differences, currently handled in three unrelated places. Some model-awareness
+already exists — `resolveThinkingParams` takes the active model, `recommendedModelId` switches on
+RAM, `n_threads` derives from `cpu_capacity` — so the missing piece is a per-model capability
+profile these decisions read from, not new machinery. **Do not build it before the campaigns
+populate it**: today there is exactly one model measured per axis, which is not enough rows to
+design a table from.
 
 ### If this harness is reused for anything else — read this first
 
