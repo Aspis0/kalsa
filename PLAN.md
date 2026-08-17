@@ -14,6 +14,16 @@
 
 # ⭐ STATO CORRENTE
 
+> 📕 **GERARCHIA DEI DOCUMENTI (regola gualt, 2026-08-16 — non invertirla).**
+> **`PLAN.md` è IL documento principale e si aggiorna SEMPRE**: a ogni verdetto,
+> a ogni kill, a ogni misura, a ogni correzione — nel momento in cui succede,
+> non a fine giornata. È il registro autoritativo della campagna e vince su
+> qualunque altro file in caso di conflitto.
+> **`docs/ALIVE.md` è un DERIVATO**, la vista a una pagina di cosa è ancora in
+> piedi: si aggiorna **dopo una giornata di lavoro**, riassumendo dal PLAN.
+> Non ci si scrive mai niente che non sia già nel PLAN, e non si legge mai
+> ALIVE al posto del PLAN per decidere.
+
 > 🧬 **NOTTE DELL'INVENZIONE (2026-08-15, mandato gualt "trucco mai
 > provato"): 10 candidati, 9 kill onesti, UN VINCITORE DI CORSA.**
 > Kill: cache-tricks tutti occupati (HOBBIT/DyMoE/SMoE/AdapMoE/
@@ -163,6 +173,37 @@
 > ritocco a discrezione owner. results/mellum2_dropcurve/.**
 > 3 survivor ingegneristici senza claim (controller stutter
 > ExpertFlow-style, repack lazy hot ×1.27, corazza anti-zram).**
+> 📈 **DROPCURVE CALAQWEN (16/08, IN CORSO sul PC) — l'expert skipping è
+> la leva viva della campagna, e la qualità a d0.3 è GRATIS.**
+> Stesso protocollo della curva Mellum ma sul modello di campagna
+> (`Qwen3.6-35B-A3B-KEXP`, sha ac44e20c…), 5 lingue multi5, ~59k token
+> per braccio, identity MATCH (modello + binario + 5 DLL).
+>
+> | drop | macro bpb | vs k6d0 | gate |
+> |---|---|---|---|
+> | 0.0 | 0.6781 | — | GATE_PASS |
+> | **0.3** | 0.6785 | **+0.0004 (+0.06%)** | GATE_PASS |
+> | 0.8 | 0.6889 | +0.0109 (+1.6%) | GATE_PASS |
+> | 1.0 | in corso (en: bpb 0.6021) | — | — |
+>
+> **Il costo NON è lineare: piatto fino a 0.3, poi sale piano.** A d0.3 il
+> +0.06% è sotto qualunque soglia di rilevanza — qualità gratis. La sonda
+> preliminare aveva già deciso di fermarsi a 1.0 (rifiuta d>1.0), quindi
+> k6d12/k6d15 non girano.
+>
+> ⚠️ **I TEMPI DI QUESTA CELLA NON SONO CONFRONTABILI FRA BRACCI — e va
+> detto prima che qualcuno ci costruisca sopra.** Ogni braccio ha girato
+> con una quantità DIVERSA di contesa CPU da altri job: d0.0 all'8% del
+> suo wall, d0.8 al 100% (sonda F6 addosso), d0.3 al 100% (ed è infatti
+> il più lento misurato, 4.589 tok/s — contesa pura), d1.0 a contesa
+> ZERO (F6 uccisa alle 19:2x, braccio partito alle 19:50). Il d1.0 su en
+> misura 8.822 tok/s contro i 5.577 di d0, ma **quel +58% è gonfiato
+> dall'avere la macchina da solo**. Le bpb sono deterministiche e salve;
+> i tempi no. **La cella che manca è quindi: throughput E BYTE, senza
+> contesa, tutti i bracci nelle stesse condizioni** — e i byte non sono
+> mai stati strumentati in questa cella (`per_token.csv` ha solo
+> pos,token_id,logprob). È il lavoro numero uno appena il PC si libera.
+> results/calaqwen_dropcurve/.
 > 🧮 **L'INVARIANTE CHE DECIDE TUTTO (16/08, brainstorm con Qwen 3.8
 > Max, verificato da me).** Con verifica a batch: byte/token =
 > `[γα + (γ+1)β]/L` e `L ≤ γ+1`; con verifica sequenziale early-stop:
@@ -291,6 +332,70 @@
 > d0.3 = **+0.06%** bpb (gratis), d0.8 = +1.6%. Manca la misura che la
 > rende spedibile: **throughput E byte, senza contesa** (la cella attuale
 > non ha strumentato i byte e i timing sono confusi dalla sonda F6).
+>
+> 💡 **CINQUE DIREZIONI NUOVE (16/08, generate rileggendo tutta la
+> campagna; in audit da Qwen 3.8 Max — `docs/qwen-prompt-5-wild-ideas.md`).**
+> Ognuna è ancorata a una NOSTRA misura, non a un'intuizione, e **quattro
+> su cinque hanno un test decisivo che costa ZERO tempo device** perché
+> gira sulle route trace che abbiamo già. Nessuna è approvata: sono in
+> attesa del verdetto "già pubblicata / morta di fisica / test non
+> decisivo".
+>
+> **(1) EXPERT-MAJOR DECODING — l'unica che può riaprire β<1.** I token
+> consecutivi routano a esperti disgiunti (M1), ma quello che determina
+> il traffico flash non è la SOMMA (6B) bensì l'**UNIONE** degli esperti
+> del batch. Riordinare il calcolo per-esperto invece che per-token:
+> carichi E una volta, lo applichi a tutti i token del batch che lo
+> vogliono. Se `|unione(B)|/B < 6` allora **β < 1** e tutto il caso
+> speculazione chiuso da M2/M3 si riapre su un meccanismo diverso.
+> Test: calcolare il rapporto di unione per B=2,4,8,16,32 dalle trace
+> esistenti. Kill: rapporto piatto a 1.0 (routing troppo entropico).
+> Da chiedere: è lo scheduling standard dei MoE server (expert
+> parallelism DeepSpeed-style) riletto con un collo di bottiglia nuovo?
+>
+> **(2) k ADATTIVO SULLA CONFIDENZA DEL ROUTER.** Il router gira sulla
+> parte densa, già residente → la sua uscita è disponibile **prima di
+> leggere un solo byte di esperto**. Gate top-1 dominante → k=2; gate
+> piatta → k=6. E a differenza del drop (M5, solo-I/O), **k taglia byte
+> E compute**. Test: binnare le posizioni per entropia del router e
+> misurare l'accordo argmax di k=2/k=3 dentro ogni bin. Kill: accordo
+> piatto fra i bin (la confidenza del router non predice la stabilità
+> dell'argmax) — kill pulito e a costo zero.
+>
+> **(3) PREDITTORE DI ROUTE DALLO STATO RICORRENTE CONGELATO.** Non
+> predire il TOKEN, predire l'INSIEME DI ESPERTI. Sonda lineare dallo
+> stato GDN (62.81 MiB, in RAM, che sappiamo leggere bitwise — M6) verso
+> 256 punteggi. Predire un insieme è molto più facile che predire un
+> argmax, e costa **zero byte di flash** — attacca esattamente il modo in
+> cui K-F ha fallito (M7: +14% di byte per nascondere lo stall). Test:
+> allenare offline su trace e misurare la recall top-6 a un token di
+> anticipo, contro due baseline (K-F 76% e "gli esperti del token
+> precedente"). Kill: se la baseline banale pareggia la sonda. Il combo
+> ibrido+streaming è dove forse siamo soli.
+>
+> **(4) MASCHERE DI ESPERTI PER LINGUA, SPEDITE COME METADATA.** Se il
+> miglioramento di PPL a drop 0.5 (M4) è perché gli esperti freddi sono
+> RUMORE sotto-allenato per il dominio corrente, allora una maschera
+> scelta **per lingua** deve battere una scelta per residenza in cache,
+> che con la linguistica non c'entra nulla. Istogramma offline per
+> lingua → maschera statica → metadata nel GGUF → detect lingua dai primi
+> token. Test: multi5 che abbiamo già, confronto **a parità di byte**.
+> Kill: nessun vantaggio a parità di byte (e allora M4 resta un mistero
+> più profondo, non risolto). **Ho chiesto esplicitamente a Qwen di
+> ATTACCARE M4**: un miglioramento di PPL togliendo calcolo è il tipo di
+> risultato che di solito è un artefatto, meglio saperlo prima.
+>
+> **(5) QUANTIZZAZIONE PER TEMPERATURA.** Buttare un esperto è il caso
+> estremo di quantizzarlo a zero bit; la versione continua dovrebbe
+> dominare quella binaria. Caldi Q5/Q6, tiepidi Q4, coda fredda Q2 — un
+> solo GGUF, precisione per-esperto chiavata sulla frequenza di accesso
+> **misurata** (non su statistiche dei pesi). È l'unica che taglia byte
+> senza policy e senza dirupo di qualità: è un cambio di formato file,
+> non una scommessa a runtime. **Kill noto in anticipo, e ci ha già
+> fregati due volte (KEXP-G99, REAP): su silicio debole meno byte ≠ più
+> decode** — KEXP su G99 era dequant-bound sui 2×A76 (8.83 contro una
+> proiezione 14.7). Il test DEVE misurare il decode sul device DEBOLE,
+> non i byte sul forte.
 >
 > **Cosa NON tocca:** quel che resta di F5 è intatto e resta vero —
 > l'acceptance quasi raddoppia come meccanismo di CORREZIONE (loop alpha

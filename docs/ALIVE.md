@@ -1,5 +1,12 @@
 # ALIVE — what is still standing, 2026-08-16
 
+> ⚠️ **This file is a DERIVATIVE. `PLAN.md` is the main document and is
+> authoritative** — it is updated at every verdict, kill, measurement and
+> correction, as it happens. This page is refreshed **after a day's work**,
+> summarising from the PLAN, and exists only to save the reader from 1800+
+> lines. Nothing is written here that is not already in the PLAN, and nothing
+> is decided from here: if the two ever disagree, the PLAN is right.
+
 One page. Everything else in this repo is either shipped, dead, or history.
 The campaign has produced roughly 30 tested techniques; **4 are alive**.
 
