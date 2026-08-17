@@ -31,10 +31,15 @@ this page merged them and attached the p-values to the wrong one; corrected
 Verified in `run_ship_ab_s23.sh:421` and `run_ship_ab_xiaomi.sh:531` — both cells
 tested exactly this as arm B, against arm A = stock `-t 4 --n-expert-used 8`.
 
-| device | model | effect | test |
+| device / session | model | effect | test |
 |---|---|---|---|
-| S23 | Mellum2 | stock 0.2585 → **0.1480 s/tok, −42.7%** (3.87 → 6.76 tok/s) | Wilcoxon W=0, **p=0.000488**, 12/12 pairs, exact floor |
+| S23, **`device/` session** (canonical) | Mellum2 | stock 0.2585 → **0.1480 s/tok, −42.7%** (3.87 → 6.76 tok/s) | Wilcoxon W=0, **p=0.000488**, 12/12 pairs, exact floor |
+| S23, `screenon/` session (exploratory, protocol-deviant) | Mellum2 | 0.2665 → 0.1565, **−41.3%** | W=0, p=0.000488, 12/12 — independent second sample |
 | Xiaomi 14 | Mellum2 | median **−14.5%**, HL −0.05625 s/tok | W=0, **p=0.000977**, 11 effective pairs (one exact tie) |
+
+Both S23 sessions are named explicitly because they give different point
+estimates (−42.7% vs −41.3%) and an earlier version of this page quoted the first
+without saying which. The p-value is identical and at the exact floor either way.
 
 **(b) The CAMPAIGN config for CalaQwen — quality-gated, NOT A/B-validated:**
 
@@ -95,10 +100,22 @@ The quality curve is the best result on the board and it keeps getting better:
 | 0.8 | 0.6889 | +1.6 % | PASS |
 | 1.0 | running | — | — |
 
-And on Mellum the curve has a **minimum below zero**: d=0.5 measured −0.0150 bpb
-against the k8 anchor, i.e. **skipping cold experts IMPROVES multilingual
-perplexity**, with run-to-run noise at 1e-6. That is our strangest measured fact
-and it is not yet explained.
+And on Mellum the curve goes **below the anchor**: d=0.5 measures macro bpb
+**1.0058 against the k8 anchor's 1.0208**, i.e. a delta of **−0.0150** — skipping
+cold experts *improves* multilingual perplexity, with run-to-run noise at 1e-6.
+("Below zero" refers to the delta, not to an absolute negative bpb.)
+
+**⚠️ Do not build on this yet.** Two independent auditors flagged that the drop
+is not a clean removal: `drop_renorm` is TRUE by default (`config.h:175`) and no
+drop cell ever passed `--drop-no-renorm`, so `router_hook.cpp:278-282` rescales
+survivors by `total/kept > 1` — and the top expert is never droppable
+(`router_hook.cpp:262`). The real operation is
+`y' = (total/kept) · Σ_survivors g_i·E_i(x)`, i.e. **mixture sharpening**. The
+improvement may come from the renormalisation rather than from removing noise.
+Also: it is a **Mellum-only** result — on CalaQwen the minimum is at d=0 and d0.3
+sits marginally above it. The four-arm ablation that settles it (renorm on / off /
+d=0 / random drop) is the campaign's highest-value missing measurement, ~4 h of PC
+time, and is not yet run.
 
 **What is missing before this can ship as a speed claim:** a clean
 **throughput + bytes** cell. The current curve never instrumented read bytes,
@@ -106,6 +123,33 @@ and its wall-clock times are confounded — each arm ran under a different amoun
 of CPU contention from other jobs (d0.8 ran under 100 % contention, d0.0 under
 8 %, d1.0 under none). The bpb numbers are deterministic and safe; the timings
 are not comparable across arms.
+
+### GPU prefill on Adreno 750-class — *reopened 2026-08-16, was mis-filed as dead*
+
+A hostile audit found this booked in the graveyard with the GPU-decode lane,
+while its own report declared it alive. Measured (`reports/moe-gdn-750.md:201-206`,
+Xiaomi 14 / Adreno 750, unplugged, llama-bench r=2, **Qwen3.5-2B dense**, `-t 6`):
+
+| | pp128 (prefill) | tg256 (decode) |
+|---|---|---|
+| CPU `-ngl 0` | 31.46 | **16.15** |
+| GPU `-ngl 99 -fa off` | **181.65** | 7.07 |
+
+**Prefill GPU = 5.77× CPU** — the largest single-number speedup in the campaign,
+and the PLAN's lane summary recorded it as "prefill GPU 1.29-1.7×". Decode loses
+(0.44×) and stays dead.
+
+**Scope, which the audit omitted:** measured on a **dense 2B**, not the 35B MoE.
+For CalaQwen the Q7 landmine stands — the expert-ready streaming hook lives only
+in the CPU `mul_mat_id` loop, so 35B experts must stay on CPU. So this is a lever
+for **dense 2B/4B on 750-class silicon**, which is exactly the free-tier and
+small-model lineup, and the app's TTFT pain is the ~1.4k-token system-prompt
+prefill — i.e. precisely prefill.
+
+**Before spending it:** the earlier "1.29× GPU prefill" claim on the 740 turned
+out to be a cold-outlier artifact. This needs the same severity of re-check —
+though a different device and a 4× larger margin make an artifact a poor
+explanation.
 
 ### Frozen Draft (E4/F5) — *name pending owner*
 
@@ -139,7 +183,7 @@ hybrids and got α=0.038.
 | **CPU kernels S1/S2/S3, i8mm, REPACK** | three kernels, correct and audited (16191/16191 suite), all under the 10 % gate. **0.148 s/tok compute at t2 is the silicon floor.** Legacy: the config `t2 + k6d1.0` = 5.151 t/s, free. |
 | **K-E (i8mm)** | never runs — mmla lives only in the REPACK path that streamed experts bypass. |
 | **K-G (GPU prefill)** | the 1.29× was a cold-outlier artifact; honest 1.12 %. |
-| **GPU decode (Adreno 740/750)** | 0.41× CPU on 740. The E2E gap is ~60 ms/token of dispatch glue, not kernels — a fix is a fused executor (months), not a kernel (weeks). |
+| **GPU DECODE (Adreno 740/750)** | 0.41× CPU on 740, 0.44× on 750. The E2E gap is ~60 ms/token of dispatch glue, not kernels — a fix is a fused executor (months), not a kernel (weeks). **Decode only — see the prefill row, which is NOT dead.** |
 | **REAP-50** | halves *stored* experts, not *active* ones. Same ~11 GB/s wall. |
 | **MTP / speculation for byte amortization** | 0.00 % amortized, three independent mechanisms. |
 | **cache policies · cache size · ubatch · cross-layer prefetch · k<6 · extreme drop as a compute lever · 1c requant · hand IQ2 kernels · similarity/skew · asymmetric drop · typeahead · phase-split 2B · LFM on G99 · Ling 3.0 Tiny** | all closed with numbers. See PLAN.md. |
@@ -168,6 +212,14 @@ why every cache-similarity trick died by physics.
 
 All numbers screen-on and unplugged unless noted. Product-card numbers, not
 cell-internal numbers.
+
+**⚠️ Provenance gap, flagged by audit and not yet closed:** these are lineup-card
+figures carried forward in the PLAN, and several of them (CalaQwen S23 5.86,
+Marco1c Jelly 3.64) do **not** trace to a `runs.csv` + analysis pair you can
+re-open from this table. They are consistent with the KEXP speed grid
+(`results/kexp_grid/speed_cells.csv`) and the lineup cell, but until each cell of
+this table cites its source file, treat it as a card, not as evidence. Closing
+this is a queue item.
 
 | model | S23 (8 GB, 8Gen2, UFS 3.1) | Xiaomi 14 (11.4 GB, 8Gen3) | Jelly Star (G99, 8 GB) |
 |---|---|---|---|
