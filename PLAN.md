@@ -110,8 +110,61 @@
 > intende. L'asimmetria 144-vs-200 è dichiarata nel report Xiaomi e
 > **non** in quello S23.
 >
-> 🧪 **CELLA DROP SWEEP SUL JELLY (16/08 sera, LANCIATA) — la misura che
-> manca: TEMPO E BYTE INSIEME, a freddo.**
+> 🚨 **DROP SWEEP JELLY — RISULTATO (16/08, 11 run su 12): IL RISPARMIO DI
+> BYTE NON È MONOTONO, E `d=0.65` CHE SPEDIAMO È PIÙ LENTO DI NON
+> DROPPARE AFFATTO.**
+>
+> | drop | s/tok | read_MiB | hit% | tempo vs d0 | byte vs d0 |
+> |---|---|---|---|---|---|
+> | 0.00 | 0.1703 | 11803.1 | 50.2 | — | — |
+> | **0.30** | 0.2000 | 12395.9 | 48.3 | **+17.4% PIÙ LENTO** | **+5.0% PIÙ BYTE** |
+> | **0.65** | 0.1873 | 10535.0 | 52.3 | **+10.0% più lento** | −10.7% |
+> | **1.00** | 0.1240 | 3712.8 | 67.1 | **−27.2% più veloce** | **−68.5%** |
+>
+> **Un drop piccolo non è un risparmio piccolo: è una perdita netta.** Il
+> meccanismo si vede nella colonna cache: l'hit rate SCENDE (50.2 → 48.3)
+> perché ripuntare lo slot droppato sul top expert
+> (`router_hook.cpp:267-268`) perturba quali esperti vengono toccati, e a
+> frazioni basse questo distrugge più località di quante letture tolga.
+> A d=1.0 si ribalta: hit 67.1%, byte a un terzo, throughput **+37%**
+> (5.87 → 8.07 tok/s).
+>
+> ✅ **CONTROLLO INTERNO PASSATO:** d=0.65 senza prefetch riproduce il
+> braccio OFF della cella K-F — `read_MiB` = **10535.0 identico in tutti
+> e tre i round** (contabilità byte dell'engine esatta e deterministica),
+> `/proc read_bytes` 22.17/22.07/22.19 GB contro i 22.1-22.5 di quella
+> cella. Il round-robin ha fatto il suo: r3 è gonfiato in blocco (34 °C)
+> ma **conserva l'ordinamento**.
+>
+> 🎯 **INCROCIATO CON LA CURVA QUALITÀ DEL PC: d=0.3 e d=0.65 sono
+> STRETTAMENTE DOMINATI** — costano qualità E tempo. La scelta vera è
+> **d=0.0 contro d=1.0**: 4% di bpb per +37% di token/s, o niente drop.
+> **E spiega per un'altra strada quello che l'audit statistico ha
+> trovato:** l'A/B pre-registrato testava il braccio B a
+> `--drop-cold-experts 1.0`, NON lo 0.65 di campagna. **L'A/B ha testato
+> la config che è davvero veloce; il nostro default sta sulla parte
+> dominata della curva.** Due evidenze indipendenti che convergono sullo
+> stesso punto: la config spedita e quella validata non coincidono.
+> Esplorativo: un device, un modello, d=1.0 ha n=2. **Licenzia un
+> riesame del default, non un cambio.**
+>
+> ⚠️ **TRE BUG, TUTTI MIEI, NESSUNO DEL DEVICE.** (1) il binario non
+> linkava — `bmoe-cli` carica le `.so` dalla propria cartella e l'harness
+> K-F lo risolve alla riga 42 con `LD_LIBRARY_PATH`: ho riusato il
+> binario senza riusare quella riga; (2) `set -e` dopo il `wait`
+> accendeva errexit mai voluto (header `-uo pipefail`) e il comando
+> successivo uccideva lo sweep in silenzio; (3) **il parser buttava via
+> ogni campo di tempo**: le chiavi dell'engine contengono `/` (`s/tok`,
+> `tok/s`) e il mio estrattore `sed s///` leggeva la barra come
+> delimitatore — i campi con barra tornavano vuoti, quelli senza
+> (`read_MiB`, `hit%`) funzionavano, ed è per questo che il guasto era
+> invisibile. **I dati si sono salvati solo perché l'engine scrive da sé
+> la riga di summary**: la misura era giusta, era rotta l'estrazione.
+> **Causa comune: ho scritto un harness nuovo invece di parametrizzare
+> quello provato.** Tutti e tre erano già risolti in
+> `run_kf_reality_jelly.sh`. results/dropsweep_jelly/REPORT.md.
+>
+> 🧪 **(design dichiarato prima del lancio:)**
 > `--drop-cold-experts` è la leva viva della campagna e il suo costo di
 > QUALITÀ è misurato (curva PC: d0.3 +0.06%, d0.8 +1.6%, d1.0 +4.0%
 > macro bpb). **Il suo risparmio di BYTE non è MAI stato misurato** — è
@@ -142,12 +195,29 @@
 > Quell'esito è un risultato, non un fallimento, e va riportato.
 > Esplorativa: niente p-value, niente pre-registrazione, niente claim.
 > results/dropsweep_jelly/.
-> ⚠️ **Ops:** lanciata staccata (setsid nohup) alle 88% batteria, 20 °C;
-> **sshd è caduto ~30 s dopo il lancio** (comportamento noto del device)
-> prima che potessi provare il PPID=1 da sessione nuova. Il pattern di
-> distacco è lo stesso che stamattina è sopravvissuto alla morte di sshd,
-> quindi è probabile che stia girando — ma **non è provato**, e va
-> verificato appena sshd torna.
+> ⚠️ **OPS — PERCHÉ SI È FERMATA A 11/12, E PERCHÉ LA MIA DIAGNOSI ERA
+> TROPPO SICURA.** Lanciata staccata (`setsid nohup`), PPID=1 **provato
+> da sessione nuova**, ed è sopravvissuta a più cadute di sshd: il
+> distacco ha funzionato e sshd NON è la causa. Lancio 23:04:15, ultima
+> run completata **23:34:26 = 30 min 11 s** — coincide col timeout
+> schermo del device (30 min, la UI non offre "mai";
+> `settings put system screen_off_timeout` da Termux è **rifiutato**,
+> `INTERACT_ACROSS_USERS`).
+> **MA ho dichiarato quella diagnosi con più sicurezza di quanta ne
+> reggano i dati: oggi stesso la cella K-F è girata dalle 16:15 alle
+> 17:05 = 50 MINUTI**, ben oltre i 30. Quindi il timeout da solo NON
+> spiega tutto — la variabile probabile è se il telefono viene toccato
+> nel frattempo. Resta un'ipotesi con un controesempio, non un fatto.
+> **La conclusione operativa non cambia e non dipende dalla causa: una
+> morte deve costare UN BLOCCO, non la corsa.** L'harness K-F sopravvive
+> a essere ucciso di continuo perché ha `RESUME_AT` + void-scan; questo
+> script non li ha. **Aggiungere il resume è la modifica che rende
+> affidabili le celle lunghe su questo telefono**, qualunque sia la causa
+> della morte. Nota: sul device ci sono **Termux:Boot e Termux:API**, non
+> ancora sfruttati — un boot-script che riprende le celle interrotte è la
+> via naturale.
+>
+> 🧪 **(design dichiarato prima del lancio:)**
 >
 > ☠️ **IDEA 2 (k ADATTIVO SULLA CONFIDENZA DEL ROUTER) — MORTA IN UN
 > MINUTO, A COSTO ZERO. Era il rank 1 mio E di Qwen.**
