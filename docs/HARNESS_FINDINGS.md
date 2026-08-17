@@ -1046,6 +1046,32 @@ place, so the full re-prefill was recharged on every later restore rather than o
 boundaries altogether — not appear less often — and `n_common` must equal `embd.size()` across a
 turn, the way it already does within a turn (measured, 2014 of 2014).
 
+> ⛔ **The acceptance test FAILED on the device (APK 9, `6447ff2`, run 22:07:38).** Turn 2 gives
+> `embd=1701 text_tokens=1737 n_common=1646`, one `KALSA_KVDIVERGE`, `n_past=0` — unchanged, and
+> the divergence is the same four ids `[248068 271 248069 271]`.
+>
+> **The premise was wrong, and the numbers had said so since the morning.** Those four tokens are
+> not emitted by the model, they are fed *to* it: turn 1's prompt is **1650** tokens and the shared
+> prefix ends at **1646**, so positions 1646-1649 sit inside the prompt, in the generation suffix
+> the template appends when it asks for an answer. No amount of capturing the model's *output* can
+> reproduce input. Replaying the emitted text was the wrong instrument for this defect.
+>
+> **What the change is still worth**, independently of the prefill: the refusal path deletes a
+> `.kvs` that can no longer be reproduced, where the old path left it in place to recharge the full
+> re-prefill on every later restore; and with thinking *enabled* the emitted text is the only way to
+> replay a real reasoning block.
+>
+> **The two real routes**, neither taken yet — llama.rn exposes both:
+> 1. **Template symmetry** — `enable_thinking` / `chat_template_kwargs` / `add_generation_prompt`
+>    are exposed (`lib/typescript/index.d.ts:75,77,197-201`). Remove the asymmetry at the source so
+>    the empty block never enters the prompt. Small, targeted, one build to verify.
+> 2. **Own the prompt** — the completion API accepts a raw `prompt: string`
+>    (`lib/typescript/types.d.ts:176,540`), so the prompt can be kept as an append-only transcript
+>    instead of being re-rendered from messages each turn. Template-agnostic, closes the whole class
+>    rather than this instance, and is the structural answer. The engine also returns
+>    `generation_prompt` (`types.d.ts:216,565`), which would let the appended suffix be stored and
+>    replayed **without hardcoding any template's tokens** — worth reading before choosing.
+
 **Known remaining divergence, narrower than what was fixed**: `content` is still capped, and the cap
 changes with context — 4000 chars normally, 2000 whenever the current turn carries an image, applied
 to *every* history message. A conversation that gains an image mid-way re-truncates its own history
