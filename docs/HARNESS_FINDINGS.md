@@ -1181,6 +1181,71 @@ The engine demonstrably ran — turn 1 `embd=0 … n_common=0` then `embd.size=1
 ⚠️ **Device state left changed by this run**: `kalsa.bench.thinking` is `budget512` (production
 default is `off`) and the conversation store was wiped. Revert before any campaign quotes numbers.
 
+#### 7.7i ANSWERED: the thermal loop opens — the control self-blocks at turn 4, the treatment runs six and cools
+
+**2026-08-17, unplugged, wireless, APK `3a3a15f`.** §7.7g's falsifiable prediction was that removing
+the re-prefill removes the heat source. It holds.
+
+| turn | control: wall / °C before / thermal | control `promptMs`/`n_past` | arm A: wall / °C / thermal | arm A `promptMs`/`n_past` |
+|---|---|---|---|---|
+| 1 | 98 s / 30.8 / 0 | 82007 / 0 | 106 s / 31.3 / 0 | 73959 / 0 |
+| 2 | 91 s / 36.1 / 0 | 81954 / 0 **diverge** | **37 s** / 36.8 / 0 | **1957** / 1298 |
+| 3 | 94 s / 38.4 / **2** | 85338 / 0 **diverge** | **37 s** / **35.8** / 0 | **3605** / 1350 |
+| 4 | 94 s / 40.5 / 2 | 87010 / 0 **diverge** | **41 s** / 35.8 / 0 | **2530** / 1410 |
+| 5 | **STOP** / 41.5 / **3 (SEVERE)** | — | 37 s / 36.7 / 0 | 7688 / 1535 |
+| 6 | — | — | 151 s / 36.7 / 0 | **111703 / 0** ⚠️ |
+
+**The control heats itself out of the experiment**: 30.8 → 41.5 °C in four ordinary turns, cold to
+SEVERE, and turn 5 could not be sent. **Arm A ran six turns without ever leaving `Thermal Status`
+0**, and its temperature *falls* while it works — 36.8 → 35.8 → 35.8 → 36.7, ending the session at
+35.7 °C. Prefill is 2.0–7.7 s against 82–87 s; wall-clock 37–41 s against 91–94 s, ~2.4×.
+
+The handicap was honoured: arm A started **hotter and emptier** (78 %, 31.3 °C) than the control
+(100 %, 30.8 °C), so the advantage is a floor. Turn 1 is a full prefill in both arms and heats
+identically (+5.3 vs +5.5 °C) — the transcript cannot help a conversation's first turn, and that
+bound belongs in any claim made from this table.
+
+⚠️ **Turn 6 is a new failure mode, and it is not the empty think block.** `n_common=1648` against a
+cached 1649 — **one token**. The KV ends with the `.` closing "Per favore, usa un formato JSON
+valido." and the fresh prompt continues differently from there. On a hybrid KV a single mismatched
+token is not roundable off: no rollback exists, so the whole 1648-token prefix is discarded and the
+turn costs 111.7 s. Same physics as §7.5, new cause, **undiagnosed**. Candidates worth checking in
+order: the history-content cap (§7.7 records 4000 chars, 2000 when the turn carries an image), the
+end-of-turn suffix capture at a join boundary, and post-processing of a miniapp/JSON payload before
+it is stored. Until it is found, the feature's saving is real but intermittent — and note it stayed
+at `Thermal Status` 0 even through that 111 s turn.
+
+#### 7.7h On battery: the prefill saving is real and measured; the thermal claim is NOT established
+
+**2026-08-17, unplugged, wireless.** The control arm ran four clean turns (§7.7g). The treatment
+arm did not: three attempts, each killed by `model.unload {"reason":"background"}` fired when the
+`kalsa://share?text=` deep link's `am start` briefly backgrounds the app. On the charger the same
+share survived four turns; unplugged it kills the run after the first. **The blocker is now the
+harness's input path, not the feature.**
+
+What the partial arm did establish, from `pid 7148`:
+
+| | control (OFF) | treatment (ON) |
+|---|---|---|
+| turn 1 wall | 98 s | 114 s |
+| turn 1 prefill | full, `n_past=0` | full, `n_past=0`, `promptMs=76611` |
+| turn 1 heating | 30.8 → 36.1 °C (+5.3) | 31.4 → 36.7 °C (+5.3) |
+| turn 2 prefill | ~80 s re-prefill, `n_past=0` | **`promptMs=4344`**, `n_common=1322=embd`, `n_past=1322` |
+
+1. **The first turn is not helped, and heats identically** — +5.3 °C in both arms. There is no
+   cache to reuse when a conversation opens, so opening one stays expensive whatever we do. Worth
+   stating because it bounds the feature's reach: this helps conversations, not cold starts.
+2. **The boundary prefill is 4.3 s against ~80 s**, on battery, at ~1350 tokens. That is the
+   saving §7.7f predicted from `n_past`, now in seconds rather than token counts.
+3. **The thermal prediction of §7.7g is untested.** The one append-only turn was interrupted
+   (`interrupted:true` after 34 s of decode on a mini-app payload), so its +0.2 °C is not
+   comparable work and must not be quoted as evidence. Whether removing the re-prefill opens the
+   thermal loop remains **open**.
+
+Next step is a harness fix, not a code change: a way to deliver a turn that never backgrounds the
+app, so the treatment arm can run four to six turns unplugged. Until then the latency result stands and
+the thermal result does not exist.
+
 #### 7.7g The thermal loop is a product defect, not a bench nuisance (Marco, 2026-08-17)
 
 §7.6 treats heat as something to defend the measurements *from* — pause the arm, wait for LIGHT,
