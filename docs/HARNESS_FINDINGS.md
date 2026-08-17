@@ -847,7 +847,9 @@ composer**. `send_and_wait` verified that the text LANDED and treated that as se
 the send tap always worked; a real device with a different layout and a localised control exposed
 it. Fixed: submission is proven (history grew or composer emptied) before any waiting, the send is
 retried by re-finding the control, and a failed UI dump counts as *not* submitted rather than as
-an empty composer.
+an empty composer. On a physical device the type path is still a no-op (native EditText holds the
+text, React `draft` does not — Send stays a live node that does nothing); deliver turns with
+`scripts/device-share-send.sh` (`kalsa://share?text=`).
 
 ### 7.4 Cost model for the long-conversation regime
 
