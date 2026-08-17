@@ -14,8 +14,10 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  getKvTranscriptEnabled,
   getToolChoiceMode,
   getToolGateEnabled,
+  parseBenchKvTranscript,
   resolveCompletionToolChoice,
 } from "./benchConfig";
 
@@ -96,6 +98,10 @@ describe("getToolChoiceMode / getToolGateEnabled defaults", () => {
   beforeEach(() => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
   });
+  afterEach(() => {
+    (AsyncStorage.getItem as jest.Mock).mockReset();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+  });
 
   test("absent toolchoice pref defaults to auto", async () => {
     await expect(getToolChoiceMode()).resolves.toBe("auto");
@@ -108,5 +114,33 @@ describe("getToolChoiceMode / getToolGateEnabled defaults", () => {
   test("toolgate 0 disables", async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue("0");
     await expect(getToolGateEnabled()).resolves.toBe(false);
+  });
+});
+
+describe("parseBenchKvTranscript / getKvTranscriptEnabled", () => {
+  beforeEach(() => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+  });
+  afterEach(() => {
+    (AsyncStorage.getItem as jest.Mock).mockReset();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+  });
+
+  test("absent / null defaults to off", async () => {
+    expect(parseBenchKvTranscript(null)).toBe(false);
+    expect(parseBenchKvTranscript(undefined)).toBe(false);
+    await expect(getKvTranscriptEnabled()).resolves.toBe(false);
+  });
+
+  test('"1" is on', async () => {
+    expect(parseBenchKvTranscript("1")).toBe(true);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue("1");
+    await expect(getKvTranscriptEnabled()).resolves.toBe(true);
+  });
+
+  test('"0" / garbage is off', () => {
+    expect(parseBenchKvTranscript("0")).toBe(false);
+    expect(parseBenchKvTranscript("on")).toBe(false);
+    expect(parseBenchKvTranscript("yes")).toBe(false);
   });
 });

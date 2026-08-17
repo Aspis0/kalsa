@@ -14,6 +14,7 @@ import {
 import {
   getBenchNoRepack,
   getBlockFormat,
+  getKvTranscriptEnabled,
   getThinkingMode,
   getToolChoiceMode,
   getToolGateEnabled,
@@ -99,6 +100,24 @@ import {
   type KvReproEvent,
   type KvReproState,
 } from "./kvReproducibility";
+import {
+  commitFromNativeResult,
+  computeCandidatePrompt,
+  getKvEpoch,
+  logKvHalt,
+  markKvUntrusted,
+  resetKvTranscript,
+  seedKvTranscript,
+  type AdvanceDecision,
+} from "./kvTranscript";
+import { messagesThroughLastAssistant } from "./kvTranscriptDelta";
+import {
+  captureEotSuffix,
+  extrasFromJinja,
+  formatTranscriptPair,
+  shouldHaltFormatted,
+  type FormatEngine,
+} from "./kvTranscriptFormat";
 import { resolveThinkingParams } from "./thinkingBudgets";
 import { getModelById } from "./ModelRegistry";
 import {
@@ -989,6 +1008,7 @@ async function disposeEngineLocked(): Promise<void> {
     activeMtpNMax = undefined;
     activeSpecType = undefined;
     kvHoldsChatSession = false;
+    resetKvTranscript();
     kvReproState = nextKvReproState(kvReproState, "dispose");
     lastPromptEnvHash = undefined;
     // Intentionally do NOT delete session files here — they survive dispose
@@ -1405,6 +1425,9 @@ async function tryLoadEngineSession(
     // Keep lastPromptEnvHash aligned with the restored KV for a later save.
     lastPromptEnvHash =
       stored.promptEnvHash ?? expected.promptEnvHash ?? lastPromptEnvHash;
+    if (typeof result.prompt === "string" && result.prompt.length) {
+      seedKvTranscript(result.prompt, lastPromptEnvHash);
+    }
     log(true, {
       tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,
     });
@@ -1430,6 +1453,7 @@ export async function invalidateEngineSession(modelId: string): Promise<void> {
       // (clearChat leaves the engine up; a later background must not save).
       if (activeModelId === modelId) {
         kvHoldsChatSession = false;
+        resetKvTranscript();
       }
       await deleteSessionArtifacts(modelId);
     } catch {
@@ -1665,6 +1689,8 @@ export async function streamAssistantTurn(
     const thinkingMode = await getThinkingMode();
     const toolChoiceMode = await getToolChoiceMode();
     const toolGateEnabled = await getToolGateEnabled();
+    const kvTranscriptEnabled = await getKvTranscriptEnabled();
+    const turnEpoch = getKvEpoch();
     // activeModelId === null → null model (defaults); unknown id still falls back
     // via getModelById (acceptable) but null must not invent a model.
     const activeModel = activeModelId ? getModelById(activeModelId) : null;
@@ -1715,6 +1741,8 @@ export async function streamAssistantTurn(
       locale,
       options.operativeContext ?? null,
     ) as ToolChatMessage[];
+    // Snapshot BEFORE auto-document_chat so user-note / auto-tool stay in the delta.
+    const turnPrefix = messagesThroughLastAssistant(currentMessages);
 
     // Accumulo locale del testo: streaming garantito anche se il campo
     // `accumulated_text` di llama.rn non fosse popolato dal binding.
@@ -1941,11 +1969,154 @@ export async function streamAssistantTurn(
           },
         ];
         kvReproState = nextKvReproState(kvReproState, "tool_calls_detected");
+        if (kvTranscriptEnabled) markKvUntrusted("tool_round");
         // Prefer text-only synthesis after the auto retrieval (2B is weak at
         // chaining further tools once passages are in context).
         forceTextOnly = true;
         callbacks.onStatus?.({ label: statusLabel });
       }
+
+      let kvEot = "";
+      let kvPPrev = "";
+      let kvCandidate = "";
+      let kvDecision: AdvanceDecision | null = null;
+      const envHashForTurn =
+        lastPromptEnvHash ??
+        computePromptEnvHash(locale, options.memoryFacts, hasTools);
+      const buildChatCompletionParams = async (
+        pPrevMsgs: ToolChatMessage[],
+        thinking: typeof thinkingFields,
+        toolFields:
+          | { tools: EngineTool[]; tool_choice: string }
+          | Record<string, never>,
+        toolsOnThisCompletion: boolean,
+      ) => {
+        // OFF: same object as production. Do not format.
+        if (!kvTranscriptEnabled) {
+          return {
+            messages: currentMessages as RNLlamaOAICompatibleMessage[],
+            ...toolFields,
+            // nPredict floor is 1024 (see resolveThinkingParams): table/list miniapps emit
+            // verbose JSON that blew past 512 mid-payload — the user waited through a long
+            // prefill only to get a truncated, unparseable miniapp (field report,
+            // 2026-08-07). A cap is a ceiling, not a target: normal turns still end at
+            // EOS/stop words; only the degenerate worst case doubles. Per-model overrides
+            // may raise the ceiling (e.g. 2B extended thinking).
+            n_predict: nPredict,
+            stop: STOP_WORDS,
+            temperature: 0.7,
+            top_k: 40,
+            top_p: 0.95,
+            // Bench thinking axis: "default"/"off" keep production (thinking off);
+            // budget* enables thinking with a token budget (NativeCompletionParams).
+            // Text-only + budget mode uses off fields (see roundThinkingFields).
+            ...thinking,
+            ...(hasImages ? { speculative: false as const } : {}),
+          };
+        }
+        const formatKwargs = {
+          enable_thinking: thinking.enable_thinking,
+          reasoning_format: thinking.reasoning_format,
+          chat_template_kwargs: thinking.chat_template_kwargs,
+          ...("tools" in toolFields
+            ? { tools: toolFields.tools, tool_choice: toolFields.tool_choice }
+            : {}),
+        };
+        const fmtEngine = engine as FormatEngine;
+        const { pPrev, pNew } = await formatTranscriptPair(
+          fmtEngine,
+          pPrevMsgs as object[],
+          currentMessages as object[],
+          formatKwargs,
+        );
+        const haltCheck = shouldHaltFormatted({
+          hasTools: toolsOnThisCompletion,
+          formatted: pNew,
+        });
+        if (haltCheck.halt) {
+          logKvHalt({ reason: haltCheck.reason });
+          emitEngineError(
+            callbacks,
+            finishOnce,
+            new Error(`kvtranscript: ${haltCheck.reason}`),
+          );
+          return null;
+        }
+        const eot = await captureEotSuffix(
+          fmtEngine,
+          currentMessages as object[],
+          formatKwargs,
+        );
+        const computed = computeCandidatePrompt({
+          pPrev: pPrev.prompt ?? "",
+          pNew: pNew.prompt ?? "",
+          envHash: envHashForTurn,
+          kvHoldsChatSession,
+        });
+        // Force the *next* advance to rebuild — this turn still uses stopping_word.
+        if (eot === "") markKvUntrusted("eot_unknown");
+        kvEot = eot;
+        kvPPrev = pPrev.prompt ?? "";
+        kvCandidate = computed.prompt;
+        kvDecision = computed.decision;
+        const prompt = computed.prompt;
+        const extras = extrasFromJinja(pNew, STOP_WORDS);
+        return {
+          prompt,
+          ...extras,
+          // nPredict floor is 1024 (see resolveThinkingParams): table/list miniapps emit
+          // verbose JSON that blew past 512 mid-payload — the user waited through a long
+          // prefill only to get a truncated, unparseable miniapp (field report,
+          // 2026-08-07). A cap is a ceiling, not a target: normal turns still end at
+          // EOS/stop words; only the degenerate worst case doubles. Per-model overrides
+          // may raise the ceiling (e.g. 2B extended thinking).
+          n_predict: nPredict,
+          temperature: 0.7,
+          top_k: 40,
+          top_p: 0.95,
+          // Bench thinking axis: "default"/"off" keep production (thinking off);
+          // budget* enables thinking with a token budget (NativeCompletionParams).
+          // Text-only + budget mode uses off fields (see roundThinkingFields).
+          ...thinking,
+          ...(hasImages ? { speculative: false as const } : {}),
+          ...toolFields,
+        };
+      };
+      const finishKvRound = (
+        emitted: string,
+        stoppingWord: string,
+        stoppedWord: string,
+        flags: {
+          context_full?: boolean;
+          truncated?: boolean;
+          interrupted?: boolean;
+        },
+      ): void => {
+        if (!kvTranscriptEnabled) return;
+        if (getKvEpoch() !== turnEpoch) return;
+        if (aborted || signal?.aborted) {
+          markKvUntrusted("completion_failed");
+          return;
+        }
+        const outcome = commitFromNativeResult({
+          candidate: kvCandidate,
+          emitted,
+          eot: kvEot,
+          stoppingWord,
+          stoppedWord,
+          pPrev: kvPPrev,
+          envHash: envHashForTurn,
+          epoch: turnEpoch,
+          context_full: flags.context_full === true,
+          truncated: flags.truncated === true,
+          interrupted: flags.interrupted === true,
+          consumeReason:
+            kvDecision?.kind === "rebuild" ? kvDecision.reason : undefined,
+        });
+        if (outcome === "committed" && hasImages) {
+          markKvUntrusted("media");
+        }
+      };
 
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
@@ -1973,33 +2144,25 @@ export async function streamAssistantTurn(
           textOnlyRound && (thinkingMode === "budget256" || thinkingMode === "budget512")
             ? resolveThinkingParams("off", activeModel).fields
             : thinkingFields;
+        const pPrevMsgs =
+          round === 0 ? turnPrefix : messagesThroughLastAssistant(currentMessages);
+        const completionParams = await buildChatCompletionParams(
+          pPrevMsgs,
+          roundThinkingFields,
+          hasTools
+            ? {
+                tools: options!.tools as EngineTool[],
+                tool_choice: toolChoice,
+              }
+            : {},
+          hasTools,
+        );
+        if (!completionParams) return;
+        if (bailIfStopped()) return;
+        let roundRawEmitted = "";
         const result = await trackCompletion(
           engine.completion(
-            {
-              messages: currentMessages as RNLlamaOAICompatibleMessage[],
-              ...(hasTools
-                ? {
-                    tools: options!.tools as EngineTool[],
-                    tool_choice: toolChoice,
-                  }
-                : {}),
-              // nPredict floor is 1024 (see resolveThinkingParams): table/list miniapps emit
-              // verbose JSON that blew past 512 mid-payload — the user waited through a long
-              // prefill only to get a truncated, unparseable miniapp (field report,
-              // 2026-08-07). A cap is a ceiling, not a target: normal turns still end at
-              // EOS/stop words; only the degenerate worst case doubles. Per-model overrides
-              // may raise the ceiling (e.g. 2B extended thinking).
-              n_predict: nPredict,
-              stop: STOP_WORDS,
-              temperature: 0.7,
-              top_k: 40,
-              top_p: 0.95,
-              // Bench thinking axis: "default"/"off" keep production (thinking off);
-              // budget* enables thinking with a token budget (NativeCompletionParams).
-              // Text-only + budget mode uses off fields (see roundThinkingFields).
-              ...roundThinkingFields,
-              ...(hasImages ? { speculative: false as const } : {}),
-            },
+            completionParams,
             (data: TokenData) => {
               // Token callbacks run inside this job — not blocked by the FIFO gate.
               // Always use data.token (incremental sent_count slice). data.content
@@ -2010,7 +2173,10 @@ export async function streamAssistantTurn(
               // <think>/<tool_call> markup that appears in the raw token stream.
               if (finished || aborted) return;
               const raw = data.token ?? "";
-              if (raw) rawEmittedAccum += raw;
+              if (raw) {
+                rawEmittedAccum += raw;
+                roundRawEmitted += raw;
+              }
               const delta = cleanStreamDelta(raw);
               if (delta) {
                 streamedText += delta;
@@ -2018,6 +2184,14 @@ export async function streamAssistantTurn(
               }
             },
           ),
+        );
+        finishKvRound(
+          typeof result.text === "string" && result.text.length > 0
+            ? result.text
+            : roundRawEmitted,
+          result.stopping_word ?? "",
+          result.stopped_word ?? "",
+          result,
         );
 
         // Per-round counters+timings only — never user text / completion content.
@@ -2093,6 +2267,7 @@ export async function streamAssistantTurn(
         // abort mid-window still refuses save (hole A1). Reducer sets
         // turnInjected so a later clean_completion in this turn stays false.
         kvReproState = nextKvReproState(kvReproState, "tool_calls_detected");
+        if (kvTranscriptEnabled) markKvUntrusted("tool_round");
 
         // Round tool: esegui le chiamate, poi UN messaggio assistant con TUTTE le
         // tool_calls + i relativi risultati tool (formato OpenAI).
@@ -2308,22 +2483,25 @@ export async function streamAssistantTurn(
           toolCallStrip = createToolCallDeltaStripper();
           const fallbackStreamedTextAtStart = streamedText;
           try {
+            const fallbackParams = await buildChatCompletionParams(
+              messagesThroughLastAssistant(currentMessages),
+              thinkingFields,
+              {},
+              false,
+            );
+            if (!fallbackParams) return;
+            if (bailIfStopped()) return;
+            let fallbackRoundRaw = "";
             const fallbackResult = await trackCompletion(
               engine.completion(
-                {
-                  messages: currentMessages as RNLlamaOAICompatibleMessage[],
-                  n_predict: nPredict,
-                  stop: STOP_WORDS,
-                  temperature: 0.7,
-                  top_k: 40,
-                  top_p: 0.95,
-                  ...thinkingFields,
-                  ...(hasImages ? { speculative: false as const } : {}),
-                },
+                fallbackParams,
                 (data: TokenData) => {
                   if (finished || aborted) return;
                   const raw = data.token ?? "";
-                  if (raw) rawEmittedAccum += raw;
+                  if (raw) {
+                    rawEmittedAccum += raw;
+                    fallbackRoundRaw += raw;
+                  }
                   const delta = cleanStreamDelta(raw);
                   if (delta) {
                     streamedText += delta;
@@ -2331,6 +2509,14 @@ export async function streamAssistantTurn(
                   }
                 },
               ),
+            );
+            finishKvRound(
+              typeof fallbackResult.text === "string" && fallbackResult.text.length > 0
+                ? fallbackResult.text
+                : fallbackRoundRaw,
+              fallbackResult.stopping_word ?? "",
+              fallbackResult.stopped_word ?? "",
+              fallbackResult,
             );
             emitTurnTelemetry(turnId, MAX_TOOL_ROUNDS, fallbackResult, toolAttribution.snapshot());
             // Strip tool_call/think markup from the fallback result. If text
@@ -2352,6 +2538,9 @@ export async function streamAssistantTurn(
               kvReproState = nextKvReproState(kvReproState, "clean_completion");
             }
           } catch (fallbackError) {
+            if (kvTranscriptEnabled && getKvEpoch() === turnEpoch) {
+              markKvUntrusted("completion_failed");
+            }
             // Fallback completion failed (engine error, abort, etc.) — fall
             // through to the canned message. emitEngineError will fire below
             // only if we have no text at all; for now just log and continue.
@@ -2376,6 +2565,9 @@ export async function streamAssistantTurn(
       }
       finishOnce(() => callbacks.onDone());
     } catch (error) {
+      if (kvTranscriptEnabled && getKvEpoch() === turnEpoch) {
+        markKvUntrusted("completion_failed");
+      }
       if (aborted || signal?.aborted) {
         finishOnce(() => callbacks.onDone());
         return;
@@ -2390,6 +2582,8 @@ export async function streamAssistantTurn(
       if (engine === context && !disposing) {
         kvHoldsChatSession = true;
       }
+      // OFF writes KV via messages: — T must not outlive that write.
+      if (!kvTranscriptEnabled) resetKvTranscript();
     }
   });
 }
@@ -2500,6 +2694,7 @@ export async function extractMemory(
       }
       // clearCache + synthetic prompt — native KV no longer holds the chat session.
       kvHoldsChatSession = false;
+      resetKvTranscript();
 
       timer = setTimeout(() => {
         timedOut = true;
@@ -2644,6 +2839,7 @@ export async function translateText(
         // best effort — translate still proceeds
       }
       kvHoldsChatSession = false;
+      resetKvTranscript();
       if (aborted || signal?.aborted) return { text: "", truncated };
 
       timer = setTimeout(() => {
@@ -2748,6 +2944,7 @@ export async function summarizeConversation(
         // best effort
       }
       kvHoldsChatSession = false;
+      resetKvTranscript();
       if (aborted || signal?.aborted || engine !== context) return "";
 
       timer = setTimeout(() => {

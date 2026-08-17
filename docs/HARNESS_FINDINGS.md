@@ -1072,6 +1072,228 @@ turn, the way it already does within a turn (measured, 2014 of 2014).
 >    `generation_prompt` (`types.d.ts:216,565`), which would let the appended suffix be stored and
 >    replayed **without hardcoding any template's tokens** — worth reading before choosing.
 
+#### 7.7b Route 1 as written above is refuted — the lever is already pulled the wrong way
+
+**2026-08-16, read on disk.** Route 1 says "set `enable_thinking` / `chat_template_kwargs` so the
+empty block never enters the prompt". Those fields are **already set, to `false`, on the
+production path** — `resolveThinkingParams` returns them for both `"default"` and `"off"`
+(`src/engine/thinkingBudgets.ts:45-58, 75-86`):
+
+```ts
+enable_thinking: false,
+thinking_budget_tokens: 0,
+reasoning_format: "none",
+chat_template_kwargs: { enable_thinking: false },
+```
+
+and the main chat completion spreads them (`src/engine/LlamaService.ts:2000`, `...roundThinkingFields`).
+`enable_thinking: false` is not the missing cure — **it is the cause**. The template injects the
+empty block precisely *because* it was asked for an answer with thinking disabled. Route 1 as
+phrased could never have worked, and one build would have been spent proving it.
+
+**The corrected route 1 — polarity, not presence** (Marco, 2026-08-16). Run the model with
+thinking **enabled**: the template then has no empty block to inject, the assistant header stays
+bare, and the `<think>` is opened by the model. The asymmetry disappears at its source, and the
+patch shipped in `6447ff2` — useless against input tokens — becomes **load-bearing**, because a
+real reasoning block *is* model output: `modelEmittedText` stores it and
+`promptContentForHistoryMessage` already replays it.
+
+**It costs zero builds.** `thinkingMode` is a persisted setting, not a compile-time flag:
+`src/bench/benchConfig.ts:155-163` reads `kalsa.bench.thinking` from AsyncStorage (default
+`"default"`), `budget512` maps to `enable_thinking: true` with a 512-token budget for this model
+(`thinkingBudgets.ts:67-74`, `ModelRegistry.ts:129`), and the APK already on the device supports
+both it and the `KALSA_KVDIVERGE` instrumentation. Flip the setting, run turns, read the log.
+Acceptance criterion unchanged from §7.7 — and guard the dead-arm trap: prove the engine ran.
+
+**What the change costs if it works**, none of it a reason not to test it, all of it a reason not
+to ship on the test alone:
+
+1. **Context, not compaction, is the wall.** `engineCtx` is 8192 (`ModelRegistry.ts:118`) against a
+   262144 catalog length. At 512 thinking tokens per turn a 30-turn regime adds ~15k tokens of
+   reasoning alone. Compaction is an *event*, not a per-turn rewrite (correction, Marco): it costs
+   one full re-prefill each time it fires and append-only resumes from the new base. The number
+   that matters is therefore **how many times it fires in 30 turns**, which is unmeasured.
+2. **`nPredict` squeezes the answer.** `budget512` leaves ≤512 tokens for the reply under a 1024
+   ceiling. The registry already has the precedent: the one model with `short: 512` raises
+   `nPredict` to 2560 (`ModelRegistry.ts:198`). Raise it, or measure truncation and call it quality.
+3. **A dormant privacy defect gets armed.** §7.7 above closes with "with thinking off the emitted
+   text differs from the cleaned text only by the four empty-block tokens, so there is nothing
+   hidden to expose". Thinking on removes that guarantee: `modelEmittedText` then holds the
+   reasoning in plaintext for the life of the conversation, and `scripts/ci-dflash-ab.sh:235-238`
+   dumps the whole message row into bench artifacts. Close it **before** the polarity flips.
+4. **Stream shape.** The `budget*` branches set neither `reasoning_format: "none"` nor
+   `chat_template_kwargs`, which `off`/`default` both set; the comment at `thinkingBudgets.ts:52-54`
+   warns that changing `reasoning_format` changes the stream shape the UI expects. If thinking
+   becomes production, that branch needs aligning or the app's `<think>` stripping breaks.
+5. **The baseline stops being comparable.** Every number in §1 and §7 was measured with thinking
+   off, including the 16-turn `fact_recall` 8/8. It must be re-run, not cited.
+
+**Corrections to the citations in route 2 above**, all verified on disk in the installed
+llama.rn:
+
+- `types.d.ts:176` `prompt: string` is a **required** field of `NativeCompletionParams` (declared
+  at `:175`) — but `CompletionParams = Omit<NativeCompletionParams, 'emit_partial_completion' |
+  'prompt'> & CompletionBaseParams` (`index.d.ts:91`) strips it and `CompletionBaseParams`
+  re-introduces it as optional (`index.d.ts:65`). So `engine.completion({ prompt })` **is** legal
+  from JS. Route 2 is reachable, not merely present in the native types.
+- `types.d.ts:540` is **not** a completion input: it is `NativeSessionLoadResult.prompt` (type
+  declared at `:538`) — the prompt a restored session was saved with. Useful for verifying
+  append-only, but it is not the field route 2 rests on.
+- `generation_prompt` is **both**: an input on `NativeCompletionParams` (`types.d.ts:216`,
+  documented "Assistant generation prompt returned by jinja chat formatting"), and a field of
+  `JinjaFormattedChatResult` (`types.d.ts:565`), the return type of `getFormattedChat`.
+  `NativeCompletionResult` does not carry it. That pairing is exactly what route 2 needs: render
+  once, capture the suffix, replay it verbatim without hardcoding any template's tokens.
+- Also in `CompletionBaseParams` and unexamined so far: `prefill_text` (`index.d.ts:87-90`),
+  documented as "Prefill text to be used for chat parsing (Generation Prompt + Content) — used if
+  last assistant message is for prefill purpose". Read it before designing route 2.
+
+#### 7.7d Thinking ON was measured, and it FAILS — the asymmetry is the history branch itself
+
+**Device run 2026-08-16, S23, APK 9, setting `kalsa.bench.thinking=budget512`, zero builds.**
+The §7.7b hypothesis — flip the polarity, no empty block to inject — is **refuted by measurement**.
+Both halves of the acceptance criterion fail at the 1→2 boundary:
+
+```
+KALSA_KVPREFIX embd=1814 text_tokens=1747 n_common=1616
+KALSA_KVDIVERGE n_common=1616 shared_lo=1608 embd_hi=1628 text_hi=1628
+shared_txt=[ Ciao<|im_end|> \n <|im_start|>assistant \n ]
+embd_txt=[<think>\n L'utente sta semplicemente salutando con "C]
+text_txt=[Ciao! 👋 \n\n Sono Kalsa, il tuo]
+KALSA_KVDIAG n_common=1616 total=1747 search_max=1616 checkpoints=[1814,]
+no usable state checkpoint (recurrent/hybrid/SWA model), doing full cache clear
+Input processed: n_past=0, embd.size=1747
+```
+
+The empty block is indeed gone — the divergence is no longer `[248068 271 248069 271]`. It is the
+**mirror image**: the KV holds the reasoning the model actually emitted, and the re-rendered
+prompt holds the cleaned answer, because the template's *history* branch strips the think block.
+`modelEmittedText` was persisted correctly and did begin with `<think>` (735 chars, read from the
+device DB), and `promptContentForHistoryMessage` did prefer it — so this is not a missing field
+on our side. **The template will not re-render history to match what entered the KV, in either
+polarity.** Route 1 of §7.7 is dead in both directions; what remains is making the history branch
+symmetric ourselves (a template override) or owning the prompt (route 2).
+
+The engine demonstrably ran — turn 1 `embd=0 … n_common=0` then `embd.size=1618`, turn 2 restore
+`resumable=1 tokens=1814`, saves at `messageCount` 2 then 4, and a visible reply (`Due più due fa
+**4**`). Not a dead arm. Wall-clock ~2.5 min/turn is **not** a measurement: the phone was charging.
+
+⚠️ **Device state left changed by this run**: `kalsa.bench.thinking` is `budget512` (production
+default is `off`) and the conversation store was wiped. Revert before any campaign quotes numbers.
+
+#### 7.7e Route 2 implemented behind a toggle, and what two hostile audits left standing
+
+**2026-08-17, uncommitted working tree.** The append-only transcript is built: `T` holds exactly
+what entered the KV, each turn's delta is the difference between **two consecutive history
+renders** (never history-vs-generation, which is the pair that diverges), and the completion is
+issued as `completion({ prompt: T })` with `messages` omitted — mandatory, because
+`node_modules/llama.rn/src/index.ts:795-816` overwrites `prompt` with the jinja render whenever
+`messages` is present. New: `src/engine/kvTranscript.ts`, `src/engine/kvTranscriptFormat.ts`,
+plus tests; wiring only in `LlamaService.ts`; bench toggle `kalsa.bench.kvtranscript`, default
+OFF, production byte-identical when off.
+
+The end-of-turn suffix is captured **without hardcoding any template's tokens**: render the
+message list twice, once plain and once with a trailing assistant message containing a control
+marker, and take the bytes after the marker. That was the objection which killed the template
+override in §7.5, and this sidesteps it.
+
+**Two audit rounds, both hostile, both by a different model than the author.** Round one
+rejected the code with three CONFIRMED P1s, all one family — `T` advancing without the engine
+having accepted the prompt: it was mutated sixty lines before `engine.completion`, an OFF turn
+or an aux `clearCache` left a stale `T` that a later ON turn appended to, and dispose could
+resurrect a reset transcript. All three are now closed and re-verified: the commit moved into a
+closure invoked *after* the awaited completion, every non-transcript writer of the KV resets
+`T`, and an epoch counter rejects stale commits.
+
+Round two **refuted** the follow-up hypothesis I had proposed (that a commit erases the
+`untrusted` mark — it does not; `pendingRebuild` survives the commit and is consumed by the next
+rebuild decision) and found three that still stand:
+
+| open blocker | why it matters |
+|---|---|
+| `truncated` / `context_full` are never checked before commit (`JSICompletion.h:168-175`; with `ctx_shift:false` native returns `context_full` *before* accepting the prompt, `rn-completion.cpp:410-417`) | commits a `T` the KV never accepted — the exact silent-divergence class this feature exists to kill |
+| no `bailIfStopped()` between the async formatting/EOT capture and `engine.completion` | an abort or dispose during formatting still launches a completion |
+| image state is not represented in `T` (a string) while `media_paths` is a separate native param | an image turn followed by a text-only turn diverges with no rebuild reason |
+
+Lesser, confirmed: `commitHash` is a 32-bit DJB2 with trivial same-length collisions (`"BA"` /
+`"Ab"`), so it is a smoke alarm and not an integrity check; `computeCandidatePrompt` is
+documented pure but consumes `pendingRebuild`; and the tests exercise the transcript module's
+protocol but never `LlamaService`, so several of them would still pass if the service-side fix
+were reverted.
+
+**None of those can fire in the controlled acceptance test** — three text-only, tool-free turns
+of ~1800 tokens against an 8192 context. So the device measurement runs first: the design's core
+premise, that an append-only raw prompt yields `n_common == embd.size()`, has never been
+measured, and hardening a design whose premise is unverified is how a night gets wasted. The
+blockers above gate **shipping**, not the experiment, and they stay open until fixed.
+
+#### 7.7c A third road nobody had looked at: the checkpoint budget is a knob, and we never set it
+
+**2026-08-16.** §7.5 ends on "one checkpoint exists — at 1712; the position needed is 1646", and
+treats that as a fact of nature. It is not. `NativeContextParams` (`types.d.ts:36`) exposes two
+parameters, and **Kalsa sets neither** (`grep` over `src/` returns nothing):
+
+```ts
+/** Memory budget (MiB) for the cross-turn KV prefix cache on recurrent/hybrid
+ *  models. 0 disables it; no-op on pure-attention models. Default 160. */
+state_cache_budget_mb?: number;          // types.d.ts:166
+/** Max snapshots to keep (secondary cap; the byte budget is primary).
+ *  0 = no count cap. Default 8. */
+state_cache_max_checkpoints?: number;    // types.d.ts:171
+```
+
+So llama.rn ships a cross-turn KV prefix cache built specifically for recurrent/hybrid models,
+enabled by default, allowed up to **eight** snapshots — and the device observed exactly **one**
+(`KALSA_KVDIAG … checkpoints=[1712,]`). Either the 160 MiB byte budget is the binding constraint
+for a hybrid 4B state, or snapshots are taken on a spacing rule; which one is unmeasured.
+
+⚠️ **Tempering datum, from two runs a day apart**: the single checkpoint sits at **exactly** the
+end of the restored state, both times — `embd=1712 → checkpoints=[1712,]` (§7.5) and
+`embd=1814 → checkpoints=[1814,]` (§7.7d). Two for two is a pattern, not a coincidence: it
+suggests the checkpoint is produced by the session save/restore path, not by prefill progress. If
+that holds, raising `state_cache_max_checkpoints` alone changes nothing, because nothing is
+creating intermediate snapshots to keep — the byte budget would only matter once something does.
+That is the first thing the experiment must distinguish, and it is why this road is worth one
+build rather than being assumed to work.
+
+Why this matters: a checkpoint at or before the divergence point would let the prefix be reused
+**without touching the template at all**. It changes no model behaviour, costs no thinking
+tokens, grows no context, and arms no privacy defect — unlike the polarity flip in §7.7b. It
+does cost one build, because context params are set at init, whereas the polarity flip costs
+none. That ordering is why the polarity test runs first, not because it is the better fix.
+
+The existing instrumentation already prints the checkpoint list, so the experiment reads itself:
+raise the budget, see whether `checkpoints=[…]` gains entries and whether one lands at ≤ the
+`n_common` of the turn.
+
+**Prior art (web research, 2026-08-16, primary sources).** Findings that bear on the three roads:
+
+1. **The asymmetry is a known, open upstream defect** — Qwen3 issue #1826 describes exactly this
+   `<think>\n\n</think>\n\n` generation suffix missing from history rendering, and proposes adding
+   the `enable_thinking is false` branch to historical assistant messages. Qwen3.6 issues #48 and
+   #131 repeat the diagnosis and are closed **without a linked upstream PR**. The official
+   Qwen3.5-4B `chat_template.jinja` still shows the asymmetry. On the llama.cpp side, #20182 and
+   #21511 are both closed as *not planned*. **Conclusion: no upstream fix is coming; this is ours
+   to work around.** Not independently verified beyond the report — treat as strong lead, not fact.
+2. **Nobody keeps a template-agnostic append-only transcript.** The closest is llama.cpp's
+   `simple-chat` example, which renders the full message list each turn and feeds only the newly
+   rendered suffix by slicing from `prev_len` — the right mechanism, but still exposed to exactly
+   our drift, since a re-render that changes earlier bytes moves `prev_len`'s meaning. MIT, so
+   borrowable. Ollama's tokenised `context` handoff is the cleanest token-level design and is
+   **deprecated**.
+3. **Upstream position on hybrid rollback**: a recurrent state is not erasable at an arbitrary
+   prior position; rollback is possible only at saved checkpoint boundaries, and llama.cpp added
+   `--ctx-checkpoints` / `--checkpoint-min-step` for exactly this. This is the upstream sibling of
+   the `state_cache_*` knobs above, and it corroborates that checkpoint density is the lever.
+4. ⚠️ **A second, independent mechanism we had folded into the first**: llama.cpp issue #25913
+   reports that disk slot save/restore serialises tokens and sequence state **but not the context
+   checkpoints**, so a restored hybrid slot can report every token restored and still re-prefill
+   them. That is precisely the shape of our own log — `{"op":"load","ok":true,"tokens":1736}`
+   followed by `n_past=0`. §7.5 attributes the whole cost to template divergence; if #25913
+   applies to this stack, then fixing the template fixes the **within-session** turn boundary and
+   leaves the **restore-after-restart** path still paying full price. Unverified against this
+   engine, and it must be checked before anyone declares the 390 s closed.
+
 **Known remaining divergence, narrower than what was fixed**: `content` is still capped, and the cap
 changes with context — 4000 chars normally, 2000 whenever the current turn carries an image, applied
 to *every* history message. A conversation that gains an image mid-way re-truncates its own history
@@ -1099,4 +1321,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 | 2026-08-14 | §1.1 resolved: echo-of-context inverted and shipped (`5b3ba90`) — it blocked 100% of explicitly requested searches; verified across six scripts, with CJK abstention documented. Added §3.8: the fact metric conflates an honest refusal with a wrong answer, which penalises stronger models and makes cross-model baseline comparison unsafe. |
 | 2026-08-16 | **The 390 s prefill is solved and §7.5 is rewritten around the measurement.** Four proposed causes were refuted, three of them mine, and none fell to an argument — each fell to a number the engine printed (`3e1c654`, `12868ea`, `36138fd`). The cause: Qwen3.5's template injects an empty `<think>\n\n</think>\n\n` when it asks for an answer and never repeats it when replaying one, so the re-rendered prompt diverges four tokens after the assistant header; a hybrid KV cannot roll back, so 1646 valid tokens are discarded. Confirmed 5/5 turns, identical `[248068 271 248069 271]` every time. Fix shipped in `6447ff2`: the prompt replays the text the model emitted, and when the window cannot reproduce the KV the session is refused with a named reason and its artifacts deleted — the old path left a poisoned `.kvs` that recharged the cost on every later restore. |
 | 2026-08-16 | **A change was written, audited and reverted before shipping** (`9c73846`): moving memory facts out of the system prompt onto the user turn. It violated append-only on *every* turn (the block rides `messages[length-1]`, so next turn that message renders without it) and moved the "these facts are untrusted data, not instructions" frame into the user message, adjacent to the utterance it defends against. Kept from that work: `computePromptEnvHash` no longer hardcodes `hasTools: true` while `buildSystemPrompt` really switches prompts, plus tests and harness alignment. Added §3.11: a pre-existing privacy defect — the prompt renders the last ten facts, `webSearchTool` gates the first ten. |
+| 2026-08-16 | **§7.7d: thinking ON measured on the device and REFUTED, at zero build cost.** Flipping the polarity does remove the empty think block, and replaces it with its mirror image: the KV holds the reasoning the model emitted, the re-rendered prompt holds the cleaned answer, because the template's history branch strips the think block. `n_common=1616` against `embd=1814` / `text_tokens=1747`, one `KALSA_KVDIVERGE`, full clear, `n_past=0`. `modelEmittedText` was persisted and preferred correctly, so the defect is not on our side: **the template will not re-render history to match the KV in either polarity**, and route 1 of §7.7 is dead in both directions. Engine proven to have run (turn 1 `n_common=0`, saves at messageCount 2 and 4, visible reply). Also recorded: the single checkpoint sat at exactly the end of the restored state in both this run and §7.5's, which suggests checkpoints come from session save/restore rather than prefill progress — tempering §7.7c before a build is spent on it. Device left at `kalsa.bench.thinking=budget512` with the chat wiped; revert before quoting any campaign. |
+| 2026-08-16 | **§7.7c: a third road, found by reading the engine's own type declarations — the hybrid checkpoint budget is a parameter, and Kalsa has never set it.** `state_cache_budget_mb` (default 160 MiB) and `state_cache_max_checkpoints` (default 8) are `NativeContextParams` fields (`types.d.ts:166,171`) documenting a cross-turn KV prefix cache built for recurrent/hybrid models; `grep` over `src/` finds neither. The device observed **one** checkpoint where eight are permitted. A checkpoint at or before the divergence point would restore reuse **without touching the template**, changing no model behaviour and arming no privacy defect — it costs one build, which is the only reason the zero-build polarity test of §7.7b runs first. Web research the same day (primary sources) adds: the asymmetry is open upstream as Qwen3 #1826 with no fix coming (Qwen3.6 #48/#131 closed with no PR; llama.cpp #20182/#21511 closed as not planned); no mainstream wrapper keeps a template-agnostic append-only transcript; and — the part that may matter most — llama.cpp #25913 reports that disk slot restore does not serialise context checkpoints, so a restored hybrid slot reports all tokens restored and re-prefills anyway. If that applies here, fixing the template closes the turn boundary and leaves the restore-after-restart path still paying full price. Unverified against this engine; check before declaring the 390 s closed. |
+| 2026-08-16 | **§7.7b: the "template symmetry" route was refuted by reading the code, before any build was spent on it.** The flags it proposed setting — `enable_thinking`, `chat_template_kwargs` — are already set to `false` on the production path (`thinkingBudgets.ts:45-58,75-86`, spread at `LlamaService.ts:2000`), and that is precisely why the template injects the empty think block. The corrected route is the opposite polarity (Marco): run with thinking **enabled**, so there is no empty block to inject and the real reasoning block — genuine model output — is replayed by the machinery already shipped in `6447ff2`. It costs **zero builds**: `thinkingMode` is a persisted setting (`benchConfig.ts:155-163`) and the on-device APK already supports `budget512`. Four costs recorded before measuring (context at `engineCtx` 8192, `nPredict` squeeze, an armed privacy defect in `ci-dflash-ab.sh:235-238`, stream shape), plus Marco's correction that compaction is an event rather than a per-turn rewrite. Three citations in route 2 corrected on disk: `types.d.ts:540` is `NativeSessionLoadResult`, not a completion input; `prompt` is reachable from JS only because `CompletionBaseParams` re-adds it (`index.d.ts:65,91`); `generation_prompt` is both an input (`types.d.ts:216`) and a `getFormattedChat` result (`:565`). |
 | 2026-08-16 | **Two hostile audits, and the second one earned its cost by refuting rather than adding.** Run at max reasoning against the first auditor's findings, it confirmed three, **refuted four** (the atomicity race I had suspected reconciles in every direction at boot; the `undefined` key is a red herring; no new leaks), and corrected two of the first auditor's citations. It also found the reachable case the first had missed: the replay cap is **2000** chars, not 4000, whenever the current turn carries an image, applied to every history message. Implementing on the first audit alone would have written code for a race that does not exist and shipped the truncation defect that re-introduces the whole 390 s. |

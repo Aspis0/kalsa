@@ -7,12 +7,14 @@
  *   /bench format <none|system-end|user-prefix|user-note>
  *   /bench speculative <none|mtp|clear>
  *   /bench engine <gpu=N,threads=N,ubatch=N|clear>
+ *   /bench kvtranscript <1|0|on|off|clear>
  *   /bench show
  * Prefer the slash-free form on Windows Git Bash (adb mangles leading `/`):
  *   bench:thinking off
  *   bench:format user-note
  *   bench:speculative none
  *   bench:engine gpu=20,threads=5,ubatch=256
+ *   bench:kvtranscript 1
  *   bench:show
  *
  * Speculative applies at ENGINE INIT — force-stop + relaunch the app for the
@@ -28,6 +30,7 @@
  * - kalsa.bench.toolchoice: "auto" | "required" | "none" (CI A/B only)
  * - kalsa.bench.toolgate:   "1" (default) | "0" (CI A/B only)
  * - kalsa.bench.norepack:   "1" disables weight repacking (CI A/B only)
+ * - kalsa.bench.kvtranscript: "1" enables append-only KV transcript (CI A/B only)
  *
  * No in-memory cache: one fresh read per turn (best-effort).
  */
@@ -49,6 +52,8 @@ export const BENCH_LEGACYWINDOW_KEY = "kalsa.bench.legacywindow";
 export const BENCH_RANKING_KEY = "kalsa.bench.ranking";
 /** "1" disables weight repacking (no_extra_bufts). Absent / other → production. */
 export const BENCH_NOREPACK_KEY = "kalsa.bench.norepack";
+/** "1" enables append-only KV transcript. Absent / other → production (off). */
+export const BENCH_KVTRANSCRIPT_KEY = "kalsa.bench.kvtranscript";
 
 export type ThinkingMode = "default" | "off" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
@@ -278,6 +283,52 @@ export async function getBenchNoRepack(): Promise<boolean> {
   try {
     const raw = await AsyncStorage.getItem(BENCH_NOREPACK_KEY);
     return parseBenchNoRepack(raw);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Pure parse for kalsa.bench.kvtranscript. "1" → on; empty / absent /
+ * anything else → false (production: messages path).
+ */
+export function parseBenchKvTranscript(raw: string | null | undefined): boolean {
+  return raw === "1";
+}
+
+/**
+ * Bench-only append-only KV transcript. Absent / invalid → false
+ * (production: byte-identical messages completion). "1" → raw prompt T.
+ */
+export async function getKvTranscriptEnabled(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_KVTRANSCRIPT_KEY);
+    return parseBenchKvTranscript(raw);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Persist kvtranscript arm. "1"/"on" → "1"; "0"/"off" → "0";
+ * "clear"/empty → delete key. Returns false if value is invalid.
+ */
+export async function setKvTranscriptEnabled(arg: string): Promise<boolean> {
+  const normalized = arg.toLowerCase();
+  try {
+    if (normalized === "clear" || normalized === "") {
+      await AsyncStorage.removeItem(BENCH_KVTRANSCRIPT_KEY);
+      return true;
+    }
+    if (normalized === "1" || normalized === "on") {
+      await AsyncStorage.setItem(BENCH_KVTRANSCRIPT_KEY, "1");
+      return true;
+    }
+    if (normalized === "0" || normalized === "off") {
+      await AsyncStorage.setItem(BENCH_KVTRANSCRIPT_KEY, "0");
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }
@@ -520,11 +571,12 @@ export async function formatBenchStatus(): Promise<string> {
   // threads_src: how detectThreadCount resolved (capacity vs fallback:*).
   // "unset" until the engine has probed; no log noise on the normal path.
   const threadsSrc = getThreadCountSource();
-  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, ${enginePart}, threads_src=${threadsSrc}`;
+  const kvtranscript = (await getKvTranscriptEnabled()) ? "on" : "off";
+  return `bench: thinking=${thinking}, format=${format}, speculative=${speculativeLabel}, ${enginePart}, threads_src=${threadsSrc}, kvtranscript=${kvtranscript}`;
 }
 
 const BENCH_USAGE =
-  "bench usage: /bench thinking <…> | bench:thinking <…> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,ubatch=N]|clear> | bench:engine <…> | /bench show | bench:show";
+  "bench usage: /bench thinking <…> | bench:thinking <…> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,ubatch=N]|clear> | bench:engine <…> | /bench kvtranscript <1|0|on|off|clear> | bench:kvtranscript <…> | /bench show | bench:show";
 
 /** True when text is a bench debug command (`/bench …` or slash-free `bench:…`). */
 export function isBenchCommand(text: string): boolean {
@@ -628,6 +680,12 @@ export async function tryHandleBenchCommand(text: string): Promise<string | null
       );
     }
     return status;
+  }
+
+  if (sub === "kvtranscript") {
+    const ok = await setKvTranscriptEnabled(arg);
+    if (!ok) return `bench: invalid kvtranscript "${arg}". ${BENCH_USAGE}`;
+    return formatBenchStatus();
   }
 
   return `bench: unknown subcommand "${sub}". ${BENCH_USAGE}`;
