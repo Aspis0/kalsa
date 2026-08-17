@@ -110,6 +110,39 @@
 > intende. L'asimmetria 144-vs-200 è dichiarata nel report Xiaomi e
 > **non** in quello S23.
 >
+> ☠️ **IDEA 2 (k ADATTIVO SULLA CONFIDENZA DEL ROUTER) — MORTA IN UN
+> MINUTO, A COSTO ZERO. Era il rank 1 mio E di Qwen.**
+> Test dichiarato prima: se i bin ad alta confidenza sono troppo piccoli
+> per muovere il k medio, l'idea muore. Eseguito sulle route trace che
+> avevamo già (`results/f4.8/traces/long_512.route.tsv`, 26 200 gruppi
+> token×layer, il campo `weight` È il peso della gate per slot):
+>
+> | quantità | p10 | p50 | p90 |
+> |---|---|---|---|
+> | entropia normalizzata (1 = piatta) | 0.919 | **0.967** | 0.988 |
+> | gap top1−top2 (frazione di massa) | 0.007 | **0.044** | 0.138 |
+> | peso del top-1 | 0.171 | **0.219** | 0.300 |
+>
+> **Il router non è quasi MAI confidente.** Quota di posizioni con
+> entropia < 0.8 = **0.8%**; sotto 0.5 = **0.0%**. Anche concedendo k=2
+> a ogni singola posizione di quel 0.8%, il k medio passerebbe da 6.000
+> a 5.968: **niente**. La precondizione dell'idea non esiste.
+>
+> **E spiega F6 dal di dentro.** Il top-1 porta ~22% della massa routata
+> e l'ottavo ~7%: scendere a k=2 conserva ~40% della massa. Ecco perché
+> l'accordo argmax a k=2 misurava **0.6905** — non è un caso, è la
+> geometria del router. È anche la versione *per-token* di M1 (top-16 =
+> 25% della massa sul corpus): il routing è diffuso non solo FRA gli
+> esperti, ma anche DENTRO il top-k selezionato.
+>
+> ⚠️ **Limite dichiarato:** la trace è su `Qwen3.6-35B-A3B-UD-IQ2_M` a
+> **k=8**, non su KEXP a k=6. L'entropia è normalizzata sul numero di
+> slot quindi il confronto regge, ed è la stessa famiglia — ma la
+> conferma sul modello di campagna costa una run tracciata e va fatta
+> prima di chiamarla chiusa definitivamente. Il segno però è così netto
+> (0.8% contro una soglia che ne vorrebbe ~40%) che un ribaltamento è
+> implausibile.
+>
 > ⚰️ **AUDIT OSTILE SUI KILL (16/08, mimo-v2.5 thinking max): 20 kill su
 > 25 corretti, accuratezza 80%. Cinque buchi, e uno è un tesoro sepolto.**
 >
