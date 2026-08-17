@@ -14,15 +14,48 @@ The campaign has produced roughly 30 tested techniques; **4 are alive**.
 
 ## 1. SHIPPED — in production, with a p-value
 
-### La Ricetta (certified phone config) — *name pending owner*
+### La Ricetta — *name pending owner*
 
-`-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap
---io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65`
+**⚠️ There are TWO configs and they are not the same one. An earlier version of
+this page merged them and attached the p-values to the wrong one; corrected
+2026-08-16 after a hostile audit.**
 
-| device | effect | test |
-|---|---|---|
-| S23 (Mellum2) | stock 0.2585 → **0.1480 s/tok, −42.7%** (3.87 → 6.76 tok/s) | Wilcoxon W=0, **p=0.000488**, 12/12 pairs, exact floor |
-| Xiaomi 14 | median **−14.5%**, HL −0.05625 s/tok | W=0, **p=0.000977**, 11 effective pairs (one exact tie) |
+**(a) The A/B-VALIDATED config — this is what carries the p-values:**
+
+```
+-t 2 --n-expert-used 6 --drop-cold-experts 1.0
+   (+ --moe-stream --cache-mb 2000 --dense-weights anon --overlap
+      --io-threads 4 --ubatch 512 -c 4096 --temp 0 --chatml --no-think)
+```
+
+Verified in `run_ship_ab_s23.sh:421` and `run_ship_ab_xiaomi.sh:531` — both cells
+tested exactly this as arm B, against arm A = stock `-t 4 --n-expert-used 8`.
+
+| device | model | effect | test |
+|---|---|---|---|
+| S23 | Mellum2 | stock 0.2585 → **0.1480 s/tok, −42.7%** (3.87 → 6.76 tok/s) | Wilcoxon W=0, **p=0.000488**, 12/12 pairs, exact floor |
+| Xiaomi 14 | Mellum2 | median **−14.5%**, HL −0.05625 s/tok | W=0, **p=0.000977**, 11 effective pairs (one exact tie) |
+
+**(b) The CAMPAIGN config for CalaQwen — quality-gated, NOT A/B-validated:**
+
+```
+-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap
+--io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65
+```
+
+This is the `Scheda prodotto` default (adopted 2026-08-10) used in every CalaQwen
+speed cell. Its evidence is a **PPL quality gate**, not a paired speed test: no
+Wilcoxon, no p-value. Different model, different thread count, different drop.
+**Do not quote the −42.7% / −14.5% p-values in support of this config.**
+
+Closing the gap needs either an A/B of (b) or a re-statement of (a) as the
+shipped default. Owner decision; recorded in the open queue.
+
+Both pre-registered A/B cells were recomputed from raw CSVs in a hostile audit
+(2026-08-16) and the confirmatory arithmetic held exactly: medians, W, exact
+p-floors, Hodges-Lehmann shifts and the 11-vs-12 effective-N explanation all
+confirmed. Cohen's dz = 12.6 (S23) and 2.13 (Xiaomi) — large enough that the
+device's ±50% run-to-run variance cannot reverse either.
 
 Pre-registered on both devices. The Xiaomi PREREG **predicted a smaller effect
 there and was right** — the model predicted magnitude, not just sign.

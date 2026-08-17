@@ -24,6 +24,92 @@
 > Non ci si scrive mai niente che non sia già nel PLAN, e non si legge mai
 > ALIVE al posto del PLAN per decidere.
 
+> 🔍 **AUDIT OSTILE ESTERNO SULLA STATISTICA (16/08, DeepSeek V4 Flash
+> thinking max, tutto ricalcolato da CSV grezzi con scipy).**
+> **I DUE P-VALUE SPEDITI REGGONO — attaccati e ricalcolati, esatti.**
+> S23: mediana 0.2585→0.1480 (−42.75%), W=0, p = 2/2¹² = 0.000488, HL
+> −0.10825, **Cohen dz = 12.6**. Xiaomi: 0.368→0.3145 (−14.54%), W=0,
+> p = 2/2¹¹ = 0.000977, HL −0.05625, dz = 2.13. Pairing verificato
+> contro i PREREG, floor esatti corretti, spiegazione 11-vs-12 corretta.
+> Con dz così la varianza device ±50% non può ribaltare nulla.
+> **Altri REFUTED (attaccati e hanno tenuto):** ABBA verificato in tutte
+> e 5 le sessioni · pre-registrazione Xiaomi = esemplare di disciplina
+> (PREREG 4h prima dello staging, 3 emendamenti tutti prima dei dati,
+> kill condition onorate) · kf_ship_jelly e kf_cold_jelly timeline
+> pulite · **confronti multipli NON sono una minaccia**: in tutta la
+> campagna esistono ~6 test con p-value (4 celle pre-registrate + 2
+> esplorativi dichiarati), e Bonferroni li lascia in piedi entrambi
+> (servirebbero ≤102 e ≤51 test) · nessuno stopping opzionale, nessun
+> outcome switching, nessun endpoint drift · sensibilità post-hoc di
+> kf_cold_jelly presentata in modo sicuro · confound di contesa della
+> dropcurve reale ma dichiarato e confinato.
+>
+> ⚠️ **MA CINQUE FINDING CONFERMATI, DA SISTEMARE — e il primo è mio, di
+> oggi:**
+>
+> **(1) [ALTA, ERRORE MIO] `docs/ALIVE.md` attaccava i p-value alla
+> config SBAGLIATA.** Verificato al sorgente: entrambe le celle A/B
+> hanno testato come braccio B **`-t 2 --n-expert-used 6
+> --drop-cold-experts 1.0`** (`run_ship_ab_s23.sh:421`,
+> `run_ship_ab_xiaomi.sh:531`), contro A = stock `-t 4 --n-expert-used
+> 8`. Io avevo scritto la config di CAMPAGNA CalaQwen (`-t 4 …
+> --drop-cold-experts 0.65`, Scheda prodotto del 10/08) e ci avevo
+> appeso il −42.7%/−14.5%. **Sono due config diverse su due modelli
+> diversi**: quella validata dal p-value è Mellum2 t2/k6/d1.0; quella di
+> campagna CalaQwen ha un gate di QUALITÀ (PPL), non un test appaiato.
+> ALIVE.md corretto: le due config ora sono separate con l'evidenza di
+> ciascuna. **Decisione owner aperta: o si spedisce la config testata,
+> o si fa l'A/B di quella spedita.**
+>
+> **(2) [ALTA] La pre-registrazione S23 non è verificabile da git.**
+> `results/kernel_ship_ab_s23/PREREG.md` ha **un solo commit**,
+> `da9fa34` del 14/08 23:27:38 — e quel commit contiene GIÀ gli
+> emendamenti 1 e 2. Ma la sessione 1 girava alle 17:03-18:25 e la 2 era
+> partita alle 18:29. Quindi la frase "registrato PRIMA di ogni run" è
+> falsa come affermazione git: il file è entrato nell'albero dopo due
+> sessioni. I dati analizzati (v3, 23:28-23:49) sono partiti 55 secondi
+> dopo il commit, quindi **la cella analizzata è pulita** — è la
+> narrazione che non regge.
+>
+> **(3) [ALTA] I dati grezzi della sessione 2 non esistono nel repo.**
+> `push.log` prova che è partita (18:29:34, batteria 61%), ma nessun
+> runs.csv/master log da nessuna parte, e `git log --diff-filter=D` è
+> vuoto. Il report spedito dice che il collasso RAM è stato "riprodotto
+> 2×": **una sola riproduzione è archiviata**, l'altra è asserita.
+>
+> **(4) [MEDIA] Il PREREG S23 attribuisce l'esclusione della sessione 1
+> a due cause che si escludono a vicenda:** emendamento 1 dice
+> "misconfigurata, flag assente" (21.3 s/tok = patologia di default di
+> engine); emendamento 2 dice "invalidate dallo stato RAM, **non dalla
+> config**" (zram, stesso 21.3 s/tok). L'emendamento 1 non è mai stato
+> ritirato e il report spedito sta con il 2.
+>
+> **(5) [MEDIA] Lo stato dello schermo è dichiarato loggato e non lo è
+> mai stato.** Colonna `screen` = `?` su OGNI riga di ENTRAMBE le
+> sessioni S23 e su ogni riga delle celle Jelly. Il PREREG S23 dichiara
+> "screen state logged every run". Non è un confound differenziale (è
+> bilanciato dall'ABBA) ma è un buco protocollo-vs-realtà, e sul Jelly
+> contraddice il "wake-lock held" visto che c'è un evento di schermo
+> spento documentato a metà cella.
+>
+> 🔋 **ASSE ENERGIA S23 — l'audit ESAGERA, ma sotto c'è un problema
+> vero. Verificato da me riga per riga:** l'auditor sostiene che le
+> mediane di energia siano "fisicamente impossibili" citando 0.3367 J
+> come sorgente della mediana. **Falso: quelli sono i MINIMI del range.**
+> Le mediane vere danno **A = 0.4214 W e B = 0.8227 W**, del tutto
+> plausibili — e sono esattamente i numeri che il PLAN riporta da giorni
+> (0.42→0.82 W). Quindi la claim "misura rotta" è **REFUTATA**.
+> **Ma restano due fatti confermati:** (a) singole righe sono assurde
+> (0.280 J su una run da ~52 s = 5 mW), quindi il campionatore fallisce
+> a intermittenza e le righe singole non sono citabili anche se la
+> mediana regge; (b) **i due bracci emettono un numero di token diverso
+> — A 200 (cap), B 144 (EOS)** — e questo ribalta il segno a seconda
+> della normalizzazione: **per TOKEN B costa +11.8%, per RISPOSTA B
+> costa −19.5%** (17.53 J contro 21.79 J). La campagna ha citato solo il
+> per-token come "asse rosso". Entrambi sono veri; va detto quale si
+> intende. L'asimmetria 144-vs-200 è dichiarata nel report Xiaomi e
+> **non** in quello S23.
+>
 > 🧬 **NOTTE DELL'INVENZIONE (2026-08-15, mandato gualt "trucco mai
 > provato"): 10 candidati, 9 kill onesti, UN VINCITORE DI CORSA.**
 > Kill: cache-tricks tutti occupati (HOBBIT/DyMoE/SMoE/AdapMoE/
