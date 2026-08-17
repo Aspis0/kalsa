@@ -1181,6 +1181,41 @@ The engine demonstrably ran — turn 1 `embd=0 … n_common=0` then `embd.size=1
 ⚠️ **Device state left changed by this run**: `kalsa.bench.thinking` is `budget512` (production
 default is `off`) and the conversation store was wiped. Revert before any campaign quotes numbers.
 
+#### 7.7g The thermal loop is a product defect, not a bench nuisance (Marco, 2026-08-17)
+
+§7.6 treats heat as something to defend the measurements *from* — pause the arm, wait for LIGHT,
+resume. That framing hides the real problem, and Marco named it: *"nell'utilizzo normale l'user
+può scrivere parecchio e la temperatura/batteria seguono di conseguenza."* There is no thermal
+gate in the product. A user who keeps typing simply gets a phone that gets hotter and an app that
+gets slower.
+
+The control arm measured the loop closing, on an unplugged phone from a cold start:
+
+    turn      1      2      3      4        5
+    wall     98s    91s    94s    94s     not sent
+    temp   30.8°  36.1°  38.4°  40.5°     41.5°
+    thermal   0      0      2      2         3 (SEVERE)
+
+Four turns of ordinary chat — ~1300-token prompts, one-line answers — took the phone from cold to
+SEVERE and burned 5% of the battery. The mechanism is not mysterious: a full re-prefill processes
+the entire prompt in parallel, which is the most power-dense thing this workload ever does, and
+§7.5 established that the cache is discarded and re-prefilled **every single turn**. So each turn
+pays maximum wattage, the phone heats, throttling stretches the next turn, and a longer turn heats
+it further. **The 390 s of §7.1 was never a typical turn — it was a late turn on a phone already
+cooked by the ones before it.**
+
+This reframes what the append-only transcript is worth. Not "saves ~90 s per turn" — that is the
+visible symptom. It removes the heat source that drives the loop: 29 tokens prefilled instead of
+1298 (§7.7f) is a change in *power drawn*, not only in seconds spent. The prediction to test is
+therefore thermal, and it is falsifiable: with the toggle on, a four-turn arm should end far below
+the control's 40.5 °C and should not reach `Thermal Status` 2. If it heats the same way, the
+feature is a latency optimisation and nothing more.
+
+Note what this does to the numbers everyone quotes. "A turn costs 390 s" is not a property of the
+model; it is a property of a prompt length *and* a thermal state. The control above costs ~94 s at
+~1300 tokens from cold. Any latency figure taken from this project must carry both, or it will not
+reproduce.
+
 #### 7.7f MEASURED: the cache survives a turn boundary — first time since the investigation opened
 
 **2026-08-17, S23, APK `3a3a15f`, `kalsa.bench.kvtranscript=1`.** Arm A **PASSES** both halves of
