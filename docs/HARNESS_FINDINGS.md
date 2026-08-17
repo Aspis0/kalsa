@@ -7,14 +7,118 @@ silently changed is worse than no conclusion.
 Goal it serves: make Kalsa's harness better than a bare sliding window on an on-device chat —
 tool calls, context that survives, memory.
 
-Last updated: 2026-08-15 · Evidence: campaigns `31739205810` (window 10), `31760516762`
+Last updated: 2026-08-17 · Evidence: campaigns `31739205810` (window 10), `31760516762`
 (window 16) and `31861056717` (window 16, every 2026-08-14 defect fixed), Qwen3.5-2B, 6
 seeds/arm, 16-turn conversations, Italian, CI emulator.
 
-**In flight, dispatched 2026-08-15 22:20 UTC on `6516b3e`:** `31910747849` (memory smoke, the
-first measurement with the settled telemetry of `bf3794d`), `31911860830` (the `tools` phase,
-gate/nogate pair — never executed before today), `31911872610` (Qwen3.5-**4B**, fase4, **10
-seeds**, window 16). Nothing below is revised for them yet.
+**Landed 2026-08-15:** `31910747849` (memory smoke, first measurement with the settled telemetry of
+`bf3794d` — §3.3), `31911860830` (the `tools` phase, gate/nogate pair, one seed — §0 question 2).
+
+**In flight:** `32048465417` — Qwen3.5-**4B**, fase4, **10 seeds**, dispatched 2026-08-17 17:01 UTC
+on `bench/fase4-harness-fix`. It is the first full campaign since the harness fixes; everything
+green after 08-13 was a one-seed smoke. It answers §0 question 1 for the 4B and opens question 5.
+The 08-15 attempt at the same campaign (`31911872610`) was **cancelled and produced nothing**.
+
+---
+
+## 0. The five questions this harness exists to answer
+
+Everything below section 1 is evidence. This section is the answer, and it is what to read first.
+
+**Read this distinction before the five answers, because it changes three of them.** In every
+campaign run so far, `ciswire` means **the organelle-B digest alone** — the BM25 index of what has
+fallen out of the verbatim window. The **memory subsystem has never been enabled in any campaign**
+(§1.4). "CisWire works" is a claim about the digest. Memory is a separate, unproven, and currently
+expensive thing (§3.3).
+
+| # | Question | Answer | Confidence |
+|---|---|---|---|
+| 1 | Better than bare for small models? | **Yes on the 2B, decisively.** 4B in flight, LFM2.5 never run | 2B: high · 4B/LFM: none |
+| 2 | Better tool / web-search use? | **Yes — tool precision nearly doubles** | medium |
+| 3 | Holds context after many turns? | **Yes — no decay at all. Strongest result we have** | high |
+| 4 | Faster / less prefill? | **Yes — it uses *fewer* tokens than bare.** But memory-on reverses it | high |
+| 5 | Only for small models, or large too? | **Unknown.** The mechanism says "later, not never" | none |
+
+### 1. Is CisWire better than bare for small models (Qwen3.5-2B/4B, LFM2.5)?
+
+**On the 2B, yes, and not marginally.** Campaign `31861056717`, 6 seeds, every known defect fixed:
+
+| arm | fact recall | sd | tool precision |
+|---|---|---|---|
+| bare | 0.313 | 0.348 | 0.241 |
+| **ciswire** | **0.948** | **0.083** | **0.485** |
+| v42 | 0.667 | 0.094 | 0.281 |
+
++0.635 over bare (p = 0.0043), +0.281 over `v42` (p = 0.0022) — and **more consistent**, sd 0.083
+against 0.348. **4B: in flight** (`32048465417`). **LFM2.5: never run**, and it carries its own
+blocker — §3.6, its tool calls never parse, across the whole family.
+
+### 2. Does CisWire improve web search and other tool use?
+
+**Yes: tool-call precision 0.485 against bare's 0.241, nearly double.** The mechanism was not
+planned and is the mirror of §1.2 — holding the context stops the model reaching for a tool to find
+what it already has. Losing context *causes* tool misuse; keeping it prevents the misuse.
+
+Gap: the dedicated `tools` phase has **never included a ciswire arm** — only `baseline` and
+`nogate`, one seed (`31911860830`), where `tool_selection` scored 0.000 on both. That zero
+indicts the phase, not the modes.
+
+### 3. Does it hold context after many turns?
+
+**Yes, and this is the strongest single result.** Early-probe vs late-probe recall:
+
+- **`ciswire`: 0.938 → 0.958** — no decay at all (+0.020)
+- `v42`: 0.854 → **0.479** — collapses (−0.375)
+- `bare`: flat at 0.31, nothing left to lose
+
+A mean can be argued with. A system that does not lose accuracy as the conversation grows is the
+property a phone assistant actually needs.
+
+### 4. Does it speed the model up — less prefill?
+
+**Yes, and in the direction nobody expects: `ciswire` spends FEWER prompt tokens than bare**, about
+**−170 per turn** from turn 12. The digest is bounded and flat — ~140 tokens, unchanged from turn 10,
+it does not grow with the conversation. The mechanism is measured, not assumed: replies shrink from
+**675 to 505 chars** because a model that *has* the fact answers instead of hedging around it. Ten
+shorter messages inside the window save ~420 tokens against ~140 spent on the digest. Ranking costs
+~0.07 ms/doc (1 ms → 25 ms as the corpus grows 44 → 363 docs): irrelevant.
+
+⚠️ **Turning memory on reverses this.** Extraction runs a **full LLM completion every turn**, +40 %
+wall clock (83 min against 59), and has stored nothing so far. It is the only cost in this project
+paid on *every* turn regardless of benefit (§3.3).
+
+### 5. Small models only, or large ones too?
+
+**Not answered by data**, and the prediction on record (§3.2) is that the effect **shrinks** on
+stronger models. The in-flight 4B campaign is the first test.
+
+The structural argument is sharper than the prediction: `ciswire` is **purely additive** — it
+removes nothing and adds a digest of what left the window — so by construction it cannot recall
+*less* than bare, on any model. But the size of the gain depends on **how much falls out of the
+window**, which is a function of conversation length against window size, **not of how clever the
+model is**. A large model with a large window needs it **later, not never**.
+
+### If this harness is reused for anything else — read this first
+
+The deterministic harness is reusable, and the obvious next use is checking whether a small model
+answers safely on delicate topics: medical, legal, psychological, financial. **The metrics in this
+document are the wrong shape for that, in two specific ways, and both push toward harm.**
+
+1. **The primary metric scores "I don't know" exactly like a wrong answer** (§3.8). On a factual
+   recall benchmark that is merely a bias against cautious models. On a medical question it is
+   inverted: appropriate abstention is the *correct* behaviour, and this metric punishes it. Any
+   delicate-domain campaign needs a **calibrated-abstention metric** — refusal rewarded when the
+   model does not know, penalised only when it does — before a single number is quoted.
+2. **CisWire measurably reduces hedging.** §1.5 records replies shrinking 675 → 505 chars because a
+   model holding the fact commits instead of qualifying. On recall that is precision. On "is this
+   mole dangerous" or "can they evict me", a harness that makes a 2B **more assertive and less
+   hedging** is a hazard we would be shipping deliberately, and this document would be the evidence
+   we knew. Confidence must be measured separately from correctness before CisWire is pointed at
+   any of these domains.
+
+Two smaller traps for the same reuse: the `honesty` grader **only works in Italian** (§3.9), and
+treated arms produce roughly **double the blank bubbles** (§3.1, cause unknown) — a blank reply to
+a medical question is a different kind of failure than a blank reply to "what is the cat called".
 
 ---
 
