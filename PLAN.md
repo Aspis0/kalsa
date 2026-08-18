@@ -252,10 +252,34 @@
 > 2000, e la cache non è una costante di natura — è un budget di RAM.**
 > Va rifatto su CalaQwen prima di considerare chiusa la decisione.
 >
-> 🎯 **E la regola che ne esce è di PRODOTTO, non di laboratorio** (punto di
-> gualt, 18/08): 4 GB di cache si possono forse concedere su un telefono da
-> 8 GB, ma **su uno da 6 GB non esistono** — Android ne trattiene una fetta
-> e le altre app competono. Quindi:
+> 🚨 **REPLICA SU S23 (18/08): IL MECCANISMO REPLICA, LA CONSEGUENZA NO.
+> LA "REGOLA" QUI SOTTO È SPECIFICA DEL JELLY — non spedirla come regola.**
+>
+> Stesso binario (copiato dal Jelly, sha `77a94640…` verificato sul device),
+> stesso modello (`2f92195854011538`), stessa cella, 3 round:
+>
+> | cache | Jelly (G99) | **S23 (SD 8 Gen 2)** |
+> |---|---|---|
+> | 1500 | **−25%** | ≈ **−5%** |
+> | 2000 | **−25%** | ≈ **−2%** |
+> | 4000 | **+15% (fa danno)** | ≈ **−4% (aiuta ancora)** |
+>
+> ✅ **Ciò che è device-independent:** hit rate a d=0 **identici** (39.5 /
+> 50.2 / 76.8%) e byte e conteggi di drop coincidenti **al decimo di MiB**.
+> Il meccanismo — il drop può scartare solo i cache miss, più cache = meno
+> da scartare — vale su entrambi i silici.
+> ❌ **Ciò che NON lo è: la conseguenza sul tempo.** Sull'S23 il drop non
+> raggiunge mai il −25% e **non si ribalta mai**: resta fra −2% e −6% a
+> tutte e tre le cache. Il "cache 4000 senza drop è l'ottimo" è vero sul
+> Jelly e **falso sull'S23**.
+> ➡️ **Quindi la scelta drop/cache va decisa PER DEVICE, e la
+> generalizzazione che stavo scrivendo era prematura.** È esattamente
+> perché la replica si fa prima di spedire una regola, non dopo.
+>
+> 🎯 **La lettura che RESTA valida** (punto di gualt, 18/08): 4 GB di cache
+> si possono forse concedere su un telefono da 8 GB, ma **su uno da 6 GB
+> non esistono** — Android ne trattiene una fetta e le altre app competono.
+> Il vincolo di RAM è reale; è la resa in velocità a non essere universale:
 >
 > **più RAM → cache grande → hit alto → il drop fa danno →
 > meno RAM → cache piccola → hit basso → il drop paga, e molto.**

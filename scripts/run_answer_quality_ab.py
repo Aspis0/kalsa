@@ -48,7 +48,15 @@ from pathlib import Path
 
 ROOT = Path(r"C:\Users\gualt\Desktop\Kalsa\moe-experiments")
 BINARY = ROOT / "build-pc-mellum-ppl" / "cli" / "bmoe-cli.exe"
-MODEL = ROOT / "models" / "Qwen3.6-35B-A3B-KEXP.gguf"
+# Model is selectable: the quality batteries were run on CalaQwen first, but the
+# Marco1c limitation was written into that report ("solo CalaQwen") and this closes it.
+# argv[2] = model key; default keeps the original CalaQwen behaviour.
+MODELS = {
+    "calaqwen": ROOT / "models" / "Qwen3.6-35B-A3B-KEXP.gguf",
+    "marco":    ROOT / "models" / "Marco-Mini-Instruct-KEXP.gguf",
+}
+MODEL_KEY = sys.argv[2] if len(sys.argv) > 2 else "calaqwen"
+MODEL = MODELS[MODEL_KEY]
 
 # Two suites. `long` is the original prose/code/instruction battery. `sanity` is the
 # owner's follow-up (2026-08-17): "the problem is not that it writes badly, it is
@@ -57,22 +65,34 @@ MODEL = ROOT / "models" / "Qwen3.6-35B-A3B-KEXP.gguf"
 # judgement, and character counting (where LLMs fail systematically).
 SUITE = sys.argv[1] if len(sys.argv) > 1 else "long"
 if SUITE == "sanity":
-    CELL = ROOT / "results" / "answer_sanity_calaqwen"
+    CELL = ROOT / "results" / f"answer_sanity_{MODEL_KEY}"
     PROMPT_DIR = ROOT / "prompts" / "sanity"
     NGEN = 300
 else:
-    CELL = ROOT / "results" / "answer_quality_calaqwen"
+    CELL = ROOT / "results" / f"answer_quality_{MODEL_KEY}"
     PROMPT_DIR = ROOT / "prompts"
     NGEN = 420
 GEN = CELL / "gen"
-LOG = ROOT / "logs" / f"answer-{SUITE}-ab.log"
+LOG = ROOT / "logs" / f"answer-{SUITE}-{MODEL_KEY}-ab.log"
 
-CONFIGS = [
-    {"id": "stock",     "k": "8", "drop": "0.0",  "noren": False, "label": "k=8, nessun drop (riferimento)"},
-    {"id": "k6d0",      "k": "6", "drop": "0.0",  "noren": False, "label": "k=6, nessun drop"},
-    {"id": "shipped",   "k": "6", "drop": "0.65", "noren": False, "label": "k=6, drop 0.65 — SPEDITA OGGI"},
-    {"id": "candidate", "k": "6", "drop": "1.0",  "noren": True,  "label": "k=6, drop 1.0 + no-renorm — CANDIDATA"},
-]
+# Marco's arms differ from CalaQwen's because Marco's verdict differs. Its own k8d0
+# anchor (0.761332) puts d=1.0+no-renorm at +0.0490 against a 0.04 budget -- it FAILS,
+# where the same config on CalaQwen sits at 50% of budget. So for Marco the shipped
+# answer is d=0.0, and the interesting question is whether the gate's rejection of
+# d=1.0 is VISIBLE in the answers or whether the gate is simply strict.
+if MODEL_KEY == "marco":
+    CONFIGS = [
+        {"id": "stock",    "k": "8", "drop": "0.0", "noren": False, "label": "k=8, nessun drop — ancora (bpb 0.761332)"},
+        {"id": "shipped",  "k": "6", "drop": "0.0", "noren": False, "label": "k=6, nessun drop — CONFIG DA SPEDIRE (bpb 0.766534, 13% del budget)"},
+        {"id": "rejected", "k": "6", "drop": "1.0", "noren": True,  "label": "k=6, drop 1.0 + no-renorm — BOCCIATA dal gate (bpb 0.810295, 122%)"},
+    ]
+else:
+    CONFIGS = [
+        {"id": "stock",     "k": "8", "drop": "0.0",  "noren": False, "label": "k=8, nessun drop (riferimento)"},
+        {"id": "k6d0",      "k": "6", "drop": "0.0",  "noren": False, "label": "k=6, nessun drop"},
+        {"id": "shipped",   "k": "6", "drop": "0.65", "noren": False, "label": "k=6, drop 0.65 — ritirata 18/08"},
+        {"id": "candidate", "k": "6", "drop": "1.0",  "noren": True,  "label": "k=6, drop 1.0 + no-renorm — SPEDITA"},
+    ]
 if SUITE == "sanity":
     PROMPTS = ["q1_f1_spa2000", "q2_tabellina9", "q3_regalo", "q4_vocali"]
 else:

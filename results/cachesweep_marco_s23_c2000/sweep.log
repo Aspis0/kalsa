@@ -1,0 +1,32 @@
+[2026-08-18T10:16:23-0400] === DROP SWEEP v2 START ===
+[2026-08-18T10:16:23-0400] out=/data/data/com.termux/files/home/experiments/results/cachesweep_marco_s23_c2000
+[2026-08-18T10:16:23-0400] bin=/data/data/com.termux/files/home/bin/kernel_kf_jelly/bmoe-cli sha=77a94640a56a9043
+[2026-08-18T10:17:16-0400] model=Marco-Mini-Instruct-KEXP.gguf sha=2f92195854011538
+[2026-08-18T10:17:16-0400] prompt=p_fact.txt sha=b5301c32c0bd8aae
+[2026-08-18T10:17:16-0400] drops='0.0 1.0nr' rounds=3 passes=3 ngen=200 cooldown=120s batt_floor=45
+[2026-08-18T10:17:16-0400] extra_flags='--n-expert-used 6'
+[2026-08-18T10:17:16-0400] resume: void at start = [r1_d0.0 r1_d1.0nr r2_d0.0 r2_d1.0nr r3_d0.0 r3_d1.0nr]
+[2026-08-18T10:17:17-0400] wake-lock acquired
+[2026-08-18T10:17:18-0400] PREFLIGHT smoke n=5
+[2026-08-18T10:17:47-0400] PREFLIGHT ok rc=0 s/tok=0.252 experts_routed=0 experts_dropped=0 read_MiB=374.3
+[2026-08-18T10:17:47-0400] PREFLIGHT native routing width: experts_routed=0 over 5 tokens
+[2026-08-18T10:17:47-0400] === PASS 1 — void: [r1_d0.0 r1_d1.0nr r2_d0.0 r2_d1.0nr r3_d0.0 r3_d1.0nr] ===
+[2026-08-18T10:17:52-0400] COLD_RESET r1_d0.0 cached 2376304->608136 drop_mb=1726 fadv_rc=0
+[2026-08-18T10:19:08-0400] DONE r1_d0.0 pass=1 rc=0 s/tok=0.229 tok/s=4.370 read_MiB=11803.1 proc_rb=25541873664 stall=0.025 hit=50.2 routed=0 dropped=0 batt=62->61 temp=33.7->34.6 excluded=0 ok
+[2026-08-18T10:19:10-0400] cooldown 120s before r1_d1.0nr
+[2026-08-18T10:21:16-0400] COLD_RESET r1_d1.0nr cached 2328956->770560 drop_mb=1521 fadv_rc=0
+[2026-08-18T10:22:31-0400] DONE r1_d1.0nr pass=1 rc=0 s/tok=0.224 tok/s=4.462 read_MiB=3562.4 proc_rb=17202454528 stall=0.042 hit=67.9 routed=33600 dropped=9892 batt=61->61 temp=33.4->33.4 excluded=0 ok
+[2026-08-18T10:22:32-0400] cooldown 120s before r2_d0.0
+[2026-08-18T10:24:39-0400] COLD_RESET r2_d0.0 cached 2707724->1021160 drop_mb=1647 fadv_rc=0
+[2026-08-18T10:25:56-0400] DONE r2_d0.0 pass=1 rc=0 s/tok=0.232 tok/s=4.302 read_MiB=11803.1 proc_rb=26011283456 stall=0.022 hit=50.2 routed=0 dropped=0 batt=61->61 temp=33.4->33.2 excluded=0 ok
+[2026-08-18T10:25:58-0400] cooldown 120s before r2_d1.0nr
+[2026-08-18T10:28:03-0400] COLD_RESET r2_d1.0nr cached 2221148->897208 drop_mb=1292 fadv_rc=0
+[2026-08-18T10:29:18-0400] DONE r2_d1.0nr pass=1 rc=0 s/tok=0.224 tok/s=4.470 read_MiB=3562.4 proc_rb=17832923136 stall=0.043 hit=67.9 routed=33600 dropped=9892 batt=60->60 temp=33.1->33.1 excluded=0 ok
+[2026-08-18T10:29:20-0400] cooldown 120s before r3_d0.0
+[2026-08-18T10:31:26-0400] COLD_RESET r3_d0.0 cached 2461236->741932 drop_mb=1679 fadv_rc=0
+[2026-08-18T10:32:41-0400] DONE r3_d0.0 pass=1 rc=0 s/tok=0.227 tok/s=4.398 read_MiB=11803.1 proc_rb=25899204608 stall=0.024 hit=50.2 routed=0 dropped=0 batt=60->60 temp=33.1->34.4 excluded=0 ok
+[2026-08-18T10:32:43-0400] cooldown 120s before r3_d1.0nr
+[2026-08-18T10:34:50-0400] COLD_RESET r3_d1.0nr cached 2442492->769184 drop_mb=1634 fadv_rc=0
+[2026-08-18T10:36:02-0400] DONE r3_d1.0nr pass=1 rc=0 s/tok=0.223 tok/s=4.488 read_MiB=3562.4 proc_rb=17246965760 stall=0.038 hit=67.9 routed=33600 dropped=9892 batt=60->59 temp=33.2->33.2 excluded=0 ok
+[2026-08-18T10:36:03-0400] pass 2: nothing void — stopping early
+[2026-08-18T10:36:03-0400] === DROP SWEEP COMPLETE ===

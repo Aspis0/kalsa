@@ -1,0 +1,23 @@
+Ecco la tabellina del 9! Ecco la tabellina del 9, da 1 a 10:
+
+9 × 1 = 9  
+9 × 2 = 18  
+9 × 3 = 27  
+9 × 4 = 36  
+9 × 5 = 45  
+9 × 6 = 54  
+9 × 7 = 63  
+9 × 8 = 72  
+9 × 9 = 81  
+9 × 10 = 90  
+
+**Nota:** La tabellina del 9 è spesso considerata "unica" perché, quando si scrive la tabellina del 9, i numeri delle cifre (delle decine e delle unità) seguono un pattern:  
+- 9 × 1 = 9 → 09  
+- 9 × 2 = 18 → 18  
+- 9 × 3 = 27 → 27  
+- 9 × 4 = 36 → 36  
+- 9 × 5 = 45 → 45  
+- 9 × 6 = 54 → 54  
+- 9 × 7 = 63 → 63  
+- 9 × 8 = 72 → 72  
+- 9 × 9 = 

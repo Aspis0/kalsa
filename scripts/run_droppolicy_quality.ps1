@@ -48,7 +48,11 @@ $ErrorActionPreference = 'Continue'
 $root    = 'C:\Users\gualt\Desktop\Kalsa\moe-experiments'
 $py      = 'C:\Users\gualt\AppData\Local\Programs\Python\Python312\python.exe'
 $harness = "$root\scripts\run_multi5_ppl_host.py"
-$binary  = "$root\build-pc-droppolicy\cli\bmoe-cli.exe"   # NOT the pinned one
+# The s2 build: the drop-policy patch applied on kalsa/kernel-s2-layer-fuse, which is
+# the branch the campaign's pinned binary came from. The first build (build-pc-droppolicy,
+# from main) rejected --no-moe-fused-gemv and killed the first attempt in 11 seconds.
+# sha 262701dc32a96254. NOT the pinned binary (7722cb23…), which is never touched.
+$binary  = "$root\build-pc-droppolicy-s2\cli\bmoe-cli.exe"
 $model   = "$root\models\Marco-Mini-Instruct-KEXP.gguf"
 $cell    = "$root\results\droppolicy_quality_marco"
 $log     = "$root\logs\droppolicy-quality.log"
@@ -109,13 +113,13 @@ foreach ($arm in $arms) {
         '--overlap',
         '--n-expert-used', '6',
         '--drop-cold-experts', $arm.drop,
-        '--ppl-mode', 'decode'
-        # NO --stock-kernel: it appends --no-moe-fused-gemv/--no-moe-fused-ffn, which the
-        # pinned binary accepts but THIS build rejects ("unknown arg", exit 1). Verified
-        # 2026-08-18 on both binaries. The flag exists in no source tree on disk, so the
-        # tree that produced the pinned binary is not recoverable — see PLAN. All four
-        # arms here run on the same new binary with the same flags, so the internal
-        # comparison is unaffected; nothing here is comparable to the campaign curve.
+        '--ppl-mode', 'decode',
+        # --stock-kernel appends --no-moe-fused-gemv/--no-moe-fused-ffn, which every
+        # campaign arm uses. The FIRST attempt at this cell died in 11 s because it ran a
+        # binary built from `main`, where those flags do not exist; the s2 build has them
+        # (verified: accepted, exit 0). Keeping it means these arms use the same kernel
+        # path as the curve — one less thing that differs.
+        '--stock-kernel'
     )
     # Every armed cell states its policy explicitly, including `cold`: a result file
     # that does not name its policy is a result file nobody can trust later.
@@ -124,7 +128,7 @@ foreach ($arm in $arms) {
 
     Say "START $($arm.id) drop=$($arm.drop) policy=$(if ($arm.policy) {$arm.policy} else {'(disarmed)'})"
     $t0 = Get-Date
-    $env:PATH = (Split-Path $binary) + ';' + "$root\build-pc-droppolicy\bin" + ';' + $env:PATH
+    $env:PATH = (Split-Path $binary) + ';' + "$root\build-pc-droppolicy-s2\bin" + ';' + $env:PATH
     $p = Start-Process -FilePath $py -ArgumentList $argList -WorkingDirectory $root `
         -RedirectStandardOutput "$outdir\harness.out.log" `
         -RedirectStandardError  "$outdir\harness.err.log" `

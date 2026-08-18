@@ -12,7 +12,8 @@ __pycache__/
 
 # Build llama.cpp / fork (si clona a parte, non dentro questo repo)
 llama.cpp/
-BigMoeOnEdge/
+# BigMoeOnEdge/ — ora e un SUBMODULE (Aspis0/kalsa-engine), non piu ignorato:
+# cosi ogni commit di risultati registra il commit esatto dell engine che li ha prodotti.
 build/
 build-*/
 
