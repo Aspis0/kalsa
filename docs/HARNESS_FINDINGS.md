@@ -1062,6 +1062,33 @@ facts injected this turn"; that is true only because of the cap at `:2348`. Rais
 inspecting a different subset with nothing failing. A test that constructs eleven facts and asserts
 both sides agree would pin it; absent that, this paragraph is the pin.
 
+### 3.12 The thinking A/B cannot answer the thinking question — `fase0` carries two probes and both hit the floor
+
+**Campaign `32139648432`** (LFM2.5-8B-A1B, `fase0`, 3 block formats × `off`/`budget256`). It ran
+green and measured **nothing usable**.
+
+`fase0` grades exactly **two** fact probes, both for the same fact, at turns 7 and 14:
+
+| arm | probe t7 | probe t14 | recall |
+|---|---|---|---|
+| `none_budget256` | declined | declined | **null** |
+| `none_off` | declined | not found | 0 |
+| `user-note_*`, `user-prefix_*` | not found | not found | 0 |
+
+**All six arms at the floor.** With two probes of one fact, and a model that misses them in every
+configuration, `off` and `budget256` cannot separate — the metric has no resolution left to detect
+a difference with. Declines make it worse: the decline-aware rule excludes them, and excluding both
+leaves `total: 0` and `rate: null`.
+
+**Do not read this as "thinking does not matter".** It is the §3.10 failure again — a vacuous
+harness producing zeros that look like findings. The only signal the run carries is cost, at n=1
+per cell: thinking ON adds **+8 to +113 s per turn** depending on block format. Zero blank bubbles
+and zero spurious calls across all six.
+
+**What would answer it**: `fase4`, which carries the probe density that separated four arms at
+p=0.03 twice this week — but its matrix hardcodes `thinking=off` for every arm, so the question
+needs a `thinking` dimension there, not a bigger `fase0`.
+
 ## 4. Refuted — do not re-derive these
 
 - **"`n_ctx` drives compaction."** False. `shouldRebuild` fires on a K-turn cadence and on
