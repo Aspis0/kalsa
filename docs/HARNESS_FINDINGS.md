@@ -511,7 +511,46 @@ promotion on an inflected form, never a recovery. It is committed behind
 Consequence for the 132 MB e5-small option: it must buy **synonymy**, not robustness to
 inflection or typos. That is the only thing left for it to buy.
 
-### 1.7 LFM2.5-8B-A1B: do not ship it — the MoE discount does not apply to prefill
+### 1.7 REVERSED 2026-08-18 — LFM2.5-8B-A1B is the model Kalsa ships, and it is ~2x FASTER per turn than the dense 4B
+
+**This section used to end "do not ship it". That verdict is withdrawn**, on two grounds: Marco
+states LFM2.5-8B-A1B is the shipping model (a product decision, not a benchmark's to make), and
+the measurement it rested on does not survive contact with the 4B campaign.
+
+**Smoke `32097043246`** (8 arms, CI emulator, same harness as the 4B campaign the day before):
+
+| | LFM2.5-8B-A1B (smoke) | Qwen3.5-4B (campaign `32048465417`) |
+|---|---|---|
+| mean prefill / turn | **189–311 s** | 424–685 s |
+| mean whole turn | **223–361 s** | ~541 s |
+| per-turn cap (2400 s) | never approached | **killed 2 arms** |
+
+**The dense 4B is not the better trade — it is the slower one.** The old recommendation
+("for more capability than the 2B, the dense 4B is the better trade") was drawn from a single
+first turn of a failing smoke, against no comparable number for the 4B. There is one now.
+
+**`arms died after 56–60 minutes having completed a single turn` does not reproduce.** Eight of
+eight arms ran clean: no `errorTurns`, no `captureFailedTurns`, no `contextFullTurns`. Whatever
+killed those early arms was one of the three infrastructure defects listed at the end of this
+section, not the model.
+
+**And the §3.6 parser fix is now proven end-to-end**, which unit tests could not do:
+`emittedAnyToolCall` and `firstTryValid` are **true on all eight arms**. LFM2.5 emits Python-style
+calls, the parser reads them, the harness sees the calls. Two arms did show blank replies
+(`ciswire_off` turn 2, `off_on` turn 7) — §3.1's open issue, on this family too.
+
+**What survives from the original finding, unchanged and still true:** the MoE discount is a
+decode-time property, not a prefill one — prefill batches hundreds of tokens which route across
+all experts, so it activates the full 8B. That remains the reason `n_ctx` matters more here than
+on a dense model, and the reason a small window plus CisWire's digest is the interesting
+combination rather than a large window.
+
+Campaign `32103054225` (fase4, 10 seeds) is running to give this model the same graded treatment
+the 2B and 4B got.
+
+#### Original measurement, kept as the record
+
+
 
 Measured on the CI emulator (x86_64, swiftshader, no GPU), first turn of a smoke run:
 
