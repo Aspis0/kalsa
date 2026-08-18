@@ -33,7 +33,7 @@ expensive thing (§3.3).
 
 | # | Question | Answer | Confidence |
 |---|---|---|---|
-| 1 | Better than bare for small models? | **Yes on the 2B (+0.635) and on the 4B (+0.209, p=0.011).** LFM2.5 never run | 2B/4B: high · LFM: none |
+| 1 | Better than bare for small models? | **Yes on the 2B (+0.635) and on the 4B (+0.209, p=0.011).** LFM2.5-8B-A1B campaign in flight | 2B/4B: high · LFM: in flight |
 | 2 | Better tool / web-search use? | **Yes — tool precision nearly doubles** | medium |
 | 3 | Holds context after many turns? | **Yes — no decay at all. Strongest result we have** | high |
 | 4 | Faster / less prefill? | **Yes — it uses *fewer* tokens than bare.** But memory-on reverses it, and it may fight the KV fix outright — see the runtime section | high on tokens · none on the interaction |
@@ -56,8 +56,9 @@ each other.
 | v42 | 0.667 | 0.094 | 0.281 |
 
 +0.635 over bare (p = 0.0043), +0.281 over `v42` (p = 0.0022) — and **more consistent**, sd 0.083
-against 0.348. **4B: in flight** (`32048465417`). **LFM2.5: never run**, and it carries its own
-blocker — §3.6, its tool calls never parse, across the whole family.
+against 0.348. **4B: answered** (`32048465417`, see below). **LFM2.5-8B-A1B — the model Kalsa actually ships — is
+in flight** (`32103054225`); its smoke ran clean and its tool-call blocker is fixed and proven
+end-to-end (§3.6, §1.7).
 
 ### 2. Does CisWire improve web search and other tool use?
 
@@ -175,16 +176,17 @@ survive ciswire until a run says otherwise.
 |---|---|---|
 | ciswire beats bare, tool precision, decay curve, token cost | **Qwen3.5-2B only** | CI emulator, 6 seeds |
 | KV fix, prefill, thermal, load/unload, ~5 s on return | **Qwen3.5-4B only** | S23, real hardware |
-| MoE discount does not apply to prefill — do not ship | LFM2.5-8B-A1B | CI emulator (§1.7) |
-| tool calls never parse | LFM2.5, whole family | (§3.6) |
+| **~2x faster per turn than the dense 4B — and it is what ships** | LFM2.5-8B-A1B | CI emulator smoke (§1.7, verdict reversed) |
+| tool calls never parsed — **FIXED, proven end-to-end** | LFM2.5, whole family | (§3.6) |
 
 **The quality claims and the speed claims come from different models on different hardware, and
 neither has been checked against the other.** The 4B campaign in flight (`32048465417`) closes half
-of that. LFM2.5-2.6B has never run a graded campaign at all.
+of that. LFM2.5-8B-A1B is in flight (`32103054225`); LFM2.5-2.6B has never run a graded campaign.
 
 **And the model-specific findings are piling up, which is the argument for making the harness
-model-aware:** the empty-think-block asymmetry is a *Qwen3.5 template* property; LFM2.5 cannot get
-a tool call parsed while the 2B emits 19/20 clean ones; the MoE prefill discount does not exist.
+model-aware:** the empty-think-block asymmetry is a *Qwen3.5 template* property; LFM2.5 speaks a
+Python-call tool dialect while Qwen speaks JSON; the MoE discount is decode-only; and `nogate`
+swings from 0.094 on the 2B to 0.944 on the 4B.
 Three measured differences, currently handled in three unrelated places. Some model-awareness
 already exists — `resolveThinkingParams` takes the active model, `recommendedModelId` switches on
 RAM, `n_threads` derives from `cpu_capacity` — so the missing piece is a per-model capability
@@ -628,7 +630,8 @@ window + additive digest) with Kalsa's own BM25. What won is a strategy already 
    ciswire beats it by +0.433 (p=0.0043). On the 4B the two are **indistinguishable**. So this is
    "retire it for the 2B", not "retire it" — and the reason is that its rolling summary, half of
    its rationale, **never runs** (`summaryChars = 0` on every arm of every campaign).
-7. **Do not ship LFM2.5-8B-A1B — DECIDED 2026-08-15** (§1.7). It loads fine — memory was never
+7. **WITHDRAWN 2026-08-18 — "do not ship LFM2.5-8B-A1B"** (§1.7): it is the shipping model, and it
+   is ~2x faster per turn than the dense 4B this recommendation preferred. Original text: it loads fine — memory was never
    the problem — but MoE discounts decode, not prefill: 175 s for 1394 tokens. For more than the
    2B, the dense 4B is the better trade, which is already what `recommendedModelId` gives the
    high-RAM tier. **The one thing that could reopen it** is the physical-device track (§6): that
