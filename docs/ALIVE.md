@@ -192,9 +192,49 @@ never sees in training". Empirically **the shrink is ~4× less harmful than the
 rescale** at d=1.0: dropped experts carry little weight, so the shrink is tiny,
 while `total/kept` amplifies the top experts past their trained magnitude.
 
-The random-drop arm (is it *cold* experts, or any experts?) is **deliberately not
-included**: no such flag exists, and a rebuilt binary would break the identity pin
-that makes these arms comparable — an owner decision, not a thing to smuggle in.
+**✅ The random-drop arm now EXISTS and it answered the question — the coldness
+matters (2026-08-18, `results/droppolicy_quality_marco`).** An earlier version of
+this page said the arm was impossible ("no such flag exists"). A `--drop-policy
+{cold|weight|random}` flag was built on an isolated binary and the arm was run in
+its own self-contained cell, so the identity pin of the campaign arms is untouched.
+
+Marco-Mini KEXP, k=6, cache 2000, all arms on the **same** binary
+(`build-pc-droppolicy`, sha `59f2762e54ed56af`). `random` drops the **same count**
+per token, chosen uniformly among non-best experts:
+
+| lang | d=0.0 | cold d=1.0 | random d=1.0 | cold | random |
+|---|---|---|---|---|---|
+| en | 0.640213 | 0.706213 | 0.745753 | +10.31 % | +16.49 % |
+| es | 0.705789 | 0.782259 | 0.837969 | +10.83 % | +18.73 % |
+| fr | 0.756660 | 0.861962 | 0.922563 | +13.92 % | +21.93 % |
+| it | 0.785352 | 0.879999 | 0.954762 | +12.05 % | +21.57 % |
+| zh | 0.944656 | 1.077903 | 1.128981 | +14.11 % | +19.51 % |
+| **MACRO** | **0.766534** | **0.861667** | **0.918006** | **+12.41 %** | **+19.76 %** |
+
+**Dropping at random costs +6.54 % bpb more than dropping the cold ones
+(+0.0563 bpb — larger on its own than the whole `MACRO_PASS = 0.04` budget), and
+it goes the same way in all five languages.** The reading was declared before the
+numbers: *cold ≪ random ⇒ "select the cold experts" is a real result, the
+cache-miss set is meaningfully better to discard than a random one.* That is the
+branch that came out. (`random` lost `it`/`zh` to a `pread` failure and they were
+re-measured in a separate `--langs it,zh` cell on the same binary; the estimate
+from the first three languages was +6.63 %, so the partial held to 0.1 points.)
+
+**So the residency query is not a tax to remove.** It had been proposed for
+deletion to recover the arming-tax compute; deleting it would cost 6.6 % of
+quality. At equal drop count it picks much better *which* experts fall — plausibly
+because an expert absent from the cache is one not used recently, so the cache
+doubles as a "recently useful" filter that random selection lacks.
+
+⏳ **One arm still running:** `weight` (weight threshold only, no residency
+query) started 17:01 on the same binary, due ~19:00. It is the arm that splits
+how much of the win is the *cache* and how much is the *weight*. ⚠️ It is not a
+like-for-like comparison — it drops more (63.4 % of slots vs cold's 46.9 % at
+d=1.0) because it does not protect resident experts, so worse quality is expected
+and does not by itself prove the residency query is what wins.
+
+Note this cell is d=1.0, a mechanism probe: Marco ships **no drop**, and d=1.0
+costs it +12.41 % macro bpb, far outside the gate.
 
 **⚠️ The expert cache turned out to be a bigger lever than the drop — but only on
 one of the two phones tested, and that is the point.** Sweeping `--cache-mb` on
@@ -215,6 +255,29 @@ phones and byte and drop counts match to the tenth of a MiB — the drop can onl
 discard cache misses, so a bigger cache leaves less to drop. What does not
 replicate is the speed consequence. **So drop-vs-cache is a per-device choice, and
 the general rule this was becoming was withdrawn before it shipped.**
+
+🚨 **HOLD ON THE S23 COLUMN (2026-08-18 afternoon). Do not quote it yet.** The
+harness that produced those three cells, `run_dropsweep_jelly.sh`, had **neither
+the F4.3-bis cpuset gate nor the mandatory `nproc`/`affinity_mask` covariates**
+(`runs.schema.md` requires both; the gate lived only in `run_f4.sh`). So *which
+CPUs the binary was allowed to use is not recorded and cannot be recovered.* The
+S23 result is therefore **unverifiable, not falsified** — and the anomaly it needs
+to explain is real: at cache 2000 the S23 measures 0.229 s/tok against the Jelly's
+0.166, i.e. a Snapdragon 8 Gen 2 losing to a Helio G99, which no ordinary reading
+supports. Termux ssh sessions on that phone were observed in cpuset `/moderate`
+(`Cpus_allowed_list: 0-2` — three A510 little cores at 2016 MHz, `nproc` = 3) while
+`adb shell` sits in `/` with 0-7.
+⚠️ **Two of my own inferences from that observation are withdrawn:** the probe was
+taken on an *idle* shell (not the measured PID) and with the phone in
+`mWakefulness=Dozing` (not the screen-on campaign posture). Right now the Termux
+processes span **three cpusets at once** — `/`, `/background`, `/moderate` — so the
+cpuset is per-process and per-state, never a property of the app. **The only
+reading that settles it is the one taken from the binary's PID while it runs**,
+which is exactly the covariate now added. `termux-wake-lock` was measured **not**
+to promote the cpuset, so a wait-and-retry gate is dead time.
+➡️ The three S23 cells stay on disk marked unverifiable and must be re-run with the
+new harness. **The Jelly cells use the same harness and have the same gap** — and
+the shipped default rests on them, so that check comes first when the Jelly is back.
 
 Note the cache lever itself is not a discovery: `BigMoeOnEdge/docs/cache-sizing.md`
 already calls it "the dominant throughput lever" and ships `--cache-mb auto`. What
@@ -419,12 +482,16 @@ Notes that matter more than the numbers:
 | ~~Same treatment for Marco1c~~ | **DONE, and the verdict is the opposite of CalaQwen's.** Marco's own `k8d0` anchor is 0.761332; against it `d=1.0` costs +0.1003 with renorm and **+0.0490 without, against a 0.04 budget — it FAILS both ways**. Marco ships **no drop** (`d=0.0`, +0.0052, 13 % of budget); `d=0.65` was already excluded for being *slower* than not dropping. Same flag, same level, opposite verdict to CalaQwen: the config is per-model | — |
 | **Corroborate Marco's gate rejection** | the 4-question sanity battery does **not** confirm it: on the one discriminating question the best-bpb config answers 3, the shipped one 5, and the *gate-rejected* one 4 (correct). Four questions cannot rank configs | a real battery (tens of questions, blind judge) if that rejection ever becomes expensive |
 | **Re-measure absolute device tok/s under the new default** | every S23/Xiaomi speed cell was run at `drop 0.65`; the sign is known (−12.9 % on Jelly) but the absolutes are not | device time |
-| Random-drop arm (is it *cold* experts, or any experts?) | needs an engine flag that does not exist; a rebuild would break the identity pin the other arms share | owner |
+| ~~Random-drop arm (is it *cold* experts, or any experts?)~~ | **DONE 2026-08-18, and the coldness wins.** Flag built on an isolated binary, self-contained cell: random costs **+6.63 % bpb more than cold** at equal drop count, same direction in all 3 measured languages. The residency query buys quality; it is not a tax to delete (see §2) | — |
+| **Finish the drop-policy cell** | `random` died at 3/5 languages (`pread failed at 5783089152`) and took the orchestrator with it, so **`weight` never ran** — the arm that separates cache from weight. Re-run both on the SAME binary `59f2762e54ed56af` | PC time |
+| **Cpuset gate + covariates in the device harness** | **DONE 2026-08-18**, `run_dropsweep_jelly.sh`: `exit 93` on `nproc<6` / background-or-moderate cpuset / popcount<6, `ALLOW_RESTRICTED_CPUSET=1` hatch that stamps every row, `nproc`+`affinity_mask` read from the **binary's PID**, old-CSV header migration. Hostile-reviewed (3 CONFIRMED defects found and fixed: comma-in-`exclude_reason` ragged rows, unknown-header raggedness, `FAIL_CPUSET` missing from the watchdog's terminal set → 1 h relaunch storm) | uncommitted |
+| **Re-run the three S23 cache cells** | current ones have no cpuset covariate and are unverifiable; same check due on the Jelly cells, which carry the shipped default | device time, after the gate lands |
+| **Runtime config probe at first launch** | **the largest unshipped win, and it is not quantisation.** Thread count and screen state are worth **2.6× measured** on Marco1c (Xiaomi: 4.11 t/s at t6 → 8.58 at t4 → **10.57** screen-on) and cache sizing is worth **−32 % at zero quality cost** on the Jelly. Both are config, both are per-model and per-device, and the card rule `cpu_capacity ≥ 50 % → t6` actively strangles SM8650 on Marco. Designed in PLAN, **not built** | owner GO |
 | ~~CalaQwen quality gate for the recipe~~ | **DONE 2026-08-17**: CalaQwen has its own `k8d0` anchor (0.6660114), so the gate is a same-model statement at last. The shipped default sits at 50 % of the budget | — |
 | ~~PPL corpus v2~~ | **DONE, this line was stale.** `corpus/multi5/it.txt` has sha `498a5f3b554f`, identical to `it_v2_wikipedia_caffe.txt` — the campaign metric is already modern Wikipedia prose, not the memorised Dante slice (kept as `it_v1_literary.txt`). Verified 2026-08-17. | — |
 | FT tool-call + IT lane (Qwen3.5-2B) | **all gates closed** (licence, recipe ×2 families, registry FROZEN) | owner GO |
 | Free-tier G99 decision | (i) accept A0 k4 = 10.6 · (iii) no LFM on G99 — (ii) REAP eliminated with data | owner |
-| Three naming slots | recipe · cold-start prefetch · frozen draft | owner (`NAMING.md`) |
+| ~~Three naming slots~~ | **DECIDED 2026-08-18.** The shipped config is **Kalsa Recipe**. The other two get **no name**: cold-start prefetch and frozen draft keep their descriptive labels. Owner's standard: a coined name claims novelty, and neither has any — cold-start prefetch is in the graveyard (+7.1 % *against* warm), and frozen draft has an unpublished polarity result but **no product** to attach a name to. Only what a user receives gets named | — |
 
 ---
 
@@ -437,3 +504,21 @@ speed payoff** (Frozen Draft), **~25 techniques retired with numbers**.
 The kill/win ratio is high and that is correct: each kill cost hours, not months,
 because the theory said what to measure. Three techniques died on 2026-08-16
 alone — two of them before a line of code was written.
+
+**And the honest reading of that scoreboard, asked for by the owner 2026-08-18:**
+outside the recipe, **nothing new has shipped into the app**. The runtime config
+probe does not exist, the OpenCL Q6_K dispatch fix is published nowhere, and the
+seven `kalsa/*` engine branches live only on one disk. The single biggest
+non-quantisation result of the month is not a kernel and not a technique — it is
+that **config chosen at runtime is worth 2.6× on Marco1c and −32 % on cache**, and
+it is sitting unbuilt.
+
+**The real bottleneck is measurement discipline, not ideas.** On 2026-08-18 alone
+three of my own conclusions had to be withdrawn — an idle shell mistaken for the
+measured process, a `Dozing` phone mistaken for the screen-on campaign posture, and
+the binary named in a script mistaken for the binary that actually ran (PowerShell
+had read the file before it was edited). All three were avoidable by the same
+discipline: **record the condition in the data row instead of inferring it later**,
+which is precisely what the cpuset gate added — and why an item that produces no
+number was the most useful work of that day. Corollary now standing: *the binary
+that ran is read from the run's JSON, never from the script.*

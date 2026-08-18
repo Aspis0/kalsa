@@ -15,14 +15,29 @@ all NEW reports and docs use the names below.
 | overlap / `--overlap` | **IO/compute overlap** | standard systems technique |
 | expert prefetch (generic) | **expert prefetching** | ExpertFlow / SP-MoE family |
 
-## Ours to name (nobody published these) — OWNER PICKS
+## Ours to name — DECIDED BY OWNER 2026-08-18. All three slots are closed.
 
-| internal shorthand | what it is | proposed names (pick or invent) |
+| internal shorthand | what it is | **OFFICIAL NAME** |
 |---|---|---|
-| "la ricetta" (quant + top-k 6 + skipping 1.0 con --drop-no-renorm) | the certified phone config; p=0.000488 on S23 (Mellum2 Q4_K_M, its own config); CalaQwen default changed to drop 1.0 + --drop-no-renorm on 2026-08-18 | **[DA SCEGLIERE]** — e.g. Ricetta Kalsa · KEXP Recipe · Kalsa Serve |
-| K-F / kf-prefetch (dispatcher-gated cold-start prefetch, issue-only layer-ahead, width knob) | prefetch itself is published; OUR novelty = the measured dispatcher policy (ON iff stall% high AND cache cold AND no thermal alarm) + cold-start-only scope | **[DA SCEGLIERE]** — e.g. Kalsa Cold-Start · Kalsa Kernel CS |
-| E4 / stateless drafting / draft congelato (attention-only self-draft with FROZEN recurrent state on hybrids) | unpublished polarity (verified by 2 web sweeps); mirror paper failed the opposite way at α=0.038 | **[DA SCEGLIERE]** — e.g. CalaDraft · Kalsa StatelessDraft · FrozenDraft |
-| the quality finding "skipping cold experts IMPROVES multilingual PPL, optimum at 0.5" | our measured result (DROPCURVE_OPTIMUM, noise 1e-6) | claim name for the report — e.g. "cold-expert noise" finding |
+| "la ricetta" (quant + top-k 6 + skipping 1.0 con `--drop-no-renorm`) | the certified phone config; p=0.000488 on S23 (Mellum2 Q4_K_M, its own config); CalaQwen default changed to drop 1.0 + `--drop-no-renorm` on 2026-08-18 | **Kalsa Recipe** (slug `kalsa-recipe`) |
+| K-F / kf-prefetch (dispatcher-gated cold-start prefetch) | — | **NO NAME. Stays "cold-start prefetch."** |
+| E4 / draft congelato (attention-only self-draft with frozen recurrent state) | — | **NO NAME. Stays "frozen draft."** |
+| the quality finding "skipping cold experts improves multilingual PPL on Mellum, optimum at 0.5" | our measured result (noise 1e-6) | no coined name; cite the measurement |
+
+**Owner's reasoning, recorded because it is a standard and not a preference
+(2026-08-18): "non c'è nulla di nuovo in queste cose."** A coined name is a claim
+of novelty. Cold-start prefetch does not earn one — prefetching is published, and
+our version is **in the graveyard anyway**: measured +7.1 % *against* warm on the
+Jelly (p=0.000977), null cold, null on S23 / Xiaomi / CalaQwen. Naming a technique
+we killed would be marketing.
+
+Frozen draft is the closer call and the answer is still no: it does carry an
+unpublished result (`alpha_alltok` **0.413** vs the mirror paper's **0.038**, i.e.
+the opposite polarity works on hybrids), but there is **no product to name** — it is
+dead as a speed technique and survives only as a correction mechanism plus 251 MiB
+of RAM. The *finding* can be cited in a report; the *thing* gets no name.
+
+Only the shipped config is named, because only it is a thing a user receives.
 
 ## Models (already named)
 

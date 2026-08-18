@@ -24,6 +24,47 @@
 > Non ci si scrive mai niente che non sia già nel PLAN, e non si legge mai
 > ALIVE al posto del PLAN per decidere.
 
+> 🔬 **PROFILING COMPUTE — LA DOMANDA APERTA DA GIORNI HA RISPOSTA: SONO I
+> MATMUL MoE, IL GDN NON ESISTE (18/08, CalaQwen, `--compute-trace`).**
+>
+> Domanda di gualt: *"capire se quei 0.1407s sono dominati dai matmul MoE o
+> dal GDN. Solo quello vi salverà."* Traccia per-nodo su CalaQwen
+> (47.021 nodi, `qwen35moe`, 40 layer), separata per fase:
+>
+> | operazione | prefill | **decode** |
+> |---|---|---|
+> | **MUL_MAT_ID** (esperti MoE) | **81.6%** | **33.5%** |
+> | MUL_MAT (densi/attenzione) | 9.9% | **23.1%** |
+> | GET_ROWS | 2.0% | 7.6% |
+> | ADD | 0.8% | 7.5% |
+> | **GATED_DELTA_NET** | **0.94%** | **2.26%** |
+> | **rapporto MoE/GDN** | **87×** | **15×** |
+>
+> ➡️ **Il compute è matmul: MoE + densi = 56.6% del decode. Il GDN è il
+> 2.26%.** Tagliare FLOP ha senso solo su `MUL_MAT_ID`.
+>
+> 🪦 **E questo UCCIDE il "Predictive GDN State Update Skipping"** proposto
+> nel PDF (DCB) — **per mano del suo stesso criterio di morte**, che
+> recitava: *"se il layer GDN è sotto il 10% del compute per token, la
+> componente state-skip probabilmente non vale la pena"*. Misurato:
+> **2.26%**. Chiuso senza scrivere una riga di codice.
+>
+> ⚠️ **Limite dichiarato dallo strumento stesso:** `--compute-trace`
+> *"isolates and times EVERY graph node — serializes the graph, proportions
+> only"*. Quindi le operazioni minute (il ~40% di decode in `GET_ROWS`,
+> `ADD`, `MUL`, `RMS_NORM`) sono **gonfiate**: perdono fusione e
+> coalescing. **Il rapporto MoE/GDN regge** (15× e 87× sono fuori da
+> qualunque artefatto di serializzazione), quel 40% no. Per una ripartizione
+> fedele serve `--compute-trace-layers`, che tiene una barriera per layer e
+> lascia sopravvivere coalescing e prefetch — **prossimo passo naturale**.
+> ⚠️ Un secondo `bmoe-cli` girava in parallelo durante la traccia: altro
+> motivo per non citare i tempi assoluti, solo le proporzioni.
+>
+> ✅ **Allineato con gualt (18/08): la speculative decoding è chiusa** — F6
+> morta sui byte (β=0.594 contro 0.56 di pareggio) e draft-by-drop morta
+> prima dell'implementazione. Il compute-bound si attacca tagliando FLOP,
+> non aggiungendo draft head.
+>
 > 📦 **UN REPO SOLO, SENZA CANCELLARE NIENTE (18/08, commit `15b4e47`).**
 > gualt: *"vorrei un repo solo per non perderci, ma senza cancellare o
 > perdere niente"*. La proposta iniziale era spostare tutto in
@@ -146,6 +187,153 @@
 > `-ngl 99` batte 8/16/24; `-ub 512` batte 128/256/1024; `-b` e i thread
 > GPU sono rumore. ⚠️ **`-fa on` CRASHA (exit 134, JSON vuoto)** — da
 > aprire come bug, non è una config.
+>
+> ---
+>
+> 🔭 **RECON SILICIO NON-CPU/GPU (18/08, due round Grok con fonti obbligatorie;
+> report in `scratchpad/agents/isp-npu-recon/` e `.../eva-npu-round2/`).
+> MANDATO gualt: "se nessuno l'ha fatto possiamo farlo noi".**
+>
+> ☠️ **EVA / CVP — CHIUSA COL SORGENTE DEL DRIVER, non con le slide.**
+> `eva-kernel` è `msm_cvp` rinominato; device `/dev/cvp`; DT `qcom,kalama-cvp`
+> = SM8550 = 8 Gen 2. L'ioctl **ignora `cmd`** e dispatcha su
+> `eva_kmd_arg.type`; `EVA_KMD_SEND_CMD_PKT` (0x10001040) è un **pass-through
+> HFI opaco** da 490 word. **MA il kernel tiene un allow-list `cvp_hfi_defs[]`
+> e rifiuta `-EINVAL` ogni tipo non elencato.** La lista, letta dal sorgente:
+> DFS (depth-from-stereo), SGM_OF e CV_TME (optical flow), WARP, NCC
+> (correlazione fra patch), HCD (Harris), OD/ODT, FD/DLFD, ICA, DMM, DCM.
+> ⚠️ **`DCM` = Descriptor Calc & Matching, NON "dense compute"** — era la mia
+> speranza ed era sbagliata. I pacchetti di config sono 47 word (NCC) e 20
+> (DCM): non c'è posto per un tensore di pesi. `SET_MODEL_BUFFERS` è l'IOVA
+> persistente dei modelli face-detection Qualcomm, non pesi arbitrari.
+> ➡️ **Nessun comando moltiplica una matrice del chiamante per un'altra.**
+> 🔒 **Secondo cancello indipendente:** `/dev/cvp*` è etichettato
+> `video_device`; AOSP ha un **neverallow** su tutto `appdomain`; il dominio
+> previsto è `hal_camera`. Non apribile da app né da `adb shell` stock.
+> ✅ **La parte giusta dell'intuizione di gualt: prior art = ZERO.** Nessun
+> paper, repo, thread o writeup di compute generico su un ISP di telefono.
+> ❌ La parte sbagliata: non perché nessuno abbia guardato, ma perché **la
+> porta non esiste**.
+> 📌 **"Patchiamo il kernel per togliere l'allow-list?"** Si può (sullo Xiaomi;
+> sull'S23 il bootloader Samsung Snapdragon in genere non si sblocca e Knox si
+> brucia) **e non serve**: l'allow-list è un filtro SOFTWARE, toglierlo non
+> crea una GEMM che nel firmware/silicio non c'è. L'EVA è pipe a funzione
+> fissa; un pacchetto non implementato dà errore firmware, non una matmul.
+> **Il muro è l'op-set del firmware, non il filtro.** L'unica versione seria
+> sarebbe reverse-engineerare il firmware firmato: mesi, premio ipotetico.
+>
+> ☠️ **VENUS — chiusa.** Nel UAPI V4L2 pubblico: nessuna modalità
+> motion-estimation-only, nessun output di vettori di moto separato
+> dall'encode, nessun pacchetto SAD/NCC, nessun controllo che accetti
+> coefficienti del chiamante. Il trucco esiste **su desktop** (NVENC documenta
+> un ME-only mode) **perché NVIDIA lo espone**; patchare un kernel non aggiunge
+> una modalità al firmware Venus. E comunque sarebbe SAD, non GEMM.
+>
+> ☠️ **ISP Spectra / CHI — chiusa.** CHI compone pipeline *fotografiche* e i
+> suoi "extended node" scaricano su **CPU, GPU o DSP**, non caricano microcodice
+> sull'ISP; `qcom_camss` mainline è cattura V4L2. **CHI è un instradatore, non
+> un motore.** ☠️ Sensor hub, DPU display, DSP del modem: chiusi anch'essi —
+> sul modem la frase è netta, i core li programma solo Qualcomm.
+>
+> ☠️ **UFS HPB — chiusa, per tre ragioni indipendenti.** (1) Il nodo sysfs
+> `flags/hpb_enable` è **read-only per ABI del kernel**: non è "serve root", da
+> userspace non si accende. (2) HPB è stato **rimosso da Linux mainline nel
+> 2023** ("not aware of any current users"). (3) Accelera le letture **random
+> da 4 KB** — tutti i numeri pubblicati (58-67%, 43%, 46%) sono lì; noi
+> leggiamo blocchi da centinaia di KB con O_DIRECT, dove un lookup di mappa si
+> ammortizza su centinaia di pagine. Numeri sulle nostre dimensioni: NOT FOUND.
+>
+> 🔧 **DUE CORREZIONI MIE, ENTRAMBE DETTE A gualt PRIMA DI VERIFICARLE.**
+> 1. **Lo 0.67 MiB NON era la prova che credevo.** Avevo dato «l'HTP carica
+>    0.67 MiB, quindi l'NPU non è candidata» come fatto. Il thread vero
+>    (llama.cpp #22791, **proprio su un Galaxy S23**) dice altro: il log è
+>    `token_embd.weight (q6_K) (and 197 others) cannot be used with preferred
+>    buffer type`, e il manutentore risponde **«We do not support Q4_K_M in the
+>    Hexagon backend»**. Quasi tutti i tensori erano di un quant non supportato
+>    e restavano su CPU: 0.67 MiB è ciò che avanzava, non un tetto.
+>    ✅ **La conclusione regge su evidenza migliore:** col quant giusto il
+>    decode su HTP non vince comunque — OnePlus 12, Qwen3.5-4B **Q4_0**: CPU
+>    11.43 t/s, OpenCL 8.44, **HTP 3.02** (#23314); in una prova successiva
+>    CPU 9.1 / OpenCL 9.4 / HTP 8.9. Pari, non 100×.
+> 2. **`graph splits = 283` non erano handover intenzionali.** Avevo scritto
+>    «se quelle 283 transizioni costano poco il disegno regge». Falso: era lo
+>    scheduler GGML che esplodeva perché ogni tensore rimbalzava per quant non
+>    supportato. Sul path Q4_0 funzionante l'esempio ufficiale mostra **un solo
+>    device HTP e `graphs reused = 473`**.
+>
+> 🚫 **"L'NPU ha memoria propria e non compete per la banda" — SMENTITO da
+> fonte primaria.** Doc Hexagon di llama.cpp, testuale: memoria **unificata**,
+> «the NPU does have a dedicated tightly-coupled memory called VTCM but that
+> memory is used only for intermediate data … or temporary data (chunks of the
+> weight tensors fetched via DMA)». TCM dell'8 Gen 2 = **8 MB**: scratchpad,
+> non VRAM.
+> ⚖️ **Correzione a me stesso in senso opposto:** avevo detto "non si può
+> sommare banda", troppo netto. PowerInfer-2 misura sull'8 Gen 3 **CPU sola
+> 43.9 GB/s, NPU sola 56, CPU+NPU 59.6** — non si sommano, ma **+36% di
+> utilizzo aggregato** esiste.
+>
+> ✅ **L'UNICA PISTA VIVA: PREFILL DENSO SU NPU, ESPERTI SU CPU.**
+> Numeri altrui su 8 Gen 3: PowerInfer-2 **770 tok/s** di prefill NPU su 7B
+> INT4 (GPU 37, CPU 8); mllm-NPU sullo Xiaomi 14 **>1000 tok/s** su
+> Qwen1.5-1.8B, 7.3-18.4× la CPU a prompt 1024. È la **terza conferma
+> indipendente** dello stesso confine — acceleratori per il prefill, CPU per il
+> decode — dopo la nostra misura GPU e i numeri di campo llama.cpp. E il nostro
+> dolore è il system prompt da ~1.4k token, cioè prefill.
+> 🎯 **La novità che sarebbe nostra: prefill NPU su un MoE che NON sta in RAM e
+> streamma da flash.** Nessuno lo fa: PowerInfer-2 fa offload su flash e il
+> decode gli crolla a 1.4-2.3 tok/s; mllm-NPU fa NPU ma su modelli piccoli
+> tenuti in memoria. Noi abbiamo già la metà difficile. **E la Q7-landmine, che
+> sul decode ci blocca, qui è la forma GIUSTA: denso sull'acceleratore,
+> esperti su CPU.**
+>
+> 🔬 **VINCOLI DURI (fonti primarie, round 2):**
+> - **La strada NON è QNN, è il backend Hexagon di llama.cpp.** QNN è a grafo
+>   statico (prepare-once/execute-many) e **non esiste API pubblica per
+>   aggiornare i pesi di un grafo finalizzato**. Il backend llama.cpp non ha
+>   grafo: i pesi stanno in buffer rpcmem, `set_tensor` li riscrive — memcpy +
+>   re-tiling, non 11 s di compilazione. Ed è aperto.
+> - **`mllm-NPU` non è riusabile come speravo:** MIT ma **non include QNN**
+>   (proprietario), gira su **v75**, il suo MoE è **CPU-only**, i telefoni nel
+>   README oggi sono **8 Elite** (non il nostro Xiaomi 14), e carica un
+>   **context binary compilato**: non gli passi i tuoi pesi a runtime.
+> - **v73 (S23): VA del cDSP a 32 bit, tetto pratico ~2 GiB, `ndev` forzato a
+>   1.** EuroSys 2026 su OnePlus Ace 3 (stesso 8 Gen 2): i 3B **non si
+>   caricano**. v75 (Xiaomi 14) può aprire più sessioni.
+> - **FastRPC #137, misurata su 8 Gen 2: `munmap` NON libera la VA del DSP**
+>   finché non si fa `rpcmem_free`. Una finestra scorrevole da 1 GiB fallisce
+>   appena la *storia* delle mappature supera 2 GiB.
+> - **Costo per handover CPU↔HTP: NOT FOUND.** Nessuno l'ha pubblicato. È il
+>   rischio aperto vero: denso-su-NPU/esperti-su-CPU è uno split **per layer**.
+> - **Prefill tok/s su v73 con un quant supportato: NOT FOUND.** È il numero
+>   che deciderebbe se l'S23 è un bersaglio, e non esiste al mondo.
+>
+> 💡 **IDEA DI gualt CHE RIAPRE L'S23 — e regge.** Il tetto dei 2 GiB è su
+> **quanto mappi nella sessione**, non sulla taglia del modello. **LFM2.5-8B-A1B
+> (3.1 GB su disco, 1B attivo)** con i soli **densi** mappati sta in qualche
+> centinaio di MB: dentro con margine. E **sparisce anche FastRPC #137**, perché
+> quel bug morde solo se fai ruotare i buffer: densi mappati **una volta e mai
+> smappati** non perdono VA. Disegno: densi in sessione una volta, esperti che
+> streammano su CPU come già fanno.
+> ⚠️ **Da verificare prima di entusiasmarsi:** LFM2.5 è **ibrida**, non un
+> transformer puro — le sue op devono essere fra quelle che il backend Hexagon
+> esegue. Se i blocchi conv/ricorrenti rimbalzano su CPU il grafo si spezza in
+> mille pezzi, ed è esattamente il rischio numero uno.
+> 💡 **E il quant si risolve senza requantare il valore nostro:** serve un quant
+> supportato (Q4_0/IQ4_NL/MXFP4) **solo per i tensori DENSI** — GGUF misto,
+> esperti KEXP intatti su CPU; `llama-quantize` fa override per tipo di tensore.
+> Abbiamo `Mellum2-12B Q4_K_M` su disco ma **Q4_K_M non è supportato**: è
+> proprio il quant che ha reso vacua la misura S23.
+>
+> ⏭️ **NPU + GPU insieme: si può, ma DOPO.** Lo scheduler GGML elenca CPU,
+> `GPUOpenCL` e `HTP0..HTP4` come device dello stesso grafo, e il +36% di banda
+> aggregata è reale. Ma un grafo a tre vie, prima di conoscere il costo di UN
+> handover, rende il risultato non attribuibile.
+>
+> ➡️ **PRIMO PASSO (non è codice):** (a) verificare la copertura op Hexagon per
+> l'architettura LFM2.5; (b) produrre il GGUF misto coi soli densi in Q4_0;
+> (c) **misurare noi il numero che manca al mondo** — prefill HTP vs CPU vs GPU
+> sullo stesso telefono. Se l'NPU non batte la GPU che già abbiamo a 3.2-7×, la
+> pista si chiude con una cifra nostra invece che con un'assenza.
 > ✅ **Decode invariato: GPU 0.66× (17.5 contro 26.5), gate FAIL.** Stessa
 > conclusione qualitativa di prima, con entrambi i lati più veloci del
 > report storico.
@@ -217,6 +405,83 @@
 > toolchain — stesso seed su PC e su Android può dare esperti diversi.
 > Irrilevante finché si confronta dentro una sola piattaforma; da dire se
 > un giorno si riproduce su device un run del PC.
+>
+> 📊 **DROP-POLICY QUALITY — DUE BRACCI SU QUATTRO CHIUSI (18/08, Marco-Mini
+> KEXP, k=6, cache 2000, ppl decode multi5).**
+>
+> 🏷️ **RISULTATO PRE-REGISTRATO CENTRATO: `cold` ≪ `random`. LA QUERY DI
+> RESIDENCY COMPRA QUALITÀ, NON È SOLO COSTO.**
+>
+> ⚠️ **CORREZIONE DI PROVENIENZA (mia, importante).** Avevo scritto qui e
+> detto a gualt che questa cella gira su `build-pc-droppolicy-s2` sha
+> `262701dc32a96254` con `--stock-kernel`. **Falso.** I tre `*_multi5.json`
+> registrano tutti `build-pc-droppolicy` sha **`59f2762e54ed56af`** (la build
+> da `main`) e **nessun** flag `--no-moe-fused-*`. Motivo: l'orchestratore è
+> partito alle **08:29:51**, il binario s2 è stato compilato alle **08:52** —
+> PowerShell aveva già letto la versione precedente dello script. ✅ **La
+> cella resta valida per la sua domanda**: i tre bracci condividono binario,
+> flag e modello. ❌ Non è confrontabile con la campagna né con Mellum2/
+> CalaQwen. *Lezione: il binario vero si legge dal JSON del run, non dallo
+> script — lo script può essere cambiato dopo il lancio.*
+>
+> ✅ **COMPLETO SU 5 LINGUE (18/08 17:01).** `dp_rand_d10` era morto a 3/5
+> (`bmoe: pread failed at 5783089152` durante `it`, rc=1) trascinandosi dietro
+> l'orchestratore; `it`/`zh` sono stati rifatti in una cella separata
+> (`dp_rand_d10_itzh`, `--langs it,zh`, stesso binario `59f2762e54ed56af`,
+> rc=0) perché l'harness non ha resume per-lingua. Le due metà si uniscono:
+> ogni lingua è una misura indipendente sullo stesso binario e modello.
+>
+> | lingua | d0 | cold d=1.0 | random d=1.0 | cold vs d0 | random vs d0 |
+> |---|---|---|---|---|---|
+> | en | 0.640213 | 0.706213 | 0.745753 | +10.31% | +16.49% |
+> | es | 0.705789 | 0.782259 | 0.837969 | +10.83% | +18.73% |
+> | fr | 0.756660 | 0.861962 | 0.922563 | +13.92% | +21.93% |
+> | it | 0.785352 | 0.879999 | 0.954762 | +12.05% | +21.57% |
+> | zh | 0.944656 | 1.077903 | 1.128981 | +14.11% | +19.51% |
+> | **MACRO** | **0.766534** | **0.861667** | **0.918006** | **+12.41%** | **+19.76%** |
+>
+> ➡️ **`random` è peggiore di `cold` di +6.54% bpb (+0.0563 bpb)** — un delta
+> che da solo **supera l'intero gate MACRO_PASS di 0.04**. Concorde in **tutte
+> e cinque** le lingue. 📌 L'anticipazione fatta sulle prime 3 lingue diceva
+> +6.63%: la stima parziale ha retto a 0.1 punti.
+> La lettura era dichiarata prima dei numeri: *«cold ≪ random → "scegliere i
+> freddi" è un risultato vero da nominare»*. È il ramo che è uscito.
+> **Conseguenza: la condizione (b), la query di residency, NON è pura tassa da
+> rimuovere sull'asse velocità** — a parità di quanti esperti cadono, sceglie
+> molto meglio QUALI. Chi proponeva di eliminarla per recuperare il compute
+> della tassa d'armamento stava proponendo di pagare 6.5% di qualità.
+>
+> | arm | macro bpb (5 lingue) | Δ vs dp_d0 |
+> |---|---|---|
+> | `dp_d0` (macchinario spento) | 0.766534 | — |
+> | `dp_cold_d10` (regola di oggi, d=1.0) | 0.861667 | **+0.0951 / +12.41%** |
+> | `dp_rand_d10` (+ `_itzh`) | 0.918006 | **+0.1515 / +19.76%** |
+> | `dp_weight_d10` | in corso, partito 17:01, fine ~19:00 | — |
+>
+> ⏳ **Resta `weight`** (soglia di peso, senza query di residency): è il braccio
+> che separa **quanto del vantaggio viene dalla cache e quanto dal peso**.
+> ⚠️ Non è un confronto like-for-like: droppa di più (misurato 63.4% degli slot
+> contro il 46.9% di `cold` a d=1.0) perché non protegge i residenti, quindi
+> una qualità peggiore è attesa e non basta a dire che la residency vince.
+>
+> 🔧 **CORREZIONE MIA, DA METTERE A VERBALE.** Avevo scritto a gualt che quel
+> +12.41% «riproduce esattamente il valore di campagna di Marco a d=1.0 con
+> renorm». **Falso: quella corroborazione non esiste nei dati.** L'unica fonte
+> del +12.41% pre-esistente è un commento di intestazione che ho scritto io in
+> `scripts/run_droppolicy_quality.ps1:44` — citarlo come conferma era
+> circolare. In `results/` **non c'è nessuna misura Marco k6 d=1.0** anteriore
+> a questa cella. Da correggere anche quel commento (a cella finita: il file
+> è in esecuzione).
+>
+> ✅ **Ciò che regge davvero:** i due numeri sopra sono misurati nella STESSA
+> cella sullo STESSO binario, quindi il +12.41% è valido come sta. E la
+> premessa di disegno («Marco è dove il drop morde di più») è confermata dai
+> dati nuovi, non da una misura precedente: le altre due curve di campagna a
+> d=1.0 costano molto meno — **Mellum2 +5.09%** (1.0073390 → 1.0586322,
+> `results/mellum2_dropcurve/curve.csv`) e **CalaQwen +3.96%** (0.6780748 →
+> 0.7049320). ⚠️ E ricordare che **Mellum2 ≠ Marco**: è il termometro PPL del
+> PC (`docs/NAMING.md:31`), un modello diverso — la curva `mellum2_dropcurve`
+> non è la curva di Marco.
 >
 > 🔥 **CACHE × DROP — LA SCOPERTA CHE RIMETTE IN DISCUSSIONE IL DEFAULT
 > APPENA DECISO (18/08, round 1 di 3, Marco-Mini su Jelly).**
@@ -301,6 +566,33 @@
 > ⚠️ **Conseguenza diretta: il default B deciso oggi è l'ottimo a cache
 > 2000, e la cache non è una costante di natura — è un budget di RAM.**
 > Va rifatto su CalaQwen prima di considerare chiusa la decisione.
+>
+> ❓ **QUESTIONE APERTA SULLE CELLE S23 (18/08 pomeriggio): SU QUALI CORE
+> HANNO GIRATO? NON LO SAPPIAMO, E IL CSV NON PUÒ DIRLO.**
+> `run_dropsweep_jelly.sh` non scriveva `nproc`/`affinity_mask` (gate F4.3-bis
+> assente: vedi il fix di oggi). Quindi la domanda è **indecidibile a
+> posteriori** su queste tre celle.
+> ⚠️ **DUE MIE CONCLUSIONI RITIRATE, STESSO IDENTICO ERRORE DUE VOLTE:**
+> (1) ho sondato una shell ssh **idle** e concluso sul processo misurato;
+> (2) ho sondato col telefono in **`mWakefulness=Dozing`** (schermo spento) e
+> concluso sulle celle, che per protocollo di campagna girano **screen-ON**
+> (deciso da gualt il 2026-08-13, a verbale più in basso). Entrambe le volte
+> ho misurato una condizione e concluso su un'altra. È la stessa trappola del
+> **"flagship dimezzato" dello Xiaomi**, che era Doze e non throttle.
+> 📌 Fatto misurato che resta valido: col telefono in Doze i processi Termux
+> stanno su **tre cpuset diversi contemporaneamente** — `/` (adj −1000),
+> `/background` (adj 995), `/moderate` (adj 200, `Cpus_allowed_list 0-2`).
+> Il cpuset è **per-processo e per-stato**, non una proprietà dell'app: per
+> questo l'unica lettura che conta è quella sul **PID del binario mentre
+> gira**, ed è esattamente ciò che la covariata nuova registra.
+> 📌 Misurato anche: `termux-wake-lock` **non** promuove il cpuset (sonda in
+> tre tempi, sempre `/moderate`) — ma in Doze, quindi non dice nulla sul caso
+> screen-on. Conseguenza operativa comunque valida: **il wait-and-retry del
+> gate è tempo morto**, la scatola non si apre aspettando.
+> ➡️ **Come si chiude:** riaccendere lo schermo nella postura di campagna e
+> risondare; e comunque **rifare le tre celle con l'harness nuovo**, che
+> scrive la covariata. Stessa verifica sul Jelly appena torna: **stesso
+> harness, stesso buco**, e su quelle celle poggia il default spedito.
 >
 > 🚨 **REPLICA SU S23 (18/08): IL MECCANISMO REPLICA, LA CONSEGUENZA NO.
 > LA "REGOLA" QUI SOTTO È SPECIFICA DEL JELLY — non spedirla come regola.**
