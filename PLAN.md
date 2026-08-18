@@ -24,6 +24,56 @@
 > Non ci si scrive mai niente che non sia già nel PLAN, e non si legge mai
 > ALIVE al posto del PLAN per decidere.
 
+> 📦 **UN REPO SOLO, SENZA CANCELLARE NIENTE (18/08, commit `15b4e47`).**
+> gualt: *"vorrei un repo solo per non perderci, ma senza cancellare o
+> perdere niente"*. La proposta iniziale era spostare tutto in
+> `kalsa-engine` e cancellare `moe-experiments`: **sconsigliata con un
+> numero.** Fuori da git, perché gitignorato, c'è **`models/` = 57 GB** e
+> **`build-pc-mellum-ppl/` con il binario pinnato** — ricostruibile dal
+> branch giusto ma **non byte-identico**, e la campagna lo pinna per sha.
+> Cancellare la cartella avrebbe distrutto entrambi.
+>
+> ✅ **Fatto invece:** `BigMoeOnEdge/` è ora un **submodule** puntato al
+> nostro `Aspis0/kalsa-engine` (privato, 9 branch + uno snapshot per
+> l'unica copia-cartella il cui sorgente non corrispondeva a nessun
+> branch). Gitlink su `0c54a27`, cioè la linea del binario di campagna.
+> **Da adesso ogni commit di risultati registra l'engine che li ha
+> prodotti** — è il buco che il 18/08 è costato mezza giornata.
+> 🔒 Remote rinominati: **`origin` = il nostro** (scrivibile),
+> **`upstream` = Helldez** con push URL **disabilitato**. Nessuna nostra
+> patch era mai uscita (verificato dal reflog), e ora non può.
+>
+> 🧾 **BATTERIA DI SANITÀ SU MARCO (18/08, 12/12) — IL GATE NON TROVA
+> CONFERMA NELLE RISPOSTE, E VA DETTO.**
+>
+> Tre config: `stock` k=8 (ancora), `shipped` k=6 d=0.0 (**da spedire**),
+> `rejected` k=6 d=1.0+nr (**bocciata dal gate al 122% del budget**).
+>
+> | | F1 Spa 2000 | tabellina 9 | giudizio | **vocali in "armadio"** |
+> |---|---|---|---|---|
+> | stock k=8 | ✅ Häkkinen | 10/10 | ✅ | **3** ❌ |
+> | **shipped** k=6 d=0 | ✅ Häkkinen | 10/10 | ✅ | **5** ❌ |
+> | **rejected** d=1.0+nr | ✅ Häkkinen | 10/10 | ✅ | **4** ✅ |
+>
+> ⚠️ **Sulla domanda che discrimina, la config MIGLIORE per bpb sbaglia
+> (3, deduplicando le due "a"), quella da spedire sbaglia diversamente
+> (5, inventando una "i"), e l'unica corretta è quella BOCCIATA.**
+> Su CalaQwen le quattro config dicevano tutte 4. **Quindi è una
+> debolezza di Marco, non della configurazione**, e quale config indovini
+> è fortuna.
+>
+> ➡️ **Due conclusioni oneste:** (1) **quattro domande non bastano a
+> ordinare le config** — la varianza fra domande è molto più grande della
+> differenza fra config; (2) **il rifiuto di d=1.0 da parte del gate NON
+> è corroborato da evidenza indipendente.** Non significa che il gate
+> sbagli — la bpb integra su un corpus intero, quattro domande no — ma
+> significa che al momento **la bocciatura di Marco poggia su un solo
+> tipo di misura.** Se quella decisione diventa costosa, serve una
+> batteria vera (decine di domande, giudice cieco), non queste quattro.
+> ✅ **Quello che la batteria esclude davvero:** nessuna delle tre config
+> è rotta — istruzioni rispettate, aritmetica esatta, giudizio sensato,
+> italiano fluente ovunque.
+>
 > 🛑 **MARCO1c — ANCORA MISURATA, E IL DROP A 1.0 NON SI PUÒ SPEDIRE.
 > NEMMENO COL FLAG. (18/08 03:38, `results/marco_renorm_ablation`)**
 >

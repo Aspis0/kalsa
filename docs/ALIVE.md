@@ -196,6 +196,33 @@ The random-drop arm (is it *cold* experts, or any experts?) is **deliberately no
 included**: no such flag exists, and a rebuilt binary would break the identity pin
 that makes these arms comparable — an owner decision, not a thing to smuggle in.
 
+**⚠️ The expert cache turned out to be a bigger lever than the drop — but only on
+one of the two phones tested, and that is the point.** Sweeping `--cache-mb` on
+Marco-Mini (3 rounds per cell, same binary and model on both devices):
+
+| cache | hit at d=0 | Jelly (G99) drop benefit | S23 (SD 8 Gen 2) drop benefit |
+|---|---|---|---|
+| 1500 | 39.5 % | **−25 %** | ≈ −5 % |
+| 2000 | 50.2 % | **−25 %** | ≈ −2 % |
+| 4000 | 76.8 % | **+15 % (drop HURTS)** | ≈ −4 % (still helps) |
+
+On the Jelly the absolute best is **cache 4000 with no drop at all** (0.113 s/tok
+vs 0.124 for cache 2000 + drop) at zero quality cost. **On the S23 that is false:**
+the drop never reaches −25 % and never reverses.
+
+What *does* replicate is the mechanism: hit rate at d=0 is identical on both
+phones and byte and drop counts match to the tenth of a MiB — the drop can only
+discard cache misses, so a bigger cache leaves less to drop. What does not
+replicate is the speed consequence. **So drop-vs-cache is a per-device choice, and
+the general rule this was becoming was withdrawn before it shipped.**
+
+Note the cache lever itself is not a discovery: `BigMoeOnEdge/docs/cache-sizing.md`
+already calls it "the dominant throughput lever" and ships `--cache-mb auto`. What
+is new is only its interaction with the drop. That doc also warns that
+`cache_min_mb = 1500` is a blanket floor, not a per-model one: the real quantity is
+`token_demand_MiB` (Marco 136.8, CalaQwen 334.5), and below one token cycle the hit
+rate goes to **exactly 0 %**, not "low".
+
 **The throughput + bytes gap is now closed, and it changed the story.** Two device
 sweeps (`results/dropsweep_jelly`, Marco-Mini; `results/dropsweep_lfm_jelly`,
 LFM2.5) measured time *and* bytes from a verified-cold cache:
@@ -389,7 +416,8 @@ Notes that matter more than the numbers:
 | **Clean throughput + bytes cell for expert skipping** | **DONE on two models** — and it moved the mechanism: arming tax + hit-rate cap (see §2) | — |
 | **M4 renorm ablation (renorm ON vs OFF at d=0.5 and d=1.0)** | **armed, starts when the curve frees the PC** | — |
 | ~~Drop sweep on the SHIPPED model (CalaQwen) on a phone~~ | **DONE 2026-08-17, 12/12.** Model transferred over USB and sha-verified; `0.65` slower than no drop in all three rounds; `d=1.0` and `d=1.0+no-renorm` equivalent in speed | — |
-| **Same treatment for Marco1c** | device sweep with the `no-renorm` arm **running**; renorm ablation on PC DONE (d=1.0 costs +12.41 % with renorm, **+5.71 % without**) | its own `k8d0` anchor, ~1.5 h PC, to know if +5.71 % fits the budget |
+| ~~Same treatment for Marco1c~~ | **DONE, and the verdict is the opposite of CalaQwen's.** Marco's own `k8d0` anchor is 0.761332; against it `d=1.0` costs +0.1003 with renorm and **+0.0490 without, against a 0.04 budget — it FAILS both ways**. Marco ships **no drop** (`d=0.0`, +0.0052, 13 % of budget); `d=0.65` was already excluded for being *slower* than not dropping. Same flag, same level, opposite verdict to CalaQwen: the config is per-model | — |
+| **Corroborate Marco's gate rejection** | the 4-question sanity battery does **not** confirm it: on the one discriminating question the best-bpb config answers 3, the shipped one 5, and the *gate-rejected* one 4 (correct). Four questions cannot rank configs | a real battery (tens of questions, blind judge) if that rejection ever becomes expensive |
 | **Re-measure absolute device tok/s under the new default** | every S23/Xiaomi speed cell was run at `drop 0.65`; the sign is known (−12.9 % on Jelly) but the absolutes are not | device time |
 | Random-drop arm (is it *cold* experts, or any experts?) | needs an engine flag that does not exist; a rebuild would break the identity pin the other arms share | owner |
 | ~~CalaQwen quality gate for the recipe~~ | **DONE 2026-08-17**: CalaQwen has its own `k8d0` anchor (0.6660114), so the gate is a same-model statement at last. The shipped default sits at 50 % of the budget | — |
