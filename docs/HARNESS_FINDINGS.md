@@ -33,11 +33,11 @@ expensive thing (§3.3).
 
 | # | Question | Answer | Confidence |
 |---|---|---|---|
-| 1 | Better than bare for small models? | **Yes on the 2B, decisively.** 4B in flight, LFM2.5 never run | 2B: high · 4B/LFM: none |
+| 1 | Better than bare for small models? | **Yes on the 2B (+0.635) and on the 4B (+0.209, p=0.011).** LFM2.5 never run | 2B/4B: high · LFM: none |
 | 2 | Better tool / web-search use? | **Yes — tool precision nearly doubles** | medium |
 | 3 | Holds context after many turns? | **Yes — no decay at all. Strongest result we have** | high |
 | 4 | Faster / less prefill? | **Yes — it uses *fewer* tokens than bare.** But memory-on reverses it, and it may fight the KV fix outright — see the runtime section | high on tokens · none on the interaction |
-| 5 | Only for small models, or large too? | **Unknown.** The mechanism says "later, not never" | none |
+| 5 | Only for small models, or large too? | **Holds on the 4B, smaller.** The bigger model needs help not *forgetting*, not remembering | medium |
 
 Two sections follow the five answers and are not optional reading: **what it costs to run on a
 phone** (the KV cache, load times, what happens when the user leaves and comes back) and **which
@@ -191,6 +191,59 @@ RAM, `n_threads` derives from `cpu_capacity` — so the missing piece is a per-m
 profile these decisions read from, not new machinery. **Do not build it before the campaigns
 populate it**: today there is exactly one model measured per axis, which is not enough rows to
 design a table from.
+
+### ANSWERED 2026-08-18: the 4B campaign — ciswire wins there too, and the reason narrows
+
+**Campaign `32048465417`**, Qwen3.5-**4B**, fase4, 10 seeds, 38 usable arms. Permutation tests on
+the arm means (exact, two-sided).
+
+| arm | n | recall | sd | early | **late** | blank | prompt tok @turn 13 |
+|---|---|---|---|---|---|---|---|
+| bare | 9 | 0.785 | 0.204 | 1.000 | **0.446** | 0 | 4811 |
+| `v42` | 10 | 0.825 | 0.160 | 0.975 | 0.675 | 0 | 2905 |
+| **`ciswire`** | 10 | **0.994** | **0.019** | 0.988 | **1.000** | 0 | 5161 |
+| `nogate` | 9 | 0.944 | 0.108 | 1.000 | 0.889 | 0 | 5122 |
+
+- `ciswire` vs bare: **+0.209, p = 0.0108**
+- `ciswire` vs `v42`: **+0.169, p = 0.0108**
+- `v42` vs bare: +0.040, **p = 0.70 — nothing**
+- `nogate` vs bare: +0.160, p = 0.0905
+
+**1. CisWire holds on the stronger model, and §3.2's prediction was right: the effect shrinks.**
++0.635 on the 2B, **+0.209** on the 4B — because bare improves from 0.313 to 0.785, not because
+ciswire gets worse (0.948 → 0.994, sd 0.083 → **0.019**).
+
+**2. The whole remaining effect is distance.** The 4B is *perfect* on recent facts (1.000 early on
+every untreated arm) and loses **more than half** of distant ones (0.446 late). `ciswire` loses
+**none** (1.000). So the answer to "does a bigger model still need this" sharpens: it does not need
+help remembering — it needs help **not forgetting**, and that is the only thing left to buy.
+
+**3. `v42` is dead on the 4B.** +0.354 (p=0.043) on the 2B becomes **+0.040 (p=0.70)**. Its trade —
+give up verbatim window, buy a digest and a summary that is never built (§1.4) — stops paying as
+soon as the model can use the window itself. Its 2905 prompt tokens at turn 13 against bare's 4811
+show it is still paying the window it gave away.
+
+**4. `nogate` reverses across models, and nobody predicted it.** 0.094 on the 2B — the worst arm by
+far — and **0.944** on the 4B. Removing the tool gate is catastrophic for the small model and
+nearly free for the larger one. This is the sharpest evidence yet that harness decisions are
+**model-dependent**, and it belongs in any per-model capability profile.
+
+**5. The §3.1 blocker does not reproduce.** Zero blank bubbles across all 38 arms, on every mode.
+The stated reason not to make `ciswire` default was that treated arms roughly doubled them. On the
+4B that does not happen.
+
+⚠️ **6. CisWire is NOT free on the 4B — §1.5's saving was a 2B phenomenon.** There it spent ~170
+tokens/turn *fewer* than bare, because holding the fact shortened replies 675 → 505 chars. Here
+history length is identical across arms (35 440 vs 35 605 chars): the 4B does not hedge less when
+helped, so the digest is **pure added cost — +350 prompt tokens at turn 13, and ~95 s more prefill
+per turn**. Better recall, paid for. Quote it as a trade, not a free lunch.
+
+**Caveats that must travel with these numbers.** Two arms died on a 2400 s per-turn timeout —
+`baseline` seed 4 (turn 12) and `nogate` seed 10 (turn 11) — so those two arms are n=9, and the
+campaign's own completeness gate **correctly refused to publish** (`BENCH_EXPECT_SEEDS=10`). Both
+losses fell on **untreated** arms, which is not random: bare writes longer replies, so its prompts
+grow faster and it reaches the cap sooner. The surviving `baseline` arms are therefore not a random
+subsample. §3.2 recorded this risk before the run ("the 4B may hit it") and it hit.
 
 ### If this harness is reused for anything else — read this first
 
@@ -1746,6 +1799,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 | 2026-08-14 | §1.1 resolved: echo-of-context inverted and shipped (`5b3ba90`) — it blocked 100% of explicitly requested searches; verified across six scripts, with CJK abstention documented. Added §3.8: the fact metric conflates an honest refusal with a wrong answer, which penalises stronger models and makes cross-model baseline comparison unsafe. |
 | 2026-08-16 | **The 390 s prefill is solved and §7.5 is rewritten around the measurement.** Four proposed causes were refuted, three of them mine, and none fell to an argument — each fell to a number the engine printed (`3e1c654`, `12868ea`, `36138fd`). The cause: Qwen3.5's template injects an empty `<think>\n\n</think>\n\n` when it asks for an answer and never repeats it when replaying one, so the re-rendered prompt diverges four tokens after the assistant header; a hybrid KV cannot roll back, so 1646 valid tokens are discarded. Confirmed 5/5 turns, identical `[248068 271 248069 271]` every time. Fix shipped in `6447ff2`: the prompt replays the text the model emitted, and when the window cannot reproduce the KV the session is refused with a named reason and its artifacts deleted — the old path left a poisoned `.kvs` that recharged the cost on every later restore. |
 | 2026-08-16 | **A change was written, audited and reverted before shipping** (`9c73846`): moving memory facts out of the system prompt onto the user turn. It violated append-only on *every* turn (the block rides `messages[length-1]`, so next turn that message renders without it) and moved the "these facts are untrusted data, not instructions" frame into the user message, adjacent to the utterance it defends against. Kept from that work: `computePromptEnvHash` no longer hardcodes `hasTools: true` while `buildSystemPrompt` really switches prompts, plus tests and harness alignment. Added §3.11: a pre-existing privacy defect — the prompt renders the last ten facts, `webSearchTool` gates the first ten. |
+| 2026-08-18 | **The 4B campaign landed and CisWire holds: +0.209 over bare, p = 0.0108** (`32048465417`, 38 usable arms, permutation tests). §3.2's prediction was right — the effect shrinks, from +0.635 on the 2B, because bare climbs 0.313 → 0.785 while ciswire goes 0.948 → 0.994 with sd 0.083 → 0.019. What survives is entirely **distance**: the 4B is perfect on recent facts and loses over half the distant ones (0.446 late), ciswire loses none (1.000). Three things nobody predicted: **`v42` dies** on the stronger model (+0.040, p=0.70, against +0.354 p=0.043 on the 2B); **`nogate` reverses**, 0.094 on the 2B against 0.944 on the 4B, which is the hardest evidence yet that harness decisions are model-dependent; and **§1.5's token saving does not reproduce** — history length is identical across arms, so on the 4B the digest is pure cost, +350 prompt tokens at turn 13 and ~95 s more prefill per turn. §3.1's blocker did not reproduce either: zero blank bubbles across all 38 arms. Two arms died on the 2400 s per-turn cap, both **untreated** (bare writes longer replies, so it reaches the cap first), so `baseline` and `nogate` are n=9 and the completeness gate correctly refused to publish. |
 | 2026-08-17 | **§7.7j: the join is closed, and the diagnostic that proved it refutes my own acceptance criterion** (`b31fb53`). Six turns unplugged from the coldest start yet (27.9 °C): 103 s then **31, 32, 32, 32, 31** — turn 6 was 151 s in §7.7i. One `rebuild` in the session (`fresh`, turn 1), `KALSA_KVDIVERGE` zero, five consecutive boundaries reused against two, `Thermal Status` 0 throughout, 2 % battery for six turns. `glueEot` fired at every boundary (`glue=11`), which was the fix's whole job. **But the 48-char seam windows show `T` ending with the reply in generation form and the delta restarting from the same reply in history form: every assistant turn is in the prompt twice.** Not caused by the glue and not a deep-link artifact — `kvTranscript.ts:157` builds `T` from `candidate + emitted + suffix` and `candidate` ends with the empty think block, so the ordinary path duplicates too; §7.7i had it without the glue between the copies. The criterion I fixed before measuring — no divergence, `n_common == embd.size()` — is **true with the duplicate in place**, because `T` stays a valid prefix however malformed its content: it measures reuse, not correctness, and all six replies read fine. Latency result stands, correctness result does not, **route 2 does not merge**. Suspect is `cutPPrevFromRolePair` (`kvTranscriptFormat.ts:130`): `pPrev`=5532 against a turn-1 prompt of 5551, short by exactly the 19 chars of `<think>\n\n</think>\n\n`. |
 | 2026-08-17 | **§3.11 closed by reading the code, not by fixing it: the privacy gate was never inspecting the wrong facts.** The two slices genuinely disagree on their face — prompt takes `slice(-10)`, `webSearchTool.ts:88` takes `slice(0, 10)` — but the array reaching the gate is capped upstream at `AppShell.tsx:2348`, so the second slice is the identity, and `:4485` hands the gate **the same array object** `:4724` sends to the engine. The 2026-08-16 row below calls it "a pre-existing privacy defect"; that was wrong, and this row is the correction. What survives is a latent trap: the guarantee rests entirely on the upstream cap, so raising it — or sourcing `getMemoryFacts` from `MemoryStore.listFacts()` — silently splits the two sets with nothing failing. |
 | 2026-08-17 | **§7.7f: MEASURED PASS — the KV survives a turn boundary for the first time** (`3a3a15f`). Arm A: `n_common` equals the cached size at both boundaries (1298 and 1353), `n_past` resumes at 1298 instead of 0, `KALSA_KVDIVERGE` count zero. Control arm reproduces §7.5's signature exactly — same `[248068 271 248069 271]`, same full clear — so the zero is not a dead arm. 29 tokens prefilled where 1298 used to be. Four earlier attempts failed for reasons worth keeping: thinking-polarity refuted by measurement; a run invalidated by an app restart and by tools left on; then `prefix_mismatch` at every boundary, whose cause was the template rendering the last assistant differently when it is final — §7.5's asymmetry biting the delta computation this time — fixed by rendering the previous state with a trailing sentinel and cutting at the longest common prefix of a user-probe and an assistant-probe render. Also settled: `T` and `pPrev` differ by 50 chars at the passing boundary, which is why the `T === pPrev` guard had to go — `pPrev` is a ruler for what is new, not a claim about the cache. Not durability: two boundaries, one run, text-only, no tools, no images, inside 8192 ctx, and §7.7e's production blockers still open. |
