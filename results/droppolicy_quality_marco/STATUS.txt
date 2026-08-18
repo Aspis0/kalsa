@@ -1,14 +1,21 @@
-[2026-08-18T01:01:53-04:00] drop-policy quality start; waiting for the PC to go idle
-[2026-08-18T01:01:53-04:00] bmoe-cli busy (0s)
-[2026-08-18T01:31:53-04:00] bmoe-cli busy (1800s)
-[2026-08-18T02:01:54-04:00] bmoe-cli busy (3600s)
-[2026-08-18T02:31:54-04:00] bmoe-cli busy (5400s)
-[2026-08-18T03:01:55-04:00] bmoe-cli busy (7200s)
-[2026-08-18T03:31:55-04:00] bmoe-cli busy (9000s)
-[2026-08-18T03:38:55-04:00] PC idle after 9420s; binary=C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-droppolicy\cli\bmoe-cli.exe
-[2026-08-18T03:38:55-04:00] START dp_d0 drop=0.0 policy=(disarmed)
-[2026-08-18T03:39:06-04:00] END dp_d0 rc=1 wall=11.1s
-[2026-08-18T03:39:06-04:00] ARM FAILED dp_d0 rc=1 - stopping
-[2026-08-18T08:29:52-04:00] drop-policy quality start; waiting for the PC to go idle
-[2026-08-18T08:29:52-04:00] PC idle after 0s; binary=C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-droppolicy\cli\bmoe-cli.exe
-[2026-08-18T08:29:52-04:00] START dp_d0 drop=0.0 policy=(disarmed)
+[2026-08-18T10:00:32-04:00] drop-policy quality start; waiting for the PC to go idle
+[2026-08-18T10:00:33-04:00] bmoe-cli busy (0s)
+[2026-08-18T10:30:33-04:00] bmoe-cli busy (1800s)
+[2026-08-18T11:00:34-04:00] bmoe-cli busy (3600s)
+[2026-08-18T11:30:35-04:00] bmoe-cli busy (5400s)
+[2026-08-18T11:30:56-04:00] END dp_d0 rc=0 wall=10863.6s
+[2026-08-18T11:30:56-04:00] OK dp_d0 macro_bpb=0.76653399786962
+[2026-08-18T11:30:56-04:00] START dp_cold_d10 drop=1.0 policy=cold
+[2026-08-18T12:00:36-04:00] bmoe-cli busy (7200s)
+[2026-08-18T12:30:37-04:00] bmoe-cli busy (9000s)
+[2026-08-18T13:24:06-04:00] END dp_cold_d10 rc=0 wall=6789.5s
+[2026-08-18T13:24:06-04:00] OK dp_cold_d10 macro_bpb=0.861666974151472
+[2026-08-18T13:24:06-04:00] START dp_rand_d10 drop=1.0 policy=random
+[2026-08-18T15:02:56-04:00] END dp_rand_d10 rc=1 wall=5930.3s
+[2026-08-18T15:02:56-04:00] ARM FAILED dp_rand_d10 rc=1 - stopping
+[2026-08-18T15:58:35-04:00] binary verified sha=59f2762e54ed56af (C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-droppolicy\cli\bmoe-cli.exe)
+[2026-08-18T15:58:35-04:00] PC idle after 0s
+[2026-08-18T15:58:36-04:00] START dp_rand_d10_itzh policy=random langs=it,zh attempt=1
+[2026-08-18T17:01:10-04:00] END dp_rand_d10_itzh attempt=1 rc=0 wall=3754.1s
+[2026-08-18T17:01:10-04:00] OK dp_rand_d10_itzh macro_bpb=1.04187133466006
+[2026-08-18T17:01:10-04:00] START dp_weight_d10 policy=weight langs=en,es,fr,it,zh attempt=1
