@@ -329,6 +329,51 @@
 > aggregata è reale. Ma un grafo a tre vie, prima di conoscere il costo di UN
 > handover, rende il risultato non attribuibile.
 >
+> 🔬 **MISURA NUOVA (18/08 sera, S23 Adreno 740, binario K2.2, via `adb shell`):
+> IL KERNEL MoE OPENCL È ROTTO SU TUTTI I QUANT STRETTI — E IL DENSO NO.**
+> `test-backend-ops test -b GPUOpenCL`, stessa sessione, stesso driver:
+>
+> | type_a | `MUL_MAT` denso | `MUL_MAT_ID` MoE |
+> |---|---|---|
+> | q4_0 | **46/46 OK** | **0 / 74 FAIL** (ERR 0.42-0.44) |
+> | q4_1 | 35/35 OK | 0 / 75 FAIL (ERR 0.38) |
+> | q4_K | 33/33 OK | 0 / 73 FAIL (ERR ~0.9) |
+> | mxfp4 | 34/34 OK | 0 / 74 FAIL (ERR 0.34) |
+> | q5_0/q5_1/q5_K | OK | FAIL (q5_0 ERR 0.10) |
+> | q8_0 | 47/47 OK | **75/75 OK** |
+> | q6_K | 4 OK / **10 FAIL** | **3/3 OK** |
+>
+> Soglia ERR = 0.0005, quindi 0.42 è spazzatura non arrotondamento. Fallisce a
+> **ogni** forma — `n=1` (GEMV) e `n=32` (GEMM), `m=64` e `m=2880` — e il q6_K
+> passa **sulle stesse forme** dove il q4_0 muore: **il discriminante è il quant,
+> non la shape.**
+> ✅ **Cosa esclude (è la parte utile):** NON è il driver e NON è un miscompile
+> dei dequant subgroup-free — il q4_0 **denso** è perfetto sullo stesso silicio
+> e compilatore. (L'ipotesi miscompile era vera per il port MLD/M1; **qui non si
+> applica**.) NON è la matematica di dequant: lo stesso quant è corretto in un
+> percorso e sbagliato nell'altro. ➡️ **Il difetto è nei kernel MoE.**
+> 🎁 **E c'è un riferimento funzionante**: per lo stesso quant, sullo stesso
+> hardware, il kernel denso dà il risultato giusto. Non si debugga al buio.
+> 📌 I 10 FAIL del q6_K **denso** NON sono una regressione: è il kernel flat
+> ancora rotto (K2.2 corresse il *dispatch* perché i tensori veri non ci
+> finissero; K2.3 fu deprioritizzato). `test-backend-ops` genera forme che i
+> modelli non producono. *Invariato* è la condizione di pass, non *migliorato*.
+>
+> 🧭 **TRACCIA DI DIAGNOSI (Grok, 18/08 18:42 — morto un passo PRIMA di scrivere
+> il report; questa è la sua traiettoria salvata dal log, NON un risultato
+> verificato).** Da riprendere da qui:
+> 1. «Il GEMV n=1 usa il kernel **sorgente `_ns`, non il binario**» → l'ipotesi
+>    dispatch `_ns_bin`/`_ns_ila` **non spiega** il caso GEMV.
+> 2. «Il layout **dense (2 righe packed)** e quello **MoE (1 riga)** divergono.»
+> 3. «Il convert MoE è **`trans4_ns`**, non il noshuffle del dense.»
+> 4. **Ipotesi finale dichiarata: load vettoriale NON ALLINEATO nel convert MoE.**
+> ⚠️ Da verificare, non da credere: l'agente è morto prima di scriverla come
+> conclusione e prima di qualunque test. L'albero llama.cpp è rimasto **pulito**
+> (nessuna modifica) — nessuno stato a metà da ripulire.
+> 🔧 Si lavora su **`kalsa/kernel-s3-repack`**, che discende già da
+> `opencl-q6k-dispatch-fix` (merge-base 04c5d362a, zero commit esclusivi): la fix
+> nuova si impila sulla vecchia, niente due patch parallele — requisito di gualt.
+>
 > ➡️ **PRIMO PASSO (non è codice):** (a) verificare la copertura op Hexagon per
 > l'architettura LFM2.5; (b) produrre il GGUF misto coi soli densi in Q4_0;
 > (c) **misurare noi il numero che manca al mondo** — prefill HTP vs CPU vs GPU
