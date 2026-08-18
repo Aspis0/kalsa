@@ -1,0 +1,65 @@
+{
+  "utc": "2026-08-14T01:32:49.049353+00:00",
+  "serial": "192.168.1.82:44395",
+  "pkg": "com.kalsa.app",
+  "power": {
+    "ac": "false",
+    "usb": "false",
+    "level": "72",
+    "status": "3",
+    "temp_tenths_c": "380"
+  },
+  "metrics": {
+    "ttft_json": null,
+    "mark_ts": "08-13 21:31:28.133",
+    "telemetry": [
+      {
+        "ts": "08-13 21:32:46.194",
+        "turnId": "1",
+        "round": 0,
+        "tokensCached": 1501,
+        "tokensEvaluated": 1456,
+        "tokensPredicted": 44,
+        "draftTokens": 0,
+        "draftAccepted": 0,
+        "promptMs": 17357.455,
+        "predictedMs": 10691.402,
+        "predictedPerSecond": 4.115456513561084,
+        "contextFull": false,
+        "interrupted": false
+      }
+    ],
+    "first_telemetry": {
+      "ts": "08-13 21:32:46.194",
+      "turnId": "1",
+      "round": 0,
+      "tokensCached": 1501,
+      "tokensEvaluated": 1456,
+      "tokensPredicted": 44,
+      "draftTokens": 0,
+      "draftAccepted": 0,
+      "promptMs": 17357.455,
+      "predictedMs": 10691.402,
+      "predictedPerSecond": 4.115456513561084,
+      "contextFull": false,
+      "interrupted": false
+    },
+    "ttft_ms": 67370,
+    "ttft_source": "telemetry_minus_predicted",
+    "prompt_ms": 17357.455,
+    "predicted_ms": 10691.402
+  },
+  "scenario": "S3_v2",
+  "arm": "after",
+  "rep": "",
+  "send_info": {
+    "tap": [
+      426,
+      447
+    ],
+    "prompt": "25",
+    "typed": "25",
+    "mark": "S3_v2"
+  },
+  "notes": ""
+}

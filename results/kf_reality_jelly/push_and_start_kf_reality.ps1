@@ -1,16 +1,57 @@
 # Push ONLY the KF REALITY harness + prompt to Jelly and start it.
 # Never writes the campaign pin. Never writes ~/bin/kernel_kf/bmoe-cli.
 # Do NOT run this from the build step — owner starts it.
+#
+# v2 long-generation invocation (defaults remain v1-compatible):
+#   .\push_and_start_kf_reality.ps1 `
+#     -PromptFile prompts/p_long.txt `
+#     -ExpectedPromptSha 5c3f4113908b1b615fe879d3b895d348b1db3ab5fe26a2bacffaa780f044c9a9 `
+#     -OutDir ~/experiments/results/kf_reality_v2 `
+#     -NGen 1500
+# Width sweep:
+#   .\push_and_start_kf_reality.ps1 `
+#     -PromptFile prompts/p_long.txt `
+#     -ExpectedPromptSha 5c3f4113908b1b615fe879d3b895d348b1db3ab5fe26a2bacffaa780f044c9a9 `
+#     -OutDir ~/experiments/results/kf_sweep `
+#     -NGen 1000 `
+#     -BlockPlan "OFF ON:6 ON:4 ON:3 ON:2 OFF"
+# Equivalent env:
+#   $env:PROMPT_FILE='prompts/p_long.txt'
+#   $env:EXPECTED_PROMPT_SHA='5c3f4113908b1b615fe879d3b895d348b1db3ab5fe26a2bacffaa780f044c9a9'
+#   $env:OUTDIR='~/experiments/results/kf_reality_v2'
+#   $env:N_GEN='1500'
+#   $env:BLOCK_PLAN='OFF ON:6 ON:6 OFF'
+#   .\push_and_start_kf_reality.ps1
+
+param(
+    [string]$PromptFile,
+    [string]$ExpectedPromptSha,
+    [string]$OutDir,
+    [string]$NGen,
+    [string]$BlockPlan
+)
+
 $ErrorActionPreference = "Stop"
+if (-not $PromptFile) { $PromptFile = $env:PROMPT_FILE }
+if (-not $ExpectedPromptSha) { $ExpectedPromptSha = $env:EXPECTED_PROMPT_SHA }
+if (-not $OutDir) { $OutDir = $env:OUTDIR }
+if (-not $NGen) { $NGen = $env:N_GEN }
+if (-not $BlockPlan) { $BlockPlan = $env:BLOCK_PLAN }
+if (-not $PromptFile) { $PromptFile = "prompts/p_fact.txt" }
+if (-not $ExpectedPromptSha) { $ExpectedPromptSha = "b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd" }
+if (-not $OutDir) { $OutDir = "~/experiments/results/kf_reality_jelly" }
+if (-not $NGen) { $NGen = "1000" }
+if (-not $BlockPlan) { $BlockPlan = "OFF ON:6 ON:6 OFF" }
+
 $ssh = @("-p","8022","-o","BatchMode=yes","-o","ConnectTimeout=15")
 $scp = @("-P","8022","-o","BatchMode=yes","-o","ConnectTimeout=15")
 $host_ = "u0_a225@192.168.1.82"
 $root = "C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kf_reality_jelly"
-$remote = "~/experiments/results/kf_reality_jelly"
+$remote = $OutDir
 $protoPrompt = "C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\kernel_kf_proto\prompts\p_fact.txt"
-$expectedKf = "81c10e8c7c6f9cd35db4848f44e257e5fe52bfbe27daa316a01d8ece3f9b814c"
+$expectedKf = "77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e"
 $expectedCamp = "36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81"
-$expectedFact = "b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd"
+$expectedFact = $ExpectedPromptSha
 
 function L($m) {
     $line = "[{0}] {1}" -f (Get-Date -Format o), $m
@@ -30,10 +71,20 @@ function Assert-LF([string]$path) {
     L ("LF_OK {0} ({1} bytes)" -f $path, $bytes.Length)
 }
 
+if ([System.IO.Path]::IsPathRooted($PromptFile)) {
+    $prompt = $PromptFile
+    $promptRel = "prompts/" + [System.IO.Path]::GetFileName($PromptFile)
+} else {
+    $promptRel = ($PromptFile -replace "\\", "/")
+    $prompt = Join-Path $root ($PromptFile -replace "/", "\")
+}
+$remotePrompt = "$remote/$promptRel"
+
 $harness = Join-Path $root "run_kf_reality_jelly.sh"
-$prompt = Join-Path $root "prompts\p_fact.txt"
 if (-not (Test-Path $harness)) { throw "missing $harness" }
 if (-not (Test-Path $prompt)) {
+    $promptBase = [System.IO.Path]::GetFileName($prompt)
+    if ($promptBase -ne "p_fact.txt") { throw "missing prompt $prompt" }
     if (-not (Test-Path $protoPrompt)) { throw "missing prompt $prompt and proto fallback $protoPrompt" }
     New-Item -ItemType Directory -Force -Path (Join-Path $root "prompts") | Out-Null
     $raw = [System.IO.File]::ReadAllBytes($protoPrompt)
@@ -62,16 +113,16 @@ if ($LASTEXITCODE -ne 0) { throw "ssh failed (mkdir remote dirs) LASTEXITCODE=$L
 L "scp harness + prompt (no binaries)"
 scp @scp $harness "${host_}:${remote}/run_kf_reality_jelly.sh"
 if ($LASTEXITCODE -ne 0) { throw "scp failed (harness) LASTEXITCODE=$LASTEXITCODE" }
-scp @scp $prompt "${host_}:${remote}/prompts/p_fact.txt"
+scp @scp $prompt "${host_}:${remotePrompt}"
 if ($LASTEXITCODE -ne 0) { throw "scp failed (prompt) LASTEXITCODE=$LASTEXITCODE" }
 
 L "remote LF check + chmod + re-hash pins"
 ssh @ssh $host_ @"
 export PATH=/data/data/com.termux/files/usr/bin:`$HOME/bin:`$PATH
 chmod 755 $remote/run_kf_reality_jelly.sh
-chmod 644 $remote/prompts/p_fact.txt
+chmod 644 $remotePrompt
 echo '--- remote CR check (must be empty) ---'
-if grep -l `$'\r' $remote/run_kf_reality_jelly.sh $remote/prompts/p_fact.txt; then
+if grep -l `$'\r' $remote/run_kf_reality_jelly.sh $remotePrompt; then
   echo 'FAIL_CRLF'
   exit 20
 fi
@@ -79,7 +130,7 @@ echo 'LF_OK remote'
 echo '--- kf bin + campaign pin (must match before) ---'
 sha256sum ~/bin/kernel_kf/bmoe-cli ~/bin/bmoe-cli.JELLY
 echo '--- prompt ---'
-sha256sum $remote/prompts/p_fact.txt
+sha256sum $remotePrompt
 "@ | Tee-Object -FilePath "$root\install_remote.txt"
 if ($LASTEXITCODE -ne 0) { throw "ssh failed (remote LF check + re-hash) LASTEXITCODE=$LASTEXITCODE" }
 $install = Get-Content "$root\install_remote.txt" -Raw
@@ -137,9 +188,10 @@ if ($st -eq "DONE" -and -not $env:FORCE -and -not $env:RESUME_FROM) {
 }
 
 L "start harness in nohup + wake-lock"
-$resumeEnv = ""
-if ($env:RESUME_FROM) { $resumeEnv = "RESUME_FROM=$($env:RESUME_FROM)" }
-if ($env:FORCE) { $resumeEnv = "$resumeEnv FORCE=1" }
-ssh @ssh $host_ "export PATH=/data/data/com.termux/files/usr/bin:`$HOME/bin:`$PATH; termux-wake-lock >/dev/null 2>&1 || true; $resumeEnv nohup bash $remote/run_kf_reality_jelly.sh > $remote/nohup.out 2>&1 & echo PID=`$!; sleep 1; cat $remote/STATUS.txt 2>/dev/null; tail -8 $remote/KF_REALITY.master.log 2>/dev/null"
+$startEnv = "OUTDIR=$remote N_GEN=$NGen PROMPT_FILE=$promptRel EXPECTED_PROMPT_SHA=$ExpectedPromptSha BLOCK_PLAN=`"$BlockPlan`""
+if ($env:RESUME_FROM) { $startEnv = "$startEnv RESUME_FROM=$($env:RESUME_FROM)" }
+if ($env:FORCE) { $startEnv = "$startEnv FORCE=1" }
+L ("start cmdline: {0} nohup bash {1}/run_kf_reality_jelly.sh > {1}/nohup.out 2>&1 &" -f $startEnv, $remote)
+ssh @ssh $host_ "export PATH=/data/data/com.termux/files/usr/bin:`$HOME/bin:`$PATH; termux-wake-lock >/dev/null 2>&1 || true; $startEnv nohup bash $remote/run_kf_reality_jelly.sh > $remote/nohup.out 2>&1 & echo PID=`$!; sleep 1; cat $remote/STATUS.txt 2>/dev/null; tail -8 $remote/KF_REALITY.master.log 2>/dev/null"
 if ($LASTEXITCODE -ne 0) { throw "ssh failed (start harness) LASTEXITCODE=$LASTEXITCODE" }
 L "PUSH+START done"

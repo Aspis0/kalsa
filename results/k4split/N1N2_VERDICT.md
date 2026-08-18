@@ -235,3 +235,23 @@ B/Auto also pins `ffn_gate_inp\.weight`). Full write-up:
 
 N3/N4 are unblocked **only** UNPLUGGED, batt ≥45 %, same cache, pin on
 every split arm.
+
+---
+
+## N3/N4 — waiter ARMED (2026-08-13T06:46:19-04:00)
+
+On-device waiter pid **21569**, `STATUS=WAITER_ARMED`.
+Scripts: `~/gdn_k2/k4split/n3/{wait_and_run,run_n3n4}.sh`.
+Binary pin OK `b8b1c732…`. First poll: PLUGGED_AC 100 % 29.5 °C.
+
+Start gate: UNPLUGGED **and** batt ≥45 % **and** batt temp ≤35 °C.
+Window 6 h → `ARMED_EXPIRED` if still plugged.
+
+N3: ABBA × `p_fact` + `p_creative`, n=200, cold fadvise, cache-1000
+`--force-cache`, ARM_CPU `-ngl 0` vs ARM_SPLIT `-ngl 99 --moe-cpu-experts
+on --override-tensor ffn_gate_inp.weight=CPU`. 60 s MemFree guard.
+N4 auto only if decode ≥1.10× **or** TTFT ≥1.5×; 15 min/arm, cooldown
+T0+1 °C, first segment cold then warm.
+
+This section will be replaced with numbers (or `ARMED_EXPIRED`) when the
+waiter fires or times out. **No speed number below this line is real yet.**

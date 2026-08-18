@@ -82,6 +82,23 @@ Medians (`SPEED_NOTES.md` table; `_stats.json` agrees, display rounding only):
 
 **Overall SPEED gate: PASS.** Transfer is a **speed** transfer, not a **cache-regime** transfer: hit only moved +3.2 pt (33.50 → 36.65). The I/O win vs A0 is the MiB/tok drop (−34%), not residency. vs same-session KEXP, Marco A2 is still cold (hit 36.7 vs 80.7; 126.2 vs 30.7 MiB/tok, ~4.1× more bytes per token). KEXP decode is only ~1.06× A2 (5.70 vs 5.37); TTFT is *worse* on KEXP (18.98 vs 12.64) — the KEXP gap is I/O, not tok/s.
 
+### Jelly Star ranking (2026-08-12, unplugged, ABBA)
+
+Same cells A0 vs A2, n=200, `-t 2`, io-threads 4, bin Jelly pin `36b01966…`. Absolute tok/s **not** product-citeable; ranking only.
+
+| cell | n | decode tok/s | MiB/tok | hit% |
+|------|--:|-------------:|--------:|-----:|
+| A0 | 4 | 2.476 | 191.09 | 34.2 |
+| A2 | 4 | 2.891 | 123.02 | 38.45 |
+
+| gate | observed | verdict |
+|------|----------|---------|
+| decode ≥ 1.15× | **1.17×** | **PASS** |
+| MiB/tok ≤ −20% | **−35.6%** | **PASS** |
+| hit% | **+4.3 pt** | reported — still not +15 pt |
+
+Same shape as S23: decode and MiB pass, hit barely moves. Ratio is smaller than S23 (1.17 vs 1.30) — flash-bound G99, as expected. Artefacts: `results/marco_phase1/speed_jelly/`.
+
 ## Verdict per PROTOCOL
 
 Quality 3/3 full PASS + speed PASS on both levers → **runtime transfer is SUFFICIENT**.

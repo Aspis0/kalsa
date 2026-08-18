@@ -45,6 +45,7 @@ from __future__ import annotations
 import argparse
 import csv
 import io
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -115,23 +116,79 @@ def load_rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
-def load_token_walls(path: Path) -> list[float]:
+def _iter_token_rows(path: Path) -> Iterable[dict[str, str]]:
     if not path.exists():
-        return []
-    walls: list[float] = []
+        return
     with path.open(encoding="utf-8", errors="replace", newline="") as f:
-        # Skip # preamble; DictReader uses the first non-# line as header.
         data = io.StringIO()
         for line in f:
             if line.startswith("#"):
                 continue
             data.write(line)
         data.seek(0)
-        for row in csv.DictReader(data):
-            w = _f(row.get("wall_ms"))
-            if w is not None:
-                walls.append(w)
+        yield from csv.DictReader(data)
+
+
+def load_token_walls(path: Path) -> list[float]:
+    walls: list[float] = []
+    for row in _iter_token_rows(path):
+        w = _f(row.get("wall_ms"))
+        if w is not None:
+            walls.append(w)
     return walls
+
+
+def load_token_majflt(path: Path) -> list[float]:
+    """Per-token majflt column (already a per-token delta, not cumulative)."""
+    vals: list[float] = []
+    for row in _iter_token_rows(path):
+        m = _f(row.get("majflt"))
+        if m is not None:
+            vals.append(m)
+    return vals
+
+
+def majflt_first100_rest(vals: list[float]) -> tuple[float | None, float | None]:
+    """Mean majflt/token over the first 100 decode tokens vs the rest."""
+    if not vals:
+        return None, None
+    k = min(100, len(vals))
+    first = sum(vals[:k]) / k
+    if len(vals) > 100:
+        rest = sum(vals[100:]) / (len(vals) - 100)
+    else:
+        rest = None
+    return first, rest
+
+
+def row_kf_width(row: dict[str, str]) -> int | None:
+    """ON width from kf_width, else label `bN_ON_wW`, else v1 default 6. OFF → None."""
+    arm = (row.get("arm") or "").strip()
+    if arm != "ON":
+        return None
+    w = _i(row.get("kf_width"))
+    if w is not None and w > 0:
+        return w
+    label = row.get("label") or ""
+    m = re.search(r"_w(\d+)", label)
+    if m:
+        return int(m.group(1))
+    return 6
+
+
+def on_widths(rows: list[dict[str, str]]) -> list[int]:
+    ws: set[int] = set()
+    for r in rows:
+        if (r.get("arm") or "").strip() != "ON":
+            continue
+        w = row_kf_width(r)
+        if w is not None:
+            ws.add(w)
+    return sorted(ws)
+
+
+def is_sweep(rows: list[dict[str, str]]) -> bool:
+    return len(on_widths(rows)) > 1
 
 
 def block_sag(walls: list[float]) -> float | None:
@@ -262,12 +319,14 @@ def analyze(rows: list[dict[str, str]], root: Path) -> str:
     kept = [r for r in rows if str(r.get("excluded", "0")).strip() != "1"]
     lines.append(f"Rows in runs.csv: {len(rows)} (excluded=0: {len(kept)})")
     lines.append("")
-    lines.append("| order | arm | tok/s | wall_s/tok | stall% | J/tok | majflt | read_GB | temp_max | batt | n | dur_s |")
-    lines.append("| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |")
+    lines.append("| order | arm | width | tok/s | wall_s/tok | stall% | J/tok | majflt | read_GB | temp_max | batt | n | dur_s |")
+    lines.append("| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |")
     for r in kept:
         batt = f"{r.get('batt_start','')}→{r.get('batt_end','')}"
+        w = row_kf_width(r)
+        w_s = "" if w is None else str(w)
         lines.append(
-            f"| {r.get('order_idx','')} | {r.get('arm','')} | {r.get('decode_tps','')} | "
+            f"| {r.get('order_idx','')} | {r.get('arm','')} | {w_s} | {r.get('decode_tps','')} | "
             f"{r.get('wall_s_tok','')} | {r.get('stall_pct','')} | {r.get('j_per_tok','')} | "
             f"{r.get('majflt_delta','')} | {r.get('read_bytes_gb','')} | {r.get('temp_max','')} | "
             f"{batt} | {r.get('n_tokens','')} | {r.get('duration_s','')} |"
@@ -436,6 +495,87 @@ def analyze(rows: list[dict[str, str]], root: Path) -> str:
     lines.append(f"- memavail_min_kib (hot blocks) = `{mem_min}`")
     lines.append("")
 
+    # Width groups: OFF pooled; each ON kf_width is its own group. Hot = order_idx >= 2.
+    def hot_groups() -> list[tuple[str, int | None, list[dict[str, str]]]]:
+        off = arm_hot("OFF")
+        by_w: dict[int, list[dict[str, str]]] = {}
+        for r in arm_hot("ON"):
+            w = row_kf_width(r) or 6
+            by_w.setdefault(w, []).append(r)
+        out: list[tuple[str, int | None, list[dict[str, str]]]] = []
+        if off:
+            out.append(("OFF", None, off))
+        for w in sorted(by_w):
+            out.append(("ON", w, by_w[w]))
+        return out
+
+    def fmt_num(v: float | None, nd: int = 4) -> str:
+        if v is None:
+            return ""
+        return f"{v:.{nd}f}"
+
+    def group_majflt_split(rs: list[dict[str, str]]) -> tuple[float | None, float | None]:
+        first_sum = 0.0
+        first_n = 0
+        rest_sum = 0.0
+        rest_n = 0
+        for r in rs:
+            p = resolve_token_csv(r, root)
+            if p is None:
+                continue
+            vals = load_token_majflt(p)
+            if not vals:
+                continue
+            k = min(100, len(vals))
+            first_sum += sum(vals[:k])
+            first_n += k
+            if len(vals) > 100:
+                rest_sum += sum(vals[100:])
+                rest_n += len(vals) - 100
+        first = first_sum / first_n if first_n else None
+        rest = rest_sum / rest_n if rest_n else None
+        return first, rest
+
+    lines.append("## Width Pareto (hot blocks)")
+    lines.append("")
+    lines.append(
+        "Hot = `order_idx >= 2`. OFF pooled; each ON width is its own group. "
+        "`majflt/tok first100` vs `rest` uses the per-token CSV `majflt` column "
+        "(already a per-token delta)."
+    )
+    lines.append("")
+    lines.append(
+        "| width | tok/s | p50 | p90 | p99 | max | stutter% | J/tok | "
+        "majflt/tok | majflt/tok first100 | majflt/tok rest | read GB | ttft_s |"
+    )
+    lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
+    for arm_name, width, rs in hot_groups():
+        w_s = "OFF" if arm_name == "OFF" else str(width)
+        walls = collect_walls(rs)
+        tps = mean_field(rs, "decode_tps")
+        jpt = j_per_tok(rs)
+        maj = maj_per_tok(rs)
+        rb = mean_field(rs, "read_bytes_gb")
+        ttft = mean_field(rs, "ttft_s")
+        first100, rest = group_majflt_split(rs)
+        if walls:
+            p50 = percentile(walls, 0.50)
+            p90 = percentile(walls, 0.90)
+            p99 = percentile(walls, 0.99)
+            mx = max(walls)
+            stutter_n = sum(1 for w in walls if w > 2.0 * p50)
+            stutter_pct = 100.0 * stutter_n / len(walls)
+            p50_s, p90_s, p99_s, mx_s = f"{p50:.2f}", f"{p90:.2f}", f"{p99:.2f}", f"{mx:.2f}"
+            st_s = f"{stutter_pct:.2f}"
+        else:
+            p50_s = p90_s = p99_s = mx_s = st_s = ""
+        lines.append(
+            f"| {w_s} | {fmt_num(tps, 3)} | {p50_s} | {p90_s} | {p99_s} | {mx_s} | "
+            f"{st_s} | {fmt_num(jpt, 6)} | {fmt_num(maj, 6)} | {fmt_num(first100, 4)} | "
+            f"{fmt_num(rest, 4)} | {fmt_num(rb, 4)} | {fmt_num(ttft, 3)} |"
+        )
+    lines.append("")
+
     if len(off_h) < OFF_HOT_DESIGNED:
         lines.append("WARNING: arm OFF missing hot block(s) — verdicts from thinner data")
         lines.append("")
@@ -445,6 +585,14 @@ def analyze(rows: list[dict[str, str]], root: Path) -> str:
 
     lines.append("## Verdicts")
     lines.append("")
+    if is_sweep(kept):
+        lines.append(
+            "Note: sweep mode (multiple ON widths). The four YES/NO/MIXED gates "
+            "below are **informational** — they compare OFF vs pooled ON (v1 "
+            "semantics) and are not the registered gate cell. Use the Width "
+            "Pareto table for screening."
+        )
+        lines.append("")
     lines.append("| gate | verdict | numbers |")
     lines.append("| --- | --- | --- |")
     lines.append(f"| KF_ENERGY_WIN | **{e_v}** | {e_n} |")
@@ -463,10 +611,17 @@ def write_tail(md: str, tail_path: Path) -> None:
 # Self-test (synthetic ABBA, native --csv shape)
 # ---------------------------------------------------------------------------
 
-def _tok_csv(n: int, wall: float, spikes: list[tuple[int, float]], kf: int) -> str:
+def _tok_csv(
+    n: int,
+    wall: float,
+    spikes: list[tuple[int, float]],
+    kf: int,
+    width: int = 6,
+    majflt: list[int] | None = None,
+) -> str:
     lines = [
         "# bmoe_metrics v2",
-        f"# moe_stream=1 kf_prefetch={kf} kf_prefetch_width=6",
+        f"# moe_stream=1 kf_prefetch={kf} kf_prefetch_width={width}",
         TOKEN_HEADER,
     ]
     for i in range(1, n + 1):
@@ -474,8 +629,9 @@ def _tok_csv(n: int, wall: float, spikes: list[tuple[int, float]], kf: int) -> s
         for idx, val in spikes:
             if i == idx:
                 w = val
+        mf = 0 if majflt is None or i - 1 >= len(majflt) else int(majflt[i - 1])
         lines.append(
-            f"{i},{n},{w:.3f},10.0,100.0,1000,60.0,20.0,5.0,0,80.0,-1,1,0,2000,400,200,200,0,5000,4000,0,1.0,0,0,0,0,0,0"
+            f"{i},{n},{w:.3f},10.0,100.0,1000,60.0,20.0,5.0,{mf},80.0,-1,1,0,2000,400,200,200,0,5000,4000,0,1.0,0,0,0,0,0,0"
         )
     return "\n".join(lines) + "\n"
 
@@ -487,7 +643,7 @@ def _runs_header() -> str:
         "ttft_s,majflt_delta,read_bytes,read_bytes_gb,temp_start,temp_max,temp_end,"
         "batt_start,batt_end,freq_p50_c0,freq_p95_c0,freq_p50_c1,freq_p95_c1,n_tokens,"
         "duration_s,memavail_start_kib,memavail_min_kib,screen,plugged,excluded,csv_path,"
-        "freq_readable"
+        "freq_readable,kf_width"
     )
 
 
@@ -503,13 +659,20 @@ def _run_row(
     mem: int,
     csv_path: str,
     excluded: int = 0,
+    kf_width: int | str = "",
 ) -> str:
     jpt = joules / n
+    if arm == "ON" and kf_width == "":
+        label = f"b{order}_ON"
+    elif arm == "ON":
+        label = f"b{order}_ON_w{kf_width}"
+    else:
+        label = f"b{order}_OFF"
     return (
-        f"t,{order},{arm},b{order}_{arm},{tps},{wall},0.2,0.01,0.05,20,"
+        f"t,{order},{arm},{label},{tps},{wall},0.2,0.01,0.05,20,"
         f"100,70,30,70,60,{joules},{jpt:.8f},decode,2.0,{maj},100000000,0.1,"
         f"{tmax-1},{tmax},{tmax},80,78,500000,800000,1100000,1600000,{n},"
-        f"{int(n/tps)},6000000,{mem},Awake,UNPLUGGED,{excluded},{csv_path},1"
+        f"{int(n/tps)},6000000,{mem},Awake,UNPLUGGED,{excluded},{csv_path},1,{kf_width}"
     )
 
 
@@ -648,6 +811,62 @@ def selftest() -> int:
     assert "| KF_THERMAL_WIN | **MIXED** |" in md_thin, md_thin
     assert "| KF_MEMORY_WIN | **MIXED** |" in md_thin, md_thin
     assert "| KF_ROBUST_WIN | **MIXED** |" in md_thin, md_thin
+
+    # Sweep: two ON widths + first-100 majflt split. n>100 so rest is defined.
+    n_sw = 150
+    maj_w6 = [10] * 100 + [1] * 50
+    maj_w4 = [4] * 100 + [2] * 50
+    maj_off = [20] * 100 + [5] * 50
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / "per_token").mkdir()
+        (root / "per_token" / "b1_OFF.csv").write_text(
+            _tok_csv(n_sw, 320.0, [], 0, width=0, majflt=maj_off),
+            encoding="utf-8",
+            newline="\n",
+        )
+        (root / "per_token" / "b2_ON_w6.csv").write_text(
+            _tok_csv(n_sw, 210.0, [], 1, width=6, majflt=maj_w6),
+            encoding="utf-8",
+            newline="\n",
+        )
+        (root / "per_token" / "b3_ON_w4.csv").write_text(
+            _tok_csv(n_sw, 240.0, [], 1, width=4, majflt=maj_w4),
+            encoding="utf-8",
+            newline="\n",
+        )
+        (root / "per_token" / "b4_OFF.csv").write_text(
+            _tok_csv(n_sw, 318.0, [], 0, width=0, majflt=maj_off),
+            encoding="utf-8",
+            newline="\n",
+        )
+        p1 = str(root / "per_token" / "b1_OFF.csv")
+        p2 = str(root / "per_token" / "b2_ON_w6.csv")
+        p3 = str(root / "per_token" / "b3_ON_w4.csv")
+        p4 = str(root / "per_token" / "b4_OFF.csv")
+        runs = [_runs_header()]
+        runs.append(_run_row(1, "OFF", 3.1, 0.322, 80.0, n_sw, 40, 31.0, 5000000, p1, kf_width=""))
+        runs.append(_run_row(2, "ON", 4.7, 0.213, 70.0, n_sw, 20, 32.0, 4900000, p2, kf_width=6))
+        runs.append(_run_row(3, "ON", 4.1, 0.244, 75.0, n_sw, 25, 32.5, 4800000, p3, kf_width=4))
+        runs.append(_run_row(4, "OFF", 3.0, 0.333, 85.0, n_sw, 45, 33.0, 4700000, p4, kf_width=""))
+        (root / "runs.csv").write_text("\n".join(runs) + "\n", encoding="utf-8", newline="\n")
+
+        md_sw = analyze(load_rows(root / "runs.csv"), root)
+        assert "## Width Pareto (hot blocks)" in md_sw, md_sw
+        assert "| 6 |" in md_sw and "| 4 |" in md_sw, md_sw
+        assert "| OFF |" in md_sw, md_sw
+        # first-100 vs rest: w6 → 10.0000 / 1.0000; w4 → 4.0000 / 2.0000
+        assert "10.0000" in md_sw and "1.0000" in md_sw, md_sw
+        assert "4.0000" in md_sw and "2.0000" in md_sw, md_sw
+        assert "informational" in md_sw.lower(), md_sw
+        assert "sweep mode" in md_sw.lower(), md_sw
+        # Gates still computed (v1 pooled ON vs OFF) — informational, not skipped.
+        assert "| KF_ENERGY_WIN |" in md_sw
+        assert "| KF_ROBUST_WIN |" in md_sw
+        first6, rest6 = majflt_first100_rest([float(x) for x in maj_w6])
+        first4, rest4 = majflt_first100_rest([float(x) for x in maj_w4])
+        assert first6 == 10.0 and rest6 == 1.0, (first6, rest6)
+        assert first4 == 4.0 and rest4 == 2.0, (first4, rest4)
 
     print("SELFTEST_OK")
     return 0

@@ -8,6 +8,7 @@
 **Power:** PLUGGED AC · level 100% · 29–37 °C. Absolute numbers are PLUGGED. Relative A/B is the deliverable; BEFORE APK was not built (see caveats).
 **Artefacts:** `results/ttft_verify_jelly/`
 **Finestra:** 2026-08-13 17:53 → 23:10 local · STATUS **DONE** (AFTER only; S4/S5 not run)
+**Branch fate:** `fix/ttft-load-policy` **cancelled** after this matrix — total fail, not shipped.
 **S23:** not touched.
 
 ---

@@ -1,0 +1,4 @@
+window_s=10800
+completed=transfer+sha+harness+preflight
+timed_cells=none
+plugged=False level=-1 tempC=-1

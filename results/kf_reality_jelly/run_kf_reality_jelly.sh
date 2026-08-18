@@ -2,9 +2,13 @@
 # run_kf_reality_jelly.sh — KF REALITY cell on Jelly Star.
 # Sustained + tail + energy + memory. Build-only sibling of kernel_kf_proto.
 #
-# Sequence: 4 blocks ABBA at block level — OFF ON ON OFF.
-# Each block = ONE continuous generation of 1000 tokens, same p_fact prompt.
+# Sequence: BLOCK_PLAN (space-separated ARM[:WIDTH] tokens).
+# Default "OFF ON:6 ON:6 OFF" is exact v1 ABBA. Sweep example:
+#   BLOCK_PLAN="OFF ON:6 ON:4 ON:3 ON:2 OFF"
+# Each block = ONE continuous generation of N_GEN tokens, same prompt.
 # NO cold reset / fadvise between blocks (hot page-cache regime is the point).
+# ON blocks pass --kf-prefetch --kf-prefetch-width $w; OFF ignores width.
+# Plan is persisted to $OUTDIR/block_plan.txt; resume refuses a mismatched env.
 #
 # Per-token latencies: native CLI flag `--csv PATH` (csv_metrics_sink.cpp).
 # Columns: step,steps,wall_ms,io_ms,compute_ms,read_bytes,cache_hit_pct,stall_ms,
@@ -33,29 +37,111 @@ CAMPAIGN_BIN="${CAMPAIGN_BIN:-$HOME/bin/bmoe-cli.JELLY}"
 MODEL="${MODEL:-$HOME/models/Marco-Mini-Instruct-KEXP.gguf}"
 export LD_LIBRARY_PATH="$(dirname "$BIN")${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-EXPECTED_KF_SHA="81c10e8c7c6f9cd35db4848f44e257e5fe52bfbe27daa316a01d8ece3f9b814c"
+EXPECTED_KF_SHA="77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e"
 EXPECTED_CAMPAIGN_SHA="36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81"
 EXPECTED_MODEL_SHA="2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777"
 EXPECTED_MODEL_SIZE="6385238848"
 EXPECTED_FACT_SHA="b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd"
+EXPECTED_PROMPT_SHA="${EXPECTED_PROMPT_SHA:-$EXPECTED_FACT_SHA}"
 
 MEMAVAIL_ABORT_KIB=307200
 MEMAVAIL_STREAK_NEED=60   # 1 Hz × 60s, same 60s window as proto's 5s×12
 BATT_FLOOR=35
 TEMP_ABORT_C=43
-N_GEN=1000
-N_BLOCKS=4
+N_GEN="${N_GEN:-1000}"
+DEFAULT_BLOCK_PLAN="OFF ON:6 ON:6 OFF"
+PLAN_FILE="$OUTDIR/block_plan.txt"
+N_BLOCKS=0
+PLAN_ARMS=()
+PLAN_WIDTHS=()
 
 mkdir -p "$OUTDIR/logs" "$OUTDIR/prompts" "$OUTDIR/gen" "$OUTDIR/power" "$OUTDIR/per_token"
 CSV="$OUTDIR/runs.csv"
 MASTER="$OUTDIR/KF_REALITY.master.log"
 STATUS="$OUTDIR/STATUS.txt"
 RESUME_AT="$OUTDIR/RESUME_AT.txt"
-CSV_HEADER="ts,order_idx,arm,label,decode_tps,wall_s_tok,compute,mgmt,stall,stall_pct,issued_mib,hit_mib,wasted_mib,precision_pct,hit_pct,joules,j_per_tok,j_window,ttft_s,majflt_delta,read_bytes,read_bytes_gb,temp_start,cooldown_wait_s,temp_max,temp_end,batt_start,batt_end,freq_p50_c0,freq_p95_c0,freq_p50_c1,freq_p95_c1,n_tokens,duration_s,memavail_start_kib,memavail_min_kib,screen,plugged,excluded,csv_path,freq_readable"
+CSV_HEADER="ts,order_idx,arm,label,decode_tps,wall_s_tok,compute,mgmt,stall,stall_pct,issued_mib,hit_mib,wasted_mib,precision_pct,hit_pct,joules,j_per_tok,j_window,ttft_s,majflt_delta,read_bytes,read_bytes_gb,temp_start,cooldown_wait_s,temp_max,temp_end,batt_start,batt_end,freq_p50_c0,freq_p95_c0,freq_p50_c1,freq_p95_c1,n_tokens,duration_s,memavail_start_kib,memavail_min_kib,screen,plugged,excluded,csv_path,freq_readable,kf_width"
 
 ts(){ date '+%Y-%m-%dT%H:%M:%S%z'; }
 log(){ echo "[$(ts)] $*" | tee -a "$MASTER"; }
 sha_of(){ sha256sum "$1" | awk '{print $1}'; }
+
+# Collapse whitespace; strip CR. Used for persist + resume compare.
+normalize_plan_str(){
+  printf '%s' "$1" | tr -d '\r' | tr -s '[:space:]' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+# Fill PLAN_ARMS / PLAN_WIDTHS / N_BLOCKS from a normalized plan string.
+# ON without :WIDTH defaults to 6. OFF ignores any supplied width.
+parse_block_plan(){
+  local plan="$1"
+  PLAN_ARMS=()
+  PLAN_WIDTHS=()
+  local tok arm width
+  for tok in $plan; do
+    case "$tok" in
+      *:*)
+        arm="${tok%%:*}"
+        width="${tok#*:}"
+        ;;
+      *)
+        arm="$tok"
+        width=""
+        ;;
+    esac
+    arm=$(printf '%s' "$arm" | tr '[:lower:]' '[:upper:]')
+    if [ "$arm" != "OFF" ] && [ "$arm" != "ON" ]; then
+      log "bad BLOCK_PLAN token='$tok' (arm must be OFF or ON)"
+      echo "FAIL_BLOCK_PLAN" > "$STATUS"
+      exit 13
+    fi
+    if [ "$arm" = "ON" ]; then
+      if [ -z "$width" ]; then
+        width=6
+      fi
+      if ! printf '%s' "$width" | grep -qE '^[1-9][0-9]*$'; then
+        log "bad BLOCK_PLAN width in token='$tok'"
+        echo "FAIL_BLOCK_PLAN" > "$STATUS"
+        exit 13
+      fi
+    else
+      width=""
+    fi
+    PLAN_ARMS+=("$arm")
+    PLAN_WIDTHS+=("$width")
+  done
+  N_BLOCKS=${#PLAN_ARMS[@]}
+  if [ "$N_BLOCKS" -lt 1 ]; then
+    log "empty BLOCK_PLAN"
+    echo "FAIL_BLOCK_PLAN" > "$STATUS"
+    exit 13
+  fi
+}
+
+# Resume of a pre-sweep CSV: append kf_width to the header so new rows align.
+# Existing data rows stay short; DictReader then sees kf_width as empty.
+ensure_csv_header_kf_width(){
+  if [ ! -f "$CSV" ] || [ ! -s "$CSV" ]; then
+    return 0
+  fi
+  python3 - "$CSV" <<'PY'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+text = p.read_text(encoding="utf-8", errors="replace")
+if text.startswith("\ufeff"):
+    text = text[1:]
+lines = text.splitlines()
+if not lines:
+    raise SystemExit
+hdr = lines[0].replace("\r", "")
+cols = [c.strip() for c in hdr.split(",")]
+if "kf_width" in cols:
+    raise SystemExit
+lines[0] = hdr + ",kf_width"
+p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+}
 
 CAMP_SHA=""
 KF_SHA=""
@@ -604,8 +690,13 @@ PY
 
 run_block(){
   local order_idx="$1" arm="$2"
-  local retry_tag="${3:-}"
+  local width="${3:-}"
+  local retry_tag="${4:-}"
   local label="b${order_idx}_${arm}"
+  if [ "$arm" = "ON" ]; then
+    [ -n "$width" ] || width=6
+    label="b${order_idx}_ON_w${width}"
+  fi
   if [ -n "$retry_tag" ]; then
     label="${label}_${retry_tag}"
   fi
@@ -626,7 +717,7 @@ run_block(){
   ma_s=$(memavail_kib)
   screen_s=$(screen_state)
   [ -n "$screen_s" ] || screen_s="?"
-  log "RUN $label arm=$arm batt=$pct_s plugged=$plug temp=$temp_s screen=$screen_s memavail_kib=$ma_s n=$N_GEN cooldown_wait_s=$cooldown_wait_s"
+  log "RUN $label arm=$arm kf_width=${width:-0} batt=$pct_s plugged=$plug temp=$temp_s screen=$screen_s memavail_kib=$ma_s n=$N_GEN cooldown_wait_s=$cooldown_wait_s"
   if ! echo "$plug" | grep -qi UNPLUGGED; then
     log "STOP $label plugged=$plug"; echo "STOP_PLUGGED" > "$STATUS"; return 2
   fi
@@ -657,7 +748,7 @@ run_block(){
   cmd=("$BIN" -m "$MODEL" -p "$ptext" -n "$N_GEN")
   cmd+=("${BASE_FLAGS[@]}")
   if [ "$arm" = "ON" ]; then
-    cmd+=(--kf-prefetch --kf-prefetch-width 6)
+    cmd+=(--kf-prefetch --kf-prefetch-width "$width")
   fi
   cmd+=(--csv "$csv_tok")
 
@@ -778,10 +869,14 @@ PY
   fi
   LAST_EXCLUDED=$excluded
 
+  local kf_width_csv=""
+  if [ "$arm" = "ON" ]; then
+    kf_width_csv="$width"
+  fi
   local row
-  row="$(ts),${order_idx},${arm},${label},${decode_tps},${wall_s_tok},${compute},${mgmt},${stall},${stall_pct},${issued_mib},${hit_mib},${wasted_mib},${precision_pct},${hit_pct},${joules},${j_per_tok},${j_window},${ttft_s},${majflt_delta},${read_bytes},${read_bytes_gb},${temp_s},${cooldown_wait_s},${temp_max_s},${temp_end_s},${pct_s},${pct_e},${freq_p50_c0},${freq_p95_c0},${freq_p50_c1},${freq_p95_c1},${n_gen},${wall},${ma_s},${mem_min},${screen_e},${plug},${excluded},${csv_tok},${FREQ_READABLE}"
+  row="$(ts),${order_idx},${arm},${label},${decode_tps},${wall_s_tok},${compute},${mgmt},${stall},${stall_pct},${issued_mib},${hit_mib},${wasted_mib},${precision_pct},${hit_pct},${joules},${j_per_tok},${j_window},${ttft_s},${majflt_delta},${read_bytes},${read_bytes_gb},${temp_s},${cooldown_wait_s},${temp_max_s},${temp_end_s},${pct_s},${pct_e},${freq_p50_c0},${freq_p95_c0},${freq_p50_c1},${freq_p95_c1},${n_gen},${wall},${ma_s},${mem_min},${screen_e},${plug},${excluded},${csv_tok},${FREQ_READABLE},${kf_width_csv}"
   echo "$row" >> "$CSV"
-  log "DONE $label rc=$rc wall=${wall}s tps=$decode_tps s/tok=$wall_s_tok stall=$stall ($stall_pct%) issued=$issued_mib hit=$hit_mib wasted=$wasted_mib prec=$precision_pct joules=$joules j/tok=$j_per_tok ttft=$ttft_s j_window=$j_window majflt=$majflt_delta read_gb=$read_bytes_gb batt=${pct_s}->${pct_e} temp=${temp_s}/${temp_max_s}/${temp_end_s} cooldown_wait_s=$cooldown_wait_s excluded=$excluded"
+  log "DONE $label rc=$rc wall=${wall}s tps=$decode_tps s/tok=$wall_s_tok stall=$stall ($stall_pct%) issued=$issued_mib hit=$hit_mib wasted=$wasted_mib prec=$precision_pct joules=$joules j/tok=$j_per_tok ttft=$ttft_s j_window=$j_window majflt=$majflt_delta read_gb=$read_bytes_gb kf_width=${kf_width_csv:-0} batt=${pct_s}->${pct_e} temp=${temp_s}/${temp_max_s}/${temp_end_s} cooldown_wait_s=$cooldown_wait_s excluded=$excluded"
   tail -160 "$out/combo.txt" > "$out/tail.txt" || true
   return 0
 }
@@ -794,11 +889,12 @@ Status: RUNNING (skeleton — fill with `analyze_kf_reality.py` after the cell)
 
 ## Sequence
 
-4 blocks, ABBA at block level: **OFF ON ON OFF**.
+Blocks follow `block_plan.txt` (default **OFF ON:6 ON:6 OFF** — v1 ABBA).
+ON tokens are `ON:<width>` and pass `--kf-prefetch-width`. OFF ignores width.
 
-Each block is one continuous 1000-token generation (`p_fact`). No cold reset
+Each block is one continuous N_GEN-token generation. No cold reset
 between blocks. Per-token rows come from native `--csv` (`wall_ms`, `stall_ms`,
-`ra_issue_ms`, `ra_wd_ms`).
+`ra_issue_ms`, `ra_wd_ms`). ON per-token files are `b{N}_ON_w{W}.csv`.
 
 ## Verdicts
 
@@ -871,26 +967,32 @@ if [ "$msha" != "$EXPECTED_MODEL_SHA" ]; then
   log "MODEL sha mismatch"; echo "FAIL_MODEL_SHA" > "$STATUS"; exit 8
 fi
 
-P_FACT="${P_FACT:-$OUTDIR/prompts/p_fact.txt}"
+PROMPT_FILE="${PROMPT_FILE:-${P_FACT:-$OUTDIR/prompts/p_fact.txt}}"
+case "$PROMPT_FILE" in
+  /*) P_FACT="$PROMPT_FILE" ;;
+  *)  P_FACT="$OUTDIR/$PROMPT_FILE" ;;
+esac
 if [ ! -f "$P_FACT" ]; then
-  for cand in \
-    "$HOME/experiments/results/kernel_kf_proto/prompts/p_fact.txt" \
-    "$HOME/experiments/results/kf_reality_jelly/prompts/p_fact.txt"; do
-    if [ -f "$cand" ]; then
-      mkdir -p "$OUTDIR/prompts"
-      cp "$cand" "$OUTDIR/prompts/p_fact.txt"
-      P_FACT="$OUTDIR/prompts/p_fact.txt"
-      log "copied prompt from $cand"
-      break
-    fi
-  done
+  if [ "$(basename "$P_FACT")" = "p_fact.txt" ]; then
+    for cand in \
+      "$HOME/experiments/results/kernel_kf_proto/prompts/p_fact.txt" \
+      "$HOME/experiments/results/kf_reality_jelly/prompts/p_fact.txt"; do
+      if [ -f "$cand" ]; then
+        mkdir -p "$OUTDIR/prompts"
+        cp "$cand" "$OUTDIR/prompts/p_fact.txt"
+        P_FACT="$OUTDIR/prompts/p_fact.txt"
+        log "copied prompt from $cand"
+        break
+      fi
+    done
+  fi
 fi
 if [ ! -f "$P_FACT" ]; then
   log "prompt missing $P_FACT"; echo "FAIL_PROMPTS" > "$STATUS"; exit 9
 fi
 fact_sha=$(sha_of "$P_FACT")
 log "prompt_fact_sha=$fact_sha"
-if [ "$fact_sha" != "$EXPECTED_FACT_SHA" ]; then
+if [ "$fact_sha" != "$EXPECTED_PROMPT_SHA" ]; then
   log "fact prompt sha mismatch"; echo "FAIL_PROMPT_SHA" > "$STATUS"; exit 9
 fi
 
@@ -917,8 +1019,35 @@ elif [ -f "$CSV" ] && [ -s "$CSV" ] && [ -f "$STATUS" ]; then
     log "auto-resume from existing CSV (STATUS=$prev_st); complete blocks will be skipped"
   fi
 fi
+# BLOCK_PLAN persist / resume. Resume must replay the same plan.
+EFFECTIVE_PLAN=""
+if [ "$RESUME_MODE" = "1" ]; then
+  if [ -f "$PLAN_FILE" ]; then
+    EFFECTIVE_PLAN=$(normalize_plan_str "$(cat "$PLAN_FILE")")
+  else
+    EFFECTIVE_PLAN="$DEFAULT_BLOCK_PLAN"
+    log "RESUME: no $PLAN_FILE — assuming default v1 plan '$DEFAULT_BLOCK_PLAN'"
+    printf '%s\n' "$EFFECTIVE_PLAN" > "$PLAN_FILE"
+  fi
+  if [ -n "${BLOCK_PLAN+x}" ]; then
+    env_plan=$(normalize_plan_str "$BLOCK_PLAN")
+    if [ "$env_plan" != "$EFFECTIVE_PLAN" ]; then
+      log "BLOCK_PLAN env='$env_plan' != persisted '$EFFECTIVE_PLAN' — refuse resume"
+      echo "FAIL_BLOCK_PLAN" > "$STATUS"
+      exit 13
+    fi
+  fi
+  log "RESUME BLOCK_PLAN='$EFFECTIVE_PLAN'"
+else
+  EFFECTIVE_PLAN=$(normalize_plan_str "${BLOCK_PLAN:-$DEFAULT_BLOCK_PLAN}")
+  printf '%s\n' "$EFFECTIVE_PLAN" > "$PLAN_FILE"
+  log "BLOCK_PLAN='$EFFECTIVE_PLAN' persisted to $PLAN_FILE"
+fi
+parse_block_plan "$EFFECTIVE_PLAN"
+log "parsed n_blocks=$N_BLOCKS arms=${PLAN_ARMS[*]}"
+
 if ! echo "$START_BLOCK" | grep -qE '^[0-9]+$' || [ "$START_BLOCK" -lt 1 ] || [ "$START_BLOCK" -gt "$N_BLOCKS" ]; then
-  log "bad START_BLOCK=$START_BLOCK"
+  log "bad START_BLOCK=$START_BLOCK (n_blocks=$N_BLOCKS)"
   echo "FAIL_RESUME" > "$STATUS"
   exit 10
 fi
@@ -926,6 +1055,7 @@ fi
 if [ ! -f "$CSV" ] || [ ! -s "$CSV" ]; then
   echo "$CSV_HEADER" > "$CSV"
 elif [ "$RESUME_MODE" = "1" ]; then
+  ensure_csv_header_kf_width
   log "=== RESUME append mode START_BLOCK=$START_BLOCK ==="
 else
   echo "$CSV_HEADER" > "$CSV"
@@ -951,15 +1081,14 @@ restore(){
 trap 'restore; log "trap cleanup"' EXIT
 
 probe_freq
-log "=== KF REALITY Jelly START resume=$RESUME_MODE start_block=$START_BLOCK n_gen=$N_GEN ==="
-log "BASE: $BIN -m $MODEL -p <p_fact> -n $N_GEN ${BASE_FLAGS[*]}"
-log "ON adds: --kf-prefetch --kf-prefetch-width 6 --csv <per_token>"
-log "blocks: 1=OFF 2=ON 3=ON 4=OFF (no cold reset)"
+log "=== KF REALITY Jelly START resume=$RESUME_MODE start_block=$START_BLOCK n_gen=$N_GEN n_blocks=$N_BLOCKS ==="
+log "BASE: $BIN -m $MODEL -p <prompt> -n $N_GEN ${BASE_FLAGS[*]}"
+log "ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>"
+log "BLOCK_PLAN=$EFFECTIVE_PLAN (no cold reset)"
 
 preflight_block "$BATT_FLOOR" || { rc=$?; write_resume_at "$START_BLOCK"; recheck_campaign_pin || true; exit "$rc"; }
 
-# ABBA at block level.
-BLOCK_ARMS=(dummy OFF ON ON OFF)
+# Iterate BLOCK_PLAN (order_idx is 1-based position).
 VOID_LIST=""
 blk=$START_BLOCK
 while [ "$blk" -le "$N_BLOCKS" ]; do
@@ -970,9 +1099,10 @@ while [ "$blk" -le "$N_BLOCKS" ]; do
   fi
   preflight_block "$BATT_FLOOR" || { rc=$?; write_resume_at "$blk"; recheck_campaign_pin || true; exit "$rc"; }
   write_resume_at "$blk"
-  arm="${BLOCK_ARMS[$blk]}"
+  arm="${PLAN_ARMS[$((blk-1))]}"
+  width="${PLAN_WIDTHS[$((blk-1))]}"
   LAST_EXCLUDED=0
-  if ! run_block "$blk" "$arm"; then
+  if ! run_block "$blk" "$arm" "$width"; then
     rc=$?
     write_resume_at "$blk"
     recheck_campaign_pin || true
@@ -994,9 +1124,10 @@ for blk in $PRIOR_VOID; do
   fi
   preflight_block "$BATT_FLOOR" || { rc=$?; write_resume_at "$blk"; recheck_campaign_pin || true; exit "$rc"; }
   write_resume_at "$blk"
-  arm="${BLOCK_ARMS[$blk]}"
+  arm="${PLAN_ARMS[$((blk-1))]}"
+  width="${PLAN_WIDTHS[$((blk-1))]}"
   LAST_EXCLUDED=0
-  if ! run_block "$blk" "$arm" retry; then
+  if ! run_block "$blk" "$arm" "$width" retry; then
     rc=$?
     write_resume_at "$blk"
     recheck_campaign_pin || true

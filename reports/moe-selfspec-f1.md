@@ -1,125 +1,130 @@
-# MoE-k self-speculative decoding (F1)
+# moe-selfspec-f1
 
-**Verdict:** `F1_CORRECT(drift@pos) alpha=0.08 PC speedup 0.22 (NOISY_ENV)`
+**Host:** PC only (NOISY_ENV). No phones.
+**Commit:** `be3c7fe` `feat(engine): MoE-k self-speculative decoding` on `kalsa/selfspec-f1`
+**Model:** `models/Qwen3.6-35B-A3B-KEXP.gguf`
+**Logs:** `results/selfspec_f1_pc/`
+**STATUS:** loop shipped; PC identity is near-tie drift; PC speed loses.
 
-Engine commit: `be3c7fe` on `kalsa/selfspec-f1` (not pushed). llama.cpp submodule
-untouched. Host gates (config, G13, G15) green. CalaQwen PC identity drifts at the
-first token that batched verify orders differently from serial k=6; free-running
-alpha is 0.08 against F0's teacher-forced 0.6991; effective tok/s is a 0.22×
-slowdown in a noisy shared-PC environment.
+## What it is
 
-## Mechanism
+A third draft source for the existing speculative verify loop (`--mtp` / `--ngram`).
+`--selfspec-draft-k N` drafts with the **same weights** at top-k `N` and verifies at the
+campaign k (`--n-expert-used`, or the gguf default). Off by default.
+`--selfspec-gamma G` sets the draft width (default 4 when `--draft` is not passed).
 
-`n_expert_used` is a load-time hparam. Graph build copies it into the top-k node.
-`llm_graph_params::allow_reuse` does not compare it. Switching k on one context
-silently reuses a leftover campaign-k graph (capture warm-up, n_draft==0, a 1-token
-graph still in the cache) and the loop is then wrong.
+It is not a quality trade. A draft is accepted only where it equals the target's argmax.
+It inherits the batched-verify near-tie caveat already documented for `--mtp`.
 
-F1 therefore uses **one `llama_model`, two full-decoder contexts**:
+## k-switch
 
-| context | role | k | notes |
-|---|---|---|---|
-| `ctx` | target | campaign / verify | prefill + verify batch of γ+1 |
-| `ctx_dft` | draft | `draft_k` | 1-token draft steps + its own prefill. Default `ctx_type`, not MTP |
+`n_expert_used` lives on `llama_model::hparams` and is copied into the top-k node at
+**graph build**. `llm_graph_params::allow_reuse` does not compare it. Switching k on one
+context silently reuses a leftover campaign-k graph (capture warm-up, `n_draft==0`) and
+the loop is then wrong.
 
-Weights are shared. Streamer capture on the target is enough: both graphs reference
-the same tensors. Extra RAM is one KV plus draft compute buffers sized like MTP
-(`n_ubatch = max(32, γ+1)`, capped at the target).
+Shipped shape: **one model, two full-decoder contexts**.
 
-Public `llama.h` has no setter. The write is isolated in
-`core/src/engine/expert_k_switch.cpp`, the only translation unit that includes
-`llama-model.h`. `session.cpp` never sees that header. No in-tree llama.cpp patch,
-no second model load (a second model would silently mmap: the streamer rebinds
-pointers captured from the first).
+- `ctx` (target): always verify k. Prefill + the `γ+1` verify batch.
+- `ctx_dft` (draft): default `ctx_type`, not `LLAMA_CONTEXT_TYPE_MTP`. Always draft k.
+  1-token draft steps + its own prefill.
 
-Protocol: never decode a context while `hparams.k` is the other context's k. The
-draft context is also *created* at draft k so the graphs reserved at init are
-already the cheap top-k.
+Weights are shared. Streamer capture on the target is enough (both graphs reference the
+same tensors). Extra RAM is one KV plus draft compute buffers (`n_ubatch = max(32, γ+1)`,
+capped at the target's ubatch).
 
-Drop: draft pass (every decode on `ctx_dft`, including prefill) is d0. Verify
-restores campaign `--drop-cold-experts`. F0 measured d0 and d065 draft arms at
-the same alpha; d0 is simpler and keeps the identity gate well-defined.
+The only private reach is `core/src/engine/expert_k_switch.cpp`, the single TU that
+includes `llama-model.h` and writes `hparams.n_expert_used`. No llama.cpp patch. The
+draft context is created with hparams already at draft_k so its reserved graphs are
+k-stable. The protocol never decodes a context while hparams.k is the other context's k.
+
+Rejected: two `llama_model` loads (streamer would rebind one model's captured pointers;
+the other would silently mmap). Rejected: drop-to-k on a k=6 graph (not a real top-k
+reselect).
 
 ## KV and catch-up
 
-Draft writes only into `ctx_dft`. Target KV is never polluted. After a draft of
-`n_draft` tokens the last drafted token has been predicted, not consumed.
+Draft writes only into `ctx_dft`. Target KV is never polluted.
 
-On a **pure transformer** a tail `seq_rm` to `n_past+1+n_acc` is enough. This
-model is **hybrid** (qwen35moe + SSM). Two consequences:
+After a draft of `n_draft`, the last drafted token is predicted, not consumed. Verify on
+the target is `[tok] + draft`, batch of `n_draft+1`, all logits. Accept is the existing
+argmax prefix. Target `seq_rm` of the rejected tail is unchanged.
 
-1. `n_rs_seq` on the draft context is `draft_max`, not 0. Recurrent `seq_rm` of a
-   tail returns false when `n_rs_seq == 0`. The first CalaQwen run died with
-   `the cheaper-k draft context does not support rewinding its KV cache`. MTP
-   can keep 0: its nextn graph is attention-only.
-2. Incremental tail erase returns true via those snapshots and still leaves the
-   SSM state unaligned with attention. Catch-up therefore rewinds the whole cycle
-   (`seq_rm` from `n_past`) and replays `tok` plus the accepted drafts.
+Catch-up on the draft context **rewinds the cycle** (`llama_memory_seq_rm` from `n_past`)
+and **replays** `tok` plus the accepted prefix. That is the MTP catch-up shape.
 
-`n_past += 1 + n_acc` stays on the target. End-of-turn trim keys off `ctx_dft`,
-so chat prefix-reuse keeps working.
+An incremental tail-trim (keep `tok`+accepted, drop the rest) is enough for a pure
+transformer KV. On this hybrid model it is not. `llama_memory_recurrent::seq_rm` can only
+restore R/S from `n_rs_seq` snapshots; a partial rewind that does not hit the snapshot
+path leaves attention trimmed and R/S at the rejected tokens. Measured: first cycle
+accepted, then token-alpha collapsed to 5.6% (44/789) on longfact. After rewind+replay
+the same prompt is 18.0% (102/567) with first-token agreement ~66%.
+
+So the cheaper-k draft context asks for `n_rs_seq = draft_max`. MTP's draft context stays
+at 0: the nextn graph is attention-only. The target still has `n_rs_seq = draft_max` for
+any spec source.
+
+## Drop
+
+Every decode on `ctx_dft`, including its prefill, runs `set_drop_policy(0, ...)`.
+Verify restores campaign `--drop-cold-experts`. A cheaper top-k is already a thinner
+routing; a d0 draft arm and a d065 draft arm had essentially the same teacher-forced
+alpha (~0.70), so the draft side stays at d0. Identity comparisons are run at d0
+because drop-cold is state-dependent.
 
 ## Host gates
 
-`ctest` `config_validate`, `ngram_draft`, `moe_gates_qwen3moe` passed.
+`ctest -R "config_validate|moe_gates|ngram"`: all passed.
 
-- G13 (ngram abstain / live) not weakened.
-- G15a: tiny-moe, `draft_k=1`, `draft_max=2`, streaming on. 8 steps drafted, 24
-  tokens in 8 decodes.
-- G15b: same-k (`draft_k = n_expert_used = 2`) alpha = 1.000 (16/16).
+- G13 unchanged.
+- G15a (tiny-moe, `draft_k=1`, `draft_max=2`, streaming on): 8 steps drafted, 24 tokens
+  in 8 decodes.
+- G15b (same-k, both 2): alpha = 1.000 (16/16).
 
-## CalaQwen PC (NOISY_ENV)
+## CalaQwen correctness (d0, n=256, -t 4)
 
-Model `Qwen3.6-35B-A3B-KEXP.gguf`. Flags match F0 except `-t 4`, `-n 256`, and
-`--chatml --no-think` (raw `--session` made longfact emit one newline token and
-stop). A PPL `bmoe-cli` was left running on the same machine.
+Common flags: `--temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --overlap
+--io-threads 4 --progress -c 2048 --ubatch 512 -n 256 -t 4`. Raw `-p` (no chat template).
+Plain: `--n-expert-used 6`. Selfspec: that plus `--selfspec-draft-k 2 --selfspec-gamma 4`.
 
-### Identity, d0, k=6 vs `--selfspec-draft-k 2 --selfspec-gamma 4`
+| prompt   | first text drift | window alpha | tokens/verify |
+|----------|------------------|--------------|---------------|
+| longfact | pos 225 (`.` dropped) | 102/567 = 0.180 | 1.66 |
+| creative | pos 47 (`734` vs `7`) | 48/715 = 0.067 | 1.25 |
+| code     | pos 203            | 75/644 = 0.116 | 1.41 |
 
-| prompt   | n     | first differing text |
-|----------|-------|----------------------|
-| longfact | 256   | pos 12: `35 billion` vs `35-billion` |
-| creative | 216   | pos 29: `polished chrome` vs `chrome` |
-| code     | 256   | pos 22: extra `import sys` |
+Pooled window alpha **0.117** (225/1926).
 
-One early token flip, then the cascade. That is the batched-verify caveat,
-happening immediately on hybrid GDN rather than at a late near-tie. Cycles 1–2
-on longfact accepted 4/4, so the loop is matching the *batched* target, not
-inventing tokens.
+All three drifts are one token, then a different continuation — the same class MTP already
+documented (batched matmul vs serial near-tie). Not a duplicated-token rollback bug.
 
-### Alpha
+Window alpha is not F0's 0.6991. F0 is teacher-forced per gold position. The loop's drafts
+2..γ are conditioned on the k=2 prefix, so they fail more. First-token accept rate on
+longfact after the replay catch-up is ~0.66, next to F0. Treat 0.12 as the loop's
+speculative alpha, not as a broken k=2.
 
-Pooled over the three d0 selfspec runs: **131 / 1670 = 0.078**. Longfact after
-the replay catch-up: 51 / 594 = 0.086. F0 teacher-forced pooled alpha was
-0.6991. Free-running here cannot stay there: the first batch-vs-serial flip
-takes the prefix off the F0 gold trajectory, and later k=2 drafts stop matching.
+## PC speed A/B (NOISY_ENV)
 
-### Speed A/B, p_longfact, d065, `-t 4`
+p_longfact, n=256, -t 4, `--drop-cold-experts 0.65`. A PPL `bmoe-cli` and other jobs
+shared the machine.
 
-| arm | decode tok/s | draft s/tok | effective tok/s |
-|-----|-------------:|------------:|----------------:|
-| plain k=6 d065 | 2.91 | 0 | **2.91** |
-| selfspec k=6 / k=2 γ=4 d065 | 1.00 | 0.59 | **0.63** |
+| cell | decode tok/s | draft s/tok | effective tok/s |
+|------|--------------|-------------|-----------------|
+| plain k=6 d065 | 2.10 | — | 2.10 |
+| selfspec k=6/k=2 γ=4 d065 | 1.29 | 0.524 | **0.77** |
 
-Speedup **0.22×** (slowdown). At 8% accept the k=2 autoregressive draft is paid
-for almost nothing, and the verify batch also streams more (correctness
-selfspec longfact: 52 GiB).
-
-Artifacts: `results/selfspec_f1_pc/` (`METHOD.txt`, `v3_*`, `v4_*`).
+Speedup **0.37x**. The draft is a full k=2 autoregressive pass; at 1.66 tokens per verify
+it cannot pay for itself on a DRAM-bound host. The prize, if any, is on flash.
 
 ## What the S23 cell needs
 
-Do not run it from this worktree. The phone cell has to answer three questions
-the PC cannot:
+Do not run it from this session. Same three prompts, n=256, greedy:
 
-1. **Identity.** Same three prompts, d0, `--chatml --no-think`, n=256. If the
-   device's batched GDN matches serial, expect identity. If it matches the PC,
-   expect the same early token flip. Dump the first differing token either way.
-2. **Alpha.** Pooled γ=4 d0. ~0.08 means the lane does not pay on this model.
-   Something near F0 0.70 means the PC number was the hybrid-batch confound.
-3. **Speed.** Thermally gated, `--drop-cold-experts 0.65`, p_longfact, n=256,
-   `-t 4`. Effective tok/s must include the k=2 draft pass. Budget one extra
-   full-decoder KV, compute at `n_ubatch=max(32,γ+1)`, and `n_rs_seq=γ`
-   snapshots on **both** contexts.
+1. d0 identity: plain `--n-expert-used 6` vs `--n-expert-used 6 --selfspec-draft-k 2 --selfspec-gamma 4`.
+2. d065 A/B: add `--drop-cold-experts 0.65` (renorm stays on). Report effective tok/s
+   including draft, cycle JSON, RSS.
 
-Do not use `--session` without `--chatml` on this gguf.
+Campaign flags as on the phone (`--moe-stream --cache-mb 2000 --dense-weights anon
+--overlap --io-threads 4 -c 2048 --ubatch 512`). Draft ctx adds one KV plus `n_rs_seq=γ`
+R/S snapshots (314 MiB recurrent on this 35B hybrid at γ=4). The question is whether
+verify-batch flash amortisation beats that draft cost. This PC cannot answer it.

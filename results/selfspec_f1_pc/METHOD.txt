@@ -28,9 +28,23 @@ Common flags (match F0 campaign, F1 mandate overrides -t 4 -c 2048 -n 256):
   Selfspec d065:   same as selfspec + --drop-cold-experts 0.65
   (verify uses campaign drop; draft pass internally d0)
 
-Host gates before this file: ctest -R "config_validate|moe_gates|ngram" all passed.
+Host gates: ctest -R "config_validate|moe_gates|ngram" all passed.
 G15a qwen3moe: 8 steps drafted, 24 tokens in 8 decodes.
 G15b qwen3moe: alpha=1.000 (16/16).
+
+Measured cells used `build/cli/bmoe-cli-f1.exe` (worktree `bmoe-cli.exe` was locked).
+One-shot `-p` (no `--session`): the first session feeder died; raw `-p` is what landed.
+Catch-up in the measured selfspec cells is rewind-from-n_past + replay of tok+accepted
+(hybrid R/S). Incremental tail-seq_rm cell (longfact 44/789 = 5.6%) is NOT the shipped loop.
+
+Correctness (d0):
+  plain:    --n-expert-used 6
+  selfspec: --n-expert-used 6 --selfspec-draft-k 2 --selfspec-gamma 4
+  pooled window alpha 225/1926 = 0.117. First drift longfact@225 (`clearer.` vs `clearer`).
+
+Speed A/B (d065, p_longfact):
+  plain k=6 d065: 2.10 tok/s
+  selfspec: 1.29 decode tok/s + 0.524 s/tok draft → 0.77 eff (0.37x, NOISY_ENV)
 
 v1 raw attempt: selfspec died — "draft context does not support rewinding its KV cache".
 Cause: qwen35moe is hybrid; llama_memory_recurrent::seq_rm needs n_rs_seq > 0.

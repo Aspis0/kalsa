@@ -4,12 +4,12 @@
   "health": "GOOD",
   "plugged": "UNPLUGGED",
   "status": "DISCHARGING",
-  "temperature": 27.0,
-  "voltage": 4140,
-  "current": -135000,
-  "current_average": -135000,
-  "percentage": 73,
-  "level": 73,
+  "temperature": 38.0,
+  "voltage": 4107,
+  "current": -463000,
+  "current_average": -463000,
+  "percentage": 91,
+  "level": 91,
   "scale": 100,
-  "charge_counter": 2150580
+  "charge_counter": 2680860
 }
