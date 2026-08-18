@@ -45,7 +45,7 @@ $unreachable  = 0
 $staleBeatSec = 900
 
 $terminal = @('DONE','STOP_VOID','STOP_BATT','STOP_PLUGGED','STOP_API',
-              'FAIL_BIN','FAIL_MODEL','FAIL_PROMPT','FAIL_FADV','FAIL_API','FAIL_SMOKE')
+              'FAIL_BIN','FAIL_MODEL','FAIL_PROMPT','FAIL_FADV','FAIL_API','FAIL_SMOKE','FAIL_CPUSET')
 
 function Say([string]$m) {
     $line = "[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-ddTHH:mm:ssK'), $m

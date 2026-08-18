@@ -56,6 +56,9 @@ CACHE_MB="${CACHE_MB:-2000}"
 # Extra engine flags for this model (e.g. "--n-expert-used 6"). Empty = the
 # model's own routing width. Do not force a k the model was not trained for.
 EXTRA_FLAGS="${EXTRA_FLAGS:-}"
+# OEM demotes idle Termux to /moderate; run_f4.sh waits this long for
+# promotion before exit 93. Same name, same default, same reason.
+MAX_COOL_WAIT_S="${MAX_COOL_WAIT_S:-1800}"
 
 # bmoe-cli ships its .so files next to the executable and they are NOT on the
 # default loader path. Without this the binary dies with
@@ -73,6 +76,176 @@ ts(){ date +%Y-%m-%dT%H:%M:%S%z; }
 log(){ echo "[$(ts)] $*" | tee -a "$LOG"; }
 beat(){ echo "$(ts) $*" > "$HEARTBEAT"; }
 cached_kib(){ awk '/^Cached:/{print $2; exit}' /proc/meminfo; }
+
+# --- F4.3-bis cpuset (gate + covariates) -------------------------------------
+# A row without nproc/affinity_mask cannot be interpreted later (2026-08-06:
+# measurements on a background cpuset were 3× A510). The GATE probes the
+# shell because a child inherits that set and refusing to start is cheaper
+# than a cell of unreadable rows. The CSV columns are a different question:
+# cpuset is per-process, so those values come from the bmoe-cli PID, never
+# from $$. /proc/self here is preflight only — same split as run_bench.sh
+# (read_cpuset_info vs read_pid_cpuset).
+#
+# taskset is optional on Termux; do not depend on it. Popcount the
+# Cpus_allowed_list (e.g. 0-2 / 0-3,6-7) in pure shell.
+
+count_cpu_list() {
+    # $1 = Cpus_allowed_list. Empty → 0 (fail-closed for the gate; empty
+    # string for the CSV is decided by the caller when /proc is gone).
+    local list="$1"
+    local n=0
+    [ -n "$list" ] || { echo 0; return; }
+    local oldifs="$IFS"
+    IFS=','
+    # shellcheck disable=SC2086
+    set -- $list
+    IFS="$oldifs"
+    local part a b
+    for part in "$@"; do
+        case "$part" in
+            *-*)
+                a="${part%-*}"
+                b="${part#*-}"
+                if [ -n "$a" ] && [ -n "$b" ]; then
+                    n=$((n + b - a + 1))
+                fi
+                ;;
+            *)
+                [ -n "$part" ] && n=$((n + 1))
+                ;;
+        esac
+    done
+    echo "$n"
+}
+
+popcount_hex() {
+    # Nibble table in this shell — no bash -c, no 16# overflow on long
+    # masks, commas/0x skipped. Same numeric result as run_bench.sh for
+    # the short hex it actually writes (3f/5f/ff).
+    local hex="$1"
+    local c=0 ch
+    [ -n "$hex" ] || { echo 0; return; }
+    while [ -n "$hex" ]; do
+        ch="${hex%"${hex#?}"}"
+        hex="${hex#?}"
+        case "$ch" in
+            1|2|4|8) c=$((c + 1)) ;;
+            3|5|6|9|a|A|c|C) c=$((c + 2)) ;;
+            7|b|B|d|D|e|E) c=$((c + 3)) ;;
+            f|F) c=$((c + 4)) ;;
+        esac
+    done
+    echo "$c"
+}
+
+read_pid_cpuset() {
+    # Prints: nproc affinity_mask
+    # Prefer Cpus_allowed (hex) popcount; fallback Cpus_allowed_list count.
+    # Empty if unreadable. Never invent. PROC_ROOT override is for tests.
+    # One awk (both fields) + in-shell popcount: this can sit on the
+    # measured cpuset, so do not fork a second bash per sample.
+    local pid="$1"
+    local proc_root="${PROC_ROOT:-/proc}"
+    local st="${proc_root}/${pid}/status"
+    if [ ! -r "$st" ]; then
+        echo " "
+        return
+    fi
+    local raw list mask n
+    raw="$(awk -F: '
+        /^Cpus_allowed_list:/{gsub(/^[ \t]+/,"",$2); gsub(/[ \t]+$/,"",$2); list=$2}
+        /^Cpus_allowed:/{gsub(/^[ \t]+/,"",$2); gsub(/[ \t]+$/,"",$2); mask=$2}
+        END{print list "\t" mask}
+    ' "$st" 2>/dev/null)"
+    list="${raw%%	*}"
+    mask="${raw#*	}"
+    mask="${mask#0x}"
+    mask="${mask#0X}"
+    mask="${mask,,}"
+    n=""
+    if [ -n "$mask" ]; then
+        n="$(popcount_hex "$mask")"
+    fi
+    if [ -z "$n" ] || [ "$n" = "0" ]; then
+        n="$(count_cpu_list "$list")"
+    fi
+    echo "${n} ${mask}"
+}
+
+sanitize_notes() {
+    # run_bench.sh:143 — a comma in any CSV field splits the row.
+    printf '%s' "$1" | tr ',\n\r' ';;;' | tr -s ';' | sed 's/^;//;s/;$//'
+}
+
+CPUSET_NOTE=""
+CSV_HAS_CPUSET=0
+
+cpuset_gate_why() {
+    # $1=nproc $2=Cpus_allowed_list $3=/proc/self/cpuset $4=cgroup cpuset path
+    # Prints the restricted_cpuset(...) reason and returns 1 if the F4.3-bis
+    # gate should fire; prints nothing and returns 0 if the set is usable.
+    # Split out so the decision can be fed fake /proc strings on a PC.
+    # Note carries bits= (popcount), not the raw list: a multi-range list
+    # contains a comma and would split exclude_reason.
+    local np="$1"
+    local mask_list="$2"
+    local cpuset_path="$3"
+    local cg="$4"
+    local bits bad
+    bits="$(count_cpu_list "$mask_list")"
+    bad=0
+    if [ -z "$np" ] || [ "$np" -lt 6 ] 2>/dev/null; then bad=1; fi
+    # Match list is background / system-background / moderate — same as
+    # run_f4.sh. "restricted" is the English for the gate, not a path token.
+    case "${cpuset_path} ${cg}" in
+        *background*|*system-background*|*moderate*) bad=1 ;;
+    esac
+    if [ "$bits" -lt 6 ] 2>/dev/null; then bad=1; fi
+    if [ "$bad" -eq 0 ]; then
+        return 0
+    fi
+    printf '%s' "restricted_cpuset(nproc=${np:-};bits=${bits:-};cpuset=${cpuset_path:-};cgroup=${cg:-})"
+    return 1
+}
+
+gate_cpuset() {
+    # Hard fail, exit 93, no CSV row — schema F4.3-bis. Trigger: nproc < 6,
+    # or the cgroup/cpuset path is background / system-background / moderate,
+    # or the affinity-list popcount is < 6.
+    # Wait-and-retry like run_f4.sh: the OEM demotes idle Termux to /moderate
+    # (screen-off ssh launch is the normal posture) and promotes once the
+    # app is visibly working. Exit 93 only after MAX_COOL_WAIT_S.
+    # ALLOW_RESTRICTED_CPUSET=1 skips the wait: deliberate little-core
+    # experiment, loud warning, every row tagged in exclude_reason.
+    local np mask_list cpuset_path cg why
+    local waited=0
+    while true; do
+        np="$(nproc 2>/dev/null || echo 0)"
+        mask_list="$(awk -F: '/^Cpus_allowed_list:/{gsub(/^[ \t]+/,"",$2); gsub(/[ \t]+$/,"",$2); print $2; exit}' /proc/self/status 2>/dev/null || true)"
+        cpuset_path="$(tr -d '\n' < /proc/self/cpuset 2>/dev/null || true)"
+        cg="$(awk -F: '/cpuset/{print $3; exit}' /proc/self/cgroup 2>/dev/null || true)"
+        why="$(cpuset_gate_why "$np" "$mask_list" "$cpuset_path" "$cg")" || true
+        if [ -z "$why" ]; then
+            log "cpuset OK nproc=$np bits=$(count_cpu_list "$mask_list") cpuset=${cpuset_path:-?} cgroup=${cg:-?}"
+            return 0
+        fi
+        if [ "${ALLOW_RESTRICTED_CPUSET:-0}" = "1" ]; then
+            log "WARN cpuset restricted but ALLOW_RESTRICTED_CPUSET=1 — $why"
+            CPUSET_NOTE="$why"
+            return 0
+        fi
+        if [ "$waited" -ge "$MAX_COOL_WAIT_S" ]; then
+            log "FATAL cpuset restricted — $why (no recovery within ${MAX_COOL_WAIT_S}s; set ALLOW_RESTRICTED_CPUSET=1 to proceed anyway)"
+            echo FAIL_CPUSET > "$STATUS"
+            exit 93
+        fi
+        log "WAIT/cpuset: $why — need top-app >=6 cores (waited ${waited}s)"
+        beat "WAIT/cpuset ${waited}s/${MAX_COOL_WAIT_S}s"
+        sleep 30
+        termux-wake-lock >/dev/null 2>&1
+        waited=$((waited + 30))
+    done
+}
 
 # --- Termux:API, guarded ------------------------------------------------------
 # The API service dies (screen-off, OOM kill, app update). When it does,
@@ -140,9 +313,77 @@ if [ ! -f "$MODEL" ];  then log "FATAL model missing: $MODEL"; echo FAIL_MODEL  
 if [ ! -f "$PROMPT" ]; then log "FATAL prompt missing: $PROMPT"; echo FAIL_PROMPT > "$STATUS"; exit 2; fi
 if [ ! -x "$FADV" ];   then log "FATAL fadv missing: $FADV";   echo FAIL_FADV   > "$STATUS"; exit 2; fi
 
-if [ ! -f "$CSV" ]; then
-  echo "ts,pass,run_idx,round,drop,label,s_tok,tok_s,read_MiB,proc_read_bytes,stall_s_tok,compute_s_tok,io_s_tok,cache_hit_pct,experts_routed,experts_dropped,evictions,rereads,majflt_tok,n_tokens,cached_before_kib,cached_after_kib,cached_drop_mb,cold_valid,batt_start,batt_end,temp_start,temp_end,plugged,excluded,exclude_reason" > "$CSV"
-fi
+# Existing cells on the phones have the old header (ends at exclude_reason).
+# DictReader already treats short rows as done (it keys by name, so resume
+# stays correct either way). A silently ragged file — header claiming N
+# columns, rows with N-2 — is the failure mode. So we migrate: rewrite the
+# header and pad every existing row with two empty fields. Empty is honest
+# (we did not observe those runs). New rows get real values. Columns are
+# only ever appended; nothing that indexes the old order shifts.
+CSV_HEADER="ts,pass,run_idx,round,drop,label,s_tok,tok_s,read_MiB,proc_read_bytes,stall_s_tok,compute_s_tok,io_s_tok,cache_hit_pct,experts_routed,experts_dropped,evictions,rereads,majflt_tok,n_tokens,cached_before_kib,cached_after_kib,cached_drop_mb,cold_valid,batt_start,batt_end,temp_start,temp_end,plugged,excluded,exclude_reason,nproc,affinity_mask"
+
+csv_migrate_append() {
+    # $1=csv $2=comma-separated new names $3=how many empty fields to pad.
+    # Atomic replace; rm the temp on both success (already renamed) and
+    # failure so schema_migrate.$$ cannot leak.
+    local csv="$1"
+    local cols="$2"
+    local n="$3"
+    local tmp="${csv}.schema_migrate.$$"
+    {
+        printf '%s,%s\n' "$(head -n1 "$csv")" "$cols"
+        tail -n +2 "$csv" | awk -F, -v n="$n" 'BEGIN{OFS=","} {
+            extra=""
+            i=0
+            while (i < n) { extra=extra OFS ""; i++ }
+            print $0 extra
+        }'
+    } > "$tmp" && mv "$tmp" "$csv"
+    rm -f "$tmp"
+}
+
+ensure_csv_header() {
+    local csv="$1"
+    # 0-byte is "no header": DictReader would treat the first data row as
+    # the header and the cell would end STOP_VOID.
+    if [ ! -s "$csv" ]; then
+        printf '%s\n' "$CSV_HEADER" > "$csv"
+        CSV_HAS_CPUSET=1
+        return 0
+    fi
+    local old tmp
+    old="$(head -n1 "$csv" 2>/dev/null || true)"
+    case "$old" in
+        *",exclude_reason,nproc,affinity_mask")
+            CSV_HAS_CPUSET=1
+            return 0
+            ;;
+        *",exclude_reason")
+            tmp="${csv}.schema_migrate.$$"
+            {
+                printf '%s\n' "$CSV_HEADER"
+                tail -n +2 "$csv" | awk -F, 'BEGIN{OFS=","} { print $0 OFS "" OFS "" }'
+            } > "$tmp" && mv "$tmp" "$csv"
+            rm -f "$tmp"
+            CSV_HAS_CPUSET=1
+            log "csv schema migrate: appended nproc,affinity_mask (old rows padded empty)"
+            return 0
+            ;;
+        *)
+            # Not our header (reused run_bench cell dir, or a future header
+            # that grew past affinity_mask). Guarantee: after this returns,
+            # the header names nproc and affinity_mask and every existing
+            # row has the same NF as the header. We only append; we do not
+            # reshuffle, and we do not promise the header is ours.
+            if ! printf '%s' "$old" | grep -q ',nproc,affinity_mask'; then
+                csv_migrate_append "$csv" "nproc,affinity_mask" 2
+                log "csv schema migrate: unknown header, appended nproc,affinity_mask"
+            fi
+            CSV_HAS_CPUSET=1
+            return 0
+            ;;
+    esac
+}
 
 # --- resume: which labels are already good? ----------------------------------
 # The CSV is the state. A label with an excluded=0 row is done, full stop.
@@ -194,6 +435,15 @@ if ! api_ensure; then
   log "FATAL termux-api will not answer — refusing to start (a blind battery/plug read is worse than no cell)"
   echo FAIL_API > "$STATUS"; exit 5
 fi
+
+# F4.3-bis: refuse the cell before any measurement (including the smoke).
+# Same voice as the API refusal above: a restricted cpuset is worse than
+# no cell, because the rows would look real and be uninterpretable.
+gate_cpuset
+
+# After the gate, not before: exit 93 must leave an existing CSV untouched
+# (no header rewrite, no padded rows). New cells get the new header here.
+ensure_csv_header "$CSV"
 
 # --- parse the engine's own summary line -------------------------------------
 # The engine's keys contain slashes (s/tok, tok/s, stall_s/tok, majflt/tok).
@@ -301,9 +551,23 @@ for pass in $(seq 1 "$PASSES"); do
         > "$OUT/logs/${label}.out" 2> "$OUT/logs/${label}.err" &
       pid=$!
       proc_rb=""
+      bin_nproc=""
+      bin_mask=""
+      cpuset_age=0
       while kill -0 "$pid" 2>/dev/null; do
         v=$(awk '/^read_bytes:/{print $2}' "/proc/$pid/io" 2>/dev/null)
         [ -n "$v" ] && proc_rb="$v"
+        # Cpuset is near-static; last live sample is what we write. Sample
+        # on the first tick and every 8s so the extra /proc read does not
+        # sit on the measured cpuset every second.
+        if [ "$cpuset_age" -eq 0 ]; then
+          # shellcheck disable=SC2046
+          set -- $(read_pid_cpuset "$pid")
+          [ -n "${1:-}" ] && bin_nproc="$1"
+          [ -n "${2:-}" ] && bin_mask="$2"
+        fi
+        cpuset_age=$((cpuset_age + 1))
+        [ "$cpuset_age" -ge 8 ] && cpuset_age=0
         sleep 1
       done
       wait "$pid"; rc=$?
@@ -319,9 +583,33 @@ for pass in $(seq 1 "$PASSES"); do
       if [ "$rc" -ne 0 ]; then excluded=1; reason="${reason:+$reason;}cli_rc=$rc"; fi
       case "${s_tok:-}" in ''|*[!0-9.]*) excluded=1; reason="${reason:+$reason;}bad_s_tok='${s_tok:-}'";; esac
       if [ "${nt:-0}" != "$NGEN" ]; then excluded=1; reason="${reason:+$reason;}n_tokens=${nt:-}"; fi
+      # Hatch tag is a note, not an exclude: excluded=1 would make resume
+      # retry the label forever. The row stays excluded=0 and self-identifies.
+      if [ -n "${CPUSET_NOTE:-}" ]; then
+        reason="${reason:+$reason;}$CPUSET_NOTE"
+      fi
+      # Sanitize AFTER assembly: a comma in reason/mask (Cpus_allowed_list
+      # 0-3,6-7, or a comma-grouped hex mask) would silently split the row.
+      reason="$(sanitize_notes "${reason:-ok}")"
+      bin_nproc="$(sanitize_notes "${bin_nproc:-}")"
+      bin_mask="$(sanitize_notes "${bin_mask:-}")"
 
-      echo "$(ts),$pass,$run_idx,$round,$D,$label,$s_tok,$tok_s,$read_mib,$proc_rb,$stall,$comp,$ios,$hit,$er,$ed,$ev,$rr,$mf,$nt,$cb,$ca,$dmb,$cold_valid,$b,$be,$t0,$t1,$p,$excluded,${reason:-ok}" >> "$CSV"
-      log "DONE $label pass=$pass rc=$rc s/tok=$s_tok tok/s=$tok_s read_MiB=$read_mib proc_rb=$proc_rb stall=$stall hit=$hit routed=$er dropped=$ed batt=${b}->${be} temp=${t0}->${t1} excluded=$excluded ${reason:-ok}"
+      row="$(ts),$pass,$run_idx,$round,$D,$label,$s_tok,$tok_s,$read_mib,$proc_rb,$stall,$comp,$ios,$hit,$er,$ed,$ev,$rr,$mf,$nt,$cb,$ca,$dmb,$cold_valid,$b,$be,$t0,$t1,$p,$excluded,$reason"
+      if [ "${CSV_HAS_CPUSET:-0}" -eq 1 ]; then
+        row="${row},${bin_nproc},${bin_mask}"
+      fi
+      # If the header is wider than our schema (unknown-header append, or a
+      # later column after affinity_mask), pad so we cannot emit a short row.
+      hdr_nf="$(awk -F, 'NR==1{print NF; exit}' "$CSV")"
+      row_nf="$(printf '%s\n' "$row" | awk -F, '{print NF}')"
+      while [ "${row_nf:-0}" -lt "${hdr_nf:-0}" ]; do
+        row="${row},"
+        row_nf=$((row_nf + 1))
+      done
+      # A torn append after field 30 (excluded=0) with empty covariates is
+      # treated as done by resume. Needs an exotic partial write; no fsync.
+      echo "$row" >> "$CSV"
+      log "DONE $label pass=$pass rc=$rc s/tok=$s_tok tok/s=$tok_s read_MiB=$read_mib proc_rb=$proc_rb stall=$stall hit=$hit routed=$er dropped=$ed batt=${b}->${be} temp=${t0}->${t1} nproc=${bin_nproc:-} mask=${bin_mask:-} excluded=$excluded ${reason:-ok}"
     done
   done
 done
