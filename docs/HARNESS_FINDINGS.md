@@ -33,11 +33,11 @@ expensive thing (§3.3).
 
 | # | Question | Answer | Confidence |
 |---|---|---|---|
-| 1 | Better than bare for small models? | **Yes on the 2B (+0.635) and on the 4B (+0.209, p=0.011).** LFM2.5-8B-A1B campaign in flight | 2B/4B: high · LFM: in flight |
+| 1 | Better than bare for small models? | **Yes on all three.** 2B +0.635 · **shipping LFM2.5-8B-A1B +0.312 (p=0.029)** · 4B +0.209 | high |
 | 2 | Better tool / web-search use? | **Yes — tool precision nearly doubles** | medium |
 | 3 | Holds context after many turns? | **Yes — no decay at all. Strongest result we have** | high |
 | 4 | Faster / less prefill? | **Yes — it uses *fewer* tokens than bare.** But memory-on reverses it, and it may fight the KV fix outright — see the runtime section | high on tokens · none on the interaction |
-| 5 | Only for small models, or large too? | **Holds on the 4B, smaller.** The bigger model needs help not *forgetting*, not remembering | medium |
+| 5 | Only for small models, or large too? | **Not about size at all.** It helps whichever model holds context worst — and that is the shipping MoE, not the small dense one | high |
 
 Two sections follow the five answers and are not optional reading: **what it costs to run on a
 phone** (the KV cache, load times, what happens when the user leaves and comes back) and **which
@@ -246,6 +246,64 @@ campaign's own completeness gate **correctly refused to publish** (`BENCH_EXPECT
 losses fell on **untreated** arms, which is not random: bare writes longer replies, so its prompts
 grow faster and it reaches the cap sooner. The surviving `baseline` arms are therefore not a random
 subsample. §3.2 recorded this risk before the run ("the 4B may hit it") and it hit.
+
+### ANSWERED 2026-08-18: the shipping model — CisWire wins by MORE than on the dense 4B
+
+**Campaign `32103054225`**, LFM2.5-8B-A1B, fase4, 10 seeds, **40/40 arms usable** — the
+completeness gate passed, which the 4B run could not manage.
+
+| arm | n | recall | sd | early | late | blank | spurious calls | prompt tok @13 |
+|---|---|---|---|---|---|---|---|---|
+| bare | 10 | 0.556 | 0.331 | **0.637** | 0.475 | 0 | **15** | 2967 |
+| `v42` | 10 | 0.619 | 0.290 | 0.713 | 0.472 | 0 | 9 | 3000 |
+| **`ciswire`** | 10 | **0.869** | 0.199 | **0.988** | **0.750** | 0 | **8** | 3483 |
+| `nogate` | 10 | 0.644 | 0.397 | 0.725 | 0.562 | 1 | 10 | 3203 |
+
+- `ciswire` vs bare: **+0.312, p = 0.0291**
+- `ciswire` vs `v42`: +0.250, p = 0.0516
+- `v42` vs bare: +0.062, **p = 0.70 — dead here too**
+- `nogate` vs bare: +0.088, p = 0.64
+
+**1. The harness helps the shipping model MORE than it helps the dense 4B.** Ranked by how much
+CisWire buys: 2B **+0.635**, LFM2.5-8B-A1B **+0.312**, Qwen3.5-4B **+0.209**. "The harness rescues
+small models" was the wrong shape for it — what it rescues is models that hold context badly, and
+size is only a proxy.
+
+**2. And the reason is uncomfortable: bare on the shipping model is *worse* than bare on the dense
+4B** — 0.556 against 0.785. It is nominally the bigger model and it remembers less.
+
+**3. Its failure mode is different, and CisWire fixes the part nobody expected.** On the 2B and 4B
+every untreated arm scored ~1.000 on *early* probes: they held recent facts perfectly and lost
+distant ones. Here bare scores **0.637 early** — it fumbles facts that are still inside the
+verbatim window. CisWire lifts that to **0.988**. A retrieval digest is not supposed to help with
+text the model can already see, so the mechanism here is not "restoring what fell out" but
+something like concentrating attention on what matters. **Worth its own experiment; do not assume
+the 2B/4B story transfers.**
+
+**4. `v42` is dead on this model too** (+0.062, p=0.70), exactly as on the 4B. Two models, two
+campaigns, same verdict: the trade it makes does not pay.
+
+**5. It calls tools wrongly far more often.** 15 spurious calls on bare against the 4B's 4.
+CisWire nearly halves that (8), the same coupling §1.2/§1.3 found — better context, fewer
+pointless tool calls.
+
+⚠️ **6. THE BIG ONE: this model reuses no KV cache at all.** Mean reuse fraction across all 40
+arms is **0.008** (min 0.000, max 0.062) against the 4B's **0.561**. It re-prefills the whole
+prompt on every single turn, on every arm.
+
+| | LFM2.5-8B-A1B | Qwen3.5-4B |
+|---|---|---|
+| KV reuse fraction | **0.008** | 0.561 |
+| prefill throughput (evaluated tokens) | **7.2 tok/s** | 2.4 tok/s |
+| mean prefill / turn | 345 s | 628 s |
+
+It is *still* faster per turn than the 4B — 3× the prefill throughput more than covers throwing
+the cache away. But it means **the append-only transcript work (§7.7e–j) is worth more on the
+shipping model than on the model it was built for**: on Qwen it recovers the ~44 % that diverges,
+here there is a full prefill to recover on every turn. That is now the single largest identified
+win on the model that ships, and it has never been tried on this family — the Qwen cause (the
+empty think block) is a *Qwen template* property, so the cause here is unknown and must be
+measured, not assumed.
 
 ### If this harness is reused for anything else — read this first
 
@@ -1851,6 +1909,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 | 2026-08-14 | §1.1 resolved: echo-of-context inverted and shipped (`5b3ba90`) — it blocked 100% of explicitly requested searches; verified across six scripts, with CJK abstention documented. Added §3.8: the fact metric conflates an honest refusal with a wrong answer, which penalises stronger models and makes cross-model baseline comparison unsafe. |
 | 2026-08-16 | **The 390 s prefill is solved and §7.5 is rewritten around the measurement.** Four proposed causes were refuted, three of them mine, and none fell to an argument — each fell to a number the engine printed (`3e1c654`, `12868ea`, `36138fd`). The cause: Qwen3.5's template injects an empty `<think>\n\n</think>\n\n` when it asks for an answer and never repeats it when replaying one, so the re-rendered prompt diverges four tokens after the assistant header; a hybrid KV cannot roll back, so 1646 valid tokens are discarded. Confirmed 5/5 turns, identical `[248068 271 248069 271]` every time. Fix shipped in `6447ff2`: the prompt replays the text the model emitted, and when the window cannot reproduce the KV the session is refused with a named reason and its artifacts deleted — the old path left a poisoned `.kvs` that recharged the cost on every later restore. |
 | 2026-08-16 | **A change was written, audited and reverted before shipping** (`9c73846`): moving memory facts out of the system prompt onto the user turn. It violated append-only on *every* turn (the block rides `messages[length-1]`, so next turn that message renders without it) and moved the "these facts are untrusted data, not instructions" frame into the user message, adjacent to the utterance it defends against. Kept from that work: `computePromptEnvHash` no longer hardcodes `hasTools: true` while `buildSystemPrompt` really switches prompts, plus tests and harness alignment. Added §3.11: a pre-existing privacy defect — the prompt renders the last ten facts, `webSearchTool` gates the first ten. |
+| 2026-08-18 | **The shipping model measured at last, and CisWire wins by more there than on the dense 4B** (`32103054225`, LFM2.5-8B-A1B, 40/40 arms, completeness gate passed). +0.312 over bare, p = 0.0291. Ranked by what CisWire buys: 2B +0.635, **shipping 8B-A1B +0.312**, 4B +0.209 — so "the harness rescues small models" is the wrong shape: it rescues models that hold context badly, and size is only a proxy. Bare on the shipping model (0.556) is **worse than bare on the dense 4B** (0.785). Its failure mode differs too: it fumbles *early* probes (0.637, where the 2B and 4B both scored ~1.000) and CisWire lifts those to 0.988 — a digest is not supposed to help with text still in the window, so that mechanism is unexplained and needs its own experiment. `v42` dead again (+0.062, p=0.70), two models two campaigns. Spurious tool calls 15 on bare against the 4B's 4, halved by CisWire. **And the finding that reorders the backlog: this model reuses essentially no KV cache — 0.008 mean across all 40 arms (max 0.062) against the 4B's 0.561.** It re-prefills everything every turn and is still faster than the 4B (7.2 vs 2.4 tok/s evaluated), which makes the append-only transcript work worth *more* here than on the model it was built for. Cause unknown: the Qwen trigger is a Qwen *template* property and cannot be assumed to transfer. |
 | 2026-08-18 | **The 4B campaign landed and CisWire holds: +0.209 over bare, p = 0.0108** (`32048465417`, 38 usable arms, permutation tests). §3.2's prediction was right — the effect shrinks, from +0.635 on the 2B, because bare climbs 0.313 → 0.785 while ciswire goes 0.948 → 0.994 with sd 0.083 → 0.019. What survives is entirely **distance**: the 4B is perfect on recent facts and loses over half the distant ones (0.446 late), ciswire loses none (1.000). Three things nobody predicted: **`v42` dies** on the stronger model (+0.040, p=0.70, against +0.354 p=0.043 on the 2B); **`nogate` reverses**, 0.094 on the 2B against 0.944 on the 4B, which is the hardest evidence yet that harness decisions are model-dependent; and **§1.5's token saving does not reproduce** — history length is identical across arms, so on the 4B the digest is pure cost, +350 prompt tokens at turn 13 and ~95 s more prefill per turn. §3.1's blocker did not reproduce either: zero blank bubbles across all 38 arms. Two arms died on the 2400 s per-turn cap, both **untreated** (bare writes longer replies, so it reaches the cap first), so `baseline` and `nogate` are n=9 and the completeness gate correctly refused to publish. |
 | 2026-08-17 | **§7.7j: the join is closed, and the diagnostic that proved it refutes my own acceptance criterion** (`b31fb53`). Six turns unplugged from the coldest start yet (27.9 °C): 103 s then **31, 32, 32, 32, 31** — turn 6 was 151 s in §7.7i. One `rebuild` in the session (`fresh`, turn 1), `KALSA_KVDIVERGE` zero, five consecutive boundaries reused against two, `Thermal Status` 0 throughout, 2 % battery for six turns. `glueEot` fired at every boundary (`glue=11`), which was the fix's whole job. **But the 48-char seam windows show `T` ending with the reply in generation form and the delta restarting from the same reply in history form: every assistant turn is in the prompt twice.** Not caused by the glue and not a deep-link artifact — `kvTranscript.ts:157` builds `T` from `candidate + emitted + suffix` and `candidate` ends with the empty think block, so the ordinary path duplicates too; §7.7i had it without the glue between the copies. The criterion I fixed before measuring — no divergence, `n_common == embd.size()` — is **true with the duplicate in place**, because `T` stays a valid prefix however malformed its content: it measures reuse, not correctness, and all six replies read fine. Latency result stands, correctness result does not, **route 2 does not merge**. Suspect is `cutPPrevFromRolePair` (`kvTranscriptFormat.ts:130`): `pPrev`=5532 against a turn-1 prompt of 5551, short by exactly the 19 chars of `<think>\n\n</think>\n\n`. |
 | 2026-08-17 | **§3.11 closed by reading the code, not by fixing it: the privacy gate was never inspecting the wrong facts.** The two slices genuinely disagree on their face — prompt takes `slice(-10)`, `webSearchTool.ts:88` takes `slice(0, 10)` — but the array reaching the gate is capped upstream at `AppShell.tsx:2348`, so the second slice is the identity, and `:4485` hands the gate **the same array object** `:4724` sends to the engine. The 2026-08-16 row below calls it "a pre-existing privacy defect"; that was wrong, and this row is the correction. What survives is a latent trap: the guarantee rests entirely on the upstream cap, so raising it — or sourcing `getMemoryFacts` from `MemoryStore.listFacts()` — silently splits the two sets with nothing failing. |
