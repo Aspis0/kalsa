@@ -1446,6 +1446,44 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.9 MEASURED 2026-08-18: `preserve_thinking` works — reuse 0.035 → 0.599, turn 295 s → 160 s
+
+Controlled pair, same branch, same model, same phase, only the code differs: smoke
+`32097043246` (pre-fix) against `32157672018` (post-fix, `31c5489`), LFM2.5-8B-A1B, 8 arms each.
+
+| | pre-fix | post-fix |
+|---|---|---|
+| KV reuse fraction | 0.0353 | **0.5989** |
+| prefill / turn | 255 s | **111 s** |
+| whole turn | 295 s | **160 s** |
+| mean prompt tokens | 1951 | 2036 |
+
+**Every arm improved.** §7.8's diagnosis is confirmed on the metric it predicted: keeping the
+model's own reasoning in the history render makes the prefix match the KV, and the cache survives
+on a model that has no recurrent-state rollback to fall back on.
+
+**The feared context cost did not materialise at this length**: +85 prompt tokens, 4.4 %. It will
+grow with conversation length — this smoke is 7 turns — so it still needs watching on a 13-turn
+campaign, but the trade Marco called (cache over context budget) is not close at this scale.
+
+⚠️ **It is a large win, not a complete one, and the prediction was wrong in an informative way.**
+I forecast ~0.9 and got 0.599. Prompt grows ~136 tokens per turn against 2036, so the ceiling is
+about **0.93** — roughly a third of the prefix is still being re-evaluated. Something diverges
+partway, and the arm distribution says where:
+
+| arms | reuse |
+|---|---|
+| `baseline`, `nogate`, `off_off` | **0.704** |
+| `ciswire`, `ciswire_off`, `ciswire_on`, `v42` | 0.564 |
+| `off_on` | 0.424 |
+
+**The digest arms reuse 14 points less than bare.** That is the §0 prediction landing: the operative
+block is prefixed onto `messages[length-1]` (`LlamaService.ts:1556-1562`), so next turn that message
+re-renders without it and the prefix breaks there — the same defect that forced `9c73846`'s revert
+of memory-facts-on-the-user-turn. Until that is fixed, **CisWire costs cache**, which is the one
+place its otherwise-additive design is not free. Next lever, and now it has a number attached
+rather than an argument.
+
 ### 7.8 DIAGNOSED 2026-08-18: why the shipping model reuses no cache — and it is not the Qwen cause
 
 Investigation dispatched after the LFM campaign measured `reuseFrac` 0.008 against Qwen's 0.561.
