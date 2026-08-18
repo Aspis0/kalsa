@@ -752,7 +752,7 @@ rule blocked those only because it blocked everything.
 blocks legitimate searches. That is a separate decision, to be made from campaign data — fixing
 both at once would make the next campaign uninterpretable.
 
-### 3.6 LFM2.5 tool calls never parse — production bug, whole family
+### 3.6 FIXED — LFM2.5 tool calls never parsed; the parser spoke a dialect the family does not emit
 
 `src/engine/toolCallParser.ts:70` documents the LFM dialect as
 `<|tool_call_start|>[{"name":...,"arguments":{...}}]<|tool_call_end|>` and `parseLfmToolCalls`
@@ -770,7 +770,17 @@ the format kalsa assumes -> [{"name":"web_search",...}]
 
 `JSON.parse` throws, the `catch` returns `[]`, the caller reads "no tool calls". No error, no
 log. Never caught because LFM has never been benchmarked — and the comment stating the wrong
-dialect is why nobody looked. Fix dispatched.
+dialect is why nobody looked.
+
+**FIXED and verified on disk 2026-08-18.** `parseLfmToolCalls` now tries the Python-call form
+first and keeps the JSON array as a fallback for finetunes that emit it. The ordering is
+deliberate and documented at the function: once the payload is recognised as Python-call-shaped, a
+parse failure yields `[]` rather than falling through to `JSON.parse`, which would also yield `[]`
+but for the wrong reason and hide the bug again. Green: 23 jest cases plus `toolCallParseHarness`
+F6f–F6i, including "garbage payload → [] (never throws, never partial)" and "Qwen dialect
+unaffected". **Still unproven end-to-end**: no LFM campaign has ever run, so the parser is right
+in unit tests and untested against what the model actually emits under load. Smoke `32096631132`
+is the first attempt.
 
 ### 3.4 Spurious tool calls survive the gate
 
