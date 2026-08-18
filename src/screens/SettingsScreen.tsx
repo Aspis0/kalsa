@@ -161,8 +161,8 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     { id: "xl", short: "XL", label: t("settings.fontSizeXl") },
   ];
 
-  // "default" (production knob) and "off" are behaviourally identical today
-  // (see resolveThinkingParams) — Off is shown selected for both.
+  // Production "default" is thinking-on with the model's short budget.
+  // The picker has no "default" row — show Short selected.
   const thinkingOptions: Array<{ id: ThinkingMode; label: string }> = [
     { id: "off", label: t("settings.thinkingOff") },
     { id: "budget256", label: t("settings.thinkingShort") },
@@ -420,9 +420,9 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     };
   }, []);
 
-  // "default" renders as the "off" option (see thinkingOptions comment above).
+  // "default" renders as Short (production = model's short budget).
   const effectiveThinkingSelection: ThinkingMode =
-    thinkingMode === "default" ? "off" : thinkingMode;
+    thinkingMode === "default" ? "budget256" : thinkingMode;
 
   const handleSelectThinkingMode = useCallback(
     (mode: ThinkingMode) => {

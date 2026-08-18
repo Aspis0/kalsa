@@ -1994,8 +1994,8 @@ export async function streamAssistantTurn(
               temperature: 0.7,
               top_k: 40,
               top_p: 0.95,
-              // Bench thinking axis: "default"/"off" keep production (thinking off);
-              // budget* enables thinking with a token budget (NativeCompletionParams).
+              // Bench thinking axis: "default" is production (thinking on, short budget);
+              // "off" is the A/B arm (budget 0). budget* uses short/extended.
               // Text-only + budget mode uses off fields (see roundThinkingFields).
               ...roundThinkingFields,
               ...(hasImages ? { speculative: false as const } : {}),

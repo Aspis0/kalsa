@@ -71,6 +71,14 @@ export type ModelInfo = {
    * block + answer must both fit under n_predict). Absent → 256/512/1024.
    */
   thinking?: { short: number; extended: number; nPredict?: number };
+  /**
+   * Template strips `<think>` when re-rendering assistant history
+   * (`preserve_thinking` defaults false in the jinja). When set, completions
+   * pass `chat_template_kwargs.preserve_thinking: true` so history matches KV.
+   * Cost: every past think block stays in context for the rest of the
+   * conversation (up to `thinking.short` tokens/turn). Cache reuse beats that.
+   */
+  preserveThinking?: boolean;
   /** i18n key for the user-facing description shown in Settings (en master + it). */
   descriptionKey: TranslationKey;
   /**
@@ -216,6 +224,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     hybrid: true,
     // Budget caps the think block but cannot disable it (template has no off switch).
     thinking: { short: 256, extended: 512 },
+    preserveThinking: true,
     descriptionKey: "models.lfm25.description",
   },
   {
@@ -234,6 +243,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     hybrid: true,
     // Budget caps the think block but cannot disable it (template has no off switch).
     thinking: { short: 256, extended: 512 },
+    preserveThinking: true,
     descriptionKey: "models.lfm258b.description",
   },
 ];
