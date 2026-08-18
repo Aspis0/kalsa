@@ -1,0 +1,4 @@
+Misurare le prestazioni con la batteria scarica è diverso perché il sistema riduce intenzionalmente la frequenza del processore per prevenire spegnimenti improvvisi, limitando così la potenza di calcolo disponibile. A differenza della batteria piena, dove i componenti possono operare al massimo delle loro capacità termiche e elettriche, lo stato di carica basso introduce vincoli energetici che alterano significativamente i benchmark standard. Questa differenza è cruciale per valutare l'efficienza reale del dispositivo nelle condizioni d'uso più critiche, quando l'autonomia è il fattore prioritario rispetto alla velocità.
+
+Qual è la soglia di carica minima in percentuale da considerare per iniziare la misurazione delle prestazioni a batteria scarica?
+Quale intervallo di tempo deve intercorrere tra due test consecutivi per garantire che la temperatura del dispositivo sia tornata stabile?

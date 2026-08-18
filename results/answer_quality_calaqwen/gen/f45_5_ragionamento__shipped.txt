@@ -1,0 +1,10 @@
+L'opzione più plausibile è la **(B) il processo è finito in un cpuset con solo 3 core little**.
+
+Motivazione:
+1. Un calo drastico da 5.0 a 1.2 tok/s (circa 76% in meno) indica una perdita massiccia di potenza di calcolo, non un semplice rallentamento termico.
+2. A 30°C la temperatura è bassa e improbabile che causi un throttling termico così severo senza altri sintomi.
+3. Passare da 8 core (probabilmente big.LITTLE o tutti big) a soli 3 core "little" (efficienza energetica, bassa frequenza) spiega perfettamente il dimezzamento delle prestazioni.
+4. La quantizzazione non cambia dinamicamente durante l'esecuzione a meno di riavviare il processo, il che non è specificato come causa.
+
+Controllo concreto:
+Esegui `cat /proc/self/cpuset` per verificare su quali core è vincolato il processo o usa `taskset -p <pid>` per vedere la maschera dei core assegnati.

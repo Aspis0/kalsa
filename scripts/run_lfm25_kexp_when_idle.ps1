@@ -61,6 +61,8 @@ while ($true) {
 # --- A0 at k=4,3,2 (same-k G1 needs all three) ---
 foreach ($k in 4, 3, 2) {
     $tag = "A0-Q4KM-k$k"
+    $done = Join-Path $res $tag ("$tag" + '_multi5.json')
+    if (Test-Path $done) { L "SKIP $tag (multi5 exists)"; continue }
     Set-St "RUNNING_$tag"
     L $tag
     & $PY $PPL `

@@ -1,4 +1,4 @@
-# ALIVE — what is still standing, 2026-08-16
+# ALIVE — what is still standing, 2026-08-18
 
 > ⚠️ **This file is a DERIVATIVE. `PLAN.md` is the main document and is
 > authoritative** — it is updated at every verdict, kill, measurement and
@@ -41,20 +41,43 @@ Both S23 sessions are named explicitly because they give different point
 estimates (−42.7% vs −41.3%) and an earlier version of this page quoted the first
 without saying which. The p-value is identical and at the exact floor either way.
 
-**(b) The CAMPAIGN config for CalaQwen — quality-gated, NOT A/B-validated:**
+**(b) The CAMPAIGN config for CalaQwen — changed 2026-08-18, `drop 0.65` retired:**
 
 ```
 -t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap
---io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65
+--io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 1.0 --drop-no-renorm
 ```
 
-This is the `Scheda prodotto` default (adopted 2026-08-10) used in every CalaQwen
-speed cell. Its evidence is a **PPL quality gate**, not a paired speed test: no
-Wilcoxon, no p-value. Different model, different thread count, different drop.
-**Do not quote the −42.7% / −14.5% p-values in support of this config.**
+**Why the change, and it is not a preference — `drop 0.65` was dominated: it cost
+quality *and* time.** Measured on CalaQwen, on the shipped model and config:
 
-Closing the gap needs either an A/B of (b) or a re-statement of (a) as the
-shipped default. Owner decision; recorded in the open queue.
+| config | quality vs d=0.0 | speed vs d=0.0 (Jelly) | bytes read |
+|---|---|---|---|
+| d=0.0 | — | — | — |
+| ~~d=0.65 (old default)~~ | +0.91 % | **+5.8 % SLOWER** | −27.3 % |
+| ~~d=0.65 + no-renorm~~ | +0.20 % | ~+5.8 % slower | −27.3 % |
+| **d=1.0 + `--drop-no-renorm`** | **+1.18 %** | **−12.9 %** | **−71.8 %** |
+
+`d=0.65` was slower than not dropping at all in **all three rounds** (+10.9 / +5.2
+/ +1.2 %) — it never bought speed. Only d=1.0 does, and `--drop-no-renorm` removes
+70 % of its quality cost (+3.96 % → +1.18 %) **without changing which experts are
+dropped, the bytes read, or the speed** (+1.1 % and −1.3 % across comparable
+rounds — the sign flips, so they are equivalent).
+
+Against CalaQwen's **real** k8d0 anchor (0.6660114, measured 2026-08-17) the new
+default sits at **+0.0201 — 50 % of the `MACRO_PASS = 0.04` budget**. With the
+renorm default left on, d=1.0 sat at +0.0389, **97 % of the budget: it passed by
+0.0011**. The flag is what makes d=1.0 shippable rather than borderline.
+
+Answer quality was verified, not assumed (`results/answer_quality_calaqwen`,
+`results/answer_sanity_calaqwen`): checkable instruction constraints honoured, the
+generated Python function passes **8/8 executed tests**, Italian prose with no
+repetition collapse, and **15/16** on the common-sense battery — where the single
+miss belongs to the k=8 *reference*, not to the candidate.
+
+Its evidence is still a **PPL quality gate plus device speed**, not a paired
+Wilcoxon test: **do not quote the −42.7 % / −14.5 % p-values in support of this
+config** — those belong to Mellum2's own config (a) on Q4_K_M.
 
 Both pre-registered A/B cells were recomputed from raw CSVs in a hostile audit
 (2026-08-16) and the confirmatory arithmetic held exactly: medians, W, exact
@@ -91,38 +114,118 @@ shipped on all three phones.
 
 ### Expert skipping (`--drop-cold-experts`) as a standalone fast mode
 
-The quality curve is the best result on the board and it keeps getting better:
+The quality curve on CalaQwen is **complete, six points**, including the shipped
+default measured at last rather than interpolated:
 
-| drop | macro bpb (CalaQwen) | cost vs d0 | gate |
-|---|---|---|---|
-| 0.0 | 0.6781 | — | PASS |
-| **0.3** | 0.6785 | **+0.06 % — free** | PASS |
-| 0.8 | 0.6889 | +1.6 % | PASS |
-| 1.0 | running | — | — |
+| drop | macro bpb (CalaQwen) | cost vs d0 |
+|---|---|---|
+| 0.0 | 0.6780748 | — |
+| **0.3** | 0.6784793 | **+0.06 %** |
+| 0.5 | 0.6802864 | +0.33 % |
+| 0.65 | 0.6842309 | +0.91 % — *former default, retired 2026-08-18* |
+| 0.8 | 0.6889289 | +1.60 % |
+| 1.0 | 0.7049320 | +3.96 % |
+
+**There is no "gate" column any more, and that is a correction.** An earlier
+version of this page said "all GATE_PASS". The curve's `gate_vs_k8d0` column is
+vacuous for CalaQwen: `GATE_DIR` is hardcoded to `results/mellum2_ppl_gate`
+(`run_mellum2_dropcurve.py:31`), so the k8 anchor is **Mellum2-12B** (macro
+1.020819). Reusing the script for CalaQwen left the anchor unchanged, so
+`d_macro_vs_k8d0 ≈ −0.34` against a `MACRO_PASS = 0.04` threshold — every arm
+passes by 0.38 bpb **because CalaQwen is a better model than Mellum2**, which says
+nothing about the drop. The orchestrator's `DROPCURVE_FLAT(spread=0.0269,
+noise=0.3537)` verdict is the same artefact: that "noise floor" is the
+CalaQwen-minus-Mellum2 model gap, not run-to-run noise, which makes
+"everything is within noise" a tautology.
+
+What survives is the part that matters: `macro_bpb` and the **vs d0** column are
+same model, same pinned binary, same corpus, and decode PPL is deterministic
+(noise measured at 1e-6 on the Mellum2 campaign). So the real curve is **monotone
+increasing, small but not flat and not free**.
+
+**✅ The real anchor now exists** (`results/calaqwen_gate_anchor`, measured
+2026-08-17): **CalaQwen k=8, drop 0.0 → macro bpb 0.6660114**. Predicted in advance
+to land in 0.66–0.675, and it did. Scored against it, with the campaign's own
+`MACRO_PASS = 0.04` budget:
+
+| drop | vs k8d0 | share of budget |
+|---|---|---|
+| 0.00 | +0.0121 | 30 % |
+| 0.65 | +0.0182 | 46 % |
+| **1.00, renorm ON** | **+0.0389** | **97 % — passes by 0.0011** |
+| **1.00 + `--drop-no-renorm`** | **+0.0201** | **50 %** |
+
+Two things follow. Going from stock k=8 to k=6 costs **+0.0121 (1.81 %)** — the
+step we already ship and consider fine, and a useful yardstick for every other
+number here. And `d=1.0` on the renorm default **all but exhausts the quality
+budget**: the flag is not a refinement, it is what separates "shippable" from
+"one step from failing".
 
 And on Mellum the curve goes **below the anchor**: d=0.5 measures macro bpb
 **1.0058 against the k8 anchor's 1.0208**, i.e. a delta of **−0.0150** — skipping
 cold experts *improves* multilingual perplexity, with run-to-run noise at 1e-6.
 ("Below zero" refers to the delta, not to an absolute negative bpb.)
 
-**⚠️ Do not build on this yet.** Two independent auditors flagged that the drop
-is not a clean removal: `drop_renorm` is TRUE by default (`config.h:175`) and no
-drop cell ever passed `--drop-no-renorm`, so `router_hook.cpp:278-282` rescales
-survivors by `total/kept > 1` — and the top expert is never droppable
-(`router_hook.cpp:262`). The real operation is
-`y' = (total/kept) · Σ_survivors g_i·E_i(x)`, i.e. **mixture sharpening**. The
-improvement may come from the renormalisation rather than from removing noise.
-Also: it is a **Mellum-only** result — on CalaQwen the minimum is at d=0 and d0.3
-sits marginally above it. The four-arm ablation that settles it (renorm on / off /
-d=0 / random drop) is the campaign's highest-value missing measurement, ~4 h of PC
-time, and is not yet run.
+**✅ The renormalisation question is answered, and the answer is the opposite of
+what was suspected (M4, 2026-08-17, `results/m4_renorm_ablation/`).**
 
-**What is missing before this can ship as a speed claim:** a clean
-**throughput + bytes** cell. The current curve never instrumented read bytes,
-and its wall-clock times are confounded — each arm ran under a different amount
-of CPU contention from other jobs (d0.8 ran under 100 % contention, d0.0 under
-8 %, d1.0 under none). The bpb numbers are deterministic and safe; the timings
-are not comparable across arms.
+Two auditors flagged that `drop_renorm` is TRUE by default (`config.h:175`), so
+`router_hook.cpp:278-282` rescales survivors by `total/kept > 1`, and suspected
+the drop's good quality numbers came from that **sharpening** rather than from
+removing noise. Measured, the renormalisation is not helping — **it is doing most
+of the damage**:
+
+| | renorm ON (default) | renorm OFF | Δ |
+|---|---|---|---|
+| **d=0.5** | 0.6802864 (+0.33 % vs d0) | 0.6791113 (+0.15 %) | −0.17 % |
+| **d=1.0** | 0.7049320 (**+3.96 %**) | **0.6860923 (+1.18 %)** | **−2.67 %** |
+
+**Roughly 70 % of the quality cost of aggressive dropping is the default, not the
+drop.** The harm scales with how much is dropped (16× larger at d=1.0 than at
+d=0.5) — predicted in advance from the mechanism, then confirmed. All five
+languages moved the same way in both arms. With renorm ON the damage is also
+lopsided (en +8.12 % vs zh +3.12 %); with it off it is uniform and small
+(+0.91 % … +1.58 %).
+
+The code comment that justifies the default fears "a systematic shrink the model
+never sees in training". Empirically **the shrink is ~4× less harmful than the
+rescale** at d=1.0: dropped experts carry little weight, so the shrink is tiny,
+while `total/kept` amplifies the top experts past their trained magnitude.
+
+The random-drop arm (is it *cold* experts, or any experts?) is **deliberately not
+included**: no such flag exists, and a rebuilt binary would break the identity pin
+that makes these arms comparable — an owner decision, not a thing to smuggle in.
+
+**The throughput + bytes gap is now closed, and it changed the story.** Two device
+sweeps (`results/dropsweep_jelly`, Marco-Mini; `results/dropsweep_lfm_jelly`,
+LFM2.5) measured time *and* bytes from a verified-cold cache:
+
+- **The drop charges a fixed compute tax just for being armed.** At d=0.3 both
+  models dropped ~0.05 % of routed slots (21 of 33600; 9 of 17600) and compute
+  still rose 7–21 %. `drop_armed()` (`router_hook.cpp:213-215`) skips the entire
+  residency-query and rescale path when the fraction is 0, so **d=0.0 is not
+  "no drops" — it is the machinery switched off.**
+- **It can only drop what is not cached** (`router_hook.cpp:271` requires
+  `route_miss`), so **the cache hit rate caps the drop rate**. Both models obey
+  the cap: Marco-Mini 50.2 % hit → 29.7 % of slots dropped at d=1.0; LFM2.5
+  93.5 % hit → 3.6 %.
+- **Therefore the drop pays only when it saves enough I/O to repay the tax.** On
+  Marco-Mini d=1.0 is **−27 % time and −68 % bytes**; on LFM2.5, whose experts fit
+  in cache, **every drop level is a net loss** and d=1.0 is the slowest arm.
+
+An earlier explanation of mine — that low drop fractions cost time by disturbing
+cache locality — **is withdrawn**: the cost is in compute, not stall, and on
+LFM2.5 bytes fall while time rises, which no byte-based mechanism can do.
+
+**Still unmeasured, and not substitutable by analysis:** the shipped model on a
+phone. CalaQwen is 13.4 GB and is on no device we can use; the one CalaQwen device
+cell (`results/adopt_dropcold`) has no stall/compute breakdown and uses a different
+quantisation. **Resolved 2026-08-18:** CalaQwen was measured on the Jelly (12/12
+runs) and `0.65` was confirmed dominated — slower than not dropping in all three
+rounds — so the shipped default is now `d=1.0 --drop-no-renorm`. What follows was
+written while `0.65` still shipped: it sat on a part of the curve that is
+**dominated on the one device+model pair where it was measured, and untested on
+the model we ship**. That is "not verified", not "wrong".
 
 ### GPU prefill on Adreno 750-class — *reopened 2026-08-16, was mis-filed as dead*
 
@@ -135,9 +238,36 @@ Xiaomi 14 / Adreno 750, unplugged, llama-bench r=2, **Qwen3.5-2B dense**, `-t 6`
 | CPU `-ngl 0` | 31.46 | **16.15** |
 | GPU `-ngl 99 -fa off` | **181.65** | 7.07 |
 
-**Prefill GPU = 5.77× CPU** — the largest single-number speedup in the campaign,
-and the PLAN's lane summary recorded it as "prefill GPU 1.29-1.7×". Decode loses
-(0.44×) and stays dead.
+**⚠️ The 5.77× is WITHDRAWN — re-verified 2026-08-18 and it was a weak CPU
+baseline, not a fake GPU.** Interleaved cells, 5 reps per ordering, unplugged: GPU
+pp128 reproduces the book exactly (186.6 vs 181.65) but **CPU pp128 measures 57-62
+t/s, not 31.46**. The original CPU samples were internally consistent (31.76/31.16),
+so that run was in a genuinely slow state that was never re-measured. **Real ratio at
+pp128: 3.18×**, and both orderings agree (3.10× / 3.27×), so it is not a cold-cell
+artefact — the first GPU of the night was the *slowest* and the first CPUs the
+*fastest*, the opposite of the 740 failure mode.
+
+**But the lever comes out stronger, because the advantage grows with prompt length
+and 128 tokens is not the operating point:**
+
+| pp | 2B GPU/CPU | 4B GPU/CPU |
+|---|---|---|
+| 128 | 3.18× | 4.17× |
+| 512 | 3.95× | 5.70× |
+| **1024** | **5.35×** | **6.95×** |
+| 2048 | 6.69× | 6.46× |
+
+At the app's ~1.4k-token system prompt: **2B TTFT ~6.5 s on GPU vs ~33 s on CPU;
+4B ~16 s vs ~108 s** — the 4B is only usable with GPU prefill.
+
+**The most robust argument is not the ratio but the stability:** CPU prefill is
+thermally fragile, GPU prefill is not. CPU outliers (29.5 t/s at pp1024, 18.8 at
+pp2048) appeared at 38-40 °C while the GPU beside them held 216.7 and 212.2.
+
+Nothing left to squeeze: `-ngl 99` beats partial offload, `-ub 512` beats
+128/256/1024, batch and GPU threads are noise. **`-fa on` crashes (exit 134)** — a
+bug to file, not a config. Decode still loses (**0.66×**, 17.5 vs 26.5) and stays
+dead.
 
 **Scope, which the audit omitted:** measured on a **dense 2B**, not the 35B MoE.
 For CalaQwen the Q7 landmine stands — the expert-ready streaming hook lives only
@@ -255,10 +385,15 @@ Notes that matter more than the numbers:
 
 | item | state | blocked on |
 |---|---|---|
-| CalaQwen drop curve, arm d=1.0 | running, finishes tonight | — |
-| **Clean throughput + bytes cell for expert skipping** | **not started — the missing measurement** | PC free after d1.0 |
-| CalaQwen quality gate for the recipe | the recipe's PPL curve is certified on **Mellum only**; CalaQwen's optimum drop may differ from 0.5 | ~1 PC-day, owner-approved |
-| PPL corpus v2 | campaign metro is still Dante (memorized: bpb 0.27 vs 0.83 zh) — cross-model comparisons on that slice are NULL | owner design |
+| ~~CalaQwen drop curve~~ | **DONE, 6 arms** (0.0/0.3/0.5/0.65/0.8/1.0) + a real CalaQwen `k8d0` anchor (0.6660114) | — |
+| **Clean throughput + bytes cell for expert skipping** | **DONE on two models** — and it moved the mechanism: arming tax + hit-rate cap (see §2) | — |
+| **M4 renorm ablation (renorm ON vs OFF at d=0.5 and d=1.0)** | **armed, starts when the curve frees the PC** | — |
+| ~~Drop sweep on the SHIPPED model (CalaQwen) on a phone~~ | **DONE 2026-08-17, 12/12.** Model transferred over USB and sha-verified; `0.65` slower than no drop in all three rounds; `d=1.0` and `d=1.0+no-renorm` equivalent in speed | — |
+| **Same treatment for Marco1c** | device sweep with the `no-renorm` arm **running**; renorm ablation on PC DONE (d=1.0 costs +12.41 % with renorm, **+5.71 % without**) | its own `k8d0` anchor, ~1.5 h PC, to know if +5.71 % fits the budget |
+| **Re-measure absolute device tok/s under the new default** | every S23/Xiaomi speed cell was run at `drop 0.65`; the sign is known (−12.9 % on Jelly) but the absolutes are not | device time |
+| Random-drop arm (is it *cold* experts, or any experts?) | needs an engine flag that does not exist; a rebuild would break the identity pin the other arms share | owner |
+| ~~CalaQwen quality gate for the recipe~~ | **DONE 2026-08-17**: CalaQwen has its own `k8d0` anchor (0.6660114), so the gate is a same-model statement at last. The shipped default sits at 50 % of the budget | — |
+| ~~PPL corpus v2~~ | **DONE, this line was stale.** `corpus/multi5/it.txt` has sha `498a5f3b554f`, identical to `it_v2_wikipedia_caffe.txt` — the campaign metric is already modern Wikipedia prose, not the memorised Dante slice (kept as `it_v1_literary.txt`). Verified 2026-08-17. | — |
 | FT tool-call + IT lane (Qwen3.5-2B) | **all gates closed** (licence, recipe ×2 families, registry FROZEN) | owner GO |
 | Free-tier G99 decision | (i) accept A0 k4 = 10.6 · (iii) no LFM on G99 — (ii) REAP eliminated with data | owner |
 | Three naming slots | recipe · cold-start prefetch · frozen draft | owner (`NAMING.md`) |

@@ -24,6 +24,278 @@
 > Non ci si scrive mai niente che non sia già nel PLAN, e non si legge mai
 > ALIVE al posto del PLAN per decidere.
 
+> 🛑 **MARCO1c — ANCORA MISURATA, E IL DROP A 1.0 NON SI PUÒ SPEDIRE.
+> NEMMENO COL FLAG. (18/08 03:38, `results/marco_renorm_ablation`)**
+>
+> Ancora sua: **`marco_k8d0` = 0.761332** (k=8, nessun drop, stesso binario
+> e corpus). Contro quella, col budget di campagna `MACRO_PASS = 0.04`:
+>
+> | config Marco | macro bpb | vs ancora | quota budget | esito |
+> |---|---|---|---|---|
+> | k6 **d=0.0** | 0.766534 | **+0.0052** | **13%** | ✅ PASS |
+> | k6 d=1.0 renorm ON | 0.861667 | +0.1003 | **251%** | ❌ FAIL |
+> | k6 **d=1.0 + no-renorm** | 0.810295 | **+0.0490** | **122%** | ❌ **FAIL** |
+>
+> **`--drop-no-renorm` dimezza il danno (da +0.1003 a +0.0490) ma non
+> basta: su Marco il drop a 1.0 sfonda comunque il budget del 22%.**
+>
+> ➡️ **Per Marco1c la risposta è: NESSUN DROP.** `d=0.0` passa col 13% del
+> budget; `d=0.65` è già escluso dall'altro lato (sul device è **più
+> lento** di non droppare, +5.4% su 3 round). Non esiste un livello di
+> drop che convenga su questo modello.
+> ✅ **È esattamente perché mi ero rifiutato di estendere a Marco il
+> default deciso per CalaQwen senza la sua ancora.** Su CalaQwen d=1.0+nr
+> sta al 50% del budget, su Marco al 122%: **stesso flag, stesso livello,
+> esito opposto.** La config è per-modello, come diceva gualt.
+>
+> 📌 **E si incastra col risultato cache:** per Marco la leva giusta non è
+> togliere esperti ma **dargli RAM** — cache 4000 senza drop è il minimo
+> assoluto misurato (0.113 s/tok) e costa **zero** qualità, contro un drop
+> che qui non passa nemmeno il gate.
+>
+> 🔭 **PREFILL GPU RIVERIFICATO (18/08, Xiaomi 14 / Adreno 750, scollegato,
+> celle INTERLACCIATE, 5 ripetizioni per ordinamento) — IL 5.77× È
+> RITIRATO, MA LA LEVA ESCE PIÙ FORTE DI PRIMA.**
+>
+> ❌ **Il 5.77× era un artefatto della BASELINE CPU, non della GPU.**
+>
+> | | riverifica 18/08 | report originale |
+> |---|---|---|
+> | GPU pp128 | 183-188 t/s (media 186.6) | 181.65 ✅ riprodotto |
+> | **CPU pp128** | **57-62 t/s (media 58.7)** | **31.46** ❌ |
+>
+> **La GPU riproduce esattamente il valore storico; è la CPU che
+> nell'originale girava in uno stato lento** (i suoi due campioni erano
+> coerenti fra loro — 31.76 / 31.16 — quindi non un errore di misura ma
+> uno stato reale, e mai rimisurato). Rapporto vero a pp128: **3.18×**.
+> ✅ **E NON è l'artefatto da prima-cella-fredda che temevo** (quello che
+> aveva fregato il 740): la prima GPU della serata è stata la **più lenta**
+> (179.7) e le prime CPU le **più veloci** (62.4 → assestate a 57.2) —
+> l'opposto del pattern. I due ordinamenti concordano: **3.10× e 3.27×**.
+>
+> 📈 **MA il vantaggio CRESCE con la lunghezza del prompt, e il nostro
+> punto di lavoro non è 128 token — è il system prompt da ~1.4k:**
+>
+> | pp | 2B GPU/CPU | 4B GPU/CPU |
+> |---|---|---|
+> | 128 | 3.18× | 4.17× |
+> | 512 | 3.95× | 5.70× |
+> | **1024** | **5.35×** | **6.95×** |
+> | 2048 | 6.69× | 6.46× |
+>
+> **TTFT interpolato a 1400 token: 2B ~6.5 s su GPU contro ~33 s su CPU;
+> 4B ~16 s contro ~108 s.** Cioè il 4B diventa usabile solo con la GPU.
+>
+> 🌡️ **L'argomento più solido non è il rapporto, è la STABILITÀ: la CPU è
+> termicamente fragile, la GPU no.** Gli outlier CPU (29.5 t/s a pp1024,
+> 18.8 a pp2048) sono arrivati a 38-40 °C mentre la GPU accanto restava
+> a 216.7 e 212.2. Su un telefono caldo — cioè in uso vero — la CPU
+> degrada e la GPU tiene la banda 210-217 (2B) / 86-89 (4B).
+>
+> 🔧 **Niente da spremere: la config di partenza era già l'ottimo.**
+> `-ngl 99` batte 8/16/24; `-ub 512` batte 128/256/1024; `-b` e i thread
+> GPU sono rumore. ⚠️ **`-fa on` CRASHA (exit 134, JSON vuoto)** — da
+> aprire come bug, non è una config.
+> ✅ **Decode invariato: GPU 0.66× (17.5 contro 26.5), gate FAIL.** Stessa
+> conclusione qualitativa di prima, con entrambi i lati più veloci del
+> report storico.
+>
+> 🧪 **BRACCIO RANDOM — CODICE PRONTO E RIVISTO (18/08). Grok implementa,
+> DeepSeek attacca, io verifico.**
+>
+> `--drop-policy {cold|weight|random}` + `--drop-seed`, build isolata in
+> `build-pc-droppolicy/`. **Binario pinnato verificato intatto da me:**
+> sha `7722cb23…d75d52` = `expected_binary_sha256`, mtime ancora 14/08.
+>
+> ✅ **Il controllo regge:** `cold` è **bit-identico** al codice precedente
+> (verificato da me sul diff — è la stessa espressione spostata nel ramo
+> `else` — e dal revisore anche empiricamente). Tutti i miei sospetti
+> REFUTATI con prove: `kept` del ramo random equivalente (legge `drop_w_`
+> pre-drop, array diverso da quello scritto), `drop_res_` stantio **senza
+> lettori** sotto Weight, RNG con **un solo** chiamante (niente re-seed a
+> metà run), Fisher-Yates uniforme e senza OOB, **conteggio random ==
+> conteggio cold verificato su 60.000 casi**.
+>
+> 🌿 **BRANCH SBAGLIATO — la causa vera del fallimento del primo tentativo
+> (18/08). E una mia affermazione allarmista, ritirata.**
+>
+> Il primo braccio è morto in 11 s con `unknown arg: --no-moe-fused-gemv`,
+> che l'harness passa via `--stock-kernel`. Indagando avevo detto a gualt
+> che *"l'albero che ha prodotto il binario pinnato non è ricostruibile"*.
+> **FALSO, e l'errore è mio: stavo guardando solo `main`.**
+>
+> **Provenienza del binario PC di campagna, ricostruita:**
+> - `build-pc-mellum-ppl/cli/bmoe-cli.exe` sha `7722cb23…`, mtime
+>   **14/08 01:58** (`reports/moe-mellum2-f1-s23.md:532`: *"mellum recipe +
+>   fused flags forced OFF"*).
+> - I flag `--moe-fused-gemv` / `--moe-fused-ffn` nascono in `93d78ab` e
+>   `0c54a27`, **13/08 19:01 e 19:59** — cioè poche ore prima della build.
+> - Stanno su **`kalsa/kernel-s1-expert-pack`** e
+>   **`kalsa/kernel-s2-layer-fuse`**, entrambi con ANCHE la ricetta mellum.
+> - **`kalsa/kernel-s2-layer-fuse` = `main` + 3 commit** (`main..s2` = 3,
+>   `s2..main` = **0**: main è suo antenato).
+> ➡️ **Il binario di campagna viene da `kalsa/kernel-s2-layer-fuse`.**
+>
+> ❌ **Grok ha applicato `--drop-policy` su `main`**, che è indietro di 3
+> commit e non ha i kernel fusi. Da lì il rifiuto del flag.
+> ✅ **Rimedio: riapplicare la patch su `kalsa/kernel-s2-layer-fuse` e
+> ricompilare.** Così `cold` torna a essere un controllo vero, sulla
+> stessa linea del binario di campagna e con gli stessi flag.
+>
+> 📌 **Nota di metodo, per non ripeterla:** `strings` sull'exe restituisce
+> **zero righe** (non estrae dal PE) e mi aveva dato un falso negativo che
+> ho quasi usato come prova. Il test valido è stato lanciare il binario
+> con il flag e con un flag inventato: accetta il primo, rifiuta il
+> secondo. **Verificare lo strumento prima di credere al suo silenzio.**
+>
+> 🚨 **F1 [CONFERMATO, sev 2] — VINCOLO CHE CAMBIA IL DISEGNO:** nel
+> changeset è finito anche uno spostamento del submodule `llama.cpp`
+> (`e5605f3` → `8d3c2ea`: due commit di matmul CPU, **lo strato che decide
+> gli arrotondamenti**). Codice bit-identico ≠ output bit-identico.
+> ➡️ **I numeri di `build-pc-droppolicy` NON sono confrontabili con quelli
+> del binario pinnato.** L'esperimento dev'essere autosufficiente: il
+> braccio `cold` va girato NEL BINARIO NUOVO come controllo, e **non si
+> confronta mai con la curva esistente** (0.6780748 ecc.).
+>
+> ⚠️ **F2 [plausibile, sev 2]:** `settle_spec()` gira anche sotto Weight,
+> quindi quel braccio non azzera tutta la tassa. Il revisore è però equo:
+> `query_residency` — la scansione per-slot, la parte dominante — **è
+> rimossa davvero**, e `settle_spec` gira in ENTRAMBI i bracci, quindi il
+> delta cold-vs-weight isola comunque la query. **Vincolo di scrittura:
+> non si potrà dire "la query è il 100% della tassa".**
+> 📌 **F3 [sev 4]:** `std::uniform_int_distribution` non è portabile fra
+> toolchain — stesso seed su PC e su Android può dare esperti diversi.
+> Irrilevante finché si confronta dentro una sola piattaforma; da dire se
+> un giorno si riproduce su device un run del PC.
+>
+> 🔥 **CACHE × DROP — LA SCOPERTA CHE RIMETTE IN DISCUSSIONE IL DEFAULT
+> APPENA DECISO (18/08, round 1 di 3, Marco-Mini su Jelly).**
+>
+> 📈 **CURVA A TRE PUNTI (Marco-Mini, 3 round per cella, tutte complete) —
+> E IL MIGLIOR NUMERO IN ASSOLUTO NON CONTIENE IL DROP.**
+>
+> | cache | hit a d=0 | **d=0.0** | col drop | vantaggio drop |
+> |---|---|---|---|---|
+> | 1500 | 39.5% | 0.189-0.194 | 0.142-0.145 | **−25%** |
+> | 2000 | 50.2% | 0.163-0.171 | 0.123-0.127 | **−25%** |
+> | 4000 | 76.8% | **0.113-0.116** | 0.130-0.131 | **+15%** |
+>
+> 🏆 **Il minimo assoluto è `0.113` — cache 4000 SENZA drop.** Batte cache
+> 2000 col drop (0.124) del 9%, **e costa ZERO qualità** invece del +5.71%
+> che il drop costa su Marco. Cioè: **dargli RAM è meglio che togliergli
+> esperti**, dove la RAM c'è.
+> Il drop resta la leva giusta **solo dove la RAM non c'è** — ed è
+> esattamente il segmento in cui sta LFM2.5 (3.3 GB).
+>
+> ⚠️ **Artefatto ricorrente da mettere a verbale: il braccio col drop ha
+> run sporadiche col compute gonfiato**, quello senza drop no. Due casi su
+> nove: c4000 r1 (compute 0.194 contro 0.117 delle altre due) e c1500 r3
+> (0.143 contro 0.116). Il baseline d=0.0 è invece stabile in tutte e tre
+> le celle. **Conseguenza: le medie del braccio drop sono meno affidabili
+> di quelle del baseline**, e vanno lette per mediana con i round mostrati
+> uno per uno, non aggregate.
+>
+> **CELLA CACHE 4000, COMPLETA 3/3.**
+>
+> | | cache 2000 (sempre usata) | **cache 4000** |
+> |---|---|---|
+> | d=0.0 — s/tok | 0.166 | **0.113 (−32%)** |
+> | d=0.0 — hit | 50.2% | **76.8%** |
+> | d=0.0 — byte letti | 11803 MiB | **3366 MiB (−71%)** |
+> | **d=1.0+nr vs d=0.0** | **−24.9% (più veloce)** | **+15% (più LENTO)** |
+>
+> ⚠️ **CORREZIONE DI UN MIO NUMERO: il "+87%" era un OUTLIER, non il
+> risultato.** Round per round: r1 +87%, **r2 +16%, r3 +15%**. r2 e r3
+> coincidono (0.131 / 0.130) e girano a 29-32 °C; r1 girò a 34 °C col
+> compute gonfiato (0.194 contro 0.117) ed era la prima run dopo il
+> riavvio dell'harness. **Il valore onesto è +15%.** Avevo scritto a gualt
+> "un +87% non è rumore": era troppo sicuro su un round singolo, ed è
+> esattamente l'errore contro cui esiste il disegno a 3 round.
+> **La conclusione qualitativa NON cambia** — a cache 4000 il drop fa
+> danno — ma l'oscillazione da −24.9% a +15% è di ~40 punti, non di 110.
+>
+> **Due risultati, e il secondo ribalta una decisione presa oggi.**
+>
+> 1. **Alzare la cache da 2000 a 4000 dà −32% di tempo A QUALITÀ IDENTICA.**
+>    Non tocca nessun esperto, non cambia un token di output: tiene in RAM
+>    ciò che prima rileggeva dalla flash.
+>
+>    🔧 **CORREZIONE: avevo scritto "non l'avevamo mai guardato". FALSO, e
+>    la fonte è dentro il nostro engine.** `BigMoeOnEdge/docs/cache-sizing.md`
+>    apre con *«The expert cache budget (`--cache-mb`) is the **dominant
+>    throughput lever**»* ed esiste già **`--cache-mb auto`**, che la
+>    dimensiona sulla RAM del device una volta al load
+>    (`available RAM − cache_floor_mb`, clampata). Quel documento descrive
+>    anche una **scogliera misurata il 2026-07-20**: sotto il ciclo di un
+>    token l'hit rate non degrada, **va esattamente a 0.0%** — perché la LRU
+>    globale sfratta proprio ciò che sta per rileggere.
+>    **Quello che è nuovo NON è la leva cache: è la sua INTERAZIONE col
+>    drop** — che al variare della cache il drop cambi *segno*. Di questo
+>    in `cache-sizing.md` non c'è traccia. Rivendicare il resto sarebbe
+>    riscoprire il lavoro di qualcun altro e chiamarlo mio.
+>
+>    ⚠️ **E una trappola operativa, dal documento stesso:** il pavimento
+>    `cache_min_mb = 1500` **non è calcolato sul modello** — è generico. La
+>    quantità vera è `token_demand_MiB` (il ciclo di un token), stampato in
+>    ogni riga di summary: **Marco = 136.8 MiB**, CalaQwen = 334.5. Quindi
+>    per Marco 1500 ha 11× di margine, ma per un modello con k più alto il
+>    pavimento può stare SOTTO il ciclo e la protezione smette di
+>    proteggere in silenzio. *Quando si sceglie una cache a mano, si
+>    confronta con `token_demand_MiB`, non con `cache_min_mb`.*
+> 2. **A cache 4000 il drop diventa DANNOSO, non solo inutile: +87%.** La
+>    mia predizione dichiarata era "il vantaggio si restringe". **Non si è
+>    ristretto: si è invertito.** È il meccanismo di stanotte al suo
+>    estremo — con hit al 76.8% non stai più aspettando il disco, quindi la
+>    tassa fissa di compute del drop non ha più nulla da ripagare.
+>
+> ⚠️ **Conseguenza diretta: il default B deciso oggi è l'ottimo a cache
+> 2000, e la cache non è una costante di natura — è un budget di RAM.**
+> Va rifatto su CalaQwen prima di considerare chiusa la decisione.
+>
+> 🎯 **E la regola che ne esce è di PRODOTTO, non di laboratorio** (punto di
+> gualt, 18/08): 4 GB di cache si possono forse concedere su un telefono da
+> 8 GB, ma **su uno da 6 GB non esistono** — Android ne trattiene una fetta
+> e le altre app competono. Quindi:
+>
+> **più RAM → cache grande → hit alto → il drop fa danno →
+> meno RAM → cache piccola → hit basso → il drop paga, e molto.**
+>
+> Cioè la config giusta **dipende dal telefono**, non solo dal modello: sono
+> lo stesso parametro visto da due lati, perché entrambi decidono quanta
+> parte del modello sta in RAM. **E per il segmento 6 GB la risposta non è
+> tarare le manopole di un modello da 6 GB: è LFM2.5-8B-A1B (3.3 GB)** —
+> che è esattamente perché sta in lineup.
+>
+> 🔧 **CORREZIONE MIA:** avevo liquidato lo sweep LFM2.5 come "inutile, lì
+> il drop non paga mai (hit 93.5%)". **Sbagliato: quel 93.5% è a cache
+> 2000.** A cache 1000 — la condizione reale di un 6 GB — l'hit scende e il
+> drop può tornare a pagare. È il modello E la condizione che contano per
+> quel segmento. Rimesso in coda.
+>
+> 🚢 **DECISIONE OWNER 2026-08-18 — SI SPEDISCE LA CANDIDATA. `drop 0.65`
+> È RITIRATO.**
+>
+> **Nuovo default CalaQwen:**
+> `-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap
+> --io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 1.0
+> --drop-no-renorm`
+>
+> Motivo in una riga: **lo 0.65 era dominato** — costava qualità *e* tempo,
+> ed è risultato più lento di non droppare affatto in tutti e tre i round.
+> L'unico punto che compra velocità è d=1.0, e `--drop-no-renorm` ne toglie
+> il 70% del costo di qualità senza cambiare né i byte né la velocità.
+> **Contro l'ancora vera: 50% del budget invece del 97%.**
+>
+> Aggiornati: `Scheda prodotto` (default B), `docs/ALIVE.md` (config b),
+> `docs/NAMING.md`. ⚠️ **Le tok/s assolute delle celle S23/Xiaomi sono del
+> vecchio default e NON valgono per B** — il segno è noto, gli assoluti per
+> device vanno rimisurati.
+>
+> 📌 **Marco1c resta da decidere separatamente** (sweep device in corso):
+> lì d=1.0 costa **+5.71% anche col flag** contro il +1.18% di CalaQwen, e
+> manca la sua ancora `k8d0` per sapere se sta nel budget. **Non estendere
+> il default B a Marco senza quei due numeri.**
+>
 > 🔍 **AUDIT OSTILE ESTERNO SULLA STATISTICA (16/08, DeepSeek V4 Flash
 > thinking max, tutto ricalcolato da CSV grezzi con scipy).**
 > **I DUE P-VALUE SPEDITI REGGONO — attaccati e ricalcolati, esatti.**
@@ -109,6 +381,707 @@
 > per-token come "asse rosso". Entrambi sono veri; va detto quale si
 > intende. L'asimmetria 144-vs-200 è dichiarata nel report Xiaomi e
 > **non** in quello S23.
+>
+> 🏁 **M4 CHIUSO A TRE LIVELLI (11:24) — E SUL DEFAULT SPEDITO LA RISPOSTA
+> È LA MIGLIORE POSSIBILE.**
+>
+> | drop | renorm ON | renorm OFF | Δ | costo vs d=0.0 |
+> |---|---|---|---|---|
+> | 0.50 | 0.6802864 | 0.6791113 | −0.17% | +0.33% → **+0.15%** |
+> | **0.65 (spedito)** | **0.6842309** | **0.6794305** | **−0.70%** | **+0.91% → +0.20%** |
+> | 1.00 | 0.7049320 | 0.6860923 | −2.67% | +3.96% → **+1.18%** |
+>
+> **Cambiando UN flag, il costo di qualità della config che spediamo
+> scende da +0.91% a +0.20% — il 78% in meno.** Non cambia il livello di
+> drop, non cambia quali esperti cadono, non cambia i byte letti, non
+> richiede di rifare l'A/B. Il danno cresce in modo monotono col drop
+> (0.0012 → 0.0048 → 0.0188), come previsto dal meccanismo.
+> *(La mia interpolazione dichiarata in anticipo dava ~+0.32%; misurato
+> +0.20%.)*
+>
+> ✅ **MELLUM2 È Q4_K_M ED È GIUSTO COSÌ — e i p-value non hanno nessun
+> problema di portata. (Registrato 17/08; la mia prima stesura di questo
+> blocco era gonfiata, vedi in fondo.)**
+>
+> Mellum2 esiste solo come **Q4_K_M ufficiale JetBrains**; il KEXP su
+> Mellum è stato **proiettato e mai costruito**
+> (`reports/moe-mellum2-f1-s23.md` §"one honest KEXP projection":
+> ~7.5-8.8 t/s stimati contro 4.5-6 del Q4, con la nota esplicita
+> "none of those numbers were observed today"). **È una scelta di
+> prodotto, non una dimenticanza:** Mellum2 è la SKU coding a pagamento
+> e la generazione di codice è la capacità che soffre di più la
+> quantizzazione aggressiva — quantizzarlo oltre metterebbe a rischio
+> proprio ciò che si vende. *(Razionale di gualt; da oggi scritto qui e
+> non più solo a voce.)*
+>
+> 🔗 **E la catena regge esattamente:**
+> A/B braccio B = `-t 2 --n-expert-used 6 --drop-cold-experts 1.0`
+> (`run_ship_ab_s23.sh:421`) · config viva di Mellum2 da F1e = **k=6
+> drop 1.0, "solo config t2+d1.0"** · modello testato = Q4_K_M ·
+> modello spedito = Q4_K_M. **Config, quantizzazione e p-value
+> coincidono: i −42.7% / −14.5% validano precisamente ciò che Mellum2
+> spedisce.**
+>
+> ❌ **MIO ERRORE DA NON RIPETERE (17/08 sera):** avevo scritto qui che
+> esisteva un "terzo disallineamento" e che citare quei p-value fosse
+> "una forzatura di portata". **Falso.** I tre presunti disallineamenti
+> (thread, drop, quantizzazione) sono **un solo problema, già trovato e
+> già corretto il 16/08**: i p-value erano stati attaccati alla config
+> CalaQwen invece che a quella Mellum2, e ALIVE.md era già stato
+> sistemato separando le due config. **L'ho ri-derivato da zero e
+> presentato come tre scoperte nuove.** Gonfiare un problema risolto
+> costa credibilità quanto nasconderne uno vero.
+>
+> 📌 **Lavoro futuro, non ora (decisione gualt):** un test di coding su
+> Mellum2 con la nostra ricetta, per sapere quanto costa davvero il KEXP
+> sulla capacità che vendiamo. Fino ad allora Mellum2 resta Q4_K_M.
+>
+> ✅ **Attenuante misurata, da dire insieme al problema:** la leva
+> funziona anche su KEXP — gli sweep device su **Marco-KEXP**
+> (`dropsweep_jelly`) e **CalaQwen-KEXP** (`dropsweep_calaqwen_jelly`)
+> mostrano il drop che opera e paga. **Il meccanismo trasferisce; è il
+> numero con il p-value che resta legato a Q4_K_M.**
+>
+> 🔧 **CORREZIONE (stessa sera, dopo domanda di gualt): non è una
+> dimenticanza, e la mia prima formulazione era troppo severa.**
+> Mellum2 è la **SKU coding a pagamento**, un prodotto diverso da
+> CalaQwen/Marco, e gualt ricorda una decisione esplicita: *non
+> riquantizzarlo oltre perché la capacità di coding crolla*. Il razionale
+> è solido — la generazione di codice è la capacità che soffre di più la
+> quantizzazione aggressiva.
+> **Ma quella decisione NON è scritta da nessuna parte nel repo.** Quello
+> che il repo documenta è: Mellum2 esiste solo come **Q4_K_M ufficiale
+> JetBrains**; il KEXP su Mellum è stato **proiettato e mai costruito**
+> (`reports/moe-mellum2-f1-s23.md` §"one honest KEXP projection":
+> ~7.5-8.8 t/s stimati contro 4.5-6 del Q4 vanilla, con la nota che
+> "none of those numbers were observed today"); F1b ha streamato **il
+> file Q4_K_M** tramite una riga di ricetta `mellum`, non un file
+> riquantizzato.
+> ➡️ **Da registrare come decisione di prodotto** (con il razionale
+> coding), altrimenti è la quarta cosa portante tramandata a voce — ed è
+> esattamente il meccanismo che ha generato gli altri tre disallineamenti.
+> **Resta vero e non attenuato:** citare i due p-value a sostegno delle
+> config **KEXP** che spediamo è comunque una forzatura di portata,
+> perché quei test hanno girato su Q4_K_M.
+>
+> ⚠️ **Nota sulla cella Marco su device:** `runs.csv` sul telefono segna
+> **0 righe buone** — il bug del parser di quella notte marcò tutte e 11
+> le run `excluded=1`. I numeri citati vengono dal ri-parsing offline dei
+> per-token (validi), ma **la cella sul device è inservibile così com'è**
+> e **non ha il braccio `no-renorm`**, che ora è la config candidata.
+>
+> ✅ **CELLA CALAQWEN COMPLETA — 12/12, STATUS=DONE (17/08 23:12).**
+> Confronti dentro ogni round:
+>
+> | | R1 | R2 | **R3 (la più pulita)** | byte vs d0 |
+> |---|---|---|---|---|
+> | d=0.65 vs d=0.0 | +10.9% | +5.2% | **+1.2%** | −27.3% |
+> | d=1.00 vs d=0.0 | −14.1% | −29.4%* | **−11.6%** | −71.4% |
+> | d=1.00+nr vs d=0.0 | −13.2% | −24.2%* | **−12.8%** | −71.8% |
+>
+> \* **Round 2 da scartare sui bracci d=1.0**: la riga mancante è stata
+> rifatta ore dopo, a telefono FREDDO (29→32 °C contro i 36-38 degli
+> altri), quindi quei due valori sono gonfiati a favore del drop. Il
+> **round 3 ha tutti e quattro i bracci a 36-38 °C** ed è il confronto
+> termicamente omogeneo: è quello da citare.
+>
+> **Conclusioni robuste su 3 round:**
+> - `d=0.65` **più lento di non droppare in tutti e tre** (+10.9 / +5.2 /
+>   +1.2%). Mai una volta più veloce.
+> - `d=1.0` **~12-14% più veloce** e legge **−71%** di byte.
+> - `d=1.0` con e senza renorm: sui round termicamente confrontabili
+>   (R1, R3) la differenza è **+1.1% e −1.3%, segno che si inverte** →
+>   **equivalenti in velocità**. Il flag è gratis sul tempo, misurato.
+>
+> 🎯 **DECISIONE PRONTA PER CALAQWEN (17/08, 11 righe buone su 12).
+> `d=0.65` È STRETTAMENTE DOMINATO: COSTA QUALITÀ *E* TEMPO. LA SCELTA
+> VERA È `d=0.0` CONTRO `d=1.0 + --drop-no-renorm`.**
+>
+> Confronti **dentro ogni round** (la deriva termica resta fuori: ogni
+> round ha la sua temperatura, e il round-robin dà a ogni braccio la
+> stessa posizione in ognuno):
+>
+> | braccio | R1 | R2 | R3 | byte vs d0 |
+> |---|---|---|---|---|
+> | d=0.65 vs d=0.0 | **+10.9%** | **+5.2%** | **+1.2%** | −27.3% |
+> | d=1.00 vs d=0.0 | −14.1% | *(void)* | −11.6% | −71.4% |
+> | d=1.00+nr vs d=0.0 | −13.2% | −24.2% | −12.8% | −71.8% |
+>
+> **`d=0.65` più lento di non droppare in TUTTI E TRE i round** (segno
+> costante, media ~+5.8%). Il finding di Marco-Mini si replica sul
+> modello che spediamo. **E `d=1.0` con e senza renorm sono
+> indistinguibili in velocità** (−14.1/−11.6 contro −13.2/−12.8, segni
+> opposti fra round): **il flag è gratis anche sul tempo — misurato, non
+> più dedotto.**
+>
+> | config | qualità vs d0 | velocità vs d0 |
+> |---|---|---|
+> | d=0.0 | — | — |
+> | **d=0.65 ON — quella spedita** | +0.91% | **+5.8% più LENTA** |
+> | d=0.65 OFF | +0.20% | ~+5.8% più lenta |
+> | d=1.0 ON | +3.96% | −12.9% |
+> | **d=1.0 OFF** | **+1.18%** | **−12.9%** |
+>
+> ➡️ **Lo 0.65 va abbandonato in qualunque forma**: peggiora entrambi gli
+> assi rispetto a non droppare. Se si vuole velocità, l'unico punto che
+> la compra è **d=1.0 + `--drop-no-renorm`**: +1.18% di bpb per −12.9% di
+> tempo e −71.8% di byte letti.
+>
+> 🔍 **Dettaglio coerente:** `d=1.0nr` legge un filo MENO byte di `d=1.0`
+> (2654.9 vs 2692.2) e droppa un filo di più. La renorm non tocca la
+> *decisione* di drop, ma cambia i pesi passati a valle, quindi il
+> routing del token successivo diverge: su 200 token le traiettorie si
+> separano appena. Non è rumore di misura — i byte sono identici alla
+> cifra fra round dello stesso braccio.
+>
+> ⏳ Manca `r2_d1.0` (escluso). Il resume lo rifà da solo alla prossima
+> carica: non cambia il segno, che è già coerente su due round.
+>
+> 🐞 **LE MORTI DEL JELLY DI STAMATTINA ERANO UN BUG MIO, NON ANDROID —
+> e il bug era nel "fix" che avevo scritto stanotte per curarle.**
+>
+> ```
+> run_dropsweep_jelly.sh:109: total: unbound variable
+> local total="$1" lbl="$2" left="$total" step=5 since=0
+> ```
+> **`local` è un comando: TUTTI i suoi argomenti vengono espansi PRIMA che
+> venga eseguito**, quindi `"$total"` viene letto quando `total` non è
+> ancora assegnato. Con `set -u` è fatale → `cooldown_alive()` moriva al
+> primo giro, **sempre e in modo deterministico**. La cella CalaQwen è
+> andata avanti solo perché il watchdog la rilanciava e il resume faceva
+> un run per rilancio.
+>
+> ❌ **Come me lo sono lasciato scappare:** ho validato con `bash -n`, che
+> controlla la **sintassi** e non il **comportamento**, e non ho mai
+> ESEGUITO la funzione. Poi ho costruito una teoria su Android e ho fatto
+> controllare a gualt le impostazioni di sistema del telefono — che erano
+> già a posto. **Regola: una funzione nuova va eseguita, non compilata.**
+> ✅ Ora eseguita in isolamento (12 s esatti, countdown 7→2→0) e verificata
+> in campo: `cooldown 120s` 11:54:06 → `COLD_RESET` 11:56:12.
+>
+> ⚠️ **Attenzione a non estendere troppo la spiegazione:** questo bug
+> spiega **solo** le morti di stamattina. `cooldown_alive` non esisteva
+> ancora quando sono morte la cella Marco-Mini (16/08 23:34) e la cella
+> LFM2.5 (17/08 00:25): **quelle due restano senza causa nota**, e il
+> pattern "muore nel cooldown" per esse è ancora solo un pattern.
+>
+> 🔄 **Round 1 di stamattina ARCHIVIATO, non buttato**
+> (`dropsweep_calaqwen_jelly_round1_buggycooldown`, 4 righe). Non si
+> mescola col resto: quei run erano separati da un ciclo di rilancio del
+> watchdog (sha256 di 13.4 GB + smoke test in mezzo) invece che dai 120 s
+> dichiarati — protocollo inter-run diverso da quello scritto.
+> ✅ **Controllo di determinismo gratuito:** il re-run pulito di `r1_d0.0`
+> dà `read_MiB=9410.3` e `hit=75.5`, **identici alla cifra** all'archivio
+> (s/tok 0.651 vs 0.639, differenza solo nel tempo). Le due celle
+> misurano la stessa cosa.
+>
+> 📱 **CALAQWEN SUL JELLY — CELLA PARTITA 10:23, ROUND 1 (17/08).**
+> Modello trasferito via USB e **verificato bit per bit**: sha256
+> `ac44e20c…721a`, identico alla copia PC. Config **spedita** (`-t 4`,
+> `k=6`), 4 bracci × 3 round, scollegato da 100%.
+>
+> | braccio | s/tok | stall | compute | read_MiB | hit% | droppati/48000 |
+> |---|---|---|---|---|---|---|
+> | d=0.00 | 0.639 | 0.061 | 0.570 | 9410.3 | 75.5 | 0 |
+> | **d=0.65** | **0.693** | 0.052 | 0.629 | 6842.4 | 78.8 | 2761 |
+> | d=1.00 | **0.603** | 0.031 | 0.567 | 2692.2 | 84.8 | 8224 |
+> | d=1.00+nr | 0.647 | 0.037 | 0.604 | 2654.9 | 84.8 | 8294 |
+>
+> ❌ **ERRORE MIO, DA CORREGGERE SUBITO: la predizione che avevo scritto
+> nel launcher poggiava su un numero falso.** Avevo dichiarato "CalaQwen
+> ha hit 11.8%, il più legato al disco di tutti, quindi il drop deve
+> rendere più del −27% di Marco-Mini". **Quel 11.8% veniva dallo smoke da
+> 5 token, con la cache ancora da riempire.** Su 200 token l'hit vero è
+> **75.5%** — cioè CalaQwen è molto MENO I/O-bound di Marco-Mini (50.2%),
+> non di più. Lezione: **un hit rate da 5 token non è un hit rate**, è
+> il transitorio di riempimento della cache.
+>
+> ✅ **Cosa REGGE, ed è il punto che conta per la decisione: `d=0.65` è
+> più lento di non droppare affatto anche sul modello che spediamo**
+> (+8.5%, contro il +10% di Marco-Mini). Il finding non era un'anomalia
+> di Marco-Mini.
+> ⚠️ **Ma d=1.0 rende molto meno qui: −5.6%, non −27%.** Coerente con
+> l'hit rate più alto: meno I/O da risparmiare, stessa tassa di compute.
+>
+> ⏳ **NON concludo sul braccio no-renorm** (appare +7.3% più lento di
+> d=1.0 a parità di byte e di drop): ha girato **ultimo del round a
+> 37→38 °C**, e in questo disegno **la posizione nel round è correlata
+> col braccio**. È il limite che avevo già dichiarato sulla cella LFM e
+> che non ho corretto qui. **Rimedio: round con l'ordine ROVESCIATO**,
+> che il resume aggiunge a costo zero — ma la batteria (~4.2%/run, 100%
+> → ~50% a fine cella) non ne regge altri 3 su questa carica: vanno
+> fatti dopo una ricarica.
+>
+> 🧊 **IL PC SI SOSPENDE DA SOLO — e per 78 minuti ho creduto di avere un
+> watchdog rotto.** M4 finisce alle 07:45:07, il PC resta senza carico ed
+> entra in **Modern Standby**; il watchdog del Jelly smette di scrivere
+> alle 07:44:36 e riprende da solo alle **09:04:27**. `Get-Process` lo
+> dava **vivo** per tutto il tempo. Prova definitiva dal registro
+> eventi: `Kernel-Power Id=507 "The system is exiting Modern Standby"`
+> alle 07:46:23 e alle 09:01:11 (quando i miei comandi hanno svegliato la
+> macchina). **Non era bloccato: era congelato.**
+> **Regola operativa:** "processo vivo" non è prova che stia lavorando —
+> si confronta l'**mtime del log** con l'ora, e si escludono gli eventi
+> Kernel-Power *prima* di accusare il codice. Stavo per riavviare un
+> watchdog perfettamente sano. **Conseguenza per le catene: un runner in
+> attesa sopravvive solo se qualcos'altro tiene la CPU occupata**; se la
+> coda si svuota, il PC dorme e la catena si ferma finché qualcuno non
+> tocca la macchina. Stessa forma del problema del Jelly, causa opposta:
+> **lì Android UCCIDE, qui Windows SOSPENDE.**
+>
+> ▶️ **BRACCIO AGGIUNTO (09:02, PC libero): `k6d065_norenorm`.** È il
+> livello di drop che spediamo davvero, ed è l'unico che risponde a
+> "basta cambiare UN flag per migliorare la config attuale, senza
+> toccare il livello di drop?". Il resume ha saltato i due bracci già
+> completi e ha lanciato solo il nuovo. Fine attesa ~11:30.
+>
+> 🏆 **M4 COMPLETO (07:45) — IL RISULTATO PIÙ IMPORTANTE DELLA NOTTE.
+> IL 70% DEL COSTO DI QUALITÀ DEL DROP AGGRESSIVO NON VIENE DAL DROP:
+> VIENE DA UN DEFAULT.**
+>
+> | | renorm ON (default) | renorm OFF | Δ |
+> |---|---|---|---|
+> | **d=0.5** | 0.6802864 (+0.326%) | 0.6791113 (+0.153%) | −0.0011751 (−0.17%) |
+> | **d=1.0** | 0.7049320 (**+3.961%**) | **0.6860923 (+1.183%)** | **−0.0188397 (−2.67%)** |
+>
+> (percentuali contro d=0.0 = 0.6780748, macchinario spento)
+>
+> ✅ **La predizione che avevo dichiarato PRIMA di vedere il braccio 2 è
+> confermata:** il danno cresce con la frazione droppata — **16× più
+> grande a d=1.0 che a d=0.5**, per un livello di drop doppio. Il
+> meccanismo proposto regge: `total/kept` amplifica i top expert oltre la
+> magnitudine per cui sono addestrati, e più droppi più li amplifichi.
+> **Tutte e 5 le lingue, in tutti e 2 i bracci, hanno lo stesso segno.**
+>
+> 🔍 **Il dettaglio che dice di più:** a d=1.0 con renorm ON il costo per
+> lingua è irregolare (en **+8.12%**, es +2.88, fr +2.96, it +3.59,
+> zh +3.12) — con renorm OFF diventa **uniforme e piccolo** (+1.06,
+> +1.15, +1.24, +1.58, +0.91). Il riscalamento non degrada un po'
+> ovunque: **massacra l'inglese**, cioè la lingua dove il routing è più
+> concentrato e quindi `total/kept` più aggressivo.
+>
+> ❗ **Il commento nel codice che giustifica il default è empiricamente
+> sbagliato.** `router_hook.cpp:278` teme "uno shrink sistematico che il
+> modello non vede mai in training". Misurato: **lo shrink è meno
+> dannoso del riscalamento, di un fattore ~4 a d=1.0.** Era
+> un'assunzione plausibile mai messa alla prova, ed è rimasta il default
+> per tutta la campagna.
+>
+> 🎯 **CONSEGUENZA SULLA DECISIONE — il quadro cambia davvero:**
+>
+> | config | qualità vs d0 | velocità (Marco-Mini, device) |
+> |---|---|---|
+> | d=0.65 renorm ON — **quella spedita** | +0.91% | **+10% più LENTA** di d0 |
+> | d=1.0 renorm ON — **quella validata dall'A/B** | +3.96% | −27% |
+> | **d=1.0 renorm OFF** | **+1.18%** | −27% (stessi drop ⇒ stessi byte) |
+>
+> **Non è dominanza, è uno scambio molto buono:** d=1.0+OFF costa 0.28
+> punti di qualità in più dello 0.65 spedito, e sul device dove abbiamo
+> misurato è ~37 punti percentuali più veloce.
+>
+> ⚠️ **Quattro cautele, tutte da dire:** (1) la qualità è CalaQwen su PC,
+> la velocità è Marco-Mini su device — **modelli diversi**; (2) l'A/B fu
+> girato con renorm ON, quindi d=1.0+OFF **non è letteralmente la config
+> testata**; (3) `--drop-no-renorm` non cambia QUALI esperti cadono (la
+> decisione di drop non dipende dalla renorm), quindi byte e conteggi
+> restano identici e la velocità dovrebbe trasferirsi — **ma è
+> un'inferenza, non una misura**; (4) **`d=0.65 + OFF` non è misurato**
+> ed è il braccio ovvio che manca: interpolando il danno, starebbe
+> intorno a **+0.32%**, cioè meglio dello 0.65 attuale a parità di
+> velocità. Costa ~2.5 h di PC.
+>
+> 🔬 **M4 — BRACCIO 1 CHIUSO (04:59, d=0.5, 5/5 lingue, rc=0). LA
+> RINORMALIZZAZIONE NON GONFIA IL RISULTATO: LO PEGGIORA.**
+>
+> | | macro bpb | vs d=0.0 |
+> |---|---|---|
+> | d=0.5 renorm **ON** (default) | 0.6802864 | **+0.326%** |
+> | d=0.5 renorm **OFF** | **0.6791113** | **+0.153%** |
+>
+> Δ = **−0.0011751 (−0.173%)**, e **tutte e cinque le lingue hanno lo
+> stesso segno**: en −0.40%, es −0.03%, fr −0.05%, it −0.19%, zh −0.22%.
+> **Spegnere la renorm recupera il 53% del costo di qualità del drop.**
+> Con rumore run-to-run a 1e-6, un delta di 0.0012 bpb è ~1000× il
+> rumore: piccolo ma reale.
+>
+> ❗ **È il CONTRARIO dell'ipotesi dei due auditor.** Loro dicevano: "il
+> miglioramento potrebbe venire dalla rinormalizzazione invece che dal
+> togliere rumore" — cioè la renorm faceva il lavoro buono. **Fa il
+> lavoro cattivo.** E contraddice anche il commento nel codice
+> (`router_hook.cpp:278`), che giustifica la renorm temendo "uno
+> shrink sistematico che il modello non vede mai in training":
+> empiricamente **lo shrink è meno dannoso del riscalamento**. Lettura
+> plausibile: gli esperti droppati hanno peso basso, quindi lo shrink è
+> minuscolo, mentre `total/kept` amplifica i top expert oltre la
+> magnitudine per cui sono addestrati — perturbazione più grande.
+>
+> 🎯 **PREDIZIONE DICHIARATA ORA, prima che il braccio 2 finisca
+> (partito 04:59):** se il meccanismo è "il riscalamento sovracorregge",
+> il danno deve **CRESCERE con la frazione droppata**, perché `total/kept`
+> cresce. Quindi mi aspetto **OFF−ON a d=1.0 più negativo di −0.173%**.
+> Se invece a d=1.0 il delta si appiattisce o cambia segno, la mia
+> spiegazione è sbagliata e il fenomeno è specifico a d=0.5.
+>
+> ⏳ **M4 — PRIMO SEGNALE (03:15, 1 lingua su 5, NON è un verdetto).**
+> `k6d05_norenorm` en: **ON 0.561173 → OFF 0.558919, cioè −0.40%: senza
+> rinormalizzazione va MEGLIO.** È il terzo ramo della lettura che avevo
+> dichiarato in anticipo ("OFF meglio di ON → il default è sbagliato e
+> c'è qualità gratis"), ed è quello che mi aspettavo di meno.
+> ✅ **La guardia no-op è superata empiricamente**: i valori DIFFERISCONO,
+> quindi `--drop-no-renorm` ha agito davvero. Si somma al controllo da
+> sorgente (la CLI esce con rc=1 su argomento sconosciuto,
+> `main.cpp:752-756`, e l'engine gira col flag sulla riga di comando).
+> ⚠️ **Una lingua su cinque, e l'inglese è la più facile del corpus**
+> (bpb 0.56 contro 0.84 dello zh). Aspettare le altre quattro e il
+> braccio d=1.0 prima di dire qualunque cosa: se il segno si mantiene su
+> tutte, la frase "affilare la mistura" non solo non spiega il
+> risultato — è **al contrario**, e va riscritta in PLAN, ALIVE e NAMING.
+> 🔎 **Nota di metodo:** il JSON del braccio esisteva già dopo la PRIMA
+> lingua, senza `finished`. È esattamente il caso che l'audit aveva
+> chiamato F1 e che ho corretto tre ore fa: col vecchio `Test-Path`
+> questo braccio sarebbe stato saltabile come "completo".
+>
+> 🚨 **CURVA CALAQWEN COMPLETA (02:28) — E DUE DELLE SUE TRE COLONNE SONO
+> ARTEFATTI. Il difetto è nell'ancora, non nei dati.**
+>
+> | drop | macro bpb | vs d0 (**valido**) | `gate_vs_k8d0` (**da ignorare**) |
+> |---|---|---|---|
+> | 0.00 | 0.6780748 | — | ~~PASS~~ |
+> | 0.30 | 0.6784793 | +0.06% | ~~PASS~~ |
+> | 0.50 | 0.6802864 | +0.33% | ~~PASS~~ |
+> | **0.65** | **0.6842309** | **+0.91%** ← il default spedito, misurato | ~~PASS~~ |
+> | 0.80 | 0.6889289 | +1.60% | ~~PASS~~ |
+> | 1.00 | 0.7049320 | +3.96% | ~~PASS~~ |
+>
+> ❌ **`GATE_PASS` su questa curva NON VUOL DIRE NIENTE.** `GATE_DIR` è
+> hardcoded a `results/mellum2_ppl_gate` (`run_mellum2_dropcurve.py:31`) e
+> l'ancora `k8d0` è **Mellum2-12B** (macro 1.020819). Quando `launch.ps1`
+> ha riusato lo script per CalaQwen passando solo `--expect-model-sha`,
+> **l'ancora è rimasta Mellum2**: quindi `d_macro_vs_k8d0` = CalaQwen
+> meno Mellum2 ≈ **−0.34**, contro una soglia `MACRO_PASS = 0.04`. Ogni
+> braccio passa con 0.38 bpb di margine **perché CalaQwen è un modello
+> migliore di Mellum2**, non perché quel livello di drop sia accettabile.
+> Il gate è vero per costruzione e **non porta informazione sul drop**.
+>
+> ❌ **`DROPCURVE_FLAT(spread=0.0269, noise=0.3537)` è lo stesso artefatto.**
+> Il "noise floor" è `|rerun − stored|` con `stored` preso dalla stessa
+> cartella Mellum2: `d10_stored_macro = 1.0586` (Mellum2) contro
+> `d10_rerun_macro = 0.7049` (CalaQwen) → 0.3537. **Non è rumore
+> run-to-run: è la differenza fra due modelli.** Con un floor così, la
+> condizione `all_within_noise` è una tautologia e "FLAT" esce sempre.
+>
+> ✅ **COSA SOPRAVVIVE, ed è la parte che conta:** `macro_bpb` e la
+> colonna **vs d0** sono stesso modello, stesso binario, stesso corpus, e
+> la PPL in decode è deterministica (la campagna Mellum2 misurò rumore a
+> 1e-6). Quindi la curva vera è **monotona crescente e reale**: il costo
+> di qualità non è piatto e non è zero, è **+0.91% al default spedito** e
+> **+3.96% a d=1.0**. È piccolo, ma è misurato e ordinato.
+>
+> 🔧 **Da correggere:** ero io ad aver scritto un'ora fa in `docs/ALIVE.md`
+> "five points measured, **all GATE_PASS**" — quel PASS è vacuo e va tolto.
+> Per un gate CalaQwen vero serve un'ancora **CalaQwen k8 d0**, che non
+> esiste (≈1 giorno-PC). Fino ad allora la frase onesta è: *il costo di
+> qualità del drop su CalaQwen è misurato e piccolo; non esiste un gate
+> superato, perché il gate confrontava un altro modello.*
+> **Nota: M4 NON è toccato** — confronta OFF contro ON dentro CalaQwen,
+> stesso modello e stesso binario.
+>
+> ☀️ **COSA SERVE DOMATTINA — la decisione su `d=0.65` è cambiata di
+> FORMA, non solo di numeri.** Prima la domanda era "quanto costa in
+> qualità lo 0.65". Ora si sa che **il drop paga solo se la quota di
+> stall è alta abbastanza da ripagare una tassa fissa di compute**, e
+> quella quota dipende dal modello e dal device. Quindi:
+>
+> 1. **Serve una decisione dell'owner, non una misura:** come portare
+>    CalaQwen su un telefono per misurarlo. Sono 13.4 GB e non c'è.
+>    (a) trasferirlo sul Jelly **mentre è in carica**, poi caricarlo al
+>    100% e fare lo sweep scollegato (il protocollo vuole UNPLUGGED solo
+>    durante la misura, non durante il trasferimento); oppure
+>    (b) aspettare che l'S23 si liberi dall'altro harness.
+>    **Senza uno dei due, la decisione sul default resta bloccata** — e
+>    non è aggirabile con l'analisi (vedi sotto: i dati device CalaQwen
+>    esistenti non hanno stall/compute e sono su un'altra quantizzazione).
+> 2. **Affermazione onesta nel frattempo:** il default 0.65 sta su una
+>    parte della curva **dominata sull'unica coppia device+modello dove
+>    l'abbiamo misurata**, ed è **non testato sul modello che spediamo**.
+>    Non è "sbagliato": è non verificato.
+> 3. Quando M4 chiude, si sa anche **se il risultato di qualità è della
+>    renorm o del drop** — e questo cambia le PAROLE in PLAN/ALIVE/NAMING,
+>    non solo il numero.
+>
+> 🌙 **NOTTE 16→17/08 — DUE MISURE, POI SI DECIDE (nessuna idea nuova).**
+> Ordine deciso con gualt prima che andasse a dormire: si chiude, non si
+> apre. Stato alle 00:20.
+>
+> **PC — la curva qualità CalaQwen è a 5 punti su 6 e sta chiudendo il
+> sesto, che è proprio il default spedito:**
+>
+> | drop | arm | macro bpb | Δ vs d0 | gate |
+> |---|---|---|---|---|
+> | 0.00 | k6d0 | 0.6780748 | — | GATE_PASS |
+> | 0.30 | k6d03 | 0.6784793 | +0.06% | GATE_PASS |
+> | 0.50 | k6d05 | 0.6802864 | +0.33% | GATE_PASS |
+> | 0.65 | k6d065 | *in corso, fine ~02:40* | — | — |
+> | 0.80 | k6d08 | 0.6889289 | +1.60% | GATE_PASS |
+> | 1.00 | k6d10 | 0.7049320 | +3.96% | GATE_PASS |
+>
+> Quando k6d065 chiude, **il costo di qualità dello 0.65 è MISURATO e non
+> più interpolato** — la riga più debole della tabella di Pareto del
+> REPORT sweep sparisce.
+>
+> 🔬 **M4 — ABLAZIONE DELLA RINORMALIZZAZIONE, ARMATA (parte da sola
+> quando il PC è libero; `scripts/run_m4_renorm_ablation.ps1`, pid 57676).**
+> È la misura che due auditor indipendenti hanno messo al primo posto.
+> Disegno 2×2 **dichiarato prima di lanciare**:
+>
+> | | renorm ON (default) | renorm OFF (`--drop-no-renorm`) |
+> |---|---|---|
+> | **d=0.5** | k6d05 = 0.6802864 ✅ già misurato | `k6d05_norenorm` ← stanotte |
+> | **d=1.0** | k6d10 = 0.7049320 ✅ già misurato | `k6d10_norenorm` ← stanotte |
+>
+> Mancano solo le due celle OFF: **le ON sono già misurate su questo
+> identico binario e modello, quindi il contrasto è senza confondenti.**
+> d=1.0 c'è perché a 0.5 la correzione di renorm è piccola e un nulla lì
+> non direbbe niente; a 1.0 il costo qualità è massimo (+3.96%) ed è dove
+> la rinormalizzazione lavora di più.
+> **Lettura dichiarata in anticipo:** OFF≈ON a entrambi i livelli → la
+> renorm non è il meccanismo e la claim regge com'è scritta; OFF molto
+> peggio → **è la rinormalizzazione a portare il risultato**, e allora la
+> frase onesta diventa "affilare la mistura costa poco", che è un'altra
+> cosa e molto meno nuova (da riscrivere in PLAN, ALIVE e NAMING);
+> OFF meglio di ON → il default è sbagliato e c'è qualità gratis.
+>
+> 📄 **Il verdetto esce da solo:** `scripts/summarize_m4_renorm.py` — scritto
+> **prima che i dati esistessero** — legge i quattro bracci, rifiuta i JSON
+> senza `finished`, costruisce il 2×2 e applica la regola no-op; il runner
+> lo invoca a fine catena e scrive `results/m4_renorm_ablation/VERDICT.md`.
+> Così la conclusione non dipende da chi è sveglio. Provato a vuoto: legge
+> i due bracci ON e dichiara "Incomplete — no verdict".
+>
+> ⛔ **Il terzo braccio (drop CASUALE invece che per freddezza) NON si fa
+> stanotte, e non è una dimenticanza:** il flag non esiste nell'engine,
+> servirebbe una modifica al codice e una ricompilazione — **e un binario
+> nuovo romperebbe l'identity pin che rende confrontabili questi bracci.**
+> Farlo bene costa anche un braccio di controllo ricompilato. Decisione
+> owner, non contrabbandata di notte.
+>
+> 📱 **JELLY — SECONDO MODELLO PER LA NON-MONOTONICITÀ: NON è CalaQwen, ed
+> è una scelta forzata dai numeri, non una scorciatoia.** CalaQwen
+> (13.4 GB) **non è sul Jelly** e non c'è nessun 35B sul telefono.
+> Trasferirlo costa ~45 min di WiFi + scrittura flash ≈ 20% di batteria,
+> partendo da 71% scollegato, con floor di protocollo al 45%: **finirebbe
+> la batteria prima della fine dello sweep.** Con l'S23 riservato
+> all'altro harness, l'unico altro MoE disponibile è
+> **LFM2.5-8B-A1B-KEXP** — e non è un ripiego:
+>
+> **`lfm2moe`, gating sigmoid, k=4 su 32 esperti, 3.3 GB** contro i
+> **k=6 su 256, 6.4 GB** di Marco-Mini. Pre-flight misurato stanotte:
+> d=0.0 → `read_MiB=183.0`; d=1.0 → `read_MiB=99.1`,
+> `experts_routed=440 experts_dropped=26`. **Cache hit 93.5% contro il
+> 50.2% di Marco-Mini**: qui il working set degli esperti STA in cache,
+> lì no.
+>
+> **Lettura dichiarata prima del lancio:** se i byte salgono a d=0.3
+> anche qui → l'effetto è a livello di implementazione e il default 0.65
+> è sospetto su OGNI modello, CalaQwen compreso; se qui sono monotoni e
+> su Marco no → **CONFERMA il meccanismo di località di cache** (serve un
+> working set che sfori la cache) e il finding di Marco resta in piedi,
+> circoscritto ai modelli con tanti esperti. **Nessuna delle due è un
+> fallimento** — ed è per questo che la cella vale la sua batteria.
+>
+> 🔴 **CORREZIONE MIA, DA SORGENTE + DATI (17/08, round 1 LFM2.5): IL
+> MECCANISMO CHE AVEVO SCRITTO IERI È SBAGLIATO. Non è località di
+> cache. È il costo di ARMARE il drop, e si paga in COMPUTE.**
+>
+> | drop | s/tok | stall | **compute** | io | read_MiB | hit% | droppati |
+> |---|---|---|---|---|---|---|---|
+> | 0.00 | 0.182 | 0.016 | **0.164** | 0.045 | 2245.6 | 93.5 | 0 |
+> | 0.30 | 0.214 | 0.014 | **0.199** | 0.037 | 1917.7 | 93.9 | **9** / 17600 |
+> | 0.65 | 0.206 | 0.010 | **0.194** | 0.029 | 1414.4 | 94.6 | 296 |
+> | 1.00 | 0.238 | 0.006 | **0.231** | 0.015 | 739.6 | 95.5 | 639 |
+>
+> **Tutto ciò che è I/O migliora in modo monotono** (stall −63%, io −67%,
+> byte −67%, hit 93.5→95.5) **e il compute peggiora in modo monotono
+> (+41%).** Su questo modello il drop è perdita pura a OGNI livello:
+> risparmia byte che non stavamo aspettando (a d=0 l'I/O è l'8.8% del
+> tempo, perché il working set STA in cache) e aggiunge compute.
+>
+> **Il numero che chiude il ragionamento: a d=0.3 sono stati droppati 9
+> slot su 17600 — lo 0.05% — e il compute è salito del 21%.** Nove
+> esperti non possono costare il 21%. Quindi non è il DROPPARE a costare.
+>
+> ✅ **Verificato al sorgente:** `RouterHook::drop_armed()`
+> (`router_hook.cpp:213-215`) ritorna false se `drop_frac_ <= 0`. A
+> d=0.0 vengono saltati per intero `gather_weights`, `settle_spec()`,
+> `query_residency()` e il doppio ciclo `nu×nt` con la passata di
+> renorm; a d>0 girano su TUTTI gli slot instradati (88/token qui) a
+> prescindere da quanti ne cadono. **Quindi `d=0.0` non è "lo stesso
+> engine senza drop": è il macchinario spento.** Il confronto d=0.0 vs
+> d=0.3 misura quasi solo l'accensione.
+>
+> 🧪 **Braccio di controllo dichiarato PRIMA di misurarlo: `d=0.001`.**
+> La soglia è `thr = drop_frac_/nu`, quindi a 0.001 il macchinario è
+> ARMATO ma non droppa (quasi) nulla. Predizione registrata ora:
+> **compute(d=0.001) ≈ compute(d=0.3) ≫ compute(d=0.0)**. Se esce così,
+> la tassa di accensione è isolata e quantificata; se compute(0.001)
+> ≈ compute(0.0), la mia spiegazione è sbagliata di nuovo e il costo
+> viene davvero dal droppare. Costa 3 run (~9 min) e il resume lo
+> aggiunge senza rifare nulla.
+>
+> ⚠️ **Cosa NON cambia:** il finding di Marco-Mini resta (d=1.0 lì è
+> davvero il più veloce, −27.2%), perché lì lo stall era il 22% del tempo
+> e il risparmio di I/O ripaga la tassa. **Cambia la REGOLA generale, che
+> ora è prevedibile invece che aneddotica:** *il drop paga solo se
+> risparmia abbastanza I/O da coprire una tassa fissa di compute per
+> token; il break-even lo fissa la quota di stall, non il livello di
+> drop.* Su un modello che sta in cache non paga mai. **E l'aumento di
+> +5.0% dei byte a d=0.3 su Marco-Mini resta un'anomalia separata e
+> ancora non spiegata** (candidato: `settle_spec()` cambia il
+> comportamento del prefetcher) — non la si archivi come "risolta".
+>
+> 🛡️ **AUDIT OSTILE SUI TRE SCRIPT DELLA NOTTE (DeepSeek V4 Flash thinking
+> max, 17/08 00:20-00:35). CINQUE PROBLEMI REALI, TUTTI CORRETTI PRIMA
+> CHE PARTISSE M4.** Undici altri attacchi REFUTATI con prove (parser
+> awk, collisioni di chiavi, `jfield`, conteggio colonne CSV, escaping
+> della here-string, trappola dell'`exec`, heredoc del resume).
+>
+> **F1 [GRAVITÀ 1 — dato silenziosamente sbagliato, il peggiore]:** usavo
+> `Test-Path <arm>_multi5.json` come test di completezza. **Ma quel JSON
+> viene scritto dopo OGNI lingua e su OGNI percorso di errore**
+> (`run_multi5_ppl_host.py:218,229,258`); solo la scrittura finale
+> aggiunge la chiave `finished` (riga 265). Un braccio andato in OOM
+> sulla prima lingua sarebbe stato **saltato per sempre come "già
+> completo"**, e M4 avrebbe confrontato un braccio OFF parziale contro un
+> ON completo — cioè esattamente il risultato-che-sembra-giusto che
+> questa cella non può permettersi. **Corretto:** `ArmComplete()` esige
+> `finished` E `macro_bpb`, e il runner si FERMA su rc≠0 invece di
+> proseguire. Verificato su dati veri: `k6d05` (finito) → True,
+> `k6d065` (in corso, JSON già presente) → **False**.
+> **F4 [2]:** PID orchestratore hardcoded → dopo la sua uscita Windows
+> può riciclare il numero e la catena aspetterebbe uno sconosciuto fino
+> al tetto di 24 h. **Corretto:** si verifica che la command line
+> contenga `run_mellum2_dropcurve`.
+> **F5 [2]:** un engine **bloccato** era invisibile — `kill -0` lo tiene
+> "vivo" per sempre e il watchdog non avrebbe mai rilanciato. **Corretto:**
+> l'heartbeat diventa segnale di vivacità (età > 900 s ⇒ kill + resume).
+> **F3 [3]:** la finestra di ~1-2 s prima dell'`exec` di `launch.sh` non
+> era vista dal guard. **Corretto:** il guard ora riconosce entrambi, e
+> `ALIVE>1` diventa un allarme che BLOCCA il rilancio.
+> **F2 [2]:** ssh morto produceva la stessa riga ogni 5 minuti senza
+> escalation. **Corretto:** allarme a 15 min su `logs/JELLY-ALERT.txt`.
+>
+> 🔬 **Controllo positivo dichiarato PRIMA dei numeri (buco che l'audit
+> NON aveva visto e che ho trovato verificando io la sua claim R9):** in
+> `--ppl-decode` l'engine stampa solo `drop_cold=0.500 k=6` e **non
+> stampa mai `drop_renorm`**; la CSV è `pos,token_id,logprob`. Quindi
+> **non esiste una riga di log che provi che `--drop-no-renorm` ha
+> agito**, e un nullo sarebbe indistinguibile da un flag ignorato.
+> Regola fissata ora: **`macro_bpb`(OFF) identico a piena precisione a
+> quello ON ⇒ FLAG NO-OP, non "la renorm non conta"**. È solido perché
+> senza renorm i superstiti non vengono riscalati per `total/kept`
+> (`router_hook.cpp:278-282`), quindi la PPL non può uscire identica.
+>
+> 🧩 **MECCANISMO CHIUSO SU DUE MODELLI (rianalisi dei dati grezzi
+> Marco-Mini + round 1 LFM2.5, costo zero: i per-token erano già in
+> repo).** Il modello che spiega tutto:
+>
+> **`compute(d) = base + tassa_di_accensione − risparmio(quanti ne cadono
+> davvero)`**
+>
+> | modello | hit% | slot instradati | d=0.3: caduti | Δcompute | d=1.0: caduti | Δcompute |
+> |---|---|---|---|---|---|---|
+> | Marco-Mini (k6/256) | 50.2 | 33600 | **21** (0.06%) | +6.8% (r1), +13.8% (r2) | **9986** (29.7%) | **−13.7%** |
+> | LFM2.5 (k4/32) | 93.5 | 17600 | **9** (0.05%) | **+21.3%** | **639** (3.6%) | **+40.9%** |
+>
+> A d=0.3 **entrambi i modelli droppano lo 0.05% degli slot e pagano
+> comunque compute**: è la prova diretta che il costo è ACCENDERE, non
+> droppare. A d=1.0 Marco ne droppa il 29.7% e il risparmio **ripaga con
+> gli interessi** (compute sotto il baseline); LFM ne droppa il 3.6% e la
+> tassa non viene mai ripagata.
+>
+> 🔑 **E perché LFM ne droppa così pochi? Il drop può colpire SOLO ciò che
+> non è in cache** — `router_hook.cpp:271`: `drop = k != best &&
+> drop_res_[idx] == route_miss && drop_w_[idx] < thr`. **Quindi l'hit
+> rate mette un TETTO al drop rate**, e i due modelli lo rispettano
+> entrambi: Marco hit 50.2% → al più ~49.8% droppabile, osservato 29.7%;
+> LFM hit 93.5% → al più ~6.5%, osservato 3.6%. **`--drop-cold-experts`
+> è auto-limitante: su un modello che sta in cache non ha niente da
+> droppare e resta solo la tassa.**
+>
+> ❓ **Ho provato a PREDIRE CalaQwen dai dati che già abbiamo, e non si
+> può — ed è la ragione per cui quella misura non è sostituibile
+> dall'analisi.** La regola nuova ("paga solo se la quota di stall è
+> abbastanza alta") richiede stall/compute e hit rate della config
+> spedita su device. L'unica cella device CalaQwen è
+> `results/adopt_dropcold/` e **non ha la scomposizione**: `conv5.turns.csv`
+> ha solo `tok_s` e `cache_hit_pct` (81.5%), niente stall né compute, ed è
+> per di più su una quantizzazione diversa (`UD-IQ2_M`, non KEXP) e in
+> regime conversazionale con riuso di cache tra turni. **Quindi: nessuna
+> predizione onesta possibile.** Serve lo sweep CalaQwen su device.
+>
+> ❌ **Candidato REFUTATO sui byte:** avevo ipotizzato che l'aumento di
+> +5.0% dei byte a d=0.3 su Marco venisse da `settle_spec()`. **Falso:
+> `spec_read_MiB=0.0`, `spec_experts=0` in tutte le run — il prefetcher
+> speculativo è spento.** Il dato dice altro: a d=0.0 e d=0.3 la domanda
+> è IDENTICA (`token_demand_MiB=136.8` in entrambi), ma **evictions
+> 16692→17409 (+4.3%) e rereads 12514→13221 (+5.7%)**. Quindi i byte in
+> più sono **rilettura da sfratto a domanda invariata**: il percorso
+> armato carica in modo diverso (`load_layer` immediato con
+> `D.deferred = false`) e frusta la cache. Ipotesi non ancora confermata
+> al sorgente — **resta aperta, ma non è più "località di cache" e non è
+> speculazione.**
+>
+> ⚠️ **Limite del disegno, dichiarato:** dentro un round l'ordine è
+> sempre 0.0→0.3→0.65→1.0, quindi **la posizione nel round è correlata
+> col livello di drop** e nel round 1 la temperatura sale 32→34 °C. Due
+> cose lo attenuano: `d0.65` e `d1.0` girano entrambi a 34→34 (stesso
+> stato termico) e differiscono 0.206 vs 0.238, e i round 2-3 girano
+> tutti a saturazione termica. **Rimedio previsto: round aggiuntivi con
+> l'ordine dei drop ROVESCIATO**, che il resume permette a costo zero.
+>
+> 💀 **JELLY PERSO ALLE ~00:25 — MA STAVOLTA SO PERCHÉ, E NON È IL
+> TIMEOUT DELLO SCHERMO.** 4 run buone in cassa (tutto il round 1, i
+> numeri qui sopra), poi Termux ucciso. **Il telefono rispondeva al ping
+> con 0% di perdita mentre TUTTE le porte erano chiuse** (8022, 22,
+> 18022, 2222, 8080): non è la rete e non è doze profondo — è stato
+> ucciso l'intero process group dell'app, non solo sshd.
+>
+> 🔍 **Il pattern che ieri non avevo visto: tutte e due le morti sono nel
+> COOLDOWN, non in una run.** 16/08: ultima run finita 23:34:26, morto
+> nel cooldown dopo. 17/08: ultima run finita 00:22:02, ultimo battito
+> "cooldown before r2_d0.0", sparito entro tre minuti. **E gli intervalli
+> dal lancio sono 30 min e 13 min — quindi nessun timeout fisso**, il che
+> falsifica la diagnosi "timeout schermo a 30 min" che avevo dato ieri
+> (già allora contraddetta dalla cella K-F durata 50 minuti).
+> Ipotesi, 2 casi su 2, non confermata: **Android congela l'app quando
+> resta inattiva, e un processo fermo in `sleep 120` sembra inattivo.**
+>
+> 🔧 **Fix applicato (misura invariata):** `cooldown_alive()` spezza il
+> cooldown in `sleep 5` con heartbeat a ogni giro e wake-lock riacquisito
+> ogni 30 s — stessi secondi totali, stessi flag, stesso gate: cambia
+> solo la meccanica di sopravvivenza. E il watchdog ora **rispinge lo
+> script via scp e ne verifica lo sha prima di rilanciare**, se no
+> rilancerebbe fedelmente la versione che muore.
+>
+> ⛔ **Limite onesto: senza adb sul Jelly non esiste canale fuori banda**
+> (solo l'S23 è su adb ed è riservato all'altro harness). Il watchdog
+> ritenta all'infinito e riprende dal run 5 appena sshd torna, ma **fino
+> ad allora si è ciechi.** Le 4 run del round 1 sono l'unico dato, e il
+> segnale che portano è già forte.
+>
+> 🔧 **Lo sweep v2 corregge la causa comune dei tre bug di ieri:
+> parametrizza invece di riscrivere** (`scripts/run_dropsweep_jelly.sh`).
+> **Resume derivato da `runs.csv`** (lo stato È il dato: nessun file di
+> resume che possa divergere), **passate di recupero** sui label vuoti,
+> **pre-flight smoke da 5 token** che avrebbe intercettato in 20 secondi
+> sia il fallimento di link sia il parser che tornava vuoto, e **guardia
+> Termux:API** (una batteria illeggibile non deve più essere letta come
+> "attaccato alla corrente"). Watchdog lato PC che rilancia solo se
+> l'harness è morto **senza** verdetto terminale, con ricontrollo di
+> vivacità **sul device** un istante prima di lanciare — perché un
+> rilancio a vuoto crea un harness duplicato, che è l'errore già
+> commesso oggi. Primo run in cassa: `r1_d0.0 s/tok=0.182
+> read_MiB=2245.6 hit=93.5 excluded=0`.
 >
 > 🚨 **DROP SWEEP JELLY — RISULTATO (16/08, 11 run su 12): IL RISPARMIO DI
 > BYTE NON È MONOTONO, E `d=0.65` CHE SPEDIAMO È PIÙ LENTO DI NON
@@ -1331,18 +2304,49 @@
 | **GPU Adreno** | **decode** parcheggiato su A7X (0.41× sul 740, 0.44× sul 750, dispatch-bound) · **prefill RIAPERTO 16/08** | ⚠️ **CORRETTO: prefill GPU = 5.77× sul 750** (pp128 181.65 vs 31.46, `moe-gdn-750.md:201-206`, Qwen3.5-2B **denso**), non "1.29-1.7×" come diceva questa riga. Il 740 fa 2.2×. Leva TTFT sui DENSI (per il 35B resta la Q7-landmine) | riverifica anti-artefatto poi decisione TTFT |
 | **Selfspec F0** | ✅ **PASS_LANE_OPEN (2026-08-14 00:50)** — run 3 completo | **alpha pooled 0.6991** (n=1037, gate ≥0.60; k2 draft / k6 verify, entrambi i bracci drop) | F1 prototipo on-device = engine-work (loop speculativo in BigMoeOnEdge); PC LIBERO → coda PPL gates Mellum |
 
-## Scheda prodotto (default A 2026-08-10: KEXP + k=6 + drop 0.65)
+## Scheda prodotto (default B 2026-08-18: KEXP + k=6 + **drop 1.0 + `--drop-no-renorm`**)
+
+> 🔄 **CAMBIO DI DEFAULT — decisione gualt 2026-08-18. Lo 0.65 è RITIRATO.**
+> Non è una preferenza: **`drop 0.65` è dominato**, costa qualità *e* tempo.
+> Misurato su CalaQwen, sul modello e sulla config che spediamo:
+>
+> | config | qualità vs d=0.0 | velocità vs d=0.0 (Jelly) | byte |
+> |---|---|---|---|
+> | d=0.0 (nessun drop) | — | — | — |
+> | ~~d=0.65 (vecchio default)~~ | +0.91% | **+5.8% più LENTO** | −27.3% |
+> | ~~d=0.65 + no-renorm~~ | +0.20% | ~+5.8% più lento | −27.3% |
+> | **d=1.0 + `--drop-no-renorm`** | **+1.18%** | **−12.9%** | **−71.8%** |
+>
+> `d=0.65` è più lento di non droppare affatto **in tutti e tre i round**
+> (+10.9 / +5.2 / +1.2%): non ha mai comprato velocità. L'unico punto che la
+> compra è d=1.0, e `--drop-no-renorm` ne taglia il costo di qualità del 70%
+> (da +3.96% a +1.18%) **senza cambiare quali esperti cadono, né i byte letti,
+> né la velocità** (misurato: +1.1% e −1.3% fra round confrontabili, segno che
+> si inverte ⇒ equivalenti).
+>
+> **Contro l'ancora VERA di CalaQwen** (`k8 d0` = 0.6660114, misurata 17/08):
+> il nuovo default sta a **+0.0201, cioè il 50% del budget** `MACRO_PASS=0.04`.
+> Il vecchio 0.65 stava a +0.0182 (46%) — quasi pari — mentre **d=1.0 col
+> default renorm stava a +0.0389, il 97% del budget: passava per 0.0011.**
+> È il flag a rendere d=1.0 spedibile invece che al limite del bocciato.
+>
+> **Qualità delle risposte verificata, non dedotta** (`results/answer_quality_calaqwen`,
+> `results/answer_sanity_calaqwen`): istruzioni con vincoli verificabili
+> rispettate; funzione Python **8/8 test eseguiti**; prosa italiana senza
+> collasso; **15/16** sulle domande di buon senso (l'unico errore è del
+> RIFERIMENTO k=8, non della candidata).
 
 | | valore | note |
 |---|---|---|
 | **modello** | **KEXP** `Qwen3.6-35B-A3B-KEXP.gguf` (sha `ac44e20c…`) | IQ2_M resta riferimento storico, non cancellato |
-| **config di campagna** | `-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 0.65` | **ADOTTATO A** (speed grid + gualt 2026-08-10). Shortlist k=5 **morta** → default **invariato** |
+| **config di campagna** | `-t 4 -c 4096 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 --n-expert-used 6 --drop-cold-experts 1.0 --drop-no-renorm` | **DEFAULT B** (gualt 2026-08-18). Sostituisce l'A del 10/08 (`drop 0.65`), ritirato perché dominato |
+| ⚠️ **numeri device da rimisurare** | il cambio di default **invalida le tok/s assolute** delle celle S23/Xiaomi, misurate a `drop 0.65` | il segno è noto (−12.9% sul Jelly, byte −71.8%), gli assoluti per device no. **Non citare le vecchie tok/s per la config nuova** |
 | **binario** | CAMPAIGN `1ca51420…` = prefault tri-stato + dense2 + fix KV + scorer + drop runtime | pin sha-verificato, `bin_sha256` in `runs.csv` |
 | **load cold** | **~10 s** (KEXP ~12.5 GiB; storico IQ2_M 9.37 GiB) | E1 chiuso su IQ2_M; KEXP size-bound |
 | **prefill per turno** | **~8-11 s COSTANTI** su 5 turni (T5: 9.34 s, n_common 1387) | prima del fix KV: 165 s al T5. Il TTFT non degrada più |
-| **decode** | **med 5.86 tok/s** (k6d065 n=200 staccato); ctrl k8d065 5.16; legacy IQ2 drop0.50 ~4.4 | griglia `moe-adopt-kexp.md` parte 3 |
-| traffico | hit ~76-80% @ drop 0.65 (speed grid) | cache 2000 = ottimo misurato |
-| hit esperti (decode) | 75-83% sulle celle speed | cache 2000 |
+| **decode** | ⚠️ **da rimisurare col default B.** Storico a `drop 0.65`: med 5.86 tok/s (k6d065 n=200 staccato), ctrl k8d065 5.16, legacy IQ2 drop0.50 ~4.4 | griglia `moe-adopt-kexp.md` parte 3. **Quelle cifre sono del vecchio default e NON valgono per B** |
+| traffico | **default B (Jelly, 12/12): read 2654.9 MiB / 200 tok, hit 84.8%** — contro 9410.3 MiB / 75.5% a d=0.0 e 6842.4 / 78.8% al vecchio 0.65 | `results/dropsweep_calaqwen_jelly`; byte identici alla cifra fra round ⇒ contabilità deterministica |
+| hit esperti (decode) | **84.8% col default B** (75-83% sulle celle storiche a 0.65) | cache 2000 |
 | energia | 1.0-1.4 J/token, ~40k token per carica | F4.7 (pre-KEXP, da rinfrescare se serve) |
 | **qualità** | PPL decode **1.852** (k6d065); floor prodotto storico IQ2_M **2.0955** | ⚠ metro campagna ancora su corpus Dante (`corpus_subset_10k`); confronti interni OK. Corpus v2 + re-ancoraggio floor = decision gualt |
 | **collo di bottiglia** | **il CALCOLO** (I/O esposto = 20% del decode; freq a regime 41% del picco) | F4.9, F5.2, F5.3-A3. Drop = solo I/O (saturo); k&lt;6 morto su KEXP |

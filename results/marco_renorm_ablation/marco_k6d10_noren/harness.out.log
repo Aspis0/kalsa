@@ -1,0 +1,16 @@
+=== marco_k6d10_noren en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_renorm_ablation\marco_k6d10_noren\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --drop-no-renorm --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=8.6375 bpb=0.6786 tok=11117 fert=4.582 s=1052.0
+=== marco_k6d10_noren es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_renorm_ablation\marco_k6d10_noren\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --drop-no-renorm --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=7.0643 bpb=0.7439 tok=13890 fert=3.790 s=1514.1
+=== marco_k6d10_noren fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_renorm_ablation\marco_k6d10_noren\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --drop-no-renorm --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=7.4744 bpb=0.8007 tok=14033 fert=3.623 s=2000.0
+=== marco_k6d10_noren it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_renorm_ablation\marco_k6d10_noren\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --drop-no-renorm --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.7943 bpb=0.8274 tok=13696 fert=3.340 s=1644.5
+=== marco_k6d10_noren zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_renorm_ablation\marco_k6d10_noren\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --drop-no-renorm --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=13.2192 bpb=1.0009 tok=13517 fert=3.720 s=1359.4
+MACRO bpb=0.8103

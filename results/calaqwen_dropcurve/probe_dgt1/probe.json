@@ -1,0 +1,22 @@
+{
+  "probed": true,
+  "cli_rejects_above_1": true,
+  "results": {
+    "1.2": {
+      "drop": 1.2,
+      "rc": 1,
+      "seconds": 0.036,
+      "rejected": true,
+      "stderr_tail": "config error: moe.drop_cold_frac must be in [0, 1] (0 = off). Above 1.0 the threshold can exceed the largest weight in a routing, which would discard every expert of a layer; 1.0 is the uniform share 1/n_expert_used and the useful maximum.\n"
+    },
+    "1.5": {
+      "drop": 1.5,
+      "rc": 1,
+      "seconds": 0.024,
+      "rejected": true,
+      "stderr_tail": "config error: moe.drop_cold_frac must be in [0, 1] (0 = off). Above 1.0 the threshold can exceed the largest weight in a routing, which would discard every expert of a layer; 1.0 is the uniform share 1/n_expert_used and the useful maximum.\n"
+    }
+  },
+  "decision": "stop at 1.0; do not run k6d12/k6d15 multi5",
+  "source": "kalsa-engine/core/src/config.cpp: drop_cold_frac must be in [0, 1]; 1.0 is the uniform share 1/n_expert_used and the useful maximum."
+}

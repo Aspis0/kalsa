@@ -1,0 +1,7 @@
+Un modello Mixture-of-Experts (MoE) è un’architettura che suddivide i parametri in "gruppi" indipendenti (esperti), attivandone solo un sottoinsieme per ogni token in input. Questo contrasta con i modelli densi, dove tutti i parametri sono coinvolti in ogni calcolo.
+
+Su uno smartphone con 8 GB di RAM, un MoE da 35B parametri ma solo 3B attivi per token offre vantaggi cruciali rispetto a un denso da 7B:
+
+1. **Memoria**: Sebbene il modello MoE sia grande (35B), i pesi degli esperti non attivi non risiedono nella RAM attiva durante l'inferenza. Solo i 3B parametri attivi e lo stato del modello (KV cache) occupano la memoria volatile. Un denso da 7B, invece, richiede di caricare e mantenere in RAM tutti i suoi 7B parametri contemporaneamente, consumando più memoria attiva e lasciando meno spazio per il contesto.
+2. **Routing**: Il router seleziona dinamicamente quali esperti usare per ogni token, garantendo che i calcoli siano focalizzati e che i pesi non necessari vengano ignorati.
+3. **Streaming da Flash**: I pesi degli esperti non attivi risiedono nella memoria flash (più lenta ma capiente). Durante l'inferenza, il sistema carica solo i pesi necessari per gli esperti attivi. Questo permette di gestire modelli molto grandi senza saturare la RAM, sfruttando la larghezza di banda della memoria per caricare solo il "piccolo" sottoinsieme attivo, rendendo l'esperienza più fluida e reattiva rispetto al caricamento continuo di un denso da 7B che, pur essendo più piccolo, non offre la stessa efficienza di calcolo per token.

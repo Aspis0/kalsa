@@ -1,0 +1,17 @@
+Certamente! Ecco la tabellina del 9:
+
+*   9 × 1 = 9
+*   9 × 2 = 18
+*   9 × 3 = 27
+*   9 × 4 = 36
+*   9 × 5 = 45
+*   9 × 6 = 54
+*   9 × 7 = 63
+*   9 × 8 = 72
+*   9 × 9 = 81
+*   9 × 10 = 90
+
+**Un trucco utile:**
+Per moltiplicare un numero per 9, puoi pensare alla somma delle cifre del risultato: se il numero è a due cifre, la somma delle sue due cifre è sempre 9 (es. 27 → 2+7=9; 63 → 6+3=9).
+
+Vuoi che ti spieghi anche qualche altro trucco per le moltiplicazioni? 😊

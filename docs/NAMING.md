@@ -19,7 +19,7 @@ all NEW reports and docs use the names below.
 
 | internal shorthand | what it is | proposed names (pick or invent) |
 |---|---|---|
-| "la ricetta" (quant + top-k 6 + skipping 0.5-0.65) | the certified phone config; p=0.000488 on S23; PPL optimum at drop 0.5 (Mellum) | **[DA SCEGLIERE]** — e.g. Ricetta Kalsa · KEXP Recipe · Kalsa Serve |
+| "la ricetta" (quant + top-k 6 + skipping 1.0 con --drop-no-renorm) | the certified phone config; p=0.000488 on S23 (Mellum2 Q4_K_M, its own config); CalaQwen default changed to drop 1.0 + --drop-no-renorm on 2026-08-18 | **[DA SCEGLIERE]** — e.g. Ricetta Kalsa · KEXP Recipe · Kalsa Serve |
 | K-F / kf-prefetch (dispatcher-gated cold-start prefetch, issue-only layer-ahead, width knob) | prefetch itself is published; OUR novelty = the measured dispatcher policy (ON iff stall% high AND cache cold AND no thermal alarm) + cold-start-only scope | **[DA SCEGLIERE]** — e.g. Kalsa Cold-Start · Kalsa Kernel CS |
 | E4 / stateless drafting / draft congelato (attention-only self-draft with FROZEN recurrent state on hybrids) | unpublished polarity (verified by 2 web sweeps); mirror paper failed the opposite way at α=0.038 | **[DA SCEGLIERE]** — e.g. CalaDraft · Kalsa StatelessDraft · FrozenDraft |
 | the quality finding "skipping cold experts IMPROVES multilingual PPL, optimum at 0.5" | our measured result (DROPCURVE_OPTIMUM, noise 1e-6) | claim name for the report — e.g. "cold-expert noise" finding |

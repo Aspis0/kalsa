@@ -1,0 +1,13 @@
+Per determinare il numero di vocali nella parola **armadio**, analizziamo le lettere che la compongono:
+
+1.  **a** (vocale)
+2.  r
+3.  **m**
+4.  **a** (vocale)
+5.  **d**
+6.  **i** (vocale)
+7.  **o** (vocale)
+
+Le vocali presenti sono: **a**, **a**, **i**, **o**.
+
+Quindi, ci sono **4** vocali nella parola "armadio".

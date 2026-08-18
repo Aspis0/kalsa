@@ -1,0 +1,6 @@
+Misurare le prestazioni a batteria scarica è diverso dal misurarle a batteria piena perché il sistema attiva meccanismi di risparmio energetico che riducono drasticamente la frequenza della CPU e la frequenza di aggiornamento dello schermo.
+Questa limitazione hardware si traduce in un calo delle prestazioni complessive, rendendo i benchmark e i tempi di risposta meno performanti rispetto alla condizione di carica ottimale.
+Di conseguenza, i dati raccolti in queste due condizioni riflettono scenari d'uso completamente differenti, uno legato alla massima potenza disponibile e l'altro alla gestione dell'efficienza energetica.
+
+Quale frequenza di clock della CPU viene mantenuta quando la carica scende sotto il 20%?
+Come varia il tempo di caricicamento dello schermo al variare della percentuale di batteria residua?

@@ -1,0 +1,114 @@
+2026-08-16T11:03:38-0400  identity MATCH (model + binary + 5 DLLs)
+2026-08-16T11:03:38-0400  probe d>1.0
+2026-08-16T11:03:38-0400  probe done rejects_above_1=True decision=stop at 1.0; do not run k6d12/k6d15 multi5
+2026-08-16T11:03:38-0400  START k6d0 k=6 drop=0.0
+=== k6d0 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d0\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=5.8943 bpb=0.5569 tok=11088 fert=4.594 s=1988.3
+=== k6d0 es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d0\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.6711 bpb=0.6344 tok=12202 fert=4.315 s=2303.5
+=== k6d0 fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d0\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.3488 bpb=0.6593 tok=12577 fert=4.043 s=2070.4
+=== k6d0 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d0\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=7.4225 bpb=0.7002 tok=11079 fert=4.129 s=1738.9
+=== k6d0 zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d0\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=11.5172 bpb=0.8396 tok=11977 fert=4.198 s=2045.2
+MACRO bpb=0.6781
+2026-08-16T13:53:09-0400  END k6d0 rc=0 wall=10170.8s
+2026-08-16T13:53:09-0400  START k6d08 k=6 drop=0.8
+=== k6d08 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d08\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.8 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.2408 bpb=0.5748 tok=11088 fert=4.594 s=1897.9
+=== k6d08 es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d08\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.8 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.8077 bpb=0.6412 tok=12202 fert=4.315 s=1975.4
+=== k6d08 fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d08\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.8 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.4894 bpb=0.6671 tok=12577 fert=4.043 s=1868.3
+=== k6d08 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d08\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.8 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=7.6452 bpb=0.7105 tok=11079 fert=4.129 s=1624.6
+=== k6d08 zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d08\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.8 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=11.9065 bpb=0.8510 tok=11977 fert=4.198 s=1839.3
+MACRO bpb=0.6889
+2026-08-16T16:27:02-0400  END k6d08 rc=0 wall=9232.5s
+2026-08-16T16:27:06-0400  START k6d03 k=6 drop=0.3
+=== k6d03 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d03\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.3 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=5.9169 bpb=0.5581 tok=11088 fert=4.594 s=2466.4
+=== k6d03 es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d03\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.3 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.6656 bpb=0.6341 tok=12202 fert=4.315 s=2685.6
+=== k6d03 fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d03\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.3 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.3455 bpb=0.6591 tok=12577 fert=4.043 s=2687.1
+=== k6d03 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d03\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.3 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=7.4472 bpb=0.7013 tok=11079 fert=4.129 s=2390.3
+=== k6d03 zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d03\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.3 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=11.5213 bpb=0.8397 tok=11977 fert=4.198 s=1950.2
+MACRO bpb=0.6785
+2026-08-16T19:50:31-0400  END k6d03 rc=0 wall=12205.3s
+2026-08-16T19:50:31-0400  START k6d10 k=6 drop=1.0
+=== k6d10 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d10\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.8076 bpb=0.6021 tok=11088 fert=4.594 s=1256.9
+=== k6d10 es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d10\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=7.0453 bpb=0.6526 tok=12202 fert=4.315 s=1352.2
+=== k6d10 fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d10\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.7052 bpb=0.6788 tok=12577 fert=4.043 s=1470.1
+=== k6d10 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d10\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=7.9766 bpb=0.7253 tok=11079 fert=4.129 s=1221.5
+=== k6d10 zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d10\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=12.4293 bpb=0.8658 tok=11977 fert=4.198 s=1205.8
+MACRO bpb=0.7049
+2026-08-16T21:39:18-0400  END k6d10 rc=0 wall=6527.1s
+2026-08-16T21:39:19-0400  START k6d05 k=6 drop=0.5
+=== k6d05 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d05\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.5 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=5.9751 bpb=0.5612 tok=11088 fert=4.594 s=1795.1
+=== k6d05 es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d05\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.5 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.6910 bpb=0.6354 tok=12202 fert=4.315 s=1786.5
+=== k6d05 fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d05\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.5 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.3612 bpb=0.6600 tok=12577 fert=4.043 s=1952.0
+=== k6d05 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d05\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.5 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=7.4766 bpb=0.7027 tok=11079 fert=4.129 s=1726.1
+=== k6d05 zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d05\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.5 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=11.6032 bpb=0.8421 tok=11977 fert=4.198 s=1785.8
+MACRO bpb=0.6803
+2026-08-17T00:10:25-0400  END k6d05 rc=0 wall=9066.7s
+2026-08-17T00:10:26-0400  START k6d065 k=6 drop=0.65
+=== k6d065 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d065\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.1115 bpb=0.5683 tok=11088 fert=4.594 s=1699.7
+=== k6d065 es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d065\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.7441 bpb=0.6380 tok=12202 fert=4.315 s=1697.8
+=== k6d065 fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d065\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=6.4190 bpb=0.6633 tok=12577 fert=4.043 s=1744.1
+=== k6d065 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d065\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=7.5426 bpb=0.7058 tok=11079 fert=4.129 s=1499.7
+=== k6d065 zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\calaqwen_dropcurve\k6d065\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=11.7288 bpb=0.8458 tok=11977 fert=4.198 s=1612.9
+MACRO bpb=0.6842
+2026-08-17T02:28:22-0400  END k6d065 rc=0 wall=8276.3s
+2026-08-17T02:28:22-0400  SKIP k6d12 drop=1.2 (CLI rejects drop_cold_frac > 1.0)
+2026-08-17T02:28:22-0400  SKIP k6d15 drop=1.5 (CLI rejects drop_cold_frac > 1.0)
+2026-08-17T02:28:23-0400  DONE DROPCURVE_FLAT(spread=0.0269, noise=0.3537)

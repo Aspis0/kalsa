@@ -1,0 +1,17 @@
+Certamente! Ecco la tabellina del 9:
+
+*   9 × 1 = **9**
+*   9 × 2 = **18**
+*   9 × 3 = **27**
+*   9 × 4 = **36**
+*   9 × 5 = **45**
+*   9 × 6 = **54**
+*   9 × 7 = **63**
+*   9 × 8 = **72**
+*   9 × 9 = **81**
+*   9 × 10 = **90**
+
+**Un trucco utile:**
+Le cifre delle unità e delle decine della tabellina del 9 sommano sempre 9 (ad esempio: 1+8=9, 2+7=9, 3+6=9, ecc.).
+
+Vuoi che ti spieghi anche un altro trucco per moltiplicare velocemente per 9?

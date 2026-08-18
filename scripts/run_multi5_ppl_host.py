@@ -76,6 +76,17 @@ def main() -> int:
         help="lossy drop threshold (campaign KEXP: 0.65 with k=6)",
     )
     ap.add_argument("--ppl-mode", choices=["decode", "file"], default="decode")
+    ap.add_argument(
+        "--extra",
+        action="append",
+        default=[],
+        help="extra CLI token (repeat; use --extra=--flag form)",
+    )
+    ap.add_argument(
+        "--stock-kernel",
+        action="store_true",
+        help="append --no-moe-fused-gemv --no-moe-fused-ffn (S23 5.151 config)",
+    )
     args = ap.parse_args()
 
     binary = Path(args.binary)
@@ -151,6 +162,11 @@ def main() -> int:
                 cmd += ["--n-expert-used", str(args.n_expert_used)]
             if args.drop_cold_experts and args.drop_cold_experts > 0:
                 cmd += ["--drop-cold-experts", str(args.drop_cold_experts)]
+        extra = list(args.extra)
+        if args.stock_kernel:
+            extra += ["--no-moe-fused-gemv", "--no-moe-fused-ffn"]
+        if extra:
+            cmd += extra
 
         meta["config"] = {
             "cmd_tail": cmd[1:],
@@ -159,11 +175,15 @@ def main() -> int:
         }
 
         env = os.environ.copy()
-        env["LD_LIBRARY_PATH"] = str(binary.parent) + (
+        lib_dirs = [str(binary.parent)]
+        sibling_bin = binary.parent.parent / "bin"
+        if sibling_bin.is_dir():
+            lib_dirs.append(str(sibling_bin))
+        env["LD_LIBRARY_PATH"] = os.pathsep.join(lib_dirs) + (
             os.pathsep + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else ""
         )
-        # Windows: DLL next to exe via PATH
-        env["PATH"] = str(binary.parent) + os.pathsep + env.get("PATH", "")
+        # Windows: DLL next to exe, or sibling bin/ (Ninja layout)
+        env["PATH"] = os.pathsep.join(lib_dirs) + os.pathsep + env.get("PATH", "")
 
         print(f"=== {args.tag} {lang} bytes={n_bytes} ===", flush=True)
         print("CMD:", " ".join(cmd), flush=True)

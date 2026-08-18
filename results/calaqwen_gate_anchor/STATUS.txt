@@ -1,0 +1,14 @@
+[2026-08-17T13:32:08-04:00] gate anchor start; waiting for the PC to go idle
+[2026-08-17T13:32:08-04:00] bmoe-cli busy (0s)
+[2026-08-17T14:02:09-04:00] bmoe-cli busy (1800s)
+[2026-08-17T14:32:09-04:00] bmoe-cli busy (3600s)
+[2026-08-17T15:02:10-04:00] bmoe-cli busy (5400s)
+[2026-08-17T15:32:10-04:00] bmoe-cli busy (7200s)
+[2026-08-17T16:02:11-04:00] bmoe-cli busy (9000s)
+[2026-08-17T16:32:13-04:00] bmoe-cli busy (10800s)
+[2026-08-17T17:02:13-04:00] bmoe-cli busy (12600s)
+[2026-08-17T17:29:14-04:00] PC idle after 14220s
+[2026-08-17T17:29:14-04:00] START calaqwen_k8d0 k=8 drop=0.0 (stock reference on CalaQwen)
+[2026-08-17T21:31:36-04:00] END rc=0 wall=14541.8s
+[2026-08-17T21:31:36-04:00] OK calaqwen_k8d0 macro_bpb=0.666011384026024
+[2026-08-17T21:31:36-04:00] GATE.md written

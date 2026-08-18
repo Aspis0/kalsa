@@ -1,0 +1,1312 @@
+=== START p2_2b_cpu_ngl0_t6_pp512_rep1 2026-08-18T00:34:26 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 512 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t6_pp512_rep1 2026-08-18T00:34:26 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 67
+  temperature: 361
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t6_pp512_rep1 EXIT=0 avg_ts=54.902551 2026-08-18T00:34:46 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t6_pp512_rep1 2026-08-18T00:34:46 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 67
+  temperature: 361
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_pp512_rep1 2026-08-18T00:34:48 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 512 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_pp512_rep1 2026-08-18T00:34:48 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 67
+  temperature: 361
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_pp512_rep1 EXIT=0 avg_ts=208.596805 2026-08-18T00:35:14 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_pp512_rep1 2026-08-18T00:35:14 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 66
+  temperature: 364
+  Capacity level: -1
+=== START p2_2b_cpu_ngl0_t6_pp512_rep2 2026-08-18T00:35:16 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 512 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t6_pp512_rep2 2026-08-18T00:35:16 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 66
+  temperature: 364
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t6_pp512_rep2 EXIT=0 avg_ts=53.642034 2026-08-18T00:35:37 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t6_pp512_rep2 2026-08-18T00:35:37 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 66
+  temperature: 364
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_pp512_rep2 2026-08-18T00:35:39 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 512 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_pp512_rep2 2026-08-18T00:35:39 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 66
+  temperature: 364
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_pp512_rep2 EXIT=0 avg_ts=217.710385 2026-08-18T00:36:04 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_pp512_rep2 2026-08-18T00:36:04 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 66
+  temperature: 369
+  Capacity level: -1
+=== START p2_2b_cpu_ngl0_t6_pp512_rep3 2026-08-18T00:36:06 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 512 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t6_pp512_rep3 2026-08-18T00:36:06 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 66
+  temperature: 369
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t6_pp512_rep3 EXIT=0 avg_ts=53.553125 2026-08-18T00:36:27 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t6_pp512_rep3 2026-08-18T00:36:27 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 66
+  temperature: 370
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_pp512_rep3 2026-08-18T00:36:29 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 512 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_pp512_rep3 2026-08-18T00:36:29 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 66
+  temperature: 370
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_pp512_rep3 EXIT=0 avg_ts=214.246634 2026-08-18T00:36:55 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_pp512_rep3 2026-08-18T00:36:55 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 66
+  temperature: 370
+  Capacity level: -1
+=== START p2_2b_cpu_ngl0_t6_pp1024_rep1 2026-08-18T00:36:57 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t6_pp1024_rep1 2026-08-18T00:36:57 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 66
+  temperature: 370
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t6_pp1024_rep1 EXIT=0 avg_ts=46.050318 2026-08-18T00:37:41 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t6_pp1024_rep1 2026-08-18T00:37:41 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 65
+  temperature: 374
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_pp1024_rep1 2026-08-18T00:37:43 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_pp1024_rep1 2026-08-18T00:37:43 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 65
+  temperature: 382
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_pp1024_rep1 EXIT=0 avg_ts=216.833706 2026-08-18T00:38:15 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_pp1024_rep1 2026-08-18T00:38:15 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 65
+  temperature: 382
+  Capacity level: -1
+=== START p2_2b_cpu_ngl0_t6_pp1024_rep2 2026-08-18T00:38:18 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t6_pp1024_rep2 2026-08-18T00:38:18 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 65
+  temperature: 382
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t6_pp1024_rep2 EXIT=0 avg_ts=29.501192 2026-08-18T00:39:19 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t6_pp1024_rep2 2026-08-18T00:39:19 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 64
+  temperature: 385
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_pp1024_rep2 2026-08-18T00:39:21 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_pp1024_rep2 2026-08-18T00:39:21 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 64
+  temperature: 385
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_pp1024_rep2 EXIT=0 avg_ts=216.685595 2026-08-18T00:39:53 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_pp1024_rep2 2026-08-18T00:39:53 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 64
+  temperature: 385
+  Capacity level: -1
+=== START p2_2b_cpu_ngl0_t6_pp1024_rep3 2026-08-18T00:39:56 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t6_pp1024_rep3 2026-08-18T00:39:56 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 64
+  temperature: 385
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t6_pp1024_rep3 EXIT=0 avg_ts=45.966507 2026-08-18T00:40:44 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t6_pp1024_rep3 2026-08-18T00:40:44 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 64
+  temperature: 385
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_pp1024_rep3 2026-08-18T00:40:47 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_pp1024_rep3 2026-08-18T00:40:47 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 64
+  temperature: 385
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_pp1024_rep3 EXIT=0 avg_ts=216.579705 2026-08-18T00:41:18 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_pp1024_rep3 2026-08-18T00:41:18 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 64
+  temperature: 389
+  Capacity level: -1
+=== START p2_2b_cpu_ngl0_t6_pp2048_rep1 2026-08-18T00:41:21 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 2048 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t6_pp2048_rep1 2026-08-18T00:41:21 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 64
+  temperature: 389
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t6_pp2048_rep1 EXIT=0 avg_ts=18.756715 2026-08-18T00:44:00 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t6_pp2048_rep1 2026-08-18T00:44:00 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 62
+  temperature: 397
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_pp2048_rep1 2026-08-18T00:44:02 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 2048 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_pp2048_rep1 2026-08-18T00:44:02 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 62
+  temperature: 397
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_pp2048_rep1 EXIT=0 avg_ts=212.196355 2026-08-18T00:44:44 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_pp2048_rep1 2026-08-18T00:44:44 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 62
+  temperature: 397
+  Capacity level: -1
+=== START p2_2b_cpu_ngl0_t6_pp2048_rep2 2026-08-18T00:44:46 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 2048 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t6_pp2048_rep2 2026-08-18T00:44:46 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 62
+  temperature: 397
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t6_pp2048_rep2 EXIT=0 avg_ts=38.238940 2026-08-18T00:46:30 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t6_pp2048_rep2 2026-08-18T00:46:30 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 61
+  temperature: 401
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_pp2048_rep2 2026-08-18T00:46:32 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 2048 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_pp2048_rep2 2026-08-18T00:46:32 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 61
+  temperature: 401
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_pp2048_rep2 EXIT=0 avg_ts=209.786072 2026-08-18T00:47:16 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_pp2048_rep2 2026-08-18T00:47:16 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 61
+  temperature: 401
+  Capacity level: -1
+=== START p2_2b_cpu_ngl0_t6_pp2048_rep3 2026-08-18T00:47:18 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 2048 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t6_pp2048_rep3 2026-08-18T00:47:18 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 61
+  temperature: 401
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t6_pp2048_rep3 EXIT=0 avg_ts=37.806181 2026-08-18T00:49:09 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t6_pp2048_rep3 2026-08-18T00:49:09 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 60
+  temperature: 404
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_pp2048_rep3 2026-08-18T00:49:12 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 2048 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_pp2048_rep3 2026-08-18T00:49:12 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 60
+  temperature: 404
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_pp2048_rep3 EXIT=0 avg_ts=211.781273 2026-08-18T00:49:56 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_pp2048_rep3 2026-08-18T00:49:56 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 60
+  temperature: 404
+  Capacity level: -1
+=== START p2_2b_cpu_ngl0_t4_pp1024_rep1 2026-08-18T00:49:58 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 4 -ngl 0 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t4_pp1024_rep1 2026-08-18T00:49:58 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 60
+  temperature: 404
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t4_pp1024_rep1 EXIT=0 avg_ts=28.189579 2026-08-18T00:51:12 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t4_pp1024_rep1 2026-08-18T00:51:12 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 59
+  temperature: 403
+  Capacity level: -1
+=== START p2_2b_cpu_ngl0_t4_pp1024_rep2 2026-08-18T00:51:15 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 4 -ngl 0 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t4_pp1024_rep2 2026-08-18T00:51:15 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 59
+  temperature: 403
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t4_pp1024_rep2 EXIT=0 avg_ts=28.277960 2026-08-18T00:52:28 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t4_pp1024_rep2 2026-08-18T00:52:28 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 59
+  temperature: 402
+  Capacity level: -1
+=== START p2_2b_cpu_ngl0_t8_pp1024_rep1 2026-08-18T00:52:30 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 8 -ngl 0 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t8_pp1024_rep1 2026-08-18T00:52:31 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 59
+  temperature: 402
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t8_pp1024_rep1 EXIT=0 avg_ts=28.676191 2026-08-18T00:53:42 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t8_pp1024_rep1 2026-08-18T00:53:42 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 58
+  temperature: 404
+  Capacity level: -1
+=== START p2_2b_cpu_ngl0_t8_pp1024_rep2 2026-08-18T00:53:45 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 8 -ngl 0 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_cpu_ngl0_t8_pp1024_rep2 2026-08-18T00:53:45 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 58
+  temperature: 404
+  Capacity level: -1
+=== END p2_2b_cpu_ngl0_t8_pp1024_rep2 EXIT=0 avg_ts=38.166038 2026-08-18T00:54:44 ===
+=== BATTERY AFTER_p2_2b_cpu_ngl0_t8_pp1024_rep2 2026-08-18T00:54:44 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 58
+  temperature: 404
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faon_t6_pp1024_rep1 2026-08-18T00:54:47 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa on -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faon_t6_pp1024_rep1 2026-08-18T00:54:47 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 58
+  temperature: 404
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faon_t6_pp1024_rep1 EXIT=134 avg_ts=NA 2026-08-18T00:55:11 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faon_t6_pp1024_rep1 2026-08-18T00:55:11 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 58
+  temperature: 404
+  Capacity level: -1
+=== START p2_2b_gpu_ngl8_faoff_t6_pp1024_rep1 2026-08-18T00:55:14 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 8 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl8_faoff_t6_pp1024_rep1 2026-08-18T00:55:14 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 58
+  temperature: 404
+  Capacity level: -1
+=== END p2_2b_gpu_ngl8_faoff_t6_pp1024_rep1 EXIT=0 avg_ts=53.837607 2026-08-18T00:56:10 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl8_faoff_t6_pp1024_rep1 2026-08-18T00:56:10 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 57
+  temperature: 404
+  Capacity level: -1
+=== START p2_2b_gpu_ngl8_faoff_t6_pp1024_rep2 2026-08-18T00:56:13 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 8 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl8_faoff_t6_pp1024_rep2 2026-08-18T00:56:13 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 57
+  temperature: 404
+  Capacity level: -1
+=== END p2_2b_gpu_ngl8_faoff_t6_pp1024_rep2 EXIT=0 avg_ts=53.809112 2026-08-18T00:57:11 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl8_faoff_t6_pp1024_rep2 2026-08-18T00:57:11 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 57
+  temperature: 404
+  Capacity level: -1
+=== START p2_2b_gpu_ngl16_faoff_t6_pp1024_rep1 2026-08-18T00:57:13 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 16 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl16_faoff_t6_pp1024_rep1 2026-08-18T00:57:13 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 57
+  temperature: 404
+  Capacity level: -1
+=== END p2_2b_gpu_ngl16_faoff_t6_pp1024_rep1 EXIT=0 avg_ts=89.760037 2026-08-18T00:57:59 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl16_faoff_t6_pp1024_rep1 2026-08-18T00:57:59 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 57
+  temperature: 405
+  Capacity level: -1
+=== START p2_2b_gpu_ngl16_faoff_t6_pp1024_rep2 2026-08-18T00:58:01 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 16 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl16_faoff_t6_pp1024_rep2 2026-08-18T00:58:01 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 57
+  temperature: 405
+  Capacity level: -1
+=== END p2_2b_gpu_ngl16_faoff_t6_pp1024_rep2 EXIT=0 avg_ts=89.302900 2026-08-18T00:58:52 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl16_faoff_t6_pp1024_rep2 2026-08-18T00:58:52 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 57
+  temperature: 405
+  Capacity level: -1
+=== START p2_2b_gpu_ngl24_faoff_t6_pp1024_rep1 2026-08-18T00:58:55 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 24 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl24_faoff_t6_pp1024_rep1 2026-08-18T00:58:55 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 57
+  temperature: 404
+  Capacity level: -1
+=== END p2_2b_gpu_ngl24_faoff_t6_pp1024_rep1 EXIT=0 avg_ts=198.271436 2026-08-18T00:59:29 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl24_faoff_t6_pp1024_rep1 2026-08-18T00:59:29 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 404
+  Capacity level: -1
+=== START p2_2b_gpu_ngl24_faoff_t6_pp1024_rep2 2026-08-18T00:59:31 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 24 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl24_faoff_t6_pp1024_rep2 2026-08-18T00:59:31 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 404
+  Capacity level: -1
+=== END p2_2b_gpu_ngl24_faoff_t6_pp1024_rep2 EXIT=0 avg_ts=202.385930 2026-08-18T01:00:04 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl24_faoff_t6_pp1024_rep2 2026-08-18T01:00:04 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 404
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_ub128_pp1024_rep1 2026-08-18T01:00:06 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -ub 128 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_ub128_pp1024_rep1 2026-08-18T01:00:06 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 404
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_ub128_pp1024_rep1 EXIT=0 avg_ts=193.074753 2026-08-18T01:00:39 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_ub128_pp1024_rep1 2026-08-18T01:00:39 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 404
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_ub128_pp1024_rep2 2026-08-18T01:00:41 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -ub 128 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_ub128_pp1024_rep2 2026-08-18T01:00:41 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 404
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_ub128_pp1024_rep2 EXIT=0 avg_ts=193.157954 2026-08-18T01:01:14 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_ub128_pp1024_rep2 2026-08-18T01:01:14 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 399
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_ub256_pp1024_rep1 2026-08-18T01:01:16 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -ub 256 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_ub256_pp1024_rep1 2026-08-18T01:01:16 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 399
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_ub256_pp1024_rep1 EXIT=0 avg_ts=208.163592 2026-08-18T01:01:48 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_ub256_pp1024_rep1 2026-08-18T01:01:48 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 399
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_ub256_pp1024_rep2 2026-08-18T01:01:50 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -ub 256 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_ub256_pp1024_rep2 2026-08-18T01:01:50 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 399
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_ub256_pp1024_rep2 EXIT=0 avg_ts=209.329317 2026-08-18T01:02:22 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_ub256_pp1024_rep2 2026-08-18T01:02:22 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 399
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep1 2026-08-18T01:02:24 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -ub 1024 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep1 2026-08-18T01:02:24 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 399
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep1 EXIT=0 avg_ts=214.556471 2026-08-18T01:02:57 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep1 2026-08-18T01:02:57 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 399
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep2 2026-08-18T01:02:59 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -ub 1024 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep2 2026-08-18T01:02:59 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 56
+  temperature: 394
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep2 EXIT=0 avg_ts=215.459767 2026-08-18T01:03:31 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep2 2026-08-18T01:03:31 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 395
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_b512_ub512_pp1024_rep1 2026-08-18T01:03:33 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -b 512 -ub 512 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_b512_ub512_pp1024_rep1 2026-08-18T01:03:33 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 395
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_b512_ub512_pp1024_rep1 EXIT=0 avg_ts=214.561287 2026-08-18T01:04:05 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_b512_ub512_pp1024_rep1 2026-08-18T01:04:05 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 395
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t6_b512_ub512_pp1024_rep2 2026-08-18T01:04:07 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -b 512 -ub 512 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t6_b512_ub512_pp1024_rep2 2026-08-18T01:04:07 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 395
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t6_b512_ub512_pp1024_rep2 EXIT=0 avg_ts=214.602982 2026-08-18T01:04:39 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t6_b512_ub512_pp1024_rep2 2026-08-18T01:04:39 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 395
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t4_pp1024_rep1 2026-08-18T01:04:41 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 4 -ngl 99 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t4_pp1024_rep1 2026-08-18T01:04:42 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 395
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t4_pp1024_rep1 EXIT=0 avg_ts=217.191233 2026-08-18T01:05:13 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t4_pp1024_rep1 2026-08-18T01:05:13 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 389
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t4_pp1024_rep2 2026-08-18T01:05:15 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 4 -ngl 99 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t4_pp1024_rep2 2026-08-18T01:05:15 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 389
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t4_pp1024_rep2 EXIT=0 avg_ts=217.035232 2026-08-18T01:05:47 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t4_pp1024_rep2 2026-08-18T01:05:47 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 389
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t8_pp1024_rep1 2026-08-18T01:05:49 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 8 -ngl 99 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t8_pp1024_rep1 2026-08-18T01:05:49 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 389
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t8_pp1024_rep1 EXIT=0 avg_ts=216.188100 2026-08-18T01:06:21 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t8_pp1024_rep1 2026-08-18T01:06:21 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 389
+  Capacity level: -1
+=== START p2_2b_gpu_ngl99_faoff_t8_pp1024_rep2 2026-08-18T01:06:24 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 8 -ngl 99 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_2b_gpu_ngl99_faoff_t8_pp1024_rep2 2026-08-18T01:06:24 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 389
+  Capacity level: -1
+=== END p2_2b_gpu_ngl99_faoff_t8_pp1024_rep2 EXIT=0 avg_ts=217.369760 2026-08-18T01:06:55 ===
+=== BATTERY AFTER_p2_2b_gpu_ngl99_faoff_t8_pp1024_rep2 2026-08-18T01:06:55 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 386
+  Capacity level: -1
+=== START p2_4b_cpu_ngl0_t6_pp128_rep1 2026-08-18T01:06:58 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_cpu_ngl0_t6_pp128_rep1 2026-08-18T01:06:58 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 55
+  temperature: 386
+  Capacity level: -1
+=== END p2_4b_cpu_ngl0_t6_pp128_rep1 EXIT=0 avg_ts=18.498149 2026-08-18T01:07:27 ===
+=== BATTERY AFTER_p2_4b_cpu_ngl0_t6_pp128_rep1 2026-08-18T01:07:27 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 54
+  temperature: 386
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_pp128_rep1 2026-08-18T01:07:29 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_pp128_rep1 2026-08-18T01:07:29 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 54
+  temperature: 386
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_pp128_rep1 EXIT=0 avg_ts=76.857074 2026-08-18T01:08:05 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_pp128_rep1 2026-08-18T01:08:05 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 54
+  temperature: 386
+  Capacity level: -1
+=== START p2_4b_cpu_ngl0_t6_pp128_rep2 2026-08-18T01:08:07 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_cpu_ngl0_t6_pp128_rep2 2026-08-18T01:08:07 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 54
+  temperature: 386
+  Capacity level: -1
+=== END p2_4b_cpu_ngl0_t6_pp128_rep2 EXIT=0 avg_ts=18.519574 2026-08-18T01:08:23 ===
+=== BATTERY AFTER_p2_4b_cpu_ngl0_t6_pp128_rep2 2026-08-18T01:08:23 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 54
+  temperature: 386
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_pp128_rep2 2026-08-18T01:08:26 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_pp128_rep2 2026-08-18T01:08:26 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 54
+  temperature: 386
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_pp128_rep2 EXIT=0 avg_ts=76.891001 2026-08-18T01:08:59 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_pp128_rep2 2026-08-18T01:08:59 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 54
+  temperature: 389
+  Capacity level: -1
+=== START p2_4b_cpu_ngl0_t6_pp128_rep3 2026-08-18T01:09:01 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_cpu_ngl0_t6_pp128_rep3 2026-08-18T01:09:01 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 54
+  temperature: 389
+  Capacity level: -1
+=== END p2_4b_cpu_ngl0_t6_pp128_rep3 EXIT=0 avg_ts=18.475595 2026-08-18T01:09:19 ===
+=== BATTERY AFTER_p2_4b_cpu_ngl0_t6_pp128_rep3 2026-08-18T01:09:19 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 54
+  temperature: 389
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_pp128_rep3 2026-08-18T01:09:21 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_pp128_rep3 2026-08-18T01:09:21 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 54
+  temperature: 389
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_pp128_rep3 EXIT=0 avg_ts=77.908040 2026-08-18T01:09:54 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_pp128_rep3 2026-08-18T01:09:54 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 54
+  temperature: 391
+  Capacity level: -1
+=== START p2_4b_cpu_ngl0_t6_pp512_rep1 2026-08-18T01:09:56 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 0 -p 512 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_cpu_ngl0_t6_pp512_rep1 2026-08-18T01:09:56 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 54
+  temperature: 391
+  Capacity level: -1
+=== END p2_4b_cpu_ngl0_t6_pp512_rep1 EXIT=0 avg_ts=16.630685 2026-08-18T01:10:57 ===
+=== BATTERY AFTER_p2_4b_cpu_ngl0_t6_pp512_rep1 2026-08-18T01:10:57 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 53
+  temperature: 391
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_pp512_rep1 2026-08-18T01:10:59 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 512 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_pp512_rep1 2026-08-18T01:10:59 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 53
+  temperature: 391
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_pp512_rep1 EXIT=0 avg_ts=88.788988 2026-08-18T01:11:41 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_pp512_rep1 2026-08-18T01:11:41 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 53
+  temperature: 391
+  Capacity level: -1
+=== START p2_4b_cpu_ngl0_t6_pp512_rep2 2026-08-18T01:11:44 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 0 -p 512 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_cpu_ngl0_t6_pp512_rep2 2026-08-18T01:11:44 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 53
+  temperature: 391
+  Capacity level: -1
+=== END p2_4b_cpu_ngl0_t6_pp512_rep2 EXIT=0 avg_ts=15.296352 2026-08-18T01:12:52 ===
+=== BATTERY AFTER_p2_4b_cpu_ngl0_t6_pp512_rep2 2026-08-18T01:12:53 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 52
+  temperature: 401
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_pp512_rep2 2026-08-18T01:12:55 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 512 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_pp512_rep2 2026-08-18T01:12:55 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 52
+  temperature: 401
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_pp512_rep2 EXIT=0 avg_ts=89.204505 2026-08-18T01:13:37 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_pp512_rep2 2026-08-18T01:13:37 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 52
+  temperature: 401
+  Capacity level: -1
+=== START p2_4b_cpu_ngl0_t6_pp512_rep3 2026-08-18T01:13:39 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 0 -p 512 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_cpu_ngl0_t6_pp512_rep3 2026-08-18T01:13:39 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 52
+  temperature: 401
+  Capacity level: -1
+=== END p2_4b_cpu_ngl0_t6_pp512_rep3 EXIT=0 avg_ts=14.931400 2026-08-18T01:14:49 ===
+=== BATTERY AFTER_p2_4b_cpu_ngl0_t6_pp512_rep3 2026-08-18T01:14:49 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 51
+  temperature: 405
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_pp512_rep3 2026-08-18T01:14:51 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 512 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_pp512_rep3 2026-08-18T01:14:52 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 51
+  temperature: 405
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_pp512_rep3 EXIT=0 avg_ts=89.077358 2026-08-18T01:15:34 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_pp512_rep3 2026-08-18T01:15:34 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 51
+  temperature: 405
+  Capacity level: -1
+=== START p2_4b_cpu_ngl0_t6_pp1024_rep1 2026-08-18T01:15:37 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 0 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_cpu_ngl0_t6_pp1024_rep1 2026-08-18T01:15:37 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 51
+  temperature: 405
+  Capacity level: -1
+=== END p2_4b_cpu_ngl0_t6_pp1024_rep1 EXIT=0 avg_ts=11.331447 2026-08-18T01:18:23 ===
+=== BATTERY AFTER_p2_4b_cpu_ngl0_t6_pp1024_rep1 2026-08-18T01:18:23 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 50
+  temperature: 409
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_pp1024_rep1 2026-08-18T01:18:25 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_pp1024_rep1 2026-08-18T01:18:25 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 50
+  temperature: 409
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_pp1024_rep1 EXIT=0 avg_ts=88.335084 2026-08-18T01:19:22 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_pp1024_rep1 2026-08-18T01:19:22 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 50
+  temperature: 409
+  Capacity level: -1
+=== START p2_4b_cpu_ngl0_t6_pp1024_rep2 2026-08-18T01:19:25 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 0 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_cpu_ngl0_t6_pp1024_rep2 2026-08-18T01:19:25 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 50
+  temperature: 409
+  Capacity level: -1
+=== END p2_4b_cpu_ngl0_t6_pp1024_rep2 EXIT=0 avg_ts=13.291355 2026-08-18T01:21:57 ===
+=== BATTERY AFTER_p2_4b_cpu_ngl0_t6_pp1024_rep2 2026-08-18T01:21:57 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 49
+  temperature: 410
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_pp1024_rep2 2026-08-18T01:21:59 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_pp1024_rep2 2026-08-18T01:21:59 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 49
+  temperature: 410
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_pp1024_rep2 EXIT=0 avg_ts=88.347646 2026-08-18T01:22:56 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_pp1024_rep2 2026-08-18T01:22:56 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 48
+  temperature: 408
+  Capacity level: -1
+=== START p2_4b_cpu_ngl0_t6_pp1024_rep3 2026-08-18T01:22:58 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 0 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_cpu_ngl0_t6_pp1024_rep3 2026-08-18T01:22:58 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 48
+  temperature: 410
+  Capacity level: -1
+=== END p2_4b_cpu_ngl0_t6_pp1024_rep3 EXIT=0 avg_ts=13.542394 2026-08-18T01:25:31 ===
+=== BATTERY AFTER_p2_4b_cpu_ngl0_t6_pp1024_rep3 2026-08-18T01:25:31 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 47
+  temperature: 413
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_pp1024_rep3 2026-08-18T01:25:34 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_pp1024_rep3 2026-08-18T01:25:34 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 47
+  temperature: 413
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_pp1024_rep3 EXIT=0 avg_ts=88.434816 2026-08-18T01:26:32 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_pp1024_rep3 2026-08-18T01:26:32 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 47
+  temperature: 413
+  Capacity level: -1
+=== START p2_4b_cpu_ngl0_t6_pp2048_rep1 2026-08-18T01:26:35 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 0 -p 2048 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_cpu_ngl0_t6_pp2048_rep1 2026-08-18T01:26:35 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 47
+  temperature: 413
+  Capacity level: -1
+=== END p2_4b_cpu_ngl0_t6_pp2048_rep1 EXIT=0 avg_ts=13.308250 2026-08-18T01:31:44 ===
+=== BATTERY AFTER_p2_4b_cpu_ngl0_t6_pp2048_rep1 2026-08-18T01:31:44 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 45
+  temperature: 417
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_pp2048_rep1 2026-08-18T01:31:47 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 2048 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_pp2048_rep1 2026-08-18T01:31:47 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 45
+  temperature: 417
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_pp2048_rep1 EXIT=0 avg_ts=85.950281 2026-08-18T01:33:10 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_pp2048_rep1 2026-08-18T01:33:10 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 44
+  temperature: 419
+  Capacity level: -1
+=== START p2_4b_cpu_ngl0_t6_pp2048_rep2 2026-08-18T01:33:13 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 0 -p 2048 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_cpu_ngl0_t6_pp2048_rep2 2026-08-18T01:33:13 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 44
+  temperature: 421
+  Capacity level: -1
+=== END p2_4b_cpu_ngl0_t6_pp2048_rep2 EXIT=0 avg_ts=13.369434 2026-08-18T01:38:35 ===
+=== BATTERY AFTER_p2_4b_cpu_ngl0_t6_pp2048_rep2 2026-08-18T01:38:35 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 42
+  temperature: 421
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_pp2048_rep2 2026-08-18T01:38:38 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 2048 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_pp2048_rep2 2026-08-18T01:38:38 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 42
+  temperature: 421
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_pp2048_rep2 EXIT=0 avg_ts=86.320520 2026-08-18T01:40:03 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_pp2048_rep2 2026-08-18T01:40:03 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 42
+  temperature: 421
+  Capacity level: -1
+=== START p2_4b_cpu_ngl0_t6_pp2048_rep3 2026-08-18T01:40:05 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 0 -p 2048 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_cpu_ngl0_t6_pp2048_rep3 2026-08-18T01:40:05 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 42
+  temperature: 421
+  Capacity level: -1
+=== END p2_4b_cpu_ngl0_t6_pp2048_rep3 EXIT=0 avg_ts=13.307538 2026-08-18T01:45:16 ===
+=== BATTERY AFTER_p2_4b_cpu_ngl0_t6_pp2048_rep3 2026-08-18T01:45:16 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 40
+  temperature: 427
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_pp2048_rep3 2026-08-18T01:45:18 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 2048 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_pp2048_rep3 2026-08-18T01:45:18 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 39
+  temperature: 427
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_pp2048_rep3 EXIT=0 avg_ts=86.200935 2026-08-18T01:46:43 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_pp2048_rep3 2026-08-18T01:46:43 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 39
+  temperature: 427
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep1 2026-08-18T01:46:46 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -ub 1024 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep1 2026-08-18T01:46:46 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 39
+  temperature: 427
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep1 EXIT=0 avg_ts=87.486158 2026-08-18T01:47:43 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep1 2026-08-18T01:47:43 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 39
+  temperature: 427
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep2 2026-08-18T01:47:45 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -ub 1024 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep2 2026-08-18T01:47:45 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 39
+  temperature: 427
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep2 EXIT=0 avg_ts=87.473558 2026-08-18T01:48:44 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_ub1024_pp1024_rep2 2026-08-18T01:48:44 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 38
+  temperature: 428
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_ub256_pp1024_rep1 2026-08-18T01:48:47 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -ub 256 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_ub256_pp1024_rep1 2026-08-18T01:48:47 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 38
+  temperature: 428
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_ub256_pp1024_rep1 EXIT=0 avg_ts=86.084888 2026-08-18T01:49:43 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_ub256_pp1024_rep1 2026-08-18T01:49:43 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 38
+  temperature: 428
+  Capacity level: -1
+=== START p2_4b_gpu_ngl99_faoff_t6_ub256_pp1024_rep2 2026-08-18T01:49:46 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -ub 256 -p 1024 -n 0 -r 1
+=== BATTERY BEFORE_p2_4b_gpu_ngl99_faoff_t6_ub256_pp1024_rep2 2026-08-18T01:49:46 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 38
+  temperature: 428
+  Capacity level: -1
+=== END p2_4b_gpu_ngl99_faoff_t6_ub256_pp1024_rep2 EXIT=0 avg_ts=86.088079 2026-08-18T01:50:44 ===
+=== BATTERY AFTER_p2_4b_gpu_ngl99_faoff_t6_ub256_pp1024_rep2 2026-08-18T01:50:44 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 38
+  temperature: 428
+  Capacity level: -1
+=== PART2 DONE 2026-08-18T01:50:46 ===

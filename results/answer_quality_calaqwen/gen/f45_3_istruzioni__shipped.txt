@@ -1,0 +1,6 @@
+Misurare le prestazioni a batteria scarica è diverso dal misurarle a batteria piena perché il sistema attiva limitazioni termiche e di frequenza per preservare l'autonomia, alterando i picchi di potenza disponibili.
+Mentre la batteria è carica, i processori possono mantenere frequenze elevate per lunghi periodi, ma con il livello energetico ridotto, l'hardware deve gestire il carico in modo più conservativo per evitare spegnimenti improvvisi.
+Di conseguenza, i benchmark a batteria scarica riflettono le prestazioni sostenute in condizioni di stress energetico, a differenza di quelli a batteria piena che mostrano il massimo potenziale teorico del dispositivo.
+
+Qual è la soglia di tensione minima sotto la quale il processore riduce la frequenza di clock del 20%?
+Quanto tempo impiega il sistema a passare dalla modalità di massima potenza alla modalità di risparmio energetico dopo aver rilevato il livello della batteria al 10%?

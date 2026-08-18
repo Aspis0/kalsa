@@ -1,0 +1,9 @@
+Ciao,
+
+per il test dell’app di chat on-device su Samsung S23, procediamo con un modello MoE quantizzato a circa 2.4 bit per peso. L’obiettivo è verificare le prestazioni in condizioni di carico elevato: la velocità attesa è di circa 5 token al secondo.
+
+Per garantire che il processo non venga interrotto dal sistema, è fondamentale mantenere lo schermo acceso durante tutta la sessione di test.
+
+Per favore, annota con cura: temperatura del dispositivo, livello di batteria residuo e il valore effettivo di tok/s registrato.
+
+Grazie per la collaborazione.

@@ -1,0 +1,1226 @@
+=== START p1_warmup_2b_gpu_ngl99_faoff_t6_pp128 2026-08-18T00:26:28 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_warmup_2b_gpu_ngl99_faoff_t6_pp128 2026-08-18T00:26:28 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 316
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=31.7, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=32.837, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=35.1, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=33.7, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=34.1, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_warmup_2b_gpu_ngl99_faoff_t6_pp128 EXIT=0 avg_ts=179.653102 2026-08-18T00:26:49 ===
+=== BATTERY AFTER_p1_warmup_2b_gpu_ngl99_faoff_t6_pp128 2026-08-18T00:26:49 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 316
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=31.7, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=33.198, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=42.6, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=41.2, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=41.2, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordA_2b_cpu_ngl0_t6_pp128_rep1 2026-08-18T00:26:52 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordA_2b_cpu_ngl0_t6_pp128_rep1 2026-08-18T00:26:52 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 316
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=31.7, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=33.306, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=38.6, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=36.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=37.3, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordA_2b_cpu_ngl0_t6_pp128_rep1 EXIT=0 avg_ts=62.239207 2026-08-18T00:26:58 ===
+=== BATTERY AFTER_p1_ordA_2b_cpu_ngl0_t6_pp128_rep1 2026-08-18T00:26:58 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 316
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=31.7, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=33.488, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=49.7, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=58.5, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=60.1, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep1 2026-08-18T00:27:00 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep1 2026-08-18T00:27:00 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 316
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=31.9, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=33.628, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=43.0, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=42.8, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=42.8, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep1 EXIT=0 avg_ts=187.541151 2026-08-18T00:27:20 ===
+=== BATTERY AFTER_p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep1 2026-08-18T00:27:20 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 322
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=32.3, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=34.274, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=43.4, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=41.6, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=41.2, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordA_2b_cpu_ngl0_t6_pp128_rep2 2026-08-18T00:27:22 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordA_2b_cpu_ngl0_t6_pp128_rep2 2026-08-18T00:27:22 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 322
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=32.3, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=34.286, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=39.0, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=38.1, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=38.1, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordA_2b_cpu_ngl0_t6_pp128_rep2 EXIT=0 avg_ts=61.926697 2026-08-18T00:27:28 ===
+=== BATTERY AFTER_p1_ordA_2b_cpu_ngl0_t6_pp128_rep2 2026-08-18T00:27:28 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 322
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=32.3, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=34.268, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=50.5, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=59.3, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=61.3, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep2 2026-08-18T00:27:30 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep2 2026-08-18T00:27:30 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 322
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=32.3, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=34.366, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=43.4, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=43.2, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=43.6, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep2 EXIT=0 avg_ts=187.593875 2026-08-18T00:27:49 ===
+=== BATTERY AFTER_p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep2 2026-08-18T00:27:49 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 322
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=32.6, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=34.795, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=44.2, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=42.4, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=41.2, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordA_2b_cpu_ngl0_t6_pp128_rep3 2026-08-18T00:27:52 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordA_2b_cpu_ngl0_t6_pp128_rep3 2026-08-18T00:27:52 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 322
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=32.6, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=34.777, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=39.0, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=38.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=38.9, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordA_2b_cpu_ngl0_t6_pp128_rep3 EXIT=0 avg_ts=61.660300 2026-08-18T00:27:57 ===
+=== BATTERY AFTER_p1_ordA_2b_cpu_ngl0_t6_pp128_rep3 2026-08-18T00:27:57 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 322
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=32.6, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=34.744, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=50.9, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=60.1, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=62.0, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep3 2026-08-18T00:28:00 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep3 2026-08-18T00:28:00 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 322
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=32.7, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=34.823, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=44.2, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=44.0, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=44.7, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep3 EXIT=0 avg_ts=183.739901 2026-08-18T00:28:19 ===
+=== BATTERY AFTER_p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep3 2026-08-18T00:28:19 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 322
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=32.9, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.155, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=44.2, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=42.0, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=41.6, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordA_2b_cpu_ngl0_t6_pp128_rep4 2026-08-18T00:28:22 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordA_2b_cpu_ngl0_t6_pp128_rep4 2026-08-18T00:28:22 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 322
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=32.9, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.137, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=39.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=38.5, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=38.9, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordA_2b_cpu_ngl0_t6_pp128_rep4 EXIT=0 avg_ts=57.292103 2026-08-18T00:28:28 ===
+=== BATTERY AFTER_p1_ordA_2b_cpu_ngl0_t6_pp128_rep4 2026-08-18T00:28:28 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 322
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=32.9, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.055, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=48.9, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=56.1, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=57.7, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep4 2026-08-18T00:28:30 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep4 2026-08-18T00:28:30 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 322
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=32.9, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.108, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=42.6, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=42.8, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=42.8, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep4 EXIT=0 avg_ts=183.116776 2026-08-18T00:28:51 ===
+=== BATTERY AFTER_p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep4 2026-08-18T00:28:51 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 331
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.1, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.308, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=44.2, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=42.0, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=41.2, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordA_2b_cpu_ngl0_t6_pp128_rep5 2026-08-18T00:28:54 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordA_2b_cpu_ngl0_t6_pp128_rep5 2026-08-18T00:28:54 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 331
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.1, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.272, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=39.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=38.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=38.9, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordA_2b_cpu_ngl0_t6_pp128_rep5 EXIT=0 avg_ts=57.187065 2026-08-18T00:29:00 ===
+=== BATTERY AFTER_p1_ordA_2b_cpu_ngl0_t6_pp128_rep5 2026-08-18T00:29:00 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 331
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.1, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.214, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=48.9, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=56.5, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.1, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep5 2026-08-18T00:29:02 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep5 2026-08-18T00:29:02 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 331
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.1, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.284, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=43.4, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=42.4, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=43.2, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep5 EXIT=0 avg_ts=187.566013 2026-08-18T00:29:23 ===
+=== BATTERY AFTER_p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep5 2026-08-18T00:29:24 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 331
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.3, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.442, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=44.2, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=42.4, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=42.0, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep1 2026-08-18T00:29:36 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep1 2026-08-18T00:29:36 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 69
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.3, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.261, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=38.2, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.3, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=38.1, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep1 EXIT=0 avg_ts=184.766840 2026-08-18T00:29:57 ===
+=== BATTERY AFTER_p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep1 2026-08-18T00:29:57 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=34.948, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=43.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=41.6, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=40.4, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordB_2b_cpu_ngl0_t6_pp128_rep1 2026-08-18T00:29:59 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordB_2b_cpu_ngl0_t6_pp128_rep1 2026-08-18T00:29:59 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=34.948, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=39.4, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=38.1, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=38.9, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordB_2b_cpu_ngl0_t6_pp128_rep1 EXIT=0 avg_ts=57.337640 2026-08-18T00:30:05 ===
+=== BATTERY AFTER_p1_ordB_2b_cpu_ngl0_t6_pp128_rep1 2026-08-18T00:30:05 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=34.96, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=48.9, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=56.1, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=57.7, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep2 2026-08-18T00:30:08 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep2 2026-08-18T00:30:08 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.037, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=42.6, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=43.2, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=44.0, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep2 EXIT=0 avg_ts=187.416996 2026-08-18T00:30:29 ===
+=== BATTERY AFTER_p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep2 2026-08-18T00:30:29 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.3, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.36, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=44.6, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=42.4, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=42.0, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordB_2b_cpu_ngl0_t6_pp128_rep2 2026-08-18T00:30:31 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordB_2b_cpu_ngl0_t6_pp128_rep2 2026-08-18T00:30:31 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.3, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.343, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=40.2, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=39.2, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=39.6, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordB_2b_cpu_ngl0_t6_pp128_rep2 EXIT=0 avg_ts=57.211793 2026-08-18T00:30:37 ===
+=== BATTERY AFTER_p1_ordB_2b_cpu_ngl0_t6_pp128_rep2 2026-08-18T00:30:37 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.3, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.313, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=49.7, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=58.1, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.5, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep3 2026-08-18T00:30:40 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep3 2026-08-18T00:30:40 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.3, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.395, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=43.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=43.6, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=43.6, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep3 EXIT=0 avg_ts=188.172412 2026-08-18T00:31:01 ===
+=== BATTERY AFTER_p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep3 2026-08-18T00:31:01 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.5, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.599, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=44.6, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=42.4, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=42.0, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordB_2b_cpu_ngl0_t6_pp128_rep3 2026-08-18T00:31:03 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordB_2b_cpu_ngl0_t6_pp128_rep3 2026-08-18T00:31:04 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.5, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.582, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=40.2, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=38.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=39.2, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordB_2b_cpu_ngl0_t6_pp128_rep3 EXIT=0 avg_ts=57.331662 2026-08-18T00:31:09 ===
+=== BATTERY AFTER_p1_ordB_2b_cpu_ngl0_t6_pp128_rep3 2026-08-18T00:31:09 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.5, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.512, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=49.7, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=57.3, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.1, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep4 2026-08-18T00:31:12 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep4 2026-08-18T00:31:12 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.5, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.564, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=43.4, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=43.2, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=43.6, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep4 EXIT=0 avg_ts=188.464335 2026-08-18T00:31:33 ===
+=== BATTERY AFTER_p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep4 2026-08-18T00:31:33 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.6, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.732, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=44.6, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=42.4, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=41.2, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordB_2b_cpu_ngl0_t6_pp128_rep4 2026-08-18T00:31:35 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordB_2b_cpu_ngl0_t6_pp128_rep4 2026-08-18T00:31:35 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.6, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.697, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=40.2, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=38.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=38.9, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordB_2b_cpu_ngl0_t6_pp128_rep4 EXIT=0 avg_ts=57.345426 2026-08-18T00:31:41 ===
+=== BATTERY AFTER_p1_ordB_2b_cpu_ngl0_t6_pp128_rep4 2026-08-18T00:31:41 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.6, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.645, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=49.7, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=57.3, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.5, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep5 2026-08-18T00:31:44 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep5 2026-08-18T00:31:44 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.6, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.709, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=43.4, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=43.6, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=43.6, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep5 EXIT=0 avg_ts=187.287296 2026-08-18T00:32:05 ===
+=== BATTERY AFTER_p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep5 2026-08-18T00:32:05 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.7, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.854, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=44.6, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=42.4, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=42.8, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_ordB_2b_cpu_ngl0_t6_pp128_rep5 2026-08-18T00:32:07 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== BATTERY BEFORE_p1_ordB_2b_cpu_ngl0_t6_pp128_rep5 2026-08-18T00:32:07 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.7, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.842, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=40.2, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=38.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=39.2, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_ordB_2b_cpu_ngl0_t6_pp128_rep5 EXIT=0 avg_ts=57.231876 2026-08-18T00:32:13 ===
+=== BATTERY AFTER_p1_ordB_2b_cpu_ngl0_t6_pp128_rep5 2026-08-18T00:32:13 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.7, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.767, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=49.3, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=57.3, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.9, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_dec_2b_cpu_ngl0_t6_pp128_tg256_rep1 2026-08-18T00:32:15 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 256 -r 1
+=== BATTERY BEFORE_p1_dec_2b_cpu_ngl0_t6_pp128_tg256_rep1 2026-08-18T00:32:15 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 333
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.7, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=35.818, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=43.4, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=44.0, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=44.0, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_dec_2b_cpu_ngl0_t6_pp128_tg256_rep1 EXIT=0 avg_ts=57.220929 2026-08-18T00:32:31 ===
+=== BATTERY AFTER_p1_dec_2b_cpu_ngl0_t6_pp128_tg256_rep1 2026-08-18T00:32:31 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 337
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.9, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=37.188, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=61.1, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=70.3, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=70.7, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_dec_2b_gpu_ngl99_faoff_t6_pp128_tg256_rep1 2026-08-18T00:32:33 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 256 -r 1
+=== BATTERY BEFORE_p1_dec_2b_gpu_ngl99_faoff_t6_pp128_tg256_rep1 2026-08-18T00:32:33 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 68
+  temperature: 337
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.9, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=37.652, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=51.3, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=51.4, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=51.4, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_dec_2b_gpu_ngl99_faoff_t6_pp128_tg256_rep1 EXIT=0 avg_ts=188.466229 2026-08-18T00:33:09 ===
+=== BATTERY AFTER_p1_dec_2b_gpu_ngl99_faoff_t6_pp128_tg256_rep1 2026-08-18T00:33:09 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 67
+  temperature: 348
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=34.8, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=37.831, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=53.6, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=52.2, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=51.0, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_dec_2b_gpu_ngl99_faoff_t6_pp128_tg256_rep2 2026-08-18T00:33:12 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 256 -r 1
+=== BATTERY BEFORE_p1_dec_2b_gpu_ngl99_faoff_t6_pp128_tg256_rep2 2026-08-18T00:33:12 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 67
+  temperature: 348
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=34.8, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=37.953, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=46.9, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=45.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=45.1, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_dec_2b_gpu_ngl99_faoff_t6_pp128_tg256_rep2 EXIT=0 avg_ts=189.079185 2026-08-18T00:33:48 ===
+=== BATTERY AFTER_p1_dec_2b_gpu_ngl99_faoff_t6_pp128_tg256_rep2 2026-08-18T00:33:48 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 67
+  temperature: 351
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=37.855, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=53.6, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=51.8, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=50.6, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== START p1_dec_2b_cpu_ngl0_t6_pp128_tg256_rep2 2026-08-18T00:33:50 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 256 -r 1
+=== BATTERY BEFORE_p1_dec_2b_cpu_ngl0_t6_pp128_tg256_rep2 2026-08-18T00:33:50 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 67
+  temperature: 351
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=37.984, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=46.1, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=45.5, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=45.5, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== END p1_dec_2b_cpu_ngl0_t6_pp128_tg256_rep2 EXIT=0 avg_ts=57.163209 2026-08-18T00:34:06 ===
+=== BATTERY AFTER_p1_dec_2b_cpu_ngl0_t6_pp128_tg256_rep2 2026-08-18T00:34:06 ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 67
+  temperature: 351
+  Capacity level: -1
+	Temperature{mValue=35.2, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=73.0, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=89.9, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=58.8, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=37.903, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=35.4, mType=2, mName=battery, mStatus=0}
+	Temperature{mValue=39.088, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=62.3, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=70.3, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=71.5, mType=0, mName=CPU0, mStatus=0}
+	TemperatureThreshold{mType=2, mName=battery, mHotThrottlingThresholds=[NaN, NaN, NaN, 80.0, NaN, NaN, 90.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=3, mName=skin, mHotThrottlingThresholds=[NaN, NaN, NaN, 66.5, NaN, NaN, 95.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=1, mName=GPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU7, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+	TemperatureThreshold{mType=0, mName=CPU0, mHotThrottlingThresholds=[NaN, NaN, NaN, 95.0, NaN, NaN, 115.0], mColdThrottlingThresholds=[NaN, NaN, NaN, NaN, NaN, NaN, NaN]}
+=== PART1 DONE 2026-08-18T00:34:09 ===

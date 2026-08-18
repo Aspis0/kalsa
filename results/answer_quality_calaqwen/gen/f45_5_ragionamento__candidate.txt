@@ -1,0 +1,10 @@
+L'opzione più plausibile è la **(B) il processo è finito in un cpuset con solo 3 core little**.
+
+Motivazione:
+1. Un calo drastico da 5.0 a 1.2 tok/s (circa 76% di perdita) non è tipico del thermal throtting, che solitamente causa cali graduali e progressivi.
+2. La temperatura simile (30°C) esclude il surriscaldamento come causa primaria immediata.
+3. Il passaggio da 8 core (probabilmente big.LITTLE misti o tutti performance) a 3 core little (efficienza energetica ma bassa potenza di calcolo) spiega perfettamente il crollo delle prestazioni.
+4. La quantizzazione (C) non cambia durante una esecuzione singola senza intervento esterno.
+
+Controllo concreto:
+Esegui `cat /proc/self/cpuset` per verificare l'insieme dei core assegnati al processo e `cat /sys/devices/system/cpu/cpu*/online` per confermare quali core sono attivi e se sono stati usati solo quelli little.

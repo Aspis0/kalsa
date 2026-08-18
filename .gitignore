@@ -32,3 +32,11 @@ results/**/bin/*.exe
 results/ttft_verify_jelly/_bundle_fixed/
 
 *.apk
+
+# 20 GB of staged model artefacts — never versioned, and one `git add -A` away
+# from being committed by accident. models/ was already ignored; this was not.
+models_staging/
+
+# Build turds that landed in the repo root
+embed.obj
+NUL

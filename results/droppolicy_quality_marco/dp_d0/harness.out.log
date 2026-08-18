@@ -1,0 +1,2 @@
+=== dp_d0 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-droppolicy\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\droppolicy_quality_marco\dp_d0\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6

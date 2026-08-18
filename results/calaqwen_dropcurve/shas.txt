@@ -1,0 +1,12 @@
+model  ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a  13416430592  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf
+expect ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a
+match  True
+binary 7722cb23729d367a274fb682cadd28ef5d456f50fc9b5c064e4923ed04d75d52  349696  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe
+expect 7722cb23729d367a274fb682cadd28ef5d456f50fc9b5c064e4923ed04d75d52
+match  True
+extra  --no-moe-fused-gemv --no-moe-fused-ffn
+dll    ggml-base.dll  b72667acab062c253df6c2449cb642fbe6fb9a50ec7c4201b7680b1be24b609d  match=True
+dll    ggml-cpu.dll  eb1d25cdab6d41a9ca30e2cdcaa1592c2dbc1d08c76685db31bad14ea4c11529  match=True
+dll    ggml.dll  e4513bb2e6fee9c63f8262c47e716d650788bb23875c68942c13c0a41ae555ef  match=True
+dll    llama-common.dll  d1cad7e687fc23d2d8209b18ede879dd3f1c9a34484b29ced01056caebe30959  match=True
+dll    llama.dll  020d6045b226fe717276d2a6f9bc1c82bec41423d7254ef497eba715c66edc85  match=True

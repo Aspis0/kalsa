@@ -1,0 +1,1 @@
+BMOE_PPL {"n_tokens":12202,"n_scored":12199,"sum_logprob":-23151.15348899,"ppl":6.671142,"seconds":2298.330,"cancelled":false,"mode":"decode","file":"C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\es.txt"}

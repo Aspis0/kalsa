@@ -1,0 +1,77 @@
+=== PART1 START 2026-08-18T00:26:28 ===
+=== START p1_warmup_2b_gpu_ngl99_faoff_t6_pp128 2026-08-18T00:26:28 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== END p1_warmup_2b_gpu_ngl99_faoff_t6_pp128 EXIT=0 avg_ts=179.653102 2026-08-18T00:26:49 ===
+=== START p1_ordA_2b_cpu_ngl0_t6_pp128_rep1 2026-08-18T00:26:52 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== END p1_ordA_2b_cpu_ngl0_t6_pp128_rep1 EXIT=0 avg_ts=62.239207 2026-08-18T00:26:58 ===
+=== START p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep1 2026-08-18T00:27:00 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== END p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep1 EXIT=0 avg_ts=187.541151 2026-08-18T00:27:20 ===
+=== START p1_ordA_2b_cpu_ngl0_t6_pp128_rep2 2026-08-18T00:27:22 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== END p1_ordA_2b_cpu_ngl0_t6_pp128_rep2 EXIT=0 avg_ts=61.926697 2026-08-18T00:27:28 ===
+=== START p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep2 2026-08-18T00:27:30 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== END p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep2 EXIT=0 avg_ts=187.593875 2026-08-18T00:27:49 ===
+=== START p1_ordA_2b_cpu_ngl0_t6_pp128_rep3 2026-08-18T00:27:52 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== END p1_ordA_2b_cpu_ngl0_t6_pp128_rep3 EXIT=0 avg_ts=61.660300 2026-08-18T00:27:57 ===
+=== START p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep3 2026-08-18T00:28:00 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== END p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep3 EXIT=0 avg_ts=183.739901 2026-08-18T00:28:19 ===
+=== START p1_ordA_2b_cpu_ngl0_t6_pp128_rep4 2026-08-18T00:28:22 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== END p1_ordA_2b_cpu_ngl0_t6_pp128_rep4 EXIT=0 avg_ts=57.292103 2026-08-18T00:28:28 ===
+=== START p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep4 2026-08-18T00:28:30 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== END p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep4 EXIT=0 avg_ts=183.116776 2026-08-18T00:28:51 ===
+=== START p1_ordA_2b_cpu_ngl0_t6_pp128_rep5 2026-08-18T00:28:54 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== END p1_ordA_2b_cpu_ngl0_t6_pp128_rep5 EXIT=0 avg_ts=57.187065 2026-08-18T00:29:00 ===
+=== START p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep5 2026-08-18T00:29:02 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== END p1_ordA_2b_gpu_ngl99_faoff_t6_pp128_rep5 EXIT=0 avg_ts=187.566013 2026-08-18T00:29:23 ===
+=== START p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep1 2026-08-18T00:29:36 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== END p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep1 EXIT=0 avg_ts=184.766840 2026-08-18T00:29:57 ===
+=== START p1_ordB_2b_cpu_ngl0_t6_pp128_rep1 2026-08-18T00:29:59 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== END p1_ordB_2b_cpu_ngl0_t6_pp128_rep1 EXIT=0 avg_ts=57.337640 2026-08-18T00:30:05 ===
+=== START p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep2 2026-08-18T00:30:08 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== END p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep2 EXIT=0 avg_ts=187.416996 2026-08-18T00:30:29 ===
+=== START p1_ordB_2b_cpu_ngl0_t6_pp128_rep2 2026-08-18T00:30:31 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== END p1_ordB_2b_cpu_ngl0_t6_pp128_rep2 EXIT=0 avg_ts=57.211793 2026-08-18T00:30:37 ===
+=== START p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep3 2026-08-18T00:30:40 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== END p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep3 EXIT=0 avg_ts=188.172412 2026-08-18T00:31:01 ===
+=== START p1_ordB_2b_cpu_ngl0_t6_pp128_rep3 2026-08-18T00:31:03 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== END p1_ordB_2b_cpu_ngl0_t6_pp128_rep3 EXIT=0 avg_ts=57.331662 2026-08-18T00:31:09 ===
+=== START p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep4 2026-08-18T00:31:12 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== END p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep4 EXIT=0 avg_ts=188.464335 2026-08-18T00:31:33 ===
+=== START p1_ordB_2b_cpu_ngl0_t6_pp128_rep4 2026-08-18T00:31:35 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== END p1_ordB_2b_cpu_ngl0_t6_pp128_rep4 EXIT=0 avg_ts=57.345426 2026-08-18T00:31:41 ===
+=== START p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep5 2026-08-18T00:31:44 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 0 -r 1
+=== END p1_ordB_2b_gpu_ngl99_faoff_t6_pp128_rep5 EXIT=0 avg_ts=187.287296 2026-08-18T00:32:05 ===
+=== START p1_ordB_2b_cpu_ngl0_t6_pp128_rep5 2026-08-18T00:32:07 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 0 -r 1
+=== END p1_ordB_2b_cpu_ngl0_t6_pp128_rep5 EXIT=0 avg_ts=57.231876 2026-08-18T00:32:13 ===
+=== START p1_dec_2b_cpu_ngl0_t6_pp128_tg256_rep1 2026-08-18T00:32:15 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 256 -r 1
+=== END p1_dec_2b_cpu_ngl0_t6_pp128_tg256_rep1 EXIT=0 avg_ts=57.220929 2026-08-18T00:32:31 ===
+=== START p1_dec_2b_gpu_ngl99_faoff_t6_pp128_tg256_rep1 2026-08-18T00:32:33 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 256 -r 1
+=== END p1_dec_2b_gpu_ngl99_faoff_t6_pp128_tg256_rep1 EXIT=0 avg_ts=188.466229 2026-08-18T00:33:09 ===
+=== START p1_dec_2b_gpu_ngl99_faoff_t6_pp128_tg256_rep2 2026-08-18T00:33:12 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 99 -fa off -p 128 -n 256 -r 1
+=== END p1_dec_2b_gpu_ngl99_faoff_t6_pp128_tg256_rep2 EXIT=0 avg_ts=189.079185 2026-08-18T00:33:48 ===
+=== START p1_dec_2b_cpu_ngl0_t6_pp128_tg256_rep2 2026-08-18T00:33:50 ===
+CMD: /data/local/tmp/gdn_750/bin/llama-bench -m /data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf -t 6 -ngl 0 -p 128 -n 256 -r 1
+=== END p1_dec_2b_cpu_ngl0_t6_pp128_tg256_rep2 EXIT=0 avg_ts=57.163209 2026-08-18T00:34:06 ===
+=== PART1 DONE 2026-08-18T00:34:09 ===
