@@ -1402,6 +1402,78 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.8 DIAGNOSED 2026-08-18: why the shipping model reuses no cache — and it is not the Qwen cause
+
+Investigation dispatched after the LFM campaign measured `reuseFrac` 0.008 against Qwen's 0.561.
+Every line below was re-verified on disk by the parent before being written here.
+
+**The template is NOT the cause.** Unlike Qwen3.5, LFM2.5's `add_generation_prompt` injects
+nothing but the header — there is no empty think block to go missing:
+
+```
+{%- if add_generation_prompt -%}
+    {{- "<|im_start|>assistant\n" -}}
+{%- endif -%}
+```
+(`chat_template.jinja:115-117`; note it lives in `chat_template.jinja`, **not** inside
+`tokenizer_config.json`.) Rendering a conversation as generation and again as history one turn
+later, the second render starts with the first, exactly. `buildSystemPrompt` and
+`computePromptEnvHash` are clean too — no clock, no date (`memoryPrompt.ts:29-45`,
+`sessionPersistence.ts:244-256`) — and anything varying there would have broken Qwen equally.
+
+**The cause is the model's own reasoning, deleted from history.** LFM2.5-8B-A1B is reasoning-tuned
+and always emits a `<think>…</think>` block; our own catalog records that it cannot be switched
+off (`ModelRegistry.ts:235`, "the template has no off switch"). The KV therefore holds
+`<think>…</think>\n\nHi there.` while the history render **strips everything up to `</think>`**:
+
+```
+{%- if not (preserve_thinking or loop.index0 > ns.last_user_index) -%}
+    {%- if "</think>" in content -%}
+        {%- set content = content.split("</think>")[-1] | trim -%}
+```
+(`chat_template.jinja:87-90`.) So the prompt diverges from the cache immediately after the first
+`<|im_start|>assistant\n`. Structurally the same place as Qwen's §7.5 divergence; **different
+mechanism** — there an empty block the template adds and never repeats, here a real block the
+*model* emits and the template deletes.
+
+**And this is what explains 0.008 against 0.561** — the sanity check the brief demanded. Both
+models mismatch at the assistant header. Only one can survive it:
+
+```
+bool llm_arch_supports_rs_rollback(const llm_arch & arch) {
+    switch (arch) {
+        case LLM_ARCH_QWEN35:
+        case LLM_ARCH_QWEN35MOE:
+            return true;
+        default:
+            return false;
+```
+(`node_modules/llama.rn/cpp/llama-arch.cpp:981-989`; `LLM_ARCH_LFM2` and `LLM_ARCH_LFM2MOE` are
+declared at `:120-121` and fall to `default`.) Qwen3.5 can roll back its recurrent state and keeps
+`n_past = n_common`. LFM2MOE cannot: `seq_rm` fails, `llama_memory_clear` runs, `n_past = 0`, and
+every turn pays a full prefill. **Qwen's 0.561 is a rollback the shipping model does not have.**
+
+**The lever exists and is one flag.** `preserve_thinking` is a real template variable defaulting to
+false (`chat_template.jinja:2`), and `chat_template_kwargs` already reaches the jinja as template
+context (`common/chat.cpp:913-915`, `:2895-2897`) — we pass `{ enable_thinking: false }` on three
+Qwen paths today (`LlamaService.ts:2521,2668,2771`). Setting `chat_template_kwargs:
+{ preserve_thinking: true }` on the LFM path makes history keep what the KV holds, so the append is
+pure append and needs no rollback.
+
+⚠️ **It is not free, and the cost lands on the one number this model is tight on.** Preserving
+thinking retains *every* prior turn's chain of thought in the prompt. At `thinking: { short: 256,
+extended: 512 }` that is roughly 256–512 tokens per past turn, against `engineCtx: 8192`
+(`ModelRegistry.ts:232`). Mean prompt is 2506 tokens today; twelve retained think blocks would add
+~3–6 k and put a 13-turn conversation at or over the ceiling. The prefill saving is paid once per
+token while the re-prefill is paid every turn, so the arithmetic still favours it heavily — but
+**`contextFullTurns` must be watched**, and this is where Marco's small-`n_ctx`-plus-digest idea
+and this fix meet: they push on the same budget from opposite ends.
+
+**Not implemented.** Diagnosis only, and one limit declared by the investigation: campaign
+`32103054225` carries no `KALSA_KVDIVERGE` lines, so `n_common` was not measured on those arms —
+the divergence point is established from the renders, in characters, not from token counts on the
+live run.
+
 ### 7.7 What shipped, and how to tell whether it worked
 
 `6447ff2`. The prompt is rebuilt from the text the model **emitted**, not the cleaned text the user
