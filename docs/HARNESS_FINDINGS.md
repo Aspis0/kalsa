@@ -170,6 +170,23 @@ forced the revert of memory-facts-on-the-user-turn (`9c73846`). **The 1.4–3.9 
 measured on bare, not on ciswire.** Nobody has run the two together. Assume the saving does not
 survive ciswire until a run says otherwise.
 
+⚠️ **The cross-model comparison has a confound, and it is thinking.** Every Qwen number in this
+document was measured with **thinking OFF** — `getThinkingMode` defaults to `"default"`, which
+`thinkingBudgets.ts:12` documents as "production options identical (thinking off +
+reasoning_format none)". Every LFM2.5-8B-A1B number was measured with **thinking ON**, because that
+model cannot be silenced (`ModelRegistry.ts:235`). So "CisWire buys +0.312 on the shipping model
+against +0.209 on the 4B" compares two different regimes, not two models.
+
+Worse, **the thinking-off default has never been validated on quality**: `fase0` *is* the thinking
+A/B and **no `fase0` campaign has ever produced a single result artifact** (checked across
+`31861056717`, `31739205810`, `31760516762`, `31911860830`). The default was argued on prefill and
+per-completion template re-init cost, and `thinkingBudgets.ts:29-31` records the awkward part in
+its own words: off ≈ budget256 in wall time, cause **unproven**, first candidate "longer
+un-reasoned answers". If that is what is happening, disabling thinking buys nothing and costs
+answer quality. Marco's position (2026-08-18) is that thinking is what makes small models usable.
+Campaign `32139648432` runs the A/B on the shipping model to settle it — `off` there means the
+budget-0 sampler force-closing the block, which works even though the template has no off switch.
+
 ### Which model each claim rests on — the two halves have never met
 
 | claim | model | where |
