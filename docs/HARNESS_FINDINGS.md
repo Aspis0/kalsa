@@ -1507,9 +1507,20 @@ as a CI A/B only. Note also that `availableMemoryBytes` is sampled **once per pr
 (`getCachedDeviceProfile` memoises the promise), so the verdict depends on memory pressure at app
 start and is not re-checked afterwards.
 
-⚠️ **Not measured.** The APK that can test it (`32254348018`, debuggable) is still building. The
-arithmetic could be wrong about what llama.rn actually allocates; what it cannot be wrong about is
-that this is the gate the app applies to itself. **First thing the device run answers.**
+⚠️ **`REPACK_FRACTION` is calibrated on a DENSE model, and this one is not.** The constant comes
+from Qwen3.5-**2B**'s peak `RssAnon` (`memoryEstimate.ts:34-48`). LFM2.5-8B-A1B is an MoE with ~1B
+active, and whether llama.cpp repacks every expert tensor into the anonymous buffer is exactly what
+nobody here has checked. So the *real* footprint may be much smaller than 4401 MiB.
+
+**That does not save the load, and this is the point worth keeping.** The gate decides on the
+**estimate**, not on what the runtime would actually allocate (`AppShell.tsx:350-353` →
+`deviceProfile.ts:162-165`). If the estimate is miscalibrated for MoE, the app refuses a model it
+could have run — the failure mode is a false negative, and it is invisible, because a blocked load
+produces no allocation to compare against.
+
+⚠️ **Not measured.** The APK that can test it (`32254348018`, debuggable) is still building.
+**First thing the device run answers**, and it answers two questions at once: does the app refuse,
+and — with `norepack=1` — what does an 8B-A1B actually cost in anonymous RAM.
 
 ### 7.10 MECHANISM 2026-08-19: the digest costs cache per INJECTION, not per change — knob written, UNMEASURED
 
