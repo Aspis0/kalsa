@@ -1503,6 +1503,71 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.13 MEASURED 2026-08-19: the shipping model loads without repacking — and decodes at 0.36 tok/s, which is not a product
+
+The gate fix worked, and the answer it unblocked closes the question the other way.
+
+**The gate opens.** With `kalsa.bench.norepack=1` and both gates reading the real load mode:
+
+```
+I/ReactNativeJS: 'model.fit', '{"verdict":"tight","availableMb":3861}'
+I/ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":1}
+```
+
+`tight`, not `does_not_fit`. Native init to `Context initialized` in **~12.6 s**, reproduced at
+~12.2 s on a second launch.
+
+**Anonymous RAM is negligible without repacking**, which is the whole point of the knob:
+
+| | measured, model resident |
+|---|---|
+| `RssAnon` | **32 308 kB ≈ 32 MiB** (against the 4401 MiB of repack the gate charges) |
+| `RssFile` | 2 577 496 kB = **2.46 GiB of a 4.80 GiB file — 51 % resident** |
+| `VmSwap` | 226 836 kB |
+| system `MemAvailable` | 4 679 068 kB ≈ 4.57 GB — nothing like the 726 MB the 4B left with repack ON (§7.2) |
+
+**And then the decode number.** From `KALSA_TELEMETRY`, verified in the raw logcat, not from the
+agent's summary:
+
+```
+{"turnId":"1","round":0,"tokensCached":1434,"tokensEvaluated":1211,"tokensPredicted":222,
+ "promptMs":67390.575,"predictedMs":621547.92,"predictedPerSecond":0.357,"interrupted":false}
+```
+
+| | |
+|---|---|
+| prefill | 1211 tokens in 67.4 s = **18.0 tok/s** |
+| decode | 222 tokens in 621.5 s = **0.357 tok/s** |
+| one reply | **10.4 minutes** |
+
+**Prefill is completely normal** — 18.0 tok/s is exactly the cold-prefill figure this document
+already records for the 4B. So `no_extra_bufts` did *not* cost prefill, contrary to the knob's own
+description. Decode is 15–20× below the 4B's 5–8 tok/s.
+
+**Not thermal.** Two measurements, one on a cold phone at 10:29 (0.3627 tok/s) and one warmer at
+11:17 (0.3572 tok/s), agree to three decimals. The thermal stop (status 3, 42.5 °C) came *after*.
+
+**Leading hypothesis, and it is the one the deleted roadmap wrote down before we measured it:** the
+asymmetry between a normal prefill and a 20×-slow decode does not look like missing kernels, which
+would hurt both. It looks like I/O. Prefill streams every expert once, in one batch. Decode picks a
+*different* expert set per token **and per layer**, over a file that is only 51 % resident — so it
+faults. `ROADMAP_BIGGER_MODELS.md` (removed today, subject now in the `moe-experiments` repo) opened
+with exactly this: *"in un MoE gli esperti attivi cambiano a ogni token e a ogni layer. Non esiste
+un sottoinsieme fisso da tenere residente."* Not proven here — nobody counted page faults — but it
+is the reading that fits both numbers.
+
+⛔ **Product consequence: on an 8 GB phone both configurations of the shipping model are dead ends.**
+Repack on does not load (4650 MiB non-evictable against ~4030 available, §7.11). Repack off loads
+and answers in ten minutes. **LFM2.5-8B-A1B is not shippable on this device class**, and that is a
+decision for the owner, not a bug to fix.
+
+⚠️ **What this run did not get.** The arm stopped after turn 1 on `Thermal Status: 3` at 42.5 °C
+with battery 71 %. No turns 2–8, no reuse series, no recall probes, no `ciswire` arm. Also unmeasured:
+repack-on decode for this model on this phone — it cannot load, so the 0.357 tok/s has no in-model
+control and cannot be attributed to `no_extra_bufts` with certainty. Two harness bugs were found and
+fixed by the run: `local tag="$1" f="$OUT/mem_${tag}.txt"` explodes under `set -u`, and the memory
+sample fired before the lazy load, capturing an app with no model in it (`RssFile` 136 MB).
+
 ### 7.12 MEASURED 2026-08-19: two cache regimes, one per model — and the biggest destroyer is the sliding window, in **every** mode including bare
 
 Cross-checked on two campaigns before writing anything down, because the first version of this

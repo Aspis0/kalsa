@@ -52,10 +52,15 @@ unchanged, so production is byte-identical): `evaluateModelFit` (blocks lazy res
 `model.fit`) and `gateForModel` inside `ensureEngineForModel` (`AppShell.tsx:2951-2965`, produces the
 error bubble, refuses before any engine init).
 
-**Open product decision:** ship `no_extra_bufts` for this model on ≤8 GB and pay slower prefill, or
-do not offer it there. §7.2 already measured repack-off on the 4B on this phone — app VmSwap
-3.32 GB → 93 MB, system MemAvailable 726 MB → 3.55 GB, "costs nothing measurable in decode" — and
-**it was never shipped**. What is missing is the *prefill* cost. That run is queued.
+⛔ **And with `no_extra_bufts` it loads but does not work** (measured 2026-08-19, §7.13). The gate
+opens (`verdict":"tight"`), native init takes ~12.6 s, `RssAnon` is **32 MiB** instead of 4401, the
+system keeps 4.57 GB — and then it decodes at **0.357 tok/s: 10.4 minutes for one 222-token reply**.
+Prefill is *normal* (18.0 tok/s, the same as the 4B), so this is not missing kernels; the file is
+only **51 % resident** and a MoE picks different experts every token and every layer, so the leading
+reading is I/O. Not thermal: measured 0.3627 cold and 0.3572 warm.
+
+**So both configurations are dead ends on 8 GB: repack on will not load, repack off answers in ten
+minutes. LFM2.5-8B-A1B is not shippable on this device class** — an owner decision, not a bug.
 
 Carried over from the deleted `ROADMAP_BIGGER_MODELS.md` (its subject now lives in the
 `moe-experiments` repo): the product priority is **6 GB+ phones**, the mass market, not the flagships;
@@ -167,6 +172,7 @@ app data.
 | Battery | ~30 %/h of sustained inference → ~2.3 h per discharge above the floor |
 | Load | 4.7 s cold (4B), 0.8 s warm from page cache; KV session restore 33–45 ms |
 | Speed (4B) | prefill ~18 tok/s cold, decode 5–8 tok/s |
+| Speed (8B MoE, norepack) | prefill 18.0 tok/s, **decode 0.357 tok/s**, load ~12.6 s, 51 % of the file resident |
 
 Driving it: `scripts/device-share-send.sh` (`kalsa://share?text=`) — the type path is a no-op on a
 real device. Runners in `~/kalsa-scripts/`, output in `~/kalsa-runs/`. **Not `/tmp`**: it was wiped
@@ -188,7 +194,8 @@ twice mid-campaign and took an APK and a runner with it.
 
 ## 9. What we do not know
 
-- Whether the shipping model is *usable* without repacking (prefill cost) — run queued.
+- Whether the 8B's decode collapse is really I/O (nobody counted page faults), and what it would do
+  with repack on — it cannot load, so there is no in-model control.
 - Net wall clock of `ciswire` on a phone. Every quality number is emulator; every speed number is 4B.
 - Whether replaying tool rounds recovers the cache.
 - Whether a sparser digest cadence trades cache for recall acceptably (`kalsa.bench.digestcadence`,
@@ -207,3 +214,4 @@ twice mid-campaign and took an APK and a runner with it.
 | 2026-08-18 | The shipping model is **LFM2.5-8B-A1B** |
 | 2026-08-19 | `ROADMAP_BIGGER_MODELS.md` removed — big-MoE work lives in the `moe-experiments` repo |
 | 2026-08-19 | **Verbatim window doubled to 20 exchanges** where the context holds it — owner's call, it is our app |
+| 2026-08-19 | **Open for the owner:** the 8B is unusable on 8 GB in both configurations. Ship it only above 8 GB, or change the shipping model |
