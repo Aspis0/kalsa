@@ -5,6 +5,10 @@ not a chapter. It is meant to be read end to end in a few minutes; detail and ev
 `docs/HARNESS_FINDINGS.md`, which is the long record. If a claim here has no number or no pointer,
 it does not belong here.
 
+Three docs, three jobs: **this one** is state, `HARNESS_FINDINGS.md` is evidence, and
+`KALSA_DEPENDENCIES.md` is structure — one row per knob, answering *when this number changes, what
+changed it?* Go there when the question is "is this derived or did someone type it".
+
 Last updated: **2026-08-19**
 
 ---
@@ -206,7 +210,8 @@ app data.
 | Speed (8B MoE 4.80 GiB, norepack) | prefill ~18 tok/s, **decode 0.31–0.36 tok/s** (3 runs), load ~12.6 s |
 | Why | **page-fault storm, measured**: 93.5 GiB of file pages re-read from flash in one 1134 s turn, 309 MiB per generated token, `RssFile` oscillating 4.15 → 2.02 → 2.52 GB inside one pid (§7.14) |
 | Speed (KEXP 3.10 GiB, norepack) | **decode 0.861 tok/s warm** — storm gone (refaults 130× lower, 96 % resident), speed still not a product (§7.15) |
-| GPU (Adreno 740) | **not a decode lever — MoE decode on GPU is 0.41–0.44× the CPU** here (740/750), ~60 ms/token of dispatch glue. It *is* a prefill lever: **3.2–7×**, which is exactly what §7.12's sliding window costs us. In this tree K-quant MoE never reaches the GPU anyway: `use_adreno_moe_kernels` excludes A7X and 730/740/**750** are all A7X. **Do not lift that gate** — on this silicon those kernels measure ERR 0.36–0.9 vs a 0.0005 threshold. The other session is fixing the defect, which is the version that actually unlocks Q4_K_M on GPU (§7.16) |
+| GPU — **our** Adreno 740 | **not a decode lever on this chip**: MoE decode 0.41–0.44× the CPU, ~60 ms/token of dispatch glue. It *is* a prefill lever, **3.2–7×**, which is what §7.12's sliding window costs us. K-quant MoE never reaches the GPU here anyway — `use_adreno_moe_kernels` excludes A7X, and 730/740/**750** are all A7X. **Do not lift that gate**: on this silicon those kernels measure ERR 0.36–0.9 vs a 0.0005 threshold (§7.16) |
+| GPU — **Adreno 750 and up** | **"da Adreno 750 la GPU fa volare tutto"** (owner, 2026-08-19). The row above is the floor of the range, measured on the one phone we own — it is **not** an argument about the phones Kalsa ships to. Unmeasured here: we have no 750-class device |
 | Bigger models | a 35B MoE has run on this phone with a streaming engine, so file size is **not** the ceiling — the mmap regime is |
 
 Driving it: `scripts/device-share-send.sh` (`kalsa://share?text=`) — the type path is a no-op on a
