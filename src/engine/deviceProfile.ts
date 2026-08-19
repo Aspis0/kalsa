@@ -270,6 +270,7 @@ export function evaluateModelFit(
     mmproj?: { sizeBytes: number } | null;
   },
   availableBytes: number | null,
+  options: { repack?: boolean } = {},
 ): ModelFitEvaluation {
   const main =
     typeof model.sizeBytes === "number" && Number.isFinite(model.sizeBytes)
@@ -294,15 +295,18 @@ export function evaluateModelFit(
     Number.isFinite(model.kvBytesPerToken)
       ? model.kvBytesPerToken
       : 0;
-  // Gates deliberately assume the conservative repack-ON footprint. The bench
-  // norepack arm bypasses these gates; wiring a gate to a different load mode
-  // than the engine actually uses is the S23-class bug class.
+  // The gate must model the load mode the engine will actually use — wiring a
+  // gate to a different one is the S23-class bug class, and it was live here:
+  // the comment claimed "the bench norepack arm bypasses these gates" while the
+  // arm did not, so with kalsa.bench.norepack=1 the gate refused on a repack
+  // footprint the engine would never have allocated. Default stays true, so
+  // production (knob absent) is unchanged.
   const estimate = estimateMemory({
     fileBytes,
     contextTokens,
     kvBytesPerToken,
     ubatch: 256,
-    repack: true,
+    repack: options.repack !== false,
   });
   const availableMiB =
     typeof availableBytes === "number" &&

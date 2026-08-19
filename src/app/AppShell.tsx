@@ -178,6 +178,7 @@ import {
   getBenchLegacyWindow,
   getBenchRanking,
   getBenchDigestCadence,
+  getBenchNoRepack,
   getEngineOverride,
   getSpeculativeOverride,
 } from "../bench/benchConfig";
@@ -331,6 +332,8 @@ function gateForModel(
   profile: Awaited<ReturnType<typeof getCachedDeviceProfile>>,
   freeDiskBytes: number | null,
   checkVolatileMemory = true,
+  /** Load mode the engine will actually use. False only under kalsa.bench.norepack. */
+  repack = true,
 ): ModelGateVerdict {
   // RAM estimate includes optional mmproj (vision bundle); disk already bundles.
   const bundleBytes = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
@@ -351,6 +354,7 @@ function gateForModel(
         sizeBytes: bundleBytes,
         contextTokens: resolvedContextTokens,
         kvBytesPerToken: model.kvBytesPerToken,
+        repack,
       }),
       // Always margined so confirm/start/Settings share one disk requirement.
       modelSizeBytes: diskRequirementBytes(modelBundleSizeBytes(model)),
@@ -2622,6 +2626,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     : null,
                 },
                 available,
+                { repack: !(await getBenchNoRepack()) },
               );
               console.info(
                 "model.fit",
@@ -2948,7 +2953,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           totalMemoryBytes: totalMemKnown,
           chatModelIs2B: isChatModel2BClass(model.id),
         });
-        const gate = gateForModel(model, profile, free);
+        // Gate on the load mode initEngine will really use, not on a fixed one.
+        const gate = gateForModel(model, profile, free, true, !(await getBenchNoRepack()));
         // Refuse load for blocked_ram / blocked_tier (disk is a download-time gate).
         // Active-model exception: if getActiveModelId matches, never refuse
         // (already handled by the early ready return; keep explicit for safety).
@@ -3548,7 +3554,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
           return;
         }
-        const gate = gateForModel(model, deviceProfile, free);
+        const gate = gateForModel(model, deviceProfile, free, true, !(await getBenchNoRepack()));
         if (
           !gate.allowed &&
           (gate.reason === "blocked_ram" || gate.reason === "blocked_tier") &&

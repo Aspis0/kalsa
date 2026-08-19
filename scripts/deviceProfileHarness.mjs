@@ -83,6 +83,7 @@ async function main() {
     deviceFamilyForBrand,
     isFoldableModelName,
     modelGateVerdict,
+    evaluateModelFit,
     estimateModelNonEvictableMiB,
     DOWNLOAD_DISK_MARGIN,
     diskRequirementBytes,
@@ -352,6 +353,34 @@ async function main() {
       kvBytesPerToken: Math.round(4.88 * 1024),
     });
     assert(typeof n === "number" && Number.isFinite(n) && n > 0, `got ${n}`);
+  });
+
+  // Regression for the S23 case measured 2026-08-19 (§7.11): the shipping model
+  // was refused because the gate assumed a repack footprint the engine would not
+  // allocate under kalsa.bench.norepack. Numbers are the real ones: 5155564768
+  // bytes of LFM2.5-8B-A1B against the 4030 MiB the phone reported.
+  await test("evaluateModelFit: repack ON refuses the 8B on 4030 MiB (measured S23)", () => {
+    const v = evaluateModelFit(
+      { sizeBytes: 5_155_564_768, engineCtx: 8192, kvBytesPerToken: null, mmproj: null },
+      4030 * 1024 * 1024,
+    );
+    assert(v.verdict === "does_not_fit", `verdict=${v.verdict}`);
+  });
+
+  await test("evaluateModelFit: repack OFF is not does_not_fit on the same RAM", () => {
+    const v = evaluateModelFit(
+      { sizeBytes: 5_155_564_768, engineCtx: 8192, kvBytesPerToken: null, mmproj: null },
+      4030 * 1024 * 1024,
+      { repack: false },
+    );
+    assert(v.verdict !== "does_not_fit", `verdict=${v.verdict}`);
+  });
+
+  await test("evaluateModelFit: default and repack:true agree (production unchanged)", () => {
+    const model = { sizeBytes: 5_155_564_768, engineCtx: 8192, kvBytesPerToken: null, mmproj: null };
+    const a = evaluateModelFit(model, 4030 * 1024 * 1024);
+    const b = evaluateModelFit(model, 4030 * 1024 * 1024, { repack: true });
+    assert(a.verdict === b.verdict, `default=${a.verdict} explicit=${b.verdict}`);
   });
 
   await test("DOWNLOAD_DISK_MARGIN ≥ 1.1", () => {
