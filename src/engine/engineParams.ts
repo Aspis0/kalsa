@@ -22,6 +22,8 @@ export type EngineParamsSlice = {
   n_ubatch?: number;
   n_batch?: number;
   flash_attn_type?: FlashAttnMode;
+  /** Forced to f16 when flash attention is off — see applyEngineOverride. */
+  cache_type_v?: string;
 };
 
 /**
@@ -42,6 +44,18 @@ export function applyEngineOverride<T extends EngineParamsSlice>(
   // Before the GPU gate: the gate's condition is this value.
   if (override.flashAttn !== undefined) {
     params.flash_attn_type = override.flashAttn;
+    // MEASURED 2026-08-19, and it killed an arm before anyone noticed: llama
+    // refuses a quantized V cache without flash attention —
+    //   llama-context.cpp:3566
+    //   "V cache quantization requires flash_attn" -> return nullptr
+    // Every LLM in our catalogue ships v: "q4_0", so `flashAttn: "off"` alone
+    // makes llama_init_from_model fail on ALL of them, with a message that
+    // never reaches JS. The first offload arm read that as "GPU offload does
+    // not initialise on this device"; the GPU was not involved at all.
+    // Turning FA off therefore has exactly one valid spelling, and this is it.
+    if (override.flashAttn === "off") {
+      params.cache_type_v = "f16";
+    }
   }
 
   if (override.nGpuLayers !== undefined) {

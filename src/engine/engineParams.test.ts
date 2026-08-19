@@ -74,6 +74,31 @@ describe("applyEngineOverride — Android GPU gate", () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
+  // Regression: the first offload arm on real hardware failed on EVERY turn and
+  // was read as "GPU offload does not initialise". It was not the GPU — llama
+  // refuses a quantized V cache when flash attention is off
+  // (llama-context.cpp:3566), and every LLM we ship has v: "q4_0".
+  it("forces an f16 V cache whenever it turns flash attention off", () => {
+    const p = applyEngineOverride(
+      { ...productionParams(), cache_type_v: "q4_0" },
+      { nGpuLayers: 99, flashAttn: "off" },
+      "android",
+    );
+    expect(p.cache_type_v).toBe("f16");
+    expect(p.n_gpu_layers).toBe(99);
+  });
+
+  it("leaves the catalogue V cache alone for auto and on", () => {
+    for (const flashAttn of ["auto", "on"] as const) {
+      const p = applyEngineOverride(
+        { ...productionParams(), cache_type_v: "q4_0" },
+        { flashAttn },
+        "android",
+      );
+      expect(p.cache_type_v).toBe("q4_0");
+    }
+  });
+
   it("sets flash_attn_type on its own, with no GPU field in sight", () => {
     const p = applyEngineOverride(
       productionParams(),
