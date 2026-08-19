@@ -206,7 +206,7 @@ app data.
 | Speed (8B MoE 4.80 GiB, norepack) | prefill ~18 tok/s, **decode 0.31–0.36 tok/s** (3 runs), load ~12.6 s |
 | Why | **page-fault storm, measured**: 93.5 GiB of file pages re-read from flash in one 1134 s turn, 309 MiB per generated token, `RssFile` oscillating 4.15 → 2.02 → 2.52 GB inside one pid (§7.14) |
 | Speed (KEXP 3.10 GiB, norepack) | **decode 0.861 tok/s warm** — storm gone (refaults 130× lower, 96 % resident), speed still not a product (§7.15) |
-| GPU (Adreno 740) | **dense models: offload works.** **MoE: it does not** — the current llama kernel does MoE-on-GPU only above **Adreno 750**, and this phone is a 740. Two independent walls, and our shipping model is a MoE, so on this device the GPU is not an escape from §7.15's decode. Owner + the other session are patching the kernel to lift the MoE limit (2026-08-19); whether that also lifts the 750 floor is **not known here** |
+| GPU (Adreno 740) | **not a decode lever — MoE decode on GPU is 0.41–0.44× the CPU** here (740/750), ~60 ms/token of dispatch glue. It *is* a prefill lever: **3.2–7×**, which is exactly what §7.12's sliding window costs us. In this tree K-quant MoE never reaches the GPU anyway: `use_adreno_moe_kernels` excludes A7X and 730/740/**750** are all A7X. **Do not lift that gate** — on this silicon those kernels measure ERR 0.36–0.9 vs a 0.0005 threshold. The other session is fixing the defect, which is the version that actually unlocks Q4_K_M on GPU (§7.16) |
 | Bigger models | a 35B MoE has run on this phone with a streaming engine, so file size is **not** the ceiling — the mmap regime is |
 
 Driving it: `scripts/device-share-send.sh` (`kalsa://share?text=`) — the type path is a no-op on a
@@ -240,9 +240,13 @@ twice mid-campaign and took an APK and a runner with it.
   implements `q8_0, q4_K, q6_K, q5_K, q4_0, mxfp4, iq4_nl`; **q3_K is absent entirely and q2_K has
   only avx512/riscv paths**. KEXP's experts are q2_k + q3_k, i.e. nearly the whole file, so on ARM
   they get no repack with the flag either way. Read in the shipped C++, not inferred.
-- **What GPU offload buys on an Adreno 740 for a DENSE model.** Now the measurable one: MoE-on-GPU
-  is out on this phone (see §7), but dense offload should work, and it bounds how much the kernel
-  patch could ever be worth for this device class. `NGL=99` in `lfm-setup.sh`, APK ready, unrun.
+- **GPU prefill on this device, and how CL buffers account against RAM.** Decode on GPU is answered
+  and negative (§7.16), so the arm is re-aimed: prefill is the 3.2–7× lever and it lands on §7.12's
+  sliding-window cost, and *nobody* knows how offload memory accounts on an S23 — everything in
+  §7.11–§7.15 is mapped-file accounting. `NGL=99` in `lfm-setup.sh`, APK built, unrun.
+- **Whether an MXFP4-expert MoE is correct on an Adreno 740.** `supports_op` allows it in this tree
+  (general `MUL_MAT_ID` branch, no Adreno gate) — but allowed is not correct, and in the other tree
+  mxfp4 fails 0/74 on the Adreno path. Needs an MXFP4 GGUF from `moe-experiments` first.
 - What the 4.80 GiB 8B would do with repack on — it cannot load, so there is no in-model control.
 - Net wall clock of `ciswire` on a phone. Every quality number is emulator; every speed number is 4B.
 - Whether replaying tool rounds recovers the cache.
