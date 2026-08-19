@@ -497,6 +497,74 @@
 > ⚠️ **Limite di piattaforma incontrato:** opencode-go ha un tetto di utilizzo a 5 ore;
 > DeepSeek/GLM/Kimi tornano disponibili dopo il reset. Grok è su un altro provider.
 >
+> 🧨 **19/08 09:20 — IL PARADOSSO È SCIOLTO, E RIBALTA LA LETTURA DEL −55%.
+> I CONSUMER SONO ROTTI; IL CONVERT ERA IL DIFETTO PIÙ PICCOLO DEI DUE.**
+>
+> ⚠️ **CORREZIONE ALLA NARRAZIONE DEL COMMIT `9dc1ec0cb`: il −55% NON è «il convert
+> riparato». Sono DUE difetti che si compensano a vicenda.** La corruzione del produttore
+> compensa parzialmente quella del consumatore; togliendo solo la prima, il risultato
+> peggiora. Il guadagno è reale, misurato e riproducibile — ma la spiegazione era sbagliata.
+>
+> 🔑 **L'esperimento che decide era già agli atti: `GGML_OPENCL_HOST_REPACK=1`** costruisce
+> i buffer SoA **sulla CPU**, byte-exact per costruzione, senza alcun convert GPU nel
+> percorso. **Fallisce comunque: q4_0 media 0.4497** (GEMV n=1 0.4440, GEMM 0.4508).
+> ➡️ Con un produttore fuori dal gioco, l'errore resta: **il difetto vincolante è nei
+> kernel di calcolo compilati**, in ENTRAMBI i path.
+> 🎯 **La prova più netta sta dentro un singolo run** (hostrepack): q4_0 con buffer
+> **perfetto** fallisce a **0.450**, mentre **q4_1 nello stesso run**, con buffer corrotto
+> byte-wise e gli stessi identici consumer, fallisce a **0.189**.
+>
+> 📊 **L'errore end-to-end NON è monotono nella correttezza del buffer** — tre cluster netti:
+>
+> | buffer q4_0 | mismatch vs oracolo | ERR end-to-end |
+> |---|---|---|
+> | byte-wise (viola il contratto) | 46% dei word alti | **0.184-0.193** |
+> | bitselect / host-repack (byte-exact) | **0%** | 0.438-0.450 |
+> | originale `ushort8` non allineato | — | 0.408 |
+> | nessun un-shuffle (copia diretta) | — | 0.444 |
+>
+> ✅ **Cosa è PROVATO (tre derivazioni indipendenti: DeepSeek, Grok, GLM, più la mia):**
+> il contratto **`valore k → word ⌊k/8⌋, nibble k%8`**; GEMV e GEMM **concordano**; l'immagine
+> `q_img` è creata sullo **stesso `cl_mem`** del buffer; i blob precompilati sono **compilati
+> fuori**; il layout CPU (`qs[j]` → valore `j` basso, `j+16` alto); **il reference host è
+> corretto e non va toccato**; q6_K 3/3 e q8_0 75/75 passano in ogni run.
+> 🔍 **Cosa resta INFERITO:** il trigger `x0 ≥ 0x80` con shift aritmetico (regge su 16/16
+> byte e sul 46.1%); la natura cross-lane del difetto consumer.
+>
+> 🧭 **ORDINE DEGLI ESPERIMENTI RACCOMANDATO (una variabile per volta):**
+> 1. **Oracolo LATO CONSUMER — è lo strumento che manca.** Un kernel di debug che legge
+>    `extra->q` secondo il contratto e scrive i float dequantizzati usando **verbatim** la
+>    macro `dequantize_q4_0` e l'helper `q4_0_to_fp32_packed8`; confronto host contro
+>    `dequantize_row_q4_0`. Con `HOST_REPACK=1` prova l'idioma del consumer su input
+>    noto-buono, **scollegato da dispatch, riduzioni subgroup e router**.
+> 2. Riscrivere la macro `dequantize_q4_0` del GEMM (e l'helper GEMV) a **shift-poi-maschera**
+>    con `HOST_REPACK=1` + bitselect. Se l'oracolo passa ma l'end-to-end no, il difetto è
+>    nella riduzione o nel path di `dst`.
+> 3. Isolare **GEMV n=1** (12 casi, niente router) con host-repack: il check end-to-end
+>    più pulito.
+> 4. Solo allora riattivare il convert GPU e rifare l'intero set, tenendo q6_K, q8_0 e il
+>    denso come controlli di regressione e la disciplina di `compare_runs.py`.
+>
+> 📌 **Stato dell'albero:** committato `9dc1ec0cb` (llama.cpp) con la variante byte-wise —
+> la migliore misurata — più i tre hook diagnostici. Le varianti bitselect / copia-diretta /
+> printf **non** sono nell'albero: vivono solo nel registro qui sopra.
+>
+> ✅ **JELLY — SESSIONI LUNGHE RIPRISTINATE (19/08 09:16). NIENTE ERA STATO PERSO DA GIT.**
+> L'archeologia (DeepSeek) dimostra che **nessun meccanismo è mai stato rimosso**: heartbeat,
+> pulse nei cooldown e watchdog con rilancio furono **aggiunti** il 17-18/08 per i drop-sweep
+> e **mai portati** negli orchestratori KEXP/REAP/TTFT, che sono ancora `ssh` sincrono per
+> cella, senza detach né resume. Quello che l'owner ricordava funzionava **lì**.
+> 🔑 **La tecnologia che mancava:** sugli altri due telefoni lo schermo si tiene acceso **via
+> adb**; da Termux la stessa chiamata è **rifiutata** (`INTERACT_ACROSS_USERS`, documentato in
+> `results/dropsweep_jelly/REPORT.md:113`). Sul Jelly non era mai stata applicata perché ci
+> si arriva via ssh — **ma il Jelly è collegato in adb** (`JELLYS0000053795`).
+> **Applicato:** `settings put system screen_off_timeout 7200000` (era 1800000),
+> `svc power stayon true`, `input keyevent KEYCODE_WAKEUP` → `mWakefulness=Awake`.
+> **Misura:** heartbeat staccato (`setsid nohup`, battito ogni 15 s) **vivo a 26 min 53 s**
+> e ancora in corso, contro i ~20 min oltre i quali finora moriva. ⚠️ Prova preliminare: la
+> conferma piena è ≥60 min. ⚠️ Il Jelly era **in carica** (88%): buono per un test di
+> sopravvivenza, **inutilizzabile per tok/s**.
+>
 > 🌅 **MATTINA 19/08 — IL CONTRATTO È CONFERMATO DA DUE DERIVAZIONI INDIPENDENTI,
 > E IL GUADAGNO STABILE È −55%.**
 >

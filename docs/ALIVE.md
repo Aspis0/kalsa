@@ -314,6 +314,24 @@ to promote the cpuset, so a wait-and-retry gate is dead time.
 new harness. **The Jelly cells use the same harness and have the same gap** — and
 the shipped default rests on them, so that check comes first when the Jelly is back.
 
+✅ **Probed 2026-08-18, and the Jelly is cleared as a platform:** read from the PID of a
+process actually burning CPU (not an idle shell — that mistake was made twice), the Jelly
+sits in `/top-app` with `Cpus_allowed_list 0-7`, `nproc=8`. So the cells the shipped
+default rests on are **not** contaminated by a restricted cpuset. It also explains the
+S23-vs-Jelly anomaly: on the S23 Termux sessions land in `/moderate` (0-2, three A510s),
+which is a ROM policy difference, not silicon — consistent with the S23 measuring 0.186
+s/tok of compute against the Jelly's 0.117 on the same model. This clears the platform,
+**not** those rows retroactively: the re-run with the covariate is still owed.
+
+✅ **And long unattended sessions on the Jelly are fixed (2026-08-19).** Nothing had been
+removed from git — the heartbeat/pulse/watchdog machinery was *added* on 17-18 Aug for the
+drop sweeps and never carried into the KEXP/REAP/TTFT orchestrators. The missing piece was
+that the other two phones keep the screen awake **via adb**, a call Termux is refused
+(`INTERACT_ACROSS_USERS`). The Jelly is reachable over adb, so
+`settings put system screen_off_timeout 7200000` + `svc power stayon true` now apply there
+too: a detached heartbeat ran **26 min 53 s and counting**, against the ~20 min that used
+to be fatal. Preliminary — full confirmation is ≥60 min.
+
 Note the cache lever itself is not a discovery: `BigMoeOnEdge/docs/cache-sizing.md`
 already calls it "the dominant throughput lever" and ships `--cache-mb auto`. What
 is new is only its interaction with the drop. That doc also warns that
@@ -405,6 +423,52 @@ prefill — i.e. precisely prefill.
 out to be a cold-outlier artifact. This needs the same severity of re-check —
 though a different device and a 4× larger margin make an artifact a poor
 explanation.
+
+### Adreno MoE kernels — *half the error removed, and the real defect finally located*
+
+`MUL_MAT_ID` (the MoE matmul) is numerically wrong on Adreno for **every** narrow quant
+while dense `MUL_MAT` is perfect on the same quants, same silicon, same driver. q8_0
+(75/75) and q6_K (3/3) are the only MoE types that pass.
+
+**Shipped in the tree (commit `9dc1ec0cb`), measured on S23 / Adreno 740 against a build
+of the same commit without the patch, paired by test-case name:**
+
+| quant | before | after | |
+|---|---|---|---|
+| q4_0 | 0.4080 | **0.1855** | −54.5 % |
+| q4_1 | 0.4297 | **0.1886** | −56.1 % |
+| mxfp4 | 0.3525 | **0.1662** | −52.9 % |
+| q5_0 / q5_1 | 0.1161 / 0.0880 | 0.0526 / 0.0495 | −54.7 / −43.8 % |
+| q4_K / q5_K *(untouched controls)* | — | +0.5 % / −3.0 % | noise |
+
+Gate: q8_0 and q6_K unchanged; dense `MUL_MAT` stays **915 OK / 10 FAIL with the identical
+failing set**. **No case clears the 5e-4 threshold: the error halves, it does not vanish.**
+
+**⚠️ What that number is NOT.** It is not "the convert kernel repaired". There are **two
+independent defects and they partially cancel**: correcting only the producer makes the
+end-to-end result *worse*. The decisive experiment is `GGML_OPENCL_HOST_REPACK=1`, which
+builds the weight buffers on the **CPU** — byte-exact by construction, no GPU convert in
+the path — and still fails at 0.4497. Sharpest single-run proof: with a perfect buffer
+q4_0 fails at 0.450 while **q4_1 in the same run**, corrupted buffer and identical
+consumers, fails at 0.189. **The binding defect is in the compiled gemv/gemm consumers.**
+
+**Established, not assumed** — the layout contract (`value k → word ⌊k/8⌋, nibble k%8`)
+was derived independently four times (three models plus by hand) from the *consumers*;
+GEMV and GEMM agree; the image is created over the same `cl_mem`; the prebuilt Adreno
+blobs are compiled out. Nine algebraic rewrites of the convert, the Adreno `printf`
+workaround, and every compiler-option variant were each measured and killed.
+
+**Tooling that survives in the tree** (inert unless its env var is set): `GGML_OPENCL_DUMP_Q`
+reads the produced buffer back and diffs it against a host reference *inside the same run*;
+`GGML_OPENCL_HOST_REPACK` builds the buffers on the CPU; `GGML_OPENCL_CVT_OPTS` /
+`GGML_OPENCL_MOE_OPTS` recompile a program with different compiler options without
+rebuilding the binary.
+
+**Next, in order:** a consumer-side oracle (dequantize with the verbatim consumer macro on
+a known-good buffer, compare against `dequantize_row_q4_0`), then shift-then-mask in the
+GEMM macro, then GEMV n=1 in isolation. Measurement discipline is mandatory: pair by case
+name, quote only large-n means (noise 0.1-1.3 % at n≈75, up to 14 % at n=3-4, 172 % on a
+single case).
 
 ### Frozen Draft (E4/F5) — *name pending owner*
 
