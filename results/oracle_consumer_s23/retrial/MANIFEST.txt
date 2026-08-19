@@ -1,0 +1,32 @@
+# MANIFEST — S23 retrial (oracle_consumer_s23/retrial/)
+# Device: Galaxy S23 SM-S911U (kalama, Adreno 740), serial adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+# Device dir: /data/local/tmp/s3oracle (recreated; s3base/s3fix/s3printf untouched)
+# Run from `adb shell` (PC side), MSYS_NO_PATHCONV=1. LD_LIBRARY_PATH=/data/local/tmp/s3oracle on all runs.
+# Patched .so sha = 9198f38779db531c92818a9d7b23ba0d471df1d95aba1498b61c9cbf1d07f43c (eaec5d884)
+# Unpatched .so sha = 9bc47a9ce5c03eab98d3e902cbd2d8bc9b18c282cf6bea291e73562ad4dce8c8 (rebuilt from 1582f2d83 worktree; historical 25044c5a differs by build-info commit hash only; OpenCL sources byte-identical)
+# exe: test-opencl-moe-roundtrip df46b2d7... (eaec5d884, dynamically linked stub), test-backend-ops e5f2ecd4... (eaec5d884)
+# ORACLE/DUMP_Q unset on ALL runs (presence-only; ORACLE crashes on this driver). CVT_VARIANT/LOG_WEIGHT_PATH value-parsed.
+#
+# run_log | on_device_libggml-opencl.so_sha | env | command
+cell2a_patched_hostrepack.log          | 9198f387 | LOG_WEIGHT_PATH=1 CVT_VARIANT=bytewise HOST_REPACK=1 | ./test-opencl-moe-roundtrip
+cell2b_patched_bytewise.log            | 9198f387 | LOG_WEIGHT_PATH=1 CVT_VARIANT=bytewise            | ./test-opencl-moe-roundtrip
+cell5a_patched_bitselect.log           | 9198f387 | LOG_WEIGHT_PATH=1 CVT_VARIANT=bitselect           | ./test-opencl-moe-roundtrip
+cell4a_e2e_bytewise_q4_0.log           | 9198f387 | CVT_VARIANT=bytewise                               | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q4_0
+cell4_e2e_bytewise_q4_1.log            | 9198f387 | CVT_VARIANT=bytewise                               | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q4_1
+cell4_e2e_bytewise_q5_0.log            | 9198f387 | CVT_VARIANT=bytewise                               | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q5_0
+cell4_e2e_bytewise_q5_1.log            | 9198f387 | CVT_VARIANT=bytewise                               | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q5_1
+cell4_e2e_bytewise_mxfp4.log           | 9198f387 | CVT_VARIANT=bytewise                               | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=mxfp4
+cell4_e2e_bytewise_q4_K.log            | 9198f387 | CVT_VARIANT=bytewise                               | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q4_K
+cell4_e2e_bytewise_q5_K.log            | 9198f387 | CVT_VARIANT=bytewise                               | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q5_K
+cell4_e2e_bytewise_q6_K.log            | 9198f387 | CVT_VARIANT=bytewise                               | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q6_K
+cell4_e2e_bytewise_q8_0.log            | 9198f387 | CVT_VARIANT=bytewise                               | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q8_0
+cell4d_dense_mulmat.log                 | 9198f387 | CVT_VARIANT=bytewise                               | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT
+cell5b_e2e_bitselect_q4_0.log          | 9198f387 | CVT_VARIANT=bitselect                              | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q4_0
+cell1a_unpatched_bytewise.log          | 9bc47a9c | (none — unpatched .so predates CVT_VARIANT/LOG_WEIGHT_PATH) | ./test-opencl-moe-roundtrip
+cell1b_unpatched_e2e_q4_0.log          | 9bc47a9c | (none)                                             | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q4_0
+cell1b_unpatched_e2e_q4_K.log          | 9bc47a9c | (none)                                             | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q4_K
+cell1b_unpatched_e2e_q5_K.log          | 9bc47a9c | (none)                                             | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q5_K
+cell6_unpatched_q4_0_n1k256_dump.log   | 9bc47a9c | (none)                                             | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p 'type_a=q4_0.*,n=1,k='
+cell6_armB_patched_hostrepack_q4_0.log | 9198f387 | HOST_REPACK=1                                       | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p 'type_a=q4_0.*,n=1,k='
+cell6_armA_unpatched_hostrepack_q4_0_dump.log | 9bc47a9c | HOST_REPACK=1                                | ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p 'type_a=q4_0.*,n=1,k='
+cell7_unpatched_hostrepack_roundtrip.log | 9bc47a9c | HOST_REPACK=1                                     | ./test-opencl-moe-roundtrip
