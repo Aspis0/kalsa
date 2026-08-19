@@ -209,6 +209,7 @@ import {
   DEFAULT_COMPACTOR_CONFIG,
   emptyCompactorState,
   legacyWindowStartIndex,
+  legacyWindowForContext,
   parseCompactorState,
   shouldInjectOperativeBlock,
   parseContextMode,
@@ -4263,7 +4264,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // Declared outside the retrievalOn block so it's available
             // both inside (for ciswire corpus boundary) and outside
             // (for off-arm assembly).
-            const legacyWindowOverride = await getBenchLegacyWindow();
+            // Bench override wins; otherwise the window is sized to the context the
+            // engine actually loaded (post-clamp), because 40 messages measured
+            // ~9500 prompt tokens and do not fit an 8192 ctx. 0 (no engine) → 20.
+            const legacyWindowOverride =
+              (await getBenchLegacyWindow()) ??
+              legacyWindowForContext(getActiveEngineNCtx(), hasImages);
             // Bench-only: ranking mode for the digest retriever.
             // Absent in production → null → "bm25" (existing behavior).
             const rankingOverride = await getBenchRanking();
