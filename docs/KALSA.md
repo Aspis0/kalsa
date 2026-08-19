@@ -107,7 +107,7 @@ Reuse per turn is **not** a smooth fraction. Two regimes, one per model
 
 | | LFM2.5-8B-A1B (shipping) | Qwen3.5-4B |
 |---|---|---|
-| per-turn reuse | **0.98 or exactly 0** | continuous (482 of 570 turns strictly between 0 and 0.90) |
+| per-turn reuse | **0.98 or exactly 0** — 600 observations, 595 zeros, 5 above 0.90, none in between | continuous (482 of 570 turns strictly between 0 and 0.90) |
 | cost of one divergent token | **the whole cache** | only the suffix after it |
 
 Destroyers, in measured order of size:

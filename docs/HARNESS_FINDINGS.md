@@ -1518,6 +1518,15 @@ production window of 20 messages.
 | per-turn `reuseFrac` | **bimodal: 0.98 or exactly 0** | **continuous** — 482 of 570 turns strictly between 0 and 0.90 |
 | what a divergence costs | **everything** | only the suffix after it |
 
+**The bimodality is not a small-sample artifact.** Checked against the full pre-fix LFM campaign
+`32103054225` (40 arms, 16 turns, **600 turn observations**): **595 exactly 0, 5 at 0.90+, and not
+one value in between.** On this model reuse is a switch, not a fraction.
+
+⚠️ **That campaign cannot strengthen the tool claim, and I checked before trying to use it.** It was
+created 2026-08-18 05:29 UTC; `preserve_thinking` landed at 15:52 UTC the same day, so it is the
+pre-fix world — its base miss rate is 99.2 %, which makes "165 of 165 turns after a tool missed"
+vacuous. The tool result rests on the post-fix smoke (n=10) and on the 4B's attenuated version.
+
 That is `llm_arch_supports_rs_rollback`: true for `QWEN35`/`QWEN35MOE`, false for `LFM2`/`LFM2MOE`,
 which falls to `default: return false` → `seq_rm` fails → `llama_memory_clear` → `n_past = 0`. On
 Qwen the recurrent state rolls back to the divergence point and the prefix before it survives. **On
