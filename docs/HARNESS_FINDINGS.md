@@ -1446,6 +1446,50 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.10 MECHANISM 2026-08-19: the digest costs cache per INJECTION, not per change — knob written, UNMEASURED
+
+§7.9 measured the cost (digest arms reuse 0.564 against 0.704 bare) and named the site
+(`applyOperativeBlockFormat` prefixes the block onto `messages[length-1]`,
+`LlamaService.ts:1556-1562`). This section corrects *why*, because the wrong why is written into
+the code and has already misdirected one experiment.
+
+**The load-bearing false step.** `compactor.ts`'s header and `RESEARCH_CONTEXT_LOSS.md:157` both
+argue: *"everything after the last stable token is re-encoded every turn anyway, so freezing the
+digest saves zero prefill"*. The conclusion is right and was measured; the reason is not. The block
+is last **only for the turn that carries it**. One turn later that user message is history and
+`promptContentForHistoryMessage` returns `message.content` — the clean text, no block
+(`modelEmittedText.ts:16-23`; the replay path exists for assistant messages only). So the last
+stable token moves *backwards* past the block, past that user message, and past **the reply
+generated after it**. The re-encoded region is not "the tail", it is one whole exchange.
+
+**Consequence, and it is testable.** The cost is paid per *injection*, not per *change of content*:
+
+| regime | what the KV loses |
+|---|---|
+| inject every turn, content varying | one exchange, **every turn** |
+| inject every turn, content frozen | one exchange, **every turn** — this is why freeze measured zero |
+| inject every K turns | one exchange, **once per K turns**; the turns in between re-render clean and match |
+
+The freeze experiment held content still and left injection alone, so it could only ever measure
+zero. Nobody has run the variant that holds *injection* still. That variant is also what the owner
+proposed independently (*"la mia idea era iniettarla dopo tot turni"*).
+
+⚠️ **NOT MEASURED.** The table above is derived from the render path, not from a run. What exists
+today is only the instrument: `parseBenchDigestCadence` + `shouldInjectOperativeBlock`
+(`compactor.ts`, 8 unit tests), `getBenchDigestCadence` (`benchConfig.ts`, key
+`kalsa.bench.digestcadence`), `DIGESTCADENCE` in `ci-bench.sh` with the both-branch pref assert,
+and the `digestcadence` workflow input. Empty/1 → every turn, i.e. production is untouched. Turn 0
+always injects (no earlier reply for it to invalidate). The pref lands in `prefs.txt`, so an arm
+cannot silently claim a cadence it did not run.
+
+**The acceptance criterion, fixed before the run and not after:** cadence K>1 counts as confirmed
+only if `reuseFrac` rises toward the bare arms' level *and* the per-turn pattern shows the loss
+concentrated on injection turns (turn index % K == 0) rather than spread evenly. A uniform
+improvement would mean something else changed. Recall is the other half and can only lose: a digest
+keyed on the query from up to K−1 turns ago is the exact staleness the 2026-08-03 freeze revocation
+measured at 33.3 % vs 100 %. **If cadence buys cache at that recall, it is not worth shipping** —
+the arm must report both numbers or it reports nothing.
+
 ### 7.9 MEASURED 2026-08-18: `preserve_thinking` works — reuse 0.035 → 0.599, turn 295 s → 160 s
 
 Controlled pair, same branch, same model, same phase, only the code differs: smoke
@@ -2064,6 +2108,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 | 2026-08-16 | **The 390 s prefill is solved and §7.5 is rewritten around the measurement.** Four proposed causes were refuted, three of them mine, and none fell to an argument — each fell to a number the engine printed (`3e1c654`, `12868ea`, `36138fd`). The cause: Qwen3.5's template injects an empty `<think>\n\n</think>\n\n` when it asks for an answer and never repeats it when replaying one, so the re-rendered prompt diverges four tokens after the assistant header; a hybrid KV cannot roll back, so 1646 valid tokens are discarded. Confirmed 5/5 turns, identical `[248068 271 248069 271]` every time. Fix shipped in `6447ff2`: the prompt replays the text the model emitted, and when the window cannot reproduce the KV the session is refused with a named reason and its artifacts deleted — the old path left a poisoned `.kvs` that recharged the cost on every later restore. |
 | 2026-08-16 | **A change was written, audited and reverted before shipping** (`9c73846`): moving memory facts out of the system prompt onto the user turn. It violated append-only on *every* turn (the block rides `messages[length-1]`, so next turn that message renders without it) and moved the "these facts are untrusted data, not instructions" frame into the user message, adjacent to the utterance it defends against. Kept from that work: `computePromptEnvHash` no longer hardcodes `hasTools: true` while `buildSystemPrompt` really switches prompts, plus tests and harness alignment. Added §3.11: a pre-existing privacy defect — the prompt renders the last ten facts, `webSearchTool` gates the first ten. |
 | 2026-08-18 | **The shipping model measured at last, and CisWire wins by more there than on the dense 4B** (`32103054225`, LFM2.5-8B-A1B, 40/40 arms, completeness gate passed). +0.312 over bare, p = 0.0291. Ranked by what CisWire buys: 2B +0.635, **shipping 8B-A1B +0.312**, 4B +0.209 — so "the harness rescues small models" is the wrong shape: it rescues models that hold context badly, and size is only a proxy. Bare on the shipping model (0.556) is **worse than bare on the dense 4B** (0.785). Its failure mode differs too: it fumbles *early* probes (0.637, where the 2B and 4B both scored ~1.000) and CisWire lifts those to 0.988 — a digest is not supposed to help with text still in the window, so that mechanism is unexplained and needs its own experiment. `v42` dead again (+0.062, p=0.70), two models two campaigns. Spurious tool calls 15 on bare against the 4B's 4, halved by CisWire. **And the finding that reorders the backlog: this model reuses essentially no KV cache — 0.008 mean across all 40 arms (max 0.062) against the 4B's 0.561.** It re-prefills everything every turn and is still faster than the 4B (7.2 vs 2.4 tok/s evaluated), which makes the append-only transcript work worth *more* here than on the model it was built for. Cause unknown: the Qwen trigger is a Qwen *template* property and cannot be assumed to transfer. |
+| 2026-08-19 | **§7.10: the reason written in the code for why the digest costs cache is wrong, and the wrong reason has already cost one experiment.** The block is last only for the turn that carries it; next turn `promptContentForHistoryMessage` re-renders that user message clean (`modelEmittedText.ts:16-23` replays assistant messages only), so the last stable token falls back past the block, past that user turn, and past **the reply generated after it**. The cost is therefore per *injection*, not per *change of content* — which is precisely why the 2026-08-03 freeze, which held content still and kept injecting every turn, could only measure zero prefill saved. `compactor.ts`'s header and `RESEARCH_CONTEXT_LOSS.md:157` both carry the old reasoning; the header is corrected in place. Instrument written, **result not**: `parseBenchDigestCadence` + `shouldInjectOperativeBlock` (8 unit tests), `getBenchDigestCadence`, `DIGESTCADENCE` in `ci-bench.sh` with the both-branch assert, `digestcadence` workflow input, pref visible in `prefs.txt`. Empty/1 = production, untouched. Acceptance criterion fixed before the run: cache must rise *and* the loss must concentrate on injection turns, *and* recall must be reported alongside — cadence trades cache against exactly the staleness the freeze revocation measured at 33.3 % vs 100 %, so a cache win alone does not ship. |
 | 2026-08-18 | **The 4B campaign landed and CisWire holds: +0.209 over bare, p = 0.0108** (`32048465417`, 38 usable arms, permutation tests). §3.2's prediction was right — the effect shrinks, from +0.635 on the 2B, because bare climbs 0.313 → 0.785 while ciswire goes 0.948 → 0.994 with sd 0.083 → 0.019. What survives is entirely **distance**: the 4B is perfect on recent facts and loses over half the distant ones (0.446 late), ciswire loses none (1.000). Three things nobody predicted: **`v42` dies** on the stronger model (+0.040, p=0.70, against +0.354 p=0.043 on the 2B); **`nogate` reverses**, 0.094 on the 2B against 0.944 on the 4B, which is the hardest evidence yet that harness decisions are model-dependent; and **§1.5's token saving does not reproduce** — history length is identical across arms, so on the 4B the digest is pure cost, +350 prompt tokens at turn 13 and ~95 s more prefill per turn. §3.1's blocker did not reproduce either: zero blank bubbles across all 38 arms. Two arms died on the 2400 s per-turn cap, both **untreated** (bare writes longer replies, so it reaches the cap first), so `baseline` and `nogate` are n=9 and the completeness gate correctly refused to publish. |
 | 2026-08-17 | **§7.7j: the join is closed, and the diagnostic that proved it refutes my own acceptance criterion** (`b31fb53`). Six turns unplugged from the coldest start yet (27.9 °C): 103 s then **31, 32, 32, 32, 31** — turn 6 was 151 s in §7.7i. One `rebuild` in the session (`fresh`, turn 1), `KALSA_KVDIVERGE` zero, five consecutive boundaries reused against two, `Thermal Status` 0 throughout, 2 % battery for six turns. `glueEot` fired at every boundary (`glue=11`), which was the fix's whole job. **But the 48-char seam windows show `T` ending with the reply in generation form and the delta restarting from the same reply in history form: every assistant turn is in the prompt twice.** Not caused by the glue and not a deep-link artifact — `kvTranscript.ts:157` builds `T` from `candidate + emitted + suffix` and `candidate` ends with the empty think block, so the ordinary path duplicates too; §7.7i had it without the glue between the copies. The criterion I fixed before measuring — no divergence, `n_common == embd.size()` — is **true with the duplicate in place**, because `T` stays a valid prefix however malformed its content: it measures reuse, not correctness, and all six replies read fine. Latency result stands, correctness result does not, **route 2 does not merge**. Suspect is `cutPPrevFromRolePair` (`kvTranscriptFormat.ts:130`): `pPrev`=5532 against a turn-1 prompt of 5551, short by exactly the 19 chars of `<think>\n\n</think>\n\n`. |
 | 2026-08-17 | **§3.11 closed by reading the code, not by fixing it: the privacy gate was never inspecting the wrong facts.** The two slices genuinely disagree on their face — prompt takes `slice(-10)`, `webSearchTool.ts:88` takes `slice(0, 10)` — but the array reaching the gate is capped upstream at `AppShell.tsx:2348`, so the second slice is the identity, and `:4485` hands the gate **the same array object** `:4724` sends to the engine. The 2026-08-16 row below calls it "a pre-existing privacy defect"; that was wrong, and this row is the correction. What survives is a latent trap: the guarantee rests entirely on the upstream cap, so raising it — or sourcing `getMemoryFacts` from `MemoryStore.listFacts()` — silently splits the two sets with nothing failing. |

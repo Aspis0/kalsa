@@ -177,6 +177,7 @@ import {
   getBenchWindowBudget,
   getBenchLegacyWindow,
   getBenchRanking,
+  getBenchDigestCadence,
   getEngineOverride,
   getSpeculativeOverride,
 } from "../bench/benchConfig";
@@ -208,6 +209,7 @@ import {
   emptyCompactorState,
   legacyWindowStartIndex,
   parseCompactorState,
+  shouldInjectOperativeBlock,
   parseContextMode,
   refreshQueryDigest,
   resolveBoundaryIndex,
@@ -4420,7 +4422,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 // best-effort persistence
               }
 
-              if (state.frozenDigest || state.rollingSummary) {
+              // Bench-only cadence: null → inject every turn (production). The
+              // block rides the last user message, so every injection costs the
+              // KV that user turn plus the reply generated after it; injecting
+              // every K turns pays that once per K instead (see §7.9).
+              const injectBlock = shouldInjectOperativeBlock(
+                userTurnCount - 1,
+                await getBenchDigestCadence(),
+              );
+              if (injectBlock && (state.frozenDigest || state.rollingSummary)) {
                 operativeContext = {
                   digest: state.frozenDigest || undefined,
                   summary: state.rollingSummary || undefined,

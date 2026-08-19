@@ -35,7 +35,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getThreadCountSource } from "../engine/threadProfile";
 import { parseBenchNCtx } from "../engine/contextProfile";
-import { parseBenchWindowBudget, parseBenchLegacyWindow, parseBenchRanking } from "../context/compactor";
+import {
+  parseBenchWindowBudget,
+  parseBenchLegacyWindow,
+  parseBenchRanking,
+  parseBenchDigestCadence,
+} from "../context/compactor";
 
 export const BENCH_THINKING_KEY = "kalsa.bench.thinking";
 export const BENCH_FORMAT_KEY = "kalsa.bench.format";
@@ -47,6 +52,7 @@ export const BENCH_NCTX_KEY = "kalsa.bench.nctx";
 export const BENCH_WINBUDGET_KEY = "kalsa.bench.winbudget";
 export const BENCH_LEGACYWINDOW_KEY = "kalsa.bench.legacywindow";
 export const BENCH_RANKING_KEY = "kalsa.bench.ranking";
+export const BENCH_DIGESTCADENCE_KEY = "kalsa.bench.digestcadence";
 /** "1" disables weight repacking (no_extra_bufts). Absent / other → production. */
 export const BENCH_NOREPACK_KEY = "kalsa.bench.norepack";
 
@@ -224,6 +230,21 @@ export async function getBenchLegacyWindow(): Promise<number | null> {
   try {
     const raw = await AsyncStorage.getItem(BENCH_LEGACYWINDOW_KEY);
     return parseBenchLegacyWindow(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Bench-only digest-injection cadence. Absent / invalid / below 1 → null
+ * (production: the operative block rides every user turn). K > 1 injects only on
+ * turns where `userTurnIndex % K === 0`, which is the arm that measures whether
+ * the KV cost of injection is paid once per K turns instead of every turn.
+ */
+export async function getBenchDigestCadence(): Promise<number | null> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_DIGESTCADENCE_KEY);
+    return parseBenchDigestCadence(raw);
   } catch {
     return null;
   }

@@ -159,6 +159,18 @@ Tutto ciò che sta **dopo l'ultimo token stabile** viene ri-encodato **ogni turn
 - **salva zero prefill**
 - **costa solo recall**
 
+> **CORREZIONE 2026-08-19 (§7.10 di HARNESS_FINDINGS.md).** La conclusione qui sopra è giusta ed è
+> stata misurata; il *motivo* no, e il motivo sbagliato è finito anche nell'header di
+> `compactor.ts`. Il blocco è in coda **solo per il turno che lo porta**. Al turno dopo quel
+> messaggio user è history e viene ri-renderizzato *senza* blocco
+> (`promptContentForHistoryMessage` rigioca il testo emesso solo per l'assistant), quindi
+> l'ultimo token stabile **arretra** oltre il blocco, oltre quel turno user e oltre **la risposta
+> generata dopo di lui**. La regione ri-encodata non è "la coda": è uno scambio intero. Il costo si
+> paga per **iniezione**, non per cambio di contenuto — ed è esattamente per questo che il freeze,
+> che teneva fermo il contenuto e continuava a iniettare ogni turno, non poteva che misurare zero.
+> Misurato: bracci con digest riusano 0.564 contro 0.704 bare. **Non misurato**: iniettare ogni K
+> turni. Knob `kalsa.bench.digestcadence`, default = ogni turno (produzione invariata).
+
 Il pezzo che *davvero* protegge il prefisso è la **finestra verbatim append-only** ancorata al `boundaryIndex` (fisso per K turni). Quella non si tocca.
 
 ## Design nuovo (inverso rispetto a V4.2 freeze)

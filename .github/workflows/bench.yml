@@ -56,6 +56,11 @@ on:
           - ""
           - bm25
           - hybrid
+      digestcadence:
+        description: "Bench-only operative-block injection cadence (empty = every turn, production). K>1 injects only on user turns where index % K == 0 — tests whether the KV cost of injection is paid once per K turns instead of every turn."
+        required: false
+        default: ""
+        type: string
       norepack:
         description: "Bench-only weight-repack disable (empty = production repack on). 1 → no_extra_bufts (saves ~file-size anonymous RSS; slower prefill). 0 → explicit repack on."
         required: false
@@ -984,6 +989,7 @@ jobs:
           WINBUDGET: ${{ inputs.winbudget || '' }}
           LEGACYWINDOW: ${{ inputs.legacywindow || '' }}
           RANKING: ${{ inputs.ranking || '' }}
+          DIGESTCADENCE: ${{ matrix.digestcadence || inputs.digestcadence || '' }}
           NOREPACK: ${{ inputs.norepack || '' }}
           MEMORY: ${{ matrix.memory || inputs.memory || '0' }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}

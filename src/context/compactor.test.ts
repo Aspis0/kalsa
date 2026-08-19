@@ -5,6 +5,8 @@
 
 import {
   assembleEngineHistory,
+  parseBenchDigestCadence,
+  shouldInjectOperativeBlock,
   LEGACY_MAX_HISTORY,
   LEGACY_MAX_HISTORY_IMAGES,
   legacyWindowStartIndex,
@@ -127,5 +129,48 @@ describe("compactor legacy window / ciswire partition", () => {
     });
     expect(v42).not.toEqual(assembled);
     expect(v42).toHaveLength(6);
+  });
+});
+
+describe("compactor parseBenchDigestCadence", () => {
+  test("absent / empty / non-integer / below 1 → null (production every turn)", () => {
+    expect(parseBenchDigestCadence(null)).toBeNull();
+    expect(parseBenchDigestCadence(undefined)).toBeNull();
+    expect(parseBenchDigestCadence("")).toBeNull();
+    expect(parseBenchDigestCadence("  ")).toBeNull();
+    expect(parseBenchDigestCadence("abc")).toBeNull();
+    expect(parseBenchDigestCadence("2.5")).toBeNull();
+    expect(parseBenchDigestCadence("0")).toBeNull();
+    expect(parseBenchDigestCadence("-3")).toBeNull();
+  });
+
+  test("integer ≥ 1 survives, whitespace trimmed", () => {
+    expect(parseBenchDigestCadence("1")).toBe(1);
+    expect(parseBenchDigestCadence(" 3 ")).toBe(3);
+  });
+});
+
+describe("compactor shouldInjectOperativeBlock", () => {
+  test("no cadence → every turn injects (production default)", () => {
+    for (let i = 0; i < 6; i++) {
+      expect(shouldInjectOperativeBlock(i, null)).toBe(true);
+      expect(shouldInjectOperativeBlock(i, 1)).toBe(true);
+    }
+  });
+
+  test("cadence 3 → turns 0 and 3 only", () => {
+    const injected = [0, 1, 2, 3, 4, 5].filter((i) =>
+      shouldInjectOperativeBlock(i, 3),
+    );
+    expect(injected).toEqual([0, 3]);
+  });
+
+  test("first turn always injects — no earlier reply for it to invalidate", () => {
+    expect(shouldInjectOperativeBlock(0, 5)).toBe(true);
+  });
+
+  test("nonsense index falls back to injecting, never silently skips", () => {
+    expect(shouldInjectOperativeBlock(-1, 3)).toBe(true);
+    expect(shouldInjectOperativeBlock(Number.NaN, 3)).toBe(true);
   });
 });

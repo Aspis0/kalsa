@@ -17,10 +17,19 @@
  * - Digest is rebuilt EVERY user turn with the CURRENT user message as query
  *   against the compacted ("older") corpus. It is NOT frozen for K turns.
  * - Rationale: the operative block (digest+summary) is stapled to the last user
- *   message (format B / user-prefix). Everything after the last stable token is
- *   re-encoded every turn anyway, so freezing the digest saved zero prefill and
- *   cost recall (benchmark: frozen digest 33.3% vs CisWire 100% — see
+ *   message (format B / user-prefix), so freezing the digest saved zero prefill
+ *   and cost recall (benchmark: frozen digest 33.3% vs CisWire 100% — see
  *   docs/RESEARCH_CONTEXT_LOSS.md).
+ * - CORRECTION (2026-08-19), because the original wording ("everything after the
+ *   last stable token is re-encoded every turn anyway") is what made the block
+ *   look free: the block is last only for the turn that carries it. Next turn
+ *   that user message re-renders WITHOUT it, so the last stable token moves back
+ *   to before it — and the reply generated after it goes too. The cost is per
+ *   INJECTION, not per change of content, which is exactly why freezing the
+ *   content bought nothing. Measured: digest arms reuse 0.564 vs 0.704 bare
+ *   (§7.9). PREDICTED BUT NOT YET MEASURED: injecting every K turns pays that
+ *   re-prefill once per K. Knob: `parseBenchDigestCadence` /
+ *   `shouldInjectOperativeBlock` below, bench key kalsa.bench.digestcadence.
  * - Callers should hold one warm RetrieverIndex per chat (append older units as
  *   the boundary advances); throwaway rebuild every turn is wasteful at scale.
  *
@@ -162,6 +171,44 @@ export function parseBenchLegacyWindow(
   if (!Number.isFinite(n) || !Number.isInteger(n)) return null;
   if (n < BENCH_LEGACY_WINDOW_FLOOR) return null;
   return n;
+}
+
+/**
+ * Defensive parser for the bench-only digest-injection cadence.
+ * Absent / empty / non-integer / below 1 → null (production: inject every turn).
+ *
+ * Cadence exists because injecting the operative block costs cache, and the cost
+ * is per *injection*, not per change of content: the block sits before the last
+ * user message, so next turn that message re-renders without it and the KV loses
+ * everything from there on (that user turn and the reply generated after it).
+ * Freezing the digest's *content* therefore saved zero prefill — the injection
+ * still happened every turn. Injecting every K turns pays that re-prefill once
+ * per K instead, at the price of a digest keyed on an older query.
+ */
+export function parseBenchDigestCadence(
+  raw: string | null | undefined,
+): number | null {
+  if (raw == null) return null;
+  const trimmed = String(raw).trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return null;
+  if (n < 1) return null;
+  return n;
+}
+
+/**
+ * Does this user turn carry the operative block?
+ * `cadence` null or 1 → every turn (production). Turn 0 always injects: there is
+ * no earlier reply for it to invalidate, so the first injection is free.
+ */
+export function shouldInjectOperativeBlock(
+  userTurnIndex: number,
+  cadence: number | null,
+): boolean {
+  if (cadence == null || cadence <= 1) return true;
+  if (!Number.isFinite(userTurnIndex) || userTurnIndex < 0) return true;
+  return Math.floor(userTurnIndex) % cadence === 0;
 }
 
 /**

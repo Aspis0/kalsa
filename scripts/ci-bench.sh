@@ -53,6 +53,7 @@ NCTX="${NCTX:-}"
 WINBUDGET="${WINBUDGET:-}"
 LEGACYWINDOW="${LEGACYWINDOW:-}"
 RANKING="${RANKING:-}"
+DIGESTCADENCE="${DIGESTCADENCE:-}"
 NOREPACK="${NOREPACK:-}"
 MEMORY="${MEMORY:-0}"
 RUNS_PER_ARM="${RUNS_PER_ARM:-3}"
@@ -273,6 +274,15 @@ set_prefs() {
   else
     sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.ranking';" "kalsa.bench.ranking" "__ABSENT__"
   fi
+  # DIGESTCADENCE: how often the operative block is injected. Empty = every turn
+  # (production). K > 1 injects only on user turns where index % K == 0 — the arm
+  # that tests whether the KV cost of injection is paid once per K turns instead
+  # of every turn (§7.9). Same delete-when-empty rule, same both-branch assert.
+  if [ -n "$DIGESTCADENCE" ]; then
+    sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.digestcadence','$DIGESTCADENCE');" "kalsa.bench.digestcadence" "$DIGESTCADENCE"
+  else
+    sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.digestcadence';" "kalsa.bench.digestcadence" "__ABSENT__"
+  fi
   # NOREPACK: empty must DELETE the key (production repack on). "1" disables
   # weight repacking (no_extra_bufts); "0" is an explicit production write.
   # Same both-branch assert as NCTX / WINBUDGET.
@@ -348,6 +358,14 @@ if [ -n "$RANKING" ]; then
 else
   [ -z "$RANKING_PREF_RAW" ] \
     || die "ranking pref on device is '$RANKING_PREF_RAW', expected absent (RANKING empty = bm25)"
+fi
+DIGESTCADENCE_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.digestcadence';" | head -1 | tr -d '[:space:]')
+if [ -n "$DIGESTCADENCE" ]; then
+  [ "$DIGESTCADENCE_PREF_RAW" = "$DIGESTCADENCE" ] \
+    || die "digestcadence pref on device is '$DIGESTCADENCE_PREF_RAW', expected '$DIGESTCADENCE'"
+else
+  [ -z "$DIGESTCADENCE_PREF_RAW" ] \
+    || die "digestcadence pref on device is '$DIGESTCADENCE_PREF_RAW', expected absent (DIGESTCADENCE empty = every turn)"
 fi
 NOREPACK_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.norepack';" | head -1 | tr -d '[:space:]')
 if [ -n "$NOREPACK" ]; then
