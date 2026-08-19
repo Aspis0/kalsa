@@ -34,6 +34,7 @@ function compile() {
       "tsc",
       "src/context/retriever.ts",
       "src/context/compactor.ts",
+      "src/context/windowProfile.ts",
       "--outDir",
       outDir,
       "--module",
@@ -113,6 +114,8 @@ async function main() {
   const compactorPath = resolveBuilt("compactor");
   console.log("Loading", compactorPath);
   const mod = await import(pathToFileURL(compactorPath).href);
+  const wmod = await import(pathToFileURL(resolveBuilt("windowProfile")).href);
+  const { resolveWindowProfile, windowStartIndex, WINDOW_MAX_MESSAGES } = wmod;
 
   const {
     DEFAULT_COMPACTOR_CONFIG,
@@ -568,6 +571,75 @@ async function main() {
     "(5) toggle OFF byte-identical to legacy sliding window (20×4000, 8×2000 w/ images)",
     offOk && offImgOk,
     `noImg=${legacy.length}/${offOk}, img=${legacyImg.length}/${offImgOk}`,
+  );
+
+  // (5b) The DERIVED window, and the invariant that made it worth deriving in
+  // one place: assembly takes the window, the ciswire corpus takes everything
+  // outside it. If the two ever disagree a message lands in both or — the bad
+  // one — in neither. Check (5) above only exercises the count-only fallback,
+  // which AppShell no longer uses, so without this the shipped path had no
+  // harness coverage at all.
+  const derivedProfile = resolveWindowProfile({
+    nCtx: 8192,
+    hasImages: false,
+    hasDigest: false,
+  });
+  const derivedStart = windowStartIndex(
+    convo.map((m) => m.text.length),
+    derivedProfile,
+    LEGACY_MAX_CHARS,
+  );
+  const derivedWindow = assembleEngineHistory(convo, {
+    compactionEnabled: false,
+    hasImages: false,
+    legacyWindowStart: derivedStart,
+  });
+  const derivedCorpus = splitAtBoundary(convo, derivedStart).older;
+  // Exact partition: no gap, no overlap, nothing invented.
+  const partitionOk =
+    derivedCorpus.length + derivedWindow.length === convo.length;
+  const usedChars = convo
+    .slice(derivedStart)
+    .reduce((a, m) => a + Math.min(m.text.length, LEGACY_MAX_CHARS), 0);
+  record(
+    "(5b) derived window partitions history exactly at n_ctx 8192",
+    partitionOk && usedChars <= derivedProfile.charBudget,
+    `start=${derivedStart} window=${derivedWindow.length} corpus=${derivedCorpus.length} ` +
+      `chars=${usedChars}/${derivedProfile.charBudget} src=${derivedProfile.source}`,
+  );
+
+  // (5c) …and the budget must be capable of binding, not merely present.
+  // It cannot bind at 8192 on THIS fixture: these messages are ~78 chars, so 40
+  // of them are ~3.1k against a 13.8k budget. Real Kalsa turns measured ~711
+  // chars each (20 messages ≈ 4743 prompt tokens), an order of magnitude more —
+  // the fixture is short, not the budget loose. So bind it explicitly with a
+  // context small enough for this data, which keeps (5b) honest: without this
+  // pair, (5b) would pass while silently measuring the message cap.
+  const tightProfile = resolveWindowProfile({
+    nCtx: 3072,
+    hasImages: false,
+    hasDigest: false,
+  });
+  const tightStart = windowStartIndex(
+    convo.map((m) => m.text.length),
+    tightProfile,
+    LEGACY_MAX_CHARS,
+  );
+  const tightWindow = assembleEngineHistory(convo, {
+    compactionEnabled: false,
+    hasImages: false,
+    legacyWindowStart: tightStart,
+  });
+  const tightChars = convo
+    .slice(tightStart)
+    .reduce((a, m) => a + Math.min(m.text.length, LEGACY_MAX_CHARS), 0);
+  record(
+    "(5c) a context too small for the history makes the char budget bind, not the message cap",
+    tightStart > 0 &&
+      tightWindow.length < convo.length &&
+      tightWindow.length < WINDOW_MAX_MESSAGES &&
+      tightChars <= tightProfile.charBudget,
+    `start=${tightStart} window=${tightWindow.length} chars=${tightChars}/${tightProfile.charBudget}`,
   );
 
   // Bonus: serialize/parse roundtrip includes boundaryIndex
