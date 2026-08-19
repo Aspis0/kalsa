@@ -24,6 +24,925 @@
 > Non ci si scrive mai niente che non sia già nel PLAN, e non si legge mai
 > ALIVE al posto del PLAN per decidere.
 
+> 🛠️ **19/08 ~10:40 — L'ORACOLO LATO CONSUMER ESISTE: COSTRUITO, COMPILATO,
+> NON ANCORA ESEGUITO (S23 occupato dall'altra sessione).**
+>
+> Due commit su `kalsa/kernel-s3-repack` (`538341999` atterraggio, `d8b6528e8`
+> chunking anti-OOM per i tensori 2880×2880×32), **puramente additivi** (607+,
+> 0−), verificati su disco da me. Gated da `GGML_OPENCL_ORACLE=1`, inerte
+> altrimenti. Disegno: **4 kernel = (idioma gemv|gemm) × (lettura buffer|image)**,
+> dump di float dequantizzati E word grezzi, confronto host **nello stesso run**
+> contro `dequantize_row_q4_0`; verbatim-ness per **concatenazione dei sorgenti
+> reali** (program = `gemv_src`/`gemm_src` + wrapper, niente ricopiature), stesse
+> `CL_moe_compile_opts` dei consumer veri (onora `GGML_OPENCL_MOE_OPTS`). Il
+> doppio read-path + dump raw serve a distinguere un difetto di **coerenza
+> immagine/buffer** (il paradosso bitselect) da un difetto del **dequant
+> compilato**.
+> Build nuova `build-android-opencl-s3oracle/` (s3printf/s3base intatte);
+> `libggml-opencl.so` sha `8da5316f9cdcdab5…3826048b`, 7 587 272 B,
+> mtime 19/08 10:37. Invocazione pronta (REPORT dell'agente,
+> `scratchpad/agents/oracle-consumer/REPORT.md`):
+> `GGML_OPENCL_HOST_REPACK=1 GGML_OPENCL_ORACLE=1 ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p 'type_a=q4_0'`
+> ⚠️ **Limite epistemico dichiarato dall'implementatore e da tenere a mente:
+> il program oracolo è un COMPILATO DIVERSO dal program consumer** (stesso testo
+> dell'helper + stesse opzioni, ma kernel extra in coda): un oracolo ROSSO trova
+> il difetto nell'idioma; un oracolo VERDE **non** proscioglie l'ISA del
+> GEMM/GEMV reale. ⚠️ Non eseguito da nessuna parte (niente smoke PC OpenCL);
+> q4_1/mxfp4 non aggiunti.
+>
+> 🔎 **AUDIT OSTILE CONSEGNATO (Reviewer Math/DeepSeek, report in
+> `scratchpad/agents/oracle-consumer-review/REPORT.md`): 2 HIGH CONFIRMED,
+> 4 MEDIUM, fix rimandati all'implementatore.**
+> - **F1 (HIGH):** la produzione può selezionare il **GEMM binario offline**
+>   `kernel_gemm_moe_q4_0_f32_ns_bin` (blob `_ila`, via
+>   `libadreno-opencl-kernels.so`) che l'oracolo **non esercita mai**: un
+>   oracolo verde proscioglierebbe il componente sbagliato. Il GEMV non ha
+>   variante bin e trasferisce per intero. Mitigazione: log
+>   `gemm_bin_loaded=0|1` + sezione esplicita nel report; NON si tenta di
+>   oracolare il blob.
+> - **F2 (HIGH, aritmetica confermata):** tolleranza 0.25·|d| ~64× più larga
+>   del necessario (fp16-rounding ⇒ ≤0.0039·|d|): un errore di scala ≤3%
+>   passerebbe TUTTI i check (`all_ok=1` con dequant corrotto). Fix: banda
+>   giustificata + dump dei byte di `d` come canale indipendente.
+> - MEDIUM: `ORACLE=0/false` ABILITA (check di presenza); `CL_CHECK` su
+>   `clCreateImage` cambia il normal-path anche a oracolo spento; nessuna
+>   detection di HOST_REPACK attivo (rosso misattribuibile al consumer);
+>   skip silenzioso dei tensori fuori euristica di nome.
+> - ✅ **SOUND con evidenza:** verbatim-ness (il `.cl.h` embedded nel `.so` è
+>   byte-identico all'HEAD), aritmetica di indirizzamento e chunking, sync
+>   (coda in-order + blocking read), sentinel, release delle risorse, sha.
+>   L'onestà del report dell'implementatore è reale, con la sola omissione
+>   bin-kernel (F1).
+> 🔧 **FIX APPLICATI (commit `a97f7bd0c`, verificati su disco da me):** banda
+> → `0.00390625·|d|` (2⁻⁸ = 0.5 ulp fp16 per |y|≤8|d|, derivazione a
+> commento) + dump della half `d` letta dal kernel (`raw_d_mismatch`);
+> `CL_CHECK` su `clCreateImage` solo a oracolo acceso (normal-path
+> ripristinato); `ORACLE=0/""/false` spengono (⚠️ HOST_REPACK e DUMP_Q
+> restano presence-only, stesso trap, notato e NON toccato); `hostrepack=0|1`
+> su ogni riga + WARNING se 0; `ORACLE_PATHINFO{gemm_bin_loaded=0|1}`;
+> `skipped=name_gate` una volta per nome. Nuovo `libggml-opencl.so`
+> sha `3f3df26af2375d3b…07530bac`, 7 685 072 B, mtime 19/08 11:13.
+> ✅ **RE-REVIEW CHIUSA (stesso auditor, appendice nel report): F2/F3/F5/F6/
+> F7/F8 FIXED, F1/F4 PARTIAL per ragioni note e accettate. Nessun difetto
+> nuovo critico (17/17 e 9/9 format string riverificate). L'ORACOLO È
+> DICHIARATO PRONTO AL DEVICE.** Residui, tutti bounded:
+> - **F1:** il blob `_ila` resta strutturalmente non-oracolabile; disclosure
+>   rumorosa OK. **Protocollo del run: verificare `gemm_bin_loaded=0`
+>   nell'output; se =1 il verdetto GEMM non vale** (niente lo forza sul
+>   device).
+> - **F2 edge:** con `|d| ≲ 2⁻²⁰` (subnormali fp16 + FTZ da fast-math) il
+>   GEMM-path può dare falsi positivi mal classificati. **Irraggiungibile
+>   coi dati random di test-backend-ops (scale ~0.06-0.12)**; da ricordare
+>   SOLO se un giorno si oracolano pesi reali sparsi.
+> - **F4:** `"0 "` (spazio/newline in coda), `"off"`, `"no"` ancora ARMANO
+>   la sonda — igiene operatore: settare esattamente `1` per accendere,
+>   unset per spegnere.
+> ➡️ **Prossimo passo: eseguire sull'S23 appena libero** —
+> `GGML_OPENCL_HOST_REPACK=1 GGML_OPENCL_ORACLE=1 ./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p 'type_a=q4_0'`
+> (push list nel REPORT dell'agente, senza il blob; sha on-device prima del
+> run; esiti attesi: rosso = difetto trovato nell'idioma → passo 2
+> dell'ordine; verde = idioma pulito nel program oracolo → passo 3, GEMV
+> n=1 isolato.)
+>
+> 🟥 **PRIMA SESSIONE DEVICE (19/08, S23 libero): L'ORACOLO NON È MAI
+> PARTITO — COMPILE FAIL, né verde né rosso.** Il wrapper GEMV usava `local`
+> come nome di parametro: **parola riservata OpenCL C**, il compilatore
+> Qualcomm E031.41.03.62 rifiuta (`err=-11`, "parameter name omitted") e
+> `build_program_from_source` fa `exit(1)` prima di qualunque riga ORACLE.
+> Igiene della sessione comunque perfetta: sha on-device tutti verificati
+> (incluso `3f3df26a…`), env esatte, cpuset `/`, blob non pushato, due run
+> byte-identiche, cleanup fatto, log conservati in
+> `results/oracle_consumer_s23/run{1,2}/`.
+> 📌 **Lezione a verbale: NESSUN compilatore aveva mai visto i wrapper**
+> (niente smoke PC OpenCL), e né l'implementatore né l'auditor hanno
+> fiutato la keyword — l'auditor citava perfino gli store "`local`-indexed"
+> senza vederla. Un difetto da compilatore lo becca solo un compilatore:
+> lo smoke di compilazione va nel giro PRIMA del device, quando esiste una
+> piattaforma. Fix (rename + sweep di TUTTE le parole riservate nei
+> wrapper) e seconda sessione device in corso (run3/run4).
+>
+> 🟢 **SECONDA SESSIONE DEVICE (19/08 ~12:30) — ORACOLO VERDE SU TUTTI E
+> QUATTRO I PATH, CON L'END-TO-END CHE FALLISCE NELLO STESSO RUN.
+> IL DEQUANT COMPILATO DA SORGENTE È PULITO SU INPUT NOTO-BUONO.**
+> Fix abilitante: `local`→`n_loc` solo nei wrapper (unico identificatore
+> riservato trovato dallo sweep), commit `95046b85c`; nuovo `.so`
+> `085b127f…a29be4`, sha on-device identica. PC smoke: wrapper GEMV
+> **CL_SUCCESS su Intel** (il gate che mancava); il program GEMM non è
+> compilabile su PC (`float32` qcom nel consumer) — per il GEMM il device
+> resta l'unico compile gate. Verificato da me sui log pullati
+> (`results/oracle_consumer_s23/run{3,4}/`).
+> - `ORACLE_SUMMARY{tensors=74, lines_bad=0/296, float_mismatch_total=0,
+>   raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1,
+>   gemm_bin_loaded=0, all_ok=1}` — run3 e run4 concordi; zero WARNING,
+>   zero skip; incluso il tensore 2880×2880×32.
+> - **Nello stesso run: 74/74 MUL_MAT_ID q4_0 FAIL, ERR medio 0.456/0.450**
+>   (cluster host-repack ~0.45 confermato).
+> ➡️ **Cosa significa:** gli idiomi dequant dei consumer (macro GEMM e
+> helper GEMV), compilati da sorgente con le stesse opzioni, letti sia da
+> buffer sia da image, producono float corretti da un buffer perfetto.
+> **Il difetto vincolante sta OLTRE l'idioma dequant:** riduzioni
+> subgroup, geometria/argomenti di dispatch, gestione degli `ids`
+> (routing), path di scrittura di `dst` — oppure un miscompile specifico
+> del program consumer reale (caveat epistemico a verbale: il program
+> oracolo è un compilato diverso).
+> 📉 **Effetto collaterale sul paradosso bitselect:** il read-path image
+> dell'oracolo ha letto byte GIUSTI (`raw_mismatch=0` via image sullo
+> stesso `cl_mem`): l'ipotesi "coerenza immagine/buffer" ne esce
+> indebolita (nelle condizioni dell'oracolo, non identiche a quelle del
+> consumer in-flight).
+> ➡️ **SI PASSA AL PUNTO 3 DELL'ORDINE: isolare GEMV n=1 con host-repack.**
+> Strumento scelto: **audit in-situ del kernel di produzione** — niente
+> kernel nuovi (zero rischio compile): a valle del dispatch reale
+> (n=1, q4_0, HOST_REPACK), readback di dst/A/ids, riferimento host in
+> doppia precisione, e classificazione del PATTERN d'errore per-elemento
+> (per riga, per subgroup, per esperto; got/want ≈ costante = bug di
+> riduzione/scala; pattern a blocchi = lane; random = memoria). È la
+> mappa d'errore fine che non abbiamo mai avuto.
+>
+> 🛠️ **STEP-3 IMPLEMENTATO (19/08 ~12:40, commit `2bdef5c7d`, verificato su
+> disco da me): `GGML_OPENCL_GEMV_AUDIT`**, 564+/5− solo in
+> `ggml-opencl.cpp`, zero `.cl` nuovi. Dispatch di produzione intatto;
+> con l'env accesa: `clFinish` + readback dst/src1/ids, reference
+> `dequantize_row_q4_0` + dot in double, bound d'errore alla Higham
+> (`gamma_k`, u=2⁻²⁴, fattore 8× per scala di blocco + riduzione a 4
+> subgroup, stampato in `GEMV_AUDIT_BOUND{}`), classificatori di pattern
+> (ratio costante / `LANE_MOD_{32,64,128}` / routing / sign-smear ≥0x80 /
+> unstructured), cap sul volume di log. Nuovo `.so`
+> `a8f1e2354f…ce331fe2` (7 921 880 B). **Limite di attribuzione
+> dichiarato:** i valori di glue (shape/offset/geometry) sono
+> logged-not-verified — il probe testa il kernel dato quel glue, non
+> dimostra il glue. ⚠️ Il commit rifattorizza il parsing env dell'ORACLE
+> in un helper condiviso: semantica sotto audit. 🔎 Audit ostile in corso
+> (stesso auditor); il device (sessione ERR breve) parte solo dopo il suo
+> verde + S23 disponibile.
+>
+> 🔎 **AUDIT DI `2bdef5c7d` CONSEGNATO: 1 HIGH che avrebbe mandato
+> l'indagine sul ramo sbagliato, preso in tempo.**
+> - **HIGH (CONFIRMED): il classificatore SIGN_SMEAR era VACUO** — test
+>   row-level "almeno un byte ≥0x80" che con nibble random scatta con
+>   P≈1−2⁻¹²⁸: OGNI caso fallente sarebbe stato etichettato SIGN_SMEAR a
+>   prescindere dalla causa. Fix: test per-elemento con enrichment contro
+>   il base rate (~50%).
+> - MEDIUM: i casi del filtro sono **14, non 12** (due grid-case n=1 in
+>   più, ~113+66 MB di stash — informativi, si tengono); stash AoS senza
+>   cap né rilevanza (150 MB stashati per tensori GEMM-only mai usati;
+>   nessun OOM sul run prescritto, cap aggiunto comunque); semantica env
+>   ereditata ("tutto ciò che non è 0/false/vuoto arma") — accettata per
+>   coerenza con ORACLE, documentata.
+> - LOW: LANE_MOD co-firing (64 fa scattare anche 32 → si riporta il
+>   divisore più grande che spiega); REDUCTION_OR_SCALE a mediana cieca
+>   sulle mappe miste (60% ok + 40% quartered ⇒ med=1.0) → cluster di
+>   ratio con frazioni.
+> - ✅ SOUND: glue same-variable (passa esattamente i locals del dispatch),
+>   ids+guardie OOB, bound Higham corretto (~1000× sopra il drift f32
+>   legittimo e ~1000× sotto l'errore classe-0.45), readback bloccanti con
+>   skip puliti, inerzia a env spenta, refactor ORACLE bit-identico.
+> 🔧 Fix in lavorazione; re-review del diff dei classificatori prima del
+> device.
+>
+> 🟥 **RE-REVIEW DI `6c822d826`: NO-GO — il fix dei classificatori ha
+> introdotto una regressione peggiore del difetto che curava.**
+> - **LANE_MOD REGRESSED:** col "divisore più grande prima", QUALUNQUE
+>   pattern periodico (32/64/128) passa il test mod-128 (i suoi residui
+>   fully-bad a 128 danno comunque rmax=1.0/rmin=0) → tutto etichettato
+>   `LANE_MOD_128`, periodo perso. Fix giusto: inferire il periodo dal
+>   CONTEGGIO dei residui fully-bad al modulo più grande
+>   (periodo = m/n_residui: 4→32, 2→64, 1→128).
+> - **SIGN_SMEAR onesto-ma-cieco, confermato col calcolo:** attraverso un
+>   dot di lunghezza k su dati iid l'appartenenza alle righe bad è una
+>   selezione ~50% casuale ⇒ `rate_ge80 ≈ rate_lt80` e la soglia
+>   0.80/0.20 sta a ~10σ: **l'etichetta non può scattare sul veicolo a
+>   dati random nemmeno per un sign-smear vero.** Il gate resta (giusto
+>   non indebolirlo); la cecità va dichiarata NEL log del run e nel
+>   report: "assenza di SIGN_SMEAR su dati random non esclude nulla".
+> - ✅ FIXED e SOUND: ratio clustering sui soli bad (il caso misto ora è
+>   etichettato), stash cap (il run da 14 casi sta in ~186 MB < 512),
+>   layer di osservazione (numeri grezzi, dump, entrambe le rate)
+>   affidabile e degno di raccolta; 44/44 format string.
+> 🔧 Fix (~20 righe: periodo dai residui + nota di reachability) in
+> lavorazione; poi re-check finale e device.
+>
+> ✅ **FINAL CHECK DI `d77e82347`: GO CONDIZIONATO — SESSIONE DEVICE
+> AUTORIZZATA E LANCIATA (19/08 pomeriggio).** Periodo inferito dai residui
+> fully-bad: tracciati nel codice i 3 casi nominali + i 2 avversari (3
+> residui non-divisore → bloccato; residui parziali → bloccato, cade su
+> BLOCK_RUNS; m<512 conservativo; all-bad bloccato). `GEMV_AUDIT_NOTE`
+> emessa una volta per processo nello stesso blocco del BOUND. Nessun
+> collaterale nelle righe cancellate.
+> ⚠️ **Residuo nuovo (accettato per la sessione 1, da fixare prima di una
+> eventuale sessione 2): l'inferenza conta i residui ma ne ignora la
+> SPAZIATURA** — una banda contigua di 32 righe darebbe `LANE_MOD_4`
+> (co-fire con BLOCK_RUNS, scontabile), e l'unione di due classi mod-64
+> sfalsate darebbe `LANE_MOD_32` senza tag contraddittorio. Fix noto:
+> check di equidistribuzione (~10 righe).
+> 📖 **Regole di lettura vincolanti per il referto:** `LANE_MOD_N` =
+> "reticolo single-coset a periodo N", niente di più; con `BLOCK_RUNS`
+> co-fired non fidarsi del modulo; assenza di `SIGN_SMEAR` sul veicolo
+> random NON esclude nulla; il canale decisionale è `REDUCTION_OR_SCALE`
+> (ratio_clusters) + i dump grezzi — i tag sono indizi, i numeri sono
+> evidenza.
+> 📱 Sessione lanciata con precondizione anti-contesa (S23 raggiungibile E
+> idle: ps su test-backend-ops/bmoe/llama, altrimenti stop), sha on-device
+> `acb41c32…`, run5/run6, 14 casi n=1 q4_0, HOST_REPACK=1 GEMV_AUDIT=1.
+> 🛑 **SESSIONE ABORTITA SU PAROLA DELL'OWNER (S23 rioccupato dall'altra
+> sessione)** — la parola dell'owner vince sul check `ps` dell'agente. Lo
+> strumento resta pronto (sha `acb41c32…`, comando documentato): il run5/6
+> parte alla prossima finestra S23.
+> 📦 **MA run5 e run6 erano GIÀ COMPLETI prima dell'abort, log già sul PC**
+> (`results/oracle_consumer_s23/run{5,6}/`). Sessione ERR: la contesa col
+> workload dell'altra sessione non tocca la correttezza. Letti e verificati
+> da me riga per riga.
+>
+> 🎯 **VERDETTO STEP-3 (19/08): IL KERNEL GEMV DI PRODUZIONE CALCOLA
+> GIUSTO, DATI I SUOI ARGOMENTI. IL DIFETTO VINCOLANTE È NELLA GLUE HOST
+> DEL PATH MoE (ids / colonna attivazioni / layout dst), NON NEI KERNEL.**
+>
+> Il fatto, per ognuno dei 12 casi n=1 q4_0, in ENTRAMBI i run:
+> - `GEMV_AUDIT`: **n_bad=0**, max_abs ≤2.3e-6, ratio_med=1,
+>   pattern=ok — il dst prodotto dal kernel coincide col riferimento
+>   host in double calcolato da (ids letti dalla GPU, src1 letto dalla
+>   GPU, pesi AoS stashati, offset/geometrie del dispatch reale).
+> - Lo STESSO dispatch fallisce il check semantico del test:
+>   **0/12, ERR 0.36-0.70** (media ~0.48, cluster storico).
+> - Gate tutti verdi: `hostrepack=1`, NOTE e BOUND presenti, zero skip,
+>   zero OOB negli ids.
+> ➡️ **Deduzione stringente:** kernel e audit concordano; entrambi
+> dissentono dal riferimento del test. Le uniche componenti CONDIVISE fra
+> kernel e audit sono i valori di glue (ids in GPU, ne11/offset/geometrie)
+> — il famoso `glue=logged_not_verified`, che da caveat diventa
+> l'INDIZIATO. Il difetto sta in ciò che la glue carica/interpreta:
+> contenuto o mapping degli `ids`, selezione della colonna di attivazione
+> (i casi b=1 girano con ne11=1, i b=0 con ne11=n_used — entrambi
+> falliscono), o layout/offset di `dst` — non nell'aritmetica compilata.
+> 💡 **E spiega OGNI paradosso storico in un colpo:** perché nove
+> riscritture del convert e ogni variante dei consumer non hanno mai
+> portato l'ERR sotto soglia (il kernel non era il vincolo); perché un
+> buffer byte-exact può andare PEGGIO di uno corrotto (con routing/layout
+> sbagliati l'ERR è ~casuale nel cluster 0.4-0.7, non monotono nella
+> correttezza del buffer — il paradosso bitselect); perché il denso è
+> perfetto (glue diversa); e — DA VERIFICARE SUL CODICE — perché q8_0 e
+> q6_K passano: ipotesi che prendano un path di dispatch MUL_MAT_ID
+> diverso da quello SoA/Adreno dei quant stretti.
+> ⚠️ Caveat onesto: resta possibile in linea di principio che gli ids in
+> GPU siano GIUSTI e l'errore sia solo nel layout di dst, o viceversa —
+> il prossimo strumento distingue esattamente questo.
+> ➡️ **PROSSIMO STRUMENTO (glue-audit, solo host, niente kernel):**
+> (a) stash degli `ids` a set_tensor (come i pesi AoS); (b) riferimento
+> SEMANTICO calcolato dai tensori stashati secondo la semantica ggml di
+> MUL_MAT_ID; (c) triplo confronto nello stesso run — dst vs ref-semantico
+> (deve fallire come l'e2e), dst vs ref-da-argomenti (già ok), ids
+> GPU vs ids stashati — e per il primo elemento divergente la MAPPA:
+> esperto semantico vs usato, colonna semantica vs usata, offset dst
+> semantico vs usato. Quella mappa È il bug, nome e cognome.
+>
+> 🛠️ **GLUE-AUDIT IMPLEMENTATO (19/08 ~13:41, commit `b0684a2b6`,
+> verificato su disco):** stash I32 ids + F32 src1, reference semantica
+> specchiata dallo stock `ggml_compute_forward_mul_mat_id` (ggml-cpu.c
+> 1924-1933 / 1685-1703, citato), triple compare, righe `GLUE_AUDIT` /
+> `GLUE_AUDIT_DIV` / `GLUE_AUDIT_IDS`. Nuovo `.so` `2ab3624c…6fcf62`.
+> Review ostile in corso; device alla prossima finestra S23.
+>
+> 🧩 **RISPOSTA SUL PATH (sola lettura, da confermare in review) — E
+> RIMODELLA L'IPOTESI:** q8_0 prende `kernel_mul_mv_id_q8_0_f32_flat`
+> (stride-based, NON il gemv MoE) → il suo 75/75 non scagiona la glue
+> MoE. **MA q6_K prende lo STESSO path packed-ids `gemv_moe` di q4_0**
+> (con `use_adreno_moe_kernels`) e passa 3/3. ➡️ Se confermato, la parte
+> CONDIVISA della glue (packing degli ids, layout dst) è probabilmente
+> sana; **l'indiziato si restringe ai valori di glue SPECIFICI del
+> quant** — stride/offset per-esperto nel buffer SoA q4_0, offset delle
+> image. ⚠️ Tensione da sciogliere in review: se l'offset pesi fosse
+> sbagliato, il reference args-consistent (verde 12/12) avrebbe dovuto
+> vederlo — dipende da COME l'audit pesca i pesi (per expert-id o per
+> byte-offset della glue); la review deve dire quali indiziati il verde
+> ha GIÀ scagionato.
+>
+> ⚖️ **19/08 ~14:00 — REVIEW `b0684a2b6` (GO condizionato) + ATTACCO
+> ESTERNO DI QWEN 3.8 MAX SULLA DEDUZIONE: la sintesi stringe il campo.**
+> - ✅ Reference semantica FEDELE allo stock (righe ggml-cpu.c confermate);
+>   ids/src1 stash sound; path claims CONFERMATI a file:line (q8_0 →
+>   `mul_mv_id_q8_0_f32_flat` stride-based :21813-21875; q6_K → STESSO
+>   `gemv_moe` packed-ids :22261).
+> - 🧾 **Lista degli scagionati dal verde args-consistent** (reviewer, con
+>   evidenza): byte SoA, **indirizzamento per-esperto dei pesi** (un bug
+>   di offset quant-specifico sarebbe andato ROSSO: l'audit pesca per
+>   expert-id dallo stash), idioma dequant, VALORI di ids/src1 come letti,
+>   posizioni di scrittura dst, atomi di offset. ➡️ **L'ipotesi "valore di
+>   glue quant-specifico" è CONTRADDETTA.** Il residuo è una mappatura
+>   common-mode (dominio del ramo semantico) o fuori dal dispatch.
+> - 🗡️ **Attacco Qwen (le ipotesi che sopravvivono a TUTTE le misure):**
+>   (1) ids mai confrontati con l'INTENTO → coperto da `GLUE_AUDIT_IDS`;
+>   (2) **CLOBBER/READBACK di dst fra lo snapshot dell'audit e la lettura
+>   del test via get_tensor** → NON coperto → **aggiunto ora** (hook
+>   `DST_READBACK{match}` + `OVERLAP_MAP`, in implementazione);
+>   (3) copertura solo GEMV n=1 (i GEMM del set da 74 restano inauditi —
+>   per dopo).
+> - 📐 **Correzioni di ragionamento accettate:** in ERR una permutazione ≈
+>   garbage (indistinguibili su dati random); **ERR 0.36-0.70 sta SOTTO il
+>   tetto del completamente-sbagliato (~1-2) ⇒ corruzione PARZIALE** (una
+>   frazione di righe giuste) — vincola il modello del bug: il misrouting
+>   uniforme predice il tetto, non 0.5.
+> - 📚 Prior art (Qwen, con fonti): la lib di kernel binari Adreno copre
+>   MUL_MAT_ID **esattamente per Q4_0/Q4_1/Q4_K/MXFP4** (OPENCL.md
+>   upstream) — esclusa nei NOSTRI run (`gemm_bin_loaded=0`, blob non
+>   pushato), ma in produzione è nel path: da tenere per il capitolo fix.
+>   Classi di bug storiche: ids i32 letti male/stride/view-offset; pattern
+>   CUDA sort-by-expert + scatter (scatter dimenticato = dst permutato).
+> - 🎯 **Matrice della prossima sessione S23 (tre risposte ortogonali da
+>   UN run):** ramo IDS (GPU vs intento) · ramo SEMANTICO (mappatura
+>   slot→colonna→dst) · ramo READBACK (clobber). Condizioni del GO:
+>   grep `skipped=` prima di credere al ramo semantico; un triplo verde =
+>   negativo forte per il backend ⇒ pivot su geometria harness/reference,
+>   NON ri-caccia al kernel.
+>
+> 🟢🟢🟢 **19/08 ~14:30 — SESSIONE LAMPO (finestra corta concessa
+> dall'owner): TRIPLO VERDE SU TUTTI E 12 I CASI, IN ENTRAMBI I RUN.
+> IL DISPATCH DEL BACKEND PRODUCE L'OUTPUT SEMANTICAMENTE GIUSTO —
+> E IL TEST LEGGE COMUNQUE SPAZZATURA.**
+> (`results/oracle_consumer_s23/run{7,8}/`, binario revisionato
+> `2ab3624c…` sha-verificato on-device, `skipped=0`, verificato da me
+> anche su run8: 12/12 righe con semantic=0, args=0, divergent=0, ids=0,
+> src1=0 — e 12/12 e2e FAIL, ERR 0.41-0.66.)
+> ➡️ **Scagionato l'INTERO percorso di calcolo:** kernel compilati
+> (oracolo), valori e mappatura della glue (ids=intento, colonne, offset
+> dst, semantica stock ggml). Il danno avviene DOPO: o (A) **un secondo
+> scrittore sovrascrive dst** dopo il nostro snapshot (doppio dispatch /
+> fall-through a un altro kernel — e se esiste, spiegherebbe TUTTA la
+> campagna in un colpo: l'ultimo autore sarebbe un kernel le cui varianti
+> narrow sono rotte e la q6_K sana; le 9 riscritture del convert non
+> potevano aiutare perché il gemv auditato non era mai l'autore finale),
+> o (B) **il path di readback `get_tensor` restituisce byte diversi** da
+> quelli che il buffer contiene.
+> 🔎 In corso, PC-only: lettura del sorgente del dispatch (ogni enqueue
+> che tocca il dst cl_mem, in ordine, file:riga — il sospetto (A) è
+> verificabile SENZA device); se il sorgente è pulito, hook
+> `DST_READBACK{raw_match, returned_match}` + logger degli enqueue
+> post-snapshot (WIP in stash@{0}, da estendere). Il device servirà solo
+> per il caso (B) o per confermare (A).
+>
+> ☠️ **(A) È MORTA SUL SORGENTE (19/08 ~14:25, walk completo con
+> file:riga):** in `ggml_cl_mul_mat_id` (:20932) l'UNICO writer di dst è
+> il singolo `clEnqueueNDRangeKernel` del gemv (:21085); il path generico
+> (`mul_mv_id_q4_0_f32_8x_flat`, enqueue :22711) è IRRAGGIUNGIBILE per il
+> `return` a :21224; il ramo GEMM è l'`else` di `ne12==1`; il graph
+> compute è single-pass e la fusion non tocca MUL_MAT_ID; il harness è
+> nodo-per-nodo (`graph_view(i,i+1)`) coi sentinel computati DOPO la
+> lettura di `out`. Niente doppio dispatch, niente legacy writer — il
+> "fit bello" non è quello che fa il codice. (Nota a margine: a gate
+> Adreno OFF il `case` q6_K non ha `break` e cade in MXFP4 :22429 — bug
+> REALE ma di un altro path, registrato.)
+> 🧨 **19/08 ~15:00 — INTEL CROSS-TREE DALL'ALTRO CLAUDE (llama.rn 0.12.8,
+> app kalsa) + VERIFICA SUL NOSTRO ALBERO: UPSTREAM CONOSCE LA NOSTRA
+> CLASSE DI DIFETTO E L'HA SPENTA COL GATE INVECE DI FIXARLA.**
+> - Nel loro albero vendorizzato, `use_adreno_moe_kernels` **esclude
+>   A6X/A7X** (730/740/750 sono tutti A7X: passa solo A8X) e il commento
+>   upstream dichiara il perché: *miscompile del compilatore* — i kernel
+>   `*_trans4_ns` fanno aliasing di una `ushort8` privata via `uchar*` e
+>   su alcuni A6x/A7x *corrompono i pesi*. "For now."
+> - **Nel NOSTRO albero il gate è SOLO nome+shape** (:6960-6964,
+>   `backend_ctx` GGML_UNUSED, niente esclusione di generazione): per
+>   questo sul 740 i kernel MoE Adreno GIRANO — ed è per questo che
+>   misuriamo la corruzione che upstream ha solo spento. Il convert che
+>   chiamiamo è letteralmente `convert_block_q4_0_trans4_ns` (:8366):
+>   **il commento upstream è l'ammissione della nostra classe di difetto
+>   (A)**, quella che abbiamo fixato byte-wise per il −55%.
+> - Conseguenze coordinate con l'app: (1) **NON rimuovere l'esclusione
+>   A7X nel loro albero oggi** — sbloccherebbe sul 740/750 esattamente i
+>   kernel che misuriamo corrotti: si scambierebbe "CPU corretta" con
+>   "GPU spazzatura"; (2) lo sblocco della famiglia K su A7X (Q4_K_M
+>   compreso) è il PREMIO della nostra campagna: passa per la chiusura
+>   del difetto residuo, non per la rimozione del gate; (3) **mxfp4 MoE
+>   "gira oggi su S23"** è vero solo nel LORO albero (ramo generale
+>   flat) e resta da verificare in correttezza — nel NOSTRO albero mxfp4
+>   prende il path Adreno e fallisce 0/74; l'unico quant MoE
+>   general-branch MISURATO verde sul 740 è **q8_0 (75/75)**;
+>   (4) "supportato ≠ veloce" ha già un numero: decode MoE su GPU
+>   0.41-0.44× CPU (~60 ms/token di glue, graveyard) — la leva GPU è il
+>   PREFILL; e per i modelli streammati (>RAM) gli esperti restano su
+>   CPU per architettura (Q7), quindi il MUL_MAT_ID GPU serve ai modelli
+>   con esperti residenti e ai disegni di prefill.
+>
+> 🏛️ **19/08 ~15:20 — SESSIONE READBACK (run9/run10): BRANCH C, 12/12.
+> IL BACKEND GPU È TOTALMENTE ASSOLTO. L'INDIZIATO PRINCIPALE ORA È IL
+> RIFERIMENTO CPU DEL TEST — CIOÈ IL GIUDICE, NON L'IMPUTATO.**
+> (`results/oracle_consumer_s23/run{9,10}/`, sha on-device `25044c5a…`
+> = commit `bcdbc9ed6`; 12/12 `raw_match=1, returned_match=1` con
+> checksum snap==raw==returned identici, `get_off==snap_off`, zero
+> `POST_ENQUEUE`, zero overlap; run9 e run10 concordi; e2e sempre 0/12.)
+> ➡️ Catena di assoluzioni completa: aritmetica compilata (oracolo) →
+> valori e semantica della glue (glue-audit, riferimento = stock ggml) →
+> integrità memoria + readback (`DST_READBACK`). **Il harness riceve
+> byte semanticamente corretti e dichiara ERR 0.4-0.7 ⇒ out2 (il
+> riferimento CPU) è il principale sospettato.**
+> 🧩 **E i pezzi combacerebbero tutti:** questo albero porta gli
+> esperimenti CPU S3/REPACK/i8mm (`8d3c2ea75` è su QUESTO branch, sotto
+> i commit oracle); `ggml-cpu.c` NON è upstream puro (verificato); i
+> path CPU sono quant-specifici ⇒ compatibile col pattern q4_0/q4_1/
+> q4_K/mxfp4 rotti e q8_0/q6_K sani; e il paradosso bitselect si
+> rileggerebbe — se il riferimento è corrotto in modo affine al vecchio
+> convert, un buffer corrotto uguale produce output più VICINO al
+> giudice sbagliato: "due difetti che si compensano", col secondo nel
+> GIUDICE. ⚠️ IPOTESI, non verdetto: da provare col forensic diff del
+> lato CPU (in corso, gratis su PC — attenzione: il harness device gira
+> su ARM, un check x86 non scagiona i path NEON/i8mm/repack) e con la
+> sessione f1/f2 (dump di entrambi i buffer del confronto, attesa:
+> f1(OpenCL)==semantico, f2(CPU)≠semantico).
+> 📌 Nota di metodo per il verbale: se l'ipotesi regge, OGNI numero ERR
+> di questa campagna era una distanza da un bersaglio sbagliato — il
+> −55% incluso — e la narrativa dei "due difetti" va riscritta con
+> l'imputato e il giudice scambiati. Non si riscrive niente finché il
+> forensic non parla.
+>
+> 🗡️ **SECONDO ROUND QWEN (19/08 ~15:40) — la prova logica regge "modulo
+> fedeltà dello specchio", e la banda d'errore ora è PREDETTA, non solo
+> tollerata.**
+> - **Logica confermata:** dst==specchio(sorgente) ∧ dst≠out2 ⇒ il
+>   runtime CPU diverge dalla semantica del SUO stesso sorgente (path
+>   ottimizzati vec_dot/repack o codegen) — *purché lo specchio sia
+>   trascrizione fedele*. Residui vivi: fedeltà specchio (kill:
+>   judge-swap), loop naïf esso stesso campaign-modified (il forensic
+>   deve classificare ANCHE quello), mutazione input T0→T1 (kill:
+>   checksum), bug di codegen i8mm/NEON (invisibile al diff — serve A/B
+>   del path).
+> - ☠️ **A3 (convenzione righe di coda): morta sui dati esistenti** —
+>   i casi n_used=1 non hanno code e falliscono a 0.36-0.66.
+> - 💪 **Vincolo del denso, rafforzato:** q4_0 denso 46/46 INCLUSE le
+>   forme GEMV n=1, stesso vec_dot via mul_mat ⇒ se il giudice è rotto,
+>   è rotto nel codice SPECIFICO di mul_mat_id (gather per-esperto /
+>   applicazione repack / chunking — esattamente le regioni
+>   campaign-modified 1685-1703/1924-1933).
+> - 📐 **Banda 0.36-0.70 PREDETTA dall'ipotesi giudice-repack:**
+>   permutazione di partner dentro blocchi che condividono una scala
+>   (magnitudini plausibili, NMSE intermedio) oppure miscela
+>   condizionata dall'allineamento (~15-50% righe colpite). Il
+>   misrouting grossolano predice il tetto ~1-2: le ipotesi kernel morte
+>   restano morte anche per la banda.
+> - 🎯 **Discriminatori (ranking Qwen, adottato):** (1) mappa per-riga
+>   f2-vs-specchio [dentro la sessione f1/f2]; (2) **JUDGE-SWAP — build
+>   con `ggml/src/ggml-cpu` riportato al merge-base upstream, stesso
+>   OpenCL nostro: se 12/12 PASS, caso chiuso e specchio validato
+>   insieme** [build in preparazione]; (3) checksum invarianza input;
+>   (4) round-trip repack host-only; (5) niente switch runtime standard
+>   per spegnere repack/i8mm — l'A/B è una rebuild con le flag off.
+> - 🧪 Predizione testabile registrata: i residui (GPU-esatto − out2) e
+>   (GPU-corrotto − out2) dovrebbero essere CORRELATI se i due difetti
+>   si compensano via lo stesso layout.
+>
+> ⚡ **19/08 ~16:00 — JUDGE-SWAP ESEGUITO: 0/12 FAIL ANCHE COL GIUDICE
+> PRISTINE. L'IPOTESI "GIUDICE CPU CORROTTO DALLA CAMPAGNA" È
+> CONFUTATA.** (runJS1, ERR 0.31-0.61 — STESSA banda del giudice di
+> campagna: i due giudici CONCORDANO fra loro; runJS_ctrl sotto giudice
+> pristine: q8_0 74 OK, q6_K OK, denso q4_0 45 OK / 0 FAIL.)
+> 🔥 **Il confronto che brucia ogni teoria di mapping:** q6_K
+> `(n_mats=4, n_used=2, b=0, m=512, n=1, k=256)` **OK** contro q4_0
+> **stessa identica forma** **FAIL** — glue condivisa, giudici
+> condivisi, shape identica: **il discriminante è il QUANT e solo il
+> quant.**
+> ✅ Verificato da me ora: `ggml-quants.c/.h` INTOCCATI dal merge-base
+> upstream (`22b69b6e9`) — `dequantize_row_q4_0` dello specchio è stock.
+> 🧷 E il denso q4_0 46/46 prova che i giudici ≈ dequant stock SUGLI
+> STESSI byte q4_0 (via mul_mat). Quindi lo stato logico è: specchio
+> (dequant stock, byte stashati) == GPU ≠ giudici (valutazione q4_0
+> corretta di byte "visti da loro") ⇒ **le ipotesi rimaste in piedi si
+> contano su due dita:** (1) **i BYTE visti dai giudici ≠ i byte
+> stashati** — divergenza degli input fra le due valutazioni backend
+> (variante dell'A4 di Qwen: mutazione/rigenerazione fra eval GPU ed
+> eval CPU, o gestione delle VIEW), quant-specifica per come il test
+> costruisce i tensori; (2) il loop naïf di QUESTO albero è
+> campaign-modified e lo specchio è fedele-al-sorgente-sbagliato
+> (forensic in corso — ma deve spiegare perché q6_K passa con la stessa
+> semantica). 📌 La banda 0.31-0.70 è compatibile con "esperti in
+> parziale overlap": con ids diversi fra le due eval, la frazione di
+> righe coincidenti produce esattamente NMSE sub-tetto.
+> ➡️ **La Sessione B decide: f1/f2 per-riga contro lo specchio +
+> checksum INPUT_INVARIANT (T0 vs T1).** Se gli input visti dal giudice
+> differissero da quelli stashati, il "difetto" starebbe nel PROTOCOLLO
+> del test, non in nessun kernel di nessuno.
+>
+> 🚪 **19/08 ~16:20 — LA PORTA, TROVATA A LIVELLO DI SORGENTE (verificata
+> da me su ggml-backend.cpp:2156-2209 e graph_copy_init_tensor:2041-2055):
+> IL GIUDICE RICEVE I PESI ATTRAVERSO IL `get_tensor` DELLA GPU.**
+> `compare_graph_backend` costruisce il grafo del backend2 con
+> `graph_copy` → `ggml_backend_tensor_copy(src, dst)` dove src sta sul
+> backend1 (OpenCL): **i pesi q4_0 MoE del giudice sono il ROUND-TRIP
+> write(SoA)→read(reverse) dello storage GPU.** Ipotesi ora in verifica
+> byte-level: il reverse (get_tensor) del path MoE SoA q4_0 è ROTTO
+> (quello q6_K sano). Spiegherebbe TUTTO:
+> - judge-swap confutato: qualunque giudice mangia la stessa copia
+>   avvelenata;
+> - discriminante puro-quant a parità di forma (reverse per-quant);
+> - denso immune (storage/reverse diverso, 46/46);
+> - **paradosso bitselect sciolto**: convert-write e get_tensor-read sono
+>   inversi dello STESSO storage — bug accoppiati (scrivi storto + leggi
+>   storto uguale) si annullano in round-trip → giudice sano → ERR 0.18;
+>   fixata la sola scrittura → la lettura rotta avvelena il giudice →
+>   0.45. **"Due difetti che si compensano" = write e read dello stesso
+>   storage.** Il −55% andrà riletto in questa chiave.
+> - **la produzione non è mai passata di lì**: l'inferenza reale non
+>   chiama `get_tensor` sui pesi — il path è esercitato SOLO dal
+>   protocollo del test.
+> 🔬 In corso: (1) round-trip byte test su device (set_tensor X →
+> get_tensor → memcmp, q4_0 MoE vs q6_K vs denso, con e senza
+> HOST_REPACK — sotto ipotesi, il write corretto DEVE mismatchare al
+> read); (2) audit PC del reverse (transpose_2d/un-repack) contro il
+> contratto, file:riga. Fix solo dopo conferma + review ostile.
+>
+> ⚔️ **QWEN ROUND 3 (19/08 ~16:40) — LA VARIANTE IDS È MORTA PER
+> ARITMETICA, E C'È UN MECCANISMO CONCORRENTE CON PRIOR ART UPSTREAM.**
+> - ☠️ **H1-via-ids esclusa quantitativamente:** con n_used=1 gli id
+>   valgono tutti 0 per costruzione (non POSSONO differire); e per
+>   n_used>1 id indipendenti danno NMSE ≥ 1.0 (righe sbagliate
+>   scorrelate) — la banda osservata 0.31-0.61 sta SOTTO il pavimento
+>   del fully-wrong. ☠️ H2 (specchio infedele) morta via q6_K
+>   (mapping quant-agnostico).
+> - ✅ Sopravvive solo: **divergenza nei BYTE DEI PESI visti dall'eval
+>   CPU**, con NMSE ≈ f·(1..2) ⇒ f ≈ 16-61% di elementi corrotti in modo
+>   STRUTTURATO (pattern block-periodico atteso; ERR shape-deterministico
+>   atteso).
+> - 🥊 **Meccanismo di Qwen (concorrente col nostro get_tensor):** il
+>   REPACK ONLINE ARM del giudice CPU (dotprod/i8mm extra bufts) corrotto
+>   o mis-sized per MUL_MAT_ID: copre Q4_0/IQ4_NL/Q4_K(+mxfp4?) = set
+>   fallente, NON copre Q6_K/Q8_0 = controlli sani; il denso passa
+>   (sizing corretto per mul_mat, storicamente rotto per mul_mat_id:
+>   PR #12544, commit #14292, classe #10165). E la stoccata: *"il
+>   judge-swap non ha confutato la colpa dell'input — ha scagionato il
+>   codice di campagna e incriminato ggml pristine"* (il revert al
+>   merge-base riporta lo STESSO stato repack upstream). ⚠️ Caveat suo:
+>   `tensor_get` su buffer repackato può ri-trasformare in lettura —
+>   un confronto via readback può MASCHERARE la divergenza.
+> - 🧪 **Discriminatori ordinati (in esecuzione):** (1) git: i fix
+>   #12544/#14292 sono nel merge-base 2026? (attesi sì ⇒ serve una
+>   regressione più recente della stessa classe); (2) audit copertura
+>   tipi del repack ARM vs set fallente — q4_1/q5_0/q5_1/q5_K con ERR
+>   piccoli (0.09-0.12) potrebbero essere un SECONDO strato di difetto;
+>   (3) **norepack judge-swap** (giudice ricompilato senza extra-bufts
+>   ARM): 12/12 PASS ⇒ meccanismo Qwen confermato; ancora FAIL ⇒ resta
+>   il nostro get_tensor, che il round-trip byte test decide.
+> 📌 Nota di coerenza con la campagna: il motore BMoE carica con
+> `use_extra_bufts=false` e "K-E (i8mm) never runs — mmla vive solo nel
+> path REPACK che gli esperti streammati bypassano" ⇒ **la produzione
+> bypassa il repack che il test invece esercita** — coerente con "solo
+> il tribunale era truccato", qualunque dei due meccanismi vinca.
+>
+> 💥 **19/08 ~17:00 — ROUND-TRIP BYTE TEST: DIRTY. IL SECONDO DIFETTO HA
+> NOME, FILE E RIGA: `kernel_restore_block_q4_0_trans4_ns` (cvt.cl:352-392),
+> IL REVERSE DEL get_tensor, MISCOMPILATO CON LO STESSO IDIOMA CHE IL
+> CONVERT FU PATCHATO PER EVITARE.**
+> (Log: `results/oracle_consumer_s23/roundtrip/`; harness dedicato,
+> OpenCL invariato `25044c5a…`.)
+> | caso | A (convert GPU) | B (HOST_REPACK=1) |
+> |---|---|---|
+> | q4_0 MoE "as" 256×512×4 | **94208/294912** | **61440/294912** |
+> | q6_K MoE "as" | 0/430080 | 0/430080 |
+> | q4_0 denso "weight" | 0/73728 | 0/73728 |
+> Firma al 100% dei mismatch: **byte `qs` DISPARI, `got=(want&0x0F)|0xF0`**
+> (nibble alta forzata a 0xF, bassa intatta; `d` e byte pari sempre
+> match). Il restore legge `uint4`→`as_ushort8`→`uchar*` su registro
+> privato — **esattamente l'idioma che il commento del convert
+> (cvt.cl:330-333) dichiara miscompilato su Adreno**; il restore q6_K usa
+> un idioma diverso (`uchar*` su ARRAY) e round-trippa pulito; il denso
+> non entra nel path trans4_ns. **La predizione dell'ipotesi era "(b)
+> DEVE mismatchare": confermata. Il write corretto (host-repack) torna
+> indietro corrotto.** Nota numerica: B = 7680/16384 = 46.9% dei blocchi
+> per offset — la stessa cifra del "46% dei word alti" storico.
+> ➡️ **Il "difetto residuo dei consumer" era il RESTORE del get_tensor:
+> un path che solo il protocollo del test esercita.** La catena del
+> veleno è verificata a livello di sorgente: compare_graph_backend →
+> graph_copy → tensor_copy(src=OpenCL) → get_tensor → restore rotto →
+> giudice avvelenato (qualunque giudice: per questo il judge-swap
+> "falliva").
+> 🧷 Qwen round 3, esiti delle sue piste: i fix #12544/#14292 SONO
+> antenati del merge-base (versione semplice della sua ipotesi: morta);
+> la sua mappa di copertura repack era sbagliata su q6_K/q8_0 (SONO
+> coperti eppure passano) e q4_1/q5_0/q5_1 NON sono coperti eppure
+> falliscono ⇒ il meccanismo repack-CPU non spiega il pattern; quello
+> get_tensor sì. ⚠️ q4_1/q5_0/q5_1/q4_K/q5_K: da verificare i loro
+> restore kernel (stesso idioma?) — ERR piccoli su q5_0/q5_1 (0.09-0.11)
+> possibile strato separato.
+> 🔎 **AUDIT FORENSE INDIPENDENTE LANCIATO su richiesta di gualt** (agente
+> fresco, zero fiducia nei report, claim-vs-artefatti su TUTTA la catena:
+> roundtrip, JS build purity, circolarità degli strumenti, sha, filtri,
+> env; report in `scratchpad/agents/evidence-audit/`). **Nessun fix parte
+> prima del suo verdetto + review ostile del fix stesso.**
+>
+> ✅✅ **19/08 ~17:30 — VERDETTO FORENSE: TUTTA LA CATENA CONFERMATA
+> SUGLI ARTEFATTI.** (report: `scratchpad/agents/evidence-audit/REPORT.md`)
+> C1 roundtrip CONFIRMED (X = pattern deterministico host `(i*131+17)&0xFF`,
+> confronto contro l'originale, TUTTA l'aritmetica riderivata: 16384×18,
+> 8×11776, 8×7680, 46.9%, firma MISURATA dal classificatore non asserita);
+> C2 sorgente colpevole CONFIRMED (idioma letterale a cvt.cl:352-392,
+> commento a :330-333, dispatch nel get_tensor a ggml-opencl.cpp:9914,
+> rotta test→giudice verificata end-to-end); C3 judge-swap CONFIRMED
+> (worktree con ggml-cpu.c byte-identico al merge-base: 0 righe di diff
+> contro le 937 del branch); C4-C6 CONFIRMED (stash da set_tensor host,
+> dequant stock, 3 checksum da 3 letture distinte, interleaving nei
+> medesimi log). **Zero numeri allucinati.**
+> 🔧 Correzioni minori a verbale: la prosa "zero POST_ENQUEUE" nel blocco
+> Branch C è SBAGLIATA — il contatore arriva a 11 (sono gli OVERLAP a
+> essere zero; il campo per-case n_post_enq=0 vale per il case 1);
+> `SHA256.txt` del roundtrip ha una riga exe incoerente (538ae4ed vs
+> 306af176 su disco) — la lib OpenCL è coerente ovunque; run5-8 senza
+> file sha su disco (fanno fede le righe on-device nei log).
+> ⚠️ **I due buchi residui dichiarati dall'audit, che il retrial DEVE
+> chiudere:** (1) l'anello finale — "il giudice riceve ESATTAMENTE i
+> byte avvelenati e da lì esce ERR 0.31-0.73" — è inferito, mai
+> osservato DENTRO un confronto fallente: serve la sessione f1/f2 che
+> dumpa entrambi i buffer + i pesi consumati dal giudice e RIDERIVA
+> l'ERR; (2) "la produzione non è toccata" è da lettura del codice, mai
+> dimostrato sul motore BMoE reale. (3) Nota fresca: A≠B nei conteggi
+> roundtrip (94208 vs 61440 a X costante) ⇒ lo storage del convert GPU
+> byte-wise ≠ storage host-repack — coerente col fatto NOTO che il
+> byte-wise viola il contratto (DUMP_Q storico), ma da spiegare
+> esplicitamente nel piano fix.
+> ➡️ **VIA LIBERA AL FIX** (piano in redazione dal takeover codex, poi
+> review ostile, poi S23: roundtrip=0 → 12/12 → bitselect → set completo
+> + f1/f2 probatorio).
+>
+> 🗡️ **QWEN ROUND 4 (19/08 sera) — EMENDAMENTI AL PIANO FIX, da
+> incorporare nell'ordine di implementazione:**
+> - **`uint4 q_block[1]` BOCCIATO**: "la peggior forma di array
+>   possibile" — materiale canonico da SROA, il compilatore la promuove a
+>   registro e l'IR torna la forma che miscompila. Scommesse ranked:
+>   (1) **shift/mask puro senza aliasing** (`(v.sN>>8*k)&0xFF` +
+>   riassemblaggio aritmetico — l'idioma dei dequant già puliti);
+>   (2) clone del **`uint4[8]`** provato-sano; `[1]` solo come CANDIDATO
+>   nel bake-off, mai come assunzione. Niente `as_ushort8` in nessun
+>   ruolo residuo.
+> - **Buchi da chiudere PRIMA del device:** (1) il PREDICATO di gating
+>   (cosa instrada un tensore nel path avvelenato) va DIMOSTRATO con
+>   una riga di logging, non inferito; (2) mismatch ≠ poisoning (il
+>   danno è invisibile dove la nibble alta era già 0xF): la derivazione
+>   dell'ERR usa il modello di poisoning, non il conteggio; (3)
+>   **NMSE atteso in forma chiusa** dalla firma (metà pesi forzati a
+>   7·d, strutturato) deve cadere in 0.36-0.70 — se non ci cade, c'è un
+>   secondo contributore; (4) **stato intermedio predetto**: restore
+>   fixato + producer byte-wise attuale TOGLIE la compensazione ⇒ l'e2e
+>   può PEGGIORARE prima del bitselect — va predetto numericamente in
+>   anticipo perché si legga come conferma, non regressione; (5) firma
+>   per-tipo da verificare su q5_x (interplay qh), non estrapolare.
+> - **f1/f2 probatorio: PRE-REGISTRATO** (calibrazione a due punti:
+>   byte avvelenati→ERR predetto, byte puliti→PASS; giudice pristine
+>   per evitare circolarità di harness).
+> - **Prova di produzione**: enqueue shim (log dei kernel-name in una
+>   sessione del motore reale: i 5 restore NON devono mai apparire con
+>   `use_extra_bufts=false`) + log del buft che riceve i pesi MoE +
+>   A/B dei logits patched/unpatched su prompt fisso (delta ⇒ falsifica
+>   "produzione immune").
+> - **Matrice riordinata**: zero-device prima (forma chiusa + predicato);
+>   sweep firme per-tipo su build NON patchata; bake-off delle forme di
+>   patch sul device; stato intermedio confermatorio; controlli negativi
+>   di buft; q4_K/q6_K roundtrip=0 come regressione; **il −55% si
+>   rimisura nella STESSA sessione del confronto fix o si cancella il
+>   claim** ("finché non rimisurato" senza scadenza diventa permanente);
+>   **il round-trip byte test diventa regressione permanente** per ogni
+>   restore di ogni quant — questa classe di bug è sopravvissuta perché
+>   nessun test esisteva a livello di byte.
+>
+> ✅ **REVIEW DEL PIANO FIX: GO CON 3 EMENDAMENTI (19/08 sera).** Mappa
+> del blast radius CONFERMATA citazione per citazione ("load-bearing and
+> it holds"); loop del fix = inverso esatto (hand-trace k=3 e k=19);
+> bitselect CONFERMATO (formule = byte esatti del producer, builtin
+> definito su questo vintage CL3.0/Adreno). Emendamenti: (i) **NO
+> `uint4[1]`** — stessa bocciatura di Qwen, convergenza indipendente:
+> forma no-alias byte-wise o ≥[2]; (ii) aggiungere alla matrice il
+> probatorio out1/out2 e lo smoke BMoE (o deferral esplicito);
+> (iii) "94208 atteso" declassato a "≈94208, da rimisurare" (era
+> misurato col restore ROTTO). Nota: l'auditor non trova la memoria
+> `adreno-moe-two-defects` nei SUOI store pi — corretta: vive nello
+> store Claude dell'orchestratore, già riscritta oggi.
+> 🛠️ **ORDINE DI IMPLEMENTAZIONE EMESSO** (replacement coder
+> qwen3.7-max, agente `13f74d68`): fusione piano + emendamenti dei due
+> reviewer — forma PRIMARIA shift/mask puro senza aliasing sui 5
+> restore; bitselect producer come variante env-selezionabile
+> (`GGML_OPENCL_CVT_VARIANT=bitselect`, default invariato); harness
+> roundtrip esteso a tutti e 5 i tipi + controlli con firma per-tipo;
+> logging del predicato di gating; sezione RETRIAL PRE-REGISTRATION
+> (NMSE in forma chiusa dal modello di poisoning, stato intermedio
+> predetto, f1/f2 pre-registrato a due punti su giudice pristine,
+> deferral esplicito dello smoke BMoE). Poi: verifica su disco → review
+> ostile del diff → S23.
+>
+> ✅ **19/08 ~00:00 (notte) — IL FIX È IMPLEMENTATO E COMMITTATO (PC-only,
+> build verde).** Odissea provider prima del via: qwen3.7-max fermo in
+> lettura (zero scritture), quota FREE di `qwen-model-studio-sg` esaurita
+> (morti in blocco kimi/Talk/qwen3.7/V4 Pro), 402 grok; implementato da
+> **Codex gpt-5.6-sol** (fuori lista profili — errore di processo a
+> verbale, vedi memoria `profile-list-is-law`: mai più senza chiedere).
+> Due commit locali su `kalsa/kernel-s3-repack`, MAI push:
+> `5cc6f2bd5` (harness roundtrip ereditato dalla sessione device, commit
+> separato per attribuzione) → `eaec5d884` (fix: 3 file, +260/−147).
+> Contenuto verificato SU DISCO dall'orchestratore: (1) i 5 restore
+> `*_trans4_ns` (cvt.cl:372/565/772/1000/1602) riscritti shift/mask puro
+> — grep di `as_ushort8`/cast/array nei corpi: ZERO match; i 6 cast
+> `(uchar*)` residui stanno TUTTI nei K-quant (idioma sicuro su array,
+> controlli non toccati, come da ordine); (2) producer bitselect a
+> build-time del programma CL (`-DGGML_OPENCL_CVT_BITSELECT`), env
+> `GGML_OPENCL_CVT_VARIANT` VALUE-parsed, default bytewise invariato
+> (ggml-opencl.cpp:1646); (3) log `OPENCL_WEIGHT_PATH{...}` sul path
+> davvero preso (ggml-opencl.cpp:6982); (4) harness esteso 5 tipi +
+> K-quant + 2 densi, firma per-tipo con qh separato per i q5
+> (test-opencl-moe-roundtrip.cpp:49); (5) RETRIAL PRE-REGISTRATION nel
+> REPORT oracle-consumer (~riga 1219). **Primo dividendo della forma
+> chiusa: NMSE atteso 0.4505813953, DENTRO la banda osservata 0.36-0.70
+> (emendamento Qwen #3 soddisfatto), e 65536 eventi di poisoning − 4096
+> invisibili (nibble alta già 0xF) = 61440 = esattamente il conteggio
+> misurato sul device (61440/294912).** Build: target `ggml-opencl` +
+> `test-backend-ops` + `test-opencl-moe-roundtrip` verdi; syntax-check
+> NDK clang CL3.0 verde in ENTRAMBE le varianti (il gate anti-`local`);
+> LF-only confermato byte-level. `.so`:
+> `9198f38779db531c92818a9d7b23ba0d471df1d95aba1498b61c9cbf1d07f43c`
+> (da riverificare on-device via sha, mai via strings). Fuori scope
+> dichiarato: `test-chat.cpp` non compila per `mtmd.h` mancante nella
+> config cache-ata (pre-esistente, non nostro). stash@{0} intatto
+> (INPUT_INVARIANT hook + test semantico PC, ispezionato read-only).
+> 🔎 **Review ostile del diff IN CORSO** (profilo Reviewer Math,
+> deepseek-v4-flash: attacco su inversi aritmetici dei 5 contratti,
+> bitselect bit-exact, idiomi vietati post-inline, classificatore
+> harness, parsing env, ri-derivazione indipendente della NMSE).
+> GO/NO-GO della review = gate per chiedere l'S23.
+>
+> ✅ **REVIEW OSTILE DEL DIFF: GO (19/08 notte, Reviewer Math, report 19KB
+> in `scratchpad/agents/restore-fix-review/REPORT.md`).** Tutti e 7 gli
+> attacchi CONFERMATI a favore: (1) inversi dei 5 restore corretti
+> byte-per-byte (prova per sostituzione + simulazione 500k blocchi a
+> letteralità di contratto: 0 fail; qh 200k round-trip: 0 fail; mxfp4 usa
+> `e:uchar` correttamente); (2) bitselect bit-exact (256×256 esaustivo,
+> 0 mismatch; env value-parsed con stringhe esatte, unknown→warn+default;
+> un programma per processo, no riuso stantio); (3) zero idiomi vietati
+> nei 5 restore e negli helper; (4) harness: layout = ggml-common.h,
+> regioni qs/qh disgiunte (una corruzione qs non è mai contata come qh),
+> firma `odd_qs_hi_to_f` esatta, no false-PASS; (5) host pulito, env
+> one-shot, fuori dai hot loop; (6) NMSE ri-derivata indipendentemente
+> (E[q²]=21.5, E[δ²|poison]=77.5 → 1240/2752 = 0.4505813953 ✓, conteggi ✓);
+> (7) superficie di regressione minima (3 file esatti). **Trovati e a
+> verbale (non bloccanti):** GAP — solo q4_0 logga tutti e 3 i path, gli
+> altri 7 tipi loggano solo il ramo trans4-moe; NOTA ONESTA — i restore
+> K-quant/q6_K INTOCCATI portano la stessa classe di aliasing: se l'S23
+> miscompila anche quelli, le 3 righe di controllo escono sporche (rc≠0,
+> riportato correttamente) e vanno documentate come evidenza di
+> superficie intoccata, NON piegate nel claim di questo commit; la banda
+> 0.36-0.70 ha potere discriminante debole (pre-registrato). **Prescrizioni
+> device della review:** bytewise e bitselect in DUE processi separati con
+> CVT_VARIANT registrato; log dei path attivo e verifica delle etichette
+> (8 trans4-moe + noshuffle + generic); i 5 tipi fixati devono uscire
+> `class=clean`; niente claim "produzione immune" senza lo smoke
+> pre-registrato (enqueue shim + A/B logits). ➡️ **PROSSIMO PASSO: sessione
+> S23** (in carica OK, è una sessione ERR) — matrice della RETRIAL
+> PRE-REGISTRATION, sha del binario on-device prima di ogni run.
+>
+> 🏆 **19/08 NOTTE — RETRIAL S23 ESEGUITO: IL FIX È VERIFICATO SUL DEVICE.
+> I 5 TIPI MoE COLPITI PASSANO DA FAIL A PASS.** (GLM 5.2, commit
+> artefatti `890a775`: `scratchpad/agents/retrial-s23/REPORT.md` +
+> MANIFEST + 22 log + entrambi i .so per provenienza; verificato su disco
+> dall'orchestratore.) Verdetti per cella: **(0)** sha PC==device,
+> Adreno 740, dir storiche intatte → PASS. **(1) Baseline non patchata:**
+> firme per-tipo riprodotte (94.208 sporchi sui 5 colpiti, qh dei q5
+> PULITO misurato indipendentemente — la firma NON era estrapolata),
+> e2e q4_0 FAIL riprodotto → PASS. **(2a)** patched+HOST_REPACK: q4_0
+> roundtrip **0 mismatch** (il restore fixato è byte-esatto sotto storage
+> contract-conforme); ANOMALIA a verbale: HOST_REPACK repackava SOLO
+> q4_0 (gli altri 4 giravano col producer bytewise). **(2b) Stato
+> intermedio:** 65.536 sporchi da violazione di contratto del producer
+> bytewise (il "≈94.208 da rimisurare" si rimisura in 65.536 = 131.072
+> candidati odd-qs × 1/2; il falsificatore pre-registrato era uno ZERO,
+> non scattato) → PASS. **(3) Predicato di gating DIMOSTRATO:** 8×
+> trans4-moe, denso 256→generic-soa, denso 512→noshuffle. **(4) E2E:**
+> q4_0 74/74, q4_1 75/75, q5_0 3/3, q5_1 3/3, mxfp4 74/74 — TUTTI
+> FAIL→PASS; regressioni invariate: q8_0 75/75, q6_K 3/3, denso 915/925
+> (i 10 FAIL sono i soliti q6_K flat); q4_K/q5_K MUL_MAT_ID FAIL
+> pre-esistente (compute K2, confermato anche su unpatched, NON di questo
+> commit). **(5a) PREDIZIONE FALSIFICATA (unica):** bitselect roundtrip
+> ≠ 0 — 65.536 sporchi IDENTICI al bytewise: il device miscompila
+> entrambe le forme allo stesso modo, o il difetto del convert è
+> strutturale, non nella forma dell'helper. Thread STOPPATO come da
+> disciplina, zero improvvisazioni, analisi off-device dovuta. Il fix del
+> restore NON è implicato (2a lo prova). **(5b)** bitselect e2e 74/74
+> PASS (coerenza). **(6) f1/f2 A DUE PUNTI CHIUSO — l'ultimo anello
+> inferito è ora PROVATO:** byte consumati dal giudice→ERR ~0.43
+> riderivato (in banda, vicino a 0.45058); byte puliti→PASS; il restore è
+> il contributore UNICO; NMSE offline combacia 12/12. **(7) Il −55% è
+> ri-ancorato in-sessione:** 61.440 riprodotto (== modello 65.536−4.096);
+> il difetto vincolante era il RESTORE; il fix completo vale −100%
+> (FAIL→PASS); il −55% storico va etichettato come delta parziale
+> intermedio a restore ancora rotto. **Restano aperti:** analisi
+> off-device del puzzle bitselect/producer-violation (perché l'e2e passa
+> con roundtrip producer-violato: auto-consistenza producer↔consumer da
+> caratterizzare); smoke di produzione BMoE (enqueue shim + A/B logits)
+> PRIMA di ogni claim "produzione immune"; MAX RECALL finale sul diff
+> cumulativo; decisione di pubblicazione (owner, dopo questi).
+>
+> ➡️ **Ultimo indiziato in piedi: il READBACK (`get_tensor`).** Hook
+> pronto (working tree, +287/−1, `.so` `0111c70d…4ed692`):
+> `DST_READBACK{raw_match, returned_match}` (raw = re-read indipendente
+> del range snapshottato; returned = checksum di ciò che get_tensor
+> consegna), snap consumati dopo il log (anti falso-clobber su cl_mem
+> riciclati), OVERLAP_MAP, POST_ENQUEUE (limite onesto: matcha il tensor
+> del wrapper, OpenCL non espone i cl_mem bound). 🔎 Review ostile in
+> corso, con domanda-crux: l'hook DISTINGUE davvero i quattro esiti
+> (raw×returned), e cosa resta logicamente se esce tutto verde e l'e2e
+> fallisce ancora (⇒ reference/NMSE del harness — la sessione deve poter
+> essere interpretabile in anticipo per ogni esito).
+>
+> ➡️ Nel frattempo il Jelly (libero) è
+> stato messo sul buco di provenienza del listino: **cella tracciabile per
+> "Marco1c Jelly 3.64 t/s (t2, ranking)"** — uno dei due numeri di ALIVE §5
+> che non risalgono a nessun runs.csv — con config spedita (d=0.0, flag da
+> citare per file:riga), harness covariate, ≥3 round, unplugged
+> (`results/lineup_marco_jelly_cov/`).
+>
+> 🏷️ **19/08 — REGOLA DI RICONOSCIBILITÀ DELL'ENGINE ("kalsallama", proposta
+> gualt).** Paura a verbale: due kernel patchati in modo diverso su lignaggi
+> separati. Protezione: (1) **una sola linea di patch** — tutto si impila su
+> `kalsa/kernel-s3-repack`, mai patchare main/upstream (già a verbale); (2) al
+> **prossimo commit engine** si aggiunge un **version banner di build**
+> `kalsallama <branch> <sha>` in `--version` e nel log di avvio — chiude anche
+> il buco "`strings` sull'exe mente"; (3) **niente rename di file o simboli
+> kernel** (avvelenerebbe diff e rebase contro upstream). L'altro Claude lavora
+> su macOS al repo app (kalsa), non su moe-experiments: nessuna collisione di
+> working tree; la risorsa condivisa è solo l'S23.
+>
+> 📱 **19/08 — LE TRE CELLE CACHE JELLY SONO RIFATTE CON LA COVARIATA CPUSET
+> E PASSATE ALL'AUDIT OSTILE. VERDETTO A DUE FACCE: c1500/c2000 REPLICANO,
+> IL "+15/+20% a c4000" NON SOPRAVVIVE — E CADE ANCHE IL +39% ORIGINALE.**
+> (Report agente: `scratchpad/agents/jelly-cache-rerun/REPORT.md`; audit con
+> tutta l'aritmetica: `scratchpad/agents/jelly-cache-rerun-review/REPORT.md`.)
+>
+> Celle nuove `results/cachesweep_marco_jelly_c{1500,2000,4000}_cov/` (dir
+> nuove, sennò il resume avrebbe skippato), harness al commit **`6a26036`**
+> (già committato — la voce "uncommitted" di ALIVE §6 è superata; disco ==
+> commit verificato dall'audit). **Tenuta della piattaforma, confermata riga
+> per riga dall'audit:** 24/24 righe accettate con `nproc=8`,
+> `affinity_mask=ff`, `/top-app 0-7` **dal PID di `bmoe-cli`** (harness
+> L548-570); tutte UNPLUGGED, batteria **94→56 nei DATI** (il "97→55" del
+> report agente è prosa che non sta in nessun file — stessa classe di errore
+> già ritrattata in campagna); sha binario `77a94640a56a9043` (prefisso a 16
+> hex, calcolato live dall'harness) identico in tutti e 6 i log.
+>
+> ✅ **Ciò che REGGE (12/12 righe appaiate, aritmetica ricalcolata):**
+> a c1500 il drop paga **−24.8%**, a c2000 **−28.4%**, stabili ≤1.5% fra i
+> due run. Per queste due celle "replica, non artefatto" è onesto — e sono
+> le celle su cui poggia il default spedito. ➡️ **Il default NON poggia su
+> un artefatto da cpuset.**
+>
+> ❌ **Ciò che NON regge (HIGH dell'audit):**
+> - **c4000 "+15/+20%" era un sottoinsieme (r2/r3):** con TUTTI i round
+>   accettati il danno del drop collassa a **+2.4% medio / −3.1% aggregato ≈ 0**.
+>   E il **+39% della cella originale era portato al 100% dal suo outlier
+>   r1**: esclusione simmetrica di r1 → +15.5% vs +17.4% (coerenti); tutti i
+>   round → +39% vs +2% (incoerenti). **Il rerun SMENTISCE la grandezza
+>   originale.** Lettura onesta di c4000: a cache grande il drop **non paga**
+>   (il suo vantaggio va a ~0), ma il "fa male +39%/+15%" citabile non
+>   esiste più. "Termicamente appaiate" non è sostenibile: l'anomalia r1 è
+>   in `compute_s_tok` (0.154 vs 0.089), non termica.
+> - **"Byte bit-identici" è FALSO sul contatore vero:** le colonne identiche
+>   (read_MiB, hit%, evictions, …) sono **formule deterministiche**;
+>   l'unica misura I/O reale, `proc_read_bytes`, differisce in **24/24**
+>   righe (−0.58%…+1.16%, normale). Il meccanismo replica; "bit-identico"
+>   no.
+> - **0.184→0.142 a c1500: numero confermato, spiegazione refutata** — il
+>   rerun misura 0.142 **alla stessa temperatura (35 °C)** dell'0.184
+>   originale: era varianza run-to-run, non termica.
+> ⚠️ **Caveat di provenienza (da chiudere):** le celle "originali" usate come
+> termine di confronto **non esistono nel repo** se non nelle copie
+> dell'agente — il bersaglio del confronto non è verificabile alla fonte.
+> In coda: localizzare/committare gli originali o declassare il confronto.
+> ➡️ Voce di coda "rerun celle Jelly con la covariata": **CHIUSA** (resta il
+> gemello S23, telefono occupato). 🔧 Residuo harness confermato dall'audit
+> (display-only, `watch_dropsweep_lfm_jelly.ps1` ~L112): il contatore righe
+> buone fa `grep ',0,ok$'` e sul nuovo schema stampa 0 — non blocca il
+> rilancio, da sistemare al prossimo giro.
+>
+> ✅ **KEEPALIVE JELLY: CONFERMA PIENA.** `mWakefulness=Awake` ininterrotto
+> per **~83 min** (soglia era ≥60), Termux mai ucciso. ⚠️ Dettaglio operativo
+> nuovo: **staccato il Jelly non ha USB** — la ricetta adb va applicata via
+> **wireless debugging** (`192.168.1.82:39591` in questa sessione; la porta
+> cambia a ogni pairing).
+>
+> 📇 **19/08 ~13:45 — CELLA DI LISTINO MARCO1c JELLY RIFATTA AL FLAG
+> SPEDITO, E LA CARD VA CORRETTA IN DUE PUNTI.**
+> (`results/lineup_marco_jelly_cov/`, harness covariato; report agente in
+> `scratchpad/agents/jelly-lineup-marco/REPORT.md`.)
+> - ✅ **Il flag di provenienza di ALIVE §5 era SBAGLIATO in un senso
+>   inatteso: il 3.64 UN runs.csv ce l'ha** (`results/lineup_card/jelly_1c/`)
+>   — ma misura **k6 d=0.65** (il default VECCHIO, ritirato), ABBA
+>   fact+creative, binario `36b01966…`.
+> - 📏 **Il flag spedito (d=0.0, t2, cache 2000 — ogni flag citato, cache
+>   4000 è l'ottimo Jelly ma NON è nel flag) misura 3.27-3.39 t/s,
+>   mediana 3.34** su 3 round freddi p_fact, range ±3%, stesso binario
+>   della card verificato per sha, covariate tutte pulite (nproc=8, ff,
+>   UNPLUGGED 46→41%).
+> - ➡️ **Like-for-like (solo fact): lo spedito è ~7-9% più LENTO della
+>   card** (3.27-3.39 contro 3.576-3.594); il 3.642 mescola anche il
+>   creative (più veloce). **La riga Jelly del listino va aggiornata a
+>   ~3.3 t/s con questa cella come fonte.**
+> - 🔍 **Fatto nuovo che il confronto ha stanato:** lo sweep cache misura
+>   **5.5-5.9 t/s** alla STESSA config (d=0.0, cache 2000) con gli STESSI
+>   byte (11803.1 MiB) e hit (50.2%) — ma su **binario diverso**
+>   (`kernel_kf`). Il regime I/O è identico alla cifra: **il gap di
+>   tok/s (~+70%) è il BINARIO, non config né drop.** Va capito cosa ha
+>   `kernel_kf` che il binario di listino non ha — possibile upgrade di
+>   listino gratis. In coda.
+> ⚠️ Batteria Jelly a 41%: prima di altre celle lunghe va ricaricato.
+>
 > 🔬 **PROFILING COMPUTE — LA DOMANDA APERTA DA GIORNI HA RISPOSTA: SONO I
 > MATMUL MoE, IL GDN NON ESISTE (18/08, CalaQwen, `--compute-trace`).**
 >
