@@ -1503,6 +1503,48 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.14 MEASURED 2026-08-19: the decode collapse is a page-fault storm — 93.5 GiB re-read from flash in one turn
+
+§7.13 left the explanation as the reading that fitted the numbers. This is the number. One turn on
+the S23, unplugged, `norepack=1`, 37 samples at ~30 s across a 1134 s window, `/proc/vmstat` and
+`/proc/<pid>/status` deltas.
+
+| | delta over the turn |
+|---|---|
+| `workingset_refault_file` | **24 523 321 pages = 93.5 GiB re-read from flash**, 84 MiB/s sustained |
+| `workingset_refault_anon` | 708 549 — the file side is **34.6×** larger |
+| per generated token | **309 MiB re-read**, for a model whose whole file is 4.8 GiB |
+
+And the process shows the same thing directly. `RssFile` does not sit still, it oscillates by
+gigabytes inside one pid while `VmHWM` stays pinned at the peak — the pages were had, then taken:
+
+```
+T03 11:36:53  4152280 kB   (peak; VmHWM 4223536)
+T29 11:50:06  2017356 kB   (minimum, mid-decode)
+T30 11:50:36  2518724 kB   (+501 MB in 30 s — faulted straight back)
+```
+
+`RssAnon` stays flat and small throughout (27–95 MB), which is what `no_extra_bufts` promises.
+
+⚠️ **The honest qualification, and it changes the mechanism's name.** `pgsteal_direct` is only
+**1.65 %** of steals and `allocstall_*` moved by 1824 in 1134 s. So the decode thread is **not**
+stalling in direct reclaim; kswapd is doing the evicting. The cost is the other half: kswapd takes
+the model's pages, and the decoding thread then takes a **major fault** and waits on flash to read
+them back. `allocstall` counts stalls while *allocating*; the refault counter is what counts pages
+that had to be fetched again, and that is the one at 93.5 GiB. Note also that `/proc/vmstat` is
+system-wide — not all of it is our GGUF — but nothing else on an idle phone generates 84 MiB/s of
+file refaults, and the app's own `RssFile` trajectory shows the model's pages among them.
+
+Decode this run: 310 tokens in 991.1 s = **0.313 tok/s**, against **18.6 tok/s** prefill. Third
+consistent decode measurement (0.3627, 0.3572, 0.3128).
+
+**Why this matters for the fix:** the lever is residency, not kernels. A build small enough to stay
+resident stops the loop; a build that cannot, cannot be rescued by tuning. `LFM2.5-8B-A1B-KEXP`
+(3.10 GiB, our recipe) against ~4.3 GB of `MemAvailable` is the first candidate that could actually
+stay in. Also worth recording: at launch this run the gate said `"verdict":"fits"` — the model is
+not marginal on RAM once the repack term is gone; it is marginal on **page cache**, which is a
+different resource and one the gate does not model at all.
+
 ### 7.13 MEASURED 2026-08-19: the shipping model loads without repacking — and decodes at 0.36 tok/s, which is not a product
 
 The gate fix worked, and the answer it unblocked closes the question the other way.

@@ -192,7 +192,8 @@ app data.
 | Battery | ~30 %/h of sustained inference → ~2.3 h per discharge above the floor |
 | Load | 4.7 s cold (4B), 0.8 s warm from page cache; KV session restore 33–45 ms |
 | Speed (4B) | prefill ~18 tok/s cold, decode 5–8 tok/s |
-| Speed (8B MoE, norepack) | prefill 18.0 tok/s, **decode 0.357 tok/s**, load ~12.6 s, 51 % of the file resident |
+| Speed (8B MoE, norepack) | prefill ~18 tok/s, **decode 0.31–0.36 tok/s** (3 runs), load ~12.6 s |
+| Why | **page-fault storm, measured**: 93.5 GiB of file pages re-read from flash in one 1134 s turn, 309 MiB per generated token, `RssFile` oscillating 4.15 → 2.02 → 2.52 GB inside one pid (§7.14) |
 | Bigger models | a 35B MoE has run on this phone with a streaming engine, so file size is **not** the ceiling — the mmap regime is |
 
 Driving it: `scripts/device-share-send.sh` (`kalsa://share?text=`) — the type path is a no-op on a
@@ -215,8 +216,9 @@ twice mid-campaign and took an APK and a runner with it.
 
 ## 9. What we do not know
 
-- Whether the 8B's decode collapse is really I/O (nobody counted page faults), and what it would do
-  with repack on — it cannot load, so there is no in-model control.
+- What the 8B would do with repack on — it cannot load, so there is no in-model control for the
+  decode number.
+- Whether KEXP at 3.10 GiB actually stays resident on this phone. That is the whole bet.
 - Net wall clock of `ciswire` on a phone. Every quality number is emulator; every speed number is 4B.
 - Whether replaying tool rounds recovers the cache.
 - Whether a sparser digest cadence trades cache for recall acceptably (`kalsa.bench.digestcadence`,
