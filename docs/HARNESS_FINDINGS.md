@@ -1540,14 +1540,27 @@ throws the cache away for every mode Kalsa ships.**
 Also visible in that table: the clean-regime plateau is **~0.80, not ~1.0**, and that is the
 ceiling, not a defect — prompt ~2000 tokens growing ~400 per turn.
 
-**4. The digest does cost cache, but it is second-order and it was never measurable in the smoke.**
-On the 4B, turns carrying a digest reuse 0.326 against 0.690 without — but `digestChars > 0` happens
-**exactly when** the corpus is non-empty, which is **exactly when** the window starts sliding, so
-those two are collinear by construction. The `baseline` row above is what separates them: it has no
-digest and crashes just as hard. What survives the separation is the smaller residue —  `ciswire`
-sitting below `baseline` at turns 13–16 — which is the §7.10 mechanism, real but not the headline.
-In the smoke it could not have been measured at all: 14 messages against a 20-message window means
-the corpus stayed empty and `digestChars` was **0 on 55 of 56 turns**.
+**4. The digest does cost cache — measured with both confounds removed, and it is second-order.**
+The naive comparison is worthless: turns carrying a digest reuse 0.326 against 0.690 without, but
+`digestChars > 0` happens **exactly when** the corpus is non-empty, which is **exactly when** the
+window starts sliding. They are collinear by construction, and `baseline` — no digest, ever —
+crashes just as hard.
+
+So compare `baseline` against `ciswire` **inside turns 12–16, where the window is sliding for both**,
+and then drop every turn preceded by a tool call, since `ciswire` calls tools slightly more (2.00
+tool-turns per seed against 1.56):
+
+| turns 12–16, no tool in the previous turn | mean `reuseFrac` |
+|---|---|
+| `baseline` (n=9 seeds) | **0.272** |
+| `ciswire` (n=10 seeds) | **0.171** |
+
+**−0.100, exact two-sided permutation p = 0.0016.** With the window held constant and tool turns
+excluded, the digest still costs a tenth of the prefix — the §7.10 mechanism, real and now
+quantified, but roughly a sixth of what the window itself destroys.
+
+None of this was visible in the smoke, and could not have been: 14 messages against a 20-message
+window means the corpus stayed empty and `digestChars` was **0 on 55 of 56 turns**.
 
 **5. Memory-on discards the cache by construction**, not as a side effect: `extractMemory` calls
 `engine.clearCache()` (`LlamaService.ts:2495`). Three of the four non-tool misses in the smoke are
@@ -1611,9 +1624,11 @@ and — with `norepack=1` — what does an 8B-A1B actually cost in anonymous RAM
 
 ### 7.10 MECHANISM 2026-08-19: the digest costs cache per INJECTION, not per change — knob written, UNMEASURED
 
-> **DEMOTED the same day by §7.12.** The render-path mechanism below is real; the measurement it was
-> written to explain is not about the digest. `digestChars` is 0 on 55 of 56 turns of the smoke this
-> section cites. Keep the mechanism, drop the priority: the measured cache destroyer is tool calls.
+> **DEMOTED, then partly VINDICATED, the same day by §7.12.** The measurement this section was
+> written to explain is not about the digest — `digestChars` is 0 on 55 of 56 turns of the smoke it
+> cites. But the mechanism itself is real and now has its own number, from the 4B campaign with the
+> sliding window held constant and tool turns excluded: **−0.100 reuse, p = 0.0016**. Keep the
+> mechanism, keep the knob, drop the priority: the window costs about six times more.
 
 §7.9 measured the cost (digest arms reuse 0.564 against 0.704 bare) and named the site
 (`applyOperativeBlockFormat` prefixes the block onto `messages[length-1]`,
