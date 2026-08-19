@@ -86,7 +86,7 @@ string.
 
 | context mode | window | digest | shipped |
 |---|---|---|---|
-| `off` | legacy **sliding**, last 20 messages | none | **yes, this is the default** |
+| `off` | legacy **sliding**: last **40 messages (20 exchanges)** where the loaded context is ≥16384, else 20; images always 8 | none | **yes, this is the default** |
 | `ciswire` | same sliding window | BM25 digest of what fell out of it | no (off by default) |
 | `v42` | boundary-anchored, append-only between rebuilds | same digest | no; measured worse on recall |
 
@@ -116,6 +116,9 @@ Destroyers, in measured order of size:
    oldest exchange leaves the window every turn, the prompt's first message changes, and the prefix
    dies right after the system prompt. On the 4B: mean reuse **0.82 at turn 11 → 0.15 at turn 12**,
    in `baseline`, which never carries a digest. Prompt tokens plateau at ~4750 there, confirming it.
+   **Doubled 2026-08-19** to 40 messages where the loaded context is ≥16384 — twice the good regime.
+   Trade: a miss now costs ~9500 tokens of re-prefill instead of ~4750, so it is a win only while
+   misses are rare, which on the shipping model they are not until tool rounds are replayed.
 2. **Tool calls.** A tool round puts `assistant(tool_calls)` + `tool(result)` in the KV
    (`LlamaService.ts:1930-1941`) while stored history keeps only the final answer. On the shipping
    model that is total: **10 of 10 turns after a tool call lost everything, zero survivors**, prefill
@@ -203,3 +206,4 @@ twice mid-campaign and took an APK and a runner with it.
 | 2026-08-18 | **Cache beats context budget** when they conflict |
 | 2026-08-18 | The shipping model is **LFM2.5-8B-A1B** |
 | 2026-08-19 | `ROADMAP_BIGGER_MODELS.md` removed — big-MoE work lives in the `moe-experiments` repo |
+| 2026-08-19 | **Verbatim window doubled to 20 exchanges** where the context holds it — owner's call, it is our app |
