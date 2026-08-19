@@ -60,7 +60,27 @@ only **51 % resident** and a MoE picks different experts every token and every l
 reading is I/O. Not thermal: measured 0.3627 cold and 0.3572 warm.
 
 **So both configurations are dead ends on 8 GB: repack on will not load, repack off answers in ten
-minutes. LFM2.5-8B-A1B is not shippable on this device class** — an owner decision, not a bug.
+minutes.** But the size is not the ceiling — a 35B MoE has run on this phone — so the fault is the
+regime, not the model.
+
+**We already have the smaller model.** `LFM2.5-8B-A1B-KEXP.gguf`, **3.10 GiB** (3 326 160 384 B,
+sha256 `b07c8087…`), quantized with our own recipe: q2_k on routed gate/up, q3_k on down, q5_k/q6_k
+on the leading dense blocks, f32 norms. At that size the gate passes **with repack on** (~3089 MiB
+non-evictable against ~4030–4670 available), and 3.10 GiB against ~4.5 GB of `MemAvailable` can be
+fully resident — which is the condition the 4.80 GiB build fails.
+
+⚠️ **It misses our own pre-declared quality gate**, and the gate was frozen before the numbers
+existed, so it is not renegotiated here. Same k=4, our multi5 corpus, macro bpb:
+
+| | Q4_K_M | KEXP | Δ |
+|---|---|---|---|
+| macro (5 langs) | 1.2221 | 1.2926 | **+0.0705** — gate was ≤ +0.05, **fails** |
+| it | 1.3206 | 1.4115 | +0.0909 (per-lang gate ≤ +0.10, passes) |
+| zh | 1.5923 | 1.6976 | **+0.1053 — fails** the per-lang gate too |
+
+`KEXP-k2` never finished (`PIPELINE_STATUS: RUNNING_KEXP-k2`, 2026-08-13). **Open for the owner:**
++0.07 macro bpb against a model that does not run at all is a different trade from the one the gate
+was written for, and it is a product call, not a technical one.
 
 Carried over from the deleted `ROADMAP_BIGGER_MODELS.md` (its subject now lives in the
 `moe-experiments` repo): the product priority is **6 GB+ phones**, the mass market, not the flagships;
@@ -173,6 +193,7 @@ app data.
 | Load | 4.7 s cold (4B), 0.8 s warm from page cache; KV session restore 33–45 ms |
 | Speed (4B) | prefill ~18 tok/s cold, decode 5–8 tok/s |
 | Speed (8B MoE, norepack) | prefill 18.0 tok/s, **decode 0.357 tok/s**, load ~12.6 s, 51 % of the file resident |
+| Bigger models | a 35B MoE has run on this phone with a streaming engine, so file size is **not** the ceiling — the mmap regime is |
 
 Driving it: `scripts/device-share-send.sh` (`kalsa://share?text=`) — the type path is a no-op on a
 real device. Runners in `~/kalsa-scripts/`, output in `~/kalsa-runs/`. **Not `/tmp`**: it was wiped
