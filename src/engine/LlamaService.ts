@@ -188,7 +188,6 @@ let nativeLogSetupDone = false;
 
 async function ensureNativeLogCapture(): Promise<void> {
   if (nativeLogSetupDone) return;
-  nativeLogSetupDone = true;
   try {
     await toggleNativeLog(true);
     addNativeLogListener((level, text) => {
@@ -197,8 +196,23 @@ async function ensureNativeLogCapture(): Promise<void> {
         nativeLogTail.splice(0, nativeLogTail.length - NATIVE_LOG_CAP);
       }
     });
+    // LAST, and that placement is the whole point. This flag used to be set
+    // BEFORE the try: if toggleNativeLog threw, the listener was never added,
+    // the catch swallowed it, and every later call short-circuited on a flag
+    // that promised a capture nobody had installed. The tail then stayed empty
+    // for the life of the process, so rethrowWithNativeTail enriched failures
+    // with nothing and the UI showed a bare "unable to initialize context".
+    //
+    // Cost of that, measured on 2026-08-19: llama printed
+    // "V cache quantization requires flash_attn" — the exact cause of a failing
+    // bench arm — and it never reached JS. The afternoon went to a wrong
+    // diagnosis (blamed GPU offload, then the low-memory killer) that one
+    // captured line would have ended. Setting it here means a failed setup is
+    // retried on the next init instead of being latched forever.
+    nativeLogSetupDone = true;
   } catch {
-    // Logging must never break engine init.
+    // Logging must never break engine init — but it must not claim success
+    // either, so the flag above stays unset and the next init tries again.
   }
 }
 
