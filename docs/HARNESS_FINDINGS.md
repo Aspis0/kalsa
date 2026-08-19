@@ -1297,6 +1297,15 @@ With repack on, 3.3 GB of the app sits in zram while the GGUF itself is mmap'd a
 it off, the weights stay file-backed and the system keeps 3.5 GB free. That is a real fix for
 8 GB phones and it costs nothing measurable in decode.
 
+⚠️ **This was measured, written down, and never shipped — and on 2026-08-19 it became the
+difference between the shipping model running and not running at all (§7.11).** `no_extra_bufts`
+is still a bench-only knob (`kalsa.bench.norepack`), production always loads with repack on, and
+until today both RAM gates hardcoded the repack-on footprint with no way to say otherwise. The
+table above is the 4B. On LFM2.5-8B-A1B the same arithmetic refuses the load outright on an S23.
+What §7.2 never measured is **prefill** — it says "nothing measurable in decode", and the two are
+not the same claim; llama.rn's own knob description says repack-off is slower to prefill. That
+number is what decides whether shipping `no_extra_bufts` on ≤8 GB is a fix or a different problem.
+
 **Correction on record**: I first read the swap as the cause of the arms hanging at turn 2. It was
 not — with repack off the arm hung identically. The hang was the harness (§7.3). Two true
 statements were being welded into one false one.
