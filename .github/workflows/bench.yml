@@ -70,6 +70,11 @@ on:
           - ""
           - "0"
           - "1"
+      ngl:
+        description: "GPU/NPU offload layers (empty = cpu-only, the production Android default). N writes kalsa.bench.engine with the mandatory flashAttn:off escort. Grep the log for KALSA_GPU_FALLBACK — it means init refused offload and the arm ran on CPU."
+        required: false
+        default: ""
+        type: string
       memory:
         description: "Enable memory subsystem (0 = off, 1 = on). When on, facts are extracted and stored. Default 0 (off) to avoid confounding compaction A/B."
         required: false
@@ -991,6 +996,7 @@ jobs:
           RANKING: ${{ inputs.ranking || '' }}
           DIGESTCADENCE: ${{ matrix.digestcadence || inputs.digestcadence || '' }}
           NOREPACK: ${{ inputs.norepack || '' }}
+          NGL: ${{ inputs.ngl || '' }}
           MEMORY: ${{ matrix.memory || inputs.memory || '0' }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
           # 40s = SUMMARY_IDLE_DEBOUNCE_MS (8s) + SUMMARIZE_TIMEOUT_MS (30s) +

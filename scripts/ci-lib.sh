@@ -570,6 +570,31 @@ validate_bench_norepack() {
   esac
 }
 
+# validate_bench_ngl <value>
+#   Pure (no adb): empty or a non-negative integer; anything else dies.
+#   empty → leave kalsa.bench.engine absent (production: cpu-only on Android)
+#   N     → write {"nGpuLayers":N,"flashAttn":"off"}
+#
+# The flashAttn escort is not decoration. applyEngineOverride refuses
+# nGpuLayers on Android unless the same override carries flashAttn "off",
+# because offload WITH flash attention on CPU is the combination that kills
+# llama_init_from_model — writing the layers alone would produce an arm that
+# silently ran on CPU. Covered by scripts/test_sideload_guards.sh.
+validate_bench_ngl() {
+  case "${1:-}" in
+    "") return 0 ;;
+    *[!0-9]*) die "NGL must be empty or a non-negative integer (got '$1')" ;;
+    *) return 0 ;;
+  esac
+}
+
+# bench_engine_json <ngl>
+#   The exact string ci-bench writes to kalsa.bench.engine, and the exact
+#   string it asserts back. One function so the two can never drift.
+bench_engine_json() {
+  printf '{"nGpuLayers":%s,"flashAttn":"off"}' "$1"
+}
+
 # ── Multi-conversation storage keys ─────────────────────────────────
 # App writer: src/conversations/ConversationsStore.ts
 #   INDEX_KEY = kalsa.conversations.v1  →  { activeId, items: [{id, updatedAt, …}] }

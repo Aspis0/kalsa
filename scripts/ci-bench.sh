@@ -26,6 +26,11 @@
 #                  echo-of-context rules gate)
 #   NOREPACK       empty|0|1 → kalsa.bench.norepack (empty = absent = production
 #                  repack on; 1 disables weight repacking via no_extra_bufts)
+#   NGL            empty|N → kalsa.bench.engine (empty = absent = cpu-only, the
+#                  production Android default; N writes {"nGpuLayers":N,
+#                  "flashAttn":"off"} — the FA escort is mandatory, see
+#                  validate_bench_ngl. Watch the log for KALSA_GPU_FALLBACK:
+#                  it means init refused offload and the arm ran on CPU)
 #   MEMORY         1|0 → kalsa.memory.enabled (default 0; 1 enables memory extract/inject)
 #   RUNS_PER_ARM   fase0 in-job repeat count (default 3, per PIANO "3 run/formato")
 #   INTER_TURN_DELAY_S  seconds of pure idle between turns (default 0).
@@ -55,6 +60,7 @@ LEGACYWINDOW="${LEGACYWINDOW:-}"
 RANKING="${RANKING:-}"
 DIGESTCADENCE="${DIGESTCADENCE:-}"
 NOREPACK="${NOREPACK:-}"
+NGL="${NGL:-}"
 MEMORY="${MEMORY:-0}"
 RUNS_PER_ARM="${RUNS_PER_ARM:-3}"
 INTER_TURN_DELAY_S="${INTER_TURN_DELAY_S:-0}"
@@ -164,12 +170,13 @@ esac
 # Empty = leave pref absent (production repack). 0/1 accepted; else die.
 # Pure validator lives in ci-lib (validate_bench_norepack) so unit tests cover it.
 validate_bench_norepack "$NOREPACK"
+validate_bench_ngl "$NGL"
 case "$MEMORY" in
   0|1) ;;
   *) die "MEMORY must be 0 or 1 (got '$MEMORY')" ;;
 esac
 
-log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK memory=$MEMORY runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
+log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK ngl=$NGL memory=$MEMORY runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
 # LFM2.5 is always-on reasoning: the chat template has preserve_thinking only,
 # no off switch. Record THINKING as today; do not try to force it off.
 if [ "$MODEL_DIR" = "lfm2.5-2.6b" ] || [ "$MODEL_DIR" = "lfm2.5-8b-a1b" ]; then
@@ -291,6 +298,15 @@ set_prefs() {
   else
     sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.norepack';" "kalsa.bench.norepack" "__ABSENT__"
   fi
+  # NGL: GPU/NPU offload layers, written as the JSON kalsa.bench.engine takes.
+  # Empty must DELETE the key, and that branch matters more here than for the
+  # other knobs: AppShell reads this key on the PRODUCTION path too, so a
+  # leftover from one arm would silently arm offload for the next one.
+  if [ -n "$NGL" ]; then
+    sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.engine','$(bench_engine_json "$NGL")');" "kalsa.bench.engine" "$(bench_engine_json "$NGL")"
+  else
+    sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.engine';" "kalsa.bench.engine" "__ABSENT__"
+  fi
   # Opt-in memory subsystem: MEMORY env controls kalsa.memory.enabled (0=off, 1=on, default 0).
   # With a short legacy window (kalsa.bench.legacywindow), planted facts fall out of verbatim
   # context, so memory becomes the only retrieval path — not a confounder. Both-branch assert below.
@@ -374,6 +390,14 @@ if [ -n "$NOREPACK" ]; then
 else
   [ -z "$NOREPACK_PREF_RAW" ] \
     || die "norepack pref on device is '$NOREPACK_PREF_RAW', expected absent (NOREPACK empty = production repack)"
+fi
+NGL_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.engine';" | head -1 | tr -d '[:space:]')
+if [ -n "$NGL" ]; then
+  [ "$NGL_PREF_RAW" = "$(bench_engine_json "$NGL")" ] \
+    || die "engine pref on device is '$NGL_PREF_RAW', expected '$(bench_engine_json "$NGL")'"
+else
+  [ -z "$NGL_PREF_RAW" ] \
+    || die "engine pref on device is '$NGL_PREF_RAW', expected absent (NGL empty = cpu-only; this key is read on the production path too)"
 fi
 # Memory is always written (default 0, never deleted) — simple equality assert.
 MEMORY_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.memory.enabled';" | head -1 | tr -d '[:space:]')

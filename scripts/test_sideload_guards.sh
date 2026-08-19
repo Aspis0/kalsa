@@ -412,6 +412,55 @@ _nr_expect "2" 0 "NOREPACK 2 rejected"
 _nr_expect "yes" 0 "NOREPACK yes rejected"
 _nr_expect "-1" 0 "NOREPACK -1 rejected"
 
+# ── NGL env validation + the JSON it writes ──────────────────────────
+# empty or a non-negative integer. The JSON is asserted here because
+# ci-bench writes it and asserts it back through the SAME function: if
+# bench_engine_json ever drifts, the arm's assert drifts with it and
+# stops being a check. This is the test that notices.
+
+# _ngl_expect <value> <expect_ok:0|1> <label>
+_ngl_expect() {
+  local value="$1" expect="$2" label="$3"
+  _died=""
+  validate_bench_ngl "$value"
+  if [ "$expect" -eq 1 ]; then
+    if [ -z "$_died" ]; then
+      echo "PASS: $label — accepted"
+      pass=$((pass + 1))
+    else
+      echo "FAIL: $label — unexpected die: $_died"
+      fail=$((fail + 1))
+    fi
+  else
+    if echo "$_died" | grep -q "NGL must be empty or a non-negative integer"; then
+      echo "PASS: $label — die fired: $_died"
+      pass=$((pass + 1))
+    else
+      echo "FAIL: $label — expected die, got: '$_died'"
+      fail=$((fail + 1))
+    fi
+  fi
+}
+
+_ngl_expect "" 1 "NGL empty accepted"
+_ngl_expect "0" 1 "NGL 0 accepted"
+_ngl_expect "99" 1 "NGL 99 accepted"
+_ngl_expect "-1" 0 "NGL -1 rejected"
+_ngl_expect "all" 0 "NGL all rejected"
+_ngl_expect "9 9" 0 "NGL with a space rejected"
+
+# The escort is the point: layers without flashAttn "off" are ignored on
+# Android by applyEngineOverride, so an arm written without it would run on
+# CPU while reporting itself as GPU.
+_ngl_json=$(bench_engine_json 99)
+if [ "$_ngl_json" = '{"nGpuLayers":99,"flashAttn":"off"}' ]; then
+  echo "PASS: bench_engine_json carries the mandatory flashAttn escort"
+  pass=$((pass + 1))
+else
+  echo "FAIL: bench_engine_json produced '$_ngl_json'"
+  fail=$((fail + 1))
+fi
+
 # ── Message submission decision (message_was_submitted) ─────────────
 # Pure logic: did the message leave the composer? Count grew, or count
 # equal with empty composer → submitted; equal + still holding text, or
