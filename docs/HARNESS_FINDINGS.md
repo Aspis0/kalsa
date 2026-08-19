@@ -1473,6 +1473,44 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.11 PREDICTION 2026-08-19 (arithmetic done, measurement pending): the shipping model may not load on a Galaxy S23 in production configuration
+
+Found while checking whether the phone could hold the 8B before starting a run. Every number below
+is either a committed constant or a device probe; only the conclusion is unverified.
+
+`estimateMemory` (`memoryEstimate.ts:111-116`) counts weights as **evictable** (they are mmapped
+file pages) and charges only `repack + compute + kv` as non-evictable. Production always asks for
+repack: `gateForModel` (`AppShell.tsx:350-353`) calls `estimateModelNonEvictableMiB` without
+`repack: false`, so the default `true` applies.
+
+| term | value |
+|---|---|
+| weights | 5 155 564 768 B = **4917 MiB** |
+| `REPACK_FRACTION` | (1333 − 249) / 1211 = **0.8951** |
+| repack | 4917 × 0.8951 = **4401 MiB** |
+| compute @ ubatch 256 | **249 MiB** |
+| kv | 0 — no `kvBytesPerToken` in the registry entry, so this is a **lower bound** |
+| **non-evictable** | **4650 MiB** |
+
+Against the device, probed today while idle: `MemTotal` 7 243 740 kB, **`MemAvailable` 4 219 984 kB
+= 4121 MiB**. `modelGateVerdict` blocks when non-evictable exceeds available
+(`deviceProfile.ts:162-165`), so **4650 > 4121 → `blocked_ram`**.
+
+The tier gate does not catch it first: 7.24 GB ≥ `RAM_TIER_HIGH_BYTES` (6.9 GB) so the S23 is
+`high`, and — the part that reads like an oversight — **`lfm2.5-8b-a1b` declares no `minRamTier` at
+all**, while `qwen3.5-4b`, at 2704 MiB just over half its size, declares `"high"`.
+
+Two things follow if the measurement confirms it. The model Kalsa ships would be unloadable on a
+2023 flagship in its default configuration, and `kalsa.bench.norepack=1` would be the difference
+between running and not (repack term → 0, non-evictable → 249 MiB) — a knob currently documented
+as a CI A/B only. Note also that `availableMemoryBytes` is sampled **once per process**
+(`getCachedDeviceProfile` memoises the promise), so the verdict depends on memory pressure at app
+start and is not re-checked afterwards.
+
+⚠️ **Not measured.** The APK that can test it (`32254348018`, debuggable) is still building. The
+arithmetic could be wrong about what llama.rn actually allocates; what it cannot be wrong about is
+that this is the gate the app applies to itself. **First thing the device run answers.**
+
 ### 7.10 MECHANISM 2026-08-19: the digest costs cache per INJECTION, not per change — knob written, UNMEASURED
 
 §7.9 measured the cost (digest arms reuse 0.564 against 0.704 bare) and named the site
