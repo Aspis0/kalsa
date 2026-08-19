@@ -20,8 +20,16 @@ on `bench/fase4-harness-fix`, the first full campaigns since the harness fixes; 
 after 08-13 had been a one-seed smoke. The 08-15 attempt at the 4B campaign (`31911872610`) was
 **cancelled and produced nothing**.
 
-**Nothing is in flight.** Open and instrumented but unmeasured: the digest-injection cadence
-(§7.10).
+⛔ **SHIPPING BLOCKER, confirmed on hardware 2026-08-19 (§7.11): LFM2.5-8B-A1B does not load on a
+Galaxy S23.** The app's own RAM gate refuses it — `'model.fit', '{"verdict":"does_not_fit",
+"availableMb":4030}'` — and a chat turn returns "Caricamento del modello non riuscito" instantly.
+Every quality result below for the shipping model was measured on the CI emulator; none of them
+reach a user on this phone. The estimate that refuses it charges 4401 MiB of weight repacking,
+calibrated on a **dense 2B**, to a **MoE with ~1B active** — so it may be refusing a model the
+phone could run. That is being measured now.
+
+**In flight:** the `norepack=1` device run that answers it, plus two 8-turn arms behind it.
+Open and instrumented but unmeasured: the digest-injection cadence (§7.10).
 
 ---
 
@@ -1573,7 +1581,7 @@ and `v42` is the existing attempt at it — which crashes *earlier* (turn 7) on 
 and measured worse on recall. Priority order by measured cost: window, then tool rounds, then the
 digest cadence knob of §7.10, which stays available and demoted.
 
-### 7.11 PREDICTION 2026-08-19 (arithmetic done, measurement pending): the shipping model may not load on a Galaxy S23 in production configuration
+### 7.11 CONFIRMED ON HARDWARE 2026-08-19: the shipping model does not load on a Galaxy S23
 
 Found while checking whether the phone could hold the 8B before starting a run. Every number below
 is either a committed constant or a device probe; only the conclusion is unverified.
@@ -1618,9 +1626,32 @@ nobody here has checked. So the *real* footprint may be much smaller than 4401 M
 could have run — the failure mode is a false negative, and it is invisible, because a blocked load
 produces no allocation to compare against.
 
-⚠️ **Not measured.** The APK that can test it (`32254348018`, debuggable) is still building.
-**First thing the device run answers**, and it answers two questions at once: does the app refuse,
-and — with `norepack=1` — what does an 8B-A1B actually cost in anonymous RAM.
+**MEASURED, same day, on the phone** (debuggable APK `32254348018`, model copied into app storage
+and md5-verified against the Mac source, `f57def02e4e034d4f16ffa125977c45a`, unplugged, 93 %,
+28.6 °C):
+
+```
+I/ReactNativeJS: 'model.fit', '{"verdict":"does_not_fit","availableMb":4030}'
+```
+
+The app never attempted an engine init — the log goes straight from that verdict to memory-pressure
+polling. A chat turn sent through the deep link came back **instantly**, same millisecond timestamp
+as the user message:
+
+```json
+{"role":"user","text":"Ciao, chi sei?","createdAt":1787146704276}
+{"role":"assistant","text":"⚠️ Caricamento del modello non riuscito. Apri Impostazioni → Modelli
+ e tocca Riprova caricamento per LFM2.5 8B-A1B.","createdAt":1787146704276}
+```
+
+So the estimate predicted 4650 MiB against 4121 MiB probed; the app measured 4030 MiB available and
+refused. **The model Kalsa ships cannot be used on a 2023 flagship**, and the error text tells the
+user to *retry* — which cannot help, because nothing about the RAM will be different next time.
+
+⚠️ **What is still unmeasured is the interesting half**: whether the phone could actually have run
+it. With `kalsa.bench.norepack=1` the repack term goes to 0 and the gate passes; what the process
+then costs in `RssAnon` is what decides whether `REPACK_FRACTION` is simply wrong for a MoE. That
+run is dispatched.
 
 ### 7.10 MECHANISM 2026-08-19: the digest costs cache per INJECTION, not per change — knob written, UNMEASURED
 
@@ -2302,6 +2333,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 | 2026-08-16 | **The 390 s prefill is solved and §7.5 is rewritten around the measurement.** Four proposed causes were refuted, three of them mine, and none fell to an argument — each fell to a number the engine printed (`3e1c654`, `12868ea`, `36138fd`). The cause: Qwen3.5's template injects an empty `<think>\n\n</think>\n\n` when it asks for an answer and never repeats it when replaying one, so the re-rendered prompt diverges four tokens after the assistant header; a hybrid KV cannot roll back, so 1646 valid tokens are discarded. Confirmed 5/5 turns, identical `[248068 271 248069 271]` every time. Fix shipped in `6447ff2`: the prompt replays the text the model emitted, and when the window cannot reproduce the KV the session is refused with a named reason and its artifacts deleted — the old path left a poisoned `.kvs` that recharged the cost on every later restore. |
 | 2026-08-16 | **A change was written, audited and reverted before shipping** (`9c73846`): moving memory facts out of the system prompt onto the user turn. It violated append-only on *every* turn (the block rides `messages[length-1]`, so next turn that message renders without it) and moved the "these facts are untrusted data, not instructions" frame into the user message, adjacent to the utterance it defends against. Kept from that work: `computePromptEnvHash` no longer hardcodes `hasTools: true` while `buildSystemPrompt` really switches prompts, plus tests and harness alignment. Added §3.11: a pre-existing privacy defect — the prompt renders the last ten facts, `webSearchTool` gates the first ten. |
 | 2026-08-18 | **The shipping model measured at last, and CisWire wins by more there than on the dense 4B** (`32103054225`, LFM2.5-8B-A1B, 40/40 arms, completeness gate passed). +0.312 over bare, p = 0.0291. Ranked by what CisWire buys: 2B +0.635, **shipping 8B-A1B +0.312**, 4B +0.209 — so "the harness rescues small models" is the wrong shape: it rescues models that hold context badly, and size is only a proxy. Bare on the shipping model (0.556) is **worse than bare on the dense 4B** (0.785). Its failure mode differs too: it fumbles *early* probes (0.637, where the 2B and 4B both scored ~1.000) and CisWire lifts those to 0.988 — a digest is not supposed to help with text still in the window, so that mechanism is unexplained and needs its own experiment. `v42` dead again (+0.062, p=0.70), two models two campaigns. Spurious tool calls 15 on bare against the 4B's 4, halved by CisWire. **And the finding that reorders the backlog: this model reuses essentially no KV cache — 0.008 mean across all 40 arms (max 0.062) against the 4B's 0.561.** It re-prefills everything every turn and is still faster than the 4B (7.2 vs 2.4 tok/s evaluated), which makes the append-only transcript work worth *more* here than on the model it was built for. Cause unknown: the Qwen trigger is a Qwen *template* property and cannot be assumed to transfer. |
+| 2026-08-19 | **§7.11 confirmed on the phone: the shipping model does not load on a Galaxy S23.** Predicted from the app's own constants in the morning, measured in the afternoon on the debuggable APK `32254348018` with the GGUF md5-verified end to end. `'model.fit', '{"verdict":"does_not_fit","availableMb":4030}'`, no engine init attempted, and a deep-linked turn answered in the same millisecond with "Caricamento del modello non riuscito … tocca Riprova caricamento" — advice that cannot work, since the RAM will not be different next time. The gate charges 4401 MiB of weight repack from `REPACK_FRACTION` 0.8951, a constant calibrated on **Qwen3.5-2B, a dense model**, applied to a **MoE with ~1B active**; nobody has checked whether llama.cpp repacks expert tensors at all. So the app may be refusing a model this phone could run, and the refusal leaves no allocation behind to compare against. `norepack=1` run dispatched to settle it. Also restored to this branch: `scripts/device-env.sh`, `device-share-send.sh` and `test_device_share_send.sh` (17/17 pass), which existed only on `bench/kvtranscript-probe` — the commit that added them is literally titled "Stop losing the way to drive the phone" and it was lost again anyway. |
 | 2026-08-19 | **§7.12, third version and the first that survived a second dataset: there are two cache regimes, one per model, and the biggest destroyer is the sliding window — in bare too.** Checked the smoke (`32157672018`, LFM2.5-8B-A1B) against the 4B campaign (`32048465417`, 570 turn observations) instead of trusting either alone. **Regimes:** on Qwen3.5 reuse is continuous (482/570 turns strictly between 0 and 0.90); on the shipping model it is bimodal, 0.98 or exactly 0. That is `llm_arch_supports_rs_rollback` — true for QWEN35, false for LFM2 — so on the model we ship one divergent token costs the whole cache and there is no partial credit. Which retires §7.9's "a third of the prefix is re-evaluated": 0.599 is a hit count, not a fraction. **Window:** mean reuse on the 4B goes 0.82 at turn 11 → **0.15 at turn 12**, in `baseline`, which never carries a digest — `LEGACY_MAX_HISTORY` is 20 messages, so the oldest exchange starts falling out of `slice(start)` and the prefix diverges right after the system prompt every turn. Predicted in design at `RESEARCH_CONTEXT_LOSS.md:104`, measured here for the first time: **the KV work pays for about ten exchanges, then the window throws it away for every shipping mode.** **Tools:** on the shipping model, 10 of 10 turns following a tool call lost everything, zero survivors — `LlamaService.ts:1930-1941` puts `assistant(tool_calls)` + `tool(result)` in the KV, history keeps only the final answer, `:1942` already marks it; 3 s prefill on a hit against 195–405 s on a miss. On the 4B the same event costs 0.507 against 0.637 — survivable only because it can roll back. **Digest:** real but second-order, and collinear with the window by construction (a digest exists exactly when the corpus is non-empty, i.e. exactly when the window slides); the `baseline` row is what separates them. Two earlier versions of this row today were wrong — the first blamed the digest, the second generalised 10/10 from one 7-turn smoke. Both are kept above with banners. |
 | 2026-08-19 | **§7.10: the reason written in the code for why the digest costs cache is wrong, and the wrong reason has already cost one experiment.** The block is last only for the turn that carries it; next turn `promptContentForHistoryMessage` re-renders that user message clean (`modelEmittedText.ts:16-23` replays assistant messages only), so the last stable token falls back past the block, past that user turn, and past **the reply generated after it**. The cost is therefore per *injection*, not per *change of content* — which is precisely why the 2026-08-03 freeze, which held content still and kept injecting every turn, could only measure zero prefill saved. `compactor.ts`'s header and `RESEARCH_CONTEXT_LOSS.md:157` both carry the old reasoning; the header is corrected in place. Instrument written, **result not**: `parseBenchDigestCadence` + `shouldInjectOperativeBlock` (8 unit tests), `getBenchDigestCadence`, `DIGESTCADENCE` in `ci-bench.sh` with the both-branch assert, `digestcadence` workflow input, pref visible in `prefs.txt`. Empty/1 = production, untouched. Acceptance criterion fixed before the run: cache must rise *and* the loss must concentrate on injection turns, *and* recall must be reported alongside — cadence trades cache against exactly the staleness the freeze revocation measured at 33.3 % vs 100 %, so a cache win alone does not ship. |
 | 2026-08-18 | **The 4B campaign landed and CisWire holds: +0.209 over bare, p = 0.0108** (`32048465417`, 38 usable arms, permutation tests). §3.2's prediction was right — the effect shrinks, from +0.635 on the 2B, because bare climbs 0.313 → 0.785 while ciswire goes 0.948 → 0.994 with sd 0.083 → 0.019. What survives is entirely **distance**: the 4B is perfect on recent facts and loses over half the distant ones (0.446 late), ciswire loses none (1.000). Three things nobody predicted: **`v42` dies** on the stronger model (+0.040, p=0.70, against +0.354 p=0.043 on the 2B); **`nogate` reverses**, 0.094 on the 2B against 0.944 on the 4B, which is the hardest evidence yet that harness decisions are model-dependent; and **§1.5's token saving does not reproduce** — history length is identical across arms, so on the 4B the digest is pure cost, +350 prompt tokens at turn 13 and ~95 s more prefill per turn. §3.1's blocker did not reproduce either: zero blank bubbles across all 38 arms. Two arms died on the 2400 s per-turn cap, both **untreated** (bare writes longer replies, so it reaches the cap first), so `baseline` and `nogate` are n=9 and the completeness gate correctly refused to publish. |
