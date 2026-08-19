@@ -5,10 +5,14 @@
  * platformOS is passed in so the Android Hexagon/HTP GPU gate is testable.
  */
 
+/** llama.rn accepts exactly these three; "disabled"/"enabled" are silently ignored. */
+export type FlashAttnMode = "auto" | "on" | "off";
+
 export type EngineOverrideFields = {
   nGpuLayers?: number;
   nThreads?: number;
   nUbatch?: number;
+  flashAttn?: FlashAttnMode;
 };
 
 /** Minimal ContextParams slice the override touches. */
@@ -17,12 +21,13 @@ export type EngineParamsSlice = {
   n_threads?: number;
   n_ubatch?: number;
   n_batch?: number;
+  flash_attn_type?: FlashAttnMode;
 };
 
 /**
  * Apply bench engineOverride onto params (mutates and returns params).
- * - nGpuLayers: skipped on Android (Hexagon NPU + FA-on-CPU init failure);
- *   warn and leave production n_gpu_layers untouched.
+ * - flashAttn: passthrough, every platform.
+ * - nGpuLayers: on Android, only alongside `flashAttn: "off"` — see below.
  * - nThreads: passthrough.
  * - nUbatch: clamped to params.n_batch ?? 512.
  * Absent fields leave params untouched. Empty/undefined override is a no-op.
@@ -34,13 +39,24 @@ export function applyEngineOverride<T extends EngineParamsSlice>(
 ): T {
   if (!override) return params;
 
+  // Before the GPU gate: the gate's condition is this value.
+  if (override.flashAttn !== undefined) {
+    params.flash_attn_type = override.flashAttn;
+  }
+
   if (override.nGpuLayers !== undefined) {
-    // Mirror LlamaService production guard: Android must stay n_gpu_layers=0.
-    if (platformOS === "android") {
+    // What was measured is narrower than what this used to block. The recorded
+    // failure is Hexagon/HTP offload *with Flash Attention on CPU* — production
+    // sends flash_attn_type "auto", so offload has never been tried with FA off.
+    // Blocking that cell too made the one untested configuration unmeasurable,
+    // in the bench as well as in production, since both share this path.
+    // So: Android needs an explicit `flashAttn: "off"` in the SAME override.
+    // Production sets no override at all and stays n_gpu_layers=0 either way.
+    if (platformOS === "android" && override.flashAttn !== "off") {
       console.warn(
         "bench:engine nGpuLayers ignored on Android — Hexagon/HTP offload " +
-          "with Flash Attention on CPU makes llama_init_from_model fail " +
-          "(see n_gpu_layers HARD GUARD in LlamaService)",
+          "with Flash Attention on CPU makes llama_init_from_model fail. " +
+          'Pass flashAttn:"off" in the same override to measure the untested cell.',
       );
     } else {
       params.n_gpu_layers = override.nGpuLayers;

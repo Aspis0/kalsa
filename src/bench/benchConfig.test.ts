@@ -14,8 +14,10 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  getEngineOverride,
   getToolChoiceMode,
   getToolGateEnabled,
+  parseEngineArg,
   resolveCompletionToolChoice,
 } from "./benchConfig";
 
@@ -108,5 +110,49 @@ describe("getToolChoiceMode / getToolGateEnabled defaults", () => {
   test("toolgate 0 disables", async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue("0");
     await expect(getToolGateEnabled()).resolves.toBe(false);
+  });
+});
+
+/**
+ * The persistence half of the Android GPU gate. applyEngineOverride is tested
+ * in engine/engineParams.test.ts; what matters here is that a key written by a
+ * bench run comes back out of storage with the field that unlocks offload, so
+ * the round trip is visible rather than assumed.
+ */
+describe("engine override persistence", () => {
+  test("a stale key carrying gpu+fa survives storage intact", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify({ nGpuLayers: 99, flashAttn: "off" }),
+    );
+    await expect(getEngineOverride()).resolves.toEqual({
+      nGpuLayers: 99,
+      flashAttn: "off",
+    });
+  });
+
+  test("an old key written before flashAttn existed cannot unlock offload", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify({ nGpuLayers: 99 }),
+    );
+    const o = await getEngineOverride();
+    expect(o).toEqual({ nGpuLayers: 99 });
+    expect(o?.flashAttn).toBeUndefined();
+  });
+
+  test("a junk flashAttn value is dropped, not passed to native", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify({ nGpuLayers: 99, flashAttn: "disabled" }),
+    );
+    const o = await getEngineOverride();
+    expect(o?.flashAttn).toBeUndefined();
+  });
+
+  test("parseEngineArg accepts fa alongside gpu and rejects junk", () => {
+    expect(parseEngineArg("gpu=99,fa=off")).toEqual({
+      nGpuLayers: 99,
+      flashAttn: "off",
+    });
+    expect(parseEngineArg("fa=disabled")).toBeNull();
+    expect(parseEngineArg("fa=")).toBeNull();
   });
 });

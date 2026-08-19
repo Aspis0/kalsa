@@ -44,6 +44,7 @@ import {
   resolveEngineTuning,
 } from "./deviceTuning";
 import { applyEngineOverride } from "./engineParams";
+import type { EngineOverrideFields } from "./engineParams";
 import {
   createToolCallDeltaStripper,
   LFM_TOOL_CALL_START,
@@ -601,16 +602,18 @@ export type EngineInitOptions = {
     draftModelPath?: string;
   };
   /**
-   * Bench-only init-time engine param override (GPU layers / threads / ubatch).
-   * When present, overrides the matching ContextParams fields after production
-   * defaults. Absent = production. CI A/B via AsyncStorage `kalsa.bench.engine`.
-   * Applies at ENGINE INIT only.
+   * Bench-only init-time engine param override (GPU layers / threads / ubatch /
+   * flash attention). When present, overrides the matching ContextParams fields
+   * after production defaults. Absent = production. CI A/B via AsyncStorage
+   * `kalsa.bench.engine`. Applies at ENGINE INIT only.
+   *
+   * Reuses EngineOverrideFields rather than restating the shape: the copy that
+   * used to live here silently lacked `flashAttn`, and since TypeScript skips
+   * excess-property checks on a variable, the field still arrived at runtime
+   * while being invisible here. A refactor rebuilding this object field by
+   * field would have dropped the knob with nothing failing.
    */
-  engineOverride?: {
-    nGpuLayers?: number;
-    nThreads?: number;
-    nUbatch?: number;
-  };
+  engineOverride?: EngineOverrideFields;
   /**
    * If set, attempt to restore native KV session after initLlama when the
    * on-disk meta matches history + engine config + prompt env.
@@ -884,7 +887,28 @@ export function initEngine(
       } catch {
         /* telemetry never throws into engine path */
       }
-      rethrowWithNativeTail(error);
+      // Android offload is bench-only and known to be able to kill init (HTP0
+      // with FA on CPU). There is no other retry on this path, so without this
+      // a stale `kalsa.bench.engine` would leave the model permanently
+      // unloadable behind a "Riprova caricamento" that cannot work — the same
+      // dead end §7.11 documented. Fall back to CPU once, and say so loudly:
+      // a silent fallback would hand the GPU arm a CPU number to publish.
+      if (Platform.OS === "android" && (params.n_gpu_layers ?? 0) > 0) {
+        console.warn(
+          `KALSA_GPU_FALLBACK ${JSON.stringify({
+            requestedGpuLayers: params.n_gpu_layers,
+            flashAttn: params.flash_attn_type,
+          })}`,
+        );
+        params.n_gpu_layers = 0;
+        try {
+          context = await initLlama(params);
+        } catch {
+          rethrowWithNativeTail(error);
+        }
+      } else {
+        rethrowWithNativeTail(error);
+      }
     }
     activeModelId = modelId;
     activeMmprojPath = options.mmprojPath ?? null;

@@ -24,7 +24,7 @@
  * - kalsa.bench.thinking: "default" | "off" | "budget256" | "budget512"
  * - kalsa.bench.format:   "none" | "system-end" | "user-prefix" | "user-note"
  * - kalsa.bench.speculative: JSON { type, nMax?, draftModelPath? } (CI A/B only)
- * - kalsa.bench.engine: JSON { nGpuLayers?, nThreads?, nUbatch? } (CI A/B only)
+ * - kalsa.bench.engine: JSON { nGpuLayers?, nThreads?, nUbatch?, flashAttn? } (CI A/B only)
  * - kalsa.bench.toolchoice: "auto" | "required" | "none" (CI A/B only)
  * - kalsa.bench.toolgate:   "1" (default) | "0" (CI A/B only)
  * - kalsa.bench.norepack:   "1" disables weight repacking (CI A/B only)
@@ -34,6 +34,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getThreadCountSource } from "../engine/threadProfile";
+import type { FlashAttnMode } from "../engine/engineParams";
 import { parseBenchNCtx } from "../engine/contextProfile";
 import {
   parseBenchWindowBudget,
@@ -78,6 +79,8 @@ export type EngineOverride = {
   nGpuLayers?: number;
   nThreads?: number;
   nUbatch?: number;
+  /** Android needs "off" alongside nGpuLayers — see applyEngineOverride. */
+  flashAttn?: FlashAttnMode;
 };
 
 /**
@@ -102,6 +105,7 @@ function formatEngineLabel(engine: EngineOverride | undefined): string {
   if (engine.nGpuLayers !== undefined) parts.push(`gpu:${engine.nGpuLayers}`);
   if (engine.nThreads !== undefined) parts.push(`threads:${engine.nThreads}`);
   if (engine.nUbatch !== undefined) parts.push(`ubatch:${engine.nUbatch}`);
+  if (engine.flashAttn !== undefined) parts.push(`fa:${engine.flashAttn}`);
   return parts.length > 0 ? parts.join(",") : "default";
 }
 
@@ -449,6 +453,13 @@ export function parseEngineArg(arg: string): EngineOverride | "clear" | null {
     if (eq <= 0) return null;
     const key = p.slice(0, eq).trim();
     const valStr = p.slice(eq + 1).trim();
+    // fa is the only non-numeric key; handle it before the digits-only check.
+    if (key === "fa") {
+      if (valStr !== "auto" && valStr !== "on" && valStr !== "off") return null;
+      out.flashAttn = valStr;
+      any = true;
+      continue;
+    }
     if (!/^\d+$/.test(valStr)) return null;
     const n = Number(valStr);
     if (key === "gpu") {
@@ -473,7 +484,7 @@ export function parseEngineArg(arg: string): EngineOverride | "clear" | null {
 /**
  * Bench-only init-time engine param override (GPU layers / threads / ubatch).
  * AsyncStorage key `kalsa.bench.engine` = JSON
- *   { "nGpuLayers"?: number, "nThreads"?: number, "nUbatch"?: number }
+ *   { "nGpuLayers"?, "nThreads"?, "nUbatch"?: number, "flashAttn"?: "auto"|"on"|"off" }
  * absent/invalid → undefined (production defaults).
  * Applies at ENGINE INIT — force-stop + relaunch after writing.
  */
@@ -495,6 +506,10 @@ export async function getEngineOverride(): Promise<EngineOverride | undefined> {
       ) {
         out[key] = n;
       }
+    }
+    const fa = o.flashAttn;
+    if (fa === "auto" || fa === "on" || fa === "off") {
+      out.flashAttn = fa;
     }
     return Object.keys(out).length > 0 ? out : undefined;
   } catch {
