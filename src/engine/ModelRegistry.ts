@@ -249,38 +249,6 @@ export const MODEL_REGISTRY: ModelInfo[] = [
   {
     // Our own KEXP requantization of the entry above: q2_k on routed gate/up,
     // q3_k on routed down, q5_k/q6_k on the two leading dense blocks, f32 norms.
-    // 3.10 GiB against 4.80, and the point is not disk — it is page cache. The
-    // Q4_K_M build measured a page-fault storm on an S23 (93.5 GiB of file pages
-    // re-read in one turn, 0.31 tok/s decode, §7.14) because it cannot stay
-    // resident. This one might.
-    //
-    // ⚠️ SIDELOAD ONLY. `hfRepo`/`revision` point at the upstream repo, which does
-    // NOT host this file — the in-app download for this id cannot succeed until we
-    // publish it. Present so the bench can select and validate it on disk.
-    //
-    // Quality cost, measured on our multi5 corpus at the same k=4, and it misses
-    // the gate that was frozen before the numbers existed: macro bpb 1.2926 vs
-    // 1.2221 (+0.0705, gate was +0.05) and zh +0.1053 (per-lang gate +0.10).
-    // Italian +0.0909 passes. Shipping this is a product call, not a technical one.
-    id: "lfm2.5-8b-a1b-kexp",
-    name: "LFM2.5 8B-A1B KEXP",
-    vendor: "Liquid AI",
-    quant: "KEXP",
-    hfRepo: "LiquidAI/LFM2.5-8B-A1B-GGUF",
-    revision: "dfd5fdcad7a1c0d31473fb4ca443b8befbacddf0",
-    file: "LFM2.5-8B-A1B-KEXP.gguf",
-    sizeBytes: 3_326_160_384,
-    contextLength: 131072,
-    engineCtx: 8192,
-    kvCache: { k: "q8_0", v: "q4_0" },
-    hybrid: true,
-    thinking: { short: 256, extended: 512 },
-    preserveThinking: true,
-    descriptionKey: "models.lfm258b.description",
-  },
-  {
-    // Our own KEXP requantization of the entry above: q2_k on routed gate/up,
-    // q3_k on routed down, q5_k/q6_k on the two leading dense blocks, f32 norms.
     // 3.10 GiB against 4.80 — and the point is not disk, it is page cache. The
     // Q4_K_M build measured a page-fault storm on an S23 (93.5 GiB of file pages
     // re-read from flash in ONE turn, 309 MiB per generated token, decode
