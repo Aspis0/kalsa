@@ -206,6 +206,7 @@ app data.
 | Speed (8B MoE 4.80 GiB, norepack) | prefill ~18 tok/s, **decode 0.31–0.36 tok/s** (3 runs), load ~12.6 s |
 | Why | **page-fault storm, measured**: 93.5 GiB of file pages re-read from flash in one 1134 s turn, 309 MiB per generated token, `RssFile` oscillating 4.15 → 2.02 → 2.52 GB inside one pid (§7.14) |
 | Speed (KEXP 3.10 GiB, norepack) | **decode 0.861 tok/s warm** — storm gone (refaults 130× lower, 96 % resident), speed still not a product (§7.15) |
+| GPU (Adreno 740) | **dense models: offload works.** **MoE: it does not** — the current llama kernel does MoE-on-GPU only above **Adreno 750**, and this phone is a 740. Two independent walls, and our shipping model is a MoE, so on this device the GPU is not an escape from §7.15's decode. Owner + the other session are patching the kernel to lift the MoE limit (2026-08-19); whether that also lifts the 750 floor is **not known here** |
 | Bigger models | a 35B MoE has run on this phone with a streaming engine, so file size is **not** the ceiling — the mmap regime is |
 
 Driving it: `scripts/device-share-send.sh` (`kalsa://share?text=`) — the type path is a no-op on a
@@ -228,12 +229,20 @@ twice mid-campaign and took an APK and a runner with it.
 
 ## 9. What we do not know
 
-- **What KEXP does with repack ON.** Answered for residency, open for speed: every device number to
-  date is `norepack=1`, so we have never measured this engine with ARM GEMM on. This is now the
-  single highest-value unrun arm — it is where a shippable decode number would come from, if one
-  exists.
-- ~~Whether KEXP at 3.10 GiB actually stays resident~~ — **yes**, ~96 %, §7.15. What it did not buy
-  was speed: 0.861 tok/s.
+- **Where KEXP's 0.861 tok/s actually goes.** Not page cache (fixed, §7.15), not repack (see below),
+  not thermal (0.3627 cold vs 0.3572 warm), not the KV cache (`n_common` 1411/1431, 98.6 % reused),
+  not thread count (5). Prefill is *normal* at 17 tok/s while decode is 20× worse, and a **dense**
+  4B with 4× more active parameters decodes at 5–8 tok/s on the same CPU — so per active parameter
+  the MoE decode is ~25× less efficient. Remaining suspect: the batch-1 `MUL_MAT_ID` path. **Needs a
+  profile, not another A/B.**
+- ~~Whether KEXP at 3.10 GiB stays resident~~ — **yes**, ~96 %, §7.15. It did not buy speed.
+- ~~What KEXP does with repack ON~~ — **void, and never worth a run.** The ARM repack backend
+  implements `q8_0, q4_K, q6_K, q5_K, q4_0, mxfp4, iq4_nl`; **q3_K is absent entirely and q2_K has
+  only avx512/riscv paths**. KEXP's experts are q2_k + q3_k, i.e. nearly the whole file, so on ARM
+  they get no repack with the flag either way. Read in the shipped C++, not inferred.
+- **What GPU offload buys on an Adreno 740 for a DENSE model.** Now the measurable one: MoE-on-GPU
+  is out on this phone (see §7), but dense offload should work, and it bounds how much the kernel
+  patch could ever be worth for this device class. `NGL=99` in `lfm-setup.sh`, APK ready, unrun.
 - What the 4.80 GiB 8B would do with repack on — it cannot load, so there is no in-model control.
 - Net wall clock of `ciswire` on a phone. Every quality number is emulator; every speed number is 4B.
 - Whether replaying tool rounds recovers the cache.

@@ -1535,17 +1535,34 @@ it is the one to quote. **Do not average the two.**
 not kernels." Half right, and the wrong half matters: residency was the lever for the *storm* —
 130× fewer refaults, exactly as predicted — and it bought only **2.7×** of decode. 0.86 tok/s is
 two minutes for a short reply. Size was a real lever, correctly identified, and it was not the
-whole problem. Kernels are now the remaining one.
+whole problem. Kernels looked like the remaining one. **They are not either — see the next two
+paragraphs, both of which closed the same afternoon, on disk, before either cost a phone session.**
 
-**The confound we have dragged through the entire device campaign, and can finally drop.** Every
-number in §7.11–§7.15 was measured with `norepack=1` — ARM-optimized GEMM **off**. It was off
-because with the 4.80 GiB build the repacked buffer did not fit. At 3.10 GiB the arithmetic
-changes: repack 0.8951 × 3172 MiB = 2839, plus 249 MiB compute = **3088 MiB non-evictable against
-the 4016 MiB of `MemAvailable` measured at PRE** — it fits, with ~930 MiB of margin, *if* the file
-pages are released once the weights are repacked into the anonymous buffer. If they are not, it is
-3088 + 3172 = 6260 MiB and the anonymous half goes to zram (the §7.2 failure, on a bigger model).
-`RssAnon` against `RssFile` answers that in one turn. **Not yet run** — the phone went to another
-task at 49 %.
+⛔ **The repack arm is VOID on this model. Do not run it.** Every number in §7.11–§7.15 was measured
+with `norepack=1`, and the plan was to finally turn ARM GEMM on now that 3.10 GiB leaves room
+(2839 + 249 = 3088 MiB non-evictable against 4016 MiB of measured `MemAvailable`). Then the shipped
+C++: `arch/arm/repack.cpp` implements `q8_0, q4_K, q6_K, q5_K, q4_0, mxfp4, iq4_nl` and **nothing
+else**; `q3_K` appears **zero** times in `repack.cpp`, and `q2_K`'s only selection paths are
+`lm_ggml_cpu_has_avx512()` and `riscv_v` (`repack.cpp:4627`, branch read in full). KEXP's experts are q2_k on
+gate/up and q3_k on down — nearly the whole file — so on ARM they get no repack whether the flag is
+on or off. The flag was never the lever for this quant. Note the design bind this exposes: the
+types small enough to stay resident have no ARM fast path, and the types with an ARM fast path are
+≥ 4 bpw and do not stay resident.
+
+⛔ **And the GPU is not the escape either, on this phone, for this model** (owner, 2026-08-19). The
+current llama kernel does MoE-on-GPU only above **Adreno 750**; the S23 is an Adreno **740**. Two
+independent walls — MoE unsupported *and* the hardware floor — and the shipping model is a MoE. Work
+is under way in another session to patch the kernel for MoE; whether that also lifts the 750 floor
+is not known here. Dense models offload fine on this device, which is what makes the arm below
+measurable at all.
+
+**So what is left is a profile, not another A/B.** The elimination is now tight: not page cache
+(fixed here), not repack (unavailable), not the KV cache (`n_common` 1411/1431, 98.6 % reused, so
+turn 2's prompt cost 1716 ms), not thermal (§7.14: 0.3627 cold vs 0.3572 warm), not threads
+(`n_threads=5`). Prefill is **normal** at 17.1 tok/s while decode is 20× worse — and a **dense** 4B
+carrying **4× more active parameters** decodes at 5–8 tok/s on this same CPU, so per active
+parameter the MoE decode is roughly **25× less efficient**. The remaining suspect is the batch-1
+`MUL_MAT_ID` path.
 
 Artifacts: `~/kalsa-runs/kexp/` (PRE, T1_01–T1_34, T2_01–T2_11, POST_1, POST_2, logcat), driver
 `~/kalsa-scripts/kexp-probe.sh`.
