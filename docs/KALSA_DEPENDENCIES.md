@@ -80,6 +80,14 @@ fire while there is room. Neither is wrong on its own; having two is.
 on the tokenizer and the language. It is deliberately low so the error is a smaller window rather
 than a silent `ctx_shift`, but it belongs in `ModelRegistry` next to `kvCache`, not in a shared file.
 
+⚠️ **`hasImages` means "the turn has attachments", not "the turn has an image."** A
+document-only attachment takes the image branch and gets the 8-message window and the 2000-char
+per-message cap while carrying no image at all (`AppShell.tsx:4229` sets it from
+`attachments?.length`; the prompt loop at `:4498` only accepts `image` and `pdf`). This predates the
+derived window — the same flag already picked `LEGACY_MAX_CHARS_IMAGES` — but the window now
+inherits it. Found by a hostile audit 2026-08-19; not fixed with the window, because correcting the
+flag changes attachment behaviour well outside it.
+
 ---
 
 ## 3. Generation, tools, memory

@@ -298,50 +298,26 @@ export const DEFAULT_CHAT_ID = "default";
 
 /** Legacy sliding-window limits (must stay byte-identical when compaction is OFF). */
 export const LEGACY_MAX_HISTORY = 20;
-/**
- * Verbatim window on a device whose resolved context can hold it: 40 messages =
- * **20 exchanges**, twice the default.
- *
- * Why it is not simply the new constant: the window is what kills the KV prefix.
- * While it does not slide the prompt is append-only and the cache survives; the
- * turn it starts sliding, the first message of the prompt changes and reuse
- * collapses — measured on Qwen3.5-4B at 0.82 → 0.15, in the arm that carries no
- * digest at all. Doubling the window doubles the good regime, from ~10 exchanges
- * to ~20.
- *
- * Why it is gated on context and not applied everywhere: 20 messages measured
- * ~4743 prompt tokens, so 40 messages is ~9500 — over an 8192 `engineCtx`. On a
- * device that does not get the 16384 upgrade this would trade a cache problem for
- * a `context_full` error, which is worse.
- */
-export const LEGACY_MAX_HISTORY_LARGE_CTX = 40;
 export const LEGACY_MAX_HISTORY_IMAGES = 8;
 
 /**
- * Verbatim window for a resolved engine context. Anything below 16384 keeps the
- * 20-message window, because 40 messages do not fit an 8192 context.
+ * Why the window matters at all, kept here because the sizing moved out:
+ * the window is what kills the KV prefix. While it does not slide the prompt is
+ * append-only and the cache survives; the turn it starts sliding, the first
+ * message of the prompt changes and reuse collapses — measured on Qwen3.5-4B at
+ * 0.82 → 0.15, in the arm carrying no digest at all (§7.12).
  *
- * ⚠️ Known trade, stated so it is not discovered later: a bigger window makes each
- * cache MISS more expensive (a ~9500-token re-prefill instead of ~4750) while
- * making misses rarer. That is a win when misses are rare and a loss when they are
- * frequent — and on LFM2.5, which cannot roll back recurrent state, every tool call
- * is a guaranteed miss. On that model this wants the tool-round replay fix landed
- * alongside it, not after.
+ * ⚠️ The trade a bigger window makes, stated so it is not rediscovered: it makes
+ * each cache MISS more expensive (20 messages measured ~4743 prompt tokens, 40
+ * would be ~9500) while making misses rarer. A win when misses are rare, a loss
+ * when they are frequent — and on LFM2.5, which cannot roll back recurrent
+ * state, every tool call is a guaranteed miss. On that model a wider window
+ * wants the tool-round replay fix landed alongside it, not after.
+ *
+ * Sizing now lives in ./windowProfile, derived from the context the engine
+ * actually loaded. LEGACY_MAX_HISTORY below remains the count-only fallback for
+ * callers with no resolved profile.
  */
-export function legacyWindowForContext(
-  nCtx: number | null | undefined,
-  hasImages: boolean,
-): number {
-  // Image turns keep their own, much tighter cap. Callers pass this value as the
-  // `override` of legacyWindowStartIndex, and an override wins over EVERY default
-  // there — including LEGACY_MAX_HISTORY_IMAGES — so forgetting it would silently
-  // give a turn with photos a 20- or 40-message window.
-  if (hasImages) return LEGACY_MAX_HISTORY_IMAGES;
-  if (typeof nCtx === "number" && Number.isFinite(nCtx) && nCtx >= 16384) {
-    return LEGACY_MAX_HISTORY_LARGE_CTX;
-  }
-  return LEGACY_MAX_HISTORY;
-}
 export const LEGACY_MAX_CHARS = 4000;
 export const LEGACY_MAX_CHARS_IMAGES = 2000;
 
@@ -673,8 +649,16 @@ export function assembleEngineHistory(
     /** Required when compactionEnabled — absolute index into messages. */
     boundaryIndex?: number;
     config?: Partial<CompactorConfig> | null;
-    /** Bench-only legacy-window override (null/undefined → production constants). */
-    legacyWindowOverride?: number | null;
+    /**
+     * Slice start for the legacy window, resolved by the caller (see
+     * resolveWindowProfile / windowStartIndex in ./windowProfile).
+     *
+     * The caller owns it because the ciswire corpus boundary is defined as
+     * "everything outside this window": two independent derivations could
+     * drift and drop a message from both sides. Absent → fall back to the
+     * count-only legacy behaviour.
+     */
+    legacyWindowStart?: number | null;
   },
 ): EngineHistoryMessage[] {
   const hasImages = Boolean(options.hasImages);
@@ -683,11 +667,11 @@ export function assembleEngineHistory(
   const maxChars = hasImages ? LEGACY_MAX_CHARS_IMAGES : LEGACY_MAX_CHARS;
 
   if (!options.compactionEnabled) {
-    const start = legacyWindowStartIndex(
-      (messages ?? []).length,
-      hasImages,
-      options.legacyWindowOverride,
-    );
+    const start =
+      typeof options.legacyWindowStart === "number" &&
+      Number.isFinite(options.legacyWindowStart)
+        ? Math.max(0, Math.floor(options.legacyWindowStart))
+        : legacyWindowStartIndex((messages ?? []).length, hasImages);
     return (messages ?? [])
       .slice(start)
       .map((m) => toEngineHistoryMessage(m, maxChars));

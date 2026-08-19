@@ -208,8 +208,6 @@ import {
   DEFAULT_CHAT_ID,
   DEFAULT_COMPACTOR_CONFIG,
   emptyCompactorState,
-  legacyWindowStartIndex,
-  legacyWindowForContext,
   parseCompactorState,
   shouldInjectOperativeBlock,
   parseContextMode,
@@ -225,7 +223,10 @@ import {
   type CompactorState,
   type ContextMode,
   type HistoryRoleMessage,
+  LEGACY_MAX_CHARS,
+  LEGACY_MAX_CHARS_IMAGES,
 } from "../context/compactor";
+import { resolveWindowProfile, windowStartIndex } from "../context/windowProfile";
 
 /** Shared model pipeline states (download / load / ready) — used by Settings. */
 export type ModelPipelineState =
@@ -4257,19 +4258,52 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             let operativeContext: { digest?: string; summary?: string } | null = null;
             let olderForSummary: HistoryRoleMessage[] = [];
             let boundaryForAssemble = 0;
-            // Bench-only: shrink the legacy sliding window so eviction
-            // pressure increases on BOTH arms of the primary comparison
-            // (ciswire vs off). Absent in production → null → production
-            // constants (LEGACY_MAX_HISTORY / LEGACY_MAX_HISTORY_IMAGES).
-            // Declared outside the retrievalOn block so it's available
-            // both inside (for ciswire corpus boundary) and outside
-            // (for off-arm assembly).
-            // Bench override wins; otherwise the window is sized to the context the
-            // engine actually loaded (post-clamp), because 40 messages measured
-            // ~9500 prompt tokens and do not fit an 8192 ctx. 0 (no engine) → 20.
-            const legacyWindowOverride =
-              (await getBenchLegacyWindow()) ??
-              legacyWindowForContext(getActiveEngineNCtx(), hasImages);
+            // The verbatim window, resolved from the context the engine actually
+            // loaded (post-clamp) rather than from a constant — same treatment
+            // threads / ubatch / n_ctx already get. A bench override still wins,
+            // and expresses itself as a message cap with no char budget so the
+            // arms keep measuring exactly the count they ask for.
+            //
+            // Computed ONCE, as a start index, and handed to both consumers.
+            // They must not each derive it: assembly takes the window and the
+            // ciswire corpus takes everything outside it, so if the two ever
+            // disagreed a message would land in both or — worse — in neither.
+            // Passing one index makes them agree by construction.
+            const benchWindow = await getBenchLegacyWindow();
+            const windowProfile =
+              typeof benchWindow === "number"
+                ? {
+                    maxMessages: benchWindow,
+                    charBudget: Number.POSITIVE_INFINITY,
+                    source: `bench:${benchWindow}`,
+                  }
+                : resolveWindowProfile({
+                    nCtx: getActiveEngineNCtx(),
+                    hasImages,
+                    hasDigest: retrievalOn,
+                  });
+            // The turn being sent is appended to the prompt AFTER this walk, so
+            // it must be charged here or a long message would ride entirely
+            // outside the budget — exactly the overflow the budget exists to
+            // stop. Charged at the same per-message cap the history pays.
+            // Known under-count: the persona tail (up to
+            // PERSONA_INSTRUCTIONS_CAP) is added later still; it is bounded and
+            // small next to WINDOW_RESERVE_TOKENS, which is what covers it.
+            const perMessageCap = hasImages
+              ? LEGACY_MAX_CHARS_IMAGES
+              : LEGACY_MAX_CHARS;
+            const currentTurnChars = Math.min(text.length, perMessageCap);
+            const legacyWindowStart = windowStartIndex(
+              validatedHistory.map((m) => m.text?.length ?? 0),
+              {
+                ...windowProfile,
+                charBudget: Math.max(
+                  0,
+                  windowProfile.charBudget - currentTurnChars,
+                ),
+              },
+              perMessageCap,
+            );
             // Bench-only: ranking mode for the digest retriever.
             // Absent in production → null → "bm25" (existing behavior).
             const rankingOverride = await getBenchRanking();
@@ -4382,7 +4416,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               // - ciswire: everything outside the legacy sliding window
               const corpusBoundary =
                 contextMode === "ciswire"
-                  ? legacyWindowStartIndex(validatedHistory.length, hasImages, legacyWindowOverride)
+                  ? legacyWindowStart
                   : boundaryForAssemble;
 
               // Older corpus for summary scheduling + warm-index sync.
@@ -4456,7 +4490,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               compactionEnabled: contextMode === "v42",
               hasImages,
               boundaryIndex: boundaryForAssemble,
-              legacyWindowOverride,
+              legacyWindowStart,
             });
             const engineMessages: EngineMessage[] = assembled.map((m) => {
               const msg: EngineMessage = {

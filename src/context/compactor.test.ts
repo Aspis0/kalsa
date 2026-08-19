@@ -5,8 +5,6 @@
 
 import {
   assembleEngineHistory,
-  legacyWindowForContext,
-  LEGACY_MAX_HISTORY_LARGE_CTX,
   parseBenchDigestCadence,
   shouldInjectOperativeBlock,
   LEGACY_MAX_HISTORY,
@@ -177,33 +175,3 @@ describe("compactor shouldInjectOperativeBlock", () => {
   });
 });
 
-describe("compactor legacyWindowForContext", () => {
-  test("16384+ context gets the 20-exchange window", () => {
-    expect(legacyWindowForContext(16384, false)).toBe(LEGACY_MAX_HISTORY_LARGE_CTX);
-    expect(legacyWindowForContext(32768, false)).toBe(LEGACY_MAX_HISTORY_LARGE_CTX);
-  });
-
-  test("8192 keeps 20 messages — 40 would not fit ~9500 prompt tokens", () => {
-    expect(legacyWindowForContext(8192, false)).toBe(LEGACY_MAX_HISTORY);
-    expect(legacyWindowForContext(4096, false)).toBe(LEGACY_MAX_HISTORY);
-  });
-
-  test("no engine loaded (0) or unknown falls back to the default window", () => {
-    expect(legacyWindowForContext(0, false)).toBe(LEGACY_MAX_HISTORY);
-    expect(legacyWindowForContext(null, false)).toBe(LEGACY_MAX_HISTORY);
-    expect(legacyWindowForContext(undefined, false)).toBe(LEGACY_MAX_HISTORY);
-    expect(legacyWindowForContext(Number.NaN, false)).toBe(LEGACY_MAX_HISTORY);
-  });
-
-  test("images keep their own cap at every context size", () => {
-    expect(legacyWindowForContext(8192, true)).toBe(LEGACY_MAX_HISTORY_IMAGES);
-    expect(legacyWindowForContext(16384, true)).toBe(LEGACY_MAX_HISTORY_IMAGES);
-  });
-
-  test("the value is usable as a legacyWindowStartIndex override", () => {
-    // An override below BENCH_LEGACY_WINDOW_FLOOR would be silently ignored and
-    // the caller would get the default instead of the window it asked for.
-    expect(legacyWindowForContext(16384, false)).toBeGreaterThanOrEqual(4);
-    expect(legacyWindowForContext(8192, true)).toBeGreaterThanOrEqual(4);
-  });
-});

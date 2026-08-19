@@ -1503,7 +1503,17 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
-### 7.16 CROSS-TREE 2026-08-19: the GPU is not a decode lever — MoE decode on Adreno 740/750 is 0.41–0.44× the CPU
+### 7.16 CROSS-TREE 2026-08-19: on an **Adreno 740** the GPU is not a decode lever — and that is a statement about one GPU, not about GPUs
+
+⚠️ **Scope this section before quoting it. Everything below is the Adreno 740 — the phone we own.**
+Owner, 2026-08-19: *"da Adreno 750 la GPU fa volare tutto."* So the pessimism here does **not**
+generalise upward; it is the floor of the range, on the device that happens to be on our desk.
+Product consequence: these numbers argue about what an S23 can do, **not** about whether Kalsa
+should use the GPU on the phones it will actually ship to.
+⚠️ Recorded tension, not resolved here: the 0.41–0.44× decode figure below was reported as covering
+**740 *and* 750**, which sits against "from 750 it flies". Either the 750 figure predates the kernel
+work, or the two describe different quants/paths. **Do not average them and do not pick one** — the
+next Adreno 750-class measurement settles it.
 
 Intel from the parallel session working on the OpenCL kernels, cross-checked against what this tree
 says. **Their numbers, not ours** — recorded here because they close a direction we were about to

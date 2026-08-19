@@ -126,7 +126,7 @@ string.
 
 | context mode | window | digest | shipped |
 |---|---|---|---|
-| `off` | legacy **sliding**: last **40 messages (20 exchanges)** where the loaded context is ≥16384, else 20; images always 8 | none | **yes, this is the default** |
+| `off` | legacy **sliding**, sized by a **char budget derived from the loaded `n_ctx`** — 40 messages is only the cap, and on an 8192 context ~19 messages is what actually fits; images always 8 | none | **yes, this is the default** |
 | `ciswire` | same sliding window | BM25 digest of what fell out of it | no (off by default) |
 | `v42` | boundary-anchored, append-only between rebuilds | same digest | no; measured worse on recall |
 
