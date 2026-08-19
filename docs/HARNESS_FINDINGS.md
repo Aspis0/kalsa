@@ -7,17 +7,21 @@ silently changed is worse than no conclusion.
 Goal it serves: make Kalsa's harness better than a bare sliding window on an on-device chat —
 tool calls, context that survives, memory.
 
-Last updated: 2026-08-17 · Evidence: campaigns `31739205810` (window 10), `31760516762`
+Last updated: 2026-08-19 · Evidence: campaigns `31739205810` (window 10), `31760516762`
 (window 16) and `31861056717` (window 16, every 2026-08-14 defect fixed), Qwen3.5-2B, 6
 seeds/arm, 16-turn conversations, Italian, CI emulator.
 
 **Landed 2026-08-15:** `31910747849` (memory smoke, first measurement with the settled telemetry of
 `bf3794d` — §3.3), `31911860830` (the `tools` phase, gate/nogate pair, one seed — §0 question 2).
 
-**In flight:** `32048465417` — Qwen3.5-**4B**, fase4, **10 seeds**, dispatched 2026-08-17 17:01 UTC
-on `bench/fase4-harness-fix`. It is the first full campaign since the harness fixes; everything
-green after 08-13 was a one-seed smoke. It answers §0 question 1 for the 4B and opens question 5.
-The 08-15 attempt at the same campaign (`31911872610`) was **cancelled and produced nothing**.
+**Landed since:** `32048465417` (Qwen3.5-**4B**, fase4, 10 seeds — question 1 for the 4B, opened
+question 5) and `32103054225` (**LFM2.5-8B-A1B**, the shipping model — question 5 answered). Both
+on `bench/fase4-harness-fix`, the first full campaigns since the harness fixes; everything green
+after 08-13 had been a one-seed smoke. The 08-15 attempt at the 4B campaign (`31911872610`) was
+**cancelled and produced nothing**.
+
+**Nothing is in flight.** Open and instrumented but unmeasured: the digest-injection cadence
+(§7.10).
 
 ---
 
@@ -36,7 +40,7 @@ expensive thing (§3.3).
 | 1 | Better than bare for small models? | **Yes on all three.** 2B +0.635 · **shipping LFM2.5-8B-A1B +0.312 (p=0.029)** · 4B +0.209 | high |
 | 2 | Better tool / web-search use? | **Yes — tool precision nearly doubles** | medium |
 | 3 | Holds context after many turns? | **Yes — no decay at all. Strongest result we have** | high |
-| 4 | Faster / less prefill? | **Yes — it uses *fewer* tokens than bare.** But memory-on reverses it, and it may fight the KV fix outright — see the runtime section | high on tokens · none on the interaction |
+| 4 | Faster / less prefill? | **Split, and the split is now measured.** Fewer *tokens* than bare, but it **costs cache**: digest arms reuse 0.564 against 0.704 bare. Memory-on reverses the token win too | high on tokens · high on the cache cost · none on the fix |
 | 5 | Only for small models, or large too? | **Not about size at all.** It helps whichever model holds context worst — and that is the shipping MoE, not the small dense one | high |
 
 Two sections follow the five answers and are not optional reading: **what it costs to run on a
@@ -94,10 +98,22 @@ shorter messages inside the window save ~420 tokens against ~140 spent on the di
 wall clock (83 min against 59), and has stored nothing so far. It is the only cost in this project
 paid on *every* turn regardless of benefit (§3.3).
 
+⚠️ **And the token win is not the whole speed story: CisWire costs KV cache, measured.** On the
+shipping model the digest arms reuse **0.564** of the prefix against **0.704** for bare (§7.9) —
+14 points, paid every turn. The cause is structural, not a bug in the digest: the operative block
+rides the last user message, and one turn later that message re-renders without it, so the cache is
+dropped from there — taking that user turn *and the reply generated after it* with it (§7.10). Two
+consequences worth holding together: the cost is per **injection**, not per change of content
+(which is why freezing the digest saved nothing), and **nobody has yet run the variant that injects
+sparsely**. The instrument for it exists and is off by default. Until that runs, question 4's honest
+answer is: fewer tokens, worse cache, net effect on wall clock **unmeasured on a phone**.
+
 ### 5. Small models only, or large ones too?
 
-**Not answered by data**, and the prediction on record (§3.2) is that the effect **shrinks** on
-stronger models. The in-flight 4B campaign is the first test.
+**Answered, and the prediction on record (§3.2) was half right.** It predicted the effect would
+**shrink** on stronger models, and it does: +0.635 on the 2B, +0.209 on the 4B (`32048465417`,
+p = 0.0108). What it did not predict is the shipping model: LFM2.5-8B-A1B, the largest of the
+three, gains **+0.312** (p = 0.0291) — more than the 4B. So the axis is not size.
 
 The structural argument is sharper than the prediction: `ciswire` is **purely additive** — it
 removes nothing and adds a digest of what left the window — so by construction it cannot recall
@@ -110,14 +126,25 @@ model is**. A large model with a large window needs it **later, not never**.
 The quality answers above are worth nothing at 7 minutes a turn, so these are the runtime answers.
 All from one unplugged six-turn run, ~1300–1500 tokens of context, `b31fb53`.
 
-**The KV cache was being thrown away every turn, and that is fixed.** Qwen3.5 is hybrid — its KV
+**The KV cache was being thrown away every turn.** Qwen3.5 is hybrid — its KV
 cannot be rewound — and the chat template appends `<think>\n\n</think>\n\n` when it asks for an
 answer and **never repeats it** when it re-renders that same answer as history. The new prompt
 therefore diverged four tokens after the assistant header and the whole prefix was discarded, every
 turn (§7.5). Two candidate fixes were **refuted by measurement, not argument**: replaying the
 emitted text (shipped, then measured, then reverted) and flipping the thinking polarity (the mirror
-image of the same asymmetry, §7.7d). What works is owning the prompt: keep `T` = the bytes actually
-in the KV and append only the delta (§7.7e–j).
+image of the same asymmetry, §7.7d).
+
+⚠️ **The table below is route 2, and route 2 does not ship.** Owning the prompt — keep `T` = the
+bytes actually in the KV and append only the delta — produced these numbers on
+`bench/kvtranscript-probe`, and §7.7j **refused to merge it**: the seam windows show every assistant
+turn entering the prompt twice, and the acceptance criterion I had written could not see that,
+because a duplicated `T` is still a valid prefix. Read the table as *what the cache is worth when it
+works*, not as the product's current behaviour.
+
+**What actually ships is narrower and separately measured**: `preserve_thinking: true` on
+LFM2.5-8B-A1B (§7.9, commit `31c5489`) — reuse 0.035 → 0.599, prefill 255 s → 111 s, turn 295 s →
+160 s on the CI emulator. Different model, different hardware, and roughly a third of the prefix is
+still re-evaluated; §7.10 names where the rest goes.
 
 | | before | after |
 |---|---|---|
