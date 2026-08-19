@@ -203,7 +203,8 @@ app data.
 |---|---|
 | RAM | 7 243 740 kB total; ~4030 MiB available idle → tier `high` |
 | Disk | 27 GB free |
-| Thermal | cools 44 → 29 °C in ~10 min screen-off; stop rules: status ≥ 3, ≥ 44.0 °C, battery < 40 % |
+| Thermal | cools 44 → 29 °C in ~10 min screen-off; stop rules: status ≥ 3, ≥ 44.0 °C, **battery < 30 %** |
+| Battery floor | **30 %**, not 40 — owner 2026-08-19: performance holds down to 30. The old 40 was costing usable measurement time on a device we can only run unplugged |
 | Battery | ~30 %/h of sustained inference → ~2.3 h per discharge above the floor |
 | Load | 4.7 s cold (4B), 0.8 s warm from page cache; KV session restore 33–45 ms |
 | Speed (4B) | prefill ~18 tok/s cold, decode 5–8 tok/s |
@@ -246,9 +247,11 @@ twice mid-campaign and took an APK and a runner with it.
   only avx512/riscv paths**. KEXP's experts are q2_k + q3_k, i.e. nearly the whole file, so on ARM
   they get no repack with the flag either way. Read in the shipped C++, not inferred.
 - **GPU prefill on this device, and how CL buffers account against RAM.** Decode on GPU is answered
-  and negative (§7.16), so the arm is re-aimed: prefill is the 3.2–7× lever and it lands on §7.12's
-  sliding-window cost, and *nobody* knows how offload memory accounts on an S23 — everything in
-  §7.11–§7.15 is mapped-file accounting. `NGL=99` in `lfm-setup.sh`, APK built, unrun.
+  and negative on this chip (§7.16), so the arm is re-aimed at prefill (3.2–7×, and it lands on
+  §7.12's sliding-window cost) and at offload memory accounting, which nobody has — everything in
+  §7.11–§7.15 is mapped-file accounting. **First attempt produced no GPU result** (§7.17): the arm
+  could not initialise for a KV-cache reason with the GPU never involved. Fixed; APK `1df593b`
+  built and unrun.
 - **Whether an MXFP4-expert MoE is correct on an Adreno 740.** `supports_op` allows it in this tree
   (general `MUL_MAT_ID` branch, no Adreno gate) — but allowed is not correct, and in the other tree
   mxfp4 fails 0/74 on the Adreno path. Needs an MXFP4 GGUF from `moe-experiments` first.
