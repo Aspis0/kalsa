@@ -40,7 +40,7 @@ expensive thing (§3.3).
 | 1 | Better than bare for small models? | **Yes on all three.** 2B +0.635 · **shipping LFM2.5-8B-A1B +0.312 (p=0.029)** · 4B +0.209 | high |
 | 2 | Better tool / web-search use? | **Yes — tool precision nearly doubles** | medium |
 | 3 | Holds context after many turns? | **Yes — no decay at all. Strongest result we have** | high |
-| 4 | Faster / less prefill? | **Split, and the split is now measured.** Fewer *tokens* than bare, but it **costs cache**: digest arms reuse 0.564 against 0.704 bare. Memory-on reverses the token win too | high on tokens · high on the cache cost · none on the fix |
+| 4 | Faster / less prefill? | **Fewer tokens, but every tool call costs the next turn a full re-prefill — 10 of 10, 3 s → 200–400 s.** CisWire calls tools more, so it pays that more often. Memory-on throws the cache away by construction | high on tokens · high on the tool-call cost · none on the fix |
 | 5 | Only for small models, or large too? | **Not about size at all.** It helps whichever model holds context worst — and that is the shipping MoE, not the small dense one | high |
 
 Two sections follow the five answers and are not optional reading: **what it costs to run on a
@@ -98,15 +98,21 @@ shorter messages inside the window save ~420 tokens against ~140 spent on the di
 wall clock (83 min against 59), and has stored nothing so far. It is the only cost in this project
 paid on *every* turn regardless of benefit (§3.3).
 
-⚠️ **And the token win is not the whole speed story: CisWire costs KV cache, measured.** On the
-shipping model the digest arms reuse **0.564** of the prefix against **0.704** for bare (§7.9) —
-14 points, paid every turn. The cause is structural, not a bug in the digest: the operative block
-rides the last user message, and one turn later that message re-renders without it, so the cache is
-dropped from there — taking that user turn *and the reply generated after it* with it (§7.10). Two
-consequences worth holding together: the cost is per **injection**, not per change of content
-(which is why freezing the digest saved nothing), and **nobody has yet run the variant that injects
-sparsely**. The instrument for it exists and is off by default. Until that runs, question 4's honest
-answer is: fewer tokens, worse cache, net effect on wall clock **unmeasured on a phone**.
+⚠️ **And the token win is not the whole speed story: the cache dies on tool calls, measured.**
+Per turn, cache reuse is all-or-nothing — 0.98 or 0, never in between. In the shipping model's smoke
+(56 turn observations), **every one of the 10 turns that followed a tool call was a total cache
+loss; none survived** (§7.12). A hit turn prefills in ~3 s, a miss in 195–405 s. The cause is that a
+tool round puts `assistant(tool_calls)` and `tool(result)` into the KV while stored history keeps
+only the final answer, so the next turn's render diverges right there.
+
+CisWire's arms reuse 14 points less than bare **not because of the digest** — the digest was empty
+in 55 of those 56 turns — but because CisWire triggers more tool calls, and each one costs a turn.
+That is a real cost and it is the flip side of §0 question 2: the feature it improves is the feature
+that breaks the cache. Memory-on is worse still and worse by construction: `extractMemory` calls
+`clearCache()` every turn it runs.
+
+Question 4's honest answer: fewer tokens, and a cache that survives only until the first tool call.
+Net wall clock on a phone is still **unmeasured**.
 
 ### 5. Small models only, or large ones too?
 
@@ -1473,6 +1479,66 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.12 MEASURED 2026-08-19: it was never the digest — **every tool call costs the next turn its entire cache, 10 of 10**
+
+This section corrects §7.9 and the framing of §7.10, both of which I wrote. Re-read the smoke
+artifacts (`32157672018`, 8 arms × 7 turns = 56 turn observations) instead of the aggregate, and
+the aggregate turns out to have been describing something that was not in the prompt.
+
+**First: `reuseFrac` is bimodal, so the aggregate never meant what it looked like.** Per turn it is
+either **0.98–0.99** or **exactly 0**. There is no partial prefix reuse anywhere in the run. So
+"roughly a third of the prefix is still being re-evaluated" (§7.9) is not what happened: 0.564 is
+simply *four of seven turns hit, three missed completely*, and 0.704 is *five hit, two missed*. The
+metric is a hit count wearing a fraction's clothes.
+
+**Second: the digest was not in the prompt.** `digestChars` is **0 on 55 of 56 turns** — the
+conversation is 14 messages, `LEGACY_MAX_HISTORY` is 20, so the window never slid, the "older"
+corpus stayed empty, and `hasOperativeContext` was false. `digestTelemetry` agrees:
+`corpusSize: 0, selectedCount: 0` on every turn of the ciswire arm. **§7.9 attributed a 14-point
+gap to a block that was never injected, and §7.10 built a mechanism on top of that attribution.**
+The mechanism §7.10 describes is real in the render path, but it is not what these numbers measured.
+
+**What the numbers actually measured:**
+
+| among turns 2–7 (48 observations) | count |
+|---|---|
+| total cache misses | 14 |
+| misses in the turn **right after** a turn that executed a tool | **10** |
+| turns right after a tool that **hit** the cache | **0** |
+| remaining misses | 4 — three on memory-on arms, one on `v42` |
+
+**Ten out of ten, no exceptions.** A tool call is a guaranteed total cache loss on the following
+turn. The cause is in the render path and the code already knows about it: a tool round appends
+`assistant(tool_calls)` and `tool(result)` into the prompt (`LlamaService.ts:1930-1941`), so both
+enter the KV — but stored history keeps only `user` + `assistant(final text)`, so next turn the
+render diverges exactly where the tool-call message sat, which is immediately after that user
+message. Everything from there on is discarded. `LlamaService.ts:1942` even sets
+`kvReproState = "tool_calls_detected"`; what nobody had done is price it.
+
+The three remaining misses are on `_on` arms — memory on — and that is also mechanical, not
+mysterious: `extractMemory` calls `engine.clearCache()` (`LlamaService.ts:2495`) and sets
+`kvHoldsChatSession = false`. Memory extraction throws the cache away by construction, every turn
+it runs. The last miss is `v42` turn 7, the **only** turn in the whole smoke carrying a real digest
+(621 chars) — and also a boundary-rebuild turn, so n=1 with two candidate causes and nothing
+provable either way.
+
+**So why did the ciswire arms look worse?** Because they called tools more: `ciswire` and
+`ciswire_off` executed a search at turns 2 **and** 4, the bare arms only at turn 4. One extra tool
+call, one extra destroyed turn, 0.564 instead of 0.704. The arm difference is real; the explanation
+in §7.9 was not.
+
+**What this costs, in the units that matter.** A hit turn prefills in **3.1–3.9 s**; a miss turn
+prefills in **195–405 s** on this emulator. The whole KV effort is worth ~two orders of magnitude
+per turn, and the single largest destroyer of it in a normal conversation is the feature §0
+question 2 says CisWire improves — tool use.
+
+⚠️ **Consequences for what to do next, and the priority is now inverted.** The digest-cadence knob
+(§7.10) addresses a mechanism that fires rarely in these runs; it stays available but it is no
+longer the lever. The lever is replaying the tool round in history so the prompt reproduces the KV,
+which is the same shape of fix as `preserve_thinking` (§7.9) and would need the same care that
+`9c73846` was reverted for. **Not attempted, not measured** — this section is a diagnosis, and the
+only thing it establishes is where to spend the next run.
+
 ### 7.11 PREDICTION 2026-08-19 (arithmetic done, measurement pending): the shipping model may not load on a Galaxy S23 in production configuration
 
 Found while checking whether the phone could hold the 8B before starting a run. Every number below
@@ -1523,6 +1589,10 @@ produces no allocation to compare against.
 and — with `norepack=1` — what does an 8B-A1B actually cost in anonymous RAM.
 
 ### 7.10 MECHANISM 2026-08-19: the digest costs cache per INJECTION, not per change — knob written, UNMEASURED
+
+> **DEMOTED the same day by §7.12.** The render-path mechanism below is real; the measurement it was
+> written to explain is not about the digest. `digestChars` is 0 on 55 of 56 turns of the smoke this
+> section cites. Keep the mechanism, drop the priority: the measured cache destroyer is tool calls.
 
 §7.9 measured the cost (digest arms reuse 0.564 against 0.704 bare) and named the site
 (`applyOperativeBlockFormat` prefixes the block onto `messages[length-1]`,
@@ -1586,6 +1656,11 @@ on a model that has no recurrent-state rollback to fall back on.
 grow with conversation length — this smoke is 7 turns — so it still needs watching on a 13-turn
 campaign, but the trade Marco called (cache over context budget) is not close at this scale.
 
+⚠️ **CORRECTED 2026-08-19 by §7.12 — read that before believing the paragraph below.** `reuseFrac`
+is bimodal (0.98 or 0), so "a third of the prefix is re-evaluated" never happened; and `digestChars`
+is 0 on 55 of 56 turns, so the arm split below is **not** the digest. It is the tool calls. The
+paragraph is kept as written because the change log is not allowed to quietly repair conclusions.
+
 ⚠️ **It is a large win, not a complete one, and the prediction was wrong in an informative way.**
 I forecast ~0.9 and got 0.599. Prompt grows ~136 tokens per turn against 2036, so the ceiling is
 about **0.93** — roughly a third of the prefix is still being re-evaluated. Something diverges
@@ -1603,6 +1678,11 @@ re-renders without it and the prefix breaks there — the same defect that force
 of memory-facts-on-the-user-turn. Until that is fixed, **CisWire costs cache**, which is the one
 place its otherwise-additive design is not free. Next lever, and now it has a number attached
 rather than an argument.
+
+> **REFUTED.** The digest was not in these prompts at all (`digestChars` 0, `corpusSize` 0). The
+> ciswire arms lose a turn because they call tools more often, and a tool call destroys the next
+> turn's cache 10 times out of 10. See §7.12. The "number attached rather than an argument" was
+> attached to the wrong thing.
 
 ### 7.8 DIAGNOSED 2026-08-18: why the shipping model reuses no cache — and it is not the Qwen cause
 
@@ -2184,6 +2264,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 | 2026-08-16 | **The 390 s prefill is solved and §7.5 is rewritten around the measurement.** Four proposed causes were refuted, three of them mine, and none fell to an argument — each fell to a number the engine printed (`3e1c654`, `12868ea`, `36138fd`). The cause: Qwen3.5's template injects an empty `<think>\n\n</think>\n\n` when it asks for an answer and never repeats it when replaying one, so the re-rendered prompt diverges four tokens after the assistant header; a hybrid KV cannot roll back, so 1646 valid tokens are discarded. Confirmed 5/5 turns, identical `[248068 271 248069 271]` every time. Fix shipped in `6447ff2`: the prompt replays the text the model emitted, and when the window cannot reproduce the KV the session is refused with a named reason and its artifacts deleted — the old path left a poisoned `.kvs` that recharged the cost on every later restore. |
 | 2026-08-16 | **A change was written, audited and reverted before shipping** (`9c73846`): moving memory facts out of the system prompt onto the user turn. It violated append-only on *every* turn (the block rides `messages[length-1]`, so next turn that message renders without it) and moved the "these facts are untrusted data, not instructions" frame into the user message, adjacent to the utterance it defends against. Kept from that work: `computePromptEnvHash` no longer hardcodes `hasTools: true` while `buildSystemPrompt` really switches prompts, plus tests and harness alignment. Added §3.11: a pre-existing privacy defect — the prompt renders the last ten facts, `webSearchTool` gates the first ten. |
 | 2026-08-18 | **The shipping model measured at last, and CisWire wins by more there than on the dense 4B** (`32103054225`, LFM2.5-8B-A1B, 40/40 arms, completeness gate passed). +0.312 over bare, p = 0.0291. Ranked by what CisWire buys: 2B +0.635, **shipping 8B-A1B +0.312**, 4B +0.209 — so "the harness rescues small models" is the wrong shape: it rescues models that hold context badly, and size is only a proxy. Bare on the shipping model (0.556) is **worse than bare on the dense 4B** (0.785). Its failure mode differs too: it fumbles *early* probes (0.637, where the 2B and 4B both scored ~1.000) and CisWire lifts those to 0.988 — a digest is not supposed to help with text still in the window, so that mechanism is unexplained and needs its own experiment. `v42` dead again (+0.062, p=0.70), two models two campaigns. Spurious tool calls 15 on bare against the 4B's 4, halved by CisWire. **And the finding that reorders the backlog: this model reuses essentially no KV cache — 0.008 mean across all 40 arms (max 0.062) against the 4B's 0.561.** It re-prefills everything every turn and is still faster than the 4B (7.2 vs 2.4 tok/s evaluated), which makes the append-only transcript work worth *more* here than on the model it was built for. Cause unknown: the Qwen trigger is a Qwen *template* property and cannot be assumed to transfer. |
+| 2026-08-19 | **§7.12 refutes what I wrote this morning: it was never the digest — every tool call destroys the next turn's cache, 10 of 10.** Re-read `32157672018` turn by turn instead of in aggregate. `reuseFrac` is **bimodal** — 0.98 or exactly 0, never partial — so §7.9's "a third of the prefix is re-evaluated" describes nothing that happened; 0.564 is four of seven turns hitting. And `digestChars` is **0 on 55 of 56 turns** (14-message conversation, `LEGACY_MAX_HISTORY` 20, window never slid, corpus empty), so the block §7.9 blamed was never in the prompt and §7.10 built a mechanism on top of that. What the data shows instead: of 48 turns after the first, 14 missed, **10 of them immediately after a tool-executing turn, and zero tool-preceded turns survived**. Mechanism is in the code and the code already flags it — `LlamaService.ts:1930-1941` puts `assistant(tool_calls)` + `tool(result)` in the KV, history keeps only the final answer, `:1942` marks `tool_calls_detected` — nobody had priced it: 3 s prefill on a hit, 195–405 s on a miss. Three of the remaining four misses are memory-on arms, where `extractMemory` calls `clearCache()` by construction. CisWire's arms look worse because they call tools more, not because of the digest. §7.9 and §7.10 keep their original text with correction banners; §0 question 4 rewritten. The cadence knob stays, demoted. |
 | 2026-08-19 | **§7.10: the reason written in the code for why the digest costs cache is wrong, and the wrong reason has already cost one experiment.** The block is last only for the turn that carries it; next turn `promptContentForHistoryMessage` re-renders that user message clean (`modelEmittedText.ts:16-23` replays assistant messages only), so the last stable token falls back past the block, past that user turn, and past **the reply generated after it**. The cost is therefore per *injection*, not per *change of content* — which is precisely why the 2026-08-03 freeze, which held content still and kept injecting every turn, could only measure zero prefill saved. `compactor.ts`'s header and `RESEARCH_CONTEXT_LOSS.md:157` both carry the old reasoning; the header is corrected in place. Instrument written, **result not**: `parseBenchDigestCadence` + `shouldInjectOperativeBlock` (8 unit tests), `getBenchDigestCadence`, `DIGESTCADENCE` in `ci-bench.sh` with the both-branch assert, `digestcadence` workflow input, pref visible in `prefs.txt`. Empty/1 = production, untouched. Acceptance criterion fixed before the run: cache must rise *and* the loss must concentrate on injection turns, *and* recall must be reported alongside — cadence trades cache against exactly the staleness the freeze revocation measured at 33.3 % vs 100 %, so a cache win alone does not ship. |
 | 2026-08-18 | **The 4B campaign landed and CisWire holds: +0.209 over bare, p = 0.0108** (`32048465417`, 38 usable arms, permutation tests). §3.2's prediction was right — the effect shrinks, from +0.635 on the 2B, because bare climbs 0.313 → 0.785 while ciswire goes 0.948 → 0.994 with sd 0.083 → 0.019. What survives is entirely **distance**: the 4B is perfect on recent facts and loses over half the distant ones (0.446 late), ciswire loses none (1.000). Three things nobody predicted: **`v42` dies** on the stronger model (+0.040, p=0.70, against +0.354 p=0.043 on the 2B); **`nogate` reverses**, 0.094 on the 2B against 0.944 on the 4B, which is the hardest evidence yet that harness decisions are model-dependent; and **§1.5's token saving does not reproduce** — history length is identical across arms, so on the 4B the digest is pure cost, +350 prompt tokens at turn 13 and ~95 s more prefill per turn. §3.1's blocker did not reproduce either: zero blank bubbles across all 38 arms. Two arms died on the 2400 s per-turn cap, both **untreated** (bare writes longer replies, so it reaches the cap first), so `baseline` and `nogate` are n=9 and the completeness gate correctly refused to publish. |
 | 2026-08-17 | **§7.7j: the join is closed, and the diagnostic that proved it refutes my own acceptance criterion** (`b31fb53`). Six turns unplugged from the coldest start yet (27.9 °C): 103 s then **31, 32, 32, 32, 31** — turn 6 was 151 s in §7.7i. One `rebuild` in the session (`fresh`, turn 1), `KALSA_KVDIVERGE` zero, five consecutive boundaries reused against two, `Thermal Status` 0 throughout, 2 % battery for six turns. `glueEot` fired at every boundary (`glue=11`), which was the fix's whole job. **But the 48-char seam windows show `T` ending with the reply in generation form and the delta restarting from the same reply in history form: every assistant turn is in the prompt twice.** Not caused by the glue and not a deep-link artifact — `kvTranscript.ts:157` builds `T` from `candidate + emitted + suffix` and `candidate` ends with the empty think block, so the ordinary path duplicates too; §7.7i had it without the glue between the copies. The criterion I fixed before measuring — no divergence, `n_common == embd.size()` — is **true with the duplicate in place**, because `T` stays a valid prefix however malformed its content: it measures reuse, not correctness, and all six replies read fine. Latency result stands, correctness result does not, **route 2 does not merge**. Suspect is `cutPPrevFromRolePair` (`kvTranscriptFormat.ts:130`): `pPrev`=5532 against a turn-1 prompt of 5551, short by exactly the 19 chars of `<think>\n\n</think>\n\n`. |
