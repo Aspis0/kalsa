@@ -35,6 +35,7 @@ Last updated: **2026-08-19**
 | `gemma-4-e2b` | 2963 MiB | none | 8192 | |
 | `lfm2.5-2.6b` | 1597 MiB | none | 8192 | |
 | **`lfm2.5-8b-a1b`** | **4917 MiB** | **none** | 8192 | **the model we ship**. MoE, ~1B active, `preserveThinking: true` |
+| `lfm2.5-8b-a1b-kexp` | 3172 MiB | none | 8192 | our requantization of the row above. **SIDELOAD ONLY** — `hfRepo` does not host it |
 
 ⛔ **The shipping model does not load on a Galaxy S23** (confirmed on hardware 2026-08-19, §7.11).
 `'model.fit', '{"verdict":"does_not_fit","availableMb":4030}'`, no engine init attempted, and a chat
@@ -65,9 +66,19 @@ regime, not the model.
 
 **We already have the smaller model.** `LFM2.5-8B-A1B-KEXP.gguf`, **3.10 GiB** (3 326 160 384 B,
 sha256 `b07c8087…`), quantized with our own recipe: q2_k on routed gate/up, q3_k on down, q5_k/q6_k
-on the leading dense blocks, f32 norms. At that size the gate passes **with repack on** (~3089 MiB
-non-evictable against ~4030–4670 available), and 3.10 GiB against ~4.5 GB of `MemAvailable` can be
-fully resident — which is the condition the 4.80 GiB build fails.
+on the leading dense blocks, f32 norms.
+
+✅ **Measured on the phone 2026-08-19 (§7.15) — it stays resident, and it is still too slow.**
+`RssFile` plateaus at 3 270 144 kB against a 3 248 203 kB file (**~96 % resident**, vs 53 % for the
+4.80 GiB build), its oscillation drops from 2.04 GiB to 100 MiB, and `workingset_refault_file` on a
+warm turn falls **130×**, from 93.5 GiB to 755 MiB. The storm is over. Decode still only reaches
+**0.861 tok/s** warm (turn 1 is 0.324 and contains the load — never average the two).
+
+⚠️ **The confound to drop next:** every device number so far, this one included, was measured with
+`norepack=1` — ARM GEMM **off** — because at 4.80 GiB the repacked buffer did not fit. At 3.10 GiB it
+should: 2839 + 249 = **3088 MiB non-evictable against 4016 MiB of measured `MemAvailable`**,
+conditional on the file pages being released after repack. `RssAnon` vs `RssFile` settles it in one
+turn. **Not yet run.**
 
 ⚠️ **It misses our own pre-declared quality gate**, and the gate was frozen before the numbers
 existed, so it is not renegotiated here. Same k=4, our multi5 corpus, macro bpb:
@@ -192,8 +203,9 @@ app data.
 | Battery | ~30 %/h of sustained inference → ~2.3 h per discharge above the floor |
 | Load | 4.7 s cold (4B), 0.8 s warm from page cache; KV session restore 33–45 ms |
 | Speed (4B) | prefill ~18 tok/s cold, decode 5–8 tok/s |
-| Speed (8B MoE, norepack) | prefill ~18 tok/s, **decode 0.31–0.36 tok/s** (3 runs), load ~12.6 s |
+| Speed (8B MoE 4.80 GiB, norepack) | prefill ~18 tok/s, **decode 0.31–0.36 tok/s** (3 runs), load ~12.6 s |
 | Why | **page-fault storm, measured**: 93.5 GiB of file pages re-read from flash in one 1134 s turn, 309 MiB per generated token, `RssFile` oscillating 4.15 → 2.02 → 2.52 GB inside one pid (§7.14) |
+| Speed (KEXP 3.10 GiB, norepack) | **decode 0.861 tok/s warm** — storm gone (refaults 130× lower, 96 % resident), speed still not a product (§7.15) |
 | Bigger models | a 35B MoE has run on this phone with a streaming engine, so file size is **not** the ceiling — the mmap regime is |
 
 Driving it: `scripts/device-share-send.sh` (`kalsa://share?text=`) — the type path is a no-op on a
@@ -216,9 +228,13 @@ twice mid-campaign and took an APK and a runner with it.
 
 ## 9. What we do not know
 
-- What the 8B would do with repack on — it cannot load, so there is no in-model control for the
-  decode number.
-- Whether KEXP at 3.10 GiB actually stays resident on this phone. That is the whole bet.
+- **What KEXP does with repack ON.** Answered for residency, open for speed: every device number to
+  date is `norepack=1`, so we have never measured this engine with ARM GEMM on. This is now the
+  single highest-value unrun arm — it is where a shippable decode number would come from, if one
+  exists.
+- ~~Whether KEXP at 3.10 GiB actually stays resident~~ — **yes**, ~96 %, §7.15. What it did not buy
+  was speed: 0.861 tok/s.
+- What the 4.80 GiB 8B would do with repack on — it cannot load, so there is no in-model control.
 - Net wall clock of `ciswire` on a phone. Every quality number is emulator; every speed number is 4B.
 - Whether replaying tool rounds recovers the cache.
 - Whether a sparser digest cadence trades cache for recall acceptably (`kalsa.bench.digestcadence`,
@@ -238,3 +254,4 @@ twice mid-campaign and took an APK and a runner with it.
 | 2026-08-19 | `ROADMAP_BIGGER_MODELS.md` removed — big-MoE work lives in the `moe-experiments` repo |
 | 2026-08-19 | **Verbatim window doubled to 20 exchanges** where the context holds it — owner's call, it is our app |
 | 2026-08-19 | **Open for the owner:** the 8B is unusable on 8 GB in both configurations. Ship it only above 8 GB, or change the shipping model |
+| 2026-08-19 | KEXP measured: residency solved, speed not. **No shipping decision taken** — the quality gate it misses (+0.0705 macro bpb) is not worth arguing until a repack-on arm says whether a shippable decode number exists at all |

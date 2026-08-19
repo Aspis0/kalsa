@@ -1503,6 +1503,53 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.15 MEASURED 2026-08-19: KEXP stays resident and the storm stops — 130× fewer refaults, and 0.86 tok/s is still not a product
+
+The residency bet of §7.14, run. `LFM2.5-8B-A1B-KEXP`, 3.10 GiB, our own requantization,
+sideloaded to app storage (md5 `ceb2820d…` identical across desktop / `/data/local/tmp` /
+`files/models/`, so the measured PPL transfers). Two turns, unplugged, 59 % → 49 %, 26.8 → 34.7 °C,
+45 samples at 20 s. Prefs byte-identical to the §7.14 arm except `kalsa.model.id` — including
+`norepack=1`. Read that last word twice; it is the whole of §7.15's coda.
+
+| | §7.14 Q4_K_M, 4.80 GiB | §7.15 KEXP, 3.10 GiB |
+|---|---|---|
+| `RssFile` plateau | 2.54 GiB → **53 %** of the file | 3.12 GiB → **96 %** |
+| `RssFile` oscillation | 4152280 → 2017356 kB = **2.04 GiB** | 3285500 → 3182772 kB = **100 MiB** |
+| `workingset_refault_file`, warm turn | +24 523 321 pages = **93.5 GiB** | +193 224 pages = **755 MiB** |
+| `RssAnon` / `VmSwap` | 60 / 208 MB | 173 / 69 MB |
+| `MemAvailable` | never collapsed | never below 4.13 GB |
+| decode | 0.313 / 0.357 / 0.363 tok/s | t1 **0.324** · t2 **0.861** |
+| wall | ~19 min (1 turn) | 797 s · 254 s |
+
+The prediction was written before the run: *if `RssFile` plateaus near the whole file the ceiling
+was competition and KEXP fits; if it plateaus at the same ~2.5 GiB the ceiling is a page-cache
+budget and requantizing further buys nothing.* It plateaued at 3 270 144 kB against a 3 248 203 kB
+file, with the app's own 138 256 kB of mappings inside that number — the model is **~96 % resident**
+and the oscillation collapsed from gigabytes to a hundred megabytes. The ceiling was competition.
+
+Turn 1 (0.324 tok/s) is indistinguishable from the §7.14 baseline because it *contains* the load and
+the settling: 1 220 796 pages = 4.66 GiB refaulted, 1.5× the model. Turn 2 is the warm regime, and
+it is the one to quote. **Do not average the two.**
+
+⚠️ **This corrects §7.14's forecast, which was mine.** §7.14 closed with "the lever is residency,
+not kernels." Half right, and the wrong half matters: residency was the lever for the *storm* —
+130× fewer refaults, exactly as predicted — and it bought only **2.7×** of decode. 0.86 tok/s is
+two minutes for a short reply. Size was a real lever, correctly identified, and it was not the
+whole problem. Kernels are now the remaining one.
+
+**The confound we have dragged through the entire device campaign, and can finally drop.** Every
+number in §7.11–§7.15 was measured with `norepack=1` — ARM-optimized GEMM **off**. It was off
+because with the 4.80 GiB build the repacked buffer did not fit. At 3.10 GiB the arithmetic
+changes: repack 0.8951 × 3172 MiB = 2839, plus 249 MiB compute = **3088 MiB non-evictable against
+the 4016 MiB of `MemAvailable` measured at PRE** — it fits, with ~930 MiB of margin, *if* the file
+pages are released once the weights are repacked into the anonymous buffer. If they are not, it is
+3088 + 3172 = 6260 MiB and the anonymous half goes to zram (the §7.2 failure, on a bigger model).
+`RssAnon` against `RssFile` answers that in one turn. **Not yet run** — the phone went to another
+task at 49 %.
+
+Artifacts: `~/kalsa-runs/kexp/` (PRE, T1_01–T1_34, T2_01–T2_11, POST_1, POST_2, logcat), driver
+`~/kalsa-scripts/kexp-probe.sh`.
+
 ### 7.14 MEASURED 2026-08-19: the decode collapse is a page-fault storm — 93.5 GiB re-read from flash in one turn
 
 §7.13 left the explanation as the reading that fitted the numbers. This is the number. One turn on
@@ -1541,7 +1588,10 @@ consistent decode measurement (0.3627, 0.3572, 0.3128).
 **Why this matters for the fix:** the lever is residency, not kernels. A build small enough to stay
 resident stops the loop; a build that cannot, cannot be rescued by tuning. `LFM2.5-8B-A1B-KEXP`
 (3.10 GiB, our recipe) against ~4.3 GB of `MemAvailable` is the first candidate that could actually
-stay in. Also worth recording: at launch this run the gate said `"verdict":"fits"` — the model is
+stay in.
+⚠️ **"not kernels" was wrong — see §7.15.** KEXP was run and does stay resident: the storm stopped
+(130× fewer refaults, as this section predicted) and decode still only reached 0.86 tok/s. Residency
+was the lever for the *storm*; kernels are the remaining lever for the *speed*. Also worth recording: at launch this run the gate said `"verdict":"fits"` — the model is
 not marginal on RAM once the repack term is gone; it is marginal on **page cache**, which is a
 different resource and one the gate does not model at all.
 
@@ -2491,6 +2541,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 | 2026-08-19 | **§7.11 confirmed on the phone: the shipping model does not load on a Galaxy S23.** Predicted from the app's own constants in the morning, measured in the afternoon on the debuggable APK `32254348018` with the GGUF md5-verified end to end. `'model.fit', '{"verdict":"does_not_fit","availableMb":4030}'`, no engine init attempted, and a deep-linked turn answered in the same millisecond with "Caricamento del modello non riuscito … tocca Riprova caricamento" — advice that cannot work, since the RAM will not be different next time. The gate charges 4401 MiB of weight repack from `REPACK_FRACTION` 0.8951, a constant calibrated on **Qwen3.5-2B, a dense model**, applied to a **MoE with ~1B active**; nobody has checked whether llama.cpp repacks expert tensors at all. So the app may be refusing a model this phone could run, and the refusal leaves no allocation behind to compare against. `norepack=1` run dispatched to settle it. Also restored to this branch: `scripts/device-env.sh`, `device-share-send.sh` and `test_device_share_send.sh` (17/17 pass), which existed only on `bench/kvtranscript-probe` — the commit that added them is literally titled "Stop losing the way to drive the phone" and it was lost again anyway. |
 | 2026-08-19 | **§7.12, third version and the first that survived a second dataset: there are two cache regimes, one per model, and the biggest destroyer is the sliding window — in bare too.** Checked the smoke (`32157672018`, LFM2.5-8B-A1B) against the 4B campaign (`32048465417`, 570 turn observations) instead of trusting either alone. **Regimes:** on Qwen3.5 reuse is continuous (482/570 turns strictly between 0 and 0.90); on the shipping model it is bimodal, 0.98 or exactly 0. That is `llm_arch_supports_rs_rollback` — true for QWEN35, false for LFM2 — so on the model we ship one divergent token costs the whole cache and there is no partial credit. Which retires §7.9's "a third of the prefix is re-evaluated": 0.599 is a hit count, not a fraction. **Window:** mean reuse on the 4B goes 0.82 at turn 11 → **0.15 at turn 12**, in `baseline`, which never carries a digest — `LEGACY_MAX_HISTORY` is 20 messages, so the oldest exchange starts falling out of `slice(start)` and the prefix diverges right after the system prompt every turn. Predicted in design at `RESEARCH_CONTEXT_LOSS.md:104`, measured here for the first time: **the KV work pays for about ten exchanges, then the window throws it away for every shipping mode.** **Tools:** on the shipping model, 10 of 10 turns following a tool call lost everything, zero survivors — `LlamaService.ts:1930-1941` puts `assistant(tool_calls)` + `tool(result)` in the KV, history keeps only the final answer, `:1942` already marks it; 3 s prefill on a hit against 195–405 s on a miss. On the 4B the same event costs 0.507 against 0.637 — survivable only because it can roll back. **Digest:** real but second-order, and collinear with the window by construction (a digest exists exactly when the corpus is non-empty, i.e. exactly when the window slides); the `baseline` row is what separates them. Two earlier versions of this row today were wrong — the first blamed the digest, the second generalised 10/10 from one 7-turn smoke. Both are kept above with banners. |
 | 2026-08-19 | **§7.10: the reason written in the code for why the digest costs cache is wrong, and the wrong reason has already cost one experiment.** The block is last only for the turn that carries it; next turn `promptContentForHistoryMessage` re-renders that user message clean (`modelEmittedText.ts:16-23` replays assistant messages only), so the last stable token falls back past the block, past that user turn, and past **the reply generated after it**. The cost is therefore per *injection*, not per *change of content* — which is precisely why the 2026-08-03 freeze, which held content still and kept injecting every turn, could only measure zero prefill saved. `compactor.ts`'s header and `RESEARCH_CONTEXT_LOSS.md:157` both carry the old reasoning; the header is corrected in place. Instrument written, **result not**: `parseBenchDigestCadence` + `shouldInjectOperativeBlock` (8 unit tests), `getBenchDigestCadence`, `DIGESTCADENCE` in `ci-bench.sh` with the both-branch assert, `digestcadence` workflow input, pref visible in `prefs.txt`. Empty/1 = production, untouched. Acceptance criterion fixed before the run: cache must rise *and* the loss must concentrate on injection turns, *and* recall must be reported alongside — cadence trades cache against exactly the staleness the freeze revocation measured at 33.3 % vs 100 %, so a cache win alone does not ship. |
+| 2026-08-19 | **§7.15: KEXP was run on the phone and the residency bet won — the storm stopped, and the speed did not arrive.** 3.10 GiB, md5 verified identical across desktop / `/data/local/tmp` / app storage, prefs byte-identical to the §7.14 arm except `kalsa.model.id`. `RssFile` plateaus at 3 270 144 kB against a 3 248 203 kB file (**~96 % resident**, against 53 % for the 4.80 GiB build) and its oscillation drops from **2.04 GiB to 100 MiB**; `workingset_refault_file` on a warm turn falls from 24 523 321 pages (93.5 GiB) to 193 224 (755 MiB), **130×**. The prediction was written before the run and is confirmed: the ceiling was competition for page cache, not a page-cache budget. **But decode reached only 0.861 tok/s** (turn 2; turn 1 is 0.324 and contains the load — do not average them), so §7.14's closing "the lever is residency, not kernels" is **half wrong and the wrong half is mine**: residency was the lever for the storm, kernels are the lever for the speed. Named the confound the whole device campaign has carried: §7.11–§7.15 are all `norepack=1`, ARM GEMM **off**, because at 4.80 GiB the repacked buffer did not fit. At 3.10 GiB it should: 2839 + 249 = **3088 MiB non-evictable against 4016 MiB of measured `MemAvailable`**, conditional on the file pages being released after repack — `RssAnon` vs `RssFile` settles it in one turn. Not yet run; the phone went to another task at 49 %. Also fixed: the KEXP registry entry had been committed **twice** with the same id (`656f5ee`), harmless to `getModelById` but a double row in Settings. |
 | 2026-08-18 | **The 4B campaign landed and CisWire holds: +0.209 over bare, p = 0.0108** (`32048465417`, 38 usable arms, permutation tests). §3.2's prediction was right — the effect shrinks, from +0.635 on the 2B, because bare climbs 0.313 → 0.785 while ciswire goes 0.948 → 0.994 with sd 0.083 → 0.019. What survives is entirely **distance**: the 4B is perfect on recent facts and loses over half the distant ones (0.446 late), ciswire loses none (1.000). Three things nobody predicted: **`v42` dies** on the stronger model (+0.040, p=0.70, against +0.354 p=0.043 on the 2B); **`nogate` reverses**, 0.094 on the 2B against 0.944 on the 4B, which is the hardest evidence yet that harness decisions are model-dependent; and **§1.5's token saving does not reproduce** — history length is identical across arms, so on the 4B the digest is pure cost, +350 prompt tokens at turn 13 and ~95 s more prefill per turn. §3.1's blocker did not reproduce either: zero blank bubbles across all 38 arms. Two arms died on the 2400 s per-turn cap, both **untreated** (bare writes longer replies, so it reaches the cap first), so `baseline` and `nogate` are n=9 and the completeness gate correctly refused to publish. |
 | 2026-08-17 | **§7.7j: the join is closed, and the diagnostic that proved it refutes my own acceptance criterion** (`b31fb53`). Six turns unplugged from the coldest start yet (27.9 °C): 103 s then **31, 32, 32, 32, 31** — turn 6 was 151 s in §7.7i. One `rebuild` in the session (`fresh`, turn 1), `KALSA_KVDIVERGE` zero, five consecutive boundaries reused against two, `Thermal Status` 0 throughout, 2 % battery for six turns. `glueEot` fired at every boundary (`glue=11`), which was the fix's whole job. **But the 48-char seam windows show `T` ending with the reply in generation form and the delta restarting from the same reply in history form: every assistant turn is in the prompt twice.** Not caused by the glue and not a deep-link artifact — `kvTranscript.ts:157` builds `T` from `candidate + emitted + suffix` and `candidate` ends with the empty think block, so the ordinary path duplicates too; §7.7i had it without the glue between the copies. The criterion I fixed before measuring — no divergence, `n_common == embd.size()` — is **true with the duplicate in place**, because `T` stays a valid prefix however malformed its content: it measures reuse, not correctness, and all six replies read fine. Latency result stands, correctness result does not, **route 2 does not merge**. Suspect is `cutPPrevFromRolePair` (`kvTranscriptFormat.ts:130`): `pPrev`=5532 against a turn-1 prompt of 5551, short by exactly the 19 chars of `<think>\n\n</think>\n\n`. |
 | 2026-08-17 | **§3.11 closed by reading the code, not by fixing it: the privacy gate was never inspecting the wrong facts.** The two slices genuinely disagree on their face — prompt takes `slice(-10)`, `webSearchTool.ts:88` takes `slice(0, 10)` — but the array reaching the gate is capped upstream at `AppShell.tsx:2348`, so the second slice is the identity, and `:4485` hands the gate **the same array object** `:4724` sends to the engine. The 2026-08-16 row below calls it "a pre-existing privacy defect"; that was wrong, and this row is the correction. What survives is a latent trap: the guarantee rests entirely on the upstream cap, so raising it — or sourcing `getMemoryFacts` from `MemoryStore.listFacts()` — silently splits the two sets with nothing failing. |
