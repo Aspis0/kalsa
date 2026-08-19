@@ -1,0 +1,16 @@
+=== dp_weight_d10 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-droppolicy\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\droppolicy_quality_marco\dp_weight_d10\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --drop-policy weight
+  ppl=21.5058 bpb=0.9657 tok=11117 fert=4.582 s=1084.2
+=== dp_weight_d10 es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-droppolicy\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\droppolicy_quality_marco\dp_weight_d10\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --drop-policy weight
+  ppl=21.9833 bpb=1.1759 tok=13890 fert=3.790 s=1307.8
+=== dp_weight_d10 fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-droppolicy\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\droppolicy_quality_marco\dp_weight_d10\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --drop-policy weight
+  ppl=28.0887 bpb=1.3276 tok=14033 fert=3.623 s=1187.1
+=== dp_weight_d10 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-droppolicy\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\droppolicy_quality_marco\dp_weight_d10\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --drop-policy weight
+  ppl=26.6665 bpb=1.4178 tok=13696 fert=3.340 s=1319.1
+=== dp_weight_d10 zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-droppolicy\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\droppolicy_quality_marco\dp_weight_d10\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --drop-policy weight
+  ppl=80.5290 bpb=1.7015 tok=13517 fert=3.720 s=1249.1
+MACRO bpb=1.3177

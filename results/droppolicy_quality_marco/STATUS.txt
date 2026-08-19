@@ -19,3 +19,6 @@
 [2026-08-18T17:01:10-04:00] END dp_rand_d10_itzh attempt=1 rc=0 wall=3754.1s
 [2026-08-18T17:01:10-04:00] OK dp_rand_d10_itzh macro_bpb=1.04187133466006
 [2026-08-18T17:01:10-04:00] START dp_weight_d10 policy=weight langs=en,es,fr,it,zh attempt=1
+[2026-08-18T18:43:49-04:00] END dp_weight_d10 attempt=1 rc=0 wall=6158.9s
+[2026-08-18T18:43:49-04:00] OK dp_weight_d10 macro_bpb=1.31769604986121
+[2026-08-18T18:43:49-04:00] drop-policy finish: run complete (see per-arm OK/GIVING UP lines above)

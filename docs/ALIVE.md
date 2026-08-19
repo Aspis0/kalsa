@@ -226,12 +226,47 @@ quality. At equal drop count it picks much better *which* experts fall — plaus
 because an expert absent from the cache is one not used recently, so the cache
 doubles as a "recently useful" filter that random selection lacks.
 
-⏳ **One arm still running:** `weight` (weight threshold only, no residency
-query) started 17:01 on the same binary, due ~19:00. It is the arm that splits
-how much of the win is the *cache* and how much is the *weight*. ⚠️ It is not a
-like-for-like comparison — it drops more (63.4 % of slots vs cold's 46.9 % at
-d=1.0) because it does not protect resident experts, so worse quality is expected
-and does not by itself prove the residency query is what wins.
+✅ **The fourth arm landed and the cell is closed (2026-08-18 18:43):** `weight`
+(weight threshold only, no residency query) measures macro bpb **1.317696** —
+**+71.90 %** against `dp_d0` and **52.9 % worse than cold**. All five languages
+rc=0, same binary `59f2762e54ed56af`, verified from the run JSONs.
+
+⚠️ **That number does NOT prove the residency query beats the weight rule, because
+the two arms are not comparable — and the figure this page quoted for that caveat
+was wrong.** An earlier version said `weight` drops "63.4 % of slots vs cold's
+46.9 %", calling both measured. **The 46.9 % was never measured and exists in no
+data file in this repo:** the `--ppl-decode` path prints only `BMOE_PPL{...}` and
+no drop counters, and the cell's stderr logs are 0 bytes.
+
+**Measured instead** (2026-08-18, `results/droppolicy_quality_marco/droprate/`,
+same binary and config as the cell, 300 generated tokens, one run per policy):
+
+| policy | dropped / routed slots | fraction |
+|---|---|---|
+| `cold` | 16427 / 50400 | **32.6 %** |
+| `weight` | 31217 / 50400 | **61.9 %** |
+| `random` | 14395 / 50400 | **28.6 %** |
+
+So `weight` drops **1.90× more slots than cold**, not 1.35×. The old 63.4 % holds;
+**the 46.9 % attributed to cold does not** — the real 32.6 % agrees with the only
+other independent measurement in the repo (`dropsweep_jelly`, 9986/33600 →
+**29.7 %**). Workload declared: generation, not `--ppl-decode`, so the absolutes are
+not the quality cell's; the ratio between policies at equal setup is the quantity
+the caveat needs.
+
+And the two rules are related by **inclusion, not rivalry**
+(`router_hook.cpp:300-306`): with `thr = drop_frac/nu` = 1/6, `weight` drops every
+non-best slot below threshold while `cold` drops **only the subset** that is also
+non-resident. **Weight ⊇ Cold by construction**, so no like-for-like comparison
+between them exists at equal `d`. The comparison that carries the cell's result
+stays **cold vs random**.
+
+⚠️ **And `random` is like-for-like per token, not per run.** The code picks exactly
+`n_cold` slots, but measured it drops 28.6 % against cold's 32.6 %: once two runs
+diverge they generate different text and fill the cache differently, so `route_miss`
+— and with it `n_cold` — drifts. The identity holds **at the moment of the
+decision**, never as a property of the whole cell. This does not touch the +6.54 %
+result (under `--ppl-decode` the text is imposed by the corpus and cannot diverge).
 
 Note this cell is d=1.0, a mechanism probe: Marco ships **no drop**, and d=1.0
 costs it +12.41 % macro bpb, far outside the gate.

@@ -359,17 +359,189 @@
 > finissero; K2.3 fu deprioritizzato). `test-backend-ops` genera forme che i
 > modelli non producono. *Invariato* è la condizione di pass, non *migliorato*.
 >
-> 🧭 **TRACCIA DI DIAGNOSI (Grok, 18/08 18:42 — morto un passo PRIMA di scrivere
-> il report; questa è la sua traiettoria salvata dal log, NON un risultato
-> verificato).** Da riprendere da qui:
-> 1. «Il GEMV n=1 usa il kernel **sorgente `_ns`, non il binario**» → l'ipotesi
->    dispatch `_ns_bin`/`_ns_ila` **non spiega** il caso GEMV.
-> 2. «Il layout **dense (2 righe packed)** e quello **MoE (1 riga)** divergono.»
-> 3. «Il convert MoE è **`trans4_ns`**, non il noshuffle del dense.»
-> 4. **Ipotesi finale dichiarata: load vettoriale NON ALLINEATO nel convert MoE.**
-> ⚠️ Da verificare, non da credere: l'agente è morto prima di scriverla come
-> conclusione e prima di qualunque test. L'albero llama.cpp è rimasto **pulito**
-> (nessuna modifica) — nessuno stato a metà da ripulire.
+> 🧭 **KERNEL MoE ADRENO — LA PATCH ESISTEVA GIÀ, È STATA RIVISTA, COMPILATA E
+> MISURATA SUL DEVICE (18/08 sera). RISULTATO: L'ERRORE SI DIMEZZA MA NON SPARISCE.**
+>
+> 🔴 **CORREZIONE DI UN FATTO SCRITTO QUI SOPRA: «l'albero llama.cpp è rimasto
+> pulito (nessuna modifica), nessuno stato a metà» ERA FALSO.** `cvt.cl` porta
+> mtime **18:45:16**, cioè **tre minuti DOPO** le 18:42 in cui avevo dato Grok per
+> morto: era solo staccato e ha continuato a lavorare. Sul disco c'erano **82
+> righe aggiunte e 117 tolte**, mai compilate e mai viste da nessuno.
+> *(Intuizione di gualt, non mia: «probabile che Grok era staccato e ha continuato».)*
+>
+> **Cosa conteneva la patch — due fix per due cause diverse, non l'ipotesi unica:**
+> - **(A) allineamento**: i load `ushort8` da `b->qs[0]` (offset 2/4/6/8/1 nei
+>   rispettivi struct, quindi **mai** allineati a 16 byte) sostituiti da accessi
+>   byte-wise, su q4_0/q4_1/q5_0/q5_1/mxfp4 + la ricostruzione byte-wise di `qh`.
+> - **(B) layout q4_K/q5_K**: riscrittura da gruppi da 64 a sub-blocchi da 32.
+>
+> 🔬 **AUDIT OSTILE (DeepSeek V4 Flash, thinking max, hand-trace + simulazione
+> numerica di tutti i quant contro la matematica reale dei consumer):**
+> - **(A) CORRETTA** — byte-exact contro i kernel densi che passano 46/46, con
+>   round-trip esatti; la ricostruzione `qh` è l'equivalente little-endian esatto
+>   della `memcpy` della CPU, nessuna trappola di endianness o sign-extension.
+> - **(B) SBAGLIATA E DISTRUTTIVA — il layout vecchio era GIÀ corretto** (simulazione
+>   **256/256** valori giusti), il nuovo ne sbaglia **122/256 e 124/256**. La CPU
+>   impacchetta il byte `32g+l` come `(L[64g+l], L[64g+32+l])`, quindi il loop
+>   vecchio emetteva già i valori `[32·ib, 32·ib+32)` nei 16 byte che il consumer
+>   legge; quello nuovo, per ogni `ib` dispari, pesca 16 valori indietro e dal
+>   nibble sbagliato. **Prova indipendente: q6_K usa lo stesso windowing del vecchio
+>   q4_K e passa 3/3 sul device.** ➡️ **Le hunk q4_K/q5_K sono state RIMOSSE**; delle
+>   16 hunk ne restano **12**, tutte e sole di allineamento (55+/93−).
+> 📌 **Errore mio da mettere a verbale:** avevo verificato che il consumer legge tile
+> da 32 e concluso che «la direzione regge» — **un lato solo dell'uguaglianza**, senza
+> controllare che il convert vecchio già li producesse. Compilando subito avrei rotto
+> q4_K e q5_K, che erano sani.
+> 📌 Effetto collaterale non dichiarato della patch: **l'intero file era stato
+> riconvertito da LF a CRLF** (invisibile nel diff perché git normalizza). Riportato a LF.
+>
+> 📱 **MISURA SUL DEVICE (S23, `adb shell`, cpuset `/`, build NUOVA
+> `build-android-opencl-s3fix`; `build-android-opencl-k2` intatta come riferimento):**
+>
+> 🧪 **CONTROLLO FATTO BENE, e la prima versione di questo blocco NON lo era.**
+> Avevo confrontato il binario nuovo con `build-android-opencl-k2` (build del
+> **12/08**): fra i due non c'è solo la patch, ci sono anche i commit intermedi —
+> quindi quel confronto **non isolava la patch**. Rifatto compilando lo **stesso
+> commit senza la patch** (`build-android-opencl-s3base`): unica variabile il file
+> `cvt.cl`, **311 casi identici appaiati per nome del test**.
+>
+> | type_a | ERR baseline (stesso commit, NO patch) | **ERR con patch (A)** | Δ | n |
+> |---|---|---|---|---|
+> | q4_0 | 0.4080 | **0.1842** | **−54.9%** | 74 |
+> | q4_1 | 0.4297 | **0.1907** | **−55.6%** | 73 |
+> | mxfp4 | 0.3525 | **0.1654** | **−53.1%** | 74 |
+> | q5_0 | 0.1161 | **0.0546** | −52.9% | 3 |
+> | q5_1 | 0.0880 | **0.0479** | −45.6% | 3 |
+> | **q4_K** *(non toccato — controllo)* | 0.8891 | 0.8879 | **−0.1%** | 80 |
+> | **q5_K** *(non toccato — controllo)* | 0.9140 | 0.9362 | **+2.4%** | 4 |
+> | q8_0 / q6_K | pass | **pass** | — | 75/75 · 3/3 |
+>
+> 📏 **RUMORE MISURATO, non stimato (18/08 22:45): stesso identico binario rilanciato
+> due volte, 311 casi appaiati. `test-backend-ops` rigenera i dati a ogni run —
+> **0 casi su 311 sono bit-identici**.**
+>
+> | quant | n casi | rumore sulla MEDIA | peggior caso SINGOLO |
+> |---|---|---|---|
+> | q4_0 / q4_1 / mxfp4 / q4_K | 73-80 | **0.1 – 1.3%** | fino a **172%** |
+> | q5_0 / q5_1 / q5_K | 3-4 | **fino a ±14%** | 35% |
+>
+> ➡️ **Conseguenze, e una correzione a me stesso.** Avevo stimato il rumore a ±2-3%
+> dai quant di controllo: **sovrastimato dove n è grande, sottostimato dove è piccolo.**
+> - Su **q4_0/q4_1/mxfp4** il −55% è **~50× il rumore**: solidissimo. Anche il +19% di
+>   peggioramento della variante no-alias su q4_0 è reale (190× il rumore di quel quant).
+> - Su **q5_0/q5_1/q5_K le medie poggiano su 3-4 casi e ballano fino al 14%**: i loro
+>   numeri vanno citati come indicativi, mai come misure.
+> - **Nessun caso singolo è citabile** (fino al 172% di scostamento fra due run dello
+>   stesso binario): si cita solo la media su n grande, mai una riga. ➡️ **Il dimezzamento
+> è attribuito alla patch, non ai commit intermedi.**
+>
+> ➡️ **Quindi (A) era un difetto vero ed è ora chiuso — ma spiegava solo METÀ della
+> corruzione.** Nessun caso passa: 0 su 311.
+> ✅ **GATE, misurato e non dedotto — due terzi PASS, uno FAIL:**
+> 1. ✅ **q8_0 e q6_K non regrediscono su MoE**: 75/75 e 3/3 in entrambe le build.
+> 2. ✅ **Il denso resta identico**: `-o MUL_MAT` su entrambe le build dà **915 OK e
+>    10 FAIL**, e l'insieme dei casi falliti è **lo stesso** (0 casi falliti solo in
+>    una delle due). I 10 FAIL sono tutti `q6_K` denso — il kernel flat già noto come
+>    rotto e già dichiarato non-regressione (K2.3 deprioritizzato), non un effetto
+>    della patch.
+> 3. ❌ **«q4_0 passa» NO**: 0 casi su 311 scendono sotto soglia, l'errore si dimezza
+>    e basta.
+>
+> 🎯 **STATO: ESISTE UNA SECONDA CAUSA, ANCORA IGNOTA.** Colpisce tutti i quant
+> stretti, risparmia q8_0 e q6_K, e si manifesta sia a `n=1` (GEMV) sia a `n=16/32`
+> (GEMM). **Due ipotesi sono ora MORTE come spiegazione completa:** il load non
+> allineato (fixato e misurato: metà) e il layout q4_K/q5_K (provato corretto).
+> 🔎 Tre agenti in caccia su angoli disgiunti (data-path / dispatch host / sweep dei
+> kernel di calcolo + classe del workaround `printf` Adreno).
+> ⚠️ Sospetto già formalizzato e non ancora escluso: i kernel patchati replicano la
+> matematica dei densi **senza** il `printf` che il commento di quelli dichiara
+> obbligatorio; e il GEMM può usare il blob precompilato opaco
+> `gemm_moe_q4_k_f32_ns_ila`, che un fix sorgente non tocca.
+>
+> 🌙 **NOTTE 18→19/08 — NOVE IPOTESI TESTATE SUL DEVICE, IL CONVERT È ESAURITO.**
+> Ogni riga è una build compilata e misurata su S23 (in carica: irrilevante per ERR,
+> vietato per tok/s), confronto appaiato per nome del caso contro
+> `build-android-opencl-s3base` (stesso commit, senza patch).
+>
+> | # | esperimento | ERR q4_0 | esito |
+> |---|---|---|---|
+> | 0 | baseline (stesso commit, no patch) | 0.4080 | — |
+> | 1 | **letture byte-wise** (fix allineamento) | **0.1842** | ✅ **tenuto: −55%** |
+> | 2 | + `printf` di guardia Adreno | 0.4449 | ❌ peggiora |
+> | 3 | shift/OR senza aliasing (`uint qw[4]`) | 0.2206 | ❌ peggiora |
+> | 4 | riscrittura GLM (store byte-granulari diretti) | 0.1810 | ➖ invariato |
+> | 5 | convert senza fast-math (`GGML_OPENCL_CVT_OPTS`) | 0.1888 | ➖ invariato |
+> | 6 | convert `-cl-opt-disable` | — | ⛔ driver: `err=-6` out of host memory |
+> | 7 | kernel MoE `-cl-opt-disable` | — | ⛔ 1 kernel non compila |
+> | 8 | kernel MoE senza fast-math | 0.1809 | ➖ invariato |
+> | 9 | allineamento immagini su subbuffer | — | ❌ **REFUTATA da misura** |
+>
+> 🔑 **Il fatto che ordina tutto: CINQUE forme diverse del convert danno tutte ~0.18.**
+> Il difetto di allineamento (esperimento 1) era reale ed è chiuso; **il residuo non
+> dipende più dal convert.** Le opzioni del compilatore non c'entrano né sui convert né
+> sui consumer.
+>
+> ❌ **Ipotesi 9 (mia, elegante e sbagliata): i subbuffer non allineati per le immagini.**
+> Il codice upstream porta il dubbio scritto — *"Does this create misaligned subbuffers
+> (alignment is 1024) in certain cases ?"* — e `CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT`
+> non è **mai** interrogato, pur creando immagini 1D su subbuffer in 9 punti. Misurato sul
+> device: **image align = 64 B contro mem align = 128 B**, quindi i subbuffer sono già
+> conformi. Refutata in una query invece che in una notte.
+>
+> 🛠️ **Strumenti costruiti stanotte, che restano:** due hook a variabile d'ambiente
+> (`GGML_OPENCL_CVT_OPTS`, `GGML_OPENCL_MOE_OPTS`) che ricompilano i program con opzioni
+> diverse **senza rebuildare il binario**; e un ramo `GGML_OPENCL_HOST_REPACK` che
+> costruisce i buffer SoA sulla **CPU**, bypassando il convert — è l'esperimento che
+> separa produttore e consumatore in modo definitivo.
+>
+> ⚠️ **Limite di piattaforma incontrato:** opencode-go ha un tetto di utilizzo a 5 ore;
+> DeepSeek/GLM/Kimi tornano disponibili dopo il reset. Grok è su un altro provider.
+>
+> 🌅 **MATTINA 19/08 — IL CONTRATTO È CONFERMATO DA DUE DERIVAZIONI INDIPENDENTI,
+> E IL GUADAGNO STABILE È −55%.**
+>
+> | quant | baseline (stesso commit, no patch) | **con la patch** | Δ | n |
+> |---|---|---|---|---|
+> | q4_0 | 0.4080 | **0.1857** | **−54.5%** | 74 |
+> | q4_1 | 0.4297 | **0.1885** | **−56.1%** | 73 |
+> | mxfp4 | 0.3525 | **0.1671** | **−52.6%** | 74 |
+> | q5_0 / q5_1 | 0.1161 / 0.0880 | 0.0568 / 0.0532 | −51% / −40% | 3+3 |
+> | **q4_K / q5_K** *(non toccati — controllo)* | 0.8891 / 0.9140 | 0.9002 / 0.9133 | **+1.2% / −0.1%** | 80+4 |
+>
+> ✅ **CONTRATTO DI LAYOUT: CONFERMATO.** Due derivazioni indipendenti (DeepSeek e Grok)
+> più la mia, tutte dai **consumer** e non dai commenti, concordano: **valore `k` sta nel
+> word `k/8`, nibble `k%8`**; `qs[j]` della CPU porta il valore `j` nel nibble basso e
+> `j+16` nell'alto; GEMV e GEMM **vogliono lo stesso layout** (il GEMM legge un'immagine
+> che aliasa lo stesso buffer). ➡️ Il mio reference host è corretto e **non va toccato**:
+> è l'oracolo con cui si giudica ogni esperimento.
+>
+> 🔬 **MECCANISMO DEL DIFETTO, misurato:** la corruzione avviene **se e solo se il byte
+> sorgente è ≥ 0x80** (16 casi su 16), con firma `got = want | 0xF0`. Il compilatore
+> esegue uno shift **aritmetico** su un valore mascherato il cui bit 7 è settato, e il
+> segno smaglia il nibble adiacente. Una maschera successiva **non salva**: viene rimossa
+> come codice morto, perché l'analisi known-bits assume lo shift logico che il bug viola.
+> 📌 È lo stesso pattern che distingue i kernel che passano da quelli che falliscono:
+> `q6_K` (3/3 OK) usa **shift-poi-maschera**, i quant rotti usavano **maschera-poi-shift**.
+>
+> ❓ **PARADOSSO ANCORA APERTO, da non nascondere.** Una variante `bitselect` produce un
+> buffer **byte per byte identico al reference** (`BUFFER MATCHES HOST REFERENCE`,
+> `low wrong=0 | high wrong=0`) e **peggiora** l'end-to-end (0.4378 contro 0.4080 di
+> baseline). Con un produttore verificato corretto il risultato peggiora: il buffer non
+> può essere l'unica cosa che conta. Ipotesi in coda: **coerenza di memoria** — il
+> readback lo fa l'host con `clEnqueueReadBuffer`, il consumer legge un'**immagine**
+> costruita sul buffer, e le scritture `vstore4` potrebbero non essere visibili per quel
+> percorso. ⚠️ Finché non è spiegato, `bitselect` **non si spedisce**.
+>
+> 🔻 **Ipotesi morte, tutte con misura:** load non allineato (era vero, −55%, tenuto) ·
+> layout q4_K (era già giusto) · `printf` Adreno (peggiora) · aliasing scalare (peggiora) ·
+> riscrittura a store byte-granulari (invariata) · opzioni del compilatore su convert e su
+> consumer (invariate) · allineamento immagini (image align 64 B < mem align 128 B) ·
+> `bitselect` (buffer corretto ma e2e peggiore) · shift-poi-maschera nei consumer
+> (ininfluente: q4_0 con consumer fixato misura come q4_1 senza).
+>
+> 🎯 **Gate:** q8_0 75/75 e q6_K 3/3 **non regrediscono**; il denso resta **915 OK / 10
+> FAIL identici**. ❌ Nessun quant scende sotto 5e-4: l'errore si dimezza, non sparisce.
+>
 > 🔧 Si lavora su **`kalsa/kernel-s3-repack`**, che discende già da
 > `opencl-q6k-dispatch-fix` (merge-base 04c5d362a, zero commit esclusivi): la fix
 > nuova si impila sulla vecchia, niente due patch parallele — requisito di gualt.
@@ -496,18 +668,77 @@
 > molto meglio QUALI. Chi proponeva di eliminarla per recuperare il compute
 > della tassa d'armamento stava proponendo di pagare 6.5% di qualità.
 >
-> | arm | macro bpb (5 lingue) | Δ vs dp_d0 |
-> |---|---|---|
-> | `dp_d0` (macchinario spento) | 0.766534 | — |
-> | `dp_cold_d10` (regola di oggi, d=1.0) | 0.861667 | **+0.0951 / +12.41%** |
-> | `dp_rand_d10` (+ `_itzh`) | 0.918006 | **+0.1515 / +19.76%** |
-> | `dp_weight_d10` | in corso, partito 17:01, fine ~19:00 | — |
+> | arm | macro bpb (5 lingue) | Δ vs dp_d0 | slot droppati |
+> |---|---|---|---|
+> | `dp_d0` (macchinario spento) | 0.766534 | — | 0 |
+> | `dp_cold_d10` (regola di oggi, d=1.0) | 0.861667 | **+0.0951 / +12.41%** | **32.6%** |
+> | `dp_rand_d10` (+ `_itzh`) | 0.918006 | **+0.1515 / +19.76%** | **28.6%** |
+> | `dp_weight_d10` | **1.317696** | **+0.5512 / +71.90%** | **61.9%** |
 >
-> ⏳ **Resta `weight`** (soglia di peso, senza query di residency): è il braccio
-> che separa **quanto del vantaggio viene dalla cache e quanto dal peso**.
-> ⚠️ Non è un confronto like-for-like: droppa di più (misurato 63.4% degli slot
-> contro il 46.9% di `cold` a d=1.0) perché non protegge i residenti, quindi
-> una qualità peggiore è attesa e non basta a dire che la residency vince.
+> ✅ **CELLA CHIUSA A 4 BRACCI (18/08 18:43 — `OK dp_weight_d10
+> macro_bpb=1.31769604986121`, tutte e 5 le lingue rc=0).** Binario, modello,
+> thread, ctx, ubatch, cache e `--n-expert-used` sono **identici in tutte e cinque
+> le celle**, verificati dai JSON dei run e non dagli script: `59f2762e54ed56af` /
+> `2f92195854011538`. L'unica variabile è `--drop-policy`.
+>
+> 🔴 **RITIRATO — «weight droppa il 63.4% degli slot contro il 46.9% di `cold`».
+> IL 46.9% NON ERA MISURATO E NON ESISTE IN NESSUN DATO DEL REPO.** Quei due numeri
+> comparivano **solo** in questa riga del PLAN e nella sua copia in
+> `docs/ALIVE.md:232`, con la parola «misurato». **Non potevano esserlo:** il path
+> `--ppl-decode` stampa unicamente `BMOE_PPL {n_tokens,n_scored,sum_logprob,ppl,
+> seconds}` e **nessun** contatore di drop, e gli `harness.err.log` della cella sono
+> **0 byte**. Stessa classe dell'errore già a verbale sul commento circolare in
+> `run_droppolicy_quality.ps1:44`: una cifra nata in prosa e poi citata come dato.
+>
+> ✅ **MISURATO ORA (18/08 19:00, `results/droppolicy_quality_marco/droprate/`).**
+> Stesso binario `59f2762e54ed56af`, stessa config della cella, 300 token generati,
+> una run per policy; il path di generazione stampa
+> `moe-drop: N/M routed experts dropped (X%)` (`cli/main.cpp:1079`):
+>
+> | policy | slot droppati / instradati | frazione |
+> |---|---|---|
+> | `cold` | 16427 / 50400 | **32.6%** |
+> | `weight` | 31217 / 50400 | **61.9%** |
+> | `random` | 14395 / 50400 | **28.6%** |
+>
+> ➡️ **Il rapporto vero è 1.90×, non 1.35×: `weight` droppa quasi il DOPPIO di
+> `cold`.** Il 61.9% conferma il vecchio 63.4%; **è il 46.9% attribuito a `cold` a
+> essere falso** — il valore reale, 32.6%, è coerente con l'unica altra misura
+> indipendente nel repo (`dropsweep_jelly`: `experts_routed=33600
+> experts_dropped=9986` → **29.7%**), che il PLAN stesso cita altrove.
+> ⚠️ **Workload dichiarato: generazione, non `--ppl-decode`** — gli assoluti non sono
+> quelli della cella di qualità; ciò che serve è il **rapporto fra policy a parità di
+> setup**, ed è quello misurato.
+>
+> ➡️ **Conseguenza sulla lettura di `weight`: il suo +71.90% NON dimostra che la query
+> di residency batte la soglia di peso.** Ha corso con un handicap quasi doppio. E dal
+> codice le due regole non sono alternative ma **inclusive** (`router_hook.cpp:300-306`):
+> con `thr = drop_frac/nu` = **1/6**, `weight` droppa ogni non-best sotto soglia, `cold`
+> **solo il sottoinsieme** di quelli che sono anche non residenti. **Weight ⊇ Cold per
+> costruzione**, quindi un confronto like-for-like fra i due **non è ottenibile a parità
+> di `d`**. L'unico confronto a conteggio confrontabile resta **cold-vs-random**, ed è
+> quello su cui poggia il risultato della cella.
+>
+> 🔍 **Anche `random` è like-for-like solo PER-TOKEN, non a run intera.** Il codice pesca
+> esattamente `n_cold` slot (`router_hook.cpp:268-274`), ma misurato dà **28.6% contro il
+> 32.6% di `cold`**: appena le due run divergono generano testo diverso e riempiono la
+> cache in modo diverso, quindi `route_miss` — e con esso `n_cold` — diverge. L'identità
+> di conteggio vale **all'istante della decisione**, non sull'aggregato. Non tocca il
+> +6.54% (in `--ppl-decode` il testo è imposto dal corpus e non può divergere), ma la
+> frase «stesso conteggio» **va detta per-token**, mai come proprietà della cella.
+>
+> 🚢 **DECISIONE OWNER (18/08, a chiusura cella): SI SPEDISCE `cold`; IL LIVELLO È
+> PER-MODELLO. Tre assi da non fondere in una regola sola:**
+> 1. **Quale policy → `cold`, e non dipende da nulla.** Batte `random` in **5 lingue su
+>    5**; `weight` e `random` esistono solo come strumenti diagnostici, non come config.
+> 2. **Quanto droppare → per-modello, sulla QUALITÀ.** Marco a d=1.0 costa **+12.41%** e
+>    spedisce quindi **d=0.0**; CalaQwen costa **+3.96%** e spedisce **d=1.0 +
+>    `--drop-no-renorm`**. Stesso flag, stesso livello, verdetto opposto.
+> 3. ⚠️ **La CONVENIENZA in velocità dipende invece da device e RAM, e resta vero.**
+>    Sul Jelly a cache 4000 il drop **fa danno** (+15%) mentre a 1500/2000 rende −25%;
+>    sull'S23 non si ribalta mai (−2/−6%). **L'ipotesi «dipende dal modello e non da
+>    RAM/processore» è corretta sulla qualità e smentita sulla velocità**: sono due assi
+>    distinti e vanno citati separatamente.
 >
 > 🔧 **CORREZIONE MIA, DA METTERE A VERBALE.** Avevo scritto a gualt che quel
 > +12.41% «riproduce esattamente il valore di campagna di Marco a d=1.0 con
@@ -638,6 +869,30 @@
 > risondare; e comunque **rifare le tre celle con l'harness nuovo**, che
 > scrive la covariata. Stessa verifica sul Jelly appena torna: **stesso
 > harness, stesso buco**, e su quelle celle poggia il default spedito.
+>
+> ✅ **SONDA JELLY FATTA (18/08 22:40, Jelly riacceso, `u0_a225@192.168.1.82:8022`).
+> IL JELLY NON HA IL PROBLEMA: `/top-app`, `Cpus_allowed_list 0-7`, `nproc=8`.**
+> Sondato **come va sondato** — non sulla shell idle (errore commesso due volte), ma
+> sul PID di un processo che **brucia CPU davvero** (`yes > /dev/null`, letto dopo 3 s):
+> ```
+> shell   : /top-app   Cpus_allowed_list 0-7   nproc=8
+> worker  : /top-app   Cpus_allowed_list 0-7
+> ```
+> ➡️ **Le celle Jelly — quelle su cui poggia il default spedito — NON sono contaminate
+> dal cpuset ristretto.** Il rischio che il PLAN teneva aperto su di esse si chiude.
+> 🔍 **E spiega l'anomalia S23-vs-Jelly:** su S23 le sessioni Termux stanno in
+> `/moderate` (0-2, tre A510), sul Jelly in `/top-app` (0-7). Non è una differenza di
+> silicio ma di ROM/OEM — ed è coerente col compute misurato, S23 **0.186 s/tok**
+> contro Jelly **0.117** sullo stesso modello: un 8 Gen 2 che perde contro un G99 è
+> impossibile a parità di core, normale se ne usa tre piccoli.
+> ⚠️ **Limiti dichiarati:** (a) `dumpsys power` non è accessibile da Termux, quindi
+> `mWakefulness` non è verificabile per questa via — ma un processo classificato
+> `/top-app` implica Termux in foreground, cioè la postura di campagna; (b) è una
+> sonda di **oggi**, non una covariata registrata **allora**: assolve il Jelly come
+> piattaforma, non certifica retroattivamente le righe di quelle celle. Per quelle
+> serve comunque il rerun con l'harness che scrive `nproc`/`affinity_mask`.
+> 📌 **Conseguenza operativa per l'S23: i bench si lanciano da `adb shell`** (cpuset `/`,
+> 0-7), mai da Termux — già a verbale, e ora con la controprova sul telefono buono.
 >
 > 🚨 **REPLICA SU S23 (18/08): IL MECCANISMO REPLICA, LA CONSEGUENZA NO.
 > LA "REGOLA" QUI SOTTO È SPECIFICA DEL JELLY — non spedirla come regola.**

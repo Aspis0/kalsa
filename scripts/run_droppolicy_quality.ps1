@@ -40,9 +40,18 @@
 # curve's 0.7049320, and do not read `dp_d0` as 0.6780748: different binary.
 #
 # Model: Marco-Mini-Instruct-KEXP (6 GB, ~1.2 h per arm) rather than CalaQwen (13.4 GB,
-# ~2.5 h), because the question is mechanistic and Marco is where the drop bites hardest
-# (+12.41 % macro bpb at d=1.0 with renorm on, vs CalaQwen's +3.96 %) — so a difference
-# between cold and random has the most room to show.
+# ~2.5 h), because the question is mechanistic and Marco was expected to be the model where
+# the drop bites hardest -- so a difference between cold and random has the most room to show.
+#
+# CORRECTED 2026-08-18, after the cell finished. An earlier version of this header asserted
+# "+12.41 % macro bpb at d=1.0 with renorm on, vs CalaQwen's +3.96 %" as though it were a
+# known prior figure justifying the choice of model. It was not: NO Marco k6 d=1.0
+# measurement existed anywhere in results/ before this cell. The +12.41 % is this cell's own
+# output (dp_d0 0.766534 -> dp_cold_d10 0.861667), so quoting this comment as independent
+# corroboration of that number was circular -- and it was done once, in the PLAN.
+# The design premise still stands, but it is confirmed a posteriori: the other campaign
+# curves at d=1.0 cost far less (Mellum2 +5.09 %, CalaQwen +3.96 %), which is what makes
+# Marco the model with the most room. That is evidence from the curves, not from Marco.
 
 $ErrorActionPreference = 'Continue'
 $root    = 'C:\Users\gualt\Desktop\Kalsa\moe-experiments'

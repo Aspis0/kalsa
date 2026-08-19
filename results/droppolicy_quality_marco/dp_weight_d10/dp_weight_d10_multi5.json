@@ -19,9 +19,9 @@
       "--ubatch",
       "512",
       "--ppl-decode",
-      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\fr.txt",
+      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\zh.txt",
       "--ppl-csv",
-      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\droppolicy_quality_marco\\dp_weight_d10\\fr\\per_token.csv",
+      "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\droppolicy_quality_marco\\dp_weight_d10\\zh\\per_token.csv",
       "--moe-stream",
       "--cache-mb",
       "2000",
@@ -112,7 +112,57 @@
         "mode": "decode",
         "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\fr.txt"
       }
+    },
+    "it": {
+      "lang": "it",
+      "corpus": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\it.txt",
+      "corpus_sha256": "498a5f3b554fac4bb6f7eda4f7bdcea60f3ad6be30699f306a3255d8ba85545a",
+      "n_bytes": 45747,
+      "rc": 0,
+      "seconds": 1319.14,
+      "n_tokens": 13696,
+      "n_scored": 13692,
+      "sum_logprob": -44956.42804119,
+      "ppl": 26.666509,
+      "bpb": 1.417763258598517,
+      "bytes_per_token": 3.3401723130841123,
+      "raw": {
+        "n_tokens": 13696,
+        "n_scored": 13692,
+        "sum_logprob": -44956.42804119,
+        "ppl": 26.666509,
+        "seconds": 1316.237,
+        "cancelled": false,
+        "mode": "decode",
+        "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\it.txt"
+      }
+    },
+    "zh": {
+      "lang": "zh",
+      "corpus": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\zh.txt",
+      "corpus_sha256": "be40bbe1676b245f697f8e8ff22963e56553ac29fd170d87906b555fbf19251b",
+      "n_bytes": 50284,
+      "rc": 0,
+      "seconds": 1249.051,
+      "n_tokens": 13517,
+      "n_scored": 13513,
+      "sum_logprob": -59303.38412836,
+      "ppl": 80.528986,
+      "bpb": 1.7014696163773415,
+      "bytes_per_token": 3.7200562254938228,
+      "raw": {
+        "n_tokens": 13517,
+        "n_scored": 13513,
+        "sum_logprob": -59303.38412836,
+        "ppl": 80.528986,
+        "seconds": 1246.416,
+        "cancelled": false,
+        "mode": "decode",
+        "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\corpus\\multi5\\zh.txt"
+      }
     }
   },
-  "started": "2026-08-18T17:01:21-0400"
+  "started": "2026-08-18T17:01:21-0400",
+  "macro_bpb": 1.3176960498612131,
+  "finished": "2026-08-18T18:43:49-0400"
 }
