@@ -1,0 +1,61 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+using backend GPUOpenCL
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 64 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: true
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 3536 MB
+ggml_opencl: max mem alloc size: 884 MB
+ggml_opencl: device max image buffer size (pixels): 134217728
+ggml_opencl: device max image2d size: 16384 x 16384
+ggml_opencl: device max workgroup size: 1024
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: true
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: true
+ggml_opencl: cl_qcom_subgroup_shuffle support: true
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: loading OpenCL kernels......ggml_opencl: program_cvt variant=bitselect
+............................................................................................................................................
+OPENCL_WEIGHT_PATH{tensor=as,type=q4_0,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+KALSA_SPLIT low-nibble words wrong=0 | high-nibble words wrong=0
+KALSA_DUMP_Q 256x512x4 words=65536 -> BUFFER MATCHES HOST REFERENCE (producer is correct)
+OPENCL_WEIGHT_PATH{tensor=as,type=q4_1,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q5_0,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q5_1,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=mxfp4,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q4_K,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q5_K,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q6_K,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=weight,type=q4_0,ne=256x512x1,path=generic-soa,name_gate=0,ne01_mod32=0,moe_gate=0}
+OPENCL_WEIGHT_PATH{tensor=weight,type=q4_0,ne=512x512x1,path=noshuffle,name_gate=0,ne01_mod32=0,moe_gate=0}
+HOST_REPACK=[unset] CVT_VARIANT=[bitselect] LOG_WEIGHT_PATH=[1]
+ROUNDTRIP_FILL raw=[lcg] resolved=lcg mult=131 off=17 cval=0x00
+ROUNDTRIP name=as type=q4_0 ne=256x512x4 nbytes=294912 host_repack=0 mismatch=0/294912 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_0 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=65536
+ROUNDTRIP name=as type=q4_1 ne=256x512x4 nbytes=327680 host_repack=0 mismatch=0/327680 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_1 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=65536
+ROUNDTRIP name=as type=q5_0 ne=256x512x4 nbytes=360448 host_repack=0 mismatch=0/360448 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q5_0 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=65536
+ROUNDTRIP name=as type=q5_1 ne=256x512x4 nbytes=393216 host_repack=0 mismatch=0/393216 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q5_1 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=65536
+ROUNDTRIP name=as type=mxfp4 ne=256x512x4 nbytes=278528 host_repack=0 mismatch=0/278528 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=mxfp4 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=65536
+ROUNDTRIP name=as type=q4_K ne=256x512x4 nbytes=294912 host_repack=0 mismatch=0/294912 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q5_K ne=256x512x4 nbytes=360448 host_repack=0 mismatch=0/360448 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q5_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q6_K ne=256x512x4 nbytes=430080 host_repack=0 mismatch=0/430080 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q6_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=weight type=q4_0 ne=256x512x1 nbytes=73728 host_repack=0 mismatch=0/73728 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_0 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=32768 odd_want_hi_f=2048 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=16384
+ROUNDTRIP name=weight type=q4_0 ne=512x512x1 nbytes=147456 host_repack=0 mismatch=0/147456 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_0 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=65536 odd_want_hi_f=4096 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=32768
+DONE rc=0
+PROC_EXIT=0

@@ -830,6 +830,182 @@
 > PRIMA di ogni claim "produzione immune"; MAX RECALL finale sul diff
 > cumulativo; decisione di pubblicazione (owner, dopo questi).
 >
+> 🔬 **19/08 NOTTE — MAX RECALL ESEGUITO (3 reviewer paralleli su angoli
+> diversi) + IL PUZZLE È RISOLTO: C'È UN TERZO DIFETTO, E RESTA APERTO.**
+> Report: `scratchpad/agents/maxrecall-{tracer,claims,puzzle}/REPORT.md`.
+> **(1) Claims-vs-artefatti (mimo, voto B):** hash, manifest 22/22,
+> TUTTI i conteggi roundtrip/e2e/firme verificati riga-per-riga nei log.
+> DUE errori aritmetici nel report del retrial, ARBITRATI
+> dall'orchestratore sul log grezzo (`cell6_armA_*_dump.log`): **media
+> ERR cella 6 = 0.4158 (non 0.4325)** e **4/12 sotto 0.36 (non 2/12)** —
+> la calibrazione f1/f2 è più lasca del dichiarato ma il verdetto
+> qualitativo regge (restore contributore unico confermato).
+> **(2) Tracer cross-file (GLM): purezza del default TIENE** (a env
+> spenti: solo convert byte-wise + restore shift/mask); trovata
+> l'ASIMMETRIA §3C: il rewrite shift-then-mask del consumer fu applicato
+> solo a gemv/gemm_moe_q4_0, i consumer q4_1/q5_0/q5_1/q4_K tengono
+> l'idioma originale — severità DECLASSATA dall'evidenza (il puzzle prova
+> che quei consumer NON sono miscompilati: 156 casi affetti passati, una
+> deviazione inietterebbe ~0.45 NMSE ≈ 900× soglia); resta debito di
+> uniformità (port meccanico dei 6 macro). Minori: getenv non cache-ato
+> in audit_q4_0; riga di log variant= incondizionata; `register_dst_snap`
+> senza clRetainMemObject (solo path audit). **(3) Puzzle (v4-flash,
+> simulazione byte-esatta sim1-3.py): MECCANISMO IDENTIFICATO — DUE
+> difetti device distinti che forzano la nibble alta dei byte qs dispari
+> a 0xF:** **P (convert, WRITE)** scatta su want<0x80 (bit7 basso) e
+> colpisce ENTRAMBE le forme del producer (bytewise E bitselect) →
+> 65.536 visibili col restore fixato, 0 invisibili; **R (vecchio
+> restore, READ)** scattava block-even value-independent → 65.536 eventi,
+> 4.096 invisibili = 61.440. **P∪R = 94.208 ✓, tutti e 4 i numeri
+> misurati riprodotti esattamente.** Il rapporto 1/2 è una proprietà del
+> pattern LCG dell'harness (`p[i]=(i·131+17)&0xFF`, biiezione
+> periodo-256), non una probabilità del kernel. ⚠️ **CONSEGUENZA: l'e2e
+> PASS = auto-consistenza giudice/GPU sugli STESSI pesi sporchi, NON
+> fedeltà ai pesi originali. RISCHIO LATENTE PESI-SBAGLIATI: SÌ
+> (condizionale)** — qualunque load path che accende il convert device
+> su A740 (gate name+shape: `ffn+exps`/`as`, ne01%32==0 — matcha nomi
+> reali di checkpoint) corrompe ⅛ dei pesi in silenzio. BMoE produzione
+> immune BY DESIGN (use_extra_bufts=false) ma NON ancora dimostrato
+> (smoke §4 sempre dovuto). **Il capitolo kernel NON è chiuso: resta il
+> DIFETTO P (convert write).** Esperimento discriminante più economico
+> (pre-registrato dal reviewer): cambiare la costante di fill_pattern e
+> rerun della sweep (si ricompila solo il test exe, NON il .so) —
+> predizione: il conteggio resta N/2 e l'insieme dei mismatch segue la
+> nuova classe want<0x80. Ipotesi meccanicistica da vagliare per P:
+> classe sign-extension (char vs uchar) negli store/helper del convert.
+>
+> 🧪 **ESPERIMENTO DISCRIMINANTE P ESEGUITO (S23, 4 run, stesso .so
+> 9198f387… verificato prima di ogni run; commit test-only `5a952cb2`;
+> report `scratchpad/agents/defectP-experiment/REPORT.md`, log
+> `results/oracle_consumer_s23/defectP/`). VERDETTO: MIXED — il gate
+> bit7 ESISTE ma la polarità del reviewer era INVERTITA e il trigger è
+> un byte PARTNER trasposto:** (a) lcg default: 65.536 riprodotto ✓;
+> (b) const40 (bit7 basso): **0 clean** — la predizione "tutti" VIOLATA;
+> (c) constC0 (bit7 alto): **131.072, TUTTI corrotti** — predizione "zero"
+> VIOLATA all'opposto; (d) lcg29: 57.344 con partizione bit7 imperfetta
+> (bit7clear=15.360 / clean_bit7set=23.552). **Lettura: P scatta quando
+> il byte SORGENTE PARTNER (quello che contribuisce la nibble alta del
+> byte dispari di output, trasposto nel layout trans4) ha bit7=1 —
+> perfettamente coerente con SIGN-EXTENSION (`char` vs `uchar`: (char)
+> 0xC0>>4=0xFC inonda la nibble alta; 0x40>>4=0x04 pulito), condivisa da
+> entrambe le forme producer perché sta nel LOAD/store comune, non negli
+> helper di pack. Il "want<0x80" della simulazione era un proxy valido
+> solo col moltiplicatore 131 (correlazione posizione↔partner).**
+> Follow-up dovuti prima del fix: identificare il byte partner esatto da
+> cvt.cl (read-only) e ri-derivare in forma chiusa TUTTI i conteggi
+> (65.536 lcg / 0 const40 / 131.072 constC0 / 57.344+partizione lcg29 /
+> 61.440 e 94.208 storici) da UN solo meccanismo — poi scrivere il fix
+> (unsigned esplicito nel punto incriminato) e riverificare su device.
+>
+> 🎯 **P′ IDENTIFICATO AL BYTE (v4-flash, sim4.py: TUTTI e sei i
+> datapoint ESATTI, più mxfp4 come extra).** Meccanismo: in
+> `trans4_pack_hi` (cvt.cl:59 bytewise / :57 bitselect) l'idioma
+> **mask-then-shift** `((x0 & 0xF0) >> 4)` viene miscompilato: il byte
+> mascherato è trattato come signed, lo shift aritmetico sign-filla il
+> campo, l'OR con `(x1 & 0xF0)` vince → la nibble alta del byte hi-word
+> storato va a 0xF **sse bit7 del partner PARI x0=qs[2k] della stessa
+> coppia è SET** (locale, stesso blocco; il restore fixato la mappa sulla
+> nibble alta del byte dispari → firma `got=(want&0x0F)|0xF0`,
+> `qs_other=0` ✓). Sotto qualunque fill biiettivo scatta esattamente su
+> metà dei candidati (65.536); mult-131 vs mult-29 differiscono solo per
+> l'overlap con posizioni già-0xF (0 vs 8.192 invisibili). R (block-even)
+> regge invariato: 61.440 ✓, P∪R=94.208 ✓. Stessa classe dell'idioma
+> "signed-smear" già documentato dalla campagna sul consumer q4_0 — ma
+> nei PACK HELPER del convert, condivisi dalle due forme producer (per
+> questo bytewise==bitselect). I path densi/K con lo stesso idioma
+> round-trippano puliti: difetto specifico del path trans4. **FIX
+> PREDETTO: shift-first-then-mask nei due helper** — `(x0>>4)&0x0F` (+
+> difensivo `((x1<<4)&0xF0)` in trans4_pack_lo) — con predizione: TUTTI
+> e sei i conteggi → 0 sotto OGNI fill. Se dopo il rewrite il bitselect
+> corrompe ancora, il residuo è nel load/store condiviso (probe
+> discriminante già disegnato: coppia singola even×{00,80}×odd×{40,C0}).
+> ➡️ Implementazione in corso (GLM), poi: verifica disco → review ostile
+> (Luna) ∥ verifica device (i 4 fill + sweep 5 tipi + e2e + regressioni).
+>
+> ❌➡️🔦 **FIX P TENTATIVO #1 (shift-first negli helper, `39a0b130f`):
+> BIT-EXACT MA ZERO EFFETTO SUL DEVICE.** Review Luna: helper nuovi
+> bit-identici ai vecchi su tutti i 65.536 input, robusti anche sotto
+> compilatore avverso, scope +5/−4, GO condizionato agli zeri device.
+> Device (16 log, `results/oracle_consumer_s23/defectP_fix/`, .so
+> `69d6d862…` sha-verificato a ogni run): **tutti i conteggi
+> BYTE-IDENTICI al pre-fix** — lcg 65.536, constC0 131.072, lcg29
+> 57.344 con la stessa partizione, bitselect == bytewise, stesse
+> posizioni first — su ENTRAMBE le arm. e2e tutto PASS (auto-consistenza,
+> non fedeltà), K/denso puliti, HOST_REPACK 0. **Conclusione: P NON è
+> nella forma dell'espressione dei pack helper — abbiamo cambiato l'unica
+> cosa che distingue le due arm e non è cambiato NULLA. Il difetto vive
+> nel LOAD di x0/x1 o nello STORE/assemblaggio della hi-word, condivisi
+> (rank-2 della lista). Indizio di firma: got = want|0xF0 ≡ OR con 0xF0
+> — coerente con sign-extension di un campo a 4 bit OR-ato
+> nell'assemblaggio della word.** Il commit `39a0b130f` resta (innocuo,
+> uccide l'idioma-classe per uniformità). **PROSSIMO: probe di
+> localizzazione** — (a) fill "pair" mirato per blocco (even∈{00,80} ×
+> odd∈{40,C0}, resto neutro) per inchiodare quale byte gate-a; (b)
+> readback RAW del buffer SoA convertito via clEnqueueReadBuffer nel
+> harness (SENZA passare dal restore) confrontato con le word di
+> contratto attese host-side: separa definitivamente WRITE corrotto da
+> READ corrotto — possibilità non ancora esclusa: il convert scrive
+> giusto e il restore legge male i buffer GPU-converted (alignment
+> diverso dallo storage host-repacked su cui fu assolto). Dopo la
+> localizzazione: fix strutturale del convert in stile restore (uint
+> word end-to-end, niente corsie uchar).
+>
+> 🔦 **PROBE ESEGUITO (commit test-only `bb05e4a0b`, 6 log,
+> `results/oracle_consumer_s23/defectP_probe/`): P LOCALIZZATO — È LA
+> SCRITTURA DEL CONVERT, IL RESTORE È INNOCENTE.** (1) pair-fill:
+> pair8040 → 131.072 sporco, pair00C0 → 0 pulito ⇒ **gate = bit7 del
+> byte PARI x0=qs[2k]**, il bit7 del dispari NON gate-a (era solo proxy
+> posizionale). (2) Readback RAW dello storage SoA (via DUMP_Q, senza
+> restore): **le word hi-nibble escono GIÀ corrotte dal convert**
+> (lcg: 18.688/65.536 word sporche, pair8040: 32.768 = 50% esatto;
+> 32.768×4 byte = 131.072 = roundtrip ✓), word lo-nibble TUTTE pulite,
+> firma raw esatta got=(want&0x0F)|0xF0 (0x48→0xF8). Restore assolto
+> in via definitiva (inverte fedelmente storage già sporco). **Indizio
+> chiave: il bit7 di x0 corrompe il termine di x1 — effetto CROSS-BYTE
+> impossibile dall'espressione di pack ⇒ il compilatore rivettorizza la
+> forma byte-wise in corsie short/ushort con shift aritmetico — la
+> STESSA classe as_ushort8 del difetto restore. Ecco perché il
+> tentativo #1 (forma dell'espressione) non poteva funzionare.** FIX
+> STRUTTURALE disegnato: riscrivere il path qs dei 5 convert trans4 in
+> stile restore-fix — nibble extraction e assemblaggio delle word di
+> output INTERAMENTE in uint scalari (shift/mask a livello word, uno
+> store per word, zero corsie uchar/short intermedie). Verifica: il
+> probe stesso (4 pair-fill + raw readback → tutto 0) + sweep + e2e +
+> regressioni.
+>
+> 🏆 **DIFETTO P MORTO — FIX #2 (`f63746555`, riscrittura uint scalare
+> dei 5 convert) VERIFICATO SUL DEVICE: TUTTE LE PREDIZIONI CONFERMATE,
+> ZERO VIOLAZIONI** (review statica Luna: GO, contratto/segno/bitselect/
+> scope tutti CONFIRMED; device 16 log,
+> `results/oracle_consumer_s23/defectP_fix2/`, .so `2032b7c7…`
+> sha-verificato a ogni run). **(1) GATE PRIMARIO — raw readback: 0/0**
+> su lcg e pair8040 (erano 18.688/32.768): la scrittura deposita i byte
+> di contratto, confrontati col riferimento host. **(2) Roundtrip 0 sui
+> QUATTRO fill** (lcg/const40/constC0/lcg29 — constC0 era 131.072).
+> **(3) Sweep 5 tipi: 0×5** (erano 65.536×5), controlli K/denso puliti.
+> **(4) Arm bitselect: tutto 0, raw incluso** — anche la variante è
+> sanata dalla stessa forma uint. **(5) e2e invariato tutto PASS e ORA
+> WEIGHT-FAITHFUL** (GPU e giudice vedono i byte originali x): 74/74,
+> 75/75, 3/3, 3/3, 74/74, q8_0 75/75, q6_K 3/3, denso 915/925.
+> **(6) HOST_REPACK 0.** Lo smear cross-byte da bit7-del-pari è
+> eliminato: la forma uint scalare batte la rivettorizzazione byte-lane
+> di Adreno, la STESSA medicina che guarì il restore. **LA FAMIGLIA
+> TRANS4 È INTEGRALMENTE SANATA — tre difetti, tre fix verificati al
+> byte sul silicio:** convert-READ (9dc1ec0cb, ago), restore-READ
+> (eaec5d884), convert-WRITE (f63746555). **Restano:** smoke di
+> produzione BMoE (unico anello di fedeltà non misurato sul motore
+> vero); 2 commenti stantii da ripulire (offset q4_0, "byte-wise
+> stores" — segnalati da Luna, cosmetici); port di uniformità sui 6
+> macro consumer (debito, non difetto); capitolo K2 q4_K/q5_K (grok);
+> decisione di pubblicazione (owner). Lignaggio finale della notte:
+> 1582f2d83 → eaec5d884 (restore) → 5a952cb2 (fill param) → 39a0b130f
+> (helper, innocuo) → bb05e4a0b (probe) → f63746555 (convert uint) =
+> **kalsakernel-v2**.
+> **CODA AGGIORNATA:** (a) esperimento discriminante P (S23, breve);
+> (b) fix del difetto P; (c) smoke produzione BMoE; (d) port meccanici
+> di uniformità + retain cl_mem + getenv cache; (e) grok domani: capitolo
+> K2 (q4_K/q5_K compute) — nota: Mellum2 è Q4_K_M, esperti in famiglia K.
+>
 > ➡️ **Ultimo indiziato in piedi: il READBACK (`get_tensor`).** Hook
 > pronto (working tree, +287/−1, `.so` `0111c70d…4ed692`):
 > `DST_READBACK{raw_match, returned_match}` (raw = re-read indipendente

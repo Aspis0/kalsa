@@ -1,0 +1,31 @@
+# MANIFEST — S23 defect-P discriminating experiment (oracle_consumer_s23/defectP/)
+# Device: Galaxy S23 SM-S911U (kalama, Adreno 740), serial adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+# Device dir: /data/local/tmp/s3oracle (recreated; s3base/s3fix/s3printf untouched)
+# Run from `adb shell` (PC side), MSYS_NO_PATHCONV=1. LD_LIBRARY_PATH=/data/local/tmp/s3oracle on all runs.
+# Submodule BigMoeOnEdge/third_party/llama.cpp on kalsa/kernel-s3-repack @ 5a952cb2 (test-only commit on eaec5d884). NO push.
+# cvt.cl / ggml-opencl.cpp NOT touched. Kernels unchanged.
+# Patched .so sha = 9198f38779db531c92818a9d7b23ba0d471df1d95aba1498b61c9cbf1d07f43c (eaec5d884) — MUST be byte-exact; verified on device BEFORE every run.
+# exe: test-opencl-moe-roundtrip 94a6b8fe22be1f70353c1d9f1bc3ca50e850324a6cb5b5c370515d1841906715 (5a952cb2; carries GGML_OPENCL_ROUNDTRIP_FILL selector + mismatch_bit7clear/clean_odd_bit7set counters)
+# Support libs (rebuilt at 5a952cb2, build-info commit string only; do NOT carry convert kernels):
+#   libggml-base.so     781e13aa1bb99520cc74a1939ce9f2d6c7b5e7f4b1a52a457f07a681487f7ed9
+#   libggml-cpu.so      fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da
+#   libggml.so          3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27
+#   libllama.so         f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d
+#   libllama-common.so  bab524c31acaced2133be26c5c742df725c05813a1723e4f8932f76b067a0cc0
+#   libc++_shared.so    e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  (NDK 27.1.12297006 aarch64)
+#   libomp.so           ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  (NDK clang-18 aarch64)
+# PC sha == device sha verified for ALL after push.
+# ORACLE/DUMP_Q unset on ALL runs (presence-only). HOST_REPACK unset. CVT_VARIANT=bytewise. LOG_WEIGHT_PATH=1. ROUNDTRIP_FILL value-parsed.
+# Recipe (retrial cell 2b, patched bytewise): cd /data/local/tmp/s3oracle && LD_LIBRARY_PATH=/data/local/tmp/s3oracle \
+#   GGML_OPENCL_LOG_WEIGHT_PATH=1 GGML_OPENCL_CVT_VARIANT=bytewise GGML_OPENCL_ROUNDTRIP_FILL=<FILL> ./test-opencl-moe-roundtrip
+#
+# run_log             | on_device_libggml-opencl.so_sha | FILL        | q4_0 as mismatch / class                | verdict
+runA_lcg.log         | 9198f387                        | lcg         | 65536/294912  odd_qs_hi_to_f (first=39) | CONFIRMED (retrial reproduced)
+runB_const40.log     | 9198f387                        | const40     | 0/294912      clean (all 10 cases clean)  | VIOLATED (predicted 131072)
+runC_constC0.log     | 9198f387                        | constC0     | 131072/294912 odd_qs_hi_to_f (first=3)  | VIOLATED (predicted 0; opposite direction)
+runD_lcg29.log       | 9198f387                        | lcg29       | 57344/294912  odd_qs_hi_to_f (first=5)   | VIOLATED (predicted ~65536 + bit7 partition)
+#
+# Conclusion: P is bit7-gated on the write side: MIXED
+#   - bit7 gate CONFIRMED present (const40[bit7 clear]->0 vs constC0[bit7 set]->131072, identical .so+path, only bit7 differs)
+#   - polarity REVERSED vs hypothesis: fires on bit7 SET (>=0x80), not clear
+#   - trigger byte is TRANSPOSED/partner (same-position bit7 deficit 4096@lcg, 92160@lcg29); lcg 0-invisible was a mult-131 coincidence (lcg29 has 8192 invisibles -> 57344 visible)

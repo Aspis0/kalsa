@@ -1,0 +1,24 @@
+=== corrected P : trigger = bit7 of EVEN partner qs[2k] ===
+P lcg131         visible= 65536 events= 65536 invis=    0 first=39 per_off=[8192]
+    bit7cross: mbit7clear= 63488 clean_set= 63488 sum=126976 deficit=  4096  (mbit7set = 2048)
+P const40        visible=     0 events=     0 invis=    0 first=None per_off=[0]
+    bit7cross: mbit7clear=     0 clean_set=     0 sum=     0 deficit=131072  (mbit7set = 0)
+P constC0        visible=131072 events=131072 invis=    0 first=3 per_off=[16384]
+    bit7cross: mbit7clear=     0 clean_set=     0 sum=     0 deficit=131072  (mbit7set = 131072)
+P lcg29          visible= 57344 events= 65536 invis= 8192 first=5 per_off=[7168]
+    bit7cross: mbit7clear= 15360 clean_set= 23552 sum= 38912 deficit= 92160  (mbit7set = 41984)
+
+=== R (old restore, block-even) ===
+R lcg131         visible= 61440 events= 65536 invis= 4096 first=3 per_off=[7680]
+
+=== P u R @ lcg131 (cell1a) ===
+P u R            visible= 94208 events= 98304 invis= 4096 first=3 per_off=[11776]
+
+=== FULL SIX-DATAPOINT VERIFICATION (corrected P: even-partner bit7) ===
+target/harness facts from defectP-experiment/REPORT.md + retrial logs:
+lcg131 P       P-bytewise|bitselect: vis= 65536 (want 65536) first=39 (want 39) invis=0 (want 0) mbit7cl=63488 (want 63488) cbit7set=63488 (want 63488) -> OK
+const40 P      P-bytewise|bitselect: vis=     0 (want 0) first=None (want None) invis=0 (want 0) mbit7cl=0 (want 0) cbit7set=0 (want 0) -> OK
+constC0 P      P-bytewise|bitselect: vis=131072 (want 131072) first=3 (want 3) invis=0 (want 0) mbit7cl=0 (want 0) cbit7set=0 (want 0) -> OK
+lcg29 P        P-bytewise|bitselect: vis= 57344 (want 57344) first=5 (want 5) invis=8192 (want 8192) mbit7cl=15360 (want 15360) cbit7set=23552 (want 23552) -> OK
+cell7 R@hostrepack      : vis=61440 (want 61440) first=3 (want 3) -> OK
+cell1a P u R @lcg131    : vis=94208 (want 94208) first=3 (want 3) -> OK

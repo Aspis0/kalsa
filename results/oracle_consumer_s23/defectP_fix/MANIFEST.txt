@@ -1,0 +1,48 @@
+# defect-P fix — device verification MANIFEST
+# Submodule: BigMoeOnEdge/third_party/llama.cpp @ 39a0b130f (parent 5a952cb2), branch kalsa/kernel-s3-repack
+# Fix: cvt.cl trans4_pack_hi/lo shift-first-then-mask in BOTH arms (bytewise + bitselect)
+# Device: Galaxy S23 SM-S911U / kalama / Adreno 740, serial adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+# Build dir: build-android-opencl-s3oracle (SDK cmake 3.22.1 / Ninja; GGML_OPENCL_EMBED_KERNELS=ON)
+
+## PC-side sha256 (source of truth for push verification)
+# THE FIX (kernels under test):
+libggml-opencl.so        69d6d862bd37955bd6edffcc167b59895beec45ede58659945d92b13266d1732  7965352   (pre-fix was 9198f387...)
+# support libs (relinked; do NOT carry convert kernels):
+libggml-base.so          781e13aa1bb99520cc74a1939ce9f2d6c7b5e7f4b1a52a457f07a681487f7ed9  6103496
+libggml-cpu.so           fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  5165056
+libggml.so               3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  536880
+libllama.so              f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  39807624
+libllama-common.so        bab524c31acaced2133be26c5c742df725c05813a1723e4f8932f76b067a0cc0  78377240
+# test exes:
+test-opencl-moe-roundtrip 94a6b8fe22be1f70353c1d9f1bc3ca50e850324a6cb5b5c370515d1841906715  134768   (byte-identical to defectP build: same test code, only .so changed)
+test-backend-ops          e5f2ecd431eae87cdb7a6fcb6197976b71eb8fa901b0d7338ae6d607b568503c  10166824
+# NDK runtime libs (aarch64):
+libc++_shared.so          (NDK sysroot aarch64-linux-android)
+libomp.so                 ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  1229304  (NDK clang-18 aarch64)
+
+## Pre-fix reference (defectP experiment, .so == 9198f387 on every run)
+# q4_0 "as" mismatch counts pre-fix: lcg 65536 / const40 0 / constC0 131072 / lcg29 57344; all class=odd_qs_hi_to_f (except const40 clean)
+
+## Device dir: /data/local/tmp/s3oracle (recreated fresh; s3base/s3fix/s3printf untouched)
+## Discipline: adb shell from PC only; MSYS_NO_PATHCONV=1; sha256 on-device .so BEFORE EVERY run must be 69d6d862...
+
+## RUN RESULTS (post-fix .so 69d6d862, pre-run sha verified on every cell)
+
+Matrix 1 (q4_0 4-fill bytewise):
+  1a lcg     -> 65536 odd_qs_hi_to_f (first=39, b7clr=63488, cl_b7set=63488)  VIOLATED [byte-identical to pre-fix]
+  1b const40 -> 0 clean                                                 CONFIRMED (trivial; was 0 pre-fix)
+  1c constC0 -> 131072 odd_qs_hi_to_f (first=3)                          VIOLATED [byte-identical]
+  1d lcg29   -> 57344 odd_qs_hi_to_f (first=5, b7clr=15360, cl_b7set=23552) VIOLATED [byte-identical]
+Matrix 2 (5-type + K + dense, lcg bytewise): q4_0/q4_1/q5_0/q5_1/mxfp4 = 65536 (x5 VIOLATED); q4_K/q5_K/q6_K + dense = 0 clean (CONFIRMED)
+Matrix 3 (bitselect lcg): q4_0 = 65536 (= bytewise, byte-identical) -> VIOLATED; shared load/store residual confirmed
+Matrix 4 (HOST_REPACK q4_0 lcg bytewise, GGML_OPENCL_HOST_REPACK=1): q4_0 = 0 clean (host_repack=1) CONFIRMED; q4_1/q5_0/q5_1/mxfp4 still 65536 (HOST_REPACK q4_0-only)
+Matrix 5 (e2e test-backend-ops -b GPUOpenCL):
+  q4_0 bytewise 74/74 PASS; q4_1 75/75; q5_0 3/3; q5_1 3/3; mxfp4 74/74; q8_0 75/75; q6_K 3/3; dense MUL_MAT 915/925 (10 pre-existing q6_K flat); bitselect q4_0 spot-check 74/74 PASS
+  -> all CONFIRMED (self-consistency, not fidelity)
+
+CONCLUSION: defect P fixed on device: NO.
+  - helper rewrite (shift-first) had ZERO device effect: every roundtrip count byte-identical to pre-fix (9198f387) in BOTH arms incl. bit7 cross-check counters
+  - e2e PASS everywhere = self-consistency (judge/GPU read same dirty storage); NOT fidelity
+  - residual = shared x0/x1 LOAD or hi[j] STORE (rank 2, per maxrecall-puzzle Task 4.2 fallback); both arms corrupt identically post-fix
+  - designed next step (NOT run here): single-pair probe (one block, fixed even/odd pair, observe which floods under both variants)
+  - production wrong-weights risk stands UNCHANGED; deferred production smoke still open; committed fix does not remediate the device defect

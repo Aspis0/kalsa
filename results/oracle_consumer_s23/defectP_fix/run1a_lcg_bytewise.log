@@ -1,0 +1,89 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+using backend GPUOpenCL
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 64 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: true
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 3536 MB
+ggml_opencl: max mem alloc size: 884 MB
+ggml_opencl: device max image buffer size (pixels): 134217728
+ggml_opencl: device max image2d size: 16384 x 16384
+ggml_opencl: device max workgroup size: 1024
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: true
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: true
+ggml_opencl: cl_qcom_subgroup_shuffle support: true
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: loading OpenCL kernels......ggml_opencl: program_cvt variant=bytewise
+............................................................................................................................................
+OPENCL_WEIGHT_PATH{tensor=as,type=q4_0,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q4_1,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q5_0,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q5_1,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=mxfp4,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+HOST_REPACK=[unset] CVT_VARIANT=[bytewise] LOG_WEIGHT_PATH=[1]
+ROUNDTRIP_FILL raw=[lcg] resolved=lcg mult=131 off=17 cval=0x00
+ROUNDTRIP name=as type=q4_0 ne=256x512x4 nbytes=294912 host_repack=0 mismatch=65536/294912 first=39
+ROUNDTRIP_SIGNATURE type=q4_0 class=odd_qs_hi_to_f qs_mismatch=65536 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=65536 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=65536 qs_other=0 mismatch_bit7clear=63488 clean_odd_bit7set=63488
+  WANT blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4
+  GOT  blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4
+  WANT blk1 47 ca 4d d0 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa
+  GOT  blk1 47 ca 4d d0 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa
+  off_mis_nonzero [3]=8192 [5]=8192 [7]=8192 [9]=8192 [11]=8192 [13]=8192 [15]=8192 [17]=8192
+  xor_top 70:2048 80:8192 90:8192 a0:8192 b0:8192 c0:8192 d0:8192 e0:8192
+ROUNDTRIP name=as type=q4_1 ne=256x512x4 nbytes=327680 host_repack=0 mismatch=65536/327680 first=39
+ROUNDTRIP_SIGNATURE type=q4_1 class=odd_qs_hi_to_f qs_mismatch=65536 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=65536 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=65536 qs_other=0 mismatch_bit7clear=63488 clean_odd_bit7set=63488
+  WANT blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4 47 ca
+  GOT  blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4 47 ca
+  WANT blk1 4d d0 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa 7d 00 83 06
+  GOT  blk1 4d d0 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa 7d 00 83 f6
+  off_mis_nonzero [5]=8192 [7]=8192 [9]=8192 [11]=8192 [13]=8192 [15]=8192 [17]=8192 [19]=8192
+  xor_top 70:2048 80:8192 90:8192 a0:8192 b0:8192 c0:8192 d0:8192 e0:8192
+ROUNDTRIP name=as type=q5_0 ne=256x512x4 nbytes=360448 host_repack=0 mismatch=65536/360448 first=39
+ROUNDTRIP_SIGNATURE type=q5_0 class=odd_qs_hi_to_f qs_mismatch=65536 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=65536 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=65536 qs_other=0 mismatch_bit7clear=63488 clean_odd_bit7set=63488
+  WANT blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4 47 ca 4d d0
+  GOT  blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4 47 ca 4d d0
+  WANT blk1 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa 7d 00 83 06 89 0c 8f 12
+  GOT  blk1 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa 7d 00 83 f6 89 fc 8f f2
+  off_mis_nonzero [7]=8192 [9]=8192 [11]=8192 [13]=8192 [15]=8192 [17]=8192 [19]=8192 [21]=8192
+  xor_top 70:2048 80:8192 90:8192 a0:8192 b0:8192 c0:8192 d0:8192 e0:8192
+ROUNDTRIP name=as type=q5_1 ne=256x512x4 nbytes=393216 host_repack=0 mismatch=65536/393216 first=39
+ROUNDTRIP_SIGNATURE type=q5_1 class=odd_qs_hi_to_f qs_mismatch=65536 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=65536 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=65536 qs_other=0 mismatch_bit7clear=63488 clean_odd_bit7set=63488
+  WANT blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4 47 ca 4d d0 53 d6
+  GOT  blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4 47 ca 4d d0 53 d6
+  WANT blk1 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa 7d 00 83 06 89 0c 8f 12 95 18 9b 1e
+  GOT  blk1 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa 7d 00 83 f6 89 fc 8f f2 95 f8 9b fe
+  off_mis_nonzero [9]=8192 [11]=8192 [13]=8192 [15]=8192 [17]=8192 [19]=8192 [21]=8192 [23]=8192
+  xor_top 70:2048 80:8192 90:8192 a0:8192 b0:8192 c0:8192 d0:8192 e0:8192
+ROUNDTRIP name=as type=mxfp4 ne=256x512x4 nbytes=278528 host_repack=0 mismatch=65536/278528 first=2
+ROUNDTRIP_SIGNATURE type=mxfp4 class=odd_qs_hi_to_f qs_mismatch=65536 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=65536 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=65536 qs_other=0 mismatch_bit7clear=64000 clean_odd_bit7set=64000
+  WANT blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41
+  GOT  blk0 11 94 f7 9a fd a0 f3 a6 f9 ac ff b2 f5 b8 fb be f1
+  WANT blk1 c4 47 ca 4d d0 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4
+  GOT  blk1 c4 47 ca 4d d0 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4
+  off_mis_nonzero [2]=8192 [4]=8192 [6]=8192 [8]=8192 [10]=8192 [12]=8192 [14]=8192 [16]=8192
+  xor_top 70:1536 80:8192 90:OPENCL_WEIGHT_PATH{tensor=as,type=q4_K,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q5_K,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q6_K,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=weight,type=q4_0,ne=256x512x1,path=generic-soa,name_gate=0,ne01_mod32=0,moe_gate=0}
+OPENCL_WEIGHT_PATH{tensor=weight,type=q4_0,ne=512x512x1,path=noshuffle,name_gate=0,ne01_mod32=0,moe_gate=0}
+8192 a0:8192 b0:8192 c0:8192 d0:8192 e0:8192
+ROUNDTRIP name=as type=q4_K ne=256x512x4 nbytes=294912 host_repack=0 mismatch=0/294912 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q5_K ne=256x512x4 nbytes=360448 host_repack=0 mismatch=0/360448 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q5_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q6_K ne=256x512x4 nbytes=430080 host_repack=0 mismatch=0/430080 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q6_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=weight type=q4_0 ne=256x512x1 nbytes=73728 host_repack=0 mismatch=0/73728 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_0 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=32768 odd_want_hi_f=2048 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=16384
+ROUNDTRIP name=weight type=q4_0 ne=512x512x1 nbytes=147456 host_repack=0 mismatch=0/147456 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_0 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=65536 odd_want_hi_f=4096 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=32768
+DONE rc=1
+PROC_EXIT=1

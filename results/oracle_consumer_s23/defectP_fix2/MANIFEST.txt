@@ -1,0 +1,33 @@
+# defect-P fix attempt 2 — device verification MANIFEST
+# Submodule: BigMoeOnEdge/third_party/llama.cpp @ f63746555 (parent bb05e4a0b=probe; 39a0b130=attempt1), branch kalsa/kernel-s3-repack
+# Fix: scalar-uint rewrite of the 5 trans4 convert qs paths (per-byte loads widened to uint, one uint expr per output word, ONE uint store); uchar pack helpers -> uint versions. Defeats Adreno byte-lane re-vectorization.
+# Device: Galaxy S23 SM-S911U / kalama / Adreno 740, serial adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+# On-device libggml-opencl.so == 2032b7c7e25d0f9488213f757c2fa8f073ba675c18e2a8d333934603a996e2e7 (verified pre-run every cell)
+
+## PC-side sha256 (source of truth; all device shas matched)
+libggml-opencl.so          2032b7c7e25d0f9488213f757c2fa8f073ba675c18e2a8d333934603a996e2e7  (attempt-2 fix; differs from 69d6d862 attempt-1 and 9198f387 pre-fix)
+libggml-base.so            408ea9e7f85c06b5032e5f44b51e873f2452d526e203d55bffb2733da83f4fbe  (relinked)
+libggml-cpu.so              fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da
+libggml.so                  3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27
+libllama.so                 f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d
+libllama-common.so           588be8e62f5a17cf1cf50f36f3bad1ce6a3d12285acecf2bb6611f328015977e  (relinked)
+test-opencl-moe-roundtrip   1e50038be1d264aaccd7d80e9c90b9af9ed1aac78e3eff3a81d128ea64a4d0e1  (probe build, unchanged; pair-fill + DUMP_Q)
+test-backend-ops             e5f2ecd431eae87cdb7a6fcb6197976b71eb8fa901b0d7338ae6d607b568503c
+libc++_shared.so            e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  (NDK aarch64)
+libomp.so                   ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  (NDK clang-18 aarch64)
+
+## RESULTS (all CONFIRMED; zero violations)
+M1 RAW readback (DUMP_Q) q4_0 bytewise:
+  lcg      -> KALSA_SPLIT 0/0; BUFFER MATCHES HOST REFERENCE; roundtrip=0      (was raw 18688)  CONFIRMED
+  pair8040 -> KALSA_SPLIT 0/0; BUFFER MATCHES HOST REFERENCE; roundtrip=0      (was raw 32768)  CONFIRMED  [PRIMARY gate]
+M2 q4_0 roundtrip 4 fills bytewise:
+  lcg=0  const40=0  constC0=0 (was 131072 ALL-fire)  lcg29=0                  (was 65536/0/131072/57344)  CONFIRMED
+M3 5 types + K + dense, lcg bytewise: q4_0/q4_1/q5_0/q5_1/mxfp4 = 0 (x5); q4_K/q5_K/q6_K + dense = 0 clean  CONFIRMED
+M4 bitselect lcg + DUMP_Q: raw=0 (MATCHES); all 5 types + K + dense = 0 clean  CONFIRMED (bitselect arm fixed too)
+M5 e2e test-backend-ops -b GPUOpenCL bytewise: q4_0 74/74, q4_1 75/75, q5_0 3/3, q5_1 3/3, mxfp4 74/74, q8_0 75/75, q6_K 3/3; dense MUL_MAT 915/925 (10 pre-existing q6_K flat); bitselect q4_0 spot 74/74  CONFIRMED
+M6 HOST_REPACK q4_0 lcg bytewise: 0 (host_repack=1)  CONFIRMED
+
+## CONCLUSION: defect P fixed on device: YES.
+## Convert WRITE now stores contract bytes (raw readback 0); roundtrip 0 across all fills/types/arms incl constC0 (was 131072); e2e PASS now weight-faithful; restore was always innocent.
+## Production wrong-weights risk for the convert stage closed at byte level; deferred production smoke (does live MoE load dispatch this convert?) = only unmeasured fidelity link.
+## No push; cvt.cl/ggml-opencl.cpp carry committed fix f63746555; .so == 2032b7c7 throughout
