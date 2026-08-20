@@ -1503,6 +1503,53 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.18 MEASURED 2026-08-19: GPU offload initialises on the S23 and kills the app — and our RAM gate cannot see the memory that does it
+
+Second attempt, with §7.17's fixes in the build. **This one is about the GPU.** Dense Qwen3.5-4B
+(Q4_K_M, 2.83 GB, plus the F16 vision projector at 672 MB — that entry is multimodal), `NGL=99`,
+unplugged at 98 %.
+
+Init **accepted** `n_gpu_layers=99`, no `KALSA_GPU_FALLBACK`. Then:
+
+| | PRE | during turn 1 | |
+|---|---|---|---|
+| app `RssFile` | 136 MB | **26–33 MB** | the weights are not in the process |
+| app `RssAnon` | 95 MB | 121–183 MB | nor here |
+| system `MemAvailable` | **4.02 GB** | **583 MB** | 3.4 GB gone anyway |
+| `VmSwap` | 26 MB | **1.02 GB** | |
+
+```
+22:57:26 lmkd: Reclaim 'com.kalsa.app' (14122), oom_score_adj 0, state 2
+               to free 155740kB rss, 1021552kB swap;
+               reason: min2x watermark is breached even after kill
+22:57:28 Zygote: Process 14122 exited due to signal 9 (Killed)
+```
+
+`oom_score_adj 0` is the foreground app — Android killed what the user was looking at, after
+killing everything else first. **Zero of three turns completed.**
+
+**The finding is not "the GPU is slow", it is where the memory goes.** In every previous arm the
+model sat in the process's `RssFile`. Here the process shows ~150 MB total while the system loses
+3.4 GB: the weights live in driver/CL allocations that `/proc/<pid>/status` does not account for.
+
+⛔ **So the RAM fit gate is blind on this path, and that is a defect, not an imprecision.**
+`estimateMemory` models mmapped weights plus the repack buffer — both inside the process. On an
+offload path it would see ~150 MB, return `fits` with enormous margin, and hand the user a
+configuration that takes the phone down. It is not a bad estimate; it is measuring the wrong place.
+
+Caveat stated rather than buried: the battery went 98 → 100 during the run, so the phone reached the
+charger. That invalidates timings — and there are none, because nothing completed. An OOM kill is
+not a timing measurement, so the result stands.
+
+⚠️ **Read this next to what `kalsa-moe-experiments` already knew**, because it is the other half and
+it was measured months earlier (`docs/kernel-plan-v1.md:113-118`): decode on GPU is **0.41× CPU on
+the 740** (5.06 vs 12.37) and **0.44× on the 750** (7.07 vs 16.15); prefill is **1.29× on the 740**
+and up to 5.77× on the 750 — *"the GPU dividend on A7X is TTFT"*. Subgroup broadcast is **absent on
+all A7X**, first silicon is Adreno 830 / 8 Elite. And the E2E gap is *"the executor, not the
+kernels"* — ~60 ms/token of dispatch glue with the kernels already at the DRAM roof (34–41 GB/s).
+This section adds the memory wall those numbers never had to reach, because on the phones they ran
+on the app survived long enough to be timed.
+
 ### 7.17 NOT MEASURED 2026-08-19: the first offload arm tested a KV constraint, not a GPU — and the engine knew, but could not tell us
 
 The arm §7.16 was built for, run on the S23 with the dense Qwen3.5-4B. **It produced no GPU
