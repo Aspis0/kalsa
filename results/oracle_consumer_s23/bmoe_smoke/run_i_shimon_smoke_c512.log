@@ -1,0 +1,31 @@
+GGML_OPENCL_LOG_KERNELS: kernel_add
+GGML_OPENCL_LOG_KERNELS: kernel_swiglu
+GGML_OPENCL_LOG_KERNELS: kernel_rope_neox_f32
+GGML_OPENCL_LOG_KERNELS: kernel_set_rows_f16_i64
+GGML_OPENCL_LOG_KERNELS: kernel_cpy_f16_f16
+GGML_OPENCL_LOG_KERNELS: kernel_cpy_f32_f32
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_f16_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_soft_max_4
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_f32_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_sigmoid_f32
+GGML_OPENCL_LOG_KERNELS: kernel_add_row
+GGML_OPENCL_LOG_KERNELS: kernel_argsort_f32_i32
+GGML_OPENCL_LOG_KERNELS: kernel_sum_rows_f32_4
+GGML_OPENCL_LOG_KERNELS: kernel_clamp
+GGML_OPENCL_LOG_KERNELS: kernel_div
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f32_f32
+GGML_OPENCL_LOG_KERNELS: kernel_gemv_noshuffle_q5_k_f32
+GGML_OPENCL_LOG_KERNELS: kernel_mul_row
+GGML_OPENCL_LOG_KERNELS: kernel_gemv_noshuffle_q6_K_f32
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f16_f32_l4_dr_lq
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f16_f32_l4_dr_ls
+, there was a
+<think>
+The user says: "upon a time, in a distant galaxy, there was a" and then presumably continues a story. However, the user didn't finish the sentence. The instruction: "Please continue the story, but adhere to these constraints: ..." Wait, the user didn~llama_context:     OpenCL compute buffer size is  64.5006 MiB, matches expectation of  64.5006 MiB
+~llama_context:        CPU compute buffer size is  13.2525 MiB, matches expectation of  13.2525 MiB
+
+
+generation: 64 tokens, 0.181 s/token (5.515 tok/s)
+compute: 53.6% CPU occupancy (0.3886 cpu-s/token over 4 threads), 38.61 major faults/token
+prefill: 10 tokens, 2.152 s (4.6 tok/s) | model load 11.868 s | TTFT 14.020 s
+PROC_EXIT=0

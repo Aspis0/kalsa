@@ -1,0 +1,8 @@
+[async-jobs] jobId=job-1787191016339-2
+[async-jobs] startedAt=2026-08-20T01:56:56.339Z
+[async-jobs] command=bash "C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/bmoe-smoke/build_bmoe.sh"
+[async-jobs] description=Build bmoe-cli (shared, OpenCL) for Android smoke
+[async-jobs] --- output ---
+<3>WSL (9 - Relay) ERROR: CreateProcessCommon:818: execvpe(/bin/bash) failed: No such file or directory
+
+[async-jobs] exit code=1 signal= at=2026-08-20T01:57:00.353Z

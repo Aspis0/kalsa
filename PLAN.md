@@ -1001,6 +1001,33 @@
 > 1582f2d83 → eaec5d884 (restore) → 5a952cb2 (fill param) → 39a0b130f
 > (helper, innocuo) → bb05e4a0b (probe) → f63746555 (convert uint) =
 > **kalsakernel-v2**.
+>
+> 🔒 **SMOKE DI PRODUZIONE ESEGUITO — "PRODUZIONE IMMUNE" NON È PIÙ UN
+> CLAIM BY-DESIGN: È DIMOSTRATO SUL MOTORE VERO (20/08 notte).**
+> (GLM fino all'80% — shim `8c659e120` + estensione `55f43a574` quando il
+> controllo positivo uscì VUOTO, cioè lo shim originale era cieco sui
+> kernel trans4: il metodo ha retto anche qui — poi quota; Luna ha
+> chiuso. Report `scratchpad/agents/bmoe-smoke/REPORT.md`, log
+> `results/oracle_consumer_s23/bmoe_smoke/`.) Setup: bmoe-cli build
+> condivisa dedicata (`build-android-opencl-smoke`, un solo binario,
+> A/B = puro swap LD_LIBRARY_PATH), LFM2.5-8B-A1B-KEXP reale su S23,
+> -c 512, --ngl 99 (tronco GPU), --moe-cpu-experts on, greedy seed 0.
+> **CONTROLLO POSITIVO: PASS** (l'harness con shim ON mostra TUTTI e 10
+> i nomi trans4 convert/restore — lo shim li vede). **(a) CONFERMATO:**
+> zero kernel trans4/restore tra i dispatch del motore in load+64 token.
+> **(b) CONFERMATO:** zero path trans4-moe nel log dei pesi (esperti
+> CPU; tronco K su noshuffle). **(c) CONFERMATO — la prova regina:**
+> output 64 token BYTE-IDENTICO tra il .so kalsakernel e il .so
+> ARCHIVIATO TUTTO-ROTTO (1582f2d83): il motore non attraversa mai quei
+> path. Caveat di copertura a verbale: KEXP = esperti Q2_K+Q3_K (gate
+> trans4 mai attivabile per tipo con questa lineup — verificato al gguf);
+> il fix è load-bearing per gpt-oss (MXFP4) e per chiunque usi quant
+> narrow su Adreno. **IL CAPITOLO TRANS4 È INTEGRALMENTE CHIUSO: tre
+> difetti fixati e verificati al byte, giudice riabilitato, produzione
+> dimostrata immune.** Restano nel progetto: capitolo K2 (grok, domani
+> 19:00 — tocca Mellum2 Q4_K_M; più eventuale supporto q2_K/q3_K MoE
+> GPU per KEXP); commenti stantii + port di uniformità consumer
+> (debito cosmetico); decisione di pubblicazione (owner).
 > **CODA AGGIORNATA:** (a) esperimento discriminante P (S23, breve);
 > (b) fix del difetto P; (c) smoke produzione BMoE; (d) port meccanici
 > di uniformità + retain cl_mem + getenv cache; (e) grok domani: capitolo
