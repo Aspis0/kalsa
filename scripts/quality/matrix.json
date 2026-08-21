@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "note": "Cells for the quality bake-off. Each cell is one llama-server launch; every question runs inside it. Thinking is never off — the budget is the axis, per the standing rule.",
+  "defaults": { "nCtx": 4096, "nGpuLayers": 99, "seed": 1234, "maxTokens": 2048, "temp": 0 },
+  "models": {
+    "lfm25-2.6b":  { "path": "/Users/marco/kalsa-models/LFM2.5-2.6B-Q4_K_M.gguf",    "quant": "Q4_K_M", "note": "backbone proxy for the VL-3B we ship for quality" },
+    "lfm25-8b-a1b":{ "path": "/Users/marco/kalsa-models/LFM2.5-8B-A1B-Q4_K_M.gguf",  "quant": "Q4_K_M", "note": "MoE, 1B active" },
+    "lfm25-8b-kexp":{"path": "/Users/marco/Desktop/LFM2.5-8B-A1B-KEXP.gguf",         "quant": "KEXP",   "note": "q2_K/q3_K experts, 3.33 GB — the fast tier we ship" },
+    "qwen35-2b":   { "path": "/Users/marco/kalsa-models/Qwen3.5-2B-Q4_K_M.gguf",     "quant": "Q4_K_M", "note": "the competitor" }
+  },
+  "cells": [
+    { "id": "base-2.6b",      "model": "lfm25-2.6b",    "kvK": "f16",  "kvV": "f16",  "budget": -1 },
+    { "id": "base-8b-a1b",    "model": "lfm25-8b-a1b",  "kvK": "f16",  "kvV": "f16",  "budget": -1 },
+    { "id": "base-8b-kexp",   "model": "lfm25-8b-kexp", "kvK": "f16",  "kvV": "f16",  "budget": -1 },
+    { "id": "base-qwen",      "model": "qwen35-2b",     "kvK": "f16",  "kvV": "f16",  "budget": -1 },
+
+    { "id": "kv-q8-8b-a1b",   "model": "lfm25-8b-a1b",  "kvK": "q8_0", "kvV": "q8_0", "budget": -1 },
+    { "id": "kv-q4-8b-a1b",   "model": "lfm25-8b-a1b",  "kvK": "q4_0", "kvV": "q4_0", "budget": -1 },
+    { "id": "kv-q8-8b-kexp",  "model": "lfm25-8b-kexp", "kvK": "q8_0", "kvV": "q8_0", "budget": -1 },
+    { "id": "kv-q4-8b-kexp",  "model": "lfm25-8b-kexp", "kvK": "q4_0", "kvV": "q4_0", "budget": -1 },
+
+    { "id": "think256-2.6b",  "model": "lfm25-2.6b",    "kvK": "f16",  "kvV": "f16",  "budget": 256 },
+    { "id": "think256-8b-a1b","model": "lfm25-8b-a1b",  "kvK": "f16",  "kvV": "f16",  "budget": 256 },
+    { "id": "think256-8b-kexp","model":"lfm25-8b-kexp", "kvK": "f16",  "kvV": "f16",  "budget": 256 },
+    { "id": "think256-qwen",  "model": "qwen35-2b",     "kvK": "f16",  "kvV": "f16",  "budget": 256 },
+    { "id": "think512-8b-a1b","model": "lfm25-8b-a1b",  "kvK": "f16",  "kvV": "f16",  "budget": 512 },
+    { "id": "think512-8b-kexp","model":"lfm25-8b-kexp", "kvK": "f16",  "kvV": "f16",  "budget": 512 }
+  ]
+}
