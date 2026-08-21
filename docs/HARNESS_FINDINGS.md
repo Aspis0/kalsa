@@ -1503,6 +1503,569 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.28 MEASURED 2026-08-21: the two small models both lose to the 8B MoE on the Jelly — bytes per token beat file size, and one of them never reuses its cache at all
+
+Ran to answer "does a smaller model rescue the Jelly", after §7.27 concluded — wrongly — that it
+would. Unplugged, production config, 4 turns each, hand-rolled script.
+
+| | quant | MB/tok | decode | prefill turns 2-4 |
+|---|---|---:|---|---|
+| **LFM2.5-8B-A1B-KEXP** | q2_K/q3_K | **848** (from the tensor map) | **7.31 · 7.14 · 6.95 · 6.80** | 2.7-3.0 s ✓ |
+| LFM2.5-2.6B | Q4_K_M | ~1600 (est. from file) | 5.68 · 5.53 · 5.40 · 5.27 | 2.7-3.2 s ✓ |
+| Qwen3.5-2B | Q4_K_M | ~1230 (est. from file) | 6.61 · 5.73 · 4.94 · 6.70 | **80.7 · 101.3 · 127.7 · 85.2 s ✗** |
+
+**The sparse 8B beats both dense small models**, with a file 2-3× larger. Decode reads `MB/token`,
+not the file, and a dense 2B reads more per token than a MoE with ~1B active. §7.27's "the Jelly
+needs a smaller model" is retracted there and here: it needs a smaller **byte budget**, which is not
+the same thing. The one force pushing the other way — q4_K unpacks cheaper than q2_K/q3_K on a
+dequant-bound SoC — is real but did not compensate.
+
+**Predictions were written before the run and scored after.** Qwen 2B ~8 (got ~6.0, over by 33 %),
+the 2.6B ~6-7 (got ~5.5), neither reaches 20 tok/s (correct). Over-predicted twice. Contrast with
+the S23, where the same method predicted Qwen3.5-4B at 8.1 against **8.06 measured**: the byte
+budget holds where the machine is bandwidth-bound and fails where it is dequant-bound. That is the
+rule for trusting it, and it was learned by getting it wrong here.
+
+**Effective throughput is quant-dependent on this phone, and now has three points instead of an
+assertion:**
+
+| | tok/s × MB/tok |
+|---|---:|
+| LFM2.5-2.6B, q4_K_M | **8.75 GB/s** |
+| Qwen3.5-2B, q4_K_M | 7.37 GB/s |
+| KEXP, q2_K/q3_K | **5.98 GB/s** |
+
+Same phone, same RAM, **46 % apart by packing alone**. A single scalar per device — the obvious way
+to implement the §9 bandwidth gate — would be wrong by that much across quant families. Note the
+term is throughput, not bandwidth: it folds memory traffic and dequantization cost into one number,
+and on this SoC the second dominates. Caveat that cuts the other way: the two dense `MB/tok` figures
+are estimated from file size, an over-estimate, so part of the 46 % may be estimation error. Compute
+them from the tensor map before treating the spread as a design constant.
+
+**Qwen3.5-2B never reuses its KV, and the cause is a missing flag, not the architecture.** Its
+prefill stays at 80-128 s on every turn while the 2.6B drops to 2.8 s. It cannot be the sliding
+window: at turn 2 nothing has fallen out of a 20-message window yet. The registry explains it —
+`qwen3.5-2b` and `qwen3.5-4b-q3` declare `thinking` but **not** `preserveThinking`, while
+`qwen3.5-4b` and all three LFM2 entries have it. The think block enters the KV and is then absent
+from stored history, so the prompt diverges at the first assistant reply, every turn. §7.9 already
+priced that flag: turn 295 s → 160 s. Inferred from the registry and the prefill curve, **not**
+measured by toggling the flag.
+
+**Limits.** n=1 per arm. **4-turn arms cannot see §7.23's degradation**, which appears around turn
+11 when the window starts sliding — so every number here, KEXP's 7.31 included, is a fresh-chat
+figure. Battery 53 % → 38 % across 8 turns, ~1.9 points per turn.
+
+### 7.27 MEASURED 2026-08-21: unplugged on the Jelly, KEXP beats Q4_K_M by 1.7× — the opposite of what the CLI said, and neither is within 2.7× of the product floor
+
+**First timings on this device that our own rules allow us to quote.** Every Jelly number before
+this one was taken on the charger (§7.25, §7.26) and is therefore not a measurement. This arm ran
+**unplugged**, screen held awake through a single shell invocation so the keep-awake restore trap
+never fired in the gaps, battery 94 % → 82 % across both arms.
+
+| | KEXP (3.33 GB) | Q4_K_M (5.15 GB) |
+|---|---:|---:|
+| decode tok/s | **7.31 · 7.14 · 6.95 · 6.80** | **4.23** (turn 1 only) |
+| turn-1 prefill | 132.8 s for 1952 tok = **14.7 tok/s** | 250.1 s for 3182 tok = **12.7 tok/s** |
+| prefill, turns 2–4 | **2.96 · 2.70 · 2.89 s** | turn 2 never completed in 420 s |
+| `RssFile` | 3.42 GB | 5.15 GB |
+| `MemAvailable` | **2.37 GB** | **0.92 GB** |
+| `io_read` during the arm | **frozen** at 3 389 177 856 | crept 10.023 → 10.083 GB |
+
+**The CLI ranking inverts inside the app, and that is the finding.** `docs/ALIVE.md` has Q4_K_M at
+10.60 and KEXP at 8.83 on this same phone under `llama-cli`, which is why §2.1 carried "the Jelly is
+dequant-bound, so cheaper unpacking wins → Q4_K_M". Inside Kalsa the order is reversed and the
+margin is larger: **7.31 against 4.23**. The CLI measurement was not wrong — it was taken without
+Kalsa's own ~1.5 GB in RAM. Add that and Q4_K_M is left with 0.92 GB of `MemAvailable`, where its
+`io_read` counter keeps creeping (~60 MB over the arm) while KEXP's sits **exactly frozen**: not a
+storm on §7.14's scale, but the difference between a model that is finished reading and one that
+never quite is. **A quant must be benchmarked inside the binary that will ship it**; a CLI ranking
+describes the kernel, not the product.
+
+**The decode gap exceeds the byte ratio.** Files are 1.55× apart, decode is **1.73×** apart, while
+prefill — which is compute-bound and touches every expert — is only **1.16×** apart. Bytes alone
+predict neither number: the excess is what Q4_K_M pays to the reclaim path for running with a
+quarter of the headroom.
+
+**§7.25's KV restore is confirmed unplugged and across turns.** KEXP's prefill drops from 132.8 s to
+**~2.8 s** from turn 2 onward, with `tokensCached` climbing 2253 → 2559 → 2883 → 3153. On this model
+the cache is genuinely reused turn to turn on a second device.
+
+**Product, stated plainly: the Jelly cannot run this model.** The owner's floor is 20 tok/s always.
+The best result here is 7.31 and it is already the winning quant, so the gap is **2.7×** — that is
+not a distance a quant choice closes. ⛔ **This section first said "the Jelly needs a smaller model".
+That was wrong and it was mine.** Decode reads `MB/token`, not the file: a *dense* 2B reads more per
+token (Qwen3.5-2B ~1230, LFM2.5-2.6B ~1600) than this *sparse* 8B does (848), so on bytes the small
+models are the worse bet. The one force pushing the other way is unpacking cost — q4_K_M against
+KEXP's q2_K/q3_K — which on this dequant-bound SoC is the binding term. Predicted before measuring,
+so it can be falsified: neither reaches 20 tok/s; Qwen 2B ~8, the 2.6B ~6-7. The per-phone selection this
+repo has been arguing for has its first hard "neither option qualifies" answer.
+
+**Limits, and they are real.** n=1 per arm. The Q4_K_M arm has **one** decode number, because its
+second turn never finished inside the 420 s cap, so "4.23" is a turn-1 figure being compared against
+a 4-turn plateau — §7.20's own methodology rule says quote the plateau, and for Q4_K_M we do not
+have one. The two arms also evaluated different prompt lengths (1952 vs 3182 tokens), so only the
+prefill *rates* are comparable, not the wall-clocks. **Q4_K_M was not killed here**, unplugged,
+across ~12 minutes — where the charging run in §7.26 lost it to a suspected lmkd at turn 8. Two runs,
+two outcomes, one variable that was not controlled; nothing about the kill is settled.
+
+**Instrument gap that blocked the real harness.** This arm ran under a hand-written batch script,
+not `ci-bench.sh`, because `ci-bench.sh` cannot drive this phone: an earlier validation arm died at
+turn 2 with the composer holding `Ricorda anche il coloRicorda anche il colored e Zaffiro…` — the
+text injection double-lands on the Jelly and the three retry attempts each made it worse. Until that
+is fixed, no graded multi-turn arm (tools, ciswire, thinking) can run on this device, and every
+Jelly number will stay hand-rolled and ungraded.
+
+### 7.26 MEASURED 2026-08-20: on a roomier phone the 4.80 GiB build goes 100 % resident — and is killed anyway. The gate needs headroom, not a fit.
+
+The residency hypothesis, tested for the first time on a **second** device. Jelly Star, 5.78 GB of
+`MemAvailable` with the app stopped, the **same** Q4_K_M file the S23 ran (md5
+`f57def02e4e034d4f16ffa125977c45a`, verified at every hop), same `norepack=1` configuration, on the
+charger — so the counters below are valid and any timing is not.
+
+| sample | `RssFile` | `io_read_bytes` | `MemAvailable` |
+|---|---:|---:|---:|
+| PRE, app stopped | — | — | **6 055 428 kB** |
+| t1 | 2 253 756 kB | 4.03 GB | 5 905 388 kB |
+| **t2** | **5 160 316 kB — the whole file** | 9.82 GB | **833 812 kB** |
+| t3–t7 | 5.16 GB, flat | 9.82 GB | ~810 000 kB |
+| **t8** | — | — | **process dead, no reply produced** |
+
+✅ **The hypothesis holds: residency is governed by available memory, not by file size.** The file
+that sits at **51 %** on the S23 (4.0–4.2 GB available, §7.13) goes **100 % resident** on a phone
+with 1.6 GB more. Everything §7.20–§7.24 built on that assumption was resting on a single device;
+it now has a second point.
+
+⛔ **And the correction nobody predicted: full residency is not survival.** Holding the whole file
+drove `MemAvailable` to **0.83 GB**, and about two minutes later the process was gone — **no
+telemetry line, the turn never completed**. The system let us load it and then took the app.
+
+**So the rule the RAM gate needs is not `model ≤ available`. It is `model ≤ available − headroom`,
+and headroom now has a measured lower bound: 0.8 GB is not enough.** Today `estimateMemory` models
+non-evictable memory (repack + compute + KV) and is blind to page-cache residency, which is the
+thing that actually decides between 22 tok/s, 0.26 tok/s, and a dead process. Two calibration points
+now exist, and they fail in two different ways:
+
+| | file | available | outcome |
+|---|---|---|---|
+| S23 | 5.15 GB | 4.0–4.2 GB | 51 % resident, survives, **25× slow** |
+| Jelly | 5.15 GB | 5.78 GB | 100 % resident, **killed** |
+
+The gate must refuse both, for different reasons.
+
+⚠️ **Stated rather than implied:** the kill was **not** confirmed as `lmkd` in logcat — the app died
+and the line was not recovered, so this says "killed", not "killed by lmkd". `read_bytes` reached
+**9.82 GB for a 5.15 GB file**, i.e. it was read ~1.9× during load and settling, which is itself
+unexplained. n=1, on the charger.
+
+### 7.25 MEASURED 2026-08-20: the disk KV restore works on `lfm2moe` — 83.9 s of prefill becomes 1.5 s, and the UFS session pool is buildable
+
+Measured on the **Jelly Star** (G99, Android 13, on the charger), KEXP selected, production config
+(`no_extra_bufts:0`, no bench overrides), messages delivered by `kalsa://share?text=` deep link.
+
+| | turn 1, cold | turn 2, after force-stop + relaunch |
+|---|---:|---:|
+| `promptMs` | **83 867.66** | **1 523.61** |
+| `tokensEvaluated` | 1511 | 1690 |
+| decode tok/s | 8.041 | 7.977 |
+
+**55× less prefill**, and the engine says why in its own words:
+
+```
+RNLlama: loadSession:105 KALSA_KVRESUME n_tokens=1672 pos_max=1671 is_recurrent=0 is_hybrid=1 resumable=1
+ReactNativeJS: KALSA_SESSION {"op":"load","ms":29,"ok":true,"tokens":1672}
+RNLlama: loadPrompt:524 restored state checkpoint: reusing 1672/1747 prompt tokens
+```
+
+`is_hybrid=1` and `resumable=1`: the engine recognises the hybrid architecture as restorable, loads
+the state in **29 ms**, and reuses **95.7 %** of the prompt.
+
+✅ **llama.cpp #25913 does not apply to Kalsa, and this is now measured rather than reasoned.** That
+issue is a `llama-server` `/slots` defect — the server fails to persist its own
+`common_prompt_checkpoint` index (fix PR #26004 still open, not in our pin, llama.cpp **b10156**).
+Kalsa never runs llama-server: `LlamaService.ts:1249` calls `ctx.saveSession()`, i.e. the low-level
+`llama_state_seq_save_file`, which serialises hybrid recurrent state correctly.
+
+**Size of the artefact:** the `.kvs` for 1672 tokens is **8 668 927 B**, i.e. **~5.2 kB per token**.
+At the loaded 8192 context that projects to **~41 MB per conversation** — 5 % of what the model reads
+for a *single* generated token. The KV is not big; we simply throw it away.
+
+⛔ **What this unblocks, and what it does not.** `sessionPersistence.ts` keys the file per **model**:
+`documents/sessions/${modelId}.kvs`. `AppShell.tsx:3237` states the consequence in a comment —
+*"`.kvs` is kept at a time, so switch-back is always a cold start"* — so today **every chat switch
+pays a full prefill**, which on this model is minutes. The mechanism to avoid it already works; what
+is missing is the **key** (model + conversation + prompt-environment hash) and a **budget with LRU
+eviction**. Owner's call, taken 2026-08-20: the budget lives on **UFS, not RAM** — 300 MB by default,
+user-adjustable — because every anonymous megabyte moves the working set toward §7.20's 25× cliff,
+and a restore costs 29 ms against a 100 ms write.
+
+⚠️ It does **not** fix the turn-to-turn cost of §7.23. A restored state is only reusable if the next
+prompt is an exact continuation; the moment the sliding window rewrites the beginning of the prompt,
+the restored state is discarded exactly as the in-RAM one is today. **The pool and the append-only
+transcript are the same fix seen from two ends**, and the transcript is the part they share.
+
+**Cross-check obtained for free:** KEXP decoded at **8.04 tok/s inside Kalsa** on this phone against
+**8.83 tok/s under the `moe-experiments` CLI** — a 9 % gap. On this device our stack loses nothing
+meaningful to a bare llama-cli, which is the control §7.19 tried to establish indirectly and got
+wrong.
+
+⚠️ The phone was charging, so the absolute times are not product numbers. An 83.9 s → 1.5 s ratio is
+not a charging artefact. n=1.
+
+### 7.24 MEASURED 2026-08-20: the collapsed regime persisted for a whole arm — and the `ciswire` arm that revealed it was vacuous for an unrelated reason
+
+Two `fase4` arms on KEXP, back to back on the S23, `norepack=1`, `THINKING=default`, unplugged:
+`off` from 17:26 to 19:11 (16 turns, complete), then `ciswire` from ~19:15 (stopped at turn 9 by the
+battery guard at 34 %).
+
+**First, the arm is vacuous as a `ciswire` measurement, and the reason is arithmetic.** The pref was
+written and verified on device (`kalsa.context.compaction|ciswire`), but at turn 9 the digest is
+empty:
+
+```
+turn9/digest.jsonl        {"durationMs":0,"corpusSize":0,"selectedCount":0}
+turn9/compactor_state     {"frozenDigest":"","rollingSummary":"","builtAtUserTurn":7,...}
+```
+
+`LEGACY_MAX_HISTORY` is 20 messages; turn 9 is 18 messages, so nothing had fallen out of the window
+yet and there was nothing to summarise. The corpus would first become non-empty around **turn 11**.
+This is §8's trap verbatim — *"a conversation too short against a 20-message window leaves the digest
+empty, and `ciswire` then renders byte-identical to `off`"* — and it has now cost a third campaign.
+**A `ciswire` arm shorter than ~12 turns cannot measure `ciswire`.**
+
+**But because the two arms were byte-identical, they measured something else: run-to-run
+reproducibility. And it is terrible.**
+
+| turn | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| arm `off` | 18.2 | 20.6 | 20.3 | 17.2 | 17.0 | 8.2 | 6.7 | 16.4 | 16.9 |
+| arm `ciswire` | **2.8** | **0.5** | **1.6** | **1.4** | **4.0** | **1.4** | **4.1** | **0.5** | **0.3** |
+
+Same model, same file, same prompts, same prefs, one arm after the other. **The second arm never
+exceeded 4.12 tok/s on any turn.** It began in the collapsed regime and stayed there for its whole
+hour.
+
+⚠️ **What this changes, and what it does not license us to say.** §7.20 established that the
+collapsed regime is reachable and recoverable — contaminate the page cache and the very next turn
+recovers (1.15 → 20.92). This arm shows it can also be **persistent**: entered near the end of the
+first arm and never exited across sixteen attempted turns. For a consumer app that is a different
+class of defect: not "the fifteenth reply is slow" but "after a long session the app stays slow,
+including in a fresh chat".
+
+⛔ **Two candidates, and this arm cannot separate them.** The phone was at **thermal status 2** and
+~40 °C for the whole second arm, against status 1 for the first arm's early turns. So the persistent
+collapse is confounded between **cumulative memory pressure** and **sustained thermal state**.
+§7.20's contamination experiment and §7.23's turn 14 both argue against thermal as the cause of an
+individual collapse (turn 14 collapsed at status 1), but neither speaks to a whole arm. **Do not
+write that this is memory. It is not established.**
+
+**The experiment that separates them** is the one already owed: re-run the 14-turn arm with
+`RssFile`, `RssAnon`, `majflt` and `MemAvailable` sampled **per turn**, alongside the thermal line
+`ci-bench.sh` already records. If residency falls and faults rise while thermal is flat, it is
+memory. If both move together, we need a cooled-phone repeat to break the tie. The instrument gap
+is real and is the reason this section ends in a fork instead of an answer: **`ci-bench.sh` samples
+thermal per turn and memory not at all**, while the probe that does sample memory
+(`kexp-probe.sh`) is a different runner.
+
+⚠️ n=1 pair. The second arm is also the later arm, so session order and thermal are collinear with
+everything else about it.
+
+### 7.23 MEASURED 2026-08-20: a sixteen-turn conversation costs 42 points of battery and grows to eleven minutes of compute per reply — the consumer numbers nobody had taken
+
+Recorded at the owner's instruction: this was a stress arm, but Kalsa is a consumer app and these
+are the numbers a user would feel. `fase4`, `COMPACTION=off`, KEXP, `norepack=1`, S23, screen on,
+unplugged at 17:21:20 with the battery at 100 %.
+
+| | |
+|---|---|
+| turns | 16, from **17:26:13** to **19:11:09** = **1 h 45 m** |
+| battery | **100 % → 58 %**, i.e. **42 points**, ~2.6 points per reply |
+| drain rate | ~23 %/h of screen-on session (the doc's standing figure is ~30 %/h; this is in line, slightly better) |
+
+**The growth of a single turn is the finding, not the total.** Wall clock per turn:
+
+| turn | 1→2 | 3→4 | 7→8 | 10→11 | 12→13 | 13→14 | 14→15 |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| wall | 2m00 | 6m08 | 4m52 | 7m31 | 8m46 | 14m19 | **27m21** |
+
+⚠️ **Decomposed before anyone quotes it.** Of the 105 minutes of wall clock, only **~47 are compute**
+(summed from `promptMs` + `predictedMs` across the 14 turns carrying telemetry). The rest is the
+harness waiting for history-stable + UI-idle, capped at 240 s per turn, plus inter-turn dumps. **The
+27-minute turn is not all model.** What *is* all model, straight from llama.cpp's own timers:
+
+| turn | prefill | decode | **compute for one reply** |
+|---|--:|--:|--:|
+| 1 | 79 s | 11 s | **90 s** |
+| 10 | 205 s | 8 s | 213 s |
+| 13 | 219 s | 79 s | 298 s |
+| **14** | **397 s** | **263 s** | **660 s = 11 minutes** |
+
+**Where it goes, and it is not the decode.** Prefill dominates every late turn, and its *rate* is
+normal — 5525 tokens in 396.6 s is **13.9 tok/s**, the ordinary prefill speed of this model. The cost
+is that we pay a full prefill **every turn**: the 20-message window slides, the prompt's first message
+changes, the prefix diverges right after the system prompt, and LFM2 cannot roll back recurrent state
+(`llm_arch_supports_rs_rollback` = false), so the whole cache goes. That is §7.12, priced in minutes
+for the first time.
+
+⛔ **Product consequence, stated plainly.** A user who sends a fifteenth message waits minutes, not
+seconds, and a single long conversation costs ~40 % of the phone's battery. Neither is a benchmark
+artifact: the compute half is the model, and the battery is the battery. **This is a shipping
+blocker for long conversations independent of every quantization question**, and it is not fixed by
+making the model smaller or the decode faster — decode is 8–79 s of an 11-minute turn.
+
+The levers that touch it are the ones §7.12 already named and nobody has built: **replaying tool
+rounds in history**, an **append-only window**, and — for devices where it is real — **GPU prefill**,
+measured at 3.18–6.95× on 750-class silicon in the sibling repo, which is the only lever that attacks
+the 397 seconds directly.
+
+⚠️ **Conditions that inflate the session numbers**: debuggable APK, logcat capture running, adb
+attached, screen on for 105 minutes, and thermal status 2 from turn 10. A shipped app on an idle
+screen would drain less. None of that touches the per-turn compute figures.
+
+### 7.22 MEASURED 2026-08-20: KEXP's 2-bit experts do not break tool calling — our own gate does
+
+The `tools` phase, gate/nogate pair, on the S23, on `LFM2.5-8B-A1B-KEXP`, `THINKING=default`,
+production repack, one seed, 14 turns each. Run because a 2-bit expert quantization is exactly the
+kind of change that degrades **structured** output before it degrades prose, and Kalsa depends on
+tool calls.
+
+**The quantization did not do it.** Across both arms: `firstTryValid: true`,
+`recoveredByFallback: 0`, `toolCallsFailed: 0`, `privacyBlocks: 0`, and per-turn telemetry showing
+`structuredCalls` with `namesValid: true` / `argsParsed: true` — the native structured path, never
+the text-dialect fallback. `emptyReplyTurns: []`, `errorTurns: []`, `reasoningLeakTurns: []`,
+zero truncations. **The risk was named before the run and it did not materialise.**
+
+**Our gate did.**
+
+| | gate ON | gate OFF | Δ |
+|---|---:|---:|---|
+| tool precision | 0.750 | **0.833** | +0.083 |
+| tool recall | 0.429 | **0.714** | **+0.286** |
+| missed calls | 4 | **2** | −2 |
+| **spurious calls** | **1** | **1** | **0** |
+| `tool_required` | 3/4 | 3/4 | — |
+| `tool_forbidden` | 4/5 | 4/5 | — |
+| `tool_selection` | 0/3 | 1/3 | +1 |
+
+Removing the echo-of-context gate recovers **half the missed calls** and **raises precision at the
+same time** — the trade the rule exists to make does not exist. And the decisive detail: the single
+spurious call is **identical in both arms**, so the gate is not even catching the case it was written
+for. §1.1 derived this from the scoring rule in 2026-08-14 (a good query paraphrases the question and
+scores 0.39–0.68; a spurious one scores 0.15); this is the first measurement of it on the model we
+would ship, and on the phone.
+
+⚠️ **What is still the model's.** With the gate off, two `tool_required` misses remain and
+`tool_selection` is 1/3 — and every failure is `noCall: true`, `wrongTool: false`. The model does not
+pick the wrong tool; it declines to call. That residue, and only that residue, is what a fine-tune
+would be aimed at — after the gate is fixed, not before.
+
+⚠️ **Limits.** One seed per arm. Both arms ran with production repack, so half the turns of the gate
+arm sat in §7.21's collapsed regime — which costs wall clock, not correctness. The phone was on the
+charger: no timing in this section is a measurement. There is **no Q4_K_M control for the `tools`
+phase on this model**, so these numbers say KEXP is usable, not that it is equal to the unquantized
+build.
+
+### 7.21 MEASURED 2026-08-20: production repack makes KEXP unstable — and it refutes §7.15's "the repack arm is VOID on this model"
+
+Not designed. It fell out of the `tools` quality arm, which ran in **production** config
+(`KALSA_SESSION {"op":"init","no_extra_bufts":0}`), i.e. repack ON — the first time KEXP had ever
+run that way.
+
+Decode per turn, 13 turns with telemetry, same model, same prompt plan:
+
+| turn | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 10 | 11 | 12 | 13 | 14 |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| tok/s | 19.96 | **0.45** | **1.16** | 17.31 | 14.89 | 14.20 | 14.35 | 17.94 | 14.12 | **1.24** | **0.53** | **0.50** | **0.75** |
+
+Against `norepack=1` on the same phone the same morning: **19.97 · 21.81 · 22.26 · 21.98**, flat
+(§7.20). Repack ON is not slower on average — it is **bimodal**, dropping 40× on six of thirteen
+turns.
+
+⛔ **This refutes a conclusion written in §7.15, which was mine.** That section states the repack arm
+is *"VOID on this model. Do not run it"*, reasoning that q2_K and q3_K have no ARM repack path so the
+flag cannot matter. The premise is right and the conclusion is wrong, because it only looked at the
+experts. KEXP's **trunk** is 47 `q5_K` + 20 `q6_K` tensors, and **`q5_K` and `q6_K` are both in the
+ARM repack list** (`repack.cpp`, the same list §7.15 quotes). That is ~0.5 GB of weights copied into
+a full-size **anonymous** buffer — non-evictable — stacked on top of the 2.76 GB of expert file pages
+that have to stay resident for §7.20's plateau to hold. The working set crosses the line, the experts
+start refaulting, and the turn lands in the 0.5 tok/s regime §7.20 reproduces on command.
+
+**The flag was never a lever through the experts. It is a lever through the trunk's footprint.**
+
+⚠️ **Caveat, stated rather than buried: the phone was on the charger for this arm**, so these timings
+are not quotable as measurements. What survives charging is the *shape*: a 40× swing inside one
+session is structural, not a clock artifact, and the flat `norepack` control was taken on battery.
+A clean unplugged repack-ON series is still owed.
+
+✅ **Product consequence.** `no_extra_bufts` is currently a bench knob (`kalsa.bench.norepack`) and
+production repacks by default — so today Kalsa would ship the unstable configuration for this model
+class. For a model whose experts get no ARM repack anyway, repack buys nothing and costs residency.
+It should become a **resolved production setting keyed on the model's quant mix**, not a flag.
+
+⚠️ **And it re-opens a gate question.** `estimateMemory` charges `REPACK_FRACTION × size` for the
+whole file. For KEXP that over-charges — only the trunk is repack-eligible, not the q2_K/q3_K
+experts — so the gate's arithmetic is wrong in *both* directions on this model: too pessimistic about
+the anonymous copy, and blind to the page-cache residency that actually decides the speed (§7.20).
+
+### 7.20 MEASURED 2026-08-20: KEXP decodes at ~22 tok/s on the S23 — §7.15's 0.861 was the *previous model's* page-cache storm, and it reproduces on demand
+
+The whole "where does the decode go" investigation was chasing a **state**, not a property. There
+was no missing 25×. Every number below is raw `KALSA_TELEMETRY` from logcat, read on disk, not a
+delegate's summary; artifacts in `~/kalsa-runs/decode-partition/`.
+
+**Four consecutive turns, KEXP, `norepack=1`, nothing else set, phone idle overnight:**
+
+| turn | decode tok/s | prompt ms | `majflt` delta | `RssFile` | `MemAvailable` |
+|---|---:|---:|---:|---:|---:|
+| 1 (contains the load) | **19.97** | 55 644 | 8 336 | 3 313 572 kB | 4 084 304 kB |
+| 2 | **21.81** | 447 | 55 | 3 365 024 kB | 4 120 708 kB |
+| 3 | **22.26** | 437 | 14 | 3 330 616 kB | 4 137 520 kB |
+| 4 | **21.98** | 443 | 23 | 3 330 892 kB | 4 213 592 kB |
+
+Steady state is **~22 tok/s** — **2.7× the dense Qwen3.5-4B measured the same morning in production
+config (8.06 tok/s)**, which is exactly what ~1B active parameters should buy. At §7.19's byte
+budget (~654 MiB of weights read per token) 22 tok/s is ~14 GB/s, i.e. the DRAM roof of this SoC.
+The physics closes; it did not close at 0.861.
+
+**The 0.861 reproduces on command, and the cause is the other model.** Contaminate the page cache
+first, then run KEXP immediately:
+
+| step | decode tok/s | `majflt` delta | `workingset_refault_file` delta |
+|---|---:|---:|---:|
+| LFM2.5-8B-A1B **Q4_K_M 4.80 GiB**, one turn | **0.263** | 182 608 | 15 237 370 pages = **58 GiB** |
+| KEXP turn 1, immediately after | **1.15** | 5 275 | 123 965 pages = 484 MiB |
+| KEXP turn 2 | **20.92** | 665 | 14 868 pages |
+
+⛔ **That is exactly the shape of §7.15, because §7.15 *was* this experiment without knowing it.**
+Its two KEXP turns (0.324, 0.861) were run in the wake of §7.14's 1134-second, 93.5 GiB storm on the
+4.80 GiB model, on a KEXP file that had been written to app storage twenty minutes earlier. It
+measured the recovery, not the model.
+
+**RETRACTED, and both retractions are mine, from the same day:**
+
+- §7.15's headline — *"residency solved, speed not… kernels are the remaining lever"*. Residency was
+  the lever, and it was the only one. There is no kernel problem.
+- §7.19's conclusion — *"the 6–15× gap is between the two stacks, not inside the arithmetic"*. There
+  is no gap. Our stack decodes this model at 22 tok/s, four times what the mainline CLI got on the
+  older 8B-A1B in §7.19's table, on the same phone. §7.19's demotion of the batch-1 `MUL_MAT_ID`
+  suspect stands; its diagnosis of where the missing time went does not.
+- The minor-fault hypothesis raised the same morning: **refuted**, 519 `minflt` per generated token
+  against the ~167 000 it predicted. The probe now captures `minflt`/`majflt` from
+  `/proc/<pid>/stat` (`kexp-probe.sh`), which no run before today did.
+
+**Threads are healthy, and that is now a real measurement rather than an assumption.** 2 threads
+13.26 tok/s against 5 threads 21.32, with `Attached ggml threadpool (n_threads=2, n_threads_batch=5)`
+in the log confirming the override actually applied. Sublinear scaling on a bandwidth-bound decode
+is the correct shape; a synchronisation pathology would have shown a flat line.
+
+⚠️ **What is NOT separated.** Between §7.15 and today, **three** things differ, not one: the APK
+(installed 2026-08-19 22:52, i.e. *after* §7.15's 13:44 measurement), the weight of the
+contamination (93.5 GiB then against 58 GiB today), and the fact that yesterday's KEXP file had just
+been written to storage, leaving gigabytes of dirty pages awaiting writeback. Today's contamination
+reproduced the slow turn but recovered by turn 2, where yesterday's had not recovered by turn 2. So
+**page-cache contention is demonstrated as sufficient to produce the slow regime; it is not proven to
+be the whole of yesterday's persistence.** Do not write that it is.
+
+⚠️ **Methodology consequence, and it is retroactive.** Every device number in §7.11–§7.15 was taken
+within one session of another model's storm, on a two-turn protocol that quotes turn 2. Today's data
+says turn 2 is inside the recovery, not after it. **A model switch invalidates the next turn or two.
+Measure four turns and quote the plateau, or force-stop and let the cache settle first.**
+
+✅ **Product consequence, and it reopens a decision that was closed as hopeless.** KEXP at ~22 tok/s
+with `norepack=1` is the **fastest configuration ever measured on this phone**, and it holds
+`MemAvailable` at 4.1–4.2 GB with `RssAnon` of 175 MB. Against it, the dense 4B in **production**
+config (repack ON) allocates **3.77 GB of anonymous memory**, drives `MemAvailable` down to **930
+MB**, pays **961 major faults per generated token**, and returns 8.06 tok/s. So the quality gate KEXP
+misses (+0.0705 macro bpb, §2 of `KALSA.md`) is now a live trade against a shippable decode number
+instead of against nothing — which is the owner's call, not a technical one.
+
+⚠️ **And it puts repack itself on trial, on this device.** We have no `norepack` arm for a dense
+model here, but the other tree measured the same combination on the same phone: REPACK + i8mm turns
+Q4_K into `q4_K_8x8_q8_K`, a GEMM win and a **GEMV loss**, worth **+47 % of decode** when removed
+(`research-mellum2-paper-tuning.md:263-267`). The `.so` this app loads is
+`librnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl.so` — confirmed in logcat on every arm today — so
+that path is live in production. One dense arm with `norepack=1` settles it.
+
+### 7.19 CROSS-TREE 2026-08-20: the same phone decodes an 8B-A1B at 5.3 tok/s under llama-cli — so the batch-1 `MUL_MAT_ID` suspect is demoted
+
+⚠️ **Superseded the same day by §7.20 — read that first.** The demotion of the batch-1
+`MUL_MAT_ID` suspect below still holds. The framing built on top of it — that a 6–15× gap exists
+between the two stacks — does **not**: KEXP decodes at ~22 tok/s in this app once the page cache is
+not contested, and the 0.861 this section reasons from was a transient.
+
+§7.15 closed with "the remaining suspect is the batch-1 `MUL_MAT_ID` path" and asked for a profile.
+Before spending a phone session on one, read `~/Projects/kalsa-moe-experiments`, which had already
+run this exact shape of model on **this exact phone**. It had.
+
+**Our own number, from the other tree: S23, mainline llama.cpp pin `67d5978`, `llama-cli`, unplugged**
+(`results/runs.csv`, phases `F2.3` / `F2.3c`; write-up `reports/moe-f2.md:29-46`):
+
+| model | file | cell | decode |
+|---|---|---|---|
+| `LFM2-8B-A1B-Q4_K_M.gguf` | 5 044 779 712 B | `t=4 c=512 kv=q8_0`, warm, `n_gen=128` | **median 5.30 tok/s** |
+| `LFM2-8B-A1B-Q4_0.gguf` | 4 733 893 312 B | same cell | **median 6.20 / 7.60 tok/s** |
+
+**And that grid was thrashing while we measured it.** `moe-f2.md` declares that grid *"INVALIDO come
+baseline stabile"* precisely because of it: millions of major faults, **~10 GB re-read per 128
+tokens**, `memfree_min` 8–12 MB — the same page-fault storm §7.14 measured. Those rows span 0.9 to
+21.9 tok/s for that reason.
+
+**Now put ours beside it, same phone, same model family, same 8B-A1B shape:**
+
+| | file | regime | decode |
+|---|---|---|---|
+| `llama-cli`, mainline (`moe-experiments`) | LFM2-8B-A1B **Q4_K_M** 5.04 GB | thrashing, ~80 MiB/tok | **5.30** |
+| the Kalsa app, `llama.rn 0.12.8` (§7.13) | LFM2.5-8B-A1B **Q4_K_M** 4.80 GiB | thrashing, **309 MiB/tok** | **0.357** |
+| the Kalsa app, `llama.rn 0.12.8` (§7.15) | LFM2.5-8B-A1B-KEXP 3.10 GiB | **96 % resident, no storm** | **0.861** |
+
+Quant-controlled, I/O-controlled the wrong way (the CLI had the *worse* excuse and the app had none),
+the gap is **6–15×**. And the wider lineup on the same phone says the CPU is not the wall either
+(`reports/lineup-card.md`, `-t 4`, unplugged, cold fadvise): a **35B-A3B** MoE streamed
+from a 13.4 GB file decodes at **5.696 tok/s**, and a 6.4 GB MoE at **8.819 tok/s** — three times
+our active-parameter count, ten times our misses, five to ten times our speed.
+
+⛔ **So "MoE decode at batch 1 is intrinsically ~1 tok/s on this CPU" is refuted.** The remaining
+suspect named at the end of §7.15 was the generic `MUL_MAT_ID` path — the same code, from the same
+upstream, that produces 5.30 on this silicon. It cannot be the explanation on its own. **The gap is
+between the two stacks, not inside the arithmetic**, and that changes the next experiment: not an
+on-device profiler, but an A/B of **the `moe-experiments` CLI against the Kalsa app on the same file**, which partitions
+the search space in one 20-minute session.
+
+**What the comparison does *not* control, stated before anyone quotes it:** the CLI ran LFM2, the app
+runs LFM2.5 (same shape, different generation and different file); the CLI cell is `n_gen=128` at
+`c=512/1024` with no thinking, the app's is a real turn at `n_ctx=8192` with ~1400 tokens of prefix;
+the CLI is a stripped mainline binary, the app is `llama.rn` inside a React Native process. None of those is
+worth 6×, but the A/B is what settles it, and it must run the **same GGUF**.
+
+**One candidate cause killed on arithmetic, before it cost anything.** The per-token JS callback
+across the RN bridge cannot be it: **the dense 4B runs 5–8 tok/s in this same app**, so app-level
+per-token overhead is bounded at ~125–200 ms, against the 1161 ms/token that 0.861 tok/s means.
+Whatever is wrong is inside the engine's decode for this arch in our build, not in our JS.
+
+**Candidates worth carrying into the A/B**, all cheap to vary and none yet measured here:
+
+1. **CPU variant and build flags.** `llama.rn` builds six ARM variants and the S23 selects
+   `v8_2_dotprod_i8mm` (`node_modules/llama.rn/android/src/main/CMakeLists.txt:151-156`). We
+   measured that exact combination as a **decode** regression on this phone, in the other tree: REPACK +
+   `lm_ggml_cpu_has_matmul_int8()` converts Q4_K to `q4_K_8x8_q8_K`, a GEMM win and a **GEMV loss**,
+   12.37 → 18.19 tg256 = **+47 %** when removed, plus ~3 t/s from stripping an unstripped `-g`
+   binary (`reports/research-mellum2-paper-tuning.md:263-267`). Our device runs are `norepack=1`,
+   which should neutralise the first half — **should**, unverified — and KEXP's q2_K/q3_K have no
+   ARM repack path at all (§7.15). Note this is a **decode-only** regression that leaves prefill
+   *faster*, which is the shape of our anomaly.
+2. **Threads.** We resolve 5; that grid, on this model on this phone, picked **4**, and this document
+   already records a thread cliff (`>= 7` → 0.06 tok/s on SD 8 Gen 3).
+3. **`n_ctx` 8192 against the CLI's 512–1024**, on a hybrid whose recurrent state and checkpoint budget
+   (`state_cache_budget_mb`, §7.7c — never set by Kalsa) scale with it.
+4. **Flash attention + `v: q4_0`**, the pair §7.17 already caught refusing to initialise.
+
+Not a candidate: our native patch. `patches/llama.rn+0.12.8.patch` touches `common.cpp`,
+`JSIParams`, `JSISession`, `rn-completion`, `rn-llama`, `rn-slot` — telemetry and session plumbing,
+**no kernel and no `ggml` file**.
+
+⚠️ **The process lesson, which is the same one that cost a day on 2026-08-19.** Every number above
+existed on this disk before the question was asked. Our other tree is the first stop for anything
+about kernels, quants, GPU or on-device speed — not the second.
+
 ### 7.18 MEASURED 2026-08-19: GPU offload initialises on the S23 and kills the app — and our RAM gate cannot see the memory that does it
 
 Second attempt, with §7.17's fixes in the build. **This one is about the GPU.** Dense Qwen3.5-4B
@@ -1672,6 +2235,13 @@ the knob works end to end, so `KALSA_GPU_FALLBACK` distinguishes "refused" from 
 patch lands.
 
 ### 7.15 MEASURED 2026-08-19: KEXP stays resident and the storm stops — 130× fewer refaults, and 0.86 tok/s is still not a product
+
+⛔ **The 0.86 in this title is wrong, and §7.20 replaces it.** Measured 2026-08-20: this model's
+steady-state decode on this phone is **~22 tok/s**. Both turns below were run in the wake of §7.14's
+93.5 GiB storm on the 4.80 GiB model, on a file written to app storage twenty minutes earlier — they
+measured the recovery, not the model. §7.20 reproduces the slow regime on command and then shows it
+clearing within one turn. Everything this section says about **residency** stands; every conclusion
+it draws about **speed** is retracted.
 
 The residency bet of §7.14, run. `LFM2.5-8B-A1B-KEXP`, 3.10 GiB, our own requantization,
 sideloaded to app storage (md5 `ceb2820d…` identical across desktop / `/data/local/tmp` /
@@ -2712,6 +3282,16 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 
 | date | change |
 |---|---|
+| 2026-08-21 | **§7.28: the two small models lose to the 8B MoE on the Jelly, and one never reuses its cache.** KEXP **7.31** against LFM2.5-2.6B **5.47 mean** and Qwen3.5-2B **~6.0** — the sparse 8B wins with a file 2-3x larger, because decode reads `MB/token` (848) and a dense 2B reads more (~1230-1600). §7.27's "needs a smaller model" retracted: it needs a smaller **byte budget**. Predictions written before the run and scored after: over-predicted both by up to 33 %, while the same method hit **8.1 predicted vs 8.06 measured** on the S23 — the byte budget holds where the machine is bandwidth-bound and fails where it is dequant-bound. Effective throughput on one phone spans **46 % by packing alone** (8.75 / 7.37 / 5.98 GB/s), so the §9 per-device scalar must be per quant family; caveat, the two dense MB/tok are file-size estimates and part of that spread may be estimation error. **New defect found: `qwen3.5-2b` and `qwen3.5-4b-q3` declare `thinking` without `preserveThinking`**, so the think block enters the KV and vanishes from history — divergence every turn from turn 2, which is what the 80-128 s prefill is. Inferred from the registry, not measured by toggling. All arms 4 turns, so none of these numbers can see the turn-11 collapse. |
+| 2026-08-21 | **§7.27: unplugged on the Jelly, KEXP wins by 1.7x — the CLI ranking inverts inside the app, and neither quant is within 2.7x of the product floor.** First Jelly timings taken off the charger, so the first ones quotable at all. KEXP **7.31 / 7.14 / 6.95 / 6.80** against Q4_K_M **4.23**, reversing `ALIVE.md`'s 10.60-vs-8.83 CLI ordering on this same phone. Cause is headroom, not arithmetic: add Kalsa's ~1.5 GB and Q4_K_M runs at **0.92 GB `MemAvailable`** with a creeping `io_read`, while KEXP sits at **2.37 GB** with the counter **exactly frozen**. Decode is 1.73x apart on files 1.55x apart, prefill only 1.16x — the excess is reclaim, not bytes. **Benchmark the quant inside the binary that ships it.** §7.25's KV reuse confirmed unplugged and across turns: prefill 132.8 s -> ~2.8 s, `tokensCached` 2253 -> 3153. **Product: the Jelly cannot run this model in any quant tested** — 7.31 against a 20 tok/s floor is 2.7x, the first hard "neither option qualifies" for per-phone selection. Limits stated: n=1, Q4_K_M has a single turn-1 number because its turn 2 never finished in 420 s (so it is compared against a 4-turn plateau, which §7.20 forbids), differing prompt lengths make only the prefill *rates* comparable, and Q4_K_M **survived** here where §7.26 lost it to a suspected lmkd — two runs, two outcomes, uncontrolled. Instrument gap: this ran on a hand-written script because `ci-bench.sh` cannot type into the Jelly's composer without double-landing text, so no graded arm can run on this phone yet. |
+| 2026-08-20 | **§7.26: the residency hypothesis is confirmed on a second phone — and full residency turns out not to be survival.** The same Q4_K_M file (md5 verified identical) that sits at 51 % on the S23 goes **100 % resident** on the Jelly Star, which has 1.6 GB more `MemAvailable`. So residency is governed by available memory, not file size, and every conclusion §7.20-§7.24 drew from one device now has a second point. **But holding the whole file pushed `MemAvailable` to 0.83 GB and the process was killed about two minutes later, with no reply produced.** The rule the RAM gate needs is therefore `model <= available - headroom`, with headroom > 0.8 GB — and today `estimateMemory` models non-evictable memory only and is blind to page-cache residency, the thing that decides between 22 tok/s, 0.26 tok/s and a dead app. Two calibration points now exist and they fail differently: S23 51 %/survives/25x slow, Jelly 100 %/killed. Stated rather than implied: the kill was not confirmed as lmkd in logcat, `read_bytes` hit 9.82 GB for a 5.15 GB file (~1.9x, unexplained), n=1, on the charger. |
+| 2026-08-20 | **§7.25: the disk KV restore works on `lfm2moe` — 83.9 s of prefill becomes 1.5 s.** Measured on the newly onboarded Jelly Star with KEXP in production config: after a force-stop and relaunch the engine logs `KALSA_KVRESUME ... is_hybrid=1 resumable=1`, loads the state in **29 ms** and reuses **1672/1747** prompt tokens. So **llama.cpp #25913 does not apply to us** — measured, not merely reasoned: it is a `llama-server /slots` defect (fix PR #26004 still open, not in our pin b10156) and Kalsa calls the low-level `llama_state_seq_save_file`, which serialises hybrid recurrent state correctly. The `.kvs` is 8 668 927 B for 1672 tokens = **~5.2 kB/token**, projecting to ~41 MB at the loaded context — 5 % of what the model reads for one generated token. **The UFS session pool is therefore buildable**: `sessionPersistence.ts` keys per model, and `AppShell.tsx:3237` already documents the consequence ("switch-back is always a cold start"), so what is missing is the key and an LRU budget — on UFS, not RAM, by owner's decision. It does **not** fix §7.23's turn-to-turn cost: a restored state survives only if the next prompt is an exact continuation, so the pool and the append-only transcript are the same fix from two ends. Free cross-check: KEXP does **8.04 tok/s inside Kalsa** vs **8.83 under the moe-experiments CLI** on this phone — a 9 % gap, so our stack loses nothing meaningful to a bare llama-cli. Charging, n=1. |
+| 2026-08-20 | **§7.24: the collapsed regime persisted for a whole arm, and the arm that revealed it was vacuous for an unrelated reason.** Two `fase4` arms back to back on KEXP: `off` complete at 14-20 tok/s, then `ciswire` which **never exceeded 4.12 tok/s on any of its nine turns** — same model, same prompts, same prefs. §7.20 showed the collapsed regime recovers in one turn after contamination; this shows it can also be entered and **not** exited for an hour, which for a consumer app is a different defect: not a slow fifteenth reply but an app that stays slow afterwards, fresh chat included. **Two candidates and this arm cannot separate them:** cumulative memory pressure vs sustained thermal (the second arm ran entirely at thermal status 2, ~40 C). Not established as memory; the doc says so. Separately, the `ciswire` arm is **vacuous as a ciswire measurement**: `corpusSize: 0` and `frozenDigest: ""` at turn 9, because the 20-message window had dropped nothing yet — the digest first populates around turn 11. That is §8's documented trap, now on its third campaign: **a ciswire arm shorter than ~12 turns cannot measure ciswire.** Instrument gap named: `ci-bench.sh` samples thermal per turn and memory not at all, while the runner that samples memory is a different script. |
+| 2026-08-20 | **§7.23: the consumer numbers, taken for the first time — a 16-turn conversation costs 42 points of battery and grows to 11 minutes of compute for one reply.** Recorded at the owner's instruction: stress arm or not, Kalsa is a consumer app. 16 turns in 1h45m, 100% -> 58% unplugged, ~2.6 points per reply, ~23%/h screen-on (in line with the standing 30%/h figure). Per-turn wall grows 2m00 -> 27m21. **Decomposed honestly:** only ~47 of the 105 wall minutes are compute; the rest is harness settling, so the 27-minute turn is not all model. What is all model, from llama.cpp's timers: turn 1 = 90 s, turn 14 = **660 s**, of which **397 s is prefill**. And the prefill *rate* is normal (13.9 tok/s) — the cost is that we pay a full one every turn, because the 20-message window slides and LFM2 cannot roll back recurrent state. §7.12, priced in minutes. **Shipping blocker for long conversations, independent of every quantization question**, and not fixed by a smaller model or a faster decode: decode is 8-79 s of an 11-minute turn. The levers are tool-round replay, an append-only window, and GPU prefill where it is real. |
+| 2026-08-20 | **§7.22: the 2-bit experts did not break tool calling — our own gate did.** `tools` gate/nogate pair on KEXP, S23, 14 turns each. Structured output **intact** in both arms: `firstTryValid`, zero fallback-dialect calls, zero parse failures, zero empty bubbles, zero truncations. Turning `toolgate` **off**: recall **0.429 -> 0.714**, precision **0.750 -> 0.833**, missed calls 4 -> 2, and the one spurious call **unchanged** — the rule blocks good calls and does not stop the bad one, which is what §1.1 derived from its scoring on 2026-08-14 and nobody had measured on a real model. **The largest available improvement to Kalsa's tool use is a JS rule, not the weights.** Residue that is genuinely the model's: two `tool_required` misses and `tool_selection` 1/3, all `noCall` never `wrongTool` — that, and only that, is a fine-tune target, and only after the gate is fixed. Limits stated: n=1 seed, production repack (so the gate arm spent half its turns in §7.21's collapsed regime), phone on the charger so no timing here is a measurement, and no Q4_K_M control exists for this phase on this model. |
+| 2026-08-20 | **§7.21: production repack makes KEXP bimodal — 0.45 to 19.96 tok/s across 13 turns — and it refutes §7.15's "the repack arm is VOID on this model".** Found by accident: the `tools` quality arm was the first time KEXP ran with `no_extra_bufts:0`. §7.15 argued the flag could not matter because q2_K/q3_K have no ARM repack path; true of the **experts**, false of the **trunk** — 47 `q5_K` + 20 `q6_K` tensors, ~0.5 GB, all repack-eligible, copied into non-evictable anonymous memory on top of the 2.76 GB of expert pages that must stay resident. Working set crosses, experts refault, turns collapse into the regime §7.20 reproduces on command. Charging caveat stated: the timings are not quotable, the 40x shape is. Product: `no_extra_bufts` must stop being a bench flag for this model class. Gate: `estimateMemory` charges repack on the whole file, which over-charges KEXP while still being blind to residency. |
+| 2026-08-20 | **§7.20: KEXP decodes at ~22 tok/s, and the 0.861 that drove two days of investigation was the previous model's page-cache storm.** Four consecutive turns on an idle phone: **19.97 · 21.81 · 22.26 · 21.98** tok/s, `RssFile` ~3.33 GB, `majflt` deltas of 14–55 after the load — **2.7x the dense Qwen3.5-4B measured the same morning in production config (8.06)**, which is what ~1B active parameters should buy, and ~14 GB/s against §7.19's byte budget, i.e. this SoC's DRAM roof. **The slow regime reproduces on command:** run the 4.80 GiB Q4_K_M first (0.263 tok/s, 182 608 major faults, 15 237 370 refaulted pages = **58 GiB** in one turn), then KEXP immediately — turn 1 **1.15**, turn 2 **20.92**. That is exactly §7.15's shape, because §7.15 unknowingly ran that experiment: its two turns followed §7.14's 93.5 GiB storm, on a file written to app storage twenty minutes earlier. **Three retractions, all mine, two of them written the same day:** §7.15's "residency solved, speed not — kernels are the remaining lever" (there is no kernel problem); §7.19's "the 6-15x gap is between the two stacks" (there is no gap — this app is four times faster than the mainline CLI number that section quotes); and the minor-fault hypothesis, refuted at 519 `minflt` per token against ~167 000 predicted. Threads measured healthy for the first time rather than assumed: 2 threads 13.26 vs 5 threads 21.32, with the `Attached ggml threadpool (n_threads=2, ...)` line confirming the override applied. **Not separated, and the doc says so:** the APK also changed between the two runs (installed 2026-08-19 22:52, after §7.15's 13:44), the contamination was heavier yesterday, and yesterday's KEXP file had just been written — page-cache contention is proven *sufficient*, not proven to be the whole of yesterday's persistence. **Methodology, retroactive to §7.11-§7.15:** a model switch invalidates the next turn or two, so the two-turn protocol quotes a number taken inside the recovery; measure four and quote the plateau. **Product:** the quality gate KEXP misses (+0.0705 macro bpb) is now a live trade against a shippable decode number instead of against nothing. New on trial: repack itself, which in production config left the dense 4B with 3.77 GB anonymous, `MemAvailable` at 930 MB and **961 major faults per generated token**. Probe now captures `minflt`/`majflt` from `/proc/<pid>/stat`, which no run before today did. |
+| 2026-08-20 | **§7.19: the batch-1 `MUL_MAT_ID` suspect is demoted, by a number that was already on this disk.** §7.15 ended by asking for a profile of MoE decode at batch 1. Our own other tree, `kalsa-moe-experiments`, had run **LFM2-8B-A1B Q4_K_M on this same S23** under mainline `llama-cli` (pin `67d5978`) back on 2026-08-04: **median 5.30 tok/s** at `t=4 c=512 kv=q8_0` — and *while thrashing*, millions of major faults and ~10 GB re-read per 128 tokens, which is why that grid is marked invalid as a stable baseline there. Q4_0 on the same cell: 6.20 / 7.60. The Kalsa app on the same phone and the same shape: **0.357** thrashing (§7.13) and **0.861** at 96 % resident with no storm at all (§7.15). The same lineup card records a **35B-A3B** streamed from 13.4 GB at **5.696 tok/s** and a 6.4 GB MoE at **8.819**. So the generic `MUL_MAT_ID` path — same upstream code — produces 5–9 tok/s on this silicon and cannot be the explanation: **the 6–15× gap is between the two stacks, not inside the arithmetic.** Next experiment changes shape accordingly: not an on-device profiler but that CLI against the Kalsa app **on the same GGUF**, one session. Killed on arithmetic before it cost anything: the per-token RN bridge callback, since the dense 4B does 5–8 tok/s in this same app, bounding app overhead at ~125–200 ms against the 1161 ms/token that 0.861 means. Candidates carried in: the `v8_2_dotprod_i8mm` variant we select (`CMakeLists.txt:151-156`) against our own measured **GEMM-win / GEMV-loss** on exactly that combination (12.37 → 18.19 tg256, `research-mellum2-paper-tuning.md:263-267`); threads 5 against the 4 that grid picked; `n_ctx` 8192 against 512–1024 on a hybrid; flash attention with `v: q4_0`. Not a candidate: our native patch — it touches telemetry and session plumbing, no kernel, no `ggml` file. |
 | 2026-08-14 | First version. Conclusions from campaigns `31739205810` and `31760516762`. 4B campaign `31807501488` launched; memory instrumentation and a hostile audit of `cc703e6`/`aa2f350` in flight — **both may change §1.3 and §3**. |
 | 2026-08-14 | **§1.1 retracted and rewritten.** Measured the gate rule offline: it blocks legitimate searches (a good query paraphrases the question, scoring 0.39-0.68) and passes spurious ones (0.15). The 2/96 web-turn figure is the gate refusing, not the model abstaining. Added §3.5: with memory on, the same 0.18 threshold blocks ordinary Italian queries ("ricetta pasta al forno" = 0.182). Both are shipping blockers. |
 | 2026-08-14 | Hostile audit of `c93d163` on an isolated worktree. §1.3 confidence raised — both fabrication routes closed with quoted code. Added §3.7: three suites shipped ungated by CI, a harness that could not fail, and a NOT-RUN verdict that would have failed the next campaign — all fixed. Identity leak past the containment guard still open; the first fix attempt was reverted for adding a language wordlist that blocked ordinary German and Spanish queries. |
