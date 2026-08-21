@@ -98,7 +98,7 @@ case "$PHASE" in
   fase4|smoke|mem|tools)
     COMPACTION="${COMPACTION:?COMPACTION is required for $PHASE (anchored|off|ciswire)}"
     case "$COMPACTION" in
-      anchored|off|ciswire) ;;
+      anchored|on|off|ciswire) ;;
       *) die "COMPACTION must be anchored|off|ciswire (got '$COMPACTION')" ;;
     esac
     ;;
@@ -202,9 +202,13 @@ fi
 # Map COMPACTION env (anchored|off|ciswire) → raw AsyncStorage value.
 # Unknown values die — never silently fall back to 0 (that turns a broken arm
 # into a fake baseline and we would never notice).
+# Map the arm's regime name to the raw value the app stores.
+# `on` is accepted as an alias for `anchored`: parseContextMode reads "1" as
+# anchored, so scripts written against the old boolean toggle still select a
+# real regime instead of dying.
 compaction_pref_raw_for() {
   case "$1" in
-    anchored) echo anchored ;;
+    anchored|on) echo anchored ;;
     off) echo 0 ;;
     ciswire) echo ciswire ;;
     *) die "COMPACTION must be anchored|off|ciswire (got '$1')" ;;
@@ -216,6 +220,11 @@ set_prefs() {
   compaction_val=$(compaction_pref_raw_for "$COMPACTION")
   sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR');" "kalsa.model.id" "$MODEL_DIR"
   sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.context.compaction','$compaction_val');" "kalsa.context.compaction" "$compaction_val"
+  # Mark the regime as an explicit user choice. Without it the app treats an
+  # unrecognized value as "upgraded install" and falls back to the shipped
+  # default (ttftFlags.ts COMPACTION_ENABLED_DEFAULT), so an arm asking for a
+  # non-default regime would silently run the default one.
+  sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.context.compaction.choice','1');" "kalsa.context.compaction.choice" "1"
   sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.thinking','$THINKING');" "kalsa.bench.thinking" "$THINKING"
   sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.format','$BLOCK_FORMAT');" "kalsa.bench.format" "$BLOCK_FORMAT"
   sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.toolchoice','$TOOLCHOICE');" "kalsa.bench.toolchoice" "$TOOLCHOICE"

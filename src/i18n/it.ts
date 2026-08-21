@@ -44,6 +44,7 @@ export const it: typeof en = {
     notes: "Note",
     personas: "Persona",
     personaNone: "Predefinita",
+    account: "Account",
   },
 
   settings: {
@@ -87,7 +88,7 @@ export const it: typeof en = {
     context: "Contesto",
     contextCompaction: "Memoria conversazionale intelligente",
     contextCompactionHint:
-      "Disattivata di default. Se attiva, i turni più vecchi vengono compattati in un breve digest così le chat lunghe tengono i fatti rilevanti senza una finestra scorrevole enorme. Sperimentale — abilita per i test.",
+      "Attiva di default. I turni più vecchi vengono compattati in un breve digest così le chat lunghe tengono i fatti rilevanti senza una finestra scorrevole enorme. Disattiva per usare la finestra scorrevole legacy.",
     sessionPool: "Riapertura istantanea",
     sessionPoolHint:
       "Tiene le chat recenti pronte così al ritorno non aspetti il prefill. Usa lo spazio sul dispositivo, non la RAM. Circa 7 chat di default.",
@@ -487,6 +488,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     a11yLongPress: "Tieni premuto per copiare, tradurre o salvare nelle note",
     saveToNotes: "Salva nelle note",
     lookAtAttachedFile: "Guarda il file allegato.",
+    visionUnsupportedNotice:
+      "Il modello attivo non vede le immagini — passa a un modello vision (Qwen 3.5 4B o Gemma 4) nelle Impostazioni per analizzare le foto.",
     a11yAttach: "Aggiungi allegato",
     a11yRemoveAttachment: "Rimuovi allegato",
     a11yStop: "Interrompi generazione",
@@ -503,6 +506,21 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     regenFailed: "Rigenera fallita",
     editEmpty: "Aggiungi una didascalia o mantieni un allegato.",
     sendAborted: "Generazione interrotta prima della risposta.",
+    deepResearch: "Ricerca approfondita",
+    deepResearchActive: "Ricerca approfondita attiva — tocca per disattivare",
+    deepResearchPlanning: "Pianifico la ricerca…",
+    deepResearchQuery: "Ricerca {n}/{total}…",
+    deepResearchWriting: "Scrivo il report…",
+    deepResearchNoResults:
+      "La libreria non ha trovato passaggi rilevanti per questa domanda.",
+    deepResearchPartial: " (parziale — alcune fonti non erano disponibili)",
+    deepResearchNeedsQuestion: "Scrivi una domanda per ricercare nella libreria.",
+    deepResearchIgnoringImages:
+      "La ricerca approfondita lavora sui documenti di testo — le immagini di questo messaggio non verranno usate.",
+    deepResearchWriterFailed:
+      "Il report non è stato completato su questo dispositivo — passaggi trovati qui sotto.",
+    deepResearchInterrupted:
+      "Ricerca interrotta perché il motore del modello è cambiato. Invia di nuovo per riprovare.",
   },
 
   notify: {
@@ -769,6 +787,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "Estrazione testo di “{name}” non riuscita (errore di lettura file). Chiedi all’utente di reimportare da Documenti.",
     documentChatExtractFailed:
       "Estrazione testo di “{name}” non riuscita. Chiedi all’utente di reimportare da Documenti (riprova).",
+    deepResearchEmptyLibrary:
+      "Nessun documento in libreria da ricercare. Aggiungi prima dei documenti.",
+    deepResearchAttachedMissing:
+      "I documenti allegati non sono più in libreria. Aggiungili di nuovo e reinvia.",
   },
 
   pdf: {
@@ -907,6 +929,39 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     bodyPlaceholder: "Scrivi una nota…",
     errorSave: "Impossibile salvare la nota.",
     errorLoad: "Impossibile aprire la nota.",
+  },
+
+  account: {
+    title: "Account",
+    loading: "Caricamento account",
+    signInGoogle: "Continua con Google",
+    signInApple: "Continua con Apple",
+    orContinueEmail: "oppure continua con l'email",
+    emailPlaceholder: "Indirizzo email",
+    emailInvalid: "Inserisci un indirizzo email valido",
+    saveFailed: "Impossibile salvare l'account su questo telefono. Riprova.",
+    disabledProviders:
+      "Accedi con Google o Apple quando Kalsa è installata dal Play Store o dall'App Store.",
+    socialUnavailable:
+      "L'accesso dallo store non è ancora collegato. Continua con l'email su questo telefono.",
+    planCurrent: "Piano attuale: Free",
+    upgradeToPro: "Passa a Pro",
+    signOut: "Esci",
+    optionalHint:
+      "Nessun account? Nessun problema — tutto resta su questo telefono.",
+    avatarA11y: "Avatar dell'account",
+    proTitle: "Pro",
+    proHero: "Kalsa Pro — sblocca il laboratorio completo",
+    proBenefit1: "Tieni le chat lunghe coerenti senza perdere il filo",
+    proBenefit2: "Più spazio per le domande difficili su questo dispositivo",
+    proBenefit3: "Ottieni di più dai documenti già sul telefono",
+    proBenefit4: "Resta in prima fila quando arrivano nuovi strumenti",
+    proPrice: "{price}/mese",
+    proPriceValue: "4,99 €",
+    proBilledMonthly: "fatturato mensilmente",
+    proCancelAnytime: "Annulla quando vuoi",
+    proCta: "Passa a Pro",
+    proComingSoon: "I pagamenti non sono ancora collegati — Pro arriva presto.",
   },
 
   operativeBlock: {

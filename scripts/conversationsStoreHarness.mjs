@@ -74,6 +74,7 @@ function compile() {
       "src/conversations/ConversationsStore.ts",
       "src/util/filterByTokens.ts",
       "src/engine/sessionPersistence.ts",
+      "src/engine/ttftFlags.ts",
       "--outDir",
       outDir,
       "--module",

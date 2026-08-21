@@ -10,6 +10,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 
+import { SESSION_DISK_GATE_USED_TOKENS } from "./ttftFlags";
+
+export { SESSION_DISK_GATE_USED_TOKENS };
+
 // ── Pure section ────────────────────────────────────────────────────────────
 
 export type SessionMeta = {
@@ -26,9 +30,11 @@ export type SessionMeta = {
   /** Length of the messages array that produced historyHash. Enables prefix restore. */
   historyMessageCount?: number;
   /**
-   * djb2 over JSON.stringify({locale, memoryFactsJoined, hasTools}).
-   * Mismatch → cold start (same as historyHash). Optional for back-compat reads.
-   * Changing the hashed shape invalidates older saved sessions (one cold prefill).
+   * djb2 over JSON.stringify({locale, memoryFactsJoined, hasTools, tools, blockFormat}).
+   * When MEMORY_FACTS_ON_USER_TAIL, callers must pass [] for facts so a new
+   * fact does not cold-start the whole prefix. Mismatch → cold start.
+   * Optional for back-compat reads. Changing the hashed shape invalidates
+   * older saved sessions (one cold prefill).
    */
   promptEnvHash?: string;
   /**
@@ -38,7 +44,49 @@ export type SessionMeta = {
   conversationId?: string;
   /** Date.now() at save; ignored by sessionMetaMatches */
   savedAt?: number;
+  /**
+   * Format-B last-user prefixes baked into later engine history.
+   * Payload only — ignored by sessionMetaMatches (historyHash is the gate).
+   */
+  bakedUserTails?: Array<{ bare: string; prefixed: string }>;
 };
+
+/**
+ * True when loadSession returned a usable KV prefix.
+ * llama.rn resolves with tokens_loaded=0 when the file is empty or not
+ * resumable (SWA rollback clears embd) — that is not a successful restore.
+ */
+export function sessionLoadHasTokens(
+  result: { tokens_loaded?: unknown } | null | undefined,
+): boolean {
+  return typeof result?.tokens_loaded === "number" && result.tokens_loaded > 0;
+}
+
+export type KvDiagPayload = {
+  n_past: number;
+  tokens_on_disk: number;
+  ok: boolean;
+};
+
+/**
+ * Honest restore line. loadSession can report tokens_loaded>0 while native
+ * n_past is 0 on hybrid/kvUnified models (Q6.c). Never treat ok:true as reuse.
+ */
+export function buildKvDiagPayload(input: {
+  ok: boolean;
+  tokensLoaded: unknown;
+  hybridOrKvUnified: boolean;
+}): KvDiagPayload {
+  const tokens_on_disk =
+    typeof input.tokensLoaded === "number" && Number.isFinite(input.tokensLoaded)
+      ? input.tokensLoaded
+      : 0;
+  return {
+    n_past: input.hybridOrKvUnified ? 0 : tokens_on_disk,
+    tokens_on_disk,
+    ok: input.ok === true,
+  };
+}
 
 /** Default messages key until migrate / AppShell bind the active conversation. */
 export const DEFAULT_BOOT_MESSAGES_KEY = "kalsa.messages.v1";
@@ -239,7 +287,9 @@ export function setSessionConversationId(id: string | undefined): void {
  * Hash of system-prompt env inputs that are not covered by historyHash.
  * Covers locale, memory facts (joined), whether tools are wired into
  * buildSystemPrompt, the sorted tool-name set, and blockFormat.
- * Changing the hashed shape invalidates older saved sessions (one cold prefill).
+ * When MEMORY_FACTS_ON_USER_TAIL the caller must pass [] / omit facts — they
+ * are no longer part of the system prompt. Changing the hashed shape
+ * invalidates older saved sessions (one cold prefill).
  */
 export function computePromptEnvHash(
   locale: string,
@@ -321,17 +371,99 @@ export async function ensureSessionsDir(): Promise<void> {
   }
 }
 
+/** Dense measured ceiling ≈58–60 KB per used token (q8_0 K / q4_0 V, 4B). */
+export const SESSION_BYTES_PER_TOKEN = 64 * 1024;
+
+/** Free space must exceed this × estimated bytes (write + FS overhead). */
+export const SESSION_DISK_MARGIN = 1.5;
+
+/** Minimum free bytes even for a tiny session. */
+export const SESSION_DISK_FLOOR_BYTES = 4 * 1024 * 1024;
+
+/** Minimum token count when estimating from history (not from n_past). */
+export const SESSION_DISK_TOKEN_FLOOR = 64;
+
+/**
+ * Conservative tokens-per-message when n_past is unknown.
+ * Over-estimates (templates / system prompt) so we skip save rather than
+ * fill the disk. Not nCtx — that blocked every save on small volumes.
+ */
+export const SESSION_DISK_TOKENS_PER_HISTORY_MSG = 512;
+
+export type SessionDiskGateInput = {
+  /** Native KV used tokens (completion tokens_cached / load tokens_loaded). */
+  nPast?: number | null;
+  /** Persisted chat message count; used only when nPast is unknown. */
+  historyLength?: number | null;
+  /** Context window; cap when the used-token flag is on, size when off. */
+  nCtx?: number | null;
+};
+
+function finiteInt(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.floor(value);
+}
+
+/**
+ * Token count the disk gate should budget for.
+ * Prefers n_past; if unknown, conservative historyLength * tokens/msg
+ * (floor applied). Never falls back to full nCtx when the flag is on.
+ * Returns null when neither n_past nor history is known (fail closed).
+ */
+export function resolveSessionDiskTokens(input: SessionDiskGateInput): number | null {
+  const nCtx = finiteInt(input.nCtx);
+  const cap = nCtx != null && nCtx > 0 ? nCtx : null;
+
+  if (!SESSION_DISK_GATE_USED_TOKENS) {
+    return cap ?? 0;
+  }
+
+  const nPast = finiteInt(input.nPast);
+  if (nPast != null && nPast > 0) {
+    return cap != null ? Math.min(nPast, cap) : nPast;
+  }
+
+  const historyLength = finiteInt(input.historyLength);
+  if (historyLength != null && historyLength >= 0) {
+    const estimated = Math.max(
+      SESSION_DISK_TOKEN_FLOOR,
+      historyLength * SESSION_DISK_TOKENS_PER_HISTORY_MSG,
+    );
+    return cap != null ? Math.min(estimated, cap) : estimated;
+  }
+
+  return null;
+}
+
 /**
  * Dense measured ceiling ≈58–60 KB per used token (q8_0 K / q4_0 V, 4B default:
- * ~1.6 KB/cell/layer × 36 layers). We use nCtx * 64 KB as a cheap upper bound
- * without counting tokens in history. Hybrid (kvUnified) recurrent tensors
+ * ~1.6 KB/cell/layer × 36 layers). Hybrid (kvUnified) recurrent tensors
  * (r_l/s_l) can add more and are NOT included in this estimate.
- *
- * Free space must exceed 1.5 × estimated bytes (headroom for write + FS overhead).
- * On check failure/throw → false (skip save).
  */
-export function estimateSessionBytes(nCtx: number): number {
-  return Math.max(0, nCtx) * 64 * 1024;
+export function estimateSessionBytes(usedTokens: number): number {
+  const n = finiteInt(usedTokens);
+  return (n != null && n > 0 ? n : 0) * SESSION_BYTES_PER_TOKEN;
+}
+
+/** Bytes of free space required to attempt a session write. */
+export function sessionDiskBytesRequired(usedTokens: number): number {
+  const estimated = estimateSessionBytes(usedTokens);
+  if (!SESSION_DISK_GATE_USED_TOKENS) {
+    return SESSION_DISK_MARGIN * estimated;
+  }
+  return Math.max(SESSION_DISK_FLOOR_BYTES, estimated * SESSION_DISK_MARGIN);
+}
+
+/** Message count of persisted chat history, or null if missing/invalid. */
+export async function readPersistedHistoryLength(): Promise<number | null> {
+  try {
+    const raw = await AsyncStorage.getItem(bootMessagesKey);
+    if (raw == null) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.length : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -359,11 +491,14 @@ export function shouldSaveSession(args: {
   return { save: true };
 }
 
-export async function hasEnoughDiskForSession(nCtx: number): Promise<boolean> {
+export async function hasEnoughDiskForSession(
+  input: SessionDiskGateInput,
+): Promise<boolean> {
   try {
+    const usedTokens = resolveSessionDiskTokens(input);
+    if (usedTokens == null) return false;
     const free = await FileSystem.getFreeDiskStorageAsync();
-    const estimated = estimateSessionBytes(nCtx);
-    return free > 1.5 * estimated;
+    return free > sessionDiskBytesRequired(usedTokens);
   } catch {
     return false;
   }
@@ -409,6 +544,7 @@ export async function readSessionMeta(stem: string): Promise<SessionMeta | null>
     ) {
       meta.historyMessageCount = parsed.historyMessageCount;
     }
+    if (Array.isArray(parsed.bakedUserTails)) meta.bakedUserTails = parsed.bakedUserTails;
     return meta;
   } catch {
     return null;

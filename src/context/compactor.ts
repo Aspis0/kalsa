@@ -243,29 +243,61 @@ export const DEFAULT_COMPACTOR_CONFIG: CompactorConfig = {
   windowCharBudget: WINDOW_CHAR_BUDGET,
 };
 
-/** AsyncStorage key: compaction feature toggle (default OFF). */
+/** AsyncStorage key: compaction feature toggle ("1" / "0"). */
 export const COMPACTION_ENABLED_KEY = "kalsa.context.compaction";
 
 /**
+ * Written as "1" only when the user toggles the Settings switch.
+ * Absent → treat leftover "0" as the old default, not an explicit OFF
+ * (see parseCompactionEnabled / COMPACTION_ENABLED_DEFAULT).
+ */
+export const COMPACTION_CHOICE_KEY = "kalsa.context.compaction.choice";
+
+/**
  * Context regime from COMPACTION_ENABLED_KEY.
- * - off: legacy sliding window, no digest/summary
- * - ciswire: legacy sliding window + digest/summary (retrieval additive)
- * - anchored: boundary→end window, no digest/summary, pressure rebuilds
+ * - off:      legacy sliding window, no digest/summary
+ * - ciswire:  legacy sliding window + digest/summary (retrieval additive)
+ * - anchored: boundary→end window, no digest/summary, rebuild on budget
+ *             pressure with hysteresis
+ *
+ * `v42` (boundary + digest, rebuild every K user turns) is GONE. It was dead on
+ * recall on two models (+0.040 and +0.062, p=0.70), collapsed the KV at turn 7
+ * against the legacy window's turn 11, and half of it never ran at all — its
+ * rolling summary logged summaryChars = 0 on every arm of every campaign
+ * (HARNESS_FINDINGS §7.12). `anchored` is its replacement: same append-only
+ * boundary, a rebuild trigger that works.
  */
 export type ContextMode = "off" | "ciswire" | "anchored";
 
-/** Parse raw AsyncStorage value; unknown / null → "off". */
-export function parseContextMode(raw: string | null): ContextMode {
+/**
+ * Parse raw AsyncStorage value into a regime.
+ *
+ * The boolean vocabulary is authoritative and must agree with
+ * parseCompactionEnabled: "0"/"false" is OFF, and "1"/"true"/missing/garbage is
+ * ON. What "on" *means* is now `anchored` — COMPACTION_ENABLED_DEFAULT still
+ * decides that compaction is on, this decides which regime it runs.
+ */
+export function parseContextMode(raw: string | null | undefined): ContextMode {
+  if (raw === "0" || raw === "false" || raw === "off") return "off";
   if (raw === "ciswire") return "ciswire";
-  if (raw === "anchored") return "anchored";
-  return "off";
+  return "anchored";
+}
+
+/** True when the regime uses the boundary window instead of the sliding one. */
+export function modeUsesBoundary(mode: ContextMode): boolean {
+  return mode === "anchored";
+}
+
+/** True when the regime builds the query-time digest / rolling summary. */
+export function modeUsesDigest(mode: ContextMode): boolean {
+  return mode === "ciswire";
 }
 
 /**
  * Start index of the legacy sliding window used by assembleEngineHistory when
- * compaction is off. Messages before this index fall outside the engine window
- * (ciswire uses this as the BM25/summary corpus boundary).
- * 
+ * the regime does not use the boundary. Messages before this index fall outside
+ * the engine window (ciswire uses this as the BM25/summary corpus boundary).
+ *
  * Optional `override` parameter: bench-only knob that shrinks the window to
  * increase eviction pressure. Absent / null / below floor → production constants
  * (LEGACY_MAX_HISTORY / LEGACY_MAX_HISTORY_IMAGES) win. Both call sites

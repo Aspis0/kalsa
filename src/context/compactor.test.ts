@@ -31,26 +31,19 @@ function makeHistory(n: number): HistoryRoleMessage[] {
 }
 
 describe("compactor parseContextMode", () => {
-  test("null → off", () => {
-    expect(parseContextMode(null)).toBe("off");
-  });
-
-  test('"0" → off', () => {
+  test('"0" / "false" / "off" → off', () => {
     expect(parseContextMode("0")).toBe("off");
+    expect(parseContextMode("false")).toBe("off");
+    expect(parseContextMode("off")).toBe("off");
   });
 
-  test("unrecognised → off", () => {
-    expect(parseContextMode("yes")).toBe("off");
-    expect(parseContextMode("")).toBe("off");
-    expect(parseContextMode("removed-mode")).toBe("off");
-  });
-
-  test('"1" → off (legacy stored value)', () => {
-    expect(parseContextMode("1")).toBe("off");
-  });
-
-  test('"true" → off (legacy stored value)', () => {
-    expect(parseContextMode("true")).toBe("off");
+  test("null / unrecognised / boolean-on → anchored", () => {
+    expect(parseContextMode(null)).toBe("anchored");
+    expect(parseContextMode("")).toBe("anchored");
+    expect(parseContextMode("yes")).toBe("anchored");
+    expect(parseContextMode("1")).toBe("anchored");
+    expect(parseContextMode("true")).toBe("anchored");
+    expect(parseContextMode("compact")).toBe("anchored");
   });
 
   test('"ciswire" → ciswire', () => {

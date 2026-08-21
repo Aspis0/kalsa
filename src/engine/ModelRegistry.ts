@@ -359,6 +359,15 @@ export function getModelById(id: string): ModelInfo {
   return MODEL_REGISTRY.find((model) => model.id === id) ?? getDefaultModel();
 }
 
+/**
+ * Catalog hybrid / kvUnified (Qwen3.5). Unknown ids are false — do not
+ * inherit the default model's hybrid flag.
+ */
+export function isHybridOrKvUnifiedModel(id: string): boolean {
+  const model = MODEL_REGISTRY.find((entry) => entry.id === id);
+  return model?.hybrid === true || model?.kvUnified === true;
+}
+
 export function formatBytes(bytes: number): string {
   const gb = bytes / 1_000_000_000;
   return gb >= 1 ? `${gb.toFixed(1)} GB` : `${Math.round(bytes / 1_000_000)} MB`;

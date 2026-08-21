@@ -26,6 +26,7 @@ function compile() {
       "src/engine/memoryEstimate.ts",
       "src/engine/threadProfile.ts",
       "src/engine/monitor.ts",
+      "src/engine/engineLiveness.ts",
       "src/engine/regenState.ts",
       "src/engine/llamaContextGate.ts",
       "--outDir",
@@ -72,11 +73,26 @@ async function main() {
   compile();
   const dpPath = resolveBuilt("deviceProfile");
   const monPath = resolveBuilt("monitor");
+  const livePath = resolveBuilt("engineLiveness");
   console.log("Loading", dpPath);
   console.log("Loading", monPath);
+  console.log("Loading", livePath);
   const dp = require(dpPath);
   const mon = require(monPath);
+  const live = require(livePath);
   const { evaluateModelFit, estimateModelNonEvictableMiB, decidePreSendFit } = dp;
+  const {
+    decideEngineLiveness,
+    decideEngineBarKind,
+    decideContactProbe,
+    nextEngineLostRecovery,
+    initialEngineLostRecovery,
+    parseProcessRssBytes,
+    shouldRecoverLost,
+    shouldBypassRamGate,
+    decideBoundedReleaseOutcome,
+    ENGINE_CONTACT_PROBE_TIMEOUT_MS,
+  } = live;
   const { getAvailableMemoryBytesUncached, startMemoryMonitor, parseMemAvailableBytes } = {
     ...mon,
     // parseMemAvailableBytes lives in memoryEstimate — re-export via mon import chain not needed
@@ -172,6 +188,244 @@ async function main() {
     const d = decidePreSendFit(model2B, null);
     assert(d.allow === true, "allow");
     assert(d.bannerKey === "model.memoryUnknown", `banner ${d.bannerKey}`);
+  });
+
+  // P0: resident model must not double-count its own footprint vs leftover RAM.
+  // Xiaomi 14: 4B (~2.7 GB) resident, HyperOS MemAvailable ~2.1 GB.
+  const model4B = {
+    sizeBytes: 2693 * 1024 * 1024,
+    engineCtx: 8192,
+    kvBytesPerToken: 4.88 * 1024,
+    mmproj: null,
+  };
+  const leftoverAfter4B = 2100 * 1024 * 1024;
+
+  await test("decidePreSendFit resident + low availableMb → completion allowed", () => {
+    const blocked = decidePreSendFit(model4B, leftoverAfter4B);
+    assert(blocked.allow === false, "unloaded 4B vs 2.1 GiB leftover must refuse");
+    const d = decidePreSendFit(model4B, leftoverAfter4B, { alreadyResident: true });
+    assert(d.allow === true, `resident must allow, got ${JSON.stringify(d)}`);
+    assert(d.bannerKey === null, `no banner when resident, got ${d.bannerKey}`);
+  });
+
+  await test("decidePreSendFit unloaded + low availableMb → still blocked", () => {
+    const d = decidePreSendFit(model4B, leftoverAfter4B);
+    assert(d.allow === false, "unloaded must still refuse");
+    assert(
+      d.reasonKey === "model.tooLarge" || d.reasonKey === "model.tightNow",
+      `reason ${d.reasonKey}`,
+    );
+    const tiny = decidePreSendFit(model2B, halfGiB);
+    assert(tiny.allow === false, "unloaded 2B vs 512 MiB must refuse");
+    assert(tiny.reasonKey === "model.tooLarge", tiny.reasonKey);
+  });
+
+  await test("decidePreSendFit recoverLost + low availableMb → reload allowed", () => {
+    const blocked = decidePreSendFit(model4B, leftoverAfter4B);
+    assert(blocked.allow === false, "unloaded without recover must refuse");
+    const d = decidePreSendFit(model4B, leftoverAfter4B, {
+      recoverLost: true,
+      lostModelId: "qwen-4b",
+      requestedModelId: "qwen-4b",
+    });
+    assert(d.allow === true, `recoverLost must allow, got ${JSON.stringify(d)}`);
+    assert(d.bannerKey === null, `no banner on recover, got ${d.bannerKey}`);
+  });
+
+  await test("decidePreSendFit recoverLost for a DIFFERENT model id must NOT bypass", () => {
+    const d = decidePreSendFit(model4B, leftoverAfter4B, {
+      recoverLost: true,
+      lostModelId: "qwen-4b",
+      requestedModelId: "qwen-2b",
+    });
+    assert(d.allow === false, `foreign model must still refuse, got ${JSON.stringify(d)}`);
+    const unscoped = decidePreSendFit(model4B, leftoverAfter4B, {
+      recoverLost: true,
+    });
+    assert(unscoped.allow === false, "unscoped recoverLost must fail closed");
+  });
+
+  // --- P1 engine-lost state machine (on-contact, not RSS) ---
+  const rssReady = 3000 * 1024 * 1024;
+  const rssZombie = 167 * 1024 * 1024;
+
+  await test("parseProcessRssBytes reads VmRSS kB", () => {
+    const bytes = parseProcessRssBytes("Name:\tfoo\nVmRSS:\t171088 kB\nVmSize:\t1 kB\n");
+    assert(bytes === 171088 * 1024, `got ${bytes}`);
+    assert(parseProcessRssBytes("nope") === null, "malformed");
+    assert(parseProcessRssBytes("") === null, "empty");
+  });
+
+  await test("decideEngineLiveness contact ok stays alive", () => {
+    const v = decideEngineLiveness({ jsReady: true, contact: "ok" });
+    assert(v.status === "alive", v.status);
+  });
+
+  await test("alive-but-slow first send / RSS collapse must NOT mark lost", () => {
+    // mmap eviction looks like the field 3 GB → 167 MB reading. Live engine.
+    const collapsed = decideEngineLiveness({
+      jsReady: true,
+      contact: "ok",
+      rssBytes: rssZombie,
+      lastKnownRssBytes: rssReady,
+    });
+    assert(collapsed.status === "alive", `ok ping + collapsed RSS must be alive, got ${JSON.stringify(collapsed)}`);
+    const noContact = decideEngineLiveness({
+      jsReady: true,
+      rssBytes: rssZombie,
+      lastKnownRssBytes: rssReady,
+      modelSizeBytes: 2693 * 1024 * 1024,
+    });
+    assert(noContact.status === "alive", "RSS-only must not invent lost");
+  });
+
+  await test("timeout send marks lost (native_timeout)", () => {
+    const v = decideEngineLiveness({ jsReady: true, contact: "timeout" });
+    assert(v.status === "lost" && v.reason === "native_timeout", JSON.stringify(v));
+    const err = decideEngineLiveness({ jsReady: true, contact: "error" });
+    assert(err.status === "lost" && err.reason === "native_error", JSON.stringify(err));
+    assert(
+      typeof ENGINE_CONTACT_PROBE_TIMEOUT_MS === "number" &&
+        ENGINE_CONTACT_PROBE_TIMEOUT_MS > 0 &&
+        ENGINE_CONTACT_PROBE_TIMEOUT_MS <= 30_000,
+      `timeout budget ${ENGINE_CONTACT_PROBE_TIMEOUT_MS}`,
+    );
+  });
+
+  await test("mid-stream probe attempt must no-op (busy → alive)", () => {
+    const v = decideEngineLiveness({ jsReady: true, contact: "busy" });
+    assert(v.status === "alive", `busy must not mark lost, got ${JSON.stringify(v)}`);
+  });
+
+  await test("stuck background job + dead contact → lost marked (no user turn)", () => {
+    const d = decideContactProbe({
+      jsReady: true,
+      userTurnLive: false,
+      pendingJobCount: 1,
+      contact: "timeout",
+    });
+    assert(d.issuePing === true, "pending job must not skip ping");
+    assert(d.markLost === true, "no user turn → mark lost");
+    assert(d.verdict.status === "lost" && d.verdict.reason === "native_timeout", JSON.stringify(d.verdict));
+    const err = decideContactProbe({
+      jsReady: true,
+      userTurnLive: false,
+      pendingJobCount: 3,
+      contact: "error",
+    });
+    assert(err.issuePing === true && err.markLost === true, "error + stuck jobs still marks");
+    assert(err.verdict.status === "lost" && err.verdict.reason === "native_error", JSON.stringify(err.verdict));
+  });
+
+  await test("stuck background job + dead contact + user turn → mark suppressed, ping ran", () => {
+    const d = decideContactProbe({
+      jsReady: true,
+      userTurnLive: true,
+      pendingJobCount: 1,
+      contact: "timeout",
+    });
+    assert(d.issuePing === true, "user turn must not skip ping");
+    assert(d.markLost === false, "user turn suppresses lost-mark");
+    assert(d.verdict.status === "alive", `suppressed mark reports alive, got ${JSON.stringify(d.verdict)}`);
+  });
+
+  await test("decideEngineLiveness js not ready → absent", () => {
+    const v = decideEngineLiveness({
+      jsReady: false,
+      contact: "timeout",
+      rssBytes: rssZombie,
+      lastKnownRssBytes: rssReady,
+    });
+    assert(v.status === "absent", v.status);
+  });
+
+  await test("decideEngineLiveness probe unavailable does not invent lost", () => {
+    const v = decideEngineLiveness({ jsReady: true, contact: "unavailable" });
+    assert(v.status === "alive", "false lost would leak a live model");
+    const missing = decideEngineLiveness({ jsReady: true, contact: null });
+    assert(missing.status === "alive", "omitted contact is fail-safe alive");
+  });
+
+  await test("bounded release: timeout → hung; settled → released", () => {
+    assert(
+      decideBoundedReleaseOutcome({ settled: false, hasActiveNative: true }) === "hung",
+      "timeout + active → hung",
+    );
+    assert(
+      decideBoundedReleaseOutcome({ settled: false, hasActiveNative: false }) === "hung",
+      "timeout even without tracked jobs → hung (never force-release)",
+    );
+    assert(
+      decideBoundedReleaseOutcome({ settled: true, hasActiveNative: false }) === "released",
+      "settled → released",
+    );
+  });
+
+  await test("recoverLost scoped to lost model; failed reload clears flag", () => {
+    let rec = initialEngineLostRecovery();
+    rec = nextEngineLostRecovery(rec, { type: "mark_lost", modelId: "qwen-4b" });
+    assert(rec.armed && rec.lostModelId === "qwen-4b", JSON.stringify(rec));
+    assert(shouldRecoverLost(rec.lostModelId, "qwen-4b") === true, "same id");
+    assert(shouldRecoverLost(rec.lostModelId, "qwen-2b") === false, "other id");
+    assert(shouldBypassRamGate(rec, "qwen-4b") === true, "bypass same");
+    assert(shouldBypassRamGate(rec, "qwen-2b") === false, "no bypass other");
+    rec = nextEngineLostRecovery(rec, { type: "load_fail" });
+    assert(rec.armed === false && rec.lostModelId === null, `cleared on fail: ${JSON.stringify(rec)}`);
+    assert(shouldBypassRamGate(rec, "qwen-4b") === false, "fail clears bypass");
+    rec = nextEngineLostRecovery(rec, { type: "mark_lost", modelId: "qwen-4b" });
+    rec = nextEngineLostRecovery(rec, { type: "load_ok" });
+    assert(rec.armed === false, "success also clears");
+    rec = nextEngineLostRecovery(rec, { type: "mark_lost", modelId: null });
+    assert(rec.armed === false, "null model id must not arm");
+  });
+
+  await test("decideEngineBarKind ready+jsReady → ready; lost → reload", () => {
+    assert(
+      decideEngineBarKind({
+        modelState: "ready",
+        jsReady: true,
+        activeMatches: true,
+      }) === "ready",
+      "resident",
+    );
+    assert(
+      decideEngineBarKind({
+        modelState: "ready",
+        jsReady: false,
+        activeMatches: false,
+      }) === "reload",
+      "lost leaves Ready",
+    );
+    assert(
+      decideEngineBarKind({
+        modelState: "loading",
+        jsReady: false,
+        activeMatches: false,
+      }) === "loading",
+      "reload in progress",
+    );
+  });
+
+  await test("foreground does not invent lost; chip leaves Ready when JS wrapper is gone", () => {
+    // AppShell no longer probes on AppState active. Chip kind is derived
+    // from existing jsReady — RSS collapse / foreground cannot flip Ready
+    // unless the JS wrapper is already gone.
+    assert(
+      decideEngineBarKind({
+        modelState: "ready",
+        jsReady: true,
+        activeMatches: true,
+      }) === "ready",
+      "resident stays Ready (foreground does not probe)",
+    );
+    assert(
+      decideEngineBarKind({
+        modelState: "ready",
+        jsReady: false,
+        activeMatches: false,
+      }) === "reload",
+      "chip leaves Ready when JS wrapper gone",
+    );
   });
 
   // --- mmproj accounting ---

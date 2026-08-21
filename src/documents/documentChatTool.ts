@@ -1055,7 +1055,7 @@ async function tryHybridRetrieve(
 }
 
 /** Truncate the passage list so total text stays under budgetChars. */
-function packPassagesToBudget(
+export function packPassagesToBudget(
   passages: RetrievedPassage[],
   budgetChars: number,
 ): RetrievedPassage[] {
@@ -1073,6 +1073,127 @@ function packPassagesToBudget(
     used += len;
   }
   return out.length > 0 ? out : passages.slice(0, 1);
+}
+
+export type DocumentChatExecute = (
+  name: string,
+  args: Record<string, unknown>,
+  signal?: AbortSignal,
+) => Promise<{
+  passages?: RetrievedPassage[];
+  strategy?: string;
+  error?: string;
+  text?: string;
+}>;
+
+export type LibraryRetrieveResult = {
+  passages: RetrievedPassage[];
+  failed: number;
+  aborted: boolean;
+  /** Set when a per-doc deadline passed mid-walk (caller may stop early). */
+  deadlineHit?: boolean;
+};
+
+/** Max text harvested from a full_context doc into one research passage. */
+const FULL_CONTEXT_PASSAGE_CAP_CHARS = 1600;
+
+/**
+ * Run the existing document_chat executor once per library doc for a query.
+ * Sequential so the shared READ gate is not fought. Dedupes by (docId, chunkId).
+ * When `deadlineAt` is provided the per-doc walk stops (deadlineHit) instead of
+ * starting a doc call that would exceed it.
+ */
+export async function retrieveLibraryPassages(
+  execute: DocumentChatExecute,
+  query: string,
+  docs: LibraryDoc[],
+  signal?: AbortSignal,
+  deadlineAt?: number,
+): Promise<LibraryRetrieveResult> {
+  const passages: RetrievedPassage[] = [];
+  const seen = new Set<string>();
+  let failed = 0;
+  const list = Array.isArray(docs) ? docs : [];
+  const q = typeof query === "string" ? query.trim() : "";
+  if (!q) return { passages, failed, aborted: Boolean(signal?.aborted) };
+
+  for (const doc of list) {
+    if (signal?.aborted) {
+      return { passages, failed, aborted: true };
+    }
+    if (deadlineAt && Date.now() >= deadlineAt) {
+      return { passages, failed, aborted: false, deadlineHit: true };
+    }
+    if (!doc || typeof doc.id !== "string" || !doc.id) continue;
+    let result: {
+      passages?: RetrievedPassage[];
+      strategy?: string;
+      error?: string;
+      text?: string;
+    };
+    try {
+      result = await execute("document_chat", { query: q, docId: doc.id }, signal);
+    } catch {
+      failed += 1;
+      continue;
+    }
+    if (signal?.aborted) {
+      return { passages, failed, aborted: true };
+    }
+    if (!result || result.strategy === "error") {
+      failed += 1;
+      continue;
+    }
+    const before = passages.length;
+    const rows = Array.isArray(result.passages) ? result.passages : [];
+    for (const p of rows) {
+      if (!p || typeof p.chunkId !== "string") continue;
+      const key = `${p.docId}\0${p.chunkId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      passages.push(p);
+    }
+    // Small docs answered via full_context return passages: [] and put the
+    // body on result.text (with a localized header line) — synthesize one
+    // passage so the library harvest does not collapse to no_results.
+    // Truncate to the cap so ONE doc body cannot blow the research budget
+    // (packPassagesToBudget always keeps the first passage).
+    if (result.strategy === "full_context") {
+      const body = typeof result.text === "string" ? result.text.trim() : "";
+      const clean =
+        body.length > 0 ? body.replace(/^[^\n]*\n\n/, "").trim() : ""; // strip header line
+      if (clean) {
+        const docId =
+          typeof doc.sourceId === "string" && doc.sourceId ? doc.sourceId : doc.id;
+        const key = `${docId}\0${doc.id}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          passages.push({
+            docId,
+            chunkId: doc.id,
+            granularity: "paragraph",
+            text:
+              clean.length > FULL_CONTEXT_PASSAGE_CAP_CHARS
+                ? clean.slice(0, FULL_CONTEXT_PASSAGE_CAP_CHARS)
+                : clean,
+            score: 1,
+            round: 0,
+            rankInRound: 1,
+          });
+        }
+      }
+    }
+    const added = passages.length - before;
+    // vision_fallback never yields usable passages; empty full_context is the
+    // same. bm25_only / hybrid / retrieve with 0 hits are search misses, not failures.
+    if (
+      result.strategy === "vision_fallback" ||
+      (result.strategy === "full_context" && added === 0)
+    ) {
+      failed += 1;
+    }
+  }
+  return { passages, failed, aborted: Boolean(signal?.aborted) };
 }
 
 // ── helpers ────────────────────────────────────────────────────────────────

@@ -45,6 +45,7 @@ export const en = {
     notes: "Notes",
     personas: "Persona",
     personaNone: "Default",
+    account: "Account",
   },
 
   settings: {
@@ -88,7 +89,7 @@ export const en = {
     context: "Context",
     contextCompaction: "Smart conversation memory",
     contextCompactionHint:
-      "Off by default. When on, older turns are compacted into a short digest so long chats keep relevant facts without a huge sliding window. Experimental — enable for testing.",
+      "On by default. Older turns are compacted into a short digest so long chats keep relevant facts without a huge sliding window. Turn off to use the legacy sliding window.",
     sessionPool: "Instant chat reopen",
     sessionPoolHint:
       "Keeps recent chats ready so switching back skips the long wait. Uses device storage, not memory. About 7 chats by default.",
@@ -490,6 +491,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     a11yLongPress: "Long press for copy, translate, or save to notes",
     saveToNotes: "Save to notes",
     lookAtAttachedFile: "Look at the attached file.",
+    visionUnsupportedNotice:
+      "The active model can't see images — switch to a vision model (Qwen 3.5 4B or Gemma 4) in Settings to analyze photos.",
     a11yAttach: "Add attachment",
     a11yRemoveAttachment: "Remove attachment",
     a11yStop: "Stop generation",
@@ -506,6 +509,21 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     regenFailed: "Regenerate failed",
     editEmpty: "Add a caption or keep an attachment.",
     sendAborted: "Generation stopped before a reply started.",
+    deepResearch: "Deep research",
+    deepResearchActive: "Deep research on — tap to disable",
+    deepResearchPlanning: "Planning research…",
+    deepResearchQuery: "Query {n}/{total}…",
+    deepResearchWriting: "Writing report…",
+    deepResearchNoResults:
+      "The library returned no relevant passages for this question.",
+    deepResearchPartial: " (partial — some sources were unavailable)",
+    deepResearchNeedsQuestion: "Ask a question to research your library.",
+    deepResearchIgnoringImages:
+      "Deep research works on text documents — images on this message won't be used.",
+    deepResearchWriterFailed:
+      "The report could not be finished on this device — retrieved passages below.",
+    deepResearchInterrupted:
+      "Research was interrupted because the model engine changed. Send again to retry.",
   },
 
   notify: {
@@ -795,6 +813,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       "Text extraction for “{name}” failed (file read error). Ask the user to re-import from Documents.",
     documentChatExtractFailed:
       "Text extraction for “{name}” failed. Ask the user to re-import from Documents (retry).",
+    deepResearchEmptyLibrary:
+      "No documents in the library to research. Add documents first.",
+    deepResearchAttachedMissing:
+      "The attached documents are no longer in the library. Add them back and send again.",
   },
 
   /** PdfToImages component (WebView bridge that renders PDF pages to JPEG). */
@@ -937,6 +959,39 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     bodyPlaceholder: "Write a note…",
     errorSave: "Could not save the note.",
     errorLoad: "Could not open the note.",
+  },
+
+  account: {
+    title: "Account",
+    loading: "Loading account",
+    signInGoogle: "Continue with Google",
+    signInApple: "Continue with Apple",
+    orContinueEmail: "or continue with email",
+    emailPlaceholder: "Email address",
+    emailInvalid: "Enter a valid email address",
+    saveFailed: "Could not save the account on this phone. Try again.",
+    disabledProviders:
+      "Sign in with Google or Apple is available when Kalsa is installed from the Play Store or the App Store.",
+    socialUnavailable:
+      "Store sign-in is not connected yet. Continue with email on this phone.",
+    planCurrent: "Current plan: Free",
+    upgradeToPro: "Upgrade to Pro",
+    signOut: "Sign out",
+    optionalHint:
+      "No account? No problem — everything stays on this phone.",
+    avatarA11y: "Account avatar",
+    proTitle: "Pro",
+    proHero: "Kalsa Pro — unlock the full lab",
+    proBenefit1: "Keep long chats coherent without losing the thread",
+    proBenefit2: "More room for harder questions on this device",
+    proBenefit3: "Get more from the documents already on your phone",
+    proBenefit4: "Stay first in line when new lab tools land",
+    proPrice: "{price}/month",
+    proPriceValue: "$4.99",
+    proBilledMonthly: "billed monthly",
+    proCancelAnytime: "Cancel anytime",
+    proCta: "Upgrade to Pro",
+    proComingSoon: "Payments are not connected yet — Pro is coming soon.",
   },
 
   /**

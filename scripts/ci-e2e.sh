@@ -49,6 +49,8 @@ log "set prefs: model=$MODEL_DIR compaction=$COMPACTION_IN thinking=$THINKING"
 sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR');"
 [ "$COMPACTION_IN" = "on" ] && sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.context.compaction','1');"
 [ "$COMPACTION_IN" = "off" ] && sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.context.compaction','0');"
+# Explicit-choice marker so leftover "0" is not upgraded to ON (V2-3).
+[ "$COMPACTION_IN" = "on" ] || [ "$COMPACTION_IN" = "off" ] && sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.context.compaction.choice','1');"
 sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.thinking','$THINKING');"
 sql "SELECT key,substr(value,1,40) FROM catalystLocalStorage;" | tee "$OUT/prefs.txt"
 
