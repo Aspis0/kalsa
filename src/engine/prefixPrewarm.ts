@@ -80,7 +80,7 @@ export function buildStaticPrefixMessages(systemText: string): StaticPrefixMessa
  *
  * Disk restore is split: hybrid/kvUnified loadSession is not a real native
  * restore (n_past=0) so prewarm must still run when the hash is null. Dense
- * restores (Gemma) populate real KV — see shouldSkipPrewarmAfterRestore.
+ * a restore populated real KV — see shouldSkipPrewarmAfterRestore.
  *
  * Hash is identity-only (locale + systemText + tool name/schema), not a
  * byte-proof of the rendered jinja prompt.
@@ -93,16 +93,24 @@ export function shouldSkipStaticPrefixPrewarm(
 }
 
 /**
- * Dense restore populated real chat KV. A system+user"." prewarm would
- * seq_rm-succeed and delete the restored tail; first send then re-prefills
- * the whole history. Hybrid/kvUnified restores are not real (n_past=0) —
- * never skip those.
+ * A restore that populated chat KV must not be prewarmed over: a
+ * system+user"." prewarm seq_rm-succeeds and deletes the restored tail, and
+ * the first send then re-prefills the whole history.
+ *
+ * This used to skip only for DENSE models, on the assumption that "hybrid /
+ * kvUnified restores are not real (n_past=0)". **Measured false on 2026-08-21**
+ * (HARNESS_FINDINGS §7.29): on LFM2.5-8B-A1B-KEXP — hybrid — a restore after
+ * force-stop logged `is_hybrid=1 resumable=1`, loaded in 19 ms, and the next
+ * send ran at `n_past=1473` with `promptMs` ~2 s, twice. The KV was real, and
+ * the architecture never told us whether it would be.
+ *
+ * So the condition is the restore, not the architecture. Qwen3.5-2B also
+ * restores, then loses the KV at prompt time ("no usable state checkpoint …
+ * doing full cache clear") because its prompt diverges — a prewarm would not
+ * have survived that either, so skipping is right there too.
  */
-export function shouldSkipPrewarmAfterRestore(
-  kvHoldsChatSession: boolean,
-  hybridOrKvUnified: boolean,
-): boolean {
-  return kvHoldsChatSession === true && hybridOrKvUnified === false;
+export function shouldSkipPrewarmAfterRestore(kvHoldsChatSession: boolean): boolean {
+  return kvHoldsChatSession === true;
 }
 
 export function assembleStaticPrefix(input: {

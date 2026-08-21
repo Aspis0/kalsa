@@ -163,6 +163,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     kvUnified: true,
     // MTP non impostato: GGUF Q3 non validato con tensori NextN (da device test).
     thinking: { short: 256, extended: 512 },
+    // Measured §7.29: without this the think block stays in KV and vanishes
+    // from stored history, so the prompt diverges every turn and a recurrent
+    // model clears the whole cache — 104-138 s of prefill on the Jelly.
+    preserveThinking: true,
     descriptionKey: "models.qwen4bQ3.description",
     ramBadgeKey: "models.qwen4bQ3.ramBadge",
     minRamTier: "mid",
@@ -204,6 +208,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     // nPredict 2560 = extended 1536 + the 1024 answer floor (miniapp JSON blew
     // past 512; n_predict counts think + answer, so 2048 would leave only 512).
     thinking: { short: 512, extended: 1536, nPredict: 2560 },
+    // Measured §7.29: without this the think block stays in KV and vanishes
+    // from stored history, so the prompt diverges every turn and a recurrent
+    // model clears the whole cache — 104-138 s of prefill on the Jelly.
+    preserveThinking: true,
     descriptionKey: "models.qwen2b.description",
     ramBadgeKey: "models.qwen2b.ramBadge",
     minRamTier: "low",

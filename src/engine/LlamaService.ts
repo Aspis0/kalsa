@@ -649,17 +649,11 @@ export function queueStaticPrefixPrewarm(
     return;
   }
   const prefix = resolvePrewarmPrefix(locale, tools);
-  // Skip only if this process already prewarmed / marked this prefix.
-  // Do not skip solely because kvHoldsChatSession — hybrid restore reports
-  // ok:true while native n_past=0; skipping would leave a cold KV.
-  // Dense restore (Gemma) is real: prewarm seq_rm would delete the tail.
-  if (
-    shouldSkipPrewarmAfterRestore(
-      kvHoldsChatSession,
-      isHybridOrKvUnifiedModel(activeModelId ?? ""),
-    )
-  ) {
-    logPrewarm({ op: "skip", reason: "dense_restore" });
+  // A restore that populated KV must not be prewarmed over — hybrid included.
+  // §7.29 measured n_past=1473 after a hybrid restore on KEXP, so the old
+  // "hybrid restores are not real" carve-out was wrong.
+  if (shouldSkipPrewarmAfterRestore(kvHoldsChatSession)) {
+    logPrewarm({ op: "skip", reason: "restored_kv" });
     return;
   }
   if (

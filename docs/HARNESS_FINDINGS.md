@@ -1503,6 +1503,55 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.29 MEASURED 2026-08-21: the hybrid restore is real — `n_past=1473` against the assumed 0, and what kills the cache is a prompt that is not an exact continuation
+
+Ran to settle a disagreement that turned out not to be one. `TTFT_FIXES.md` assumes a hybrid
+`loadSession` does **not** populate native KV ("Q6.c"), and the prewarm gate was built on that
+assumption. §7.25 measured the opposite. Checking the source first: Q6.c is listed under
+*"explicitly not in this branch — out of scope. We prewarm after restore and we log honest
+KALSA_KVDIAG"*. **It was never measured.** It is a conservative assumption, honestly labelled, and
+this section replaces it with a number. The claim that our two measurements contradicted each other
+was wrong, and it was mine.
+
+Jelly Star, on the charger (the signal is a 50× ratio, not a rate — no timing precision needed),
+APK `fb941ef`, which **predates the prewarm**, so `loadSession` is measured alone. n=2 per model.
+
+| after force-stop + relaunch | `n_past` on the next send | `promptMs` |
+|---|---|---|
+| **LFM2.5-8B-A1B-KEXP** (LFM2MoE, hybrid) | **1368 · 1473 · 1517 · 1604** | **4.30 · 2.14 · 2.00 · 1.99 s** |
+| **Qwen3.5-2B** (hybrid, kvUnified) | **0 · 0** + `full cache clear` | **104.4 · 112.7 · 122.0 · 138.0 s** |
+
+**The restore succeeds on both.** Qwen logs `is_hybrid=1 resumable=1` too and loads 1605 tokens in
+43 ms. What differs is what happens at the *next prompt*:
+
+```
+KALSA_KVDIAG n_common=1591 total=1627 search_max=1591
+no usable state checkpoint (recurrent/hybrid/SWA model), doing full cache clear
+```
+
+So the rule is not "hybrid restores are fake". It is: **the restore is real, and it is destroyed by
+whoever sends a prompt that is not an exact continuation** — and on a recurrent model there is no
+partial credit, so the whole cache goes. That is §7.12's bimodality seen from the restore side.
+
+**Qwen's divergence is now measured, not inferred.** §7.28 deduced from the registry that
+`qwen3.5-2b` declares `thinking` without `preserveThinking`; here the mechanism is on the wire — 14
+reasoning tokens sit in KV and are absent from the re-rendered prompt. It also happens **without** a
+force-stop (122 s), which is what proves the restore is not the failing part.
+
+**Two fixes follow, both landed with this section:**
+
+1. `shouldSkipPrewarmAfterRestore` no longer asks whether the model is dense. It asks whether the
+   restore populated KV, because the architecture never told us that and the carve-out was built on
+   the unmeasured Q6.c. On the merged branch the prewarm would otherwise `seq_rm` over a live
+   1600-token session on the model we ship. Skipping is right for Qwen too: its KV is cleared at
+   prompt time anyway, so the prewarm would not have survived either.
+2. `preserveThinking: true` on `qwen3.5-2b` and `qwen3.5-4b-q3`. §7.28 called this hygiene; at
+   104-138 s of prefill per turn it is not.
+
+**Limits.** One phone, one APK, two models. Nothing here says what the prewarm does *after* the fix —
+that needs a build carrying the merge, which does not exist yet. The 2 s figures are on the charger
+and are ratios, not quotable rates.
+
 ### 7.28 MEASURED 2026-08-21: the two small models both lose to the 8B MoE on the Jelly — bytes per token beat file size, and one of them never reuses its cache at all
 
 Ran to answer "does a smaller model rescue the Jelly", after §7.27 concluded — wrongly — that it
@@ -3282,6 +3331,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 
 | date | change |
 |---|---|
+| 2026-08-21 | **§7.29: the hybrid restore is real — `n_past=1473`, not the assumed 0 — and the thing that destroys the cache is a divergent prompt, not the architecture.** KEXP after force-stop: `is_hybrid=1 resumable=1`, loaded in 19 ms, next send at n_past 1368-1604 and **~2 s of prefill**, n=2. Qwen3.5-2B restores just as well (1605 tokens in 43 ms) and then logs `no usable state checkpoint … doing full cache clear`, **n_past=0 and 104-138 s**. **Correction, mine:** this was reported as two of our measurements disagreeing. It was not — `TTFT_FIXES.md` lists Q6.c under *"explicitly not in this branch, out of scope"*, so it was an honestly-labelled assumption and §7.25 was the only measurement. §7.28's inferred cause for Qwen is now measured on the wire: 14 reasoning tokens in KV, absent from the re-rendered prompt, and it reproduces **without** a force-stop (122 s), which is what clears the restore of blame. Two fixes landed: `shouldSkipPrewarmAfterRestore` now keys on whether the restore populated KV rather than on dense-vs-hybrid (otherwise the merged branch's prewarm `seq_rm`s over a live 1600-token session on the model we ship), and `preserveThinking` is set on both Qwen entries that lacked it. Limits: one phone, one APK that predates the prewarm, two models; what the prewarm does after the fix is untested because no build carries the merge yet. |
 | 2026-08-21 | **§7.28: the two small models lose to the 8B MoE on the Jelly, and one never reuses its cache.** KEXP **7.31** against LFM2.5-2.6B **5.47 mean** and Qwen3.5-2B **~6.0** — the sparse 8B wins with a file 2-3x larger, because decode reads `MB/token` (848) and a dense 2B reads more (~1230-1600). §7.27's "needs a smaller model" retracted: it needs a smaller **byte budget**. Predictions written before the run and scored after: over-predicted both by up to 33 %, while the same method hit **8.1 predicted vs 8.06 measured** on the S23 — the byte budget holds where the machine is bandwidth-bound and fails where it is dequant-bound. Effective throughput on one phone spans **46 % by packing alone** (8.75 / 7.37 / 5.98 GB/s), so the §9 per-device scalar must be per quant family; caveat, the two dense MB/tok are file-size estimates and part of that spread may be estimation error. **New defect found: `qwen3.5-2b` and `qwen3.5-4b-q3` declare `thinking` without `preserveThinking`**, so the think block enters the KV and vanishes from history — divergence every turn from turn 2, which is what the 80-128 s prefill is. Inferred from the registry, not measured by toggling. All arms 4 turns, so none of these numbers can see the turn-11 collapse. |
 | 2026-08-21 | **§7.27: unplugged on the Jelly, KEXP wins by 1.7x — the CLI ranking inverts inside the app, and neither quant is within 2.7x of the product floor.** First Jelly timings taken off the charger, so the first ones quotable at all. KEXP **7.31 / 7.14 / 6.95 / 6.80** against Q4_K_M **4.23**, reversing `ALIVE.md`'s 10.60-vs-8.83 CLI ordering on this same phone. Cause is headroom, not arithmetic: add Kalsa's ~1.5 GB and Q4_K_M runs at **0.92 GB `MemAvailable`** with a creeping `io_read`, while KEXP sits at **2.37 GB** with the counter **exactly frozen**. Decode is 1.73x apart on files 1.55x apart, prefill only 1.16x — the excess is reclaim, not bytes. **Benchmark the quant inside the binary that ships it.** §7.25's KV reuse confirmed unplugged and across turns: prefill 132.8 s -> ~2.8 s, `tokensCached` 2253 -> 3153. **Product: the Jelly cannot run this model in any quant tested** — 7.31 against a 20 tok/s floor is 2.7x, the first hard "neither option qualifies" for per-phone selection. Limits stated: n=1, Q4_K_M has a single turn-1 number because its turn 2 never finished in 420 s (so it is compared against a 4-turn plateau, which §7.20 forbids), differing prompt lengths make only the prefill *rates* comparable, and Q4_K_M **survived** here where §7.26 lost it to a suspected lmkd — two runs, two outcomes, uncontrolled. Instrument gap: this ran on a hand-written script because `ci-bench.sh` cannot type into the Jelly's composer without double-landing text, so no graded arm can run on this phone yet. |
 | 2026-08-20 | **§7.26: the residency hypothesis is confirmed on a second phone — and full residency turns out not to be survival.** The same Q4_K_M file (md5 verified identical) that sits at 51 % on the S23 goes **100 % resident** on the Jelly Star, which has 1.6 GB more `MemAvailable`. So residency is governed by available memory, not file size, and every conclusion §7.20-§7.24 drew from one device now has a second point. **But holding the whole file pushed `MemAvailable` to 0.83 GB and the process was killed about two minutes later, with no reply produced.** The rule the RAM gate needs is therefore `model <= available - headroom`, with headroom > 0.8 GB — and today `estimateMemory` models non-evictable memory only and is blind to page-cache residency, the thing that decides between 22 tok/s, 0.26 tok/s and a dead app. Two calibration points now exist and they fail differently: S23 51 %/survives/25x slow, Jelly 100 %/killed. Stated rather than implied: the kill was not confirmed as lmkd in logcat, `read_bytes` hit 9.82 GB for a 5.15 GB file (~1.9x, unexplained), n=1, on the charger. |
