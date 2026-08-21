@@ -1,6 +1,7 @@
 # Shared helpers for W5. Dot-source from the other scripts. Do not run this file.
 $ErrorActionPreference = "Stop"
 $UsbSerial = "R3CW406P8CV"
+$TlsSerial = "adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp"
 $Jelly = "192.168.1.82"
 $DevDir = "/data/local/tmp/s3oracle"
 $PinImplNoex = "d2030f23db3b4f62f6934c9de831050e71e87c7cfda6e5059d53099ec8b60346"
@@ -22,12 +23,21 @@ foreach ($c in @(
 }
 if (-not $Adb) { throw "adb not found" }
 
+function Resolve-S23Serial {
+    $devs = (& $Adb devices | Out-String)
+    if ($devs -match '(?m)^R3CW406P8CV\s+device') { return "R3CW406P8CV" }
+    if ($devs -match [regex]::Escape($TlsSerial)) { return $TlsSerial }
+    throw "S23 not in 'adb devices' (tried USB R3CW406P8CV and TLS). Jelly is forbidden."
+}
+$Serial = Resolve-S23Serial
+Write-Host "S23 serial=$Serial"
+
 function Invoke-S23([string[]]$A) {
-    & $Adb -s $UsbSerial @A
+    & $Adb -s $Serial @A
     if ($LASTEXITCODE -ne 0) { throw "adb failed: $A (exit $LASTEXITCODE)" }
 }
 function AdbOut([string]$ShellCmd) {
-    $o = & $Adb -s $UsbSerial shell $ShellCmd
+    $o = & $Adb -s $Serial shell $ShellCmd
     if ($LASTEXITCODE -ne 0) { throw "adb shell failed: $ShellCmd (exit $LASTEXITCODE)" }
     return ($o | Out-String).Trim()
 }
@@ -36,18 +46,17 @@ function Assert-UsbS23 {
     if ($devs -match [regex]::Escape($Jelly)) {
         Write-Host "NOTE: Jelly is visible — this script will not use it."
     }
-    if (-not ($devs | Select-String -Pattern "^$UsbSerial\s+device")) {
-        throw "USB serial $UsbSerial not in 'adb devices'. Plug the S23. Do not use Jelly."
-    }
+    $script:Serial = Resolve-S23Serial
+    Write-Host "S23 serial=$script:Serial"
 }
 function Assert-Unplugged {
-    $batt = AdbOut "dumpsys battery"
-    $usb = ($batt | Select-String -Pattern "USB powered:\s*(true|false)" | Select-Object -First 1).ToString()
-    $ac  = ($batt | Select-String -Pattern "AC powered:\s*(true|false)" | Select-Object -First 1).ToString()
-    Write-Host "batt: $usb / $ac"
-    if ($usb -match "true" -or $ac -match "true") {
+    # Header lines only. The dumpsys event log still contains historical usb:true.
+    $hdr = AdbOut "dumpsys battery | grep -E '^  (USB|AC) powered:'"
+    Write-Host "UNPLUG_GATE: $hdr"
+    if ($hdr -notmatch "USB powered:\s*false" -or $hdr -notmatch "AC powered:\s*false") {
         throw "Device is plugged (USB/AC). W5 is a thermal cell — wait for the owner to unplug, then re-run."
     }
+    Write-Host "UNPLUG_GATE: PASS (USB=false AC=false)"
 }
 function CheckSha([string]$Rel, [string]$Expect) {
     $line = AdbOut "sha256sum $DevDir/$Rel"
@@ -66,11 +75,11 @@ function Assert-NoextraImpl {
     CheckSha "libggml-opencl.so" $PinOpencl
 }
 function Get-Sensors {
-    $batt = AdbOut "dumpsys battery"
-    $lvl = ([regex]::Match($batt, "(?m)^\s*level:\s*(\d+)")).Groups[1].Value
-    $tempRaw = ([regex]::Match($batt, "(?m)^\s*temperature:\s*(\d+)")).Groups[1].Value
+    $hdr = AdbOut "dumpsys battery | grep -E '^  (level|temperature):'"
+    $lvl = ([regex]::Match($hdr, "level:\s*(\d+)")).Groups[1].Value
+    $tempRaw = ([regex]::Match($hdr, "temperature:\s*(\d+)")).Groups[1].Value
     $tempC = if ($tempRaw) { [math]::Round([int]$tempRaw / 10.0, 1) } else { "" }
-    $wake = (AdbOut "dumpsys power" | Select-String -Pattern "mWakefulness=" | Select-Object -First 1)
+    $wake = AdbOut "dumpsys power | grep mWakefulness="
     $memA = ([regex]::Match((AdbOut "grep MemAvailable /proc/meminfo"), "(\d+)")).Groups[1].Value
     $memF = ([regex]::Match((AdbOut "grep MemFree /proc/meminfo"), "(\d+)")).Groups[1].Value
     return [pscustomobject]@{

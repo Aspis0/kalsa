@@ -18,7 +18,7 @@ $pre = Write-Sensors "PROBE_PRE"
 $errRemote = "$DevDir/logs/probe_ngl${Ngl}.err"
 $outLog = Join-Path $Root "probe_ngl${Ngl}.stdout.txt"
 $cmd = "sh $DevDir/one_cell.sh -ngl $Ngl -p 0 -n 16 -r 1 2>$errRemote"
-& $Adb -s $UsbSerial shell $cmd 2>&1 | Tee-Object -FilePath $outLog
+& $Adb -s $Serial shell $cmd 2>&1 | Tee-Object -FilePath $outLog
 $rc = $LASTEXITCODE
 $post = Write-Sensors "PROBE_POST"
 Write-Host "probe rc=$rc ngl=$Ngl (0 = llama-bench lived). If power-off, STOP and do not raise ngl."

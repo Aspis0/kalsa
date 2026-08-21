@@ -102,7 +102,7 @@ DEATH  (MemAvailable still ~5.1 GB)
 
 The W4 mem_poll missing-cliff is a footnote, not a veto: ngl=0 + extra_bufts=true started a 7.5 GB GGUF read / LMK storm and panicked before a 13 s copy crater could be sampled. W1 still has that crater; W4c shows turning extra_bufts off removes the wall with populate left on.
 
-**W5 (OLMoE speed/thermal) is staged, not run:** `results/olmoe_gpu_moe_s23/`. Both arms use noextra impl `d2030f23` (stock extra_bufts on 3.92 GiB Q4_K would re-risk the wall). `-fa off`. Wait for unplug green light.
+**W5 (OLMoE speed/thermal) RAN 2026-08-21 unplugged:** `results/olmoe_gpu_moe_s23/RESULT.md`. ngl=16 stable. GPU experts **2.17× burst tg** / **~1.5× sustained** vs CPU experts, equal-or-lower temp. Both arms noextra `d2030f23`. Exploratory.
 
 ## Prior evidence (exploratory cell, already spent)
 

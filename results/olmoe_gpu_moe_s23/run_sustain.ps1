@@ -35,7 +35,7 @@ foreach ($arm in @("A","B")) {
         $errRemote = "$DevDir/logs/$tag.err"
         $outLog = Join-Path $Root "$tag.stdout.txt"
         $cmd = "sh $DevDir/one_cell.sh $extra -p 0 -n 512 -r 1 2>$errRemote"
-        & $Adb -s $UsbSerial shell $cmd 2>&1 | Tee-Object -FilePath $outLog
+        & $Adb -s $Serial shell $cmd 2>&1 | Tee-Object -FilePath $outLog
         $rc = $LASTEXITCODE
         $post = Write-Sensors "${tag}_POST"
         $relOut = Split-Path $outLog -Leaf
