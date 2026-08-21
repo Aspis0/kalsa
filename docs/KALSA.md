@@ -140,6 +140,7 @@ model separates the two, which is the whole of KEXP's 848.
 | LFM2.5-8B-A1B-KEXP | same | 3.33 GB | ~848 | S23 | **production (repack)** | **unstable: 0.45 – 19.96 across 13 turns** (§7.21) | trunk repack costs ~0.5 GB anon |
 | LFM2.5-8B-A1B-KEXP | same | 3.33 GB | ~848 | Jelly (G99) | CLI, `k=4` | 8.83 — **slower than Q4_K_M on this SoC** | — |
 | **LFM2.5-8B-A1B-KEXP** | same | 3.33 GB | ~848 | **Jelly (G99)** | **in-app, `norepack=1`, unplugged, 4 turns** | **7.31 · 7.14 · 6.95 · 6.80** — **1.6× faster than Q4_K_M in the app** (§7.27) | **100 %** (`RssFile` 3.42 GB), `io_read` frozen at 3 389 177 856 — **zero flash re-reads**, 2.37 GB headroom |
+| LFM2.5-8B-A1B-KEXP | same | 3.33 GB | 848 | Jelly (G99) | **in-app, `norepack=1`, ON THE CHARGER, 5 restore cycles** | **7.43 · 7.04 · 7.12 · 7.10 · 7.26** (§7.30) — reproduces the unplugged row above, so charging is not inflating decode on this phone | — |
 | Qwen3.5-4B | Q4_K_M | 2.83 GB | ~2700 | S23 | production (repack) | **8.06** | `RssAnon` 3.77 GB, `MemAvailable` 930 MB, **961 majflt/token** |
 | LFM2.5-2.6B | Q4_K_M | 1.67 GB | **1666** (tensor map, §7.31) | Jelly (G99) | **in-app, production, unplugged, 4 turns** | **5.68 · 5.53 · 5.40 · 5.27** (§7.28) | `RssAnon` 1.95 GB (repack), `MemAvailable` 2.27 GB — prefill 190 s → **2.7-3.2 s, KV reused** |
 | Qwen3.5-2B | Q4_K_M | 1.28 GB | **1270** (tensor map, §7.31) | Jelly (G99) | **in-app, production, unplugged, 4 turns** | **6.61 · 5.73 · 4.94 · 6.70** (§7.28) | **prefill never drops: 80.7 · 101.3 · 127.7 · 85.2 s — KV never reused** |
@@ -322,6 +323,17 @@ not.
 | `MemAvailable` idle | **5.36 GB** | 4.0–4.2 GB |
 | Android | **13 (API 33)** | 15 |
 | what fits resident | the 5.15 GB Q4_K_M **does** (10.60 tok/s, CLI) | it does not (0.26–0.36) |
+
+**Measured 2026-08-21 (§7.32, §7.36) — read rather than assumed:**
+
+| | |
+|---|---|
+| Cores | **6×A55** (`cpu_capacity` 348, max 2.0 GHz) + **2×A76** (1024, 2.2 GHz). Governor `sugov_ext` on the big pair; the little policy's governor file is `0660 system:system` and unreadable from shell |
+| Threads | `deviceTuning.ts` preset `helio-g99`: decode **2** (= the two A76s), prefill **8**. **Correct, measured** — prefill `promptMs` is 113 867 / 92 999 / 77 419 / 72 121 ms at 2/4/6/8 threads, monotonic, and the 2/4/6 arms repeat within **0.1 %** when the run order is reversed (§7.36). More threads is faster; 8 is **not** distinguishable from 6 |
+| Storage | **UFS**, not eMMC (`/sys/class/block/sda` under `11270000.ufshci`, no `mmcblk*`; `ro.vendor.mtk_emmc_support=1` is a vendor flag, not the block layer). `/data` is **f2fs**, `fsync_mode=nobarrier`, **137 GB free** of 228 |
+| Sequential read | **984 MB/s** coldest, 2.9–3.2 GB/s from page cache → a cold KEXP load has a **~3.4 s floor** no tuning removes |
+| Prewarm | **69–114 s** for the ~1 300-token system+tools prefix, and **no thread setting fixes it** (§7.36). The lever is §7.30's restored session: 120.8 s cold start → **1.8 s** |
+| Session pool | per-conversation key confirmed on device; real file **5.16 kB/token** against the gate's 64 kB estimate — a **12.7×** over-charge, fixed 2026-08-21 (§7.30) |
 
 ⛔ **Unplugged, it falls off adb within minutes — and the cure already exists.** Pull the charger and
 the phone hits `screen_off_timeout`, then Doze, and the wireless-debugging listener stops accepting:
