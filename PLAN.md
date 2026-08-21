@@ -29,8 +29,11 @@ passano ORA su Adreno 740, dove non erano mai passati**. Il giudice del test
 è riabilitato, la produzione è dimostrata immune. **E il 20/08 notte è caduto
 anche K2**: q4_K/q5_K MoE su MUL_MAT_ID — cioè i quant K standard del mondo
 reale (Q4_K_M compreso, tocca Mellum2) — da 0/84 a 84/84 sul device (tag
-kalsakernel-v3). Questo è IL risultato pubblicabile del progetto kernel:
-upstream ha spento la GPU, noi l'abbiamo riaccesa con quattro diff minimali.
+kalsakernel-v3). **E il 21/08 la prima misura di velocità sul path riparato:
+esperti su GPU = 2.17× in burst e ~1.5× sustained vs esperti CPU, più fresco
+(OLMoE q4_K, esplorativa).** Questo è IL risultato pubblicabile del progetto
+kernel: upstream ha spento la GPU, noi l'abbiamo riaccesa con quattro diff
+minimali — e va il doppio.
 
 ## Il capitolo del fix Adreno (nome interno: "trans4"), chiuso 19–20/08
 
@@ -115,8 +118,10 @@ upstream ha spento la GPU, noi l'abbiamo riaccesa con quattro diff minimali.
 | 6 | Celle cache S23 + assoluti lineup (serve UNPLUGGED) | sessione device dedicata |
 | 7 | Gap ~70% kernel_kf vs lineup binary | da investigare |
 | 8 | **Pubblicazione del fix Adreno** (dossier: 3 miscompile trans4 caratterizzati al bit + 4° sito K2 con workaround device-verified; gate A6X/A7X ancora attivo upstream a master, verificato 20/08) | decisione owner |
-| 9 | **GPU-MoE su S23: muro driver PRIMA della RAM** (esplorativa 20/08 notte: Mellum2 12B Q4_K_M, reboot kernel a -ngl 8 E a -ngl 2, cliff 4.7GB→450MB con esperti da ~380MB ⇒ qualcosa alloca a scala-modello; BLOCKED_DRIVER, `results/mellum2_gpu_moe_s23/`) → indagine con GGUF MoE q4_K piccolo (2-4GB) per separare path-GPU-MoE da scala-12B | sessione dedicata |
-| 10 | Opzionali bassa priorità: dummy-arg attribution test (isola il trigger C1); triage SIGSEGV harness full-suite | quando capita |
+| ~~9~~ | ~~Muro GPU-MoE su S23~~ → **RISOLTO 21/08 (oomwall)**: era il **REPACK ARM di default di llama-bench** (~6.5GB posix_memalign anonimi su Mellum2 Q4_K_M; CPU-only, GPU innocente — coppia W4/W4c a una variabile; produzione strutturalmente immune, use_extra_bufts=false). `results/oomwall_s23/` | fatto |
+| 10 | **GPU-esperti = default candidato su A740 quando il modello sta in RAM**: cella OLMoE 21/08 (esplorativa): **2.17× burst / ~1.5× sustained vs esperti CPU, più fresco**, full offload ngl16 stabile. Serve cella pre-registrata N≥10 per claim di ship + replica su secondo modello q4_K | prossima sessione device |
+| 11 | Flag `--no-extra-bufts` per llama-bench (specchia llama-cli; upstream-worthy: il default spegne fisicamente i device 8GB coi Q4_K_M grossi) + bug `map::at` FLASH_ATTN d_head=64 senza guardia (severità media) | coder |
+| 12 | Opzionali bassa priorità: dummy-arg attribution test (isola il trigger C1); triage SIGSEGV harness full-suite | quando capita |
 
 ## Audit upstream 20/08 (websearch, base 22b69b6e9 → master 749f688fc, 583 commit)
 
