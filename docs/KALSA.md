@@ -453,7 +453,8 @@ twice mid-campaign and took an APK and a runner with it.
   4. **The disk gate disagrees with the pool by 19×.** `estimateSessionBytes` charges 64 KB/token
      (`sessionPersistence.ts:318`), so an 8192 save demands 805 MB free while the real file is 42 MB.
      The pool can have room and the gate still refuse. That constant predates the pool and is now
-     measurably wrong for these models (§7.25 measured ~5.2 kB/token).
+     measurably wrong for these models (§7.25 measured ~5.2 kB/token, and §7.30 caught the gate
+     live on the shipping model: 127 533 056 B charged against a 10 041 119 B file — **12.7× over**).
   5. **What should "new conversation" do to a warm KV?** The fallback that invalidated it is now
      unreachable (the parent always supplies the callback and returns early on an empty chat), so a
      cleared chat can reuse the native KV of the conversation it just emptied.
