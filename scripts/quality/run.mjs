@@ -88,6 +88,7 @@ async function ask(prompt, d) {
       temperature: d.temp,
       top_k: d.topK,
       top_p: d.topP,
+      repeat_penalty: d.repeatPenalty,
       seed: d.seed,
       max_tokens: d.maxTokens,
       stream: false,

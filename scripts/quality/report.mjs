@@ -63,10 +63,10 @@ for (const [cellId, rows] of cells) {
 }
 
 console.log("## Overall\n");
-console.log("| cell | model | quant | kv | budget | score | think chars | answer chars | tok | tok/s | truncated | no answer |");
-console.log("|---|---|---|---|---|---|---|---|---|---|---|---|");
+console.log("| cell | model | quant | kv | budget | score | think chars | answer chars | tok | truncated | no answer |");
+console.log("|---|---|---|---|---|---|---|---|---|---|---|");
 for (const s of summaries) {
-  console.log(`| ${s.cellId} | ${s.model} | ${s.quant} | ${s.kv} | ${s.budget} | **${s.passes}/${s.n}** ${pct(s.passes, s.n)} | ${s.meanThinkChars} | ${s.meanAnswerChars} | ${s.meanTokens} | ${s.meanTokS} | ${s.truncated} | ${s.noAnswer} |`);
+  console.log(`| ${s.cellId} | ${s.model} | ${s.quant} | ${s.kv} | ${s.budget} | **${s.passes}/${s.n}** ${pct(s.passes, s.n)} | ${s.meanThinkChars} | ${s.meanAnswerChars} | ${s.meanTokens} | ${s.truncated} | ${s.noAnswer} |`);
 }
 
 console.log("\n## By language\n");
