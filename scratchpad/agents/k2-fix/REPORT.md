@@ -456,4 +456,8 @@ No claim UNSOUND; C4 sound. Three rewordings applied to rolling summary + PHASE 
 
 - OPTIONAL follow-up experiment, **not run now:** dummy-arg attribution test — add 3 unused uchar args while **keeping literal masks**. If still FAIL → literals are the trigger; if PASS → code-shape.
 
+### 2026-08-20 EXPLORATORY speed cell (Mellum2 Q4_K_M, S23 unplugged)
+
+Pointer only: `results/mellum2_gpu_moe_s23/RESULT.md`. First look at GPU-resident vs CPU-resident experts on the K2-unlocked model. **BLOCKED_DRIVER** after two hard reboots (HARD STOP): Arm A `-ngl 8` (~15 s, RAM still ~4.6 GB) then authorized retry Arm A `-ngl 2` (~28 s, MemAvailable cliff to 450 MB). Identical 209 B OpenCL device-select stderr, `bootreason=reboot`, no tok/s. Arm B never ran. 391/391 correctness does not imply 12B-Q4_K_M is loadable on 8 GB A740. Follow-up (not tonight): smaller 2–4 GB q4_K MoE GGUF. Exploratory, n=0 completed reps. Unplug gate passed. Not a ship cell.
+
 STOP.

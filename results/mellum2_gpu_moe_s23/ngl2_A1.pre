@@ -1,0 +1,14 @@
+=== TAG=A1 ===
+CMD=./llama-bench -m Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -ngl 2 -p 0 -n 64 -r 1 -t 4 -o csv 
+Thu Aug 20 23:20:50 EDT 2026
+ 23:20:51 up 5 min,  0 users,  load average: 0.76, 1.58, 0.89
+a09ef68f6e4e0f8d0f778c9e4c9310780d57fbd4f891ff366dff49a7a7e502da  libggml-opencl.so
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  status: 3
+  level: 99
+  temperature: 313
+  mWakefulness=Awake
+MemFree:          132708 kB
+MemAvailable:    4111308 kB

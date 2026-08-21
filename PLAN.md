@@ -115,7 +115,8 @@ upstream ha spento la GPU, noi l'abbiamo riaccesa con quattro diff minimali.
 | 6 | Celle cache S23 + assoluti lineup (serve UNPLUGGED) | sessione device dedicata |
 | 7 | Gap ~70% kernel_kf vs lineup binary | da investigare |
 | 8 | **Pubblicazione del fix Adreno** (dossier: 3 miscompile trans4 caratterizzati al bit + 4° sito K2 con workaround device-verified; gate A6X/A7X ancora attivo upstream a master, verificato 20/08) | decisione owner |
-| 9 | Opzionali bassa priorità: dummy-arg attribution test (isola il trigger C1); triage SIGSEGV harness full-suite | quando capita |
+| 9 | **GPU-MoE su S23: muro driver PRIMA della RAM** (esplorativa 20/08 notte: Mellum2 12B Q4_K_M, reboot kernel a -ngl 8 E a -ngl 2, cliff 4.7GB→450MB con esperti da ~380MB ⇒ qualcosa alloca a scala-modello; BLOCKED_DRIVER, `results/mellum2_gpu_moe_s23/`) → indagine con GGUF MoE q4_K piccolo (2-4GB) per separare path-GPU-MoE da scala-12B | sessione dedicata |
+| 10 | Opzionali bassa priorità: dummy-arg attribution test (isola il trigger C1); triage SIGSEGV harness full-suite | quando capita |
 
 ## Audit upstream 20/08 (websearch, base 22b69b6e9 → master 749f688fc, 583 commit)
 
