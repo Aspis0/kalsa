@@ -185,8 +185,12 @@ in entrambi i casi più fresco della controparte CPU. Chiusa anche la coda
 
 - **Lignaggio engine**: tutto su `kalsa/kernel-s3-repack` (head `ec7235af` =
   tag kalsakernel-v4; tag v1–v4 tutti locali, bundle in `backups/`), fork
-  `BigMoeOnEdge/third_party/llama.cpp`. Push verso terzi DISABILITATI
-  (Helldez/ggml-org), MAI riattivarli. Banner "kalsallama" da introdurre.
+  `BigMoeOnEdge/third_party/llama.cpp`. **21/08 sera: remote di terzi RIMOSSI
+  del tutto** (llama.cpp: zero remote; BigMoeOnEdge: solo origin Aspis0) +
+  pre-push hook che blocca ogni destinazione non-Aspis0 (testato). Fetch
+  upstream quando serve: ad-hoc per URL esplicito, senza ricreare remote.
+  Attenzione residua: `git submodule sync` può ricreare i remote da
+  .gitmodules — gli hook restano comunque. Banner "kalsallama" da introdurre.
 - **.so correnti**: kalsakernel-v2 pulito = `2032b7c7…`; build smoke con shim
   dormiente (head) = post-`55f43a574`. Sempre sha256 on-device prima di ogni run.
 - **S23**: 21G liberi su /data, `LFM2.5-8B-A1B-KEXP.gguf` a bordo, wireless adb
