@@ -1,0 +1,67 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 64 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: true
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 3536 MB
+ggml_opencl: max mem alloc size: 884 MB
+ggml_opencl: device max image buffer size (pixels): 134217728
+ggml_opencl: device max image2d size: 16384 x 16384
+ggml_opencl: device max workgroup size: 1024
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: true
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: true
+ggml_opencl: cl_qcom_subgroup_shuffle support: true
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: loading OpenCL kernels......ggml_opencl: program_cvt variant=bytewise
+............................................................................................................................................
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f32_f32
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_f32_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f16_f32_1row
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_f16_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_q4_0_f32_8x_flat
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_q4_0_f32_1d_8x_flat
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mv_q4_1_f32_flat
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mv_q5_0_f32_flat
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mv_q5_1_f32_flat
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mv_q8_0_f32_flat
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mv_q1_0_f32_flat
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mv_mxfp4_f32_flat
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mv_q4_K_f32_flat
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mv_q5_K_f32_flat
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mv_q6_K_f32_flat
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mv_iq4_nl_f32_flat
+GGML_OPENCL_LOG_KERNELS: kernel_transpose_32_16
+GGML_OPENCL_LOG_KERNELS: kernel_gemm_noshuffle_q4_0_f32
+GGML_OPENCL_LOG_KERNELS: kernel_gemm_noshuffle_q8_0_f32
+GGML_OPENCL_LOG_KERNELS: kernel_cpy_f32_f32
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f16_f32_l4_dr_ls
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f16_f32_l4_dr
+GGML_OPENCL_LOG_KERNELS: kernel_cpy_f16_f16
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f16_f32
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f16_f16
+GGML_OPENCL_LOG_KERNELS: kernel_add
+GGML_OPENCL_LOG_KERNELS: kernel_gemv_noshuffle_q6_K_f32
+GGML_OPENCL_LOG_KERNELS: kernel_gemm_noshuffle_q6_K_f32
+GGML_OPENCL_LOG_KERNELS: kernel_gemv_noshuffle_q4_k_f32
+GGML_OPENCL_LOG_KERNELS: kernel_gemm_noshuffle_q4_k_f32
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_q4_0_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_q4_1_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_q5_0_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_q5_1_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_q8_0_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_q1_0_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_q4_k_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_q5_k_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_q6_k_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_iq4_nl_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f16_f32_l4_x8_gqa_r4_img
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f16_f32_l4_y8
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f16_f32_l4_dr_lq

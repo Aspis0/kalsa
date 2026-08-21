@@ -1,0 +1,16 @@
+=== K2 RUN tag=e0_q5 ===
+CMD=./test-backend-ops -o MUL_MAT_ID -p type_a=q5_K,
+[MUL_MAT_ID] ERR = 0.926061653 > 0.000500000 DUMP ne=[64,2,16,1] nb=[4,256,512,8192] n=2048
+[MUL_MAT_ID] ERR = 0.862222508 > 0.000500000 DUMP ne=[512,2,1,1] nb=[4,2048,4096,4096] n=1024
+[MUL_MAT_ID] ERR = 0.914509663 > 0.000500000 DUMP ne=[512,2,32,1] nb=[4,2048,4096,131072] n=32768
+[MUL_MAT_ID] ERR = 0.858153092 > 0.000500000 DUMP ne=[896,8,1,1] nb=[4,3584,28672,28672] n=7168
+  0/4 tests passed
+  Backend OpenCL: [1;31mFAIL[0m
+=== rc=1 ===
+GGML_OPENCL_LOG_KERNELS: kernel_moe_histogram
+GGML_OPENCL_LOG_KERNELS: kernel_moe_scan
+GGML_OPENCL_LOG_KERNELS: kernel_moe_fill
+GGML_OPENCL_LOG_KERNELS: kernel_moe_scatter
+GGML_OPENCL_LOG_KERNELS: kernel_moe_reorder_b
+GGML_OPENCL_LOG_KERNELS: kernel_gemm_moe_q5_k_f32_ns
+GGML_OPENCL_LOG_KERNELS: kernel_gemv_moe_q5_k_f32_ns

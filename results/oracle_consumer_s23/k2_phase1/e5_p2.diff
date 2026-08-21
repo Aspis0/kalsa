@@ -1,0 +1,153 @@
+diff --git a/ggml/src/ggml-opencl/kernels/gemm_moe_q4_k_f32_ns.cl b/ggml/src/ggml-opencl/kernels/gemm_moe_q4_k_f32_ns.cl
+index f96189692..528871a79 100644
+--- a/ggml/src/ggml-opencl/kernels/gemm_moe_q4_k_f32_ns.cl
++++ b/ggml/src/ggml-opencl/kernels/gemm_moe_q4_k_f32_ns.cl
+@@ -25,23 +25,24 @@ inline void get_scale_min_k4(
+     }
+ }
+ 
++// K2 P2: shift-first then mask. Same form as gemv_moe_q4_0_f32_ns.cl:18-28.
+ #define dequantize_q4_k(q4, a_f16, scale, minv) \
+-    a_f16.s0 = (half)((float)(q4.s0 & 0x000F) * scale - minv); \
+-    a_f16.s1 = (half)((float)((q4.s0 & 0x00F0) >> 4) * scale - minv); \
+-    a_f16.s2 = (half)((float)((q4.s0 & 0x0F00) >> 8) * scale - minv); \
+-    a_f16.s3 = (half)((float)((q4.s0 & 0xF000) >> 12) * scale - minv); \
+-    a_f16.s4 = (half)((float)(q4.s1 & 0x000F) * scale - minv); \
+-    a_f16.s5 = (half)((float)((q4.s1 & 0x00F0) >> 4) * scale - minv); \
+-    a_f16.s6 = (half)((float)((q4.s1 & 0x0F00) >> 8) * scale - minv); \
+-    a_f16.s7 = (half)((float)((q4.s1 & 0xF000) >> 12) * scale - minv); \
+-    a_f16.s8 = (half)((float)(q4.s2 & 0x000F) * scale - minv); \
+-    a_f16.s9 = (half)((float)((q4.s2 & 0x00F0) >> 4) * scale - minv); \
+-    a_f16.sa = (half)((float)((q4.s2 & 0x0F00) >> 8) * scale - minv); \
+-    a_f16.sb = (half)((float)((q4.s2 & 0xF000) >> 12) * scale - minv); \
+-    a_f16.sc = (half)((float)(q4.s3 & 0x000F) * scale - minv); \
+-    a_f16.sd = (half)((float)((q4.s3 & 0x00F0) >> 4) * scale - minv); \
+-    a_f16.se = (half)((float)((q4.s3 & 0x0F00) >> 8) * scale - minv); \
+-    a_f16.sf = (half)((float)((q4.s3 & 0xF000) >> 12) * scale - minv); \
++    a_f16.s0 = (half)((float)( (q4.s0        & 0x000F) * scale - minv)); \
++    a_f16.s1 = (half)((float)(((q4.s0 >>  4) & 0x000F) * scale - minv)); \
++    a_f16.s2 = (half)((float)(((q4.s0 >>  8) & 0x000F) * scale - minv)); \
++    a_f16.s3 = (half)((float)(((q4.s0 >> 12) & 0x000F) * scale - minv)); \
++    a_f16.s4 = (half)((float)( (q4.s1        & 0x000F) * scale - minv)); \
++    a_f16.s5 = (half)((float)(((q4.s1 >>  4) & 0x000F) * scale - minv)); \
++    a_f16.s6 = (half)((float)(((q4.s1 >>  8) & 0x000F) * scale - minv)); \
++    a_f16.s7 = (half)((float)(((q4.s1 >> 12) & 0x000F) * scale - minv)); \
++    a_f16.s8 = (half)((float)( (q4.s2        & 0x000F) * scale - minv)); \
++    a_f16.s9 = (half)((float)(((q4.s2 >>  4) & 0x000F) * scale - minv)); \
++    a_f16.sa = (half)((float)(((q4.s2 >>  8) & 0x000F) * scale - minv)); \
++    a_f16.sb = (half)((float)(((q4.s2 >> 12) & 0x000F) * scale - minv)); \
++    a_f16.sc = (half)((float)( (q4.s3        & 0x000F) * scale - minv)); \
++    a_f16.sd = (half)((float)(((q4.s3 >>  4) & 0x000F) * scale - minv)); \
++    a_f16.se = (half)((float)(((q4.s3 >>  8) & 0x000F) * scale - minv)); \
++    a_f16.sf = (half)((float)(((q4.s3 >> 12) & 0x000F) * scale - minv)); \
+ 
+ 
+ #define dotx16_reduce8(a_reg, b_lm, c_reg, lm_offset) \
+diff --git a/ggml/src/ggml-opencl/kernels/gemm_moe_q5_k_f32_ns.cl b/ggml/src/ggml-opencl/kernels/gemm_moe_q5_k_f32_ns.cl
+index 0cbea13f0..bb27a7faa 100644
+--- a/ggml/src/ggml-opencl/kernels/gemm_moe_q5_k_f32_ns.cl
++++ b/ggml/src/ggml-opencl/kernels/gemm_moe_q5_k_f32_ns.cl
+@@ -25,23 +25,25 @@ inline void get_scale_min_k4(
+     }
+ }
+ 
++// K2 P2: shift-first then mask on qs nibbles. Same form as gemv_moe_q4_0_f32_ns.cl:18-28.
++// qh bit extracts were already shift-first; left unchanged.
+ #define dequantize_q5_k(qs5x16, qh5x16, a_f16, scale, m) \
+-    a_f16.s0 = (half)((float)(( qs5x16.s0 & 0x000F)        | (( qh5x16.s0       & 0x01) << 4)) * scale + m); \
+-    a_f16.s1 = (half)((float)((((qs5x16.s0 & 0x00F0) >> 4 ) | (((qh5x16.s0 >> 1) & 0x01) << 4)) * scale + m)); \
+-    a_f16.s2 = (half)((float)((((qs5x16.s0 & 0x0F00) >> 8 ) | (((qh5x16.s0 >> 2) & 0x01) << 4)) * scale + m)); \
+-    a_f16.s3 = (half)((float)((((qs5x16.s0 & 0xF000) >> 12) | (((qh5x16.s0 >> 3) & 0x01) << 4)) * scale + m)); \
+-    a_f16.s4 = (half)((float)((( qs5x16.s1 & 0x000F)        | (((qh5x16.s0 >> 4) & 0x01) << 4)) * scale + m)); \
+-    a_f16.s5 = (half)((float)((((qs5x16.s1 & 0x00F0) >> 4 ) | (((qh5x16.s0 >> 5) & 0x01) << 4)) * scale + m)); \
+-    a_f16.s6 = (half)((float)(((qs5x16.s1 & 0x0F00) >> 8 ) | (((qh5x16.s0 >> 6) & 0x01) << 4)) * scale + m); \
+-    a_f16.s7 = (half)((float)((((qs5x16.s1 & 0xF000) >> 12) | (((qh5x16.s0 >> 7) & 0x01) << 4)) * scale + m)); \
+-    a_f16.s8 = (half)((float)((( qs5x16.s2 & 0x000F)        | (( qh5x16.s1       & 0x01) << 4)) * scale + m)); \
+-    a_f16.s9 = (half)((float)((((qs5x16.s2 & 0x00F0) >> 4 ) | (((qh5x16.s1 >> 1) & 0x01) << 4)) * scale + m)); \
+-    a_f16.sa = (half)((float)((((qs5x16.s2 & 0x0F00) >> 8 ) | (((qh5x16.s1 >> 2) & 0x01) << 4)) * scale + m)); \
+-    a_f16.sb = (half)((float)((((qs5x16.s2 & 0xF000) >> 12) | (((qh5x16.s1 >> 3) & 0x01) << 4)) * scale + m)); \
+-    a_f16.sc = (half)((float)((( qs5x16.s3 & 0x000F)        | (((qh5x16.s1 >> 4) & 0x01) << 4)) * scale + m)); \
+-    a_f16.sd = (half)((float)((((qs5x16.s3 & 0x00F0) >> 4 ) | (((qh5x16.s1 >> 5) & 0x01) << 4)) * scale + m)); \
+-    a_f16.se = (half)((float)((((qs5x16.s3 & 0x0F00) >> 8 ) | (((qh5x16.s1 >> 6) & 0x01) << 4)) * scale + m)); \
+-    a_f16.sf = (half)((float)((((qs5x16.s3 & 0xF000) >> 12) | (((qh5x16.s1 >> 7) & 0x01) << 4)) * scale + m)); \
++    a_f16.s0 = (half)((float)(( qs5x16.s0        & 0x000F) | (( qh5x16.s0       & 0x01) << 4)) * scale + m); \
++    a_f16.s1 = (half)((float)((((qs5x16.s0 >>  4) & 0x000F) | (((qh5x16.s0 >> 1) & 0x01) << 4)) * scale + m)); \
++    a_f16.s2 = (half)((float)((((qs5x16.s0 >>  8) & 0x000F) | (((qh5x16.s0 >> 2) & 0x01) << 4)) * scale + m)); \
++    a_f16.s3 = (half)((float)((((qs5x16.s0 >> 12) & 0x000F) | (((qh5x16.s0 >> 3) & 0x01) << 4)) * scale + m)); \
++    a_f16.s4 = (half)((float)(( qs5x16.s1        & 0x000F) | (((qh5x16.s0 >> 4) & 0x01) << 4)) * scale + m); \
++    a_f16.s5 = (half)((float)((((qs5x16.s1 >>  4) & 0x000F) | (((qh5x16.s0 >> 5) & 0x01) << 4)) * scale + m)); \
++    a_f16.s6 = (half)((float)((((qs5x16.s1 >>  8) & 0x000F) | (((qh5x16.s0 >> 6) & 0x01) << 4)) * scale + m)); \
++    a_f16.s7 = (half)((float)((((qs5x16.s1 >> 12) & 0x000F) | (((qh5x16.s0 >> 7) & 0x01) << 4)) * scale + m)); \
++    a_f16.s8 = (half)((float)(( qs5x16.s2        & 0x000F) | (( qh5x16.s1       & 0x01) << 4)) * scale + m); \
++    a_f16.s9 = (half)((float)((((qs5x16.s2 >>  4) & 0x000F) | (((qh5x16.s1 >> 1) & 0x01) << 4)) * scale + m)); \
++    a_f16.sa = (half)((float)((((qs5x16.s2 >>  8) & 0x000F) | (((qh5x16.s1 >> 2) & 0x01) << 4)) * scale + m)); \
++    a_f16.sb = (half)((float)((((qs5x16.s2 >> 12) & 0x000F) | (((qh5x16.s1 >> 3) & 0x01) << 4)) * scale + m)); \
++    a_f16.sc = (half)((float)(( qs5x16.s3        & 0x000F) | (((qh5x16.s1 >> 4) & 0x01) << 4)) * scale + m); \
++    a_f16.sd = (half)((float)((((qs5x16.s3 >>  4) & 0x000F) | (((qh5x16.s1 >> 5) & 0x01) << 4)) * scale + m)); \
++    a_f16.se = (half)((float)((((qs5x16.s3 >>  8) & 0x000F) | (((qh5x16.s1 >> 6) & 0x01) << 4)) * scale + m)); \
++    a_f16.sf = (half)((float)((((qs5x16.s3 >> 12) & 0x000F) | (((qh5x16.s1 >> 7) & 0x01) << 4)) * scale + m)); \
+ 
+ 
+ #define dotx16_reduce8(a_reg, b_lm, c_reg, lm_offset) \
+diff --git a/ggml/src/ggml-opencl/kernels/gemv_moe_q4_k_f32_ns.cl b/ggml/src/ggml-opencl/kernels/gemv_moe_q4_k_f32_ns.cl
+index 12464e982..0c171995b 100644
+--- a/ggml/src/ggml-opencl/kernels/gemv_moe_q4_k_f32_ns.cl
++++ b/ggml/src/ggml-opencl/kernels/gemv_moe_q4_k_f32_ns.cl
+@@ -22,16 +22,18 @@ inline void get_scale_min_k4(
+     }
+ }
+ 
++// K2 P2: shift-first then mask. Same form as gemv_moe_q4_0_f32_ns.cl:18-28.
++// Mask-then-shift `(v & 0xF000) >> 12` is miscompiled on Adreno 740 E031.41.03.62.
+ static inline float8 q4_k_to_fp32_packed8(ushort2 q4x8, float scale, float minv) {
+     float8 fp32x8;
+-    fp32x8.s0 = (q4x8.s0 & 0x000F) * scale - minv;
+-    fp32x8.s1 = ((q4x8.s0 & 0x00F0) >> 4) * scale - minv;
+-    fp32x8.s2 = ((q4x8.s0 & 0x0F00) >> 8) * scale - minv;
+-    fp32x8.s3 = ((q4x8.s0 & 0xF000) >> 12) * scale - minv;
+-    fp32x8.s4 = (q4x8.s1 & 0x000F) * scale - minv;
+-    fp32x8.s5 = ((q4x8.s1 & 0x00F0) >> 4) * scale - minv;
+-    fp32x8.s6 = ((q4x8.s1 & 0x0F00) >> 8) * scale - minv;
+-    fp32x8.s7 = ((q4x8.s1 & 0xF000) >> 12) * scale - minv;
++    fp32x8.s0 = ( q4x8.s0        & 0x000F) * scale - minv;
++    fp32x8.s1 = ((q4x8.s0 >>  4) & 0x000F) * scale - minv;
++    fp32x8.s2 = ((q4x8.s0 >>  8) & 0x000F) * scale - minv;
++    fp32x8.s3 = ((q4x8.s0 >> 12) & 0x000F) * scale - minv;
++    fp32x8.s4 = ( q4x8.s1        & 0x000F) * scale - minv;
++    fp32x8.s5 = ((q4x8.s1 >>  4) & 0x000F) * scale - minv;
++    fp32x8.s6 = ((q4x8.s1 >>  8) & 0x000F) * scale - minv;
++    fp32x8.s7 = ((q4x8.s1 >> 12) & 0x000F) * scale - minv;
+     return fp32x8;
+ }
+ 
+diff --git a/ggml/src/ggml-opencl/kernels/gemv_moe_q5_k_f32_ns.cl b/ggml/src/ggml-opencl/kernels/gemv_moe_q5_k_f32_ns.cl
+index 7d868d7ab..6cfe58421 100644
+--- a/ggml/src/ggml-opencl/kernels/gemv_moe_q5_k_f32_ns.cl
++++ b/ggml/src/ggml-opencl/kernels/gemv_moe_q5_k_f32_ns.cl
+@@ -22,16 +22,18 @@ inline void get_scale_min_k4(
+     }
+ }
+ 
++// K2 P2: shift-first then mask on qs nibbles. Same form as gemv_moe_q4_0_f32_ns.cl:18-28.
++// qh bit extracts were already shift-first; left unchanged.
+ static inline float8 q5_k_to_fp32_packed8(ushort2 qs5x8, uchar qh5x8, half s, half m) {
+     float8 fp32x8;
+-    fp32x8.s0 = (float)((( qs5x8.s0 & 0x000F)        | (( qh5x8       & 0x01) << 4)) * s + m);
+-    fp32x8.s1 = (float)((((qs5x8.s0 & 0x00F0) >> 4 ) | (((qh5x8 >> 1) & 0x01) << 4)) * s + m);
+-    fp32x8.s2 = (float)((((qs5x8.s0 & 0x0F00) >> 8 ) | (((qh5x8 >> 2) & 0x01) << 4)) * s + m);
+-    fp32x8.s3 = (float)((((qs5x8.s0 & 0xF000) >> 12) | (((qh5x8 >> 3) & 0x01) << 4)) * s + m);
+-    fp32x8.s4 = (float)((( qs5x8.s1 & 0x000F)        | (((qh5x8 >> 4) & 0x01) << 4)) * s + m);
+-    fp32x8.s5 = (float)((((qs5x8.s1 & 0x00F0) >> 4 ) | (((qh5x8 >> 5) & 0x01) << 4)) * s + m);
+-    fp32x8.s6 = (float)((((qs5x8.s1 & 0x0F00) >> 8 ) | (((qh5x8 >> 6) & 0x01) << 4)) * s + m);
+-    fp32x8.s7 = (float)((((qs5x8.s1 & 0xF000) >> 12) | (((qh5x8 >> 7) & 0x01) << 4)) * s + m);
++    fp32x8.s0 = (float)((( qs5x8.s0        & 0x000F) | (( qh5x8       & 0x01) << 4)) * s + m);
++    fp32x8.s1 = (float)((((qs5x8.s0 >>  4) & 0x000F) | (((qh5x8 >> 1) & 0x01) << 4)) * s + m);
++    fp32x8.s2 = (float)((((qs5x8.s0 >>  8) & 0x000F) | (((qh5x8 >> 2) & 0x01) << 4)) * s + m);
++    fp32x8.s3 = (float)((((qs5x8.s0 >> 12) & 0x000F) | (((qh5x8 >> 3) & 0x01) << 4)) * s + m);
++    fp32x8.s4 = (float)((( qs5x8.s1        & 0x000F) | (((qh5x8 >> 4) & 0x01) << 4)) * s + m);
++    fp32x8.s5 = (float)((((qs5x8.s1 >>  4) & 0x000F) | (((qh5x8 >> 5) & 0x01) << 4)) * s + m);
++    fp32x8.s6 = (float)((((qs5x8.s1 >>  8) & 0x000F) | (((qh5x8 >> 6) & 0x01) << 4)) * s + m);
++    fp32x8.s7 = (float)((((qs5x8.s1 >> 12) & 0x000F) | (((qh5x8 >> 7) & 0x01) << 4)) * s + m);
+     return fp32x8;
+ }
+ 

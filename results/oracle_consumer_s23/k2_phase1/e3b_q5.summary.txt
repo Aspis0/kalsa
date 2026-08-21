@@ -1,0 +1,9 @@
+=== K2 RUN tag=e3b_q5 ===
+CMD=./test-backend-ops -o MUL_MAT_ID -p type_a=q5_K,
+[MUL_MAT_ID] ERR = 0.904070598 > 0.000500000 DUMP ne=[64,2,16,1] nb=[4,256,512,8192] n=2048
+[MUL_MAT_ID] ERR = 0.828423078 > 0.000500000 DUMP ne=[512,2,1,1] nb=[4,2048,4096,4096] n=1024
+[MUL_MAT_ID] ERR = 0.932363694 > 0.000500000 DUMP ne=[512,2,32,1] nb=[4,2048,4096,131072] n=32768
+[MUL_MAT_ID] ERR = 0.935937768 > 0.000500000 DUMP ne=[896,8,1,1] nb=[4,3584,28672,28672] n=7168
+  0/4 tests passed
+  Backend OpenCL: [1;31mFAIL[0m
+=== rc=1 ===

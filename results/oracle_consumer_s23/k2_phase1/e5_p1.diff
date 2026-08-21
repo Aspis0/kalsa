@@ -1,0 +1,276 @@
+diff --git a/ggml/src/ggml-opencl/ggml-opencl.cpp b/ggml/src/ggml-opencl/ggml-opencl.cpp
+index c770a4c03..e7a408a0e 100644
+--- a/ggml/src/ggml-opencl/ggml-opencl.cpp
++++ b/ggml/src/ggml-opencl/ggml-opencl.cpp
+@@ -22313,6 +22313,14 @@ static void ggml_cl_mul_mat_id(ggml_backend_t backend, const ggml_tensor * src0,
+                     CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(int),       &ne00));
+                     CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(int),       &ne01));
+                     CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(int),       &ne11));
++                    {
++                        cl_uchar mask_d6  = 0x3F;
++                        cl_uchar mask_d4  = 0x0F;
++                        cl_uchar mask_hi2 = 0xC0;
++                        CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uchar), &mask_d6));
++                        CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uchar), &mask_d4));
++                        CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uchar), &mask_hi2));
++                    }
+ 
+                     // launch kernel
+                     backend_ctx->enqueue_ndrange_kernel(kernel, 3, global_size, local_size, dst);
+@@ -22423,6 +22431,14 @@ static void ggml_cl_mul_mat_id(ggml_backend_t backend, const ggml_tensor * src0,
+                     CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(int),       &ne01));
+                     CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uint),   &backend_ctx->adreno_use_moe_ragged));
+                     CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uint),   &backend_ctx->adreno_moe_ragged_skip_gran));
++                    {
++                        cl_uchar mask_d6  = 0x3F;
++                        cl_uchar mask_d4  = 0x0F;
++                        cl_uchar mask_hi2 = 0xC0;
++                        CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uchar), &mask_d6));
++                        CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uchar), &mask_d4));
++                        CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uchar), &mask_hi2));
++                    }
+ 
+                     // set thread grid
+                     global_size[1] = static_cast<size_t>((ne01 + 63) / 64);
+@@ -22497,6 +22513,14 @@ static void ggml_cl_mul_mat_id(ggml_backend_t backend, const ggml_tensor * src0,
+                     CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(int),       &ne00));
+                     CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(int),       &ne01));
+                     CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(int),       &ne11));
++                    {
++                        cl_uchar mask_d6  = 0x3F;
++                        cl_uchar mask_d4  = 0x0F;
++                        cl_uchar mask_hi2 = 0xC0;
++                        CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uchar), &mask_d6));
++                        CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uchar), &mask_d4));
++                        CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uchar), &mask_hi2));
++                    }
+ 
+                     // launch kernel
+                     backend_ctx->enqueue_ndrange_kernel(kernel, 3, global_size, local_size, dst);
+@@ -22603,6 +22627,14 @@ static void ggml_cl_mul_mat_id(ggml_backend_t backend, const ggml_tensor * src0,
+                     CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(int),       &ne01));
+                     CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uint),   &backend_ctx->adreno_use_moe_ragged));
+                     CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uint),   &backend_ctx->adreno_moe_ragged_skip_gran));
++                    {
++                        cl_uchar mask_d6  = 0x3F;
++                        cl_uchar mask_d4  = 0x0F;
++                        cl_uchar mask_hi2 = 0xC0;
++                        CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uchar), &mask_d6));
++                        CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uchar), &mask_d4));
++                        CL_CHECK(clSetKernelArg(kernel, arg_idx++, sizeof(cl_uchar), &mask_hi2));
++                    }
+ 
+                     // set thread grid
+                     global_size[1] = static_cast<size_t>((ne01 + 63) / 64);
+diff --git a/ggml/src/ggml-opencl/kernels/gemm_moe_q4_k_f32_ns.cl b/ggml/src/ggml-opencl/kernels/gemm_moe_q4_k_f32_ns.cl
+index f96189692..bbee4cd06 100644
+--- a/ggml/src/ggml-opencl/kernels/gemm_moe_q4_k_f32_ns.cl
++++ b/ggml/src/ggml-opencl/kernels/gemm_moe_q4_k_f32_ns.cl
+@@ -10,18 +10,22 @@
+ #define QK_K 256
+ #define K_SCALE_SIZE 12
+ 
++// K2 P1: masks as arguments, same as gemv_noshuffle_q4_k_f32.cl. Literals stay out.
+ inline void get_scale_min_k4(
+     int j,
+     global const uchar * q,
+     uchar * d,
+-    uchar * m
++    uchar * m,
++    uchar mask_d6,
++    uchar mask_d4,
++    uchar mask_hi2
+ ) {
+     if (j < 4) {
+-        *d = q[j]   & 63;
+-        *m = q[j+4] & 63;
++        *d = q[j]   & mask_d6;
++        *m = q[j+4] & mask_d6;
+     } else {
+-        *d = (q[j+4] & 0x0F) | ((q[j-4] & 0xC0) >> 2);
+-        *m = ((q[j+4] >> 4) & 0x0F) | ((q[j]   & 0xC0) >> 2);
++        *d = (q[j+4] & mask_d4) | ((q[j-4] & mask_hi2) >> 2);
++        *m = ((q[j+4] >> 4) & mask_d4) | ((q[j]   & mask_hi2) >> 2);
+     }
+ }
+ 
+@@ -169,7 +173,10 @@ kernel void kernel_gemm_moe_q4_k_f32_ns(
+         uint ne00,
+         uint ne01,
+         uint is_ragged,
+-        uint skip_gran
++        uint skip_gran,
++        uchar mask_d6,
++        uchar mask_d4,
++        uchar mask_hi2
+ ) {
+     uint block_id_m = get_global_id(1); // m_tile
+     uint block_id_n = get_global_id(2); // n_tile
+@@ -233,7 +240,7 @@ kernel void kernel_gemm_moe_q4_k_f32_ns(
+         // Load sub-block scale and min
+         global const uchar * sc = src0_s + (expert_id * ne01 + row_idx) * scales_per_row + sb * K_SCALE_SIZE;
+         uchar sv, mn;
+-        get_scale_min_k4(j, sc, &sv, &mn);
++        get_scale_min_k4(j, sc, &sv, &mn, mask_d6, mask_d4, mask_hi2);
+ 
+         float scale = (float)d_val * (float)sv;
+         float minv = (float)dm_val * (float)mn;
+diff --git a/ggml/src/ggml-opencl/kernels/gemm_moe_q5_k_f32_ns.cl b/ggml/src/ggml-opencl/kernels/gemm_moe_q5_k_f32_ns.cl
+index 0cbea13f0..d65cc1441 100644
+--- a/ggml/src/ggml-opencl/kernels/gemm_moe_q5_k_f32_ns.cl
++++ b/ggml/src/ggml-opencl/kernels/gemm_moe_q5_k_f32_ns.cl
+@@ -10,18 +10,22 @@
+ #define QK_K 256
+ #define K_SCALE_SIZE 12
+ 
++// K2 P1: masks as arguments, same as gemv_noshuffle_q4_k_f32.cl. Literals stay out.
+ inline void get_scale_min_k4(
+     int j,
+     global const uchar * q,
+     uchar * d,
+-    uchar * m
++    uchar * m,
++    uchar mask_d6,
++    uchar mask_d4,
++    uchar mask_hi2
+ ) {
+     if (j < 4) {
+-        *d = q[j]   & 63;
+-        *m = q[j+4] & 63;
++        *d = q[j]   & mask_d6;
++        *m = q[j+4] & mask_d6;
+     } else {
+-        *d = (q[j+4] & 0x0F) | ((q[j-4] & 0xC0) >> 2);
+-        *m = ((q[j+4] >> 4) & 0x0F) | ((q[j]   & 0xC0) >> 2);
++        *d = (q[j+4] & mask_d4) | ((q[j-4] & mask_hi2) >> 2);
++        *m = ((q[j+4] >> 4) & mask_d4) | ((q[j]   & mask_hi2) >> 2);
+     }
+ }
+ 
+@@ -170,7 +174,10 @@ kernel void kernel_gemm_moe_q5_k_f32_ns(
+         uint ne00,
+         uint ne01,
+         uint is_ragged,
+-        uint skip_gran
++        uint skip_gran,
++        uchar mask_d6,
++        uchar mask_d4,
++        uchar mask_hi2
+ ) {
+     uint block_id_m = get_global_id(1); // m_tile
+     uint block_id_n = get_global_id(2); // n_tile
+@@ -237,7 +244,7 @@ kernel void kernel_gemm_moe_q5_k_f32_ns(
+         // Load sub-block scale and min
+         global const uchar * sc = src0_s + (expert_id * ne01 + row_idx) * scales_per_row + sb * K_SCALE_SIZE;
+         uchar sv, mn;
+-        get_scale_min_k4(j, sc, &sv, &mn);
++        get_scale_min_k4(j, sc, &sv, &mn, mask_d6, mask_d4, mask_hi2);
+ 
+         float scale = (float)d_val * (float)sv;
+         float minv = -(float)dm_val * (float)mn;
+diff --git a/ggml/src/ggml-opencl/kernels/gemv_moe_q4_k_f32_ns.cl b/ggml/src/ggml-opencl/kernels/gemv_moe_q4_k_f32_ns.cl
+index 12464e982..022bdfd9a 100644
+--- a/ggml/src/ggml-opencl/kernels/gemv_moe_q4_k_f32_ns.cl
++++ b/ggml/src/ggml-opencl/kernels/gemv_moe_q4_k_f32_ns.cl
+@@ -7,18 +7,22 @@
+ #define N_SIMDGROUP 4
+ #define SIMDGROUP_WIDTH 64
+ 
++// K2 P1: masks as arguments, same as gemv_noshuffle_q4_k_f32.cl. Literals stay out.
+ inline void get_scale_min_k4(
+     int j,
+     global const uchar * q,
+     uchar * d,
+-    uchar * m
++    uchar * m,
++    uchar mask_d6,
++    uchar mask_d4,
++    uchar mask_hi2
+ ) {
+     if (j < 4) {
+-        *d = q[j]   & 63;
+-        *m = q[j+4] & 63;
++        *d = q[j]   & mask_d6;
++        *m = q[j+4] & mask_d6;
+     } else {
+-        *d = (q[j+4] & 0x0F) | ((q[j-4] & 0xC0) >> 2);
+-        *m = ((q[j+4] >> 4) & 0x0F) | ((q[j]   & 0xC0) >> 2);
++        *d = (q[j+4] & mask_d4) | ((q[j-4] & mask_hi2) >> 2);
++        *m = ((q[j+4] >> 4) & mask_d4) | ((q[j]   & mask_hi2) >> 2);
+     }
+ }
+ 
+@@ -47,7 +51,10 @@ __kernel void kernel_gemv_moe_q4_k_f32_ns(
+     ulong                   offsetd,
+     int                     ne00,
+     int                     ne01,
+-    int                     ne11
++    int                     ne11,
++    uchar                   mask_d6,
++    uchar                   mask_d4,
++    uchar                   mask_hi2
+ ) {
+     uint i01  = get_global_id(0);
+     uint i20  = get_global_id(2);
+@@ -84,7 +91,7 @@ __kernel void kernel_gemv_moe_q4_k_f32_ns(
+         // Load sub-block scale and min
+         global const uchar * sc = src0_s + (expert_id * ne01 + i01) * scales_per_row + sb * K_SCALE_SIZE;
+         uchar sv, mn;
+-        get_scale_min_k4(j, sc, &sv, &mn);
++        get_scale_min_k4(j, sc, &sv, &mn, mask_d6, mask_d4, mask_hi2);
+ 
+         float scale = (float)d_val * (float)sv;
+         float minv  = (float)dm_val * (float)mn;
+diff --git a/ggml/src/ggml-opencl/kernels/gemv_moe_q5_k_f32_ns.cl b/ggml/src/ggml-opencl/kernels/gemv_moe_q5_k_f32_ns.cl
+index 7d868d7ab..a919e8aff 100644
+--- a/ggml/src/ggml-opencl/kernels/gemv_moe_q5_k_f32_ns.cl
++++ b/ggml/src/ggml-opencl/kernels/gemv_moe_q5_k_f32_ns.cl
+@@ -7,18 +7,22 @@
+ #define N_SIMDGROUP 4
+ #define SIMDGROUP_WIDTH 64
+ 
++// K2 P1: masks as arguments, same as gemv_noshuffle_q4_k_f32.cl. Literals stay out.
+ inline void get_scale_min_k4(
+     int j,
+     global const uchar * q,
+     uchar * d,
+-    uchar * m
++    uchar * m,
++    uchar mask_d6,
++    uchar mask_d4,
++    uchar mask_hi2
+ ) {
+     if (j < 4) {
+-        *d = q[j]   & 63;
+-        *m = q[j+4] & 63;
++        *d = q[j]   & mask_d6;
++        *m = q[j+4] & mask_d6;
+     } else {
+-        *d = (q[j+4] & 0x0F) | ((q[j-4] & 0xC0) >> 2);
+-        *m = ((q[j+4] >> 4) & 0x0F) | ((q[j]   & 0xC0) >> 2);
++        *d = (q[j+4] & mask_d4) | ((q[j-4] & mask_hi2) >> 2);
++        *m = ((q[j+4] >> 4) & mask_d4) | ((q[j]   & mask_hi2) >> 2);
+     }
+ }
+ 
+@@ -48,7 +52,10 @@ __kernel void kernel_gemv_moe_q5_k_f32_ns(
+     ulong                   offsetd,
+     int                     ne00,
+     int                     ne01,
+-    int                     ne11
++    int                     ne11,
++    uchar                   mask_d6,
++    uchar                   mask_d4,
++    uchar                   mask_hi2
+ ) {
+     uint i01  = get_global_id(0);
+     uint i20  = get_global_id(2);
+@@ -89,7 +96,7 @@ __kernel void kernel_gemv_moe_q5_k_f32_ns(
+         // Load sub-block scale and min
+         global const uchar * sc = src0_s + (expert_id * ne01 + i01) * scales_per_row + sb * K_SCALE_SIZE;
+         uchar sv, mn;
+-        get_scale_min_k4(j, sc, &sv, &mn);
++        get_scale_min_k4(j, sc, &sv, &mn, mask_d6, mask_d4, mask_hi2);
+ 
+         float scale = (float)d_val * (float)sv;
+         float minv  = -(float)dm_val * (float)mn;

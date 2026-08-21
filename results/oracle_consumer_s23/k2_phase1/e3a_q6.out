@@ -1,0 +1,21 @@
+=== K2 RUN tag=e3a_q6 ===
+Thu Aug 20 21:27:08 EDT 2026
+PWD=/data/local/tmp/s3oracle
+LD_LIBRARY_PATH=/data/local/tmp/s3oracle
+GGML_OPENCL_LOG_KERNELS=1
+GGML_OPENCL_MOE_OPTS=<unset>
+GGML_OPENCL_CVT_OPTS=-cl-opt-disable
+GGML_OPENCL_HOST_REPACK=<unset>
+GGML_OPENCL_DUMP_Q=<unset>
+GGML_OPENCL_ORACLE=<unset>
+CMD=./test-backend-ops -o MUL_MAT_ID -p type_a=q6_K
+=== sha libggml-opencl.so ===
+d88a8301429365eecf128dc488e0a49c94b684db8762f50b044cac7e97ccd5a8  libggml-opencl.so
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: QUALCOMM Adreno(TM)
+  Device memory: 3536 MB (2512 MB free)
+
+=== rc=1 ===
+Thu Aug 20 21:27:09 EDT 2026

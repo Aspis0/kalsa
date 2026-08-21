@@ -1,0 +1,30 @@
+=== K2 RUN tag=e5p2_q6 ===
+Thu Aug 20 21:36:49 EDT 2026
+PWD=/data/local/tmp/s3oracle
+LD_LIBRARY_PATH=/data/local/tmp/s3oracle
+GGML_OPENCL_LOG_KERNELS=1
+GGML_OPENCL_MOE_OPTS=<unset>
+GGML_OPENCL_CVT_OPTS=<unset>
+GGML_OPENCL_HOST_REPACK=<unset>
+GGML_OPENCL_DUMP_Q=<unset>
+GGML_OPENCL_ORACLE=<unset>
+CMD=./test-backend-ops -o MUL_MAT_ID -p type_a=q6_K
+=== sha libggml-opencl.so ===
+b531095660704b3b60909e737ee04e14a6fca3e3c06d2b1f69d2e2d6bdcf753a  libggml-opencl.so
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: QUALCOMM Adreno(TM)
+  Device memory: 3536 MB (2512 MB free)
+
+  MUL_MAT_ID(type_a=q6_K,type_b=f32,n_mats=4,n_used=2,b=0,m=64,n=16,k=768): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q6_K,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=1,k=256): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q6_K,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=32,k=256): [1;32mOK[0m
+  3/3 tests passed
+  Backend OpenCL: [1;32mOK[0m
+Backend 2/2: CPU
+  Skipping CPU backend
+2/2 backends passed
+[1;32mOK[0m
+=== rc=0 ===
+Thu Aug 20 21:36:57 EDT 2026
