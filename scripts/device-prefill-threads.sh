@@ -24,7 +24,10 @@ _PT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=device-share-send.sh
 source "$_PT_DIR/device-share-send.sh"
 
-OUT="${OUT:-device-prefill-threads-out}"
+# Set unconditionally: sourcing device-share-send.sh above already defaulted OUT
+# to its own dir, so `${OUT:-…}` here would silently keep that one and the
+# results would land in the wrong place (it did, on the first run).
+OUT="device-prefill-threads-out"
 ACTIVITY="${ACTIVITY:-com.kalsa.app/.MainActivity}"
 PREWARM_TIMEOUT="${PREWARM_TIMEOUT:-420}"
 
@@ -48,16 +51,72 @@ pt_wait_prewarm() {
   return 1
 }
 
+pt_wait_assistant() {
+  local prev="$1" timeout="${2:-60}" t=0 count
+  while [ "$t" -lt "$timeout" ]; do
+    count=$(device_history_assistant_count)
+    case "$count" in ''|*[!0-9]*) count=-1 ;; esac
+    if [ "$count" -gt "$prev" ]; then
+      log "assistant persisted after ${t}s (${prev}->${count})"
+      return 0
+    fi
+    sleep 3
+    t=$((t + 3))
+  done
+  log "no assistant reply within ${timeout}s"
+  return 1
+}
+
+pt_last_assistant_text() {
+  device_history_assistant_count >/dev/null
+  python3 -c '
+import json, sys
+try:
+    data = json.loads(open(sys.argv[1], encoding="utf-8").read() or "[]")
+    msgs = [m for m in data if isinstance(m, dict) and m.get("role") == "assistant"]
+    if not msgs:
+        sys.exit(0)
+    print(msgs[-1].get("text") or "")
+except Exception:
+    pass
+' "$OUT/.share_hist.json"
+}
+
+pt_read_engine_pref() {
+  sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.engine';" 2>/dev/null || true
+}
+
 pt_arm() {
-  local decode="$1" prefill="$2" line
+  local decode="$1" prefill="$2" line prev show pref
   log "=== arm decode=${decode} prefill=${prefill} ==="
+  log "arm ${prefill}: state-before: level=$(device_battery_level) temp_deci=$(device_battery_temp_deci) thermal=$(device_thermal_status)"
   # The override is read at ENGINE INIT, so it must be written before the
   # relaunch, not after. device_share_send delivers it through the composer,
   # which is the only channel that reaches React state on a physical device.
+  prev=$(device_history_assistant_count)
+  case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
   device_share_send "bench:engine threads=${decode},threadsPrefill=${prefill}" || {
     log "arm ${prefill}: could not deliver the bench command"
     return 1
   }
+  pt_wait_assistant "$prev" 60 || log "arm ${prefill}: no reply to bench:engine"
+  # Prove the override landed BEFORE force-stop: bench:show must name these threads.
+  prev=$(device_history_assistant_count)
+  case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
+  device_share_send "bench:show" || {
+    log "arm ${prefill}: could not deliver bench:show"
+    return 1
+  }
+  if pt_wait_assistant "$prev" 60; then
+    show=$(pt_last_assistant_text)
+  else
+    show=""
+  fi
+  log "arm ${prefill}: bench:show: ${show:-EMPTY}"
+  printf '%s\n' "${show:-}" > "$OUT/arm-${prefill}-show.txt"
+  pref=$(pt_read_engine_pref)
+  log "arm ${prefill}: pref: ${pref:-ABSENT}"
+  printf '%s\n' "${pref:-}" > "$OUT/arm-${prefill}-pref.txt"
   sleep 3
   adb shell am force-stop com.kalsa.app </dev/null >/dev/null 2>&1
   sleep 5
@@ -71,14 +130,23 @@ pt_arm() {
     log "arm ${prefill}: no KALSA_PREWARM within ${PREWARM_TIMEOUT}s"
     printf '%s\t%s\t%s\n' "$decode" "$prefill" "TIMEOUT" >> "$OUT/prewarm.tsv"
   fi
-  log "arm ${prefill}: $(device_battery_level)% $(device_battery_temp_deci) thermal=$(device_thermal_status)"
+  adb logcat -d </dev/null > "$OUT/arm-${prefill}-logcat.txt" 2>/dev/null || true
+  grep -iE 'n_threads|n_threads_batch|threadsPrefill|nThreadsPrefill|llama_set_n_threads|threads_src|using n_threads' \
+    "$OUT/arm-${prefill}-logcat.txt" > "$OUT/arm-${prefill}-threads.log" || true
+  if [ -s "$OUT/arm-${prefill}-threads.log" ]; then
+    log "arm ${prefill}: thread-logcat:"
+    while IFS= read -r l; do log "arm ${prefill}:   $l"; done < "$OUT/arm-${prefill}-threads.log"
+  else
+    log "arm ${prefill}: thread-logcat: NO MATCHING LINE"
+  fi
+  log "arm ${prefill}: state: level=$(device_battery_level) temp_deci=$(device_battery_temp_deci) thermal=$(device_thermal_status)"
 }
 
 pt_main() {
   local decode="${1:-2}"; shift || true
   local counts=("$@")
   [ "${#counts[@]}" -gt 0 ] || counts=(2 4 6 8)
-  local attached picked n
+  local attached picked n prev pref
   mkdir -p "$OUT"
   attached=$(adb devices 2>/dev/null | awk '$2=="device" {print $1}')
   picked=$(device_pick_serial "${ANDROID_SERIAL:-}" "$attached") \
@@ -95,7 +163,13 @@ pt_main() {
 
   # Leave the device on production settings: an override left behind silently
   # poisons every later measurement on this phone.
+  prev=$(device_history_assistant_count)
+  case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
   device_share_send "bench:engine clear" || log "WARNING: could not clear the engine override — do it by hand"
+  pt_wait_assistant "$prev" 60 || log "WARNING: no reply to bench:engine clear"
+  pref=$(pt_read_engine_pref)
+  log "after-clear pref: ${pref:-ABSENT}"
+  printf '%s\n' "${pref:-}" > "$OUT/after-clear-pref.txt"
   log "results: $OUT/prewarm.tsv"
   cat "$OUT/prewarm.tsv"
 }
