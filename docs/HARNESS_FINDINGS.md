@@ -1503,6 +1503,79 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.32 MEASURED 2026-08-21: the Jelly's CPU and storage, and the one tuning question the numbers open
+
+Read-only pass on the Jelly Star (on the charger, thermal status 0 throughout), taken because
+§7.28 concluded this phone is **dequant-bound** — i.e. its limit is CPU work, not bytes — and nobody
+had looked at what CPU it actually has or where our threads land.
+
+**Topology.** `/proc/cpuinfo` CPU part and `cpu_capacity`, both read per core:
+
+| cores | part | max freq | `cpu_capacity` | governor |
+|---|---|---:|---:|---|
+| cpu0–5 | `0xd05` (**A55**) | 2 000 000 | 348 | policy0, file is `0660 system:system` — unreadable from shell |
+| cpu6–7 | `0xd0b` (**A76**) | 2 200 000 | 1024 | `sugov_ext` |
+
+**Our thread split is already hand-tuned, and it was not obvious that it would be.**
+`deviceTuning.ts:180-188` carries a measured preset for this exact SoC —
+`{ id: "helio-g99", decodeThreads: 2, prefillThreads: 8, capacitySignature: [348 ×6, 1024 ×2] }` —
+resolved as `n_threads: 2`, `n_threads_batch: 8`, provenance `soc-preset:helio-g99`
+(`deviceTuning.ts:400-405`). Decode on two threads is exactly the two A76s. No bench override is set
+on the device (`kalsa.bench.engine` absent).
+
+⭐ **The open question this raises, and it aims at the dominant cost.** Prefill runs on **8** threads,
+so six of them sit on cores with **a third** of an A76's capacity. llama.cpp splits a batch across
+threads and the batch finishes when the slowest thread does, so on a 6+2 machine with a 3:1 capacity
+split the six small cores can set the pace for all eight. Prefill is where this app spends most of
+the user's wait (§7.30: 120.8 s of cold start, of which 77.7 s is a system-prompt prewarm). **Nobody
+has measured prefill at 2 / 4 / 6 / 8 threads on this phone.** It is a knob, not a rewrite, and it
+points at the biggest number we have.
+
+⚠️ **Affinity is NOT established and the attempt should not be quoted.** Sampling
+`/proc/<pid>/task/*/stat` field 39 on an idle-but-loaded app gave 48 of 89 threads last-running on
+A55s and 41 on A76s, with the `mqt_v_native` threads concentrated on cpu6/cpu7. But no thread is
+named `ggml`/`llama`, the app was **not** mid-turn, and "last ran on" is not "runs on". A real answer
+samples during a decode.
+
+**Storage: it is UFS, and the design note that assumed so is right for this phone.** Checked rather
+than assumed, because a phone in this class could easily have been eMMC:
+`/sys/class/block/sda` resolves under `.../platform/soc/11270000.ufshci/host0/...`,
+`ro.boot.boot_devices` is `[bootdevice,soc/11270000.ufshci,11270000.ufshci]`, `userdata` is
+`/dev/block/sdc60`, and there is **no `mmcblk*`** device. (`ro.vendor.mtk_emmc_support` is `1`, which
+is a vendor flag and not the block layer — do not read it as evidence.)
+
+`/data` is **f2fs**, mounted `rw,lazytime,noatime,background_gc=on,discard,inline_data,inline_dentry,extent_cache,mode=adaptive,fsync_mode=nobarrier`. 228 GB total, **137 GB free**, 40 % used — disk space is not a constraint on this device and the session pool is not near any limit.
+
+**Sequential read, `dd bs=1m count=512` on a 5.15 GB GGUF the app was not using, three runs:**
+
+| run | throughput | what it is |
+|---|---:|---|
+| 1 | **984 MB/s** | coldest available |
+| 2 | 2.9 GB/s | page cache |
+| 3 | 3.2 GB/s | page cache |
+
+Two consequences worth carrying: a cold KEXP load has a **~3.4 s floor** (3.33 GB ÷ 0.984 GB/s) that
+no engine tuning can remove; and re-reading weights from flash costs about a gigabyte per second, so
+a page-fault storm of §7.14's size would be minutes of pure I/O — on the S23, which is a different
+device and whose storage has not been measured this way.
+
+**Session pool on disk:** 37 MB total — the live
+`lfm2_002e5-8b-a1b-kexp__conv-…__3524921208.kvs` at 10 041 119 B, plus a **28 674 134 B
+`qwen3.5-2b.kvs`** left by the old per-model scheme.
+
+✅ **A suspicion raised and refuted in the same pass.** The legacy file looked like it would be
+invisible to the pool and strand 28.7 MB of a 300 MB budget: `deleteLegacyModelSession` only ever
+runs for the *active* model (`LlamaService.ts:1951, 2198`), so a legacy file for any other model is
+never cleaned. But the budget does see it — `listPoolFiles` keys on `stemFromPooledName`, which just
+strips the extension and does not require the new three-part stem, so the legacy file is counted in
+the total and is evictable LRU like anything else. No defect. Recorded because the wrong version of
+this paragraph was nearly written.
+
+**Limits.** One phone, on the charger, idle-but-loaded — no measurement here was taken during
+inference. `dd` through `run-as` on f2fs with no way to drop caches is not a storage benchmark; the
+984 MB/s is "the coldest number we could get", not a cold-read spec. The A55 policy's governor could
+not be read at all.
+
 ### 7.31 COMPUTED 2026-08-21: every dense `MB/token` we carried was too LOW — the tied output head is read in full on every token, and on one model it is a third of the bill
 
 §7.28 discounted its own throughput spread with *"the two dense `MB/tok` figures are estimated from
@@ -3462,6 +3535,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 
 | date | change |
 |---|---|
+| 2026-08-21 | **§7.32: the Jelly's CPU and storage, read rather than assumed — and prefill runs on eight threads where six of them are third-speed cores.** Topology measured: cpu0-5 are **A55** (`0xd05`, capacity **348**), cpu6-7 **A76** (`0xd0b`, **1024**). Our split is already hand-tuned — `deviceTuning.ts:180-188` carries a `helio-g99` preset resolving to `n_threads: 2` / `n_threads_batch: 8`, provenance `soc-preset:helio-g99` — so decode already sits on exactly the two big cores. **Open and cheap:** llama.cpp finishes a batch when its slowest thread does, so on a 6+2 machine with a 3:1 capacity split, prefill on 8 threads may be paced by the A55s. Prefill is most of the user's wait (§7.30: 77.7 s of the 120.8 s cold start is a prewarm). Prefill at 2/4/6/8 threads has never been measured on this phone. **Storage is UFS, checked not assumed** (`/sys/class/block/sda` under `11270000.ufshci`, `ro.boot.boot_devices` names it, no `mmcblk*`; `ro.vendor.mtk_emmc_support=1` is a vendor flag, not the block layer). `/data` is **f2fs**, `fsync_mode=nobarrier`, 137 GB free of 228 — disk is not a constraint here. Sequential read **984 MB/s coldest**, 2.9-3.2 GB/s from page cache, so a cold KEXP load has a **~3.4 s floor** no tuning removes. Session pool 37 MB: the live 10 041 119 B file plus a **28 674 134 B legacy `qwen3.5-2b.kvs`**. **Suspicion refuted in the same pass:** the legacy file is NOT stranded — `listPoolFiles` keys on the bare filename stem, so it is counted in the budget and evicted LRU, even though `deleteLegacyModelSession` only ever runs for the active model. Limits: one phone, on the charger, **idle — nothing here was sampled during inference**, so the thread-affinity histogram is inconclusive and is not quoted as a result. |
 | 2026-08-21 | **§7.31: every dense `MB/token` we carried was too LOW, and §7.28's caveat pointed the wrong way — retracted there.** Tensor maps read off the pinned HF revisions with a range request (25 MB of header, no weights): **LFM2.5-2.6B = 1666.2 MB/token** (blocks 1451.2 + tied `token_embd` 215.0) against the ~1600 estimate, **Qwen3.5-2B = 1269.9** (852.7 + **417.2**) against ~1230. Neither GGUF has an `output.weight`, so on both the embedding is tied and the same matrix is read in full as the output head every token — which is why file size is a good proxy for a dense model and a terrible one for a sparse one (KEXP: 848 against a 3330 MB file). **Vocabulary size is a decode cost**: Qwen3.5-2B's 248 320-token vocab is **33 % of everything it reads per token**, against 13 % for LFM2.5-2.6B's 128 000. §7.28's throughput spread corrects to **52 %** (9.11 / 7.61 / 5.98 GB/s) and none of it is estimation error. S23 predictions move slightly worse: LFM2.5-2.6B **13.1** tok/s, Qwen3.5-2B **17.2**, both still unmeasured. Also corrected: §2.1's LFM2.5-VL-3B cell said "1674 (from the GGUF)" when 1674.45 MB is the **file size** of LFM2.5-2.6B — within 0.5 % of right, but not computed the way the column header promises. Limits: arithmetic, not a measurement; assumes one read per block tensor and one of the tied head at batch 1; models no KV, no activations, and not the VL model's 583 MB `mmproj`. |
 | 2026-08-21 | **§7.30: the prewarm stands aside after a restore — 120.8 s of cold start becomes 1.8 s, measured on the APK that carries the merge.** `d2f34eb` on the Jelly, KEXP, §7.29's exact configuration kept so the APK is the only variable. Five `force-stop` -> relaunch -> turn cycles: the prewarm logged `op:"skip" reason:"restored_kv"` on **all eight** restore events (two per cycle — the share deep link backgrounds RN and the engine re-inits), and turn prefill was **2.08 / 1.79 / 1.76 / 1.93 s** against a cold start of 77.7 s of prewarm plus 43.1 s of first-turn prefill. Decode 7.04-7.43 reproduces §7.28's 6.80-7.31, so the run is internally consistent. First sight of the per-conversation pool key on a phone: `lfm2_002e5-8b-a1b-kexp__conv-…__3524921208.kvs`. **Four defects it was not looking for:** (1) `KALSA_KVDIAG` reports `n_past: 0` on every restore while 1814-1946 tokens are resident and reused — the field is hardcoded to 0 for hybrids on the strength of Q6.c, which §7.29 refuted, so the honesty diagnostic is now the least honest line in the log; (2) `KALSA_PREWARM` logs `match:false` on every send that reused the whole session; (3) the disk gate over-charges **12.7x** — `estimatedBytes` 127 533 056 against a real file of **10 041 119 B for 1946 tokens (5.16 kB/token)**, reproducing §7.25's ~5.2 kB/token, so a 300 MB pool bills ~2 conversations where ~30 fit; (4) every turn writes the session **twice**, byte-identical after a restore. Also: `tokensEvaluated` is the prompt length, not the tokens computed. Limits: one phone, one conversation, n=4 restores, on the charger; the conversation ran 1814 -> 1946 tokens so **the window never slid** and this says nothing about §7.12's turn-11 collapse; `thinking=off` / `compaction=0` are not the shipping configuration; and the native `reusing n/m` line never appears on a restore cycle, so the reused-token count is inferred from timing, not read. |
 | 2026-08-21 | **§7.29: the hybrid restore is real — `n_past=1473`, not the assumed 0 — and the thing that destroys the cache is a divergent prompt, not the architecture.** KEXP after force-stop: `is_hybrid=1 resumable=1`, loaded in 19 ms, next send at n_past 1368-1604 and **~2 s of prefill**, n=2. Qwen3.5-2B restores just as well (1605 tokens in 43 ms) and then logs `no usable state checkpoint … doing full cache clear`, **n_past=0 and 104-138 s**. **Correction, mine:** this was reported as two of our measurements disagreeing. It was not — `TTFT_FIXES.md` lists Q6.c under *"explicitly not in this branch, out of scope"*, so it was an honestly-labelled assumption and §7.25 was the only measurement. §7.28's inferred cause for Qwen is now measured on the wire: 14 reasoning tokens in KV, absent from the re-rendered prompt, and it reproduces **without** a force-stop (122 s), which is what clears the restore of blame. Two fixes landed: `shouldSkipPrewarmAfterRestore` now keys on whether the restore populated KV rather than on dense-vs-hybrid (otherwise the merged branch's prewarm `seq_rm`s over a live 1600-token session on the model we ship), and `preserveThinking` is set on both Qwen entries that lacked it. Limits: one phone, one APK that predates the prewarm, two models; what the prewarm does after the fix is untested because no build carries the merge yet. |
