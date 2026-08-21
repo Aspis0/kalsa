@@ -4,8 +4,11 @@
  */
 
 import {
+  advanceAnchoredBoundary,
   assembleEngineHistory,
+  computeAnchoredBoundary,
   parseBenchDigestCadence,
+  shouldRebuildAnchored,
   shouldInjectOperativeBlock,
   LEGACY_MAX_HISTORY,
   LEGACY_MAX_HISTORY_IMAGES,
@@ -14,6 +17,7 @@ import {
   splitAtBoundary,
   type HistoryRoleMessage,
 } from "./compactor";
+import { anchoredWindowChars } from "./windowProfile";
 
 function makeHistory(n: number): HistoryRoleMessage[] {
   const out: HistoryRoleMessage[] = [];
@@ -51,6 +55,10 @@ describe("compactor parseContextMode", () => {
 
   test('"ciswire" → ciswire', () => {
     expect(parseContextMode("ciswire")).toBe("ciswire");
+  });
+
+  test('"anchored" → anchored', () => {
+    expect(parseContextMode("anchored")).toBe("anchored");
   });
 });
 
@@ -175,3 +183,97 @@ describe("compactor shouldInjectOperativeBlock", () => {
   });
 });
 
+describe("anchored no-digest window", () => {
+  const profile = { maxMessages: 40, charBudget: 1000, source: "test" };
+
+  test("keeps the stored boundary across consecutive turns under budget", () => {
+    const lengths = Array.from({ length: 55 }, () => 20);
+    let state = advanceAnchoredBoundary(null, {
+      chatId: "chat",
+      userTurnCount: 1,
+      historyLengths: lengths,
+      currentTurnLength: 20,
+      profile,
+      maxCharsPerMessage: 4000,
+    });
+    const boundary = state.boundaryIndex;
+
+    for (let turn = 0; turn < 6; turn++) {
+      const historyLengths = lengths.concat(Array(turn * 2).fill(20));
+      const rebuild = shouldRebuildAnchored(state, {
+        historyLengths,
+        currentTurnLength: 20,
+        profile,
+        maxCharsPerMessage: 4000,
+      });
+      expect(rebuild).toBe(false);
+      if (rebuild) {
+        state = advanceAnchoredBoundary(state, {
+          chatId: "chat",
+          userTurnCount: turn + 2,
+          historyLengths,
+          currentTurnLength: 20,
+          profile,
+          maxCharsPerMessage: 4000,
+        });
+      }
+      expect(state.boundaryIndex).toBe(boundary);
+    }
+  });
+
+  test("rebuild leaves hysteresis before the next pressure rebuild", () => {
+    const lengths = Array.from({ length: 55 }, () => 20);
+    const state = advanceAnchoredBoundary(null, {
+      chatId: "chat",
+      userTurnCount: 1,
+      historyLengths: lengths,
+      currentTurnLength: 20,
+      profile,
+      maxCharsPerMessage: 4000,
+    });
+    const rebuildWindow = anchoredWindowChars(
+      lengths,
+      state.boundaryIndex,
+      4000,
+      20,
+    );
+    expect(rebuildWindow).toBeLessThanOrEqual(1000 * 0.625);
+
+    let underBudgetTurns = 0;
+    for (; underBudgetTurns < 6; underBudgetTurns++) {
+      expect(
+        shouldRebuildAnchored(state, {
+          historyLengths: lengths.concat(
+            Array((underBudgetTurns + 1) * 2).fill(20),
+          ),
+          currentTurnLength: 20,
+          profile,
+          maxCharsPerMessage: 4000,
+        }),
+      ).toBe(false);
+    }
+    expect(underBudgetTurns).toBe(6);
+  });
+
+  test("an oversized single message does not cause an every-turn rebuild", () => {
+    const longMessage = [10_000];
+    const state = advanceAnchoredBoundary(null, {
+      chatId: "chat",
+      userTurnCount: 1,
+      historyLengths: longMessage,
+      currentTurnLength: 10,
+      profile: { ...profile, charBudget: 100 },
+      maxCharsPerMessage: 4000,
+    });
+    expect(state.boundaryIndex).toBe(1);
+    expect(
+      shouldRebuildAnchored(state, {
+        historyLengths: longMessage,
+        currentTurnLength: 10_000,
+        profile: { ...profile, charBudget: 100 },
+        maxCharsPerMessage: 4000,
+      }),
+    ).toBe(false);
+    expect(computeAnchoredBoundary(longMessage, profile, 4000, 10, 1)).toBe(1);
+  });
+});

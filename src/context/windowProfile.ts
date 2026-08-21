@@ -151,6 +151,55 @@ function messageCost(length: number | undefined, maxCharsPerMessage: number): nu
 }
 
 /**
+ * Charged chars for an anchored window, including the current user turn when
+ * supplied. The start is an explicit persisted anchor; it is never inferred
+ * from the history tail.
+ */
+export function anchoredWindowChars(
+  lengths: readonly number[],
+  boundaryIndex: number,
+  maxCharsPerMessage: number,
+  currentTurnLength = 0,
+): number {
+  const n = lengths.length;
+  const start =
+    typeof boundaryIndex === "number" && Number.isFinite(boundaryIndex)
+      ? Math.max(0, Math.min(Math.floor(boundaryIndex), n))
+      : 0;
+  let used = messageCost(currentTurnLength, maxCharsPerMessage);
+  for (let i = start; i < n; i++) {
+    used += messageCost(lengths[i], maxCharsPerMessage);
+  }
+  return used;
+}
+
+/**
+ * Whether an anchored window is over its character budget.
+ *
+ * A current turn that is itself larger than the budget cannot be removed from
+ * the prompt before it becomes part of history. It is therefore not a reason
+ * to rebuild again when the anchored history is already empty; the next
+ * rebuild can advance past that message once it is stored.
+ */
+export function anchoredWindowExceedsBudget(
+  lengths: readonly number[],
+  boundaryIndex: number,
+  profile: WindowProfile,
+  maxCharsPerMessage: number,
+  currentTurnLength = 0,
+): boolean {
+  if (!Number.isFinite(profile.charBudget)) return false;
+  const historyChars = anchoredWindowChars(
+    lengths,
+    boundaryIndex,
+    maxCharsPerMessage,
+  );
+  const currentChars = messageCost(currentTurnLength, maxCharsPerMessage);
+  if (historyChars === 0 && currentChars > profile.charBudget) return false;
+  return historyChars + currentChars > profile.charBudget;
+}
+
+/**
  * Walk back from the newest message until either cap binds, and return the
  * slice start.
  *

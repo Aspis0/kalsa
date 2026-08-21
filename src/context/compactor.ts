@@ -1,17 +1,20 @@
 /**
- * ConversationCompactor — two-tier context for cache-friendly prompts (PIANO V4.2).
+ * ConversationCompactor — context regimes for cache-friendly prompts.
  *
  * Pure TypeScript: no React Native / AsyncStorage imports. Callers inject storage.
  *
  * KV-prefix design (growing recent window):
  * - `boundaryIndex` marks where older (retrieval corpus) ends and the verbatim
- *   window begins. It moves ONLY at boundary rebuild (every K user turns).
+ *   window begins. In v42 it moves at a K-turn rebuild; in anchored mode it
+ *   moves only when the no-digest character budget is exceeded.
  * - Between boundary rebuilds the verbatim window is ALL messages from
  *   boundaryIndex onward — append-only growth (~R up to ~R+2K). That keeps the
  *   token prefix after the system prompt byte-identical so llama.rn reuses the
  *   KV cache.
- * - At boundary rebuild: set boundary so the remaining window is the most recent
- *   R messages; rolling LLM summary is refreshed on this same K-turn cadence.
+ * - At v42 boundary rebuild: set boundary so the remaining window is the most
+ *   recent R messages; rolling LLM summary is refreshed on this same cadence.
+ * - Anchored mode has no digest or summary. Its rebuild jumps the boundary so
+ *   the next append-only window is about 62.5% of its no-digest budget.
  *
  * Query-time BM25 digest (2026-08-03 reverse of freeze):
  * - Digest is rebuilt EVERY user turn with the CURRENT user message as query
@@ -48,6 +51,11 @@ import {
   type RetrievedSnippet,
 } from "./retriever";
 import type { DigestTelemetry } from "../engine/digestTelemetry";
+import {
+  anchoredWindowChars,
+  anchoredWindowExceedsBudget,
+  type WindowProfile,
+} from "./windowProfile";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -239,17 +247,19 @@ export const DEFAULT_COMPACTOR_CONFIG: CompactorConfig = {
 export const COMPACTION_ENABLED_KEY = "kalsa.context.compaction";
 
 /**
- * Three-valued context regime from COMPACTION_ENABLED_KEY.
+ * Context regime from COMPACTION_ENABLED_KEY.
  * - off: legacy sliding window, no digest/summary
  * - v42: boundary→end window + digest/summary
  * - ciswire: legacy sliding window + digest/summary (retrieval additive)
+ * - anchored: boundary→end window, no digest/summary, pressure rebuilds
  */
-export type ContextMode = "off" | "v42" | "ciswire";
+export type ContextMode = "off" | "v42" | "ciswire" | "anchored";
 
 /** Parse raw AsyncStorage value; unknown / null → "off". */
 export function parseContextMode(raw: string | null): ContextMode {
   if (raw === "1" || raw === "true") return "v42";
   if (raw === "ciswire") return "ciswire";
+  if (raw === "anchored") return "anchored";
   return "off";
 }
 
@@ -436,6 +446,76 @@ export function shouldRebuild(
   }
   const turns = Number.isFinite(userTurnCount) ? Math.floor(userTurnCount) : 0;
   return turns - state.builtAtUserTurn >= cfg.rebuildEveryKUserTurns;
+}
+
+/** Rebuild target: leave hysteresis so the next boundary is not immediate. */
+export const ANCHORED_REBUILD_TARGET_SHARE = 0.625;
+
+/**
+ * Pick the widest anchored suffix that fits the rebuild target.
+ *
+ * The caller invokes this only on a rebuild. Between rebuilds the stored
+ * boundary is passed through unchanged, so history length never moves it.
+ */
+export function computeAnchoredBoundary(
+  historyLengths: readonly number[],
+  profile: WindowProfile,
+  maxCharsPerMessage: number,
+  currentTurnLength = 0,
+  previousBoundaryIndex = -1,
+): number {
+  const n = historyLengths.length;
+  const previous =
+    typeof previousBoundaryIndex === "number" &&
+    Number.isFinite(previousBoundaryIndex)
+      ? Math.max(0, Math.min(Math.floor(previousBoundaryIndex), n))
+      : 0;
+
+  if (!Number.isFinite(profile.charBudget)) return previous;
+
+  const target =
+    Math.max(0, profile.charBudget) * ANCHORED_REBUILD_TARGET_SHARE;
+  let start = n;
+  for (let i = n - 1; i >= 0; i--) {
+    if (
+      anchoredWindowChars(
+        historyLengths,
+        i,
+        maxCharsPerMessage,
+        currentTurnLength,
+      ) > target
+    ) {
+      break;
+    }
+    start = i;
+  }
+  return Math.max(previous, start);
+}
+
+/**
+ * Pressure-only rebuild predicate for the anchored/no-digest regime.
+ * There is deliberately no turn cadence and no message-count trigger here.
+ */
+export function shouldRebuildAnchored(
+  state: CompactorState | null | undefined,
+  args: {
+    historyLengths: readonly number[];
+    currentTurnLength: number;
+    profile: WindowProfile;
+    maxCharsPerMessage: number;
+  },
+): boolean {
+  if (!state) return true;
+  if (typeof state.builtAtUserTurn !== "number" || state.builtAtUserTurn < 0) {
+    return true;
+  }
+  return anchoredWindowExceedsBudget(
+    args.historyLengths,
+    resolveBoundaryIndex(state, args.historyLengths.length),
+    args.profile,
+    args.maxCharsPerMessage,
+    args.currentTurnLength,
+  );
 }
 
 /** Count user-role messages in history (+ optional current turn not yet in list). */
@@ -729,6 +809,46 @@ export function toRetrievalUnits(
     });
   }
   return out;
+}
+
+/**
+ * Rebuild the no-digest anchored regime after pressure crossed its budget.
+ * The state intentionally clears both operative fields: this regime has no
+ * digest and no rolling summary to inject.
+ */
+export function advanceAnchoredBoundary(
+  prev: CompactorState | null | undefined,
+  args: {
+    chatId: string;
+    userTurnCount: number;
+    historyLengths: readonly number[];
+    currentTurnLength: number;
+    profile: WindowProfile;
+    maxCharsPerMessage: number;
+  },
+): CompactorState {
+  const chatId = args.chatId || DEFAULT_CHAT_ID;
+  const previousBoundary = resolveBoundaryIndex(
+    prev,
+    args.historyLengths.length,
+  );
+  const boundaryIndex = computeAnchoredBoundary(
+    args.historyLengths,
+    args.profile,
+    args.maxCharsPerMessage,
+    args.currentTurnLength,
+    previousBoundary,
+  );
+  const userTurnCount = Number.isFinite(args.userTurnCount)
+    ? Math.floor(args.userTurnCount)
+    : 0;
+  return {
+    frozenDigest: "",
+    rollingSummary: "",
+    builtAtUserTurn: userTurnCount,
+    boundaryIndex,
+    chatId,
+  };
 }
 
 /**
