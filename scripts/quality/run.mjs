@@ -6,8 +6,10 @@
  * Writes raw completions only. Scoring is a separate pass (report.mjs) so that
  * re-scoring never costs a re-run — the expensive half is the generation.
  *
- * Prompts are a bare user turn: no system prompt, no tools. The race measures the
- * model, not Kalsa's prefix.
+ * Prompts are a bare user turn by default: no system prompt, no tools, so the race
+ * measures the model rather than Kalsa's prefix. A cell may set `system` to put one
+ * back — that is how the language-pinning cells test whether an instruction survives
+ * the uncertainty that drives the drift.
  *
  *   node scripts/quality/run.mjs [--only <substr>] [--out <dir>]
  */
@@ -78,13 +80,15 @@ async function waitHealthy(child, timeoutMs = 300000) {
   throw new Error("server did not become healthy in time");
 }
 
-async function ask(prompt, d) {
+async function ask(prompt, d, system) {
   const started = Date.now();
   const r = await fetch(`${BASE}/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      messages: [{ role: "user", content: prompt }],
+      messages: system
+        ? [{ role: "system", content: system }, { role: "user", content: prompt }]
+        : [{ role: "user", content: prompt }],
       temperature: d.temp,
       top_k: d.topK,
       top_p: d.topP,
@@ -144,9 +148,10 @@ async function runCell(cell, prompts) {
     for (const p of todo) {
       let row;
       try {
-        const res = await ask(p.prompt, d);
+        const res = await ask(p.prompt, d, cell.system);
         row = { cell: cell.id, model: cell.model, quant: model.quant, kvK: cell.kvK, kvV: cell.kvV,
-                budget: cell.budget, qid: p.qid, lang: p.lang, prompt: p.prompt,
+                budget: cell.budget, system: cell.system ?? null,
+                qid: p.qid, lang: p.lang, prompt: p.prompt,
                 content: res.content, finish: res.finish, timings: res.timings, wallMs: res.wallMs };
       } catch (e) {
         row = { cell: cell.id, model: cell.model, qid: p.qid, lang: p.lang, prompt: p.prompt,

@@ -14,27 +14,149 @@
     "samplingNote": "One sampler for every model, so the race compares models and not samplers. Greedy (temp 0) is not an option: it drives Qwen3.5's reasoning into a literal repetition loop that never terminates. temp 0.6 / top_k 20 / top_p 0.95 with a light repeat penalty sits close to both the LFM2.5 and Qwen3.5 model cards and is loop-safe. The fixed seed keeps runs reproducible."
   },
   "models": {
-    "lfm25-2.6b":   { "path": "/Users/marco/kalsa-models/LFM2.5-2.6B-Q4_K_M.gguf",   "quant": "Q4_K_M", "note": "backbone proxy for the VL-3B we ship for quality" },
-    "lfm25-8b-a1b": { "path": "/Users/marco/kalsa-models/LFM2.5-8B-A1B-Q4_K_M.gguf", "quant": "Q4_K_M", "note": "MoE, 1B active" },
-    "lfm25-8b-kexp":{ "path": "/Users/marco/Desktop/LFM2.5-8B-A1B-KEXP.gguf",        "quant": "KEXP",   "note": "q2_K/q3_K experts, 3.33 GB — the fast tier we ship" },
-    "qwen35-2b":    { "path": "/Users/marco/kalsa-models/Qwen3.5-2B-Q4_K_M.gguf",    "quant": "Q4_K_M", "note": "the competitor" }
+    "lfm25-2.6b": {
+      "path": "/Users/marco/kalsa-models/LFM2.5-2.6B-Q4_K_M.gguf",
+      "quant": "Q4_K_M",
+      "note": "backbone proxy for the VL-3B we ship for quality"
+    },
+    "lfm25-8b-a1b": {
+      "path": "/Users/marco/kalsa-models/LFM2.5-8B-A1B-Q4_K_M.gguf",
+      "quant": "Q4_K_M",
+      "note": "MoE, 1B active"
+    },
+    "lfm25-8b-kexp": {
+      "path": "/Users/marco/Desktop/LFM2.5-8B-A1B-KEXP.gguf",
+      "quant": "KEXP",
+      "note": "q2_K/q3_K experts, 3.33 GB — the fast tier we ship"
+    },
+    "qwen35-2b": {
+      "path": "/Users/marco/kalsa-models/Qwen3.5-2B-Q4_K_M.gguf",
+      "quant": "Q4_K_M",
+      "note": "the competitor"
+    }
   },
   "cells": [
-    { "id": "kv-f16-8b-kexp", "model": "lfm25-8b-kexp", "kvK": "f16",  "kvV": "f16",  "budget": -1 },
-    { "id": "kv-q8-8b-kexp",  "model": "lfm25-8b-kexp", "kvK": "q8_0", "kvV": "q8_0", "budget": -1 },
-    { "id": "kv-q4-8b-kexp",  "model": "lfm25-8b-kexp", "kvK": "q4_0", "kvV": "q4_0", "budget": -1 },
-    { "id": "kv-f16-8b-a1b",  "model": "lfm25-8b-a1b",  "kvK": "f16",  "kvV": "f16",  "budget": -1 },
-    { "id": "kv-q8-8b-a1b",   "model": "lfm25-8b-a1b",  "kvK": "q8_0", "kvV": "q8_0", "budget": -1 },
-    { "id": "kv-q4-8b-a1b",   "model": "lfm25-8b-a1b",  "kvK": "q4_0", "kvV": "q4_0", "budget": -1 },
-
-    { "id": "base-2.6b",      "model": "lfm25-2.6b",    "kvK": "f16",  "kvV": "f16",  "budget": -1 },
-    { "id": "base-qwen",      "model": "qwen35-2b",     "kvK": "f16",  "kvV": "f16",  "budget": -1 },
-
-    { "id": "think512-8b-kexp","model": "lfm25-8b-kexp","kvK": "f16",  "kvV": "f16",  "budget": 512 },
-    { "id": "think512-8b-a1b", "model": "lfm25-8b-a1b", "kvK": "f16",  "kvV": "f16",  "budget": 512 },
-    { "id": "think512-2.6b",   "model": "lfm25-2.6b",   "kvK": "f16",  "kvV": "f16",  "budget": 512 },
-    { "id": "think512-qwen",   "model": "qwen35-2b",    "kvK": "f16",  "kvV": "f16",  "budget": 512 },
-    { "id": "think256-8b-kexp","model": "lfm25-8b-kexp","kvK": "f16",  "kvV": "f16",  "budget": 256 },
-    { "id": "think256-8b-a1b", "model": "lfm25-8b-a1b", "kvK": "f16",  "kvV": "f16",  "budget": 256 }
-  ]
+    {
+      "id": "kv-f16-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": -1
+    },
+    {
+      "id": "kv-q8-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "q8_0",
+      "kvV": "q8_0",
+      "budget": -1
+    },
+    {
+      "id": "kv-q4-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "q4_0",
+      "kvV": "q4_0",
+      "budget": -1
+    },
+    {
+      "id": "kv-f16-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": -1
+    },
+    {
+      "id": "kv-q8-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "q8_0",
+      "kvV": "q8_0",
+      "budget": -1
+    },
+    {
+      "id": "kv-q4-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "q4_0",
+      "kvV": "q4_0",
+      "budget": -1
+    },
+    {
+      "id": "base-2.6b",
+      "model": "lfm25-2.6b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": -1
+    },
+    {
+      "id": "base-qwen",
+      "model": "qwen35-2b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": -1
+    },
+    {
+      "id": "think512-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 512
+    },
+    {
+      "id": "think512-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 512
+    },
+    {
+      "id": "think512-2.6b",
+      "model": "lfm25-2.6b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 512
+    },
+    {
+      "id": "think512-qwen",
+      "model": "qwen35-2b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 512
+    },
+    {
+      "id": "think256-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
+    },
+    {
+      "id": "think256-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
+    },
+    {
+      "id": "think256-2.6b",
+      "model": "lfm25-2.6b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
+    },
+    {
+      "id": "pin-f16-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": -1,
+      "system": "Language rule: write all natural-language answer text in the same language as the user's question. Do not switch language, not even when you are unsure of the answer or when you cannot answer at all."
+    },
+    {
+      "id": "pin-f16-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": -1,
+      "system": "Language rule: write all natural-language answer text in the same language as the user's question. Do not switch language, not even when you are unsure of the answer or when you cannot answer at all."
+    }
+  ],
+  "languagePinNote": "Kalsa already injects a language rule, but it pins the reply to the APP locale (i18n en.ts:1033 / it.ts:989), not to the language of the question. These cells test the question-pinned form, on the two cells with the most measured drift, because drift concentrates on the questions where the model is unsure — exactly where an instruction is most likely to be dropped."
 }
