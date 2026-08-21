@@ -136,6 +136,8 @@ async function main() {
   console.log("Loading", reproPath);
   const {
     shouldSaveSession,
+    isSameSessionSave,
+    rememberSuccessfulSessionSave,
     estimateSessionBytes,
     resolveSessionDiskTokens,
     sessionDiskBytesRequired,
@@ -236,6 +238,29 @@ async function main() {
       kvReproducible: false,
     });
     assert(r.reason === "kv_not_reproducible", JSON.stringify(r));
+  });
+
+  test("session save fingerprint skips only an identical successful save", () => {
+    const first = { stem: "kexp__conv", historyHash: "hash-a", usedTokens: 0 };
+    assert(!isSameSessionSave(null, first), "no previous save must write");
+    assert(
+      rememberSuccessfulSessionSave(null, first, false) === null,
+      "failed save must not become the previous save",
+    );
+    const saved = rememberSuccessfulSessionSave(null, first, true);
+    assert(isSameSessionSave(saved, first), "identical save skips");
+    assert(
+      !isSameSessionSave(saved, { ...first, historyHash: "hash-b" }),
+      "changed hash must still write",
+    );
+    assert(
+      !isSameSessionSave(saved, { ...first, usedTokens: 1 }),
+      "changed token count must still write",
+    );
+    assert(
+      !isSameSessionSave(saved, { ...first, stem: "other__conv" }),
+      "changed stem must still write",
+    );
   });
 
   // ── Event traces over the state machine (A1 / A2 invariants) ────────────

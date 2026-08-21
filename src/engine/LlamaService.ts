@@ -94,9 +94,11 @@ import {
   estimateSessionBytes,
   getSessionConversationId,
   hasEnoughDiskForSession,
+  isSameSessionSave,
   promoteSessionBak,
   readBootMessages,
   readPersistedHistoryLength,
+  rememberSuccessfulSessionSave,
   readSessionMeta,
   resolveSessionDiskTokens,
   sessionFileExists,
@@ -107,8 +109,18 @@ import {
   buildKvDiagPayload,
   shouldSaveSession,
   writeSessionMeta,
+  type SessionSaveFingerprint,
   type SessionMeta,
 } from "./sessionPersistence";
+import {
+  recordSessionDiskSample,
+  sessionBytesPerTokenForModel,
+  type SessionDiskCalibration,
+} from "./sessionDiskCalibration";
+import {
+  loadSessionDiskCalibration,
+  saveSessionDiskCalibration,
+} from "./sessionDiskCalibrationStore";
 import { legacySessionStem, sessionStem } from "./sessionKey";
 import {
   deleteLegacyModelSession,
@@ -126,7 +138,7 @@ import {
   type KvReproState,
 } from "./kvReproducibility";
 import { resolveThinkingParams } from "./thinkingBudgets";
-import { getModelById, isHybridOrKvUnifiedModel } from "./ModelRegistry";
+import { getModelById } from "./ModelRegistry";
 import type { ModelInfo } from "./ModelRegistry";
 import type { DecodeMeasurement } from "./deviceThroughput";
 import {
@@ -211,6 +223,7 @@ let lastChatNPast: number | undefined;
  * from that file instead of writing a second snapshot.
  */
 let chatKvDiskCurrent = false;
+let lastSuccessfulSessionSave: SessionSaveFingerprint | null = null;
 /**
  * Whether the native KV can be reproduced by re-rendering persisted history.
  * Sticky `reproducible` + per-turn `turnInjected`; all transitions go through
@@ -1693,17 +1706,26 @@ function noteChatNPast(value: unknown): void {
   if (value === 0) lastChatNPast = undefined;
 }
 
-async function sessionDiskGateInput(): Promise<{
+async function sessionDiskGateInput(modelId = activeModelId ?? ""): Promise<{
   nPast?: number;
   historyLength?: number | null;
   nCtx: number;
+  bytesPerToken: number | null;
+  calibration: SessionDiskCalibration;
 }> {
   const nPast = lastChatNPast;
   let historyLength: number | null | undefined;
   if (nPast == null || nPast <= 0) {
     historyLength = await readPersistedHistoryLength();
   }
-  return { nPast, historyLength, nCtx: activeEngineCtx };
+  const calibration = await loadSessionDiskCalibration();
+  return {
+    nPast,
+    historyLength,
+    nCtx: activeEngineCtx,
+    bytesPerToken: sessionBytesPerTokenForModel(calibration, modelId),
+    calibration,
+  };
 }
 
 /**
@@ -1713,6 +1735,7 @@ async function sessionDiskGateInput(): Promise<{
  * Write is atomic-ish: native save goes to `<path>.tmp`, then moveAsync over the
  * real file; meta is written only after a successful rename. On ANY failure only
  * the tmp is deleted — the previous good `.kvs` + meta stay intact.
+ * An identical stem/history/token save is acknowledged without another native write.
  */
 export async function saveEngineSession(
   modelId: string,
@@ -1735,6 +1758,7 @@ export async function saveEngineSession(
       nPast: lastChatNPast,
       nCtx: activeEngineCtx,
     });
+    let bytesPerToken: number | null = null;
     let estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
     const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
       try {
@@ -1778,9 +1802,24 @@ export async function saveEngineSession(
         log(false, { reason: "no_session_key" });
         return false;
       }
-      const diskInput = await sessionDiskGateInput();
+      const diskInput = await sessionDiskGateInput(modelId);
+      const diskCalibration = diskInput.calibration;
+      bytesPerToken = diskInput.bytesPerToken;
       usedTokens = resolveSessionDiskTokens(diskInput);
-      estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
+      estimatedBytes =
+        usedTokens == null ? 0 : estimateSessionBytes(usedTokens, bytesPerToken ?? undefined);
+      const saveFingerprint: SessionSaveFingerprint = {
+        stem,
+        historyHash: historyHashValue,
+        usedTokens,
+      };
+      if (
+        chatKvDiskCurrent &&
+        isSameSessionSave(lastSuccessfulSessionSave, saveFingerprint)
+      ) {
+        log(true, { reason: "unchanged" });
+        return true;
+      }
       if (!(await hasEnoughDiskForSession(diskInput))) {
         log(false, { reason: "disk" });
         return false;
@@ -1875,12 +1914,37 @@ export async function saveEngineSession(
         return false;
       }
       try {
+        const fileInfo = await FileSystem.getInfoAsync(path);
+        const nextCalibration = recordSessionDiskSample(diskCalibration, {
+          ok: true,
+          modelId,
+          fileBytes:
+            "size" in fileInfo && typeof fileInfo.size === "number"
+              ? fileInfo.size
+              : undefined,
+          usedTokens: tokens,
+        });
+        if (nextCalibration !== diskCalibration) {
+          await saveSessionDiskCalibration(nextCalibration);
+        }
+      } catch {
+        // Calibration is best-effort; the successful session remains valid.
+      }
+      try {
         await FileSystem.deleteAsync(bakPath, { idempotent: true });
       } catch {
         // ignore
       }
       chatKvDiskCurrent = true;
       noteChatNPast(tokens);
+      const successfulUsedTokens =
+        resolveSessionDiskTokens({ nPast: lastChatNPast, nCtx: activeEngineCtx }) ??
+        saveFingerprint.usedTokens;
+      lastSuccessfulSessionSave = rememberSuccessfulSessionSave(
+        lastSuccessfulSessionSave,
+        { ...saveFingerprint, usedTokens: successfulUsedTokens },
+        true,
+      );
       await touchSessionUse(stem);
       const budgetBytes = await readSessionPoolBudgetBytes();
       await evictSessionPool(stem, budgetBytes);
@@ -1946,11 +2010,7 @@ async function tryLoadEngineSession(
       console.log(
         "KALSA_KVDIAG",
         JSON.stringify(
-          buildKvDiagPayload({
-            ok: loadOk,
-            tokensLoaded,
-            hybridOrKvUnified: isHybridOrKvUnifiedModel(modelId),
-          }),
+          buildKvDiagPayload({ ok: loadOk, tokensLoaded }),
         ),
       );
     } catch {
@@ -2470,7 +2530,14 @@ export async function streamAssistantTurn(
         hasTools ? options.tools : [],
       );
       if (turnPrefixHash !== prewarmPrefixHash) {
-        logPrewarm({ match: false, prewarm: prewarmPrefixHash, send: turnPrefixHash });
+        logPrewarm({
+          match: false,
+          reason: shouldSkipPrewarmAfterRestore(kvHoldsChatSession)
+            ? "restored_kv"
+            : "prefix_miss",
+          prewarm: prewarmPrefixHash,
+          send: turnPrefixHash,
+        });
       }
     }
 

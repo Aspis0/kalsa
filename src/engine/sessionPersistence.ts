@@ -69,23 +69,49 @@ export type KvDiagPayload = {
 };
 
 /**
- * Honest restore line. loadSession can report tokens_loaded>0 while native
- * n_past is 0 on hybrid/kvUnified models (Q6.c). Never treat ok:true as reuse.
+ * Honest restore line. §7.30 measured hybrid/kvUnified restores with
+ * 1814–1946 resident and reused tokens, so tokens_loaded is restored n_past.
+ * Never treat ok:true as reuse.
  */
 export function buildKvDiagPayload(input: {
   ok: boolean;
   tokensLoaded: unknown;
-  hybridOrKvUnified: boolean;
 }): KvDiagPayload {
   const tokens_on_disk =
     typeof input.tokensLoaded === "number" && Number.isFinite(input.tokensLoaded)
       ? input.tokensLoaded
       : 0;
   return {
-    n_past: input.hybridOrKvUnified ? 0 : tokens_on_disk,
+    n_past: tokens_on_disk,
     tokens_on_disk,
     ok: input.ok === true,
   };
+}
+
+export type SessionSaveFingerprint = {
+  stem: string;
+  historyHash: string;
+  usedTokens: number | null;
+};
+
+export function isSameSessionSave(
+  previous: SessionSaveFingerprint | null,
+  next: SessionSaveFingerprint,
+): boolean {
+  return (
+    previous !== null &&
+    previous.stem === next.stem &&
+    previous.historyHash === next.historyHash &&
+    previous.usedTokens === next.usedTokens
+  );
+}
+
+export function rememberSuccessfulSessionSave(
+  previous: SessionSaveFingerprint | null,
+  next: SessionSaveFingerprint,
+  succeeded: boolean,
+): SessionSaveFingerprint | null {
+  return succeeded ? next : previous;
 }
 
 /** Default messages key until migrate / AppShell bind the active conversation. */
@@ -371,8 +397,17 @@ export async function ensureSessionsDir(): Promise<void> {
   }
 }
 
-/** Dense measured ceiling ≈58–60 KB per used token (q8_0 K / q4_0 V, 4B). */
+/**
+ * Unmeasured default: dense measured ceiling ≈58–60 KB per used token
+ * (q8_0 K / q4_0 V, 4B).
+ */
 export const SESSION_BYTES_PER_TOKEN = 64 * 1024;
+
+function positiveSessionBytesPerToken(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : SESSION_BYTES_PER_TOKEN;
+}
 
 /** Free space must exceed this × estimated bytes (write + FS overhead). */
 export const SESSION_DISK_MARGIN = 1.5;
@@ -397,6 +432,8 @@ export type SessionDiskGateInput = {
   historyLength?: number | null;
   /** Context window; cap when the used-token flag is on, size when off. */
   nCtx?: number | null;
+  /** Measured session file bytes per used token for the active model. */
+  bytesPerToken?: number | null;
 };
 
 function finiteInt(value: unknown): number | null {
@@ -435,19 +472,22 @@ export function resolveSessionDiskTokens(input: SessionDiskGateInput): number | 
   return null;
 }
 
-/**
- * Dense measured ceiling ≈58–60 KB per used token (q8_0 K / q4_0 V, 4B default:
- * ~1.6 KB/cell/layer × 36 layers). Hybrid (kvUnified) recurrent tensors
- * (r_l/s_l) can add more and are NOT included in this estimate.
- */
-export function estimateSessionBytes(usedTokens: number): number {
+/** Estimate with a measured rate when available; otherwise use the unmeasured dense default. */
+export function estimateSessionBytes(
+  usedTokens: number,
+  bytesPerToken = SESSION_BYTES_PER_TOKEN,
+): number {
   const n = finiteInt(usedTokens);
-  return (n != null && n > 0 ? n : 0) * SESSION_BYTES_PER_TOKEN;
+  const rate = positiveSessionBytesPerToken(bytesPerToken);
+  return (n != null && n > 0 ? n : 0) * rate;
 }
 
 /** Bytes of free space required to attempt a session write. */
-export function sessionDiskBytesRequired(usedTokens: number): number {
-  const estimated = estimateSessionBytes(usedTokens);
+export function sessionDiskBytesRequired(
+  usedTokens: number,
+  bytesPerToken = SESSION_BYTES_PER_TOKEN,
+): number {
+  const estimated = estimateSessionBytes(usedTokens, bytesPerToken);
   if (!SESSION_DISK_GATE_USED_TOKENS) {
     return SESSION_DISK_MARGIN * estimated;
   }
@@ -498,7 +538,7 @@ export async function hasEnoughDiskForSession(
     const usedTokens = resolveSessionDiskTokens(input);
     if (usedTokens == null) return false;
     const free = await FileSystem.getFreeDiskStorageAsync();
-    return free > sessionDiskBytesRequired(usedTokens);
+    return free > sessionDiskBytesRequired(usedTokens, input.bytesPerToken ?? undefined);
   } catch {
     return false;
   }

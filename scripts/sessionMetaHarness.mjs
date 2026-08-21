@@ -70,6 +70,8 @@ function compile() {
     [
       "tsc",
       "src/engine/sessionPersistence.ts",
+      "src/engine/sessionDiskCalibration.ts",
+      "src/engine/sessionDiskCalibrationStore.ts",
       "src/engine/ttftFlags.ts",
       "--outDir",
       outDir,
@@ -90,11 +92,11 @@ function compile() {
   }
 }
 
-function resolveBuilt() {
+function resolveBuilt(file = "sessionPersistence.js") {
   const candidates = [
-    path.join(outDir, "sessionPersistence.js"),
-    path.join(outDir, "engine/sessionPersistence.js"),
-    path.join(outDir, "src/engine/sessionPersistence.js"),
+    path.join(outDir, file),
+    path.join(outDir, `engine/${file}`),
+    path.join(outDir, `src/engine/${file}`),
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;
@@ -133,6 +135,10 @@ async function main() {
     sessionLoadHasTokens,
     buildKvDiagPayload,
   } = await import(pathToFileURL(modPath).href);
+  const {
+    recordSessionDiskSample,
+    sessionBytesPerTokenForModel,
+  } = await import(pathToFileURL(resolveBuilt("sessionDiskCalibration.js")).href);
 
   let passed = 0;
   let failed = 0;
@@ -590,20 +596,18 @@ async function main() {
     assert(sessionLoadHasTokens(undefined) === false, "undefined");
   });
 
-  test("buildKvDiagPayload is honest on hybrid restore (JS tokens, native 0)", () => {
+  test("buildKvDiagPayload reports restored hybrid tokens", () => {
     const hybridOk = buildKvDiagPayload({
       ok: true,
       tokensLoaded: 1635,
-      hybridOrKvUnified: true,
     });
     assert(hybridOk.ok === true, "hybrid ok");
     assert(hybridOk.tokens_on_disk === 1635, "hybrid tokens_on_disk");
-    assert(hybridOk.n_past === 0, "hybrid n_past is 0 — do not repeat the JS lie");
+    assert(hybridOk.n_past === 1635, "hybrid n_past is tokens_loaded");
 
     const denseOk = buildKvDiagPayload({
       ok: true,
       tokensLoaded: 1635,
-      hybridOrKvUnified: false,
     });
     assert(denseOk.n_past === 1635, "non-hybrid n_past is tokens_loaded");
     assert(denseOk.tokens_on_disk === 1635, "non-hybrid tokens_on_disk");
@@ -612,7 +616,6 @@ async function main() {
     const fail = buildKvDiagPayload({
       ok: false,
       tokensLoaded: undefined,
-      hybridOrKvUnified: true,
     });
     assert(fail.ok === false, "fail ok");
     assert(fail.tokens_on_disk === 0, "fail tokens_on_disk defaults 0");
@@ -621,10 +624,63 @@ async function main() {
     const failDense = buildKvDiagPayload({
       ok: false,
       tokensLoaded: "nope",
-      hybridOrKvUnified: false,
     });
     assert(failDense.tokens_on_disk === 0, "non-number tokens_loaded → 0");
     assert(failDense.n_past === 0, "non-hybrid fail n_past 0");
+  });
+
+  test("session disk calibration rejects zero/missing/failed samples", () => {
+    const empty = {};
+    assert(sessionBytesPerTokenForModel(empty, "kexp") === null, "missing measurement");
+    assert(
+      recordSessionDiskSample(empty, {
+        ok: true,
+        modelId: "kexp",
+        fileBytes: 10041119,
+        usedTokens: 0,
+      }) === empty,
+      "zero tokens must not calibrate",
+    );
+    assert(
+      recordSessionDiskSample(empty, {
+        ok: true,
+        modelId: "kexp",
+        fileBytes: undefined,
+        usedTokens: 1946,
+      }) === empty,
+      "missing file size must not calibrate",
+    );
+    assert(
+      recordSessionDiskSample(empty, {
+        ok: false,
+        modelId: "kexp",
+        fileBytes: 10041119,
+        usedTokens: 1946,
+      }) === empty,
+      "failed save must not calibrate",
+    );
+    const measured = recordSessionDiskSample(empty, {
+      ok: true,
+      modelId: "kexp",
+      fileBytes: 10041119,
+      usedTokens: 1946,
+    });
+    assert(
+      sessionBytesPerTokenForModel(measured, "kexp") === 10041119 / 1946,
+      "successful save records bytes/token",
+    );
+    assert(
+      estimateSessionBytes(1946, sessionBytesPerTokenForModel(measured, "kexp")) === 10041119,
+      "next gate uses the measured rate",
+    );
+    assert(
+      estimateSessionBytes(1, null) === SESSION_BYTES_PER_TOKEN,
+      "missing rate uses the unmeasured default",
+    );
+    assert(
+      sessionBytesPerTokenForModel(measured, "other") === null,
+      "calibration is per model",
+    );
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);
