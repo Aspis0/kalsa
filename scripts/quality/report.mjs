@@ -7,7 +7,7 @@
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { scoreAnswer, splitThinking } from "./score.mjs";
+import { scoreAnswer, splitThinking, detectLanguage } from "./score.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const args = process.argv.slice(2);
@@ -41,7 +41,9 @@ for (const [cellId, rows] of cells) {
     else if (!q) verdict = { pass: false, reason: "unknown question" };
     else if (!answer.trim() && r.finish === "length") verdict = { pass: false, reason: "NO ANSWER — thinking filled the budget", noAnswer: true };
     else verdict = scoreAnswer(q, r.lang, r.content ?? "");
-    return { ...r, verdict, thinkChars: thinking.length, answerChars: answer.length };
+    const spoken = detectLanguage(answer);
+    return { ...r, verdict, thinkChars: thinking.length, answerChars: answer.length,
+             drifted: spoken !== null && spoken !== r.lang, spoken };
   });
   const passes = scored.filter((s) => s.verdict.pass).length;
   summaries.push({
@@ -58,15 +60,16 @@ for (const [cellId, rows] of cells) {
     meanTokS: mean(scored.map((s) => s.timings?.predicted_per_second ?? 0)).toFixed(1),
     truncated: scored.filter((s) => s.finish === "length").length,
     noAnswer: scored.filter((s) => s.verdict.noAnswer).length,
+    drifted: scored.filter((s) => s.drifted).length,
     scored,
   });
 }
 
 console.log("## Overall\n");
-console.log("| cell | model | quant | kv | budget | score | think chars | answer chars | tok | truncated | no answer |");
-console.log("|---|---|---|---|---|---|---|---|---|---|---|");
+console.log("| cell | model | quant | kv | budget | score | wrong lang | think chars | answer chars | tok | truncated | no answer |");
+console.log("|---|---|---|---|---|---|---|---|---|---|---|---|");
 for (const s of summaries) {
-  console.log(`| ${s.cellId} | ${s.model} | ${s.quant} | ${s.kv} | ${s.budget} | **${s.passes}/${s.n}** ${pct(s.passes, s.n)} | ${s.meanThinkChars} | ${s.meanAnswerChars} | ${s.meanTokens} | ${s.truncated} | ${s.noAnswer} |`);
+  console.log(`| ${s.cellId} | ${s.model} | ${s.quant} | ${s.kv} | ${s.budget} | **${s.passes}/${s.n}** ${pct(s.passes, s.n)} | ${s.drifted} | ${s.meanThinkChars} | ${s.meanAnswerChars} | ${s.meanTokens} | ${s.truncated} | ${s.noAnswer} |`);
 }
 
 console.log("\n## By language\n");

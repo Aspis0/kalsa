@@ -34,6 +34,12 @@ const args = process.argv.slice(2);
 const argOf = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : undefined; };
 const only = argOf("--only");
 const langs = (argOf("--langs") ?? "en,it,es,fr").split(",");
+/**
+ * KV cache types to sweep. 44 binary questions cannot resolve a small quality
+ * loss — the paired test across f16/q8_0/q4_0 came back p=0.73/0.51 on
+ * 8B-A1B — but bpb is deterministic and continuous, so it can.
+ */
+const kvTypes = (argOf("--kv") ?? "f16").split(",");
 
 const matrix = JSON.parse(readFileSync(path.join(ROOT, "scripts/quality/matrix.json"), "utf8"));
 
@@ -74,22 +80,22 @@ const rows = [];
 for (const [id, model] of Object.entries(matrix.models)) {
   if (only && !id.includes(only)) continue;
   if (!existsSync(model.path)) { console.log(`SKIP ${id} — missing ${model.path}`); continue; }
-  for (const lang of langs) {
+  for (const kv of kvTypes) for (const lang of langs) {
     const file = path.join(CORPUS, `${lang}.txt`);
     if (!existsSync(file)) { console.log(`SKIP ${id}/${lang} — missing corpus`); continue; }
     const bytes = statSync(file).size;
     try {
       const tokens = countTokens(model.path, file);
-      const { ppl, chunks } = perplexity(model.path, file, "f16", "f16");
+      const { ppl, chunks } = perplexity(model.path, file, kv, kv);
       const evaluated = chunks ? chunks * N_CTX : tokens;
       const fertility = tokens / bytes;
       const bpb = Math.log2(ppl) * fertility;   // bits/token x tokens/byte
-      rows.push({ model: id, quant: model.quant, lang, bytes, tokens, chunks, evaluated,
+      rows.push({ model: id, quant: model.quant, kv, lang, bytes, tokens, chunks, evaluated,
                   coverage: +(evaluated / tokens).toFixed(3),
                   fertility: +fertility.toFixed(4), ppl: +ppl.toFixed(4), bpb: +bpb.toFixed(4) });
-      console.log(`${id}/${lang}: ppl=${ppl.toFixed(3)} fertility=${fertility.toFixed(4)} tok/B bpb=${bpb.toFixed(4)} coverage=${(100 * evaluated / tokens).toFixed(1)}%`);
+      console.log(`${id}/${kv}/${lang}: ppl=${ppl.toFixed(3)} fertility=${fertility.toFixed(4)} tok/B bpb=${bpb.toFixed(4)} coverage=${(100 * evaluated / tokens).toFixed(1)}%`);
     } catch (e) {
-      console.error(`FAIL ${id}/${lang}: ${e.message}`);
+      console.error(`FAIL ${id}/${kv}/${lang}: ${e.message}`);
     }
   }
 }
@@ -98,13 +104,15 @@ const outFile = path.join(ROOT, "results/quality/bpb.json");
 writeFileSync(outFile, JSON.stringify({ nCtx: N_CTX, corpus: CORPUS, rows }, null, 2));
 console.log(`\nwrote ${outFile}`);
 
-console.log("\n| model | quant | " + langs.join(" | ") + " |");
-console.log("|---|---|" + langs.map(() => "---").join("|") + "|");
+console.log("\n| model | quant | kv | " + langs.join(" | ") + " |");
+console.log("|---|---|---|" + langs.map(() => "---").join("|") + "|");
 for (const id of [...new Set(rows.map((r) => r.model))]) {
-  const mine = langs.map((l) => {
-    const r = rows.find((x) => x.model === id && x.lang === l);
-    return r ? r.bpb.toFixed(3) : "—";
-  });
-  const q = rows.find((x) => x.model === id)?.quant ?? "";
-  console.log(`| ${id} | ${q} | ${mine.join(" | ")} |`);
+  for (const kv of kvTypes) {
+    const mine = langs.map((l) => {
+      const r = rows.find((x) => x.model === id && x.lang === l && x.kv === kv);
+      return r ? r.bpb.toFixed(4) : "—";
+    });
+    const q = rows.find((x) => x.model === id)?.quant ?? "";
+    console.log(`| ${id} | ${q} | ${kv} | ${mine.join(" | ")} |`);
+  }
 }
