@@ -109,7 +109,6 @@ import {
   restoreEngineSession,
   saveEngineSession,
   streamAssistantTurn,
-  summarizeConversation,
   type EngineMessage,
   type EngineTurnOptions,
 } from "../engine/LlamaService";
@@ -136,7 +135,6 @@ import {
   setBootMessagesKey,
   setSessionConversationId,
 } from "../engine/sessionPersistence";
-import { formatSummaryLine } from "../engine/summaryTelemetry";
 import { formatDigestLine } from "../engine/digestTelemetry";
 import { formatMemoryLine } from "../memory/memoryTelemetry";
 import {
@@ -206,12 +204,10 @@ import {
   advanceAnchoredBoundary,
   advanceCompactionBoundary,
   assembleEngineHistory,
-  buildSummaryTranscript,
   COMPACTION_ENABLED_KEY,
   compactorStorageKey,
   countUserTurns,
   DEFAULT_CHAT_ID,
-  DEFAULT_COMPACTOR_CONFIG,
   emptyCompactorState,
   parseCompactorState,
   shouldInjectOperativeBlock,
@@ -433,8 +429,6 @@ function gateReasonMessage(
 
 // ── ConversationCompactor (per-chat, module-level — survives remounts) ─────
 const compactorStateByChat = new Map<string, CompactorState>();
-/** Pending LLM summary (promoted into frozen rollingSummary on next boundary rebuild). */
-const pendingSummaryByChat = new Map<string, string>();
 /** Last known history length per chat — clearChat detection (shrink). */
 const lastHistoryLenByChat = new Map<string, number>();
 /** Force next-turn boundary rebuild after context_full (compaction ON). */
@@ -454,15 +448,6 @@ const digestIndexCorpusLenByChat = new Map<string, number>();
  * Unbounded corpus → linear rebuild cost (~1.3s at 5000 turns desktop).
  */
 const MAX_DIGEST_CORPUS_MESSAGES = 400;
-/** Soft message cap before buildSummaryTranscript's existing char budget. */
-const MAX_SUMMARY_CORPUS_MESSAGES = 200;
-/**
- * MULTI-CHAT: summaryAbortController / summaryDebounceTimer are still GLOBAL
- * singletons (other compactor state is per-chat Maps keyed by conversation id).
- * One active chat at a time — abortBackgroundSummary on switch / new / delete
- * so a pending summary cannot write into the next conversation.
- */
-let summaryAbortController: AbortController | null = null;
 /**
  * Monotonic per-send turn id for the web_fetch allowlist (F5).
  * Keying on message text alone re-used the allowlist when the user re-sent the
@@ -473,14 +458,6 @@ let fetchAllowlistTurnSeq = 0;
 let privateSearchLatchSeq = -1;
 /** Turn seq that ran calendar_agenda — skip extractMemory for that turn. */
 let calendarExtractSkipSeq = -1;
-/** Debounce timer: schedule summary only after idle (8s post-turn). */
-let summaryDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-const SUMMARY_IDLE_DEBOUNCE_MS = 8_000;
-/**
- * Per-chat epoch bumped by resetCompactorChat. In-flight summary completions
- * capture the epoch at arm time and refuse to store if it changed (e.g. clearChat).
- */
-const summaryEpochByChat = new Map<string, number>();
 
 /**
  * Exclude error bubbles, kill-recovered partials, and abort-orphaned user turns
@@ -509,29 +486,6 @@ function filterCorpusHygiene(
     out.push(m);
   }
   return out;
-}
-
-function abortBackgroundSummary(): void {
-  const hadTimer = summaryDebounceTimer != null;
-  const hadController = summaryAbortController != null;
-  if (hadTimer) {
-    clearTimeout(summaryDebounceTimer!);
-    summaryDebounceTimer = null;
-  }
-  if (hadController) {
-    try {
-      summaryAbortController!.abort();
-    } catch {
-      // ignore
-    }
-    summaryAbortController = null;
-  }
-  // Only emit when something was actually cancelled — silent no-op otherwise.
-  if (hadTimer || hadController) {
-    console.log(
-      formatSummaryLine("debounce-cancelled", { hadTimer, hadController }),
-    );
-  }
 }
 
 function resetDigestIndex(chatId: string): void {
@@ -609,11 +563,7 @@ function syncDigestIndex(
 
 async function resetCompactorChat(chatId: string): Promise<void> {
   const id = chatId || DEFAULT_CHAT_ID;
-  // Invalidate any in-flight background summary for this chat (clearChat path).
-  summaryEpochByChat.set(id, (summaryEpochByChat.get(id) ?? 0) + 1);
-  abortBackgroundSummary();
   compactorStateByChat.delete(id);
-  pendingSummaryByChat.delete(id);
   lastHistoryLenByChat.delete(id);
   forceRebuildByChat.delete(id);
   resetDigestIndex(id);
@@ -2066,7 +2016,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return;
       }
       persistFlushRef.current?.();
-      abortBackgroundSummary();
       setDrawerOpen(false);
       const modelId = getActiveModelId();
       // UI first. Keep sessionConversationId on the chat we are leaving so
@@ -2108,7 +2057,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       return;
     }
     persistFlushRef.current?.();
-    abortBackgroundSummary();
     newChatInFlightRef.current = true;
     void (async () => {
       try {
@@ -2176,7 +2124,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
       void invalidateConversationSessions(id);
       if (deletingActive) {
-        abortBackgroundSummary();
         bumpPersistEpochRef.current?.();
         bindActiveConversation(next.activeId);
         const modelId = getActiveModelId();
@@ -2858,9 +2805,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       voiceDownloadAbortRef.current = null;
       embeddingDownloadAbortRef.current?.abort();
       embeddingDownloadAbortRef.current = null;
-      // Preempt background summary before dispose so FIFO does not hold a
-      // half-finished summarize across unmount.
-      abortBackgroundSummary();
       // FIX 1 / round 7: full chat disposal lifecycle through the native-op
       // barrier so a chat release cannot overlap an in-flight embed op.
       // Sequential: disposeEngine (wrapped) THEN releaseEmbedder (which itself
@@ -3301,10 +3245,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelErrorKind(null);
       // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
       AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
-
-      // Preempt background summary BEFORE dispose — same rule as send: never
-      // leave a summarize job holding the engine across a model switch.
-      abortBackgroundSummary();
 
       // Extraction holds the engine: wait briefly so dispose does not race it.
       // Epoch checks discard any delayed writes after the engine is gone.
@@ -4093,7 +4033,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           let turnFailed = false;
           let assistantFull = "";
           let extractScheduled = false;
-          let compactionFollowupScheduled = false;
 
           /**
            * Turn-end order (must preserve for KV save effectiveness):
@@ -4266,10 +4205,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           };
 
           try {
-            // PREEMPT summary BEFORE any engine wait/enqueue so the FIFO never
-            // makes a user turn sit behind a background summarize job.
-            abortBackgroundSummary();
-
             // Wait out a pending memory extract so we never dual-complete on the engine.
             if (memoryExtractRef.current) {
               try {
@@ -4326,15 +4261,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             }
 
             const contextMode = contextModeRef.current;
-            // Retrieval (digest + summary) is only v42/ciswire. Anchored is a
+            // Retrieval (digest + summary) is only ciswire. Anchored is a
             // no-digest append-only window with its own pressure trigger.
-            const retrievalOn =
-              contextMode === "v42" || contextMode === "ciswire";
+            const retrievalOn = contextMode === "ciswire";
             const anchoredOn = contextMode === "anchored";
             const legacyWindowMode =
               contextMode === "off" || contextMode === "ciswire";
             let operativeContext: { digest?: string; summary?: string } | null = null;
-            let olderForSummary: HistoryRoleMessage[] = [];
             let boundaryForAssemble = 0;
             // The verbatim window, resolved from the context the engine actually
             // loaded (post-clamp) rather than from a constant — same treatment
@@ -4397,7 +4330,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   const raw = await AsyncStorage.getItem(compactorStorageKey(chatId));
                   state = parseCompactorState(raw, chatId);
                   if (!anchoredOn) {
-                    // Prefer dedicated summary key if present (may be newer pending).
+                    // Prefer the dedicated summary key when present (storage compatibility).
                     const sumRaw = await AsyncStorage.getItem(summaryStorageKey(chatId));
                     if (typeof sumRaw === "string" && sumRaw.trim()) {
                       state = {
@@ -4490,26 +4423,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 ) ||
                 forceRebuild
               ) {
-                const pending = pendingSummaryByChat.get(chatId);
                 state = advanceCompactionBoundary(state, {
                   chatId,
                   userTurnCount,
                   historyLength: validatedHistory.length,
                   hasImages,
-                  nextSummary:
-                    typeof pending === "string"
-                      ? pending
-                      : state.rollingSummary,
                 });
-                if (typeof pending === "string") {
-                  console.log(
-                    formatSummaryLine("promoted", {
-                      turn: userTurnCount,
-                      chars: pending.length,
-                    }),
-                  );
-                }
-                if (pending !== undefined) pendingSummaryByChat.delete(chatId);
               }
 
               boundaryForAssemble = resolveBoundaryIndex(
@@ -4532,22 +4451,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 // Absent in production → null → "bm25" (existing behavior).
                 const rankingOverride = await getBenchRanking();
 
-                // Corpus eligible for BM25 + rolling summary:
-                // - v42: same as assembly boundary (unchanged)
-                // - ciswire: everything outside the legacy sliding window
-                const corpusBoundary =
-                  contextMode === "ciswire"
-                    ? legacyWindowStart
-                    : boundaryForAssemble;
+                // Corpus eligible for BM25 + rolling summary: everything
+                // outside ciswire's legacy sliding window.
+                const corpusBoundary = legacyWindowStart;
 
-                // Older corpus for summary scheduling + warm-index sync.
+                // Older corpus for the warm-index sync.
                 const olderClean = filterCorpusHygiene(
                   splitAtBoundary(validatedHistory, corpusBoundary).older,
                 );
-                olderForSummary =
-                  olderClean.length > MAX_SUMMARY_CORPUS_MESSAGES
-                    ? olderClean.slice(-MAX_SUMMARY_CORPUS_MESSAGES)
-                    : olderClean;
 
                 // Warm index: append as boundary advances; query every turn.
                 const digestIndex = syncDigestIndex(
@@ -4607,10 +4518,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             }
 
             // History assembly: legacy sliding window (off/ciswire) or boundary→end
-            // (v42/anchored — append-only growth between rebuilds, preserves KV prefix).
+            // (anchored — append-only growth between rebuilds, preserves KV prefix).
             const assembled = assembleEngineHistory(validatedHistory, {
-              compactionEnabled:
-                contextMode === "v42" || contextMode === "anchored",
+              compactionEnabled: contextMode === "anchored",
               hasImages,
               boundaryIndex: boundaryForAssemble,
               legacyWindowStart,
@@ -4663,179 +4573,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // mid-turn memory disable). Empty when memory off / no facts.
             injectedFactsRef.current = promptFacts;
 
-            /**
-             * Schedule a preemptable background summary (debounced 8s idle) only
-             * when the NEXT user turn will rebuild anyway (turnsSinceRebuild ===
-             * K-1). Summary completion / clearCache destroys the KV prefix; by
-             * aligning with the pre-rebuild turn that destruction is absorbed by
-             * the rebuild turn's inevitable cold prefill (not a warm mid-cycle
-             * turn). Pending-summary promotion at rebuild time is unchanged.
-             */
-            const scheduleCompactionFollowup = () => {
-              const turn = countUserTurns(validatedHistory, true);
-              // Safety-net re-entry (post-await after onDone already ran): silent.
-              // Keep the early return; do not emit skip-already-scheduled noise.
-              if (compactionFollowupScheduled) {
-                return;
-              }
-              compactionFollowupScheduled = true;
-              if (!retrievalOn) {
-                console.log(formatSummaryLine("skip-compaction-off", { turn }));
-                return;
-              }
-              if (turnFailed) {
-                console.log(formatSummaryLine("skip-turn-failed", { turn }));
-                return;
-              }
-              if (signal.aborted) {
-                console.log(formatSummaryLine("skip-aborted", { turn }));
-                return;
-              }
-              if (olderForSummary.length === 0) {
-                console.log(formatSummaryLine("skip-no-corpus", { turn }));
-                return;
-              }
-
-              // turnsSinceRebuild after this turn's state (post-rebuild → 0).
-              const st = compactorStateByChat.get(chatId);
-              const K = DEFAULT_COMPACTOR_CONFIG.rebuildEveryKUserTurns;
-              const turnsSinceRebuild =
-                st && typeof st.builtAtUserTurn === "number" && st.builtAtUserTurn >= 0
-                  ? countUserTurns(validatedHistory, true) - st.builtAtUserTurn
-                  : 0;
-
-              // Emit telemetry when cadence arm is unreachable (size-trigger rebuild just happened).
-              // This makes visible in the report when winbudget causes every-turn rebuilds,
-              // preventing the rolling summary from ever scheduling.
-              if (turnsSinceRebuild === 0 && st && st.builtAtUserTurn >= 0) {
-                console.log(
-                  formatSummaryLine("cadence-unreachable-size-trigger", {
-                    turn,
-                    turnsSinceRebuild,
-                    k: K,
-                  }),
-                );
-              }
-
-              if (turnsSinceRebuild !== K - 1) {
-                console.log(
-                  formatSummaryLine("skip-cadence", {
-                    turn,
-                    turnsSinceRebuild,
-                    k: K,
-                  }),
-                );
-                return;
-              }
-
-              const transcript = buildSummaryTranscript(olderForSummary);
-              if (!transcript.trim()) {
-                console.log(
-                  formatSummaryLine("skip-empty-transcript", { turn }),
-                );
-                return;
-              }
-
-              if (summaryDebounceTimer) clearTimeout(summaryDebounceTimer);
-              const transcriptChars = transcript.length;
-              console.log(
-                formatSummaryLine("debounce-armed", {
-                  turn,
-                  debounceMs: SUMMARY_IDLE_DEBOUNCE_MS,
-                  transcriptChars,
-                }),
-              );
-              summaryDebounceTimer = setTimeout(() => {
-                summaryDebounceTimer = null;
-                // Still idle? streamInFlight means user already sent again.
-                if (streamInFlightRef.current) {
-                  console.log(formatSummaryLine("debounce-busy", { turn }));
-                  return;
-                }
-
-                const ac = new AbortController();
-                summaryAbortController = ac;
-                const capturedLocale = locale;
-                const capturedChatId = chatId;
-                const capturedEpoch = summaryEpochByChat.get(chatId) ?? 0;
-                void (async () => {
-                  try {
-                    console.log(
-                      formatSummaryLine("llm-start", {
-                        turn,
-                        transcriptChars,
-                      }),
-                    );
-                    const summary = await summarizeConversation(
-                      transcript,
-                      capturedLocale,
-                      ac.signal,
-                    );
-                    if (ac.signal.aborted) {
-                      console.log(formatSummaryLine("llm-aborted", { turn }));
-                      return;
-                    }
-                    // Conversation was reset (clearChat) while we were in flight.
-                    if (
-                      (summaryEpochByChat.get(capturedChatId) ?? 0) !==
-                      capturedEpoch
-                    ) {
-                      console.log(formatSummaryLine("llm-aborted", { turn }));
-                      return;
-                    }
-                    if (!summary.trim()) {
-                      console.log(formatSummaryLine("llm-empty", { turn }));
-                      return;
-                    }
-                    const trimmed = truncateBudget(
-                      summary.trim(),
-                      SUMMARY_BUDGET_CHARS,
-                    );
-                    // Store as pending — promoted into rollingSummary on next boundary rebuild.
-                    pendingSummaryByChat.set(capturedChatId, trimmed);
-                    console.log(
-                      formatSummaryLine("stored-pending", {
-                        turn,
-                        chars: trimmed.length,
-                      }),
-                    );
-                    try {
-                      await AsyncStorage.setItem(
-                        summaryStorageKey(capturedChatId),
-                        trimmed,
-                      );
-                    } catch {
-                      // best-effort
-                    }
-                    // clearChat may land between the pre-write epoch check and
-                    // the completed setItem — re-check and scrub the stale key.
-                    if (
-                      (summaryEpochByChat.get(capturedChatId) ?? 0) !==
-                      capturedEpoch
-                    ) {
-                      pendingSummaryByChat.delete(capturedChatId);
-                      try {
-                        await AsyncStorage.removeItem(
-                          summaryStorageKey(capturedChatId),
-                        );
-                      } catch {
-                        // best-effort
-                      }
-                      console.log(formatSummaryLine("llm-aborted", { turn }));
-                      return;
-                    }
-                  } catch {
-                    console.log(formatSummaryLine("llm-error", { turn }));
-                    // keep previous rollingSummary
-                  } finally {
-                    if (summaryAbortController === ac) {
-                      summaryAbortController = null;
-                    }
-                  }
-                })();
-              }, SUMMARY_IDLE_DEBOUNCE_MS);
-            };
-
             await streamAssistantTurn(
               engineMessages,
               {
@@ -4872,7 +4609,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   // Arm extract (memoryExtractRef) before unlocking; gate opens
                   // only after AiChatPage's turn-end save settles.
                   armMemoryExtract();
-                  scheduleCompactionFollowup();
                   finish();
                 },
                 onError: (error) => {
@@ -4881,7 +4617,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   // next send. ciswire keeps the legacy window; rebuild would
                   // not shrink it.
                   if (
-                    (contextMode === "v42" || contextMode === "anchored") &&
+                    contextMode === "anchored" &&
                     error &&
                     typeof error === "object" &&
                     (error as { code?: string }).code === "context_full"
@@ -4909,7 +4645,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // Safety: if the stream returns without onDone/onError (e.g. abort path).
             // Arm extract (no-ops if aborted/empty); gate opens post-save.
             armMemoryExtract();
-            scheduleCompactionFollowup();
             finish();
           } catch (error) {
             fail(error instanceof Error ? error.message : String(error));

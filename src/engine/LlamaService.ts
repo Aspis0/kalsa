@@ -26,7 +26,6 @@ import {
   hasOperativeContext,
   type OperativeBlockContext,
 } from "../context/operativeBlock";
-import { replaceLiteral } from "../context/compactor";
 import {
   accumulateToolSources,
   buildCiteInstructionSuffix,
@@ -151,7 +150,7 @@ let activeMtpNMax: number | undefined;
 let activeSpecType: string | undefined;
 /**
  * True only when the native KV still holds chat-turn state (post streamAssistantTurn
- * or successful loadSession). Utility jobs (extract/translate/summarize) call
+ * or successful loadSession). Utility jobs (extract/translate) call
  * clearCache and leave a non-chat prompt in the context — saving then would
  * restore a useless prefix on next start. Cleared on dispose / utility clearCache.
  */
@@ -271,12 +270,6 @@ const EXTRACT_MEMORY_TIMEOUT_MS = 20_000;
 const TRANSLATE_TIMEOUT_MS = 30_000;
 /** Hard cap on source text fed to translateText (chars). */
 const MAX_TRANSLATION_CHARS = 4000;
-/** summarizeConversation wall-clock timeout (ms). */
-const SUMMARIZE_TIMEOUT_MS = 30_000;
-/** Hard cap on transcript fed to summarizeConversation (chars). */
-const MAX_SUMMARIZE_CHARS = 6000;
-/** Output token cap for summarizeConversation. */
-const SUMMARIZE_N_PREDICT = 400;
 /**
  * Last-resort safety net for disposeEngineLocked's wait on the FIFO job chain.
  * Must stay well above the longest internal job timeout (translate: 30s) — the
@@ -2874,127 +2867,6 @@ export async function translateText(
       signal?.removeEventListener("abort", onAbort);
     }
   });
-}
-
-/**
- * Background, preemptable conversation summary for ConversationCompactor.
- * Mirror of translateText: withEngineJob + clearCache + wall-clock timeout +
- * AbortSignal. Thinking fully off (enable_thinking:false AND thinking_budget_tokens:0).
- * n_predict ≤ 400. Fail-closed → empty string (caller keeps previous rollingSummary).
- *
- * IMPORTANT: callers must abort this job BEFORE enqueueing a user turn so the
- * FIFO gate never makes the user wait behind a summary.
- */
-export async function summarizeConversation(
-  transcript: string,
-  locale: Locale,
-  signal?: AbortSignal,
-): Promise<string> {
-  const sourceFull = (transcript ?? "").trim();
-  if (!sourceFull) return "";
-  const source = sourceFull.slice(0, MAX_SUMMARIZE_CHARS);
-
-  const strings = getStrings(locale);
-  const prompt = replaceLiteral(
-    replaceLiteral(
-      strings.summarize.prompt,
-      "{targetLang}",
-      TARGET_LANG_NAME[locale] ?? TARGET_LANG_NAME.en,
-    ),
-    "{transcript}",
-    source,
-  );
-
-  return withEngineJob(async () => {
-    if (signal?.aborted) return "";
-
-    const engine = context;
-    if (!engine) return "";
-
-    let timedOut = false;
-    let aborted = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const onAbort = () => {
-      aborted = true;
-      // Identity guard: only stopCompletion on the still-live context (same
-      // authoritative check as bailIfStopped — dispose may have released `engine`).
-      if (engine === context) {
-        void engine.stopCompletion().catch(() => undefined);
-      }
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
-    if (signal?.aborted) {
-      signal.removeEventListener("abort", onAbort);
-      return "";
-    }
-
-    try {
-      try {
-        await engine.clearCache();
-      } catch {
-        // best effort
-      }
-      kvHoldsChatSession = false;
-      if (aborted || signal?.aborted || engine !== context) return "";
-
-      timer = setTimeout(() => {
-        timedOut = true;
-        if (engine === context) {
-          void engine.stopCompletion().catch(() => undefined);
-        }
-      }, SUMMARIZE_TIMEOUT_MS);
-
-      const result = await trackCompletion(
-        engine.completion({
-          messages: [{ role: "user", content: prompt }] as RNLlamaOAICompatibleMessage[],
-          n_predict: SUMMARIZE_N_PREDICT,
-          stop: STOP_WORDS,
-          temperature: 0.2,
-          top_k: 20,
-          top_p: 0.9,
-          enable_thinking: false,
-          thinking_budget_tokens: 0,
-          reasoning_format: "none",
-          chat_template_kwargs: { enable_thinking: false },
-        }),
-      );
-
-      emitTurnTelemetry(`util-summarizeConversation-${++turnSeq}`, 0, result);
-
-      // Fail-closed: timeout, abort, or engine torn down mid-flight (dispose /
-      // model switch) must never promote a truncated summary as success.
-      if (timedOut || aborted || signal?.aborted || engine !== context) return "";
-
-      const raw =
-        typeof result.content === "string" && result.content.length > 0
-          ? result.content
-          : (result.text ?? "");
-      return cleanSummaryOutput(raw);
-    } catch {
-      return "";
-    } finally {
-      if (timer) clearTimeout(timer);
-      signal?.removeEventListener("abort", onAbort);
-    }
-  });
-}
-
-/** Strip think tags / fences / preambles from a summary; keep plain prose. */
-function cleanSummaryOutput(raw: string): string {
-  if (!raw || typeof raw !== "string") return "";
-  let out = raw;
-  out = out.replace(/<think>[\s\S]*?<\/think>/gi, "");
-  out = out.replace(/<think>[\s\S]*$/gi, "");
-  out = out.replace(/<\/?think>/gi, "");
-  out = out.trim();
-  const fenced = out.match(/^```(?:\w+)?\s*\n?([\s\S]*?)\n?```$/);
-  if (fenced) {
-    out = fenced[1].trim();
-  }
-  // Soft cap for storage / operative block (hard cap applied again at inject).
-  if (out.length > 800) out = out.slice(0, 800).trim();
-  return out;
 }
 
 /**

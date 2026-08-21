@@ -210,9 +210,9 @@ export async function getBenchNCtx(): Promise<number | null> {
 
 /**
  * Bench-only verbatim-window char budget. Absent / invalid / below floor → null
- * (WINDOW_CHAR_BUDGET wins). This is the knob that actually controls how often
- * the compactor runs: shouldRebuild fires on this budget and on the K-turn
- * cadence, never on n_ctx.
+ * (WINDOW_CHAR_BUDGET wins). This is the knob that controls when the legacy
+ * digest path (`ciswire`) rebuilds: shouldRebuild fires on this budget and on
+ * its K-turn cadence, never on n_ctx. Anchored uses its own pressure trigger.
  */
 export async function getBenchWindowBudget(): Promise<number | null> {
   try {

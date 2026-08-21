@@ -4,7 +4,7 @@
   "seed": 1,
   "blockFormat": "none",
   "thinking": "off",
-  "compaction": "on",
+  "compaction": "ciswire",
   "turns": [
     {"index":"1.1","prompt":"IlGattoDiMarcoSiChiamaLeopoldo","elapsed_s":98,"reply_len":120,"reply_excerpt":"Ok."},
     {"index":"1.2","prompt":"ParlamiInBreveDiComeFunzionaInternet","elapsed_s":102,"reply_len":300,"reply_excerpt":"Internet e una rete..."},

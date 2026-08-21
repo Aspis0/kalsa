@@ -42,8 +42,8 @@ export const WINDOW_CHARS_PER_TOKEN = 3;
  * remembers the conversation.
  *
  * With compaction OFF nothing else does: whatever falls out of the window is
- * forgotten, so the window takes the larger share. With a digest (`ciswire`,
- * `v42`) the older turns are not lost, they are *represented differently* — so
+ * forgotten, so the window takes the larger share. With a digest (`ciswire`)
+ * the older turns are not lost, they are *represented differently* — so
  * a shorter verbatim window is a change of representation, not amnesia, and
  * the digest needs prompt room of its own.
  */

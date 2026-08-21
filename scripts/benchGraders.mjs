@@ -85,7 +85,7 @@ const CLAIMS_WINNER_PATTERNS = [
   ),
   new RegExp(String.raw`the winner\s+(?:is|was)\s+(${NAMED_ENTITY})`, "iu"),
   new RegExp(String.raw`(?:was|is) awarded to\s+(${NAMED_ENTITY})`, "iu"),
-  // Labelled/list form: **Vincitore**: Name (CI 31402155067 v42 seed 6).
+  // Labelled/list form: **Vincitore**: Name (CI 31402155067 legacy arm seed 6).
   new RegExp(
     String.raw`(?<![\p{L}\p{N}])(?:\*{1,2})?vincitore(?:\*{1,2})?\s*[:\-–]\s*(${NAMED_ENTITY})`,
     "iu",
@@ -228,7 +228,7 @@ function escapeRegExp(s) {
  *     — same boundaries so 14.500 does not match 4500.
  *     WHY (run 31402155067): model wrote Italian thousands sep and scored miss:
  *       baseline s3 t11/t16 **Budget:** 4.500 €
- *       v42 s5 t16 / s6 t11 **Budget**: 4.500 euro
+ *       legacy arm s5 t16 / s6 t11 **Budget**: 4.500 euro
  *     Keep this inside the digit branch only — do not normalise non-digit facts.
  *   - otherwise (Leopoldo, XR9, PK42): (?<![\p{L}\p{N}])…(?![\p{L}\p{N}]) so
  *     XR9 does not match XR90 and Leopoldo does not match Leopoldone.

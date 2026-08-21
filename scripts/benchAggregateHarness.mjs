@@ -61,7 +61,7 @@ function baseResult(overrides = {}) {
     thinking: "budget256",
     compaction: "off",
     compactionPrefRaw: "0",
-    // Mode string contract: "off" | "v42" | "ciswire" (not boolean).
+    // Mode string contract: "off" | "anchored" | "ciswire" (not boolean).
     compactionActive: "off",
     turns: [
       {
@@ -110,8 +110,6 @@ function baseResult(overrides = {}) {
       compactorChars: 0,
       summaryChars: 0,
     },
-    // At least one summary event so the capture gate can pass on green runs.
-    summaryEvents: { "idle-check": 1 },
     notes: [],
     ...overrides,
   };
@@ -125,10 +123,10 @@ function writeResult(root, arm, seed, result) {
 }
 
 /**
- * Full 3 modes × seeds campaign (baseline/off, v42, ciswire).
+ * Full 3 modes × seeds campaign (baseline/off, anchored, ciswire).
  * identicalPrompts: same promptTokensByTurn on turns ≥ 2 AND zero mechanism
  * (digest/boundary) on treatment arms → MEASURING NOTHING for both pairs.
- * identicalCiswire: ciswire matches baseline while v42 still differs → primary
+ * identicalCiswire: ciswire matches baseline while anchored still differs → primary
  * pair fails even if secondary passes.
  * Default: treatment digest/boundary present → ARMS DIFFER on both pairs.
  * (Token divergence alone is generation noise and does not pass the gate.)
@@ -136,7 +134,7 @@ function writeResult(root, arm, seed, result) {
 function writeCompleteCampaign(
   root,
   {
-    v42Active = true,
+    anchoredActive = true,
     ciswireActive = true,
     identicalPrompts = false,
     identicalCiswire = false,
@@ -172,15 +170,15 @@ function writeCompleteCampaign(
     );
     writeResult(
       root,
-      "v42",
+      "anchored",
       seed,
       baseResult({
-        arm: "v42",
+        arm: "anchored",
         seed,
-        compaction: "on",
-        compactionPrefRaw: v42Active ? "1" : "0",
-        // Wrong mode string when v42Active=false → invalidCompaction gate.
-        compactionActive: v42Active ? "v42" : "off",
+        compaction: "anchored",
+        compactionPrefRaw: anchoredActive ? "anchored" : "0",
+        // Wrong mode string when anchoredActive=false → invalidCompaction gate.
+        compactionActive: anchoredActive ? "anchored" : "off",
         probes: [
           probe("fact_A", "fact_recall", true),
           probe("fact_B", "fact_recall", true),
@@ -214,7 +212,7 @@ function writeCompleteCampaign(
           compactorChars: identicalPrompts ? 0 : 400 + seed,
           summaryChars: identicalPrompts ? 0 : 50,
         },
-        notes: seed === 1 ? ["v42 note seed1"] : [],
+        notes: seed === 1 ? ["anchored note seed1"] : [],
       }),
     );
     const cisSame = identicalPrompts || identicalCiswire;
@@ -455,7 +453,7 @@ async function main() {
       );
       check(
         "complete caveats passthrough",
-        markdown.includes("Caveats") && markdown.includes("v42 note seed1"),
+        markdown.includes("Caveats") && markdown.includes("anchored note seed1"),
       );
       // 3 vs 3: exhaustive floor 2/21 ≈ 0.095 ≥ α=0.05 → underpowered line
       check(
@@ -470,14 +468,14 @@ async function main() {
       mkdirSync(d, { recursive: true });
       writeResult(
         d,
-        "v42",
+        "anchored",
         1,
         baseResult({
-          arm: "v42",
+          arm: "anchored",
           seed: 1,
-          compaction: "on",
-          compactionActive: "v42",
-          compactionPrefRaw: "1",
+          compaction: "anchored",
+          compactionActive: "anchored",
+          compactionPrefRaw: "anchored",
         }),
       );
       const { markdown, exitCode } = withEnv(
@@ -486,14 +484,14 @@ async function main() {
       );
       check("one-arm exits non-zero", exitCode !== 0, `exitCode=${exitCode}`);
       check("one-arm has ## INCOMPLETE", markdown.includes("## INCOMPLETE"));
-      // Missing modes: off 1..3, v42 2..3, ciswire 1..3 (table uses mode names).
+      // Missing modes: off 1..3, anchored 2..3, ciswire 1..3 (table uses mode names).
       const missingOff = (markdown.match(/\| off \|/g) || []).length;
-      const missingV42 = (markdown.match(/\| v42 \|/g) || []).length;
+      const missingAnchored = (markdown.match(/\| anchored \|/g) || []).length;
       const missingCis = (markdown.match(/\| ciswire \|/g) || []).length;
       check(
         "one-arm lists missing pairs across 3 modes",
-        missingOff >= 3 && missingV42 >= 2 && missingCis >= 3,
-        `off≈${missingOff} v42≈${missingV42} ciswire≈${missingCis}`,
+        missingOff >= 3 && missingAnchored >= 2 && missingCis >= 3,
+        `off≈${missingOff} anchored≈${missingAnchored} ciswire≈${missingCis}`,
       );
       check(
         "one-arm still renders partial data above gate",
@@ -501,11 +499,11 @@ async function main() {
       );
     }
 
-    // ── 3. compactionActive:false on v42 fails ────────────────────────
+    // ── 3. compactionActive:false on anchored fails ────────────────────────
     {
       const d = path.join(tmp, "bad-compaction");
       mkdirSync(d, { recursive: true });
-      writeCompleteCampaign(d, { v42Active: false });
+      writeCompleteCampaign(d, { anchoredActive: false });
       const { markdown, exitCode } = withEnv(
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
         () => runAggregate([d]),
@@ -516,8 +514,8 @@ async function main() {
         markdown.includes("compactionActive"),
       );
       check(
-        "bad compaction names v42",
-        /v42/.test(markdown) && markdown.includes("## INCOMPLETE"),
+        "bad compaction names anchored",
+        /anchored/.test(markdown) && markdown.includes("## INCOMPLETE"),
       );
     }
 
@@ -646,17 +644,17 @@ async function main() {
           },
         }),
       );
-      // Pairing v42 seeds so completeness can pass if we disable gate; here we
+      // Pairing anchored seeds so completeness can pass if we disable gate; here we
       // only care about prefill numbers — set expect seeds 0.
       writeResult(
         d,
-        "v42",
+        "anchored",
         1,
         baseResult({
-          arm: "v42",
+          arm: "anchored",
           seed: 1,
-          compaction: "on",
-          compactionActive: "v42",
+          compaction: "anchored",
+          compactionActive: "anchored",
           turns: [
             {
               index: 1,
@@ -696,9 +694,9 @@ async function main() {
         `snippet:\n${markdown.split("\n").filter((l) => l.includes("baseline")).join("\n")}`,
       );
       check(
-        "prefill does not invent 0.0 when only nulls (v42)",
-        // v42 has no numeric prefill — either n=0 n/a or absent fake measurement
-        !/\| v42 \| 0\.0 \(n=/.test(markdown),
+        "prefill does not invent 0.0 when only nulls (anchored)",
+        // anchored has no numeric prefill — either n=0 n/a or absent fake measurement
+        !/\| anchored \| 0\.0 \(n=/.test(markdown),
       );
     }
 
@@ -708,11 +706,11 @@ async function main() {
       mkdirSync(d, { recursive: true });
       const schema1 = {
         phase: "fase4",
-        arm: "v42",
+        arm: "anchored",
         seed: 1,
         blockFormat: "none",
         thinking: "budget256",
-        compaction: "on",
+        compaction: "anchored",
         turns: [
           { index: "1", elapsed_s: 100, reply_len: 50 },
           { index: "2", elapsed_s: 90, reply_len: 40 },
@@ -724,7 +722,7 @@ async function main() {
         recall: 0.5,
         // no byFamily, no family field, no positiveControl, no notes
       };
-      writeResult(d, "v42", 1, schema1);
+      writeResult(d, "anchored", 1, schema1);
       let threw = null;
       let markdown = "";
       let exitCode = 0;
@@ -781,7 +779,7 @@ async function main() {
     // ── C1: conversation-unit p vs probe-unit p; 6vs6 not underpowered ─
     {
       // Same data, different units: conversation rates [0.5,0.5,0.5] vs [1,1,1]
-      // probe outcomes: baseline 3×(1+0)= three 1s and three 0s; v42 six 1s
+      // probe outcomes: baseline 3×(1+0)= three 1s and three 0s; anchored six 1s
       // Those p-values must not be identical when printed as primary vs probe-level.
       const d = path.join(tmp, "units");
       mkdirSync(d, { recursive: true });
@@ -889,13 +887,13 @@ async function main() {
       );
       writeResult(
         zp2,
-        "v42",
+        "anchored",
         1,
         baseResult({
-          arm: "v42",
+          arm: "anchored",
           seed: 1,
-          compaction: "on",
-          compactionActive: "v42",
+          compaction: "anchored",
+          compactionActive: "anchored",
           probes: [probe("fact_A", "fact_recall", true)],
           positiveControl: {
             promptTokensByTurn: { "1": 100, "2": 200 },
@@ -926,13 +924,13 @@ async function main() {
       );
       writeResult(
         zp2,
-        "v42",
+        "anchored",
         1,
         baseResult({
-          arm: "v42",
+          arm: "anchored",
           seed: 1,
-          compaction: "on",
-          compactionActive: "v42",
+          compaction: "anchored",
+          compactionActive: "anchored",
           probes: [probe("fact_A", "fact_recall", true)],
           positiveControl: {
             promptTokensByTurn: { "1": 100, "2": 250 },
@@ -974,10 +972,10 @@ async function main() {
           }),
         );
         const v = baseResult({
-          arm: "v42",
+          arm: "anchored",
           seed,
-          compaction: "on",
-          compactionActive: "v42",
+          compaction: "anchored",
+          compactionActive: "anchored",
           positiveControl: {
             promptTokensByTurn: { "1": 100, "2": 250 },
             reusedTokensByTurn: {},
@@ -987,7 +985,7 @@ async function main() {
           },
         });
         delete v.compactionActive;
-        writeResult(miss, "v42", seed, v);
+        writeResult(miss, "anchored", seed, v);
       }
       const rMiss = withEnv(
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
@@ -1003,9 +1001,9 @@ async function main() {
       mkdirSync(emptySeeds, { recursive: true });
       writeResult(
         emptySeeds,
-        "v42",
+        "anchored",
         1,
-        baseResult({ arm: "v42", seed: 1, compaction: "on", compactionActive: "v42" }),
+        baseResult({ arm: "anchored", seed: 1, compaction: "anchored", compactionActive: "anchored" }),
       );
       const rEmpty = withEnv(
         { BENCH_EXPECT_SEEDS: "", BENCH_EXPECT_PHASE: "fase4" },
@@ -1025,7 +1023,7 @@ async function main() {
 
     // ── C3: positive control fail closed (3 modes) ───────────────────
     {
-      const writeTriplet = (root, seed, { basePc, v42Pc, cisPc, extra = {} }) => {
+      const writeTriplet = (root, seed, { basePc, anchoredPc, cisPc, extra = {} }) => {
         writeResult(
           root,
           "baseline",
@@ -1040,16 +1038,16 @@ async function main() {
         );
         writeResult(
           root,
-          "v42",
+          "anchored",
           seed,
           baseResult({
-            arm: "v42",
+            arm: "anchored",
             seed,
-            compaction: "on",
-            compactionPrefRaw: "1",
-            compactionActive: "v42",
-            positiveControl: v42Pc,
-            ...extra.v42,
+            compaction: "anchored",
+            compactionPrefRaw: "anchored",
+            compactionActive: "anchored",
+            positiveControl: anchoredPc,
+            ...extra.anchored,
           }),
         );
         writeResult(
@@ -1082,7 +1080,7 @@ async function main() {
       for (const seed of [1, 2, 3]) {
         writeTriplet(abs, seed, {
           basePc: null,
-          v42Pc: null,
+          anchoredPc: null,
           cisPc: null,
         });
       }
@@ -1107,7 +1105,7 @@ async function main() {
           compactorChars: 0,
           summaryChars: 0,
         };
-        writeTriplet(t1only, seed, { basePc: pc, v42Pc: pc, cisPc: pc });
+        writeTriplet(t1only, seed, { basePc: pc, anchoredPc: pc, cisPc: pc });
       }
       const rT1 = withEnv(
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
@@ -1119,7 +1117,7 @@ async function main() {
         /INSUFFICIENT/i.test(rT1.markdown) || /turn 1 only/i.test(rT1.markdown),
       );
 
-      // Real mechanism on both treatments (digest) → pass. Token divergence
+      // Real mechanism on both treatments (anchored boundary / ciswire digest) → pass. Token divergence
       // alone is generation noise and is covered by the fail scenarios below.
       const t2diff = path.join(tmp, "t2diff");
       mkdirSync(t2diff, { recursive: true });
@@ -1134,7 +1132,7 @@ async function main() {
             compactorChars: 0,
             summaryChars: 0,
           },
-          v42Pc: {
+          anchoredPc: {
             promptTokensByTurn: { "1": 100, "2": 250 },
             reusedTokensByTurn: {},
             completionsByTurn: {},
@@ -1164,8 +1162,8 @@ async function main() {
         `exit=${rT2.exitCode}`,
       );
 
-      // Equal token counts on turns ≥ 2, but treatment digestCharsByTurn > 0 → pass
-      // (real BM25 signal; hollow compactorChars alone must NOT pass — see hollow-compactor)
+      // Equal token counts on turns ≥ 2, but treatment boundaryByTurn > 0 → pass
+      // (real anchored signal; hollow compactorChars alone must NOT pass — see hollow-compactor)
       const viaDigest = path.join(tmp, "via-digest");
       mkdirSync(viaDigest, { recursive: true });
       for (const seed of [1, 2, 3]) {
@@ -1178,11 +1176,12 @@ async function main() {
             compactorChars: 0,
             summaryChars: 0,
           },
-          v42Pc: {
+          anchoredPc: {
             promptTokensByTurn: { "1": 100, "2": 200 },
             reusedTokensByTurn: {},
             completionsByTurn: {},
-            digestCharsByTurn: { "1": 0, "2": 40 },
+            digestCharsByTurn: { "1": 0, "2": 0 },
+            boundaryByTurn: { "1": 0, "2": 8 },
             compactorChars: 777,
             summaryChars: 12,
           },
@@ -1201,7 +1200,7 @@ async function main() {
         () => runAggregate([viaDigest]),
       );
       check(
-        "C3: equal tokens but treatment digestCharsByTurn>0 passes (ARMS DIFFER)",
+        "C3: equal tokens but anchored boundaryByTurn>0 passes (ARMS DIFFER)",
         rDigest.exitCode === 0 && rDigest.markdown.includes("ARMS DIFFER"),
         `exit=${rDigest.exitCode}\n${rDigest.markdown.split("\n").filter((l) => /ARMS|MEASURING|compactor|digest/i.test(l)).join("\n")}`,
       );
@@ -1223,7 +1222,7 @@ async function main() {
             compactorChars: 0,
             summaryChars: 0,
           },
-          v42Pc: {
+          anchoredPc: {
             promptTokensByTurn: { "1": 100, "2": 200 },
             reusedTokensByTurn: {},
             completionsByTurn: {},
@@ -1270,8 +1269,8 @@ async function main() {
             compactorChars: 0,
             summaryChars: 0,
           },
-          // v42 has real digest so its pair can pass; ciswire is the defect case.
-          v42Pc: {
+          // anchored has a real boundary so its pair can pass; ciswire is the defect case.
+          anchoredPc: {
             promptTokensByTurn: { "1": 100, "2": 250, "3": 350 },
             reusedTokensByTurn: {},
             completionsByTurn: {},
@@ -1302,12 +1301,12 @@ async function main() {
         `exit=${rCisBound.exitCode}\n${rCisBound.markdown.split("\n").filter((l) => /ARMS|MEASURING|positive control|baseline↔ciswire/i.test(l)).join("\n")}`,
       );
 
-      // Scenario 2: v42 with neither digest nor boundary advance; tokens differ
+      // Scenario 2: anchored with neither digest nor boundary advance; tokens differ
       // → fail (generation noise is not mechanism).
-      const v42NoMech = path.join(tmp, "v42-no-mechanism");
-      mkdirSync(v42NoMech, { recursive: true });
+      const anchoredNoMech = path.join(tmp, "anchored-no-mechanism");
+      mkdirSync(anchoredNoMech, { recursive: true });
       for (const seed of [1, 2, 3]) {
-        writeTriplet(v42NoMech, seed, {
+        writeTriplet(anchoredNoMech, seed, {
           basePc: {
             promptTokensByTurn: { "1": 100, "2": 200, "3": 300 },
             reusedTokensByTurn: {},
@@ -1317,7 +1316,7 @@ async function main() {
             compactorChars: 0,
             summaryChars: 0,
           },
-          v42Pc: {
+          anchoredPc: {
             promptTokensByTurn: { "1": 100, "2": 250, "3": 350 },
             reusedTokensByTurn: {},
             completionsByTurn: {},
@@ -1326,7 +1325,7 @@ async function main() {
             compactorChars: 96,
             summaryChars: 0,
           },
-          // ciswire has digest so primary can pass; v42 pair is the defect.
+          // ciswire has digest so primary can pass; anchored pair is the defect.
           cisPc: {
             promptTokensByTurn: { "1": 100, "2": 260, "3": 360 },
             reusedTokensByTurn: {},
@@ -1338,22 +1337,22 @@ async function main() {
           },
         });
       }
-      const rV42No = withEnv(
+      const rAnchoredNo = withEnv(
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
-        () => runAggregate([v42NoMech]),
+        () => runAggregate([anchoredNoMech]),
       );
       check(
-        "C3: v42 neither digest nor boundary fails despite token noise",
-        rV42No.exitCode !== 0 &&
-          rV42No.markdown.includes("MEASURING NOTHING"),
-        `exit=${rV42No.exitCode}\n${rV42No.markdown.split("\n").filter((l) => /ARMS|MEASURING|positive control|baseline↔v42/i.test(l)).join("\n")}`,
+        "C3: anchored neither digest nor boundary fails despite token noise",
+        rAnchoredNo.exitCode !== 0 &&
+        rAnchoredNo.markdown.includes("MEASURING NOTHING"),
+        `exit=${rAnchoredNo.exitCode}\n${rAnchoredNo.markdown.split("\n").filter((l) => /ARMS|MEASURING|positive control|baseline↔anchored/i.test(l)).join("\n")}`,
       );
 
-      // Scenario 3: v42 advanced boundary, no digest — legitimate truncation.
-      const v42Bound = path.join(tmp, "v42-boundary-no-digest");
-      mkdirSync(v42Bound, { recursive: true });
+      // Scenario 3: anchored advanced boundary, no digest — legitimate truncation.
+      const anchoredBound = path.join(tmp, "anchored-boundary-no-digest");
+      mkdirSync(anchoredBound, { recursive: true });
       for (const seed of [1, 2, 3]) {
-        writeTriplet(v42Bound, seed, {
+        writeTriplet(anchoredBound, seed, {
           basePc: {
             promptTokensByTurn: { "1": 100, "2": 200, "3": 300 },
             reusedTokensByTurn: {},
@@ -1363,7 +1362,7 @@ async function main() {
             compactorChars: 0,
             summaryChars: 0,
           },
-          v42Pc: {
+          anchoredPc: {
             promptTokensByTurn: { "1": 100, "2": 250, "3": 350 },
             reusedTokensByTurn: {},
             completionsByTurn: {},
@@ -1383,15 +1382,15 @@ async function main() {
           },
         });
       }
-      const rV42Bound = withEnv(
+      const rAnchoredBound = withEnv(
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
-        () => runAggregate([v42Bound]),
+        () => runAggregate([anchoredBound]),
       );
       check(
-        "C3: v42 boundary advance (no digest) is legitimate ARMS DIFFER",
-        rV42Bound.exitCode === 0 &&
-          rV42Bound.markdown.includes("ARMS DIFFER"),
-        `exit=${rV42Bound.exitCode}`,
+        "C3: anchored boundary advance (no digest) is legitimate ARMS DIFFER",
+        rAnchoredBound.exitCode === 0 &&
+          rAnchoredBound.markdown.includes("ARMS DIFFER"),
+        `exit=${rAnchoredBound.exitCode}`,
       );
 
       // Equal tokens + zero compactor on all arms → MEASURING NOTHING
@@ -1405,7 +1404,7 @@ async function main() {
           compactorChars: 0,
           summaryChars: 0,
         };
-        writeTriplet(nothing, seed, { basePc: pc, v42Pc: pc, cisPc: pc });
+        writeTriplet(nothing, seed, { basePc: pc, anchoredPc: pc, cisPc: pc });
       }
       const rNothing = withEnv(
         { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
@@ -1418,7 +1417,7 @@ async function main() {
         `exit=${rNothing.exitCode}`,
       );
 
-      // Primary pair identical (ciswire==baseline) while v42 still differs → fail
+      // Primary pair identical (ciswire==baseline) while anchored still differs → fail
       const cisSame = path.join(tmp, "ciswire-identical");
       mkdirSync(cisSame, { recursive: true });
       writeCompleteCampaign(cisSame, { identicalCiswire: true });
@@ -1480,34 +1479,6 @@ async function main() {
         `exit=${rThin.exitCode}`,
       );
 
-      // All summaryEvents empty/missing → fail (broken capture)
-      const noSum = path.join(tmp, "no-summary");
-      mkdirSync(noSum, { recursive: true });
-      writeCompleteCampaign(noSum);
-      // Strip summaryEvents from every result.json under noSum
-      const { readdirSync, readFileSync } = await import("node:fs");
-      const walk = (dir) => {
-        for (const ent of readdirSync(dir, { withFileTypes: true })) {
-          const p = path.join(dir, ent.name);
-          if (ent.isDirectory()) walk(p);
-          else if (ent.name === "result.json") {
-            const j = JSON.parse(readFileSync(p, "utf8"));
-            j.summaryEvents = {};
-            writeFileSync(p, JSON.stringify(j, null, 2));
-          }
-        }
-      };
-      walk(noSum);
-      const rNoSum = withEnv(
-        { BENCH_EXPECT_SEEDS: "3", BENCH_EXPECT_PHASE: "fase4" },
-        () => runAggregate([noSum]),
-      );
-      check(
-        "C4: empty summary capture across campaign fails",
-        rNoSum.exitCode !== 0 &&
-          /Summary capture empty/i.test(rNoSum.markdown),
-        `exit=${rNoSum.exitCode}`,
-      );
     }
 
     // ── early/late fact families: primary = mean; fall back to plain ──
@@ -1552,14 +1523,14 @@ async function main() {
         );
         writeResult(
           d,
-          "v42",
+          "anchored",
           seed,
           baseResult({
-            arm: "v42",
+            arm: "anchored",
             seed,
-            compaction: "on",
-            compactionPrefRaw: "1",
-            compactionActive: "v42",
+            compaction: "anchored",
+            compactionPrefRaw: "anchored",
+            compactionActive: "anchored",
             probes: [
               probe("fact_A_early", "fact_recall_early", true),
               probe("fact_B_early", "fact_recall_early", true),
@@ -1728,13 +1699,13 @@ async function main() {
       for (const seed of [1, 2, 3]) {
         writeResult(
           d,
-          "v42",
+          "anchored",
           seed,
           baseResult({
-            arm: "v42",
+            arm: "anchored",
             seed,
-            compaction: "on",
-            compactionActive: "v42",
+            compaction: "anchored",
+            compactionActive: "anchored",
             probes: [
               probe("fact_A", "fact_recall", true),
               probe("fact_B", "fact_recall", true),
@@ -1793,13 +1764,13 @@ async function main() {
       );
       writeResult(
         d,
-        "v42",
+        "anchored",
         1,
         baseResult({
-          arm: "v42",
+          arm: "anchored",
           seed: 1,
-          compaction: "on",
-          compactionActive: "v42",
+          compaction: "anchored",
+          compactionActive: "anchored",
           positiveControl: {
             promptTokensByTurn: { "1": 100, "2": 250 },
             reusedTokensByTurn: {},
@@ -1856,14 +1827,14 @@ async function main() {
         );
         writeResult(
           d,
-          "v42",
+          "anchored",
           seed,
           baseResult({
-            arm: "v42",
+            arm: "anchored",
             seed,
-            compaction: "on",
-            compactionPrefRaw: "1",
-            compactionActive: "v42",
+            compaction: "anchored",
+            compactionPrefRaw: "anchored",
+            compactionActive: "anchored",
             probes: [
               probe("fact_A", "fact_recall", true),
               probe("fact_B", "fact_recall", true),
@@ -1945,8 +1916,8 @@ async function main() {
         "exploratory tool-timing: null mode still renders, gate intact",
         exitCode === 0 &&
           /### Exploratory: tool-call timing/.test(markdown) &&
-          /\| v42 \| n\/a \| n\/a \|/.test(markdown),
-        `exit=${exitCode}\n${markdown.split("\n").filter((l) => /Exploratory|precision|^\| (off|v42|ciswire) \|/.test(l)).join("\n")}`,
+          /\| anchored \| n\/a \| n\/a \|/.test(markdown),
+        `exit=${exitCode}\n${markdown.split("\n").filter((l) => /Exploratory|precision|^\| (off|anchored|ciswire) \|/.test(l)).join("\n")}`,
       );
     }
 

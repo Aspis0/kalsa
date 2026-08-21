@@ -35,7 +35,7 @@ const CI_BENCH_SH = path.join(projectRoot, "scripts/ci-bench.sh");
 const AXES = ["compaction", "toolchoice", "toolgate", "block_format", "thinking", "memory"];
 
 // Expected arms for each campaign phase
-const EXPECTED_FASE4_ARMS = ["baseline", "v42", "ciswire", "nogate"];
+const EXPECTED_FASE4_ARMS = ["baseline", "anchored", "ciswire", "nogate"];
 const EXPECTED_MEM_ARMS = ["off_off", "off_on", "ciswire_off", "ciswire_on"];
 const EXPECTED_SMOKE_ARMS = [...EXPECTED_FASE4_ARMS, ...EXPECTED_MEM_ARMS].sort();
 
@@ -43,7 +43,7 @@ const EXPECTED_SMOKE_ARMS = [...EXPECTED_FASE4_ARMS, ...EXPECTED_MEM_ARMS].sort(
 const EXPECTED_AXES = {
   // fase4 arms
   baseline: { compaction: "off", block_format: "none", thinking: "off" },
-  v42: { compaction: "on", block_format: "none", thinking: "off" },
+  anchored: { compaction: "anchored", block_format: "none", thinking: "off" },
   ciswire: { compaction: "ciswire", block_format: "none", thinking: "off" },
   nogate: {
     compaction: "off",

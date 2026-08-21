@@ -18,8 +18,8 @@
 #                  "system-end" exists in code but PIANO V4.2 marks it DEAD,
 #                  it is not part of the Fase 0 matrix)
 #   THINKING       kalsa.bench.thinking value (both phases)
-#   COMPACTION     on|off|ciswire → kalsa.context.compaction raw 1|0|ciswire
-#                  (fase4/smoke only; fase0 always forces "on" → raw 1 / v42,
+#   COMPACTION     anchored|off|ciswire → kalsa.context.compaction raw
+#                  anchored|0|ciswire (fase4/smoke only; fase0 uses ciswire,
 #                  see NOTE(fase0-compaction))
 #   TOOLCHOICE     auto|required|none → kalsa.bench.toolchoice (default auto)
 #   TOOLGATE       1|0 → kalsa.bench.toolgate (default 1; 0 disables the
@@ -33,13 +33,6 @@
 #                  it means init refused offload and the arm ran on CPU)
 #   MEMORY         1|0 → kalsa.memory.enabled (default 0; 1 enables memory extract/inject)
 #   RUNS_PER_ARM   fase0 in-job repeat count (default 3, per PIANO "3 run/formato")
-#   INTER_TURN_DELAY_S  seconds of pure idle between turns (default 0).
-#                  After capture_turn_evidence, before the next prompt is typed.
-#                  Lets the app's SUMMARY_IDLE_DEBOUNCE_MS (8s) fire; without a
-#                  gap the next send keeps streamInFlight and the debounce
-#                  never schedules the rolling summary. Applied identically on
-#                  every arm (shared timing, not a treatment). Skipped after
-#                  the final turn of the run.
 #   MODEL_DIR/MODEL_FILE   as ci-e2e.sh
 #   APK_PATH       path to the pre-built release APK (default matches the
 #                  standard gradle output path; the workflow downloads the
@@ -63,7 +56,6 @@ NOREPACK="${NOREPACK:-}"
 NGL="${NGL:-}"
 MEMORY="${MEMORY:-0}"
 RUNS_PER_ARM="${RUNS_PER_ARM:-3}"
-INTER_TURN_DELAY_S="${INTER_TURN_DELAY_S:-0}"
 MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
 MODEL_DIR="${MODEL_DIR:-qwen3.5-2b}"
 APK_PATH="${APK_PATH:-android/app/build/outputs/apk/release/app-release.apk}"
@@ -96,27 +88,18 @@ readonly BUSY_STATUS_LABELS=(
 case "$PHASE" in
   fase0)
     # NOTE(fase0-compaction): the operative block (kalsa.bench.format) is only
-    # ever injected once the compactor has produced digest/summary content —
+    # ever injected once the compactor has produced digest content —
     # applyOperativeBlockFormat() in src/engine/LlamaService.ts short-circuits
     # to "no block" when there is nothing to show. Fase 0 therefore runs with
-    # compaction ON in every arm so the format axis has something to bite on.
-    # CAVEAT (verified by reading src/context/compactor.ts): with production
-    # defaults (rebuildEveryKUserTurns=3, recentWindow=6) a bare 3-turn
-    # conversation (plant/filler/probe) never crosses a *second* rebuild
-    # boundary before the probe, and the background summary job (which only
-    # starts at turn K-1=2) cannot finish in time either — so the digest is
-    # still effectively empty at the probe turn regardless of format. In
-    # practice this cheap 3-turn Fase 0 mostly measures thinking-mode latency
-    # and honesty, not true block-format recall. See the delivery report for
-    # how to extend this conversation (bump filler turns to reach turn 7) if
-    # a real block-content A/B is needed later.
-    COMPACTION="on"
+    # Fase 0 therefore runs with ciswire; it supplies the digest that the
+    # format axis exercises.
+    COMPACTION="ciswire"
     ;;
   fase4|smoke|mem|tools)
-    COMPACTION="${COMPACTION:?COMPACTION is required for $PHASE (on|off|ciswire)}"
+    COMPACTION="${COMPACTION:?COMPACTION is required for $PHASE (anchored|off|ciswire)}"
     case "$COMPACTION" in
-      on|off|ciswire) ;;
-      *) die "COMPACTION must be on|off|ciswire (got '$COMPACTION')" ;;
+      anchored|off|ciswire) ;;
+      *) die "COMPACTION must be anchored|off|ciswire (got '$COMPACTION')" ;;
     esac
     ;;
   *)
@@ -165,7 +148,7 @@ case "$MEMORY" in
   *) die "MEMORY must be 0 or 1 (got '$MEMORY')" ;;
 esac
 
-log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK ngl=$NGL memory=$MEMORY runsPerArm=$RUNS_PER_ARM interTurnDelayS=$INTER_TURN_DELAY_S"
+log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK ngl=$NGL memory=$MEMORY runsPerArm=$RUNS_PER_ARM"
 # LFM2.5 is always-on reasoning: the chat template has preserve_thinking only,
 # no off switch. Record THINKING as today; do not try to force it off.
 if [ "$MODEL_DIR" = "lfm2.5-2.6b" ] || [ "$MODEL_DIR" = "lfm2.5-8b-a1b" ]; then
@@ -216,15 +199,15 @@ elif [ -n "${MMPROJ_FILE:-}" ] && [ -f mmproj.gguf ]; then
   adb shell "ls -la /data/data/$PKG/files/models/$MODEL_DIR/" | tr -d '\r'
 fi
 
-# Map COMPACTION env (on|off|ciswire) → raw AsyncStorage value (1|0|ciswire).
+# Map COMPACTION env (anchored|off|ciswire) → raw AsyncStorage value.
 # Unknown values die — never silently fall back to 0 (that turns a broken arm
 # into a fake baseline and we would never notice).
 compaction_pref_raw_for() {
   case "$1" in
-    on) echo 1 ;;
+    anchored) echo anchored ;;
     off) echo 0 ;;
     ciswire) echo ciswire ;;
-    *) die "COMPACTION must be on|off|ciswire (got '$1')" ;;
+    *) die "COMPACTION must be anchored|off|ciswire (got '$1')" ;;
   esac
 }
 
@@ -306,7 +289,7 @@ set_prefs() {
   # is injected only on the compaction arm (LlamaService format none→user-prefix
   # upgrade when digest exists), so an unseeded locale puts a *different
   # instruction* in one arm — a confounder, not a treatment effect. Evidence:
-  # CI run 31379031892 scored language 6/6 baseline vs 2/5 v42 because v42 was
+  # CI run 31379031892 scored language 6/6 baseline vs 2/5 legacy compaction because that arm was
   # told in English to answer in English while probes asked in Italian.
   # LOCALE_KEY is exactly "kalsa.locale"; "it" is a valid Locale (src/i18n/index.ts).
   sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.locale','it');" "kalsa.locale" "it"
@@ -437,7 +420,7 @@ new_conversation() {
 }
 
 # Emulator-image nuisance dismiss labels — NOT app UI. CI run 31367691176
-# (arm fase4, v42, seed 5) died at turn 9/13 (~63 min): Google Calendar
+# (arm fase4, legacy compaction, seed 5) died at turn 9/13 (~63 min): Google Calendar
 # onboarding ("Got it" / Schedule View…) sat on top of the app and held focus;
 # dismiss_anr only matches system ANR ("isn't responding"), so nothing recovered.
 # These are common system/preinstall dialog buttons on the CI AVD image.
@@ -837,9 +820,9 @@ send_and_wait() {
     # `input text` injects character by character and a long string can take
     # several seconds to appear: poll instead of assuming a fixed delay.
     # dump_ui_retry: a failed dump is not "text not visible" (run 31367691176).
-    local typed=false t=0 ui
+    local typed=false t=0 ui landed
     while [ "$t" -lt 30 ]; do
-      if ui=$(dump_ui_retry) && printf '%s' "$ui" | grep -qF "$msg"; then
+      if ui=$(dump_ui_retry) && printf '%s' "$ui" | grep -qiF "$msg"; then
         typed=true; break
       fi
       sleep 3; t=$((t + 3))
@@ -862,7 +845,7 @@ send_and_wait() {
       type_text "$msg"
       t=0
       while [ "$t" -lt 30 ]; do
-        if ui=$(dump_ui_retry) && printf '%s' "$ui" | grep -qF "$msg"; then
+        if ui=$(dump_ui_retry) && printf '%s' "$ui" | grep -qiF "$msg"; then
           typed=true; break
         fi
         sleep 3; t=$((t + 3))
@@ -870,7 +853,18 @@ send_and_wait() {
     fi
     adb shell input keyevent 111   # ESC: hide IME so bounds are stable
     sleep 2
-    if [ "$typed" = true ] || ui_texts | grep -qF "$msg"; then
+    # Case-INsensitive on purpose. The Jelly Star's IME rewrites injected text:
+    # type_text commits one word at a time (ci-lib.sh), so the keyboard sees a
+    # finished word and autocorrects it — "4500 euro" landed as "4500 Euro" and
+    # an exact match killed the whole arm on one character. This does NOT reopen
+    # the <residue><msg> hole guarded above: that is closed by requiring an empty
+    # composer BEFORE typing, not by this comparison. What the device actually
+    # holds is logged, so the evidence says what the model saw.
+    if [ "$typed" = true ] || ui_texts | grep -qiF "$msg"; then
+      landed=$(composer_text)
+      if [ -n "$landed" ] && [ "$landed" != "$msg" ]; then
+        log "composer differs from intent (IME rewrite): [$landed]"
+      fi
       type_ok=true
       break
     fi
@@ -883,7 +877,7 @@ send_and_wait() {
     return 1
   fi
 
-  # Bounded Send retry (run 31379031892: fase4/v42/seed4 died at turn 10 after
+  # Bounded Send retry (run 31379031892: fase4/legacy compaction/seed4 died at turn 10 after
   # ~50m — text had landed, composer focused, but one stale/failed dump missed
   # the Send node). Between attempts refresh the dump + dismiss overlays; do
   # NOT re-type: the message is already in the composer and retyping would
@@ -1002,10 +996,7 @@ send_and_wait() {
 }
 
 # Per-turn telemetry capture. Never fails a turn (always return 0).
-# Call after settle_turn_reply. Settle does not wait out the background
-# summarize job (see wait_turn_settled), so a summarize's telemetry can land
-# in the NEXT turn's telemetry.jsonl — benchGrade.mjs attributes by matching
-# tokensEvaluated to embd.size, not by file order.
+# Call after settle_turn_reply.
 capture_turn_evidence() {
   local turn_index="$1"
   local tdir="$OUT/turn${turn_index}"
@@ -1024,11 +1015,6 @@ capture_turn_evidence() {
   # telemetry.jsonl — strip the "KALSA_TELEMETRY " prefix so each line is bare JSON.
   grep -F "KALSA_TELEMETRY " "$buf" 2>/dev/null \
     | sed 's/.*KALSA_TELEMETRY //' > "$tdir/telemetry.jsonl" 2>/dev/null || : > "$tdir/telemetry.jsonl"
-
-  # summary.jsonl — rolling-summary lifecycle (KALSA_SUMMARY). Always write the
-  # file (empty when none) so absent-file vs empty-capture stay distinguishable.
-  grep -F "KALSA_SUMMARY " "$buf" 2>/dev/null \
-    | sed 's/.*KALSA_SUMMARY //' > "$tdir/summary.jsonl" 2>/dev/null || : > "$tdir/summary.jsonl"
 
   # toolcall.jsonl — per-round tool-call counters (KALSA_TOOLCALL). Always write
   # the file (empty when none) so absent-file vs empty-capture stay distinguishable.
@@ -1096,8 +1082,8 @@ capture_turn_evidence() {
   # WHY per-turn (not end-of-arm only): the only direct evidence of whether
   # boundaryIndex ever advanced and how much retrieved text (frozenDigest)
   # the arm was given. Assembled-prompt token sizes alone cannot settle the
-  # contradiction between code (window shrinks with compaction ON) and
-  # measured tokens (run 31379031892 turn 15: v42 larger than baseline).
+  # contradiction between code (legacy window shrinks with compaction) and
+  # measured tokens (run 31379031892 turn 15: legacy compaction larger than baseline).
   # Empty file when the key is absent — baseline reset_chat deletes it at
   # arm start, so anything here came from this run. Never fail a turn over it.
   # Per-conversation key (multi-chat); falls back to *.default when no index.
@@ -1347,12 +1333,6 @@ run_turn_plan() {
     record_turn "$turn" "${PLAN_KIND[$i]}" "${PLAN_ID[$i]}" "$msg" \
       "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP" \
       "${SAW_SETTLED_S:-}" "${PLAN_EXPECT[$i]}"
-    # Pure idle between turns (no adb/UI) so SUMMARY_IDLE_DEBOUNCE can fire.
-    # Skipped after the final turn — wall-clock only, no more prompts to type.
-    if [ "$turn" -lt "$n" ] && [ "$INTER_TURN_DELAY_S" -gt 0 ]; then
-      log "inter-turn idle ${INTER_TURN_DELAY_S}s (after turn $turn/${n})"
-      sleep "$INTER_TURN_DELAY_S"
-    fi
   done
 }
 
@@ -1422,11 +1402,6 @@ if [ "$PHASE" = "fase0" ]; then
     fi
     record_turn "$global_turn" "plant" "plant" "$PLANT" \
       "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP"
-    # More turns remain (fillers + probe) — pure idle for summary debounce.
-    if [ "$INTER_TURN_DELAY_S" -gt 0 ]; then
-      log "inter-turn idle ${INTER_TURN_DELAY_S}s"
-      sleep "$INTER_TURN_DELAY_S"
-    fi
 
     for i in "${!F0_FILLERS[@]}"; do
       f="${F0_FILLERS[$i]}"
@@ -1437,11 +1412,6 @@ if [ "$PHASE" = "fase0" ]; then
       capture_turn_evidence "$global_turn"
       record_turn "$global_turn" "filler" "filler_$((i+1))" "$f" \
         "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP"
-      # Probe still remains after every filler — idle before next prompt.
-      if [ "$INTER_TURN_DELAY_S" -gt 0 ]; then
-        log "inter-turn idle ${INTER_TURN_DELAY_S}s"
-        sleep "$INTER_TURN_DELAY_S"
-      fi
     done
 
     global_turn=$((global_turn + 1))
@@ -1674,7 +1644,7 @@ HISTORY_CHARS=$(wc -c < "$OUT/history_final.json" | tr -d ' ')
 # (not an inference from timings). reset_chat deletes both keys at arm start,
 # so a non-zero length can only come from this run. Smoke run 31358530713
 # showed prompt-token hashes were constant; this is the on-device proof that
-# the subsystem actually ran on the v42 arm.
+# the subsystem actually ran on the compaction arm.
 _len_or_0() {
   local v
   v=$(sql "$1" | head -1 | tr -d '[:space:]')

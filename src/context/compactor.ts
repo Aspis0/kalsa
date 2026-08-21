@@ -5,14 +5,14 @@
  *
  * KV-prefix design (growing recent window):
  * - `boundaryIndex` marks where older (retrieval corpus) ends and the verbatim
- *   window begins. In v42 it moves at a K-turn rebuild; in anchored mode it
- *   moves only when the no-digest character budget is exceeded.
+ *   window begins. In the legacy digest path it moves at a K-turn rebuild; in
+ *   anchored mode it moves only when the no-digest character budget is exceeded.
  * - Between boundary rebuilds the verbatim window is ALL messages from
  *   boundaryIndex onward — append-only growth (~R up to ~R+2K). That keeps the
  *   token prefix after the system prompt byte-identical so llama.rn reuses the
  *   KV cache.
- * - At v42 boundary rebuild: set boundary so the remaining window is the most
- *   recent R messages; rolling LLM summary is refreshed on this same cadence.
+ * - At a legacy boundary rebuild: set boundary so the remaining window is the
+ *   most recent R messages; any persisted rolling summary remains available.
  * - Anchored mode has no digest or summary. Its rebuild jumps the boundary so
  *   the next append-only window is about 62.5% of its no-digest budget.
  *
@@ -65,9 +65,9 @@ export interface CompactorState {
    * current query; field name kept for AsyncStorage wire compatibility.
    */
   frozenDigest: string;
-  /** LLM rolling summary (may be ""). Frozen between boundary rebuilds (K turns). */
+  /** Persisted rolling summary (may be ""); used by ciswire's operative block. */
   rollingSummary: string;
-  /** User-turn counter when the boundary / summary were last rebuilt. */
+  /** User-turn counter when the legacy boundary was last rebuilt. */
   builtAtUserTurn: number;
   /**
    * Absolute history index where older (retrieval corpus) ends and the verbatim
@@ -78,7 +78,7 @@ export interface CompactorState {
 }
 
 export interface CompactorConfig {
-  /** Advance boundary + refresh rolling summary every K user turns (default 3). */
+  /** Advance the ciswire boundary every K user turns (default 3). */
   rebuildEveryKUserTurns: number;
   /** Recent messages kept verbatim without images (default 6). */
   recentWindow: number;
@@ -249,15 +249,13 @@ export const COMPACTION_ENABLED_KEY = "kalsa.context.compaction";
 /**
  * Context regime from COMPACTION_ENABLED_KEY.
  * - off: legacy sliding window, no digest/summary
- * - v42: boundary→end window + digest/summary
  * - ciswire: legacy sliding window + digest/summary (retrieval additive)
  * - anchored: boundary→end window, no digest/summary, pressure rebuilds
  */
-export type ContextMode = "off" | "v42" | "ciswire" | "anchored";
+export type ContextMode = "off" | "ciswire" | "anchored";
 
 /** Parse raw AsyncStorage value; unknown / null → "off". */
 export function parseContextMode(raw: string | null): ContextMode {
-  if (raw === "1" || raw === "true") return "v42";
   if (raw === "ciswire") return "ciswire";
   if (raw === "anchored") return "anchored";
   return "off";
@@ -299,7 +297,7 @@ export function compactorStorageKey(chatId: string): string {
   return `kalsa.chat.compactor.${chatId || "default"}`;
 }
 
-/** Per-chat rolling LLM summary string. */
+/** Per-chat persisted rolling summary string (used by ciswire). */
 export function summaryStorageKey(chatId: string): string {
   return `kalsa.chat.summary.${chatId || "default"}`;
 }
@@ -422,7 +420,7 @@ export function estimateWindowChars(
 }
 
 /**
- * Whether to advance the boundary / refresh the rolling summary.
+ * Whether ciswire should advance its boundary.
  * True when there is no prior state, never-built marker, ≥ K user turns have
  * elapsed since the last boundary rebuild, or the verbatim window exceeds
  * windowCharBudget (when `recent` is provided).
@@ -852,7 +850,7 @@ export function advanceAnchoredBoundary(
 }
 
 /**
- * Advance the compaction boundary and optionally promote the rolling summary.
+ * Advance the ciswire boundary while preserving its persisted summary.
  * Cadence: every K user turns (or early size trigger). Does NOT recompute the
  * BM25 digest — call `refreshQueryDigest` every turn for that.
  */
@@ -865,8 +863,6 @@ export function advanceCompactionBoundary(
     historyLength: number;
     hasImages: boolean;
     config?: Partial<CompactorConfig> | null;
-    /** If set, becomes the new rollingSummary; else keep previous. */
-    nextSummary?: string | null;
   },
 ): CompactorState {
   const chatId = args.chatId || DEFAULT_CHAT_ID;
@@ -875,13 +871,12 @@ export function advanceCompactionBoundary(
     args.hasImages,
     args.config,
   );
-  const prevSummary =
-    typeof args.nextSummary === "string"
-      ? args.nextSummary
-      : (prev?.rollingSummary ?? "");
   return {
     frozenDigest: prev?.frozenDigest ?? "",
-    rollingSummary: truncateBudget(prevSummary, SUMMARY_BUDGET_CHARS),
+    rollingSummary: truncateBudget(
+      prev?.rollingSummary ?? "",
+      SUMMARY_BUDGET_CHARS,
+    ),
     builtAtUserTurn: Math.floor(args.userTurnCount),
     boundaryIndex,
     chatId,
@@ -918,47 +913,6 @@ export function refreshQueryDigest(
     frozenDigest: digest,
     chatId: args.chatId || base.chatId || DEFAULT_CHAT_ID,
   };
-}
-
-/**
- * Boundary rebuild + query-time digest in one step (harness / one-shot callers).
- * Production path prefers `advanceCompactionBoundary` (K-turn) +
- * `refreshQueryDigest` (every turn) so the digest can change without moving
- * the boundary.
- */
-export function rebuildFrozenDigest(
-  prev: CompactorState | null | undefined,
-  args: {
-    chatId: string;
-    userTurnCount: number;
-    /** Absolute history length at rebuild time (prior messages, no current user). */
-    historyLength: number;
-    hasImages: boolean;
-    index: DigestIndex | null | undefined;
-    oldTurns: RetrievalUnit[];
-    currentQuery: string;
-    config?: Partial<CompactorConfig> | null;
-    /** If set, becomes the new rollingSummary; else keep previous. */
-    nextSummary?: string | null;
-    ranking?: "bm25" | "hybrid";
-  },
-): CompactorState {
-  const advanced = advanceCompactionBoundary(prev, {
-    chatId: args.chatId,
-    userTurnCount: args.userTurnCount,
-    historyLength: args.historyLength,
-    hasImages: args.hasImages,
-    config: args.config,
-    nextSummary: args.nextSummary,
-  });
-  return refreshQueryDigest(advanced, {
-    chatId: args.chatId,
-    index: args.index,
-    oldTurns: args.oldTurns,
-    currentQuery: args.currentQuery,
-    config: args.config,
-    ranking: args.ranking,
-  });
 }
 
 /** Serialize / parse helpers for AsyncStorage (caller-owned I/O). */
@@ -1002,31 +956,4 @@ export function parseCompactorState(
   } catch {
     return emptyCompactorState(chatId);
   }
-}
-
-/**
- * Build a short plain-text transcript for the background summarizer.
- * Caps total chars so the job stays within the 30s / 400-token budget.
- */
-export function buildSummaryTranscript(
-  messages: HistoryRoleMessage[],
-  maxChars = 6000,
-): string {
-  if (!Array.isArray(messages) || messages.length === 0) return "";
-  const lines: string[] = [];
-  let total = 0;
-  // Prefer more recent older-turns (end of the older slice).
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (!m || typeof m.text !== "string") continue;
-    const body = m.text.trim();
-    if (!body) continue;
-    const role = m.role === "assistant" ? "ASSISTANT" : "USER";
-    const line = `${role}: ${body}`;
-    if (total + line.length + 1 > maxChars) break;
-    lines.push(line);
-    total += line.length + 1;
-  }
-  lines.reverse();
-  return lines.join("\n");
 }

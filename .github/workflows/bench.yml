@@ -245,7 +245,7 @@ jobs:
             arm: user-note_budget256
             block_format: user-note
             thinking: budget256
-          # ── Fase 4 — 4 arms (baseline / v42 / ciswire / nogate) × 6 seeds
+          # ── Fase 4 — 4 arms (baseline / anchored / ciswire / nogate) × 6 seeds
           # (24 jobs) ──
           # nogate sits on compaction: off (same base as baseline), toolchoice
           # unset (driver default auto), toolgate "0" — the gate A/B is one
@@ -253,11 +253,8 @@ jobs:
           # smoke 31640101893 (recall already 1 on every arm; required cut
           # precision 0.167 vs baseline 0.500). The gate still helps
           # (required+gate vs required-nogate: spurious 5→3) and stays as
-          # baseline vs nogate. On the v42 ("on") base the only clean
-          # comparison is against v42, the losing compaction mode (fase4 run
-          # 31595209203: v42 recall 0.802 vs baseline 0.792 with a collapsed
-          # early probe), and any tool × compaction interaction is baked in
-          # and unreadable.
+          # baseline vs nogate remains a tool-gate diagnostic; compaction
+          # interactions are intentionally not part of that exploratory arm.
           # WHY 6 not 3: with 3 vs 3 conversations the exhaustive one-sided
           # permutation floor is 2/C(6,3)+1 = 2/21 ≈ 0.095, so p < 0.05 is
           # unreachable by construction. 6 vs 6 → C(12,6)=924, exhaustive
@@ -266,14 +263,13 @@ jobs:
           # weaker bound) for this design. Seeds 1..6 map onto filler
           # rotations 0..7 ((SEED-1)%8), so the rotation is balanced and
           # paired across arms.
-          # Quoted "off"/"on"/"ciswire": GitHub already passed bare off/on as
-          # strings (verified run 30863711482), but quoting removes the doubt.
-          # Three modes: off (legacy window), v42 (boundary+BM25), ciswire
+          # Quoted mode strings keep the matrix values unambiguous in Actions.
+          # Three modes: off (legacy window), anchored (boundary/no digest), ciswire
           # (legacy window + BM25 additive). Primary comparison: ciswire vs off.
           # thinking stays "off" (budget256 made honesty/language unmeasurable
           # in run 31367691176 — Qwen3.5 bugs #20182/#20476).
           # block_format stays none; it still auto-upgrades to user-prefix once
-          # compaction produces real digest/summary content
+          # compaction produces real digest content
           # (see applyOperativeBlockFormat).
           - phase: fase4
             arm: baseline
@@ -336,63 +332,63 @@ jobs:
             block_format: none
             thinking: "off"
           - phase: fase4
-            arm: v42
+            arm: anchored
             seed: 1
-            compaction: "on"
+            compaction: "anchored"
             block_format: none
             thinking: "off"
           - phase: fase4
-            arm: v42
+            arm: anchored
             seed: 2
-            compaction: "on"
+            compaction: "anchored"
             block_format: none
             thinking: "off"
           - phase: fase4
-            arm: v42
+            arm: anchored
             seed: 3
-            compaction: "on"
+            compaction: "anchored"
             block_format: none
             thinking: "off"
           - phase: fase4
-            arm: v42
+            arm: anchored
             seed: 4
-            compaction: "on"
+            compaction: "anchored"
             block_format: none
             thinking: "off"
           - phase: fase4
-            arm: v42
+            arm: anchored
             seed: 5
-            compaction: "on"
+            compaction: "anchored"
             block_format: none
             thinking: "off"
           - phase: fase4
-            arm: v42
+            arm: anchored
             seed: 6
-            compaction: "on"
+            compaction: "anchored"
             block_format: none
             thinking: "off"
           - phase: fase4
-            arm: v42
+            arm: anchored
             seed: 7
-            compaction: "on"
+            compaction: "anchored"
             block_format: none
             thinking: "off"
           - phase: fase4
-            arm: v42
+            arm: anchored
             seed: 8
-            compaction: "on"
+            compaction: "anchored"
             block_format: none
             thinking: "off"
           - phase: fase4
-            arm: v42
+            arm: anchored
             seed: 9
-            compaction: "on"
+            compaction: "anchored"
             block_format: none
             thinking: "off"
           - phase: fase4
-            arm: v42
+            arm: anchored
             seed: 10
-            compaction: "on"
+            compaction: "anchored"
             block_format: none
             thinking: "off"
           - phase: fase4
@@ -829,9 +825,9 @@ jobs:
             block_format: none
             thinking: "off"
           - phase: smoke
-            arm: v42
+            arm: anchored
             seed: 1
-            compaction: "on"
+            compaction: "anchored"
             block_format: none
             thinking: "off"
           - phase: smoke
@@ -999,15 +995,6 @@ jobs:
           NGL: ${{ inputs.ngl || '' }}
           MEMORY: ${{ matrix.memory || inputs.memory || '0' }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
-          # 40s = SUMMARY_IDLE_DEBOUNCE_MS (8s) + SUMMARIZE_TIMEOUT_MS (30s) +
-          # margin. On CI emulator the 2B decodes at ~2.45 tok/s, so
-          # SUMMARIZE_N_PREDICT=400 would need ~163s — the summary hits its own
-          # 30s timeout on this hardware no matter what. The delay makes that
-          # timeout observable (logged) rather than an ambiguous abort at 12s;
-          # it does NOT exist to make the summary succeed. fase0 stays at 0.
-          # Job timeout-minutes: 350 still covers 16 turns × ~8.6 min work +
-          # 15 × 40s idle (~148 min worst case, ~202 min headroom).
-          INTER_TURN_DELAY_S: ${{ (matrix.phase == 'fase4' || matrix.phase == 'smoke' || matrix.phase == 'mem') && '40' || '0' }}
           MODEL_DIR: ${{ env.MODEL_DIR }}
           MODEL_FILE: ${{ env.MODEL_FILE }}
           MMPROJ_FILE: ${{ env.MMPROJ_FILE }}

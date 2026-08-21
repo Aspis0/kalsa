@@ -13,7 +13,7 @@
  * `unknown`.
  *
  * Completeness gate (Fase 4 only): every expected (mode, seed) pair must be
- * present (modes: off / v42 / ciswire), compactionActive must match the mode
+ * present (modes: off / anchored / ciswire), compactionActive must match the mode
  * the matrix asked for, and identical prompt hashes across arms fail the run
  * — an A/B that assembles the same prompt is a broken experiment, not a null
  * result. Exploratory arms whose `arm` is not a compaction mode (e.g. nogate)
@@ -22,7 +22,7 @@
  * cell. Smoke is never gated.
  *
  * Primary comparison is ciswire vs off (retrieval additive). Also reports
- * v42 vs off and ciswire vs v42. Three pairwise p-values are NOT corrected
+ * anchored vs off and ciswire vs anchored. Three pairwise p-values are NOT corrected
  * for multiplicity in the raw column; Holm-adjusted p-values are printed
  * alongside.
  *
@@ -46,13 +46,13 @@ const PERM_ITERATIONS = Number(process.env.BENCH_PERM_ITERATIONS || 10_000);
 const PERM_SEED = Number(process.env.BENCH_PERM_SEED || 42);
 const ALPHA = 0.05;
 /** Workflow arm labels (artifact names / result.arm). */
-const FASE4_ARMS = ["baseline", "v42", "ciswire"];
+const FASE4_ARMS = ["baseline", "anchored", "ciswire"];
 /** Context modes under test (result.compactionActive). */
-const FASE4_MODES = ["off", "v42", "ciswire"];
+const FASE4_MODES = ["off", "anchored", "ciswire"];
 /** arm label → expected compactionActive mode. */
 const ARM_TO_MODE = {
   baseline: "off",
-  v42: "v42",
+  anchored: "anchored",
   ciswire: "ciswire",
 };
 /**
@@ -61,8 +61,8 @@ const ARM_TO_MODE = {
  */
 const PAIRWISE_SPECS = [
   { id: "ciswire_vs_off", label: "ciswire vs off", modeA: "off", modeB: "ciswire", primary: true },
-  { id: "v42_vs_off", label: "v42 vs off", modeA: "off", modeB: "v42", primary: false },
-  { id: "ciswire_vs_v42", label: "ciswire vs v42", modeA: "v42", modeB: "ciswire", primary: false },
+  { id: "anchored_vs_off", label: "anchored vs off", modeA: "off", modeB: "anchored", primary: false },
+  { id: "ciswire_vs_anchored", label: "ciswire vs anchored", modeA: "anchored", modeB: "ciswire", primary: false },
 ];
 // Primary endpoint = mean(fact_recall_early, fact_recall_late) per conversation
 // when the early/late layout is present; plain fact_recall for older artifacts.
@@ -459,17 +459,17 @@ function listFase4(results) {
 
 /**
  * Observed context mode for a result. Prefers compactionActive mode string;
- * accepts legacy boolean (true→v42, false→off).
+ * accepts legacy boolean (true→off, false→off).
  * Gated fase4 (schema >= 2): no arm-label fallback — absent compactionActive
  * returns null so a stale schema-1-shaped artifact cannot enter a mode cell.
  * Non-gated phases keep the arm-label fallback for partial / smoke trees.
- * @returns {"off"|"v42"|"ciswire"|null}
+ * @returns {"off"|"anchored"|"ciswire"|null}
  */
 function modeOf(r) {
   if (!isCompactionModeResult(r)) return null;
   const ca = r?.compactionActive;
-  if (ca === "off" || ca === "v42" || ca === "ciswire") return ca;
-  if (ca === true) return "v42";
+  if (ca === "off" || ca === "anchored" || ca === "ciswire") return ca;
+  if (ca === true) return "off";
   if (ca === false) return "off";
   // Gated fase4 schema>=2: missing/unknown compactionActive is invalid, not
   // "whatever the arm label says".
@@ -575,13 +575,13 @@ function findInvalidCompaction(fase4) {
       continue;
     }
 
-    const isModeStr = ca === "off" || ca === "v42" || ca === "ciswire";
+    const isModeStr = ca === "off" || ca === "anchored" || ca === "ciswire";
     const isLegacyBool = typeof ca === "boolean";
     if (!isModeStr && !isLegacyBool) {
       bad.push({
         arm,
         seed,
-        reason: `compactionActive=${JSON.stringify(ca)} (expected "off"|"v42"|"ciswire")`,
+        reason: `compactionActive=${JSON.stringify(ca)} (expected "off"|"anchored"|"ciswire")`,
       });
       continue;
     }
@@ -745,7 +745,7 @@ function conversationRecallRatesByMode(fase4) {
 function runFamilyPermutations(fase4, families) {
   const outcomes = familyOutcomes(fase4);
   // mode → arm label used in result.arm for that mode's matrix cell
-  const modeToArm = { off: "baseline", v42: "v42", ciswire: "ciswire" };
+  const modeToArm = { off: "baseline", anchored: "anchored", ciswire: "ciswire" };
   const mean = (arr) =>
     arr.length === 0 ? null : arr.reduce((s, x) => s + x, 0) / arr.length;
   const tables = [];
@@ -769,10 +769,10 @@ function runFamilyPermutations(fase4, families) {
         modeA: spec.modeA,
         modeB: spec.modeB,
         primaryComparison: spec.primary === true,
-        // Legacy field names (baseline/v42) kept for older harness matchers
-        // on the v42_vs_off table only.
+        // Keep both control/treatment names and the generic rate fields so
+        // older schema-2 artifacts remain readable.
         baselineRate: mean(a),
-        v42Rate: mean(b),
+        anchoredRate: mean(b),
         rateA: mean(a),
         rateB: mean(b),
         nA: a.length,
@@ -829,7 +829,7 @@ function runPairwiseConversation(fase4) {
       rateB,
       // Legacy field names for the primary pair (modeA=off, modeB=ciswire).
       baselineRate: rateA,
-      v42Rate: rateB,
+      anchoredRate: rateB,
       nA: a.length,
       nB: b.length,
       permutation: perm,
@@ -855,29 +855,6 @@ function runPairwiseConversation(fase4) {
 /** @deprecated Prefer runPairwiseConversation; kept for primary-only shape. */
 function runConversationPrimary(fase4) {
   return runPairwiseConversation(fase4).primary;
-}
-
-/**
- * Aggregate summaryEvents counts per mode (diagnostic for rolling-summary path).
- */
-function collectSummaryByMode(fase4) {
-  /** @type {Map<string, Record<string, number>>} */
-  const byMode = new Map();
-  for (const mode of FASE4_MODES) byMode.set(mode, {});
-  for (const r of fase4) {
-    const mode = modeOf(r);
-    if (!mode) continue;
-    if (!byMode.has(mode)) byMode.set(mode, {});
-    const agg = byMode.get(mode);
-    const events = r.summaryEvents;
-    if (!events || typeof events !== "object") continue;
-    for (const [ev, n] of Object.entries(events)) {
-      if (typeof n === "number" && Number.isFinite(n) && n > 0) {
-        agg[ev] = (agg[ev] ?? 0) + n;
-      }
-    }
-  }
-  return byMode;
 }
 
 /**
@@ -1264,8 +1241,8 @@ function collectPrefill(fase4) {
  * mechanism ran (generation noise). Real mechanism evidence is mode-dependent:
  *   - ciswire: only digestCharsByTurn[t] > 0 for some t ≥ 2
  *     (boundary still advances in state but is not used for history assembly)
- *   - v42: digestCharsByTurn[t] > 0 OR boundaryByTurn[t] > 0 for some t ≥ 2
- *     (advanced boundary is exactly the truncation that defines this arm)
+ *   - anchored: boundaryByTurn[t] > 0 for some t ≥ 2 (the advanced boundary
+ *     is exactly the truncation that defines this arm)
  * `compactorChars` alone is hollow and must not yield ARMS DIFFER.
  */
 function scorePositivePair(pcA, pcB, { treatmentArm }) {
@@ -1290,7 +1267,7 @@ function scorePositivePair(pcA, pcB, { treatmentArm }) {
     if (tokensA[t] !== tokensB[t]) different += 1;
   }
 
-  // Real retrieval signal: frozenDigest length on some turn ≥ 2 (treatment).
+  // Real retrieval signal for ciswire: frozenDigest length on some turn ≥ 2.
   const digestB = pcB.digestCharsByTurn ?? {};
   let hasTreatmentDigest = false;
   for (const t of Object.keys(digestB)) {
@@ -1300,7 +1277,7 @@ function scorePositivePair(pcA, pcB, { treatmentArm }) {
     }
   }
 
-  // Truncation signal (v42 only): boundary advanced on some turn ≥ 2.
+  // Real mechanism signal for anchored: boundary advanced on some turn ≥ 2.
   const boundaryB = pcB.boundaryByTurn ?? {};
   let hasTreatmentBoundary = false;
   for (const t of Object.keys(boundaryB)) {
@@ -1315,7 +1292,7 @@ function scorePositivePair(pcA, pcB, { treatmentArm }) {
   const realMechanism =
     mode === "ciswire"
       ? hasTreatmentDigest
-      : hasTreatmentDigest || hasTreatmentBoundary;
+      : hasTreatmentBoundary;
 
   let verdict;
   if (allCommon.length === 0 && !realMechanism && !(compA > 0 || compB > 0)) {
@@ -1335,8 +1312,8 @@ function scorePositivePair(pcA, pcB, { treatmentArm }) {
     treatmentArm,
     treatmentCompactorChars: compB,
     baselineCompactorChars: compA,
-    // Legacy column name used by the markdown table for the v42 pair.
-    v42CompactorChars: treatmentArm === "v42" ? compB : compB,
+    // Legacy column name used by the markdown table for the anchored pair.
+    anchoredCompactorChars: compB,
   };
 }
 
@@ -1345,7 +1322,7 @@ function collectPositiveControl(fase4) {
   // After smoke run 31358530713: compare promptTokensByTurn (embd.size) and
   // compactorChars — never promptSha* (logcat 4 KB truncation made hashes constant).
   // Primary pair is baseline↔ciswire (the declared comparison); also check
-  // baseline↔v42 so a silent ciswire no-op cannot hide behind a green v42 control.
+  // baseline↔anchored so a silent ciswire no-op cannot hide behind a green anchored control.
   const bySeed = new Map();
   for (const r of fase4) {
     const seed = String(r.seed);
@@ -1357,7 +1334,7 @@ function collectPositiveControl(fase4) {
   /** @type {{ armA: string, armB: string, primary: boolean }[]} */
   const pairs = [
     { armA: "baseline", armB: "ciswire", primary: true },
-    { armA: "baseline", armB: "v42", primary: false },
+    { armA: "baseline", armB: "anchored", primary: false },
   ];
 
   const rows = [];
@@ -1402,7 +1379,7 @@ function collectPositiveControl(fase4) {
         compared: scored.compared,
         different: scored.different,
         verdict: scored.verdict,
-        v42CompactorChars: scored.v42CompactorChars,
+        anchoredCompactorChars: scored.anchoredCompactorChars,
         baselineCompactorChars: scored.baselineCompactorChars,
         treatmentArm: armB,
         treatmentCompactorChars: scored.treatmentCompactorChars,
@@ -1486,22 +1463,6 @@ function findInsufficientUsable(fase4) {
   return { perMode, primaryZero, nOff, nCis };
 }
 
-/**
- * True when at least one result in the campaign recorded a KALSA_SUMMARY event.
- * All-zero summaryEvents across every arm means the capture path is broken,
- * not that "the rolling summary contributed nothing".
- */
-function campaignHasSummaryEvent(fase4) {
-  for (const r of fase4) {
-    const events = r.summaryEvents;
-    if (!events || typeof events !== "object") continue;
-    for (const v of Object.values(events)) {
-      if (typeof v === "number" && v > 0) return true;
-    }
-  }
-  return false;
-}
-
 function aggregateFase4(results) {
   const fase4 = listFase4(results);
   // Compaction completeness + primary stay on the three modes only.
@@ -1516,7 +1477,6 @@ function aggregateFase4(results) {
   const prefill = collectPrefill(compaction);
   const positiveControl = collectPositiveControl(compaction);
   const notes = collectNotes(fase4);
-  const summaryByMode = collectSummaryByMode(compaction);
   const toolTimingByMode = collectToolTimingByMode(compaction);
   const digestTimingByMode = collectDigestTimingByMode(compaction);
   const memoryTelemetryByMode = collectMemoryTelemetryByMode(compaction);
@@ -1534,10 +1494,6 @@ function aggregateFase4(results) {
     : { perMode: [], primaryZero: false };
   const insufficientUsable = usableInfo.perMode;
   const primaryUsableZero = usableInfo.primaryZero === true;
-  // Empty capture gate: only when the campaign has compaction results at all.
-  const summaryCaptureEmpty =
-    gated && compaction.length > 0 && !campaignHasSummaryEvent(compaction);
-
   // Primary gate: ciswire vs off conversation-level p ONLY (not probe-level).
   const primary = conversationPrimary;
   let gateMet = false;
@@ -1560,7 +1516,6 @@ function aggregateFase4(results) {
     familyPermTables,
     conversationPrimary,
     pairwise,
-    summaryByMode,
     toolTimingByMode,
     digestTimingByMode,
     memoryTelemetryByMode,
@@ -1575,7 +1530,6 @@ function aggregateFase4(results) {
     zeroProbes,
     insufficientUsable,
     primaryUsableZero,
-    summaryCaptureEmpty,
     seedsInfo,
     primary,
     gateMet,
@@ -1626,7 +1580,7 @@ function renderFase0(agg) {
 function renderFase4(agg) {
   const lines = [];
   lines.push(
-    "## Fase 4 — compaction-survival (off / v42 / ciswire)",
+    "## Fase 4 — compaction-survival (off / anchored / ciswire)",
   );
   if (agg.fase4.length === 0) {
     lines.push("", "_No fase4 result.json files found._", "");
@@ -1743,46 +1697,6 @@ function renderFase4(agg) {
       "",
       "_Permutation tests skipped: need both modes in each pair with at least one conversation that has a non-null fact_recall rate._",
     );
-  }
-
-  // ── Summary lifecycle events (per mode) ─────────────────────────────
-  lines.push(
-    "",
-    "### Summary lifecycle events (per mode)",
-    "",
-    "_Aggregated `summaryEvents` from each arm's result.json (KALSA_SUMMARY capture). Diagnostic for why the rolling summary never runs._",
-    "",
-  );
-  const summaryByMode = agg.summaryByMode;
-  if (!summaryByMode || summaryByMode.size === 0) {
-    lines.push("_No summaryEvents in any result._", "");
-  } else {
-    const allEvents = new Set();
-    for (const counts of summaryByMode.values()) {
-      for (const ev of Object.keys(counts)) allEvents.add(ev);
-    }
-    const eventList = [...allEvents].sort();
-    if (eventList.length === 0) {
-      lines.push(
-        "| mode | (no events observed) |",
-        "|---|---|",
-      );
-      for (const mode of FASE4_MODES) {
-        lines.push(`| ${mode} | — |`);
-      }
-      lines.push("");
-    } else {
-      lines.push(
-        `| mode | ${eventList.join(" | ")} |`,
-        `|---|${eventList.map(() => "---").join("|")}|`,
-      );
-      for (const mode of FASE4_MODES) {
-        const counts = summaryByMode.get(mode) ?? {};
-        const cells = eventList.map((ev) => String(counts[ev] ?? 0));
-        lines.push(`| ${mode} | ${cells.join(" | ")} |`);
-      }
-      lines.push("");
-    }
   }
 
   // ── Exploratory: tool-call timing (reported only, not gated) ────────
@@ -1980,7 +1894,7 @@ function renderFase4(agg) {
   );
   const famTables =
     agg.familyPermTables ??
-    [{ label: "baseline vs v42", primary: false, rows: agg.permutations ?? [] }];
+    [{ label: "baseline vs anchored", primary: false, rows: agg.permutations ?? [] }];
   for (const table of famTables) {
     const head = table.primary
       ? `#### ${table.label} (primary comparison)`
@@ -2000,7 +1914,7 @@ function renderFase4(agg) {
         ? `${row.family} (probe-level, pseudo-replicated — NOT the gate)`
         : `${row.family} (secondary, not multiplicity-corrected)`;
       const rateA = row.rateA ?? row.baselineRate;
-      const rateB = row.rateB ?? row.v42Rate;
+      const rateB = row.rateB ?? row.anchoredRate;
       if (!row.permutation) {
         lines.push(
           `| ${label} | ${rateB == null ? "n/a" : fmt(rateB)} | ${rateA == null ? "n/a" : fmt(rateA)} | n/a | n/a (missing arm) | n/a |`,
@@ -2065,9 +1979,9 @@ function renderFase4(agg) {
     );
     for (const r of agg.positiveControl.rows) {
       const treatChars =
-        r.treatmentCompactorChars ?? r.v42CompactorChars ?? 0;
+        r.treatmentCompactorChars ?? r.anchoredCompactorChars ?? 0;
       lines.push(
-        `| ${r.seed} | ${r.pair ?? "baseline↔v42"} | ${r.primary ? "yes" : "no"} | ${r.compared} | ${r.different} | ${treatChars} | ${r.baselineCompactorChars} | ${r.verdict} |`,
+        `| ${r.seed} | ${r.pair ?? "baseline↔anchored"} | ${r.primary ? "yes" : "no"} | ${r.compared} | ${r.different} | ${treatChars} | ${r.baselineCompactorChars} | ${r.verdict} |`,
       );
     }
   }
@@ -2200,7 +2114,6 @@ function renderGateFailures(agg) {
   const hasZeroProbes = (agg.zeroProbes ?? []).length > 0;
   const hasInsufficientUsable = (agg.insufficientUsable ?? []).length > 0;
   const hasPrimaryUsableZero = agg.primaryUsableZero === true;
-  const hasSummaryCaptureEmpty = agg.summaryCaptureEmpty === true;
   const posCtrlFailed = agg.positiveControl.gateFailed === true;
   // Mirror arm-level benchGrade: a failed logcat dump is lost evidence, not a green arm.
   const captureFailed = (agg.fase4 ?? []).filter(
@@ -2222,7 +2135,6 @@ function renderGateFailures(agg) {
     !hasZeroProbes &&
     !hasInsufficientUsable &&
     !hasPrimaryUsableZero &&
-    !hasSummaryCaptureEmpty &&
     !posCtrlFailed &&
     !hasCaptureFailed &&
     !hasMemoryEmptyStore
@@ -2298,13 +2210,6 @@ function renderGateFailures(agg) {
         "",
       );
     }
-  }
-
-  if (hasSummaryCaptureEmpty) {
-    lines.push(
-      "**Summary capture empty across every arm** — no `summaryEvents` count > 0 in the whole campaign. That is a broken KALSA_SUMMARY capture, not a finding that the rolling summary contributed nothing.",
-      "",
-    );
   }
 
   if (hasBadCompaction) {

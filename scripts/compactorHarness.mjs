@@ -127,7 +127,6 @@ async function main() {
     emptyCompactorState,
     advanceCompactionBoundary,
     refreshQueryDigest,
-    rebuildFrozenDigest,
     serializeCompactorState,
     parseCompactorState,
     truncateBudget,
@@ -206,8 +205,6 @@ async function main() {
         userTurnCount,
         historyLength: history.length,
         hasImages,
-        // Promote a deterministic "pending" summary only on boundary rebuild.
-        nextSummary: `summary-at-user-turn-${userTurnCount}`,
       });
       // Sync warm index: full rebuild on boundary advance (corpus still small here).
       const b = resolveBoundaryIndex(state, history.length);
@@ -340,11 +337,11 @@ async function main() {
   }
   record("(2b) boundary rebuild resets verbatim window to R", rebuildWindowOk);
 
-  // (3) Rolling summary frozen for K turns (only changes on boundary rebuild)
+  // (3) Persisted rolling summary remains stable; this harness does not invoke
+  // an LLM summary producer.
   let summaryFrozenOk = true;
   for (let i = 1; i < digests.length; i++) {
     if (rebuiltFlags[i]) {
-      // On rebuild we inject nextSummary — must change (after first non-empty).
       continue;
     }
     if (digests[i].summary !== digests[i - 1].summary) {
@@ -356,19 +353,11 @@ async function main() {
       break;
     }
   }
-  // And summary must actually update on at least one boundary rebuild after the first.
-  let summaryAdvancedOnRebuild = false;
-  for (let i = 1; i < digests.length; i++) {
-    if (!rebuiltFlags[i]) continue;
-    if (digests[i].summary !== digests[i - 1].summary) {
-      summaryAdvancedOnRebuild = true;
-      break;
-    }
-  }
+  const summaryRemainsEmpty = digests.every((entry) => entry.summary === "");
   record(
-    "(3) rolling summary frozen between boundary rebuilds (K-cadence)",
-    summaryFrozenOk && summaryAdvancedOnRebuild,
-    `frozenOk=${summaryFrozenOk}, advancedOnRebuild=${summaryAdvancedOnRebuild}`,
+    "(3) persisted rolling summary remains stable",
+    summaryFrozenOk && summaryRemainsEmpty,
+    `frozenOk=${summaryFrozenOk}, remainsEmpty=${summaryRemainsEmpty}`,
   );
 
   // (3b) Boundary rebuild cadence every K
@@ -703,41 +692,23 @@ async function main() {
     `digestLen=${stRefreshed.frozenDigest.length}`,
   );
 
-  // advanceCompactionBoundary does not require / change digest from query
+  // advanceCompactionBoundary preserves the digest and persisted summary
   const stAdv = advanceCompactionBoundary(stBase, {
     chatId: "default",
     userTurnCount: 6,
     historyLength: 20,
     hasImages: false,
-    nextSummary: "new-sum",
   });
   const advOk =
     stAdv.builtAtUserTurn === 6 &&
-    stAdv.rollingSummary === "new-sum" &&
+    stAdv.rollingSummary === "keep-me" &&
     stAdv.boundaryIndex === 20 - R &&
     stAdv.frozenDigest === "old"; // preserved until refreshQueryDigest
   record(
-    "advanceCompactionBoundary preserves digest, updates boundary+summary",
+    "advanceCompactionBoundary preserves digest+summary",
     advOk,
     `boundary=${stAdv.boundaryIndex}`,
   );
-
-  // rebuildFrozenDigest convenience still works (boundary + digest)
-  const stCombo = rebuildFrozenDigest(stBase, {
-    chatId: "default",
-    userTurnCount: 9,
-    historyLength: 20,
-    hasImages: false,
-    index: midIdx,
-    oldTurns: midUnits,
-    currentQuery: qA,
-    nextSummary: "combo-sum",
-  });
-  const comboOk =
-    stCombo.builtAtUserTurn === 9 &&
-    stCombo.rollingSummary === "combo-sum" &&
-    stCombo.frozenDigest.length > 0;
-  record("rebuildFrozenDigest convenience (boundary+digest)", comboOk);
 
   // replaceLiteral: $& / $$ / $` / $' must not be interpreted
   const rl1 = replaceLiteral("X {digest} Y", "{digest}", "a$&b$$c$`d$'e");

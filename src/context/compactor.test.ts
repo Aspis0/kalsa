@@ -42,15 +42,15 @@ describe("compactor parseContextMode", () => {
   test("unrecognised → off", () => {
     expect(parseContextMode("yes")).toBe("off");
     expect(parseContextMode("")).toBe("off");
-    expect(parseContextMode("v42")).toBe("off");
+    expect(parseContextMode("removed-mode")).toBe("off");
   });
 
-  test('"1" → v42', () => {
-    expect(parseContextMode("1")).toBe("v42");
+  test('"1" → off (legacy stored value)', () => {
+    expect(parseContextMode("1")).toBe("off");
   });
 
-  test('"true" → v42', () => {
-    expect(parseContextMode("true")).toBe("v42");
+  test('"true" → off (legacy stored value)', () => {
+    expect(parseContextMode("true")).toBe("off");
   });
 
   test('"ciswire" → ciswire', () => {
@@ -129,14 +129,14 @@ describe("compactor legacy window / ciswire partition", () => {
     expect(assembled[0].content).toBe("msg-10");
     expect(assembled[assembled.length - 1].content).toBe("msg-29");
 
-    // v42 with a tight boundary must differ (proves the flag still matters).
-    const v42 = assembleEngineHistory(history, {
+    // Anchored with a tight boundary must differ (proves the flag still matters).
+    const anchored = assembleEngineHistory(history, {
       compactionEnabled: true,
       hasImages: false,
       boundaryIndex: 24,
     });
-    expect(v42).not.toEqual(assembled);
-    expect(v42).toHaveLength(6);
+    expect(anchored).not.toEqual(assembled);
+    expect(anchored).toHaveLength(6);
   });
 });
 

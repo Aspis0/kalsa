@@ -197,8 +197,8 @@ function test3_collectMemoryTelemetryByModeAggregates() {
       ],
     },
     {
-      arm: "v42",
-      compactionActive: "v42",
+      arm: "anchored",
+      compactionActive: "anchored",
       memoryTelemetry: [[{ memoryEnabled: 1, factsInjected: 5, extractParseOutcome: -1 }]],
       memoryExtractTelemetry: [[{ memoryEnabled: 1, factsExtracted: 10, factsStored: 8, factsRejectedSensitive: 2, factsRejectedFull: 0, totalFactsInStore: 20, extractParseOutcome: 1, extractGateSource: 1, extractStopReason: 0 }]],
     },
@@ -216,9 +216,9 @@ function test3_collectMemoryTelemetryByModeAggregates() {
   assert(offMode.extractParseOutcomes.join(",") === "1", "Parse outcomes must come from settled telemetry");
   assert(offMode.extractGateSources.join(",") === "1,2", "Gate sources must come from settled telemetry");
 
-  const v42Mode = result.find(r => r.mode === "v42");
-  assert(v42Mode.totalExtracted === 10, `v42 mode extracted should be 10, got ${v42Mode.totalExtracted}`);
-  assert(v42Mode.totalStored === 8, `v42 mode stored should be 8, got ${v42Mode.totalStored}`);
+  const anchoredMode = result.find(r => r.mode === "anchored");
+  assert(anchoredMode.totalExtracted === 10, `anchored mode extracted should be 10, got ${anchoredMode.totalExtracted}`);
+  assert(anchoredMode.totalStored === 8, `anchored mode stored should be 8, got ${anchoredMode.totalStored}`);
 
   const ciswireMode = result.find(r => r.mode === "ciswire");
   assert(ciswireMode.hasData === false, "ciswire mode should not have data");
@@ -231,15 +231,15 @@ function test4_emptyStoreFailureDetection() {
 
   const memoryTelemetryByMode = [
     { mode: "off", arm: "baseline", hasData: true, totalStored: 5 },
-    { mode: "v42", arm: "v42", hasData: true, totalStored: 0 }, // FAILURE: has data but stored 0
+    { mode: "anchored", arm: "anchored", hasData: true, totalStored: 0 }, // FAILURE: has data but stored 0
     { mode: "ciswire", arm: "ciswire", hasData: false, totalStored: 0 }, // OK: no data
   ];
 
   const emptyStoreFailures = findEmptyStoreFailures(memoryTelemetryByMode);
 
   assert(emptyStoreFailures.length === 1, `Expected 1 empty-store failure, got ${emptyStoreFailures.length}`);
-  assert(emptyStoreFailures[0].mode === "v42", "Failure should be in v42 mode");
-  assert(emptyStoreFailures[0].arm === "v42", "Failure should be in v42 arm");
+  assert(emptyStoreFailures[0].mode === "anchored", "Failure should be in anchored mode");
+  assert(emptyStoreFailures[0].arm === "anchored", "Failure should be in anchored arm");
 
   console.log("✓ Empty-store failure detection works correctly");
 }
@@ -307,8 +307,8 @@ function test6_memoryEnabledGate() {
   // Test 6b: memory ON + zero stored → failure (hasData should be true, totalStored=0)
   const fase4_memoryOn = [
     {
-      arm: "v42",
-      compactionActive: "v42",
+      arm: "anchored",
+      compactionActive: "anchored",
       memoryExtractTelemetry: [
         [{ memoryEnabled: 1, factsExtracted: 5, factsStored: 0, factsRejectedSensitive: 5, factsRejectedFull: 0, totalFactsInStore: 0, extractParseOutcome: 1 }],
         [{ memoryEnabled: 1, factsExtracted: 3, factsStored: 0, factsRejectedSensitive: 3, factsRejectedFull: 0, totalFactsInStore: 0, extractParseOutcome: 1 }],
@@ -317,24 +317,24 @@ function test6_memoryEnabledGate() {
   ];
 
   const resultOn = collectMemoryExtractTelemetryByMode(fase4_memoryOn);
-  const v42Mode = resultOn.find(r => r.mode === "v42");
-  assert(v42Mode.hasData === true, "memory ON + zero stored → hasData must be true");
-  assert(v42Mode.totalStored === 0, "memory ON + zero stored → totalStored must be 0");
+  const anchoredMode = resultOn.find(r => r.mode === "anchored");
+  assert(anchoredMode.hasData === true, "memory ON + zero stored → hasData must be true");
+  assert(anchoredMode.totalStored === 0, "memory ON + zero stored → totalStored must be 0");
 
   const emptyStoreFailuresOn = findEmptyStoreFailures(resultOn);
   assert(emptyStoreFailuresOn.length === 1, "memory ON + zero stored → should be 1 failure");
-  assert(emptyStoreFailuresOn[0].mode === "v42", "Failure should be in v42 mode");
+  assert(emptyStoreFailuresOn[0].mode === "anchored", "Failure should be in anchored mode");
   assert(findEmptyStoreFailures(resultOff).length === 0, "memory OFF → must not be flagged");
   console.log("  ✓ memory ON + zero stored → hasData=true, totalStored=0 → failure");
   console.log("  ✓ memory OFF + zero stored → no failure");
 
   // Exercise the real aggregate gate as well as the exported predicate. The
   // turn-end rows deliberately contain only -1 extraction sentinels; only the
-  // settled v42 row is an empty-store failure.
+  // settled anchored row is an empty-store failure.
   const gateFixtureDir = path.join(outDir, "empty-store-gate");
   for (const [arm, mode, stored] of [
     ["baseline", "off", 1],
-    ["v42", "v42", 0],
+    ["anchored", "anchored", 0],
     ["ciswire", "ciswire", 1],
   ]) {
     const armDir = path.join(gateFixtureDir, arm);
@@ -350,7 +350,6 @@ function test6_memoryEnabledGate() {
         turns: [{ promptMs: 1, elapsed_s: 1, promptTokens: 1 }],
         probes: [{ family: "fact_recall", found: true }],
         recall: 1,
-        summaryEvents: { captured: 1 },
         positiveControl: {
           promptTokensByTurn: { "1": 100, "2": 101 },
           compactorChars: 1,

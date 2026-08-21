@@ -1,10 +1,10 @@
 {
   "phase": "fase4",
-  "arm": "v42",
+  "arm": "anchored",
   "seed": 2,
   "blockFormat": "user-prefix",
   "thinking": "off",
-  "compaction": "on",
+  "compaction": "anchored",
   "turns": [
     {"index":"1","prompt":"MioGattoLeopoldo Budget4500 Scadenza14Marzo ColoreBlu","elapsed_s":101,"reply_len":90,"reply_excerpt":"Ok, capito."},
     {"index":"2","prompt":"SpiegaComeFunzionaUnMotoreElettrico","elapsed_s":99,"reply_len":260,"reply_excerpt":"Un motore elettrico..."},

@@ -60,7 +60,10 @@ import { useProcessHealth } from "../hooks/useProcessHealth";
 import { useThermalMonitor } from "../hooks/useThermalMonitor";
 import * as MemoryStore from "../memory/MemoryStore";
 import type { MemoryFact } from "../memory/MemoryStore";
-import { COMPACTION_ENABLED_KEY } from "../context/compactor";
+import {
+  COMPACTION_ENABLED_KEY,
+  parseContextMode,
+} from "../context/compactor";
 import {
   DEFAULT_SESSION_POOL_CONVERSATIONS,
   parseSessionPoolConversations,
@@ -363,7 +366,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     AsyncStorage.getItem(COMPACTION_ENABLED_KEY)
       .then((raw) => {
         if (!mounted) return;
-        setCompactionEnabled(raw === "1" || raw === "true");
+        setCompactionEnabled(parseContextMode(raw) !== "off");
       })
       .catch(() => undefined);
     return () => {
@@ -410,7 +413,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
       setCompactionEnabled(next);
       void (async () => {
         try {
-          await AsyncStorage.setItem(COMPACTION_ENABLED_KEY, next ? "1" : "0");
+          await AsyncStorage.setItem(
+            COMPACTION_ENABLED_KEY,
+            next ? "anchored" : "0",
+          );
         } catch {
           if (mountedRef.current) setCompactionEnabled(previous);
         }
