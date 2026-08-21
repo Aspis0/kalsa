@@ -1503,6 +1503,73 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.33 CROSS-TREE 2026-08-21: the GPU question, answered from evidence that already existed — and the owner's battery hypothesis is measured and refuted
+
+Asked because the owner is deciding whether to commission Vulkan/OpenCL kernel work on the parallel
+llama.cpp branch. His prior: *"la velocità non credo, ma calore/batteria forse"*. Both halves are
+answerable today, and one of them is answerable in the opposite direction. Everything below is from
+the sibling repo or from llama.cpp source **checked out locally**, and every load-bearing line was
+re-read in this tree before being repeated here.
+
+**1. Decode on GPU loses. Prefill on GPU wins by 5-6×.**
+
+| | CPU | GPU | ratio |
+|---|---:|---:|---:|
+| **prefill**, Xiaomi 14 / **Adreno 750**, Qwen3.5-2B Q4_K_M, unplugged, `llama-bench -t 6 -r 2` | 31.5 / 35.9 / 38.4 / 51.1 t/s at pp 128/512/1024/2048 | 181.7 / 214.5 / 216.3 / 211.6 | **5.77 / 5.97 / 5.63 / 4.14×** |
+| prefill, real TTFT median, same device | 38.25 | 201.05 | **5.26×** |
+| decode, Adreno 750 | 16.15 | 7.07 | **0.44×** |
+| decode, Adreno 740 | 12.37 | 5.06 | 0.41× |
+
+The prefill ratio is measured on the **shipping GPU class**, unplugged, two samples per cell — not
+on the Adreno 740 whose negative result §7.16 correctly refused to generalise. And prefill is where
+this app spends the user's wait (§7.30: 77.7 s of a 120.8 s cold start).
+
+**2. ⛔ The battery hypothesis is refuted, and the mechanism is not the one it sounds like.**
+S23, unplugged, 15 minutes per arm, cooldown between arms
+(`kalsa-moe-experiments/reports/moe-gpu-sustained.md:139-142`):
+
+| arm | first third | final third | degradation | end temp | **battery per 1k tokens** |
+|---|---:|---:|---:|---:|---:|
+| CPU `-ngl 0` | 12.2 | **10.2** | **−16 %**, still rising | **42.3 °C** | **0.61 %** |
+| GPU `-ngl 99 -fa off` | 8.2 | **8.2** | **0 %**, plateau | **38.5 °C** | **0.79 %** |
+
+**The GPU is 4 °C cooler and perfectly flat — and spends 30 % more battery per token**, because it
+is slower and therefore stays on longer. Thermal stability is real and is a genuine product
+property; energy efficiency is the opposite of the guess. Same outcome on the 4B: CPU ends at 5.0
+against the GPU's 4.0, GPU 0.80× sustained. **Cooler is not cheaper.**
+
+**3. ⭐ For Vulkan there is no kernel to write. This is the finding that changes the question.**
+Verified in this tree, not inferred:
+`kalsa-engine/third_party/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp:17254-17255` lists
+`case GGML_TYPE_Q2_K:` and `case GGML_TYPE_Q3_K:` under `MUL_MAT_ID`, and the pipelines are real —
+`:4330-4331` create `matmul_id_subgroup_q2_k_f16` and `matmul_id_subgroup_q3_k_f16`, with f32
+variants at `:4453-4454`. **KEXP's 2-and-3-bit experts already have Vulkan kernels.** `SSM_CONV` is
+present too. The `lfm2` / `lfm2moe` graph is covered on Vulkan today.
+
+**OpenCL is the one that would need writing**, and it is the backend our S23 arms used.
+`ggml-opencl.cpp:6688-6713` admits q4_0/q8_0/MXFP4 and selected Adreno q4/q5/q6 for `MUL_MAT_ID` —
+**not** q2_K/q3_K — and ordinary q3_K `MUL_MAT` reaches
+`GGML_ASSERT(false && "not implemented")` at `:19204-19221`. So every KEXP expert matmul falls back
+to CPU on OpenCL, and a rejected op means the ggml scheduler splits the graph with a sync and an
+activation copy per split.
+
+**4. Mali is not a target.** Dimensity 900 / Mali-G68, Llama-3.2-3B Q4_K_M: CPU 6.0 prefill /
+3.9 decode against Vulkan 1.2 / 2.9 — **0.20× and 0.74×**, i.e. the GPU loses both ends. The Jelly's
+Mali-G57 is in that class. Nothing here argues for GPU work aimed at the Jelly.
+
+**What this means for the commission.** The shape of the only win the evidence supports is **GPU for
+prefill, CPU for decode** — 5.3-6.0× on the half that dominates the wait, and staying off the half
+where the GPU is 0.44×. ⚠️ **That split is not a flag.** llama.cpp does not switch backends
+mid-context, so it is real engineering, and its cost is **UNMEASURED** here. What is *not* needed is
+what the question assumed: writing q2/q3 kernels, at least for Vulkan.
+
+**Limits.** No number here was taken on a phone we ship to, in our app, on our model. The prefill
+5.26-5.97× is Qwen3.5-2B, not LFM2 — LFM2's short-conv graph has no published GPU ratio, and §7.17
+is a standing reminder that a GPU arm can fail to test the GPU at all. Thermal/energy is S23 /
+Adreno 740 only; for Adreno 750+ and for Mali, joules per token GPU-vs-CPU is **NOT PUBLISHED**.
+The Vulkan coverage above is `supports_op` and pipeline creation read in source — **allowed is not
+correct, and not fast**; §7.16's own MXFP4 note makes exactly that point.
+
 ### 7.32 MEASURED 2026-08-21: the Jelly's CPU and storage, and the one tuning question the numbers open
 
 Read-only pass on the Jelly Star (on the charger, thermal status 0 throughout), taken because
@@ -3535,6 +3602,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 
 | date | change |
 |---|---|
+| 2026-08-21 | **§7.33: the GPU question answered from evidence that already existed — decode loses, prefill wins 5-6x, and the battery hypothesis is refuted.** On the **shipping** GPU class (Xiaomi 14, Adreno 750, unplugged, Qwen3.5-2B Q4_K_M, `llama-bench -t 6 -r 2`) prefill is **5.77 / 5.97 / 5.63 / 4.14x** CPU at pp 128/512/1024/2048 and **5.26x** on real median TTFT, while decode is **0.44x** (7.07 vs 16.15). ⛔ **The owner's calore/batteria prior is measured and inverted:** S23, 15 min per arm, CPU 12.2 -> 10.2 tok/s (**-16 %**, 42.3 °C still rising) against GPU 8.2 -> 8.2 (**0 %**, 38.5 °C plateau) — the GPU is 4 °C cooler and flat, and spends **0.79 % of battery per 1k tokens against the CPU's 0.61 %**, i.e. **30 % more energy per token**, because it is slower and stays on longer. Cooler is not cheaper. Same on the 4B (5.0 vs 4.0). ⭐ **And for Vulkan there is no kernel to write**: verified in the local checkout, `ggml-vulkan.cpp:17254-17255` lists Q2_K and Q3_K under `MUL_MAT_ID` and `:4330-4331` create `matmul_id_subgroup_q2_k_f16` / `q3_k_f16`, so **KEXP's 2-3-bit experts already have Vulkan kernels** and `SSM_CONV` is present. **OpenCL** is the backend that would need writing — `ggml-opencl.cpp:6688-6713` omits q2_K/q3_K from `MUL_MAT_ID` and q3_K `MUL_MAT` hits `GGML_ASSERT(false && "not implemented")` at `:19204-19221` — and OpenCL is what our S23 arms used. Mid-range **Mali is not a target** (Mali-G68: 0.20x prefill, 0.74x decode). The only shape the evidence supports is **GPU for prefill, CPU for decode**, which is not a flag — llama.cpp does not switch backends mid-context — so its cost is UNMEASURED. Limits: nothing measured on our phone, our app or our model; the prefill ratio is Qwen3.5-2B, not LFM2; thermal/energy is Adreno 740 only; and `supports_op` says allowed, not correct and not fast. |
 | 2026-08-21 | **§7.32: the Jelly's CPU and storage, read rather than assumed — and prefill runs on eight threads where six of them are third-speed cores.** Topology measured: cpu0-5 are **A55** (`0xd05`, capacity **348**), cpu6-7 **A76** (`0xd0b`, **1024**). Our split is already hand-tuned — `deviceTuning.ts:180-188` carries a `helio-g99` preset resolving to `n_threads: 2` / `n_threads_batch: 8`, provenance `soc-preset:helio-g99` — so decode already sits on exactly the two big cores. **Open and cheap:** llama.cpp finishes a batch when its slowest thread does, so on a 6+2 machine with a 3:1 capacity split, prefill on 8 threads may be paced by the A55s. Prefill is most of the user's wait (§7.30: 77.7 s of the 120.8 s cold start is a prewarm). Prefill at 2/4/6/8 threads has never been measured on this phone. **Storage is UFS, checked not assumed** (`/sys/class/block/sda` under `11270000.ufshci`, `ro.boot.boot_devices` names it, no `mmcblk*`; `ro.vendor.mtk_emmc_support=1` is a vendor flag, not the block layer). `/data` is **f2fs**, `fsync_mode=nobarrier`, 137 GB free of 228 — disk is not a constraint here. Sequential read **984 MB/s coldest**, 2.9-3.2 GB/s from page cache, so a cold KEXP load has a **~3.4 s floor** no tuning removes. Session pool 37 MB: the live 10 041 119 B file plus a **28 674 134 B legacy `qwen3.5-2b.kvs`**. **Suspicion refuted in the same pass:** the legacy file is NOT stranded — `listPoolFiles` keys on the bare filename stem, so it is counted in the budget and evicted LRU, even though `deleteLegacyModelSession` only ever runs for the active model. Limits: one phone, on the charger, **idle — nothing here was sampled during inference**, so the thread-affinity histogram is inconclusive and is not quoted as a result. |
 | 2026-08-21 | **§7.31: every dense `MB/token` we carried was too LOW, and §7.28's caveat pointed the wrong way — retracted there.** Tensor maps read off the pinned HF revisions with a range request (25 MB of header, no weights): **LFM2.5-2.6B = 1666.2 MB/token** (blocks 1451.2 + tied `token_embd` 215.0) against the ~1600 estimate, **Qwen3.5-2B = 1269.9** (852.7 + **417.2**) against ~1230. Neither GGUF has an `output.weight`, so on both the embedding is tied and the same matrix is read in full as the output head every token — which is why file size is a good proxy for a dense model and a terrible one for a sparse one (KEXP: 848 against a 3330 MB file). **Vocabulary size is a decode cost**: Qwen3.5-2B's 248 320-token vocab is **33 % of everything it reads per token**, against 13 % for LFM2.5-2.6B's 128 000. §7.28's throughput spread corrects to **52 %** (9.11 / 7.61 / 5.98 GB/s) and none of it is estimation error. S23 predictions move slightly worse: LFM2.5-2.6B **13.1** tok/s, Qwen3.5-2B **17.2**, both still unmeasured. Also corrected: §2.1's LFM2.5-VL-3B cell said "1674 (from the GGUF)" when 1674.45 MB is the **file size** of LFM2.5-2.6B — within 0.5 % of right, but not computed the way the column header promises. Limits: arithmetic, not a measurement; assumes one read per block tensor and one of the tied head at batch 1; models no KV, no activations, and not the VL model's 583 MB `mmproj`. |
 | 2026-08-21 | **§7.30: the prewarm stands aside after a restore — 120.8 s of cold start becomes 1.8 s, measured on the APK that carries the merge.** `d2f34eb` on the Jelly, KEXP, §7.29's exact configuration kept so the APK is the only variable. Five `force-stop` -> relaunch -> turn cycles: the prewarm logged `op:"skip" reason:"restored_kv"` on **all eight** restore events (two per cycle — the share deep link backgrounds RN and the engine re-inits), and turn prefill was **2.08 / 1.79 / 1.76 / 1.93 s** against a cold start of 77.7 s of prewarm plus 43.1 s of first-turn prefill. Decode 7.04-7.43 reproduces §7.28's 6.80-7.31, so the run is internally consistent. First sight of the per-conversation pool key on a phone: `lfm2_002e5-8b-a1b-kexp__conv-…__3524921208.kvs`. **Four defects it was not looking for:** (1) `KALSA_KVDIAG` reports `n_past: 0` on every restore while 1814-1946 tokens are resident and reused — the field is hardcoded to 0 for hybrids on the strength of Q6.c, which §7.29 refuted, so the honesty diagnostic is now the least honest line in the log; (2) `KALSA_PREWARM` logs `match:false` on every send that reused the whole session; (3) the disk gate over-charges **12.7x** — `estimatedBytes` 127 533 056 against a real file of **10 041 119 B for 1946 tokens (5.16 kB/token)**, reproducing §7.25's ~5.2 kB/token, so a 300 MB pool bills ~2 conversations where ~30 fit; (4) every turn writes the session **twice**, byte-identical after a restore. Also: `tokensEvaluated` is the prompt length, not the tokens computed. Limits: one phone, one conversation, n=4 restores, on the charger; the conversation ran 1814 -> 1946 tokens so **the window never slid** and this says nothing about §7.12's turn-11 collapse; `thinking=off` / `compaction=0` are not the shipping configuration; and the native `reusing n/m` line never appears on a restore cycle, so the reused-token count is inferred from timing, not read. |
