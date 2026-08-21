@@ -45,6 +45,21 @@ sustained **15.3 vs 10.3 (~1.5×)**, and the GPU arm runs COOLER (CPU arm hits
 candidate default, not just a thermal valve. N≥10 pre-registered cell required
 before any ship claim.
 
+**And then the step beyond repair (2026-08-21 evening, tag `kalsakernel-v4`):
+we WROTE the q2_K/q3_K MoE kernels that upstream has for NO GPU generation** —
+the KEXP recipe's experts (Q2_K+Q3_K) run on GPU for the first time ever.
+Method: triple-audited design before any code, storage bijections certified
+against the CPU reference by a dedicated dequant oracle (nfail=0, max_abs=0 —
+the safety net the trans4 saga lacked), barrier-safe kernels (immune by
+construction AND device-proven on padding shapes m=96, GEMV and GEMM), then
+supports_op flipped last. Verification: MUL_MAT_ID **401/401** (391 baseline
+untouched + 10 new), LFM2.5 smoke with all four new kernels dispatching and
+zero expert fallback (tg64 15.09 t/s — a function smoke, not a speed claim).
+Side discovery: the q4/q5/q6 sibling kernels carry a LATENT barrier defect
+(early return before work-group barrier, `ne01%32&&!%64` shapes; review-found,
+not device-proven; dormant because all current shapes are %64) — queued as its
+own chapter.
+
 **The power-off wall was never the GPU (oomwall, 2026-08-21):** Mellum2-scale
 crashes were llama-bench's DEFAULT ARM repack (`use_extra_bufts=true`, no flag
 to disable) allocating ~6.5GB of anonymous memory — kernel death even at
@@ -211,8 +226,10 @@ Screen state changes Xiaomi CalaQwen from 0.22 to 0.50 s/tok. KEXP on G99 is
 | # | item | state / blocked on |
 |---|---|---|
 | ~~1~~ | ~~K2: q4_K/q5_K `MUL_MAT_ID` compute~~ | **CLOSED 2026-08-20** (kalsakernel-v3, see headline) |
-| 2 | q2_K/q3_K MoE on GPU | KEXP experts; more tractable after the masks lesson |
+| ~~2~~ | ~~q2_K/q3_K MoE on GPU~~ | **CLOSED 2026-08-21** (kalsakernel-v4: KEXP experts on GPU, 401/401) |
 | 2b | Cherry-pick upstream #26476 (q6_K flat dense scalar) | closes the 10 known dense fails |
+| 2c | Barrier-safe port to q4/q5/q6 siblings (latent, review-found) | separate verification chapter |
+| 2d | KEXP-on-GPU speed cell + N≥10 ship cell + Vulkan-vs-OpenCL satellite + Xiaomi/750 validation | next device sessions |
 | 3 | cvt.cl cosmetics | 2 stale comments plus uniformity on 6 macro consumers; debt, not defect |
 | 4 | LANE_MOD | equidistribution check before reusing classifier; before session-2 classifier |
 | 5 | S23 cache cells + absolute lineup | dedicated unplugged device session |

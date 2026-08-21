@@ -33,7 +33,10 @@ kalsakernel-v3). **E il 21/08 la prima misura di velocità sul path riparato:
 esperti su GPU = 2.17× in burst e ~1.5× sustained vs esperti CPU, più fresco
 (OLMoE q4_K, esplorativa).** Questo è IL risultato pubblicabile del progetto
 kernel: upstream ha spento la GPU, noi l'abbiamo riaccesa con quattro diff
-minimali — e va il doppio.
+minimali — e va il doppio. **E il 21/08 sera il passo oltre la riparazione:
+kernel MoE q2_K/q3_K scritti DA ZERO (non esistono upstream per NESSUNA GPU) —
+gli esperti della ricetta KEXP girano su GPU per la prima volta in assoluto
+(tag kalsakernel-v4, 401/401, smoke LFM2.5 con entrambi i tipi in dispatch).**
 
 ## Il capitolo del fix Adreno (nome interno: "trans4"), chiuso 19–20/08
 
@@ -91,10 +94,38 @@ minimali — e va il doppio.
   `results/oracle_consumer_s23/k2_phase1/` (MANIFEST con sha per-run);
   bundle `backups/kalsakernel-v3.bundle`; outer commit `d265854e`.
 
+## Il capitolo qk23 (chiuso 21/08 sera, tag `kalsakernel-v4` = `ec7235af`)
+
+- **Capacità NUOVA, non riparazione**: kernel MoE MUL_MAT_ID q2_K/q3_K per
+  Adreno — upstream non li ha per nessuna generazione (fallback CPU ovunque).
+  Con questi, gli **esperti KEXP (Q2_K+Q3_K) girano su GPU per la prima volta**.
+- **Metodo (un giorno, zero sessioni device sprecate)**: DESIGN triple-audited
+  (2 pass Luna + verifica formale Free coder) PRIMA del codice → storage con
+  biiezioni **certificate all'oracolo** contro il riferimento CPU (nfail=0,
+  max_abs=0, inclusi superblocchi dispari e metà alta hmask — la rete che al
+  trans4 mancava) → kernel col pattern **barrier-safe** (tutte le lane a tutte
+  le barrier, load clampati, store predicati) → `supports_op` per ultimo.
+- **Verifica**: MUL_MAT_ID **401/401** (baseline 391 intatta + 8 casi nuovi + 2
+  discriminatori GEMM m=96), dense invariato, roundtrip/oracle puliti anche su
+  const00/hmask16 (harness ora stampa `fill=`), smoke LFM2.5 `-ngl 99`
+  `n_cpu_moe=0` con tutti e 4 i kernel nuovi in dispatch (controllo positivo) e
+  output coerente; tg64 15.09 t/s = smoke di funzione, NON claim di velocità.
+- **Scoperta collaterale (5° difetto, review-found)**: i cloni q4/q5/q6 hanno
+  early-return prima della barrier + OOB GEMM su shape `%32 && !%64` (dormiente:
+  ogni shape attuale è %64). q2/q3 nascono immuni (m=96 device-proven su GEMV e
+  GEMM); port di famiglia = coda #13.
+- Medicina rispettata dal giorno uno: maschere come argomenti, shift-first,
+  uint scalare, niente alias privati. Commit `dcc8eecec` (S1+S2) → `f700bf30`
+  (S3+S4) → `2217d61a`/`8f70ba394` (test) → `ec7235af` (cleanup, tag v4).
+- Evidenza: `scratchpad/agents/qk23-kernels/{DESIGN.md,REPORT.md}`,
+  `results/qk23_s23/` (MANIFEST con sha per-run), bundle
+  `backups/kalsakernel-v4.bundle`, outer `b28d5759`.
+
 ## Fatti operativi correnti
 
-- **Lignaggio engine**: tutto su `kalsa/kernel-s3-repack` (head `55f43a574`),
-  fork `BigMoeOnEdge/third_party/llama.cpp`. Push verso terzi DISABILITATI
+- **Lignaggio engine**: tutto su `kalsa/kernel-s3-repack` (head `ec7235af` =
+  tag kalsakernel-v4; tag v1–v4 tutti locali, bundle in `backups/`), fork
+  `BigMoeOnEdge/third_party/llama.cpp`. Push verso terzi DISABILITATI
   (Helldez/ggml-org), MAI riattivarli. Banner "kalsallama" da introdurre.
 - **.so correnti**: kalsakernel-v2 pulito = `2032b7c7…`; build smoke con shim
   dormiente (head) = post-`55f43a574`. Sempre sha256 on-device prima di ogni run.
@@ -111,17 +142,21 @@ minimali — e va il doppio.
 | # | Cosa | Chi/quando |
 |---|---|---|
 | ~~1~~ | ~~**K2**: q4_K/q5_K MUL_MAT_ID compute~~ → **CHIUSO 20/08 notte** (kalsakernel-v3, vedi capitolo sopra) | fatto |
-| 2 | Eventuale supporto q2_K/q3_K MoE su GPU (per esperti KEXP — oggi fallback CPU by design); ora più abbordabile con la lezione maschere | da decidere |
+| ~~2~~ | ~~Supporto q2_K/q3_K MoE su GPU~~ → **CHIUSO 21/08 sera** (kalsakernel-v4, vedi capitolo qk23: KEXP experts su GPU, 401/401) | fatto |
 | 3 | Cherry-pick upstream **#26476** (q6_K flat dense scalare + `ADRENO_OLD_COMPILER`): chiude i 10 dense FAIL noti | coder qualunque |
 | 4 | Cosmetici cvt.cl: 2 commenti stantii (offset q4_0, "byte-wise stores") + port uniformità sui 6 macro consumer (debito, non difetto) | coder qualunque |
 | 5 | LANE_MOD: equidistribution check prima di riusare il classifier | prima di sessione-2 classifier |
 | 6 | Celle cache S23 + assoluti lineup (serve UNPLUGGED) | sessione device dedicata |
 | 7 | Gap ~70% kernel_kf vs lineup binary | da investigare |
-| 8 | **Pubblicazione del fix Adreno** (dossier: 3 miscompile trans4 caratterizzati al bit + 4° sito K2 con workaround device-verified; gate A6X/A7X ancora attivo upstream a master, verificato 20/08) | decisione owner |
+| 8 | **Pubblicazione del fix Adreno** (dossier: 3 miscompile trans4 caratterizzati al bit + 4° sito K2 maschere-letterali device-verified + **5° latente, review-not-device**: early-return prima della barrier di work-group + GEMM OOB su `ne01%32&&!%64` nei clone q4_K/q5_K/q6_K; gate A6X/A7X ancora attivo upstream a master) | decisione owner |
 | ~~9~~ | ~~Muro GPU-MoE su S23~~ → **RISOLTO 21/08 (oomwall)**: era il **REPACK ARM di default di llama-bench** (~6.5GB posix_memalign anonimi su Mellum2 Q4_K_M; CPU-only, GPU innocente — coppia W4/W4c a una variabile; produzione strutturalmente immune, use_extra_bufts=false). `results/oomwall_s23/` | fatto |
 | 10 | **GPU-esperti = default candidato su A740 quando il modello sta in RAM**: cella OLMoE 21/08 (esplorativa): **2.17× burst / ~1.5× sustained vs esperti CPU, più fresco**, full offload ngl16 stabile. Serve cella pre-registrata N≥10 per claim di ship + replica su secondo modello q4_K | prossima sessione device |
 | 11 | Flag `--no-extra-bufts` per llama-bench (specchia llama-cli; upstream-worthy: il default spegne fisicamente i device 8GB coi Q4_K_M grossi) + bug `map::at` FLASH_ATTN d_head=64 senza guardia (severità media) | coder |
 | 12 | Opzionali bassa priorità: dummy-arg attribution test (isola il trigger C1); triage SIGSEGV harness full-suite | quando capita |
+| 13 | **barrier-safe pattern port to q4_K/q5_K/q6_K GEMV+GEMM** (latent, `ne01%32 && !%64`) — sessione di verifica **separata**. q2/q3 già fixati come eccezione documentata al clone-q6 (kalsakernel-v3 391/391 non va toccato mid-chapter). Trovato da review S3, non da device. File:line: GEMV q6 `:41` / q4_K `:68` prima della WG barrier; GEMM q4 `:304` q5 `:312` q6 `:280` return prima di `out_idx` barrier + load `row_idx` non clampato. | capitolo futuro |
+| 14 | **Cella velocità KEXP-su-GPU** (LFM2.5/Marco: esperti GPU vs CPU, stesso protocollo della cella OLMoE; lo smoke dice tg64 15.09 ma serve l'A/B vero) — combinabile con la N≥10 di #10 in un'unica sessione device | prossima sessione device |
+| 15 | Cella satellite **Vulkan vs OpenCL su S23** (stesso modello/ngl: misura il gap reale del backend "del futuro" su Adreno; risponde anche al Claude della lane CPU) | dopo #10/#14 |
+| 16 | **Validazione Xiaomi/Adreno 750** (stessa famiglia A7X, compiler build più recente: o conferma i 4+1 difetti o dimostra che il gate upstream è troppo largo — entrambi utili al dossier) | sessione economica post-kernel |
 
 ## Audit upstream 20/08 (websearch, base 22b69b6e9 → master 749f688fc, 583 commit)
 
@@ -129,6 +164,13 @@ minimali — e va il doppio.
   NON fixati upstream; anche K2 (q4_K/q5_K MUL_MAT_ID) è intatto (kernel con
   maschere letterali e mask-then-shift ancora a master). **Il dossier resta
   inedito e pubblicabile — e K2, se lo chiudiamo, si aggiunge al dossier.**
+- **Nota dossier (21/08, review S3 q2/q3, NON ancora device):** 5° difetto
+  latente **upstream** nei kernel Adreno MoE q4_K/q5_K/q6_K: early-return
+  `i01>=ne01` / `row>=ne01` **prima** della barrier di work-group, e GEMM
+  legge `row_idx` non clampato. Dormiente su ogni shape attuale `%64==0`
+  (LFM 2048, test m=512). Il gate ammette `%32`. Trovato da review, non da
+  hang/OOB sul device. Port barrier-safe = coda #13, sessione sua; q2/q3
+  lo adottano ora come eccezione esplicita (non toccare il baseline v3).
 - Qualcomm converge a pezzetti sulla NOSTRA medicina senza la diagnosi generale:
   #25780 (q4_K/q5_K flat dense: load uint invece di ushort, workaround A7X),
   **#26476 (merged 20/08: q6_K flat dense MUL_MAT sbagliato su 642L/740/E031,
