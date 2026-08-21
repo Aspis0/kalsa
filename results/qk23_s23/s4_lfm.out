@@ -1,0 +1,20 @@
+=== S4 LFM2.5-KEXP llama-bench smoke ===
+Fri Aug 21 14:11:05 EDT 2026
+unplugged_recorded_by_host
+LOG_KERNELS=1 HOST_REPACK unset DUMP_Q unset
+CMD=./llama-bench -m LFM2.5-KEXP -fa off -ngl 99 -t 4 -p 128 -n 64 -r 1 -o jsonl
+=== sha ===
+ed60d804c490e5d3b2111b6e775a354f87ca3839cc72a089336568db1bf37fb0  libggml-opencl.so
+d2030f23db3b4f62f6934c9de831050e71e87c7cfda6e5059d53099ec8b60346  libllama-bench-impl.so
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+=== model ===
+-rw-rw-rw- 1 shell shell 3326160384 2026-08-19 12:21 /data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+b07c80870f8a864549f4a419ccbfb4d4282ba2d55a2e8d808b7c377d3fc6c3f4  /data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+=== mem before ===
+MemAvailable:    5039900 kB
+{"build_commit": "c8f4fc05e", "build_number": 9997, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf", "model_type": "lfm2moe 8B.A1B Q5_K - Medium", "model_size": 3317921536, "model_n_params": 8467856832, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 99, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 128, "n_gen": 0, "n_depth": 0, "test_time": "2026-08-21T18:11:29Z", "avg_ns": 2124127655, "stddev_ns": 0, "avg_ts": 60.260032, "stddev_ts": 0.000000, "samples_ns": [ 2124127655 ],"samples_ts": [ 60.26 ]}
+{"build_commit": "c8f4fc05e", "build_number": 9997, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf", "model_type": "lfm2moe 8B.A1B Q5_K - Medium", "model_size": 3317921536, "model_n_params": 8467856832, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 99, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 64, "n_depth": 0, "test_time": "2026-08-21T18:11:33Z", "avg_ns": 4240977394, "stddev_ns": 0, "avg_ts": 15.090861, "stddev_ts": 0.000000, "samples_ns": [ 4240977394 ],"samples_ts": [ 15.0909 ]}
+=== rc=0 ===
+=== mem after ===
+MemAvailable:    5399296 kB
+Fri Aug 21 14:11:38 EDT 2026

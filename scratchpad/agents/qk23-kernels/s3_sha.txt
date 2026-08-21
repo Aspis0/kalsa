@@ -1,0 +1,4 @@
+path=C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-opencl.so
+bytes=8362808
+sha256=3a6033ef374aed4d2ae495e53cc360e7478283fc1d01411cf05e4dbec6f6d3d8
+mtime=2026-08-21T17:51:32.9151601Z

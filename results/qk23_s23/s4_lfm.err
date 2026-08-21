@@ -1,0 +1,45 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+GGML_OPENCL_LOG_KERNELS: kernel_scale_f32_4
+GGML_OPENCL_LOG_KERNELS: kernel_get_rows_f32
+GGML_OPENCL_LOG_KERNELS: kernel_rms_norm_mul
+GGML_OPENCL_LOG_KERNELS: kernel_transpose_32_16
+GGML_OPENCL_LOG_KERNELS: kernel_gemm_noshuffle_q5_k_f32
+GGML_OPENCL_LOG_KERNELS: kernel_mul
+GGML_OPENCL_LOG_KERNELS: kernel_concat_f32
+GGML_OPENCL_LOG_KERNELS: kernel_cpy_f32_f32_pack
+GGML_OPENCL_LOG_KERNELS: kernel_ssm_conv_f32_f32
+GGML_OPENCL_LOG_KERNELS: kernel_gemm_noshuffle_q6_K_f32
+GGML_OPENCL_LOG_KERNELS: kernel_add
+GGML_OPENCL_LOG_KERNELS: kernel_swiglu
+GGML_OPENCL_LOG_KERNELS: kernel_rope_neox_f32
+GGML_OPENCL_LOG_KERNELS: kernel_set_rows_f16_i64
+GGML_OPENCL_LOG_KERNELS: mul_mm_f16_f32_kq
+GGML_OPENCL_LOG_KERNELS: kernel_soft_max_4
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_f16_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_cpy_f32_f32
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mm_f32_f32_l4_lm
+GGML_OPENCL_LOG_KERNELS: kernel_sigmoid_f32
+GGML_OPENCL_LOG_KERNELS: kernel_add_row
+GGML_OPENCL_LOG_KERNELS: kernel_argsort_f32_i32
+GGML_OPENCL_LOG_KERNELS: kernel_sum_rows_f32_4
+GGML_OPENCL_LOG_KERNELS: kernel_clamp
+GGML_OPENCL_LOG_KERNELS: kernel_div
+GGML_OPENCL_LOG_KERNELS: kernel_moe_histogram
+GGML_OPENCL_LOG_KERNELS: kernel_moe_scan
+GGML_OPENCL_LOG_KERNELS: kernel_moe_fill
+GGML_OPENCL_LOG_KERNELS: kernel_moe_scatter
+GGML_OPENCL_LOG_KERNELS: kernel_moe_reorder_b
+GGML_OPENCL_LOG_KERNELS: kernel_gemm_moe_q2_k_f32_ns
+GGML_OPENCL_LOG_KERNELS: kernel_gemm_moe_q3_k_f32_ns
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f32_f32
+GGML_OPENCL_LOG_KERNELS: kernel_gemv_moe_q2_k_f32_ns
+GGML_OPENCL_LOG_KERNELS: kernel_gemv_moe_q3_k_f32_ns
+GGML_OPENCL_LOG_KERNELS: kernel_gemv_noshuffle_q5_k_f32
+GGML_OPENCL_LOG_KERNELS: kernel_mul_row
+GGML_OPENCL_LOG_KERNELS: kernel_concat_f32_pack
+GGML_OPENCL_LOG_KERNELS: kernel_gemv_noshuffle_q6_K_f32
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f16_f32_l4_dr_lq
+GGML_OPENCL_LOG_KERNELS: kernel_mul_mat_f16_f32_l4_dr_ls

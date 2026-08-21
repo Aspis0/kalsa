@@ -1,0 +1,39 @@
+HOST_REPACK=[unset] CVT_VARIANT=[bytewise(default)] LOG_WEIGHT_PATH=[1]
+ROUNDTRIP_FILL raw=[unset] resolved=lcg mult=131 off=17 cval=0x00
+ROUNDTRIP name=as type=q4_0 ne=256x512x4 nbytes=294912 host_repack=0 fill=lcg mismatch=0/294912 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_0 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=65536
+ROUNDTRIP name=as type=q4_1 ne=256x512x4 nbytes=327680 host_repack=0 fill=lcg mismatch=0/327680 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_1 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=65536
+ROUNDTRIP name=as type=q5_0 ne=256x512x4 nbytes=360448 host_repack=0 fill=lcg mismatch=0/360448 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q5_0 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=65536
+ROUNDTRIP name=as type=q5_1 ne=256x512x4 nbytes=393216 host_repack=0 fill=lcg mismatch=0/393216 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q5_1 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=65536
+ROUNDTRIP name=as type=mxfp4 ne=256x512x4 nbytes=278528 host_repack=0 fill=lcg mismatch=0/278528 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=mxfp4 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=131072 odd_want_hi_f=8192 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=65536
+ROUNDTRIP name=as type=q4_K ne=256x512x4 nbytes=294912 host_repack=0 fill=lcg mismatch=0/294912 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q5_K ne=256x512x4 nbytes=360448 host_repack=0 fill=lcg mismatch=0/360448 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q5_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q6_K ne=256x512x4 nbytes=430080 host_repack=0 fill=lcg mismatch=0/430080 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q6_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q2_K ne=256x512x4 nbytes=172032 host_repack=0 fill=lcg mismatch=0/172032 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q2_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q3_K ne=256x512x4 nbytes=225280 host_repack=0 fill=lcg mismatch=0/225280 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q3_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q3_K ne=1792x64x4 nbytes=197120 host_repack=0 fill=lcg mismatch=0/197120 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q3_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q2_K ne=256x512x4 nbytes=172032 host_repack=0 fill=const00 mismatch=0/172032 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q2_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q3_K ne=256x512x4 nbytes=225280 host_repack=0 fill=const00 mismatch=0/225280 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q3_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q3_K ne=256x512x4 nbytes=225280 host_repack=0 fill=hmask16 mismatch=0/225280 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q3_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=weight type=q2_K ne=256x512x1 nbytes=43008 host_repack=0 fill=lcg mismatch=0/43008 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q2_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=weight type=q3_K ne=256x512x1 nbytes=56320 host_repack=0 fill=lcg mismatch=0/56320 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q3_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=weight type=q4_0 ne=256x512x1 nbytes=73728 host_repack=0 fill=lcg mismatch=0/73728 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_0 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=32768 odd_want_hi_f=2048 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=16384
+ROUNDTRIP name=weight type=q4_0 ne=512x512x1 nbytes=147456 host_repack=0 fill=lcg mismatch=0/147456 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_0 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=65536 odd_want_hi_f=4096 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=32768
+DONE rc=0
