@@ -1,0 +1,33 @@
+# oomwall W4 / W4c artifact pins
+# stock   = extra_bufts=true  (c8f4fc05e llama-bench, the W1/W2 binary)
+# noextra = one-line mparams.use_extra_bufts=false in to_llama_mparams (W4c)
+# The payload is libllama-bench-impl.so (llama-bench.cpp). The llama-bench ELF
+# stub and libllama.so are byte-identical across variants — do not treat a
+# matching libllama.so sha as "W4c is in place".
+#
+# W4  verifies the DEVICE still holds the stock pins (do not re-push).
+# W4c pushes ONLY staging/noextra/libllama-bench-impl.so (and the identical
+#     llama-bench stub if you want). NEVER push libggml-base.so or
+#     libllama-common.so from build-android-opencl-s3oracle/bin — cmake
+#     re-ran during the W4c build and those two drifted.
+
+## stock (W4)
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  results/oomwall_s23/staging/stock/llama-bench  7600
+bad179520546f8d5316cd98124e948d025e8acb2999bf92b94977879ce72c171  results/oomwall_s23/staging/stock/libllama-bench-impl.so  4240544
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  results/oomwall_s23/staging/stock/libllama.so  39807624
+
+## noextra (W4c)
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  results/oomwall_s23/staging/noextra/llama-bench  7600
+d2030f23db3b4f62f6934c9de831050e71e87c7cfda6e5059d53099ec8b60346  results/oomwall_s23/staging/noextra/libllama-bench-impl.so  4240160
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  results/oomwall_s23/staging/noextra/libllama.so  39807624
+
+## unchanged pins (W1/W2 device; W4c must still match)
+2ed2e48a98e50f324c2aaed0c8fa7ed5b1c0fb09bff8f9a153f79420a7d69a87  libggml-opencl.so  8044464
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  libggml.so  536880
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so  5165056
+
+## build-dir drift after cmake re-run — DO NOT PUSH
+# libggml-base.so     stock 9f7081a2ed0b5df4f24680a559bfaec12013aa75b2f73bdfba5d4c4baac9f3a6
+#                     now   3d30803686d185353d0ca5db03a7b15ef5dd840494f157daad3526d7a45f65ce
+# libllama-common.so  stock a1c034b0f3abe3cb3c57c1db50743ce9bda02b4c28282af8dc26e93996f582d0
+#                     now   cc515fae0a468804f2c7abc93e0d90009758c36cebb78359ec4b8b01d05f8d02

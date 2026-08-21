@@ -1,0 +1,72 @@
+W4C_START
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+OPENCL_ALLOC{note=adreno_prealloc.begin,sum_mib=0.00}
+OPENCL_ALLOC{kind=try.ggml_cl_buffer,bytes=311164928,mib=296.75,sum_mib=296.75,err=0}
+OPENCL_ALLOC{kind=ggml_cl_buffer,bytes=311164928,mib=296.75,sum_mib=593.50,err=0}
+OPENCL_ALLOC{kind=try.ggml_cl_buffer,bytes=38895616,mib=37.09,sum_mib=630.59,err=0}
+OPENCL_ALLOC{kind=ggml_cl_buffer,bytes=38895616,mib=37.09,sum_mib=667.69,err=0}
+OPENCL_ALLOC{kind=try.ggml_cl_buffer,bytes=45088768,mib=43.00,sum_mib=710.69,err=0}
+OPENCL_ALLOC{kind=ggml_cl_buffer,bytes=45088768,mib=43.00,sum_mib=753.69,err=0}
+OPENCL_ALLOC{note=adreno_prealloc.done,sum_mib=753.69}
+OPENCL_ALLOC{note=load_cl_kernels.begin,sum_mib=753.69}
+OPENCL_ALLOC{note=load_cl_kernels.done,sum_mib=753.69}
+OPENCL_ALLOC{kind=try.weights_pool,bytes=198663680,mib=189.46,sum_mib=943.15,err=0}
+OPENCL_ALLOC{kind=weights_pool,bytes=198663680,mib=189.46,sum_mib=1132.61,err=0}
+OPENCL_SET_TENSOR{name=output_norm.weight,type=f32,nbytes=9216,ne=2304x1x1x1,off=0,size=9216}
+OPENCL_SET_TENSOR{name=output.weight,type=q6_K,nbytes=185794560,ne=2304x98304x1x1,off=0,size=185794560}
+OPENCL_ALLOC{kind=try.ggml_cl_buffer,bytes=113246208,mib=108.00,sum_mib=1240.61,err=0}
+OPENCL_ALLOC{kind=ggml_cl_buffer,bytes=113246208,mib=108.00,sum_mib=1348.61,err=0}
+OPENCL_SET_TENSOR{name=blk.27.attn_norm.weight,type=f32,nbytes=9216,ne=2304x1x1x1,off=0,size=9216}
+OPENCL_SET_TENSOR{name=blk.27.attn_q.weight,type=q4_K,nbytes=5308416,ne=2304x4096x1x1,off=0,size=5308416}
+OPENCL_ALLOC{kind=try.q4_k.staging,bytes=5308416,mib=5.06,sum_mib=1353.67,err=0}
+OPENCL_ALLOC{kind=q4_k.staging,bytes=5308416,mib=5.06,sum_mib=1358.73,err=0}
+OPENCL_ALLOC{note=q4_k.write_done,sum_mib=1358.73}
+OPENCL_SET_TENSOR{name=blk.27.attn_k.weight,type=q4_K,nbytes=663552,ne=2304x512x1x1,off=0,size=663552}
+OPENCL_ALLOC{kind=try.q4_k.staging,bytes=663552,mib=0.63,sum_mib=1359.37,err=0}
+OPENCL_ALLOC{kind=q4_k.staging,bytes=663552,mib=0.63,sum_mib=1360.00,err=0}
+OPENCL_ALLOC{note=q4_k.write_done,sum_mib=1360.00}
+OPENCL_SET_TENSOR{name=blk.27.attn_v.weight,type=q6_K,nbytes=967680,ne=2304x512x1x1,off=0,size=967680}
+OPENCL_SET_TENSOR{name=blk.27.attn_output.weight,type=q4_K,nbytes=5308416,ne=4096x2304x1x1,off=0,size=5308416}
+OPENCL_ALLOC{kind=try.q4_k.staging,bytes=5308416,mib=5.06,sum_mib=1365.06,err=0}
+OPENCL_ALLOC{kind=q4_k.staging,bytes=5308416,mib=5.06,sum_mib=1370.12,err=0}
+OPENCL_ALLOC{note=q4_k.write_done,sum_mib=1370.12}
+OPENCL_SET_TENSOR{name=blk.27.attn_k_norm.weight,type=f32,nbytes=512,ne=128x1x1x1,off=0,size=512}
+OPENCL_SET_TENSOR{name=blk.27.attn_q_norm.weight,type=f32,nbytes=512,ne=128x1x1x1,off=0,size=512}
+OPENCL_SET_TENSOR{name=blk.27.ffn_norm.weight,type=f32,nbytes=9216,ne=2304x1x1x1,off=0,size=9216}
+OPENCL_SET_TENSOR{name=blk.27.ffn_gate_inp.weight,type=f32,nbytes=589824,ne=2304x64x1x1,off=0,size=589824}
+OPENCL_ALLOC{kind=try.weights_pool,bytes=524288,mib=0.50,sum_mib=1370.62,err=0}
+OPENCL_ALLOC{kind=weights_pool,bytes=524288,mib=0.50,sum_mib=1371.12,err=0}
+OPENCL_ALLOC{kind=try.weights_pool,bytes=6586368,mib=6.28,sum_mib=1377.41,err=0}
+OPENCL_ALLOC{kind=weights_pool,bytes=6586368,mib=6.28,sum_mib=1383.69,err=0}
+OPENCL_SET_TENSOR{name=OpenCL#ffn_moe_down-26#0,type=f32,nbytes=73728,ne=2304x8x1x1,off=0,size=73728}
+OPENCL_SET_TENSOR{name=OpenCL#ffn_moe_weights_norm-26 (reshaped)#0,type=f32,nbytes=32,ne=1x8x1x1,off=0,size=32}
+OPENCL_SET_TENSOR{name=OpenCL#ffn_inp-26#0,type=f32,nbytes=9216,ne=2304x1x1x1,off=0,size=9216}
+OPENCL_SET_TENSOR{name=OpenCL#leaf_6#0,type=i32,nbytes=4,ne=1x1x1x1,off=0,size=4}
+OPENCL_SET_TENSOR{name=OpenCL#leaf_55#0,type=i64,nbytes=8,ne=1x1x1x1,off=0,size=8}
+OPENCL_SET_TENSOR{name=OpenCL#leaf_57#0,type=i64,nbytes=8,ne=1x1x1x1,off=0,size=8}
+OPENCL_SET_TENSOR{name=OpenCL#attn_inp_kq_mask#0,type=f16,nbytes=512,ne=256x1x1x1,off=0,size=512}
+OPENCL_SET_TENSOR{name=OpenCL#leaf_398#0,type=i32,nbytes=4,ne=1x1x1x1,off=0,size=4}
+0: 0x7aceb441b8 
+1: 0x7aceb440c4 ggml_print_backtrace
+2: 0x7aceb5966c 
+3: 0x7ad8f1c378 
+4: 0x7ad8f37bcc __cxa_get_exception_ptr
+5: 0x7ad8f37b40 
+6: 0x7ade4199c4 
+7: 0x7ade4121fc 
+8: 0x7ade3c5948 _Z23ggml_cl_compute_forwardP12ggml_backendP11ggml_tensor
+9: 0x7ade41aaa4 
+10: 0x7aceb62eac ggml_backend_sched_graph_compute_async
+11: 0x7ad4de6288 _ZN13llama_context13graph_computeEP11ggml_cgraphb
+12: 0x7ad4de5eb8 _ZN13llama_context14process_ubatchERK12llama_ubatch14llm_graph_typeP22llama_memory_context_iR11ggml_status
+13: 0x7ad4de7788 _ZN13llama_context6decodeERK11llama_batch
+14: 0x7ad4ded4b8 llama_decode
+15: 0x7ae217494c 
+16: 0x7ae216ecc8 _Z11llama_benchiPPc
+17: 0x7adc50f664 __libc_init
+libc++abi: terminating due to uncaught exception of type std::out_of_range: map::at:  key not found
+Aborted 
+W4C_RC=134

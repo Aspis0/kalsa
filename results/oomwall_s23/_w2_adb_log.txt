@@ -1,0 +1,241 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+OPENCL_ALLOC{note=adreno_prealloc.begin,sum_mib=0.00}
+OPENCL_ALLOC{kind=try.ggml_cl_buffer,bytes=311164928,mib=296.75,sum_mib=296.75,err=0}
+OPENCL_ALLOC{kind=ggml_cl_buffer,bytes=311164928,mib=296.75,sum_mib=593.50,err=0}
+OPENCL_ALLOC{kind=try.ggml_cl_buffer,bytes=38895616,mib=37.09,sum_mib=630.59,err=0}
+OPENCL_ALLOC{kind=ggml_cl_buffer,bytes=38895616,mib=37.09,sum_mib=667.69,err=0}
+OPENCL_ALLOC{kind=try.ggml_cl_buffer,bytes=45088768,mib=43.00,sum_mib=710.69,err=0}
+OPENCL_ALLOC{kind=ggml_cl_buffer,bytes=45088768,mib=43.00,sum_mib=753.69,err=0}
+OPENCL_ALLOC{note=adreno_prealloc.done,sum_mib=753.69}
+OPENCL_ALLOC{note=load_cl_kernels.begin,sum_mib=753.69}
+OPENCL_ALLOC{note=load_cl_kernels.done,sum_mib=753.69}
+OPENCL_ALLOC{kind=try.weights_pool,bytes=512228608,mib=488.50,sum_mib=1242.19,err=0}
+OPENCL_ALLOC{kind=weights_pool,bytes=512228608,mib=488.50,sum_mib=1730.69,err=0}
+OPENCL_SET_TENSOR{name=token_embd_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=token_embd.weight,type=q5_K,nbytes=180224000,ne=2048x128000x1x1,off=0,size=180224000}
+OPENCL_ALLOC{kind=try.ggml_cl_buffer,bytes=131072000,mib=125.00,sum_mib=1855.69,err=0}
+OPENCL_ALLOC{kind=ggml_cl_buffer,bytes=131072000,mib=125.00,sum_mib=1980.69,err=0}
+OPENCL_SET_TENSOR{name=blk.0.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.0.ffn_gate.weight,type=q5_K,nbytes=10092544,ne=2048x7168x1x1,off=0,size=10092544}
+OPENCL_SET_TENSOR{name=blk.0.ffn_down.weight,type=q6_K,nbytes=12042240,ne=7168x2048x1x1,off=0,size=12042240}
+OPENCL_SET_TENSOR{name=blk.0.ffn_up.weight,type=q5_K,nbytes=10092544,ne=2048x7168x1x1,off=0,size=10092544}
+OPENCL_SET_TENSOR{name=blk.0.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.0.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.0.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.0.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.1.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.1.ffn_gate.weight,type=q5_K,nbytes=10092544,ne=2048x7168x1x1,off=0,size=10092544}
+OPENCL_SET_TENSOR{name=blk.1.ffn_down.weight,type=q6_K,nbytes=12042240,ne=7168x2048x1x1,off=0,size=12042240}
+OPENCL_SET_TENSOR{name=blk.1.ffn_up.weight,type=q5_K,nbytes=10092544,ne=2048x7168x1x1,off=0,size=10092544}
+OPENCL_SET_TENSOR{name=blk.1.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.1.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.1.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.1.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.2.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.2.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.2.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.2.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.2.attn_q_norm.weight,type=f32,nbytes=256,ne=64x1x1x1,off=0,size=256}
+OPENCL_SET_TENSOR{name=blk.2.attn_k_norm.weight,type=f32,nbytes=256,ne=64x1x1x1,off=0,size=256}
+OPENCL_SET_TENSOR{name=blk.2.attn_q.weight,type=q5_K,nbytes=2883584,ne=2048x2048x1x1,off=0,size=2883584}
+OPENCL_SET_TENSOR{name=blk.2.attn_k.weight,type=q5_K,nbytes=720896,ne=2048x512x1x1,off=0,size=720896}
+OPENCL_SET_TENSOR{name=blk.2.attn_v.weight,type=q5_K,nbytes=720896,ne=2048x512x1x1,off=0,size=720896}
+OPENCL_SET_TENSOR{name=blk.2.attn_output.weight,type=q5_K,nbytes=2883584,ne=2048x2048x1x1,off=0,size=2883584}
+OPENCL_SET_TENSOR{name=blk.3.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.3.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.3.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.3.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.3.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.3.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.3.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.4.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.4.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.4.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.4.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.4.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.4.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.4.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.5.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.5.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.5.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.5.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.5.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.5.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.5.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.6.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.6.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.6.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.6.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.6.attn_q_norm.weight,type=f32,nbytes=256,ne=64x1x1x1,off=0,size=256}
+OPENCL_SET_TENSOR{name=blk.6.attn_k_norm.weight,type=f32,nbytes=256,ne=64x1x1x1,off=0,size=256}
+OPENCL_SET_TENSOR{name=blk.6.attn_q.weight,type=q5_K,nbytes=2883584,ne=2048x2048x1x1,off=0,size=2883584}
+OPENCL_SET_TENSOR{name=blk.6.attn_k.weight,type=q5_K,nbytes=720896,ne=2048x512x1x1,off=0,size=720896}
+OPENCL_SET_TENSOR{name=blk.6.attn_v.weight,type=q5_K,nbytes=720896,ne=2048x512x1x1,off=0,size=720896}
+OPENCL_SET_TENSOR{name=blk.6.attn_output.weight,type=q5_K,nbytes=2883584,ne=2048x2048x1x1,off=0,size=2883584}
+OPENCL_SET_TENSOR{name=blk.7.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.7.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.7.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.7.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.7.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.7.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.7.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.8.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.8.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.8.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.8.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.8.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.8.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.8.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.9.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.9.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.9.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.9.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.9.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.9.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.9.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.10.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.10.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.10.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.10.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.10.attn_q_norm.weight,type=f32,nbytes=256,ne=64x1x1x1,off=0,size=256}
+OPENCL_SET_TENSOR{name=blk.10.attn_k_norm.weight,type=f32,nbytes=256,ne=64x1x1x1,off=0,size=256}
+OPENCL_SET_TENSOR{name=blk.10.attn_q.weight,type=q5_K,nbytes=2883584,ne=2048x2048x1x1,off=0,size=2883584}
+OPENCL_SET_TENSOR{name=blk.10.attn_k.weight,type=q5_K,nbytes=720896,ne=2048x512x1x1,off=0,size=720896}
+OPENCL_SET_TENSOR{name=blk.10.attn_v.weight,type=q5_K,nbytes=720896,ne=2048x512x1x1,off=0,size=720896}
+OPENCL_SET_TENSOR{name=blk.10.attn_output.weight,type=q5_K,nbytes=2883584,ne=2048x2048x1x1,off=0,size=2883584}
+OPENCL_SET_TENSOR{name=blk.11.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.11.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.11.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.11.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.11.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.11.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.11.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.12.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.12.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.12.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.12.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.12.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.12.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.12.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.13.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.13.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.13.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.13.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.13.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.13.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.13.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.14.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.14.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.14.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.14.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.14.attn_q_norm.weight,type=f32,nbytes=256,ne=64x1x1x1,off=0,size=256}
+OPENCL_SET_TENSOR{name=blk.14.attn_k_norm.weight,type=f32,nbytes=256,ne=64x1x1x1,off=0,size=256}
+OPENCL_SET_TENSOR{name=blk.14.attn_q.weight,type=q5_K,nbytes=2883584,ne=2048x2048x1x1,off=0,size=2883584}
+OPENCL_SET_TENSOR{name=blk.14.attn_k.weight,type=q5_K,nbytes=720896,ne=2048x512x1x1,off=0,size=720896}
+OPENCL_SET_TENSOR{name=blk.14.attn_v.weight,type=q5_K,nbytes=720896,ne=2048x512x1x1,off=0,size=720896}
+OPENCL_SET_TENSOR{name=blk.14.attn_output.weight,type=q5_K,nbytes=2883584,ne=2048x2048x1x1,off=0,size=2883584}
+OPENCL_SET_TENSOR{name=blk.15.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.15.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.15.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.15.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.15.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.15.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.15.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.16.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.16.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.16.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.16.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.16.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.16.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.16.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.17.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.17.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.17.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.17.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.17.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.17.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.17.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.18.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.18.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.18.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.18.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.18.attn_q_norm.weight,type=f32,nbytes=256,ne=64x1x1x1,off=0,size=256}
+OPENCL_SET_TENSOR{name=blk.18.attn_k_norm.weight,type=f32,nbytes=256,ne=64x1x1x1,off=0,size=256}
+OPENCL_SET_TENSOR{name=blk.18.attn_q.weight,type=q5_K,nbytes=2883584,ne=2048x2048x1x1,off=0,size=2883584}
+OPENCL_SET_TENSOR{name=blk.18.attn_k.weight,type=q5_K,nbytes=720896,ne=2048x512x1x1,off=0,size=720896}
+OPENCL_SET_TENSOR{name=blk.18.attn_v.weight,type=q5_K,nbytes=720896,ne=2048x512x1x1,off=0,size=720896}
+OPENCL_SET_TENSOR{name=blk.18.attn_output.weight,type=q5_K,nbytes=2883584,ne=2048x2048x1x1,off=0,size=2883584}
+OPENCL_SET_TENSOR{name=blk.19.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.19.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.19.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.19.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.19.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.19.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.19.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.20.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.20.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.20.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.20.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.20.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.20.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.20.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.21.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.21.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.21.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.21.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.21.attn_q_norm.weight,type=f32,nbytes=256,ne=64x1x1x1,off=0,size=256}
+OPENCL_SET_TENSOR{name=blk.21.attn_k_norm.weight,type=f32,nbytes=256,ne=64x1x1x1,off=0,size=256}
+OPENCL_SET_TENSOR{name=blk.21.attn_q.weight,type=q5_K,nbytes=2883584,ne=2048x2048x1x1,off=0,size=2883584}
+OPENCL_SET_TENSOR{name=blk.21.attn_k.weight,type=q5_K,nbytes=720896,ne=2048x512x1x1,off=0,size=720896}
+OPENCL_SET_TENSOR{name=blk.21.attn_v.weight,type=q5_K,nbytes=720896,ne=2048x512x1x1,off=0,size=720896}
+OPENCL_SET_TENSOR{name=blk.21.attn_output.weight,type=q5_K,nbytes=2883584,ne=2048x2048x1x1,off=0,size=2883584}
+OPENCL_SET_TENSOR{name=blk.22.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.22.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.22.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.22.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.22.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.22.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.22.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_SET_TENSOR{name=blk.23.ffn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.23.ffn_gate_inp.weight,type=f32,nbytes=262144,ne=2048x32x1x1,off=0,size=262144}
+OPENCL_SET_TENSOR{name=blk.23.exp_probs_b.bias,type=f32,nbytes=128,ne=32x1x1x1,off=0,size=128}
+OPENCL_SET_TENSOR{name=blk.23.attn_norm.weight,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=blk.23.shortconv.conv.weight,type=f32,nbytes=24576,ne=3x2048x1x1,off=0,size=24576}
+OPENCL_SET_TENSOR{name=blk.23.shortconv.in_proj.weight,type=q5_K,nbytes=8650752,ne=2048x6144x1x1,off=0,size=8650752}
+OPENCL_SET_TENSOR{name=blk.23.shortconv.out_proj.weight,type=q6_K,nbytes=3440640,ne=2048x2048x1x1,off=0,size=3440640}
+OPENCL_ALLOC{kind=try.weights_pool,bytes=3145728,mib=3.00,sum_mib=1983.69,err=0}
+OPENCL_ALLOC{kind=weights_pool,bytes=3145728,mib=3.00,sum_mib=1986.69,err=0}
+OPENCL_ALLOC{kind=try.weights_pool,bytes=294912,mib=0.28,sum_mib=1986.97,err=0}
+OPENCL_ALLOC{kind=weights_pool,bytes=294912,mib=0.28,sum_mib=1987.25,err=0}
+OPENCL_ALLOC{kind=try.weights_pool,bytes=8454400,mib=8.06,sum_mib=1995.31,err=0}
+OPENCL_ALLOC{kind=weights_pool,bytes=8454400,mib=8.06,sum_mib=2003.37,err=0}
+OPENCL_SET_TENSOR{name=OpenCL# (view)#0,type=i32,nbytes=4,ne=1x1x1x1,off=0,size=4}
+OPENCL_SET_TENSOR{name=OpenCL#model.embed_tokens#0,type=f32,nbytes=8192,ne=2048x1x1x1,off=0,size=8192}
+OPENCL_SET_TENSOR{name=OpenCL#leaf_25#0,type=i32,nbytes=4,ne=1x1x1x1,off=0,size=4}
+OPENCL_SET_TENSOR{name=OpenCL#leaf_29#0,type=i64,nbytes=8,ne=1x1x1x1,off=0,size=8}
+OPENCL_SET_TENSOR{name=OpenCL#leaf_31#0,type=i64,nbytes=8,ne=1x1x1x1,off=0,size=8}
+OPENCL_SET_TENSOR{name=OpenCL#attn_inp_kq_mask#0,type=f16,nbytes=512,ne=256x1x1x1,off=0,size=512}
+0: 0x753b6bc1b8 
+1: 0x753b6bc0c4 ggml_print_backtrace
+2: 0x753b6d166c 
+3: 0x7535129378 
+4: 0x7535144bcc __cxa_get_exception_ptr
+5: 0x7535144b40 
+6: 0x75442769c4 
+7: 0x754426f1fc 
+8: 0x7544222948 _Z23ggml_cl_compute_forwardP12ggml_backendP11ggml_tensor
+9: 0x7544277aa4 
+10: 0x753b6daeac ggml_backend_sched_graph_compute_async
+11: 0x7538b7a288 _ZN13llama_context13graph_computeEP11ggml_cgraphb
+12: 0x7538b79eb8 _ZN13llama_context14process_ubatchERK12llama_ubatch14llm_graph_typeP22llama_memory_context_iR11ggml_status
+13: 0x7538b7b788 _ZN13llama_context6decodeERK11llama_batch
+14: 0x7538b814b8 llama_decode
+15: 0x7538dc5970 
+16: 0x7538dbfcc8 _Z11llama_benchiPPc
+17: 0x753f537664 __libc_init
+libc++abi: terminating due to uncaught exception of type std::out_of_range: map::at:  key not found
+Aborted 
+W2_RC=134

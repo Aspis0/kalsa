@@ -1,0 +1,32 @@
+=== UPTIME ===
+ 08:19:27 up 2 min,  0 users,  load average: 1.40, 1.58, 0.70
+Fri Aug 21 08:19:27 EDT 2026
+=== BATT ===
+  AC powered: false
+  USB powered: true
+  status: 5
+  level: 100
+  temperature: 315
+=== WAKE ===
+  mWakefulness=Awake
+=== MEM ===
+MemTotal:        7243748 kB
+MemAvailable:    4210116 kB
+Cached:          3567332 kB
+SwapCached:         3768 kB
+RbinCached:       354248 kB
+=== BOOT ===
+reboot
+reboot
+=== SHA ===
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+bad179520546f8d5316cd98124e948d025e8acb2999bf92b94977879ce72c171  libllama-bench-impl.so
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so
+2ed2e48a98e50f324c2aaed0c8fa7ed5b1c0fb09bff8f9a153f79420a7d69a87  libggml-opencl.so
+=== W4_LOGS ===
+-rw-rw-rw- 1 shell shell 48656384 2026-08-21 08:16 logs/w4.logcat
+-rw-rw-rw- 1 shell shell        6 2026-08-21 08:15 logs/w4.logcat.pid
+-rw-rw-rw- 1 shell shell      616 2026-08-21 08:16 logs/w4.mem_poll
+-rw-rw-rw- 1 shell shell        6 2026-08-21 08:15 logs/w4.mem_poll.pid
+-rw-rw-rw- 1 shell shell      585 2026-08-21 08:15 logs/w4.pre
+=== HEALTH_DONE ===

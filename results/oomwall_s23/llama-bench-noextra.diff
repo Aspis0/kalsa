@@ -1,0 +1,12 @@
+diff --git a/tools/llama-bench/llama-bench.cpp b/tools/llama-bench/llama-bench.cpp
+index 075689388..c77ffa6d8 100644
+--- a/tools/llama-bench/llama-bench.cpp
++++ b/tools/llama-bench/llama-bench.cpp
+@@ -1180,6 +1180,7 @@ struct cmd_params_instance {
+ 
+     llama_model_params to_llama_mparams() const {
+         llama_model_params mparams = llama_model_default_params();
++        mparams.use_extra_bufts = false;
+ 
+         mparams.n_gpu_layers = n_gpu_layers;
+         if (!devices.empty()) {

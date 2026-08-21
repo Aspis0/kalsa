@@ -1,0 +1,60 @@
+ver=3 n_tensors=195 n_kv=43
+general.architecture = olmoe
+general.name = OLMoE 1B 7B 0924 Instruct
+olmoe.block_count = 16
+olmoe.expert_used_count = 8
+olmoe.expert_count = 64
+--- type histogram ---
+  Q4_K 97
+  F32 81
+  Q6_K 17
+--- ffn_*_exps n=48 ---
+  Q6_K blk.0.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.0.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.0.ffn_up_exps.weight [2048, 1024, 64]
+  Q6_K blk.1.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.1.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.1.ffn_up_exps.weight [2048, 1024, 64]
+  Q4_K blk.2.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.2.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.2.ffn_up_exps.weight [2048, 1024, 64]
+  Q4_K blk.3.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.3.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.3.ffn_up_exps.weight [2048, 1024, 64]
+  Q6_K blk.4.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.4.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.4.ffn_up_exps.weight [2048, 1024, 64]
+  Q6_K blk.10.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.10.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.10.ffn_up_exps.weight [2048, 1024, 64]
+  Q4_K blk.5.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.5.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.5.ffn_up_exps.weight [2048, 1024, 64]
+  Q4_K blk.6.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.6.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.6.ffn_up_exps.weight [2048, 1024, 64]
+  Q6_K blk.7.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.7.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.7.ffn_up_exps.weight [2048, 1024, 64]
+  Q4_K blk.8.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.8.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.8.ffn_up_exps.weight [2048, 1024, 64]
+  Q4_K blk.9.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.9.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.9.ffn_up_exps.weight [2048, 1024, 64]
+  Q4_K blk.11.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.11.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.11.ffn_up_exps.weight [2048, 1024, 64]
+  Q4_K blk.12.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.12.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.12.ffn_up_exps.weight [2048, 1024, 64]
+  Q6_K blk.13.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.13.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.13.ffn_up_exps.weight [2048, 1024, 64]
+  Q6_K blk.14.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.14.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.14.ffn_up_exps.weight [2048, 1024, 64]
+  Q6_K blk.15.ffn_down_exps.weight [1024, 2048, 64]
+  Q4_K blk.15.ffn_gate_exps.weight [2048, 1024, 64]
+  Q4_K blk.15.ffn_up_exps.weight [2048, 1024, 64]
+Q4_K exps = 40 / 48

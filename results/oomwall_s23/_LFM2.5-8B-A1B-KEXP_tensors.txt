@@ -1,0 +1,39 @@
+file=models\LFM2.5-8B-A1B-KEXP.gguf
+bytes=3326160384
+ver=3 n_tensors=256 n_kv=43
+kv={'general.architecture': 'lfm2moe', 'general.size_label': '32x959M', 'lfm2moe.block_count': 24, 'lfm2moe.embedding_length': 2048, 'lfm2moe.feed_forward_length': 7168, 'lfm2moe.expert_count': 32, 'lfm2moe.expert_used_count': 4, 'lfm2moe.expert_feed_forward_length': 1792, 'general.file_type': 17}
+type_hist={'Q5_K': 47, 'F32': 123, 'Q6_K': 20, 'Q3_K': 22, 'Q2_K': 44}
+expert_hist={'Q3_K': 22, 'Q2_K': 44}
+nonexpert_hist={'Q5_K': 47, 'F32': 123, 'Q6_K': 20}
+expert_bytes=2805727232 (2675.8 MiB)
+nonexpert_bytes=520433152 (496.3 MiB)
+bytes_by_type_mib={'Q2_K': 1617.0, 'Q3_K': 1058.8, 'Q5_K': 400.1, 'Q6_K': 89.9, 'F32': 6.3}
+repack_eligible tensors=111 bytes=2209363712 (2107.0 MiB)
+  of which experts=1617.0 MiB dense=490.0 MiB
+repack_ineligible tensors=145 bytes=1116796672 (1065.1 MiB)
+--- first 16 tensors ---
+  Q5_K     token_embd.weight [2048, 128000] ne1=128000 pack=True
+  F32      token_embd_norm.weight [2048] ne1=1 pack=False
+  F32      blk.0.attn_norm.weight [2048] ne1=1 pack=False
+  Q6_K     blk.0.ffn_down.weight [7168, 2048] ne1=2048 pack=True
+  Q5_K     blk.0.ffn_gate.weight [2048, 7168] ne1=7168 pack=True
+  F32      blk.0.ffn_norm.weight [2048] ne1=1 pack=False
+  Q5_K     blk.0.ffn_up.weight [2048, 7168] ne1=7168 pack=True
+  F32      blk.0.shortconv.conv.weight [3, 2048] ne1=2048 pack=False
+  Q5_K     blk.0.shortconv.in_proj.weight [2048, 6144] ne1=6144 pack=True
+  Q6_K     blk.0.shortconv.out_proj.weight [2048, 2048] ne1=2048 pack=True
+  F32      blk.1.attn_norm.weight [2048] ne1=1 pack=False
+  Q6_K     blk.1.ffn_down.weight [7168, 2048] ne1=2048 pack=True
+  Q5_K     blk.1.ffn_gate.weight [2048, 7168] ne1=7168 pack=True
+  F32      blk.1.ffn_norm.weight [2048] ne1=1 pack=False
+  Q5_K     blk.1.ffn_up.weight [2048, 7168] ne1=7168 pack=True
+  F32      blk.1.shortconv.conv.weight [3, 2048] ne1=2048 pack=False
+--- 66 expert tensors, first 8 ---
+  Q3_K     blk.2.ffn_down_exps.weight [1792, 2048, 32] ne1=2048 pack=False
+  Q2_K     blk.2.ffn_gate_exps.weight [2048, 1792, 32] ne1=1792 pack=True
+  Q2_K     blk.2.ffn_up_exps.weight [2048, 1792, 32] ne1=1792 pack=True
+  Q3_K     blk.3.ffn_down_exps.weight [1792, 2048, 32] ne1=2048 pack=False
+  Q2_K     blk.3.ffn_gate_exps.weight [2048, 1792, 32] ne1=1792 pack=True
+  Q2_K     blk.3.ffn_up_exps.weight [2048, 1792, 32] ne1=1792 pack=True
+  Q3_K     blk.4.ffn_down_exps.weight [1792, 2048, 32] ne1=2048 pack=False
+  Q2_K     blk.4.ffn_gate_exps.weight [2048, 1792, 32] ne1=1792 pack=True

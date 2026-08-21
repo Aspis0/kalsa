@@ -1,0 +1,16 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+OPENCL_ALLOC{note=adreno_prealloc.begin,sum_mib=0.00}
+OPENCL_ALLOC{kind=try.ggml_cl_buffer,bytes=311164928,mib=296.75,sum_mib=296.75,err=0}
+OPENCL_ALLOC{kind=ggml_cl_buffer,bytes=311164928,mib=296.75,sum_mib=593.50,err=0}
+OPENCL_ALLOC{kind=try.ggml_cl_buffer,bytes=38895616,mib=37.09,sum_mib=630.59,err=0}
+OPENCL_ALLOC{kind=ggml_cl_buffer,bytes=38895616,mib=37.09,sum_mib=667.69,err=0}
+OPENCL_ALLOC{kind=try.ggml_cl_buffer,bytes=45088768,mib=43.00,sum_mib=710.69,err=0}
+OPENCL_ALLOC{kind=ggml_cl_buffer,bytes=45088768,mib=43.00,sum_mib=753.69,err=0}
+OPENCL_ALLOC{note=adreno_prealloc.done,sum_mib=753.69}
+OPENCL_ALLOC{note=load_cl_kernels.begin,sum_mib=753.69}
+OPENCL_ALLOC{note=load_cl_kernels.done,sum_mib=753.69}
+OPENCL_ALLOC{kind=try.weights_pool,bytes=198663680,mib=189.46,sum_mib=943.15,err=0}
+OPENCL_ALLOC{kind=weights_pool,bytes=198663680,mib=189.46,sum_mib=1132.61,err=0}

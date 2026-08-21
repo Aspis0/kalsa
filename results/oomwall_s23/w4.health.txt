@@ -1,0 +1,34 @@
+=== TRANSPORT ===
+USB_OK
+=== UPTIME ===
+ 08:14:45 up  8:34,  0 users,  load average: 0.26, 0.28, 0.27
+Fri Aug 21 08:14:45 EDT 2026
+=== BATT ===
+  AC powered: false
+  USB powered: true
+  status: 5
+  level: 100
+  temperature: 278
+=== WAKE ===
+  mWakefulness=Awake
+=== MEM ===
+MemTotal:        7243748 kB
+MemAvailable:    3959384 kB
+Cached:          3457048 kB
+SwapCached:        13208 kB
+RbinCached:       402260 kB
+SwapTotal:       4194300 kB
+SwapFree:        3207932 kB
+=== SHA ===
+-rw-rw-rw- 1 shell shell 8071293600 2026-08-13 12:56 Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+-rw-rw-rw- 1 shell shell    8044464 2026-08-20 23:37 libggml-opencl.so
+-rw-rw-rw- 1 shell shell    4240544 2026-08-20 23:08 libllama-bench-impl.so
+-rwxr-xr-x 1 shell shell   39807624 2026-08-20 19:32 libllama.so
+-rwxr-xr-x 1 shell shell       7600 2026-08-20 23:08 llama-bench
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+bad179520546f8d5316cd98124e948d025e8acb2999bf92b94977879ce72c171  libllama-bench-impl.so
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so
+2ed2e48a98e50f324c2aaed0c8fa7ed5b1c0fb09bff8f9a153f79420a7d69a87  libggml-opencl.so
+=== GGUF_SHA ===
+b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7  Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+=== HEALTH_DONE ===

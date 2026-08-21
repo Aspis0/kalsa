@@ -1,0 +1,39 @@
+file=models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+bytes=8071293600
+ver=3 n_tensors=339 n_kv=43
+kv={'general.architecture': 'mellum', 'general.size_label': '12B-A2.5B', 'mellum.block_count': 28, 'mellum.embedding_length': 2304, 'mellum.feed_forward_length': 7168, 'mellum.expert_count': 64, 'mellum.expert_used_count': 8, 'mellum.expert_feed_forward_length': 896, 'general.file_type': 15}
+type_hist={'Q6_K': 15, 'F32': 141, 'Q4_K': 155, 'Q8_0': 14, 'Q5_0': 14}
+expert_hist={'Q8_0': 14, 'Q4_K': 56, 'Q5_0': 14}
+nonexpert_hist={'Q6_K': 15, 'F32': 141, 'Q4_K': 99}
+expert_bytes=7402340000 (7059.4 MiB)
+nonexpert_bytes=668953600 (638.0 MiB)
+bytes_by_type_mib={'Q4_K': 4404.0, 'Q8_0': 1874.2, 'Q5_0': 1212.8, 'Q6_K': 190.1, 'F32': 16.3}
+repack_eligible tensors=184 bytes=6782564000 (6468.4 MiB)
+  of which experts=5846.7 MiB dense=621.7 MiB
+repack_ineligible tensors=155 bytes=1288729600 (1229.0 MiB)
+--- first 16 tensors ---
+  Q6_K     output.weight [2304, 98304] ne1=98304 pack=True
+  F32      output_norm.weight [2304] ne1=1 pack=False
+  Q4_K     token_embd.weight [2304, 98304] ne1=98304 pack=True
+  Q4_K     blk.0.attn_k.weight [2304, 512] ne1=512 pack=True
+  F32      blk.0.attn_k_norm.weight [128] ne1=1 pack=False
+  F32      blk.0.attn_norm.weight [2304] ne1=1 pack=False
+  Q4_K     blk.0.attn_output.weight [4096, 2304] ne1=2304 pack=True
+  Q4_K     blk.0.attn_q.weight [2304, 4096] ne1=4096 pack=True
+  F32      blk.0.attn_q_norm.weight [128] ne1=1 pack=False
+  Q6_K     blk.0.attn_v.weight [2304, 512] ne1=512 pack=True
+  Q8_0     blk.0.ffn_down_exps.weight [896, 2304, 64] ne1=2304 pack=True
+  Q4_K     blk.0.ffn_gate_exps.weight [2304, 896, 64] ne1=896 pack=True
+  F32      blk.0.ffn_gate_inp.weight [2304, 64] ne1=64 pack=False
+  F32      blk.0.ffn_norm.weight [2304] ne1=1 pack=False
+  Q4_K     blk.0.ffn_up_exps.weight [2304, 896, 64] ne1=896 pack=True
+  Q4_K     blk.1.attn_k.weight [2304, 512] ne1=512 pack=True
+--- 84 expert tensors, first 8 ---
+  Q8_0     blk.0.ffn_down_exps.weight [896, 2304, 64] ne1=2304 pack=True
+  Q4_K     blk.0.ffn_gate_exps.weight [2304, 896, 64] ne1=896 pack=True
+  Q4_K     blk.0.ffn_up_exps.weight [2304, 896, 64] ne1=896 pack=True
+  Q8_0     blk.1.ffn_down_exps.weight [896, 2304, 64] ne1=2304 pack=True
+  Q4_K     blk.1.ffn_gate_exps.weight [2304, 896, 64] ne1=896 pack=True
+  Q4_K     blk.1.ffn_up_exps.weight [2304, 896, 64] ne1=896 pack=True
+  Q8_0     blk.2.ffn_down_exps.weight [896, 2304, 64] ne1=2304 pack=True
+  Q4_K     blk.2.ffn_gate_exps.weight [2304, 896, 64] ne1=896 pack=True

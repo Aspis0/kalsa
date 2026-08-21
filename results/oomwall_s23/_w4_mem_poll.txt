@@ -1,0 +1,9 @@
+MemAvailable:    3990308 kB
+MemAvailable:    3948700 kB
+MemAvailable:    3974652 kB
+MemAvailable:    3989176 kB
+MemAvailable:    4728120 kB
+MemAvailable:    4926820 kB
+MemAvailable:    5053636 kB
+MemAvailable:    5050660 kB
+MemAvailable:    5077340 kB
