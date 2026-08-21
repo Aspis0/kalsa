@@ -2,7 +2,8 @@
  * Harness for src/engine/engineParams.ts (pure applyEngineOverride).
  *
  * Covers Android GPU gate, iOS GPU apply, threads passthrough, ubatch clamp,
- * absent fields, empty override. Module has no RN/llama.rn imports — plain node.
+ * prefill thread comparison, absent fields, empty override. Module has no
+ * RN/llama.rn imports — plain node.
  *
  * Compile-from-disk pattern (same as benchEngineHarness). Exit 1 on fail.
  */
@@ -77,7 +78,7 @@ async function main() {
   const modPath = resolveBuilt();
   console.log("Loading", modPath);
   const mod = require(modPath);
-  const { applyEngineOverride } = mod;
+  const { applyEngineOverride, applyPrefillThreadOverride } = mod;
 
   let passed = 0;
   let failed = 0;
@@ -128,6 +129,28 @@ async function main() {
     assert(params.n_threads === 6, `got ${params.n_threads}`);
     assert(params.n_gpu_layers === 0, "gpu default untouched");
     assert(params.n_ubatch === 256, "ubatch default untouched");
+  });
+
+  await test("prefill threads apply after final decode override", () => {
+    const params = baseParams();
+    applyEngineOverride(params, { nThreads: 2 }, "android");
+    applyPrefillThreadOverride(params, 4);
+    assert(params.n_threads === 2, `decode ${params.n_threads}`);
+    assert(params.n_threads_batch === 4, `prefill ${params.n_threads_batch}`);
+  });
+
+  await test("equal final decode/prefill suppresses n_threads_batch", () => {
+    const params = baseParams();
+    applyEngineOverride(params, { nThreads: 2 }, "android");
+    applyPrefillThreadOverride(params, 2);
+    assert(!("n_threads_batch" in params), "equal threads must omit batch field");
+  });
+
+  await test("absent prefill override leaves params unchanged", () => {
+    const params = baseParams();
+    const before = JSON.stringify(params);
+    applyPrefillThreadOverride(params, undefined);
+    assert(JSON.stringify(params) === before, "production-shaped params changed");
   });
 
   // ── ubatch clamp at 512 ────────────────────────────────────────────────

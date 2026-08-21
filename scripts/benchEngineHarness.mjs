@@ -157,6 +157,33 @@ async function main() {
     );
   });
 
+  await test('parse independent prefill threads; absent key stays absent', () => {
+    const r = parseEngineArg("threads=2,threadsPrefill=4");
+    assert(
+      r && r.nThreads === 2 && r.nThreadsPrefill === 4,
+      `got ${JSON.stringify(r)}`,
+    );
+    const without = parseEngineArg("threads=2");
+    assert(
+      without && !Object.prototype.hasOwnProperty.call(without, "nThreadsPrefill"),
+      `absent key got ${JSON.stringify(without)}`,
+    );
+    const aboveCoreCount = parseEngineArg("threadsPrefill=9999");
+    assert(
+      aboveCoreCount?.nThreadsPrefill === 9999,
+      `above-core count got ${JSON.stringify(aboveCoreCount)}`,
+    );
+  });
+
+  await test('reject prefill empty, zero, negative, text, float, and unsafe integer', () => {
+    for (const value of ["", "0", "-1", "abc", "2.5", "9007199254740992"]) {
+      assert(
+        parseEngineArg(`threadsPrefill=${value}`) === null,
+        `threadsPrefill=${value} should fail`,
+      );
+    }
+  });
+
   await test("parse junk / empty / unknown / float / negative → null", () => {
     assert(parseEngineArg("nope") === null, "junk");
     assert(parseEngineArg("") === null, "empty");
@@ -186,14 +213,22 @@ async function main() {
   // ── setEngineOverride + getEngineOverride round-trip ───────────────────
   await test("set→get round-trip raw JSON equals stringify", async () => {
     store.clear();
-    const ok = await setEngineOverride("gpu=20,threads=5,ubatch=256");
+    const ok = await setEngineOverride("gpu=20,threads=5,threadsPrefill=8,ubatch=256");
     assert(ok === true, "set should succeed");
-    const expected = { nGpuLayers: 20, nThreads: 5, nUbatch: 256 };
+    const expected = {
+      nGpuLayers: 20,
+      nThreads: 5,
+      nThreadsPrefill: 8,
+      nUbatch: 256,
+    };
     const raw = store.get(BENCH_ENGINE_KEY);
     assert(raw === JSON.stringify(expected), `raw storage got ${raw}`);
     const got = await getEngineOverride();
     assert(
-      got?.nGpuLayers === 20 && got?.nThreads === 5 && got?.nUbatch === 256,
+      got?.nGpuLayers === 20 &&
+        got?.nThreads === 5 &&
+        got?.nThreadsPrefill === 8 &&
+        got?.nUbatch === 256,
       `get got ${JSON.stringify(got)}`,
     );
   });
@@ -215,6 +250,10 @@ async function main() {
     assert((await setEngineOverride("junk")) === false, "junk must fail");
     assert((await setEngineOverride("gpu=1.5")) === false, "float must fail");
     assert((await setEngineOverride("threads=0")) === false, "threads=0 must fail");
+    assert(
+      (await setEngineOverride("threadsPrefill=0")) === false,
+      "threadsPrefill=0 must fail",
+    );
     assert(store.size === 0, "invalid modes must not write");
   });
 
@@ -244,9 +283,12 @@ async function main() {
 
   await test("multi-field status compact form", async () => {
     store.clear();
-    const r = await tryHandleBenchCommand("/bench engine gpu=20,threads=5,ubatch=256");
+    const r = await tryHandleBenchCommand(
+      "/bench engine gpu=20,threads=5,threadsPrefill=8,ubatch=256",
+    );
     assert(
-      typeof r === "string" && r.includes("engine=gpu:20,threads:5,ubatch:256"),
+      typeof r === "string" &&
+        r.includes("engine=gpu:20,threads:5,threadsPrefill:8,ubatch:256"),
       `got ${r}`,
     );
   });

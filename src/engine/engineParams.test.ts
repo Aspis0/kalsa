@@ -5,7 +5,10 @@
  * Pure module — no AsyncStorage, no llama.rn, loadable under plain node jest.
  */
 
-import { applyEngineOverride } from "./engineParams";
+import {
+  applyEngineOverride,
+  applyPrefillThreadOverride,
+} from "./engineParams";
 import type { EngineParamsSlice } from "./engineParams";
 
 /** Production-shaped params: what LlamaService builds before the override. */
@@ -124,5 +127,33 @@ describe("applyEngineOverride — threads and ubatch", () => {
   it("clamps against the 512 default when n_batch is absent", () => {
     const p = applyEngineOverride({ n_ubatch: 256 }, { nUbatch: 1024 }, "ios");
     expect(p.n_ubatch).toBe(512);
+  });
+
+  it("sets prefill threads after decode override", () => {
+    const p = applyEngineOverride(
+      productionParams(),
+      { nThreads: 2, nThreadsPrefill: 4 },
+      "android",
+    );
+    applyPrefillThreadOverride(p, 4);
+    expect(p.n_threads).toBe(2);
+    expect(p.n_threads_batch).toBe(4);
+  });
+
+  it("omits n_threads_batch when final decode equals prefill", () => {
+    const p = applyEngineOverride(
+      productionParams(),
+      { nThreads: 2, nThreadsPrefill: 2 },
+      "android",
+    );
+    applyPrefillThreadOverride(p, 2);
+    expect(p).not.toHaveProperty("n_threads_batch");
+  });
+
+  it("leaves params byte-identical when prefill override is absent", () => {
+    const p = productionParams();
+    const before = JSON.stringify(p);
+    applyPrefillThreadOverride(p, undefined);
+    expect(JSON.stringify(p)).toBe(before);
   });
 });

@@ -55,7 +55,10 @@ import {
   nGpuLayersForBackend,
   resolveEngineTuning,
 } from "./deviceTuning";
-import { applyEngineOverride } from "./engineParams";
+import {
+  applyEngineOverride,
+  applyPrefillThreadOverride,
+} from "./engineParams";
 import type { EngineOverrideFields } from "./engineParams";
 import {
   createToolCallDeltaStripper,
@@ -1197,10 +1200,11 @@ export function initEngine(
 
     // Prefill threads — measured dual on G99 (decode 2 / prefill 8).
     // JSI reads snake_case "n_threads_batch" into cpuparams_batch.n_threads
-    // (Kalsa patch on JSIParams.cpp). Upstream ContextParams types lag, so we
-    // cast only this field. Decision is deferred until AFTER applyEngineOverride
-    // so a bench nThreads that matches prefill does not still send the field.
-    const nThreadsPrefill = tuning.nThreadsPrefill;
+    // (Kalsa patch on JSIParams.cpp). Upstream ContextParams types lag. Decision
+    // is deferred until AFTER applyEngineOverride so a bench nThreads that
+    // matches prefill does not still send the field.
+    const nThreadsPrefill =
+      options.engineOverride?.nThreadsPrefill ?? tuning.nThreadsPrefill;
 
     const params: ContextParams = {
       model: modelPath,
@@ -1243,20 +1247,9 @@ export function initEngine(
     applyEngineOverride(params, options.engineOverride, Platform.OS);
 
     // Invariant: n_threads_batch present ONLY when final decode != prefill.
-    // Compare post-override params.n_threads (not pre-override tuning.n_threads)
-    // so G99 (decode 2 / prefill 8) + bench nThreads=8 omits the field rather
-    // than sending n_threads_batch: 8 with both sides already equal.
-    const prefillDiffers =
-      typeof nThreadsPrefill === "number" &&
-      Number.isFinite(nThreadsPrefill) &&
-      nThreadsPrefill > 0 &&
-      nThreadsPrefill !== params.n_threads;
-    if (prefillDiffers) {
-      // Prefill / batch threads — snake_case only (JSI key). Cast: published
-      // ContextParams has no n_threads_batch yet; native binding does.
-      (params as ContextParams & { n_threads_batch?: number }).n_threads_batch =
-        nThreadsPrefill;
-    }
+    // The helper compares post-override params.n_threads, not pre-override
+    // tuning.n_threads, so equal decode/prefill arms omit the field.
+    applyPrefillThreadOverride(params, nThreadsPrefill);
 
     // MTP (NextN): speculative decoding embedded — ~1.5-2x più veloce.
     // La cache del DRAFT viene quantizzata come la target (non F16 di default).

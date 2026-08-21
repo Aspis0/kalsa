@@ -11,6 +11,7 @@ export type FlashAttnMode = "auto" | "on" | "off";
 export type EngineOverrideFields = {
   nGpuLayers?: number;
   nThreads?: number;
+  nThreadsPrefill?: number;
   nUbatch?: number;
   flashAttn?: FlashAttnMode;
 };
@@ -19,6 +20,7 @@ export type EngineOverrideFields = {
 export type EngineParamsSlice = {
   n_gpu_layers?: number;
   n_threads?: number;
+  n_threads_batch?: number;
   n_ubatch?: number;
   n_batch?: number;
   flash_attn_type?: FlashAttnMode;
@@ -31,6 +33,7 @@ export type EngineParamsSlice = {
  * - flashAttn: passthrough, every platform.
  * - nGpuLayers: on Android, only alongside `flashAttn: "off"` — see below.
  * - nThreads: passthrough.
+ * - nThreadsPrefill: consumed by applyPrefillThreadOverride after this call.
  * - nUbatch: clamped to params.n_batch ?? 512.
  * Absent fields leave params untouched. Empty/undefined override is a no-op.
  */
@@ -86,5 +89,21 @@ export function applyEngineOverride<T extends EngineParamsSlice>(
     params.n_ubatch = Math.min(override.nUbatch, batch);
   }
 
+  return params;
+}
+
+/** Set batch threads only when the final decode and prefill counts differ. */
+export function applyPrefillThreadOverride<T extends EngineParamsSlice>(
+  params: T,
+  nThreadsPrefill: number | undefined,
+): T {
+  const prefillDiffers =
+    typeof nThreadsPrefill === "number" &&
+    Number.isFinite(nThreadsPrefill) &&
+    nThreadsPrefill > 0 &&
+    nThreadsPrefill !== params.n_threads;
+  if (prefillDiffers) {
+    params.n_threads_batch = nThreadsPrefill;
+  }
   return params;
 }

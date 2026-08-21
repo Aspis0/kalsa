@@ -155,4 +155,38 @@ describe("engine override persistence", () => {
     expect(parseEngineArg("fa=disabled")).toBeNull();
     expect(parseEngineArg("fa=")).toBeNull();
   });
+
+  test("parseEngineArg accepts independent prefill threads", () => {
+    expect(parseEngineArg("threads=2,threadsPrefill=4")).toEqual({
+      nThreads: 2,
+      nThreadsPrefill: 4,
+    });
+    expect(parseEngineArg("threadsPrefill=9999")).toEqual({
+      nThreadsPrefill: 9999,
+    });
+    expect(parseEngineArg("threads=2")).not.toHaveProperty("nThreadsPrefill");
+  });
+
+  test("parseEngineArg rejects invalid prefill thread values", () => {
+    for (const value of ["", "0", "-1", "abc", "2.5", "9007199254740992"]) {
+      expect(parseEngineArg(`threadsPrefill=${value}`)).toBeNull();
+    }
+  });
+
+  test("prefill thread persistence uses the existing engine key", async () => {
+    const getItem = AsyncStorage.getItem as jest.Mock;
+    const previous = getItem.getMockImplementation();
+    getItem.mockResolvedValue(
+      JSON.stringify({ nThreads: 2, nThreadsPrefill: 4 }),
+    );
+    try {
+      await expect(getEngineOverride()).resolves.toEqual({
+        nThreads: 2,
+        nThreadsPrefill: 4,
+      });
+    } finally {
+      if (previous) getItem.mockImplementation(previous);
+      else getItem.mockReset();
+    }
+  });
 });

@@ -6,13 +6,13 @@
  *   /bench thinking <default|off|budget256|budget512>
  *   /bench format <none|system-end|user-prefix|user-note>
  *   /bench speculative <none|mtp|clear>
- *   /bench engine <gpu=N,threads=N,ubatch=N|clear>
+ *   /bench engine <gpu=N,threads=N,threadsPrefill=N,ubatch=N|clear>
  *   /bench show
  * Prefer the slash-free form on Windows Git Bash (adb mangles leading `/`):
  *   bench:thinking off
  *   bench:format user-note
  *   bench:speculative none
- *   bench:engine gpu=20,threads=5,ubatch=256
+ *   bench:engine gpu=20,threads=5,threadsPrefill=8,ubatch=256
  *   bench:show
  *
  * Speculative applies at ENGINE INIT — force-stop + relaunch the app for the
@@ -24,7 +24,7 @@
  * - kalsa.bench.thinking: "default" | "off" | "budget256" | "budget512"
  * - kalsa.bench.format:   "none" | "system-end" | "user-prefix" | "user-note"
  * - kalsa.bench.speculative: JSON { type, nMax?, draftModelPath? } (CI A/B only)
- * - kalsa.bench.engine: JSON { nGpuLayers?, nThreads?, nUbatch?, flashAttn? } (CI A/B only)
+ * - kalsa.bench.engine: JSON { nGpuLayers?, nThreads?, nThreadsPrefill?, nUbatch?, flashAttn? } (CI A/B only)
  * - kalsa.bench.toolchoice: "auto" | "required" | "none" (CI A/B only)
  * - kalsa.bench.toolgate:   "1" (default) | "0" (CI A/B only)
  * - kalsa.bench.norepack:   "1" disables weight repacking (CI A/B only)
@@ -78,6 +78,7 @@ export type SpeculativeOverride = {
 export type EngineOverride = {
   nGpuLayers?: number;
   nThreads?: number;
+  nThreadsPrefill?: number;
   nUbatch?: number;
   /** Android needs "off" alongside nGpuLayers — see applyEngineOverride. */
   flashAttn?: FlashAttnMode;
@@ -104,6 +105,9 @@ function formatEngineLabel(engine: EngineOverride | undefined): string {
   const parts: string[] = [];
   if (engine.nGpuLayers !== undefined) parts.push(`gpu:${engine.nGpuLayers}`);
   if (engine.nThreads !== undefined) parts.push(`threads:${engine.nThreads}`);
+  if (engine.nThreadsPrefill !== undefined) {
+    parts.push(`threadsPrefill:${engine.nThreadsPrefill}`);
+  }
   if (engine.nUbatch !== undefined) parts.push(`ubatch:${engine.nUbatch}`);
   if (engine.flashAttn !== undefined) parts.push(`fa:${engine.flashAttn}`);
   return parts.length > 0 ? parts.join(",") : "default";
@@ -122,13 +126,20 @@ function activeEngineLabel(): string {
     if (!parsed || typeof parsed !== "object") return "default";
     const o = parsed as Record<string, unknown>;
     const engine: EngineOverride = {};
-    for (const key of ["nGpuLayers", "nThreads", "nUbatch"] as const) {
+    for (const key of [
+      "nGpuLayers",
+      "nThreads",
+      "nThreadsPrefill",
+      "nUbatch",
+    ] as const) {
       const n = o[key];
       if (
         typeof n === "number" &&
         Number.isFinite(n) &&
         Number.isInteger(n) &&
-        n >= 0
+        n >= 0 &&
+        (key !== "nThreadsPrefill" ||
+          (n > 0 && Number.isSafeInteger(n)))
       ) {
         engine[key] = n;
       }
@@ -435,8 +446,10 @@ export async function setSpeculativeOverride(mode: string): Promise<boolean> {
 
 /**
  * Pure parse of a `/bench engine <arg>` token.
- * Comma-separated k=v pairs: gpu, threads, ubatch (non-negative integers;
- * threads/ubatch must be > 0). `"clear"` / `"default"` remove the key.
+ * Comma-separated k=v pairs: gpu, threads, threadsPrefill, ubatch
+ * (non-negative integers; threads/threadsPrefill/ubatch must be > 0).
+ * `"clear"` / `"default"` remove the key. Thread counts above the core count
+ * are retained for intentional oversubscription; unsafe integers are rejected.
  * Returns EngineOverride, `"clear"`, or null if invalid.
  */
 export function parseEngineArg(arg: string): EngineOverride | "clear" | null {
@@ -470,6 +483,10 @@ export function parseEngineArg(arg: string): EngineOverride | "clear" | null {
       if (n <= 0) return null;
       out.nThreads = n;
       any = true;
+    } else if (key === "threadsPrefill" || key === "threadsprefill") {
+      if (n <= 0 || !Number.isSafeInteger(n)) return null;
+      out.nThreadsPrefill = n;
+      any = true;
     } else if (key === "ubatch") {
       if (n <= 0) return null;
       out.nUbatch = n;
@@ -482,9 +499,10 @@ export function parseEngineArg(arg: string): EngineOverride | "clear" | null {
 }
 
 /**
- * Bench-only init-time engine param override (GPU layers / threads / ubatch).
+ * Bench-only init-time engine param override (GPU layers / decode threads /
+ * prefill threads / ubatch).
  * AsyncStorage key `kalsa.bench.engine` = JSON
- *   { "nGpuLayers"?, "nThreads"?, "nUbatch"?: number, "flashAttn"?: "auto"|"on"|"off" }
+ *   { "nGpuLayers"?, "nThreads"?, "nThreadsPrefill"?, "nUbatch"?: number, "flashAttn"?: "auto"|"on"|"off" }
  * absent/invalid → undefined (production defaults).
  * Applies at ENGINE INIT — force-stop + relaunch after writing.
  */
@@ -496,13 +514,20 @@ export async function getEngineOverride(): Promise<EngineOverride | undefined> {
     if (!parsed || typeof parsed !== "object") return undefined;
     const o = parsed as Record<string, unknown>;
     const out: EngineOverride = {};
-    for (const key of ["nGpuLayers", "nThreads", "nUbatch"] as const) {
+    for (const key of [
+      "nGpuLayers",
+      "nThreads",
+      "nThreadsPrefill",
+      "nUbatch",
+    ] as const) {
       const n = o[key];
       if (
         typeof n === "number" &&
         Number.isFinite(n) &&
         Number.isInteger(n) &&
-        n >= 0
+        n >= 0 &&
+        (key !== "nThreadsPrefill" ||
+          (n > 0 && Number.isSafeInteger(n)))
       ) {
         out[key] = n;
       }
@@ -560,7 +585,7 @@ export async function formatBenchStatus(): Promise<string> {
 }
 
 const BENCH_USAGE =
-  "bench usage: /bench thinking <…> | bench:thinking <…> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,ubatch=N]|clear> | bench:engine <…> | /bench show | bench:show";
+  "bench usage: /bench thinking <…> | bench:thinking <…> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N]|clear> | bench:engine <…> | /bench show | bench:show";
 
 /** True when text is a bench debug command (`/bench …` or slash-free `bench:…`). */
 export function isBenchCommand(text: string): boolean {
