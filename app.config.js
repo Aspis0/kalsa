@@ -102,7 +102,7 @@ const config = {
           // mandatory there, keyboard-controller computes the full IME height,
           // and the API<=34 nav-bar shortfall class is out of scope by
           // construction. CI screens emulator runs API 35 to match.
-          minSdkVersion: 35,
+          minSdkVersion: 33,
         },
       },
     ],
