@@ -37,6 +37,22 @@ Q4_K/Q5_K MoE gguf on Adreno; KEXP experts (q2_K/q3_K) still CPU-fallback by
 design. Upstream master (checked 2026-08-20): A6X/A7X gate still active, none of
 our four fixes superseded.
 
+**And the repaired path is FAST (2026-08-21, exploratory):** on the S23,
+experts-on-GPU vs experts-on-CPU at equal offload (OLMoE-1B-7B Q4_K_M, full
+ngl=16, unplugged, ABBA×2): burst decode **27.5 vs 12.7 tok/s (2.17×)**,
+sustained **15.3 vs 10.3 (~1.5×)**, and the GPU arm runs COOLER (CPU arm hits
+40.2°C). On this device class, when the model fits in RAM, GPU experts are a
+candidate default, not just a thermal valve. N≥10 pre-registered cell required
+before any ship claim.
+
+**The power-off wall was never the GPU (oomwall, 2026-08-21):** Mellum2-scale
+crashes were llama-bench's DEFAULT ARM repack (`use_extra_bufts=true`, no flag
+to disable) allocating ~6.5GB of anonymous memory — kernel death even at
+`-ngl 0`, proven by the single-variable W4/W4c pair. Production is structurally
+immune (`use_extra_bufts=false` is a hard rule). Bench rule on 8GB devices:
+always the no-extra-bufts variant. Separate known bug: FLASH_ATTN `map::at`
+(d_head=64, no guard) — use `-fa off` in GPU benches.
+
 ---
 
 ## 1. SHIPPED — in production, with a p-value
