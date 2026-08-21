@@ -1503,6 +1503,62 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.31 COMPUTED 2026-08-21: every dense `MB/token` we carried was too LOW — the tied output head is read in full on every token, and on one model it is a third of the bill
+
+§7.28 discounted its own throughput spread with *"the two dense `MB/tok` figures are estimated from
+file size, an over-estimate, so part of the 46 % may be estimation error"*, and asked for the tensor
+map before treating the spread as a design constant. Done here, and **the estimates were low, not
+high** — so the caveat pointed the wrong way.
+
+Method: the GGUF tensor index read straight off the pinned Hugging Face revisions in
+`ModelRegistry.ts` with an HTTP range request (first 25 MB — header, metadata and the full tensor
+index; the weights are never downloaded), then per-tensor bytes from dims and the ggml block sizes.
+Arithmetic on the file, not a measurement on a phone.
+
+| | arch | blocks | `token_embd` | **MB/token** | file | old estimate |
+|---|---|---:|---:|---:|---:|---|
+| **LFM2.5-2.6B** | `lfm2`, 30 blocks, d 2048, vocab 128 000 | 1451.2 MB | **215.0 MB** (Q6_K) | **1666.2** | 1674.5 MB | ~1600 — **4.1 % low** |
+| **Qwen3.5-2B** | `qwen35`, 24 blocks, d 2048, vocab **248 320** | 852.7 MB | **417.2 MB** (Q6_K) | **1269.9** | 1280.8 MB | ~1230 — **3.2 % low** |
+
+**Neither file has an `output.weight` tensor** — only `output_norm` — so on both the embedding is
+**tied**, and the same matrix is read in full as the output projection for the logits of every
+generated token. That is why a dense model's `MB/token` is essentially its whole tensor set, and why
+file size is a *good* proxy for a dense model and a terrible one for a sparse one: KEXP reads 848 MB
+against a 3330 MB file only because 28 of its 32 experts are skipped per token.
+
+⭐ **Vocabulary size is a decode cost, and on a small model it is not a rounding error.**
+Qwen3.5-2B's 248 320-token vocabulary costs **417 MB per generated token — 33 % of everything it
+reads**, against 215 MB (13 %) for LFM2.5-2.6B's 128 000. Two models of nearly the same shape, and a
+third of one's bandwidth bill is the tokenizer's fault. Worth remembering before treating vocab
+expansion as free.
+
+**What moves.** §7.28's effective-throughput table, recomputed on the same measured means
+(5.47 / 6.00 / 7.05 tok/s):
+
+| | old | **corrected** |
+|---|---:|---:|
+| LFM2.5-2.6B, q4_K_M | 8.75 GB/s | **9.11 GB/s** |
+| Qwen3.5-2B, q4_K_M | 7.37 GB/s | **7.61 GB/s** |
+| KEXP, q2_K/q3_K | 5.98 GB/s | 5.98 GB/s (already tensor-map) |
+
+The spread by packing alone on one phone is **52 %, not 46 %** — larger than §7.28 reported, and
+none of it is estimation error. The S23 predictions move the other way and get slightly worse:
+LFM2.5-2.6B **13.1** tok/s (was quoted 13.6 in chat, 13.0 in §2.1) and Qwen3.5-2B **17.2** (was
+17.7), both still unmeasured, both from the 21.8 GB/s q4_K_M constant the S23's Qwen3.5-4B row
+implies.
+
+⚠️ **A provenance label that was wrong:** §2.1's LFM2.5-VL-3B row carried *"1674 (from the GGUF)"*.
+1674.45 MB is the **file size** of LFM2.5-2.6B, not a tensor-map figure from the VL model. The
+number happened to land within 0.5 % of the right one (1666), so no conclusion moves — but it was
+not computed the way the column header promises, and the column header is the reason anyone trusts
+it.
+
+**Limits.** This is arithmetic, not a measurement. It assumes every block tensor is read once per
+token and the tied head once, which holds for a dense decoder at batch 1 and is exactly what the
+`MB/token` column claims to mean. It does **not** model the KV cache, activations, or the VL model's
+583 MB `mmproj` — a vision turn reads more than this number says. And it says nothing about
+*achieved* bandwidth, which §7.28 shows varies 52 % by quant family on one phone.
+
 ### 7.30 MEASURED 2026-08-21: the prewarm now stands aside — 120.8 s of cold start becomes 1.8 s, and the diagnostic built to keep us honest is the last thing still lying
 
 §7.29 landed two fixes and could not measure the first one, because no APK carried the merge.
@@ -1628,8 +1684,8 @@ would. Unplugged, production config, 4 turns each, hand-rolled script.
 | | quant | MB/tok | decode | prefill turns 2-4 |
 |---|---|---:|---|---|
 | **LFM2.5-8B-A1B-KEXP** | q2_K/q3_K | **848** (from the tensor map) | **7.31 · 7.14 · 6.95 · 6.80** | 2.7-3.0 s ✓ |
-| LFM2.5-2.6B | Q4_K_M | ~1600 (est. from file) | 5.68 · 5.53 · 5.40 · 5.27 | 2.7-3.2 s ✓ |
-| Qwen3.5-2B | Q4_K_M | ~1230 (est. from file) | 6.61 · 5.73 · 4.94 · 6.70 | **80.7 · 101.3 · 127.7 · 85.2 s ✗** |
+| LFM2.5-2.6B | Q4_K_M | ~1600 (est. from file — **1666.2**, §7.31) | 5.68 · 5.53 · 5.40 · 5.27 | 2.7-3.2 s ✓ |
+| Qwen3.5-2B | Q4_K_M | ~1230 (est. from file — **1269.9**, §7.31) | 6.61 · 5.73 · 4.94 · 6.70 | **80.7 · 101.3 · 127.7 · 85.2 s ✗** |
 
 **The sparse 8B beats both dense small models**, with a file 2-3× larger. Decode reads `MB/token`,
 not the file, and a dense 2B reads more per token than a MoE with ~1B active. §7.27's "the Jelly
@@ -1658,6 +1714,13 @@ term is throughput, not bandwidth: it folds memory traffic and dequantization co
 and on this SoC the second dominates. Caveat that cuts the other way: the two dense `MB/tok` figures
 are estimated from file size, an over-estimate, so part of the 46 % may be estimation error. Compute
 them from the tensor map before treating the spread as a design constant.
+
+⛔ **RETRACTED the same day by §7.31 — the caveat above pointed the wrong way.** The tensor maps were
+computed: LFM2.5-2.6B is **1666.2** MB/token and Qwen3.5-2B **1269.9**, so both file-size estimates
+were **too low** (4.1 % and 3.2 %), not too high. The spread is **52 %, not 46 %**, and none of it is
+estimation error. Corrected table, same measured means: LFM2.5-2.6B **9.11 GB/s**, Qwen3.5-2B
+**7.61 GB/s**, KEXP 5.98 GB/s. The instruction in the last sentence was right and has been carried
+out; the number it was hedging was the one that needed raising.
 
 **Qwen3.5-2B never reuses its KV, and the cause is a missing flag, not the architecture.** Its
 prefill stays at 80-128 s on every turn while the 2.6B drops to 2.8 s. It cannot be the sliding
@@ -3399,6 +3462,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 
 | date | change |
 |---|---|
+| 2026-08-21 | **§7.31: every dense `MB/token` we carried was too LOW, and §7.28's caveat pointed the wrong way — retracted there.** Tensor maps read off the pinned HF revisions with a range request (25 MB of header, no weights): **LFM2.5-2.6B = 1666.2 MB/token** (blocks 1451.2 + tied `token_embd` 215.0) against the ~1600 estimate, **Qwen3.5-2B = 1269.9** (852.7 + **417.2**) against ~1230. Neither GGUF has an `output.weight`, so on both the embedding is tied and the same matrix is read in full as the output head every token — which is why file size is a good proxy for a dense model and a terrible one for a sparse one (KEXP: 848 against a 3330 MB file). **Vocabulary size is a decode cost**: Qwen3.5-2B's 248 320-token vocab is **33 % of everything it reads per token**, against 13 % for LFM2.5-2.6B's 128 000. §7.28's throughput spread corrects to **52 %** (9.11 / 7.61 / 5.98 GB/s) and none of it is estimation error. S23 predictions move slightly worse: LFM2.5-2.6B **13.1** tok/s, Qwen3.5-2B **17.2**, both still unmeasured. Also corrected: §2.1's LFM2.5-VL-3B cell said "1674 (from the GGUF)" when 1674.45 MB is the **file size** of LFM2.5-2.6B — within 0.5 % of right, but not computed the way the column header promises. Limits: arithmetic, not a measurement; assumes one read per block tensor and one of the tied head at batch 1; models no KV, no activations, and not the VL model's 583 MB `mmproj`. |
 | 2026-08-21 | **§7.30: the prewarm stands aside after a restore — 120.8 s of cold start becomes 1.8 s, measured on the APK that carries the merge.** `d2f34eb` on the Jelly, KEXP, §7.29's exact configuration kept so the APK is the only variable. Five `force-stop` -> relaunch -> turn cycles: the prewarm logged `op:"skip" reason:"restored_kv"` on **all eight** restore events (two per cycle — the share deep link backgrounds RN and the engine re-inits), and turn prefill was **2.08 / 1.79 / 1.76 / 1.93 s** against a cold start of 77.7 s of prewarm plus 43.1 s of first-turn prefill. Decode 7.04-7.43 reproduces §7.28's 6.80-7.31, so the run is internally consistent. First sight of the per-conversation pool key on a phone: `lfm2_002e5-8b-a1b-kexp__conv-…__3524921208.kvs`. **Four defects it was not looking for:** (1) `KALSA_KVDIAG` reports `n_past: 0` on every restore while 1814-1946 tokens are resident and reused — the field is hardcoded to 0 for hybrids on the strength of Q6.c, which §7.29 refuted, so the honesty diagnostic is now the least honest line in the log; (2) `KALSA_PREWARM` logs `match:false` on every send that reused the whole session; (3) the disk gate over-charges **12.7x** — `estimatedBytes` 127 533 056 against a real file of **10 041 119 B for 1946 tokens (5.16 kB/token)**, reproducing §7.25's ~5.2 kB/token, so a 300 MB pool bills ~2 conversations where ~30 fit; (4) every turn writes the session **twice**, byte-identical after a restore. Also: `tokensEvaluated` is the prompt length, not the tokens computed. Limits: one phone, one conversation, n=4 restores, on the charger; the conversation ran 1814 -> 1946 tokens so **the window never slid** and this says nothing about §7.12's turn-11 collapse; `thinking=off` / `compaction=0` are not the shipping configuration; and the native `reusing n/m` line never appears on a restore cycle, so the reused-token count is inferred from timing, not read. |
 | 2026-08-21 | **§7.29: the hybrid restore is real — `n_past=1473`, not the assumed 0 — and the thing that destroys the cache is a divergent prompt, not the architecture.** KEXP after force-stop: `is_hybrid=1 resumable=1`, loaded in 19 ms, next send at n_past 1368-1604 and **~2 s of prefill**, n=2. Qwen3.5-2B restores just as well (1605 tokens in 43 ms) and then logs `no usable state checkpoint … doing full cache clear`, **n_past=0 and 104-138 s**. **Correction, mine:** this was reported as two of our measurements disagreeing. It was not — `TTFT_FIXES.md` lists Q6.c under *"explicitly not in this branch, out of scope"*, so it was an honestly-labelled assumption and §7.25 was the only measurement. §7.28's inferred cause for Qwen is now measured on the wire: 14 reasoning tokens in KV, absent from the re-rendered prompt, and it reproduces **without** a force-stop (122 s), which is what clears the restore of blame. Two fixes landed: `shouldSkipPrewarmAfterRestore` now keys on whether the restore populated KV rather than on dense-vs-hybrid (otherwise the merged branch's prewarm `seq_rm`s over a live 1600-token session on the model we ship), and `preserveThinking` is set on both Qwen entries that lacked it. Limits: one phone, one APK that predates the prewarm, two models; what the prewarm does after the fix is untested because no build carries the merge yet. |
 | 2026-08-21 | **§7.28: the two small models lose to the 8B MoE on the Jelly, and one never reuses its cache.** KEXP **7.31** against LFM2.5-2.6B **5.47 mean** and Qwen3.5-2B **~6.0** — the sparse 8B wins with a file 2-3x larger, because decode reads `MB/token` (848) and a dense 2B reads more (~1230-1600). §7.27's "needs a smaller model" retracted: it needs a smaller **byte budget**. Predictions written before the run and scored after: over-predicted both by up to 33 %, while the same method hit **8.1 predicted vs 8.06 measured** on the S23 — the byte budget holds where the machine is bandwidth-bound and fails where it is dequant-bound. Effective throughput on one phone spans **46 % by packing alone** (8.75 / 7.37 / 5.98 GB/s), so the §9 per-device scalar must be per quant family; caveat, the two dense MB/tok are file-size estimates and part of that spread may be estimation error. **New defect found: `qwen3.5-2b` and `qwen3.5-4b-q3` declare `thinking` without `preserveThinking`**, so the think block enters the KV and vanishes from history — divergence every turn from turn 2, which is what the 80-128 s prefill is. Inferred from the registry, not measured by toggling. All arms 4 turns, so none of these numbers can see the turn-11 collapse. |

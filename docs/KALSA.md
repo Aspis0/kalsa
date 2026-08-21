@@ -121,6 +121,13 @@ them into this table is how the two questions got confused.
 better than anything else: decode tok/s ≈ achievable bandwidth ÷ MB/token. It is **computed** from
 the tensor map, not measured. Everything else in the table is measured.
 
+⛔ **Every `MB/token` in this table is now from a tensor map. The three that were "estimated from
+the file" were all too LOW, not too high** (§7.31) — the opposite of the direction §7.28 assumed
+when it discounted its own throughput spread. On a dense model with tied embeddings the number is
+essentially the whole tensor set, because the tied `token_embd` is read in full as the output head
+every token: LFM2.5-2.6B is 1451 MB of blocks **plus 215 MB of tied head = 1666**. Only a sparse
+model separates the two, which is the whole of KEXP's 848.
+
 | model | quant | file | MB/tok (computed) | phone | load config | decode tok/s | resident |
 |---|---|---:|---:|---|---|---:|---|
 | LFM2.5-8B-A1B | Q4_K_M | 5.15 GB | ~1030 | S23 | **production (repack)** | **does not load** — gate refuses, 4650 MiB non-evictable vs 4030 available (§7.11) | — |
@@ -134,10 +141,10 @@ the tensor map, not measured. Everything else in the table is measured.
 | LFM2.5-8B-A1B-KEXP | same | 3.33 GB | ~848 | Jelly (G99) | CLI, `k=4` | 8.83 — **slower than Q4_K_M on this SoC** | — |
 | **LFM2.5-8B-A1B-KEXP** | same | 3.33 GB | ~848 | **Jelly (G99)** | **in-app, `norepack=1`, unplugged, 4 turns** | **7.31 · 7.14 · 6.95 · 6.80** — **1.6× faster than Q4_K_M in the app** (§7.27) | **100 %** (`RssFile` 3.42 GB), `io_read` frozen at 3 389 177 856 — **zero flash re-reads**, 2.37 GB headroom |
 | Qwen3.5-4B | Q4_K_M | 2.83 GB | ~2700 | S23 | production (repack) | **8.06** | `RssAnon` 3.77 GB, `MemAvailable` 930 MB, **961 majflt/token** |
-| LFM2.5-2.6B | Q4_K_M | 1.67 GB | ~1600 (est. from file) | Jelly (G99) | **in-app, production, unplugged, 4 turns** | **5.68 · 5.53 · 5.40 · 5.27** (§7.28) | `RssAnon` 1.95 GB (repack), `MemAvailable` 2.27 GB — prefill 190 s → **2.7-3.2 s, KV reused** |
-| Qwen3.5-2B | Q4_K_M | 1.28 GB | ~1230 (est. from file) | Jelly (G99) | **in-app, production, unplugged, 4 turns** | **6.61 · 5.73 · 4.94 · 6.70** (§7.28) | **prefill never drops: 80.7 · 101.3 · 127.7 · 85.2 s — KV never reused** |
-| Qwen3.5-2B | Q4_K_M | 1.28 GB | ~1230 | S23 | — | **~17.7 predicted, unmeasured** | S23 unavailable 2026-08-21 |
-| LFM2.5-VL-3B | Q4_K_M | 1.67 GB + 583 MB mmproj | 1674 (from the GGUF) | S23 | — | **13.0 predicted, unmeasured** | **tier-1 pick.** Language backbone *is* LFM2.5-2.6B, so the Jelly row above is its text behaviour |
+| LFM2.5-2.6B | Q4_K_M | 1.67 GB | **1666** (tensor map, §7.31) | Jelly (G99) | **in-app, production, unplugged, 4 turns** | **5.68 · 5.53 · 5.40 · 5.27** (§7.28) | `RssAnon` 1.95 GB (repack), `MemAvailable` 2.27 GB — prefill 190 s → **2.7-3.2 s, KV reused** |
+| Qwen3.5-2B | Q4_K_M | 1.28 GB | **1270** (tensor map, §7.31) | Jelly (G99) | **in-app, production, unplugged, 4 turns** | **6.61 · 5.73 · 4.94 · 6.70** (§7.28) | **prefill never drops: 80.7 · 101.3 · 127.7 · 85.2 s — KV never reused** |
+| Qwen3.5-2B | Q4_K_M | 1.28 GB | **1270** (tensor map) | S23 | — | **~17.2 predicted, unmeasured** | S23 unavailable 2026-08-21 |
+| LFM2.5-VL-3B | Q4_K_M | 1.67 GB + 583 MB mmproj | **1666** (its backbone's tensor map, §7.31) | S23 | — | **13.1 predicted, unmeasured** | **tier-1 pick.** Language backbone *is* LFM2.5-2.6B, so the Jelly row above is its text behaviour |
 
 **Quality and tools — properties of the model+quant, not of the phone:**
 
