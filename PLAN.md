@@ -26,10 +26,11 @@ path MoE "for now" per miscompilazioni mai capite: noi le abbiamo dissezionate
 (tre miscompile del compilatore Qualcomm, caratterizzati al bit), fixate e
 verificate al byte sul device — **i quant narrow MoE (q4_0/q4_1/q5_0/q5_1/mxfp4)
 passano ORA su Adreno 740, dove non erano mai passati**. Il giudice del test
-è riabilitato, la produzione è dimostrata immune. Prossimo capitolo: **K2**
-(q4_K/q5_K compute — l'altra metà della famiglia, tocca Mellum2), grok stasera.
-Questo è IL risultato pubblicabile del progetto kernel: upstream ha spento la
-GPU, noi l'abbiamo riaccesa con tre diff minimali.
+è riabilitato, la produzione è dimostrata immune. **E il 20/08 notte è caduto
+anche K2**: q4_K/q5_K MoE su MUL_MAT_ID — cioè i quant K standard del mondo
+reale (Q4_K_M compreso, tocca Mellum2) — da 0/84 a 84/84 sul device (tag
+kalsakernel-v3). Questo è IL risultato pubblicabile del progetto kernel:
+upstream ha spento la GPU, noi l'abbiamo riaccesa con quattro diff minimali.
 
 ## Il capitolo del fix Adreno (nome interno: "trans4"), chiuso 19–20/08
 
@@ -61,6 +62,32 @@ GPU, noi l'abbiamo riaccesa con tre diff minimali.
   defectP-fix2-verify, bmoe-smoke}/REPORT.md`; log grezzi con sha per-run in
   `results/oracle_consumer_s23/{run*, roundtrip, retrial, defectP*, bmoe_smoke}/`.
 
+## Il capitolo K2 (chiuso 20/08 notte, tag `kalsakernel-v3` = `c1bb48d32`)
+
+- **Difetto**: q4_K 0/80 + q5_K 0/4 su MUL_MAT_ID (GEMV e GEMM insieme), ERR
+  spazzatura 0.57–0.96; q6_K 3/3 passa sullo stesso path (differenziale reale,
+  verificato non-vacuo); il dense q4_K passa → solo il path MoE.
+- **Quarto SITO di miscompilazione E031** (causa radice distinta dalle tre
+  precedenti NON stabilita — wording vincolante dal MAX RECALL): le maschere
+  **letterali** in `get_scale_min_k4`. Nei kernel dense Qualcomm le passava già
+  come argomenti — il dodge era load-bearing e non l'hanno portato nei MoE.
+- **Fix**: maschere come kernel args nei 4 kernel moe q4_K/q5_K + guardia ILA
+  sul GEMM q4_K (il binario `_ila` ha la firma vecchia). Trasformazione
+  semanticamente identica → FAIL→PASS è prova di miscompile (H5 morta); il
+  trigger preciso (letterali vs forma ABI/programma) NON è isolato — dummy-arg
+  test opzionale in coda. Innocenza del mask-then-shift qui provata da
+  P1-da-solo (il null di P2 era non-diagnostico).
+- **Verifica**: MUL_MAT_ID **391/391 su tutti i tipi**, dense 915/925 invariato
+  (10 q6_K flat pre-esistenti → cherry-pick upstream #26476 candidato),
+  roundtrip 0. `-cl-opt-disable` NON compila su E031 (err -6, commento in-tree
+  corretto). SIGSEGV della suite piena = harness/OOM, PAD isolato passa
+  anche pre-fix (nota aperta, fuori perimetro).
+- MAX RECALL 3 angoli: forense CLEAN (gap E2/E3b chiuso coi summary estratti
+  on-device), commit-review BANK, epistemico sound-with-rewording (applicati).
+- Evidenza: `scratchpad/agents/k2-fix/REPORT.md`,
+  `results/oracle_consumer_s23/k2_phase1/` (MANIFEST con sha per-run);
+  bundle `backups/kalsakernel-v3.bundle`; outer commit `d265854e`.
+
 ## Fatti operativi correnti
 
 - **Lignaggio engine**: tutto su `kalsa/kernel-s3-repack` (head `55f43a574`),
@@ -80,13 +107,33 @@ GPU, noi l'abbiamo riaccesa con tre diff minimali.
 
 | # | Cosa | Chi/quando |
 |---|---|---|
-| 1 | **K2**: q4_K/q5_K MUL_MAT_ID compute (pre-esistente, confermato su unpatched; tocca Mellum2 Q4_K_M) | grok, stasera |
-| 2 | Eventuale supporto q2_K/q3_K MoE su GPU (per esperti KEXP) | dopo K2 |
-| 3 | Cosmetici cvt.cl: 2 commenti stantii (offset q4_0, "byte-wise stores") + port uniformità sui 6 macro consumer (debito, non difetto) | coder qualunque |
-| 4 | LANE_MOD: equidistribution check prima di riusare il classifier | prima di sessione-2 classifier |
-| 5 | Celle cache S23 + assoluti lineup (serve UNPLUGGED) | sessione device dedicata |
-| 6 | Gap ~70% kernel_kf vs lineup binary | da investigare |
-| 7 | **Pubblicazione del fix trans4** (dossier completo: 3 miscompile caratterizzati al bit, riproduzione byte-esatta) | decisione owner |
+| ~~1~~ | ~~**K2**: q4_K/q5_K MUL_MAT_ID compute~~ → **CHIUSO 20/08 notte** (kalsakernel-v3, vedi capitolo sopra) | fatto |
+| 2 | Eventuale supporto q2_K/q3_K MoE su GPU (per esperti KEXP — oggi fallback CPU by design); ora più abbordabile con la lezione maschere | da decidere |
+| 3 | Cherry-pick upstream **#26476** (q6_K flat dense scalare + `ADRENO_OLD_COMPILER`): chiude i 10 dense FAIL noti | coder qualunque |
+| 4 | Cosmetici cvt.cl: 2 commenti stantii (offset q4_0, "byte-wise stores") + port uniformità sui 6 macro consumer (debito, non difetto) | coder qualunque |
+| 5 | LANE_MOD: equidistribution check prima di riusare il classifier | prima di sessione-2 classifier |
+| 6 | Celle cache S23 + assoluti lineup (serve UNPLUGGED) | sessione device dedicata |
+| 7 | Gap ~70% kernel_kf vs lineup binary | da investigare |
+| 8 | **Pubblicazione del fix Adreno** (dossier: 3 miscompile trans4 caratterizzati al bit + 4° sito K2 con workaround device-verified; gate A6X/A7X ancora attivo upstream a master, verificato 20/08) | decisione owner |
+| 9 | Opzionali bassa priorità: dummy-arg attribution test (isola il trigger C1); triage SIGSEGV harness full-suite | quando capita |
+
+## Audit upstream 20/08 (websearch, base 22b69b6e9 → master 749f688fc, 583 commit)
+
+- **Il gate A6X/A7X è ANCORA attivo a master** e i nostri 3 miscompile restano
+  NON fixati upstream; anche K2 (q4_K/q5_K MUL_MAT_ID) è intatto (kernel con
+  maschere letterali e mask-then-shift ancora a master). **Il dossier resta
+  inedito e pubblicabile — e K2, se lo chiudiamo, si aggiunge al dossier.**
+- Qualcomm converge a pezzetti sulla NOSTRA medicina senza la diagnosi generale:
+  #25780 (q4_K/q5_K flat dense: load uint invece di ushort, workaround A7X),
+  **#26476 (merged 20/08: q6_K flat dense MUL_MAT sbagliato su 642L/740/E031,
+  fixato con dequant SCALARE + flag `ADRENO_OLD_COMPILER`)** — che è
+  esattamente il difetto dei nostri 10 dense q6_K flat FAIL del retrial
+  (fuori perimetro K2): fix candidato da cherry-pick. #26436/#26440 (open):
+  stessa famiglia compiler, un-programma-per-kernel su 642L e q4_K lm-head→CPU.
+- Bump submodule: 583 commit, GGUF invariato (v3), ma breaking su llama.h
+  (`use_mmap`→`llama_load_mode` tocca il seam BMoE, sampler API). Vale per
+  modelli nuovi/backend, NON supersede nulla di nostro. Non urgente; se si fa,
+  OpenCL va mergiato selettivamente.
 
 ## Correzioni a verbale (dal MAX RECALL)
 

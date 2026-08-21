@@ -20,8 +20,22 @@ not fidelity, while roundtrip/raw-readback zeros prove fidelity. Production is
 immune: zero trans4 dispatches and byte-identical 64-token output against the
 all-broken `.so`. The Adreno medicine is scalar-uint end-to-end dataflow, never
 byte/short lanes; expression-form changes do nothing. KEXP uses Q2_K+Q3_K experts
-and Q5_K/Q6_K trunk, so production was never exposed. Next: **K2**, q4_K/q5_K
-`MUL_MAT_ID` compute, affecting Mellum2 Q4_K_M.
+and Q5_K/Q6_K trunk, so production was never exposed.
+
+**K2 closed (2026-08-20 night, tag `kalsakernel-v3` = `c1bb48d32`):** q4_K/q5_K
+MoE `MUL_MAT_ID` (0/80 + 0/4, garbage ERR 0.57–0.96, both GEMV and GEMM) is the
+**fourth miscompile site** of the same E031 compiler: the literal byte masks in
+`get_scale_min_k4` — Qualcomm's own dense kernels already pass those masks as
+arguments (the dodge was load-bearing) but the MoE kernels kept literals. Fix:
+masks as kernel args + ILA guard on the q4_K GEMM (the prebuilt binary keeps the
+old signature). Proof: semantically identical transform flips FAIL→PASS
+(80/80 + 4/4; whether the trigger is the literals per se or the ABI/program-shape
+change is not isolated). Final: MUL_MAT_ID **391/391 across all types**, dense
+unchanged (10 pre-existing q6_K flat fails; upstream #26476 is a cherry-pick
+candidate), roundtrip zero. Beneficiaries: Mellum2 (Q4_K_M) and every standard
+Q4_K/Q5_K MoE gguf on Adreno; KEXP experts (q2_K/q3_K) still CPU-fallback by
+design. Upstream master (checked 2026-08-20): A6X/A7X gate still active, none of
+our four fixes superseded.
 
 ---
 
@@ -180,8 +194,9 @@ Screen state changes Xiaomi CalaQwen from 0.22 to 0.50 s/tok. KEXP on G99 is
 
 | # | item | state / blocked on |
 |---|---|---|
-| 1 | **K2: q4_K/q5_K `MUL_MAT_ID` compute** | pre-existing, confirmed on unpatched; touches Mellum2 Q4_K_M; grok, tonight |
-| 2 | q2_K/q3_K MoE on GPU | after K2; KEXP experts |
+| ~~1~~ | ~~K2: q4_K/q5_K `MUL_MAT_ID` compute~~ | **CLOSED 2026-08-20** (kalsakernel-v3, see headline) |
+| 2 | q2_K/q3_K MoE on GPU | KEXP experts; more tractable after the masks lesson |
+| 2b | Cherry-pick upstream #26476 (q6_K flat dense scalar) | closes the 10 known dense fails |
 | 3 | cvt.cl cosmetics | 2 stale comments plus uniformity on 6 macro consumers; debt, not defect |
 | 4 | LANE_MOD | equidistribution check before reusing classifier; before session-2 classifier |
 | 5 | S23 cache cells + absolute lineup | dedicated unplugged device session |
@@ -198,7 +213,7 @@ Screen state changes Xiaomi CalaQwen from 0.22 to 0.50 s/tok. KEXP on G99 is
 
 **Adreno MoE OpenCL kernels: CLOSED 19–20/08.** Three Qualcomm compiler
 miscompiles were fixed; q4_0/q4_1/q5_0/q5_1/mxfp4 pass on Adreno 740. The judge
-is repaired, production is immune, and K2 is the remaining q4_K/q5_K chapter.
+is repaired, production is immune, and K2 (q4_K/q5_K) closed on 2026-08-20.
 
 Outside the recipe and TTFT, nothing new has shipped into the app. The largest
 unshipped configuration result remains **2.6×** on Marco1c and **−32 %** on
