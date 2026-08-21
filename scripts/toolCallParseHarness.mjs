@@ -271,6 +271,42 @@ async function main() {
       JSON.stringify(calls),
     );
   }
+  // 6d2: Python literals. LFM2.5 emits a PYTHONIC call, so it writes True /
+  // False / None — not the JSON true / false / null. Until 2026-08-21 only the
+  // JSON pair was accepted, so `safe=True` reached the tool as the STRING
+  // "True": a boolean parameter either rejects it or reads it as truthy.
+  {
+    const RAW = `${LFM_TOOL_CALL_START}[web_search(query="x", safe=True, deep=False, page=None)]${LFM_TOOL_CALL_END}`;
+    const calls = parseFallbackToolCalls(RAW);
+    const a = calls[0]?.arguments ?? {};
+    check(
+      "F6d2 LFM2.5: Python True/False/None become JSON booleans and null",
+      calls.length === 1 &&
+        a.safe === true && a.deep === false && a.page === null,
+      JSON.stringify(calls),
+    );
+  }
+  // 6d3: the JSON-style literals a finetune may emit must keep working
+  {
+    const RAW = `${LFM_TOOL_CALL_START}[web_search(safe=true, deep=false, page=null)]${LFM_TOOL_CALL_END}`;
+    const calls = parseFallbackToolCalls(RAW);
+    const a = calls[0]?.arguments ?? {};
+    check(
+      "F6d3 LFM2.5: lowercase JSON literals still parse",
+      calls.length === 1 && a.safe === true && a.deep === false && a.page === null,
+      JSON.stringify(calls),
+    );
+  }
+  // 6d4: a quoted "True" is text the user typed, not a boolean — must stay a string
+  {
+    const RAW = `${LFM_TOOL_CALL_START}[web_search(query="True")]${LFM_TOOL_CALL_END}`;
+    const calls = parseFallbackToolCalls(RAW);
+    check(
+      "F6d4 LFM2.5: quoted True stays the string \"True\"",
+      calls.length === 1 && calls[0].arguments.query === "True",
+      JSON.stringify(calls),
+    );
+  }
   // 6e: JSON object value (complex type — format_arg_value JSON-serialises it)
   {
     const RAW = `${LFM_TOOL_CALL_START}[foo(opts={"k": [1,2]})]${LFM_TOOL_CALL_END}`;

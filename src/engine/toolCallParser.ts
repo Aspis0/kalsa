@@ -219,8 +219,13 @@ function parseArgValue(s: string): unknown {
       return ch;
     });
   }
-  if (s === "true") return true;
-  if (s === "false") return false;
+  // Both capitalisations on purpose. LFM2.5 emits a **Pythonic** call, so the
+  // literals it writes are `True` / `False` / `None`; a finetune emitting the
+  // JSON form writes `true` / `false` / `null`. Accepting only the JSON pair
+  // left `safe=True` arriving at the tool as the STRING "True", which a boolean
+  // parameter then rejects or, worse, reads as truthy-non-empty.
+  if (s === "true" || s === "True") return true;
+  if (s === "false" || s === "False") return false;
   if (s === "None" || s === "null") return null;
   // Number: integer, float, scientific notation.
   if (/^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(s)) {
