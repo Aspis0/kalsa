@@ -78,12 +78,12 @@ import { buildSystemPrompt } from "./memoryPrompt";
 import {
   computeHistoryHashFromMessages,
   computePromptEnvHash,
-  deleteOtherModelSessions,
   deleteSessionArtifacts,
   ensureSessionsDir,
   estimateSessionBytes,
   getSessionConversationId,
   hasEnoughDiskForSession,
+  promoteSessionBak,
   readBootMessages,
   readSessionMeta,
   sessionFileExists,
@@ -94,6 +94,16 @@ import {
   writeSessionMeta,
   type SessionMeta,
 } from "./sessionPersistence";
+import { legacySessionStem, sessionStem } from "./sessionKey";
+import {
+  deleteLegacyModelSession,
+  deleteSessionsForConversation,
+  deleteSessionsForModelConversation,
+  discardStaleConversationSessions,
+  evictSessionPool,
+  readSessionPoolBudgetBytes,
+  touchSessionUse,
+} from "./sessionPool";
 import {
   INITIAL_KV_REPRO_STATE,
   nextKvReproState,
@@ -157,10 +167,22 @@ let kvHoldsChatSession = false;
 let kvReproState: KvReproState = { ...INITIAL_KV_REPRO_STATE };
 /**
  * promptEnvHash of the system-prompt inputs that produced the current chat KV
- * (locale + memoryFacts + hasTools). Set on streamAssistantTurn / successful load.
- * Written into session meta on save so restore can reject wasted cold-prefills.
+ * (locale + memoryFacts + hasTools). Set at init from sessionRestore, on
+ * streamAssistantTurn, and on successful load. Also the third part of the
+ * on-disk session stem.
  */
 let lastPromptEnvHash: string | undefined;
+
+function activeSessionStem(
+  modelId: string,
+  conversationId?: string,
+  promptEnvHash?: string,
+): string | null {
+  const conv = conversationId ?? getSessionConversationId();
+  const env = promptEnvHash ?? lastPromptEnvHash;
+  if (!conv || !env) return null;
+  return sessionStem(modelId, conv, env);
+}
 
 /**
  * True while disposeEngineLocked is unwinding a context. streamAssistantTurn's
@@ -942,6 +964,10 @@ export function initEngine(
 
     // Restore native KV when meta matches (cold prefill kill after app restart).
     // Runs before multimodal: KV belongs to the LLM context, not the projector.
+    // Keep lastPromptEnvHash even on a miss so a later save/switch can form the stem.
+    if (options.sessionRestore?.promptEnvHash) {
+      lastPromptEnvHash = options.sessionRestore.promptEnvHash;
+    }
     if (options.sessionRestore?.historyHash) {
       await tryLoadEngineSession(modelId, {
         historyHash: options.sessionRestore.historyHash,
@@ -1185,6 +1211,11 @@ export async function saveEngineSession(
   historyHashValue: string,
   historyMessageCount?: number,
 ): Promise<boolean> {
+  // Capture identity NOW: the FIFO serializes work but not conversation id.
+  // bindActiveConversation can run while this job is queued; resolving the
+  // stem inside the job would write chat A's KV under chat B's filename.
+  const conversationId = getSessionConversationId();
+  const promptEnvHash = lastPromptEnvHash;
   // FIX 4: lifecycle lock for the full save (disk I/O + native saveSession) so
   // a concurrent dispose/model-switch cannot null active* fields or release the
   // context mid-save. Outer lifecycle, inner engine-job (never reverse — that
@@ -1208,8 +1239,7 @@ export async function saveEngineSession(
         // telemetry must never throw
       }
     };
-    const path = sessionFilePath(modelId);
-    const tmpPath = `${path}.tmp`;
+    let tmpPath = "";
     try {
       // Sync gates only — early return BEFORE any tmp/backup manipulation so a
       // skipped save (e.g. kv_not_reproducible after a tool turn) leaves the
@@ -1230,10 +1260,17 @@ export async function saveEngineSession(
         log(false, { reason: "no_context" });
         return false;
       }
+      const stem = activeSessionStem(modelId, conversationId, promptEnvHash);
+      if (!stem) {
+        log(false, { reason: "no_session_key" });
+        return false;
+      }
       if (!(await hasEnoughDiskForSession(activeEngineCtx))) {
         log(false, { reason: "disk" });
         return false;
       }
+      const path = sessionFilePath(stem);
+      tmpPath = `${path}.tmp`;
       await ensureSessionsDir();
       // Drop any stale tmp from a previous interrupted save.
       try {
@@ -1279,11 +1316,6 @@ export async function saveEngineSession(
         }
         throw moveError;
       }
-      try {
-        await FileSystem.deleteAsync(bakPath, { idempotent: true });
-      } catch {
-        // ignore
-      }
       const meta: SessionMeta = {
         formatVersion: 1,
         nCtx: activeEngineCtx,
@@ -1300,18 +1332,38 @@ export async function saveEngineSession(
       ) {
         meta.historyMessageCount = historyMessageCount;
       }
-      if (lastPromptEnvHash !== undefined) meta.promptEnvHash = lastPromptEnvHash;
+      if (promptEnvHash !== undefined) meta.promptEnvHash = promptEnvHash;
       if (activeMtpNMax !== undefined) meta.mtpNMax = activeMtpNMax;
       if (activeSpecType !== undefined) meta.specType = activeSpecType;
       if (activeEngineKnob !== undefined) meta.engineKnob = activeEngineKnob;
-      const conversationId = getSessionConversationId();
       if (conversationId) meta.conversationId = conversationId;
-      // Meta after rename so a kill between file and meta keeps the previous
-      // meta (hash mismatch → cold) or pairs old meta with complete new file
-      // when history is unchanged (valid restore).
-      await writeSessionMeta(modelId, meta);
-      // Only after a successful write: drop other models' sessions (keep current).
-      await deleteOtherModelSessions(modelId);
+      // Meta after rename, before dropping .bak: a failed meta write must not
+      // report success, and the .kvs without meta must not stay (F4).
+      if (!(await writeSessionMeta(stem, meta))) {
+        try {
+          await FileSystem.deleteAsync(path, { idempotent: true });
+        } catch {
+          // ignore
+        }
+        if (hadPrevious) {
+          try {
+            await FileSystem.moveAsync({ from: bakPath, to: path });
+          } catch {
+            // ignore — worst case cold start
+          }
+        }
+        log(false, { reason: "meta_write" });
+        return false;
+      }
+      try {
+        await FileSystem.deleteAsync(bakPath, { idempotent: true });
+      } catch {
+        // ignore
+      }
+      await touchSessionUse(stem);
+      const budgetBytes = await readSessionPoolBudgetBytes();
+      await evictSessionPool(stem, budgetBytes);
+      await deleteLegacyModelSession(modelId);
       log(true, {
         tokens: typeof tokens === "number" ? tokens : 0,
         hash: historyHashValue,
@@ -1323,10 +1375,12 @@ export async function saveEngineSession(
     } catch (error) {
       console.warn("[saveEngineSession]", error);
       // Failed save: delete ONLY the tmp. Leave previous .kvs + meta intact.
-      try {
-        await FileSystem.deleteAsync(tmpPath, { idempotent: true });
-      } catch {
-        // ignore
+      if (tmpPath) {
+        try {
+          await FileSystem.deleteAsync(tmpPath, { idempotent: true });
+        } catch {
+          // ignore
+        }
       }
       log(false, { reason: sessionErrorReason(error) });
       return false;
@@ -1336,8 +1390,8 @@ export async function saveEngineSession(
 }
 
 /**
- * Attempt to restore native KV after initLlama. Called only from initEngine
- * (lifecycle lock held; no concurrent completion). Never throws.
+ * Attempt to restore native KV. Called from initEngine (lock held) and from
+ * restoreEngineSession on conversation switch. Never throws.
  */
 async function tryLoadEngineSession(
   modelId: string,
@@ -1363,18 +1417,59 @@ async function tryLoadEngineSession(
       // telemetry must never throw
     }
   };
+  let loadStem: string | null = null;
   try {
     if (!context) {
       log(false, { reason: "no_context" });
       return false;
     }
-    const stored = await readSessionMeta(modelId);
+    const convId = expected.conversationId ?? getSessionConversationId();
+    const envHash = expected.promptEnvHash ?? lastPromptEnvHash;
+    const stem = convId && envHash ? sessionStem(modelId, convId, envHash) : null;
+    if (!stem) {
+      log(false, { reason: "no_session_key" });
+      return false;
+    }
+    const staleDropped = convId
+      ? await discardStaleConversationSessions(modelId, convId, envHash ?? "")
+      : 0;
+    loadStem = stem;
+    if (!(await sessionFileExists(stem))) {
+      const recovered = await promoteSessionBak(stem);
+      if (!recovered) {
+        const orphanMeta = await readSessionMeta(stem);
+        if (orphanMeta) await deleteSessionArtifacts(stem);
+        if (staleDropped > 0) {
+          log(false, { reason: "meta_mismatch:promptEnvHash" });
+          return false;
+        }
+        const legacy = legacySessionStem(modelId);
+        const legacyFile = legacy ? await sessionFileExists(legacy) : false;
+        const legacyMeta = legacyFile && legacy ? await readSessionMeta(legacy) : null;
+        const expectedConv =
+          typeof convId === "string" && convId.length > 0 ? convId : "";
+        const legacyConv =
+          legacyMeta &&
+          typeof legacyMeta.conversationId === "string" &&
+          legacyMeta.conversationId.length > 0
+            ? legacyMeta.conversationId
+            : "";
+        // Wrong-conversation legacy must stay on disk — deleting it would drop
+        // the only pre-pool restore point when switching chats after upgrade.
+        if (!legacy || !legacyFile || !legacyMeta || legacyConv !== expectedConv) {
+          log(false, { reason: "no_file" });
+          return false;
+        }
+        loadStem = legacy;
+      }
+    }
+    const stored = await readSessionMeta(loadStem);
     if (!stored) {
       log(false, { reason: "no_meta" });
       return false;
     }
-    if (!(await sessionFileExists(modelId))) {
-      await deleteSessionArtifacts(modelId);
+    if (!(await sessionFileExists(loadStem))) {
+      await deleteSessionArtifacts(loadStem);
       log(false, { reason: "no_file" });
       return false;
     }
@@ -1401,7 +1496,7 @@ async function tryLoadEngineSession(
     if (expected.conversationId) expectedMeta.conversationId = expected.conversationId;
     const mismatchField = sessionMetaMismatchField(storedForConfig, expectedMeta);
     if (mismatchField !== null) {
-      await deleteSessionArtifacts(modelId);
+      await deleteSessionArtifacts(loadStem);
       // Field name only (enum-like) — attributable cold starts: promptEnvHash =
       // memory facts / locale changed (semantically correct cold); nCtx/KV = config.
       log(false, {
@@ -1414,7 +1509,7 @@ async function tryLoadEngineSession(
     const bootMessages = await readBootMessages();
     const historyCheck = sessionHistoryPrefixAccepts(stored, bootMessages);
     if (!historyCheck.accept) {
-      await deleteSessionArtifacts(modelId);
+      await deleteSessionArtifacts(loadStem);
       const bootHash = computeHistoryHashFromMessages(bootMessages);
       log(false, {
         reason: `meta_mismatch:${historyCheck.reason}`,
@@ -1434,46 +1529,94 @@ async function tryLoadEngineSession(
       bootMessages.slice(0, Math.max(0, prefixCount)),
     );
     if (!reproCheck.accept) {
-      await deleteSessionArtifacts(modelId);
+      await deleteSessionArtifacts(loadStem);
       log(false, { reason: `meta_mismatch:${reproCheck.reason}` });
       return false;
     }
-    const result = await context.loadSession(sessionFilePath(modelId));
+    // llama.rn 0.12.8: loadSession strips file://; saveSession does not.
+    // Pass the URI form here — do not strip.
+    const result = await context.loadSession(sessionFilePath(loadStem));
     kvHoldsChatSession = true;
     // Keep lastPromptEnvHash aligned with the restored KV for a later save.
     lastPromptEnvHash =
       stored.promptEnvHash ?? expected.promptEnvHash ?? lastPromptEnvHash;
+    await touchSessionUse(stem);
+    if (loadStem !== stem) await touchSessionUse(loadStem);
     log(true, {
       tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,
     });
     return true;
   } catch (error) {
     console.warn("[tryLoadEngineSession]", error);
-    await deleteSessionArtifacts(modelId);
+    if (loadStem) await deleteSessionArtifacts(loadStem);
     log(false, { reason: sessionErrorReason(error) });
     return false;
   }
 }
 
 /**
- * Drop on-disk KV + meta for a model (clearChat / model switch).
+ * Drop on-disk KV for this model + the active conversation (all env-hash
+ * variants + legacy per-model file). clearChat / empty-chat background.
  * Serialized on the engine job chain so a queued save cannot resurrect
  * the file after invalidation. Never throws.
  */
 export async function invalidateEngineSession(modelId: string): Promise<void> {
   if (!modelId) return;
+  const conv = getSessionConversationId();
   return withEngineJob(async () => {
     try {
-      // Also mark in-memory KV ineligible if this is the active model
-      // (clearChat leaves the engine up; a later background must not save).
       if (activeModelId === modelId) {
         kvHoldsChatSession = false;
       }
-      await deleteSessionArtifacts(modelId);
+      if (conv) {
+        await deleteSessionsForModelConversation(modelId, conv);
+      } else {
+        await deleteLegacyModelSession(modelId);
+      }
     } catch {
       // never throw
     }
   });
+}
+
+/** Drop every pooled session for a conversation (any model / env hash). */
+export async function invalidateConversationSessions(
+  conversationId: string,
+): Promise<void> {
+  if (!conversationId) return;
+  const wasActive = getSessionConversationId() === conversationId;
+  return withEngineJob(async () => {
+    try {
+      if (wasActive) kvHoldsChatSession = false;
+      await deleteSessionsForConversation(conversationId);
+    } catch {
+      // never throw
+    }
+  });
+}
+
+/**
+ * Load the active conversation's session into a live engine (chat switch).
+ * Same gates as init restore. Never throws.
+ */
+export async function restoreEngineSession(modelId: string): Promise<boolean> {
+  if (!modelId) return false;
+  return withLifecycleLock(() =>
+    withEngineJob(async () => {
+      if (!context || activeModelId !== modelId) return false;
+      return tryLoadEngineSession(modelId, {
+        historyHash: "",
+        promptEnvHash: lastPromptEnvHash,
+        nCtx: activeEngineCtx,
+        cacheTypeK: activeCacheTypeK ?? "",
+        cacheTypeV: activeCacheTypeV ?? "",
+        mtpNMax: activeMtpNMax,
+        specType: activeSpecType,
+        engineKnob: activeEngineKnob,
+        conversationId: getSessionConversationId(),
+      });
+    }),
+  );
 }
 
 function parseToolArguments(raw: string | undefined): {
@@ -1744,7 +1887,14 @@ export async function streamAssistantTurn(
     );
     // Capture prompt-env hash from the same inputs buildSystemPrompt uses so a
     // later saveEngineSession can reject restores whose system prompt drifted.
-    lastPromptEnvHash = computePromptEnvHash(locale, options.memoryFacts, hasTools);
+    const toolNames = (options?.tools ?? []).map((t) => t.function.name);
+    lastPromptEnvHash = computePromptEnvHash(
+      locale,
+      options.memoryFacts,
+      hasTools,
+      toolNames,
+      blockFormat,
+    );
 
     let currentMessages: ToolChatMessage[] = applyOperativeBlockFormat(
       { role: "system", content: buildSystemPrompt(locale, hasTools, options.memoryFacts) },

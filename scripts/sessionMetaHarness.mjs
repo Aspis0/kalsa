@@ -278,10 +278,13 @@ async function main() {
     );
   });
 
-  // promptEnvHash — system-prompt env gate (locale + memoryFacts + hasTools)
+  // promptEnvHash — system-prompt env gate. Covers locale + memoryFacts +
+  // hasTools + the tool NAMES and blockFormat: hasTools alone was a boolean, so
+  // turning Web off changed the tool array without changing the hash and the
+  // same .kvs was reused under a different system prompt (audit F6, 2026-08-21).
   test("computePromptEnvHash stable + djb2 shape", () => {
-    const a = computePromptEnvHash("en", ["fact a"], true);
-    const b = computePromptEnvHash("en", ["fact a"], true);
+    const a = computePromptEnvHash("en", ["fact a"], true, ["web_search"], "md");
+    const b = computePromptEnvHash("en", ["fact a"], true, ["web_search"], "md");
     assert(a === b, "stable");
     assert(typeof a === "string" && a.length > 0, "non-empty");
     const expected = historyHash(
@@ -289,9 +292,27 @@ async function main() {
         locale: "en",
         memoryFactsJoined: "fact a",
         hasTools: true,
+        tools: ["web_search"],
+        blockFormat: "md",
       }),
     );
     assert(a === expected, "equals historyHash of canonical JSON");
+  });
+
+  test("computePromptEnvHash sensitive to tool set and blockFormat", () => {
+    const base = computePromptEnvHash("en", ["f"], true, ["web_search"], "md");
+    assert(
+      base !== computePromptEnvHash("en", ["f"], true, ["web_search", "web_fetch"], "md"),
+      "tool set change must change the hash (the Web toggle case)",
+    );
+    assert(
+      base !== computePromptEnvHash("en", ["f"], true, ["web_search"], "xml"),
+      "blockFormat",
+    );
+    assert(
+      base === computePromptEnvHash("en", ["f"], true, ["web_search", "web_search"], "md"),
+      "duplicate tool names are collapsed",
+    );
   });
 
   test("computePromptEnvHash sensitive to locale / facts / hasTools", () => {

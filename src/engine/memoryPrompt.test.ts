@@ -101,6 +101,22 @@ describe("computePromptEnvHash", () => {
       computePromptEnvHash("it", [], true),
     );
 
+    // Tool *set* is hashed (sorted): Web on vs off is not the same stem when
+    // document_chat keeps hasTools true. Order of names must not matter.
+    expect(
+      computePromptEnvHash("en", [], true, ["document_chat", "web_search"]),
+    ).toBe(
+      computePromptEnvHash("en", [], true, ["web_search", "document_chat"]),
+    );
+    expect(
+      computePromptEnvHash("en", [], true, ["document_chat"]),
+    ).not.toBe(
+      computePromptEnvHash("en", [], true, ["document_chat", "web_search"]),
+    );
+    expect(computePromptEnvHash("en", [], true, [], "none")).not.toBe(
+      computePromptEnvHash("en", [], true, [], "user-note"),
+    );
+
     // Sanity: system prompt itself switches on hasTools (hash tracks that).
     expect(buildSystemPrompt("en", true)).not.toBe(buildSystemPrompt("en", false));
     expect(buildSystemPrompt("en", true)).toBe(getStrings("en").systemPromptWithSearch);

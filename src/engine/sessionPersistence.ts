@@ -1,7 +1,8 @@
 /**
  * Native KV session persistence (llama.rn saveSession / loadSession).
  *
- * Per-model `.kvs` file under documents/sessions/ + AsyncStorage meta that
+ * Pool files live under documents/sessions/ keyed by sessionStem
+ * (model + conversation + prompt-env hash) + AsyncStorage meta that
  * validates history/cache/spec before restore. Pure helpers (hash, meta match)
  * have no RN side effects so the harness can exercise them offline.
  */
@@ -53,24 +54,24 @@ export function sanitizeModelId(modelId: string): string {
   return modelId.replace(/[/\\]/g, "_").replace(/\.\./g, "_");
 }
 
-/** AsyncStorage key for session meta of a model (sanitized id, same as file name). */
-export function sessionMetaKey(modelId: string): string {
-  return `kalsa.session.meta.${sanitizeModelId(modelId)}`;
+/** AsyncStorage key for session meta of a stem (sanitized, same as file stem). */
+export function sessionMetaKey(stem: string): string {
+  return `kalsa.session.meta.${sanitizeModelId(stem)}`;
 }
 
-/** Pure path join: `${baseDir}sessions/${modelId}.kvs` (baseDir should end with /). */
-export function sessionFilePathForBase(baseDir: string, modelId: string): string {
+/** Pure path join: `${baseDir}sessions/${stem}.kvs` (baseDir should end with /). */
+export function sessionFilePathForBase(baseDir: string, stem: string): string {
   const base = baseDir || "";
   const root = base.endsWith("/") || base === "" ? base : `${base}/`;
-  return `${root}sessions/${sanitizeModelId(modelId)}.kvs`;
+  return `${root}sessions/${sanitizeModelId(stem)}.kvs`;
 }
 
 /**
  * Session file path under app documents dir.
  * Reuses ModelDownloader base: FileSystem.documentDirectory.
  */
-export function sessionFilePath(modelId: string): string {
-  return sessionFilePathForBase(FileSystem.documentDirectory ?? "", modelId);
+export function sessionFilePath(stem: string): string {
+  return sessionFilePathForBase(FileSystem.documentDirectory ?? "", stem);
 }
 
 /**
@@ -236,22 +237,28 @@ export function setSessionConversationId(id: string | undefined): void {
 
 /**
  * Hash of system-prompt env inputs that are not covered by historyHash.
- * Covers locale, memory facts (joined), and whether tools are wired into
- * buildSystemPrompt (systemPrompt vs systemPromptWithSearch). Uses the same
- * djb2 as historyHash. Changing the hashed shape invalidates older saved
- * sessions (one cold prefill).
+ * Covers locale, memory facts (joined), whether tools are wired into
+ * buildSystemPrompt, the sorted tool-name set, and blockFormat.
+ * Changing the hashed shape invalidates older saved sessions (one cold prefill).
  */
 export function computePromptEnvHash(
   locale: string,
   memoryFacts: string[] | undefined | null,
   hasTools: boolean,
+  toolNames?: readonly string[] | null,
+  blockFormat?: string | null,
 ): string {
   const memoryFactsJoined = Array.isArray(memoryFacts) ? memoryFacts.join("\n") : "";
+  const tools = Array.isArray(toolNames)
+    ? [...new Set(toolNames.filter((n) => typeof n === "string" && n.length > 0))].sort()
+    : [];
   return historyHash(
     JSON.stringify({
       locale,
       memoryFactsJoined,
       hasTools,
+      tools,
+      blockFormat: typeof blockFormat === "string" ? blockFormat : "",
     }),
   );
 }
@@ -297,7 +304,7 @@ export function sessionMetaMismatchField(a: SessionMeta, b: SessionMeta): string
 
 // ── Impure I/O (expo / AsyncStorage) ────────────────────────────────────────
 
-function sessionsDir(): string {
+export function sessionsDirectory(): string {
   const base = FileSystem.documentDirectory ?? "";
   const root = base.endsWith("/") || base === "" ? base : `${base}/`;
   return `${root}sessions/`;
@@ -306,7 +313,7 @@ function sessionsDir(): string {
 /** Ensure documents/sessions/ exists. Best-effort; never throws. */
 export async function ensureSessionsDir(): Promise<void> {
   try {
-    const dir = sessionsDir();
+    const dir = sessionsDirectory();
     if (!dir) return;
     await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
   } catch {
@@ -363,9 +370,9 @@ export async function hasEnoughDiskForSession(nCtx: number): Promise<boolean> {
 }
 
 /** Read + parse session meta; null if missing/invalid. Never throws. */
-export async function readSessionMeta(modelId: string): Promise<SessionMeta | null> {
+export async function readSessionMeta(stem: string): Promise<SessionMeta | null> {
   try {
-    const raw = await AsyncStorage.getItem(sessionMetaKey(modelId));
+    const raw = await AsyncStorage.getItem(sessionMetaKey(stem));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SessionMeta>;
     if (
@@ -408,12 +415,13 @@ export async function readSessionMeta(modelId: string): Promise<SessionMeta | nu
   }
 }
 
-/** Write session meta. Never throws (swallows). */
-export async function writeSessionMeta(modelId: string, meta: SessionMeta): Promise<void> {
+/** Write session meta. Returns false when setItem throws (never throws). */
+export async function writeSessionMeta(stem: string, meta: SessionMeta): Promise<boolean> {
   try {
-    await AsyncStorage.setItem(sessionMetaKey(modelId), JSON.stringify(meta));
+    await AsyncStorage.setItem(sessionMetaKey(stem), JSON.stringify(meta));
+    return true;
   } catch {
-    // best-effort
+    return false;
   }
 }
 
@@ -421,9 +429,9 @@ export async function writeSessionMeta(modelId: string, meta: SessionMeta): Prom
  * Delete .kvs file + llama.rn `.kvs.meta` sidecar + any `.kvs.tmp` partial
  * + AsyncStorage meta. Idempotent, never throws.
  */
-export async function deleteSessionArtifacts(modelId: string): Promise<void> {
-  if (!modelId) return;
-  const path = sessionFilePath(modelId);
+export async function deleteSessionArtifacts(stem: string): Promise<void> {
+  if (!stem) return;
+  const path = sessionFilePath(stem);
   for (const p of [path, `${path}.meta`, `${path}.tmp`, `${path}.bak`]) {
     try {
       await FileSystem.deleteAsync(p, { idempotent: true });
@@ -432,68 +440,38 @@ export async function deleteSessionArtifacts(modelId: string): Promise<void> {
     }
   }
   try {
-    await AsyncStorage.removeItem(sessionMetaKey(modelId));
+    await AsyncStorage.removeItem(sessionMetaKey(stem));
   } catch {
     // ignore
   }
 }
 
-/**
- * List sessions/ and delete files not matching keepModelId.
- * Also remove their meta keys and sidecars (best-effort).
- */
-export async function deleteOtherModelSessions(keepModelId: string): Promise<void> {
+/** True if the .kvs file exists on disk. Never throws. */
+export async function sessionFileExists(stem: string): Promise<boolean> {
   try {
-    const dir = sessionsDir();
-    if (!dir) return;
-    const info = await FileSystem.getInfoAsync(dir);
-    if (!info.exists) return;
-    const names = await FileSystem.readDirectoryAsync(dir);
-    const keepStem = sanitizeModelId(keepModelId);
-    const keepName = `${keepStem}.kvs`;
-    for (const name of names) {
-      // Keep current model's .kvs / .kvs.meta / .kvs.tmp / .kvs.bak
-      if (
-        name === keepName ||
-        name === `${keepName}.meta` ||
-        name === `${keepName}.tmp` ||
-        name === `${keepName}.bak`
-      ) {
-        continue;
-      }
-      if (
-        !name.endsWith(".kvs") &&
-        !name.endsWith(".kvs.meta") &&
-        !name.endsWith(".kvs.tmp") &&
-        !name.endsWith(".kvs.bak")
-      ) {
-        continue;
-      }
-      try {
-        await FileSystem.deleteAsync(`${dir}${name}`, { idempotent: true });
-      } catch {
-        // ignore
-      }
-      // Strip AsyncStorage meta for foreign .kvs stems only
-      if (name.endsWith(".kvs")) {
-        const modelIdFromFile = name.slice(0, -".kvs".length);
-        try {
-          await AsyncStorage.removeItem(sessionMetaKey(modelIdFromFile));
-        } catch {
-          // ignore
-        }
-      }
-    }
+    const info = await FileSystem.getInfoAsync(sessionFilePath(stem));
+    return Boolean(info.exists && !info.isDirectory);
   } catch {
-    // best-effort
+    return false;
   }
 }
 
-/** True if the .kvs file exists on disk. Never throws. */
-export async function sessionFileExists(modelId: string): Promise<boolean> {
+/**
+ * If `.kvs` is missing and `.bak` exists, rename bak → kvs.
+ * Kill between the two save-renames leaves only bak; load must recover it.
+ * Returns true when a live `.kvs` exists afterwards. Never throws.
+ */
+export async function promoteSessionBak(stem: string): Promise<boolean> {
+  if (!stem) return false;
+  const path = sessionFilePath(stem);
   try {
-    const info = await FileSystem.getInfoAsync(sessionFilePath(modelId));
-    return Boolean(info.exists && !info.isDirectory);
+    const live = await FileSystem.getInfoAsync(path);
+    if (live.exists && !live.isDirectory) return true;
+    const bak = `${path}.bak`;
+    const bakInfo = await FileSystem.getInfoAsync(bak);
+    if (!bakInfo.exists || bakInfo.isDirectory) return false;
+    await FileSystem.moveAsync({ from: bak, to: path });
+    return true;
   } catch {
     return false;
   }
