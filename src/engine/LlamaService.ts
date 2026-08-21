@@ -164,7 +164,7 @@ import {
 import {
   assembleStaticPrefix,
   computePrewarmPrefixHash,
-  shouldSkipPrewarmAfterRestore,
+  shouldSkipPrewarmWhenKvHoldsChat,
   shouldSkipStaticPrefixPrewarm,
 } from "./prefixPrewarm";
 import {
@@ -667,11 +667,11 @@ export function queueStaticPrefixPrewarm(
     return;
   }
   const prefix = resolvePrewarmPrefix(locale, tools);
-  // A restore that populated KV must not be prewarmed over — hybrid included.
+  // Chat KV must not be prewarmed over — restore and live-chat KV included.
   // §7.29 measured n_past=1473 after a hybrid restore on KEXP, so the old
   // "hybrid restores are not real" carve-out was wrong.
-  if (shouldSkipPrewarmAfterRestore(kvHoldsChatSession)) {
-    logPrewarm({ op: "skip", reason: "restored_kv" });
+  if (shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession)) {
+    logPrewarm({ op: "skip", reason: "kv_holds_chat" });
     return;
   }
   if (
@@ -2525,8 +2525,8 @@ export async function streamAssistantTurn(
       if (turnPrefixHash !== prewarmPrefixHash) {
         logPrewarm({
           match: false,
-          reason: shouldSkipPrewarmAfterRestore(kvHoldsChatSession)
-            ? "restored_kv"
+          reason: shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession)
+            ? "kv_holds_chat"
             : "prefix_miss",
           prewarm: prewarmPrefixHash,
           send: turnPrefixHash,

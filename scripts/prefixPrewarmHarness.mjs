@@ -84,7 +84,7 @@ async function main() {
     computePrewarmPrefixHash,
     buildStaticPrefixMessages,
     assembleStaticPrefix,
-    shouldSkipPrewarmAfterRestore,
+    shouldSkipPrewarmWhenKvHoldsChat,
     shouldSkipStaticPrefixPrewarm,
   } = prewarmMod;
 
@@ -198,21 +198,22 @@ async function main() {
     "different hash does not skip",
   );
 
-  // The restore decides, not the architecture. §7.29 measured a hybrid restore
-  // on KEXP landing at n_past=1473 with ~2 s prefill, twice, which killed the
-  // old "hybrid restores are not real (n_past=0)" carve-out.
+  // Chat KV decides, not the architecture or how the KV was created. §7.29
+  // measured a hybrid restore on KEXP landing at n_past=1473 with ~2 s
+  // prefill, twice, which killed the old "hybrid restores are not real
+  // (n_past=0)" carve-out.
   assert(
-    shouldSkipPrewarmAfterRestore(true) === true,
-    "kv held after restore → skip prewarm, hybrid or not",
+    shouldSkipPrewarmWhenKvHoldsChat(true) === true,
+    "chat KV held → skip prewarm, hybrid or not",
   );
   assert(
-    shouldSkipPrewarmAfterRestore(false) === false,
+    shouldSkipPrewarmWhenKvHoldsChat(false) === false,
     "no chat KV → prewarm",
   );
-  // Extra arguments must not resurrect the architecture carve-out.
+  // Extra arguments must not change the chat-KV condition.
   assert(
-    shouldSkipPrewarmAfterRestore(true, true) === true,
-    "hybrid flag is ignored — it was never evidence",
+    shouldSkipPrewarmWhenKvHoldsChat(true, true) === true,
+    "chat KV stays authoritative",
   );
 
   console.log("prefixPrewarmHarness OK");

@@ -84,6 +84,21 @@ export type EngineOverride = {
   flashAttn?: FlashAttnMode;
 };
 
+type EngineNumericKey =
+  | "nGpuLayers"
+  | "nThreads"
+  | "nThreadsPrefill"
+  | "nUbatch";
+
+/** GPU zero means CPU-only; thread and batch counts must be positive. */
+function isValidEngineOverrideNumber(
+  key: EngineNumericKey,
+  value: unknown,
+): value is number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value)) return false;
+  return key === "nGpuLayers" ? value >= 0 : value > 0;
+}
+
 /**
  * Optional getter for the engine-active knob (JSON string | undefined).
  * LlamaService registers at module load so formatBenchStatus can report ACTIVE
@@ -133,14 +148,7 @@ function activeEngineLabel(): string {
       "nUbatch",
     ] as const) {
       const n = o[key];
-      if (
-        typeof n === "number" &&
-        Number.isFinite(n) &&
-        Number.isInteger(n) &&
-        n >= 0 &&
-        (key !== "nThreadsPrefill" ||
-          (n > 0 && Number.isSafeInteger(n)))
-      ) {
+      if (isValidEngineOverrideNumber(key, n)) {
         engine[key] = n;
       }
     }
@@ -475,25 +483,19 @@ export function parseEngineArg(arg: string): EngineOverride | "clear" | null {
     }
     if (!/^\d+$/.test(valStr)) return null;
     const n = Number(valStr);
-    if (key === "gpu") {
-      if (n < 0) return null;
-      out.nGpuLayers = n;
-      any = true;
-    } else if (key === "threads") {
-      if (n <= 0) return null;
-      out.nThreads = n;
-      any = true;
-    } else if (key === "threadsPrefill" || key === "threadsprefill") {
-      if (n <= 0 || !Number.isSafeInteger(n)) return null;
-      out.nThreadsPrefill = n;
-      any = true;
-    } else if (key === "ubatch") {
-      if (n <= 0) return null;
-      out.nUbatch = n;
-      any = true;
-    } else {
-      return null;
-    }
+    const outputKey: EngineNumericKey | undefined =
+      key === "gpu"
+        ? "nGpuLayers"
+        : key === "threads"
+          ? "nThreads"
+          : key === "threadsPrefill" || key === "threadsprefill"
+            ? "nThreadsPrefill"
+            : key === "ubatch"
+              ? "nUbatch"
+              : undefined;
+    if (!outputKey || !isValidEngineOverrideNumber(outputKey, n)) return null;
+    out[outputKey] = n;
+    any = true;
   }
   return any ? out : null;
 }
@@ -521,14 +523,7 @@ export async function getEngineOverride(): Promise<EngineOverride | undefined> {
       "nUbatch",
     ] as const) {
       const n = o[key];
-      if (
-        typeof n === "number" &&
-        Number.isFinite(n) &&
-        Number.isInteger(n) &&
-        n >= 0 &&
-        (key !== "nThreadsPrefill" ||
-          (n > 0 && Number.isSafeInteger(n)))
-      ) {
+      if (isValidEngineOverrideNumber(key, n)) {
         out[key] = n;
       }
     }

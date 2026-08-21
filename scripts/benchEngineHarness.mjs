@@ -114,6 +114,7 @@ async function main() {
     parseEngineArg,
     setEngineOverride,
     getEngineOverride,
+    registerActiveEngineKnobGetter,
     tryHandleBenchCommand,
     formatBenchStatus,
     BENCH_ENGINE_KEY,
@@ -210,6 +211,12 @@ async function main() {
     assert(parseEngineArg("ubatch=0") === null, "ubatch=0");
   });
 
+  await test("parse thread and ubatch unsafe integers → null", () => {
+    const unsafe = "9007199254740992";
+    assert(parseEngineArg(`threads=${unsafe}`) === null, "unsafe threads");
+    assert(parseEngineArg(`ubatch=${unsafe}`) === null, "unsafe ubatch");
+  });
+
   // ── setEngineOverride + getEngineOverride round-trip ───────────────────
   await test("set→get round-trip raw JSON equals stringify", async () => {
     store.clear();
@@ -243,6 +250,31 @@ async function main() {
     store.set(BENCH_ENGINE_KEY, JSON.stringify({ nThreads: 5 }));
     assert((await setEngineOverride("default")) === true, "default should succeed");
     assert(!store.has(BENCH_ENGINE_KEY), "key should be removed after default");
+  });
+
+  await test("storage reader rejects zero thread and batch values", async () => {
+    store.set(
+      BENCH_ENGINE_KEY,
+      JSON.stringify({ nGpuLayers: 0, nThreads: 0, nThreadsPrefill: 0, nUbatch: 0 }),
+    );
+    const got = await getEngineOverride();
+    assert(JSON.stringify(got) === JSON.stringify({ nGpuLayers: 0 }), `got ${JSON.stringify(got)}`);
+  });
+
+  await test("active reader rejects zero thread and batch values", async () => {
+    store.clear();
+    try {
+      registerActiveEngineKnobGetter(() =>
+        JSON.stringify({ nGpuLayers: 0, nThreads: 0, nThreadsPrefill: 0, nUbatch: 0 }),
+      );
+      const status = await formatBenchStatus();
+      assert(status.includes("ACTIVE: gpu:0"), `status ${status}`);
+      assert(!status.includes("threads:"), `status ${status}`);
+      assert(!status.includes("ubatch:"), `status ${status}`);
+    } finally {
+      registerActiveEngineKnobGetter(() => undefined);
+      store.clear();
+    }
   });
 
   await test("invalid set returns false, writes nothing", async () => {

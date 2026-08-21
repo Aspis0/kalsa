@@ -243,10 +243,9 @@ async function main() {
   test("session save fingerprint skips only an identical successful save", () => {
     const first = { stem: "kexp__conv", historyHash: "hash-a", usedTokens: 0 };
     assert(!isSameSessionSave(null, first), "no previous save must write");
-    assert(
-      rememberSuccessfulSessionSave(null, first, false) === null,
-      "failed save must not become the previous save",
-    );
+    const failed = rememberSuccessfulSessionSave(null, first, false);
+    assert(failed === null, "failed save must not become the previous save");
+    assert(!isSameSessionSave(failed, first), "failed save fingerprint must not skip");
     const saved = rememberSuccessfulSessionSave(null, first, true);
     assert(isSameSessionSave(saved, first), "identical save skips");
     assert(

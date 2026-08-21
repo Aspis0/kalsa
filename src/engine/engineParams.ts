@@ -99,7 +99,7 @@ export function applyPrefillThreadOverride<T extends EngineParamsSlice>(
 ): T {
   const prefillDiffers =
     typeof nThreadsPrefill === "number" &&
-    Number.isFinite(nThreadsPrefill) &&
+    Number.isSafeInteger(nThreadsPrefill) &&
     nThreadsPrefill > 0 &&
     nThreadsPrefill !== params.n_threads;
   if (prefillDiffers) {

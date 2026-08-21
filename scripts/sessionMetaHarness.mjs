@@ -50,6 +50,7 @@ export async function readDirectoryAsync() { return []; }
     path.join(asDir, "index.js"),
     `
 const store = new Map();
+globalThis.__kalsaHarnessStorage = store;
 export default {
   async getItem(k) { return store.has(k) ? store.get(k) : null; },
   async setItem(k, v) { store.set(k, v); },
@@ -139,6 +140,11 @@ async function main() {
     recordSessionDiskSample,
     sessionBytesPerTokenForModel,
   } = await import(pathToFileURL(resolveBuilt("sessionDiskCalibration.js")).href);
+  const {
+    loadSessionDiskCalibration,
+    SESSION_DISK_CALIBRATION_STORAGE_KEY,
+  } = await import(pathToFileURL(resolveBuilt("sessionDiskCalibrationStore.js")).href);
+  const storage = globalThis.__kalsaHarnessStorage;
 
   let passed = 0;
   let failed = 0;
@@ -645,6 +651,15 @@ async function main() {
       recordSessionDiskSample(empty, {
         ok: true,
         modelId: "kexp",
+        fileBytes: 10041119,
+        usedTokens: -1,
+      }) === empty,
+      "negative tokens must not calibrate",
+    );
+    assert(
+      recordSessionDiskSample(empty, {
+        ok: true,
+        modelId: "kexp",
         fileBytes: undefined,
         usedTokens: 1946,
       }) === empty,
@@ -681,9 +696,60 @@ async function main() {
       sessionBytesPerTokenForModel(measured, "other") === null,
       "calibration is per model",
     );
+    const larger = recordSessionDiskSample(measured, {
+      ok: true,
+      modelId: "kexp",
+      fileBytes: 10041119 * 2,
+      usedTokens: 1946,
+    });
+    assert(
+      sessionBytesPerTokenForModel(larger, "kexp") === (10041119 * 2) / 1946,
+      "larger sample replaces the calibration",
+    );
+    const smaller = recordSessionDiskSample(larger, {
+      ok: true,
+      modelId: "kexp",
+      fileBytes: 10041119,
+      usedTokens: 1946,
+    });
+    assert(smaller === larger, "smaller sample must keep the maximum");
+  });
+
+  async function asyncTest(name, fn) {
+    try {
+      await fn();
+      console.log(`  OK  ${name}`);
+      passed++;
+    } catch (e) {
+      console.error(`  FAIL ${name}:`, e.message || e);
+      failed++;
+    }
+  }
+
+  await asyncTest("calibration store rejects corrupt and non-object payloads", async () => {
+    try {
+      for (const raw of ["{", "null", "42", "\"text\"", "[]"]) {
+        storage.set(SESSION_DISK_CALIBRATION_STORAGE_KEY, raw);
+        assert(
+          JSON.stringify(await loadSessionDiskCalibration()) === "{}",
+          `payload ${raw} should load as empty`,
+        );
+      }
+      storage.set(
+        SESSION_DISK_CALIBRATION_STORAGE_KEY,
+        JSON.stringify({ kexp: 12, zero: 0, negative: -1 }),
+      );
+      assert(
+        JSON.stringify(await loadSessionDiskCalibration()) === JSON.stringify({ kexp: 12 }),
+        "valid object must be sanitized",
+      );
+    } finally {
+      storage.clear();
+    }
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);
+  delete globalThis.__kalsaHarnessStorage;
   process.exit(failed > 0 ? 1 : 0);
 }
 

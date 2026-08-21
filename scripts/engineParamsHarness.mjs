@@ -146,6 +146,17 @@ async function main() {
     assert(!("n_threads_batch" in params), "equal threads must omit batch field");
   });
 
+  await test("invalid prefill values leave n_threads_batch absent", () => {
+    for (const value of [0, NaN, 2.5]) {
+      const params = baseParams();
+      applyPrefillThreadOverride(params, value);
+      assert(
+        !("n_threads_batch" in params),
+        `invalid prefill ${value} must omit batch field`,
+      );
+    }
+  });
+
   await test("absent prefill override leaves params unchanged", () => {
     const params = baseParams();
     const before = JSON.stringify(params);
